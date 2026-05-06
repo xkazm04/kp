@@ -1,0 +1,18 @@
+{
+  "label": "Senior iOS engineer, 12 years, Mews scale-up",
+  "expected_role_family": "software_engineering",
+  "expected_seniority": [
+    "senior",
+    "lead"
+  ],
+  "expected_salary_range": [
+    110000,
+    200000
+  ],
+  "expected_skills_subset": [
+    "Swift",
+    "SwiftUI",
+    "iOS"
+  ],
+  "expected_education": "bachelor"
+}

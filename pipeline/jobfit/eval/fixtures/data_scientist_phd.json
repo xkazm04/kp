@@ -1,0 +1,19 @@
+{
+  "label": "PhD-to-industry data scientist, 10 years if PhD counted, NLP + risk",
+  "expected_role_family": "data_ai",
+  "expected_seniority": [
+    "senior",
+    "lead"
+  ],
+  "expected_salary_range": [
+    120000,
+    220000
+  ],
+  "expected_skills_subset": [
+    "Python",
+    "PyTorch",
+    "scikit-learn",
+    "AWS"
+  ],
+  "expected_education": "phd"
+}

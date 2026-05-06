@@ -1,0 +1,15 @@
+{
+  "label": "Career switcher: 9 years teaching → junior backend, self-taught",
+  "expected_role_family": "software_engineering",
+  "expected_seniority": "junior",
+  "expected_salary_range": [
+    35000,
+    75000
+  ],
+  "expected_skills_subset": [
+    "Python",
+    "Django",
+    "PostgreSQL"
+  ],
+  "expected_education": "master"
+}

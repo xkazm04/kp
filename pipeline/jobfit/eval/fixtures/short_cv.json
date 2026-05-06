@@ -1,0 +1,17 @@
+{
+  "label": "Very short CV (~10 lines), medior frontend",
+  "expected_role_family": "software_engineering",
+  "expected_seniority": [
+    "medior",
+    "junior"
+  ],
+  "expected_salary_range": [
+    55000,
+    105000
+  ],
+  "expected_skills_subset": [
+    "React",
+    "TypeScript"
+  ],
+  "expected_education": "bachelor"
+}

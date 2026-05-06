@@ -1,0 +1,27 @@
+Jaromír Pokorný
+Senior COBOL / Mainframe Engineer
+
+Experience
+1998 - present: Senior Application Engineer at Česká spořitelna (ČSOB
+Service Center). Maintains and extends the core retail-banking COBOL
+application running on z/OS. Owns batch overnight processing, end-of-day
+reconciliation, and the JCL job-scheduler integration. Mentored five
+younger engineers on mainframe basics over the years; led the 2018
+migration from VSAM to DB2 for the customer master.
+1992 - 1998: Application Programmer at Komerční banka. PL/1, COBOL, batch
+processing, banking back-office.
+
+Skills
+COBOL, JCL, z/OS, DB2, VSAM, CICS, REXX, IBM Utilities, banking processing,
+end-of-day batches, regulated change management, ITIL, mentoring,
+documentation.
+
+Education
+Master in Applied Mathematics, MFF UK (1992).
+
+Languages
+Czech native, English B2 (technical reading).
+
+Traits
+Extreme reliability, attention to detail, deep banking domain knowledge,
+slow change cadence.

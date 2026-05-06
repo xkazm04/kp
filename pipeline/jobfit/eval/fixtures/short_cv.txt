@@ -1,0 +1,11 @@
+Jan Kovář
+Frontend Developer
+
+2022 - present: Frontend Developer at Anonymous Startup. React, TypeScript,
+Tailwind. Building the product UI.
+2020 - 2022: Web Developer at smaller agency. Vue.js, JavaScript, WordPress
+themes.
+
+Skills: React, TypeScript, JavaScript, Vue.js, HTML, CSS, Tailwind, Git.
+Education: Bc. ČVUT (2020).
+Languages: Czech, English (intermediate).

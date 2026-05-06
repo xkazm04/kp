@@ -1,0 +1,29 @@
+{
+  "currency": "CZK",
+  "market": "Czech Republic monthly gross salary, technology roles, 2026",
+  "default_family": "software_engineering",
+  "_doc": "Role × seniority anchor bands fed into the Gemini prompt as deterministic findings. Numbers are CZK monthly gross. Sources: Platy.cz IT category 2026, Kitalent Prague ICT analysis 2025–2026, expats.cz salary surveys, Glassdoor + Levels.fyi cross-checks. The deterministic layer also computes a multiplier on top via data/taxonomy.json::company_adjustments. See README sources section.",
+  "roles": [
+    {
+      "family": "software_engineering",
+      "junior": [45000, 70000],
+      "medior": [70000, 110000],
+      "senior": [110000, 165000],
+      "lead": [150000, 220000]
+    },
+    {
+      "family": "data_ai",
+      "junior": [50000, 80000],
+      "medior": [80000, 130000],
+      "senior": [125000, 190000],
+      "lead": [170000, 250000]
+    },
+    {
+      "family": "product_project",
+      "junior": [45000, 65000],
+      "medior": [65000, 105000],
+      "senior": [100000, 150000],
+      "lead": [135000, 190000]
+    }
+  ]
+}

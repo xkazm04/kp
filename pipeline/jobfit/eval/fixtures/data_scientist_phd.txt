@@ -1,0 +1,29 @@
+Dr. Eva Šimková, Ph.D.
+Senior Data Scientist (industry pivot from academia)
+
+Experience
+2023 - present: Senior Data Scientist at FinTech.AI. Built credit-risk
+scoring models (XGBoost, Bayesian hierarchical), production deployment on
+AWS SageMaker, evaluation pipelines, A/B test framework, interpretability
+reports for the risk committee.
+2019 - 2023: Postdoctoral Researcher, MFF UK. NLP for low-resource Slavic
+languages; published five peer-reviewed papers; supervised three Master
+students. Tech stack: PyTorch, HuggingFace, spaCy, Snakemake.
+2015 - 2019: PhD in Computational Linguistics, MFF UK. Thesis on neural
+morphological analyzers for Czech.
+
+Skills
+Python, PyTorch, HuggingFace, scikit-learn, XGBoost, pandas, NumPy, SQL,
+PostgreSQL, AWS, SageMaker, MLflow, Snakemake, statistics, experimental
+design, NLP, Bayesian inference, MLOps basics.
+
+Education
+Ph.D. in Computational Linguistics, MFF UK Charles University (2019).
+RNDr., MFF UK (2017).
+
+Languages
+Czech native, English C1, Russian B2.
+
+Traits
+Rigor, written communication, mentoring, deep technical depth, slow but
+high-quality output.

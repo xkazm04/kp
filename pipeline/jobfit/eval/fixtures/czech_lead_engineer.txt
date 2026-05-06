@@ -1,0 +1,24 @@
+Marek Svoboda
+Hlavní inženýr softwarového vývoje (Lead Software Engineer)
+
+Pracovní zkušenosti
+2018 - dosud: Hlavní inženýr v Komerční bance, Praha. Vedoucí týmu osmi
+vývojářů, návrh architektury mikroslužeb, mentoring, řízení projektu, stack
+Java + Spring Boot + Kafka + PostgreSQL na Azure. Compliance s NIS2 a DORA.
+2014 - 2018: Senior Java Developer ve velké mezinárodní bance. Backend služby,
+testování, CI/CD, samostatně řídil migraci na cloud.
+2010 - 2014: Java Developer v menší konzultační firmě.
+
+Dovednosti
+Java, Spring Boot, Spring, Kafka, PostgreSQL, Oracle Database, Azure, Docker,
+Kubernetes, CI/CD, GitOps, ArgoCD, mikroslužby, architektura, mentoring,
+vedení týmu, řízení projektu, testování.
+
+Vzdělání
+Ing. (magisterský titul), České vysoké učení technické v Praze.
+
+Jazyky
+Čeština rodilý mluvčí, angličtina C1, němčina B2.
+
+Vlastnosti
+Vedení, mentorování, samostatnost, spolehlivost, komunikace se stakeholdery.

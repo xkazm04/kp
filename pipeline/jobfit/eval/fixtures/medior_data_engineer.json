@@ -1,0 +1,19 @@
+{
+  "label": "Medior data engineer, 4 years, Snowflake + Databricks + Airflow",
+  "expected_role_family": "data_ai",
+  "expected_seniority": [
+    "medior",
+    "senior"
+  ],
+  "expected_salary_range": [
+    80000,
+    150000
+  ],
+  "expected_skills_subset": [
+    "Snowflake",
+    "Databricks",
+    "Airflow",
+    "dbt"
+  ],
+  "expected_education": "bachelor"
+}

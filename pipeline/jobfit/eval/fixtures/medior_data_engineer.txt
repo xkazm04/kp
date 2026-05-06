@@ -1,0 +1,23 @@
+Lukáš Procházka
+Data Engineer
+
+Experience
+2022 - present: Data Engineer at RetailCloud. Builds ETL pipelines on
+Databricks and Snowflake, schedules with Airflow, owns the Power BI semantic
+layer used by analysts. Works closely with the data science team on feature
+stores.
+2020 - 2022: Junior Data Engineer at LogisticsCo. dbt, PostgreSQL, BigQuery,
+Python data processing.
+
+Skills
+Python, SQL, Snowflake, Databricks, dbt, Airflow, BigQuery, Spark, Kafka,
+Power BI, Tableau, ETL, ELT, PostgreSQL, AWS.
+
+Education
+Bachelor in Applied Informatics, MUNI Brno.
+
+Languages
+Czech native, English C1.
+
+Traits
+Detail-oriented, ownership, communication.

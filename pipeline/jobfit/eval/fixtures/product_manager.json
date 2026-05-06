@@ -1,0 +1,19 @@
+{
+  "label": "Senior PM with PMP, 10 years, regulated banking + SaaS",
+  "expected_role_family": "product_project",
+  "expected_seniority": [
+    "senior",
+    "lead"
+  ],
+  "expected_salary_range": [
+    100000,
+    190000
+  ],
+  "expected_skills_subset": [
+    "Scrum",
+    "Jira",
+    "Kanban",
+    "PMP"
+  ],
+  "expected_education": "master"
+}

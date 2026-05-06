@@ -1,0 +1,18 @@
+{
+  "label": "Mainframe/COBOL specialist, 30+ years, banking",
+  "expected_role_family": "software_engineering",
+  "expected_seniority": [
+    "senior",
+    "lead"
+  ],
+  "expected_salary_range": [
+    80000,
+    160000
+  ],
+  "expected_skills_subset": [
+    "COBOL",
+    "DB2",
+    "JCL"
+  ],
+  "expected_education": "master"
+}

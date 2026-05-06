@@ -1,0 +1,31 @@
+Pavel Nový
+CTO / Co-founder
+
+Experience
+2018 - present: CTO and co-founder at LogiTrust (50 employees, Series B). Sets
+the engineering strategy, owns the platform architecture, hires and grows
+managers. Reports to the CEO and the board. Compensation negotiation, vendor
+management, due-diligence on three acquisitions. Last hands-on coding role
+ended in 2019.
+2014 - 2018: VP of Engineering at PaymentLoop. Scaled the team from 6 to 32
+engineers; introduced incident management, on-call rotation, hiring
+scorecards.
+2009 - 2014: Senior / Lead Engineer at multiple Prague tech firms. Java,
+Python, distributed systems, payments.
+
+Skills
+Engineering management, hiring, technical strategy, architecture review,
+mentorship, board communication, fundraising support, M&A due diligence,
+Java (legacy), Python (legacy), distributed systems, security, ISO 27001
+oversight.
+
+Education
+Master in Computer Engineering, FEL ČVUT (2008).
+Executive MBA, IESE (2020).
+
+Languages
+Czech native, English C1.
+
+Traits
+Strategic thinking, leadership, recruitment, calm under pressure,
+stakeholder communication.

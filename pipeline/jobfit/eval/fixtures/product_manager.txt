@@ -1,0 +1,27 @@
+Petra Marková
+Product Manager — Enterprise SaaS
+
+Experience
+2020 - present: Senior Product Manager at SkyCRM. Owns the workflow-automation
+product line; manages the roadmap, stakeholder alignment with sales and
+support, A/B experiments, and the launch of three majors releases per year.
+Mentors two junior PMs.
+2017 - 2020: Product Owner at Logista. Scrum framework, dual-track agile,
+delivered EU-funded logistics platform. Coordinated five-person delivery team.
+2015 - 2017: Business Analyst at Komerční banka. Requirement analysis,
+process mapping (UML), stakeholder workshops in regulated banking environment.
+
+Skills
+Product strategy, roadmap, Scrum, Kanban, OKRs, A/B testing, Jira, Confluence,
+SQL, Mixpanel, customer interviews, business analysis, stakeholder management,
+mentoring.
+
+Education
+Master in Management of Information Systems, VŠE Prague.
+PMP certification (2022).
+
+Languages
+Czech native, English C1, German B1.
+
+Traits
+Stakeholder communication, analytical thinking, leadership, ownership.

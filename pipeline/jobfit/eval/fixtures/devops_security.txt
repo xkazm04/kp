@@ -1,0 +1,27 @@
+Pavel Černý
+Senior DevOps / Security Engineer
+
+Experience
+2019 - present: Senior DevOps Engineer at FinanceCloud. Owns Kubernetes
+clusters across AWS and Azure; built the GitOps deployment pipeline with
+ArgoCD; led the SOC 2 and ISO 27001 certifications. Mentors three engineers
+on platform topics.
+2016 - 2019: Site Reliability Engineer at TelcoStream. Terraform, Ansible,
+Prometheus, Grafana, on-call rotation, incident response. Implemented SIEM
+with Splunk and led pen-testing engagements.
+2014 - 2016: Linux Administrator at GovIT. Network and systems
+administration in a public-sector setting (ministerstvo).
+
+Skills
+Kubernetes, Docker, Terraform, Ansible, Helm, ArgoCD, AWS, Azure, GCP, Linux,
+Prometheus, Grafana, Splunk, SIEM, CI/CD, GitOps, ISO 27001, SOC 2, NIS2,
+Python scripting, Bash, incident response, penetration testing, IAM.
+
+Education
+Master in Computer Science, MFF UK (Charles University).
+
+Languages
+Czech native, English C1, German A2.
+
+Traits
+Reliability, leadership, mentoring, ownership, calm under pressure.

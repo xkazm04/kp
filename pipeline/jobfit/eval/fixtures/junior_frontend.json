@@ -1,0 +1,18 @@
+{
+  "label": "Junior frontend dev, 1 year + internship, Bc. ČVUT",
+  "expected_role_family": "software_engineering",
+  "expected_seniority": [
+    "junior",
+    "medior"
+  ],
+  "expected_salary_range": [
+    40000,
+    90000
+  ],
+  "expected_skills_subset": [
+    "React",
+    "TypeScript",
+    "Next.js"
+  ],
+  "expected_education": "bachelor"
+}

@@ -1,0 +1,23 @@
+Eliška Horáková
+Junior Tester
+
+Pracovní zkušenosti
+2024 - dosud: Junior Tester ve společnosti DigitalRetail. Manuální testování
+webové aplikace (e-commerce), psaní test-casů v TestRail, regresní testování
+před release, hlášení defektů v Jiře. Zaškolování do automatizace v Cypressu.
+2023 - 2024: Stážistka — testování. Půlroční stáž ve stejné firmě, pomohla
+nastavit šablony test-casů a první automatizované smoke testy.
+
+Dovednosti
+Manuální testování, TestRail, Jira, Confluence, regresní testování, smoke
+testy, základy SQL, základy Cypress, HTML, CSS, agilní metodiky (Scrum),
+psaní test-casů, dokumentace.
+
+Vzdělání
+Bc. (bakalář), VŠE Praha, obor Informatika v podnikání (2023).
+
+Jazyky
+Čeština rodilý mluvčí, angličtina B2.
+
+Vlastnosti
+Pečlivost, samostatnost, otevřená komunikace, ochota se učit.

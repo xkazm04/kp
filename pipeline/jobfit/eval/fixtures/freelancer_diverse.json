@@ -1,0 +1,20 @@
+{
+  "label": "OSVČ/freelancer, 8 years, mixed Java/Python/TS engagements",
+  "expected_role_family": "software_engineering",
+  "expected_seniority": [
+    "senior",
+    "medior",
+    "lead"
+  ],
+  "expected_salary_range": [
+    110000,
+    200000
+  ],
+  "expected_skills_subset": [
+    "Java",
+    "Spring",
+    "Python",
+    "FastAPI"
+  ],
+  "expected_education": "master"
+}

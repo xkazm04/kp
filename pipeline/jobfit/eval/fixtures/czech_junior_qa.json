@@ -1,0 +1,18 @@
+{
+  "label": "Czech-language junior QA, ~1 year + internship, Bc. VŠE",
+  "expected_role_family": "software_engineering",
+  "expected_seniority": [
+    "junior",
+    "medior"
+  ],
+  "expected_salary_range": [
+    35000,
+    75000
+  ],
+  "expected_skills_subset": [
+    "TestRail",
+    "Jira",
+    "Cypress"
+  ],
+  "expected_education": "bachelor"
+}

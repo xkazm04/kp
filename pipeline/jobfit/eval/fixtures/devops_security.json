@@ -1,0 +1,23 @@
+{
+  "label": "Senior DevOps + security, 11 years, Kubernetes + SOC2 + NIS2",
+  "expected_role_family": "software_engineering",
+  "expected_seniority": [
+    "senior",
+    "lead"
+  ],
+  "expected_salary_range": [
+    120000,
+    220000
+  ],
+  "expected_skills_subset": [
+    "Kubernetes",
+    "Terraform",
+    "AWS"
+  ],
+  "expected_education": "master",
+  "expected_signals_subset": [
+    "cloud",
+    "devops",
+    "security"
+  ]
+}

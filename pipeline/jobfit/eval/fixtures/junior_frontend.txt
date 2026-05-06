@@ -1,0 +1,21 @@
+Tomáš Dvořák
+Junior Frontend Developer
+
+Experience
+2024 - present: Junior Frontend Developer at WebStudio. Building React and
+Next.js components, integrating REST APIs, writing Cypress tests, and
+participating in code reviews. First professional role after a 6-month
+internship at the same company in 2023.
+
+Skills
+JavaScript, TypeScript, React, Next.js, HTML, CSS, Tailwind, Git, REST API,
+Cypress, Figma.
+
+Education
+Bachelor degree in Information Technology, ČVUT Prague (2023).
+
+Languages
+Czech native, English B2.
+
+Traits
+Eager to learn, reliable, attentive to detail, good team communicator.

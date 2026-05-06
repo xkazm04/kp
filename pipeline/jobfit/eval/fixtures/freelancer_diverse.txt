@@ -1,0 +1,32 @@
+Karolína Machová
+Independent Software Consultant (OSVČ)
+
+Experience
+2021 - present: OSVČ / Independent Contractor (Prague). Engagements:
+- 2024: 6-month engagement at a CZ insurance company — backend rewrite of a
+  legacy claims service in Spring Boot, Postgres, Kafka, integration with
+  ServiceNow. Owned the migration plan and stakeholder demos.
+- 2023: 4-month engagement at a fintech scale-up — rebuilt the admin UI in
+  Next.js + TypeScript, set up Vercel preview deployments, mentored two
+  juniors during the project.
+- 2022: 8-month engagement at a HealthTech startup — built a FastAPI
+  backend, PostgreSQL schema, deployment on Azure, documented the API for
+  third-party partners.
+- 2021: Several smaller projects (Django, React, prototyping).
+2017 - 2021: Software Engineer (employed) at large Prague consultancy.
+Java, Spring, Oracle, public-sector projects.
+
+Skills
+Java, Spring Boot, Python, FastAPI, Django, TypeScript, Next.js, React,
+PostgreSQL, Oracle, Kafka, Azure, AWS (basic), Docker, GitOps (basic),
+stakeholder communication, contract negotiation, technical writing.
+
+Education
+Master in Software Engineering, ČVUT FIT (2017).
+
+Languages
+Czech native, English C1.
+
+Traits
+Independent delivery, stakeholder management, broad stack, contract
+discipline.

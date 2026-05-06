@@ -1,0 +1,27 @@
+Tomáš Vrána
+Aspiring Junior Backend Developer (career change from teaching)
+
+Experience
+2023 - present: Self-taught developer + open-source contributor. Completed a
+9-month online bootcamp (Python + Django + PostgreSQL). Built three personal
+projects published on GitHub: a Django REST API for a recipe-sharing app, a
+small Slack bot, and a CLI for parsing public-transport timetables. Two
+small merged PRs to a Czech open-source library.
+2014 - 2023: High School Teacher of Mathematics and IT at Gymnázium Brno.
+Taught classes 9-12, prepared and graded exams, ran the after-school
+robotics club (using Arduino and basic Python).
+
+Skills
+Python, Django, FastAPI (basic), PostgreSQL, SQLite, Git, GitHub, REST API,
+Linux basics, mathematics, didactic communication, English documentation
+reading.
+
+Education
+Master in Mathematics + Informatics teaching, Masaryk University Brno (2014).
+
+Languages
+Czech native, English B2.
+
+Traits
+Persistence, didactic communication, ownership, willingness to learn,
+career-change motivation.

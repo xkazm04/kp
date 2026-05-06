@@ -1,0 +1,26 @@
+Filip Černý
+Senior iOS Engineer
+
+Experience
+2019 - present: Senior iOS Engineer at Mews. Owner of the Mews iOS app —
+SwiftUI, Combine, modular architecture, async/await. Led migration from UIKit
+to SwiftUI; mentored two junior iOS engineers; co-author of the internal
+release-train tooling.
+2015 - 2019: iOS Developer at SkypicSoft. Swift + Objective-C, Cocoa, REST
+APIs, App Store submissions, Fastlane CI.
+2013 - 2015: Junior Mobile Developer. Started on Android (Java) before
+switching focus to iOS.
+
+Skills
+Swift, SwiftUI, Combine, async/await, UIKit, Xcode, Cocoa, Fastlane,
+TestFlight, REST API, Core Data, Realm, Git, Kotlin (basic), Jetpack Compose
+(occasional), Firebase, App Store Connect.
+
+Education
+Bc. degree in Computer Science, FEL ČVUT.
+
+Languages
+Czech native, English C1.
+
+Traits
+Ownership, mentoring, attention to detail, product thinking.

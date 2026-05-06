@@ -1,0 +1,23 @@
+{
+  "label": "Senior Python + AI engineer, 8 years, Master from CTU",
+  "expected_role_family": [
+    "data_ai",
+    "software_engineering"
+  ],
+  "expected_seniority": [
+    "senior",
+    "lead"
+  ],
+  "expected_salary_range": [
+    110000,
+    220000
+  ],
+  "expected_skills_subset": [
+    "Python",
+    "FastAPI",
+    "RAG",
+    "LangChain",
+    "PostgreSQL"
+  ],
+  "expected_education": "master"
+}

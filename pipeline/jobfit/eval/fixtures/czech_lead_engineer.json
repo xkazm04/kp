@@ -1,0 +1,25 @@
+{
+  "label": "Czech-language lead engineer CV, 15 years, banking, German B2",
+  "expected_role_family": "software_engineering",
+  "expected_seniority": [
+    "lead",
+    "senior"
+  ],
+  "expected_salary_range": [
+    130000,
+    220000
+  ],
+  "expected_skills_subset": [
+    "Java",
+    "Spring",
+    "Kubernetes",
+    "Kafka"
+  ],
+  "expected_education": "master",
+  "expected_signals_subset": [
+    "leadership",
+    "cloud",
+    "english",
+    "german"
+  ]
+}
