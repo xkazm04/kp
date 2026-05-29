@@ -1,0 +1,52 @@
+@startuml dev-case-lifecycle
+title Dev extension — case-scenario lifecycle (need -> artifacts -> distribute -> evaluate)
+
+skinparam shadowing false
+skinparam defaultTextAlignment center
+skinparam activity {
+  BackgroundColor #FFF8F2
+  BorderColor #C9603F
+}
+
+start
+:Customer intake\n(stack, responsibilities, codebase URLs);
+note right: DevNeed
+
+:Pull RepoSnapshot\n(reuse GitHub fetch: langs, dirs,\nframeworks, recent commits, LOC);
+
+:**analyze_need** (LLM + fallback)\nreflect the need against the REAL codebase\n-> real stack, stated-vs-real gaps, true complexity;
+note right: NeedAnalysis · task: need_analysis
+
+fork
+  :**design_role** (LLM)\n-> RoleSpec (maps to Job);
+fork again
+  :**design_case** (LLM)\nassignment grounded in the real codebase\n+ COVERT tooling-probes;
+  note right: CaseScenario · coverProbes[]
+end fork
+
+:**Human gate** — recruiter reviews / edits /\napproves role + assignment;
+note right: Decisions approval
+
+if (approved?) then (yes)
+  :Distribution adapter (pluggable)\nOUT: publish role / send case;
+  note right: 3rd-party seam (local stub first)
+  :Distribution adapter\nIN: receive candidates + submissions;
+  note right: Submission (repoRef)
+
+  :**evaluate_submission** (LLM)\ncase -> code-structure analysis;
+  fork
+    :**reflect_commits**\n"where they mentally went";
+  fork again
+    :**assess_tooling**\nprobe outcomes, fluency\n(using tools never penalised);
+  end fork
+  :**score_transfer**\ndoes it transfer to THIS role?;
+  note right: CaseEvaluation + TransferAssessment
+
+  :Candidate -> pipeline entry\n+ Decisions review card\n(compare / rank);
+else (no)
+  :revise artifacts;
+  stop
+endif
+
+stop
+@enduml

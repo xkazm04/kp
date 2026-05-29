@@ -1,0 +1,69 @@
+@startuml dev-evaluation-model
+title Dev extension — evaluation model (assume 100% LLM-generated code)
+
+skinparam shadowing false
+skinparam defaultTextAlignment center
+skinparam classAttributeIconSize 0
+
+note as N1
+  Code is commodity. Grade the DURABLE, TRANSFERABLE skills
+  that LLM-assisted engineering still demands — observed,
+  never asked. Using tools is never a penalty.
+end note
+
+class "Two evaluation surfaces" as surfaces {
+  THE CASE  : designed assignment w/ covert probes
+  THE TRACE : git history (commits, diffs, messages)
+}
+
+class CaseEvaluation {
+  structureScore
+  judgmentScore
+  architectureScore
+  dimensionScores{}
+  strengths[] / concerns[]
+}
+
+class CommitReflection {
+  narrative ("where they mentally went")
+  iterationPattern
+  deadEnds[]
+  readBeforeWrite
+  verificationHabits[]
+}
+
+class ToolingSignal {
+  fluency (0..1)
+  probeOutcomes[]  (per coverProbe)
+  overReliance flags
+  evidence[]
+}
+
+class TransferAssessment {
+  transferScore (0..100)
+  transfers[] / gaps[]
+  roleFitRationale
+}
+
+class "Five durable capabilities" as caps {
+  1 Problem framing & decomposition
+  2 Tooling fluency (how they DRIVE the model)
+  3 Judgment & verification (catch model mistakes)
+  4 Architecture & systems reasoning
+  5 Skill transfer to THIS role
+}
+
+class "pipeline + Decisions" as sink {
+  rank / compare candidates
+  human review cards
+}
+
+surfaces --> CommitReflection
+surfaces --> ToolingSignal
+CommitReflection --> CaseEvaluation
+ToolingSignal --> CaseEvaluation
+CaseEvaluation --> TransferAssessment
+caps --> CaseEvaluation
+TransferAssessment --> sink : feeds
+N1 .. caps
+@enduml
