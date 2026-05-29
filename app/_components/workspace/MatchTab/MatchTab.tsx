@@ -47,6 +47,7 @@ export function MatchTab() {
   const [analyses, setAnalyses] = useState<AnalysisRow[] | null>(null);
   const [selected, setSelected] = useState<string>("");
   const [result, setResult] = useState<MatchResponse | null>(null);
+  const [matchedSlug, setMatchedSlug] = useState<string>("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -76,6 +77,7 @@ export function MatchTab() {
       const payload = await r.json();
       if (!r.ok) throw new Error(payload.error ?? `Match failed (${r.status}).`);
       setResult(payload as MatchResponse);
+      setMatchedSlug(selected);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Match failed.");
     } finally {
@@ -130,7 +132,7 @@ export function MatchTab() {
         {error ? (
           <p className="rounded-md bg-red-50 p-3 text-sm text-red-700">{error}</p>
         ) : result ? (
-          <Results result={result} />
+          <Results result={result} slug={matchedSlug} />
         ) : (
           <p className="rounded-md bg-paper p-4 text-sm text-steel">
             Pick a candidate and run matching to see ranked, KO-filtered, scored jobs.
@@ -141,7 +143,15 @@ export function MatchTab() {
   );
 }
 
-function Results({ result }: { result: MatchResponse }) {
+type Reasoning = {
+  verdict: string;
+  strengths: string[];
+  gaps: string[];
+  interviewProbes: string[];
+};
+type ReasoningState = { loading?: boolean; error?: string; source?: string; cached?: boolean; data?: Reasoning };
+
+function Results({ result, slug }: { result: MatchResponse; slug: string }) {
   const { candidate, meta, matches } = result;
   return (
     <div>
@@ -155,63 +165,136 @@ function Results({ result }: { result: MatchResponse }) {
 
       <ol className="mt-4 space-y-2">
         {matches.map((m, i) => (
-          <li key={m.jobId} className="rounded-lg border border-stone-200 p-3">
-            <div className="flex items-start gap-4">
-              <div className="w-16 shrink-0 text-center">
-                <div className="font-serif text-2xl text-ink">{m.total}</div>
-                <div className="text-[10px] text-steel">
-                  {m.confidenceLow}–{m.confidenceHigh}
-                </div>
-                <div className="mt-0.5 text-[10px] uppercase text-steel">#{i + 1}</div>
-              </div>
-
-              <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="font-medium text-ink">{m.title}</span>
-                  {m.isEntryEligible ? (
-                    <span className="rounded-full bg-green-50 px-2 py-0.5 text-[10px] font-semibold text-green-700">
-                      entry-eligible
-                    </span>
-                  ) : null}
-                </div>
-                <p className="text-xs text-steel">
-                  {m.company ?? "—"} · {m.location ?? "—"} · {m.workMode ?? "—"} ·{" "}
-                  {FAMILY_LABEL[m.roleFamily ?? ""] ?? m.roleFamily} / {m.seniority} ·{" "}
-                  {m.salaryBand && m.salaryBand.length === 2
-                    ? `${Math.round(m.salaryBand[0] / 1000)}–${Math.round(m.salaryBand[1] / 1000)}k CZK`
-                    : "—"}
-                </p>
-
-                <div className="mt-2 grid max-w-md grid-cols-3 gap-2">
-                  <Bar label="Skills" value={m.skillsScore} />
-                  <Bar label="Career" value={m.careerScore} />
-                  <Bar label="Personal" value={m.personalScore} />
-                </div>
-
-                <div className="mt-2 flex flex-wrap gap-1">
-                  {(m.matchedSkills ?? []).slice(0, 8).map((s) => (
-                    <span
-                      key={`m-${s}`}
-                      className="rounded-md bg-green-50 px-1.5 py-0.5 text-[11px] text-green-700"
-                    >
-                      {s}
-                    </span>
-                  ))}
-                  {(m.missingSkills ?? []).slice(0, 6).map((s) => (
-                    <span
-                      key={`x-${s}`}
-                      className="rounded-md bg-red-50 px-1.5 py-0.5 text-[11px] text-red-700"
-                      title="Missing must-have"
-                    >
-                      ✗ {s}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </li>
+          <MatchCard key={m.jobId} m={m} index={i} slug={slug} />
         ))}
       </ol>
+    </div>
+  );
+}
+
+function MatchCard({ m, index, slug }: { m: MatchResult; index: number; slug: string }) {
+  const [reasoning, setReasoning] = useState<ReasoningState | null>(null);
+
+  const explain = async () => {
+    if (reasoning?.loading) return;
+    setReasoning({ loading: true });
+    try {
+      const r = await fetch("/api/match/reasoning", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ analysisSlug: slug, jobId: m.jobId }),
+      });
+      const payload = await r.json();
+      if (!r.ok) throw new Error(payload.error ?? `Reasoning failed (${r.status}).`);
+      setReasoning({ data: payload.reasoning as Reasoning, source: payload.source, cached: payload.cached });
+    } catch (caught) {
+      setReasoning({ error: caught instanceof Error ? caught.message : "Reasoning failed." });
+    }
+  };
+
+  return (
+    <li className="rounded-lg border border-stone-200 p-3">
+      <div className="flex items-start gap-4">
+        <div className="w-16 shrink-0 text-center">
+          <div className="font-serif text-2xl text-ink">{m.total}</div>
+          <div className="text-[10px] text-steel">
+            {m.confidenceLow}–{m.confidenceHigh}
+          </div>
+          <div className="mt-0.5 text-[10px] uppercase text-steel">#{index + 1}</div>
+        </div>
+
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="font-medium text-ink">{m.title}</span>
+            {m.isEntryEligible ? (
+              <span className="rounded-full bg-green-50 px-2 py-0.5 text-[10px] font-semibold text-green-700">
+                entry-eligible
+              </span>
+            ) : null}
+            <button
+              type="button"
+              onClick={explain}
+              disabled={reasoning?.loading || !slug}
+              className="focus-ring ml-auto rounded-md border border-stone-200 px-2 py-0.5 text-[11px] font-semibold text-coral hover:bg-paper disabled:opacity-40"
+            >
+              {reasoning?.loading ? "Reasoning…" : reasoning?.data ? "Refresh reasoning" : "Explain fit"}
+            </button>
+          </div>
+          <p className="text-xs text-steel">
+            {m.company ?? "—"} · {m.location ?? "—"} · {m.workMode ?? "—"} ·{" "}
+            {FAMILY_LABEL[m.roleFamily ?? ""] ?? m.roleFamily} / {m.seniority} ·{" "}
+            {m.salaryBand && m.salaryBand.length === 2
+              ? `${Math.round(m.salaryBand[0] / 1000)}–${Math.round(m.salaryBand[1] / 1000)}k CZK`
+              : "—"}
+          </p>
+
+          <div className="mt-2 grid max-w-md grid-cols-3 gap-2">
+            <Bar label="Skills" value={m.skillsScore} />
+            <Bar label="Career" value={m.careerScore} />
+            <Bar label="Personal" value={m.personalScore} />
+          </div>
+
+          <div className="mt-2 flex flex-wrap gap-1">
+            {(m.matchedSkills ?? []).slice(0, 8).map((s) => (
+              <span key={`m-${s}`} className="rounded-md bg-green-50 px-1.5 py-0.5 text-[11px] text-green-700">
+                {s}
+              </span>
+            ))}
+            {(m.missingSkills ?? []).slice(0, 6).map((s) => (
+              <span
+                key={`x-${s}`}
+                className="rounded-md bg-red-50 px-1.5 py-0.5 text-[11px] text-red-700"
+                title="Missing must-have"
+              >
+                ✗ {s}
+              </span>
+            ))}
+          </div>
+
+          {reasoning ? <ReasoningPanel state={reasoning} /> : null}
+        </div>
+      </div>
+    </li>
+  );
+}
+
+function ReasoningPanel({ state }: { state: ReasoningState }) {
+  if (state.loading) return <p className="mt-3 text-xs text-steel">Generating reasoning…</p>;
+  if (state.error) return <p className="mt-3 rounded-md bg-red-50 p-2 text-xs text-red-700">{state.error}</p>;
+  if (!state.data) return null;
+  const r = state.data;
+  return (
+    <div className="mt-3 rounded-md border border-stone-200 bg-paper/50 p-3">
+      <div className="flex items-center gap-2">
+        <span className="text-xs font-semibold uppercase tracking-wide text-coral">Reasoning</span>
+        <span className="rounded bg-white px-1.5 py-0.5 text-[10px] text-steel">
+          {state.source === "llm" ? "LLM" : "rule-based"}
+          {state.cached ? " · cached" : ""}
+        </span>
+      </div>
+      <p className="mt-1 text-sm text-ink">{r.verdict}</p>
+      <div className="mt-2 grid gap-3 sm:grid-cols-3">
+        <ReasonList title="Strengths" items={r.strengths} tone="green" />
+        <ReasonList title="Gaps" items={r.gaps} tone="red" />
+        <ReasonList title="Interview probes" items={r.interviewProbes} tone="neutral" />
+      </div>
+    </div>
+  );
+}
+
+function ReasonList({ title, items, tone }: { title: string; items: string[]; tone: "green" | "red" | "neutral" }) {
+  const dot = tone === "green" ? "text-green-600" : tone === "red" ? "text-red-600" : "text-steel";
+  return (
+    <div>
+      <p className="text-[11px] font-semibold uppercase tracking-wide text-steel">{title}</p>
+      <ul className="mt-1 space-y-1">
+        {items.map((it, i) => (
+          <li key={i} className="flex gap-1 text-xs text-ink">
+            <span className={dot}>•</span>
+            <span>{it}</span>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }
