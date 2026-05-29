@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Briefcase, Check, Clock, Users } from "lucide-react";
+import { Briefcase, Check, Clock, TimerReset, Users } from "lucide-react";
 import { buildUrl } from "../tabs";
 
 type Entry = {
@@ -18,9 +18,40 @@ type Entry = {
   status: string;
   approvalKind: string | null;
   approvalDetail: string | null;
+  createdAt: string | null;
+  stageChangedAt: string | null;
+};
+
+type PipelineEvent = {
+  id: number;
+  candidateLabel: string | null;
+  jobTitle: string | null;
+  archetype: string | null;
+  kind: string;
+  toStage: string | null;
+  detail: string | null;
+  createdAt: string;
 };
 
 const STAGES = ["Sourced", "AI-matched", "Screening", "Interview", "Offer", "Hired"];
+const STALE_DAYS = 10;
+
+function daysSince(iso: string | null): number | null {
+  if (!iso) return null;
+  const t = Date.parse(iso);
+  if (!Number.isFinite(t)) return null;
+  return Math.floor((Date.now() - t) / 86_400_000);
+}
+
+function relativeTime(iso: string): string {
+  const d = daysSince(iso);
+  if (d == null) return "";
+  if (d <= 0) return "today";
+  if (d === 1) return "yesterday";
+  if (d < 7) return `${d}d ago`;
+  if (d < 30) return `${Math.floor(d / 7)}w ago`;
+  return `${Math.floor(d / 30)}mo ago`;
+}
 
 const ARCHETYPE_STYLE: Record<string, { ring: string; bg: string; label: string }> = {
   bau: { ring: "ring-steel", bg: "bg-steel", label: "Experienced" },
@@ -32,9 +63,10 @@ const styleFor = (a: string | null) => ARCHETYPE_STYLE[a ?? "bau"] ?? ARCHETYPE_
 export function PipelineTab() {
   const router = useRouter();
   const [entries, setEntries] = useState<Entry[] | null>(null);
+  const [events, setEvents] = useState<PipelineEvent[]>([]);
   const [error, setError] = useState<string | null>(null);
 
-  const load = () =>
+  const load = () => {
     fetch("/api/pipeline")
       .then((r) => r.json())
       .then((p) => {
@@ -42,6 +74,11 @@ export function PipelineTab() {
         setEntries((p.entries as Entry[]) ?? []);
       })
       .catch((e) => setError(e instanceof Error ? e.message : "Failed to load pipeline."));
+    fetch("/api/pipeline/events")
+      .then((r) => r.json())
+      .then((p) => setEvents((p.events as PipelineEvent[]) ?? []))
+      .catch(() => undefined);
+  };
   useEffect(() => {
     load();
   }, []);
@@ -60,6 +97,8 @@ export function PipelineTab() {
   const approvals = (entries ?? []).filter((e) => e.approvalKind && e.status === "active");
   const activeCount = (entries ?? []).filter((e) => e.stage !== "Hired").length;
   const interviewCount = (entries ?? []).filter((e) => e.stage === "Interview").length;
+  const isStale = (e: Entry) => e.stage !== "Hired" && (daysSince(e.stageChangedAt) ?? 0) >= STALE_DAYS;
+  const staleCount = (entries ?? []).filter(isStale).length;
 
   const openCandidate = (e: Entry) => {
     if (e.candidateId) router.push(buildUrl({ tab: "match", profile: e.candidateId }));
@@ -93,10 +132,16 @@ export function PipelineTab() {
         </p>
       ) : (
         <>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
             <Kpi icon={<Briefcase size={16} />} label="Open positions" value={positions.length} />
             <Kpi icon={<Users size={16} />} label="Active candidates" value={activeCount} />
             <Kpi icon={<Clock size={16} />} label="In interview" value={interviewCount} />
+            <Kpi
+              icon={<TimerReset size={16} />}
+              label={`Aging >${STALE_DAYS}d`}
+              value={staleCount}
+              tone={staleCount > 0 ? "amber" : "neutral"}
+            />
             <Kpi
               icon={<Check size={16} />}
               label="Awaiting you"
@@ -156,7 +201,13 @@ export function PipelineTab() {
                           <div key={stage} className="border-r border-stone-100 px-2 py-3 last:border-0">
                             <div className="flex flex-wrap gap-1">
                               {cell.map((e) => (
-                                <Avatar key={e.id} entry={e} pending={!!e.approvalKind} onClick={() => openCandidate(e)} />
+                                <Avatar
+                                  key={e.id}
+                                  entry={e}
+                                  pending={!!e.approvalKind}
+                                  stale={isStale(e)}
+                                  onClick={() => openCandidate(e)}
+                                />
                               ))}
                               {cell.length === 0 ? <span className="text-[11px] text-stone-300">·</span> : null}
                             </div>
@@ -170,10 +221,56 @@ export function PipelineTab() {
             </div>
             <Legend />
           </section>
+
+          {events.length > 0 ? (
+            <section className="space-y-2">
+              <h3 className="text-meta uppercase tracking-wide text-steel">Activity</h3>
+              <ol className="divide-y divide-stone-100 rounded-lg border border-stone-200 bg-white shadow-panel">
+                {events.slice(0, 12).map((ev) => (
+                  <li key={ev.id} className="flex items-center gap-3 px-3 py-2 text-sm">
+                    <EventDot kind={ev.kind} />
+                    <span className="min-w-0 flex-1 truncate text-ink">
+                      <span className="font-medium">{ev.candidateLabel ?? "Candidate"}</span>{" "}
+                      <span className="text-steel">{eventVerb(ev)}</span>{" "}
+                      {ev.jobTitle ? <span className="text-steel">· {ev.jobTitle}</span> : null}
+                    </span>
+                    <span className="shrink-0 text-[11px] text-steel">{relativeTime(ev.createdAt)}</span>
+                  </li>
+                ))}
+              </ol>
+            </section>
+          ) : null}
         </>
       )}
     </div>
   );
+}
+
+function eventVerb(ev: PipelineEvent): string {
+  switch (ev.kind) {
+    case "matched":
+      return "was matched";
+    case "added":
+      return "was added to the pipeline";
+    case "advanced":
+      return `advanced to ${ev.toStage}`;
+    case "scheduled":
+      return `interview scheduled${ev.detail ? ` (${ev.detail})` : ""}`;
+    case "rejected":
+      return "was rejected";
+    default:
+      return ev.kind;
+  }
+}
+
+function EventDot({ kind }: { kind: string }) {
+  const tone =
+    kind === "rejected"
+      ? "bg-coral"
+      : kind === "advanced" || kind === "scheduled"
+        ? "bg-moss"
+        : "bg-steel";
+  return <span className={`h-2 w-2 shrink-0 rounded-full ${tone}`} aria-hidden />;
 }
 
 function Kpi({
@@ -186,19 +283,23 @@ function Kpi({
   icon: React.ReactNode;
   label: string;
   value: number;
-  tone?: "neutral" | "coral";
+  tone?: "neutral" | "coral" | "amber";
   onClick?: () => void;
 }) {
-  const cls = `rounded-lg border p-3 text-left shadow-panel ${
-    tone === "coral" ? "border-coral/30 bg-coral/5" : "border-stone-200 bg-white"
-  } ${onClick ? "focus-ring transition-colors hover:border-coral/50" : ""}`;
+  const border =
+    tone === "coral" ? "border-coral/30 bg-coral/5" : tone === "amber" ? "border-amber-300/50 bg-amber-50" : "border-stone-200 bg-white";
+  const accent = tone === "coral" ? "text-coral" : tone === "amber" ? "text-amber-700" : "text-steel";
+  const valueColor = tone === "coral" ? "text-coral" : tone === "amber" ? "text-amber-700" : "text-ink";
+  const cls = `rounded-lg border p-3 text-left shadow-panel ${border} ${
+    onClick ? "focus-ring transition-colors hover:border-coral/50" : ""
+  }`;
   const body = (
     <>
       <div className="flex items-center gap-2 text-steel">
-        <span className={tone === "coral" ? "text-coral" : "text-steel"}>{icon}</span>
+        <span className={accent}>{icon}</span>
         <span className="text-meta uppercase">{label}</span>
       </div>
-      <p className={`mt-1 font-serif text-3xl ${tone === "coral" ? "text-coral" : "text-ink"}`}>{value}</p>
+      <p className={`mt-1 font-serif text-3xl ${valueColor}`}>{value}</p>
     </>
   );
   return onClick ? (
@@ -210,7 +311,17 @@ function Kpi({
   );
 }
 
-function Avatar({ entry, pending = false, onClick }: { entry: Entry; pending?: boolean; onClick?: () => void }) {
+function Avatar({
+  entry,
+  pending = false,
+  stale = false,
+  onClick,
+}: {
+  entry: Entry;
+  pending?: boolean;
+  stale?: boolean;
+  onClick?: () => void;
+}) {
   const style = styleFor(entry.archetype);
   const initials = entry.candidateLabel
     .split(" ")
@@ -219,12 +330,17 @@ function Avatar({ entry, pending = false, onClick }: { entry: Entry; pending?: b
     .join("")
     .slice(0, 2)
     .toUpperCase();
-  const title = `${entry.candidateLabel} · ${style.label}${entry.matchScore != null ? ` · match ${entry.matchScore}` : ""}`;
-  const cls = `relative inline-flex h-7 w-7 items-center justify-center rounded-full text-[10px] font-semibold text-white ${style.bg} ${
-    pending ? `ring-2 ring-offset-1 ${style.ring}` : ""
+  const days = daysSince(entry.stageChangedAt);
+  const title = `${entry.candidateLabel} · ${style.label}${entry.matchScore != null ? ` · match ${entry.matchScore}` : ""}${
+    days != null ? ` · ${days}d in stage` : ""
   }`;
+  // pending (coral, pulsing) takes visual priority; otherwise show an amber aging ring.
+  const ring = pending ? `ring-2 ring-offset-1 ${style.ring}` : stale ? "ring-2 ring-offset-1 ring-amber-400" : "";
+  const cls = `relative inline-flex h-7 w-7 items-center justify-center rounded-full text-[10px] font-semibold text-white ${style.bg} ${ring}`;
   const dot = pending ? (
     <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 animate-pulse rounded-full border border-white bg-coral" />
+  ) : stale ? (
+    <span className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full border border-white bg-amber-400" />
   ) : null;
   if (onClick) {
     return (
@@ -254,6 +370,10 @@ function Legend() {
       <span className="inline-flex items-center gap-1.5">
         <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-coral" />
         Awaiting your decision
+      </span>
+      <span className="inline-flex items-center gap-1.5">
+        <span className="h-2.5 w-2.5 rounded-full bg-amber-400" />
+        Aging &gt;{STALE_DAYS}d in stage
       </span>
     </div>
   );

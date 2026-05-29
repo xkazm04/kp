@@ -100,12 +100,37 @@ function ensureDb(): Database.Database {
       status TEXT NOT NULL DEFAULT 'active',
       approval_kind TEXT,
       approval_detail TEXT,
+      created_at TEXT,
+      stage_changed_at TEXT,
       updated_at TEXT
     );
 
     CREATE INDEX IF NOT EXISTS idx_pipeline_job ON pipeline_entries (job_id);
     CREATE INDEX IF NOT EXISTS idx_pipeline_stage ON pipeline_entries (stage);
+
+    CREATE TABLE IF NOT EXISTS pipeline_events (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      entry_id TEXT,
+      candidate_label TEXT,
+      job_title TEXT,
+      archetype TEXT,
+      kind TEXT NOT NULL,
+      from_stage TEXT,
+      to_stage TEXT,
+      detail TEXT,
+      created_at TEXT NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_pipeline_events_created ON pipeline_events (created_at DESC);
   `);
+  // Migration for DBs created before the observability columns existed.
+  for (const col of ["created_at", "stage_changed_at"]) {
+    try {
+      db.exec(`ALTER TABLE pipeline_entries ADD COLUMN ${col} TEXT`);
+    } catch {
+      /* column already exists */
+    }
+  }
   seedExampleJd(db);
   seedJobs(db);
   seedCandidates(db);
@@ -632,7 +657,85 @@ export type PipelineEntry = {
   status: string;
   approvalKind: string | null;
   approvalDetail: string | null;
+  createdAt: string | null;
+  stageChangedAt: string | null;
 };
+
+export type PipelineEvent = {
+  id: number;
+  entryId: string | null;
+  candidateLabel: string | null;
+  jobTitle: string | null;
+  archetype: string | null;
+  kind: string;
+  fromStage: string | null;
+  toStage: string | null;
+  detail: string | null;
+  createdAt: string;
+};
+
+function recordEvent(
+  db: Database.Database,
+  e: {
+    entryId?: string | null;
+    candidateLabel?: string | null;
+    jobTitle?: string | null;
+    archetype?: string | null;
+    kind: string;
+    fromStage?: string | null;
+    toStage?: string | null;
+    detail?: string | null;
+    createdAt?: string;
+  }
+): void {
+  db.prepare(
+    `INSERT INTO pipeline_events (entry_id, candidate_label, job_title, archetype, kind, from_stage, to_stage, detail, created_at)
+     VALUES (@entry_id, @candidate_label, @job_title, @archetype, @kind, @from_stage, @to_stage, @detail, @created_at)`
+  ).run({
+    entry_id: e.entryId ?? null,
+    candidate_label: e.candidateLabel ?? null,
+    job_title: e.jobTitle ?? null,
+    archetype: e.archetype ?? null,
+    kind: e.kind,
+    from_stage: e.fromStage ?? null,
+    to_stage: e.toStage ?? null,
+    detail: e.detail ?? null,
+    created_at: e.createdAt ?? new Date().toISOString(),
+  });
+}
+
+export function listPipelineEvents(limit = 40): PipelineEvent[] {
+  const db = ensureDb();
+  const rows = db
+    .prepare(
+      `SELECT id, entry_id, candidate_label, job_title, archetype, kind, from_stage, to_stage, detail, created_at
+       FROM pipeline_events ORDER BY created_at DESC, id DESC LIMIT ?`
+    )
+    .all(limit) as Array<{
+    id: number;
+    entry_id: string | null;
+    candidate_label: string | null;
+    job_title: string | null;
+    archetype: string | null;
+    kind: string;
+    from_stage: string | null;
+    to_stage: string | null;
+    detail: string | null;
+    created_at: string;
+  }>;
+  return rows.map((r) => ({
+    id: r.id,
+    entryId: r.entry_id,
+    candidateLabel: r.candidate_label,
+    jobTitle: r.job_title,
+    archetype: r.archetype,
+    kind: r.kind,
+    fromStage: r.from_stage,
+    toStage: r.to_stage,
+    detail: r.detail,
+    createdAt: r.created_at,
+  }));
+}
 
 const SEED_PIPELINE_PATH = path.join(process.cwd(), "data", "seed_pipeline", "pipeline.json");
 
@@ -646,17 +749,23 @@ function seedPipeline(db: Database.Database): void {
   } catch {
     return;
   }
-  const now = new Date().toISOString();
+  const nowMs = Date.now();
+  const day = 86_400_000;
   const insert = db.prepare(
     `INSERT OR IGNORE INTO pipeline_entries
        (id, candidate_id, candidate_label, archetype, role_family, job_id, job_title,
-        stage, match_score, status, approval_kind, approval_detail, updated_at)
+        stage, match_score, status, approval_kind, approval_detail, created_at, stage_changed_at, updated_at)
      VALUES (@id, @candidate_id, @candidate_label, @archetype, @role_family, @job_id, @job_title,
-        @stage, @match_score, @status, @approval_kind, @approval_detail, @updated_at)`
+        @stage, @match_score, @status, @approval_kind, @approval_detail, @created_at, @stage_changed_at, @updated_at)`
   );
   const tx = db.transaction((rows: PipelineEntry[]) => {
-    for (const e of rows) {
-      if (!e?.id) continue;
+    rows.forEach((e, i) => {
+      if (!e?.id) return;
+      // Deterministic aging spread so SLA/aging signals vary across the demo set.
+      const daysInStage = (i * 37) % 18;
+      const enteredDaysAgo = daysInStage + ((i * 13) % 21);
+      const stageChangedAt = new Date(nowMs - daysInStage * day).toISOString();
+      const createdAt = new Date(nowMs - enteredDaysAgo * day).toISOString();
       insert.run({
         id: e.id,
         candidate_id: e.candidateId ?? null,
@@ -670,9 +779,32 @@ function seedPipeline(db: Database.Database): void {
         status: e.status ?? "active",
         approval_kind: e.approvalKind ?? null,
         approval_detail: e.approvalDetail ?? null,
-        updated_at: now,
+        created_at: createdAt,
+        stage_changed_at: stageChangedAt,
+        updated_at: stageChangedAt,
       });
-    }
+      // Seed a little history so the activity feed isn't empty on first load.
+      recordEvent(db, {
+        entryId: e.id,
+        candidateLabel: e.candidateLabel,
+        jobTitle: e.jobTitle,
+        archetype: e.archetype,
+        kind: "matched",
+        toStage: "AI-matched",
+        createdAt,
+      });
+      if (e.stage !== "Sourced" && e.stage !== "AI-matched") {
+        recordEvent(db, {
+          entryId: e.id,
+          candidateLabel: e.candidateLabel,
+          jobTitle: e.jobTitle,
+          archetype: e.archetype,
+          kind: "advanced",
+          toStage: e.stage,
+          createdAt: stageChangedAt,
+        });
+      }
+    });
   });
   tx(entries);
 }
@@ -690,6 +822,8 @@ type PipelineRow = {
   status: string;
   approval_kind: string | null;
   approval_detail: string | null;
+  created_at: string | null;
+  stage_changed_at: string | null;
 };
 
 function rowToEntry(r: PipelineRow): PipelineEntry {
@@ -706,6 +840,8 @@ function rowToEntry(r: PipelineRow): PipelineEntry {
     status: r.status,
     approvalKind: r.approval_kind,
     approvalDetail: r.approval_detail,
+    createdAt: r.created_at,
+    stageChangedAt: r.stage_changed_at,
   };
 }
 
@@ -714,7 +850,7 @@ export function listPipeline(): PipelineEntry[] {
   const rows = db
     .prepare(
       `SELECT id, candidate_id, candidate_label, archetype, role_family, job_id, job_title,
-              stage, match_score, status, approval_kind, approval_detail
+              stage, match_score, status, approval_kind, approval_detail, created_at, stage_changed_at
        FROM pipeline_entries WHERE status != 'rejected'
        ORDER BY job_title, match_score DESC`
     )
@@ -752,12 +888,13 @@ export function createPipelineEntry(input: CreatePipelineInput): { entry: Pipeli
     return { entry: rowToEntry(existing), created: false };
   }
   const now = new Date().toISOString();
+  const stage = input.stage ?? "AI-matched";
   db.prepare(
     `INSERT INTO pipeline_entries
        (id, candidate_id, candidate_label, archetype, role_family, job_id, job_title,
-        stage, match_score, status, approval_kind, approval_detail, updated_at)
+        stage, match_score, status, approval_kind, approval_detail, created_at, stage_changed_at, updated_at)
      VALUES (@id, @candidate_id, @candidate_label, @archetype, @role_family, @job_id, @job_title,
-        @stage, @match_score, 'active', NULL, '', @updated_at)`
+        @stage, @match_score, 'active', NULL, '', @now, @now, @now)`
   ).run({
     id,
     candidate_id: input.candidateId,
@@ -766,9 +903,18 @@ export function createPipelineEntry(input: CreatePipelineInput): { entry: Pipeli
     role_family: input.roleFamily ?? null,
     job_id: input.jobId,
     job_title: input.jobTitle,
-    stage: input.stage ?? "AI-matched",
+    stage,
     match_score: input.matchScore ?? null,
-    updated_at: now,
+    now,
+  });
+  recordEvent(db, {
+    entryId: id,
+    candidateLabel: input.candidateLabel,
+    jobTitle: input.jobTitle,
+    archetype: input.archetype,
+    kind: "added",
+    toStage: stage,
+    detail: "added to pipeline",
   });
   const row = db.prepare(`SELECT * FROM pipeline_entries WHERE id = ?`).get(id) as PipelineRow;
   return { entry: rowToEntry(row), created: true };
@@ -781,16 +927,30 @@ export function actOnPipelineEntry(id: string, action: PipelineAction): Pipeline
   const row = db.prepare(`SELECT * FROM pipeline_entries WHERE id = ?`).get(id) as PipelineRow | undefined;
   if (!row) return null;
   const now = new Date().toISOString();
+  const meta = {
+    entryId: id,
+    candidateLabel: row.candidate_label,
+    jobTitle: row.job_title,
+    archetype: row.archetype,
+    fromStage: row.stage,
+  };
 
   if (action === "reject") {
     db.prepare(`UPDATE pipeline_entries SET status='rejected', approval_kind=NULL, updated_at=? WHERE id=?`).run(now, id);
+    recordEvent(db, { ...meta, kind: "rejected", toStage: row.stage });
   } else if (action === "approve_event") {
-    db.prepare(`UPDATE pipeline_entries SET stage='Interview', approval_kind=NULL, approval_detail='', updated_at=? WHERE id=?`).run(now, id);
+    db.prepare(
+      `UPDATE pipeline_entries SET stage='Interview', approval_kind=NULL, approval_detail='', stage_changed_at=?, updated_at=? WHERE id=?`
+    ).run(now, now, id);
+    recordEvent(db, { ...meta, kind: "scheduled", toStage: "Interview", detail: row.approval_detail });
   } else {
     // accept: advance one stage, clear any pending approval
     const idx = PIPELINE_STAGES.indexOf(row.stage as PipelineStage);
     const next = PIPELINE_STAGES[Math.min(idx + 1, PIPELINE_STAGES.length - 1)];
-    db.prepare(`UPDATE pipeline_entries SET stage=?, approval_kind=NULL, approval_detail='', updated_at=? WHERE id=?`).run(next, now, id);
+    db.prepare(
+      `UPDATE pipeline_entries SET stage=?, approval_kind=NULL, approval_detail='', stage_changed_at=?, updated_at=? WHERE id=?`
+    ).run(next, now, now, id);
+    recordEvent(db, { ...meta, kind: "advanced", toStage: next });
   }
   const updated = db.prepare(`SELECT * FROM pipeline_entries WHERE id = ?`).get(id) as PipelineRow;
   return rowToEntry(updated);
