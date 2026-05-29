@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { useTasks } from "../tasks/TasksProvider";
 
 type AnalysisRow = {
   slug: string;
@@ -342,26 +343,38 @@ function MatchCard({
   adding: boolean;
   onAdd: () => void;
 }) {
+  const { startTask, tasks } = useTasks();
   const [reasoning, setReasoning] = useState<ReasoningState | null>(null);
+  const [taskId, setTaskId] = useState<string | null>(null);
   const early = EARLY_CAREER.has(archetype);
   const canExplain = Boolean(matchRef.profileId || matchRef.analysisSlug);
 
+  // Routed through the background-task system: tracked, dedup'd, refresh-safe.
   const explain = async () => {
     if (reasoning?.loading) return;
     setReasoning({ loading: true });
-    try {
-      const r = await fetch("/api/match/reasoning", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...matchRef, jobId: m.jobId }),
-      });
-      const payload = await r.json();
-      if (!r.ok) throw new Error(payload.error ?? `Reasoning failed (${r.status}).`);
-      setReasoning({ data: payload.reasoning as Reasoning, source: payload.source, cached: payload.cached });
-    } catch (caught) {
-      setReasoning({ error: caught instanceof Error ? caught.message : "Reasoning failed." });
+    const t = await startTask("reasoning", { ...matchRef, jobId: m.jobId, label: m.title });
+    if (!t) {
+      setReasoning({ error: "Couldn't start the fit analysis." });
+      return;
     }
+    setTaskId(t.id);
   };
+
+  useEffect(() => {
+    if (!taskId) return;
+    const t = tasks.find((x) => x.id === taskId);
+    if (!t) return;
+    if (t.status === "succeeded") {
+      const p = t.result as { reasoning?: Reasoning; source?: string; cached?: boolean } | null;
+      setReasoning(p?.reasoning ? { data: p.reasoning, source: p.source, cached: p.cached } : { error: "No reasoning returned." });
+      setTaskId(null);
+    } else if (t.status === "failed" || t.status === "canceled" || t.status === "interrupted") {
+      setReasoning({ error: t.error ?? "Reasoning failed." });
+      setTaskId(null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tasks, taskId]);
 
   return (
     <li className="rounded-lg border border-stone-200 p-3">

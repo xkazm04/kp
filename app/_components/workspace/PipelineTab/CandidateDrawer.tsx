@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Ban, Banknote, ClipboardList, ExternalLink, Mail, Shuffle, Sparkles, UserCheck, X } from "lucide-react";
 import { buildUrl } from "../tabs";
+import { useTasks } from "../tasks/TasksProvider";
 
 type Entry = {
   id: string;
@@ -50,7 +51,9 @@ type Result = { task: TaskId; data: Record<string, unknown>; source: string; app
 
 export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; onClose: () => void; onChanged: () => void }) {
   const router = useRouter();
+  const { startTask, tasks } = useTasks();
   const [busy, setBusy] = useState<TaskId | null>(null);
+  const [pendingId, setPendingId] = useState<string | null>(null);
   const [result, setResult] = useState<Result | null>(null);
   const [notes, setNotes] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -61,26 +64,47 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
     (act) => entry.status === "active" || act.id === "rematch"
   );
 
+  // Run through the background-task system: the work survives closing the drawer
+  // or navigating away, and a duplicate click reuses the in-flight task (dedup).
   const run = async (task: TaskId) => {
     setBusy(task);
     setError(null);
     setResult(null);
-    try {
-      const r = await fetch(`/api/automation/${task}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ entryId: entry.id, notes: task === "scorecard" ? notes : undefined }),
-      });
-      const p = await r.json();
-      if (!r.ok) throw new Error(p.error || "Automation task failed.");
-      setResult({ task, data: p.result, source: p.source, applied: p.applied });
-      if (["advanced", "held_for_review", "scorecard_ready", "offer_ready", "rematched"].includes(p.applied)) onChanged();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Automation task failed.");
-    } finally {
+    setPendingId(null);
+    const t = await startTask("automation", {
+      entryId: entry.id,
+      task,
+      notes: task === "scorecard" ? notes : undefined,
+      entryLabel: entry.candidateLabel,
+    });
+    if (!t) {
+      setError("Couldn't start the task.");
       setBusy(null);
+      return;
     }
+    setPendingId(t.id);
   };
+
+  useEffect(() => {
+    if (!pendingId) return;
+    const t = tasks.find((x) => x.id === pendingId);
+    if (!t) return;
+    if (t.status === "succeeded") {
+      const data = t.result as { result: Record<string, unknown>; source: string; applied: string } | null;
+      const sub = (((t.params as { task?: string } | null)?.task ?? busy) ?? "screen") as TaskId;
+      if (data) {
+        setResult({ task: sub, data: data.result, source: data.source, applied: data.applied });
+        if (["advanced", "held_for_review", "scorecard_ready", "offer_ready", "rematched"].includes(data.applied)) onChanged();
+      }
+      setBusy(null);
+      setPendingId(null);
+    } else if (t.status === "failed" || t.status === "canceled" || t.status === "interrupted") {
+      setError(t.error ?? "Task did not complete.");
+      setBusy(null);
+      setPendingId(null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tasks, pendingId]);
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end">

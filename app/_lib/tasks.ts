@@ -64,7 +64,7 @@ const HANDLERS: Record<string, Spec> = {
   reasoning: {
     run: (ctx) => runReasoning(ctx.params),
     label: (p) => `Why this candidate · ${p.label ?? p.jobId}`,
-    dedupe: (p) => `reasoning:${p.profileId ?? JSON.stringify(p.candidate ?? "")}:${p.jobId}`,
+    dedupe: (p) => `reasoning:${p.profileId ?? p.analysisSlug ?? JSON.stringify(p.candidate ?? "")}:${p.jobId}`,
   },
   batch_screen: {
     run: batchScreen,

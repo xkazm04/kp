@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Calendar, Check, ChevronRight, Sparkles, X } from "lucide-react";
 import { buildUrl } from "../tabs";
+import { useTasks } from "../tasks/TasksProvider";
 
 type Entry = {
   id: string;
@@ -220,24 +221,35 @@ function KeyDecisionCard({
   onAccept: () => void;
   onReject: () => void;
 }) {
+  const { startTask, tasks } = useTasks();
   const [reasoning, setReasoning] = useState<{ loading?: boolean; data?: Reasoning; error?: string } | null>(null);
+  const [taskId, setTaskId] = useState<string | null>(null);
 
   const explain = async () => {
     if (reasoning?.loading || reasoning?.data) return;
     setReasoning({ loading: true });
-    try {
-      const r = await fetch("/api/match/reasoning", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ profileId: entry.candidateId, jobId: entry.jobId }),
-      });
-      const p = await r.json();
-      if (!r.ok) throw new Error(p.error);
-      setReasoning({ data: p.reasoning as Reasoning });
-    } catch {
-      setReasoning({ error: "Couldn't load the fit for this candidate." });
+    const t = await startTask("reasoning", { profileId: entry.candidateId, jobId: entry.jobId, label: entry.candidateLabel });
+    if (!t) {
+      setReasoning({ error: "Couldn't start the fit analysis." });
+      return;
     }
+    setTaskId(t.id);
   };
+
+  useEffect(() => {
+    if (!taskId) return;
+    const t = tasks.find((x) => x.id === taskId);
+    if (!t) return;
+    if (t.status === "succeeded") {
+      const d = t.result as { reasoning?: Reasoning } | null;
+      setReasoning(d?.reasoning ? { data: d.reasoning } : { error: "No reasoning returned." });
+      setTaskId(null);
+    } else if (t.status === "failed" || t.status === "canceled" || t.status === "interrupted") {
+      setReasoning({ error: "Couldn't load the fit for this candidate." });
+      setTaskId(null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tasks, taskId]);
 
   return (
     <article className="animate-fade-in rounded-lg border border-stone-200 bg-white p-3 shadow-panel">
