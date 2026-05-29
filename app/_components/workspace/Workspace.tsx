@@ -11,6 +11,8 @@ import { MatchTab } from "./MatchTab/MatchTab";
 import { MatrixTab } from "./MatrixTab/MatrixTab";
 import { PipelineTab } from "./PipelineTab/PipelineTab";
 import { ProfileTab } from "./ProfileTab/ProfileTab";
+import { TasksIndicator } from "./tasks/TasksIndicator";
+import { TasksProvider } from "./tasks/TasksProvider";
 import { buildUrl, DEFAULT_TAB, isWorkspaceTabId, NAV_GROUPS, type WorkspaceTabId } from "./tabs";
 
 export type { WorkspaceTabId } from "./tabs";
@@ -32,8 +34,9 @@ export function Workspace() {
   );
 
   return (
+    <TasksProvider>
     <div className="min-h-screen bg-paper md:flex">
-      <aside className="border-b border-stone-300 bg-paper md:sticky md:top-0 md:h-screen md:w-64 md:shrink-0 md:overflow-y-auto md:border-b-0 md:border-r">
+      <aside className="flex flex-col border-b border-stone-300 bg-paper md:sticky md:top-0 md:h-screen md:w-64 md:shrink-0 md:overflow-y-auto md:border-b-0 md:border-r">
         <div className="px-4 py-5">
           <div className="flex items-center gap-2.5">
             <span className="grid h-9 w-9 place-items-center rounded-lg bg-ink font-serif text-sm font-semibold text-white">
@@ -81,6 +84,8 @@ export function Workspace() {
             </div>
           ))}
         </nav>
+        <div className="mt-auto" />
+        <TasksIndicator />
       </aside>
 
       <main className="min-w-0 flex-1 bg-white">
@@ -99,5 +104,6 @@ export function Workspace() {
         </div>
       </main>
     </div>
+    </TasksProvider>
   );
 }

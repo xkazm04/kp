@@ -1,82 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
-import { writeFile } from "node:fs/promises";
-import { createHash } from "node:crypto";
-import path from "node:path";
-import { getProfileRecord, lookupGeminiCache, storeGeminiCache } from "@/app/_lib/db";
-import { candidateSignature, resolveCandidate, type CandidateInput } from "@/app/_lib/match-candidate";
-import {
-  cleanupWorkdir,
-  createWorkdir,
-  parseStderrError,
-  spawnPython,
-} from "@/app/_lib/python-runner";
+import { ReasoningError, runReasoning, type ReasoningInput } from "@/app/_lib/reasoning-run";
 
 export const runtime = "nodejs";
 
-// Must match pipeline/jobfit/match_reasoning.py::REASONING_PROMPT_VERSION.
-const REASONING_PROMPT_VERSION = "match-reasoning-v1";
-const CACHE_TTL_HOURS = 168; // corpus is static; a week is plenty
-
+// Synchronous convenience wrapper. The hardened/background path is /api/tasks
+// with kind "reasoning" (tracked, dedup'd, refresh-safe); both share runReasoning.
 export async function POST(request: NextRequest) {
-  let workdir: string | null = null;
   try {
-    const body = (await request.json()) as {
-      analysisSlug?: string;
-      candidate?: CandidateInput;
-      profileId?: string;
-      jobId?: string;
-    };
-    if (!body.jobId) {
-      return NextResponse.json({ error: "jobId is required." }, { status: 400 });
-    }
-
-    workdir = await createWorkdir();
-    let keyPart: string;
-    let args: string[];
-
-    if (body.profileId) {
-      const record = getProfileRecord(body.profileId);
-      if (!record) {
-        return NextResponse.json({ error: "Profile not found." }, { status: 404 });
-      }
-      keyPart = `profile:${body.profileId}`;
-      const profilePath = path.join(workdir, "profile.json");
-      await writeFile(profilePath, JSON.stringify(record.payload), "utf-8");
-      args = ["-m", "pipeline.jobfit.reasoning_cli", "--profile-json", profilePath, "--job-id", String(body.jobId)];
-    } else {
-      const resolved = resolveCandidate(body);
-      if ("error" in resolved) {
-        return NextResponse.json({ error: resolved.error }, { status: resolved.status });
-      }
-      keyPart = candidateSignature(resolved.candidate);
-      const candidatePath = path.join(workdir, "candidate.json");
-      await writeFile(candidatePath, JSON.stringify(resolved.candidate), "utf-8");
-      args = ["-m", "pipeline.jobfit.reasoning_cli", "--candidate-json", candidatePath, "--job-id", String(body.jobId)];
-    }
-
-    const hash = createHash("sha256")
-      .update(`${REASONING_PROMPT_VERSION}|${keyPart}|${body.jobId}`)
-      .digest("hex");
-
-    const cached = lookupGeminiCache(hash, REASONING_PROMPT_VERSION);
-    if (cached) {
-      return NextResponse.json({ ...(cached as object), cached: true });
-    }
-
-    const { result } = spawnPython(args);
-    const { stdout, stderr, exitCode } = await result;
-    if (exitCode !== 0) {
-      const err = parseStderrError(stderr, exitCode);
-      return NextResponse.json({ error: err.message }, { status: err.status });
-    }
-
-    const data = JSON.parse(stdout);
-    storeGeminiCache(hash, data, REASONING_PROMPT_VERSION, CACHE_TTL_HOURS);
-    return NextResponse.json({ ...data, cached: false });
+    const body = (await request.json()) as ReasoningInput;
+    const data = await runReasoning(body);
+    return NextResponse.json(data);
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Reasoning failed.";
-    return NextResponse.json({ error: message }, { status: 500 });
-  } finally {
-    if (workdir) await cleanupWorkdir(workdir);
+    if (error instanceof ReasoningError) return NextResponse.json({ error: error.message }, { status: error.status });
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Reasoning failed." }, { status: 500 });
   }
 }

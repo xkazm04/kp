@@ -122,6 +122,26 @@ function ensureDb(): Database.Database {
     );
 
     CREATE INDEX IF NOT EXISTS idx_pipeline_events_created ON pipeline_events (created_at DESC);
+
+    CREATE TABLE IF NOT EXISTS tasks (
+      id TEXT PRIMARY KEY,
+      kind TEXT NOT NULL,
+      dedupe_key TEXT,
+      label TEXT,
+      status TEXT NOT NULL,
+      params_json TEXT,
+      result_json TEXT,
+      error TEXT,
+      progress_done INTEGER DEFAULT 0,
+      progress_total INTEGER DEFAULT 0,
+      progress_msg TEXT,
+      created_at TEXT NOT NULL,
+      started_at TEXT,
+      finished_at TEXT
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_tasks_dedupe ON tasks (dedupe_key, status);
+    CREATE INDEX IF NOT EXISTS idx_tasks_created ON tasks (created_at DESC);
   `);
   // Migration for DBs created before the observability columns existed.
   for (const col of ["created_at", "stage_changed_at"]) {
@@ -1023,6 +1043,130 @@ export function pipelinePlacements(): Record<string, { stage: string; status: st
   const map: Record<string, { stage: string; status: string }> = {};
   for (const r of rows) map[`${r.candidate_id}|${r.job_id}`] = { stage: r.stage, status: r.status };
   return map;
+}
+
+// ---- Background tasks queue (Phase 17) ------------------------------------
+
+export type TaskStatus = "queued" | "running" | "succeeded" | "failed" | "canceled" | "interrupted";
+
+export type TaskRecord = {
+  id: string;
+  kind: string;
+  dedupeKey: string | null;
+  label: string | null;
+  status: TaskStatus;
+  params: unknown;
+  result: unknown;
+  error: string | null;
+  progressDone: number;
+  progressTotal: number;
+  progressMsg: string | null;
+  createdAt: string;
+  startedAt: string | null;
+  finishedAt: string | null;
+};
+
+type TaskRow = {
+  id: string;
+  kind: string;
+  dedupe_key: string | null;
+  label: string | null;
+  status: string;
+  params_json: string | null;
+  result_json: string | null;
+  error: string | null;
+  progress_done: number;
+  progress_total: number;
+  progress_msg: string | null;
+  created_at: string;
+  started_at: string | null;
+  finished_at: string | null;
+};
+
+function rowToTask(r: TaskRow): TaskRecord {
+  return {
+    id: r.id,
+    kind: r.kind,
+    dedupeKey: r.dedupe_key,
+    label: r.label,
+    status: r.status as TaskStatus,
+    params: r.params_json ? JSON.parse(r.params_json) : null,
+    result: r.result_json ? JSON.parse(r.result_json) : null,
+    error: r.error,
+    progressDone: r.progress_done ?? 0,
+    progressTotal: r.progress_total ?? 0,
+    progressMsg: r.progress_msg,
+    createdAt: r.created_at,
+    startedAt: r.started_at,
+    finishedAt: r.finished_at,
+  };
+}
+
+export function createTask(id: string, kind: string, dedupeKey: string | null, label: string | null, params: unknown): TaskRecord {
+  const db = ensureDb();
+  db.prepare(
+    `INSERT INTO tasks (id, kind, dedupe_key, label, status, params_json, created_at) VALUES (?, ?, ?, ?, 'queued', ?, ?)`
+  ).run(id, kind, dedupeKey, label, JSON.stringify(params ?? null), new Date().toISOString());
+  return getTask(id)!;
+}
+
+export function getTask(id: string): TaskRecord | null {
+  const db = ensureDb();
+  const r = db.prepare(`SELECT * FROM tasks WHERE id = ?`).get(id) as TaskRow | undefined;
+  return r ? rowToTask(r) : null;
+}
+
+/** Dedup: an in-flight task with the same key is reused instead of starting a duplicate. */
+export function getActiveTaskByDedupe(dedupeKey: string): TaskRecord | null {
+  const db = ensureDb();
+  const r = db
+    .prepare(`SELECT * FROM tasks WHERE dedupe_key = ? AND status IN ('queued','running') ORDER BY created_at DESC LIMIT 1`)
+    .get(dedupeKey) as TaskRow | undefined;
+  return r ? rowToTask(r) : null;
+}
+
+export function listTasks(limit = 40): TaskRecord[] {
+  const db = ensureDb();
+  const rows = db
+    .prepare(
+      `SELECT * FROM tasks
+       ORDER BY (CASE WHEN status IN ('queued','running') THEN 0 ELSE 1 END),
+                CASE WHEN status IN ('queued','running') THEN created_at END ASC,
+                finished_at DESC
+       LIMIT ?`
+    )
+    .all(limit) as TaskRow[];
+  return rows.map(rowToTask);
+}
+
+export function markTaskRunning(id: string): void {
+  const db = ensureDb();
+  db.prepare(`UPDATE tasks SET status='running', started_at=? WHERE id=?`).run(new Date().toISOString(), id);
+}
+
+export function setTaskProgress(id: string, done: number, total: number, msg?: string): void {
+  const db = ensureDb();
+  db.prepare(`UPDATE tasks SET progress_done=?, progress_total=?, progress_msg=? WHERE id=?`).run(done, total, msg ?? null, id);
+}
+
+export function finishTask(id: string, status: TaskStatus, opts: { result?: unknown; error?: string }): void {
+  const db = ensureDb();
+  db.prepare(`UPDATE tasks SET status=?, result_json=?, error=?, finished_at=? WHERE id=?`).run(
+    status,
+    opts.result !== undefined ? JSON.stringify(opts.result) : null,
+    opts.error ?? null,
+    new Date().toISOString(),
+    id
+  );
+}
+
+/** On server boot any task still 'running'/'queued' was orphaned by the restart. */
+export function interruptStaleTasks(): number {
+  const db = ensureDb();
+  const info = db
+    .prepare(`UPDATE tasks SET status='interrupted', finished_at=? WHERE status IN ('running','queued')`)
+    .run(new Date().toISOString());
+  return info.changes as number;
 }
 
 export type PipelineAction = "accept" | "reject" | "approve_event";

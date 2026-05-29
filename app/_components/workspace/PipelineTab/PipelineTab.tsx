@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Briefcase, Check, Clock, TimerReset, Users } from "lucide-react";
+import { Briefcase, Check, Clock, Sparkles, TimerReset, Users } from "lucide-react";
 import { buildUrl } from "../tabs";
+import { useTasks } from "../tasks/TasksProvider";
 import { CandidateDrawer } from "./CandidateDrawer";
 
 type Entry = {
@@ -74,6 +75,9 @@ export function PipelineTab() {
     alerts: number;
   } | null>(null);
   const [drawerEntry, setDrawerEntry] = useState<Entry | null>(null);
+  const { startTask, findActive, tasks } = useTasks();
+  const batch = findActive((t) => t.kind === "batch_screen");
+  const lastBatchDone = useRef<string | null>(null);
 
   const load = () => {
     fetch("/api/pipeline")
@@ -110,6 +114,16 @@ export function PipelineTab() {
   const staleCount = (entries ?? []).filter(isStale).length;
 
   const openCandidate = (e: Entry) => setDrawerEntry(e);
+
+  // Reload the board when a background batch-screen finishes (it mutates many entries).
+  useEffect(() => {
+    const done = tasks.find((t) => t.kind === "batch_screen" && t.status === "succeeded");
+    if (done?.finishedAt && done.finishedAt !== lastBatchDone.current) {
+      lastBatchDone.current = done.finishedAt;
+      load();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tasks]);
   const openPositionRanking = (jobId: string) => router.push(buildUrl({ tab: "jobs", job: jobId }));
 
   const runPass = async () => {
@@ -139,15 +153,27 @@ export function PipelineTab() {
           </p>
         </div>
         <div className="flex flex-col items-end gap-2">
-          <button
-            type="button"
-            onClick={runPass}
-            disabled={running}
-            className="focus-ring inline-flex h-9 items-center gap-1.5 rounded-md bg-ink px-3 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
-            title="Deterministic policy pass: auto-advance strong BAU matches, hold early-career for a human, flag aging"
-          >
-            {running ? "Running pass…" : "▷ Run automation pass"}
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => startTask("batch_screen")}
+              disabled={!!batch}
+              className="focus-ring inline-flex h-9 items-center gap-1.5 rounded-md border border-coral/40 bg-coral/5 px-3 text-sm font-semibold text-coral hover:bg-coral/10 disabled:opacity-60"
+              title="Background LLM task: screen every AI-matched candidate (runs for minutes; keeps going as you navigate; survives refresh)"
+            >
+              <Sparkles size={14} />
+              {batch ? `Screening ${batch.progressDone}/${batch.progressTotal}…` : "AI-screen all matched"}
+            </button>
+            <button
+              type="button"
+              onClick={runPass}
+              disabled={running}
+              className="focus-ring inline-flex h-9 items-center gap-1.5 rounded-md bg-ink px-3 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
+              title="Deterministic policy pass: auto-advance strong BAU matches, hold early-career for a human, flag aging"
+            >
+              {running ? "Running pass…" : "▷ Run automation pass"}
+            </button>
+          </div>
           <span className="rounded-md border border-stone-200 bg-paper px-2.5 py-1 text-xs text-steel">
             Seeded demo pipeline · {(entries ?? []).length} candidates
           </span>
