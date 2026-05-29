@@ -14,8 +14,38 @@ from typing import Any
 
 from .models import DevNeed, NeedAnalysis
 
-ROLE_DESIGN_PROMPT_VERSION = "role-design-v1"
-CASE_DESIGN_PROMPT_VERSION = "case-design-v1"
+ROLE_DESIGN_PROMPT_VERSION = "role-design-v2"
+CASE_DESIGN_PROMPT_VERSION = "case-design-v2"
+
+# Seniority-scaled timebox (the lifecycle eval flagged junior/lead cases looking alike).
+_TIMEBOX = {"junior": 3.0, "medior": 4.0, "senior": 6.0, "lead": 8.0}
+
+
+def _timebox(seniority: str) -> float:
+    return _TIMEBOX.get((seniority or "medior").lower(), 4.0)
+
+
+_CORPUS_CACHE: list | None = None
+
+
+def _comparable_roles(family: str, seniority: str) -> list[dict]:
+    """A few real seed-corpus roles in the same family/seniority — market grounding for design_role."""
+    global _CORPUS_CACHE
+    try:
+        if _CORPUS_CACHE is None:
+            from ..matching import load_corpus
+
+            _CORPUS_CACHE = load_corpus()
+        out = []
+        for j in _CORPUS_CACHE:
+            if j.role_family == family and j.seniority == seniority:
+                must = [r.skill for r in j.requirements if getattr(r, "kind", "") == "must_have"][:5]
+                out.append({"title": j.title, "mustHaves": must})
+            if len(out) >= 3:
+                break
+        return out
+    except Exception:
+        return []
 
 _SYSTEM = (
     "You design engineering hiring artifacts for the LLM era. Assume the candidate's code can be "
@@ -55,17 +85,28 @@ def _str_list(value: Any) -> list[str]:
 def design_role(need: DevNeed, analysis: NeedAnalysis, *, provider: Any | None = None) -> tuple[dict, str]:
     real = analysis.real_stack or need.stack
     ctx = {
-        "need": {"title": need.title, "seniorityTarget": need.seniority_target, "roleFamily": need.role_family},
+        "need": {
+            "title": need.title,
+            "statedResponsibilities": need.responsibilities,
+            "seniorityTarget": need.seniority_target,
+            "roleFamily": need.role_family,
+        },
         "analysis": {
             "realStack": real,
             "coreResponsibilities": analysis.core_responsibilities,
             "trueComplexity": analysis.true_complexity,
             "statedVsRealGaps": analysis.stated_vs_real_gaps,
         },
+        "comparableMarketRoles": _comparable_roles(need.role_family, need.seniority_target),
     }
     prompt = (
-        "Design a precise RoleSpec grounded in the REAL stack (prefer it over the stated one where they "
-        "differ). Be specific and honest.\n"
+        "Design a precise RoleSpec. ANCHOR the role's IDENTITY to what they are HIRING FOR — the stated "
+        "title, function (roleFamily) and responsibilities. Do NOT rename the role to the codebase's domain; "
+        "the codebase is where this person will WORK, not what defines the role. Use the REAL stack to "
+        "calibrate must-haves and to note honestly what transfers and what is a gap (e.g. a Flask codebase "
+        "for a 'Backend Engineer' is fine and Python transfers; a security role on a data-pipeline codebase "
+        "stays a security role). Calibrate scope to the seniority. Lightly ground against the comparable "
+        "market roles.\n"
         f"{json.dumps(ctx, ensure_ascii=False, indent=2)}\n\n"
         'Return JSON: { "title": str, "seniority": "junior|medior|senior|lead", "roleFamily": str, '
         '"mustHaves": [str], "niceToHaves": [str], "responsibilities": [str], "languages": [str] }. JSON only.'
@@ -110,41 +151,56 @@ def design_role(need: DevNeed, analysis: NeedAnalysis, *, provider: Any | None =
 
 def design_case(need: DevNeed, analysis: NeedAnalysis, role: dict, *, provider: Any | None = None) -> tuple[dict, str]:
     real = analysis.real_stack or need.stack
-    timebox = 4.0
+    seniority = role.get("seniority") or need.seniority_target
+    timebox = _timebox(seniority)
+    role_family = role.get("roleFamily") or need.role_family
     ctx = {
-        "role": {"title": role.get("title"), "seniority": role.get("seniority"), "responsibilities": role.get("responsibilities", [])},
-        "realStack": real,
+        "role": {
+            "title": role.get("title"),
+            "function": role_family,
+            "seniority": seniority,
+            "responsibilities": role.get("responsibilities", []),
+        },
+        "codebaseStack": real,
         "trueComplexity": analysis.true_complexity,
         "riskAreas": analysis.risk_areas,
         "timeboxHours": timebox,
     }
     prompt = (
-        "Design a take-home CASE/ASSIGNMENT for this role, grounded in the real stack below.\n"
+        "Design a take-home CASE/ASSIGNMENT for THIS role.\n"
         f"{json.dumps(ctx, ensure_ascii=False, indent=2)}\n\n"
-        "ASSUME the candidate's code will be 100% LLM-generated. So the assignment must COVERTLY probe how "
-        "they DRIVE the tools and their judgment — WITHOUT telling them they are being tested on AI use. Bake "
-        "in 2-4 cover-probes, e.g.: an underspecified/ambiguous requirement (rewards clarifying vs assuming); a "
-        "legacy/broken or surprising area (rewards reading before generating); a verification trap where naive "
-        "one-shot generation passes a shallow check but is subtly wrong (rewards testing/validation). Tasks must "
-        f"be doable in ~{timebox}h and grounded in {', '.join(real[:4]) or 'the stack'}.\n"
+        "CRITICAL — the TASK TYPE must match what this role actually DOES (its function + responsibilities), "
+        "and the codebase is the MATERIAL they act ON, not the subject. If the codebase's domain differs from "
+        "the role's function, design a task of the ROLE's function applied to this codebase — e.g. a security "
+        "engineer THREAT-MODELS / hardens the given service (does NOT build new features for it); a data "
+        "engineer works the pipeline; a frontend engineer works the UI. Never produce a take-home in the "
+        "codebase's own domain when that differs from the role being hired.\n"
+        f"CALIBRATE to seniority '{seniority}': junior = narrow, well-scoped, more scaffolding, simpler probes; "
+        "senior/lead = broader, more ambiguous, architectural and judgment-heavy. Fit the work to "
+        f"~{timebox}h.\n"
+        "ASSUME the candidate's code will be 100% LLM-generated, so COVERTLY probe how they DRIVE the tools and "
+        "their judgment — WITHOUT telling them. Bake in 2-4 cover-probes: an underspecified/ambiguous "
+        "requirement (rewards clarifying); a legacy/surprising area (rewards reading before generating); a "
+        "verification trap where naive one-shot generation passes a shallow check but is subtly wrong.\n"
         'Return JSON: { "title": str, "brief": str, "repoSeed": str, "tasks": [str], '
         '"coverProbes": [ { "id": str, "kind": "ambiguity|legacy_trap|verification_trap|underspecified", '
-        '"where": str, "reveals": str } ], "timeboxHours": number }. The "reveals" notes are INTERNAL (what a '
-        "good vs naive response implies). JSON only."
+        '"where": str, "reveals": str } ], "timeboxHours": number }. The "reveals" notes are INTERNAL. JSON only.'
     )
 
     def deterministic() -> dict:
         stack = ", ".join(real[:3]) or "the stack"
+        title = role.get("title") or "Engineering"
         return {
-            "title": f"Extend the {real[0] if real else 'service'} ingest path",
+            "title": f"{title}: assess and improve the codebase",
             "brief": (
-                f"You are handed a small {stack} service. Add a feature and harden an existing area. "
-                "The brief is intentionally lightly specified — make and document your calls."
+                f"You are handed a small {stack} codebase. Do a piece of representative {role_family} work on it "
+                f"(scoped to ~{timebox}h for a {seniority}). The brief is intentionally lightly specified — make "
+                "and document your calls."
             ),
             "repoSeed": "A minimal repo fixture: a working module, one under-documented legacy file, a thin test suite.",
             "tasks": [
-                f"Add an endpoint/feature in {stack} per the brief.",
-                "Improve the existing legacy area you find under-documented.",
+                f"Do the core {role_family} task on this {stack} codebase per the brief.",
+                "Engage the existing legacy area you find under-documented.",
                 "Make the change safe — show how you verified it.",
             ],
             "coverProbes": [
