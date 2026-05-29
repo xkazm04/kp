@@ -3,72 +3,99 @@
 import { useSearchParams } from "next/navigation";
 import { useCallback } from "react";
 import { AboutTab } from "./AboutTab/AboutTab";
-import { AnalyzeTab } from "./AnalyzeTab/AnalyzeTab";
-import { HistoryTab } from "./HistoryTab/HistoryTab";
+import { AnalyzeWorkspace } from "./AnalyzeWorkspace/AnalyzeWorkspace";
 import { JobsTab } from "./JobsTab/JobsTab";
 import { LibraryTab } from "./LibraryTab/LibraryTab";
 import { MatchTab } from "./MatchTab/MatchTab";
 import { MatrixTab } from "./MatrixTab/MatrixTab";
+import { PipelineTab } from "./PipelineTab/PipelineTab";
 import { ProfileTab } from "./ProfileTab/ProfileTab";
-import { isWorkspaceTabId, WORKSPACE_TABS, type WorkspaceTabId } from "./tabs";
+import { DEFAULT_TAB, isWorkspaceTabId, NAV_GROUPS, type WorkspaceTabId } from "./tabs";
 
 export type { WorkspaceTabId } from "./tabs";
 
 export function Workspace() {
   const params = useSearchParams();
   const tabParam = params.get("tab");
-  const active: WorkspaceTabId = isWorkspaceTabId(tabParam) ? tabParam : "analyze";
+  const active: WorkspaceTabId = isWorkspaceTabId(tabParam) ? tabParam : DEFAULT_TAB;
+  // History is consolidated into Analyze; ?tab=history opens Analyze in history mode.
+  const navActive: WorkspaceTabId = active === "history" ? "analyze" : active;
 
   const selectTab = useCallback((id: WorkspaceTabId): void => {
     if (typeof window === "undefined") return;
     const url = new URL(window.location.href);
-    if (id === "analyze") url.searchParams.delete("tab");
+    if (id === DEFAULT_TAB) url.searchParams.delete("tab");
     else url.searchParams.set("tab", id);
-    // pushState so the back button navigates between tabs; firing popstate
-    // ourselves makes useSearchParams pick up the change.
     window.history.pushState(null, "", url.toString());
     window.dispatchEvent(new PopStateEvent("popstate"));
   }, []);
 
   return (
-    <div className="space-y-5">
-      <nav
-        aria-label="Workspace tabs"
-        className="rounded-lg border border-stone-200 bg-white p-1 shadow-panel"
-      >
-        <div className="grid grid-cols-2 gap-1 sm:grid-cols-4 lg:grid-cols-8">
-          {WORKSPACE_TABS.map((tab) => {
-            const isActive = tab.id === active;
-            return (
-              <button
-                key={tab.id}
-                type="button"
-                role="tab"
-                aria-selected={isActive}
-                onClick={() => selectTab(tab.id)}
-                className={`focus-ring h-10 rounded-md px-3 text-sm font-semibold transition-colors ${
-                  isActive
-                    ? "bg-ink text-white"
-                    : "text-steel hover:bg-paper hover:text-ink"
-                }`}
-              >
-                {tab.label}
-              </button>
-            );
-          })}
+    <div className="min-h-screen bg-paper md:flex">
+      <aside className="border-b border-stone-300 bg-paper md:sticky md:top-0 md:h-screen md:w-64 md:shrink-0 md:overflow-y-auto md:border-b-0 md:border-r">
+        <div className="px-4 py-5">
+          <div className="flex items-center gap-2.5">
+            <span className="grid h-9 w-9 place-items-center rounded-lg bg-ink font-serif text-sm font-semibold text-white">
+              KP
+            </span>
+            <div className="leading-tight">
+              <p className="font-serif text-h3 text-ink">studio</p>
+              <p className="text-[10px] uppercase tracking-[0.12em] text-steel">talent matching</p>
+            </div>
+          </div>
         </div>
-      </nav>
 
-      <div role="tabpanel">
-        {active === "analyze" ? <AnalyzeTab /> : null}
-        {active === "profile" ? <ProfileTab /> : null}
-        {active === "match" ? <MatchTab /> : null}
-        {active === "history" ? <HistoryTab /> : null}
-        {active === "library" ? <LibraryTab /> : null}
-        {active === "jobs" ? <JobsTab /> : null}
-        {active === "matrix" ? <MatrixTab /> : null}
-        {active === "about" ? <AboutTab /> : null}
-      </div>
+        <nav aria-label="Workspace" className="space-y-5 px-3 pb-6">
+          {NAV_GROUPS.map((group, gi) => (
+            <div key={group.label ?? `g${gi}`}>
+              {group.label ? (
+                <p className="px-2 pb-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-steel/70">
+                  {group.label}
+                </p>
+              ) : null}
+              <div className="space-y-0.5">
+                {group.items.map((item) => {
+                  const isActive = item.id === navActive;
+                  return (
+                    <button
+                      key={item.id}
+                      type="button"
+                      aria-current={isActive ? "page" : undefined}
+                      onClick={() => selectTab(item.id)}
+                      className={`focus-ring flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-sm font-medium transition-colors ${
+                        isActive
+                          ? "bg-coral/10 text-coral"
+                          : "text-ink/80 hover:bg-white hover:text-ink"
+                      }`}
+                    >
+                      <span
+                        className={`h-1.5 w-1.5 rounded-full ${isActive ? "bg-coral" : "bg-stone-300"}`}
+                        aria-hidden
+                      />
+                      {item.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </nav>
+      </aside>
+
+      <main className="min-w-0 flex-1 bg-white">
+        <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:px-8">
+          {navActive === "pipeline" ? <PipelineTab /> : null}
+          {navActive === "profile" ? <ProfileTab /> : null}
+          {navActive === "match" ? <MatchTab /> : null}
+          {navActive === "analyze" ? (
+            <AnalyzeWorkspace initialMode={active === "history" ? "history" : "new"} />
+          ) : null}
+          {navActive === "jobs" ? <JobsTab /> : null}
+          {navActive === "library" ? <LibraryTab /> : null}
+          {navActive === "matrix" ? <MatrixTab /> : null}
+          {navActive === "about" ? <AboutTab /> : null}
+        </div>
+      </main>
     </div>
   );
 }

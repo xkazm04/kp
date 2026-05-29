@@ -1,12 +1,13 @@
-// Shared tab definitions so client (Workspace) and server (deep-link pages)
-// render the same strip without duplication.
+// Tab definitions shared by the interactive Workspace (studio sidebar) and the
+// server-rendered deep-link breadcrumb (WorkspaceTabBarLinks).
 
 export type WorkspaceTabId =
-  | "analyze"
+  | "pipeline"
   | "profile"
   | "match"
-  | "jobs"
+  | "analyze"
   | "history"
+  | "jobs"
   | "library"
   | "matrix"
   | "about";
@@ -16,23 +17,67 @@ export type WorkspaceTabDef = {
   label: string;
 };
 
+// The Pipeline dashboard is the default landing surface.
+export const DEFAULT_TAB: WorkspaceTabId = "pipeline";
+
+// Flat list (no standalone History — it's consolidated into Analyze). Used by
+// the deep-link breadcrumb.
 export const WORKSPACE_TABS: WorkspaceTabDef[] = [
-  { id: "analyze", label: "Analyze" },
+  { id: "pipeline", label: "Pipeline" },
   { id: "profile", label: "Profile" },
   { id: "match", label: "Match" },
+  { id: "analyze", label: "Analyze" },
   { id: "jobs", label: "Jobs" },
-  { id: "history", label: "History" },
-  { id: "library", label: "Library" },
+  { id: "library", label: "Job descriptions" },
   { id: "matrix", label: "Matrix" },
   { id: "about", label: "About" },
 ];
 
-const TAB_IDS = new Set<WorkspaceTabId>(WORKSPACE_TABS.map((t) => t.id));
+// Grouped structure for the studio left sidebar.
+export type NavGroup = { label?: string; items: WorkspaceTabDef[] };
+
+export const NAV_GROUPS: NavGroup[] = [
+  { items: [{ id: "pipeline", label: "Pipeline" }] },
+  {
+    label: "Candidates",
+    items: [
+      { id: "profile", label: "Profile" },
+      { id: "match", label: "Match" },
+      { id: "analyze", label: "Analyze" },
+    ],
+  },
+  {
+    label: "Library",
+    items: [
+      { id: "jobs", label: "Jobs" },
+      { id: "library", label: "Job descriptions" },
+    ],
+  },
+  {
+    label: "Insights",
+    items: [
+      { id: "matrix", label: "Matrix" },
+      { id: "about", label: "About" },
+    ],
+  },
+];
+
+const TAB_IDS = new Set<WorkspaceTabId>([
+  "pipeline",
+  "profile",
+  "match",
+  "analyze",
+  "history",
+  "jobs",
+  "library",
+  "matrix",
+  "about",
+]);
 
 export function isWorkspaceTabId(value: string | null | undefined): value is WorkspaceTabId {
   return typeof value === "string" && TAB_IDS.has(value as WorkspaceTabId);
 }
 
 export function tabHref(id: WorkspaceTabId): string {
-  return id === "analyze" ? "/" : `/?tab=${id}`;
+  return id === DEFAULT_TAB ? "/" : `/?tab=${id}`;
 }
