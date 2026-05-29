@@ -425,13 +425,9 @@ export function DevTab() {
                 <p className="mt-0.5 truncate font-mono text-[10px] text-steel">apply token: {p.token}</p>
 
                 {(p.submissions ?? []).length > 0 ? (
-                  <ul className="mt-2 space-y-1 border-t border-stone-100 pt-2">
+                  <ul className="mt-2 space-y-1.5 border-t border-stone-100 pt-2">
                     {(p.submissions ?? []).map((s) => (
-                      <li key={s.id} className="flex items-center gap-1.5 text-[11px]">
-                        <GitBranch size={11} className="shrink-0 text-steel" />
-                        <span className="font-semibold text-ink">{s.candidateRef}</span>
-                        <span className="min-w-0 flex-1 truncate text-steel">{s.repoRef}</span>
-                      </li>
+                      <SubmissionRow key={s.id} submission={s} caseId={p.caseId} />
                     ))}
                   </ul>
                 ) : null}
@@ -478,6 +474,95 @@ function SubmissionForm({ postingId, onDone }: { postingId: string; onDone: () =
         className="focus-ring inline-flex h-7 items-center gap-1 rounded border border-stone-200 px-2 text-[11px] font-semibold text-coral hover:bg-coral/5 disabled:opacity-50">
         <Inbox size={11} /> {busy ? "…" : "Record"}
       </button>
+    </div>
+  );
+}
+
+type Reflection = {
+  narrative?: string;
+  iterationPattern?: string;
+  deadEnds?: string[];
+  readBeforeWrite?: number;
+  verificationHabits?: string[];
+  confidence?: number;
+};
+type ProbeOutcome = { probeId?: string; detected?: boolean; handledWell?: boolean; note?: string };
+type Tooling = { fluency?: number; probeOutcomes?: ProbeOutcome[]; overRelianceFlags?: string[]; evidence?: string[]; confidence?: number };
+type ReflectResult = { reflection?: Reflection; tooling?: Tooling; source?: string; commitCount?: number };
+
+function SubmissionRow({ submission, caseId }: { submission: Submission; caseId: string | null }) {
+  const { startTask, tasks } = useTasks();
+  const [taskId, setTaskId] = useState<string | null>(null);
+  const task = tasks.find((t) => t.id === taskId);
+  const busy = task ? task.status === "running" || task.status === "queued" : false;
+  const res = task?.status === "succeeded" ? (task.result as ReflectResult) : null;
+
+  const reflect = async () => {
+    const t = await startTask("commit_reflection", { repoRef: submission.repoRef, caseId, candidateRef: submission.candidateRef });
+    if (t) setTaskId(t.id);
+  };
+
+  return (
+    <li className="rounded-md border border-stone-100 bg-paper/40 p-2">
+      <div className="flex items-center gap-1.5 text-[11px]">
+        <GitBranch size={11} className="shrink-0 text-steel" />
+        <span className="font-semibold text-ink">{submission.candidateRef}</span>
+        <span className="min-w-0 flex-1 truncate text-steel">{submission.repoRef}</span>
+        <button
+          type="button"
+          onClick={reflect}
+          disabled={busy}
+          className="focus-ring inline-flex h-6 shrink-0 items-center gap-1 rounded border border-stone-200 bg-white px-1.5 text-[10px] font-semibold text-coral hover:bg-coral/5 disabled:opacity-50"
+        >
+          <Sparkles size={10} /> {busy ? "Reflecting…" : "Reflect"}
+        </button>
+      </div>
+      {res?.reflection ? <ReflectionPanel res={res} /> : null}
+    </li>
+  );
+}
+
+function ReflectionPanel({ res }: { res: ReflectResult }) {
+  const r = res.reflection ?? {};
+  const t = res.tooling ?? {};
+  return (
+    <div className="mt-2 rounded-md border border-stone-200 bg-white p-2.5 text-[11px] text-ink">
+      <div className="mb-1 flex items-center gap-2">
+        <span className="text-[9px] font-semibold uppercase tracking-wide text-steel">Where they mentally went</span>
+        <span className="rounded bg-paper px-1.5 py-0.5 text-[9px] uppercase text-steel">{r.iterationPattern}</span>
+        <span className="ml-auto text-[9px] uppercase text-steel">
+          {res.source === "llm" ? "Claude CLI" : "template"} · {res.commitCount ?? 0} commits · conf {Math.round((r.confidence ?? 0) * 100)}%
+        </span>
+      </div>
+      <p>{r.narrative}</p>
+      <div className="mt-1.5 flex flex-wrap gap-3 text-[10px] text-steel">
+        <span>read-before-write <b className="text-ink">{Math.round((r.readBeforeWrite ?? 0) * 100)}%</b></span>
+        {(r.verificationHabits ?? []).length ? <span>verify: {(r.verificationHabits ?? []).join(", ")}</span> : null}
+        {(r.deadEnds ?? []).length ? <span>dead-ends: {(r.deadEnds ?? []).length}</span> : null}
+      </div>
+
+      <div className="mt-2 border-t border-stone-100 pt-2">
+        <div className="flex items-center gap-2">
+          <span className="text-[9px] font-semibold uppercase tracking-wide text-steel">Tooling — covert probes</span>
+          <span className="ml-auto text-[9px] uppercase text-steel">fluency {Math.round((t.fluency ?? 0) * 100)}%</span>
+        </div>
+        <ul className="mt-1 space-y-0.5">
+          {(t.probeOutcomes ?? []).map((o, i) => (
+            <li key={i} className="flex items-center gap-1.5">
+              {o.handledWell ? (
+                <Check size={11} className="shrink-0 text-moss" />
+              ) : o.detected ? (
+                <span className="shrink-0 text-[9px] font-bold text-amber-600">~</span>
+              ) : (
+                <span className="shrink-0 text-[9px] text-steel">·</span>
+              )}
+              <span className="font-mono text-[9px] text-steel">{o.probeId}</span>
+              <span className="min-w-0 flex-1 truncate text-ink">{o.note}</span>
+            </li>
+          ))}
+        </ul>
+        <p className="mt-1 text-[9px] italic text-steel">Using AI is never penalised — judged on judgment + verification.</p>
+      </div>
     </div>
   );
 }

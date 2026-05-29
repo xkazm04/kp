@@ -1,7 +1,8 @@
 import { writeFile } from "node:fs/promises";
 import path from "node:path";
+import { getDevCase } from "./db";
 import { cleanupWorkdir, createWorkdir, parseStderrError, spawnPython } from "./python-runner";
-import { buildRepoSnapshot, type RepoSnapshot } from "./repo-snapshot";
+import { buildRepoSnapshot, fetchCommitTrace, type RepoSnapshot } from "./repo-snapshot";
 
 export type DevNeed = {
   id?: string;
@@ -78,6 +79,47 @@ export async function runDesignArtifacts(need: DevNeed, analysis: Record<string,
     }
     const payload = JSON.parse(stdout) as { result: { role: Record<string, unknown>; case: Record<string, unknown> }; source: string };
     return { role: payload.result.role, case: payload.result.case, source: payload.source };
+  } finally {
+    await cleanupWorkdir(workdir);
+  }
+}
+
+export type CommitReflectionResult = {
+  reflection: Record<string, unknown>;
+  tooling: Record<string, unknown>;
+  source: string;
+  commitCount: number;
+};
+
+// D5 core: pull the submission repo's git trace, then reflect ("where they mentally
+// went") + assess tooling against the case's covert probes.
+export async function runCommitReflection(repoRef: string, caseId?: string): Promise<CommitReflectionResult> {
+  const trace = (await fetchCommitTrace(repoRef)) ?? [];
+  const devCase = caseId ? getDevCase(caseId) : null;
+  const probes = ((devCase?.case as { coverProbes?: unknown[] } | null)?.coverProbes ?? []) as unknown[];
+
+  const workdir = await createWorkdir();
+  try {
+    const commitsPath = path.join(workdir, "commits.json");
+    const probesPath = path.join(workdir, "probes.json");
+    await writeFile(commitsPath, JSON.stringify(trace), "utf-8");
+    await writeFile(probesPath, JSON.stringify(probes), "utf-8");
+    const { result } = spawnPython([
+      "-m",
+      "pipeline.jobfit.devcase.devcase_cli",
+      "reflect-commits",
+      "--commits-json",
+      commitsPath,
+      "--probes-json",
+      probesPath,
+    ]);
+    const { stdout, stderr, exitCode } = await result;
+    if (exitCode !== 0) {
+      const err = parseStderrError(stderr, exitCode);
+      throw new Error(err.message);
+    }
+    const payload = JSON.parse(stdout) as { result: { reflection: Record<string, unknown>; tooling: Record<string, unknown> }; source: string };
+    return { reflection: payload.result.reflection, tooling: payload.result.tooling, source: payload.source, commitCount: trace.length };
   } finally {
     await cleanupWorkdir(workdir);
   }

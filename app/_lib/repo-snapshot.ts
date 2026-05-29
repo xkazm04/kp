@@ -81,3 +81,22 @@ export async function buildRepoSnapshot(ref: string): Promise<RepoSnapshot | nul
 
   return { ref, languages, inferredStack, frameworks: [], topDirs, recentCommitSummaries, loc, readmeExcerpt };
 }
+
+export type CommitEntry = { sha: string; message: string; date: string };
+
+// The git trace for a (submission) repo: chronological commit messages + dates.
+// Returns null if the repo can't be reached.
+export async function fetchCommitTrace(ref: string, max = 60): Promise<CommitEntry[] | null> {
+  const parsed = parseRepoRef(ref);
+  if (!parsed) return null;
+  const full = `${parsed.owner}/${parsed.repo}`;
+  const commits = await gh<Array<{ sha: string; commit: { message: string; author?: { date?: string } } }>>(
+    `${GH}/repos/${full}/commits?per_page=${Math.min(Math.max(max, 1), 100)}`
+  );
+  if (!commits) return null;
+  return commits.map((c) => ({
+    sha: (c.sha ?? "").slice(0, 7),
+    message: (c.commit?.message ?? "").split("\n")[0].slice(0, 140),
+    date: c.commit?.author?.date ?? "",
+  }));
+}

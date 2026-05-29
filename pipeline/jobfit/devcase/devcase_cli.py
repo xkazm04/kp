@@ -2,6 +2,7 @@
 
     python -m pipeline.jobfit.devcase.devcase_cli analyze-need      --need-json N [--snapshot-json S] [--no-llm]
     python -m pipeline.jobfit.devcase.devcase_cli design-artifacts  --need-json N --analysis-json A [--no-llm]
+    python -m pipeline.jobfit.devcase.devcase_cli reflect-commits   --commits-json C [--probes-json P] [--no-llm]
 
 Output: one JSON object {"result","source"} to stdout; {"error","status"} to stderr + exit 1.
 """
@@ -16,6 +17,7 @@ from pathlib import Path
 from ..claude_cli import ClaudeCliProvider
 from . import analyze as _analyze
 from . import design as _design
+from . import reflect as _reflect
 from .models import DevNeed, NeedAnalysis, RepoSnapshot
 
 
@@ -25,19 +27,34 @@ def main(argv: list[str] | None = None) -> int:
         sys.stderr.reconfigure(encoding="utf-8")
 
     parser = argparse.ArgumentParser(description="Dev-extension tasks (Claude CLI only).")
-    parser.add_argument("command", choices=["analyze-need", "design-artifacts"])
-    parser.add_argument("--need-json", type=Path, required=True)
+    parser.add_argument("command", choices=["analyze-need", "design-artifacts", "reflect-commits"])
+    parser.add_argument("--need-json", type=Path)
     parser.add_argument("--snapshot-json", type=Path)
     parser.add_argument("--analysis-json", type=Path)
+    parser.add_argument("--commits-json", type=Path)
+    parser.add_argument("--probes-json", type=Path)
     parser.add_argument("--no-llm", action="store_true")
     args = parser.parse_args(argv)
 
     try:
-        need = DevNeed.model_validate(json.loads(args.need_json.read_text(encoding="utf-8")))
-
         provider = None if args.no_llm else ClaudeCliProvider(timeout=120)
         if provider is not None and not provider.available():
             provider = None
+
+        if args.command == "reflect-commits":
+            if not args.commits_json:
+                raise ValueError("reflect-commits requires --commits-json")
+            commits = json.loads(args.commits_json.read_text(encoding="utf-8")) or []
+            probes = json.loads(args.probes_json.read_text(encoding="utf-8")) if args.probes_json else []
+            reflection, rsrc = _reflect.reflect_commits(commits, provider=provider)
+            tooling, tsrc = _reflect.assess_tooling(reflection, commits, probes, provider=provider)
+            source = "llm" if "llm" in (rsrc, tsrc) else "deterministic"
+            print(json.dumps({"result": {"reflection": reflection, "tooling": tooling}, "source": source}, ensure_ascii=False))
+            return 0
+
+        if not args.need_json:
+            raise ValueError(f"{args.command} requires --need-json")
+        need = DevNeed.model_validate(json.loads(args.need_json.read_text(encoding="utf-8")))
 
         if args.command == "analyze-need":
             snapshot = (
