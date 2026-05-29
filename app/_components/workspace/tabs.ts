@@ -3,10 +3,11 @@
 
 export type WorkspaceTabId =
   | "analyze"
+  | "profile"
   | "match"
+  | "jobs"
   | "history"
   | "library"
-  | "jobs"
   | "matrix"
   | "about";
 
@@ -17,6 +18,7 @@ export type WorkspaceTabDef = {
 
 export const WORKSPACE_TABS: WorkspaceTabDef[] = [
   { id: "analyze", label: "Analyze" },
+  { id: "profile", label: "Profile" },
   { id: "match", label: "Match" },
   { id: "jobs", label: "Jobs" },
   { id: "history", label: "History" },

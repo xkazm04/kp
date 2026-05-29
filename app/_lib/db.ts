@@ -74,6 +74,18 @@ function ensureDb(): Database.Database {
     CREATE INDEX IF NOT EXISTS idx_jobs_seniority ON jobs (seniority);
     CREATE INDEX IF NOT EXISTS idx_jobs_work_mode ON jobs (work_mode);
     CREATE INDEX IF NOT EXISTS idx_jobs_entry ON jobs (is_entry_eligible);
+
+    CREATE TABLE IF NOT EXISTS profiles (
+      id TEXT PRIMARY KEY,
+      label TEXT NOT NULL,
+      archetype TEXT,
+      role_family TEXT,
+      completeness REAL DEFAULT 0,
+      payload_json TEXT NOT NULL,
+      created_at TEXT NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_profiles_created_at ON profiles (created_at DESC);
   `);
   seedExampleJd(db);
   seedJobs(db);
@@ -477,4 +489,69 @@ export function jobStats(): JobStats {
     bySeniority: group("seniority"),
     byWorkMode: group("work_mode"),
   };
+}
+
+// ---- Candidate profiles (v2 archetype-aware intake) -----------------------
+
+export type ProfileRow = {
+  id: string;
+  label: string;
+  archetype: string | null;
+  role_family: string | null;
+  completeness: number | null;
+  created_at: string;
+};
+
+export type SaveProfileInput = {
+  label: string;
+  archetype: string | null;
+  roleFamily: string | null;
+  completeness: number | null;
+  payload: unknown;
+};
+
+export function saveProfile(input: SaveProfileInput): { id: string; createdAt: string } {
+  const db = ensureDb();
+  const id = generateSlug();
+  const createdAt = new Date().toISOString();
+  db.prepare(
+    `INSERT INTO profiles (id, label, archetype, role_family, completeness, payload_json, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`
+  ).run(
+    id,
+    input.label,
+    input.archetype,
+    input.roleFamily,
+    input.completeness,
+    JSON.stringify(input.payload),
+    createdAt
+  );
+  return { id, createdAt };
+}
+
+export function listProfiles(limit = 100): ProfileRow[] {
+  const db = ensureDb();
+  return db
+    .prepare(
+      `SELECT id, label, archetype, role_family, completeness, created_at
+       FROM profiles ORDER BY created_at DESC LIMIT ?`
+    )
+    .all(limit) as ProfileRow[];
+}
+
+export function getProfileRecord(id: string): { row: ProfileRow; payload: unknown } | null {
+  const db = ensureDb();
+  const row = db
+    .prepare(
+      `SELECT id, label, archetype, role_family, completeness, payload_json, created_at
+       FROM profiles WHERE id = ?`
+    )
+    .get(id) as (ProfileRow & { payload_json: string }) | undefined;
+  if (!row) return null;
+  try {
+    const { payload_json, ...rest } = row;
+    return { row: rest, payload: JSON.parse(payload_json) };
+  } catch {
+    return null;
+  }
 }
