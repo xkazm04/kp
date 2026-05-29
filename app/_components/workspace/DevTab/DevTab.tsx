@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Boxes, Check, ClipboardList, GitBranch, Loader2, Lock, ShieldCheck, Sparkles } from "lucide-react";
+import { Boxes, Check, ClipboardList, GitBranch, Inbox, Loader2, Lock, Send, ShieldCheck, Sparkles } from "lucide-react";
 import { useTasks } from "../tasks/TasksProvider";
 
 type NeedAnalysis = {
@@ -30,6 +30,17 @@ type RoleSpec = { title?: string; seniority?: string; mustHaves?: string[]; nice
 type CaseScenario = { title?: string; brief?: string; repoSeed?: string; tasks?: string[]; coverProbes?: CoverProbe[]; rubricDimensions?: RubricDim[]; timeboxHours?: number };
 type Design = { role?: RoleSpec; case?: CaseScenario; source?: string };
 type ApprovedCase = { id: string; title: string | null; roleTitle: string | null; seniority: string | null; createdAt: string };
+type Submission = { id: string; candidateRef: string | null; repoRef: string | null; notes: string | null; receivedAt: string };
+type Posting = {
+  id: string;
+  caseId: string | null;
+  channel: string;
+  token: string | null;
+  roleTitle: string | null;
+  caseTitle: string | null;
+  submissionCount?: number;
+  submissions?: Submission[];
+};
 
 const COMPLEXITY: Record<string, string> = {
   low: "bg-moss/15 text-moss",
@@ -49,15 +60,31 @@ export function DevTab() {
   const [approving, setApproving] = useState(false);
   const [approvedId, setApprovedId] = useState<string | null>(null);
   const [approvedCases, setApprovedCases] = useState<ApprovedCase[]>([]);
+  const [postings, setPostings] = useState<Posting[]>([]);
 
   const loadCases = () =>
     fetch("/api/devcase")
       .then((r) => r.json())
       .then((p) => setApprovedCases((p.cases as ApprovedCase[]) ?? []))
       .catch(() => {});
+  const loadPostings = () =>
+    fetch("/api/devcase/postings")
+      .then((r) => r.json())
+      .then((p) => setPostings((p.postings as Posting[]) ?? []))
+      .catch(() => {});
   useEffect(() => {
     loadCases();
+    loadPostings();
   }, []);
+
+  const publish = async (caseId: string) => {
+    await fetch("/api/devcase/publish", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ caseId }),
+    });
+    loadPostings();
+  };
 
   const needTasks = useMemo(() => tasks.filter((t) => t.kind === "need_analysis"), [tasks]);
   const viewed = useMemo(
@@ -357,15 +384,100 @@ export function DevTab() {
             <ShieldCheck size={13} className="text-moss" /> Approved assignments <span className="text-coral">· {approvedCases.length}</span>
           </h3>
           <ul className="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-            {approvedCases.map((c) => (
-              <li key={c.id} className="rounded-lg border border-stone-200 bg-white p-3 shadow-panel">
-                <p className="truncate text-sm font-semibold text-ink">{c.title || "Assignment"}</p>
-                <p className="truncate text-[11px] text-steel">{c.roleTitle} · {c.seniority}</p>
-              </li>
-            ))}
+            {approvedCases.map((c) => {
+              const published = postings.some((p) => p.caseId === c.id);
+              return (
+                <li key={c.id} className="flex flex-col rounded-lg border border-stone-200 bg-white p-3 shadow-panel">
+                  <p className="truncate text-sm font-semibold text-ink">{c.title || "Assignment"}</p>
+                  <p className="truncate text-[11px] text-steel">{c.roleTitle} · {c.seniority}</p>
+                  <button
+                    type="button"
+                    onClick={() => publish(c.id)}
+                    disabled={published}
+                    className="focus-ring mt-2 inline-flex h-8 items-center justify-center gap-1.5 rounded-md border border-stone-200 px-2 text-[11px] font-semibold text-ink hover:border-coral/40 disabled:opacity-50"
+                  >
+                    <Send size={12} /> {published ? "Published" : "Publish"}
+                  </button>
+                </li>
+              );
+            })}
           </ul>
         </section>
       ) : null}
+
+      {postings.length > 0 ? (
+        <section>
+          <h3 className="flex items-center gap-1.5 text-meta uppercase tracking-wide text-steel">
+            <Inbox size={13} className="text-coral" /> Postings &amp; submissions <span className="text-coral">· {postings.length}</span>
+          </h3>
+          <p className="mt-1 text-[11px] text-steel">
+            The distribution seam. Publishing posts to a channel (local stub) and returns an apply token; submissions arrive
+            on the IN side. Real channels (email / ATS / job board) plug into the same adapter.
+          </p>
+          <div className="mt-3 grid gap-3 lg:grid-cols-2">
+            {postings.map((p) => (
+              <div key={p.id} className="rounded-lg border border-stone-200 bg-white p-3 shadow-panel">
+                <div className="flex items-center gap-2">
+                  <span className="rounded-full bg-paper px-2 py-0.5 text-[10px] font-semibold uppercase text-steel">{p.channel}</span>
+                  <span className="min-w-0 flex-1 truncate text-sm font-semibold text-ink">{p.caseTitle || p.roleTitle || "Posting"}</span>
+                  <span className="text-[11px] text-steel">{p.submissions?.length ?? p.submissionCount ?? 0} in</span>
+                </div>
+                <p className="mt-0.5 truncate font-mono text-[10px] text-steel">apply token: {p.token}</p>
+
+                {(p.submissions ?? []).length > 0 ? (
+                  <ul className="mt-2 space-y-1 border-t border-stone-100 pt-2">
+                    {(p.submissions ?? []).map((s) => (
+                      <li key={s.id} className="flex items-center gap-1.5 text-[11px]">
+                        <GitBranch size={11} className="shrink-0 text-steel" />
+                        <span className="font-semibold text-ink">{s.candidateRef}</span>
+                        <span className="min-w-0 flex-1 truncate text-steel">{s.repoRef}</span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
+
+                <SubmissionForm postingId={p.id} onDone={loadPostings} />
+              </div>
+            ))}
+          </div>
+        </section>
+      ) : null}
+    </div>
+  );
+}
+
+function SubmissionForm({ postingId, onDone }: { postingId: string; onDone: () => void }) {
+  const [candidate, setCandidate] = useState("");
+  const [repo, setRepo] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const send = async () => {
+    if (!candidate.trim() || !repo.trim()) return;
+    setBusy(true);
+    try {
+      await fetch("/api/devcase/submit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ postingId, candidateRef: candidate.trim(), repoRef: repo.trim() }),
+      });
+      setCandidate("");
+      setRepo("");
+      onDone();
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="mt-2 flex flex-wrap items-center gap-1.5 border-t border-stone-100 pt-2">
+      <input value={candidate} onChange={(e) => setCandidate(e.target.value)} placeholder="candidate"
+        className="focus-ring h-7 w-24 rounded border border-stone-200 px-1.5 text-[11px]" />
+      <input value={repo} onChange={(e) => setRepo(e.target.value)} placeholder="submission repo URL"
+        className="focus-ring h-7 min-w-0 flex-1 rounded border border-stone-200 px-1.5 text-[11px]" />
+      <button type="button" onClick={send} disabled={busy}
+        className="focus-ring inline-flex h-7 items-center gap-1 rounded border border-stone-200 px-2 text-[11px] font-semibold text-coral hover:bg-coral/5 disabled:opacity-50">
+        <Inbox size={11} /> {busy ? "…" : "Record"}
+      </button>
     </div>
   );
 }

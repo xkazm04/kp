@@ -157,6 +157,30 @@ function ensureDb(): Database.Database {
     );
 
     CREATE INDEX IF NOT EXISTS idx_dev_cases_created ON dev_cases (created_at DESC);
+
+    CREATE TABLE IF NOT EXISTS dev_postings (
+      id TEXT PRIMARY KEY,
+      case_id TEXT,
+      channel TEXT NOT NULL,
+      token TEXT,
+      role_title TEXT,
+      case_title TEXT,
+      status TEXT NOT NULL DEFAULT 'open',
+      created_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS dev_submissions (
+      id TEXT PRIMARY KEY,
+      posting_id TEXT,
+      candidate_ref TEXT,
+      repo_ref TEXT,
+      notes TEXT,
+      status TEXT NOT NULL DEFAULT 'received',
+      received_at TEXT NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_dev_postings_created ON dev_postings (created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_dev_submissions_posting ON dev_submissions (posting_id);
   `);
   // Migration for DBs created before the observability columns existed.
   for (const col of ["created_at", "stage_changed_at"]) {
@@ -1266,6 +1290,124 @@ export function listDevCases(limit = 50): DevCaseRecord[] {
   const db = ensureDb();
   const rows = db.prepare(`SELECT * FROM dev_cases ORDER BY created_at DESC LIMIT ?`).all(limit) as DevCaseRow[];
   return rows.map(rowToDevCase);
+}
+
+export function getDevCase(id: string): DevCaseRecord | null {
+  const db = ensureDb();
+  const r = db.prepare(`SELECT * FROM dev_cases WHERE id = ?`).get(id) as DevCaseRow | undefined;
+  return r ? rowToDevCase(r) : null;
+}
+
+// ---- Dev extension — distribution: postings (OUT) + submissions (IN) (D4) -
+
+export type Posting = {
+  id: string;
+  caseId: string | null;
+  channel: string;
+  token: string | null;
+  roleTitle: string | null;
+  caseTitle: string | null;
+  status: string;
+  createdAt: string;
+  submissionCount?: number;
+};
+
+export type DevSubmission = {
+  id: string;
+  postingId: string | null;
+  candidateRef: string | null;
+  repoRef: string | null;
+  notes: string | null;
+  status: string;
+  receivedAt: string;
+};
+
+export function createPosting(input: {
+  caseId: string;
+  channel: string;
+  token: string;
+  roleTitle: string | null;
+  caseTitle: string | null;
+}): Posting {
+  const db = ensureDb();
+  const now = new Date().toISOString();
+  const id = `pst-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+  db.prepare(
+    `INSERT INTO dev_postings (id, case_id, channel, token, role_title, case_title, status, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, 'open', ?)`
+  ).run(id, input.caseId, input.channel, input.token, input.roleTitle, input.caseTitle, now);
+  return { id, caseId: input.caseId, channel: input.channel, token: input.token, roleTitle: input.roleTitle, caseTitle: input.caseTitle, status: "open", createdAt: now };
+}
+
+export function listPostings(): Posting[] {
+  const db = ensureDb();
+  const rows = db
+    .prepare(
+      `SELECT p.*, (SELECT COUNT(*) FROM dev_submissions s WHERE s.posting_id = p.id) AS submission_count
+       FROM dev_postings p ORDER BY p.created_at DESC`
+    )
+    .all() as Array<Record<string, unknown>>;
+  return rows.map((r) => ({
+    id: r.id as string,
+    caseId: (r.case_id as string) ?? null,
+    channel: r.channel as string,
+    token: (r.token as string) ?? null,
+    roleTitle: (r.role_title as string) ?? null,
+    caseTitle: (r.case_title as string) ?? null,
+    status: r.status as string,
+    createdAt: r.created_at as string,
+    submissionCount: Number(r.submission_count ?? 0),
+  }));
+}
+
+export function getPostingByToken(token: string): Posting | null {
+  const db = ensureDb();
+  const r = db.prepare(`SELECT * FROM dev_postings WHERE token = ?`).get(token) as Record<string, unknown> | undefined;
+  if (!r) return null;
+  return {
+    id: r.id as string,
+    caseId: (r.case_id as string) ?? null,
+    channel: r.channel as string,
+    token: (r.token as string) ?? null,
+    roleTitle: (r.role_title as string) ?? null,
+    caseTitle: (r.case_title as string) ?? null,
+    status: r.status as string,
+    createdAt: r.created_at as string,
+  };
+}
+
+export function createSubmission(input: {
+  postingId: string;
+  candidateRef: string;
+  repoRef: string;
+  notes?: string;
+}): DevSubmission {
+  const db = ensureDb();
+  const now = new Date().toISOString();
+  const id = `sub-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+  db.prepare(
+    `INSERT INTO dev_submissions (id, posting_id, candidate_ref, repo_ref, notes, status, received_at)
+     VALUES (?, ?, ?, ?, ?, 'received', ?)`
+  ).run(id, input.postingId, input.candidateRef, input.repoRef, input.notes ?? null, now);
+  return { id, postingId: input.postingId, candidateRef: input.candidateRef, repoRef: input.repoRef, notes: input.notes ?? null, status: "received", receivedAt: now };
+}
+
+export function listSubmissions(postingId?: string): DevSubmission[] {
+  const db = ensureDb();
+  const rows = (
+    postingId
+      ? db.prepare(`SELECT * FROM dev_submissions WHERE posting_id = ? ORDER BY received_at DESC`).all(postingId)
+      : db.prepare(`SELECT * FROM dev_submissions ORDER BY received_at DESC`).all()
+  ) as Array<Record<string, unknown>>;
+  return rows.map((r) => ({
+    id: r.id as string,
+    postingId: (r.posting_id as string) ?? null,
+    candidateRef: (r.candidate_ref as string) ?? null,
+    repoRef: (r.repo_ref as string) ?? null,
+    notes: (r.notes as string) ?? null,
+    status: r.status as string,
+    receivedAt: r.received_at as string,
+  }));
 }
 
 export type PipelineAction = "accept" | "reject" | "approve_event";
