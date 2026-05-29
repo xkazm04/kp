@@ -7,7 +7,13 @@ type AnalysisRow = {
   candidate_label: string;
   role_family: string | null;
   seniority: string | null;
-  created_at: string;
+};
+type ProfileRow = {
+  id: string;
+  label: string;
+  archetype: string | null;
+  role_family: string | null;
+  completeness: number | null;
 };
 
 type MatchResult = {
@@ -30,41 +36,60 @@ type MatchResult = {
   isEntryEligible?: boolean;
   graduateFriendliness?: number;
 };
-
 type MatchResponse = {
   candidate: { label?: string; seniority?: string; roleFamily?: string; archetype?: string; skills?: number };
   meta: { evaluated?: number; koFiltered?: number; survivors?: number; returned?: number };
   matches: MatchResult[];
 };
+type MatchRef = { profileId?: string; analysisSlug?: string };
 
 const FAMILY_LABEL: Record<string, string> = {
   software_engineering: "Software",
   data_ai: "Data / AI",
   product_project: "Product / Project",
 };
+const ARCHETYPE_LABEL: Record<string, string> = {
+  bau: "Experienced",
+  student: "Student / early-career",
+  career_switcher: "Career-switcher",
+};
+const EARLY_CAREER = new Set(["student", "career_switcher"]);
 
 export function MatchTab() {
-  const [analyses, setAnalyses] = useState<AnalysisRow[] | null>(null);
-  const [selected, setSelected] = useState<string>("");
+  const [source, setSource] = useState<"profile" | "analysis">("profile");
+  const [profiles, setProfiles] = useState<ProfileRow[]>([]);
+  const [analyses, setAnalyses] = useState<AnalysisRow[]>([]);
+  const [selProfile, setSelProfile] = useState("");
+  const [selAnalysis, setSelAnalysis] = useState("");
+
   const [result, setResult] = useState<MatchResponse | null>(null);
-  const [matchedSlug, setMatchedSlug] = useState<string>("");
+  const [matchRef, setMatchRef] = useState<MatchRef>({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    fetch("/api/profile")
+      .then((r) => r.json())
+      .then((p) => {
+        const rows = (p.profiles as ProfileRow[]) ?? [];
+        setProfiles(rows);
+        if (rows.length) setSelProfile(rows[0].id);
+        else setSource("analysis");
+      })
+      .catch(() => undefined);
     fetch("/api/analyses")
       .then((r) => r.json())
-      .then((payload) => {
-        const rows = (payload.analyses as AnalysisRow[]) ?? [];
+      .then((p) => {
+        const rows = (p.analyses as AnalysisRow[]) ?? [];
         setAnalyses(rows);
-        if (rows.length && !selected) setSelected(rows[0].slug);
+        if (rows.length) setSelAnalysis(rows[0].slug);
       })
-      .catch(() => setAnalyses([]));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+      .catch(() => undefined);
   }, []);
 
   const runMatch = async () => {
-    if (!selected) return;
+    const ref: MatchRef = source === "profile" ? { profileId: selProfile } : { analysisSlug: selAnalysis };
+    if (!ref.profileId && !ref.analysisSlug) return;
     setLoading(true);
     setError(null);
     setResult(null);
@@ -72,12 +97,12 @@ export function MatchTab() {
       const r = await fetch("/api/match", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ analysisSlug: selected, limit: 25 }),
+        body: JSON.stringify({ ...ref, limit: 25 }),
       });
       const payload = await r.json();
       if (!r.ok) throw new Error(payload.error ?? `Match failed (${r.status}).`);
       setResult(payload as MatchResponse);
-      setMatchedSlug(selected);
+      setMatchRef(ref);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Match failed.");
     } finally {
@@ -91,37 +116,74 @@ export function MatchTab() {
         <p className="text-meta uppercase text-coral">Workspace</p>
         <h2 className="mt-1 font-serif text-display text-ink">Match candidate → jobs</h2>
         <p className="mt-2 max-w-3xl text-body text-steel">
-          Run a saved candidate against the whole job corpus. Three layers: hard <strong>KO filters</strong>{" "}
-          (seniority floor, education, languages) narrow the corpus, then a <strong>multi-factor scorer</strong>{" "}
-          (skills via the taxonomy hierarchy, career fit, personal fit) ranks the survivors with a confidence band.
+          Run a candidate against the whole corpus. KO filters narrow it, a multi-factor scorer ranks the survivors,
+          and the per-match reasoning explains the fit. Student / career-switcher profiles are scored on a different
+          profile — <strong>potential replaces years of experience</strong>, skills are provenance-discounted, and
+          the KO filter keeps only entry-eligible roles.
         </p>
       </header>
 
       <div className="mt-4 flex flex-wrap items-end gap-3">
+        <div className="flex flex-col gap-1">
+          <span className="text-xs font-semibold uppercase tracking-wide text-steel">Source</span>
+          <div className="flex gap-1">
+            {(["profile", "analysis"] as const).map((s) => (
+              <button
+                key={s}
+                type="button"
+                onClick={() => setSource(s)}
+                className={`rounded-md border px-3 py-1.5 text-sm ${
+                  source === s ? "border-ink bg-ink text-white" : "border-stone-200 text-ink hover:bg-paper"
+                }`}
+              >
+                {s === "profile" ? "Saved profile" : "Saved analysis"}
+              </button>
+            ))}
+          </div>
+        </div>
+
         <label className="flex flex-col gap-1">
-          <span className="text-xs font-semibold uppercase tracking-wide text-steel">Candidate (saved analysis)</span>
-          <select
-            value={selected}
-            onChange={(e) => setSelected(e.target.value)}
-            className="focus-ring h-10 min-w-[260px] rounded-md border border-stone-200 bg-white px-2 text-sm text-ink"
-          >
-            {analyses == null ? (
-              <option>Loading…</option>
-            ) : analyses.length === 0 ? (
-              <option value="">No saved analyses — run one in Analyze first</option>
-            ) : (
-              analyses.map((a) => (
-                <option key={a.slug} value={a.slug}>
-                  {a.candidate_label} · {a.role_family ?? "—"} / {a.seniority ?? "—"}
-                </option>
-              ))
-            )}
-          </select>
+          <span className="text-xs font-semibold uppercase tracking-wide text-steel">Candidate</span>
+          {source === "profile" ? (
+            <select
+              value={selProfile}
+              onChange={(e) => setSelProfile(e.target.value)}
+              className="focus-ring h-10 min-w-[280px] rounded-md border border-stone-200 bg-white px-2 text-sm text-ink"
+            >
+              {profiles.length === 0 ? (
+                <option value="">No saved profiles — build one in Profile</option>
+              ) : (
+                profiles.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.label} · {ARCHETYPE_LABEL[p.archetype ?? ""] ?? p.archetype} ·{" "}
+                    {Math.round((p.completeness ?? 0) * 100)}%
+                  </option>
+                ))
+              )}
+            </select>
+          ) : (
+            <select
+              value={selAnalysis}
+              onChange={(e) => setSelAnalysis(e.target.value)}
+              className="focus-ring h-10 min-w-[280px] rounded-md border border-stone-200 bg-white px-2 text-sm text-ink"
+            >
+              {analyses.length === 0 ? (
+                <option value="">No saved analyses — run one in Analyze</option>
+              ) : (
+                analyses.map((a) => (
+                  <option key={a.slug} value={a.slug}>
+                    {a.candidate_label} · {a.role_family ?? "—"} / {a.seniority ?? "—"}
+                  </option>
+                ))
+              )}
+            </select>
+          )}
         </label>
+
         <button
           type="button"
           onClick={runMatch}
-          disabled={!selected || loading}
+          disabled={loading || (source === "profile" ? !selProfile : !selAnalysis)}
           className="focus-ring h-10 rounded-md bg-ink px-4 text-sm font-semibold text-white disabled:opacity-40"
         >
           {loading ? "Matching…" : "Run matching"}
@@ -132,7 +194,7 @@ export function MatchTab() {
         {error ? (
           <p className="rounded-md bg-red-50 p-3 text-sm text-red-700">{error}</p>
         ) : result ? (
-          <Results result={result} slug={matchedSlug} />
+          <Results result={result} matchRef={matchRef} />
         ) : (
           <p className="rounded-md bg-paper p-4 text-sm text-steel">
             Pick a candidate and run matching to see ranked, KO-filtered, scored jobs.
@@ -143,37 +205,54 @@ export function MatchTab() {
   );
 }
 
-type Reasoning = {
-  verdict: string;
-  strengths: string[];
-  gaps: string[];
-  interviewProbes: string[];
-};
+type Reasoning = { verdict: string; strengths: string[]; gaps: string[]; interviewProbes: string[] };
 type ReasoningState = { loading?: boolean; error?: string; source?: string; cached?: boolean; data?: Reasoning };
 
-function Results({ result, slug }: { result: MatchResponse; slug: string }) {
+function Results({ result, matchRef }: { result: MatchResponse; matchRef: MatchRef }) {
   const { candidate, meta, matches } = result;
+  const archetype = candidate.archetype ?? "bau";
+  const early = EARLY_CAREER.has(archetype);
   return (
     <div>
       <div className="flex flex-wrap items-center gap-2">
         <Chip label="Candidate" value={candidate.label ?? "—"} />
+        <Chip label="Archetype" value={ARCHETYPE_LABEL[archetype] ?? archetype} tone={early ? "green" : "neutral"} />
         <Chip label="Profile" value={`${candidate.roleFamily ?? "—"} / ${candidate.seniority ?? "—"}`} />
         <Chip label="Evaluated" value={meta.evaluated ?? 0} />
         <Chip label="KO-filtered" value={meta.koFiltered ?? 0} tone="amber" />
         <Chip label="Ranked" value={meta.returned ?? matches.length} tone="green" />
       </div>
+      {early ? (
+        <p className="mt-2 text-xs text-steel">
+          Early-career scoring profile: the <strong>Potential</strong> bar is the readiness model (replacing years of
+          experience), and only entry-eligible roles survive the KO filter. Scores are not comparable to experienced
+          candidates&apos; numbers.
+        </p>
+      ) : null}
 
       <ol className="mt-4 space-y-2">
         {matches.map((m, i) => (
-          <MatchCard key={m.jobId} m={m} index={i} slug={slug} />
+          <MatchCard key={m.jobId} m={m} index={i} matchRef={matchRef} archetype={archetype} />
         ))}
       </ol>
     </div>
   );
 }
 
-function MatchCard({ m, index, slug }: { m: MatchResult; index: number; slug: string }) {
+function MatchCard({
+  m,
+  index,
+  matchRef,
+  archetype,
+}: {
+  m: MatchResult;
+  index: number;
+  matchRef: MatchRef;
+  archetype: string;
+}) {
   const [reasoning, setReasoning] = useState<ReasoningState | null>(null);
+  const early = EARLY_CAREER.has(archetype);
+  const canExplain = Boolean(matchRef.profileId || matchRef.analysisSlug);
 
   const explain = async () => {
     if (reasoning?.loading) return;
@@ -182,7 +261,7 @@ function MatchCard({ m, index, slug }: { m: MatchResult; index: number; slug: st
       const r = await fetch("/api/match/reasoning", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ analysisSlug: slug, jobId: m.jobId }),
+        body: JSON.stringify({ ...matchRef, jobId: m.jobId }),
       });
       const payload = await r.json();
       if (!r.ok) throw new Error(payload.error ?? `Reasoning failed (${r.status}).`);
@@ -211,14 +290,16 @@ function MatchCard({ m, index, slug }: { m: MatchResult; index: number; slug: st
                 entry-eligible
               </span>
             ) : null}
-            <button
-              type="button"
-              onClick={explain}
-              disabled={reasoning?.loading || !slug}
-              className="focus-ring ml-auto rounded-md border border-stone-200 px-2 py-0.5 text-[11px] font-semibold text-coral hover:bg-paper disabled:opacity-40"
-            >
-              {reasoning?.loading ? "Reasoning…" : reasoning?.data ? "Refresh reasoning" : "Explain fit"}
-            </button>
+            {canExplain ? (
+              <button
+                type="button"
+                onClick={explain}
+                disabled={reasoning?.loading}
+                className="focus-ring ml-auto rounded-md border border-stone-200 px-2 py-0.5 text-[11px] font-semibold text-coral hover:bg-paper disabled:opacity-40"
+              >
+                {reasoning?.loading ? "Reasoning…" : reasoning?.data ? "Refresh reasoning" : "Explain fit"}
+              </button>
+            ) : null}
           </div>
           <p className="text-xs text-steel">
             {m.company ?? "—"} · {m.location ?? "—"} · {m.workMode ?? "—"} ·{" "}
@@ -229,9 +310,9 @@ function MatchCard({ m, index, slug }: { m: MatchResult; index: number; slug: st
           </p>
 
           <div className="mt-2 grid max-w-md grid-cols-3 gap-2">
-            <Bar label="Skills" value={m.skillsScore} />
-            <Bar label="Career" value={m.careerScore} />
-            <Bar label="Personal" value={m.personalScore} />
+            <Bar label={early ? "Foundation" : "Skills"} value={m.skillsScore} />
+            <Bar label={early ? "Potential" : "Career"} value={m.careerScore} />
+            <Bar label={early ? "Fit" : "Personal"} value={m.personalScore} />
           </div>
 
           <div className="mt-2 flex flex-wrap gap-1">
@@ -244,7 +325,7 @@ function MatchCard({ m, index, slug }: { m: MatchResult; index: number; slug: st
               <span
                 key={`x-${s}`}
                 className="rounded-md bg-red-50 px-1.5 py-0.5 text-[11px] text-red-700"
-                title="Missing must-have"
+                title={early ? "Missing must-have (often learnable)" : "Missing must-have"}
               >
                 ✗ {s}
               </span>

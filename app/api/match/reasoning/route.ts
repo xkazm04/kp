@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { writeFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import path from "node:path";
-import { lookupGeminiCache, storeGeminiCache } from "@/app/_lib/db";
+import { getProfileRecord, lookupGeminiCache, storeGeminiCache } from "@/app/_lib/db";
 import { candidateSignature, resolveCandidate, type CandidateInput } from "@/app/_lib/match-candidate";
 import {
   cleanupWorkdir,
@@ -23,20 +23,39 @@ export async function POST(request: NextRequest) {
     const body = (await request.json()) as {
       analysisSlug?: string;
       candidate?: CandidateInput;
+      profileId?: string;
       jobId?: string;
     };
     if (!body.jobId) {
       return NextResponse.json({ error: "jobId is required." }, { status: 400 });
     }
 
-    const resolved = resolveCandidate(body);
-    if ("error" in resolved) {
-      return NextResponse.json({ error: resolved.error }, { status: resolved.status });
+    workdir = await createWorkdir();
+    let keyPart: string;
+    let args: string[];
+
+    if (body.profileId) {
+      const record = getProfileRecord(body.profileId);
+      if (!record) {
+        return NextResponse.json({ error: "Profile not found." }, { status: 404 });
+      }
+      keyPart = `profile:${body.profileId}`;
+      const profilePath = path.join(workdir, "profile.json");
+      await writeFile(profilePath, JSON.stringify(record.payload), "utf-8");
+      args = ["-m", "pipeline.jobfit.reasoning_cli", "--profile-json", profilePath, "--job-id", String(body.jobId)];
+    } else {
+      const resolved = resolveCandidate(body);
+      if ("error" in resolved) {
+        return NextResponse.json({ error: resolved.error }, { status: resolved.status });
+      }
+      keyPart = candidateSignature(resolved.candidate);
+      const candidatePath = path.join(workdir, "candidate.json");
+      await writeFile(candidatePath, JSON.stringify(resolved.candidate), "utf-8");
+      args = ["-m", "pipeline.jobfit.reasoning_cli", "--candidate-json", candidatePath, "--job-id", String(body.jobId)];
     }
-    const candidate = resolved.candidate;
 
     const hash = createHash("sha256")
-      .update(`${REASONING_PROMPT_VERSION}|${candidateSignature(candidate)}|${body.jobId}`)
+      .update(`${REASONING_PROMPT_VERSION}|${keyPart}|${body.jobId}`)
       .digest("hex");
 
     const cached = lookupGeminiCache(hash, REASONING_PROMPT_VERSION);
@@ -44,20 +63,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ...(cached as object), cached: true });
     }
 
-    workdir = await createWorkdir();
-    const candidatePath = path.join(workdir, "candidate.json");
-    await writeFile(candidatePath, JSON.stringify(candidate), "utf-8");
-
-    const { result } = spawnPython([
-      "-m",
-      "pipeline.jobfit.reasoning_cli",
-      "--candidate-json",
-      candidatePath,
-      "--job-id",
-      String(body.jobId),
-    ]);
+    const { result } = spawnPython(args);
     const { stdout, stderr, exitCode } = await result;
-
     if (exitCode !== 0) {
       const err = parseStderrError(stderr, exitCode);
       return NextResponse.json({ error: err.message }, { status: err.status });
