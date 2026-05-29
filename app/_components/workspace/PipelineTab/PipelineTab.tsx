@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Briefcase, Check, Clock, TimerReset, Users } from "lucide-react";
 import { buildUrl } from "../tabs";
+import { CandidateDrawer } from "./CandidateDrawer";
 
 type Entry = {
   id: string;
@@ -72,6 +73,7 @@ export function PipelineTab() {
     held: number;
     alerts: number;
   } | null>(null);
+  const [drawerEntry, setDrawerEntry] = useState<Entry | null>(null);
 
   const load = () => {
     fetch("/api/pipeline")
@@ -107,9 +109,7 @@ export function PipelineTab() {
   const isStale = (e: Entry) => e.stage !== "Hired" && (daysSince(e.stageChangedAt) ?? 0) >= STALE_DAYS;
   const staleCount = (entries ?? []).filter(isStale).length;
 
-  const openCandidate = (e: Entry) => {
-    if (e.candidateId) router.push(buildUrl({ tab: "match", profile: e.candidateId }));
-  };
+  const openCandidate = (e: Entry) => setDrawerEntry(e);
   const openPositionRanking = (jobId: string) => router.push(buildUrl({ tab: "jobs", job: jobId }));
 
   const runPass = async () => {
@@ -284,6 +284,10 @@ export function PipelineTab() {
           ) : null}
         </>
       )}
+
+      {drawerEntry ? (
+        <CandidateDrawer entry={drawerEntry} onClose={() => setDrawerEntry(null)} onChanged={load} />
+      ) : null}
     </div>
   );
 }

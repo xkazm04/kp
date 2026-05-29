@@ -52,6 +52,7 @@ export function DecisionsTab() {
   const pending = (entries ?? []).filter((e) => e.approvalKind && e.status === "active" && !resolving[e.id]);
   const keyDecisions = pending.filter((e) => e.approvalKind === "decision");
   const scheduling = pending.filter((e) => e.approvalKind === "calendar");
+  const aiReviews = pending.filter((e) => e.approvalKind === "screening_review" || e.approvalKind === "scorecard_review");
 
   const act = async (e: Entry, action: "accept" | "reject" | "approve_event", detail?: string) => {
     setResolving((s) => ({ ...s, [e.id]: action })); // triggers exit animation + removes from lists
@@ -111,6 +112,23 @@ export function DecisionsTab() {
           <p className="text-xs text-steel">No decisions are waiting on you right now.</p>
         </div>
       ) : (
+        <div className="space-y-6">
+        {aiReviews.length > 0 ? (
+          <section>
+            <h3 className="flex items-center gap-1.5 text-meta uppercase tracking-wide text-steel">
+              <Sparkles size={13} className="text-coral" /> AI recommendations <span className="text-coral">· {aiReviews.length}</span>
+            </h3>
+            <p className="mt-1 text-[11px] text-steel">
+              The LLM screened these at the AI-matched gate or synthesized an interview scorecard. Confirm or override —
+              early-career candidates are deliberately held here for your judgment.
+            </p>
+            <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              {aiReviews.map((e) => (
+                <AiReviewCard key={e.id} entry={e} onAccept={() => act(e, "accept")} onReject={() => act(e, "reject")} />
+              ))}
+            </div>
+          </section>
+        ) : null}
         <div className="grid gap-6 lg:grid-cols-2">
           <section>
             <h3 className="text-meta uppercase tracking-wide text-steel">
@@ -142,6 +160,7 @@ export function DecisionsTab() {
               {scheduling.length === 0 ? <Empty>No scheduling decisions pending.</Empty> : null}
             </div>
           </section>
+        </div>
         </div>
       )}
     </div>
@@ -280,6 +299,91 @@ function MiniList({ title, items, tone }: { title: string; items: string[]; tone
         ))}
       </ul>
     </div>
+  );
+}
+
+type Screening = { recommendation?: string; confidence?: number; rationale?: string; strengths?: string[]; redFlags?: string[] };
+type Scorecard = { recommendation?: string; summary?: string; ratings?: { competency: string; rating: number; evidence?: string }[] };
+
+function RecBadge({ rec, confidence }: { rec?: string; confidence?: number }) {
+  const tone =
+    rec === "advance" ? "bg-moss/15 text-moss" : rec === "reject" ? "bg-coral/15 text-coral" : "bg-amber-100 text-amber-700";
+  return (
+    <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase ${tone}`}>
+      {rec ?? "hold"}
+      {typeof confidence === "number" ? ` · ${confidence}%` : ""}
+    </span>
+  );
+}
+
+function AiReviewCard({ entry, onAccept, onReject }: { entry: Entry; onAccept: () => void; onReject: () => void }) {
+  let parsed: (Screening & Scorecard) | null = null;
+  try {
+    parsed = entry.approvalDetail ? (JSON.parse(entry.approvalDetail) as Screening & Scorecard) : null;
+  } catch {
+    parsed = null;
+  }
+  const isScorecard = entry.approvalKind === "scorecard_review";
+
+  return (
+    <article className="animate-fade-in rounded-lg border border-stone-200 bg-white p-3 shadow-panel">
+      <div className="mb-1 flex items-center justify-between">
+        <span className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-coral">
+          <Sparkles size={11} /> {isScorecard ? "Interview scorecard" : "AI screening"}
+        </span>
+        <RecBadge rec={parsed?.recommendation} confidence={isScorecard ? undefined : parsed?.confidence} />
+      </div>
+      <CandidateHead entry={entry} />
+
+      {parsed ? (
+        <div className="mt-2 rounded-md border border-stone-200 bg-paper/50 p-2.5 text-[11px] text-ink">
+          {isScorecard ? (
+            <>
+              {parsed.summary ? <p className="mb-1.5">{parsed.summary}</p> : null}
+              <ul className="space-y-1">
+                {(parsed.ratings ?? []).slice(0, 4).map((r, i) => (
+                  <li key={i} className="flex items-center justify-between gap-2">
+                    <span className="truncate text-steel">{r.competency}</span>
+                    <span className="flex shrink-0 gap-0.5">
+                      {[1, 2, 3, 4, 5].map((n) => (
+                        <span key={n} className={`h-1.5 w-1.5 rounded-full ${n <= r.rating ? "bg-moss" : "bg-stone-200"}`} />
+                      ))}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </>
+          ) : (
+            <>
+              <p>{parsed.rationale}</p>
+              {parsed.strengths?.length || parsed.redFlags?.length ? (
+                <div className="mt-2 grid grid-cols-2 gap-2">
+                  <MiniList title="Strengths" items={parsed.strengths ?? []} tone="green" />
+                  <MiniList title="Red flags" items={parsed.redFlags ?? []} tone="red" />
+                </div>
+              ) : null}
+            </>
+          )}
+        </div>
+      ) : null}
+
+      <div className="mt-3 flex gap-2">
+        <button
+          type="button"
+          onClick={onAccept}
+          className="focus-ring inline-flex h-9 flex-1 items-center justify-center gap-1 rounded-md bg-moss text-sm font-semibold text-white hover:opacity-90"
+        >
+          <Check size={16} /> {isScorecard ? "To offer" : "Advance"}
+        </button>
+        <button
+          type="button"
+          onClick={onReject}
+          className="focus-ring inline-flex h-9 items-center justify-center gap-1 rounded-md border border-stone-200 px-3 text-sm font-semibold text-coral hover:bg-coral/5"
+        >
+          <X size={16} /> Reject
+        </button>
+      </div>
+    </article>
   );
 }
 
