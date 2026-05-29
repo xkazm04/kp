@@ -1,0 +1,133 @@
+"""Build the hiring-pipeline seed from the candidate population (Phase 10/11).
+
+Deterministic, no LLM. Picks a small set of OPEN POSITIONS from the job corpus,
+then routes every synthetic candidate to its best-matching open position via the
+real matching engine, assigns a pipeline stage, and flags some entries as needing
+a human decision (accept/reject) or an interview-slot approval. Frozen to
+``data/seed_pipeline/pipeline.json`` and seeded into the DB.
+
+    python -m pipeline.jobfit.seed_pipeline
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import sys
+from pathlib import Path
+from typing import Any
+
+from .jobs import Job
+from .matching import ko_filter, load_corpus, score_job
+from .profile import CandidateProfileV2
+from .transform import build_match_candidate
+
+ROOT = Path(__file__).resolve().parents[2]
+CANDIDATES_PATH = ROOT / "data" / "seed_candidates" / "candidates.json"
+DEFAULT_OUT = ROOT / "data" / "seed_pipeline" / "pipeline.json"
+
+STAGES = ("Sourced", "AI-matched", "Screening", "Interview", "Offer", "Hired")
+# Funnel-shaped spread (more candidates early, fewer at offer/hired), deterministic by index.
+FUNNEL = (
+    "Sourced", "Sourced", "Sourced",
+    "AI-matched", "AI-matched",
+    "Screening", "Screening",
+    "Interview", "Interview",
+    "Offer", "Hired",
+)
+SLOTS = ("Tue 14:00", "Wed 10:30", "Thu 09:00", "Mon 15:30", "Fri 11:00")
+
+
+def select_open_positions(jobs: list[Job], max_n: int = 8) -> list[Job]:
+    """A curated, varied set of reqs: up to 2 entry-eligible + 1 senior per family."""
+    entry_per_fam: dict[str, int] = {}
+    senior_per_fam: dict[str, int] = {}
+    chosen: list[Job] = []
+    for job in jobs:
+        fam = job.role_family
+        entry_ok = bool(job.entry_profile and job.entry_profile.is_entry_eligible)
+        if entry_ok and entry_per_fam.get(fam, 0) < 2:
+            chosen.append(job)
+            entry_per_fam[fam] = entry_per_fam.get(fam, 0) + 1
+        elif not entry_ok and senior_per_fam.get(fam, 0) < 1:
+            chosen.append(job)
+            senior_per_fam[fam] = senior_per_fam.get(fam, 0) + 1
+        if len(chosen) >= max_n:
+            break
+    return chosen[:max_n]
+
+
+def build_pipeline(candidate_records: list[dict[str, Any]], jobs: list[Job]) -> list[dict[str, Any]]:
+    open_positions = select_open_positions(jobs)
+    if not open_positions:
+        return []
+    entries: list[dict[str, Any]] = []
+    for i, rec in enumerate(candidate_records):
+        profile = CandidateProfileV2.model_validate(rec)
+        candidate = build_match_candidate(profile)
+
+        scored = []
+        for job in open_positions:
+            passed, _reasons = ko_filter(candidate, job)
+            result = score_job(candidate, job)
+            scored.append((passed, result.total, job, result))
+        # prefer KO-passing, then highest score
+        scored.sort(key=lambda x: (x[0], x[1]), reverse=True)
+        passed, _total, job, result = scored[0]
+
+        stage = FUNNEL[i % len(FUNNEL)]
+        if not passed:
+            stage = "Sourced"  # not eligible for any open req yet
+
+        entry: dict[str, Any] = {
+            "id": f"pe-{i:03d}",
+            "candidateId": rec.get("id", f"cand-{i:03d}"),
+            "candidateLabel": profile.display_name or rec.get("id", "Candidate"),
+            "archetype": profile.archetype,
+            "roleFamily": profile.role_family,
+            "jobId": job.id,
+            "jobTitle": job.title,
+            "stage": stage,
+            "matchScore": result.total,
+            "status": "active",
+            "approvalKind": None,
+            "approvalDetail": "",
+        }
+        if stage != "Hired":
+            if i % 6 == 0:
+                entry["approvalKind"] = "decision"
+            elif i % 9 == 0:
+                entry["approvalKind"] = "calendar"
+                entry["approvalDetail"] = SLOTS[i % len(SLOTS)]
+        entries.append(entry)
+    return entries
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description="Build the hiring-pipeline seed.")
+    parser.add_argument("--candidates", type=Path, default=CANDIDATES_PATH)
+    parser.add_argument("--jobs", type=Path, default=None)
+    parser.add_argument("--out", type=Path, default=DEFAULT_OUT)
+    args = parser.parse_args(argv)
+
+    if not args.candidates.exists():
+        print(f"No candidate seed at {args.candidates} — run seed_candidates first.", file=sys.stderr)
+        return 1
+    records = json.loads(args.candidates.read_text(encoding="utf-8"))
+    jobs = load_corpus(args.jobs)
+    entries = build_pipeline(records, jobs)
+
+    args.out.parent.mkdir(parents=True, exist_ok=True)
+    args.out.write_text(json.dumps(entries, ensure_ascii=False, indent=2), encoding="utf-8")
+
+    from collections import Counter
+
+    positions = {(e["jobId"], e["jobTitle"]) for e in entries}
+    print(f"Wrote {len(entries)} pipeline entries across {len(positions)} open positions -> {args.out.name}", file=sys.stderr)
+    print(f"stages: {dict(Counter(e['stage'] for e in entries))}", file=sys.stderr)
+    print(f"awaiting approval: {sum(1 for e in entries if e['approvalKind'])}", file=sys.stderr)
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

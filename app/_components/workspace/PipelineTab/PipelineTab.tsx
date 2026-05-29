@@ -1,98 +1,95 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Briefcase, Calendar, Check, Clock, Users, X } from "lucide-react";
 
-// ---------------------------------------------------------------------------
-// Sample data. Replaced by a real pipeline model + enterprise-scale population
-// in the next phase; here it establishes the swimlane + approval-flow concept.
-// ---------------------------------------------------------------------------
-
-type Archetype = "experienced" | "student" | "switcher";
-type Approval = { type: "decision" } | { type: "calendar"; slot: string };
-
-const STAGES = ["Sourced", "AI-matched", "Screening", "Interview", "Offer", "Hired"] as const;
-type Stage = (typeof STAGES)[number];
-
-type Position = { id: string; title: string; family: string };
-const POSITIONS: Position[] = [
-  { id: "p1", title: "Junior Frontend Developer", family: "Software" },
-  { id: "p2", title: "Medior Backend Engineer", family: "Software" },
-  { id: "p3", title: "Junior Data Analyst", family: "Data / AI" },
-  { id: "p4", title: "Product Manager", family: "Product" },
-  { id: "p5", title: "Senior DevOps Engineer", family: "Software" },
-];
-
-type Candidate = {
+type Entry = {
   id: string;
-  name: string;
-  posId: string;
-  stage: Stage;
-  archetype: Archetype;
-  score: number;
-  approval?: Approval;
+  candidateId: string | null;
+  candidateLabel: string;
+  archetype: string | null;
+  roleFamily: string | null;
+  jobId: string | null;
+  jobTitle: string | null;
+  stage: string;
+  matchScore: number | null;
+  status: string;
+  approvalKind: string | null;
+  approvalDetail: string | null;
 };
 
-const NAMES = [
-  "Jana N.", "Petr S.", "Eva K.", "Tomáš M.", "Lucie V.", "Adam R.", "Klára B.", "Jan D.",
-  "Nina P.", "Filip H.", "Tereza Z.", "Marek T.", "Aleš S.", "Ivan L.", "Beáta C.", "Dan K.",
-  "Sofia W.", "Lukáš J.", "Hana O.", "Viktor E.", "Iva M.", "Robert P.", "Nela H.", "Ondřej V.",
-  "Karolína D.", "Šimon B.", "Veronika L.", "Matěj K.", "Anna R.", "David T.", "Gabriela S.",
-  "Pavel N.", "Monika Č.", "Štěpán M.", "Barbora K.", "Radek J.",
-];
-const ARCHES: Archetype[] = ["experienced", "student", "switcher"];
-const SLOTS = ["Tue 14:00", "Wed 10:30", "Thu 09:00", "Mon 15:30", "Fri 11:00"];
+const STAGES = ["Sourced", "AI-matched", "Screening", "Interview", "Offer", "Hired"];
 
-// Deterministic spread across positions / stages / archetypes (no RNG).
-const SAMPLE: Candidate[] = NAMES.map((name, i) => {
-  const pos = POSITIONS[i % POSITIONS.length];
-  const stage = STAGES[(i * 3 + 1) % STAGES.length];
-  const archetype = ARCHES[i % ARCHES.length];
-  const score = 58 + ((i * 7) % 37);
-  const c: Candidate = { id: `c${i}`, name, posId: pos.id, stage, archetype, score };
-  if (i % 7 === 0 && stage !== "Hired") c.approval = { type: "decision" };
-  else if (i % 11 === 0 && stage !== "Hired") c.approval = { type: "calendar", slot: SLOTS[i % SLOTS.length] };
-  return c;
-});
-
-const ARCHETYPE_STYLE: Record<Archetype, { ring: string; bg: string; label: string }> = {
-  experienced: { ring: "ring-steel", bg: "bg-steel", label: "Experienced" },
+const ARCHETYPE_STYLE: Record<string, { ring: string; bg: string; label: string }> = {
+  bau: { ring: "ring-steel", bg: "bg-steel", label: "Experienced" },
   student: { ring: "ring-coral", bg: "bg-coral", label: "Student" },
-  switcher: { ring: "ring-moss", bg: "bg-moss", label: "Switcher" },
+  career_switcher: { ring: "ring-moss", bg: "bg-moss", label: "Switcher" },
 };
-
-// ---------------------------------------------------------------------------
+const styleFor = (a: string | null) => ARCHETYPE_STYLE[a ?? "bau"] ?? ARCHETYPE_STYLE.bau;
 
 export function PipelineTab() {
-  // Optimistic local state: accepting advances a stage, rejecting removes,
-  // approving a calendar event clears the request. (No backend yet.)
-  const [moved, setMoved] = useState<Record<string, Stage>>({});
-  const [removed, setRemoved] = useState<Set<string>>(new Set());
-  const [resolved, setResolved] = useState<Set<string>>(new Set());
+  const [entries, setEntries] = useState<Entry[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [acting, setActing] = useState<Set<string>>(new Set());
 
-  const stageOf = (c: Candidate): Stage => moved[c.id] ?? c.stage;
-  const visible = useMemo(() => SAMPLE.filter((c) => !removed.has(c.id)), [removed]);
+  const load = () =>
+    fetch("/api/pipeline")
+      .then((r) => r.json())
+      .then((p) => {
+        if (p.error) throw new Error(p.error);
+        setEntries((p.entries as Entry[]) ?? []);
+      })
+      .catch((e) => setError(e instanceof Error ? e.message : "Failed to load pipeline."));
+  useEffect(() => {
+    load();
+  }, []);
 
-  const approvals = visible.filter((c) => c.approval && !resolved.has(c.id));
-  const activeCount = visible.filter((c) => stageOf(c) !== "Hired").length;
-  const interviewCount = visible.filter((c) => stageOf(c) === "Interview").length;
+  const stageOf = (e: Entry) => e.stage;
+  const positions = useMemo(() => {
+    const map = new Map<string, { id: string; title: string; family: string; count: number }>();
+    for (const e of entries ?? []) {
+      const key = e.jobId ?? e.jobTitle ?? "?";
+      if (!map.has(key)) map.set(key, { id: key, title: e.jobTitle ?? "—", family: e.roleFamily ?? "", count: 0 });
+      map.get(key)!.count += 1;
+    }
+    return [...map.values()].sort((a, b) => a.title.localeCompare(b.title));
+  }, [entries]);
 
-  const accept = (c: Candidate) => {
-    setResolved((s) => new Set(s).add(c.id));
-    const idx = STAGES.indexOf(stageOf(c));
-    const next = STAGES[Math.min(idx + 1, STAGES.length - 1)];
-    setMoved((m) => ({ ...m, [c.id]: next }));
+  const approvals = (entries ?? []).filter((e) => e.approvalKind && e.status === "active");
+  const activeCount = (entries ?? []).filter((e) => e.stage !== "Hired").length;
+  const interviewCount = (entries ?? []).filter((e) => e.stage === "Interview").length;
+
+  const act = async (id: string, action: "accept" | "reject" | "approve_event") => {
+    setActing((s) => new Set(s).add(id));
+    setEntries((prev) => {
+      if (!prev) return prev;
+      if (action === "reject") return prev.filter((e) => e.id !== id);
+      return prev.map((e) => {
+        if (e.id !== id) return e;
+        if (action === "approve_event") return { ...e, stage: "Interview", approvalKind: null, approvalDetail: "" };
+        const idx = STAGES.indexOf(e.stage);
+        return { ...e, stage: STAGES[Math.min(idx + 1, STAGES.length - 1)], approvalKind: null, approvalDetail: "" };
+      });
+    });
+    try {
+      const r = await fetch(`/api/pipeline/${id}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action }),
+      });
+      if (!r.ok) throw new Error();
+    } catch {
+      load(); // resync on failure
+    } finally {
+      setActing((s) => {
+        const n = new Set(s);
+        n.delete(id);
+        return n;
+      });
+    }
   };
-  const reject = (c: Candidate) => {
-    setResolved((s) => new Set(s).add(c.id));
-    setRemoved((s) => new Set(s).add(c.id));
-  };
-  const approveEvent = (c: Candidate) => {
-    setResolved((s) => new Set(s).add(c.id));
-    setMoved((m) => ({ ...m, [c.id]: "Interview" }));
-  };
 
-  const posById = (id: string) => POSITIONS.find((p) => p.id === id);
+  const posTitle = (jobId: string) => positions.find((p) => p.id === jobId)?.title ?? "";
 
   return (
     <div className="space-y-6">
@@ -105,92 +102,102 @@ export function PipelineTab() {
             surface at the top — approve or reject, or confirm a proposed interview slot.
           </p>
         </div>
-        <span className="rounded-md border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs text-amber-800">
-          Sample data · real candidates populate here in the next phase
+        <span className="rounded-md border border-stone-200 bg-paper px-2.5 py-1 text-xs text-steel">
+          Seeded demo pipeline · {(entries ?? []).length} candidates
         </span>
       </header>
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <Kpi icon={<Briefcase size={16} />} label="Open positions" value={POSITIONS.length} />
-        <Kpi icon={<Users size={16} />} label="Active candidates" value={activeCount} />
-        <Kpi icon={<Clock size={16} />} label="In interview" value={interviewCount} />
-        <Kpi
-          icon={<Check size={16} />}
-          label="Awaiting you"
-          value={approvals.length}
-          tone={approvals.length > 0 ? "coral" : "neutral"}
-        />
-      </div>
-
-      {/* Human-in-the-loop: strong visual approval requests. */}
-      <section>
-        <h3 className="text-meta uppercase tracking-wide text-steel">Needs your decision</h3>
-        {approvals.length === 0 ? (
-          <p className="mt-2 rounded-lg border border-stone-200 bg-paper p-4 text-sm text-steel">
-            Nothing waiting on you — every pending request has been actioned. ✓
-          </p>
-        ) : (
-          <div className="mt-2 flex gap-3 overflow-x-auto pb-1">
-            {approvals.map((c) => (
-              <ApprovalCard
-                key={c.id}
-                candidate={c}
-                position={posById(c.posId)?.title ?? ""}
-                onAccept={() => accept(c)}
-                onReject={() => reject(c)}
-                onApproveEvent={() => approveEvent(c)}
-              />
-            ))}
+      {error ? (
+        <p className="rounded-md bg-red-50 p-3 text-sm text-red-700">{error}</p>
+      ) : entries == null ? (
+        <p className="text-sm text-steel">Loading…</p>
+      ) : entries.length === 0 ? (
+        <p className="rounded-lg border border-stone-200 bg-paper p-4 text-sm text-steel">
+          No candidates in the pipeline yet. Seed the candidate population and pipeline (see the data-population
+          step), or build a profile and match it.
+        </p>
+      ) : (
+        <>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <Kpi icon={<Briefcase size={16} />} label="Open positions" value={positions.length} />
+            <Kpi icon={<Users size={16} />} label="Active candidates" value={activeCount} />
+            <Kpi icon={<Clock size={16} />} label="In interview" value={interviewCount} />
+            <Kpi
+              icon={<Check size={16} />}
+              label="Awaiting you"
+              value={approvals.length}
+              tone={approvals.length > 0 ? "coral" : "neutral"}
+            />
           </div>
-        )}
-      </section>
 
-      {/* Swimlanes: positions × stages. */}
-      <section className="space-y-3">
-        <h3 className="text-meta uppercase tracking-wide text-steel">Positions</h3>
-        <div className="overflow-x-auto rounded-lg border border-stone-200 bg-white shadow-panel">
-          <div className="min-w-[860px]">
-            <div className="grid grid-cols-[180px_repeat(6,1fr)] border-b border-stone-200 bg-paper">
-              <div className="px-3 py-2 text-meta uppercase text-steel">Position</div>
-              {STAGES.map((s) => (
-                <div key={s} className="px-3 py-2 text-center text-meta uppercase text-steel">
-                  {s}
+          <section>
+            <h3 className="text-meta uppercase tracking-wide text-steel">Needs your decision</h3>
+            {approvals.length === 0 ? (
+              <p className="mt-2 rounded-lg border border-stone-200 bg-paper p-4 text-sm text-steel">
+                Nothing waiting on you — every pending request has been actioned. ✓
+              </p>
+            ) : (
+              <div className="mt-2 flex gap-3 overflow-x-auto pb-1">
+                {approvals.map((e) => (
+                  <ApprovalCard
+                    key={e.id}
+                    entry={e}
+                    position={posTitle(e.jobId ?? "")}
+                    busy={acting.has(e.id)}
+                    onAccept={() => act(e.id, "accept")}
+                    onReject={() => act(e.id, "reject")}
+                    onApproveEvent={() => act(e.id, "approve_event")}
+                  />
+                ))}
+              </div>
+            )}
+          </section>
+
+          <section className="space-y-3">
+            <h3 className="text-meta uppercase tracking-wide text-steel">Positions</h3>
+            <div className="overflow-x-auto rounded-lg border border-stone-200 bg-white shadow-panel">
+              <div className="min-w-[860px]">
+                <div className="grid grid-cols-[180px_repeat(6,1fr)] border-b border-stone-200 bg-paper">
+                  <div className="px-3 py-2 text-meta uppercase text-steel">Position</div>
+                  {STAGES.map((s) => (
+                    <div key={s} className="px-3 py-2 text-center text-meta uppercase text-steel">
+                      {s}
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-            {POSITIONS.map((pos) => {
-              const lane = visible.filter((c) => c.posId === pos.id);
-              return (
-                <div
-                  key={pos.id}
-                  className="grid grid-cols-[180px_repeat(6,1fr)] border-b border-stone-100 last:border-0"
-                >
-                  <div className="border-r border-stone-100 px-3 py-3">
-                    <p className="text-sm font-semibold leading-tight text-ink">{pos.title}</p>
-                    <p className="text-[11px] text-steel">
-                      {pos.family} · {lane.length} active
-                    </p>
-                  </div>
-                  {STAGES.map((stage) => {
-                    const cell = lane.filter((c) => stageOf(c) === stage);
-                    return (
-                      <div key={stage} className="border-r border-stone-100 px-2 py-3 last:border-0">
-                        <div className="flex flex-wrap gap-1">
-                          {cell.map((c) => (
-                            <Avatar key={c.id} candidate={c} pending={!!c.approval && !resolved.has(c.id)} />
-                          ))}
-                          {cell.length === 0 ? <span className="text-[11px] text-stone-300">·</span> : null}
-                        </div>
+                {positions.map((pos) => {
+                  const lane = (entries ?? []).filter((e) => (e.jobId ?? e.jobTitle) === pos.id);
+                  return (
+                    <div
+                      key={pos.id}
+                      className="grid grid-cols-[180px_repeat(6,1fr)] border-b border-stone-100 last:border-0"
+                    >
+                      <div className="border-r border-stone-100 px-3 py-3">
+                        <p className="text-sm font-semibold leading-tight text-ink">{pos.title}</p>
+                        <p className="text-[11px] text-steel">{pos.count} active</p>
                       </div>
-                    );
-                  })}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-        <Legend />
-      </section>
+                      {STAGES.map((stage) => {
+                        const cell = lane.filter((e) => stageOf(e) === stage);
+                        return (
+                          <div key={stage} className="border-r border-stone-100 px-2 py-3 last:border-0">
+                            <div className="flex flex-wrap gap-1">
+                              {cell.map((e) => (
+                                <Avatar key={e.id} entry={e} pending={!!e.approvalKind} />
+                              ))}
+                              {cell.length === 0 ? <span className="text-[11px] text-stone-300">·</span> : null}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+            <Legend />
+          </section>
+        </>
+      )}
     </div>
   );
 }
@@ -208,9 +215,9 @@ function Kpi({
 }) {
   return (
     <div
-      className={`rounded-lg border p-3 ${
+      className={`rounded-lg border p-3 shadow-panel ${
         tone === "coral" ? "border-coral/30 bg-coral/5" : "border-stone-200 bg-white"
-      } shadow-panel`}
+      }`}
     >
       <div className="flex items-center gap-2 text-steel">
         <span className={tone === "coral" ? "text-coral" : "text-steel"}>{icon}</span>
@@ -222,37 +229,41 @@ function Kpi({
 }
 
 function ApprovalCard({
-  candidate,
+  entry,
   position,
+  busy,
   onAccept,
   onReject,
   onApproveEvent,
 }: {
-  candidate: Candidate;
+  entry: Entry;
   position: string;
+  busy: boolean;
   onAccept: () => void;
   onReject: () => void;
   onApproveEvent: () => void;
 }) {
-  const isCalendar = candidate.approval?.type === "calendar";
+  const isCalendar = entry.approvalKind === "calendar";
   return (
     <div className="flex w-64 shrink-0 flex-col gap-3 rounded-lg border border-coral/30 bg-white p-3 shadow-panel">
       <div className="flex items-center gap-2">
-        <Avatar candidate={candidate} />
+        <Avatar entry={entry} />
         <div className="min-w-0">
-          <p className="truncate text-sm font-semibold text-ink">{candidate.name}</p>
+          <p className="truncate text-sm font-semibold text-ink">{entry.candidateLabel}</p>
           <p className="truncate text-[11px] text-steel">{position}</p>
         </div>
-        <span className="ml-auto inline-flex items-center gap-1 rounded-md bg-paper px-1.5 py-0.5 text-[11px] text-ink">
-          <ScoreDot score={candidate.score} />
-          {candidate.score}
-        </span>
+        {entry.matchScore != null ? (
+          <span className="ml-auto inline-flex items-center gap-1 rounded-md bg-paper px-1.5 py-0.5 text-[11px] text-ink">
+            <ScoreDot score={entry.matchScore} />
+            {entry.matchScore}
+          </span>
+        ) : null}
       </div>
 
       {isCalendar ? (
         <div className="flex items-center gap-2 rounded-md bg-paper px-2 py-1.5 text-xs text-ink">
           <Calendar size={14} className="text-steel" />
-          Interview proposed · <span className="font-semibold">{(candidate.approval as { slot: string }).slot}</span>
+          Interview proposed · <span className="font-semibold">{entry.approvalDetail}</span>
         </div>
       ) : (
         <p className="text-xs text-steel">Advance to the next stage?</p>
@@ -261,8 +272,9 @@ function ApprovalCard({
       <div className="flex gap-2">
         <button
           type="button"
+          disabled={busy}
           onClick={isCalendar ? onApproveEvent : onAccept}
-          className="focus-ring inline-flex h-9 flex-1 items-center justify-center gap-1 rounded-md bg-moss text-sm font-semibold text-white hover:opacity-90"
+          className="focus-ring inline-flex h-9 flex-1 items-center justify-center gap-1 rounded-md bg-moss text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
           aria-label={isCalendar ? "Approve interview slot" : "Accept candidate"}
         >
           <Check size={16} />
@@ -270,8 +282,9 @@ function ApprovalCard({
         </button>
         <button
           type="button"
+          disabled={busy}
           onClick={onReject}
-          className="focus-ring inline-flex h-9 w-10 items-center justify-center rounded-md border border-stone-200 text-coral hover:bg-coral/5"
+          className="focus-ring inline-flex h-9 w-10 items-center justify-center rounded-md border border-stone-200 text-coral hover:bg-coral/5 disabled:opacity-50"
           aria-label={isCalendar ? "Decline slot" : "Reject candidate"}
         >
           <X size={16} />
@@ -281,16 +294,18 @@ function ApprovalCard({
   );
 }
 
-function Avatar({ candidate, pending = false }: { candidate: Candidate; pending?: boolean }) {
-  const style = ARCHETYPE_STYLE[candidate.archetype];
-  const initials = candidate.name
+function Avatar({ entry, pending = false }: { entry: Entry; pending?: boolean }) {
+  const style = styleFor(entry.archetype);
+  const initials = entry.candidateLabel
     .split(" ")
     .map((p) => p[0])
+    .filter(Boolean)
     .join("")
-    .slice(0, 2);
+    .slice(0, 2)
+    .toUpperCase();
   return (
     <span
-      title={`${candidate.name} · ${style.label} · match ${candidate.score}`}
+      title={`${entry.candidateLabel} · ${style.label}${entry.matchScore != null ? ` · match ${entry.matchScore}` : ""}`}
       className={`relative inline-flex h-7 w-7 items-center justify-center rounded-full text-[10px] font-semibold text-white ${style.bg} ${
         pending ? `ring-2 ring-offset-1 ${style.ring}` : ""
       }`}
@@ -311,10 +326,10 @@ function ScoreDot({ score }: { score: number }) {
 function Legend() {
   return (
     <div className="flex flex-wrap items-center gap-4 text-[11px] text-steel">
-      {(Object.keys(ARCHETYPE_STYLE) as Archetype[]).map((a) => (
-        <span key={a} className="inline-flex items-center gap-1.5">
-          <span className={`h-3 w-3 rounded-full ${ARCHETYPE_STYLE[a].bg}`} />
-          {ARCHETYPE_STYLE[a].label}
+      {Object.values(ARCHETYPE_STYLE).map((s) => (
+        <span key={s.label} className="inline-flex items-center gap-1.5">
+          <span className={`h-3 w-3 rounded-full ${s.bg}`} />
+          {s.label}
         </span>
       ))}
       <span className="inline-flex items-center gap-1.5">

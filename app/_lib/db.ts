@@ -86,9 +86,30 @@ function ensureDb(): Database.Database {
     );
 
     CREATE INDEX IF NOT EXISTS idx_profiles_created_at ON profiles (created_at DESC);
+
+    CREATE TABLE IF NOT EXISTS pipeline_entries (
+      id TEXT PRIMARY KEY,
+      candidate_id TEXT,
+      candidate_label TEXT NOT NULL,
+      archetype TEXT,
+      role_family TEXT,
+      job_id TEXT,
+      job_title TEXT,
+      stage TEXT NOT NULL,
+      match_score INTEGER,
+      status TEXT NOT NULL DEFAULT 'active',
+      approval_kind TEXT,
+      approval_detail TEXT,
+      updated_at TEXT
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_pipeline_job ON pipeline_entries (job_id);
+    CREATE INDEX IF NOT EXISTS idx_pipeline_stage ON pipeline_entries (stage);
   `);
   seedExampleJd(db);
   seedJobs(db);
+  seedCandidates(db);
+  seedPipeline(db);
   _db = db;
   return db;
 }
@@ -554,4 +575,171 @@ export function getProfileRecord(id: string): { row: ProfileRow; payload: unknow
   } catch {
     return null;
   }
+}
+
+// Seed the synthetic candidate population into `profiles` on first boot, so
+// Profile / Match / Pipeline show an enterprise-like load.
+const SEED_CANDIDATES_PATH = path.join(process.cwd(), "data", "seed_candidates", "candidates.json");
+
+function seedCandidates(db: Database.Database): void {
+  const count = db.prepare(`SELECT COUNT(*) AS n FROM profiles`).get() as { n: number };
+  if (count.n > 0) return;
+  if (!existsSync(SEED_CANDIDATES_PATH)) return;
+  let records: Array<Record<string, unknown>>;
+  try {
+    records = JSON.parse(readFileSync(SEED_CANDIDATES_PATH, "utf-8"));
+  } catch {
+    return;
+  }
+  const now = new Date().toISOString();
+  const insert = db.prepare(
+    `INSERT OR IGNORE INTO profiles (id, label, archetype, role_family, completeness, payload_json, created_at)
+     VALUES (@id, @label, @archetype, @role_family, @completeness, @payload_json, @created_at)`
+  );
+  const tx = db.transaction((rows: Array<Record<string, unknown>>) => {
+    for (const rec of rows) {
+      const id = rec.id as string;
+      if (!id) continue;
+      insert.run({
+        id,
+        label: (rec.displayName as string) || id,
+        archetype: (rec.archetype as string) ?? null,
+        role_family: (rec.roleFamily as string) ?? null,
+        completeness: (rec.completeness as number) ?? null,
+        payload_json: JSON.stringify(rec),
+        created_at: now,
+      });
+    }
+  });
+  tx(records);
+}
+
+// ---- Hiring pipeline (Phase 10) -------------------------------------------
+
+export const PIPELINE_STAGES = ["Sourced", "AI-matched", "Screening", "Interview", "Offer", "Hired"] as const;
+export type PipelineStage = (typeof PIPELINE_STAGES)[number];
+
+export type PipelineEntry = {
+  id: string;
+  candidateId: string | null;
+  candidateLabel: string;
+  archetype: string | null;
+  roleFamily: string | null;
+  jobId: string | null;
+  jobTitle: string | null;
+  stage: string;
+  matchScore: number | null;
+  status: string;
+  approvalKind: string | null;
+  approvalDetail: string | null;
+};
+
+const SEED_PIPELINE_PATH = path.join(process.cwd(), "data", "seed_pipeline", "pipeline.json");
+
+function seedPipeline(db: Database.Database): void {
+  const count = db.prepare(`SELECT COUNT(*) AS n FROM pipeline_entries`).get() as { n: number };
+  if (count.n > 0) return;
+  if (!existsSync(SEED_PIPELINE_PATH)) return;
+  let entries: PipelineEntry[];
+  try {
+    entries = JSON.parse(readFileSync(SEED_PIPELINE_PATH, "utf-8"));
+  } catch {
+    return;
+  }
+  const now = new Date().toISOString();
+  const insert = db.prepare(
+    `INSERT OR IGNORE INTO pipeline_entries
+       (id, candidate_id, candidate_label, archetype, role_family, job_id, job_title,
+        stage, match_score, status, approval_kind, approval_detail, updated_at)
+     VALUES (@id, @candidate_id, @candidate_label, @archetype, @role_family, @job_id, @job_title,
+        @stage, @match_score, @status, @approval_kind, @approval_detail, @updated_at)`
+  );
+  const tx = db.transaction((rows: PipelineEntry[]) => {
+    for (const e of rows) {
+      if (!e?.id) continue;
+      insert.run({
+        id: e.id,
+        candidate_id: e.candidateId ?? null,
+        candidate_label: e.candidateLabel ?? "Candidate",
+        archetype: e.archetype ?? null,
+        role_family: e.roleFamily ?? null,
+        job_id: e.jobId ?? null,
+        job_title: e.jobTitle ?? null,
+        stage: e.stage ?? "Sourced",
+        match_score: e.matchScore ?? null,
+        status: e.status ?? "active",
+        approval_kind: e.approvalKind ?? null,
+        approval_detail: e.approvalDetail ?? null,
+        updated_at: now,
+      });
+    }
+  });
+  tx(entries);
+}
+
+type PipelineRow = {
+  id: string;
+  candidate_id: string | null;
+  candidate_label: string;
+  archetype: string | null;
+  role_family: string | null;
+  job_id: string | null;
+  job_title: string | null;
+  stage: string;
+  match_score: number | null;
+  status: string;
+  approval_kind: string | null;
+  approval_detail: string | null;
+};
+
+function rowToEntry(r: PipelineRow): PipelineEntry {
+  return {
+    id: r.id,
+    candidateId: r.candidate_id,
+    candidateLabel: r.candidate_label,
+    archetype: r.archetype,
+    roleFamily: r.role_family,
+    jobId: r.job_id,
+    jobTitle: r.job_title,
+    stage: r.stage,
+    matchScore: r.match_score,
+    status: r.status,
+    approvalKind: r.approval_kind,
+    approvalDetail: r.approval_detail,
+  };
+}
+
+export function listPipeline(): PipelineEntry[] {
+  const db = ensureDb();
+  const rows = db
+    .prepare(
+      `SELECT id, candidate_id, candidate_label, archetype, role_family, job_id, job_title,
+              stage, match_score, status, approval_kind, approval_detail
+       FROM pipeline_entries WHERE status != 'rejected'
+       ORDER BY job_title, match_score DESC`
+    )
+    .all() as PipelineRow[];
+  return rows.map(rowToEntry);
+}
+
+export type PipelineAction = "accept" | "reject" | "approve_event";
+
+export function actOnPipelineEntry(id: string, action: PipelineAction): PipelineEntry | null {
+  const db = ensureDb();
+  const row = db.prepare(`SELECT * FROM pipeline_entries WHERE id = ?`).get(id) as PipelineRow | undefined;
+  if (!row) return null;
+  const now = new Date().toISOString();
+
+  if (action === "reject") {
+    db.prepare(`UPDATE pipeline_entries SET status='rejected', approval_kind=NULL, updated_at=? WHERE id=?`).run(now, id);
+  } else if (action === "approve_event") {
+    db.prepare(`UPDATE pipeline_entries SET stage='Interview', approval_kind=NULL, approval_detail='', updated_at=? WHERE id=?`).run(now, id);
+  } else {
+    // accept: advance one stage, clear any pending approval
+    const idx = PIPELINE_STAGES.indexOf(row.stage as PipelineStage);
+    const next = PIPELINE_STAGES[Math.min(idx + 1, PIPELINE_STAGES.length - 1)];
+    db.prepare(`UPDATE pipeline_entries SET stage=?, approval_kind=NULL, approval_detail='', updated_at=? WHERE id=?`).run(next, now, id);
+  }
+  const updated = db.prepare(`SELECT * FROM pipeline_entries WHERE id = ?`).get(id) as PipelineRow;
+  return rowToEntry(updated);
 }
