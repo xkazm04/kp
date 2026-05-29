@@ -1,0 +1,37 @@
+"""Phase D7 — CI gate for the submission-evaluation eval (deterministic path).
+
+Locks the fairness invariants that are the heart of the Dev extension: code is assumed
+LLM-generated, so the score must track verification/judgment, never AI use.
+"""
+
+import unittest
+
+from pipeline.jobfit.devcase.submission_eval import run, signals
+from pipeline.jobfit.devcase.submission_scenarios import generate_submissions
+
+
+class TestSubmissionEval(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.rows = run(generate_submissions(48), provider=None)  # deterministic, no Claude CLI
+        cls.sig = signals(cls.rows)
+
+    def test_reliability_is_perfect(self):
+        failures = [(r.id, r.issues) for r in self.rows if not r.reliable]
+        self.assertEqual(self.sig["reliability"], 1.0, failures)
+
+    def test_fairness_gate_passes(self):
+        self.assertTrue(self.sig["fairness"]["passed"], self.sig["fairness"])
+
+    def test_no_over_reliance_invented_from_tool_use(self):
+        self.assertTrue(self.sig["fairness"]["no_invented_overreliance"])
+
+    def test_verification_is_rewarded_not_ai_use(self):
+        means = self.sig["fairness"]["judgment_mean"]
+        # verifiers (incl. AI-heavy ones) out-score non-verifiers on judgment
+        self.assertGreaterEqual(means["verifiers"], means["non_verifiers"])
+        self.assertGreaterEqual(means["ai_verifiers"], means["non_verifiers"])
+
+
+if __name__ == "__main__":
+    unittest.main()
