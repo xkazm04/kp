@@ -11,6 +11,7 @@ export type WorkspaceTabId =
   | "jobs"
   | "library"
   | "matrix"
+  | "dev"
   | "about";
 
 export type WorkspaceTabDef = {
@@ -32,6 +33,7 @@ export const WORKSPACE_TABS: WorkspaceTabDef[] = [
   { id: "jobs", label: "Jobs" },
   { id: "library", label: "Job descriptions" },
   { id: "matrix", label: "Matrix" },
+  { id: "dev", label: "Dev cases" },
   { id: "about", label: "About" },
 ];
 
@@ -61,6 +63,10 @@ export const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
+    label: "Dev extension",
+    items: [{ id: "dev", label: "Dev cases" }],
+  },
+  {
     label: "Insights",
     items: [
       { id: "matrix", label: "Matrix" },
@@ -79,6 +85,7 @@ const TAB_IDS = new Set<WorkspaceTabId>([
   "jobs",
   "library",
   "matrix",
+  "dev",
   "about",
 ]);
 

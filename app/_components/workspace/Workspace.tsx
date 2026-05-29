@@ -10,6 +10,7 @@ import { LibraryTab } from "./LibraryTab/LibraryTab";
 import { MatchTab } from "./MatchTab/MatchTab";
 import { MatrixTab } from "./MatrixTab/MatrixTab";
 import { PipelineTab } from "./PipelineTab/PipelineTab";
+import { DevTab } from "./DevTab/DevTab";
 import { ProfileTab } from "./ProfileTab/ProfileTab";
 import { TasksIndicator } from "./tasks/TasksIndicator";
 import { TasksProvider } from "./tasks/TasksProvider";
@@ -100,6 +101,7 @@ export function Workspace() {
           {navActive === "jobs" ? <JobsTab /> : null}
           {navActive === "library" ? <LibraryTab /> : null}
           {navActive === "matrix" ? <MatrixTab /> : null}
+          {navActive === "dev" ? <DevTab /> : null}
           {navActive === "about" ? <AboutTab /> : null}
         </div>
       </main>

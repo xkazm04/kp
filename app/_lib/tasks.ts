@@ -12,6 +12,7 @@ import {
 import { runAutomationTask } from "./automation-run";
 import { runReasoning } from "./reasoning-run";
 import { runAnalyze, type AnalyzeParams } from "./analyze-run";
+import { runNeedAnalysis, type DevNeed } from "./devcase-run";
 
 // ---------------------------------------------------------------------------
 // In-process background-task runner. Works because `next dev` is one long-lived
@@ -79,6 +80,11 @@ const HANDLERS: Record<string, Spec> = {
       return `Analyze · ${variants[0]?.label ?? "CV"}${variants.length > 1 ? ` +${variants.length - 1}` : ""}`;
     },
     dedupe: (p) => `analyze:${p.baseDir}`, // baseDir is unique per upload
+  },
+  need_analysis: {
+    run: (ctx) => runNeedAnalysis(ctx.params.need as DevNeed),
+    label: (p) => `Need analysis · ${(p.need as { title?: string })?.title || "untitled"}`,
+    dedupe: (p) => `need_analysis:${JSON.stringify(p.need ?? {})}`,
   },
 };
 
