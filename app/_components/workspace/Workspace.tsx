@@ -1,20 +1,22 @@
 "use client";
 
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback } from "react";
 import { AboutTab } from "./AboutTab/AboutTab";
 import { AnalyzeWorkspace } from "./AnalyzeWorkspace/AnalyzeWorkspace";
+import { DecisionsTab } from "./DecisionsTab/DecisionsTab";
 import { JobsTab } from "./JobsTab/JobsTab";
 import { LibraryTab } from "./LibraryTab/LibraryTab";
 import { MatchTab } from "./MatchTab/MatchTab";
 import { MatrixTab } from "./MatrixTab/MatrixTab";
 import { PipelineTab } from "./PipelineTab/PipelineTab";
 import { ProfileTab } from "./ProfileTab/ProfileTab";
-import { DEFAULT_TAB, isWorkspaceTabId, NAV_GROUPS, navigate, type WorkspaceTabId } from "./tabs";
+import { buildUrl, DEFAULT_TAB, isWorkspaceTabId, NAV_GROUPS, type WorkspaceTabId } from "./tabs";
 
 export type { WorkspaceTabId } from "./tabs";
 
 export function Workspace() {
+  const router = useRouter();
   const params = useSearchParams();
   const tabParam = params.get("tab");
   const active: WorkspaceTabId = isWorkspaceTabId(tabParam) ? tabParam : DEFAULT_TAB;
@@ -22,9 +24,12 @@ export function Workspace() {
   const navActive: WorkspaceTabId = active === "history" ? "analyze" : active;
 
   // Switching tabs from the sidebar clears any cross-tab deep-link params.
-  const selectTab = useCallback((id: WorkspaceTabId): void => {
-    navigate({ tab: id, profile: null, job: null });
-  }, []);
+  const selectTab = useCallback(
+    (id: WorkspaceTabId): void => {
+      router.replace(buildUrl({ tab: id, profile: null, job: null }), { scroll: false });
+    },
+    [router]
+  );
 
   return (
     <div className="min-h-screen bg-paper md:flex">
@@ -81,6 +86,7 @@ export function Workspace() {
       <main className="min-w-0 flex-1 bg-white">
         <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:px-8">
           {navActive === "pipeline" ? <PipelineTab /> : null}
+          {navActive === "decisions" ? <DecisionsTab /> : null}
           {navActive === "profile" ? <ProfileTab /> : null}
           {navActive === "match" ? <MatchTab /> : null}
           {navActive === "analyze" ? (

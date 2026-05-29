@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Briefcase, Calendar, Check, Clock, Users, X } from "lucide-react";
-import { navigate } from "../tabs";
+import { useRouter } from "next/navigation";
+import { Briefcase, Check, Clock, Users } from "lucide-react";
+import { buildUrl } from "../tabs";
 
 type Entry = {
   id: string;
@@ -29,9 +30,9 @@ const ARCHETYPE_STYLE: Record<string, { ring: string; bg: string; label: string 
 const styleFor = (a: string | null) => ARCHETYPE_STYLE[a ?? "bau"] ?? ARCHETYPE_STYLE.bau;
 
 export function PipelineTab() {
+  const router = useRouter();
   const [entries, setEntries] = useState<Entry[] | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [acting, setActing] = useState<Set<string>>(new Set());
 
   const load = () =>
     fetch("/api/pipeline")
@@ -60,41 +61,10 @@ export function PipelineTab() {
   const activeCount = (entries ?? []).filter((e) => e.stage !== "Hired").length;
   const interviewCount = (entries ?? []).filter((e) => e.stage === "Interview").length;
 
-  const act = async (id: string, action: "accept" | "reject" | "approve_event") => {
-    setActing((s) => new Set(s).add(id));
-    setEntries((prev) => {
-      if (!prev) return prev;
-      if (action === "reject") return prev.filter((e) => e.id !== id);
-      return prev.map((e) => {
-        if (e.id !== id) return e;
-        if (action === "approve_event") return { ...e, stage: "Interview", approvalKind: null, approvalDetail: "" };
-        const idx = STAGES.indexOf(e.stage);
-        return { ...e, stage: STAGES[Math.min(idx + 1, STAGES.length - 1)], approvalKind: null, approvalDetail: "" };
-      });
-    });
-    try {
-      const r = await fetch(`/api/pipeline/${id}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action }),
-      });
-      if (!r.ok) throw new Error();
-    } catch {
-      load(); // resync on failure
-    } finally {
-      setActing((s) => {
-        const n = new Set(s);
-        n.delete(id);
-        return n;
-      });
-    }
-  };
-
-  const posTitle = (jobId: string) => positions.find((p) => p.id === jobId)?.title ?? "";
   const openCandidate = (e: Entry) => {
-    if (e.candidateId) navigate({ tab: "match", profile: e.candidateId });
+    if (e.candidateId) router.push(buildUrl({ tab: "match", profile: e.candidateId }));
   };
-  const openPositionRanking = (jobId: string) => navigate({ tab: "jobs", job: jobId });
+  const openPositionRanking = (jobId: string) => router.push(buildUrl({ tab: "jobs", job: jobId }));
 
   return (
     <div className="space-y-6">
@@ -132,32 +102,23 @@ export function PipelineTab() {
               label="Awaiting you"
               value={approvals.length}
               tone={approvals.length > 0 ? "coral" : "neutral"}
+              onClick={() => router.push(buildUrl({ tab: "decisions" }))}
             />
           </div>
 
-          <section>
-            <h3 className="text-meta uppercase tracking-wide text-steel">Needs your decision</h3>
-            {approvals.length === 0 ? (
-              <p className="mt-2 rounded-lg border border-stone-200 bg-paper p-4 text-sm text-steel">
-                Nothing waiting on you — every pending request has been actioned. ✓
-              </p>
-            ) : (
-              <div className="mt-2 flex gap-3 overflow-x-auto pb-1">
-                {approvals.map((e) => (
-                  <ApprovalCard
-                    key={e.id}
-                    entry={e}
-                    position={posTitle(e.jobId ?? "")}
-                    busy={acting.has(e.id)}
-                    onOpen={() => openCandidate(e)}
-                    onAccept={() => act(e.id, "accept")}
-                    onReject={() => act(e.id, "reject")}
-                    onApproveEvent={() => act(e.id, "approve_event")}
-                  />
-                ))}
-              </div>
-            )}
-          </section>
+          {approvals.length > 0 ? (
+            <button
+              type="button"
+              onClick={() => router.push(buildUrl({ tab: "decisions" }))}
+              className="focus-ring flex w-full items-center justify-between rounded-lg border border-coral/30 bg-coral/5 px-4 py-3 text-left hover:bg-coral/10"
+            >
+              <span className="text-sm text-ink">
+                <span className="font-semibold text-coral">{approvals.length} candidates</span> need your decision —
+                advance, reject, or confirm an interview slot.
+              </span>
+              <span className="text-sm font-semibold text-coral">Open Decisions →</span>
+            </button>
+          ) : null}
 
           <section className="space-y-3">
             <h3 className="text-meta uppercase tracking-wide text-steel">Positions</h3>
@@ -220,98 +181,32 @@ function Kpi({
   label,
   value,
   tone = "neutral",
+  onClick,
 }: {
   icon: React.ReactNode;
   label: string;
   value: number;
   tone?: "neutral" | "coral";
+  onClick?: () => void;
 }) {
-  return (
-    <div
-      className={`rounded-lg border p-3 shadow-panel ${
-        tone === "coral" ? "border-coral/30 bg-coral/5" : "border-stone-200 bg-white"
-      }`}
-    >
+  const cls = `rounded-lg border p-3 text-left shadow-panel ${
+    tone === "coral" ? "border-coral/30 bg-coral/5" : "border-stone-200 bg-white"
+  } ${onClick ? "focus-ring transition-colors hover:border-coral/50" : ""}`;
+  const body = (
+    <>
       <div className="flex items-center gap-2 text-steel">
         <span className={tone === "coral" ? "text-coral" : "text-steel"}>{icon}</span>
         <span className="text-meta uppercase">{label}</span>
       </div>
       <p className={`mt-1 font-serif text-3xl ${tone === "coral" ? "text-coral" : "text-ink"}`}>{value}</p>
-    </div>
+    </>
   );
-}
-
-function ApprovalCard({
-  entry,
-  position,
-  busy,
-  onOpen,
-  onAccept,
-  onReject,
-  onApproveEvent,
-}: {
-  entry: Entry;
-  position: string;
-  busy: boolean;
-  onOpen: () => void;
-  onAccept: () => void;
-  onReject: () => void;
-  onApproveEvent: () => void;
-}) {
-  const isCalendar = entry.approvalKind === "calendar";
-  return (
-    <div className="flex w-64 shrink-0 flex-col gap-3 rounded-lg border border-coral/30 bg-white p-3 shadow-panel">
-      <div className="flex items-center gap-2">
-        <Avatar entry={entry} onClick={onOpen} />
-        <div className="min-w-0">
-          <button
-            type="button"
-            onClick={onOpen}
-            className="focus-ring block max-w-full truncate text-left text-sm font-semibold text-ink hover:text-coral"
-          >
-            {entry.candidateLabel}
-          </button>
-          <p className="truncate text-[11px] text-steel">{position}</p>
-        </div>
-        {entry.matchScore != null ? (
-          <span className="ml-auto inline-flex items-center gap-1 rounded-md bg-paper px-1.5 py-0.5 text-[11px] text-ink">
-            <ScoreDot score={entry.matchScore} />
-            {entry.matchScore}
-          </span>
-        ) : null}
-      </div>
-
-      {isCalendar ? (
-        <div className="flex items-center gap-2 rounded-md bg-paper px-2 py-1.5 text-xs text-ink">
-          <Calendar size={14} className="text-steel" />
-          Interview proposed · <span className="font-semibold">{entry.approvalDetail}</span>
-        </div>
-      ) : (
-        <p className="text-xs text-steel">Advance to the next stage?</p>
-      )}
-
-      <div className="flex gap-2">
-        <button
-          type="button"
-          disabled={busy}
-          onClick={isCalendar ? onApproveEvent : onAccept}
-          className="focus-ring inline-flex h-9 flex-1 items-center justify-center gap-1 rounded-md bg-moss text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
-          aria-label={isCalendar ? "Approve interview slot" : "Accept candidate"}
-        >
-          <Check size={16} />
-          {isCalendar ? "Approve" : "Accept"}
-        </button>
-        <button
-          type="button"
-          disabled={busy}
-          onClick={onReject}
-          className="focus-ring inline-flex h-9 w-10 items-center justify-center rounded-md border border-stone-200 text-coral hover:bg-coral/5 disabled:opacity-50"
-          aria-label={isCalendar ? "Decline slot" : "Reject candidate"}
-        >
-          <X size={16} />
-        </button>
-      </div>
-    </div>
+  return onClick ? (
+    <button type="button" onClick={onClick} className={`${cls} block w-full`}>
+      {body}
+    </button>
+  ) : (
+    <div className={cls}>{body}</div>
   );
 }
 
@@ -345,11 +240,6 @@ function Avatar({ entry, pending = false, onClick }: { entry: Entry; pending?: b
       {dot}
     </span>
   );
-}
-
-function ScoreDot({ score }: { score: number }) {
-  const tone = score >= 80 ? "bg-moss" : score >= 65 ? "bg-amber-400" : "bg-stone-300";
-  return <span className={`inline-block h-2 w-2 rounded-full ${tone}`} />;
 }
 
 function Legend() {
