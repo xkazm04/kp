@@ -1,0 +1,59 @@
+@startuml bau-candidate-analysis-v1
+title Use: analyze one candidate (v1, current flow)
+
+skinparam shadowing false
+autonumber
+
+actor User
+participant "Analyze UI" as ui
+participant "/api/analyze/stream\n(SSE)" as api
+participant "cache.ts" as cache
+participant "python-runner" as runner
+participant "cli.py --stream" as cli
+participant "pipeline.py" as pipe
+participant "taxonomy.py" as taxo
+participant "gemini.py" as gem
+database "SQLite" as db
+
+User -> ui : upload CV (+ optional JD, company, GitHub)
+ui -> api : POST FormData
+api -> cache : hash(PROMPT_VERSION, JD, company, CV)
+alt cache hit
+  cache --> api : cached payload
+  api --> ui : flash all stages "done" + result
+else cache miss
+  api -> runner : write CV to temp workdir, build CLI args
+  runner -> cli : spawn python -m pipeline.jobfit.cli <cv> --stream [...]
+  cli -> pipe : analyze_cv(...)
+
+  == Stage: extract ==
+  pipe -> pipe : extract_text() + Czech repair (pypdf baseline)
+  pipe -> taxo : _build_deterministic_evidence(text, company)
+  taxo --> pipe : role family, seniority signal, anchor band,\nsalary signals, surface skills, company type
+  cli --> api : SSE stage:extract done
+
+  == Stage: gemini (the single call) ==
+  pipe -> gem : analyze_profile_with_gemini(CV bytes + evidence + JD + company)
+  gem -> gem : ONE structured call -> profile, score,\nsalary, market_evidence, job_fit?
+  gem --> pipe : JSON payload
+  cli --> api : SSE stage:gemini done
+
+  == Stages: profile / scoring / salary / insights ==
+  pipe -> pipe : validate profile, clamp score sub-totals
+  pipe -> pipe : apply company multiplier (cap 1.20x)
+  pipe -> pipe : evidence trace · interview kit · keyword coverage
+  cli --> api : SSE result (full AnalysisResult)
+
+  api -> cache : store payload (TTL 24h)
+end
+
+api -> db : saveAnalysis(slug, label, jdSlug, score, payload)
+api --> ui : persisted {slug}
+ui -> User : render ResultPanel\n(Extraction · Job-fit · Salary · Interview)
+
+note over gem
+  Everything hinges on one Gemini call per candidate.
+  Good for single deep analysis; does NOT scale to
+  "rank this candidate across thousands of jobs."
+end note
+@enduml

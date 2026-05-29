@@ -1,0 +1,55 @@
+@startuml student-scoring-reasoning
+title Use: score + reason about a student match (v2)
+
+skinparam shadowing false
+autonumber
+
+participant "/api/match\n(student profile)" as api
+participant "KO Filter\n(student variant)" as ko
+database "jobs + entry_profiles" as jobs
+participant "Multi-factor Scorer\n(student weights)" as scorer
+participant "Reasoning Generator" as reason
+participant "Gemini" as gemini
+database "matches · reasoning" as store
+
+api -> jobs : load active jobs
+api -> ko : student profile + jobs
+
+== KO filter — RE-MAPPED for students ==
+ko -> ko : KEEP: location, languages, work auth, availability
+ko -> ko : KEEP hard prerequisites only\n(legal degree req, clearance)
+ko -> ko : REPLACE "min years / seniority floor"\nwith "isEntryEligible == true"
+ko --> api : entry-eligible shortlist
+
+== Scoring — RE-WEIGHTED dimensions ==
+loop each shortlisted entry-eligible job
+  api -> scorer : score(student, job)
+  scorer -> scorer : Skills/foundation (taxonomy-hierarchy, provenance-discounted)
+  scorer -> scorer : Potential / learning trajectory  ' replaces "career fit"
+  scorer -> scorer : Education & domain relevance
+  scorer -> scorer : Motivation / personal fit (aspirations <-> role)
+  scorer -> scorer : Practical readiness (shipped? internships?)
+  scorer -> scorer : weighted total + CONFIDENCE BAND
+end
+scorer --> api : ranked entry-eligible jobs (scoringProfile = "early_career")
+
+== Reasoning — student-specific arguments ==
+loop top-N
+  api -> reason : generate (student lens)
+  reason -> gemini : structured call
+  gemini --> reason : verdict + trajectory narrative + probes + assumptions
+  reason --> api : reasoning
+end
+api -> store : persist (archetype=STUDENT, scoringProfile labelled)
+api --> api : return ranked matches
+
+note over scorer, reason
+  Experienced reasoning: "10y Python, led teams -> senior backend."
+  Student reasoning: "Strong React foundation across 3 academic
+  projects incl. a deployed thesis app; no production experience
+  but ships; fast learner (self-taught Next.js in a semester);
+  good domain fit. Gap: professional teamwork — probe in interview.
+  Recommend: junior / graduate track." Scores are tagged
+  'early_career' and NEVER silently ranked against senior scores.
+end note
+@enduml

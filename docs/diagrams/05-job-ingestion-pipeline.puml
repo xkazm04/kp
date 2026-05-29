@@ -1,0 +1,59 @@
+@startuml job-ingestion-pipeline
+title Use: ingest a job ad at scale (v2)
+
+skinparam shadowing false
+skinparam activity {
+  BackgroundColor #E8F5E9
+  BorderColor #2E7D32
+}
+
+start
+:Receive job posting\n(seeded synthetic feed / paste / batch);
+
+:LLM extraction of structured fields\n(title, company, location, work mode,\nrole/team context, "a normal day");
+
+:Extract structured requirements;
+note right
+  Two axes per requirement:
+  * kind: must-have | nice-to-have
+  * hardness: prerequisite | learnable
+  + min years, required languages, seniority
+end note
+
+:Normalize skills against Taxonomy graph;
+note right
+  k8s -> Kubernetes, ReactJS -> React.
+  Attach hierarchy parents so a foundational
+  match can later count (SwiftUI ⊂ Swift).
+end note
+
+:Classify role family + seniority band;
+:Look up salary anchor band\n(role x seniority);
+
+partition "Entry / graduate lens (precompute once)" {
+  if (Role open to early-career?\n(junior / graduate / intern / "training provided")) then (yes)
+    :isEntryEligible = true;
+    :Reinterpret must-haves for a junior\n"3y React" -> "demonstrated React foundation";
+    :Mark which musts are prerequisite\nvs learnable-on-the-job;
+    :Score graduateFriendliness (0..1);
+  else (no)
+    :isEntryEligible = false;
+    note right
+      Students are KO-filtered out of these
+      later — saves scoring cost and avoids
+      false hope.
+    end note
+  endif
+}
+
+:Compute embedding of role description\n(semantic bridge index);
+:Persist Job + JobRequirement[] + JobEntryProfile;
+
+note right
+  Runs continuously / in batch over thousands of jobs.
+  Cached by content hash so re-ingesting an unchanged
+  ad is free. The entry-lens is what makes the existing
+  experienced-oriented corpus usable for students.
+end note
+stop
+@enduml

@@ -1,0 +1,50 @@
+@startuml archetype-detection
+title Use: route a new candidate to the right pipeline (v2)
+
+skinparam shadowing false
+
+start
+:Candidate submits CV / portfolio / form;
+
+:Collect signals;
+note right
+  * explicit self-declaration in the form
+    ("I am a student / recent graduate",
+     "I want to change field")
+  * enrollment status / expected graduation
+  * years of *relevant* professional experience
+    (off-field part-time excluded)
+  * education-block dominance vs work-block
+  * recency: studies ongoing or just finished
+  * domain of past work vs target role
+end note
+
+:Compute archetype scores (with confidence);
+
+if (Explicit self-declaration?) then (yes)
+  :Trust declaration as primary signal\n(but keep auto-signals to flag mismatch);
+else (no / ambiguous)
+  :Use weighted auto-signals;
+endif
+
+if (Substantial experience\nin a DIFFERENT target domain\n+ intent to switch?) then (yes)
+  #FFE0B2:CAREER_SWITCHER;
+  note right: diagram 12
+elseif (Little/no relevant pro experience\nAND education is the dominant block?) then (yes)
+  #C8E6C9:STUDENT_EARLY_CAREER;
+  note right: diagrams 08-10
+else (no)
+  :BAU_EXPERIENCED;
+  note right: diagram 06
+endif
+
+:Attach archetype + confidence to profile;
+:Offer the user a one-click override\n(routing is a suggestion, not a verdict);
+
+note right
+  Detection is never silently final. The candidate confirms,
+  the recruiter sees the archetype + confidence, and a
+  borderline case can be scored under BOTH profiles.
+end note
+stop
+@enduml

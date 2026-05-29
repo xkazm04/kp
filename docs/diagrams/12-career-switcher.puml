@@ -1,0 +1,53 @@
+@startuml career-switcher
+title Bonus use: career-switcher transformation (v2)
+
+skinparam shadowing false
+skinparam activity {
+  BackgroundColor #FFE0B2
+  BorderColor #E65100
+}
+
+start
+:Candidate with substantial experience\nin domain A, wants to move to domain B;
+
+partition "Split the profile in two" {
+  :Target-domain (B) skills\n-> treat like a STUDENT: foundation,
+   projects, courses, self-study (diagram 09);
+  :Prior-domain (A) experience\n-> still genuine PROFESSIONAL maturity;
+}
+
+partition "Transferable-skill mapping (the bridge)" {
+  :Map domain-A competencies to domain-B equivalents;
+  note right
+    teacher -> mentoring, structured explanation,
+      stakeholder communication, curriculum = product thinking
+    analyst -> data rigor, SQL, requirements
+    ops manager -> delivery, prioritisation, ownership
+  end note
+  :Credit meta-skills at PROFESSIONAL level\n(communication, ownership, delivery, domain expertise);
+  :Credit target-domain hard skills at FOUNDATION level\n(provenance-discounted, like a student);
+}
+
+partition "Hybrid seniority" {
+  :seniority = "junior in domain B,
+   but a mature professional";
+  :potentialScore boosted by proven ability
+   to learn & deliver in a prior career;
+}
+
+:Scoring profile = "career_switcher"\n(skills/foundation + transferable + potential + motivation);
+:Reasoning emphasises the BRIDGE NARRATIVE\n"why domain-A strengths de-risk the switch,
+ what must be learned, realistic ramp time";
+
+:Recruiter card: SWITCHER badge,
+ prior-domain strengths + target-domain gaps,
+ honest ramp-up expectation;
+
+note right
+  Reuses the student machinery (foundation skills, potential,
+  entry-eligible JD lens) but ADDS a transferable-skill mapper
+  and keeps professional credit for meta-skills — the key
+  difference from a true beginner.
+end note
+stop
+@enduml

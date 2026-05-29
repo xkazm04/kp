@@ -1,0 +1,109 @@
+@startuml system-architecture-v2
+title kp v2 — Target architecture (matching platform + archetype-aware profiles)
+
+skinparam componentStyle rectangle
+skinparam shadowing false
+skinparam defaultTextAlignment center
+skinparam component {
+  BackgroundColor<<v2>> #E8F5E9
+  BorderColor<<v2>> #2E7D32
+}
+skinparam database {
+  BackgroundColor<<v2>> #E8F5E9
+  BorderColor<<v2>> #2E7D32
+}
+
+actor "Candidate" as cand
+actor "Recruiter" as rec
+
+package "Next.js app" {
+  [Candidate UI\nguided intake (BAU / Student / Switcher)] <<v2>> as candui
+  [Recruiter UI\nranked matches · archetype badges\n· provenance · fair-comparison lens] <<v2>> as recui
+
+  package "API / orchestration" {
+    [/match\ncandidate -> many jobs/] <<v2>> as apiMatch
+    [/jobs/ingest\nbatch + single/] <<v2>> as apiIngest
+    [/profile\nbuild + confirm/] <<v2>> as apiProfile
+    [/analyze (legacy single)/] as apiAnalyze
+  }
+  [reasoning-cache\n(per candidate x job)] <<v2>> as rcache
+}
+
+package "Python pipeline" {
+  [Archetype Router\nBAU | Student | Switcher] <<v2>> as router
+  [CV / portfolio extractors\n(v1, extended)] as extract
+
+  package "Job ingestion" {
+    [Requirement Extractor\nmust / nice · hard / learnable] <<v2>> as reqext
+    [Entry-eligibility +\ngraduate-friendliness lens] <<v2>> as entry
+  }
+
+  package "Transformation" {
+    [Evidence Normalizer\nprovenance + confidence] <<v2>> as norm
+    [Potential / Readiness model\n(replaces years-of-exp)] <<v2>> as pot
+    [Transferable-skill mapper\n(career-switcher)] <<v2>> as transfer
+  }
+
+  package "Matching engine" {
+    [KO Filter\nlocation · lang · auth · entry-eligible] <<v2>> as ko
+    [Multi-factor Scorer\narchetype-specific weights] <<v2>> as scorer
+    [Reasoning Generator\n(Gemini, cached)] <<v2>> as reason
+  }
+
+  [Skill Taxonomy graph\naliases + HIERARCHY + provenance] <<v2>> as taxo
+  [models.py (Pydantic SoT)] as models
+}
+
+database "SQLite / store" {
+  [candidates · profiles · evidence] <<v2>> as cstore
+  [jobs · requirements · entry_profiles] <<v2>> as jstore
+  [matches · reasoning] <<v2>> as mstore
+  [analyses · jds (legacy)] as legacy
+}
+[Embedding index\nsemantic bridge] <<v2>> as embed
+
+cloud "Gemini" as gemini
+cloud "Job sources\n(seeded synthetic feed)" <<v2>> as jobsrc
+
+cand --> candui
+candui --> apiProfile
+apiProfile --> router
+router --> extract
+router --> norm
+norm --> pot
+norm --> transfer
+norm --> taxo
+apiProfile --> cstore
+
+jobsrc --> apiIngest
+apiIngest --> reqext
+reqext --> entry
+reqext --> taxo
+entry --> jstore
+apiIngest ..> gemini
+
+rec --> recui
+recui --> apiMatch
+apiMatch --> ko
+ko --> jstore
+ko --> scorer
+scorer --> taxo
+scorer --> embed
+scorer --> reason
+reason --> gemini
+reason --> rcache
+apiMatch --> mstore
+recui <-- mstore
+
+scorer ..> pot
+embed ..> cstore
+embed ..> jstore
+
+note bottom of taxo
+  Single source of truth for matching.
+  v2 adds hierarchical edges (SwiftUI ⊂ Swift)
+  and a provenance/confidence dimension so a skill
+  learned in a school project is not treated as
+  identical to one used 5 years in production.
+end note
+@enduml

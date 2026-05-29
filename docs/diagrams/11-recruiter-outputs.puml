@@ -1,0 +1,43 @@
+@startuml recruiter-outputs
+title Use: a recruiter reviews matches fairly across archetypes (v2)
+
+skinparam shadowing false
+
+start
+:Recruiter opens a job's candidate list\n(or a candidate's job matches);
+
+:Each result carries its archetype + scoringProfile;
+
+if (How to present?) then (mixed pool)
+  :Default to a FAIR-COMPARISON lens;
+  note right
+    Do not rank students directly against
+    seniors on one number. Offer either:
+    * separate "early-career pipeline" view, or
+    * a normalized view that compares within band
+  end note
+else (single archetype)
+  :Rank within the shared scoring profile;
+endif
+
+partition "Match card (archetype-aware)" {
+  :Badge: BAU / STUDENT-GRADUATE / CAREER-SWITCHER\n+ availability date (e.g. "free from July");
+  :Match score WITH its confidence band\n(not a false-precise single number);
+  :For students: POTENTIAL / READINESS score\nshown alongside the skills match;
+  :Evidence with PROVENANCE labels\n(academic project vs production job vs self-declared);
+  :Strengths · learnable gaps (not "missing -> reject");
+  :Interview probes\n(validate self-declared & project skills);
+  :Assumptions / imputations made\n(so the recruiter can judge the uncertainty);
+}
+
+:Recruiter can drill into evidence + open artifact links\n(GitHub / demo / thesis);
+:Recruiter decision\n(advance / interview / pass), with reasons captured;
+
+note right
+  The recruiter's core need for a student: SEE that a low
+  "experience" number is structural, not a red flag, and get
+  the evidence + probes to assess potential fairly. Transparency
+  about provenance and assumptions is what makes it fair.
+end note
+stop
+@enduml

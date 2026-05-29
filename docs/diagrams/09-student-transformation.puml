@@ -1,0 +1,67 @@
+@startuml student-transformation
+title Use: make student data comparable to experience-oriented JDs (v2 — the bridge)
+
+skinparam shadowing false
+skinparam activity {
+  BackgroundColor #C8E6C9
+  BorderColor #2E7D32
+}
+
+start
+:Student profile + evidence\n(projects, thesis, courses, internships, extracurriculars);
+
+partition "1. Evidence normalization" {
+  :Map each artifact to the SHARED competency vocabulary\n(same taxonomy nodes the JDs use);
+  note right
+    "Built a React app for my bachelor thesis"
+      -> skills: React, frontend, REST
+      -> evidence: project delivery
+      -> provenance: THESIS / ACADEMIC_PROJECT
+      -> confidence: medium (has GitHub link)
+  end note
+  :Attach provenance + confidence to every skill claim;
+}
+
+partition "2. Potential / readiness model (replaces years-of-experience)" {
+  :Demonstrated skill depth\n(project complexity, did they ship?);
+  :Learning velocity\n(self-taught stacks, breadth gained per semester);
+  :Foundation quality\n(degree relevance to target domain);
+  :Trajectory / initiative\n(hackathons, open-source, side projects);
+  :-> potentialScore + learningSignals\n(maps to an entry/junior band, with a high-potential flag);
+}
+
+partition "3. JD reframing (meet the job halfway)" {
+  :Use precomputed JobEntryProfile (diagram 05);
+  :Compare against reinterpreted musts\n("3y React" -> "React foundation");
+  :Split gaps into prerequisite vs learnable;
+}
+
+partition "4. Missing data & uncertainty" {
+  if (Field captured?) then (yes)
+    :use value + its confidence;
+  else (no)
+    :impute conservatively, FLAG as assumed;
+    note right
+      Distinguish:
+      * evidence of absence (asked, none) -> real gap
+      * absence of evidence (not captured) -> widen band,
+        do NOT score as zero
+    end note
+  endif
+  :Propagate confidence -> match score becomes a BAND,
+   not a single point;
+}
+
+partition "5. Semantic bridge" {
+  :Compare normalized competency profile to role\nin embedding space + LLM judgement\n(not raw CV-text vs JD-text keyword overlap);
+}
+
+:Comparable student representation\n(skills+provenance, potential, confidence-banded);
+note right
+  Net effect: student artifacts are translated into the
+  same units the matching engine already speaks, the JD is
+  translated down to entry terms, and the residual gap is
+  expressed as honest uncertainty instead of fake zeros.
+end note
+stop
+@enduml

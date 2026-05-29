@@ -1,0 +1,85 @@
+@startuml system-architecture-v1
+title kp v1 — Current system architecture (single CV -> single JD analysis)
+
+skinparam componentStyle rectangle
+skinparam shadowing false
+skinparam defaultTextAlignment center
+
+actor "Candidate /\nRecruiter" as user
+
+package "Next.js app (app/)" {
+  [Workspace UI\nAnalyze · History · Library · Matrix · About] as ui
+  [ResultPanel\nExtraction · Job-fit · Salary · Interview · Compare] as result
+
+  package "API routes (app/api/)" {
+    [/analyze\n(multi-variant)/] as apiAnalyze
+    [/analyze/stream\n(SSE)/] as apiStream
+    [/github-analysis/] as apiGithub
+    [/analyses, /jds/] as apiCrud
+  }
+
+  [python-runner.ts\nspawn + temp workdir] as runner
+  [cache.ts\nSHA-256 input hash] as cache
+  [schemas.generated.ts\nZod (from Pydantic)] as zod
+}
+
+package "Python pipeline (pipeline/jobfit/)" {
+  [cli.py\nargparse + --stream] as cli
+  [pipeline.py\norchestration] as orch
+  [extractors.py\nPDF/DOCX + Czech repair] as extract
+  [taxonomy.py\ndeterministic pre-pass] as taxo
+  [gemini.py\nsingle structured call] as gem
+  [insights.py · ats.py · interview.py] as insights
+  [models.py\nPydantic = source of truth] as models
+}
+
+database "SQLite (data/kp.sqlite)" as db {
+  [analyses]
+  [jds]
+  [gemini_cache]
+}
+
+folder "data/" as datafiles {
+  [taxonomy.json\n(flat term graph,\naliases only)] as taxjson
+  [salary_benchmarks.json] as saljson
+}
+
+cloud "Google Gemini\n(gemini-3-flash-preview)" as gemini
+cloud "GitHub REST API" as github
+
+user --> ui
+ui --> apiAnalyze
+ui --> apiStream
+ui --> apiGithub
+ui --> apiCrud
+result <-- apiCrud
+
+apiAnalyze --> runner
+apiStream --> runner
+apiAnalyze --> cache
+apiStream --> cache
+runner --> cli
+cli --> orch
+orch --> extract
+orch --> taxo
+orch --> gem
+orch --> insights
+orch --> models
+gem --> gemini
+taxo --> taxjson
+taxo --> saljson
+apiGithub --> github
+apiGithub --> gemini
+
+apiAnalyze --> db
+apiStream --> db
+apiCrud --> db
+cache --> db
+zod ..> models : generated from
+
+note bottom of orch
+  v1 reality: ONE candidate, at most ONE JD, ONE Gemini call.
+  No KO-filter layer, no candidate -> many-jobs matching,
+  no structured job-ad ingestion. JDs are raw text blobs.
+end note
+@enduml

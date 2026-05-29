@@ -1,0 +1,150 @@
+@startuml domain-model-v2
+title kp v2 — Domain model (archetype-aware candidate + structured jobs + matches)
+
+skinparam classAttributeIconSize 0
+skinparam shadowing false
+hide circle
+
+enum Archetype {
+  BAU_EXPERIENCED
+  STUDENT_EARLY_CAREER
+  CAREER_SWITCHER
+}
+
+enum Provenance {
+  PROFESSIONAL
+  INTERNSHIP
+  ACADEMIC_PROJECT
+  THESIS
+  COURSEWORK
+  PERSONAL_PROJECT
+  EXTRACURRICULAR
+  CERTIFICATION
+  SELF_DECLARED
+}
+
+class Candidate {
+  id
+  displayName
+  contact / location
+  preferredLanguages
+  workAuthorization
+  availabilityDate   ' e.g. "after June graduation"
+}
+
+class CandidateProfile {
+  archetype : Archetype
+  archetypeConfidence : float
+  roleFamily
+  --
+  ' BAU fields (may be empty for students)
+  yearsExperience
+  seniority
+  --
+  ' v2 universal
+  potentialScore : float     ' readiness, replaces years for students
+  learningSignals : string[] ' velocity, self-teaching, trajectory
+  aspirations : string[]     ' target roles / domains
+  completeness : float       ' how much of the guided profile is filled
+}
+
+class Evidence {
+  text
+  skillRefs : SkillNode[]
+  provenance : Provenance
+  confidence : float         ' how verifiable
+  link                       ' GitHub / demo / publication
+  recency
+}
+
+class SkillClaim {
+  skill : SkillNode
+  level : enum(foundational, working, strong)
+  provenance : Provenance
+  confidence : float
+}
+
+class SkillNode {
+  id
+  canonicalName
+  surfaceForms : string[]    ' aliases, incl. Czech variants
+  category
+  roleFamilyVotes
+  salarySignal
+}
+note right of SkillNode
+  v2: hierarchical edges.
+  parent/child = is-a / subset-of
+  (SwiftUI -> Swift, FastAPI -> Python).
+  Enables partial / foundational matches.
+end note
+
+class Job {
+  id
+  title / company / location
+  workMode : enum(remote, hybrid, onsite)
+  source
+}
+
+class JobRequirement {
+  skill : SkillNode
+  kind : enum(must_have, nice_to_have)
+  hardness : enum(prerequisite, learnable)  ' v2
+  minYears
+  languageLevel
+}
+
+class JobEntryProfile {
+  isEntryEligible : bool       ' open to junior/graduate/intern
+  graduateFriendliness : float
+  reinterpretedMusts : string[]' "3y React" -> "demonstrated React foundation"
+  trainableGaps : string[]
+}
+note right of JobEntryProfile
+  Precomputed once per job (cached).
+  The "junior lens" that lets student
+  evidence be compared against a JD
+  written for experienced hires.
+end note
+
+class Match {
+  candidateId
+  jobId
+  archetype : Archetype
+  --
+  ' archetype-specific dimension scores
+  skillsScore
+  careerOrPotentialScore
+  personalFitScore
+  educationFitScore
+  --
+  totalScore
+  confidenceLow / confidenceHigh  ' band, not a point
+  scoringProfile : string         ' which weighting was used
+}
+
+class Reasoning {
+  verdict
+  strengths : string[]
+  gaps : string[]
+  trajectoryNarrative   ' student/switcher emphasis
+  interviewProbes : string[]
+  assumptions : string[]' imputations surfaced for the recruiter
+  cachedAt
+}
+
+Candidate "1" -- "1" CandidateProfile
+CandidateProfile "1" o-- "many" Evidence
+CandidateProfile "1" o-- "many" SkillClaim
+SkillClaim --> SkillNode
+Evidence --> SkillNode
+SkillNode "0..1" --> "many" SkillNode : parent-of >
+
+Job "1" o-- "many" JobRequirement
+Job "1" -- "1" JobEntryProfile
+JobRequirement --> SkillNode
+
+Match --> Candidate
+Match --> Job
+Match "1" -- "1" Reasoning
+@enduml

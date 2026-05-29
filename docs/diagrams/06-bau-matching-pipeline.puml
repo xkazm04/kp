@@ -1,0 +1,65 @@
+@startuml bau-matching-pipeline
+title Use: match an experienced candidate to many jobs (v2 BAU)
+
+skinparam shadowing false
+autonumber
+
+actor "Candidate /\nRecruiter" as user
+participant "/api/match" as api
+participant "KO Filter" as ko
+database "jobs · requirements\n· entry_profiles" as jobs
+participant "Multi-factor Scorer" as scorer
+participant "Taxonomy graph" as taxo
+participant "Embedding index" as embed
+participant "Reasoning Generator" as reason
+participant "reasoning-cache" as rcache
+participant "Gemini" as gemini
+database "matches · reasoning" as mstore
+
+user -> api : run matching for candidateId
+api -> jobs : load active jobs
+
+== Layer A: hard filters (KO criteria, cheap DB-side) ==
+api -> ko : candidate profile + job set
+ko -> ko : drop on location / distance
+ko -> ko : drop on remote/hybrid/onsite preference
+ko -> ko : drop on seniority floor (junior !-> senior-only)
+ko -> ko : drop on min education / languages / work auth
+ko --> api : surviving job shortlist (e.g. 5k -> ~200)
+
+== Layer B: multi-factor scoring (per surviving job) ==
+loop each shortlisted job
+  api -> scorer : score(candidate, job)
+  scorer -> taxo : skills match w/ hierarchy + alias resolution
+  scorer -> embed : semantic similarity (career history <-> role)
+  scorer -> scorer : skills · career fit · personal fit -> weighted total
+end
+scorer --> api : scored + ranked jobs
+
+== Layer C: LLM reasoning (top-N only, cached) ==
+loop top-N ranked
+  api -> rcache : lookup(candidateId x jobId, PROMPT_VERSION)
+  alt cached
+    rcache --> api : reasoning
+  else
+    api -> reason : generate verdict / strengths / gaps / probes
+    reason -> gemini : structured call
+    gemini --> reason : reasoning JSON
+    reason -> rcache : store
+    reason --> api : reasoning
+  end
+end
+
+api -> mstore : persist matches + reasoning
+api --> user : ranked list with scores + reasons
+
+note over ko, reason
+  Three layers, increasing cost:
+  cheap KO filter narrows the corpus,
+  deterministic scoring ranks survivors,
+  expensive LLM reasoning runs only on the top-N.
+  Student mode (diagrams 07-10) swaps the
+  filter gates and scoring weights but reuses
+  this exact 3-layer skeleton.
+end note
+@enduml

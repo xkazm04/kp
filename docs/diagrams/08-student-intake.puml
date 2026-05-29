@@ -1,0 +1,44 @@
+@startuml student-intake
+title Use: a student builds a comparable profile (v2)
+
+skinparam shadowing false
+autonumber
+
+actor Student
+participant "Guided intake UI" as ui
+participant "Extractors\n(CV / LinkedIn / GitHub)" as ext
+participant "Archetype Router" as router
+participant "Completeness model" as comp
+database "candidates · profiles\n· evidence" as store
+
+Student -> ui : start profile (upload thin CV if any)
+ui -> ext : auto-extract whatever exists
+ext --> ui : pre-filled draft (education, projects, links)
+ui -> router : confirm STUDENT archetype
+
+== Guided form: ask for what a student CV usually omits ==
+ui -> Student : Education detail\n(program, specialization, year/expected graduation, key courses)
+ui -> Student : Thesis / final work\n(topic, methods, tools, abstract)
+ui -> Student : Projects (school / personal / hackathon)\n(role, tech, link, outcome, team size)
+ui -> Student : Internships / part-time\n(incl. off-field — for transferable skills)
+ui -> Student : Extracurriculars\n(clubs, competitions, open-source, tutoring)
+ui -> Student : Certifications / online courses
+ui -> Student : Aspirations & preferences\n(target roles, interests, willingness to learn,\nlocation/remote, availability, languages)
+ui -> Student : Self-rated skills\n(explicitly marked self-declared)
+
+loop each captured item
+  ui -> comp : update field
+  comp --> ui : completeness % + "biggest missing signal" nudge
+end
+
+Student -> ui : submit
+ui -> store : persist student profile + evidence\n(each item tagged with provenance)
+
+note over ui, comp
+  Inversion of BAU: instead of mining a rich CV,
+  we *guide* the student to surface signals the
+  pipeline can use, and we prioritise links/artifacts
+  (GitHub, demo, thesis) over self-rated levels because
+  they are verifiable. Completeness drives the ask order.
+end note
+@enduml
