@@ -18,8 +18,8 @@ import {
 export const runtime = "nodejs";
 
 type CandidateEntry =
-  | { label: string; profile: unknown }
-  | { label: string; candidate: Record<string, unknown> };
+  | { id: string; label: string; profile: unknown }
+  | { id: string; label: string; candidate: Record<string, unknown> };
 
 export async function GET(_request: Request, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params;
@@ -34,7 +34,7 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
     // v2 profiles -> Python transforms them (skills+provenance, potential).
     for (const p of listProfiles(100)) {
       const rec = getProfileRecord(p.id);
-      if (rec) entries.push({ label: p.label, profile: rec.payload });
+      if (rec) entries.push({ id: p.id, label: p.label, profile: rec.payload });
     }
 
     // legacy saved analyses -> treated as experienced (BAU) match candidates.
@@ -43,6 +43,7 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
       if (!loaded) continue;
       const c = (loaded.payload as { candidate?: Record<string, unknown> }).candidate ?? {};
       entries.push({
+        id: a.slug,
         label: a.candidate_label,
         candidate: {
           skills: (c.skills as string[]) ?? [],

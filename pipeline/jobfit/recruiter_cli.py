@@ -42,8 +42,8 @@ def main(argv: list[str] | None = None) -> int:
         if job is None:
             raise ValueError(f"job not found: {job_id}")
 
-        candidates: list[MatchCandidate] = []
-        for entry in raw.get("candidates") or []:
+        candidates: list[tuple[str, MatchCandidate]] = []
+        for i, entry in enumerate(raw.get("candidates") or []):
             if not isinstance(entry, dict):
                 continue
             if entry.get("profile"):
@@ -54,7 +54,7 @@ def main(argv: list[str] | None = None) -> int:
                 continue
             if entry.get("label"):
                 cand.label = entry["label"]
-            candidates.append(cand)
+            candidates.append((entry.get("id") or f"cand-{i}", cand))
 
         rows = rank_candidates_for_job(candidates, job)
     except Exception as exc:

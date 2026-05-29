@@ -722,6 +722,58 @@ export function listPipeline(): PipelineEntry[] {
   return rows.map(rowToEntry);
 }
 
+export type CreatePipelineInput = {
+  candidateId: string;
+  candidateLabel: string;
+  archetype?: string | null;
+  roleFamily?: string | null;
+  jobId: string;
+  jobTitle: string;
+  matchScore?: number | null;
+  stage?: string;
+};
+
+// Idempotent: a (candidate, job) pair maps to one entry, so re-adding from Match
+// or the recruiter view returns the existing row rather than duplicating it.
+export function createPipelineEntry(input: CreatePipelineInput): { entry: PipelineEntry; created: boolean } {
+  const db = ensureDb();
+  const id = `m-${input.candidateId}-${input.jobId}`.replace(/[^A-Za-z0-9_-]/g, "").slice(0, 90);
+  const existing = db.prepare(`SELECT * FROM pipeline_entries WHERE id = ?`).get(id) as PipelineRow | undefined;
+  if (existing) {
+    // re-surface a previously-rejected candidate if a recruiter re-adds them
+    if (existing.status === "rejected") {
+      db.prepare(`UPDATE pipeline_entries SET status='active', updated_at=? WHERE id=?`).run(
+        new Date().toISOString(),
+        id
+      );
+      const row = db.prepare(`SELECT * FROM pipeline_entries WHERE id = ?`).get(id) as PipelineRow;
+      return { entry: rowToEntry(row), created: false };
+    }
+    return { entry: rowToEntry(existing), created: false };
+  }
+  const now = new Date().toISOString();
+  db.prepare(
+    `INSERT INTO pipeline_entries
+       (id, candidate_id, candidate_label, archetype, role_family, job_id, job_title,
+        stage, match_score, status, approval_kind, approval_detail, updated_at)
+     VALUES (@id, @candidate_id, @candidate_label, @archetype, @role_family, @job_id, @job_title,
+        @stage, @match_score, 'active', NULL, '', @updated_at)`
+  ).run({
+    id,
+    candidate_id: input.candidateId,
+    candidate_label: input.candidateLabel,
+    archetype: input.archetype ?? null,
+    role_family: input.roleFamily ?? null,
+    job_id: input.jobId,
+    job_title: input.jobTitle,
+    stage: input.stage ?? "AI-matched",
+    match_score: input.matchScore ?? null,
+    updated_at: now,
+  });
+  const row = db.prepare(`SELECT * FROM pipeline_entries WHERE id = ?`).get(id) as PipelineRow;
+  return { entry: rowToEntry(row), created: true };
+}
+
 export type PipelineAction = "accept" | "reject" | "approve_event";
 
 export function actOnPipelineEntry(id: string, action: PipelineAction): PipelineEntry | null {

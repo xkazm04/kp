@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 
 type JobRequirement = { skill: string; termId?: string | null; kind: string; hardness: string };
 type JobEntryProfile = {
@@ -56,6 +57,13 @@ export function JobsTab() {
   const [workMode, setWorkMode] = useState("");
   const [entryOnly, setEntryOnly] = useState(false);
   const [q, setQ] = useState("");
+
+  // Deep link from the Pipeline (?tab=jobs&job=<id>): auto-expand + auto-rank that role.
+  const search = useSearchParams();
+  const jobParam = search.get("job");
+  useEffect(() => {
+    if (jobParam) setExpanded(jobParam);
+  }, [jobParam]);
 
   useEffect(() => {
     let cancelled = false;
@@ -182,6 +190,7 @@ export function JobsTab() {
                       key={job.id}
                       job={job}
                       isOpen={isOpen}
+                      autoLoad={job.id === jobParam}
                       onToggle={() => setExpanded(isOpen ? null : job.id)}
                     />
                   );
@@ -195,7 +204,17 @@ export function JobsTab() {
   );
 }
 
-function JobRow({ job, isOpen, onToggle }: { job: Job; isOpen: boolean; onToggle: () => void }) {
+function JobRow({
+  job,
+  isOpen,
+  autoLoad,
+  onToggle,
+}: {
+  job: Job;
+  isOpen: boolean;
+  autoLoad: boolean;
+  onToggle: () => void;
+}) {
   const ep = job.entryProfile;
   return (
     <>
@@ -222,7 +241,7 @@ function JobRow({ job, isOpen, onToggle }: { job: Job; isOpen: boolean; onToggle
       {isOpen ? (
         <tr className="bg-paper/40">
           <td colSpan={7} className="px-4 py-4">
-            <JobDetail job={job} />
+            <JobDetail job={job} autoLoad={autoLoad} />
           </td>
         </tr>
       ) : null}
@@ -230,7 +249,7 @@ function JobRow({ job, isOpen, onToggle }: { job: Job; isOpen: boolean; onToggle
   );
 }
 
-function JobDetail({ job }: { job: Job }) {
+function JobDetail({ job, autoLoad = false }: { job: Job; autoLoad?: boolean }) {
   const reqs = job.requirements ?? [];
   const musts = reqs.filter((r) => r.kind === "must_have");
   const nices = reqs.filter((r) => r.kind !== "must_have");
@@ -293,7 +312,12 @@ function JobDetail({ job }: { job: Job }) {
         ) : null}
       </div>
       </div>
-      <RecruiterCandidates jobId={job.id} />
+      <RecruiterCandidates
+        jobId={job.id}
+        jobTitle={job.title}
+        roleFamily={job.roleFamily ?? null}
+        autoLoad={autoLoad}
+      />
     </div>
   );
 }
@@ -307,6 +331,7 @@ type CandResult = {
   missingSkills?: string[];
 };
 type CandRow = {
+  candidateId: string;
   label: string;
   archetype: string;
   seniority: string;
@@ -333,10 +358,22 @@ function provLabel(p: string): { text: string; tone: string } {
   return { text: "academic", tone: "bg-amber-50 text-amber-800" }; // thesis/project/coursework
 }
 
-function RecruiterCandidates({ jobId }: { jobId: string }) {
+function RecruiterCandidates({
+  jobId,
+  jobTitle,
+  roleFamily,
+  autoLoad = false,
+}: {
+  jobId: string;
+  jobTitle: string;
+  roleFamily: string | null;
+  autoLoad?: boolean;
+}) {
   const [data, setData] = useState<{ candidates: CandRow[] } | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [added, setAdded] = useState<Set<string>>(new Set());
+  const [adding, setAdding] = useState<Set<string>>(new Set());
 
   const load = async () => {
     setLoading(true);
@@ -350,6 +387,39 @@ function RecruiterCandidates({ jobId }: { jobId: string }) {
       setError(caught instanceof Error ? caught.message : "Failed.");
     } finally {
       setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (autoLoad && !data && !loading) load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoLoad]);
+
+  const addToPipeline = async (c: CandRow) => {
+    if (!c.candidateId || added.has(c.candidateId) || adding.has(c.candidateId)) return;
+    setAdding((s) => new Set(s).add(c.candidateId));
+    try {
+      const r = await fetch("/api/pipeline", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          candidateId: c.candidateId,
+          candidateLabel: c.label,
+          archetype: c.archetype,
+          roleFamily,
+          jobId,
+          jobTitle,
+          matchScore: c.result.total,
+          stage: "Screening",
+        }),
+      });
+      if (r.ok) setAdded((s) => new Set(s).add(c.candidateId));
+    } finally {
+      setAdding((s) => {
+        const n = new Set(s);
+        n.delete(c.candidateId);
+        return n;
+      });
     }
   };
 
@@ -387,14 +457,35 @@ function RecruiterCandidates({ jobId }: { jobId: string }) {
         against experienced candidates.
       </p>
       <div className="mt-3 grid gap-4 lg:grid-cols-2">
-        <CandidateColumn title="Experienced" rows={experienced} />
-        <CandidateColumn title="Early-career pipeline" rows={earlyCareer} highlight />
+        <CandidateColumn title="Experienced" rows={experienced} added={added} adding={adding} onAdd={addToPipeline} />
+        <CandidateColumn
+          title="Early-career pipeline"
+          rows={earlyCareer}
+          highlight
+          added={added}
+          adding={adding}
+          onAdd={addToPipeline}
+        />
       </div>
     </div>
   );
 }
 
-function CandidateColumn({ title, rows, highlight }: { title: string; rows: CandRow[]; highlight?: boolean }) {
+function CandidateColumn({
+  title,
+  rows,
+  highlight,
+  added,
+  adding,
+  onAdd,
+}: {
+  title: string;
+  rows: CandRow[];
+  highlight?: boolean;
+  added: Set<string>;
+  adding: Set<string>;
+  onAdd: (c: CandRow) => void;
+}) {
   return (
     <div className={`rounded-md border p-2 ${highlight ? "border-green-200 bg-green-50/40" : "border-stone-200"}`}>
       <p className="text-[11px] font-semibold uppercase tracking-wide text-steel">
@@ -405,7 +496,13 @@ function CandidateColumn({ title, rows, highlight }: { title: string; rows: Cand
       ) : (
         <ol className="mt-2 space-y-2">
           {rows.map((c, i) => (
-            <CandidateCard key={`${c.label}-${i}`} c={c} rank={i + 1} />
+            <CandidateCard
+              key={c.candidateId || `${c.label}-${i}`}
+              c={c}
+              added={added.has(c.candidateId)}
+              adding={adding.has(c.candidateId)}
+              onAdd={() => onAdd(c)}
+            />
           ))}
         </ol>
       )}
@@ -413,7 +510,17 @@ function CandidateColumn({ title, rows, highlight }: { title: string; rows: Cand
   );
 }
 
-function CandidateCard({ c, rank }: { c: CandRow; rank: number }) {
+function CandidateCard({
+  c,
+  added,
+  adding,
+  onAdd,
+}: {
+  c: CandRow;
+  added: boolean;
+  adding: boolean;
+  onAdd: () => void;
+}) {
   const res = c.result;
   const early = EARLY.has(c.archetype);
   const prov = res.matchedSkillProvenance ?? {};
@@ -428,9 +535,21 @@ function CandidateCard({ c, rank }: { c: CandRow; rank: number }) {
         <span className="rounded-full bg-ink/90 px-1.5 py-0.5 text-[10px] font-semibold text-white">
           {ARCHETYPE_BADGE[c.archetype] ?? c.archetype}
         </span>
-        {early && c.potentialScore != null ? (
-          <span className="ml-auto text-[10px] text-steel">potential {Math.round(c.potentialScore * 100)}</span>
-        ) : null}
+        <span className="ml-auto flex items-center gap-2">
+          {early && c.potentialScore != null ? (
+            <span className="text-[10px] text-steel">potential {Math.round(c.potentialScore * 100)}</span>
+          ) : null}
+          <button
+            type="button"
+            onClick={onAdd}
+            disabled={added || adding}
+            className={`focus-ring rounded px-1.5 py-0.5 text-[10px] font-semibold ${
+              added ? "bg-moss/10 text-moss" : "border border-stone-200 text-ink hover:bg-paper disabled:opacity-40"
+            }`}
+          >
+            {added ? "✓ pipeline" : adding ? "…" : "+ pipeline"}
+          </button>
+        </span>
       </div>
       <div className="mt-1 flex flex-wrap gap-1">
         {(res.matchedSkills ?? []).slice(0, 8).map((s) => {

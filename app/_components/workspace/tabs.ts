@@ -81,3 +81,18 @@ export function isWorkspaceTabId(value: string | null | undefined): value is Wor
 export function tabHref(id: WorkspaceTabId): string {
   return id === DEFAULT_TAB ? "/" : `/?tab=${id}`;
 }
+
+// Client-side navigation that updates the URL query and lets the Workspace
+// (which reads useSearchParams) re-render. Used for cross-tab deep links —
+// e.g. drilling from the Pipeline into a candidate's Match view.
+export function navigate(updates: Record<string, string | null>): void {
+  if (typeof window === "undefined") return;
+  const url = new URL(window.location.href);
+  for (const [key, value] of Object.entries(updates)) {
+    if (value === null || value === "") url.searchParams.delete(key);
+    else url.searchParams.set(key, value);
+  }
+  if (url.searchParams.get("tab") === DEFAULT_TAB) url.searchParams.delete("tab");
+  window.history.pushState(null, "", url.toString());
+  window.dispatchEvent(new PopStateEvent("popstate"));
+}

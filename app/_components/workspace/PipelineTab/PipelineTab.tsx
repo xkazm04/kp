@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Briefcase, Calendar, Check, Clock, Users, X } from "lucide-react";
+import { navigate } from "../tabs";
 
 type Entry = {
   id: string;
@@ -90,6 +91,10 @@ export function PipelineTab() {
   };
 
   const posTitle = (jobId: string) => positions.find((p) => p.id === jobId)?.title ?? "";
+  const openCandidate = (e: Entry) => {
+    if (e.candidateId) navigate({ tab: "match", profile: e.candidateId });
+  };
+  const openPositionRanking = (jobId: string) => navigate({ tab: "jobs", job: jobId });
 
   return (
     <div className="space-y-6">
@@ -144,6 +149,7 @@ export function PipelineTab() {
                     entry={e}
                     position={posTitle(e.jobId ?? "")}
                     busy={acting.has(e.id)}
+                    onOpen={() => openCandidate(e)}
                     onAccept={() => act(e.id, "accept")}
                     onReject={() => act(e.id, "reject")}
                     onApproveEvent={() => act(e.id, "approve_event")}
@@ -175,6 +181,13 @@ export function PipelineTab() {
                       <div className="border-r border-stone-100 px-3 py-3">
                         <p className="text-sm font-semibold leading-tight text-ink">{pos.title}</p>
                         <p className="text-[11px] text-steel">{pos.count} active</p>
+                        <button
+                          type="button"
+                          onClick={() => openPositionRanking(pos.id)}
+                          className="focus-ring mt-1 text-[11px] font-semibold text-coral hover:underline"
+                        >
+                          Rank candidates →
+                        </button>
                       </div>
                       {STAGES.map((stage) => {
                         const cell = lane.filter((e) => stageOf(e) === stage);
@@ -182,7 +195,7 @@ export function PipelineTab() {
                           <div key={stage} className="border-r border-stone-100 px-2 py-3 last:border-0">
                             <div className="flex flex-wrap gap-1">
                               {cell.map((e) => (
-                                <Avatar key={e.id} entry={e} pending={!!e.approvalKind} />
+                                <Avatar key={e.id} entry={e} pending={!!e.approvalKind} onClick={() => openCandidate(e)} />
                               ))}
                               {cell.length === 0 ? <span className="text-[11px] text-stone-300">·</span> : null}
                             </div>
@@ -232,6 +245,7 @@ function ApprovalCard({
   entry,
   position,
   busy,
+  onOpen,
   onAccept,
   onReject,
   onApproveEvent,
@@ -239,6 +253,7 @@ function ApprovalCard({
   entry: Entry;
   position: string;
   busy: boolean;
+  onOpen: () => void;
   onAccept: () => void;
   onReject: () => void;
   onApproveEvent: () => void;
@@ -247,9 +262,15 @@ function ApprovalCard({
   return (
     <div className="flex w-64 shrink-0 flex-col gap-3 rounded-lg border border-coral/30 bg-white p-3 shadow-panel">
       <div className="flex items-center gap-2">
-        <Avatar entry={entry} />
+        <Avatar entry={entry} onClick={onOpen} />
         <div className="min-w-0">
-          <p className="truncate text-sm font-semibold text-ink">{entry.candidateLabel}</p>
+          <button
+            type="button"
+            onClick={onOpen}
+            className="focus-ring block max-w-full truncate text-left text-sm font-semibold text-ink hover:text-coral"
+          >
+            {entry.candidateLabel}
+          </button>
           <p className="truncate text-[11px] text-steel">{position}</p>
         </div>
         {entry.matchScore != null ? (
@@ -294,7 +315,7 @@ function ApprovalCard({
   );
 }
 
-function Avatar({ entry, pending = false }: { entry: Entry; pending?: boolean }) {
+function Avatar({ entry, pending = false, onClick }: { entry: Entry; pending?: boolean; onClick?: () => void }) {
   const style = styleFor(entry.archetype);
   const initials = entry.candidateLabel
     .split(" ")
@@ -303,17 +324,25 @@ function Avatar({ entry, pending = false }: { entry: Entry; pending?: boolean })
     .join("")
     .slice(0, 2)
     .toUpperCase();
+  const title = `${entry.candidateLabel} · ${style.label}${entry.matchScore != null ? ` · match ${entry.matchScore}` : ""}`;
+  const cls = `relative inline-flex h-7 w-7 items-center justify-center rounded-full text-[10px] font-semibold text-white ${style.bg} ${
+    pending ? `ring-2 ring-offset-1 ${style.ring}` : ""
+  }`;
+  const dot = pending ? (
+    <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 animate-pulse rounded-full border border-white bg-coral" />
+  ) : null;
+  if (onClick) {
+    return (
+      <button type="button" onClick={onClick} title={`${title} · open`} className={`focus-ring ${cls} cursor-pointer hover:opacity-90`}>
+        {initials}
+        {dot}
+      </button>
+    );
+  }
   return (
-    <span
-      title={`${entry.candidateLabel} · ${style.label}${entry.matchScore != null ? ` · match ${entry.matchScore}` : ""}`}
-      className={`relative inline-flex h-7 w-7 items-center justify-center rounded-full text-[10px] font-semibold text-white ${style.bg} ${
-        pending ? `ring-2 ring-offset-1 ${style.ring}` : ""
-      }`}
-    >
+    <span title={title} className={cls}>
       {initials}
-      {pending ? (
-        <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 animate-pulse rounded-full border border-white bg-coral" />
-      ) : null}
+      {dot}
     </span>
   );
 }

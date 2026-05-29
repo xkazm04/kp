@@ -15,13 +15,15 @@ from .jobs import Job
 from .matching import MatchCandidate, candidate_assumptions, ko_filter, score_job
 
 
-def rank_candidates_for_job(candidates: list[MatchCandidate], job: Job) -> list[dict[str, Any]]:
+def rank_candidates_for_job(candidates: list[tuple[str, MatchCandidate]], job: Job) -> list[dict[str, Any]]:
+    """``candidates`` are (candidate_id, MatchCandidate) pairs so rows can carry identity."""
     rows: list[dict[str, Any]] = []
-    for candidate in candidates:
+    for candidate_id, candidate in candidates:
         passed, reasons = ko_filter(candidate, job)
         result = score_job(candidate, job)
         rows.append(
             {
+                "candidateId": candidate_id,
                 "label": candidate.label,
                 "archetype": candidate.archetype,
                 "seniority": candidate.seniority,

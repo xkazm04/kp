@@ -10,7 +10,7 @@ import { MatchTab } from "./MatchTab/MatchTab";
 import { MatrixTab } from "./MatrixTab/MatrixTab";
 import { PipelineTab } from "./PipelineTab/PipelineTab";
 import { ProfileTab } from "./ProfileTab/ProfileTab";
-import { DEFAULT_TAB, isWorkspaceTabId, NAV_GROUPS, type WorkspaceTabId } from "./tabs";
+import { DEFAULT_TAB, isWorkspaceTabId, NAV_GROUPS, navigate, type WorkspaceTabId } from "./tabs";
 
 export type { WorkspaceTabId } from "./tabs";
 
@@ -21,13 +21,9 @@ export function Workspace() {
   // History is consolidated into Analyze; ?tab=history opens Analyze in history mode.
   const navActive: WorkspaceTabId = active === "history" ? "analyze" : active;
 
+  // Switching tabs from the sidebar clears any cross-tab deep-link params.
   const selectTab = useCallback((id: WorkspaceTabId): void => {
-    if (typeof window === "undefined") return;
-    const url = new URL(window.location.href);
-    if (id === DEFAULT_TAB) url.searchParams.delete("tab");
-    else url.searchParams.set("tab", id);
-    window.history.pushState(null, "", url.toString());
-    window.dispatchEvent(new PopStateEvent("popstate"));
+    navigate({ tab: id, profile: null, job: null });
   }, []);
 
   return (

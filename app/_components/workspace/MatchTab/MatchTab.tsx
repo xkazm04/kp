@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 
 type AnalysisRow = {
   slug: string;
@@ -85,6 +86,10 @@ export function MatchTab() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const search = useSearchParams();
+  const profileParam = search.get("profile");
+  const [autoRan, setAutoRan] = useState(false);
+
   useEffect(() => {
     fetch("/api/profile")
       .then((r) => r.json())
@@ -105,8 +110,7 @@ export function MatchTab() {
       .catch(() => undefined);
   }, []);
 
-  const runMatch = async () => {
-    const ref: MatchRef = source === "profile" ? { profileId: selProfile } : { analysisSlug: selAnalysis };
+  const runMatchFor = async (ref: MatchRef) => {
     if (!ref.profileId && !ref.analysisSlug) return;
     setLoading(true);
     setError(null);
@@ -127,6 +131,20 @@ export function MatchTab() {
       setLoading(false);
     }
   };
+
+  const runMatch = () =>
+    runMatchFor(source === "profile" ? { profileId: selProfile } : { analysisSlug: selAnalysis });
+
+  // Deep link from the Pipeline (?tab=match&profile=<id>): preselect + auto-run once.
+  useEffect(() => {
+    if (profileParam && !autoRan) {
+      setSource("profile");
+      setSelProfile(profileParam);
+      setAutoRan(true);
+      void runMatchFor({ profileId: profileParam });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profileParam, autoRan]);
 
   return (
     <section className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
@@ -230,6 +248,39 @@ function Results({ result, matchRef }: { result: MatchResponse; matchRef: MatchR
   const { candidate, meta, matches } = result;
   const archetype = candidate.archetype ?? "bau";
   const early = EARLY_CAREER.has(archetype);
+
+  const candidateId = matchRef.profileId ?? matchRef.analysisSlug ?? "";
+  const [added, setAdded] = useState<Set<string>>(new Set());
+  const [adding, setAdding] = useState<Set<string>>(new Set());
+
+  const addToPipeline = async (m: MatchResult) => {
+    if (!candidateId || added.has(m.jobId) || adding.has(m.jobId)) return;
+    setAdding((s) => new Set(s).add(m.jobId));
+    try {
+      const r = await fetch("/api/pipeline", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          candidateId,
+          candidateLabel: candidate.label,
+          archetype,
+          roleFamily: m.roleFamily,
+          jobId: m.jobId,
+          jobTitle: m.title,
+          matchScore: m.total,
+          stage: "AI-matched",
+        }),
+      });
+      if (r.ok) setAdded((s) => new Set(s).add(m.jobId));
+    } finally {
+      setAdding((s) => {
+        const n = new Set(s);
+        n.delete(m.jobId);
+        return n;
+      });
+    }
+  };
+
   return (
     <div>
       <div className="flex flex-wrap items-center gap-2">
@@ -255,7 +306,17 @@ function Results({ result, matchRef }: { result: MatchResponse; matchRef: MatchR
 
       <ol className="mt-4 space-y-2">
         {matches.map((m, i) => (
-          <MatchCard key={m.jobId} m={m} index={i} matchRef={matchRef} archetype={archetype} />
+          <MatchCard
+            key={m.jobId}
+            m={m}
+            index={i}
+            matchRef={matchRef}
+            archetype={archetype}
+            canAdd={Boolean(candidateId)}
+            added={added.has(m.jobId)}
+            adding={adding.has(m.jobId)}
+            onAdd={() => addToPipeline(m)}
+          />
         ))}
       </ol>
     </div>
@@ -267,11 +328,19 @@ function MatchCard({
   index,
   matchRef,
   archetype,
+  canAdd,
+  added,
+  adding,
+  onAdd,
 }: {
   m: MatchResult;
   index: number;
   matchRef: MatchRef;
   archetype: string;
+  canAdd: boolean;
+  added: boolean;
+  adding: boolean;
+  onAdd: () => void;
 }) {
   const [reasoning, setReasoning] = useState<ReasoningState | null>(null);
   const early = EARLY_CAREER.has(archetype);
@@ -313,16 +382,32 @@ function MatchCard({
                 entry-eligible
               </span>
             ) : null}
-            {canExplain ? (
-              <button
-                type="button"
-                onClick={explain}
-                disabled={reasoning?.loading}
-                className="focus-ring ml-auto rounded-md border border-stone-200 px-2 py-0.5 text-[11px] font-semibold text-coral hover:bg-paper disabled:opacity-40"
-              >
-                {reasoning?.loading ? "Reasoning…" : reasoning?.data ? "Refresh reasoning" : "Explain fit"}
-              </button>
-            ) : null}
+            <div className="ml-auto flex items-center gap-1.5">
+              {canAdd ? (
+                <button
+                  type="button"
+                  onClick={onAdd}
+                  disabled={added || adding}
+                  className={`focus-ring rounded-md px-2 py-0.5 text-[11px] font-semibold transition-colors ${
+                    added
+                      ? "bg-moss/10 text-moss"
+                      : "border border-stone-200 text-ink hover:bg-paper disabled:opacity-40"
+                  }`}
+                >
+                  {added ? "✓ In pipeline" : adding ? "Adding…" : "+ Pipeline"}
+                </button>
+              ) : null}
+              {canExplain ? (
+                <button
+                  type="button"
+                  onClick={explain}
+                  disabled={reasoning?.loading}
+                  className="focus-ring rounded-md border border-stone-200 px-2 py-0.5 text-[11px] font-semibold text-coral hover:bg-paper disabled:opacity-40"
+                >
+                  {reasoning?.loading ? "Reasoning…" : reasoning?.data ? "Refresh reasoning" : "Explain fit"}
+                </button>
+              ) : null}
+            </div>
           </div>
           <p className="text-xs text-steel">
             {m.company ?? "—"} · {m.location ?? "—"} · {m.workMode ?? "—"} ·{" "}
