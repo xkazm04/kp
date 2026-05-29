@@ -991,6 +991,40 @@ export function hasEventToday(entryId: string, kind: string): boolean {
     .get(entryId, kind, start.toISOString());
 }
 
+// ---- Fit matrix (Phase 16) ------------------------------------------------
+
+export type MatrixProfile = { id: string; label: string; archetype: string | null; payload: unknown };
+
+export function listMatrixProfiles(limit = 200): MatrixProfile[] {
+  const db = ensureDb();
+  const rows = db
+    .prepare(`SELECT id, label, archetype, payload_json FROM profiles ORDER BY created_at ASC LIMIT ?`)
+    .all(limit) as { id: string; label: string; archetype: string | null; payload_json: string }[];
+  return rows.map((r) => ({ id: r.id, label: r.label, archetype: r.archetype, payload: JSON.parse(r.payload_json) }));
+}
+
+/** Distinct positions we are actively hiring for = jobs that appear in the pipeline. */
+export function listOpenPositions(): { id: string; title: string; roleFamily: string | null }[] {
+  const db = ensureDb();
+  return db
+    .prepare(
+      `SELECT DISTINCT job_id AS id, job_title AS title, role_family AS roleFamily
+       FROM pipeline_entries WHERE job_id IS NOT NULL ORDER BY job_title`
+    )
+    .all() as { id: string; title: string; roleFamily: string | null }[];
+}
+
+/** candidateId|jobId -> {stage,status} for overlaying pipeline placement onto the matrix. */
+export function pipelinePlacements(): Record<string, { stage: string; status: string }> {
+  const db = ensureDb();
+  const rows = db
+    .prepare(`SELECT candidate_id, job_id, stage, status FROM pipeline_entries WHERE candidate_id IS NOT NULL AND job_id IS NOT NULL`)
+    .all() as { candidate_id: string; job_id: string; stage: string; status: string }[];
+  const map: Record<string, { stage: string; status: string }> = {};
+  for (const r of rows) map[`${r.candidate_id}|${r.job_id}`] = { stage: r.stage, status: r.status };
+  return map;
+}
+
 export type PipelineAction = "accept" | "reject" | "approve_event";
 
 export function actOnPipelineEntry(id: string, action: PipelineAction): PipelineEntry | null {
