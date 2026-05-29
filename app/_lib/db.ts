@@ -176,6 +176,8 @@ function ensureDb(): Database.Database {
       repo_ref TEXT,
       notes TEXT,
       status TEXT NOT NULL DEFAULT 'received',
+      eval_json TEXT,
+      transfer_score INTEGER,
       received_at TEXT NOT NULL
     );
 
@@ -186,6 +188,14 @@ function ensureDb(): Database.Database {
   for (const col of ["created_at", "stage_changed_at"]) {
     try {
       db.exec(`ALTER TABLE pipeline_entries ADD COLUMN ${col} TEXT`);
+    } catch {
+      /* column already exists */
+    }
+  }
+  // Migration for dev_submissions evaluation columns (Phase D6).
+  for (const sql of ["ALTER TABLE dev_submissions ADD COLUMN eval_json TEXT", "ALTER TABLE dev_submissions ADD COLUMN transfer_score INTEGER"]) {
+    try {
+      db.exec(sql);
     } catch {
       /* column already exists */
     }
@@ -1319,8 +1329,24 @@ export type DevSubmission = {
   repoRef: string | null;
   notes: string | null;
   status: string;
+  evaluation: unknown;
+  transferScore: number | null;
   receivedAt: string;
 };
+
+function rowToSubmission(r: Record<string, unknown>): DevSubmission {
+  return {
+    id: r.id as string,
+    postingId: (r.posting_id as string) ?? null,
+    candidateRef: (r.candidate_ref as string) ?? null,
+    repoRef: (r.repo_ref as string) ?? null,
+    notes: (r.notes as string) ?? null,
+    status: r.status as string,
+    evaluation: parseJson((r.eval_json as string) ?? null),
+    transferScore: r.transfer_score == null ? null : Number(r.transfer_score),
+    receivedAt: r.received_at as string,
+  };
+}
 
 export function createPosting(input: {
   caseId: string;
@@ -1389,7 +1415,17 @@ export function createSubmission(input: {
     `INSERT INTO dev_submissions (id, posting_id, candidate_ref, repo_ref, notes, status, received_at)
      VALUES (?, ?, ?, ?, ?, 'received', ?)`
   ).run(id, input.postingId, input.candidateRef, input.repoRef, input.notes ?? null, now);
-  return { id, postingId: input.postingId, candidateRef: input.candidateRef, repoRef: input.repoRef, notes: input.notes ?? null, status: "received", receivedAt: now };
+  return {
+    id,
+    postingId: input.postingId,
+    candidateRef: input.candidateRef,
+    repoRef: input.repoRef,
+    notes: input.notes ?? null,
+    status: "received",
+    evaluation: null,
+    transferScore: null,
+    receivedAt: now,
+  };
 }
 
 export function listSubmissions(postingId?: string): DevSubmission[] {
@@ -1399,15 +1435,38 @@ export function listSubmissions(postingId?: string): DevSubmission[] {
       ? db.prepare(`SELECT * FROM dev_submissions WHERE posting_id = ? ORDER BY received_at DESC`).all(postingId)
       : db.prepare(`SELECT * FROM dev_submissions ORDER BY received_at DESC`).all()
   ) as Array<Record<string, unknown>>;
-  return rows.map((r) => ({
+  return rows.map(rowToSubmission);
+}
+
+export function getSubmission(id: string): DevSubmission | null {
+  const db = ensureDb();
+  const r = db.prepare(`SELECT * FROM dev_submissions WHERE id = ?`).get(id) as Record<string, unknown> | undefined;
+  return r ? rowToSubmission(r) : null;
+}
+
+export function getPosting(id: string): Posting | null {
+  const db = ensureDb();
+  const r = db.prepare(`SELECT * FROM dev_postings WHERE id = ?`).get(id) as Record<string, unknown> | undefined;
+  if (!r) return null;
+  return {
     id: r.id as string,
-    postingId: (r.posting_id as string) ?? null,
-    candidateRef: (r.candidate_ref as string) ?? null,
-    repoRef: (r.repo_ref as string) ?? null,
-    notes: (r.notes as string) ?? null,
+    caseId: (r.case_id as string) ?? null,
+    channel: r.channel as string,
+    token: (r.token as string) ?? null,
+    roleTitle: (r.role_title as string) ?? null,
+    caseTitle: (r.case_title as string) ?? null,
     status: r.status as string,
-    receivedAt: r.received_at as string,
-  }));
+    createdAt: r.created_at as string,
+  };
+}
+
+export function saveSubmissionEvaluation(id: string, evaluation: unknown, transferScore: number): void {
+  const db = ensureDb();
+  db.prepare(`UPDATE dev_submissions SET eval_json = ?, transfer_score = ?, status = 'evaluated' WHERE id = ?`).run(
+    JSON.stringify(evaluation ?? null),
+    transferScore,
+    id
+  );
 }
 
 export type PipelineAction = "accept" | "reject" | "approve_event";

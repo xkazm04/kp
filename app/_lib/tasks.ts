@@ -12,7 +12,7 @@ import {
 import { runAutomationTask } from "./automation-run";
 import { runReasoning } from "./reasoning-run";
 import { runAnalyze, type AnalyzeParams } from "./analyze-run";
-import { runCommitReflection, runDesignArtifacts, runNeedAnalysis, type DevNeed } from "./devcase-run";
+import { runCommitReflection, runDesignArtifacts, runEvaluateSubmission, runNeedAnalysis, type DevNeed } from "./devcase-run";
 
 // ---------------------------------------------------------------------------
 // In-process background-task runner. Works because `next dev` is one long-lived
@@ -95,6 +95,11 @@ const HANDLERS: Record<string, Spec> = {
     run: (ctx) => runCommitReflection(String(ctx.params.repoRef), ctx.params.caseId ? String(ctx.params.caseId) : undefined),
     label: (p) => `Commit reflection · ${p.candidateRef ?? p.repoRef ?? ""}`,
     dedupe: (p) => `commit_reflection:${p.repoRef}:${p.caseId ?? ""}`,
+  },
+  evaluate_submission: {
+    run: (ctx) => runEvaluateSubmission(String(ctx.params.submissionId)),
+    label: (p) => `Evaluate · ${p.candidateRef ?? p.submissionId ?? ""}`,
+    dedupe: (p) => `evaluate_submission:${p.submissionId}`,
   },
 };
 

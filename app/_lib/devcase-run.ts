@@ -1,6 +1,6 @@
 import { writeFile } from "node:fs/promises";
 import path from "node:path";
-import { getDevCase } from "./db";
+import { getDevCase, getPosting, getSubmission, saveSubmissionEvaluation } from "./db";
 import { cleanupWorkdir, createWorkdir, parseStderrError, spawnPython } from "./python-runner";
 import { buildRepoSnapshot, fetchCommitTrace, type RepoSnapshot } from "./repo-snapshot";
 
@@ -120,6 +120,71 @@ export async function runCommitReflection(repoRef: string, caseId?: string): Pro
     }
     const payload = JSON.parse(stdout) as { result: { reflection: Record<string, unknown>; tooling: Record<string, unknown> }; source: string };
     return { reflection: payload.result.reflection, tooling: payload.result.tooling, source: payload.source, commitCount: trace.length };
+  } finally {
+    await cleanupWorkdir(workdir);
+  }
+}
+
+export type SubmissionEvaluation = {
+  reflection: Record<string, unknown>;
+  tooling: Record<string, unknown>;
+  evaluation: Record<string, unknown>;
+  transfer: Record<string, unknown>;
+  source: string;
+  commitCount: number;
+};
+
+// D6 core: the full incoming-evaluation chain for one submission — trace -> reflect +
+// tooling -> CaseEvaluation -> TransferAssessment. Persists the result on the submission.
+export async function runEvaluateSubmission(submissionId: string): Promise<SubmissionEvaluation> {
+  const sub = getSubmission(submissionId);
+  if (!sub) throw new Error("submission not found");
+  if (!sub.repoRef) throw new Error("submission has no repo");
+  const posting = sub.postingId ? getPosting(sub.postingId) : null;
+  const devCase = posting?.caseId ? getDevCase(posting.caseId) : null;
+  const caseObj = (devCase?.case as Record<string, unknown>) ?? {};
+  const roleObj = (devCase?.role as Record<string, unknown>) ?? {};
+  const probes = (caseObj.coverProbes as unknown[]) ?? [];
+  const trace = (await fetchCommitTrace(sub.repoRef)) ?? [];
+
+  const workdir = await createWorkdir();
+  try {
+    const write = async (name: string, data: unknown) => {
+      const fp = path.join(workdir, name);
+      await writeFile(fp, JSON.stringify(data), "utf-8");
+      return fp;
+    };
+    const commitsPath = await write("commits.json", trace);
+    const probesPath = await write("probes.json", probes);
+    const casePath = await write("case.json", caseObj);
+    const rolePath = await write("role.json", roleObj);
+
+    const { result } = spawnPython([
+      "-m",
+      "pipeline.jobfit.devcase.devcase_cli",
+      "evaluate-submission",
+      "--commits-json",
+      commitsPath,
+      "--probes-json",
+      probesPath,
+      "--case-json",
+      casePath,
+      "--role-json",
+      rolePath,
+    ]);
+    const { stdout, stderr, exitCode } = await result;
+    if (exitCode !== 0) {
+      const err = parseStderrError(stderr, exitCode);
+      throw new Error(err.message);
+    }
+    const payload = JSON.parse(stdout) as {
+      result: { reflection: Record<string, unknown>; tooling: Record<string, unknown>; evaluation: Record<string, unknown>; transfer: Record<string, unknown> };
+      source: string;
+    };
+    const out = { ...payload.result, source: payload.source, commitCount: trace.length };
+    const transferScore = Number((payload.result.transfer as { transferScore?: number }).transferScore ?? 0);
+    saveSubmissionEvaluation(submissionId, out, transferScore);
+    return out;
   } finally {
     await cleanupWorkdir(workdir);
   }

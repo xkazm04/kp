@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Boxes, Check, ClipboardList, GitBranch, Inbox, Loader2, Lock, Send, ShieldCheck, Sparkles } from "lucide-react";
 import { useTasks } from "../tasks/TasksProvider";
 
@@ -30,7 +30,16 @@ type RoleSpec = { title?: string; seniority?: string; mustHaves?: string[]; nice
 type CaseScenario = { title?: string; brief?: string; repoSeed?: string; tasks?: string[]; coverProbes?: CoverProbe[]; rubricDimensions?: RubricDim[]; timeboxHours?: number };
 type Design = { role?: RoleSpec; case?: CaseScenario; source?: string };
 type ApprovedCase = { id: string; title: string | null; roleTitle: string | null; seniority: string | null; createdAt: string };
-type Submission = { id: string; candidateRef: string | null; repoRef: string | null; notes: string | null; receivedAt: string };
+type Submission = {
+  id: string;
+  candidateRef: string | null;
+  repoRef: string | null;
+  notes: string | null;
+  receivedAt: string;
+  status?: string;
+  evaluation?: EvalBundle | null;
+  transferScore?: number | null;
+};
 type Posting = {
   id: string;
   caseId: string | null;
@@ -426,9 +435,11 @@ export function DevTab() {
 
                 {(p.submissions ?? []).length > 0 ? (
                   <ul className="mt-2 space-y-1.5 border-t border-stone-100 pt-2">
-                    {(p.submissions ?? []).map((s) => (
-                      <SubmissionRow key={s.id} submission={s} caseId={p.caseId} />
-                    ))}
+                    {[...(p.submissions ?? [])]
+                      .sort((a, b) => (b.transferScore ?? -1) - (a.transferScore ?? -1))
+                      .map((s, i) => (
+                        <SubmissionRow key={s.id} submission={s} caseId={p.caseId} rank={s.transferScore != null ? i + 1 : null} onChanged={loadPostings} />
+                      ))}
                   </ul>
                 ) : null}
 
@@ -488,80 +499,123 @@ type Reflection = {
 };
 type ProbeOutcome = { probeId?: string; detected?: boolean; handledWell?: boolean; note?: string };
 type Tooling = { fluency?: number; probeOutcomes?: ProbeOutcome[]; overRelianceFlags?: string[]; evidence?: string[]; confidence?: number };
-type ReflectResult = { reflection?: Reflection; tooling?: Tooling; source?: string; commitCount?: number };
+type CaseEval = { dimensionScores?: Record<string, number>; strengths?: string[]; concerns?: string[]; summary?: string };
+type Transfer = { transferScore?: number; transfers?: string[]; gaps?: string[]; roleFitRationale?: string };
+type EvalBundle = { reflection?: Reflection; tooling?: Tooling; evaluation?: CaseEval; transfer?: Transfer; source?: string; commitCount?: number };
 
-function SubmissionRow({ submission, caseId }: { submission: Submission; caseId: string | null }) {
+function scoreColor(v: number): string {
+  if (v >= 72) return "bg-moss";
+  if (v >= 55) return "bg-moss/60";
+  if (v >= 40) return "bg-amber-400";
+  return "bg-coral";
+}
+
+function SubmissionRow({ submission, caseId, rank, onChanged }: { submission: Submission; caseId: string | null; rank: number | null; onChanged: () => void }) {
   const { startTask, tasks } = useTasks();
   const [taskId, setTaskId] = useState<string | null>(null);
+  const [promoted, setPromoted] = useState(false);
+  const seen = useRef(false);
   const task = tasks.find((t) => t.id === taskId);
   const busy = task ? task.status === "running" || task.status === "queued" : false;
-  const res = task?.status === "succeeded" ? (task.result as ReflectResult) : null;
+  const fresh = task?.status === "succeeded" ? (task.result as EvalBundle) : null;
+  const ev = fresh ?? submission.evaluation ?? null;
 
-  const reflect = async () => {
-    const t = await startTask("commit_reflection", { repoRef: submission.repoRef, caseId, candidateRef: submission.candidateRef });
+  // reload postings once when the evaluate task lands (so the score persists into the list)
+  useEffect(() => {
+    if (task?.status === "succeeded" && !seen.current) {
+      seen.current = true;
+      onChanged();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [task?.status]);
+
+  const evaluate = async () => {
+    seen.current = false;
+    const t = await startTask("evaluate_submission", { submissionId: submission.id, candidateRef: submission.candidateRef });
     if (t) setTaskId(t.id);
   };
+  const promote = async () => {
+    const r = await fetch("/api/devcase/promote", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ submissionId: submission.id }),
+    });
+    if (r.ok) setPromoted(true);
+  };
+
+  const ts = submission.transferScore ?? ev?.transfer?.transferScore ?? null;
 
   return (
     <li className="rounded-md border border-stone-100 bg-paper/40 p-2">
       <div className="flex items-center gap-1.5 text-[11px]">
+        {rank ? <span className="shrink-0 rounded bg-ink px-1 text-[9px] font-bold text-white">#{rank}</span> : null}
         <GitBranch size={11} className="shrink-0 text-steel" />
         <span className="font-semibold text-ink">{submission.candidateRef}</span>
         <span className="min-w-0 flex-1 truncate text-steel">{submission.repoRef}</span>
-        <button
-          type="button"
-          onClick={reflect}
-          disabled={busy}
-          className="focus-ring inline-flex h-6 shrink-0 items-center gap-1 rounded border border-stone-200 bg-white px-1.5 text-[10px] font-semibold text-coral hover:bg-coral/5 disabled:opacity-50"
-        >
-          <Sparkles size={10} /> {busy ? "Reflecting…" : "Reflect"}
+        {ts != null ? (
+          <span className="shrink-0 rounded bg-paper px-1.5 py-0.5 text-[10px] font-semibold text-ink">{ts}<span className="text-steel"> fit</span></span>
+        ) : null}
+        <button type="button" onClick={evaluate} disabled={busy}
+          className="focus-ring inline-flex h-6 shrink-0 items-center gap-1 rounded border border-stone-200 bg-white px-1.5 text-[10px] font-semibold text-coral hover:bg-coral/5 disabled:opacity-50">
+          <Sparkles size={10} /> {busy ? "Evaluating…" : ev ? "Re-evaluate" : "Evaluate"}
         </button>
       </div>
-      {res?.reflection ? <ReflectionPanel res={res} /> : null}
+      {ev ? <EvalPanel ev={ev} onPromote={promote} promoted={promoted} /> : null}
     </li>
   );
 }
 
-function ReflectionPanel({ res }: { res: ReflectResult }) {
-  const r = res.reflection ?? {};
-  const t = res.tooling ?? {};
+function EvalPanel({ ev, onPromote, promoted }: { ev: EvalBundle; onPromote: () => void; promoted: boolean }) {
+  const r = ev.reflection ?? {};
+  const t = ev.tooling ?? {};
+  const e = ev.evaluation ?? {};
+  const x = ev.transfer ?? {};
+  const dims = e.dimensionScores ?? {};
   return (
     <div className="mt-2 rounded-md border border-stone-200 bg-white p-2.5 text-[11px] text-ink">
+      {/* capability scores */}
       <div className="mb-1 flex items-center gap-2">
-        <span className="text-[9px] font-semibold uppercase tracking-wide text-steel">Where they mentally went</span>
-        <span className="rounded bg-paper px-1.5 py-0.5 text-[9px] uppercase text-steel">{r.iterationPattern}</span>
+        <span className="text-[9px] font-semibold uppercase tracking-wide text-steel">Capability scores</span>
         <span className="ml-auto text-[9px] uppercase text-steel">
-          {res.source === "llm" ? "Claude CLI" : "template"} · {res.commitCount ?? 0} commits · conf {Math.round((r.confidence ?? 0) * 100)}%
+          transfer <b className="text-ink">{x.transferScore ?? "—"}</b> · {ev.source === "llm" ? "Claude CLI" : "template"} · {ev.commitCount ?? 0} commits
         </span>
       </div>
-      <p>{r.narrative}</p>
-      <div className="mt-1.5 flex flex-wrap gap-3 text-[10px] text-steel">
-        <span>read-before-write <b className="text-ink">{Math.round((r.readBeforeWrite ?? 0) * 100)}%</b></span>
-        {(r.verificationHabits ?? []).length ? <span>verify: {(r.verificationHabits ?? []).join(", ")}</span> : null}
-        {(r.deadEnds ?? []).length ? <span>dead-ends: {(r.deadEnds ?? []).length}</span> : null}
+      <div className="space-y-1">
+        {["framing", "tooling", "judgment", "architecture", "transfer"].map((k) => (
+          <div key={k} className="flex items-center gap-2">
+            <span className="w-20 shrink-0 text-[10px] capitalize text-steel">{k}</span>
+            <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-stone-200">
+              <span className={`block h-full rounded-full ${scoreColor(dims[k] ?? 0)}`} style={{ width: `${dims[k] ?? 0}%` }} />
+            </span>
+            <span className="w-6 shrink-0 text-right text-[10px] text-ink">{dims[k] ?? 0}</span>
+          </div>
+        ))}
+      </div>
+      {e.summary ? <p className="mt-1.5 text-[11px] text-ink">{e.summary}</p> : null}
+      <div className="mt-1 grid grid-cols-2 gap-2 text-[10px]">
+        {(e.strengths ?? []).length ? <div><span className="font-semibold text-moss">+ </span>{(e.strengths ?? []).join("; ")}</div> : null}
+        {(e.concerns ?? []).length ? <div><span className="font-semibold text-coral">! </span>{(e.concerns ?? []).join("; ")}</div> : null}
       </div>
 
-      <div className="mt-2 border-t border-stone-100 pt-2">
-        <div className="flex items-center gap-2">
-          <span className="text-[9px] font-semibold uppercase tracking-wide text-steel">Tooling — covert probes</span>
-          <span className="ml-auto text-[9px] uppercase text-steel">fluency {Math.round((t.fluency ?? 0) * 100)}%</span>
-        </div>
-        <ul className="mt-1 space-y-0.5">
-          {(t.probeOutcomes ?? []).map((o, i) => (
-            <li key={i} className="flex items-center gap-1.5">
-              {o.handledWell ? (
-                <Check size={11} className="shrink-0 text-moss" />
-              ) : o.detected ? (
-                <span className="shrink-0 text-[9px] font-bold text-amber-600">~</span>
-              ) : (
-                <span className="shrink-0 text-[9px] text-steel">·</span>
-              )}
-              <span className="font-mono text-[9px] text-steel">{o.probeId}</span>
-              <span className="min-w-0 flex-1 truncate text-ink">{o.note}</span>
-            </li>
-          ))}
-        </ul>
-        <p className="mt-1 text-[9px] italic text-steel">Using AI is never penalised — judged on judgment + verification.</p>
+      {/* trace + tooling (D5) */}
+      <div className="mt-2 border-t border-stone-100 pt-2 text-[10px] text-steel">
+        <span className="rounded bg-paper px-1.5 py-0.5 uppercase">{r.iterationPattern}</span>{" "}
+        read-before-write <b className="text-ink">{Math.round((r.readBeforeWrite ?? 0) * 100)}%</b>{" "}
+        · fluency <b className="text-ink">{Math.round((t.fluency ?? 0) * 100)}%</b>
+        {(x.gaps ?? []).length ? <span> · gaps: {(x.gaps ?? []).join(", ")}</span> : null}
+      </div>
+      <p className="mt-1 text-[9px] italic text-steel">Code assumed LLM-generated — using AI is never penalised; judged on judgment + verification + transfer.</p>
+
+      <div className="mt-2 flex items-center gap-2 border-t border-stone-100 pt-2">
+        {promoted ? (
+          <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-moss"><Check size={13} /> In pipeline</span>
+        ) : (
+          <button type="button" onClick={onPromote}
+            className="focus-ring inline-flex h-7 items-center gap-1 rounded-md bg-ink px-2.5 text-[11px] font-semibold text-white hover:opacity-90">
+            <Send size={12} /> Promote to pipeline
+          </button>
+        )}
+        <span className="text-[9px] text-steel">→ becomes a Decisions review card</span>
       </div>
     </div>
   );
