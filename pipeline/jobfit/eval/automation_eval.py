@@ -166,6 +166,18 @@ def _check_rematch(out: dict, s: Scenario) -> list[str]:
     return []
 
 
+def _check_offer(out: dict, s: Scenario) -> list[str]:
+    issues = []
+    if not out.get("subject") or not out.get("body"):
+        issues.append("empty subject/body")
+    lo, hi, rec = out.get("salaryMin"), out.get("salaryMax"), out.get("recommended")
+    if not all(isinstance(v, int) for v in (lo, hi, rec)):
+        issues.append("non-integer salary fields")
+    elif not (lo <= rec <= hi):
+        issues.append(f"INTEGRITY: recommended {rec} outside band {lo}-{hi}")
+    return issues
+
+
 # -- task runners (task name -> produce output for a scenario) --------------
 
 _REMATCH_POOL = [
@@ -209,6 +221,11 @@ TASKS: dict[str, dict[str, Any]] = {
         "run": lambda s, p: _run_rematch(s, p),
         "check": _check_rematch,
         "criteria": "Is the suggested alternative a sensible better-fit role with a credible rationale?",
+    },
+    "offer": {
+        "run": lambda s, p: automation.draft_offer(s.candidate, s.job, score_job(s.candidate, s.job), provider=p),
+        "check": _check_offer,
+        "criteria": "Is the offer warm, professional, in the candidate's language, and does it state the compensation clearly and once?",
     },
 }
 

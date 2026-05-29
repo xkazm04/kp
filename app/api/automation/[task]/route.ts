@@ -29,6 +29,7 @@ const VERSION: Record<string, string> = {
   prep: "interview-prep-v1",
   scorecard: "scorecard-v1",
   rematch: "rematch-v1",
+  offer: "offer-v1",
 };
 const DRAFT_EVENT: Record<string, string> = {
   outreach: "outreach_drafted",
@@ -114,6 +115,10 @@ export async function POST(request: NextRequest, context: { params: Promise<{ ta
       setApproval(entry.id, "scorecard_review", JSON.stringify(result));
       recordAutomationEvent(entry.id, "interview_scorecard", String(result.recommendation ?? ""));
       applied = "scorecard_ready";
+    } else if (task === "offer") {
+      setApproval(entry.id, "offer_review", JSON.stringify(result));
+      recordAutomationEvent(entry.id, "offer_drafted", String(result.recommended ?? ""));
+      applied = "offer_ready";
     } else if (task === "rematch") {
       if (result.found && result.jobId) {
         createPipelineEntry({

@@ -27,6 +27,7 @@ REJECTION_PROMPT_VERSION = "rejection-v1"
 PREP_PROMPT_VERSION = "interview-prep-v1"
 SCORECARD_PROMPT_VERSION = "scorecard-v1"
 REMATCH_PROMPT_VERSION = "rematch-v1"
+OFFER_PROMPT_VERSION = "offer-v1"
 
 # Task 7 thresholds — tunable per market/season (the only place rules live).
 POLICY: dict[str, int] = {
@@ -436,3 +437,85 @@ def rematch_candidate(
         "source": source,
         "promptVersion": REMATCH_PROMPT_VERSION,
     }
+
+
+# ============================================================================
+# Task 8 — Offer package (deterministic salary from the role band + LLM letter)
+# ============================================================================
+
+# Fallback bands (CZK/month gross) when a job carries no salary_band.
+_SENIORITY_DEFAULT_BAND: dict[str, list[int]] = {
+    "junior": [45000, 65000],
+    "medior": [65000, 95000],
+    "senior": [95000, 140000],
+    "lead": [130000, 185000],
+}
+
+
+def _round_k(value: float) -> int:
+    return int(round(value / 1000.0)) * 1000
+
+
+def draft_offer(candidate: MatchCandidate, job: Job, m, *, provider: Any | None = None):
+    """Propose a number inside the role's salary band (scaled by fit) + draft the offer letter."""
+    band = list(getattr(job, "salary_band", None) or [])
+    if len(band) < 2 or band[0] <= 0 or band[1] < band[0]:
+        band = _SENIORITY_DEFAULT_BAND.get((job.seniority or "medior").lower(), [65000, 95000])
+    lo, hi = int(band[0]), int(band[1])
+    currency = "CZK"
+
+    # Position within the band scales with match strength (match 55 -> 10%, 95 -> 90%).
+    f = max(0.1, min(0.9, (m.total - 55) / 40.0))
+    recommended = max(lo, min(hi, _round_k(lo + (hi - lo) * f)))
+    lang = _candidate_lang(candidate)
+    rationale = (
+        f"Match {m.total}/100 places the offer at ~{int(round(f * 100))}% of the "
+        f"{lo:,}–{hi:,} {currency} band for this {job.seniority or 'mid'}-level role."
+    )
+
+    prompt = (
+        f"Draft a warm, professional job-offer message in {lang} for {candidate.label} for the role "
+        f"{job.title} at {job.company}. Gross monthly compensation offered: {recommended:,} {currency}. "
+        "Convey genuine enthusiasm, state the figure exactly once, and invite them to discuss. Keep it concise.\n"
+        'Return JSON: { "subject": str, "body": str, "language": str }. JSON only.'
+    )
+
+    def deterministic() -> dict:
+        if lang == "Czech":
+            subject = f"Nabídka pozice {job.title} — {job.company}"
+            body = (
+                f"Dobrý den {candidate.label},\n\nje nám potěšením nabídnout Vám pozici {job.title} ve společnosti "
+                f"{job.company}. Navrhovaná hrubá měsíční mzda je {recommended:,} {currency}. Rádi vše osobně probereme "
+                "a zodpovíme případné dotazy.\n\nS pozdravem,\nNáborový tým"
+            )
+        else:
+            subject = f"Offer: {job.title} at {job.company}"
+            body = (
+                f"Hi {candidate.label},\n\nwe're delighted to offer you the {job.title} role at {job.company}. "
+                f"The proposed gross monthly compensation is {recommended:,} {currency}. We'd love to walk you through "
+                "the details and answer any questions.\n\nBest,\nThe hiring team"
+            )
+        return {"subject": subject, "body": body, "language": lang}
+
+    def coerce(payload: Any) -> dict:
+        det = deterministic()
+        if not isinstance(payload, dict):
+            return det
+        return {
+            "subject": str(payload.get("subject") or det["subject"]),
+            "body": str(payload.get("body") or det["body"]),
+            "language": str(payload.get("language") or lang),
+        }
+
+    result, source = _generate(provider, prompt, deterministic, coerce)
+    result.update(
+        {
+            "currency": currency,
+            "salaryMin": lo,
+            "salaryMax": hi,
+            "recommended": recommended,
+            "rationale": rationale,
+            "promptVersion": OFFER_PROMPT_VERSION,
+        }
+    )
+    return result, source

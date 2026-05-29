@@ -48,7 +48,7 @@ def main(argv: list[str] | None = None) -> int:
         sys.stderr.reconfigure(encoding="utf-8")
 
     parser = argparse.ArgumentParser(description="HR automation tasks (Claude CLI only).")
-    parser.add_argument("command", choices=["screen", "outreach", "rejection", "prep", "scorecard", "rematch", "policy-pass"])
+    parser.add_argument("command", choices=["screen", "outreach", "rejection", "prep", "scorecard", "rematch", "offer", "policy-pass"])
     parser.add_argument("--candidate-json", type=Path)
     parser.add_argument("--profile-json", type=Path)
     parser.add_argument("--job-id")
@@ -95,6 +95,8 @@ def main(argv: list[str] | None = None) -> int:
         elif args.command == "scorecard":
             notes = args.notes_file.read_text(encoding="utf-8") if args.notes_file else ""
             result, source = automation.interview_scorecard(candidate, job, notes, provider=provider)
+        elif args.command == "offer":
+            result, source = automation.draft_offer(candidate, job, m, provider=provider)
         else:  # pragma: no cover
             raise ValueError(f"unhandled command {args.command}")
 

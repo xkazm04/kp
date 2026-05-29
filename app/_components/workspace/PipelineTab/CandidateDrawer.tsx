@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Ban, ClipboardList, ExternalLink, Mail, Shuffle, Sparkles, UserCheck, X } from "lucide-react";
+import { Ban, Banknote, ClipboardList, ExternalLink, Mail, Shuffle, Sparkles, UserCheck, X } from "lucide-react";
 import { buildUrl } from "../tabs";
 
 type Entry = {
@@ -17,7 +17,7 @@ type Entry = {
   status: string;
 };
 
-type TaskId = "screen" | "outreach" | "rejection" | "prep" | "scorecard" | "rematch";
+type TaskId = "screen" | "outreach" | "rejection" | "prep" | "scorecard" | "rematch" | "offer";
 
 const ARCHETYPE: Record<string, { label: string; bg: string }> = {
   bau: { label: "Experienced", bg: "bg-steel" },
@@ -29,6 +29,7 @@ const ACTIONS: { id: TaskId; label: string; icon: typeof Mail; stages: string[] 
   { id: "screen", label: "Screen with AI", icon: UserCheck, stages: ["AI-matched"], note: "Routes to advance or holds for your review in Decisions." },
   { id: "prep", label: "Interview prep", icon: ClipboardList, stages: ["AI-matched", "Screening", "Interview"] },
   { id: "scorecard", label: "Synthesize scorecard", icon: ClipboardList, stages: ["Interview"], note: "From your notes → a structured scorecard in Decisions." },
+  { id: "offer", label: "Draft offer", icon: Banknote, stages: ["Offer"], note: "Salary from the role band, scaled by fit → an offer to approve in Decisions." },
   { id: "outreach", label: "Draft outreach", icon: Mail, stages: "all" },
   { id: "rejection", label: "Draft rejection", icon: Ban, stages: ["AI-matched", "Screening", "Interview", "Offer"] },
   { id: "rematch", label: "Explore alternatives", icon: Shuffle, stages: ["AI-matched", "Screening", "Interview", "Offer"] },
@@ -38,6 +39,7 @@ const APPLIED_LABEL: Record<string, string> = {
   advanced: "Advanced to Screening.",
   held_for_review: "Held for your review in Decisions.",
   scorecard_ready: "Scorecard sent to Decisions.",
+  offer_ready: "Offer drafted — approve it in Decisions.",
   rematched: "Alternative role added to the pipeline.",
   no_alternative: "No alternative role above the match floor.",
   advisory: "Advisory only — candidate is past the screening gate.",
@@ -72,7 +74,7 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
       const p = await r.json();
       if (!r.ok) throw new Error(p.error || "Automation task failed.");
       setResult({ task, data: p.result, source: p.source, applied: p.applied });
-      if (["advanced", "held_for_review", "scorecard_ready", "rematched"].includes(p.applied)) onChanged();
+      if (["advanced", "held_for_review", "scorecard_ready", "offer_ready", "rematched"].includes(p.applied)) onChanged();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Automation task failed.");
     } finally {
@@ -220,6 +222,29 @@ function ResultView({ result }: { result: Result }) {
               </li>
             ))}
           </ul>
+        </div>
+      )}
+
+      {result.task === "offer" && (
+        <div className="space-y-2 text-xs text-ink">
+          <div className="flex items-baseline gap-2">
+            <span className="font-serif text-2xl text-ink">{Number(d.recommended ?? 0).toLocaleString()}</span>
+            <span className="text-steel">{String(d.currency ?? "CZK")} / mo</span>
+          </div>
+          <div className="h-1.5 overflow-hidden rounded-full bg-stone-200">
+            <div
+              className="h-full rounded-full bg-moss"
+              style={{
+                width: `${Math.max(4, Math.min(100, ((Number(d.recommended) - Number(d.salaryMin)) / Math.max(1, Number(d.salaryMax) - Number(d.salaryMin))) * 100))}%`,
+              }}
+            />
+          </div>
+          <p className="text-[10px] text-steel">
+            band {Number(d.salaryMin ?? 0).toLocaleString()}–{Number(d.salaryMax ?? 0).toLocaleString()} {String(d.currency ?? "")}
+          </p>
+          <p className="text-steel">{String(d.rationale ?? "")}</p>
+          <p className="mt-1 font-semibold text-ink">{String(d.subject ?? "")}</p>
+          <pre className="whitespace-pre-wrap font-sans leading-relaxed text-ink">{String(d.body ?? "")}</pre>
         </div>
       )}
 

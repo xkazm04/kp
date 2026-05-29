@@ -140,5 +140,28 @@ class RematchTest(unittest.TestCase):
         self.assertFalse(out["found"])
 
 
+class OfferTest(unittest.TestCase):
+    def test_offer_stays_within_band(self):
+        job = mkjob()
+        out, _ = automation.draft_offer(BAU, job, score_job(BAU, job), provider=None)
+        self.assertLessEqual(out["salaryMin"], out["recommended"])
+        self.assertLessEqual(out["recommended"], out["salaryMax"])
+        self.assertTrue(out["subject"] and out["body"])
+
+    def test_offer_scales_with_match(self):
+        job = mkjob()
+        strong = MatchCandidate(skills=["Python", "Django", "PostgreSQL"], seniority="senior", role_family="software_engineering", languages=["English"], archetype="bau")
+        weak = MatchCandidate(skills=["Python"], seniority="medior", role_family="software_engineering", languages=["English"], archetype="bau")
+        hi, _ = automation.draft_offer(strong, job, score_job(strong, job), provider=None)
+        lo, _ = automation.draft_offer(weak, job, score_job(weak, job), provider=None)
+        self.assertGreaterEqual(hi["recommended"], lo["recommended"])
+
+    def test_offer_falls_back_to_seniority_band_without_role_band(self):
+        # a role_family/seniority with no role_band still yields a usable band
+        out, _ = automation.draft_offer(BAU, mkjob(role_family="other", seniority="lead"), score_job(BAU, mkjob(role_family="other", seniority="lead")), provider=None)
+        self.assertGreater(out["recommended"], 0)
+        self.assertLessEqual(out["salaryMin"], out["recommended"])
+
+
 if __name__ == "__main__":
     unittest.main()

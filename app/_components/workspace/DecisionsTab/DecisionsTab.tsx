@@ -52,7 +52,9 @@ export function DecisionsTab() {
   const pending = (entries ?? []).filter((e) => e.approvalKind && e.status === "active" && !resolving[e.id]);
   const keyDecisions = pending.filter((e) => e.approvalKind === "decision");
   const scheduling = pending.filter((e) => e.approvalKind === "calendar");
-  const aiReviews = pending.filter((e) => e.approvalKind === "screening_review" || e.approvalKind === "scorecard_review");
+  const aiReviews = pending.filter(
+    (e) => e.approvalKind === "screening_review" || e.approvalKind === "scorecard_review" || e.approvalKind === "offer_review"
+  );
 
   const act = async (e: Entry, action: "accept" | "reject" | "approve_event", detail?: string) => {
     setResolving((s) => ({ ...s, [e.id]: action })); // triggers exit animation + removes from lists
@@ -304,6 +306,7 @@ function MiniList({ title, items, tone }: { title: string; items: string[]; tone
 
 type Screening = { recommendation?: string; confidence?: number; rationale?: string; strengths?: string[]; redFlags?: string[] };
 type Scorecard = { recommendation?: string; summary?: string; ratings?: { competency: string; rating: number; evidence?: string }[] };
+type Offer = { recommended?: number; salaryMin?: number; salaryMax?: number; currency?: string; rationale?: string; subject?: string; body?: string };
 
 function RecBadge({ rec, confidence }: { rec?: string; confidence?: number }) {
   const tone =
@@ -317,27 +320,52 @@ function RecBadge({ rec, confidence }: { rec?: string; confidence?: number }) {
 }
 
 function AiReviewCard({ entry, onAccept, onReject }: { entry: Entry; onAccept: () => void; onReject: () => void }) {
-  let parsed: (Screening & Scorecard) | null = null;
+  let parsed: (Screening & Scorecard & Offer) | null = null;
   try {
-    parsed = entry.approvalDetail ? (JSON.parse(entry.approvalDetail) as Screening & Scorecard) : null;
+    parsed = entry.approvalDetail ? (JSON.parse(entry.approvalDetail) as Screening & Scorecard & Offer) : null;
   } catch {
     parsed = null;
   }
-  const isScorecard = entry.approvalKind === "scorecard_review";
+  const kind = entry.approvalKind;
+  const isScorecard = kind === "scorecard_review";
+  const isOffer = kind === "offer_review";
+  const tag = isOffer ? "Offer package" : isScorecard ? "Interview scorecard" : "AI screening";
+  const acceptLabel = isOffer ? "Hire" : isScorecard ? "To offer" : "Advance";
 
   return (
     <article className="animate-fade-in rounded-lg border border-stone-200 bg-white p-3 shadow-panel">
       <div className="mb-1 flex items-center justify-between">
         <span className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-coral">
-          <Sparkles size={11} /> {isScorecard ? "Interview scorecard" : "AI screening"}
+          <Sparkles size={11} /> {tag}
         </span>
-        <RecBadge rec={parsed?.recommendation} confidence={isScorecard ? undefined : parsed?.confidence} />
+        {isOffer ? (
+          <span className="font-serif text-sm text-ink">
+            {Number(parsed?.recommended ?? 0).toLocaleString()} {parsed?.currency ?? "CZK"}
+          </span>
+        ) : (
+          <RecBadge rec={parsed?.recommendation} confidence={isScorecard ? undefined : parsed?.confidence} />
+        )}
       </div>
       <CandidateHead entry={entry} />
 
       {parsed ? (
         <div className="mt-2 rounded-md border border-stone-200 bg-paper/50 p-2.5 text-[11px] text-ink">
-          {isScorecard ? (
+          {isOffer ? (
+            <>
+              <div className="h-1.5 overflow-hidden rounded-full bg-stone-200">
+                <div
+                  className="h-full rounded-full bg-moss"
+                  style={{
+                    width: `${Math.max(4, Math.min(100, ((Number(parsed.recommended) - Number(parsed.salaryMin)) / Math.max(1, Number(parsed.salaryMax) - Number(parsed.salaryMin))) * 100))}%`,
+                  }}
+                />
+              </div>
+              <p className="mt-1 text-[10px] text-steel">
+                band {Number(parsed.salaryMin ?? 0).toLocaleString()}–{Number(parsed.salaryMax ?? 0).toLocaleString()} {parsed.currency}
+              </p>
+              <p className="mt-1">{parsed.rationale}</p>
+            </>
+          ) : isScorecard ? (
             <>
               {parsed.summary ? <p className="mb-1.5">{parsed.summary}</p> : null}
               <ul className="space-y-1">
@@ -373,7 +401,7 @@ function AiReviewCard({ entry, onAccept, onReject }: { entry: Entry; onAccept: (
           onClick={onAccept}
           className="focus-ring inline-flex h-9 flex-1 items-center justify-center gap-1 rounded-md bg-moss text-sm font-semibold text-white hover:opacity-90"
         >
-          <Check size={16} /> {isScorecard ? "To offer" : "Advance"}
+          <Check size={16} /> {acceptLabel}
         </button>
         <button
           type="button"

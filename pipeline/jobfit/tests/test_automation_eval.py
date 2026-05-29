@@ -2,7 +2,7 @@
 
 import unittest
 
-from pipeline.jobfit.eval.automation_eval import _EARLY, SCENARIOS, _aggregate, run_tasks
+from pipeline.jobfit.eval.automation_eval import _EARLY, SCENARIOS, TASKS, _aggregate, run_tasks
 
 
 class TestAutomationEval(unittest.TestCase):
@@ -16,7 +16,7 @@ class TestAutomationEval(unittest.TestCase):
         self.assertEqual(agg["reliability"], 1.0, failures)
 
     def test_every_task_runs_over_every_scenario(self):
-        self.assertEqual(len(self.rows), 6 * len(SCENARIOS))
+        self.assertEqual(len(self.rows), len(TASKS) * len(SCENARIOS))
 
     def test_early_career_never_auto_rejected_or_advanced(self):
         names = {s.name: s for s in SCENARIOS}
