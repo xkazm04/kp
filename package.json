@@ -15,6 +15,7 @@
     "test:e2e": "playwright test",
     "test:eval": "python -m pipeline.jobfit.eval",
     "test:eval:strict": "python -m pipeline.jobfit.eval --strict",
+    "test:eval:match": "python -m pipeline.jobfit.eval.matching_eval --strict",
     "pipeline:sample": "python -m pipeline.jobfit.cli samples/sample-cv.txt"
   },
   "dependencies": {
