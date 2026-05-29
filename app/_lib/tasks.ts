@@ -11,6 +11,7 @@ import {
 } from "./db";
 import { runAutomationTask } from "./automation-run";
 import { runReasoning } from "./reasoning-run";
+import { runAnalyze, type AnalyzeParams } from "./analyze-run";
 
 // ---------------------------------------------------------------------------
 // In-process background-task runner. Works because `next dev` is one long-lived
@@ -70,6 +71,14 @@ const HANDLERS: Record<string, Spec> = {
     run: batchScreen,
     label: () => "AI-screen all matched candidates",
     dedupe: () => "batch_screen",
+  },
+  analyze: {
+    run: (ctx) => runAnalyze(ctx.params as unknown as AnalyzeParams, ctx.progress),
+    label: (p) => {
+      const variants = (p.variants as { label: string }[]) ?? [];
+      return `Analyze · ${variants[0]?.label ?? "CV"}${variants.length > 1 ? ` +${variants.length - 1}` : ""}`;
+    },
+    dedupe: (p) => `analyze:${p.baseDir}`, // baseDir is unique per upload
   },
 };
 

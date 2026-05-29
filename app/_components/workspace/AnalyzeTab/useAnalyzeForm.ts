@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   applyStageEvent,
   initialStageState,
@@ -13,9 +13,13 @@ import {
   type GithubStatus,
 } from "./AnalyzeTypes";
 import { useAnalyzeJdLibrary } from "./useAnalyzeJdLibrary";
-import { executeAnalysis, executeGithubAnalysis, finalizeStages } from "./runAnalysis";
+import { executeAnalysis, executeGithubAnalysis, finalizeStages, resumeAnalysis } from "./runAnalysis";
 
 export type AnalyzeFormState = ReturnType<typeof useAnalyzeForm>;
+
+// Survives a page refresh: the active analyze task id is stashed here so the
+// view can re-attach to the still-running (or finished) server-side task.
+const ANALYZE_TASK_KEY = "kp.analyzeTaskId";
 
 export function useAnalyzeForm() {
   const jobInputRef = useRef<HTMLInputElement>(null);
@@ -109,6 +113,57 @@ export function useAnalyzeForm() {
     setStageState(initialStageState());
   }
 
+  const clearStoredTask = () => {
+    try {
+      sessionStorage.removeItem(ANALYZE_TASK_KEY);
+    } catch {
+      /* ignore */
+    }
+  };
+
+  const buildCallbacks = () => ({
+    onProgress: (stage: Parameters<typeof applyStageEvent>[1], status: Parameters<typeof applyStageEvent>[2]) =>
+      setStageState((prev) => applyStageEvent(prev, stage, status)),
+    onFinalize: () => {
+      setIsCompleting(true);
+      setStageState(finalizeStages);
+    },
+    onResult: (parsed: Analysis) => {
+      setAnalysis(parsed);
+      setIsLoading(false);
+      setIsCompleting(false);
+      clearStoredTask();
+    },
+    onError: (message: string) => {
+      setError(message);
+      setIsLoading(false);
+      setIsCompleting(false);
+      clearStoredTask();
+    },
+    onTaskStarted: (id: string) => {
+      try {
+        sessionStorage.setItem(ANALYZE_TASK_KEY, id);
+      } catch {
+        /* ignore */
+      }
+    },
+  });
+
+  // Re-attach to an analyze task that was still running when the page reloaded.
+  useEffect(() => {
+    let stored: string | null = null;
+    try {
+      stored = sessionStorage.getItem(ANALYZE_TASK_KEY);
+    } catch {
+      /* ignore */
+    }
+    if (!stored) return;
+    setIsLoading(true);
+    setIsCompleting(false);
+    void resumeAnalysis(stored, buildCallbacks());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   async function submit() {
     if (cvFiles.length === 0) {
       setError("Select a CV or LinkedIn PDF export first.");
@@ -145,24 +200,7 @@ export function useAnalyzeForm() {
         companyText,
         selectedJdSlug,
       },
-      {
-        onProgress: (stage, status) =>
-          setStageState((prev) => applyStageEvent(prev, stage, status)),
-        onFinalize: () => {
-          setIsCompleting(true);
-          setStageState(finalizeStages);
-        },
-        onResult: (parsed) => {
-          setAnalysis(parsed);
-          setIsLoading(false);
-          setIsCompleting(false);
-        },
-        onError: (message) => {
-          setError(message);
-          setIsLoading(false);
-          setIsCompleting(false);
-        },
-      }
+      buildCallbacks()
     );
   }
 

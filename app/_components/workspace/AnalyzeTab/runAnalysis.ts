@@ -10,7 +10,7 @@ import {
   type Analysis,
   type GithubAnalysis,
 } from "@/app/_lib/schemas";
-import { runMultiVariantAnalysis, runStreamingAnalysis } from "./AnalyzeApi";
+import { submitAnalysis, watchAnalysis } from "./AnalyzeApi";
 
 type ProgressStage = Parameters<typeof applyStageEvent>[1];
 type ProgressStatus = Parameters<typeof applyStageEvent>[2];
@@ -29,41 +29,31 @@ export type AnalysisCallbacks = {
   onFinalize: () => void;
   onResult: (analysis: Analysis) => void;
   onError: (message: string) => void;
+  /** Fired with the background task id once it starts (used to survive refresh). */
+  onTaskStarted?: (taskId: string) => void;
 };
 
 export async function executeAnalysis(
   inputs: AnalysisInputs,
   callbacks: AnalysisCallbacks
 ): Promise<void> {
-  const {
-    cvFiles,
-    jobDescriptionFile,
-    jobDescriptionText,
-    companyFile,
-    companyText,
-    selectedJdSlug,
-  } = inputs;
+  const { cvFiles, jobDescriptionFile, jobDescriptionText, companyFile, companyText, selectedJdSlug } = inputs;
   try {
-    const parsed =
-      cvFiles.length === 1
-        ? await runStreamingAnalysis(
-            cvFiles[0],
-            jobDescriptionFile,
-            jobDescriptionText,
-            companyFile,
-            companyText,
-            selectedJdSlug,
-            callbacks.onProgress
-          )
-        : await runMultiVariantAnalysis(
-            cvFiles,
-            jobDescriptionFile,
-            jobDescriptionText,
-            companyFile,
-            companyText,
-            selectedJdSlug,
-            callbacks.onProgress
-          );
+    const taskId = await submitAnalysis(cvFiles, jobDescriptionFile, jobDescriptionText, companyFile, companyText, selectedJdSlug);
+    callbacks.onTaskStarted?.(taskId);
+    const parsed = await watchAnalysis(taskId, callbacks.onProgress);
+    callbacks.onFinalize();
+    window.setTimeout(() => callbacks.onResult(parsed), 320);
+  } catch (caught) {
+    callbacks.onError(caught instanceof Error ? caught.message : "Analysis failed.");
+  }
+}
+
+// Re-attach to an analyze task already running on the server (e.g. after a page
+// refresh) and resolve it like a fresh run.
+export async function resumeAnalysis(taskId: string, callbacks: AnalysisCallbacks): Promise<void> {
+  try {
+    const parsed = await watchAnalysis(taskId, callbacks.onProgress);
     callbacks.onFinalize();
     window.setTimeout(() => callbacks.onResult(parsed), 320);
   } catch (caught) {

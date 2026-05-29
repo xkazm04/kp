@@ -1,0 +1,181 @@
+import { readFile } from "node:fs/promises";
+import { analysisSchema, type Analysis } from "@/app/_lib/schemas";
+import { computeCacheKey, lookupCachedAnalysis, storeCachedAnalysis } from "@/app/_lib/cache";
+import { buildComparison } from "@/app/_lib/comparison";
+import { saveAnalysis } from "@/app/_lib/db";
+import { logAnalyze } from "@/app/_lib/logger";
+import { cleanupWorkdir, parseStderrError, spawnPython } from "@/app/_lib/python-runner";
+
+// Shared core for CV analysis, lifted out of /api/analyze so it can run inside
+// the background-task runner (detached from the request → survives navigation
+// + refresh). Files are pre-persisted to `baseDir`, which is cleaned up here.
+export type AnalyzeParams = {
+  baseDir: string;
+  grounding: boolean;
+  variants: { label: string; cvPath: string }[];
+  jobDescriptionPath?: string | null;
+  jobDescriptionText?: string | null;
+  companyPath?: string | null;
+  companyText?: string | null;
+  jdSlug?: string | null;
+  requestId: string;
+};
+
+export class AnalyzeError extends Error {
+  status: number;
+  constructor(message: string, status: number) {
+    super(message);
+    this.status = status;
+  }
+}
+
+type ProgressFn = (done: number, total: number, msg?: string) => void;
+
+function cliArgs(cvPath: string, p: AnalyzeParams): string[] {
+  const args = ["-m", "pipeline.jobfit.cli", cvPath];
+  if (p.grounding) args.push("--grounding");
+  if (p.jobDescriptionPath) args.push("--job-description-path", p.jobDescriptionPath);
+  else if (p.jobDescriptionText?.trim()) args.push("--job-description-text", p.jobDescriptionText.trim());
+  if (p.companyPath) args.push("--company-path", p.companyPath);
+  else if (p.companyText?.trim()) args.push("--company-text", p.companyText.trim());
+  return args;
+}
+
+export async function runAnalyze(p: AnalyzeParams, onProgress?: ProgressFn): Promise<unknown> {
+  const startedAt = Date.now();
+  try {
+    const jdFileBytes = p.jobDescriptionPath ? await readFile(p.jobDescriptionPath) : null;
+    const coFileBytes = p.companyPath ? await readFile(p.companyPath) : null;
+    const total = p.variants.length;
+    let done = 0;
+    onProgress?.(0, total, "Starting…");
+
+    const results = await Promise.all(
+      p.variants.map(async ({ label, cvPath }) => {
+        const cvBytes = await readFile(cvPath);
+        const cacheKey = computeCacheKey({
+          cvBytes,
+          jobDescriptionText: p.jobDescriptionText ?? "",
+          jobDescriptionFileBytes: jdFileBytes,
+          companyText: p.companyText ?? "",
+          companyFileBytes: coFileBytes,
+          grounding: p.grounding,
+        });
+
+        const cached = lookupCachedAnalysis(cacheKey);
+        if (cached) {
+          const parsed = analysisSchema.safeParse(cached);
+          if (parsed.success) {
+            onProgress?.(++done, total, `${label} (cached)`);
+            return { label, ok: true as const, analysis: parsed.data, cached: true };
+          }
+        }
+
+        const { result } = spawnPython(cliArgs(cvPath, p));
+        const { stdout, stderr, exitCode } = await result;
+        if (exitCode !== 0) {
+          const err = parseStderrError(stderr, exitCode);
+          onProgress?.(++done, total, `${label} (failed)`);
+          return { label, ok: false as const, error: err.message, status: err.status };
+        }
+        let payload: unknown;
+        try {
+          payload = JSON.parse(stdout);
+        } catch {
+          onProgress?.(++done, total, `${label} (bad output)`);
+          return { label, ok: false as const, error: `Pipeline returned non-JSON output for "${label}".`, status: 502 };
+        }
+        const parsed = analysisSchema.safeParse(payload);
+        if (!parsed.success) {
+          onProgress?.(++done, total, `${label} (bad payload)`);
+          return { label, ok: false as const, error: `Pipeline returned an unexpected payload for "${label}".`, status: 502 };
+        }
+        storeCachedAnalysis(cacheKey, parsed.data);
+        onProgress?.(++done, total, label);
+        return { label, ok: true as const, analysis: parsed.data, cached: false };
+      })
+    );
+
+    const failure = results.find((r) => !r.ok);
+    if (failure && !failure.ok) {
+      void logAnalyze({
+        request_id: p.requestId,
+        route: "analyze",
+        candidate_label: p.variants[0]?.label,
+        variant_count: total,
+        jd_present: Boolean(p.jobDescriptionPath || p.jobDescriptionText?.trim()),
+        jd_slug: p.jdSlug ?? null,
+        company_present: Boolean(p.companyPath || p.companyText?.trim()),
+        github_present: false,
+        cache_hit: false,
+        duration_ms: Date.now() - startedAt,
+        status: "error",
+        error: failure.error,
+      });
+      throw new AnalyzeError(failure.error, failure.status);
+    }
+
+    const analyses = results
+      .filter((r): r is { label: string; ok: true; analysis: Analysis; cached: boolean } => r.ok)
+      .map((r) => ({ label: r.label, analysis: r.analysis }));
+    const allCached = results.every((r) => r.ok && r.cached);
+
+    if (analyses.length === 1) {
+      const single = analyses[0];
+      const persisted = persistAnalysis(single.label, p.jdSlug ?? null, single.analysis);
+      void logAnalyze({
+        request_id: p.requestId,
+        route: "analyze",
+        candidate_label: single.label,
+        variant_count: 1,
+        jd_present: Boolean(p.jobDescriptionPath || p.jobDescriptionText?.trim()),
+        jd_slug: p.jdSlug ?? null,
+        company_present: Boolean(p.companyPath || p.companyText?.trim()),
+        github_present: false,
+        cache_hit: allCached,
+        duration_ms: Date.now() - startedAt,
+        status: "ok",
+        saved_slug: persisted?.slug ?? null,
+      });
+      return { ...single.analysis, persistence: persisted };
+    }
+
+    const comparison = buildComparison(analyses);
+    const winner = analyses.find((a) => a.label === comparison.bestLabel) ?? analyses[0];
+    const merged = { ...winner.analysis, comparison };
+    const persisted = persistAnalysis(`${winner.label} (best of ${analyses.length})`, p.jdSlug ?? null, merged);
+    void logAnalyze({
+      request_id: p.requestId,
+      route: "analyze",
+      candidate_label: `${winner.label} (best of ${analyses.length})`,
+      variant_count: analyses.length,
+      jd_present: Boolean(p.jobDescriptionPath || p.jobDescriptionText?.trim()),
+      jd_slug: p.jdSlug ?? null,
+      company_present: Boolean(p.companyPath || p.companyText?.trim()),
+      github_present: false,
+      cache_hit: allCached,
+      duration_ms: Date.now() - startedAt,
+      status: "ok",
+      saved_slug: persisted?.slug ?? null,
+    });
+    return { ...merged, persistence: persisted };
+  } finally {
+    await cleanupWorkdir(p.baseDir);
+  }
+}
+
+function persistAnalysis(candidateLabel: string, jdSlug: string | null, analysis: Analysis) {
+  try {
+    return saveAnalysis({
+      candidateLabel,
+      jdSlug,
+      score: analysis.score?.total ?? null,
+      roleFamily: analysis.candidate?.roleFamily ?? null,
+      seniority: analysis.candidate?.currentSeniority ?? null,
+      payload: analysis,
+    });
+  } catch (error) {
+    console.error("Failed to persist analysis", error);
+    return null;
+  }
+}
