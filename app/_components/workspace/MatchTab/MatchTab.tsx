@@ -32,12 +32,21 @@ type MatchResult = {
   confidenceLow: number;
   confidenceHigh: number;
   matchedSkills?: string[];
+  matchedSkillProvenance?: Record<string, string>;
   missingSkills?: string[];
   isEntryEligible?: boolean;
   graduateFriendliness?: number;
 };
 type MatchResponse = {
-  candidate: { label?: string; seniority?: string; roleFamily?: string; archetype?: string; skills?: number };
+  candidate: {
+    label?: string;
+    seniority?: string;
+    roleFamily?: string;
+    archetype?: string;
+    skills?: number;
+    potentialScore?: number | null;
+    assumptions?: string[];
+  };
   meta: { evaluated?: number; koFiltered?: number; survivors?: number; returned?: number };
   matches: MatchResult[];
 };
@@ -54,6 +63,15 @@ const ARCHETYPE_LABEL: Record<string, string> = {
   career_switcher: "Career-switcher",
 };
 const EARLY_CAREER = new Set(["student", "career_switcher"]);
+
+function provLabel(p: string): { text: string; tone: string } {
+  if (p === "professional") return { text: "prod", tone: "bg-stone-200 text-ink" };
+  if (p === "internship") return { text: "intern", tone: "bg-blue-50 text-blue-700" };
+  if (p === "self_declared") return { text: "self", tone: "bg-stone-100 text-steel" };
+  if (p === "open_source") return { text: "OSS", tone: "bg-blue-50 text-blue-700" };
+  if (p === "certification") return { text: "cert", tone: "bg-blue-50 text-blue-700" };
+  return { text: "academic", tone: "bg-amber-50 text-amber-800" };
+}
 
 export function MatchTab() {
   const [source, setSource] = useState<"profile" | "analysis">("profile");
@@ -229,6 +247,11 @@ function Results({ result, matchRef }: { result: MatchResponse; matchRef: MatchR
           candidates&apos; numbers.
         </p>
       ) : null}
+      {candidate.assumptions?.length ? (
+        <p className="mt-1 text-xs text-steel">
+          <span className="font-semibold uppercase">Assumptions:</span> {candidate.assumptions.join(" · ")}
+        </p>
+      ) : null}
 
       <ol className="mt-4 space-y-2">
         {matches.map((m, i) => (
@@ -316,11 +339,18 @@ function MatchCard({
           </div>
 
           <div className="mt-2 flex flex-wrap gap-1">
-            {(m.matchedSkills ?? []).slice(0, 8).map((s) => (
-              <span key={`m-${s}`} className="rounded-md bg-green-50 px-1.5 py-0.5 text-[11px] text-green-700">
-                {s}
-              </span>
-            ))}
+            {(m.matchedSkills ?? []).slice(0, 8).map((s) => {
+              const pl = early ? provLabel((m.matchedSkillProvenance ?? {})[s] ?? "self_declared") : null;
+              return (
+                <span
+                  key={`m-${s}`}
+                  className="inline-flex items-center gap-1 rounded-md bg-green-50 px-1.5 py-0.5 text-[11px] text-green-700"
+                >
+                  {s}
+                  {pl ? <span className={`rounded px-1 text-[9px] uppercase ${pl.tone}`}>{pl.text}</span> : null}
+                </span>
+              );
+            })}
             {(m.missingSkills ?? []).slice(0, 6).map((s) => (
               <span
                 key={`x-${s}`}

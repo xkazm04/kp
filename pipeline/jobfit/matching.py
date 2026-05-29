@@ -86,6 +86,7 @@ class MatchResult(_Base):
     confidence_low: int = 0
     confidence_high: int = 0
     matched_skills: list[str] = Field(default_factory=list)
+    matched_skill_provenance: dict[str, str] = Field(default_factory=dict)
     missing_skills: list[str] = Field(default_factory=list)
     is_entry_eligible: bool = False
     graduate_friendliness: float = 0.0
@@ -266,10 +267,29 @@ def score_job(candidate: MatchCandidate, job: Job) -> MatchResult:
         confidence_low=max(0, total - spread),
         confidence_high=min(100, total + spread),
         matched_skills=matched,
+        matched_skill_provenance={
+            s: candidate.skill_provenance.get(s, candidate.provenance_default) for s in matched
+        },
         missing_skills=missing,
         is_entry_eligible=bool(ep and ep.is_entry_eligible),
         graduate_friendliness=ep.graduate_friendliness if ep else 0.0,
     )
+
+
+def candidate_assumptions(candidate: MatchCandidate) -> list[str]:
+    """Imputations / uncertainties the recruiter should see to judge a score fairly."""
+    out: list[str] = []
+    if candidate.education_level == "unknown":
+        out.append("Education level unknown — not penalized (absence of evidence, not a fail).")
+    if not candidate.languages:
+        out.append("No languages listed — language KO skipped rather than failed.")
+    if candidate.archetype in _EARLY_CAREER:
+        out.append("Early-career: potential replaces years of experience; only entry-eligible roles are considered.")
+        if "self_declared" in set(candidate.skill_provenance.values()):
+            out.append("Some skills are self-declared — discounted; validate them in interview.")
+    if len(candidate.skills) < 3:
+        out.append("Thin skill profile — scores carry a wide confidence band.")
+    return out
 
 
 def match(candidate: MatchCandidate, jobs: list[Job], *, limit: int = 50) -> MatchResponse:
@@ -292,6 +312,8 @@ def match(candidate: MatchCandidate, jobs: list[Job], *, limit: int = 50) -> Mat
             "roleFamily": candidate.role_family,
             "archetype": candidate.archetype,
             "skills": len(candidate.skills),
+            "potentialScore": candidate.potential_score,
+            "assumptions": candidate_assumptions(candidate),
         },
         meta={"evaluated": len(jobs), "koFiltered": ko_filtered, "survivors": len(survivors), "returned": len(top)},
         matches=top,

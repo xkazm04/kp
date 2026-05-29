@@ -236,7 +236,8 @@ function JobDetail({ job }: { job: Job }) {
   const nices = reqs.filter((r) => r.kind !== "must_have");
   const ep = job.entryProfile;
   return (
-    <div className="grid gap-4 lg:grid-cols-2">
+    <div className="space-y-4">
+      <div className="grid gap-4 lg:grid-cols-2">
       <div>
         {job.description ? <p className="text-sm text-ink">{job.description}</p> : null}
         <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-steel">
@@ -291,7 +292,168 @@ function JobDetail({ job }: { job: Job }) {
           </p>
         ) : null}
       </div>
+      </div>
+      <RecruiterCandidates jobId={job.id} />
     </div>
+  );
+}
+
+type CandResult = {
+  total: number;
+  confidenceLow: number;
+  confidenceHigh: number;
+  matchedSkills?: string[];
+  matchedSkillProvenance?: Record<string, string>;
+  missingSkills?: string[];
+};
+type CandRow = {
+  label: string;
+  archetype: string;
+  seniority: string;
+  potentialScore?: number | null;
+  koPassed: boolean;
+  koReasons: string[];
+  assumptions: string[];
+  result: CandResult;
+};
+
+const ARCHETYPE_BADGE: Record<string, string> = {
+  bau: "Experienced",
+  student: "Student",
+  career_switcher: "Switcher",
+};
+const EARLY = new Set(["student", "career_switcher"]);
+
+function provLabel(p: string): { text: string; tone: string } {
+  if (p === "professional") return { text: "prod", tone: "bg-stone-200 text-ink" };
+  if (p === "internship") return { text: "intern", tone: "bg-blue-50 text-blue-700" };
+  if (p === "self_declared") return { text: "self", tone: "bg-stone-100 text-steel" };
+  if (p === "open_source") return { text: "OSS", tone: "bg-blue-50 text-blue-700" };
+  if (p === "certification") return { text: "cert", tone: "bg-blue-50 text-blue-700" };
+  return { text: "academic", tone: "bg-amber-50 text-amber-800" }; // thesis/project/coursework
+}
+
+function RecruiterCandidates({ jobId }: { jobId: string }) {
+  const [data, setData] = useState<{ candidates: CandRow[] } | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const r = await fetch(`/api/jobs/${jobId}/candidates`);
+      const payload = await r.json();
+      if (!r.ok) throw new Error(payload.error ?? `Failed (${r.status}).`);
+      setData(payload);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Failed.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (!data) {
+    return (
+      <div className="rounded-md border border-dashed border-stone-300 p-3">
+        <button
+          type="button"
+          onClick={load}
+          disabled={loading}
+          className="focus-ring rounded-md bg-ink px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-40"
+        >
+          {loading ? "Scoring candidates…" : "Score saved candidates against this role"}
+        </button>
+        {error ? <span className="ml-2 text-xs text-red-700">{error}</span> : null}
+      </div>
+    );
+  }
+
+  const eligible = data.candidates.filter((c) => c.koPassed);
+  const earlyCareer = eligible.filter((c) => EARLY.has(c.archetype));
+  const experienced = eligible.filter((c) => !EARLY.has(c.archetype));
+  const notEligible = data.candidates.length - eligible.length;
+
+  return (
+    <div className="rounded-md border border-stone-200 p-3">
+      <div className="flex items-center justify-between">
+        <p className="text-xs font-semibold uppercase tracking-wide text-coral">
+          Candidates · fair-comparison lens
+        </p>
+        <span className="text-[11px] text-steel">{notEligible} not eligible (KO-filtered)</span>
+      </div>
+      <p className="mt-1 text-[11px] text-steel">
+        Early-career candidates are shown as a separate pipeline and scored on potential — never ranked on one number
+        against experienced candidates.
+      </p>
+      <div className="mt-3 grid gap-4 lg:grid-cols-2">
+        <CandidateColumn title="Experienced" rows={experienced} />
+        <CandidateColumn title="Early-career pipeline" rows={earlyCareer} highlight />
+      </div>
+    </div>
+  );
+}
+
+function CandidateColumn({ title, rows, highlight }: { title: string; rows: CandRow[]; highlight?: boolean }) {
+  return (
+    <div className={`rounded-md border p-2 ${highlight ? "border-green-200 bg-green-50/40" : "border-stone-200"}`}>
+      <p className="text-[11px] font-semibold uppercase tracking-wide text-steel">
+        {title} ({rows.length})
+      </p>
+      {rows.length === 0 ? (
+        <p className="mt-1 text-xs text-steel">None.</p>
+      ) : (
+        <ol className="mt-2 space-y-2">
+          {rows.map((c, i) => (
+            <CandidateCard key={`${c.label}-${i}`} c={c} rank={i + 1} />
+          ))}
+        </ol>
+      )}
+    </div>
+  );
+}
+
+function CandidateCard({ c, rank }: { c: CandRow; rank: number }) {
+  const res = c.result;
+  const early = EARLY.has(c.archetype);
+  const prov = res.matchedSkillProvenance ?? {};
+  return (
+    <li className="rounded-md border border-stone-200 bg-white p-2">
+      <div className="flex items-center gap-2">
+        <span className="font-serif text-lg text-ink">{res.total}</span>
+        <span className="text-[10px] text-steel">
+          {res.confidenceLow}–{res.confidenceHigh}
+        </span>
+        <span className="font-medium text-ink">{c.label}</span>
+        <span className="rounded-full bg-ink/90 px-1.5 py-0.5 text-[10px] font-semibold text-white">
+          {ARCHETYPE_BADGE[c.archetype] ?? c.archetype}
+        </span>
+        {early && c.potentialScore != null ? (
+          <span className="ml-auto text-[10px] text-steel">potential {Math.round(c.potentialScore * 100)}</span>
+        ) : null}
+      </div>
+      <div className="mt-1 flex flex-wrap gap-1">
+        {(res.matchedSkills ?? []).slice(0, 8).map((s) => {
+          const pl = provLabel(prov[s] ?? "self_declared");
+          return (
+            <span key={s} className="inline-flex items-center gap-1 rounded bg-green-50 px-1.5 py-0.5 text-[11px] text-green-700">
+              {s}
+              <span className={`rounded px-1 text-[9px] uppercase ${pl.tone}`}>{pl.text}</span>
+            </span>
+          );
+        })}
+        {(res.missingSkills ?? []).slice(0, 4).map((s) => (
+          <span key={`x-${s}`} className="rounded bg-red-50 px-1.5 py-0.5 text-[11px] text-red-700">
+            ✗ {s}
+          </span>
+        ))}
+      </div>
+      {c.assumptions?.length ? (
+        <p className="mt-1 text-[10px] text-steel">
+          <span className="font-semibold uppercase">Assumptions:</span> {c.assumptions[0]}
+        </p>
+      ) : null}
+    </li>
   );
 }
 
