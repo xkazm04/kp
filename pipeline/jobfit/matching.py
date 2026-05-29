@@ -65,6 +65,8 @@ class MatchCandidate(_Base):
     potential_score: float | None = None
     learning_signals: list[str] = Field(default_factory=list)
     aspirations: list[str] = Field(default_factory=list)
+    # career-switcher: meta-skills mapped from a prior domain, credited at professional level.
+    transferable_skills: list[str] = Field(default_factory=list)
     # preferences (optional KO inputs)
     preferred_work_modes: list[str] = Field(default_factory=list)
     label: str = "Candidate"

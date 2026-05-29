@@ -16,6 +16,7 @@ from __future__ import annotations
 from .matching import MatchCandidate
 from .profile import CandidateProfileV2
 from .taxonomy import PROVENANCE_WEIGHTS
+from .transferable import map_transferable
 
 _EARLY_CAREER = ("student", "career_switcher")
 
@@ -75,6 +76,16 @@ def compute_potential(profile: CandidateProfileV2) -> tuple[float, list[str]]:
         initiative += 0.2
     initiative = min(1.0, initiative)
 
+    # 5. career-switcher: prior professional delivery de-risks the switch.
+    if profile.archetype == "career_switcher":
+        prior = [e for e in ev if e.kind == "job"]
+        if prior:
+            initiative = min(1.0, initiative + 0.4)
+            signals.append(f"proven delivery in {len(prior)} prior professional role(s)")
+        if (profile.years_experience or 0) >= 3:
+            depth = max(depth, 0.6)
+            signals.append(f"{profile.years_experience:g}y professional track record (different field)")
+
     score = round(0.35 * depth + 0.25 * velocity + 0.25 * foundation + 0.15 * initiative, 3)
     return score, signals
 
@@ -104,6 +115,14 @@ def build_match_candidate(profile: CandidateProfileV2) -> MatchCandidate:
         for skill in evidence.skills:
             consider(skill, prov)
 
+    # career-switcher: credit transferable meta-skills from the prior domain at
+    # PROFESSIONAL provenance (the difference from a true beginner).
+    transferable: list[str] = []
+    if profile.archetype == "career_switcher":
+        for skill, _source in map_transferable(profile.evidence):
+            consider(skill, "professional")
+            transferable.append(skill)
+
     skills = [display_by_norm[k] for k in display_by_norm]
     skill_provenance = {display_by_norm[k]: prov_by_norm[k] for k in prov_by_norm}
 
@@ -123,5 +142,6 @@ def build_match_candidate(profile: CandidateProfileV2) -> MatchCandidate:
         potential_score=potential,
         learning_signals=signals,
         aspirations=profile.aspirations,
+        transferable_skills=transferable,
         label=profile.display_name or "Candidate",
     )

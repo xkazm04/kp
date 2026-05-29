@@ -217,10 +217,17 @@ export function ProfileTab() {
               onChange={setEducationDetail}
               placeholder="CS, ČVUT FEL — focus on ML"
             />
-            {choice === "bau" ? (
+            {choice === "bau" || choice === "career_switcher" ? (
               <div className="mt-2 grid gap-2 sm:grid-cols-2">
-                <Text label="Years of experience" value={yearsExperience} onChange={setYearsExperience} placeholder="6" />
-                <Pick label="Seniority" value={seniority} onChange={setSeniority} options={SENIORITIES.map((v) => ({ v, label: v }))} />
+                <Text
+                  label={choice === "career_switcher" ? "Years of prior (other-field) experience" : "Years of experience"}
+                  value={yearsExperience}
+                  onChange={setYearsExperience}
+                  placeholder="6"
+                />
+                {choice === "bau" ? (
+                  <Pick label="Seniority" value={seniority} onChange={setSeniority} options={SENIORITIES.map((v) => ({ v, label: v }))} />
+                ) : null}
               </div>
             ) : null}
             <Text

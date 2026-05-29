@@ -44,6 +44,9 @@ def reasoning_context(candidate: MatchCandidate, job: Job, m: MatchResult) -> di
         cand["skillProvenance"] = {
             s: candidate.skill_provenance.get(s, candidate.provenance_default) for s in m.matched_skills[:10]
         }
+        if candidate.archetype == "career_switcher":
+            cand["priorExperienceYears"] = candidate.years_experience
+            cand["transferableSkills"] = candidate.transferable_skills
     return {
         "candidate": cand,
         "job": {
@@ -68,17 +71,24 @@ def reasoning_context(candidate: MatchCandidate, job: Job, m: MatchResult) -> di
 def build_prompt(context: dict[str, Any]) -> str:
     import json
 
-    early_career = context["candidate"].get("archetype") in _EARLY_CAREER
-    lens = (
-        (
+    archetype = context["candidate"].get("archetype")
+    if archetype == "career_switcher":
+        lens = (
+            "This is a CAREER-SWITCHER (substantial experience in a DIFFERENT field, moving into this one). "
+            "Lead with the BRIDGE NARRATIVE: how their prior-domain professional strengths (the transferable "
+            "skills) de-risk the switch, which target-domain hard skills are genuinely new (treat like a "
+            "graduate — provenance-discounted), and a realistic ramp-up. Credit meta-skills (communication, "
+            "delivery, ownership) at professional level; do not treat them as a blank-slate beginner.\n\n"
+        )
+    elif archetype in _EARLY_CAREER:
+        lens = (
             "This is an EARLY-CAREER candidate. Judge on POTENTIAL, not tenure: weigh demonstrated "
             "project/thesis work, learning trajectory, and degree relevance. Read skill provenance honestly "
             "(an academic-project skill is weaker evidence than a professional one). Frame gaps as LEARNABLE "
             "where reasonable, and recommend a junior/graduate/internship track. Be honest about uncertainty.\n\n"
         )
-        if early_career
-        else ""
-    )
+    else:
+        lens = ""
     return (
         "Assess this candidate against this job. Use ONLY these facts:\n"
         f"{json.dumps(context, ensure_ascii=False, indent=2)}\n\n"
@@ -101,8 +111,38 @@ def deterministic_reasoning(context: dict[str, Any]) -> dict[str, Any]:
     matched = match["matchedSkills"]
     missing = match["missingMustHaves"]
     same_family = cand["roleFamily"] == job["roleFamily"]
-    early_career = cand.get("archetype") in _EARLY_CAREER
+    archetype = cand.get("archetype")
 
+    if archetype == "career_switcher":
+        pot = int(round((cand.get("potentialScore") or 0.0) * 100))
+        transferable = cand.get("transferableSkills") or []
+        years = cand.get("priorExperienceYears") or 0
+        verdict = (
+            f"Career-switcher into {job['roleFamily']}: prior professional maturity plus a foundation in the target "
+            f"stack make this a realistic bridge (potential {pot}/100); expect a ramp-up."
+        )
+        strengths = []
+        if transferable:
+            strengths.append(f"Transferable professional strengths: {', '.join(transferable[:4])}.")
+        if years:
+            strengths.append(f"{years:g}y delivering in a prior career — proven ability to learn and ship.")
+        if matched:
+            strengths.append(f"Already has a foundation in {', '.join(matched[:4])}.")
+        gaps = [f"{s} is new — learnable, but unproven in this domain." for s in missing[:4]]
+        if not gaps:
+            gaps.append("No hard must-have gaps; validate the depth of the newly-acquired skills.")
+        probes = ["Why this switch now, and what have you already built in the new field?"]
+        for s in missing[:1]:
+            probes.append(f"How would you get production-ready on {s}, and how quickly?")
+        probes.append("Give an example where your prior-domain experience would directly help in this role.")
+        return {
+            "verdict": verdict,
+            "strengths": strengths or ["Mature professional moving into a new field."],
+            "gaps": gaps,
+            "interviewProbes": probes,
+        }
+
+    early_career = archetype in _EARLY_CAREER
     if early_career:
         pot = int(round((cand.get("potentialScore") or 0.0) * 100))
         if total >= 60:
