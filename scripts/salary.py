@@ -6,7 +6,7 @@ chain, and (with ``--grounding``) the live market evidence Gemini cites.
 
 Examples
 --------
-    python scripts/salary.py samples/profile-fixtures/technical-cv.pdf
+    python scripts/salary.py samples/sample-cv.txt
     python scripts/salary.py path/to/cv.pdf --company-text "Multinational bank in Prague"
     python scripts/salary.py path/to/cv.pdf --grounding
 """

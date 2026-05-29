@@ -1,0 +1,19 @@
+Jana Novakova
+Senior Python and AI Engineer
+
+Experience
+2021 - present: Senior AI Engineer at DataForge. Built LLM document extraction pipelines, RAG assistants, evaluation harnesses, and production APIs in FastAPI. Led two engineers and worked with product teams.
+2018 - 2021: Backend Developer at FinCore. Developed Python services, PostgreSQL schemas, ETL jobs, Docker deployments, and AWS infrastructure.
+2016 - 2018: Junior Software Developer. React dashboards, REST APIs, testing, CI/CD.
+
+Skills
+Python, TypeScript, React, Next.js, FastAPI, SQL, PostgreSQL, Docker, AWS, LangChain, OpenAI API, RAG, prompt engineering, pytest, CI/CD, monitoring.
+
+Education
+Master degree in Computer Science, Czech Technical University.
+
+Languages
+Czech native, English C1.
+
+Traits
+Mentoring, ownership, product thinking, communication, reliability.

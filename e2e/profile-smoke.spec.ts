@@ -1,9 +1,7 @@
 import path from "path";
 import { expect, test, type Page } from "@playwright/test";
 
-const fixturesDir = path.join(process.cwd(), "samples", "profile-fixtures");
-const technicalCv = path.join(fixturesDir, "technical-cv.pdf");
-const linkedinProfile = path.join(fixturesDir, "linkedin-profile.pdf");
+const sampleCv = path.join(process.cwd(), "samples", "sample-cv.txt");
 const hasGeminiKey = Boolean(process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY);
 
 test.skip(!hasGeminiKey, "Gemini API key is required for the consolidated Analyze flow.");
@@ -45,7 +43,7 @@ async function runAnalysis(page: Page): Promise<void> {
 test("CV only — overall profile assessment with no job context", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByRole("button", { name: "LinkedIn", exact: true })).toHaveCount(0);
-  await attachCv(page, linkedinProfile);
+  await attachCv(page, sampleCv);
   await runAnalysis(page);
 
   // Default Extraction tab populated.
@@ -66,7 +64,7 @@ test("CV only — overall profile assessment with no job context", async ({ page
 
 test("CV + job description — adds role-fit, missing-skills, and keyword coverage", async ({ page }) => {
   await page.goto("/");
-  await attachCv(page, technicalCv);
+  await attachCv(page, sampleCv);
   await fillJobDescription(page);
   await runAnalysis(page);
 
@@ -87,7 +85,7 @@ test("CV + job description — adds role-fit, missing-skills, and keyword covera
 
 test("CV + JD + company overview — applies enterprise context and salary multiplier", async ({ page }) => {
   await page.goto("/");
-  await attachCv(page, technicalCv);
+  await attachCv(page, sampleCv);
   await fillJobDescription(page);
   await fillCompany(page);
   await runAnalysis(page);
@@ -110,7 +108,7 @@ test("CV + JD + company overview — applies enterprise context and salary multi
 
 test("CV + JD + company + GitHub profile — full pipeline renders all panels", async ({ page }) => {
   await page.goto("/");
-  await attachCv(page, technicalCv);
+  await attachCv(page, sampleCv);
   await fillJobDescription(page);
   await fillCompany(page);
   await setGithub(page, GITHUB_PROFILE);
@@ -149,7 +147,7 @@ const GITHUB_INPUT_VARIANTS: Array<{ label: string; value: string }> = [
 for (const variant of GITHUB_INPUT_VARIANTS) {
   test(`GitHub input — ${variant.label} (${variant.value})`, async ({ page }) => {
     await page.goto("/");
-    await attachCv(page, linkedinProfile);
+    await attachCv(page, sampleCv);
     await setGithub(page, variant.value);
     await runAnalysis(page);
 

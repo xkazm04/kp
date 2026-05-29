@@ -26,10 +26,10 @@ export function AnalyzeProfileInput({
     if (isLoadingSample) return;
     setIsLoadingSample(true);
     try {
-      const response = await fetch("/samples/profile-fixtures/linkedin-profile.pdf");
+      const response = await fetch("/samples/sample-cv.txt");
       if (!response.ok) return;
       const blob = await response.blob();
-      const file = new File([blob], "linkedin-profile.pdf", { type: "application/pdf" });
+      const file = new File([blob], "sample-cv.txt", { type: "text/plain" });
       onAdd(file);
     } finally {
       setIsLoadingSample(false);

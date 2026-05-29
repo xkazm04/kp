@@ -70,35 +70,35 @@ NO_COLOR=1          Disable ANSI colors (env var, takes precedence over TTY dete
 
 ```bash
 # Full overview of a CV (no JD, no company).
-python scripts/analyze.py samples/profile-fixtures/technical-cv.pdf
+python scripts/analyze.py samples/sample-cv.txt
 
 # CV vs JD: full overview including the Job-fit preview block.
-python scripts/analyze.py samples/profile-fixtures/technical-cv.pdf \
+python scripts/analyze.py samples/sample-cv.txt \
   --jd path/to/jd.txt
 
 # Salary check against a target company.
-python scripts/salary.py samples/profile-fixtures/technical-cv.pdf \
+python scripts/salary.py samples/sample-cv.txt \
   --company-text "Multinational bank in Prague, NIS2 / DORA exposure" \
   --grounding
 
 # Pure job-fit gap analysis (JD required) — includes keyword coverage.
-python scripts/jobfit.py samples/profile-fixtures/technical-cv.pdf \
+python scripts/jobfit.py samples/sample-cv.txt \
   --jd-text "Senior Python + AWS SRE, English C1, on-call rotation"
 
 # Interview prep, only the experience bucket, no STAR scaffolds.
-python scripts/interview.py samples/profile-fixtures/technical-cv.pdf \
+python scripts/interview.py samples/sample-cv.txt \
   --jd path/to/jd.txt \
   --bucket experience \
   --no-star
 
 # Compare two CV variants against one JD.
 python scripts/compare.py \
-  samples/profile-fixtures/linkedin-profile.pdf \
-  samples/profile-fixtures/technical-cv.pdf \
+  samples/sample-cv.txt \
+  samples/sample-cv.txt \
   --jd path/to/jd.txt
 
 # Pipe results to a file (colors auto-strip when stdout is not a TTY).
-python scripts/analyze.py samples/profile-fixtures/technical-cv.pdf > overview.txt
+python scripts/analyze.py samples/sample-cv.txt > overview.txt
 ```
 
 ## 3. Architecture

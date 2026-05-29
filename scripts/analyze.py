@@ -6,7 +6,7 @@ recommendations, and the deterministic-evidence pre-pass.
 
 Examples
 --------
-    python scripts/analyze.py samples/profile-fixtures/technical-cv.pdf
+    python scripts/analyze.py samples/sample-cv.txt
     python scripts/analyze.py path/to/cv.pdf --jd path/to/jd.txt
     python scripts/analyze.py path/to/cv.pdf --jd-text "Senior SRE in Prague"
 """

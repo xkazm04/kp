@@ -25,18 +25,23 @@ def quality_summary(text: str) -> dict[str, int | float]:
 
 
 class PdfParsingQualityTest(unittest.TestCase):
+    @unittest.skipUnless(LINKEDIN_PROFILE.exists(), "personal CV fixture removed")
     def test_pypdf_extracts_linkedin_export_well(self) -> None:
         text = extract_text(LINKEDIN_PROFILE)
         summary = quality_summary(text)
         self.assertGreater(summary["length"], 5000)
         self.assertEqual(summary["letter_spaced_hits"], 0)
 
+    @unittest.skipUnless(TECHNICAL_CV.exists(), "personal CV fixture removed")
     def test_pypdf_collapses_letter_spaced_text(self) -> None:
         text = extract_text(TECHNICAL_CV)
         summary = quality_summary(text)
         self.assertEqual(summary["letter_spaced_hits"], 0)
 
-    @unittest.skipUnless(os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY"), "Gemini API key not configured")
+    @unittest.skipUnless(
+        TECHNICAL_CV.exists() and bool(os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")),
+        "needs the CV fixture + a Gemini API key",
+    )
     def test_gemini_pdf_extraction_returns_structured_skills(self) -> None:
         _gemini_text, structured, _notes = extract_profile_text_with_gemini(TECHNICAL_CV)
         gemini_skills = structured.get("skills") or []
