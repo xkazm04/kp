@@ -142,6 +142,21 @@ function ensureDb(): Database.Database {
 
     CREATE INDEX IF NOT EXISTS idx_tasks_dedupe ON tasks (dedupe_key, status);
     CREATE INDEX IF NOT EXISTS idx_tasks_created ON tasks (created_at DESC);
+
+    CREATE TABLE IF NOT EXISTS dev_cases (
+      id TEXT PRIMARY KEY,
+      title TEXT,
+      role_title TEXT,
+      seniority TEXT,
+      need_json TEXT,
+      analysis_json TEXT,
+      role_json TEXT,
+      case_json TEXT,
+      status TEXT NOT NULL DEFAULT 'approved',
+      created_at TEXT NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_dev_cases_created ON dev_cases (created_at DESC);
   `);
   // Migration for DBs created before the observability columns existed.
   for (const col of ["created_at", "stage_changed_at"]) {
@@ -1167,6 +1182,90 @@ export function interruptStaleTasks(): number {
     .prepare(`UPDATE tasks SET status='interrupted', finished_at=? WHERE status IN ('running','queued')`)
     .run(new Date().toISOString());
   return info.changes as number;
+}
+
+// ---- Dev extension — approved case scenarios (Phase D3) -------------------
+
+export type DevCaseRecord = {
+  id: string;
+  title: string | null;
+  roleTitle: string | null;
+  seniority: string | null;
+  need: unknown;
+  analysis: unknown;
+  role: unknown;
+  case: unknown;
+  status: string;
+  createdAt: string;
+};
+
+type DevCaseRow = {
+  id: string;
+  title: string | null;
+  role_title: string | null;
+  seniority: string | null;
+  need_json: string | null;
+  analysis_json: string | null;
+  role_json: string | null;
+  case_json: string | null;
+  status: string;
+  created_at: string;
+};
+
+const parseJson = (s: string | null): unknown => {
+  if (!s) return null;
+  try {
+    return JSON.parse(s);
+  } catch {
+    return null;
+  }
+};
+
+function rowToDevCase(r: DevCaseRow): DevCaseRecord {
+  return {
+    id: r.id,
+    title: r.title,
+    roleTitle: r.role_title,
+    seniority: r.seniority,
+    need: parseJson(r.need_json),
+    analysis: parseJson(r.analysis_json),
+    role: parseJson(r.role_json),
+    case: parseJson(r.case_json),
+    status: r.status,
+    createdAt: r.created_at,
+  };
+}
+
+export function saveDevCase(input: {
+  need: unknown;
+  analysis: unknown;
+  role: { title?: string; seniority?: string } & Record<string, unknown>;
+  case: { title?: string } & Record<string, unknown>;
+}): { id: string; createdAt: string } {
+  const db = ensureDb();
+  const now = new Date().toISOString();
+  const id = `dc-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+  db.prepare(
+    `INSERT INTO dev_cases (id, title, role_title, seniority, need_json, analysis_json, role_json, case_json, status, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'approved', ?)`
+  ).run(
+    id,
+    input.case.title ?? null,
+    input.role.title ?? null,
+    input.role.seniority ?? null,
+    JSON.stringify(input.need ?? null),
+    JSON.stringify(input.analysis ?? null),
+    JSON.stringify(input.role ?? null),
+    JSON.stringify(input.case ?? null),
+    now
+  );
+  return { id, createdAt: now };
+}
+
+export function listDevCases(limit = 50): DevCaseRecord[] {
+  const db = ensureDb();
+  const rows = db.prepare(`SELECT * FROM dev_cases ORDER BY created_at DESC LIMIT ?`).all(limit) as DevCaseRow[];
+  return rows.map(rowToDevCase);
 }
 
 export type PipelineAction = "accept" | "reject" | "approve_event";

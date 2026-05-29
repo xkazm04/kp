@@ -47,3 +47,38 @@ export async function runNeedAnalysis(need: DevNeed): Promise<NeedAnalysisResult
     await cleanupWorkdir(workdir);
   }
 }
+
+export type DesignArtifactsResult = {
+  role: Record<string, unknown>;
+  case: Record<string, unknown>;
+  source: string;
+};
+
+// D3 core: design a RoleSpec + a CaseScenario (covert tooling-probes) from the need + analysis.
+export async function runDesignArtifacts(need: DevNeed, analysis: Record<string, unknown>): Promise<DesignArtifactsResult> {
+  const workdir = await createWorkdir();
+  try {
+    const needPath = path.join(workdir, "need.json");
+    const analysisPath = path.join(workdir, "analysis.json");
+    await writeFile(needPath, JSON.stringify(need), "utf-8");
+    await writeFile(analysisPath, JSON.stringify(analysis), "utf-8");
+    const { result } = spawnPython([
+      "-m",
+      "pipeline.jobfit.devcase.devcase_cli",
+      "design-artifacts",
+      "--need-json",
+      needPath,
+      "--analysis-json",
+      analysisPath,
+    ]);
+    const { stdout, stderr, exitCode } = await result;
+    if (exitCode !== 0) {
+      const err = parseStderrError(stderr, exitCode);
+      throw new Error(err.message);
+    }
+    const payload = JSON.parse(stdout) as { result: { role: Record<string, unknown>; case: Record<string, unknown> }; source: string };
+    return { role: payload.result.role, case: payload.result.case, source: payload.source };
+  } finally {
+    await cleanupWorkdir(workdir);
+  }
+}
