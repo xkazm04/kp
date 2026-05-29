@@ -920,6 +920,77 @@ export function createPipelineEntry(input: CreatePipelineInput): { entry: Pipeli
   return { entry: rowToEntry(row), created: true };
 }
 
+// ---- Automation helpers (Phase 15) ----------------------------------------
+
+export type AutomationEntry = PipelineEntry & { daysInStage: number; recentScreening: boolean };
+
+export function getPipelineEntry(id: string): PipelineEntry | null {
+  const db = ensureDb();
+  const row = db.prepare(`SELECT * FROM pipeline_entries WHERE id = ?`).get(id) as PipelineRow | undefined;
+  return row ? rowToEntry(row) : null;
+}
+
+/** Active entries enriched with daysInStage + whether a screening decision is <24h old (Task 7 input). */
+export function listActiveEntriesForAutomation(): AutomationEntry[] {
+  const db = ensureDb();
+  const rows = db
+    .prepare(
+      `SELECT id, candidate_id, candidate_label, archetype, role_family, job_id, job_title,
+              stage, match_score, status, approval_kind, approval_detail, created_at, stage_changed_at
+       FROM pipeline_entries WHERE status = 'active'`
+    )
+    .all() as PipelineRow[];
+  const cutoff = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
+  const recent = new Set(
+    (
+      db
+        .prepare(`SELECT DISTINCT entry_id FROM pipeline_events WHERE kind LIKE 'screening%' AND created_at > ?`)
+        .all(cutoff) as { entry_id: string }[]
+    ).map((r) => r.entry_id)
+  );
+  return rows.map((r) => {
+    const days = r.stage_changed_at ? Math.floor((Date.now() - Date.parse(r.stage_changed_at)) / 86_400_000) : 0;
+    return { ...rowToEntry(r), daysInStage: days, recentScreening: recent.has(r.id) };
+  });
+}
+
+/** Set/clear a pending approval without a stage change (Task 1 hold, Task 5 scorecard gate). */
+export function setApproval(entryId: string, approvalKind: string | null, approvalDetail: string): void {
+  const db = ensureDb();
+  db.prepare(`UPDATE pipeline_entries SET approval_kind=?, approval_detail=?, updated_at=? WHERE id=?`).run(
+    approvalKind,
+    approvalDetail,
+    new Date().toISOString(),
+    entryId
+  );
+}
+
+export function recordAutomationEvent(entryId: string, kind: string, detail?: string): void {
+  const db = ensureDb();
+  const row = db
+    .prepare(`SELECT candidate_label, job_title, archetype, stage FROM pipeline_entries WHERE id = ?`)
+    .get(entryId) as { candidate_label: string; job_title: string | null; archetype: string | null; stage: string } | undefined;
+  recordEvent(db, {
+    entryId,
+    candidateLabel: row?.candidate_label ?? null,
+    jobTitle: row?.job_title ?? null,
+    archetype: row?.archetype ?? null,
+    kind,
+    toStage: row?.stage ?? null,
+    detail: detail ?? null,
+  });
+}
+
+/** True if an event of this kind for the entry was already logged today (UTC) — alert dedup. */
+export function hasEventToday(entryId: string, kind: string): boolean {
+  const db = ensureDb();
+  const start = new Date();
+  start.setUTCHours(0, 0, 0, 0);
+  return !!db
+    .prepare(`SELECT 1 FROM pipeline_events WHERE entry_id=? AND kind=? AND created_at>=? LIMIT 1`)
+    .get(entryId, kind, start.toISOString());
+}
+
 export type PipelineAction = "accept" | "reject" | "approve_event";
 
 export function actOnPipelineEntry(id: string, action: PipelineAction): PipelineEntry | null {

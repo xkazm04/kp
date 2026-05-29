@@ -65,6 +65,13 @@ export function PipelineTab() {
   const [entries, setEntries] = useState<Entry[] | null>(null);
   const [events, setEvents] = useState<PipelineEvent[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [running, setRunning] = useState(false);
+  const [passSummary, setPassSummary] = useState<{
+    advanced: number;
+    rejected: number;
+    held: number;
+    alerts: number;
+  } | null>(null);
 
   const load = () => {
     fetch("/api/pipeline")
@@ -105,6 +112,21 @@ export function PipelineTab() {
   };
   const openPositionRanking = (jobId: string) => router.push(buildUrl({ tab: "jobs", job: jobId }));
 
+  const runPass = async () => {
+    setRunning(true);
+    setPassSummary(null);
+    try {
+      const r = await fetch("/api/automation/run", { method: "POST" });
+      const p = await r.json();
+      if (r.ok) {
+        setPassSummary(p.summary);
+        load();
+      }
+    } finally {
+      setRunning(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <header className="flex flex-wrap items-end justify-between gap-4">
@@ -116,10 +138,30 @@ export function PipelineTab() {
             surface at the top — approve or reject, or confirm a proposed interview slot.
           </p>
         </div>
-        <span className="rounded-md border border-stone-200 bg-paper px-2.5 py-1 text-xs text-steel">
-          Seeded demo pipeline · {(entries ?? []).length} candidates
-        </span>
+        <div className="flex flex-col items-end gap-2">
+          <button
+            type="button"
+            onClick={runPass}
+            disabled={running}
+            className="focus-ring inline-flex h-9 items-center gap-1.5 rounded-md bg-ink px-3 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
+            title="Deterministic policy pass: auto-advance strong BAU matches, hold early-career for a human, flag aging"
+          >
+            {running ? "Running pass…" : "▷ Run automation pass"}
+          </button>
+          <span className="rounded-md border border-stone-200 bg-paper px-2.5 py-1 text-xs text-steel">
+            Seeded demo pipeline · {(entries ?? []).length} candidates
+          </span>
+        </div>
       </header>
+
+      {passSummary ? (
+        <div className="animate-fade-in rounded-md border border-moss/30 bg-moss/5 px-4 py-2 text-sm text-ink">
+          Automation pass · <span className="font-semibold text-moss">{passSummary.advanced} advanced</span> ·{" "}
+          <span className="font-semibold">{passSummary.rejected} rejected</span> · {passSummary.held} held for review ·{" "}
+          {passSummary.alerts} aging alerts logged.{" "}
+          <span className="text-steel">Early-career candidates are always held for a human.</span>
+        </div>
+      ) : null}
 
       {error ? (
         <p className="rounded-md bg-red-50 p-3 text-sm text-red-700">{error}</p>
