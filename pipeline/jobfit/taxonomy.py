@@ -73,6 +73,82 @@ for _term in _TERMS:
                 _SKILL_WEIGHTS[_family][_form] = float(_weight)
 
 
+# --- Hierarchy graph (taxonomy v3) -----------------------------------------
+# A term's ``parents`` are broader/superset skills; the term itself is a
+# specialization (swiftui -> swift, fastapi -> python). The matching engine
+# uses these edges so a foundational or adjacent skill counts as a partial
+# match instead of a miss. Built once at import.
+
+_TERM_BY_ID: dict[str, dict[str, Any]] = {term["id"]: term for term in _TERMS}
+_PARENTS: dict[str, tuple[str, ...]] = {
+    term["id"]: tuple(p for p in term.get("parents", []) if p in {t["id"] for t in _TERMS})
+    for term in _TERMS
+}
+
+_CHILDREN: dict[str, list[str]] = {tid: [] for tid in _TERM_BY_ID}
+for _tid, _parent_ids in _PARENTS.items():
+    for _parent in _parent_ids:
+        _CHILDREN[_parent].append(_tid)
+_CHILD_EDGES: dict[str, tuple[str, ...]] = {tid: tuple(kids) for tid, kids in _CHILDREN.items()}
+
+
+def _transitive_closure(seed: str, edges: dict[str, tuple[str, ...]]) -> frozenset[str]:
+    """All nodes reachable from ``seed`` via ``edges`` (excluding ``seed``). Cycle-safe."""
+    seen: set[str] = set()
+    stack = list(edges.get(seed, ()))
+    while stack:
+        node = stack.pop()
+        if node in seen:
+            continue
+        seen.add(node)
+        stack.extend(edges.get(node, ()))
+    return frozenset(seen)
+
+
+_ANCESTORS: dict[str, frozenset[str]] = {
+    tid: _transitive_closure(tid, _PARENTS) for tid in _TERM_BY_ID
+}
+_DESCENDANTS: dict[str, frozenset[str]] = {
+    tid: _transitive_closure(tid, _CHILD_EDGES) for tid in _TERM_BY_ID
+}
+
+# Normalized surface form (literal + word-compact) -> canonical term id.
+# First writer wins, so earlier terms own a surface on the rare collision.
+_SURFACE_TO_TERM: dict[str, str] = {}
+for _term in _TERMS:
+    for _form in _term["match"]:
+        _literal = _normalize(_form).strip()
+        if _literal:
+            _SURFACE_TO_TERM.setdefault(_literal, _term["id"])
+        _compact_form = _compact(_normalize(_form))
+        if _compact_form:
+            _SURFACE_TO_TERM.setdefault(_compact_form, _term["id"])
+
+
+# How an evidence's source discounts a skill claim. A skill used five years in
+# production (professional) is stronger evidence than the same skill named in a
+# self-rated list or touched once in a school project. Consumed by the student
+# transformation/scoring layers; defaults to ``professional`` for BAU.
+PROVENANCE_WEIGHTS: dict[str, float] = {
+    "professional": 1.0,
+    "open_source": 0.85,
+    "internship": 0.85,
+    "thesis": 0.75,
+    "academic_project": 0.7,
+    "personal_project": 0.7,
+    "extracurricular": 0.6,
+    "certification": 0.6,
+    "coursework": 0.5,
+    "self_declared": 0.4,
+    "unknown": 0.6,
+}
+DEFAULT_PROVENANCE = "professional"
+
+# Hierarchy match weights (base, before provenance).
+_SPECIALIZATION_MATCH = 0.9   # candidate knows a specialization of the requirement
+_GENERALIZATION_MATCH = 0.55  # candidate knows only the broader / foundational skill
+
+
 def skill_keyword_pool() -> list[str]:
     """Flat list of all known skill tokens (and their surface forms) across role families."""
     seen: set[str] = set()
@@ -295,5 +371,96 @@ def has_seniority_medior_signal(text: str) -> bool:
         if _term_in_text(term, text_n, compact):
             return True
     return False
+
+
+# --- Hierarchy + provenance API (taxonomy v3) ------------------------------
+
+
+def resolve_term(surface: str) -> str | None:
+    """Map a skill surface form (e.g. ``"k8s"``, ``"ReactJS"``) to its canonical term id.
+
+    Returns ``None`` for surfaces not present in the taxonomy (e.g. a niche tool
+    Gemini extracted that we don't model). Matching falls back to string equality
+    for those — see :func:`skill_match_score`.
+    """
+    if not surface:
+        return None
+    literal = _normalize(surface).strip()
+    if literal in _SURFACE_TO_TERM:
+        return _SURFACE_TO_TERM[literal]
+    return _SURFACE_TO_TERM.get(_compact(literal))
+
+
+def ancestors(term_id: str) -> frozenset[str]:
+    """Transitive broader/superset terms of ``term_id`` (swiftui -> {swift})."""
+    return _ANCESTORS.get(term_id, frozenset())
+
+
+def descendants(term_id: str) -> frozenset[str]:
+    """Transitive specializations of ``term_id`` (swift -> {swiftui, ...})."""
+    return _DESCENDANTS.get(term_id, frozenset())
+
+
+def is_subset_of(child_term: str, parent_term: str) -> bool:
+    """True if ``child_term`` is a (transitive) specialization of ``parent_term``.
+
+    Example: ``is_subset_of("swiftui", "swift")`` — "SwiftUI is a subset of Swift".
+    """
+    return parent_term in _ANCESTORS.get(child_term, frozenset())
+
+
+def term_match_score(candidate_term: str | None, required_term: str | None) -> float:
+    """Base skill-overlap score in ``[0, 1]`` from the hierarchy, ignoring provenance.
+
+    - exact term -> ``1.0``
+    - candidate knows a *specialization* of the requirement (has SwiftUI, role
+      wants Swift) -> ``0.9`` (the specific skill implies the general one)
+    - candidate knows only a *generalization* / foundation (has Swift, role wants
+      SwiftUI) -> ``0.55`` (foundation present, specific framework not shown)
+    - otherwise -> ``0.0``
+    """
+    if not candidate_term or not required_term:
+        return 0.0
+    if candidate_term == required_term:
+        return 1.0
+    if required_term in _ANCESTORS.get(candidate_term, frozenset()):
+        return _SPECIALIZATION_MATCH
+    if candidate_term in _ANCESTORS.get(required_term, frozenset()):
+        return _GENERALIZATION_MATCH
+    return 0.0
+
+
+def provenance_weight(provenance: str | None) -> float:
+    """Confidence discount in ``[0, 1]`` for where a skill claim comes from."""
+    if not provenance:
+        return PROVENANCE_WEIGHTS["unknown"]
+    key = provenance.strip().lower().replace(" ", "_").replace("-", "_")
+    return PROVENANCE_WEIGHTS.get(key, PROVENANCE_WEIGHTS["unknown"])
+
+
+def skill_match_score(
+    candidate_skill: str,
+    required_skill: str,
+    provenance: str | None = DEFAULT_PROVENANCE,
+) -> float:
+    """Provenance-weighted skill match between two surface forms, in ``[0, 1]``.
+
+    Resolves both surfaces to taxonomy terms and scores via the hierarchy
+    (:func:`term_match_score`); when a surface is not in the taxonomy, falls back
+    to normalized string equality so non-modelled skills still match themselves.
+    The base score is then discounted by :func:`provenance_weight` so a skill
+    shown only in a school project counts for less than one used in production.
+    """
+    candidate_term = resolve_term(candidate_skill)
+    required_term = resolve_term(required_skill)
+    if candidate_term and required_term:
+        base = term_match_score(candidate_term, required_term)
+    else:
+        a = _normalize(candidate_skill or "").strip()
+        b = _normalize(required_skill or "").strip()
+        base = 1.0 if a and a == b else 0.0
+    if base <= 0.0:
+        return 0.0
+    return round(base * provenance_weight(provenance), 4)
 
 
