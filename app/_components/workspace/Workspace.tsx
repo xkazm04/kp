@@ -5,6 +5,7 @@ import { useCallback } from "react";
 import { AboutTab } from "./AboutTab/AboutTab";
 import { AnalyzeTab } from "./AnalyzeTab/AnalyzeTab";
 import { HistoryTab } from "./HistoryTab/HistoryTab";
+import { JobsTab } from "./JobsTab/JobsTab";
 import { LibraryTab } from "./LibraryTab/LibraryTab";
 import { MatrixTab } from "./MatrixTab/MatrixTab";
 import { isWorkspaceTabId, WORKSPACE_TABS, type WorkspaceTabId } from "./tabs";
@@ -33,7 +34,7 @@ export function Workspace() {
         aria-label="Workspace tabs"
         className="rounded-lg border border-stone-200 bg-white p-1 shadow-panel"
       >
-        <div className="grid grid-cols-3 gap-1 sm:grid-cols-5">
+        <div className="grid grid-cols-3 gap-1 sm:grid-cols-6">
           {WORKSPACE_TABS.map((tab) => {
             const isActive = tab.id === active;
             return (
@@ -60,6 +61,7 @@ export function Workspace() {
         {active === "analyze" ? <AnalyzeTab /> : null}
         {active === "history" ? <HistoryTab /> : null}
         {active === "library" ? <LibraryTab /> : null}
+        {active === "jobs" ? <JobsTab /> : null}
         {active === "matrix" ? <MatrixTab /> : null}
         {active === "about" ? <AboutTab /> : null}
       </div>

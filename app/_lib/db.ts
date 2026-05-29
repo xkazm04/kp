@@ -1,5 +1,5 @@
 import path from "node:path";
-import { mkdirSync } from "node:fs";
+import { mkdirSync, readFileSync, existsSync } from "node:fs";
 import Database from "better-sqlite3";
 
 const DB_PATH = process.env.KP_DB_PATH ?? path.join(process.cwd(), "data", "kp.sqlite");
@@ -49,8 +49,34 @@ function ensureDb(): Database.Database {
 
     CREATE INDEX IF NOT EXISTS idx_gemini_cache_expires
       ON gemini_cache (expires_at);
+
+    CREATE TABLE IF NOT EXISTS jobs (
+      id TEXT PRIMARY KEY,
+      title TEXT NOT NULL,
+      company TEXT,
+      location TEXT,
+      work_mode TEXT,
+      seniority TEXT,
+      role_family TEXT,
+      employment_type TEXT,
+      min_years REAL,
+      min_education TEXT,
+      languages TEXT,
+      is_entry_eligible INTEGER DEFAULT 0,
+      graduate_friendliness REAL DEFAULT 0,
+      salary_min INTEGER,
+      salary_max INTEGER,
+      payload_json TEXT NOT NULL,
+      created_at TEXT NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_jobs_role_family ON jobs (role_family);
+    CREATE INDEX IF NOT EXISTS idx_jobs_seniority ON jobs (seniority);
+    CREATE INDEX IF NOT EXISTS idx_jobs_work_mode ON jobs (work_mode);
+    CREATE INDEX IF NOT EXISTS idx_jobs_entry ON jobs (is_entry_eligible);
   `);
   seedExampleJd(db);
+  seedJobs(db);
   _db = db;
   return db;
 }
@@ -281,4 +307,174 @@ export function pruneGeminiCache(): number {
     .prepare(`DELETE FROM gemini_cache WHERE expires_at < ?`)
     .run(new Date().toISOString());
   return Number(result.changes ?? 0);
+}
+
+// ---- Jobs (v2 matching platform) ------------------------------------------
+// The store holds fully-normalized jobs (resolved taxonomy terms, salary anchor
+// band, graduate lens) produced by the Python pipeline, so TypeScript never
+// re-implements that logic. Seeded from the committed synthetic corpus on first
+// boot; later ingestion will INSERT individual jobs through the same table.
+
+export type JobRequirementRecord = {
+  skill: string;
+  termId?: string | null;
+  kind: string;
+  hardness: string;
+};
+
+export type JobEntryProfileRecord = {
+  isEntryEligible: boolean;
+  graduateFriendliness: number;
+  reinterpretedMusts: string[];
+  trainableGaps: string[];
+  rationale?: string;
+};
+
+export type JobRecord = {
+  id: string;
+  title: string;
+  company?: string;
+  location?: string;
+  workMode?: string;
+  employmentType?: string | null;
+  seniority?: string;
+  roleFamily?: string;
+  languages?: string[];
+  minYearsExperience?: number | null;
+  minEducation?: string | null;
+  description?: string;
+  requirements?: JobRequirementRecord[];
+  detectedSkills?: string[];
+  salaryBand?: number[];
+  entryProfile?: JobEntryProfileRecord | null;
+  source?: string;
+};
+
+const SEED_JOBS_PATH = path.join(process.cwd(), "data", "seed_jobs", "jobs.normalized.json");
+
+function seedJobs(db: Database.Database): void {
+  const count = db.prepare(`SELECT COUNT(*) AS n FROM jobs`).get() as { n: number };
+  if (count.n > 0) return;
+  if (!existsSync(SEED_JOBS_PATH)) return;
+  let jobs: JobRecord[];
+  try {
+    jobs = JSON.parse(readFileSync(SEED_JOBS_PATH, "utf-8")) as JobRecord[];
+  } catch {
+    return;
+  }
+  const now = new Date().toISOString();
+  const insert = db.prepare(`INSERT OR IGNORE INTO jobs
+      (id, title, company, location, work_mode, seniority, role_family, employment_type,
+       min_years, min_education, languages, is_entry_eligible, graduate_friendliness,
+       salary_min, salary_max, payload_json, created_at)
+     VALUES (@id, @title, @company, @location, @work_mode, @seniority, @role_family, @employment_type,
+       @min_years, @min_education, @languages, @is_entry_eligible, @graduate_friendliness,
+       @salary_min, @salary_max, @payload_json, @created_at)`);
+  const tx = db.transaction((rows: JobRecord[]) => {
+    for (const job of rows) {
+      if (!job?.id || !job?.title) continue;
+      insert.run({
+        id: job.id,
+        title: job.title,
+        company: job.company ?? null,
+        location: job.location ?? null,
+        work_mode: job.workMode ?? null,
+        seniority: job.seniority ?? null,
+        role_family: job.roleFamily ?? null,
+        employment_type: job.employmentType ?? null,
+        min_years: job.minYearsExperience ?? null,
+        min_education: job.minEducation ?? null,
+        languages: JSON.stringify(job.languages ?? []),
+        is_entry_eligible: job.entryProfile?.isEntryEligible ? 1 : 0,
+        graduate_friendliness: job.entryProfile?.graduateFriendliness ?? 0,
+        salary_min: job.salaryBand?.[0] ?? null,
+        salary_max: job.salaryBand?.[1] ?? null,
+        payload_json: JSON.stringify(job),
+        created_at: now,
+      });
+    }
+  });
+  tx(jobs);
+}
+
+export type JobFilter = {
+  roleFamily?: string;
+  seniority?: string;
+  workMode?: string;
+  entryEligible?: boolean;
+  q?: string;
+  limit?: number;
+};
+
+export function listJobs(filter: JobFilter = {}): JobRecord[] {
+  const db = ensureDb();
+  const where: string[] = [];
+  const params: Record<string, unknown> = {};
+  if (filter.roleFamily) {
+    where.push("role_family = @roleFamily");
+    params.roleFamily = filter.roleFamily;
+  }
+  if (filter.seniority) {
+    where.push("seniority = @seniority");
+    params.seniority = filter.seniority;
+  }
+  if (filter.workMode) {
+    where.push("work_mode = @workMode");
+    params.workMode = filter.workMode;
+  }
+  if (filter.entryEligible !== undefined) {
+    where.push("is_entry_eligible = @entry");
+    params.entry = filter.entryEligible ? 1 : 0;
+  }
+  if (filter.q) {
+    where.push("(title LIKE @q OR company LIKE @q)");
+    params.q = `%${filter.q}%`;
+  }
+  const clause = where.length ? `WHERE ${where.join(" AND ")}` : "";
+  params.limit = filter.limit ?? 300;
+  const rows = db
+    .prepare(
+      `SELECT payload_json FROM jobs ${clause}
+       ORDER BY is_entry_eligible DESC, graduate_friendliness DESC, id LIMIT @limit`
+    )
+    .all(params) as { payload_json: string }[];
+  return rows.map((r) => JSON.parse(r.payload_json) as JobRecord);
+}
+
+export function getJob(id: string): JobRecord | null {
+  const db = ensureDb();
+  const row = db.prepare(`SELECT payload_json FROM jobs WHERE id = ?`).get(id) as
+    | { payload_json: string }
+    | undefined;
+  return row ? (JSON.parse(row.payload_json) as JobRecord) : null;
+}
+
+export type JobStats = {
+  total: number;
+  entryEligible: number;
+  byRoleFamily: Record<string, number>;
+  bySeniority: Record<string, number>;
+  byWorkMode: Record<string, number>;
+};
+
+export function jobStats(): JobStats {
+  const db = ensureDb();
+  const total = (db.prepare(`SELECT COUNT(*) AS n FROM jobs`).get() as { n: number }).n;
+  const entryEligible = (
+    db.prepare(`SELECT COUNT(*) AS n FROM jobs WHERE is_entry_eligible = 1`).get() as { n: number }
+  ).n;
+  // Column names are fixed literals (not user input) — safe to interpolate.
+  const group = (col: "role_family" | "seniority" | "work_mode"): Record<string, number> => {
+    const rows = db
+      .prepare(`SELECT ${col} AS k, COUNT(*) AS n FROM jobs GROUP BY ${col} ORDER BY n DESC`)
+      .all() as { k: string | null; n: number }[];
+    return Object.fromEntries(rows.map((r) => [r.k ?? "—", r.n]));
+  };
+  return {
+    total,
+    entryEligible,
+    byRoleFamily: group("role_family"),
+    bySeniority: group("seniority"),
+    byWorkMode: group("work_mode"),
+  };
 }

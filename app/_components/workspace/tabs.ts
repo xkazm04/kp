@@ -1,7 +1,7 @@
 // Shared tab definitions so client (Workspace) and server (deep-link pages)
 // render the same strip without duplication.
 
-export type WorkspaceTabId = "analyze" | "history" | "library" | "matrix" | "about";
+export type WorkspaceTabId = "analyze" | "history" | "library" | "jobs" | "matrix" | "about";
 
 export type WorkspaceTabDef = {
   id: WorkspaceTabId;
@@ -12,6 +12,7 @@ export const WORKSPACE_TABS: WorkspaceTabDef[] = [
   { id: "analyze", label: "Analyze" },
   { id: "history", label: "History" },
   { id: "library", label: "Library" },
+  { id: "jobs", label: "Jobs" },
   { id: "matrix", label: "Matrix" },
   { id: "about", label: "About" },
 ];
