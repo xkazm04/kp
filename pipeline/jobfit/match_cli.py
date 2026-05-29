@@ -24,17 +24,30 @@ def main(argv: list[str] | None = None) -> int:
         sys.stderr.reconfigure(encoding="utf-8")
 
     parser = argparse.ArgumentParser(description="Match a candidate against the job corpus.")
-    parser.add_argument("--candidate-json", type=Path, help="Candidate JSON file. Reads stdin if omitted.")
+    parser.add_argument("--candidate-json", type=Path, help="MatchCandidate JSON. Reads stdin if omitted.")
+    parser.add_argument(
+        "--profile-json",
+        type=Path,
+        help="CandidateProfileV2 JSON — transformed into a MatchCandidate (skills+provenance, potential).",
+    )
     parser.add_argument("--jobs", type=Path, default=None, help="Override corpus path.")
     parser.add_argument("--limit", type=int, default=50)
     args = parser.parse_args(argv)
 
     try:
-        if args.candidate_json:
-            raw = json.loads(args.candidate_json.read_text(encoding="utf-8"))
+        if args.profile_json:
+            from .profile import CandidateProfileV2
+            from .transform import build_match_candidate
+
+            profile = CandidateProfileV2.model_validate(json.loads(args.profile_json.read_text(encoding="utf-8")))
+            candidate = build_match_candidate(profile)
         else:
-            raw = json.loads(sys.stdin.read() or "{}")
-        candidate = MatchCandidate.model_validate(raw)
+            raw = (
+                json.loads(args.candidate_json.read_text(encoding="utf-8"))
+                if args.candidate_json
+                else json.loads(sys.stdin.read() or "{}")
+            )
+            candidate = MatchCandidate.model_validate(raw)
         jobs = load_corpus(args.jobs)
         response = match(candidate, jobs, limit=args.limit)
     except Exception as exc:  # surface as JSON on stderr, mirroring cli.py

@@ -36,10 +36,15 @@ _LANG_ALIASES = {
     "slovak": ("slovak", "slovenš", "slovens"),
 }
 
-# Archetype scoring weights (must sum to 1.0). Student/switcher land in Phases 5/7.
+# Archetype scoring weights (must sum to 1.0). For non-BAU profiles the "career"
+# slot carries the POTENTIAL score (readiness) instead of work-history fit, and
+# "personal" carries motivation/domain fit — see score_job.
 WEIGHTS: dict[str, dict[str, float]] = {
     "bau": {"skills": 0.50, "career": 0.35, "personal": 0.15},
+    "student": {"skills": 0.40, "career": 0.40, "personal": 0.20},
+    "career_switcher": {"skills": 0.35, "career": 0.40, "personal": 0.25},
 }
+_EARLY_CAREER = ("student", "career_switcher")
 _MATCH_THRESHOLD = 0.5  # per-requirement score at/above which a skill counts as matched
 
 
@@ -54,6 +59,12 @@ class MatchCandidate(_Base):
     summary: str = ""
     archetype: str = "bau"
     provenance_default: str = DEFAULT_PROVENANCE
+    # per-skill provenance (display skill -> provenance); falls back to provenance_default.
+    skill_provenance: dict[str, str] = Field(default_factory=dict)
+    # readiness model output (replaces years/seniority for early-career); set by the transform.
+    potential_score: float | None = None
+    learning_signals: list[str] = Field(default_factory=list)
+    aspirations: list[str] = Field(default_factory=list)
     # preferences (optional KO inputs)
     preferred_work_modes: list[str] = Field(default_factory=list)
     label: str = "Candidate"
@@ -106,10 +117,16 @@ def ko_filter(candidate: MatchCandidate, job: Job) -> tuple[bool, list[str]]:
     job_rank = _SENIORITY_RANK.get(job.seniority, 2)
     entry_ok = bool(job.entry_profile and job.entry_profile.is_entry_eligible)
 
-    # Seniority floor: don't surface roles two+ levels above the candidate,
-    # unless the role is explicitly open to early-career.
-    if not entry_ok and (job_rank - cand_rank) >= 2:
-        reasons.append(f"seniority gap ({candidate.seniority} candidate vs {job.seniority} role)")
+    if candidate.archetype in _EARLY_CAREER:
+        # Early-career: the seniority floor is REPLACED by "is the role open to
+        # early-career?" (the precomputed entry lens). No seniority-gap penalty.
+        if not entry_ok:
+            reasons.append("role not open to early-career")
+    else:
+        # BAU seniority floor: don't surface roles two+ levels above the candidate,
+        # unless the role is explicitly open to early-career.
+        if not entry_ok and (job_rank - cand_rank) >= 2:
+            reasons.append(f"seniority gap ({candidate.seniority} candidate vs {job.seniority} role)")
 
     # Minimum education (skip when the candidate's level is unknown — uncertainty).
     if job.min_education and job.min_education != "none":
@@ -142,10 +159,10 @@ def score_skills(candidate: MatchCandidate, job: Job) -> tuple[float, list[str],
     missing: list[str] = []
     for req in job.requirements:
         weight = must_w if req.kind == "must_have" else nice_w
-        best = max(
-            (skill_match_score(cs, req.skill, candidate.provenance_default) for cs in candidate.skills),
-            default=0.0,
-        )
+        best = 0.0
+        for cs in candidate.skills:
+            prov = candidate.skill_provenance.get(cs, candidate.provenance_default)
+            best = max(best, skill_match_score(cs, req.skill, prov))
         acc += best * weight
         total_w += weight
         if best >= _MATCH_THRESHOLD:
@@ -170,16 +187,35 @@ def score_personal(candidate: MatchCandidate, job: Job) -> float:
     Blends language coverage with keyword overlap of the candidate's traits/skills
     against the role description. Deliberately modest and clearly a heuristic.
     """
-    if job.languages:
-        lang_cov = sum(1 for lang in job.languages if _has_language(candidate.languages, lang))
-        lang_cov = lang_cov / len(job.languages)
-    else:
-        lang_cov = 1.0
+    lang_cov = _language_coverage(candidate, job)
     desc = (job.description or "").casefold()
     tokens = [t for t in (candidate.traits + candidate.skills) if t]
     hits = sum(1 for t in tokens if t.casefold() in desc)
     overlap = min(1.0, hits / 5.0)
     return round(0.5 * lang_cov + 0.5 * overlap, 4)
+
+
+def _language_coverage(candidate: MatchCandidate, job: Job) -> float:
+    if not job.languages:
+        return 1.0
+    covered = sum(1 for lang in job.languages if _has_language(candidate.languages, lang))
+    return covered / len(job.languages)
+
+
+def score_motivation(candidate: MatchCandidate, job: Job) -> float:
+    """Early-career 'personal' dimension: aspirations + domain fit + language coverage.
+
+    Replaces the BAU description-keyword heuristic — a student's fit is better
+    read from whether the role matches their stated target and field than from
+    keyword overlap with an experience-oriented ad.
+    """
+    family_hit = 1.0 if candidate.role_family == job.role_family else 0.3
+    asp = " ".join(candidate.aspirations).casefold()
+    title = (job.title or "").casefold()
+    asp_tokens = [t for t in asp.replace("/", " ").split() if len(t) > 3]
+    aspiration_hit = 1.0 if asp_tokens and any(t in title for t in asp_tokens) else 0.0
+    lang_cov = _language_coverage(candidate, job)
+    return round(0.4 * family_hit + 0.35 * aspiration_hit + 0.25 * lang_cov, 4)
 
 
 def weights_for(archetype: str) -> dict[str, float]:
@@ -188,6 +224,8 @@ def weights_for(archetype: str) -> dict[str, float]:
 
 def _confidence_spread(candidate: MatchCandidate, missing_musts: list[str]) -> int:
     spread = 4
+    if candidate.archetype in _EARLY_CAREER:
+        spread += 6  # thinner, less-verifiable evidence -> wider honest band
     if len(candidate.skills) < 3:
         spread += 6
     if candidate.education_level == "unknown":
@@ -201,8 +239,13 @@ def _confidence_spread(candidate: MatchCandidate, missing_musts: list[str]) -> i
 
 def score_job(candidate: MatchCandidate, job: Job) -> MatchResult:
     skills, matched, missing = score_skills(candidate, job)
-    career = score_career(candidate, job)
-    personal = score_personal(candidate, job)
+    if candidate.archetype in _EARLY_CAREER:
+        # career slot carries POTENTIAL (readiness); personal carries motivation/domain fit.
+        career = candidate.potential_score if candidate.potential_score is not None else score_career(candidate, job)
+        personal = score_motivation(candidate, job)
+    else:
+        career = score_career(candidate, job)
+        personal = score_personal(candidate, job)
     w = weights_for(candidate.archetype)
     total = round(100 * (w["skills"] * skills + w["career"] * career + w["personal"] * personal))
     spread = _confidence_spread(candidate, missing)

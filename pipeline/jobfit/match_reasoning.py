@@ -23,16 +23,29 @@ _SYSTEM = (
 )
 
 
+_EARLY_CAREER = ("student", "career_switcher")
+
+
 def reasoning_context(candidate: MatchCandidate, job: Job, m: MatchResult) -> dict[str, Any]:
     """Compact, factual inputs for the reasoning prompt (and the deterministic fallback)."""
+    cand: dict[str, Any] = {
+        "archetype": candidate.archetype,
+        "seniority": candidate.seniority,
+        "roleFamily": candidate.role_family,
+        "yearsExperience": candidate.years_experience,
+        "education": candidate.education_level,
+        "skills": candidate.skills[:25],
+    }
+    if candidate.archetype in _EARLY_CAREER:
+        cand["potentialScore"] = candidate.potential_score
+        cand["learningSignals"] = candidate.learning_signals
+        cand["aspirations"] = candidate.aspirations
+        # how verifiable the matched skills are (academic/project vs professional)
+        cand["skillProvenance"] = {
+            s: candidate.skill_provenance.get(s, candidate.provenance_default) for s in m.matched_skills[:10]
+        }
     return {
-        "candidate": {
-            "seniority": candidate.seniority,
-            "roleFamily": candidate.role_family,
-            "yearsExperience": candidate.years_experience,
-            "education": candidate.education_level,
-            "skills": candidate.skills[:25],
-        },
+        "candidate": cand,
         "job": {
             "title": job.title,
             "seniority": job.seniority,
@@ -55,9 +68,21 @@ def reasoning_context(candidate: MatchCandidate, job: Job, m: MatchResult) -> di
 def build_prompt(context: dict[str, Any]) -> str:
     import json
 
+    early_career = context["candidate"].get("archetype") in _EARLY_CAREER
+    lens = (
+        (
+            "This is an EARLY-CAREER candidate. Judge on POTENTIAL, not tenure: weigh demonstrated "
+            "project/thesis work, learning trajectory, and degree relevance. Read skill provenance honestly "
+            "(an academic-project skill is weaker evidence than a professional one). Frame gaps as LEARNABLE "
+            "where reasonable, and recommend a junior/graduate/internship track. Be honest about uncertainty.\n\n"
+        )
+        if early_career
+        else ""
+    )
     return (
         "Assess this candidate against this job. Use ONLY these facts:\n"
         f"{json.dumps(context, ensure_ascii=False, indent=2)}\n\n"
+        f"{lens}"
         "Return JSON with exactly these keys:\n"
         '{ "verdict": str (one sentence overall judgement),\n'
         '  "strengths": [str] (2-4, concrete),\n'
@@ -69,12 +94,39 @@ def build_prompt(context: dict[str, Any]) -> str:
 
 def deterministic_reasoning(context: dict[str, Any]) -> dict[str, Any]:
     """Template rationale used when no LLM is available — never fails."""
+    cand = context["candidate"]
     match = context["match"]
     job = context["job"]
     total = match["total"]
     matched = match["matchedSkills"]
     missing = match["missingMustHaves"]
-    same_family = context["candidate"]["roleFamily"] == job["roleFamily"]
+    same_family = cand["roleFamily"] == job["roleFamily"]
+    early_career = cand.get("archetype") in _EARLY_CAREER
+
+    if early_career:
+        pot = int(round((cand.get("potentialScore") or 0.0) * 100))
+        if total >= 60:
+            verdict = f"Promising early-career fit for {job['title']} (potential {pot}/100); recommend a junior/graduate track."
+        else:
+            verdict = f"Early-career candidate for {job['title']}; some foundation, but notable gaps to coach (potential {pot}/100)."
+        strengths = []
+        for sig in (cand.get("learningSignals") or [])[:2]:
+            strengths.append(sig[0].upper() + sig[1:])
+        if matched:
+            strengths.append(f"Foundation in {', '.join(matched[:4])} (mostly from study/projects).")
+        if same_family:
+            strengths.append(f"Studies align with the {job['roleFamily']} target.")
+        gaps = [f"{skill} not yet demonstrated — likely learnable on the job." for skill in missing[:4]]
+        if not gaps:
+            gaps.append("No hard must-have gaps; validate depth of the project-based skills.")
+        probes = [f"Ask for a concrete example of using {s} in a project." for s in (matched[:1] + missing[:1])]
+        probes.append("Probe one project end-to-end (their role, what they'd do differently).")
+        return {
+            "verdict": verdict,
+            "strengths": strengths or ["Early-career foundation with room to grow."],
+            "gaps": gaps,
+            "interviewProbes": probes,
+        }
 
     if total >= 70:
         verdict = f"Strong fit for {job['title']} — most requirements are covered."
@@ -83,7 +135,7 @@ def deterministic_reasoning(context: dict[str, Any]) -> dict[str, Any]:
     else:
         verdict = f"Partial fit for {job['title']}; several core requirements are unmet."
 
-    strengths: list[str] = []
+    strengths = []
     if same_family:
         strengths.append(f"Direct {job['roleFamily']} background aligns with the role.")
     if matched:
@@ -95,7 +147,7 @@ def deterministic_reasoning(context: dict[str, Any]) -> dict[str, Any]:
     if not gaps:
         gaps.append("No critical must-have gaps detected from the listed skills.")
 
-    probes: list[str] = []
+    probes = []
     for skill in missing[:2]:
         probes.append(f"Ask the candidate to describe hands-on experience with {skill}.")
     if matched:
