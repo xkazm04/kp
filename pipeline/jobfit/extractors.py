@@ -4,7 +4,22 @@ import re
 import unicodedata
 import zipfile
 from pathlib import Path
-from xml.etree import ElementTree
+
+try:
+    # defusedxml blocks entity-expansion ("billion laughs") bombs that stdlib
+    # ElementTree would happily expand. Declared in requirements.txt; the size
+    # cap below still bounds the input if it is somehow absent.
+    from defusedxml.ElementTree import fromstring as _xml_fromstring
+except ImportError:  # pragma: no cover
+    from xml.etree.ElementTree import fromstring as _xml_fromstring
+
+
+# Resource bounds: a real CV/JD is tiny, so these only ever trip on a malformed
+# or hostile upload (zip bomb, multi-GB PDF). Generous, but not unbounded.
+MAX_INPUT_BYTES = 25 * 1024 * 1024  # on-disk file size
+MAX_DOCX_XML_BYTES = 40 * 1024 * 1024  # decompressed word/document.xml
+MAX_PDF_PAGES = 200
+MAX_TEXT_CHARS = 2_000_000  # cumulative extracted-text budget
 
 
 MOJIBAKE_REPLACEMENTS = {
@@ -31,10 +46,23 @@ MOJIBAKE_REPLACEMENTS = {
 }
 
 
+def _reject_oversized(path: Path) -> None:
+    """Cheap first gate: reject an oversized file before opening/decompressing it."""
+    try:
+        size = path.stat().st_size
+    except OSError:
+        return
+    if size > MAX_INPUT_BYTES:
+        raise ValueError(
+            f"File is too large ({size // (1024 * 1024)} MB); limit is {MAX_INPUT_BYTES // (1024 * 1024)} MB."
+        )
+
+
 def extract_text(path: Path) -> str:
+    _reject_oversized(path)
     suffix = path.suffix.lower()
     if suffix in {".txt", ".md"}:
-        return path.read_text(encoding="utf-8", errors="ignore")
+        return path.read_text(encoding="utf-8", errors="ignore")[:MAX_TEXT_CHARS]
     if suffix == ".docx":
         return _extract_docx(path)
     if suffix == ".pdf":
@@ -73,8 +101,17 @@ def _czech_signal_score(text: str) -> int:
 
 def _extract_docx(path: Path) -> str:
     with zipfile.ZipFile(path) as docx:
+        try:
+            info = docx.getinfo("word/document.xml")
+        except KeyError as exc:
+            raise ValueError("DOCX is missing word/document.xml.") from exc
+        # Guard the zip-bomb vector: a tiny .docx can declare a multi-GB body.
+        if info.file_size > MAX_DOCX_XML_BYTES:
+            raise ValueError(
+                f"DOCX body is too large when decompressed ({info.file_size // (1024 * 1024)} MB) — possible zip bomb."
+            )
         xml = docx.read("word/document.xml")
-    root = ElementTree.fromstring(xml)
+    root = _xml_fromstring(xml)
     namespace = {"w": "http://schemas.openxmlformats.org/wordprocessingml/2006/main"}
     paragraphs: list[str] = []
     for paragraph in root.findall(".//w:p", namespace):
@@ -111,5 +148,14 @@ def _extract_pdf(path: Path) -> str:
         raise RuntimeError("PDF parsing requires pypdf. Install it with: pip install pypdf") from exc
 
     reader = PdfReader(str(path))
-    pages = [page.extract_text() or "" for page in reader.pages]
+    # Bound both the page count and the cumulative text so a giant/malicious PDF
+    # can't exhaust memory during extraction.
+    pages: list[str] = []
+    total = 0
+    for i, page in enumerate(reader.pages):
+        if i >= MAX_PDF_PAGES or total >= MAX_TEXT_CHARS:
+            break
+        chunk = page.extract_text() or ""
+        pages.append(chunk)
+        total += len(chunk)
     return clean_text(collapse_letter_spacing("\n".join(pages)))

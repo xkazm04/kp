@@ -159,8 +159,11 @@ def _eval_scenario(scenario: Scenario, jobs: list[Any]) -> ScenarioResult:
     top5 = matches[:5]
     relevance = (sum(1 for m in top5 if m.role_family == profile.role_family) / len(top5)) if top5 else 0.0
     entry_precision: float | None = None
-    if scenario.early_career and matches:
-        entry_precision = sum(1 for m in matches if m.is_entry_eligible) / len(matches)
+    if scenario.early_career:
+        # An early-career scenario that surfaced ZERO matches is a hard failure
+        # (a broken matcher), not "N/A" — score it 0.0 so an all-empty run can't
+        # leave every entry_precision None and default the aggregate to 1.0 PASS.
+        entry_precision = (sum(1 for m in matches if m.is_entry_eligible) / len(matches)) if matches else 0.0
     return ScenarioResult(
         name=scenario.name,
         detected_archetype=detected,

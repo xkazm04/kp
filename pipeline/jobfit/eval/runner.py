@@ -133,16 +133,22 @@ def _signals_recall(actual_signals: list[str], expected_subset: list[str] | None
     return matched / len(expected_subset)
 
 
+def _safe_int(value: Any, default: int = 0) -> int:
+    """Coerce a possibly-null/missing/garbage value to int without raising.
+
+    A fixture key present but JSON-null made ``int(None)`` raise ``TypeError``
+    and abort the *whole* run — this keeps one bad field from doing that.
+    """
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
+
+
 def _run_fixture(cv_path: Path, expected: dict[str, Any]) -> FixtureResult:
     started = time.monotonic()
-    try:
-        payload = analyze(
-            cv_path,
-            grounding=False,
-            job_description_text=expected.get("job_description"),
-            company_text=expected.get("company_text"),
-        )
-    except Exception as exc:
+
+    def _error_result(exc: Exception) -> FixtureResult:
         return FixtureResult(
             name=cv_path.stem,
             label=str(expected.get("label", cv_path.stem)),
@@ -158,76 +164,129 @@ def _run_fixture(cv_path: Path, expected: dict[str, Any]) -> FixtureResult:
             error=str(exc),
         )
 
-    candidate = payload.get("candidate", {})
-    salary = payload.get("salary", {})
-    metadata = payload.get("metadata", {})
-    evidence = metadata.get("deterministicEvidence", {}) or {}
+    # The ENTIRE body (analyze + scoring) is guarded: a crash while scoring one
+    # fixture (e.g. a null salary or a malformed expected range) records that
+    # fixture as a failure instead of aborting the run before later fixtures.
+    try:
+        payload = analyze(
+            cv_path,
+            grounding=False,
+            job_description_text=expected.get("job_description"),
+            company_text=expected.get("company_text"),
+        )
 
-    actual_role = candidate.get("roleFamily")
-    actual_seniority = candidate.get("currentSeniority")
-    actual_skills = candidate.get("skills", [])
-    actual_education = candidate.get("educationLevel")
-    actual_signals = evidence.get("detectedSignals", [])
-    actual_min = int(salary.get("minimum", 0))
-    actual_max = int(salary.get("maximum", 0))
+        candidate = payload.get("candidate", {})
+        salary = payload.get("salary", {})
+        metadata = payload.get("metadata", {})
+        evidence = metadata.get("deterministicEvidence", {}) or {}
 
-    expected_seniority_set = expected.get("expected_seniority")
-    if isinstance(expected_seniority_set, str):
-        expected_seniority_set = [expected_seniority_set]
+        actual_role = candidate.get("roleFamily")
+        actual_seniority = candidate.get("currentSeniority")
+        actual_skills = candidate.get("skills", [])
+        actual_education = candidate.get("educationLevel")
+        actual_signals = evidence.get("detectedSignals", [])
+        actual_min = _safe_int(salary.get("minimum"))
+        actual_max = _safe_int(salary.get("maximum"))
 
-    expected_role_set = expected.get("expected_role_family")
-    if isinstance(expected_role_set, str):
-        expected_role_set = [expected_role_set]
+        expected_seniority_set = expected.get("expected_seniority")
+        if isinstance(expected_seniority_set, str):
+            expected_seniority_set = [expected_seniority_set]
 
-    expected_range = expected.get("expected_salary_range") or [0, 0]
-    overlap = _range_overlap((actual_min, actual_max), (int(expected_range[0]), int(expected_range[1])))
+        expected_role_set = expected.get("expected_role_family")
+        if isinstance(expected_role_set, str):
+            expected_role_set = [expected_role_set]
 
-    education_match: bool | None
-    if expected.get("expected_education"):
-        education_match = actual_education == expected["expected_education"]
-    else:
-        education_match = None
+        expected_range = expected.get("expected_salary_range") or [0, 0]
+        if not (isinstance(expected_range, (list, tuple)) and len(expected_range) >= 2):
+            expected_range = [0, 0]
+        overlap = _range_overlap((actual_min, actual_max), (_safe_int(expected_range[0]), _safe_int(expected_range[1])))
 
-    return FixtureResult(
-        name=cv_path.stem,
-        label=str(expected.get("label", cv_path.stem)),
-        duration_s=time.monotonic() - started,
-        role_family_match=actual_role in (expected_role_set or []),
-        seniority_match=actual_seniority in (expected_seniority_set or []),
-        salary_overlap=overlap,
-        skill_recall=_skill_recall(actual_skills, expected.get("expected_skills_subset", [])),
-        education_match=education_match,
-        signals_recall=_signals_recall(actual_signals, expected.get("expected_signals_subset")),
-        actual={
-            "roleFamily": actual_role,
-            "seniority": actual_seniority,
-            "salary": [actual_min, actual_max],
-            "skills": actual_skills,
-            "education": actual_education,
-            "signals": actual_signals,
-        },
-        expected=expected,
-    )
+        education_match: bool | None
+        if expected.get("expected_education"):
+            education_match = actual_education == expected["expected_education"]
+        else:
+            education_match = None
+
+        return FixtureResult(
+            name=cv_path.stem,
+            label=str(expected.get("label", cv_path.stem)),
+            duration_s=time.monotonic() - started,
+            role_family_match=actual_role in (expected_role_set or []),
+            seniority_match=actual_seniority in (expected_seniority_set or []),
+            salary_overlap=overlap,
+            skill_recall=_skill_recall(actual_skills, expected.get("expected_skills_subset", [])),
+            education_match=education_match,
+            signals_recall=_signals_recall(actual_signals, expected.get("expected_signals_subset")),
+            actual={
+                "roleFamily": actual_role,
+                "seniority": actual_seniority,
+                "salary": [actual_min, actual_max],
+                "skills": actual_skills,
+                "education": actual_education,
+                "signals": actual_signals,
+            },
+            expected=expected,
+        )
+    except Exception as exc:
+        return _error_result(exc)
 
 
-def _load_fixtures(filter_keyword: str | None = None) -> list[tuple[Path, dict[str, Any]]]:
+# Keys every fixture .json must carry for scoring to be meaningful.
+_REQUIRED_FIXTURE_KEYS = ("label", "expected_role_family", "expected_seniority", "expected_salary_range", "expected_skills_subset")
+
+
+def _validate_fixture(json_path: Path, expected: Any) -> str | None:
+    """Return a human-readable error if the fixture is malformed, else None."""
+    if not isinstance(expected, dict):
+        return f"{json_path.name}: top-level JSON must be an object"
+    missing = [k for k in _REQUIRED_FIXTURE_KEYS if k not in expected]
+    if missing:
+        return f"{json_path.name}: missing required key(s): {', '.join(missing)}"
+    rng = expected.get("expected_salary_range")
+    if not (isinstance(rng, (list, tuple)) and len(rng) == 2 and all(isinstance(n, (int, float)) for n in rng)):
+        return f"{json_path.name}: expected_salary_range must be a 2-number list, got {rng!r}"
+    return None
+
+
+def _load_fixtures(filter_keyword: str | None = None) -> tuple[list[tuple[Path, dict[str, Any]]], list[str]]:
+    """Load fixtures, collecting (not raising on) per-file errors.
+
+    A single fixture with a JSON syntax error or a bad schema used to abort the
+    entire run with a traceback that never named the file. We now report each
+    offending file by name and keep loading the rest; ``main`` fails the run at
+    the end with the aggregated list.
+    """
     out: list[tuple[Path, dict[str, Any]]] = []
+    errors: list[str] = []
     for txt_path in sorted(FIXTURES_DIR.glob("*.txt")):
         json_path = txt_path.with_suffix(".json")
         if not json_path.exists():
-            continue
+            continue  # a .txt without a paired .json is not a fixture
         if filter_keyword and filter_keyword.lower() not in txt_path.stem.lower():
             continue
-        expected = json.loads(json_path.read_text(encoding="utf-8"))
+        try:
+            expected = json.loads(json_path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError as exc:
+            errors.append(f"{json_path.name}: invalid JSON — {exc}")
+            continue
+        problem = _validate_fixture(json_path, expected)
+        if problem:
+            errors.append(problem)
+            continue
         out.append((txt_path, expected))
-    return out
+    return out, errors
 
 
-def _format_markdown(report: Report) -> str:
+def _format_markdown(report: Report, load_errors: list[str] | None = None) -> str:
     lines: list[str] = []
     agg = report.aggregate()
     lines.append("# Eval report\n")
     lines.append(f"Fixtures: **{len(report.fixtures)}**\n")
+    if load_errors:
+        lines.append(f"## ⚠ Malformed fixtures: {len(load_errors)}\n")
+        for err in load_errors:
+            lines.append(f"- {err}")
+        lines.append("")
     lines.append("## Aggregate\n")
     lines.append("| metric | score | threshold | pass |")
     lines.append("|---|---|---|---|")
@@ -274,10 +333,13 @@ def main(argv: list[str] | None = None) -> int:
         sys.stderr.write("eval: GEMINI_API_KEY not set, skipping\n")
         return 0
 
-    fixtures = _load_fixtures(args.filter)
+    fixtures, load_errors = _load_fixtures(args.filter)
+    for err in load_errors:
+        sys.stderr.write(f"eval: malformed fixture — {err}\n")
     if not fixtures:
-        sys.stderr.write("eval: no fixtures matched\n")
-        return 0
+        if not load_errors:
+            sys.stderr.write("eval: no fixtures matched\n")
+        return 1 if load_errors else 0
 
     report = Report()
     for cv_path, expected in fixtures:
@@ -289,6 +351,7 @@ def main(argv: list[str] | None = None) -> int:
             "aggregate": report.aggregate(),
             "thresholds": PASS_THRESHOLDS,
             "passes": report.passes(),
+            "loadErrors": load_errors,
             "fixtures": [
                 {
                     "name": f.name,
@@ -309,8 +372,12 @@ def main(argv: list[str] | None = None) -> int:
         }
         print(json.dumps(out, indent=2, ensure_ascii=False))
     else:
-        print(_format_markdown(report))
+        print(_format_markdown(report, load_errors))
 
+    # A malformed fixture is a data-integrity failure: fail the run regardless of
+    # --strict (which only governs the soft pass-threshold gate).
+    if load_errors:
+        return 1
     if args.strict and not report.passes():
         return 1
     return 0

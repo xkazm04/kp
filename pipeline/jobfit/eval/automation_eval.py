@@ -281,7 +281,15 @@ def judge_rows(rows: list[Row], provider: ClaudeCliProvider) -> None:
         try:
             payload = res.json()
             if isinstance(payload, dict):
-                r.quality = max(1, min(5, int(payload.get("score", 0))))
+                # Only accept a real 1-5 score. A parsed-but-missing/invalid score
+                # must stay un-scored (None) — the old `int(score, 0)` clamped a
+                # missing score to 1, faking a 1-star rating and dragging the mean.
+                try:
+                    score_int = int(payload.get("score"))
+                except (TypeError, ValueError):
+                    score_int = None
+                if score_int is not None and 1 <= score_int <= 5:
+                    r.quality = score_int
                 r.quality_issues = [str(x) for x in (payload.get("issues") or [])][:3]
         except Exception:
             continue
@@ -305,6 +313,7 @@ def _aggregate(rows: list[Row]) -> dict[str, Any]:
         "by_task": by_task,
         "total": total,
         "reliable": reliable,
+        "unscored": sum(1 for r in rows if r.quality is None),
     }
 
 
@@ -321,7 +330,9 @@ def _format_md(rows: list[Row], agg: dict[str, Any]) -> str:
         "# Automation quality-gating eval\n",
         f"Scenarios: {len(SCENARIOS)} · task-runs: {agg['total']}\n",
         f"**Reliability: {agg['reliability']:.0%}** (threshold {RELIABILITY_THRESHOLD:.0%}) · "
-        f"**Quality: {agg['quality_mean'] if agg['quality_mean'] is not None else 'n/a'}** (threshold {QUALITY_THRESHOLD})\n",
+        f"**Quality: {agg['quality_mean'] if agg['quality_mean'] is not None else 'n/a'}** (threshold {QUALITY_THRESHOLD})"
+        + (f" · ⚠ {agg['unscored']} run(s) un-scored by judge" if agg.get("quality_mean") is not None and agg.get("unscored") else "")
+        + "\n",
         "## Per task\n",
         "| task | runs | reliable | llm-produced | quality (mean) |",
         "|---|---|---|---|---|",
