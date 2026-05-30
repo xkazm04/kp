@@ -49,6 +49,19 @@ export function ResultPanel({ analysis, github }: ResultPanelProps) {
 
   const [activeTab, setActiveTab] = useState<ResultTab>(hasComparison ? "compare" : "extraction");
 
+  const activeIndex = tabs.findIndex((t) => t.id === activeTab);
+  const onTabKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    let next = activeIndex;
+    if (event.key === "ArrowRight") next = (activeIndex + 1) % tabs.length;
+    else if (event.key === "ArrowLeft") next = (activeIndex - 1 + tabs.length) % tabs.length;
+    else if (event.key === "Home") next = 0;
+    else if (event.key === "End") next = tabs.length - 1;
+    else return;
+    event.preventDefault();
+    setActiveTab(tabs[next].id);
+    document.getElementById(`tab-${tabs[next].id}`)?.focus();
+  };
+
   // Tailwind needs explicit, statically-known class names for dynamic grid
   // counts to survive purge — so we pick from a small lookup table.
   const lgGridClass = (() => {
@@ -69,35 +82,45 @@ export function ResultPanel({ analysis, github }: ResultPanelProps) {
   return (
     <section className="animate-fade-in space-y-5">
       <div className="rounded-lg border border-stone-200 bg-white p-2 shadow-panel">
-        <div className={`grid gap-1 sm:grid-cols-2 ${lgGridClass}`}>
-          {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              type="button"
-              onClick={() => setActiveTab(tab.id)}
-              className={`focus-ring inline-flex h-10 items-center justify-center gap-2 rounded-md px-3 text-sm font-semibold ${
-                activeTab === tab.id ? "bg-ink text-white" : "text-steel hover:bg-paper hover:text-ink"
-              }`}
-            >
-              {tab.icon}
-              {tab.label}
-            </button>
-          ))}
+        <div role="tablist" aria-label="Result sections" onKeyDown={onTabKeyDown} className={`grid gap-1 sm:grid-cols-2 ${lgGridClass}`}>
+          {tabs.map((tab) => {
+            const selected = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                role="tab"
+                id={`tab-${tab.id}`}
+                aria-selected={selected}
+                aria-controls={`panel-${tab.id}`}
+                tabIndex={selected ? 0 : -1}
+                onClick={() => setActiveTab(tab.id)}
+                className={`focus-ring inline-flex h-10 items-center justify-center gap-2 rounded-md px-3 text-sm font-semibold ${
+                  selected ? "bg-ink text-white" : "text-steel hover:bg-paper hover:text-ink"
+                }`}
+              >
+                {tab.icon}
+                {tab.label}
+              </button>
+            );
+          })}
         </div>
       </div>
 
-      {activeTab === "extraction" ? <ExtractionTab analysis={analysis} /> : null}
-      {activeTab === "compare" ? <CompareTab analysis={analysis} /> : null}
-      {activeTab === "jobFit" ? <JobFitTab analysis={analysis} /> : null}
-      {activeTab === "salary" ? <SalaryTab analysis={analysis} /> : null}
-      {activeTab === "interview" ? <InterviewTab analysis={analysis} /> : null}
-      {activeTab === "github" && github ? (
-        <GithubAnalysisPanel
-          status={github.status}
-          analysis={github.analysis}
-          error={github.error}
-        />
-      ) : null}
+      <div role="tabpanel" id={`panel-${activeTab}`} aria-labelledby={`tab-${activeTab}`} tabIndex={0} className="focus-ring rounded-md">
+        {activeTab === "extraction" ? <ExtractionTab analysis={analysis} /> : null}
+        {activeTab === "compare" ? <CompareTab analysis={analysis} /> : null}
+        {activeTab === "jobFit" ? <JobFitTab analysis={analysis} /> : null}
+        {activeTab === "salary" ? <SalaryTab analysis={analysis} /> : null}
+        {activeTab === "interview" ? <InterviewTab analysis={analysis} /> : null}
+        {activeTab === "github" && github ? (
+          <GithubAnalysisPanel
+            status={github.status}
+            analysis={github.analysis}
+            error={github.error}
+          />
+        ) : null}
+      </div>
     </section>
   );
 }

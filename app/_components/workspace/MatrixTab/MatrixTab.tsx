@@ -28,9 +28,14 @@ const STAGE_INITIAL: Record<string, string> = {
   Hired: "H",
 };
 
+// Blocked/empty cells get a diagonal hatch so they read as "not applicable"
+// without relying on the grey fill alone (color-independent legibility).
+const BLOCKED_CELL =
+  "bg-stone-100 text-stone-400 [background-image:repeating-linear-gradient(45deg,#d6d3d1_0px,#d6d3d1_1px,transparent_1px,transparent_5px)]";
+
 // diverging score scale: poor -> coral, fair -> amber, good/strong -> moss
 function cellClass(c: Cell): string {
-  if (c.blocked || c.score == null) return "bg-stone-100 text-stone-300";
+  if (c.blocked || c.score == null) return BLOCKED_CELL;
   const s = c.score;
   if (s < 45) return "bg-coral/15 text-coral";
   if (s < 60) return "bg-amber-100 text-amber-700";
@@ -178,6 +183,7 @@ export function MatrixTab() {
                               type="button"
                               onClick={() => open(cand.id, p.id)}
                               title={`${cand.label} → ${p.title}: ${c.blocked ? "blocked (KO)" : c.score}${place ? ` · in pipeline (${place.stage})` : ""}`}
+                              aria-label={`${cand.label} to ${p.title}: ${c.blocked ? "blocked" : `match ${c.score}`}${place ? `, in pipeline at ${place.stage}` : ""}`}
                               className={`relative grid h-9 w-full place-items-center font-semibold transition-transform hover:scale-105 ${cellClass(c)} ${
                                 inPipe ? "ring-2 ring-inset ring-ink/50" : ""
                               }`}
@@ -207,7 +213,7 @@ export function MatrixTab() {
               ["bg-moss/20 text-moss", "60–71"],
               ["bg-moss/40 text-ink", "72–84"],
               ["bg-moss/70 text-white", "85+"],
-              ["bg-stone-100 text-stone-300", "blocked"],
+              [BLOCKED_CELL, "blocked"],
             ].map(([cls, label]) => (
               <span key={label} className="inline-flex items-center gap-1">
                 <span className={`grid h-5 w-6 place-items-center rounded ${cls} text-[9px] font-semibold`}>{label === "blocked" ? "–" : ""}</span>

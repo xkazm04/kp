@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Ban, Banknote, ClipboardList, ExternalLink, Mail, Shuffle, Sparkles, UserCheck, X } from "lucide-react";
 import { buildUrl } from "../tabs";
@@ -58,6 +58,49 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
   const [notes, setNotes] = useState("");
   const [error, setError] = useState<string | null>(null);
 
+  // Modal focus management: trap Tab within the dialog, close on Escape, and
+  // restore focus to the trigger on unmount (WCAG dialog requirements).
+  const dialogRef = useRef<HTMLElement | null>(null);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+  useEffect(() => {
+    const node = dialogRef.current;
+    const previouslyFocused = document.activeElement as HTMLElement | null;
+    const focusables = () =>
+      node
+        ? Array.from(
+            node.querySelectorAll<HTMLElement>(
+              'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+            )
+          ).filter((el) => !el.hasAttribute("disabled"))
+        : [];
+    focusables()[0]?.focus();
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        onCloseRef.current();
+        return;
+      }
+      if (event.key !== "Tab") return;
+      const items = focusables();
+      if (items.length === 0) return;
+      const first = items[0];
+      const last = items[items.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    node?.addEventListener("keydown", onKeyDown);
+    return () => {
+      node?.removeEventListener("keydown", onKeyDown);
+      previouslyFocused?.focus?.();
+    };
+  }, []);
+
   const a = ARCHETYPE[entry.archetype ?? "bau"] ?? ARCHETYPE.bau;
   const initials = entry.candidateLabel.split(" ").map((p) => p[0]).filter(Boolean).join("").slice(0, 2).toUpperCase();
   const actions = ACTIONS.filter((act) => act.stages === "all" || act.stages.includes(entry.stage)).filter(
@@ -109,11 +152,17 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
       <button type="button" aria-label="Close" onClick={onClose} className="absolute inset-0 bg-ink/20 backdrop-blur-[1px]" />
-      <aside className="animate-slide-in relative flex h-full w-full max-w-md flex-col overflow-y-auto border-l border-stone-200 bg-paper shadow-2xl">
+      <aside
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="drawer-title"
+        className="animate-slide-in relative flex h-full w-full max-w-md flex-col overflow-y-auto border-l border-stone-200 bg-paper shadow-2xl"
+      >
         <header className="sticky top-0 z-10 flex items-start gap-3 border-b border-stone-200 bg-paper/95 p-4 backdrop-blur">
           <span className={`grid h-11 w-11 shrink-0 place-items-center rounded-full text-sm font-semibold text-white ${a.bg}`}>{initials}</span>
           <div className="min-w-0 flex-1">
-            <p className="truncate font-serif text-lg text-ink">{entry.candidateLabel}</p>
+            <p id="drawer-title" className="truncate font-serif text-lg text-ink">{entry.candidateLabel}</p>
             <p className="truncate text-xs text-steel">
               {a.label} · {entry.jobTitle} · <span className="text-ink">{entry.stage}</span>
             </p>

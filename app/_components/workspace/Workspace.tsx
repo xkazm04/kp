@@ -37,6 +37,12 @@ export function Workspace() {
   return (
     <TasksProvider>
     <div className="min-h-screen bg-paper md:flex">
+      <a
+        href="#main"
+        className="focus-ring sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-coral focus:px-3 focus:py-2 focus:text-sm focus:font-semibold focus:text-white"
+      >
+        Skip to content
+      </a>
       <aside className="flex flex-col border-b border-stone-300 bg-paper md:sticky md:top-0 md:h-screen md:w-64 md:shrink-0 md:overflow-y-auto md:border-b-0 md:border-r">
         <div className="px-4 py-5">
           <div className="flex items-center gap-2.5">
@@ -89,7 +95,7 @@ export function Workspace() {
         <TasksIndicator />
       </aside>
 
-      <main className="min-w-0 flex-1 bg-white">
+      <main id="main" tabIndex={-1} className="min-w-0 flex-1 bg-white focus:outline-none">
         <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:px-8">
           {navActive === "pipeline" ? <PipelineTab /> : null}
           {navActive === "decisions" ? <DecisionsTab /> : null}
