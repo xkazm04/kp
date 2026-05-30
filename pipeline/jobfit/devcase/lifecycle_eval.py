@@ -192,6 +192,39 @@ def judge(rows: list[Row], provider: ClaudeCliProvider, workers: int = 4) -> Non
             continue
 
 
+def audit_role_fit(scenarios: list[Scenario], provider: ClaudeCliProvider, workers: int = 4) -> dict[str, Any]:
+    """Targeted, low-noise metric: on role-vs-codebase MISMATCH/INCOHERENT scenarios, a BINARY judge
+    asks whether the case's tasks match the ROLE's function or drift to the codebase's domain.
+    Far more sensitive than absolute 1-5 scoring (which is swamped by judge variance)."""
+    subset = [s for s in scenarios if s.planted.get("mismatch") or s.planted.get("incoherent")]
+    rows = run(subset, provider, workers=workers)
+    prompts = []
+    for r in rows:
+        role, case = r.role, r.case
+        prompts.append(
+            f"A '{role.get('seniority')} {role.get('title')}' (function: {role.get('roleFamily')}) is being hired. "
+            f"This take-home was generated:\n"
+            f"{json.dumps({'title': case.get('title'), 'brief': case.get('brief'), 'tasks': case.get('tasks')}, ensure_ascii=False)[:1400]}\n\n"
+            "Do the TASKS match what THIS role actually DOES, or do they drift into the provided codebase's "
+            'unrelated domain? Return JSON: { "matchesRole": bool, "note": str }. JSON only.'
+        )
+    results = provider.map(prompts, max_workers=workers)
+    verdicts = []
+    for r, res in zip(rows, results):
+        ok, note = None, ""
+        if not isinstance(res, ClaudeCliError):
+            try:
+                p = res.json()
+                if isinstance(p, dict):
+                    ok, note = bool(p.get("matchesRole")), str(p.get("note") or "")[:160]
+            except Exception:
+                pass
+        verdicts.append({"id": r.id, "label": r.label, "matchesRole": ok, "note": note})
+    judged = [v for v in verdicts if v["matchesRole"] is not None]
+    rate = sum(1 for v in judged if v["matchesRole"]) / len(judged) if judged else None
+    return {"subset": len(subset), "judged": len(judged), "role_fit_rate": round(rate, 3) if rate is not None else None, "verdicts": verdicts}
+
+
 def _quality_summary(rows: list[Row]) -> dict[str, Any]:
     by_task: dict[str, list[int]] = {}
     levers = Counter()
@@ -246,6 +279,7 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--count", type=int, default=100)
     p.add_argument("--no-llm", action="store_true")
     p.add_argument("--judge", action="store_true")
+    p.add_argument("--audit", choices=["role-fit"], help="targeted binary audit on mismatch/incoherent scenarios")
     p.add_argument("--workers", type=int, default=4)
     p.add_argument("--json", action="store_true")
     args = p.parse_args(argv)
@@ -258,6 +292,21 @@ def main(argv: list[str] | None = None) -> int:
             provider = None
 
     scenarios = generate_scenarios(args.count)
+
+    if args.audit == "role-fit":
+        if provider is None:
+            sys.stderr.write("lifecycle_eval: --audit role-fit needs the Claude CLI\n")
+            return 1
+        res = audit_role_fit(scenarios, provider, workers=args.workers)
+        if args.json:
+            print(json.dumps(res, indent=2, ensure_ascii=False))
+        else:
+            print(f"# Role-fit audit\n\nmismatch/incoherent scenarios: {res['subset']} · judged: {res['judged']}")
+            print(f"**role-fit rate: {res['role_fit_rate']}** (tasks match the ROLE's function, not the codebase's domain)\n")
+            for v in res["verdicts"]:
+                mark = "OK " if v["matchesRole"] else ("?? " if v["matchesRole"] is None else "XX ")
+                print(f"- {mark} {v['id']}: {v['note']}")
+        return 0
     rows = run(scenarios, provider, workers=args.workers)
     sig = signals(rows)
     qual = None

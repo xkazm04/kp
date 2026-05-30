@@ -125,7 +125,8 @@ def generate_scenarios(n: int = 100) -> list[Scenario]:
 
         ambiguous = i % 5 == 0
         sparse = i % 11 == 0  # ungrounded: no codebase snapshot
-        mismatch = (i % 3 == 0) and not sparse  # snapshot stack belongs to a DIFFERENT family
+        incoherent = (i % 7 == 3) and not sparse  # cross-domain: codebase can't host the role (rare, realistic edge)
+        mismatch = (i % 3 == 0) and not sparse and not incoherent  # SAME family, different framework (realistic transfer)
 
         responsibilities = [] if ambiguous else spec["resp"][: 2 + (i % 3)]
 
@@ -142,20 +143,35 @@ def generate_scenarios(n: int = 100) -> list[Scenario]:
 
         snapshot: RepoSnapshot | None = None
         if not sparse:
-            if mismatch:
-                other_fam = _pick(_FAMILY_KEYS, i + 1)
-                other_stack = _pick(FAMILIES[other_fam]["stacks"], i)
-                snapshot = _snapshot(other_stack, archetype, i)
+            if incoherent:
+                # codebase from a DIFFERENT family — the role's work can't be done on it
+                other_fam = _pick([f for f in _FAMILY_KEYS if f != fam], i)
+                snapshot = _snapshot(_pick(FAMILIES[other_fam]["stacks"], i), archetype, i)
+            elif mismatch:
+                # SAME family, a DIFFERENT framework/stack — realistic transfer test
+                fam_stacks = spec["stacks"]
+                idx = (fam_stacks.index(stack) + 1) % len(fam_stacks)
+                snapshot = _snapshot(fam_stacks[idx], archetype, i)
             else:
                 snapshot = _snapshot(stack, archetype, i)
 
+        tags = "".join(
+            [" · MISMATCH" if mismatch else "", " · INCOHERENT" if incoherent else "", " · SPARSE" if sparse else "", " · AMBIG" if ambiguous else ""]
+        )
         out.append(
             Scenario(
                 id=need.id,
-                label=f"{seniority} {title} · {fam} · {archetype}{' · MISMATCH' if mismatch else ''}{' · SPARSE' if sparse else ''}{' · AMBIG' if ambiguous else ''}",
+                label=f"{seniority} {title} · {fam} · {archetype}{tags}",
                 need=need,
                 snapshot=snapshot,
-                planted={"family": fam, "archetype": archetype, "mismatch": mismatch, "sparse": sparse, "ambiguous": ambiguous},
+                planted={
+                    "family": fam,
+                    "archetype": archetype,
+                    "mismatch": mismatch,
+                    "incoherent": incoherent,
+                    "sparse": sparse,
+                    "ambiguous": ambiguous,
+                },
             )
         )
     return out

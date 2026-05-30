@@ -79,6 +79,10 @@ def _str_list(value: Any) -> list[str]:
     return [str(x).strip() for x in value if str(x).strip()]
 
 
+def _human(role_family: str) -> str:
+    return (role_family or "software engineering").replace("_", " ")
+
+
 # --- role -------------------------------------------------------------------
 
 
@@ -157,11 +161,11 @@ def design_case(need: DevNeed, analysis: NeedAnalysis, role: dict, *, provider: 
     ctx = {
         "role": {
             "title": role.get("title"),
-            "function": role_family,
+            "function": _human(role_family),
             "seniority": seniority,
             "responsibilities": role.get("responsibilities", []),
         },
-        "codebaseStack": real,
+        "providedCodebaseStack": real,
         "trueComplexity": analysis.true_complexity,
         "riskAreas": analysis.risk_areas,
         "timeboxHours": timebox,
@@ -169,15 +173,19 @@ def design_case(need: DevNeed, analysis: NeedAnalysis, role: dict, *, provider: 
     prompt = (
         "Design a take-home CASE/ASSIGNMENT for THIS role.\n"
         f"{json.dumps(ctx, ensure_ascii=False, indent=2)}\n\n"
-        "CRITICAL — the TASK TYPE must match what this role actually DOES (its function + responsibilities), "
-        "and the codebase is the MATERIAL they act ON, not the subject. If the codebase's domain differs from "
-        "the role's function, design a task of the ROLE's function applied to this codebase — e.g. a security "
-        "engineer THREAT-MODELS / hardens the given service (does NOT build new features for it); a data "
-        "engineer works the pipeline; a frontend engineer works the UI. Never produce a take-home in the "
-        "codebase's own domain when that differs from the role being hired.\n"
+        "CRITICAL — the TASK TYPE must match what this role actually DOES (its function + responsibilities). "
+        "The provided codebase is only the MATERIAL they act ON. Two cases:\n"
+        "(a) If the role's work CAN be done on the provided codebase, do that — e.g. a security engineer "
+        "THREAT-MODELS / hardens the given service (does NOT build features for it); a data engineer works the "
+        "pipeline; a frontend engineer works the UI.\n"
+        "(b) If the provided codebase is INCOMPATIBLE with the role (you genuinely cannot do the role's work on "
+        "it — e.g. an iOS role but a web-only repo), DO NOT force it: design the case on a SYNTHETIC fixture "
+        "representative of the ROLE's own domain (describe that fixture in repoSeed), and note in the brief that "
+        "the provided codebase does not fit the role. NEVER produce a take-home in the codebase's domain when "
+        "that differs from the role being hired.\n"
         f"CALIBRATE to seniority '{seniority}': junior = narrow, well-scoped, more scaffolding, simpler probes; "
         "senior/lead = broader, more ambiguous, architectural and judgment-heavy. Fit the work to "
-        f"~{timebox}h.\n"
+        f"~{timebox}h. Be concrete — name real files/symbols, avoid template phrases like 'per the brief'.\n"
         "ASSUME the candidate's code will be 100% LLM-generated, so COVERTLY probe how they DRIVE the tools and "
         "their judgment — WITHOUT telling them. Bake in 2-4 cover-probes: an underspecified/ambiguous "
         "requirement (rewards clarifying); a legacy/surprising area (rewards reading before generating); a "
@@ -190,16 +198,17 @@ def design_case(need: DevNeed, analysis: NeedAnalysis, role: dict, *, provider: 
     def deterministic() -> dict:
         stack = ", ".join(real[:3]) or "the stack"
         title = role.get("title") or "Engineering"
+        func = _human(role_family)
         return {
             "title": f"{title}: assess and improve the codebase",
             "brief": (
-                f"You are handed a small {stack} codebase. Do a piece of representative {role_family} work on it "
-                f"(scoped to ~{timebox}h for a {seniority}). The brief is intentionally lightly specified — make "
-                "and document your calls."
+                f"You are handed a small {stack} codebase. Do a piece of representative {func} work on it, scoped "
+                f"to ~{timebox:g}h for a {seniority}. The brief is intentionally lightly specified — make and "
+                "document your own calls."
             ),
             "repoSeed": "A minimal repo fixture: a working module, one under-documented legacy file, a thin test suite.",
             "tasks": [
-                f"Do the core {role_family} task on this {stack} codebase per the brief.",
+                f"Do a representative {func} task on this {stack} codebase.",
                 "Engage the existing legacy area you find under-documented.",
                 "Make the change safe — show how you verified it.",
             ],

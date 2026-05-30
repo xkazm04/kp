@@ -70,9 +70,41 @@ data-pipeline-shaped repo) is synthetic. That's a realistic stressor — real re
 incongruent with the role being opened — and it's exactly what exposed Finding 1. A future refinement
 can also add archetype-coherent scenarios to separate "model drift" from "planted incongruence."
 
+## Iteration & measured outcome (v2)
+
+Two methodology lessons came out of trying to *measure* the fix:
+
+1. **Absolute LLM-judge scores are too noisy to compare across runs.** Re-judging the pipeline moved
+   the **analysis** score 3.96 → 3.0 with *unchanged code* — judge variance (±~1) swamps a ~0.2 effect.
+   → We measure prompt changes with a **targeted binary** metric (`--audit role-fit`), not 1-5 means.
+2. **The role-anchoring prompt alone couldn't fix the planted mismatches — because the pairs were
+   incoherent** (an iOS role on a Playwright web repo). No prompt designs a good iOS case from a web repo.
+
+So the real fixes (v2.1):
+- **Incoherence escape-hatch** in `design_case`: when the codebase genuinely can't host the role, design
+  on a **synthetic fixture in the role's own domain** + flag the misfit — don't drift into the codebase's domain.
+- **Fixed a fallback regression** (it leaked `software_engineering` literal + circular "per the brief").
+- **Realistic harness**: planted mismatches are now **same-family, different-framework** (a true transfer
+  test); a smaller **incoherent** set exercises the synthetic-fixture path.
+- **Seniority-scaled timebox** (junior 3h → lead 8h) + **jobs-corpus** market grounding in `design_role`.
+- **Taxonomy deferred (evidence)**: it scores Django→Flask / React→Vue at 0.0 — too sparse for transfer;
+  the LLM reasons it better unaided. Needs enrichment before it earns a place.
+
+**Measured (binary role-fit audit, mismatch+incoherent subset, n=16):**
+
+| | Baseline (v1) | v2.1 |
+|---|---|---|
+| Role-fit (tasks match the role's function, not the codebase) | ~0% (all drifted) | **81%** |
+| Incoherent / cross-domain (synthetic-fixture path) | drifted | **6/6 (100%)** |
+| Same-family mismatch | drifted | 7/10 |
+
+**Residual (well-characterized):** sub-specialty drift *within* a family — a **Frontend** role handed a
+backend stack, or **iOS handed Android** — still falls back to "generic engineering." Targeted next nudge:
+respect sub-specialty (frontend = client-side; iOS ≠ Android), then re-audit.
+
 ## Next
 
-Land the two prompt edits + taxonomy/seniority grounding, then re-run the judged sample to confirm
-the score-2 cases lift. After the pipeline is tightened, extend this same harness with **simulated
-assignment distribution** and **assignment-evaluation** scoring (the evaluate_submission side) so the
-*whole* lifecycle is quality-gated end-to-end — and generalize the landscape to non-IT.
+Extend this same harness with **simulated assignment distribution** and **assignment-evaluation** scoring
+(the `evaluate_submission` side — plant strong / naive / AI-over-reliant submissions and verify the
+evaluator *discriminates* them) so the *whole* lifecycle is quality-gated end-to-end — and generalize the
+landscape to non-IT.
