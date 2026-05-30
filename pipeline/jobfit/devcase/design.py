@@ -15,7 +15,7 @@ from typing import Any
 from .models import DevNeed, NeedAnalysis
 
 ROLE_DESIGN_PROMPT_VERSION = "role-design-v2"
-CASE_DESIGN_PROMPT_VERSION = "case-design-v2"
+CASE_DESIGN_PROMPT_VERSION = "case-design-v3"  # v3: domain-neutral vocabulary (non-IT)
 
 # Seniority-scaled timebox (the lifecycle eval flagged junior/lead cases looking alike).
 _TIMEBOX = {"junior": 3.0, "medior": 4.0, "senior": 6.0, "lead": 8.0}
@@ -165,24 +165,28 @@ def design_case(need: DevNeed, analysis: NeedAnalysis, role: dict, *, provider: 
             "seniority": seniority,
             "responsibilities": role.get("responsibilities", []),
         },
-        "providedCodebaseStack": real,
+        "providedContext": real,
         "trueComplexity": analysis.true_complexity,
         "riskAreas": analysis.risk_areas,
         "timeboxHours": timebox,
     }
     prompt = (
-        "Design a take-home CASE/ASSIGNMENT for THIS role.\n"
+        "Design a CASE / work-sample EXERCISE for THIS role.\n"
         f"{json.dumps(ctx, ensure_ascii=False, indent=2)}\n\n"
+        "DOMAIN VOCABULARY — the provided context is the body of work this role acts on: a codebase for "
+        "software, but a content/campaign library for marketing, a financial model for finance, a CRM + "
+        "playbooks for sales, a design system for design, etc. Use the ROLE'S OWN vocabulary throughout the "
+        "brief and tasks — do NOT call it a 'codebase' or 'repo' unless the role is actually software.\n"
         "CRITICAL — the TASK TYPE must match what this role actually DOES (its function + responsibilities). "
-        "The provided codebase is only the MATERIAL they act ON. Two cases:\n"
-        "(a) If the role's work CAN be done on the provided codebase, do that — e.g. a security engineer "
-        "THREAT-MODELS / hardens the given service (does NOT build features for it); a data engineer works the "
-        "pipeline; a frontend engineer works the UI.\n"
-        "(b) If the provided codebase is INCOMPATIBLE with the role (you genuinely cannot do the role's work on "
-        "it — e.g. an iOS role but a web-only repo), DO NOT force it: design the case on a SYNTHETIC fixture "
-        "representative of the ROLE's own domain (describe that fixture in repoSeed), and note in the brief that "
-        "the provided codebase does not fit the role. NEVER produce a take-home in the codebase's domain when "
-        "that differs from the role being hired.\n"
+        "The provided context is only the MATERIAL they act ON. Two cases:\n"
+        "(a) If the role's work CAN be done on the provided context, do that — e.g. a security engineer "
+        "THREAT-MODELS / hardens the given service; a performance marketer diagnoses the funnel and reallocates "
+        "spend; an analyst stress-tests the model. Act ON it in the role's own way.\n"
+        "(b) If the provided context is INCOMPATIBLE with the role (you genuinely cannot do the role's work on "
+        "it — e.g. an iOS role but a web-only repo, or a marketing role but a finance model), DO NOT force it: "
+        "design the exercise on a SYNTHETIC set of starting materials representative of the ROLE's own domain "
+        "(describe them in 'repoSeed'), and note in the brief that the provided context does not fit the role. "
+        "NEVER produce an exercise in the context's domain when that differs from the role being hired.\n"
         f"CALIBRATE to seniority '{seniority}': junior = narrow, well-scoped, more scaffolding, simpler probes; "
         "senior/lead = broader, more ambiguous, architectural and judgment-heavy. Fit the work to "
         f"~{timebox}h. Be concrete — name real files/symbols, avoid template phrases like 'per the brief'.\n"
@@ -190,7 +194,9 @@ def design_case(need: DevNeed, analysis: NeedAnalysis, role: dict, *, provider: 
         "their judgment — WITHOUT telling them. Bake in 2-4 cover-probes: an underspecified/ambiguous "
         "requirement (rewards clarifying); a legacy/surprising area (rewards reading before generating); a "
         "verification trap where naive one-shot generation passes a shallow check but is subtly wrong.\n"
-        'Return JSON: { "title": str, "brief": str, "repoSeed": str, "tasks": [str], '
+        'Return JSON: { "title": str, "brief": str, '
+        '"repoSeed": str (the starting materials handed to the candidate — code, documents, data, or designs as fits the domain), '
+        '"tasks": [str], '
         '"coverProbes": [ { "id": str, "kind": "ambiguity|legacy_trap|verification_trap|underspecified", '
         '"where": str, "reveals": str } ], "timeboxHours": number }. The "reveals" notes are INTERNAL. JSON only.'
     )

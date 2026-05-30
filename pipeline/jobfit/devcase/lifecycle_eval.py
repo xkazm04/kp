@@ -31,7 +31,7 @@ from .design import design_case, design_role
 from .evaluate import evaluate_submission, score_transfer
 from .models import NeedAnalysis
 from .reflect import assess_tooling, reflect_commits
-from .scenarios import Scenario, generate_scenarios
+from .scenarios import DOMAINS, Scenario, generate_mixed, generate_scenarios
 from .submissions import all_submissions
 
 PROBE_KINDS = {"ambiguity", "legacy_trap", "verification_trap", "underspecified"}
@@ -261,12 +261,13 @@ def _eval_chain(case: dict, role: dict, commits: list[dict], provider: Any | Non
     }
 
 
-def run_submission_eval(count: int, provider: Any | None, workers: int = 4, subset: int = 6) -> dict[str, Any]:
+def run_submission_eval(scenarios: list[Scenario], provider: Any | None, workers: int = 4, subset: int = 6) -> dict[str, Any]:
     """Plant strong / naive / AI-over-reliant / thrasher submissions against designed cases and
     check the evaluator ranks the strong one above the weak ones (and isn't fooled by the
     'productive-looking but never verifies' AI-over-reliant trace). Cases are designed
-    deterministically to isolate the EVALUATOR under test."""
-    scns = [s for s in generate_scenarios(count) if not s.planted["sparse"]][:subset]
+    deterministically to isolate the EVALUATOR under test. Submission traces follow each
+    scenario's domain (IT vs non-IT work/process log)."""
+    scns = [s for s in scenarios if not s.planted["sparse"]][:subset]
     prepared = []
     for s in scns:
         a, _ = analyze_need(s.need, s.snapshot, provider=None)
@@ -275,8 +276,11 @@ def run_submission_eval(count: int, provider: Any | None, workers: int = 4, subs
         case, _ = design_case(s.need, na, role, provider=None)
         prepared.append((s, case, role))
 
-    subs = all_submissions()
-    jobs = [(i, s, case, role, arch, commits) for i, (s, case, role) in enumerate(prepared) for (arch, commits) in subs]
+    jobs = [
+        (i, s, case, role, arch, commits)
+        for i, (s, case, role) in enumerate(prepared)
+        for (arch, commits) in all_submissions(s.planted.get("domain", "it"))
+    ]
 
     def _one(job):
         i, s, case, role, arch, commits = job
@@ -370,9 +374,14 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--no-llm", action="store_true")
     p.add_argument("--judge", action="store_true")
     p.add_argument("--audit", choices=["role-fit", "submission-eval"], help="targeted audit")
+    p.add_argument("--domain", default="it", help="it | marketing | finance | sales | design | mixed")
     p.add_argument("--workers", type=int, default=4)
     p.add_argument("--json", action="store_true")
     args = p.parse_args(argv)
+
+    if args.domain != "mixed" and args.domain not in DOMAINS:
+        sys.stderr.write(f"lifecycle_eval: unknown domain '{args.domain}' (have: {list(DOMAINS)} | mixed)\n")
+        return 2
 
     provider = None
     if not args.no_llm:
@@ -381,7 +390,7 @@ def main(argv: list[str] | None = None) -> int:
             sys.stderr.write("lifecycle_eval: Claude CLI unavailable -> deterministic mode\n")
             provider = None
 
-    scenarios = generate_scenarios(args.count)
+    scenarios = generate_mixed(args.count) if args.domain == "mixed" else generate_scenarios(args.count, args.domain)
 
     if args.audit == "role-fit":
         if provider is None:
@@ -399,7 +408,7 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if args.audit == "submission-eval":
-        res = run_submission_eval(args.count, provider, workers=args.workers)
+        res = run_submission_eval(scenarios, provider, workers=args.workers)
         if args.json:
             print(json.dumps(res, indent=2, ensure_ascii=False))
         else:
