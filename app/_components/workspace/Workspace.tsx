@@ -14,7 +14,7 @@ import { DevTab } from "./DevTab/DevTab";
 import { ProfileTab } from "./ProfileTab/ProfileTab";
 import { TasksIndicator } from "./tasks/TasksIndicator";
 import { TasksProvider } from "./tasks/TasksProvider";
-import { buildUrl, DEFAULT_TAB, isWorkspaceTabId, NAV_GROUPS, type WorkspaceTabId } from "./tabs";
+import { buildUrl, DEFAULT_TAB, isWorkspaceTabId, navItemClass, NAV_GROUPS, type WorkspaceTabId } from "./tabs";
 
 export type { WorkspaceTabId } from "./tabs";
 
@@ -73,11 +73,7 @@ export function Workspace() {
                       type="button"
                       aria-current={isActive ? "page" : undefined}
                       onClick={() => selectTab(item.id)}
-                      className={`focus-ring flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-sm font-medium transition-colors ${
-                        isActive
-                          ? "bg-coral/10 text-coral"
-                          : "text-ink/80 hover:bg-white hover:text-ink"
-                      }`}
+                      className={`focus-ring flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-sm font-medium transition-colors ${navItemClass(isActive)}`}
                     >
                       <span
                         className={`h-1.5 w-1.5 rounded-full ${isActive ? "bg-coral" : "bg-stone-300"}`}

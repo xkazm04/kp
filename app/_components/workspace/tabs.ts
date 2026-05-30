@@ -97,6 +97,13 @@ export function tabHref(id: WorkspaceTabId): string {
   return id === DEFAULT_TAB ? "/" : `/?tab=${id}`;
 }
 
+// Canonical active/inactive nav treatment, shared by the studio sidebar and the
+// deep-link tab bar so the active state reads the same on both surfaces (was
+// coral-wash on one, ink-pill on the other).
+export function navItemClass(isActive: boolean): string {
+  return isActive ? "bg-coral/10 text-coral" : "text-steel hover:bg-stone-50 hover:text-ink";
+}
+
 // Build a "/?…" href by patching the current query with `updates` (null clears
 // a key). Components pass the result to next/navigation's router so App Router's
 // useSearchParams reliably re-renders — a raw history.pushState does NOT trigger

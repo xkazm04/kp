@@ -276,7 +276,7 @@ export function DevTab() {
               aria-invalid={title.trim() === ""}
               className="focus-ring w-full rounded-md border border-stone-200 px-2.5 py-1.5 text-sm" />
             {title.trim() === "" ? (
-              <p className="mt-1 text-[11px] text-steel">A role title is required to run.</p>
+              <p className="mt-1 text-micro text-steel">A role title is required to run.</p>
             ) : null}
           </Field>
           <Field label="Stack (comma-separated)">
@@ -292,7 +292,7 @@ export function DevTab() {
               aria-invalid={repoUrl.trim() !== "" && !isSupportedRepoRef(repoUrl)}
               className="focus-ring w-full rounded-md border border-stone-200 px-2.5 py-1.5 text-sm" />
             {repoUrl.trim() !== "" && !isSupportedRepoRef(repoUrl) ? (
-              <p className="mt-1 text-[11px] text-amber-700">
+              <p className="mt-1 text-micro text-amber-700">
                 Only GitHub is supported for grounding — this will run ungrounded at low confidence.
               </p>
             ) : null}
@@ -323,7 +323,7 @@ export function DevTab() {
 
           {needTasks.length > 0 ? (
             <div className="border-t border-stone-100 pt-2">
-              <p className="text-[10px] font-semibold uppercase tracking-wide text-steel">Recent</p>
+              <p className="text-micro font-semibold uppercase tracking-wide text-steel">Recent</p>
               <ul className="mt-1 space-y-0.5">
                 {needTasks.slice(0, 6).map((t) => (
                   <li key={t.id}>
@@ -358,23 +358,23 @@ export function DevTab() {
                 <div className="mb-2 flex items-center gap-2">
                   <span className="text-meta uppercase tracking-wide text-steel">Reality reflection</span>
                   {analysis.trueComplexity ? (
-                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase ${COMPLEXITY[analysis.trueComplexity] ?? "bg-stone-100 text-steel"}`}>
+                    <span className={`rounded-full px-2 py-0.5 text-micro font-semibold uppercase ${COMPLEXITY[analysis.trueComplexity] ?? "bg-stone-100 text-steel"}`}>
                       {analysis.trueComplexity} complexity
                     </span>
                   ) : null}
-                  <span className="ml-auto text-[10px] uppercase text-steel">
+                  <span className="ml-auto text-micro uppercase text-steel">
                     {sourceLabel(result.source)} · conf {formatPercent(analysis.confidence ?? 0, { fraction: true })}
                   </span>
                 </div>
                 <p className="text-sm text-ink">{analysis.reflection}</p>
                 <div className="mt-3 flex flex-wrap gap-1.5">
                   {(analysis.realStack ?? []).map((s) => (
-                    <span key={s} className="rounded-full bg-paper px-2 py-0.5 text-[11px] text-ink">{s}</span>
+                    <span key={s} className="rounded-full bg-paper px-2 py-0.5 text-micro text-ink">{s}</span>
                   ))}
                 </div>
                 {(analysis.statedVsRealGaps ?? []).length > 0 ? (
                   <div className="mt-3">
-                    <p className="text-[10px] font-semibold uppercase tracking-wide text-coral">Stated vs. real gaps</p>
+                    <p className="text-micro font-semibold uppercase tracking-wide text-coral">Stated vs. real gaps</p>
                     <ul className="mt-1 space-y-0.5">
                       {(analysis.statedVsRealGaps ?? []).map((g, i) => (
                         <li key={i} className="flex gap-1.5 text-xs text-ink"><span className="text-coral">•</span>{g}</li>
@@ -383,7 +383,7 @@ export function DevTab() {
                   </div>
                 ) : null}
                 {(analysis.riskAreas ?? []).length > 0 ? (
-                  <p className="mt-2 text-[11px] text-steel">Risk areas: {(analysis.riskAreas ?? []).join(" · ")}</p>
+                  <p className="mt-2 text-micro text-steel">Risk areas: {(analysis.riskAreas ?? []).join(" · ")}</p>
                 ) : null}
               </div>
 
@@ -392,20 +392,20 @@ export function DevTab() {
                   <div className="mb-2 flex items-center gap-1.5">
                     <Boxes size={14} className="text-steel" />
                     <span className="text-meta uppercase tracking-wide text-steel">Codebase snapshot</span>
-                    <span className="ml-auto text-[11px] text-steel">~{(snapshot.loc ?? 0).toLocaleString()} LOC</span>
+                    <span className="ml-auto text-micro text-steel">~{(snapshot.loc ?? 0).toLocaleString()} LOC</span>
                   </div>
                   <div className="flex flex-wrap gap-1.5">
                     {Object.entries(snapshot.languages ?? {}).slice(0, 6).map(([k, v]) => (
-                      <span key={k} className="rounded-md border border-stone-200 px-2 py-0.5 text-[11px] text-ink">
+                      <span key={k} className="rounded-md border border-stone-200 px-2 py-0.5 text-micro text-ink">
                         {k} <span className="text-steel">{formatPercent(v, { fraction: true })}</span>
                       </span>
                     ))}
                   </div>
                   {(snapshot.topDirs ?? []).length > 0 ? (
-                    <p className="mt-2 text-[11px] text-steel">Top dirs: {(snapshot.topDirs ?? []).slice(0, 10).join(" / ")}</p>
+                    <p className="mt-2 text-micro text-steel">Top dirs: {(snapshot.topDirs ?? []).slice(0, 10).join(" / ")}</p>
                   ) : null}
                   {(snapshot.recentCommitSummaries ?? []).length > 0 ? (
-                    <p className="mt-1 flex items-center gap-1 text-[11px] text-steel">
+                    <p className="mt-1 flex items-center gap-1 text-micro text-steel">
                       <GitBranch size={11} /> {(snapshot.recentCommitSummaries ?? []).length} recent commits read
                     </p>
                   ) : null}
@@ -435,7 +435,7 @@ export function DevTab() {
                   <div className="rounded-lg border border-stone-200 bg-white p-4 shadow-panel">
                     <div className="mb-2 flex items-center gap-2">
                       <span className="text-meta uppercase tracking-wide text-steel">Role</span>
-                      <span className="ml-auto text-[10px] uppercase text-steel">{sourceLabel(design.source)}</span>
+                      <span className="ml-auto text-micro uppercase text-steel">{sourceLabel(design.source)}</span>
                     </div>
                     <p className="font-serif text-h3 text-ink">{design.role?.title}</p>
                     <p className="text-xs uppercase text-steel">{design.role?.seniority}</p>
@@ -449,7 +449,7 @@ export function DevTab() {
                     <div className="mb-2 flex items-center gap-2">
                       <ClipboardList size={14} className="text-steel" />
                       <span className="text-meta uppercase tracking-wide text-steel">Assignment</span>
-                      <span className="ml-auto text-[11px] text-steel">~{design.case?.timeboxHours ?? 4}h</span>
+                      <span className="ml-auto text-micro text-steel">~{design.case?.timeboxHours ?? 4}h</span>
                     </div>
                     <p className="font-semibold text-ink">{design.case?.title}</p>
                     <p className="mt-1 text-sm text-ink">{design.case?.brief}</p>
@@ -461,13 +461,13 @@ export function DevTab() {
 
                     {(design.case?.coverProbes ?? []).length ? (
                       <div className="mt-3 rounded-md border border-amber-200 bg-amber-50/60 p-2.5">
-                        <p className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-amber-700">
+                        <p className="flex items-center gap-1 text-micro font-semibold uppercase tracking-wide text-amber-700">
                           <Lock size={11} /> Covert probes — internal, hidden from the candidate
                         </p>
                         <ul className="mt-1 space-y-1">
                           {(design.case?.coverProbes ?? []).map((p, i) => (
-                            <li key={i} className="text-[11px] text-ink">
-                              <span className="rounded bg-amber-100 px-1 py-0.5 text-[9px] font-semibold uppercase text-amber-700">{p.kind}</span>{" "}
+                            <li key={i} className="text-micro text-ink">
+                              <span className="rounded bg-amber-100 px-1 py-0.5 text-micro font-semibold uppercase text-amber-700">{p.kind}</span>{" "}
                               <span className="text-steel">@ {p.where}</span> — {p.reveals}
                             </li>
                           ))}
@@ -478,7 +478,7 @@ export function DevTab() {
                     {(design.case?.rubricDimensions ?? []).length ? (
                       <div className="mt-2 flex flex-wrap gap-1.5">
                         {(design.case?.rubricDimensions ?? []).map((d) => (
-                          <span key={d.name} className="rounded-full bg-paper px-2 py-0.5 text-[10px] text-ink">
+                          <span key={d.name} className="rounded-full bg-paper px-2 py-0.5 text-micro text-ink">
                             {d.name} <span className="text-steel">{formatPercent(d.weight ?? 0, { fraction: true })}</span>
                           </span>
                         ))}
@@ -494,7 +494,7 @@ export function DevTab() {
                           <ShieldCheck size={15} /> {approving ? "Approving…" : "Approve assignment"}
                         </button>
                       )}
-                      <span className="text-[11px] text-steel">Human gate — review the probes, then approve to save it.</span>
+                      <span className="text-micro text-steel">Human gate — review the probes, then approve to save it.</span>
                     </div>
                   </div>
                 </div>
@@ -513,7 +513,7 @@ export function DevTab() {
           <h3 className="flex items-center gap-1.5 text-meta uppercase tracking-wide text-steel">
             <Sparkles size={13} className="text-coral" /> Automated lifecycle <span className="text-coral">· {lifecycles.length}</span>
           </h3>
-          <p className="mt-1 text-[11px] text-steel">
+          <p className="mt-1 text-micro text-steel">
             Each case advances under policy — auto-approving clean designs, routing flagged ones to you, publishing, and
             (as submissions arrive) evaluating → ranking → promoting the top candidates into Decisions. No manual steps between.
           </p>
@@ -536,13 +536,13 @@ export function DevTab() {
               return (
                 <li key={c.id} className="flex flex-col rounded-lg border border-stone-200 bg-white p-3 shadow-panel">
                   <p className="truncate text-sm font-semibold text-ink">{c.title || "Assignment"}</p>
-                  <p className="truncate text-[11px] text-steel">{c.roleTitle} · {c.seniority}</p>
+                  <p className="truncate text-micro text-steel">{c.roleTitle} · {c.seniority}</p>
                   <div className="mt-2 flex gap-1.5">
                     <button
                       type="button"
                       onClick={() => publish(c.id)}
                       disabled={published}
-                      className="focus-ring inline-flex h-8 flex-1 items-center justify-center gap-1.5 rounded-md border border-stone-200 px-2 text-[11px] font-semibold text-ink hover:border-coral/40 disabled:opacity-50"
+                      className="focus-ring inline-flex h-8 flex-1 items-center justify-center gap-1.5 rounded-md border border-stone-200 px-2 text-micro font-semibold text-ink hover:border-coral/40 disabled:opacity-50"
                     >
                       <Send size={12} /> {published ? "Published" : "Publish"}
                     </button>
@@ -551,7 +551,7 @@ export function DevTab() {
                       onClick={() => source(c.id)}
                       disabled={sourcing === c.id}
                       title="Rank the existing candidate DB against this role and seed the pipeline at Sourced"
-                      className="focus-ring inline-flex h-8 items-center justify-center gap-1.5 rounded-md border border-stone-200 px-2 text-[11px] font-semibold text-coral hover:border-coral/40 disabled:opacity-50"
+                      className="focus-ring inline-flex h-8 items-center justify-center gap-1.5 rounded-md border border-stone-200 px-2 text-micro font-semibold text-coral hover:border-coral/40 disabled:opacity-50"
                     >
                       <Users size={12} />
                       {sourcing === c.id ? "…" : sourcedCounts[c.id] != null ? `sourced ${sourcedCounts[c.id]}` : "Source DB"}
@@ -569,7 +569,7 @@ export function DevTab() {
           <h3 className="flex items-center gap-1.5 text-meta uppercase tracking-wide text-steel">
             <Inbox size={13} className="text-coral" /> Postings &amp; submissions <span className="text-coral">· {postings.length}</span>
           </h3>
-          <p className="mt-1 text-[11px] text-steel">
+          <p className="mt-1 text-micro text-steel">
             The distribution seam. Publishing posts to a channel (local stub) and returns an apply token; submissions arrive
             on the IN side. Real channels (email / ATS / job board) plug into the same adapter.
           </p>
@@ -577,12 +577,12 @@ export function DevTab() {
             {postings.map((p) => (
               <div key={p.id} className="rounded-lg border border-stone-200 bg-white p-3 shadow-panel">
                 <div className="flex items-center gap-2">
-                  <span className="rounded-full bg-paper px-2 py-0.5 text-[10px] font-semibold uppercase text-steel">{p.channel}</span>
+                  <span className="rounded-full bg-paper px-2 py-0.5 text-micro font-semibold uppercase text-steel">{p.channel}</span>
                   <span className="min-w-0 flex-1 truncate text-sm font-semibold text-ink">{p.caseTitle || p.roleTitle || "Posting"}</span>
-                  <span className="text-[11px] text-steel">{p.submissions?.length ?? p.submissionCount ?? 0} in</span>
+                  <span className="text-micro text-steel">{p.submissions?.length ?? p.submissionCount ?? 0} in</span>
                 </div>
                 <div className="mt-1 flex items-center gap-1.5">
-                  <span className="shrink-0 text-[9px] uppercase tracking-wide text-steel">Apply link</span>
+                  <span className="shrink-0 text-micro uppercase tracking-wide text-steel">Apply link</span>
                   <ApplyTokenPill token={p.token} />
                 </div>
 
@@ -618,15 +618,15 @@ export function DevTab() {
           <h3 className="flex items-center gap-1.5 text-meta uppercase tracking-wide text-steel">
             <Send size={13} className="text-coral" /> Comms outbox <span className="text-coral">· {outbox.length}</span>
           </h3>
-          <p className="mt-1 text-[11px] text-steel">
+          <p className="mt-1 text-micro text-steel">
             Every message the pipeline sent (acknowledgements on intake, invites on promote). &quot;queued&quot; = recorded locally;
             set <span className="font-mono">COMMS_WEBHOOK_URL</span> to relay through a real channel (email / ATS).
           </p>
           <ul className="mt-2 divide-y divide-stone-100 rounded-lg border border-stone-200 bg-white shadow-panel">
             {outbox.slice(0, 12).map((m) => (
-              <li key={m.id} className="flex items-center gap-2 px-3 py-1.5 text-[11px]">
+              <li key={m.id} className="flex items-center gap-2 px-3 py-1.5 text-micro">
                 <span
-                  className={`rounded-full px-1.5 py-0.5 text-[9px] font-semibold uppercase ${
+                  className={`rounded-full px-1.5 py-0.5 text-micro font-semibold uppercase ${
                     m.kind === "invite" ? "bg-moss/15 text-moss" : "bg-paper text-steel"
                   }`}
                 >
@@ -634,7 +634,7 @@ export function DevTab() {
                 </span>
                 <span className="w-28 shrink-0 truncate text-steel">{m.recipient}</span>
                 <span className="min-w-0 flex-1 truncate text-ink">{m.subject}</span>
-                <span className="shrink-0 text-[9px] uppercase text-steel">{m.status === "queued" ? `${m.channel}` : m.status}</span>
+                <span className="shrink-0 text-micro uppercase text-steel">{m.status === "queued" ? `${m.channel}` : m.status}</span>
               </li>
             ))}
           </ul>
@@ -658,7 +658,7 @@ function ApplyTokenPill({ token }: { token: string | null }) {
   }, []);
 
   if (!token) {
-    return <span className="font-mono text-[10px] text-steel">no token</span>;
+    return <span className="font-mono text-micro text-steel">no token</span>;
   }
 
   const applyUrl =
@@ -683,7 +683,7 @@ function ApplyTokenPill({ token }: { token: string | null }) {
       onClick={copy}
       title="Copy the apply link to share with candidates"
       aria-label={copied ? "Apply link copied to clipboard" : "Copy apply link to clipboard"}
-      className="focus-ring inline-flex min-w-0 items-center gap-1.5 rounded-full border border-stone-200 bg-paper px-2 py-0.5 text-[10px] font-medium text-steel transition-colors hover:border-coral/40 hover:text-ink"
+      className="focus-ring inline-flex min-w-0 items-center gap-1.5 rounded-full border border-stone-200 bg-paper px-2 py-0.5 text-micro font-medium text-steel transition-colors hover:border-coral/40 hover:text-ink"
     >
       {copied ? (
         <Check size={11} className="shrink-0 text-moss" aria-hidden />
@@ -720,11 +720,11 @@ function SubmissionForm({ postingId, onDone }: { postingId: string; onDone: () =
   return (
     <div className="mt-2 flex flex-wrap items-center gap-1.5 border-t border-stone-100 pt-2">
       <input value={candidate} onChange={(e) => setCandidate(e.target.value)} placeholder="candidate"
-        className="focus-ring h-7 w-24 rounded border border-stone-200 px-1.5 text-[11px]" />
+        className="focus-ring h-7 w-24 rounded border border-stone-200 px-1.5 text-micro" />
       <input value={repo} onChange={(e) => setRepo(e.target.value)} placeholder="submission repo URL"
-        className="focus-ring h-7 min-w-0 flex-1 rounded border border-stone-200 px-1.5 text-[11px]" />
+        className="focus-ring h-7 min-w-0 flex-1 rounded border border-stone-200 px-1.5 text-micro" />
       <button type="button" onClick={send} disabled={busy}
-        className="focus-ring inline-flex h-7 items-center gap-1 rounded border border-stone-200 px-2 text-[11px] font-semibold text-coral hover:bg-coral/5 disabled:opacity-50">
+        className="focus-ring inline-flex h-7 items-center gap-1 rounded border border-stone-200 px-2 text-micro font-semibold text-coral hover:bg-coral/5 disabled:opacity-50">
         <Inbox size={11} /> {busy ? "…" : "Record"}
       </button>
     </div>
@@ -798,12 +798,12 @@ function SubmissionRow({ submission, caseId, rank, isTop = false, onChanged }: {
 
   return (
     <li className={`rounded-md border p-2 ${isTop ? "border-moss/30 bg-moss/5 ring-1 ring-moss/40" : "border-stone-100 bg-paper/40"}`}>
-      <div className="flex items-center gap-1.5 text-[11px]">
+      <div className="flex items-center gap-1.5 text-micro">
         {rank ? (
-          <span className={`shrink-0 rounded px-1 text-[9px] font-bold text-white ${rank === 1 ? "bg-moss" : "bg-ink"}`}>#{rank}</span>
+          <span className={`shrink-0 rounded px-1 text-micro font-bold text-white ${rank === 1 ? "bg-moss" : "bg-ink"}`}>#{rank}</span>
         ) : null}
         {isTop ? (
-          <span className="shrink-0 rounded-full bg-moss/15 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-moss">
+          <span className="shrink-0 rounded-full bg-moss/15 px-1.5 py-0.5 text-micro font-semibold uppercase tracking-wide text-moss">
             Top match
           </span>
         ) : null}
@@ -812,14 +812,14 @@ function SubmissionRow({ submission, caseId, rank, isTop = false, onChanged }: {
         <span className="min-w-0 flex-1 truncate text-steel">{submission.repoRef}</span>
         {ts != null ? (
           <span
-            className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold tabular-nums ${scoreColor(ts)} ${scoreTextColor(ts)}`}
+            className={`shrink-0 rounded px-1.5 py-0.5 text-micro font-semibold tabular-nums ${scoreColor(ts)} ${scoreTextColor(ts)}`}
             aria-label={`Transfer fit score ${ts} of 100`}
           >
             {ts}<span className="opacity-70"> fit</span>
           </span>
         ) : null}
         <button type="button" onClick={evaluate} disabled={busy}
-          className="focus-ring inline-flex h-6 shrink-0 items-center gap-1 rounded border border-stone-200 bg-white px-1.5 text-[10px] font-semibold text-coral hover:bg-coral/5 disabled:opacity-50">
+          className="focus-ring inline-flex h-6 shrink-0 items-center gap-1 rounded border border-stone-200 bg-white px-1.5 text-micro font-semibold text-coral hover:bg-coral/5 disabled:opacity-50">
           <Sparkles size={10} /> {busy ? "Evaluating…" : ev ? "Re-evaluate" : "Evaluate"}
         </button>
       </div>
@@ -835,11 +835,11 @@ function EvalPanel({ ev, onPromote, promoted }: { ev: EvalBundle; onPromote: () 
   const x = ev.transfer ?? {};
   const dims = e.dimensionScores ?? {};
   return (
-    <div className="mt-2 rounded-md border border-stone-200 bg-white p-2.5 text-[11px] text-ink">
+    <div className="mt-2 rounded-md border border-stone-200 bg-white p-2.5 text-micro text-ink">
       {/* capability scores */}
       <div className="mb-1 flex items-center gap-2">
-        <span className="text-[9px] font-semibold uppercase tracking-wide text-steel">Capability scores</span>
-        <span className="ml-auto text-[9px] uppercase text-steel">
+        <span className="text-micro font-semibold uppercase tracking-wide text-steel">Capability scores</span>
+        <span className="ml-auto text-micro uppercase text-steel">
           transfer <b className="text-ink">{x.transferScore ?? "—"}</b> · <span className={ev.source === "partial" ? "text-amber-700" : undefined}>{sourceLabel(ev.source)}</span> · {ev.commitCount ?? 0} commits
         </span>
       </div>
@@ -848,37 +848,37 @@ function EvalPanel({ ev, onPromote, promoted }: { ev: EvalBundle; onPromote: () 
           <ScoreBar key={k} label={k} value={dims[k] ?? 0} index={i} />
         ))}
       </div>
-      {e.summary ? <p className="mt-1.5 text-[11px] text-ink">{e.summary}</p> : null}
-      <div className="mt-1 grid grid-cols-2 gap-2 text-[10px]">
+      {e.summary ? <p className="mt-1.5 text-micro text-ink">{e.summary}</p> : null}
+      <div className="mt-1 grid grid-cols-2 gap-2 text-micro">
         {(e.strengths ?? []).length ? <div><span className="font-semibold text-moss">+ </span>{(e.strengths ?? []).join("; ")}</div> : null}
         {(e.concerns ?? []).length ? <div><span className="font-semibold text-coral">! </span>{(e.concerns ?? []).join("; ")}</div> : null}
       </div>
 
       {/* trace + tooling (D5) */}
-      <div className="mt-2 border-t border-stone-100 pt-2 text-[10px] text-steel">
+      <div className="mt-2 border-t border-stone-100 pt-2 text-micro text-steel">
         <span className="rounded bg-paper px-1.5 py-0.5 uppercase">{r.iterationPattern}</span>{" "}
         read-before-write <b className="text-ink">{formatPercent(r.readBeforeWrite ?? 0, { fraction: true })}</b>{" "}
         · fluency <b className="text-ink">{formatPercent(t.fluency ?? 0, { fraction: true })}</b>
         {(x.gaps ?? []).length ? <span> · gaps: {(x.gaps ?? []).join(", ")}</span> : null}
       </div>
-      <p className="mt-1 text-[9px] italic text-steel">Code assumed LLM-generated — using AI is never penalised; judged on judgment + verification + transfer.</p>
+      <p className="mt-1 text-micro italic text-steel">Code assumed LLM-generated — using AI is never penalised; judged on judgment + verification + transfer.</p>
 
       {ev.source === "partial" ? (
-        <p className="mt-2 rounded bg-amber-50 px-2 py-1 text-[10px] text-amber-800">
+        <p className="mt-2 rounded bg-amber-50 px-2 py-1 text-micro text-amber-800">
           Degraded evaluation — some steps fell back to deterministic templates. Review before promoting.
         </p>
       ) : null}
 
       <div className="mt-2 flex items-center gap-2 border-t border-stone-100 pt-2">
         {promoted ? (
-          <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-moss"><Check size={13} /> In pipeline</span>
+          <span className="inline-flex items-center gap-1 text-micro font-semibold text-moss"><Check size={13} /> In pipeline</span>
         ) : (
           <button type="button" onClick={onPromote}
-            className="focus-ring inline-flex h-7 items-center gap-1 rounded-md bg-ink px-2.5 text-[11px] font-semibold text-white hover:opacity-90">
+            className="focus-ring inline-flex h-7 items-center gap-1 rounded-md bg-ink px-2.5 text-micro font-semibold text-white hover:opacity-90">
             <Send size={12} /> Promote to pipeline
           </button>
         )}
-        <span className="text-[9px] text-steel">→ becomes a Decisions review card</span>
+        <span className="text-micro text-steel">→ becomes a Decisions review card</span>
       </div>
     </div>
   );
@@ -896,7 +896,7 @@ function ScoreBar({ label, value, index }: { label: string; value: number; index
   }, []);
   return (
     <div className="flex items-center gap-2">
-      <span className="w-20 shrink-0 text-[10px] capitalize text-steel">{label}</span>
+      <span className="w-20 shrink-0 text-micro capitalize text-steel">{label}</span>
       <span
         role="progressbar"
         aria-valuenow={value}
@@ -910,7 +910,7 @@ function ScoreBar({ label, value, index }: { label: string; value: number; index
           style={{ width: filled ? `${value}%` : "0%", transitionDelay: `${index * 60}ms` }}
         />
       </span>
-      <span className="w-6 shrink-0 text-right text-[10px] text-ink">{value}</span>
+      <span className="w-6 shrink-0 text-right text-micro text-ink">{value}</span>
     </div>
   );
 }
@@ -918,12 +918,12 @@ function ScoreBar({ label, value, index }: { label: string; value: number; index
 function MiniList({ title, items }: { title: string; items: string[] }) {
   return (
     <div>
-      <p className="text-[10px] font-semibold uppercase tracking-wide text-steel">{title}</p>
+      <p className="text-micro font-semibold uppercase tracking-wide text-steel">{title}</p>
       <ul className="mt-0.5 space-y-0.5">
         {items.slice(0, 5).map((it, i) => (
-          <li key={i} className="flex gap-1 text-[11px] text-ink"><span className="text-moss">•</span><span>{it}</span></li>
+          <li key={i} className="flex gap-1 text-micro text-ink"><span className="text-moss">•</span><span>{it}</span></li>
         ))}
-        {items.length === 0 ? <li className="text-[11px] text-steel">—</li> : null}
+        {items.length === 0 ? <li className="text-micro text-steel">—</li> : null}
       </ul>
     </div>
   );
@@ -944,7 +944,7 @@ function LifecycleRow({ lc, onApprove }: { lc: Lifecycle; onApprove: () => void 
       <div className="flex items-center gap-2">
         <span className="min-w-0 flex-1 truncate text-sm font-semibold text-ink">{lc.title || "Role"}</span>
         <span
-          className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase ${
+          className={`rounded-full px-2 py-0.5 text-micro font-semibold uppercase ${
             awaiting ? "bg-amber-100 text-amber-700" : done ? "bg-moss/15 text-moss" : "bg-paper text-steel"
           }`}
         >
@@ -954,7 +954,7 @@ function LifecycleRow({ lc, onApprove }: { lc: Lifecycle; onApprove: () => void 
           <button
             type="button"
             onClick={onApprove}
-            className="focus-ring inline-flex h-7 shrink-0 items-center gap-1 rounded-md bg-moss px-2.5 text-[11px] font-semibold text-white hover:opacity-90"
+            className="focus-ring inline-flex h-7 shrink-0 items-center gap-1 rounded-md bg-moss px-2.5 text-micro font-semibold text-white hover:opacity-90"
           >
             <ShieldCheck size={12} /> Approve
           </button>
@@ -968,7 +968,7 @@ function LifecycleRow({ lc, onApprove }: { lc: Lifecycle; onApprove: () => void 
           </div>
         ))}
       </div>
-      <p className="mt-1.5 text-[11px] text-steel">{lc.detail}</p>
+      <p className="mt-1.5 text-micro text-steel">{lc.detail}</p>
     </div>
   );
 }
@@ -976,7 +976,7 @@ function LifecycleRow({ lc, onApprove }: { lc: Lifecycle; onApprove: () => void 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="block">
-      <span className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-steel">{label}</span>
+      <span className="mb-1 block text-micro font-semibold uppercase tracking-wide text-steel">{label}</span>
       {children}
     </label>
   );

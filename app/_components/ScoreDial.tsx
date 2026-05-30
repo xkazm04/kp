@@ -38,6 +38,14 @@ function bandIndex(score: number): number {
   return 4;
 }
 
+// Score-meaningful band colors (poor -> coral, fair -> amber, good -> moss),
+// consistent with the Fit-matrix scale, instead of a flat coral for every band.
+function bandColor(i: number): string {
+  if (i <= 0) return "var(--color-coral)";
+  if (i <= 2) return "var(--color-dial-amber)";
+  return "var(--color-moss)";
+}
+
 function prefersReducedMotion(): boolean {
   if (typeof window === "undefined" || typeof window.matchMedia !== "function") return false;
   return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -102,7 +110,7 @@ export function ScoreDial({ score }: ScoreDialProps) {
               cy={CENTER}
               r={RADIUS}
               fill="none"
-              stroke={isFilled ? "var(--color-coral)" : "#e7e5e4"}
+              stroke={isFilled ? bandColor(i) : "#e7e5e4"}
               strokeWidth={STROKE}
               strokeLinecap="round"
               strokeDasharray={`${arcLen.toFixed(2)} ${CIRCUMFERENCE.toFixed(2)}`}

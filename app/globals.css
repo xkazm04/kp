@@ -35,6 +35,10 @@
   --text-meta--line-height: 1.4;
   --text-meta--letter-spacing: 0.08em;
   --text-meta--font-weight: 600;
+
+  /* Smallest token on the scale — nothing should render below this. */
+  --text-micro: 11px;
+  --text-micro--line-height: 1.4;
 }
 
 :root {

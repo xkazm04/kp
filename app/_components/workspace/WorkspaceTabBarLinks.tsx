@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { tabHref, WORKSPACE_TABS, type WorkspaceTabId } from "./tabs";
+import { navItemClass, tabHref, WORKSPACE_TABS, type WorkspaceTabId } from "./tabs";
 
 // Server-rendered tab strip for deep-link pages (history/[slug], jds/[slug]).
 // Visually identical to the interactive Workspace tab bar but each tab is a
@@ -19,11 +19,7 @@ export function WorkspaceTabBarLinks({ active }: { active: WorkspaceTabId }) {
               key={tab.id}
               href={tabHref(tab.id)}
               aria-current={isActive ? "page" : undefined}
-              className={`focus-ring inline-flex h-10 items-center justify-center rounded-md px-3 text-sm font-semibold transition-colors ${
-                isActive
-                  ? "bg-ink text-white"
-                  : "text-steel hover:bg-paper hover:text-ink"
-              }`}
+              className={`focus-ring inline-flex h-10 items-center justify-center rounded-md px-3 text-sm font-semibold transition-colors ${navItemClass(isActive)}`}
             >
               {tab.label}
             </Link>

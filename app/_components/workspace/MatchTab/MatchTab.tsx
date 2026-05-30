@@ -510,6 +510,8 @@ function ReasonList({ title, items, tone }: { title: string; items: string[]; to
 
 function Bar({ label, value }: { label: string; value: number }) {
   const pct = Math.round(Math.max(0, Math.min(1, value)) * 100);
+  // Fill color tracks the score (coral -> amber -> moss), not just bar length.
+  const tone = pct < 45 ? "bg-coral/70" : pct < 72 ? "bg-dial-amber" : "bg-moss";
   return (
     <div>
       <div className="flex justify-between text-[10px] text-steel">
@@ -517,7 +519,7 @@ function Bar({ label, value }: { label: string; value: number }) {
         <span>{pct}</span>
       </div>
       <div className="mt-0.5 h-1.5 rounded-full bg-stone-100">
-        <div className="h-1.5 rounded-full bg-coral" style={{ width: `${pct}%` }} />
+        <div className={`h-1.5 rounded-full ${tone}`} style={{ width: `${pct}%` }} />
       </div>
     </div>
   );
