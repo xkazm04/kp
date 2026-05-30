@@ -1,3 +1,4 @@
+import { Sparkles } from "lucide-react";
 import { ARCHETYPE_STYLE, daysSince, STALE_DAYS, styleFor, type Entry, type PipelineEvent } from "./PipelineTypes";
 
 export function eventVerb(ev: PipelineEvent): string {
@@ -109,6 +110,56 @@ export function Avatar({
       {initials}
       {dot}
     </span>
+  );
+}
+
+// A candidate in a position cell: full name + a prominent status dot (~2x the
+// old avatar corner dot). The name navigates to the analyzed profile; a hover
+// affordance opens the AI-actions drawer.
+export function CandidateRow({
+  entry,
+  pending = false,
+  stale = false,
+  onOpen,
+  onActions,
+}: {
+  entry: Entry;
+  pending?: boolean;
+  stale?: boolean;
+  onOpen: () => void;
+  onActions?: () => void;
+}) {
+  const style = styleFor(entry.archetype);
+  const days = daysSince(entry.stageChangedAt);
+  // pending (coral pulse) > aging (amber) > archetype color.
+  const dotClass = pending ? "bg-coral animate-pulse" : stale ? "bg-amber-400" : style.bg;
+  const dotTitle = pending ? "Awaiting your decision" : stale ? `Aging >${STALE_DAYS}d in stage` : style.label;
+  const title = `${entry.candidateLabel} · ${style.label}${entry.matchScore != null ? ` · match ${entry.matchScore}` : ""}${
+    days != null ? ` · ${days}d in stage` : ""
+  }`;
+  return (
+    <div className="group flex items-center gap-1.5 rounded-md px-1 py-0.5 hover:bg-paper">
+      <span className={`h-4 w-4 shrink-0 rounded-full ${dotClass}`} title={dotTitle} aria-hidden />
+      <button
+        type="button"
+        onClick={onOpen}
+        title={`${title} · open analyzed profile`}
+        className="focus-ring min-w-0 flex-1 truncate text-left text-sm font-medium text-ink hover:text-coral"
+      >
+        {entry.candidateLabel}
+      </button>
+      {onActions ? (
+        <button
+          type="button"
+          onClick={onActions}
+          aria-label={`AI actions for ${entry.candidateLabel}`}
+          title="AI actions"
+          className="focus-ring shrink-0 rounded p-0.5 text-steel opacity-0 transition-opacity hover:text-coral group-hover:opacity-100"
+        >
+          <Sparkles size={14} />
+        </button>
+      ) : null}
+    </div>
   );
 }
 

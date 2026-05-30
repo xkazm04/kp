@@ -60,7 +60,12 @@ export function PipelineTab() {
   const isStale = (e: Entry) => e.stage !== "Hired" && (daysSince(e.stageChangedAt) ?? 0) >= STALE_DAYS;
   const staleCount = (entries ?? []).filter(isStale).length;
 
-  const openCandidate = (e: Entry) => setDrawerEntry(e);
+  const openActions = (e: Entry) => setDrawerEntry(e);
+  // Candidate name → the analyzed profile (Match view); falls back to the
+  // AI-actions drawer when the entry has no linked candidate id.
+  const openProfile = (e: Entry) =>
+    e.candidateId ? router.push(buildUrl({ tab: "match", profile: e.candidateId })) : setDrawerEntry(e);
+  const openJob = (jobId: string) => router.push(buildUrl({ tab: "jobs", job: jobId }));
 
   // Reload the board when a background batch-screen finishes (it mutates many entries).
   useEffect(() => {
@@ -71,7 +76,8 @@ export function PipelineTab() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tasks]);
-  const openPositionRanking = (jobId: string) => router.push(buildUrl({ tab: "jobs", job: jobId }));
+  // "Rank candidates" → the Fit matrix scoped to this position (a per-position ranking).
+  const openPositionRanking = (jobId: string) => router.push(buildUrl({ tab: "matrix", job: jobId }));
 
   const runPass = async () => {
     setRunning(true);
@@ -185,7 +191,9 @@ export function PipelineTab() {
             entries={entries ?? []}
             isStale={isStale}
             openPositionRanking={openPositionRanking}
-            openCandidate={openCandidate}
+            openProfile={openProfile}
+            openJob={openJob}
+            openActions={openActions}
           />
 
           {events.length > 0 ? (

@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { buildUrl } from "@/app/features/tabs";
+import { cellClass, MatrixLegend, type Cell } from "./MatrixShared";
 
-type Cell = { score: number | null; blocked: boolean };
 type Candidate = { id: string; label: string; archetype: string | null };
 type Position = { id: string; title: string; seniority: string; roleFamily: string };
 type Matrix = {
@@ -28,24 +28,12 @@ const STAGE_INITIAL: Record<string, string> = {
   Hired: "H",
 };
 
-// Blocked/empty cells get a diagonal hatch so they read as "not applicable"
-// without relying on the grey fill alone (color-independent legibility).
-const BLOCKED_CELL =
-  "bg-stone-100 text-stone-400 [background-image:repeating-linear-gradient(45deg,#d6d3d1_0px,#d6d3d1_1px,transparent_1px,transparent_5px)]";
-
-// diverging score scale: poor -> coral, fair -> amber, good/strong -> moss
-function cellClass(c: Cell): string {
-  if (c.blocked || c.score == null) return BLOCKED_CELL;
-  const s = c.score;
-  if (s < 45) return "bg-coral/15 text-coral";
-  if (s < 60) return "bg-amber-100 text-amber-700";
-  if (s < 72) return "bg-moss/20 text-moss";
-  if (s < 85) return "bg-moss/40 text-ink";
-  return "bg-moss/70 text-white";
-}
-
 export function MatrixTab() {
   const router = useRouter();
+  const search = useSearchParams();
+  // When arriving from a Pipeline position ("Rank candidates"), scope the matrix
+  // to that single position so it reads as a per-position ranking.
+  const jobParam = search.get("job");
   const [data, setData] = useState<Matrix | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [sortByFit, setSortByFit] = useState(true);
@@ -66,13 +54,16 @@ export function MatrixTab() {
     return [...new Set(data.positions.map((p) => p.roleFamily))].filter(Boolean).sort();
   }, [data]);
 
-  // visible columns (role-family filter) + their original indices
+  // visible columns: a single position when scoped via ?job=, otherwise the
+  // role-family filter. Indices are preserved to index back into `cells`.
   const cols = useMemo(() => {
     if (!data) return [];
-    return data.positions
-      .map((p, i) => ({ p, i }))
-      .filter(({ p }) => family === "all" || p.roleFamily === family);
-  }, [data, family]);
+    const indexed = data.positions.map((p, i) => ({ p, i }));
+    if (jobParam) return indexed.filter(({ p }) => p.id === jobParam);
+    return indexed.filter(({ p }) => family === "all" || p.roleFamily === family);
+  }, [data, family, jobParam]);
+
+  const scopedPosition = jobParam ? data?.positions.find((p) => p.id === jobParam) ?? null : null;
 
   // rows sorted by best visible fit (or alphabetical)
   const rows = useMemo(() => {
@@ -96,8 +87,9 @@ export function MatrixTab() {
           <p className="text-meta uppercase text-coral">Workspace</p>
           <h2 className="mt-1 font-serif text-display text-ink">Fit matrix</h2>
           <p className="mt-1 max-w-2xl text-body text-steel">
-            Every candidate scored against every open position. Colour = match strength; a ring marks candidates
-            already in that position&apos;s pipeline. Click any cell to open the full match.
+            {scopedPosition
+              ? `Candidates ranked by fit for ${scopedPosition.title}. Colour = match strength; a ring marks candidates already in this position's pipeline.`
+              : "Every candidate scored against every open position. Colour = match strength; a ring marks candidates already in that position's pipeline. Click any cell to open the full match."}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -116,7 +108,20 @@ export function MatrixTab() {
         </div>
       </header>
 
-      {families.length > 1 ? (
+      {scopedPosition ? (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="rounded-full bg-coral/10 px-2.5 py-1 text-[11px] font-semibold text-coral">
+            Ranking for {scopedPosition.title}
+          </span>
+          <button
+            type="button"
+            onClick={() => router.push(buildUrl({ tab: "matrix", job: null }))}
+            className="focus-ring rounded-full border border-stone-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-steel hover:border-coral/40"
+          >
+            Show all positions
+          </button>
+        </div>
+      ) : families.length > 1 ? (
         <div className="flex flex-wrap gap-1.5">
           {["all", ...families].map((f) => (
             <button
@@ -205,25 +210,7 @@ export function MatrixTab() {
             </table>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3 text-[11px] text-steel">
-            <span className="font-semibold uppercase tracking-wide">Match</span>
-            {[
-              ["bg-coral/15 text-coral", "<45"],
-              ["bg-amber-100 text-amber-700", "45–59"],
-              ["bg-moss/20 text-moss", "60–71"],
-              ["bg-moss/40 text-ink", "72–84"],
-              ["bg-moss/70 text-white", "85+"],
-              [BLOCKED_CELL, "blocked"],
-            ].map(([cls, label]) => (
-              <span key={label} className="inline-flex items-center gap-1">
-                <span className={`grid h-5 w-6 place-items-center rounded ${cls} text-[9px] font-semibold`}>{label === "blocked" ? "–" : ""}</span>
-                {label}
-              </span>
-            ))}
-            <span className="inline-flex items-center gap-1">
-              <span className="h-4 w-4 rounded ring-2 ring-inset ring-ink/50" /> in pipeline
-            </span>
-          </div>
+          <MatrixLegend />
         </>
       )}
     </section>
