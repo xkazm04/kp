@@ -24,6 +24,7 @@ pipeline-sidecar*.log
 
 # Local tooling
 .claude/logs
+.claude/worktrees
 
 # Persistence
 data/*.sqlite
