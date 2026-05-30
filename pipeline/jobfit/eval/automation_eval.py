@@ -35,9 +35,7 @@ from .. import automation
 from ..claude_cli import ClaudeCliError, ClaudeCliProvider
 from ..jobs import normalize_job
 from ..matching import MatchCandidate, score_job
-
-RELIABILITY_THRESHOLD = 1.0  # every output must be well-formed + fairness-safe
-QUALITY_THRESHOLD = 3.5  # mean judge rating (1-5)
+from .thresholds import QUALITY_THRESHOLD, RELIABILITY_THRESHOLD  # noqa: F401  (re-exported)
 
 # Word-boundary patterns so "age" flags an explicit age mention but not "manage"/"language".
 _PROTECTED_RE = re.compile(

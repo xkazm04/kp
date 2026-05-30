@@ -33,15 +33,10 @@ from typing import Any
 
 from ..gemini import load_local_env
 from ..service import analyze
+from .thresholds import PASS_THRESHOLDS
 
 
 FIXTURES_DIR = Path(__file__).resolve().parent / "fixtures"
-PASS_THRESHOLDS = {
-    "role_family": 0.85,
-    "seniority": 0.70,
-    "salary_overlap": 0.60,
-    "skill_recall": 0.75,
-}
 
 
 @dataclass
@@ -277,13 +272,26 @@ def _load_fixtures(filter_keyword: str | None = None) -> tuple[list[tuple[Path, 
     return out, errors
 
 
-def _format_markdown(report: Report, load_errors: list[str] | None = None) -> str:
+_ANSI = {"green": "32", "red": "31", "yellow": "33", "bold": "1", "dim": "2"}
+
+
+def _make_styler(enabled: bool):
+    """Return a colorizer; a no-op when color is disabled (piped output / NO_COLOR)."""
+    def style(text: str, *names: str) -> str:
+        codes = ";".join(_ANSI[n] for n in names if n in _ANSI)
+        return f"\033[{codes}m{text}\033[0m" if enabled and codes else text
+    return style
+
+
+def _format_markdown(report: Report, load_errors: list[str] | None = None, *, color: bool = False) -> str:
+    s = _make_styler(color)
+    verdict = lambda ok: s("PASS", "green") if ok else s("FAIL", "red")  # noqa: E731
     lines: list[str] = []
     agg = report.aggregate()
-    lines.append("# Eval report\n")
+    lines.append(s("# Eval report", "bold") + "\n")
     lines.append(f"Fixtures: **{len(report.fixtures)}**\n")
     if load_errors:
-        lines.append(f"## ⚠ Malformed fixtures: {len(load_errors)}\n")
+        lines.append(s(f"## ⚠ Malformed fixtures: {len(load_errors)}", "yellow", "bold") + "\n")
         for err in load_errors:
             lines.append(f"- {err}")
         lines.append("")
@@ -292,8 +300,7 @@ def _format_markdown(report: Report, load_errors: list[str] | None = None) -> st
     lines.append("|---|---|---|---|")
     for k, v in agg.items():
         threshold = PASS_THRESHOLDS[k]
-        ok = "PASS" if v >= threshold else "FAIL"
-        lines.append(f"| {k} | {v:.0%} | {threshold:.0%} | {ok} |")
+        lines.append(f"| {k} | {v:.0%} | {threshold:.0%} | {verdict(v >= threshold)} |")
     lines.append("")
     lines.append("## Per-fixture\n")
     lines.append(
@@ -301,20 +308,51 @@ def _format_markdown(report: Report, load_errors: list[str] | None = None) -> st
     )
     lines.append("|---|---|---|---|---|---|---|---|")
     for f in report.fixtures:
-        rf = "PASS" if f.role_family_match else "FAIL"
-        sn = "PASS" if f.seniority_match else "FAIL"
-        edu = "n/a" if f.education_match is None else ("PASS" if f.education_match else "FAIL")
+        rf = verdict(f.role_family_match)
+        sn = verdict(f.seniority_match)
+        edu = "n/a" if f.education_match is None else verdict(f.education_match)
         sig = "n/a" if f.signals_recall is None else f"{f.signals_recall:.0%}"
         lines.append(
             f"| {f.name} | {rf} | {sn} | {f.salary_overlap:.0%} | {f.skill_recall:.0%} | "
             f"{edu} | {sig} | {f.duration_s:.1f} |"
         )
+
+    # Diff-style detail for each fixture that failed any axis: the failing axis,
+    # the expected value, and what was actually produced — so a red row in the
+    # table above is immediately explainable without re-running by hand.
+    detail = _failure_detail(report, s)
+    if detail:
+        lines.append("\n## Failure detail\n")
+        lines.extend(detail)
+
     failed = [f for f in report.fixtures if f.error]
     if failed:
         lines.append("\n## Errors\n")
         for f in failed:
-            lines.append(f"- **{f.name}**: {f.error}")
+            lines.append(f"- **{f.name}**: {s(f.error or '', 'red')}")
     return "\n".join(lines)
+
+
+def _failure_detail(report: Report, s) -> list[str]:
+    out: list[str] = []
+    for f in report.fixtures:
+        if f.error:
+            continue  # already listed under Errors
+        rows: list[str] = []
+        if not f.role_family_match:
+            rows.append(f"    role_family: expected {f.expected.get('expected_role_family')!r}, got {f.actual.get('roleFamily')!r}")
+        if not f.seniority_match:
+            rows.append(f"    seniority:   expected {f.expected.get('expected_seniority')!r}, got {f.actual.get('seniority')!r}")
+        if f.salary_overlap < PASS_THRESHOLDS["salary_overlap"]:
+            rows.append(f"    salary:      expected {f.expected.get('expected_salary_range')!r}, got {f.actual.get('salary')!r} (overlap {f.salary_overlap:.0%})")
+        if f.skill_recall < PASS_THRESHOLDS["skill_recall"]:
+            rows.append(f"    skills:      recall {f.skill_recall:.0%} of {f.expected.get('expected_skills_subset')!r}; got {f.actual.get('skills')!r}")
+        if f.education_match is False:
+            rows.append(f"    education:   expected {f.expected.get('expected_education')!r}, got {f.actual.get('education')!r}")
+        if rows:
+            out.append(f"- {s(f.name, 'bold')}")
+            out.extend(s(r, "red") for r in rows)
+    return out
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -324,9 +362,13 @@ def main(argv: list[str] | None = None) -> int:
 
     parser = argparse.ArgumentParser(description="Run the jobfit eval harness against the golden fixtures.")
     parser.add_argument("--filter", help="Only run fixtures whose name contains this substring.")
-    parser.add_argument("--json", action="store_true", help="Emit JSON instead of markdown.")
+    parser.add_argument("--format", choices=["pretty", "json"], default=None, help="Output format (default: pretty).")
+    parser.add_argument("--json", action="store_true", help="Alias for --format json (machine-readable).")
+    parser.add_argument("--no-color", action="store_true", help="Disable ANSI color in the pretty report.")
     parser.add_argument("--strict", action="store_true", help="Exit non-zero if pass thresholds fail.")
     args = parser.parse_args(argv)
+    want_json = args.json or args.format == "json"
+    use_color = not args.no_color and sys.stdout.isatty() and os.getenv("NO_COLOR") is None
 
     load_local_env()
     if not (os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")):
@@ -346,8 +388,9 @@ def main(argv: list[str] | None = None) -> int:
         result = _run_fixture(cv_path, expected)
         report.fixtures.append(result)
 
-    if args.json:
+    if want_json:
         out = {
+            "schemaVersion": 1,
             "aggregate": report.aggregate(),
             "thresholds": PASS_THRESHOLDS,
             "passes": report.passes(),
@@ -372,7 +415,7 @@ def main(argv: list[str] | None = None) -> int:
         }
         print(json.dumps(out, indent=2, ensure_ascii=False))
     else:
-        print(_format_markdown(report, load_errors))
+        print(_format_markdown(report, load_errors, color=use_color))
 
     # A malformed fixture is a data-integrity failure: fail the run regardless of
     # --strict (which only governs the soft pass-threshold gate).

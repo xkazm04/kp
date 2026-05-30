@@ -33,12 +33,7 @@ from ..matching import load_corpus, match
 from ..profile import CandidateProfileV2, Evidence, SkillClaim
 from ..taxonomy import resolve_term, skill_match_score
 from ..transform import build_match_candidate
-
-THRESHOLDS = {
-    "archetype_accuracy": 1.0,
-    "entry_precision": 0.99,
-    "role_relevance_at5": 0.60,
-}
+from .thresholds import MATCHING_THRESHOLDS as THRESHOLDS
 
 
 # -- scenario builders ------------------------------------------------------

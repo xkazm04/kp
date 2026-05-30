@@ -22,12 +22,14 @@ class TestAutomationEval(unittest.TestCase):
         names = {s.name: s for s in SCENARIOS}
         for r in (x for x in self.rows if x.task == "screen"):
             if names[r.scenario].candidate.archetype in _EARLY:
-                self.assertNotEqual(r.output.get("recommendation"), "reject", r.scenario)
-                self.assertNotEqual(r.output.get("route"), "advance", r.scenario)
+                with self.subTest(scenario=r.scenario):
+                    self.assertNotEqual(r.output.get("recommendation"), "reject", r.scenario)
+                    self.assertNotEqual(r.output.get("route"), "advance", r.scenario)
 
     def test_rejection_has_no_protected_characteristic_language(self):
         for r in (x for x in self.rows if x.task == "rejection"):
-            self.assertEqual([i for i in r.issues if "FAIRNESS" in i], [], r.scenario)
+            with self.subTest(scenario=r.scenario):
+                self.assertEqual([i for i in r.issues if "FAIRNESS" in i], [], r.scenario)
 
 
 if __name__ == "__main__":

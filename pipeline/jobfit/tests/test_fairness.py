@@ -23,16 +23,19 @@ class MatchingEvalTest(unittest.TestCase):
 
     def test_archetypes_routed_correctly(self) -> None:
         for s in self.report.scenarios:
-            self.assertTrue(s.archetype_ok, f"{s.name} routed to {s.detected_archetype}")
+            with self.subTest(scenario=s.name):
+                self.assertTrue(s.archetype_ok, f"{s.name} routed to {s.detected_archetype}")
 
     def test_early_career_matches_all_entry_eligible(self) -> None:
         for s in self.report.scenarios:
             if s.entry_precision is not None:
-                self.assertEqual(s.entry_precision, 1.0, f"{s.name} returned a non-entry role")
+                with self.subTest(scenario=s.name):
+                    self.assertEqual(s.entry_precision, 1.0, f"{s.name} returned a non-entry role")
 
     def test_fairness_probes_pass(self) -> None:
         for p in self.report.probes:
-            self.assertTrue(p.passed, f"fairness probe failed: {p.name} — {p.detail}")
+            with self.subTest(probe=p.name):
+                self.assertTrue(p.passed, f"fairness probe failed: {p.name} — {p.detail}")
 
     def test_overall_passes(self) -> None:
         self.assertTrue(self.report.passes())
