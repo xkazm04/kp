@@ -1,30 +1,28 @@
+import { ChevronRight } from "lucide-react";
 import { formatPercent } from "@/app/_lib/format";
-import { DisclosureRow } from "@/app/_components/DisclosureRow";
 import { FAMILY_LABEL, formatBand } from "./JobsTypes";
 import type { Job } from "./JobsTypes";
 import { Td } from "./JobsShared";
-import { JobDetail } from "./JobDetail";
 
-export function JobRow({
-  job,
-  isOpen,
-  autoLoad,
-  onToggle,
-}: {
-  job: Job;
-  isOpen: boolean;
-  autoLoad: boolean;
-  onToggle: () => void;
-}) {
+// A clickable corpus row: activating it opens the publish-format posting modal.
+export function JobRow({ job, onOpen }: { job: Job; onOpen: () => void }) {
   const ep = job.entryProfile;
   return (
-    <DisclosureRow
-      isOpen={isOpen}
-      onToggle={onToggle}
-      colSpan={8}
-      label={`${job.title}${job.company ? ` at ${job.company}` : ""}`}
-      detail={<JobDetail job={job} autoLoad={autoLoad} />}
+    <tr
+      tabIndex={0}
+      role="button"
+      onClick={onOpen}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onOpen();
+        }
+      }}
+      className="focus-ring cursor-pointer transition-colors hover:bg-paper"
     >
+      <td className="w-8 px-2 py-3 text-steel">
+        <ChevronRight size={15} aria-hidden />
+      </td>
       <Td>
         <span className="font-medium text-ink">{job.title}</span>
         <span className="block text-sm text-steel">{job.company ?? "—"}</span>
@@ -43,6 +41,6 @@ export function JobRow({
           <span className="text-sm text-steel">—</span>
         )}
       </Td>
-    </DisclosureRow>
+    </tr>
   );
 }

@@ -6,18 +6,22 @@ import { X } from "lucide-react";
 // A centered, focus-trapped dialog: backdrop-click + Escape close, Tab cycles
 // within, focus restores to the trigger on unmount. Shared by the Decisions
 // analysis-summary and group-evaluation modals.
+const SIZE: Record<string, string> = { md: "max-w-md", lg: "max-w-lg", xl: "max-w-xl", "2xl": "max-w-2xl", "4xl": "max-w-4xl" };
+
 export function Modal({
   title,
   subtitle,
   onClose,
   children,
   footer,
+  size = "2xl",
 }: {
   title: string;
   subtitle?: string;
   onClose: () => void;
   children: React.ReactNode;
   footer?: React.ReactNode;
+  size?: "md" | "lg" | "xl" | "2xl" | "4xl";
 }) {
   const ref = useRef<HTMLDivElement | null>(null);
   const onCloseRef = useRef(onClose);
@@ -68,7 +72,7 @@ export function Modal({
         role="dialog"
         aria-modal="true"
         aria-labelledby="modal-title"
-        className="animate-fade-in relative flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-lg border border-stone-200 bg-white shadow-2xl"
+        className={`animate-fade-in relative flex max-h-[85vh] w-full ${SIZE[size] ?? SIZE["2xl"]} flex-col overflow-hidden rounded-lg border border-stone-200 bg-white shadow-2xl`}
       >
         <header className="flex items-start gap-3 border-b border-stone-200 px-5 py-3.5">
           <div className="min-w-0 flex-1">

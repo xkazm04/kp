@@ -14,13 +14,14 @@ import type { Job, Stats } from "./JobsTypes";
 import { Chip, Select } from "./JobsShared";
 import { JobsTableFrame, JobsTableSkeleton } from "./JobsTable";
 import { JobRow } from "./JobRow";
+import { JobPostingModal } from "./JobPostingModal";
 
 export function JobsTab() {
   const [jobs, setJobs] = useState<Job[] | null>(null);
   const [stats, setStats] = useState<Stats | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [fetching, setFetching] = useState(false);
-  const [expanded, setExpanded] = useState<string | null>(null);
+  const [openJob, setOpenJob] = useState<Job | null>(null);
 
   const [roleFamily, setRoleFamily] = useState("");
   const [seniority, setSeniority] = useState("");
@@ -28,12 +29,15 @@ export function JobsTab() {
   const [entryOnly, setEntryOnly] = useState(false);
   const [q, setQ] = useState("");
 
-  // Deep link from the Pipeline (?tab=jobs&job=<id>): auto-expand + auto-rank that role.
+  // Deep link from the Pipeline (?tab=jobs&job=<id>): auto-open that job's posting.
   const search = useSearchParams();
   const jobParam = search.get("job");
   useEffect(() => {
-    if (jobParam) setExpanded(jobParam);
-  }, [jobParam]);
+    if (jobParam && jobs) {
+      const match = jobs.find((j) => j.id === jobParam);
+      if (match) setOpenJob(match);
+    }
+  }, [jobParam, jobs]);
 
   useEffect(() => {
     let cancelled = false;
@@ -203,23 +207,16 @@ export function JobsTab() {
           >
             <JobsTableFrame>
               <tbody className="divide-y divide-stone-200">
-                {jobs.map((job) => {
-                  const isOpen = expanded === job.id;
-                  return (
-                    <JobRow
-                      key={job.id}
-                      job={job}
-                      isOpen={isOpen}
-                      autoLoad={job.id === jobParam}
-                      onToggle={() => setExpanded(isOpen ? null : job.id)}
-                    />
-                  );
-                })}
+                {jobs.map((job) => (
+                  <JobRow key={job.id} job={job} onOpen={() => setOpenJob(job)} />
+                ))}
               </tbody>
             </JobsTableFrame>
           </div>
         )}
       </div>
+
+      {openJob ? <JobPostingModal job={openJob} onClose={() => setOpenJob(null)} /> : null}
     </section>
   );
 }
