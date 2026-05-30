@@ -29,7 +29,7 @@ def main(argv: list[str] | None = None) -> int:
         sys.stderr.reconfigure(encoding="utf-8")
 
     parser = argparse.ArgumentParser(description="Dev-extension tasks (Claude CLI only).")
-    parser.add_argument("command", choices=["analyze-need", "design-artifacts", "reflect-commits", "evaluate-submission"])
+    parser.add_argument("command", choices=["analyze-need", "design-artifacts", "reflect-commits", "evaluate-submission", "source"])
     parser.add_argument("--need-json", type=Path)
     parser.add_argument("--snapshot-json", type=Path)
     parser.add_argument("--analysis-json", type=Path)
@@ -38,10 +38,25 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--repo-json", type=Path)
     parser.add_argument("--case-json", type=Path)
     parser.add_argument("--role-json", type=Path)
+    parser.add_argument("--candidates-json", type=Path)
+    parser.add_argument("--top-n", type=int, default=8)
+    parser.add_argument("--floor", type=int, default=45)
     parser.add_argument("--no-llm", action="store_true")
     args = parser.parse_args(argv)
 
     try:
+        # `source` is deterministic (pure matching) — no provider needed.
+        if args.command == "source":
+            from . import source as _source
+
+            if not args.role_json or not args.candidates_json:
+                raise ValueError("source requires --role-json and --candidates-json")
+            role = json.loads(args.role_json.read_text(encoding="utf-8"))
+            candidates = json.loads(args.candidates_json.read_text(encoding="utf-8")) or []
+            result = _source.source_candidates(role, candidates, top_n=args.top_n, floor=args.floor)
+            print(json.dumps({"result": result}, ensure_ascii=False))
+            return 0
+
         provider = None if args.no_llm else ClaudeCliProvider(timeout=120)
         if provider is not None and not provider.available():
             provider = None

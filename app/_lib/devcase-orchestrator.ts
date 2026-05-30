@@ -1,4 +1,5 @@
 import {
+  createPipelineEntry,
   getDevCase,
   getLifecycle,
   listSubmissions,
@@ -6,7 +7,7 @@ import {
   updateLifecycle,
   type LifecycleRecord,
 } from "./db";
-import { promoteSubmission, runDesignArtifacts, runEvaluateSubmission, runNeedAnalysis, type DevNeed } from "./devcase-run";
+import { promoteSubmission, runDesignArtifacts, runEvaluateSubmission, runNeedAnalysis, runSourceForRole, type DevNeed } from "./devcase-run";
 import { getAdapter } from "./distribution";
 import { sendComm } from "./comms";
 
@@ -68,7 +69,34 @@ export async function runLifecycle(id: string, progress?: Progress): Promise<{ s
       const devCase = lc.caseId ? getDevCase(lc.caseId) : null;
       if (!devCase) throw new Error("approved lifecycle has no dev case");
       const posting = await getAdapter("local").publish(devCase);
-      updateLifecycle(id, { stage: "collecting", postingId: posting.id, detail: "published — awaiting submissions" });
+
+      // Proactive sourcing: rank the existing candidate DB against the role and seed the
+      // pipeline at the Sourced stage — so the role finds candidates, not only waits for them.
+      let sourced = 0;
+      try {
+        const roleTitle = (lc.role as { title?: string } | null)?.title ?? lc.title ?? "Dev case";
+        for (const m of await runSourceForRole((lc.role as Record<string, unknown>) ?? {})) {
+          if (!m.candidateId) continue;
+          createPipelineEntry({
+            candidateId: m.candidateId,
+            candidateLabel: m.label,
+            archetype: m.archetype,
+            roleFamily: "software_engineering",
+            jobId: `dc-${lc.caseId}`,
+            jobTitle: roleTitle,
+            matchScore: m.score,
+            stage: "Sourced",
+          });
+          sourced += 1;
+        }
+      } catch {
+        /* sourcing is best-effort — never block publishing */
+      }
+      updateLifecycle(id, {
+        stage: "collecting",
+        postingId: posting.id,
+        detail: `published; sourced ${sourced} candidate(s) into the pipeline; awaiting submissions`,
+      });
     } else if (lc.stage === "collecting") {
       const subs = lc.postingId ? listSubmissions(lc.postingId) : [];
       if (subs.length === 0) return { stage: "collecting", detail: "awaiting submissions" };

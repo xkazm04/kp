@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Boxes, Check, ClipboardList, GitBranch, Inbox, Loader2, Lock, Send, ShieldCheck, Sparkles } from "lucide-react";
+import { Boxes, Check, ClipboardList, GitBranch, Inbox, Loader2, Lock, Send, ShieldCheck, Sparkles, Users } from "lucide-react";
 import { useTasks } from "../tasks/TasksProvider";
 
 type NeedAnalysis = {
@@ -97,6 +97,8 @@ export function DevTab() {
   const [postings, setPostings] = useState<Posting[]>([]);
   const [lifecycles, setLifecycles] = useState<Lifecycle[]>([]);
   const [outbox, setOutbox] = useState<OutboxItem[]>([]);
+  const [sourcedCounts, setSourcedCounts] = useState<Record<string, number>>({});
+  const [sourcing, setSourcing] = useState<string | null>(null);
 
   const loadCases = () =>
     fetch("/api/devcase")
@@ -165,6 +167,21 @@ export function DevTab() {
       body: JSON.stringify({ caseId }),
     });
     loadPostings();
+  };
+
+  const source = async (caseId: string) => {
+    setSourcing(caseId);
+    try {
+      const r = await fetch("/api/devcase/source", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ caseId }),
+      });
+      const p = await r.json();
+      if (r.ok) setSourcedCounts((s) => ({ ...s, [caseId]: p.added }));
+    } finally {
+      setSourcing(null);
+    }
   };
 
   const needTasks = useMemo(() => tasks.filter((t) => t.kind === "need_analysis"), [tasks]);
@@ -490,14 +507,26 @@ export function DevTab() {
                 <li key={c.id} className="flex flex-col rounded-lg border border-stone-200 bg-white p-3 shadow-panel">
                   <p className="truncate text-sm font-semibold text-ink">{c.title || "Assignment"}</p>
                   <p className="truncate text-[11px] text-steel">{c.roleTitle} · {c.seniority}</p>
-                  <button
-                    type="button"
-                    onClick={() => publish(c.id)}
-                    disabled={published}
-                    className="focus-ring mt-2 inline-flex h-8 items-center justify-center gap-1.5 rounded-md border border-stone-200 px-2 text-[11px] font-semibold text-ink hover:border-coral/40 disabled:opacity-50"
-                  >
-                    <Send size={12} /> {published ? "Published" : "Publish"}
-                  </button>
+                  <div className="mt-2 flex gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => publish(c.id)}
+                      disabled={published}
+                      className="focus-ring inline-flex h-8 flex-1 items-center justify-center gap-1.5 rounded-md border border-stone-200 px-2 text-[11px] font-semibold text-ink hover:border-coral/40 disabled:opacity-50"
+                    >
+                      <Send size={12} /> {published ? "Published" : "Publish"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => source(c.id)}
+                      disabled={sourcing === c.id}
+                      title="Rank the existing candidate DB against this role and seed the pipeline at Sourced"
+                      className="focus-ring inline-flex h-8 items-center justify-center gap-1.5 rounded-md border border-stone-200 px-2 text-[11px] font-semibold text-coral hover:border-coral/40 disabled:opacity-50"
+                    >
+                      <Users size={12} />
+                      {sourcing === c.id ? "…" : sourcedCounts[c.id] != null ? `sourced ${sourcedCounts[c.id]}` : "Source DB"}
+                    </button>
+                  </div>
                 </li>
               );
             })}

@@ -5,6 +5,7 @@ import {
   getDevCase,
   getPosting,
   getSubmission,
+  listMatrixProfiles,
   recordAutomationEvent,
   saveSubmissionEvaluation,
   setApproval,
@@ -198,6 +199,44 @@ export async function runEvaluateSubmission(submissionId: string): Promise<Submi
     const transferScore = Number((payload.result.transfer as { transferScore?: number }).transferScore ?? 0);
     saveSubmissionEvaluation(submissionId, out, transferScore);
     return out;
+  } finally {
+    await cleanupWorkdir(workdir);
+  }
+}
+
+export type Sourced = { candidateId: string; label: string; archetype: string | null; score: number; matchedSkills: string[] };
+
+// Phase C — proactive sourcing: rank the existing candidate DB against a designed role
+// (deterministic matching). The role becomes a Job the core matcher scores.
+export async function runSourceForRole(role: Record<string, unknown>, topN = 8, floor = 45): Promise<Sourced[]> {
+  const profiles = listMatrixProfiles();
+  if (profiles.length === 0) return [];
+  const workdir = await createWorkdir();
+  try {
+    const rolePath = path.join(workdir, "role.json");
+    const candsPath = path.join(workdir, "cands.json");
+    await writeFile(rolePath, JSON.stringify(role), "utf-8");
+    await writeFile(candsPath, JSON.stringify(profiles), "utf-8");
+    const { result } = spawnPython([
+      "-m",
+      "pipeline.jobfit.devcase.devcase_cli",
+      "source",
+      "--role-json",
+      rolePath,
+      "--candidates-json",
+      candsPath,
+      "--top-n",
+      String(topN),
+      "--floor",
+      String(floor),
+    ]);
+    const { stdout, stderr, exitCode } = await result;
+    if (exitCode !== 0) {
+      const err = parseStderrError(stderr, exitCode);
+      throw new Error(err.message);
+    }
+    const payload = JSON.parse(stdout) as { result: Sourced[] };
+    return payload.result ?? [];
   } finally {
     await cleanupWorkdir(workdir);
   }
