@@ -28,7 +28,7 @@ export function ScheduleTab() {
   }, []);
 
   const pending = entries ?? [];
-  const selected = useMemo(() => pending.find((e) => e.id === selectedId) ?? null, [pending, selectedId]);
+  const selected = useMemo(() => (entries ?? []).find((e) => e.id === selectedId) ?? null, [entries, selectedId]);
 
   const pickSlot = (slot: string) => {
     if (!selectedId) return;
