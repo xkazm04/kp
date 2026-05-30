@@ -76,3 +76,17 @@ export function getAutonomy(): Autonomy {
 export function setAutonomy(value: Autonomy): void {
   db().prepare(`INSERT INTO dev_control (key, value) VALUES ('autonomy', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`).run(value);
 }
+
+// The promote floor lives here so the outcome-loop calibration (Direction E) can adjust it —
+// a human applies a suggestion and the orchestrator reads it at runtime. Returns null when
+// unset (the orchestrator then falls back to its DEV_POLICY default).
+export function getPromoteFloor(): number | null {
+  const r = db().prepare(`SELECT value FROM dev_control WHERE key = 'promote_floor'`).get() as { value?: string } | undefined;
+  const n = Number(r?.value);
+  return Number.isFinite(n) ? n : null;
+}
+
+export function setPromoteFloor(value: number): void {
+  const v = String(Math.max(0, Math.min(100, Math.round(value))));
+  db().prepare(`INSERT INTO dev_control (key, value) VALUES ('promote_floor', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`).run(v);
+}

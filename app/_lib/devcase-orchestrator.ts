@@ -10,7 +10,7 @@ import {
 import { promoteSubmission, runDesignArtifacts, runEvaluateSubmission, runNeedAnalysis, runSourceForRole, type DevNeed } from "./devcase-run";
 import { getAdapter } from "./distribution";
 import { sendComm } from "./comms";
-import { getAutonomy, recordAudit } from "./dev-control";
+import { getAutonomy, getPromoteFloor, recordAudit } from "./dev-control";
 
 // Direction A — the lifecycle orchestrator. Drives a dev case through its stages under
 // policy, with human gates where policy requires. Each long step reuses the existing
@@ -125,8 +125,11 @@ export async function runLifecycle(id: string, progress?: Progress): Promise<{ s
       updateLifecycle(id, { stage: "ranked", detail: `evaluated ${subs.length} submission(s)` });
       recordAudit({ lifecycleId: id, actor: "auto", action: "evaluated", reason: `${subs.length} submission(s)` });
     } else if (lc.stage === "ranked") {
+      // Floor is calibration-adjustable (Direction E): a human applies an outcome-driven
+      // suggestion via dev_control; we fall back to the DEV_POLICY default when unset.
+      const floor = getPromoteFloor() ?? DEV_POLICY.promoteFloor;
       const ranked = (lc.postingId ? listSubmissions(lc.postingId) : [])
-        .filter((s) => (s.transferScore ?? 0) >= DEV_POLICY.promoteFloor)
+        .filter((s) => (s.transferScore ?? 0) >= floor)
         .sort((a, b) => (b.transferScore ?? 0) - (a.transferScore ?? 0))
         .slice(0, DEV_POLICY.promoteTopN);
       const roleTitle = (lc.role as { title?: string } | null)?.title ?? lc.title ?? "the role";
@@ -143,7 +146,7 @@ export async function runLifecycle(id: string, progress?: Progress): Promise<{ s
           ref: s.id,
         });
       }
-      const detail = `promoted ${promoted}/${DEV_POLICY.promoteTopN} (floor ${DEV_POLICY.promoteFloor}) to the pipeline`;
+      const detail = `promoted ${promoted}/${DEV_POLICY.promoteTopN} (floor ${floor}) to the pipeline`;
       updateLifecycle(id, { stage: "promoted", detail });
       recordAudit({ lifecycleId: id, actor: "auto", action: "promoted", reason: detail });
       return { stage: "promoted", detail };
