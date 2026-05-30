@@ -61,6 +61,8 @@ type Lifecycle = {
   createdAt: string;
 };
 
+type OutboxItem = { id: string; recipient: string | null; subject: string | null; kind: string | null; channel: string | null; status: string; createdAt: string };
+
 const LIFECYCLE_STEPS = ["intake", "analyzed", "designed", "approved", "collecting", "ranked", "promoted"];
 const STAGE_LABEL: Record<string, string> = {
   intake: "intake",
@@ -94,6 +96,7 @@ export function DevTab() {
   const [approvedCases, setApprovedCases] = useState<ApprovedCase[]>([]);
   const [postings, setPostings] = useState<Posting[]>([]);
   const [lifecycles, setLifecycles] = useState<Lifecycle[]>([]);
+  const [outbox, setOutbox] = useState<OutboxItem[]>([]);
 
   const loadCases = () =>
     fetch("/api/devcase")
@@ -110,10 +113,16 @@ export function DevTab() {
       .then((r) => r.json())
       .then((p) => setLifecycles((p.lifecycles as Lifecycle[]) ?? []))
       .catch(() => {});
+  const loadOutbox = () =>
+    fetch("/api/devcase/comms")
+      .then((r) => r.json())
+      .then((p) => setOutbox((p.outbox as OutboxItem[]) ?? []))
+      .catch(() => {});
   useEffect(() => {
     loadCases();
     loadPostings();
     loadLifecycles();
+    loadOutbox();
   }, []);
 
   // Reload orchestration state as background tasks progress (lifecycle/evaluate update it).
@@ -122,6 +131,7 @@ export function DevTab() {
     loadLifecycles();
     loadPostings();
     loadCases();
+    loadOutbox();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tasks]);
 
@@ -512,7 +522,9 @@ export function DevTab() {
                   <span className="min-w-0 flex-1 truncate text-sm font-semibold text-ink">{p.caseTitle || p.roleTitle || "Posting"}</span>
                   <span className="text-[11px] text-steel">{p.submissions?.length ?? p.submissionCount ?? 0} in</span>
                 </div>
-                <p className="mt-0.5 truncate font-mono text-[10px] text-steel">apply token: {p.token}</p>
+                <p className="mt-0.5 truncate font-mono text-[9px] text-steel" title="External channels POST applications here — no manual entry needed">
+                  apply webhook: POST /api/devcase/inbound · token {p.token}
+                </p>
 
                 {(p.submissions ?? []).length > 0 ? (
                   <ul className="mt-2 space-y-1.5 border-t border-stone-100 pt-2">
@@ -528,6 +540,34 @@ export function DevTab() {
               </div>
             ))}
           </div>
+        </section>
+      ) : null}
+
+      {outbox.length > 0 ? (
+        <section>
+          <h3 className="flex items-center gap-1.5 text-meta uppercase tracking-wide text-steel">
+            <Send size={13} className="text-coral" /> Comms outbox <span className="text-coral">· {outbox.length}</span>
+          </h3>
+          <p className="mt-1 text-[11px] text-steel">
+            Every message the pipeline sent (acknowledgements on intake, invites on promote). &quot;queued&quot; = recorded locally;
+            set <span className="font-mono">COMMS_WEBHOOK_URL</span> to relay through a real channel (email / ATS).
+          </p>
+          <ul className="mt-2 divide-y divide-stone-100 rounded-lg border border-stone-200 bg-white shadow-panel">
+            {outbox.slice(0, 12).map((m) => (
+              <li key={m.id} className="flex items-center gap-2 px-3 py-1.5 text-[11px]">
+                <span
+                  className={`rounded-full px-1.5 py-0.5 text-[9px] font-semibold uppercase ${
+                    m.kind === "invite" ? "bg-moss/15 text-moss" : "bg-paper text-steel"
+                  }`}
+                >
+                  {m.kind}
+                </span>
+                <span className="w-28 shrink-0 truncate text-steel">{m.recipient}</span>
+                <span className="min-w-0 flex-1 truncate text-ink">{m.subject}</span>
+                <span className="shrink-0 text-[9px] uppercase text-steel">{m.status === "queued" ? `${m.channel}` : m.status}</span>
+              </li>
+            ))}
+          </ul>
         </section>
       ) : null}
     </div>

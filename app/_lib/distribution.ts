@@ -1,4 +1,5 @@
-import { createPosting, createSubmission, listSubmissions, type DevCaseRecord, type DevSubmission, type Posting } from "./db";
+import { createPosting, createSubmission, getPosting, listSubmissions, type DevCaseRecord, type DevSubmission, type Posting } from "./db";
+import { sendComm } from "./comms";
 
 // Phase D4 — the distribution seam. Approved artifacts (role + case) leave the app
 // through a channel (OUT) and candidates + submissions come back (IN). The interface
@@ -52,4 +53,32 @@ export function getAdapter(channel = "local"): DistributionAdapter {
 /** Record an incoming submission (the IN side of the local stub / a webhook target). */
 export function receiveSubmission(input: { postingId: string; candidateRef: string; repoRef: string; notes?: string }): DevSubmission {
   return createSubmission(input);
+}
+
+// Intake one submission (form OR inbound webhook): idempotent on (posting, candidate, repo),
+// and auto-acknowledges the candidate over the active comms channel (non-adverse, safe to
+// automate). Returns the submission + whether it was newly created (so the caller can decide
+// to fire the lifecycle only for genuinely new arrivals).
+export async function intakeSubmission(input: {
+  postingId: string;
+  candidateRef: string;
+  repoRef: string;
+  notes?: string;
+  contact?: string;
+}): Promise<{ submission: DevSubmission; isNew: boolean }> {
+  const existing = listSubmissions(input.postingId).find(
+    (s) => s.candidateRef === input.candidateRef && s.repoRef === input.repoRef
+  );
+  if (existing) return { submission: existing, isNew: false };
+
+  const submission = createSubmission(input);
+  const role = getPosting(input.postingId)?.roleTitle ?? "the role";
+  await sendComm({
+    to: input.contact || input.candidateRef,
+    subject: `We received your submission — ${role}`,
+    body: `Hi ${input.candidateRef},\n\nThanks for submitting your work for ${role}. It's in our queue and will be reviewed shortly.\n\nBest,\nThe hiring team`,
+    kind: "acknowledgement",
+    ref: submission.id,
+  });
+  return { submission, isNew: true };
 }

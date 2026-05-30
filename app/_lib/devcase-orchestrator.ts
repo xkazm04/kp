@@ -8,6 +8,7 @@ import {
 } from "./db";
 import { promoteSubmission, runDesignArtifacts, runEvaluateSubmission, runNeedAnalysis, type DevNeed } from "./devcase-run";
 import { getAdapter } from "./distribution";
+import { sendComm } from "./comms";
 
 // Direction A — the lifecycle orchestrator. Drives a dev case through its stages under
 // policy, with human gates where policy requires. Each long step reuses the existing
@@ -87,9 +88,19 @@ export async function runLifecycle(id: string, progress?: Progress): Promise<{ s
         .filter((s) => (s.transferScore ?? 0) >= DEV_POLICY.promoteFloor)
         .sort((a, b) => (b.transferScore ?? 0) - (a.transferScore ?? 0))
         .slice(0, DEV_POLICY.promoteTopN);
+      const roleTitle = (lc.role as { title?: string } | null)?.title ?? lc.title ?? "the role";
       let promoted = 0;
       for (const s of ranked) {
-        if (promoteSubmission(s.id)) promoted += 1;
+        if (!promoteSubmission(s.id)) continue;
+        promoted += 1;
+        // Non-adverse comm — safe to automate. Adverse actions (rejections) stay human-gated.
+        await sendComm({
+          to: s.contact || s.candidateRef || "candidate",
+          subject: `Next step — ${roleTitle}`,
+          body: `Hi ${s.candidateRef},\n\nYour submission for ${roleTitle} stood out (fit ${s.transferScore ?? "—"}/100) and we'd like to take it forward. We'll be in touch with next steps shortly.\n\nBest,\nThe hiring team`,
+          kind: "invite",
+          ref: s.id,
+        });
       }
       const detail = `promoted ${promoted}/${DEV_POLICY.promoteTopN} (floor ${DEV_POLICY.promoteFloor}) to the pipeline`;
       updateLifecycle(id, { stage: "promoted", detail });

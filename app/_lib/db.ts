@@ -175,11 +175,26 @@ function ensureDb(): Database.Database {
       candidate_ref TEXT,
       repo_ref TEXT,
       notes TEXT,
+      contact TEXT,
       status TEXT NOT NULL DEFAULT 'received',
       eval_json TEXT,
       transfer_score INTEGER,
       received_at TEXT NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS dev_outbox (
+      id TEXT PRIMARY KEY,
+      recipient TEXT,
+      subject TEXT,
+      body TEXT,
+      kind TEXT,
+      channel TEXT,
+      status TEXT NOT NULL,
+      ref TEXT,
+      created_at TEXT NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_dev_outbox_created ON dev_outbox (created_at DESC);
 
     CREATE INDEX IF NOT EXISTS idx_dev_postings_created ON dev_postings (created_at DESC);
     CREATE INDEX IF NOT EXISTS idx_dev_submissions_posting ON dev_submissions (posting_id);
@@ -211,8 +226,12 @@ function ensureDb(): Database.Database {
       /* column already exists */
     }
   }
-  // Migration for dev_submissions evaluation columns (Phase D6).
-  for (const sql of ["ALTER TABLE dev_submissions ADD COLUMN eval_json TEXT", "ALTER TABLE dev_submissions ADD COLUMN transfer_score INTEGER"]) {
+  // Migration for dev_submissions evaluation + contact columns (Phase D6 / B).
+  for (const sql of [
+    "ALTER TABLE dev_submissions ADD COLUMN eval_json TEXT",
+    "ALTER TABLE dev_submissions ADD COLUMN transfer_score INTEGER",
+    "ALTER TABLE dev_submissions ADD COLUMN contact TEXT",
+  ]) {
     try {
       db.exec(sql);
     } catch {
@@ -1431,6 +1450,7 @@ export type DevSubmission = {
   candidateRef: string | null;
   repoRef: string | null;
   notes: string | null;
+  contact: string | null;
   status: string;
   evaluation: unknown;
   transferScore: number | null;
@@ -1444,11 +1464,61 @@ function rowToSubmission(r: Record<string, unknown>): DevSubmission {
     candidateRef: (r.candidate_ref as string) ?? null,
     repoRef: (r.repo_ref as string) ?? null,
     notes: (r.notes as string) ?? null,
+    contact: (r.contact as string) ?? null,
     status: r.status as string,
     evaluation: parseJson((r.eval_json as string) ?? null),
     transferScore: r.transfer_score == null ? null : Number(r.transfer_score),
     receivedAt: r.received_at as string,
   };
+}
+
+// ---- Dev extension — comms outbox (Direction B) ---------------------------
+
+export type OutboxEntry = {
+  id: string;
+  recipient: string | null;
+  subject: string | null;
+  body: string | null;
+  kind: string | null;
+  channel: string | null;
+  status: string;
+  ref: string | null;
+  createdAt: string;
+};
+
+export function recordOutbox(input: {
+  recipient: string;
+  subject: string;
+  body: string;
+  kind: string;
+  channel: string;
+  status: string;
+  ref?: string | null;
+}): OutboxEntry {
+  const db = ensureDb();
+  const now = new Date().toISOString();
+  const id = `out-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+  db.prepare(
+    `INSERT INTO dev_outbox (id, recipient, subject, body, kind, channel, status, ref, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  ).run(id, input.recipient, input.subject, input.body, input.kind, input.channel, input.status, input.ref ?? null, now);
+  return { id, ...input, ref: input.ref ?? null, createdAt: now };
+}
+
+export function listOutbox(limit = 50): OutboxEntry[] {
+  const db = ensureDb();
+  const rows = db.prepare(`SELECT * FROM dev_outbox ORDER BY created_at DESC LIMIT ?`).all(limit) as Array<Record<string, unknown>>;
+  return rows.map((r) => ({
+    id: r.id as string,
+    recipient: (r.recipient as string) ?? null,
+    subject: (r.subject as string) ?? null,
+    body: (r.body as string) ?? null,
+    kind: (r.kind as string) ?? null,
+    channel: (r.channel as string) ?? null,
+    status: r.status as string,
+    ref: (r.ref as string) ?? null,
+    createdAt: r.created_at as string,
+  }));
 }
 
 export function createPosting(input: {
@@ -1510,20 +1580,22 @@ export function createSubmission(input: {
   candidateRef: string;
   repoRef: string;
   notes?: string;
+  contact?: string;
 }): DevSubmission {
   const db = ensureDb();
   const now = new Date().toISOString();
   const id = `sub-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
   db.prepare(
-    `INSERT INTO dev_submissions (id, posting_id, candidate_ref, repo_ref, notes, status, received_at)
-     VALUES (?, ?, ?, ?, ?, 'received', ?)`
-  ).run(id, input.postingId, input.candidateRef, input.repoRef, input.notes ?? null, now);
+    `INSERT INTO dev_submissions (id, posting_id, candidate_ref, repo_ref, notes, contact, status, received_at)
+     VALUES (?, ?, ?, ?, ?, ?, 'received', ?)`
+  ).run(id, input.postingId, input.candidateRef, input.repoRef, input.notes ?? null, input.contact ?? null, now);
   return {
     id,
     postingId: input.postingId,
     candidateRef: input.candidateRef,
     repoRef: input.repoRef,
     notes: input.notes ?? null,
+    contact: input.contact ?? null,
     status: "received",
     evaluation: null,
     transferScore: null,
