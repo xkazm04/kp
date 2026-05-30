@@ -196,7 +196,7 @@ export async function runEvaluateSubmission(submissionId: string): Promise<Submi
       source: string;
     };
     const out = { ...payload.result, source: payload.source, commitCount: commits.length };
-    const transferScore = Number((payload.result.transfer as { transferScore?: number }).transferScore ?? 0);
+    const transferScore = Number((payload.result.transfer as { transferScore?: number } | null | undefined ?? {}).transferScore ?? 0);
     saveSubmissionEvaluation(submissionId, out, transferScore);
     return out;
   } finally {

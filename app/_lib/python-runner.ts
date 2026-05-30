@@ -61,7 +61,22 @@ export type SpawnResult = {
   exitCode: number | null;
 };
 
-export function spawnPython(args: string[]): {
+export type SpawnOptions = {
+  // Wall-clock safety net. A genuinely hung child (stalled network call in a
+  // provider, a deadlocked subprocess) is SIGKILLed and the promise rejects,
+  // instead of leaking a process and hanging the caller forever. Generous by
+  // default so legitimate multi-LLM CLIs are never killed mid-run.
+  timeoutMs?: number;
+  // Lets a caller (e.g. a cancelled request/task) abort the child early.
+  signal?: AbortSignal;
+};
+
+const DEFAULT_TIMEOUT_MS = 600_000; // 10 min — a hang backstop, not a deadline.
+
+export function spawnPython(
+  args: string[],
+  opts: SpawnOptions = {},
+): {
   child: ChildProcessWithoutNullStreams;
   result: Promise<SpawnResult>;
 } {
@@ -81,10 +96,45 @@ export function spawnPython(args: string[]): {
     stderrChunks.push(chunk);
   });
   const result = new Promise<SpawnResult>((resolve, reject) => {
+    let settled = false;
+    const timeoutMs = opts.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+
+    const cleanup = () => {
+      clearTimeout(timer);
+      opts.signal?.removeEventListener("abort", onAbort);
+    };
+    const fail = (err: Error) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      try {
+        child.kill("SIGKILL");
+      } catch {
+        /* already gone */
+      }
+      reject(err);
+    };
+
+    const timer = setTimeout(
+      () => fail(new Error(`Python process timed out after ${Math.round(timeoutMs / 1000)}s: ${args.join(" ")}`)),
+      timeoutMs,
+    );
+    const onAbort = () => fail(new Error("Python process aborted"));
+    if (opts.signal) {
+      if (opts.signal.aborted) onAbort();
+      else opts.signal.addEventListener("abort", onAbort, { once: true });
+    }
+
     child.once("error", (err) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
       reject(err);
     });
     child.once("close", (code) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
       resolve({
         stdout: Buffer.concat(stdoutChunks).toString("utf-8"),
         stderr: Buffer.concat(stderrChunks).toString("utf-8"),

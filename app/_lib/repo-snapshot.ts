@@ -65,7 +65,7 @@ export async function buildRepoSnapshot(ref: string): Promise<RepoSnapshot | nul
 
   const recentCommitSummaries = (commits ?? [])
     .slice(0, 20)
-    .map((c) => c.commit.message.split("\n")[0].slice(0, 100))
+    .map((c) => (c.commit?.message ?? "").split("\n")[0].slice(0, 100))
     .filter(Boolean);
   const topDirs = (contents ?? []).filter((c) => c.type === "dir").map((c) => c.name).slice(0, 20);
   const loc = Math.round(total / 40); // bytes → rough LOC estimate
