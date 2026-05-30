@@ -55,3 +55,42 @@ export async function dispatchRejection(entry: PipelineEntry, opts?: { automated
   await sendComm({ to: candidateRecipient(entry), subject, body, kind: "rejection", ref: entry.id });
   recordAutomationEvent(entry.id, "rejection_sent", opts?.automated ? "policy auto-reject" : "manual reject");
 }
+
+/**
+ * Deliver the (recruiter-approved) offer to the candidate with a token-gated
+ * accept/decline link. The offer DECISION stays human — this fires only after a
+ * recruiter extends the drafted offer. Appends the response link to the letter.
+ */
+export async function dispatchOffer(
+  entry: PipelineEntry,
+  draft: { subject?: unknown; body?: unknown },
+  responseLink: string
+): Promise<void> {
+  const subject = String(draft.subject ?? `Offer — ${entry.jobTitle ?? "a role"}`).trim();
+  const letter = String(draft.body ?? "").trim();
+  const body =
+    `${letter}\n\n` +
+    `— — —\n` +
+    `To accept or decline this offer, please use your secure link:\n${responseLink}\n`;
+  await sendComm({ to: candidateRecipient(entry), subject, body, kind: "offer", ref: entry.id });
+  recordAutomationEvent(entry.id, "offer_sent", entry.jobTitle ?? "");
+}
+
+/**
+ * Onboarding hook — fires when a candidate accepts and moves to Hired. A warm
+ * welcome + the practical next step. Kept deterministic; a real onboarding
+ * system would subscribe to the `onboarding_started` event downstream.
+ */
+export async function dispatchOnboarding(entry: PipelineEntry): Promise<void> {
+  const name = (entry.candidateLabel ?? "").trim() || "there";
+  const role = entry.jobTitle ?? "your new role";
+  const subject = `Welcome aboard — ${role}`;
+  const body =
+    `Hi ${name},\n\n` +
+    `We're delighted you're joining us as ${role}! Welcome to the team.\n\n` +
+    `Your onboarding is now underway. Our People team will reach out shortly with your start date, ` +
+    `paperwork, equipment, and a first-week plan so you can hit the ground running.\n\n` +
+    `We can't wait to work with you.\n\nWarmly,\nThe hiring team`;
+  await sendComm({ to: candidateRecipient(entry), subject, body, kind: "onboarding", ref: entry.id });
+  recordAutomationEvent(entry.id, "onboarding_started", role);
+}

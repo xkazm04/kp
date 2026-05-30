@@ -15,7 +15,7 @@ export function AiReviewCard({ entry, onAccept, onReject }: { entry: Entry; onAc
   const isScorecard = kind === "scorecard_review";
   const isOffer = kind === "offer_review";
   const tag = isOffer ? "Offer package" : isScorecard ? "Interview scorecard" : "AI screening";
-  const acceptLabel = isOffer ? "Hire" : isScorecard ? "To offer" : "Advance";
+  const acceptLabel = isOffer ? "Send offer" : isScorecard ? "To offer" : "Advance";
 
   return (
     <article className="animate-fade-in rounded-lg border border-stone-200 bg-white p-3 shadow-panel">

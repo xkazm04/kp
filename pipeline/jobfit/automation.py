@@ -132,6 +132,13 @@ def evaluate_entry(entry: dict[str, Any]) -> dict[str, Any]:
         return out("hold", None, "in screening")
     if stage == "Interview":
         return out("hold", None, "Interview → Offer is always a human decision")
+    if stage == "Offer":
+        # Extending the offer is the recruiter's call; the Offer → Hired move is the
+        # candidate's (captured via their accept/decline link). Policy never advances
+        # or rejects an offer — it only surfaces aging so a stale offer gets a nudge.
+        return out("hold", None, "Offer is a human + candidate decision; awaiting response")
+    if stage == "Hired":
+        return out("none", None, "hired — terminal stage")
     return out("none", None, "no policy for this stage")
 
 

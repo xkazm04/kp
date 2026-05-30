@@ -1,10 +1,44 @@
 import { NextRequest, NextResponse } from "next/server";
-import { actOnPipelineEntry, type PipelineAction } from "@/app/_lib/db";
-import { dispatchRejection } from "@/app/_lib/comms-dispatch";
+import { actOnPipelineEntry, getPipelineEntry, setApproval, type PipelineAction, type PipelineEntry } from "@/app/_lib/db";
+import { dispatchOffer, dispatchRejection } from "@/app/_lib/comms-dispatch";
+import { createOffer, getOpenOfferForEntry } from "@/app/_lib/offers-store";
 
 export const runtime = "nodejs";
 
 const ACTIONS: PipelineAction[] = ["accept", "reject", "approve_event"];
+
+// Human gate for the offer: approving a drafted offer EXTENDS it to the candidate
+// with a secure accept/decline link, rather than bare-advancing to Hired. The
+// Hired move happens only when the candidate accepts (see /api/offer/[token]).
+async function extendOffer(request: NextRequest, entry: PipelineEntry) {
+  let draft: { subject?: unknown; body?: unknown; recommended?: unknown; currency?: unknown } = {};
+  try {
+    draft = entry.approvalDetail ? JSON.parse(entry.approvalDetail) : {};
+  } catch {
+    draft = {};
+  }
+
+  // Reuse an already-open offer for this entry (idempotent re-extends).
+  const offer =
+    getOpenOfferForEntry(entry.id) ??
+    createOffer({
+      entryId: entry.id,
+      candidateLabel: entry.candidateLabel,
+      jobId: entry.jobId,
+      jobTitle: entry.jobTitle,
+      currency: typeof draft.currency === "string" ? draft.currency : "CZK",
+      salary: Number(draft.recommended) || null,
+      payload: draft,
+    });
+
+  const base = process.env.APP_BASE_URL ?? new URL(request.url).origin;
+  const link = `${base}/offer/${offer.token}`;
+  await dispatchOffer(entry, draft, link); // records the `offer_sent` event + outbox message
+
+  // The offer is out — clear the recruiter approval; now awaiting the candidate.
+  setApproval(entry.id, null, "");
+  return NextResponse.json({ entry: getPipelineEntry(entry.id), offerExtended: true, link });
+}
 
 export async function POST(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params;
@@ -14,6 +48,15 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     if (!ACTIONS.includes(action)) {
       return NextResponse.json({ error: "Unknown action." }, { status: 400 });
     }
+
+    // Approving a drafted offer extends it to the candidate (not a bare Hire click).
+    if (action === "accept") {
+      const current = getPipelineEntry(id);
+      if (current && current.stage === "Offer" && current.approvalKind === "offer_review") {
+        return await extendOffer(request, current);
+      }
+    }
+
     const updated = actOnPipelineEntry(id, action, typeof body.detail === "string" ? body.detail : undefined);
     if (!updated) {
       return NextResponse.json({ error: "Pipeline entry not found." }, { status: 404 });

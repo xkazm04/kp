@@ -71,6 +71,19 @@ class PolicyTest(unittest.TestCase):
     def test_sourced_without_score_holds(self):
         self.assertEqual(self.ev(stage="Sourced", matchScore=0)["action"], "hold")
 
+    def test_offer_always_holds(self):
+        # Extend is the recruiter's call; Offer -> Hired is the candidate's. Policy never advances/rejects.
+        for score in (95, 20):
+            self.assertEqual(self.ev(stage="Offer", matchScore=score)["action"], "hold", f"score {score}")
+
+    def test_offer_still_ages(self):
+        # A stale offer should still raise an aging alert (just never auto-move).
+        self.assertIn("aging_alert", self.ev(stage="Offer", daysInStage=35)["alerts"])
+
+    def test_hired_is_terminal(self):
+        d = self.ev(stage="Hired", matchScore=99, daysInStage=99)
+        self.assertEqual((d["action"], d["toStage"]), ("none", None))
+
     def test_aging_alerts(self):
         self.assertIn("stale_alert", self.ev(matchScore=60, daysInStage=25)["alerts"])
         self.assertIn("aging_alert", self.ev(matchScore=60, daysInStage=35)["alerts"])
