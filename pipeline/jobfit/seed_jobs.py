@@ -125,9 +125,10 @@ def _gen_one(
     *,
     retries: int,
     backoff: float,
+    prompt_fn=spec_to_prompt,
 ) -> tuple[dict[str, Any] | None, str | None]:
     """Generate one stamped record, retrying transient CLI/rate-limit errors."""
-    prompt = spec_to_prompt(spec)
+    prompt = prompt_fn(spec)
     last = "unknown"
     for attempt in range(retries + 1):
         try:
@@ -155,17 +156,21 @@ def generate(
     retries: int = 2,
     backoff: float = 3.0,
     existing: dict[str, dict[str, Any]] | None = None,
+    specs: list[dict[str, Any]] | None = None,
+    prompt_fn=None,
 ) -> tuple[list[dict[str, Any]], dict[str, int]]:
     """Generate raw job records, resumable + retrying. Returns (records, failure_counts).
 
     ``existing`` maps already-generated ``id`` -> record; those specs are skipped
     and merged into the output, so a rate-limited run can be re-run to top up.
+    Pass ``specs`` + ``prompt_fn`` to drive a different company profile (e.g. seed_jobs_csas).
     """
     provider = provider or ClaudeCliProvider(model=model, timeout=180)
     if not provider.available():
         raise SystemExit("Claude CLI not available on PATH — cannot generate the corpus.")
 
-    specs = build_specs(count, seed=seed)
+    prompt_fn = prompt_fn or spec_to_prompt
+    specs = specs if specs is not None else build_specs(count, seed=seed)
     if limit:
         specs = specs[:limit]
 
@@ -181,7 +186,7 @@ def generate(
     if todo:
         with ThreadPoolExecutor(max_workers=max(1, min(workers, len(todo)))) as pool:
             futures = {
-                pool.submit(_gen_one, provider, spec, retries=retries, backoff=backoff): spec
+                pool.submit(_gen_one, provider, spec, retries=retries, backoff=backoff, prompt_fn=prompt_fn): spec
                 for spec in todo
             }
             done = 0
