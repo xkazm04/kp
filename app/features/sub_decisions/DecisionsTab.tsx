@@ -7,7 +7,6 @@ import { buildUrl } from "@/app/features/tabs";
 import { AiReviewCard } from "./AiReviewCard";
 import { Empty } from "./DecisionsShared";
 import { KeyDecisionCard } from "./KeyDecisionCard";
-import { SchedulingCard } from "./SchedulingCard";
 import type { Entry } from "./DecisionsTypes";
 
 export function DecisionsTab() {
@@ -32,7 +31,6 @@ export function DecisionsTab() {
   // before setEntries removes them after the 260ms exit window.
   const pending = (entries ?? []).filter((e) => e.approvalKind && e.status === "active");
   const keyDecisions = pending.filter((e) => e.approvalKind === "decision");
-  const scheduling = pending.filter((e) => e.approvalKind === "calendar");
   const aiReviews = pending.filter(
     (e) => e.approvalKind === "screening_review" || e.approvalKind === "scorecard_review" || e.approvalKind === "offer_review"
   );
@@ -73,8 +71,16 @@ export function DecisionsTab() {
           <p className="text-meta uppercase text-coral">Decisions</p>
           <h2 className="mt-1 font-serif text-display text-ink">Your decision queue</h2>
           <p className="mt-1 max-w-2xl text-body text-steel">
-            The human-in-the-loop step. Key decisions advance or reject a candidate with full context; scheduling
-            decisions confirm a proposed interview slot. Everything you action here moves the candidate in the{" "}
+            The human-in-the-loop step. Key decisions advance or reject a candidate with full context. Interview
+            slots now live in{" "}
+            <button
+              type="button"
+              onClick={() => router.push(buildUrl({ tab: "schedule" }))}
+              className="focus-ring font-semibold text-coral hover:underline"
+            >
+              Schedule
+            </button>
+            ; everything you action moves the candidate in the{" "}
             <button
               type="button"
               onClick={() => router.push(buildUrl({ tab: "pipeline" }))}
@@ -120,41 +126,20 @@ export function DecisionsTab() {
               </div>
             </section>
           ) : null}
-          <div className="grid gap-6 lg:grid-cols-2">
-            <section>
-              <h3 className="text-meta uppercase tracking-wide text-steel">
-                Key decisions <span className="text-coral">· {keyDecisions.length}</span>
-              </h3>
-              <p className="mt-1 text-sm text-steel">Advance to the next stage, or reject — read the fit first.</p>
-              <div className="mt-3 space-y-3">
-                {keyDecisions.map((e) => (
-                  <div key={e.id} className={leavingWrapClass(e)}>
-                    <KeyDecisionCard entry={e} onAccept={() => act(e, "accept")} onReject={() => act(e, "reject")} />
-                  </div>
-                ))}
-                {keyDecisions.length === 0 ? <Empty>No key decisions pending.</Empty> : null}
-              </div>
-            </section>
-
-            <section>
-              <h3 className="text-meta uppercase tracking-wide text-steel">
-                Interview scheduling <span className="text-coral">· {scheduling.length}</span>
-              </h3>
-              <p className="mt-1 text-sm text-steel">Confirm the proposed slot, or pick another, then approve.</p>
-              <div className="mt-3 space-y-3">
-                {scheduling.map((e) => (
-                  <div key={e.id} className={leavingWrapClass(e)}>
-                    <SchedulingCard
-                      entry={e}
-                      onApprove={(slot) => act(e, "approve_event", slot)}
-                      onDecline={() => act(e, "reject")}
-                    />
-                  </div>
-                ))}
-                {scheduling.length === 0 ? <Empty>No scheduling decisions pending.</Empty> : null}
-              </div>
-            </section>
-          </div>
+          <section>
+            <h3 className="text-meta uppercase tracking-wide text-steel">
+              Key decisions <span className="text-coral">· {keyDecisions.length}</span>
+            </h3>
+            <p className="mt-1 text-sm text-steel">Advance to the next stage, or reject — read the fit first.</p>
+            <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              {keyDecisions.map((e) => (
+                <div key={e.id} className={leavingWrapClass(e)}>
+                  <KeyDecisionCard entry={e} onAccept={() => act(e, "accept")} onReject={() => act(e, "reject")} />
+                </div>
+              ))}
+              {keyDecisions.length === 0 ? <Empty>No key decisions pending.</Empty> : null}
+            </div>
+          </section>
         </div>
       )}
     </div>

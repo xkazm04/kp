@@ -5,6 +5,7 @@ import { useCallback } from "react";
 import { AboutTab } from "./sub_about/AboutTab";
 import { AnalyzeWorkspace } from "./sub_analyze/AnalyzeWorkspace";
 import { DecisionsTab } from "./sub_decisions/DecisionsTab";
+import { ScheduleTab } from "./sub_schedule/ScheduleTab";
 import { JobsTab } from "./sub_jobs/JobsTab";
 import { LibraryTab } from "./sub_library/LibraryTab";
 import { MatchTab } from "./sub_match/MatchTab";
@@ -96,6 +97,7 @@ export function Workspace() {
         <div key={navActive} className="animate-fade-in mx-auto max-w-[108rem] px-3 py-6 sm:px-4 lg:px-6">
           {navActive === "pipeline" ? <PipelineTab /> : null}
           {navActive === "decisions" ? <DecisionsTab /> : null}
+          {navActive === "schedule" ? <ScheduleTab /> : null}
           {navActive === "profile" ? <ProfileTab /> : null}
           {navActive === "match" ? <MatchTab /> : null}
           {navActive === "analyze" ? (

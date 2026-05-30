@@ -4,6 +4,7 @@
 export type WorkspaceTabId =
   | "pipeline"
   | "decisions"
+  | "schedule"
   | "profile"
   | "match"
   | "analyze"
@@ -27,6 +28,7 @@ export const DEFAULT_TAB: WorkspaceTabId = "pipeline";
 export const WORKSPACE_TABS: WorkspaceTabDef[] = [
   { id: "pipeline", label: "Pipeline" },
   { id: "decisions", label: "Decisions" },
+  { id: "schedule", label: "Schedule" },
   { id: "profile", label: "Profile" },
   { id: "match", label: "Match" },
   { id: "analyze", label: "Analyze" },
@@ -45,6 +47,7 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       { id: "pipeline", label: "Pipeline" },
       { id: "decisions", label: "Decisions" },
+      { id: "schedule", label: "Schedule" },
     ],
   },
   {
@@ -78,6 +81,7 @@ export const NAV_GROUPS: NavGroup[] = [
 const TAB_IDS = new Set<WorkspaceTabId>([
   "pipeline",
   "decisions",
+  "schedule",
   "profile",
   "match",
   "analyze",
