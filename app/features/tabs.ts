@@ -1,5 +1,5 @@
 // Tab definitions shared by the interactive Workspace (studio sidebar) and the
-// server-rendered deep-link breadcrumb (WorkspaceTabBarLinks).
+// server-rendered deep-link pages (which reuse the sidebar via WorkspaceNav).
 
 export type WorkspaceTabId =
   | "pipeline"
