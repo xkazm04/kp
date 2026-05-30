@@ -3,8 +3,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Briefcase, Check, Clock, Sparkles, TimerReset, Users } from "lucide-react";
-import { buildUrl } from "../tabs";
-import { useTasks } from "../tasks/TasksProvider";
+import { buildUrl } from "@/app/features/tabs";
+import { useTasks } from "@/app/features/tasks/TasksProvider";
 import { CandidateDrawer } from "./CandidateDrawer";
 
 type Entry = {

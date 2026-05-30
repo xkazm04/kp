@@ -3,7 +3,7 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { Boxes, Check, ClipboardList, Copy, GitBranch, Inbox, Loader2, Lock, Send, ShieldCheck, Sparkles, Users } from "lucide-react";
 import { formatPercent } from "@/app/_lib/format";
-import { useTasks } from "../tasks/TasksProvider";
+import { useTasks } from "@/app/features/tasks/TasksProvider";
 
 // A run is "partial" when some pipeline steps used the LLM and others fell back
 // to deterministic templates — surface that instead of mislabelling it full LLM.

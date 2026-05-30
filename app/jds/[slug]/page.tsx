@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ScoreBadge } from "@/app/_components/ScoreBadge";
-import { WorkspaceTabBarLinks } from "@/app/_components/workspace/WorkspaceTabBarLinks";
+import { WorkspaceTabBarLinks } from "@/app/features/WorkspaceTabBarLinks";
 import { listAnalysesByJd, loadJd } from "@/app/_lib/db";
 
 export const dynamic = "force-dynamic";

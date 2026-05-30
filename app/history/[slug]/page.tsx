@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ResultPanel } from "@/app/_components/results/ResultPanel";
-import { WorkspaceTabBarLinks } from "@/app/_components/workspace/WorkspaceTabBarLinks";
+import { WorkspaceTabBarLinks } from "@/app/features/WorkspaceTabBarLinks";
 import { loadAnalysis } from "@/app/_lib/db";
 import { analysisSchema } from "@/app/_lib/schemas";
 

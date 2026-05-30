@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { buildUrl } from "../tabs";
+import { buildUrl } from "@/app/features/tabs";
 
 type Cell = { score: number | null; blocked: boolean };
 type Candidate = { id: string; label: string; archetype: string | null };

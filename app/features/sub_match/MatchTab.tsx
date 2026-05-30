@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { useTasks } from "../tasks/TasksProvider";
+import { useTasks } from "@/app/features/tasks/TasksProvider";
 
 type AnalysisRow = {
   slug: string;

@@ -3,8 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Ban, Banknote, ClipboardList, ExternalLink, Mail, Shuffle, Sparkles, UserCheck, X } from "lucide-react";
-import { buildUrl } from "../tabs";
-import { useTasks } from "../tasks/TasksProvider";
+import { buildUrl } from "@/app/features/tabs";
+import { useTasks } from "@/app/features/tasks/TasksProvider";
 
 type Entry = {
   id: string;

@@ -2,16 +2,16 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback } from "react";
-import { AboutTab } from "./AboutTab/AboutTab";
-import { AnalyzeWorkspace } from "./AnalyzeWorkspace/AnalyzeWorkspace";
-import { DecisionsTab } from "./DecisionsTab/DecisionsTab";
-import { JobsTab } from "./JobsTab/JobsTab";
-import { LibraryTab } from "./LibraryTab/LibraryTab";
-import { MatchTab } from "./MatchTab/MatchTab";
-import { MatrixTab } from "./MatrixTab/MatrixTab";
-import { PipelineTab } from "./PipelineTab/PipelineTab";
-import { DevTab } from "./DevTab/DevTab";
-import { ProfileTab } from "./ProfileTab/ProfileTab";
+import { AboutTab } from "./sub_about/AboutTab";
+import { AnalyzeWorkspace } from "./sub_analyze/AnalyzeWorkspace";
+import { DecisionsTab } from "./sub_decisions/DecisionsTab";
+import { JobsTab } from "./sub_jobs/JobsTab";
+import { LibraryTab } from "./sub_library/LibraryTab";
+import { MatchTab } from "./sub_match/MatchTab";
+import { MatrixTab } from "./sub_matrix/MatrixTab";
+import { PipelineTab } from "./sub_pipeline/PipelineTab";
+import { DevTab } from "./sub_dev/DevTab";
+import { ProfileTab } from "./sub_profile/ProfileTab";
 import { TasksIndicator } from "./tasks/TasksIndicator";
 import { TasksProvider } from "./tasks/TasksProvider";
 import { buildUrl, DEFAULT_TAB, isWorkspaceTabId, navItemClass, NAV_GROUPS, type WorkspaceTabId } from "./tabs";

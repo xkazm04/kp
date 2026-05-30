@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { AnalyzeTab } from "../AnalyzeTab/AnalyzeTab";
-import { HistoryTab } from "../HistoryTab/HistoryTab";
+import { AnalyzeTab } from "./AnalyzeTab";
+import { HistoryTab } from "@/app/features/sub_history/HistoryTab";
 
 // Consolidates the v1 deep-analysis tool and its saved-runs list into one
 // surface with a segmented switch, so they occupy a single sidebar slot.

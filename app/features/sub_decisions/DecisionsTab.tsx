@@ -3,8 +3,8 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Calendar, Check, ChevronRight, Sparkles, X } from "lucide-react";
-import { buildUrl } from "../tabs";
-import { useTasks } from "../tasks/TasksProvider";
+import { buildUrl } from "@/app/features/tabs";
+import { useTasks } from "@/app/features/tasks/TasksProvider";
 
 type Entry = {
   id: string;
