@@ -1,4 +1,5 @@
 import { Fragment, type ReactNode } from "react";
+import { PlantUml } from "./puml/PlantUml";
 
 // A small, dependency-free Markdown renderer for the subset job postings need:
 // # / ## / ### headings, - / * bullet and 1. ordered lists, --- rules, blank-line
@@ -31,6 +32,32 @@ export function Markdown({ content, className = "" }: { content: string; classNa
 
     if (trimmed === "") {
       i += 1;
+      continue;
+    }
+    // Fenced code block: ```lang … ```. A `puml`/`plantuml` fence renders as a
+    // custom-styled component diagram; anything else falls back to a <pre>.
+    if (trimmed.startsWith("```")) {
+      const lang = trimmed.slice(3).trim().toLowerCase();
+      const body: string[] = [];
+      i += 1;
+      while (i < lines.length && !lines[i].trim().startsWith("```")) {
+        body.push(lines[i]);
+        i += 1;
+      }
+      i += 1; // consume the closing fence
+      const code = body.join("\n");
+      if (lang === "puml" || lang === "plantuml") {
+        blocks.push(<PlantUml key={key++} source={code} />);
+      } else {
+        blocks.push(
+          <pre
+            key={key++}
+            className="my-3 overflow-x-auto rounded-lg border border-stone-200 bg-paper p-4 text-[13px] leading-5 text-ink"
+          >
+            <code>{code}</code>
+          </pre>
+        );
+      }
       continue;
     }
     if (trimmed === "---" || trimmed === "***") {

@@ -1,0 +1,39 @@
+@startuml automated-pipeline-tobe
+title To-be — fully automated JD → hire (moss = live · coral = human gate · dashed = to build)
+
+actor "Recruiter" as rec
+
+[JD authoring\nneed -> design draft] <<auto>> as jd
+[JD -> structured Job\ningest + taxonomy resolve] <<gap>> as ingest
+[Distribute to boards / ATS\n+ candidate fan-out] <<gap>> as dist
+[Candidate apply / CV upload] <<auto>> as apply
+[Extract text + LLM fields\nClaude CLI + deterministic fallback] <<auto>> as extract
+[Archetype route -> V2 profile\nprovenance · potential] <<gap>> as v2
+[Match\nKO · score · reason] <<auto>> as match
+[AI screening\nfairness-gated recommendation] <<auto>> as screen
+[Decisions queue\nearly-career · low-confidence] <<gate>> as decide
+[Outreach + interview invite\n(delivered, not just drafted)] <<gap>> as engage
+[Interview prep + scorecard\nsynthesis] <<auto>> as interview
+[Offer decision] <<gate>> as offer
+[Deliver offer · capture\naccept / decline] <<gap>> as close
+[Hired -> onboarding handoff] <<gap>> as hire
+
+[Scheduler / cron\ndrives time-based steps] <<gap>> as cron
+
+rec --> jd
+jd --> ingest
+ingest --> dist
+dist --> apply
+apply --> extract
+extract --> v2
+v2 --> match
+match --> screen
+screen --> decide
+decide --> engage
+engage --> interview
+interview --> offer
+offer --> close
+close --> hire
+cron ..> screen : nightly pass
+cron ..> decide : aging nudges
+@enduml
