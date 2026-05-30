@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { FileText, UploadCloud, X } from "lucide-react";
+import { ACCEPT_EXTENSIONS, MAX_FILE_HINT, validateUpload } from "@/app/_lib/upload-constraints";
 import { formatFileSize } from "./AnalyzeApi";
 
 export function AnalyzeFileDropZone({
@@ -10,7 +11,7 @@ export function AnalyzeFileDropZone({
   file,
   onFileChange,
   onRemove,
-  hint = "PDF · DOCX · TXT · MD up to 8 MB",
+  hint = MAX_FILE_HINT,
 }: {
   inputId: string;
   inputRef?: React.RefObject<HTMLInputElement | null>;
@@ -20,6 +21,19 @@ export function AnalyzeFileDropZone({
   hint?: string;
 }) {
   const [isOver, setIsOver] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Pre-flight the file (extension + size) before handing it up, so a bad drop
+  // surfaces an inline message instead of failing only after the upload POST.
+  const accept = (next: File) => {
+    const err = validateUpload(next);
+    if (err) {
+      setError(err);
+      return;
+    }
+    setError(null);
+    onFileChange(next);
+  };
 
   if (file) {
     return (
@@ -85,7 +99,7 @@ export function AnalyzeFileDropZone({
           event.preventDefault();
           setIsOver(false);
           const dropped = event.dataTransfer.files?.[0];
-          if (dropped) onFileChange(dropped);
+          if (dropped) accept(dropped);
         }}
         className={`flex min-h-20 cursor-pointer flex-col items-center justify-center rounded-lg border border-dashed px-3 text-center transition-colors ${
           isOver
@@ -99,15 +113,16 @@ export function AnalyzeFileDropZone({
         </span>
         <span className="text-[10px] text-steel">{hint}</span>
       </label>
+      {error ? <p className="mt-1 text-[10px] text-coral" role="alert">{error}</p> : null}
       <input
         id={inputId}
         ref={inputRef}
         type="file"
-        accept=".pdf,.docx,.txt,.md"
+        accept={ACCEPT_EXTENSIONS}
         className="sr-only"
         onChange={(event) => {
           const next = event.target.files?.[0];
-          if (next) onFileChange(next);
+          if (next) accept(next);
           event.target.value = "";
         }}
       />

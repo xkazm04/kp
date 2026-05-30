@@ -19,4 +19,5 @@ export type ColumnStatus = {
 
 export type ProgressEmitter = (stage: StageId, status: StageStatus) => void;
 
-export const MAX_CV_VARIANTS = 3;
+// Re-exported from the single source of truth so existing imports keep working.
+export { MAX_CV_VARIANTS } from "@/app/_lib/upload-constraints";

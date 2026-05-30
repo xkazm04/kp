@@ -3,19 +3,10 @@ import type { AnalyzeParams } from "@/app/_lib/analyze-run";
 import { newRequestId } from "@/app/_lib/logger";
 import { createWorkdir, persistFile } from "@/app/_lib/python-runner";
 import { startTask } from "@/app/_lib/tasks";
+import { ACCEPT_MIME, MAX_CV_VARIANTS, MAX_FILE_BYTES, MAX_FILE_MB } from "@/app/_lib/upload-constraints";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
-
-const allowedTypes = new Set([
-  "application/pdf",
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-  "text/plain",
-  "text/markdown",
-  "",
-]);
-
-const MAX_CV_VARIANTS = 3;
 
 // Persists the upload to a stable dir and starts a background `analyze` task,
 // returning { task }. The client polls /api/tasks/[id] (and the global Tasks
@@ -96,7 +87,7 @@ function validateOptionalFile(file: FormDataEntryValue | null, label: string) {
 }
 
 function validateFile(file: File, label: string) {
-  if (!allowedTypes.has(file.type)) return `Use PDF, DOCX, TXT, or MD for the ${label}.`;
-  if (file.size > 8 * 1024 * 1024) return `The ${label} upload limit is 8 MB.`;
+  if (!ACCEPT_MIME.has(file.type)) return `Use PDF, DOCX, TXT, or MD for the ${label}.`;
+  if (file.size > MAX_FILE_BYTES) return `The ${label} upload limit is ${MAX_FILE_MB} MB.`;
   return null;
 }

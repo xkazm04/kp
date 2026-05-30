@@ -271,9 +271,13 @@ export function DevTab() {
       <div className="grid gap-5 lg:grid-cols-[minmax(0,360px)_1fr]">
         {/* intake */}
         <section className="space-y-3 rounded-lg border border-stone-200 bg-white p-4 shadow-panel">
-          <Field label="Role title">
+          <Field label="Role title *">
             <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Senior Backend Engineer"
+              aria-invalid={title.trim() === ""}
               className="focus-ring w-full rounded-md border border-stone-200 px-2.5 py-1.5 text-sm" />
+            {title.trim() === "" ? (
+              <p className="mt-1 text-[11px] text-steel">A role title is required to run.</p>
+            ) : null}
           </Field>
           <Field label="Stack (comma-separated)">
             <input value={stackStr} onChange={(e) => setStackStr(e.target.value)} placeholder="Python, Django, PostgreSQL"
@@ -304,14 +308,14 @@ export function DevTab() {
           <button
             type="button"
             onClick={runLifecycle}
-            disabled={lifecycleActive}
+            disabled={lifecycleActive || title.trim() === ""}
             title="Automated lifecycle: analyze → design → policy gate → publish → (on submissions) evaluate → rank → promote to Decisions"
             className="focus-ring inline-flex h-10 w-full items-center justify-center gap-1.5 rounded-md bg-coral text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
           >
             {lifecycleActive ? <Loader2 size={15} className="animate-spin" /> : <Sparkles size={15} />}
             {lifecycleActive ? "Lifecycle running…" : "▶ Run automated lifecycle"}
           </button>
-          <button type="button" onClick={submit} disabled={running}
+          <button type="button" onClick={submit} disabled={running || title.trim() === ""}
             className="focus-ring inline-flex h-9 w-full items-center justify-center gap-1.5 rounded-md border border-stone-200 bg-white text-sm font-semibold text-ink hover:border-coral/40 disabled:opacity-50">
             {running ? <Loader2 size={14} className="animate-spin" /> : null}
             {running ? "Reflecting…" : "Analyze need only"}

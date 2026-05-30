@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { FileText, Plus, UploadCloud, X } from "lucide-react";
+import { ACCEPT_EXTENSIONS, MAX_FILE_HINT, validateUpload } from "@/app/_lib/upload-constraints";
 import { formatFileSize } from "./AnalyzeApi";
 import { useGlobalFileDrag } from "./useGlobalFileDrag";
 
@@ -20,7 +21,45 @@ export function AnalyzeProfileInput({
 }) {
   const [isOverDropzone, setIsOverDropzone] = useState(false);
   const [isLoadingSample, setIsLoadingSample] = useState(false);
-  const isWindowDragging = useGlobalFileDrag(onAdd);
+  const [error, setError] = useState<string | null>(null);
+
+  // Pre-flight every accepted file (extension + size) so a bad drop/select is
+  // rejected inline rather than after the upload POST.
+  const addFile = (file: File) => {
+    const err = validateUpload(file);
+    if (err) {
+      setError(err);
+      return;
+    }
+    setError(null);
+    onAdd(file);
+  };
+  const replaceFile = (index: number, file: File) => {
+    const err = validateUpload(file);
+    if (err) {
+      setError(err);
+      return;
+    }
+    setError(null);
+    onReplace(index, file);
+  };
+
+  const isWindowDragging = useGlobalFileDrag(addFile);
+
+  // Drop-anywhere affordance: a full-window overlay while a file is dragged over
+  // the page (pointer-events-none so the underlying drop targets still receive it).
+  const dragOverlay = isWindowDragging ? (
+    <div className="animate-fade-in pointer-events-none fixed inset-0 z-50 flex items-center justify-center bg-coral/5" aria-hidden>
+      <div className="flex flex-col items-center gap-2 rounded-2xl border-2 border-dashed border-coral bg-white/90 px-10 py-8 shadow-panel">
+        <UploadCloud className="h-8 w-8 text-coral" />
+        <span className="text-sm font-semibold text-ink">Drop your CV anywhere</span>
+      </div>
+    </div>
+  ) : null;
+
+  const errorRow = error ? (
+    <p className="mt-1 text-[10px] text-coral" role="alert">{error}</p>
+  ) : null;
 
   async function loadSample() {
     if (isLoadingSample) return;
@@ -30,7 +69,7 @@ export function AnalyzeProfileInput({
       if (!response.ok) return;
       const blob = await response.blob();
       const file = new File([blob], "sample-cv.txt", { type: "text/plain" });
-      onAdd(file);
+      addFile(file);
     } finally {
       setIsLoadingSample(false);
     }
@@ -40,6 +79,7 @@ export function AnalyzeProfileInput({
     const isActive = isWindowDragging || isOverDropzone;
     return (
       <>
+        {dragOverlay}
         <label
           htmlFor="profile-file-0"
           onDragEnter={(event) => {
@@ -58,7 +98,7 @@ export function AnalyzeProfileInput({
             event.preventDefault();
             setIsOverDropzone(false);
             const file = event.dataTransfer.files?.[0];
-            if (file) onAdd(file);
+            if (file) addFile(file);
           }}
           className={`flex min-h-20 cursor-pointer flex-col items-center justify-center rounded-lg border px-3 text-center transition-colors ${
             isActive
@@ -70,16 +110,17 @@ export function AnalyzeProfileInput({
           <span className="mt-1 max-w-full truncate text-xs font-semibold text-ink">
             {isActive ? "Drop CV here" : "Drop CV or click"}
           </span>
-          <span className="text-[10px] text-steel">PDF · DOCX · TXT · MD up to 8 MB</span>
+          <span className="text-[10px] text-steel">{MAX_FILE_HINT}</span>
         </label>
+        {errorRow}
         <input
           id="profile-file-0"
           type="file"
-          accept=".pdf,.docx,.txt,.md"
+          accept={ACCEPT_EXTENSIONS}
           className="sr-only"
           onChange={(event) => {
             const next = event.target.files?.[0];
-            if (next) onAdd(next);
+            if (next) addFile(next);
             event.target.value = "";
           }}
         />
@@ -102,6 +143,7 @@ export function AnalyzeProfileInput({
 
   return (
     <div className="space-y-2">
+      {dragOverlay}
       {files.map((file, index) => (
         <div
           key={`${file.name}-${index}`}
@@ -127,11 +169,11 @@ export function AnalyzeProfileInput({
           <input
             id={`profile-file-${index}`}
             type="file"
-            accept=".pdf,.docx,.txt,.md"
+            accept={ACCEPT_EXTENSIONS}
             className="sr-only"
             onChange={(event) => {
               const next = event.target.files?.[0];
-              if (next) onReplace(index, next);
+              if (next) replaceFile(index, next);
               event.target.value = "";
             }}
           />
@@ -166,11 +208,11 @@ export function AnalyzeProfileInput({
           <input
             id={`profile-file-${files.length}`}
             type="file"
-            accept=".pdf,.docx,.txt,.md"
+            accept={ACCEPT_EXTENSIONS}
             className="sr-only"
             onChange={(event) => {
               const next = event.target.files?.[0];
-              if (next) onAdd(next);
+              if (next) addFile(next);
               event.target.value = "";
             }}
           />
@@ -178,6 +220,7 @@ export function AnalyzeProfileInput({
       ) : (
         <p className="text-[10px] text-steel">Variant limit reached.</p>
       )}
+      {errorRow}
     </div>
   );
 }

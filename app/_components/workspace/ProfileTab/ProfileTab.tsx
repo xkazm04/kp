@@ -162,6 +162,18 @@ export function ProfileTab() {
     }
   };
 
+  // Inline field validation: catch a non-numeric "years" (would POST NaN) and a
+  // malformed graduation year before the request, and gate Save on validity.
+  const yearsError =
+    yearsExperience.trim() !== "" && !/^\d{1,2}(\.\d)?$/.test(yearsExperience.trim())
+      ? "Enter a number (e.g. 6)."
+      : undefined;
+  const gradError =
+    expectedGraduation.trim() !== "" && !/^(19|20)\d{2}$/.test(expectedGraduation.trim())
+      ? "Enter a 4-digit year (e.g. 2026)."
+      : undefined;
+  const hasFieldErrors = Boolean(yearsError || gradError);
+
   return (
     <section className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
       <header className="border-b border-stone-200 pb-4">
@@ -194,7 +206,7 @@ export function ProfileTab() {
             {isStudentish ? (
               <div className="mt-3 grid gap-2 sm:grid-cols-2">
                 <Check label="Currently enrolled" checked={isEnrolled} onChange={setIsEnrolled} />
-                <Text label="Expected graduation" value={expectedGraduation} onChange={setExpectedGraduation} placeholder="e.g. 2026" />
+                <Text label="Expected graduation" value={expectedGraduation} onChange={setExpectedGraduation} placeholder="e.g. 2026" error={gradError} />
                 <Check label="Wants to change field" checked={wantsDomainChange} onChange={setWantsDomainChange} />
                 <Check label="Has prior pro experience" checked={hasSubstantialExperience} onChange={setHasSubstantialExperience} />
               </div>
@@ -224,6 +236,7 @@ export function ProfileTab() {
                   value={yearsExperience}
                   onChange={setYearsExperience}
                   placeholder="6"
+                  error={yearsError}
                 />
                 {choice === "bau" ? (
                   <Pick label="Seniority" value={seniority} onChange={setSeniority} options={SENIORITIES.map((v) => ({ v, label: v }))} />
@@ -334,7 +347,7 @@ export function ProfileTab() {
         <button
           type="button"
           onClick={() => build(false)}
-          disabled={loading}
+          disabled={loading || hasFieldErrors}
           className="focus-ring h-10 rounded-md border border-stone-200 px-4 text-sm font-semibold text-ink hover:bg-paper disabled:opacity-40"
         >
           {loading ? "Working…" : "Check (preview)"}
@@ -342,7 +355,7 @@ export function ProfileTab() {
         <button
           type="button"
           onClick={() => build(true)}
-          disabled={loading}
+          disabled={loading || hasFieldErrors}
           className="focus-ring h-10 rounded-md bg-ink px-4 text-sm font-semibold text-white disabled:opacity-40"
         >
           Save profile
@@ -432,13 +445,16 @@ function Text({
   onChange,
   placeholder,
   className = "",
+  error,
 }: {
   label: string;
   value: string;
   onChange: (v: string) => void;
   placeholder?: string;
   className?: string;
+  error?: string;
 }) {
+  const errId = error ? `${label.replace(/\s+/g, "-").toLowerCase()}-err` : undefined;
   return (
     <label className={`flex flex-col gap-1 ${className}`}>
       <span className="text-[11px] uppercase tracking-wide text-steel">{label}</span>
@@ -446,8 +462,11 @@ function Text({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="focus-ring h-9 rounded-md border border-stone-200 px-2 text-sm"
+        aria-invalid={Boolean(error)}
+        aria-describedby={errId}
+        className={`focus-ring h-9 rounded-md border px-2 text-sm ${error ? "border-coral" : "border-stone-200"}`}
       />
+      {error ? <span id={errId} className="text-[10px] text-coral">{error}</span> : null}
     </label>
   );
 }
