@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Calendar, Check, X } from "lucide-react";
+import { Calendar, Check, ClipboardList, X } from "lucide-react";
 import { ScheduleCalendar } from "./ScheduleCalendar";
+import { InterviewPrepModal } from "./InterviewPrepModal";
 import { DEFAULT_SLOT, styleFor, type SchedEntry } from "./ScheduleTypes";
 
 export function ScheduleTab() {
@@ -11,6 +12,8 @@ export function ScheduleTab() {
   const [picks, setPicks] = useState<Record<string, string>>({});
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
+  const [prepEntry, setPrepEntry] = useState<SchedEntry | null>(null);
+  const [prepared, setPrepared] = useState<Record<string, string>>({});
 
   const load = () =>
     fetch("/api/pipeline")
@@ -28,6 +31,17 @@ export function ScheduleTab() {
   }, []);
 
   const pending = entries ?? [];
+  const entryIds = pending.map((e) => e.id).join(",");
+  // Which candidates already have a generated interview-prep artifact (toggles
+  // the button label). Re-checked when the prep modal closes (a fresh generate).
+  useEffect(() => {
+    if (!entryIds) return;
+    fetch(`/api/interview-prep?entries=${encodeURIComponent(entryIds)}`)
+      .then((r) => r.json())
+      .then((p) => setPrepared(p.prepared ?? {}))
+      .catch(() => undefined);
+  }, [entryIds, prepEntry]);
+
   const selected = useMemo(() => (entries ?? []).find((e) => e.id === selectedId) ?? null, [entries, selectedId]);
 
   const pickSlot = (slot: string) => {
@@ -104,7 +118,15 @@ export function ScheduleTab() {
                     </span>
                     <span className="shrink-0 rounded bg-paper px-1.5 py-0.5 text-sm font-semibold text-ink">{picks[e.id]}</span>
                   </button>
-                  <div className="mt-2 flex gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setPrepEntry(e)}
+                    className="focus-ring mt-2 inline-flex h-8 w-full items-center justify-center gap-1.5 rounded-md border border-stone-200 text-sm font-semibold text-ink hover:border-coral/40"
+                  >
+                    <ClipboardList size={14} className="text-coral" />
+                    {prepared[e.id] ? "View interview prep" : "Interview prep"}
+                  </button>
+                  <div className="mt-1.5 flex gap-1.5">
                     <button
                       type="button"
                       onClick={() => act(e, "approve_event")}
@@ -135,6 +157,8 @@ export function ScheduleTab() {
           </aside>
         </div>
       )}
+
+      {prepEntry ? <InterviewPrepModal entry={prepEntry} onClose={() => setPrepEntry(null)} /> : null}
     </div>
   );
 }

@@ -16,6 +16,7 @@ import { runCommitReflection, runDesignArtifacts, runEvaluateSubmission, runNeed
 import { runLifecycle } from "./devcase-orchestrator";
 import { runGroupEval } from "./group-eval-run";
 import { runJdBuild } from "./jd-build-run";
+import { runInterviewPrep } from "./interview-prep-run";
 
 // ---------------------------------------------------------------------------
 // In-process background-task runner. Works because `next dev` is one long-lived
@@ -118,6 +119,11 @@ const HANDLERS: Record<string, Spec> = {
     run: (ctx) => runJdBuild(ctx.params, ctx.progress),
     label: (p) => `Build JD · ${p.title ?? "role"}`,
     dedupe: (p) => `jd_build:${p.title}:${p.needText ? String(p.needText).length : 0}:${p.repoUrl ?? ""}`,
+  },
+  interview_prep: {
+    run: (ctx) => runInterviewPrep(ctx.params),
+    label: (p) => `Interview prep · ${p.candidateLabel ?? p.entryId ?? ""}`,
+    dedupe: (p) => `interview_prep:${p.entryId}`, // one plan per entry; re-trigger reuses an in-flight run
   },
 };
 

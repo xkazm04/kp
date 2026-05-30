@@ -92,6 +92,16 @@ export function DecisionsTab() {
         body: JSON.stringify({ action }),
       });
       if (!r.ok) throw new Error();
+      // Accepting an AI screening flows the candidate to interview scheduling —
+      // generate their interview-prep artifact in the background so it's ready
+      // when the interviewer opens it from the Schedule tab.
+      if (action === "accept" && e.approvalKind === "screening_review") {
+        void startTask("interview_prep", {
+          entryId: e.id,
+          candidateLabel: e.candidateLabel,
+          jobTitle: e.jobTitle,
+        });
+      }
     } catch {
       load();
       setResolving((s) => {

@@ -1882,6 +1882,16 @@ export function actOnPipelineEntry(id: string, action: PipelineAction, detail?: 
       `UPDATE pipeline_entries SET stage='Interview', approval_kind=NULL, approval_detail='', stage_changed_at=?, updated_at=? WHERE id=?`
     ).run(now, now, id);
     recordEvent(db, { ...meta, kind: "scheduled", toStage: "Interview", detail: slot });
+  } else if (row.approval_kind === "screening_review") {
+    // Accepting an AI screening flows the candidate into interview scheduling:
+    // advance a stage AND queue them on the calendar (Schedule tab) with a
+    // default proposed slot, so the interviewer can pick a time + open the prep.
+    const idx = PIPELINE_STAGES.indexOf(row.stage as PipelineStage);
+    const next = PIPELINE_STAGES[Math.min(idx + 1, PIPELINE_STAGES.length - 1)];
+    db.prepare(
+      `UPDATE pipeline_entries SET stage=?, approval_kind='calendar', approval_detail=?, stage_changed_at=?, updated_at=? WHERE id=?`
+    ).run(next, "Tue 14:00", now, now, id);
+    recordEvent(db, { ...meta, kind: "advanced", toStage: next });
   } else {
     // accept: advance one stage, clear any pending approval
     const idx = PIPELINE_STAGES.indexOf(row.stage as PipelineStage);
