@@ -1,0 +1,39 @@
+Ondřej Beneš
+Aspiring Backend Developer (Python) | Physics Educator transitioning into Software Engineering
+
+Summary
+Career switcher with eight years of teaching experience and a growing track record of building real software. I combine a strong analytical foundation in physics with hands-on Python development, having shipped a full-stack web application and completed Harvard's CS50P. I am looking for a junior backend or Python software engineering role where I can keep learning while contributing to well-tested, maintainable code.
+
+Experience
+
+Physics Teacher — Gymnázium Brno, třída Kapitána Jaroše
+2014–2022
+- Taught physics and an elective robotics seminar to students aged 15–19 for eight years, designing lab curricula and Arduino-based experiments.
+- Mentored teams for the Czech Physics Olympiad, breaking complex systems into teachable steps and debugging student projects under time pressure.
+
+Curriculum Coordinator (part-time) — Gymnázium Brno, třída Kapitána Jaroše
+- Coordinated the science department's digital materials, migrating shared resources into a structured Google Drive system.
+- Wrote simple Apps Script automations to generate grade reports — my first sustained use of scripting to remove repetitive work.
+
+Projects
+
+KvízPlus — Classroom Quiz Web App
+- Built a full-stack side project with a Flask + PostgreSQL backend and a vanilla-JavaScript front end that lets teachers create timed quizzes and view per-student analytics.
+- Deployed on Render with a small automated test suite and a documented README.
+
+Education & Certifications
+
+Mgr. in Physics Education — Masaryk University, Brno, 2014
+
+CS50P: Introduction to Programming with Python (HarvardX), 2025
+- Completed all nine problem sets and a final project: a CLI study-planner that parses ICS calendars.
+
+Skills
+- Python (working) · SQL (working) · Git / version control (working)
+- JavaScript (foundational) · Flask / REST APIs (foundational)
+- Problem decomposition · Automation & scripting · Testing · Mentoring · Arduino
+
+Languages
+- Czech (native)
+- English (professional working proficiency)
+- German (intermediate)

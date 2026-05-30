@@ -1,0 +1,20 @@
+{
+  "label": "Tereza Marešová — software engineering / junior (student)",
+  "expected_role_family": "software_engineering",
+  "expected_seniority": [
+    "junior",
+    "medior"
+  ],
+  "expected_salary_range": [
+    45000,
+    110000
+  ],
+  "expected_skills_subset": [
+    "Python",
+    "Java",
+    "SQL / PostgreSQL",
+    "Docker",
+    "Git"
+  ],
+  "expected_education": "master"
+}

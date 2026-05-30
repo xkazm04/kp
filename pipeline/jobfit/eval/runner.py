@@ -243,17 +243,23 @@ def _validate_fixture(json_path: Path, expected: Any) -> str | None:
     return None
 
 
-def _load_fixtures(filter_keyword: str | None = None) -> tuple[list[tuple[Path, dict[str, Any]]], list[str]]:
+def _load_fixtures(
+    filter_keyword: str | None = None, fixtures_dir: Path | None = None
+) -> tuple[list[tuple[Path, dict[str, Any]]], list[str]]:
     """Load fixtures, collecting (not raising on) per-file errors.
 
     A single fixture with a JSON syntax error or a bad schema used to abort the
     entire run with a traceback that never named the file. We now report each
     offending file by name and keep loading the rest; ``main`` fails the run at
     the end with the aggregated list.
+
+    ``fixtures_dir`` defaults to the committed golden set but can point at a
+    sibling set (e.g. the generated ČS candidate fixtures) so the same scorer
+    runs over a different corpus without disturbing the curated CI gate.
     """
     out: list[tuple[Path, dict[str, Any]]] = []
     errors: list[str] = []
-    for txt_path in sorted(FIXTURES_DIR.glob("*.txt")):
+    for txt_path in sorted((fixtures_dir or FIXTURES_DIR).glob("*.txt")):
         json_path = txt_path.with_suffix(".json")
         if not json_path.exists():
             continue  # a .txt without a paired .json is not a fixture
@@ -362,6 +368,12 @@ def main(argv: list[str] | None = None) -> int:
 
     parser = argparse.ArgumentParser(description="Run the jobfit eval harness against the golden fixtures.")
     parser.add_argument("--filter", help="Only run fixtures whose name contains this substring.")
+    parser.add_argument(
+        "--fixtures-dir",
+        type=Path,
+        default=None,
+        help="Score a different fixtures directory (default: the committed golden set).",
+    )
     parser.add_argument("--format", choices=["pretty", "json"], default=None, help="Output format (default: pretty).")
     parser.add_argument("--json", action="store_true", help="Alias for --format json (machine-readable).")
     parser.add_argument("--no-color", action="store_true", help="Disable ANSI color in the pretty report.")
@@ -375,7 +387,7 @@ def main(argv: list[str] | None = None) -> int:
         sys.stderr.write("eval: GEMINI_API_KEY not set, skipping\n")
         return 0
 
-    fixtures, load_errors = _load_fixtures(args.filter)
+    fixtures, load_errors = _load_fixtures(args.filter, args.fixtures_dir)
     for err in load_errors:
         sys.stderr.write(f"eval: malformed fixture — {err}\n")
     if not fixtures:

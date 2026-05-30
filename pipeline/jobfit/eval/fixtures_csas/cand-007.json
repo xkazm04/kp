@@ -1,0 +1,21 @@
+{
+  "label": "Tomáš Vavřík — software engineering / senior (bau)",
+  "expected_role_family": "software_engineering",
+  "expected_seniority": [
+    "medior",
+    "senior",
+    "lead"
+  ],
+  "expected_salary_range": [
+    70000,
+    220000
+  ],
+  "expected_skills_subset": [
+    "Java",
+    "Spring Boot",
+    "PostgreSQL",
+    "Distributed systems & system design",
+    "Apache Kafka"
+  ],
+  "expected_education": "master"
+}

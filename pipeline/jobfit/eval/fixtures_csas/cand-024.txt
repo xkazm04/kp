@@ -1,0 +1,34 @@
+Vojtěch Hruška
+Software Engineer | Backend & Distributed Systems
+
+Summary
+Final-year Software Engineering student at ČVUT FEL with hands-on experience building scalable backend services and analyzing concurrent systems. Strong foundation in algorithms and data structures, with practical work across Python, Java, and PostgreSQL. Aspiring backend engineer focused on distributed systems and open-source developer tooling, working toward a software architecture role.
+
+Experience
+
+Teaching Assistant — Introduction to Programming, ČVUT FEL (Volunteer)
+- Led weekly lab sessions for first-year students, reviewing Python assignments and giving feedback on coding style and correctness.
+- Explained algorithmic concepts during office hours, helping students build problem-solving fundamentals.
+
+Distributed URL Shortener — Semester Project
+- Designed a horizontally scalable URL shortener with a Python FastAPI backend, PostgreSQL storage, and Redis caching.
+- Packaged the full stack with Docker Compose for reproducible deployment.
+- Wrote load tests demonstrating sustained throughput under concurrent traffic.
+
+Bachelor Thesis — A Static Analyzer for Detecting Concurrency Bugs in Java
+- Built a prototype tool that flags potential data races in multithreaded Java code using control-flow analysis.
+- Evaluated the analyzer on a set of open-source projects and documented false-positive rates.
+
+Skills
+Languages & Frameworks: Python (working), Java (working)
+Databases: PostgreSQL (working)
+Infrastructure: Docker (foundational)
+Core: Algorithms and Data Structures (strong), concurrency analysis, load testing, REST APIs
+
+Education
+Bachelor of Science, Open Informatics — Software Engineering specialization
+Faculty of Electrical Engineering, Czech Technical University in Prague (ČVUT FEL)
+Expected 2026
+
+Languages
+Czech (native), English (professional working proficiency), German (working proficiency)

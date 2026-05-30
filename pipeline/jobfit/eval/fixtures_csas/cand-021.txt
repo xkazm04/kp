@@ -1,0 +1,41 @@
+Kristýna Doležalová
+Junior Machine Learning Engineer — NLP & Data Science
+
+Summary
+Data Science master's student at FEL ČVUT specializing in natural language processing and applied machine learning, graduating June 2026. Hands-on experience building transformer-based NLP models for the Czech language, including a clinical NER system, with a strong Python foundation. Seeking a junior ML or risk data analyst role where I can grow, ship reliable models, and contribute to open-source ML tooling.
+
+Experience
+
+Master's Thesis — Named-Entity Recognition for Czech Clinical Notes
+Faculty of Electrical Engineering, ČVUT in Prague | 2025–2026
+- Building a transformer-based NER model to extract diagnoses and medications from anonymized Czech medical records.
+- Fine-tuning a Czech BERT model in PyTorch and benchmarking it against a multilingual baseline.
+- Working with sensitive, domain-specific clinical text and anonymization constraints.
+
+Energy Consumption Forecasting — Semester Team Project
+ČVUT in Prague | 2024
+- Forecasted household electricity demand from a year of smart-meter data.
+- Compared gradient boosting and LSTM models in Python (scikit-learn); applied time-series feature engineering.
+- Placed 3rd in the course's internal leaderboard.
+
+Member — ČVUT Data Science Student Club
+ČVUT in Prague | 2023–present
+- Organized two intro-to-Pandas workshops for first-year students.
+- Presented a short talk on reproducible ML experiments using MLflow.
+
+Skills
+- Programming: Python (strong), SQL
+- Machine Learning: PyTorch, scikit-learn, model fine-tuning, gradient boosting, LSTM
+- NLP: transformer models, BERT fine-tuning, named-entity recognition
+- Data: Pandas, statistics, time-series analysis, data visualization (foundational)
+- Tools & Practices: MLflow, reproducible experiments
+
+Education
+Master's in Data Science (Open Informatics)
+Faculty of Electrical Engineering, Czech Technical University in Prague (FEL ČVUT)
+Expected June 2026
+
+Languages
+Czech — native
+English — C1
+German — B1

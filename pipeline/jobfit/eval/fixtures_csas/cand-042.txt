@@ -1,0 +1,35 @@
+Tereza Hájková
+Senior Java Backend Engineer | Distributed Systems & Platform Reliability
+
+Summary
+Backend engineer with ~9 years building and operating high-throughput, event-driven systems in Java and Spring Boot. Owner of business-critical billing and print-management platforms, with a track record of cutting latency and deployment time through pragmatic microservice and async architectures. Now looking to step into a staff/principal track, leading platform reliability initiatives and mentoring medior engineers toward genuine ownership.
+
+Experience
+
+Senior Backend Engineer — Platform Team
+Kentico Software
+- Owned the event-driven billing service processing roughly 4M transactions per day, including the on-call reliability rotation for the payments domain.
+- Migrated a monolith module to Spring Boot microservices on Kubernetes, cutting p99 latency by 38%.
+- Introduced Kafka-based asynchronous processing to decouple billing workflows and improve throughput under peak load.
+
+Backend Engineer
+Y Soft
+- Built REST and gRPC services for the print-management cloud, scaling multi-tenant data isolation on PostgreSQL.
+- Designed and implemented CI/CD pipelines on AWS, reducing deployment time from 40 to 8 minutes.
+- Contributed to distributed systems design decisions for a globally deployed, multi-tenant product.
+
+Skills
+- Languages & Frameworks: Java (strong), Spring Boot (strong)
+- Distributed Systems: Distributed systems design (strong), Kafka (working)
+- Data: PostgreSQL (strong)
+- Infrastructure & Cloud: Kubernetes (working), AWS (working)
+- Practices: Event-driven architecture, CI/CD, on-call reliability, microservice migration
+
+Education
+Ing. in Software Engineering
+Faculty of Information Technology, Czech Technical University in Prague (FIT ČVUT)
+
+Languages
+- Czech — native
+- English — professional working proficiency
+- German — working proficiency

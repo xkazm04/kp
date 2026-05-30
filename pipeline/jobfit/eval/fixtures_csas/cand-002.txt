@@ -1,0 +1,41 @@
+Tereza Marková
+Backend / Platform Engineer (Junior)
+
+Summary
+Master's student in Software Engineering at ČVUT FEL with hands-on experience building REST backends, containerized microservices, and PostgreSQL-backed services. Strong in Java and algorithms, with a growing focus on clean API design and scalable distributed systems. Looking to join a backend or platform team where I can grow toward a backend engineer role and, in time, contribute to open-source developer tooling.
+
+Experience
+
+Bachelor's Thesis — REST Service for Carpooling Schedule Optimization
+Czech Technical University in Prague (ČVUT FEL)
+- Designed and implemented a Spring Boot backend that matched commuter routes using a greedy heuristic, backed by a PostgreSQL data store.
+- Built a small React front end to visualize matched schedules end to end.
+- Defended with honors.
+
+Semester Project — Dockerized Microservice Demo (Distributed Systems course)
+Czech Technical University in Prague (ČVUT FEL)
+- Built a three-service demo (auth, catalog, orders) communicating over REST, orchestrated with Docker Compose.
+- Wrote integration tests across service boundaries and authored a short report on inter-service failure handling.
+
+Volunteer Mentor — CoderDojo Prague
+- Taught teenagers introductory programming in Python and Scratch over two semesters.
+- Prepared weekly exercises and reviewed students' small projects, giving individual feedback.
+
+Skills
+- Languages & Frameworks: Java (strong), Python (working), Spring Boot
+- Data: PostgreSQL (working)
+- Tooling & Infrastructure: Docker (foundational), Docker Compose, Git (working)
+- Foundations: Algorithms and Data Structures (strong), REST API design
+
+Education
+Mgr. (Master's), Open Informatics — Software Engineering specialization
+Faculty of Electrical Engineering, Czech Technical University in Prague (ČVUT FEL)
+Expected 2026
+
+Bc. (Bachelor's), Software Engineering
+Faculty of Electrical Engineering, ČVUT FEL — thesis defended with honors
+
+Languages
+- Czech — native
+- English — professional working proficiency
+- German — working proficiency

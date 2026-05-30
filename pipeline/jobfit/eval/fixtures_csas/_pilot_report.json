@@ -1,0 +1,28 @@
+{
+  "scope": "full-corpus",
+  "candidates": 50,
+  "persisted": 50,
+  "aggregate": {
+    "role_family": 0.96,
+    "seniority": 1.0,
+    "salary_overlap": 0.66,
+    "skill_recall": 0.94
+  },
+  "thresholds": {
+    "role_family": 0.85,
+    "seniority": 0.7,
+    "salary_overlap": 0.6,
+    "skill_recall": 0.75
+  },
+  "passes": true,
+  "signals": {
+    "salary_above_band": 5,
+    "education_master_softened": 7,
+    "cz_en_skill_undercount": 5,
+    "score_min": 45,
+    "score_median": 78,
+    "score_max": 94,
+    "score_mean": 78
+  },
+  "notes": "6 transient Gemini failures on the first --all pass (empty/non-JSON, 53-61s) were recovered by a --skip-existing --retries 2 resume run; aggregates above are over all 50 saved payloads."
+}

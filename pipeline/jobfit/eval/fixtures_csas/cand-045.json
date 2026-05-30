@@ -1,0 +1,20 @@
+{
+  "label": "Štěpán Kovařík — product project / junior (student)",
+  "expected_role_family": "product_project",
+  "expected_seniority": [
+    "junior",
+    "medior"
+  ],
+  "expected_salary_range": [
+    45000,
+    105000
+  ],
+  "expected_skills_subset": [
+    "Agile / Scrum",
+    "Product discovery & user interviews",
+    "Backlog prioritization & roadmapping",
+    "SQL & data analysis",
+    "Stakeholder communication"
+  ],
+  "expected_education": "master"
+}

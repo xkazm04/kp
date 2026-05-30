@@ -1,0 +1,37 @@
+Tereza Marková
+Junior Product Manager | Product Discovery & Agile
+
+Studentka navazujícího magisterského studia se zaměřením na produktový management a propojování byznysu s vývojem. Mám praktickou zkušenost s vedením discovery rozhovorů, tvorbou backlogu a prioritizací funkcí v agilním týmu. Hledám roli junior product managera v SaaS produktovém týmu, kde mohu rozvíjet produktový objav a dlouhodobě růst směrem k vlastnictví produktové roadmapy.
+
+ZKUŠENOSTI
+
+Product Owner — StudyBuddy (semestrální produktový projekt, VŠE)
+- V pětičlenném týmu jsem vedla vývoj mobilní aplikace pro sdílení studijních poznámek jako product owner.
+- Vedla jsem discovery rozhovory se zákazníky a na jejich základě sestavila produktový backlog.
+- Prioritizovala jsem funkce metodou MoSCoW napříč dvěma sprinty a připravila wireframy ve Figmě.
+
+Autorka diplomové práce — Měření Product-Market Fit u českých early-stage SaaS startupů
+- Realizovala jsem dotazníkové šetření mezi 40 zakladateli a doplnila ho hloubkovými rozhovory.
+- Navrhuji praktický rámec metrik PMF pro malé týmy bez vlastního datového oddělení.
+- Data jsem zpracovávala a vyhodnocovala s využitím SQL.
+
+Koordinátorka — VŠE Hack (studentský hackathon)
+- Spolupořádala jsem dvoudenní hackathon pro přibližně 80 účastníků.
+- Měla jsem na starosti harmonogram, komunikaci se sponzory a onboarding mentorů.
+
+DOVEDNOSTI
+- Agilní řízení (Scrum) — pracovní úroveň
+- User research a rozhovory se zákazníky — pracovní úroveň
+- Wireframing a prototypování ve Figmě — pracovní úroveň
+- Tvorba produktových roadmap a prioritizace — základní úroveň
+- Datová analýza v SQL — základní úroveň
+
+VZDĚLÁNÍ
+Vysoká škola ekonomická v Praze (VŠE)
+Navazující magisterské studium, Informační management — 2. ročník
+Předpokládané ukončení: 2026
+
+JAZYKY
+- Čeština — rodilý mluvčí
+- Angličtina — C1
+- Němčina — B1

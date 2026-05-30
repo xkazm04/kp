@@ -1,0 +1,37 @@
+Tereza Konečná
+Senior Data Scientist — Applied Machine Learning & Recommendation Systems
+
+Summary
+Senior data scientist with around nine years of experience building and shipping production machine learning, from large-scale recommendation ranking to demand forecasting and dynamic pricing. Comfortable owning models end to end — design, training pipelines, deployment, and experimentation — and validating impact through rigorous A/B testing. Looking to lead an applied ML team that owns the full model lifecycle and moves recommendation systems from batch to real-time inference.
+
+Experience
+
+Senior Data Scientist — Recombee, Brno
+Owned the ranking models behind a real-time recommendation API serving 500M+ requests per day.
+- Led migration of the candidate-retrieval stage to a two-tower neural architecture, lifting click-through rate by 11% in production A/B tests.
+- Built the MLflow-based training and monitoring pipeline that was adopted across the modeling team.
+- Drove model design, deployment, and experiment evaluation for latency-sensitive, high-throughput serving.
+
+Data Scientist — Kiwi.com, Brno
+Developed demand-forecasting and dynamic-pricing models for flight inventory using XGBoost and Spark over billions of search events.
+- Productionized the forecasting service on AWS SageMaker.
+- Partnered with revenue teams to validate uplift through controlled experiments.
+- Built data models and SQL pipelines underpinning forecasting and pricing.
+
+Skills
+Programming & Data: Python (strong), SQL & data modeling (strong)
+Machine Learning: scikit-learn, XGBoost (strong); A/B testing & experiment design (strong)
+Deep Learning: PyTorch (working)
+MLOps: MLflow, Docker, Kubernetes (working)
+Big Data: Spark / distributed data processing (working)
+Cloud ML: AWS SageMaker (working)
+
+Education
+Ing. in Open Informatics, specialization Artificial Intelligence
+Faculty of Electrical Engineering, Czech Technical University in Prague (FEL ČVUT)
+
+Languages
+Czech (native), English, German
+
+Profile & Aspirations
+Aiming to lead an applied ML team owning the end-to-end model lifecycle, move recommendation systems from batch to real-time inference, and mentor medior data scientists toward production-grade MLOps. Open to senior roles such as Senior Data Engineer within a Data Tribe.

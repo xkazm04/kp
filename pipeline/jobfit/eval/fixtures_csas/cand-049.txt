@@ -1,0 +1,35 @@
+Markéta Dvořáková
+Aspiring Backend Developer (Python) | Career Switcher from Molecular Biology
+
+Summary
+Molecular biologist with eight years of research experience transitioning into backend software development. Strong background in processing large biological datasets and automating data workflows in Python and R, recently formalized through an intensive 600+ hour Python developer program. Seeking a junior backend or bioinformatics engineering role where scientific rigor meets clean, maintainable code.
+
+Experience
+
+Research Scientist — Loschmidt Laboratories, Molecular Biology Lab, Brno (2014–2022)
+- Designed and ran protein-engineering experiments and managed end-to-end sample pipelines for a busy research group.
+- Processed large gene-expression datasets in R and Python, building reproducible analyses from raw data.
+- Authored standardized data-cleaning scripts adopted across the team, which sparked a deliberate move into software engineering.
+
+Laboratory Coordinator (part-time) — Brno (2022–2023)
+- Coordinated lab scheduling and reagent ordering for a 12-person research group while studying programming in the evenings.
+- Built a spreadsheet-automation tool in Python that reduced manual ordering errors.
+
+Capstone Project — "SeedSwap", Community Plant-Exchange API (2023)
+- Built an end-to-end FastAPI + PostgreSQL backend with JWT authentication and a small React frontend.
+- Deployed on Railway with continuous integration via GitHub Actions, as the Engeto bootcamp capstone.
+
+Skills
+- Languages & Frameworks: Python (working), SQL (working), FastAPI (foundational)
+- Tools & Practices: Git & GitHub (foundational), testing, CI/CD (GitHub Actions)
+- Foundations: Data structures & algorithms (foundational), data analysis, R, experimental design, process automation
+
+Education
+Mgr. in Molecular Biology and Genetics — Masaryk University, Brno (2013)
+Thesis on gene-expression data analysis in R.
+
+Engeto Python Developer Academy — Certificate of Completion (2023)
+600+ hour intensive covering Python fundamentals, OOP, databases, web APIs, and testing; graduated in the top cohort group.
+
+Languages
+Czech (native) · English (C1) · German (B1)

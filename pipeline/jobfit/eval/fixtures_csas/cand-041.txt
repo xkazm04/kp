@@ -1,0 +1,33 @@
+Markéta Sýkorová
+Senior Data Scientist / Machine Learning Engineer
+
+Summary
+Data and ML professional with ~9 years of experience building and productionizing machine-learning systems that serve real users at scale. Comfortable owning models end to end — from problem framing and feature engineering through deployment, MLflow tracking, and A/B evaluation. Looking to lead an ML platform team owning the full training-to-serving lifecycle, take production LLM/RAG systems from prototype to reliable monitored services, and grow a team's MLOps maturity.
+
+Experience
+
+Senior Data Scientist — Kiwi.com, Brno
+- Owned demand-forecasting and dynamic-pricing models for flight search, replacing a rules-based baseline with gradient-boosted ensembles and cutting forecast error by ~18%.
+- Productionized models on Kubernetes with MLflow experiment tracking, establishing a repeatable path from training to serving.
+- Led the migration of the team's feature pipeline to BigQuery, improving reliability and turnaround for downstream modelling.
+
+Machine Learning Engineer — Seznam.cz, Brno / Prague
+- Built and shipped learning-to-rank models for search and content recommendation serving millions of daily users.
+- Ran the offline/online A/B evaluation framework that gated launches, making release decisions measurable and reproducible.
+- Introduced a PyTorch-based ranking prototype that improved click-through on the top results.
+
+Skills
+- Python (strong)
+- Machine learning — scikit-learn, XGBoost (strong)
+- SQL & data warehousing — BigQuery, Snowflake (strong)
+- Experiment design & A/B testing (strong)
+- Deep learning — PyTorch (working)
+- MLOps — Docker, Kubernetes, MLflow (working)
+- NLP & LLM fine-tuning / RAG (working)
+
+Education
+Ing. (MSc), Open Informatics — specialization Machine Learning
+Czech Technical University in Prague (ČVUT FEL), 2014
+
+Languages
+Czech (native), English (professional), German (working)

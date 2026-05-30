@@ -1,0 +1,41 @@
+Tereza Holubová
+Aspiring Backend / Bioinformatics Software Engineer (Python)
+
+Summary
+Molecular biologist turned software engineer with six years of research experience and a strong foundation in Python and data wrangling. After years of scripting my own analysis and reporting tools, I retrained part-time in software engineering to move into backend development. I am looking for a junior backend or bioinformatics engineering role where a scientific, data-driven mindset adds value.
+
+Experience
+
+Research Scientist (Molecular Biology) — CEITEC, Masaryk University, Brno
+2016–2022
+- Designed and ran genomics experiments over six years, managing and analysing large sequencing datasets.
+- Wrote internal Python scripts using Pandas to clean, transform and visualise experimental results.
+- This day-to-day scripting work is what sparked my transition into software engineering.
+
+Laboratory Data Coordinator (contract) — Biotech startup, Brno
+- Maintained sample-tracking spreadsheets and relational data for laboratory operations.
+- Built semi-automated reporting in Python and SQL, replacing manual steps with scripted data exports.
+
+Projects
+
+GeneTrack — Sample-Tracking Web App (retraining capstone)
+- Built a Flask + PostgreSQL application to register lab samples, track their status and export CSV reports.
+- Implemented user authentication and a small REST API.
+- Tools: Python, Flask, SQL, Git.
+
+Skills
+- Python (working) — scripting, data processing, automation
+- Pandas / data wrangling (strong) — cleaning, transforming and analysing large datasets
+- SQL (working) — relational data, queries, reporting
+- Git (working) — version control and collaboration
+- Flask / REST APIs (foundational) — building simple web services and endpoints
+
+Education
+Mgr. in Molecular Biology and Genetics — Masaryk University, Brno, 2016
+Software Engineering retraining (part-time) — ČVUT lifelong-learning courses, 2023–2024
+- Backend Web Development with Python: 120-hour evening course covering HTTP, REST, relational databases, testing and deployment; completed all project assignments.
+
+Languages
+Czech — native
+English — professional working proficiency
+German — intermediate

@@ -1,0 +1,32 @@
+Tomáš Marvan
+Senior Backend Engineer — Distributed Systems & Cloud-Native Platforms
+
+Backend engineer with ~9 years of experience designing and operating high-throughput, distributed services in Go on Kubernetes. Proven track record of leading large-scale migrations, cutting tail latency, and scaling systems to handle 3x traffic growth. Aiming toward a Staff/Principal role owning platform architecture for high-throughput distributed systems.
+
+EXPERIENCE
+
+Senior Backend Engineer — Kentico Software
+- Led the rewrite of the content-delivery API from a monolith to Go microservices on Kubernetes, cutting p99 latency by ~40% and supporting 3x traffic growth.
+- Designed service-to-service communication with gRPC / Protobuf and PostgreSQL-backed storage for reliability at scale.
+- Mentored two medior engineers and owned the on-call runbook.
+
+Backend Engineer — Seznam.cz
+- Built and operated billing-event ingestion services handling millions of events per day.
+- Introduced Terraform-managed infrastructure to standardize provisioning and reduce manual operations.
+- Established Prometheus-based SLO alerting to improve reliability and incident response.
+
+SKILLS
+
+Languages & Frameworks: Go (strong)
+Infrastructure & Orchestration: Kubernetes (strong), Terraform (working)
+Data: PostgreSQL (strong)
+Distributed Systems: Distributed systems design (working), gRPC / Protobuf (working)
+Observability: Prometheus, Grafana (working)
+
+EDUCATION
+
+Ing. in Software Engineering — ČVUT FEL (Czech Technical University in Prague), 2014
+
+LANGUAGES
+
+Czech (native), English (C1), German (B1)

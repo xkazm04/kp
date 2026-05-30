@@ -1,0 +1,36 @@
+Klára Benešová
+Junior Data Scientist / ML Engineer se zaměřením na NLP
+
+Studentka navazujícího magisterského studia strojového učení s praktickou zkušeností s NLP, transformerovými modely a klasickým machine learningem. Hledám junior pozici ve výzkumně zaměřeném týmu, kde bych mohla rozvíjet zpracování přirozeného jazyka pro češtinu a postupně se posouvat směrem k MLOps a nasazování modelů do produkce.
+
+ZKUŠENOSTI A PROJEKTY
+
+Bakalářská práce — Detekce sarkasmu v českých sociálních sítích
+- Doladila jsem předtrénovaný model typu BERT pro češtinu na vlastním anotovaném datasetu komentářů ze sociálních sítí.
+- Dosáhla jsem F1 skóre 0,81 a porovnala výsledky s klasickými baseline klasifikátory.
+- Technologie: Python, PyTorch, NLP.
+
+Predikce spotřeby energie domácností — semestrální týmový projekt (3 lidé)
+- Postavili jsme pipeline pro čištění dat, feature engineering a gradient boosting model pro predikci denní spotřeby.
+- Měla jsem na starosti přípravu dat a vyhodnocení modelu.
+- Technologie: Python, scikit-learn, SQL, statistika a pravděpodobnost.
+
+Mentorka, Czechitas — kurz Datová analýza v Pythonu
+- Dobrovolně jsem vedla cvičení pro začátečnice a pomáhala s knihovnou pandas a vizualizací dat.
+- Zlepšila jsem si schopnost srozumitelně vysvětlovat technické koncepty.
+
+DOVEDNOSTI
+- Programování a ML: Python (pokročilá), scikit-learn (pokročilá), PyTorch (pracovní úroveň)
+- Data a statistika: SQL (pracovní úroveň), statistika a pravděpodobnost (pracovní úroveň)
+- Nástroje: Docker (základní úroveň)
+- Oblasti: NLP a zpracování přirozeného jazyka, strojové učení, feature engineering
+
+VZDĚLÁNÍ
+Navazující magisterské studium, obor Strojové učení a zpracování dat
+Fakulta informačních technologií, VUT v Brně
+2. ročník, předpokládané ukončení 2026
+
+JAZYKY
+Čeština — rodilý mluvčí
+Angličtina — C1
+Němčina — B1

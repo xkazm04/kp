@@ -1,0 +1,38 @@
+Adéla Procházková
+Junior Frontend / Full-Stack Developer — career switcher with a clinical background
+
+Summary
+Career-switcher from healthcare to software engineering, drawing on five years of clinical experience that taught me precision, accountability, and clear communication. After automating reporting in my physiotherapy work, I retrained through a six-month full-stack bootcamp and now build with JavaScript, React, and SQL. I am looking for a junior frontend or full-stack role where I can grow as an engineer while contributing strong domain empathy and a structured, detail-oriented approach.
+
+Experience
+
+Physiotherapist — Rehabilitační centrum Lužánky, Brno
+- Led individual and group rehabilitation programs for 15–20 patients daily, tracking recovery metrics and coordinating treatment plans with physicians.
+- Built internal spreadsheet tooling to automate progress reporting — the project that first drew me toward software.
+
+Physiotherapist (Junior) — Nemocnice Milosrdných bratří, Brno
+- Provided post-operative and orthopedic rehabilitation in a hospital setting and documented patient outcomes in the clinic's information system.
+- Trained two new hires on the documentation workflow.
+
+RehabTrack — Patient Exercise Tracker (personal capstone project)
+- Built a web app letting physiotherapists assign exercise plans and patients log their completion, applying my clinical domain knowledge directly.
+- React frontend, Node/Express REST API, and PostgreSQL database.
+
+Projects & Training
+- Czechitas Full-Stack Web Development — six-month part-time program covering HTML/CSS, JavaScript, React, REST APIs, and relational databases. Graduated with a team final project: an event-booking app.
+
+Skills
+- HTML/CSS: strong
+- JavaScript: working
+- React: working
+- Git: working
+- SQL: foundational
+
+Education
+- Mgr. in Physiotherapy, Faculty of Medicine, Masaryk University, Brno (2014–2019)
+- Czechitas Full-Stack Web Development Bootcamp, completion certificate (online, 2023)
+
+Languages
+- Czech — native
+- English — C1
+- German — B1

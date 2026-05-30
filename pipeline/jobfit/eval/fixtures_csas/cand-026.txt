@@ -1,0 +1,35 @@
+Markéta Dvořáková
+Junior Data Scientist / ML Engineer — NLP a strojové učení
+
+Studentka navazujícího magisterského studia zpracování přirozeného jazyka a umělé inteligence na FI MU se zaměřením na NLP pro češtinu a další málo zdrojové jazyky. Mám praktickou zkušenost s dotrénováním transformerových modelů, čištěním dat a stavbou regresních modelů od sběru dat až po prezentaci výsledků. Hledám juniorní roli v produktovém týmu, kde bych se postupně posouvala směrem k MLOps a nasazování modelů do produkce.
+
+VZDĚLÁNÍ
+Masarykova univerzita, Fakulta informatiky, Brno
+Navazující magisterské studium, obor Zpracování přirozeného jazyka a umělá inteligence — 2025
+
+ODBORNÁ ZKUŠENOST A PROJEKTY
+
+Diplomová práce — Detekce dezinformací v českých zpravodajských titulcích pomocí transformerových modelů
+- Dotrénovala jsem model typu BERT na ručně anotovaném korpusu českých titulků a porovnala jej s klasickými baseline klasifikátory.
+- Dosáhla jsem F1 skóre 0,84 a analyzovala hlavní zdroje chyb modelu.
+- Technologie: Python, PyTorch, NLP.
+
+Semestrální projekt — Predikce zpoždění brněnské MHD
+- Sesbírala a vyčistila jsem otevřená data o jízdních řádech a polohách vozů.
+- Natrénovala jsem regresní model pro odhad zpoždění tramvají a výsledky prezentovala jednoduchým dashboardem.
+- Technologie: Python, scikit-learn, SQL, vizualizace dat (matplotlib, Plotly).
+
+Mentorka — studentský spolek Datová laboratoř FI MU
+- Vedla jsem úvodní workshopy o Pythonu a analýze dat pro studenty prvních ročníků.
+- Spolupodílela jsem se na organizaci interní datové soutěže.
+
+DOVEDNOSTI
+- Programování: Python (pokročilá), SQL (pracovní úroveň)
+- Strojové učení: scikit-learn (pracovní úroveň), PyTorch (základy)
+- Analýza: statistika a pravděpodobnost (pracovní úroveň)
+- Vizualizace dat: matplotlib, Plotly (pracovní úroveň)
+
+JAZYKY
+- Čeština — rodilý mluvčí
+- Angličtina — C1
+- Němčina — B1

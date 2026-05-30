@@ -1,0 +1,21 @@
+{
+  "label": "Tereza Hájková — software engineering / senior (bau)",
+  "expected_role_family": "software_engineering",
+  "expected_seniority": [
+    "medior",
+    "senior",
+    "lead"
+  ],
+  "expected_salary_range": [
+    70000,
+    220000
+  ],
+  "expected_skills_subset": [
+    "Java",
+    "Spring Boot",
+    "Kubernetes",
+    "PostgreSQL",
+    "Kafka"
+  ],
+  "expected_education": "master"
+}

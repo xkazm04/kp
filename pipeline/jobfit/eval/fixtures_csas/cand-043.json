@@ -1,0 +1,21 @@
+{
+  "label": "Tereza Marešová — product project / senior (bau)",
+  "expected_role_family": "product_project",
+  "expected_seniority": [
+    "medior",
+    "senior",
+    "lead"
+  ],
+  "expected_salary_range": [
+    65000,
+    190000
+  ],
+  "expected_skills_subset": [
+    "Product roadmapping",
+    "Stakeholder management",
+    "Agile / Scrum delivery",
+    "Backlog prioritization (RICE, MoSCoW)",
+    "Product analytics & KPI definition"
+  ],
+  "expected_education": "master"
+}

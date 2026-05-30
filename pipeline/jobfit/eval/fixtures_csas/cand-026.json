@@ -1,0 +1,20 @@
+{
+  "label": "Markéta Dvořáková — data ai / junior (student)",
+  "expected_role_family": "data_ai",
+  "expected_seniority": [
+    "junior",
+    "medior"
+  ],
+  "expected_salary_range": [
+    50000,
+    130000
+  ],
+  "expected_skills_subset": [
+    "Python",
+    "SQL",
+    "scikit-learn",
+    "PyTorch",
+    "statistika a pravděpodobnost"
+  ],
+  "expected_education": "master"
+}

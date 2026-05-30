@@ -1,0 +1,38 @@
+Tereza Marešová
+Backend-Oriented Software Engineering Student | Aspiring Distributed Systems Engineer
+
+Summary
+Final-year Software Engineering student at ČVUT FEL with a strong foundation in algorithms, data structures, and backend development in Python. Experienced in building REST APIs and relational data models through team and academic projects, with a thesis focused on scheduling heuristics for container orchestration. Eager to grow as a backend engineer working on distributed systems and to contribute to open-source developer tooling.
+
+Experience
+
+Bachelor Thesis — Scheduling Heuristics for Container Orchestration
+ČVUT FEL, Prague
+- Designed and evaluated bin-packing heuristics for placing containerized workloads under CPU and memory constraints.
+- Benchmarked the heuristics against a baseline scheduler using synthetic cluster traces, analyzing trade-offs in resource utilization.
+- Technologies: Python, algorithms and data structures, Docker.
+
+Backend Developer — StudyGroup Matcher (Semester Team Project)
+ČVUT FEL, Prague
+- Built the backend for a web application that matches students into study groups by course and availability.
+- Implemented the REST API and designed the PostgreSQL schema as part of a four-person team.
+- Collaborated using Git for version control and code review.
+
+Mentor — Introductory Programming Tutoring Club
+ČVUT FEL, Prague
+- Volunteered for two semesters helping first-year students debug Java assignments.
+- Explained core concepts such as recursion and basic data structures to support struggling students.
+
+Skills
+- Programming: Python (strong), Java (working)
+- Databases: PostgreSQL (working)
+- Tools & Infrastructure: Docker (foundational), Git (working)
+- Computer Science: Algorithms and Data Structures (strong)
+
+Education
+Bachelor of Science, Open Informatics — Software Engineering specialization
+Faculty of Electrical Engineering, Czech Technical University in Prague (ČVUT FEL)
+Expected graduation: 2026
+
+Languages
+Czech (native), English (professional working proficiency), German (working proficiency)

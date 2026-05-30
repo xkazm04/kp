@@ -1,0 +1,31 @@
+Vojtěch Hruška
+Senior Java Backend Engineer — Distributed Systems & Microservices
+
+Summary
+Backend engineer with around nine years of experience building and scaling JVM-based services for high-throughput, data-intensive products. I specialise in resilient microservices architecture on Java and Spring Boot, with hands-on ownership of Kafka pipelines, PostgreSQL, and Kubernetes in production. Now looking to grow into a backend tech lead role where I can shape architecture practices and mentor medior engineers.
+
+Experience
+
+Senior Backend Engineer, Platform Team — Recombee (Prague / Brno)
+- Led the redesign of a recommendation-serving microservice handling ~40k requests/second, cutting p99 latency by 35% through a Kafka-based event pipeline and tuned PostgreSQL read replicas.
+- Owned the Kubernetes deployment topology for the team, including scaling strategy and on-call runbooks.
+- Set technical direction for the platform's serving layer and supported peers through design reviews.
+
+Backend Engineer — Kiwi.com (Brno)
+- Built and maintained booking-flow services integrating with multiple airline GDS providers.
+- Migrated a monolithic payments module into independently deployable microservices on AWS, improving release frequency from biweekly to daily.
+- Worked across a Java / Spring Boot stack to keep core booking paths reliable under heavy traffic.
+
+Skills
+- Languages & Frameworks: Java (strong), Spring Boot (strong), Microservices architecture (strong)
+- Data & Messaging: PostgreSQL (strong), Apache Kafka (working)
+- Infrastructure & Cloud: Kubernetes (working), AWS (working)
+- Focus areas: resilient distributed systems, service decomposition, performance and latency tuning, on-call operations
+
+Education
+Ing. in Computer Science — Faculty of Information Technology, Brno University of Technology (FIT VUT)
+
+Languages
+- Czech — native
+- English — C1
+- German — B1

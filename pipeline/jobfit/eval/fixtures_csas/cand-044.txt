@@ -1,0 +1,35 @@
+Tereza Marešová
+Senior Backend Engineer — Distributed Systems & Platform Reliability
+
+Summary
+Backend engineer with ~9 years building and operating high-throughput, distributed services in Go. Specialized in extracting domains from legacy monoliths into reliable event-driven services, with a strong track record in PostgreSQL-backed systems, latency reduction, and on-call practice. Looking to grow into a staff/principal track focused on platform reliability while mentoring medior engineers.
+
+Experience
+
+Senior Backend Engineer — Platform Team
+Logio s.r.o.
+- Owned the order-routing service handling ~4,000 req/s, leading reliability and capacity work for the platform.
+- Led extraction of the billing domain from the monolith into a Go service backed by PostgreSQL, cutting p99 latency by 38%.
+- Reduced on-call incidents by half over two consecutive quarters through improved service boundaries and operational practices.
+
+Backend Engineer — Payments
+Kentico Software
+- Built idempotent payment-reconciliation pipelines, ensuring correctness under retries and partial failures.
+- Designed and shipped a gRPC internal API consumed by four engineering teams.
+- Introduced OpenTelemetry tracing across services, which became the standard for the engineering organization.
+
+Skills
+- Languages: Go (strong), Python (working)
+- Data: PostgreSQL (strong)
+- Distributed Systems: Distributed systems design (strong), gRPC / Protocol Buffers (working)
+- Platform & Ops: Kubernetes (working), Observability — Prometheus, OpenTelemetry (working)
+- Focus areas: service extraction from monoliths, event-driven architecture, on-call and incident practices
+
+Education
+Ing. in Software Engineering
+Faculty of Information Technology, Brno University of Technology (FIT VUT)
+
+Languages
+- Czech — native
+- English — C1
+- German — B1

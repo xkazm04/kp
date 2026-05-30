@@ -1,0 +1,37 @@
+Štěpán Kovařík
+Associate Product Manager — Aspiring B2B SaaS Product Professional | Prague
+
+Summary
+Information Management graduate (VŠE) with hands-on experience leading small product teams from discovery through launch. Comfortable running agile sprints, prioritizing backlogs, and grounding decisions in user interviews and data. Seeking an Associate Product Manager role where I can grow into product discovery and data-informed prioritization.
+
+Experience
+
+Product Track Lead — VŠE Student Startup Club
+Prague | Extracurricular
+- Organized a semester-long product workshop series for ~30 members, inviting industry practitioners to run sessions on roadmapping and product metrics.
+- Coordinated speakers, schedules, and logistics, acting as the main point of contact between members and external guests.
+
+Product Lead — Školní Burza, Campus Marketplace MVP
+Prague | Student Project
+- Led a four-person team to design and ship a textbook-swap web app used by ~200 campus users.
+- Managed the backlog in Trello and facilitated weekly sprints from concept to launch.
+- Ran a short round of user interviews before launch and prioritized features based on the findings.
+
+Master's Thesis — Adoption Barriers of Self-Service Analytics Tools in Mid-Sized Czech Firms
+Prague University of Economics and Business (VŠE)
+- Combined 14 semi-structured interviews with a survey (n=120) to map why non-technical teams abandon BI dashboards.
+- Produced a prioritized list of friction points and concrete feature recommendations for improving adoption.
+
+Skills
+- Agile / Scrum (working)
+- Backlog prioritization & roadmapping (working)
+- Stakeholder communication (working)
+- Product discovery & user interviews (foundational)
+- SQL & data analysis (foundational)
+
+Education
+Master's in Information Management
+Faculty of Informatics and Statistics, Prague University of Economics and Business (VŠE), 2024
+
+Languages
+Czech (native) · English (C1) · German (B1)

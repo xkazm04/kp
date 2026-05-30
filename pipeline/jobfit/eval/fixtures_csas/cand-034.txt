@@ -1,0 +1,37 @@
+Tereza Marešová
+Junior Data Scientist | NLP & Machine Learning
+
+Recent Applied Informatics graduate (Ing.) specializing in machine learning and natural language processing for Czech-language data. Hands-on experience building and training models end to end in Python and PyTorch, from dataset construction to evaluation. Looking to join a product team as a Junior Data Scientist or ML Engineer and grow toward production ML / MLOps.
+
+EXPERIENCE
+
+Master's Thesis — Aspect-Based Sentiment Analysis of Czech Product Reviews
+Masaryk University, Brno | 2024–2025
+- Fine-tuned a Czech BERT model to extract sentiment toward specific product aspects, reaching 0.81 macro-F1 on a held-out test set.
+- Built the labeled dataset from scratch and implemented the full training and evaluation pipeline in PyTorch.
+
+Brno Public Transport Delay Predictor — Team Coursework Project
+Masaryk University, Brno | 2023
+- Predicted tram and bus delays from open municipal data; owned the data pipeline and feature engineering in pandas.
+- Built an interactive dashboard to compare model predictions against published schedules.
+
+Volunteer Mentor — PyLadies Brno Study Group
+Brno | 2022–2024
+- Mentored beginners at monthly community workshops, preparing exercises on data cleaning and basic machine learning.
+- Practiced explaining technical concepts clearly while reinforcing Python fundamentals.
+
+SKILLS
+Programming: Python (strong)
+Machine Learning: ML workflows (working), PyTorch (working)
+Data: SQL (working), Data Visualization (working)
+Tools: Docker (foundational)
+Focus areas: Applied NLP, language models for Czech text
+
+EDUCATION
+Ing. in Applied Informatics
+Faculty of Informatics, Masaryk University, Brno | Graduated 2025
+
+LANGUAGES
+Czech — Native
+English — C1
+German — B1

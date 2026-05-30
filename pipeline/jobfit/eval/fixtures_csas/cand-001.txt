@@ -1,0 +1,41 @@
+Tereza Marešová
+Junior Backend Engineer | Distributed Systems & Data
+
+Summary
+Master's student in Software Engineering at the Faculty of Informatics, Masaryk University, with hands-on experience building backend services and streaming data pipelines in Python and Go. Comfortable designing REST APIs, working with PostgreSQL, and shipping containerized applications, with a foundational interest in distributed systems. Looking for a junior backend role where I can grow toward infrastructure and platform engineering while contributing to open source.
+
+Experience
+
+Bachelor's Thesis — Anomaly Detection in Logs via Streamed Data Processing
+Faculty of Informatics, Masaryk University, Brno
+- Designed and implemented a Python prototype on top of Apache Kafka that evaluates deviations in application logs in real time.
+- Defended with an A grade.
+
+studyplanner — Course Planner for FI Students (open source)
+Personal project
+- Built a web application (Go backend, PostgreSQL, REST API) that assembles a study timetable from the course catalogue.
+- Deployed with Docker; used by around 40 fellow students.
+
+Lead, Competitive Programming Student Club
+Faculty of Informatics, Masaryk University, Brno
+- Organized weekly meetings, prepared algorithmic problem sets, and mentored beginning students.
+- Coached the team to the regional round of CTU Open.
+
+Skills
+- Languages & Backend: Python (strong), Go (working), REST API design (working)
+- Data & Storage: PostgreSQL (working), Apache Kafka
+- Infrastructure: Docker (working)
+- Concepts: Distributed systems (foundational), algorithms
+
+Education
+Master's in Software Engineering (navazující magisterské studium)
+Faculty of Informatics, Masaryk University, Brno
+2nd year, expected completion 2026
+
+Bachelor's in Software Engineering
+Faculty of Informatics, Masaryk University, Brno
+
+Languages
+- Czech — native
+- English — C1
+- German — A2

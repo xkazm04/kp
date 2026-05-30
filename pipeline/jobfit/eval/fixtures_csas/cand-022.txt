@@ -1,0 +1,31 @@
+Vojtěch Hruška
+Senior Machine Learning Engineer | MLOps & Applied ML
+
+Machine learning engineer with around 8 years of experience building and shipping ML systems, from terabyte-scale data processing to production model deployment. Strong track record owning end-to-end MLOps pipelines and recommendation/ranking models for enterprise and high-traffic consumer platforms. Aiming to lead an ML platform / MLOps team and take applied LLM systems from prototype to production at scale.
+
+EXPERIENCE
+
+Senior Machine Learning Engineer — Kentico Software
+- Owned the recommendation and content-scoring models powering a CMS used by enterprise clients.
+- Built and maintained the MLflow-based training and deployment pipeline, cutting model release time from weeks to days.
+- Mentored two junior data scientists, establishing shared standards for experimentation and deployment.
+
+Data Scientist — Seznam.cz
+- Developed click-through-rate prediction models for the search advertising platform, processing terabyte-scale logs with Apache Spark.
+- Prototyped a PyTorch ranking model that improved offline NDCG by 4%.
+
+SKILLS
+
+Programming & Data: Python (strong); SQL & data modeling (strong); Apache Spark (working)
+Machine Learning: scikit-learn, XGBoost (strong); Deep Learning with PyTorch (working)
+MLOps: MLflow, Kubeflow, Docker (strong)
+LLM: fine-tuning & RAG pipelines (working)
+
+EDUCATION
+
+Ing. in Cybernetics and Artificial Intelligence
+Faculty of Electrical Engineering, Czech Technical University in Prague (FEL ČVUT)
+
+LANGUAGES
+
+Czech (native) · English (C1) · German (B1)

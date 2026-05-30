@@ -1,0 +1,38 @@
+Vojtěch Sýkora
+Aspiring Junior Machine Learning Engineer | NLP & LLM Applications
+
+Summary
+Master's student in Artificial Intelligence at ČVUT FIT with hands-on experience building and evaluating machine learning models, particularly in NLP. Comfortable taking a problem from raw data through modeling to measurable results, with a strong foundation in Python and PyTorch. Seeking a junior ML or data role where I can work on NLP/LLM-based applications and contribute to open-source ML tooling.
+
+Experience
+
+Master's Thesis — Transformer-based Named Entity Recognition for Czech Legal Texts
+Czech Technical University in Prague (ČVUT FIT)
+- Fine-tuned a multilingual transformer to extract parties, dates, and obligations from Czech contracts.
+- Built a hand-annotated evaluation set and reported per-entity F1 scores to quantify model performance.
+- Tools: Python, PyTorch, NLP.
+
+Course Capstone — Energy-Consumption Forecasting for Student Dormitories
+- Compared gradient-boosted trees against an LSTM baseline to predict hourly electricity demand.
+- Handled missing-sensor imputation and engineered seasonal features to improve forecast accuracy.
+- Tools: Python, scikit-learn, Pandas.
+
+Volunteer Mentor — Czechitas Data-Analysis Weekend
+- Guided beginners through loading, cleaning, and visualizing open city datasets in Python during a two-day community workshop.
+- Tools: Python, Pandas, SQL.
+
+Skills
+- Programming: Python (strong), SQL (working)
+- Machine Learning: PyTorch (working), scikit-learn (working), NLP
+- Data: Data wrangling with Pandas (strong)
+- Tools & Workflow: Git (foundational)
+
+Education
+Master's programme in Artificial Intelligence
+Faculty of Information Technology, Czech Technical University in Prague (ČVUT FIT)
+Expected 2026
+
+Languages
+- Czech — Native
+- English — C1
+- German — B1

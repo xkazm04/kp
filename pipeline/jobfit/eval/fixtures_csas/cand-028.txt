@@ -1,0 +1,29 @@
+Tereza Marková
+Senior Machine Learning Engineer — Recommender Systems & MLOps
+
+Senior ML engineer with ~8 years building and shipping production machine learning at scale, from ranking and recommendation models to terabyte-scale feature pipelines. I care about reproducible, well-operationalised ML and about turning research notebooks into reliable production systems. Looking to lead ML engineering for production recommender systems and grow toward an ML platform / staff engineering role.
+
+EXPERIENCE
+
+Senior Machine Learning Engineer — Kiwi.com
+- Owned the ranking and recommendation models for flight search, serving roughly 10M daily requests.
+- Migrated model training from ad-hoc notebooks to a reproducible MLflow + Airflow pipeline, cutting model release time from two weeks to two days.
+- Lifted click-through rate on recommended itineraries by 6% through iterative model and feature improvements.
+
+Data Scientist — Seznam.cz
+- Built and shipped click-through prediction and user-segmentation models for the advertising platform.
+- Engineered Spark-based feature pipelines over terabyte-scale event logs.
+- Partnered with product teams to A/B test model changes in production and validate impact.
+
+SKILLS
+Programming & Data: Python (strong); SQL & dimensional data modeling (strong)
+Machine Learning: scikit-learn, XGBoost (strong); Deep Learning with PyTorch (working)
+MLOps & Cloud: MLflow, Docker, Kubernetes (working); AWS SageMaker (working)
+Distributed Processing: Apache Spark (working)
+
+EDUCATION
+Ing. in Cybernetics and Artificial Intelligence
+VŠB – Technical University of Ostrava
+
+LANGUAGES
+Czech (native); English (C1); German (B1)

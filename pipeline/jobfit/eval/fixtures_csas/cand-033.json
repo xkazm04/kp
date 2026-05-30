@@ -1,0 +1,21 @@
+{
+  "label": "Markéta Najmanová — product project / senior (career_switcher)",
+  "expected_role_family": "product_project",
+  "expected_seniority": [
+    "junior",
+    "medior",
+    "senior"
+  ],
+  "expected_salary_range": [
+    45000,
+    150000
+  ],
+  "expected_skills_subset": [
+    "Product discovery",
+    "User research & interviews",
+    "Agile / Scrum",
+    "Roadmapping & prioritization",
+    "SQL & product analytics"
+  ],
+  "expected_education": "master"
+}

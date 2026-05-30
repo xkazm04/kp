@@ -1,0 +1,32 @@
+Ondřej Kučera
+Senior Java Backend Engineer | Event-Driven Systems & Distributed Architecture
+
+SUMMARY
+Backend engineer with ~9 years of experience designing and operating distributed systems in Java and Spring Boot. Specializes in decomposing monoliths into Kafka-driven microservices on Kubernetes and owning the reliability of multi-tenant SaaS platforms end to end. Seeking to lead a backend platform team and drive event-driven architecture adoption across services.
+
+EXPERIENCE
+
+Senior Backend Engineer — Kentico Software, Brno
+Led the decomposition of a monolithic CMS billing module into Kafka-driven microservices running on Kubernetes.
+- Cut p95 latency by 40% through service decomposition and asynchronous, event-driven messaging.
+- Mentored three medior engineers, establishing design-review and on-call practices for the new services.
+- Owned system design decisions spanning service boundaries, messaging contracts, and deployment topology.
+
+Backend Engineer — Y Soft, Brno
+Built and operated PostgreSQL-backed print-management services for a multi-tenant SaaS used by enterprise customers across the EU.
+- Owned schema design and migrations, ensuring safe, zero-downtime database changes.
+- Carried on-call reliability ownership for production services serving enterprise tenants.
+- Contributed Go-based components alongside the core Java service stack.
+
+SKILLS
+Languages & Frameworks: Java (expert), Spring Boot (expert), Go (working)
+Distributed Systems: Apache Kafka, event-driven architecture, system design (strong)
+Data: PostgreSQL (strong), schema migrations
+Platform & Ops: Kubernetes (working), on-call reliability, multi-tenant SaaS
+
+EDUCATION
+Ing. in Software Engineering
+Faculty of Information Technology, Brno University of Technology (FIT VUT), 2014
+
+LANGUAGES
+Czech (native), English (professional), German (professional)

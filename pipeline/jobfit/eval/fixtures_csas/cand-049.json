@@ -1,0 +1,21 @@
+{
+  "label": "Markéta Dvořáková — software engineering / senior (career_switcher)",
+  "expected_role_family": "software_engineering",
+  "expected_seniority": [
+    "junior",
+    "medior",
+    "senior"
+  ],
+  "expected_salary_range": [
+    45000,
+    165000
+  ],
+  "expected_skills_subset": [
+    "Python",
+    "SQL",
+    "Git & GitHub",
+    "FastAPI",
+    "Data structures & algorithms"
+  ],
+  "expected_education": "master"
+}

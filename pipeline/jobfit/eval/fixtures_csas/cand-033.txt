@@ -1,0 +1,44 @@
+Markéta Najmanová
+Pharmacist transitioning into Product Management | Digital Health & Healthtech
+
+Summary
+Mgr. in Pharmacy with ~8 years of healthcare experience, now moving into product management with a focus on digital health. Combines deep clinical domain expertise with hands-on product training: discovery interviews, user research, RICE prioritization, and Scrum delivery. Strong communicator who has led teams, coordinated stakeholders, and improved operational processes, now seeking an Associate Product Manager or junior agile role.
+
+Experience
+
+Lead Pharmacist — BENU Lékárna, Brno
+Ran daily operations of a high-traffic pharmacy.
+- Managed a team of 5, owned inventory and supplier coordination, and provided medication counseling to patients.
+- Introduced a triage checklist that cut average customer wait time by ~20%.
+- Acted as the main point of contact between staff, suppliers, and customers.
+
+Clinical Pharmacist — Fakultní nemocnice Brno
+Supported an internal medicine ward with clinical pharmacy services.
+- Reviewed prescriptions and advised physicians on dosing and drug interactions.
+- Served as liaison between the ward, hospital pharmacy, and suppliers, coordinating across teams.
+
+Selected Project
+
+Capstone — "LekarnaGo" medication-reminder app concept (Czechitas)
+End-to-end product case for a chronic-patient medication reminder.
+- Ran discovery interviews and mapped a chronic-patient journey.
+- Prioritized an MVP using RICE and built a clickable Figma prototype validated with 6 users.
+- Delivered the project on a two-week sprint cadence using Scrum ceremonies.
+
+Skills
+- User research & interviews (strong)
+- Product discovery (working)
+- Agile / Scrum (working)
+- Roadmapping & prioritization (foundational)
+- SQL & product analytics (foundational)
+- Stakeholder communication, process improvement, team coordination
+- Healthcare domain expertise
+
+Certifications
+Professional Scrum Master I (PSM I) — Scrum.org
+
+Education
+Mgr. in Pharmacy — University of Veterinary and Pharmaceutical Sciences, Brno, 2014
+
+Languages
+Czech (native), English (C1), German (B1)

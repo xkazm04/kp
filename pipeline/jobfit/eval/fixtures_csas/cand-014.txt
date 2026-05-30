@@ -1,0 +1,34 @@
+Vojtěch Hruška
+Senior Machine Learning Engineer | MLOps & Production ML Systems
+
+Summary
+Machine learning engineer with around nine years of experience building and operating production ML systems for B2B SaaS and consumer products. Strong across the full lifecycle — from model development in Python and PyTorch to feature stores, CI/CD retraining, and deployment on AWS. Now looking to step into a Lead ML / MLOps role, owning end-to-end systems and mentoring a data science team.
+
+Experience
+
+Senior Machine Learning Engineer — Productboard, Prague
+Owned the recommendation and churn-prediction stack serving B2B SaaS customers.
+- Built a feature store and CI/CD retraining pipelines on AWS SageMaker and Airflow, cutting model deployment time from weeks to a single day.
+- Improved churn-model AUC by 11% through better feature engineering and retraining cadence.
+- Mentored three medior data scientists, establishing review and MLOps practices across the team.
+
+Data Scientist — Kiwi.com, Prague
+Developed dynamic flight-pricing and demand-forecasting models for European markets.
+- Built pricing and forecasting models in PyTorch and scikit-learn, deployed as low-latency services.
+- Partnered with engineering to productionize models and integrate them into live pricing flows.
+- Created SQL-based analytics that informed pricing strategy across multiple European markets.
+
+Skills
+Programming & Data: Python (strong), SQL (strong)
+Machine Learning: Machine Learning (strong), PyTorch (working)
+MLOps & Infrastructure: MLOps (strong), AWS SageMaker (working), Airflow (working)
+Focus areas: feature stores, CI/CD retraining pipelines, model deployment and monitoring, demand forecasting, churn and recommendation modeling
+
+Education
+Ing. in Cybernetics & Artificial Intelligence
+Faculty of Electrical Engineering, Czech Technical University in Prague (FEL ČVUT), 2014
+
+Languages
+Czech — native
+English — C1
+German — B1

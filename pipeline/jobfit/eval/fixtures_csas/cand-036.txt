@@ -1,0 +1,37 @@
+Tereza Marešová
+Junior Product Manager / Product Owner – uživatelský výzkum a Agile
+
+Studentka navazujícího magisterského studia se zaměřením na produktové řízení a uživatelský výzkum. Mám praktickou zkušenost s vedením studentského produktového týmu od discovery až po klikací prototyp a s validací produktu metodikou Lean Startup. Hledám roli Junior Product Managera nebo Associate Product Ownera, kde mohu propojit práci s daty, rozhovory s uživateli a prioritizaci backlogu.
+
+PRAXE A PROJEKTY
+
+SkriptaShare – Product Owner, semestrální projekt produktového týmu
+- Vedla jsem čtyřčlenný studentský tým jako product owner při vývoji aplikace pro sdílení studijních materiálů.
+- Spravovala jsem backlog v Jira, plánovala dvoutýdenní sprinty a sestavila produktovou roadmapu.
+- Tým dodal funkční prototyp ve Figmě a klikací demo.
+
+Buddy System VŠE – Koordinátorka studentského spolku
+- Organizovala jsem onboarding pro 60+ zahraničních studentů a koordinovala tým dobrovolníků.
+- Sbírala jsem zpětnou vazbu od účastníků a navrhla zlepšení programu pro následující semestr.
+
+Bakalářská práce – Aplikace metodiky Lean Startup při validaci studentského mobilního produktu
+- Zmapovala jsem proces od problémového rozhovoru po MVP a provedla 14 uživatelských rozhovorů.
+- Navrhla jsem produktové iterace na základě value a growth hypotéz.
+- Práce obhájena s hodnocením výborně.
+
+DOVEDNOSTI
+- Agile / Scrum – plánování sprintů, role product ownera (pracovní úroveň)
+- Prioritizace backlogu a roadmapping (pracovní úroveň)
+- Komunikace se stakeholdery a koordinace týmu (pracovní úroveň)
+- Uživatelský výzkum a rozhovory, Lean Startup, validace hypotéz (základní úroveň)
+- Analýza dat – SQL, Excel (základní úroveň)
+
+VZDĚLÁNÍ
+Vysoká škola ekonomická v Praze (VŠE)
+Navazující magisterské studium, obor Management
+1. ročník, nástup 2024, předpokládané ukončení 2026
+
+JAZYKY
+- Čeština – rodilý mluvčí
+- Angličtina – C1
+- Němčina – B1

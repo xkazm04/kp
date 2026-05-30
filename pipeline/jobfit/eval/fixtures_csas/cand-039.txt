@@ -1,0 +1,30 @@
+Veronika Horáková
+Senior Java Backend Engineer | Distributed Systems & Payments Platforms
+
+Summary
+Backend engineer with ~11 years building and operating high-throughput, reliable services on the JVM. Specialized in decomposing monoliths into event-driven Spring Boot services backed by PostgreSQL and Kafka, with a strong track record in distributed systems design and production reliability. Looking to grow into a staff/principal role owning the architecture of a high-throughput payments platform and formalizing team-wide design-review practice.
+
+Experience
+
+Senior Backend Engineer — Kentico Software, Brno
+Led the breakup of a monolithic CMS billing module into a set of Spring Boot services backed by PostgreSQL and Kafka event streams, cutting invoice-run latency from minutes to seconds.
+- Owned the on-call rotation's reliability backlog, prioritizing and driving down recurring production incidents.
+- Drove the team's API design reviews, raising the consistency and quality of new service interfaces.
+- Mentored medior engineers across the billing and platform teams.
+
+Backend Engineer — Seznam.cz, Prague
+Built and operated high-traffic, search-adjacent APIs serving millions of requests per day.
+- Introduced Kubernetes-based deployments for the team's services, standardizing rollout and scaling.
+- Added Python tooling for load testing and capacity planning to support reliable growth.
+
+Skills
+Languages & Frameworks: Java (expert), Spring Boot (expert), Python (working)
+Data & Messaging: PostgreSQL (expert), Apache Kafka (working)
+Architecture: Distributed systems design (expert), event-driven architecture, API design
+Infrastructure: Kubernetes (working), on-call / production reliability
+
+Education
+Ing. in Software Engineering — Faculty of Information Technology, Brno University of Technology (FIT VUT), 2012
+
+Languages
+Czech (native), English (C1), German (B1)

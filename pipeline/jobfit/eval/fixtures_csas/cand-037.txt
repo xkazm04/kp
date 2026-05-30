@@ -1,0 +1,41 @@
+Vendula Marešová
+Career-Switching Software Engineer | Aspiring Python / Backend Developer
+
+Summary
+Former physics and mathematics teacher with eight years of experience leading classrooms, coordinating curricula, and building practical tooling for my school. Reskilled into software engineering through hands-on projects and a full computer-science foundation, and now focused on backend development with Python. I bring strong problem decomposition, clear communication, and the discipline to learn fast and ship.
+
+Experience
+
+Physics & Mathematics Teacher — Gymnázium Brno, třída Kapitána Jaroše
+2014–present (approx. 8 years)
+- Taught physics and mathematics to upper-secondary classes and led the school's science section.
+- Built spreadsheet-based grade tooling to streamline assessment and reporting.
+- Founded and ran the school's robotics club, where programming first pulled me in.
+
+Curriculum Coordinator (Science) — Gymnázium Brno
+- Coordinated the natural-sciences curriculum and scheduling for roughly 30 staff.
+- Standardised assessment rubrics across the department to improve consistency and fairness.
+
+Selected Projects
+
+Lab-Report Tracker — Django + PostgreSQL
+- Full-stack web app built while reskilling: students submit lab reports; teachers grade and leave inline feedback.
+- Implemented a REST API, authentication, and a small React front-end; deployed on Fly.io.
+
+CS50x — Introduction to Computer Science (HarvardX)
+- Completed the full problem-set track in C, Python, SQL, and Flask.
+- Capstone: a Flask flashcard app for physics formulae.
+
+Skills
+- Programming: Python (working), SQL (working), Git (working)
+- Web frameworks: Django (foundational), JavaScript (foundational)
+- Strengths: problem decomposition, mentoring, communication, planning, stakeholder coordination
+
+Education
+Mgr. in Physics & Mathematics Education
+Masaryk University, Brno — 2014
+
+Languages
+- Czech — native
+- English — C1
+- German — B1

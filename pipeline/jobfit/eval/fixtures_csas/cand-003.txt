@@ -1,0 +1,31 @@
+Markéta Šťastná
+Senior Java Backend Engineer | Distributed Systems & Platform Reliability
+
+Summary
+Backend engineer with around 9 years of experience building and operating event-driven, high-throughput systems in fintech and product search. Strong in Java, Spring Boot, and PostgreSQL, with a track record of turning monoliths into reliable distributed services and mentoring engineers along the way. Looking to grow into a staff/principal track with a focus on platform reliability and observability.
+
+Experience
+
+Senior Backend Engineer — Payments Platform
+Fintech scale-up, Brno
+- Led the redesign of a monolithic billing service into event-driven microservices on Kafka and Kubernetes, cutting end-of-month reconciliation time from 6 hours to under 20 minutes.
+- Owned the PostgreSQL schema and query performance for a system processing ~4M transactions/day, keeping it stable under sustained load.
+- Mentored three medior engineers, growing their ownership of services and on-call practices.
+
+Backend Engineer — Search & Recommendations
+Czech tech company, Prague
+- Built and maintained high-throughput REST and gRPC services backing product search, deployed on AWS.
+- Introduced structured logging and distributed tracing that reduced mean time to resolution for production incidents by roughly 40%.
+
+Skills
+- Languages & Frameworks: Java (strong), Spring Boot (strong)
+- Data: PostgreSQL (strong)
+- Architecture: Distributed systems design (strong)
+- Streaming & Infrastructure: Apache Kafka (working), Kubernetes (working), AWS (working)
+
+Education
+Ing. in Software Engineering
+Faculty of Information Technology, Czech Technical University in Prague (FIT ČVUT)
+
+Languages
+Czech (native), English (C1), German (B1)

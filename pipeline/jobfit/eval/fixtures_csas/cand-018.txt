@@ -1,0 +1,41 @@
+Tereza Marešová
+Junior Backend Developer | Java & Spring | Student, ČVUT FEL
+
+Summary
+Studentka navazujícího magisterského studia softwarového inženýrství na ČVUT FEL se zkušeností s vývojem backendových aplikací v Javě a Springu. Baví mě navrhovat REST API a pracovat s relačními databázemi, postupně se chci dostat k návrhu škálovatelných služeb a distribuovaných systémů. Hledám pozici junior backend developera v produktovém týmu, kde se mohu dál učit a zároveň přispívat ke společnému technickému návrhu.
+
+Experience
+
+StudyPlanner – semestrální aplikace pro plánování studia
+Týmový projekt (3 členové), předmět Softwarové inženýrství, ČVUT FEL
+- Vyvinula jsem backend ve Spring frameworku s REST API a databází PostgreSQL.
+- Navrhla jsem datový model rozvrhů a implementovala autentizaci uživatelů.
+- Nastavila jsem Docker Compose pro konzistentní lokální vývojové prostředí týmu.
+
+Algoritmy a datové struktury – zápočtový projekt
+ČVUT FEL
+- Implementovala a porovnala jsem grafové algoritmy (Dijkstra, A*) v Pythonu s důrazem na časovou složitost.
+- Práce hodnocena plným počtem bodů.
+
+Mentorka – studentský hackathon HackFEL
+Dobrovolnická aktivita
+- Během dvou víkendů jsem pomáhala začínajícím studentům se základní strukturou backendových projektů.
+- Vysvětlovala jsem práci s Gitem, branching a princip code review.
+
+Skills
+- Java – pokročilá (Spring, REST API)
+- Python – dobrá znalost
+- SQL / relační databáze (PostgreSQL) – dobrá znalost
+- Git – dobrá znalost
+- Docker – základy
+- Návrh REST API – základy
+
+Education
+Navazující magisterské studium – Otevřená informatika, specializace Softwarové inženýrství
+ČVUT FEL, Praha
+1. ročník, 2025–2027
+
+Languages
+- Čeština – rodilý mluvčí
+- Angličtina – C1
+- Němčina – A2

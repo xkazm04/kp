@@ -1,0 +1,41 @@
+Tereza Marešová
+Junior Backend Developer | Python & Distributed Systems Enthusiast
+
+Studentka navazujícího magisterského programu Otevřená informatika na ČVUT se zaměřením na softwarové inženýrství a praktickou zkušeností s návrhem backendových služeb v Pythonu. Hledám pozici junior backend developera v produktovém týmu, kde mohu dále růst směrem k distribuovaným systémům a cloudové infrastruktuře. Aktivně se zajímám o open-source v ekosystému Go a Pythonu.
+
+EXPERIENCE
+
+Studijní rozvrhovač — webová aplikace pro plánování semestru
+Týmový semestrální projekt, ČVUT FEL
+- Navrhla datový model a implementovala autentizaci pro backend v Pythonu (FastAPI) s databází PostgreSQL a REST API.
+- Spolupracovala na integraci s Reactovým frontendem; aplikaci nasadila v Dockeru.
+
+Mentorka programování — studentský spolek Robotárna ČVUT
+- Vedla úvodní workshopy programování v Pythonu pro studenty prvních ročníků a připravovala výukové materiály.
+- Prováděla code review studentských řešení a poskytovala zpětnou vazbu k práci s Gitem.
+
+Bakalářská práce — Detekce anomálií v provozních logech pomocí strojového učení
+- Zpracovala velké objemy aplikačních logů a nasadila model pro detekci odchylek v Pythonu (scikit-learn, pandas).
+- Vyhodnotila řešení na reálném anonymizovaném datasetu fakultního clusteru.
+
+SKILLS
+
+Languages & Backend: Python (advanced), Java (working), SQL / PostgreSQL (working)
+API & Tooling: REST API design (working), Git (advanced), Docker (foundational)
+Data & ML: scikit-learn, pandas, zpracování dat
+Concepts: návrh datového modelu, autentizace, kontejnerizace
+
+EDUCATION
+
+Navazující magisterský program — Otevřená informatika (Software Engineering)
+Fakulta elektrotechnická, ČVUT v Praze
+2. ročník, očekávané ukončení 2026
+
+Bakalářský studijní program — Otevřená informatika, ČVUT FEL
+(bakalářská práce: Detekce anomálií v provozních logech pomocí strojového učení)
+
+LANGUAGES
+
+Čeština — rodilý mluvčí
+Angličtina — pokročilá
+Němčina — středně pokročilá

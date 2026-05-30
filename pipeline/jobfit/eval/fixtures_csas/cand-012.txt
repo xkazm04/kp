@@ -1,0 +1,34 @@
+Markéta Dvořáková
+Senior Java Backend Engineer — Platform & Distributed Systems
+
+Backend engineer with ~10 years building and scaling JVM services for product organizations. I specialize in decomposing monoliths into reliable Spring Boot services on Kubernetes, owning the data and observability that keep them healthy in production. I care about platform reliability, sustainable on-call culture, and growing the engineers around me.
+
+EXPERIENCE
+
+Senior Backend Engineer — Platform Team
+Kentico Software, Brno
+Led the decomposition of a billing monolith into independently deployable Spring Boot services on Kubernetes, cutting p99 latency by 40% and enabling teams to ship on their own cadence. Introduced SLO-based alerting and authored an on-call runbook that was adopted across three squads, raising the bar for incident response and reliability.
+- Drove service decomposition and distributed systems design for billing
+- Established SLO-based observability with Prometheus/Grafana
+- Standardized on-call practices and runbooks across multiple teams
+
+Software Engineer — Payments
+Mews Systems
+Built and scaled PostgreSQL-backed transaction services on AWS that absorbed peak hotel-checkout load. Owned schema migrations and designed idempotent payment retries to keep transactions correct under failure. Mentored two junior engineers through their first production launches.
+- Designed and operated payment transaction services in Java/Spring Boot
+- Owned PostgreSQL schema migrations and idempotency guarantees
+- Mentored junior engineers from first commit to production
+
+SKILLS
+Languages & Frameworks: Java (expert), Spring Boot (expert)
+Data: PostgreSQL (expert)
+Architecture: Distributed systems design (expert)
+Infrastructure: Kubernetes (working), AWS (working)
+Observability: Prometheus / Grafana (working)
+
+EDUCATION
+Ing. in Computer Science
+Faculty of Information Technology, Brno University of Technology (VUT FIT), 2014
+
+LANGUAGES
+Czech (native), English (C1), Slovak (fluent)

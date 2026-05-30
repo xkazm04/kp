@@ -1,0 +1,21 @@
+{
+  "label": "Adéla Procházková — software engineering / medior (career_switcher)",
+  "expected_role_family": "software_engineering",
+  "expected_seniority": [
+    "junior",
+    "medior",
+    "senior"
+  ],
+  "expected_salary_range": [
+    45000,
+    165000
+  ],
+  "expected_skills_subset": [
+    "JavaScript",
+    "React",
+    "HTML/CSS",
+    "SQL",
+    "Git"
+  ],
+  "expected_education": "master"
+}

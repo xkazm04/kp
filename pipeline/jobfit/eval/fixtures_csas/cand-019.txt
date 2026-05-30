@@ -1,0 +1,33 @@
+Tereza Marešová
+Senior Machine Learning Engineer | Aspiring ML Platform / MLOps Architect
+
+Senior ML Engineer with around nine years of experience building and shipping machine learning systems at scale. I specialize in taking models from experiment to reliable production, with deep hands-on work in PyTorch, MLflow-based pipelines, and Kubernetes-based model serving. I am now focused on growing into an ML platform / MLOps architect role, designing production model-serving infrastructure and establishing ML best practices across teams.
+
+EXPERIENCE
+
+Senior Machine Learning Engineer
+Kentico Software, Brno
+Led a team of three engineers building and deploying recommendation and churn-prediction models serving roughly 2M monthly users. Designed an MLflow-based training-to-production pipeline that cut model release time from several weeks to two days. Owned the PyTorch model-serving stack running on Kubernetes, including deployment, monitoring, and rollout practices. Mentored junior data scientists and introduced shared standards for experiment tracking and model handover.
+
+Data Scientist
+Seznam.cz, Prague
+Built large-scale feature pipelines in PySpark over clickstream data to support search and ranking use cases. Developed gradient-boosting and deep-learning ranking models for search relevance, improving click-through rate by 7% in A/B testing. Partnered with data and product teams on feature engineering, experiment design, and offline-to-online evaluation.
+
+SKILLS
+
+Languages & ML: Python (strong), PyTorch (strong)
+MLOps & Tooling: MLflow, Kubeflow (strong); feature engineering & experiment tracking (strong)
+Data: SQL & data modeling (strong); PySpark / distributed data processing (working)
+Infrastructure: Model deployment on Kubernetes (working); AWS — SageMaker, S3, Lambda (working)
+
+EDUCATION
+
+Ing. in Computer Science
+Czech Technical University in Prague (FEL ČVUT)
+Specialization in Artificial Intelligence and Machine Learning
+
+LANGUAGES
+
+Czech — native
+English — C1
+German — B1

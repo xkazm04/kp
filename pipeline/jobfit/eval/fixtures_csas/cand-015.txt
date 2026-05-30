@@ -1,0 +1,36 @@
+Tereza Marešová
+Backend Engineer (Junior) — Distributed Systems & APIs
+
+Summary
+Software engineering Master's student at ČVUT FEL with hands-on experience building backend services in Python and working with PostgreSQL, REST APIs, and Docker. I enjoy designing reliable data pipelines and clean APIs, and I'm looking for a junior role where I can grow toward distributed systems and contribute to open-source developer tooling. Comfortable owning a feature end to end, from schema design to local deployment.
+
+Experience
+
+Backend Developer (Semester Project) — Self-hosted Study-group Scheduler
+Czech Technical University in Prague | Team of 3
+- Owned the backend of a web app that proposes meeting slots from members' calendars, building a Flask REST API and a normalized PostgreSQL schema.
+- Set up a Docker Compose environment for reproducible local development across the team.
+
+Bachelor's Thesis — Anomaly Detection in Public-Transport Sensor Streams
+Czech Technical University in Prague
+- Built a streaming pipeline in Python that ingested tram telemetry and flagged sensor faults using a lightweight statistical model.
+- Evaluated the model against a labelled dataset and documented precision/recall trade-offs.
+
+Volunteer Mentor — Intro-to-Programming Workshops
+Czech Technical University in Prague
+- Ran weekly hands-on Java sessions for first-year students, reviewing exercises and giving feedback.
+- Introduced students to version control workflows with Git.
+
+Skills
+- Languages: Python (strong), Java (working)
+- Databases: PostgreSQL (working)
+- APIs & Web: REST API design (working)
+- Tools & Infrastructure: Git (working), Docker (foundational)
+
+Education
+Master's programme in Open Informatics, specialization Software Engineering
+Czech Technical University in Prague (ČVUT FEL)
+Expected graduation: 2026
+
+Languages
+Czech (native), English (professional working proficiency), German (working knowledge)

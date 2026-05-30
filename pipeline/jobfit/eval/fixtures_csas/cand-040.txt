@@ -1,0 +1,32 @@
+Vojtěch Hruška
+Senior Java Backend Engineer | Distributed Systems & Event-Driven Architecture
+
+Summary
+Backend engineer with ~11 years building and scaling distributed systems for SaaS and device-fleet platforms. Specializes in Java and Spring Boot services, Kafka-driven event pipelines, and PostgreSQL data layers running on Kubernetes and AWS. Now looking to lead a platform/backend team, drive event-driven architecture across services, and grow medior engineers into senior roles.
+
+Experience
+
+Senior Backend Engineer — Kentico Software, Brno
+Led the decomposition of a monolithic CMS billing module into Kafka-driven microservices.
+- Cut invoice-processing latency by ~60% and enabled zero-downtime deploys on Kubernetes.
+- Designed the on-call rotation model for the backend team and improved incident response.
+- Mentored three medior engineers, supporting their growth toward senior responsibilities.
+
+Backend Engineer — Y Soft, Brno
+Built and scaled the printing-fleet telemetry pipeline for a large device estate.
+- Ingested events from 200k+ devices, designing for high-throughput, reliable processing.
+- Migrated storage from a single PostgreSQL instance to a partitioned, read-replica setup on AWS RDS, improving scalability and read performance.
+- Contributed Go services alongside the core Java stack.
+
+Skills
+- Languages & Frameworks: Java (expert), Spring Boot (expert), Go (working)
+- Messaging & Architecture: Apache Kafka (expert), Distributed Systems Design (expert), event-driven architecture
+- Data: PostgreSQL (expert), partitioning, read replicas
+- Infrastructure: Kubernetes (working), AWS (working), AWS RDS
+- Practices: microservices decomposition, zero-downtime deployments, on-call/incident design, mentoring
+
+Education
+Ing. in Software Engineering — Faculty of Information Technology, Czech Technical University in Prague (2014)
+
+Languages
+Czech (native), English (professional), German (professional working)

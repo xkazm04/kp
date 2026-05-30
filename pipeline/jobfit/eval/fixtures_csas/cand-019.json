@@ -1,0 +1,21 @@
+{
+  "label": "Tereza Marešová — data ai / senior (bau)",
+  "expected_role_family": "data_ai",
+  "expected_seniority": [
+    "medior",
+    "senior",
+    "lead"
+  ],
+  "expected_salary_range": [
+    80000,
+    250000
+  ],
+  "expected_skills_subset": [
+    "Python",
+    "PyTorch",
+    "MLOps (MLflow, Kubeflow)",
+    "PySpark / distributed data processing",
+    "SQL & data modeling"
+  ],
+  "expected_education": "master"
+}

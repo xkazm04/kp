@@ -1,0 +1,40 @@
+Tereza Marešová
+Junior Product Owner / Project Coordinator
+
+Studentka navazujícího magisterského studia Podnikové informatiky se zkušeností s vedením produktového backlogu a facilitací agilních týmů ve studentských projektech. Baví mě převádět zpětnou vazbu uživatelů na prioritizované požadavky a doručovat produkt iterativně. Hledám juniorní roli v softwarovém týmu, kde mohu rozvíjet product ownership a agilní praktiky.
+
+PRACOVNÍ A PROJEKTOVÉ ZKUŠENOSTI
+
+Product Owner — semestrální týmový projekt (mobilní aplikace pro sdílení skript)
+Masarykova univerzita, Brno
+- V pětičlenném týmu jsem vedla backlog v Jira, facilitovala dvoutýdenní sprinty a retrospektivy.
+- Převáděla jsem zpětnou vazbu od testerů na prioritizované user stories (MoSCoW).
+- Tým dovedl aplikaci do funkčního prototypu prezentovaného před vyučujícími.
+
+Koordinátorka — studentská konference DigiDay Brno (dobrovolnicky)
+- Sestavila jsem harmonogram a sledovala úkoly napříč třemi dílčími týmy.
+- Hlídala jsem termíny a koordinovala přípravu jednodenní konference o digitálních produktech.
+- Souběžně jsem si přivydělávala brigádou v kavárně mimo obor.
+
+Diplomová práce — Návrh produktového discovery procesu pro studentský startup
+- Zmapovala jsem, jak malé týmy bez dedikovaného produktového manažera validují nápady.
+- Navrhla jsem lehký discovery framework a otestovala ho na třech studentských projektech.
+- Vytvořila jsem šablony pro problémové rozhovory a opportunity-solution strom.
+
+DOVEDNOSTI
+- Agile / Scrum — pracovní úroveň
+- Sběr a analýza požadavků — pracovní úroveň
+- Jira / Confluence — pracovní úroveň
+- Roadmapping a prioritizace (MoSCoW, RICE) — základy
+- Uživatelský výzkum a rozhovory — základy
+- Datová analýza v Excelu a SQL — základy
+
+VZDĚLÁNÍ
+Navazující magisterské studium, obor Podniková informatika
+Ekonomicko-správní fakulta, Masarykova univerzita v Brně
+2. ročník, očekávané ukončení 2026
+
+JAZYKY
+Čeština — rodilý mluvčí
+Angličtina — C1
+Němčina — B1

@@ -1,0 +1,32 @@
+Tomáš Vavřík
+Senior Java Backend Engineer | Aspiring Software Architect
+
+Summary
+Backend engineer with around 9 years of experience designing and operating high-throughput, distributed systems in Java and Spring Boot. I specialise in breaking down monoliths into reliable event-driven services and improving platform performance and on-call health. Now looking to grow into a software architecture role while leading backend platform and reliability initiatives and mentoring engineers toward senior level.
+
+Experience
+
+Senior Backend Engineer — Skelet Logistics s.r.o.
+- Owned the order-orchestration platform serving roughly 2M shipments per month.
+- Led the breakup of a Spring monolith into event-driven services on Apache Kafka, cutting peak-hour latency by 40% and halving on-call incidents.
+- Mentored three engineers and ran the team's design-review process.
+
+Backend Engineer — Modravá Apps a.s.
+- Built and operated REST and gRPC services for a fintech onboarding product on AWS.
+- Introduced contract tests and a CI gate that reduced production regressions.
+- Migrated the primary datastore to partitioned PostgreSQL, achieving 5x write throughput.
+
+Skills
+- Languages & Frameworks: Java (strong), Spring Boot (strong)
+- Data: PostgreSQL (strong)
+- Architecture: Distributed systems & system design (strong)
+- Messaging & Infrastructure: Apache Kafka (working), Kubernetes (working), AWS (working)
+
+Education
+Ing. in Software Engineering — Faculty of Information Technology, Brno University of Technology (2014)
+
+Languages
+Czech (native), English (C1), Slovak (fluent)
+
+Location
+Brno, Czechia

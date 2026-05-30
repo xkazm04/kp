@@ -1,0 +1,43 @@
+Tereza Marešová
+Junior Backend Developer | Python & REST APIs
+
+Master's student in Software Engineering with hands-on experience building containerised backend services in Python. Comfortable owning a REST API from database schema to deployment, and equally happy reviewing teammates' code or mentoring beginners. Looking for a junior backend role on a product team, with a long-term interest in distributed systems, cloud infrastructure, and open-source tooling.
+
+EXPERIENCE
+
+Backend Developer — StudyPlanner (Academic Team Project)
+Faculty of Informatics, Masaryk University, Brno
+- Owned the backend of a semester course-scheduling assistant built by a team of four students.
+- Designed and implemented a Flask REST API backed by PostgreSQL, packaged with Docker for consistent local and team environments.
+- Set up the team's Git branching workflow and ran code reviews to keep the codebase maintainable.
+
+Volunteer Mentor — Czechitas Coding Workshops
+Brno
+- Mentored beginners in introductory Python workshops on weekends.
+- Helped participants debug their first programs and understand the basics of version control.
+
+PROJECTS
+
+Master's Thesis — Anomaly Detection in Time-Series Sensor Data (in progress)
+- Designing and evaluating a pipeline that detects anomalies in IoT temperature and humidity streams.
+- Implemented in Python with scikit-learn and pandas, focusing on lightweight ML models that run on resource-constrained edge devices.
+- Currently in the evaluation phase, comparing model accuracy against on-device resource constraints.
+
+SKILLS
+
+Languages & frameworks: Python (strong), Java (working), Flask
+Databases: SQL, PostgreSQL (working)
+APIs & tooling: REST API design (working), Git (strong), Docker (foundational)
+Areas of interest: machine learning, data analysis, distributed systems, cloud infrastructure
+
+EDUCATION
+
+Master's Degree (Navazující magisterské studium), Software Engineering
+Faculty of Informatics, Masaryk University, Brno
+2nd year — expected completion 2026
+
+LANGUAGES
+
+Czech — native
+English — C1
+German — A2

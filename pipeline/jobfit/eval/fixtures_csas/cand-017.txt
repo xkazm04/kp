@@ -1,0 +1,38 @@
+Markéta Dvořáková
+Senior Java Backend Engineer | Event-Driven Systems & Platform Engineering
+
+Backend engineer with ~11 years of experience building and operating high-throughput, event-driven services in Java and Spring Boot. Specializes in Kafka-based architectures, data consistency, and production observability for B2B SaaS platforms. Now looking to grow into a backend/platform tech-lead role, designing resilient systems at scale and mentoring medior engineers.
+
+EXPERIENCE
+
+Senior Backend Engineer — Recombee, Brno
+Owned the payments and ledger services for a B2B SaaS platform serving ~4M daily API calls.
+- Migrated a monolithic billing module to event-driven microservices on Kafka, cutting end-of-month reconciliation from hours to minutes.
+- Introduced contract testing across service boundaries and authored on-call runbooks for a 6-engineer team.
+- Ran the services on Kubernetes with PostgreSQL as the system of record.
+
+Backend Engineer — Kentico Software, Brno
+Built and scaled REST and gRPC services backing a headless CMS.
+- Led the adoption of Go for two latency-sensitive services, improving response times under load.
+- Set up Prometheus/Grafana observability that reduced mean time-to-detection of incidents by roughly 40%.
+- Deployed and operated services on AWS (ECS, RDS, S3).
+
+SKILLS
+
+Languages & Frameworks: Java (expert), Spring Boot (expert), Go (working)
+Messaging & Architecture: Apache Kafka, event-driven architecture (expert)
+Data: PostgreSQL (expert)
+Cloud & Infrastructure: Kubernetes (working), AWS — ECS, RDS, S3 (working)
+Observability: Prometheus, Grafana (working)
+Practices: contract testing, on-call/runbooks, microservices
+
+EDUCATION
+
+Ing. (Master) in Software Engineering
+Faculty of Information Technology, Brno University of Technology (FIT VUT), 2013
+
+LANGUAGES
+
+Czech — native
+Slovak — fluent
+English — C1

@@ -1,0 +1,34 @@
+Vojtěch Hruška
+Senior Java Backend Engineer — Distributed & Event-Driven Systems
+
+Summary
+Backend engineer with ~9 years of experience designing and operating high-throughput, event-driven services in Java and Spring Boot. Specialized in distributed systems, where I owned mission-critical ledger and settlement platforms and led a successful monolith-to-microservices migration on Kubernetes. Now looking to move into a staff/principal track with cross-team technical ownership, driving the design of event-driven backend platforms at scale while mentoring medior engineers and strengthening code-review culture.
+
+Experience
+
+Senior Backend Engineer — Payments Platform
+Skytale Systems s.r.o.
+- Owned the core ledger and settlement services processing ~4M transactions per day, ensuring correctness and reliability under heavy load.
+- Led the migration from a monolith to event-driven microservices on Kubernetes, cutting p99 latency by 38% and reducing on-call incidents by half.
+- Introduced contract testing and a Kafka-based outbox pattern that was adopted across three teams.
+
+Backend Engineer — Logistics Optimization
+Vltava Mobility a.s.
+- Built route-optimization and fleet-tracking APIs serving regional carriers.
+- Designed the PostgreSQL data model and caching layer to support low-latency lookups at scale.
+- Set up CI/CD on AWS, reducing release cadence from weekly deploys to multiple deployments per day.
+
+Skills
+- Languages & Frameworks: Java (strong), Spring Boot (strong), Go (foundational)
+- Data & Messaging: PostgreSQL (strong), Apache Kafka (working)
+- Architecture: Distributed systems design (strong), event-driven architecture, microservices
+- Infrastructure: Kubernetes (working), AWS (working), CI/CD
+
+Education
+Ing. in Software Engineering
+Faculty of Information Technology, Czech Technical University in Prague (FIT ČVUT)
+
+Languages
+- Czech — native
+- English — professional working proficiency
+- German — working proficiency

@@ -1,0 +1,39 @@
+Vojtěch Hruška
+Backend Software Engineer (Junior) | Distribuované a datově náročné systémy
+
+Profil
+Student navazujícího magisterského studia softwarového inženýrství na FIT ČVUT se zájmem o backendové inženýrství a distribuované systémy. Mám praktické zkušenosti s návrhem REST API, prací s relačními databázemi a nasazováním aplikací v kontejnerech. Dlouhodobě směřuji k práci na datově náročných aplikacích a k roli platform/infrastructure engineera.
+
+Zkušenosti
+
+Backend developer – Semestrální projekt: Rezervační systém studijních místností
+Tříčlenný tým, FIT ČVUT
+- Odpovídal jsem za kompletní backend v Javě a Spring Bootu nad databází PostgreSQL.
+- Navrhl jsem REST API a datový model aplikace.
+- Aplikaci jsme nasazovali v Docker kontejnerech v rámci CI pipeline na GitLabu.
+
+Autor bakalářské práce: Detekce anomálií v provozních logech pomocí strojového učení
+FIT ČVUT
+- Navrhl a implementoval jsem v Pythonu pipeline pro sběr a předzpracování serverových logů.
+- Porovnal jsem několik metod detekce anomálií a vyhodnotil jejich výsledky.
+- Práce byla obhájena s hodnocením A.
+
+Mentor základů programování
+Studentský spolek Bytubytu
+- Dva semestry jsem dobrovolně vedl workshopy základů Pythonu a Gitu pro studenty prvních ročníků.
+- Pomáhal jsem začínajícím studentům s jejich prvními projekty.
+
+Dovednosti
+- Jazyky a technologie: Python (pokročilá uživatelská úroveň), Java (pokročilá uživatelská úroveň), PostgreSQL (pokročilá uživatelská úroveň), Git (pokročilá uživatelská úroveň)
+- Základní úroveň: Docker, návrh REST API
+- Další: zpracování dat, strojové učení, týmová spolupráce, mentoring
+
+Vzdělání
+Navazující magisterské studium, obor Softwarové inženýrství
+Fakulta informačních technologií ČVUT v Praze (FIT ČVUT)
+Předpokládané ukončení: 2026
+
+Jazyky
+- Čeština – rodilý mluvčí
+- Angličtina – C1
+- Němčina – B1

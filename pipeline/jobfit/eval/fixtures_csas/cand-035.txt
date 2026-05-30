@@ -1,0 +1,37 @@
+Vojtěch Hruška
+Senior Data Scientist | ML Platform & Production ML
+
+Brno, Czechia · Czech · English · German
+
+SUMMARY
+Senior data scientist with around nine years of experience taking machine-learning models from prototype to reliable production at scale. Strong in Python, classical ML and MLOps, with hands-on ownership of training and deployment pipelines serving millions of daily requests. Looking to lead an ML platform team end-to-end, push more production models toward robust online evaluation, and mentor medior data scientists into senior roles.
+
+EXPERIENCE
+
+Senior Data Scientist — Recombee, Brno
+- Owned the churn-prediction and recommendation re-ranking models serving roughly 12M daily requests.
+- Built an MLflow-based training and deployment pipeline on Kubernetes that cut model release time from days to hours.
+- Introduced offline/online consistency checks that measurably reduced production regressions.
+
+Data Scientist — Kiwi.com, Brno
+- Developed pricing-anomaly detection and demand-forecasting models for flight search.
+- Migrated batch feature engineering to Spark, scaling training data roughly 20x.
+- Deployed PyTorch sequence models for booking-intent scoring on AWS SageMaker.
+
+SKILLS
+- Programming: Python (strong)
+- Machine Learning: scikit-learn, XGBoost (strong)
+- Deep Learning: PyTorch (working)
+- MLOps: MLflow, Docker, Kubernetes (strong)
+- Data: SQL & data modeling (strong); Spark / distributed data processing (working)
+- Cloud: AWS SageMaker (working)
+
+EDUCATION
+Ing. in Cybernetics and Artificial Intelligence
+Faculty of Electrical Engineering, Czech Technical University in Prague (FEL ČVUT)
+
+LANGUAGES
+Czech (native), English (professional), German
+
+INTERESTS / DIRECTION
+Building the platforms and evaluation practices that let teams ship models safely and often — with a particular focus on online evaluation, reproducible pipelines, and growing the people around me into senior engineers and scientists.

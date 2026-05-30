@@ -1,0 +1,30 @@
+Vojtěch Sýkora
+Senior Backend Engineer — Distributed Systems & Platform Reliability
+
+Summary
+Backend engineer with ~9 years of experience building and operating high-throughput, distributed services in Go on Kubernetes. Track record of leading service redesigns, owning production reliability through SLOs and on-call, and mentoring engineers. Looking to grow into a staff/principal track focused on platform reliability and developer experience.
+
+Experience
+
+Senior Backend Engineer, Payments Platform — Kentico Software, Brno
+- Led the redesign of the payment-orchestration service in Go, cutting p99 latency by 40% and migrating the team off a monolith onto Kubernetes with zero-downtime rollouts.
+- Owned the on-call rotation and the SLO/error-budget process across three production services.
+- Drove observability practices using Prometheus and Grafana, and mentored medior engineers toward senior level.
+
+Backend Engineer — Y Soft Corporation, Brno
+- Built gRPC services for device fleet management handling 50,000+ connected printers.
+- Introduced Terraform-managed infrastructure that reduced environment provisioning time from days to under an hour.
+- Contributed to distributed-systems design across the device-management platform.
+
+Skills
+- Languages & frameworks: Go (strong), gRPC / Protocol Buffers (working)
+- Infrastructure & orchestration: Kubernetes (strong), Terraform (working)
+- Data: PostgreSQL (strong)
+- Distributed systems (working)
+- Observability: Prometheus, Grafana (strong)
+
+Education
+Ing. in Computer Science — Brno University of Technology (VUT), Faculty of Information Technology
+
+Languages
+Czech (native), English (professional), German (working)

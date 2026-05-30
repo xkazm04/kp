@@ -1,0 +1,41 @@
+Lucie Pokorná
+Aspiring Product Manager / Product Owner — Health-Tech & B2B SaaS
+
+Summary
+Career switcher with seven years of clinical and operational experience moving into product management. Strong at stakeholder management and process ownership, with hands-on product discovery, user research, and Agile delivery gained through a Czechitas Product Management Nanodegree and a validated capstone project. Looking to grow as an Associate/Junior Product Manager or Product Owner in a health-tech or B2B SaaS team.
+
+Experience
+
+Lead Physiotherapist — RehaActive Clinic, Brno (2018–2024)
+- Ran the rehabilitation programme for a 6-clinician practice, coordinating patient caseloads and owning the treatment-scheduling process end to end.
+- Negotiated equipment purchases with suppliers and acted as patient liaison for insurer reporting.
+- Trained and mentored four junior physiotherapists.
+
+Physiotherapist — Sportovní centrum Lužánky, Brno (2015–2018)
+- Designed individual rehabilitation plans for sport-injury clients and tracked recovery outcomes.
+- Translated qualitative patient feedback into measurable progress goals.
+
+Selected Projects
+
+PhysioTrack — Patient-Progress App Concept (Czechitas PM Capstone, 2024)
+- Conducted 8 problem-discovery interviews with clinicians and built a prioritized opportunity-solution tree.
+- Shipped a clickable Figma prototype, validated across 5 usability sessions.
+- Defined success metrics and a 3-sprint MVP roadmap.
+
+SQL for Product Analytics — DataCamp
+- Completed a hands-on event-data track; analysed funnel drop-off in a sample subscription product and proposed two activation experiments.
+
+Skills
+- Stakeholder management (strong)
+- Agile & Scrum (working)
+- Product discovery & user research (working)
+- Roadmapping & backlog prioritization (foundational)
+- SQL & product analytics (foundational)
+- Process ownership, team coordination, outcome tracking
+
+Education
+- Product Management Nanodegree — Czechitas (2024)
+- Mgr. in Physiotherapy — Faculty of Physical Education and Sport, Charles University (2015)
+
+Languages
+- Czech (native), English, German

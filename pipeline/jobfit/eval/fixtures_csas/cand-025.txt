@@ -1,0 +1,36 @@
+Lucie Tichá
+Aspiring Backend / Data Engineer — Analytical Chemist transitioning into software
+
+Summary
+Analytical chemist with seven years in regulated pharma QC, now moving into software engineering after automation work pulled me toward code. I build backend services in Python and write SQL daily, with a foundation in FastAPI, Docker, and Git from a recent programmer bootcamp and a self-designed capstone project. Strong on structured data, documentation, and reproducibility — habits earned in a GMP laboratory.
+
+Experience
+
+Analytical Chemist, Quality Control — Generics Pharmaceutical Manufacturer
+2018 – 2025
+- Ran HPLC and GC methods and validated assays under GMP; authored and maintained SOPs.
+- Cut routine reporting time by ~30% by scripting Python to parse instrument exports into the LIMS — the project that started my move into software.
+
+Laboratory Technician — Analytical Laboratory
+2015 – 2018
+- Handled sample preparation, instrument calibration, and maintenance of analytical instruments.
+- First hands-on exposure to structured data and reproducible documentation practices.
+
+Selected Project
+
+LabTrack — Reagent-Inventory API (bootcamp capstone, 2024)
+- Built a FastAPI + PostgreSQL service tracking reagent stock and expiry with low-stock alerts and JWT authentication.
+- Added pytest coverage and a Dockerized deployment; designed the whole system around real QC-lab pain points I had experienced firsthand.
+
+Skills
+- Languages & data: Python (working), SQL (working)
+- Frameworks & tools: FastAPI, Docker, Git (foundational)
+- Domain: data analysis, process automation, GMP documentation, attention to detail
+
+Education
+Mgr., Analytical Chemistry — University of Chemistry and Technology Prague (VŠCHT), 2015
+Junior Programmer (graduate) — Engeto Python Academy, 2024
+Four-month intensive part-time bootcamp: Python fundamentals, OOP, relational databases, Git workflow, and a final team project.
+
+Languages
+Czech (native), English (professional), German (intermediate)
