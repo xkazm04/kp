@@ -8,12 +8,12 @@ const ACTIONS: PipelineAction[] = ["accept", "reject", "approve_event"];
 export async function POST(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params;
   try {
-    const body = (await request.json()) as { action?: string };
+    const body = (await request.json()) as { action?: string; detail?: string };
     const action = body.action as PipelineAction;
     if (!ACTIONS.includes(action)) {
       return NextResponse.json({ error: "Unknown action." }, { status: 400 });
     }
-    const updated = actOnPipelineEntry(id, action);
+    const updated = actOnPipelineEntry(id, action, typeof body.detail === "string" ? body.detail : undefined);
     if (!updated) {
       return NextResponse.json({ error: "Pipeline entry not found." }, { status: 404 });
     }

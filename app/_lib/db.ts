@@ -1858,7 +1858,7 @@ export function saveSubmissionEvaluation(id: string, evaluation: unknown, transf
 
 export type PipelineAction = "accept" | "reject" | "approve_event";
 
-export function actOnPipelineEntry(id: string, action: PipelineAction): PipelineEntry | null {
+export function actOnPipelineEntry(id: string, action: PipelineAction, detail?: string): PipelineEntry | null {
   const db = ensureDb();
   const row = db.prepare(`SELECT * FROM pipeline_entries WHERE id = ?`).get(id) as PipelineRow | undefined;
   if (!row) return null;
@@ -1875,10 +1875,13 @@ export function actOnPipelineEntry(id: string, action: PipelineAction): Pipeline
     db.prepare(`UPDATE pipeline_entries SET status='rejected', approval_kind=NULL, updated_at=? WHERE id=?`).run(now, id);
     recordEvent(db, { ...meta, kind: "rejected", toStage: row.stage });
   } else if (action === "approve_event") {
+    // Honor a slot override (the shared calendar lets you move a candidate's
+    // proposed time); fall back to the originally-proposed slot.
+    const slot = detail && detail.trim() ? detail.trim() : row.approval_detail;
     db.prepare(
       `UPDATE pipeline_entries SET stage='Interview', approval_kind=NULL, approval_detail='', stage_changed_at=?, updated_at=? WHERE id=?`
     ).run(now, now, id);
-    recordEvent(db, { ...meta, kind: "scheduled", toStage: "Interview", detail: row.approval_detail });
+    recordEvent(db, { ...meta, kind: "scheduled", toStage: "Interview", detail: slot });
   } else {
     // accept: advance one stage, clear any pending approval
     const idx = PIPELINE_STAGES.indexOf(row.stage as PipelineStage);

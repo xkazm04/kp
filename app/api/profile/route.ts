@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { writeFile } from "node:fs/promises";
 import path from "node:path";
-import { listProfiles, saveProfile } from "@/app/_lib/db";
+import { getProfileRecord, listProfiles, saveProfile } from "@/app/_lib/db";
 import {
   cleanupWorkdir,
   createWorkdir,
@@ -11,8 +11,16 @@ import {
 
 export const runtime = "nodejs";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    // ?id=<candidateId> → a single profile (label/archetype/completeness + payload),
+    // used by the Decisions analysis-summary modal. No id → the full list.
+    const id = request.nextUrl.searchParams.get("id");
+    if (id) {
+      const rec = getProfileRecord(id);
+      if (!rec) return NextResponse.json({ error: "Profile not found." }, { status: 404 });
+      return NextResponse.json({ profile: { ...rec.row, payload: rec.payload } });
+    }
     return NextResponse.json({ profiles: listProfiles(200) });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to list profiles.";

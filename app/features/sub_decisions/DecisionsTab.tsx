@@ -1,19 +1,32 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Check, Sparkles } from "lucide-react";
 import { buildUrl } from "@/app/features/tabs";
+import { useTasks } from "@/app/features/tasks/TasksProvider";
 import { AiReviewCard } from "./AiReviewCard";
+import { AnalysisSummaryModal } from "./AnalysisSummaryModal";
 import { Empty } from "./DecisionsShared";
-import { KeyDecisionCard } from "./KeyDecisionCard";
+import { GroupEvalModal, type GroupEvalPayload } from "./GroupEvalModal";
+import { RoleDecisionRow } from "./RoleDecisionRow";
 import type { Entry } from "./DecisionsTypes";
+
+type Group = { roleKey: string; roleTitle: string; jobId: string | null; entries: Entry[] };
 
 export function DecisionsTab() {
   const router = useRouter();
+  const { startTask, tasks } = useTasks();
   const [entries, setEntries] = useState<Entry[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [resolving, setResolving] = useState<Record<string, "accept" | "reject" | "approve_event">>({});
+
+  // Modal + group-eval state
+  const [summaryEntry, setSummaryEntry] = useState<Entry | null>(null);
+  const [evalRole, setEvalRole] = useState<{ roleKey: string; roleTitle: string } | null>(null);
+  const [evalData, setEvalData] = useState<GroupEvalPayload | null>(null);
+  const [evalTaskId, setEvalTaskId] = useState<string | null>(null);
+  const [evaluated, setEvaluated] = useState<Record<string, string>>({});
 
   const load = () =>
     fetch("/api/pipeline")
@@ -27,35 +40,60 @@ export function DecisionsTab() {
     load();
   }, []);
 
-  // Resolving cards stay in the list (not filtered out) so they can animate out
-  // before setEntries removes them after the 260ms exit window.
   const pending = (entries ?? []).filter((e) => e.approvalKind && e.status === "active");
   const keyDecisions = pending.filter((e) => e.approvalKind === "decision");
   const aiReviews = pending.filter(
     (e) => e.approvalKind === "screening_review" || e.approvalKind === "scorecard_review" || e.approvalKind === "offer_review"
   );
 
-  // While a card resolves, keep it mounted and fade+slide it out before removal.
-  const leavingWrapClass = (e: Entry) =>
-    resolving[e.id]
-      ? "transition-all duration-200 ease-in pointer-events-none -translate-x-2 scale-[0.98] opacity-0"
-      : "transition-all duration-200 ease-in";
+  const groups = useMemo<Group[]>(() => {
+    const map = new Map<string, Group>();
+    for (const e of keyDecisions) {
+      const roleKey = e.jobId ?? e.jobTitle ?? "unassigned";
+      if (!map.has(roleKey)) map.set(roleKey, { roleKey, roleTitle: e.jobTitle ?? "Unassigned role", jobId: e.jobId, entries: [] });
+      map.get(roleKey)!.entries.push(e);
+    }
+    return [...map.values()];
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [entries]);
+  const roleKeys = groups.map((g) => g.roleKey).join(",");
 
-  const act = async (e: Entry, action: "accept" | "reject" | "approve_event", detail?: string) => {
-    setResolving((s) => ({ ...s, [e.id]: action })); // triggers exit animation + removes from lists
-    // remove from local state after the card animates out
-    window.setTimeout(() => {
-      setEntries((prev) => (prev ? prev.filter((x) => x.id !== e.id) : prev));
-    }, 260);
+  // Which roles already have a saved evaluation (toggles the button label).
+  useEffect(() => {
+    if (!roleKeys) return;
+    fetch(`/api/decisions/group-eval?roles=${encodeURIComponent(roleKeys)}`)
+      .then((r) => r.json())
+      .then((p) => setEvaluated(p.evaluated ?? {}))
+      .catch(() => undefined);
+  }, [roleKeys]);
+
+  // Poll the group-eval background task.
+  useEffect(() => {
+    if (!evalTaskId) return;
+    const t = tasks.find((x) => x.id === evalTaskId);
+    if (!t) return;
+    if (t.status === "succeeded") {
+      setEvalData((t.result as GroupEvalPayload) ?? null);
+      setEvalTaskId(null);
+      if (evalRole) setEvaluated((s) => ({ ...s, [evalRole.roleKey]: new Date().toISOString() }));
+    } else if (t.status === "failed" || t.status === "canceled" || t.status === "interrupted") {
+      setEvalTaskId(null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tasks, evalTaskId]);
+
+  const act = async (e: Entry, action: "accept" | "reject" | "approve_event") => {
+    setResolving((s) => ({ ...s, [e.id]: action }));
+    window.setTimeout(() => setEntries((prev) => (prev ? prev.filter((x) => x.id !== e.id) : prev)), 260);
     try {
       const r = await fetch(`/api/pipeline/${e.id}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action, detail }),
+        body: JSON.stringify({ action }),
       });
       if (!r.ok) throw new Error();
     } catch {
-      load(); // resync on failure
+      load();
       setResolving((s) => {
         const n = { ...s };
         delete n[e.id];
@@ -64,6 +102,32 @@ export function DecisionsTab() {
     }
   };
 
+  const openGroupEval = async (g: Group, rerun = false) => {
+    setEvalRole({ roleKey: g.roleKey, roleTitle: g.roleTitle });
+    setEvalData(null);
+    setEvalTaskId(null);
+    if (evaluated[g.roleKey] && !rerun) {
+      const p = await fetch(`/api/decisions/group-eval?role=${encodeURIComponent(g.roleKey)}`).then((r) => r.json());
+      setEvalData((p.evaluation?.payload as GroupEvalPayload) ?? null);
+      return;
+    }
+    const candidates = g.entries.map((e) => ({ entryId: e.id, candidateId: e.candidateId, label: e.candidateLabel, matchScore: e.matchScore }));
+    const t = await startTask("group_eval", { roleKey: g.roleKey, roleTitle: g.roleTitle, jobId: g.jobId, candidates });
+    if (t) setEvalTaskId(t.id);
+  };
+
+  const decide = (e: Entry, action: "accept" | "reject") => {
+    setSummaryEntry(null);
+    void act(e, action);
+  };
+
+  const leavingWrapClass = (e: Entry) =>
+    resolving[e.id]
+      ? "transition-all duration-200 ease-in pointer-events-none -translate-x-2 scale-[0.98] opacity-0"
+      : "transition-all duration-200 ease-in";
+
+  const evalGroup = evalRole ? groups.find((g) => g.roleKey === evalRole.roleKey) ?? null : null;
+
   return (
     <div className="space-y-6">
       <header className="flex flex-wrap items-end justify-between gap-4">
@@ -71,29 +135,15 @@ export function DecisionsTab() {
           <p className="text-meta uppercase text-coral">Decisions</p>
           <h2 className="mt-1 font-serif text-display text-ink">Your decision queue</h2>
           <p className="mt-1 max-w-2xl text-body text-steel">
-            The human-in-the-loop step. Key decisions advance or reject a candidate with full context. Interview
-            slots now live in{" "}
-            <button
-              type="button"
-              onClick={() => router.push(buildUrl({ tab: "schedule" }))}
-              className="focus-ring font-semibold text-coral hover:underline"
-            >
+            The human-in-the-loop step, grouped by role. Click a candidate for their analysis summary, or run a
+            group evaluation to compare a role&apos;s candidates. Interview slots live in{" "}
+            <button type="button" onClick={() => router.push(buildUrl({ tab: "schedule" }))} className="focus-ring font-semibold text-coral hover:underline">
               Schedule
-            </button>
-            ; everything you action moves the candidate in the{" "}
-            <button
-              type="button"
-              onClick={() => router.push(buildUrl({ tab: "pipeline" }))}
-              className="focus-ring font-semibold text-coral hover:underline"
-            >
-              pipeline
             </button>
             .
           </p>
         </div>
-        <span className="rounded-md border border-stone-200 bg-paper px-2.5 py-1 text-sm text-steel">
-          {pending.length} pending
-        </span>
+        <span className="rounded-md border border-stone-200 bg-paper px-2.5 py-1 text-sm text-steel">{pending.length} pending</span>
       </header>
 
       {error ? (
@@ -113,10 +163,6 @@ export function DecisionsTab() {
               <h3 className="flex items-center gap-1.5 text-meta uppercase tracking-wide text-steel">
                 <Sparkles size={13} className="text-coral" /> AI recommendations <span className="text-coral">· {aiReviews.length}</span>
               </h3>
-              <p className="mt-1 text-sm text-steel">
-                The LLM screened these at the AI-matched gate or synthesized an interview scorecard. Confirm or override —
-                early-career candidates are deliberately held here for your judgment.
-              </p>
               <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                 {aiReviews.map((e) => (
                   <div key={e.id} className={leavingWrapClass(e)}>
@@ -126,22 +172,52 @@ export function DecisionsTab() {
               </div>
             </section>
           ) : null}
+
           <section>
             <h3 className="text-meta uppercase tracking-wide text-steel">
               Key decisions <span className="text-coral">· {keyDecisions.length}</span>
             </h3>
-            <p className="mt-1 text-sm text-steel">Advance to the next stage, or reject — read the fit first.</p>
-            <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-              {keyDecisions.map((e) => (
-                <div key={e.id} className={leavingWrapClass(e)}>
-                  <KeyDecisionCard entry={e} onAccept={() => act(e, "accept")} onReject={() => act(e, "reject")} />
-                </div>
+            <p className="mt-1 text-sm text-steel">One row per role — advance or reject from a candidate&apos;s analysis summary.</p>
+            <div className="mt-3 space-y-3">
+              {groups.map((g) => (
+                <RoleDecisionRow
+                  key={g.roleKey}
+                  roleTitle={g.roleTitle}
+                  entries={g.entries}
+                  evaluated={Boolean(evaluated[g.roleKey])}
+                  busy={evalTaskId !== null && evalRole?.roleKey === g.roleKey}
+                  onCandidate={setSummaryEntry}
+                  onGroupEval={() => openGroupEval(g)}
+                />
               ))}
-              {keyDecisions.length === 0 ? <Empty>No key decisions pending.</Empty> : null}
+              {groups.length === 0 ? <Empty>No key decisions pending.</Empty> : null}
             </div>
           </section>
         </div>
       )}
+
+      {summaryEntry ? (
+        <AnalysisSummaryModal
+          entry={summaryEntry}
+          onClose={() => setSummaryEntry(null)}
+          onAccept={() => decide(summaryEntry, "accept")}
+          onReject={() => decide(summaryEntry, "reject")}
+        />
+      ) : null}
+
+      {evalRole ? (
+        <GroupEvalModal
+          roleTitle={evalRole.roleTitle}
+          evaluation={evalData}
+          loading={evalTaskId !== null}
+          onClose={() => {
+            setEvalRole(null);
+            setEvalData(null);
+            setEvalTaskId(null);
+          }}
+          onRerun={() => evalGroup && openGroupEval(evalGroup, true)}
+        />
+      ) : null}
     </div>
   );
 }

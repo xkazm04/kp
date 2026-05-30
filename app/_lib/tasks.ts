@@ -14,6 +14,7 @@ import { runReasoning } from "./reasoning-run";
 import { runAnalyze, type AnalyzeParams } from "./analyze-run";
 import { runCommitReflection, runDesignArtifacts, runEvaluateSubmission, runNeedAnalysis, type DevNeed } from "./devcase-run";
 import { runLifecycle } from "./devcase-orchestrator";
+import { runGroupEval } from "./group-eval-run";
 
 // ---------------------------------------------------------------------------
 // In-process background-task runner. Works because `next dev` is one long-lived
@@ -106,6 +107,11 @@ const HANDLERS: Record<string, Spec> = {
     run: (ctx) => runLifecycle(String(ctx.params.lifecycleId), ctx.progress),
     label: (p) => `Lifecycle · ${p.title ?? p.lifecycleId ?? ""}`,
     dedupe: (p) => `lifecycle:${p.lifecycleId}`, // one run per case; a re-trigger resumes when idle
+  },
+  group_eval: {
+    run: (ctx) => runGroupEval(ctx.params),
+    label: (p) => `Group evaluation · ${p.roleTitle ?? p.roleKey ?? ""}`,
+    dedupe: (p) => `group_eval:${p.roleKey}`, // one run per role; re-trigger reuses an in-flight run
   },
 };
 
