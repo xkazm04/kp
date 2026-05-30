@@ -28,8 +28,11 @@ from typing import Any
 from ..claude_cli import ClaudeCliError, ClaudeCliProvider
 from .analyze import analyze_need
 from .design import design_case, design_role
+from .evaluate import evaluate_submission, score_transfer
 from .models import NeedAnalysis
+from .reflect import assess_tooling, reflect_commits
 from .scenarios import Scenario, generate_scenarios
+from .submissions import all_submissions
 
 PROBE_KINDS = {"ambiguity", "legacy_trap", "verification_trap", "underspecified"}
 LEVERS = [
@@ -225,6 +228,93 @@ def audit_role_fit(scenarios: list[Scenario], provider: ClaudeCliProvider, worke
     return {"subset": len(subset), "judged": len(judged), "role_fit_rate": round(rate, 3) if rate is not None else None, "verdicts": verdicts}
 
 
+# --- Part 2: submission evaluation — does the evaluator DISCRIMINATE? ---------
+
+_EVAL_DIMS = {"framing", "tooling", "judgment", "architecture", "transfer"}
+
+
+def _overall(dims: dict) -> float:
+    vals = [v for v in dims.values() if isinstance(v, (int, float))]
+    return round(sum(vals) / len(vals), 1) if vals else 0.0
+
+
+def _check_eval(ev: dict) -> list[str]:
+    dims = ev.get("dimensionScores") or {}
+    if set(dims) != _EVAL_DIMS:
+        return ["eval: dimensions off"]
+    if any(not isinstance(v, int) or not (0 <= v <= 100) for v in dims.values()):
+        return ["eval: score out of range"]
+    return []
+
+
+def _eval_chain(case: dict, role: dict, commits: list[dict], provider: Any | None) -> dict:
+    refl, _ = reflect_commits(commits, provider=provider)
+    tool, _ = assess_tooling(refl, commits, case.get("coverProbes") or [], provider=provider)
+    ev, _ = evaluate_submission(refl, tool, case, role, provider=provider)
+    tr, _ = score_transfer(ev, role, provider=provider)
+    return {
+        "overall": _overall(ev.get("dimensionScores") or {}),
+        "readBeforeWrite": refl.get("readBeforeWrite"),
+        "fluency": tool.get("fluency"),
+        "transfer": tr.get("transferScore"),
+        "issues": _check_eval(ev),
+    }
+
+
+def run_submission_eval(count: int, provider: Any | None, workers: int = 4, subset: int = 6) -> dict[str, Any]:
+    """Plant strong / naive / AI-over-reliant / thrasher submissions against designed cases and
+    check the evaluator ranks the strong one above the weak ones (and isn't fooled by the
+    'productive-looking but never verifies' AI-over-reliant trace). Cases are designed
+    deterministically to isolate the EVALUATOR under test."""
+    scns = [s for s in generate_scenarios(count) if not s.planted["sparse"]][:subset]
+    prepared = []
+    for s in scns:
+        a, _ = analyze_need(s.need, s.snapshot, provider=None)
+        na = NeedAnalysis.model_validate(a)
+        role, _ = design_role(s.need, na, provider=None)
+        case, _ = design_case(s.need, na, role, provider=None)
+        prepared.append((s, case, role))
+
+    subs = all_submissions()
+    jobs = [(i, s, case, role, arch, commits) for i, (s, case, role) in enumerate(prepared) for (arch, commits) in subs]
+
+    def _one(job):
+        i, s, case, role, arch, commits = job
+        return {"scenario": i, "label": s.label, "archetype": arch.name, "expected": arch.expected, **_eval_chain(case, role, commits, provider)}
+
+    w = max(1, workers) if provider is not None else 1
+    with ThreadPoolExecutor(max_workers=w) as pool:
+        rows = list(pool.map(_one, jobs))
+
+    by_scn: dict[int, list[dict]] = {}
+    for r in rows:
+        by_scn.setdefault(r["scenario"], []).append(r)
+    strong_first = 0
+    margins = []
+    ai_below = 0
+    ai_total = 0
+    for rs in by_scn.values():
+        strong = next(r for r in rs if r["archetype"] == "strong")
+        weak = [r for r in rs if r["expected"] == "weak"]
+        if strong["overall"] >= max(r["overall"] for r in rs):
+            strong_first += 1
+        if weak:
+            margins.append(round(strong["overall"] - sum(r["overall"] for r in weak) / len(weak), 1))
+        ai = next((r for r in rs if r["archetype"] == "ai_overreliant"), None)
+        if ai:
+            ai_total += 1
+            ai_below += 1 if ai["overall"] < strong["overall"] else 0
+    n = len(by_scn)
+    return {
+        "scenarios": n,
+        "reliability": round(sum(1 for r in rows if not r["issues"]) / len(rows), 3) if rows else 0,
+        "strong_ranks_first_rate": round(strong_first / n, 3) if n else None,
+        "mean_margin_strong_vs_weak": round(sum(margins) / len(margins), 1) if margins else None,
+        "ai_overreliant_below_strong_rate": round(ai_below / ai_total, 3) if ai_total else None,
+        "rows": rows,
+    }
+
+
 def _quality_summary(rows: list[Row]) -> dict[str, Any]:
     by_task: dict[str, list[int]] = {}
     levers = Counter()
@@ -279,7 +369,7 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--count", type=int, default=100)
     p.add_argument("--no-llm", action="store_true")
     p.add_argument("--judge", action="store_true")
-    p.add_argument("--audit", choices=["role-fit"], help="targeted binary audit on mismatch/incoherent scenarios")
+    p.add_argument("--audit", choices=["role-fit", "submission-eval"], help="targeted audit")
     p.add_argument("--workers", type=int, default=4)
     p.add_argument("--json", action="store_true")
     args = p.parse_args(argv)
@@ -306,6 +396,19 @@ def main(argv: list[str] | None = None) -> int:
             for v in res["verdicts"]:
                 mark = "OK " if v["matchesRole"] else ("?? " if v["matchesRole"] is None else "XX ")
                 print(f"- {mark} {v['id']}: {v['note']}")
+        return 0
+
+    if args.audit == "submission-eval":
+        res = run_submission_eval(args.count, provider, workers=args.workers)
+        if args.json:
+            print(json.dumps(res, indent=2, ensure_ascii=False))
+        else:
+            print(f"# Submission-evaluation discrimination\n\ncases: {res['scenarios']} · eval reliability: {res['reliability']:.0%}")
+            print(f"**strong ranks #1: {res['strong_ranks_first_rate']}** · mean margin (strong − weak): "
+                  f"{res['mean_margin_strong_vs_weak']} · AI-over-reliant below strong: {res['ai_overreliant_below_strong_rate']}\n")
+            for i in sorted({r['scenario'] for r in res['rows']}):
+                rs = sorted([r for r in res['rows'] if r['scenario'] == i], key=lambda r: -r['overall'])
+                print(f"- case {i}: " + ", ".join(f"{r['archetype']}={r['overall']}" for r in rs))
         return 0
     rows = run(scenarios, provider, workers=args.workers)
     sig = signals(rows)

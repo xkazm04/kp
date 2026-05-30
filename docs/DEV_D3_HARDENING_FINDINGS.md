@@ -102,9 +102,32 @@ So the real fixes (v2.1):
 backend stack, or **iOS handed Android** — still falls back to "generic engineering." Targeted next nudge:
 respect sub-specialty (frontend = client-side; iOS ≠ Android), then re-audit.
 
+## Part 2 — submission evaluation (does the evaluator discriminate?)
+
+The harness now also tests the **evaluation half**. `submissions.py` plants four candidate archetypes as
+git traces (newest-first): **strong** (reads-first → tests → recovers), **naive one-shot**,
+**AI-over-reliant** (looks productive — *"make the failing tests pass"* — but never reads/verifies), and
+**thrasher** (revert loops). `run_submission_eval` runs the full evaluator chain
+(`reflect_commits → assess_tooling → evaluate_submission → score_transfer`) per submission against
+deterministically-designed cases (to isolate the evaluator) and measures discrimination
+(`--audit submission-eval`).
+
+**Measured (LLM evaluator, 6 cases × 4 submissions):**
+
+| | Deterministic | LLM |
+|---|---|---|
+| Strong ranks #1 | 100% | **100%** |
+| Margin (strong − weak) | +9.5 | **+32.8** |
+| Strong − AI-over-reliant gap (the gaming test) | +2.8 | **+34.4** (min +26) |
+| AI-over-reliant ranked below strong | 100% | **100%** |
+| Eval reliability | 100% | 100% |
+
+The key result: the **LLM evaluator is not fooled by the productive-looking-but-never-verifies trace** —
+it reads `readBeforeWrite` at **0.88** for the strong candidate vs **0.23** for the AI-over-reliant one,
+and the gamer routinely ranks **last**. This is the LLM-aware evaluation the brief called for: it grades
+*how they drove the work and whether they verified*, not raw output.
+
 ## Next
 
-Extend this same harness with **simulated assignment distribution** and **assignment-evaluation** scoring
-(the `evaluate_submission` side — plant strong / naive / AI-over-reliant submissions and verify the
-evaluator *discriminates* them) so the *whole* lifecycle is quality-gated end-to-end — and generalize the
-landscape to non-IT.
+Land the sub-specialty nudge (Part-1 residual), then generalize the whole landscape (scenarios +
+submissions) to **non-IT** — the harness is already domain-pluggable.
