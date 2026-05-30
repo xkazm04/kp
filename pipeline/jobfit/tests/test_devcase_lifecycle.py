@@ -2,7 +2,8 @@
 
 import unittest
 
-from pipeline.jobfit.devcase.lifecycle_eval import run, run_submission_eval, signals
+from pipeline.jobfit.devcase.lifecycle_audits import run_submission_eval
+from pipeline.jobfit.devcase.lifecycle_eval import run, signals
 from pipeline.jobfit.devcase.scenarios import generate_scenarios
 
 
