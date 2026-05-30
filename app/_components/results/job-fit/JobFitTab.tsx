@@ -12,7 +12,7 @@ export function JobFitTab({ analysis }: { analysis: Analysis }) {
   if (!analysis.jobFit) {
     return (
       <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
-        <h3 className="text-base font-semibold">Job Fit</h3>
+        <h3 className="font-serif text-h3 text-ink">Job Fit</h3>
         <p className="mt-3 text-sm leading-6 text-steel">Attach a job description to produce role-fit scoring, missing skills, and role-specific proof points.</p>
       </div>
     );
@@ -26,7 +26,7 @@ export function JobFitTab({ analysis }: { analysis: Analysis }) {
             <div>
               <div className="flex items-center gap-2">
                 <BriefcaseBusiness className="h-5 w-5 text-coral" aria-hidden />
-                <h3 className="text-base font-semibold">Job Fit</h3>
+                <h3 className="font-serif text-h3 text-ink">Job Fit</h3>
               </div>
               <p className="mt-3 text-sm leading-6 text-ink">{analysis.jobFit.summary}</p>
             </div>
@@ -63,7 +63,7 @@ export function JobFitTab({ analysis }: { analysis: Analysis }) {
 
       <div className="space-y-5">
         <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
-          <h3 className="text-base font-semibold">Alignment</h3>
+          <h3 className="font-serif text-h3 text-ink">Alignment</h3>
           <div className="mt-4 space-y-3 text-sm leading-6 text-ink">
             <p>{analysis.jobFit.seniorityAlignment}</p>
             <p>{analysis.jobFit.roleAlignment}</p>
@@ -92,7 +92,7 @@ function KeywordCoverageBlock({ coverage }: { coverage: KeywordCoverage }) {
   return (
     <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
       <div className="flex items-center justify-between gap-3">
-        <h3 className="text-base font-semibold">Keyword Coverage</h3>
+        <h3 className="font-serif text-h3 text-ink">Keyword Coverage</h3>
         <span className="text-sm font-semibold text-ink tabular-nums">
           {coverage.coveragePercent}%
         </span>

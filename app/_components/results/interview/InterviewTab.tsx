@@ -39,7 +39,7 @@ export function InterviewTab({ analysis }: { analysis: Analysis }) {
   if (!analysis.interviewKit) {
     return (
       <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
-        <h3 className="text-base font-semibold">Mock Interview</h3>
+        <h3 className="font-serif text-h3 text-ink">Mock Interview</h3>
         <p className="mt-3 text-sm leading-6 text-steel">
           Attach a job description so we can generate questions tied to your specific evidence gaps and a STAR scaffold for each.
         </p>
@@ -58,7 +58,7 @@ export function InterviewTab({ analysis }: { analysis: Analysis }) {
           <div>
             <div className="flex items-center gap-2">
               <MessagesSquare className="h-5 w-5 text-coral" aria-hidden />
-              <h3 className="text-base font-semibold">Mock Interview</h3>
+              <h3 className="font-serif text-h3 text-ink">Mock Interview</h3>
             </div>
             <p className="mt-2 text-sm leading-6 text-ink">{summary}</p>
             <p className="mt-1 text-xs leading-5 text-steel">

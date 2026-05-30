@@ -16,7 +16,7 @@ export function SalaryTab({ analysis }: { analysis: Analysis }) {
         <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
           <div className="flex items-center gap-2">
             <CircleDollarSign className="h-5 w-5 text-coral" aria-hidden />
-            <h3 className="text-base font-semibold">Salary Estimate</h3>
+            <h3 className="font-serif text-h3 text-ink">Salary Estimate</h3>
           </div>
           <div className="mt-5">
             <SalaryGauge
@@ -29,7 +29,7 @@ export function SalaryTab({ analysis }: { analysis: Analysis }) {
           <div className="mt-1 text-sm tabular-nums text-ink">
             {formatSalaryRange(analysis.salary.minimum, analysis.salary.maximum)}
           </div>
-          <p className="mt-1 text-sm text-steel">per month · {analysis.salary.confidence} confidence</p>
+          <p className="mt-1 flex items-center gap-1.5 text-sm text-steel">per month · <ConfidenceBadge value={analysis.salary.confidence} /></p>
           <div className="mt-4 rounded-md bg-limewash p-3 text-sm font-medium text-ink">
             +30% growth target: {formatCzk(targetSalary)} CZK / month
           </div>
@@ -37,7 +37,7 @@ export function SalaryTab({ analysis }: { analysis: Analysis }) {
 
         {analysis.companyContext ? (
           <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
-            <h3 className="text-base font-semibold">Company Compensation Context</h3>
+            <h3 className="font-serif text-h3 text-ink">Company Compensation Context</h3>
             <p className="mt-3 text-sm leading-6 text-ink">
               {labelize(analysis.companyContext.companyType)}: {analysis.companyContext.salaryEffect} ({analysis.companyContext.adjustmentFactor}x)
             </p>
@@ -52,7 +52,7 @@ export function SalaryTab({ analysis }: { analysis: Analysis }) {
 
       <div className="space-y-5">
         <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
-          <h3 className="text-base font-semibold">Salary Rationale</h3>
+          <h3 className="font-serif text-h3 text-ink">Salary Rationale</h3>
           <ul className="mt-4 space-y-3">
             {analysis.salary.rationale.map((item) => (
               <li key={item} className="text-sm leading-6 text-ink">{item}</li>
@@ -74,13 +74,13 @@ export function SalaryTab({ analysis }: { analysis: Analysis }) {
           <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
             <div className="flex items-center gap-2">
               <CircleDollarSign className="h-5 w-5 text-coral" aria-hidden />
-              <h3 className="text-base font-semibold">Grounded Market Evidence</h3>
+              <h3 className="font-serif text-h3 text-ink">Grounded Market Evidence</h3>
             </div>
             <p className="mt-3 text-sm leading-6 text-ink">{analysis.marketEvidence.summary}</p>
-            <p className="mt-3 text-sm font-medium text-steel">
-              Confidence: {analysis.marketEvidence.confidence}
+            <p className="mt-3 flex flex-wrap items-center gap-1.5 text-sm font-medium text-steel">
+              <ConfidenceBadge value={analysis.marketEvidence.confidence} />
               {analysis.marketEvidence.suggestedMinimum && analysis.marketEvidence.suggestedMaximum
-                ? `, grounded range: ${formatSalaryRange(analysis.marketEvidence.suggestedMinimum, analysis.marketEvidence.suggestedMaximum)}`
+                ? `grounded range: ${formatSalaryRange(analysis.marketEvidence.suggestedMinimum, analysis.marketEvidence.suggestedMaximum)}`
                 : ""}
             </p>
             {analysis.marketEvidence.sources.length ? (

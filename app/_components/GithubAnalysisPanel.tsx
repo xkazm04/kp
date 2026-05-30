@@ -2,6 +2,8 @@
 
 import { GitBranch, GitPullRequest, Loader2, Star } from "lucide-react";
 import type { GithubAnalysis } from "@/app/_lib/schemas";
+import { CodeReviewStatusBadge } from "./Badge";
+import { Meter } from "./Meter";
 
 type GithubAnalysisPanelProps = {
   status: "idle" | "loading" | "done" | "error";
@@ -71,9 +73,7 @@ function GithubAnalysisBody({ analysis }: { analysis: GithubAnalysis }) {
                   <span className="font-medium text-ink">{language.name}</span>
                   <span className="text-steel">{language.percent}%</span>
                 </div>
-                <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-stone-200">
-                  <div className="h-full rounded-full bg-moss" style={{ width: `${Math.max(2, language.percent)}%` }} />
-                </div>
+                <Meter value={Math.max(2, language.percent)} tone="moss" className="mt-1" aria-label={`${language.name} ${language.percent}%`} />
               </div>
             )) : <p className="text-sm text-steel">No language data returned by GitHub.</p>}
           </div>
@@ -154,15 +154,7 @@ function CodeReviewBlock({
     <div className="rounded-lg border border-stone-200 bg-white p-4">
       <div className="flex items-center justify-between gap-3">
         <h3 className="font-serif text-h3 text-ink">Code-Aware Review</h3>
-        <span className={`rounded-md px-2 py-1 text-xs font-semibold ${
-          review.status === "ok"
-            ? "bg-moss/20 text-ink"
-            : review.status === "error"
-              ? "bg-red-50 text-red-700"
-              : "bg-stone-100 text-steel"
-        }`}>
-          {review.status === "ok" ? "Reviewed" : review.status === "error" ? "Error" : "Disabled"}
-        </span>
+        <CodeReviewStatusBadge status={review.status} />
       </div>
       {review.summary ? (
         <p className="mt-3 text-sm leading-6 text-ink">{review.summary}</p>

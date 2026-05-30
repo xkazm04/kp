@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Meter } from "@/app/_components/Meter";
 
 type SkillRow = { skill: string; level: string; provenance: string };
 type EvidenceRow = { kind: string; title: string; text: string; skills: string; link: string };
@@ -406,9 +407,7 @@ function ResultPanel({ result }: { result: BuildResult }) {
           <span className="font-semibold uppercase tracking-wide">Completeness</span>
           <span>{pct}%</span>
         </div>
-        <div className="mt-1 h-2 rounded-full bg-stone-100">
-          <div className={`h-2 rounded-full ${pct >= 70 ? "bg-green-500" : "bg-coral"}`} style={{ width: `${pct}%` }} />
-        </div>
+        <Meter value={pct} tone={pct >= 70 ? "moss" : "coral"} className="mt-1 h-2" aria-label={`Profile completeness ${pct}%`} />
       </div>
       {result.missing?.length ? (
         <div className="mt-2">

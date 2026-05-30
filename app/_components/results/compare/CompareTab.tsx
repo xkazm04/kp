@@ -20,7 +20,7 @@ export function CompareTab({ analysis }: { analysis: Analysis }) {
   if (!comparison) {
     return (
       <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
-        <h3 className="text-base font-semibold">CV Variants</h3>
+        <h3 className="font-serif text-h3 text-ink">CV Variants</h3>
         <p className="mt-3 text-sm leading-6 text-steel">
           Upload 2-3 CV variants to score each against the same job in one run, see the score delta per component, and
           get a merged best variant recommendation.
@@ -37,7 +37,7 @@ export function CompareTab({ analysis }: { analysis: Analysis }) {
       <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h3 className="text-base font-semibold">CV Variant Comparison</h3>
+            <h3 className="font-serif text-h3 text-ink">CV Variant Comparison</h3>
             <p className="mt-1 text-sm leading-6 text-steel">
               {comparison.variants.length} variants scored against the same job. Winner highlighted with{" "}
               <Crown className="inline h-3.5 w-3.5 text-coral" aria-hidden />.
@@ -109,7 +109,7 @@ export function CompareTab({ analysis }: { analysis: Analysis }) {
 
       <div className="grid gap-5 lg:grid-cols-2">
         <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
-          <h3 className="text-base font-semibold">Score Delta Drivers</h3>
+          <h3 className="font-serif text-h3 text-ink">Score Delta Drivers</h3>
           {comparison.driverInsights.length ? (
             <ul className="mt-3 space-y-2 text-sm leading-6 text-ink">
               {comparison.driverInsights.map((insight) => (
@@ -124,7 +124,7 @@ export function CompareTab({ analysis }: { analysis: Analysis }) {
         </div>
 
         <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
-          <h3 className="text-base font-semibold">Merged Best Variant</h3>
+          <h3 className="font-serif text-h3 text-ink">Merged Best Variant</h3>
           <p className="mt-3 text-sm leading-6 text-ink">{comparison.mergedRecommendation.summary}</p>
           <ul className="mt-3 space-y-2 text-sm leading-6 text-ink">
             {comparison.mergedRecommendation.sectionPicks.map((pick) => (
@@ -141,7 +141,7 @@ export function CompareTab({ analysis }: { analysis: Analysis }) {
 
       <div className="grid gap-5 lg:grid-cols-2">
         <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
-          <h3 className="text-base font-semibold">Suggested Headline & Skills</h3>
+          <h3 className="font-serif text-h3 text-ink">Suggested Headline & Skills</h3>
           {comparison.mergedRecommendation.headline ? (
             <div className="mt-3 rounded-md bg-paper p-3">
               <p className="text-xs font-semibold uppercase tracking-wide text-steel">Headline</p>
@@ -157,7 +157,7 @@ export function CompareTab({ analysis }: { analysis: Analysis }) {
         </div>
 
         <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
-          <h3 className="text-base font-semibold">Top Bullets (merged)</h3>
+          <h3 className="font-serif text-h3 text-ink">Top Bullets (merged)</h3>
           {comparison.mergedRecommendation.bullets.length ? (
             <ul className="mt-3 space-y-2 text-sm leading-6 text-ink">
               {comparison.mergedRecommendation.bullets.map((bullet) => (

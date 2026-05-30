@@ -24,7 +24,7 @@ export function ExtractionTab({ analysis }: { analysis: Analysis }) {
 
         {analysis.extractionQuality ? (
           <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
-            <h3 className="text-base font-semibold">Extraction Quality</h3>
+            <h3 className="font-serif text-h3 text-ink">Extraction Quality</h3>
             <div className="mt-3 grid gap-3 text-sm sm:grid-cols-2">
               <Metric label="pypdf skills" value={analysis.extractionQuality.pypdfSkills} />
               <Metric label="Gemini skills" value={analysis.extractionQuality.geminiSkills} />
@@ -41,7 +41,7 @@ export function ExtractionTab({ analysis }: { analysis: Analysis }) {
       <div className="space-y-5">
         {analysis.extractionComparison ? (
           <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
-            <h3 className="text-base font-semibold">Extractor Comparison</h3>
+            <h3 className="font-serif text-h3 text-ink">Extractor Comparison</h3>
             <div className="mt-4 grid gap-4 lg:grid-cols-2">
               <TextPreview title="pypdf extraction" text={analysis.extractionComparison.pypdfText} />
               <TextPreview title="Gemini extraction" text={analysis.extractionComparison.geminiText} />
@@ -52,7 +52,7 @@ export function ExtractionTab({ analysis }: { analysis: Analysis }) {
         <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
           <div className="flex items-center gap-2">
             <BrainCircuit className="h-5 w-5 text-coral" aria-hidden />
-            <h3 className="text-base font-semibold">Score Breakdown</h3>
+            <h3 className="font-serif text-h3 text-ink">Score Breakdown</h3>
           </div>
           <FactorChart score={analysis.score} />
         </div>
@@ -76,7 +76,7 @@ export function ExtractionTab({ analysis }: { analysis: Analysis }) {
 
         {analysis.evidenceTrace ? (
           <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
-            <h3 className="text-base font-semibold">Evidence Trace</h3>
+            <h3 className="font-serif text-h3 text-ink">Evidence Trace</h3>
             <div className="mt-4 grid gap-4 lg:grid-cols-2">
               <InlineList
                 title="Experience Evidence"
@@ -103,7 +103,7 @@ export function ExtractionTab({ analysis }: { analysis: Analysis }) {
         ) : null}
 
         <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
-          <h3 className="text-base font-semibold">LLM Explanation</h3>
+          <h3 className="font-serif text-h3 text-ink">LLM Explanation</h3>
           <p className="mt-3 text-sm leading-6 text-ink">{analysis.explanation}</p>
         </div>
       </div>
