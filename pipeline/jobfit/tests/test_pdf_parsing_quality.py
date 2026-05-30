@@ -12,6 +12,9 @@ from pipeline.jobfit.profiling import build_profile
 ROOT = Path(__file__).resolve().parents[3]
 TECHNICAL_CV = ROOT / "samples" / "profile-fixtures" / "technical-cv.pdf"
 LINKEDIN_PROFILE = ROOT / "samples" / "profile-fixtures" / "linkedin-profile.pdf"
+# Committed synthetic fixture so the letter-spacing collapse test always runs in
+# CI (the personal CVs above are intentionally not in the repo).
+SYNTHETIC_LETTERSPACED = ROOT / "samples" / "profile-fixtures" / "synthetic-letterspaced.pdf"
 
 
 def quality_summary(text: str) -> dict[str, int | float]:
@@ -32,8 +35,19 @@ class PdfParsingQualityTest(unittest.TestCase):
         self.assertGreater(summary["length"], 5000)
         self.assertEqual(summary["letter_spaced_hits"], 0)
 
-    @unittest.skipUnless(TECHNICAL_CV.exists(), "personal CV fixture removed")
     def test_pypdf_collapses_letter_spaced_text(self) -> None:
+        # Always runs: the committed synthetic fixture embeds letter-spaced runs
+        # ("P y t h o n", "R e a c t", "L L M") that pypdf extracts verbatim, so
+        # this genuinely exercises collapse_letter_spacing rather than skipping.
+        self.assertTrue(SYNTHETIC_LETTERSPACED.exists(), f"missing fixture {SYNTHETIC_LETTERSPACED}")
+        text = extract_text(SYNTHETIC_LETTERSPACED)
+        summary = quality_summary(text)
+        self.assertEqual(summary["letter_spaced_hits"], 0)
+        self.assertIn("Python", text)  # collapsed back into a real token
+        self.assertIn("React", text)
+
+    @unittest.skipUnless(TECHNICAL_CV.exists(), "personal CV fixture removed")
+    def test_pypdf_collapses_letter_spaced_text_real_cv(self) -> None:
         text = extract_text(TECHNICAL_CV)
         summary = quality_summary(text)
         self.assertEqual(summary["letter_spaced_hits"], 0)

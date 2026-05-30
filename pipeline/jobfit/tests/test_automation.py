@@ -3,21 +3,17 @@ from __future__ import annotations
 import unittest
 
 from pipeline.jobfit import automation
-from pipeline.jobfit.jobs import normalize_job
 from pipeline.jobfit.matching import MatchCandidate, score_job
+
+from ._helpers import mkjob as _mkjob
 
 
 def mkjob(**over):
-    base = {
-        "title": "Backend Engineer",
-        "seniority": "senior",
-        "role_family": "software_engineering",
-        "languages": ["English"],
-        "description": "A backend team.",
-        "requirements": [{"skill": "Python", "kind": "must_have", "hardness": "prerequisite"}],
-    }
+    # This suite's canonical posting is a "Backend Engineer"; defer everything
+    # else to the shared factory.
+    base = {"title": "Backend Engineer", "description": "A backend team."}
     base.update(over)
-    return normalize_job(base)
+    return _mkjob(**base)
 
 
 BAU = MatchCandidate(

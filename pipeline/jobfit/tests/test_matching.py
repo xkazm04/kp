@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import unittest
 
-from pipeline.jobfit.jobs import normalize_job
 from pipeline.jobfit.matching import (
     MatchCandidate,
     ko_filter,
@@ -11,17 +10,12 @@ from pipeline.jobfit.matching import (
     score_skills,
 )
 
-
-def mkjob(**over):
-    base = {
-        "title": "Role",
-        "seniority": "senior",
-        "role_family": "software_engineering",
-        "description": "A team building things.",
-        "requirements": [{"skill": "Python", "kind": "must_have", "hardness": "prerequisite"}],
-    }
-    base.update(over)
-    return normalize_job(base)
+from ._helpers import (
+    MIN_CONFIDENCE_SPREAD,
+    PARTIAL_SKILL_SCORE,
+    STRONG_SKILL_SCORE,
+    mkjob,
+)
 
 
 SENIOR_PY = MatchCandidate(
@@ -104,7 +98,7 @@ class ScoringTest(unittest.TestCase):
         score, matched, missing = score_skills(SENIOR_PY, job)
         self.assertIn("Python", matched)
         self.assertIn("Django", matched)
-        self.assertGreater(score, 0.6)
+        self.assertGreater(score, STRONG_SKILL_SCORE)
         # Kubernetes is only nice-to-have and unmatched, so it must NOT be a missing must-have.
         self.assertNotIn("Kubernetes", missing)
 
@@ -114,7 +108,7 @@ class ScoringTest(unittest.TestCase):
         job = mkjob(requirements=[{"skill": "React", "kind": "must_have", "hardness": "prerequisite"}])
         score, matched, _ = score_skills(cand, job)
         self.assertIn("React", matched)
-        self.assertGreater(score, 0.5)
+        self.assertGreater(score, PARTIAL_SKILL_SCORE)
 
     def test_missing_must_have_listed(self) -> None:
         cand = MatchCandidate(skills=["Python"], seniority="senior", languages=["English"])
@@ -165,7 +159,7 @@ class MatchTest(unittest.TestCase):
         job = mkjob(seniority="junior", description="Graduates welcome.")
         resp = match(thin, [job], limit=1)
         m = resp.matches[0]
-        self.assertGreater(m.confidence_high - m.confidence_low, 8)
+        self.assertGreater(m.confidence_high - m.confidence_low, MIN_CONFIDENCE_SPREAD)
 
 
 if __name__ == "__main__":
