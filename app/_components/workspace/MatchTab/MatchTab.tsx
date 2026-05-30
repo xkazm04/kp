@@ -346,6 +346,9 @@ function MatchCard({
   const { startTask, tasks } = useTasks();
   const [reasoning, setReasoning] = useState<ReasoningState | null>(null);
   const [taskId, setTaskId] = useState<string | null>(null);
+  const [skillsExpanded, setSkillsExpanded] = useState(false);
+  const MATCHED_CAP = 8;
+  const MISSING_CAP = 6;
   const early = EARLY_CAREER.has(archetype);
   const canExplain = Boolean(matchRef.profileId || matchRef.analysisSlug);
 
@@ -436,29 +439,47 @@ function MatchCard({
             <Bar label={early ? "Fit" : "Personal"} value={m.personalScore} />
           </div>
 
-          <div className="mt-2 flex flex-wrap gap-1">
-            {(m.matchedSkills ?? []).slice(0, 8).map((s) => {
-              const pl = early ? provLabel((m.matchedSkillProvenance ?? {})[s] ?? "self_declared") : null;
-              return (
-                <span
-                  key={`m-${s}`}
-                  className="inline-flex items-center gap-1 rounded-md bg-green-50 px-1.5 py-0.5 text-[11px] text-green-700"
-                >
-                  {s}
-                  {pl ? <span className={`rounded px-1 text-[9px] uppercase ${pl.tone}`}>{pl.text}</span> : null}
-                </span>
-              );
-            })}
-            {(m.missingSkills ?? []).slice(0, 6).map((s) => (
-              <span
-                key={`x-${s}`}
-                className="rounded-md bg-red-50 px-1.5 py-0.5 text-[11px] text-red-700"
-                title={early ? "Missing must-have (often learnable)" : "Missing must-have"}
-              >
-                ✗ {s}
-              </span>
-            ))}
-          </div>
+          {(() => {
+            const matched = m.matchedSkills ?? [];
+            const missing = m.missingSkills ?? [];
+            const matchedShown = skillsExpanded ? matched : matched.slice(0, MATCHED_CAP);
+            const missingShown = skillsExpanded ? missing : missing.slice(0, MISSING_CAP);
+            const hidden = Math.max(0, matched.length - matchedShown.length) + Math.max(0, missing.length - missingShown.length);
+            return (
+              <div className="mt-2 flex flex-wrap gap-1">
+                {matchedShown.map((s) => {
+                  const pl = early ? provLabel((m.matchedSkillProvenance ?? {})[s] ?? "self_declared") : null;
+                  return (
+                    <span
+                      key={`m-${s}`}
+                      className="inline-flex items-center gap-1 rounded-md bg-green-50 px-1.5 py-0.5 text-[11px] text-green-700"
+                    >
+                      {s}
+                      {pl ? <span className={`rounded px-1 text-[9px] uppercase ${pl.tone}`}>{pl.text}</span> : null}
+                    </span>
+                  );
+                })}
+                {missingShown.map((s) => (
+                  <span
+                    key={`x-${s}`}
+                    className="rounded-md bg-red-50 px-1.5 py-0.5 text-[11px] text-red-700"
+                    title={early ? "Missing must-have (often learnable)" : "Missing must-have"}
+                  >
+                    ✗ {s}
+                  </span>
+                ))}
+                {hidden > 0 || skillsExpanded ? (
+                  <button
+                    type="button"
+                    onClick={() => setSkillsExpanded((v) => !v)}
+                    className="focus-ring rounded-md bg-stone-100 px-1.5 py-0.5 text-[11px] font-semibold text-steel hover:bg-stone-200"
+                  >
+                    {skillsExpanded ? "Show less" : `+${hidden} more`}
+                  </button>
+                ) : null}
+              </div>
+            );
+          })()}
 
           {reasoning ? <ReasoningPanel state={reasoning} /> : null}
         </div>

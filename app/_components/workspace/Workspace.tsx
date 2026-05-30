@@ -92,7 +92,8 @@ export function Workspace() {
       </aside>
 
       <main id="main" tabIndex={-1} className="min-w-0 flex-1 bg-white focus:outline-none">
-        <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:px-8">
+        {/* key on the active tab so each switch replays the fade-in entrance */}
+        <div key={navActive} className="animate-fade-in mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:px-8">
           {navActive === "pipeline" ? <PipelineTab /> : null}
           {navActive === "decisions" ? <DecisionsTab /> : null}
           {navActive === "profile" ? <ProfileTab /> : null}

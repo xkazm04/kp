@@ -50,12 +50,20 @@ export function DecisionsTab() {
     load();
   }, []);
 
-  const pending = (entries ?? []).filter((e) => e.approvalKind && e.status === "active" && !resolving[e.id]);
+  // Resolving cards stay in the list (not filtered out) so they can animate out
+  // before setEntries removes them after the 260ms exit window.
+  const pending = (entries ?? []).filter((e) => e.approvalKind && e.status === "active");
   const keyDecisions = pending.filter((e) => e.approvalKind === "decision");
   const scheduling = pending.filter((e) => e.approvalKind === "calendar");
   const aiReviews = pending.filter(
     (e) => e.approvalKind === "screening_review" || e.approvalKind === "scorecard_review" || e.approvalKind === "offer_review"
   );
+
+  // While a card resolves, keep it mounted and fade+slide it out before removal.
+  const leavingWrapClass = (e: Entry) =>
+    resolving[e.id]
+      ? "transition-all duration-200 ease-in pointer-events-none -translate-x-2 scale-[0.98] opacity-0"
+      : "transition-all duration-200 ease-in";
 
   const act = async (e: Entry, action: "accept" | "reject" | "approve_event", detail?: string) => {
     setResolving((s) => ({ ...s, [e.id]: action })); // triggers exit animation + removes from lists
@@ -127,7 +135,9 @@ export function DecisionsTab() {
             </p>
             <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
               {aiReviews.map((e) => (
-                <AiReviewCard key={e.id} entry={e} onAccept={() => act(e, "accept")} onReject={() => act(e, "reject")} />
+                <div key={e.id} className={leavingWrapClass(e)}>
+                  <AiReviewCard entry={e} onAccept={() => act(e, "accept")} onReject={() => act(e, "reject")} />
+                </div>
               ))}
             </div>
           </section>
@@ -140,7 +150,9 @@ export function DecisionsTab() {
             <p className="mt-1 text-[11px] text-steel">Advance to the next stage, or reject — read the fit first.</p>
             <div className="mt-3 space-y-3">
               {keyDecisions.map((e) => (
-                <KeyDecisionCard key={e.id} entry={e} onAccept={() => act(e, "accept")} onReject={() => act(e, "reject")} />
+                <div key={e.id} className={leavingWrapClass(e)}>
+                  <KeyDecisionCard entry={e} onAccept={() => act(e, "accept")} onReject={() => act(e, "reject")} />
+                </div>
               ))}
               {keyDecisions.length === 0 ? <Empty>No key decisions pending.</Empty> : null}
             </div>
@@ -153,12 +165,13 @@ export function DecisionsTab() {
             <p className="mt-1 text-[11px] text-steel">Confirm the proposed slot, or pick another, then approve.</p>
             <div className="mt-3 space-y-3">
               {scheduling.map((e) => (
-                <SchedulingCard
-                  key={e.id}
-                  entry={e}
-                  onApprove={(slot) => act(e, "approve_event", slot)}
-                  onDecline={() => act(e, "reject")}
-                />
+                <div key={e.id} className={leavingWrapClass(e)}>
+                  <SchedulingCard
+                    entry={e}
+                    onApprove={(slot) => act(e, "approve_event", slot)}
+                    onDecline={() => act(e, "reject")}
+                  />
+                </div>
               ))}
               {scheduling.length === 0 ? <Empty>No scheduling decisions pending.</Empty> : null}
             </div>

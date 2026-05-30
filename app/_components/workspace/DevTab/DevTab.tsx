@@ -531,10 +531,14 @@ export function DevTab() {
             <ShieldCheck size={13} className="text-moss" /> Approved assignments <span className="text-coral">· {approvedCases.length}</span>
           </h3>
           <ul className="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-            {approvedCases.map((c) => {
+            {approvedCases.map((c, ci) => {
               const published = postings.some((p) => p.caseId === c.id);
               return (
-                <li key={c.id} className="flex flex-col rounded-lg border border-stone-200 bg-white p-3 shadow-panel">
+                <li
+                  key={c.id}
+                  style={{ animationDelay: `${ci * 40}ms` }}
+                  className="animate-fade-in flex flex-col rounded-lg border border-stone-200 bg-white p-3 shadow-panel transition-shadow motion-reduce:animate-none hover:-translate-y-0.5 hover:shadow-lg"
+                >
                   <p className="truncate text-sm font-semibold text-ink">{c.title || "Assignment"}</p>
                   <p className="truncate text-micro text-steel">{c.roleTitle} · {c.seniority}</p>
                   <div className="mt-2 flex gap-1.5">
@@ -940,7 +944,7 @@ function LifecycleRow({ lc, onApprove }: { lc: Lifecycle; onApprove: () => void 
     (s, i) => `${s}: ${i < idx ? "done" : i === idx ? "current" : "upcoming"}`
   ).join(", ")}`;
   return (
-    <div className="rounded-lg border border-stone-200 bg-white p-3 shadow-panel">
+    <div className="animate-fade-in rounded-lg border border-stone-200 bg-white p-3 shadow-panel transition-shadow motion-reduce:animate-none hover:shadow-lg">
       <div className="flex items-center gap-2">
         <span className="min-w-0 flex-1 truncate text-sm font-semibold text-ink">{lc.title || "Role"}</span>
         <span

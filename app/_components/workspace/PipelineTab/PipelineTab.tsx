@@ -268,7 +268,7 @@ export function PipelineTab() {
                         return (
                           <div key={stage} className="border-r border-stone-100 px-2 py-3 last:border-0">
                             <div className="flex flex-wrap gap-1">
-                              {cell.map((e) => (
+                              {cell.slice(0, 6).map((e) => (
                                 <Avatar
                                   key={e.id}
                                   entry={e}
@@ -277,6 +277,14 @@ export function PipelineTab() {
                                   onClick={() => openCandidate(e)}
                                 />
                               ))}
+                              {cell.length > 6 ? (
+                                <span
+                                  className="inline-flex h-7 min-w-7 items-center justify-center rounded-full bg-stone-100 px-1.5 text-[11px] font-semibold text-steel"
+                                  title={cell.slice(6).map((e) => e.candidateLabel).join(", ")}
+                                >
+                                  +{cell.length - 6}
+                                </span>
+                              ) : null}
                               {cell.length === 0 ? <span className="text-[11px] text-stone-300">·</span> : null}
                             </div>
                           </div>
