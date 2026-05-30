@@ -14,14 +14,68 @@ _TAXONOMY_PATH = _DATA_DIR / "taxonomy.json"
 
 
 def _load_json(path: Path) -> dict[str, Any]:
-    return json.loads(path.read_text(encoding="utf-8"))
+    """Load a committed JSON data file as a dict, with actionable errors.
+
+    These files are routinely hand- or LLM-edited, so a clear message that names
+    the file and reason beats a bare ``FileNotFoundError`` / ``JSONDecodeError``
+    whose traceback points at module import rather than the data.
+    """
+    try:
+        raw = path.read_text(encoding="utf-8")
+    except FileNotFoundError as exc:
+        raise RuntimeError(f"Required data file is missing: {path}") from exc
+    except OSError as exc:
+        raise RuntimeError(f"Could not read data file {path}: {exc}") from exc
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        raise RuntimeError(f"Invalid JSON in {path}: {exc}") from exc
+    if not isinstance(data, dict):
+        raise RuntimeError(
+            f"Expected a JSON object at the top of {path}, got {type(data).__name__}."
+        )
+    return data
 
 
 _BENCHMARKS: dict[str, Any] = _load_json(_BENCHMARKS_PATH)
 _TAXONOMY: dict[str, Any] = _load_json(_TAXONOMY_PATH)
-_TERMS: list[dict[str, Any]] = list(_TAXONOMY["terms"])
 
-ROLE_FAMILIES: tuple[str, ...] = tuple(role["family"] for role in _BENCHMARKS["roles"])
+# Validate the taxonomy shape up front: every consumer assumes each term has an
+# 'id' and a 'match' list, so a missing 'terms' array or a malformed entry is a
+# clear, actionable failure here rather than a cryptic KeyError deep in matching.
+_raw_terms = _TAXONOMY.get("terms")
+if not isinstance(_raw_terms, list) or not _raw_terms:
+    raise RuntimeError(
+        f"{_TAXONOMY_PATH} must contain a non-empty 'terms' array "
+        f"(got {type(_raw_terms).__name__})."
+    )
+_TERMS: list[dict[str, Any]] = []
+for _i, _entry in enumerate(_raw_terms):
+    if not isinstance(_entry, dict) or not _entry.get("id") or not isinstance(_entry.get("match"), list):
+        raise RuntimeError(
+            f"{_TAXONOMY_PATH}: terms[{_i}] must be an object with a non-empty 'id' "
+            f"and a 'match' list."
+        )
+    _TERMS.append(_entry)
+
+# Validate the salary benchmark roles: a non-empty 'roles' array where each role
+# names a 'family'. ROLE_FAMILIES[0] is the fallback default, so an empty list
+# would otherwise IndexError at import.
+_raw_roles = _BENCHMARKS.get("roles")
+if not isinstance(_raw_roles, list) or not _raw_roles:
+    raise RuntimeError(
+        f"{_BENCHMARKS_PATH} must contain a non-empty 'roles' array "
+        f"(got {type(_raw_roles).__name__})."
+    )
+_ROLES: list[dict[str, Any]] = []
+for _i, _role in enumerate(_raw_roles):
+    if not isinstance(_role, dict) or not _role.get("family"):
+        raise RuntimeError(
+            f"{_BENCHMARKS_PATH}: roles[{_i}] must be an object with a non-empty 'family'."
+        )
+    _ROLES.append(_role)
+
+ROLE_FAMILIES: tuple[str, ...] = tuple(role["family"] for role in _ROLES)
 ROLE_FAMILY_SET: frozenset[str] = frozenset(ROLE_FAMILIES)
 DEFAULT_FAMILY: str = _BENCHMARKS.get("default_family") or ROLE_FAMILIES[0]
 
@@ -166,15 +220,21 @@ def skill_keyword_pool() -> list[str]:
 def role_band(family: str, seniority: str) -> tuple[int, int] | None:
     """Look up the CZK monthly gross anchor band for a (role_family, seniority) pair.
 
-    Returns ``None`` when the family is unknown or the seniority key is missing.
-    Used by the deterministic-evidence pre-pass to anchor Gemini's salary range.
+    Returns ``None`` when the family is unknown, the seniority key is missing, or
+    the band entry is short / non-numeric (tolerated by skipping rather than
+    raising). Used by the deterministic-evidence pre-pass to anchor Gemini's
+    salary range.
     """
-    for role in _BENCHMARKS["roles"]:
-        if role["family"] != family:
+    for role in _ROLES:
+        if role.get("family") != family:
             continue
         band = role.get(seniority)
-        if isinstance(band, list) and len(band) == 2:
+        if not isinstance(band, (list, tuple)) or len(band) < 2:
+            return None
+        try:
             return int(band[0]), int(band[1])
+        except (TypeError, ValueError):
+            return None
     return None
 
 

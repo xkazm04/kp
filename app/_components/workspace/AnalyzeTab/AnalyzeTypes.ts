@@ -8,7 +8,7 @@ export type GithubStatus = "idle" | "loading" | "done" | "error";
 export type JdSummary = {
   slug: string;
   title: string;
-  body: string;
+  preview: string;
   created_at: string;
 };
 

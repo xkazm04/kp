@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { ScoreBadge } from "@/app/_components/ScoreBadge";
 import { WorkspaceTabBarLinks } from "@/app/_components/workspace/WorkspaceTabBarLinks";
-import { listAnalyses, loadJd } from "@/app/_lib/db";
+import { listAnalysesByJd, loadJd } from "@/app/_lib/db";
 
 export const dynamic = "force-dynamic";
 
@@ -14,8 +15,7 @@ export default async function JdDetailPage({
   const jd = loadJd(slug);
   if (!jd) notFound();
 
-  const analyses = listAnalyses(500).filter((a) => a.jd_slug === slug);
-  analyses.sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
+  const analyses = listAnalysesByJd(slug);
 
   return (
     <main className="min-h-screen bg-paper">
@@ -69,9 +69,7 @@ export default async function JdDetailPage({
                       >
                         {row.candidate_label}
                       </Link>
-                      <span className="text-sm font-semibold text-ink tabular-nums">
-                        {row.score ?? "—"}
-                      </span>
+                      <ScoreBadge score={row.score} />
                     </div>
                     <p className="mt-1 text-xs capitalize text-steel">
                       {row.role_family ?? "—"} · {row.seniority ?? "—"}

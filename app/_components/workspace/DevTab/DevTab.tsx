@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import { Boxes, Check, ClipboardList, GitBranch, Inbox, Loader2, Lock, Send, ShieldCheck, Sparkles, Users } from "lucide-react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import { Boxes, Check, ClipboardList, Copy, GitBranch, Inbox, Loader2, Lock, Send, ShieldCheck, Sparkles, Users } from "lucide-react";
+import { formatPercent } from "@/app/_lib/format";
 import { useTasks } from "../tasks/TasksProvider";
 
 type NeedAnalysis = {
@@ -333,7 +334,7 @@ export function DevTab() {
                     </span>
                   ) : null}
                   <span className="ml-auto text-[10px] uppercase text-steel">
-                    {result.source === "llm" ? "Claude CLI" : "template"} · conf {Math.round((analysis.confidence ?? 0) * 100)}%
+                    {result.source === "llm" ? "Claude CLI" : "template"} · conf {formatPercent(analysis.confidence ?? 0, { fraction: true })}
                   </span>
                 </div>
                 <p className="text-sm text-ink">{analysis.reflection}</p>
@@ -367,7 +368,7 @@ export function DevTab() {
                   <div className="flex flex-wrap gap-1.5">
                     {Object.entries(snapshot.languages ?? {}).slice(0, 6).map(([k, v]) => (
                       <span key={k} className="rounded-md border border-stone-200 px-2 py-0.5 text-[11px] text-ink">
-                        {k} <span className="text-steel">{Math.round(v * 100)}%</span>
+                        {k} <span className="text-steel">{formatPercent(v, { fraction: true })}</span>
                       </span>
                     ))}
                   </div>
@@ -449,7 +450,7 @@ export function DevTab() {
                       <div className="mt-2 flex flex-wrap gap-1.5">
                         {(design.case?.rubricDimensions ?? []).map((d) => (
                           <span key={d.name} className="rounded-full bg-paper px-2 py-0.5 text-[10px] text-ink">
-                            {d.name} <span className="text-steel">{Math.round((d.weight ?? 0) * 100)}%</span>
+                            {d.name} <span className="text-steel">{formatPercent(d.weight ?? 0, { fraction: true })}</span>
                           </span>
                         ))}
                       </div>
@@ -551,17 +552,28 @@ export function DevTab() {
                   <span className="min-w-0 flex-1 truncate text-sm font-semibold text-ink">{p.caseTitle || p.roleTitle || "Posting"}</span>
                   <span className="text-[11px] text-steel">{p.submissions?.length ?? p.submissionCount ?? 0} in</span>
                 </div>
-                <p className="mt-0.5 truncate font-mono text-[9px] text-steel" title="External channels POST applications here — no manual entry needed">
-                  apply webhook: POST /api/devcase/inbound · token {p.token}
-                </p>
+                <div className="mt-1 flex items-center gap-1.5">
+                  <span className="shrink-0 text-[9px] uppercase tracking-wide text-steel">Apply link</span>
+                  <ApplyTokenPill token={p.token} />
+                </div>
 
                 {(p.submissions ?? []).length > 0 ? (
                   <ul className="mt-2 space-y-1.5 border-t border-stone-100 pt-2">
                     {[...(p.submissions ?? [])]
                       .sort((a, b) => (b.transferScore ?? -1) - (a.transferScore ?? -1))
-                      .map((s, i) => (
-                        <SubmissionRow key={s.id} submission={s} caseId={p.caseId} rank={s.transferScore != null ? i + 1 : null} onChanged={loadPostings} />
-                      ))}
+                      .map((s, i, arr) => {
+                        const rank = s.transferScore != null ? i + 1 : null;
+                        const isTop = rank === 1;
+                        return (
+                          <Fragment key={s.id}>
+                            <SubmissionRow submission={s} caseId={p.caseId} rank={rank} isTop={isTop} onChanged={loadPostings} />
+                            {/* subtle divider separating the recommended leader from the rest */}
+                            {isTop && arr.length > 1 ? (
+                              <li aria-hidden className="border-t border-dashed border-stone-200" />
+                            ) : null}
+                          </Fragment>
+                        );
+                      })}
                   </ul>
                 ) : null}
 
@@ -600,6 +612,57 @@ export function DevTab() {
         </section>
       ) : null}
     </div>
+  );
+}
+
+// The OUT side of the distribution seam: the apply token is the artifact you
+// hand to candidates/channels. Render it as a tappable pill that copies the full
+// apply URL and confirms with a moss check for ~1.5s.
+function ApplyTokenPill({ token }: { token: string | null }) {
+  const [copied, setCopied] = useState(false);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (timer.current) clearTimeout(timer.current);
+    };
+  }, []);
+
+  if (!token) {
+    return <span className="font-mono text-[10px] text-steel">no token</span>;
+  }
+
+  const applyUrl =
+    typeof window !== "undefined"
+      ? `${window.location.origin}/api/devcase/inbound?token=${token}`
+      : `/api/devcase/inbound?token=${token}`;
+
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(applyUrl);
+      setCopied(true);
+      if (timer.current) clearTimeout(timer.current);
+      timer.current = setTimeout(() => setCopied(false), 1500);
+    } catch {
+      /* clipboard unavailable (insecure context / denied) — no-op */
+    }
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={copy}
+      title="Copy the apply link to share with candidates"
+      aria-label={copied ? "Apply link copied to clipboard" : "Copy apply link to clipboard"}
+      className="focus-ring inline-flex min-w-0 items-center gap-1.5 rounded-full border border-stone-200 bg-paper px-2 py-0.5 text-[10px] font-medium text-steel transition-colors hover:border-coral/40 hover:text-ink"
+    >
+      {copied ? (
+        <Check size={11} className="shrink-0 text-moss" aria-hidden />
+      ) : (
+        <Copy size={11} className="shrink-0" aria-hidden />
+      )}
+      <span className="truncate font-mono">{copied ? "Copied!" : `token ${token}`}</span>
+    </button>
   );
 }
 
@@ -660,7 +723,16 @@ function scoreColor(v: number): string {
   return "bg-coral";
 }
 
-function SubmissionRow({ submission, caseId, rank, onChanged }: { submission: Submission; caseId: string | null; rank: number | null; onChanged: () => void }) {
+// Foreground that stays legible on each scoreColor band: dark text on the light
+// amber / translucent-moss bands, white on the solid moss / coral ones.
+function scoreTextColor(v: number): string {
+  if (v >= 72) return "text-white";
+  if (v >= 55) return "text-ink";
+  if (v >= 40) return "text-ink";
+  return "text-white";
+}
+
+function SubmissionRow({ submission, caseId, rank, isTop = false, onChanged }: { submission: Submission; caseId: string | null; rank: number | null; isTop?: boolean; onChanged: () => void }) {
   const { startTask, tasks } = useTasks();
   const [taskId, setTaskId] = useState<string | null>(null);
   const [promoted, setPromoted] = useState(false);
@@ -696,14 +768,26 @@ function SubmissionRow({ submission, caseId, rank, onChanged }: { submission: Su
   const ts = submission.transferScore ?? ev?.transfer?.transferScore ?? null;
 
   return (
-    <li className="rounded-md border border-stone-100 bg-paper/40 p-2">
+    <li className={`rounded-md border p-2 ${isTop ? "border-moss/30 bg-moss/5 ring-1 ring-moss/40" : "border-stone-100 bg-paper/40"}`}>
       <div className="flex items-center gap-1.5 text-[11px]">
-        {rank ? <span className="shrink-0 rounded bg-ink px-1 text-[9px] font-bold text-white">#{rank}</span> : null}
+        {rank ? (
+          <span className={`shrink-0 rounded px-1 text-[9px] font-bold text-white ${rank === 1 ? "bg-moss" : "bg-ink"}`}>#{rank}</span>
+        ) : null}
+        {isTop ? (
+          <span className="shrink-0 rounded-full bg-moss/15 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-moss">
+            Top match
+          </span>
+        ) : null}
         <GitBranch size={11} className="shrink-0 text-steel" />
         <span className="font-semibold text-ink">{submission.candidateRef}</span>
         <span className="min-w-0 flex-1 truncate text-steel">{submission.repoRef}</span>
         {ts != null ? (
-          <span className="shrink-0 rounded bg-paper px-1.5 py-0.5 text-[10px] font-semibold text-ink">{ts}<span className="text-steel"> fit</span></span>
+          <span
+            className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold tabular-nums ${scoreColor(ts)} ${scoreTextColor(ts)}`}
+            aria-label={`Transfer fit score ${ts} of 100`}
+          >
+            {ts}<span className="opacity-70"> fit</span>
+          </span>
         ) : null}
         <button type="button" onClick={evaluate} disabled={busy}
           className="focus-ring inline-flex h-6 shrink-0 items-center gap-1 rounded border border-stone-200 bg-white px-1.5 text-[10px] font-semibold text-coral hover:bg-coral/5 disabled:opacity-50">
@@ -731,14 +815,8 @@ function EvalPanel({ ev, onPromote, promoted }: { ev: EvalBundle; onPromote: () 
         </span>
       </div>
       <div className="space-y-1">
-        {["framing", "tooling", "judgment", "architecture", "transfer"].map((k) => (
-          <div key={k} className="flex items-center gap-2">
-            <span className="w-20 shrink-0 text-[10px] capitalize text-steel">{k}</span>
-            <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-stone-200">
-              <span className={`block h-full rounded-full ${scoreColor(dims[k] ?? 0)}`} style={{ width: `${dims[k] ?? 0}%` }} />
-            </span>
-            <span className="w-6 shrink-0 text-right text-[10px] text-ink">{dims[k] ?? 0}</span>
-          </div>
+        {["framing", "tooling", "judgment", "architecture", "transfer"].map((k, i) => (
+          <ScoreBar key={k} label={k} value={dims[k] ?? 0} index={i} />
         ))}
       </div>
       {e.summary ? <p className="mt-1.5 text-[11px] text-ink">{e.summary}</p> : null}
@@ -750,8 +828,8 @@ function EvalPanel({ ev, onPromote, promoted }: { ev: EvalBundle; onPromote: () 
       {/* trace + tooling (D5) */}
       <div className="mt-2 border-t border-stone-100 pt-2 text-[10px] text-steel">
         <span className="rounded bg-paper px-1.5 py-0.5 uppercase">{r.iterationPattern}</span>{" "}
-        read-before-write <b className="text-ink">{Math.round((r.readBeforeWrite ?? 0) * 100)}%</b>{" "}
-        · fluency <b className="text-ink">{Math.round((t.fluency ?? 0) * 100)}%</b>
+        read-before-write <b className="text-ink">{formatPercent(r.readBeforeWrite ?? 0, { fraction: true })}</b>{" "}
+        · fluency <b className="text-ink">{formatPercent(t.fluency ?? 0, { fraction: true })}</b>
         {(x.gaps ?? []).length ? <span> · gaps: {(x.gaps ?? []).join(", ")}</span> : null}
       </div>
       <p className="mt-1 text-[9px] italic text-steel">Code assumed LLM-generated — using AI is never penalised; judged on judgment + verification + transfer.</p>
@@ -767,6 +845,37 @@ function EvalPanel({ ev, onPromote, promoted }: { ev: EvalBundle; onPromote: () 
         )}
         <span className="text-[9px] text-steel">→ becomes a Decisions review card</span>
       </div>
+    </div>
+  );
+}
+
+// A single capability bar that grows from 0 to its value on mount, so the row
+// reads as a live measurement rather than a static printout. Rows stagger by
+// ~60ms; prefers-reduced-motion users skip the transition and see the final
+// width immediately (motion-reduce honors globals.css's reduced-motion intent).
+function ScoreBar({ label, value, index }: { label: string; value: number; index: number }) {
+  const [filled, setFilled] = useState(false);
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setFilled(true));
+    return () => cancelAnimationFrame(id);
+  }, []);
+  return (
+    <div className="flex items-center gap-2">
+      <span className="w-20 shrink-0 text-[10px] capitalize text-steel">{label}</span>
+      <span
+        role="progressbar"
+        aria-valuenow={value}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-label={`${label} score ${value} of 100`}
+        className="h-1.5 flex-1 overflow-hidden rounded-full bg-stone-200"
+      >
+        <span
+          className={`block h-full rounded-full transition-[width] duration-700 ease-out motion-reduce:transition-none ${scoreColor(value)}`}
+          style={{ width: filled ? `${value}%` : "0%", transitionDelay: `${index * 60}ms` }}
+        />
+      </span>
+      <span className="w-6 shrink-0 text-right text-[10px] text-ink">{value}</span>
     </div>
   );
 }
@@ -790,6 +899,11 @@ function LifecycleRow({ lc, onApprove }: { lc: Lifecycle; onApprove: () => void 
   const idx = LIFECYCLE_STEPS.indexOf(mapped);
   const awaiting = lc.stage === "awaiting_approval";
   const done = lc.stage === "promoted";
+  // Describe the dot-rail for screen readers, since the steps are otherwise
+  // conveyed purely by color/position.
+  const railLabel = `Lifecycle progress — ${LIFECYCLE_STEPS.map(
+    (s, i) => `${s}: ${i < idx ? "done" : i === idx ? "current" : "upcoming"}`
+  ).join(", ")}`;
   return (
     <div className="rounded-lg border border-stone-200 bg-white p-3 shadow-panel">
       <div className="flex items-center gap-2">
@@ -811,9 +925,9 @@ function LifecycleRow({ lc, onApprove }: { lc: Lifecycle; onApprove: () => void 
           </button>
         ) : null}
       </div>
-      <div className="mt-2 flex items-center">
+      <div className="mt-2 flex items-center" role="img" aria-label={railLabel}>
         {LIFECYCLE_STEPS.map((s, i) => (
-          <div key={s} className={`flex items-center ${i < LIFECYCLE_STEPS.length - 1 ? "flex-1" : ""}`}>
+          <div key={s} aria-hidden className={`flex items-center ${i < LIFECYCLE_STEPS.length - 1 ? "flex-1" : ""}`}>
             <span className={`h-2 w-2 shrink-0 rounded-full ${i <= idx ? "bg-coral" : "bg-stone-200"}`} title={s} />
             {i < LIFECYCLE_STEPS.length - 1 ? <span className={`h-0.5 flex-1 ${i < idx ? "bg-coral/40" : "bg-stone-200"}`} /> : null}
           </div>

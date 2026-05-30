@@ -2,6 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { SearchX, X } from "lucide-react";
+import { formatPercent, formatYears } from "@/app/_lib/format";
+import { DisclosureRow } from "@/app/_components/DisclosureRow";
 
 type JobRequirement = { skill: string; termId?: string | null; kind: string; hardness: string };
 type JobEntryProfile = {
@@ -50,6 +53,7 @@ export function JobsTab() {
   const [jobs, setJobs] = useState<Job[] | null>(null);
   const [stats, setStats] = useState<Stats | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [fetching, setFetching] = useState(false);
   const [expanded, setExpanded] = useState<string | null>(null);
 
   const [roleFamily, setRoleFamily] = useState("");
@@ -74,6 +78,8 @@ export function JobsTab() {
     if (entryOnly) params.set("entryEligible", "true");
     if (q.trim()) params.set("q", q.trim());
     const handle = setTimeout(() => {
+      setFetching(true);
+      setError(null);
       fetch(`/api/jobs?${params.toString()}`)
         .then(async (r) => {
           if (!r.ok) throw new Error(`Load failed (${r.status}).`);
@@ -87,6 +93,9 @@ export function JobsTab() {
         .catch((caught) => {
           if (cancelled) return;
           setError(caught instanceof Error ? caught.message : "Load failed.");
+        })
+        .finally(() => {
+          if (!cancelled) setFetching(false);
         });
     }, 180);
     return () => {
@@ -94,6 +103,15 @@ export function JobsTab() {
       clearTimeout(handle);
     };
   }, [roleFamily, seniority, workMode, entryOnly, q]);
+
+  const anyFilter = Boolean(roleFamily || seniority || workMode || entryOnly || q.trim());
+  const clearAll = () => {
+    setRoleFamily("");
+    setSeniority("");
+    setWorkMode("");
+    setEntryOnly(false);
+    setQ("");
+  };
 
   return (
     <section className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
@@ -113,7 +131,7 @@ export function JobsTab() {
           <Chip label="Total" value={stats.total} />
           <Chip
             label="Entry-eligible"
-            value={`${stats.entryEligible} (${Math.round((stats.entryEligible / Math.max(stats.total, 1)) * 100)}%)`}
+            value={`${stats.entryEligible} (${formatPercent((stats.entryEligible / Math.max(stats.total, 1)) * 100)})`}
             tone="green"
           />
           {Object.entries(stats.byRoleFamily).map(([k, v]) => (
@@ -123,21 +141,21 @@ export function JobsTab() {
       ) : null}
 
       <div className="mt-4 flex flex-wrap items-center gap-2">
-        <Select value={roleFamily} onChange={setRoleFamily} all="All families">
+        <Select value={roleFamily} onChange={setRoleFamily} all="All families" label="Filter by role family">
           {FAMILIES.map((f) => (
             <option key={f} value={f}>
               {FAMILY_LABEL[f] ?? f}
             </option>
           ))}
         </Select>
-        <Select value={seniority} onChange={setSeniority} all="All seniority">
+        <Select value={seniority} onChange={setSeniority} all="All seniority" label="Filter by seniority">
           {SENIORITIES.map((s) => (
             <option key={s} value={s} className="capitalize">
               {s}
             </option>
           ))}
         </Select>
-        <Select value={workMode} onChange={setWorkMode} all="All modes">
+        <Select value={workMode} onChange={setWorkMode} all="All modes" label="Filter by work mode">
           {MODES.map((m) => (
             <option key={m} value={m} className="capitalize">
               {m}
@@ -153,7 +171,12 @@ export function JobsTab() {
           />
           Entry-eligible only
         </label>
+        <label htmlFor="jobs-search" className="sr-only">
+          Search jobs by title or company
+        </label>
         <input
+          id="jobs-search"
+          type="search"
           value={q}
           onChange={(e) => setQ(e.target.value)}
           placeholder="Search title or company…"
@@ -161,27 +184,58 @@ export function JobsTab() {
         />
       </div>
 
+      <div className="mt-3 flex flex-wrap items-center gap-3 text-sm" aria-live="polite">
+        {jobs && stats ? (
+          <span className="text-steel">
+            Showing <span className="font-semibold tabular-nums text-ink">{jobs.length}</span> of{" "}
+            <span className="font-semibold tabular-nums text-ink">{stats.total}</span> roles
+          </span>
+        ) : null}
+        {anyFilter ? (
+          <button
+            type="button"
+            onClick={clearAll}
+            className="focus-ring inline-flex items-center gap-1 rounded-full border border-coral/40 bg-coral/5 px-2.5 py-0.5 text-xs font-semibold text-coral hover:bg-coral/10"
+          >
+            <X size={12} aria-hidden /> Clear all
+          </button>
+        ) : null}
+      </div>
+
       <div className="mt-5">
         {error ? (
           <p className="rounded-md bg-red-50 p-3 text-sm text-red-700">{error}</p>
         ) : jobs == null ? (
-          <p className="text-sm text-steel">Loading…</p>
+          <JobsTableFrame>
+            <JobsTableSkeleton />
+          </JobsTableFrame>
         ) : jobs.length === 0 ? (
-          <p className="rounded-md bg-paper p-4 text-sm text-steel">No jobs match these filters.</p>
+          <div className="flex flex-col items-center gap-3 rounded-lg border border-dashed border-stone-300 bg-paper/50 px-6 py-12 text-center">
+            <SearchX className="h-8 w-8 text-steel" aria-hidden />
+            <div>
+              <p className="text-sm font-semibold text-ink">No roles match these filters</p>
+              <p className="mt-1 text-sm text-steel">Try widening your search or clearing the filters.</p>
+            </div>
+            {anyFilter ? (
+              <button
+                type="button"
+                onClick={clearAll}
+                className="focus-ring inline-flex items-center gap-1.5 rounded-md border border-stone-300 bg-white px-3 py-1.5 text-sm font-semibold text-ink hover:bg-stone-50"
+              >
+                <X size={14} aria-hidden /> Clear all filters
+              </button>
+            ) : null}
+          </div>
         ) : (
-          <div className="overflow-x-auto rounded-lg border border-stone-200">
-            <table className="min-w-full divide-y divide-stone-200">
-              <thead className="bg-paper">
-                <tr>
-                  <Th>Role</Th>
-                  <Th>Location</Th>
-                  <Th>Mode</Th>
-                  <Th>Seniority</Th>
-                  <Th>Family</Th>
-                  <Th>Salary (CZK/mo)</Th>
-                  <Th>Entry</Th>
-                </tr>
-              </thead>
+          <div
+            className={
+              fetching
+                ? "animate-pulse opacity-60 transition-opacity motion-reduce:animate-none"
+                : "transition-opacity"
+            }
+            aria-busy={fetching}
+          >
+            <JobsTableFrame>
               <tbody className="divide-y divide-stone-200">
                 {jobs.map((job) => {
                   const isOpen = expanded === job.id;
@@ -196,7 +250,7 @@ export function JobsTab() {
                   );
                 })}
               </tbody>
-            </table>
+            </JobsTableFrame>
           </div>
         )}
       </div>
@@ -217,35 +271,32 @@ function JobRow({
 }) {
   const ep = job.entryProfile;
   return (
-    <>
-      <tr className="cursor-pointer hover:bg-paper/60" onClick={onToggle}>
-        <Td>
-          <span className="font-medium text-ink">{job.title}</span>
-          <span className="block text-xs text-steel">{job.company ?? "—"}</span>
-        </Td>
-        <Td>{job.location ?? "—"}</Td>
-        <Td className="capitalize">{job.workMode ?? "—"}</Td>
-        <Td className="capitalize">{job.seniority ?? "—"}</Td>
-        <Td>{FAMILY_LABEL[job.roleFamily ?? ""] ?? job.roleFamily ?? "—"}</Td>
-        <Td>{formatBand(job.salaryBand)}</Td>
-        <Td>
-          {ep?.isEntryEligible ? (
-            <span className="inline-flex items-center gap-1 rounded-full bg-green-50 px-2 py-0.5 text-xs font-semibold text-green-700">
-              ✓ {Math.round((ep.graduateFriendliness ?? 0) * 100)}%
-            </span>
-          ) : (
-            <span className="text-xs text-steel">—</span>
-          )}
-        </Td>
-      </tr>
-      {isOpen ? (
-        <tr className="bg-paper/40">
-          <td colSpan={7} className="px-4 py-4">
-            <JobDetail job={job} autoLoad={autoLoad} />
-          </td>
-        </tr>
-      ) : null}
-    </>
+    <DisclosureRow
+      isOpen={isOpen}
+      onToggle={onToggle}
+      colSpan={8}
+      label={`${job.title}${job.company ? ` at ${job.company}` : ""}`}
+      detail={<JobDetail job={job} autoLoad={autoLoad} />}
+    >
+      <Td>
+        <span className="font-medium text-ink">{job.title}</span>
+        <span className="block text-xs text-steel">{job.company ?? "—"}</span>
+      </Td>
+      <Td>{job.location ?? "—"}</Td>
+      <Td className="capitalize">{job.workMode ?? "—"}</Td>
+      <Td className="capitalize">{job.seniority ?? "—"}</Td>
+      <Td>{FAMILY_LABEL[job.roleFamily ?? ""] ?? job.roleFamily ?? "—"}</Td>
+      <Td>{formatBand(job.salaryBand)}</Td>
+      <Td>
+        {ep?.isEntryEligible ? (
+          <span className="inline-flex items-center gap-1 rounded-full bg-green-50 px-2 py-0.5 text-xs font-semibold text-green-700">
+            ✓ {formatPercent(ep.graduateFriendliness ?? 0, { fraction: true })}
+          </span>
+        ) : (
+          <span className="text-xs text-steel">—</span>
+        )}
+      </Td>
+    </DisclosureRow>
   );
 }
 
@@ -261,7 +312,7 @@ function JobDetail({ job, autoLoad = false }: { job: Job; autoLoad?: boolean }) 
         {job.description ? <p className="text-sm text-ink">{job.description}</p> : null}
         <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-steel">
           <Meta k="Employment" v={job.employmentType ?? "—"} />
-          <Meta k="Min. experience" v={job.minYearsExperience != null ? `${job.minYearsExperience} y` : "—"} />
+          <Meta k="Min. experience" v={job.minYearsExperience != null ? formatYears(job.minYearsExperience) : "—"} />
           <Meta k="Min. education" v={job.minEducation ?? "—"} />
           <Meta k="Languages" v={(job.languages ?? []).join(", ") || "—"} />
         </dl>
@@ -290,7 +341,7 @@ function JobDetail({ job, autoLoad = false }: { job: Job; autoLoad?: boolean }) 
         <p className="text-xs font-semibold uppercase tracking-wide text-coral">Graduate lens</p>
         <p className="mt-1 text-sm text-ink">
           {ep?.isEntryEligible ? "Open to early-career candidates" : "Experienced role"}
-          {ep ? ` · friendliness ${Math.round((ep.graduateFriendliness ?? 0) * 100)}%` : ""}
+          {ep ? ` · friendliness ${formatPercent(ep.graduateFriendliness ?? 0, { fraction: true })}` : ""}
         </p>
         {ep?.rationale ? <p className="mt-1 text-xs text-steel">{ep.rationale}</p> : null}
         {ep?.reinterpretedMusts?.length ? (
@@ -608,17 +659,20 @@ function Select({
   value,
   onChange,
   all,
+  label,
   children,
 }: {
   value: string;
   onChange: (v: string) => void;
   all: string;
+  label: string;
   children: React.ReactNode;
 }) {
   return (
     <select
       value={value}
       onChange={(e) => onChange(e.target.value)}
+      aria-label={label}
       className="focus-ring h-10 rounded-md border border-stone-200 bg-white px-2 text-sm capitalize text-ink"
     >
       <option value="">{all}</option>
@@ -651,4 +705,77 @@ function Td({ children, className = "" }: { children: React.ReactNode; className
 function formatBand(band?: number[]): string {
   if (!band || band.length < 2) return "—";
   return `${Math.round(band[0] / 1000)}–${Math.round(band[1] / 1000)}k`;
+}
+
+// Scrollable table shell with an sr-only caption and a pinned header, so column
+// meaning is never lost while scrolling the long corpus. Children is the
+// <tbody> (real rows or the loading skeleton).
+function JobsTableFrame({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="max-h-[70vh] overflow-auto rounded-lg border border-stone-200">
+      <table className="min-w-full divide-y divide-stone-200">
+        <caption className="sr-only">
+          Job corpus — normalized job postings filterable by role family, seniority, work mode, and
+          entry-eligibility. Activate a row to expand its requirements and graduate lens.
+        </caption>
+        <thead className="sticky top-0 z-10 bg-paper">
+          <tr>
+            <th scope="col" className="w-8 px-2 py-3">
+              <span className="sr-only">Expand row</span>
+            </th>
+            <Th>Role</Th>
+            <Th>Location</Th>
+            <Th>Mode</Th>
+            <Th>Seniority</Th>
+            <Th>Family</Th>
+            <Th>Salary (CZK/mo)</Th>
+            <Th>Entry</Th>
+          </tr>
+        </thead>
+        {children}
+      </table>
+    </div>
+  );
+}
+
+// Layout-matched loading skeleton: 9 rows of pulsing bars sized to the real
+// columns, so the first load doesn't jump when the corpus arrives.
+function JobsTableSkeleton() {
+  return (
+    <tbody className="divide-y divide-stone-200">
+      {Array.from({ length: 9 }).map((_, i) => (
+        <tr key={i}>
+          <td className="w-8 px-2 py-3">
+            <SkelBar className="h-3.5 w-3.5 rounded" />
+          </td>
+          <td className="px-4 py-3">
+            <SkelBar className="h-3.5 w-40" />
+            <SkelBar className="mt-1.5 h-2.5 w-24" />
+          </td>
+          <td className="px-4 py-3">
+            <SkelBar className="h-3.5 w-20" />
+          </td>
+          <td className="px-4 py-3">
+            <SkelBar className="h-3.5 w-16" />
+          </td>
+          <td className="px-4 py-3">
+            <SkelBar className="h-3.5 w-16" />
+          </td>
+          <td className="px-4 py-3">
+            <SkelBar className="h-3.5 w-24" />
+          </td>
+          <td className="px-4 py-3">
+            <SkelBar className="h-3.5 w-16" />
+          </td>
+          <td className="px-4 py-3">
+            <SkelBar className="h-5 w-12 rounded-full" />
+          </td>
+        </tr>
+      ))}
+    </tbody>
+  );
+}
+
+function SkelBar({ className = "" }: { className?: string }) {
+  return <div className={`animate-pulse rounded bg-stone-100 motion-reduce:animate-none ${className}`} />;
 }

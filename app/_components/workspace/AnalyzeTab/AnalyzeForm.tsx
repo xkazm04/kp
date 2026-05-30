@@ -76,9 +76,18 @@ export function AnalyzeForm({ state }: { state: AnalyzeFormState }) {
           <AnalyzeSavedJdPicker
             jds={library.jdLibrary}
             selectedSlug={library.selectedJdSlug}
-            onPick={(jd) => {
+            onPick={async (jd) => {
+              // The list payload only carries a preview now, so fetch the full
+              // body on demand before populating the textarea.
               setSelectedJdSlug(jd.slug);
-              setJobDescriptionText(jd.body);
+              try {
+                const response = await fetch(`/api/jds/${encodeURIComponent(jd.slug)}`);
+                if (!response.ok) return;
+                const full = await response.json();
+                if (typeof full?.body === "string") setJobDescriptionText(full.body);
+              } catch {
+                /* leave the textarea as-is; the selection is still recorded */
+              }
             }}
             onClear={() => setSelectedJdSlug(null)}
           />

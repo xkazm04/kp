@@ -1,51 +1,61 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { RotateCcw, Search } from "lucide-react";
+import { formatCount } from "@/app/_lib/format";
 import { LibraryJdForm } from "./LibraryJdForm";
 
 type JdRow = {
   slug: string;
   title: string;
-  body: string;
+  preview: string;
   created_at: string;
 };
 
 export function LibraryTab() {
   const [rows, setRows] = useState<JdRow[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
 
-  async function load() {
+  // Case-insensitive client-side filter over title/slug/preview so the list
+  // stays usable once the library grows past a screenful.
+  const visible = useMemo(() => {
+    if (!rows) return [];
+    const q = query.trim().toLowerCase();
+    if (!q) return rows;
+    return rows.filter(
+      (row) =>
+        row.title.toLowerCase().includes(q) ||
+        row.slug.toLowerCase().includes(q) ||
+        row.preview.toLowerCase().includes(q)
+    );
+  }, [rows, query]);
+
+  // Single source of truth for the JD list fetch. Accepts an optional signal so
+  // the mount effect can abort an in-flight request on unmount; calling it with
+  // no signal (the retry button, onSaved) just re-runs the load.
+  const load = useCallback(async (signal?: AbortSignal) => {
     setError(null);
+    setRows(null);
     try {
-      const response = await fetch("/api/jds");
+      const response = await fetch("/api/jds", { signal });
       if (!response.ok) throw new Error(`Load failed (${response.status}).`);
       const payload = await response.json();
+      if (signal?.aborted) return;
       setRows((payload.jds as JdRow[]) ?? []);
     } catch (caught) {
+      // An abort is expected on unmount — don't surface it as an error.
+      if (signal?.aborted || (caught instanceof DOMException && caught.name === "AbortError")) return;
       setError(caught instanceof Error ? caught.message : "Load failed.");
     }
-  }
+  }, []);
 
   useEffect(() => {
-    let cancelled = false;
-    fetch("/api/jds")
-      .then(async (response) => {
-        if (!response.ok) throw new Error(`Load failed (${response.status}).`);
-        return response.json();
-      })
-      .then((payload) => {
-        if (cancelled) return;
-        setRows((payload.jds as JdRow[]) ?? []);
-      })
-      .catch((caught) => {
-        if (cancelled) return;
-        setError(caught instanceof Error ? caught.message : "Load failed.");
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+    const controller = new AbortController();
+    load(controller.signal);
+    return () => controller.abort();
+  }, [load]);
 
   return (
     <section className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
@@ -66,41 +76,100 @@ export function LibraryTab() {
           <div className="flex items-center justify-between border-b border-stone-200 px-5 py-3">
             <h3 className="font-serif text-h2 text-ink">Saved JDs</h3>
             <span className="text-xs uppercase tracking-wide text-steel">
-              {rows?.length ?? 0} entries
+              {formatCount(visible.length, "entry", "entries")}
             </span>
           </div>
           {error ? (
-            <p className="px-5 py-4 text-sm text-red-700">{error}</p>
+            <div className="flex flex-col items-start gap-3 px-5 py-4">
+              <p className="text-sm text-red-700">{error}</p>
+              <button
+                type="button"
+                onClick={() => load()}
+                className="focus-ring inline-flex h-9 items-center gap-2 rounded-md border border-stone-300 bg-white px-3 text-sm font-semibold text-ink hover:bg-stone-50"
+              >
+                <RotateCcw className="h-3.5 w-3.5" aria-hidden />
+                Try again
+              </button>
+            </div>
           ) : rows == null ? (
-            <p className="px-5 py-8 text-sm text-steel">Loading…</p>
+            <JdListSkeleton />
           ) : rows.length === 0 ? (
             <p className="px-5 py-8 text-sm text-steel">No JDs saved yet. Use the form to add one.</p>
           ) : (
-            <ul className="divide-y divide-stone-200">
-              {rows.map((row) => (
-                <li key={row.slug} className="px-5 py-4">
-                  <div className="flex items-baseline justify-between gap-3">
-                    <Link
-                      href={`/jds/${row.slug}`}
-                      className="text-base font-semibold text-ink hover:text-coral hover:underline"
-                    >
-                      {row.title}
-                    </Link>
-                    <span className="font-mono text-xs text-coral">{row.slug}</span>
-                  </div>
-                  <p className="mt-2 line-clamp-3 text-sm leading-6 text-ink/80">
-                    {row.body.slice(0, 280)}
-                    {row.body.length > 280 ? "…" : ""}
+            <>
+              <div className="border-b border-stone-200 px-5 py-3">
+                <div className="relative">
+                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-steel" aria-hidden />
+                  <input
+                    type="search"
+                    value={query}
+                    onChange={(event) => setQuery(event.target.value)}
+                    placeholder="Search title, slug, or content…"
+                    aria-label="Search saved JDs"
+                    className="focus-ring h-10 w-full rounded-md border border-stone-300 bg-white pl-9 pr-3 text-sm text-ink"
+                  />
+                </div>
+              </div>
+              {visible.length === 0 ? (
+                <div className="px-5 py-10 text-center">
+                  <p className="text-sm font-semibold text-ink">No matching JDs</p>
+                  <p className="mt-1 text-sm text-steel">
+                    Nothing matches “{query.trim()}”. Try a different search.
                   </p>
-                  <p className="mt-2 text-xs text-steel">
-                    Saved {new Date(row.created_at).toLocaleString()}
-                  </p>
-                </li>
-              ))}
-            </ul>
+                </div>
+              ) : (
+                <ul className="divide-y divide-stone-200">
+                  {visible.map((row) => (
+                    <li key={row.slug} className="rounded-md px-5 py-4 transition-colors hover:bg-paper">
+                      <div className="flex items-baseline justify-between gap-3">
+                        <Link
+                          href={`/jds/${row.slug}`}
+                          className="text-base font-semibold text-ink hover:text-coral hover:underline"
+                        >
+                          {row.title}
+                        </Link>
+                        <span className="font-mono text-xs text-coral">{row.slug}</span>
+                      </div>
+                      <p className="mt-2 line-clamp-3 text-sm leading-6 text-ink/80">
+                        {row.preview}
+                      </p>
+                      <p className="mt-2 text-xs text-steel">
+                        Saved {new Date(row.created_at).toLocaleString()}
+                      </p>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </>
           )}
         </div>
       </div>
     </section>
+  );
+}
+
+// Reusable shimmer primitive for async lists/detail panes. The pulse is disabled
+// under prefers-reduced-motion so motion-sensitive users see a static block.
+function Skeleton({ className = "" }: { className?: string }) {
+  return <div className={`animate-pulse rounded bg-stone-200/80 motion-reduce:animate-none ${className}`} />;
+}
+
+// Placeholder rows that mirror the real <li> (60% title bar, three body lines,
+// a short date bar) so the real list pops in without a layout shift.
+function JdListSkeleton() {
+  return (
+    <ul className="divide-y divide-stone-200">
+      {[0, 1, 2].map((i) => (
+        <li key={i} className="px-5 py-4">
+          <Skeleton className="h-5 w-3/5" />
+          <div className="mt-3 space-y-2">
+            <Skeleton className="h-3 w-full" />
+            <Skeleton className="h-3 w-full" />
+            <Skeleton className="h-3 w-full" />
+          </div>
+          <Skeleton className="mt-3 h-3 w-32" />
+        </li>
+      ))}
+    </ul>
   );
 }

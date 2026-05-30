@@ -1,3 +1,4 @@
+import { randomBytes } from "node:crypto";
 import { createPosting, createSubmission, getPosting, listSubmissions, type DevCaseRecord, type DevSubmission, type Posting } from "./db";
 import { sendComm } from "./comms";
 
@@ -14,8 +15,11 @@ export interface DistributionAdapter {
   pull(postingId: string): Promise<DevSubmission[]>;
 }
 
+// The apply token gates who may POST submissions to a posting — effectively a
+// bearer credential — so it must be unguessable. Use a CSPRNG (16 random bytes
+// = 128 bits), never Math.random()/Date.now() which are predictable.
 function token(): string {
-  return `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 10)}`;
+  return randomBytes(16).toString("hex");
 }
 
 // Local stub: "publishing" records a posting with a shareable apply token; "pulling"
@@ -52,7 +56,7 @@ export function getAdapter(channel = "local"): DistributionAdapter {
 
 /** Record an incoming submission (the IN side of the local stub / a webhook target). */
 export function receiveSubmission(input: { postingId: string; candidateRef: string; repoRef: string; notes?: string }): DevSubmission {
-  return createSubmission(input);
+  return createSubmission(input).submission;
 }
 
 // Intake one submission (form OR inbound webhook): idempotent on (posting, candidate, repo),
@@ -66,12 +70,12 @@ export async function intakeSubmission(input: {
   notes?: string;
   contact?: string;
 }): Promise<{ submission: DevSubmission; isNew: boolean }> {
-  const existing = listSubmissions(input.postingId).find(
-    (s) => s.candidateRef === input.candidateRef && s.repoRef === input.repoRef
-  );
-  if (existing) return { submission: existing, isNew: false };
+  // Atomic dedup at the DB layer (UNIQUE index + ON CONFLICT DO NOTHING) — no
+  // read-then-write TOCTOU window, so concurrent double-submits coalesce to one
+  // row and only the genuine first arrival is treated as new.
+  const { submission, created } = createSubmission(input);
+  if (!created) return { submission, isNew: false };
 
-  const submission = createSubmission(input);
   const role = getPosting(input.postingId)?.roleTitle ?? "the role";
   await sendComm({
     to: input.contact || input.candidateRef,

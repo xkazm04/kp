@@ -6,6 +6,42 @@ const DB_PATH = process.env.KP_DB_PATH ?? path.join(process.cwd(), "data", "kp.s
 
 let _db: Database.Database | null = null;
 
+// ---- Seed health (boot diagnostics) ---------------------------------------
+// A corrupt or absent seed file used to leave a table silently empty while
+// ensureDb() still completed and cached _db, so Jobs/Match/recruiter views all
+// rendered empty with no error, log, or signal — a one-character JSON typo
+// became an hours-long "why is everything empty" hunt. We now record every
+// seed read/parse failure with its path + reason so an empty catalog is
+// diagnosable. Consumers can read getSeedHealth() or surface it on first request.
+
+export type SeedIssue = {
+  seed: "jobs" | "candidates" | "pipeline";
+  path: string;
+  reason: string;
+  severity: "missing" | "error";
+};
+
+const seedIssues: SeedIssue[] = [];
+
+function recordSeedIssue(issue: SeedIssue): void {
+  seedIssues.push(issue);
+  const what = issue.severity === "missing" ? "seed file not found" : "failed to read/parse seed";
+  const line = `[seed:${issue.seed}] ${what} at ${issue.path} — ${issue.reason}`;
+  if (issue.severity === "error") {
+    console.error(line);
+  } else {
+    console.warn(line);
+  }
+}
+
+export type SeedHealth = { ok: boolean; issues: SeedIssue[] };
+
+/** Boot health flag: ok=false when any seed hit a hard read/parse error. */
+export function getSeedHealth(): SeedHealth {
+  ensureDb(); // make sure seeding has run before reporting
+  return { ok: seedIssues.every((i) => i.severity !== "error"), issues: [...seedIssues] };
+}
+
 function ensureDb(): Database.Database {
   if (_db) return _db;
   mkdirSync(path.dirname(DB_PATH), { recursive: true });
@@ -238,6 +274,18 @@ function ensureDb(): Database.Database {
       /* column already exists */
     }
   }
+  // Atomic dedup: a (posting, candidate, repo) triple is unique, so two
+  // concurrent submits can't both INSERT (double-click / webhook retry storm).
+  // Guarded: a legacy DB may already hold duplicate triples that block the
+  // index — in that case we leave the rows and fall back to app-level coalescing.
+  try {
+    db.exec(
+      `CREATE UNIQUE INDEX IF NOT EXISTS idx_dev_submissions_dedup
+         ON dev_submissions (posting_id, candidate_ref, repo_ref)`
+    );
+  } catch {
+    /* pre-existing duplicate rows prevent the unique index; skip */
+  }
   seedExampleJd(db);
   seedJobs(db);
   seedCandidates(db);
@@ -317,6 +365,19 @@ export type JdRow = {
   created_at: string;
 };
 
+// What the list endpoint exposes: identity + a short, server-truncated preview
+// instead of the full body, so the list response stays bounded no matter how
+// large individual JD bodies grow. Full bodies remain behind loadJd /
+// GET /api/jds/[slug].
+export type JdListItem = {
+  slug: string;
+  title: string;
+  preview: string;
+  created_at: string;
+};
+
+const JD_PREVIEW_CHARS = 280;
+
 const ALPHABET = "abcdefghijkmnpqrstuvwxyz23456789";
 function generateSlug(): string {
   let out = "";
@@ -324,6 +385,39 @@ function generateSlug(): string {
     out += ALPHABET[Math.floor(Math.random() * ALPHABET.length)];
   }
   return out;
+}
+
+function isUniqueViolation(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+  const code = (error as { code?: unknown }).code;
+  return (
+    /UNIQUE constraint failed/i.test(error.message) ||
+    (typeof code === "string" && code.startsWith("SQLITE_CONSTRAINT"))
+  );
+}
+
+const SLUG_RETRY_ATTEMPTS = 5;
+
+/**
+ * Insert a row keyed by a random slug, regenerating the slug and retrying on a
+ * UNIQUE collision (bounded). The 8-char slug space makes a single collision
+ * unlikely, but it grows with the table; this makes the whole class of
+ * "UNIQUE constraint failed" 500s effectively impossible across slug-backed
+ * tables. `insert` must perform a plain INSERT that throws on collision.
+ */
+function insertWithUniqueSlug(insert: (slug: string) => void): string {
+  for (let attempt = 0; attempt < SLUG_RETRY_ATTEMPTS; attempt++) {
+    const slug = generateSlug();
+    try {
+      insert(slug);
+      return slug;
+    } catch (error) {
+      if (isUniqueViolation(error) && attempt < SLUG_RETRY_ATTEMPTS - 1) continue;
+      throw error;
+    }
+  }
+  // Unreachable: the loop above either returns a slug or throws.
+  throw new Error("Could not generate a unique slug.");
 }
 
 export type SaveAnalysisInput = {
@@ -337,21 +431,24 @@ export type SaveAnalysisInput = {
 
 export function saveAnalysis(input: SaveAnalysisInput): { slug: string; createdAt: string } {
   const db = ensureDb();
-  const slug = generateSlug();
   const createdAt = new Date().toISOString();
-  db.prepare(
+  const payloadJson = JSON.stringify(input.payload);
+  const stmt = db.prepare(
     `INSERT INTO analyses
       (slug, candidate_label, jd_slug, score, role_family, seniority, payload_json, created_at)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
-  ).run(
-    slug,
-    input.candidateLabel,
-    input.jdSlug,
-    input.score,
-    input.roleFamily,
-    input.seniority,
-    JSON.stringify(input.payload),
-    createdAt
+  );
+  const slug = insertWithUniqueSlug((s) =>
+    stmt.run(
+      s,
+      input.candidateLabel,
+      input.jdSlug,
+      input.score,
+      input.roleFamily,
+      input.seniority,
+      payloadJson,
+      createdAt
+    )
   );
   return { slug, createdAt };
 }
@@ -367,6 +464,21 @@ export function listAnalyses(limit = 100): AnalysisSummary[] {
     )
     .all(limit) as AnalysisSummary[];
   return rows;
+}
+
+// Every analysis tagged with a JD slug, ordered best-score-first. Uses the
+// idx_analyses_jd_slug index — no row cap and no in-memory filter, so the JD
+// page's candidate count stays correct even past 500 total analyses.
+export function listAnalysesByJd(slug: string): AnalysisSummary[] {
+  const db = ensureDb();
+  return db
+    .prepare(
+      `SELECT slug, candidate_label, jd_slug, score, role_family, seniority, created_at
+       FROM analyses
+       WHERE jd_slug = ?
+       ORDER BY score DESC, created_at DESC`
+    )
+    .all(slug) as AnalysisSummary[];
 }
 
 export function loadAnalysis(slug: string): { row: AnalysisRow; payload: unknown } | null {
@@ -394,22 +506,36 @@ export type SaveJdInput = {
 
 export function saveJd(input: SaveJdInput): { slug: string; createdAt: string } {
   const db = ensureDb();
-  const slug = generateSlug();
   const createdAt = new Date().toISOString();
-  db.prepare(`INSERT INTO jds (slug, title, body, created_at) VALUES (?, ?, ?, ?)`).run(
-    slug,
-    input.title,
-    input.body,
-    createdAt
-  );
+  const stmt = db.prepare(`INSERT INTO jds (slug, title, body, created_at) VALUES (?, ?, ?, ?)`);
+  const slug = insertWithUniqueSlug((s) => stmt.run(s, input.title, input.body, createdAt));
   return { slug, createdAt };
 }
 
-export function listJds(limit = 100): JdRow[] {
+export function listJds(limit = 100): JdListItem[] {
   const db = ensureDb();
-  return db
-    .prepare(`SELECT slug, title, body, created_at FROM jds ORDER BY created_at DESC LIMIT ?`)
-    .all(limit) as JdRow[];
+  // Pull only one char past the preview window to detect truncation, so the
+  // full body is never read into memory for the list view.
+  const rows = db
+    .prepare(
+      `SELECT slug, title, created_at,
+              substr(body, 1, ${JD_PREVIEW_CHARS + 1}) AS body_head,
+              length(body) AS body_len
+       FROM jds ORDER BY created_at DESC LIMIT ?`
+    )
+    .all(limit) as Array<{
+    slug: string;
+    title: string;
+    created_at: string;
+    body_head: string;
+    body_len: number;
+  }>;
+  return rows.map((r) => ({
+    slug: r.slug,
+    title: r.title,
+    created_at: r.created_at,
+    preview: r.body_len > JD_PREVIEW_CHARS ? `${r.body_head.slice(0, JD_PREVIEW_CHARS)}…` : r.body_head,
+  }));
 }
 
 export function loadJd(slug: string): JdRow | null {
@@ -520,11 +646,20 @@ const SEED_JOBS_PATH = path.join(process.cwd(), "data", "seed_jobs", "jobs.norma
 function seedJobs(db: Database.Database): void {
   const count = db.prepare(`SELECT COUNT(*) AS n FROM jobs`).get() as { n: number };
   if (count.n > 0) return;
-  if (!existsSync(SEED_JOBS_PATH)) return;
+  if (!existsSync(SEED_JOBS_PATH)) {
+    recordSeedIssue({ seed: "jobs", path: SEED_JOBS_PATH, reason: "file does not exist", severity: "missing" });
+    return;
+  }
   let jobs: JobRecord[];
   try {
     jobs = JSON.parse(readFileSync(SEED_JOBS_PATH, "utf-8")) as JobRecord[];
-  } catch {
+  } catch (error) {
+    recordSeedIssue({
+      seed: "jobs",
+      path: SEED_JOBS_PATH,
+      reason: error instanceof Error ? error.message : String(error),
+      severity: "error",
+    });
     return;
   }
   const now = new Date().toISOString();
@@ -596,7 +731,12 @@ export function listJobs(filter: JobFilter = {}): JobRecord[] {
     params.q = `%${filter.q}%`;
   }
   const clause = where.length ? `WHERE ${where.join(" AND ")}` : "";
-  params.limit = filter.limit ?? 300;
+  // Defensive clamp: never bind a NaN/negative/huge LIMIT even if a caller
+  // skips validation. SQLite treats LIMIT -1 as unbounded, so guard the floor.
+  params.limit =
+    Number.isInteger(filter.limit) && (filter.limit as number) > 0
+      ? Math.min(filter.limit as number, 500)
+      : 300;
   const rows = db
     .prepare(
       `SELECT payload_json FROM jobs ${clause}
@@ -665,19 +805,14 @@ export type SaveProfileInput = {
 
 export function saveProfile(input: SaveProfileInput): { id: string; createdAt: string } {
   const db = ensureDb();
-  const id = generateSlug();
   const createdAt = new Date().toISOString();
-  db.prepare(
+  const payloadJson = JSON.stringify(input.payload);
+  const stmt = db.prepare(
     `INSERT INTO profiles (id, label, archetype, role_family, completeness, payload_json, created_at)
      VALUES (?, ?, ?, ?, ?, ?, ?)`
-  ).run(
-    id,
-    input.label,
-    input.archetype,
-    input.roleFamily,
-    input.completeness,
-    JSON.stringify(input.payload),
-    createdAt
+  );
+  const id = insertWithUniqueSlug((s) =>
+    stmt.run(s, input.label, input.archetype, input.roleFamily, input.completeness, payloadJson, createdAt)
   );
   return { id, createdAt };
 }
@@ -716,11 +851,20 @@ const SEED_CANDIDATES_PATH = path.join(process.cwd(), "data", "seed_candidates",
 function seedCandidates(db: Database.Database): void {
   const count = db.prepare(`SELECT COUNT(*) AS n FROM profiles`).get() as { n: number };
   if (count.n > 0) return;
-  if (!existsSync(SEED_CANDIDATES_PATH)) return;
+  if (!existsSync(SEED_CANDIDATES_PATH)) {
+    recordSeedIssue({ seed: "candidates", path: SEED_CANDIDATES_PATH, reason: "file does not exist", severity: "missing" });
+    return;
+  }
   let records: Array<Record<string, unknown>>;
   try {
     records = JSON.parse(readFileSync(SEED_CANDIDATES_PATH, "utf-8"));
-  } catch {
+  } catch (error) {
+    recordSeedIssue({
+      seed: "candidates",
+      path: SEED_CANDIDATES_PATH,
+      reason: error instanceof Error ? error.message : String(error),
+      severity: "error",
+    });
     return;
   }
   const now = new Date().toISOString();
@@ -849,11 +993,20 @@ const SEED_PIPELINE_PATH = path.join(process.cwd(), "data", "seed_pipeline", "pi
 function seedPipeline(db: Database.Database): void {
   const count = db.prepare(`SELECT COUNT(*) AS n FROM pipeline_entries`).get() as { n: number };
   if (count.n > 0) return;
-  if (!existsSync(SEED_PIPELINE_PATH)) return;
+  if (!existsSync(SEED_PIPELINE_PATH)) {
+    recordSeedIssue({ seed: "pipeline", path: SEED_PIPELINE_PATH, reason: "file does not exist", severity: "missing" });
+    return;
+  }
   let entries: PipelineEntry[];
   try {
     entries = JSON.parse(readFileSync(SEED_PIPELINE_PATH, "utf-8"));
-  } catch {
+  } catch (error) {
+    recordSeedIssue({
+      seed: "pipeline",
+      path: SEED_PIPELINE_PATH,
+      reason: error instanceof Error ? error.message : String(error),
+      severity: "error",
+    });
     return;
   }
   const nowMs = Date.now();
@@ -1575,32 +1728,38 @@ export function getPostingByToken(token: string): Posting | null {
   };
 }
 
+// Atomic, idempotent on (posting, candidate, repo): the UNIQUE index +
+// ON CONFLICT DO NOTHING make a concurrent double-submit impossible at the DB
+// level (no read-then-write race). `created` is false when the row already
+// existed; the canonical row is always re-selected and returned.
 export function createSubmission(input: {
   postingId: string;
   candidateRef: string;
   repoRef: string;
   notes?: string;
   contact?: string;
-}): DevSubmission {
+}): { submission: DevSubmission; created: boolean } {
   const db = ensureDb();
   const now = new Date().toISOString();
   const id = `sub-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
-  db.prepare(
-    `INSERT INTO dev_submissions (id, posting_id, candidate_ref, repo_ref, notes, contact, status, received_at)
-     VALUES (?, ?, ?, ?, ?, ?, 'received', ?)`
-  ).run(id, input.postingId, input.candidateRef, input.repoRef, input.notes ?? null, input.contact ?? null, now);
-  return {
-    id,
-    postingId: input.postingId,
-    candidateRef: input.candidateRef,
-    repoRef: input.repoRef,
-    notes: input.notes ?? null,
-    contact: input.contact ?? null,
-    status: "received",
-    evaluation: null,
-    transferScore: null,
-    receivedAt: now,
-  };
+  const info = db
+    .prepare(
+      `INSERT INTO dev_submissions (id, posting_id, candidate_ref, repo_ref, notes, contact, status, received_at)
+       VALUES (?, ?, ?, ?, ?, ?, 'received', ?)
+       ON CONFLICT DO NOTHING`
+    )
+    .run(id, input.postingId, input.candidateRef, input.repoRef, input.notes ?? null, input.contact ?? null, now);
+  const created = Number(info.changes) > 0;
+  // Re-select the canonical row: ours if just created, otherwise the row that
+  // won the race / was inserted earlier.
+  const row = db
+    .prepare(
+      `SELECT * FROM dev_submissions
+       WHERE posting_id = ? AND candidate_ref = ? AND repo_ref = ?
+       ORDER BY received_at ASC LIMIT 1`
+    )
+    .get(input.postingId, input.candidateRef, input.repoRef) as Record<string, unknown>;
+  return { submission: rowToSubmission(row), created };
 }
 
 export function listSubmissions(postingId?: string): DevSubmission[] {

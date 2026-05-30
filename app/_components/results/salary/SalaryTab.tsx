@@ -1,8 +1,9 @@
 "use client";
 
 import { CircleDollarSign } from "lucide-react";
-import { formatCzk, labelize } from "@/app/_lib/format";
+import { formatCzk, formatSalaryRange, labelize } from "@/app/_lib/format";
 import type { Analysis } from "@/app/_lib/schemas";
+import { ConfidenceBadge } from "@/app/_components/Badge";
 import { InlineList } from "../shared";
 import { SalaryGauge } from "./SalaryGauge";
 
@@ -26,9 +27,9 @@ export function SalaryTab({ analysis }: { analysis: Analysis }) {
             />
           </div>
           <div className="mt-1 text-sm tabular-nums text-ink">
-            {formatCzk(analysis.salary.minimum)}-{formatCzk(analysis.salary.maximum)}
+            {formatSalaryRange(analysis.salary.minimum, analysis.salary.maximum)}
           </div>
-          <p className="mt-1 text-sm text-steel">CZK / month, {analysis.salary.confidence} confidence</p>
+          <p className="mt-1 text-sm text-steel">per month · {analysis.salary.confidence} confidence</p>
           <div className="mt-4 rounded-md bg-limewash p-3 text-sm font-medium text-ink">
             +30% growth target: {formatCzk(targetSalary)} CZK / month
           </div>
@@ -79,7 +80,7 @@ export function SalaryTab({ analysis }: { analysis: Analysis }) {
             <p className="mt-3 text-sm font-medium text-steel">
               Confidence: {analysis.marketEvidence.confidence}
               {analysis.marketEvidence.suggestedMinimum && analysis.marketEvidence.suggestedMaximum
-                ? `, grounded range: ${formatCzk(analysis.marketEvidence.suggestedMinimum)}-${formatCzk(analysis.marketEvidence.suggestedMaximum)} CZK`
+                ? `, grounded range: ${formatSalaryRange(analysis.marketEvidence.suggestedMinimum, analysis.marketEvidence.suggestedMaximum)}`
                 : ""}
             </p>
             {analysis.marketEvidence.sources.length ? (
