@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { RotateCcw, Search } from "lucide-react";
 import { formatCount } from "@/app/_lib/format";
+import { JdBuilder } from "./JdBuilder";
 import { LibraryJdForm } from "./LibraryJdForm";
 
 type JdRow = {
@@ -63,15 +64,17 @@ export function LibraryTab() {
         <p className="text-meta uppercase text-coral">Workspace</p>
         <h2 className="mt-1 font-serif text-display text-ink">Job description library</h2>
         <p className="mt-2 max-w-3xl text-body text-steel">
-          Save the JDs you screen against. From the <strong>Analyze</strong> tab, pick one from the
-          dropdown and the resulting analysis is tagged with that JD&apos;s slug — that&apos;s how the
-          matrix view groups candidates.
+          Describe a hiring need and let AI draft a publishable job description — clarifying the need,
+          designing the role, and researching market salary on the web. Save it and the role lands in
+          your <strong>Pipeline</strong> with matching candidates sourced.
         </p>
       </header>
 
-      <div className="mt-5 grid gap-5 lg:grid-cols-[420px_minmax(0,1fr)]">
-        <LibraryJdForm onSaved={load} />
+      <div className="mt-5">
+        <JdBuilder onSaved={load} />
+      </div>
 
+      <div className="mt-5">
         <div className="rounded-lg border border-stone-200 bg-white">
           <div className="flex items-center justify-between border-b border-stone-200 px-5 py-3">
             <h3 className="font-serif text-h2 text-ink">Saved JDs</h3>
@@ -144,6 +147,13 @@ export function LibraryTab() {
           )}
         </div>
       </div>
+
+      <details className="mt-5 rounded-lg border border-stone-200 bg-paper/40 p-4">
+        <summary className="cursor-pointer text-sm font-semibold text-steel">Or paste a job description manually</summary>
+        <div className="mt-3">
+          <LibraryJdForm onSaved={load} />
+        </div>
+      </details>
     </section>
   );
 }
