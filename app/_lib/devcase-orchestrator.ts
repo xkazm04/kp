@@ -10,6 +10,7 @@ import {
 import { promoteSubmission, runDesignArtifacts, runEvaluateSubmission, runNeedAnalysis, runSourceForRole, type DevNeed } from "./devcase-run";
 import { getAdapter } from "./distribution";
 import { sendComm } from "./comms";
+import { getAutonomy, recordAudit } from "./dev-control";
 
 // Direction A — the lifecycle orchestrator. Drives a dev case through its stages under
 // policy, with human gates where policy requires. Each long step reuses the existing
@@ -50,19 +51,29 @@ export async function runLifecycle(id: string, progress?: Progress): Promise<{ s
     const pct = (s: string) => progress?.(Math.max(0, STAGES.indexOf(s)), STAGES.length, s);
     pct(lc.stage);
 
+    // Kill switch: when paused, halt auto-advancement (human oversight requirement).
+    if (getAutonomy() === "paused" && lc.stage !== "promoted") {
+      recordAudit({ lifecycleId: id, actor: "system", action: "halted", reason: "automation paused by operator" });
+      return { stage: lc.stage, detail: "halted — automation paused" };
+    }
+
     if (lc.stage === "intake") {
       const { analysis } = await runNeedAnalysis(lc.need as DevNeed);
       updateLifecycle(id, { stage: "analyzed", analysis, detail: "reality reflection done" });
+      recordAudit({ lifecycleId: id, actor: "auto", action: "analyzed", reason: lc.title ?? undefined });
     } else if (lc.stage === "analyzed") {
       const { role, case: kase } = await runDesignArtifacts(lc.need as DevNeed, (lc.analysis as Record<string, unknown>) ?? {});
       updateLifecycle(id, { stage: "designed", role, case: kase, detail: "role + assignment designed" });
+      recordAudit({ lifecycleId: id, actor: "auto", action: "designed" });
     } else if (lc.stage === "designed") {
       const gate = gateApproval(lc.analysis as Analysis | null);
       if (lc.auto && gate.pass) {
         const saved = saveDevCase({ need: lc.need, analysis: lc.analysis, role: lc.role as Record<string, unknown>, case: lc.case as Record<string, unknown> });
         updateLifecycle(id, { stage: "approved", caseId: saved.id, detail: gate.reason });
+        recordAudit({ lifecycleId: id, actor: "auto", action: "auto_approved", reason: gate.reason, ref: saved.id });
       } else {
         updateLifecycle(id, { stage: "awaiting_approval", detail: gate.reason });
+        recordAudit({ lifecycleId: id, actor: "auto", action: "routed_to_human", reason: gate.reason });
         return { stage: "awaiting_approval", detail: gate.reason };
       }
     } else if (lc.stage === "approved") {
@@ -97,6 +108,7 @@ export async function runLifecycle(id: string, progress?: Progress): Promise<{ s
         postingId: posting.id,
         detail: `published; sourced ${sourced} candidate(s) into the pipeline; awaiting submissions`,
       });
+      recordAudit({ lifecycleId: id, actor: "auto", action: "published", reason: `sourced ${sourced} into pipeline`, ref: posting.id });
     } else if (lc.stage === "collecting") {
       const subs = lc.postingId ? listSubmissions(lc.postingId) : [];
       if (subs.length === 0) return { stage: "collecting", detail: "awaiting submissions" };
@@ -111,6 +123,7 @@ export async function runLifecycle(id: string, progress?: Progress): Promise<{ s
         progress?.(STAGES.indexOf("collecting"), STAGES.length, `evaluating ${++done}/${todo.length}`);
       }
       updateLifecycle(id, { stage: "ranked", detail: `evaluated ${subs.length} submission(s)` });
+      recordAudit({ lifecycleId: id, actor: "auto", action: "evaluated", reason: `${subs.length} submission(s)` });
     } else if (lc.stage === "ranked") {
       const ranked = (lc.postingId ? listSubmissions(lc.postingId) : [])
         .filter((s) => (s.transferScore ?? 0) >= DEV_POLICY.promoteFloor)
@@ -132,6 +145,7 @@ export async function runLifecycle(id: string, progress?: Progress): Promise<{ s
       }
       const detail = `promoted ${promoted}/${DEV_POLICY.promoteTopN} (floor ${DEV_POLICY.promoteFloor}) to the pipeline`;
       updateLifecycle(id, { stage: "promoted", detail });
+      recordAudit({ lifecycleId: id, actor: "auto", action: "promoted", reason: detail });
       return { stage: "promoted", detail };
     } else {
       return { stage: lc.stage, detail: lc.detail ?? "" };
@@ -148,6 +162,7 @@ export async function approveLifecycle(id: string, progress?: Progress): Promise
   if (lc.stage === "awaiting_approval" || lc.stage === "designed") {
     const saved = saveDevCase({ need: lc.need, analysis: lc.analysis, role: lc.role as Record<string, unknown>, case: lc.case as Record<string, unknown> });
     updateLifecycle(id, { stage: "approved", caseId: saved.id, detail: "approved by a human" });
+    recordAudit({ lifecycleId: id, actor: "human", action: "approved", ref: saved.id });
   }
   return runLifecycle(id, progress);
 }
