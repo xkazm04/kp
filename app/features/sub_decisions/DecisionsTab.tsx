@@ -2,35 +2,13 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Calendar, Check, ChevronRight, Sparkles, X } from "lucide-react";
+import { Check, Sparkles } from "lucide-react";
 import { buildUrl } from "@/app/features/tabs";
-import { useTasks } from "@/app/features/tasks/TasksProvider";
-
-type Entry = {
-  id: string;
-  candidateId: string | null;
-  candidateLabel: string;
-  archetype: string | null;
-  roleFamily: string | null;
-  jobId: string | null;
-  jobTitle: string | null;
-  stage: string;
-  matchScore: number | null;
-  status: string;
-  approvalKind: string | null;
-  approvalDetail: string | null;
-};
-
-const STAGES = ["Sourced", "AI-matched", "Screening", "Interview", "Offer", "Hired"];
-const ARCHETYPE = {
-  bau: { label: "Experienced", bg: "bg-steel" },
-  student: { label: "Student", bg: "bg-coral" },
-  career_switcher: { label: "Switcher", bg: "bg-moss" },
-} as const;
-const styleFor = (a: string | null) => ARCHETYPE[(a as keyof typeof ARCHETYPE) ?? "bau"] ?? ARCHETYPE.bau;
-
-const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri"];
-const TIMES = ["09:00", "10:30", "11:00", "14:00", "15:30"];
+import { AiReviewCard } from "./AiReviewCard";
+import { Empty } from "./DecisionsShared";
+import { KeyDecisionCard } from "./KeyDecisionCard";
+import { SchedulingCard } from "./SchedulingCard";
+import type { Entry } from "./DecisionsTypes";
 
 export function DecisionsTab() {
   const router = useRouter();
@@ -124,399 +102,61 @@ export function DecisionsTab() {
         </div>
       ) : (
         <div className="space-y-6">
-        {aiReviews.length > 0 ? (
-          <section>
-            <h3 className="flex items-center gap-1.5 text-meta uppercase tracking-wide text-steel">
-              <Sparkles size={13} className="text-coral" /> AI recommendations <span className="text-coral">· {aiReviews.length}</span>
-            </h3>
-            <p className="mt-1 text-[11px] text-steel">
-              The LLM screened these at the AI-matched gate or synthesized an interview scorecard. Confirm or override —
-              early-career candidates are deliberately held here for your judgment.
-            </p>
-            <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-              {aiReviews.map((e) => (
-                <div key={e.id} className={leavingWrapClass(e)}>
-                  <AiReviewCard entry={e} onAccept={() => act(e, "accept")} onReject={() => act(e, "reject")} />
-                </div>
-              ))}
-            </div>
-          </section>
-        ) : null}
-        <div className="grid gap-6 lg:grid-cols-2">
-          <section>
-            <h3 className="text-meta uppercase tracking-wide text-steel">
-              Key decisions <span className="text-coral">· {keyDecisions.length}</span>
-            </h3>
-            <p className="mt-1 text-[11px] text-steel">Advance to the next stage, or reject — read the fit first.</p>
-            <div className="mt-3 space-y-3">
-              {keyDecisions.map((e) => (
-                <div key={e.id} className={leavingWrapClass(e)}>
-                  <KeyDecisionCard entry={e} onAccept={() => act(e, "accept")} onReject={() => act(e, "reject")} />
-                </div>
-              ))}
-              {keyDecisions.length === 0 ? <Empty>No key decisions pending.</Empty> : null}
-            </div>
-          </section>
-
-          <section>
-            <h3 className="text-meta uppercase tracking-wide text-steel">
-              Interview scheduling <span className="text-coral">· {scheduling.length}</span>
-            </h3>
-            <p className="mt-1 text-[11px] text-steel">Confirm the proposed slot, or pick another, then approve.</p>
-            <div className="mt-3 space-y-3">
-              {scheduling.map((e) => (
-                <div key={e.id} className={leavingWrapClass(e)}>
-                  <SchedulingCard
-                    entry={e}
-                    onApprove={(slot) => act(e, "approve_event", slot)}
-                    onDecline={() => act(e, "reject")}
-                  />
-                </div>
-              ))}
-              {scheduling.length === 0 ? <Empty>No scheduling decisions pending.</Empty> : null}
-            </div>
-          </section>
-        </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function Empty({ children }: { children: React.ReactNode }) {
-  return <p className="rounded-md border border-dashed border-stone-200 p-3 text-xs text-steel">{children}</p>;
-}
-
-function NextStage({ stage }: { stage: string }) {
-  const idx = STAGES.indexOf(stage);
-  const next = STAGES[Math.min(idx + 1, STAGES.length - 1)];
-  return (
-    <span className="inline-flex items-center gap-1 text-[11px] text-steel">
-      <span className="rounded bg-stone-100 px-1.5 py-0.5">{stage}</span>
-      <ChevronRight size={12} />
-      <span className="rounded bg-moss/10 px-1.5 py-0.5 font-semibold text-moss">{next}</span>
-    </span>
-  );
-}
-
-function CandidateHead({ entry }: { entry: Entry }) {
-  const s = styleFor(entry.archetype);
-  const initials = entry.candidateLabel.split(" ").map((p) => p[0]).filter(Boolean).join("").slice(0, 2).toUpperCase();
-  return (
-    <div className="flex items-center gap-2">
-      <span className={`grid h-9 w-9 place-items-center rounded-full text-xs font-semibold text-white ${s.bg}`}>
-        {initials}
-      </span>
-      <div className="min-w-0">
-        <p className="truncate text-sm font-semibold text-ink">{entry.candidateLabel}</p>
-        <p className="truncate text-[11px] text-steel">
-          {s.label} · {entry.jobTitle}
-        </p>
-      </div>
-      {entry.matchScore != null ? (
-        <span className="ml-auto rounded-md bg-paper px-2 py-1 text-center">
-          <span className="block font-serif text-lg leading-none text-ink">{entry.matchScore}</span>
-          <span className="text-[9px] uppercase text-steel">match</span>
-        </span>
-      ) : null}
-    </div>
-  );
-}
-
-type Reasoning = { verdict: string; strengths: string[]; gaps: string[]; interviewProbes: string[] };
-
-function KeyDecisionCard({
-  entry,
-  onAccept,
-  onReject,
-}: {
-  entry: Entry;
-  onAccept: () => void;
-  onReject: () => void;
-}) {
-  const { startTask, tasks } = useTasks();
-  const [reasoning, setReasoning] = useState<{ loading?: boolean; data?: Reasoning; error?: string } | null>(null);
-  const [taskId, setTaskId] = useState<string | null>(null);
-
-  const explain = async () => {
-    if (reasoning?.loading || reasoning?.data) return;
-    setReasoning({ loading: true });
-    const t = await startTask("reasoning", { profileId: entry.candidateId, jobId: entry.jobId, label: entry.candidateLabel });
-    if (!t) {
-      setReasoning({ error: "Couldn't start the fit analysis." });
-      return;
-    }
-    setTaskId(t.id);
-  };
-
-  useEffect(() => {
-    if (!taskId) return;
-    const t = tasks.find((x) => x.id === taskId);
-    if (!t) return;
-    if (t.status === "succeeded") {
-      const d = t.result as { reasoning?: Reasoning } | null;
-      setReasoning(d?.reasoning ? { data: d.reasoning } : { error: "No reasoning returned." });
-      setTaskId(null);
-    } else if (t.status === "failed" || t.status === "canceled" || t.status === "interrupted") {
-      setReasoning({ error: "Couldn't load the fit for this candidate." });
-      setTaskId(null);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tasks, taskId]);
-
-  return (
-    <article className="animate-fade-in rounded-lg border border-stone-200 bg-white p-3 shadow-panel">
-      <CandidateHead entry={entry} />
-      <div className="mt-2">
-        <NextStage stage={entry.stage} />
-      </div>
-
-      {reasoning?.data ? (
-        <div className="mt-3 rounded-md border border-stone-200 bg-paper/50 p-2.5">
-          <p className="text-sm text-ink">{reasoning.data.verdict}</p>
-          <div className="mt-2 grid gap-2 sm:grid-cols-2">
-            <MiniList title="Strengths" items={reasoning.data.strengths} tone="green" />
-            <MiniList title="Gaps" items={reasoning.data.gaps} tone="red" />
-          </div>
-        </div>
-      ) : (
-        <button
-          type="button"
-          onClick={explain}
-          disabled={reasoning?.loading}
-          className="focus-ring mt-3 inline-flex items-center gap-1 rounded-md border border-stone-200 px-2 py-1 text-[11px] font-semibold text-coral hover:bg-paper disabled:opacity-50"
-        >
-          <Sparkles size={13} />
-          {reasoning?.loading ? "Reading the fit…" : "Why this candidate?"}
-        </button>
-      )}
-      {reasoning?.error ? <p className="mt-2 text-[11px] text-red-700">{reasoning.error}</p> : null}
-
-      <div className="mt-3 flex gap-2">
-        <button
-          type="button"
-          onClick={onAccept}
-          className="focus-ring inline-flex h-9 flex-1 items-center justify-center gap-1 rounded-md bg-moss text-sm font-semibold text-white hover:opacity-90"
-        >
-          <Check size={16} /> Advance
-        </button>
-        <button
-          type="button"
-          onClick={onReject}
-          className="focus-ring inline-flex h-9 items-center justify-center gap-1 rounded-md border border-stone-200 px-3 text-sm font-semibold text-coral hover:bg-coral/5"
-        >
-          <X size={16} /> Reject
-        </button>
-      </div>
-    </article>
-  );
-}
-
-function MiniList({ title, items, tone }: { title: string; items: string[]; tone: "green" | "red" }) {
-  const dot = tone === "green" ? "text-moss" : "text-coral";
-  return (
-    <div>
-      <p className="text-[10px] font-semibold uppercase tracking-wide text-steel">{title}</p>
-      <ul className="mt-0.5 space-y-0.5">
-        {items.slice(0, 3).map((it, i) => (
-          <li key={i} className="flex gap-1 text-[11px] text-ink">
-            <span className={dot}>•</span>
-            <span>{it}</span>
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
-}
-
-type Screening = { recommendation?: string; confidence?: number; rationale?: string; strengths?: string[]; redFlags?: string[] };
-type Scorecard = { recommendation?: string; summary?: string; ratings?: { competency: string; rating: number; evidence?: string }[] };
-type Offer = { recommended?: number; salaryMin?: number; salaryMax?: number; currency?: string; rationale?: string; subject?: string; body?: string };
-
-function RecBadge({ rec, confidence }: { rec?: string; confidence?: number }) {
-  const tone =
-    rec === "advance" ? "bg-moss/15 text-moss" : rec === "reject" ? "bg-coral/15 text-coral" : "bg-amber-100 text-amber-700";
-  return (
-    <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase ${tone}`}>
-      {rec ?? "hold"}
-      {typeof confidence === "number" ? ` · ${confidence}%` : ""}
-    </span>
-  );
-}
-
-function AiReviewCard({ entry, onAccept, onReject }: { entry: Entry; onAccept: () => void; onReject: () => void }) {
-  let parsed: (Screening & Scorecard & Offer) | null = null;
-  try {
-    parsed = entry.approvalDetail ? (JSON.parse(entry.approvalDetail) as Screening & Scorecard & Offer) : null;
-  } catch {
-    parsed = null;
-  }
-  const kind = entry.approvalKind;
-  const isScorecard = kind === "scorecard_review";
-  const isOffer = kind === "offer_review";
-  const tag = isOffer ? "Offer package" : isScorecard ? "Interview scorecard" : "AI screening";
-  const acceptLabel = isOffer ? "Hire" : isScorecard ? "To offer" : "Advance";
-
-  return (
-    <article className="animate-fade-in rounded-lg border border-stone-200 bg-white p-3 shadow-panel">
-      <div className="mb-1 flex items-center justify-between">
-        <span className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-coral">
-          <Sparkles size={11} /> {tag}
-        </span>
-        {isOffer ? (
-          <span className="font-serif text-sm text-ink">
-            {Number(parsed?.recommended ?? 0).toLocaleString()} {parsed?.currency ?? "CZK"}
-          </span>
-        ) : (
-          <RecBadge rec={parsed?.recommendation} confidence={isScorecard ? undefined : parsed?.confidence} />
-        )}
-      </div>
-      <CandidateHead entry={entry} />
-
-      {parsed ? (
-        <div className="mt-2 rounded-md border border-stone-200 bg-paper/50 p-2.5 text-[11px] text-ink">
-          {isOffer ? (
-            <>
-              <div className="h-1.5 overflow-hidden rounded-full bg-stone-200">
-                <div
-                  className="h-full rounded-full bg-moss"
-                  style={{
-                    width: `${Math.max(4, Math.min(100, ((Number(parsed.recommended) - Number(parsed.salaryMin)) / Math.max(1, Number(parsed.salaryMax) - Number(parsed.salaryMin))) * 100))}%`,
-                  }}
-                />
-              </div>
-              <p className="mt-1 text-[10px] text-steel">
-                band {Number(parsed.salaryMin ?? 0).toLocaleString()}–{Number(parsed.salaryMax ?? 0).toLocaleString()} {parsed.currency}
+          {aiReviews.length > 0 ? (
+            <section>
+              <h3 className="flex items-center gap-1.5 text-meta uppercase tracking-wide text-steel">
+                <Sparkles size={13} className="text-coral" /> AI recommendations <span className="text-coral">· {aiReviews.length}</span>
+              </h3>
+              <p className="mt-1 text-[11px] text-steel">
+                The LLM screened these at the AI-matched gate or synthesized an interview scorecard. Confirm or override —
+                early-career candidates are deliberately held here for your judgment.
               </p>
-              <p className="mt-1">{parsed.rationale}</p>
-            </>
-          ) : isScorecard ? (
-            <>
-              {parsed.summary ? <p className="mb-1.5">{parsed.summary}</p> : null}
-              <ul className="space-y-1">
-                {(parsed.ratings ?? []).slice(0, 4).map((r, i) => (
-                  <li key={i} className="flex items-center justify-between gap-2">
-                    <span className="truncate text-steel">{r.competency}</span>
-                    <span className="flex shrink-0 gap-0.5">
-                      {[1, 2, 3, 4, 5].map((n) => (
-                        <span key={n} className={`h-1.5 w-1.5 rounded-full ${n <= r.rating ? "bg-moss" : "bg-stone-200"}`} />
-                      ))}
-                    </span>
-                  </li>
+              <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                {aiReviews.map((e) => (
+                  <div key={e.id} className={leavingWrapClass(e)}>
+                    <AiReviewCard entry={e} onAccept={() => act(e, "accept")} onReject={() => act(e, "reject")} />
+                  </div>
                 ))}
-              </ul>
-            </>
-          ) : (
-            <>
-              <p>{parsed.rationale}</p>
-              {parsed.strengths?.length || parsed.redFlags?.length ? (
-                <div className="mt-2 grid grid-cols-2 gap-2">
-                  <MiniList title="Strengths" items={parsed.strengths ?? []} tone="green" />
-                  <MiniList title="Red flags" items={parsed.redFlags ?? []} tone="red" />
-                </div>
-              ) : null}
-            </>
-          )}
-        </div>
-      ) : null}
+              </div>
+            </section>
+          ) : null}
+          <div className="grid gap-6 lg:grid-cols-2">
+            <section>
+              <h3 className="text-meta uppercase tracking-wide text-steel">
+                Key decisions <span className="text-coral">· {keyDecisions.length}</span>
+              </h3>
+              <p className="mt-1 text-[11px] text-steel">Advance to the next stage, or reject — read the fit first.</p>
+              <div className="mt-3 space-y-3">
+                {keyDecisions.map((e) => (
+                  <div key={e.id} className={leavingWrapClass(e)}>
+                    <KeyDecisionCard entry={e} onAccept={() => act(e, "accept")} onReject={() => act(e, "reject")} />
+                  </div>
+                ))}
+                {keyDecisions.length === 0 ? <Empty>No key decisions pending.</Empty> : null}
+              </div>
+            </section>
 
-      <div className="mt-3 flex gap-2">
-        <button
-          type="button"
-          onClick={onAccept}
-          className="focus-ring inline-flex h-9 flex-1 items-center justify-center gap-1 rounded-md bg-moss text-sm font-semibold text-white hover:opacity-90"
-        >
-          <Check size={16} /> {acceptLabel}
-        </button>
-        <button
-          type="button"
-          onClick={onReject}
-          className="focus-ring inline-flex h-9 items-center justify-center gap-1 rounded-md border border-stone-200 px-3 text-sm font-semibold text-coral hover:bg-coral/5"
-        >
-          <X size={16} /> Reject
-        </button>
-      </div>
-    </article>
-  );
-}
-
-function SchedulingCard({
-  entry,
-  onApprove,
-  onDecline,
-}: {
-  entry: Entry;
-  onApprove: (slot: string) => void;
-  onDecline: () => void;
-}) {
-  const proposed = entry.approvalDetail || "Tue 14:00";
-  const [pick, setPick] = useState(proposed);
-  const [pickDay, pickTime] = pick.split(" ");
-
-  return (
-    <article className="animate-fade-in rounded-lg border border-stone-200 bg-white p-3 shadow-panel">
-      <CandidateHead entry={entry} />
-      <div className="mt-2 flex items-center gap-1.5 text-xs text-ink">
-        <Calendar size={14} className="text-steel" />
-        Proposed: <span className="font-semibold">{proposed}</span>
-        {pick !== proposed ? <span className="text-steel">· you picked {pick}</span> : null}
-      </div>
-
-      {/* week × time grid visualization */}
-      <div className="mt-2 overflow-hidden rounded-md border border-stone-200">
-        <div className="grid grid-cols-[44px_repeat(5,1fr)] bg-paper text-center text-[10px] text-steel">
-          <div className="py-1" />
-          {DAYS.map((d) => (
-            <div key={d} className="py-1 font-semibold">
-              {d}
-            </div>
-          ))}
-        </div>
-        {TIMES.map((t) => (
-          <div key={t} className="grid grid-cols-[44px_repeat(5,1fr)] border-t border-stone-100">
-            <div className="py-1 pl-1 text-[10px] text-steel">{t}</div>
-            {DAYS.map((d) => {
-              const slot = `${d} ${t}`;
-              const isProposed = slot === proposed;
-              const isPicked = slot === pick;
-              return (
-                <button
-                  key={d}
-                  type="button"
-                  onClick={() => setPick(slot)}
-                  aria-label={`Pick ${slot}`}
-                  className={`m-0.5 h-6 rounded transition-colors ${
-                    isPicked
-                      ? "bg-moss text-white"
-                      : isProposed
-                        ? "bg-moss/20 ring-1 ring-moss/40"
-                        : "bg-stone-50 hover:bg-coral/10"
-                  }`}
-                >
-                  {isPicked ? <Check size={12} className="mx-auto" /> : null}
-                </button>
-              );
-            })}
+            <section>
+              <h3 className="text-meta uppercase tracking-wide text-steel">
+                Interview scheduling <span className="text-coral">· {scheduling.length}</span>
+              </h3>
+              <p className="mt-1 text-[11px] text-steel">Confirm the proposed slot, or pick another, then approve.</p>
+              <div className="mt-3 space-y-3">
+                {scheduling.map((e) => (
+                  <div key={e.id} className={leavingWrapClass(e)}>
+                    <SchedulingCard
+                      entry={e}
+                      onApprove={(slot) => act(e, "approve_event", slot)}
+                      onDecline={() => act(e, "reject")}
+                    />
+                  </div>
+                ))}
+                {scheduling.length === 0 ? <Empty>No scheduling decisions pending.</Empty> : null}
+              </div>
+            </section>
           </div>
-        ))}
-      </div>
-
-      <div className="mt-3 flex gap-2">
-        <button
-          type="button"
-          onClick={() => onApprove(pick)}
-          className="focus-ring inline-flex h-9 flex-1 items-center justify-center gap-1 rounded-md bg-moss text-sm font-semibold text-white hover:opacity-90"
-        >
-          <Check size={16} /> Confirm {pickDay} {pickTime}
-        </button>
-        <button
-          type="button"
-          onClick={onDecline}
-          className="focus-ring inline-flex h-9 items-center justify-center gap-1 rounded-md border border-stone-200 px-3 text-sm font-semibold text-coral hover:bg-coral/5"
-        >
-          <X size={16} />
-        </button>
-      </div>
-    </article>
+        </div>
+      )}
+    </div>
   );
 }
