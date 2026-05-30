@@ -12,6 +12,7 @@ import {
   storeGeminiCache,
 } from "./db";
 import { cleanupWorkdir, createWorkdir, parseStderrError, spawnPython } from "./python-runner";
+import { dispatchOutreach } from "./comms-dispatch";
 
 // Shared core for the on-demand LLM HR tasks. Used directly by /api/automation/[task]
 // AND by the background-task runner (single + batch). Claude CLI only.
@@ -128,6 +129,11 @@ export async function runAutomationTask(entryId: string, task: string, notes = "
     } else {
       applied = "no_alternative";
     }
+  } else if (task === "outreach") {
+    // Non-adverse and recruiter-initiated — deliver the generated draft through
+    // the comms channel (queued to the outbox by default; relayed if configured).
+    await dispatchOutreach(entry, result);
+    applied = "sent";
   } else {
     recordAutomationEvent(entry.id, DRAFT_EVENT[task] ?? task, "");
     applied = "drafted";

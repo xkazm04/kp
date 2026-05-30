@@ -13,6 +13,7 @@ import {
   parseStderrError,
   spawnPython,
 } from "@/app/_lib/python-runner";
+import { dispatchRejection } from "@/app/_lib/comms-dispatch";
 
 export const runtime = "nodejs";
 
@@ -53,7 +54,8 @@ export async function POST() {
         actOnPipelineEntry(d.entryId, "accept"); // logs `advanced` + stamps stage_changed_at
         summary.advanced += 1;
       } else if (d.action === "reject") {
-        actOnPipelineEntry(d.entryId, "reject"); // BAU<40 only — enforced in evaluate_entry
+        const rejected = actOnPipelineEntry(d.entryId, "reject"); // BAU<40 only — enforced in evaluate_entry
+        if (rejected) await dispatchRejection(rejected, { automated: true }); // tell the candidate (queued by default)
         summary.rejected += 1;
       } else if (d.action === "hold") {
         summary.held += 1;

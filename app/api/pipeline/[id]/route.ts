@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { actOnPipelineEntry, type PipelineAction } from "@/app/_lib/db";
+import { dispatchRejection } from "@/app/_lib/comms-dispatch";
 
 export const runtime = "nodejs";
 
@@ -17,6 +18,8 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     if (!updated) {
       return NextResponse.json({ error: "Pipeline entry not found." }, { status: 404 });
     }
+    // A human reject is the gate; the candidate hears about it (queued by default).
+    if (action === "reject") await dispatchRejection(updated);
     return NextResponse.json({ entry: updated });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Action failed.";
