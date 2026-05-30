@@ -1,0 +1,27 @@
+import { NextRequest, NextResponse } from "next/server";
+import { ingestJobAd, insertJob, jobContentHash } from "@/app/_lib/job-ingest";
+
+export const runtime = "nodejs";
+export const maxDuration = 60;
+
+// Direction #1: turn a prose job ad into a structured, matchable Job in the
+// corpus. The Claude CLI parses the ad (jobs_cli ingest); the result is upserted
+// and content-hash-guarded so the same ad doesn't pile up duplicate jobs.
+export async function POST(request: NextRequest) {
+  try {
+    const body = (await request.json()) as { adText?: string; jobId?: string };
+    const adText = (body.adText ?? "").trim();
+    if (adText.length < 30) {
+      return NextResponse.json({ error: "Provide the full job ad text (at least ~30 chars)." }, { status: 400 });
+    }
+
+    const { job, source } = await ingestJobAd(adText, body.jobId);
+    const { id, created } = insertJob(job, jobContentHash(adText));
+    return NextResponse.json({ jobId: id, created, source, title: job.title });
+  } catch (error) {
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "Job ingestion failed." },
+      { status: 500 }
+    );
+  }
+}

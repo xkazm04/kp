@@ -15,7 +15,7 @@ export type JdBuildResult = {
   snapshot?: { ref?: string; inferredStack?: string[]; loc?: number } | null;
 };
 
-export function JdBuilderResult({ result, title, onSaved }: { result: JdBuildResult; title: string; onSaved: () => void }) {
+export function JdBuilderResult({ result, title, company, onSaved }: { result: JdBuildResult; title: string; company?: string; onSaved: () => void }) {
   const router = useRouter();
   const [markdown, setMarkdown] = useState(result.markdown);
   const [view, setView] = useState<"edit" | "preview">("preview");
@@ -31,7 +31,7 @@ export function JdBuilderResult({ result, title, onSaved }: { result: JdBuildRes
       const r = await fetch("/api/jds/save", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title, body: markdown, role: result.role }),
+        body: JSON.stringify({ title, body: markdown, role: result.role, salary: result.salary, company }),
       });
       const p = await r.json();
       if (!r.ok) throw new Error(p.error ?? "Save failed.");

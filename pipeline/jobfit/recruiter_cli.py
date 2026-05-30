@@ -16,6 +16,7 @@ import json
 import sys
 from pathlib import Path
 
+from .jobs import Job
 from .matching import MatchCandidate, load_corpus
 from .profile import CandidateProfileV2
 from .recruiter import rank_candidates_for_job
@@ -30,6 +31,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Rank candidates against one job.")
     parser.add_argument("--input-json", type=Path, help="Input JSON file. Reads stdin if omitted.")
     parser.add_argument("--jobs", type=Path, default=None)
+    parser.add_argument("--job-json", type=Path, default=None, help="A single Job record — used directly instead of the corpus lookup (lets newly-ingested DB jobs rank).")
     args = parser.parse_args(argv)
 
     try:
@@ -37,8 +39,11 @@ def main(argv: list[str] | None = None) -> int:
             args.input_json.read_text(encoding="utf-8") if args.input_json else (sys.stdin.read() or "{}")
         )
         job_id = raw.get("jobId")
-        jobs = load_corpus(args.jobs)
-        job = next((j for j in jobs if j.id == job_id), None)
+        if args.job_json:
+            job = Job.model_validate(json.loads(args.job_json.read_text(encoding="utf-8")))
+        else:
+            jobs = load_corpus(args.jobs)
+            job = next((j for j in jobs if j.id == job_id), None)
         if job is None:
             raise ValueError(f"job not found: {job_id}")
 

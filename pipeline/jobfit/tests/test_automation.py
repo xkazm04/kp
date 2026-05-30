@@ -57,6 +57,20 @@ class PolicyTest(unittest.TestCase):
     def test_interview_always_manual(self):
         self.assertEqual(self.ev(stage="Interview", daysInStage=9)["action"], "hold")
 
+    def test_sourced_with_score_advances_to_ai_matched(self):
+        # Fan-out entries land in Sourced; once matched they auto-advance into the
+        # AI-matched gate (where the archetype rules actually decide).
+        d = self.ev(stage="Sourced", matchScore=72)
+        self.assertEqual((d["action"], d["toStage"]), ("advance", "AI-matched"))
+
+    def test_sourced_advance_is_archetype_neutral(self):
+        # The Sourced->AI-matched move is never a reject and applies to early-career too.
+        d = self.ev(stage="Sourced", archetype="student", matchScore=30)
+        self.assertEqual((d["action"], d["toStage"]), ("advance", "AI-matched"))
+
+    def test_sourced_without_score_holds(self):
+        self.assertEqual(self.ev(stage="Sourced", matchScore=0)["action"], "hold")
+
     def test_aging_alerts(self):
         self.assertIn("stale_alert", self.ev(matchScore=60, daysInStage=25)["alerts"])
         self.assertIn("aging_alert", self.ev(matchScore=60, daysInStage=35)["alerts"])

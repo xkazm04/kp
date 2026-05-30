@@ -25,7 +25,8 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
   const { id } = await context.params;
   let workdir: string | null = null;
   try {
-    if (!getJob(id)) {
+    const job = getJob(id);
+    if (!job) {
       return NextResponse.json({ error: "Job not found." }, { status: 404 });
     }
 
@@ -75,8 +76,11 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
     workdir = await createWorkdir();
     const inputPath = path.join(workdir, "recruiter.json");
     await writeFile(inputPath, JSON.stringify({ jobId: id, candidates: entries }), "utf-8");
+    // Pass the DB job directly so newly-ingested jobs (not in the static corpus) rank too.
+    const jobPath = path.join(workdir, "job.json");
+    await writeFile(jobPath, JSON.stringify(job), "utf-8");
 
-    const { result } = spawnPython(["-m", "pipeline.jobfit.recruiter_cli", "--input-json", inputPath]);
+    const { result } = spawnPython(["-m", "pipeline.jobfit.recruiter_cli", "--input-json", inputPath, "--job-json", jobPath]);
     const { stdout, stderr, exitCode } = await result;
     if (exitCode !== 0) {
       const err = parseStderrError(stderr, exitCode);

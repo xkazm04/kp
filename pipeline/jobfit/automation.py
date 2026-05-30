@@ -108,6 +108,14 @@ def evaluate_entry(entry: dict[str, Any]) -> dict[str, Any]:
     if recent_screening:
         return out("none", None, "recent screening decision; policy pass skipped")
 
+    if stage == "Sourced":
+        # A sourced candidate with a computed match advances into AI-matched, where
+        # the archetype-aware screening gate decides. This move is itself fair —
+        # archetype-neutral and never a reject — so the fan-out's entries don't
+        # stall in Sourced. No score yet → hold until matching has run.
+        if score > 0:
+            return out("advance", "AI-matched", f"sourced with match score {score} → AI-matched")
+        return out("hold", None, "sourced; awaiting match score")
     if stage == "AI-matched":
         if early:
             return out("hold", None, "early-career: human screening gate (never auto-advance/reject)")

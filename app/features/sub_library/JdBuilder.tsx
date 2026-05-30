@@ -112,7 +112,7 @@ export function JdBuilder({ onSaved }: { onSaved: () => void }) {
       {generating ? <p className="mt-1.5 text-sm text-steel">This runs a few AI steps and takes ~1–2 minutes — it keeps going if you navigate away.</p> : null}
       {error ? <p className="mt-2 rounded-md bg-red-50 p-2.5 text-sm text-red-700">{error}</p> : null}
 
-      {result ? <JdBuilderResult result={result} title={title.trim()} onSaved={onSaved} /> : null}
+      {result ? <JdBuilderResult result={result} title={title.trim()} company={company.trim()} onSaved={onSaved} /> : null}
 
     </div>
   );

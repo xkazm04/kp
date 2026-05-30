@@ -1,0 +1,112 @@
+import path from "node:path";
+import { writeFile } from "node:fs/promises";
+import { mkdirSync } from "node:fs";
+import { createHash } from "node:crypto";
+import Database from "better-sqlite3";
+import type { JobRecord } from "./db";
+import { cleanupWorkdir, createWorkdir, parsePythonJson, parseStderrError, spawnPython } from "./python-runner";
+
+// Direction #1: turn authored/ingested job descriptions into structured,
+// matchable Job rows. insertJob writes into the SHARED `jobs` table (so
+// listJobs / the matcher see it) via its own connection — WAL-safe — and a
+// `job_ingests` table content-hash-guards re-ingestion of the same ad. The jobs
+// DDL mirrors db.ts (idempotent) so this module is self-contained.
+
+const DB_PATH = process.env.KP_DB_PATH ?? path.join(process.cwd(), "data", "kp.sqlite");
+let _db: Database.Database | null = null;
+function db(): Database.Database {
+  if (_db) return _db;
+  mkdirSync(path.dirname(DB_PATH), { recursive: true });
+  const d = new Database(DB_PATH);
+  d.pragma("journal_mode = WAL");
+  d.exec(`
+    CREATE TABLE IF NOT EXISTS jobs (
+      id TEXT PRIMARY KEY, title TEXT NOT NULL, company TEXT, location TEXT, work_mode TEXT,
+      seniority TEXT, role_family TEXT, employment_type TEXT, min_years REAL, min_education TEXT,
+      languages TEXT, is_entry_eligible INTEGER DEFAULT 0, graduate_friendliness REAL DEFAULT 0,
+      salary_min INTEGER, salary_max INTEGER, payload_json TEXT NOT NULL, created_at TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS job_ingests (content_hash TEXT PRIMARY KEY, job_id TEXT NOT NULL, created_at TEXT NOT NULL);
+  `);
+  _db = d;
+  return d;
+}
+
+export const jobContentHash = (s: string) => createHash("sha256").update(s).digest("hex").slice(0, 24);
+
+/**
+ * Upsert a structured job into the corpus. With a contentHash, a previously
+ * ingested identical ad is reused (returns its id, created=false) so the same
+ * JD/ad doesn't pile up duplicate jobs.
+ */
+export function insertJob(job: JobRecord, contentHash?: string): { id: string; created: boolean } {
+  const d = db();
+  if (contentHash) {
+    const seen = d.prepare(`SELECT job_id FROM job_ingests WHERE content_hash = ?`).get(contentHash) as { job_id: string } | undefined;
+    if (seen && d.prepare(`SELECT 1 FROM jobs WHERE id = ?`).get(seen.job_id)) {
+      return { id: seen.job_id, created: false };
+    }
+  }
+  const now = new Date().toISOString();
+  d.prepare(
+    `INSERT INTO jobs (id, title, company, location, work_mode, seniority, role_family, employment_type,
+       min_years, min_education, languages, is_entry_eligible, graduate_friendliness, salary_min, salary_max, payload_json, created_at)
+     VALUES (@id, @title, @company, @location, @work_mode, @seniority, @role_family, @employment_type,
+       @min_years, @min_education, @languages, @is_entry_eligible, @graduate_friendliness, @salary_min, @salary_max, @payload_json, @created_at)
+     ON CONFLICT(id) DO UPDATE SET title=excluded.title, company=excluded.company, location=excluded.location,
+       work_mode=excluded.work_mode, seniority=excluded.seniority, role_family=excluded.role_family,
+       employment_type=excluded.employment_type, min_years=excluded.min_years, min_education=excluded.min_education,
+       languages=excluded.languages, is_entry_eligible=excluded.is_entry_eligible, graduate_friendliness=excluded.graduate_friendliness,
+       salary_min=excluded.salary_min, salary_max=excluded.salary_max, payload_json=excluded.payload_json`
+  ).run({
+    id: job.id,
+    title: job.title,
+    company: job.company ?? null,
+    location: job.location ?? null,
+    work_mode: job.workMode ?? null,
+    seniority: job.seniority ?? null,
+    role_family: job.roleFamily ?? null,
+    employment_type: job.employmentType ?? null,
+    min_years: job.minYearsExperience ?? null,
+    min_education: job.minEducation ?? null,
+    languages: JSON.stringify(job.languages ?? []),
+    is_entry_eligible: job.entryProfile?.isEntryEligible ? 1 : 0,
+    graduate_friendliness: job.entryProfile?.graduateFriendliness ?? 0,
+    salary_min: job.salaryBand?.[0] ?? null,
+    salary_max: job.salaryBand?.[1] ?? null,
+    payload_json: JSON.stringify(job),
+    created_at: now,
+  });
+  if (contentHash) {
+    d.prepare(`INSERT INTO job_ingests (content_hash, job_id, created_at) VALUES (?, ?, ?) ON CONFLICT(content_hash) DO UPDATE SET job_id=excluded.job_id`).run(contentHash, job.id, now);
+  }
+  return { id: job.id, created: true };
+}
+
+type JobCliOut = { job: JobRecord; source: string };
+
+/** Deterministically structure a role record (e.g. a JD-builder RoleSpec) into a Job. */
+export async function normalizeJob(record: Record<string, unknown>, jobId?: string): Promise<JobCliOut> {
+  return runJobsCli(["normalize", ...(jobId ? ["--job-id", jobId] : [])], "record.json", record);
+}
+
+/** Parse a prose job ad into a structured Job via the Claude CLI. */
+export async function ingestJobAd(adText: string, jobId?: string): Promise<JobCliOut> {
+  return runJobsCli(["ingest", ...(jobId ? ["--job-id", jobId] : [])], "ad.txt", adText);
+}
+
+async function runJobsCli(cliArgs: string[], fileName: string, payload: unknown): Promise<JobCliOut> {
+  const workdir = await createWorkdir();
+  try {
+    const p = path.join(workdir, fileName);
+    const isText = fileName.endsWith(".txt");
+    await writeFile(p, isText ? String(payload) : JSON.stringify(payload), "utf-8");
+    const flag = isText ? "--ad-file" : "--record-json";
+    const { result } = spawnPython(["-m", "pipeline.jobfit.jobs_cli", ...cliArgs, flag, p]);
+    const { stdout, stderr, exitCode } = await result;
+    if (exitCode !== 0) throw new Error(parseStderrError(stderr, exitCode).message);
+    return parsePythonJson<JobCliOut>(stdout, stderr);
+  } finally {
+    await cleanupWorkdir(workdir);
+  }
+}
