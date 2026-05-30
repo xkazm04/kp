@@ -10,7 +10,7 @@ from pipeline.jobfit.matching import (
     score_skills,
 )
 
-from ._helpers import (
+from pipeline.jobfit.tests._helpers import (
     MIN_CONFIDENCE_SPREAD,
     PARTIAL_SKILL_SCORE,
     STRONG_SKILL_SCORE,

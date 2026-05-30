@@ -5,7 +5,7 @@ import unittest
 from pipeline.jobfit import automation
 from pipeline.jobfit.matching import MatchCandidate, score_job
 
-from ._helpers import mkjob as _mkjob
+from pipeline.jobfit.tests._helpers import mkjob as _mkjob
 
 
 def mkjob(**over):

@@ -1,8 +1,13 @@
 import path from "path";
 import { expect, test, type Page } from "@playwright/test";
+import AxeBuilder from "@axe-core/playwright";
+import { stubGithubAnalysis } from "./fixtures/github-analysis";
 
 const sampleCv = path.join(process.cwd(), "samples", "sample-cv.txt");
 const hasGeminiKey = Boolean(process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY);
+// By default we stub /api/github-analysis to make the GitHub assertions
+// deterministic. Set KP_GH_LIVE=1 to exercise the real GitHub API path instead.
+const GITHUB_LIVE = process.env.KP_GH_LIVE === "1";
 
 test.skip(!hasGeminiKey, "Gemini API key is required for the consolidated Analyze flow.");
 
@@ -38,6 +43,17 @@ async function setGithub(page: Page, handle: string): Promise<void> {
 async function runAnalysis(page: Page): Promise<void> {
   await page.getByRole("button", { name: "Analyze", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Score Breakdown" })).toBeVisible({ timeout: SCORE_TIMEOUT });
+}
+
+// Fail on serious/critical WCAG violations only — a pragmatic gate that catches
+// real blockers (missing labels, contrast, ARIA misuse) without drowning in
+// minor advisories.
+async function expectNoSeriousA11yViolations(page: Page): Promise<void> {
+  const results = await new AxeBuilder({ page })
+    .withTags(["wcag2a", "wcag2aa"])
+    .analyze();
+  const serious = results.violations.filter((v) => v.impact === "serious" || v.impact === "critical");
+  expect(serious, serious.map((v) => `${v.id}: ${v.help}`).join("\n")).toEqual([]);
 }
 
 test("CV only — overall profile assessment with no job context", async ({ page }) => {
@@ -107,6 +123,7 @@ test("CV + JD + company overview — applies enterprise context and salary multi
 });
 
 test("CV + JD + company + GitHub profile — full pipeline renders all panels", async ({ page }) => {
+  if (!GITHUB_LIVE) await stubGithubAnalysis(page);
   await page.goto("/");
   await attachCv(page, sampleCv);
   await fillJobDescription(page);
@@ -122,16 +139,13 @@ test("CV + JD + company + GitHub profile — full pipeline renders all panels", 
   await expect(page.getByRole("heading", { name: "Company Compensation Context" })).toBeVisible();
 
   // GitHub analysis is now a tab inside the result panel — click it.
-  // The anonymous GitHub API rate-limit (60/hr) can drop the request during
-  // back-to-back e2e runs, so accept either the loaded "@<username>" header
-  // or the rate-limit error message as proof the panel mounted.
   await page.getByRole("button", { name: "GitHub", exact: true }).click();
   await expect(page.getByRole("heading", { name: "GitHub Analysis" })).toBeVisible({ timeout: 30_000 });
+  // Stubbed → deterministic content. Live → accept the rate-limit error too.
   await expect(
-    page
-      .getByText(`@${GITHUB_PROFILE}`)
-      .or(page.getByText(/rate limit|access policy/i))
-      .first()
+    GITHUB_LIVE
+      ? page.getByText(`@${GITHUB_PROFILE}`).or(page.getByText(/rate limit|access policy/i)).first()
+      : page.getByText(`@${GITHUB_PROFILE}`).first()
   ).toBeVisible({ timeout: 30_000 });
 });
 
@@ -144,8 +158,23 @@ const GITHUB_INPUT_VARIANTS: Array<{ label: string; value: string }> = [
   { label: "full https URL", value: "https://github.com/xkazm04" },
 ];
 
+test("a11y — result tabs have no serious/critical WCAG violations", async ({ page }) => {
+  await stubGithubAnalysis(page);
+  await page.goto("/");
+  await expectNoSeriousA11yViolations(page); // landing page
+  await attachCv(page, sampleCv);
+  await fillJobDescription(page);
+  await runAnalysis(page);
+
+  for (const tab of ["Extraction", "Salary", "Job fit"]) {
+    await page.getByRole("button", { name: tab, exact: true }).click();
+    await expectNoSeriousA11yViolations(page);
+  }
+});
+
 for (const variant of GITHUB_INPUT_VARIANTS) {
   test(`GitHub input — ${variant.label} (${variant.value})`, async ({ page }) => {
+    if (!GITHUB_LIVE) await stubGithubAnalysis(page);
     await page.goto("/");
     await attachCv(page, sampleCv);
     await setGithub(page, variant.value);
@@ -154,13 +183,12 @@ for (const variant of GITHUB_INPUT_VARIANTS) {
     await page.getByRole("button", { name: "GitHub", exact: true }).click();
     await expect(page.getByRole("heading", { name: "GitHub Analysis" })).toBeVisible({ timeout: 30_000 });
 
-    // Either the loaded panel content (`@xkazm04`) or the rate-limit error;
-    // both prove the username was parsed and dispatched correctly.
+    // Stubbed → deterministic `@xkazm04` header. Live → accept the rate-limit
+    // error too; both prove the username was parsed and dispatched correctly.
     await expect(
-      page
-        .getByText(`@${GITHUB_PROFILE}`)
-        .or(page.getByText(/rate limit|access policy/i))
-        .first()
+      GITHUB_LIVE
+        ? page.getByText(`@${GITHUB_PROFILE}`).or(page.getByText(/rate limit|access policy/i)).first()
+        : page.getByText(`@${GITHUB_PROFILE}`).first()
     ).toBeVisible({ timeout: 30_000 });
   });
 }
