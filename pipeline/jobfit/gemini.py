@@ -99,9 +99,20 @@ def get_gemini_api_key() -> str:
     return api_key
 
 
+def _gemini_timeout_ms() -> int:
+    """Per-request network timeout (ms). Override with KP_GEMINI_TIMEOUT_MS."""
+    raw = os.getenv("KP_GEMINI_TIMEOUT_MS")
+    if raw and raw.isdigit() and int(raw) > 0:
+        return int(raw)
+    return 90_000  # 90s — a stalled call fails fast instead of hanging the analysis.
+
+
 def get_client() -> genai.Client:
     _remove_null_proxy_env()
-    return genai.Client(api_key=get_gemini_api_key())
+    return genai.Client(
+        api_key=get_gemini_api_key(),
+        http_options=types.HttpOptions(timeout=_gemini_timeout_ms()),
+    )
 
 
 def _remove_null_proxy_env() -> None:
@@ -314,21 +325,44 @@ def _grounding_sources(response: Any) -> list[str]:
     return list(dict.fromkeys(sources))
 
 
-def _parse_json(text: str) -> dict[str, Any]:
+def _scan_json_values(text: str) -> list[Any]:
+    """Every top-level JSON value embedded in ``text``, in order of appearance."""
     decoder = json.JSONDecoder()
-    try:
-        parsed, _ = decoder.raw_decode(text.strip())
-        return parsed
-    except json.JSONDecodeError:
-        pass
-    match = re.search(r"```(?:json)?\s*(.*?)```", text, flags=re.DOTALL)
-    if match:
-        parsed, _ = decoder.raw_decode(match.group(1).strip())
-        return parsed
-    start = text.find("{")
-    if start >= 0:
-        parsed, _ = decoder.raw_decode(text[start:].strip())
-        return parsed
+    values: list[Any] = []
+    idx, n = 0, len(text)
+    while idx < n:
+        if text[idx] in "{[":
+            try:
+                value, end = decoder.raw_decode(text, idx)
+                values.append(value)
+                idx = end
+                continue
+            except json.JSONDecodeError:
+                pass
+        idx += 1
+    return values
+
+
+def _parse_json(text: str) -> dict[str, Any]:
+    """Extract the JSON answer from a grounded (prose-wrapped) Gemini response.
+
+    With grounding enabled there is no response_mime_type, so the model returns
+    JSON embedded in prose. The old `text.find("{")` latched onto the FIRST brace
+    — a stray `{` in the prose preamble made the whole grounded analysis fail. We
+    now scan every `{`/`[` opener and return the last decodable dict (the real
+    payload trails any example/prose brace).
+    """
+    text = (text or "").strip()
+    candidates: list[Any] = []
+    for block in re.findall(r"```(?:json)?\s*(.*?)```", text, flags=re.DOTALL):
+        candidates.extend(_scan_json_values(block.strip()))
+    if not candidates:
+        candidates = _scan_json_values(text)
+    dicts = [c for c in candidates if isinstance(c, dict)]
+    if dicts:
+        return dicts[-1]
+    if candidates:
+        return candidates[-1]
     raise RuntimeError("Gemini returned non-JSON output.")
 
 

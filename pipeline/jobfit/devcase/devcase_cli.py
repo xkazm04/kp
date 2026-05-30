@@ -23,6 +23,22 @@ from . import reflect as _reflect
 from .models import DevNeed, NeedAnalysis, RepoSnapshot
 
 
+def _combine_source(*srcs: str) -> str:
+    """Collapse per-step sources into one verdict.
+
+    The old `"llm" if "llm" in srcs else "deterministic"` reported a fully-LLM
+    run whenever a *single* step used the LLM, hiding that the rest fell back to
+    deterministic templates. We return a tri-state instead — ``"partial"`` for a
+    mix — so the UI can flag a degraded evaluation (and gate promotion on it).
+    """
+    uniq = {s for s in srcs if s}
+    if uniq == {"llm"}:
+        return "llm"
+    if uniq <= {"deterministic"}:  # all deterministic (or empty)
+        return "deterministic"
+    return "partial"
+
+
 def main(argv: list[str] | None = None) -> int:
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8")
@@ -69,21 +85,21 @@ def main(argv: list[str] | None = None) -> int:
             repo = json.loads(args.repo_json.read_text(encoding="utf-8")) if args.repo_json else None
             reflection, rsrc = _reflect.reflect_commits(commits, repo, provider=provider)
             tooling, tsrc = _reflect.assess_tooling(reflection, commits, probes, repo, provider=provider)
-            srcs = [rsrc, tsrc]
             if args.command == "reflect-commits":
-                source = "llm" if "llm" in srcs else "deterministic"
-                print(json.dumps({"result": {"reflection": reflection, "tooling": tooling}, "source": source}, ensure_ascii=False))
+                per_step = {"reflect": rsrc, "tooling": tsrc}
+                source = _combine_source(rsrc, tsrc)
+                print(json.dumps({"result": {"reflection": reflection, "tooling": tooling}, "source": source, "perStepSources": per_step}, ensure_ascii=False))
                 return 0
             # evaluate-submission continues the chain
             case = json.loads(args.case_json.read_text(encoding="utf-8")) if args.case_json else {}
             role = json.loads(args.role_json.read_text(encoding="utf-8")) if args.role_json else {}
             evaluation, esrc = _evaluate.evaluate_submission(reflection, tooling, case, role, provider=provider)
             transfer, xsrc = _evaluate.score_transfer(evaluation, role, provider=provider)
-            srcs += [esrc, xsrc]
-            source = "llm" if "llm" in srcs else "deterministic"
+            per_step = {"reflect": rsrc, "tooling": tsrc, "evaluate": esrc, "transfer": xsrc}
+            source = _combine_source(rsrc, tsrc, esrc, xsrc)
             print(
                 json.dumps(
-                    {"result": {"reflection": reflection, "tooling": tooling, "evaluation": evaluation, "transfer": transfer}, "source": source},
+                    {"result": {"reflection": reflection, "tooling": tooling, "evaluation": evaluation, "transfer": transfer}, "source": source, "perStepSources": per_step},
                     ensure_ascii=False,
                 )
             )
@@ -109,8 +125,8 @@ def main(argv: list[str] | None = None) -> int:
             analysis = NeedAnalysis.model_validate(json.loads(args.analysis_json.read_text(encoding="utf-8")))
             role, role_src = _design.design_role(need, analysis, provider=provider)
             case, case_src = _design.design_case(need, analysis, role, provider=provider)
-            source = "llm" if "llm" in (role_src, case_src) else "deterministic"
-            print(json.dumps({"result": {"role": role, "case": case}, "source": source}, ensure_ascii=False))
+            source = _combine_source(role_src, case_src)
+            print(json.dumps({"result": {"role": role, "case": case}, "source": source, "perStepSources": {"role": role_src, "case": case_src}}, ensure_ascii=False))
             return 0
 
         raise ValueError(f"unhandled command {args.command}")  # pragma: no cover

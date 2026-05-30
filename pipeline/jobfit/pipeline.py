@@ -86,6 +86,11 @@ def analyze_cv(
             )
         _emit(progress, "gemini", "done")
 
+        # Soft repairs collected across stages: one malformed LLM field should
+        # degrade-and-flag, not abort the whole analysis. These surface in
+        # sanity_checks so a human sees exactly what was repaired.
+        repairs: list[str] = []
+
         _emit(progress, "profile", "active")
         with StageTimer(timings, "profile"):
             profile_payload = payload.get("profile") if isinstance(payload, dict) else None
@@ -93,20 +98,22 @@ def analyze_cv(
                 raise RuntimeError("Gemini analysis is missing the profile section.")
             raw_text_unclean = str(profile_payload.get("raw_text") or "")
             raw_text = clean_text(raw_text_unclean)
+            if not raw_text:
+                raise RuntimeError("Gemini analysis returned an empty profile.")
             if len(raw_text) < 120:
-                raise RuntimeError("Gemini profile text was too short for a useful assessment.")
+                repairs.append("Profile text was short — assessment may be less reliable (manual review)")
             profile = _profile_from_payload(profile_payload, raw_text)
         _emit(progress, "profile", "done")
 
         _emit(progress, "scoring", "active")
         with StageTimer(timings, "scoring"):
-            score = _score_from_payload(payload.get("score"))
+            score = _score_from_payload(payload.get("score"), repairs)
         _emit(progress, "scoring", "done")
 
         _emit(progress, "salary", "active")
         with StageTimer(timings, "salary"):
             company_context = build_company_context(company_text)
-            salary = _salary_from_payload(payload.get("salary"))
+            salary = _salary_from_payload(payload.get("salary"), repairs)
             apply_company_salary_context(salary, company_context)
         _emit(progress, "salary", "done")
 
@@ -133,7 +140,7 @@ def analyze_cv(
                 gemini_text=raw_text,
             )
 
-            sanity_checks = _sanity_checks(raw_text, score, salary)
+            sanity_checks = _sanity_checks(raw_text, score, salary) + repairs
             evidence_trace = build_evidence_trace(profile, score, salary)
             interview_kit = build_interview_kit(profile, job_fit)
             keyword_coverage = (
@@ -269,9 +276,11 @@ def _profile_from_payload(payload: dict[str, Any], raw_text: str) -> CandidatePr
     )
 
 
-def _score_from_payload(raw: Any) -> ScoreBreakdown:
+def _score_from_payload(raw: Any, repairs: list[str] | None = None) -> ScoreBreakdown:
     if not isinstance(raw, dict):
-        raise RuntimeError("Gemini analysis is missing the score section.")
+        if repairs is not None:
+            repairs.append("Score section missing — defaulted to 0 (manual review)")
+        raw = {}
     experience = _clamp_int(raw.get("experience"), 0, 25, 0)
     skills = _clamp_int(raw.get("skills"), 0, 30, 0)
     role_seniority = _clamp_int(raw.get("role_seniority"), 0, 23, 0)
@@ -293,14 +302,28 @@ def _score_from_payload(raw: Any) -> ScoreBreakdown:
     )
 
 
-def _salary_from_payload(raw: Any) -> SalaryEstimate:
-    if not isinstance(raw, dict):
-        raise RuntimeError("Gemini analysis is missing the salary section.")
+def _salary_from_payload(raw: Any, repairs: list[str] | None = None) -> SalaryEstimate:
+    had_section = isinstance(raw, dict)
+    if not had_section:
+        if repairs is not None:
+            repairs.append("Salary section missing — estimate unavailable (manual review)")
+        raw = {}
     minimum = _optional_int(raw.get("minimum")) or 0
     maximum = _optional_int(raw.get("maximum")) or 0
+    # Repair an inconsistent range rather than aborting the whole analysis.
+    if minimum > 0 and maximum > 0 and maximum < minimum:
+        minimum, maximum = maximum, minimum
+        if repairs is not None:
+            repairs.append("Salary range was reversed — corrected (manual review)")
+    if minimum <= 0 and maximum > 0:
+        minimum = maximum
+        if repairs is not None:
+            repairs.append("Salary minimum missing — set to maximum (manual review)")
+    elif maximum <= 0 and minimum > 0:
+        maximum = minimum
+    elif minimum <= 0 and maximum <= 0 and had_section and repairs is not None:
+        repairs.append("Salary range missing — estimate unavailable (manual review)")
     midpoint = _optional_int(raw.get("midpoint")) or _round_salary((minimum + maximum) / 2)
-    if minimum <= 0 or maximum < minimum:
-        raise RuntimeError("Gemini analysis returned an invalid salary range.")
     return SalaryEstimate(
         currency=str(raw.get("currency") or "CZK"),
         period=str(raw.get("period") or "month"),

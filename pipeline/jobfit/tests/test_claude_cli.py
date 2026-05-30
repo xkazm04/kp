@@ -138,6 +138,25 @@ class JsonTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             _extract_json("no json here")
 
+    def test_extract_json_prefers_last_value_over_echoed_example(self) -> None:
+        # Few-shot prompts make the model echo the example object before the real
+        # answer. The old first-value behaviour returned the echo; we want the last.
+        echoed = 'Example: {"title": "EXAMPLE", "ok": false}\nAnswer: {"title": "Real", "ok": true}'
+        self.assertEqual(_extract_json(echoed), {"title": "Real", "ok": True})
+
+    def test_extract_json_expected_keys_pins_the_answer(self) -> None:
+        # A trailing non-answer object must not win when expected_keys identify the real one.
+        text = '{"role": "Backend", "score": 80}\nNote: thanks! {"disclaimer": "n/a"}'
+        self.assertEqual(
+            _extract_json(text, expected_keys=["role", "score"]),
+            {"role": "Backend", "score": 80},
+        )
+
+    def test_extract_json_handles_prose_brace_before_real_json(self) -> None:
+        # A stray brace in prose must be skipped, not latched onto.
+        text = 'Here {placeholder} is the result: {"value": 42}'
+        self.assertEqual(_extract_json(text), {"value": 42})
+
 
 class MapTest(unittest.TestCase):
     def test_map_preserves_order(self) -> None:

@@ -5,6 +5,25 @@ import { Boxes, Check, ClipboardList, Copy, GitBranch, Inbox, Loader2, Lock, Sen
 import { formatPercent } from "@/app/_lib/format";
 import { useTasks } from "../tasks/TasksProvider";
 
+// A run is "partial" when some pipeline steps used the LLM and others fell back
+// to deterministic templates — surface that instead of mislabelling it full LLM.
+function sourceLabel(source?: string): string {
+  if (source === "llm") return "Claude CLI";
+  if (source === "partial") return "Partial (degraded)";
+  return "template";
+}
+
+// The grounded repo analysis only supports GitHub (github.com URL or bare
+// owner/repo). Any other host can't be fetched, so the case runs ungrounded at
+// low confidence — we warn the user rather than silently wrapping it as github.
+function isSupportedRepoRef(raw: string): boolean {
+  const ref = raw.trim();
+  if (!ref) return true; // empty = no codebase, that's fine
+  if (/github\.com/i.test(ref)) return true;
+  if (/^[^/\s]+\/[^/\s]+$/.test(ref)) return true; // bare owner/repo
+  return false;
+}
+
 type NeedAnalysis = {
   realStack?: string[];
   coreResponsibilities?: string[];
@@ -266,7 +285,13 @@ export function DevTab() {
           </Field>
           <Field label="Codebase (GitHub URL)">
             <input value={repoUrl} onChange={(e) => setRepoUrl(e.target.value)} placeholder="https://github.com/owner/repo"
+              aria-invalid={repoUrl.trim() !== "" && !isSupportedRepoRef(repoUrl)}
               className="focus-ring w-full rounded-md border border-stone-200 px-2.5 py-1.5 text-sm" />
+            {repoUrl.trim() !== "" && !isSupportedRepoRef(repoUrl) ? (
+              <p className="mt-1 text-[11px] text-amber-700">
+                Only GitHub is supported for grounding — this will run ungrounded at low confidence.
+              </p>
+            ) : null}
           </Field>
           <Field label="Seniority target">
             <select value={seniority} onChange={(e) => setSeniority(e.target.value)}
@@ -334,7 +359,7 @@ export function DevTab() {
                     </span>
                   ) : null}
                   <span className="ml-auto text-[10px] uppercase text-steel">
-                    {result.source === "llm" ? "Claude CLI" : "template"} · conf {formatPercent(analysis.confidence ?? 0, { fraction: true })}
+                    {sourceLabel(result.source)} · conf {formatPercent(analysis.confidence ?? 0, { fraction: true })}
                   </span>
                 </div>
                 <p className="text-sm text-ink">{analysis.reflection}</p>
@@ -406,7 +431,7 @@ export function DevTab() {
                   <div className="rounded-lg border border-stone-200 bg-white p-4 shadow-panel">
                     <div className="mb-2 flex items-center gap-2">
                       <span className="text-meta uppercase tracking-wide text-steel">Role</span>
-                      <span className="ml-auto text-[10px] uppercase text-steel">{design.source === "llm" ? "Claude CLI" : "template"}</span>
+                      <span className="ml-auto text-[10px] uppercase text-steel">{sourceLabel(design.source)}</span>
                     </div>
                     <p className="font-serif text-h3 text-ink">{design.role?.title}</p>
                     <p className="text-xs uppercase text-steel">{design.role?.seniority}</p>
@@ -811,7 +836,7 @@ function EvalPanel({ ev, onPromote, promoted }: { ev: EvalBundle; onPromote: () 
       <div className="mb-1 flex items-center gap-2">
         <span className="text-[9px] font-semibold uppercase tracking-wide text-steel">Capability scores</span>
         <span className="ml-auto text-[9px] uppercase text-steel">
-          transfer <b className="text-ink">{x.transferScore ?? "—"}</b> · {ev.source === "llm" ? "Claude CLI" : "template"} · {ev.commitCount ?? 0} commits
+          transfer <b className="text-ink">{x.transferScore ?? "—"}</b> · <span className={ev.source === "partial" ? "text-amber-700" : undefined}>{sourceLabel(ev.source)}</span> · {ev.commitCount ?? 0} commits
         </span>
       </div>
       <div className="space-y-1">
@@ -833,6 +858,12 @@ function EvalPanel({ ev, onPromote, promoted }: { ev: EvalBundle; onPromote: () 
         {(x.gaps ?? []).length ? <span> · gaps: {(x.gaps ?? []).join(", ")}</span> : null}
       </div>
       <p className="mt-1 text-[9px] italic text-steel">Code assumed LLM-generated — using AI is never penalised; judged on judgment + verification + transfer.</p>
+
+      {ev.source === "partial" ? (
+        <p className="mt-2 rounded bg-amber-50 px-2 py-1 text-[10px] text-amber-800">
+          Degraded evaluation — some steps fell back to deterministic templates. Review before promoting.
+        </p>
+      ) : null}
 
       <div className="mt-2 flex items-center gap-2 border-t border-stone-100 pt-2">
         {promoted ? (

@@ -213,11 +213,14 @@ class ClaudeCliProvider:
         *,
         system: str | None = None,
         timeout: int | None = None,
+        expected_keys: Sequence[str] | None = None,
     ) -> Any:
         """Run a prompt expected to return JSON and parse it (object or array).
 
-        Appends a terse 'JSON only' instruction and extracts the first JSON
-        value from the result, tolerating markdown fences or stray prose.
+        Appends a terse 'JSON only' instruction and extracts the last complete
+        JSON value from the result, tolerating markdown fences or stray prose.
+        Pass ``expected_keys`` when the schema is known to pin the answer object
+        even if the model echoes an example object alongside it.
         """
         guarded = (
             f"{prompt}\n\n"
@@ -225,7 +228,7 @@ class ClaudeCliProvider:
         )
         result = self.complete(guarded, system=system, timeout=timeout)
         try:
-            return _extract_json(result.text)
+            return _extract_json(result.text, expected_keys=expected_keys)
         except ValueError as exc:
             raise ClaudeCliError(
                 f"Claude did not return parseable JSON: {result.text[:300]!r}"
@@ -277,31 +280,56 @@ class ClaudeCliProvider:
         )
 
 
-def _extract_json(text: str) -> Any:
+def _scan_json_values(text: str) -> list[Any]:
+    """Every top-level JSON value embedded in ``text``, in order of appearance.
+
+    Walks the string, and at each ``{``/``[`` attempts ``raw_decode``; on success
+    it records the value and skips past it, on failure it advances one char. A
+    nested ``{`` inside a decoded value is consumed as part of that value, so the
+    list holds only *top-level* values (an array of objects is one entry).
+    """
+    decoder = json.JSONDecoder()
+    values: list[Any] = []
+    idx, n = 0, len(text)
+    while idx < n:
+        if text[idx] in "{[":
+            try:
+                value, end = decoder.raw_decode(text, idx)
+                values.append(value)
+                idx = end
+                continue
+            except json.JSONDecodeError:
+                pass
+        idx += 1
+    return values
+
+
+def _extract_json(text: str, *, expected_keys: Sequence[str] | None = None) -> Any:
     """Best-effort JSON extraction from an LLM text answer.
 
-    Tries: direct decode, fenced ```json block, then the first ``{``/``[`` to a
-    balanced end via ``raw_decode``. Raises ``ValueError`` if nothing parses.
+    Returns the LAST complete top-level JSON value (preferring a fenced ```json
+    block when present). Returning the last value — not the first — is deliberate:
+    few-shot prompts often make the model echo the example schema object before
+    the real answer, and the old first-value behaviour silently returned that
+    echo. When ``expected_keys`` is given, the last value carrying any of those
+    keys wins, which pins the answer even if it isn't the trailing value.
+    Raises ``ValueError`` if nothing parses.
     """
     text = (text or "").strip()
     if not text:
         raise ValueError("empty text")
-    decoder = json.JSONDecoder()
-    try:
-        return decoder.raw_decode(text)[0]
-    except json.JSONDecodeError:
-        pass
-    fence = re.search(r"```(?:json)?\s*(.*?)```", text, flags=re.DOTALL)
-    if fence:
-        try:
-            return decoder.raw_decode(fence.group(1).strip())[0]
-        except json.JSONDecodeError:
-            pass
-    for opener in ("{", "["):
-        start = text.find(opener)
-        if start >= 0:
-            try:
-                return decoder.raw_decode(text[start:])[0]
-            except json.JSONDecodeError:
-                continue
-    raise ValueError("no JSON value found")
+
+    # Prefer fenced blocks (the model's deliberate answer envelope) if any parse.
+    candidates: list[Any] = []
+    for block in re.findall(r"```(?:json)?\s*(.*?)```", text, flags=re.DOTALL):
+        candidates.extend(_scan_json_values(block.strip()))
+    if not candidates:
+        candidates = _scan_json_values(text)
+    if not candidates:
+        raise ValueError("no JSON value found")
+
+    if expected_keys:
+        keyed = [v for v in candidates if isinstance(v, dict) and any(k in v for k in expected_keys)]
+        if keyed:
+            return keyed[-1]
+    return candidates[-1]
