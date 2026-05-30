@@ -32,10 +32,37 @@ ANALYSIS_RESPONSE_SCHEMA = {
         "role_family": f"one of: {' | '.join(ROLE_FAMILIES)}",
         "skills": ["..."],
         "education_level": "one of: phd | master | bachelor | university | unknown",
+        "education_detail": "study programme / specialisation / expected graduation, or ''",
         "languages": ["..."],
         "traits": ["..."],
         "evidence": ["short factual signals supporting the assessment"],
         "parsing_notes": ["notes about the document or extraction"],
+        # Archetype-routing signals — used to fairly score students / switchers,
+        # not just experienced hires. Infer honestly from the CV; null if unclear.
+        "is_enrolled": "true if currently a student / enrolled, else false",
+        "expected_graduation": "expected graduation like 'Jun 2026', or null",
+        "education_is_dominant": "true if education dominates the CV over work experience",
+        "wants_domain_change": "true if the narrative indicates switching field/industry",
+        "has_substantial_experience": "true if 3+ years professional experience in any field",
+        # Per-skill provenance so a school-project skill isn't treated like 5y in prod.
+        "skill_claims": [
+            {
+                "skill": "...",
+                "level": "one of: foundational | working | strong",
+                "provenance": "one of: professional | internship | personal_project | open_source | coursework | certification | self_declared",
+            }
+        ],
+        # Structured experiences (the candidate's strongest evidence for early-career).
+        "experiences": [
+            {
+                "kind": "one of: job | internship | project | thesis | course | extracurricular | certification | other",
+                "title": "...",
+                "text": "one line on what they did",
+                "skills": ["..."],
+                "link": "url to code/demo or null",
+                "recency": "YYYY-MM or null",
+            }
+        ],
     },
     "score": {
         "total": "integer 0-100",

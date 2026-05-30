@@ -37,11 +37,22 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
       if (rec) entries.push({ id: p.id, label: p.label, profile: rec.payload });
     }
 
-    // legacy saved analyses -> treated as experienced (BAU) match candidates.
+    // saved CV analyses -> prefer the archetype-routed v2 profile (Python
+    // transforms it with skills+provenance + a potential score, so a student /
+    // switcher is scored fairly). Fall back to the flat BAU candidate only for
+    // older analyses saved before v2 profiles existed.
     for (const a of listAnalyses(60)) {
       const loaded = loadAnalysis(a.slug);
       if (!loaded) continue;
-      const c = (loaded.payload as { candidate?: Record<string, unknown> }).candidate ?? {};
+      const payload = loaded.payload as {
+        candidate?: Record<string, unknown>;
+        v2Profile?: Record<string, unknown>;
+      };
+      if (payload.v2Profile && Object.keys(payload.v2Profile).length > 0) {
+        entries.push({ id: a.slug, label: a.candidate_label, profile: payload.v2Profile });
+        continue;
+      }
+      const c = payload.candidate ?? {};
       entries.push({
         id: a.slug,
         label: a.candidate_label,

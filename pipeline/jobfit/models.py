@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Any
+
 from pydantic import BaseModel, ConfigDict, Field
 from pydantic.alias_generators import to_camel
 
@@ -168,3 +170,6 @@ class AnalysisResult(_Base):
     evidence_trace: EvidenceTrace | None = None
     interview_kit: InterviewKit | None = None
     keyword_coverage: KeywordCoverage | None = None
+    # Archetype-aware v2 profile (dict, to avoid a profile.py<->models.py import
+    # cycle) — drives fair, archetype-routed matching for CV-uploaded candidates.
+    v2_profile: dict[str, Any] | None = None

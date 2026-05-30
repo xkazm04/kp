@@ -168,9 +168,18 @@ def analyze_cv(
                 grounding_sources=sources,
                 deterministic_evidence=evidence,
             )
+
+            # Archetype-routed v2 profile so a CV-uploaded student/switcher is
+            # scored fairly, not silently as an experienced hire. Best-effort —
+            # never let the v2 add-on break the core analysis.
+            try:
+                v2_profile = _v2_profile_from_payload(profile_payload, profile).model_dump(by_alias=True)
+            except Exception:
+                v2_profile = None
         _emit(progress, "insights", "done")
 
         return AnalysisResult(
+            v2_profile=v2_profile,
             candidate=profile,
             score=score,
             salary=salary,
@@ -275,6 +284,119 @@ def _profile_from_payload(payload: dict[str, Any], raw_text: str) -> CandidatePr
         traits=_string_list(payload.get("traits")),
         evidence=_string_list(payload.get("evidence")),
     )
+
+
+def _as_bool(value: Any) -> bool | None:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        v = value.strip().lower()
+        if v in ("true", "yes", "1"):
+            return True
+        if v in ("false", "no", "0"):
+            return False
+    return None
+
+
+def _infer_evidence_kind(text: str) -> str:
+    """Map a flat evidence line to a v2 Evidence kind (fallback when the LLM omits structured experiences)."""
+    t = (text or "").lower()
+    if "intern" in t:
+        return "internship"
+    if "thesis" in t or "diplom" in t or "dissertation" in t:
+        return "thesis"
+    if "project" in t or "github" in t or "side " in t or "built" in t:
+        return "project"
+    if "course" in t or "bootcamp" in t or "mooc" in t:
+        return "course"
+    if "certif" in t:
+        return "certification"
+    if "volunteer" in t or "hackathon" in t or "club" in t or "community" in t:
+        return "extracurricular"
+    if any(w in t for w in (" at ", "engineer", "developer", "worked", "company", "years")):
+        return "job"
+    return "other"
+
+
+def _v2_profile_from_payload(payload: dict[str, Any], profile: CandidateProfile) -> Any:
+    """Build an archetype-routed v2 profile from the CV analysis (LLM signals + deterministic fallbacks)."""
+    from .archetype import detect_archetype
+    from .profile import (
+        EVIDENCE_KINDS,
+        SKILL_LEVELS,
+        CandidateProfileV2,
+        Evidence,
+        SkillClaim,
+        normalize_profile,
+    )
+    from .taxonomy import PROVENANCE_WEIGHTS
+
+    years = profile.years_experience
+    archetype, confidence, reasons = detect_archetype(
+        self_declared=None,  # a CV has no self-declaration; infer from signals
+        years_relevant_experience=years,
+        is_enrolled=_as_bool(payload.get("is_enrolled")),
+        expected_graduation=_optional_str(payload.get("expected_graduation")),
+        education_is_dominant=_as_bool(payload.get("education_is_dominant")),
+        wants_domain_change=_as_bool(payload.get("wants_domain_change")),
+        has_substantial_experience=_as_bool(payload.get("has_substantial_experience")),
+    )
+    early = archetype in ("student", "career_switcher")
+    default_prov = "self_declared" if early else "professional"
+    prov_ok = set(PROVENANCE_WEIGHTS)
+
+    raw_claims = payload.get("skill_claims")
+    claims: list[Any] = []
+    if isinstance(raw_claims, list):
+        for c in raw_claims:
+            if not isinstance(c, dict) or not c.get("skill"):
+                continue
+            prov = c.get("provenance")
+            claims.append(
+                SkillClaim(
+                    skill=str(c["skill"]).strip(),
+                    level=str(c.get("level")) if c.get("level") in SKILL_LEVELS else "working",
+                    provenance=prov if prov in prov_ok else default_prov,
+                )
+            )
+    if not claims:
+        claims = [SkillClaim(skill=s, provenance=default_prov) for s in profile.skills if s]
+
+    raw_exp = payload.get("experiences")
+    evidence: list[Any] = []
+    if isinstance(raw_exp, list):
+        for e in raw_exp:
+            if not isinstance(e, dict):
+                continue
+            evidence.append(
+                Evidence(
+                    kind=e.get("kind") if e.get("kind") in EVIDENCE_KINDS else "other",
+                    title=str(e.get("title") or ""),
+                    text=str(e.get("text") or ""),
+                    skills=[str(s) for s in (e.get("skills") or []) if s],
+                    link=_optional_str(e.get("link")),
+                    recency=_optional_str(e.get("recency")),
+                )
+            )
+    if not evidence:
+        evidence = [Evidence(kind=_infer_evidence_kind(str(s)), text=str(s)) for s in profile.evidence]
+
+    v2 = CandidateProfileV2(
+        archetype=archetype,
+        archetype_confidence=confidence,
+        archetype_reasons=reasons,
+        display_name=profile.name,
+        role_family=profile.role_family,
+        years_experience=years if years and years > 0 else None,
+        seniority=profile.current_seniority,
+        education_level=profile.education_level,
+        education_detail=_optional_str(payload.get("education_detail")) or "",
+        languages=profile.languages,
+        skill_claims=claims,
+        evidence=evidence,
+    )
+    normalize_profile(v2)
+    return v2
 
 
 def _score_from_payload(raw: Any, repairs: list[str] | None = None) -> ScoreBreakdown:
@@ -440,6 +562,53 @@ def _round_salary(value: float) -> int:
     return int(round(value / 5000) * 5000)
 
 
+# Forward-looking goal markers. A seniority title AFTER one of these ("aiming
+# toward a Principal role", "looking to grow into a staff track") is the *target*
+# of an aspiration, not the candidate's current level — so for seniority
+# detection we keep only the text BEFORE the marker in each sentence.
+_ASPIRATION_CUE = re.compile(
+    r"\b("
+    r"aspir\w*"
+    r"|aiming\s+(?:to|toward|towards|for)"
+    r"|looking\s+to\s+(?:lead|grow|move|become|transition|step|advance|own|take)"
+    r"|hoping\s+to"
+    r"|grow(?:ing)?\s+(?:in)?to"
+    r"|grow(?:th)?\s+toward"
+    r"|progress(?:ing)?\s+(?:in)?to"
+    r"|next\s+(?:step|level)"
+    r"|future\s+role"
+    r"|long[-\s]term\s+goal"
+    r"|career\s+goal"
+    r"|rád[ao]?\s+bych"
+    r"|chci\s+se\s+stát"
+    r"|chtěl[ao]?\s+bych"
+    r"|směřuj\w*"
+    r"|usiluj\w*"
+    r"|do\s+budoucna"
+    r"|mým\s+cílem"
+    r"|růst\s+směrem"
+    r")",
+    re.IGNORECASE,
+)
+
+
+def _current_level_text(cleaned: str) -> str:
+    """Text used for *current* seniority detection: each sentence truncated at the
+    first forward-looking goal marker, dropping the aspired title that follows it.
+
+    "Senior engineer … aiming toward a Staff/Principal role." keeps "Senior
+    engineer …" (real level) and drops "a Staff/Principal role" (the aspiration).
+    """
+    parts = re.split(r"(?<=[.!?])\s+|\n+", cleaned)
+    kept: list[str] = []
+    for part in parts:
+        match = _ASPIRATION_CUE.search(part)
+        segment = part[: match.start()] if match else part
+        if segment.strip():
+            kept.append(segment)
+    return " ".join(kept)
+
+
 def _build_deterministic_evidence(
     raw_text: str,
     company_text: str | None,
@@ -458,21 +627,27 @@ def _build_deterministic_evidence(
 
     # Seniority for the salary anchor — kept deliberately conservative so the
     # anchor can't inflate the LLM's estimate beyond the candidate's real band:
+    #  - Detection runs on the *current-level* text (aspired titles after "aiming
+    #    toward …" stripped), so a goal to reach Staff/Principal isn't read as the
+    #    candidate's level.
     #  - Entry markers (student/intern/trainee/junior) are high-precision and act
-    #    as a FLOOR: a lone lead/senior token in an entry CV is almost always a
-    #    project verb or an aspiration ("aspiring Principal"), not the level.
+    #    as a FLOOR: a lone lead/senior token is otherwise usually a project verb.
     #  - "lead" must be corroborated by a senior-level signal — a genuine lead
     #    reads as senior+ — so a stray title token alone only reaches "senior".
-    lead = has_seniority_lead_signal(cleaned)
-    senior = has_seniority_senior_signal(cleaned)
+    level_text = _current_level_text(cleaned)
+    lead = has_seniority_lead_signal(level_text)
+    senior = has_seniority_senior_signal(level_text)
     seniority: str | None = None
-    if has_seniority_junior_signal(cleaned):
-        seniority = "junior"
-    elif lead and senior:
+    if lead and senior:
         seniority = "lead"
     elif lead or senior:
+        # Genuine senior/lead evidence wins over an incidental entry mention — a
+        # senior who "mentored two junior engineers" is not a junior. A stray lead
+        # title (uncorroborated by a senior signal) only reaches "senior".
         seniority = "senior"
-    elif has_seniority_medior_signal(cleaned):
+    elif has_seniority_junior_signal(level_text):
+        seniority = "junior"  # entry floor: junior markers and no senior/lead signal
+    elif has_seniority_medior_signal(level_text):
         seniority = "medior"
 
     band = role_band(role_family, seniority) if seniority else None

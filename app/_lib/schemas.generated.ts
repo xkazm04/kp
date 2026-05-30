@@ -128,7 +128,8 @@ export const analysisResultSchema = z.object({
     })),
     missing: z.array(z.string()),
     overUsed: z.array(z.string())
-  }).optional()
+  }).optional(),
+  v2Profile: z.record(z.string(), z.unknown()).optional()
 });
 
 export type AnalysisResult = z.infer<typeof analysisResultSchema>;

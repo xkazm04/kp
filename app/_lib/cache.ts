@@ -10,7 +10,7 @@ import { lookupGeminiCache, storeGeminiCache } from "./db";
 // counterpart to keep in sync. (The reasoning cache has its own version that
 // DOES mirror a Python constant; that pair is guarded by
 // pipeline/jobfit/tests/test_prompt_version_sync.py.)
-export const PROMPT_VERSION = "v2-2026-05-06-pypdf-collapse";
+export const PROMPT_VERSION = "v3-2026-05-31-archetype";
 
 const TTL_HOURS = (() => {
   const raw = process.env.KP_CACHE_TTL_HOURS;

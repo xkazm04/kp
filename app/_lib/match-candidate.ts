@@ -27,7 +27,7 @@ export function resolveCandidate(body: {
   if (body.analysisSlug) {
     const loaded = loadAnalysis(body.analysisSlug);
     if (!loaded) return { error: "Analysis not found.", status: 404 };
-    const payload = loaded.payload as { candidate?: Record<string, unknown> };
+    const payload = loaded.payload as { candidate?: Record<string, unknown>; v2Profile?: { archetype?: string } };
     const c = payload?.candidate ?? {};
     return {
       candidate: {
@@ -38,6 +38,9 @@ export function resolveCandidate(body: {
         languages: (c.languages as string[]) ?? [],
         yearsExperience: (c.yearsExperience as number) ?? 0,
         traits: (c.traits as string[]) ?? [],
+        // Real archetype from the v2 profile (not silently 'bau') so a
+        // student/switcher gets the right weights + entry-eligible KO lens.
+        archetype: payload?.v2Profile?.archetype ?? "bau",
         label: loaded.row.candidate_label ?? (c.name as string) ?? "Candidate",
       },
     };
