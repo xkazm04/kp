@@ -42,8 +42,9 @@ export async function runInterviewPrep(params: Record<string, unknown>): Promise
   push(4, "Candidate questions & wrap-up", "Leave space for the candidate's questions; explain next steps and timeline.", []);
   const durationMin = cursor;
 
+  // The chronology IS the run-of-show checklist (each block is checkable in the
+  // modal), so the checklist here only carries the cross-cutting signals.
   const checklist: ChecklistGroup[] = [
-    { group: "Run of show", items: chronology.map((b) => b.topic) },
     {
       group: "Signals to confirm",
       items: [

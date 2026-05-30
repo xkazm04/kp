@@ -50,7 +50,13 @@ export function InterviewPrepModal({ entry, onClose }: { entry: SchedEntry; onCl
   };
   const generating = taskId !== null;
 
-  const totalItems = useMemo(() => (prep?.checklist ?? []).reduce((n, g) => n + g.items.length, 0), [prep]);
+  // Defensive: older artifacts carried a duplicate "Run of show" checklist group;
+  // the chronology now serves that, so only show the cross-cutting signal groups.
+  const signalGroups = (prep?.checklist ?? []).filter((g) => g.group !== "Run of show");
+  const totalItems = useMemo(
+    () => (prep ? prep.chronology.length + signalGroups.reduce((n, g) => n + g.items.length, 0) : 0),
+    [prep, signalGroups]
+  );
   const doneItems = Object.values(checked).filter(Boolean).length;
 
   return (
@@ -58,7 +64,7 @@ export function InterviewPrepModal({ entry, onClose }: { entry: SchedEntry; onCl
       title={`Interview prep · ${entry.candidateLabel}`}
       subtitle={entry.jobTitle ?? undefined}
       onClose={onClose}
-      size="2xl"
+      size="3xl"
       footer={
         prep ? (
           <button
@@ -91,60 +97,73 @@ export function InterviewPrepModal({ entry, onClose }: { entry: SchedEntry; onCl
         </div>
       ) : (
         <div className="space-y-4">
-          <p className="text-base text-ink">{prep.scenario}</p>
+          <div className="flex items-start justify-between gap-3">
+            <p className="text-base text-ink">{prep.scenario}</p>
+            <span className="shrink-0 rounded-md bg-paper px-2 py-1 text-sm font-semibold text-coral">{doneItems}/{totalItems} done</span>
+          </div>
 
+          {/* Run of show — the timed plan, checkable topic-by-topic during the interview. */}
           <section>
             <p className="flex items-center gap-1.5 text-meta uppercase tracking-wide text-steel">
               <Clock size={13} /> Run of show · {prep.durationMin} min
             </p>
             <ol className="mt-2 space-y-1.5">
-              {prep.chronology.map((b, i) => (
-                <li key={i} className="rounded-md border border-stone-200 p-2.5">
-                  <div className="flex items-baseline justify-between gap-2">
-                    <span className="text-sm font-semibold text-ink">{b.topic}</span>
-                    <span className="shrink-0 rounded bg-paper px-1.5 py-0.5 text-sm tabular-nums text-steel">{b.fromMin}–{b.toMin} min</span>
-                  </div>
-                  <p className="mt-0.5 text-sm text-steel">{b.goal}</p>
-                  {b.questions.map((q, j) => (
-                    <p key={j} className="mt-1 text-sm text-ink">“{q}”</p>
-                  ))}
-                  {b.followUp ? <p className="mt-0.5 text-sm text-steel">↳ Follow-up: {b.followUp}</p> : null}
-                </li>
-              ))}
+              {prep.chronology.map((b, i) => {
+                const key = `c-${i}`;
+                const on = Boolean(checked[key]);
+                return (
+                  <li key={key} className={`rounded-md border p-2.5 transition-colors ${on ? "border-moss/40 bg-moss/5" : "border-stone-200"}`}>
+                    <label className="flex cursor-pointer items-start gap-2.5">
+                      <input
+                        type="checkbox"
+                        checked={on}
+                        onChange={(e) => setChecked((s) => ({ ...s, [key]: e.target.checked }))}
+                        className="mt-0.5 h-4 w-4 shrink-0 accent-coral"
+                      />
+                      <span className="min-w-0 flex-1">
+                        <span className="flex items-baseline justify-between gap-2">
+                          <span className={`text-sm font-semibold ${on ? "text-steel line-through" : "text-ink"}`}>{b.topic}</span>
+                          <span className="shrink-0 rounded bg-paper px-1.5 py-0.5 text-sm tabular-nums text-steel">{b.fromMin}–{b.toMin} min</span>
+                        </span>
+                        <span className="mt-0.5 block text-sm text-steel">{b.goal}</span>
+                        {b.questions.map((q, j) => (
+                          <span key={j} className="mt-1 block text-sm text-ink">“{q}”</span>
+                        ))}
+                        {b.followUp ? <span className="mt-0.5 block text-sm text-steel">↳ Follow-up: {b.followUp}</span> : null}
+                      </span>
+                    </label>
+                  </li>
+                );
+              })}
             </ol>
           </section>
 
-          <section>
-            <p className="flex items-center justify-between text-meta uppercase tracking-wide text-steel">
-              <span className="flex items-center gap-1.5"><ListChecks size={13} /> Live checklist</span>
-              <span className="text-coral">{doneItems}/{totalItems}</span>
-            </p>
-            <div className="mt-2 space-y-2">
-              {prep.checklist.map((g, gi) => (
-                <div key={gi}>
-                  <p className="text-sm font-semibold text-ink">{g.group}</p>
-                  <ul className="mt-1 space-y-1">
-                    {g.items.map((it, ii) => {
-                      const key = `${gi}-${ii}`;
-                      return (
-                        <li key={key}>
-                          <label className="flex cursor-pointer items-start gap-2 text-sm text-ink">
-                            <input
-                              type="checkbox"
-                              checked={Boolean(checked[key])}
-                              onChange={(e) => setChecked((s) => ({ ...s, [key]: e.target.checked }))}
-                              className="mt-0.5 h-4 w-4 shrink-0 accent-coral"
-                            />
-                            <span className={checked[key] ? "text-steel line-through" : ""}>{it}</span>
-                          </label>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </div>
-              ))}
-            </div>
-          </section>
+          {/* Cross-cutting signals to confirm. */}
+          {signalGroups.map((g, gi) => (
+            <section key={gi}>
+              <p className="flex items-center gap-1.5 text-meta uppercase tracking-wide text-steel">
+                <ListChecks size={13} /> {g.group}
+              </p>
+              <ul className="mt-1.5 space-y-1">
+                {g.items.map((it, ii) => {
+                  const key = `k-${gi}-${ii}`;
+                  return (
+                    <li key={key}>
+                      <label className="flex cursor-pointer items-start gap-2 text-sm text-ink">
+                        <input
+                          type="checkbox"
+                          checked={Boolean(checked[key])}
+                          onChange={(e) => setChecked((s) => ({ ...s, [key]: e.target.checked }))}
+                          className="mt-0.5 h-4 w-4 shrink-0 accent-coral"
+                        />
+                        <span className={checked[key] ? "text-steel line-through" : ""}>{it}</span>
+                      </label>
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
+          ))}
         </div>
       )}
     </Modal>

@@ -82,7 +82,10 @@ export function spawnPython(
 } {
   const child = spawn(PYTHON_CMD, args, {
     cwd: process.cwd(),
-    env: process.env,
+    // Force UTF-8 for the child's stdio + subprocess I/O so Czech diacritics
+    // survive on Windows (whose default locale is cp1250). PYTHONUTF8=1 also
+    // makes any nested subprocess.run(text=True) default to UTF-8.
+    env: { ...process.env, PYTHONUTF8: "1", PYTHONIOENCODING: "utf-8" },
     windowsHide: true,
   });
   // Keep streams in Buffer mode so the streaming route can attach its own
