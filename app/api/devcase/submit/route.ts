@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getPostingByToken } from "@/app/_lib/db";
+import { getPostingByToken, lifecycleByPosting } from "@/app/_lib/db";
 import { receiveSubmission } from "@/app/_lib/distribution";
+import { startTask } from "@/app/_lib/tasks";
 
 export const runtime = "nodejs";
 
@@ -21,6 +22,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "candidateRef and repoRef are required." }, { status: 400 });
     }
     const submission = receiveSubmission({ postingId, candidateRef: body.candidateRef, repoRef: body.repoRef, notes: body.notes });
+
+    // Event trigger: if an automated lifecycle is collecting for this posting, resume it
+    // (evaluate the new submission -> rank -> promote). Dedup'd, so concurrent arrivals coalesce.
+    const lc = lifecycleByPosting(postingId);
+    if (lc && lc.stage === "collecting") {
+      startTask("lifecycle", { lifecycleId: lc.id, title: lc.title });
+    }
+
     return NextResponse.json({ ok: true, submission });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Submit failed." }, { status: 500 });

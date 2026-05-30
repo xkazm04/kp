@@ -1,6 +1,14 @@
 import { writeFile } from "node:fs/promises";
 import path from "node:path";
-import { getDevCase, getPosting, getSubmission, saveSubmissionEvaluation } from "./db";
+import {
+  createPipelineEntry,
+  getDevCase,
+  getPosting,
+  getSubmission,
+  recordAutomationEvent,
+  saveSubmissionEvaluation,
+  setApproval,
+} from "./db";
 import { cleanupWorkdir, createWorkdir, parseStderrError, spawnPython } from "./python-runner";
 import { buildRepoSnapshot, fetchRepoSignals, type RepoSnapshot } from "./repo-snapshot";
 
@@ -193,4 +201,42 @@ export async function runEvaluateSubmission(submissionId: string): Promise<Submi
   } finally {
     await cleanupWorkdir(workdir);
   }
+}
+
+// Bridge an evaluated submission into the pipeline + a Decisions screening_review card.
+// Shared by /api/devcase/promote and the lifecycle orchestrator. Returns the entry id, or
+// null if the submission isn't evaluated yet.
+export function promoteSubmission(submissionId: string): string | null {
+  const sub = getSubmission(submissionId);
+  if (!sub || !sub.evaluation) return null;
+  const bundle = sub.evaluation as { evaluation?: Record<string, unknown>; transfer?: Record<string, unknown> };
+  const evaluation = bundle.evaluation ?? {};
+  const transfer = bundle.transfer ?? {};
+  const score = sub.transferScore ?? Number(transfer.transferScore ?? 0);
+  const posting = sub.postingId ? getPosting(sub.postingId) : null;
+
+  const { entry } = createPipelineEntry({
+    candidateId: `ds-${sub.id}`,
+    candidateLabel: sub.candidateRef ?? "Candidate",
+    archetype: "bau",
+    roleFamily: "software_engineering",
+    jobId: `dc-${posting?.caseId ?? "case"}`,
+    jobTitle: posting?.roleTitle ?? "Dev case",
+    matchScore: score,
+    stage: "AI-matched",
+  });
+  const recommendation = score >= 70 ? "advance" : "hold";
+  setApproval(
+    entry.id,
+    "screening_review",
+    JSON.stringify({
+      recommendation,
+      confidence: score,
+      rationale: `${String(evaluation.summary ?? "")} ${String(transfer.roleFitRationale ?? "")}`.trim() || "Dev-case evaluation.",
+      strengths: (evaluation.strengths as string[]) ?? [],
+      redFlags: (evaluation.concerns as string[]) ?? [],
+    })
+  );
+  recordAutomationEvent(entry.id, "screening_hold", "promoted from dev case");
+  return entry.id;
 }

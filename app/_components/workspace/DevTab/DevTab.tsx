@@ -50,6 +50,29 @@ type Posting = {
   submissionCount?: number;
   submissions?: Submission[];
 };
+type Lifecycle = {
+  id: string;
+  title: string | null;
+  stage: string;
+  auto: boolean;
+  detail: string | null;
+  caseId: string | null;
+  postingId: string | null;
+  createdAt: string;
+};
+
+const LIFECYCLE_STEPS = ["intake", "analyzed", "designed", "approved", "collecting", "ranked", "promoted"];
+const STAGE_LABEL: Record<string, string> = {
+  intake: "intake",
+  analyzed: "analyzed",
+  designed: "designed",
+  awaiting_approval: "needs approval",
+  approved: "approved",
+  published: "published",
+  collecting: "collecting",
+  ranked: "ranked",
+  promoted: "promoted",
+};
 
 const COMPLEXITY: Record<string, string> = {
   low: "bg-moss/15 text-moss",
@@ -70,6 +93,7 @@ export function DevTab() {
   const [approvedId, setApprovedId] = useState<string | null>(null);
   const [approvedCases, setApprovedCases] = useState<ApprovedCase[]>([]);
   const [postings, setPostings] = useState<Posting[]>([]);
+  const [lifecycles, setLifecycles] = useState<Lifecycle[]>([]);
 
   const loadCases = () =>
     fetch("/api/devcase")
@@ -81,10 +105,48 @@ export function DevTab() {
       .then((r) => r.json())
       .then((p) => setPostings((p.postings as Posting[]) ?? []))
       .catch(() => {});
+  const loadLifecycles = () =>
+    fetch("/api/devcase/lifecycle")
+      .then((r) => r.json())
+      .then((p) => setLifecycles((p.lifecycles as Lifecycle[]) ?? []))
+      .catch(() => {});
   useEffect(() => {
     loadCases();
     loadPostings();
+    loadLifecycles();
   }, []);
+
+  // Reload orchestration state as background tasks progress (lifecycle/evaluate update it).
+  const lifecycleActive = tasks.some((t) => t.kind === "lifecycle" && (t.status === "running" || t.status === "queued"));
+  useEffect(() => {
+    loadLifecycles();
+    loadPostings();
+    loadCases();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tasks]);
+
+  const buildNeed = () => ({
+    title: title.trim() || "Untitled role",
+    stack: stackStr.split(",").map((s) => s.trim()).filter(Boolean),
+    responsibilities: respStr.split("\n").map((s) => s.trim()).filter(Boolean),
+    codebaseRefs: repoUrl.trim() ? [{ kind: "github", ref: repoUrl.trim() }] : [],
+    seniorityTarget: seniority,
+    roleFamily: "software_engineering",
+  });
+
+  const runLifecycle = async () => {
+    await fetch("/api/devcase/lifecycle", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ need: buildNeed(), auto: true }),
+    });
+    loadLifecycles();
+  };
+
+  const approveLifecycle = async (id: string) => {
+    await fetch(`/api/devcase/lifecycle/${id}/approve`, { method: "POST" });
+    loadLifecycles();
+  };
 
   const publish = async (caseId: string) => {
     await fetch("/api/devcase/publish", {
@@ -117,15 +179,7 @@ export function DevTab() {
   };
 
   const submit = async () => {
-    const need = {
-      title: title.trim() || "Untitled role",
-      stack: stackStr.split(",").map((s) => s.trim()).filter(Boolean),
-      responsibilities: respStr.split("\n").map((s) => s.trim()).filter(Boolean),
-      codebaseRefs: repoUrl.trim() ? [{ kind: "github", ref: repoUrl.trim() }] : [],
-      seniorityTarget: seniority,
-      roleFamily: "software_engineering",
-    };
-    const t = await startTask("need_analysis", { need });
+    const t = await startTask("need_analysis", { need: buildNeed() });
     if (t) selectNeed(t.id);
   };
 
@@ -194,10 +248,20 @@ export function DevTab() {
               ))}
             </select>
           </Field>
+          <button
+            type="button"
+            onClick={runLifecycle}
+            disabled={lifecycleActive}
+            title="Automated lifecycle: analyze → design → policy gate → publish → (on submissions) evaluate → rank → promote to Decisions"
+            className="focus-ring inline-flex h-10 w-full items-center justify-center gap-1.5 rounded-md bg-coral text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
+          >
+            {lifecycleActive ? <Loader2 size={15} className="animate-spin" /> : <Sparkles size={15} />}
+            {lifecycleActive ? "Lifecycle running…" : "▶ Run automated lifecycle"}
+          </button>
           <button type="button" onClick={submit} disabled={running}
-            className="focus-ring inline-flex h-10 w-full items-center justify-center gap-1.5 rounded-md bg-ink text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50">
-            {running ? <Loader2 size={15} className="animate-spin" /> : <Sparkles size={15} />}
-            {running ? "Reflecting against the codebase…" : "Analyze need"}
+            className="focus-ring inline-flex h-9 w-full items-center justify-center gap-1.5 rounded-md border border-stone-200 bg-white text-sm font-semibold text-ink hover:border-coral/40 disabled:opacity-50">
+            {running ? <Loader2 size={14} className="animate-spin" /> : null}
+            {running ? "Reflecting…" : "Analyze need only"}
           </button>
 
           {needTasks.length > 0 ? (
@@ -386,6 +450,23 @@ export function DevTab() {
           )}
         </section>
       </div>
+
+      {lifecycles.length > 0 ? (
+        <section>
+          <h3 className="flex items-center gap-1.5 text-meta uppercase tracking-wide text-steel">
+            <Sparkles size={13} className="text-coral" /> Automated lifecycle <span className="text-coral">· {lifecycles.length}</span>
+          </h3>
+          <p className="mt-1 text-[11px] text-steel">
+            Each case advances under policy — auto-approving clean designs, routing flagged ones to you, publishing, and
+            (as submissions arrive) evaluating → ranking → promoting the top candidates into Decisions. No manual steps between.
+          </p>
+          <div className="mt-3 space-y-2">
+            {lifecycles.map((lc) => (
+              <LifecycleRow key={lc.id} lc={lc} onApprove={() => approveLifecycle(lc.id)} />
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       {approvedCases.length > 0 ? (
         <section>
@@ -631,6 +712,45 @@ function MiniList({ title, items }: { title: string; items: string[] }) {
         ))}
         {items.length === 0 ? <li className="text-[11px] text-steel">—</li> : null}
       </ul>
+    </div>
+  );
+}
+
+function LifecycleRow({ lc, onApprove }: { lc: Lifecycle; onApprove: () => void }) {
+  const mapped = lc.stage === "awaiting_approval" ? "designed" : lc.stage === "published" ? "collecting" : lc.stage;
+  const idx = LIFECYCLE_STEPS.indexOf(mapped);
+  const awaiting = lc.stage === "awaiting_approval";
+  const done = lc.stage === "promoted";
+  return (
+    <div className="rounded-lg border border-stone-200 bg-white p-3 shadow-panel">
+      <div className="flex items-center gap-2">
+        <span className="min-w-0 flex-1 truncate text-sm font-semibold text-ink">{lc.title || "Role"}</span>
+        <span
+          className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase ${
+            awaiting ? "bg-amber-100 text-amber-700" : done ? "bg-moss/15 text-moss" : "bg-paper text-steel"
+          }`}
+        >
+          {STAGE_LABEL[lc.stage] ?? lc.stage}
+        </span>
+        {awaiting ? (
+          <button
+            type="button"
+            onClick={onApprove}
+            className="focus-ring inline-flex h-7 shrink-0 items-center gap-1 rounded-md bg-moss px-2.5 text-[11px] font-semibold text-white hover:opacity-90"
+          >
+            <ShieldCheck size={12} /> Approve
+          </button>
+        ) : null}
+      </div>
+      <div className="mt-2 flex items-center">
+        {LIFECYCLE_STEPS.map((s, i) => (
+          <div key={s} className={`flex items-center ${i < LIFECYCLE_STEPS.length - 1 ? "flex-1" : ""}`}>
+            <span className={`h-2 w-2 shrink-0 rounded-full ${i <= idx ? "bg-coral" : "bg-stone-200"}`} title={s} />
+            {i < LIFECYCLE_STEPS.length - 1 ? <span className={`h-0.5 flex-1 ${i < idx ? "bg-coral/40" : "bg-stone-200"}`} /> : null}
+          </div>
+        ))}
+      </div>
+      <p className="mt-1.5 text-[11px] text-steel">{lc.detail}</p>
     </div>
   );
 }

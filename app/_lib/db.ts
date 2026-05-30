@@ -183,6 +183,25 @@ function ensureDb(): Database.Database {
 
     CREATE INDEX IF NOT EXISTS idx_dev_postings_created ON dev_postings (created_at DESC);
     CREATE INDEX IF NOT EXISTS idx_dev_submissions_posting ON dev_submissions (posting_id);
+
+    CREATE TABLE IF NOT EXISTS dev_lifecycle (
+      id TEXT PRIMARY KEY,
+      title TEXT,
+      stage TEXT NOT NULL,
+      auto INTEGER DEFAULT 1,
+      need_json TEXT,
+      analysis_json TEXT,
+      role_json TEXT,
+      case_json TEXT,
+      case_id TEXT,
+      posting_id TEXT,
+      detail TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_dev_lifecycle_created ON dev_lifecycle (created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_dev_lifecycle_posting ON dev_lifecycle (posting_id);
   `);
   // Migration for DBs created before the observability columns existed.
   for (const col of ["created_at", "stage_changed_at"]) {
@@ -1306,6 +1325,90 @@ export function getDevCase(id: string): DevCaseRecord | null {
   const db = ensureDb();
   const r = db.prepare(`SELECT * FROM dev_cases WHERE id = ?`).get(id) as DevCaseRow | undefined;
   return r ? rowToDevCase(r) : null;
+}
+
+// ---- Dev extension — lifecycle orchestration state (Direction A) -----------
+
+export type LifecycleRecord = {
+  id: string;
+  title: string | null;
+  stage: string;
+  auto: boolean;
+  need: unknown;
+  analysis: unknown;
+  role: unknown;
+  case: unknown;
+  caseId: string | null;
+  postingId: string | null;
+  detail: string | null;
+  createdAt: string;
+  updatedAt: string | null;
+};
+
+function rowToLifecycle(r: Record<string, unknown>): LifecycleRecord {
+  return {
+    id: r.id as string,
+    title: (r.title as string) ?? null,
+    stage: r.stage as string,
+    auto: Number(r.auto ?? 1) === 1,
+    need: parseJson((r.need_json as string) ?? null),
+    analysis: parseJson((r.analysis_json as string) ?? null),
+    role: parseJson((r.role_json as string) ?? null),
+    case: parseJson((r.case_json as string) ?? null),
+    caseId: (r.case_id as string) ?? null,
+    postingId: (r.posting_id as string) ?? null,
+    detail: (r.detail as string) ?? null,
+    createdAt: r.created_at as string,
+    updatedAt: (r.updated_at as string) ?? null,
+  };
+}
+
+export function createLifecycle(need: { title?: string } & Record<string, unknown>, auto: boolean): LifecycleRecord {
+  const db = ensureDb();
+  const now = new Date().toISOString();
+  const id = `lc-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+  db.prepare(
+    `INSERT INTO dev_lifecycle (id, title, stage, auto, need_json, detail, created_at, updated_at)
+     VALUES (?, ?, 'intake', ?, ?, 'created', ?, ?)`
+  ).run(id, need.title ?? "Untitled role", auto ? 1 : 0, JSON.stringify(need), now, now);
+  return getLifecycle(id)!;
+}
+
+export function getLifecycle(id: string): LifecycleRecord | null {
+  const db = ensureDb();
+  const r = db.prepare(`SELECT * FROM dev_lifecycle WHERE id = ?`).get(id) as Record<string, unknown> | undefined;
+  return r ? rowToLifecycle(r) : null;
+}
+
+export function listLifecycles(limit = 50): LifecycleRecord[] {
+  const db = ensureDb();
+  const rows = db.prepare(`SELECT * FROM dev_lifecycle ORDER BY created_at DESC LIMIT ?`).all(limit) as Array<Record<string, unknown>>;
+  return rows.map(rowToLifecycle);
+}
+
+export function lifecycleByPosting(postingId: string): LifecycleRecord | null {
+  const db = ensureDb();
+  const r = db.prepare(`SELECT * FROM dev_lifecycle WHERE posting_id = ? LIMIT 1`).get(postingId) as Record<string, unknown> | undefined;
+  return r ? rowToLifecycle(r) : null;
+}
+
+/** Patch a lifecycle record (stage + any artifact columns) and stamp updated_at. */
+export function updateLifecycle(
+  id: string,
+  patch: { stage?: string; analysis?: unknown; role?: unknown; case?: unknown; caseId?: string; postingId?: string; detail?: string }
+): void {
+  const db = ensureDb();
+  const sets: string[] = ["updated_at = ?"];
+  const vals: unknown[] = [new Date().toISOString()];
+  if (patch.stage !== undefined) (sets.push("stage = ?"), vals.push(patch.stage));
+  if (patch.analysis !== undefined) (sets.push("analysis_json = ?"), vals.push(JSON.stringify(patch.analysis)));
+  if (patch.role !== undefined) (sets.push("role_json = ?"), vals.push(JSON.stringify(patch.role)));
+  if (patch.case !== undefined) (sets.push("case_json = ?"), vals.push(JSON.stringify(patch.case)));
+  if (patch.caseId !== undefined) (sets.push("case_id = ?"), vals.push(patch.caseId));
+  if (patch.postingId !== undefined) (sets.push("posting_id = ?"), vals.push(patch.postingId));
+  if (patch.detail !== undefined) (sets.push("detail = ?"), vals.push(patch.detail));
+  vals.push(id);
+  db.prepare(`UPDATE dev_lifecycle SET ${sets.join(", ")} WHERE id = ?`).run(...vals);
 }
 
 // ---- Dev extension — distribution: postings (OUT) + submissions (IN) (D4) -

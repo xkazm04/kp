@@ -13,6 +13,7 @@ import { runAutomationTask } from "./automation-run";
 import { runReasoning } from "./reasoning-run";
 import { runAnalyze, type AnalyzeParams } from "./analyze-run";
 import { runCommitReflection, runDesignArtifacts, runEvaluateSubmission, runNeedAnalysis, type DevNeed } from "./devcase-run";
+import { runLifecycle } from "./devcase-orchestrator";
 
 // ---------------------------------------------------------------------------
 // In-process background-task runner. Works because `next dev` is one long-lived
@@ -100,6 +101,11 @@ const HANDLERS: Record<string, Spec> = {
     run: (ctx) => runEvaluateSubmission(String(ctx.params.submissionId)),
     label: (p) => `Evaluate · ${p.candidateRef ?? p.submissionId ?? ""}`,
     dedupe: (p) => `evaluate_submission:${p.submissionId}`,
+  },
+  lifecycle: {
+    run: (ctx) => runLifecycle(String(ctx.params.lifecycleId), ctx.progress),
+    label: (p) => `Lifecycle · ${p.title ?? p.lifecycleId ?? ""}`,
+    dedupe: (p) => `lifecycle:${p.lifecycleId}`, // one run per case; a re-trigger resumes when idle
   },
 };
 
