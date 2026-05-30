@@ -16,7 +16,7 @@ export function AnalyzeSavedJdPicker({
 }) {
   if (jds.length === 0) {
     return (
-      <p className="rounded-md border border-dashed border-stone-300 bg-white p-2 text-[11px] text-steel">
+      <p className="rounded-md border border-dashed border-stone-300 bg-white p-2 text-sm text-steel">
         No JDs saved.{" "}
         <Link
           href="/?tab=library"
@@ -33,7 +33,7 @@ export function AnalyzeSavedJdPicker({
       <div className="flex items-center justify-between gap-2">
         <label
           htmlFor="saved-jd-picker"
-          className="text-[11px] font-semibold uppercase tracking-wide text-steel"
+          className="text-sm font-semibold uppercase tracking-wide text-steel"
         >
           From library
         </label>
@@ -41,7 +41,7 @@ export function AnalyzeSavedJdPicker({
           <button
             type="button"
             onClick={onClear}
-            className="text-[11px] font-medium text-coral underline-offset-2 hover:underline"
+            className="text-sm font-medium text-coral underline-offset-2 hover:underline"
           >
             Detach
           </button>
@@ -59,7 +59,7 @@ export function AnalyzeSavedJdPicker({
           const jd = jds.find((entry) => entry.slug === slug);
           if (jd) onPick(jd);
         }}
-        className="focus-ring mt-1 h-9 w-full rounded-md border border-stone-300 bg-white px-2 text-xs text-ink"
+        className="focus-ring mt-1 h-9 w-full rounded-md border border-stone-300 bg-white px-2 text-sm text-ink"
       >
         <option value="">Pick a saved JD…</option>
         {jds.map((jd) => (

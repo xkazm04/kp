@@ -25,7 +25,7 @@ export function AnalyzePasteRow({
     <div className="space-y-1.5">
       <label
         htmlFor={inputId}
-        className="block text-[11px] font-semibold uppercase tracking-wide text-steel"
+        className="block text-sm font-semibold uppercase tracking-wide text-steel"
       >
         Paste content
       </label>
@@ -41,20 +41,20 @@ export function AnalyzePasteRow({
         // by the editable preview card below.
         className={
           showTextarea
-            ? "focus-ring h-24 w-full resize-y rounded-md border border-stone-300 bg-white px-3 py-2 text-xs text-ink"
+            ? "focus-ring h-24 w-full resize-y rounded-md border border-stone-300 bg-white px-3 py-2 text-sm text-ink"
             : "sr-only"
         }
       />
       {hasContent && !isEditing ? (
         <div className="rounded-md border border-stone-200 bg-paper px-2 py-1.5">
-          <p className="line-clamp-2 whitespace-pre-wrap text-[11px] text-ink">{text.trim()}</p>
+          <p className="line-clamp-2 whitespace-pre-wrap text-sm text-ink">{text.trim()}</p>
           <div className="mt-1 flex items-center justify-between">
-            <span className="text-[10px] text-steel">{text.trim().length} chars</span>
+            <span className="text-sm text-steel">{text.trim().length} chars</span>
             <div className="flex items-center gap-1">
               <button
                 type="button"
                 onClick={() => setIsEditing(true)}
-                className="focus-ring inline-flex h-6 items-center gap-1 rounded-md px-1.5 text-[10px] font-semibold text-ink hover:bg-stone-100"
+                className="focus-ring inline-flex h-6 items-center gap-1 rounded-md px-1.5 text-sm font-semibold text-ink hover:bg-stone-100"
               >
                 <Pencil className="h-3 w-3" aria-hidden /> Edit
               </button>

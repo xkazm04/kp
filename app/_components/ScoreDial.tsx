@@ -123,7 +123,7 @@ export function ScoreDial({ score }: ScoreDialProps) {
         <div className="text-5xl font-semibold leading-none tabular-nums text-ink">
           {displayed}
         </div>
-        <div className="mt-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-steel">
+        <div className="mt-2 text-sm font-semibold uppercase tracking-[0.18em] text-steel">
           {activeBand.label}
         </div>
       </div>

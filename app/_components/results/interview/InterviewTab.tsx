@@ -40,7 +40,7 @@ export function InterviewTab({ analysis }: { analysis: Analysis }) {
     return (
       <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
         <h3 className="font-serif text-h3 text-ink">Mock Interview</h3>
-        <p className="mt-3 text-sm leading-6 text-steel">
+        <p className="mt-3 text-base leading-6 text-steel">
           Attach a job description so we can generate questions tied to your specific evidence gaps and a STAR scaffold for each.
         </p>
       </div>
@@ -60,8 +60,8 @@ export function InterviewTab({ analysis }: { analysis: Analysis }) {
               <MessagesSquare className="h-5 w-5 text-coral" aria-hidden />
               <h3 className="font-serif text-h3 text-ink">Mock Interview</h3>
             </div>
-            <p className="mt-2 text-sm leading-6 text-ink">{summary}</p>
-            <p className="mt-1 text-xs leading-5 text-steel">
+            <p className="mt-2 text-base leading-6 text-ink">{summary}</p>
+            <p className="mt-1 text-sm leading-5 text-steel">
               Every question is tied to a specific evidence gap from this job description, with a STAR scaffold drawn from your profile.
             </p>
           </div>
@@ -69,7 +69,7 @@ export function InterviewTab({ analysis }: { analysis: Analysis }) {
             {BUCKET_ORDER.map((key) => {
               const meta = BUCKET_META[key];
               return (
-                <div key={key} className={`rounded-md border px-3 py-2 text-xs font-medium ${meta.tone}`}>
+                <div key={key} className={`rounded-md border px-3 py-2 text-sm font-medium ${meta.tone}`}>
                   <div className="text-lg font-semibold">{counts[key] ?? 0}</div>
                   <div className="mt-0.5 leading-tight">{meta.label}</div>
                 </div>
@@ -79,7 +79,7 @@ export function InterviewTab({ analysis }: { analysis: Analysis }) {
         </div>
 
         <div className="mt-4 flex flex-wrap items-center gap-2">
-          <span className="inline-flex items-center gap-1 text-xs font-medium uppercase tracking-wide text-steel">
+          <span className="inline-flex items-center gap-1 text-sm font-medium uppercase tracking-wide text-steel">
             <Filter className="h-3.5 w-3.5" aria-hidden />
             Filter
           </span>
@@ -116,15 +116,15 @@ function QuestionCard({ question, index }: { question: InterviewQuestion; index:
     <article className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-2">
-          <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide ${chip}`}>
+          <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-sm font-semibold uppercase tracking-wide ${chip}`}>
             <Icon className="h-3 w-3" aria-hidden />
             {label}
           </span>
-          <span className="text-xs font-medium text-steel">Q{index + 1}</span>
+          <span className="text-sm font-medium text-steel">Q{index + 1}</span>
         </div>
       </div>
-      <p className="mt-3 text-sm font-semibold leading-6 text-ink">{question.question}</p>
-      <div className={`mt-3 rounded-md border px-3 py-2 text-xs leading-5 ${tone}`}>
+      <p className="mt-3 text-base font-semibold leading-6 text-ink">{question.question}</p>
+      <div className={`mt-3 rounded-md border px-3 py-2 text-sm leading-5 ${tone}`}>
         <span className="font-semibold uppercase tracking-wide">Tied to:</span> {question.evidenceGap}
       </div>
       <dl className="mt-4 space-y-3">
@@ -143,12 +143,12 @@ function ScaffoldRow({ label, title, body }: { label: string; title: string; bod
   }
   return (
     <div className="flex gap-3">
-      <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-ink text-[11px] font-bold text-white">
+      <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-ink text-sm font-bold text-white">
         {label}
       </div>
       <div className="min-w-0">
-        <p className="text-xs font-semibold uppercase tracking-wide text-steel">{title}</p>
-        <p className="mt-0.5 text-sm leading-6 text-ink">{body}</p>
+        <p className="text-sm font-semibold uppercase tracking-wide text-steel">{title}</p>
+        <p className="mt-0.5 text-base leading-6 text-ink">{body}</p>
       </div>
     </div>
   );
@@ -170,7 +170,7 @@ function FilterButton({
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className={`focus-ring inline-flex h-7 items-center rounded-full px-3 text-xs font-medium transition-colors ${
+      className={`focus-ring inline-flex h-7 items-center rounded-full px-3 text-sm font-medium transition-colors ${
         active
           ? "bg-ink text-white"
           : disabled

@@ -111,7 +111,7 @@ export function PipelineTab() {
               type="button"
               onClick={() => startTask("batch_screen")}
               disabled={!!batch}
-              className="focus-ring inline-flex h-9 items-center gap-1.5 rounded-md border border-coral/40 bg-coral/5 px-3 text-sm font-semibold text-coral hover:bg-coral/10 disabled:opacity-60"
+              className="focus-ring inline-flex h-9 items-center gap-1.5 rounded-md border border-coral/40 bg-coral/5 px-3 text-base font-semibold text-coral hover:bg-coral/10 disabled:opacity-60"
               title="Background LLM task: screen every AI-matched candidate (runs for minutes; keeps going as you navigate; survives refresh)"
             >
               <Sparkles size={14} />
@@ -121,20 +121,20 @@ export function PipelineTab() {
               type="button"
               onClick={runPass}
               disabled={running}
-              className="focus-ring inline-flex h-9 items-center gap-1.5 rounded-md bg-ink px-3 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
+              className="focus-ring inline-flex h-9 items-center gap-1.5 rounded-md bg-ink px-3 text-base font-semibold text-white hover:opacity-90 disabled:opacity-50"
               title="Deterministic policy pass: auto-advance strong BAU matches, hold early-career for a human, flag aging"
             >
               {running ? "Running pass…" : "▷ Run automation pass"}
             </button>
           </div>
-          <span className="rounded-md border border-stone-200 bg-paper px-2.5 py-1 text-xs text-steel">
+          <span className="rounded-md border border-stone-200 bg-paper px-2.5 py-1 text-sm text-steel">
             Seeded demo pipeline · {(entries ?? []).length} candidates
           </span>
         </div>
       </header>
 
       {passSummary ? (
-        <div className="animate-fade-in rounded-md border border-moss/30 bg-moss/5 px-4 py-2 text-sm text-ink">
+        <div className="animate-fade-in rounded-md border border-moss/30 bg-moss/5 px-4 py-2 text-base text-ink">
           Automation pass · <span className="font-semibold text-moss">{passSummary.advanced} advanced</span> ·{" "}
           <span className="font-semibold">{passSummary.rejected} rejected</span> · {passSummary.held} held for review ·{" "}
           {passSummary.alerts} aging alerts logged.{" "}
@@ -143,11 +143,11 @@ export function PipelineTab() {
       ) : null}
 
       {error ? (
-        <p className="rounded-md bg-red-50 p-3 text-sm text-red-700">{error}</p>
+        <p className="rounded-md bg-red-50 p-3 text-base text-red-700">{error}</p>
       ) : entries == null ? (
-        <p className="text-sm text-steel">Loading…</p>
+        <p className="text-base text-steel">Loading…</p>
       ) : entries.length === 0 ? (
-        <p className="rounded-lg border border-stone-200 bg-paper p-4 text-sm text-steel">
+        <p className="rounded-lg border border-stone-200 bg-paper p-4 text-base text-steel">
           No candidates in the pipeline yet. Seed the candidate population and pipeline (see the data-population
           step), or build a profile and match it.
         </p>
@@ -178,11 +178,11 @@ export function PipelineTab() {
               onClick={() => router.push(buildUrl({ tab: "decisions" }))}
               className="focus-ring flex w-full items-center justify-between rounded-lg border border-coral/30 bg-coral/5 px-4 py-3 text-left hover:bg-coral/10"
             >
-              <span className="text-sm text-ink">
+              <span className="text-base text-ink">
                 <span className="font-semibold text-coral">{approvals.length} candidates</span> need your decision —
                 advance, reject, or confirm an interview slot.
               </span>
-              <span className="text-sm font-semibold text-coral">Open Decisions →</span>
+              <span className="text-base font-semibold text-coral">Open Decisions →</span>
             </button>
           ) : null}
 
@@ -201,14 +201,14 @@ export function PipelineTab() {
               <h3 className="text-meta uppercase tracking-wide text-steel">Activity</h3>
               <ol className="divide-y divide-stone-100 rounded-lg border border-stone-200 bg-white shadow-panel">
                 {events.slice(0, 12).map((ev) => (
-                  <li key={ev.id} className="flex items-center gap-3 px-3 py-2 text-sm">
+                  <li key={ev.id} className="flex items-center gap-3 px-3 py-2 text-base">
                     <EventDot kind={ev.kind} />
                     <span className="min-w-0 flex-1 truncate text-ink">
                       <span className="font-medium">{ev.candidateLabel ?? "Candidate"}</span>{" "}
                       <span className="text-steel">{eventVerb(ev)}</span>{" "}
                       {ev.jobTitle ? <span className="text-steel">· {ev.jobTitle}</span> : null}
                     </span>
-                    <span className="shrink-0 text-[11px] text-steel">{relativeTime(ev.createdAt)}</span>
+                    <span className="shrink-0 text-sm text-steel">{relativeTime(ev.createdAt)}</span>
                   </li>
                 ))}
               </ol>

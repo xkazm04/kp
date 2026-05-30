@@ -5,7 +5,7 @@
 // history list, and JD page consistent.
 export function ScoreBadge({ score }: { score: number | null }) {
   const base =
-    "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums";
+    "inline-flex items-center rounded-full px-2 py-0.5 text-sm font-semibold tabular-nums";
 
   if (score == null) {
     return <span className={`${base} bg-steel/10 text-steel`}>—</span>;

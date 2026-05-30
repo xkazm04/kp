@@ -39,19 +39,19 @@ export function Workspace() {
     <div className="min-h-screen bg-paper md:flex">
       <a
         href="#main"
-        className="focus-ring sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-coral focus:px-3 focus:py-2 focus:text-sm focus:font-semibold focus:text-white"
+        className="focus-ring sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-coral focus:px-3 focus:py-2 focus:text-base focus:font-semibold focus:text-white"
       >
         Skip to content
       </a>
       <aside className="flex flex-col border-b border-stone-300 bg-paper md:sticky md:top-0 md:h-screen md:w-64 md:shrink-0 md:overflow-y-auto md:border-b-0 md:border-r">
         <div className="px-4 py-5">
           <div className="flex items-center gap-2.5">
-            <span className="grid h-9 w-9 place-items-center rounded-lg bg-ink font-serif text-sm font-semibold text-white">
+            <span className="grid h-9 w-9 place-items-center rounded-lg bg-ink font-serif text-base font-semibold text-white">
               KP
             </span>
             <div className="leading-tight">
               <p className="font-serif text-h3 text-ink">studio</p>
-              <p className="text-[10px] uppercase tracking-[0.12em] text-steel">talent matching</p>
+              <p className="text-sm uppercase tracking-[0.12em] text-steel">talent matching</p>
             </div>
           </div>
         </div>
@@ -60,7 +60,7 @@ export function Workspace() {
           {NAV_GROUPS.map((group, gi) => (
             <div key={group.label ?? `g${gi}`}>
               {group.label ? (
-                <p className="px-2 pb-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-steel/70">
+                <p className="px-2 pb-1 text-sm font-semibold uppercase tracking-[0.12em] text-steel/70">
                   {group.label}
                 </p>
               ) : null}
@@ -73,7 +73,7 @@ export function Workspace() {
                       type="button"
                       aria-current={isActive ? "page" : undefined}
                       onClick={() => selectTab(item.id)}
-                      className={`focus-ring flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-sm font-medium transition-colors ${navItemClass(isActive)}`}
+                      className={`focus-ring flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-base font-medium transition-colors ${navItemClass(isActive)}`}
                     >
                       <span
                         className={`h-1.5 w-1.5 rounded-full ${isActive ? "bg-coral" : "bg-stone-300"}`}
@@ -93,7 +93,7 @@ export function Workspace() {
 
       <main id="main" tabIndex={-1} className="min-w-0 flex-1 bg-white focus:outline-none">
         {/* key on the active tab so each switch replays the fade-in entrance */}
-        <div key={navActive} className="animate-fade-in mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:px-8">
+        <div key={navActive} className="animate-fade-in mx-auto max-w-[108rem] px-3 py-6 sm:px-4 lg:px-6">
           {navActive === "pipeline" ? <PipelineTab /> : null}
           {navActive === "decisions" ? <DecisionsTab /> : null}
           {navActive === "profile" ? <ProfileTab /> : null}

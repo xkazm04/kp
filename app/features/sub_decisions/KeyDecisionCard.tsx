@@ -54,7 +54,7 @@ export function KeyDecisionCard({
 
       {reasoning?.data ? (
         <div className="mt-3 rounded-md border border-stone-200 bg-paper/50 p-2.5">
-          <p className="text-sm text-ink">{reasoning.data.verdict}</p>
+          <p className="text-base text-ink">{reasoning.data.verdict}</p>
           <div className="mt-2 grid gap-2 sm:grid-cols-2">
             <MiniList title="Strengths" items={reasoning.data.strengths} tone="green" />
             <MiniList title="Gaps" items={reasoning.data.gaps} tone="red" />
@@ -65,26 +65,26 @@ export function KeyDecisionCard({
           type="button"
           onClick={explain}
           disabled={reasoning?.loading}
-          className="focus-ring mt-3 inline-flex items-center gap-1 rounded-md border border-stone-200 px-2 py-1 text-[11px] font-semibold text-coral hover:bg-paper disabled:opacity-50"
+          className="focus-ring mt-3 inline-flex items-center gap-1 rounded-md border border-stone-200 px-2 py-1 text-sm font-semibold text-coral hover:bg-paper disabled:opacity-50"
         >
           <Sparkles size={13} />
           {reasoning?.loading ? "Reading the fit…" : "Why this candidate?"}
         </button>
       )}
-      {reasoning?.error ? <p className="mt-2 text-[11px] text-red-700">{reasoning.error}</p> : null}
+      {reasoning?.error ? <p className="mt-2 text-sm text-red-700">{reasoning.error}</p> : null}
 
       <div className="mt-3 flex gap-2">
         <button
           type="button"
           onClick={onAccept}
-          className="focus-ring inline-flex h-9 flex-1 items-center justify-center gap-1 rounded-md bg-moss text-sm font-semibold text-white hover:opacity-90"
+          className="focus-ring inline-flex h-9 flex-1 items-center justify-center gap-1 rounded-md bg-moss text-base font-semibold text-white hover:opacity-90"
         >
           <Check size={16} /> Advance
         </button>
         <button
           type="button"
           onClick={onReject}
-          className="focus-ring inline-flex h-9 items-center justify-center gap-1 rounded-md border border-stone-200 px-3 text-sm font-semibold text-coral hover:bg-coral/5"
+          className="focus-ring inline-flex h-9 items-center justify-center gap-1 rounded-md border border-stone-200 px-3 text-base font-semibold text-coral hover:bg-coral/5"
         >
           <X size={16} /> Reject
         </button>

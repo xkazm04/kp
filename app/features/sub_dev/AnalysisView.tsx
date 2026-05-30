@@ -36,14 +36,14 @@ export function AnalysisView({
   return (
     <section className="min-w-0">
       {viewed == null ? (
-        <div className="rounded-lg border border-dashed border-stone-200 p-8 text-center text-sm text-steel">
+        <div className="rounded-lg border border-dashed border-stone-200 p-8 text-center text-base text-steel">
           Define a need and analyze it — the reality reflection appears here.
         </div>
       ) : running ? (
         <div className="rounded-lg border border-stone-200 bg-white p-8 text-center shadow-panel">
           <Loader2 className="mx-auto animate-spin text-coral" size={26} />
-          <p className="mt-2 text-sm font-semibold text-ink">Pulling the codebase + reflecting…</p>
-          <p className="text-xs text-steel">This runs as a background task — you can leave this tab.</p>
+          <p className="mt-2 text-base font-semibold text-ink">Pulling the codebase + reflecting…</p>
+          <p className="text-sm text-steel">This runs as a background task — you can leave this tab.</p>
         </div>
       ) : result ? (
         <div className="space-y-4">
@@ -59,7 +59,7 @@ export function AnalysisView({
                 {sourceLabel(result.source)} · conf {formatPercent(analysis.confidence ?? 0, { fraction: true })}
               </span>
             </div>
-            <p className="text-sm text-ink">{analysis.reflection}</p>
+            <p className="text-base text-ink">{analysis.reflection}</p>
             <div className="mt-3 flex flex-wrap gap-1.5">
               {(analysis.realStack ?? []).map((s) => (
                 <span key={s} className="rounded-full bg-paper px-2 py-0.5 text-micro text-ink">{s}</span>
@@ -70,7 +70,7 @@ export function AnalysisView({
                 <p className="text-micro font-semibold uppercase tracking-wide text-coral">Stated vs. real gaps</p>
                 <ul className="mt-1 space-y-0.5">
                   {(analysis.statedVsRealGaps ?? []).map((g, i) => (
-                    <li key={i} className="flex gap-1.5 text-xs text-ink"><span className="text-coral">•</span>{g}</li>
+                    <li key={i} className="flex gap-1.5 text-sm text-ink"><span className="text-coral">•</span>{g}</li>
                   ))}
                 </ul>
               </div>
@@ -104,7 +104,7 @@ export function AnalysisView({
               ) : null}
             </div>
           ) : (
-            <p className="rounded-md border border-dashed border-stone-200 p-3 text-xs text-steel">
+            <p className="rounded-md border border-dashed border-stone-200 p-3 text-sm text-steel">
               No codebase snapshot — analysis is ungrounded. Add a public GitHub URL to ground it in reality.
             </p>
           )}
@@ -112,15 +112,15 @@ export function AnalysisView({
           {/* D3 — artifact design + human gate */}
           {!design && !designing ? (
             <button type="button" onClick={startDesign}
-              className="focus-ring inline-flex h-10 items-center gap-1.5 rounded-md border border-coral/40 bg-coral/5 px-3 text-sm font-semibold text-coral hover:bg-coral/10">
+              className="focus-ring inline-flex h-10 items-center gap-1.5 rounded-md border border-coral/40 bg-coral/5 px-3 text-base font-semibold text-coral hover:bg-coral/10">
               <ClipboardList size={15} /> Design role &amp; assignment
             </button>
           ) : null}
           {designing ? (
             <div className="rounded-lg border border-stone-200 bg-white p-6 text-center shadow-panel">
               <Loader2 className="mx-auto animate-spin text-coral" size={22} />
-              <p className="mt-2 text-sm font-semibold text-ink">Designing the role + assignment…</p>
-              <p className="text-xs text-steel">Background task — leave any time.</p>
+              <p className="mt-2 text-base font-semibold text-ink">Designing the role + assignment…</p>
+              <p className="text-sm text-steel">Background task — leave any time.</p>
             </div>
           ) : null}
           {design ? (
@@ -131,7 +131,7 @@ export function AnalysisView({
                   <span className="ml-auto text-micro uppercase text-steel">{sourceLabel(design.source)}</span>
                 </div>
                 <p className="font-serif text-h3 text-ink">{design.role?.title}</p>
-                <p className="text-xs uppercase text-steel">{design.role?.seniority}</p>
+                <p className="text-sm uppercase text-steel">{design.role?.seniority}</p>
                 <div className="mt-2 grid gap-3 sm:grid-cols-2">
                   <MiniList title="Must-haves" items={design.role?.mustHaves ?? []} />
                   <MiniList title="Responsibilities" items={design.role?.responsibilities ?? []} />
@@ -145,9 +145,9 @@ export function AnalysisView({
                   <span className="ml-auto text-micro text-steel">~{design.case?.timeboxHours ?? 4}h</span>
                 </div>
                 <p className="font-semibold text-ink">{design.case?.title}</p>
-                <p className="mt-1 text-sm text-ink">{design.case?.brief}</p>
+                <p className="mt-1 text-base text-ink">{design.case?.brief}</p>
                 {(design.case?.tasks ?? []).length ? (
-                  <ol className="mt-2 list-decimal space-y-0.5 pl-4 text-xs text-ink">
+                  <ol className="mt-2 list-decimal space-y-0.5 pl-4 text-sm text-ink">
                     {(design.case?.tasks ?? []).map((t, i) => <li key={i}>{t}</li>)}
                   </ol>
                 ) : null}
@@ -180,10 +180,10 @@ export function AnalysisView({
 
                 <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-stone-100 pt-3">
                   {approvedId ? (
-                    <span className="inline-flex items-center gap-1 text-sm font-semibold text-moss"><Check size={16} /> Approved</span>
+                    <span className="inline-flex items-center gap-1 text-base font-semibold text-moss"><Check size={16} /> Approved</span>
                   ) : (
                     <button type="button" onClick={approve} disabled={approving}
-                      className="focus-ring inline-flex h-9 items-center gap-1.5 rounded-md bg-moss px-3 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50">
+                      className="focus-ring inline-flex h-9 items-center gap-1.5 rounded-md bg-moss px-3 text-base font-semibold text-white hover:opacity-90 disabled:opacity-50">
                       <ShieldCheck size={15} /> {approving ? "Approving…" : "Approve assignment"}
                     </button>
                   )}
@@ -194,7 +194,7 @@ export function AnalysisView({
           ) : null}
         </div>
       ) : (
-        <div className="rounded-lg border border-stone-200 bg-red-50 p-4 text-sm text-red-700">
+        <div className="rounded-lg border border-stone-200 bg-red-50 p-4 text-base text-red-700">
           {viewed.error ?? "Analysis did not complete."}
         </div>
       )}

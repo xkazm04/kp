@@ -51,7 +51,7 @@ function splitIntoTiers(skills: string[]): Record<Tier, string[]> {
 function MissingChip({ label, tier }: { label: string; tier: Tier }) {
   return (
     <span
-      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${TIER_CHIP_PALETTES[tier]}`}
+      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-sm font-medium ${TIER_CHIP_PALETTES[tier]}`}
     >
       <X className="h-3 w-3" aria-hidden />
       {label}
@@ -71,7 +71,7 @@ function TierBlock({ tier, skills }: { tier: Tier; skills: string[] }) {
           <span className="opacity-60">·{skills.length}</span>
         </span>
       </div>
-      <p className="text-xs leading-5 text-steel">{coachingFor(tier, skills.length)}</p>
+      <p className="text-sm leading-5 text-steel">{coachingFor(tier, skills.length)}</p>
       <div className="flex flex-wrap gap-1.5 pt-0.5">
         {skills.map((skill) => (
           <MissingChip key={skill} label={skill} tier={tier} />
@@ -91,7 +91,7 @@ export function MissingSkillsTiers({ skills }: { skills: string[] }) {
       <h4 className="text-meta uppercase text-steel">Missing Skills</h4>
 
       {skills.length === 0 ? (
-        <p className="mt-2 text-xs leading-5 text-steel">
+        <p className="mt-2 text-sm leading-5 text-steel">
           Your CV already covers the keywords this job description calls out.
         </p>
       ) : (
@@ -99,7 +99,7 @@ export function MissingSkillsTiers({ skills }: { skills: string[] }) {
           {tiers.must.length > 0 ? (
             <TierBlock tier="must" skills={tiers.must} />
           ) : (
-            <p className="text-xs leading-5 text-moss">
+            <p className="text-sm leading-5 text-moss">
               No deal-breaker gaps detected — the rest below are softer asks.
             </p>
           )}
@@ -116,7 +116,7 @@ export function MissingSkillsTiers({ skills }: { skills: string[] }) {
                 type="button"
                 onClick={() => setExpanded((v) => !v)}
                 aria-expanded={expanded}
-                className="focus-ring inline-flex items-center gap-1 rounded-md text-xs font-medium text-coral hover:underline"
+                className="focus-ring inline-flex items-center gap-1 rounded-md text-sm font-medium text-coral hover:underline"
               >
                 {expanded ? (
                   <>

@@ -19,7 +19,7 @@ export function WorkspaceTabBarLinks({ active }: { active: WorkspaceTabId }) {
               key={tab.id}
               href={tabHref(tab.id)}
               aria-current={isActive ? "page" : undefined}
-              className={`focus-ring inline-flex h-10 items-center justify-center rounded-md px-3 text-sm font-semibold transition-colors ${navItemClass(isActive)}`}
+              className={`focus-ring inline-flex h-10 items-center justify-center rounded-md px-3 text-base font-semibold transition-colors ${navItemClass(isActive)}`}
             >
               {tab.label}
             </Link>

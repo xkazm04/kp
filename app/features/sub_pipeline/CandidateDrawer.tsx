@@ -129,17 +129,17 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
         className="animate-slide-in relative flex h-full w-full max-w-md flex-col overflow-y-auto border-l border-stone-200 bg-paper shadow-2xl"
       >
         <header className="sticky top-0 z-10 flex items-start gap-3 border-b border-stone-200 bg-paper/95 p-4 backdrop-blur">
-          <span className={`grid h-11 w-11 shrink-0 place-items-center rounded-full text-sm font-semibold text-white ${a.bg}`}>{initials}</span>
+          <span className={`grid h-11 w-11 shrink-0 place-items-center rounded-full text-base font-semibold text-white ${a.bg}`}>{initials}</span>
           <div className="min-w-0 flex-1">
             <p id="drawer-title" className="truncate font-serif text-lg text-ink">{entry.candidateLabel}</p>
-            <p className="truncate text-xs text-steel">
+            <p className="truncate text-sm text-steel">
               {a.label} · {entry.jobTitle} · <span className="text-ink">{entry.stage}</span>
             </p>
           </div>
           {entry.matchScore != null ? (
             <span className="rounded-md bg-white px-2 py-1 text-center">
               <span className="block font-serif text-lg leading-none text-ink">{entry.matchScore}</span>
-              <span className="text-[9px] uppercase text-steel">match</span>
+              <span className="text-sm uppercase text-steel">match</span>
             </span>
           ) : null}
           <button type="button" onClick={onClose} className="focus-ring rounded-md p-1 text-steel hover:bg-stone-100">
@@ -152,7 +152,7 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
             <p className="flex items-center gap-1.5 text-meta uppercase tracking-wide text-coral">
               <Sparkles size={13} /> AI actions
             </p>
-            <p className="mt-1 text-[11px] text-steel">Each task runs locally through the Claude CLI, with a deterministic fallback.</p>
+            <p className="mt-1 text-sm text-steel">Each task runs locally through the Claude CLI, with a deterministic fallback.</p>
             <div className="mt-2 grid grid-cols-2 gap-2">
               {actions.map((act) => (
                 <button
@@ -160,7 +160,7 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
                   type="button"
                   onClick={() => run(act.id)}
                   disabled={busy !== null}
-                  className={`focus-ring flex items-center gap-1.5 rounded-md border px-2.5 py-2 text-xs font-semibold transition-colors disabled:opacity-50 ${
+                  className={`focus-ring flex items-center gap-1.5 rounded-md border px-2.5 py-2 text-sm font-semibold transition-colors disabled:opacity-50 ${
                     result?.task === act.id ? "border-coral bg-coral/5 text-coral" : "border-stone-200 bg-white text-ink hover:border-coral/40"
                   }`}
                 >
@@ -173,18 +173,18 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
 
           {actions.some((act) => act.id === "scorecard") ? (
             <div>
-              <label className="text-[11px] font-semibold uppercase tracking-wide text-steel">Interview notes (for scorecard)</label>
+              <label className="text-sm font-semibold uppercase tracking-wide text-steel">Interview notes (for scorecard)</label>
               <textarea
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 rows={3}
                 placeholder="Paste raw interviewer notes here, then click Synthesize scorecard."
-                className="focus-ring mt-1 w-full rounded-md border border-stone-200 bg-white p-2 text-xs text-ink"
+                className="focus-ring mt-1 w-full rounded-md border border-stone-200 bg-white p-2 text-sm text-ink"
               />
             </div>
           ) : null}
 
-          {error ? <p className="rounded-md bg-red-50 p-2.5 text-xs text-red-700">{error}</p> : null}
+          {error ? <p className="rounded-md bg-red-50 p-2.5 text-sm text-red-700">{error}</p> : null}
 
           {result ? <ResultView result={result} /> : null}
 
@@ -193,7 +193,7 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
             onClick={() => {
               if (entry.candidateId) router.push(buildUrl({ tab: "match", profile: entry.candidateId }));
             }}
-            className="focus-ring inline-flex items-center gap-1 text-xs font-semibold text-steel hover:text-coral"
+            className="focus-ring inline-flex items-center gap-1 text-sm font-semibold text-steel hover:text-coral"
           >
             <ExternalLink size={13} /> Open full match in Profile &amp; Match
           </button>

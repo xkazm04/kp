@@ -93,14 +93,14 @@ export function MatchTab() {
 
       <div className="mt-4 flex flex-wrap items-end gap-3">
         <div className="flex flex-col gap-1">
-          <span className="text-xs font-semibold uppercase tracking-wide text-steel">Source</span>
+          <span className="text-sm font-semibold uppercase tracking-wide text-steel">Source</span>
           <div className="flex gap-1">
             {(["profile", "analysis"] as const).map((s) => (
               <button
                 key={s}
                 type="button"
                 onClick={() => setSource(s)}
-                className={`rounded-md border px-3 py-1.5 text-sm ${
+                className={`rounded-md border px-3 py-1.5 text-base ${
                   source === s ? "border-ink bg-ink text-white" : "border-stone-200 text-ink hover:bg-paper"
                 }`}
               >
@@ -111,12 +111,12 @@ export function MatchTab() {
         </div>
 
         <label className="flex flex-col gap-1">
-          <span className="text-xs font-semibold uppercase tracking-wide text-steel">Candidate</span>
+          <span className="text-sm font-semibold uppercase tracking-wide text-steel">Candidate</span>
           {source === "profile" ? (
             <select
               value={selProfile}
               onChange={(e) => setSelProfile(e.target.value)}
-              className="focus-ring h-10 min-w-[280px] rounded-md border border-stone-200 bg-white px-2 text-sm text-ink"
+              className="focus-ring h-10 min-w-[280px] rounded-md border border-stone-200 bg-white px-2 text-base text-ink"
             >
               {profiles.length === 0 ? (
                 <option value="">No saved profiles — build one in Profile</option>
@@ -133,7 +133,7 @@ export function MatchTab() {
             <select
               value={selAnalysis}
               onChange={(e) => setSelAnalysis(e.target.value)}
-              className="focus-ring h-10 min-w-[280px] rounded-md border border-stone-200 bg-white px-2 text-sm text-ink"
+              className="focus-ring h-10 min-w-[280px] rounded-md border border-stone-200 bg-white px-2 text-base text-ink"
             >
               {analyses.length === 0 ? (
                 <option value="">No saved analyses — run one in Analyze</option>
@@ -152,7 +152,7 @@ export function MatchTab() {
           type="button"
           onClick={runMatch}
           disabled={loading || (source === "profile" ? !selProfile : !selAnalysis)}
-          className="focus-ring h-10 rounded-md bg-ink px-4 text-sm font-semibold text-white disabled:opacity-40"
+          className="focus-ring h-10 rounded-md bg-ink px-4 text-base font-semibold text-white disabled:opacity-40"
         >
           {loading ? "Matching…" : "Run matching"}
         </button>
@@ -160,11 +160,11 @@ export function MatchTab() {
 
       <div className="mt-5">
         {error ? (
-          <p className="rounded-md bg-red-50 p-3 text-sm text-red-700">{error}</p>
+          <p className="rounded-md bg-red-50 p-3 text-base text-red-700">{error}</p>
         ) : result ? (
           <Results result={result} matchRef={matchRef} />
         ) : (
-          <p className="rounded-md bg-paper p-4 text-sm text-steel">
+          <p className="rounded-md bg-paper p-4 text-base text-steel">
             Pick a candidate and run matching to see ranked, KO-filtered, scored jobs.
           </p>
         )}

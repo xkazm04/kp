@@ -5,7 +5,7 @@ export function upd<T>(arr: T[], i: number, patch: Partial<T>): T[] {
 export function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="rounded-lg border border-stone-200 p-3">
-      <p className="text-xs font-semibold uppercase tracking-wide text-steel">{title}</p>
+      <p className="text-sm font-semibold uppercase tracking-wide text-steel">{title}</p>
       <div className="mt-2">{children}</div>
     </div>
   );
@@ -29,16 +29,16 @@ export function Text({
   const errId = error ? `${label.replace(/\s+/g, "-").toLowerCase()}-err` : undefined;
   return (
     <label className={`flex flex-col gap-1 ${className}`}>
-      <span className="text-[11px] uppercase tracking-wide text-steel">{label}</span>
+      <span className="text-sm uppercase tracking-wide text-steel">{label}</span>
       <input
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         aria-invalid={Boolean(error)}
         aria-describedby={errId}
-        className={`focus-ring h-9 rounded-md border px-2 text-sm ${error ? "border-coral" : "border-stone-200"}`}
+        className={`focus-ring h-9 rounded-md border px-2 text-base ${error ? "border-coral" : "border-stone-200"}`}
       />
-      {error ? <span id={errId} className="text-[10px] text-coral">{error}</span> : null}
+      {error ? <span id={errId} className="text-sm text-coral">{error}</span> : null}
     </label>
   );
 }
@@ -56,11 +56,11 @@ export function Pick({
 }) {
   return (
     <label className="flex flex-col gap-1">
-      <span className="text-[11px] uppercase tracking-wide text-steel">{label}</span>
+      <span className="text-sm uppercase tracking-wide text-steel">{label}</span>
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="focus-ring h-9 rounded-md border border-stone-200 bg-white px-2 text-sm capitalize"
+        className="focus-ring h-9 rounded-md border border-stone-200 bg-white px-2 text-base capitalize"
       >
         {options.map((o) => (
           <option key={o.v} value={o.v}>
@@ -74,7 +74,7 @@ export function Pick({
 
 export function Check({ label, checked, onChange }: { label: string; checked: boolean; onChange: (v: boolean) => void }) {
   return (
-    <label className="flex items-center gap-2 text-sm text-ink">
+    <label className="flex items-center gap-2 text-base text-ink">
       <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} className="h-4 w-4 accent-coral" />
       {label}
     </label>
@@ -83,7 +83,7 @@ export function Check({ label, checked, onChange }: { label: string; checked: bo
 
 export function AddBtn({ label, onClick }: { label: string; onClick: () => void }) {
   return (
-    <button type="button" onClick={onClick} className="focus-ring mt-2 rounded-md border border-dashed border-stone-300 px-2 py-1 text-xs text-steel hover:bg-paper">
+    <button type="button" onClick={onClick} className="focus-ring mt-2 rounded-md border border-dashed border-stone-300 px-2 py-1 text-sm text-steel hover:bg-paper">
       {label}
     </button>
   );
@@ -91,7 +91,7 @@ export function AddBtn({ label, onClick }: { label: string; onClick: () => void 
 
 export function RemoveBtn({ onClick }: { onClick: () => void }) {
   return (
-    <button type="button" onClick={onClick} className="focus-ring rounded-md px-2 text-sm text-steel hover:text-red-600" aria-label="Remove">
+    <button type="button" onClick={onClick} className="focus-ring rounded-md px-2 text-base text-steel hover:text-red-600" aria-label="Remove">
       ×
     </button>
   );

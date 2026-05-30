@@ -20,11 +20,11 @@ export function AiReviewCard({ entry, onAccept, onReject }: { entry: Entry; onAc
   return (
     <article className="animate-fade-in rounded-lg border border-stone-200 bg-white p-3 shadow-panel">
       <div className="mb-1 flex items-center justify-between">
-        <span className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-coral">
+        <span className="inline-flex items-center gap-1 text-sm font-semibold uppercase tracking-wide text-coral">
           <Sparkles size={11} /> {tag}
         </span>
         {isOffer ? (
-          <span className="font-serif text-sm text-ink">
+          <span className="font-serif text-base text-ink">
             {Number(parsed?.recommended ?? 0).toLocaleString()} {parsed?.currency ?? "CZK"}
           </span>
         ) : (
@@ -34,7 +34,7 @@ export function AiReviewCard({ entry, onAccept, onReject }: { entry: Entry; onAc
       <CandidateHead entry={entry} />
 
       {parsed ? (
-        <div className="mt-2 rounded-md border border-stone-200 bg-paper/50 p-2.5 text-[11px] text-ink">
+        <div className="mt-2 rounded-md border border-stone-200 bg-paper/50 p-2.5 text-sm text-ink">
           {isOffer ? (
             <>
               <div className="h-1.5 overflow-hidden rounded-full bg-stone-200">
@@ -45,7 +45,7 @@ export function AiReviewCard({ entry, onAccept, onReject }: { entry: Entry; onAc
                   }}
                 />
               </div>
-              <p className="mt-1 text-[10px] text-steel">
+              <p className="mt-1 text-sm text-steel">
                 band {Number(parsed.salaryMin ?? 0).toLocaleString()}–{Number(parsed.salaryMax ?? 0).toLocaleString()} {parsed.currency}
               </p>
               <p className="mt-1">{parsed.rationale}</p>
@@ -84,14 +84,14 @@ export function AiReviewCard({ entry, onAccept, onReject }: { entry: Entry; onAc
         <button
           type="button"
           onClick={onAccept}
-          className="focus-ring inline-flex h-9 flex-1 items-center justify-center gap-1 rounded-md bg-moss text-sm font-semibold text-white hover:opacity-90"
+          className="focus-ring inline-flex h-9 flex-1 items-center justify-center gap-1 rounded-md bg-moss text-base font-semibold text-white hover:opacity-90"
         >
           <Check size={16} /> {acceptLabel}
         </button>
         <button
           type="button"
           onClick={onReject}
-          className="focus-ring inline-flex h-9 items-center justify-center gap-1 rounded-md border border-stone-200 px-3 text-sm font-semibold text-coral hover:bg-coral/5"
+          className="focus-ring inline-flex h-9 items-center justify-center gap-1 rounded-md border border-stone-200 px-3 text-base font-semibold text-coral hover:bg-coral/5"
         >
           <X size={16} /> Reject
         </button>

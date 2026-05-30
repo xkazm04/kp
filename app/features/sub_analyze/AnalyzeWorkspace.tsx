@@ -17,7 +17,7 @@ export function AnalyzeWorkspace({ initialMode = "new" }: { initialMode?: "new" 
             type="button"
             onClick={() => setMode(m)}
             aria-pressed={mode === m}
-            className={`focus-ring h-9 rounded-md px-4 text-sm font-semibold transition-colors ${
+            className={`focus-ring h-9 rounded-md px-4 text-base font-semibold transition-colors ${
               mode === m ? "bg-ink text-white" : "text-steel hover:bg-paper hover:text-ink"
             }`}
           >

@@ -65,11 +65,11 @@ export function LibraryJdForm({ onSaved }: { onSaved: () => void }) {
   return (
     <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
       <h3 className="font-serif text-h2 text-ink">Save a JD</h3>
-      <p className="mt-2 text-sm text-steel">
-        Stored locally in <code className="rounded bg-paper px-1 text-xs">data/kp.sqlite</code>.
+      <p className="mt-2 text-base text-steel">
+        Stored locally in <code className="rounded bg-paper px-1 text-sm">data/kp.sqlite</code>.
       </p>
 
-      <label htmlFor="jd-title" className="mt-4 block text-sm font-semibold text-ink">
+      <label htmlFor="jd-title" className="mt-4 block text-base font-semibold text-ink">
         Title
       </label>
       <input
@@ -79,10 +79,10 @@ export function LibraryJdForm({ onSaved }: { onSaved: () => void }) {
         maxLength={JD_TITLE_MAX_LENGTH}
         onChange={(event) => setTitle(event.target.value)}
         placeholder="Senior AI Automation Engineer — RetailCloud"
-        className="focus-ring mt-1 h-10 w-full rounded-md border border-stone-300 bg-white px-3 text-sm text-ink"
+        className="focus-ring mt-1 h-10 w-full rounded-md border border-stone-300 bg-white px-3 text-base text-ink"
       />
 
-      <label htmlFor="jd-body" className="mt-4 block text-sm font-semibold text-ink">
+      <label htmlFor="jd-body" className="mt-4 block text-base font-semibold text-ink">
         Body
       </label>
       <textarea
@@ -91,14 +91,14 @@ export function LibraryJdForm({ onSaved }: { onSaved: () => void }) {
         maxLength={JD_BODY_MAX_LENGTH}
         onChange={(event) => setBody(event.target.value)}
         placeholder={"Paste the full role requirements, responsibilities, seniority, skills, and salary range when available."}
-        className="focus-ring mt-1 min-h-48 w-full resize-y rounded-md border border-stone-300 bg-white p-3 text-sm leading-6 text-ink"
+        className="focus-ring mt-1 min-h-48 w-full resize-y rounded-md border border-stone-300 bg-white p-3 text-base leading-6 text-ink"
       />
-      <p className={`mt-1 text-xs ${body.length >= JD_BODY_MAX_LENGTH * 0.9 ? "text-coral" : "text-steel"}`}>
+      <p className={`mt-1 text-sm ${body.length >= JD_BODY_MAX_LENGTH * 0.9 ? "text-coral" : "text-steel"}`}>
         {body.length.toLocaleString("en-US")} / {JD_BODY_MAX_LENGTH.toLocaleString("en-US")} characters
       </p>
 
       {error ? (
-        <p className="mt-3 rounded-md bg-red-50 p-3 text-sm text-red-700">{error}</p>
+        <p className="mt-3 rounded-md bg-red-50 p-3 text-base text-red-700">{error}</p>
       ) : null}
 
       <div className="mt-4 flex items-center gap-3">
@@ -106,7 +106,7 @@ export function LibraryJdForm({ onSaved }: { onSaved: () => void }) {
           type="button"
           onClick={submit}
           disabled={submitting}
-          className="focus-ring inline-flex h-10 items-center gap-2 rounded-md bg-ink px-4 text-sm font-semibold text-white hover:bg-steel disabled:cursor-not-allowed disabled:opacity-60"
+          className="focus-ring inline-flex h-10 items-center gap-2 rounded-md bg-ink px-4 text-base font-semibold text-white hover:bg-steel disabled:cursor-not-allowed disabled:opacity-60"
         >
           {submitting ? (
             <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
@@ -116,7 +116,7 @@ export function LibraryJdForm({ onSaved }: { onSaved: () => void }) {
           {submitting ? "Saving…" : "Save JD"}
         </button>
         {saved ? (
-          <span className="animate-fade-in inline-flex items-center gap-1 text-sm font-semibold text-moss" role="status">
+          <span className="animate-fade-in inline-flex items-center gap-1 text-base font-semibold text-moss" role="status">
             <Check className="h-4 w-4" aria-hidden /> Saved
           </span>
         ) : null}

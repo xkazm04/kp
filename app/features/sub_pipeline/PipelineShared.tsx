@@ -91,7 +91,7 @@ export function Avatar({
   }`;
   // pending (coral, pulsing) takes visual priority; otherwise show an amber aging ring.
   const ring = pending ? `ring-2 ring-offset-1 ${style.ring}` : stale ? "ring-2 ring-offset-1 ring-amber-400" : "";
-  const cls = `relative inline-flex h-7 w-7 items-center justify-center rounded-full text-[10px] font-semibold text-white ${style.bg} ${ring}`;
+  const cls = `relative inline-flex h-7 w-7 items-center justify-center rounded-full text-sm font-semibold text-white ${style.bg} ${ring}`;
   const dot = pending ? (
     <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 animate-pulse rounded-full border border-white bg-coral" />
   ) : stale ? (
@@ -144,7 +144,7 @@ export function CandidateRow({
         type="button"
         onClick={onOpen}
         title={`${title} · open analyzed profile`}
-        className="focus-ring min-w-0 flex-1 truncate text-left text-sm font-medium text-ink hover:text-coral"
+        className="focus-ring min-w-0 flex-1 truncate text-left text-base font-medium text-ink hover:text-coral"
       >
         {entry.candidateLabel}
       </button>
@@ -165,7 +165,7 @@ export function CandidateRow({
 
 export function Legend() {
   return (
-    <div className="flex flex-wrap items-center gap-4 text-[11px] text-steel">
+    <div className="flex flex-wrap items-center gap-4 text-sm text-steel">
       {Object.values(ARCHETYPE_STYLE).map((s) => (
         <span key={s.label} className="inline-flex items-center gap-1.5">
           <span className={`h-3 w-3 rounded-full ${s.bg}`} />

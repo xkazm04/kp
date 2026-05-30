@@ -32,7 +32,7 @@ export function AboutTab() {
                     type="button"
                     onClick={() => setSelected(item)}
                     aria-pressed={active}
-                    className={`focus-ring w-full rounded-md px-3 py-2 text-left text-sm font-medium transition-colors ${
+                    className={`focus-ring w-full rounded-md px-3 py-2 text-left text-base font-medium transition-colors ${
                       active ? "bg-white text-ink shadow-panel" : "text-ink hover:bg-white"
                     }`}
                   >
@@ -59,10 +59,10 @@ export function AboutTab() {
           <div className="rounded-lg border border-stone-200 bg-white p-5">
             <p className="text-meta uppercase text-coral">Capability</p>
             <h3 className="mt-1 font-serif text-h2 text-ink">{selected.title}</h3>
-            <p className="mt-3 text-sm leading-6 text-ink">{selected.summary}</p>
+            <p className="mt-3 text-base leading-6 text-ink">{selected.summary}</p>
             <ul className="mt-4 space-y-3">
               {selected.details.map((detail) => (
-                <li key={detail} className="rounded-md bg-paper p-3 text-sm leading-6 text-ink">
+                <li key={detail} className="rounded-md bg-paper p-3 text-base leading-6 text-ink">
                   {detail}
                 </li>
               ))}

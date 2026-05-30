@@ -46,7 +46,7 @@ export function SalaryGauge({ minimum, maximum, midpoint, confidence }: SalaryGa
     <div className="relative pt-7 pb-6">
       {hover ? (
         <div
-          className="pointer-events-none absolute -translate-x-1/2 rounded-md bg-ink px-2 py-1 text-xs font-medium text-paper shadow"
+          className="pointer-events-none absolute -translate-x-1/2 rounded-md bg-ink px-2 py-1 text-sm font-medium text-paper shadow"
           style={{ left: hover.x, top: 0 }}
         >
           {formatCzk(hover.value)}
@@ -86,7 +86,7 @@ export function SalaryGauge({ minimum, maximum, midpoint, confidence }: SalaryGa
         />
       </div>
 
-      <div className="relative mt-1 h-4 text-[10px] font-medium uppercase tracking-wide">
+      <div className="relative mt-1 h-4 text-sm font-medium uppercase tracking-wide">
         <span
           className="absolute -translate-x-1/2 text-ink"
           style={{ left: `${midPct}%` }}

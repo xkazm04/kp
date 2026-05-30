@@ -41,14 +41,14 @@ export function AnalyzeFileDropZone({
         <div className="flex h-20 items-center gap-2 rounded-lg border border-stone-200 bg-white px-3">
           <FileText className="h-4 w-4 shrink-0 text-steel" aria-hidden />
           <div className="min-w-0 flex-1">
-            <p className="truncate text-xs font-medium text-ink" title={file.name}>
+            <p className="truncate text-sm font-medium text-ink" title={file.name}>
               {file.name}
             </p>
-            <p className="text-[10px] text-steel">{formatFileSize(file.size)}</p>
+            <p className="text-sm text-steel">{formatFileSize(file.size)}</p>
           </div>
           <label
             htmlFor={inputId}
-            className="focus-ring inline-flex h-7 cursor-pointer items-center justify-center rounded-md border border-stone-300 bg-white px-2 text-[10px] font-semibold text-ink hover:bg-stone-50"
+            className="focus-ring inline-flex h-7 cursor-pointer items-center justify-center rounded-md border border-stone-300 bg-white px-2 text-sm font-semibold text-ink hover:bg-stone-50"
             title="Replace"
           >
             Replace
@@ -108,12 +108,12 @@ export function AnalyzeFileDropZone({
         }`}
       >
         <UploadCloud className={`h-5 w-5 ${isOver ? "text-coral" : "text-steel"}`} aria-hidden />
-        <span className="mt-1 text-xs font-semibold text-ink">
+        <span className="mt-1 text-sm font-semibold text-ink">
           {isOver ? "Drop here" : "Drop file or click"}
         </span>
-        <span className="text-[10px] text-steel">{hint}</span>
+        <span className="text-sm text-steel">{hint}</span>
       </label>
-      {error ? <p className="mt-1 text-[10px] text-coral" role="alert">{error}</p> : null}
+      {error ? <p className="mt-1 text-sm text-coral" role="alert">{error}</p> : null}
       <input
         id={inputId}
         ref={inputRef}

@@ -128,7 +128,7 @@ export function JobsTab() {
             </option>
           ))}
         </Select>
-        <label className="flex items-center gap-2 rounded-md border border-stone-200 px-3 py-2 text-sm text-ink">
+        <label className="flex items-center gap-2 rounded-md border border-stone-200 px-3 py-2 text-base text-ink">
           <input
             type="checkbox"
             checked={entryOnly}
@@ -146,11 +146,11 @@ export function JobsTab() {
           value={q}
           onChange={(e) => setQ(e.target.value)}
           placeholder="Search title or company…"
-          className="focus-ring h-10 flex-1 min-w-[180px] rounded-md border border-stone-200 px-3 text-sm"
+          className="focus-ring h-10 flex-1 min-w-[180px] rounded-md border border-stone-200 px-3 text-base"
         />
       </div>
 
-      <div className="mt-3 flex flex-wrap items-center gap-3 text-sm" aria-live="polite">
+      <div className="mt-3 flex flex-wrap items-center gap-3 text-base" aria-live="polite">
         {jobs && stats ? (
           <span className="text-steel">
             Showing <span className="font-semibold tabular-nums text-ink">{jobs.length}</span> of{" "}
@@ -161,7 +161,7 @@ export function JobsTab() {
           <button
             type="button"
             onClick={clearAll}
-            className="focus-ring inline-flex items-center gap-1 rounded-full border border-coral/40 bg-coral/5 px-2.5 py-0.5 text-xs font-semibold text-coral hover:bg-coral/10"
+            className="focus-ring inline-flex items-center gap-1 rounded-full border border-coral/40 bg-coral/5 px-2.5 py-0.5 text-sm font-semibold text-coral hover:bg-coral/10"
           >
             <X size={12} aria-hidden /> Clear all
           </button>
@@ -170,7 +170,7 @@ export function JobsTab() {
 
       <div className="mt-5">
         {error ? (
-          <p className="rounded-md bg-red-50 p-3 text-sm text-red-700">{error}</p>
+          <p className="rounded-md bg-red-50 p-3 text-base text-red-700">{error}</p>
         ) : jobs == null ? (
           <JobsTableFrame>
             <JobsTableSkeleton />
@@ -179,14 +179,14 @@ export function JobsTab() {
           <div className="flex flex-col items-center gap-3 rounded-lg border border-dashed border-stone-300 bg-paper/50 px-6 py-12 text-center">
             <SearchX className="h-8 w-8 text-steel" aria-hidden />
             <div>
-              <p className="text-sm font-semibold text-ink">No roles match these filters</p>
-              <p className="mt-1 text-sm text-steel">Try widening your search or clearing the filters.</p>
+              <p className="text-base font-semibold text-ink">No roles match these filters</p>
+              <p className="mt-1 text-base text-steel">Try widening your search or clearing the filters.</p>
             </div>
             {anyFilter ? (
               <button
                 type="button"
                 onClick={clearAll}
-                className="focus-ring inline-flex items-center gap-1.5 rounded-md border border-stone-300 bg-white px-3 py-1.5 text-sm font-semibold text-ink hover:bg-stone-50"
+                className="focus-ring inline-flex items-center gap-1.5 rounded-md border border-stone-300 bg-white px-3 py-1.5 text-base font-semibold text-ink hover:bg-stone-50"
               >
                 <X size={14} aria-hidden /> Clear all filters
               </button>

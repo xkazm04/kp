@@ -94,14 +94,14 @@ export function MatrixTab() {
         </div>
         <div className="flex items-center gap-2">
           {data ? (
-            <span className="rounded-md border border-stone-200 bg-paper px-2.5 py-1 text-xs text-steel">
+            <span className="rounded-md border border-stone-200 bg-paper px-2.5 py-1 text-sm text-steel">
               {data.candidates.length} candidates × {cols.length} positions
             </span>
           ) : null}
           <button
             type="button"
             onClick={() => setSortByFit((v) => !v)}
-            className="focus-ring rounded-md border border-stone-200 bg-white px-2.5 py-1 text-xs font-semibold text-ink hover:border-coral/40"
+            className="focus-ring rounded-md border border-stone-200 bg-white px-2.5 py-1 text-sm font-semibold text-ink hover:border-coral/40"
           >
             Sort: {sortByFit ? "best fit" : "A–Z"}
           </button>
@@ -110,13 +110,13 @@ export function MatrixTab() {
 
       {scopedPosition ? (
         <div className="flex flex-wrap items-center gap-2">
-          <span className="rounded-full bg-coral/10 px-2.5 py-1 text-[11px] font-semibold text-coral">
+          <span className="rounded-full bg-coral/10 px-2.5 py-1 text-sm font-semibold text-coral">
             Ranking for {scopedPosition.title}
           </span>
           <button
             type="button"
             onClick={() => router.push(buildUrl({ tab: "matrix", job: null }))}
-            className="focus-ring rounded-full border border-stone-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-steel hover:border-coral/40"
+            className="focus-ring rounded-full border border-stone-200 bg-white px-2.5 py-1 text-sm font-semibold text-steel hover:border-coral/40"
           >
             Show all positions
           </button>
@@ -128,7 +128,7 @@ export function MatrixTab() {
               key={f}
               type="button"
               onClick={() => setFamily(f)}
-              className={`focus-ring rounded-full px-2.5 py-1 text-[11px] font-semibold transition-colors ${
+              className={`focus-ring rounded-full px-2.5 py-1 text-sm font-semibold transition-colors ${
                 family === f ? "bg-ink text-white" : "border border-stone-200 bg-white text-steel hover:border-coral/40"
               }`}
             >
@@ -139,17 +139,17 @@ export function MatrixTab() {
       ) : null}
 
       {error ? (
-        <p className="rounded-md bg-red-50 p-3 text-sm text-red-700">{error}</p>
+        <p className="rounded-md bg-red-50 p-3 text-base text-red-700">{error}</p>
       ) : !data ? (
-        <p className="text-sm text-steel">Computing the matrix…</p>
+        <p className="text-base text-steel">Computing the matrix…</p>
       ) : data.candidates.length === 0 || data.positions.length === 0 ? (
-        <p className="rounded-md bg-paper p-4 text-sm text-steel">
+        <p className="rounded-md bg-paper p-4 text-base text-steel">
           No seeded candidates or open positions yet. Positions are the jobs that appear in the pipeline.
         </p>
       ) : (
         <>
           <div className="overflow-auto rounded-lg border border-stone-200 bg-white shadow-panel" style={{ maxHeight: "70vh" }}>
-            <table className="border-collapse text-xs">
+            <table className="border-collapse text-sm">
               <thead>
                 <tr>
                   <th className="sticky left-0 top-0 z-20 border-b border-r border-stone-200 bg-paper p-2 text-left font-semibold text-steel">
@@ -162,7 +162,7 @@ export function MatrixTab() {
                       className="sticky top-0 z-10 border-b border-stone-100 bg-paper p-1.5 align-bottom"
                     >
                       <div className="mx-auto w-[84px] truncate text-left font-semibold text-ink">{p.title}</div>
-                      <div className="text-left text-[9px] uppercase text-steel">{p.seniority}</div>
+                      <div className="text-left text-sm uppercase text-steel">{p.seniority}</div>
                     </th>
                   ))}
                 </tr>
@@ -195,7 +195,7 @@ export function MatrixTab() {
                             >
                               {c.blocked ? "–" : c.score}
                               {inPipe ? (
-                                <span className="absolute right-0.5 top-0.5 text-[8px] font-bold text-ink/70">
+                                <span className="absolute right-0.5 top-0.5 text-sm font-bold text-ink/70">
                                   {STAGE_INITIAL[place.stage] ?? ""}
                                 </span>
                               ) : null}

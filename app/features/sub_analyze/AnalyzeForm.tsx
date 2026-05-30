@@ -26,7 +26,7 @@ export function AnalyzeForm({ state }: { state: AnalyzeFormState }) {
       <div className="flex items-start justify-between gap-3">
         <div>
           <h2 className="font-serif text-h2 text-ink">Analyze profile</h2>
-          <p className="mt-1 text-sm text-steel">
+          <p className="mt-1 text-base text-steel">
             CV is required. Job description, company overview, and GitHub profile are optional —
             attach any combination and run.
           </p>
@@ -34,7 +34,7 @@ export function AnalyzeForm({ state }: { state: AnalyzeFormState }) {
         <button
           type="button"
           onClick={handlers.reset}
-          className="focus-ring inline-flex h-9 items-center gap-2 rounded-md border border-stone-300 bg-white px-3 text-xs font-semibold text-ink hover:bg-stone-50"
+          className="focus-ring inline-flex h-9 items-center gap-2 rounded-md border border-stone-300 bg-white px-3 text-sm font-semibold text-ink hover:bg-stone-50"
           title="Reset"
         >
           <RotateCcw className="h-3.5 w-3.5" aria-hidden />
@@ -141,7 +141,7 @@ export function AnalyzeForm({ state }: { state: AnalyzeFormState }) {
             aria-label="GitHub profile"
             value={inputs.githubProfile}
             onChange={(event) => setGithubProfile(event.target.value)}
-            className="focus-ring h-10 w-full rounded-md border border-stone-300 bg-white px-3 text-sm text-ink"
+            className="focus-ring h-10 w-full rounded-md border border-stone-300 bg-white px-3 text-base text-ink"
             placeholder="https://github.com/username or username"
           />
         </AnalyzeColumn>
@@ -149,9 +149,9 @@ export function AnalyzeForm({ state }: { state: AnalyzeFormState }) {
 
       <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         {result.error ? (
-          <p className="rounded-md bg-red-50 p-3 text-sm text-red-700 sm:flex-1">{result.error}</p>
+          <p className="rounded-md bg-red-50 p-3 text-base text-red-700 sm:flex-1">{result.error}</p>
         ) : (
-          <p className="text-sm text-steel sm:flex-1">
+          <p className="text-base text-steel sm:flex-1">
             {inputs.cvFiles.length === 0
               ? "Attach a CV to enable Analyze."
               : "Ready — Gemini takes 15–25 seconds."}
@@ -161,7 +161,7 @@ export function AnalyzeForm({ state }: { state: AnalyzeFormState }) {
           type="button"
           onClick={handlers.submit}
           disabled={flags.isLoading || flags.isCompleting || inputs.cvFiles.length === 0}
-          className="focus-ring inline-flex h-11 items-center justify-center gap-2 rounded-md bg-ink px-5 text-sm font-semibold text-white hover:bg-steel disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+          className="focus-ring inline-flex h-11 items-center justify-center gap-2 rounded-md bg-ink px-5 text-base font-semibold text-white hover:bg-steel disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
         >
           {flags.isLoading ? (
             <ScanAnimationCompact className="h-5 w-5" />

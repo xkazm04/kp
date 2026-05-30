@@ -27,7 +27,7 @@ export function JobRow({
     >
       <Td>
         <span className="font-medium text-ink">{job.title}</span>
-        <span className="block text-xs text-steel">{job.company ?? "—"}</span>
+        <span className="block text-sm text-steel">{job.company ?? "—"}</span>
       </Td>
       <Td>{job.location ?? "—"}</Td>
       <Td className="capitalize">{job.workMode ?? "—"}</Td>
@@ -36,11 +36,11 @@ export function JobRow({
       <Td>{formatBand(job.salaryBand)}</Td>
       <Td>
         {ep?.isEntryEligible ? (
-          <span className="inline-flex items-center gap-1 rounded-full bg-green-50 px-2 py-0.5 text-xs font-semibold text-green-700">
+          <span className="inline-flex items-center gap-1 rounded-full bg-green-50 px-2 py-0.5 text-sm font-semibold text-green-700">
             ✓ {formatPercent(ep.graduateFriendliness ?? 0, { fraction: true })}
           </span>
         ) : (
-          <span className="text-xs text-steel">—</span>
+          <span className="text-sm text-steel">—</span>
         )}
       </Td>
     </DisclosureRow>

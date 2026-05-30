@@ -52,13 +52,13 @@ export function AnalyzeProfileInput({
     <div className="animate-fade-in pointer-events-none fixed inset-0 z-50 flex items-center justify-center bg-coral/5" aria-hidden>
       <div className="flex flex-col items-center gap-2 rounded-2xl border-2 border-dashed border-coral bg-white/90 px-10 py-8 shadow-panel">
         <UploadCloud className="h-8 w-8 text-coral" />
-        <span className="text-sm font-semibold text-ink">Drop your CV anywhere</span>
+        <span className="text-base font-semibold text-ink">Drop your CV anywhere</span>
       </div>
     </div>
   ) : null;
 
   const errorRow = error ? (
-    <p className="mt-1 text-[10px] text-coral" role="alert">{error}</p>
+    <p className="mt-1 text-sm text-coral" role="alert">{error}</p>
   ) : null;
 
   async function loadSample() {
@@ -107,10 +107,10 @@ export function AnalyzeProfileInput({
           }`}
         >
           <UploadCloud className={`h-5 w-5 ${isActive ? "text-coral" : "text-steel"}`} aria-hidden />
-          <span className="mt-1 max-w-full truncate text-xs font-semibold text-ink">
+          <span className="mt-1 max-w-full truncate text-sm font-semibold text-ink">
             {isActive ? "Drop CV here" : "Drop CV or click"}
           </span>
-          <span className="text-[10px] text-steel">{MAX_FILE_HINT}</span>
+          <span className="text-sm text-steel">{MAX_FILE_HINT}</span>
         </label>
         {errorRow}
         <input
@@ -124,7 +124,7 @@ export function AnalyzeProfileInput({
             event.target.value = "";
           }}
         />
-        <p className="mt-2 text-center text-[11px] text-steel">
+        <p className="mt-2 text-center text-sm text-steel">
           New here?{" "}
           <button
             type="button"
@@ -151,17 +151,17 @@ export function AnalyzeProfileInput({
         >
           <FileText className="h-3.5 w-3.5 shrink-0 text-steel" aria-hidden />
           <div className="min-w-0 flex-1">
-            <p className="truncate text-xs font-medium text-ink">
+            <p className="truncate text-sm font-medium text-ink">
               {files.length > 1 ? (
                 <span className="text-coral">Variant {String.fromCharCode(65 + index)}: </span>
               ) : null}
               {file.name}
             </p>
-            <p className="text-[10px] text-steel">{formatFileSize(file.size)}</p>
+            <p className="text-sm text-steel">{formatFileSize(file.size)}</p>
           </div>
           <label
             htmlFor={`profile-file-${index}`}
-            className="focus-ring inline-flex h-7 cursor-pointer items-center justify-center rounded-md border border-stone-300 bg-white px-1.5 text-[10px] font-semibold text-ink hover:bg-stone-50"
+            className="focus-ring inline-flex h-7 cursor-pointer items-center justify-center rounded-md border border-stone-300 bg-white px-1.5 text-sm font-semibold text-ink hover:bg-stone-50"
             title="Replace"
           >
             Replace
@@ -196,7 +196,7 @@ export function AnalyzeProfileInput({
         <>
           <label
             htmlFor={`profile-file-${files.length}`}
-            className={`focus-ring flex cursor-pointer items-center justify-center gap-2 rounded-md border border-dashed px-2 py-2 text-xs font-medium text-ink transition-colors ${
+            className={`focus-ring flex cursor-pointer items-center justify-center gap-2 rounded-md border border-dashed px-2 py-2 text-sm font-medium text-ink transition-colors ${
               isWindowDragging
                 ? "border-coral bg-coral/5"
                 : "border-stone-300 bg-white hover:border-coral hover:bg-paper"
@@ -218,7 +218,7 @@ export function AnalyzeProfileInput({
           />
         </>
       ) : (
-        <p className="text-[10px] text-steel">Variant limit reached.</p>
+        <p className="text-sm text-steel">Variant limit reached.</p>
       )}
       {errorRow}
     </div>

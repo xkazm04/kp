@@ -23,7 +23,7 @@ export function PostingsSection({ postings, loadPostings }: { postings: Posting[
           <div key={p.id} className="rounded-lg border border-stone-200 bg-white p-3 shadow-panel">
             <div className="flex items-center gap-2">
               <span className="rounded-full bg-paper px-2 py-0.5 text-micro font-semibold uppercase text-steel">{p.channel}</span>
-              <span className="min-w-0 flex-1 truncate text-sm font-semibold text-ink">{p.caseTitle || p.roleTitle || "Posting"}</span>
+              <span className="min-w-0 flex-1 truncate text-base font-semibold text-ink">{p.caseTitle || p.roleTitle || "Posting"}</span>
               <span className="text-micro text-steel">{p.submissions?.length ?? p.submissionCount ?? 0} in</span>
             </div>
             <div className="mt-1 flex items-center gap-1.5">

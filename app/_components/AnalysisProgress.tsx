@@ -117,7 +117,7 @@ export function AnalysisProgress({
                 ? STAGE_LABEL[headlineStage].title
                 : "Starting analysis"}
           </h2>
-          <p className="mt-1 text-sm text-steel">
+          <p className="mt-1 text-base text-steel">
             {variantCount && variantCount > 1
               ? `Comparing ${variantCount} CV variants in parallel.`
               : fileName
@@ -166,13 +166,13 @@ function StageRow({ id, status }: { id: StageId; status: StageStatus }) {
       <StageIndicator status={status} />
       <div className="min-w-0 flex-1">
         <p
-          className={`text-sm font-semibold ${
+          className={`text-base font-semibold ${
             status === "pending" ? "text-steel" : "text-ink"
           }`}
         >
           {label.title}
         </p>
-        <p className="mt-0.5 text-xs leading-5 text-steel">{label.subtitle}</p>
+        <p className="mt-0.5 text-sm leading-5 text-steel">{label.subtitle}</p>
       </div>
     </li>
   );

@@ -76,11 +76,11 @@ export function RecruiterCandidates({
           type="button"
           onClick={load}
           disabled={loading}
-          className="focus-ring rounded-md bg-ink px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-40"
+          className="focus-ring rounded-md bg-ink px-3 py-1.5 text-sm font-semibold text-white disabled:opacity-40"
         >
           {loading ? "Scoring candidates…" : "Score saved candidates against this role"}
         </button>
-        {error ? <span className="ml-2 text-xs text-red-700">{error}</span> : null}
+        {error ? <span className="ml-2 text-sm text-red-700">{error}</span> : null}
       </div>
     );
   }
@@ -93,12 +93,12 @@ export function RecruiterCandidates({
   return (
     <div className="rounded-md border border-stone-200 p-3">
       <div className="flex items-center justify-between">
-        <p className="text-xs font-semibold uppercase tracking-wide text-coral">
+        <p className="text-sm font-semibold uppercase tracking-wide text-coral">
           Candidates · fair-comparison lens
         </p>
-        <span className="text-[11px] text-steel">{notEligible} not eligible (KO-filtered)</span>
+        <span className="text-sm text-steel">{notEligible} not eligible (KO-filtered)</span>
       </div>
-      <p className="mt-1 text-[11px] text-steel">
+      <p className="mt-1 text-sm text-steel">
         Early-career candidates are shown as a separate pipeline and scored on potential — never ranked on one number
         against experienced candidates.
       </p>
@@ -134,11 +134,11 @@ function CandidateColumn({
 }) {
   return (
     <div className={`rounded-md border p-2 ${highlight ? "border-green-200 bg-green-50/40" : "border-stone-200"}`}>
-      <p className="text-[11px] font-semibold uppercase tracking-wide text-steel">
+      <p className="text-sm font-semibold uppercase tracking-wide text-steel">
         {title} ({rows.length})
       </p>
       {rows.length === 0 ? (
-        <p className="mt-1 text-xs text-steel">None.</p>
+        <p className="mt-1 text-sm text-steel">None.</p>
       ) : (
         <ol className="mt-2 space-y-2">
           {rows.map((c, i) => (
@@ -174,22 +174,22 @@ function CandidateCard({
     <li className="rounded-md border border-stone-200 bg-white p-2">
       <div className="flex items-center gap-2">
         <span className="font-serif text-lg text-ink">{res.total}</span>
-        <span className="text-[10px] text-steel">
+        <span className="text-sm text-steel">
           {res.confidenceLow}–{res.confidenceHigh}
         </span>
         <span className="font-medium text-ink">{c.label}</span>
-        <span className="rounded-full bg-ink/90 px-1.5 py-0.5 text-[10px] font-semibold text-white">
+        <span className="rounded-full bg-ink/90 px-1.5 py-0.5 text-sm font-semibold text-white">
           {ARCHETYPE_BADGE[c.archetype] ?? c.archetype}
         </span>
         <span className="ml-auto flex items-center gap-2">
           {early && c.potentialScore != null ? (
-            <span className="text-[10px] text-steel">potential {Math.round(c.potentialScore * 100)}</span>
+            <span className="text-sm text-steel">potential {Math.round(c.potentialScore * 100)}</span>
           ) : null}
           <button
             type="button"
             onClick={onAdd}
             disabled={added || adding}
-            className={`focus-ring rounded px-1.5 py-0.5 text-[10px] font-semibold ${
+            className={`focus-ring rounded px-1.5 py-0.5 text-sm font-semibold ${
               added ? "bg-moss/10 text-moss" : "border border-stone-200 text-ink hover:bg-paper disabled:opacity-40"
             }`}
           >
@@ -201,20 +201,20 @@ function CandidateCard({
         {(res.matchedSkills ?? []).slice(0, 8).map((s) => {
           const pl = provLabel(prov[s] ?? "self_declared");
           return (
-            <span key={s} className="inline-flex items-center gap-1 rounded bg-green-50 px-1.5 py-0.5 text-[11px] text-green-700">
+            <span key={s} className="inline-flex items-center gap-1 rounded bg-green-50 px-1.5 py-0.5 text-sm text-green-700">
               {s}
-              <span className={`rounded px-1 text-[9px] uppercase ${pl.tone}`}>{pl.text}</span>
+              <span className={`rounded px-1 text-sm uppercase ${pl.tone}`}>{pl.text}</span>
             </span>
           );
         })}
         {(res.missingSkills ?? []).slice(0, 4).map((s) => (
-          <span key={`x-${s}`} className="rounded bg-red-50 px-1.5 py-0.5 text-[11px] text-red-700">
+          <span key={`x-${s}`} className="rounded bg-red-50 px-1.5 py-0.5 text-sm text-red-700">
             ✗ {s}
           </span>
         ))}
       </div>
       {c.assumptions?.length ? (
-        <p className="mt-1 text-[10px] text-steel">
+        <p className="mt-1 text-sm text-steel">
           <span className="font-semibold uppercase">Assumptions:</span> {c.assumptions[0]}
         </p>
       ) : null}

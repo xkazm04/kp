@@ -144,7 +144,7 @@ export function ProfileTab() {
                   key={c.v}
                   type="button"
                   onClick={() => setChoice(c.v)}
-                  className={`rounded-md border px-3 py-1.5 text-sm ${
+                  className={`rounded-md border px-3 py-1.5 text-base ${
                     choice === c.v ? "border-ink bg-ink text-white" : "border-stone-200 text-ink hover:bg-paper"
                   }`}
                 >
@@ -210,7 +210,7 @@ export function ProfileTab() {
           type="button"
           onClick={() => build(false)}
           disabled={loading || hasFieldErrors}
-          className="focus-ring h-10 rounded-md border border-stone-200 px-4 text-sm font-semibold text-ink hover:bg-paper disabled:opacity-40"
+          className="focus-ring h-10 rounded-md border border-stone-200 px-4 text-base font-semibold text-ink hover:bg-paper disabled:opacity-40"
         >
           {loading ? "Working…" : "Check (preview)"}
         </button>
@@ -218,21 +218,21 @@ export function ProfileTab() {
           type="button"
           onClick={() => build(true)}
           disabled={loading || hasFieldErrors}
-          className="focus-ring h-10 rounded-md bg-ink px-4 text-sm font-semibold text-white disabled:opacity-40"
+          className="focus-ring h-10 rounded-md bg-ink px-4 text-base font-semibold text-white disabled:opacity-40"
         >
           Save profile
         </button>
       </div>
 
-      {error ? <p className="mt-3 rounded-md bg-red-50 p-3 text-sm text-red-700">{error}</p> : null}
+      {error ? <p className="mt-3 rounded-md bg-red-50 p-3 text-base text-red-700">{error}</p> : null}
       {result ? <ResultPanel result={result} /> : null}
 
       {saved.length > 0 ? (
         <div className="mt-5">
-          <p className="text-xs font-semibold uppercase tracking-wide text-steel">Saved profiles</p>
+          <p className="text-sm font-semibold uppercase tracking-wide text-steel">Saved profiles</p>
           <div className="mt-2 flex flex-wrap gap-2">
             {saved.map((p) => (
-              <span key={p.id} className="rounded-md border border-stone-200 bg-paper px-2 py-1 text-xs text-ink">
+              <span key={p.id} className="rounded-md border border-stone-200 bg-paper px-2 py-1 text-sm text-ink">
                 {p.label} · {ARCHETYPE_LABEL[p.archetype ?? ""] ?? p.archetype} ·{" "}
                 {Math.round((p.completeness ?? 0) * 100)}%
               </span>

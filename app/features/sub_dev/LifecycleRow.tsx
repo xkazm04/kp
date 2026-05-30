@@ -17,7 +17,7 @@ export function LifecycleRow({ lc, onApprove }: { lc: Lifecycle; onApprove: () =
   return (
     <div className="animate-fade-in rounded-lg border border-stone-200 bg-white p-3 shadow-panel transition-shadow motion-reduce:animate-none hover:shadow-lg">
       <div className="flex items-center gap-2">
-        <span className="min-w-0 flex-1 truncate text-sm font-semibold text-ink">{lc.title || "Role"}</span>
+        <span className="min-w-0 flex-1 truncate text-base font-semibold text-ink">{lc.title || "Role"}</span>
         <span
           className={`rounded-full px-2 py-0.5 text-micro font-semibold uppercase ${
             awaiting ? "bg-amber-100 text-amber-700" : done ? "bg-moss/15 text-moss" : "bg-paper text-steel"

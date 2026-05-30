@@ -50,11 +50,11 @@ export function HistoryTab() {
 
       <div className="mt-5">
         {error ? (
-          <p className="rounded-md bg-red-50 p-3 text-sm text-red-700">{error}</p>
+          <p className="rounded-md bg-red-50 p-3 text-base text-red-700">{error}</p>
         ) : rows == null ? (
-          <p className="text-sm text-steel">Loading…</p>
+          <p className="text-base text-steel">Loading…</p>
         ) : rows.length === 0 ? (
-          <p className="rounded-md bg-paper p-4 text-sm text-steel">
+          <p className="rounded-md bg-paper p-4 text-base text-steel">
             No saved runs yet. Run one from the <strong>Analyze</strong> tab; it will appear here.
           </p>
         ) : (
@@ -77,7 +77,7 @@ export function HistoryTab() {
                     <Td>
                       <Link
                         href={`/history/${row.slug}`}
-                        className="font-mono text-sm font-medium text-coral hover:underline"
+                        className="font-mono text-base font-medium text-coral hover:underline"
                       >
                         {row.slug}
                       </Link>
@@ -90,7 +90,7 @@ export function HistoryTab() {
                       {row.jd_slug ? (
                         <Link
                           href={`/?tab=library&jd=${row.jd_slug}`}
-                          className="font-mono text-xs text-coral hover:underline"
+                          className="font-mono text-sm text-coral hover:underline"
                         >
                           {row.jd_slug}
                         </Link>
@@ -114,7 +114,7 @@ function Th({ children }: { children: React.ReactNode }) {
   return (
     <th
       scope="col"
-      className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-steel"
+      className="px-4 py-3 text-left text-sm font-semibold uppercase tracking-wide text-steel"
     >
       {children}
     </th>
@@ -122,7 +122,7 @@ function Th({ children }: { children: React.ReactNode }) {
 }
 
 function Td({ children, className = "" }: { children: React.ReactNode; className?: string }) {
-  return <td className={`px-4 py-3 text-sm text-ink ${className}`}>{children}</td>;
+  return <td className={`px-4 py-3 text-base text-ink ${className}`}>{children}</td>;
 }
 
 function formatRelative(iso: string): string {

@@ -21,7 +21,7 @@ export function SchedulingCard({
   return (
     <article className="animate-fade-in rounded-lg border border-stone-200 bg-white p-3 shadow-panel">
       <CandidateHead entry={entry} />
-      <div className="mt-2 flex items-center gap-1.5 text-xs text-ink">
+      <div className="mt-2 flex items-center gap-1.5 text-sm text-ink">
         <Calendar size={14} className="text-steel" />
         Proposed: <span className="font-semibold">{proposed}</span>
         {pick !== proposed ? <span className="text-steel">· you picked {pick}</span> : null}
@@ -29,7 +29,7 @@ export function SchedulingCard({
 
       {/* week × time grid visualization */}
       <div className="mt-2 overflow-hidden rounded-md border border-stone-200">
-        <div className="grid grid-cols-[44px_repeat(5,1fr)] bg-paper text-center text-[10px] text-steel">
+        <div className="grid grid-cols-[44px_repeat(5,1fr)] bg-paper text-center text-sm text-steel">
           <div className="py-1" />
           {DAYS.map((d) => (
             <div key={d} className="py-1 font-semibold">
@@ -39,7 +39,7 @@ export function SchedulingCard({
         </div>
         {TIMES.map((t) => (
           <div key={t} className="grid grid-cols-[44px_repeat(5,1fr)] border-t border-stone-100">
-            <div className="py-1 pl-1 text-[10px] text-steel">{t}</div>
+            <div className="py-1 pl-1 text-sm text-steel">{t}</div>
             {DAYS.map((d) => {
               const slot = `${d} ${t}`;
               const isProposed = slot === proposed;
@@ -70,14 +70,14 @@ export function SchedulingCard({
         <button
           type="button"
           onClick={() => onApprove(pick)}
-          className="focus-ring inline-flex h-9 flex-1 items-center justify-center gap-1 rounded-md bg-moss text-sm font-semibold text-white hover:opacity-90"
+          className="focus-ring inline-flex h-9 flex-1 items-center justify-center gap-1 rounded-md bg-moss text-base font-semibold text-white hover:opacity-90"
         >
           <Check size={16} /> Confirm {pickDay} {pickTime}
         </button>
         <button
           type="button"
           onClick={onDecline}
-          className="focus-ring inline-flex h-9 items-center justify-center gap-1 rounded-md border border-stone-200 px-3 text-sm font-semibold text-coral hover:bg-coral/5"
+          className="focus-ring inline-flex h-9 items-center justify-center gap-1 rounded-md border border-stone-200 px-3 text-base font-semibold text-coral hover:bg-coral/5"
         >
           <X size={16} />
         </button>

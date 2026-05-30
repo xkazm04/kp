@@ -66,17 +66,17 @@ export function MatchCard({
       <div className="flex items-start gap-4">
         <div className="w-16 shrink-0 text-center">
           <div className="font-serif text-2xl text-ink">{m.total}</div>
-          <div className="text-[10px] text-steel">
+          <div className="text-sm text-steel">
             {m.confidenceLow}–{m.confidenceHigh}
           </div>
-          <div className="mt-0.5 text-[10px] uppercase text-steel">#{index + 1}</div>
+          <div className="mt-0.5 text-sm uppercase text-steel">#{index + 1}</div>
         </div>
 
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <span className="font-medium text-ink">{m.title}</span>
             {m.isEntryEligible ? (
-              <span className="rounded-full bg-green-50 px-2 py-0.5 text-[10px] font-semibold text-green-700">
+              <span className="rounded-full bg-green-50 px-2 py-0.5 text-sm font-semibold text-green-700">
                 entry-eligible
               </span>
             ) : null}
@@ -86,7 +86,7 @@ export function MatchCard({
                   type="button"
                   onClick={onAdd}
                   disabled={added || adding}
-                  className={`focus-ring rounded-md px-2 py-0.5 text-[11px] font-semibold transition-colors ${
+                  className={`focus-ring rounded-md px-2 py-0.5 text-sm font-semibold transition-colors ${
                     added
                       ? "bg-moss/10 text-moss"
                       : "border border-stone-200 text-ink hover:bg-paper disabled:opacity-40"
@@ -100,14 +100,14 @@ export function MatchCard({
                   type="button"
                   onClick={explain}
                   disabled={reasoning?.loading}
-                  className="focus-ring rounded-md border border-stone-200 px-2 py-0.5 text-[11px] font-semibold text-coral hover:bg-paper disabled:opacity-40"
+                  className="focus-ring rounded-md border border-stone-200 px-2 py-0.5 text-sm font-semibold text-coral hover:bg-paper disabled:opacity-40"
                 >
                   {reasoning?.loading ? "Reasoning…" : reasoning?.data ? "Refresh reasoning" : "Explain fit"}
                 </button>
               ) : null}
             </div>
           </div>
-          <p className="text-xs text-steel">
+          <p className="text-sm text-steel">
             {m.company ?? "—"} · {m.location ?? "—"} · {m.workMode ?? "—"} ·{" "}
             {FAMILY_LABEL[m.roleFamily ?? ""] ?? m.roleFamily} / {m.seniority} ·{" "}
             {m.salaryBand && m.salaryBand.length === 2
@@ -134,17 +134,17 @@ export function MatchCard({
                   return (
                     <span
                       key={`m-${s}`}
-                      className="inline-flex items-center gap-1 rounded-md bg-green-50 px-1.5 py-0.5 text-[11px] text-green-700"
+                      className="inline-flex items-center gap-1 rounded-md bg-green-50 px-1.5 py-0.5 text-sm text-green-700"
                     >
                       {s}
-                      {pl ? <span className={`rounded px-1 text-[9px] uppercase ${pl.tone}`}>{pl.text}</span> : null}
+                      {pl ? <span className={`rounded px-1 text-sm uppercase ${pl.tone}`}>{pl.text}</span> : null}
                     </span>
                   );
                 })}
                 {missingShown.map((s) => (
                   <span
                     key={`x-${s}`}
-                    className="rounded-md bg-red-50 px-1.5 py-0.5 text-[11px] text-red-700"
+                    className="rounded-md bg-red-50 px-1.5 py-0.5 text-sm text-red-700"
                     title={early ? "Missing must-have (often learnable)" : "Missing must-have"}
                   >
                     ✗ {s}
@@ -154,7 +154,7 @@ export function MatchCard({
                   <button
                     type="button"
                     onClick={() => setSkillsExpanded((v) => !v)}
-                    className="focus-ring rounded-md bg-stone-100 px-1.5 py-0.5 text-[11px] font-semibold text-steel hover:bg-stone-200"
+                    className="focus-ring rounded-md bg-stone-100 px-1.5 py-0.5 text-sm font-semibold text-steel hover:bg-stone-200"
                   >
                     {skillsExpanded ? "Show less" : `+${hidden} more`}
                   </button>

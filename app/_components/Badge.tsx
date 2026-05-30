@@ -38,7 +38,7 @@ export function Badge({ tone, icon: Icon, label, ariaLabel, className = "" }: Ba
   return (
     <span
       aria-label={ariaLabel ?? label}
-      className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold ${TONE_CLASS[tone]} ${className}`}
+      className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-sm font-semibold ${TONE_CLASS[tone]} ${className}`}
     >
       {Icon ? <Icon className="h-3 w-3" aria-hidden /> : null}
       <span>{label}</span>

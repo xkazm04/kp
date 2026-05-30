@@ -54,14 +54,14 @@ export function Results({ result, matchRef }: { result: MatchResponse; matchRef:
         <Chip label="Ranked" value={meta.returned ?? matches.length} tone="green" />
       </div>
       {early ? (
-        <p className="mt-2 text-xs text-steel">
+        <p className="mt-2 text-sm text-steel">
           Early-career scoring profile: the <strong>Potential</strong> bar is the readiness model (replacing years of
           experience), and only entry-eligible roles survive the KO filter. Scores are not comparable to experienced
           candidates&apos; numbers.
         </p>
       ) : null}
       {candidate.assumptions?.length ? (
-        <p className="mt-1 text-xs text-steel">
+        <p className="mt-1 text-sm text-steel">
           <span className="font-semibold uppercase">Assumptions:</span> {candidate.assumptions.join(" · ")}
         </p>
       ) : null}

@@ -79,8 +79,8 @@ function EmptyState({
   return (
     <div className="flex flex-col items-center px-2 py-3 text-center">
       {variant === "evidence" ? <EvidenceVignette /> : <ItemsVignette />}
-      <p className="mt-3 text-sm font-medium text-ink">{headline}</p>
-      <p className="mt-1 text-xs leading-5 text-steel">{hint}</p>
+      <p className="mt-3 text-base font-medium text-ink">{headline}</p>
+      <p className="mt-1 text-sm leading-5 text-steel">{hint}</p>
     </div>
   );
 }
@@ -102,7 +102,7 @@ export function InlineList({
       {items.length ? (
         <ul className="mt-2 space-y-2">
           {items.map((item) => (
-            <li key={item} className="text-sm leading-6 text-ink">
+            <li key={item} className="text-base leading-6 text-ink">
               {item}
             </li>
           ))}
@@ -136,7 +136,7 @@ export function ListBlock({
       {items.length ? (
         <ul className="mt-4 space-y-3">
           {items.map((item) => (
-            <li key={item} className="text-sm leading-6 text-ink">
+            <li key={item} className="text-base leading-6 text-ink">
               {item}
             </li>
           ))}
@@ -156,7 +156,7 @@ export function EnginePanel({ analysis }: { analysis: Analysis }) {
   return (
     <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
       <h3 className="font-serif text-h3 text-ink">Analysis Engine</h3>
-      <div className="mt-3 space-y-2 text-sm leading-6 text-ink">
+      <div className="mt-3 space-y-2 text-base leading-6 text-ink">
         <p>Engine: {analysis.metadata.analysisEngine}</p>
         <p>Extractor: {analysis.metadata.textExtractor}</p>
         {analysis.metadata.model ? <p>Model: {analysis.metadata.model}</p> : null}

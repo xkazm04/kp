@@ -33,7 +33,7 @@ export function ApprovedCasesSection({
               style={{ animationDelay: `${ci * 40}ms` }}
               className="animate-fade-in flex flex-col rounded-lg border border-stone-200 bg-white p-3 shadow-panel transition-shadow motion-reduce:animate-none hover:-translate-y-0.5 hover:shadow-lg"
             >
-              <p className="truncate text-sm font-semibold text-ink">{c.title || "Assignment"}</p>
+              <p className="truncate text-base font-semibold text-ink">{c.title || "Assignment"}</p>
               <p className="truncate text-micro text-steel">{c.roleTitle} · {c.seniority}</p>
               <div className="mt-2 flex gap-1.5">
                 <button

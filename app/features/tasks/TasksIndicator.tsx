@@ -29,7 +29,7 @@ export function TasksIndicator() {
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="focus-ring flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm font-medium text-ink/80 hover:bg-white"
+        className="focus-ring flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-base font-medium text-ink/80 hover:bg-white"
       >
         {running.length > 0 ? (
           <Loader2 size={14} className="animate-spin text-coral" />
@@ -38,9 +38,9 @@ export function TasksIndicator() {
         )}
         <span>Background tasks</span>
         {running.length > 0 ? (
-          <span className="ml-auto rounded-full bg-coral px-1.5 text-[10px] font-semibold text-white">{running.length}</span>
+          <span className="ml-auto rounded-full bg-coral px-1.5 text-sm font-semibold text-white">{running.length}</span>
         ) : (
-          <span className="ml-auto text-[10px] text-steel">{open ? "hide" : "show"}</span>
+          <span className="ml-auto text-sm text-steel">{open ? "hide" : "show"}</span>
         )}
       </button>
 
@@ -49,7 +49,7 @@ export function TasksIndicator() {
           {running.map((t) => (
             <div key={t.id} className="rounded-md border border-stone-200 bg-white p-2">
               <div className="flex items-center gap-1.5">
-                <span className="min-w-0 flex-1 truncate text-[11px] font-semibold text-ink">{t.label ?? t.kind}</span>
+                <span className="min-w-0 flex-1 truncate text-sm font-semibold text-ink">{t.label ?? t.kind}</span>
                 <button
                   type="button"
                   onClick={() => cancelTask(t.id)}
@@ -62,7 +62,7 @@ export function TasksIndicator() {
               <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-stone-200">
                 <div className="h-full rounded-full bg-coral transition-all duration-500" style={{ width: `${Math.max(6, pct(t))}%` }} />
               </div>
-              <p className="mt-1 truncate text-[10px] text-steel">
+              <p className="mt-1 truncate text-sm text-steel">
                 {t.progressTotal > 0 ? `${t.progressDone}/${t.progressTotal} · ` : ""}
                 {t.progressMsg ?? (t.status === "queued" ? "queued…" : "working…")}
               </p>
@@ -71,7 +71,7 @@ export function TasksIndicator() {
 
           {open && recent.length > 0
             ? recent.map((t) => (
-                <div key={t.id} className="flex items-center gap-1.5 px-1 text-[11px]">
+                <div key={t.id} className="flex items-center gap-1.5 px-1 text-sm">
                   <span className={`h-2 w-2 shrink-0 rounded-full ${STATUS_DOT[t.status] ?? "bg-stone-300"}`} />
                   <span className="min-w-0 flex-1 truncate text-steel">{t.label ?? t.kind}</span>
                   {t.status === "succeeded" ? <Check size={11} className="text-moss" /> : null}

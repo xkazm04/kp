@@ -18,7 +18,7 @@ export function cellClass(c: Cell): string {
 
 export function MatrixLegend() {
   return (
-    <div className="flex flex-wrap items-center gap-3 text-[11px] text-steel">
+    <div className="flex flex-wrap items-center gap-3 text-sm text-steel">
       <span className="font-semibold uppercase tracking-wide">Match</span>
       {[
         ["bg-coral/15 text-coral", "<45"],
@@ -29,7 +29,7 @@ export function MatrixLegend() {
         [BLOCKED_CELL, "blocked"],
       ].map(([cls, label]) => (
         <span key={label} className="inline-flex items-center gap-1">
-          <span className={`grid h-5 w-6 place-items-center rounded ${cls} text-[9px] font-semibold`}>{label === "blocked" ? "–" : ""}</span>
+          <span className={`grid h-5 w-6 place-items-center rounded ${cls} text-sm font-semibold`}>{label === "blocked" ? "–" : ""}</span>
           {label}
         </span>
       ))}

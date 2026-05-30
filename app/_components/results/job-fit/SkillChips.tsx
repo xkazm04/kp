@@ -39,7 +39,7 @@ function MatchingChip({
         tabIndex={evidenceSnippet ? 0 : -1}
         role={evidenceSnippet ? "button" : undefined}
         aria-describedby={evidenceSnippet && open ? `chip-tip-${label}` : undefined}
-        className={`focus-ring inline-flex items-center gap-1.5 rounded-full bg-limewash px-2.5 py-1 text-xs font-medium text-moss ${
+        className={`focus-ring inline-flex items-center gap-1.5 rounded-full bg-limewash px-2.5 py-1 text-sm font-medium text-moss ${
           evidenceSnippet ? "cursor-help" : ""
         }`}
       >
@@ -50,7 +50,7 @@ function MatchingChip({
         <span
           id={`chip-tip-${label}`}
           role="tooltip"
-          className="pointer-events-none absolute bottom-full left-1/2 z-20 mb-2 w-64 -translate-x-1/2 rounded-md border border-stone-200 bg-white px-3 py-2 text-xs leading-5 text-ink shadow-panel"
+          className="pointer-events-none absolute bottom-full left-1/2 z-20 mb-2 w-64 -translate-x-1/2 rounded-md border border-stone-200 bg-white px-3 py-2 text-sm leading-5 text-ink shadow-panel"
         >
           {evidenceSnippet}
         </span>
@@ -81,7 +81,7 @@ function MatchingSkillsColumn({ skills, evidence }: { skills: string[]; evidence
           ))}
         </div>
       ) : (
-        <p className="mt-2 text-xs leading-5 text-steel">
+        <p className="mt-2 text-sm leading-5 text-steel">
           Sharpen the skills section of your CV so we can pair it with the job description.
         </p>
       )}

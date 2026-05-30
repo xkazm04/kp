@@ -27,13 +27,13 @@ export function AnalyzeColumn({
       <div className="flex items-center justify-between gap-2">
         <div className="flex min-w-0 items-center gap-2">
           {icon}
-          <h3 className="text-sm font-semibold text-ink">{heading}</h3>
+          <h3 className="text-base font-semibold text-ink">{heading}</h3>
         </div>
         {onClear ? (
           <button
             type="button"
             onClick={onClear}
-            className="focus-ring inline-flex h-7 items-center gap-1 rounded-md border border-stone-300 bg-white px-2 text-[11px] font-semibold text-ink hover:bg-stone-50"
+            className="focus-ring inline-flex h-7 items-center gap-1 rounded-md border border-stone-300 bg-white px-2 text-sm font-semibold text-ink hover:bg-stone-50"
             title="Clear"
           >
             <X className="h-3 w-3" aria-hidden />
@@ -42,7 +42,7 @@ export function AnalyzeColumn({
         ) : null}
       </div>
       <p
-        className={`mt-2 inline-block max-w-full truncate rounded-full px-2 py-0.5 text-xs font-medium ${toneClass}`}
+        className={`mt-2 inline-block max-w-full truncate rounded-full px-2 py-0.5 text-sm font-medium ${toneClass}`}
         title={status.label}
       >
         {status.label}

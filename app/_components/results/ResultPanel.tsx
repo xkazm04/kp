@@ -95,7 +95,7 @@ export function ResultPanel({ analysis, github }: ResultPanelProps) {
                 aria-controls={`panel-${tab.id}`}
                 tabIndex={selected ? 0 : -1}
                 onClick={() => setActiveTab(tab.id)}
-                className={`focus-ring inline-flex h-10 items-center justify-center gap-2 rounded-md px-3 text-sm font-semibold ${
+                className={`focus-ring inline-flex h-10 items-center justify-center gap-2 rounded-md px-3 text-base font-semibold ${
                   selected ? "bg-ink text-white" : "text-steel hover:bg-paper hover:text-ink"
                 }`}
               >

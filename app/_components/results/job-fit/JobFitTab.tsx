@@ -13,7 +13,7 @@ export function JobFitTab({ analysis }: { analysis: Analysis }) {
     return (
       <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
         <h3 className="font-serif text-h3 text-ink">Job Fit</h3>
-        <p className="mt-3 text-sm leading-6 text-steel">Attach a job description to produce role-fit scoring, missing skills, and role-specific proof points.</p>
+        <p className="mt-3 text-base leading-6 text-steel">Attach a job description to produce role-fit scoring, missing skills, and role-specific proof points.</p>
       </div>
     );
   }
@@ -28,7 +28,7 @@ export function JobFitTab({ analysis }: { analysis: Analysis }) {
                 <BriefcaseBusiness className="h-5 w-5 text-coral" aria-hidden />
                 <h3 className="font-serif text-h3 text-ink">Job Fit</h3>
               </div>
-              <p className="mt-3 text-sm leading-6 text-ink">{analysis.jobFit.summary}</p>
+              <p className="mt-3 text-base leading-6 text-ink">{analysis.jobFit.summary}</p>
             </div>
             <ScoreDial score={analysis.jobFit.score} />
           </div>
@@ -64,12 +64,12 @@ export function JobFitTab({ analysis }: { analysis: Analysis }) {
       <div className="space-y-5">
         <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
           <h3 className="font-serif text-h3 text-ink">Alignment</h3>
-          <div className="mt-4 space-y-3 text-sm leading-6 text-ink">
+          <div className="mt-4 space-y-3 text-base leading-6 text-ink">
             <p>{analysis.jobFit.seniorityAlignment}</p>
             <p>{analysis.jobFit.roleAlignment}</p>
             <p>{analysis.jobFit.salaryAssessment}</p>
           </div>
-          <div className="mt-4 rounded-md bg-limewash p-3 text-sm leading-6 text-ink">{analysis.jobFit.negotiationAngle}</div>
+          <div className="mt-4 rounded-md bg-limewash p-3 text-base leading-6 text-ink">{analysis.jobFit.negotiationAngle}</div>
         </div>
         <ListBlock
           title="Recruiter Risk Flags"
@@ -93,7 +93,7 @@ function KeywordCoverageBlock({ coverage }: { coverage: KeywordCoverage }) {
     <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
       <div className="flex items-center justify-between gap-3">
         <h3 className="font-serif text-h3 text-ink">Keyword Coverage</h3>
-        <span className="text-sm font-semibold text-ink tabular-nums">
+        <span className="text-base font-semibold text-ink tabular-nums">
           {coverage.coveragePercent}%
         </span>
       </div>
@@ -106,22 +106,22 @@ function KeywordCoverageBlock({ coverage }: { coverage: KeywordCoverage }) {
           ))}
         </div>
       ) : (
-        <p className="mt-4 text-sm leading-6 text-steel">
+        <p className="mt-4 text-base leading-6 text-steel">
           No role keywords were extracted from the job description.
         </p>
       )}
 
       {coverage.missing.length ? (
         <div className="mt-5">
-          <p className="text-sm font-semibold text-ink">Missing role keywords</p>
-          <p className="mt-1 text-xs leading-5 text-steel">
+          <p className="text-base font-semibold text-ink">Missing role keywords</p>
+          <p className="mt-1 text-sm leading-5 text-steel">
             Add these explicitly to the CV — most ATS resume parsers require literal matches.
           </p>
           <ul className="mt-2 flex flex-wrap gap-2">
             {coverage.missing.map((keyword) => (
               <li
                 key={keyword}
-                className="rounded-full border border-coral/40 bg-red-50 px-3 py-1 text-xs font-semibold text-ink"
+                className="rounded-full border border-coral/40 bg-red-50 px-3 py-1 text-sm font-semibold text-ink"
               >
                 {keyword}
               </li>
@@ -134,16 +134,16 @@ function KeywordCoverageBlock({ coverage }: { coverage: KeywordCoverage }) {
         <div className="mt-5 rounded-md bg-paper p-3">
           <div className="flex items-center gap-2">
             <AlertTriangle className="h-4 w-4 text-coral" aria-hidden />
-            <p className="text-sm font-semibold text-ink">Possible keyword stuffing</p>
+            <p className="text-base font-semibold text-ink">Possible keyword stuffing</p>
           </div>
-          <p className="mt-1 text-xs leading-5 text-steel">
+          <p className="mt-1 text-sm leading-5 text-steel">
             These appear far more often in the CV than in the JD; recruiters may flag this:
           </p>
           <ul className="mt-2 flex flex-wrap gap-2">
             {coverage.overUsed.map((keyword) => (
               <li
                 key={keyword}
-                className="rounded-full border border-stone-300 bg-white px-3 py-1 text-xs font-semibold text-ink"
+                className="rounded-full border border-stone-300 bg-white px-3 py-1 text-sm font-semibold text-ink"
               >
                 {keyword}
               </li>
@@ -173,9 +173,9 @@ function KeywordRow({ hit }: { hit: KeywordCoverage["hits"][number] }) {
     ? "border-moss/40 bg-moss/10 text-ink"
     : "border-coral/40 bg-red-50 text-ink";
   return (
-    <div className={`flex items-center justify-between gap-3 rounded-md border px-3 py-2 text-sm ${cls}`}>
+    <div className={`flex items-center justify-between gap-3 rounded-md border px-3 py-2 text-base ${cls}`}>
       <span className="truncate font-medium">{hit.keyword}</span>
-      <span className="shrink-0 text-xs font-semibold uppercase tracking-wide text-steel">
+      <span className="shrink-0 text-sm font-semibold uppercase tracking-wide text-steel">
         JD {hit.inJd} · CV {hit.inCv} · {label}
       </span>
     </div>

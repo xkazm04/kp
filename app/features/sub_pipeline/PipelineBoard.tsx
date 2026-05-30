@@ -42,15 +42,15 @@ export function PipelineBoard({
                     type="button"
                     onClick={() => openJob(pos.id)}
                     title="Open the job description"
-                    className="focus-ring text-left text-sm font-semibold leading-tight text-ink hover:text-coral"
+                    className="focus-ring text-left text-base font-semibold leading-tight text-ink hover:text-coral"
                   >
                     {pos.title}
                   </button>
-                  <p className="text-[11px] text-steel">{pos.count} active</p>
+                  <p className="text-sm text-steel">{pos.count} active</p>
                   <button
                     type="button"
                     onClick={() => openPositionRanking(pos.id)}
-                    className="focus-ring mt-1 text-[11px] font-semibold text-coral hover:underline"
+                    className="focus-ring mt-1 text-sm font-semibold text-coral hover:underline"
                   >
                     Rank candidates →
                   </button>
@@ -71,13 +71,13 @@ export function PipelineBoard({
                       ))}
                       {cell.length > 6 ? (
                         <p
-                          className="px-1 text-[11px] font-semibold text-steel"
+                          className="px-1 text-sm font-semibold text-steel"
                           title={cell.slice(6).map((e) => e.candidateLabel).join(", ")}
                         >
                           +{cell.length - 6} more
                         </p>
                       ) : null}
-                      {cell.length === 0 ? <span className="px-1 text-[11px] text-stone-300">·</span> : null}
+                      {cell.length === 0 ? <span className="px-1 text-sm text-stone-300">·</span> : null}
                     </div>
                   );
                 })}

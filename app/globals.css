@@ -28,16 +28,17 @@
   --text-h3--line-height: 1.4;
   --text-h3--font-weight: 600;
 
-  --text-body: 14px;
+  /* Body promoted 14 -> 16 (text-sm -> text-base) for overall readability. */
+  --text-body: 16px;
   --text-body--line-height: 1.5;
 
-  --text-meta: 12px;
+  /* Meta/micro promoted to 14 (text-sm) — nothing renders below text-sm. */
+  --text-meta: 14px;
   --text-meta--line-height: 1.4;
   --text-meta--letter-spacing: 0.08em;
   --text-meta--font-weight: 600;
 
-  /* Smallest token on the scale — nothing should render below this. */
-  --text-micro: 11px;
+  --text-micro: 14px;
   --text-micro--line-height: 1.4;
 }
 

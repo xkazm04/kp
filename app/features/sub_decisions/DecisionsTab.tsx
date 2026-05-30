@@ -85,20 +85,20 @@ export function DecisionsTab() {
             .
           </p>
         </div>
-        <span className="rounded-md border border-stone-200 bg-paper px-2.5 py-1 text-xs text-steel">
+        <span className="rounded-md border border-stone-200 bg-paper px-2.5 py-1 text-sm text-steel">
           {pending.length} pending
         </span>
       </header>
 
       {error ? (
-        <p className="rounded-md bg-red-50 p-3 text-sm text-red-700">{error}</p>
+        <p className="rounded-md bg-red-50 p-3 text-base text-red-700">{error}</p>
       ) : entries == null ? (
-        <p className="text-sm text-steel">Loading…</p>
+        <p className="text-base text-steel">Loading…</p>
       ) : pending.length === 0 ? (
         <div className="rounded-lg border border-stone-200 bg-paper p-6 text-center">
           <Check className="mx-auto text-moss" size={28} />
-          <p className="mt-2 text-sm font-semibold text-ink">You&apos;re all caught up.</p>
-          <p className="text-xs text-steel">No decisions are waiting on you right now.</p>
+          <p className="mt-2 text-base font-semibold text-ink">You&apos;re all caught up.</p>
+          <p className="text-sm text-steel">No decisions are waiting on you right now.</p>
         </div>
       ) : (
         <div className="space-y-6">
@@ -107,7 +107,7 @@ export function DecisionsTab() {
               <h3 className="flex items-center gap-1.5 text-meta uppercase tracking-wide text-steel">
                 <Sparkles size={13} className="text-coral" /> AI recommendations <span className="text-coral">· {aiReviews.length}</span>
               </h3>
-              <p className="mt-1 text-[11px] text-steel">
+              <p className="mt-1 text-sm text-steel">
                 The LLM screened these at the AI-matched gate or synthesized an interview scorecard. Confirm or override —
                 early-career candidates are deliberately held here for your judgment.
               </p>
@@ -125,7 +125,7 @@ export function DecisionsTab() {
               <h3 className="text-meta uppercase tracking-wide text-steel">
                 Key decisions <span className="text-coral">· {keyDecisions.length}</span>
               </h3>
-              <p className="mt-1 text-[11px] text-steel">Advance to the next stage, or reject — read the fit first.</p>
+              <p className="mt-1 text-sm text-steel">Advance to the next stage, or reject — read the fit first.</p>
               <div className="mt-3 space-y-3">
                 {keyDecisions.map((e) => (
                   <div key={e.id} className={leavingWrapClass(e)}>
@@ -140,7 +140,7 @@ export function DecisionsTab() {
               <h3 className="text-meta uppercase tracking-wide text-steel">
                 Interview scheduling <span className="text-coral">· {scheduling.length}</span>
               </h3>
-              <p className="mt-1 text-[11px] text-steel">Confirm the proposed slot, or pick another, then approve.</p>
+              <p className="mt-1 text-sm text-steel">Confirm the proposed slot, or pick another, then approve.</p>
               <div className="mt-3 space-y-3">
                 {scheduling.map((e) => (
                   <div key={e.id} className={leavingWrapClass(e)}>

@@ -75,17 +75,17 @@ export function LibraryTab() {
         <div className="rounded-lg border border-stone-200 bg-white">
           <div className="flex items-center justify-between border-b border-stone-200 px-5 py-3">
             <h3 className="font-serif text-h2 text-ink">Saved JDs</h3>
-            <span className="text-xs uppercase tracking-wide text-steel">
+            <span className="text-sm uppercase tracking-wide text-steel">
               {formatCount(visible.length, "entry", "entries")}
             </span>
           </div>
           {error ? (
             <div className="flex flex-col items-start gap-3 px-5 py-4">
-              <p className="text-sm text-red-700">{error}</p>
+              <p className="text-base text-red-700">{error}</p>
               <button
                 type="button"
                 onClick={() => load()}
-                className="focus-ring inline-flex h-9 items-center gap-2 rounded-md border border-stone-300 bg-white px-3 text-sm font-semibold text-ink hover:bg-stone-50"
+                className="focus-ring inline-flex h-9 items-center gap-2 rounded-md border border-stone-300 bg-white px-3 text-base font-semibold text-ink hover:bg-stone-50"
               >
                 <RotateCcw className="h-3.5 w-3.5" aria-hidden />
                 Try again
@@ -94,7 +94,7 @@ export function LibraryTab() {
           ) : rows == null ? (
             <JdListSkeleton />
           ) : rows.length === 0 ? (
-            <p className="px-5 py-8 text-sm text-steel">No JDs saved yet. Use the form to add one.</p>
+            <p className="px-5 py-8 text-base text-steel">No JDs saved yet. Use the form to add one.</p>
           ) : (
             <>
               <div className="border-b border-stone-200 px-5 py-3">
@@ -106,14 +106,14 @@ export function LibraryTab() {
                     onChange={(event) => setQuery(event.target.value)}
                     placeholder="Search title, slug, or content…"
                     aria-label="Search saved JDs"
-                    className="focus-ring h-10 w-full rounded-md border border-stone-300 bg-white pl-9 pr-3 text-sm text-ink"
+                    className="focus-ring h-10 w-full rounded-md border border-stone-300 bg-white pl-9 pr-3 text-base text-ink"
                   />
                 </div>
               </div>
               {visible.length === 0 ? (
                 <div className="px-5 py-10 text-center">
-                  <p className="text-sm font-semibold text-ink">No matching JDs</p>
-                  <p className="mt-1 text-sm text-steel">
+                  <p className="text-base font-semibold text-ink">No matching JDs</p>
+                  <p className="mt-1 text-base text-steel">
                     Nothing matches “{query.trim()}”. Try a different search.
                   </p>
                 </div>
@@ -128,12 +128,12 @@ export function LibraryTab() {
                         >
                           {row.title}
                         </Link>
-                        <span className="font-mono text-xs text-coral">{row.slug}</span>
+                        <span className="font-mono text-sm text-coral">{row.slug}</span>
                       </div>
-                      <p className="mt-2 line-clamp-3 text-sm leading-6 text-ink/80">
+                      <p className="mt-2 line-clamp-3 text-base leading-6 text-ink/80">
                         {row.preview}
                       </p>
-                      <p className="mt-2 text-xs text-steel">
+                      <p className="mt-2 text-sm text-steel">
                         Saved {new Date(row.created_at).toLocaleString()}
                       </p>
                     </li>
