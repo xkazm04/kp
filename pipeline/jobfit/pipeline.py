@@ -35,6 +35,7 @@ from .taxonomy import (
     company_modifiers,
     detected_signals,
     detected_skills,
+    has_seniority_junior_signal,
     has_seniority_lead_signal,
     has_seniority_medior_signal,
     has_seniority_senior_signal,
@@ -455,10 +456,21 @@ def _build_deterministic_evidence(
 
     role_family = classify_role_family([], cleaned)
 
+    # Seniority for the salary anchor — kept deliberately conservative so the
+    # anchor can't inflate the LLM's estimate beyond the candidate's real band:
+    #  - Entry markers (student/intern/trainee/junior) are high-precision and act
+    #    as a FLOOR: a lone lead/senior token in an entry CV is almost always a
+    #    project verb or an aspiration ("aspiring Principal"), not the level.
+    #  - "lead" must be corroborated by a senior-level signal — a genuine lead
+    #    reads as senior+ — so a stray title token alone only reaches "senior".
+    lead = has_seniority_lead_signal(cleaned)
+    senior = has_seniority_senior_signal(cleaned)
     seniority: str | None = None
-    if has_seniority_lead_signal(cleaned):
+    if has_seniority_junior_signal(cleaned):
+        seniority = "junior"
+    elif lead and senior:
         seniority = "lead"
-    elif has_seniority_senior_signal(cleaned):
+    elif lead or senior:
         seniority = "senior"
     elif has_seniority_medior_signal(cleaned):
         seniority = "medior"

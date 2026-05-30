@@ -433,6 +433,23 @@ def has_seniority_medior_signal(text: str) -> bool:
     return False
 
 
+def has_seniority_junior_signal(text: str) -> bool:
+    """Entry-level marker (student/intern/trainee/junior/graduate).
+
+    High-precision self-description: you say "student"/"intern" about yourself
+    only when you are one. Used as a floor when anchoring salary so a stray
+    senior/lead token can't anchor an entry-level CV above its band.
+    """
+    text_n = _normalize(text)
+    compact = _compact(text_n)
+    for term in _terms_by_category("seniority"):
+        if term.get("seniority_level") != "junior":
+            continue
+        if _term_in_text(term, text_n, compact):
+            return True
+    return False
+
+
 # --- Hierarchy + provenance API (taxonomy v3) ------------------------------
 
 

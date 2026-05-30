@@ -1,0 +1,252 @@
+{
+ "cand-010": {
+  "min": 60000,
+  "max": 85000,
+  "sen": "junior"
+ },
+ "cand-000": {
+  "min": 185000,
+  "max": 235000,
+  "sen": "lead"
+ },
+ "cand-001": {
+  "min": 60000,
+  "max": 85000,
+  "sen": "junior"
+ },
+ "cand-014": {
+  "min": 160000,
+  "max": 205000,
+  "sen": "senior"
+ },
+ "cand-021": {
+  "min": 60000,
+  "max": 85000,
+  "sen": "junior"
+ },
+ "cand-013": {
+  "min": 165000,
+  "max": 210000,
+  "sen": "lead"
+ },
+ "cand-006": {
+  "min": 120000,
+  "max": 150000,
+  "sen": "junior"
+ },
+ "cand-033": {
+  "min": 65000,
+  "max": 95000,
+  "sen": "junior"
+ },
+ "cand-002": {
+  "min": 60000,
+  "max": 85000,
+  "sen": "junior"
+ },
+ "cand-003": {
+  "min": 205000,
+  "max": 260000,
+  "sen": "lead"
+ },
+ "cand-004": {
+  "min": 190000,
+  "max": 240000,
+  "sen": "senior"
+ },
+ "cand-005": {
+  "min": 190000,
+  "max": 240000,
+  "sen": "lead"
+ },
+ "cand-007": {
+  "min": 180000,
+  "max": 235000,
+  "sen": "lead"
+ },
+ "cand-008": {
+  "min": 70000,
+  "max": 95000,
+  "sen": "junior"
+ },
+ "cand-009": {
+  "min": 150000,
+  "max": 190000,
+  "sen": "junior"
+ },
+ "cand-011": {
+  "min": 60000,
+  "max": 80000,
+  "sen": "junior"
+ },
+ "cand-012": {
+  "min": 190000,
+  "max": 245000,
+  "sen": "lead"
+ },
+ "cand-015": {
+  "min": 60000,
+  "max": 85000,
+  "sen": "junior"
+ },
+ "cand-017": {
+  "min": 185000,
+  "max": 240000,
+  "sen": "senior"
+ },
+ "cand-018": {
+  "min": 60000,
+  "max": 85000,
+  "sen": "junior"
+ },
+ "cand-019": {
+  "min": 160000,
+  "max": 205000,
+  "sen": "senior"
+ },
+ "cand-020": {
+  "min": 70000,
+  "max": 95000,
+  "sen": "junior"
+ },
+ "cand-022": {
+  "min": 160000,
+  "max": 205000,
+  "sen": "senior"
+ },
+ "cand-023": {
+  "min": 120000,
+  "max": 150000,
+  "sen": "junior"
+ },
+ "cand-024": {
+  "min": 60000,
+  "max": 85000,
+  "sen": "junior"
+ },
+ "cand-025": {
+  "min": 60000,
+  "max": 80000,
+  "sen": "junior"
+ },
+ "cand-027": {
+  "min": 150000,
+  "max": 195000,
+  "sen": "senior"
+ },
+ "cand-029": {
+  "min": 60000,
+  "max": 85000,
+  "sen": "junior"
+ },
+ "cand-030": {
+  "min": 60000,
+  "max": 85000,
+  "sen": "junior"
+ },
+ "cand-031": {
+  "min": 60000,
+  "max": 85000,
+  "sen": "junior"
+ },
+ "cand-032": {
+  "min": 60000,
+  "max": 85000,
+  "sen": "junior"
+ },
+ "cand-034": {
+  "min": 70000,
+  "max": 95000,
+  "sen": "junior"
+ },
+ "cand-035": {
+  "min": 160000,
+  "max": 205000,
+  "sen": "senior"
+ },
+ "cand-037": {
+  "min": 60000,
+  "max": 80000,
+  "sen": "junior"
+ },
+ "cand-038": {
+  "min": 160000,
+  "max": 205000,
+  "sen": "senior"
+ },
+ "cand-039": {
+  "min": 200000,
+  "max": 245000,
+  "sen": "lead"
+ },
+ "cand-040": {
+  "min": 150000,
+  "max": 195000,
+  "sen": "senior"
+ },
+ "cand-041": {
+  "min": 165000,
+  "max": 205000,
+  "sen": "senior"
+ },
+ "cand-043": {
+  "min": 160000,
+  "max": 205000,
+  "sen": "lead"
+ },
+ "cand-044": {
+  "min": 180000,
+  "max": 235000,
+  "sen": "senior"
+ },
+ "cand-045": {
+  "min": 60000,
+  "max": 80000,
+  "sen": "junior"
+ },
+ "cand-046": {
+  "min": 120000,
+  "max": 160000,
+  "sen": "junior"
+ },
+ "cand-047": {
+  "min": 180000,
+  "max": 235000,
+  "sen": "lead"
+ },
+ "cand-048": {
+  "min": 195000,
+  "max": 255000,
+  "sen": "lead"
+ },
+ "cand-049": {
+  "min": 60000,
+  "max": 75000,
+  "sen": "junior"
+ },
+ "cand-016": {
+  "min": 60000,
+  "max": 85000,
+  "sen": "junior"
+ },
+ "cand-026": {
+  "min": 70000,
+  "max": 95000,
+  "sen": "junior"
+ },
+ "cand-028": {
+  "min": 200000,
+  "max": 265000,
+  "sen": "lead"
+ },
+ "cand-036": {
+  "min": 120000,
+  "max": 150000,
+  "sen": "junior"
+ },
+ "cand-042": {
+  "min": 200000,
+  "max": 265000,
+  "sen": "lead"
+ }
+}

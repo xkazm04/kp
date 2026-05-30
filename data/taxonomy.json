@@ -162,10 +162,10 @@
     { "id": "edu_dis", "match": ["dis.", "diplomovaný specialista"], "categories": ["education"], "education_level": "bachelor" },
     { "id": "edu_university", "match": ["university", "college", "vysoká", "vysoka", "vysoká škola", "vyšší odborná"], "categories": ["education"], "education_level": "university" },
 
-    { "id": "sen_lead", "match": ["head of", "principal", "staff engineer", "engineering manager", "tech lead", "vedoucí", "team lead", "týmový lídr", "vedoucí týmu", "manažer týmu", "manažer vývoje", "hlavní", "cto", "vp engineering", "head of engineering"], "categories": ["seniority"], "seniority_level": "lead" },
+    { "id": "sen_lead", "match": ["head of", "principal", "staff engineer", "engineering manager", "tech lead", "team lead", "týmový lídr", "vedoucí týmu", "manažer týmu", "manažer vývoje", "vp engineering", "head of engineering"], "categories": ["seniority"], "seniority_level": "lead" },
     { "id": "sen_senior", "match": ["senior", "zkušený", "expert", "specialista"], "categories": ["seniority"], "seniority_level": "senior" },
     { "id": "sen_medior", "match": ["medior", "mid-level", "mid level", "middle", "mid-senior", "samostatný", "samostatně"], "categories": ["seniority"], "seniority_level": "medior" },
-    { "id": "sen_junior", "match": ["junior", "junior developer", "nováček", "začátečník", "trainee", "praktikant", "stážista", "intern"], "categories": ["seniority"], "seniority_level": "junior" }
+    { "id": "sen_junior", "match": ["junior", "junior developer", "nováček", "začátečník", "trainee", "praktikant", "stážista", "intern", "student", "studentka", "absolvent", "čerstvý absolvent", "graduate"], "categories": ["seniority"], "seniority_level": "junior" }
   ],
   "company_adjustments": {
     "enterprise/corporate": { "factor": 1.11, "rationale": "Multinational R&D centres in Prague pay 30–40% above local mid-market on guaranteed comp; bonuses/equity add another 20–30%. Source: Kitalent Prague ICT analysis." },

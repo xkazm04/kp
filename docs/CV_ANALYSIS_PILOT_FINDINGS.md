@@ -91,6 +91,41 @@ quality signal.
 — Gemini uses `university` as a catch-all for tertiary education. Not a gated axis; worth a
 normalisation pass if education precision matters.
 
+## Fix: seniority-aware salary anchoring (implemented + measured)
+
+Root cause (diagnosed across all 50 CVs): the deterministic anchor seniority that
+seeds the Gemini salary prompt (`_build_deterministic_evidence`) was driven by
+**substring keyword matching** with two defects:
+- `sen_lead` matched over-generic / substring-dangerous tokens — `hlavní` ("main"),
+  `cto` (3-letter acronym matching *inside* words), bare `vedoucí` ("leading") —
+  firing **lead** on 10 students and many seniors. (Same substring-scanner bug class
+  that recurs in this codebase.)
+- `sen_junior` lacked `student`/`studentka`/`absolvent`, so entry CVs detected **nothing**
+  → no anchor → the LLM estimated freely (high). A "led a student project" phrase then
+  tripped lead → a junior was anchored at a *lead* band (cand-006: 135–190k anchor for a
+  55–75k person).
+
+Changes:
+1. `data/taxonomy.json` — removed `hlavní`/`cto`/bare `vedoucí` from `sen_lead`; added
+   `student`/`studentka`/`absolvent`/`graduate` to `sen_junior`.
+2. `taxonomy.py` — new `has_seniority_junior_signal`.
+3. `_build_deterministic_evidence` — entry markers **floor to junior** (anchor juniors at
+   the junior band instead of none/false-lead); **`lead` requires a `senior` signal too**
+   (a real lead reads as senior+), so a stray title token alone only reaches `senior`.
+
+**Measured (re-analyzed all 50, real Gemini):** student over-anchoring **10 → 0**;
+`salary_overlap` **66% → 82%**; role 96 / seniority 100 / skill 94 unchanged; 158 py tests
+green. 12 candidates improved (students 0%→100%, e.g. cand-006 now 50–60k = true junior PM
+rate; several seniors corrected lead→senior, e.g. cand-007 180–235k → 150–185k). The 4
+apparent "regressions" are ±3–4 pp LLM run-to-run noise on candidates whose anchor did not
+change.
+
+**Residual (next iteration):** ~11 `bau` seniors with "Staff/Principal" *aspirations* still
+fire `principal`/`staff engineer` from the aspiration line → anchored at lead → salary at
+top-of-band (cand-000 21%, cand-003 8%). Needs aspiration-vs-held-title disambiguation (e.g.
+ignore titles in an aspiration/goal clause) or demoting IC-track titles to `senior` for the
+anchor. Deferred to avoid under-anchoring genuine staff/principal ICs without measurement.
+
 ## Net
 The CV-analysis pipeline produces **high-quality, well-calibrated scores** on real ČS-matched
 candidates (role/seniority/skill all strong; salary sound once the eval is fair). The one
