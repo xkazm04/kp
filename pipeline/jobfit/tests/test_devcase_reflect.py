@@ -20,7 +20,7 @@ class TestReflect(unittest.TestCase):
         ]
         r, source = reflect_commits(commits, provider=None)
         self.assertEqual(source, "deterministic")
-        self.assertIn("Adds/updates tests", r["verificationHabits"])
+        self.assertTrue(any("test" in v.lower() for v in r["verificationHabits"]))
         self.assertTrue(any("revert" in d.lower() for d in r["deadEnds"]))
         self.assertIn(r["iterationPattern"], ("exploratory", "linear", "big-bang", "test-driven", "unclear"))
         self.assertEqual(r["promptVersion"], COMMIT_REFLECTION_PROMPT_VERSION)

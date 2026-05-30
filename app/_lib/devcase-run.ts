@@ -2,7 +2,7 @@ import { writeFile } from "node:fs/promises";
 import path from "node:path";
 import { getDevCase, getPosting, getSubmission, saveSubmissionEvaluation } from "./db";
 import { cleanupWorkdir, createWorkdir, parseStderrError, spawnPython } from "./python-runner";
-import { buildRepoSnapshot, fetchCommitTrace, type RepoSnapshot } from "./repo-snapshot";
+import { buildRepoSnapshot, fetchRepoSignals, type RepoSnapshot } from "./repo-snapshot";
 
 export type DevNeed = {
   id?: string;
@@ -94,7 +94,9 @@ export type CommitReflectionResult = {
 // D5 core: pull the submission repo's git trace, then reflect ("where they mentally
 // went") + assess tooling against the case's covert probes.
 export async function runCommitReflection(repoRef: string, caseId?: string): Promise<CommitReflectionResult> {
-  const trace = (await fetchCommitTrace(repoRef)) ?? [];
+  const signals = await fetchRepoSignals(repoRef);
+  const commits = signals?.commits ?? [];
+  const repo = signals ? { cadence: signals.cadence, topLevel: signals.topLevel } : null;
   const devCase = caseId ? getDevCase(caseId) : null;
   const probes = ((devCase?.case as { coverProbes?: unknown[] } | null)?.coverProbes ?? []) as unknown[];
 
@@ -102,24 +104,22 @@ export async function runCommitReflection(repoRef: string, caseId?: string): Pro
   try {
     const commitsPath = path.join(workdir, "commits.json");
     const probesPath = path.join(workdir, "probes.json");
-    await writeFile(commitsPath, JSON.stringify(trace), "utf-8");
+    await writeFile(commitsPath, JSON.stringify(commits), "utf-8");
     await writeFile(probesPath, JSON.stringify(probes), "utf-8");
-    const { result } = spawnPython([
-      "-m",
-      "pipeline.jobfit.devcase.devcase_cli",
-      "reflect-commits",
-      "--commits-json",
-      commitsPath,
-      "--probes-json",
-      probesPath,
-    ]);
+    const args = ["-m", "pipeline.jobfit.devcase.devcase_cli", "reflect-commits", "--commits-json", commitsPath, "--probes-json", probesPath];
+    if (repo) {
+      const repoPath = path.join(workdir, "repo.json");
+      await writeFile(repoPath, JSON.stringify(repo), "utf-8");
+      args.push("--repo-json", repoPath);
+    }
+    const { result } = spawnPython(args);
     const { stdout, stderr, exitCode } = await result;
     if (exitCode !== 0) {
       const err = parseStderrError(stderr, exitCode);
       throw new Error(err.message);
     }
     const payload = JSON.parse(stdout) as { result: { reflection: Record<string, unknown>; tooling: Record<string, unknown> }; source: string };
-    return { reflection: payload.result.reflection, tooling: payload.result.tooling, source: payload.source, commitCount: trace.length };
+    return { reflection: payload.result.reflection, tooling: payload.result.tooling, source: payload.source, commitCount: commits.length };
   } finally {
     await cleanupWorkdir(workdir);
   }
@@ -145,7 +145,9 @@ export async function runEvaluateSubmission(submissionId: string): Promise<Submi
   const caseObj = (devCase?.case as Record<string, unknown>) ?? {};
   const roleObj = (devCase?.role as Record<string, unknown>) ?? {};
   const probes = (caseObj.coverProbes as unknown[]) ?? [];
-  const trace = (await fetchCommitTrace(sub.repoRef)) ?? [];
+  const signals = await fetchRepoSignals(sub.repoRef);
+  const commits = signals?.commits ?? [];
+  const repo = signals ? { cadence: signals.cadence, topLevel: signals.topLevel } : null;
 
   const workdir = await createWorkdir();
   try {
@@ -154,12 +156,12 @@ export async function runEvaluateSubmission(submissionId: string): Promise<Submi
       await writeFile(fp, JSON.stringify(data), "utf-8");
       return fp;
     };
-    const commitsPath = await write("commits.json", trace);
+    const commitsPath = await write("commits.json", commits);
     const probesPath = await write("probes.json", probes);
     const casePath = await write("case.json", caseObj);
     const rolePath = await write("role.json", roleObj);
 
-    const { result } = spawnPython([
+    const args = [
       "-m",
       "pipeline.jobfit.devcase.devcase_cli",
       "evaluate-submission",
@@ -171,7 +173,10 @@ export async function runEvaluateSubmission(submissionId: string): Promise<Submi
       casePath,
       "--role-json",
       rolePath,
-    ]);
+    ];
+    if (repo) args.push("--repo-json", await write("repo.json", repo));
+
+    const { result } = spawnPython(args);
     const { stdout, stderr, exitCode } = await result;
     if (exitCode !== 0) {
       const err = parseStderrError(stderr, exitCode);
@@ -181,7 +186,7 @@ export async function runEvaluateSubmission(submissionId: string): Promise<Submi
       result: { reflection: Record<string, unknown>; tooling: Record<string, unknown>; evaluation: Record<string, unknown>; transfer: Record<string, unknown> };
       source: string;
     };
-    const out = { ...payload.result, source: payload.source, commitCount: trace.length };
+    const out = { ...payload.result, source: payload.source, commitCount: commits.length };
     const transferScore = Number((payload.result.transfer as { transferScore?: number }).transferScore ?? 0);
     saveSubmissionEvaluation(submissionId, out, transferScore);
     return out;

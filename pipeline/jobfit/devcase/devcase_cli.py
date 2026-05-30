@@ -35,6 +35,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--analysis-json", type=Path)
     parser.add_argument("--commits-json", type=Path)
     parser.add_argument("--probes-json", type=Path)
+    parser.add_argument("--repo-json", type=Path)
     parser.add_argument("--case-json", type=Path)
     parser.add_argument("--role-json", type=Path)
     parser.add_argument("--no-llm", action="store_true")
@@ -50,8 +51,9 @@ def main(argv: list[str] | None = None) -> int:
                 raise ValueError(f"{args.command} requires --commits-json")
             commits = json.loads(args.commits_json.read_text(encoding="utf-8")) or []
             probes = json.loads(args.probes_json.read_text(encoding="utf-8")) if args.probes_json else []
-            reflection, rsrc = _reflect.reflect_commits(commits, provider=provider)
-            tooling, tsrc = _reflect.assess_tooling(reflection, commits, probes, provider=provider)
+            repo = json.loads(args.repo_json.read_text(encoding="utf-8")) if args.repo_json else None
+            reflection, rsrc = _reflect.reflect_commits(commits, repo, provider=provider)
+            tooling, tsrc = _reflect.assess_tooling(reflection, commits, probes, repo, provider=provider)
             srcs = [rsrc, tsrc]
             if args.command == "reflect-commits":
                 source = "llm" if "llm" in srcs else "deterministic"

@@ -1,27 +1,44 @@
-"""Phase D5 — the trace: infer 'where the candidate mentally went' from the git
-history, and assess how they DROVE their tools against the case's covert probes.
+"""Phase D5/D8 — the trace: infer 'where the candidate mentally went' and how they DROVE
+their tools, from DURABLE repository signals.
 
-LLM path (Claude CLI) + deterministic fallback. Two fairness invariants baked in:
-the reflection is HEDGED (inferred from commits, never over-claiming intent), and
-USING AN LLM/TOOLS IS NEVER A PENALTY — we judge judgment + verification, not whether
-the candidate used AI.
+Design principle (so this keeps its value as tooling trends churn): the CODE collects only
+durable structural facts whose meaning does not change — commit sizes + cadence, the file
+tree, messages — and the LLM, which updates over time, does the trend-aware INTERPRETATION
+(including spotting agent/AI tooling artifacts with its own current knowledge). The prompt
+asks for first-principles reasoning about the SHAPE of the work, not a fixed keyword checklist,
+so it does not need recalibrating every time a new tool or convention appears.
+
+Two fairness invariants hold throughout: the reflection is HEDGED (artifacts, not intent),
+and USING AN LLM/TOOLS IS NEVER A PENALTY — we judge judgment, verification, and deliberate
+tooling, not which tools were used.
 """
 
 from __future__ import annotations
 
 import json
+from statistics import median
 from typing import Any
 
-COMMIT_REFLECTION_PROMPT_VERSION = "commit-reflection-v1"
-TOOLING_SIGNAL_PROMPT_VERSION = "tooling-signal-v1"
+COMMIT_REFLECTION_PROMPT_VERSION = "commit-reflection-v2"
+TOOLING_SIGNAL_PROMPT_VERSION = "tooling-signal-v2"
 
 _SYSTEM = (
-    "You analyze a candidate's git trace for a take-home assignment. Infer cautiously and HEDGE — "
-    "you only see commits, not intent. Never penalize the use of LLMs or tools; judge judgment, "
-    "verification, and how they drove the work. Output strict JSON only."
+    "You read a code repository's DURABLE signals — the shape of its history and structure — to infer "
+    "engineering capability. The specific tools, frameworks and conventions a developer uses change "
+    "constantly and are NOT the point; judge what outlasts trends: decomposition, validation, recovery "
+    "from mistakes, and deliberate tooling. Never penalize using LLMs/tools. Hedge — you see artifacts, "
+    "not intent. Output strict JSON only."
 )
 
 _ITERATION = ("exploratory", "linear", "big-bang", "test-driven", "unclear")
+
+_AGNOSTIC = (
+    "Reason from FIRST PRINCIPLES about the evidence below — do NOT apply a fixed checklist of keywords "
+    "or today's tool names. Identify for yourself any agent/AI or automation configuration present (use "
+    "your own current knowledge of the ecosystem) and read its PRESENCE as deliberate tooling, never its "
+    "brand. Absence of a signal is not failure. The durable question is the SHAPE of the work: how change "
+    "was decomposed and sized, the rhythm of the history, what was validated, and how mistakes were recovered."
+)
 
 
 def _generate(provider: Any | None, prompt: str, deterministic, coerce) -> tuple[dict, str]:
@@ -56,53 +73,94 @@ def _messages(commits: list[dict]) -> list[str]:
     return out
 
 
+def _size_summary(commits: list[dict]) -> dict:
+    """Durable, tool-agnostic shape of the change set (only where stats are present)."""
+    adds = [int(c["additions"]) for c in commits if isinstance(c.get("additions"), (int, float))]
+    files = [int(c["files"]) for c in commits if isinstance(c.get("files"), (int, float))]
+    if not adds:
+        return {"withStats": 0}
+    total = sum(adds)
+    return {
+        "withStats": len(adds),
+        "totalAdditions": total,
+        "maxCommitAdditions": max(adds),
+        "medianAdditions": int(median(adds)),
+        "biggestShareOfChange": round(max(adds) / total, 2) if total else 0.0,
+        "medianFilesPerCommit": int(median(files)) if files else None,
+    }
+
+
+def _context(commits: list[dict], repo: dict | None) -> dict:
+    repo = repo or {}
+    return {
+        "commitCount": len(commits),
+        "messages": _messages(commits)[:60],
+        "changeShape": _size_summary(commits),
+        "cadence": repo.get("cadence"),  # {count, spanHours, bursty} — durable rhythm
+        "topLevel": repo.get("topLevel"),  # [{name,type}] — let the model spot tests/CI/agent files itself
+    }
+
+
 # --- reflect_commits --------------------------------------------------------
 
 
-def reflect_commits(commits: list[dict], *, provider: Any | None = None) -> tuple[dict, str]:
-    msgs = _messages(commits)
-    ctx = {"commitCount": len(commits), "messages": msgs[:60]}
+def reflect_commits(commits: list[dict], repo: dict | None = None, *, provider: Any | None = None) -> tuple[dict, str]:
+    ctx = _context(commits, repo)
     prompt = (
-        "Here is a candidate's commit trace from a take-home assignment (chronological as given).\n"
+        "Infer WHERE THE CANDIDATE MENTALLY WENT from this repository's durable signals.\n"
         f"{json.dumps(ctx, ensure_ascii=False, indent=2)}\n\n"
-        "Infer WHERE THE CANDIDATE MENTALLY WENT: their approach, iteration pattern, any dead-ends or "
-        "reverts, whether they appear to have read/explored before writing, and their verification habits "
-        "(tests, validation). You are inferring from commit messages only — HEDGE; do not over-claim intent.\n"
+        f"{_AGNOSTIC}\n\n"
         'Return JSON: { "narrative": str, "iterationPattern": "exploratory|linear|big-bang|test-driven|unclear", '
-        '"deadEnds": [str], "readBeforeWrite": number 0..1, "verificationHabits": [str], "confidence": number 0..1 }. JSON only.'
+        '"deadEnds": [str], "readBeforeWrite": number 0..1, "verificationHabits": [str], "confidence": number 0..1 }. '
+        "JSON only."
     )
 
     def deterministic() -> dict:
+        # structural-first (durable) with messages as a weak secondary signal
+        shape = ctx["changeShape"]
+        top = [str(e.get("name", "")).lower() for e in (ctx["topLevel"] or []) if isinstance(e, dict)]
+        msgs = ctx["messages"]
         blob = " ".join(msgs).casefold()
-        dead = [m for m in msgs if any(k in m.casefold() for k in ("revert", "rollback", "undo", "scrap"))]
-        verif = []
-        if "test" in blob:
-            verif.append("Adds/updates tests")
-        if blob.count("fix") >= 2:
-            verif.append("Iterates with fixes")
-        early = " ".join(msgs[-3:] if len(msgs) >= 3 else msgs).casefold()  # earliest commits (trace newest-first)
-        read = 0.6 if any(k in early for k in ("explore", "read", "understand", "scaffold", "setup", "investigate")) else 0.35
-        n = len(commits)
-        if "test" in early:
+        n = ctx["commitCount"]
+
+        has_tests = any(("test" in name or "spec" in name) for name in top) or "test" in blob
+        big_dump = (n <= 2) or (shape.get("withStats") and shape.get("biggestShareOfChange", 0) >= 0.6)
+        reverts = [m for m in msgs if any(k in m.casefold() for k in ("revert", "rollback", "undo"))]
+        bursty = bool((ctx["cadence"] or {}).get("bursty"))
+
+        if has_tests and not big_dump:
             pattern = "test-driven"
-        elif n <= 2:
+        elif big_dump:
             pattern = "big-bang"
-        elif blob.count("wip") + blob.count("fix") >= max(3, n // 2):
-            pattern = "exploratory"
+        elif n >= 5:
+            pattern = "exploratory" if (reverts or bursty) else "linear"
         elif n >= 3:
             pattern = "linear"
         else:
             pattern = "unclear"
+
+        verif = []
+        if has_tests:
+            verif.append("Tests present in the tree/history")
+        if blob.count("fix") >= 2:
+            verif.append("Iterates on fixes")
+        # read-before-write: a small first step + steady rhythm reads as exploring before dumping
+        read = 0.55 if (not big_dump and not bursty) else 0.35
+        if any(k in blob for k in ("explore", "read", "understand", "scaffold", "investigate")):
+            read = max(read, 0.6)
+
         narrative = (
-            f"From {n} commits: a broadly {pattern} approach"
-            + (f", with {len(dead)} apparent dead-end(s)" if dead else "")
-            + (". Some verification signal (tests/fixes)." if verif else ". Limited verification signal in messages.")
-            + " (Inferred from messages only — low confidence.)"
+            f"From {n} commits"
+            + (f" (~{shape['totalAdditions']:,} additions; biggest commit = {int(shape.get('biggestShareOfChange', 0) * 100)}% of the change)" if shape.get("withStats") else "")
+            + f": a broadly {pattern} shape"
+            + (f", with {len(reverts)} apparent recovery/revert(s)" if reverts else "")
+            + (". Verification signal present." if verif else ". Limited verification signal.")
+            + " (Structural inference — low confidence.)"
         )
         return {
             "narrative": narrative,
             "iterationPattern": pattern,
-            "deadEnds": dead[:4],
+            "deadEnds": reverts[:4],
             "readBeforeWrite": read,
             "verificationHabits": verif,
             "confidence": 0.3,
@@ -132,24 +190,26 @@ def reflect_commits(commits: list[dict], *, provider: Any | None = None) -> tupl
 # --- assess_tooling ---------------------------------------------------------
 
 
-def assess_tooling(reflection: dict, commits: list[dict], cover_probes: list[dict], *, provider: Any | None = None) -> tuple[dict, str]:
+def assess_tooling(reflection: dict, commits: list[dict], cover_probes: list[dict], repo: dict | None = None, *, provider: Any | None = None) -> tuple[dict, str]:
+    ctx = _context(commits, repo)
     probes = [
         {"id": str(p.get("id") or f"p{i + 1}"), "kind": p.get("kind"), "where": p.get("where"), "reveals": p.get("reveals")}
         for i, p in enumerate(cover_probes or [])
     ]
-    ctx = {
+    body = {
         "reflection": {k: reflection.get(k) for k in ("narrative", "iterationPattern", "readBeforeWrite", "verificationHabits", "deadEnds")},
-        "commitCount": len(commits),
-        "messages": _messages(commits)[:40],
+        "signals": ctx,
         "coverProbes": probes,
     }
     prompt = (
-        "Given this commit reflection and the case's COVERT probes (each probe's 'reveals' tells you what a good "
-        "vs naive response implies), assess how the candidate DROVE their tools.\n"
-        f"{json.dumps(ctx, ensure_ascii=False, indent=2)}\n\n"
-        "For each probe, judge from the trace evidence whether they DETECTED it and HANDLED it well. Rate overall "
-        "tooling fluency and note any over-reliance signals. CRITICAL: using an LLM/tools is NEVER a penalty — judge "
-        "judgment + verification, not whether they used AI. Absence of evidence is NOT failure; hedge.\n"
+        "Assess how the candidate DROVE their tools, durably. The repository's signals and the case's COVERT "
+        "probes follow (each probe's 'reveals' says what a good vs naive response implies).\n"
+        f"{json.dumps(body, ensure_ascii=False, indent=2)}\n\n"
+        f"{_AGNOSTIC}\n\n"
+        "For each probe, judge from the evidence whether it was DETECTED and HANDLED well. Rate overall tooling "
+        "fluency from the SHAPE of the work + any deliberate tooling setup. CRITICAL: using an LLM/tools is NEVER "
+        "a penalty — judge judgment + verification, not which tools were used. Only flag over-reliance with concrete "
+        "evidence (e.g. large unverified dumps), never from tool use itself; absence of evidence is not failure.\n"
         'Return JSON: { "fluency": number 0..1, "probeOutcomes": [ { "probeId": str, "detected": bool, "handledWell": bool, '
         '"note": str } ], "overRelianceFlags": [str], "evidence": [str], "confidence": number 0..1 }. JSON only.'
     )
@@ -158,7 +218,7 @@ def assess_tooling(reflection: dict, commits: list[dict], cover_probes: list[dic
         return {
             "fluency": 0.5,
             "probeOutcomes": [
-                {"probeId": p["id"], "detected": False, "handledWell": False, "note": "insufficient trace evidence (deterministic)"}
+                {"probeId": p["id"], "detected": False, "handledWell": False, "note": "insufficient signal (deterministic)"}
                 for p in probes
             ],
             "overRelianceFlags": [],
