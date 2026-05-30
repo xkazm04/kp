@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ScoreBadge } from "@/app/_components/ScoreBadge";
+import { Markdown } from "@/app/_components/Markdown";
 import { WorkspaceTabBarLinks } from "@/app/features/WorkspaceTabBarLinks";
 import { listAnalysesByJd, loadJd } from "@/app/_lib/db";
+import { JdActions } from "./JdActions";
 
 export const dynamic = "force-dynamic";
 
@@ -19,44 +21,42 @@ export default async function JdDetailPage({
 
   return (
     <main className="min-h-screen bg-paper">
-      <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 py-8 sm:px-6 lg:px-8">
+      <div className="mx-auto flex w-full max-w-[100rem] flex-col gap-6 px-4 py-8 sm:px-6 lg:px-8">
         <header className="flex flex-col gap-3 border-b border-stone-300 pb-5 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <p className="text-meta uppercase text-coral">JD · {slug}</p>
+            <p className="text-meta uppercase text-coral">Job description · {slug}</p>
             <h1 className="mt-2 font-serif text-display text-ink">{jd.title}</h1>
             <p className="mt-2 text-sm text-steel">
               Saved {new Date(jd.created_at).toLocaleString()} · {analyses.length} candidate
               {analyses.length === 1 ? "" : "s"} analyzed against this JD
             </p>
           </div>
-          <Link
-            href={`/?jd=${slug}`}
-            className="focus-ring inline-flex h-10 items-center gap-2 rounded-md bg-ink px-3 text-sm font-semibold text-white hover:bg-steel lg:self-end"
-          >
-            Analyze CV against this JD
-          </Link>
+          <div className="flex flex-col items-stretch gap-2 sm:flex-row lg:items-end">
+            <JdActions markdown={jd.body} />
+            <Link
+              href={`/?jd=${slug}`}
+              className="focus-ring inline-flex h-10 items-center justify-center gap-2 rounded-md bg-ink px-3 text-sm font-semibold text-white hover:bg-steel"
+            >
+              Analyze CV against this JD
+            </Link>
+          </div>
         </header>
 
         <WorkspaceTabBarLinks active="library" />
 
-        <div className="grid gap-6 lg:grid-cols-[1fr_400px]">
-          <article className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
-            <h2 className="font-serif text-h2 text-ink">Body</h2>
-            <pre className="mt-3 whitespace-pre-wrap break-words font-sans text-sm leading-6 text-ink">
-              {jd.body}
-            </pre>
+        <div className="grid gap-6 lg:grid-cols-[1fr_380px]">
+          <article className="rounded-lg border border-stone-200 bg-white p-6 shadow-panel">
+            <Markdown content={jd.body} />
           </article>
 
-          <aside className="rounded-lg border border-stone-200 bg-white shadow-panel">
+          <aside className="self-start rounded-lg border border-stone-200 bg-white shadow-panel">
             <div className="flex items-center justify-between border-b border-stone-200 px-5 py-3">
-              <h2 className="font-serif text-h2 text-ink">Candidates</h2>
-              <span className="text-xs uppercase tracking-wide text-steel">
-                ranked by overall score
-              </span>
+              <h2 className="font-serif text-h3 text-ink">Candidates</h2>
+              <span className="text-sm uppercase tracking-wide text-steel">by score</span>
             </div>
             {analyses.length === 0 ? (
               <p className="px-5 py-8 text-sm text-steel">
-                No candidates analyzed against this JD yet.
+                No candidates analyzed against this JD yet. Generated roles also source candidates into the Pipeline.
               </p>
             ) : (
               <ul className="divide-y divide-stone-200">
@@ -71,7 +71,7 @@ export default async function JdDetailPage({
                       </Link>
                       <ScoreBadge score={row.score} />
                     </div>
-                    <p className="mt-1 text-xs capitalize text-steel">
+                    <p className="mt-1 text-sm capitalize text-steel">
                       {row.role_family ?? "—"} · {row.seniority ?? "—"}
                     </p>
                   </li>
