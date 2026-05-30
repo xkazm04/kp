@@ -42,6 +42,40 @@ export function getSeedHealth(): SeedHealth {
   return { ok: seedIssues.every((i) => i.severity !== "error"), issues: [...seedIssues] };
 }
 
+/**
+ * Parse a JSON column from a DB row without letting one corrupt row throw the
+ * whole read. A single poisoned payload used to 500 an entire list endpoint
+ * (and, for seeds, wedge ensureDb so every request re-threw). We now log the
+ * offending row + context and return null so callers degrade to N-1.
+ */
+function safeRowParse<T>(json: string | null | undefined, ctx: string, id?: string): T | null {
+  if (json == null) return null;
+  try {
+    return JSON.parse(json) as T;
+  } catch (error) {
+    console.error(`[db:${ctx}] corrupt JSON for row ${id ?? "?"} — ${error instanceof Error ? error.message : String(error)}`);
+    return null;
+  }
+}
+
+/** Tasks still in flight, for the readiness probe. */
+export function countActiveTasks(): { running: number; queued: number } {
+  const db = ensureDb();
+  const running = (db.prepare(`SELECT COUNT(*) AS n FROM tasks WHERE status='running'`).get() as { n: number }).n;
+  const queued = (db.prepare(`SELECT COUNT(*) AS n FROM tasks WHERE status='queued'`).get() as { n: number }).n;
+  return { running, queued };
+}
+
+/** Row counts for core tables, for the readiness probe. Table names are a fixed allow-list. */
+export function coreTableCounts(): Record<string, number> {
+  const db = ensureDb();
+  const out: Record<string, number> = {};
+  for (const t of ["jobs", "profiles", "pipeline_entries", "analyses", "tasks"]) {
+    out[t] = (db.prepare(`SELECT COUNT(*) AS n FROM ${t}`).get() as { n: number }).n;
+  }
+  return out;
+}
+
 function ensureDb(): Database.Database {
   if (_db) return _db;
   mkdirSync(path.dirname(DB_PATH), { recursive: true });
@@ -662,6 +696,10 @@ function seedJobs(db: Database.Database): void {
     });
     return;
   }
+  if (!Array.isArray(jobs)) {
+    recordSeedIssue({ seed: "jobs", path: SEED_JOBS_PATH, reason: "seed JSON is not an array", severity: "error" });
+    return;
+  }
   const now = new Date().toISOString();
   const insert = db.prepare(`INSERT OR IGNORE INTO jobs
       (id, title, company, location, work_mode, seniority, role_family, employment_type,
@@ -743,7 +781,9 @@ export function listJobs(filter: JobFilter = {}): JobRecord[] {
        ORDER BY is_entry_eligible DESC, graduate_friendliness DESC, id LIMIT @limit`
     )
     .all(params) as { payload_json: string }[];
-  return rows.map((r) => JSON.parse(r.payload_json) as JobRecord);
+  return rows
+    .map((r) => safeRowParse<JobRecord>(r.payload_json, "listJobs"))
+    .filter((j): j is JobRecord => j !== null);
 }
 
 export function getJob(id: string): JobRecord | null {
@@ -751,7 +791,7 @@ export function getJob(id: string): JobRecord | null {
   const row = db.prepare(`SELECT payload_json FROM jobs WHERE id = ?`).get(id) as
     | { payload_json: string }
     | undefined;
-  return row ? (JSON.parse(row.payload_json) as JobRecord) : null;
+  return row ? safeRowParse<JobRecord>(row.payload_json, "getJob", id) : null;
 }
 
 export type JobStats = {
@@ -865,6 +905,10 @@ function seedCandidates(db: Database.Database): void {
       reason: error instanceof Error ? error.message : String(error),
       severity: "error",
     });
+    return;
+  }
+  if (!Array.isArray(records)) {
+    recordSeedIssue({ seed: "candidates", path: SEED_CANDIDATES_PATH, reason: "seed JSON is not an array", severity: "error" });
     return;
   }
   const now = new Date().toISOString();
@@ -1007,6 +1051,10 @@ function seedPipeline(db: Database.Database): void {
       reason: error instanceof Error ? error.message : String(error),
       severity: "error",
     });
+    return;
+  }
+  if (!Array.isArray(entries)) {
+    recordSeedIssue({ seed: "pipeline", path: SEED_PIPELINE_PATH, reason: "seed JSON is not an array", severity: "error" });
     return;
   }
   const nowMs = Date.now();
@@ -1260,7 +1308,12 @@ export function listMatrixProfiles(limit = 200): MatrixProfile[] {
   const rows = db
     .prepare(`SELECT id, label, archetype, payload_json FROM profiles ORDER BY created_at ASC LIMIT ?`)
     .all(limit) as { id: string; label: string; archetype: string | null; payload_json: string }[];
-  return rows.map((r) => ({ id: r.id, label: r.label, archetype: r.archetype, payload: JSON.parse(r.payload_json) }));
+  return rows
+    .map((r): MatrixProfile | null => {
+      const payload = safeRowParse(r.payload_json, "listMatrixProfiles", r.id);
+      return payload === null ? null : { id: r.id, label: r.label, archetype: r.archetype, payload };
+    })
+    .filter((p): p is MatrixProfile => p !== null);
 }
 
 /** Distinct positions we are actively hiring for = jobs that appear in the pipeline. */
@@ -1330,8 +1383,8 @@ function rowToTask(r: TaskRow): TaskRecord {
     dedupeKey: r.dedupe_key,
     label: r.label,
     status: r.status as TaskStatus,
-    params: r.params_json ? JSON.parse(r.params_json) : null,
-    result: r.result_json ? JSON.parse(r.result_json) : null,
+    params: safeRowParse(r.params_json, "task.params", r.id),
+    result: safeRowParse(r.result_json, "task.result", r.id),
     error: r.error,
     progressDone: r.progress_done ?? 0,
     progressTotal: r.progress_total ?? 0,

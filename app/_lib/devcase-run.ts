@@ -10,7 +10,7 @@ import {
   saveSubmissionEvaluation,
   setApproval,
 } from "./db";
-import { cleanupWorkdir, createWorkdir, parseStderrError, spawnPython } from "./python-runner";
+import { cleanupWorkdir, createWorkdir, parsePythonJson, parseStderrError, spawnPython } from "./python-runner";
 import { buildRepoSnapshot, fetchRepoSignals, type RepoSnapshot } from "./repo-snapshot";
 
 export type DevNeed = {
@@ -51,7 +51,7 @@ export async function runNeedAnalysis(need: DevNeed): Promise<NeedAnalysisResult
       const err = parseStderrError(stderr, exitCode);
       throw new Error(err.message);
     }
-    const payload = JSON.parse(stdout) as { result: Record<string, unknown>; source: string };
+    const payload = parsePythonJson<{ result: Record<string, unknown>; source: string }>(stdout, stderr);
     return { analysis: payload.result, snapshot, source: payload.source };
   } finally {
     await cleanupWorkdir(workdir);
@@ -86,7 +86,7 @@ export async function runDesignArtifacts(need: DevNeed, analysis: Record<string,
       const err = parseStderrError(stderr, exitCode);
       throw new Error(err.message);
     }
-    const payload = JSON.parse(stdout) as { result: { role: Record<string, unknown>; case: Record<string, unknown> }; source: string };
+    const payload = parsePythonJson<{ result: { role: Record<string, unknown>; case: Record<string, unknown> }; source: string }>(stdout, stderr);
     return { role: payload.result.role, case: payload.result.case, source: payload.source };
   } finally {
     await cleanupWorkdir(workdir);
@@ -127,7 +127,7 @@ export async function runCommitReflection(repoRef: string, caseId?: string): Pro
       const err = parseStderrError(stderr, exitCode);
       throw new Error(err.message);
     }
-    const payload = JSON.parse(stdout) as { result: { reflection: Record<string, unknown>; tooling: Record<string, unknown> }; source: string };
+    const payload = parsePythonJson<{ result: { reflection: Record<string, unknown>; tooling: Record<string, unknown> }; source: string }>(stdout, stderr);
     return { reflection: payload.result.reflection, tooling: payload.result.tooling, source: payload.source, commitCount: commits.length };
   } finally {
     await cleanupWorkdir(workdir);
@@ -191,10 +191,10 @@ export async function runEvaluateSubmission(submissionId: string): Promise<Submi
       const err = parseStderrError(stderr, exitCode);
       throw new Error(err.message);
     }
-    const payload = JSON.parse(stdout) as {
+    const payload = parsePythonJson<{
       result: { reflection: Record<string, unknown>; tooling: Record<string, unknown>; evaluation: Record<string, unknown>; transfer: Record<string, unknown> };
       source: string;
-    };
+    }>(stdout, stderr);
     const out = { ...payload.result, source: payload.source, commitCount: commits.length };
     const transferScore = Number((payload.result.transfer as { transferScore?: number } | null | undefined ?? {}).transferScore ?? 0);
     saveSubmissionEvaluation(submissionId, out, transferScore);
@@ -235,7 +235,7 @@ export async function runSourceForRole(role: Record<string, unknown>, topN = 8, 
       const err = parseStderrError(stderr, exitCode);
       throw new Error(err.message);
     }
-    const payload = JSON.parse(stdout) as { result: Sourced[] };
+    const payload = parsePythonJson<{ result: Sourced[] }>(stdout, stderr);
     return payload.result ?? [];
   } finally {
     await cleanupWorkdir(workdir);

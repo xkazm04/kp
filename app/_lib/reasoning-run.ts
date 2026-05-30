@@ -5,7 +5,9 @@ import { getProfileRecord, lookupGeminiCache, storeGeminiCache } from "./db";
 import { candidateSignature, resolveCandidate, type CandidateInput } from "./match-candidate";
 import { cleanupWorkdir, createWorkdir, parseStderrError, spawnPython } from "./python-runner";
 
-// Must match pipeline/jobfit/match_reasoning.py::REASONING_PROMPT_VERSION.
+// Must match pipeline/jobfit/match_reasoning.py::REASONING_PROMPT_VERSION — a
+// drift here leaves the reasoning cache silently stale. The pairing is enforced
+// by pipeline/jobfit/tests/test_prompt_version_sync.py (CI fails on divergence).
 const REASONING_PROMPT_VERSION = "match-reasoning-v1";
 const CACHE_TTL_HOURS = 168;
 

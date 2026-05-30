@@ -5,9 +5,11 @@ import { lookupGeminiCache, storeGeminiCache } from "./db";
 // pre-pass, or the taxonomy changes in a way that should invalidate prior
 // results. Hashes from older versions automatically miss the cache.
 //
-// Keep both the Node side here and `pipeline/jobfit/cli.py::PROMPT_VERSION`
-// in sync — they don't need to match exactly, but bumping one without the
-// other will leave the cache silently stale on whichever side wasn't bumped.
+// This is the single source of truth for the analyze cache key — the cache is
+// computed and stored entirely on the Node side, so there is no Python
+// counterpart to keep in sync. (The reasoning cache has its own version that
+// DOES mirror a Python constant; that pair is guarded by
+// pipeline/jobfit/tests/test_prompt_version_sync.py.)
 export const PROMPT_VERSION = "v2-2026-05-06-pypdf-collapse";
 
 const TTL_HOURS = (() => {

@@ -145,6 +145,28 @@ export function spawnPython(
   return { child, result };
 }
 
+/**
+ * Parse the JSON result a Python CLI prints to stdout. The CLIs emit one
+ * json.dumps line as their final output, but an underlying library can print a
+ * stray warning to stdout first — so we parse the LAST non-empty line rather
+ * than the whole buffer, and on failure throw an error embedding stdout+stderr
+ * for diagnosis instead of a bare "Unexpected token in JSON".
+ */
+export function parsePythonJson<T>(stdout: string, stderr = ""): T {
+  const lastLine = stdout.split(/\r?\n/).map((l) => l.trim()).filter(Boolean).pop() ?? "";
+  try {
+    return JSON.parse(lastLine) as T;
+  } catch {
+    const detail = [
+      stdout.trim() && `stdout: …${stdout.trim().slice(-400)}`,
+      stderr.trim() && `stderr: …${stderr.trim().slice(-400)}`,
+    ]
+      .filter(Boolean)
+      .join(" | ");
+    throw new Error(`Python returned non-JSON output${detail ? ` — ${detail}` : ""}.`);
+  }
+}
+
 export function parseStderrError(stderr: string, exitCode: number | null): PythonError {
   const trimmed = stderr.trim();
   const lastLine = trimmed.split(/\r?\n/).filter(Boolean).pop() ?? "";
