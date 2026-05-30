@@ -127,7 +127,37 @@ it reads `readBeforeWrite` at **0.88** for the strong candidate vs **0.23** for 
 and the gamer routinely ranks **last**. This is the LLM-aware evaluation the brief called for: it grades
 *how they drove the work and whether they verified*, not raw output.
 
+## Non-IT generalization
+
+The harness is now domain-pluggable (`scenarios.py` `DOMAINS`): IT + **marketing / finance / sales /
+design**, each with families, skill-sets, and work-context archetypes; submissions carry domain-flavoured
+traces; `lifecycle_eval --domain {it|marketing|…|mixed}`.
+
+**Measured (mixed-domain role-fit audit, mismatch+incoherent subset, n=16):**
+
+| domain | role-fit |
+|---|---|
+| marketing | 4/4 |
+| finance | 3/3 · sales 3/3 · design 3/3 · it 3/3 |
+| **overall** | **16/16 = 100%** |
+
+The tasks are genuinely domain-native — *"month-end close, balance-sheet reconciliations, posting-ready
+adjusting journals"* (finance), *"own a Q3 campaign launch, allocate the ~$50k"* (marketing), *"design a
+member booking flow and lay first design-system tokens"* (design). The thesis (grade judgment/verification,
+not raw output) and the covert probes transfer cleanly — e.g. a *marketing-native verification trap*: *"did
+the A/B test produce a real winner — avoid peeking?"*
+
+**Terminology** — the IT prompts said "codebase". `case-design-v3` generalizes the vocabulary (use the
+role's own terms; "repoSeed" is a legacy field name only). A naive **substring** leak-check made this look
+worse than it was — it flagged "**repo**rt", "**commit** to a plan", "mail-**merge** field" as software-isms.
+A **word-boundary** check across marketing/finance/sales found **zero genuine** software-isms. *(Same
+false-positive class as the earlier "age"→"manage" bug in `automation_eval` — substring scanners over-count;
+use word boundaries + read the context.)*
+
+**Verdict:** the pipeline generalizes to non-IT with **no structural changes** — 100% role-fit and
+domain-clean language. A schema rename `repoSeed → seedMaterials` (coordinate with the co-owned model/UI)
+would remove the last legacy framing, but is cosmetic.
+
 ## Next
 
-Land the sub-specialty nudge (Part-1 residual), then generalize the whole landscape (scenarios +
-submissions) to **non-IT** — the harness is already domain-pluggable.
+Sub-specialty nudge (Part-1 residual: Frontend→backend, iOS→Android); add more non-IT domains as needed.
