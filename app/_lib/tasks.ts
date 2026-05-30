@@ -15,6 +15,7 @@ import { runAnalyze, type AnalyzeParams } from "./analyze-run";
 import { runCommitReflection, runDesignArtifacts, runEvaluateSubmission, runNeedAnalysis, type DevNeed } from "./devcase-run";
 import { runLifecycle } from "./devcase-orchestrator";
 import { runGroupEval } from "./group-eval-run";
+import { runJdBuild } from "./jd-build-run";
 
 // ---------------------------------------------------------------------------
 // In-process background-task runner. Works because `next dev` is one long-lived
@@ -112,6 +113,11 @@ const HANDLERS: Record<string, Spec> = {
     run: (ctx) => runGroupEval(ctx.params),
     label: (p) => `Group evaluation · ${p.roleTitle ?? p.roleKey ?? ""}`,
     dedupe: (p) => `group_eval:${p.roleKey}`, // one run per role; re-trigger reuses an in-flight run
+  },
+  jd_build: {
+    run: (ctx) => runJdBuild(ctx.params, ctx.progress),
+    label: (p) => `Build JD · ${p.title ?? "role"}`,
+    dedupe: (p) => `jd_build:${p.title}:${p.needText ? String(p.needText).length : 0}:${p.repoUrl ?? ""}`,
   },
 };
 
