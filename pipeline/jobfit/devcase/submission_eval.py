@@ -81,6 +81,12 @@ class Row:
     def judgment(self) -> int:
         return int((self.evaluation.get("dimensionScores") or {}).get("judgment", 0))
 
+    @property
+    def overall(self) -> float:
+        dims = self.evaluation.get("dimensionScores") or {}
+        vals = [v for v in dims.values() if isinstance(v, (int, float))]
+        return round(sum(vals) / len(vals), 1) if vals else 0.0
+
 
 def run_one(scn: SubScenario, provider: Any | None) -> Row:
     try:
@@ -129,6 +135,31 @@ def fairness(rows: list[Row]) -> dict[str, Any]:
     }
 
 
+def discrimination(rows: list[Row]) -> dict[str, Any]:
+    """Does the evaluator separate strong submissions from weak ones, and catch the
+    'productive-looking but never verifies' AI-no-verify gamer? (overall = mean of the 5 dims)."""
+    done = [r for r in rows if r.source != "error" and r.evaluation]
+    strong = [r for r in done if r.planted.get("expected") == "strong"]
+    weak = [r for r in done if r.planted.get("expected") == "weak"]
+    gamer = [r for r in done if r.planted.get("behavior") == "ai_no_verify"]
+
+    def mean_o(rs):
+        return round(sum(r.overall for r in rs) / len(rs), 1) if rs else None
+
+    s_mean, w_mean, g_mean = mean_o(strong), mean_o(weak), mean_o(gamer)
+    strong_beats_weak = s_mean is not None and w_mean is not None and s_mean > w_mean
+    gamer_below_strong = g_mean is not None and s_mean is not None and g_mean < s_mean
+    return {
+        "strong_mean": s_mean,
+        "weak_mean": w_mean,
+        "margin": round(s_mean - w_mean, 1) if (s_mean is not None and w_mean is not None) else None,
+        "gamer_mean": g_mean,
+        "strong_beats_weak": strong_beats_weak,
+        "gamer_below_strong": gamer_below_strong,
+        "passed": strong_beats_weak and gamer_below_strong,
+    }
+
+
 def signals(rows: list[Row]) -> dict[str, Any]:
     return {
         "scenarios": len(rows),
@@ -136,6 +167,7 @@ def signals(rows: list[Row]) -> dict[str, Any]:
         "reliability": round(sum(1 for r in rows if r.reliable) / len(rows), 3) if rows else 0,
         "llm_rows": sum(1 for r in rows if r.source == "llm"),
         "fairness": fairness(rows),
+        "discrimination": discrimination(rows),
     }
 
 
@@ -183,6 +215,7 @@ def _quality_summary(rows: list[Row]) -> dict[str, Any]:
 
 def _report_md(rows: list[Row], sig: dict, qual: dict | None) -> str:
     f = sig["fairness"]
+    d = sig["discrimination"]
     L = [
         "# Dev pipeline — submission evaluation eval\n",
         f"Scenarios: {sig['scenarios']} · reliable: {sig['reliable']}/{sig['scenarios']} ({sig['reliability']:.0%}) · LLM rows: {sig['llm_rows']}\n",
@@ -192,6 +225,9 @@ def _report_md(rows: list[Row], sig: dict, qual: dict | None) -> str:
         f"- verification rewarded (verifiers judgment >= non): {f['verify_rewarded']}",
         f"- AI use not penalised (ai-verifiers >= non-verifiers): {f['ai_not_penalised']}",
         f"- judgment means: {f['judgment_mean']}",
+        "\n## Discrimination\n",
+        f"- **passed: {d['passed']}** · strong {d['strong_mean']} vs weak {d['weak_mean']} (margin {d['margin']})",
+        f"- gamer (AI-no-verify) {d['gamer_mean']} below strong: {d['gamer_below_strong']}",
     ]
     fails = [r for r in rows if not r.reliable]
     if fails:
@@ -211,9 +247,10 @@ def main(argv: list[str] | None = None) -> int:
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     p = argparse.ArgumentParser(description="Submission evaluation eval (Dev pipeline, eval half).")
     p.add_argument("--count", type=int, default=48)
+    p.add_argument("--domain", default="it", help="it | marketing | finance | sales | design | mixed")
     p.add_argument("--no-llm", action="store_true")
     p.add_argument("--judge", action="store_true")
-    p.add_argument("--strict", action="store_true", help="exit non-zero if reliability < 100% or the fairness gate fails")
+    p.add_argument("--strict", action="store_true", help="exit non-zero if reliability < 100% or the fairness/discrimination gates fail")
     p.add_argument("--workers", type=int, default=4)
     p.add_argument("--json", action="store_true")
     args = p.parse_args(argv)
@@ -225,7 +262,7 @@ def main(argv: list[str] | None = None) -> int:
             sys.stderr.write("submission_eval: Claude CLI unavailable -> deterministic mode\n")
             provider = None
 
-    rows = run(generate_submissions(args.count), provider, workers=args.workers)
+    rows = run(generate_submissions(args.count, args.domain), provider, workers=args.workers)
     sig = signals(rows)
     qual = None
     if args.judge and provider is not None:
@@ -237,7 +274,7 @@ def main(argv: list[str] | None = None) -> int:
     else:
         print(_report_md(rows, sig, qual))
 
-    if args.strict and (sig["reliability"] < 1.0 or not sig["fairness"]["passed"]):
+    if args.strict and (sig["reliability"] < 1.0 or not sig["fairness"]["passed"] or not sig["discrimination"]["passed"]):
         return 1
     return 0
 

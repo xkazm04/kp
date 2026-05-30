@@ -1,7 +1,8 @@
 """Phase D7 — CI gate for the submission-evaluation eval (deterministic path).
 
-Locks the fairness invariants that are the heart of the Dev extension: code is assumed
-LLM-generated, so the score must track verification/judgment, never AI use.
+Locks the two invariants at the heart of the Dev extension: code is assumed LLM-generated,
+so the score must (a) track verification/judgment, never AI use [FAIRNESS], and (b) separate
+strong submissions from weak ones, catching the AI-no-verify gamer [DISCRIMINATION].
 """
 
 import unittest
@@ -31,6 +32,19 @@ class TestSubmissionEval(unittest.TestCase):
         # verifiers (incl. AI-heavy ones) out-score non-verifiers on judgment
         self.assertGreaterEqual(means["verifiers"], means["non_verifiers"])
         self.assertGreaterEqual(means["ai_verifiers"], means["non_verifiers"])
+
+    def test_discrimination_gate_passes(self):
+        # strong submissions out-score weak ones, and the AI-no-verify gamer is caught
+        d = self.sig["discrimination"]
+        self.assertTrue(d["passed"], d)
+        self.assertGreater(d["margin"], 0)
+        self.assertTrue(d["gamer_below_strong"])
+
+    def test_non_it_landscape_is_well_formed(self):
+        # the harness generalizes to non-IT domains (structure holds; LLM path scores quality)
+        rows = run(generate_submissions(40, domain="mixed"), provider=None)
+        self.assertEqual(signals(rows)["reliability"], 1.0)
+        self.assertTrue({r.planted["domain"] for r in rows} >= {"it", "marketing", "finance"})
 
 
 if __name__ == "__main__":

@@ -1,31 +1,24 @@
-"""Targeted LLM audits for the Dev pipeline lifecycle eval (split from lifecycle_eval).
+"""Targeted LLM audits for the Dev pipeline DESIGN-half lifecycle eval.
 
-These complement the no-LLM HEALTH signals with judged measurements:
-  - judge / _quality_summary — absolute 1-5 quality + which APP-DATA LEVERS would help.
+Complements the no-LLM HEALTH signals in lifecycle_eval.py with judged measurements:
+  - judge / quality_summary — absolute 1-5 quality + which APP-DATA LEVERS would help.
   - audit_role_fit — a low-noise BINARY "does the case match the role's function?" on
     mismatch/incoherent scenarios (robust to the judge's run-to-run variance).
-  - run_submission_eval — does the EVALUATOR discriminate strong vs weak submissions?
 
-Kept separate so lifecycle_eval.py stays a focused HEALTH-eval + CLI module (the codebase
-convention is ~250 LOC per module). lifecycle_eval.main() imports these lazily.
+The EVALUATION-half (does the evaluator discriminate + stay fair?) lives in submission_eval.py.
+Kept separate so lifecycle_eval.py stays a focused HEALTH-eval + CLI module; lifecycle_eval.main()
+imports these lazily to avoid an import cycle.
 """
 
 from __future__ import annotations
 
 import json
 from collections import Counter
-from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 
 from ..claude_cli import ClaudeCliError, ClaudeCliProvider
-from .analyze import analyze_need
-from .design import design_case, design_role
-from .evaluate import evaluate_submission, score_transfer
 from .lifecycle_eval import LEVERS, Row, run
-from .models import NeedAnalysis
-from .reflect import assess_tooling, reflect_commits
 from .scenarios import Scenario
-from .submissions import all_submissions
 
 
 # --- LLM-as-judge (--judge): quality + which app-data levers would help -----
@@ -114,94 +107,3 @@ def audit_role_fit(scenarios: list[Scenario], provider: ClaudeCliProvider, worke
     judged = [v for v in verdicts if v["matchesRole"] is not None]
     rate = sum(1 for v in judged if v["matchesRole"]) / len(judged) if judged else None
     return {"subset": len(subset), "judged": len(judged), "role_fit_rate": round(rate, 3) if rate is not None else None, "verdicts": verdicts}
-
-
-# --- submission evaluation: does the evaluator DISCRIMINATE? ------------------
-
-_EVAL_DIMS = {"framing", "tooling", "judgment", "architecture", "transfer"}
-
-
-def _overall(dims: dict) -> float:
-    vals = [v for v in dims.values() if isinstance(v, (int, float))]
-    return round(sum(vals) / len(vals), 1) if vals else 0.0
-
-
-def _check_eval(ev: dict) -> list[str]:
-    dims = ev.get("dimensionScores") or {}
-    if set(dims) != _EVAL_DIMS:
-        return ["eval: dimensions off"]
-    if any(not isinstance(v, int) or not (0 <= v <= 100) for v in dims.values()):
-        return ["eval: score out of range"]
-    return []
-
-
-def _eval_chain(case: dict, role: dict, commits: list[dict], provider: Any | None) -> dict:
-    refl, _ = reflect_commits(commits, provider=provider)
-    tool, _ = assess_tooling(refl, commits, case.get("coverProbes") or [], provider=provider)
-    ev, _ = evaluate_submission(refl, tool, case, role, provider=provider)
-    tr, _ = score_transfer(ev, role, provider=provider)
-    return {
-        "overall": _overall(ev.get("dimensionScores") or {}),
-        "readBeforeWrite": refl.get("readBeforeWrite"),
-        "fluency": tool.get("fluency"),
-        "transfer": tr.get("transferScore"),
-        "issues": _check_eval(ev),
-    }
-
-
-def run_submission_eval(scenarios: list[Scenario], provider: Any | None, workers: int = 4, subset: int = 6) -> dict[str, Any]:
-    """Plant strong / naive / AI-over-reliant / thrasher submissions against designed cases and
-    check the evaluator ranks the strong one above the weak ones (and isn't fooled by the
-    'productive-looking but never verifies' AI-over-reliant trace). Cases are designed
-    deterministically to isolate the EVALUATOR under test. Submission traces follow each
-    scenario's domain (IT vs non-IT work/process log)."""
-    scns = [s for s in scenarios if not s.planted["sparse"]][:subset]
-    prepared = []
-    for s in scns:
-        a, _ = analyze_need(s.need, s.snapshot, provider=None)
-        na = NeedAnalysis.model_validate(a)
-        role, _ = design_role(s.need, na, provider=None)
-        case, _ = design_case(s.need, na, role, provider=None)
-        prepared.append((s, case, role))
-
-    jobs = [
-        (i, s, case, role, arch, commits)
-        for i, (s, case, role) in enumerate(prepared)
-        for (arch, commits) in all_submissions(s.planted.get("domain", "it"))
-    ]
-
-    def _one(job):
-        i, s, case, role, arch, commits = job
-        return {"scenario": i, "label": s.label, "archetype": arch.name, "expected": arch.expected, **_eval_chain(case, role, commits, provider)}
-
-    w = max(1, workers) if provider is not None else 1
-    with ThreadPoolExecutor(max_workers=w) as pool:
-        rows = list(pool.map(_one, jobs))
-
-    by_scn: dict[int, list[dict]] = {}
-    for r in rows:
-        by_scn.setdefault(r["scenario"], []).append(r)
-    strong_first = 0
-    margins = []
-    ai_below = 0
-    ai_total = 0
-    for rs in by_scn.values():
-        strong = next(r for r in rs if r["archetype"] == "strong")
-        weak = [r for r in rs if r["expected"] == "weak"]
-        if strong["overall"] >= max(r["overall"] for r in rs):
-            strong_first += 1
-        if weak:
-            margins.append(round(strong["overall"] - sum(r["overall"] for r in weak) / len(weak), 1))
-        ai = next((r for r in rs if r["archetype"] == "ai_overreliant"), None)
-        if ai:
-            ai_total += 1
-            ai_below += 1 if ai["overall"] < strong["overall"] else 0
-    n = len(by_scn)
-    return {
-        "scenarios": n,
-        "reliability": round(sum(1 for r in rows if not r["issues"]) / len(rows), 3) if rows else 0,
-        "strong_ranks_first_rate": round(strong_first / n, 3) if n else None,
-        "mean_margin_strong_vs_weak": round(sum(margins) / len(margins), 1) if margins else None,
-        "ai_overreliant_below_strong_rate": round(ai_below / ai_total, 3) if ai_total else None,
-        "rows": rows,
-    }

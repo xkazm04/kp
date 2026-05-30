@@ -6,8 +6,9 @@ fairness/integrity invariants) and quality SIGNALS computed without an LLM (gap-
 on planted mismatches, probe diversity/specificity, clarify-probe presence on ambiguous needs,
 case-title uniqueness).
 
-The LLM-based measurements (--judge quality + app-data levers, --audit role-fit, --audit
-submission-eval) live in lifecycle_audits.py (imported lazily by main) to keep this module focused.
+The LLM-based DESIGN-half measurements (--judge quality + app-data levers, --audit role-fit)
+live in lifecycle_audits.py (imported lazily by main). The EVALUATION half (does the evaluator
+discriminate + stay fair?) is submission_eval.py.
 
     python -m pipeline.jobfit.devcase.lifecycle_eval --count 100 --no-llm
     python -m pipeline.jobfit.devcase.lifecycle_eval --count 24 --judge --workers 6 --json
@@ -193,7 +194,7 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--count", type=int, default=100)
     p.add_argument("--no-llm", action="store_true")
     p.add_argument("--judge", action="store_true")
-    p.add_argument("--audit", choices=["role-fit", "submission-eval"], help="targeted audit")
+    p.add_argument("--audit", choices=["role-fit"], help="targeted audit (design-half role-fit)")
     p.add_argument("--domain", default="it", help="it | marketing | finance | sales | design | mixed")
     p.add_argument("--workers", type=int, default=4)
     p.add_argument("--json", action="store_true")
@@ -204,7 +205,7 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
     # The LLM-based audits live in a sibling module; import lazily to avoid a cycle.
-    from .lifecycle_audits import audit_role_fit, judge, quality_summary, run_submission_eval
+    from .lifecycle_audits import audit_role_fit, judge, quality_summary
 
     provider = None
     if not args.no_llm:
@@ -228,19 +229,6 @@ def main(argv: list[str] | None = None) -> int:
             for v in res["verdicts"]:
                 mark = "OK " if v["matchesRole"] else ("?? " if v["matchesRole"] is None else "XX ")
                 print(f"- {mark} {v['id']}: {v['note']}")
-        return 0
-
-    if args.audit == "submission-eval":
-        res = run_submission_eval(scenarios, provider, workers=args.workers)
-        if args.json:
-            print(json.dumps(res, indent=2, ensure_ascii=False))
-        else:
-            print(f"# Submission-evaluation discrimination\n\ncases: {res['scenarios']} · eval reliability: {res['reliability']:.0%}")
-            print(f"**strong ranks #1: {res['strong_ranks_first_rate']}** · mean margin (strong − weak): "
-                  f"{res['mean_margin_strong_vs_weak']} · AI-over-reliant below strong: {res['ai_overreliant_below_strong_rate']}\n")
-            for i in sorted({r['scenario'] for r in res['rows']}):
-                rs = sorted([r for r in res['rows'] if r['scenario'] == i], key=lambda r: -r['overall'])
-                print(f"- case {i}: " + ", ".join(f"{r['archetype']}={r['overall']}" for r in rs))
         return 0
 
     rows = run(scenarios, provider, workers=args.workers)

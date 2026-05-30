@@ -2,7 +2,6 @@
 
 import unittest
 
-from pipeline.jobfit.devcase.lifecycle_audits import run_submission_eval
 from pipeline.jobfit.devcase.lifecycle_eval import run, signals
 from pipeline.jobfit.devcase.scenarios import generate_scenarios
 
@@ -32,15 +31,6 @@ class TestLifecycleEval(unittest.TestCase):
     def test_deterministic_probe_coverage_baseline(self):
         # the fallback is templated (3 fixed probe kinds); the LLM path adds variety.
         self.assertGreaterEqual(self.sig["probe_kind_diversity"], 0.75)
-
-    def test_evaluator_discriminates_submissions(self):
-        # Part 2: the evaluator must rank a strong submission above weak ones,
-        # and not be fooled by the productive-looking AI-over-reliant trace.
-        res = run_submission_eval(generate_scenarios(24, "it"), provider=None, subset=4)
-        self.assertEqual(res["reliability"], 1.0)
-        self.assertEqual(res["strong_ranks_first_rate"], 1.0)
-        self.assertEqual(res["ai_overreliant_below_strong_rate"], 1.0)
-        self.assertGreater(res["mean_margin_strong_vs_weak"], 0)
 
 
 if __name__ == "__main__":
