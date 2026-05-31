@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { getInterviewSessionByToken } from "@/app/_lib/db";
+import { AiDisclosure } from "@/app/_components/AiDisclosure";
 import { VoiceInterviewClient } from "@/app/_components/voice/VoiceInterviewClient";
 
 export const dynamic = "force-dynamic";
@@ -23,7 +24,7 @@ export default async function InterviewPortalPage({ params }: { params: Promise<
   }
 
   return (
-    <main className="mx-auto max-w-3xl px-4 py-10">
+    <main className="mx-auto max-w-5xl px-4 py-10">
       <p className="text-meta uppercase text-coral">First-round interview</p>
       <h1 className="mt-1 font-serif text-display text-ink">
         {session.jobTitle ? `Screen — ${session.jobTitle}` : "Voice screen"}
@@ -39,8 +40,10 @@ export default async function InterviewPortalPage({ params }: { params: Promise<
           fixedProvider={session.provider}
           candidateLabel={session.candidateLabel ?? undefined}
           jobTitle={session.jobTitle ?? undefined}
+          runOfShow={session.runOfShow ?? undefined}
         />
       </div>
+      <AiDisclosure className="mt-6" />
     </main>
   );
 }

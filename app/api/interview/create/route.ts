@@ -38,6 +38,7 @@ export async function POST(request: NextRequest) {
       jobId: grounded.jobId,
       jobTitle: grounded.jobTitle,
       instructions: grounded.instructions,
+      runOfShow: grounded.runOfShow,
       language: body.language ?? null,
     });
 

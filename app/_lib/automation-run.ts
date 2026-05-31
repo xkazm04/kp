@@ -21,7 +21,7 @@ export const AUTOMATION_VERSION: Record<string, string> = {
   outreach: "outreach-v1",
   rejection: "rejection-v1",
   prep: "interview-prep-v1",
-  scorecard: "scorecard-v1",
+  scorecard: "scorecard-v2",
   rematch: "rematch-v1",
   offer: "offer-v1",
 };

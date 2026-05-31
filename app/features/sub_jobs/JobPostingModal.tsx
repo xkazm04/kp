@@ -2,11 +2,13 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { BarChart3, Check, Copy, FileText } from "lucide-react";
+import { BarChart3, Check, Copy, FileText, History, Link2, Scale } from "lucide-react";
 import { Modal } from "@/app/_components/Modal";
 import { Markdown } from "@/app/_components/Markdown";
 import { buildUrl } from "@/app/features/tabs";
 import { RecruiterCandidates } from "./RecruiterCandidates";
+import { RediscoverPanel } from "./RediscoverPanel";
+import { CompareInterviews } from "./CompareInterviews";
 import { jobToMarkdown } from "./jobMarkdown";
 import type { Job } from "./JobsTypes";
 
@@ -14,9 +16,21 @@ import type { Job } from "./JobsTypes";
 // action, plus the candidate ranking for the role in a second tab.
 export function JobPostingModal({ job, onClose }: { job: Job; onClose: () => void }) {
   const router = useRouter();
-  const [tab, setTab] = useState<"posting" | "candidates">("posting");
+  const [tab, setTab] = useState<"posting" | "candidates" | "rediscover" | "compare">("posting");
   const [copied, setCopied] = useState(false);
+  const [applyCopied, setApplyCopied] = useState(false);
   const markdown = useMemo(() => jobToMarkdown(job), [job]);
+
+  const copyApplyLink = async () => {
+    try {
+      const url = (typeof window !== "undefined" ? window.location.origin : "") + `/apply/${job.id}`;
+      await navigator.clipboard.writeText(url);
+      setApplyCopied(true);
+      window.setTimeout(() => setApplyCopied(false), 1500);
+    } catch {
+      /* clipboard blocked — no-op */
+    }
+  };
 
   const copy = async () => {
     try {
@@ -38,6 +52,13 @@ export function JobPostingModal({ job, onClose }: { job: Job; onClose: () => voi
         <>
           <button
             type="button"
+            onClick={copyApplyLink}
+            className="focus-ring inline-flex h-9 items-center gap-1 rounded-md border border-stone-200 px-3 text-sm font-semibold text-ink hover:border-coral/40"
+          >
+            {applyCopied ? <Check size={14} /> : <Link2 size={14} />} {applyCopied ? "Copied" : "Apply link"}
+          </button>
+          <button
+            type="button"
             onClick={() => router.push(buildUrl({ tab: "matrix", job: job.id }))}
             className="focus-ring inline-flex h-9 items-center gap-1 rounded-md border border-stone-200 px-3 text-sm font-semibold text-ink hover:border-coral/40"
           >
@@ -57,6 +78,8 @@ export function JobPostingModal({ job, onClose }: { job: Job; onClose: () => voi
         {([
           ["posting", "Posting", FileText],
           ["candidates", "Candidates", BarChart3],
+          ["rediscover", "Rediscover", History],
+          ["compare", "Compare", Scale],
         ] as const).map(([id, label, Icon]) => (
           <button
             key={id}
@@ -77,8 +100,12 @@ export function JobPostingModal({ job, onClose }: { job: Job; onClose: () => voi
         <article className="rounded-lg border border-stone-200 bg-paper/40 p-4">
           <Markdown content={markdown} />
         </article>
-      ) : (
+      ) : tab === "candidates" ? (
         <RecruiterCandidates jobId={job.id} jobTitle={job.title} roleFamily={job.roleFamily ?? null} autoLoad />
+      ) : tab === "rediscover" ? (
+        <RediscoverPanel jobId={job.id} jobTitle={job.title} />
+      ) : (
+        <CompareInterviews jobId={job.id} />
       )}
     </Modal>
   );

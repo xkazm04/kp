@@ -2,11 +2,12 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Ban, Banknote, Check, ClipboardList, Copy, ExternalLink, Mail, Phone, Shuffle, Sparkles, UserCheck, X } from "lucide-react";
+import { Ban, Banknote, Calendar, Check, ClipboardList, Copy, ExternalLink, Mail, Phone, Shuffle, Sparkles, UserCheck, X } from "lucide-react";
 import { buildUrl } from "@/app/features/tabs";
 import { useTasks } from "@/app/features/tasks/TasksProvider";
 import { ResultView } from "./CandidateResultView";
 import { ARCHETYPE, type Entry, type Result, type TaskId } from "./CandidateDrawerTypes";
+import { RUBRIC_ANCHOR_LINE } from "@/app/_lib/interview-rubric";
 
 const ACTIONS: { id: TaskId; label: string; icon: typeof Mail; stages: string[] | "all"; note?: string }[] = [
   { id: "screen", label: "Screen with AI", icon: UserCheck, stages: ["AI-matched"], note: "Routes to advance or holds for your review in Decisions." },
@@ -17,6 +18,19 @@ const ACTIONS: { id: TaskId; label: string; icon: typeof Mail; stages: string[] 
   { id: "rejection", label: "Draft rejection", icon: Ban, stages: ["AI-matched", "Screening", "Interview", "Offer"] },
   { id: "rematch", label: "Explore alternatives", icon: Shuffle, stages: ["AI-matched", "Screening", "Interview", "Offer"] },
 ];
+
+const REC_STYLE: Record<string, string> = {
+  advance: "bg-moss/15 text-moss",
+  hold: "bg-dial-amber/20 text-ink",
+  reject: "bg-coral/10 text-coral",
+};
+
+type InterviewOutcome = {
+  recommendation?: string;
+  summary?: string;
+  ratings?: { competency: string; rating: number; evidence?: string }[];
+  hasTranscript?: boolean;
+};
 
 export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; onClose: () => void; onChanged: () => void }) {
   const router = useRouter();
@@ -33,6 +47,16 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
   const [voiceLink, setVoiceLink] = useState<{ url: string; configured: boolean } | null>(null);
   const [voiceErr, setVoiceErr] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+
+  // Self-scheduling: mint a candidate link to pick an interview slot.
+  const [schedBusy, setSchedBusy] = useState(false);
+  const [schedUrl, setSchedUrl] = useState<string | null>(null);
+  const [schedErr, setSchedErr] = useState<string | null>(null);
+  const [schedCopied, setSchedCopied] = useState(false);
+
+  // Latest completed voice interview — surfaced as an evidence source in the
+  // candidate's analysis (its scorecard also feeds the Decisions gate).
+  const [ivOutcome, setIvOutcome] = useState<InterviewOutcome | null>(null);
 
   // Modal focus management: trap Tab within the dialog, close on Escape, and
   // restore focus to the trigger on unmount (WCAG dialog requirements).
@@ -76,6 +100,27 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
       previouslyFocused?.focus?.();
     };
   }, []);
+
+  useEffect(() => {
+    let alive = true;
+    fetch(`/api/interview/by-entry?entry=${encodeURIComponent(entry.id)}`)
+      .then((r) => r.json())
+      .then((d) => {
+        const s = d.session as { status?: string; transcript?: unknown[]; scorecard?: InterviewOutcome | null } | null;
+        if (!alive || !s || s.status !== "completed") return;
+        const sc = s.scorecard ?? null;
+        setIvOutcome({
+          recommendation: sc?.recommendation,
+          summary: sc?.summary,
+          ratings: sc?.ratings,
+          hasTranscript: Array.isArray(s.transcript) && s.transcript.length > 0,
+        });
+      })
+      .catch(() => undefined);
+    return () => {
+      alive = false;
+    };
+  }, [entry.id]);
 
   const a = ARCHETYPE[entry.archetype ?? "bau"] ?? ARCHETYPE.bau;
   const initials = entry.candidateLabel.split(" ").map((p) => p[0]).filter(Boolean).join("").slice(0, 2).toUpperCase();
@@ -128,6 +173,29 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
   const showVoice = entry.status === "active" && ["AI-matched", "Screening", "Interview"].includes(entry.stage);
   const voiceFullUrl = voiceLink ? (typeof window !== "undefined" ? window.location.origin : "") + voiceLink.url : "";
 
+  const showSchedule = entry.status === "active" && ["Screening", "Interview"].includes(entry.stage);
+  const schedFullUrl = schedUrl ? (typeof window !== "undefined" ? window.location.origin : "") + schedUrl : "";
+  const createScheduleLink = async () => {
+    setSchedBusy(true);
+    setSchedErr(null);
+    setSchedUrl(null);
+    setSchedCopied(false);
+    try {
+      const res = await fetch("/api/schedule/invite", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ entryId: entry.id }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || `link failed (${res.status})`);
+      setSchedUrl(data.url);
+    } catch (e) {
+      setSchedErr(e instanceof Error ? e.message : "Couldn't create the link.");
+    } finally {
+      setSchedBusy(false);
+    }
+  };
+
   useEffect(() => {
     if (!pendingId) return;
     const t = tasks.find((x) => x.id === pendingId);
@@ -179,6 +247,37 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
         </header>
 
         <div className="space-y-4 p-4">
+          {ivOutcome ? (
+            <div className="rounded-md border border-moss/40 bg-moss/5 p-3">
+              <div className="flex items-center justify-between gap-2">
+                <p className="flex items-center gap-1.5 text-meta uppercase tracking-wide text-moss">
+                  <Phone size={13} /> Interview outcome
+                </p>
+                {ivOutcome.recommendation ? (
+                  <span className={`rounded-full px-2 py-0.5 text-meta font-semibold uppercase ${REC_STYLE[ivOutcome.recommendation] ?? "bg-stone-100 text-steel"}`}>
+                    {ivOutcome.recommendation}
+                  </span>
+                ) : null}
+              </div>
+              {ivOutcome.summary ? <p className="mt-1 text-sm text-ink">{ivOutcome.summary}</p> : null}
+              {ivOutcome.ratings?.length ? (
+                <ul className="mt-1.5 space-y-0.5">
+                  {ivOutcome.ratings.slice(0, 5).map((r, i) => (
+                    <li key={i} className="text-sm text-ink">
+                      <span className="font-semibold tabular-nums text-coral">{r.rating}/5</span> {r.competency}
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+              {ivOutcome.ratings?.length ? (
+                <p className="mt-1 text-meta text-steel">Fixed rubric · {RUBRIC_ANCHOR_LINE}</p>
+              ) : null}
+              <p className="mt-1.5 text-meta text-steel">
+                A voice 1st-round interview now feeds this candidate&apos;s scorecard review and assessment.
+              </p>
+            </div>
+          ) : null}
+
           <div>
             <p className="flex items-center gap-1.5 text-meta uppercase tracking-wide text-coral">
               <Sparkles size={13} /> AI actions
@@ -287,6 +386,57 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
                       the call won&apos;t connect until configured.
                     </p>
                   ) : null}
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+
+          {showSchedule ? (
+            <div className="rounded-md border border-stone-200 bg-white p-3">
+              <p className="flex items-center gap-1.5 text-meta uppercase tracking-wide text-coral">
+                <Calendar size={13} /> Self-scheduling
+              </p>
+              <p className="mt-1 text-sm text-steel">
+                Send the candidate a link to pick their own interview slot — they get an instant confirmation and a
+                reminder.
+              </p>
+              <button
+                type="button"
+                onClick={createScheduleLink}
+                disabled={schedBusy}
+                className="focus-ring mt-2 inline-flex items-center gap-1.5 rounded-md border border-stone-200 bg-white px-2.5 py-1.5 text-sm font-semibold text-ink hover:border-coral/40 disabled:opacity-50"
+              >
+                <Calendar size={13} className="text-coral" /> {schedBusy ? "Creating…" : "Create scheduling link"}
+              </button>
+              {schedErr ? <p className="mt-2 text-sm text-red-700">{schedErr}</p> : null}
+              {schedUrl ? (
+                <div className="mt-2 flex items-center gap-1.5">
+                  <input
+                    readOnly
+                    value={schedFullUrl}
+                    onFocus={(e) => e.currentTarget.select()}
+                    className="focus-ring min-w-0 flex-1 rounded-md border border-stone-200 bg-paper px-2 py-1 text-sm text-ink"
+                  />
+                  <button
+                    type="button"
+                    title="Copy link"
+                    onClick={() => {
+                      void navigator.clipboard?.writeText(schedFullUrl);
+                      setSchedCopied(true);
+                    }}
+                    className="focus-ring rounded-md border border-stone-200 bg-white p-1.5 text-steel hover:text-coral"
+                  >
+                    {schedCopied ? <Check size={14} /> : <Copy size={14} />}
+                  </button>
+                  <a
+                    href={schedUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="focus-ring rounded-md border border-stone-200 bg-white p-1.5 text-steel hover:text-coral"
+                    title="Open as candidate"
+                  >
+                    <ExternalLink size={14} />
+                  </a>
                 </div>
               ) : null}
             </div>

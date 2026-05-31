@@ -76,6 +76,36 @@ export async function dispatchOffer(
   recordAutomationEvent(entry.id, "offer_sent", entry.jobTitle ?? "");
 }
 
+/** Confirm a candidate's self-booked interview slot + promise a reminder. */
+export async function dispatchInterviewConfirmation(entry: PipelineEntry, slot: string): Promise<void> {
+  const name = (entry.candidateLabel ?? "").trim() || "there";
+  const role = entry.jobTitle ?? "the role";
+  const subject = `Interview confirmed — ${role}`;
+  const body =
+    `Hi ${name},\n\n` +
+    `Your interview for ${role} is booked for ${slot}. ` +
+    `We'll send a reminder before the call with everything you need.\n\n` +
+    `If you need to change the time, just reply and we'll sort it out.\n\nSee you then,\nThe hiring team`;
+  await sendComm({ to: candidateRecipient(entry), subject, body, kind: "interview_confirmation", ref: entry.id });
+  recordAutomationEvent(entry.id, "interview_scheduled", slot);
+}
+
+/** Reminder fired by the scheduler heartbeat before a confirmed interview. */
+export async function dispatchInterviewReminder(
+  entry: { id?: string | null; candidateLabel?: string | null; candidateId?: string | null; jobTitle?: string | null },
+  slot: string
+): Promise<void> {
+  const name = (entry.candidateLabel ?? "").trim() || "there";
+  const role = entry.jobTitle ?? "the role";
+  const subject = `Reminder — your interview ${slot}`;
+  const body =
+    `Hi ${name},\n\n` +
+    `A quick reminder that your interview for ${role} is coming up at ${slot}. ` +
+    `We're looking forward to speaking with you — see you then!\n\nThe hiring team`;
+  await sendComm({ to: candidateRecipient(entry), subject, body, kind: "interview_reminder", ref: entry.id ?? slot });
+  if (entry.id) recordAutomationEvent(entry.id, "interview_reminder_sent", slot);
+}
+
 /**
  * Onboarding hook — fires when a candidate accepts and moves to Hired. A warm
  * welcome + the practical next step. Kept deterministic; a real onboarding

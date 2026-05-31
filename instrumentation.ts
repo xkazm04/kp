@@ -34,6 +34,15 @@ export async function register(): Promise<void> {
     } catch (e) {
       console.error("[clock] tick failed:", e);
     }
+    // Interview reminders run every tick, independent of the policy schedule
+    // (they're time-sensitive and don't require opting into auto-advance).
+    try {
+      const { sendDueInterviewReminders } = await import("./app/_lib/interview-reminders");
+      const n = await sendDueInterviewReminders();
+      if (n) console.log("[clock] interview reminders sent:", n);
+    } catch (e) {
+      console.error("[clock] reminder sweep failed:", e);
+    }
   };
 
   setTimeout(tick, 8_000); // let the server finish booting before the first tick

@@ -3,6 +3,7 @@
 
 export type WorkspaceTabId =
   | "pipeline"
+  | "channels"
   | "decisions"
   | "schedule"
   | "profile"
@@ -12,6 +13,7 @@ export type WorkspaceTabId =
   | "jobs"
   | "library"
   | "matrix"
+  | "analytics"
   | "dev"
   | "about";
 
@@ -27,6 +29,7 @@ export const DEFAULT_TAB: WorkspaceTabId = "pipeline";
 // the deep-link breadcrumb.
 export const WORKSPACE_TABS: WorkspaceTabDef[] = [
   { id: "pipeline", label: "Pipeline" },
+  { id: "channels", label: "Channels" },
   { id: "decisions", label: "Decisions" },
   { id: "schedule", label: "Schedule" },
   { id: "profile", label: "Profile" },
@@ -35,6 +38,7 @@ export const WORKSPACE_TABS: WorkspaceTabDef[] = [
   { id: "jobs", label: "Jobs" },
   { id: "library", label: "Job descriptions" },
   { id: "matrix", label: "Matrix" },
+  { id: "analytics", label: "Analytics" },
   { id: "dev", label: "Dev cases" },
   { id: "about", label: "About" },
 ];
@@ -46,16 +50,9 @@ export const NAV_GROUPS: NavGroup[] = [
   {
     items: [
       { id: "pipeline", label: "Pipeline" },
+      { id: "channels", label: "Channels" },
       { id: "decisions", label: "Decisions" },
       { id: "schedule", label: "Schedule" },
-    ],
-  },
-  {
-    label: "Candidates",
-    items: [
-      { id: "profile", label: "Profile" },
-      { id: "match", label: "Match" },
-      { id: "analyze", label: "Analyze" },
     ],
   },
   {
@@ -66,12 +63,23 @@ export const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
+    // Phase 6: Profile + Match are standalone tools (reachable from Channels:
+    // Match = proactive sourcing, Profile = manual add), de-emphasized here.
+    label: "Tools",
+    items: [
+      { id: "profile", label: "Profile" },
+      { id: "match", label: "Match" },
+      { id: "analyze", label: "Analyze" },
+    ],
+  },
+  {
     label: "Dev extension",
     items: [{ id: "dev", label: "Dev cases" }],
   },
   {
     label: "Insights",
     items: [
+      { id: "analytics", label: "Analytics" },
       { id: "matrix", label: "Matrix" },
       { id: "about", label: "About" },
     ],
@@ -80,6 +88,7 @@ export const NAV_GROUPS: NavGroup[] = [
 
 const TAB_IDS = new Set<WorkspaceTabId>([
   "pipeline",
+  "channels",
   "decisions",
   "schedule",
   "profile",
@@ -89,6 +98,7 @@ const TAB_IDS = new Set<WorkspaceTabId>([
   "jobs",
   "library",
   "matrix",
+  "analytics",
   "dev",
   "about",
 ]);

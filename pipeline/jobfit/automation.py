@@ -25,7 +25,7 @@ SCREENING_PROMPT_VERSION = "screening-v1"
 OUTREACH_PROMPT_VERSION = "outreach-v1"
 REJECTION_PROMPT_VERSION = "rejection-v1"
 PREP_PROMPT_VERSION = "interview-prep-v1"
-SCORECARD_PROMPT_VERSION = "scorecard-v1"
+SCORECARD_PROMPT_VERSION = "scorecard-v2"
 REMATCH_PROMPT_VERSION = "rematch-v1"
 OFFER_PROMPT_VERSION = "offer-v1"
 
@@ -370,18 +370,46 @@ def interview_prep(candidate: MatchCandidate, job: Job, m, *, provider: Any | No
     return result, source
 
 
+# Fixed scorecard rubric — the SAME competency axes for every candidate, so
+# interviews are structured and directly comparable (Greenhouse/HireVue-style).
+RATING_ANCHORS = {
+    1: "Well below bar",
+    2: "Below bar",
+    3: "Meets the bar",
+    4: "Above bar",
+    5: "Exceptional",
+}
+INTERVIEW_RUBRIC = [
+    {"competency": "Technical depth", "description": "Depth and correctness in the role's core skills."},
+    {"competency": "Problem-solving", "description": "Reasoning, debugging, and structured thinking under questioning."},
+    {"competency": "Communication", "description": "Clarity, structure, and active listening."},
+    {"competency": "Experience & fit", "description": "Relevance of background and projects to this specific role."},
+    {"competency": "Motivation", "description": "Genuine interest in the role and the team."},
+]
+
+
 def interview_scorecard(candidate: MatchCandidate, job: Job, notes: str, *, provider: Any | None = None):
+    anchors = ", ".join(f"{k}={v}" for k, v in RATING_ANCHORS.items())
+    rubric_lines = "\n".join(f"- {c['competency']}: {c['description']}" for c in INTERVIEW_RUBRIC)
     prompt = (
         f"Synthesize a structured interview scorecard for {candidate.label} (role: {job.title}) from these "
-        f"interviewer notes:\n\"\"\"{notes[:4000]}\"\"\"\n\n"
-        'Return JSON: { "ratings": [ { "competency": str, "rating": int 1-5, "evidence": str } ], '
-        '"summary": str, "recommendation": "advance|hold|reject" }. JSON only.'
+        f"interviewer notes / transcript:\n\"\"\"{notes[:4000]}\"\"\"\n\n"
+        "Rate the candidate on EACH of these fixed competencies (do NOT invent or omit any):\n"
+        f"{rubric_lines}\n"
+        f"Rating scale: {anchors}.\n"
+        'Return JSON: { "ratings": [ { "competency": str (exactly one of the above), "rating": int 1-5, '
+        '"evidence": str } ], "summary": str, "recommendation": "advance|hold|reject" }. '
+        "Include every competency, in the order listed. JSON only."
     )
 
     def deterministic() -> dict:
+        snippet = (notes[:140].strip() or "No interviewer notes provided.")
         return {
-            "ratings": [{"competency": "Overall", "rating": 3, "evidence": (notes[:160] or "No notes provided.")}],
-            "summary": "Auto-synthesis unavailable; review the raw notes and rate manually.",
+            "ratings": [
+                {"competency": c["competency"], "rating": 3, "evidence": "Not assessed (auto-synthesis unavailable)."}
+                for c in INTERVIEW_RUBRIC
+            ],
+            "summary": "Auto-synthesis unavailable; review the transcript and rate against the rubric manually. " + snippet,
             "recommendation": "hold",
         }
 
@@ -389,7 +417,14 @@ def interview_scorecard(candidate: MatchCandidate, job: Job, notes: str, *, prov
         det = deterministic()
         if not isinstance(payload, dict):
             return det
-        ratings = []
+
+        # Match competencies leniently so a model that returns "Problem solving"
+        # (space) or "Technical Depth" (case) still maps onto the fixed rubric
+        # rather than being dropped and defaulting that axis to "Not assessed".
+        def norm(s: Any) -> str:
+            return "".join(ch for ch in str(s).lower() if ch.isalnum())
+
+        by_comp: dict[str, dict] = {}
         for r in payload.get("ratings") or []:
             if not isinstance(r, dict) or not r.get("competency"):
                 continue
@@ -397,12 +432,23 @@ def interview_scorecard(candidate: MatchCandidate, job: Job, notes: str, *, prov
                 rating = max(1, min(5, int(r.get("rating"))))
             except (TypeError, ValueError):
                 rating = 3
-            ratings.append({"competency": str(r["competency"]), "rating": rating, "evidence": str(r.get("evidence") or "")})
+            by_comp[norm(r["competency"])] = {"rating": rating, "evidence": str(r.get("evidence") or "")}
+        # Always emit every rubric competency, in rubric order, filling gaps.
+        ratings = []
+        for c in INTERVIEW_RUBRIC:
+            got = by_comp.get(norm(c["competency"]))
+            ratings.append(
+                {
+                    "competency": c["competency"],
+                    "rating": got["rating"] if got else 3,
+                    "evidence": (got["evidence"] if got else "") or "Not assessed.",
+                }
+            )
         rec = str(payload.get("recommendation") or "").strip().lower()
         if rec not in ("advance", "hold", "reject"):
             rec = "hold"
         return {
-            "ratings": ratings or det["ratings"],
+            "ratings": ratings,
             "summary": str(payload.get("summary") or det["summary"]),
             "recommendation": rec,
         }

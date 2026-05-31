@@ -303,6 +303,7 @@ function ensureDb(): Database.Database {
       mode TEXT NOT NULL DEFAULT 'test',
       status TEXT NOT NULL DEFAULT 'created',
       instructions TEXT,
+      run_of_show_json TEXT,
       consent_at TEXT,
       started_at TEXT,
       ended_at TEXT,
@@ -323,11 +324,14 @@ function ensureDb(): Database.Database {
       /* column already exists */
     }
   }
-  // Migration for dev_submissions evaluation + contact columns (Phase D6 / B).
+  // Migration for dev_submissions evaluation + contact columns (Phase D6 / B),
+  // plus the interview run-of-show column added when the voice screen grew a
+  // candidate-facing agenda.
   for (const sql of [
     "ALTER TABLE dev_submissions ADD COLUMN eval_json TEXT",
     "ALTER TABLE dev_submissions ADD COLUMN transfer_score INTEGER",
     "ALTER TABLE dev_submissions ADD COLUMN contact TEXT",
+    "ALTER TABLE interview_sessions ADD COLUMN run_of_show_json TEXT",
   ]) {
     try {
       db.exec(sql);
@@ -540,6 +544,27 @@ export function listAnalysesByJd(slug: string): AnalysisSummary[] {
        ORDER BY score DESC, created_at DESC`
     )
     .all(slug) as AnalysisSummary[];
+}
+
+// Like listAnalyses but folds payload_json into the one query, so callers that
+// need every payload (e.g. the candidate pool) don't fire an N+1 of loadAnalysis.
+export function listAnalysisRecords(limit = 100): { row: AnalysisRow; payload: unknown }[] {
+  const db = ensureDb();
+  const rows = db
+    .prepare(
+      `SELECT slug, candidate_label, jd_slug, score, role_family, seniority, payload_json, created_at
+       FROM analyses ORDER BY created_at DESC LIMIT ?`
+    )
+    .all(limit) as AnalysisRow[];
+  const out: { row: AnalysisRow; payload: unknown }[] = [];
+  for (const row of rows) {
+    try {
+      out.push({ row, payload: JSON.parse(row.payload_json) });
+    } catch {
+      /* skip rows with unparseable payloads */
+    }
+  }
+  return out;
 }
 
 export function loadAnalysis(slug: string): { row: AnalysisRow; payload: unknown } | null {
@@ -894,6 +919,28 @@ export function listProfiles(limit = 100): ProfileRow[] {
     .all(limit) as ProfileRow[];
 }
 
+// Like listProfiles but folds payload_json into the one query, so callers that
+// need every payload (e.g. the candidate pool) don't fire an N+1 of getProfileRecord.
+export function listProfileRecords(limit = 100): { row: ProfileRow; payload: unknown }[] {
+  const db = ensureDb();
+  const rows = db
+    .prepare(
+      `SELECT id, label, archetype, role_family, completeness, payload_json, created_at
+       FROM profiles ORDER BY created_at DESC LIMIT ?`
+    )
+    .all(limit) as (ProfileRow & { payload_json: string })[];
+  const out: { row: ProfileRow; payload: unknown }[] = [];
+  for (const r of rows) {
+    try {
+      const { payload_json, ...rest } = r;
+      out.push({ row: rest, payload: JSON.parse(payload_json) });
+    } catch {
+      /* skip rows with unparseable payloads */
+    }
+  }
+  return out;
+}
+
 export function getProfileRecord(id: string): { row: ProfileRow; payload: unknown } | null {
   const db = ensureDb();
   const row = db
@@ -1191,6 +1238,196 @@ export function listPipeline(): PipelineEntry[] {
     )
     .all() as PipelineRow[];
   return rows.map(rowToEntry);
+}
+
+// ---- Pipeline analytics (Insights tab) ------------------------------------
+// Snapshot-based so it stays correct even when the event history is sparse: an
+// entry "reached" every stage up to its current one; durations come from the
+// created_at / stage_changed_at pair we already maintain.
+
+export type PipelineAnalytics = {
+  total: number;
+  active: number;
+  hired: number;
+  rejected: number;
+  funnel: { stage: string; reached: number; current: number; conversionPct: number | null }[];
+  avgTimeToHireDays: number | null;
+  avgAgeDays: number | null;
+  bottleneck: { stage: string; avgDaysInStage: number } | null;
+  byJob: { jobTitle: string; total: number; reachedInterview: number; hired: number; hireRatePct: number }[];
+  byArchetype: { archetype: string; total: number; hired: number; advanceRatePct: number }[];
+};
+
+export function pipelineAnalytics(): PipelineAnalytics {
+  const db = ensureDb();
+  const rows = db
+    .prepare(
+      `SELECT job_title, archetype, stage, status, created_at, stage_changed_at FROM pipeline_entries`
+    )
+    .all() as {
+    job_title: string | null;
+    archetype: string | null;
+    stage: string;
+    status: string;
+    created_at: string | null;
+    stage_changed_at: string | null;
+  }[];
+
+  const idxOf = (s: string) => PIPELINE_STAGES.indexOf(s as PipelineStage);
+  const now = Date.now();
+  const daysSince = (iso?: string | null): number | null =>
+    iso ? Math.max(0, (now - Date.parse(iso)) / 86_400_000) : null;
+
+  const total = rows.length;
+  const hired = rows.filter((r) => r.stage === "Hired").length;
+  const rejected = rows.filter((r) => r.status === "rejected").length;
+  const active = rows.filter((r) => r.status === "active" && r.stage !== "Hired").length;
+
+  const reached = PIPELINE_STAGES.map(() => 0);
+  const current = PIPELINE_STAGES.map(() => 0);
+  for (const r of rows) {
+    const i = idxOf(r.stage);
+    if (i < 0) continue;
+    for (let k = 0; k <= i; k += 1) reached[k] += 1;
+    if (r.status === "active") current[i] += 1;
+  }
+  const funnel = PIPELINE_STAGES.map((stage, i) => ({
+    stage,
+    reached: reached[i],
+    current: current[i],
+    conversionPct: i === 0 ? null : reached[i - 1] > 0 ? Math.round((reached[i] / reached[i - 1]) * 100) : null,
+  }));
+
+  const tth = rows
+    .filter((r) => r.stage === "Hired" && r.created_at && r.stage_changed_at)
+    .map((r) => (Date.parse(r.stage_changed_at as string) - Date.parse(r.created_at as string)) / 86_400_000)
+    .filter((d) => d >= 0);
+  const avgTimeToHireDays = tth.length ? Math.round(tth.reduce((a, b) => a + b, 0) / tth.length) : null;
+
+  const ages = rows
+    .filter((r) => r.status === "active" && r.created_at)
+    .map((r) => daysSince(r.created_at) as number);
+  const avgAgeDays = ages.length ? Math.round(ages.reduce((a, b) => a + b, 0) / ages.length) : null;
+
+  const perStageDays: Record<string, number[]> = {};
+  for (const r of rows) {
+    if (r.status !== "active" || r.stage === "Hired") continue;
+    const d = daysSince(r.stage_changed_at ?? r.created_at);
+    if (d != null) (perStageDays[r.stage] ??= []).push(d);
+  }
+  let bottleneck: { stage: string; avgDaysInStage: number } | null = null;
+  for (const [stage, arr] of Object.entries(perStageDays)) {
+    const avg = arr.reduce((a, b) => a + b, 0) / arr.length;
+    if (!bottleneck || avg > bottleneck.avgDaysInStage) bottleneck = { stage, avgDaysInStage: Math.round(avg) };
+  }
+
+  const jobMap = new Map<string, { total: number; reachedInterview: number; hired: number }>();
+  for (const r of rows) {
+    const key = r.job_title ?? "—";
+    const m = jobMap.get(key) ?? { total: 0, reachedInterview: 0, hired: 0 };
+    m.total += 1;
+    if (idxOf(r.stage) >= idxOf("Interview")) m.reachedInterview += 1;
+    if (r.stage === "Hired") m.hired += 1;
+    jobMap.set(key, m);
+  }
+  const byJob = [...jobMap.entries()]
+    .map(([jobTitle, m]) => ({
+      jobTitle,
+      total: m.total,
+      reachedInterview: m.reachedInterview,
+      hired: m.hired,
+      hireRatePct: m.total ? Math.round((m.hired / m.total) * 100) : 0,
+    }))
+    .sort((a, b) => b.total - a.total)
+    .slice(0, 12);
+
+  const archMap = new Map<string, { total: number; hired: number; advanced: number }>();
+  for (const r of rows) {
+    const key = r.archetype ?? "bau";
+    const m = archMap.get(key) ?? { total: 0, hired: 0, advanced: 0 };
+    m.total += 1;
+    if (r.stage === "Hired") m.hired += 1;
+    if (idxOf(r.stage) >= idxOf("Screening")) m.advanced += 1;
+    archMap.set(key, m);
+  }
+  const byArchetype = [...archMap.entries()]
+    .map(([archetype, m]) => ({
+      archetype,
+      total: m.total,
+      hired: m.hired,
+      advanceRatePct: m.total ? Math.round((m.advanced / m.total) * 100) : 0,
+    }))
+    .sort((a, b) => b.total - a.total);
+
+  return { total, active, hired, rejected, funnel, avgTimeToHireDays, avgAgeDays, bottleneck, byJob, byArchetype };
+}
+
+// Prior pipeline outcomes per candidate — used by talent rediscovery to spot
+// "silver medalists" (rejected/closed elsewhere) who fit a different role.
+export type CandidateOutcome = { jobId: string | null; jobTitle: string | null; stage: string; status: string };
+
+export function candidateOutcomes(): Map<string, CandidateOutcome[]> {
+  const rows = ensureDb()
+    .prepare(`SELECT candidate_id, job_id, job_title, stage, status FROM pipeline_entries WHERE candidate_id IS NOT NULL`)
+    .all() as { candidate_id: string; job_id: string | null; job_title: string | null; stage: string; status: string }[];
+  const m = new Map<string, CandidateOutcome[]>();
+  for (const r of rows) {
+    const arr = m.get(r.candidate_id) ?? [];
+    arr.push({ jobId: r.job_id, jobTitle: r.job_title, stage: r.stage, status: r.status });
+    m.set(r.candidate_id, arr);
+  }
+  return m;
+}
+
+// Interviewed candidates for a job, with their fixed-rubric scorecard — the
+// input for side-by-side interview comparison. The per-competency evidence
+// doubles as the transcript highlights.
+export type InterviewedCandidate = {
+  entryId: string | null;
+  candidateLabel: string | null;
+  recommendation: string | null;
+  summary: string | null;
+  ratings: { competency: string; rating: number; evidence?: string }[];
+};
+
+export function interviewedForJob(jobId: string): InterviewedCandidate[] {
+  const rows = ensureDb()
+    .prepare(
+      // Include completed interviews even when the scorecard is missing (empty
+      // transcript or a synthesis failure) — they render with blank ratings so a
+      // finished interview is visible for manual review rather than silently gone.
+      `SELECT entry_id, candidate_label, scorecard_json, ended_at FROM interview_sessions
+       WHERE job_id = ? AND status = 'completed'
+       ORDER BY ended_at DESC`
+    )
+    .all(jobId) as {
+    entry_id: string | null;
+    candidate_label: string | null;
+    scorecard_json: string | null;
+    ended_at: string | null;
+  }[];
+
+  const seen = new Set<string>();
+  const out: InterviewedCandidate[] = [];
+  for (const r of rows) {
+    const key = r.entry_id ?? r.candidate_label ?? String(out.length);
+    if (seen.has(key)) continue; // latest interview per candidate
+    seen.add(key);
+    let sc: { recommendation?: string; summary?: string; ratings?: InterviewedCandidate["ratings"] } = {};
+    try {
+      sc = r.scorecard_json ? JSON.parse(r.scorecard_json) : {};
+    } catch {
+      sc = {};
+    }
+    out.push({
+      entryId: r.entry_id,
+      candidateLabel: r.candidate_label,
+      recommendation: sc.recommendation ?? null,
+      summary: sc.summary ?? null,
+      ratings: Array.isArray(sc.ratings) ? sc.ratings : [],
+    });
+  }
+  return out;
 }
 
 export type CreatePipelineInput = {
@@ -1755,6 +1992,7 @@ export type InterviewSession = {
   mode: "test" | "candidate";
   status: string;
   instructions: string | null;
+  runOfShow: string[] | null;
   consentAt: string | null;
   startedAt: string | null;
   endedAt: string | null;
@@ -1776,6 +2014,7 @@ type InterviewRow = {
   mode: string;
   status: string;
   instructions: string | null;
+  run_of_show_json: string | null;
   consent_at: string | null;
   started_at: string | null;
   ended_at: string | null;
@@ -1798,6 +2037,7 @@ function rowToInterview(r: InterviewRow): InterviewSession {
     mode: r.mode === "candidate" ? "candidate" : "test",
     status: r.status,
     instructions: r.instructions,
+    runOfShow: safeRowParse<string[]>(r.run_of_show_json, "interview.runofshow", r.id),
     consentAt: r.consent_at,
     startedAt: r.started_at,
     endedAt: r.ended_at,
@@ -1817,6 +2057,7 @@ export function createInterviewSession(input: {
   jobId?: string | null;
   jobTitle?: string | null;
   instructions?: string | null;
+  runOfShow?: string[] | null;
 }): InterviewSession {
   const db = ensureDb();
   const now = new Date().toISOString();
@@ -1824,8 +2065,8 @@ export function createInterviewSession(input: {
   const token = `tk-${Math.random().toString(36).slice(2, 12)}${Math.random().toString(36).slice(2, 12)}`;
   db.prepare(
     `INSERT INTO interview_sessions
-       (id, token, entry_id, candidate_label, job_id, job_title, provider, language, mode, status, instructions, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'created', ?, ?)`
+       (id, token, entry_id, candidate_label, job_id, job_title, provider, language, mode, status, instructions, run_of_show_json, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'created', ?, ?, ?)`
   ).run(
     id,
     token,
@@ -1837,9 +2078,41 @@ export function createInterviewSession(input: {
     input.language ?? null,
     input.mode ?? "test",
     input.instructions ?? null,
+    input.runOfShow && input.runOfShow.length ? JSON.stringify(input.runOfShow) : null,
     now
   );
   return getInterviewSessionById(id)!;
+}
+
+/** Latest interview session per entry (for the Schedule tab indicator). */
+export function interviewStatusByEntries(
+  entryIds: string[]
+): Record<string, { sessionId: string; status: string; hasTranscript: boolean; endedAt: string | null }> {
+  if (entryIds.length === 0) return {};
+  const placeholders = entryIds.map(() => "?").join(",");
+  const rows = ensureDb()
+    .prepare(
+      `SELECT s.id, s.entry_id, s.status, s.ended_at,
+              (s.transcript_json IS NOT NULL AND s.transcript_json != '[]') AS has_tr
+       FROM interview_sessions s
+       WHERE s.entry_id IN (${placeholders})
+       ORDER BY s.created_at DESC`
+    )
+    .all(...entryIds) as { id: string; entry_id: string; status: string; ended_at: string | null; has_tr: number }[];
+  const out: Record<string, { sessionId: string; status: string; hasTranscript: boolean; endedAt: string | null }> = {};
+  for (const r of rows) {
+    if (out[r.entry_id]) continue; // first = latest (DESC)
+    out[r.entry_id] = { sessionId: r.id, status: r.status, hasTranscript: !!r.has_tr, endedAt: r.ended_at };
+  }
+  return out;
+}
+
+/** Most-recent interview session for one entry (for the transcript modal). */
+export function latestInterviewByEntry(entryId: string): InterviewSession | null {
+  const r = ensureDb()
+    .prepare(`SELECT * FROM interview_sessions WHERE entry_id = ? ORDER BY created_at DESC LIMIT 1`)
+    .get(entryId) as InterviewRow | undefined;
+  return r ? rowToInterview(r) : null;
 }
 
 export function getInterviewSessionById(id: string): InterviewSession | null {
@@ -2053,10 +2326,24 @@ export function actOnPipelineEntry(id: string, action: PipelineAction, detail?: 
     // Honor a slot override (the shared calendar lets you move a candidate's
     // proposed time); fall back to the originally-proposed slot.
     const slot = detail && detail.trim() ? detail.trim() : row.approval_detail;
-    db.prepare(
-      `UPDATE pipeline_entries SET stage='Interview', approval_kind=NULL, approval_detail='', stage_changed_at=?, updated_at=? WHERE id=?`
-    ).run(now, now, id);
-    recordEvent(db, { ...meta, kind: "scheduled", toStage: "Interview", detail: slot });
+    // Scheduling advances Screening → Interview, but must never move backward: a
+    // stale or reused schedule link confirmed after the candidate already reached
+    // Offer/Hired records the slot without regressing their stage.
+    const interviewIdx = PIPELINE_STAGES.indexOf("Interview");
+    const curIdx = PIPELINE_STAGES.indexOf(row.stage as PipelineStage);
+    const toStage = curIdx > interviewIdx ? row.stage : "Interview";
+    if (toStage !== row.stage) {
+      db.prepare(
+        `UPDATE pipeline_entries SET stage=?, approval_kind=NULL, approval_detail='', stage_changed_at=?, updated_at=? WHERE id=?`
+      ).run(toStage, now, now, id);
+    } else {
+      // Reschedule / already past Interview: clear the approval but leave
+      // stage_changed_at untouched so time-in-stage and time-to-hire stay honest.
+      db.prepare(
+        `UPDATE pipeline_entries SET approval_kind=NULL, approval_detail='', updated_at=? WHERE id=?`
+      ).run(now, id);
+    }
+    recordEvent(db, { ...meta, kind: "scheduled", toStage, detail: slot });
   } else if (row.approval_kind === "screening_review") {
     // Accepting an AI screening flows the candidate into interview scheduling:
     // advance a stage AND queue them on the calendar (Schedule tab) with a
@@ -2071,10 +2358,18 @@ export function actOnPipelineEntry(id: string, action: PipelineAction, detail?: 
     // accept: advance one stage, clear any pending approval
     const idx = PIPELINE_STAGES.indexOf(row.stage as PipelineStage);
     const next = PIPELINE_STAGES[Math.min(idx + 1, PIPELINE_STAGES.length - 1)];
-    db.prepare(
-      `UPDATE pipeline_entries SET stage=?, approval_kind=NULL, approval_detail='', stage_changed_at=?, updated_at=? WHERE id=?`
-    ).run(next, now, now, id);
-    recordEvent(db, { ...meta, kind: "advanced", toStage: next });
+    if (next !== row.stage) {
+      db.prepare(
+        `UPDATE pipeline_entries SET stage=?, approval_kind=NULL, approval_detail='', stage_changed_at=?, updated_at=? WHERE id=?`
+      ).run(next, now, now, id);
+      recordEvent(db, { ...meta, kind: "advanced", toStage: next });
+    } else {
+      // Already at the terminal stage (Hired): clear the approval but don't bump
+      // stage_changed_at — that timestamp anchors time-to-hire and must not move.
+      db.prepare(
+        `UPDATE pipeline_entries SET approval_kind=NULL, approval_detail='', updated_at=? WHERE id=?`
+      ).run(now, id);
+    }
   }
   const updated = db.prepare(`SELECT * FROM pipeline_entries WHERE id = ?`).get(id) as PipelineRow;
   return rowToEntry(updated);

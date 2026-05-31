@@ -10,7 +10,9 @@ import { JobsTab } from "./sub_jobs/JobsTab";
 import { LibraryTab } from "./sub_library/LibraryTab";
 import { MatchTab } from "./sub_match/MatchTab";
 import { MatrixTab } from "./sub_matrix/MatrixTab";
+import { AnalyticsTab } from "./sub_analytics/AnalyticsTab";
 import { PipelineTab } from "./sub_pipeline/PipelineTab";
+import { ChannelsTab } from "./sub_channels/ChannelsTab";
 import { DevTab } from "./sub_dev/DevTab";
 import { ProfileTab } from "./sub_profile/ProfileTab";
 import { TasksIndicator } from "./tasks/TasksIndicator";
@@ -20,6 +22,8 @@ import { SimBar } from "./simulation/SimBar";
 import { SimSpotlight } from "./simulation/SimSpotlight";
 import { SimExplainDrawer } from "./simulation/SimExplainDrawer";
 import { SimOfferFrame } from "./simulation/SimOfferFrame";
+import { SimGroupEval } from "./simulation/SimGroupEval";
+import { SimDecisionWave } from "./simulation/SimDecisionWave";
 import { buildUrl, DEFAULT_TAB, isWorkspaceTabId, navItemClass, NAV_GROUPS, type WorkspaceTabId } from "./tabs";
 
 export type { WorkspaceTabId } from "./tabs";
@@ -103,6 +107,7 @@ export function Workspace() {
             pb-24 keeps content clear of the fixed simulation bar. */}
         <div key={navActive} className="animate-fade-in mx-auto max-w-[108rem] px-3 py-6 pb-24 sm:px-4 lg:px-6">
           {navActive === "pipeline" ? <PipelineTab /> : null}
+          {navActive === "channels" ? <ChannelsTab /> : null}
           {navActive === "decisions" ? <DecisionsTab /> : null}
           {navActive === "schedule" ? <ScheduleTab /> : null}
           {navActive === "profile" ? <ProfileTab /> : null}
@@ -113,6 +118,7 @@ export function Workspace() {
           {navActive === "jobs" ? <JobsTab /> : null}
           {navActive === "library" ? <LibraryTab /> : null}
           {navActive === "matrix" ? <MatrixTab /> : null}
+          {navActive === "analytics" ? <AnalyticsTab /> : null}
           {navActive === "dev" ? <DevTab /> : null}
           {navActive === "about" ? <AboutTab /> : null}
         </div>
@@ -120,6 +126,8 @@ export function Workspace() {
       <SimSpotlight />
       <SimExplainDrawer />
       <SimOfferFrame />
+      <SimGroupEval />
+      <SimDecisionWave />
       <SimBar />
     </div>
     </SimulationProvider>

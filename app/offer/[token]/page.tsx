@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
+import { AiDisclosure } from "@/app/_components/AiDisclosure";
 
 type OfferView = {
   token: string;
@@ -113,6 +114,7 @@ export default function OfferPage() {
                 </div>
               </>
             )}
+            {!result ? <AiDisclosure className="mt-5" /> : null}
           </>
         )}
       </div>

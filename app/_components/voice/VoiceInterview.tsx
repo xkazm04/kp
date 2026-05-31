@@ -22,6 +22,8 @@ export type VoiceInterviewProps = {
   fixedProvider?: Provider;
   candidateLabel?: string;
   jobTitle?: string;
+  /** Candidate-facing agenda — run-of-show titles only (no questions). */
+  runOfShow?: string[];
 };
 
 export function VoiceInterview(props: VoiceInterviewProps) {
@@ -38,12 +40,8 @@ function VoiceInterviewInner({
   fixedProvider,
   candidateLabel,
   jobTitle,
-}: {
-  token?: string;
-  fixedProvider?: Provider;
-  candidateLabel?: string;
-  jobTitle?: string;
-}) {
+  runOfShow,
+}: VoiceInterviewProps) {
   const [availability, setAvailability] = useState<Availability | null>(null);
   const [provider, setProvider] = useState<Provider>(fixedProvider ?? "openai");
   const [consent, setConsent] = useState(false);
@@ -62,11 +60,19 @@ function VoiceInterviewInner({
   const dcRef = useRef<RTCDataChannel | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const asstBuf = useRef("");
+  const connectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Keep a ref of the active provider for use inside SDK callbacks/teardown.
   useEffect(() => {
     providerRef.current = provider;
   }, [provider]);
+
+  const clearConnectTimer = useCallback(() => {
+    if (connectTimerRef.current) {
+      clearTimeout(connectTimerRef.current);
+      connectTimerRef.current = null;
+    }
+  }, []);
 
   const pushTurn = useCallback((role: Turn["role"], text: string) => {
     const t = (text ?? "").trim();
@@ -99,6 +105,7 @@ function VoiceInterviewInner({
     async (status: "completed" | "failed") => {
       if (finalizedRef.current) return;
       finalizedRef.current = true;
+      clearConnectTimer();
       teardownOpenAi();
       setPhase("ended");
       const sid = sessionIdRef.current;
@@ -114,15 +121,19 @@ function VoiceInterviewInner({
         }
       }
     },
-    [teardownOpenAi]
+    [teardownOpenAi, clearConnectTimer]
   );
 
   const conversation = useConversation({
-    onConnect: () => setPhase("live"),
+    onConnect: () => {
+      clearConnectTimer();
+      setPhase("live");
+    },
     onDisconnect: () => {
       if (providerRef.current === "elevenlabs") void finalize("completed");
     },
     onError: (message: string) => {
+      clearConnectTimer();
       setError(message || "Voice session error");
       setPhase("error");
     },
@@ -148,6 +159,7 @@ function VoiceInterviewInner({
   // Teardown on unmount.
   useEffect(() => {
     return () => {
+      if (connectTimerRef.current) clearTimeout(connectTimerRef.current);
       try {
         if (providerRef.current === "elevenlabs") conversation.endSession();
       } catch {
@@ -202,6 +214,7 @@ function VoiceInterviewInner({
       throw new Error(`OpenAI calls ${resp.status}: ${detail.slice(0, 200)}`);
     }
     await pc.setRemoteDescription({ type: "answer", sdp: await resp.text() });
+    clearConnectTimer();
     setPhase("live");
   }
 
@@ -212,6 +225,21 @@ function VoiceInterviewInner({
     asstBuf.current = "";
     finalizedRef.current = false;
     setPhase("connecting");
+    // Never hang on "Connecting…": if we aren't live within 30s, surface an error.
+    clearConnectTimer();
+    connectTimerRef.current = setTimeout(() => {
+      finalizedRef.current = true; // don't POST a transcript for a failed connect
+      teardownOpenAi();
+      try {
+        conversation.endSession();
+      } catch {
+        /* noop */
+      }
+      setError(
+        "Couldn't connect within 30s. Check microphone permission, that the provider is configured, and (ElevenLabs) that the agent allows overrides."
+      );
+      setPhase("error");
+    }, 30000);
     try {
       const res = await fetch("/api/interview/connect", {
         method: "POST",
@@ -234,13 +262,22 @@ function VoiceInterviewInner({
         // override (requires the ElevenLabs agent to allow overrides; otherwise
         // it falls back to the dashboard prompt). phase → live via onConnect.
         const groundedPrompt: string | undefined = data.groundedPrompt ?? undefined;
-        conversation.startSession(
-          groundedPrompt
-            ? { signedUrl: c.signedUrl, overrides: { agent: { prompt: { prompt: groundedPrompt } } } }
-            : { signedUrl: c.signedUrl }
-        );
+        const maybe = conversation.startSession({
+          signedUrl: c.signedUrl,
+          connectionType: "websocket",
+          ...(groundedPrompt ? { overrides: { agent: { prompt: { prompt: groundedPrompt } } } } : {}),
+        }) as unknown;
+        // Some SDK versions return a promise; surface a rejection instead of hanging.
+        if (maybe && typeof (maybe as { then?: unknown }).then === "function") {
+          (maybe as Promise<unknown>).catch((err) => {
+            clearConnectTimer();
+            setError(err instanceof Error ? err.message : "ElevenLabs failed to connect");
+            setPhase("error");
+          });
+        }
       }
     } catch (e) {
+      clearConnectTimer();
       setError(e instanceof Error ? e.message : "Failed to start the call");
       setPhase("error");
       teardownOpenAi();
@@ -263,8 +300,12 @@ function VoiceInterviewInner({
   const liveProvider = fixedProvider ?? provider;
   const providerAvailable = availability ? availability[liveProvider] : true;
 
+  const hasAgenda = Boolean(runOfShow && runOfShow.length);
+
   return (
-    <div className="space-y-5">
+    <div className={hasAgenda ? "grid gap-7 md:grid-cols-[260px_minmax(0,1fr)]" : ""}>
+      {hasAgenda ? <RunOfShowAgenda items={runOfShow ?? []} /> : null}
+      <div className="space-y-5">
       <audio ref={audioRef} autoPlay hidden />
 
       {/* Provider switcher */}
@@ -386,7 +427,7 @@ function VoiceInterviewInner({
             </p>
           ) : null}
         </div>
-        <div className="max-h-[420px] space-y-3 overflow-y-auto p-4">
+        <div className="max-h-[520px] space-y-3 overflow-y-auto p-4">
           {turns.length === 0 ? (
             <p className="text-base text-steel">The transcript will appear here as you talk.</p>
           ) : (
@@ -407,7 +448,27 @@ function VoiceInterviewInner({
           )}
         </div>
       </div>
+      </div>
     </div>
+  );
+}
+
+function RunOfShowAgenda({ items }: { items: string[] }) {
+  return (
+    <aside className="rounded-lg border border-stone-200 bg-paper p-3 md:sticky md:top-4 md:self-start">
+      <p className="text-meta uppercase text-steel">Today’s agenda</p>
+      <ol className="mt-2 space-y-1.5">
+        {items.map((t, i) => (
+          <li key={i} className="flex items-start gap-2 text-base text-ink">
+            <span className="mt-0.5 grid h-4 w-4 shrink-0 place-items-center rounded-full border border-stone-300 text-[10px] text-steel">
+              {i + 1}
+            </span>
+            <span>{t}</span>
+          </li>
+        ))}
+      </ol>
+      <p className="mt-2 text-meta text-steel">Your interviewer will guide you through each step.</p>
+    </aside>
   );
 }
 
