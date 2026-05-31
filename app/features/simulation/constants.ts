@@ -42,7 +42,7 @@ export const SIM_PHASES: { id: SimPhaseId; label: string; tab: string }[] = [
   { id: "design", label: "Design JD", tab: "library" },
   { id: "source", label: "Source", tab: "jobs" },
   { id: "match", label: "Auto-match", tab: "pipeline" },
-  { id: "screen", label: "Screen", tab: "decisions" },
+  { id: "screen", label: "Screen", tab: "analytics" },
   { id: "interview", label: "Interview", tab: "schedule" },
   { id: "offer", label: "Offer", tab: "decisions" },
   { id: "hired", label: "Hired", tab: "pipeline" },

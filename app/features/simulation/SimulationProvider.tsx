@@ -8,6 +8,8 @@ import type { GroupEvalPayload } from "@/app/features/sub_decisions/GroupEvalMod
 import { SIM_COMPANY, SIM_JD_MARKDOWN, SIM_ROLE, SIM_SALARY, SIM_TITLE, type SimPhaseId } from "./constants";
 
 type GroupEval = { roleTitle: string; payload: GroupEvalPayload | null; loading: boolean };
+type WaveDecision = { entryId: string; label: string; archetype: string | null; matchScore: number; action: "reject" | "keep"; rationale: string };
+type ScreenWave = { decisions: WaveDecision[]; rejected: number; kept: number; cohort: number };
 
 type Spotlight = { selector: string | null; title: string; caption: string };
 type LogLine = { at: number; text: string };
@@ -23,6 +25,7 @@ type SimState = {
   spotlight: Spotlight | null;
   frame: { url: string; title: string } | null;
   groupEval: GroupEval | null;
+  screenWave: ScreenWave | null;
   status: string;
   log: LogLine[];
   targetLabel: string | null;
@@ -41,6 +44,7 @@ type SimCtx = SimState & {
   openExplain: () => void;
   closeExplain: () => void;
   closeGroupEval: () => void;
+  closeScreenWave: () => void;
 };
 
 const Ctx = createContext<SimCtx | null>(null);
@@ -68,6 +72,7 @@ export function SimulationProvider({ children }: { children: React.ReactNode }) 
     spotlight: null,
     frame: null,
     groupEval: null,
+    screenWave: null,
     status: "Idle",
     log: [],
     targetLabel: null,
@@ -212,7 +217,7 @@ export function SimulationProvider({ children }: { children: React.ReactNode }) 
         patch({ groupEval: { roleTitle, payload, loading: false } });
       } catch (e) {
         if (e instanceof SimStop) throw e;
-        patch({ groupEval: null });
+        patch({ groupEval: null, screenWave: null });
       }
     },
     [getEntries, patch]
@@ -334,30 +339,36 @@ export function SimulationProvider({ children }: { children: React.ReactNode }) 
         },
       });
 
-      // SCREEN — a real click on the recruiter's decision card.
+      // SCREEN — the first AUTOMATED decision wave: rank the matched cohort,
+      // auto-reject the weakest below threshold (audited, with rationale),
+      // early-career never rejected; the survivor proceeds toward interview.
       await step({
         id: "screen",
-        tab: "decisions",
-        target: '[data-sim="decisions"]',
-        title: "Screening decision",
-        caption: "AI recommends; a human decides. Advancing the candidate from the Decisions queue.",
+        tab: "analytics",
+        target: '#main',
+        title: "Screening · automated wave",
+        caption: "The first automated decision: score the matched candidates, auto-reject the weakest below threshold (each with a rationale), and pass the rest.",
         action: async () => {
+          const wave = await fetch("/api/decisions/screen-wave", {
+            method: "POST",
+            headers: JSON_HEADERS,
+            body: JSON.stringify({ jobId, override: { autoRejectEnabled: true, rejectBottomPercent: 25, maxMatchToReject: 60 } }),
+          }).then((r) => r.json());
+          patch({ screenWave: { decisions: wave.decisions ?? [], rejected: wave.rejected ?? 0, kept: wave.kept ?? 0, cohort: wave.cohort ?? 0 } });
+          notifyDataChanged();
+          await beat(3400); // let the viewer read the audit
+          patch({ screenWave: null });
+          log(`Screening wave · ${wave.rejected ?? 0} auto-rejected (with rationale), ${wave.kept ?? 0} advanced · early-career protected`);
+
+          // The survivor proceeds toward the interview (this sets the calendar gate).
           await advance(targetId); // AI-matched → Screening
           await fetch("/api/sim/screen-draft", { method: "POST", headers: JSON_HEADERS, body: JSON.stringify({ entryId: targetId }) });
-          nav({ tab: "decisions" });
-          await beat(600);
-          const clicked = await clickEl(`[data-sim-entry="${targetId}"] [data-sim-click="accept"]`, {
-            title: "Advance past screening",
-            caption: `Recruiter clicks ‘Advance’ on ${targetLabel} — early-career is never auto-rejected.`,
-          });
-          if (!clicked) {
-            log("(decision card not visible — advancing via API)");
-            await advance(targetId);
-          }
-          await waitEntry(targetId, (e) => e.stage !== "Screening");
-          log("→ screening cleared");
+          await fetch(`/api/pipeline/${targetId}`, { method: "POST", headers: JSON_HEADERS, body: JSON.stringify({ action: "accept" }) });
+          await waitEntry(targetId, (e) => e.stage === "Interview" || e.approvalKind === "calendar");
+          notifyDataChanged();
+          log(`${targetLabel} passed screening → Interview`);
         },
-        readMs: 1500,
+        readMs: 1800,
       });
 
       // INTERVIEW — automate the round (candidate self-schedules), or assign a slot
@@ -421,7 +432,7 @@ export function SimulationProvider({ children }: { children: React.ReactNode }) 
           // Group evaluation: compare the field for the role before committing.
           await runGroupEval(jobId, SIM_TITLE);
           await beat(2600); // let the viewer read the comparison
-          patch({ groupEval: null });
+          patch({ groupEval: null, screenWave: null });
 
           await fetch("/api/sim/offer-draft", { method: "POST", headers: JSON_HEADERS, body: JSON.stringify({ entryId: targetId }) });
           nav({ tab: "decisions" });
@@ -473,15 +484,15 @@ export function SimulationProvider({ children }: { children: React.ReactNode }) 
         settleMs: 1400,
       });
 
-      patch({ done: true, running: false, status: "Done — candidate hired 🎉", spotlight: null, frame: null, groupEval: null });
+      patch({ done: true, running: false, status: "Done — candidate hired 🎉", spotlight: null, frame: null, groupEval: null, screenWave: null });
     } catch (e) {
       if (e instanceof SimStop) {
-        patch({ running: false, status: "Stopped", spotlight: null, frame: null, groupEval: null });
+        patch({ running: false, status: "Stopped", spotlight: null, frame: null, groupEval: null, screenWave: null });
         log("Simulation stopped.");
         return;
       }
       const msg = e instanceof Error ? e.message : "Simulation failed.";
-      patch({ running: false, error: msg, status: `Failed: ${msg}`, spotlight: null, frame: null, groupEval: null });
+      patch({ running: false, error: msg, status: `Failed: ${msg}`, spotlight: null, frame: null, groupEval: null, screenWave: null });
       log(`Error: ${msg}`);
     }
   }, [advance, advanceTo, beat, clickEl, getEntries, log, nav, patch, runGroupEval, step, waitDom, waitEntry]);
@@ -498,6 +509,7 @@ export function SimulationProvider({ children }: { children: React.ReactNode }) 
       spotlight: null,
       frame: null,
       groupEval: null,
+      screenWave: null,
       status: "Starting…",
       log: [],
       targetLabel: null,
@@ -540,6 +552,7 @@ export function SimulationProvider({ children }: { children: React.ReactNode }) 
       spotlight: null,
       frame: null,
       groupEval: null,
+      screenWave: null,
       status: "Reset",
       log: [],
       targetLabel: null,
@@ -557,10 +570,11 @@ export function SimulationProvider({ children }: { children: React.ReactNode }) 
   const openExplain = useCallback(() => patch({ explainOpen: true }), [patch]);
   const closeExplain = useCallback(() => patch({ explainOpen: false }), [patch]);
   const closeGroupEval = useCallback(() => patch({ groupEval: null }), [patch]);
+  const closeScreenWave = useCallback(() => patch({ screenWave: null }), [patch]);
 
   const value = useMemo<SimCtx>(
-    () => ({ ...state, start, pause, resume, stop, reset, toggleStep, next, openExplain, closeExplain, closeGroupEval }),
-    [state, start, pause, resume, stop, reset, toggleStep, next, openExplain, closeExplain, closeGroupEval]
+    () => ({ ...state, start, pause, resume, stop, reset, toggleStep, next, openExplain, closeExplain, closeGroupEval, closeScreenWave }),
+    [state, start, pause, resume, stop, reset, toggleStep, next, openExplain, closeExplain, closeGroupEval, closeScreenWave]
   );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

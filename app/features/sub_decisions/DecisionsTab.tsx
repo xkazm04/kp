@@ -2,11 +2,12 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Check, Sparkles } from "lucide-react";
+import { Check, SlidersHorizontal, Sparkles } from "lucide-react";
 import { buildUrl } from "@/app/features/tabs";
 import { useTasks } from "@/app/features/tasks/TasksProvider";
 import { useLiveRefresh } from "@/app/features/live-refresh";
 import { AiReviewCard } from "./AiReviewCard";
+import { DecisionRulesModal } from "./DecisionRulesModal";
 import { AnalysisSummaryModal } from "./AnalysisSummaryModal";
 import { Empty } from "./DecisionsShared";
 import { GroupEvalModal, type GroupEvalPayload } from "./GroupEvalModal";
@@ -23,6 +24,7 @@ export function DecisionsTab() {
   const { startTask, tasks } = useTasks();
   // Filter the queue to one opened JD (deep-linkable via ?job=<id>).
   const [jobFilter, setJobFilter] = useState<string | null>(search.get("job"));
+  const [rulesOpen, setRulesOpen] = useState(false);
   const [entries, setEntries] = useState<Entry[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [resolving, setResolving] = useState<Record<string, "accept" | "reject" | "approve_event">>({});
@@ -192,6 +194,14 @@ export function DecisionsTab() {
           <span className="rounded-md border border-stone-200 bg-paper px-2.5 py-1 text-sm text-steel">
             {activeFilter ? visibleAiReviews.length + visibleGroups.reduce((n, g) => n + g.entries.length, 0) : pending.length} pending
           </span>
+          <button
+            type="button"
+            onClick={() => setRulesOpen(true)}
+            title="Configure decision rules"
+            className="focus-ring inline-flex items-center gap-1.5 rounded-md border border-stone-200 bg-white px-2.5 py-1 text-sm font-semibold text-steel hover:bg-stone-50"
+          >
+            <SlidersHorizontal size={13} /> Rules
+          </button>
         </div>
       </header>
 
@@ -267,6 +277,8 @@ export function DecisionsTab() {
           onRerun={() => evalGroup && openGroupEval(evalGroup, true)}
         />
       ) : null}
+
+      {rulesOpen ? <DecisionRulesModal onClose={() => setRulesOpen(false)} /> : null}
     </div>
   );
 }

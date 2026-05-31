@@ -48,14 +48,19 @@ sc --> out
 @enduml`,
 
   screen: `@startuml
-title Screen: AI recommends, a human decides
-[AI-matched] as m
-[AI screening\\nrecommendation] <<focus>> as ai
-[Recruiter review] <<gate>> as human
-[Advance / hold] as out
-m --> ai
-ai --> human : early-career never auto-rejected
-human --> out
+title Screen: first automated decision wave
+[Matched cohort] as m
+package "Auto-decision (configurable)" {
+  [Rank by match] <<focus>> as rank
+  [Reject bottom X%\\n< Y% match · audited] <<focus>> as rej
+}
+[Early-career\\nnever auto-rejected] <<gate>> as fair
+[Passed → Interview] as out
+m --> rank
+rank --> rej
+rej --> out : survivors
+m --> fair : protected
+fair --> out
 @enduml`,
 
   interview: `@startuml
