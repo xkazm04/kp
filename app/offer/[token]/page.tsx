@@ -95,6 +95,7 @@ export default function OfferPage() {
                 <div className="mt-4 flex gap-3">
                   <button
                     type="button"
+                    data-sim-click="offer-accept"
                     onClick={() => respond("accept")}
                     disabled={busy}
                     className="focus-ring inline-flex h-11 flex-1 items-center justify-center rounded-md bg-moss text-base font-semibold text-white hover:opacity-90 disabled:opacity-50"

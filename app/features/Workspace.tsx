@@ -19,6 +19,7 @@ import { SimulationProvider } from "./simulation/SimulationProvider";
 import { SimBar } from "./simulation/SimBar";
 import { SimSpotlight } from "./simulation/SimSpotlight";
 import { SimExplainDrawer } from "./simulation/SimExplainDrawer";
+import { SimOfferFrame } from "./simulation/SimOfferFrame";
 import { buildUrl, DEFAULT_TAB, isWorkspaceTabId, navItemClass, NAV_GROUPS, type WorkspaceTabId } from "./tabs";
 
 export type { WorkspaceTabId } from "./tabs";
@@ -118,6 +119,7 @@ export function Workspace() {
       </main>
       <SimSpotlight />
       <SimExplainDrawer />
+      <SimOfferFrame />
       <SimBar />
     </div>
     </SimulationProvider>

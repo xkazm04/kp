@@ -175,7 +175,7 @@ export function DecisionsTab() {
               </h3>
               <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                 {aiReviews.map((e) => (
-                  <div key={e.id} className={leavingWrapClass(e)}>
+                  <div key={e.id} data-sim-entry={e.id} className={leavingWrapClass(e)}>
                     <AiReviewCard entry={e} onAccept={() => act(e, "accept")} onReject={() => act(e, "reject")} />
                   </div>
                 ))}

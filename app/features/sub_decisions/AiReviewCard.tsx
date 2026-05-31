@@ -83,6 +83,7 @@ export function AiReviewCard({ entry, onAccept, onReject }: { entry: Entry; onAc
       <div className="mt-3 flex gap-2">
         <button
           type="button"
+          data-sim-click="accept"
           onClick={onAccept}
           className="focus-ring inline-flex h-9 flex-1 items-center justify-center gap-1 rounded-md bg-moss text-base font-semibold text-white hover:opacity-90"
         >
