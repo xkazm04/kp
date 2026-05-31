@@ -2,17 +2,18 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowRight, Globe, Link2, Mail, Radio, Sparkles } from "lucide-react";
-import { buildUrl } from "@/app/features/tabs";
+import { ArrowRight, Globe, Link2, Mail, Radio, Sparkles, UserPlus } from "lucide-react";
+import { buildUrl, type WorkspaceTabId } from "@/app/features/tabs";
 import { useLiveRefresh } from "@/app/features/live-refresh";
 
 type Entry = { jobId: string | null; jobTitle: string | null; stage: string; status: string };
 
-const CHANNELS = [
+const CHANNELS: { id: string; icon: typeof Link2; name: string; status: string; live: boolean; desc: string; tab?: WorkspaceTabId; cta?: string }[] = [
   { id: "apply", icon: Link2, name: "Careers page · Apply link", status: "Listening", live: true, desc: "A conversational apply link — submitted applications land at ‘Accepted’." },
   { id: "email", icon: Mail, name: "Email intake", status: "Not configured", live: false, desc: "Forward applications@ to ingest CVs automatically." },
   { id: "boards", icon: Globe, name: "Job boards", status: "Not configured", live: false, desc: "Syndicate a published JD to LinkedIn, jobs.cz, StackOverflow…" },
-  { id: "sourcing", icon: Sparkles, name: "Proactive sourcing", status: "Active", live: true, desc: "Rank the candidate pool against the role — proactively sourced candidates land at ‘Sourced’." },
+  { id: "sourcing", icon: Sparkles, name: "Proactive sourcing", status: "Active", live: true, tab: "match", cta: "Open Match", desc: "Rank the candidate pool against the role in Match — proactively sourced candidates land at ‘Sourced’." },
+  { id: "manual", icon: UserPlus, name: "Manual add", status: "Recruiter", live: true, tab: "profile", cta: "Build a profile", desc: "Build a candidate profile by hand (Profile) and add them to a role." },
 ];
 
 // Phase 2 — inbound channels & integrations. Where candidates ENTER the pipeline
@@ -97,6 +98,15 @@ export function ChannelsTab() {
               </span>
             </div>
             <p className="mt-1.5 text-sm text-steel">{c.desc}</p>
+            {c.tab ? (
+              <button
+                type="button"
+                onClick={() => router.push(buildUrl({ tab: c.tab! }))}
+                className="focus-ring mt-2 inline-flex items-center gap-1 text-sm font-semibold text-coral hover:underline"
+              >
+                {c.cta ?? "Open"} <ArrowRight size={13} />
+              </button>
+            ) : null}
           </div>
         ))}
       </div>
