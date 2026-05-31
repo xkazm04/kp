@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { SearchX, X } from "lucide-react";
+import { SearchX, Send, X } from "lucide-react";
 import { formatPercent } from "@/app/_lib/format";
+import { useLiveRefresh } from "@/app/features/live-refresh";
 import {
   FAMILY_LABEL,
   FAMILIES,
@@ -28,6 +29,32 @@ export function JobsTab() {
   const [workMode, setWorkMode] = useState("");
   const [entryOnly, setEntryOnly] = useState(false);
   const [q, setQ] = useState("");
+
+  // Phase 1: authored-JD drafts awaiting publish (publishing sources them).
+  const [drafts, setDrafts] = useState<{ id: string; title: string; company: string | null }[]>([]);
+  const [publishingId, setPublishingId] = useState<string | null>(null);
+  const [draftNote, setDraftNote] = useState<string | null>(null);
+  const loadDrafts = () =>
+    fetch("/api/jobs/status").then((r) => r.json()).then((p) => setDrafts(p.drafts ?? [])).catch(() => undefined);
+  useEffect(() => {
+    loadDrafts();
+  }, []);
+  useLiveRefresh(loadDrafts); // a JD saved elsewhere (e.g. the simulation) shows up here
+  const publishDraft = async (id: string) => {
+    setPublishingId(id);
+    setDraftNote(null);
+    try {
+      const r = await fetch(`/api/jobs/${id}/publish`, { method: "POST" });
+      const p = await r.json();
+      if (!r.ok) throw new Error(p.error ?? "Publish failed.");
+      setDraftNote(`Published · sourced ${p.sourced ?? 0} candidate${p.sourced === 1 ? "" : "s"} into the Pipeline.`);
+      loadDrafts();
+    } catch (e) {
+      setDraftNote(e instanceof Error ? e.message : "Publish failed.");
+    } finally {
+      setPublishingId(null);
+    }
+  };
 
   // Deep link from the Pipeline (?tab=jobs&job=<id>): auto-open that job's posting.
   const search = useSearchParams();
@@ -107,6 +134,33 @@ export function JobsTab() {
           {Object.entries(stats.byRoleFamily).map(([k, v]) => (
             <Chip key={k} label={FAMILY_LABEL[k] ?? k} value={v} />
           ))}
+        </div>
+      ) : null}
+
+      {drafts.length > 0 ? (
+        <div data-sim="job-drafts" className="mt-4 rounded-lg border border-coral/30 bg-coral/5 p-3">
+          <p className="text-meta uppercase tracking-wide text-coral">Drafts awaiting publish · {drafts.length}</p>
+          <ul className="mt-2 space-y-1.5">
+            {drafts.map((d) => (
+              <li key={d.id} data-sim-entry={d.id} className="flex flex-wrap items-center gap-2 rounded-md bg-white px-3 py-1.5 text-sm">
+                <span className="rounded-full bg-stone-200 px-1.5 py-0.5 text-micro font-semibold uppercase text-steel">Draft</span>
+                <span className="min-w-0 flex-1 truncate text-ink">
+                  {d.title}
+                  {d.company ? <span className="text-steel"> · {d.company}</span> : null}
+                </span>
+                <button
+                  type="button"
+                  data-sim-click="publish"
+                  onClick={() => publishDraft(d.id)}
+                  disabled={publishingId === d.id}
+                  className="focus-ring inline-flex h-8 items-center gap-1.5 rounded-md bg-coral px-3 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
+                >
+                  <Send size={13} /> {publishingId === d.id ? "Publishing…" : "Publish"}
+                </button>
+              </li>
+            ))}
+          </ul>
+          {draftNote ? <p className="mt-2 text-sm text-steel">{draftNote}</p> : null}
         </div>
       ) : null}
 

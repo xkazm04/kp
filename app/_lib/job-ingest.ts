@@ -28,6 +28,14 @@ function db(): Database.Database {
     );
     CREATE TABLE IF NOT EXISTS job_ingests (content_hash TEXT PRIMARY KEY, job_id TEXT NOT NULL, created_at TEXT NOT NULL);
   `);
+  // Phase 1: draft → publish lifecycle. The jobs table predates this column, so
+  // ALTER it in (no-op if already present). NULL status = a seeded/live corpus
+  // job; authored JDs are 'draft' until published.
+  try {
+    d.exec(`ALTER TABLE jobs ADD COLUMN status TEXT`);
+  } catch {
+    /* column already exists */
+  }
   _db = d;
   return d;
 }
@@ -39,7 +47,7 @@ export const jobContentHash = (s: string) => createHash("sha256").update(s).dige
  * ingested identical ad is reused (returns its id, created=false) so the same
  * JD/ad doesn't pile up duplicate jobs.
  */
-export function insertJob(job: JobRecord, contentHash?: string): { id: string; created: boolean } {
+export function insertJob(job: JobRecord, contentHash?: string, status: string = "published"): { id: string; created: boolean } {
   const d = db();
   if (contentHash) {
     const seen = d.prepare(`SELECT job_id FROM job_ingests WHERE content_hash = ?`).get(contentHash) as { job_id: string } | undefined;
@@ -50,14 +58,14 @@ export function insertJob(job: JobRecord, contentHash?: string): { id: string; c
   const now = new Date().toISOString();
   d.prepare(
     `INSERT INTO jobs (id, title, company, location, work_mode, seniority, role_family, employment_type,
-       min_years, min_education, languages, is_entry_eligible, graduate_friendliness, salary_min, salary_max, payload_json, created_at)
+       min_years, min_education, languages, is_entry_eligible, graduate_friendliness, salary_min, salary_max, payload_json, status, created_at)
      VALUES (@id, @title, @company, @location, @work_mode, @seniority, @role_family, @employment_type,
-       @min_years, @min_education, @languages, @is_entry_eligible, @graduate_friendliness, @salary_min, @salary_max, @payload_json, @created_at)
+       @min_years, @min_education, @languages, @is_entry_eligible, @graduate_friendliness, @salary_min, @salary_max, @payload_json, @status, @created_at)
      ON CONFLICT(id) DO UPDATE SET title=excluded.title, company=excluded.company, location=excluded.location,
        work_mode=excluded.work_mode, seniority=excluded.seniority, role_family=excluded.role_family,
        employment_type=excluded.employment_type, min_years=excluded.min_years, min_education=excluded.min_education,
        languages=excluded.languages, is_entry_eligible=excluded.is_entry_eligible, graduate_friendliness=excluded.graduate_friendliness,
-       salary_min=excluded.salary_min, salary_max=excluded.salary_max, payload_json=excluded.payload_json`
+       salary_min=excluded.salary_min, salary_max=excluded.salary_max, payload_json=excluded.payload_json, status=excluded.status`
   ).run({
     id: job.id,
     title: job.title,
@@ -75,12 +83,37 @@ export function insertJob(job: JobRecord, contentHash?: string): { id: string; c
     salary_min: job.salaryBand?.[0] ?? null,
     salary_max: job.salaryBand?.[1] ?? null,
     payload_json: JSON.stringify(job),
+    status,
     created_at: now,
   });
   if (contentHash) {
     d.prepare(`INSERT INTO job_ingests (content_hash, job_id, created_at) VALUES (?, ?, ?) ON CONFLICT(content_hash) DO UPDATE SET job_id=excluded.job_id`).run(contentHash, job.id, now);
   }
   return { id: job.id, created: true };
+}
+
+/** Flip a job's lifecycle status (draft → published on publish). */
+export function setJobStatus(jobId: string, status: "draft" | "published"): void {
+  db().prepare(`UPDATE jobs SET status = ? WHERE id = ?`).run(status, jobId);
+}
+
+export function getJobStatus(jobId: string): string | null {
+  const r = db().prepare(`SELECT status FROM jobs WHERE id = ?`).get(jobId) as { status: string | null } | undefined;
+  return r?.status ?? null;
+}
+
+/** Map of jobId → status for jobs that carry one (the authored JDs). Seeded
+ *  corpus jobs have NULL status and are treated as already live. */
+export function listJobStatuses(): Record<string, string> {
+  const rows = db().prepare(`SELECT id, status FROM jobs WHERE status IS NOT NULL`).all() as { id: string; status: string }[];
+  return Object.fromEntries(rows.map((r) => [r.id, r.status]));
+}
+
+/** Draft JDs awaiting publish, newest first. */
+export function listDraftJobs(): { id: string; title: string; company: string | null }[] {
+  return db()
+    .prepare(`SELECT id, title, company FROM jobs WHERE status = 'draft' ORDER BY created_at DESC`)
+    .all() as { id: string; title: string; company: string | null }[];
 }
 
 type JobCliOut = { job: JobRecord; source: string };

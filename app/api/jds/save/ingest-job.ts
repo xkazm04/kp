@@ -41,6 +41,7 @@ export async function ingestStructuredJob(input: {
   const max = input.salary?.suggestedMaximum;
   if (min && max && max >= min) job.salaryBand = [min, max];
 
-  insertJob(job, jobContentHash(`${input.title}\n${input.markdown}`));
+  // Authored JDs start as a DRAFT — publishing sources them into the pipeline.
+  insertJob(job, jobContentHash(`${input.title}\n${input.markdown}`), "draft");
   return true;
 }

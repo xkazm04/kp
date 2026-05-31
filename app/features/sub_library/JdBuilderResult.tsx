@@ -20,10 +20,13 @@ export function JdBuilderResult({ result, title, company, onSaved }: { result: J
   const [markdown, setMarkdown] = useState(result.markdown);
   const [view, setView] = useState<"edit" | "preview">("preview");
   const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState<{ slug: string; sourced: number } | null>(null);
+  const [publishing, setPublishing] = useState(false);
+  const [saved, setSaved] = useState<{ slug: string; jobId: string } | null>(null);
+  const [published, setPublished] = useState<{ sourced: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const s = result.salary;
+  // Save = create a DRAFT JD (no sourcing yet).
   const save = async () => {
     setSaving(true);
     setError(null);
@@ -35,12 +38,30 @@ export function JdBuilderResult({ result, title, company, onSaved }: { result: J
       });
       const p = await r.json();
       if (!r.ok) throw new Error(p.error ?? "Save failed.");
-      setSaved({ slug: p.slug, sourced: p.sourced ?? 0 });
+      setSaved({ slug: p.slug, jobId: p.jobId ?? `jd-${p.slug}` });
       onSaved();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Save failed.");
     } finally {
       setSaving(false);
+    }
+  };
+
+  // Publish = go live + source candidates into the pipeline.
+  const publish = async () => {
+    if (!saved) return;
+    setPublishing(true);
+    setError(null);
+    try {
+      const r = await fetch(`/api/jobs/${saved.jobId}/publish`, { method: "POST" });
+      const p = await r.json();
+      if (!r.ok) throw new Error(p.error ?? "Publish failed.");
+      setPublished({ sourced: p.sourced ?? 0 });
+      onSaved();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Publish failed.");
+    } finally {
+      setPublishing(false);
     }
   };
 
@@ -97,12 +118,30 @@ export function JdBuilderResult({ result, title, company, onSaved }: { result: J
 
       {error ? <p className="mt-2 rounded-md bg-red-50 p-2.5 text-sm text-red-700">{error}</p> : null}
 
-      {saved ? (
+      {published ? (
         <div className="mt-3 flex flex-wrap items-center gap-3 rounded-md border border-moss/30 bg-moss/5 px-3 py-2 text-sm text-ink">
           <Check size={16} className="text-moss" />
-          Saved as <span className="font-mono text-coral">{saved.slug}</span> · sourced {saved.sourced} candidate{saved.sourced === 1 ? "" : "s"} into the Pipeline.
+          Published <span className="font-mono text-coral">{saved?.slug}</span> · sourced {published.sourced} candidate
+          {published.sourced === 1 ? "" : "s"} into the Pipeline.
           <button type="button" onClick={() => router.push(buildUrl({ tab: "pipeline" }))} className="focus-ring inline-flex items-center gap-1 font-semibold text-coral hover:underline">
             Open Pipeline <ExternalLink size={13} />
+          </button>
+        </div>
+      ) : saved ? (
+        <div className="mt-3 flex flex-wrap items-center gap-3">
+          <span className="inline-flex items-center gap-1.5 rounded-md border border-stone-200 bg-paper px-2.5 py-1 text-sm text-steel">
+            <span className="rounded-full bg-stone-200 px-1.5 py-0.5 text-micro font-semibold uppercase text-steel">Draft</span>
+            Saved as <span className="font-mono text-ink">{saved.slug}</span>
+          </span>
+          <button
+            type="button"
+            onClick={publish}
+            disabled={publishing}
+            data-sim-click="publish"
+            className="focus-ring inline-flex h-10 items-center gap-2 rounded-md bg-coral px-4 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
+          >
+            {publishing ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
+            {publishing ? "Publishing & sourcing…" : "Publish (go live + source)"}
           </button>
         </div>
       ) : (
@@ -114,15 +153,7 @@ export function JdBuilderResult({ result, title, company, onSaved }: { result: J
             className="focus-ring inline-flex h-10 items-center gap-2 rounded-md bg-ink px-4 text-sm font-semibold text-white hover:bg-steel disabled:opacity-50"
           >
             {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-            {saving ? "Saving & sourcing…" : "Save (appears in Pipeline)"}
-          </button>
-          <button
-            type="button"
-            disabled
-            title="Job-board publishing integration coming soon"
-            className="focus-ring inline-flex h-10 cursor-not-allowed items-center gap-2 rounded-md border border-stone-200 px-4 text-sm font-semibold text-steel opacity-70"
-          >
-            <Send size={16} /> Publish
+            {saving ? "Saving draft…" : "Save as draft"}
           </button>
         </div>
       )}

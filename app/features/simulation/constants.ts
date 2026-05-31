@@ -2,6 +2,8 @@
 // "spine" run end-to-end with ZERO LLM keys (no jd_build / Gemini needed): the
 // role sources real seeded candidates and walks one to Hired.
 
+import { applyCompanyTemplate } from "./company-template";
+
 export const SIM_MARKER = "(SIM)"; // every sim artifact's title carries this — used to reset cleanly
 export const SIM_TITLE = `Senior Java Backend Engineer ${SIM_MARKER}`;
 export const SIM_COMPANY = "Česká spořitelna";
@@ -20,18 +22,17 @@ export const SIM_ROLE = {
 
 export const SIM_SALARY = { suggestedMinimum: 120000, suggestedMaximum: 165000 };
 
-export const SIM_JD_MARKDOWN = [
-  `# ${SIM_TITLE}`,
-  "",
-  "## About the role",
-  "Own core banking backend services, mentor the team, and drive API & data-model design.",
-  "",
-  "## Must-haves",
-  "- Java, Spring, SQL, REST",
-  "",
-  "## Nice-to-haves",
-  "- Kafka, Kubernetes, AWS",
-].join("\n");
+// Richer, company-branded JD output (Phase 1 "simulate output" + template).
+export const SIM_JD_MARKDOWN = applyCompanyTemplate({
+  title: SIM_TITLE,
+  company: SIM_COMPANY,
+  seniority: SIM_ROLE.seniority,
+  responsibilities: SIM_ROLE.responsibilities,
+  mustHaves: SIM_ROLE.mustHaves,
+  niceToHaves: SIM_ROLE.niceToHaves,
+  salaryBand: [SIM_SALARY.suggestedMinimum, SIM_SALARY.suggestedMaximum],
+  currency: "CZK",
+});
 
 // The chronological phases shown on the bar (supporting nav). Each maps to the
 // tab a user would be on for that part of the journey.
@@ -39,7 +40,7 @@ export type SimPhaseId = "design" | "source" | "match" | "screen" | "interview" 
 
 export const SIM_PHASES: { id: SimPhaseId; label: string; tab: string }[] = [
   { id: "design", label: "Design JD", tab: "library" },
-  { id: "source", label: "Source", tab: "pipeline" },
+  { id: "source", label: "Source", tab: "jobs" },
   { id: "match", label: "Auto-match", tab: "pipeline" },
   { id: "screen", label: "Screen", tab: "decisions" },
   { id: "interview", label: "Interview", tab: "schedule" },

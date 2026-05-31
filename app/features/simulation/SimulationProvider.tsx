@@ -273,19 +273,44 @@ export function SimulationProvider({ children }: { children: React.ReactNode }) 
 
       await step({
         id: "source",
-        tab: "pipeline",
-        target: '[data-sim="pipeline-board"]',
-        title: "Publishing & sourcing",
-        caption: "The JD becomes a structured, matchable job; the seeded candidate pool is ranked against it — survivors land at ‘Sourced’.",
+        tab: "jobs",
+        target: '[data-sim="job-drafts"]',
+        title: "Publish & source",
+        caption: "The JD is saved as a draft. Publishing it from the Jobs tab sources the candidate pool into the pipeline.",
         navExtra: { jdTitle: null, jdCompany: null, jdSeniority: null, jdFamily: null, jdNeed: null },
         action: async () => {
+          // Save as a DRAFT (no sourcing yet).
           const save = await fetch("/api/jds/save", {
             method: "POST",
             headers: JSON_HEADERS,
             body: JSON.stringify({ title: SIM_TITLE, body: SIM_JD_MARKDOWN, role: SIM_ROLE, salary: SIM_SALARY, company: SIM_COMPANY }),
           }).then((r) => r.json());
-          jobId = `jd-${save.slug}`;
-          log(`Published as a matchable job · sourced ${save.sourced ?? 0} candidates → Sourced`);
+          jobId = save.jobId ?? `jd-${save.slug}`;
+          log(`Saved as draft · ${jobId}`);
+          notifyDataChanged(); // the Jobs tab picks up the new draft
+          await beat(900);
+
+          // Publish — a real click on the draft's Publish button (sources the pool).
+          const clicked = await clickEl(`[data-sim-entry="${jobId}"] [data-sim-click="publish"]`, {
+            title: "Publish the JD",
+            caption: "Publishing takes the JD live and sources the candidate pool into the pipeline.",
+          });
+          if (!clicked) {
+            log("(draft not visible — publishing via API)");
+            await fetch(`/api/jobs/${jobId}/publish`, { method: "POST" });
+          }
+
+          // Wait for the sourced entries to land.
+          let sourced = 0;
+          const deadline = Date.now() + 12_000;
+          while (Date.now() < deadline) {
+            if (ctrl.current.stop) throw new SimStop();
+            sourced = (await getEntries()).filter((e) => e.jobId === jobId && e.stage === "Sourced").length;
+            if (sourced > 0) break;
+            await sleep(400);
+          }
+          log(`Published · sourced ${sourced} candidates → Sourced`);
+          notifyDataChanged();
         },
       });
 

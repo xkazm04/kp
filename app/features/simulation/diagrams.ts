@@ -7,27 +7,29 @@ import type { SimPhaseId } from "./constants";
 
 export const PHASE_DIAGRAM: Record<SimPhaseId, string> = {
   design: `@startuml
-title Job description → a matchable job
+title Job description → a draft, company-formatted JD
 actor "Recruiter" as rec
 [Need + role spec] as need
 package "Ingestion" {
-  [Normalize\\nrequirements · band] <<focus>> as norm
-  [Structured Job\\njd-<slug>] <<focus>> as job
+  [Company template\\nbranded format] <<focus>> as tpl
+  [Structured Job\\njd-<slug> · draft] <<focus>> as job
 }
 rec --> need
-need --> norm
-norm --> job
+need --> tpl
+tpl --> job
 @enduml`,
 
   source: `@startuml
-title Source: rank the candidate pool against the role
-[Structured Job] as job
+title Source: publish the JD, then rank the pool
+[Draft JD] as job
+[Publish] <<gate>> as pub
 package "Matcher (deterministic)" {
   [KO filter\\nlocation · seniority · language] <<focus>> as ko
   [Multi-factor scorer\\nskills · career · fit] <<focus>> as sc
 }
 [Sourced shortlist] as out
-job --> ko
+job --> pub : go live
+pub --> ko
 ko --> sc : survivors
 sc --> out : ranked
 @enduml`,
