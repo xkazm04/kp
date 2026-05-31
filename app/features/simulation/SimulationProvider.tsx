@@ -298,17 +298,29 @@ export function SimulationProvider({ children }: { children: React.ReactNode }) 
         readMs: 1500,
       });
 
-      // INTERVIEW — scheduled (automated for the sim) and moved to the offer stage.
+      // INTERVIEW — a real click on the recruiter's ‘Confirm’ in the schedule.
       await step({
         id: "interview",
         tab: "schedule",
         target: '[data-sim="schedule"]',
         title: "Interview",
-        caption: "Interview scheduled with prep ready; the candidate clears it and reaches the offer stage.",
+        caption: "Recruiter confirms the interview slot on the shared calendar; the candidate clears it and reaches the offer stage.",
         action: async () => {
+          await beat(400); // let the schedule load the calendar card (the screening accept set it)
+          const clicked = await clickEl(`[data-sim-entry="${targetId}"] [data-sim-click="confirm"]`, {
+            title: "Confirm the interview",
+            caption: `Recruiter confirms ${targetLabel}'s interview slot.`,
+          });
+          if (!clicked) {
+            log("(schedule card not visible — confirming via API)");
+            await fetch(`/api/pipeline/${targetId}`, { method: "POST", headers: JSON_HEADERS, body: JSON.stringify({ action: "approve_event", detail: "Tue 14:00" }) });
+            notifyDataChanged();
+          }
+          await waitEntry(targetId, (e) => e.approvalKind !== "calendar");
           const st = await advanceTo(targetId, "Offer");
           log(`→ ${st}`);
         },
+        readMs: 1500,
       });
 
       // OFFER — a real click on the recruiter's ‘Send offer’ card.

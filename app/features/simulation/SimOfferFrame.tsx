@@ -10,7 +10,7 @@ export function SimOfferFrame() {
   const { offerUrl } = useSimulation();
   if (!offerUrl) return null;
   return (
-    <div className="fixed inset-0 z-[48] flex items-center justify-center bg-ink/45 p-6">
+    <div className="fixed inset-x-0 top-0 bottom-[68px] z-[48] flex items-center justify-center bg-ink/45 p-6">
       <div className="w-full max-w-md overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-2xl">
         <div className="flex items-center gap-2 border-b border-stone-200 bg-paper px-3 py-2 text-sm">
           <span className="rounded-full bg-coral/15 px-2 py-0.5 text-meta font-semibold uppercase tracking-wide text-coral">
