@@ -120,11 +120,30 @@ rate; several seniors corrected lead→senior, e.g. cand-007 180–235k → 150�
 apparent "regressions" are ±3–4 pp LLM run-to-run noise on candidates whose anchor did not
 change.
 
-**Residual (next iteration):** ~11 `bau` seniors with "Staff/Principal" *aspirations* still
-fire `principal`/`staff engineer` from the aspiration line → anchored at lead → salary at
-top-of-band (cand-000 21%, cand-003 8%). Needs aspiration-vs-held-title disambiguation (e.g.
-ignore titles in an aspiration/goal clause) or demoting IC-track titles to `senior` for the
-anchor. Deferred to avoid under-anchoring genuine staff/principal ICs without measurement.
+### Iteration 2 — aspiration disambiguation + `head of` substring (82% → 97%)
+
+The 82%-state residual was ~11 `bau` seniors whose CVs name a "Staff/Principal"
+*aspiration*; the lead titles in that goal clause read as their current level. Plus two
+more substring false-positives surfaced: `head of` matched inside "a​**head of** schedule".
+
+Changes:
+1. `pipeline.py` — `_current_level_text()`: for *current*-seniority detection, truncate each
+   sentence at the first forward-looking goal marker (`aiming toward`, `looking to grow into`,
+   `grow toward`, `rád bych`, `směřuji`…). "Senior engineer … aiming toward a Staff/Principal
+   role" keeps "Senior engineer …" and drops the aspired title.
+2. Reordered the precedence so genuine senior/lead evidence wins over an *incidental* entry
+   mention ("mentored two **junior** engineers" no longer floors a senior to junior).
+3. `data/taxonomy.json` — dropped `head of` from `sen_lead` (kept `head of engineering`).
+
+**Measured (re-analyzed all 50, real Gemini):** deterministic `bau`-seniors-at-lead **11 → 0**
+(now 23/23 → senior); students 18/19 → junior. `salary_overlap` **82% → 97%** (role 98 /
+seniority 100 / skill 95); 158 py tests green. cand-000 21%→100%, cand-003 8%→100%,
+cand-013 13%→100%, cand-028 →100%.
+
+**Remaining (2/50, by design):** cand-008 (student) claims "vedoucí týmu / led smaller teams"
+→ reads senior (a genuine **CV overclaim**, not an anchor bug — the kind of contradiction the
+soft-signal panel should surface, not silently resolve); cand-048 a top-of-band senior
+estimate. salary axis 97% overall.
 
 ## Net
 The CV-analysis pipeline produces **high-quality, well-calibrated scores** on real ČS-matched

@@ -1,9 +1,9 @@
 {
   "aggregate": {
-    "role_family": 0.96,
+    "role_family": 0.98,
     "seniority": 1.0,
-    "salary_overlap": 0.815250398724083,
-    "skill_recall": 0.9440000000000001
+    "salary_overlap": 0.9682857142857142,
+    "skill_recall": 0.9520000000000001
   },
   "passes": true,
   "persisted": 50
