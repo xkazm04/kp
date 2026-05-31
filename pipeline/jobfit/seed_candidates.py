@@ -31,6 +31,55 @@ DEFAULT_OUT = ROOT / "data" / "seed_candidates" / "candidates.json"
 FAMILIES = ("software_engineering", "data_ai", "product_project")
 ARCHETYPES = ("bau", "student", "career_switcher")
 
+# Independent LLM calls keep defaulting to the same few common Czech names, so we
+# STAMP a guaranteed-unique name onto every candidate (like seed_jobs stamps the
+# controlled dimensions). Gendered first names pair with gendered surnames.
+_FEMALE_FIRST = (
+    "Tereza", "Markéta", "Kristýna", "Lucie", "Klára", "Adéla", "Veronika", "Eliška",
+    "Barbora", "Kateřina", "Anna", "Jana", "Petra", "Hana", "Zuzana", "Nikola",
+    "Michaela", "Aneta", "Karolína", "Denisa", "Simona", "Gabriela", "Monika", "Lenka",
+)
+_MALE_FIRST = (
+    "Tomáš", "Vojtěch", "Ondřej", "Jakub", "Jan", "Petr", "Martin", "Lukáš",
+    "David", "Filip", "Marek", "Pavel", "Jiří", "Michal", "Adam", "Štěpán",
+    "Daniel", "Matěj", "Roman", "Tadeáš", "Vít", "Radek", "Dominik", "Patrik",
+)
+# Masculine base form; the feminine form is derived below.
+_SURNAMES = (
+    "Novák", "Svoboda", "Novotný", "Dvořák", "Černý", "Procházka", "Kučera", "Veselý",
+    "Horák", "Němec", "Pokorný", "Pospíšil", "Hájek", "Jelínek", "Král", "Růžička",
+    "Beneš", "Fiala", "Sedláček", "Zeman", "Kolář", "Navrátil", "Čermák", "Vaněk",
+    "Urban", "Blažek", "Kříž", "Kovář", "Bartoš", "Vlček", "Polák", "Konečný",
+    "Mareš", "Šimek", "Tichý", "Bureš", "Sýkora", "Malý", "Holub", "Beránek",
+)
+
+
+def _feminize(surname: str) -> str:
+    """Masculine Czech surname -> feminine form (Novák->Nováková, Černý->Černá, Svoboda->Svobodová)."""
+    if surname.endswith(("ý", "í")):
+        return surname[:-1] + "á"
+    if surname.endswith("a"):
+        return surname[:-1] + "ová"
+    return surname + "ová"
+
+
+def unique_czech_names(n: int, *, seed: int = 7) -> list[str]:
+    """``n`` deterministic, gender-consistent, UNIQUE Czech full names."""
+    rng = random.Random(seed)
+    used: set[str] = set()
+    out: list[str] = []
+    guard = 0
+    while len(out) < n and guard < n * 200:
+        guard += 1
+        if rng.random() < 0.5:
+            full = f"{rng.choice(_FEMALE_FIRST)} {_feminize(rng.choice(_SURNAMES))}"
+        else:
+            full = f"{rng.choice(_MALE_FIRST)} {rng.choice(_SURNAMES)}"
+        if full not in used:
+            used.add(full)
+            out.append(full)
+    return out
+
 _SYSTEM = (
     "You invent realistic but fictional Czech tech-job candidates. Use varied Czech names. "
     "Never reuse a real person. Output strict JSON only."
@@ -75,11 +124,12 @@ def _prompt(spec: dict[str, Any]) -> str:
 
 def build_specs(count: int, *, seed: int = 7) -> list[dict[str, Any]]:
     rng = random.Random(seed)
+    names = unique_czech_names(count, seed=seed)
     specs: list[dict[str, Any]] = []
     for i in range(count):
         archetype = rng.choices(ARCHETYPES, weights=[40, 40, 20])[0]
         family = rng.choices(FAMILIES, weights=[55, 25, 20])[0]
-        specs.append({"id": f"cand-{i:03d}", "archetype": archetype, "family": family})
+        specs.append({"id": f"cand-{i:03d}", "archetype": archetype, "family": family, "display_name": names[i]})
     return specs
 
 
@@ -95,6 +145,7 @@ def _gen_one(provider: ClaudeCliProvider, spec: dict[str, Any], *, retries: int,
                 normalize_profile(profile)
                 rec = profile.model_dump(by_alias=True, exclude_none=True)
                 rec["id"] = spec["id"]
+                rec["displayName"] = spec["display_name"]  # stamp the guaranteed-unique name
                 rec["completeness"], _missing = completeness(profile)
                 return rec, None
             last = "not-a-dict"
@@ -172,7 +223,27 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--limit", type=int, default=None)
     parser.add_argument("--out", type=Path, default=DEFAULT_OUT)
     parser.add_argument("--no-resume", action="store_true")
+    parser.add_argument(
+        "--rename-only",
+        action="store_true",
+        help="Reassign deterministic UNIQUE names to the existing seed (no LLM) and exit. "
+        "Profiles are kept; only displayName changes.",
+    )
     args = parser.parse_args(argv)
+
+    if args.rename_only:
+        if not args.out.exists():
+            print(f"No candidate seed at {args.out}", file=sys.stderr)
+            return 1
+        records = json.loads(args.out.read_text(encoding="utf-8"))
+        records.sort(key=lambda r: r.get("id", ""))
+        names = unique_czech_names(len(records), seed=args.seed)
+        for rec, name in zip(records, names):
+            rec["displayName"] = name
+        args.out.write_text(json.dumps(records, ensure_ascii=False, indent=2), encoding="utf-8")
+        distinct = len({r["displayName"] for r in records})
+        print(f"Renamed {len(records)} candidates to {distinct} unique names.", file=sys.stderr)
+        return 0 if distinct == len(records) else 1
 
     existing: dict[str, dict[str, Any]] = {}
     if args.out.exists() and not args.no_resume:

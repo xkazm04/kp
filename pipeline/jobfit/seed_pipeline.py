@@ -38,18 +38,20 @@ FUNNEL = (
 SLOTS = ("Tue 14:00", "Wed 10:30", "Thu 09:00", "Mon 15:30", "Fri 11:00")
 
 
-def select_open_positions(jobs: list[Job], max_n: int = 8) -> list[Job]:
-    """A curated, varied set of reqs: up to 2 entry-eligible + 1 senior per family."""
+def select_open_positions(jobs: list[Job], *, max_n: int = 15, entry_cap: int = 3, senior_cap: int = 2) -> list[Job]:
+    """A curated, VARIED set of reqs: up to ``entry_cap`` entry-eligible + ``senior_cap``
+    senior per family. More reqs per family so similar candidates don't all funnel to a
+    single position (the old 1-senior-per-family cap put every senior on one req)."""
     entry_per_fam: dict[str, int] = {}
     senior_per_fam: dict[str, int] = {}
     chosen: list[Job] = []
     for job in jobs:
         fam = job.role_family
         entry_ok = bool(job.entry_profile and job.entry_profile.is_entry_eligible)
-        if entry_ok and entry_per_fam.get(fam, 0) < 2:
+        if entry_ok and entry_per_fam.get(fam, 0) < entry_cap:
             chosen.append(job)
             entry_per_fam[fam] = entry_per_fam.get(fam, 0) + 1
-        elif not entry_ok and senior_per_fam.get(fam, 0) < 1:
+        elif not entry_ok and senior_per_fam.get(fam, 0) < senior_cap:
             chosen.append(job)
             senior_per_fam[fam] = senior_per_fam.get(fam, 0) + 1
         if len(chosen) >= max_n:
@@ -73,7 +75,12 @@ def build_pipeline(candidate_records: list[dict[str, Any]], jobs: list[Job]) -> 
             scored.append((passed, result.total, job, result))
         # prefer KO-passing, then highest score
         scored.sort(key=lambda x: (x[0], x[1]), reverse=True)
-        passed, _total, job, result = scored[0]
+        # Spread across NEAR-EQUAL best matches (same KO status, within 6 pts) by
+        # candidate index, so 13 similar seniors don't all land on the one top req —
+        # the match stays honest (within 6 pts of their best), just less clustered.
+        best_pass, best_total = scored[0][0], scored[0][1]
+        near = [s for s in scored if s[0] == best_pass and best_total - s[1] <= 6]
+        passed, _total, job, result = near[i % len(near)]
 
         stage = FUNNEL[i % len(FUNNEL)]
         if not passed:

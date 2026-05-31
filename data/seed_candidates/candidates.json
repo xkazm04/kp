@@ -3,7 +3,7 @@
     "archetype": "bau",
     "archetypeConfidence": 0.5,
     "archetypeReasons": [],
-    "displayName": "Tomáš Marvan",
+    "displayName": "Klára Blažeková",
     "roleFamily": "software_engineering",
     "aspirations": [
       "Staff/Principal engineer",
@@ -99,7 +99,7 @@
     "archetype": "student",
     "archetypeConfidence": 0.5,
     "archetypeReasons": [],
-    "displayName": "Tereza Marešová",
+    "displayName": "Ondřej Tichý",
     "roleFamily": "software_engineering",
     "aspirations": [
       "Junior backend engineer role working on distributed systems",
@@ -200,7 +200,7 @@
     "archetype": "student",
     "archetypeConfidence": 0.5,
     "archetypeReasons": [],
-    "displayName": "Tereza Marková",
+    "displayName": "Karolína Dvořáková",
     "roleFamily": "software_engineering",
     "aspirations": [
       "Join a backend or platform team where I can grow toward a backend engineer role",
@@ -299,7 +299,7 @@
     "archetype": "bau",
     "archetypeConfidence": 0.5,
     "archetypeReasons": [],
-    "displayName": "Markéta Šťastná",
+    "displayName": "Martin Novotný",
     "roleFamily": "software_engineering",
     "aspirations": [
       "Grow into a staff/principal engineering track",
@@ -398,7 +398,7 @@
     "archetype": "bau",
     "archetypeConfidence": 0.5,
     "archetypeReasons": [],
-    "displayName": "Vojtěch Hruška",
+    "displayName": "Hana Černá",
     "roleFamily": "software_engineering",
     "aspirations": [
       "Grow into a backend tech lead role",
@@ -496,7 +496,7 @@
     "archetype": "bau",
     "archetypeConfidence": 0.5,
     "archetypeReasons": [],
-    "displayName": "Vojtěch Hruška",
+    "displayName": "Aneta Kovářová",
     "roleFamily": "software_engineering",
     "aspirations": [
       "Move into a staff/principal engineer track with cross-team technical ownership",
@@ -601,7 +601,7 @@
     "archetype": "student",
     "archetypeConfidence": 0.5,
     "archetypeReasons": [],
-    "displayName": "Tereza Marková",
+    "displayName": "Karolína Veselá",
     "roleFamily": "product_project",
     "aspirations": [
       "junior product manager v SaaS produktovém týmu",
@@ -692,7 +692,7 @@
     "archetype": "bau",
     "archetypeConfidence": 0.5,
     "archetypeReasons": [],
-    "displayName": "Tomáš Vavřík",
+    "displayName": "Vít Malý",
     "roleFamily": "software_engineering",
     "aspirations": [
       "Grow into a software architect role",
@@ -791,7 +791,7 @@
     "archetype": "student",
     "archetypeConfidence": 0.5,
     "archetypeReasons": [],
-    "displayName": "Tereza Marešová",
+    "displayName": "Roman Malý",
     "roleFamily": "product_project",
     "aspirations": [
       "Junior Product Manager v SaaS firmě",
@@ -883,7 +883,7 @@
     "archetype": "student",
     "archetypeConfidence": 0.5,
     "archetypeReasons": [],
-    "displayName": "Tereza Marešová",
+    "displayName": "Eliška Novotná",
     "roleFamily": "software_engineering",
     "aspirations": [
       "Nastoupit jako junior backend developer v produktovém týmu",
@@ -983,7 +983,7 @@
     "archetype": "career_switcher",
     "archetypeConfidence": 0.5,
     "archetypeReasons": [],
-    "displayName": "Tereza Holubová",
+    "displayName": "Jan Sedláček",
     "roleFamily": "software_engineering",
     "aspirations": [
       "Junior Backend Engineer (Python)",
@@ -1091,7 +1091,7 @@
     "archetype": "career_switcher",
     "archetypeConfidence": 0.5,
     "archetypeReasons": [],
-    "displayName": "Ondřej Beneš",
+    "displayName": "Aneta Veselá",
     "roleFamily": "software_engineering",
     "aspirations": [
       "Junior Backend Developer",
@@ -1200,7 +1200,7 @@
     "archetype": "bau",
     "archetypeConfidence": 0.5,
     "archetypeReasons": [],
-    "displayName": "Markéta Dvořáková",
+    "displayName": "Matěj Pospíšil",
     "roleFamily": "software_engineering",
     "aspirations": [
       "Grow into a staff/principal engineering track",
@@ -1298,7 +1298,7 @@
     "archetype": "bau",
     "archetypeConfidence": 0.5,
     "archetypeReasons": [],
-    "displayName": "Tereza Marešová",
+    "displayName": "Karolína Hájeková",
     "roleFamily": "product_project",
     "aspirations": [
       "Lead a cross-functional product organization",
@@ -1394,7 +1394,7 @@
     "archetype": "bau",
     "archetypeConfidence": 0.5,
     "archetypeReasons": [],
-    "displayName": "Vojtěch Hruška",
+    "displayName": "Aneta Černá",
     "roleFamily": "data_ai",
     "aspirations": [
       "Lead ML / MLOps role",
@@ -1492,7 +1492,7 @@
     "archetype": "student",
     "archetypeConfidence": 0.5,
     "archetypeReasons": [],
-    "displayName": "Tereza Marešová",
+    "displayName": "Tadeáš Jelínek",
     "roleFamily": "software_engineering",
     "aspirations": [
       "Backend engineer working on distributed systems and APIs",
@@ -1591,7 +1591,7 @@
     "archetype": "student",
     "archetypeConfidence": 0.5,
     "archetypeReasons": [],
-    "displayName": "Vojtěch Hruška",
+    "displayName": "Adam Malý",
     "roleFamily": "software_engineering",
     "aspirations": [
       "backendové inženýrství a distribuované systémy",
@@ -1693,7 +1693,7 @@
     "archetype": "bau",
     "archetypeConfidence": 0.5,
     "archetypeReasons": [],
-    "displayName": "Markéta Dvořáková",
+    "displayName": "Pavel Zeman",
     "roleFamily": "software_engineering",
     "aspirations": [
       "Grow into a backend/platform tech-lead role",
@@ -1797,7 +1797,7 @@
     "archetype": "student",
     "archetypeConfidence": 0.5,
     "archetypeReasons": [],
-    "displayName": "Tereza Marešová",
+    "displayName": "Adéla Růžičková",
     "roleFamily": "software_engineering",
     "aspirations": [
       "Nastoupit jako junior backend developer v produktovém týmu",
@@ -1894,7 +1894,7 @@
     "archetype": "bau",
     "archetypeConfidence": 0.5,
     "archetypeReasons": [],
-    "displayName": "Tereza Marešová",
+    "displayName": "Kateřina Šimeková",
     "roleFamily": "data_ai",
     "aspirations": [
       "Grow into an ML platform / MLOps architect role",
@@ -1997,7 +1997,7 @@
     "archetype": "student",
     "archetypeConfidence": 0.5,
     "archetypeReasons": [],
-    "displayName": "Tereza Marešová",
+    "displayName": "Anna Bartošová",
     "roleFamily": "software_engineering",
     "aspirations": [
       "Junior backend developer role on a product team",
@@ -2099,7 +2099,7 @@
     "archetype": "student",
     "archetypeConfidence": 0.5,
     "archetypeReasons": [],
-    "displayName": "Kristýna Doležalová",
+    "displayName": "Kristýna Veselá",
     "roleFamily": "data_ai",
     "aspirations": [
       "Junior Machine Learning Engineer",
@@ -2199,7 +2199,7 @@
     "archetype": "bau",
     "archetypeConfidence": 0.5,
     "archetypeReasons": [],
-    "displayName": "Vojtěch Hruška",
+    "displayName": "Petr Navrátil",
     "roleFamily": "data_ai",
     "aspirations": [
       "Lead an ML platform / MLOps team",
@@ -2295,7 +2295,7 @@
     "archetype": "student",
     "archetypeConfidence": 0.5,
     "archetypeReasons": [],
-    "displayName": "Tereza Marešová",
+    "displayName": "Nikola Křížová",
     "roleFamily": "product_project",
     "aspirations": [
       "Nastartovat kariéru jako junior product owner nebo project coordinator v softwarovém týmu",
@@ -2394,7 +2394,7 @@
     "archetype": "student",
     "archetypeConfidence": 0.5,
     "archetypeReasons": [],
-    "displayName": "Vojtěch Hruška",
+    "displayName": "Gabriela Černá",
     "roleFamily": "software_engineering",
     "aspirations": [
       "Become a backend engineer working on distributed systems",
@@ -2486,7 +2486,7 @@
     "archetype": "career_switcher",
     "archetypeConfidence": 0.5,
     "archetypeReasons": [],
-    "displayName": "Lucie Tichá",
+    "displayName": "Roman Kolář",
     "roleFamily": "software_engineering",
     "aspirations": [
       "Junior Backend Software Engineer",
@@ -2593,7 +2593,7 @@
     "archetype": "student",
     "archetypeConfidence": 0.5,
     "archetypeReasons": [],
-    "displayName": "Markéta Dvořáková",
+    "displayName": "Jana Holubová",
     "roleFamily": "data_ai",
     "aspirations": [
       "Junior Data Scientist nebo ML Engineer v produktovém týmu",
@@ -2693,7 +2693,7 @@
     "archetype": "bau",
     "archetypeConfidence": 0.5,
     "archetypeReasons": [],
-    "displayName": "Ondřej Kučera",
+    "displayName": "Zuzana Černá",
     "roleFamily": "software_engineering",
     "aspirations": [
       "Lead a backend platform team",
@@ -2789,7 +2789,7 @@
     "archetype": "bau",
     "archetypeConfidence": 0.5,
     "archetypeReasons": [],
-    "displayName": "Tereza Marková",
+    "displayName": "David Polák",
     "roleFamily": "data_ai",
     "aspirations": [
       "Lead ML engineering for production recommender systems",
@@ -2886,7 +2886,7 @@
     "archetype": "student",
     "archetypeConfidence": 0.5,
     "archetypeReasons": [],
-    "displayName": "Klára Benešová",
+    "displayName": "Ondřej Dvořák",
     "roleFamily": "data_ai",
     "aspirations": [
       "Nastoupit jako junior data scientist nebo ML engineer ve výzkumně zaměřeném týmu",
@@ -2986,7 +2986,7 @@
     "archetype": "career_switcher",
     "archetypeConfidence": 0.5,
     "archetypeReasons": [],
-    "displayName": "Adéla Procházková",
+    "displayName": "Filip Sýkora",
     "roleFamily": "software_engineering",
     "aspirations": [
       "Junior Frontend Developer",
@@ -3094,7 +3094,7 @@
     "archetype": "student",
     "archetypeConfidence": 0.5,
     "archetypeReasons": [],
-    "displayName": "Vojtěch Sýkora",
+    "displayName": "Adam Sedláček",
     "roleFamily": "data_ai",
     "aspirations": [
       "Junior Machine Learning Engineer",
@@ -3194,7 +3194,7 @@
     "archetype": "student",
     "archetypeConfidence": 0.5,
     "archetypeReasons": [],
-    "displayName": "Tereza Marešová",
+    "displayName": "Radek Čermák",
     "roleFamily": "software_engineering",
     "aspirations": [
       "Backend engineer working on distributed systems",
@@ -3293,7 +3293,7 @@
     "archetype": "career_switcher",
     "archetypeConfidence": 0.5,
     "archetypeReasons": [],
-    "displayName": "Markéta Najmanová",
+    "displayName": "Zuzana Čermáková",
     "roleFamily": "product_project",
     "aspirations": [
       "Associate Product Manager",
@@ -3397,7 +3397,7 @@
     "archetype": "student",
     "archetypeConfidence": 0.5,
     "archetypeReasons": [],
-    "displayName": "Tereza Marešová",
+    "displayName": "Lucie Konečná",
     "roleFamily": "data_ai",
     "aspirations": [
       "Junior Data Scientist or ML Engineer role on a product team",
@@ -3497,7 +3497,7 @@
     "archetype": "bau",
     "archetypeConfidence": 0.5,
     "archetypeReasons": [],
-    "displayName": "Vojtěch Hruška",
+    "displayName": "Kateřina Horáková",
     "roleFamily": "data_ai",
     "aspirations": [
       "Lead an ML platform team end-to-end",
@@ -3594,7 +3594,7 @@
     "archetype": "student",
     "archetypeConfidence": 0.5,
     "archetypeReasons": [],
-    "displayName": "Tereza Marešová",
+    "displayName": "Jiří Blažek",
     "roleFamily": "product_project",
     "aspirations": [
       "Junior Product Manager v SaaS startupu",
@@ -3687,7 +3687,7 @@
     "archetype": "career_switcher",
     "archetypeConfidence": 0.5,
     "archetypeReasons": [],
-    "displayName": "Vendula Marešová",
+    "displayName": "Štěpán Procházka",
     "roleFamily": "software_engineering",
     "aspirations": [
       "Junior Backend Engineer",
@@ -3794,7 +3794,7 @@
     "archetype": "bau",
     "archetypeConfidence": 0.5,
     "archetypeReasons": [],
-    "displayName": "Tereza Konečná",
+    "displayName": "Petra Burešová",
     "roleFamily": "data_ai",
     "aspirations": [
       "Lead an applied ML team owning end-to-end model lifecycle",
@@ -3897,7 +3897,7 @@
     "archetype": "bau",
     "archetypeConfidence": 0.5,
     "archetypeReasons": [],
-    "displayName": "Veronika Horáková",
+    "displayName": "Klára Kovářová",
     "roleFamily": "software_engineering",
     "aspirations": [
       "Grow into a staff/principal backend engineer role",
@@ -3995,7 +3995,7 @@
     "archetype": "bau",
     "archetypeConfidence": 0.5,
     "archetypeReasons": [],
-    "displayName": "Vojtěch Hruška",
+    "displayName": "David Kříž",
     "roleFamily": "software_engineering",
     "aspirations": [
       "Lead a platform/backend team",
@@ -4099,7 +4099,7 @@
     "archetype": "bau",
     "archetypeConfidence": 0.5,
     "archetypeReasons": [],
-    "displayName": "Markéta Sýkorová",
+    "displayName": "Radek Urban",
     "roleFamily": "data_ai",
     "aspirations": [
       "Lead an ML platform team owning the full training-to-serving lifecycle",
@@ -4196,7 +4196,7 @@
     "archetype": "bau",
     "archetypeConfidence": 0.5,
     "archetypeReasons": [],
-    "displayName": "Tereza Hájková",
+    "displayName": "Jan Procházka",
     "roleFamily": "software_engineering",
     "aspirations": [
       "Move into a staff/principal engineering track",
@@ -4294,7 +4294,7 @@
     "archetype": "bau",
     "archetypeConfidence": 0.5,
     "archetypeReasons": [],
-    "displayName": "Tereza Marešová",
+    "displayName": "Eliška Králová",
     "roleFamily": "product_project",
     "aspirations": [
       "Lead a cross-functional product org in a scale-up",
@@ -4390,7 +4390,7 @@
     "archetype": "bau",
     "archetypeConfidence": 0.5,
     "archetypeReasons": [],
-    "displayName": "Tereza Marešová",
+    "displayName": "Karolína Pospíšilová",
     "roleFamily": "software_engineering",
     "aspirations": [
       "Move into a staff/principal engineering track focused on platform reliability",
@@ -4487,7 +4487,7 @@
     "archetype": "student",
     "archetypeConfidence": 0.5,
     "archetypeReasons": [],
-    "displayName": "Štěpán Kovařík",
+    "displayName": "Tereza Němecová",
     "roleFamily": "product_project",
     "aspirations": [
       "Land an Associate Product Manager role at a B2B SaaS company",
@@ -4580,7 +4580,7 @@
     "archetype": "career_switcher",
     "archetypeConfidence": 0.5,
     "archetypeReasons": [],
-    "displayName": "Lucie Pokorná",
+    "displayName": "Jana Beráneková",
     "roleFamily": "product_project",
     "aspirations": [
       "Associate / Junior Product Manager",
@@ -4684,7 +4684,7 @@
     "archetype": "bau",
     "archetypeConfidence": 0.5,
     "archetypeReasons": [],
-    "displayName": "Vojtěch Sýkora",
+    "displayName": "Jan Mareš",
     "roleFamily": "software_engineering",
     "aspirations": [
       "Move into a staff/principal engineering track",
@@ -4781,7 +4781,7 @@
     "archetype": "bau",
     "archetypeConfidence": 0.5,
     "archetypeReasons": [],
-    "displayName": "Tereza Holubová",
+    "displayName": "Vít Dvořák",
     "roleFamily": "product_project",
     "aspirations": [
       "Lead a cross-functional product organization",
@@ -4875,7 +4875,7 @@
     "archetype": "career_switcher",
     "archetypeConfidence": 0.5,
     "archetypeReasons": [],
-    "displayName": "Markéta Dvořáková",
+    "displayName": "Gabriela Burešová",
     "roleFamily": "software_engineering",
     "aspirations": [
       "Junior Backend Developer (Python)",
