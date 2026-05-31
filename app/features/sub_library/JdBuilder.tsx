@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { Loader2, Sparkles } from "lucide-react";
 import { useTasks } from "@/app/features/tasks/TasksProvider";
 import { JdBuilderResult, type JdBuildResult } from "./JdBuilderResult";
@@ -18,11 +19,13 @@ const INP = "focus-ring w-full rounded-md border border-stone-200 px-2.5 py-1.5 
 // web-grounded market-salary analysis.
 export function JdBuilder({ onSaved }: { onSaved: () => void }) {
   const { startTask, tasks } = useTasks();
-  const [title, setTitle] = useState("");
-  const [company, setCompany] = useState("");
-  const [seniority, setSeniority] = useState("medior");
-  const [roleFamily, setRoleFamily] = useState("software_engineering");
-  const [needText, setNeedText] = useState("");
+  // Deep-link / simulation prefill (jd* query params) — mirrors MatchTab's pattern.
+  const sp = useSearchParams();
+  const [title, setTitle] = useState(sp.get("jdTitle") ?? "");
+  const [company, setCompany] = useState(sp.get("jdCompany") ?? "");
+  const [seniority, setSeniority] = useState(sp.get("jdSeniority") ?? "medior");
+  const [roleFamily, setRoleFamily] = useState(sp.get("jdFamily") ?? "software_engineering");
+  const [needText, setNeedText] = useState(sp.get("jdNeed") ?? "");
   const [repoUrl, setRepoUrl] = useState("");
 
   const [taskId, setTaskId] = useState<string | null>(null);

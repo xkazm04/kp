@@ -15,6 +15,8 @@ import { DevTab } from "./sub_dev/DevTab";
 import { ProfileTab } from "./sub_profile/ProfileTab";
 import { TasksIndicator } from "./tasks/TasksIndicator";
 import { TasksProvider } from "./tasks/TasksProvider";
+import { SimulationProvider } from "./simulation/SimulationProvider";
+import { SimBar } from "./simulation/SimBar";
 import { buildUrl, DEFAULT_TAB, isWorkspaceTabId, navItemClass, NAV_GROUPS, type WorkspaceTabId } from "./tabs";
 
 export type { WorkspaceTabId } from "./tabs";
@@ -37,6 +39,7 @@ export function Workspace() {
 
   return (
     <TasksProvider>
+    <SimulationProvider>
     <div className="min-h-screen bg-paper md:flex">
       <a
         href="#main"
@@ -93,8 +96,9 @@ export function Workspace() {
       </aside>
 
       <main id="main" tabIndex={-1} className="min-w-0 flex-1 bg-white focus:outline-none">
-        {/* key on the active tab so each switch replays the fade-in entrance */}
-        <div key={navActive} className="animate-fade-in mx-auto max-w-[108rem] px-3 py-6 sm:px-4 lg:px-6">
+        {/* key on the active tab so each switch replays the fade-in entrance.
+            pb-24 keeps content clear of the fixed simulation bar. */}
+        <div key={navActive} className="animate-fade-in mx-auto max-w-[108rem] px-3 py-6 pb-24 sm:px-4 lg:px-6">
           {navActive === "pipeline" ? <PipelineTab /> : null}
           {navActive === "decisions" ? <DecisionsTab /> : null}
           {navActive === "schedule" ? <ScheduleTab /> : null}
@@ -110,7 +114,9 @@ export function Workspace() {
           {navActive === "about" ? <AboutTab /> : null}
         </div>
       </main>
+      <SimBar />
     </div>
+    </SimulationProvider>
     </TasksProvider>
   );
 }
