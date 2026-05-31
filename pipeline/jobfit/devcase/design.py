@@ -153,7 +153,18 @@ def design_role(need: DevNeed, analysis: NeedAnalysis, *, provider: Any | None =
 # --- case (the heart) -------------------------------------------------------
 
 
-def design_case(need: DevNeed, analysis: NeedAnalysis, role: dict, *, provider: Any | None = None) -> tuple[dict, str]:
+def design_case(
+    need: DevNeed,
+    analysis: NeedAnalysis,
+    role: dict,
+    *,
+    provider: Any | None = None,
+    focus_probes: list[dict] | None = None,
+) -> tuple[dict, str]:
+    """Design the work-sample. ``focus_probes`` (from
+    :func:`soft_signals.panel_to_probe_briefs`) are CV-hypotheses to confirm —
+    each becomes a TARGETED covert probe so the exercise verifies a specific
+    claim (e.g. an over-claimed skill), closing the CV -> probe loop (Rec B)."""
     real = analysis.real_stack or need.stack
     seniority = role.get("seniority") or need.seniority_target
     timebox = _timebox(seniority)
@@ -196,7 +207,18 @@ def design_case(need: DevNeed, analysis: NeedAnalysis, role: dict, *, provider: 
         "their judgment — WITHOUT telling them. Bake in 2-4 cover-probes: an underspecified/ambiguous "
         "requirement (rewards clarifying); a legacy/surprising area (rewards reading before generating); a "
         "verification trap where naive one-shot generation passes a shallow check but is subtly wrong.\n"
-        'Return JSON: { "title": str, "brief": str, '
+        + (
+            "TARGETED CONFIRMATION — the candidate's CV raised these hypotheses; bake AT LEAST one cover-probe "
+            "that specifically tests each (the candidate must NEVER see this):\n"
+            + "\n".join(
+                f"- {b.get('kind', 'verification_trap')} on '{b.get('focus', '')}': {b.get('rationale', '')}"
+                for b in focus_probes
+            )
+            + "\n"
+            if focus_probes
+            else ""
+        )
+        + 'Return JSON: { "title": str, "brief": str, '
         '"repoSeed": str (the starting materials handed to the candidate — code, documents, data, or designs as fits the domain), '
         '"tasks": [str], '
         '"coverProbes": [ { "id": str, "kind": "ambiguity|legacy_trap|verification_trap|underspecified", '
@@ -207,6 +229,23 @@ def design_case(need: DevNeed, analysis: NeedAnalysis, role: dict, *, provider: 
         stack = ", ".join(real[:3]) or "the stack"
         title = role.get("title") or "Engineering"
         func = _human(role_family)
+        det_probes = [
+            {"id": "p1", "kind": "underspecified", "where": "the brief", "reveals": "Do they clarify the ambiguity or silently assume?"},
+            {"id": "p2", "kind": "legacy_trap", "where": "the legacy file", "reveals": "Do they read it before generating, or break it?"},
+            {"id": "p3", "kind": "verification_trap", "where": "the thin test suite", "reveals": "Do they add real tests / validate, or trust one-shot output?"},
+        ]
+        for i, b in enumerate(focus_probes or []):  # targeted probes from the CV soft-signal panel
+            kind = b.get("kind") or "verification_trap"
+            if kind not in ("ambiguity", "legacy_trap", "verification_trap", "underspecified"):
+                kind = "verification_trap"
+            det_probes.append(
+                {
+                    "id": f"t{i + 1}",
+                    "kind": kind,
+                    "where": f"a task that exercises {b.get('focus') or 'the claimed strength'}",
+                    "reveals": b.get("rationale") or "Confirm the CV claim with hands-on depth.",
+                }
+            )
         return {
             "title": f"{title}: assess and improve the codebase",
             "brief": (
@@ -220,11 +259,7 @@ def design_case(need: DevNeed, analysis: NeedAnalysis, role: dict, *, provider: 
                 "Engage the existing legacy area you find under-documented.",
                 "Make the change safe — show how you verified it.",
             ],
-            "coverProbes": [
-                {"id": "p1", "kind": "underspecified", "where": "the brief", "reveals": "Do they clarify the ambiguity or silently assume?"},
-                {"id": "p2", "kind": "legacy_trap", "where": "the legacy file", "reveals": "Do they read it before generating, or break it?"},
-                {"id": "p3", "kind": "verification_trap", "where": "the thin test suite", "reveals": "Do they add real tests / validate, or trust one-shot output?"},
-            ],
+            "coverProbes": det_probes,
             "timeboxHours": timebox,
         }
 
