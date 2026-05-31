@@ -7,6 +7,7 @@ import { buildUrl } from "@/app/features/tabs";
 import { useTasks } from "@/app/features/tasks/TasksProvider";
 import { CandidateDrawer } from "./CandidateDrawer";
 import { PipelineBoard } from "./PipelineBoard";
+import { SchedulerControl } from "./SchedulerControl";
 import { EventDot, eventVerb, Kpi } from "./PipelineShared";
 import { daysSince, relativeTime, STALE_DAYS, type Entry, type PipelineEvent } from "./PipelineTypes";
 
@@ -132,6 +133,8 @@ export function PipelineTab() {
           </span>
         </div>
       </header>
+
+      <SchedulerControl onRan={load} />
 
       {passSummary ? (
         <div className="animate-fade-in rounded-md border border-moss/30 bg-moss/5 px-4 py-2 text-base text-ink">
