@@ -57,14 +57,17 @@ human --> out
 @enduml`,
 
   interview: `@startuml
-title Interview: scheduled, with prep ready
+title Interview: automate or assign a slot
 [Screening pass] as s
-[Pick a slot] <<gate>> as cal
-[Interview prep\\nquestions · STAR] <<focus>> as prep
-[Interview stage] as out
-s --> cal
-cal --> out
-prep --> out
+package "Schedule" {
+  [Self-schedule link\\ncandidate picks a slot] <<focus>> as auto
+  [Manual slot\\nrecruiter assigns] <<gate>> as man
+}
+[Interview booked] as out
+s --> auto
+s --> man
+auto --> out
+man --> out
 @enduml`,
 
   offer: `@startuml

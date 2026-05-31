@@ -21,7 +21,7 @@ type SimState = {
   explainOpen: boolean;
   phase: SimPhaseId | null;
   spotlight: Spotlight | null;
-  offerUrl: string | null;
+  frame: { url: string; title: string } | null;
   groupEval: GroupEval | null;
   status: string;
   log: LogLine[];
@@ -66,7 +66,7 @@ export function SimulationProvider({ children }: { children: React.ReactNode }) 
     explainOpen: false,
     phase: null,
     spotlight: null,
-    offerUrl: null,
+    frame: null,
     groupEval: null,
     status: "Idle",
     log: [],
@@ -335,23 +335,48 @@ export function SimulationProvider({ children }: { children: React.ReactNode }) 
         readMs: 1500,
       });
 
-      // INTERVIEW — a real click on the recruiter's ‘Confirm’ in the schedule.
+      // INTERVIEW — automate the round (candidate self-schedules), or assign a slot
+      // manually. The driver takes the automate path; manual Confirm is the fallback.
       await step({
         id: "interview",
         tab: "schedule",
         target: '[data-sim="schedule"]',
         title: "Interview",
-        caption: "Recruiter confirms the interview slot on the shared calendar; the candidate clears it and reaches the offer stage.",
+        caption: `Automating the interview round — ${targetLabel} self-schedules (vs. assigning a slot manually).`,
         action: async () => {
-          await beat(400); // let the schedule load the calendar card (the screening accept set it)
-          const clicked = await clickEl(`[data-sim-entry="${targetId}"] [data-sim-click="confirm"]`, {
-            title: "Confirm the interview",
-            caption: `Recruiter confirms ${targetLabel}'s interview slot.`,
-          });
-          if (!clicked) {
-            log("(schedule card not visible — confirming via API)");
-            await fetch(`/api/pipeline/${targetId}`, { method: "POST", headers: JSON_HEADERS, body: JSON.stringify({ action: "approve_event", detail: "Tue 14:00" }) });
-            notifyDataChanged();
+          let scheduled = false;
+          try {
+            // AUTOMATE: mint a self-scheduling link; the candidate picks a slot.
+            const inv = await fetch("/api/schedule/invite", { method: "POST", headers: JSON_HEADERS, body: JSON.stringify({ entryId: targetId }) }).then((r) => r.json());
+            if (inv?.token) {
+              patch({ frame: { url: `/schedule/${inv.token}`, title: "Candidate self-schedules" } });
+              await beat(2400); // let the viewer watch the candidate's slot picker
+              const slots = await fetch(`/api/schedule/${inv.token}`).then((r) => r.json()).then((p) => p.slots ?? []);
+              const slot = slots[0];
+              if (slot) {
+                // Confirming fires approve_event on the entry + sends a confirmation.
+                await fetch(`/api/schedule/${inv.token}`, { method: "POST", headers: JSON_HEADERS, body: JSON.stringify({ slot: slot.label, slotAt: slot.value }) });
+                log(`${targetLabel} self-scheduled · ${slot.label}`);
+                scheduled = true;
+                notifyDataChanged();
+              }
+              await beat(800);
+              patch({ frame: null });
+            }
+          } catch {
+            patch({ frame: null });
+          }
+          if (!scheduled) {
+            // MANUAL fallback: the recruiter confirms a slot on the shared calendar.
+            const clicked = await clickEl(`[data-sim-entry="${targetId}"] [data-sim-click="confirm"]`, {
+              title: "Confirm the interview",
+              caption: `Recruiter confirms ${targetLabel}'s interview slot.`,
+            });
+            if (!clicked) {
+              log("(schedule card not visible — confirming via API)");
+              await fetch(`/api/pipeline/${targetId}`, { method: "POST", headers: JSON_HEADERS, body: JSON.stringify({ action: "approve_event", detail: "Tue 14:00" }) });
+              notifyDataChanged();
+            }
           }
           await waitEntry(targetId, (e) => e.approvalKind !== "calendar");
           const st = await advanceTo(targetId, "Offer");
@@ -401,10 +426,10 @@ export function SimulationProvider({ children }: { children: React.ReactNode }) 
         title: "Candidate accepts",
         caption: `${targetLabel} opens the secure link and accepts — they move to Hired and onboarding begins.`,
         action: async () => {
-          patch({ offerUrl: `/offer/${offerToken}` });
+          patch({ frame: { url: `/offer/${offerToken}`, title: "Candidate's view" } });
           await beat(1400); // let the candidate page load + the viewer see it
           const doc = await waitDom(() => {
-            const ifr = document.querySelector("iframe[data-sim-offer]") as HTMLIFrameElement | null;
+            const ifr = document.querySelector("iframe[data-sim-frame]") as HTMLIFrameElement | null;
             const d = ifr?.contentDocument ?? null;
             return d && d.querySelector('[data-sim-click="offer-accept"]') ? d : null;
           });
@@ -416,22 +441,22 @@ export function SimulationProvider({ children }: { children: React.ReactNode }) 
             await fetch(`/api/offer/${offerToken}`, { method: "POST", headers: JSON_HEADERS, body: JSON.stringify({ response: "accept" }) });
           }
           await beat(1600); // show the ‘accepted’ confirmation
-          patch({ offerUrl: null });
+          patch({ frame: null });
           log("Accepted · moved to Hired · onboarding comm queued");
         },
         readMs: 1200,
         settleMs: 1400,
       });
 
-      patch({ done: true, running: false, status: "Done — candidate hired 🎉", spotlight: null, offerUrl: null, groupEval: null });
+      patch({ done: true, running: false, status: "Done — candidate hired 🎉", spotlight: null, frame: null, groupEval: null });
     } catch (e) {
       if (e instanceof SimStop) {
-        patch({ running: false, status: "Stopped", spotlight: null, offerUrl: null, groupEval: null });
+        patch({ running: false, status: "Stopped", spotlight: null, frame: null, groupEval: null });
         log("Simulation stopped.");
         return;
       }
       const msg = e instanceof Error ? e.message : "Simulation failed.";
-      patch({ running: false, error: msg, status: `Failed: ${msg}`, spotlight: null, offerUrl: null, groupEval: null });
+      patch({ running: false, error: msg, status: `Failed: ${msg}`, spotlight: null, frame: null, groupEval: null });
       log(`Error: ${msg}`);
     }
   }, [advance, advanceTo, beat, clickEl, getEntries, log, nav, patch, runGroupEval, step, waitDom, waitEntry]);
@@ -446,7 +471,7 @@ export function SimulationProvider({ children }: { children: React.ReactNode }) 
       explainOpen: true,
       phase: null,
       spotlight: null,
-      offerUrl: null,
+      frame: null,
       groupEval: null,
       status: "Starting…",
       log: [],
@@ -488,7 +513,7 @@ export function SimulationProvider({ children }: { children: React.ReactNode }) 
       awaitingNext: false,
       phase: null,
       spotlight: null,
-      offerUrl: null,
+      frame: null,
       groupEval: null,
       status: "Reset",
       log: [],
