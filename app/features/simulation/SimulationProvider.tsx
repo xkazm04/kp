@@ -3,6 +3,7 @@
 import { createContext, useCallback, useContext, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { buildUrl } from "@/app/features/tabs";
+import { notifyDataChanged } from "@/app/features/live-refresh";
 import { SIM_COMPANY, SIM_JD_MARKDOWN, SIM_ROLE, SIM_SALARY, SIM_TITLE, type SimPhaseId } from "./constants";
 
 type Speed = "slow" | "normal" | "fast";
@@ -164,6 +165,7 @@ export function SimulationProvider({ children }: { children: React.ReactNode }) 
     const r = await fetch(`/api/pipeline/${entryId}`, { method: "POST", headers: JSON_HEADERS, body: JSON.stringify({ action: "accept" }) });
     const p = await r.json();
     if (!r.ok) throw new Error(p.error ?? "advance failed");
+    notifyDataChanged(); // open board/queue re-fetches live
     return p.entry?.stage as string;
   }, []);
 
@@ -200,6 +202,7 @@ export function SimulationProvider({ children }: { children: React.ReactNode }) 
       nav({ tab: o.tab, ...(o.navExtra ?? {}) });
       await beat(o.readMs ?? 1600);
       if (o.action) await o.action();
+      notifyDataChanged(); // reflect this phase's mutations in any open view
       await beat(o.settleMs ?? 1000);
       await gate();
     },

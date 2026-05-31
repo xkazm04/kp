@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Check, Sparkles } from "lucide-react";
 import { buildUrl } from "@/app/features/tabs";
 import { useTasks } from "@/app/features/tasks/TasksProvider";
+import { useLiveRefresh } from "@/app/features/live-refresh";
 import { AiReviewCard } from "./AiReviewCard";
 import { AnalysisSummaryModal } from "./AnalysisSummaryModal";
 import { Empty } from "./DecisionsShared";
@@ -39,6 +40,7 @@ export function DecisionsTab() {
   useEffect(() => {
     load();
   }, []);
+  useLiveRefresh(load); // live-update the queue when the simulation acts
 
   const pending = (entries ?? []).filter((e) => e.approvalKind && e.status === "active");
   const keyDecisions = pending.filter((e) => e.approvalKind === "decision");

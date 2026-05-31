@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Briefcase, Check, Clock, Sparkles, TimerReset, Users } from "lucide-react";
 import { buildUrl } from "@/app/features/tabs";
 import { useTasks } from "@/app/features/tasks/TasksProvider";
+import { useLiveRefresh } from "@/app/features/live-refresh";
 import { CandidateDrawer } from "./CandidateDrawer";
 import { PipelineBoard } from "./PipelineBoard";
 import { SchedulerControl } from "./SchedulerControl";
@@ -44,6 +45,7 @@ export function PipelineTab() {
   useEffect(() => {
     load();
   }, []);
+  useLiveRefresh(load); // re-fetch the board live when the simulation (or any actor) changes state
 
   const positions = useMemo(() => {
     const map = new Map<string, { id: string; title: string; family: string; count: number }>();
