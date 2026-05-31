@@ -4,11 +4,14 @@ import { createContext, useCallback, useContext, useMemo, useRef, useState } fro
 import { useRouter } from "next/navigation";
 import { buildUrl } from "@/app/features/tabs";
 import { notifyDataChanged } from "@/app/features/live-refresh";
+import type { GroupEvalPayload } from "@/app/features/sub_decisions/GroupEvalModal";
 import { SIM_COMPANY, SIM_JD_MARKDOWN, SIM_ROLE, SIM_SALARY, SIM_TITLE, type SimPhaseId } from "./constants";
+
+type GroupEval = { roleTitle: string; payload: GroupEvalPayload | null; loading: boolean };
 
 type Spotlight = { selector: string | null; title: string; caption: string };
 type LogLine = { at: number; text: string };
-type Entry = { id: string; jobId: string | null; stage: string; approvalKind: string | null; matchScore: number | null; candidateLabel: string };
+type Entry = { id: string; candidateId: string | null; jobId: string | null; stage: string; approvalKind: string | null; matchScore: number | null; candidateLabel: string };
 
 type SimState = {
   running: boolean;
@@ -19,6 +22,7 @@ type SimState = {
   phase: SimPhaseId | null;
   spotlight: Spotlight | null;
   offerUrl: string | null;
+  groupEval: GroupEval | null;
   status: string;
   log: LogLine[];
   targetLabel: string | null;
@@ -36,6 +40,7 @@ type SimCtx = SimState & {
   next: () => void;
   openExplain: () => void;
   closeExplain: () => void;
+  closeGroupEval: () => void;
 };
 
 const Ctx = createContext<SimCtx | null>(null);
@@ -62,6 +67,7 @@ export function SimulationProvider({ children }: { children: React.ReactNode }) 
     phase: null,
     spotlight: null,
     offerUrl: null,
+    groupEval: null,
     status: "Idle",
     log: [],
     targetLabel: null,
@@ -175,6 +181,41 @@ export function SimulationProvider({ children }: { children: React.ReactNode }) 
       return st;
     },
     [advance]
+  );
+
+  // Run + show a group evaluation for a role (keyless: deterministic ranking when
+  // no LLM). Starts the existing group_eval task, polls the saved evaluation, and
+  // surfaces the comparison modal.
+  const runGroupEval = useCallback(
+    async (jobId: string, roleTitle: string) => {
+      const candidates = (await getEntries())
+        .filter((e) => e.jobId === jobId)
+        .map((e) => ({ entryId: e.id, candidateId: e.candidateId, label: e.candidateLabel, matchScore: e.matchScore }));
+      patch({ groupEval: { roleTitle, payload: null, loading: true } });
+      try {
+        await fetch("/api/tasks", {
+          method: "POST",
+          headers: JSON_HEADERS,
+          body: JSON.stringify({ kind: "group_eval", params: { roleKey: jobId, roleTitle, jobId, candidates } }),
+        });
+        const deadline = Date.now() + 25_000;
+        let payload: GroupEvalPayload | null = null;
+        while (Date.now() < deadline) {
+          if (ctrl.current.stop) throw new SimStop();
+          const ev = await fetch(`/api/decisions/group-eval?role=${encodeURIComponent(jobId)}`).then((r) => r.json()).catch(() => null);
+          if (ev?.evaluation?.payload) {
+            payload = ev.evaluation.payload as GroupEvalPayload;
+            break;
+          }
+          await sleep(400);
+        }
+        patch({ groupEval: { roleTitle, payload, loading: false } });
+      } catch (e) {
+        if (e instanceof SimStop) throw e;
+        patch({ groupEval: null });
+      }
+    },
+    [getEntries, patch]
   );
 
   // ---- The walk --------------------------------------------------------------
@@ -319,14 +360,19 @@ export function SimulationProvider({ children }: { children: React.ReactNode }) 
         readMs: 1500,
       });
 
-      // OFFER — a real click on the recruiter's ‘Send offer’ card.
+      // OFFER — group-evaluate the role's field, then a real click on ‘Send offer’.
       await step({
         id: "offer",
         tab: "decisions",
         target: '[data-sim="decisions"]',
         title: "Extending the offer",
-        caption: "A deterministic offer is drafted at the band midpoint; the recruiter sends it.",
+        caption: `Comparing the role's candidates, then sending the offer to ${targetLabel}.`,
         action: async () => {
+          // Group evaluation: compare the field for the role before committing.
+          await runGroupEval(jobId, SIM_TITLE);
+          await beat(2600); // let the viewer read the comparison
+          patch({ groupEval: null });
+
           await fetch("/api/sim/offer-draft", { method: "POST", headers: JSON_HEADERS, body: JSON.stringify({ entryId: targetId }) });
           nav({ tab: "decisions" });
           await beat(600);
@@ -377,18 +423,18 @@ export function SimulationProvider({ children }: { children: React.ReactNode }) 
         settleMs: 1400,
       });
 
-      patch({ done: true, running: false, status: "Done — candidate hired 🎉", spotlight: null, offerUrl: null });
+      patch({ done: true, running: false, status: "Done — candidate hired 🎉", spotlight: null, offerUrl: null, groupEval: null });
     } catch (e) {
       if (e instanceof SimStop) {
-        patch({ running: false, status: "Stopped", spotlight: null, offerUrl: null });
+        patch({ running: false, status: "Stopped", spotlight: null, offerUrl: null, groupEval: null });
         log("Simulation stopped.");
         return;
       }
       const msg = e instanceof Error ? e.message : "Simulation failed.";
-      patch({ running: false, error: msg, status: `Failed: ${msg}`, spotlight: null, offerUrl: null });
+      patch({ running: false, error: msg, status: `Failed: ${msg}`, spotlight: null, offerUrl: null, groupEval: null });
       log(`Error: ${msg}`);
     }
-  }, [advance, advanceTo, beat, clickEl, getEntries, log, nav, patch, step, waitDom, waitEntry]);
+  }, [advance, advanceTo, beat, clickEl, getEntries, log, nav, patch, runGroupEval, step, waitDom, waitEntry]);
 
   const start = useCallback(() => {
     ctrl.current = { stop: false, paused: false, wake: null };
@@ -401,6 +447,7 @@ export function SimulationProvider({ children }: { children: React.ReactNode }) 
       phase: null,
       spotlight: null,
       offerUrl: null,
+      groupEval: null,
       status: "Starting…",
       log: [],
       targetLabel: null,
@@ -442,6 +489,7 @@ export function SimulationProvider({ children }: { children: React.ReactNode }) 
       phase: null,
       spotlight: null,
       offerUrl: null,
+      groupEval: null,
       status: "Reset",
       log: [],
       targetLabel: null,
@@ -458,10 +506,11 @@ export function SimulationProvider({ children }: { children: React.ReactNode }) 
 
   const openExplain = useCallback(() => patch({ explainOpen: true }), [patch]);
   const closeExplain = useCallback(() => patch({ explainOpen: false }), [patch]);
+  const closeGroupEval = useCallback(() => patch({ groupEval: null }), [patch]);
 
   const value = useMemo<SimCtx>(
-    () => ({ ...state, start, pause, resume, stop, reset, toggleStep, next, openExplain, closeExplain }),
-    [state, start, pause, resume, stop, reset, toggleStep, next, openExplain, closeExplain]
+    () => ({ ...state, start, pause, resume, stop, reset, toggleStep, next, openExplain, closeExplain, closeGroupEval }),
+    [state, start, pause, resume, stop, reset, toggleStep, next, openExplain, closeExplain, closeGroupEval]
   );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
