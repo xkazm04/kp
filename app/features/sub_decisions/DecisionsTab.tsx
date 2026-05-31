@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Check, Sparkles } from "lucide-react";
 import { buildUrl } from "@/app/features/tabs";
 import { useTasks } from "@/app/features/tasks/TasksProvider";
@@ -15,9 +15,14 @@ import type { Entry } from "./DecisionsTypes";
 
 type Group = { roleKey: string; roleTitle: string; jobId: string | null; entries: Entry[] };
 
+const roleKeyOf = (e: Entry) => e.jobId ?? e.jobTitle ?? "unassigned";
+
 export function DecisionsTab() {
   const router = useRouter();
+  const search = useSearchParams();
   const { startTask, tasks } = useTasks();
+  // Filter the queue to one opened JD (deep-linkable via ?job=<id>).
+  const [jobFilter, setJobFilter] = useState<string | null>(search.get("job"));
   const [entries, setEntries] = useState<Entry[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [resolving, setResolving] = useState<Record<string, "accept" | "reject" | "approve_event">>({});
@@ -48,6 +53,18 @@ export function DecisionsTab() {
     (e) => e.approvalKind === "screening_review" || e.approvalKind === "scorecard_review" || e.approvalKind === "offer_review"
   );
 
+  // Distinct roles (opened JDs) with pending decisions, for the filter dropdown.
+  const jobOptions = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const e of pending) map.set(roleKeyOf(e), e.jobTitle ?? "Unassigned role");
+    return [...map.entries()].map(([key, label]) => ({ key, label })).sort((a, b) => a.label.localeCompare(b.label));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [entries]);
+  // If the active filter no longer matches any pending role, fall back to all.
+  const activeFilter = jobFilter && jobOptions.some((o) => o.key === jobFilter) ? jobFilter : null;
+  const matchesFilter = (e: Entry) => !activeFilter || roleKeyOf(e) === activeFilter;
+  const visibleAiReviews = aiReviews.filter(matchesFilter);
+
   const groups = useMemo<Group[]>(() => {
     const map = new Map<string, Group>();
     for (const e of keyDecisions) {
@@ -59,6 +76,7 @@ export function DecisionsTab() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [entries]);
   const roleKeys = groups.map((g) => g.roleKey).join(",");
+  const visibleGroups = groups.filter((g) => !activeFilter || g.roleKey === activeFilter);
 
   // Which roles already have a saved evaluation (toggles the button label).
   useEffect(() => {
@@ -155,7 +173,26 @@ export function DecisionsTab() {
             .
           </p>
         </div>
-        <span className="rounded-md border border-stone-200 bg-paper px-2.5 py-1 text-sm text-steel">{pending.length} pending</span>
+        <div className="flex items-center gap-2">
+          {jobOptions.length > 1 ? (
+            <select
+              value={activeFilter ?? ""}
+              onChange={(e) => setJobFilter(e.target.value || null)}
+              className="focus-ring rounded-md border border-stone-200 bg-white px-2.5 py-1 text-sm text-ink"
+              title="Filter decisions to one opened JD"
+            >
+              <option value="">All roles ({pending.length})</option>
+              {jobOptions.map((o) => (
+                <option key={o.key} value={o.key}>
+                  {o.label} ({pending.filter((e) => roleKeyOf(e) === o.key).length})
+                </option>
+              ))}
+            </select>
+          ) : null}
+          <span className="rounded-md border border-stone-200 bg-paper px-2.5 py-1 text-sm text-steel">
+            {activeFilter ? visibleAiReviews.length + visibleGroups.reduce((n, g) => n + g.entries.length, 0) : pending.length} pending
+          </span>
+        </div>
       </header>
 
       {error ? (
@@ -170,13 +207,13 @@ export function DecisionsTab() {
         </div>
       ) : (
         <div className="space-y-6">
-          {aiReviews.length > 0 ? (
+          {visibleAiReviews.length > 0 ? (
             <section>
               <h3 className="flex items-center gap-1.5 text-meta uppercase tracking-wide text-steel">
-                <Sparkles size={13} className="text-coral" /> AI recommendations <span className="text-coral">· {aiReviews.length}</span>
+                <Sparkles size={13} className="text-coral" /> AI recommendations <span className="text-coral">· {visibleAiReviews.length}</span>
               </h3>
               <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                {aiReviews.map((e) => (
+                {visibleAiReviews.map((e) => (
                   <div key={e.id} data-sim-entry={e.id} className={leavingWrapClass(e)}>
                     <AiReviewCard entry={e} onAccept={() => act(e, "accept")} onReject={() => act(e, "reject")} />
                   </div>
@@ -187,11 +224,11 @@ export function DecisionsTab() {
 
           <section>
             <h3 className="text-meta uppercase tracking-wide text-steel">
-              Key decisions <span className="text-coral">· {keyDecisions.length}</span>
+              Key decisions <span className="text-coral">· {visibleGroups.length}</span>
             </h3>
             <p className="mt-1 text-sm text-steel">One row per role — advance or reject from a candidate&apos;s analysis summary.</p>
             <div className="mt-3 space-y-3">
-              {groups.map((g) => (
+              {visibleGroups.map((g) => (
                 <RoleDecisionRow
                   key={g.roleKey}
                   roleTitle={g.roleTitle}
@@ -202,7 +239,7 @@ export function DecisionsTab() {
                   onGroupEval={() => openGroupEval(g)}
                 />
               ))}
-              {groups.length === 0 ? <Empty>No key decisions pending.</Empty> : null}
+              {visibleGroups.length === 0 ? <Empty>No key decisions pending.</Empty> : null}
             </div>
           </section>
         </div>
