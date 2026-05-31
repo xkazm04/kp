@@ -20,6 +20,7 @@
     "pipeline:sample": "python -m pipeline.jobfit.cli samples/sample-cv.txt"
   },
   "dependencies": {
+    "@elevenlabs/react": "^1.6.4",
     "@google/genai": "^1.52.0",
     "@tailwindcss/forms": "^0.5.11",
     "better-sqlite3": "^12.9.0",

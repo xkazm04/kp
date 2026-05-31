@@ -287,6 +287,33 @@ function ensureDb(): Database.Database {
 
     CREATE INDEX IF NOT EXISTS idx_dev_lifecycle_created ON dev_lifecycle (created_at DESC);
     CREATE INDEX IF NOT EXISTS idx_dev_lifecycle_posting ON dev_lifecycle (posting_id);
+
+    -- Voice 1st-round interview sessions (MVP). One row per call; token-gated
+    -- candidate link, transcript-only by default (no audio retained), optional
+    -- link to a pipeline entry so the scorecard feeds the Interview->Offer gate.
+    CREATE TABLE IF NOT EXISTS interview_sessions (
+      id TEXT PRIMARY KEY,
+      token TEXT UNIQUE,
+      entry_id TEXT,
+      candidate_label TEXT,
+      job_id TEXT,
+      job_title TEXT,
+      provider TEXT NOT NULL,
+      language TEXT,
+      mode TEXT NOT NULL DEFAULT 'test',
+      status TEXT NOT NULL DEFAULT 'created',
+      instructions TEXT,
+      consent_at TEXT,
+      started_at TEXT,
+      ended_at TEXT,
+      transcript_json TEXT,
+      scorecard_json TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_interview_token ON interview_sessions (token);
+    CREATE INDEX IF NOT EXISTS idx_interview_entry ON interview_sessions (entry_id);
   `);
   // Migration for DBs created before the observability columns existed.
   for (const col of ["created_at", "stage_changed_at"]) {
@@ -1709,6 +1736,154 @@ export function recordOutbox(input: {
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).run(id, input.recipient, input.subject, input.body, input.kind, input.channel, input.status, input.ref ?? null, now);
   return { id, ...input, ref: input.ref ?? null, createdAt: now };
+}
+
+// ---- Interview sessions (voice 1st-round MVP) -----------------------------
+
+export type InterviewProvider = "openai" | "elevenlabs";
+export type InterviewTurn = { role: "candidate" | "interviewer" | "system"; text: string; at?: string };
+
+export type InterviewSession = {
+  id: string;
+  token: string;
+  entryId: string | null;
+  candidateLabel: string | null;
+  jobId: string | null;
+  jobTitle: string | null;
+  provider: InterviewProvider;
+  language: string | null;
+  mode: "test" | "candidate";
+  status: string;
+  instructions: string | null;
+  consentAt: string | null;
+  startedAt: string | null;
+  endedAt: string | null;
+  transcript: InterviewTurn[] | null;
+  scorecard: unknown | null;
+  createdAt: string;
+  updatedAt: string | null;
+};
+
+type InterviewRow = {
+  id: string;
+  token: string;
+  entry_id: string | null;
+  candidate_label: string | null;
+  job_id: string | null;
+  job_title: string | null;
+  provider: string;
+  language: string | null;
+  mode: string;
+  status: string;
+  instructions: string | null;
+  consent_at: string | null;
+  started_at: string | null;
+  ended_at: string | null;
+  transcript_json: string | null;
+  scorecard_json: string | null;
+  created_at: string;
+  updated_at: string | null;
+};
+
+function rowToInterview(r: InterviewRow): InterviewSession {
+  return {
+    id: r.id,
+    token: r.token,
+    entryId: r.entry_id,
+    candidateLabel: r.candidate_label,
+    jobId: r.job_id,
+    jobTitle: r.job_title,
+    provider: (r.provider === "elevenlabs" ? "elevenlabs" : "openai") as InterviewProvider,
+    language: r.language,
+    mode: r.mode === "candidate" ? "candidate" : "test",
+    status: r.status,
+    instructions: r.instructions,
+    consentAt: r.consent_at,
+    startedAt: r.started_at,
+    endedAt: r.ended_at,
+    transcript: safeRowParse<InterviewTurn[]>(r.transcript_json, "interview.transcript", r.id),
+    scorecard: safeRowParse<unknown>(r.scorecard_json, "interview.scorecard", r.id),
+    createdAt: r.created_at,
+    updatedAt: r.updated_at,
+  };
+}
+
+export function createInterviewSession(input: {
+  provider: InterviewProvider;
+  language?: string | null;
+  mode?: "test" | "candidate";
+  entryId?: string | null;
+  candidateLabel?: string | null;
+  jobId?: string | null;
+  jobTitle?: string | null;
+  instructions?: string | null;
+}): InterviewSession {
+  const db = ensureDb();
+  const now = new Date().toISOString();
+  const id = `iv-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+  const token = `tk-${Math.random().toString(36).slice(2, 12)}${Math.random().toString(36).slice(2, 12)}`;
+  db.prepare(
+    `INSERT INTO interview_sessions
+       (id, token, entry_id, candidate_label, job_id, job_title, provider, language, mode, status, instructions, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'created', ?, ?)`
+  ).run(
+    id,
+    token,
+    input.entryId ?? null,
+    input.candidateLabel ?? null,
+    input.jobId ?? null,
+    input.jobTitle ?? null,
+    input.provider,
+    input.language ?? null,
+    input.mode ?? "test",
+    input.instructions ?? null,
+    now
+  );
+  return getInterviewSessionById(id)!;
+}
+
+export function getInterviewSessionById(id: string): InterviewSession | null {
+  const r = ensureDb().prepare(`SELECT * FROM interview_sessions WHERE id = ?`).get(id) as InterviewRow | undefined;
+  return r ? rowToInterview(r) : null;
+}
+
+export function getInterviewSessionByToken(token: string): InterviewSession | null {
+  const r = ensureDb().prepare(`SELECT * FROM interview_sessions WHERE token = ?`).get(token) as InterviewRow | undefined;
+  return r ? rowToInterview(r) : null;
+}
+
+/** Mark a session live (first connect); records consent the first time. */
+export function markInterviewStarted(id: string, consent: boolean): void {
+  const db = ensureDb();
+  const now = new Date().toISOString();
+  if (consent) {
+    db.prepare(
+      `UPDATE interview_sessions SET status='in_progress', started_at=COALESCE(started_at, ?), consent_at=COALESCE(consent_at, ?), updated_at=? WHERE id=?`
+    ).run(now, now, now, id);
+  } else {
+    db.prepare(
+      `UPDATE interview_sessions SET status='in_progress', started_at=COALESCE(started_at, ?), updated_at=? WHERE id=?`
+    ).run(now, now, id);
+  }
+}
+
+export function completeInterviewSession(
+  id: string,
+  input: { transcript: InterviewTurn[]; scorecard?: unknown; status?: string }
+): InterviewSession | null {
+  const db = ensureDb();
+  const now = new Date().toISOString();
+  db.prepare(
+    `UPDATE interview_sessions SET status=?, ended_at=?, transcript_json=?, scorecard_json=COALESCE(?, scorecard_json), updated_at=? WHERE id=?`
+  ).run(
+    input.status ?? "completed",
+    now,
+    JSON.stringify(input.transcript ?? []),
+    input.scorecard !== undefined ? JSON.stringify(input.scorecard) : null,
+    now,
+    id
+  );
+  return getInterviewSessionById(id);
 }
 
 export function listOutbox(limit = 50): OutboxEntry[] {

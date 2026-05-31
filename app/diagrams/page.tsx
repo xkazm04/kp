@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { PlantUml } from "@/app/_components/puml/PlantUml";
 import { WorkspaceShell } from "@/app/features/WorkspaceNav";
+import { PipelineExplorer } from "./PipelineExplorer";
 
 // Renders the real architecture sources straight from docs/diagrams/*.puml
 // (read server-side, so the page always reflects the committed source) through
@@ -14,7 +15,7 @@ const DIAGRAMS: { file: string; label: string; blurb: string; featured?: boolean
     file: "15-automated-pipeline-tobe.puml",
     label: "to-be — fully automated JD → hire",
     blurb:
-      "The end-to-end pipeline from authoring a job description to a hired candidate. Colour encodes automation state, so the dashed nodes are exactly the five directions still to build.",
+      "The end-to-end pipeline from authoring a job description to a hired candidate. All five gap directions are now wired — click any step to open its real implementation: which UI module calls which function, against which data tables.",
     featured: true,
   },
   {
@@ -45,7 +46,7 @@ function Legend() {
           className="inline-block h-3.5 w-5 rounded border border-dashed"
           style={{ background: "#f4f2ec", borderColor: "#8c8779" }}
         />
-        to build (the 5 directions)
+        remaining gap (shown inside a step)
       </li>
     </ul>
   );
@@ -85,7 +86,11 @@ export default function DiagramsPage() {
             <p className="mt-1 max-w-3xl text-base leading-7 text-steel">{it.blurb}</p>
             {it.featured ? <Legend /> : null}
             {it.source ? (
-              <PlantUml source={it.source} scale="natural" className="mt-4" />
+              it.featured ? (
+                <PipelineExplorer source={it.source} />
+              ) : (
+                <PlantUml source={it.source} scale="natural" className="mt-4" />
+              )
             ) : (
               <p className="mt-4 text-sm text-coral">Could not read {it.file}.</p>
             )}

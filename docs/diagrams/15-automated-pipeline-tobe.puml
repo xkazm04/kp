@@ -1,24 +1,24 @@
 @startuml automated-pipeline-tobe
-title To-be — fully automated JD → hire (moss = live · coral = human gate · dashed = to build)
+title JD → hire — now wired end-to-end (moss = automated · coral = human gate · click a step for its modules, calls & tables)
 
 actor "Recruiter" as rec
 
 [JD authoring\nneed -> design draft] <<auto>> as jd
-[JD -> structured Job\ningest + taxonomy resolve] <<gap>> as ingest
-[Distribute to boards / ATS\n+ candidate fan-out] <<gap>> as dist
+[JD -> structured Job\ningest + taxonomy] <<auto>> as ingest
+[Candidate fan-out\nSourced -> AI-matched] <<auto>> as dist
 [Candidate apply / CV upload] <<auto>> as apply
-[Extract text + LLM fields\nClaude CLI + deterministic fallback] <<auto>> as extract
-[Archetype route -> V2 profile\nprovenance · potential] <<gap>> as v2
+[Extract text + LLM fields] <<auto>> as extract
+[Archetype route -> V2 profile\nprovenance · potential] <<auto>> as v2
 [Match\nKO · score · reason] <<auto>> as match
-[AI screening\nfairness-gated recommendation] <<auto>> as screen
+[AI screening\nfairness-gated] <<auto>> as screen
 [Decisions queue\nearly-career · low-confidence] <<gate>> as decide
-[Outreach + interview invite\n(delivered, not just drafted)] <<gap>> as engage
-[Interview prep + scorecard\nsynthesis] <<auto>> as interview
+[Outreach + interview invite\ndelivered via comms] <<auto>> as engage
+[Interview\nAI voice screen -> scorecard] <<auto>> as interview
 [Offer decision] <<gate>> as offer
-[Deliver offer · capture\naccept / decline] <<gap>> as close
-[Hired -> onboarding handoff] <<gap>> as hire
+[Deliver offer · capture\naccept / decline -> Hired] <<auto>> as close
+[Onboarding handoff] <<auto>> as hire
 
-[Scheduler / cron\ndrives time-based steps] <<gap>> as cron
+[Scheduler / cron\ndrives time-based steps] <<auto>> as cron
 
 rec --> jd
 jd --> ingest

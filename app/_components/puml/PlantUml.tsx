@@ -130,9 +130,38 @@ function componentStyle(stereotype?: string): { fill: string; stroke: string; te
   return { fill: "#e9f1e2", stroke: "#5d7a57", text: C.ink }; // auto / v2 / new / focus
 }
 
-function renderNode(box: Box) {
+type NodeClick = (node: { id: string; label: string }) => void;
+
+function renderNode(box: Box, onNodeClick?: NodeClick, activeNodeId?: string) {
   const cx = box.x + box.w / 2;
   const cy = box.y + box.h / 2;
+
+  // Actors/notes aren't pipeline steps, so only the real nodes are clickable.
+  const clickable = Boolean(onNodeClick) && box.kind !== "actor" && box.kind !== "note";
+  const active = activeNodeId != null && box.id === activeNodeId;
+  const className = [clickable ? "puml-clickable" : "", active ? "puml-active" : ""].filter(Boolean).join(" ");
+  const clickProps: {
+    className?: string;
+    role?: string;
+    tabIndex?: number;
+    onClick?: () => void;
+    onKeyDown?: (e: { key: string; preventDefault: () => void }) => void;
+  } = {
+    ...(className ? { className } : {}),
+    ...(clickable
+      ? {
+          role: "button",
+          tabIndex: 0,
+          onClick: () => onNodeClick!({ id: box.id, label: box.label }),
+          onKeyDown: (e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              onNodeClick!({ id: box.id, label: box.label });
+            }
+          },
+        }
+      : {}),
+  };
 
   switch (box.kind) {
     case "actor":
@@ -144,7 +173,7 @@ function renderNode(box: Box) {
       );
     case "database":
       return (
-        <g key={box.id}>
+        <g key={box.id} {...clickProps}>
           <Cylinder box={box} fill="#eef2f3" lid="#e2e9ea" stroke={C.steel} />
           <Label lines={box.lines} cx={cx} cy={cy + 4} fill={C.ink} />
         </g>
@@ -153,7 +182,7 @@ function renderNode(box: Box) {
       const sx = box.w / CLOUD_BBOX.w;
       const sy = box.h / CLOUD_BBOX.h;
       return (
-        <g key={box.id}>
+        <g key={box.id} {...clickProps}>
           <path
             transform={`translate(${box.x},${box.y}) scale(${sx},${sy}) translate(${-CLOUD_BBOX.x},${-CLOUD_BBOX.y})`}
             d={CLOUD_PATH}
@@ -168,7 +197,7 @@ function renderNode(box: Box) {
     }
     case "folder":
       return (
-        <g key={box.id}>
+        <g key={box.id} {...clickProps}>
           <Folder box={box} fill={C.paper} stroke={C.stone} />
           <Label lines={box.lines} cx={cx} cy={cy + 4} fill={C.ink} />
         </g>
@@ -183,7 +212,7 @@ function renderNode(box: Box) {
     default: {
       const st = componentStyle(box.stereotype);
       return (
-        <g key={box.id}>
+        <g key={box.id} {...clickProps}>
           <rect
             x={box.x}
             y={box.y}
@@ -276,6 +305,8 @@ export function PlantUml({
   source,
   className = "",
   scale = "fit",
+  onNodeClick,
+  activeNodeId,
 }: {
   source: string;
   className?: string;
@@ -283,6 +314,10 @@ export function PlantUml({
   // true size and scrolls horizontally when wider — so a dense diagram's text
   // is never shrunk below its 14px floor.
   scale?: "fit" | "natural";
+  // When set, non-actor/note nodes become clickable (cursor, hover, keyboard).
+  onNodeClick?: NodeClick;
+  // The node id to mark as active (persistent coral border).
+  activeNodeId?: string;
 }) {
   const diagram = useMemo(() => {
     try {
@@ -364,10 +399,13 @@ export function PlantUml({
             <path d="M0,0 L7,3 L0,6 Z" fill={C.dialStone} />
           </marker>
         </defs>
+          {onNodeClick || activeNodeId ? (
+            <style>{`.puml-clickable{cursor:pointer;outline:none}.puml-clickable rect,.puml-clickable ellipse,.puml-clickable path{transition:stroke .12s,filter .12s}.puml-clickable:hover rect,.puml-clickable:hover ellipse,.puml-clickable:hover path,.puml-clickable:focus-visible rect,.puml-clickable:focus-visible ellipse,.puml-clickable:focus-visible path{stroke:#d65a4a;stroke-width:2}.puml-active rect,.puml-active ellipse,.puml-active path{stroke:#d65a4a !important;stroke-width:2.5 !important}`}</style>
+          ) : null}
           <g transform={`translate(${pad},${pad})`}>
             {layout.containers.map(renderContainer)}
             {layout.edges.map(renderEdge)}
-            {layout.nodes.map(renderNode)}
+            {layout.nodes.map((b) => renderNode(b, onNodeClick, activeNodeId))}
           </g>
         </svg>
       </div>

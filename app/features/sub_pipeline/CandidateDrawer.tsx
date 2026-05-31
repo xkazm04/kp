@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Ban, Banknote, ClipboardList, ExternalLink, Mail, Shuffle, Sparkles, UserCheck, X } from "lucide-react";
+import { Ban, Banknote, Check, ClipboardList, Copy, ExternalLink, Mail, Phone, Shuffle, Sparkles, UserCheck, X } from "lucide-react";
 import { buildUrl } from "@/app/features/tabs";
 import { useTasks } from "@/app/features/tasks/TasksProvider";
 import { ResultView } from "./CandidateResultView";
@@ -26,6 +26,13 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
   const [result, setResult] = useState<Result | null>(null);
   const [notes, setNotes] = useState("");
   const [error, setError] = useState<string | null>(null);
+
+  // Voice 1st-round screen: create a grounded, tokenized candidate link.
+  const [voiceProvider, setVoiceProvider] = useState<"openai" | "elevenlabs">("openai");
+  const [voiceBusy, setVoiceBusy] = useState(false);
+  const [voiceLink, setVoiceLink] = useState<{ url: string; configured: boolean } | null>(null);
+  const [voiceErr, setVoiceErr] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
 
   // Modal focus management: trap Tab within the dialog, close on Escape, and
   // restore focus to the trigger on unmount (WCAG dialog requirements).
@@ -96,6 +103,30 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
     }
     setPendingId(t.id);
   };
+
+  const createVoiceScreen = async () => {
+    setVoiceBusy(true);
+    setVoiceErr(null);
+    setVoiceLink(null);
+    setCopied(false);
+    try {
+      const res = await fetch("/api/interview/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ entryId: entry.id, provider: voiceProvider }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || `create failed (${res.status})`);
+      setVoiceLink({ url: data.url, configured: Boolean(data.configured) });
+    } catch (e) {
+      setVoiceErr(e instanceof Error ? e.message : "Couldn't create the link.");
+    } finally {
+      setVoiceBusy(false);
+    }
+  };
+
+  const showVoice = entry.status === "active" && ["AI-matched", "Screening", "Interview"].includes(entry.stage);
+  const voiceFullUrl = voiceLink ? (typeof window !== "undefined" ? window.location.origin : "") + voiceLink.url : "";
 
   useEffect(() => {
     if (!pendingId) return;
@@ -181,6 +212,83 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
                 placeholder="Paste raw interviewer notes here, then click Synthesize scorecard."
                 className="focus-ring mt-1 w-full rounded-md border border-stone-200 bg-white p-2 text-sm text-ink"
               />
+            </div>
+          ) : null}
+
+          {showVoice ? (
+            <div className="rounded-md border border-stone-200 bg-white p-3">
+              <p className="flex items-center gap-1.5 text-meta uppercase tracking-wide text-coral">
+                <Phone size={13} /> Voice screen (1st round)
+              </p>
+              <p className="mt-1 text-sm text-steel">
+                Creates a candidate link with questions grounded in this match. After the call, the scorecard lands in
+                Decisions automatically.
+              </p>
+              <div className="mt-2 inline-flex rounded-md border border-stone-200 bg-paper p-0.5">
+                {(["openai", "elevenlabs"] as const).map((p) => (
+                  <button
+                    key={p}
+                    type="button"
+                    disabled={voiceBusy}
+                    aria-pressed={voiceProvider === p}
+                    onClick={() => setVoiceProvider(p)}
+                    className={`focus-ring rounded px-2.5 py-1 text-sm font-medium transition-colors ${
+                      voiceProvider === p ? "bg-white text-ink shadow-panel" : "text-steel hover:text-ink"
+                    }`}
+                  >
+                    {p === "openai" ? "OpenAI" : "ElevenLabs"}
+                  </button>
+                ))}
+              </div>
+              <button
+                type="button"
+                onClick={createVoiceScreen}
+                disabled={voiceBusy}
+                className="focus-ring ml-2 inline-flex items-center gap-1.5 rounded-md border border-stone-200 bg-white px-2.5 py-1.5 text-sm font-semibold text-ink hover:border-coral/40 disabled:opacity-50"
+              >
+                <Phone size={13} className="text-coral" /> {voiceBusy ? "Creating…" : "Create link"}
+              </button>
+
+              {voiceErr ? <p className="mt-2 text-sm text-red-700">{voiceErr}</p> : null}
+
+              {voiceLink ? (
+                <div className="mt-2 space-y-1.5">
+                  <div className="flex items-center gap-1.5">
+                    <input
+                      readOnly
+                      value={voiceFullUrl}
+                      onFocus={(e) => e.currentTarget.select()}
+                      className="focus-ring min-w-0 flex-1 rounded-md border border-stone-200 bg-paper px-2 py-1 text-sm text-ink"
+                    />
+                    <button
+                      type="button"
+                      title="Copy link"
+                      onClick={() => {
+                        void navigator.clipboard?.writeText(voiceFullUrl);
+                        setCopied(true);
+                      }}
+                      className="focus-ring rounded-md border border-stone-200 bg-white p-1.5 text-steel hover:text-coral"
+                    >
+                      {copied ? <Check size={14} /> : <Copy size={14} />}
+                    </button>
+                    <a
+                      href={voiceLink.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="focus-ring rounded-md border border-stone-200 bg-white p-1.5 text-steel hover:text-coral"
+                      title="Open as candidate"
+                    >
+                      <ExternalLink size={14} />
+                    </a>
+                  </div>
+                  {!voiceLink.configured ? (
+                    <p className="text-sm text-coral">
+                      {voiceProvider === "openai" ? "OPENAI_API_KEY" : "ELEVENLABS_API_KEY + ELEVENLABS_AGENT_ID"} not set —
+                      the call won&apos;t connect until configured.
+                    </p>
+                  ) : null}
+                </div>
+              ) : null}
             </div>
           ) : null}
 
