@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { RotateCcw, Search } from "lucide-react";
 import { formatCount } from "@/app/_lib/format";
 import { JdBuilder } from "./JdBuilder";
+import { JdTemplates } from "./JdTemplates";
 import { LibraryJdForm } from "./LibraryJdForm";
 
 type JdRow = {
@@ -72,6 +73,10 @@ export function LibraryTab() {
 
       <div className="mt-5">
         <JdBuilder onSaved={load} />
+      </div>
+
+      <div className="mt-4">
+        <JdTemplates onSaved={load} />
       </div>
 
       <div className="mt-5">
