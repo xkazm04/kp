@@ -35,16 +35,20 @@ sc --> out : ranked
 @enduml`,
 
   match: `@startuml
-title Auto-match: fair, archetype-aware ranking
-[Sourced candidate] as c
-package "Archetype routing" {
-  [Detect archetype\\nbau · student · switcher] <<focus>> as det
-  [Weighted score\\n+ potential] <<focus>> as sc
+title Intake: channels feed the pipeline front
+package "Channels" {
+  [Careers page / Apply] <<focus>> as apply
+  [Proactive sourcing] <<focus>> as src
 }
+[Accepted\\ninbound] <<focus>> as acc
+[Sourced\\nproactive] <<focus>> as sor
+[Score + archetype route] <<focus>> as match
 [AI-matched] as out
-c --> det
-det --> sc
-sc --> out
+apply --> acc
+src --> sor
+acc --> match
+sor --> match
+match --> out
 @enduml`,
 
   screen: `@startuml

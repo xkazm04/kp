@@ -26,7 +26,11 @@ export type PipelineEvent = {
   createdAt: string;
 };
 
-export const STAGES = ["Sourced", "AI-matched", "Screening", "Interview", "Offer", "Hired"];
+// "Accepted" = an inbound application received via a channel; "Sourced" = a
+// proactively-sourced candidate. Both feed AI-matched. (Accepted isn't in
+// db.ts's PIPELINE_STAGES, so actOnPipelineEntry advances it to Sourced via the
+// linear indexOf fallback — intentional, and avoids editing the fork-active db.)
+export const STAGES = ["Accepted", "Sourced", "AI-matched", "Screening", "Interview", "Offer", "Hired"];
 export const STALE_DAYS = 10;
 
 export function daysSince(iso: string | null): number | null {

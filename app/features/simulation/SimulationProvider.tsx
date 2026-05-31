@@ -321,21 +321,29 @@ export function SimulationProvider({ children }: { children: React.ReactNode }) 
 
       await step({
         id: "match",
-        tab: "pipeline",
-        target: '[data-sim="pipeline-board"]',
-        title: "Auto-matching",
-        caption: "Each sourced candidate is scored archetype-aware and advanced to ‘AI-matched’ — the automated middle of the funnel.",
+        tab: "channels",
+        target: '[data-sim="channel-inbound"]',
+        title: "Intake & match",
+        caption: "Candidates enter via channels: an application arrives on the careers page (‘Accepted’) alongside the proactively-sourced pool; all intake is then scored and matched.",
         action: async () => {
-          const sourced = (await getEntries()).filter((e) => e.jobId === jobId && e.stage === "Sourced");
-          for (const e of sourced) await advance(e.id);
+          // An inbound application arrives via the careers-page channel → Accepted.
+          await beat(700);
+          const inbound = await fetch("/api/sim/inbound", { method: "POST", headers: JSON_HEADERS, body: JSON.stringify({ jobId }) }).then((r) => r.json());
+          if (inbound?.label) log(`📥 ${inbound.label} applied via the careers page → Accepted`);
+          notifyDataChanged();
+          await beat(1400);
+
+          // Match all intake: Accepted (inbound) and Sourced (proactive) → AI-matched.
+          const intake = (await getEntries()).filter((e) => e.jobId === jobId && (e.stage === "Accepted" || e.stage === "Sourced"));
+          for (const e of intake) await advanceTo(e.id, "AI-matched");
           const top = (await getEntries())
             .filter((e) => e.jobId === jobId && e.stage === "AI-matched")
             .sort((a, b) => (b.matchScore ?? 0) - (a.matchScore ?? 0))[0];
-          if (!top) throw new Error("No AI-matched candidate to walk (sourcing returned none).");
+          if (!top) throw new Error("No AI-matched candidate to walk (intake returned none).");
           targetId = top.id;
           targetLabel = top.candidateLabel;
           patch({ targetLabel });
-          log(`Auto-matched ${sourced.length} candidates · following ${targetLabel} (match ${top.matchScore}) to Hired`);
+          log(`Matched ${intake.length} candidates → AI-matched · following ${targetLabel} (match ${top.matchScore}) to Hired`);
         },
       });
 

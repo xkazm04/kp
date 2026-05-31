@@ -20,6 +20,7 @@ const ARCH: Record<string, { bg: string; label: string }> = {
   career_switcher: { bg: "bg-moss", label: "Switcher" },
 };
 const STAGE_INITIAL: Record<string, string> = {
+  Accepted: "A",
   Sourced: "S",
   "AI-matched": "M",
   Screening: "Sc",
