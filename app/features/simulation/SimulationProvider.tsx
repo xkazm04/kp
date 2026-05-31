@@ -6,7 +6,6 @@ import { buildUrl } from "@/app/features/tabs";
 import { notifyDataChanged } from "@/app/features/live-refresh";
 import { SIM_COMPANY, SIM_JD_MARKDOWN, SIM_ROLE, SIM_SALARY, SIM_TITLE, type SimPhaseId } from "./constants";
 
-type Speed = "slow" | "normal" | "fast";
 type Spotlight = { selector: string | null; title: string; caption: string };
 type LogLine = { at: number; text: string };
 type Entry = { id: string; jobId: string | null; stage: string; approvalKind: string | null; matchScore: number | null; candidateLabel: string };
@@ -16,7 +15,6 @@ type SimState = {
   paused: boolean;
   stepMode: boolean;
   awaitingNext: boolean;
-  speed: Speed;
   explainOpen: boolean;
   phase: SimPhaseId | null;
   spotlight: Spotlight | null;
@@ -34,7 +32,6 @@ type SimCtx = SimState & {
   resume: () => void;
   stop: () => void;
   reset: () => Promise<void>;
-  setSpeed: (s: Speed) => void;
   toggleStep: () => void;
   next: () => void;
   openExplain: () => void;
@@ -48,7 +45,8 @@ export const useSimulation = () => {
   return c;
 };
 
-const SPEED_FACTOR: Record<Speed, number> = { slow: 1.8, normal: 1, fast: 0.45 };
+// Slow is the demo baseline — every beat runs at this factor.
+const SLOW_FACTOR = 1.8;
 class SimStop extends Error {}
 const JSON_HEADERS = { "Content-Type": "application/json" };
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -58,9 +56,8 @@ export function SimulationProvider({ children }: { children: React.ReactNode }) 
   const [state, setState] = useState<SimState>({
     running: false,
     paused: false,
-    stepMode: false,
+    stepMode: true, // step-through is the default for demos
     awaitingNext: false,
-    speed: "normal",
     explainOpen: false,
     phase: null,
     spotlight: null,
@@ -73,8 +70,7 @@ export function SimulationProvider({ children }: { children: React.ReactNode }) 
   });
 
   const ctrl = useRef<{ stop: boolean; paused: boolean; wake: (() => void) | null }>({ stop: false, paused: false, wake: null });
-  const speedRef = useRef<Speed>("normal");
-  const stepRef = useRef<boolean>(false);
+  const stepRef = useRef<boolean>(true);
 
   const patch = useCallback((p: Partial<SimState>) => setState((s) => ({ ...s, ...p })), []);
   const log = useCallback(
@@ -85,7 +81,7 @@ export function SimulationProvider({ children }: { children: React.ReactNode }) 
 
   // Paced wait — paused time doesn't count; stop interrupts.
   const beat = useCallback(async (ms: number) => {
-    const target = ms * SPEED_FACTOR[speedRef.current];
+    const target = ms * SLOW_FACTOR;
     let elapsed = 0;
     while (elapsed < target) {
       if (ctrl.current.stop) throw new SimStop();
@@ -396,12 +392,10 @@ export function SimulationProvider({ children }: { children: React.ReactNode }) 
 
   const start = useCallback(() => {
     ctrl.current = { stop: false, paused: false, wake: null };
-    stepRef.current = false;
     setState((s) => ({
       ...s,
       running: true,
       paused: false,
-      stepMode: false,
       awaitingNext: false,
       explainOpen: true,
       phase: null,
@@ -456,11 +450,6 @@ export function SimulationProvider({ children }: { children: React.ReactNode }) 
     }));
   }, []);
 
-  const setSpeed = useCallback((s: Speed) => {
-    speedRef.current = s;
-    patch({ speed: s });
-  }, [patch]);
-
   const toggleStep = useCallback(() => {
     stepRef.current = !stepRef.current;
     patch({ stepMode: stepRef.current });
@@ -471,8 +460,8 @@ export function SimulationProvider({ children }: { children: React.ReactNode }) 
   const closeExplain = useCallback(() => patch({ explainOpen: false }), [patch]);
 
   const value = useMemo<SimCtx>(
-    () => ({ ...state, start, pause, resume, stop, reset, setSpeed, toggleStep, next, openExplain, closeExplain }),
-    [state, start, pause, resume, stop, reset, setSpeed, toggleStep, next, openExplain, closeExplain]
+    () => ({ ...state, start, pause, resume, stop, reset, toggleStep, next, openExplain, closeExplain }),
+    [state, start, pause, resume, stop, reset, toggleStep, next, openExplain, closeExplain]
   );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
