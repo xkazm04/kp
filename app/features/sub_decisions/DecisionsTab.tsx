@@ -139,7 +139,7 @@ export function DecisionsTab() {
   const evalGroup = evalRole ? groups.find((g) => g.roleKey === evalRole.roleKey) ?? null : null;
 
   return (
-    <div className="space-y-6">
+    <div data-sim="decisions" className="space-y-6">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="text-meta uppercase text-coral">Decisions</p>

@@ -1,0 +1,89 @@
+import type { SimPhaseId } from "./constants";
+
+// Small, focused PlantUML diagrams — one per phase — rendered in the explainer
+// drawer so the customer understands the mechanism behind each step. Component
+// syntax matches the About tab's renderer; <<focus>> = automated (moss),
+// <<gate>> = deliberate human decision (coral).
+
+export const PHASE_DIAGRAM: Record<SimPhaseId, string> = {
+  design: `@startuml
+title Job description → a matchable job
+actor "Recruiter" as rec
+[Need + role spec] as need
+package "Ingestion" {
+  [Normalize\\nrequirements · band] <<focus>> as norm
+  [Structured Job\\njd-<slug>] <<focus>> as job
+}
+rec --> need
+need --> norm
+norm --> job
+@enduml`,
+
+  source: `@startuml
+title Source: rank the candidate pool against the role
+[Structured Job] as job
+package "Matcher (deterministic)" {
+  [KO filter\\nlocation · seniority · language] <<focus>> as ko
+  [Multi-factor scorer\\nskills · career · fit] <<focus>> as sc
+}
+[Sourced shortlist] as out
+job --> ko
+ko --> sc : survivors
+sc --> out : ranked
+@enduml`,
+
+  match: `@startuml
+title Auto-match: fair, archetype-aware ranking
+[Sourced candidate] as c
+package "Archetype routing" {
+  [Detect archetype\\nbau · student · switcher] <<focus>> as det
+  [Weighted score\\n+ potential] <<focus>> as sc
+}
+[AI-matched] as out
+c --> det
+det --> sc
+sc --> out
+@enduml`,
+
+  screen: `@startuml
+title Screen: AI recommends, a human decides
+[AI-matched] as m
+[AI screening\\nrecommendation] <<focus>> as ai
+[Recruiter review] <<gate>> as human
+[Advance / hold] as out
+m --> ai
+ai --> human : early-career never auto-rejected
+human --> out
+@enduml`,
+
+  interview: `@startuml
+title Interview: scheduled, with prep ready
+[Screening pass] as s
+[Pick a slot] <<gate>> as cal
+[Interview prep\\nquestions · STAR] <<focus>> as prep
+[Interview stage] as out
+s --> cal
+cal --> out
+prep --> out
+@enduml`,
+
+  offer: `@startuml
+title Offer: a human extends, the candidate decides
+[Interview pass] as i
+[Draft offer\\nband midpoint] <<focus>> as draft
+[Recruiter: send offer] <<gate>> as ext
+[Candidate\\naccept / decline] <<gate>> as cand
+i --> draft
+draft --> ext
+ext --> cand : secure token link
+@enduml`,
+
+  hired: `@startuml
+title Hired: onboarding kicks off
+[Offer accepted] <<gate>> as acc
+[Move to Hired] <<focus>> as hire
+[Onboarding\\nwelcome · first week] <<focus>> as onb
+acc --> hire
+hire --> onb
+@enduml`,
+};

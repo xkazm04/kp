@@ -17,6 +17,8 @@ import { TasksIndicator } from "./tasks/TasksIndicator";
 import { TasksProvider } from "./tasks/TasksProvider";
 import { SimulationProvider } from "./simulation/SimulationProvider";
 import { SimBar } from "./simulation/SimBar";
+import { SimSpotlight } from "./simulation/SimSpotlight";
+import { SimExplainDrawer } from "./simulation/SimExplainDrawer";
 import { buildUrl, DEFAULT_TAB, isWorkspaceTabId, navItemClass, NAV_GROUPS, type WorkspaceTabId } from "./tabs";
 
 export type { WorkspaceTabId } from "./tabs";
@@ -114,6 +116,8 @@ export function Workspace() {
           {navActive === "about" ? <AboutTab /> : null}
         </div>
       </main>
+      <SimSpotlight />
+      <SimExplainDrawer />
       <SimBar />
     </div>
     </SimulationProvider>

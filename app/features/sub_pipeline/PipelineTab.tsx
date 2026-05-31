@@ -189,15 +189,17 @@ export function PipelineTab() {
             </button>
           ) : null}
 
-          <PipelineBoard
-            positions={positions}
-            entries={entries ?? []}
-            isStale={isStale}
-            openPositionRanking={openPositionRanking}
-            openProfile={openProfile}
-            openJob={openJob}
-            openActions={openActions}
-          />
+          <div data-sim="pipeline-board">
+            <PipelineBoard
+              positions={positions}
+              entries={entries ?? []}
+              isStale={isStale}
+              openPositionRanking={openPositionRanking}
+              openProfile={openProfile}
+              openJob={openJob}
+              openActions={openActions}
+            />
+          </div>
 
           {events.length > 0 ? (
             <section className="space-y-2">

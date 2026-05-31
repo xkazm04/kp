@@ -58,7 +58,7 @@ export function JdBuilder({ onSaved }: { onSaved: () => void }) {
   const canGenerate = title.trim().length > 1 && needText.trim().length > 10 && !generating;
 
   return (
-    <div className="rounded-lg border border-stone-200 bg-white p-4 shadow-panel">
+    <div data-sim="jd-builder" className="rounded-lg border border-stone-200 bg-white p-4 shadow-panel">
       <p className="flex items-center gap-1.5 text-meta uppercase tracking-wide text-coral">
         <Sparkles size={14} /> Generate with AI
       </p>
