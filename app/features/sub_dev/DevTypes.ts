@@ -69,7 +69,7 @@ export type Reflection = {
   verificationHabits?: string[];
   confidence?: number;
 };
-export type ProbeOutcome = { probeId?: string; detected?: boolean; handledWell?: boolean; note?: string };
+export type ProbeOutcome = { probeId?: string; kind?: string; where?: string; detected?: boolean; handledWell?: boolean; note?: string };
 export type Tooling = { fluency?: number; probeOutcomes?: ProbeOutcome[]; overRelianceFlags?: string[]; evidence?: string[]; confidence?: number };
 // Self-describing breakdown row echoed by the Python evaluator (evaluate.py `_ordered_dimensions`):
 // canonical order + human label + weight, so the UI never hardcodes dimension metadata.
