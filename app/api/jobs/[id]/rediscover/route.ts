@@ -10,7 +10,15 @@ export const runtime = "nodejs";
 // Talent rediscovery: rank the whole candidate pool against THIS job, then
 // surface "silver medalists" — people rejected/closed elsewhere (or parked in a
 // different role) who clear the bar for this one and aren't already in it.
+
+// Minimum match total (0-100) a rediscovered candidate must clear. 55 mirrors
+// matching.FIT_PROMISING_THRESHOLD — at/above "promising" fit — so rediscovery
+// surfaces genuinely viable silver-medalists, not long-shots.
 const SCORE_FLOOR = 55;
+// Max rediscovered candidates returned (ranked by score, so top-N). `more` in
+// the response reports how many eligible were dropped, so the cap never reads as
+// "this is everyone".
+const REDISCOVER_LIMIT = 20;
 
 type PriorOutcome = { kind: "rejected" | "closed" | "elsewhere"; label: string };
 
@@ -85,10 +93,15 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
         };
       })
       .filter((r): r is NonNullable<typeof r> => r !== null)
-      .sort((a, b) => b.score - a.score)
-      .slice(0, 20);
+      .sort((a, b) => b.score - a.score);
 
-    return NextResponse.json({ job: { id: job.id, title: job.title }, rediscovered });
+    const shown = rediscovered.slice(0, REDISCOVER_LIMIT);
+    return NextResponse.json({
+      job: { id: job.id, title: job.title },
+      rediscovered: shown,
+      // How many eligible silver-medalists were dropped by the cap (0 when all shown).
+      more: Math.max(0, rediscovered.length - shown.length),
+    });
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Rediscovery failed." },

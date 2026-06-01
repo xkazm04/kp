@@ -49,7 +49,14 @@ export const jobContentHash = (s: string) => createHash("sha256").update(s).dige
  */
 export function insertJob(job: JobRecord, contentHash?: string, status: string = "published"): { id: string; created: boolean } {
   const d = db();
-  if (contentHash) {
+  // Contract for content-hash dedup vs. an explicit jobId:
+  //   • If job.id already names an EXISTING row, the caller means "update THIS
+  //     job" — the explicit id WINS over the content twin, so a lightly-corrected
+  //     re-ingest (or a deliberate update under a known id) edits that row.
+  //   • Otherwise we dedup by content hash: a re-ingest of identical ad text
+  //     reuses the prior job (created=false) instead of forking a duplicate.
+  const targetsExisting = !!d.prepare(`SELECT 1 FROM jobs WHERE id = ?`).get(job.id);
+  if (contentHash && !targetsExisting) {
     const seen = d.prepare(`SELECT job_id FROM job_ingests WHERE content_hash = ?`).get(contentHash) as { job_id: string } | undefined;
     if (seen && d.prepare(`SELECT 1 FROM jobs WHERE id = ?`).get(seen.job_id)) {
       return { id: seen.job_id, created: false };
@@ -89,7 +96,8 @@ export function insertJob(job: JobRecord, contentHash?: string, status: string =
   if (contentHash) {
     d.prepare(`INSERT INTO job_ingests (content_hash, job_id, created_at) VALUES (?, ?, ?) ON CONFLICT(content_hash) DO UPDATE SET job_id=excluded.job_id`).run(contentHash, job.id, now);
   }
-  return { id: job.id, created: true };
+  // created=false when we updated an existing row (explicit-jobId update path).
+  return { id: job.id, created: !targetsExisting };
 }
 
 /** Flip a job's lifecycle status (draft → published on publish). */
