@@ -51,6 +51,19 @@ export const analysisSchema = analysisResultSchema.extend({
 
 export type Analysis = z.infer<typeof analysisSchema>;
 
+// Single source of truth for the code-review payload shape: the route derives
+// its CodeReviewPayload from this via z.infer, and the e2e fixture is typed
+// against it, so the three former hand-maintained mirrors can no longer drift.
+export const codeReviewSchema = z.object({
+  status: z.enum(["disabled", "ok", "error"]),
+  summary: z.string(),
+  confirmedSkills: z.array(z.string()),
+  unverifiedClaims: z.array(z.string()),
+  hiddenStrengths: z.array(z.string()),
+  reposReviewed: z.array(z.string()),
+  error: z.string().nullable()
+});
+
 export const githubAnalysisSchema = z.object({
   username: z.string(),
   profileUrl: z.string(),
@@ -93,17 +106,8 @@ export const githubAnalysisSchema = z.object({
     complexityAssessment: z.string()
   }),
   limitations: z.array(z.string()),
-  codeReview: z
-    .object({
-      status: z.enum(["disabled", "ok", "error"]),
-      summary: z.string(),
-      confirmedSkills: z.array(z.string()),
-      unverifiedClaims: z.array(z.string()),
-      hiddenStrengths: z.array(z.string()),
-      reposReviewed: z.array(z.string()),
-      error: z.string().nullable()
-    })
-    .optional()
+  codeReview: codeReviewSchema.optional()
 });
 
 export type GithubAnalysis = z.infer<typeof githubAnalysisSchema>;
+export type CodeReview = z.infer<typeof codeReviewSchema>;

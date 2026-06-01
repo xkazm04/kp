@@ -1,10 +1,13 @@
 import type { Page } from "@playwright/test";
+import type { GithubAnalysis } from "@/app/_lib/schemas";
 
-// A deterministic GitHub-analysis payload (shape matches githubAnalysisSchema).
+// A deterministic GitHub-analysis payload. Typed against GithubAnalysis (derived
+// from githubAnalysisSchema) so a shape drift between the route, the schema and
+// this fixture surfaces as a compile error instead of a silent mismatch.
 // The browser fetches /api/github-analysis client-side, so Playwright can route
 // it — removing the anonymous GitHub API rate-limit (60/hr) flake that forced
 // the smoke tests to accept a rate-limit error as a pass.
-export const GITHUB_ANALYSIS_FIXTURE = {
+export const GITHUB_ANALYSIS_FIXTURE: GithubAnalysis = {
   username: "xkazm04",
   profileUrl: "https://github.com/xkazm04",
   summary: "Active engineer with a focus on Python and TypeScript automation.",

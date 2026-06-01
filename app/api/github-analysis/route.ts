@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
+import { z } from "zod";
 import { GoogleGenAI } from "@google/genai";
 import { logGithub, newRequestId } from "@/app/_lib/logger";
-import { githubAnalysisSchema } from "@/app/_lib/schemas";
+import { codeReviewSchema, githubAnalysisSchema } from "@/app/_lib/schemas";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -262,24 +263,52 @@ function buildContributionSignals(input: {
   return signals;
 }
 
+// Tokenize text into a set of word tokens for boundary-accurate skill matching.
+// Splits on anything that isn't an alphanumeric or a tech-symbol (+ # .), then
+// strips leading/trailing dots so "node.js" survives but a sentence-final "ai."
+// normalizes to "ai".
+function tokenizeForSkills(text: string): Set<string> {
+  return new Set(
+    text
+      .toLowerCase()
+      .split(/[^a-z0-9+#.]+/)
+      .map((t) => t.replace(/^\.+|\.+$/g, ""))
+      .filter(Boolean)
+  );
+}
+
+// A skill alias matches only when every word of it is present as a real token,
+// so the 2-letter "ai"/"ts"/"ci" can't phantom-match inside longer words.
+function aliasMatches(alias: string, tokens: Set<string>): boolean {
+  return alias
+    .toLowerCase()
+    .split(/\s+/)
+    .every((word) => tokens.has(word.replace(/^\.+|\.+$/g, "")));
+}
+
 function buildJobFitSignals(
   jobDescription: string,
   repos: GithubRepo[],
   languages: Array<{ name: string; percent: number }>
 ) {
-  const haystack = [
-    ...repos.flatMap((repo) => [repo.name, repo.description ?? "", repo.language ?? "", ...(repo.topics ?? [])]),
-    ...languages.map((language) => language.name)
-  ]
-    .join(" ")
-    .toLowerCase();
-  const job = jobDescription.toLowerCase();
+  // Word-boundary token matching, NOT substring: a substring test credits "ai"
+  // inside "available", "ts" inside dozens of words, "ci" inside "official". We
+  // tokenize into a set and only credit a skill when an alias's word(s) appear as
+  // real tokens. Keeps +, #, . so "c++"/"c#"/"node.js" survive; strips sentence
+  // punctuation so "AI." still matches "ai".
+  const haystackTokens = tokenizeForSkills(
+    [
+      ...repos.flatMap((repo) => [repo.name, repo.description ?? "", repo.language ?? "", ...(repo.topics ?? [])]),
+      ...languages.map((language) => language.name)
+    ].join(" ")
+  );
+  const jobTokens = tokenizeForSkills(jobDescription);
   const matchingSkills: string[] = [];
   const potentialGaps: string[] = [];
 
   for (const [skill, aliases] of Object.entries(SKILL_ALIASES)) {
-    const jobMentions = aliases.some((alias) => job.includes(alias));
-    const githubMentions = aliases.some((alias) => haystack.includes(alias));
+    const jobMentions = aliases.some((alias) => aliasMatches(alias, jobTokens));
+    const githubMentions = aliases.some((alias) => aliasMatches(alias, haystackTokens));
     if (jobMentions && githubMentions) {
       matchingSkills.push(skill);
     } else if (jobMentions && !githubMentions) {
@@ -360,15 +389,19 @@ async function fetchReadme(fullName: string): Promise<string> {
   return data.content;
 }
 
-type CodeReviewPayload = {
-  status: "disabled" | "ok" | "error";
-  summary: string;
-  confirmedSkills: string[];
-  unverifiedClaims: string[];
-  hiddenStrengths: string[];
-  reposReviewed: string[];
-  error: string | null;
-};
+// Derived from the single codeReviewSchema (app/_lib/schemas) so this payload,
+// the GithubAnalysis schema and the e2e fixture can't silently drift apart.
+type CodeReviewPayload = z.infer<typeof codeReviewSchema>;
+
+// Shape the Gemini model is asked to emit (snake_case). Each field .catch()es to
+// a safe default so a malformed/partial field snaps to empty instead of throwing,
+// and safeParse on a non-object returns failure (-> we flag a malformed payload).
+const geminiReviewSchema = z.object({
+  summary: z.string().catch(""),
+  confirmed_skills: z.array(z.string()).catch([]),
+  unverified_claims: z.array(z.string()).catch([]),
+  hidden_strengths: z.array(z.string()).catch([]),
+});
 
 async function runCodeReview(
   repos: GithubRepo[],
@@ -454,8 +487,8 @@ async function runCodeReview(
       },
     });
     const text = response.text ?? "";
-    const parsed = parseReviewJson(text);
-    if (!parsed) {
+    const review = geminiReviewSchema.safeParse(parseGeminiJson(text));
+    if (!review.success) {
       return {
         status: "error",
         summary: "Gemini returned a malformed code-review payload.",
@@ -468,10 +501,10 @@ async function runCodeReview(
     }
     return {
       status: "ok",
-      summary: typeof parsed.summary === "string" ? parsed.summary : "",
-      confirmedSkills: stringArray(parsed.confirmed_skills),
-      unverifiedClaims: stringArray(parsed.unverified_claims),
-      hiddenStrengths: stringArray(parsed.hidden_strengths),
+      summary: review.data.summary,
+      confirmedSkills: review.data.confirmed_skills,
+      unverifiedClaims: review.data.unverified_claims,
+      hiddenStrengths: review.data.hidden_strengths,
       reposReviewed,
       error: null,
     };
@@ -488,27 +521,16 @@ async function runCodeReview(
   }
 }
 
-function parseReviewJson(text: string): Record<string, unknown> | null {
+// Parse the model's JSON, tolerating an optional ```json fence, and return the
+// raw value for geminiReviewSchema.safeParse to validate + default. Replaces the
+// old brace-matching regex, which could splice a partial object out of prose.
+function parseGeminiJson(text: string): unknown {
   const trimmed = text.trim();
   if (!trimmed) return null;
+  const unfenced = trimmed.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "");
   try {
-    const parsed = JSON.parse(trimmed);
-    return parsed && typeof parsed === "object" ? (parsed as Record<string, unknown>) : null;
+    return JSON.parse(unfenced);
   } catch {
-    const match = trimmed.match(/\{[\s\S]*\}/);
-    if (!match) return null;
-    try {
-      const parsed = JSON.parse(match[0]);
-      return parsed && typeof parsed === "object" ? (parsed as Record<string, unknown>) : null;
-    } catch {
-      return null;
-    }
+    return null;
   }
-}
-
-function stringArray(value: unknown): string[] {
-  if (!Array.isArray(value)) return [];
-  return value
-    .map((item) => (typeof item === "string" ? item.trim() : ""))
-    .filter((item) => item.length > 0);
 }
