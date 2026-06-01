@@ -159,7 +159,24 @@ class MatchTest(unittest.TestCase):
         job = mkjob(seniority="junior", description="Graduates welcome.")
         resp = match(thin, [job], limit=1)
         m = resp.matches[0]
-        self.assertGreater(m.confidence_high - m.confidence_low, MIN_CONFIDENCE_SPREAD)
+        self.assertGreater(m.confidence.high - m.confidence.low, MIN_CONFIDENCE_SPREAD)
+        # A wide band must surface the reasons it is wide, not just the numbers.
+        self.assertEqual(m.confidence.level, "wide")
+        self.assertIn("Education level unknown", m.confidence.drivers)
+        self.assertIn("No languages listed", m.confidence.drivers)
+
+    def test_confidence_band_is_tight_with_no_drivers(self) -> None:
+        strong = MatchCandidate(
+            skills=["Python", "Django", "PostgreSQL"],
+            seniority="senior",
+            education_level="master",
+            languages=["English"],
+        )
+        job = mkjob(seniority="senior")
+        resp = match(strong, [job], limit=1)
+        m = resp.matches[0]
+        self.assertEqual(m.confidence.level, "tight")
+        self.assertEqual(m.confidence.drivers, [])
 
 
 if __name__ == "__main__":

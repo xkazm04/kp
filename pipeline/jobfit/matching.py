@@ -72,6 +72,23 @@ class MatchCandidate(_Base):
     label: str = "Candidate"
 
 
+class Confidence(_Base):
+    """Score uncertainty band plus the human reasons behind its width.
+
+    ``level`` is a plain-language read of the band (tight / moderate / wide) and
+    ``drivers`` are the specific reasons it is as wide as it is (early-career,
+    thin skills, unknown education, …). The reasons used to be computed and then
+    thrown away; surfacing them lets the UI explain a wide band instead of
+    showing a bare number range, and stops recruiters over-reading a single
+    point score.
+    """
+
+    low: int = 0
+    high: int = 0
+    level: str = "tight"  # tight | moderate | wide
+    drivers: list[str] = Field(default_factory=list)
+
+
 class MatchResult(_Base):
     job_id: str
     title: str
@@ -85,8 +102,7 @@ class MatchResult(_Base):
     skills_score: float = 0.0
     career_score: float = 0.0
     personal_score: float = 0.0
-    confidence_low: int = 0
-    confidence_high: int = 0
+    confidence: Confidence = Field(default_factory=Confidence)
     matched_skills: list[str] = Field(default_factory=list)
     matched_skill_provenance: dict[str, str] = Field(default_factory=dict)
     missing_skills: list[str] = Field(default_factory=list)
@@ -225,19 +241,44 @@ def weights_for(archetype: str) -> dict[str, float]:
     return WEIGHTS.get(archetype, WEIGHTS["bau"])
 
 
-def _confidence_spread(candidate: MatchCandidate, missing_musts: list[str]) -> int:
+# Band-width labels keyed off the total spread. The base spread is 4 and each
+# driver adds 4-6, so a "wide" band always carries >=2 drivers and "moderate"
+# carries >=1 — the label and the reasons stay in sync.
+_BAND_MODERATE_AT = 8
+_BAND_WIDE_AT = 12
+
+
+def _confidence(candidate: MatchCandidate, total: int, missing_musts: list[str]) -> Confidence:
+    """Honest score band + the specific reasons it is wide.
+
+    Each uncertainty source both widens the band and records a recruiter-readable
+    driver, so the UI can explain *why* a score is uncertain rather than leaving
+    a bare ``low–high`` range to be misread.
+    """
     spread = 4
+    drivers: list[str] = []
     if candidate.archetype in _EARLY_CAREER:
         spread += 6  # thinner, less-verifiable evidence -> wider honest band
+        drivers.append("Early-career: thinner, less-verifiable track record")
     if len(candidate.skills) < 3:
         spread += 6
+        drivers.append("Fewer than 3 skills listed")
     if candidate.education_level == "unknown":
         spread += 4
+        drivers.append("Education level unknown")
     if not candidate.languages:
         spread += 4
+        drivers.append("No languages listed")
     if len(missing_musts) > 2:
         spread += 5
-    return spread
+        drivers.append(f"Misses {len(missing_musts)} must-have skills")
+    level = "wide" if spread >= _BAND_WIDE_AT else "moderate" if spread >= _BAND_MODERATE_AT else "tight"
+    return Confidence(
+        low=max(0, total - spread),
+        high=min(100, total + spread),
+        level=level,
+        drivers=drivers,
+    )
 
 
 def score_job(candidate: MatchCandidate, job: Job) -> MatchResult:
@@ -251,7 +292,6 @@ def score_job(candidate: MatchCandidate, job: Job) -> MatchResult:
         personal = score_personal(candidate, job)
     w = weights_for(candidate.archetype)
     total = round(100 * (w["skills"] * skills + w["career"] * career + w["personal"] * personal))
-    spread = _confidence_spread(candidate, missing)
     ep = job.entry_profile
     return MatchResult(
         job_id=job.id,
@@ -266,8 +306,7 @@ def score_job(candidate: MatchCandidate, job: Job) -> MatchResult:
         skills_score=skills,
         career_score=career,
         personal_score=personal,
-        confidence_low=max(0, total - spread),
-        confidence_high=min(100, total + spread),
+        confidence=_confidence(candidate, total, missing),
         matched_skills=matched,
         matched_skill_provenance={
             s: candidate.skill_provenance.get(s, candidate.provenance_default) for s in matched

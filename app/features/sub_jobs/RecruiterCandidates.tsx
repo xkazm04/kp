@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { ConfidenceBandBadge, confidenceBandTitle } from "@/app/_components/Badge";
 import { ARCHETYPE_BADGE, EARLY, provLabel } from "./JobsTypes";
 import type { CandRow } from "./JobsTypes";
 
@@ -174,9 +175,10 @@ function CandidateCard({
     <li className="rounded-md border border-stone-200 bg-white p-2">
       <div className="flex items-center gap-2">
         <span className="font-serif text-lg text-ink">{res.total}</span>
-        <span className="text-sm text-steel">
-          {res.confidenceLow}–{res.confidenceHigh}
+        <span className="text-sm text-steel" title={confidenceBandTitle(res.confidence.drivers)}>
+          {res.confidence.low}–{res.confidence.high}
         </span>
+        <ConfidenceBandBadge level={res.confidence.level} drivers={res.confidence.drivers} />
         <span className="font-medium text-ink">{c.label}</span>
         <span className="rounded-full bg-ink/90 px-1.5 py-0.5 text-sm font-semibold text-white">
           {ARCHETYPE_BADGE[c.archetype] ?? c.archetype}

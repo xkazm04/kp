@@ -32,10 +32,18 @@ export type Stats = {
   byWorkMode: Record<string, number>;
 };
 
+export type ConfidenceLevel = "tight" | "moderate" | "wide";
+/** Score band + the human reasons behind its width (matching.py `Confidence`). */
+export type Confidence = {
+  low: number;
+  high: number;
+  level: ConfidenceLevel;
+  drivers: string[];
+};
+
 export type CandResult = {
   total: number;
-  confidenceLow: number;
-  confidenceHigh: number;
+  confidence: Confidence;
   matchedSkills?: string[];
   matchedSkillProvenance?: Record<string, string>;
   missingSkills?: string[];

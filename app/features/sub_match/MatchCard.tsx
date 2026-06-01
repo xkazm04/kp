@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useTasks } from "@/app/features/tasks/TasksProvider";
+import { ConfidenceBandBadge, confidenceBandTitle } from "@/app/_components/Badge";
 import type { MatchRef, MatchResult, Reasoning, ReasoningState } from "./MatchTypes";
 import { EARLY_CAREER, FAMILY_LABEL, provLabel } from "./MatchTypes";
 import { Bar, ReasoningPanel } from "./MatchShared";
@@ -66,8 +67,8 @@ export function MatchCard({
       <div className="flex items-start gap-4">
         <div className="w-16 shrink-0 text-center">
           <div className="font-serif text-2xl text-ink">{m.total}</div>
-          <div className="text-sm text-steel">
-            {m.confidenceLow}–{m.confidenceHigh}
+          <div className="text-sm text-steel" title={confidenceBandTitle(m.confidence.drivers)}>
+            {m.confidence.low}–{m.confidence.high}
           </div>
           <div className="mt-0.5 text-sm uppercase text-steel">#{index + 1}</div>
         </div>
@@ -80,6 +81,7 @@ export function MatchCard({
                 entry-eligible
               </span>
             ) : null}
+            <ConfidenceBandBadge level={m.confidence.level} drivers={m.confidence.drivers} />
             <div className="ml-auto flex items-center gap-1.5">
               {canAdd ? (
                 <button

@@ -12,6 +12,15 @@ export type ProfileRow = {
   completeness: number | null;
 };
 
+export type ConfidenceLevel = "tight" | "moderate" | "wide";
+/** Score band + the human reasons behind its width (matching.py `Confidence`). */
+export type Confidence = {
+  low: number;
+  high: number;
+  level: ConfidenceLevel;
+  drivers: string[];
+};
+
 export type MatchResult = {
   jobId: string;
   title: string;
@@ -25,8 +34,7 @@ export type MatchResult = {
   skillsScore: number;
   careerScore: number;
   personalScore: number;
-  confidenceLow: number;
-  confidenceHigh: number;
+  confidence: Confidence;
   matchedSkills?: string[];
   matchedSkillProvenance?: Record<string, string>;
   missingSkills?: string[];
