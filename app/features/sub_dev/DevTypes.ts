@@ -65,7 +65,7 @@ export type Reflection = {
   verificationHabits?: string[];
   confidence?: number;
 };
-export type ProbeOutcome = { probeId?: string; detected?: boolean; handledWell?: boolean; note?: string };
+export type ProbeOutcome = { probeId?: string; kind?: string; where?: string; detected?: boolean; handledWell?: boolean; note?: string };
 export type Tooling = { fluency?: number; probeOutcomes?: ProbeOutcome[]; overRelianceFlags?: string[]; evidence?: string[]; confidence?: number };
 export type CaseEval = { dimensionScores?: Record<string, number>; strengths?: string[]; concerns?: string[]; summary?: string };
 export type Transfer = { transferScore?: number; transfers?: string[]; gaps?: string[]; roleFitRationale?: string };

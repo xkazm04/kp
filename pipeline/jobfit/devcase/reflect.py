@@ -218,7 +218,7 @@ def assess_tooling(reflection: dict, commits: list[dict], cover_probes: list[dic
         return {
             "fluency": 0.5,
             "probeOutcomes": [
-                {"probeId": p["id"], "detected": False, "handledWell": False, "note": "insufficient signal (deterministic)"}
+                {"probeId": p["id"], "kind": str(p.get("kind") or ""), "where": str(p.get("where") or ""), "detected": False, "handledWell": False, "note": "insufficient signal (deterministic)"}
                 for p in probes
             ],
             "overRelianceFlags": [],
@@ -237,6 +237,10 @@ def assess_tooling(reflection: dict, commits: list[dict], cover_probes: list[dic
             outcomes.append(
                 {
                     "probeId": p["id"],
+                    # kind/where come from the authoritative cover-probe, NOT the model
+                    # payload — so they're never hallucinated and stay public-safe.
+                    "kind": str(p.get("kind") or ""),
+                    "where": str(p.get("where") or ""),
                     "detected": bool(o.get("detected", False)),
                     "handledWell": bool(o.get("handledWell", False)),
                     "note": str(o.get("note") or ""),

@@ -137,6 +137,10 @@ class CommitReflection(_Base):
 
 class ProbeOutcome(_Base):
     probe_id: str = ""
+    # Public-safe descriptors echoed from the case's CoverProbe so a 'Probe results'
+    # panel renders self-contained — never the internal `reveals`.
+    kind: str = ""  # mirrors CoverProbe.kind (ambiguity | legacy_trap | verification_trap | underspecified)
+    where: str = ""  # mirrors CoverProbe.where
     detected: bool = False
     handled_well: bool = False
     note: str = ""

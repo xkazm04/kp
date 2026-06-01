@@ -33,6 +33,11 @@ class TestReflect(unittest.TestCase):
         reflection, _ = reflect_commits([{"message": "wip"}], provider=None)
         t, _ = assess_tooling(reflection, [{"message": "wip"}], probes, provider=None)
         self.assertEqual({o["probeId"] for o in t["probeOutcomes"]}, {"p1", "p2"})
+        # denormalized: each outcome echoes the case probe's kind/where (self-contained,
+        # so the UI renders without re-joining to cover_probes) — but never `reveals`.
+        by_id = {o["probeId"]: o for o in t["probeOutcomes"]}
+        self.assertEqual((by_id["p2"]["kind"], by_id["p2"]["where"]), ("legacy_trap", "legacy.py"))
+        self.assertNotIn("reveals", by_id["p2"])
         # fairness: the deterministic fallback is NEUTRAL, never a penalty for using tools
         self.assertEqual(t["overRelianceFlags"], [])
         self.assertGreaterEqual(t["fluency"], 0.5)
