@@ -363,37 +363,46 @@ def has_any_in_text(text: str, category: str) -> bool:
     return any(_term_in_text(term, text_n, compact) for term in _terms_by_category(category))
 
 
-def classify_company_type(text: str) -> str:
-    text_n = _normalize(text)
-    compact = _compact(text_n)
-    for term in _terms_by_category("company_type"):
-        if _term_in_text(term, text_n, compact):
-            return term["company_type"]
-    return "unknown"
+def scan_category(text: str, category: str, attr: str) -> list[str]:
+    """Generic taxonomy scan: every ``attr`` value whose term in ``category``
+    matches ``text``, in declaration order, de-duplicated.
 
-
-def company_modifiers(text: str) -> list[str]:
+    This is the single primitive behind classify_company_type / company_modifiers
+    / classify_education and the seniority-signal helpers — each is the same
+    normalize -> compact -> iterate-terms scan with a different attribute, so a
+    taxonomy schema change is made here once instead of in four copy-pasted clones.
+    """
     text_n = _normalize(text)
     compact = _compact(text_n)
     found: list[str] = []
-    for term in _terms_by_category("company_modifier"):
-        if _term_in_text(term, text_n, compact):
-            modifier = term["company_modifier"]
-            if modifier not in found:
-                found.append(modifier)
+    for term in _terms_by_category(category):
+        if not _term_in_text(term, text_n, compact):
+            continue
+        value = term.get(attr)
+        if value and value not in found:
+            found.append(value)
     return found
+
+
+def detected_seniority_levels(text: str) -> set[str]:
+    """The seniority levels (junior/medior/senior/lead) whose markers appear in ``text``."""
+    return set(scan_category(text, "seniority", "seniority_level"))
+
+
+def classify_company_type(text: str) -> str:
+    found = scan_category(text, "company_type", "company_type")
+    return found[0] if found else "unknown"
+
+
+def company_modifiers(text: str) -> list[str]:
+    return scan_category(text, "company_modifier", "company_modifier")
 
 
 _EDUCATION_PRIORITY = ["phd", "master", "bachelor", "university"]
 
 
 def classify_education(text: str) -> str:
-    text_n = _normalize(text)
-    compact = _compact(text_n)
-    found: set[str] = set()
-    for term in _terms_by_category("education"):
-        if _term_in_text(term, text_n, compact):
-            found.add(term["education_level"])
+    found = set(scan_category(text, "education", "education_level"))
     for level in _EDUCATION_PRIORITY:
         if level in found:
             return level
@@ -401,36 +410,15 @@ def classify_education(text: str) -> str:
 
 
 def has_seniority_lead_signal(text: str) -> bool:
-    text_n = _normalize(text)
-    compact = _compact(text_n)
-    for term in _terms_by_category("seniority"):
-        if term.get("seniority_level") != "lead":
-            continue
-        if _term_in_text(term, text_n, compact):
-            return True
-    return False
+    return "lead" in detected_seniority_levels(text)
 
 
 def has_seniority_senior_signal(text: str) -> bool:
-    text_n = _normalize(text)
-    compact = _compact(text_n)
-    for term in _terms_by_category("seniority"):
-        if term.get("seniority_level") != "senior":
-            continue
-        if _term_in_text(term, text_n, compact):
-            return True
-    return False
+    return "senior" in detected_seniority_levels(text)
 
 
 def has_seniority_medior_signal(text: str) -> bool:
-    text_n = _normalize(text)
-    compact = _compact(text_n)
-    for term in _terms_by_category("seniority"):
-        if term.get("seniority_level") != "medior":
-            continue
-        if _term_in_text(term, text_n, compact):
-            return True
-    return False
+    return "medior" in detected_seniority_levels(text)
 
 
 def has_seniority_junior_signal(text: str) -> bool:
@@ -440,14 +428,7 @@ def has_seniority_junior_signal(text: str) -> bool:
     only when you are one. Used as a floor when anchoring salary so a stray
     senior/lead token can't anchor an entry-level CV above its band.
     """
-    text_n = _normalize(text)
-    compact = _compact(text_n)
-    for term in _terms_by_category("seniority"):
-        if term.get("seniority_level") != "junior":
-            continue
-        if _term_in_text(term, text_n, compact):
-            return True
-    return False
+    return "junior" in detected_seniority_levels(text)
 
 
 # --- Hierarchy + provenance API (taxonomy v3) ------------------------------

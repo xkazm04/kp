@@ -7,6 +7,7 @@ from .models import (
     SalaryEstimate,
     ScoreBreakdown,
 )
+from .salary_band import round_salary
 from .taxonomy import (
     COMPANY_ADJUSTMENTS,
     COMPANY_MODIFIER_EFFECTS,
@@ -66,9 +67,9 @@ def build_company_context(company_text: str | None) -> CompanyCompensationContex
 def apply_company_salary_context(salary: SalaryEstimate, context: CompanyCompensationContext | None) -> None:
     if context is None or context.adjustment_factor == 1.0:
         return
-    salary.minimum = _round_salary(salary.minimum * context.adjustment_factor)
-    salary.maximum = _round_salary(salary.maximum * context.adjustment_factor)
-    salary.midpoint = _round_salary((salary.minimum + salary.maximum) / 2)
+    salary.minimum = round_salary(salary.minimum * context.adjustment_factor)
+    salary.maximum = round_salary(salary.maximum * context.adjustment_factor)
+    salary.midpoint = round_salary((salary.minimum + salary.maximum) / 2)
     salary.rationale.append(
         f"Applied company context factor {context.adjustment_factor:g} for {context.company_type}: {context.salary_effect}"
     )
@@ -85,7 +86,3 @@ def build_evidence_trace(profile: CandidateProfile, score: ScoreBreakdown, salar
         education=[f"Education inferred as {profile.education_level}; education score {score.education}"],
         salary=salary.rationale[:],
     )
-
-
-def _round_salary(value: float) -> int:
-    return int(round(value / 5000) * 5000)

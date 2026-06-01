@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 import time
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any, Callable, TypeVar
 
 from .ats import evaluate_keyword_coverage
 from .extractors import clean_text, extract_text
@@ -28,6 +28,7 @@ from .models import (
     ScoreBreakdown,
 )
 from .profiling import build_profile
+from .salary_band import round_salary
 from .taxonomy import (
     ROLE_FAMILY_SET,
     classify_company_type,
@@ -44,6 +45,26 @@ from .taxonomy import (
 
 
 ProgressCallback = Callable[[str, str], None]
+
+_T = TypeVar("_T")
+
+
+def _softly(label: str, fn: Callable[[], _T | None], notes: list[str]) -> _T | None:
+    """Run an optional, best-effort insight add-on.
+
+    Each post-Gemini insight is cheap and deterministic; a bug in one must NOT
+    discard an analysis whose expensive Gemini call already succeeded. On ANY
+    exception this degrades the add-on to ``None`` and records a uniform
+    ``"<label> unavailable — insight skipped (manual review)"`` note, so the
+    fail-soft policy is one construct instead of a hand-copied try/except island
+    a future add-on could forget to wrap. A clean ``None`` return (e.g. an input
+    is absent) is NOT a degradation and records no note.
+    """
+    try:
+        return fn()
+    except Exception:
+        notes.append(f"{label} unavailable — insight skipped (manual review)")
+        return None
 
 
 def _emit(progress: ProgressCallback | None, stage: str, status: str) -> None:
@@ -143,23 +164,17 @@ def analyze_cv(
 
             # Each post-Gemini insight below is a cheap, deterministic add-on. A
             # bug in one must NOT discard an analysis whose expensive Gemini call
-            # already succeeded — degrade the add-on to None and flag it in
-            # sanity_checks instead (same fail-soft pattern as the v2_profile
-            # guard further down).
-            try:
-                evidence_trace = build_evidence_trace(profile, score, salary)
-            except Exception:
-                evidence_trace = None
-                repairs.append("Evidence trace unavailable — insight skipped (manual review)")
-
-            try:
-                interview_kit = build_interview_kit(profile, job_fit)
-            except Exception:
-                interview_kit = None
-                repairs.append("Interview kit unavailable — insight skipped (manual review)")
-
-            try:
-                keyword_coverage = (
+            # already succeeded — _softly degrades the add-on to None and records
+            # a uniform sanity-check note instead of crashing the analysis.
+            evidence_trace = _softly(
+                "Evidence trace", lambda: build_evidence_trace(profile, score, salary), repairs
+            )
+            interview_kit = _softly(
+                "Interview kit", lambda: build_interview_kit(profile, job_fit), repairs
+            )
+            keyword_coverage = _softly(
+                "Keyword coverage",
+                lambda: (
                     evaluate_keyword_coverage(
                         raw_text,
                         job_description_text,
@@ -169,10 +184,9 @@ def analyze_cv(
                     )
                     if job_description_text and job_fit
                     else None
-                )
-            except Exception:
-                keyword_coverage = None
-                repairs.append("Keyword coverage unavailable — insight skipped (manual review)")
+                ),
+                repairs,
+            )
 
             # Built last so helper-degrade notes collected above are included.
             sanity_checks = _sanity_checks(raw_text, score, salary) + repairs
@@ -193,11 +207,11 @@ def analyze_cv(
             # Archetype-routed v2 profile so a CV-uploaded student/switcher is
             # scored fairly, not silently as an experienced hire. Best-effort —
             # never let the v2 add-on break the core analysis.
-            try:
-                v2_profile = _v2_profile_from_payload(profile_payload, profile).model_dump(by_alias=True)
-            except Exception:
-                v2_profile = None
-                sanity_checks.append("Archetype v2 profile unavailable — insight skipped (manual review)")
+            v2_profile = _softly(
+                "Archetype v2 profile",
+                lambda: _v2_profile_from_payload(profile_payload, profile).model_dump(by_alias=True),
+                sanity_checks,
+            )
         _emit(progress, "insights", "done")
 
         return AnalysisResult(
@@ -468,7 +482,7 @@ def _salary_from_payload(raw: Any, repairs: list[str] | None = None) -> SalaryEs
         maximum = minimum
     elif minimum <= 0 and maximum <= 0 and had_section and repairs is not None:
         repairs.append("Salary range missing — estimate unavailable (manual review)")
-    midpoint = _optional_int(raw.get("midpoint")) or _round_salary((minimum + maximum) / 2)
+    midpoint = _optional_int(raw.get("midpoint")) or round_salary((minimum + maximum) / 2)
     return SalaryEstimate(
         currency=str(raw.get("currency") or "CZK"),
         period=str(raw.get("period") or "month"),
@@ -578,10 +592,6 @@ def _choice_or_none(value: Any, allowed: set[str] | frozenset[str]) -> str | Non
         return None
     text = str(value).strip().lower().replace(" ", "_")
     return text if text in allowed else None
-
-
-def _round_salary(value: float) -> int:
-    return int(round(value / 5000) * 5000)
 
 
 # Forward-looking goal markers. A seniority title AFTER one of these ("aiming
