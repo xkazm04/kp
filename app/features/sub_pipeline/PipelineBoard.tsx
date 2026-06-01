@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { needsHumanDecision } from "@/app/_lib/approval-kinds";
 import { CandidateRow, Legend } from "./PipelineShared";
 import { STAGES, type Entry } from "./PipelineTypes";
 
@@ -31,7 +32,7 @@ function StageCell({
         <CandidateRow
           key={e.id}
           entry={e}
-          pending={!!e.approvalKind}
+          pending={needsHumanDecision(e.approvalKind)}
           stale={isStale(e)}
           onOpen={() => openProfile(e)}
           onActions={() => openActions(e)}

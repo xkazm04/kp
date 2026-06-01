@@ -27,6 +27,16 @@ export async function POST(request: NextRequest) {
     if (!body.candidateId || !body.jobId) {
       return NextResponse.json({ error: "candidateId and jobId are required." }, { status: 400 });
     }
+    // Reject an unknown stage at the boundary: createPipelineEntry inserts any
+    // string, but PipelineBoard only renders lanes for PIPELINE_STAGES, so a typo'd
+    // or renamed stage would persist then silently vanish from the board. Omitting
+    // stage is fine — createPipelineEntry defaults it to "AI-matched".
+    if (body.stage !== undefined && !(PIPELINE_STAGES as readonly string[]).includes(body.stage)) {
+      return NextResponse.json(
+        { error: `Unknown stage "${body.stage}". Expected one of: ${PIPELINE_STAGES.join(", ")}.` },
+        { status: 400 }
+      );
+    }
     const result = createPipelineEntry({
       candidateId: body.candidateId,
       candidateLabel: body.candidateLabel || body.candidateId,

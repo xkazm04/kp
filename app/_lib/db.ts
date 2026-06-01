@@ -1,6 +1,7 @@
 import path from "node:path";
 import { mkdirSync, readFileSync, existsSync } from "node:fs";
 import Database from "better-sqlite3";
+import type { ApprovalKind } from "./approval-kinds";
 
 const DB_PATH = process.env.KP_DB_PATH ?? path.join(process.cwd(), "data", "kp.sqlite");
 
@@ -1069,7 +1070,8 @@ export type PipelineEntry = {
   stage: string;
   matchScore: number | null;
   status: string;
-  approvalKind: string | null;
+  // Typed against the documented approval taxonomy (app/_lib/approval-kinds).
+  approvalKind: ApprovalKind | null;
   approvalDetail: string | null;
   createdAt: string | null;
   stageChangedAt: string | null;
@@ -1265,7 +1267,9 @@ function rowToEntry(r: PipelineRow): PipelineEntry {
     stage: r.stage,
     matchScore: r.match_score,
     status: r.status,
-    approvalKind: r.approval_kind,
+    // DB column is free-form TEXT (also written by the Python seed); narrow to the
+    // documented union at the read boundary.
+    approvalKind: r.approval_kind as ApprovalKind | null,
     approvalDetail: r.approval_detail,
     createdAt: r.created_at,
     stageChangedAt: r.stage_changed_at,
@@ -1582,7 +1586,7 @@ export function listActiveEntriesForAutomation(): AutomationEntry[] {
 }
 
 /** Set/clear a pending approval without a stage change (Task 1 hold, Task 5 scorecard gate). */
-export function setApproval(entryId: string, approvalKind: string | null, approvalDetail: string): void {
+export function setApproval(entryId: string, approvalKind: ApprovalKind | null, approvalDetail: string): void {
   const db = ensureDb();
   db.prepare(`UPDATE pipeline_entries SET approval_kind=?, approval_detail=?, updated_at=? WHERE id=?`).run(
     approvalKind,

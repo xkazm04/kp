@@ -6,6 +6,7 @@ import { Briefcase, Check, Clock, Sparkles, TimerReset, Users } from "lucide-rea
 import { buildUrl } from "@/app/features/tabs";
 import { useTasks } from "@/app/features/tasks/TasksProvider";
 import { useLiveRefresh } from "@/app/features/live-refresh";
+import { needsHumanDecision } from "@/app/_lib/approval-kinds";
 import { CandidateDrawer } from "./CandidateDrawer";
 import { PipelineBoard } from "./PipelineBoard";
 import { SchedulerControl } from "./SchedulerControl";
@@ -57,7 +58,7 @@ export function PipelineTab() {
     return [...map.values()].sort((a, b) => a.title.localeCompare(b.title));
   }, [entries]);
 
-  const approvals = (entries ?? []).filter((e) => e.approvalKind && e.status === "active");
+  const approvals = (entries ?? []).filter((e) => needsHumanDecision(e.approvalKind) && e.status === "active");
   const activeCount = (entries ?? []).filter((e) => e.stage !== "Hired").length;
   const interviewCount = (entries ?? []).filter((e) => e.stage === "Interview").length;
   const isStale = (e: Entry) => e.stage !== "Hired" && (daysSince(e.stageChangedAt) ?? 0) >= STALE_DAYS;

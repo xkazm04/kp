@@ -116,7 +116,25 @@ export function setIntervalMinutes(name: string, minutes: number): Schedule {
   const d = db();
   ensureSchedule(name);
   const clamped = Math.max(1, Math.min(1440, Math.round(minutes)));
-  d.prepare(`UPDATE scheduler SET interval_minutes = ?, updated_at = ? WHERE name = ?`).run(clamped, new Date().toISOString(), name);
+  const now = new Date().toISOString();
+  const sched = getSchedule(name);
+  // Recompute the pending next run so a tightened cadence takes effect predictably
+  // instead of waiting up to a full OLD interval for the already-scheduled run to
+  // fire. Anchor on the last run (or now if none) + the new interval, clamped to
+  // now so we never schedule into the past — shrinking the interval thus fires at
+  // most one new-interval away, and may fire immediately if already overdue. Only
+  // when enabled: a disabled schedule keeps next_due_at = null.
+  let nextDueAt: string | null = sched.nextDueAt;
+  if (sched.enabled) {
+    const anchorMs = sched.lastRunAt ? Date.parse(sched.lastRunAt) : Date.now();
+    nextDueAt = new Date(Math.max(anchorMs + clamped * 60_000, Date.now())).toISOString();
+  }
+  d.prepare(`UPDATE scheduler SET interval_minutes = ?, next_due_at = ?, updated_at = ? WHERE name = ?`).run(
+    clamped,
+    nextDueAt,
+    now,
+    name
+  );
   return getSchedule(name);
 }
 
