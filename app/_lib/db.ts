@@ -672,8 +672,11 @@ export function lookupGeminiCache(hash: string, promptVersion: string): unknown 
     .get(hash) as CacheRow | undefined;
   if (!row) return null;
   if (row.prompt_version !== promptVersion) return null;
+  // Fail closed: a non-finite parsed expiry (corruption, a bad migration default,
+  // a manual edit) counts as already-expired, so a garbage timestamp self-heals into
+  // a harmless miss instead of being served as an indefinitely-stale cache HIT.
   const expiresAt = Date.parse(row.expires_at);
-  if (Number.isFinite(expiresAt) && expiresAt < Date.now()) return null;
+  if (!Number.isFinite(expiresAt) || expiresAt < Date.now()) return null;
   try {
     return JSON.parse(row.payload_json);
   } catch {
