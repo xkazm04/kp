@@ -1,5 +1,6 @@
 import { sendComm } from "./comms";
 import { recordAutomationEvent, type PipelineEntry } from "./db";
+import { isEarlyCareer } from "./archetypes";
 
 // Direction #3 — real comms delivery for the hiring pipeline. Routes recruiter
 // automation through the shared sendComm channel (durable local outbox by
@@ -14,8 +15,6 @@ import { recordAutomationEvent, type PipelineEntry } from "./db";
 export function candidateRecipient(entry: { candidateLabel?: string | null; candidateId?: string | null }): string {
   return (entry.candidateLabel ?? "").trim() || (entry.candidateId ?? "").trim() || "candidate";
 }
-
-const EARLY = new Set(["student", "career_switcher"]);
 
 /** Dispatch an outreach message — the LLM/deterministic draft just generated. */
 export async function dispatchOutreach(
@@ -37,7 +36,7 @@ export async function dispatchOutreach(
 export async function dispatchRejection(entry: PipelineEntry, opts?: { automated?: boolean }): Promise<void> {
   const name = (entry.candidateLabel ?? "").trim() || "there";
   const role = entry.jobTitle ?? "the role";
-  const early = EARLY.has((entry.archetype ?? "").trim());
+  const early = isEarlyCareer(entry.archetype);
 
   const subject = `Your application — ${role}`;
   const body =

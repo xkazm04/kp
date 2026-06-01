@@ -1,6 +1,12 @@
 import { getProfileRecord } from "./db";
 import { runReasoning } from "./reasoning-run";
 import { saveGroupEval } from "./group-eval";
+import { isEarlyCareer } from "./archetypes";
+
+// Cap on how many candidates one comparative evaluation covers. The strongest
+// are selected by fit BEFORE the cap (see below), and the modal surfaces
+// "top N of M" so a bounded comparison never reads as full coverage.
+const GROUP_EVAL_CAP = 6;
 
 // Decisions "group evaluation": a comparative read of every candidate competing
 // for one role, replacing the old per-candidate "Why this candidate". For each
@@ -22,8 +28,6 @@ type PerCandidate = {
   gaps: string[];
 };
 
-const EARLY = new Set(["student", "career_switcher"]);
-
 function topSkillsOf(payload: unknown): string[] {
   const claims = (payload as { skillClaims?: { skill?: string; level?: string }[] } | null)?.skillClaims ?? [];
   return claims
@@ -38,7 +42,15 @@ export async function runGroupEval(params: Record<string, unknown>): Promise<Rec
   const roleKey = String(params.roleKey ?? "");
   const roleTitle = (params.roleTitle as string) ?? "the role";
   const jobId = params.jobId ? String(params.jobId) : null;
-  const input = ((params.candidates as GroupEvalCandidate[]) ?? []).slice(0, 6);
+  const allCandidates = (params.candidates as GroupEvalCandidate[]) ?? [];
+  const totalCandidates = allCandidates.length;
+  // Sort by fit BEFORE applying the cap so the strongest candidates are always
+  // the ones compared — never an arbitrary insertion-order subset. The recommended
+  // lead/ranking is presented as authoritative, so dropping the best candidate by
+  // list order would be a correctness + trust bug.
+  const input = [...allCandidates]
+    .sort((a, b) => (b.matchScore ?? 0) - (a.matchScore ?? 0))
+    .slice(0, GROUP_EVAL_CAP);
 
   const sources: string[] = [];
   const candidates: PerCandidate[] = [];
@@ -77,7 +89,7 @@ export async function runGroupEval(params: Record<string, unknown>): Promise<Rec
   const risks: string[] = [];
   for (const c of candidates) {
     if (c.score > 0 && c.score < 55) risks.push(`${c.label}: lower fit (${c.score}) — confirm must-haves at interview.`);
-    if (c.archetype && EARLY.has(c.archetype)) risks.push(`${c.label}: early-career — assess potential and trajectory, not only current skills.`);
+    if (isEarlyCareer(c.archetype)) risks.push(`${c.label}: early-career — assess potential and trajectory, not only current skills.`);
     if (c.gaps.length) risks.push(`${c.label}: gaps in ${c.gaps.slice(0, 3).join(", ")}.`);
   }
 
@@ -89,6 +101,14 @@ export async function runGroupEval(params: Record<string, unknown>): Promise<Rec
     jobId,
     source,
     candidateCount: candidates.length,
+    // Coverage bookkeeping so the modal can show "top N of M" instead of letting a
+    // capped comparison read as full coverage, and diff the pool for staleness.
+    totalCandidates,
+    cap: GROUP_EVAL_CAP,
+    capped: totalCandidates > GROUP_EVAL_CAP,
+    // Every candidate label considered at eval time (pre-cap) — the modal diffs
+    // this against the role's current pending entries to warn about pool drift.
+    evaluatedLabels: allCandidates.map((c) => c.label),
     topPick: top ? { label: top.label, score: top.score, why: top.verdict || `Highest fit (${top.score}) in this role.` } : null,
     recommendedOrder: candidates.map((c) => c.label),
     candidates,

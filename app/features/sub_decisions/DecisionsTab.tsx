@@ -33,6 +33,7 @@ export function DecisionsTab() {
   const [summaryEntry, setSummaryEntry] = useState<Entry | null>(null);
   const [evalRole, setEvalRole] = useState<{ roleKey: string; roleTitle: string } | null>(null);
   const [evalData, setEvalData] = useState<GroupEvalPayload | null>(null);
+  const [evalCreatedAt, setEvalCreatedAt] = useState<string | null>(null);
   const [evalTaskId, setEvalTaskId] = useState<string | null>(null);
   const [evaluated, setEvaluated] = useState<Record<string, string>>({});
 
@@ -137,10 +138,12 @@ export function DecisionsTab() {
   const openGroupEval = async (g: Group, rerun = false) => {
     setEvalRole({ roleKey: g.roleKey, roleTitle: g.roleTitle });
     setEvalData(null);
+    setEvalCreatedAt(null);
     setEvalTaskId(null);
     if (evaluated[g.roleKey] && !rerun) {
       const p = await fetch(`/api/decisions/group-eval?role=${encodeURIComponent(g.roleKey)}`).then((r) => r.json());
       setEvalData((p.evaluation?.payload as GroupEvalPayload) ?? null);
+      setEvalCreatedAt((p.evaluation?.createdAt as string) ?? null);
       return;
     }
     const candidates = g.entries.map((e) => ({ entryId: e.id, candidateId: e.candidateId, label: e.candidateLabel, matchScore: e.matchScore }));
@@ -159,6 +162,19 @@ export function DecisionsTab() {
       : "transition-all duration-200 ease-in";
 
   const evalGroup = evalRole ? groups.find((g) => g.roleKey === evalRole.roleKey) ?? null : null;
+
+  // Pool drift: how many candidates were added/removed from this role's pending
+  // pool since the cached evaluation ran. Compared by label against the pre-cap
+  // set the eval was computed over, so a stale comparison prompts a re-run.
+  const evalDrift = (() => {
+    if (!evalData?.evaluatedLabels || !evalGroup) return 0;
+    const evaluatedSet = new Set(evalData.evaluatedLabels);
+    const currentSet = new Set(evalGroup.entries.map((e) => e.candidateLabel));
+    let changed = 0;
+    for (const l of evaluatedSet) if (!currentSet.has(l)) changed += 1;
+    for (const l of currentSet) if (!evaluatedSet.has(l)) changed += 1;
+    return changed;
+  })();
 
   return (
     <div data-sim="decisions" className="space-y-6">
@@ -271,9 +287,12 @@ export function DecisionsTab() {
           roleTitle={evalRole.roleTitle}
           evaluation={evalData}
           loading={evalTaskId !== null}
+          createdAt={evalCreatedAt}
+          poolDrift={evalDrift}
           onClose={() => {
             setEvalRole(null);
             setEvalData(null);
+            setEvalCreatedAt(null);
             setEvalTaskId(null);
           }}
           onRerun={() => evalGroup && openGroupEval(evalGroup, true)}

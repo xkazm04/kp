@@ -71,12 +71,9 @@ export const FAMILIES = ["software_engineering", "data_ai", "product_project"];
 export const SENIORITIES = ["junior", "medior", "senior", "lead"];
 export const MODES = ["remote", "hybrid", "onsite"];
 
-export const ARCHETYPE_BADGE: Record<string, string> = {
-  bau: "Experienced",
-  student: "Student",
-  career_switcher: "Switcher",
-};
-export const EARLY = new Set(["student", "career_switcher"]);
+// Archetype taxonomy + the early-career fairness predicate live in one canonical
+// module (app/_lib/archetypes) so the protected set is never hand-copied.
+export { ARCHETYPE_BADGE, isEarlyCareer } from "@/app/_lib/archetypes";
 
 export function provLabel(p: string): { text: string; tone: string } {
   if (p === "professional") return { text: "prod", tone: "bg-stone-200 text-ink" };

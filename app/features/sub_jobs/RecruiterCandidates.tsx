@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Users } from "lucide-react";
-import { ARCHETYPE_BADGE, EARLY, provLabel } from "./JobsTypes";
+import { ARCHETYPE_BADGE, isEarlyCareer, provLabel } from "./JobsTypes";
 import type { CandRow } from "./JobsTypes";
 import { EmptyState } from "./JobsShared";
 import { ConfidenceBandBadge, confidenceBandTitle, FitTierBadge } from "@/app/_components/Badge";
@@ -108,8 +108,8 @@ export function RecruiterCandidates({
   }
 
   const eligible = data.candidates.filter((c) => c.koPassed);
-  const earlyCareer = eligible.filter((c) => EARLY.has(c.archetype));
-  const experienced = eligible.filter((c) => !EARLY.has(c.archetype));
+  const earlyCareer = eligible.filter((c) => isEarlyCareer(c.archetype));
+  const experienced = eligible.filter((c) => !isEarlyCareer(c.archetype));
   const notEligible = data.candidates.length - eligible.length;
   const skipped = data.skipped ?? [];
 
@@ -222,7 +222,7 @@ function CandidateCard({
   onAdd: () => void;
 }) {
   const res = c.result;
-  const early = EARLY.has(c.archetype);
+  const early = isEarlyCareer(c.archetype);
   const prov = res.matchedSkillProvenance ?? {};
   return (
     <li className="rounded-md border border-stone-200 bg-white p-2">

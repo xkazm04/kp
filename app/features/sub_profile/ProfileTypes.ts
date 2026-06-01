@@ -54,8 +54,5 @@ export const EVIDENCE_KINDS = [
   "job",
   "other",
 ];
-export const ARCHETYPE_LABEL: Record<string, string> = {
-  bau: "Experienced",
-  student: "Student / early-career",
-  career_switcher: "Career-switcher",
-};
+// Single source of truth for archetype labels (app/_lib/archetypes).
+export { ARCHETYPE_LABEL } from "@/app/_lib/archetypes";

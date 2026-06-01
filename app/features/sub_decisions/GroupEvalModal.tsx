@@ -1,6 +1,6 @@
 "use client";
 
-import { Loader2, RefreshCw, Sparkles } from "lucide-react";
+import { AlertTriangle, Loader2, RefreshCw, Sparkles } from "lucide-react";
 import { Modal } from "@/app/_components/Modal";
 import { ScoreBadge } from "@/app/_components/ScoreBadge";
 
@@ -13,27 +13,49 @@ export type GroupEvalPayload = {
   differentiators?: string[];
   risks?: string[];
   summary?: string;
+  // Coverage bookkeeping (group-eval-run): the top `cap` of `totalCandidates`
+  // were compared, sorted by fit. `evaluatedLabels` is the pre-cap pool used to
+  // detect drift against the role's current pending entries.
+  totalCandidates?: number;
+  cap?: number;
+  capped?: boolean;
+  evaluatedLabels?: string[];
 };
 
 const sourceLabel = (s?: string) => (s === "llm" ? "Claude/Gemini" : s === "partial" ? "Partial (some AI)" : "Deterministic");
+
+const ranWhen = (iso?: string | null): string | null => {
+  if (!iso) return null;
+  const t = Date.parse(iso);
+  return Number.isFinite(t) ? new Date(t).toLocaleString() : null;
+};
 
 export function GroupEvalModal({
   roleTitle,
   evaluation,
   loading,
+  createdAt,
+  poolDrift,
   onClose,
   onRerun,
 }: {
   roleTitle: string;
   evaluation: GroupEvalPayload | null;
   loading: boolean;
+  /** When the cached evaluation was generated (ISO); null for a fresh run. */
+  createdAt?: string | null;
+  /** How many candidates were added/removed from the role's pool since this
+   *  evaluation ran. > 0 means the comparison may be stale. */
+  poolDrift?: number;
   onClose: () => void;
   onRerun: () => void;
 }) {
+  const ranAt = ranWhen(createdAt);
+  const drift = poolDrift ?? 0;
   return (
     <Modal
       title={`Group evaluation · ${roleTitle}`}
-      subtitle={evaluation ? `Source: ${sourceLabel(evaluation.source)}` : undefined}
+      subtitle={evaluation ? `Source: ${sourceLabel(evaluation.source)}${ranAt ? ` · ran ${ranAt}` : ""}` : undefined}
       onClose={onClose}
       footer={
         <button
@@ -54,6 +76,24 @@ export function GroupEvalModal({
         <p className="text-sm text-steel">No evaluation yet — run one to compare this role&apos;s candidates.</p>
       ) : (
         <div className="space-y-4">
+          {drift > 0 ? (
+            <div className="flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 p-2.5 text-sm text-amber-900">
+              <AlertTriangle size={15} className="mt-0.5 shrink-0" aria-hidden />
+              <span>
+                <b>{drift} candidate{drift === 1 ? "" : "s"} changed</b> since this evaluation ran
+                {ranAt ? ` (${ranAt})` : ""}. The ranking below may exclude a newly added candidate or
+                recommend one already decided — re-run for an up-to-date comparison.
+              </span>
+            </div>
+          ) : null}
+
+          {evaluation.capped ? (
+            <p className="text-meta text-steel">
+              Showing top {evaluation.cap ?? evaluation.candidates?.length} of {evaluation.totalCandidates} candidates,
+              ranked by fit.
+            </p>
+          ) : null}
+
           {evaluation.summary ? <p className="text-base text-ink">{evaluation.summary}</p> : null}
 
           {evaluation.topPick ? (

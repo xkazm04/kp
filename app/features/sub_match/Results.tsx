@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import type { MatchRef, MatchResponse, MatchResult } from "./MatchTypes";
-import { ARCHETYPE_LABEL, EARLY_CAREER } from "./MatchTypes";
+import { ARCHETYPE_LABEL, isEarlyCareer } from "./MatchTypes";
 import { Chip, KoReasonsNote, NoMatchesExplainer } from "./MatchShared";
 import { MatchCard } from "./MatchCard";
 
@@ -13,7 +13,7 @@ const THIN_RESULT_MAX = 4;
 export function Results({ result, matchRef }: { result: MatchResponse; matchRef: MatchRef }) {
   const { candidate, meta, matches } = result;
   const archetype = candidate.archetype ?? "bau";
-  const early = EARLY_CAREER.has(archetype);
+  const early = isEarlyCareer(archetype);
 
   const candidateId = matchRef.profileId ?? matchRef.analysisSlug ?? "";
   const [added, setAdded] = useState<Set<string>>(new Set());

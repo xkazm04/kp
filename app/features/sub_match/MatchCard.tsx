@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useTasks } from "@/app/features/tasks/TasksProvider";
 import { ConfidenceBandBadge, confidenceBandTitle } from "@/app/_components/Badge";
 import type { MatchRef, MatchResult, Reasoning, ReasoningState } from "./MatchTypes";
-import { EARLY_CAREER, FAMILY_LABEL, provLabel } from "./MatchTypes";
+import { isEarlyCareer, FAMILY_LABEL, provLabel } from "./MatchTypes";
 import { Bar, ReasoningPanel, ScoreBreakdown } from "./MatchShared";
 import { FitTierBadge } from "@/app/_components/Badge";
 
@@ -35,7 +35,7 @@ export function MatchCard({
   const [skillsExpanded, setSkillsExpanded] = useState(false);
   const MATCHED_CAP = 8;
   const MISSING_CAP = 6;
-  const early = EARLY_CAREER.has(archetype);
+  const early = isEarlyCareer(archetype);
   const canExplain = Boolean(matchRef.profileId || matchRef.analysisSlug);
 
   // Routed through the background-task system: tracked, dedup'd, refresh-safe.

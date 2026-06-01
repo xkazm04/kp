@@ -90,12 +90,9 @@ export const FAMILY_LABEL: Record<string, string> = {
   data_ai: "Data / AI",
   product_project: "Product / Project",
 };
-export const ARCHETYPE_LABEL: Record<string, string> = {
-  bau: "Experienced",
-  student: "Student / early-career",
-  career_switcher: "Career-switcher",
-};
-export const EARLY_CAREER = new Set(["student", "career_switcher"]);
+// Archetype labels + the early-career fairness predicate live in one canonical
+// module (app/_lib/archetypes) so the protected set is never hand-copied.
+export { ARCHETYPE_LABEL, isEarlyCareer } from "@/app/_lib/archetypes";
 
 export function provLabel(p: string): { text: string; tone: string } {
   if (p === "professional") return { text: "prod", tone: "bg-stone-200 text-ink" };

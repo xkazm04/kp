@@ -1,14 +1,14 @@
 import { actOnPipelineEntry, listPipeline, recordAutomationEvent } from "./db";
 import { getDecisionConfig, type ScreeningRule } from "./decision-config-store";
 import { dispatchRejection } from "./comms-dispatch";
+import { isFairnessProtected, isKnownArchetype } from "./archetypes";
 
 // Phase 3 — the screening "first wave" of automated decisions. For a role's
 // matched cohort, auto-reject the bottom `rejectBottomPercent` that are ALSO
-// below `maxMatchToReject` match — NEVER early-career (the fairness gate from
-// automation.py is preserved). Every auto-decision is audited with a rationale
-// and the candidate gets a queued rejection comm.
-
-const EARLY = new Set(["student", "career_switcher"]);
+// below `maxMatchToReject` match — NEVER an early-career (or otherwise
+// unclassifiable) candidate: the fairness gate from automation.py is preserved
+// and now FAILS CLOSED via isFairnessProtected. Every auto-decision is audited
+// with a rationale and the candidate gets a queued rejection comm.
 
 export type ScreenDecision = {
   entryId: string;
@@ -34,11 +34,18 @@ export async function runScreenWave(
   for (let rank = 0; rank < sorted.length; rank++) {
     const e = sorted[rank];
     const score = e.matchScore ?? 0;
-    const early = EARLY.has((e.archetype ?? "").trim());
+    // Fairness gate fails CLOSED: early-career AND any unknown/renamed archetype
+    // are shielded from auto-rejection. An unrecognized archetype is data drift —
+    // record it so the desync is visible instead of silently auto-rejecting a
+    // candidate the fairness rule was meant to protect.
+    const protectedFromAutoReject = isFairnessProtected(e.archetype);
+    if (!isKnownArchetype(e.archetype)) {
+      recordAutomationEvent(e.id, "fairness_gate_unknown_archetype", `Unknown archetype "${e.archetype ?? "(null)"}" — shielded from auto-rejection (fail-closed).`);
+    }
     const inBottom = rank < bottomCount;
     const belowThreshold = score < cfg.maxMatchToReject;
 
-    if (cfg.autoRejectEnabled && inBottom && belowThreshold && !early) {
+    if (cfg.autoRejectEnabled && inBottom && belowThreshold && !protectedFromAutoReject) {
       const rationale = `Auto-rejected · bottom ${cfg.rejectBottomPercent}% of ${n} (rank ${rank + 1}) and match ${score} < ${cfg.maxMatchToReject} threshold.`;
       const updated = actOnPipelineEntry(e.id, "reject");
       recordAutomationEvent(e.id, "auto_rejected", rationale); // audit trail (shows in Analytics)
@@ -48,8 +55,10 @@ export async function runScreenWave(
     } else {
       const reason = !cfg.autoRejectEnabled
         ? "auto-reject off"
-        : early
-          ? "early-career — never auto-rejected"
+        : protectedFromAutoReject
+          ? isKnownArchetype(e.archetype)
+            ? "early-career — never auto-rejected"
+            : "unknown archetype — shielded (fail-closed)"
           : !inBottom
             ? "above the bottom cutoff"
             : "match at/above threshold";

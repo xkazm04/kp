@@ -6,7 +6,7 @@ import { Meter } from "@/app/_components/Meter";
 import { scoreTone, scoreToneColor } from "@/app/_lib/format";
 import { useReducedMotion } from "@/app/_lib/useReducedMotion";
 import type { KoReason, MatchResponse, Reasoning, ReasoningState, ScoreDimension } from "./MatchTypes";
-import { EARLY_CAREER } from "./MatchTypes";
+import { isEarlyCareer } from "./MatchTypes";
 
 // "Explain fit" runs as a background task, so the panel below the card swaps
 // between three async states. The outer wrapper is a polite live region so a
@@ -228,7 +228,7 @@ function KoReasonList({ reasons }: { reasons: KoReason[] }) {
 export function NoMatchesExplainer({ meta, archetype }: { meta: MatchResponse["meta"]; archetype: string }) {
   const evaluated = meta.evaluated ?? 0;
   const reasons = meta.koReasons ?? [];
-  const early = EARLY_CAREER.has(archetype);
+  const early = isEarlyCareer(archetype);
 
   if (evaluated === 0) {
     return (
