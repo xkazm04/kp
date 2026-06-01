@@ -48,6 +48,7 @@ export type CandResult = {
   confidence: Confidence;
   matchedSkills?: string[];
   matchedSkillProvenance?: Record<string, string>;
+  matchedSkillStrength?: Record<string, number>;
   missingSkills?: string[];
 };
 export type CandRow = {

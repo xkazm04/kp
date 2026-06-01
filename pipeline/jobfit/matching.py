@@ -57,7 +57,15 @@ DIMENSION_LABELS: dict[str, dict[str, str]] = {
 }
 _DIMENSION_KEYS = ("skills", "career", "personal")
 _EARLY_CAREER = ("student", "career_switcher")
-_MATCH_THRESHOLD = 0.5  # per-requirement score at/above which a skill counts as matched
+# Per-requirement skill_match_score at/above which a requirement counts as
+# "matched". 0.5 sits deliberately below 1.0 so taxonomy parent/sibling hits and
+# provenance-discounted (e.g. self-declared) skills register as PARTIAL matches
+# rather than misses — the matcher credits adjacent/credible skills, not just
+# exact tokens. Consequently a "matched" skill at 0.5 is NOT proven hands-on
+# possession; matched_skill_strength carries the per-skill score so the UI can
+# distinguish a partial hit from an exact (1.0) one and recruiters don't read
+# "matched: Kubernetes" as verified Kubernetes experience.
+_MATCH_THRESHOLD = 0.5
 
 # Score -> fit tier: the SINGLE SOURCE OF TRUTH for the strong/promising/partial
 # banding every match surface renders (match cards, recruiter table, simulation).
@@ -172,6 +180,10 @@ class MatchResult(_Base):
     confidence: Confidence = Field(default_factory=Confidence)
     matched_skills: list[str] = Field(default_factory=list)
     matched_skill_provenance: dict[str, str] = Field(default_factory=dict)
+    # Per-matched-skill strength in [0,1]: 1.0 is an exact possession, lower
+    # values are taxonomy/sibling or provenance-discounted partial hits (see
+    # _MATCH_THRESHOLD). Lets the UI mark "matched" skills exact vs partial.
+    matched_skill_strength: dict[str, float] = Field(default_factory=dict)
     missing_skills: list[str] = Field(default_factory=list)
     is_entry_eligible: bool = False
     graduate_friendliness: float = 0.0
@@ -181,6 +193,22 @@ class MatchResponse(_Base):
     candidate: dict[str, Any] = Field(default_factory=dict)
     meta: dict[str, Any] = Field(default_factory=dict)
     matches: list[MatchResult] = Field(default_factory=list)
+
+
+KoReasonKey = Literal["language", "seniority", "early_career", "education", "work_mode"]
+
+
+class KoReason(_Base):
+    """One hard-gate failure, categorized AT BIRTH by ko_filter.
+
+    ``key`` is the stable category rollups group by (aggregate_ko_reasons) — no
+    English re-parsing downstream — and ``detail`` is the candidate-facing clause
+    naming the specific value that tripped the gate. The two never need to agree
+    on wording because the key alone is authoritative.
+    """
+
+    key: KoReasonKey
+    detail: str
 
 
 # -- Layer A: KO filter -----------------------------------------------------
@@ -196,9 +224,13 @@ def _has_language(candidate_langs: list[str], required: str) -> bool:
     return any(n in blob for n in needles)
 
 
-def ko_filter(candidate: MatchCandidate, job: Job) -> tuple[bool, list[str]]:
-    """Hard gates. Returns (passed, reasons-it-failed)."""
-    reasons: list[str] = []
+def ko_filter(candidate: MatchCandidate, job: Job) -> tuple[bool, list[KoReason]]:
+    """Hard gates. Returns (passed, structured reasons-it-failed).
+
+    Each failure is categorized at birth with a stable ``key`` (see KoReason), so
+    rollups group by category directly instead of re-parsing English prose.
+    """
+    reasons: list[KoReason] = []
     cand_rank = _SENIORITY_RANK.get(candidate.seniority, 2)
     job_rank = _SENIORITY_RANK.get(job.seniority, 2)
     entry_ok = bool(job.entry_profile and job.entry_profile.is_entry_eligible)
@@ -207,29 +239,29 @@ def ko_filter(candidate: MatchCandidate, job: Job) -> tuple[bool, list[str]]:
         # Early-career: the seniority floor is REPLACED by "is the role open to
         # early-career?" (the precomputed entry lens). No seniority-gap penalty.
         if not entry_ok:
-            reasons.append("role not open to early-career")
+            reasons.append(KoReason(key="early_career", detail="role not open to early-career"))
     else:
         # BAU seniority floor: don't surface roles two+ levels above the candidate,
         # unless the role is explicitly open to early-career.
         if not entry_ok and (job_rank - cand_rank) >= 2:
-            reasons.append(f"seniority gap ({candidate.seniority} candidate vs {job.seniority} role)")
+            reasons.append(KoReason(key="seniority", detail=f"seniority gap ({candidate.seniority} candidate vs {job.seniority} role)"))
 
     # Minimum education (skip when the candidate's level is unknown — uncertainty).
     if job.min_education and job.min_education != "none":
         cand_edu = _EDU_RANK.get(candidate.education_level)
         if cand_edu is not None and cand_edu < _EDU_RANK.get(job.min_education, 0):
-            reasons.append(f"below minimum education ({job.min_education})")
+            reasons.append(KoReason(key="education", detail=f"below minimum education ({job.min_education})"))
 
     # Required languages (lenient: skip when the candidate lists none).
     if candidate.languages:
         for lang in job.languages:
             if not _has_language(candidate.languages, lang):
-                reasons.append(f"missing required language ({lang})")
+                reasons.append(KoReason(key="language", detail=f"missing required language ({lang})"))
 
     # Work-mode preference, only when the candidate expressed one.
     if candidate.preferred_work_modes and job.work_mode:
         if job.work_mode not in candidate.preferred_work_modes:
-            reasons.append(f"work mode {job.work_mode} not preferred")
+            reasons.append(KoReason(key="work_mode", detail=f"work mode {job.work_mode} not preferred"))
 
     return (len(reasons) == 0, reasons)
 
@@ -237,12 +269,13 @@ def ko_filter(candidate: MatchCandidate, job: Job) -> tuple[bool, list[str]]:
 # -- Layer B: multi-factor scorer -------------------------------------------
 
 
-def score_skills(candidate: MatchCandidate, job: Job) -> tuple[float, list[str], list[str]]:
+def score_skills(candidate: MatchCandidate, job: Job) -> tuple[float, list[str], list[str], dict[str, float]]:
     must_w, nice_w = 1.0, 0.4
     acc = 0.0
     total_w = 0.0
     matched: list[str] = []
     missing: list[str] = []
+    strength: dict[str, float] = {}  # matched skill -> its best match score (1.0 exact, lower = partial)
     for req in job.requirements:
         weight = must_w if req.kind == "must_have" else nice_w
         best = 0.0
@@ -253,10 +286,11 @@ def score_skills(candidate: MatchCandidate, job: Job) -> tuple[float, list[str],
         total_w += weight
         if best >= _MATCH_THRESHOLD:
             matched.append(req.skill)
+            strength[req.skill] = round(best, 2)
         elif req.kind == "must_have":
             missing.append(req.skill)
     score = (acc / total_w) if total_w else 0.0
-    return round(score, 4), matched, missing
+    return round(score, 4), matched, missing, strength
 
 
 def score_career(candidate: MatchCandidate, job: Job) -> float:
@@ -377,7 +411,7 @@ def _confidence(candidate: MatchCandidate, total: int, missing_musts: list[str])
 
 
 def score_job(candidate: MatchCandidate, job: Job) -> MatchResult:
-    skills, matched, missing = score_skills(candidate, job)
+    skills, matched, missing, matched_strength = score_skills(candidate, job)
     if candidate.archetype in _EARLY_CAREER:
         # career slot carries POTENTIAL (readiness); personal carries motivation/domain fit.
         career = candidate.potential_score if candidate.potential_score is not None else score_career(candidate, job)
@@ -411,6 +445,7 @@ def score_job(candidate: MatchCandidate, job: Job) -> MatchResult:
         matched_skill_provenance={
             s: candidate.skill_provenance.get(s, candidate.provenance_default) for s in matched
         },
+        matched_skill_strength=matched_strength,
         missing_skills=missing,
         is_entry_eligible=bool(ep and ep.is_entry_eligible),
         graduate_friendliness=ep.graduate_friendliness if ep else 0.0,
@@ -433,53 +468,44 @@ def candidate_assumptions(candidate: MatchCandidate) -> list[str]:
     return out
 
 
-# KO reasons are produced per job as free-form strings (see ko_filter). To roll
-# them up into a self-explaining empty state we bucket each into a stable category
-# (key) + a candidate-facing clause that reads after "{n} roles". Order is the
+# Candidate-facing clause shown after "{n} role(s)" for each KO category. The
+# category KEY is recorded at birth by ko_filter (KoReason.key) — no English
+# re-parsing — so this map is purely presentation. Declaration order is the
 # tie-break when counts are equal; the count drives the real ranking.
-_KO_REASON_CATEGORIES: tuple[tuple[str, str, str], ...] = (
-    # (key, substring found in the raw reason, clause shown after "{n} role(s)")
-    ("language", "required language", "required a language not in the profile"),
-    ("seniority", "seniority gap", "sat outside the candidate's seniority range"),
-    ("early_career", "early-career", "weren't open to early-career candidates"),
-    ("education", "minimum education", "required a higher education level"),
-    ("work_mode", "work mode", "didn't match the work-mode preference"),
+_KO_REASON_CLAUSES: tuple[tuple[KoReasonKey, str], ...] = (
+    ("language", "required a language not in the profile"),
+    ("seniority", "sat outside the candidate's seniority range"),
+    ("early_career", "weren't open to early-career candidates"),
+    ("education", "required a higher education level"),
+    ("work_mode", "didn't match the work-mode preference"),
 )
-_KO_REASON_FALLBACK = ("other", "were filtered out for other reasons")
+_KO_CLAUSE_BY_KEY: dict[str, str] = dict(_KO_REASON_CLAUSES)
+_KO_KEY_ORDER: dict[str, int] = {key: i for i, (key, _) in enumerate(_KO_REASON_CLAUSES)}
 
 
-def _categorize_ko_reason(reason: str) -> tuple[str, str]:
-    for key, needle, label in _KO_REASON_CATEGORIES:
-        if needle in reason:
-            return key, label
-    return _KO_REASON_FALLBACK
-
-
-def aggregate_ko_reasons(reason_lists: list[list[str]], *, top: int = 4) -> list[dict[str, Any]]:
+def aggregate_ko_reasons(reason_lists: list[list[KoReason]], *, top: int = 4) -> list[dict[str, Any]]:
     """Roll per-job KO reasons up into ranked ``{key, label, count}`` buckets.
 
     A job can trip several gates; each *category* it trips is counted once, so a
     count reads as "N roles were blocked by <reason>" rather than a raw hit total.
-    Returned sorted by count desc, then by the category order above for stability.
+    Reasons carry their key from ko_filter, so this groups by key directly.
+    Sorted by count desc, then the declaration order above for stability.
     """
     counts: dict[str, int] = {}
-    labels: dict[str, str] = {}
-    order: list[str] = []
     for reasons in reason_lists:
-        for key, label in {_categorize_ko_reason(r) for r in reasons}:  # one count per category per job
-            if key not in counts:
-                counts[key] = 0
-                labels[key] = label
-                order.append(key)
-            counts[key] += 1
-    ranked = sorted(order, key=lambda k: (-counts[k], order.index(k)))
-    return [{"key": k, "label": labels[k], "count": counts[k]} for k in ranked[:top]]
+        for key in {r.key for r in reasons}:  # one count per category per job
+            counts[key] = counts.get(key, 0) + 1
+    ranked = sorted(counts, key=lambda k: (-counts[k], _KO_KEY_ORDER.get(k, len(_KO_KEY_ORDER))))
+    return [
+        {"key": k, "label": _KO_CLAUSE_BY_KEY.get(k, "were filtered out for other reasons"), "count": counts[k]}
+        for k in ranked[:top]
+    ]
 
 
 def match(candidate: MatchCandidate, jobs: list[Job], *, limit: int = 50) -> MatchResponse:
     """Run the full KO -> score -> rank pipeline over a job corpus."""
     survivors: list[Job] = []
-    ko_reason_lists: list[list[str]] = []
+    ko_reason_lists: list[list[KoReason]] = []
     for job in jobs:
         passed, reasons = ko_filter(candidate, job)
         if passed:

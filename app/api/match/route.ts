@@ -12,6 +12,20 @@ import {
 
 export const runtime = "nodejs";
 
+// match() does scored[:limit] in Python, so the limit must be a sane positive
+// integer: a negative value silently drops the last N matches, 0 returns nothing
+// while meta still reports survivors, and a float raises an opaque TypeError.
+// Coerce + clamp at this boundary so "whatever the client sends" becomes a
+// defined 1..200 contract (default 50).
+const MATCH_LIMIT_DEFAULT = 50;
+const MATCH_LIMIT_MIN = 1;
+const MATCH_LIMIT_MAX = 200;
+
+function resolveMatchLimit(raw: unknown): number {
+  if (typeof raw !== "number" || !Number.isFinite(raw)) return MATCH_LIMIT_DEFAULT;
+  return Math.min(MATCH_LIMIT_MAX, Math.max(MATCH_LIMIT_MIN, Math.floor(raw)));
+}
+
 export async function POST(request: NextRequest) {
   let workdir: string | null = null;
   try {
@@ -21,7 +35,7 @@ export async function POST(request: NextRequest) {
       profileId?: string;
       limit?: number;
     };
-    const limit = typeof body.limit === "number" ? body.limit : 50;
+    const limit = resolveMatchLimit(body.limit);
 
     workdir = await createWorkdir();
     let args: string[];

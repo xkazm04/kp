@@ -3,6 +3,7 @@ from __future__ import annotations
 import unittest
 
 from pipeline.jobfit.matching import (
+    KoReason,
     MatchCandidate,
     aggregate_ko_reasons,
     build_score_breakdown,
@@ -43,7 +44,7 @@ class KoFilterTest(unittest.TestCase):
         job = mkjob(seniority="senior", description="Seasoned engineer to own the platform.")
         passed, reasons = ko_filter(JUNIOR, job)
         self.assertFalse(passed)
-        self.assertTrue(any("seniority" in r for r in reasons))
+        self.assertTrue(any(r.key == "seniority" for r in reasons))
 
     def test_entry_eligible_role_bypasses_seniority_gap(self) -> None:
         job = mkjob(seniority="senior", description="Graduates welcome; training and mentoring provided.")
@@ -61,7 +62,7 @@ class KoFilterTest(unittest.TestCase):
         cand = MatchCandidate(seniority="senior", education_level="bachelor", languages=["English"])
         passed, reasons = ko_filter(cand, job)
         self.assertFalse(passed)
-        self.assertTrue(any("education" in r for r in reasons))
+        self.assertTrue(any(r.key == "education" for r in reasons))
 
     def test_unknown_education_not_blocked(self) -> None:
         job = mkjob(min_education="master", languages=["English"])
@@ -73,7 +74,7 @@ class KoFilterTest(unittest.TestCase):
         job = mkjob(languages=["German"])
         passed, reasons = ko_filter(SENIOR_PY, job)
         self.assertFalse(passed)
-        self.assertTrue(any("language" in r for r in reasons))
+        self.assertTrue(any(r.key == "language" for r in reasons))
 
     def test_empty_candidate_languages_are_lenient(self) -> None:
         job = mkjob(languages=["German"])
@@ -86,7 +87,7 @@ class KoFilterTest(unittest.TestCase):
         cand = MatchCandidate(seniority="senior", languages=["English"], preferred_work_modes=["remote", "hybrid"])
         passed, reasons = ko_filter(cand, job)
         self.assertFalse(passed)
-        self.assertTrue(any("work mode" in r for r in reasons))
+        self.assertTrue(any(r.key == "work_mode" for r in reasons))
 
 
 class ScoringTest(unittest.TestCase):
@@ -98,25 +99,30 @@ class ScoringTest(unittest.TestCase):
                 {"skill": "Kubernetes", "kind": "nice_to_have", "hardness": "learnable"},
             ]
         )
-        score, matched, missing = score_skills(SENIOR_PY, job)
+        score, matched, missing, strength = score_skills(SENIOR_PY, job)
         self.assertIn("Python", matched)
         self.assertIn("Django", matched)
         self.assertGreater(score, STRONG_SKILL_SCORE)
         # Kubernetes is only nice-to-have and unmatched, so it must NOT be a missing must-have.
         self.assertNotIn("Kubernetes", missing)
+        # Every matched skill carries a strength in (0, 1]; an exact possession is 1.0.
+        self.assertEqual(set(strength), set(matched))
+        self.assertEqual(strength["Python"], 1.0)
 
     def test_hierarchy_partial_match_counts(self) -> None:
         # Candidate knows Next.js; role wants React -> specialization implies it.
         cand = MatchCandidate(skills=["Next.js"], seniority="medior", languages=["English"])
         job = mkjob(requirements=[{"skill": "React", "kind": "must_have", "hardness": "prerequisite"}])
-        score, matched, _ = score_skills(cand, job)
+        score, matched, _, strength = score_skills(cand, job)
         self.assertIn("React", matched)
         self.assertGreater(score, PARTIAL_SKILL_SCORE)
+        # A taxonomy/sibling hit is a PARTIAL match: strength below an exact 1.0.
+        self.assertLess(strength["React"], 1.0)
 
     def test_missing_must_have_listed(self) -> None:
         cand = MatchCandidate(skills=["Python"], seniority="senior", languages=["English"])
         job = mkjob(requirements=[{"skill": "Go", "kind": "must_have", "hardness": "prerequisite"}])
-        _, _, missing = score_skills(cand, job)
+        _, _, missing, _ = score_skills(cand, job)
         self.assertIn("Go", missing)
 
     def test_career_same_family_beats_different(self) -> None:
@@ -225,12 +231,17 @@ class MatchTest(unittest.TestCase):
 
 
 class AggregateKoReasonsTest(unittest.TestCase):
+    @staticmethod
+    def _r(key: str) -> KoReason:
+        # Reasons carry their category key from ko_filter; detail is irrelevant to rollup.
+        return KoReason(key=key, detail=key)  # type: ignore[arg-type]
+
     def test_buckets_by_category_and_ranks_by_count(self) -> None:
         lists = [
-            ["missing required language (German)"],
-            ["missing required language (French)", "below minimum education (master)"],
-            ["seniority gap (junior candidate vs senior role)"],
-            ["missing required language (German)"],
+            [self._r("language")],
+            [self._r("language"), self._r("education")],
+            [self._r("seniority")],
+            [self._r("language")],
         ]
         agg = aggregate_ko_reasons(lists)
         by_key = {r["key"]: r["count"] for r in agg}
@@ -241,21 +252,22 @@ class AggregateKoReasonsTest(unittest.TestCase):
 
     def test_counts_a_category_once_per_job(self) -> None:
         # A role missing two languages is still ONE role blocked on language.
-        agg = aggregate_ko_reasons([["missing required language (German)", "missing required language (French)"]])
+        agg = aggregate_ko_reasons([[self._r("language"), self._r("language")]])
         self.assertEqual(len(agg), 1)
         self.assertEqual(agg[0]["count"], 1)
 
-    def test_unknown_reason_falls_back_to_other(self) -> None:
-        agg = aggregate_ko_reasons([["some brand-new gate we have not categorized"]])
-        self.assertEqual(agg[0]["key"], "other")
+    def test_label_is_presentation_clause_for_key(self) -> None:
+        # The key is authoritative; the label is a pure presentation clause.
+        agg = aggregate_ko_reasons([[self._r("language")]])
+        self.assertEqual(agg[0]["label"], "required a language not in the profile")
 
     def test_caps_to_top_n(self) -> None:
         lists = [
-            ["missing required language (German)"],
-            ["seniority gap (x)"],
-            ["below minimum education (master)"],
-            ["work mode onsite not preferred"],
-            ["role not open to early-career"],
+            [self._r("language")],
+            [self._r("seniority")],
+            [self._r("education")],
+            [self._r("work_mode")],
+            [self._r("early_career")],
         ]
         self.assertEqual(len(aggregate_ko_reasons(lists, top=3)), 3)
 

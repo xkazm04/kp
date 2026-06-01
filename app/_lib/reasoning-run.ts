@@ -33,7 +33,11 @@ export async function runReasoning(body: ReasoningInput): Promise<Record<string,
     if (body.profileId) {
       const record = getProfileRecord(body.profileId);
       if (!record) throw new ReasoningError("Profile not found.", 404);
-      keyPart = `profile:${body.profileId}`;
+      // Mix a content hash of the profile payload into the key so an in-place
+      // edit (same profileId, changed skills/aspirations/etc.) invalidates its
+      // cached reasoning instead of serving the pre-edit verdict.
+      const contentHash = createHash("sha256").update(JSON.stringify(record.payload)).digest("hex");
+      keyPart = `profile:${body.profileId}:${contentHash}`;
       const profilePath = path.join(workdir, "profile.json");
       await writeFile(profilePath, JSON.stringify(record.payload), "utf-8");
       args = ["-m", "pipeline.jobfit.reasoning_cli", "--profile-json", profilePath, "--job-id", String(body.jobId)];

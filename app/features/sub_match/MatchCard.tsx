@@ -143,12 +143,18 @@ export function MatchCard({
               <div className="mt-2 flex flex-wrap gap-1">
                 {matchedShown.map((s) => {
                   const pl = early ? provLabel((m.matchedSkillProvenance ?? {})[s] ?? "self_declared") : null;
+                  // A 0.5–<1.0 hit is a taxonomy/sibling or provenance-discounted PARTIAL
+                  // match, not proven exact possession — mark it so "matched: Kubernetes"
+                  // isn't read as verified Kubernetes experience.
+                  const strength = (m.matchedSkillStrength ?? {})[s];
+                  const partial = typeof strength === "number" && strength < 1;
                   return (
                     <span
                       key={`m-${s}`}
-                      className="inline-flex items-center gap-1 rounded-md bg-green-50 px-1.5 py-0.5 text-sm text-green-700"
+                      title={partial ? `Partial match (${Math.round(strength * 100)}%) — a related/sibling or self-declared skill, not a verified exact match` : undefined}
+                      className={`inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-sm text-green-700 ${partial ? "bg-green-50/60 ring-1 ring-inset ring-green-600/30" : "bg-green-50"}`}
                     >
-                      {s}
+                      {partial ? `~ ${s}` : s}
                       {pl ? <span className={`rounded px-1 text-sm uppercase ${pl.tone}`}>{pl.text}</span> : null}
                     </span>
                   );

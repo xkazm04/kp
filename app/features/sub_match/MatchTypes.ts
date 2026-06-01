@@ -52,6 +52,9 @@ export type MatchResult = {
   confidence: Confidence;
   matchedSkills?: string[];
   matchedSkillProvenance?: Record<string, string>;
+  // Per-matched-skill strength in (0,1]: 1.0 exact, lower = taxonomy/sibling or
+  // provenance-discounted partial hit (matching._MATCH_THRESHOLD).
+  matchedSkillStrength?: Record<string, number>;
   missingSkills?: string[];
   isEntryEligible?: boolean;
   graduateFriendliness?: number;

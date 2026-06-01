@@ -12,6 +12,15 @@ export type CandidateInput = {
   preferredWorkModes?: string[];
   archetype?: string;
   label?: string;
+  // Early-career / career-switcher signals the reasoning prompt consumes
+  // (match_reasoning.reasoning_context / build_prompt). They MUST ride the cache
+  // key (candidateSignature) or two switchers differing only in these collide
+  // and the first verdict is served to the second.
+  aspirations?: string[];
+  learningSignals?: string[];
+  transferableSkills?: string[];
+  potentialScore?: number | null;
+  skillProvenance?: Record<string, string>;
 };
 
 export type ResolvedCandidate = { candidate: CandidateInput } | { error: string; status: number };
@@ -49,7 +58,10 @@ export function resolveCandidate(body: {
   return { error: "Provide an analysisSlug or an inline candidate.", status: 400 };
 }
 
-/** Stable signature for cache keys — independent of field order. */
+/** Stable signature for cache keys — independent of field order. Must cover
+ *  EVERY field the reasoning prompt consumes, or two candidates differing only
+ *  in an uncovered field collide on the hash and the first verdict is served to
+ *  the second. */
 export function candidateSignature(c: CandidateInput): string {
   return JSON.stringify({
     skills: [...(c.skills ?? [])].sort(),
@@ -63,5 +75,13 @@ export function candidateSignature(c: CandidateInput): string {
     yearsExperience: c.yearsExperience ?? 0,
     traits: [...(c.traits ?? [])].sort(),
     archetype: c.archetype ?? "bau",
+    // Early-career / career-switcher prompt inputs — same collision hazard, and
+    // these are exactly the carefully-handled candidates a wrong verdict hurts most.
+    aspirations: [...(c.aspirations ?? [])].sort(),
+    learningSignals: [...(c.learningSignals ?? [])].sort(),
+    transferableSkills: [...(c.transferableSkills ?? [])].sort(),
+    potentialScore: c.potentialScore ?? null,
+    // Object key order is not guaranteed, so sort entries for a stable hash.
+    skillProvenance: Object.entries(c.skillProvenance ?? {}).sort(([a], [b]) => a.localeCompare(b)),
   });
 }

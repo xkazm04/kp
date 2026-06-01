@@ -29,7 +29,9 @@ def rank_candidates_for_job(candidates: list[tuple[str, MatchCandidate]], job: J
                 "seniority": candidate.seniority,
                 "potentialScore": candidate.potential_score,
                 "koPassed": passed,
-                "koReasons": reasons,
+                # KoReason objects carry a key + detail; the recruiter table shows
+                # the plain detail string (JobsTypes.CandRow.koReasons: string[]).
+                "koReasons": [r.detail for r in reasons],
                 "assumptions": candidate_assumptions(candidate),
                 "result": result.model_dump(by_alias=True, exclude_none=True),
             }
