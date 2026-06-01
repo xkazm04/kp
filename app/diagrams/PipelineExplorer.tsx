@@ -32,7 +32,14 @@ export function PipelineExplorer({ source }: { source: string }) {
           activeNodeId={active?.id}
           onNodeClick={(node) => {
             const detail = STEP_DETAILS[node.id];
-            if (detail) setActive({ id: node.id, detail });
+            if (detail) {
+              setActive({ id: node.id, detail });
+            } else if (process.env.NODE_ENV !== "production") {
+              // A clickable funnel node whose puml alias has no STEP_DETAILS entry
+              // no-ops silently — surface the .puml<->pipelineSteps drift in dev.
+              // The contract is CI-guarded by tests/test_pipeline_diagram_contract.py.
+              console.warn(`[diagrams] no STEP_DETAILS entry for clicked node "${node.id}" — add one in app/diagrams/pipelineSteps.ts.`);
+            }
           }}
         />
       </div>

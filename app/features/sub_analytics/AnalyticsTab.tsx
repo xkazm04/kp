@@ -48,9 +48,25 @@ const DECISION_META: Record<string, { label: string; auto: boolean; tone: string
   onboarding_started: { label: "Onboarding started", auto: false, tone: "text-moss" },
 };
 
-function decisionMeta(kind: string) {
-  return DECISION_META[kind] ?? { label: kind.replace(/_/g, " "), auto: true, tone: "text-steel" };
+// Attribution is three-state on purpose. In an auditable log, defaulting an
+// unrecognized kind to AUTO would misattribute accountability to the machine —
+// the most damaging default. An unmapped kind renders a neutral UNKNOWN badge
+// and warns in dev, so adding a backend event kind forces a conscious entry in
+// DECISION_META above (the kinds here must track recordAutomationEvent callers).
+function decisionMeta(kind: string): { label: string; attribution: "auto" | "human" | "unknown"; tone: string } {
+  const meta = DECISION_META[kind];
+  if (meta) return { label: meta.label, attribution: meta.auto ? "auto" : "human", tone: meta.tone };
+  if (process.env.NODE_ENV !== "production") {
+    console.warn(`[analytics] unmapped decision kind "${kind}" — add it to DECISION_META (rendering as UNKNOWN, not AUTO).`);
+  }
+  return { label: kind.replace(/_/g, " "), attribution: "unknown", tone: "text-steel" };
 }
+
+const ATTRIBUTION_BADGE = {
+  auto: { text: "AUTO", cls: "bg-moss/10 text-moss" },
+  human: { text: "HUMAN", cls: "bg-coral/10 text-coral" },
+  unknown: { text: "UNKNOWN", cls: "bg-stone-100 text-steel" },
+} as const;
 
 function timeAgo(iso: string): string {
   const parsed = Date.parse(iso);
@@ -190,14 +206,11 @@ export function AnalyticsTab() {
           <ul className="mt-3 divide-y divide-stone-100">
             {data.recentDecisions.map((d) => {
               const m = decisionMeta(d.kind);
+              const badge = ATTRIBUTION_BADGE[m.attribution];
               return (
                 <li key={d.id} className="flex items-center gap-3 py-2">
-                  <span
-                    className={`shrink-0 rounded-full px-2 py-0.5 text-meta font-semibold ${
-                      m.auto ? "bg-moss/10 text-moss" : "bg-coral/10 text-coral"
-                    }`}
-                  >
-                    {m.auto ? "AUTO" : "HUMAN"}
+                  <span className={`shrink-0 rounded-full px-2 py-0.5 text-meta font-semibold ${badge.cls}`}>
+                    {badge.text}
                   </span>
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-base text-ink">
