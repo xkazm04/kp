@@ -1,5 +1,27 @@
-import { Sparkles } from "lucide-react";
+import {
+  AlertCircle,
+  ArrowUpCircle,
+  Briefcase,
+  CalendarCheck,
+  CircleDot,
+  CirclePlus,
+  Clock,
+  GraduationCap,
+  Repeat,
+  Sparkles,
+  XCircle,
+  type LucideIcon,
+} from "lucide-react";
+import { ScoreBadge } from "@/app/_components/ScoreBadge";
 import { ARCHETYPE_STYLE, daysSince, STALE_DAYS, styleFor, type Entry, type PipelineEvent } from "./PipelineTypes";
+
+// Archetype → glyph, so the candidate-row status reads without relying on hue
+// alone (mirrors Badge's icon-plus-label-not-color doctrine).
+const ARCHETYPE_ICON: Record<string, LucideIcon> = {
+  bau: Briefcase,
+  student: GraduationCap,
+  career_switcher: Repeat,
+};
 
 export function eventVerb(ev: PipelineEvent): string {
   switch (ev.kind) {
@@ -18,14 +40,28 @@ export function eventVerb(ev: PipelineEvent): string {
   }
 }
 
+// A glyph + color (not color alone) for each activity kind. The adjacent row
+// text already names the event for assistive tech, so the icon stays aria-hidden.
+function eventDotCue(kind: string): { Icon: LucideIcon; tone: string } {
+  switch (kind) {
+    case "rejected":
+      return { Icon: XCircle, tone: "text-coral" };
+    case "advanced":
+      return { Icon: ArrowUpCircle, tone: "text-moss" };
+    case "scheduled":
+      return { Icon: CalendarCheck, tone: "text-moss" };
+    case "matched":
+      return { Icon: Sparkles, tone: "text-steel" };
+    case "added":
+      return { Icon: CirclePlus, tone: "text-steel" };
+    default:
+      return { Icon: CircleDot, tone: "text-steel" };
+  }
+}
+
 export function EventDot({ kind }: { kind: string }) {
-  const tone =
-    kind === "rejected"
-      ? "bg-coral"
-      : kind === "advanced" || kind === "scheduled"
-        ? "bg-moss"
-        : "bg-steel";
-  return <span className={`h-2 w-2 shrink-0 rounded-full ${tone}`} aria-hidden />;
+  const { Icon, tone } = eventDotCue(kind);
+  return <Icon className={`h-3.5 w-3.5 shrink-0 ${tone}`} aria-hidden />;
 }
 
 export function Kpi({
@@ -134,12 +170,22 @@ export function CandidateRow({
   // pending (coral pulse) > aging (amber) > archetype color.
   const dotClass = pending ? "bg-coral animate-pulse" : stale ? "bg-amber-400" : style.bg;
   const dotTitle = pending ? "Awaiting your decision" : stale ? `Aging >${STALE_DAYS}d in stage` : style.label;
+  // Non-color cue inside the status dot: pending/aging get a distinct glyph,
+  // otherwise the archetype icon — so state never rides on color alone.
+  const StatusIcon = pending ? AlertCircle : stale ? Clock : ARCHETYPE_ICON[entry.archetype ?? "bau"] ?? Briefcase;
   const title = `${entry.candidateLabel} · ${style.label}${entry.matchScore != null ? ` · match ${entry.matchScore}` : ""}${
     days != null ? ` · ${days}d in stage` : ""
   }`;
   return (
     <div className="group flex items-center gap-1.5 rounded-md px-1 py-0.5 hover:bg-paper">
-      <span className={`h-4 w-4 shrink-0 rounded-full ${dotClass}`} title={dotTitle} aria-hidden />
+      <span
+        role="img"
+        aria-label={dotTitle}
+        title={dotTitle}
+        className={`inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-white ${dotClass}`}
+      >
+        <StatusIcon className="h-2.5 w-2.5" aria-hidden />
+      </span>
       <button
         type="button"
         onClick={onOpen}
@@ -148,6 +194,11 @@ export function CandidateRow({
       >
         {entry.candidateLabel}
       </button>
+      {/* Right-aligned fit score in the shared score→color language (moss/amber/coral),
+          so a lane can be triaged at a glance without hovering for the title tooltip. */}
+      <span className="shrink-0">
+        <ScoreBadge score={entry.matchScore} />
+      </span>
       {onActions ? (
         <button
           type="button"

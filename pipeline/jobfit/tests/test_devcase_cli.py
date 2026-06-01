@@ -1,0 +1,140 @@
+"""CLI error-status differentiation (idea-5ea4fc3b).
+
+A user-fixable input problem (missing --*-json arg, pydantic validation failure)
+must surface as status 400 / "invalid_input" with exit 2, while a genuine engine
+failure surfaces as status 500 / "engine_error" with exit 1 — so the UI can render
+a precise inline hint vs a retry/escalate toast instead of one generic banner.
+"""
+
+import contextlib
+import io
+import json
+import tempfile
+import unittest
+from pathlib import Path
+from unittest import mock
+
+from pipeline.jobfit.devcase import devcase_cli
+
+
+def _run(argv: list[str]) -> tuple[int, str, str]:
+    out, err = io.StringIO(), io.StringIO()
+    with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+        code = devcase_cli.main(argv)
+    return code, out.getvalue(), err.getvalue()
+
+
+def _last_json(stream: str) -> dict:
+    """The CLI emits one json.dumps line; parse the last non-empty line."""
+    lines = [ln for ln in stream.splitlines() if ln.strip()]
+    return json.loads(lines[-1])
+
+
+class TestDevcaseCliErrorStatus(unittest.TestCase):
+    def test_missing_required_arg_is_400_invalid_input(self):
+        # `source` without --role-json/--candidates-json raises our explicit ValueError guard.
+        code, _out, err = _run(["source"])
+        self.assertEqual(code, 2)
+        payload = _last_json(err)
+        self.assertEqual(payload["status"], 400)
+        self.assertEqual(payload["code"], "invalid_input")
+        self.assertIn("error", payload)
+
+    def test_pydantic_validation_failure_is_400_invalid_input(self):
+        # A need.json that parses but isn't a valid DevNeed raises pydantic
+        # ValidationError — a ValueError subclass, so it maps to 400 too.
+        with tempfile.TemporaryDirectory() as d:
+            need = Path(d) / "need.json"
+            need.write_text("123", encoding="utf-8")  # not an object
+            code, _out, err = _run(["analyze-need", "--no-llm", "--need-json", str(need)])
+        self.assertEqual(code, 2)
+        payload = _last_json(err)
+        self.assertEqual(payload["status"], 400)
+        self.assertEqual(payload["code"], "invalid_input")
+
+    def test_engine_failure_is_500_engine_error(self):
+        # Valid input, but the engine blows up mid-run -> retry/escalate, not editable.
+        with tempfile.TemporaryDirectory() as d:
+            role, cands = Path(d) / "role.json", Path(d) / "cands.json"
+            role.write_text("{}", encoding="utf-8")
+            cands.write_text("[]", encoding="utf-8")
+            with mock.patch(
+                "pipeline.jobfit.devcase.source.source_candidates",
+                side_effect=RuntimeError("boom"),
+            ):
+                code, _out, err = _run(["source", "--role-json", str(role), "--candidates-json", str(cands)])
+        self.assertEqual(code, 1)
+        payload = _last_json(err)
+        self.assertEqual(payload["status"], 500)
+        self.assertEqual(payload["code"], "engine_error")
+        self.assertIn("boom", payload["error"])
+
+    def test_success_returns_zero_with_result(self):
+        with tempfile.TemporaryDirectory() as d:
+            role, cands = Path(d) / "role.json", Path(d) / "cands.json"
+            role.write_text(json.dumps({"title": "Backend", "roleFamily": "software_engineering"}), encoding="utf-8")
+            cands.write_text("[]", encoding="utf-8")
+            code, out, _err = _run(["source", "--role-json", str(role), "--candidates-json", str(cands)])
+        self.assertEqual(code, 0)
+        # Success now always carries the uniform provenance envelope (idea-ee96b185).
+        self.assertEqual(set(_last_json(out)), {"result", "source", "perStepSources"})
+
+
+class TestDevcaseCliProvenanceContract(unittest.TestCase):
+    """Every command emits the same {result, source, perStepSources} envelope
+    (idea-ee96b185) — single-step commands carry a one-key perStepSources map —
+    so the frontend has ONE stable contract to render a consistent provenance
+    strip (and its degraded 'partial' badge) across the whole pipeline.
+    """
+
+    def _assert_envelope(self, payload: dict) -> None:
+        self.assertEqual(set(payload), {"result", "source", "perStepSources"})
+        self.assertIn(payload["source"], ("llm", "deterministic", "partial"))
+        self.assertIsInstance(payload["perStepSources"], dict)
+        self.assertTrue(payload["perStepSources"], "perStepSources must never be empty")
+        # `source` is always the combined verdict of the per-step sources, never independent.
+        self.assertEqual(payload["source"], devcase_cli._combine_source(*payload["perStepSources"].values()))
+
+    def test_source_command_emits_one_key_deterministic_map(self):
+        # `source` is pure matching: it used to emit {result} alone — now it must
+        # carry the same envelope, a one-key {"source": "deterministic"} map.
+        with tempfile.TemporaryDirectory() as d:
+            role, cands = Path(d) / "role.json", Path(d) / "cands.json"
+            role.write_text(json.dumps({"title": "Backend", "roleFamily": "software_engineering"}), encoding="utf-8")
+            cands.write_text("[]", encoding="utf-8")
+            code, out, _err = _run(["source", "--role-json", str(role), "--candidates-json", str(cands)])
+        self.assertEqual(code, 0)
+        payload = _last_json(out)
+        self._assert_envelope(payload)
+        self.assertEqual(payload["perStepSources"], {"source": "deterministic"})
+
+    def test_analyze_need_emits_perstepsources(self):
+        # analyze-need previously dropped perStepSources entirely; it must now
+        # carry a one-key {"analyze": ...} map like every other command.
+        with tempfile.TemporaryDirectory() as d:
+            need = Path(d) / "need.json"
+            need.write_text(json.dumps({"title": "Backend", "stack": ["Python"]}), encoding="utf-8")
+            code, out, _err = _run(["analyze-need", "--no-llm", "--need-json", str(need)])
+        self.assertEqual(code, 0)
+        payload = _last_json(out)
+        self._assert_envelope(payload)
+        self.assertEqual(list(payload["perStepSources"]), ["analyze"])
+        self.assertEqual(payload["source"], "deterministic")  # --no-llm forces the template path
+
+    def test_design_artifacts_emits_multi_step_map(self):
+        with tempfile.TemporaryDirectory() as d:
+            need, analysis = Path(d) / "need.json", Path(d) / "analysis.json"
+            need.write_text(json.dumps({"title": "Backend", "stack": ["Python"]}), encoding="utf-8")
+            analysis.write_text(json.dumps({"realStack": ["Python"], "trueComplexity": "medium"}), encoding="utf-8")
+            code, out, _err = _run(
+                ["design-artifacts", "--no-llm", "--need-json", str(need), "--analysis-json", str(analysis)]
+            )
+        self.assertEqual(code, 0)
+        payload = _last_json(out)
+        self._assert_envelope(payload)
+        self.assertEqual(set(payload["perStepSources"]), {"role", "case"})
+        self.assertEqual(set(payload["result"]), {"role", "case"})
+
+
+if __name__ == "__main__":
+    unittest.main()

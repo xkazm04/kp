@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { writeFile } from "node:fs/promises";
 import path from "node:path";
-import { listMatrixProfiles, listOpenPositions, pipelinePlacements } from "@/app/_lib/db";
-import { cleanupWorkdir, createWorkdir, parseStderrError, spawnPython } from "@/app/_lib/python-runner";
+import { getJob, listMatrixProfiles, listOpenPositions, pipelinePlacements } from "@/app/_lib/db";
+import { cleanupWorkdir, createWorkdir, parsePythonJson, parseStderrError, spawnPython } from "@/app/_lib/python-runner";
 
 export const runtime = "nodejs";
 
@@ -11,6 +11,9 @@ type MatrixOut = {
   candidates: { id: string; label: string; archetype: string | null }[];
   positions: { id: string; title: string; seniority: string; roleFamily: string; salaryBand: number[] }[];
   cells: Cell[][];
+  // Requested position ids that matched neither the static corpus nor a DB job —
+  // surfaced so the grid can flag the gap instead of silently dropping the column.
+  missing: string[];
 };
 
 // Candidate x open-position fit heatmap. Scores are deterministic (no LLM).
@@ -20,7 +23,7 @@ export async function GET() {
     const profiles = listMatrixProfiles();
     const positions = listOpenPositions();
     if (profiles.length === 0 || positions.length === 0) {
-      return NextResponse.json({ candidates: [], positions: [], cells: [], placements: {} });
+      return NextResponse.json({ candidates: [], positions: [], cells: [], missing: [], placements: {} });
     }
 
     workdir = await createWorkdir();
@@ -28,15 +31,35 @@ export async function GET() {
     await writeFile(profilesPath, JSON.stringify(profiles), "utf-8");
 
     const jobIds = positions.map((p) => p.id).join(",");
-    const { result } = spawnPython(["-m", "pipeline.jobfit.matrix_cli", "--profiles-json", profilesPath, "--job-ids", jobIds]);
+    // Open positions come from pipeline entries, which can reference DB-ingested jobs
+    // absent from the static corpus. Pass those full records so they score instead of
+    // silently vanishing from the grid; matrix_cli reports any still-unresolved ids.
+    const dbJobs = positions.map((p) => getJob(p.id)).filter((j): j is NonNullable<typeof j> => j !== null);
+    const jobsPath = path.join(workdir, "jobs.json");
+    await writeFile(jobsPath, JSON.stringify(dbJobs), "utf-8");
+
+    const { result } = spawnPython([
+      "-m",
+      "pipeline.jobfit.matrix_cli",
+      "--profiles-json",
+      profilesPath,
+      "--job-ids",
+      jobIds,
+      "--jobs-json",
+      jobsPath,
+    ]);
     const { stdout, stderr, exitCode } = await result;
     if (exitCode !== 0) {
       const err = parseStderrError(stderr, exitCode);
       return NextResponse.json({ error: err.message }, { status: err.status });
     }
 
-    const matrix = JSON.parse(stdout) as MatrixOut;
-    return NextResponse.json({ ...matrix, placements: pipelinePlacements() });
+    const matrix = parsePythonJson<MatrixOut>(stdout, stderr);
+    // Re-attach titles to the unresolved ids so the grid can name the absent
+    // positions rather than show opaque ids.
+    const titleById = new Map(positions.map((p) => [p.id, p.title]));
+    const missing = (matrix.missing ?? []).map((id) => ({ id, title: titleById.get(id) ?? id }));
+    return NextResponse.json({ ...matrix, missing, placements: pipelinePlacements() });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Matrix build failed.";
     return NextResponse.json({ error: message }, { status: 500 });

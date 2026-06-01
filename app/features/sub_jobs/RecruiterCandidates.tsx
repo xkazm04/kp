@@ -1,8 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Users } from "lucide-react";
 import { ARCHETYPE_BADGE, EARLY, provLabel } from "./JobsTypes";
 import type { CandRow } from "./JobsTypes";
+import { EmptyState } from "./JobsShared";
+import { FitTierBadge } from "@/app/_components/Badge";
+import { ScoreBadge } from "@/app/_components/ScoreBadge";
 
 export function RecruiterCandidates({
   jobId,
@@ -15,11 +19,16 @@ export function RecruiterCandidates({
   roleFamily: string | null;
   autoLoad?: boolean;
 }) {
-  const [data, setData] = useState<{ candidates: CandRow[] } | null>(null);
+  const [data, setData] = useState<{
+    candidates: CandRow[];
+    skipped?: { id: string; label: string; reason: string }[];
+  } | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [added, setAdded] = useState<Set<string>>(new Set());
   const [adding, setAdding] = useState<Set<string>>(new Set());
+  const [failed, setFailed] = useState<Map<string, string>>(new Map());
+  const [announce, setAnnounce] = useState("");
 
   const load = async () => {
     setLoading(true);
@@ -44,6 +53,12 @@ export function RecruiterCandidates({
   const addToPipeline = async (c: CandRow) => {
     if (!c.candidateId || added.has(c.candidateId) || adding.has(c.candidateId)) return;
     setAdding((s) => new Set(s).add(c.candidateId));
+    setFailed((m) => {
+      if (!m.has(c.candidateId)) return m;
+      const n = new Map(m);
+      n.delete(c.candidateId);
+      return n;
+    });
     try {
       const r = await fetch("/api/pipeline", {
         method: "POST",
@@ -59,7 +74,14 @@ export function RecruiterCandidates({
           stage: "Screening",
         }),
       });
-      if (r.ok) setAdded((s) => new Set(s).add(c.candidateId));
+      const payload = await r.json().catch(() => null);
+      if (!r.ok) throw new Error(payload?.error ?? `Couldn't add (${r.status}).`);
+      setAdded((s) => new Set(s).add(c.candidateId));
+      setAnnounce(`${c.label} added to the pipeline.`);
+    } catch (caught) {
+      const message = caught instanceof Error ? caught.message : "Couldn't add to the pipeline.";
+      setFailed((m) => new Map(m).set(c.candidateId, message));
+      setAnnounce(`Couldn't add ${c.label} to the pipeline. ${message}`);
     } finally {
       setAdding((s) => {
         const n = new Set(s);
@@ -89,9 +111,13 @@ export function RecruiterCandidates({
   const earlyCareer = eligible.filter((c) => EARLY.has(c.archetype));
   const experienced = eligible.filter((c) => !EARLY.has(c.archetype));
   const notEligible = data.candidates.length - eligible.length;
+  const skipped = data.skipped ?? [];
 
   return (
     <div className="rounded-md border border-stone-200 p-3">
+      <p role="status" aria-live="polite" className="sr-only">
+        {announce}
+      </p>
       <div className="flex items-center justify-between">
         <p className="text-sm font-semibold uppercase tracking-wide text-coral">
           Candidates · fair-comparison lens
@@ -102,14 +128,37 @@ export function RecruiterCandidates({
         Early-career candidates are shown as a separate pipeline and scored on potential — never ranked on one number
         against experienced candidates.
       </p>
+      {skipped.length ? (
+        <details className="mt-2 rounded-md border border-amber-200 bg-amber-50/60 px-2.5 py-1.5 text-sm text-amber-800">
+          <summary className="cursor-pointer font-semibold">
+            {skipped.length} candidate{skipped.length === 1 ? "" : "s"} couldn&apos;t be scored (malformed profile) — the
+            rest ranked normally
+          </summary>
+          <ul className="mt-1 space-y-0.5">
+            {skipped.map((s) => (
+              <li key={s.id}>
+                <span className="font-medium">{s.label}</span> — {s.reason}
+              </li>
+            ))}
+          </ul>
+        </details>
+      ) : null}
       <div className="mt-3 grid gap-4 lg:grid-cols-2">
-        <CandidateColumn title="Experienced" rows={experienced} added={added} adding={adding} onAdd={addToPipeline} />
+        <CandidateColumn
+          title="Experienced"
+          rows={experienced}
+          added={added}
+          adding={adding}
+          failed={failed}
+          onAdd={addToPipeline}
+        />
         <CandidateColumn
           title="Early-career pipeline"
           rows={earlyCareer}
           highlight
           added={added}
           adding={adding}
+          failed={failed}
           onAdd={addToPipeline}
         />
       </div>
@@ -123,6 +172,7 @@ function CandidateColumn({
   highlight,
   added,
   adding,
+  failed,
   onAdd,
 }: {
   title: string;
@@ -130,6 +180,7 @@ function CandidateColumn({
   highlight?: boolean;
   added: Set<string>;
   adding: Set<string>;
+  failed: Map<string, string>;
   onAdd: (c: CandRow) => void;
 }) {
   return (
@@ -138,7 +189,7 @@ function CandidateColumn({
         {title} ({rows.length})
       </p>
       {rows.length === 0 ? (
-        <p className="mt-1 text-sm text-steel">None.</p>
+        <EmptyState icon={Users} title="No candidates in this group" compact />
       ) : (
         <ol className="mt-2 space-y-2">
           {rows.map((c, i) => (
@@ -147,6 +198,7 @@ function CandidateColumn({
               c={c}
               added={added.has(c.candidateId)}
               adding={adding.has(c.candidateId)}
+              error={failed.get(c.candidateId) ?? null}
               onAdd={() => onAdd(c)}
             />
           ))}
@@ -160,11 +212,13 @@ function CandidateCard({
   c,
   added,
   adding,
+  error,
   onAdd,
 }: {
   c: CandRow;
   added: boolean;
   adding: boolean;
+  error: string | null;
   onAdd: () => void;
 }) {
   const res = c.result;
@@ -173,14 +227,15 @@ function CandidateCard({
   return (
     <li className="rounded-md border border-stone-200 bg-white p-2">
       <div className="flex items-center gap-2">
-        <span className="font-serif text-lg text-ink">{res.total}</span>
-        <span className="text-sm text-steel">
+        <ScoreBadge score={res.total} />
+        <span className="nums text-sm text-steel">
           {res.confidenceLow}–{res.confidenceHigh}
         </span>
         <span className="font-medium text-ink">{c.label}</span>
         <span className="rounded-full bg-ink/90 px-1.5 py-0.5 text-sm font-semibold text-white">
           {ARCHETYPE_BADGE[c.archetype] ?? c.archetype}
         </span>
+        <FitTierBadge tier={res.fitTier} score={res.total} />
         <span className="ml-auto flex items-center gap-2">
           {early && c.potentialScore != null ? (
             <span className="text-sm text-steel">potential {Math.round(c.potentialScore * 100)}</span>
@@ -189,14 +244,22 @@ function CandidateCard({
             type="button"
             onClick={onAdd}
             disabled={added || adding}
+            title={error ?? undefined}
             className={`focus-ring rounded px-1.5 py-0.5 text-sm font-semibold ${
-              added ? "bg-moss/10 text-moss" : "border border-stone-200 text-ink hover:bg-paper disabled:opacity-40"
+              added
+                ? "bg-moss/10 text-moss"
+                : error
+                  ? "border border-red-300 bg-red-50 text-red-700 hover:bg-red-100 disabled:opacity-40"
+                  : "border border-stone-200 text-ink hover:bg-paper disabled:opacity-40"
             }`}
           >
-            {added ? "✓ pipeline" : adding ? "…" : "+ pipeline"}
+            {added ? "✓ pipeline" : adding ? "…" : error ? "↻ retry" : "+ pipeline"}
           </button>
         </span>
       </div>
+      {error && !added ? (
+        <p className="mt-1 text-sm text-red-700">Couldn&apos;t add to the pipeline — {error}</p>
+      ) : null}
       <div className="mt-1 flex flex-wrap gap-1">
         {(res.matchedSkills ?? []).slice(0, 8).map((s) => {
           const pl = provLabel(prov[s] ?? "self_declared");

@@ -5,7 +5,15 @@
     python -m pipeline.jobfit.devcase.devcase_cli reflect-commits     --commits-json C [--probes-json P] [--no-llm]
     python -m pipeline.jobfit.devcase.devcase_cli evaluate-submission --commits-json C --case-json K --role-json R [--probes-json P] [--no-llm]
 
-Output: one JSON object {"result","source"} to stdout; {"error","status"} to stderr + exit 1.
+Output: one JSON object {"result","source","perStepSources"} to stdout — a uniform
+provenance envelope every command shares. `perStepSources` maps each pipeline step to
+its "llm"/"deterministic" source and `source` is their combined tri-state verdict;
+single-step commands emit a one-key map, so the UI has ONE stable contract to render a
+consistent provenance strip (and its degraded "partial" badge) across every command.
+On failure: {"error","status","code"} to stderr, where status/code distinguish a
+user-fixable input error (400 / "invalid_input", exit 2) from a genuine engine failure
+(500 / "engine_error", exit 1) — mirroring jobfit/cli.py so the UI can render a precise
+inline hint vs a retry/escalate toast.
 """
 
 from __future__ import annotations
@@ -22,6 +30,13 @@ from . import evaluate as _evaluate
 from . import reflect as _reflect
 from .models import DevNeed, NeedAnalysis, RepoSnapshot
 
+# Stable, machine-readable error codes the UI branches on. INVALID_INPUT is a
+# user-correctable problem (missing/garbled --*-json arg, failed pydantic
+# validation) → 400; ENGINE_ERROR is an unexpected failure in the pipeline
+# itself (provider crash, bug) → 500, signalling retry/escalate.
+ERR_INVALID_INPUT = "invalid_input"
+ERR_ENGINE = "engine_error"
+
 
 def _combine_source(*srcs: str) -> str:
     """Collapse per-step sources into one verdict.
@@ -37,6 +52,24 @@ def _combine_source(*srcs: str) -> str:
     if uniq <= {"deterministic"}:  # all deterministic (or empty)
         return "deterministic"
     return "partial"
+
+
+def _emit(result: object, per_step: dict[str, str]) -> None:
+    """Print the uniform provenance envelope every command shares.
+
+    ``result`` is the command's payload; ``per_step`` maps each pipeline step to
+    its ``"llm"``/``"deterministic"`` source. ``source`` is derived here as their
+    combined tri-state verdict (:func:`_combine_source`) so the two can never
+    drift. Single-step commands pass a one-key map — the UI still gets the same
+    {result, source, perStepSources} shape and one provenance component covers
+    the whole pipeline.
+    """
+    print(
+        json.dumps(
+            {"result": result, "source": _combine_source(*per_step.values()), "perStepSources": per_step},
+            ensure_ascii=False,
+        )
+    )
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -70,7 +103,8 @@ def main(argv: list[str] | None = None) -> int:
             role = json.loads(args.role_json.read_text(encoding="utf-8"))
             candidates = json.loads(args.candidates_json.read_text(encoding="utf-8")) or []
             result = _source.source_candidates(role, candidates, top_n=args.top_n, floor=args.floor)
-            print(json.dumps({"result": result}, ensure_ascii=False))
+            # Pure matching — no LLM — so its single step is always deterministic.
+            _emit(result, {"source": "deterministic"})
             return 0
 
         provider = None if args.no_llm else ClaudeCliProvider(timeout=120)
@@ -86,22 +120,16 @@ def main(argv: list[str] | None = None) -> int:
             reflection, rsrc = _reflect.reflect_commits(commits, repo, provider=provider)
             tooling, tsrc = _reflect.assess_tooling(reflection, commits, probes, repo, provider=provider)
             if args.command == "reflect-commits":
-                per_step = {"reflect": rsrc, "tooling": tsrc}
-                source = _combine_source(rsrc, tsrc)
-                print(json.dumps({"result": {"reflection": reflection, "tooling": tooling}, "source": source, "perStepSources": per_step}, ensure_ascii=False))
+                _emit({"reflection": reflection, "tooling": tooling}, {"reflect": rsrc, "tooling": tsrc})
                 return 0
             # evaluate-submission continues the chain
             case = json.loads(args.case_json.read_text(encoding="utf-8")) if args.case_json else {}
             role = json.loads(args.role_json.read_text(encoding="utf-8")) if args.role_json else {}
             evaluation, esrc = _evaluate.evaluate_submission(reflection, tooling, case, role, provider=provider)
             transfer, xsrc = _evaluate.score_transfer(evaluation, role, provider=provider)
-            per_step = {"reflect": rsrc, "tooling": tsrc, "evaluate": esrc, "transfer": xsrc}
-            source = _combine_source(rsrc, tsrc, esrc, xsrc)
-            print(
-                json.dumps(
-                    {"result": {"reflection": reflection, "tooling": tooling, "evaluation": evaluation, "transfer": transfer}, "source": source, "perStepSources": per_step},
-                    ensure_ascii=False,
-                )
+            _emit(
+                {"reflection": reflection, "tooling": tooling, "evaluation": evaluation, "transfer": transfer},
+                {"reflect": rsrc, "tooling": tsrc, "evaluate": esrc, "transfer": xsrc},
             )
             return 0
 
@@ -116,7 +144,7 @@ def main(argv: list[str] | None = None) -> int:
                 else None
             )
             result, source = _analyze.analyze_need(need, snapshot, provider=provider)
-            print(json.dumps({"result": result, "source": source}, ensure_ascii=False))
+            _emit(result, {"analyze": source})
             return 0
 
         if args.command == "design-artifacts":
@@ -125,13 +153,20 @@ def main(argv: list[str] | None = None) -> int:
             analysis = NeedAnalysis.model_validate(json.loads(args.analysis_json.read_text(encoding="utf-8")))
             role, role_src = _design.design_role(need, analysis, provider=provider)
             case, case_src = _design.design_case(need, analysis, role, provider=provider)
-            source = _combine_source(role_src, case_src)
-            print(json.dumps({"result": {"role": role, "case": case}, "source": source, "perStepSources": {"role": role_src, "case": case_src}}, ensure_ascii=False))
+            _emit({"role": role, "case": case}, {"role": role_src, "case": case_src})
             return 0
 
         raise ValueError(f"unhandled command {args.command}")  # pragma: no cover
+    except ValueError as exc:
+        # Our explicit input guards above AND pydantic's ValidationError (a
+        # ValueError subclass, raised by the model_validate calls) are both
+        # user-correctable, so they map to 400. Exit 2 matches jobfit/cli.py and
+        # python-runner's parseStderrError fallback.
+        print(json.dumps({"error": str(exc), "status": 400, "code": ERR_INVALID_INPUT}, ensure_ascii=False), file=sys.stderr)
+        return 2
     except Exception as exc:
-        print(json.dumps({"error": str(exc), "status": 500}, ensure_ascii=False), file=sys.stderr)
+        # Genuine engine failure — the caller should retry/escalate, not edit input.
+        print(json.dumps({"error": str(exc), "status": 500, "code": ERR_ENGINE}, ensure_ascii=False), file=sys.stderr)
         return 1
 
 

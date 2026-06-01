@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Clock, Loader2, ListChecks, RefreshCw, Sparkles } from "lucide-react";
 import { Modal } from "@/app/_components/Modal";
+import { Meter } from "@/app/_components/Meter";
 import { useTasks } from "@/app/features/tasks/TasksProvider";
 import type { SchedEntry } from "./ScheduleTypes";
 
@@ -97,9 +98,18 @@ export function InterviewPrepModal({ entry, onClose }: { entry: SchedEntry; onCl
         </div>
       ) : (
         <div className="space-y-4">
-          <div className="flex items-start justify-between gap-3">
-            <p className="text-base text-ink">{prep.scenario}</p>
-            <span className="shrink-0 rounded-md bg-paper px-2 py-1 text-sm font-semibold text-coral">{doneItems}/{totalItems} done</span>
+          <div className="space-y-2">
+            <div className="flex items-start justify-between gap-3">
+              <p className="text-base text-ink">{prep.scenario}</p>
+              <span className="nums shrink-0 rounded-md bg-paper px-2 py-1 text-sm font-semibold text-coral">{doneItems}/{totalItems} done</span>
+            </div>
+            {/* Ambient coverage bar: fills moss (score-strong) as topics/signals check off,
+                so the interviewer can read progress without breaking eye contact. */}
+            <Meter
+              value={totalItems ? (doneItems / totalItems) * 100 : 0}
+              tone="strong"
+              aria-label={`Interview coverage: ${doneItems} of ${totalItems} items checked`}
+            />
           </div>
 
           {/* Run of show — the timed plan, checkable topic-by-topic during the interview. */}
@@ -123,7 +133,7 @@ export function InterviewPrepModal({ entry, onClose }: { entry: SchedEntry; onCl
                       <span className="min-w-0 flex-1">
                         <span className="flex items-baseline justify-between gap-2">
                           <span className={`text-sm font-semibold ${on ? "text-steel line-through" : "text-ink"}`}>{b.topic}</span>
-                          <span className="shrink-0 rounded bg-paper px-1.5 py-0.5 text-sm tabular-nums text-steel">{b.fromMin}–{b.toMin} min</span>
+                          <span className="shrink-0 rounded bg-paper px-1.5 py-0.5 text-sm nums text-steel">{b.fromMin}–{b.toMin} min</span>
                         </span>
                         <span className="mt-0.5 block text-sm text-steel">{b.goal}</span>
                         {b.questions.map((q, j) => (

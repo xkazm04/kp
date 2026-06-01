@@ -35,6 +35,7 @@ class TestDesign(unittest.TestCase):
         names = {d["name"] for d in case["rubricDimensions"]}
         self.assertEqual(names, {"framing", "tooling", "judgment", "architecture", "transfer"})
         self.assertAlmostEqual(sum(d["weight"] for d in case["rubricDimensions"]), 1.0, places=2)
+        self.assertTrue(all(d.get("label") for d in case["rubricDimensions"]))  # self-describing labels
         self.assertEqual(case["promptVersion"], CASE_DESIGN_PROMPT_VERSION)
         self.assertGreater(case["timeboxHours"], 0)
 

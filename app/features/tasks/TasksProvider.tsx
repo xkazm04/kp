@@ -4,6 +4,9 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState } f
 
 export type TaskStatus = "queued" | "running" | "succeeded" | "failed" | "canceled" | "interrupted";
 
+/** Why a startTask() call never produced a task (bad kind, server error, dropped network). */
+export type TaskStartError = { kind: string; message: string };
+
 export type Task = {
   id: string;
   kind: string;
@@ -23,11 +26,15 @@ export type Task = {
 type Ctx = {
   tasks: Task[];
   running: Task[];
+  /** Resolves to the started Task, or null if it never started (see `startError`). */
   startTask: (kind: string, params?: Record<string, unknown>) => Promise<Task | null>;
   cancelTask: (id: string) => Promise<void>;
   refresh: () => void;
   /** active (queued/running) task matching a predicate — for dedup-aware UI. */
   findActive: (predicate: (t: Task) => boolean) => Task | undefined;
+  /** Last start failure, surfaced by the indicator so a dead click isn't silent. */
+  startError: TaskStartError | null;
+  clearStartError: () => void;
 };
 
 const TasksContext = createContext<Ctx | null>(null);
@@ -42,6 +49,7 @@ const ACTIVE = (t: Task) => t.status === "running" || t.status === "queued";
 
 export function TasksProvider({ children }: { children: React.ReactNode }) {
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [startError, setStartError] = useState<TaskStartError | null>(null);
 
   const refresh = useCallback(async () => {
     try {
@@ -61,11 +69,15 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ kind, params }),
         });
-        const p = await r.json();
-        if (!r.ok) throw new Error(p.error);
+        const p = (await r.json().catch(() => ({}))) as { task?: Task; error?: string };
+        if (!r.ok) throw new Error(p.error || `Request failed (${r.status})`);
+        setStartError(null);
         void refresh();
         return p.task as Task;
-      } catch {
+      } catch (e) {
+        // Don't swallow it: a 400 (unknown kind), a 500, or a dropped network call
+        // would otherwise make the click a silent no-op. Surface it via the indicator.
+        setStartError({ kind, message: e instanceof Error && e.message ? e.message : "Couldn't reach the server." });
         return null;
       }
     },
@@ -116,6 +128,8 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
     cancelTask,
     refresh,
     findActive: (predicate) => tasks.find((t) => ACTIVE(t) && predicate(t)),
+    startError,
+    clearStartError: () => setStartError(null),
   };
 
   return <TasksContext.Provider value={value}>{children}</TasksContext.Provider>;

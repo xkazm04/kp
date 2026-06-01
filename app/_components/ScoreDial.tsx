@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState, type CSSProperties } from "react";
+import { useReducedMotion } from "@/app/_lib/useReducedMotion";
+import { scoreToneColor } from "@/app/_lib/format";
 
 type ScoreDialProps = {
   score: number;
@@ -38,21 +40,18 @@ function bandIndex(score: number): number {
   return 4;
 }
 
-// Score-meaningful band colors (poor -> coral, fair -> amber, good -> moss),
-// consistent with the Fit-matrix scale, instead of a flat coral for every band.
+// Score-meaningful band colors (poor -> weak, fair -> mid, good -> strong),
+// drawn from the shared --color-score-* scale (via scoreToneColor) so the dial's
+// hues are guaranteed to match the badge and factor bars, not just approximate
+// them — re-toning the scale recolors the arc with no edit here.
 function bandColor(i: number): string {
-  if (i <= 0) return "var(--color-coral)";
-  if (i <= 2) return "var(--color-dial-amber)";
-  return "var(--color-moss)";
-}
-
-function prefersReducedMotion(): boolean {
-  if (typeof window === "undefined" || typeof window.matchMedia !== "function") return false;
-  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if (i <= 0) return scoreToneColor("weak");
+  if (i <= 2) return scoreToneColor("mid");
+  return scoreToneColor("strong");
 }
 
 function useCountUp(target: number, durationMs: number) {
-  const [reducedMotion] = useState(() => prefersReducedMotion());
+  const reducedMotion = useReducedMotion();
   const [animatedValue, setAnimatedValue] = useState(0);
 
   useEffect(() => {
@@ -77,6 +76,9 @@ export function ScoreDial({ score }: ScoreDialProps) {
   const displayed = useCountUp(clamped, TOTAL_MS);
   const activeIndex = bandIndex(clamped);
   const activeBand = BANDS[activeIndex];
+  // Carry the same score->color meaning the arc encodes into the readout, so the
+  // number and band label speak the shared language used by ScoreBadge/FactorChart.
+  const readoutColor = bandColor(activeIndex);
 
   return (
     <div
@@ -120,10 +122,16 @@ export function ScoreDial({ score }: ScoreDialProps) {
         })}
       </svg>
       <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center px-4 text-center">
-        <div className="text-5xl font-semibold leading-none tabular-nums text-ink">
+        <div
+          className="text-5xl font-semibold leading-none nums"
+          style={{ color: readoutColor }}
+        >
           {displayed}
         </div>
-        <div className="mt-2 text-sm font-semibold uppercase tracking-[0.18em] text-steel">
+        <div
+          className="mt-2 text-sm font-semibold uppercase tracking-[0.18em]"
+          style={{ color: readoutColor }}
+        >
           {activeBand.label}
         </div>
       </div>

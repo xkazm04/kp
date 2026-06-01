@@ -27,11 +27,14 @@ function db(): Database.Database {
       updated_at TEXT NOT NULL
     );
   `);
-  // Seed a standard template once.
+  // Seed a standard template once. INSERT OR IGNORE keeps this idempotent: under
+  // a multi-worker / serverless cold start two initializers can both observe an
+  // empty table and both run the seed — the loser would otherwise throw UNIQUE
+  // constraint failed on the fixed tpl-standard PK and 500 the first request.
   const count = (d.prepare(`SELECT COUNT(*) AS n FROM jd_templates`).get() as { n: number }).n;
   if (count === 0) {
     const now = new Date().toISOString();
-    d.prepare(`INSERT INTO jd_templates (id, name, body, is_default, created_at, updated_at) VALUES (?, ?, ?, 1, ?, ?)`).run(
+    d.prepare(`INSERT OR IGNORE INTO jd_templates (id, name, body, is_default, created_at, updated_at) VALUES (?, ?, ?, 1, ?, ?)`).run(
       "tpl-standard",
       "Company standard",
       DEFAULT_TEMPLATE_BODY,
@@ -92,11 +95,34 @@ export function updateTemplate(id: string, input: { name?: string; body?: string
   return getTemplate(id);
 }
 
-/** Delete a template — but never the last one (keep at least the standard). */
+/** Promote one template to be the sole default, clearing the flag on every
+ * other row in a single transaction. Returns the promoted template, or null
+ * if the id doesn't exist. This is the only way to move the default, so the
+ * "Company standard" baseline can be reassigned rather than lost. */
+export function setDefaultTemplate(id: string): JdTemplate | null {
+  const d = db();
+  const cur = getTemplate(id);
+  if (!cur) return null;
+  const now = new Date().toISOString();
+  const promote = d.transaction((tid: string) => {
+    d.prepare(`UPDATE jd_templates SET is_default = 0, updated_at = ? WHERE is_default = 1 AND id != ?`).run(now, tid);
+    d.prepare(`UPDATE jd_templates SET is_default = 1, updated_at = ? WHERE id = ?`).run(now, tid);
+  });
+  promote(id);
+  return getTemplate(id);
+}
+
+/** Delete a template — but never the last one (keep at least the standard) and
+ * never the current default. Deleting the only is_default row would leave the
+ * library with zero defaults: the seed only re-runs on an empty table, so the
+ * baseline would be gone for good. To remove the default, promote another
+ * template first via setDefaultTemplate. */
 export function deleteTemplate(id: string): { ok: boolean; reason?: string } {
   const d = db();
   const count = (d.prepare(`SELECT COUNT(*) AS n FROM jd_templates`).get() as { n: number }).n;
   if (count <= 1) return { ok: false, reason: "Can't delete the last template." };
+  const cur = getTemplate(id);
+  if (cur?.isDefault) return { ok: false, reason: "Can't delete the default template. Set another template as the default first." };
   d.prepare(`DELETE FROM jd_templates WHERE id = ?`).run(id);
   return { ok: true };
 }

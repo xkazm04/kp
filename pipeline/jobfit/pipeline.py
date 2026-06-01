@@ -141,20 +141,41 @@ def analyze_cv(
                 gemini_text=raw_text,
             )
 
-            sanity_checks = _sanity_checks(raw_text, score, salary) + repairs
-            evidence_trace = build_evidence_trace(profile, score, salary)
-            interview_kit = build_interview_kit(profile, job_fit)
-            keyword_coverage = (
-                evaluate_keyword_coverage(
-                    raw_text,
-                    job_description_text,
-                    list(build_profile(clean_text(job_description_text)).skills) or list(job_fit.matching_skills + job_fit.missing_skills),
-                    job_fit.matching_skills,
-                    job_fit.missing_skills,
+            # Each post-Gemini insight below is a cheap, deterministic add-on. A
+            # bug in one must NOT discard an analysis whose expensive Gemini call
+            # already succeeded — degrade the add-on to None and flag it in
+            # sanity_checks instead (same fail-soft pattern as the v2_profile
+            # guard further down).
+            try:
+                evidence_trace = build_evidence_trace(profile, score, salary)
+            except Exception:
+                evidence_trace = None
+                repairs.append("Evidence trace unavailable — insight skipped (manual review)")
+
+            try:
+                interview_kit = build_interview_kit(profile, job_fit)
+            except Exception:
+                interview_kit = None
+                repairs.append("Interview kit unavailable — insight skipped (manual review)")
+
+            try:
+                keyword_coverage = (
+                    evaluate_keyword_coverage(
+                        raw_text,
+                        job_description_text,
+                        list(build_profile(clean_text(job_description_text)).skills) or list(job_fit.matching_skills + job_fit.missing_skills),
+                        job_fit.matching_skills,
+                        job_fit.missing_skills,
+                    )
+                    if job_description_text and job_fit
+                    else None
                 )
-                if job_description_text and job_fit
-                else None
-            )
+            except Exception:
+                keyword_coverage = None
+                repairs.append("Keyword coverage unavailable — insight skipped (manual review)")
+
+            # Built last so helper-degrade notes collected above are included.
+            sanity_checks = _sanity_checks(raw_text, score, salary) + repairs
 
             parsing_notes = _string_list(profile_payload.get("parsing_notes"))
             if market_evidence is not None and market_evidence.summary:
@@ -176,6 +197,7 @@ def analyze_cv(
                 v2_profile = _v2_profile_from_payload(profile_payload, profile).model_dump(by_alias=True)
             except Exception:
                 v2_profile = None
+                sanity_checks.append("Archetype v2 profile unavailable — insight skipped (manual review)")
         _emit(progress, "insights", "done")
 
         return AnalysisResult(

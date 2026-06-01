@@ -14,8 +14,12 @@ export async function POST(request: NextRequest) {
     if (!entry) return NextResponse.json({ error: "Pipeline entry not found." }, { status: 404 });
 
     const band = (entry.jobId ? getJob(entry.jobId)?.salaryBand : null) ?? [];
-    const min = band[0] ?? 120000;
-    const max = band[1] ?? 165000;
+    // Order the bounds so a partial/typo'd band (e.g. [300000]) can't yield min > max;
+    // recompute the midpoint AFTER ordering so it always sits within [min, max].
+    const lo = band[0] ?? 120000;
+    const hi = band[1] ?? 165000;
+    const min = Math.min(lo, hi);
+    const max = Math.max(lo, hi);
     const recommended = Math.round((min + max) / 2);
     const draft = {
       subject: `Offer: ${entry.jobTitle ?? "a role"}`,

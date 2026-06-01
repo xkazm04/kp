@@ -178,7 +178,7 @@ export function useAnalyzeForm() {
     setStageState(initialStageState());
 
     if (hasGithub) {
-      void executeGithubAnalysis(githubProfile, jobDescriptionText, {
+      void executeGithubAnalysis(githubProfile, { jobDescriptionText, jobDescriptionFile }, {
         onLoading: () => setGithubStatus("loading"),
         onResult: (result) => {
           setGithubAnalysis(result);

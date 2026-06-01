@@ -1,5 +1,7 @@
 "use client";
 
+import { useReducedMotion } from "@/app/_lib/useReducedMotion";
+
 const INK = "#17202a";
 const PAPER = "#f7f5ef";
 const MOSS = "#526b4f";
@@ -8,6 +10,7 @@ const STEEL = "#42606f";
 const LIMEWASH = "#dce7d0";
 
 export function ScanAnimationCompact({ className }: { className?: string }) {
+  const reducedMotion = useReducedMotion();
   return (
     <svg
       viewBox="0 0 80 80"
@@ -37,57 +40,61 @@ export function ScanAnimationCompact({ className }: { className?: string }) {
         <line x1="28" y1="58" x2="42" y2="58" />
       </g>
 
-      <g>
-        <line
-          x1="22"
-          y1="14"
-          x2="58"
-          y2="14"
-          stroke={MOSS}
-          strokeWidth="2"
-          strokeLinecap="round"
-          opacity="0.9"
-        >
-          <animate
-            attributeName="y1"
-            values="14;66;14"
-            keyTimes="0;0.5;1"
-            dur="2.4s"
-            repeatCount="indefinite"
-          />
-          <animate
-            attributeName="y2"
-            values="14;66;14"
-            keyTimes="0;0.5;1"
-            dur="2.4s"
-            repeatCount="indefinite"
-          />
-        </line>
+      {/* The sweeping scan line + tracer dot loop forever; for reduced-motion
+          users we drop them entirely and leave the static document. */}
+      {!reducedMotion ? (
+        <g>
+          <line
+            x1="22"
+            y1="14"
+            x2="58"
+            y2="14"
+            stroke={MOSS}
+            strokeWidth="2"
+            strokeLinecap="round"
+            opacity="0.9"
+          >
+            <animate
+              attributeName="y1"
+              values="14;66;14"
+              keyTimes="0;0.5;1"
+              dur="2.4s"
+              repeatCount="indefinite"
+            />
+            <animate
+              attributeName="y2"
+              values="14;66;14"
+              keyTimes="0;0.5;1"
+              dur="2.4s"
+              repeatCount="indefinite"
+            />
+          </line>
 
-        <circle r="2.4" fill={CORAL}>
-          <animate
-            attributeName="cx"
-            values="32;48;36;52;32"
-            keyTimes="0;0.25;0.55;0.8;1"
-            dur="2.4s"
-            repeatCount="indefinite"
-          />
-          <animate
-            attributeName="cy"
-            values="14;30;46;58;66"
-            keyTimes="0;0.25;0.55;0.8;1"
-            dur="2.4s"
-            repeatCount="indefinite"
-          />
-          <animate
-            attributeName="opacity"
-            values="0;1;1;1;0"
-            keyTimes="0;0.15;0.5;0.85;1"
-            dur="2.4s"
-            repeatCount="indefinite"
-          />
-        </circle>
-      </g>
+          <circle r="2.4" fill={CORAL}>
+            <animate
+              attributeName="cx"
+              values="32;48;36;52;32"
+              keyTimes="0;0.25;0.55;0.8;1"
+              dur="2.4s"
+              repeatCount="indefinite"
+            />
+            <animate
+              attributeName="cy"
+              values="14;30;46;58;66"
+              keyTimes="0;0.25;0.55;0.8;1"
+              dur="2.4s"
+              repeatCount="indefinite"
+            />
+            <animate
+              attributeName="opacity"
+              values="0;1;1;1;0"
+              keyTimes="0;0.15;0.5;0.85;1"
+              dur="2.4s"
+              repeatCount="indefinite"
+            />
+          </circle>
+        </g>
+      ) : null}
     </svg>
   );
 }
@@ -99,6 +106,11 @@ export function ScanAnimationWide({
   complete: boolean;
   className?: string;
 }) {
+  // Reduced-motion users get the same static layout `complete` produces (chips
+  // shown, scan line + pulses suppressed) while the aria-label still reports the
+  // true analysis state.
+  const reducedMotion = useReducedMotion();
+  const settled = complete || reducedMotion;
   return (
     <svg
       viewBox="0 0 480 80"
@@ -138,28 +150,36 @@ export function ScanAnimationWide({
         stroke={MOSS}
         strokeWidth="2"
         strokeLinecap="round"
-        opacity={complete ? 0 : 0.95}
+        opacity={settled ? 0 : 0.95}
       >
-        <animate
-          attributeName="y1"
-          values="12;68;12"
-          keyTimes="0;0.5;1"
-          dur="2.6s"
-          repeatCount="indefinite"
-        />
-        <animate
-          attributeName="y2"
-          values="12;68;12"
-          keyTimes="0;0.5;1"
-          dur="2.6s"
-          repeatCount="indefinite"
-        />
+        {!settled ? (
+          <>
+            <animate
+              attributeName="y1"
+              values="12;68;12"
+              keyTimes="0;0.5;1"
+              dur="2.6s"
+              repeatCount="indefinite"
+            />
+            <animate
+              attributeName="y2"
+              values="12;68;12"
+              keyTimes="0;0.5;1"
+              dur="2.6s"
+              repeatCount="indefinite"
+            />
+          </>
+        ) : null}
       </line>
 
-      <g opacity={complete ? 0 : 1}>
-        <Pulse delay="0s" startY="26" />
-        <Pulse delay="0.6s" startY="44" />
-        <Pulse delay="1.2s" startY="56" />
+      <g opacity={settled ? 0 : 1}>
+        {!settled ? (
+          <>
+            <Pulse delay="0s" startY="26" />
+            <Pulse delay="0.6s" startY="44" />
+            <Pulse delay="1.2s" startY="56" />
+          </>
+        ) : null}
       </g>
 
       <Chip
@@ -168,7 +188,7 @@ export function ScanAnimationWide({
         width={70}
         label="5+ yrs"
         delay="0.2s"
-        complete={complete}
+        complete={settled}
       />
       <Chip
         x={248}
@@ -176,7 +196,7 @@ export function ScanAnimationWide({
         width={92}
         label="Python · React"
         delay="0.9s"
-        complete={complete}
+        complete={settled}
       />
       <Chip
         x={358}
@@ -184,7 +204,7 @@ export function ScanAnimationWide({
         width={86}
         label="Senior IC"
         delay="1.5s"
-        complete={complete}
+        complete={settled}
       />
 
       <line

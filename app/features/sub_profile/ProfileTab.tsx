@@ -12,6 +12,7 @@ import {
 import { Section, Text, Pick, Check } from "./ProfileFields";
 import { ProfileEvidenceColumn } from "./ProfileEvidenceColumn";
 import { ResultPanel } from "./ProfileResultPanel";
+import { SegmentedControl } from "@/app/_components/SegmentedControl";
 
 export function ProfileTab() {
   const [choice, setChoice] = useState("auto");
@@ -138,20 +139,12 @@ export function ProfileTab() {
       <div className="mt-4 grid gap-5 lg:grid-cols-2">
         <div className="space-y-4">
           <Section title="Who is this candidate?">
-            <div className="flex flex-wrap gap-2">
-              {ARCHETYPE_CHOICES.map((c) => (
-                <button
-                  key={c.v}
-                  type="button"
-                  onClick={() => setChoice(c.v)}
-                  className={`rounded-md border px-3 py-1.5 text-base ${
-                    choice === c.v ? "border-ink bg-ink text-white" : "border-stone-200 text-ink hover:bg-paper"
-                  }`}
-                >
-                  {c.label}
-                </button>
-              ))}
-            </div>
+            <SegmentedControl
+              label="Candidate archetype"
+              value={choice}
+              onChange={setChoice}
+              options={ARCHETYPE_CHOICES.map((c) => ({ value: c.v, label: c.label }))}
+            />
             {isStudentish ? (
               <div className="mt-3 grid gap-2 sm:grid-cols-2">
                 <Check label="Currently enrolled" checked={isEnrolled} onChange={setIsEnrolled} />

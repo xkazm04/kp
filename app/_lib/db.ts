@@ -81,6 +81,11 @@ function ensureDb(): Database.Database {
   mkdirSync(path.dirname(DB_PATH), { recursive: true });
   const db = new Database(DB_PATH);
   db.pragma("journal_mode = WAL");
+  // The scheduler writes scheduler/scheduler_runs on its own connection to the
+  // same kp.sqlite file while the policy pass writes pipeline_entries/events here.
+  // A busy_timeout makes a concurrent writer wait briefly rather than instantly
+  // throwing SQLITE_BUSY.
+  db.pragma("busy_timeout = 5000");
   db.exec(`
     CREATE TABLE IF NOT EXISTS analyses (
       slug TEXT PRIMARY KEY,
@@ -356,6 +361,18 @@ function ensureDb(): Database.Database {
   seedCandidates(db);
   seedPipeline(db);
   _db = db;
+  // Reclaim expired (and, once their TTL lapses, superseded-PROMPT_VERSION)
+  // cache rows on boot. lookupGeminiCache only SKIPS expired rows — it never
+  // deletes them — so without this the gemini_cache table and its WAL grow
+  // unbounded for the life of the deployment. _db is assigned first so the
+  // ensureDb() inside pruneGeminiCache() short-circuits instead of re-entering
+  // this initializer. A prune failure must never wedge boot.
+  try {
+    const pruned = pruneGeminiCache();
+    if (pruned > 0) console.log(`[db] pruned ${pruned} expired gemini_cache row(s) on boot`);
+  } catch (error) {
+    console.error("[db] gemini_cache boot prune failed", error);
+  }
   return db;
 }
 
@@ -639,6 +656,12 @@ type CacheRow = {
   expires_at: string;
 };
 
+// Fraction of cache writes that also trigger an opportunistic prune. Combined
+// with the boot prune in ensureDb, this keeps gemini_cache bounded on a
+// long-running deployment without any scheduler dependency — every distinct
+// analyze input adds a row, so spreading the GC across writes amortizes it.
+const CACHE_PRUNE_PROBABILITY = 0.02;
+
 export function lookupGeminiCache(hash: string, promptVersion: string): unknown | null {
   const db = ensureDb();
   const row = db
@@ -676,6 +699,16 @@ export function storeGeminiCache(
        created_at = excluded.created_at,
        expires_at = excluded.expires_at`
   ).run(hash, JSON.stringify(payload), promptVersion, now.toISOString(), expires.toISOString());
+  // Opportunistic GC on a small fraction of writes so expired rows are
+  // reclaimed during normal operation, not only at boot. Best-effort: a prune
+  // failure must never fail the write that just succeeded.
+  if (Math.random() < CACHE_PRUNE_PROBABILITY) {
+    try {
+      pruneGeminiCache();
+    } catch (error) {
+      console.error("[db] gemini_cache opportunistic prune failed", error);
+    }
+  }
 }
 
 export function pruneGeminiCache(): number {
@@ -1013,6 +1046,15 @@ function seedCandidates(db: Database.Database): void {
 export const PIPELINE_STAGES = ["Sourced", "AI-matched", "Screening", "Interview", "Offer", "Hired"] as const;
 export type PipelineStage = (typeof PIPELINE_STAGES)[number];
 
+// The analytics funnel's stage axis. "Accepted" is a real first stage — inbound
+// applications written by the channel/sim intake (see PipelineTypes.STAGES) — but
+// it is intentionally absent from PIPELINE_STAGES so actOnPipelineEntry's linear
+// advance keeps treating it as pre-Sourced. The funnel must still place those
+// rows somewhere: prepend it here, otherwise an Accepted entry's stageIndex is -1
+// and it counts toward the headline total but vanishes from the funnel buckets.
+export const FUNNEL_STAGES = ["Accepted", ...PIPELINE_STAGES] as const;
+export type FunnelStage = (typeof FUNNEL_STAGES)[number];
+
 export type PipelineEntry = {
   id: string;
   candidateId: string | null;
@@ -1273,25 +1315,34 @@ export function pipelineAnalytics(): PipelineAnalytics {
     stage_changed_at: string | null;
   }[];
 
-  const idxOf = (s: string) => PIPELINE_STAGES.indexOf(s as PipelineStage);
+  // Index against FUNNEL_STAGES (Accepted-first) so inbound rows land at the top
+  // of the funnel instead of returning -1. The by-job/by-archetype thresholds
+  // below compare against idxOf("Interview")/idxOf("Screening") symbolically, so
+  // they stay correct as the shared offset shifts by one.
+  const idxOf = (s: string) => FUNNEL_STAGES.indexOf(s as FunnelStage);
   const now = Date.now();
-  const daysSince = (iso?: string | null): number | null =>
-    iso ? Math.max(0, (now - Date.parse(iso)) / 86_400_000) : null;
+  const daysSince = (iso?: string | null): number | null => {
+    if (!iso) return null;
+    const ms = Date.parse(iso);
+    // A blank/malformed timestamp parses to NaN; skip it rather than letting
+    // NaN poison avgAgeDays / the bottleneck average downstream.
+    return Number.isFinite(ms) ? Math.max(0, (now - ms) / 86_400_000) : null;
+  };
 
   const total = rows.length;
   const hired = rows.filter((r) => r.stage === "Hired").length;
   const rejected = rows.filter((r) => r.status === "rejected").length;
   const active = rows.filter((r) => r.status === "active" && r.stage !== "Hired").length;
 
-  const reached = PIPELINE_STAGES.map(() => 0);
-  const current = PIPELINE_STAGES.map(() => 0);
+  const reached = FUNNEL_STAGES.map(() => 0);
+  const current = FUNNEL_STAGES.map(() => 0);
   for (const r of rows) {
     const i = idxOf(r.stage);
     if (i < 0) continue;
     for (let k = 0; k <= i; k += 1) reached[k] += 1;
     if (r.status === "active") current[i] += 1;
   }
-  const funnel = PIPELINE_STAGES.map((stage, i) => ({
+  const funnel = FUNNEL_STAGES.map((stage, i) => ({
     stage,
     reached: reached[i],
     current: current[i],
@@ -1306,7 +1357,8 @@ export function pipelineAnalytics(): PipelineAnalytics {
 
   const ages = rows
     .filter((r) => r.status === "active" && r.created_at)
-    .map((r) => daysSince(r.created_at) as number);
+    .map((r) => daysSince(r.created_at))
+    .filter((d): d is number => d != null);
   const avgAgeDays = ages.length ? Math.round(ages.reduce((a, b) => a + b, 0) / ages.length) : null;
 
   const perStageDays: Record<string, number[]> = {};
@@ -1717,13 +1769,30 @@ export function finishTask(id: string, status: TaskStatus, opts: { result?: unkn
   );
 }
 
-/** On server boot any task still 'running'/'queued' was orphaned by the restart. */
+/**
+ * On server boot the volatile in-process queue is gone, so any 'running' row was
+ * orphaned mid-flight — its handler partially executed and cannot resume, so mark
+ * it 'interrupted'. 'queued' rows are deliberately left alone: they never started,
+ * ran no side effects, and are re-enqueued by the task runner (see listQueuedTaskIds)
+ * instead of being silently abandoned. Returns the number of rows interrupted.
+ */
 export function interruptStaleTasks(): number {
   const db = ensureDb();
   const info = db
-    .prepare(`UPDATE tasks SET status='interrupted', finished_at=? WHERE status IN ('running','queued')`)
+    .prepare(`UPDATE tasks SET status='interrupted', finished_at=? WHERE status='running'`)
     .run(new Date().toISOString());
   return info.changes as number;
+}
+
+/**
+ * IDs of never-started ('queued') tasks, oldest first. After a restart these are
+ * orphans of the volatile in-process queue but ran no handler, so the runner can
+ * safely re-enqueue them in submission order rather than dropping the work.
+ */
+export function listQueuedTaskIds(): string[] {
+  const db = ensureDb();
+  const rows = db.prepare(`SELECT id FROM tasks WHERE status='queued' ORDER BY created_at ASC`).all() as { id: string }[];
+  return rows.map((r) => r.id);
 }
 
 // ---- Dev extension — approved case scenarios (Phase D3) -------------------

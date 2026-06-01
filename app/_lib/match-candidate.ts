@@ -57,6 +57,11 @@ export function candidateSignature(c: CandidateInput): string {
     roleFamily: c.roleFamily ?? "",
     educationLevel: c.educationLevel ?? "",
     languages: [...(c.languages ?? [])].sort(),
+    // yearsExperience and traits feed the reasoning prompt, so they must be in
+    // the cache key — otherwise candidates differing only in years or
+    // soft-signal traits collide and the first verdict is served to the second.
+    yearsExperience: c.yearsExperience ?? 0,
+    traits: [...(c.traits ?? [])].sort(),
     archetype: c.archetype ?? "bau",
   });
 }

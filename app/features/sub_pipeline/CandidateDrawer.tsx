@@ -264,7 +264,7 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
                 <ul className="mt-1.5 space-y-0.5">
                   {ivOutcome.ratings.slice(0, 5).map((r, i) => (
                     <li key={i} className="text-sm text-ink">
-                      <span className="font-semibold tabular-nums text-coral">{r.rating}/5</span> {r.competency}
+                      <span className="font-semibold nums text-coral">{r.rating}/5</span> {r.competency}
                     </li>
                   ))}
                 </ul>
@@ -408,7 +408,7 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
               >
                 <Calendar size={13} className="text-coral" /> {schedBusy ? "Creating…" : "Create scheduling link"}
               </button>
-              {schedErr ? <p className="mt-2 text-sm text-red-700">{schedErr}</p> : null}
+              {schedErr ? <p role="alert" className="mt-2 text-sm text-red-700">{schedErr}</p> : null}
               {schedUrl ? (
                 <div className="mt-2 flex items-center gap-1.5">
                   <input
@@ -442,7 +442,7 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
             </div>
           ) : null}
 
-          {error ? <p className="rounded-md bg-red-50 p-2.5 text-sm text-red-700">{error}</p> : null}
+          {error ? <p role="alert" className="rounded-md bg-red-50 p-2.5 text-sm text-red-700">{error}</p> : null}
 
           {result ? <ResultView result={result} /> : null}
 

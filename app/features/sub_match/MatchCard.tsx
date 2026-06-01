@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import { useTasks } from "@/app/features/tasks/TasksProvider";
 import type { MatchRef, MatchResult, Reasoning, ReasoningState } from "./MatchTypes";
 import { EARLY_CAREER, FAMILY_LABEL, provLabel } from "./MatchTypes";
-import { Bar, ReasoningPanel } from "./MatchShared";
+import { Bar, ReasoningPanel, ScoreBreakdown } from "./MatchShared";
+import { FitTierBadge } from "@/app/_components/Badge";
 
 export function MatchCard({
   m,
@@ -14,6 +15,7 @@ export function MatchCard({
   canAdd,
   added,
   adding,
+  addError,
   onAdd,
 }: {
   m: MatchResult;
@@ -23,6 +25,7 @@ export function MatchCard({
   canAdd: boolean;
   added: boolean;
   adding: boolean;
+  addError?: string;
   onAdd: () => void;
 }) {
   const { startTask, tasks } = useTasks();
@@ -64,7 +67,7 @@ export function MatchCard({
   return (
     <li className="rounded-lg border border-stone-200 p-3">
       <div className="flex items-start gap-4">
-        <div className="w-16 shrink-0 text-center">
+        <div className="w-16 shrink-0 text-center tabular-nums tracking-tight">
           <div className="font-serif text-2xl text-ink">{m.total}</div>
           <div className="text-sm text-steel">
             {m.confidenceLow}–{m.confidenceHigh}
@@ -74,7 +77,8 @@ export function MatchCard({
 
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="font-medium text-ink">{m.title}</span>
+            <span className="text-base font-semibold text-ink">{m.title}</span>
+            <FitTierBadge tier={m.fitTier} score={m.total} />
             {m.isEntryEligible ? (
               <span className="rounded-full bg-green-50 px-2 py-0.5 text-sm font-semibold text-green-700">
                 entry-eligible
@@ -107,19 +111,25 @@ export function MatchCard({
               ) : null}
             </div>
           </div>
-          <p className="text-sm text-steel">
-            {m.company ?? "—"} · {m.location ?? "—"} · {m.workMode ?? "—"} ·{" "}
+          <p className="mt-0.5 text-sm text-steel tabular-nums tracking-tight">
+            <span className="font-medium text-ink">{m.company ?? "—"}</span> · {m.location ?? "—"} · {m.workMode ?? "—"} ·{" "}
             {FAMILY_LABEL[m.roleFamily ?? ""] ?? m.roleFamily} / {m.seniority} ·{" "}
             {m.salaryBand && m.salaryBand.length === 2
               ? `${Math.round(m.salaryBand[0] / 1000)}–${Math.round(m.salaryBand[1] / 1000)}k CZK`
               : "—"}
           </p>
 
-          <div className="mt-2 grid max-w-md grid-cols-3 gap-2">
-            <Bar label={early ? "Foundation" : "Skills"} value={m.skillsScore} />
-            <Bar label={early ? "Potential" : "Career"} value={m.careerScore} />
-            <Bar label={early ? "Fit" : "Personal"} value={m.personalScore} />
-          </div>
+          {m.scoreBreakdown && m.scoreBreakdown.length > 0 ? (
+            <ScoreBreakdown dims={m.scoreBreakdown} total={m.total} />
+          ) : (
+            // Fallback for a response without the server breakdown (e.g. an older
+            // cached shape): the raw per-dimension scores, weight-blind.
+            <div className="mt-2 grid max-w-md grid-cols-3 gap-2">
+              <Bar label={early ? "Foundation" : "Skills"} value={m.skillsScore} />
+              <Bar label={early ? "Potential" : "Career"} value={m.careerScore} />
+              <Bar label={early ? "Fit" : "Personal"} value={m.personalScore} />
+            </div>
+          )}
 
           {(() => {
             const matched = m.matchedSkills ?? [];
@@ -162,6 +172,12 @@ export function MatchCard({
               </div>
             );
           })()}
+
+          {addError ? (
+            <p className="mt-2 rounded-md bg-red-50 px-2 py-1.5 text-sm text-red-700" role="alert">
+              {addError}
+            </p>
+          ) : null}
 
           {reasoning ? <ReasoningPanel state={reasoning} /> : null}
         </div>

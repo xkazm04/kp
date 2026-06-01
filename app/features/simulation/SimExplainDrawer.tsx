@@ -22,7 +22,7 @@ export function SimExplainDrawer() {
     <aside
       role="dialog"
       aria-label="Simulation explainer"
-      className="animate-slide-in fixed bottom-[68px] right-3 top-3 z-[46] flex w-[min(92vw,28rem)] flex-col overflow-hidden rounded-xl border border-stone-200 bg-paper shadow-2xl"
+      className="animate-slide-in motion-reduce:animate-none fixed bottom-[calc(var(--sim-bar-h)_+_8px)] right-3 top-3 z-[var(--z-sim-drawer)] flex w-[min(92vw,28rem)] flex-col overflow-hidden rounded-xl border border-stone-200 bg-paper shadow-2xl"
     >
       <header className="flex items-center justify-between border-b border-stone-200 bg-paper/95 px-4 py-3 backdrop-blur">
         <div>

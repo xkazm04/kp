@@ -11,6 +11,8 @@ from __future__ import annotations
 import json
 from typing import Any
 
+from .models import RUBRIC_DIMENSIONS
+
 CASE_EVAL_PROMPT_VERSION = "case-eval-v1"
 TRANSFER_PROMPT_VERSION = "transfer-v1"
 
@@ -21,7 +23,9 @@ _SYSTEM = (
     "Ground scores in the supplied reflection + tooling signal. Output strict JSON only."
 )
 
-_DIMS = ("framing", "tooling", "judgment", "architecture", "transfer")
+# Canonical order, derived from the single rubric source of truth (models.RUBRIC_DIMENSIONS)
+# rather than hardcoded here, so order/labels/weights stay in lockstep with the rubric.
+_DIMS = tuple(d["name"] for d in RUBRIC_DIMENSIONS)
 
 
 def _generate(provider: Any | None, prompt: str, deterministic, coerce) -> tuple[dict, str]:
@@ -49,6 +53,29 @@ def _score_int(value: Any, default: int) -> int:
         return max(0, min(100, int(round(float(value)))))
     except (TypeError, ValueError):
         return default
+
+
+def _ordered_dimensions(scores: dict, rubric: list) -> list[dict]:
+    """Echo the canonical rubric — ordered, with name/label/weight/description — annotated with
+    each achieved score, so the UI can draw the breakdown without hardcoding order, human labels
+    or weights. label/weight/description prefer the case's own rubric (so a case that overrides
+    them stays in sync), falling back to the canonical defaults; order is always canonical."""
+    by_name = {d.get("name"): d for d in rubric if isinstance(d, dict) and d.get("name")}
+    out = []
+    for meta in RUBRIC_DIMENSIONS:
+        name = meta["name"]
+        rd = by_name.get(name) or {}
+        weight = rd.get("weight")
+        out.append(
+            {
+                "name": name,
+                "label": str(rd.get("label") or meta["label"]),
+                "weight": float(weight) if isinstance(weight, (int, float)) else meta["weight"],
+                "score": _score_int(scores.get(name), 0),
+                "description": str(rd.get("description") or meta["description"]),
+            }
+        )
+    return out
 
 
 # --- evaluate_submission ----------------------------------------------------
@@ -94,13 +121,16 @@ def evaluate_submission(reflection: dict, tooling: dict, case: dict, role: dict,
             concerns.append("Little evidence of reading before generating")
         if not outcomes or handled <= 0.5:
             concerns.append("Probe handling unclear from the trace")
+        # Empty findings stay empty (no '—' sentinel) — `hasFindings` lets the UI render a
+        # deliberate empty state instead of a bare em-dash bullet that reads as a render bug.
         return {
             "dimensionScores": dims,
             "structureScore": dims["architecture"],
             "judgmentScore": dims["judgment"],
             "architectureScore": dims["architecture"],
-            "strengths": strengths or ["—"],
-            "concerns": concerns or ["—"],
+            "strengths": strengths,
+            "concerns": concerns,
+            "hasFindings": bool(strengths or concerns),
             "summary": f"Deterministic estimate from the trace: tooling {dims['tooling']}, judgment {dims['judgment']}, framing {dims['framing']}.",
         }
 
@@ -110,17 +140,21 @@ def evaluate_submission(reflection: dict, tooling: dict, case: dict, role: dict,
             return det
         raw = payload.get("dimensionScores") or {}
         dims = {d: _score_int(raw.get(d), det["dimensionScores"][d]) for d in _DIMS}
+        strengths = _str_list(payload.get("strengths")) or det["strengths"]
+        concerns = _str_list(payload.get("concerns")) or det["concerns"]
         return {
             "dimensionScores": dims,
             "structureScore": _score_int(payload.get("structureScore"), dims["architecture"]),
             "judgmentScore": _score_int(payload.get("judgmentScore"), dims["judgment"]),
             "architectureScore": _score_int(payload.get("architectureScore"), dims["architecture"]),
-            "strengths": _str_list(payload.get("strengths")) or det["strengths"],
-            "concerns": _str_list(payload.get("concerns")) or det["concerns"],
+            "strengths": strengths,
+            "concerns": concerns,
+            "hasFindings": bool(strengths or concerns),
             "summary": str(payload.get("summary") or det["summary"]),
         }
 
     result, source = _generate(provider, prompt, deterministic, coerce)
+    result["dimensions"] = _ordered_dimensions(result.get("dimensionScores") or {}, rubric)
     result["promptVersion"] = CASE_EVAL_PROMPT_VERSION
     return result, source
 
@@ -149,12 +183,15 @@ def score_transfer(evaluation: dict, role: dict, *, provider: Any | None = None)
         dims = evaluation.get("dimensionScores") or {}
         vals = [dims.get(d, 50) for d in _DIMS]
         score = int(round(sum(vals) / len(vals))) if vals else 50
-        transfers = [d for d in _DIMS if dims.get(d, 0) >= 65]
+        strong = [d for d in _DIMS if dims.get(d, 0) >= 65]
         gaps = [d for d in _DIMS if dims.get(d, 100) < 45]
+        # No '—' sentinel — empty transfers stay empty; `hasTransfers` signals the empty state.
+        transfers = [f"Strong {d}" for d in strong]
         return {
             "transferScore": score,
-            "transfers": [f"Strong {d}" for d in transfers] or ["—"],
+            "transfers": transfers,
             "gaps": [f"Weak {d}" for d in gaps],
+            "hasTransfers": bool(transfers),
             "roleFitRationale": f"Average of the five capability scores ({score}); transfer weighted equally in the deterministic fallback.",
         }
 
@@ -162,10 +199,12 @@ def score_transfer(evaluation: dict, role: dict, *, provider: Any | None = None)
         det = deterministic()
         if not isinstance(payload, dict):
             return det
+        transfers = _str_list(payload.get("transfers")) or det["transfers"]
         return {
             "transferScore": _score_int(payload.get("transferScore"), det["transferScore"]),
-            "transfers": _str_list(payload.get("transfers")) or det["transfers"],
+            "transfers": transfers,
             "gaps": _str_list(payload.get("gaps")),
+            "hasTransfers": bool(transfers),
             "roleFitRationale": str(payload.get("roleFitRationale") or det["roleFitRationale"]),
         }
 

@@ -12,6 +12,18 @@ export type ProfileRow = {
   completeness: number | null;
 };
 
+// One row of the weight-aware score breakdown, all on a single 0-100 scale so the
+// bars render with zero client-side math (server: matching.build_score_breakdown).
+// percent = the dimension's own score; weight = its share of the total (the three
+// sum to 100); contribution = the points it adds to `total` (the three sum to ~total).
+export type ScoreDimension = {
+  key: string;
+  label: string;
+  percent: number;
+  weight: number;
+  contribution: number;
+};
+
 export type MatchResult = {
   jobId: string;
   title: string;
@@ -22,9 +34,12 @@ export type MatchResult = {
   roleFamily?: string;
   salaryBand?: number[];
   total: number;
+  fitTier?: "strong" | "promising" | "partial";
+  tone?: string;
   skillsScore: number;
   careerScore: number;
   personalScore: number;
+  scoreBreakdown?: ScoreDimension[];
   confidenceLow: number;
   confidenceHigh: number;
   matchedSkills?: string[];
@@ -33,6 +48,11 @@ export type MatchResult = {
   isEntryEligible?: boolean;
   graduateFriendliness?: number;
 };
+// One aggregated KO blocker: how many roles tripped a given hard gate, with a
+// candidate-facing clause that reads after "{count} role(s)" (server-supplied so
+// the wording stays a single source of truth). See matching.aggregate_ko_reasons.
+export type KoReason = { key: string; label: string; count: number };
+
 export type MatchResponse = {
   candidate: {
     label?: string;
@@ -43,7 +63,13 @@ export type MatchResponse = {
     potentialScore?: number | null;
     assumptions?: string[];
   };
-  meta: { evaluated?: number; koFiltered?: number; survivors?: number; returned?: number };
+  meta: {
+    evaluated?: number;
+    koFiltered?: number;
+    survivors?: number;
+    returned?: number;
+    koReasons?: KoReason[];
+  };
   matches: MatchResult[];
 };
 export type MatchRef = { profileId?: string; analysisSlug?: string };

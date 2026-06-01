@@ -4,7 +4,14 @@ import { createTemplate, listTemplates } from "@/app/_lib/templates-store";
 export const runtime = "nodejs";
 
 export async function GET() {
-  return NextResponse.json({ templates: listTemplates() });
+  try {
+    return NextResponse.json({ templates: listTemplates() });
+  } catch (error) {
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "Failed to load templates." },
+      { status: 500 }
+    );
+  }
 }
 
 export async function POST(request: NextRequest) {

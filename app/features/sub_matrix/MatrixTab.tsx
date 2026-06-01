@@ -11,6 +11,9 @@ type Matrix = {
   candidates: Candidate[];
   positions: Position[];
   cells: Cell[][];
+  // Requested positions that couldn't be scored (job record missing) — flagged
+  // so the grid never quietly omits a column the recruiter asked for.
+  missing: { id: string; title: string }[];
   placements: Record<string, { stage: string; status: string }>;
 };
 
@@ -41,13 +44,20 @@ export function MatrixTab() {
   const [family, setFamily] = useState<string>("all");
 
   useEffect(() => {
-    fetch("/api/matrix")
-      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`matrix ${r.status}`))))
-      .then((p) => {
-        if (p.error) throw new Error(p.error);
-        setData(p as Matrix);
-      })
-      .catch((e) => setError(e instanceof Error ? e.message : "Load failed."));
+    (async () => {
+      try {
+        const r = await fetch("/api/matrix");
+        // The route returns a structured { error } body (from parseStderrError)
+        // on failure — read it so the real cause reaches the screen instead of
+        // an opaque status code.
+        const body = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(body.error || `matrix ${r.status}`);
+        if (body.error) throw new Error(body.error);
+        setData(body as Matrix);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Load failed.");
+      }
+    })();
   }, []);
 
   const families = useMemo(() => {
@@ -65,6 +75,12 @@ export function MatrixTab() {
   }, [data, family, jobParam]);
 
   const scopedPosition = jobParam ? data?.positions.find((p) => p.id === jobParam) ?? null : null;
+  // A shared or bookmarked ?job= deep-link can outlive its position (closed or
+  // filled since the link went out). Once the data is in, jobParam-with-no-match
+  // means cols is empty and every reset is gated on scopedPosition — detect it so
+  // we can offer a way back instead of stranding the user on a zero-column grid.
+  const staleJob = Boolean(jobParam) && Boolean(data) && !scopedPosition;
+  const clearJob = () => router.push(buildUrl({ tab: "matrix", job: null }));
 
   // rows sorted by best visible fit (or alphabetical)
   const rows = useMemo(() => {
@@ -88,25 +104,29 @@ export function MatrixTab() {
           <p className="text-meta uppercase text-coral">Workspace</p>
           <h2 className="mt-1 font-serif text-display text-ink">Fit matrix</h2>
           <p className="mt-1 max-w-2xl text-body text-steel">
-            {scopedPosition
+            {staleJob
+              ? "The link you followed points to a position that is no longer open."
+              : scopedPosition
               ? `Candidates ranked by fit for ${scopedPosition.title}. Colour = match strength; a ring marks candidates already in this position's pipeline.`
               : "Every candidate scored against every open position. Colour = match strength; a ring marks candidates already in that position's pipeline. Click any cell to open the full match."}
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          {data ? (
-            <span className="rounded-md border border-stone-200 bg-paper px-2.5 py-1 text-sm text-steel">
-              {data.candidates.length} candidates × {cols.length} positions
-            </span>
-          ) : null}
-          <button
-            type="button"
-            onClick={() => setSortByFit((v) => !v)}
-            className="focus-ring rounded-md border border-stone-200 bg-white px-2.5 py-1 text-sm font-semibold text-ink hover:border-coral/40"
-          >
-            Sort: {sortByFit ? "best fit" : "A–Z"}
-          </button>
-        </div>
+        {!staleJob ? (
+          <div className="flex items-center gap-2">
+            {data ? (
+              <span className="rounded-md border border-stone-200 bg-paper px-2.5 py-1 text-sm text-steel">
+                {data.candidates.length} candidates × {cols.length} positions
+              </span>
+            ) : null}
+            <button
+              type="button"
+              onClick={() => setSortByFit((v) => !v)}
+              className="focus-ring rounded-md border border-stone-200 bg-white px-2.5 py-1 text-sm font-semibold text-ink hover:border-coral/40"
+            >
+              Sort: {sortByFit ? "best fit" : "A–Z"}
+            </button>
+          </div>
+        ) : null}
       </header>
 
       {scopedPosition ? (
@@ -116,13 +136,13 @@ export function MatrixTab() {
           </span>
           <button
             type="button"
-            onClick={() => router.push(buildUrl({ tab: "matrix", job: null }))}
+            onClick={clearJob}
             className="focus-ring rounded-full border border-stone-200 bg-white px-2.5 py-1 text-sm font-semibold text-steel hover:border-coral/40"
           >
             Show all positions
           </button>
         </div>
-      ) : families.length > 1 ? (
+      ) : !staleJob && families.length > 1 ? (
         <div className="flex flex-wrap gap-1.5">
           {["all", ...families].map((f) => (
             <button
@@ -139,10 +159,35 @@ export function MatrixTab() {
         </div>
       ) : null}
 
+      {data && data.missing.length > 0 ? (
+        <p className="rounded-md border border-amber-200 bg-amber-50/60 p-3 text-sm text-amber-800">
+          <span className="font-semibold">
+            {data.missing.length} requested {data.missing.length === 1 ? "position" : "positions"} could not be scored
+          </span>{" "}
+          and {data.missing.length === 1 ? "is" : "are"} omitted from the grid (no matching job record):{" "}
+          {data.missing.map((m) => m.title).join(", ")}.
+        </p>
+      ) : null}
+
       {error ? (
         <p className="rounded-md bg-red-50 p-3 text-base text-red-700">{error}</p>
       ) : !data ? (
         <p className="text-base text-steel">Computing the matrix…</p>
+      ) : staleJob ? (
+        <div className="rounded-lg border border-stone-200 bg-paper p-8 text-center shadow-panel">
+          <p className="font-serif text-xl text-ink">Position no longer open</p>
+          <p className="mx-auto mt-2 max-w-md text-base text-steel">
+            It was closed or filled after this link was shared, so its candidate ranking isn&apos;t
+            available. Other positions are still ranked.
+          </p>
+          <button
+            type="button"
+            onClick={clearJob}
+            className="focus-ring mt-5 rounded-full bg-ink px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-ink/90"
+          >
+            Show all positions
+          </button>
+        </div>
       ) : data.candidates.length === 0 || data.positions.length === 0 ? (
         <p className="rounded-md bg-paper p-4 text-base text-steel">
           No seeded candidates or open positions yet. Positions are the jobs that appear in the pipeline.

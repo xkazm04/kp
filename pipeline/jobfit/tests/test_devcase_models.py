@@ -3,12 +3,14 @@
 import unittest
 
 from pipeline.jobfit.devcase.models import (
+    RUBRIC_DIMENSIONS,
     CaseEvaluation,
     CaseScenario,
     CodebaseRef,
     CommitReflection,
     CoverProbe,
     DevNeed,
+    DimensionScore,
     ProbeOutcome,
     RubricDimension,
     ToolingSignal,
@@ -52,15 +54,24 @@ class TestDevCaseModels(unittest.TestCase):
             judgment_score=68,
             architecture_score=70,
             dimension_scores={"tooling": 80},
+            dimensions=[DimensionScore(name="tooling", label="Tooling fluency", weight=0.25, score=80, description="x")],
             commit_reflection=CommitReflection(narrative="explored then narrowed", read_before_write=0.7),
             tooling_signal=ToolingSignal(fluency=0.8, probe_outcomes=[ProbeOutcome(probe_id="p1", detected=True, handled_well=True)]),
         )
         dumped = ev.model_dump(by_alias=True)
         self.assertEqual(dumped["dimensionScores"]["tooling"], 80)
+        self.assertEqual(dumped["dimensions"][0]["label"], "Tooling fluency")
         self.assertEqual(dumped["commitReflection"]["readBeforeWrite"], 0.7)
         self.assertTrue(dumped["toolingSignal"]["probeOutcomes"][0]["handledWell"])
         restored = CaseEvaluation.model_validate(dumped)
         self.assertEqual(restored.tooling_signal.fluency, 0.8)
+        self.assertEqual(restored.dimensions[0].weight, 0.25)
+
+    def test_canonical_rubric_is_ordered_and_normalized(self):
+        # Single source of truth: five capabilities, in order, weights summing to 1.0, each labelled.
+        self.assertEqual([d["name"] for d in RUBRIC_DIMENSIONS], ["framing", "tooling", "judgment", "architecture", "transfer"])
+        self.assertAlmostEqual(sum(d["weight"] for d in RUBRIC_DIMENSIONS), 1.0, places=2)
+        self.assertTrue(all(d["label"] and d["description"] for d in RUBRIC_DIMENSIONS))
 
     def test_transfer_defaults(self):
         t = TransferAssessment(transfer_score=64, transfers=["API design"], gaps=["k8s"])

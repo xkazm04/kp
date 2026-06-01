@@ -1,6 +1,8 @@
 "use client";
 
+import { Scale } from "lucide-react";
 import { useJsonFetch } from "@/app/_lib/useJsonFetch";
+import { EmptyState } from "./JobsShared";
 
 type Rating = { competency: string; rating: number; evidence?: string };
 type Candidate = {
@@ -30,10 +32,11 @@ export function CompareInterviews({ jobId }: { jobId: string }) {
   if (!data) return <p className="text-base text-steel">Loading interviews…</p>;
   if (data.candidates.length === 0) {
     return (
-      <p className="text-base text-steel">
-        No completed voice interviews for this role yet. Run a voice screen from the pipeline — finished interviews line
-        up here, scored on the same rubric for side-by-side comparison.
-      </p>
+      <EmptyState
+        icon={Scale}
+        title="No completed voice interviews yet"
+        body="Run a voice screen from the pipeline — finished interviews line up here, scored on the same rubric for side-by-side comparison."
+      />
     );
   }
 
@@ -76,7 +79,7 @@ export function CompareInterviews({ jobId }: { jobId: string }) {
                     <td key={i} className="p-2">
                       {r ? (
                         <span
-                          className={`inline-flex h-7 w-9 items-center justify-center rounded-md font-semibold tabular-nums ${ratingColor(
+                          className={`inline-flex h-7 w-9 items-center justify-center rounded-md font-semibold nums ${ratingColor(
                             r.rating
                           )}`}
                           title={r.evidence || ""}

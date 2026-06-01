@@ -58,7 +58,7 @@ export function SubmissionRow({ submission, caseId, rank, isTop = false, onChang
         <span className="min-w-0 flex-1 truncate text-steel">{submission.repoRef}</span>
         {ts != null ? (
           <span
-            className={`shrink-0 rounded px-1.5 py-0.5 text-micro font-semibold tabular-nums ${scoreColor(ts)} ${scoreTextColor(ts)}`}
+            className={`shrink-0 rounded px-1.5 py-0.5 text-micro font-semibold nums ${scoreColor(ts)} ${scoreTextColor(ts)}`}
             aria-label={`Transfer fit score ${ts} of 100`}
           >
             {ts}<span className="opacity-70"> fit</span>

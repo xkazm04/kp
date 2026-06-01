@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Check, X } from "lucide-react";
 import { Modal } from "@/app/_components/Modal";
+import { ScoreBadge } from "@/app/_components/ScoreBadge";
 import type { Entry } from "./DecisionsTypes";
 
 type SkillClaim = { skill?: string; level?: string; provenance?: string };
@@ -18,9 +19,6 @@ type Payload = {
   aspirations?: string[];
   skillClaims?: SkillClaim[];
 };
-
-const scoreTone = (s: number | null) =>
-  s == null ? "bg-stone-100 text-steel" : s >= 72 ? "bg-moss/20 text-moss" : s >= 55 ? "bg-amber-100 text-amber-700" : "bg-coral/15 text-coral";
 
 // Read-only analysis summary derived from the profile data already gathered for
 // this candidate (no new AI call) + their match score for the role, with the
@@ -79,8 +77,8 @@ export function AnalysisSummaryModal({
       }
     >
       <div className="flex flex-wrap items-center gap-2">
-        <span className={`rounded-md px-2 py-1 text-sm font-semibold ${scoreTone(entry.matchScore)}`}>
-          Fit {entry.matchScore ?? "—"}/100
+        <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-ink">
+          Fit <ScoreBadge score={entry.matchScore ?? null} />
         </span>
         {payload?.seniority ? <span className="rounded-md bg-paper px-2 py-1 text-sm text-ink">{payload.seniority}</span> : null}
         {payload?.yearsExperience != null ? (

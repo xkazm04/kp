@@ -1,7 +1,7 @@
 import { writeFile } from "node:fs/promises";
 import path from "node:path";
 import { actOnPipelineEntry, hasEventToday, listActiveEntriesForAutomation, recordAutomationEvent } from "./db";
-import { cleanupWorkdir, createWorkdir, parseStderrError, spawnPython } from "./python-runner";
+import { cleanupWorkdir, createWorkdir, parsePythonJson, parseStderrError, spawnPython } from "./python-runner";
 import { dispatchRejection } from "./comms-dispatch";
 
 // Task 7 — deterministic policy pass over all active entries. LLM-free. Extracted
@@ -44,7 +44,7 @@ export async function runAutomationPass(): Promise<AutomationPassResult> {
       throw new AutomationPassError(err.message, err.status);
     }
 
-    const { decisions } = JSON.parse(stdout) as { decisions: AutomationDecision[] };
+    const { decisions } = parsePythonJson<{ decisions: AutomationDecision[] }>(stdout, stderr);
     for (const d of decisions) {
       if (!d.entryId) continue;
       if (d.action === "advance") {

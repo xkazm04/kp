@@ -48,18 +48,27 @@ def main(argv: list[str] | None = None) -> int:
             raise ValueError(f"job not found: {job_id}")
 
         candidates: list[tuple[str, MatchCandidate]] = []
+        skipped: list[dict[str, str]] = []
         for i, entry in enumerate(raw.get("candidates") or []):
             if not isinstance(entry, dict):
                 continue
-            if entry.get("profile"):
-                cand = build_match_candidate(CandidateProfileV2.model_validate(entry["profile"]))
-            elif entry.get("candidate"):
-                cand = MatchCandidate.model_validate(entry["candidate"])
-            else:
+            entry_id = entry.get("id") or f"cand-{i}"
+            try:
+                if entry.get("profile"):
+                    cand = build_match_candidate(CandidateProfileV2.model_validate(entry["profile"]))
+                elif entry.get("candidate"):
+                    cand = MatchCandidate.model_validate(entry["candidate"])
+                else:
+                    continue
+            except Exception as exc:
+                # One malformed entry (a partially-extracted CV, a bad field) must not
+                # abort the whole ranking — skip it with a recorded reason so every other
+                # valid candidate still ranks, mirroring matrix_cli's row-level isolation.
+                skipped.append({"id": entry_id, "label": entry.get("label") or entry_id, "reason": str(exc)})
                 continue
             if entry.get("label"):
                 cand.label = entry["label"]
-            candidates.append((entry.get("id") or f"cand-{i}", cand))
+            candidates.append((entry_id, cand))
 
         rows = rank_candidates_for_job(candidates, job)
     except Exception as exc:
@@ -81,6 +90,7 @@ def main(argv: list[str] | None = None) -> int:
                     "entryEligible": bool(job.entry_profile and job.entry_profile.is_entry_eligible),
                 },
                 "candidates": rows,
+                "skipped": skipped,
             },
             ensure_ascii=False,
         )

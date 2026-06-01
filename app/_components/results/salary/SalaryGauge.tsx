@@ -3,6 +3,7 @@
 import { motion } from "framer-motion";
 import { useRef, useState } from "react";
 import { formatCzk } from "@/app/_lib/format";
+import { useReducedMotion } from "@/app/_lib/useReducedMotion";
 
 interface SalaryGaugeProps {
   minimum: number;
@@ -22,8 +23,13 @@ export function SalaryGauge({ minimum, maximum, midpoint, confidence }: SalaryGa
   const gaugeMin = minimum * 0.9;
   const gaugeMax = Math.max(maximum, target) * 1.08;
   const range = gaugeMax - gaugeMin;
+  // A zero/flat/inverted model estimate makes range <= 0, which would turn
+  // every percent into NaN (and clamping can't rescue NaN). Center the markers
+  // so the bar degrades gracefully instead of collapsing with React warnings.
+  const degenerate = !(range > 0);
 
-  const pct = (value: number) => ((value - gaugeMin) / range) * 100;
+  const clampPct = (value: number) => Math.max(0, Math.min(100, value));
+  const pct = (value: number) => (degenerate ? 50 : clampPct(((value - gaugeMin) / range) * 100));
   const minPct = pct(minimum);
   const maxPct = pct(maximum);
   const midPct = pct(midpoint);
@@ -31,10 +37,12 @@ export function SalaryGauge({ minimum, maximum, midpoint, confidence }: SalaryGa
 
   const fillOpacity = CONFIDENCE_OPACITY[confidence.toLowerCase()] ?? 1;
 
+  const reducedMotion = useReducedMotion();
   const barRef = useRef<HTMLDivElement>(null);
   const [hover, setHover] = useState<{ x: number; value: number } | null>(null);
 
   const handleMove = (event: React.MouseEvent<HTMLDivElement>) => {
+    if (degenerate) return;
     const rect = barRef.current?.getBoundingClientRect();
     if (!rect) return;
     const x = Math.max(0, Math.min(rect.width, event.clientX - rect.left));
@@ -46,7 +54,7 @@ export function SalaryGauge({ minimum, maximum, midpoint, confidence }: SalaryGa
     <div className="relative pt-7 pb-6">
       {hover ? (
         <div
-          className="pointer-events-none absolute -translate-x-1/2 rounded-md bg-ink px-2 py-1 text-sm font-medium text-paper shadow"
+          className="pointer-events-none absolute -translate-x-1/2 rounded-md bg-ink px-2 py-1 text-sm font-medium text-paper shadow nums"
           style={{ left: hover.x, top: 0 }}
         >
           {formatCzk(hover.value)}
@@ -57,7 +65,7 @@ export function SalaryGauge({ minimum, maximum, midpoint, confidence }: SalaryGa
         ref={barRef}
         role="img"
         aria-label={`Salary range ${formatCzk(minimum)} to ${formatCzk(maximum)} CZK, midpoint ${formatCzk(midpoint)}, +30% target ${formatCzk(target)}`}
-        className="relative h-3 w-full cursor-crosshair rounded-full bg-stone-200"
+        className={`relative h-3 w-full rounded-full bg-stone-200 ${degenerate ? "cursor-default" : "cursor-crosshair"}`}
         onMouseMove={handleMove}
         onMouseLeave={() => setHover(null)}
       >
@@ -68,9 +76,9 @@ export function SalaryGauge({ minimum, maximum, midpoint, confidence }: SalaryGa
             background: "linear-gradient(to right, var(--color-coral), var(--color-moss))",
             opacity: fillOpacity
           }}
-          initial={{ width: 0 }}
+          initial={reducedMotion ? false : { width: 0 }}
           animate={{ width: `${maxPct - minPct}%` }}
-          transition={{ duration: 0.9, ease: "easeOut" }}
+          transition={reducedMotion ? { duration: 0 } : { duration: 0.9, ease: "easeOut" }}
         />
 
         <div

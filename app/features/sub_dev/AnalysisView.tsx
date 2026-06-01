@@ -2,7 +2,7 @@
 
 import { Boxes, Check, ClipboardList, GitBranch, Loader2, Lock, ShieldCheck } from "lucide-react";
 import { formatPercent } from "@/app/_lib/format";
-import { sourceLabel } from "./DevHelpers";
+import { ProvenanceStrip } from "./ProvenanceStrip";
 import { MiniList } from "./DevShared";
 import { COMPLEXITY } from "./DevTypes";
 import type { Design, NeedAnalysis, RepoSnapshot, Result } from "./DevTypes";
@@ -55,8 +55,9 @@ export function AnalysisView({
                   {analysis.trueComplexity} complexity
                 </span>
               ) : null}
-              <span className="ml-auto text-micro uppercase text-steel">
-                {sourceLabel(result.source)} · conf {formatPercent(analysis.confidence ?? 0, { fraction: true })}
+              <span className="ml-auto flex items-center gap-1.5 text-micro uppercase text-steel">
+                <ProvenanceStrip perStepSources={result.perStepSources} source={result.source} />
+                <span>conf {formatPercent(analysis.confidence ?? 0, { fraction: true })}</span>
               </span>
             </div>
             <p className="text-base text-ink">{analysis.reflection}</p>
@@ -128,7 +129,7 @@ export function AnalysisView({
               <div className="rounded-lg border border-stone-200 bg-white p-4 shadow-panel">
                 <div className="mb-2 flex items-center gap-2">
                   <span className="text-meta uppercase tracking-wide text-steel">Role</span>
-                  <span className="ml-auto text-micro uppercase text-steel">{sourceLabel(design.source)}</span>
+                  <ProvenanceStrip className="ml-auto" perStepSources={design.perStepSources} source={design.source} />
                 </div>
                 <p className="font-serif text-h3 text-ink">{design.role?.title}</p>
                 <p className="text-sm uppercase text-steel">{design.role?.seniority}</p>
@@ -172,7 +173,7 @@ export function AnalysisView({
                   <div className="mt-2 flex flex-wrap gap-1.5">
                     {(design.case?.rubricDimensions ?? []).map((d) => (
                       <span key={d.name} className="rounded-full bg-paper px-2 py-0.5 text-micro text-ink">
-                        {d.name} <span className="text-steel">{formatPercent(d.weight ?? 0, { fraction: true })}</span>
+                        {d.label ?? d.name} <span className="text-steel">{formatPercent(d.weight ?? 0, { fraction: true })}</span>
                       </span>
                     ))}
                   </div>

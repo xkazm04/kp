@@ -113,7 +113,7 @@ export function JdBuilder({ onSaved }: { onSaved: () => void }) {
         {generating ? task?.progressMsg || "Generating…" : "Generate job description"}
       </button>
       {generating ? <p className="mt-1.5 text-sm text-steel">This runs a few AI steps and takes ~1–2 minutes — it keeps going if you navigate away.</p> : null}
-      {error ? <p className="mt-2 rounded-md bg-red-50 p-2.5 text-sm text-red-700">{error}</p> : null}
+      {error ? <p role="alert" className="mt-2 rounded-md bg-red-50 p-2.5 text-sm text-red-700">{error}</p> : null}
 
       {result ? <JdBuilderResult result={result} title={title.trim()} company={company.trim()} onSaved={onSaved} /> : null}
 

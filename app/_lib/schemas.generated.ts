@@ -124,7 +124,8 @@ export const analysisResultSchema = z.object({
       keyword: z.string(),
       inJd: z.number(),
       inCv: z.number(),
-      matched: z.boolean()
+      matched: z.boolean(),
+      status: z.enum(["matched", "missing", "over_used"])
     })),
     missing: z.array(z.string()),
     overUsed: z.array(z.string())

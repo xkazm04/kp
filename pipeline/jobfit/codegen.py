@@ -48,6 +48,12 @@ def _emit(node: dict[str, Any], defs: dict[str, Any], indent: int = 0) -> str:
         parts = [_emit(s, defs, indent) for s in non_null]
         return f"z.union([{', '.join(parts)}])"
 
+    # `Literal[...]` of string values serializes as an `enum`; emit a matching
+    # Zod enum so the union of states is enforced (and inferred) on the client.
+    if "enum" in node and all(isinstance(v, str) for v in node["enum"]):
+        members = ", ".join(json.dumps(v) for v in node["enum"])
+        return f"z.enum([{members}])"
+
     t = node.get("type")
     if t == "string":
         return "z.string()"

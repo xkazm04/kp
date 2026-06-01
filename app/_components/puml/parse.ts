@@ -338,13 +338,39 @@ export function parsePuml(source: string): PumlDiagram {
     if (/^note\b/i.test(trimmed) && noteMatch) {
       let text = noteMatch[3] ?? "";
       if (!noteMatch[3]) {
-        i += 1;
-        const body: string[] = [];
-        while (i < lines.length && !/^end\s*note\s*$/i.test(lines[i].trim())) {
-          body.push(lines[i].trim());
-          i += 1;
+        // Multi-line note: the body runs until `end note`. Guard that scan —
+        // without a terminator the original loop ran to EOF and silently
+        // absorbed every following node, edge and container into the note,
+        // rendering the diagram truncated with no error. Look ahead for the
+        // terminator first; only consume the body to it if it actually exists.
+        let term = i + 1;
+        while (term < lines.length && !/^end\s*note\s*$/i.test(lines[term].trim())) {
+          term += 1;
         }
-        text = body.join("\n");
+        if (term < lines.length) {
+          // Terminator found — body is everything up to `end note` (skipped next).
+          text = lines.slice(i + 1, term).map((l) => l.trim()).join("\n");
+          i = term;
+        } else {
+          // No terminator. A blank line is the author's section break, so if one
+          // appears before the enclosing block closes (`}` / @enduml) treat it as
+          // the note's end and keep parsing after it. If structural content runs
+          // straight into the block boundary with no blank line, we can't tell
+          // where the note stops — fall back to single-line handling (empty body,
+          // consume nothing) so the following nodes, edges and the closing brace
+          // still parse, rather than being swallowed into the note.
+          let stop = i + 1;
+          while (stop < lines.length && lines[stop].trim() !== "") {
+            const t = lines[stop].trim();
+            if (t === "}" || /^@enduml\b/i.test(t)) break;
+            stop += 1;
+          }
+          if (stop < lines.length && lines[stop].trim() === "") {
+            text = lines.slice(i + 1, stop).map((l) => l.trim()).join("\n");
+            i = stop - 1; // re-examine the blank line next (harmlessly skipped)
+          }
+          // else: single-line fallback — leave `i` and the empty `text` untouched.
+        }
       }
       const anchor = noteMatch[2];
       const id = genId(state);

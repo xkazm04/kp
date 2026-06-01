@@ -59,58 +59,89 @@ def select_open_positions(jobs: list[Job], *, max_n: int = 15, entry_cap: int = 
     return chosen[:max_n]
 
 
-def build_pipeline(candidate_records: list[dict[str, Any]], jobs: list[Job]) -> list[dict[str, Any]]:
+def build_pipeline(
+    candidate_records: list[dict[str, Any]], jobs: list[Job]
+) -> tuple[list[dict[str, Any]], list[str]]:
+    """Route every candidate to its best-matching open req and assign a stage.
+
+    Per-record processing is guarded: a single malformed or old-schema row in
+    ``candidates.json`` is skipped and reported instead of aborting the whole
+    seed with a traceback that writes no output (mirroring
+    :func:`runner._load_fixtures`'s collect-errors-and-continue convention).
+    Returns ``(entries, skipped)`` where ``skipped`` is a list of
+    human-readable per-record errors for ``main`` to surface.
+
+    The enumerate index drives stage/approval spread and entry ids, so it is
+    kept stable across skips: a surviving record keeps the same stage whether or
+    not an earlier row was malformed (skipped rows simply leave a gap).
+    """
     open_positions = select_open_positions(jobs)
     if not open_positions:
-        return []
+        return [], []
     entries: list[dict[str, Any]] = []
+    skipped: list[str] = []
     for i, rec in enumerate(candidate_records):
-        profile = CandidateProfileV2.model_validate(rec)
-        candidate = build_match_candidate(profile)
+        ident = rec.get("id", f"index {i}") if isinstance(rec, dict) else f"index {i}"
+        # The ENTIRE per-record body is guarded: a crash while validating,
+        # transforming, or scoring one candidate records that row as skipped
+        # instead of aborting the seed before later candidates are processed.
+        try:
+            profile = CandidateProfileV2.model_validate(rec)
+            candidate = build_match_candidate(profile)
 
-        scored = []
-        for job in open_positions:
-            passed, _reasons = ko_filter(candidate, job)
-            result = score_job(candidate, job)
-            scored.append((passed, result.total, job, result))
-        # prefer KO-passing, then highest score
-        scored.sort(key=lambda x: (x[0], x[1]), reverse=True)
-        # Spread across NEAR-EQUAL best matches (same KO status, within 6 pts) by
-        # candidate index, so 13 similar seniors don't all land on the one top req —
-        # the match stays honest (within 6 pts of their best), just less clustered.
-        best_pass, best_total = scored[0][0], scored[0][1]
-        near = [s for s in scored if s[0] == best_pass and best_total - s[1] <= 6]
-        passed, _total, job, result = near[i % len(near)]
+            scored = []
+            for job in open_positions:
+                passed, _reasons = ko_filter(candidate, job)
+                result = score_job(candidate, job)
+                scored.append((passed, result.total, job, result))
+            # prefer KO-passing, then highest score
+            scored.sort(key=lambda x: (x[0], x[1]), reverse=True)
+            # Spread across NEAR-EQUAL best matches (same KO status, within 6 pts) by
+            # candidate index, so 13 similar seniors don't all land on the one top req —
+            # the match stays honest (within 6 pts of their best), just less clustered.
+            best_pass, best_total = scored[0][0], scored[0][1]
+            near = [s for s in scored if s[0] == best_pass and best_total - s[1] <= 6]
+            passed, _total, job, result = near[i % len(near)]
 
-        stage = FUNNEL[i % len(FUNNEL)]
-        if not passed:
-            stage = "Sourced"  # not eligible for any open req yet
+            stage = FUNNEL[i % len(FUNNEL)]
+            if not passed:
+                stage = "Sourced"  # not eligible for any open req yet
 
-        entry: dict[str, Any] = {
-            "id": f"pe-{i:03d}",
-            "candidateId": rec.get("id", f"cand-{i:03d}"),
-            "candidateLabel": profile.display_name or rec.get("id", "Candidate"),
-            "archetype": profile.archetype,
-            "roleFamily": profile.role_family,
-            "jobId": job.id,
-            "jobTitle": job.title,
-            "stage": stage,
-            "matchScore": result.total,
-            "status": "active",
-            "approvalKind": None,
-            "approvalDetail": "",
-        }
-        if stage != "Hired":
-            if i % 6 == 0:
-                entry["approvalKind"] = "decision"
-            elif i % 9 == 0:
-                entry["approvalKind"] = "calendar"
-                entry["approvalDetail"] = SLOTS[i % len(SLOTS)]
-        entries.append(entry)
-    return entries
+            entry: dict[str, Any] = {
+                "id": f"pe-{i:03d}",
+                "candidateId": rec.get("id", f"cand-{i:03d}"),
+                "candidateLabel": profile.display_name or rec.get("id", "Candidate"),
+                "archetype": profile.archetype,
+                "roleFamily": profile.role_family,
+                "jobId": job.id,
+                "jobTitle": job.title,
+                "stage": stage,
+                "matchScore": result.total,
+                "status": "active",
+                "approvalKind": None,
+                "approvalDetail": "",
+            }
+            if stage != "Hired":
+                if i % 6 == 0:
+                    entry["approvalKind"] = "decision"
+                elif i % 9 == 0:
+                    entry["approvalKind"] = "calendar"
+                    entry["approvalDetail"] = SLOTS[i % len(SLOTS)]
+            entries.append(entry)
+        except Exception as exc:  # validation / schema / scoring — skip, don't abort
+            skipped.append(f"candidate {ident}: {type(exc).__name__}: {exc}")
+            continue
+    return entries, skipped
 
 
 def main(argv: list[str] | None = None) -> int:
+    # Skip messages can carry non-ASCII (em-dash separators, pydantic error
+    # text echoing a Czech name) — keep them printable on a legacy-codepage
+    # Windows console instead of raising UnicodeEncodeError (mirrors runner.main).
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+
     parser = argparse.ArgumentParser(description="Build the hiring-pipeline seed.")
     parser.add_argument("--candidates", type=Path, default=CANDIDATES_PATH)
     parser.add_argument("--jobs", type=Path, default=None)
@@ -122,7 +153,13 @@ def main(argv: list[str] | None = None) -> int:
         return 1
     records = json.loads(args.candidates.read_text(encoding="utf-8"))
     jobs = load_corpus(args.jobs)
-    entries = build_pipeline(records, jobs)
+    entries, skipped = build_pipeline(records, jobs)
+
+    # Report (don't raise on) any malformed/old-schema rows: the seed still
+    # writes the records it could process so one bad row can't take down the
+    # whole regeneration.
+    for err in skipped:
+        print(f"seed_pipeline: skipped malformed candidate — {err}", file=sys.stderr)
 
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text(json.dumps(entries, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -133,6 +170,8 @@ def main(argv: list[str] | None = None) -> int:
     print(f"Wrote {len(entries)} pipeline entries across {len(positions)} open positions -> {args.out.name}", file=sys.stderr)
     print(f"stages: {dict(Counter(e['stage'] for e in entries))}", file=sys.stderr)
     print(f"awaiting approval: {sum(1 for e in entries if e['approvalKind'])}", file=sys.stderr)
+    if skipped:
+        print(f"skipped {len(skipped)} malformed candidate record(s)", file=sys.stderr)
     return 0
 
 

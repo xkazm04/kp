@@ -26,13 +26,16 @@ import argparse
 import json
 import sys
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any
 
 from ..archetype import detect_archetype
-from ..matching import load_corpus, match
+from ..matching import _DEFAULT_CORPUS, load_corpus, match
 from ..profile import CandidateProfileV2, Evidence, SkillClaim
 from ..taxonomy import resolve_term, skill_match_score
 from ..transform import build_match_candidate
+from ._style import _make_styler, should_color
+from .runner import GLYPH_NA, glyph, verdict_banner
 from .thresholds import MATCHING_THRESHOLDS as THRESHOLDS
 
 
@@ -253,8 +256,9 @@ class Report:
         return metrics_ok and all(p.passed for p in self.probes)
 
 
-def run() -> Report:
-    jobs = load_corpus()
+def run(jobs: list[Any] | None = None) -> Report:
+    if jobs is None:
+        jobs = load_corpus()
     report = Report()
     for scenario in SCENARIOS:
         report.scenarios.append(_eval_scenario(scenario, jobs))
@@ -267,23 +271,96 @@ def run() -> Report:
     return report
 
 
-def _format_markdown(report: Report) -> str:
+def _scenario_passed(s: ScenarioResult) -> bool:
+    """Whether a scenario cleared the per-scenario axes (archetype routed, entry
+    precision — when applicable — and role@5 at/above threshold). Drives the
+    ``N/M scenarios`` count in the banner."""
+    if not s.archetype_ok:
+        return False
+    if s.entry_precision is not None and s.entry_precision < THRESHOLDS["entry_precision"]:
+        return False
+    return s.role_relevance_at5 >= THRESHOLDS["role_relevance_at5"]
+
+
+def _matching_banner(report: Report, st) -> str:
+    """Lead the matching report with the aggregate verdict, e.g.
+    ``▌ 8/8 checks PASS · archetype 100% · role@5 95%``.
+
+    Scenarios and fairness probes both gate the run, so they fold into one
+    ``checks`` count — the verdict word can never contradict the count (e.g. all
+    scenarios green but a probe red)."""
     agg = report.aggregate()
-    lines = ["# v2 matching + fairness eval\n", "## Aggregate metrics\n", "| metric | score | threshold | pass |", "|---|---|---|---|"]
+    total = len(report.scenarios) + len(report.probes)
+    n_pass = sum(_scenario_passed(s) for s in report.scenarios) + sum(p.passed for p in report.probes)
+    n_fail = total - n_pass
+    parts = [
+        f"{n_pass}/{total} checks {'PASS' if report.passes() else 'FAIL'}",
+        f"archetype {agg.get('archetype_accuracy', 0.0):.0%}",
+        f"role@5 {agg.get('role_relevance_at5', 0.0):.0%}",
+    ]
+    if n_fail:
+        parts.append(f"{n_fail} FAIL")
+    return verdict_banner(parts, passed=report.passes(), s=st)
+
+
+def _format_markdown(report: Report, *, color: bool = False) -> str:
+    st = _make_styler(color)
+    agg = report.aggregate()
+    lines = [
+        st("# v2 matching + fairness eval", "bold") + "\n",
+        # Lead with the verdict so the run outcome reads before the tables.
+        _matching_banner(report, st) + "\n",
+        "## Aggregate metrics\n",
+        "| metric | score | threshold | pass |",
+        "|---|---|---|---|",
+    ]
     for k, threshold in THRESHOLDS.items():
         v = agg.get(k, 0.0)
-        lines.append(f"| {k} | {v:.0%} | {threshold:.0%} | {'PASS' if v >= threshold else 'FAIL'} |")
+        lines.append(f"| {k} | {v:.0%} | {threshold:.0%} | {glyph(v >= threshold, st)} |")
     lines += ["", "## Per-scenario\n", "| scenario | archetype | ok | entry precision | role@5 | top |", "|---|---|---|---|---|---|"]
     for s in report.scenarios:
-        ep = "n/a" if s.entry_precision is None else f"{s.entry_precision:.0%}"
+        ep = GLYPH_NA if s.entry_precision is None else f"{s.entry_precision:.0%}"
         lines.append(
-            f"| {s.name} | {s.detected_archetype} | {'PASS' if s.archetype_ok else 'FAIL'} | {ep} | "
+            f"| {s.name} | {s.detected_archetype} | {glyph(s.archetype_ok, st)} | {ep} | "
             f"{s.role_relevance_at5:.0%} | {s.top_total} |"
         )
-    lines += ["", "## Fairness probes\n", "| probe | result | detail |", "|---|---|---|"]
+    # Fairness probes — the brief's centrepiece ("Rizika a trade-offy"). Set it
+    # apart with a rule and a lead verdict so it reads as the hero of the report,
+    # not an equal-weight third table.
+    n_probes = len(report.probes)
+    n_fair = sum(p.passed for p in report.probes)
+    fair_ok = n_fair == n_probes
+    fair_line = verdict_banner(
+        [f"Fairness: {n_fair}/{n_probes} {'PASS' if fair_ok else 'FAIL'}"],
+        passed=fair_ok,
+        s=st,
+    )
+    lines += [
+        "",
+        "---",
+        "",
+        "## Fairness probes\n",
+        f"{fair_line} {glyph(fair_ok, st)}\n",
+        "| probe | result | detail |",
+        "|---|---|---|",
+    ]
     for p in report.probes:
-        lines.append(f"| {p.name} | {'PASS' if p.passed else 'FAIL'} | {p.detail} |")
+        # Pretty (color) render: collapse PASS detail so the eye lands on any
+        # FAIL. Plain markdown keeps every detail for the written record.
+        detail = "" if (color and p.passed) else p.detail
+        lines.append(f"| {p.name} | {glyph(p.passed, st)} | {detail} |")
     return "\n".join(lines)
+
+
+def _empty_corpus_message(corpus: Path) -> str:
+    """Helpful empty state when the job corpus has no jobs to match against:
+    every scenario would surface zero matches and the report would be a mute,
+    misleading FAIL. Name the corpus file and how to regenerate it."""
+    where = Path(*corpus.parts[-3:]).as_posix()  # e.g. data/seed_jobs/jobs.normalized.json
+    return (
+        f"matching_eval: job corpus is empty (0 jobs in {where}) — nothing to match against.\n"
+        "  regenerate it with:  python -m pipeline.jobfit.seed_jobs_csas\n"
+    )
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -292,10 +369,23 @@ def main(argv: list[str] | None = None) -> int:
 
     parser = argparse.ArgumentParser(description="Deterministic v2 matching + fairness eval.")
     parser.add_argument("--json", action="store_true")
+    parser.add_argument("--no-color", action="store_true", help="Disable ANSI color in the pretty report.")
     parser.add_argument("--strict", action="store_true", help="Exit non-zero if a metric or probe fails.")
     args = parser.parse_args(argv)
+    use_color = should_color(args)
 
-    report = run()
+    # Load the corpus first: with zero jobs, every scenario scores 0 matches and
+    # the report is a confusing all-FAIL with no cause. Say the corpus is empty
+    # and how to rebuild it, then exit non-zero instead.
+    try:
+        jobs = load_corpus(_DEFAULT_CORPUS)
+    except (FileNotFoundError, json.JSONDecodeError):
+        jobs = []
+    if not jobs:
+        sys.stderr.write(_empty_corpus_message(_DEFAULT_CORPUS))
+        return 1
+
+    report = run(jobs)
     if args.json:
         print(
             json.dumps(
@@ -311,7 +401,7 @@ def main(argv: list[str] | None = None) -> int:
             )
         )
     else:
-        print(_format_markdown(report))
+        print(_format_markdown(report, color=use_color))
 
     if args.strict and not report.passes():
         return 1

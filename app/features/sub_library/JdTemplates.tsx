@@ -5,6 +5,7 @@ import { FileText, LayoutTemplate, Settings2 } from "lucide-react";
 import { JdBuilderResult, type JdBuildResult } from "./JdBuilderResult";
 import { JdTemplateManager } from "./JdTemplateManager";
 import { renderTemplate } from "./render-template";
+import { salaryBandError } from "@/app/_lib/salary-band";
 
 type Template = { id: string; name: string; body: string; isDefault: boolean };
 
@@ -44,7 +45,13 @@ export function JdTemplates({ onSaved }: { onSaved: () => void }) {
       .then((p) => {
         const list = (p.templates as Template[]) ?? [];
         setTemplates(list);
-        setTemplateId((cur) => cur || list[0]?.id || "");
+        // Reconcile the selection after every load: a delete, rename, or
+        // default change in the manager can drop or reorder the chosen
+        // template, leaving templateId pointing at a now-missing id. Left
+        // stale, the select silently shows its first option while build()
+        // renders from a different (fallback) template. Keep the current
+        // id only if it still exists; otherwise fall back to the first.
+        setTemplateId((cur) => (list.some((t) => t.id === cur) ? cur : list[0]?.id ?? ""));
       })
       .catch(() => undefined);
   useEffect(() => {
@@ -79,7 +86,11 @@ export function JdTemplates({ onSaved }: { onSaved: () => void }) {
     setBuildKey((k) => k + 1);
   };
 
-  const canBuild = title.trim().length > 1 && templates.length > 0;
+  // Guard the salary band at the form trust boundary: a backwards (min > max),
+  // zero, or negative range would render an impossible band into the JD while
+  // ingest silently corrects/drops it — leaving the ad and the matcher disagreeing.
+  const salaryError = salaryBandError(salaryMin, salaryMax);
+  const canBuild = title.trim().length > 1 && templates.length > 0 && !salaryError;
 
   return (
     <div className="rounded-lg border border-stone-200 bg-white p-4 shadow-panel">
@@ -123,10 +134,27 @@ export function JdTemplates({ onSaved }: { onSaved: () => void }) {
         </Field>
         <Field label="Salary band (CZK/mo)">
           <div className="flex items-center gap-2">
-            <input type="number" value={salaryMin} onChange={(e) => setSalaryMin(Number(e.target.value) || 0)} className={INP} />
+            <input
+              type="number"
+              min={0}
+              step={1000}
+              value={salaryMin}
+              onChange={(e) => setSalaryMin(Number(e.target.value) || 0)}
+              aria-invalid={Boolean(salaryError)}
+              className={INP}
+            />
             <span className="text-steel">–</span>
-            <input type="number" value={salaryMax} onChange={(e) => setSalaryMax(Number(e.target.value) || 0)} className={INP} />
+            <input
+              type="number"
+              min={0}
+              step={1000}
+              value={salaryMax}
+              onChange={(e) => setSalaryMax(Number(e.target.value) || 0)}
+              aria-invalid={Boolean(salaryError)}
+              className={INP}
+            />
           </div>
+          {salaryError ? <p role="alert" className="mt-1 text-sm text-red-600">{salaryError}</p> : null}
         </Field>
       </div>
 

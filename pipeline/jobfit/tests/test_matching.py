@@ -4,9 +4,12 @@ import unittest
 
 from pipeline.jobfit.matching import (
     MatchCandidate,
+    aggregate_ko_reasons,
+    build_score_breakdown,
     ko_filter,
     match,
     score_career,
+    score_job,
     score_skills,
 )
 
@@ -122,6 +125,38 @@ class ScoringTest(unittest.TestCase):
         self.assertGreater(same, diff)
 
 
+class ScoreBreakdownTest(unittest.TestCase):
+    def test_breakdown_is_normalized_and_weight_aware(self) -> None:
+        dims = build_score_breakdown("bau", skills=1.0, career=1.0, personal=0.5)
+        self.assertEqual([d.key for d in dims], ["skills", "career", "personal"])
+        # BAU weights (50/35/15) emitted as 0-100 percentages that sum to 100.
+        self.assertEqual([d.weight for d in dims], [50, 35, 15])
+        self.assertEqual(sum(d.weight for d in dims), 100)
+        # percent is the raw 0-1 score scaled to 0-100; contribution = percent x weight.
+        self.assertEqual([d.percent for d in dims], [100, 100, 50])
+        self.assertEqual([d.contribution for d in dims], [50.0, 35.0, 7.5])
+
+    def test_contributions_track_the_total(self) -> None:
+        # The breakdown sums to the same total the scorer reports (within rounding),
+        # so the bars reconstruct the headline number instead of drifting from it.
+        job = mkjob(
+            seniority="senior",
+            languages=["English"],
+            requirements=[{"skill": "Python", "kind": "must_have", "hardness": "prerequisite"}],
+        )
+        m = score_job(SENIOR_PY, job)
+        self.assertEqual(len(m.score_breakdown), 3)
+        self.assertAlmostEqual(sum(d.contribution for d in m.score_breakdown), m.total, delta=1.0)
+
+    def test_labels_follow_the_archetype(self) -> None:
+        # Early-career renames the slots (career -> Potential, personal -> Fit) so the
+        # bar labels match what each slot actually measures for that profile.
+        bau = [d.label for d in build_score_breakdown("bau", 0.5, 0.5, 0.5)]
+        student = [d.label for d in build_score_breakdown("student", 0.5, 0.5, 0.5)]
+        self.assertEqual(bau, ["Skills", "Career", "Personal"])
+        self.assertEqual(student, ["Foundation", "Potential", "Fit"])
+
+
 class MatchTest(unittest.TestCase):
     def test_ranking_and_meta(self) -> None:
         good = mkjob(
@@ -160,6 +195,52 @@ class MatchTest(unittest.TestCase):
         resp = match(thin, [job], limit=1)
         m = resp.matches[0]
         self.assertGreater(m.confidence_high - m.confidence_low, MIN_CONFIDENCE_SPREAD)
+
+    def test_empty_result_explains_itself_via_ko_reasons(self) -> None:
+        # SENIOR_PY (Czech/English) is KO'd from a German-only role -> 0 matches.
+        resp = match(SENIOR_PY, [mkjob(title="DE-only", seniority="senior", languages=["German"])], limit=10)
+        self.assertEqual(len(resp.matches), 0)
+        self.assertEqual(resp.meta["koFiltered"], 1)
+        reasons = resp.meta["koReasons"]
+        self.assertEqual(reasons[0]["key"], "language")
+        self.assertEqual(reasons[0]["count"], 1)
+        self.assertTrue(reasons[0]["label"])  # candidate-facing clause is populated
+
+
+class AggregateKoReasonsTest(unittest.TestCase):
+    def test_buckets_by_category_and_ranks_by_count(self) -> None:
+        lists = [
+            ["missing required language (German)"],
+            ["missing required language (French)", "below minimum education (master)"],
+            ["seniority gap (junior candidate vs senior role)"],
+            ["missing required language (German)"],
+        ]
+        agg = aggregate_ko_reasons(lists)
+        by_key = {r["key"]: r["count"] for r in agg}
+        self.assertEqual(by_key["language"], 3)
+        self.assertEqual(by_key["education"], 1)
+        self.assertEqual(by_key["seniority"], 1)
+        self.assertEqual(agg[0]["key"], "language")  # most common blocker leads
+
+    def test_counts_a_category_once_per_job(self) -> None:
+        # A role missing two languages is still ONE role blocked on language.
+        agg = aggregate_ko_reasons([["missing required language (German)", "missing required language (French)"]])
+        self.assertEqual(len(agg), 1)
+        self.assertEqual(agg[0]["count"], 1)
+
+    def test_unknown_reason_falls_back_to_other(self) -> None:
+        agg = aggregate_ko_reasons([["some brand-new gate we have not categorized"]])
+        self.assertEqual(agg[0]["key"], "other")
+
+    def test_caps_to_top_n(self) -> None:
+        lists = [
+            ["missing required language (German)"],
+            ["seniority gap (x)"],
+            ["below minimum education (master)"],
+            ["work mode onsite not preferred"],
+            ["role not open to early-career"],
+        ]
+        self.assertEqual(len(aggregate_ko_reasons(lists, top=3)), 3)
 
 
 if __name__ == "__main__":

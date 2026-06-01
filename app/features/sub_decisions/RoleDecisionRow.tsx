@@ -1,6 +1,7 @@
 "use client";
 
 import { Sparkles } from "lucide-react";
+import { ScoreBadge } from "@/app/_components/ScoreBadge";
 import { styleFor, type Entry } from "./DecisionsTypes";
 
 // One row per role: its pending candidates as clickable chips (→ analysis
@@ -44,12 +45,17 @@ export function RoleDecisionRow({
               key={e.id}
               type="button"
               onClick={() => onCandidate(e)}
-              title={`${e.candidateLabel} · open analysis summary`}
+              title={`${e.candidateLabel} · ${s.label} · open analysis summary`}
               className="focus-ring inline-flex items-center gap-1.5 rounded-md border border-stone-200 bg-paper px-2 py-1 text-sm hover:border-coral/40"
             >
-              <span className={`h-3 w-3 shrink-0 rounded-full ${s.bg}`} aria-hidden />
+              <span
+                className={`h-3 w-3 shrink-0 rounded-full ${s.bg}`}
+                role="img"
+                aria-label={s.label}
+                title={s.label}
+              />
               <span className="font-medium text-ink">{e.candidateLabel}</span>
-              <span className="text-steel">fit {e.matchScore ?? "—"}</span>
+              <ScoreBadge score={e.matchScore ?? null} />
             </button>
           );
         })}

@@ -1,8 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { Check, UserPlus } from "lucide-react";
+import { Check, History, RotateCcw, UserPlus } from "lucide-react";
 import { useJsonFetch } from "@/app/_lib/useJsonFetch";
+import { ScoreBadge } from "@/app/_components/ScoreBadge";
+import { EmptyState } from "./JobsShared";
 
 type Rediscovered = {
   candidateId: string;
@@ -26,9 +28,17 @@ export function RediscoverPanel({ jobId, jobTitle }: { jobId: string; jobTitle: 
   const data = body ? body.rediscovered ?? [] : null;
   const [added, setAdded] = useState<Record<string, boolean>>({});
   const [adding, setAdding] = useState<string | null>(null);
+  const [addError, setAddError] = useState<Record<string, string>>({});
+  const [announce, setAnnounce] = useState("");
 
   const add = async (c: Rediscovered) => {
     setAdding(c.candidateId);
+    setAddError((p) => {
+      if (!(c.candidateId in p)) return p;
+      const next = { ...p };
+      delete next[c.candidateId];
+      return next;
+    });
     try {
       const res = await fetch("/api/pipeline", {
         method: "POST",
@@ -43,7 +53,14 @@ export function RediscoverPanel({ jobId, jobTitle }: { jobId: string; jobTitle: 
           stage: "AI-matched",
         }),
       });
-      if (res.ok) setAdded((p) => ({ ...p, [c.candidateId]: true }));
+      const payload = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(payload?.error ?? `Couldn't add (${res.status}).`);
+      setAdded((p) => ({ ...p, [c.candidateId]: true }));
+      setAnnounce(`${c.label} added to the pipeline.`);
+    } catch (caught) {
+      const message = caught instanceof Error ? caught.message : "Couldn't add to the pipeline.";
+      setAddError((p) => ({ ...p, [c.candidateId]: message }));
+      setAnnounce(`Couldn't add ${c.label} to the pipeline. ${message}`);
     } finally {
       setAdding(null);
     }
@@ -53,15 +70,19 @@ export function RediscoverPanel({ jobId, jobTitle }: { jobId: string; jobTitle: 
   if (!data) return <p className="text-base text-steel">Scanning past candidates for a fit…</p>;
   if (data.length === 0) {
     return (
-      <p className="text-base text-steel">
-        No past candidates resurface for this role yet. As people are rejected or hired elsewhere, strong cross-role
-        fits will appear here.
-      </p>
+      <EmptyState
+        icon={History}
+        title="No past candidates resurface yet"
+        body="As people are rejected or hired elsewhere, strong cross-role fits will appear here."
+      />
     );
   }
 
   return (
     <div>
+      <p role="status" aria-live="polite" className="sr-only">
+        {announce}
+      </p>
       <p className="text-base text-steel">
         Past candidates who clear the bar for <span className="font-medium text-ink">{jobTitle}</span> but aren&apos;t in
         its pipeline — worth a second look.
@@ -69,7 +90,7 @@ export function RediscoverPanel({ jobId, jobTitle }: { jobId: string; jobTitle: 
       <ul className="mt-3 space-y-2">
         {data.map((c) => (
           <li key={c.candidateId} className="flex items-center gap-3 rounded-md border border-stone-200 bg-white px-3 py-2">
-            <span className="w-9 shrink-0 text-center font-serif text-lg tabular-nums text-ink">{c.score}</span>
+            <span className="shrink-0"><ScoreBadge score={c.score} /></span>
             <div className="min-w-0 flex-1">
               <p className="truncate text-base font-medium text-ink">{c.label}</p>
               <span className={`mt-0.5 inline-block rounded-full px-2 py-0.5 text-meta ${PRIOR_STYLE[c.prior.kind]}`}>
@@ -81,14 +102,31 @@ export function RediscoverPanel({ jobId, jobTitle }: { jobId: string; jobTitle: 
                 <Check size={14} /> Added
               </span>
             ) : (
-              <button
-                type="button"
-                onClick={() => add(c)}
-                disabled={adding === c.candidateId}
-                className="focus-ring inline-flex items-center gap-1.5 rounded-md border border-stone-200 px-2.5 py-1.5 text-sm font-semibold text-ink hover:border-coral/40 disabled:opacity-50"
-              >
-                <UserPlus size={14} className="text-coral" /> {adding === c.candidateId ? "Adding…" : "Add to pipeline"}
-              </button>
+              <div className="flex shrink-0 flex-col items-end gap-1">
+                <button
+                  type="button"
+                  onClick={() => add(c)}
+                  disabled={adding === c.candidateId}
+                  title={addError[c.candidateId] ?? undefined}
+                  className={`focus-ring inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-sm font-semibold disabled:opacity-50 ${
+                    addError[c.candidateId]
+                      ? "border-coral/50 bg-coral/5 text-coral hover:border-coral/70"
+                      : "border-stone-200 text-ink hover:border-coral/40"
+                  }`}
+                >
+                  {addError[c.candidateId] ? (
+                    <RotateCcw size={14} className="text-coral" />
+                  ) : (
+                    <UserPlus size={14} className="text-coral" />
+                  )}{" "}
+                  {adding === c.candidateId ? "Adding…" : addError[c.candidateId] ? "Try again" : "Add to pipeline"}
+                </button>
+                {addError[c.candidateId] ? (
+                  <span className="max-w-[12rem] text-right text-meta text-coral">
+                    Couldn&apos;t add — {addError[c.candidateId]}
+                  </span>
+                ) : null}
+              </div>
             )}
           </li>
         ))}

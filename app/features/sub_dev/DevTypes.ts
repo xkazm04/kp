@@ -16,13 +16,17 @@ export type RepoSnapshot = {
   loc?: number;
   readmeExcerpt?: string;
 };
-export type Result = { analysis?: NeedAnalysis; snapshot?: RepoSnapshot | null; source?: string };
+// `perStepSources` ({step: "llm"|"deterministic"}) comes from the uniform CLI
+// provenance envelope; the ProvenanceStrip renders it, falling back to `source`
+// for bundles saved before it existed.
+export type PerStepSources = Record<string, string>;
+export type Result = { analysis?: NeedAnalysis; snapshot?: RepoSnapshot | null; source?: string; perStepSources?: PerStepSources };
 
 export type CoverProbe = { id?: string; kind?: string; where?: string; reveals?: string };
-export type RubricDim = { name?: string; weight?: number; description?: string };
+export type RubricDim = { name?: string; label?: string; weight?: number; description?: string };
 export type RoleSpec = { title?: string; seniority?: string; mustHaves?: string[]; niceToHaves?: string[]; responsibilities?: string[] };
 export type CaseScenario = { title?: string; brief?: string; repoSeed?: string; tasks?: string[]; coverProbes?: CoverProbe[]; rubricDimensions?: RubricDim[]; timeboxHours?: number };
-export type Design = { role?: RoleSpec; case?: CaseScenario; source?: string };
+export type Design = { role?: RoleSpec; case?: CaseScenario; source?: string; perStepSources?: PerStepSources };
 export type ApprovedCase = { id: string; title: string | null; roleTitle: string | null; seniority: string | null; createdAt: string };
 export type Submission = {
   id: string;
@@ -67,9 +71,12 @@ export type Reflection = {
 };
 export type ProbeOutcome = { probeId?: string; detected?: boolean; handledWell?: boolean; note?: string };
 export type Tooling = { fluency?: number; probeOutcomes?: ProbeOutcome[]; overRelianceFlags?: string[]; evidence?: string[]; confidence?: number };
-export type CaseEval = { dimensionScores?: Record<string, number>; strengths?: string[]; concerns?: string[]; summary?: string };
-export type Transfer = { transferScore?: number; transfers?: string[]; gaps?: string[]; roleFitRationale?: string };
-export type EvalBundle = { reflection?: Reflection; tooling?: Tooling; evaluation?: CaseEval; transfer?: Transfer; source?: string; commitCount?: number };
+// Self-describing breakdown row echoed by the Python evaluator (evaluate.py `_ordered_dimensions`):
+// canonical order + human label + weight, so the UI never hardcodes dimension metadata.
+export type DimensionScore = { name: string; label: string; weight: number; score: number; description: string };
+export type CaseEval = { dimensionScores?: Record<string, number>; dimensions?: DimensionScore[]; strengths?: string[]; concerns?: string[]; hasFindings?: boolean; summary?: string };
+export type Transfer = { transferScore?: number; transfers?: string[]; gaps?: string[]; hasTransfers?: boolean; roleFitRationale?: string };
+export type EvalBundle = { reflection?: Reflection; tooling?: Tooling; evaluation?: CaseEval; transfer?: Transfer; source?: string; perStepSources?: PerStepSources; commitCount?: number };
 
 export const LIFECYCLE_STEPS = ["intake", "analyzed", "designed", "approved", "collecting", "ranked", "promoted"];
 export const STAGE_LABEL: Record<string, string> = {

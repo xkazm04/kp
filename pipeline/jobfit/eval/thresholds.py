@@ -7,10 +7,15 @@ run trivially pass or fail. Each eval module re-exports the table it consumes.
 from __future__ import annotations
 
 # runner.py — golden-set extraction eval (fractions in [0, 1]).
+# salary is gated on two axes: salary_coverage (did Gemini emit a band at all)
+# and salary_overlap (how close the bands it *did* emit were). Keeping them apart
+# stops a coverage regression from hiding behind an accuracy number averaged only
+# over emitted bands — see runner._salary_band / Report.aggregate.
 PASS_THRESHOLDS = {
     "role_family": 0.85,
     "seniority": 0.70,
     "salary_overlap": 0.60,
+    "salary_coverage": 0.90,
     "skill_recall": 0.75,
 }
 

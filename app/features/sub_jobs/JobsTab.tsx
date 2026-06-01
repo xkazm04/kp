@@ -12,7 +12,7 @@ import {
   MODES,
 } from "./JobsTypes";
 import type { Job, Stats } from "./JobsTypes";
-import { Chip, Select } from "./JobsShared";
+import { Chip, EmptyState, Select } from "./JobsShared";
 import { JobsTableFrame, JobsTableSkeleton } from "./JobsTable";
 import { JobRow } from "./JobRow";
 import { JobPostingModal } from "./JobPostingModal";
@@ -211,8 +211,8 @@ export function JobsTab() {
       <div className="mt-3 flex flex-wrap items-center gap-3 text-base" aria-live="polite">
         {jobs && stats ? (
           <span className="text-steel">
-            Showing <span className="font-semibold tabular-nums text-ink">{jobs.length}</span> of{" "}
-            <span className="font-semibold tabular-nums text-ink">{stats.total}</span> roles
+            Showing <span className="font-semibold nums text-ink">{jobs.length}</span> of{" "}
+            <span className="font-semibold nums text-ink">{stats.total}</span> roles
           </span>
         ) : null}
         {anyFilter ? (
@@ -234,22 +234,22 @@ export function JobsTab() {
             <JobsTableSkeleton />
           </JobsTableFrame>
         ) : jobs.length === 0 ? (
-          <div className="flex flex-col items-center gap-3 rounded-lg border border-dashed border-stone-300 bg-paper/50 px-6 py-12 text-center">
-            <SearchX className="h-8 w-8 text-steel" aria-hidden />
-            <div>
-              <p className="text-base font-semibold text-ink">No roles match these filters</p>
-              <p className="mt-1 text-base text-steel">Try widening your search or clearing the filters.</p>
-            </div>
-            {anyFilter ? (
-              <button
-                type="button"
-                onClick={clearAll}
-                className="focus-ring inline-flex items-center gap-1.5 rounded-md border border-stone-300 bg-white px-3 py-1.5 text-base font-semibold text-ink hover:bg-stone-50"
-              >
-                <X size={14} aria-hidden /> Clear all filters
-              </button>
-            ) : null}
-          </div>
+          <EmptyState
+            icon={SearchX}
+            title="No roles match these filters"
+            body="Try widening your search or clearing the filters."
+            action={
+              anyFilter ? (
+                <button
+                  type="button"
+                  onClick={clearAll}
+                  className="focus-ring inline-flex items-center gap-1.5 rounded-md border border-stone-300 bg-white px-3 py-1.5 text-base font-semibold text-ink hover:bg-stone-50"
+                >
+                  <X size={14} aria-hidden /> Clear all filters
+                </button>
+              ) : undefined
+            }
+          />
         ) : (
           <div
             className={

@@ -85,7 +85,9 @@ export function JobPostingModal({ job, onClose }: { job: Job; onClose: () => voi
             key={id}
             type="button"
             role="tab"
+            id={`jobtab-${id}`}
             aria-selected={tab === id}
+            aria-controls={`jobpanel-${id}`}
             onClick={() => setTab(id)}
             className={`focus-ring -mb-px inline-flex items-center gap-1.5 border-b-2 px-3 py-2 text-sm font-semibold ${
               tab === id ? "border-coral text-coral" : "border-transparent text-steel hover:text-ink"
@@ -96,17 +98,25 @@ export function JobPostingModal({ job, onClose }: { job: Job; onClose: () => voi
         ))}
       </div>
 
-      {tab === "posting" ? (
-        <article className="rounded-lg border border-stone-200 bg-paper/40 p-4">
-          <Markdown content={markdown} />
-        </article>
-      ) : tab === "candidates" ? (
-        <RecruiterCandidates jobId={job.id} jobTitle={job.title} roleFamily={job.roleFamily ?? null} autoLoad />
-      ) : tab === "rediscover" ? (
-        <RediscoverPanel jobId={job.id} jobTitle={job.title} />
-      ) : (
-        <CompareInterviews jobId={job.id} />
-      )}
+      <div
+        role="tabpanel"
+        id={`jobpanel-${tab}`}
+        aria-labelledby={`jobtab-${tab}`}
+        tabIndex={0}
+        className="focus-ring rounded-lg"
+      >
+        {tab === "posting" ? (
+          <article className="rounded-lg border border-stone-200 bg-paper/40 p-4">
+            <Markdown content={markdown} />
+          </article>
+        ) : tab === "candidates" ? (
+          <RecruiterCandidates jobId={job.id} jobTitle={job.title} roleFamily={job.roleFamily ?? null} autoLoad />
+        ) : tab === "rediscover" ? (
+          <RediscoverPanel jobId={job.id} jobTitle={job.title} />
+        ) : (
+          <CompareInterviews jobId={job.id} />
+        )}
+      </div>
     </Modal>
   );
 }

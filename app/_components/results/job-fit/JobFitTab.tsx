@@ -3,6 +3,7 @@
 import { AlertTriangle, BriefcaseBusiness } from "lucide-react";
 import { ScoreDial } from "@/app/_components/ScoreDial";
 import type { Analysis } from "@/app/_lib/schemas";
+import { dedupe, dedupeBy } from "@/app/_lib/dedupe";
 import { ListBlock } from "../shared";
 import { SkillChips } from "./SkillChips";
 
@@ -89,20 +90,26 @@ export function JobFitTab({ analysis }: { analysis: Analysis }) {
 }
 
 function KeywordCoverageBlock({ coverage }: { coverage: KeywordCoverage }) {
+  // LLM keyword lists routinely repeat a token; de-dupe so a keyword renders
+  // once and its value can never collide as a React key.
+  const hits = dedupeBy(coverage.hits, (hit) => hit.keyword);
+  const missing = dedupe(coverage.missing);
+  const overUsed = dedupe(coverage.overUsed);
+
   return (
     <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
       <div className="flex items-center justify-between gap-3">
         <h3 className="font-serif text-h3 text-ink">Keyword Coverage</h3>
-        <span className="text-base font-semibold text-ink tabular-nums">
+        <span className="text-base font-semibold text-ink nums">
           {coverage.coveragePercent}%
         </span>
       </div>
       <CoverageBar percent={coverage.coveragePercent} />
 
-      {coverage.hits.length ? (
+      {hits.length ? (
         <div className="mt-4 grid gap-2 sm:grid-cols-2">
-          {coverage.hits.map((hit) => (
-            <KeywordRow key={hit.keyword} hit={hit} />
+          {hits.map((hit, i) => (
+            <KeywordRow key={`${hit.keyword}-${i}`} hit={hit} />
           ))}
         </div>
       ) : (
@@ -111,16 +118,16 @@ function KeywordCoverageBlock({ coverage }: { coverage: KeywordCoverage }) {
         </p>
       )}
 
-      {coverage.missing.length ? (
+      {missing.length ? (
         <div className="mt-5">
           <p className="text-base font-semibold text-ink">Missing role keywords</p>
           <p className="mt-1 text-sm leading-5 text-steel">
             Add these explicitly to the CV — most ATS resume parsers require literal matches.
           </p>
           <ul className="mt-2 flex flex-wrap gap-2">
-            {coverage.missing.map((keyword) => (
+            {missing.map((keyword, i) => (
               <li
-                key={keyword}
+                key={`${keyword}-${i}`}
                 className="rounded-full border border-coral/40 bg-red-50 px-3 py-1 text-sm font-semibold text-ink"
               >
                 {keyword}
@@ -130,7 +137,7 @@ function KeywordCoverageBlock({ coverage }: { coverage: KeywordCoverage }) {
         </div>
       ) : null}
 
-      {coverage.overUsed.length ? (
+      {overUsed.length ? (
         <div className="mt-5 rounded-md bg-paper p-3">
           <div className="flex items-center gap-2">
             <AlertTriangle className="h-4 w-4 text-coral" aria-hidden />
@@ -140,9 +147,9 @@ function KeywordCoverageBlock({ coverage }: { coverage: KeywordCoverage }) {
             These appear far more often in the CV than in the JD; recruiters may flag this:
           </p>
           <ul className="mt-2 flex flex-wrap gap-2">
-            {coverage.overUsed.map((keyword) => (
+            {overUsed.map((keyword, i) => (
               <li
-                key={keyword}
+                key={`${keyword}-${i}`}
                 className="rounded-full border border-stone-300 bg-white px-3 py-1 text-sm font-semibold text-ink"
               >
                 {keyword}
@@ -160,18 +167,26 @@ function CoverageBar({ percent }: { percent: number }) {
   return (
     <div className="mt-3 h-2.5 overflow-hidden rounded-full bg-stone-200">
       <div
-        className="h-full rounded-full bg-moss transition-[width] duration-500"
+        className="h-full rounded-full bg-moss transition-[width] duration-500 motion-reduce:transition-none"
         style={{ width: `${clamped}%` }}
       />
     </div>
   );
 }
 
+// Chip color + label both derive from the single server-computed `status`
+// enum so the legend, count, and swatch can never drift apart.
+const KEYWORD_STATUS: Record<
+  KeywordCoverage["hits"][number]["status"],
+  { cls: string; label: string }
+> = {
+  matched: { cls: "border-moss/40 bg-moss/10 text-ink", label: "matched" },
+  missing: { cls: "border-coral/40 bg-red-50 text-ink", label: "missing" },
+  over_used: { cls: "border-dial-amber/50 bg-dial-amber/10 text-ink", label: "over-used" },
+};
+
 function KeywordRow({ hit }: { hit: KeywordCoverage["hits"][number] }) {
-  const label = hit.matched ? "matched" : "missing";
-  const cls = hit.matched
-    ? "border-moss/40 bg-moss/10 text-ink"
-    : "border-coral/40 bg-red-50 text-ink";
+  const { cls, label } = KEYWORD_STATUS[hit.status];
   return (
     <div className={`flex items-center justify-between gap-3 rounded-md border px-3 py-2 text-base ${cls}`}>
       <span className="truncate font-medium">{hit.keyword}</span>

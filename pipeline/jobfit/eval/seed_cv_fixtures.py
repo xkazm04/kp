@@ -38,13 +38,16 @@ from ..claude_cli import ClaudeCliProvider
 from ..gemini import load_local_env
 from ..service import analyze
 from ..taxonomy import role_band
+from ._style import _make_styler, should_color
 from .runner import (
     FixtureResult,
     Report,
     _format_markdown,
     _range_overlap,
     _safe_int,
+    _salary_band,
     _skill_recall,
+    glyph,
 )
 from .thresholds import PASS_THRESHOLDS
 
@@ -224,7 +227,7 @@ def _score(name: str, expected: dict[str, Any], payload: dict[str, Any], duratio
     actual_sen = candidate.get("currentSeniority")
     actual_skills = candidate.get("skills", []) or []
     actual_edu = candidate.get("educationLevel")
-    a_min, a_max = _safe_int(salary.get("minimum")), _safe_int(salary.get("maximum"))
+    a_min, a_max, salary_present = _salary_band(salary)
 
     role_set = expected["expected_role_family"]
     role_set = [role_set] if isinstance(role_set, str) else role_set
@@ -246,6 +249,7 @@ def _score(name: str, expected: dict[str, Any], payload: dict[str, Any], duratio
         role_family_match=actual_role in role_set,
         seniority_match=actual_sen in sen_set,
         salary_overlap=overlap,
+        salary_present=salary_present,
         skill_recall=_skill_recall(actual_skills, expected.get("expected_skills_subset", [])),
         education_match=edu_match,
         signals_recall=None,
@@ -284,6 +288,11 @@ def _persist(conn: sqlite3.Connection, *, slug: str, label: str, jd_slug: str | 
 def run(count: int, *, persist: bool, refresh: bool, skip_existing: bool = False, retries: int = 1) -> int:
     load_local_env()
     import os
+
+    # Colorize the verdict glyphs/banner when the relevant stream is a TTY.
+    use_color = should_color(stream=sys.stdout)
+    s_err = _make_styler(should_color(stream=sys.stderr))
+    s_out = _make_styler(use_color)
 
     if not (os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")):
         sys.stderr.write("seed_cv_fixtures: GEMINI_API_KEY not set — cannot analyze.\n")
@@ -352,7 +361,21 @@ def run(count: int, *, persist: bool, refresh: bool, skip_existing: bool = False
         if payload is None:
             sys.stderr.write(f"  {cid}: analysis failed after {retries + 1} attempt(s) — {last_err}\n")
             report.fixtures.append(
-                FixtureResult(cid, exp["label"], time.monotonic() - started, False, False, 0.0, 0.0, None, None, {}, exp, str(last_err))
+                FixtureResult(
+                    name=cid,
+                    label=exp["label"],
+                    duration_s=time.monotonic() - started,
+                    role_family_match=False,
+                    seniority_match=False,
+                    salary_overlap=0.0,
+                    salary_present=False,
+                    skill_recall=0.0,
+                    education_match=None,
+                    signals_recall=None,
+                    actual={},
+                    expected=exp,
+                    error=str(last_err),
+                )
             )
             continue
 
@@ -365,11 +388,12 @@ def run(count: int, *, persist: bool, refresh: bool, skip_existing: bool = False
             conn.commit()
             saved += 1
 
+        sal = f"{result.salary_overlap:.0%}" if result.salary_present else "none"
         print(
             f"  {cid} {c.get('displayName'):22.22} {note:11} → "
-            f"role={'OK' if result.role_family_match else 'XX'} "
-            f"sen={'OK' if result.seniority_match else 'XX'} "
-            f"sal={result.salary_overlap:.0%} skill={result.skill_recall:.0%} "
+            f"role={glyph(result.role_family_match, s_err)} "
+            f"sen={glyph(result.seniority_match, s_err)} "
+            f"sal={sal} skill={result.skill_recall:.0%} "
             f"score={payload.get('score', {}).get('total')}",
             file=sys.stderr,
         )
@@ -378,12 +402,18 @@ def run(count: int, *, persist: bool, refresh: bool, skip_existing: bool = False
         conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
         conn.close()
 
-    print("\n" + _format_markdown(report, color=False))
+    print("\n" + _format_markdown(report, color=use_color))
     agg = report.aggregate()
     print("\n## Pilot summary\n")
     print(f"- candidates analyzed: **{len(report.fixtures)}**")
     print(f"- analyses persisted to DB: **{saved}**" if persist else "- persistence: **off**")
-    print(f"- passes golden thresholds: **{report.passes()}** ({PASS_THRESHOLDS})")
+    # Salary as accuracy + coverage: a low coverage here is an extraction problem
+    # (Gemini emitted no salary), distinct from a low overlap (it guessed wrong).
+    print(
+        f"- salary: overlap **{agg.get('salary_overlap', 0.0):.0%}** "
+        f"(accuracy, among emitted) · coverage **{agg.get('salary_coverage', 0.0):.0%}** (bands emitted)"
+    )
+    print(f"- passes golden thresholds: {glyph(report.passes(), s_out)} ({PASS_THRESHOLDS})")
     (FIXTURES_OUT / "_pilot_report.json").write_text(
         json.dumps({"aggregate": agg, "passes": report.passes(), "persisted": saved}, ensure_ascii=False, indent=2),
         encoding="utf-8",

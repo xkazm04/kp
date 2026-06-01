@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import Field
 
@@ -44,8 +44,45 @@ WEIGHTS: dict[str, dict[str, float]] = {
     "student": {"skills": 0.40, "career": 0.40, "personal": 0.20},
     "career_switcher": {"skills": 0.35, "career": 0.40, "personal": 0.25},
 }
+
+# Display name for each scoring slot, per archetype. The three slots carry
+# different meaning for early-career profiles (career -> POTENTIAL/readiness,
+# personal -> motivation/domain fit; see score_job), so the label shifts with
+# them. Emitted server-side on score_breakdown so every surface speaks one
+# vocabulary and the client never re-guesses which archetype renames which bar.
+DIMENSION_LABELS: dict[str, dict[str, str]] = {
+    "bau": {"skills": "Skills", "career": "Career", "personal": "Personal"},
+    "student": {"skills": "Foundation", "career": "Potential", "personal": "Fit"},
+    "career_switcher": {"skills": "Foundation", "career": "Potential", "personal": "Fit"},
+}
+_DIMENSION_KEYS = ("skills", "career", "personal")
 _EARLY_CAREER = ("student", "career_switcher")
 _MATCH_THRESHOLD = 0.5  # per-requirement score at/above which a skill counts as matched
+
+# Score -> fit tier: the SINGLE SOURCE OF TRUTH for the strong/promising/partial
+# banding every match surface renders (match cards, recruiter table, simulation).
+# match_reasoning.py reads ``fit_tier_for`` for its verdict wording, and the tier +
+# tone ride on MatchResult so the UI never re-derives these thresholds. ``tone``
+# mirrors the frontend Badge vocabulary (app/_components/Badge.tsx BadgeTone) so one
+# score yields one color + label + icon on every screen.
+FIT_STRONG_THRESHOLD = 70
+FIT_PROMISING_THRESHOLD = 55
+
+FitTier = Literal["strong", "promising", "partial"]
+
+_FIT_TONE: dict[str, str] = {"strong": "positive", "promising": "info", "partial": "caution"}
+
+
+def fit_tier_for(total: int) -> FitTier:
+    if total >= FIT_STRONG_THRESHOLD:
+        return "strong"
+    if total >= FIT_PROMISING_THRESHOLD:
+        return "promising"
+    return "partial"
+
+
+def fit_tone_for(tier: str) -> str:
+    return _FIT_TONE.get(tier, "neutral")
 
 
 class MatchCandidate(_Base):
@@ -72,6 +109,29 @@ class MatchCandidate(_Base):
     label: str = "Candidate"
 
 
+class ScoreDimension(_Base):
+    """One row of the weight-aware score breakdown (see build_score_breakdown).
+
+    Every number shares a single 0-100 scale so a bar chart renders with zero
+    client-side math and no scale-mismatch guessing:
+
+    * ``percent``      — how well this dimension scored, 0-100.
+    * ``weight``       — its share of the total, 0-100 (the three sum to 100).
+    * ``contribution`` — the points it adds to ``total`` (= percent x weight / 100;
+      the three sum to ~total). This is the value a proportional bar should encode,
+      so the highest-weighted, best-scoring dimension reads as visually dominant.
+
+    ``key`` is the stable slot id (skills / career / personal); ``label`` is the
+    archetype-aware display name (see DIMENSION_LABELS).
+    """
+
+    key: str
+    label: str
+    percent: int
+    weight: int
+    contribution: float
+
+
 class MatchResult(_Base):
     job_id: str
     title: str
@@ -82,9 +142,16 @@ class MatchResult(_Base):
     role_family: str = ""
     salary_band: list[int] = Field(default_factory=list)
     total: int = 0
+    # Server-computed banding so cards/recruiter/sim share one badge (see fit_tier_for).
+    fit_tier: FitTier = "partial"
+    tone: str = "caution"
     skills_score: float = 0.0
     career_score: float = 0.0
     personal_score: float = 0.0
+    # Normalized, weight-aware view of the three scores above so the UI charts the
+    # breakdown directly (no re-multiplying by server-side weights, no 0-1 vs 0-100
+    # scale guessing). See build_score_breakdown.
+    score_breakdown: list[ScoreDimension] = Field(default_factory=list)
     confidence_low: int = 0
     confidence_high: int = 0
     matched_skills: list[str] = Field(default_factory=list)
@@ -225,6 +292,34 @@ def weights_for(archetype: str) -> dict[str, float]:
     return WEIGHTS.get(archetype, WEIGHTS["bau"])
 
 
+def dimension_labels(archetype: str) -> dict[str, str]:
+    return DIMENSION_LABELS.get(archetype, DIMENSION_LABELS["bau"])
+
+
+def build_score_breakdown(
+    archetype: str, skills: float, career: float, personal: float
+) -> list[ScoreDimension]:
+    """Project the three 0-1 dimension scores + archetype weights into a single
+    0-100 breakdown the UI can chart directly.
+
+    ``contribution`` and ``total`` are computed from the same un-rounded inputs, so
+    the contributions sum to ``total`` (modulo independent rounding of each row).
+    """
+    w = weights_for(archetype)
+    labels = dimension_labels(archetype)
+    scores = {"skills": skills, "career": career, "personal": personal}
+    return [
+        ScoreDimension(
+            key=key,
+            label=labels[key],
+            percent=round(100 * scores[key]),
+            weight=round(100 * w[key]),
+            contribution=round(100 * w[key] * scores[key], 1),
+        )
+        for key in _DIMENSION_KEYS
+    ]
+
+
 def _confidence_spread(candidate: MatchCandidate, missing_musts: list[str]) -> int:
     spread = 4
     if candidate.archetype in _EARLY_CAREER:
@@ -251,6 +346,8 @@ def score_job(candidate: MatchCandidate, job: Job) -> MatchResult:
         personal = score_personal(candidate, job)
     w = weights_for(candidate.archetype)
     total = round(100 * (w["skills"] * skills + w["career"] * career + w["personal"] * personal))
+    breakdown = build_score_breakdown(candidate.archetype, skills, career, personal)
+    tier = fit_tier_for(total)
     spread = _confidence_spread(candidate, missing)
     ep = job.entry_profile
     return MatchResult(
@@ -263,9 +360,12 @@ def score_job(candidate: MatchCandidate, job: Job) -> MatchResult:
         role_family=job.role_family,
         salary_band=job.salary_band,
         total=total,
+        fit_tier=tier,
+        tone=fit_tone_for(tier),
         skills_score=skills,
         career_score=career,
         personal_score=personal,
+        score_breakdown=breakdown,
         confidence_low=max(0, total - spread),
         confidence_high=min(100, total + spread),
         matched_skills=matched,
@@ -294,16 +394,59 @@ def candidate_assumptions(candidate: MatchCandidate) -> list[str]:
     return out
 
 
+# KO reasons are produced per job as free-form strings (see ko_filter). To roll
+# them up into a self-explaining empty state we bucket each into a stable category
+# (key) + a candidate-facing clause that reads after "{n} roles". Order is the
+# tie-break when counts are equal; the count drives the real ranking.
+_KO_REASON_CATEGORIES: tuple[tuple[str, str, str], ...] = (
+    # (key, substring found in the raw reason, clause shown after "{n} role(s)")
+    ("language", "required language", "required a language not in the profile"),
+    ("seniority", "seniority gap", "sat outside the candidate's seniority range"),
+    ("early_career", "early-career", "weren't open to early-career candidates"),
+    ("education", "minimum education", "required a higher education level"),
+    ("work_mode", "work mode", "didn't match the work-mode preference"),
+)
+_KO_REASON_FALLBACK = ("other", "were filtered out for other reasons")
+
+
+def _categorize_ko_reason(reason: str) -> tuple[str, str]:
+    for key, needle, label in _KO_REASON_CATEGORIES:
+        if needle in reason:
+            return key, label
+    return _KO_REASON_FALLBACK
+
+
+def aggregate_ko_reasons(reason_lists: list[list[str]], *, top: int = 4) -> list[dict[str, Any]]:
+    """Roll per-job KO reasons up into ranked ``{key, label, count}`` buckets.
+
+    A job can trip several gates; each *category* it trips is counted once, so a
+    count reads as "N roles were blocked by <reason>" rather than a raw hit total.
+    Returned sorted by count desc, then by the category order above for stability.
+    """
+    counts: dict[str, int] = {}
+    labels: dict[str, str] = {}
+    order: list[str] = []
+    for reasons in reason_lists:
+        for key, label in {_categorize_ko_reason(r) for r in reasons}:  # one count per category per job
+            if key not in counts:
+                counts[key] = 0
+                labels[key] = label
+                order.append(key)
+            counts[key] += 1
+    ranked = sorted(order, key=lambda k: (-counts[k], order.index(k)))
+    return [{"key": k, "label": labels[k], "count": counts[k]} for k in ranked[:top]]
+
+
 def match(candidate: MatchCandidate, jobs: list[Job], *, limit: int = 50) -> MatchResponse:
     """Run the full KO -> score -> rank pipeline over a job corpus."""
     survivors: list[Job] = []
-    ko_filtered = 0
+    ko_reason_lists: list[list[str]] = []
     for job in jobs:
-        passed, _reasons = ko_filter(candidate, job)
+        passed, reasons = ko_filter(candidate, job)
         if passed:
             survivors.append(job)
         else:
-            ko_filtered += 1
+            ko_reason_lists.append(reasons)
 
     scored = sorted((score_job(candidate, job) for job in survivors), key=lambda m: m.total, reverse=True)
     top = scored[:limit]
@@ -317,7 +460,14 @@ def match(candidate: MatchCandidate, jobs: list[Job], *, limit: int = 50) -> Mat
             "potentialScore": candidate.potential_score,
             "assumptions": candidate_assumptions(candidate),
         },
-        meta={"evaluated": len(jobs), "koFiltered": ko_filtered, "survivors": len(survivors), "returned": len(top)},
+        meta={
+            "evaluated": len(jobs),
+            "koFiltered": len(ko_reason_lists),
+            "survivors": len(survivors),
+            "returned": len(top),
+            # Top KO blockers (with counts) so a 0/thin result can explain itself.
+            "koReasons": aggregate_ko_reasons(ko_reason_lists),
+        },
         matches=top,
     )
 

@@ -10,7 +10,7 @@ import {
   type Analysis,
   type GithubAnalysis,
 } from "@/app/_lib/schemas";
-import { submitAnalysis, watchAnalysis } from "./AnalyzeApi";
+import { extractFileText, submitAnalysis, watchAnalysis } from "./AnalyzeApi";
 
 type ProgressStage = Parameters<typeof applyStageEvent>[1];
 type ProgressStatus = Parameters<typeof applyStageEvent>[2];
@@ -73,13 +73,32 @@ export type GithubCallbacks = {
   onError: (message: string) => void;
 };
 
+// The JD as the form holds it: textarea/library text plus the optional uploaded
+// file. The GitHub deep-dive must read the same JD source as the main analysis,
+// so a file-only JD is extracted to text before the route is called.
+export type GithubJdSource = {
+  jobDescriptionText: string;
+  jobDescriptionFile: File | null;
+};
+
 export async function executeGithubAnalysis(
   profile: string,
-  jobDescriptionText: string,
+  jd: GithubJdSource,
   callbacks: GithubCallbacks
 ): Promise<void> {
   callbacks.onLoading();
   try {
+    // Read the JD from the same source the main analysis does. That pipeline
+    // prefers the uploaded file over the textarea (see analyze-run cliArgs), so
+    // extract the file's text first; otherwise buildJobFitSignals would run
+    // against an empty JD — a JD-blind result shown beside a main analysis that
+    // DID use the JD. Extraction failure/empties fall back to the typed text, so
+    // this never blocks the optional GitHub analysis or does worse than before.
+    let jobDescriptionText = jd.jobDescriptionText.trim();
+    if (jd.jobDescriptionFile) {
+      const extracted = (await extractFileText(jd.jobDescriptionFile).catch(() => "")).trim();
+      if (extracted) jobDescriptionText = extracted;
+    }
     const response = await fetch("/api/github-analysis", {
       method: "POST",
       headers: { "Content-Type": "application/json" },

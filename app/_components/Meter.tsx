@@ -1,19 +1,23 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import type { ScoreTone } from "@/app/_lib/format";
 
 // One animated progress meter for every bar in the app: grows from 0 to `value`%
 // on mount so the row reads as a live measurement, exposes proper progressbar
 // a11y, and honors prefers-reduced-motion (the width snaps instead of animating).
+// The fill resolves through the shared `--color-score-*` scale so a bar's hue
+// always matches the badge/dial for the same tier; callers derive `tone` from
+// scoreTone() (or pass a fixed tier for non-ranked bars like language share).
 export function Meter({
   value,
-  tone = "coral",
+  tone = "weak",
   className = "",
   trackClassName = "",
   "aria-label": ariaLabel,
 }: {
   value: number;
-  tone?: "coral" | "moss" | "amber";
+  tone?: ScoreTone;
   className?: string;
   trackClassName?: string;
   "aria-label"?: string;
@@ -24,7 +28,14 @@ export function Meter({
     const id = requestAnimationFrame(() => setFilled(true));
     return () => cancelAnimationFrame(id);
   }, []);
-  const toneClass = tone === "moss" ? "bg-moss" : tone === "amber" ? "bg-dial-amber" : "bg-coral";
+  const toneClass =
+    tone === "strong"
+      ? "bg-score-strong"
+      : tone === "mid"
+        ? "bg-score-mid"
+        : tone === "null"
+          ? "bg-score-null"
+          : "bg-score-weak";
   return (
     <div
       className={`h-1.5 overflow-hidden rounded-full bg-stone-100 ${trackClassName} ${className}`}

@@ -1,7 +1,56 @@
+"use client";
+
+import { useState } from "react";
 import { CandidateRow, Legend } from "./PipelineShared";
 import { STAGES, type Entry } from "./PipelineTypes";
 
 type Position = { id: string; title: string; family: string; count: number };
+
+const CELL_LIMIT = 6;
+
+// One stage cell. The overflow control is a real focusable button (was a
+// title-only <p>) so keyboard/touch users can reveal the hidden candidates,
+// which then render as the same navigable CandidateRows.
+function StageCell({
+  entries,
+  isStale,
+  openProfile,
+  openActions,
+}: {
+  entries: Entry[];
+  isStale: (e: Entry) => boolean;
+  openProfile: (e: Entry) => void;
+  openActions: (e: Entry) => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const overflow = entries.length - CELL_LIMIT;
+  const visible = expanded ? entries : entries.slice(0, CELL_LIMIT);
+  return (
+    <div className="space-y-0.5 border-r border-stone-100 px-1.5 py-2 last:border-0">
+      {visible.map((e) => (
+        <CandidateRow
+          key={e.id}
+          entry={e}
+          pending={!!e.approvalKind}
+          stale={isStale(e)}
+          onOpen={() => openProfile(e)}
+          onActions={() => openActions(e)}
+        />
+      ))}
+      {overflow > 0 ? (
+        <button
+          type="button"
+          onClick={() => setExpanded((v) => !v)}
+          aria-expanded={expanded}
+          className="focus-ring w-full rounded px-1 text-left text-sm font-semibold text-steel hover:text-coral"
+        >
+          {expanded ? "Show fewer" : `+${overflow} more`}
+        </button>
+      ) : null}
+      {entries.length === 0 ? <span className="px-1 text-sm text-stone-300">·</span> : null}
+    </div>
+  );
+}
 
 export function PipelineBoard({
   positions,
@@ -55,32 +104,15 @@ export function PipelineBoard({
                     Rank candidates →
                   </button>
                 </div>
-                {STAGES.map((stage) => {
-                  const cell = lane.filter((e) => e.stage === stage);
-                  return (
-                    <div key={stage} className="space-y-0.5 border-r border-stone-100 px-1.5 py-2 last:border-0">
-                      {cell.slice(0, 6).map((e) => (
-                        <CandidateRow
-                          key={e.id}
-                          entry={e}
-                          pending={!!e.approvalKind}
-                          stale={isStale(e)}
-                          onOpen={() => openProfile(e)}
-                          onActions={() => openActions(e)}
-                        />
-                      ))}
-                      {cell.length > 6 ? (
-                        <p
-                          className="px-1 text-sm font-semibold text-steel"
-                          title={cell.slice(6).map((e) => e.candidateLabel).join(", ")}
-                        >
-                          +{cell.length - 6} more
-                        </p>
-                      ) : null}
-                      {cell.length === 0 ? <span className="px-1 text-sm text-stone-300">·</span> : null}
-                    </div>
-                  );
-                })}
+                {STAGES.map((stage) => (
+                  <StageCell
+                    key={stage}
+                    entries={lane.filter((e) => e.stage === stage)}
+                    isStale={isStale}
+                    openProfile={openProfile}
+                    openActions={openActions}
+                  />
+                ))}
               </div>
             );
           })}

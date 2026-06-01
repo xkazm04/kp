@@ -98,7 +98,7 @@ export function PipelineTab() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" aria-busy={entries == null}>
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="text-meta uppercase text-coral">Pipeline</p>
@@ -148,9 +148,9 @@ export function PipelineTab() {
       ) : null}
 
       {error ? (
-        <p className="rounded-md bg-red-50 p-3 text-base text-red-700">{error}</p>
+        <p role="alert" className="rounded-md bg-red-50 p-3 text-base text-red-700">{error}</p>
       ) : entries == null ? (
-        <p className="text-base text-steel">Loading…</p>
+        <p role="status" className="text-base text-steel">Loading…</p>
       ) : entries.length === 0 ? (
         <p className="rounded-lg border border-stone-200 bg-paper p-4 text-base text-steel">
           No candidates in the pipeline yet. Seed the candidate population and pipeline (see the data-population

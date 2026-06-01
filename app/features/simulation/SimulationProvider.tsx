@@ -45,6 +45,7 @@ type SimCtx = SimState & {
   closeExplain: () => void;
   closeGroupEval: () => void;
   closeScreenWave: () => void;
+  closeFrame: () => void;
 };
 
 const Ctx = createContext<SimCtx | null>(null);
@@ -579,10 +580,14 @@ export function SimulationProvider({ children }: { children: React.ReactNode }) 
   const closeExplain = useCallback(() => patch({ explainOpen: false }), [patch]);
   const closeGroupEval = useCallback(() => patch({ groupEval: null }), [patch]);
   const closeScreenWave = useCallback(() => patch({ screenWave: null }), [patch]);
+  // Lets the presenter dismiss the candidate-page overlay (Escape / overlay-click
+  // while paused). The walk continues; if it still needs the frame it falls back
+  // to its API path (e.g. accepting the offer server-side).
+  const closeFrame = useCallback(() => patch({ frame: null }), [patch]);
 
   const value = useMemo<SimCtx>(
-    () => ({ ...state, start, pause, resume, stop, reset, toggleStep, next, openExplain, closeExplain, closeGroupEval, closeScreenWave }),
-    [state, start, pause, resume, stop, reset, toggleStep, next, openExplain, closeExplain, closeGroupEval, closeScreenWave]
+    () => ({ ...state, start, pause, resume, stop, reset, toggleStep, next, openExplain, closeExplain, closeGroupEval, closeScreenWave, closeFrame }),
+    [state, start, pause, resume, stop, reset, toggleStep, next, openExplain, closeExplain, closeGroupEval, closeScreenWave, closeFrame]
   );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

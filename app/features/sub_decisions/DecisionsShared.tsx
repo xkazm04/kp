@@ -1,4 +1,6 @@
 import { ChevronRight } from "lucide-react";
+import { Badge, interviewRecommendationToken } from "@/app/_components/Badge";
+import { ScoreBadge } from "@/app/_components/ScoreBadge";
 import { STAGES, styleFor, type Entry } from "./DecisionsTypes";
 
 export function Empty({ children }: { children: React.ReactNode }) {
@@ -32,8 +34,8 @@ export function CandidateHead({ entry }: { entry: Entry }) {
         </p>
       </div>
       {entry.matchScore != null ? (
-        <span className="ml-auto rounded-md bg-paper px-2 py-1 text-center">
-          <span className="block font-serif text-lg leading-none text-ink">{entry.matchScore}</span>
+        <span className="ml-auto inline-flex items-center gap-1.5">
+          <ScoreBadge score={entry.matchScore} />
           <span className="text-sm uppercase text-steel">match</span>
         </span>
       ) : null}
@@ -58,13 +60,19 @@ export function MiniList({ title, items, tone }: { title: string; items: string[
   );
 }
 
+// Recruiter triage verdict (advance / hold / reject) — reuses the canonical
+// Badge token so it carries an icon + accessible label, not color alone, and
+// looks identical to the same verdict everywhere else (e.g. the interview
+// scorecard). The optional "· {confidence}%" suffix stays tabular-nums.
 export function RecBadge({ rec, confidence }: { rec?: string; confidence?: number }) {
-  const tone =
-    rec === "advance" ? "bg-moss/15 text-moss" : rec === "reject" ? "bg-coral/15 text-coral" : "bg-amber-100 text-amber-700";
+  const content = interviewRecommendationToken(rec ?? "hold");
+  const hasConfidence = typeof confidence === "number";
   return (
-    <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-sm font-semibold uppercase ${tone}`}>
-      {rec ?? "hold"}
-      {typeof confidence === "number" ? ` · ${confidence}%` : ""}
-    </span>
+    <Badge
+      {...content}
+      label={hasConfidence ? `${content.label} · ${confidence}%` : content.label}
+      ariaLabel={`${content.label} recommendation${hasConfidence ? `, ${confidence}% confidence` : ""}`}
+      className="tabular-nums"
+    />
   );
 }

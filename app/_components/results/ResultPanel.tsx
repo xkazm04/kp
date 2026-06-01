@@ -1,7 +1,7 @@
 "use client";
 
 import { GitBranch } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { GithubAnalysisPanel } from "@/app/_components/GithubAnalysisPanel";
 import type { Analysis, GithubAnalysis } from "@/app/_lib/schemas";
 import { CompareIcon, ExtractionIcon, InterviewIcon, JobFitIcon, SalaryIcon } from "../icons";
@@ -50,6 +50,18 @@ export function ResultPanel({ analysis, github }: ResultPanelProps) {
   const [activeTab, setActiveTab] = useState<ResultTab>(hasComparison ? "compare" : "extraction");
 
   const activeIndex = tabs.findIndex((t) => t.id === activeTab);
+
+  // This component instance survives across analyses (rendered without a key),
+  // so activeTab can point at a tab that no longer exists — e.g. running a
+  // multi-variant compare (defaults to "compare") then a single-CV analysis
+  // drops the Compare tab. Without this, activeIndex is -1 and the panel
+  // renders blank. Fall back to the first available tab when that happens.
+  useEffect(() => {
+    if (activeIndex === -1 && tabs.length > 0) {
+      setActiveTab(tabs[0].id);
+    }
+  }, [activeIndex, tabs]);
+
   const onTabKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
     let next = activeIndex;
     if (event.key === "ArrowRight") next = (activeIndex + 1) % tabs.length;

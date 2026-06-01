@@ -13,7 +13,7 @@ from __future__ import annotations
 from typing import Any
 
 from .jobs import Job
-from .matching import MatchCandidate, MatchResult
+from .matching import MatchCandidate, MatchResult, fit_tier_for
 
 REASONING_PROMPT_VERSION = "match-reasoning-v1"
 
@@ -168,9 +168,10 @@ def deterministic_reasoning(context: dict[str, Any]) -> dict[str, Any]:
             "interviewProbes": probes,
         }
 
-    if total >= 70:
+    tier = fit_tier_for(total)
+    if tier == "strong":
         verdict = f"Strong fit for {job['title']} — most requirements are covered."
-    elif total >= 55:
+    elif tier == "promising":
         verdict = f"Promising fit for {job['title']}, with a few addressable gaps."
     else:
         verdict = f"Partial fit for {job['title']}; several core requirements are unmet."

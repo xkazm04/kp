@@ -4,6 +4,7 @@ import {
   getActiveTaskByDedupe,
   getTask,
   interruptStaleTasks,
+  listQueuedTaskIds,
   listActiveEntriesForAutomation,
   markTaskRunning,
   setTaskProgress,
@@ -132,11 +133,33 @@ let running = 0;
 const queue: string[] = [];
 const controllers = new Map<string, AbortController>();
 
-function boot(): void {
+// One-time, idempotent stale-task reconciliation for the current process. The
+// in-process queue is volatile, so rows a previous process left behind are split
+// two ways: 'running' rows were orphaned mid-flight and are unrecoverable
+// (interruptStaleTasks marks them 'interrupted'), while 'queued' rows never
+// started — they ran no side effects, so we re-enqueue them here instead of
+// silently abandoning just-submitted work (a constant hazard in `next dev`, where
+// saving a file hot-restarts the process). Safe to call from any entry point
+// (startTask, the GET /api/tasks read path): the `booted` guard runs the sweep at
+// most once, and on that first call the in-memory queue is still empty, so a task
+// running in THIS process can never be clobbered or double-queued.
+//
+// Calling this from the read path matters because GET /api/tasks never starts a
+// task, so without it a user who only reloads the dashboard after a crash sees a
+// phantom spinner and TasksProvider polls every 2s forever. (instrumentation.ts
+// also reconciles at boot; this keeps the task module self-healing on its own.)
+export function ensureRecovered(): void {
   if (booted) return;
   booted = true;
   try {
-    interruptStaleTasks();
+    interruptStaleTasks(); // 'running' orphans → 'interrupted' (mid-flight, unrecoverable)
+    // 'queued' orphans never ran a handler, so put them back on the queue in
+    // submission order. The booted guard guarantees `queue` is empty here, but the
+    // includes() check keeps this safe if recovery is ever wired to another caller.
+    for (const id of listQueuedTaskIds()) {
+      if (!queue.includes(id)) queue.push(id);
+    }
+    pump();
   } catch {
     /* table may not exist yet on a very first call; ensureDb creates it next */
   }
@@ -147,7 +170,7 @@ export function isKnownKind(kind: string): boolean {
 }
 
 export function startTask(kind: string, params: Record<string, unknown>): TaskRecord {
-  boot();
+  ensureRecovered();
   const spec = HANDLERS[kind];
   if (!spec) throw new Error(`unknown task kind: ${kind}`);
   const dedupeKey = spec.dedupe(params);
@@ -190,11 +213,18 @@ async function runOne(id: string): Promise<void> {
     finishTask(id, "failed", { error: `unknown kind ${task.kind}` });
     return;
   }
-  running += 1;
+  // Construct the controller before the try (its constructor cannot throw) so it
+  // stays in scope for catch/finally. Everything that mutates the slot accounting
+  // — `running += 1`, controller registration, markTaskRunning — goes INSIDE the
+  // try so the finally always runs and restores the slot. If markTaskRunning (or
+  // any of this bookkeeping) throws, e.g. SQLITE_BUSY under contention, the catch
+  // marks the row failed and the finally decrements `running`, keeping the runner
+  // self-correcting instead of permanently leaking a MAX_CONCURRENT slot.
   const controller = new AbortController();
-  controllers.set(id, controller);
-  markTaskRunning(id);
   try {
+    running += 1;
+    controllers.set(id, controller);
+    markTaskRunning(id);
     const result = await spec.run({
       taskId: id,
       params: (task.params as Record<string, unknown>) ?? {},

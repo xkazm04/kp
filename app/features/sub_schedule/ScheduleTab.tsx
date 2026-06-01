@@ -1,11 +1,14 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { AnimatePresence, motion, type TargetAndTransition } from "framer-motion";
 import { Calendar, Check, ClipboardList, FileText, Phone, X } from "lucide-react";
 import { ScheduleCalendar } from "./ScheduleCalendar";
 import { InterviewPrepModal } from "./InterviewPrepModal";
 import { InterviewTranscriptModal } from "./InterviewTranscriptModal";
 import { DEFAULT_SLOT, styleFor, type SchedEntry } from "./ScheduleTypes";
+import { ScoreBadge } from "@/app/_components/ScoreBadge";
+import { useReducedMotion } from "@/app/_lib/useReducedMotion";
 
 type IvStatus = { sessionId: string; status: string; hasTranscript: boolean; endedAt: string | null };
 
@@ -20,6 +23,12 @@ export function ScheduleTab() {
   const [interviews, setInterviews] = useState<Record<string, IvStatus>>({});
   const [creatingIv, setCreatingIv] = useState<string | null>(null);
   const [transcriptEntry, setTranscriptEntry] = useState<SchedEntry | null>(null);
+  // Direction of the most recent confirm/decline. AnimatePresence reads it via
+  // `custom` to resolve the leaving card's slide-out at removal time, so the card
+  // can be dropped from state in the same tick (no per-card flag, no effect).
+  // Only one card leaves at a time (the action buttons gate on `busy`).
+  const [lastDir, setLastDir] = useState<"confirm" | "decline">("confirm");
+  const reduced = useReducedMotion();
 
   const load = () =>
     fetch("/api/pipeline")
@@ -117,6 +126,10 @@ export function ScheduleTab() {
         body: JSON.stringify({ action, detail: action === "approve_event" ? picks[e.id] : undefined }),
       });
       if (!r.ok) throw new Error();
+      // Record the direction, then drop the card. AnimatePresence resolves the
+      // leaving card's exit variant from its `custom` (below) at removal time, so
+      // confirm slides right and decline slides left.
+      setLastDir(action === "approve_event" ? "confirm" : "decline");
       setEntries((prev) => (prev ? prev.filter((x) => x.id !== e.id) : prev));
       if (selectedId === e.id) setSelectedId(null);
     } catch {
@@ -125,6 +138,16 @@ export function ScheduleTab() {
       setBusy(null);
     }
   };
+
+  // Exit variant resolved per-removal from AnimatePresence's `custom`: confirm
+  // washes moss and slides right (advances); decline washes coral and slides left
+  // (sent back). Collapses to a plain fade under the OS "reduce motion" setting.
+  const cardExit = (dir: "confirm" | "decline"): TargetAndTransition =>
+    reduced
+      ? { opacity: 0, transition: { duration: 0.12 } }
+      : dir === "decline"
+        ? { opacity: 0, x: -36, backgroundColor: "rgba(214,90,74,0.08)", borderColor: "#d65a4a", transition: { duration: 0.22, ease: "easeIn" } }
+        : { opacity: 0, x: 36, backgroundColor: "rgba(82,107,79,0.08)", borderColor: "#526b4f", transition: { duration: 0.22, ease: "easeIn" } };
 
   return (
     <div data-sim="schedule" className="space-y-6">
@@ -138,7 +161,9 @@ export function ScheduleTab() {
       </header>
 
       {error ? (
-        <p className="rounded-md bg-red-50 p-3 text-base text-red-700">{error}</p>
+        <p role="alert" className="rounded-md bg-red-50 p-3 text-base text-red-700">
+          {error}
+        </p>
       ) : entries == null ? (
         <p className="text-base text-steel">Loading…</p>
       ) : calendarEntries.length === 0 && interviewedEntries.length === 0 ? (
@@ -161,23 +186,39 @@ export function ScheduleTab() {
             <h3 className="text-meta uppercase tracking-wide text-steel">
               Pending interviews <span className="text-coral">· {calendarEntries.length}</span>
             </h3>
-            {calendarEntries.map((e) => {
+            <AnimatePresence custom={lastDir}>
+            {calendarEntries.map((e, i) => {
               const s = styleFor(e.archetype);
               const active = e.id === selectedId;
               const iv = interviews[e.id];
               return (
-                <div
+                <motion.div
                   key={e.id}
                   data-sim-entry={e.id}
+                  layout={reduced ? false : "position"}
+                  variants={{ exit: cardExit }}
+                  initial={reduced ? { opacity: 0 } : { opacity: 0, y: 8 }}
+                  animate={{
+                    opacity: 1,
+                    y: 0,
+                    transition: { delay: reduced ? 0 : i * 0.04, duration: reduced ? 0.12 : 0.24, ease: "easeOut" },
+                  }}
+                  exit="exit"
                   className={`rounded-lg border bg-white p-2.5 shadow-panel transition-colors ${active ? "border-coral" : "border-stone-200"}`}
                 >
-                  <button type="button" onClick={() => setSelectedId(e.id)} className="focus-ring flex w-full items-center gap-2 text-left">
-                    <span className={`h-3 w-3 shrink-0 rounded-full ${s.bg}`} />
+                  <button type="button" onClick={() => setSelectedId(e.id)} className="focus-ring flex w-full items-start gap-2 text-left">
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-sm font-semibold text-ink">{e.candidateLabel}</span>
                       <span className="block truncate text-sm text-steel">{e.jobTitle}</span>
+                      <span className="mt-1 inline-flex items-center gap-1.5">
+                        <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${s.bg}`} title={s.label} aria-hidden />
+                        <span className="text-meta uppercase tracking-wide text-steel">{s.label}</span>
+                      </span>
                     </span>
-                    <span className="shrink-0 rounded bg-paper px-1.5 py-0.5 text-sm font-semibold text-ink">{picks[e.id]}</span>
+                    <span className="flex shrink-0 flex-col items-end gap-1.5">
+                      <ScoreBadge score={e.matchScore} />
+                      <span className="rounded bg-paper px-1.5 py-0.5 text-sm font-semibold text-ink">{picks[e.id]}</span>
+                    </span>
                   </button>
                   <button
                     type="button"
@@ -225,9 +266,10 @@ export function ScheduleTab() {
                       <X size={14} />
                     </button>
                   </div>
-                </div>
+                </motion.div>
               );
             })}
+            </AnimatePresence>
             {calendarEntries.length === 0 ? null : selected ? (
               <p className="px-1 text-sm text-steel">
                 Click a calendar cell to move <span className="font-semibold text-ink">{selected.candidateLabel}</span>.
@@ -245,12 +287,16 @@ export function ScheduleTab() {
                   const s = styleFor(e.archetype);
                   return (
                     <div key={e.id} className="rounded-lg border border-stone-200 bg-white p-2.5 shadow-panel">
-                      <div className="flex w-full items-center gap-2">
-                        <span className={`h-3 w-3 shrink-0 rounded-full ${s.bg}`} />
+                      <div className="flex w-full items-start gap-2">
                         <span className="min-w-0 flex-1">
                           <span className="block truncate text-sm font-semibold text-ink">{e.candidateLabel}</span>
                           <span className="block truncate text-sm text-steel">{e.jobTitle}</span>
+                          <span className="mt-1 inline-flex items-center gap-1.5">
+                            <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${s.bg}`} title={s.label} aria-hidden />
+                            <span className="text-meta uppercase tracking-wide text-steel">{s.label}</span>
+                          </span>
                         </span>
+                        <ScoreBadge score={e.matchScore} />
                       </div>
                       <button
                         type="button"

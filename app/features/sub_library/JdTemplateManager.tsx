@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Loader2, Pencil, Plus, Trash2 } from "lucide-react";
+import { Loader2, Pencil, Plus, Star, Trash2 } from "lucide-react";
 import { Modal } from "@/app/_components/Modal";
 import { DEFAULT_TEMPLATE_BODY, TEMPLATE_PLACEHOLDERS, type TemplateData } from "./render-template";
 
@@ -15,6 +15,8 @@ export function JdTemplateManager({ onClose, onChanged }: { onClose: () => void;
   const [editing, setEditing] = useState<Editing | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Id of the template whose delete is awaiting inline confirmation (null = none).
+  const [confirmingId, setConfirmingId] = useState<string | null>(null);
 
   const load = () =>
     fetch("/api/templates").then((r) => r.json()).then((p) => setTemplates(p.templates ?? [])).catch(() => undefined);
@@ -47,10 +49,27 @@ export function JdTemplateManager({ onClose, onChanged }: { onClose: () => void;
 
   const remove = async (id: string) => {
     setError(null);
+    setConfirmingId(null);
     const r = await fetch(`/api/templates/${id}`, { method: "DELETE" });
     if (!r.ok) {
       const p = await r.json();
       setError(p.error ?? "Delete failed.");
+      return;
+    }
+    await load();
+    onChanged();
+  };
+
+  const setDefault = async (id: string) => {
+    setError(null);
+    const r = await fetch(`/api/templates/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ isDefault: true }),
+    });
+    if (!r.ok) {
+      const p = await r.json();
+      setError(p.error ?? "Couldn't set the default.");
       return;
     }
     await load();
@@ -92,17 +111,52 @@ export function JdTemplateManager({ onClose, onChanged }: { onClose: () => void;
             {templates.map((t) => (
               <li key={t.id} className="flex items-center gap-2 px-3 py-2 text-sm">
                 <span className="min-w-0 flex-1 truncate font-semibold text-ink">{t.name}</span>
-                {t.isDefault ? <span className="rounded-full bg-moss/15 px-1.5 py-0.5 text-micro font-semibold uppercase text-moss">Default</span> : null}
-                <button type="button" onClick={() => setEditing({ id: t.id, name: t.name, body: t.body })} className="focus-ring rounded-md p-1.5 text-steel hover:bg-stone-100" title="Edit">
+                {t.isDefault ? (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-moss/15 px-1.5 py-0.5 text-micro font-semibold uppercase text-moss">
+                    <Star size={11} className="fill-current" /> Default
+                  </span>
+                ) : (
+                  <button type="button" onClick={() => setDefault(t.id)} className="focus-ring rounded-md p-1.5 text-steel hover:bg-moss/10 hover:text-moss" title="Set as default">
+                    <Star size={15} />
+                  </button>
+                )}
+                <button type="button" onClick={() => { setConfirmingId(null); setEditing({ id: t.id, name: t.name, body: t.body }); }} className="focus-ring rounded-md p-1.5 text-steel hover:bg-stone-100" title="Edit">
                   <Pencil size={15} />
                 </button>
-                <button type="button" onClick={() => remove(t.id)} className="focus-ring rounded-md p-1.5 text-steel hover:bg-red-50 hover:text-red-700" title="Delete">
-                  <Trash2 size={15} />
-                </button>
+                {confirmingId === t.id ? (
+                  <span className="animate-fade-in inline-flex items-center gap-1" role="group" aria-label={`Delete the ${t.name} template?`}>
+                    <span className="text-micro font-semibold text-red-700">Delete?</span>
+                    <button
+                      type="button"
+                      onClick={() => remove(t.id)}
+                      className="focus-ring rounded-md border border-red-300 bg-red-50 px-2 py-1 text-micro font-semibold text-red-700 hover:bg-red-100"
+                    >
+                      Confirm
+                    </button>
+                    <button
+                      type="button"
+                      autoFocus
+                      onClick={() => setConfirmingId(null)}
+                      className="focus-ring rounded-md px-2 py-1 text-micro font-semibold text-steel hover:bg-stone-100"
+                    >
+                      Cancel
+                    </button>
+                  </span>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setConfirmingId(t.id)}
+                    disabled={t.isDefault}
+                    className="focus-ring rounded-md p-1.5 text-steel hover:bg-red-50 hover:text-red-700 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-steel"
+                    title={t.isDefault ? "Set another template as default before deleting this one" : "Delete"}
+                  >
+                    <Trash2 size={15} />
+                  </button>
+                )}
               </li>
             ))}
           </ul>
-          <button type="button" onClick={() => setEditing({ name: "", body: DEFAULT_TEMPLATE_BODY })} className="focus-ring inline-flex h-9 items-center gap-1.5 rounded-md border border-stone-200 px-3 text-sm font-semibold text-ink hover:bg-stone-50">
+          <button type="button" onClick={() => { setConfirmingId(null); setEditing({ name: "", body: DEFAULT_TEMPLATE_BODY }); }} className="focus-ring inline-flex h-9 items-center gap-1.5 rounded-md border border-stone-200 px-3 text-sm font-semibold text-ink hover:bg-stone-50">
             <Plus size={15} /> New template
           </button>
         </div>

@@ -16,6 +16,10 @@ function db(): Database.Database {
   mkdirSync(path.dirname(DB_PATH), { recursive: true });
   const d = new Database(DB_PATH);
   d.pragma("journal_mode = WAL");
+  // Shares the kp.sqlite file with db.ts and the reminder heartbeat; busy_timeout
+  // makes a concurrent writer wait briefly rather than instantly throwing
+  // SQLITE_BUSY (mirrors db.ts).
+  d.pragma("busy_timeout = 5000");
   d.exec(`
     CREATE TABLE IF NOT EXISTS interview_preps (
       entry_id TEXT PRIMARY KEY,

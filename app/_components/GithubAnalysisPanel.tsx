@@ -2,6 +2,7 @@
 
 import { GitBranch, GitPullRequest, Loader2, Star } from "lucide-react";
 import type { GithubAnalysis } from "@/app/_lib/schemas";
+import { dedupe } from "@/app/_lib/dedupe";
 import { CodeReviewStatusBadge } from "./Badge";
 import { Meter } from "./Meter";
 
@@ -73,7 +74,7 @@ function GithubAnalysisBody({ analysis }: { analysis: GithubAnalysis }) {
                   <span className="font-medium text-ink">{language.name}</span>
                   <span className="text-steel">{language.percent}%</span>
                 </div>
-                <Meter value={Math.max(2, language.percent)} tone="moss" className="mt-1" aria-label={`${language.name} ${language.percent}%`} />
+                <Meter value={Math.max(2, language.percent)} tone="strong" className="mt-1" aria-label={`${language.name} ${language.percent}%`} />
               </div>
             )) : <p className="text-base text-steel">No language data returned by GitHub.</p>}
           </div>
@@ -182,8 +183,8 @@ function ReviewList({ title, items, accent }: { title: string; items: string[]; 
       <p className="text-sm font-semibold uppercase tracking-wide text-steel">{title}</p>
       {items.length ? (
         <ul className="mt-2 space-y-1 text-base leading-6 text-ink">
-          {items.map((item) => (
-            <li key={item}>• {item}</li>
+          {dedupe(items).map((item, i) => (
+            <li key={`${item}-${i}`}>• {item}</li>
           ))}
         </ul>
       ) : (
@@ -207,8 +208,8 @@ function Panel({ title, items, empty = "No items detected." }: { title: string; 
     <div className="rounded-lg border border-stone-200 bg-white p-4">
       <h3 className="font-serif text-h3 text-ink">{title}</h3>
       <ul className="mt-3 space-y-2">
-        {(items.length ? items : [empty]).map((item) => (
-          <li key={item} className="text-base leading-6 text-ink">{item}</li>
+        {(items.length ? dedupe(items) : [empty]).map((item, i) => (
+          <li key={`${item}-${i}`} className="text-base leading-6 text-ink">{item}</li>
         ))}
       </ul>
     </div>

@@ -2,11 +2,33 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { animate, motion, useMotionValue, useTransform } from "framer-motion";
 import { ArrowRight, Globe, Link2, Mail, Radio, Sparkles, UserPlus } from "lucide-react";
 import { buildUrl, type WorkspaceTabId } from "@/app/features/tabs";
 import { useLiveRefresh } from "@/app/features/live-refresh";
+import { Badge } from "@/app/_components/Badge";
+import { useReducedMotion } from "@/app/_lib/useReducedMotion";
 
 type Entry = { jobId: string | null; jobTitle: string | null; stage: string; status: string };
+
+// A gentle count-up tween (framer) for the headline inbound figure, so a freshly
+// arrived application visibly ticks the number rather than swapping it in place;
+// snaps straight to the value when the OS prefers reduced motion. `nums` keeps the
+// glyphs tabular so the figure doesn't reflow mid-tween.
+function InboundCount({ value }: { value: number }) {
+  const reducedMotion = useReducedMotion();
+  const mv = useMotionValue(0);
+  const rounded = useTransform(mv, (v) => Math.round(v));
+  useEffect(() => {
+    if (reducedMotion) {
+      mv.set(value);
+      return;
+    }
+    const controls = animate(mv, value, { duration: 0.6, ease: "easeOut" });
+    return () => controls.stop();
+  }, [value, reducedMotion, mv]);
+  return <motion.span className="font-serif text-2xl text-ink nums">{rounded}</motion.span>;
+}
 
 const CHANNELS: { id: string; icon: typeof Link2; name: string; status: string; live: boolean; desc: string; tab?: WorkspaceTabId; cta?: string }[] = [
   { id: "apply", icon: Link2, name: "Careers page · Apply link", status: "Listening", live: true, desc: "A conversational apply link — submitted applications land at ‘Accepted’." },
@@ -22,10 +44,16 @@ const CHANNELS: { id: string; icon: typeof Link2; name: string; status: string; 
 export function ChannelsTab() {
   const router = useRouter();
   const [entries, setEntries] = useState<Entry[]>([]);
+  const [loaded, setLoaded] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [note, setNote] = useState<string | null>(null);
+  const [note, setNote] = useState<{ text: string; ok: boolean } | null>(null);
 
-  const load = () => fetch("/api/pipeline").then((r) => r.json()).then((p) => setEntries((p.entries as Entry[]) ?? [])).catch(() => undefined);
+  const load = () =>
+    fetch("/api/pipeline")
+      .then((r) => r.json())
+      .then((p) => setEntries((p.entries as Entry[]) ?? []))
+      .catch(() => undefined)
+      .finally(() => setLoaded(true));
   useEffect(() => {
     load();
   }, []);
@@ -37,7 +65,7 @@ export function ChannelsTab() {
   const simulate = async () => {
     const jobId = jobs[0]?.[0];
     if (!jobId) {
-      setNote("Publish a JD first — then applications can arrive.");
+      setNote({ text: "Publish a JD first — then applications can arrive.", ok: false });
       return;
     }
     setBusy(true);
@@ -46,10 +74,10 @@ export function ChannelsTab() {
       const r = await fetch("/api/sim/inbound", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ jobId }) });
       const p = await r.json();
       if (!r.ok) throw new Error(p.error ?? "failed");
-      setNote(`${p.label} applied → Accepted (match ${p.score}).`);
+      setNote({ text: `${p.label} applied → Accepted (match ${p.score}).`, ok: true });
       load();
     } catch (e) {
-      setNote(e instanceof Error ? e.message : "Failed.");
+      setNote({ text: e instanceof Error ? e.message : "Failed.", ok: false });
     } finally {
       setBusy(false);
     }
@@ -69,10 +97,18 @@ export function ChannelsTab() {
 
       <div data-sim="channel-inbound" className="flex flex-wrap items-center gap-3 rounded-lg border border-moss/30 bg-moss/5 p-4">
         <Radio size={18} className="text-moss" />
-        <span className="text-base text-ink">
-          <span className="font-serif text-2xl text-ink">{accepted.length}</span> application
-          {accepted.length === 1 ? "" : "s"} received → <span className="font-semibold">Accepted</span>
-        </span>
+        {loaded ? (
+          <span className="text-base text-ink">
+            <InboundCount value={accepted.length} /> application
+            {accepted.length === 1 ? "" : "s"} received → <span className="font-semibold">Accepted</span>
+          </span>
+        ) : (
+          <span
+            role="status"
+            aria-label="Loading inbound applications"
+            className="inline-block h-6 w-52 animate-pulse rounded bg-moss/20"
+          />
+        )}
         <button
           type="button"
           onClick={() => router.push(buildUrl({ tab: "pipeline" }))}
@@ -89,13 +125,13 @@ export function ChannelsTab() {
               <span className="flex items-center gap-2 font-semibold text-ink">
                 <c.icon size={16} className="text-coral" /> {c.name}
               </span>
-              <span
-                className={`rounded-full px-2 py-0.5 text-micro font-semibold uppercase ${
-                  c.live ? "bg-moss/15 text-moss" : "bg-stone-100 text-steel"
-                }`}
-              >
-                {c.status}
-              </span>
+              <Badge
+                tone={c.live ? "positive" : "neutral"}
+                label={c.status}
+                dot={c.live}
+                ariaLabel={`${c.name}: ${c.live ? "live" : "not configured"} — ${c.status}`}
+                className="shrink-0"
+              />
             </div>
             <p className="mt-1.5 text-sm text-steel">{c.desc}</p>
             {c.tab ? (
@@ -121,7 +157,15 @@ export function ChannelsTab() {
         >
           <Link2 size={15} /> {busy ? "Receiving…" : "Simulate an application"}
         </button>
-        {note ? <span className="text-sm text-steel">{note}</span> : null}
+        {note ? (
+          <span
+            role="status"
+            aria-live="polite"
+            className={`text-sm font-medium ${note.ok ? "text-moss" : "text-coral"}`}
+          >
+            {note.text}
+          </span>
+        ) : null}
       </div>
     </section>
   );

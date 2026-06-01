@@ -14,6 +14,11 @@ function db(): Database.Database {
   mkdirSync(path.dirname(DB_PATH), { recursive: true });
   const d = new Database(DB_PATH);
   d.pragma("journal_mode = WAL");
+  // The reminder heartbeat's claimReminder() write fires every ~60s on this
+  // connection while candidate confirms and recruiter db.ts writes hit the same
+  // kp.sqlite file; busy_timeout makes a concurrent writer wait briefly rather
+  // than instantly throwing SQLITE_BUSY (mirrors db.ts).
+  d.pragma("busy_timeout = 5000");
   d.exec(`
     CREATE TABLE IF NOT EXISTS schedule_invites (
       id TEXT PRIMARY KEY,

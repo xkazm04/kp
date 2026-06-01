@@ -16,7 +16,10 @@ export async function register(): Promise<void> {
   g.__kpClockStarted = true;
 
   // Eager recovery: the in-process task queue is volatile, but the `tasks` rows
-  // are the source of truth — reconcile anything a previous process left mid-run.
+  // are the source of truth, so promptly mark any 'running' row a previous process
+  // left mid-flight as 'interrupted'. Never-started 'queued' rows are intentionally
+  // left for the task runner (ensureRecovered) to re-enqueue on first read rather
+  // than abandoned — that path owns the in-process queue and resumes the work.
   try {
     const { interruptStaleTasks } = await import("./app/_lib/db");
     interruptStaleTasks();

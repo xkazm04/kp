@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 import unicodedata
 
-from .models import KeywordCoverage, KeywordHit
+from .models import KeywordCoverage, KeywordHit, KeywordStatus
 from .taxonomy import skill_keyword_pool
 
 
@@ -27,7 +27,7 @@ def evaluate_keyword_coverage(
     hits = _keyword_hits(jd_norm, cv_norm, effective_job_skills, matching_skills)
     matched_count = sum(1 for hit in hits if hit.matched)
     coverage_percent = round(matched_count / max(len(hits), 1) * 100) if hits else 0
-    over_used = [hit.keyword for hit in hits if hit.in_cv >= 6 and hit.in_cv > hit.in_jd * 3]
+    over_used = [hit.keyword for hit in hits if hit.status == "over_used"]
 
     return KeywordCoverage(
         coverage_percent=coverage_percent,
@@ -35,6 +35,20 @@ def evaluate_keyword_coverage(
         missing=missing_skills[:12],
         over_used=over_used[:6],
     )
+
+
+def _keyword_status(matched: bool, in_jd: int, in_cv: int) -> KeywordStatus:
+    """Resolve a single per-keyword coverage state.
+
+    ``over_used`` is the one place the keyword-stuffing threshold lives: a
+    keyword present in the CV far more often than the JD demands. It implies
+    ``matched`` (the term is present), so callers treat it as covered.
+    """
+    if not matched:
+        return "missing"
+    if in_cv >= 6 and in_cv > in_jd * 3:
+        return "over_used"
+    return "matched"
 
 
 def _keyword_hits(
@@ -51,15 +65,16 @@ def _keyword_hits(
         if not key or key in seen:
             continue
         seen.add(key)
-        in_jd = _occurrences(jd_norm, key)
+        in_jd = max(_occurrences(jd_norm, key), 1)
         in_cv = _occurrences(cv_norm, key)
         matched = key in matched_set or in_cv > 0
         hits.append(
             KeywordHit(
                 keyword=skill,
-                in_jd=max(in_jd, 1),
+                in_jd=in_jd,
                 in_cv=in_cv,
                 matched=matched,
+                status=_keyword_status(matched, in_jd, in_cv),
             )
         )
     hits.sort(key=lambda hit: (not hit.matched, -hit.in_jd, hit.keyword))

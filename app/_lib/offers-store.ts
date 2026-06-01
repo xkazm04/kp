@@ -16,6 +16,11 @@ function db(): Database.Database {
   mkdirSync(path.dirname(DB_PATH), { recursive: true });
   const d = new Database(DB_PATH);
   d.pragma("journal_mode = WAL");
+  // respondToOffer interleaves writes across this connection (markOfferResponded/
+  // markEntryStatus) and db.ts's (actOnPipelineEntry) on the same kp.sqlite file.
+  // Without this, a concurrent writer makes those writes throw SQLITE_BUSY instantly
+  // — 500ing a valid accept/decline mid-transition. Wait briefly instead of crashing.
+  d.pragma("busy_timeout = 5000");
   d.exec(`
     CREATE TABLE IF NOT EXISTS offers (
       id TEXT PRIMARY KEY,

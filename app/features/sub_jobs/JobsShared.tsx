@@ -1,3 +1,4 @@
+import type { LucideIcon } from "lucide-react";
 import type { JobRequirement } from "./JobsTypes";
 
 export function ReqChip({ req }: { req: JobRequirement }) {
@@ -77,4 +78,42 @@ export function Td({ children, className = "" }: { children: React.ReactNode; cl
 
 export function SkelBar({ className = "" }: { className?: string }) {
   return <div className={`animate-pulse rounded bg-stone-100 motion-reduce:animate-none ${className}`} />;
+}
+
+// Shared empty-state primitive: one icon + copy treatment for every empty
+// surface in the jobs tab and posting modal. `compact` is for tight surfaces
+// (e.g. a candidate column that already has its own header); the default is the
+// full dashed card used for whole panels.
+export function EmptyState({
+  icon: Icon,
+  title,
+  body,
+  action,
+  compact = false,
+}: {
+  icon: LucideIcon;
+  title: string;
+  body?: React.ReactNode;
+  action?: React.ReactNode;
+  compact?: boolean;
+}) {
+  if (compact) {
+    return (
+      <div className="mt-2 flex flex-col items-center gap-1.5 py-3 text-center">
+        <Icon className="h-5 w-5 text-stone-400" aria-hidden />
+        <p className="text-sm text-steel">{title}</p>
+        {body ? <p className="text-sm text-steel">{body}</p> : null}
+      </div>
+    );
+  }
+  return (
+    <div className="flex flex-col items-center gap-3 rounded-lg border border-dashed border-stone-300 bg-paper/50 px-6 py-12 text-center">
+      <Icon className="h-8 w-8 text-steel" aria-hidden />
+      <div>
+        <p className="text-base font-semibold text-ink">{title}</p>
+        {body ? <p className="mt-1 text-base text-steel">{body}</p> : null}
+      </div>
+      {action ?? null}
+    </div>
+  );
 }

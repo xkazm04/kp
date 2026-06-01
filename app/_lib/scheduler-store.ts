@@ -19,6 +19,12 @@ function db(): Database.Database {
   mkdirSync(path.dirname(DB_PATH), { recursive: true });
   const d = new Database(DB_PATH);
   d.pragma("journal_mode = WAL");
+  // The policy pass writes pipeline_entries/pipeline_events on db.ts's separate
+  // connection to the same kp.sqlite file while we write scheduler/scheduler_runs.
+  // Without this, claimDueRun()/recordRun() throw SQLITE_BUSY the moment the pass
+  // is mid-write — and since claimDueRun already advanced next_due_at, the window
+  // is silently skipped. Wait briefly instead of crashing.
+  d.pragma("busy_timeout = 5000");
   d.exec(`
     CREATE TABLE IF NOT EXISTS scheduler (
       name TEXT PRIMARY KEY,

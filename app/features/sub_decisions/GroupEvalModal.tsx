@@ -2,6 +2,7 @@
 
 import { Loader2, RefreshCw, Sparkles } from "lucide-react";
 import { Modal } from "@/app/_components/Modal";
+import { ScoreBadge } from "@/app/_components/ScoreBadge";
 
 export type GroupEvalPayload = {
   roleTitle?: string;
@@ -60,8 +61,8 @@ export function GroupEvalModal({
               <p className="flex items-center gap-1.5 text-meta uppercase tracking-wide text-moss">
                 <Sparkles size={13} /> Recommended lead
               </p>
-              <p className="mt-1 font-serif text-h3 text-ink">
-                {evaluation.topPick.label} <span className="text-moss">· fit {evaluation.topPick.score}</span>
+              <p className="mt-1 flex items-center gap-2 font-serif text-h3 text-ink">
+                {evaluation.topPick.label} <ScoreBadge score={evaluation.topPick.score} />
               </p>
               {evaluation.topPick.why ? <p className="mt-1 text-sm text-steel">{evaluation.topPick.why}</p> : null}
             </div>
@@ -83,8 +84,10 @@ export function GroupEvalModal({
               <p className="text-meta uppercase tracking-wide text-steel">Per candidate</p>
               {evaluation.candidates.map((c, i) => (
                 <div key={i} className="rounded-md border border-stone-200 p-2.5">
-                  <p className="text-sm font-semibold text-ink">
-                    {c.label} <span className="text-steel">· fit {c.score}{c.seniority ? ` · ${c.seniority}` : ""}</span>
+                  <p className="flex items-center gap-2 text-sm font-semibold text-ink">
+                    {c.label}
+                    <ScoreBadge score={c.score} />
+                    {c.seniority ? <span className="font-normal text-steel">{c.seniority}</span> : null}
                   </p>
                   {c.verdict ? <p className="mt-0.5 text-sm text-ink">{c.verdict}</p> : null}
                   <div className="mt-1 grid gap-1 sm:grid-cols-2 text-sm">

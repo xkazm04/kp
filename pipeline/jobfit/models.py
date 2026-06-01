@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 from pydantic.alias_generators import to_camel
@@ -103,11 +103,18 @@ class InterviewKit(_Base):
     questions: list[InterviewQuestion] = Field(default_factory=list)
 
 
+# Single source of truth for a keyword's coverage state. ``over_used`` is a
+# sub-state of matched (it appears in the CV, just disproportionately often), so
+# such hits still count toward coverage while flagging possible keyword stuffing.
+KeywordStatus = Literal["matched", "missing", "over_used"]
+
+
 class KeywordHit(_Base):
     keyword: str
     in_jd: int
     in_cv: int
     matched: bool
+    status: KeywordStatus
 
 
 class KeywordCoverage(_Base):

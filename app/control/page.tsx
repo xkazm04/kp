@@ -27,10 +27,18 @@ function rel(iso: string): string {
   return `${Math.floor(d / 86400)}d ago`;
 }
 
+// Blank → undefined, but a legitimate "0" survives (Number("") === 0 would otherwise leak in).
+function parseNum(v: string): number | undefined {
+  if (v.trim() === "") return undefined;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : undefined;
+}
+
 export default function ControlPage() {
   const [s, setS] = useState<Status | null>(null);
   const [o, setO] = useState<OutcomeData | null>(null);
   const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
   const [form, setForm] = useState({ candidate: "", score: "", outcome: "hired", perf: "4" });
 
   const load = () =>
@@ -56,19 +64,29 @@ export default function ControlPage() {
   const recordOutcome = async () => {
     if (!form.candidate.trim()) return;
     setBusy(true);
+    setErr(null);
     try {
-      await fetch("/api/devcase/outcomes", {
+      const r = await fetch("/api/devcase/outcomes", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           candidateRef: form.candidate.trim(),
-          predictedScore: Number(form.score) || undefined,
+          predictedScore: parseNum(form.score),
           outcome: form.outcome,
-          performance: form.outcome === "hired" ? Number(form.perf) || undefined : undefined,
+          performance: form.outcome === "hired" ? parseNum(form.perf) : undefined,
         }),
       });
+      // Gate on r.ok: a failed write (validation, SQLITE_BUSY, 500) must not look like
+      // success — keep the form intact so the recorded outcome isn't silently lost.
+      if (!r.ok) {
+        const p = (await r.json().catch(() => null)) as { error?: string } | null;
+        setErr(p?.error || `Failed to record outcome (${r.status}).`);
+        return;
+      }
       setForm({ ...form, candidate: "", score: "" });
       await loadOutcomes();
+    } catch {
+      setErr("Network error — outcome not recorded.");
     } finally {
       setBusy(false);
     }
@@ -232,6 +250,12 @@ export default function ControlPage() {
               Record
             </button>
           </div>
+
+          {err ? (
+            <p role="alert" className="mt-1.5 text-[11px] font-semibold text-coral">
+              {err}
+            </p>
+          ) : null}
 
           {o ? (
             <div className="mt-2 rounded-lg border border-stone-200 bg-white p-3 shadow-panel">

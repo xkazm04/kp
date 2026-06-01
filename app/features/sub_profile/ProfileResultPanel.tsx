@@ -26,7 +26,7 @@ export function ResultPanel({ result }: { result: BuildResult }) {
           <span className="font-semibold uppercase tracking-wide">Completeness</span>
           <span>{pct}%</span>
         </div>
-        <Meter value={pct} tone={pct >= 70 ? "moss" : "coral"} className="mt-1 h-2" aria-label={`Profile completeness ${pct}%`} />
+        <Meter value={pct} tone={pct >= 70 ? "strong" : "weak"} className="mt-1 h-2" aria-label={`Profile completeness ${pct}%`} />
       </div>
       {result.missing?.length ? (
         <div className="mt-2">

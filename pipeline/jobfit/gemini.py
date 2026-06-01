@@ -156,6 +156,12 @@ class GroundedAnswer:
     payload: dict[str, Any] = field(default_factory=dict)
     sources: list[str] = field(default_factory=list)
     usage: dict[str, int] = field(default_factory=dict)
+    finish_reason: str | None = None
+
+    @property
+    def truncated(self) -> bool:
+        """True when the model stopped because it hit ``max_output_tokens``."""
+        return self.finish_reason == "MAX_TOKENS"
 
 
 def grounded_answer(
@@ -167,6 +173,7 @@ def grounded_answer(
     temperature: float = 0.1,
     max_output_tokens: int = 8000,
     parse_json: bool = False,
+    expected_keys: Sequence[str] = (),
     fallback: GroundedAnswer | None = None,
 ) -> GroundedAnswer:
     """Single seam for every Gemini-backed feature.
@@ -175,6 +182,11 @@ def grounded_answer(
     optionally parses the response body as JSON. If ``fallback`` is provided
     any raised exception (network, auth, JSON parse) returns the fallback
     rather than propagating — used by callers that prefer silent degradation.
+
+    ``expected_keys`` are the top-level keys of the schema this caller wants
+    back. With grounding the model wraps its answer in prose, so the response
+    can hold several stray JSON objects; the keys anchor ``_parse_json`` on the
+    one that is actually the payload.
     """
     config_kwargs: dict[str, Any] = {
         "temperature": temperature,
@@ -195,15 +207,46 @@ def grounded_answer(
             config=types.GenerateContentConfig(**config_kwargs),
         )
         text = (response.text or "").strip()
+        finish_reason = _finish_reason(response)
         sources = _grounding_sources(response) if use_grounding else []
-        payload = _parse_json(text) if parse_json and text else {}
         usage = _usage_metadata(response)
+        if not (parse_json and text):
+            payload = {}
+        elif finish_reason == "MAX_TOKENS":
+            # The body was cut off at the token cap: it is a complete object
+            # missing its tail, not malformed prose. _parse_json can't decode
+            # that and would otherwise surface a misleading 'non-JSON output'.
+            payload = _parse_truncated(text, expected_keys, max_output_tokens)
+        else:
+            payload = _parse_json(text, expected_keys)
     except Exception:
         if fallback is not None:
             return fallback
         raise
 
-    return GroundedAnswer(text=text, payload=payload, sources=sources, usage=usage)
+    return GroundedAnswer(
+        text=text, payload=payload, sources=sources, usage=usage, finish_reason=finish_reason
+    )
+
+
+def _finish_reason(response: Any) -> str | None:
+    """Normalised finish_reason of the first candidate (e.g. 'STOP', 'MAX_TOKENS').
+
+    The google-genai SDK exposes finish_reason as a ``FinishReason`` enum whose
+    ``str()`` is ``'FinishReason.MAX_TOKENS'`` but whose ``.name`` is the bare
+    ``'MAX_TOKENS'``. Return the bare name so callers compare against plain
+    strings without importing the enum. Best-effort — never raises.
+    """
+    candidates = getattr(response, "candidates", None) or []
+    if not candidates:
+        return None
+    reason = getattr(candidates[0], "finish_reason", None)
+    if reason is None:
+        return None
+    name = getattr(reason, "name", None)
+    if name:
+        return str(name)
+    return str(reason).rsplit(".", 1)[-1]  # 'FinishReason.MAX_TOKENS' -> 'MAX_TOKENS'
 
 
 def _usage_metadata(response: Any) -> dict[str, int]:
@@ -242,6 +285,7 @@ def extract_profile_text_with_gemini(
         temperature=0.0,
         max_output_tokens=12000,
         parse_json=True,
+        expected_keys=("raw_text", "structured_profile", "parsing_notes"),
     )
     raw_text = str(answer.payload.get("raw_text") or "").strip()
     notes = answer.payload.get("parsing_notes")
@@ -328,10 +372,17 @@ def analyze_profile_with_gemini(
         temperature=0.1,
         max_output_tokens=16000,
         parse_json=True,
+        expected_keys=tuple(ANALYSIS_RESPONSE_SCHEMA.keys()),
     )
     if request_id:
         write_prompt_artifact(request_id, "response.txt", answer.text or "")
     if not answer.text:
+        if answer.truncated:
+            raise RuntimeError(
+                "Gemini produced no analysis before hitting the output token cap "
+                "(finish_reason=MAX_TOKENS, max_output_tokens=16000). Raise the cap "
+                "or shorten the CV / job description."
+            )
         raise RuntimeError("Gemini returned an empty analysis response.")
     if not answer.payload:
         raise RuntimeError("Gemini returned non-JSON output.")
@@ -370,14 +421,36 @@ def _scan_json_values(text: str) -> list[Any]:
     return values
 
 
-def _parse_json(text: str) -> dict[str, Any]:
+def _select_payload(dicts: list[dict[str, Any]], expected_keys: Sequence[str]) -> dict[str, Any]:
+    """Pick the dict that is actually the answer out of several decoded objects.
+
+    A grounded response may embed multiple JSON objects in its prose — the real
+    payload plus citation blobs, a stray ``{"note": ...}``, or an echoed example.
+    Blindly taking the last one let a single chatty trailing sentence swap the
+    payload for garbage. Rank candidates by how many of the schema's top-level
+    keys they carry, then by size, and only use document order (later wins) as
+    the final tiebreak — so the real payload still beats an empty leading brace.
+    """
+    wanted = set(expected_keys)
+
+    def rank(item: tuple[int, dict[str, Any]]) -> tuple[int, int, int]:
+        idx, candidate = item
+        matched = len(wanted & candidate.keys()) if wanted else 0
+        return (matched, len(candidate), idx)
+
+    return max(enumerate(dicts), key=rank)[1]
+
+
+def _parse_json(text: str, expected_keys: Sequence[str] = ()) -> dict[str, Any]:
     """Extract the JSON answer from a grounded (prose-wrapped) Gemini response.
 
     With grounding enabled there is no response_mime_type, so the model returns
     JSON embedded in prose. The old `text.find("{")` latched onto the FIRST brace
-    — a stray `{` in the prose preamble made the whole grounded analysis fail. We
-    now scan every `{`/`[` opener and return the last decodable dict (the real
-    payload trails any example/prose brace).
+    — a stray `{` in the prose preamble made the whole grounded analysis fail.
+    Taking the LAST decodable dict instead was just as fragile in reverse: a
+    trailing citation/example object silently became the payload. We scan every
+    `{`/`[` opener and, given the caller's ``expected_keys``, return the dict
+    that actually matches the schema (falling back to the largest, then last).
     """
     text = (text or "").strip()
     candidates: list[Any] = []
@@ -387,10 +460,105 @@ def _parse_json(text: str) -> dict[str, Any]:
         candidates = _scan_json_values(text)
     dicts = [c for c in candidates if isinstance(c, dict)]
     if dicts:
-        return dicts[-1]
+        return _select_payload(dicts, expected_keys)
     if candidates:
         return candidates[-1]
     raise RuntimeError("Gemini returned non-JSON output.")
+
+
+def _parse_truncated(
+    text: str, expected_keys: Sequence[str], max_output_tokens: int
+) -> dict[str, Any]:
+    """Recover the JSON answer from a response cut off at ``max_output_tokens``.
+
+    Called only when the candidate's finish_reason is ``MAX_TOKENS``. The body
+    is an unterminated object, so ``_parse_json`` either fails or latches onto a
+    stray inner fragment — neither is the real payload. We therefore (1) trust a
+    plain parse only if it still carries the caller's schema keys (the cap may
+    have landed exactly on the closing brace), (2) otherwise try to salvage the
+    partial object by closing its open brackets, accepting it only when it has
+    the full top-level shape, and (3) failing both, raise a clear, actionable
+    truncation error instead of the misleading 'non-JSON output'.
+    """
+    wanted = set(expected_keys)
+
+    def usable(candidate: dict[str, Any]) -> bool:
+        return bool(candidate) and (not wanted or wanted <= candidate.keys())
+
+    try:
+        parsed = _parse_json(text, expected_keys)
+    except RuntimeError:
+        parsed = {}
+    if usable(parsed):
+        return parsed
+
+    salvaged = _repair_truncated_json(text)
+    if usable(salvaged):
+        return salvaged
+
+    raise RuntimeError(
+        "Gemini response was truncated at the output token cap "
+        f"(finish_reason=MAX_TOKENS, max_output_tokens={max_output_tokens}). "
+        "The input is too large for the configured budget — raise "
+        "max_output_tokens or shorten the CV / job description."
+    )
+
+
+def _repair_truncated_json(text: str) -> dict[str, Any]:
+    """Best-effort recovery of a JSON object truncated mid-stream.
+
+    Walks the text from its first ``{`` tracking string state and the open
+    ``{}``/``[]`` stack, recording every position where the document could be
+    legally closed (after a string, a number/literal, or a ``}``/``]``). It then
+    tries the longest such prefix first, drops a dangling comma, appends the
+    closers the stack still needs, and returns the first prefix that parses to a
+    dict. Returns ``{}`` when nothing usable can be recovered.
+    """
+    start = text.find("{")
+    if start < 0:
+        return {}
+    snippet = text[start:]
+
+    stack: list[str] = []
+    cut_points: list[tuple[int, str]] = []  # (length, closers needed at that point)
+    in_string = False
+    escape = False
+    for i, ch in enumerate(snippet):
+        if in_string:
+            if escape:
+                escape = False
+            elif ch == "\\":
+                escape = True
+            elif ch == '"':
+                in_string = False
+                cut_points.append((i + 1, "".join(reversed(stack))))
+            continue
+        if ch == '"':
+            in_string = True
+        elif ch == "{":
+            stack.append("}")
+        elif ch == "[":
+            stack.append("]")
+        elif ch in "}]":
+            if stack:
+                stack.pop()
+            cut_points.append((i + 1, "".join(reversed(stack))))
+        elif ch in "0123456789.eE+-tfln":  # number or true/false/null literal
+            cut_points.append((i + 1, "".join(reversed(stack))))
+
+    attempts = 0
+    for length, closers in reversed(cut_points):
+        attempts += 1
+        if attempts > 500:  # error path: cap work on a pathological body
+            break
+        candidate = snippet[:length].rstrip().rstrip(",")
+        try:
+            value = json.loads(candidate + closers)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(value, dict):
+            return value
+    return {}
 
 
 def _mime_type(path: Path) -> str:

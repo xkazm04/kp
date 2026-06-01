@@ -187,7 +187,7 @@ Each fixture is hand-verified (`label`, `expected_role_family`, `expected_senior
 
 `salary_overlap` is containment-aware — a Gemini range fully inside the expected band scores 1.0; partial overlaps fall back to IoU. The aggregate report and per-fixture breakdown print as a markdown table; `--json` swaps in machine-readable output for CI; `--strict` exits non-zero when any threshold is missed. Use it after every prompt or taxonomy change to catch drift.
 
-Known edge-case behaviors the harness surfaces today: occasional Gemini JSON truncation on Czech short CVs (treated as a fixture error); language-detection ambiguity on mostly-English CVs that contain Czech proper nouns ("Bc. ČVUT"); narrower-than-expected Gemini ranges on niche specialisms (legacy mainframe, PhD pivot) where the public market data is thin.
+Known edge-case behaviors the harness surfaces today: occasional Gemini JSON truncation when a long CV + full job-fit overruns `max_output_tokens` — now detected via the response `finish_reason` and surfaced as a clear "truncated at the token cap" error (with a best-effort salvage of the partial object) instead of a misleading "non-JSON output"; language-detection ambiguity on mostly-English CVs that contain Czech proper nouns ("Bc. ČVUT"); narrower-than-expected Gemini ranges on niche specialisms (legacy mainframe, PhD pivot) where the public market data is thin.
 
 ## 6. Data approach
 

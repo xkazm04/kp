@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { Send } from "lucide-react";
 import { ScoreBadge } from "@/app/_components/ScoreBadge";
 import { WorkspaceShell } from "@/app/features/WorkspaceNav";
-import { listAnalysesByJd, loadJd } from "@/app/_lib/db";
+import { listAnalysesByJd, loadJd, type AnalysisSummary, type JdRow } from "@/app/_lib/db";
 import { JdBody } from "./JdBody";
 
 export const dynamic = "force-dynamic";
@@ -14,10 +14,33 @@ export default async function JdDetailPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const jd = loadJd(slug);
+
+  // The JD body is the primary, public, shareable content. Load it independently so
+  // a transient SQLite error (a locked WAL mid-write, a corrupt row) renders a scoped
+  // in-shell message instead of crashing the whole route into the Next error boundary.
+  let jd: JdRow | null;
+  try {
+    jd = loadJd(slug);
+  } catch {
+    return (
+      <WorkspaceShell active="library">
+        <p className="rounded-md bg-red-50 p-4 text-sm text-red-700">
+          This job description couldn&apos;t be loaded right now. Please refresh in a moment.
+        </p>
+      </WorkspaceShell>
+    );
+  }
   if (!jd) notFound();
 
-  const analyses = listAnalysesByJd(slug);
+  // The candidate sidebar is secondary: if its query fails, still render the JD body
+  // rather than letting one failed read take down the whole page.
+  let analyses: AnalysisSummary[] = [];
+  let analysesFailed = false;
+  try {
+    analyses = listAnalysesByJd(slug);
+  } catch {
+    analysesFailed = true;
+  }
 
   return (
     <WorkspaceShell active="library">
@@ -26,8 +49,10 @@ export default async function JdDetailPage({
           <p className="text-meta uppercase text-coral">Job description · {slug}</p>
           <h1 className="mt-1 font-serif text-display text-ink">{jd.title}</h1>
           <p className="mt-2 text-sm text-steel">
-            Saved {new Date(jd.created_at).toLocaleString()} · {analyses.length} candidate
-            {analyses.length === 1 ? "" : "s"} analyzed against this JD
+            Saved {new Date(jd.created_at).toLocaleString()}
+            {analysesFailed
+              ? null
+              : ` · ${analyses.length} candidate${analyses.length === 1 ? "" : "s"} analyzed against this JD`}
           </p>
         </div>
         <div className="flex flex-col items-stretch gap-2 sm:flex-row lg:items-end">
@@ -56,7 +81,11 @@ export default async function JdDetailPage({
             <h2 className="font-serif text-h3 text-ink">Candidates</h2>
             <span className="text-sm uppercase tracking-wide text-steel">by score</span>
           </div>
-          {analyses.length === 0 ? (
+          {analysesFailed ? (
+            <p className="px-5 py-8 text-sm text-steel">
+              Couldn&apos;t load candidates right now. The job description is unaffected — refresh to retry.
+            </p>
+          ) : analyses.length === 0 ? (
             <p className="px-5 py-8 text-sm text-steel">
               No candidates analyzed against this JD yet. Generated roles also source candidates into the Pipeline.
             </p>

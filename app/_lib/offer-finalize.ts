@@ -1,4 +1,4 @@
-import { actOnPipelineEntry, getPipelineEntry, recordAutomationEvent } from "./db";
+import { actOnPipelineEntry, getJob, recordAutomationEvent } from "./db";
 import { dispatchOnboarding } from "./comms-dispatch";
 import { getOfferByToken, markEntryStatus, markOfferResponded } from "./offers-store";
 
@@ -50,8 +50,10 @@ export async function respondToOffer(token: string, response: "accept" | "declin
 export function offerView(token: string) {
   const offer = getOfferByToken(token);
   if (!offer) return null;
-  const entry = offer.entryId ? getPipelineEntry(offer.entryId) : null;
-  const company = entry?.jobTitle ?? null;
+  // The hiring company lives on the job record (not the pipeline entry), so resolve
+  // it from there — this is what lets the public offer page show who it's from.
+  const job = offer.jobId ? getJob(offer.jobId) : null;
+  const company = job?.company ?? null;
   return {
     token: offer.token,
     status: offer.status,

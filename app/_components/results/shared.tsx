@@ -1,6 +1,7 @@
 "use client";
 
 import type { Analysis } from "@/app/_lib/schemas";
+import { dedupe } from "@/app/_lib/dedupe";
 
 export function Metric({ label, value }: { label: string; value: number }) {
   return (
@@ -96,13 +97,14 @@ export function InlineList({
   emptyHeadline?: string;
   emptyHint?: string;
 }) {
+  const uniqueItems = dedupe(items);
   return (
     <div className="rounded-md bg-paper p-3">
       <h4 className="font-serif text-h3 text-ink">{title}</h4>
-      {items.length ? (
+      {uniqueItems.length ? (
         <ul className="mt-2 space-y-2">
-          {items.map((item) => (
-            <li key={item} className="text-base leading-6 text-ink">
+          {uniqueItems.map((item, i) => (
+            <li key={`${item}-${i}`} className="text-base leading-6 text-ink">
               {item}
             </li>
           ))}
@@ -127,16 +129,17 @@ export function ListBlock({
   emptyHeadline?: string;
   emptyHint?: string;
 }) {
+  const uniqueItems = dedupe(items);
   return (
     <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
       <div className="flex items-center gap-2">
         {icon ?? null}
         <h3 className="font-serif text-h3 text-ink">{title}</h3>
       </div>
-      {items.length ? (
+      {uniqueItems.length ? (
         <ul className="mt-4 space-y-3">
-          {items.map((item) => (
-            <li key={item} className="text-base leading-6 text-ink">
+          {uniqueItems.map((item, i) => (
+            <li key={`${item}-${i}`} className="text-base leading-6 text-ink">
               {item}
             </li>
           ))}
@@ -162,8 +165,8 @@ export function EnginePanel({ analysis }: { analysis: Analysis }) {
         {analysis.metadata.model ? <p>Model: {analysis.metadata.model}</p> : null}
         {analysis.metadata.parsingNotes.length ? (
           <ul className="space-y-2">
-            {analysis.metadata.parsingNotes.slice(0, 3).map((note) => (
-              <li key={note}>{note}</li>
+            {dedupe(analysis.metadata.parsingNotes).slice(0, 3).map((note, i) => (
+              <li key={`${note}-${i}`}>{note}</li>
             ))}
           </ul>
         ) : null}

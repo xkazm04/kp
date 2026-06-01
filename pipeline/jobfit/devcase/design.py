@@ -12,7 +12,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from .models import DevNeed, NeedAnalysis
+from .models import RUBRIC_DIMENSIONS, DevNeed, NeedAnalysis
 
 ROLE_DESIGN_PROMPT_VERSION = "role-design-v2"
 CASE_DESIGN_PROMPT_VERSION = "case-design-v3"  # v3: domain-neutral vocabulary (non-IT)
@@ -53,14 +53,10 @@ _SYSTEM = (
     "transfer — never raw typing. Ground everything in the supplied reality. Output strict JSON only."
 )
 
-# default rubric (weights sum to 1.0) — the five durable capabilities
-_RUBRIC = [
-    {"name": "framing", "weight": 0.2, "description": "Turns an ambiguous need into a sound plan."},
-    {"name": "tooling", "weight": 0.25, "description": "Drives the model/tools well; iterates and verifies."},
-    {"name": "judgment", "weight": 0.25, "description": "Catches model mistakes; validates; pushes back."},
-    {"name": "architecture", "weight": 0.15, "description": "Structure + trade-offs that fit the real codebase."},
-    {"name": "transfer", "weight": 0.15, "description": "Capability transfers to THIS role's stack/responsibilities."},
-]
+# default rubric (weights sum to 1.0) — the five durable capabilities. Single source of
+# truth lives in models.RUBRIC_DIMENSIONS so the case rubric and the evaluation breakdown
+# can never drift apart.
+_RUBRIC = RUBRIC_DIMENSIONS
 
 
 def _generate(provider: Any | None, prompt: str, deterministic, coerce) -> tuple[dict, str]:

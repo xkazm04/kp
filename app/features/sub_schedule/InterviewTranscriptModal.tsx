@@ -3,6 +3,9 @@
 import { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { Modal } from "@/app/_components/Modal";
+import { InterviewRecommendationBadge } from "@/app/_components/Badge";
+import { Meter } from "@/app/_components/Meter";
+import { scoreTone } from "@/app/_lib/format";
 import type { SchedEntry } from "./ScheduleTypes";
 
 type Turn = { role: string; text: string };
@@ -16,11 +19,11 @@ type Session = {
   scorecard?: Scorecard | null;
 };
 
-const REC_STYLE: Record<string, string> = {
-  advance: "bg-moss/15 text-moss",
-  hold: "bg-dial-amber/20 text-ink",
-  reject: "bg-coral/10 text-coral",
-};
+// Rating tone tracks strength, not just bar length, on the app-wide score scale:
+// the 1-5 rating is mapped to 0-100 and run through scoreTone (75/50 cutoffs), so
+// a 4-5 reads strong, a 3 mid, and a 1-2 weak — the scorecard's shape is legible
+// at a glance and matches the colors every other ranked surface uses.
+const ratingTone = (r: number) => scoreTone((r / 5) * 100);
 
 export function InterviewTranscriptModal({ entry, onClose }: { entry: SchedEntry; onClose: () => void }) {
   const [session, setSession] = useState<Session | null>(null);
@@ -55,22 +58,24 @@ export function InterviewTranscriptModal({ entry, onClose }: { entry: SchedEntry
             <section className="rounded-md border border-stone-200 bg-paper p-3">
               <div className="flex items-center justify-between gap-2">
                 <p className="text-meta uppercase tracking-wide text-steel">AI scorecard</p>
-                {sc.recommendation ? (
-                  <span className={`rounded-full px-2.5 py-0.5 text-meta font-semibold uppercase ${REC_STYLE[sc.recommendation] ?? "bg-stone-100 text-steel"}`}>
-                    {sc.recommendation}
-                  </span>
-                ) : null}
+                {sc.recommendation ? <InterviewRecommendationBadge rec={sc.recommendation} /> : null}
               </div>
               {sc.summary ? <p className="mt-1.5 text-base text-ink">{sc.summary}</p> : null}
               {sc.ratings && sc.ratings.length ? (
-                <ul className="mt-2 space-y-1">
+                <ul className="mt-2.5 space-y-2.5">
                   {sc.ratings.map((r, i) => (
-                    <li key={i} className="flex items-start gap-2 text-sm text-ink">
-                      <span className="shrink-0 rounded bg-white px-1.5 py-0.5 font-semibold tabular-nums text-coral">{r.rating}/5</span>
-                      <span>
+                    <li key={i} className="text-sm text-ink">
+                      <div className="flex items-baseline justify-between gap-2">
                         <span className="font-semibold">{r.competency}</span>
-                        {r.evidence ? <span className="text-steel"> — {r.evidence}</span> : null}
-                      </span>
+                        <span className="shrink-0 nums text-steel">{r.rating}/5</span>
+                      </div>
+                      <Meter
+                        value={(r.rating / 5) * 100}
+                        tone={ratingTone(r.rating)}
+                        className="mt-1"
+                        aria-label={`${r.competency} rating ${r.rating} out of 5`}
+                      />
+                      {r.evidence ? <p className="mt-1 text-meta text-steel">{r.evidence}</p> : null}
                     </li>
                   ))}
                 </ul>

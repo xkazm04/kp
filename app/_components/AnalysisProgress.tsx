@@ -133,7 +133,7 @@ export function AnalysisProgress({
 
       <div className="mt-4 h-1.5 w-full overflow-hidden rounded-full bg-stone-200">
         <div
-          className="h-full rounded-full bg-coral transition-[width] duration-500 ease-out"
+          className="h-full rounded-full bg-coral transition-[width] duration-500 ease-out motion-reduce:transition-none"
           style={{ width: `${percent}%` }}
         />
       </div>

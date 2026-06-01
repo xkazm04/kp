@@ -18,6 +18,12 @@ const COMPONENT_LABELS: Record<ComponentKey, string> = {
 };
 
 export function buildComparison(inputs: ComparisonInput[]): ComparisonPayload {
+  // Reject empty input: with no variants, ranked[0] below is undefined and
+  // reading .label throws. Callers must supply at least one variant.
+  if (inputs.length < 1) {
+    throw new Error("buildComparison requires at least one CV variant");
+  }
+
   const variants: ComparisonVariant[] = inputs.map(({ label, analysis }) => ({
     label,
     score: {

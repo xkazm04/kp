@@ -10,7 +10,7 @@ import {
   saveSubmissionEvaluation,
   setApproval,
 } from "./db";
-import { cleanupWorkdir, createWorkdir, parsePythonJson, parseStderrError, spawnPython } from "./python-runner";
+import { cleanupWorkdir, createWorkdir, parsePythonJson, parseStderrError, PipelineError, spawnPython } from "./python-runner";
 import { buildRepoSnapshot, fetchRepoSignals, type RepoSnapshot } from "./repo-snapshot";
 
 export type DevNeed = {
@@ -28,6 +28,10 @@ export type NeedAnalysisResult = {
   analysis: Record<string, unknown>;
   snapshot: RepoSnapshot | null;
   source: string;
+  // Per-step provenance ({step: "llm"|"deterministic"}) from the uniform CLI
+  // envelope — single-step here ({analyze}), but typed the same across the
+  // pipeline so one provenance strip renders every command.
+  perStepSources: Record<string, string>;
 };
 
 // D2 core: pull the real codebase, then reflect the need against it (LLM + fallback).
@@ -47,12 +51,9 @@ export async function runNeedAnalysis(need: DevNeed): Promise<NeedAnalysisResult
     }
     const { result } = spawnPython(args);
     const { stdout, stderr, exitCode } = await result;
-    if (exitCode !== 0) {
-      const err = parseStderrError(stderr, exitCode);
-      throw new Error(err.message);
-    }
-    const payload = parsePythonJson<{ result: Record<string, unknown>; source: string }>(stdout, stderr);
-    return { analysis: payload.result, snapshot, source: payload.source };
+    if (exitCode !== 0) throw new PipelineError(parseStderrError(stderr, exitCode));
+    const payload = parsePythonJson<{ result: Record<string, unknown>; source: string; perStepSources?: Record<string, string> }>(stdout, stderr);
+    return { analysis: payload.result, snapshot, source: payload.source, perStepSources: payload.perStepSources ?? {} };
   } finally {
     await cleanupWorkdir(workdir);
   }
@@ -62,6 +63,7 @@ export type DesignArtifactsResult = {
   role: Record<string, unknown>;
   case: Record<string, unknown>;
   source: string;
+  perStepSources: Record<string, string>; // {role, case}
 };
 
 // D3 core: design a RoleSpec + a CaseScenario (covert tooling-probes) from the need + analysis.
@@ -82,12 +84,9 @@ export async function runDesignArtifacts(need: DevNeed, analysis: Record<string,
       analysisPath,
     ]);
     const { stdout, stderr, exitCode } = await result;
-    if (exitCode !== 0) {
-      const err = parseStderrError(stderr, exitCode);
-      throw new Error(err.message);
-    }
-    const payload = parsePythonJson<{ result: { role: Record<string, unknown>; case: Record<string, unknown> }; source: string }>(stdout, stderr);
-    return { role: payload.result.role, case: payload.result.case, source: payload.source };
+    if (exitCode !== 0) throw new PipelineError(parseStderrError(stderr, exitCode));
+    const payload = parsePythonJson<{ result: { role: Record<string, unknown>; case: Record<string, unknown> }; source: string; perStepSources?: Record<string, string> }>(stdout, stderr);
+    return { role: payload.result.role, case: payload.result.case, source: payload.source, perStepSources: payload.perStepSources ?? {} };
   } finally {
     await cleanupWorkdir(workdir);
   }
@@ -97,6 +96,7 @@ export type CommitReflectionResult = {
   reflection: Record<string, unknown>;
   tooling: Record<string, unknown>;
   source: string;
+  perStepSources: Record<string, string>; // {reflect, tooling}
   commitCount: number;
 };
 
@@ -123,12 +123,9 @@ export async function runCommitReflection(repoRef: string, caseId?: string): Pro
     }
     const { result } = spawnPython(args);
     const { stdout, stderr, exitCode } = await result;
-    if (exitCode !== 0) {
-      const err = parseStderrError(stderr, exitCode);
-      throw new Error(err.message);
-    }
-    const payload = parsePythonJson<{ result: { reflection: Record<string, unknown>; tooling: Record<string, unknown> }; source: string }>(stdout, stderr);
-    return { reflection: payload.result.reflection, tooling: payload.result.tooling, source: payload.source, commitCount: commits.length };
+    if (exitCode !== 0) throw new PipelineError(parseStderrError(stderr, exitCode));
+    const payload = parsePythonJson<{ result: { reflection: Record<string, unknown>; tooling: Record<string, unknown> }; source: string; perStepSources?: Record<string, string> }>(stdout, stderr);
+    return { reflection: payload.result.reflection, tooling: payload.result.tooling, source: payload.source, perStepSources: payload.perStepSources ?? {}, commitCount: commits.length };
   } finally {
     await cleanupWorkdir(workdir);
   }
@@ -140,6 +137,7 @@ export type SubmissionEvaluation = {
   evaluation: Record<string, unknown>;
   transfer: Record<string, unknown>;
   source: string;
+  perStepSources: Record<string, string>; // {reflect, tooling, evaluate, transfer}
   commitCount: number;
 };
 
@@ -187,15 +185,13 @@ export async function runEvaluateSubmission(submissionId: string): Promise<Submi
 
     const { result } = spawnPython(args);
     const { stdout, stderr, exitCode } = await result;
-    if (exitCode !== 0) {
-      const err = parseStderrError(stderr, exitCode);
-      throw new Error(err.message);
-    }
+    if (exitCode !== 0) throw new PipelineError(parseStderrError(stderr, exitCode));
     const payload = parsePythonJson<{
       result: { reflection: Record<string, unknown>; tooling: Record<string, unknown>; evaluation: Record<string, unknown>; transfer: Record<string, unknown> };
       source: string;
+      perStepSources?: Record<string, string>;
     }>(stdout, stderr);
-    const out = { ...payload.result, source: payload.source, commitCount: commits.length };
+    const out = { ...payload.result, source: payload.source, perStepSources: payload.perStepSources ?? {}, commitCount: commits.length };
     const transferScore = Number((payload.result.transfer as { transferScore?: number } | null | undefined ?? {}).transferScore ?? 0);
     saveSubmissionEvaluation(submissionId, out, transferScore);
     return out;
@@ -231,10 +227,7 @@ export async function runSourceForRole(role: Record<string, unknown>, topN = 8, 
       String(floor),
     ]);
     const { stdout, stderr, exitCode } = await result;
-    if (exitCode !== 0) {
-      const err = parseStderrError(stderr, exitCode);
-      throw new Error(err.message);
-    }
+    if (exitCode !== 0) throw new PipelineError(parseStderrError(stderr, exitCode));
     const payload = parsePythonJson<{ result: Sourced[] }>(stdout, stderr);
     return payload.result ?? [];
   } finally {

@@ -1,4 +1,5 @@
 import { insertJob, jobContentHash, normalizeJob } from "@/app/_lib/job-ingest";
+import { normalizeSalaryBand } from "@/app/_lib/salary-band";
 
 type RoleSpec = {
   title?: string;
@@ -37,9 +38,10 @@ export async function ingestStructuredJob(input: {
   };
 
   const { job } = await normalizeJob(record, `jd-${input.slug}`);
-  const min = input.salary?.suggestedMinimum;
-  const max = input.salary?.suggestedMaximum;
-  if (min && max && max >= min) job.salaryBand = [min, max];
+  // Clamp/swap a backwards or non-positive band rather than dropping it, so the
+  // matchable Job's band never silently disagrees with the published JD.
+  const band = normalizeSalaryBand(input.salary?.suggestedMinimum, input.salary?.suggestedMaximum);
+  if (band) job.salaryBand = band;
 
   // Authored JDs start as a DRAFT — publishing sources them into the pipeline.
   insertJob(job, jobContentHash(`${input.title}\n${input.markdown}`), "draft");

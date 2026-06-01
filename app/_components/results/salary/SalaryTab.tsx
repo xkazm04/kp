@@ -4,6 +4,7 @@ import { CircleDollarSign } from "lucide-react";
 import { formatCzk, formatSalaryRange, labelize } from "@/app/_lib/format";
 import type { Analysis } from "@/app/_lib/schemas";
 import { ConfidenceBadge } from "@/app/_components/Badge";
+import { dedupe } from "@/app/_lib/dedupe";
 import { InlineList } from "../shared";
 import { SalaryGauge } from "./SalaryGauge";
 
@@ -26,7 +27,7 @@ export function SalaryTab({ analysis }: { analysis: Analysis }) {
               confidence={analysis.salary.confidence}
             />
           </div>
-          <div className="mt-1 text-base tabular-nums text-ink">
+          <div className="mt-1 text-base nums text-ink">
             {formatSalaryRange(analysis.salary.minimum, analysis.salary.maximum)}
           </div>
           <p className="mt-1 flex items-center gap-1.5 text-base text-steel">per month · <ConfidenceBadge value={analysis.salary.confidence} /></p>
@@ -42,8 +43,8 @@ export function SalaryTab({ analysis }: { analysis: Analysis }) {
               {labelize(analysis.companyContext.companyType)}: {analysis.companyContext.salaryEffect} ({analysis.companyContext.adjustmentFactor}x)
             </p>
             <ul className="mt-3 space-y-2">
-              {analysis.companyContext.rationale.map((item) => (
-                <li key={item} className="text-base leading-6 text-ink">{item}</li>
+              {dedupe(analysis.companyContext.rationale).map((item, i) => (
+                <li key={`${item}-${i}`} className="text-base leading-6 text-ink">{item}</li>
               ))}
             </ul>
           </div>
@@ -54,8 +55,8 @@ export function SalaryTab({ analysis }: { analysis: Analysis }) {
         <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
           <h3 className="font-serif text-h3 text-ink">Salary Rationale</h3>
           <ul className="mt-4 space-y-3">
-            {analysis.salary.rationale.map((item) => (
-              <li key={item} className="text-base leading-6 text-ink">{item}</li>
+            {dedupe(analysis.salary.rationale).map((item, i) => (
+              <li key={`${item}-${i}`} className="text-base leading-6 text-ink">{item}</li>
             ))}
           </ul>
         </div>
@@ -85,8 +86,8 @@ export function SalaryTab({ analysis }: { analysis: Analysis }) {
             </p>
             {analysis.marketEvidence.sources.length ? (
               <ul className="mt-3 space-y-2 text-base leading-6">
-                {analysis.marketEvidence.sources.slice(0, 3).map((source, index) => (
-                  <li key={source}>
+                {dedupe(analysis.marketEvidence.sources).slice(0, 3).map((source, index) => (
+                  <li key={`${source}-${index}`}>
                     <a className="text-steel underline" href={source} target="_blank" rel="noreferrer">
                       Source {index + 1}
                     </a>

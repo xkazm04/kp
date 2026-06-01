@@ -53,7 +53,10 @@ function decisionMeta(kind: string) {
 }
 
 function timeAgo(iso: string): string {
-  const mins = Math.max(0, Math.round((Date.now() - Date.parse(iso)) / 60000));
+  const parsed = Date.parse(iso);
+  // Guard against a blank/malformed timestamp rendering as "NaNm ago".
+  if (!Number.isFinite(parsed)) return "—";
+  const mins = Math.max(0, Math.round((Date.now() - parsed) / 60000));
   if (mins < 60) return `${mins}m ago`;
   const hrs = Math.round(mins / 60);
   if (hrs < 24) return `${hrs}h ago`;

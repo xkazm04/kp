@@ -11,6 +11,20 @@
   --color-limewash: #dce7d0;
   --color-dial-stone: #8c8779;
   --color-dial-amber: #caa54c;
+
+  /*
+   * Score→tone scale — the single source of truth for the rank colors the eye
+   * uses to triage candidates. scoreTone() in app/_lib/format.ts owns the 75/50
+   * cutoffs; these tokens own the hues. Badge, meter, dial, and factor bars all
+   * resolve through `score-*` (Tailwind utilities bg-score-strong/… or raw
+   * var(--color-score-…)), so one edit here re-tones every ranked surface and
+   * the colors can never drift between views.
+   */
+  --color-score-strong: var(--color-moss);
+  --color-score-mid: var(--color-dial-amber);
+  --color-score-weak: var(--color-coral);
+  --color-score-null: var(--color-steel);
+
   --shadow-panel: 0 18px 50px rgba(23, 32, 42, 0.10);
 
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -52,8 +66,47 @@
 
 body {
   margin: 0;
-  background: #f7f5ef;
-  color: #17202a;
+  background: var(--color-paper);
+  color: var(--color-ink);
+}
+
+/*
+ * Theme override seam.
+ * The default (light) palette is defined in @theme above, which Tailwind
+ * emits onto :root. Because the page canvas (body) and every surface now
+ * resolve their colors through var(--color-*), re-declaring those tokens
+ * under a [data-theme] scope re-skins the whole app with a single edit.
+ * Set data-theme="dark" on <html> to activate. Specificity matches :root,
+ * so source order (this block comes later) lets the override win.
+ */
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  --color-ink: #f7f5ef;
+  --color-paper: #17202a;
+}
+
+/*
+ * Simulation overlay layer — single source of truth for stacking + geometry.
+ * The guided pipeline demo floats several fixed elements over the live app;
+ * these tokens keep their z-order intentional (not "correct by luck") and let
+ * the drawer + offer frame anchor to the control bar without a magic offset.
+ *
+ * Stacking order (low → high):
+ *   spotlight (dim + ring) → explainer drawer → control bar → offer frame.
+ *
+ * --sim-bar-h is the control bar's live height: SimBar measures itself and
+ * writes the value here, so the explainer drawer and offer frame can sit just
+ * above the bar via bottom-[calc(var(--sim-bar-h)+8px)] instead of a hardcoded
+ * 68px. The value below is the pre-hydration fallback (the bar's natural
+ * height); restyling the bar's padding now reflows the overlays automatically.
+ */
+:root {
+  --z-sim-spotlight: 45;
+  --z-sim-drawer: 46;
+  --z-sim-bar: 47;
+  --z-sim-frame: 48;
+  --sim-bar-h: 60px;
 }
 
 button,
@@ -62,14 +115,60 @@ textarea {
   font: inherit;
 }
 
+/*
+ * Fixed-width numerals — the typographic half of the number formatters in
+ * app/_lib/format.ts. formatCzk/formatSalaryRange/formatPercent/formatYears/
+ * formatCount give every figure one rhythm; `.nums` makes the glyphs the same
+ * width so that rhythm holds when figures stack in a column, table, or gauge
+ * (proportional digits make comparison columns wobble). Apply it on the cell or
+ * a shared ancestor — both properties inherit, so a parent `.nums` reaches SVG
+ * chart text too. Belt-and-suspenders: font-variant-numeric covers modern
+ * engines, the 'tnum' feature-setting is the fallback for any that ignore it.
+ */
+.nums {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+
+/*
+ * Baseline focus ring — the on-brand coral double-ring for EVERY natively
+ * focusable control, not just elements that opt into `.focus-ring`. Keyboard
+ * and screen-reader users get one consistent, WCAG-visible indicator instead
+ * of the browser's default outline drifting per control type. `:where()` keeps
+ * the selector at zero specificity (only the trailing `:focus-visible` counts),
+ * so `.focus-ring` below — and any component-level focus rule — still wins and
+ * can override or remove the ring. `outline: none` hands the visible job fully
+ * to the box-shadow so the two indicators never stack.
+ */
+:where(a, button, input, textarea, select, [tabindex]):focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 2px var(--color-paper),
+    0 0 0 4px var(--color-coral);
+}
+
 .focus-ring {
   outline: none;
 }
 
 .focus-ring:focus-visible {
   box-shadow:
-    0 0 0 2px #f7f5ef,
-    0 0 0 4px #d65a4a;
+    0 0 0 2px var(--color-paper),
+    0 0 0 4px var(--color-coral);
+}
+
+/*
+ * Forced-colors fallback. In Windows High Contrast / forced-colors mode the
+ * box-shadow ring is stripped, which would leave keyboard users with no focus
+ * indicator at all. Restore a real system-colored outline there so the
+ * accessibility guarantee holds in every rendering mode.
+ */
+@media (forced-colors: active) {
+  :where(a, button, input, textarea, select, [tabindex]):focus-visible,
+  .focus-ring:focus-visible {
+    outline: 2px solid;
+    outline-offset: 2px;
+  }
 }
 
 .animate-fade-in {

@@ -57,7 +57,11 @@ export function DecisionRulesModal({ onClose }: { onClose: () => void }) {
           >
             {saving ? <Loader2 size={15} className="animate-spin" /> : null} Save rules
           </button>
-          {note ? <span className="text-sm text-steel">{note}</span> : null}
+          {note ? (
+            <span role="status" aria-live="polite" className="text-sm text-steel">
+              {note}
+            </span>
+          ) : null}
         </div>
       }
     >
@@ -84,6 +88,7 @@ export function DecisionRulesModal({ onClose }: { onClose: () => void }) {
                 max={100}
                 value={rule.rejectBottomPercent}
                 disabled={!rule.autoRejectEnabled}
+                aria-describedby="screening-rule-sentence"
                 onChange={(e) => setRule({ ...rule, rejectBottomPercent: Math.max(0, Math.min(100, Number(e.target.value) || 0)) })}
                 className="focus-ring w-full rounded-md border border-stone-200 px-2.5 py-1.5 text-sm"
               />
@@ -96,13 +101,14 @@ export function DecisionRulesModal({ onClose }: { onClose: () => void }) {
                 max={100}
                 value={rule.maxMatchToReject}
                 disabled={!rule.autoRejectEnabled}
+                aria-describedby="screening-rule-sentence"
                 onChange={(e) => setRule({ ...rule, maxMatchToReject: Math.max(0, Math.min(100, Number(e.target.value) || 0)) })}
                 className="focus-ring w-full rounded-md border border-stone-200 px-2.5 py-1.5 text-sm"
               />
             </label>
           </div>
 
-          <p className="rounded-md bg-paper p-3 text-sm text-ink">
+          <p id="screening-rule-sentence" className="rounded-md bg-paper p-3 text-sm text-ink">
             Reject the bottom <strong>{rule.rejectBottomPercent}%</strong> of a role&apos;s matched candidates whose match is
             also below <strong>{rule.maxMatchToReject}</strong>. Every auto-decision is logged with a rationale (see Analytics).
           </p>

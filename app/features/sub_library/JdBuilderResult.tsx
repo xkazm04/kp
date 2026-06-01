@@ -5,6 +5,10 @@ import { useRouter } from "next/navigation";
 import { Check, ExternalLink, Loader2, Save, Send } from "lucide-react";
 import { Markdown } from "@/app/_components/Markdown";
 import { buildUrl } from "@/app/features/tabs";
+import { JD_BODY_MAX_LENGTH } from "@/app/_lib/jd-limits";
+
+// Order = tab order; drives both the role="tablist" render and arrow-key nav.
+const VIEWS = ["preview", "edit"] as const;
 
 export type JdBuildResult = {
   markdown: string;
@@ -26,6 +30,22 @@ export function JdBuilderResult({ result, title, company, onSaved }: { result: J
   const [error, setError] = useState<string | null>(null);
 
   const s = result.salary;
+
+  // Roving-tabindex arrow navigation across the preview/edit tabs (WAI-ARIA
+  // tabs pattern), mirroring ResultPanel's onTabKeyDown.
+  const onViewKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    const i = VIEWS.indexOf(view);
+    let next = i;
+    if (e.key === "ArrowRight") next = (i + 1) % VIEWS.length;
+    else if (e.key === "ArrowLeft") next = (i - 1 + VIEWS.length) % VIEWS.length;
+    else if (e.key === "Home") next = 0;
+    else if (e.key === "End") next = VIEWS.length - 1;
+    else return;
+    e.preventDefault();
+    setView(VIEWS[next]);
+    document.getElementById(`jdview-tab-${VIEWS[next]}`)?.focus();
+  };
+
   // Save = create a DRAFT JD (no sourcing yet).
   const save = async () => {
     setSaving(true);
@@ -90,33 +110,54 @@ export function JdBuilderResult({ result, title, company, onSaved }: { result: J
 
       {/* Editable output + preview */}
       <div className="mt-3 flex items-center gap-1 border-b border-stone-200">
-        {(["preview", "edit"] as const).map((v) => (
-          <button
-            key={v}
-            type="button"
-            onClick={() => setView(v)}
-            className={`focus-ring -mb-px border-b-2 px-3 py-2 text-sm font-semibold capitalize ${view === v ? "border-coral text-coral" : "border-transparent text-steel hover:text-ink"}`}
-          >
-            {v}
-          </button>
-        ))}
+        <div role="tablist" aria-label="Job description view" onKeyDown={onViewKeyDown} className="flex items-center gap-1">
+          {VIEWS.map((v) => (
+            <button
+              key={v}
+              type="button"
+              role="tab"
+              id={`jdview-tab-${v}`}
+              aria-selected={view === v}
+              aria-controls={`jdview-panel-${v}`}
+              tabIndex={view === v ? 0 : -1}
+              onClick={() => setView(v)}
+              className={`focus-ring -mb-px border-b-2 px-3 py-2 text-sm font-semibold capitalize ${view === v ? "border-coral text-coral" : "border-transparent text-steel hover:text-ink"}`}
+            >
+              {v}
+            </button>
+          ))}
+        </div>
         <span className="ml-auto text-sm text-steel">Adjust salary, wording, or requirements before saving.</span>
       </div>
 
-      {view === "edit" ? (
-        <textarea
-          value={markdown}
-          onChange={(e) => setMarkdown(e.target.value)}
-          rows={16}
-          className="focus-ring mt-2 w-full rounded-md border border-stone-200 p-3 font-mono text-sm"
-        />
-      ) : (
-        <article className="mt-2 rounded-lg border border-stone-200 bg-white p-4">
-          <Markdown content={markdown} />
-        </article>
-      )}
+      <div
+        role="tabpanel"
+        id={`jdview-panel-${view}`}
+        aria-labelledby={`jdview-tab-${view}`}
+        tabIndex={0}
+        className="focus-ring mt-2 rounded-md"
+      >
+        {view === "edit" ? (
+          <>
+            <textarea
+              value={markdown}
+              onChange={(e) => setMarkdown(e.target.value)}
+              maxLength={JD_BODY_MAX_LENGTH}
+              rows={16}
+              className="focus-ring w-full rounded-md border border-stone-200 p-3 font-mono text-sm"
+            />
+            <p className={`mt-1 text-sm ${markdown.length >= JD_BODY_MAX_LENGTH * 0.9 ? "text-coral" : "text-steel"}`}>
+              {markdown.length.toLocaleString("en-US")} / {JD_BODY_MAX_LENGTH.toLocaleString("en-US")} characters
+            </p>
+          </>
+        ) : (
+          <article className="rounded-lg border border-stone-200 bg-white p-4">
+            <Markdown content={markdown} />
+          </article>
+        )}
+      </div>
 
-      {error ? <p className="mt-2 rounded-md bg-red-50 p-2.5 text-sm text-red-700">{error}</p> : null}
+      {error ? <p role="alert" className="mt-2 rounded-md bg-red-50 p-2.5 text-sm text-red-700">{error}</p> : null}
 
       {published ? (
         <div className="mt-3 flex flex-wrap items-center gap-3 rounded-md border border-moss/30 bg-moss/5 px-3 py-2 text-sm text-ink">

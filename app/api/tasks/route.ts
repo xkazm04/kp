@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { listTasks } from "@/app/_lib/db";
-import { isKnownKind, startTask } from "@/app/_lib/tasks";
+import { ensureRecovered, isKnownKind, startTask } from "@/app/_lib/tasks";
 
 export const runtime = "nodejs";
 
 // GET: recent + running tasks (the client polls this). POST: start (idempotent via dedupe_key).
 export async function GET() {
   try {
+    ensureRecovered(); // self-heal orphaned 'running'/'queued' rows on the first read after a restart/crash
     return NextResponse.json({ tasks: listTasks() });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Failed to list tasks." }, { status: 500 });

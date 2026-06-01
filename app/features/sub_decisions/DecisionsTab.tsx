@@ -206,7 +206,9 @@ export function DecisionsTab() {
       </header>
 
       {error ? (
-        <p className="rounded-md bg-red-50 p-3 text-base text-red-700">{error}</p>
+        <p role="alert" aria-live="assertive" className="rounded-md bg-red-50 p-3 text-base text-red-700">
+          {error}
+        </p>
       ) : entries == null ? (
         <p className="text-base text-steel">Loading…</p>
       ) : pending.length === 0 ? (

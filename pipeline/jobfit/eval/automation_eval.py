@@ -35,6 +35,8 @@ from .. import automation
 from ..claude_cli import ClaudeCliError, ClaudeCliProvider
 from ..jobs import normalize_job
 from ..matching import MatchCandidate, score_job
+from ._style import _make_styler, should_color
+from .runner import GLYPH_NA, glyph, verdict_banner
 from .thresholds import QUALITY_THRESHOLD, RELIABILITY_THRESHOLD  # noqa: F401  (re-exported)
 
 # Word-boundary patterns so "age" flags an explicit age mention but not "manage"/"language".
@@ -323,12 +325,46 @@ def _passes(agg: dict[str, Any]) -> bool:
     return True
 
 
-def _format_md(rows: list[Row], agg: dict[str, Any]) -> str:
+def _automation_banner(agg: dict[str, Any], st) -> str:
+    """Lead the automation report with the aggregate verdict, e.g.
+    ``▌ 24/24 checks PASS · reliability 100% · quality 4.2 ✓``.
+
+    Reliability is a per-run hard gate; quality is a single mean-threshold gate.
+    Both fold into one ``checks`` count (the quality gate counts as one extra
+    check when the judge ran), so the verdict word can never contradict the
+    count — same model as the matching eval's banner."""
+    total_runs = agg.get("total", 0)
+    reliable = agg.get("reliable", 0)
+    q = agg.get("quality_mean")
+    judged = q is not None
+    quality_ok = judged and q >= QUALITY_THRESHOLD
+    total = total_runs + (1 if judged else 0)
+    n_pass = reliable + (1 if quality_ok else 0)
+    n_fail = total - n_pass
+    passed = _passes(agg)
+    # Bare glyph (no styler): it inherits the banner's single headline color
+    # rather than nesting its own ANSI reset, which would strip the banner's
+    # color/bold from anything after it (e.g. a trailing "· N FAIL").
+    quality_chip = f"quality {q} {glyph(quality_ok)}" if judged else f"quality {GLYPH_NA}"
+    parts = [
+        f"{n_pass}/{total} checks {'PASS' if passed else 'FAIL'}",
+        f"reliability {agg.get('reliability', 0.0):.0%}",
+        quality_chip,
+    ]
+    if n_fail:
+        parts.append(f"{n_fail} FAIL")
+    return verdict_banner(parts, passed=passed, s=st)
+
+
+def _format_md(rows: list[Row], agg: dict[str, Any], *, color: bool = False) -> str:
+    st = _make_styler(color)
     lines = [
-        "# Automation quality-gating eval\n",
+        st("# Automation quality-gating eval", "bold") + "\n",
+        # Lead with the verdict so the run outcome reads before the tables.
+        _automation_banner(agg, st) + "\n",
         f"Scenarios: {len(SCENARIOS)} · task-runs: {agg['total']}\n",
         f"**Reliability: {agg['reliability']:.0%}** (threshold {RELIABILITY_THRESHOLD:.0%}) · "
-        f"**Quality: {agg['quality_mean'] if agg['quality_mean'] is not None else 'n/a'}** (threshold {QUALITY_THRESHOLD})"
+        f"**Quality: {agg['quality_mean'] if agg['quality_mean'] is not None else GLYPH_NA}** (threshold {QUALITY_THRESHOLD})"
         + (f" · ⚠ {agg['unscored']} run(s) un-scored by judge" if agg.get("quality_mean") is not None and agg.get("unscored") else "")
         + "\n",
         "## Per task\n",
@@ -336,7 +372,7 @@ def _format_md(rows: list[Row], agg: dict[str, Any]) -> str:
         "|---|---|---|---|---|",
     ]
     for task, t in agg["by_task"].items():
-        q = round(sum(t["q"]) / len(t["q"]), 2) if t["q"] else "—"
+        q = round(sum(t["q"]) / len(t["q"]), 2) if t["q"] else GLYPH_NA
         lines.append(f"| {task} | {t['n']} | {t['reliable']}/{t['n']} | {t['llm']}/{t['n']} | {q} |")
     fails = [r for r in rows if not r.reliable]
     if fails:
@@ -359,8 +395,10 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--no-llm", action="store_true", help="Deterministic fallbacks only (fast, CI).")
     parser.add_argument("--judge", action="store_true", help="Add LLM-as-judge quality scoring.")
     parser.add_argument("--strict", action="store_true", help="Exit non-zero if a threshold fails.")
+    parser.add_argument("--no-color", action="store_true", help="Disable ANSI color in the pretty report.")
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args(argv)
+    use_color = should_color(args)
 
     provider = None
     if not args.no_llm:
@@ -390,7 +428,7 @@ def main(argv: list[str] | None = None) -> int:
             )
         )
     else:
-        print(_format_md(rows, agg))
+        print(_format_md(rows, agg, color=use_color))
 
     return 1 if (args.strict and not _passes(agg)) else 0
 

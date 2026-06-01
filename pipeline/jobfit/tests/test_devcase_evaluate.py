@@ -41,6 +41,24 @@ class TestEvaluate(unittest.TestCase):
         ev, _ = evaluate_submission(self.reflection, self.tooling, self.case, self.role, provider=None)
         self.assertEqual(ev["dimensionScores"]["tooling"], 80)  # fluency 0.8 -> 80
 
+    def test_ordered_dimensions_breakdown(self):
+        ev, _ = evaluate_submission(self.reflection, self.tooling, self.case, self.role, provider=None)
+        dimensions = ev["dimensions"]
+        # canonical order, one self-describing row per capability
+        self.assertEqual([d["name"] for d in dimensions], ["framing", "tooling", "judgment", "architecture", "transfer"])
+        for d in dimensions:
+            self.assertTrue(d["label"])  # human label present
+            self.assertTrue(d["description"])  # rubric description present (falls back to canonical)
+            self.assertEqual(d["score"], ev["dimensionScores"][d["name"]])  # mirrors the score dict
+            self.assertTrue(0.0 <= d["weight"] <= 1.0)
+
+    def test_dimensions_fall_back_to_canonical_weights(self):
+        # A case with no rubric still yields canonical, weight-annotated dimensions summing to 1.0.
+        ev, _ = evaluate_submission(self.reflection, self.tooling, {"rubricDimensions": []}, self.role, provider=None)
+        weights = {d["name"]: d["weight"] for d in ev["dimensions"]}
+        self.assertAlmostEqual(sum(weights.values()), 1.0, places=2)
+        self.assertEqual(weights["tooling"], 0.25)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -106,6 +106,14 @@ function VoiceInterviewInner({
       if (finalizedRef.current) return;
       finalizedRef.current = true;
       clearConnectTimer();
+      // Flush any AI turn still buffered from output_audio_transcript.delta
+      // events. Teardown can fire before the matching .done arrives (the
+      // candidate hangs up mid-sentence, or .done never lands), which would
+      // otherwise silently drop the final interviewer turn from the transcript
+      // that feeds the scorecard. pushTurn updates turnsRef synchronously, so
+      // the flushed turn is included in the POST body below.
+      pushTurn("interviewer", asstBuf.current);
+      asstBuf.current = "";
       teardownOpenAi();
       setPhase("ended");
       const sid = sessionIdRef.current;
@@ -121,7 +129,7 @@ function VoiceInterviewInner({
         }
       }
     },
-    [teardownOpenAi, clearConnectTimer]
+    [teardownOpenAi, clearConnectTimer, pushTurn]
   );
 
   const conversation = useConversation({
@@ -385,7 +393,7 @@ function VoiceInterviewInner({
       </label>
 
       {/* Controls */}
-      <div className="flex flex-wrap items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3" aria-busy={phase === "connecting"}>
         {phase !== "live" && phase !== "ending" ? (
           <button
             type="button"
@@ -412,7 +420,9 @@ function VoiceInterviewInner({
       </div>
 
       {error ? (
-        <p className="rounded-md border border-coral/30 bg-coral/5 px-3 py-2 text-base text-coral">{error}</p>
+        <p role="alert" className="rounded-md border border-coral/30 bg-coral/5 px-3 py-2 text-base text-coral">
+          {error}
+        </p>
       ) : null}
 
       {/* Transcript */}
@@ -427,7 +437,12 @@ function VoiceInterviewInner({
             </p>
           ) : null}
         </div>
-        <div className="max-h-[520px] space-y-3 overflow-y-auto p-4">
+        <div
+          role="log"
+          aria-live="polite"
+          aria-label="Live interview transcript"
+          className="max-h-[520px] space-y-3 overflow-y-auto p-4"
+        >
           {turns.length === 0 ? (
             <p className="text-base text-steel">The transcript will appear here as you talk.</p>
           ) : (
@@ -482,5 +497,11 @@ function StatusPill({ phase, speaking }: { phase: Phase; speaking: boolean }) {
     error: { label: "Error", cls: "bg-coral/10 text-coral" },
   };
   const s = map[phase];
-  return <span className={`rounded-full px-3 py-1 text-meta ${s.cls}`}>{s.label}</span>;
+  // role="status" → implicit aria-live="polite" so phase/speaking changes are
+  // announced to screen readers without stealing focus.
+  return (
+    <span role="status" className={`rounded-full px-3 py-1 text-meta ${s.cls}`}>
+      {s.label}
+    </span>
+  );
 }

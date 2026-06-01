@@ -11,7 +11,7 @@ import {
   setApproval,
   storeGeminiCache,
 } from "./db";
-import { cleanupWorkdir, createWorkdir, parseStderrError, spawnPython } from "./python-runner";
+import { cleanupWorkdir, createWorkdir, parsePythonJson, parseStderrError, spawnPython } from "./python-runner";
 import { dispatchOutreach } from "./comms-dispatch";
 
 // Shared core for the on-demand LLM HR tasks. Used directly by /api/automation/[task]
@@ -81,7 +81,7 @@ export async function runAutomationTask(entryId: string, task: string, notes = "
         const err = parseStderrError(stderr, exitCode);
         throw new AutomationError(err.message, err.status);
       }
-      payload = JSON.parse(stdout) as CliPayload;
+      payload = parsePythonJson<CliPayload>(stdout, stderr);
       storeGeminiCache(cacheKey, payload, version, TTL_HOURS);
     }
   } finally {

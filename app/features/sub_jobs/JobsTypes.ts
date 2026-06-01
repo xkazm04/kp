@@ -34,6 +34,8 @@ export type Stats = {
 
 export type CandResult = {
   total: number;
+  fitTier?: "strong" | "promising" | "partial";
+  tone?: string;
   confidenceLow: number;
   confidenceHigh: number;
   matchedSkills?: string[];

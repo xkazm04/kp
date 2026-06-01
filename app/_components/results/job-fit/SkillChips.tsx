@@ -1,7 +1,8 @@
 "use client";
 
 import { Check } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useId, useMemo, useState } from "react";
+import { dedupe } from "@/app/_lib/dedupe";
 import { MissingSkillsTiers } from "./MissingSkillsTiers";
 
 type SkillChipsProps = {
@@ -10,22 +11,34 @@ type SkillChipsProps = {
   evidence?: string[];
 };
 
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+// Match the skill as a whole token so short skills ("R", "Go", "C", "AI") don't
+// match inside unrelated words and "Java" doesn't claim "JavaScript" evidence.
+// Boundaries are non-alphanumeric so special-charactered skills (C++, C#, .NET,
+// Node.js) still match. Both sides are lowercased before testing.
 function findEvidence(skill: string, evidence: string[] | undefined): string | null {
   if (!evidence?.length) return null;
   const needle = skill.trim().toLowerCase();
   if (!needle) return null;
-  const hit = evidence.find((snippet) => snippet.toLowerCase().includes(needle));
+  const pattern = new RegExp(`(?:^|[^a-z0-9])${escapeRegExp(needle)}(?:$|[^a-z0-9])`);
+  const hit = evidence.find((snippet) => pattern.test(snippet.toLowerCase()));
   return hit ?? null;
 }
 
 function MatchingChip({
   label,
   evidenceSnippet,
+  tipId,
 }: {
   label: string;
   evidenceSnippet: string | null;
+  tipId: string;
 }) {
   const [open, setOpen] = useState(false);
+  const showTip = Boolean(evidenceSnippet) && open;
 
   return (
     <span
@@ -38,7 +51,7 @@ function MatchingChip({
       <span
         tabIndex={evidenceSnippet ? 0 : -1}
         role={evidenceSnippet ? "button" : undefined}
-        aria-describedby={evidenceSnippet && open ? `chip-tip-${label}` : undefined}
+        aria-describedby={showTip ? tipId : undefined}
         className={`focus-ring inline-flex items-center gap-1.5 rounded-full bg-limewash px-2.5 py-1 text-sm font-medium text-moss ${
           evidenceSnippet ? "cursor-help" : ""
         }`}
@@ -46,9 +59,9 @@ function MatchingChip({
         <Check className="h-3 w-3" aria-hidden />
         {label}
       </span>
-      {evidenceSnippet && open ? (
+      {showTip ? (
         <span
-          id={`chip-tip-${label}`}
+          id={tipId}
           role="tooltip"
           className="pointer-events-none absolute bottom-full left-1/2 z-20 mb-2 w-64 -translate-x-1/2 rounded-md border border-stone-200 bg-white px-3 py-2 text-sm leading-5 text-ink shadow-panel"
         >
@@ -60,9 +73,13 @@ function MatchingChip({
 }
 
 function MatchingSkillsColumn({ skills, evidence }: { skills: string[]; evidence?: string[] }) {
-  const sorted = useMemo(
-    () => [...skills].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" })),
-    [skills],
+  const baseId = useId();
+  const chips = useMemo(
+    () =>
+      dedupe(skills)
+        .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }))
+        .map((skill) => ({ skill, evidenceSnippet: findEvidence(skill, evidence) })),
+    [skills, evidence],
   );
 
   return (
@@ -70,13 +87,14 @@ function MatchingSkillsColumn({ skills, evidence }: { skills: string[]; evidence
       <div className="flex items-center justify-between gap-2">
         <h4 className="text-meta uppercase text-steel">Matching Skills</h4>
       </div>
-      {sorted.length ? (
+      {chips.length ? (
         <div className="mt-2 flex flex-wrap gap-1.5">
-          {sorted.map((skill) => (
+          {chips.map(({ skill, evidenceSnippet }, index) => (
             <MatchingChip
-              key={skill}
+              key={`${skill}-${index}`}
               label={skill}
-              evidenceSnippet={findEvidence(skill, evidence)}
+              evidenceSnippet={evidenceSnippet}
+              tipId={`${baseId}-chip-tip-${index}`}
             />
           ))}
         </div>

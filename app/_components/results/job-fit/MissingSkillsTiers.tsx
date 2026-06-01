@@ -2,6 +2,7 @@
 
 import { ChevronDown, ChevronUp, X } from "lucide-react";
 import { useMemo, useState } from "react";
+import { dedupe } from "@/app/_lib/dedupe";
 
 const MUST_HAVE_LIMIT = 3;
 const NICE_TO_HAVE_LIMIT = 5;
@@ -73,8 +74,8 @@ function TierBlock({ tier, skills }: { tier: Tier; skills: string[] }) {
       </div>
       <p className="text-sm leading-5 text-steel">{coachingFor(tier, skills.length)}</p>
       <div className="flex flex-wrap gap-1.5 pt-0.5">
-        {skills.map((skill) => (
-          <MissingChip key={skill} label={skill} tier={tier} />
+        {skills.map((skill, i) => (
+          <MissingChip key={`${skill}-${i}`} label={skill} tier={tier} />
         ))}
       </div>
     </div>
@@ -83,7 +84,9 @@ function TierBlock({ tier, skills }: { tier: Tier; skills: string[] }) {
 
 export function MissingSkillsTiers({ skills }: { skills: string[] }) {
   const [expanded, setExpanded] = useState(false);
-  const tiers = useMemo(() => splitIntoTiers(skills), [skills]);
+  // De-dupe before tiering so a skill repeated in the model output can't appear
+  // in two tiers (or twice in one) and can't collide as a chip key.
+  const tiers = useMemo(() => splitIntoTiers(dedupe(skills)), [skills]);
   const collapsedCount = tiers.nice.length + tiers.bonus.length;
 
   return (

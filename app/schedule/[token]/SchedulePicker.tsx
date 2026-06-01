@@ -65,7 +65,12 @@ export function SchedulePicker({ token }: { token: string }) {
     }
   };
 
-  if (error) return <p className="rounded-md border border-stone-200 bg-paper p-4 text-base text-coral">{error}</p>;
+  if (error)
+    return (
+      <p role="alert" className="rounded-md border border-stone-200 bg-paper p-4 text-base text-coral">
+        {error}
+      </p>
+    );
   if (!invite) return <p className="text-base text-steel">Loading…</p>;
 
   if (confirmed) {

@@ -33,8 +33,15 @@ def _fallback(role_family: str, seniority: str) -> dict:
     }
 
 
-def _coerce(payload: dict, role_family: str, seniority: str) -> dict:
-    """Validate the grounded JSON; repair to the taxonomy band if unusable."""
+def _coerce(payload: dict, role_family: str, seniority: str) -> tuple[dict, bool]:
+    """Validate the grounded JSON; repair to the taxonomy band if unusable.
+
+    Returns (result, grounded) where ``grounded`` is True only when the payload
+    supplied a usable range. The int() parse stays inside the try/except so bad
+    grounded values (e.g. "85 000", "~85000") degrade to the band instead of
+    raising — the caller derives its source label from this flag rather than
+    re-parsing the raw payload.
+    """
     fb = _fallback(role_family, seniority)
     try:
         lo = int(payload.get("suggestedMinimum") or 0)
@@ -42,14 +49,14 @@ def _coerce(payload: dict, role_family: str, seniority: str) -> dict:
     except (TypeError, ValueError):
         lo = hi = 0
     if lo <= 0 or hi < lo:
-        return fb
+        return fb, False
     return {
         "suggestedMinimum": lo,
         "suggestedMaximum": hi,
         "currency": str(payload.get("currency") or "CZK"),
         "confidence": str(payload.get("confidence") or "medium"),
         "summary": str(payload.get("summary") or fb["summary"]),
-    }
+    }, True
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -92,10 +99,10 @@ def main(argv: list[str] | None = None) -> int:
             prompt=prompt,
             use_grounding=True,
             parse_json=True,
+            expected_keys=("suggestedMinimum", "suggestedMaximum", "currency", "confidence", "summary"),
             fallback=GroundedAnswer(text="", payload={}, sources=[]),
         )
-        grounded = bool(ans.payload) and int(ans.payload.get("suggestedMinimum") or 0) > 0
-        result = _coerce(ans.payload or {}, role_family, seniority)
+        result, grounded = _coerce(ans.payload or {}, role_family, seniority)
         print(
             json.dumps(
                 {"result": result, "sources": ans.sources[:8], "source": "llm" if grounded else "deterministic"},

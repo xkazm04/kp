@@ -82,8 +82,22 @@ class CoverProbe(_Base):
 
 class RubricDimension(_Base):
     name: str = ""  # framing | tooling | judgment | architecture | transfer
+    label: str = ""  # human-readable name for the UI (e.g. "Problem framing")
     weight: float = 0.2
     description: str = ""
+
+
+# Canonical, ORDERED rubric for the five durable capabilities — the single source of
+# truth for dimension order, human labels, weights (sum to 1.0) and descriptions. design.py
+# seeds CaseScenario.rubricDimensions from this; evaluate.py echoes it (annotated with the
+# achieved score) into CaseEvaluation.dimensions so the UI never has to hardcode any of it.
+RUBRIC_DIMENSIONS: list[dict] = [
+    {"name": "framing", "label": "Problem framing", "weight": 0.2, "description": "Turns an ambiguous need into a sound plan."},
+    {"name": "tooling", "label": "Tooling fluency", "weight": 0.25, "description": "Drives the model/tools well; iterates and verifies."},
+    {"name": "judgment", "label": "Judgment", "weight": 0.25, "description": "Catches model mistakes; validates; pushes back."},
+    {"name": "architecture", "label": "Architecture", "weight": 0.15, "description": "Structure + trade-offs that fit the real codebase."},
+    {"name": "transfer", "label": "Transfer", "weight": 0.15, "description": "Capability transfers to THIS role's stack/responsibilities."},
+]
 
 
 class CaseScenario(_Base):
@@ -152,6 +166,18 @@ class ToolingSignal(_Base):
     confidence: float = 0.0
 
 
+class DimensionScore(_Base):
+    """One self-describing row of the evaluation breakdown: the canonical rubric metadata
+    (ordered) annotated with the achieved score, so the UI draws the radar/bar breakdown
+    without hardcoding dimension order, human labels or weights."""
+
+    name: str = ""  # framing | tooling | judgment | architecture | transfer
+    label: str = ""  # human-readable name
+    weight: float = 0.0  # rubric weight 0..1
+    score: int = 0  # achieved score 0..100
+    description: str = ""
+
+
 class CaseEvaluation(_Base):
     """Scores the five durable capabilities — not lines/correctness."""
 
@@ -159,6 +185,8 @@ class CaseEvaluation(_Base):
     judgment_score: int = 0
     architecture_score: int = 0
     dimension_scores: dict[str, int] = Field(default_factory=dict)
+    # Ordered, weight-annotated mirror of dimension_scores (see DimensionScore) — what the UI reads.
+    dimensions: list[DimensionScore] = Field(default_factory=list)
     strengths: list[str] = Field(default_factory=list)
     concerns: list[str] = Field(default_factory=list)
     summary: str = ""

@@ -3,7 +3,7 @@ import { writeFile } from "node:fs/promises";
 import path from "node:path";
 import { createPipelineEntry, getJob, recordAutomationEvent, saveProfile } from "@/app/_lib/db";
 import { buildApplyProfileDraft, buildApplyScript, KO_STEP_IDS } from "@/app/_lib/apply";
-import { cleanupWorkdir, createWorkdir, spawnPython } from "@/app/_lib/python-runner";
+import { cleanupWorkdir, createWorkdir, parsePythonJson, spawnPython } from "@/app/_lib/python-runner";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -24,13 +24,18 @@ async function buildApplicantProfile(
     const inputPath = path.join(workdir, "intake.json");
     await writeFile(inputPath, JSON.stringify({ profile, signals }), "utf-8");
     const { result } = spawnPython(["-m", "pipeline.jobfit.profile_cli", "--input-json", inputPath]);
-    const { stdout, exitCode } = await result;
+    const { stdout, stderr, exitCode } = await result;
     if (exitCode !== 0) return null;
-    const data = JSON.parse(stdout) as {
+    // Parse the result JSON line via parsePythonJson (which scans from the end
+    // for the first object/array), not the whole buffer: a stray warning/
+    // deprecation/print or trailing interpreter shutdown line would otherwise
+    // make JSON.parse throw and silently demote the applicant to a label-only,
+    // non-matchable stub.
+    const data = parsePythonJson<{
       profile: Record<string, unknown>;
       archetype: string;
       completeness: number;
-    };
+    }>(stdout, stderr);
     const saved = saveProfile({
       label: answers.name,
       archetype: data.archetype ?? null,
@@ -39,7 +44,13 @@ async function buildApplicantProfile(
       payload: data.profile,
     });
     return { id: saved.id, archetype: data.archetype ?? null };
-  } catch {
+  } catch (err) {
+    // Don't swallow silently: a failed build demotes the applicant to a
+    // label-only, non-matchable stub, so make that degradation visible.
+    console.error(
+      `[apply] buildApplicantProfile failed for job ${job.id}; falling back to a non-matchable stub:`,
+      err instanceof Error ? err.message : err,
+    );
     return null;
   } finally {
     if (workdir) await cleanupWorkdir(workdir);

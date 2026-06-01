@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { BookOpen, Check, ChevronDown, ChevronRight, ChevronUp, Footprints, Pause, Play, RotateCcw, Square, Workflow } from "lucide-react";
 import { buildUrl } from "@/app/features/tabs";
@@ -14,6 +14,28 @@ export function SimBar() {
   const router = useRouter();
   const sim = useSimulation();
   const [collapsed, setCollapsed] = useState(true);
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  // Publish the bar's real height to :root as --sim-bar-h so the explainer
+  // drawer and offer frame (DOM siblings, not descendants — they can't inherit
+  // it from this element) anchor just above the bar via
+  // bottom-[calc(var(--sim-bar-h)+8px)] instead of a hardcoded offset. The
+  // ResizeObserver re-measures whenever the bar is restyled, and offsetHeight
+  // ignores the collapse transform so the value stays stable either way.
+  useEffect(() => {
+    const el = panelRef.current;
+    if (!el) return;
+    const root = document.documentElement;
+    const publish = () => root.style.setProperty("--sim-bar-h", `${el.offsetHeight}px`);
+    publish();
+    const ro = new ResizeObserver(publish);
+    ro.observe(el);
+    return () => {
+      ro.disconnect();
+      root.style.removeProperty("--sim-bar-h");
+    };
+  }, []);
+
   const last = sim.log[sim.log.length - 1]?.text;
   const activeIdx = sim.phase ? SIM_PHASES.findIndex((p) => p.id === sim.phase) : -1;
 
@@ -45,19 +67,20 @@ export function SimBar() {
         type="button"
         onClick={() => setCollapsed(false)}
         aria-label="Open the simulation panel"
-        className={`fixed bottom-3 left-1/2 z-[47] flex -translate-x-1/2 items-center gap-1.5 rounded-full border border-stone-200 bg-white/95 px-4 py-1.5 text-sm font-semibold text-ink shadow-lg backdrop-blur transition-all duration-300 ${
+        className={`fixed bottom-3 left-1/2 z-[var(--z-sim-bar)] flex -translate-x-1/2 items-center gap-1.5 rounded-full border border-stone-200 bg-white/95 px-4 py-1.5 text-sm font-semibold text-ink shadow-lg backdrop-blur transition-all duration-300 motion-reduce:transition-none ${
           collapsed ? "opacity-100" : "pointer-events-none translate-y-6 opacity-0"
         }`}
       >
         <Workflow size={14} className="text-coral" />
         Pipeline simulation
-        {sim.running ? <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-coral" /> : null}
+        {sim.running ? <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-coral motion-reduce:animate-none" /> : null}
         <ChevronUp size={14} className="text-steel" />
       </button>
 
       {/* The panel */}
       <div
-        className={`fixed inset-x-0 bottom-0 z-[47] border-t border-stone-200 bg-white/95 px-3 py-2 shadow-[0_-2px_14px_rgba(0,0,0,0.06)] backdrop-blur transition-transform duration-300 ${
+        ref={panelRef}
+        className={`fixed inset-x-0 bottom-0 z-[var(--z-sim-bar)] border-t border-stone-200 bg-white/95 px-3 py-2 shadow-[0_-2px_14px_rgba(0,0,0,0.06)] backdrop-blur transition-transform duration-300 motion-reduce:transition-none ${
           collapsed ? "translate-y-full" : "translate-y-0"
         }`}
       >
@@ -86,15 +109,22 @@ export function SimBar() {
                   <button
                     type="button"
                     onClick={() => router.replace(buildUrl({ tab: p.tab }), { scroll: false })}
-                    className={`focus-ring inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-sm font-medium transition-colors ${
-                      active ? "bg-coral text-white" : done ? "bg-moss/15 text-moss" : "bg-stone-100 text-steel hover:bg-stone-200"
+                    aria-current={active ? "step" : undefined}
+                    className={`focus-ring inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-sm transition-all motion-reduce:transition-none ${
+                      active
+                        ? "scale-105 bg-coral font-semibold text-white"
+                        : done
+                          ? "bg-moss/15 font-medium text-moss"
+                          : "bg-stone-100 font-medium text-steel hover:bg-stone-200"
                     }`}
                     title={`Go to ${p.label}`}
                   >
-                    {done ? <Check size={11} /> : <span className="tabular-nums">{i + 1}</span>}
+                    {done ? <Check size={11} /> : <span className="nums">{i + 1}</span>}
                     {p.label}
                   </button>
-                  {i < SIM_PHASES.length - 1 ? <span className="px-0.5 text-stone-300">→</span> : null}
+                  {i < SIM_PHASES.length - 1 ? (
+                    <span aria-hidden="true" className={`px-0.5 transition-colors motion-reduce:transition-none ${done ? "text-moss" : "text-stone-300"}`}>→</span>
+                  ) : null}
                 </li>
               );
             })}

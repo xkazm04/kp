@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import type { AnalysisRow, MatchRef, MatchResponse, ProfileRow } from "./MatchTypes";
 import { ARCHETYPE_LABEL } from "./MatchTypes";
 import { Results } from "./Results";
+import { SegmentedControl } from "@/app/_components/SegmentedControl";
 
 export function MatchTab() {
   const [source, setSource] = useState<"profile" | "analysis">("profile");
@@ -94,20 +95,16 @@ export function MatchTab() {
       <div className="mt-4 flex flex-wrap items-end gap-3">
         <div className="flex flex-col gap-1">
           <span className="text-sm font-semibold uppercase tracking-wide text-steel">Source</span>
-          <div className="flex gap-1">
-            {(["profile", "analysis"] as const).map((s) => (
-              <button
-                key={s}
-                type="button"
-                onClick={() => setSource(s)}
-                className={`rounded-md border px-3 py-1.5 text-base ${
-                  source === s ? "border-ink bg-ink text-white" : "border-stone-200 text-ink hover:bg-paper"
-                }`}
-              >
-                {s === "profile" ? "Saved profile" : "Saved analysis"}
-              </button>
-            ))}
-          </div>
+          <SegmentedControl
+            label="Source"
+            className="flex gap-1"
+            value={source}
+            onChange={setSource}
+            options={[
+              { value: "profile", label: "Saved profile" },
+              { value: "analysis", label: "Saved analysis" },
+            ]}
+          />
         </div>
 
         <label className="flex flex-col gap-1">

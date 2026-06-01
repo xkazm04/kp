@@ -22,6 +22,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import Any
 
+from ._summary import format_distribution
 from .claude_cli import ClaudeCliError, ClaudeCliProvider
 from .profile import CandidateProfileV2, completeness, normalize_profile
 
@@ -207,8 +208,8 @@ def summarize(records: list[dict[str, Any]]) -> str:
     return "\n".join(
         [
             f"total: {len(records)}",
-            f"archetype: {dict(arche)}",
-            f"role_family: {dict(fam)}",
+            format_distribution("archetype", arche),
+            format_distribution("role_family", fam),
             f"avg completeness: {avg_complete:.2f}",
         ]
     )

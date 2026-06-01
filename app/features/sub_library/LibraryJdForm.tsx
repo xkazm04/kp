@@ -98,7 +98,7 @@ export function LibraryJdForm({ onSaved }: { onSaved: () => void }) {
       </p>
 
       {error ? (
-        <p className="mt-3 rounded-md bg-red-50 p-3 text-base text-red-700">{error}</p>
+        <p role="alert" className="mt-3 rounded-md bg-red-50 p-3 text-base text-red-700">{error}</p>
       ) : null}
 
       <div className="mt-4 flex items-center gap-3">

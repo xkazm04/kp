@@ -26,6 +26,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import Any
 
+from ._summary import format_distribution
 from .claude_cli import ClaudeCliError, ClaudeCliProvider
 from .jobs import SENIORITIES, WORK_MODES, normalize_job
 
@@ -216,9 +217,9 @@ def summarize(records: list[dict[str, Any]]) -> str:
     lines = [
         f"total: {len(records)}",
         f"entry-eligible: {entry} ({(entry / max(len(records), 1)) * 100:.0f}%)",
-        f"role_family: {dict(fam)}",
-        f"seniority: {dict(sen)}",
-        f"work_mode: {dict(mode)}",
+        format_distribution("role_family", fam),
+        format_distribution("seniority", sen),
+        format_distribution("work_mode", mode),
     ]
     return "\n".join(lines)
 
