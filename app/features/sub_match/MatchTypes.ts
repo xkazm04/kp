@@ -24,6 +24,15 @@ export type ScoreDimension = {
   contribution: number;
 };
 
+export type ConfidenceLevel = "tight" | "moderate" | "wide";
+/** Score band + the human reasons behind its width (matching.py `Confidence`). */
+export type Confidence = {
+  low: number;
+  high: number;
+  level: ConfidenceLevel;
+  drivers: string[];
+};
+
 export type MatchResult = {
   jobId: string;
   title: string;
@@ -40,8 +49,7 @@ export type MatchResult = {
   careerScore: number;
   personalScore: number;
   scoreBreakdown?: ScoreDimension[];
-  confidenceLow: number;
-  confidenceHigh: number;
+  confidence: Confidence;
   matchedSkills?: string[];
   matchedSkillProvenance?: Record<string, string>;
   missingSkills?: string[];

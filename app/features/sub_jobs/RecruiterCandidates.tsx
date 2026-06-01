@@ -5,7 +5,7 @@ import { Users } from "lucide-react";
 import { ARCHETYPE_BADGE, EARLY, provLabel } from "./JobsTypes";
 import type { CandRow } from "./JobsTypes";
 import { EmptyState } from "./JobsShared";
-import { FitTierBadge } from "@/app/_components/Badge";
+import { ConfidenceBandBadge, confidenceBandTitle, FitTierBadge } from "@/app/_components/Badge";
 import { ScoreBadge } from "@/app/_components/ScoreBadge";
 
 export function RecruiterCandidates({
@@ -228,9 +228,10 @@ function CandidateCard({
     <li className="rounded-md border border-stone-200 bg-white p-2">
       <div className="flex items-center gap-2">
         <ScoreBadge score={res.total} />
-        <span className="nums text-sm text-steel">
-          {res.confidenceLow}–{res.confidenceHigh}
+        <span className="nums text-sm text-steel" title={confidenceBandTitle(res.confidence.drivers)}>
+          {res.confidence.low}–{res.confidence.high}
         </span>
+        <ConfidenceBandBadge level={res.confidence.level} drivers={res.confidence.drivers} />
         <span className="font-medium text-ink">{c.label}</span>
         <span className="rounded-full bg-ink/90 px-1.5 py-0.5 text-sm font-semibold text-white">
           {ARCHETYPE_BADGE[c.archetype] ?? c.archetype}

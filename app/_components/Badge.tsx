@@ -75,6 +75,24 @@ export function confidenceToken(value: string): BadgeContent {
   return { tone: "neutral", icon: CircleDot, label: `${value || "Unknown"} confidence` };
 }
 
+/** Match confidence-band width: tight | moderate | wide (MatchResult.confidence.level).
+ *  Note the inverse of {@link confidenceToken}'s prose scale — a *tight* band means
+ *  *high* certainty (narrow score range), a *wide* band means low certainty. */
+export function confidenceBandToken(level: string): BadgeContent {
+  const v = (level || "").trim().toLowerCase();
+  if (v === "tight") return { tone: "positive", icon: ShieldCheck, label: "Tight band", ariaLabel: "Confidence band: tight — high certainty" };
+  if (v === "wide") return { tone: "caution", icon: AlertTriangle, label: "Wide band", ariaLabel: "Confidence band: wide — low certainty" };
+  return { tone: "info", icon: CircleDot, label: "Moderate band", ariaLabel: "Confidence band: moderate certainty" };
+}
+
+/** Tooltip text spelling out why a confidence band is as wide as it is — the
+ *  drivers the scorer used to discard. Reused by the badge and the raw range. */
+export function confidenceBandTitle(drivers: string[] = []): string {
+  return drivers.length
+    ? `Why this band:\n• ${drivers.join("\n• ")}`
+    : "Narrow band — strong, verifiable evidence.";
+}
+
 /** code-review status: ok / error / disabled (GithubAnalysis.codeReview). */
 export function codeReviewStatusToken(status: string): BadgeContent {
   if (status === "ok") return { tone: "positive", icon: CheckCircle2, label: "Reviewed", ariaLabel: "Code review status: reviewed" };
@@ -149,6 +167,24 @@ export function ConfidenceBadge({ value, className }: { value: string; className
 
 export function CodeReviewStatusBadge({ status, className }: { status: string; className?: string }) {
   return <Badge {...codeReviewStatusToken(status)} className={className} />;
+}
+
+/** A confidence-band level badge whose native tooltip lists the drivers behind
+ *  the band width (early-career, thin skills, unknown education, …). */
+export function ConfidenceBandBadge({
+  level,
+  drivers = [],
+  className,
+}: {
+  level: string;
+  drivers?: string[];
+  className?: string;
+}) {
+  return (
+    <span title={confidenceBandTitle(drivers)} className="inline-flex">
+      <Badge {...confidenceBandToken(level)} className={className} />
+    </span>
+  );
 }
 
 export function ProvenanceBadge({ value, className }: { value: string; className?: string }) {
