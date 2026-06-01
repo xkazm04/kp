@@ -30,3 +30,11 @@ pipeline-sidecar*.log
 data/*.sqlite
 data/*.sqlite-wal
 data/*.sqlite-shm
+
+# Stray tooling artifacts
+# cygwin/msys crash dumps (e.g. grep.exe.stackdump)
+*.stackdump
+# Windows %TEMP% paths that lost their separators
+*AppDataLocalTemp*
+# mangled tmp\kp_*.json etc. written to the repo root
+tmpkp_*
