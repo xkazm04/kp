@@ -4,7 +4,7 @@ import { useRef, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { needsHumanDecision } from "@/app/_lib/approval-kinds";
 import { CandidateRow, Legend } from "./PipelineShared";
-import { STAGES, type Entry } from "./PipelineTypes";
+import { STAGE_HELP, STAGES, type Entry } from "./PipelineTypes";
 
 type Position = { id: string; title: string; family: string; count: number };
 
@@ -131,7 +131,7 @@ export function PipelineBoard({
                 type="button"
                 data-stage-header
                 onClick={centerColumn}
-                title={`Centre the ${s} column`}
+                title={STAGE_HELP[s] ?? s}
                 className="focus-ring cursor-pointer border-r border-stone-200 px-3 py-2 text-center text-meta uppercase text-steel transition-colors last:border-0 hover:bg-stone-100 hover:text-coral"
               >
                 <span className="text-stone-400">{i + 1}.</span> {s}
