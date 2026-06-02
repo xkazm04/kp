@@ -72,7 +72,7 @@ function SummaryBadges({ summary }: { summary: Summary }) {
 
 // Direction #5 — control + status for the automation clock (the durable
 // scheduler that runs the Task-7 policy pass on a cadence). Disabled by default.
-export function SchedulerControl({ onRan }: { onRan?: () => void }) {
+export function SchedulerControl({ onRan, className = "" }: { onRan?: () => void; className?: string }) {
   const [sched, setSched] = useState<Schedule | null>(null);
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<RunResult | null>(null);
@@ -159,7 +159,7 @@ export function SchedulerControl({ onRan }: { onRan?: () => void }) {
     // First load failed — show the bar with an error instead of vanishing.
     if (!error) return null;
     return (
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-md border border-stone-200 bg-paper/60 px-3 py-2 text-sm text-steel">
+      <div className={`flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-md border border-stone-200 bg-paper/60 px-3 py-2 text-sm text-steel ${className}`}>
         <span className="flex items-center gap-1.5 font-medium text-ink">
           <Clock size={14} className="text-coral" /> Automation clock
         </span>
@@ -172,7 +172,7 @@ export function SchedulerControl({ onRan }: { onRan?: () => void }) {
   const s = sched.lastSummary;
 
   return (
-    <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-md border border-stone-200 bg-paper/60 px-3 py-2 text-sm text-steel">
+    <div className={`flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-md border border-stone-200 bg-paper/60 px-3 py-2 text-sm text-steel ${className}`}>
       <span className="flex items-center gap-1.5 font-medium text-ink">
         <Clock size={14} className="text-coral" /> Automation clock
       </span>

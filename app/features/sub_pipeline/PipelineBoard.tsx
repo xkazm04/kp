@@ -74,19 +74,19 @@ export function PipelineBoard({
     <section className="space-y-3">
       <h3 className="text-meta uppercase tracking-wide text-steel">Positions</h3>
       <div className="overflow-x-auto rounded-lg border border-stone-200 bg-white shadow-panel">
-        <div className="min-w-[1200px]">
-          <div className="grid grid-cols-[200px_repeat(7,minmax(0,1fr))] border-b border-stone-200 bg-paper">
+        <div className="min-w-[2040px]">
+          <div className="grid grid-cols-[220px_repeat(7,minmax(0,1fr))] border-b border-stone-200 bg-paper">
             <div className="px-3 py-2 text-meta uppercase text-steel">Position</div>
-            {STAGES.map((s) => (
+            {STAGES.map((s, i) => (
               <div key={s} className="px-3 py-2 text-center text-meta uppercase text-steel">
-                {s}
+                <span className="text-stone-400">{i + 1}.</span> {s}
               </div>
             ))}
           </div>
           {positions.map((pos) => {
             const lane = entries.filter((e) => (e.jobId ?? e.jobTitle) === pos.id);
             return (
-              <div key={pos.id} className="grid grid-cols-[200px_repeat(7,minmax(0,1fr))] border-b border-stone-100 last:border-0">
+              <div key={pos.id} className="grid grid-cols-[220px_repeat(7,minmax(0,1fr))] border-b border-stone-100 last:border-0">
                 <div className="border-r border-stone-100 px-3 py-3">
                   <button
                     type="button"

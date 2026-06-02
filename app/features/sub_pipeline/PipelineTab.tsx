@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Briefcase, Check, Clock, Sparkles, TimerReset, Users } from "lucide-react";
+import { Sparkles } from "lucide-react";
 import { buildUrl } from "@/app/features/tabs";
 import { useTasks } from "@/app/features/tasks/TasksProvider";
 import { useLiveRefresh } from "@/app/features/live-refresh";
@@ -10,8 +10,39 @@ import { needsHumanDecision } from "@/app/_lib/approval-kinds";
 import { CandidateDrawer } from "./CandidateDrawer";
 import { PipelineBoard } from "./PipelineBoard";
 import { SchedulerControl } from "./SchedulerControl";
-import { EventDot, eventVerb, Kpi } from "./PipelineShared";
+import { EventDot, eventVerb } from "./PipelineShared";
 import { daysSince, relativeTime, STALE_DAYS, type Entry, type PipelineEvent } from "./PipelineTypes";
+
+// Compact header stat: label over value, optionally clickable. Replaces the old
+// full-width Kpi card grid — the same numbers now live as a tight cluster in the
+// page's top-right corner so the board gets the vertical space.
+function StatChip({
+  label,
+  value,
+  tone = "neutral",
+  onClick,
+}: {
+  label: string;
+  value: number;
+  tone?: "neutral" | "coral" | "amber";
+  onClick?: () => void;
+}) {
+  const valueColor = tone === "coral" ? "text-coral" : tone === "amber" ? "text-amber-700" : "text-ink";
+  const cls = "flex min-w-[5rem] flex-col items-center gap-0.5 rounded-md border border-stone-200 bg-white px-2.5 py-1.5 shadow-panel";
+  const inner = (
+    <>
+      <span className="text-micro uppercase tracking-wide text-steel">{label}</span>
+      <span className={`font-serif text-xl leading-none ${valueColor}`}>{value}</span>
+    </>
+  );
+  return onClick ? (
+    <button type="button" onClick={onClick} className={`${cls} focus-ring transition-colors hover:border-coral/50`}>
+      {inner}
+    </button>
+  ) : (
+    <div className={cls}>{inner}</div>
+  );
+}
 
 export function PipelineTab() {
   const router = useRouter();
@@ -100,7 +131,7 @@ export function PipelineTab() {
 
   return (
     <div className="space-y-6" aria-busy={entries == null}>
-      <header className="flex flex-wrap items-end justify-between gap-4">
+      <header className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <p className="text-meta uppercase text-coral">Pipeline</p>
           <h2 className="mt-1 font-serif text-display text-ink">Hiring pipeline</h2>
@@ -109,35 +140,45 @@ export function PipelineTab() {
             surface at the top — approve or reject, or confirm a proposed interview slot.
           </p>
         </div>
-        <div className="flex flex-col items-end gap-2">
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => startTask("batch_screen")}
-              disabled={!!batch}
-              className="focus-ring inline-flex h-9 items-center gap-1.5 rounded-md border border-coral/40 bg-coral/5 px-3 text-base font-semibold text-coral hover:bg-coral/10 disabled:opacity-60"
-              title="Background LLM task: screen every AI-matched candidate (runs for minutes; keeps going as you navigate; survives refresh)"
-            >
-              <Sparkles size={14} />
-              {batch ? `Screening ${batch.progressDone}/${batch.progressTotal}…` : "AI-screen all matched"}
-            </button>
-            <button
-              type="button"
-              onClick={runPass}
-              disabled={running}
-              className="focus-ring inline-flex h-9 items-center gap-1.5 rounded-md bg-ink px-3 text-base font-semibold text-white hover:opacity-90 disabled:opacity-50"
-              title="Deterministic policy pass: auto-advance strong BAU matches, hold early-career for a human, flag aging"
-            >
-              {running ? "Running pass…" : "▷ Run automation pass"}
-            </button>
+        {entries && entries.length > 0 ? (
+          <div className="flex flex-wrap items-stretch gap-1.5">
+            <StatChip label="Positions" value={positions.length} />
+            <StatChip label="Active" value={activeCount} />
+            <StatChip label="Interview" value={interviewCount} />
+            <StatChip label={`Aging>${STALE_DAYS}d`} value={staleCount} tone={staleCount > 0 ? "amber" : "neutral"} />
+            <StatChip
+              label="Awaiting you"
+              value={approvals.length}
+              tone={approvals.length > 0 ? "coral" : "neutral"}
+              onClick={() => router.push(buildUrl({ tab: "decisions" }))}
+            />
           </div>
-          <span className="rounded-md border border-stone-200 bg-paper px-2.5 py-1 text-sm text-steel">
-            Seeded demo pipeline · {(entries ?? []).length} candidates
-          </span>
-        </div>
+        ) : null}
       </header>
 
-      <SchedulerControl onRan={load} />
+      {/* One action row: the manual triggers sit alongside the Automation clock. */}
+      <div className="flex flex-wrap items-center gap-3">
+        <button
+          type="button"
+          onClick={() => startTask("batch_screen")}
+          disabled={!!batch}
+          className="focus-ring inline-flex h-9 items-center gap-1.5 rounded-md border border-coral/40 bg-coral/5 px-3 text-base font-semibold text-coral hover:bg-coral/10 disabled:opacity-60"
+          title="Background LLM task: screen every AI-matched candidate (runs for minutes; keeps going as you navigate; survives refresh)"
+        >
+          <Sparkles size={14} />
+          {batch ? `Screening ${batch.progressDone}/${batch.progressTotal}…` : "AI-screen all matched"}
+        </button>
+        <button
+          type="button"
+          onClick={runPass}
+          disabled={running}
+          className="focus-ring inline-flex h-9 items-center gap-1.5 rounded-md bg-ink px-3 text-base font-semibold text-white hover:opacity-90 disabled:opacity-50"
+          title="Deterministic policy pass: auto-advance strong BAU matches, hold early-career for a human, flag aging"
+        >
+          {running ? "Running pass…" : "▷ Run automation pass"}
+        </button>
+        <SchedulerControl onRan={load} className="flex-1 min-w-[20rem]" />
+      </div>
 
       {passSummary ? (
         <div className="animate-fade-in rounded-md border border-moss/30 bg-moss/5 px-4 py-2 text-base text-ink">
@@ -159,25 +200,6 @@ export function PipelineTab() {
         </p>
       ) : (
         <>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-            <Kpi icon={<Briefcase size={16} />} label="Open positions" value={positions.length} />
-            <Kpi icon={<Users size={16} />} label="Active candidates" value={activeCount} />
-            <Kpi icon={<Clock size={16} />} label="In interview" value={interviewCount} />
-            <Kpi
-              icon={<TimerReset size={16} />}
-              label={`Aging >${STALE_DAYS}d`}
-              value={staleCount}
-              tone={staleCount > 0 ? "amber" : "neutral"}
-            />
-            <Kpi
-              icon={<Check size={16} />}
-              label="Awaiting you"
-              value={approvals.length}
-              tone={approvals.length > 0 ? "coral" : "neutral"}
-              onClick={() => router.push(buildUrl({ tab: "decisions" }))}
-            />
-          </div>
-
           {approvals.length > 0 ? (
             <button
               type="button"
