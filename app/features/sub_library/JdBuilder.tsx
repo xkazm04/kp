@@ -1,10 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { Loader2, Sparkles } from "lucide-react";
+import { Loader2, Settings2, Sparkles } from "lucide-react";
 import { useTasks } from "@/app/features/tasks/TasksProvider";
 import { JdBuilderResult, type JdBuildResult } from "./JdBuilderResult";
+import { JdTemplateManager } from "./JdTemplateManager";
+import { renderTemplate } from "./render-template";
+
+type Template = { id: string; name: string; body: string; isDefault: boolean };
 
 const SENIORITIES = ["junior", "medior", "senior", "lead"];
 const FAMILIES: { v: string; label: string }[] = [
@@ -28,12 +32,62 @@ export function JdBuilder({ onSaved }: { onSaved: () => void }) {
   const [needText, setNeedText] = useState(sp.get("jdNeed") ?? "");
   const [repoUrl, setRepoUrl] = useState("");
 
+  // Template-first authoring: pick a company format, then let AI fill it. An
+  // empty templateId means "use the AI's own default formatting".
+  const [templates, setTemplates] = useState<Template[]>([]);
+  const [templateId, setTemplateId] = useState("");
+  const [manageOpen, setManageOpen] = useState(false);
+
   const [taskId, setTaskId] = useState<string | null>(null);
   const [result, setResult] = useState<JdBuildResult | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const loadTemplates = () =>
+    fetch("/api/templates")
+      .then((r) => r.json())
+      .then((p) => {
+        const list = (p.templates as Template[]) ?? [];
+        setTemplates(list);
+        // Keep the current selection if it still exists; else default to the
+        // marked default, else the first (matches JdTemplates' reconciliation).
+        setTemplateId((cur) => (list.some((t) => t.id === cur) ? cur : list.find((t) => t.isDefault)?.id ?? list[0]?.id ?? ""));
+      })
+      .catch(() => undefined);
+  useEffect(() => {
+    loadTemplates();
+  }, []);
+
   const task = tasks.find((t) => t.id === taskId) ?? null;
   const generating = Boolean(taskId) && task?.status !== "succeeded" && task?.status !== "failed";
+
+  // The AI build produces a structured RoleSpec + salary; if a template is
+  // selected we render those fields THROUGH it (so the AI output adopts the
+  // chosen company format), otherwise we keep the builder's default markdown.
+  const displayResult = useMemo<JdBuildResult | null>(() => {
+    if (!result) return null;
+    const tpl = templates.find((t) => t.id === templateId);
+    if (!tpl) return result;
+    const role = (result.role ?? {}) as {
+      responsibilities?: string[];
+      mustHaves?: string[];
+      niceToHaves?: string[];
+    };
+    const s = result.salary;
+    const salaryLabel =
+      s && s.suggestedMinimum > 0
+        ? `${s.suggestedMinimum.toLocaleString("cs-CZ")}–${s.suggestedMaximum.toLocaleString("cs-CZ")} ${s.currency}/mo`
+        : "";
+    const markdown = renderTemplate(tpl.body, {
+      title: title.trim(),
+      company: company.trim(),
+      seniority,
+      salary: salaryLabel,
+      responsibilities: role.responsibilities ?? [],
+      mustHaves: role.mustHaves ?? [],
+      niceToHaves: role.niceToHaves ?? [],
+    });
+    return { ...result, markdown };
+  }, [result, templates, templateId, title, company, seniority]);
 
   useEffect(() => {
     if (!task) return;
@@ -63,9 +117,32 @@ export function JdBuilder({ onSaved }: { onSaved: () => void }) {
         <Sparkles size={14} /> Generate with AI
       </p>
       <p className="mt-1 text-sm text-steel">
-        Describe the need in your own words. We clarify it, design the role (optionally analyzing a public repo for dev
-        roles), and research the market salary on the web.
+        Pick a company template, describe the need in your own words, and AI fills the template — clarifying the
+        need, designing the role (optionally analyzing a public repo for dev roles), and researching market salary.
       </p>
+
+      {/* Step 1: pick the output format. The AI fills whichever template is chosen. */}
+      <div className="mt-3 flex items-end gap-2">
+        <Field label="Template" className="flex-1">
+          <select value={templateId} onChange={(e) => setTemplateId(e.target.value)} className={INP}>
+            <option value="">AI default format (no template)</option>
+            {templates.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.name}
+                {t.isDefault ? " (default)" : ""}
+              </option>
+            ))}
+          </select>
+        </Field>
+        <button
+          type="button"
+          onClick={() => setManageOpen(true)}
+          className="focus-ring inline-flex h-9 shrink-0 items-center gap-1.5 rounded-md border border-stone-200 px-2.5 text-sm font-semibold text-steel hover:bg-stone-50"
+          title="Create, edit, or delete company templates"
+        >
+          <Settings2 size={14} /> Manage
+        </button>
+      </div>
 
       <div className="mt-3 grid gap-2 sm:grid-cols-2">
         <Field label="Role title *">
@@ -115,8 +192,13 @@ export function JdBuilder({ onSaved }: { onSaved: () => void }) {
       {generating ? <p className="mt-1.5 text-sm text-steel">This runs a few AI steps and takes ~1–2 minutes — it keeps going if you navigate away.</p> : null}
       {error ? <p role="alert" className="mt-2 rounded-md bg-red-50 p-2.5 text-sm text-red-700">{error}</p> : null}
 
-      {result ? <JdBuilderResult result={result} title={title.trim()} company={company.trim()} onSaved={onSaved} /> : null}
+      {displayResult ? (
+        // Keyed by template so switching the format after generation re-renders
+        // the AI output through the newly chosen template.
+        <JdBuilderResult key={templateId} result={displayResult} title={title.trim()} company={company.trim()} onSaved={onSaved} />
+      ) : null}
 
+      {manageOpen ? <JdTemplateManager onClose={() => setManageOpen(false)} onChanged={loadTemplates} /> : null}
     </div>
   );
 }
