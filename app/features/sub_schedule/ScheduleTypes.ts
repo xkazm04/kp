@@ -12,7 +12,10 @@ export type SchedEntry = {
 };
 
 export const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri"];
-export const TIMES = ["09:00", "10:30", "11:00", "14:00", "15:30"];
+// Full working day, hourly (08:00–17:00). Covers the server-proposed slots
+// (schedule-store proposes within this window) so a proposed chip always lands
+// on a visible row.
+export const TIMES = ["08:00", "09:00", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00", "17:00"];
 export const DEFAULT_SLOT = "Tue 14:00";
 
 export const ARCHETYPE = {
