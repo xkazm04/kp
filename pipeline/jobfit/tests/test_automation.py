@@ -158,6 +158,39 @@ class DraftsTest(unittest.TestCase):
         r, _ = automation.interview_scorecard(BAU, self.job, "Strong on Python, weak on system design.", provider=None)
         self.assertIn(r["recommendation"], ("advance", "hold", "reject"))
         self.assertTrue(r["ratings"])
+        # Self-describing: which rubric it was scored on + how far to trust it.
+        self.assertEqual(r["scoringModel"], "experienced")
+        self.assertIn(r["confidence"]["level"], ("tight", "moderate", "wide"))
+        self.assertEqual(r["promptVersion"], automation.SCORECARD_PROMPT_VERSION)
+
+    def test_scorecard_is_archetype_aware(self):
+        # Same transcript, different rubric: BAU on the experienced axes, a student
+        # on the 6 early-career potential constructs.
+        bau, _ = automation.interview_scorecard(BAU, self.job, "x", provider=None)
+        self.assertEqual(bau["scoringModel"], "experienced")
+        self.assertEqual(
+            [r["competency"] for r in bau["ratings"]],
+            [c["competency"] for c in automation.INTERVIEW_RUBRICS["experienced"]],
+        )
+        stu, _ = automation.interview_scorecard(STUDENT, self.job, "x", provider=None)
+        self.assertEqual(stu["scoringModel"], "early_career")
+        self.assertEqual(
+            [r["competency"] for r in stu["ratings"]],
+            [c["competency"] for c in automation.INTERVIEW_RUBRICS["early_career"]],
+        )
+        self.assertGreaterEqual(len(stu["ratings"]), 6)
+
+    def test_scorecard_confidence_tracks_transcript_richness(self):
+        rubric = automation.INTERVIEW_RUBRICS["early_career"]
+        n = len(rubric)
+        full = [{"competency": c["competency"], "rating": 4, "evidence": "concrete thing the candidate said"} for c in rubric]
+        unassessed = [{"competency": c["competency"], "rating": 3, "evidence": "Not assessed."} for c in rubric]
+        # Thin transcript OR nothing evidenced -> wide (provisional), not a low score.
+        self.assertEqual(automation._scorecard_confidence("short", full, n)["level"], "wide")
+        self.assertEqual(automation._scorecard_confidence("x" * 3000, unassessed, n)["level"], "wide")
+        # Long + fully evidenced -> tight; mid-length + fully evidenced -> moderate.
+        self.assertEqual(automation._scorecard_confidence("x" * 3000, full, n)["level"], "tight")
+        self.assertEqual(automation._scorecard_confidence("x" * 1000, full, n)["level"], "moderate")
 
 
 class RematchTest(unittest.TestCase):

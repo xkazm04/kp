@@ -1,0 +1,86 @@
+{
+  "ratingAnchors": {
+    "1": "Well below bar",
+    "2": "Below bar",
+    "3": "Meets the bar",
+    "4": "Above bar",
+    "5": "Exceptional"
+  },
+  "rubrics": {
+    "experienced": [
+      { "competency": "Technical depth", "description": "Depth and correctness in the role's core skills." },
+      { "competency": "Problem-solving", "description": "Reasoning, debugging, and structured thinking under questioning." },
+      { "competency": "Communication", "description": "Clarity, structure, and active listening." },
+      { "competency": "Experience & fit", "description": "Relevance of background and projects to this specific role." },
+      { "competency": "Motivation", "description": "Genuine interest in the role and the team." }
+    ],
+    "early_career": [
+      {
+        "competency": "Problem decomposition",
+        "description": "How they break down an unfamiliar problem: surfacing assumptions, constraints, and structure before reaching for a solution.",
+        "anchors": {
+          "1": "Restates the problem or jumps to a memorized answer; no decomposition.",
+          "2": "Names a few parts but misses key constraints or dependencies.",
+          "3": "Breaks the problem into coherent sub-problems and states the main constraints.",
+          "4": "Decomposes cleanly, surfaces hidden assumptions, and asks clarifying questions before committing.",
+          "5": "Reframes the problem to expose its core, prioritizes sub-problems by risk, and reasons about edge cases unprompted."
+        }
+      },
+      {
+        "competency": "Learning agility",
+        "description": "How they learn and recover when stuck: evidence of a repeatable loop, not a one-off success.",
+        "anchors": {
+          "1": "Cannot describe how they learn or how they got unstuck; credits luck or other people.",
+          "2": "Describes passive learning (watched tutorials) with no reflection on what worked.",
+          "3": "Names a concrete learning strategy and one thing they would do differently.",
+          "4": "Shows a deliberate diagnose-experiment-adjust loop with a real stuck-then-recovered example.",
+          "5": "Transfers a lesson from one domain to a new one and reflects on how their approach itself is improving."
+        }
+      },
+      {
+        "competency": "Coachability",
+        "description": "How they take a hint, correction, or pushback in real time: integrate it, deflect it, or freeze.",
+        "anchors": {
+          "1": "Ignores or reflexively defends against the hint.",
+          "2": "Acknowledges the hint but cannot act on it.",
+          "3": "Adjusts after the hint, with some prompting.",
+          "4": "Integrates the hint quickly and explains how it changes their approach.",
+          "5": "Probes the hint, asks a sharpening question, and generalizes it beyond the immediate problem."
+        }
+      },
+      {
+        "competency": "Conceptual depth",
+        "description": "Whether they understand why, not just what: tested with counterfactuals and transfer to novel cases.",
+        "anchors": {
+          "1": "Recalls definitions but cannot explain why; breaks down on any 'what if' variation.",
+          "2": "Explains the happy path but not tradeoffs or what changes under different conditions.",
+          "3": "Explains the mechanism and handles a simple counterfactual.",
+          "4": "Reasons about tradeoffs and adapts the concept to a changed requirement.",
+          "5": "Derives the idea from first principles and predicts where it breaks under a novel constraint."
+        }
+      },
+      {
+        "competency": "Motivation & direction",
+        "description": "Coherence and specificity of why this field and this role: intrinsic drive over rehearsed answers.",
+        "anchors": {
+          "1": "Generic or purely extrinsic ('good pay'); no specific interest.",
+          "2": "States interest but cannot tie it to anything they have actually done.",
+          "3": "Gives a specific, consistent reason grounded in a real experience or project.",
+          "4": "Shows a coherent throughline from past choices to this role and a forward goal.",
+          "5": "Articulates a sharp, self-aware direction with evidence of self-driven exploration toward it."
+        }
+      },
+      {
+        "competency": "Communication & collaboration",
+        "description": "Clarity and structure of explanation, active listening, and how they work with other people's input.",
+        "anchors": {
+          "1": "Disorganized or evasive; does not address the question asked.",
+          "2": "Answers but rambles or lacks structure; hard to follow.",
+          "3": "Clear, structured answers; listens and responds to the actual question.",
+          "4": "Explains complex ideas simply and checks for understanding.",
+          "5": "Adapts the explanation to the listener and surfaces disagreement constructively."
+        }
+      }
+    ]
+  }
+}

@@ -1597,6 +1597,11 @@ export type InterviewedCandidate = {
   candidateLabel: string | null;
   recommendation: string | null;
   summary: string | null;
+  // Which rubric this candidate was scored on, so the compare view can render
+  // each cohort against its own axes. Older (pre-v3) scorecards predate the
+  // early-career rubric, so a missing value is correctly 'experienced'.
+  scoringModel: string;
+  confidence: { level: string; reason?: string } | null;
   ratings: { competency: string; rating: number; evidence?: string }[];
 };
 
@@ -1623,7 +1628,13 @@ export function interviewedForJob(jobId: string): InterviewedCandidate[] {
     const key = r.entry_id ?? r.candidate_label ?? String(out.length);
     if (seen.has(key)) continue; // latest interview per candidate
     seen.add(key);
-    let sc: { recommendation?: string; summary?: string; ratings?: InterviewedCandidate["ratings"] } = {};
+    let sc: {
+      recommendation?: string;
+      summary?: string;
+      scoringModel?: string;
+      confidence?: { level: string; reason?: string };
+      ratings?: InterviewedCandidate["ratings"];
+    } = {};
     try {
       sc = r.scorecard_json ? JSON.parse(r.scorecard_json) : {};
     } catch {
@@ -1634,6 +1645,8 @@ export function interviewedForJob(jobId: string): InterviewedCandidate[] {
       candidateLabel: r.candidate_label,
       recommendation: sc.recommendation ?? null,
       summary: sc.summary ?? null,
+      scoringModel: sc.scoringModel ?? "experienced",
+      confidence: sc.confidence ?? null,
       ratings: Array.isArray(sc.ratings) ? sc.ratings : [],
     });
   }

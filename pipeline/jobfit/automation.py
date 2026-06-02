@@ -14,8 +14,10 @@ See docs/AUTOMATION_SPEC.md for the full design.
 from __future__ import annotations
 
 import json
+from pathlib import Path
 from typing import Any
 
+from . import registry
 from .jobs import Job
 from .matching import MatchCandidate, ko_filter, score_job
 from .match_reasoning import generate as generate_reasoning
@@ -25,7 +27,7 @@ SCREENING_PROMPT_VERSION = "screening-v1"
 OUTREACH_PROMPT_VERSION = "outreach-v1"
 REJECTION_PROMPT_VERSION = "rejection-v1"
 PREP_PROMPT_VERSION = "interview-prep-v1"
-SCORECARD_PROMPT_VERSION = "scorecard-v2"
+SCORECARD_PROMPT_VERSION = "scorecard-v3"
 REMATCH_PROMPT_VERSION = "rematch-v1"
 OFFER_PROMPT_VERSION = "offer-v1"
 
@@ -386,35 +388,94 @@ def interview_prep(candidate: MatchCandidate, job: Job, m, *, provider: Any | No
     return result, source
 
 
-# Fixed scorecard rubric — the SAME competency axes for every candidate, so
-# interviews are structured and directly comparable (Greenhouse/HireVue-style).
-RATING_ANCHORS = {
-    1: "Well below bar",
-    2: "Below bar",
-    3: "Meets the bar",
-    4: "Above bar",
-    5: "Exceptional",
-}
-INTERVIEW_RUBRIC = [
-    {"competency": "Technical depth", "description": "Depth and correctness in the role's core skills."},
-    {"competency": "Problem-solving", "description": "Reasoning, debugging, and structured thinking under questioning."},
-    {"competency": "Communication", "description": "Clarity, structure, and active listening."},
-    {"competency": "Experience & fit", "description": "Relevance of background and projects to this specific role."},
-    {"competency": "Motivation", "description": "Genuine interest in the role and the team."},
-]
+# Scorecard rubrics — the SAME competency axes for every candidate of a given
+# archetype, so interviews stay structured and directly comparable WITHIN a
+# cohort (Greenhouse/HireVue-style). The rubrics live in ONE place,
+# interview-rubrics.json, read directly here AND by the recruiter compare grid
+# (app/_lib/interview-rubric.ts) — same single-source pattern as archetypes.json,
+# so the TS<->Python drift a hand-mirror would risk is structurally impossible.
+#
+# Rubrics are keyed by the archetype's `scoringModel`: `experienced` keeps the
+# historical generic axes (track-record based); `early_career` re-gears them for
+# zero-/low-experience candidates, scoring mental model and potential with full
+# behaviorally-anchored (BARS) descriptors per level rather than years of work.
+_RUBRIC_DATA: dict[str, Any] = json.loads(
+    Path(__file__).with_name("interview-rubrics.json").read_text(encoding="utf-8")
+)
+# Generic 1-5 scale, shared across rubrics. Keys coerced to int for the existing
+# {int: str} contract (the TS mirror and compare grid read the same JSON).
+RATING_ANCHORS = {int(k): v for k, v in _RUBRIC_DATA["ratingAnchors"].items()}
+INTERVIEW_RUBRICS: dict[str, list[dict]] = _RUBRIC_DATA["rubrics"]
+# Backwards-compatible alias: the historical flat rubric IS the experienced one.
+INTERVIEW_RUBRIC = INTERVIEW_RUBRICS["experienced"]
+
+_EARLY_CAREER = registry.early_career_archetypes()
+
+
+def scoring_model_for_archetype(archetype: str | None) -> str:
+    """The rubric / scoring model for an archetype: 'early_career' for early-career
+    archetypes (registry scoringModel), else 'experienced' — including unknown/None,
+    matching the scorecard's experienced default."""
+    return "early_career" if (archetype or "").strip().lower() in _EARLY_CAREER else "experienced"
+
+
+def rubric_for_archetype(archetype: str | None) -> list[dict]:
+    """The scorecard rubric for a candidate's archetype. Early-career archetypes
+    get the potential / mental-model BARS rubric; everyone else the experienced
+    rubric. Mirrors the TS `rubricForArchetype`; both resolve the split from the
+    shared archetypes.json."""
+    return INTERVIEW_RUBRICS.get(scoring_model_for_archetype(archetype), INTERVIEW_RUBRICS["experienced"])
+
+
+def _scorecard_confidence(notes: str, ratings: list[dict], total: int) -> dict:
+    """Deterministic confidence in the scorecard, driven by how much the transcript
+    actually supports. A short or thinly-evidenced interview yields a WIDE band
+    (treat the ratings as provisional) rather than a low score — so a brief or
+    nervous candidate is not penalised on substance. Mirrors the intent of the
+    match confidence band: separate the signal from how sure we are of it."""
+    n = len(notes or "")
+    assessed = sum(
+        1
+        for r in ratings
+        if (r.get("evidence") or "").strip() and not str(r.get("evidence")).startswith("Not assessed")
+    )
+    if n < 600 or assessed * 2 < total:
+        return {"level": "wide", "reason": "Thin transcript or few competencies evidenced — treat ratings as provisional."}
+    if n >= 2000 and assessed >= total:
+        return {"level": "tight", "reason": "Full-length transcript with every competency evidenced."}
+    return {"level": "moderate", "reason": "Partial evidence across the competencies."}
 
 
 def interview_scorecard(candidate: MatchCandidate, job: Job, notes: str, *, provider: Any | None = None):
+    model = scoring_model_for_archetype(candidate.archetype)
+    rubric = INTERVIEW_RUBRICS.get(model, INTERVIEW_RUBRICS["experienced"])
     anchors = ", ".join(f"{k}={v}" for k, v in RATING_ANCHORS.items())
-    rubric_lines = "\n".join(f"- {c['competency']}: {c['description']}" for c in INTERVIEW_RUBRIC)
+
+    def _rubric_line(competency: dict) -> str:
+        line = f"- {competency['competency']}: {competency['description']}"
+        bars = competency.get("anchors")
+        if bars:
+            # Per-competency behavioral anchors (BARS) — give the model the
+            # concrete bar for each level so early-career ratings are calibrated,
+            # not vibes. Experienced competencies carry none and fall back to the
+            # generic scale above, leaving that prompt byte-identical.
+            scale = "; ".join(f"{level}={bars[level]}" for level in sorted(bars, key=int))
+            line += f"\n    Level anchors — {scale}"
+        return line
+
+    rubric_lines = "\n".join(_rubric_line(c) for c in rubric)
     prompt = (
         f"Synthesize a structured interview scorecard for {candidate.label} (role: {job.title}) from these "
         f"interviewer notes / transcript:\n\"\"\"{notes[:4000]}\"\"\"\n\n"
         "Rate the candidate on EACH of these fixed competencies (do NOT invent or omit any):\n"
         f"{rubric_lines}\n"
         f"Rating scale: {anchors}.\n"
+        "Ground every rating in the transcript: the evidence MUST be a short, near-verbatim quote of the "
+        "candidate's own words that justifies the score — do not paraphrase or invent. If the transcript "
+        "does not cover a competency, set its evidence to an empty string and rate it 3 (not assessed).\n"
         'Return JSON: { "ratings": [ { "competency": str (exactly one of the above), "rating": int 1-5, '
-        '"evidence": str } ], "summary": str, "recommendation": "advance|hold|reject" }. '
+        '"evidence": str (verbatim candidate quote, or "") } ], "summary": str, '
+        '"recommendation": "advance|hold|reject" }. '
         "Include every competency, in the order listed. JSON only."
     )
 
@@ -423,7 +484,7 @@ def interview_scorecard(candidate: MatchCandidate, job: Job, notes: str, *, prov
         return {
             "ratings": [
                 {"competency": c["competency"], "rating": 3, "evidence": "Not assessed (auto-synthesis unavailable)."}
-                for c in INTERVIEW_RUBRIC
+                for c in rubric
             ],
             "summary": "Auto-synthesis unavailable; review the transcript and rate against the rubric manually. " + snippet,
             "recommendation": "hold",
@@ -451,7 +512,7 @@ def interview_scorecard(candidate: MatchCandidate, job: Job, notes: str, *, prov
             by_comp[norm(r["competency"])] = {"rating": rating, "evidence": str(r.get("evidence") or "")}
         # Always emit every rubric competency, in rubric order, filling gaps.
         ratings = []
-        for c in INTERVIEW_RUBRIC:
+        for c in rubric:
             got = by_comp.get(norm(c["competency"]))
             ratings.append(
                 {
@@ -470,6 +531,10 @@ def interview_scorecard(candidate: MatchCandidate, job: Job, notes: str, *, prov
         }
 
     result, source = _generate(provider, prompt, deterministic, coerce)
+    # Self-describe which rubric this was scored on (the compare grid renders the
+    # matching axes per cohort) and how far to trust it given the transcript.
+    result["scoringModel"] = model
+    result["confidence"] = _scorecard_confidence(notes, result.get("ratings") or [], len(rubric))
     result["promptVersion"] = SCORECARD_PROMPT_VERSION
     return result, source
 

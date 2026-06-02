@@ -314,7 +314,7 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
               {ivOutcome.summary ? <p className="mt-1 text-sm text-ink">{ivOutcome.summary}</p> : null}
               {ivOutcome.ratings?.length ? (
                 <ul className="mt-1.5 space-y-0.5">
-                  {ivOutcome.ratings.slice(0, 5).map((r, i) => (
+                  {ivOutcome.ratings.slice(0, 6).map((r, i) => (
                     <li key={i} className="text-sm text-ink">
                       <span className="font-semibold nums text-coral">{r.rating}/5</span> {r.competency}
                     </li>
