@@ -4,7 +4,7 @@ import unittest
 
 from pipeline.jobfit.jobs import normalize_job
 from pipeline.jobfit.matching import MatchCandidate
-from pipeline.jobfit.recruiter import rank_candidates_for_job
+from pipeline.jobfit.recruiter import fairness_check, rank_candidates_for_job
 
 EXPERIENCED = MatchCandidate(
     skills=["Python", "Django"],
@@ -68,6 +68,32 @@ class RecruiterTest(unittest.TestCase):
         self.assertEqual(row["archetype"], "student")
         self.assertTrue(row["assumptions"])  # early-career note at least
         self.assertEqual(row["result"]["matchedSkillProvenance"].get("Python"), "thesis")
+
+
+class FairnessCheckTest(unittest.TestCase):
+    def test_matrix_is_aligned_ranked_and_audited(self) -> None:
+        ada = MatchCandidate(
+            skills=["Python"], skill_provenance={"Python": "observed"}, seniority="junior",
+            role_family="software_engineering", languages=["English"], archetype="student",
+            potential_score=0.9, label="Ada",
+        )
+        bo = MatchCandidate(
+            skills=["HTML"], seniority="junior", role_family="software_engineering",
+            languages=["English"], archetype="student", potential_score=0.3, label="Bo",
+        )
+        fm = fairness_check([("a", ada), ("b", bo)], ENTRY_JOB)
+        # labels / candidateIds align by index; matrix is square; own = the diagonal.
+        self.assertEqual(fm["labels"], ["Ada", "Bo"])
+        self.assertEqual(fm["candidateIds"], ["a", "b"])
+        self.assertEqual(len(fm["matrix"]), 2)
+        self.assertEqual(len(fm["matrix"][0]), 2)
+        self.assertEqual(fm["own"], [fm["matrix"][0][0], fm["matrix"][1][1]])
+        # Ada's observed, role-relevant must-have earns a weight adjustment (audited);
+        # Bo (no relevant high-trust evidence) keeps the baseline.
+        self.assertTrue(fm["weightNotes"]["a"])
+        self.assertFalse(fm["weightNotes"]["b"])
+        # The stronger, observed-skill candidate is robustly first across schemes.
+        self.assertEqual(fm["ranking"][0], "Ada")
 
 
 if __name__ == "__main__":

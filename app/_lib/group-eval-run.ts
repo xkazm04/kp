@@ -27,6 +27,23 @@ type Reasoning = { verdict?: string; strengths?: string[]; gaps?: string[]; inte
 // spans are marked with **double asterisks** for the UI to render as <strong>.
 type Comparison = { headline: string; keyPoints: string[]; recommendation?: string };
 
+// Cross-scheme fairness matrix (recruiter.fairness_check): each candidate carries
+// a bounded dynamic weight vector, and every candidate is re-scored under EVERY
+// scheme so a pool with different weightings ranks honestly (by the mean) instead
+// of on one scalar from incomparable yardsticks. labels/candidateIds/schemes/own/
+// mean are aligned by index; weightNotes is keyed by candidateId.
+type FairnessScheme = { skills: number; career: number; personal: number };
+type Fairness = {
+  labels: string[];
+  candidateIds: string[];
+  schemes: FairnessScheme[];
+  matrix: number[][];
+  own: number[];
+  mean: number[];
+  ranking: string[];
+  weightNotes: Record<string, string[]>;
+};
+
 // One row of the weight-aware breakdown (matching.build_score_breakdown), all on
 // a single 0-100 scale — mirrors app/features/sub_match/MatchTypes.ScoreDimension.
 type ScoreDimension = { key: string; label: string; percent: number; weight: number; contribution: number };
@@ -124,11 +141,14 @@ const flattenComparison = (c: Comparison): string =>
 // (ONE Python process for the whole field) to get the full MatchResult breakdown
 // per candidate. Best-effort: any failure returns an empty map and the eval
 // degrades to the score-only view, so a broken ranker never blocks a decision.
-async function rankCandidates(job: JobRecord, candidates: GroupEvalCandidate[]): Promise<Map<string, RecruiterRow>> {
+async function rankCandidates(
+  job: JobRecord,
+  candidates: GroupEvalCandidate[]
+): Promise<{ rows: Map<string, RecruiterRow>; fairness: Fairness | null }> {
   const pool = candidates
     .map((c) => (c.candidateId ? resolveCandidatePoolEntry(c.candidateId, c.label) : null))
     .filter((e): e is CandidatePoolEntry => e !== null);
-  if (pool.length === 0) return new Map();
+  if (pool.length === 0) return { rows: new Map(), fairness: null };
 
   let workdir: string | null = null;
   try {
@@ -144,10 +164,10 @@ async function rankCandidates(job: JobRecord, candidates: GroupEvalCandidate[]):
       const err = parseStderrError(stderr, exitCode);
       throw new Error(err.message);
     }
-    const parsed = parsePythonJson<{ candidates?: RecruiterRow[] }>(stdout, stderr);
+    const parsed = parsePythonJson<{ candidates?: RecruiterRow[]; fairness?: Fairness | null }>(stdout, stderr);
     const map = new Map<string, RecruiterRow>();
     for (const row of parsed.candidates ?? []) map.set(row.candidateId, row);
-    return map;
+    return { rows: map, fairness: parsed.fairness ?? null };
   } finally {
     if (workdir) await cleanupWorkdir(workdir);
   }
@@ -222,9 +242,12 @@ export async function runGroupEval(params: Record<string, unknown>): Promise<Rec
   // Full deterministic breakdown per candidate (best-effort; needs the role's job).
   const job = jobId ? getJob(jobId) : null;
   let rows = new Map<string, RecruiterRow>();
+  let fairness: Fairness | null = null;
   if (job) {
     try {
-      rows = await rankCandidates(job, input);
+      const ranked = await rankCandidates(job, input);
+      rows = ranked.rows;
+      fairness = ranked.fairness;
     } catch (error) {
       console.warn(`[group-eval] recruiter ranking failed for "${roleKey}":`, error instanceof Error ? error.message : error);
     }
@@ -329,6 +352,10 @@ export async function runGroupEval(params: Record<string, unknown>): Promise<Rec
     // reference each candidate's expectation is compared against. Empty for a
     // job-less role, in which case the salary section just shows expectations.
     roleSalaryBand: job?.salaryBand ?? [],
+    // Cross-scheme fairness matrix: each candidate re-scored under every
+    // candidate's bounded dynamic weighting, so a pool weighted differently per
+    // candidate ranks honestly. Null for a job-less role or if the ranker failed.
+    fairness,
     summary: deterministicSummary,
     // Structured, bold-formatted AI comparison (the modal prefers it); the flat
     // `comparisonSummary` stays for legacy/plain-text consumers.

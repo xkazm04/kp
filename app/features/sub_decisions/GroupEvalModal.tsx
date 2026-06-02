@@ -26,6 +26,23 @@ import { styleFor } from "./DecisionsTypes";
 // spans are marked with **double asterisks** for RichText to render as <strong>.
 export type Comparison = { headline: string; keyPoints: string[]; recommendation?: string };
 
+// Cross-scheme fairness matrix (recruiter.fairness_check, via group-eval-run):
+// each candidate carries a bounded dynamic weight vector and is re-scored under
+// EVERY candidate's scheme, so a pool weighted differently per candidate ranks
+// honestly (by the mean). labels / candidateIds / schemes / own / mean align by
+// index; weightNotes is keyed by candidateId.
+export type FairnessScheme = { skills: number; career: number; personal: number };
+export type Fairness = {
+  labels: string[];
+  candidateIds: string[];
+  schemes: FairnessScheme[];
+  matrix: number[][];
+  own: number[];
+  mean: number[];
+  ranking: string[];
+  weightNotes: Record<string, string[]>;
+};
+
 // One candidate as carried by a group evaluation. The base fields (score,
 // verdict, strengths, gaps) are always present; the rest are added when the role
 // has a job and the recruiter ranker produced a full breakdown (group-eval-run).
@@ -72,6 +89,8 @@ export type GroupEvalPayload = {
   // The role's recommended salary band [min, max] — the reference the salary
   // row plots each candidate's expectation against. Empty for a job-less role.
   roleSalaryBand?: number[];
+  // Cross-scheme fairness matrix. Null for a job-less role or if the ranker failed.
+  fairness?: Fairness | null;
   // Coverage bookkeeping (group-eval-run): the top `cap` of `totalCandidates`
   // were compared, sorted by fit. `evaluatedLabels` is the pre-cap pool used to
   // detect drift against the role's current pending entries.
@@ -178,6 +197,7 @@ export function GroupEvalModal({
           {enriched ? (
             <>
               <ComparisonTable candidates={candidates} skillRows={skillRows} mustRows={mustRows} roleBand={evaluation.roleSalaryBand ?? []} />
+              <FairnessPanel fairness={evaluation.fairness ?? null} headlineOrder={evaluation.recommendedOrder ?? []} />
               <PerCandidateTabs candidates={candidates} differentiators={evaluation.differentiators ?? []} topPick={evaluation.topPick?.label} />
             </>
           ) : (
@@ -799,6 +819,108 @@ function PerCandidateTabs({ candidates, differentiators, topPick }: { candidates
       <div role="tabpanel" className="mt-3">
         <CandidateDetail c={current} differentiators={differentiators} topPick={topPick} />
       </div>
+    </section>
+  );
+}
+
+// ---- Fairness check (cross-scheme dynamic-weight matrix) -------------------
+const fmtScheme = (s: FairnessScheme): string =>
+  `S ${Math.round(s.skills * 100)} · C ${Math.round(s.career * 100)} · P ${Math.round(s.personal * 100)}`;
+
+// Renders the fairness matrix: each candidate (row) re-scored under every
+// candidate's bounded weighting (column), the mean, the robust order, and the
+// per-candidate weight-adjustment notes. When no weighting was actually adjusted
+// the matrix is uniform and adds nothing, so we say that plainly instead.
+function FairnessPanel({ fairness, headlineOrder }: { fairness: Fairness | null; headlineOrder: string[] }) {
+  if (!fairness || !fairness.labels?.length || !fairness.matrix?.length) return null;
+  const { labels, schemes, matrix, mean, ranking, weightNotes, candidateIds } = fairness;
+  const adjusted = candidateIds.some((id) => (weightNotes?.[id]?.length ?? 0) > 0);
+
+  if (!adjusted) {
+    return (
+      <section>
+        <SectionTitle>Fairness check</SectionTitle>
+        <p className="mt-1 text-base text-steel">
+          Every candidate used the standard weighting for their archetype — the ranking above already compares
+          like-for-like.
+        </p>
+      </section>
+    );
+  }
+
+  const diverges = ranking.length === headlineOrder.length && ranking.some((l, i) => l !== headlineOrder[i]);
+
+  return (
+    <section>
+      <SectionTitle>Fairness check</SectionTitle>
+      <p className="mt-1 text-base text-steel">
+        Some candidates carry a bounded, evidence-driven weighting — demonstrated skill is weighted higher when backed by
+        high-trust evidence. Each candidate is re-scored under <em>every</em> candidate&apos;s weighting; the robust order
+        is the average across all schemes, so a candidate strong under everyone&apos;s weights is robustly strong.
+      </p>
+
+      <div className="mt-3 overflow-x-auto">
+        <table className="w-full border-collapse text-sm">
+          <thead>
+            <tr>
+              <th className="sticky left-0 bg-white p-2 text-left text-meta uppercase text-steel">Scored candidate</th>
+              {labels.map((l, j) => (
+                <th key={j} className="min-w-[120px] p-2 text-left align-bottom">
+                  <p className="font-medium text-ink">under {l}</p>
+                  <p className="text-meta text-steel nums">{fmtScheme(schemes[j])}</p>
+                </th>
+              ))}
+              <th className="p-2 text-left text-meta uppercase text-steel">Mean</th>
+            </tr>
+          </thead>
+          <tbody>
+            {labels.map((l, i) => (
+              <tr key={i} className="border-t border-stone-100">
+                <td className="sticky left-0 bg-white p-2 font-medium text-ink">{l}</td>
+                {labels.map((other, j) => (
+                  <td key={j} className="p-2">
+                    <span
+                      className={`inline-flex h-7 w-9 items-center justify-center rounded-md font-semibold nums ${
+                        i === j ? "bg-coral/10 text-coral ring-1 ring-coral/30" : "bg-stone-100 text-ink"
+                      }`}
+                      title={i === j ? "Under their own weighting" : `${l} under ${other}'s weighting`}
+                    >
+                      {matrix[i][j]}
+                    </span>
+                  </td>
+                ))}
+                <td className="p-2 font-semibold text-ink nums">{mean[i]}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="mt-3 flex flex-wrap items-center gap-1.5">
+        <span className="text-meta uppercase text-steel">Robust order</span>
+        {ranking.map((l, i) => (
+          <span key={i} className="inline-flex items-center gap-1.5">
+            {i > 0 ? <ArrowRight size={12} className="text-steel" aria-hidden /> : null}
+            <Pill tone={i === 0 ? "moss" : "neutral"}>{l}</Pill>
+          </span>
+        ))}
+      </div>
+      <p className={`mt-1.5 text-sm ${diverges ? "text-amber-700" : "text-steel"}`}>
+        {diverges
+          ? "Under each candidate's own weighting, the robust order differs from the headline fit order above — weigh the matrix before deciding."
+          : "Agrees with the headline fit order above."}
+      </p>
+
+      <ul className="mt-2 space-y-1">
+        {candidateIds.map((id, i) =>
+          (weightNotes?.[id]?.length ?? 0) > 0 ? (
+            <li key={id} className="text-sm text-ink">
+              <span className="font-medium">{labels[i]}:</span>{" "}
+              <span className="text-steel">{weightNotes[id].join("; ")}</span>
+            </li>
+          ) : null
+        )}
+      </ul>
     </section>
   );
 }

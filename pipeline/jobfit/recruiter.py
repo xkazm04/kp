@@ -12,7 +12,31 @@ from __future__ import annotations
 from typing import Any
 
 from .jobs import Job
-from .matching import MatchCandidate, candidate_assumptions, ko_filter, score_job
+from .matching import (
+    MatchCandidate,
+    candidate_assumptions,
+    fairness_matrix,
+    ko_filter,
+    propose_weights,
+    score_job,
+)
+
+
+def fairness_check(candidates: list[tuple[str, MatchCandidate]], job: Job) -> dict[str, Any]:
+    """Bounded dynamic weights per candidate + the cross-scheme fairness matrix.
+
+    Each candidate gets a relevance-driven weight proposal (propose_weights) —
+    e.g. a student with a relevant part-time / observed skill leans toward
+    demonstrated skill. Because those vectors differ, a single weighted scalar
+    isn't comparable, so fairness_matrix re-scores the whole pool under EVERY
+    candidate's scheme and ranks by the mean. Returns the matrix plus the aligned
+    candidateIds and the per-candidate weight-adjustment notes for the audit trail.
+    A best-effort companion to rank_candidates_for_job — never required to decide."""
+    proposals = [(cid, cand, *propose_weights(cand, job)) for cid, cand in candidates]
+    matrix = fairness_matrix([(cand, weights) for _cid, cand, weights, _notes in proposals], job)
+    matrix["candidateIds"] = [cid for cid, _cand, _w, _notes in proposals]
+    matrix["weightNotes"] = {cid: notes for cid, _cand, _w, notes in proposals}
+    return matrix
 
 
 def rank_candidates_for_job(candidates: list[tuple[str, MatchCandidate]], job: Job) -> list[dict[str, Any]]:

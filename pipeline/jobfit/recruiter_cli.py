@@ -19,7 +19,7 @@ from pathlib import Path
 from .jobs import Job
 from .matching import MatchCandidate, load_corpus
 from .profile import CandidateProfileV2
-from .recruiter import rank_candidates_for_job
+from .recruiter import fairness_check, rank_candidates_for_job
 from .transform import build_match_candidate
 
 
@@ -71,6 +71,12 @@ def main(argv: list[str] | None = None) -> int:
             candidates.append((entry_id, cand))
 
         rows = rank_candidates_for_job(candidates, job)
+        # Cross-scheme fairness matrix (bounded dynamic weights). Best-effort: a
+        # failure here must not break the primary ranking, so degrade to null.
+        try:
+            fairness = fairness_check(candidates, job) if candidates else None
+        except Exception:
+            fairness = None
     except Exception as exc:
         print(json.dumps({"error": str(exc), "status": 500}, ensure_ascii=False), file=sys.stderr)
         return 1
@@ -90,6 +96,7 @@ def main(argv: list[str] | None = None) -> int:
                     "entryEligible": bool(job.entry_profile and job.entry_profile.is_entry_eligible),
                 },
                 "candidates": rows,
+                "fairness": fairness,
                 "skipped": skipped,
             },
             ensure_ascii=False,

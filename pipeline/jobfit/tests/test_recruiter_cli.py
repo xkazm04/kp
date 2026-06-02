@@ -82,6 +82,34 @@ class RecruiterCliIsolationTest(unittest.TestCase):
         self.assertEqual(result["payload"]["skipped"], [])
         self.assertEqual(len(result["payload"]["candidates"]), 1)
 
+    def test_output_includes_fairness_matrix(self) -> None:
+        # The cross-scheme fairness matrix rides on the same ranker output the
+        # Decisions group eval consumes.
+        ada = MatchCandidate(
+            skills=["Python"], skill_provenance={"Python": "observed"}, seniority="medior",
+            role_family="software_engineering", languages=["English"], archetype="student",
+            potential_score=0.9, label="Ada",
+        )
+        bo = MatchCandidate(
+            skills=["HTML"], seniority="medior", role_family="software_engineering",
+            languages=["English"], archetype="student", potential_score=0.3, label="Bo",
+        )
+        result = _run(
+            {
+                "jobId": JOB.id,
+                "candidates": [
+                    {"id": "a", "candidate": ada.model_dump()},
+                    {"id": "b", "candidate": bo.model_dump()},
+                ],
+            }
+        )
+        self.assertEqual(result["code"], 0)
+        fairness = result["payload"]["fairness"]
+        self.assertIsNotNone(fairness)
+        self.assertEqual(set(fairness["candidateIds"]), {"a", "b"})
+        self.assertEqual(len(fairness["matrix"]), 2)
+        self.assertIn("ranking", fairness)
+
 
 if __name__ == "__main__":
     unittest.main()
