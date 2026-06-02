@@ -1,6 +1,6 @@
 "use client";
 
-import { Sparkles } from "lucide-react";
+import { Check, Sparkles } from "lucide-react";
 import { ScoreBadge } from "@/app/_components/ScoreBadge";
 import { styleFor, type Entry } from "./DecisionsTypes";
 
@@ -31,10 +31,15 @@ export function RoleDecisionRow({
           type="button"
           onClick={onGroupEval}
           disabled={busy}
-          className="focus-ring inline-flex h-8 shrink-0 items-center gap-1 rounded-md border border-coral/40 bg-coral/5 px-2.5 text-sm font-semibold text-coral hover:bg-coral/10 disabled:opacity-60"
-          title="Compare all candidates in this role"
+          className={`focus-ring inline-flex h-8 shrink-0 items-center gap-1 rounded-md border px-2.5 text-sm font-semibold disabled:opacity-60 ${
+            evaluated
+              ? "border-moss/40 bg-moss/10 text-moss hover:bg-moss/15"
+              : "border-coral/40 bg-coral/5 text-coral hover:bg-coral/10"
+          }`}
+          title={evaluated ? "View the saved evaluation — re-run it from inside the modal" : "Compare all candidates in this role"}
         >
-          <Sparkles size={14} /> {busy ? "Evaluating…" : evaluated ? "View evaluation" : "Group evaluation"}
+          {busy ? <Sparkles size={14} /> : evaluated ? <Check size={14} /> : <Sparkles size={14} />}{" "}
+          {busy ? "Evaluating…" : evaluated ? "View evaluation" : "Group evaluation"}
         </button>
       </div>
       <div className="mt-2 flex flex-wrap gap-1.5">
