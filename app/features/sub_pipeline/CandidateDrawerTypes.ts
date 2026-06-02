@@ -21,7 +21,7 @@ export const ARCHETYPE: Record<string, { label: string; bg: string }> = {
 };
 
 export const APPLIED_LABEL: Record<string, string> = {
-  advanced: "Advanced to Screening.",
+  advanced: "Advanced a stage.",
   held_for_review: "Held for your review in Decisions.",
   scorecard_ready: "Scorecard sent to Decisions.",
   offer_ready: "Offer drafted — approve it in Decisions.",

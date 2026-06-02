@@ -27,7 +27,7 @@ package "Matcher (deterministic)" {
   [KO filter\\nlocation · seniority · language] <<focus>> as ko
   [Multi-factor scorer\\nskills · career · fit] <<focus>> as sc
 }
-[Sourced shortlist] as out
+[Accepted pool] as out
 job --> pub : go live
 pub --> ko
 ko --> sc : survivors
@@ -40,20 +40,18 @@ package "Channels" {
   [Careers page / Apply] <<focus>> as apply
   [Proactive sourcing] <<focus>> as src
 }
-[Accepted\\ninbound] <<focus>> as acc
-[Sourced\\nproactive] <<focus>> as sor
+[Accepted\\n(inbound + sourced)] <<focus>> as acc
 [Score + archetype route] <<focus>> as match
-[AI-matched] as out
+[Screened] as out
 apply --> acc
-src --> sor
+src --> acc
 acc --> match
-sor --> match
 match --> out
 @enduml`,
 
   screen: `@startuml
 title Screen: first automated decision wave
-[Matched cohort] as m
+[Screened cohort] as m
 package "Auto-decision (configurable)" {
   [Rank by match] <<focus>> as rank
   [Reject bottom X%\\n< Y% match · audited] <<focus>> as rej
@@ -69,7 +67,7 @@ fair --> out
 
   interview: `@startuml
 title Interview: automate or assign a slot
-[Screening pass] as s
+[Cleared screening] as s
 package "Schedule" {
   [Self-schedule link\\ncandidate picks a slot] <<focus>> as auto
   [Manual slot\\nrecruiter assigns] <<gate>> as man

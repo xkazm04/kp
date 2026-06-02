@@ -41,7 +41,7 @@ export async function POST(_request: NextRequest, context: { params: Promise<{ i
             jobId: id,
             jobTitle: job.title,
             matchScore: m.score,
-            stage: "Sourced",
+            stage: "Accepted",
           });
           sourced += 1;
         }

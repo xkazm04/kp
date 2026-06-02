@@ -255,7 +255,7 @@ export function promoteSubmission(submissionId: string): string | null {
     jobId: `dc-${posting?.caseId ?? "case"}`,
     jobTitle: posting?.roleTitle ?? "Dev case",
     matchScore: score,
-    stage: "AI-matched",
+    stage: "Screened",
   });
   const recommendation = score >= 70 ? "advance" : "hold";
   setApproval(

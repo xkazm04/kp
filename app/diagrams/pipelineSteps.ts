@@ -48,12 +48,12 @@ ins --> db : INSERT`,
     title: "Candidate fan-out",
     status: "live",
     summary:
-      "On JD save the candidate pool is ranked against the new job and seeded as Sourced pipeline entries; the policy pass's Sourced branch (Direction #1) auto-advances strong matches to AI-matched. External job-board posting is still manual.",
+      "On JD save the candidate pool is ranked against the new job and seeded as Accepted pipeline entries; the policy pass's Accepted branch (Direction #1) auto-advances matched candidates into Screened (first-wave evaluation). External job-board posting is still manual.",
     files: ["app/api/jds/save/route.ts", "app/_lib/devcase-run.ts", "pipeline/jobfit/recruiter_cli.py", "pipeline/jobfit/automation.py (evaluate_entry)"],
     puml: `[POST /api/jds/save] <<auto>> as api
 [runSourceForRole\\nrecruiter_cli --job-json] as fn
-[createPipelineEntry\\nstage = Sourced] as ce
-[evaluate_entry\\nSourced -> AI-matched] <<auto>> as ev
+[createPipelineEntry\\nstage = Accepted] as ce
+[evaluate_entry\\nAccepted -> Screened] <<auto>> as ev
 database "pipeline_entries" as db
 [Post to job boards / ATS\\n(still manual)] <<gap>> as boards
 api --> fn : rank pool

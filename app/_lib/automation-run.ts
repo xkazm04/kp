@@ -92,7 +92,7 @@ export async function runAutomationTask(entryId: string, task: string, notes = "
   let applied = "drafted";
 
   if (task === "screen") {
-    if (entry.stage === "AI-matched") {
+    if (entry.stage === "Screened") {
       if (result.route === "advance") {
         actOnPipelineEntry(entry.id, "accept");
         applied = "advanced";
@@ -122,7 +122,7 @@ export async function runAutomationTask(entryId: string, task: string, notes = "
         jobId: result.jobId as string,
         jobTitle: (result.jobTitle as string) ?? (result.jobId as string),
         matchScore: (result.score as number) ?? null,
-        stage: "AI-matched",
+        stage: "Screened",
       });
       recordAutomationEvent(entry.id, "rematched", `${entry.jobId ?? "?"} -> ${result.jobId}`);
       applied = "rematched";

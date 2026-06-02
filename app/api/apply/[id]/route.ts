@@ -14,7 +14,7 @@ export const dynamic = "force-dynamic";
 // entry so applying never hard-errors).
 async function buildApplicantProfile(
   job: ReturnType<typeof getJob>,
-  answers: { name: string; experience: string; skills: string }
+  answers: { name: string; experience: string; skills: string; archetype?: string }
 ): Promise<{ id: string; archetype: string | null } | null> {
   if (!job) return null;
   let workdir: string | null = null;
@@ -68,7 +68,7 @@ export async function GET(_request: NextRequest, context: { params: Promise<{ id
   });
 }
 
-// POST → evaluate KO answers. Pass → create a Sourced pipeline entry; fail → a
+// POST → evaluate KO answers. Pass → create an Accepted pipeline entry; fail → a
 // polite decline (no entry created).
 export async function POST(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
@@ -92,10 +92,11 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     const name = String(answers.name ?? "").trim() || "Applicant";
     const experience = String(answers.experience ?? "").trim();
     const skills = String(answers.skills ?? "").trim();
+    const archetype = String(answers.archetype ?? "").trim();
 
     // Build a real, matchable V2 candidate from the answers; fall back to a
     // label-only id if profile normalization isn't available.
-    const built = await buildApplicantProfile(job, { name, experience, skills });
+    const built = await buildApplicantProfile(job, { name, experience, skills, archetype });
     const candidateId = built?.id ?? `apply-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 
     const { entry } = createPipelineEntry({
@@ -105,7 +106,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       roleFamily: job.roleFamily ?? null,
       jobId: job.id,
       jobTitle: job.title,
-      stage: "Sourced",
+      stage: "Accepted",
     });
     recordAutomationEvent(entry.id, "applied", experience ? experience.slice(0, 160) : "via conversational apply");
 

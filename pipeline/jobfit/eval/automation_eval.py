@@ -203,7 +203,7 @@ TASKS: dict[str, dict[str, Any]] = {
         "criteria": "Is the message warm, concise, personalized to the candidate's strengths, in the candidate's language, and non-creepy?",
     },
     "rejection": {
-        "run": lambda s, p: automation.draft_rejection(s.candidate, s.job, score_job(s.candidate, s.job), "Screening", provider=p),
+        "run": lambda s, p: automation.draft_rejection(s.candidate, s.job, score_job(s.candidate, s.job), "Screened", provider=p),
         "check": _check_rejection,
         "criteria": "Is the rejection respectful, specific, fair, free of protected-characteristic language, and does it avoid disclosing other candidates?",
     },

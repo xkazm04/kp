@@ -24,9 +24,7 @@ const ARCH: Record<string, { bg: string; label: string }> = {
 };
 const STAGE_INITIAL: Record<string, string> = {
   Accepted: "A",
-  Sourced: "S",
-  "AI-matched": "M",
-  Screening: "Sc",
+  Screened: "S",
   Interview: "I",
   Offer: "O",
   Hired: "H",

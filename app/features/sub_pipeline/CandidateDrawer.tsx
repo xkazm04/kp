@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Ban, Banknote, Calendar, Check, ClipboardList, Copy, ExternalLink, Mail, Phone, Shuffle, Sparkles, UserCheck, X } from "lucide-react";
+import { Ban, Banknote, Calendar, Check, ClipboardList, Copy, ExternalLink, Mail, Pencil, Phone, Shuffle, Sparkles, UserCheck, X } from "lucide-react";
 import { buildUrl } from "@/app/features/tabs";
 import { useTasks } from "@/app/features/tasks/TasksProvider";
 import { ResultView } from "./CandidateResultView";
@@ -10,13 +10,13 @@ import { ARCHETYPE, type Entry, type Result, type TaskId } from "./CandidateDraw
 import { RUBRIC_ANCHOR_LINE } from "@/app/_lib/interview-rubric";
 
 const ACTIONS: { id: TaskId; label: string; icon: typeof Mail; stages: string[] | "all"; note?: string }[] = [
-  { id: "screen", label: "Screen with AI", icon: UserCheck, stages: ["AI-matched"], note: "Routes to advance or holds for your review in Decisions." },
-  { id: "prep", label: "Interview prep", icon: ClipboardList, stages: ["AI-matched", "Screening", "Interview"] },
+  { id: "screen", label: "Screen with AI", icon: UserCheck, stages: ["Screened"], note: "Routes to advance or holds for your review in Decisions." },
+  { id: "prep", label: "Interview prep", icon: ClipboardList, stages: ["Screened", "Interview"] },
   { id: "scorecard", label: "Synthesize scorecard", icon: ClipboardList, stages: ["Interview"], note: "From your notes → a structured scorecard in Decisions." },
   { id: "offer", label: "Draft offer", icon: Banknote, stages: ["Offer"], note: "Salary from the role band, scaled by fit → an offer to approve in Decisions." },
   { id: "outreach", label: "Draft outreach", icon: Mail, stages: "all" },
-  { id: "rejection", label: "Draft rejection", icon: Ban, stages: ["AI-matched", "Screening", "Interview", "Offer"] },
-  { id: "rematch", label: "Explore alternatives", icon: Shuffle, stages: ["AI-matched", "Screening", "Interview", "Offer"] },
+  { id: "rejection", label: "Draft rejection", icon: Ban, stages: ["Screened", "Interview", "Offer"] },
+  { id: "rematch", label: "Explore alternatives", icon: Shuffle, stages: ["Screened", "Interview", "Offer"] },
 ];
 
 const REC_STYLE: Record<string, string> = {
@@ -170,10 +170,10 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
     }
   };
 
-  const showVoice = entry.status === "active" && ["AI-matched", "Screening", "Interview"].includes(entry.stage);
+  const showVoice = entry.status === "active" && ["Screened", "Interview"].includes(entry.stage);
   const voiceFullUrl = voiceLink ? (typeof window !== "undefined" ? window.location.origin : "") + voiceLink.url : "";
 
-  const showSchedule = entry.status === "active" && ["Screening", "Interview"].includes(entry.stage);
+  const showSchedule = entry.status === "active" && ["Screened", "Interview"].includes(entry.stage);
   const schedFullUrl = schedUrl ? (typeof window !== "undefined" ? window.location.origin : "") + schedUrl : "";
   const createScheduleLink = async () => {
     setSchedBusy(true);
@@ -446,15 +446,26 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
 
           {result ? <ResultView result={result} /> : null}
 
-          <button
-            type="button"
-            onClick={() => {
-              if (entry.candidateId) router.push(buildUrl({ tab: "match", profile: entry.candidateId }));
-            }}
-            className="focus-ring inline-flex items-center gap-1 text-sm font-semibold text-steel hover:text-coral"
-          >
-            <ExternalLink size={13} /> Open full match in Profile &amp; Match
-          </button>
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+            <button
+              type="button"
+              onClick={() => {
+                if (entry.candidateId) router.push(buildUrl({ tab: "match", profile: entry.candidateId }));
+              }}
+              className="focus-ring inline-flex items-center gap-1 text-sm font-semibold text-steel hover:text-coral"
+            >
+              <ExternalLink size={13} /> Open full match in Profile &amp; Match
+            </button>
+            {entry.candidateId ? (
+              <button
+                type="button"
+                onClick={() => router.push(buildUrl({ tab: "profile", edit: entry.candidateId as string }))}
+                className="focus-ring inline-flex items-center gap-1 text-sm font-semibold text-steel hover:text-coral"
+              >
+                <Pencil size={13} /> Edit profile
+              </button>
+            ) : null}
+          </div>
         </div>
       </aside>
     </div>

@@ -82,7 +82,7 @@ export async function runLifecycle(id: string, progress?: Progress): Promise<{ s
       const posting = await getAdapter("local").publish(devCase);
 
       // Proactive sourcing: rank the existing candidate DB against the role and seed the
-      // pipeline at the Sourced stage — so the role finds candidates, not only waits for them.
+      // pipeline at the Accepted stage — so the role finds candidates, not only waits for them.
       let sourced = 0;
       try {
         const roleTitle = (lc.role as { title?: string } | null)?.title ?? lc.title ?? "Dev case";
@@ -96,7 +96,7 @@ export async function runLifecycle(id: string, progress?: Progress): Promise<{ s
             jobId: `dc-${lc.caseId}`,
             jobTitle: roleTitle,
             matchScore: m.score,
-            stage: "Sourced",
+            stage: "Accepted",
           });
           sourced += 1;
         }

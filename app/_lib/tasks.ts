@@ -29,6 +29,15 @@ import { runInterviewPrep } from "./interview-prep-run";
 
 const MAX_CONCURRENT = 2; // respect the Claude CLI subscription rate ceiling
 
+// How far back the Background-tasks view shows finished tasks by default; older
+// runs are paged in on demand via the history endpoint. One knob shared by the
+// recent-list (GET /api/tasks) and history (GET /api/tasks/history) endpoints so
+// their windows can never drift apart and leak/duplicate tasks at the boundary.
+export const RECENT_TASK_WINDOW_DAYS = 7;
+export function recentTaskCutoffIso(): string {
+  return new Date(Date.now() - RECENT_TASK_WINDOW_DAYS * 24 * 60 * 60 * 1000).toISOString();
+}
+
 export type TaskCtx = {
   taskId: string;
   params: Record<string, unknown>;
@@ -43,7 +52,7 @@ type Spec = {
 };
 
 async function batchScreen(ctx: TaskCtx): Promise<unknown> {
-  const entries = listActiveEntriesForAutomation().filter((e) => e.stage === "AI-matched");
+  const entries = listActiveEntriesForAutomation().filter((e) => e.stage === "Screened");
   const summary = { advanced: 0, held: 0, advisory: 0, errors: 0, total: entries.length };
   ctx.progress(0, entries.length, entries.length ? "Starting…" : "Nothing to screen");
   let done = 0;

@@ -108,28 +108,31 @@ def evaluate_entry(entry: dict[str, Any]) -> dict[str, Any]:
     if recent_screening:
         return out("none", None, "recent screening decision; policy pass skipped")
 
-    if stage == "Sourced":
-        # A sourced candidate with a computed match advances into AI-matched, where
-        # the archetype-aware screening gate decides. This move is itself fair —
-        # archetype-neutral and never a reject — so the fan-out's entries don't
-        # stall in Sourced. No score yet → hold until matching has run.
+    if stage == "Accepted":
+        # CV received (inbound application or proactively sourced), waiting for
+        # screening. Once a match score exists it has cleared first-wave matching →
+        # advance into Screened, where the archetype-aware gate decides. This move is
+        # fair — archetype-neutral and never a reject — so intake doesn't stall in
+        # Accepted. No score yet → hold until matching has run.
         if score > 0:
-            return out("advance", "AI-matched", f"sourced with match score {score} → AI-matched")
-        return out("hold", None, "sourced; awaiting match score")
-    if stage == "AI-matched":
-        if early:
-            return out("hold", None, "early-career: human screening gate (never auto-advance/reject)")
-        if score >= POLICY["bau_advance_score"]:
-            return out("advance", "Screening", f"BAU score {score} ≥ {POLICY['bau_advance_score']}")
-        if score < POLICY["bau_reject_score"]:
-            return out("reject", None, f"BAU score {score} < {POLICY['bau_reject_score']}")
-        return out("hold", None, f"BAU mid score {score} → human review")
-    if stage == "Screening":
+            return out("advance", "Screened", f"received with match score {score} → Screened")
+        return out("hold", None, "accepted; awaiting match score")
+    if stage == "Screened":
+        # First wave of evaluation (matching + AI screening), collapsed into one
+        # stage. Early-career is NEVER auto-advanced/rejected (human screening gate);
+        # a pending approval holds; weak BAU is screened out; strong BAU clears
+        # screening and advances to Interview once it has settled; mid → human.
         if approval:
             return out("hold", None, "approval already pending")
-        if days >= POLICY["screening_auto_days"]:
-            return out("advance", "Interview", f"in screening {days}d with no pending approval")
-        return out("hold", None, "in screening")
+        if early:
+            return out("hold", None, "early-career: human screening gate (never auto-advance/reject)")
+        if score < POLICY["bau_reject_score"]:
+            return out("reject", None, f"BAU score {score} < {POLICY['bau_reject_score']}")
+        if score >= POLICY["bau_advance_score"]:
+            if days >= POLICY["screening_auto_days"]:
+                return out("advance", "Interview", f"BAU score {score} cleared screening, {days}d in Screened → Interview")
+            return out("hold", None, f"BAU score {score} cleared screening; settling in Screened")
+        return out("hold", None, f"BAU mid score {score} → human review")
     if stage == "Interview":
         return out("hold", None, "Interview → Offer is always a human decision")
     if stage == "Offer":

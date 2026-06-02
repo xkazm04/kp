@@ -50,7 +50,7 @@ export function RediscoverPanel({ jobId, jobTitle }: { jobId: string; jobTitle: 
           jobId,
           jobTitle,
           matchScore: c.score,
-          stage: "AI-matched",
+          stage: "Screened",
         }),
       });
       const payload = await res.json().catch(() => null);

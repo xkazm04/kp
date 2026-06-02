@@ -26,19 +26,17 @@ export type PipelineEvent = {
   createdAt: string;
 };
 
-// "Accepted" = an inbound application received via a channel; "Sourced" = a
-// proactively-sourced candidate. Both feed AI-matched. (Accepted isn't in
-// db.ts's PIPELINE_STAGES, so actOnPipelineEntry advances it to Sourced via the
-// linear indexOf fallback — intentional, and avoids editing the fork-active db.)
-export const STAGES = ["Accepted", "Sourced", "AI-matched", "Screening", "Interview", "Offer", "Hired"];
+// Consolidated 5-stage board model (mirrors db.ts PIPELINE_STAGES). "Accepted"
+// = CV received (inbound application OR proactively sourced), waiting to be
+// screened; "Screened" = run through the first wave of evaluation (matching +
+// AI screening). Must match db.ts; legacy stages are remapped on boot.
+export const STAGES = ["Accepted", "Screened", "Interview", "Offer", "Hired"];
 
 // One-line, new-user-friendly explanation of what each board stage represents,
 // surfaced as the column-header tooltip so the funnel is self-explaining.
 export const STAGE_HELP: Record<string, string> = {
-  Accepted: "Inbound application received via a channel — waiting to be AI-matched.",
-  Sourced: "Proactively sourced for this role — waiting to be AI-matched.",
-  "AI-matched": "Scored and ranked against the role by the matching engine.",
-  Screening: "AI screening done — strong matches advance; the rest wait on a human decision.",
+  Accepted: "CV received — an inbound application or a proactively-sourced candidate, waiting to be screened.",
+  Screened: "Run through the first wave of evaluation — matched and AI-screened; strong matches advance, the rest wait on a human decision.",
   Interview: "Interviewing — slot scheduling, AI voice screen, and scorecard.",
   Offer: "An offer is being drafted, reviewed, or sent.",
   Hired: "Offer accepted — candidate hired and onboarding.",

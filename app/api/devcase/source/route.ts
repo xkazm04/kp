@@ -5,7 +5,7 @@ import { runSourceForRole } from "@/app/_lib/devcase-run";
 export const runtime = "nodejs";
 
 // Phase C — proactive sourcing for an approved case: rank the candidate DB against the
-// role and seed the pipeline at the Sourced stage. Deterministic (matching, no LLM).
+// role and seed the pipeline at the Accepted stage. Deterministic (matching, no LLM).
 export async function POST(request: NextRequest) {
   try {
     const body = (await request.json().catch(() => ({}))) as { caseId?: string };
@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
         jobId: `dc-${devCase.id}`,
         jobTitle: roleTitle,
         matchScore: m.score,
-        stage: "Sourced",
+        stage: "Accepted",
       });
       added += 1;
     }

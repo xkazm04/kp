@@ -18,7 +18,7 @@ export type Screening = { recommendation?: string; confidence?: number; rational
 export type Scorecard = { recommendation?: string; summary?: string; ratings?: { competency: string; rating: number; evidence?: string }[] };
 export type Offer = { recommended?: number; salaryMin?: number; salaryMax?: number; currency?: string; rationale?: string; subject?: string; body?: string };
 
-export const STAGES = ["Accepted", "Sourced", "AI-matched", "Screening", "Interview", "Offer", "Hired"];
+export const STAGES = ["Accepted", "Screened", "Interview", "Offer", "Hired"];
 export const ARCHETYPE = {
   bau: { label: "Experienced", bg: "bg-steel" },
   student: { label: "Student", bg: "bg-coral" },

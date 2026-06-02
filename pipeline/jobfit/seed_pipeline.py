@@ -26,12 +26,12 @@ ROOT = Path(__file__).resolve().parents[2]
 CANDIDATES_PATH = ROOT / "data" / "seed_candidates" / "candidates.json"
 DEFAULT_OUT = ROOT / "data" / "seed_pipeline" / "pipeline.json"
 
-STAGES = ("Sourced", "AI-matched", "Screening", "Interview", "Offer", "Hired")
+STAGES = ("Accepted", "Screened", "Interview", "Offer", "Hired")
 # Funnel-shaped spread (more candidates early, fewer at offer/hired), deterministic by index.
+# Consolidated model: Accepted = CV received; Screened = first-wave evaluation done.
 FUNNEL = (
-    "Sourced", "Sourced", "Sourced",
-    "AI-matched", "AI-matched",
-    "Screening", "Screening",
+    "Accepted", "Accepted", "Accepted",
+    "Screened", "Screened", "Screened", "Screened",
     "Interview", "Interview",
     "Offer", "Hired",
 )
@@ -105,7 +105,7 @@ def build_pipeline(
 
             stage = FUNNEL[i % len(FUNNEL)]
             if not passed:
-                stage = "Sourced"  # not eligible for any open req yet
+                stage = "Accepted"  # not eligible for any open req yet
 
             entry: dict[str, Any] = {
                 "id": f"pe-{i:03d}",

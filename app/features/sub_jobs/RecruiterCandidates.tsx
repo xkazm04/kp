@@ -71,7 +71,7 @@ export function RecruiterCandidates({
           jobId,
           jobTitle,
           matchScore: c.result.total,
-          stage: "Screening",
+          stage: "Screened",
         }),
       });
       const payload = await r.json().catch(() => null);

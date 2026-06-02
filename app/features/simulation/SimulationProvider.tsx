@@ -311,11 +311,11 @@ export function SimulationProvider({ children }: { children: React.ReactNode }) 
           const deadline = Date.now() + 12_000;
           while (Date.now() < deadline) {
             if (ctrl.current.stop) throw new SimStop();
-            sourced = (await getEntries()).filter((e) => e.jobId === jobId && e.stage === "Sourced").length;
+            sourced = (await getEntries()).filter((e) => e.jobId === jobId && e.stage === "Accepted").length;
             if (sourced > 0) break;
             await sleep(400);
           }
-          log(`Published · sourced ${sourced} candidates → Sourced`);
+          log(`Published · sourced ${sourced} candidates → Accepted`);
           notifyDataChanged();
         },
       });
@@ -334,17 +334,17 @@ export function SimulationProvider({ children }: { children: React.ReactNode }) 
           notifyDataChanged();
           await beat(1400);
 
-          // Match all intake: Accepted (inbound) and Sourced (proactive) → AI-matched.
-          const intake = (await getEntries()).filter((e) => e.jobId === jobId && (e.stage === "Accepted" || e.stage === "Sourced"));
-          for (const e of intake) await advanceTo(e.id, "AI-matched");
+          // Match all intake (Accepted) → Screened (first-wave evaluation: match + AI screen).
+          const intake = (await getEntries()).filter((e) => e.jobId === jobId && e.stage === "Accepted");
+          for (const e of intake) await advanceTo(e.id, "Screened");
           const top = (await getEntries())
-            .filter((e) => e.jobId === jobId && e.stage === "AI-matched")
+            .filter((e) => e.jobId === jobId && e.stage === "Screened")
             .sort((a, b) => (b.matchScore ?? 0) - (a.matchScore ?? 0))[0];
-          if (!top) throw new Error("No AI-matched candidate to walk (intake returned none).");
+          if (!top) throw new Error("No Screened candidate to walk (intake returned none).");
           targetId = top.id;
           targetLabel = top.candidateLabel;
           patch({ targetLabel });
-          log(`Matched ${intake.length} candidates → AI-matched · following ${targetLabel} (match ${top.matchScore}) to Hired`);
+          log(`Matched ${intake.length} candidates → Screened · following ${targetLabel} (match ${top.matchScore}) to Hired`);
         },
       });
 
@@ -370,7 +370,7 @@ export function SimulationProvider({ children }: { children: React.ReactNode }) 
           log(`Screening wave · ${wave.rejected ?? 0} auto-rejected (with rationale), ${wave.kept ?? 0} advanced · early-career protected`);
 
           // The survivor proceeds toward the interview (this sets the calendar gate).
-          await advance(targetId); // AI-matched → Screening
+          await advance(targetId); // Screened → Interview
           await fetch("/api/sim/screen-draft", { method: "POST", headers: JSON_HEADERS, body: JSON.stringify({ entryId: targetId }) });
           await fetch(`/api/pipeline/${targetId}`, { method: "POST", headers: JSON_HEADERS, body: JSON.stringify({ action: "accept" }) });
           await waitEntry(targetId, (e) => e.stage === "Interview" || e.approvalKind === "calendar");

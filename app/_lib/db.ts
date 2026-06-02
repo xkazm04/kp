@@ -361,6 +361,7 @@ function ensureDb(): Database.Database {
   seedJobs(db);
   seedCandidates(db);
   seedPipeline(db);
+  migratePipelineStages(db); // remap any legacy 7-stage rows to the 5-stage model
   _db = db;
   // Reclaim expired (and, once their TTL lapses, superseded-PROMPT_VERSION)
   // cache rows on boot. lookupGeminiCache only SKIPS expired rows — it never
@@ -995,6 +996,29 @@ export function getProfileRecord(id: string): { row: ProfileRow; payload: unknow
   }
 }
 
+// Overwrite an existing profile in place (created_at is preserved so the roster
+// keeps its order; the payload is the freshly re-routed/re-scored profile from
+// profile_cli). Returns false when no row matched the id.
+export function updateProfile(id: string, input: SaveProfileInput): boolean {
+  const db = ensureDb();
+  const info = db
+    .prepare(
+      `UPDATE profiles SET label = ?, archetype = ?, role_family = ?, completeness = ?, payload_json = ?
+       WHERE id = ?`
+    )
+    .run(input.label, input.archetype, input.roleFamily, input.completeness, JSON.stringify(input.payload), id);
+  return Number(info.changes) > 0;
+}
+
+// Returns false when no row matched the id. Pipeline entries reference a profile
+// by candidateId but hold their own denormalized label/archetype, so a delete
+// here does not cascade — an already-converted candidate stays in the pipeline.
+export function deleteProfile(id: string): boolean {
+  const db = ensureDb();
+  const info = db.prepare(`DELETE FROM profiles WHERE id = ?`).run(id);
+  return Number(info.changes) > 0;
+}
+
 // Seed the synthetic candidate population into `profiles` on first boot, so
 // Profile / Match / Pipeline show an enterprise-like load.
 const SEED_CANDIDATES_PATH = path.join(process.cwd(), "data", "seed_candidates", "candidates.json");
@@ -1047,17 +1071,24 @@ function seedCandidates(db: Database.Database): void {
 
 // ---- Hiring pipeline (Phase 10) -------------------------------------------
 
-export const PIPELINE_STAGES = ["Sourced", "AI-matched", "Screening", "Interview", "Offer", "Hired"] as const;
+// Consolidated 5-stage model. "Accepted" = CV received (inbound or proactively
+// sourced), waiting for screening; "Screened" = run through the first wave of
+// evaluation (matching + AI screening). Legacy Sourced→Accepted and
+// AI-matched/Screening→Screened are remapped by migratePipelineStages() on boot.
+export const PIPELINE_STAGES = ["Accepted", "Screened", "Interview", "Offer", "Hired"] as const;
 export type PipelineStage = (typeof PIPELINE_STAGES)[number];
 
-// The analytics funnel's stage axis. "Accepted" is a real first stage — inbound
-// applications written by the channel/sim intake (see PipelineTypes.STAGES) — but
-// it is intentionally absent from PIPELINE_STAGES so actOnPipelineEntry's linear
-// advance keeps treating it as pre-Sourced. The funnel must still place those
-// rows somewhere: prepend it here, otherwise an Accepted entry's stageIndex is -1
-// and it counts toward the headline total but vanishes from the funnel buckets.
-export const FUNNEL_STAGES = ["Accepted", ...PIPELINE_STAGES] as const;
+// Accepted is now a real first stage IN the canonical progression, so the funnel
+// axis is just the pipeline stages — no separate prefix.
+export const FUNNEL_STAGES = PIPELINE_STAGES;
 export type FunnelStage = (typeof FUNNEL_STAGES)[number];
+
+// Legacy → consolidated stage mapping, applied to persisted rows + the seed.
+export const LEGACY_STAGE_MAP: Record<string, PipelineStage> = {
+  Sourced: "Accepted",
+  "AI-matched": "Screened",
+  Screening: "Screened",
+};
 
 export type PipelineEntry = {
   id: string;
@@ -1120,14 +1151,14 @@ function recordEvent(
   });
 }
 
-export function listPipelineEvents(limit = 40): PipelineEvent[] {
+export function listPipelineEvents(limit = 40, offset = 0): PipelineEvent[] {
   const db = ensureDb();
   const rows = db
     .prepare(
       `SELECT id, entry_id, candidate_label, job_title, archetype, kind, from_stage, to_stage, detail, created_at
-       FROM pipeline_events ORDER BY created_at DESC, id DESC LIMIT ?`
+       FROM pipeline_events ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?`
     )
-    .all(limit) as Array<{
+    .all(limit, offset) as Array<{
     id: number;
     entry_id: string | null;
     candidate_label: string | null;
@@ -1153,7 +1184,31 @@ export function listPipelineEvents(limit = 40): PipelineEvent[] {
   }));
 }
 
+// Total recorded events — lets the decision-log endpoint compute `hasMore`
+// without over-fetching, so the UI can page through the full audit trail.
+export function countPipelineEvents(): number {
+  const db = ensureDb();
+  const row = db.prepare(`SELECT COUNT(*) AS n FROM pipeline_events`).get() as { n: number };
+  return row.n;
+}
+
 const SEED_PIPELINE_PATH = path.join(process.cwd(), "data", "seed_pipeline", "pipeline.json");
+
+// Remap any persisted legacy 7-stage rows (and their event trail) to the
+// consolidated 5-stage model. Idempotent — once remapped the old strings no
+// longer match — so it's safe to run on every boot.
+function migratePipelineStages(db: Database.Database): void {
+  const updEntry = db.prepare(`UPDATE pipeline_entries SET stage = ? WHERE stage = ?`);
+  const updTo = db.prepare(`UPDATE pipeline_events SET to_stage = ? WHERE to_stage = ?`);
+  const updFrom = db.prepare(`UPDATE pipeline_events SET from_stage = ? WHERE from_stage = ?`);
+  db.transaction(() => {
+    for (const [legacy, next] of Object.entries(LEGACY_STAGE_MAP)) {
+      updEntry.run(next, legacy);
+      updTo.run(next, legacy);
+      updFrom.run(next, legacy);
+    }
+  })();
+}
 
 function seedPipeline(db: Database.Database): void {
   const count = db.prepare(`SELECT COUNT(*) AS n FROM pipeline_entries`).get() as { n: number };
@@ -1203,7 +1258,7 @@ function seedPipeline(db: Database.Database): void {
         role_family: e.roleFamily ?? null,
         job_id: e.jobId ?? null,
         job_title: e.jobTitle ?? null,
-        stage: e.stage ?? "Sourced",
+        stage: e.stage ?? "Accepted",
         match_score: e.matchScore ?? null,
         status: e.status ?? "active",
         approval_kind: e.approvalKind ?? null,
@@ -1219,10 +1274,10 @@ function seedPipeline(db: Database.Database): void {
         jobTitle: e.jobTitle,
         archetype: e.archetype,
         kind: "matched",
-        toStage: "AI-matched",
+        toStage: "Screened",
         createdAt,
       });
-      if (e.stage !== "Sourced" && e.stage !== "AI-matched") {
+      if (e.stage !== "Accepted" && e.stage !== "Screened") {
         recordEvent(db, {
           entryId: e.id,
           candidateLabel: e.candidateLabel,
@@ -1322,10 +1377,9 @@ export function pipelineAnalytics(): PipelineAnalytics {
     stage_changed_at: string | null;
   }[];
 
-  // Index against FUNNEL_STAGES (Accepted-first) so inbound rows land at the top
-  // of the funnel instead of returning -1. The by-job/by-archetype thresholds
-  // below compare against idxOf("Interview")/idxOf("Screening") symbolically, so
-  // they stay correct as the shared offset shifts by one.
+  // Index against FUNNEL_STAGES (= the 5 canonical stages, Accepted-first). The
+  // by-job/by-archetype thresholds below compare against idxOf("Interview") /
+  // idxOf("Screened") symbolically, so they stay correct if the axis shifts.
   const idxOf = (s: string) => FUNNEL_STAGES.indexOf(s as FunnelStage);
   const now = Date.now();
   const daysSince = (iso?: string | null): number | null => {
@@ -1406,7 +1460,7 @@ export function pipelineAnalytics(): PipelineAnalytics {
     const m = archMap.get(key) ?? { total: 0, hired: 0, advanced: 0 };
     m.total += 1;
     if (r.stage === "Hired") m.hired += 1;
-    if (idxOf(r.stage) >= idxOf("Screening")) m.advanced += 1;
+    if (idxOf(r.stage) >= idxOf("Screened")) m.advanced += 1;
     archMap.set(key, m);
   }
   const byArchetype = [...archMap.entries()]
@@ -1519,7 +1573,7 @@ export function createPipelineEntry(input: CreatePipelineInput): { entry: Pipeli
     return { entry: rowToEntry(existing), created: false };
   }
   const now = new Date().toISOString();
-  const stage = input.stage ?? "AI-matched";
+  const stage = input.stage ?? "Screened";
   db.prepare(
     `INSERT INTO pipeline_entries
        (id, candidate_id, candidate_label, archetype, role_family, job_id, job_title,
@@ -1741,18 +1795,55 @@ export function getActiveTaskByDedupe(dedupeKey: string): TaskRecord | null {
   return r ? rowToTask(r) : null;
 }
 
-export function listTasks(limit = 40): TaskRecord[] {
+// The live Background-tasks view: every active (queued/running) task regardless
+// of age — a long run started days ago must stay visible — plus tasks that
+// finished on/after `sinceIso`. Older finished tasks are excluded here and paged
+// in on demand via listTaskHistory, so the polled payload stays bounded.
+export function listRecentTasks(sinceIso: string, limit = 60): TaskRecord[] {
   const db = ensureDb();
   const rows = db
     .prepare(
       `SELECT * FROM tasks
+       WHERE status IN ('queued','running')
+          OR COALESCE(finished_at, created_at) >= @since
        ORDER BY (CASE WHEN status IN ('queued','running') THEN 0 ELSE 1 END),
                 CASE WHEN status IN ('queued','running') THEN created_at END ASC,
                 finished_at DESC
-       LIMIT ?`
+       LIMIT @limit`
     )
-    .all(limit) as TaskRow[];
+    .all({ since: sinceIso, limit }) as TaskRow[];
   return rows.map(rowToTask);
+}
+
+// Finished tasks older than `beforeIso`, newest-first, offset-paged — the
+// complement of listRecentTasks. Powers the on-demand history table so the full
+// (potentially huge) trail is never loaded at once. The `< before` here and the
+// `>= since` above share one cutoff at the call site, so no task is dropped
+// between the two windows or shown in both.
+export function listTaskHistory(beforeIso: string, limit: number, offset: number): TaskRecord[] {
+  const db = ensureDb();
+  const rows = db
+    .prepare(
+      `SELECT * FROM tasks
+       WHERE status NOT IN ('queued','running')
+         AND COALESCE(finished_at, created_at) < @before
+       ORDER BY COALESCE(finished_at, created_at) DESC, id DESC
+       LIMIT @limit OFFSET @offset`
+    )
+    .all({ before: beforeIso, limit, offset }) as TaskRow[];
+  return rows.map(rowToTask);
+}
+
+export function countTaskHistory(beforeIso: string): number {
+  const db = ensureDb();
+  const row = db
+    .prepare(
+      `SELECT COUNT(*) AS n FROM tasks
+       WHERE status NOT IN ('queued','running')
+         AND COALESCE(finished_at, created_at) < @before`
+    )
+    .get({ before: beforeIso }) as { n: number };
+  return row.n;
 }
 
 export function markTaskRunning(id: string): void {

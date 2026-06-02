@@ -48,7 +48,7 @@ export function ApprovedCasesSection({
                   type="button"
                   onClick={() => source(c.id)}
                   disabled={sourcing === c.id}
-                  title="Rank the existing candidate DB against this role and seed the pipeline at Sourced"
+                  title="Rank the existing candidate DB against this role and seed the pipeline at Accepted"
                   className="focus-ring inline-flex h-8 items-center justify-center gap-1.5 rounded-md border border-stone-200 px-2 text-micro font-semibold text-coral hover:border-coral/40 disabled:opacity-50"
                 >
                   <Users size={12} />

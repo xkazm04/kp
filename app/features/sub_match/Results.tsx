@@ -42,7 +42,7 @@ export function Results({ result, matchRef }: { result: MatchResponse; matchRef:
           jobId: m.jobId,
           jobTitle: m.title,
           matchScore: m.total,
-          stage: "AI-matched",
+          stage: "Screened",
         }),
       });
       if (r.ok) {

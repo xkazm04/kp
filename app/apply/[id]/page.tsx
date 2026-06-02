@@ -5,7 +5,7 @@ import { ConversationalApply } from "./ConversationalApply";
 export const dynamic = "force-dynamic";
 
 // Public, formless conversational apply for a role. A short chat runs knockout
-// questions, then drops a passing candidate into the pipeline as Sourced.
+// questions, then drops a passing candidate into the pipeline as Accepted.
 export default async function ApplyPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const job = getJob(id);

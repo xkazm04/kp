@@ -39,8 +39,8 @@ const CHANNELS: { id: string; icon: typeof Link2; name: string; status: string; 
 ];
 
 // Phase 2 — inbound channels & integrations. Where candidates ENTER the pipeline
-// (the front redesign): applications arrive at ‘Accepted’; proactive sourcing
-// lands at ‘Sourced’. Both then flow to AI-matched.
+// (the front redesign): both inbound applications and proactively-sourced
+// candidates arrive at ‘Accepted’, then flow into ‘Screened’ (first-wave evaluation).
 export function ChannelsTab() {
   const router = useRouter();
   const [entries, setEntries] = useState<Entry[]>([]);
@@ -89,9 +89,10 @@ export function ChannelsTab() {
         <p className="text-meta uppercase text-coral">Workspace</p>
         <h2 className="mt-1 font-serif text-display text-ink">Channels &amp; integrations</h2>
         <p className="mt-2 max-w-2xl text-body text-steel">
-          Where candidates enter the pipeline. Inbound <strong>applications</strong> arrive at{" "}
-          <span className="font-semibold text-ink">Accepted</span>; proactive sourcing lands at{" "}
-          <span className="font-semibold text-ink">Sourced</span>. Both then flow to AI-matched.
+          Where candidates enter the pipeline. Both inbound <strong>applications</strong> and
+          proactively-sourced candidates arrive at{" "}
+          <span className="font-semibold text-ink">Accepted</span>, then flow into{" "}
+          <span className="font-semibold text-ink">Screened</span> for first-wave evaluation.
         </p>
       </header>
 

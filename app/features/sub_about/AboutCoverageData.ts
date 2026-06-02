@@ -362,7 +362,7 @@ fb --> out
     body: `\`\`\`puml
 @startuml
 title Auto-advance BAU, hold the rest
-[AI-matched entry] as e
+[Screened entry] as e
 [Fairness gate\\n(pre-LLM)] <<gate>> as gate
 [Screening recommendation\\nLLM + fallback] <<auto>> as screen
 [Auto-advance\\nBAU · conf ≥ 80] <<auto>> as adv

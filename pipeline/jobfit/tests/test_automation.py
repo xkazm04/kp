@@ -28,13 +28,18 @@ STUDENT = MatchCandidate(
 
 class PolicyTest(unittest.TestCase):
     def ev(self, **kw):
-        base = {"stage": "AI-matched", "archetype": "bau", "matchScore": 60, "daysInStage": 0, "approvalKind": None}
+        base = {"stage": "Screened", "archetype": "bau", "matchScore": 60, "daysInStage": 0, "approvalKind": None}
         base.update(kw)
         return automation.evaluate_entry(base)
 
-    def test_bau_high_advances(self):
-        d = self.ev(matchScore=75)
-        self.assertEqual((d["action"], d["toStage"]), ("advance", "Screening"))
+    def test_bau_high_advances_after_settling(self):
+        # Strong BAU clears screening and advances to Interview once it has aged in Screened.
+        d = self.ev(matchScore=80, daysInStage=3)
+        self.assertEqual((d["action"], d["toStage"]), ("advance", "Interview"))
+
+    def test_bau_high_holds_until_settled(self):
+        # A freshly-screened strong BAU settles in Screened before advancing.
+        self.assertEqual(self.ev(matchScore=80, daysInStage=0)["action"], "hold")
 
     def test_bau_low_rejects(self):
         self.assertEqual(self.ev(matchScore=35)["action"], "reject")
@@ -44,32 +49,28 @@ class PolicyTest(unittest.TestCase):
 
     def test_early_career_never_advances_or_rejects(self):
         for score in (95, 20):
-            d = self.ev(archetype="student", matchScore=score)
+            d = self.ev(archetype="student", matchScore=score, daysInStage=9)
             self.assertEqual(d["action"], "hold", f"score {score}")
 
-    def test_screening_auto_advance_when_aged_and_unblocked(self):
-        d = self.ev(stage="Screening", daysInStage=3, approvalKind=None)
-        self.assertEqual((d["action"], d["toStage"]), ("advance", "Interview"))
-
-    def test_screening_with_pending_approval_holds(self):
-        self.assertEqual(self.ev(stage="Screening", approvalKind="screening_review", daysInStage=9)["action"], "hold")
+    def test_screened_with_pending_approval_holds(self):
+        self.assertEqual(self.ev(approvalKind="screening_review", daysInStage=9)["action"], "hold")
 
     def test_interview_always_manual(self):
         self.assertEqual(self.ev(stage="Interview", daysInStage=9)["action"], "hold")
 
-    def test_sourced_with_score_advances_to_ai_matched(self):
-        # Fan-out entries land in Sourced; once matched they auto-advance into the
-        # AI-matched gate (where the archetype rules actually decide).
-        d = self.ev(stage="Sourced", matchScore=72)
-        self.assertEqual((d["action"], d["toStage"]), ("advance", "AI-matched"))
+    def test_accepted_with_score_advances_to_screened(self):
+        # Intake lands in Accepted; once matched it auto-advances into the Screened
+        # gate (where the archetype rules actually decide).
+        d = self.ev(stage="Accepted", matchScore=72)
+        self.assertEqual((d["action"], d["toStage"]), ("advance", "Screened"))
 
-    def test_sourced_advance_is_archetype_neutral(self):
-        # The Sourced->AI-matched move is never a reject and applies to early-career too.
-        d = self.ev(stage="Sourced", archetype="student", matchScore=30)
-        self.assertEqual((d["action"], d["toStage"]), ("advance", "AI-matched"))
+    def test_accepted_advance_is_archetype_neutral(self):
+        # The Accepted->Screened move is never a reject and applies to early-career too.
+        d = self.ev(stage="Accepted", archetype="student", matchScore=30)
+        self.assertEqual((d["action"], d["toStage"]), ("advance", "Screened"))
 
-    def test_sourced_without_score_holds(self):
-        self.assertEqual(self.ev(stage="Sourced", matchScore=0)["action"], "hold")
+    def test_accepted_without_score_holds(self):
+        self.assertEqual(self.ev(stage="Accepted", matchScore=0)["action"], "hold")
 
     def test_offer_always_holds(self):
         # Extend is the recruiter's call; Offer -> Hired is the candidate's. Policy never advances/rejects.
@@ -129,7 +130,7 @@ class DraftsTest(unittest.TestCase):
         self.assertTrue(r["subject"] and r["body"])
 
     def test_rejection_deterministic(self):
-        r, _ = automation.draft_rejection(BAU, self.job, self.m, "Screening", provider=None)
+        r, _ = automation.draft_rejection(BAU, self.job, self.m, "Screened", provider=None)
         self.assertTrue(r["body"])
 
     def test_prep_deterministic(self):

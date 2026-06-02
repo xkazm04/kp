@@ -24,7 +24,7 @@ export async function runScreenWave(
   override?: Partial<ScreeningRule>
 ): Promise<{ decisions: ScreenDecision[]; rejected: number; kept: number; cohort: number; config: ScreeningRule }> {
   const cfg: ScreeningRule = { ...getDecisionConfig<ScreeningRule>("screening"), ...(override ?? {}) };
-  const cohort = listPipeline().filter((e) => e.jobId === jobId && e.status === "active" && e.stage === "AI-matched");
+  const cohort = listPipeline().filter((e) => e.jobId === jobId && e.status === "active" && e.stage === "Screened");
   const sorted = [...cohort].sort((a, b) => (a.matchScore ?? 0) - (b.matchScore ?? 0)); // worst first
   const n = sorted.length;
   const bottomCount = Math.floor((n * cfg.rejectBottomPercent) / 100);

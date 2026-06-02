@@ -2,7 +2,7 @@
 
     python -m pipeline.jobfit.automation_cli screen      --candidate-json P --job-id J [--no-llm]
     python -m pipeline.jobfit.automation_cli outreach    --profile-json P --job-id J [--strengths-json S]
-    python -m pipeline.jobfit.automation_cli rejection   --candidate-json P --job-id J --stage Screening
+    python -m pipeline.jobfit.automation_cli rejection   --candidate-json P --job-id J --stage Screened
     python -m pipeline.jobfit.automation_cli prep        --candidate-json P --job-id J
     python -m pipeline.jobfit.automation_cli scorecard   --candidate-json P --job-id J --notes-file N
     python -m pipeline.jobfit.automation_cli rematch     --candidate-json P --current-job-id J
@@ -54,7 +54,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--job-id")
     parser.add_argument("--current-job-id")
     parser.add_argument("--strengths-json", type=Path)
-    parser.add_argument("--stage", default="Screening")
+    parser.add_argument("--stage", default="Screened")
     parser.add_argument("--notes-file", type=Path)
     parser.add_argument("--entries-json", type=Path)
     parser.add_argument("--jobs", type=Path, default=None)

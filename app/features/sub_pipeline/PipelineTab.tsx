@@ -163,7 +163,7 @@ export function PipelineTab() {
           onClick={() => startTask("batch_screen")}
           disabled={!!batch}
           className="focus-ring inline-flex h-9 items-center gap-1.5 rounded-md border border-coral/40 bg-coral/5 px-3 text-base font-semibold text-coral hover:bg-coral/10 disabled:opacity-60"
-          title="Background LLM task: screen every AI-matched candidate (runs for minutes; keeps going as you navigate; survives refresh)"
+          title="Background LLM task: screen every matched candidate (runs for minutes; keeps going as you navigate; survives refresh)"
         >
           <Sparkles size={14} />
           {batch ? `Screening ${batch.progressDone}/${batch.progressTotal}…` : "AI-screen all matched"}
