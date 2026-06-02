@@ -1,3 +1,8 @@
+// End-to-end coverage for the consolidated **Analyze** flow (attach CV → optional
+// job description / company / GitHub → Score Breakdown, Salary, Job-fit and GitHub
+// tabs). This is the LLM-backed path, so the whole file skips without a Gemini key.
+// The profile build/save round-trip is a separate, deterministic suite that needs
+// no API key — see profile-builder.spec.ts.
 import path from "path";
 import { expect, test, type Page } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";

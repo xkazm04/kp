@@ -10,10 +10,9 @@ participant "KO Filter" as ko
 database "jobs · requirements\n· entry_profiles" as jobs
 participant "Multi-factor Scorer" as scorer
 participant "Taxonomy graph" as taxo
-participant "Embedding index" as embed
 participant "Reasoning Generator" as reason
 participant "reasoning-cache" as rcache
-participant "Gemini" as gemini
+participant "Claude CLI" as claude
 database "matches · reasoning" as mstore
 
 user -> api : run matching for candidateId
@@ -21,18 +20,19 @@ api -> jobs : load active jobs
 
 == Layer A: hard filters (KO criteria, cheap DB-side) ==
 api -> ko : candidate profile + job set
-ko -> ko : drop on location / distance
-ko -> ko : drop on remote/hybrid/onsite preference
+ko -> ko : drop on work-mode preference (remote/hybrid/onsite)
 ko -> ko : drop on seniority floor (junior !-> senior-only)
-ko -> ko : drop on min education / languages / work auth
+ko -> ko : drop on min education / required languages
+ko -> ko : early-career: gate on role entry-eligibility
 ko --> api : surviving job shortlist (e.g. 5k -> ~200)
 
 == Layer B: multi-factor scoring (per surviving job) ==
 loop each shortlisted job
   api -> scorer : score(candidate, job)
   scorer -> taxo : skills match w/ hierarchy + alias resolution
-  scorer -> embed : semantic similarity (career history <-> role)
-  scorer -> scorer : skills · career fit · personal fit -> weighted total
+  scorer -> scorer : career fit (role family + seniority proximity)
+  scorer -> scorer : personal fit (language coverage + keyword overlap)
+  scorer -> scorer : weighted total by archetype
 end
 scorer --> api : scored + ranked jobs
 
@@ -43,8 +43,8 @@ loop top-N ranked
     rcache --> api : reasoning
   else
     api -> reason : generate verdict / strengths / gaps / probes
-    reason -> gemini : structured call
-    gemini --> reason : reasoning JSON
+    reason -> claude : structured call
+    claude --> reason : reasoning JSON (else deterministic fallback)
     reason -> rcache : store
     reason --> api : reasoning
   end

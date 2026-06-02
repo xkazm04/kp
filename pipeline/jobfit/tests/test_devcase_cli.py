@@ -79,6 +79,20 @@ class TestDevcaseCliErrorStatus(unittest.TestCase):
         # Success now always carries the uniform provenance envelope (idea-ee96b185).
         self.assertEqual(set(_last_json(out)), {"result", "source", "perStepSources"})
 
+    def test_source_result_carries_skipped_count(self):
+        # idea-19e24fe9: a candidate whose payload fails validation must be counted in the
+        # envelope's result.skipped (with a per-skip reason) instead of vanishing silently.
+        with tempfile.TemporaryDirectory() as d:
+            role, cands = Path(d) / "role.json", Path(d) / "cands.json"
+            role.write_text(json.dumps({"title": "Backend", "roleFamily": "software_engineering"}), encoding="utf-8")
+            cands.write_text(json.dumps([{"id": "broken", "payload": {"skillClaims": [{"level": "advanced"}]}}]), encoding="utf-8")
+            code, out, _err = _run(["source", "--role-json", str(role), "--candidates-json", str(cands)])
+        self.assertEqual(code, 0)
+        result = _last_json(out)["result"]
+        self.assertEqual(result["candidates"], [])
+        self.assertEqual(result["skipped"], 1)
+        self.assertEqual(result["skippedReasons"], [{"candidateId": "broken", "reason": "ValidationError"}])
+
 
 class TestDevcaseCliProvenanceContract(unittest.TestCase):
     """Every command emits the same {result, source, perStepSources} envelope

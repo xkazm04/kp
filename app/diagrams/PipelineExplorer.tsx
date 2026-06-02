@@ -29,6 +29,7 @@ export function PipelineExplorer({ source }: { source: string }) {
           source={source}
           scale="natural"
           className="mt-3"
+          expandable
           activeNodeId={active?.id}
           onNodeClick={(node) => {
             const detail = STEP_DETAILS[node.id];

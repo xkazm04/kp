@@ -1,7 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { writeFile } from "node:fs/promises";
 import path from "node:path";
-import { getProfileRecord, listProfiles, saveProfile } from "@/app/_lib/db";
+import {
+  deleteProfile,
+  getProfileRecord,
+  listProfiles,
+  saveProfile,
+  updateProfile,
+  type SaveProfileInput,
+} from "@/app/_lib/db";
 import {
   cleanupWorkdir,
   createWorkdir,
@@ -11,10 +18,57 @@ import {
 
 export const runtime = "nodejs";
 
+type RoutedProfile = {
+  profile: Record<string, unknown>;
+  archetype: string;
+  completeness: number;
+};
+
+type RouteOutcome = { data: RoutedProfile } | { error: { message: string; status: number } };
+
+// Run the pure-logic profile_cli (archetype router + completeness) over an intake
+// draft. Shared by POST (create) and PUT (edit) so both re-route and re-score the
+// same way — an edit must never persist a stale archetype/completeness.
+async function routeAndScore(
+  profile: Record<string, unknown>,
+  signals: Record<string, unknown>
+): Promise<RouteOutcome> {
+  let workdir: string | null = null;
+  try {
+    workdir = await createWorkdir();
+    const inputPath = path.join(workdir, "intake.json");
+    await writeFile(inputPath, JSON.stringify({ profile, signals }), "utf-8");
+
+    const { result } = spawnPython(["-m", "pipeline.jobfit.profile_cli", "--input-json", inputPath]);
+    const { stdout, stderr, exitCode } = await result;
+    if (exitCode !== 0) {
+      const err = parseStderrError(stderr, exitCode);
+      return { error: { message: err.message, status: err.status } };
+    }
+    return { data: JSON.parse(stdout) as RoutedProfile };
+  } finally {
+    if (workdir) await cleanupWorkdir(workdir);
+  }
+}
+
+// Project the routed profile into the columns the profiles table denormalizes
+// (label/archetype/role_family/completeness) alongside the full payload.
+function persistFieldsFrom(data: RoutedProfile): SaveProfileInput {
+  const profile = data.profile;
+  return {
+    label: (profile.displayName as string) || "Candidate",
+    archetype: data.archetype ?? null,
+    roleFamily: (profile.roleFamily as string) ?? null,
+    completeness: data.completeness ?? null,
+    payload: profile,
+  };
+}
+
 export async function GET(request: NextRequest) {
   try {
     // ?id=<candidateId> → a single profile (label/archetype/completeness + payload),
-    // used by the Decisions analysis-summary modal. No id → the full list.
+    // used by the Decisions analysis-summary modal and the Profile editor (edit /
+    // duplicate hydration). No id → the full list.
     const id = request.nextUrl.searchParams.get("id");
     if (id) {
       const rec = getProfileRecord(id);
@@ -29,7 +83,6 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  let workdir: string | null = null;
   try {
     const body = (await request.json()) as {
       profile?: Record<string, unknown>;
@@ -37,44 +90,68 @@ export async function POST(request: NextRequest) {
       persist?: boolean;
     };
 
-    workdir = await createWorkdir();
-    const inputPath = path.join(workdir, "intake.json");
-    await writeFile(
-      inputPath,
-      JSON.stringify({ profile: body.profile ?? {}, signals: body.signals ?? {} }),
-      "utf-8"
-    );
-
-    const { result } = spawnPython(["-m", "pipeline.jobfit.profile_cli", "--input-json", inputPath]);
-    const { stdout, stderr, exitCode } = await result;
-    if (exitCode !== 0) {
-      const err = parseStderrError(stderr, exitCode);
-      return NextResponse.json({ error: err.message }, { status: err.status });
+    const outcome = await routeAndScore(body.profile ?? {}, body.signals ?? {});
+    if ("error" in outcome) {
+      return NextResponse.json({ error: outcome.error.message }, { status: outcome.error.status });
     }
-
-    const data = JSON.parse(stdout) as {
-      profile: Record<string, unknown>;
-      archetype: string;
-      completeness: number;
-    };
+    const { data } = outcome;
 
     // Persist by default; the form can request a dry-run preview with persist:false.
     if (body.persist === false) {
       return NextResponse.json({ ...data, saved: null });
     }
-    const profile = data.profile;
-    const saved = saveProfile({
-      label: (profile.displayName as string) || "Candidate",
-      archetype: data.archetype ?? null,
-      roleFamily: (profile.roleFamily as string) ?? null,
-      completeness: data.completeness ?? null,
-      payload: profile,
-    });
+    const saved = saveProfile(persistFieldsFrom(data));
     return NextResponse.json({ ...data, saved });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Profile build failed.";
     return NextResponse.json({ error: message }, { status: 500 });
-  } finally {
-    if (workdir) await cleanupWorkdir(workdir);
+  }
+}
+
+export async function PUT(request: NextRequest) {
+  try {
+    const body = (await request.json()) as {
+      id?: string;
+      profile?: Record<string, unknown>;
+      signals?: Record<string, unknown>;
+    };
+    if (!body.id) {
+      return NextResponse.json({ error: "Profile id is required." }, { status: 400 });
+    }
+    if (!getProfileRecord(body.id)) {
+      return NextResponse.json({ error: "Profile not found." }, { status: 404 });
+    }
+
+    const outcome = await routeAndScore(body.profile ?? {}, body.signals ?? {});
+    if ("error" in outcome) {
+      return NextResponse.json({ error: outcome.error.message }, { status: outcome.error.status });
+    }
+    const { data } = outcome;
+
+    const ok = updateProfile(body.id, persistFieldsFrom(data));
+    if (!ok) {
+      return NextResponse.json({ error: "Profile not found." }, { status: 404 });
+    }
+    return NextResponse.json({ ...data, saved: { id: body.id } });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Profile update failed.";
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const id = request.nextUrl.searchParams.get("id");
+    if (!id) {
+      return NextResponse.json({ error: "Profile id is required." }, { status: 400 });
+    }
+    const ok = deleteProfile(id);
+    if (!ok) {
+      return NextResponse.json({ error: "Profile not found." }, { status: 404 });
+    }
+    return NextResponse.json({ deleted: id });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Profile delete failed.";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

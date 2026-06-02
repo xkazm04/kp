@@ -16,7 +16,7 @@ let _db: Database.Database | null = null;
 // diagnosable. Consumers can read getSeedHealth() or surface it on first request.
 
 export type SeedIssue = {
-  seed: "jobs" | "candidates" | "pipeline";
+  seed: "jobs" | "candidates" | "analyses" | "pipeline";
   path: string;
   reason: string;
   severity: "missing" | "error";
@@ -178,7 +178,14 @@ function ensureDb(): Database.Database {
       approval_detail TEXT,
       created_at TEXT,
       stage_changed_at TEXT,
-      updated_at TEXT
+      updated_at TEXT,
+      -- Intake degradation flag: set when an inbound application could not be
+      -- normalized into a matchable profile and was demoted to a label-only stub.
+      -- Turns a silent, server-log-only demotion into a visible recruiter signal
+      -- (the entry needs manual profile capture). The reason carries the bounded
+      -- failure detail so the recruiter knows what to recover.
+      intake_degraded INTEGER NOT NULL DEFAULT 0,
+      intake_degraded_reason TEXT
     );
 
     CREATE INDEX IF NOT EXISTS idx_pipeline_job ON pipeline_entries (job_id);
@@ -330,6 +337,18 @@ function ensureDb(): Database.Database {
       /* column already exists */
     }
   }
+  // Migration for DBs created before the intake-degradation flag existed. The
+  // boolean column is NOT NULL DEFAULT 0 so legacy rows read as "not degraded".
+  for (const sql of [
+    "ALTER TABLE pipeline_entries ADD COLUMN intake_degraded INTEGER NOT NULL DEFAULT 0",
+    "ALTER TABLE pipeline_entries ADD COLUMN intake_degraded_reason TEXT",
+  ]) {
+    try {
+      db.exec(sql);
+    } catch {
+      /* column already exists */
+    }
+  }
   // Migration for dev_submissions evaluation + contact columns (Phase D6 / B),
   // plus the interview run-of-show column added when the voice screen grew a
   // candidate-facing agenda.
@@ -360,6 +379,7 @@ function ensureDb(): Database.Database {
   seedExampleJd(db);
   seedJobs(db);
   seedCandidates(db);
+  seedAnalyses(db);
   seedPipeline(db);
   migratePipelineStages(db); // remap any legacy 7-stage rows to the 5-stage model
   _db = db;
@@ -1019,13 +1039,19 @@ export function deleteProfile(id: string): boolean {
   return Number(info.changes) > 0;
 }
 
-// Seed the synthetic candidate population into `profiles` on first boot, so
-// Profile / Match / Pipeline show an enterprise-like load.
+// Seed the synthetic candidate population into `profiles`, so Profile / Match /
+// Pipeline show an enterprise-like load.
 const SEED_CANDIDATES_PATH = path.join(process.cwd(), "data", "seed_candidates", "candidates.json");
+// Stable, deliberately-old timestamp for seeded candidate rows (see seedAnalyses):
+// upserting every boot stays idempotent, and any profile the recruiter builds
+// (created "now", random slug) sorts ahead of the seeds.
+const SEED_CANDIDATE_CREATED_AT = "2024-01-01T00:00:00.000Z";
 
 function seedCandidates(db: Database.Database): void {
-  const count = db.prepare(`SELECT COUNT(*) AS n FROM profiles`).get() as { n: number };
-  if (count.n > 0) return;
+  // UPSERTS the `cand-*` rows on every boot (no empty-table guard) so regenerating
+  // the committed candidate seed — e.g. after the ČS skill alignment — refreshes
+  // the profiles pool without a DB reset. Recruiter-built profiles use random,
+  // non-`cand-` slugs, so they are never touched or replaced.
   if (!existsSync(SEED_CANDIDATES_PATH)) {
     recordSeedIssue({ seed: "candidates", path: SEED_CANDIDATES_PATH, reason: "file does not exist", severity: "missing" });
     return;
@@ -1046,9 +1072,8 @@ function seedCandidates(db: Database.Database): void {
     recordSeedIssue({ seed: "candidates", path: SEED_CANDIDATES_PATH, reason: "seed JSON is not an array", severity: "error" });
     return;
   }
-  const now = new Date().toISOString();
   const insert = db.prepare(
-    `INSERT OR IGNORE INTO profiles (id, label, archetype, role_family, completeness, payload_json, created_at)
+    `INSERT OR REPLACE INTO profiles (id, label, archetype, role_family, completeness, payload_json, created_at)
      VALUES (@id, @label, @archetype, @role_family, @completeness, @payload_json, @created_at)`
   );
   const tx = db.transaction((rows: Array<Record<string, unknown>>) => {
@@ -1062,7 +1087,68 @@ function seedCandidates(db: Database.Database): void {
         role_family: (rec.roleFamily as string) ?? null,
         completeness: (rec.completeness as number) ?? null,
         payload_json: JSON.stringify(rec),
-        created_at: now,
+        created_at: SEED_CANDIDATE_CREATED_AT,
+      });
+    }
+  });
+  tx(records);
+}
+
+// Seed deterministic CV analyses for the synthetic candidates into `analyses` on
+// first boot, so the Profile candidate matrix (and Match's saved-analysis source)
+// show analyzed candidates without anyone running the LLM Analyze flow. Generated
+// by `python -m pipeline.jobfit.seed_analyses` from the same candidate seed; each
+// payload is a schema-valid AnalysisResult, so /history/<slug> renders it like a
+// real run. Stable `seed-<id>` slugs keep the links idempotent across reseeds.
+const SEED_ANALYSES_PATH = path.join(process.cwd(), "data", "seed_analyses", "analyses.json");
+
+// Stable, deliberately-old timestamp for seed rows: refreshing them every boot
+// stays idempotent (no reordering), and any real analysis the recruiter runs
+// (created "now") sorts ahead of the seeds in the history/matrix.
+const SEED_ANALYSIS_CREATED_AT = "2024-01-01T00:00:00.000Z";
+
+function seedAnalyses(db: Database.Database): void {
+  // Unlike the one-shot seeders, this UPSERTS the `seed-<id>` rows on every boot
+  // (no empty-table guard) so regenerating the committed JSON — e.g. after the
+  // analysis shape grows — refreshes the seeded analyses without a DB reset. Real
+  // analyses use random, non-`seed-` slugs, so they are never touched or replaced.
+  if (!existsSync(SEED_ANALYSES_PATH)) {
+    recordSeedIssue({ seed: "analyses", path: SEED_ANALYSES_PATH, reason: "file does not exist", severity: "missing" });
+    return;
+  }
+  let records: Array<Record<string, unknown>>;
+  try {
+    records = JSON.parse(readFileSync(SEED_ANALYSES_PATH, "utf-8"));
+  } catch (error) {
+    recordSeedIssue({
+      seed: "analyses",
+      path: SEED_ANALYSES_PATH,
+      reason: error instanceof Error ? error.message : String(error),
+      severity: "error",
+    });
+    return;
+  }
+  if (!Array.isArray(records)) {
+    recordSeedIssue({ seed: "analyses", path: SEED_ANALYSES_PATH, reason: "seed JSON is not an array", severity: "error" });
+    return;
+  }
+  const insert = db.prepare(
+    `INSERT OR REPLACE INTO analyses (slug, candidate_label, jd_slug, score, role_family, seniority, payload_json, created_at)
+     VALUES (@slug, @candidate_label, @jd_slug, @score, @role_family, @seniority, @payload_json, @created_at)`
+  );
+  const tx = db.transaction((rows: Array<Record<string, unknown>>) => {
+    for (const rec of rows) {
+      const id = rec.id as string;
+      if (!id || !rec.payload) continue;
+      insert.run({
+        slug: `seed-${id}`,
+        candidate_label: (rec.candidate_label as string) || id,
+        jd_slug: null,
+        score: (rec.score as number) ?? null,
+        role_family: (rec.role_family as string) ?? null,
+        seniority: (rec.seniority as string) ?? null,
+        payload_json: JSON.stringify(rec.payload),
+        created_at: SEED_ANALYSIS_CREATED_AT,
       });
     }
   });
@@ -1106,6 +1192,11 @@ export type PipelineEntry = {
   approvalDetail: string | null;
   createdAt: string | null;
   stageChangedAt: string | null;
+  // True when intake could not be normalized into a matchable profile and the
+  // entry is a label-only stub needing manual capture; reason holds the (bounded)
+  // failure detail. See createPipelineEntry / clearIntakeDegraded.
+  intakeDegraded: boolean;
+  intakeDegradedReason: string | null;
 };
 
 export type PipelineEvent = {
@@ -1308,6 +1399,8 @@ type PipelineRow = {
   approval_detail: string | null;
   created_at: string | null;
   stage_changed_at: string | null;
+  intake_degraded: number | null;
+  intake_degraded_reason: string | null;
 };
 
 function rowToEntry(r: PipelineRow): PipelineEntry {
@@ -1328,6 +1421,9 @@ function rowToEntry(r: PipelineRow): PipelineEntry {
     approvalDetail: r.approval_detail,
     createdAt: r.created_at,
     stageChangedAt: r.stage_changed_at,
+    // Stored as 0/1 (and absent on a SELECT that omits the column) — coerce to bool.
+    intakeDegraded: r.intake_degraded === 1,
+    intakeDegradedReason: r.intake_degraded_reason ?? null,
   };
 }
 
@@ -1336,7 +1432,8 @@ export function listPipeline(): PipelineEntry[] {
   const rows = db
     .prepare(
       `SELECT id, candidate_id, candidate_label, archetype, role_family, job_id, job_title,
-              stage, match_score, status, approval_kind, approval_detail, created_at, stage_changed_at
+              stage, match_score, status, approval_kind, approval_detail, created_at, stage_changed_at,
+              intake_degraded, intake_degraded_reason
        FROM pipeline_entries WHERE status != 'rejected'
        ORDER BY job_title, match_score DESC`
     )
@@ -1552,6 +1649,10 @@ export type CreatePipelineInput = {
   jobTitle: string;
   matchScore?: number | null;
   stage?: string;
+  // Mark a label-only stub created because intake normalization failed, with a
+  // short human-readable reason. Defaults to not-degraded for normal additions.
+  intakeDegraded?: boolean;
+  intakeDegradedReason?: string | null;
 };
 
 // Idempotent: a (candidate, job) pair maps to one entry, so re-adding from Match
@@ -1574,12 +1675,16 @@ export function createPipelineEntry(input: CreatePipelineInput): { entry: Pipeli
   }
   const now = new Date().toISOString();
   const stage = input.stage ?? "Screened";
+  const intakeDegraded = input.intakeDegraded ? 1 : 0;
+  const intakeDegradedReason = input.intakeDegraded ? input.intakeDegradedReason ?? "intake normalization failed" : null;
   db.prepare(
     `INSERT INTO pipeline_entries
        (id, candidate_id, candidate_label, archetype, role_family, job_id, job_title,
-        stage, match_score, status, approval_kind, approval_detail, created_at, stage_changed_at, updated_at)
+        stage, match_score, status, approval_kind, approval_detail, created_at, stage_changed_at, updated_at,
+        intake_degraded, intake_degraded_reason)
      VALUES (@id, @candidate_id, @candidate_label, @archetype, @role_family, @job_id, @job_title,
-        @stage, @match_score, 'active', NULL, '', @now, @now, @now)`
+        @stage, @match_score, 'active', NULL, '', @now, @now, @now,
+        @intake_degraded, @intake_degraded_reason)`
   ).run({
     id,
     candidate_id: input.candidateId,
@@ -1591,18 +1696,45 @@ export function createPipelineEntry(input: CreatePipelineInput): { entry: Pipeli
     stage,
     match_score: input.matchScore ?? null,
     now,
+    intake_degraded: intakeDegraded,
+    intake_degraded_reason: intakeDegradedReason,
   });
   recordEvent(db, {
     entryId: id,
     candidateLabel: input.candidateLabel,
     jobTitle: input.jobTitle,
     archetype: input.archetype,
-    kind: "added",
+    kind: intakeDegraded ? "intake_degraded" : "added",
     toStage: stage,
-    detail: "added to pipeline",
+    detail: intakeDegraded ? intakeDegradedReason : "added to pipeline",
   });
   const row = db.prepare(`SELECT * FROM pipeline_entries WHERE id = ?`).get(id) as PipelineRow;
   return { entry: rowToEntry(row), created: true };
+}
+
+// Recruiter resolution of a degraded-intake stub: once the profile has been
+// captured manually the flag is cleared and an event logged, so the audit trail
+// shows the gap was recovered rather than the entry silently slipping through.
+// Returns the updated entry, or null when the id is unknown or wasn't degraded.
+export function clearIntakeDegraded(id: string): PipelineEntry | null {
+  const db = ensureDb();
+  const row = db.prepare(`SELECT * FROM pipeline_entries WHERE id = ?`).get(id) as PipelineRow | undefined;
+  if (!row || row.intake_degraded !== 1) return null;
+  const now = new Date().toISOString();
+  db.prepare(
+    `UPDATE pipeline_entries SET intake_degraded=0, intake_degraded_reason=NULL, updated_at=? WHERE id=?`
+  ).run(now, id);
+  recordEvent(db, {
+    entryId: id,
+    candidateLabel: row.candidate_label,
+    jobTitle: row.job_title,
+    archetype: row.archetype,
+    kind: "intake_resolved",
+    toStage: row.stage,
+    detail: "intake captured manually",
+  });
+  const updated = db.prepare(`SELECT * FROM pipeline_entries WHERE id = ?`).get(id) as PipelineRow;
+  return rowToEntry(updated);
 }
 
 // ---- Automation helpers (Phase 15) ----------------------------------------
@@ -1621,7 +1753,8 @@ export function listActiveEntriesForAutomation(): AutomationEntry[] {
   const rows = db
     .prepare(
       `SELECT id, candidate_id, candidate_label, archetype, role_family, job_id, job_title,
-              stage, match_score, status, approval_kind, approval_detail, created_at, stage_changed_at
+              stage, match_score, status, approval_kind, approval_detail, created_at, stage_changed_at,
+              intake_degraded, intake_degraded_reason
        FROM pipeline_entries WHERE status = 'active'`
     )
     .all() as PipelineRow[];

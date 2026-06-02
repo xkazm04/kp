@@ -18,7 +18,13 @@ const fraunces = Fraunces({
 const SITE_TITLE = "KP Job Fit & Salary Estimator";
 const SITE_DESCRIPTION = "AI-assisted CV seniority scoring and salary estimation pipeline for the Czech market.";
 
+// Anchors relative OG/Twitter image URLs to an absolute origin. Without it Next
+// falls back to http://localhost:3000 and warns at build. Overridable per deploy
+// via NEXT_PUBLIC_SITE_URL; defaults to the project's own domain.
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://nuda.dev";
+
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
   title: SITE_TITLE,
   description: SITE_DESCRIPTION,
   applicationName: "KP Job Fit & Salary Estimator",

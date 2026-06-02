@@ -9,7 +9,7 @@ import { X } from "lucide-react";
 // document.body so it always covers the whole viewport — escaping any ancestor
 // that establishes a containing block for `fixed` (e.g. the tab wrapper's
 // transform-based fade-in animation), which otherwise pinned it to tab content.
-const SIZE: Record<string, string> = { md: "max-w-md", lg: "max-w-lg", xl: "max-w-xl", "2xl": "max-w-2xl", "3xl": "max-w-3xl", "4xl": "max-w-4xl" };
+const SIZE: Record<string, string> = { md: "max-w-md", lg: "max-w-lg", xl: "max-w-xl", "2xl": "max-w-2xl", "3xl": "max-w-3xl", "4xl": "max-w-4xl", full: "max-w-[1600px]" };
 
 export function Modal({
   title,
@@ -24,7 +24,7 @@ export function Modal({
   onClose: () => void;
   children: React.ReactNode;
   footer?: React.ReactNode;
-  size?: "md" | "lg" | "xl" | "2xl" | "3xl" | "4xl";
+  size?: "md" | "lg" | "xl" | "2xl" | "3xl" | "4xl" | "full";
 }) {
   const ref = useRef<HTMLDivElement | null>(null);
   const onCloseRef = useRef(onClose);
@@ -67,16 +67,19 @@ export function Modal({
     };
   }, []);
 
+  // The full-page variant fills the viewport (a near-fullscreen workspace for
+  // dense comparisons) rather than sizing to its content like the dialogs.
+  const isFull = size === "full";
   if (typeof document === "undefined") return null;
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className={`fixed inset-0 z-50 flex items-center justify-center ${isFull ? "p-2 sm:p-4" : "p-4"}`}>
       <button type="button" aria-label="Close" onClick={onClose} className="absolute inset-0 bg-ink/30 backdrop-blur-[1px]" />
       <div
         ref={ref}
         role="dialog"
         aria-modal="true"
         aria-labelledby="modal-title"
-        className={`animate-fade-in relative flex max-h-[85vh] w-full ${SIZE[size] ?? SIZE["2xl"]} flex-col overflow-hidden rounded-lg border border-stone-200 bg-white shadow-2xl`}
+        className={`animate-fade-in relative flex w-full ${isFull ? "h-[92vh] max-h-[92vh]" : "max-h-[85vh]"} ${SIZE[size] ?? SIZE["2xl"]} flex-col overflow-hidden rounded-lg border border-stone-200 bg-white shadow-2xl`}
       >
         <header className="flex items-start gap-3 border-b border-stone-200 px-5 py-3.5">
           <div className="min-w-0 flex-1">

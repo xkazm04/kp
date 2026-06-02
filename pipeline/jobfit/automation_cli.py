@@ -9,7 +9,10 @@
     python -m pipeline.jobfit.automation_cli policy-pass --entries-json E      # Task 7, LLM-free
 
 Input candidate via --candidate-json (MatchCandidate) or --profile-json (CandidateProfileV2, transformed).
-Output: one JSON object to stdout; {"error","status"} to stderr + exit 1 on failure.
+Output: one JSON object to stdout. On failure an {"error","status","code"} envelope goes to stderr with an
+HONEST status — 404/not_found for a missing job or entry, 400/invalid_input for bad arguments or validation,
+500/engine_error for an unexpected fault — plus a matching exit code (2 for 400, 1 otherwise), so the TS seam
+and its callers can tell a bad request from a real outage instead of seeing every failure as a 500.
 """
 
 from __future__ import annotations
@@ -22,6 +25,25 @@ from pathlib import Path
 from . import automation
 from .claude_cli import ClaudeCliProvider
 from .matching import MatchCandidate, load_corpus, score_job
+
+# --- Honest error taxonomy --------------------------------------------------
+# The stderr envelope carries a real HTTP status + a stable machine code so the
+# TS seam (python-runner.parseStderrError) and its callers can tell a client
+# mistake from a server fault, instead of every failure collapsing to 500:
+#   404 / not_found     — a referenced job/entry doesn't exist
+#   400 / invalid_input — bad arguments, malformed JSON, or pydantic validation
+#   500 / engine_error  — an unexpected fault (retry/escalate, don't edit input)
+# Mirrors the codes already emitted by devcase_cli.py.
+ERR_NOT_FOUND = "not_found"
+ERR_INVALID_INPUT = "invalid_input"
+ERR_ENGINE = "engine_error"
+
+
+class NotFoundError(Exception):
+    """A referenced resource (job, entry) does not exist — maps to HTTP 404.
+
+    Deliberately NOT a ValueError subclass so it is caught before the 400 branch,
+    which folds in pydantic ValidationError and json.JSONDecodeError."""
 
 
 def _load_candidate(args) -> MatchCandidate:
@@ -36,9 +58,11 @@ def _load_candidate(args) -> MatchCandidate:
 
 
 def _find_job(jobs, job_id):
+    # A present-but-unknown job id is a 404 (the resource is missing), distinct
+    # from a missing --job-id argument, which the caller guards as a 400.
     job = next((j for j in jobs if j.id == job_id), None)
     if job is None:
-        raise ValueError(f"job not found: {job_id}")
+        raise NotFoundError(f"job not found: {job_id}")
     return job
 
 
@@ -80,6 +104,9 @@ def main(argv: list[str] | None = None) -> int:
             print(json.dumps({"result": result, "source": result.get("source", "deterministic")}, ensure_ascii=False))
             return 0
 
+        if not args.job_id:
+            # Missing argument (400), not a missing job (404) — keep the two honest.
+            raise ValueError(f"{args.command} requires --job-id")
         job = _find_job(jobs, args.job_id)
         m = score_job(candidate, job)
 
@@ -102,8 +129,19 @@ def main(argv: list[str] | None = None) -> int:
 
         print(json.dumps({"result": result, "source": source}, ensure_ascii=False))
         return 0
+    except NotFoundError as exc:
+        # The caller referenced a job/entry that isn't there — a 404, not a fault.
+        print(json.dumps({"error": str(exc), "status": 404, "code": ERR_NOT_FOUND}, ensure_ascii=False), file=sys.stderr)
+        return 1
+    except ValueError as exc:
+        # Our explicit argument guards above AND pydantic's ValidationError /
+        # json.JSONDecodeError (both ValueError subclasses) are user-correctable
+        # → 400. Exit 2 matches jobfit/cli.py + parseStderrError's fallback.
+        print(json.dumps({"error": str(exc), "status": 400, "code": ERR_INVALID_INPUT}, ensure_ascii=False), file=sys.stderr)
+        return 2
     except Exception as exc:
-        print(json.dumps({"error": str(exc), "status": 500}, ensure_ascii=False), file=sys.stderr)
+        # Genuine engine failure — the caller should retry/escalate, not edit input.
+        print(json.dumps({"error": str(exc), "status": 500, "code": ERR_ENGINE}, ensure_ascii=False), file=sys.stderr)
         return 1
 
 

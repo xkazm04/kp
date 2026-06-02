@@ -20,9 +20,9 @@ tpl --> job
 @enduml`,
 
   source: `@startuml
-title Source: publish the JD, then rank the pool
+title Source: take the JD live, then rank the pool
 [Draft JD] as job
-[Publish] <<gate>> as pub
+[Go live] <<gate>> as pub
 package "Matcher (deterministic)" {
   [KO filter\\nlocation · seniority · language] <<focus>> as ko
   [Multi-factor scorer\\nskills · career · fit] <<focus>> as sc

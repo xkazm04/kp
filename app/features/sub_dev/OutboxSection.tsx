@@ -1,6 +1,8 @@
 "use client";
 
 import { Send } from "lucide-react";
+import { LoadStatus } from "@/app/_components/LoadStatus";
+import type { LoadState } from "@/app/_lib/useLoader";
 import type { OutboxItem } from "./DevTypes";
 
 // Badge tints by message kind — positive (invite/outreach/ack) vs. adverse (rejection).
@@ -11,12 +13,13 @@ const KIND_STYLE: Record<string, string> = {
   rejection: "bg-red-50 text-red-700",
 };
 
-export function OutboxSection({ outbox }: { outbox: OutboxItem[] }) {
-  if (outbox.length === 0) return null;
+export function OutboxSection({ outbox, state }: { outbox: OutboxItem[]; state: LoadState }) {
+  if (outbox.length === 0) return <LoadStatus state={state} label="the comms outbox" />;
   return (
     <section>
       <h3 className="flex items-center gap-1.5 text-meta uppercase tracking-wide text-steel">
         <Send size={13} className="text-coral" /> Comms outbox <span className="text-coral">· {outbox.length}</span>
+        <LoadStatus state={state} label="the comms outbox" variant="pill" />
       </h3>
       <p className="mt-1 text-micro text-steel">
         Every message the pipeline sent — intake acknowledgements, promote invites, recruiter outreach, and rejections.

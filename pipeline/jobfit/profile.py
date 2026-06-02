@@ -13,9 +13,12 @@ model it and score its completeness for the guided intake.
 
 from __future__ import annotations
 
+from typing import Callable
+
 from pydantic import Field
 
-from .archetype import BAU, CAREER_SWITCHER, STUDENT
+from . import registry
+from .archetype import BAU
 from .models import _Base
 from .taxonomy import PROVENANCE_WEIGHTS
 
@@ -100,32 +103,35 @@ def _evidence_kinds(profile: CandidateProfileV2) -> set[str]:
     return {e.kind for e in profile.evidence}
 
 
+# Named completeness predicates the registry's checklist `check` ids resolve to.
+# The registry says *which* checks (and their weights/labels) apply per archetype;
+# the logic of each check lives here. A new archetype that reuses these checks is
+# pure config; a genuinely new check is the only thing that needs a line here.
+CHECKS: dict[str, Callable[[CandidateProfileV2], bool]] = {
+    "education_known": lambda p: p.education_level != "unknown",
+    "has_languages": lambda p: bool(p.languages),
+    "min_3_skills": lambda p: len(p.skill_claims) >= 3,
+    "has_aspirations": lambda p: bool(p.aspirations),
+    "has_education_detail": lambda p: bool(p.education_detail.strip()),
+    "has_project_or_thesis": lambda p: bool(_evidence_kinds(p) & {"project", "thesis"}),
+    "has_activity": lambda p: bool(_evidence_kinds(p) & {"internship", "extracurricular", "certification", "job"}),
+    "has_seniority": lambda p: p.seniority is not None,
+    "has_years": lambda p: p.years_experience is not None,
+    "has_job": lambda p: bool(_evidence_kinds(p) & {"job"}),
+}
+
+
 def _checklist(profile: CandidateProfileV2) -> list[tuple[bool, float, str]]:
-    """(satisfied, weight, label) items whose weighted ratio is the completeness."""
-    kinds = _evidence_kinds(profile)
-    items: list[tuple[bool, float, str]] = [
-        (profile.education_level != "unknown", 1.0, "education level"),
-        (bool(profile.languages), 1.0, "languages"),
-        (len(profile.skill_claims) >= 3, 1.5, "at least 3 skills"),
+    """(satisfied, weight, label) items whose weighted ratio is the completeness.
+
+    The specs (which checks, weights, labels) come from the shared registry; the
+    predicates are CHECKS above. An unknown check id fails closed (counts as a
+    not-yet-satisfied gap) rather than raising.
+    """
+    return [
+        (CHECKS.get(check, lambda _p: False)(profile), weight, label)
+        for check, weight, label in registry.checklist_specs(profile.archetype)
     ]
-    if profile.archetype in (STUDENT, CAREER_SWITCHER):
-        items += [
-            (bool(profile.aspirations), 1.5, "target roles / aspirations"),
-            (bool(profile.education_detail.strip()), 1.0, "study programme & specialisation"),
-            (bool(kinds & {"project", "thesis"}), 2.0, "a project or thesis (your strongest evidence)"),
-            (
-                bool(kinds & {"internship", "extracurricular", "certification", "job"}),
-                1.0,
-                "an internship, activity, or certification",
-            ),
-        ]
-    else:  # BAU
-        items += [
-            (profile.seniority is not None, 1.5, "seniority"),
-            (profile.years_experience is not None, 1.0, "years of experience"),
-            (bool(kinds & {"job"}), 1.5, "a work-experience entry"),
-        ]
-    return items
 
 
 def completeness(profile: CandidateProfileV2) -> tuple[float, list[str]]:

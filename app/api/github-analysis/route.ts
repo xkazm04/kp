@@ -393,6 +393,21 @@ async function fetchReadme(fullName: string): Promise<string> {
 // the GithubAnalysis schema and the e2e fixture can't silently drift apart.
 type CodeReviewPayload = z.infer<typeof codeReviewSchema>;
 
+// The exact, deterministic evidence the deep review is built from. Derived from
+// the same constants `fetchRepoBundle` uses so the documented scope can NOT drift
+// from what is actually sent to the model. This is text-and-metadata only: no
+// file *bodies* and no recursive directory tree are ever read, so neither the
+// model nor the UI may imply the source code itself was inspected.
+function describeEvidenceBasis(): string[] {
+  return [
+    `README text only, truncated to the first ${README_TRUNCATE} characters per repo.`,
+    `Up to ${COMMITS_PER_REPO} recent commit subject lines (first line of each message) per repo.`,
+    `Up to ${FILES_PER_REPO} root-level file and directory names per repo — names only, no file contents.`,
+    "Primary language and repository topics from GitHub metadata.",
+    "Not read: file bodies, nested/recursive directory trees, private repos, and non-default branches.",
+  ];
+}
+
 // Shape the Gemini model is asked to emit (snake_case). Each field .catch()es to
 // a safe default so a malformed/partial field snaps to empty instead of throwing,
 // and safeParse on a non-object returns failure (-> we flag a malformed payload).
@@ -408,15 +423,19 @@ async function runCodeReview(
   jobDescription: string
 ): Promise<CodeReviewPayload> {
   const reposReviewed = repos.map((repo) => repo.name);
+  // Documented only for paths where the review actually assembles evidence; the
+  // disabled / no-repos branches read nothing, so they advertise no basis.
+  const evidenceBasis = describeEvidenceBasis();
   const apiKey = process.env.GEMINI_API_KEY ?? process.env.GOOGLE_API_KEY;
   if (!apiKey) {
     return {
       status: "disabled",
-      summary: "Set GEMINI_API_KEY to enable Gemini-based code-aware review.",
+      summary: "Set GEMINI_API_KEY to enable Gemini-based repo-signal review.",
       confirmedSkills: [],
       unverifiedClaims: [],
       hiddenStrengths: [],
       reposReviewed,
+      evidenceBasis: [],
       error: null,
     };
   }
@@ -428,6 +447,7 @@ async function runCodeReview(
       unverifiedClaims: [],
       hiddenStrengths: [],
       reposReviewed,
+      evidenceBasis: [],
       error: null,
     };
   }
@@ -438,11 +458,12 @@ async function runCodeReview(
   } catch (error) {
     return {
       status: "error",
-      summary: "Failed to fetch repository contents for deep review.",
+      summary: "Failed to fetch repository signals for deep review.",
       confirmedSkills: [],
       unverifiedClaims: [],
       hiddenStrengths: [],
       reposReviewed,
+      evidenceBasis,
       error: error instanceof Error ? error.message : String(error),
     };
   }
@@ -462,16 +483,17 @@ async function runCodeReview(
   );
 
   const prompt = [
-    "You are a precise senior engineer reviewing public GitHub artifacts for hiring evidence.",
-    "Read the bundled repository data (READMEs, recent commit messages, root file listings, languages, topics).",
-    "Decide which technical skills are demonstrably present in the code, which are *claimed* in the job description but absent from the public evidence, and which strengths the code shows that the job description didn't ask for.",
+    "You are a precise senior engineer reviewing public GitHub repo *signals* for hiring evidence.",
+    "You are NOT reading the source code. You only receive lightweight public signals: README text (truncated), recent commit subject lines, root-level file/directory NAMES (no file contents), the primary language, and topics.",
+    "Decide which technical skills are demonstrably evidenced by these public repo signals, which are *claimed* in the job description but absent from the signals, and which strengths the signals reveal that the job description didn't ask for.",
+    "Be conservative: do not infer code quality, architecture, or implementation details you cannot see. Treat a skill as evidenced only when the visible signals directly support it.",
     "Output ONLY a JSON object matching this shape — no markdown fences, no commentary:",
-    `{"summary": "2-3 sentence overall assessment.", "confirmed_skills": ["skill","skill"], "unverified_claims": ["jd skill not visible in code"], "hidden_strengths": ["skill in code but not in jd"]}`,
+    `{"summary": "2-3 sentence overall assessment of what the public repo signals show.", "confirmed_skills": ["skill evidenced by the signals"], "unverified_claims": ["jd skill not visible in the repo signals"], "hidden_strengths": ["skill in the signals but not in jd"]}`,
     "",
     "Job description (may be empty):",
     jobDescription || "(none supplied)",
     "",
-    "Repository evidence:",
+    "Repository signals (metadata and text only — no file bodies):",
     evidenceJson,
   ].join("\n");
 
@@ -491,11 +513,12 @@ async function runCodeReview(
     if (!review.success) {
       return {
         status: "error",
-        summary: "Gemini returned a malformed code-review payload.",
+        summary: "Gemini returned a malformed repo-signal review payload.",
         confirmedSkills: [],
         unverifiedClaims: [],
         hiddenStrengths: [],
         reposReviewed,
+        evidenceBasis,
         error: "non-json response",
       };
     }
@@ -506,16 +529,18 @@ async function runCodeReview(
       unverifiedClaims: review.data.unverified_claims,
       hiddenStrengths: review.data.hidden_strengths,
       reposReviewed,
+      evidenceBasis,
       error: null,
     };
   } catch (error) {
     return {
       status: "error",
-      summary: "Gemini code-review request failed.",
+      summary: "Gemini repo-signal review request failed.",
       confirmedSkills: [],
       unverifiedClaims: [],
       hiddenStrengths: [],
       reposReviewed,
+      evidenceBasis,
       error: error instanceof Error ? error.message : String(error),
     };
   }

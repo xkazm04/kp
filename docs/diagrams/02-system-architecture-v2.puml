@@ -45,9 +45,9 @@ package "Python pipeline" {
   }
 
   package "Matching engine" {
-    [KO Filter\nlocation · lang · auth · entry-eligible] <<v2>> as ko
-    [Multi-factor Scorer\narchetype-specific weights] <<v2>> as scorer
-    [Reasoning Generator\n(Gemini, cached)] <<v2>> as reason
+    [KO Filter\nseniority · languages · education · work-mode] <<v2>> as ko
+    [Multi-factor Scorer\nskills · career · personal\narchetype-specific weights] <<v2>> as scorer
+    [Reasoning Generator\n(Claude CLI, cached)] <<v2>> as reason
   }
 
   [Skill Taxonomy graph\naliases + HIERARCHY + provenance] <<v2>> as taxo
@@ -60,9 +60,10 @@ database "SQLite / store" {
   [matches · reasoning] <<v2>> as mstore
   [analyses · jds (legacy)] as legacy
 }
-[Embedding index\nsemantic bridge] <<v2>> as embed
+[Embedding index\n(planned semantic bridge)] as embed
 
-cloud "Gemini" as gemini
+cloud "Gemini\n(CV extraction)" as gemini
+cloud "Claude CLI\n(match reasoning)" as claude
 cloud "Job sources\n(seeded synthetic feed)" <<v2>> as jobsrc
 
 cand --> candui
@@ -88,9 +89,9 @@ apiMatch --> ko
 ko --> jstore
 ko --> scorer
 scorer --> taxo
-scorer --> embed
+scorer ..> embed : planned
 scorer --> reason
-reason --> gemini
+reason --> claude
 reason --> rcache
 apiMatch --> mstore
 recui <-- mstore

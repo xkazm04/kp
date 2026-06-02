@@ -258,6 +258,47 @@ textarea {
   }
 }
 
+/*
+ * Live voice indicator — the animated half of the interview status pill.
+ * While the AI speaks, three bars bounce like an equalizer (scaleY from a
+ * bottom origin so they grow upward); while the candidate's mic is open we
+ * show a single breathing pulse instead. Staggered delays are applied inline
+ * per bar. Both honor prefers-reduced-motion below.
+ */
+.voice-eq-bar {
+  transform-origin: bottom;
+  animation: voice-eq 900ms ease-in-out infinite;
+}
+@keyframes voice-eq {
+  0%,
+  100% {
+    transform: scaleY(0.3);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}
+.voice-listen {
+  animation: voice-listen 1600ms ease-in-out infinite;
+}
+@keyframes voice-listen {
+  0%,
+  100% {
+    opacity: 0.45;
+    transform: scale(0.8);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .voice-eq-bar,
+  .voice-listen {
+    animation: none;
+  }
+}
+
 @keyframes score-band-fill {
   from {
     stroke-dashoffset: var(--seg-len, 500);

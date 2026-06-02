@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { DEV_POLICY } from "@/app/_lib/devcase-orchestrator";
 import { getPromoteFloor, recordAudit, setPromoteFloor } from "@/app/_lib/dev-control";
-import { calibrate, listOutcomes, recordOutcome } from "@/app/_lib/dev-outcomes";
+import { calibrate, listOutcomes, outcomeInputSchema, recordOutcome } from "@/app/_lib/dev-outcomes";
 
 export const runtime = "nodejs";
 
@@ -35,16 +35,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ activeFloor: activeFloor() });
     }
 
-    if (!body.outcome) return NextResponse.json({ error: "outcome is required (hired|rejected|withdrawn)." }, { status: 400 });
-    recordOutcome({
-      ref: body.ref,
-      candidateRef: body.candidateRef,
-      predictedScore: body.predictedScore,
-      outcome: body.outcome,
-      performance: body.performance,
-      note: body.note,
-    });
-    recordAudit({ actor: "human", action: "outcome_recorded", reason: `${body.candidateRef ?? "candidate"}: ${body.outcome}${body.performance ? ` (perf ${body.performance})` : ""}` });
+    // Validate the outcome against the canonical vocabulary + 1..5 hired-only perf scale at
+    // this boundary, so a typo'd label or stray performance score can never reach the
+    // calibration store and silently bias the promote-floor suggestion.
+    const parsed = outcomeInputSchema.safeParse(body);
+    if (!parsed.success) {
+      const message = parsed.error.issues[0]?.message ?? "Invalid outcome payload.";
+      return NextResponse.json({ error: message }, { status: 400 });
+    }
+    const outcome = parsed.data;
+    recordOutcome(outcome);
+    recordAudit({ actor: "human", action: "outcome_recorded", reason: `${outcome.candidateRef ?? "candidate"}: ${outcome.outcome}${outcome.performance ? ` (perf ${outcome.performance})` : ""}` });
     return NextResponse.json({ ok: true, calibration: calibrate(activeFloor()) });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Failed." }, { status: 500 });

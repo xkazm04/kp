@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Ban, Banknote, Calendar, Check, ClipboardList, Copy, ExternalLink, Mail, Pencil, Phone, Shuffle, Sparkles, UserCheck, X } from "lucide-react";
+import { AlertTriangle, Ban, Banknote, Calendar, Check, ClipboardList, Copy, ExternalLink, Mail, Pencil, Phone, Shuffle, Sparkles, UserCheck, Wrench, X } from "lucide-react";
 import { buildUrl } from "@/app/features/tabs";
 import { useTasks } from "@/app/features/tasks/TasksProvider";
 import { ResultView } from "./CandidateResultView";
@@ -53,6 +53,10 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
   const [schedUrl, setSchedUrl] = useState<string | null>(null);
   const [schedErr, setSchedErr] = useState<string | null>(null);
   const [schedCopied, setSchedCopied] = useState(false);
+
+  // Degraded-intake recovery: clear the flag once the profile is captured manually.
+  const [resolvingIntake, setResolvingIntake] = useState(false);
+  const [intakeErr, setIntakeErr] = useState<string | null>(null);
 
   // Latest completed voice interview — surfaced as an evidence source in the
   // candidate's analysis (its scorecard also feeds the Decisions gate).
@@ -170,6 +174,26 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
     }
   };
 
+  const resolveIntake = async () => {
+    setResolvingIntake(true);
+    setIntakeErr(null);
+    try {
+      const res = await fetch(`/api/pipeline/${encodeURIComponent(entry.id)}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "resolve_intake" }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || `resolve failed (${res.status})`);
+      // The flag is cleared server-side; reload the board and close (this entry is now stale).
+      onChanged();
+      onClose();
+    } catch (e) {
+      setIntakeErr(e instanceof Error ? e.message : "Couldn't clear the flag.");
+      setResolvingIntake(false);
+    }
+  };
+
   const showVoice = entry.status === "active" && ["Screened", "Interview"].includes(entry.stage);
   const voiceFullUrl = voiceLink ? (typeof window !== "undefined" ? window.location.origin : "") + voiceLink.url : "";
 
@@ -247,6 +271,34 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
         </header>
 
         <div className="space-y-4 p-4">
+          {entry.intakeDegraded ? (
+            <div className="rounded-md border border-red-200 bg-red-50 p-3">
+              <p className="flex items-center gap-1.5 text-meta uppercase tracking-wide text-red-700">
+                <AlertTriangle size={13} /> Intake degraded — needs manual capture
+              </p>
+              <p className="mt-1 text-sm text-ink">
+                This application couldn&apos;t be normalized into a matchable profile, so it&apos;s a label-only stub
+                (archetype defaulted to <span className="font-semibold">bau</span>) and won&apos;t surface in matching
+                until the profile is captured by hand.
+              </p>
+              {entry.intakeDegradedReason ? (
+                <p className="mt-1.5 break-words rounded bg-white/70 px-2 py-1 font-mono text-meta text-steel">
+                  {entry.intakeDegradedReason}
+                </p>
+              ) : null}
+              <button
+                type="button"
+                onClick={resolveIntake}
+                disabled={resolvingIntake}
+                className="focus-ring mt-2 inline-flex items-center gap-1.5 rounded-md border border-red-200 bg-white px-2.5 py-1.5 text-sm font-semibold text-red-700 hover:bg-red-100 disabled:opacity-50"
+              >
+                <Wrench size={13} /> {resolvingIntake ? "Resolving…" : "Mark intake captured"}
+              </button>
+              <p className="mt-1 text-meta text-steel">Clears the flag once you&apos;ve added the candidate&apos;s real profile.</p>
+              {intakeErr ? <p role="alert" className="mt-1.5 text-sm text-red-700">{intakeErr}</p> : null}
+            </div>
+          ) : null}
+
           {ivOutcome ? (
             <div className="rounded-md border border-moss/40 bg-moss/5 p-3">
               <div className="flex items-center justify-between gap-2">

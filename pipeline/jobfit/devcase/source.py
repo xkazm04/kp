@@ -32,15 +32,29 @@ def role_to_job(role: dict) -> Job:
     return normalize_job(raw)
 
 
-def source_candidates(role: dict, candidates: list[dict], *, top_n: int = 8, floor: int = 45) -> list[dict]:
-    """Rank the candidate pool against the role. `candidates` = [{id,label,archetype,payload}]."""
+def source_candidates(role: dict, candidates: list[dict], *, top_n: int = 8, floor: int = 45) -> dict[str, Any]:
+    """Rank the candidate pool against the role. `candidates` = [{id,label,archetype,payload}].
+
+    Returns ``{"candidates": [...ranked...], "skipped": int, "skippedReasons": [...]}``.
+
+    A candidate whose payload fails ``CandidateProfileV2`` validation is **not** silently
+    dropped from the ranking: it is counted in ``skipped`` and recorded in ``skippedReasons``
+    (one ``{candidateId, reason}`` per skip, where ``reason`` is the validation error type).
+    That lets the caller tell "nobody qualified" (``candidates == []`` with ``skipped == 0``)
+    apart from "the whole pool failed to parse" (``candidates == []`` with ``skipped > 0``).
+
+    KO-filter and floor rejections are *not* skips — those candidates parsed fine, they
+    just didn't make the cut — so they don't inflate the skipped count.
+    """
     job = role_to_job(role)
     ranked: list[dict] = []
+    skipped_reasons: list[dict] = []
     for pr in candidates:
         payload = pr.get("payload", pr)
         try:
             cand = build_match_candidate(CandidateProfileV2.model_validate(payload))
-        except Exception:
+        except Exception as exc:
+            skipped_reasons.append({"candidateId": pr.get("id"), "reason": type(exc).__name__})
             continue
         passed, _reasons = ko_filter(cand, job)
         if not passed:
@@ -58,4 +72,4 @@ def source_candidates(role: dict, candidates: list[dict], *, top_n: int = 8, flo
             }
         )
     ranked.sort(key=lambda x: x["score"], reverse=True)
-    return ranked[:top_n]
+    return {"candidates": ranked[:top_n], "skipped": len(skipped_reasons), "skippedReasons": skipped_reasons}

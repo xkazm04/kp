@@ -310,24 +310,25 @@ router --> switch
     slug: "matching-engine",
     title: "Matching engine",
     group: GROUP_V2,
-    lead: "A candidate is ranked against the job corpus by hard knock-out gates, then archetype-aware scoring.",
+    lead: "A candidate is ranked against the job corpus by hard knock-out gates, then deterministic archetype-aware scoring.",
     body: `\`\`\`puml
 @startuml
 left to right direction
 title KO gates → weighted score → ranked
 [Candidate\\n(V2 profile)] as cand
 package "Matching engine" {
-  [KO filter\\nlocation · lang · auth\\n· entry-eligible] <<auto>> as ko
-  [Multi-factor scorer\\narchetype weights] <<auto>> as score
+  [KO filter\\nseniority · languages\\neducation · work-mode] <<auto>> as ko
+  [Multi-factor scorer\\nskills · career · personal\\narchetype weights] <<auto>> as score
 }
-[Ranked matches\\n+ salary bands] as out
+[Ranked matches\\n+ confidence band] as out
 cand --> ko
 ko --> score
 score --> out
 @enduml
 \`\`\`
 
-- \`matching.ko_filter\` removes hard mismatches first; \`score_job\` then weights skills, seniority, and potential by archetype.
+- \`matching.ko_filter\` drops hard mismatches first (seniority floor, required languages, minimum education, work-mode); early-career is gated on the role's entry-eligibility instead of a seniority floor.
+- \`score_job\` then blends skills, career fit, and personal fit on archetype-specific weights — potential replaces years of experience for early-career. Scoring is deterministic over the taxonomy graph (no LLM, no embeddings yet) and every score carries an honest confidence band.
 - Surfaced in the Match tab and the Matrix (candidate × job grid) via \`/api/match\` and \`/api/matrix\`.`,
   },
   {
@@ -374,8 +375,8 @@ screen --> hold
 @enduml
 \`\`\`
 
-- \`screen_candidate\` (Task 1) forces a hold for early-career and low-confidence cases; only confident BAU advances automatically.
-- \`evaluate_entry\` (Task 7) runs the same rules as a batch policy pass — and never auto-rejects.`,
+- \`screen_candidate\` (Task 1) forces a hold for early-career and low-confidence cases; only confident BAU (conf ≥ 80) advances automatically.
+- \`evaluate_entry\` (Task 7) runs the same rules as a scheduled policy pass: strong BAU clears screening and advances, weak BAU (score < 40) is screened out, and early-career is always held for a human — never auto-rejected.`,
   },
   {
     slug: "decisions-queue",
@@ -404,30 +405,105 @@ rev --> offer
   },
   {
     slug: "recruiter-outputs",
-    title: "Recruiter comms & interview support",
+    title: "Recruiter comms & delivery",
     group: GROUP_V2,
-    lead: "Outreach, rejection, and offer letters plus interview prep and scorecards are drafted automatically — with fallbacks.",
+    lead: "Outreach, rejection, interview, and onboarding messages are drafted automatically and dispatched through a pluggable channel.",
     body: `\`\`\`puml
 @startuml
-title Drafted by AI, sent by a human
+title Drafted by AI, dispatched on a channel
 [Pipeline entry] as e
-package "Generated artifacts" {
-  [Outreach / rejection /\\noffer draft] <<auto>> as msg
-  [Interview prep pack] <<auto>> as prep
-  [Scorecard synthesis] <<auto>> as score
-}
-[Recruiter\\nreviews · sends] <<gate>> as rec
-e --> msg
-e --> prep
-e --> score
-msg --> rec
-prep --> rec
-score --> rec
+[Draft\\nClaude CLI + fallback] <<auto>> as draft
+[Recruiter\\nreviews] <<gate>> as rec
+[sendComm\\ncomms channel] <<auto>> as ch
+database "outbox (audit)" as ob
+cloud "Webhook\\nmail / ATS (optional)" as hook
+e --> draft
+draft --> rec
+rec --> ch : approve
+ch --> ob : queued
+ch ..> hook : if configured
 @enduml
 \`\`\`
 
-- Tasks 2–5 and 8 generate role- and candidate-grounded text (CV-aware prep, notes-driven scorecards), each with a deterministic fallback.
-- Drafts are reviewed by a recruiter before anything reaches a candidate — delivery on the mainline is a known next step.`,
+- Tasks 2–5 and 8 generate role- and candidate-grounded text (CV-aware interview prep, notes-driven scorecards), each with a deterministic fallback so nothing ever ghosts.
+- \`sendComm\` records every message to the durable outbox (the audit log) and, when \`COMMS_WEBHOOK_URL\` is set, relays it to a real mail/ATS endpoint — so outreach, rejections, interview confirmations, and onboarding actually reach the candidate.`,
+  },
+  {
+    slug: "pipeline-stages",
+    title: "Automated pipeline & scheduler",
+    group: GROUP_V2,
+    lead: "Five stages — Accepted, Screened, Interview, Offer, Hired — that a durable clock can advance on time-based rules, with humans on the gates.",
+    body: `\`\`\`puml
+@startuml
+left to right direction
+title Five stages, time-driven by a clock
+[Accepted] <<auto>> as a
+[Screened] <<auto>> as s
+[Interview] <<gate>> as i
+[Offer] <<gate>> as o
+[Hired] <<auto>> as h
+[Scheduler\\n60s heartbeat] <<auto>> as cron
+a --> s
+s --> i
+i --> o
+o --> h
+cron ..> s : policy pass
+cron ..> o : aging nudges
+@enduml
+\`\`\`
+
+- The board consolidates to five stages (\`PIPELINE_STAGES\`), each column header explaining what the stage means. Strong BAU advances automatically through Screened; Interview and Offer stay deliberate human gates.
+- An in-process scheduler (default OFF) ticks every 60s to run the policy pass (\`evaluate_entry\`) — time-based advances, aging nudges, and due interview reminders — or an external cron can hit \`/api/automation/run\` instead.`,
+  },
+  {
+    slug: "interview-voice",
+    title: "Interview: AI voice screen",
+    group: GROUP_V2,
+    lead: "A grounded voice screen the candidate takes in-browser; the transcript synthesizes a scorecard that feeds the Interview → Offer gate.",
+    body: `\`\`\`puml
+@startuml
+title Voice screen → scorecard → gate
+[Recruiter\\ncreate screen] <<auto>> as ui
+[/api/interview/create\\ngrounded questions/] <<auto>> as create
+[Candidate portal\\n/interview/[token]] <<auto>> as portal
+cloud "OpenAI Realtime /\\nElevenLabs" as prov
+[/api/interview/complete\\nscorecard synthesis/] <<auto>> as done
+[Interview → Offer\\nhuman gate] <<gate>> as gate
+ui --> create
+create --> portal : token link
+portal --> prov : live voice
+portal --> done : transcript
+done --> gate : scorecard_review
+@enduml
+\`\`\`
+
+- Questions are grounded in the role and the candidate's CV (Task 4 prep); the candidate takes the screen at a tokenized link over OpenAI Realtime or ElevenLabs voice.
+- On hang-up \`runInterviewScorecard\` (Task 5) turns the transcript into a scorecard and sets \`scorecard_review\`, so a human owns the Interview → Offer call with evidence in hand. Slot self-scheduling is wired; a fixed demo slot is the remaining shortcut.`,
+  },
+  {
+    slug: "offer-acceptance",
+    title: "Offer & acceptance",
+    group: GROUP_V2,
+    lead: "The offer figure is deterministic, the letter auto-drafts, a human extends it, and the candidate accepts or declines through a tokenized link.",
+    body: `\`\`\`puml
+@startuml
+title Draft → human extend → candidate decides
+[Draft offer\\nrole band × fit] <<auto>> as draft
+[Recruiter\\nextend] <<gate>> as rec
+[Dispatch offer\\n+ token link] <<auto>> as send
+[Candidate portal\\n/offer/[token]] <<auto>> as portal
+[Accept → Hired\\n+ onboarding] <<auto>> as hired
+[Decline → closed] <<auto>> as declined
+draft --> rec
+rec --> send : approve
+send --> portal
+portal --> hired : accept
+portal --> declined : decline
+@enduml
+\`\`\`
+
+- The figure comes from the role's salary band and fit (deterministic — no LLM in the number); approving the draft is the human gate that actually extends and dispatches the offer.
+- The candidate opens a secure \`/offer/[token]\` page and accepts or declines: accept transitions the entry to Hired and fires the onboarding handoff comm, decline closes it — no bare human click at the terminal.`,
   },
   {
     slug: "dev-cases",

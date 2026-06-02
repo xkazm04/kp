@@ -1,6 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { Maximize2, ZoomIn, ZoomOut } from "lucide-react";
+import { Modal } from "@/app/_components/Modal";
 import { parsePuml } from "./parse";
 import { layoutDiagram, type Box, type PositionedDiagram, type PositionedEdge } from "./layout";
 
@@ -260,10 +262,10 @@ function edgePath(points: { x: number; y: number }[]): string {
   return points.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ");
 }
 
-function renderEdge(edge: PositionedEdge) {
+function renderEdge(edge: PositionedEdge, markerSolid: string, markerDashed: string) {
   if (edge.points.length < 2) return null;
   const color = edge.style === "dashed" ? C.dialStone : C.steel;
-  const marker = edge.style === "dashed" ? "url(#puml-arrow-dashed)" : "url(#puml-arrow-solid)";
+  const marker = edge.style === "dashed" ? `url(#${markerDashed})` : `url(#${markerSolid})`;
   return (
     <g key={edge.id}>
       <path
@@ -307,6 +309,7 @@ export function PlantUml({
   scale = "fit",
   onNodeClick,
   activeNodeId,
+  expandable = false,
 }: {
   source: string;
   className?: string;
@@ -318,7 +321,11 @@ export function PlantUml({
   onNodeClick?: NodeClick;
   // The node id to mark as active (persistent coral border).
   activeNodeId?: string;
+  // When true, overlays a button that opens the diagram in a full-screen modal —
+  // worth it for the dense architecture diagrams whose text shrinks in a column.
+  expandable?: boolean;
 }) {
+  const [expanded, setExpanded] = useState(false);
   const diagram = useMemo(() => {
     try {
       return parsePuml(source);
@@ -375,45 +382,150 @@ export function PlantUml({
     );
   }
 
-  const pad = 8;
-  const W = layout.width + pad * 2;
-  const H = layout.height + pad * 2;
   const natural = scale === "natural";
 
   return (
-    <figure className={`my-4 overflow-hidden rounded-lg border border-stone-200 bg-white ${className}`}>
-      <div className={natural ? "overflow-x-auto" : ""}>
-        <svg
-          viewBox={`0 0 ${W} ${H}`}
-          role="img"
-          aria-label={layout.title ? `Diagram: ${layout.title}` : "Component diagram"}
-          className="mx-auto block h-auto"
-          width={natural ? W : undefined}
-          style={natural ? undefined : { width: "100%", maxWidth: W }}
-        >
-          <defs>
-          <marker id="puml-arrow-solid" markerWidth={9} markerHeight={9} refX={7} refY={3} orient="auto" markerUnits="userSpaceOnUse">
-            <path d="M0,0 L7,3 L0,6 Z" fill={C.steel} />
-          </marker>
-          <marker id="puml-arrow-dashed" markerWidth={9} markerHeight={9} refX={7} refY={3} orient="auto" markerUnits="userSpaceOnUse">
-            <path d="M0,0 L7,3 L0,6 Z" fill={C.dialStone} />
-          </marker>
-        </defs>
-          {onNodeClick || activeNodeId ? (
-            <style>{`.puml-clickable{cursor:pointer;outline:none}.puml-clickable rect,.puml-clickable ellipse,.puml-clickable path{transition:stroke .12s,filter .12s}.puml-clickable:hover rect,.puml-clickable:hover ellipse,.puml-clickable:hover path,.puml-clickable:focus-visible rect,.puml-clickable:focus-visible ellipse,.puml-clickable:focus-visible path{stroke:#d65a4a;stroke-width:2}.puml-active rect,.puml-active ellipse,.puml-active path{stroke:#d65a4a !important;stroke-width:2.5 !important}`}</style>
-          ) : null}
-          <g transform={`translate(${pad},${pad})`}>
-            {layout.containers.map(renderContainer)}
-            {layout.edges.map(renderEdge)}
-            {layout.nodes.map((b) => renderNode(b, onNodeClick, activeNodeId))}
-          </g>
-        </svg>
+    <>
+      <figure className={`relative my-4 overflow-hidden rounded-lg border border-stone-200 bg-white ${className}`}>
+        {expandable ? (
+          <button
+            type="button"
+            onClick={() => setExpanded(true)}
+            aria-label="Expand diagram to full screen"
+            title="Expand"
+            className="focus-ring absolute right-2 top-2 z-10 rounded-md border border-stone-200 bg-white/90 p-1.5 text-steel shadow-sm backdrop-blur transition-colors hover:bg-stone-100 hover:text-ink"
+          >
+            <Maximize2 size={15} />
+          </button>
+        ) : null}
+        <div className={natural ? "overflow-x-auto" : ""}>
+          <DiagramSvg layout={layout} sizing={natural ? "natural" : "fit"} onNodeClick={onNodeClick} activeNodeId={activeNodeId} />
+        </div>
+        {layout.title ? (
+          <figcaption className="border-t border-stone-200 bg-paper px-4 py-2 text-meta uppercase text-steel">
+            {layout.title}
+          </figcaption>
+        ) : null}
+      </figure>
+      {expanded ? <ExpandedDiagram layout={layout} onClose={() => setExpanded(false)} /> : null}
+    </>
+  );
+}
+
+const MIN_ZOOM = 0.25;
+const MAX_ZOOM = 3;
+const ZOOM_STEP = 1.2;
+
+// The full-screen view: opens at 1:1 (natural size) and lets the user zoom in/out
+// for adjustments. The diagram scrolls within the viewport when it's larger than
+// the modal; "Fit" scales the whole thing to the available space.
+function ExpandedDiagram({ layout, onClose }: { layout: PositionedDiagram; onClose: () => void }) {
+  const [zoom, setZoom] = useState(1);
+  const viewportRef = useRef<HTMLDivElement | null>(null);
+
+  const pad = 8;
+  const W = layout.width + pad * 2;
+  const H = layout.height + pad * 2;
+  const clamp = (z: number) => Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, z));
+
+  const fit = () => {
+    const vp = viewportRef.current;
+    if (!vp) return;
+    // Leave a small margin so the diagram doesn't kiss the edges.
+    setZoom(clamp(Math.min((vp.clientWidth - 48) / W, (vp.clientHeight - 48) / H)));
+  };
+
+  const btn = "focus-ring rounded-md border border-stone-200 bg-white p-1.5 text-steel hover:bg-stone-100 hover:text-ink disabled:cursor-not-allowed disabled:opacity-40";
+  const textBtn = "focus-ring rounded-md border border-stone-200 bg-white px-2 py-1 text-sm text-steel hover:bg-stone-100 hover:text-ink";
+
+  const controls = (
+    <div className="flex items-center gap-1.5">
+      <button type="button" onClick={() => setZoom((z) => clamp(z / ZOOM_STEP))} disabled={zoom <= MIN_ZOOM} aria-label="Zoom out" className={btn}>
+        <ZoomOut size={16} />
+      </button>
+      <span className="w-12 text-center text-sm tabular-nums text-steel">{Math.round(zoom * 100)}%</span>
+      <button type="button" onClick={() => setZoom((z) => clamp(z * ZOOM_STEP))} disabled={zoom >= MAX_ZOOM} aria-label="Zoom in" className={btn}>
+        <ZoomIn size={16} />
+      </button>
+      <span className="mx-1 h-5 w-px bg-stone-200" />
+      <button type="button" onClick={() => setZoom(1)} className={textBtn}>
+        1:1
+      </button>
+      <button type="button" onClick={fit} className={textBtn}>
+        Fit
+      </button>
+    </div>
+  );
+
+  return (
+    <Modal title={layout.title ?? "Diagram"} subtitle="Scroll to pan · zoom to adjust" size="full" onClose={onClose} footer={controls}>
+      <div ref={viewportRef} className="h-full w-full overflow-auto rounded-md border border-stone-200 bg-paper">
+        {/* min-w/h-full + margin:auto on the child centers a small diagram but,
+            unlike justify/items-center, keeps the start reachable when it
+            overflows (so a zoomed-in diagram scrolls to its top-left corner). */}
+        <div className="flex min-h-full min-w-full p-6">
+          <DiagramSvg layout={layout} sizing="zoom" zoom={zoom} />
+        </div>
       </div>
-      {layout.title ? (
-        <figcaption className="border-t border-stone-200 bg-paper px-4 py-2 text-meta uppercase text-steel">
-          {layout.title}
-        </figcaption>
+    </Modal>
+  );
+}
+
+// The SVG canvas, shared by the inline figure and the full-screen modal so the
+// expanded view reuses the already-computed ELK layout (no recompute). Marker
+// ids are namespaced per instance so the inline + modal copies don't collide.
+//   - "fit":      width 100%, capped at natural size (the in-column default).
+//   - "natural":  intrinsic width; the parent scrolls horizontally if wider.
+//   - "zoom":     rendered at `zoom`× true size for the expand modal (1 = 1:1),
+//                 so the parent can scroll/pan when it overflows the viewport.
+function DiagramSvg({
+  layout,
+  sizing,
+  zoom = 1,
+  onNodeClick,
+  activeNodeId,
+}: {
+  layout: PositionedDiagram;
+  sizing: "fit" | "natural" | "zoom";
+  zoom?: number;
+  onNodeClick?: NodeClick;
+  activeNodeId?: string;
+}) {
+  const uid = useId().replace(/:/g, "");
+  const markerSolid = `puml-arrow-solid-${uid}`;
+  const markerDashed = `puml-arrow-dashed-${uid}`;
+  const pad = 8;
+  const W = layout.width + pad * 2;
+  const H = layout.height + pad * 2;
+  const zoomed = sizing === "zoom";
+
+  return (
+    <svg
+      viewBox={`0 0 ${W} ${H}`}
+      role="img"
+      aria-label={layout.title ? `Diagram: ${layout.title}` : "Component diagram"}
+      preserveAspectRatio="xMidYMid meet"
+      className={zoomed ? "m-auto block shrink-0" : "mx-auto block h-auto"}
+      width={sizing === "natural" ? W : zoomed ? Math.round(W * zoom) : undefined}
+      height={zoomed ? Math.round(H * zoom) : undefined}
+      style={zoomed ? undefined : sizing === "natural" ? undefined : { width: "100%", maxWidth: W }}
+    >
+      <defs>
+        <marker id={markerSolid} markerWidth={9} markerHeight={9} refX={7} refY={3} orient="auto" markerUnits="userSpaceOnUse">
+          <path d="M0,0 L7,3 L0,6 Z" fill={C.steel} />
+        </marker>
+        <marker id={markerDashed} markerWidth={9} markerHeight={9} refX={7} refY={3} orient="auto" markerUnits="userSpaceOnUse">
+          <path d="M0,0 L7,3 L0,6 Z" fill={C.dialStone} />
+        </marker>
+      </defs>
+      {onNodeClick || activeNodeId ? (
+        <style>{`.puml-clickable{cursor:pointer;outline:none}.puml-clickable rect,.puml-clickable ellipse,.puml-clickable path{transition:stroke .12s,filter .12s}.puml-clickable:hover rect,.puml-clickable:hover ellipse,.puml-clickable:hover path,.puml-clickable:focus-visible rect,.puml-clickable:focus-visible ellipse,.puml-clickable:focus-visible path{stroke:#d65a4a;stroke-width:2}.puml-active rect,.puml-active ellipse,.puml-active path{stroke:#d65a4a !important;stroke-width:2.5 !important}`}</style>
       ) : null}
-    </figure>
+      <g transform={`translate(${pad},${pad})`}>
+        {layout.containers.map(renderContainer)}
+        {layout.edges.map((e) => renderEdge(e, markerSolid, markerDashed))}
+        {layout.nodes.map((b) => renderNode(b, onNodeClick, activeNodeId))}
+      </g>
+    </svg>
   );
 }

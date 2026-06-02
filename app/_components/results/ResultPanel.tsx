@@ -3,6 +3,7 @@
 import { GitBranch } from "lucide-react";
 import { useEffect, useState } from "react";
 import { GithubAnalysisPanel } from "@/app/_components/GithubAnalysisPanel";
+import { ArchetypeBanner } from "./ArchetypeBanner";
 import type { Analysis, GithubAnalysis } from "@/app/_lib/schemas";
 import { CompareIcon, ExtractionIcon, InterviewIcon, JobFitIcon, SalaryIcon } from "../icons";
 import { CompareTab } from "./compare/CompareTab";
@@ -93,6 +94,7 @@ export function ResultPanel({ analysis, github }: ResultPanelProps) {
 
   return (
     <section className="animate-fade-in space-y-5">
+      {analysis.v2Profile ? <ArchetypeBanner v2Profile={analysis.v2Profile} /> : null}
       <div className="rounded-lg border border-stone-200 bg-white p-2 shadow-panel">
         <div role="tablist" aria-label="Result sections" onKeyDown={onTabKeyDown} className={`grid gap-1 sm:grid-cols-2 ${lgGridClass}`}>
           {tabs.map((tab) => {

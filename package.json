@@ -11,6 +11,7 @@
     "schemas:gen": "python -m pipeline.jobfit.codegen",
     "schemas:check": "python -m pipeline.jobfit.codegen --check",
     "typecheck": "npm run schemas:gen && tsc --noEmit",
+    "test:unit": "node --test \"app/**/*.test.ts\"",
     "test:python": "python -m unittest discover pipeline/jobfit/tests",
     "test:python:gate": "python -m pipeline.jobfit.tests.run_gated",
     "test:e2e": "playwright test",

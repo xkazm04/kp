@@ -38,7 +38,8 @@ class TestSource(unittest.TestCase):
             _candidate("strong", ["Python", "Django", "PostgreSQL"]),
             _candidate("weak", ["Figma", "Photoshop"]),
         ]
-        ranked = source_candidates(role, pool, top_n=8, floor=1)
+        out = source_candidates(role, pool, top_n=8, floor=1)
+        ranked = out["candidates"]
         ids = [r["candidateId"] for r in ranked]
         self.assertIn("strong", ids)
         # the strong candidate outranks (or the weak is filtered out by floor/KO)
@@ -46,11 +47,40 @@ class TestSource(unittest.TestCase):
             self.assertGreater(ranked[0]["score"], ranked[-1]["score"])
         self.assertEqual(ids[0], "strong")
         self.assertTrue(all(0 <= r["score"] <= 100 for r in ranked))
+        # Everyone parsed fine, so nothing is skipped.
+        self.assertEqual(out["skipped"], 0)
+        self.assertEqual(out["skippedReasons"], [])
 
     def test_floor_filters(self):
         role = {"title": "Backend", "seniority": "senior", "roleFamily": "software_engineering", "mustHaves": ["Rust"], "responsibilities": []}
-        ranked = source_candidates(role, [_candidate("c", ["Python"])], floor=99)
-        self.assertEqual(ranked, [])
+        out = source_candidates(role, [_candidate("c", ["Python"])], floor=99)
+        # A floor/KO rejection is "nobody qualified" — the candidate parsed fine, so it is
+        # NOT counted as skipped. Empty shortlist + zero skipped == genuine no-match.
+        self.assertEqual(out["candidates"], [])
+        self.assertEqual(out["skipped"], 0)
+
+    def test_unparseable_candidate_is_counted_not_dropped(self):
+        # A candidate whose payload fails CandidateProfileV2 validation must not vanish:
+        # it is tracked in `skipped`/`skippedReasons` (reason = the validation error type),
+        # so an empty/short shortlist is honest about a pool that partly failed to load.
+        role = {"title": "Backend", "seniority": "senior", "roleFamily": "software_engineering", "mustHaves": ["Python", "Django"], "responsibilities": ["APIs"]}
+        broken = {"id": "broken", "label": "broken", "archetype": "bau", "payload": {"skillClaims": [{"level": "advanced"}]}}  # SkillClaim.skill is required
+        out = source_candidates(role, [_candidate("strong", ["Python", "Django"]), broken], top_n=8, floor=1)
+        ids = [r["candidateId"] for r in out["candidates"]]
+        self.assertIn("strong", ids)
+        self.assertNotIn("broken", ids)
+        self.assertEqual(out["skipped"], 1)
+        self.assertEqual(out["skippedReasons"], [{"candidateId": "broken", "reason": "ValidationError"}])
+
+    def test_all_fail_to_parse_is_distinguishable_from_no_match(self):
+        # The whole point: candidates == [] with skipped > 0 means "pool failed to parse",
+        # not "nobody matched".
+        role = {"title": "Backend", "seniority": "senior", "roleFamily": "software_engineering", "mustHaves": ["Python"], "responsibilities": []}
+        pool = [{"id": f"b{i}", "payload": {"skillClaims": [{"level": "advanced"}]}} for i in range(3)]
+        out = source_candidates(role, pool, floor=1)
+        self.assertEqual(out["candidates"], [])
+        self.assertEqual(out["skipped"], 3)
+        self.assertTrue(all(s["reason"] == "ValidationError" for s in out["skippedReasons"]))
 
 
 if __name__ == "__main__":

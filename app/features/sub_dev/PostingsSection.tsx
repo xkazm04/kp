@@ -2,17 +2,20 @@
 
 import { Fragment } from "react";
 import { Inbox } from "lucide-react";
+import { LoadStatus } from "@/app/_components/LoadStatus";
+import type { LoadState } from "@/app/_lib/useLoader";
 import { ApplyTokenPill } from "./ApplyTokenPill";
 import { SubmissionForm } from "./SubmissionForm";
 import { SubmissionRow } from "./SubmissionRow";
 import type { Posting } from "./DevTypes";
 
-export function PostingsSection({ postings, loadPostings }: { postings: Posting[]; loadPostings: () => void }) {
-  if (postings.length === 0) return null;
+export function PostingsSection({ postings, loadPostings, state }: { postings: Posting[]; loadPostings: () => void; state: LoadState }) {
+  if (postings.length === 0) return <LoadStatus state={state} label="postings" />;
   return (
     <section>
       <h3 className="flex items-center gap-1.5 text-meta uppercase tracking-wide text-steel">
         <Inbox size={13} className="text-coral" /> Postings &amp; submissions <span className="text-coral">· {postings.length}</span>
+        <LoadStatus state={state} label="postings" variant="pill" />
       </h3>
       <p className="mt-1 text-micro text-steel">
         The distribution seam. Publishing posts to a channel (local stub) and returns an apply token; submissions arrive

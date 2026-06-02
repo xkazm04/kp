@@ -21,6 +21,7 @@ from typing import Any, Literal
 
 from pydantic import Field
 
+from . import registry
 from .jobs import Job
 from .models import _Base
 from .taxonomy import DEFAULT_PROVENANCE, skill_match_score
@@ -36,27 +37,17 @@ _LANG_ALIASES = {
     "slovak": ("slovak", "slovenš", "slovens"),
 }
 
-# Archetype scoring weights (must sum to 1.0). For non-BAU profiles the "career"
-# slot carries the POTENTIAL score (readiness) instead of work-history fit, and
-# "personal" carries motivation/domain fit — see score_job.
-WEIGHTS: dict[str, dict[str, float]] = {
-    "bau": {"skills": 0.50, "career": 0.35, "personal": 0.15},
-    "student": {"skills": 0.40, "career": 0.40, "personal": 0.20},
-    "career_switcher": {"skills": 0.35, "career": 0.40, "personal": 0.25},
-}
-
-# Display name for each scoring slot, per archetype. The three slots carry
-# different meaning for early-career profiles (career -> POTENTIAL/readiness,
-# personal -> motivation/domain fit; see score_job), so the label shifts with
-# them. Emitted server-side on score_breakdown so every surface speaks one
-# vocabulary and the client never re-guesses which archetype renames which bar.
-DIMENSION_LABELS: dict[str, dict[str, str]] = {
-    "bau": {"skills": "Skills", "career": "Career", "personal": "Personal"},
-    "student": {"skills": "Foundation", "career": "Potential", "personal": "Fit"},
-    "career_switcher": {"skills": "Foundation", "career": "Potential", "personal": "Fit"},
-}
+# Archetype scoring weights (must sum to 1.0), display labels per slot, and the
+# early-career set — all sourced from the shared registry (archetypes.json) so a
+# new archetype's scoring is config, and TS/Python can never disagree on which
+# archetype is early-career or how its bars are weighted/labelled. For non-BAU
+# profiles the "career" slot carries POTENTIAL (readiness) instead of work-history
+# fit and "personal" carries motivation/domain fit — see score_job; the labels
+# shift accordingly (career -> Potential, personal -> Fit).
+WEIGHTS: dict[str, dict[str, float]] = registry.weights_map()
+DIMENSION_LABELS: dict[str, dict[str, str]] = registry.dimension_labels_map()
 _DIMENSION_KEYS = ("skills", "career", "personal")
-_EARLY_CAREER = ("student", "career_switcher")
+_EARLY_CAREER = registry.early_career_archetypes()
 # Per-requirement skill_match_score at/above which a requirement counts as
 # "matched". 0.5 sits deliberately below 1.0 so taxonomy parent/sibling hits and
 # provenance-discounted (e.g. self-declared) skills register as PARTIAL matches

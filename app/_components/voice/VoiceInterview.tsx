@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ConversationProvider, useConversation } from "@elevenlabs/react";
+import { Mic, PhoneOff, Sparkles, User } from "lucide-react";
 
 // Live voice-interview MVP. OpenAI Realtime runs over raw WebRTC; ElevenLabs
 // runs through the @elevenlabs/react SDK. A switcher lets you A/B both on the
@@ -19,12 +20,14 @@ const PROVIDER_LABEL: Record<Provider, string> = { openai: "OpenAI Realtime", el
 
 export type VoiceInterviewProps = {
   token?: string;
-  fixedProvider?: Provider;
   candidateLabel?: string;
   jobTitle?: string;
-  /** Candidate-facing agenda — run-of-show titles only (no questions). */
-  runOfShow?: string[];
 };
+
+// ElevenLabs is the preferred default; the picker falls back to whatever is
+// actually configured once availability resolves (see the effect below).
+const DEFAULT_PROVIDER: Provider = "elevenlabs";
+const PROVIDER_ORDER: Provider[] = ["elevenlabs", "openai"];
 
 export function VoiceInterview(props: VoiceInterviewProps) {
   // useConversation must live under a ConversationProvider.
@@ -35,15 +38,9 @@ export function VoiceInterview(props: VoiceInterviewProps) {
   );
 }
 
-function VoiceInterviewInner({
-  token,
-  fixedProvider,
-  candidateLabel,
-  jobTitle,
-  runOfShow,
-}: VoiceInterviewProps) {
+function VoiceInterviewInner({ token, candidateLabel, jobTitle }: VoiceInterviewProps) {
   const [availability, setAvailability] = useState<Availability | null>(null);
-  const [provider, setProvider] = useState<Provider>(fixedProvider ?? "openai");
+  const [provider, setProvider] = useState<Provider>(DEFAULT_PROVIDER);
   const [consent, setConsent] = useState(false);
   const [language, setLanguage] = useState<LangHint>("auto");
   const [phase, setPhase] = useState<Phase>("idle");
@@ -61,11 +58,19 @@ function VoiceInterviewInner({
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const asstBuf = useRef("");
   const connectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const logRef = useRef<HTMLDivElement | null>(null);
 
   // Keep a ref of the active provider for use inside SDK callbacks/teardown.
   useEffect(() => {
     providerRef.current = provider;
   }, [provider]);
+
+  // Pin the live transcript to the newest turn so the candidate always sees the
+  // latest exchange without scrolling. Runs on every turn append.
+  useEffect(() => {
+    const el = logRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [turns]);
 
   const clearConnectTimer = useCallback(() => {
     if (connectTimerRef.current) {
@@ -154,7 +159,12 @@ function VoiceInterviewInner({
     fetch("/api/interview/connect")
       .then((r) => r.json())
       .then((d) => {
-        if (!cancelled) setAvailability(d.availability ?? null);
+        if (cancelled) return;
+        const avail: Availability | null = d.availability ?? null;
+        setAvailability(avail);
+        // Never leave the picker on a provider whose keys are missing: if the
+        // default (ElevenLabs) isn't configured, drop to the first one that is.
+        if (avail) setProvider((cur) => (avail[cur] ? cur : (PROVIDER_ORDER.find((p) => avail[p]) ?? cur)));
       })
       .catch(() => {
         if (!cancelled) setAvailability(null);
@@ -253,7 +263,7 @@ function VoiceInterviewInner({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          provider: fixedProvider ?? provider,
+          provider,
           token,
           consent,
           language: language === "auto" ? undefined : language,
@@ -305,23 +315,51 @@ function VoiceInterviewInner({
   }
 
   const isBusy = phase === "connecting" || phase === "live" || phase === "ending";
-  const liveProvider = fixedProvider ?? provider;
+  const liveProvider = provider;
   const providerAvailable = availability ? availability[liveProvider] : true;
 
-  const hasAgenda = Boolean(runOfShow && runOfShow.length);
+  const liveOrEnding = phase === "live" || phase === "ending";
 
   return (
-    <div className={hasAgenda ? "grid gap-7 md:grid-cols-[260px_minmax(0,1fr)]" : ""}>
-      {hasAgenda ? <RunOfShowAgenda items={runOfShow ?? []} /> : null}
-      <div className="space-y-5">
+    <div className="space-y-6">
       <audio ref={audioRef} autoPlay hidden />
 
-      {/* Provider switcher */}
-      {!fixedProvider ? (
+      {/* Settings — language + provider, side by side. The provider picker
+          defaults to ElevenLabs and disables any provider whose keys aren't
+          configured. Both lock once a call is in flight. */}
+      <div className="flex flex-wrap gap-x-8 gap-y-4">
+        {/* Language hint */}
         <div>
-          <p className="text-meta uppercase text-steel">Provider</p>
-          <div className="mt-1 inline-flex rounded-lg border border-stone-200 bg-paper p-1">
-            {(["openai", "elevenlabs"] as Provider[]).map((p) => {
+          <p className="text-meta uppercase text-steel">Language</p>
+          <div className="mt-1.5 inline-flex rounded-lg border border-stone-200 bg-paper p-1">
+            {(
+              [
+                ["auto", "Auto-detect"],
+                ["cs", "Čeština"],
+                ["en", "English"],
+              ] as [LangHint, string][]
+            ).map(([v, label]) => (
+              <button
+                key={v}
+                type="button"
+                disabled={isBusy}
+                aria-pressed={language === v}
+                onClick={() => setLanguage(v)}
+                className={`focus-ring rounded-md px-3 py-1.5 text-base transition-colors ${
+                  language === v ? "bg-white text-ink shadow-panel" : "text-steel hover:text-ink"
+                } ${isBusy ? "cursor-not-allowed" : ""}`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Provider picker */}
+        <div>
+          <p className="text-meta uppercase text-steel">Voice provider</p>
+          <div className="mt-1.5 inline-flex rounded-lg border border-stone-200 bg-paper p-1">
+            {PROVIDER_ORDER.map((p) => {
               const active = provider === p;
               const off = availability ? !availability[p] : false;
               return (
@@ -331,10 +369,10 @@ function VoiceInterviewInner({
                   disabled={isBusy || off}
                   aria-pressed={active}
                   onClick={() => setProvider(p)}
-                  title={off ? `${PROVIDER_LABEL[p]} not configured` : undefined}
-                  className={`focus-ring rounded-md px-4 py-2 text-base font-medium transition-colors ${
+                  title={off ? `${PROVIDER_LABEL[p]} — keys not configured` : undefined}
+                  className={`focus-ring rounded-md px-3 py-1.5 text-base transition-colors ${
                     active ? "bg-white text-ink shadow-panel" : "text-steel hover:text-ink"
-                  } ${off ? "opacity-40" : ""} ${isBusy ? "cursor-not-allowed" : ""}`}
+                  } ${off ? "cursor-not-allowed opacity-40" : isBusy ? "cursor-not-allowed" : ""}`}
                 >
                   {PROVIDER_LABEL[p]}
                   {off ? " · not set" : ""}
@@ -343,64 +381,41 @@ function VoiceInterviewInner({
             })}
           </div>
         </div>
-      ) : (
-        <p className="text-base text-steel">
-          Provider: <span className="font-medium text-ink">{PROVIDER_LABEL[liveProvider]}</span>
-        </p>
-      )}
-
-      {/* Language hint */}
-      <div>
-        <p className="text-meta uppercase text-steel">Language</p>
-        <div className="mt-1 inline-flex rounded-lg border border-stone-200 bg-paper p-1">
-          {(
-            [
-              ["auto", "Auto-detect"],
-              ["cs", "Čeština"],
-              ["en", "English"],
-            ] as [LangHint, string][]
-          ).map(([v, label]) => (
-            <button
-              key={v}
-              type="button"
-              disabled={isBusy}
-              aria-pressed={language === v}
-              onClick={() => setLanguage(v)}
-              className={`focus-ring rounded-md px-3 py-1.5 text-base transition-colors ${
-                language === v ? "bg-white text-ink shadow-panel" : "text-steel hover:text-ink"
-              } ${isBusy ? "cursor-not-allowed" : ""}`}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
       </div>
 
       {/* Consent */}
-      <label className="flex max-w-2xl items-start gap-2 text-base text-ink">
+      <label
+        className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3.5 text-base text-ink transition-colors ${
+          consent ? "border-moss/40 bg-moss/5" : "border-stone-200 bg-paper/50"
+        } ${isBusy ? "cursor-default" : ""}`}
+      >
         <input
           type="checkbox"
           checked={consent}
           disabled={isBusy}
           onChange={(e) => setConsent(e.target.checked)}
-          className="mt-1"
+          className="mt-0.5 h-4 w-4 shrink-0 rounded text-moss focus-ring"
         />
-        <span>
+        <span className="leading-6">
           I understand this is an <span className="font-medium">AI-conducted</span> first-round screen and that the
-          conversation is <span className="font-medium">transcribed</span> for a human recruiter to review. (No audio is
-          stored.)
+          conversation is <span className="font-medium">transcribed</span> for a human recruiter to review. No audio is
+          stored.
         </span>
       </label>
 
       {/* Controls */}
-      <div className="flex flex-wrap items-center gap-3" aria-busy={phase === "connecting"}>
-        {phase !== "live" && phase !== "ending" ? (
+      <div
+        className="flex flex-wrap items-center gap-3 rounded-lg border border-stone-200 bg-paper/50 px-4 py-3"
+        aria-busy={phase === "connecting"}
+      >
+        {!liveOrEnding ? (
           <button
             type="button"
             onClick={start}
             disabled={!consent || phase === "connecting" || !providerAvailable}
-            className="focus-ring inline-flex h-11 items-center justify-center gap-2 rounded-md bg-ink px-5 text-base font-semibold text-white hover:bg-steel disabled:cursor-not-allowed disabled:opacity-50"
+            className="focus-ring inline-flex h-11 items-center justify-center gap-2 rounded-md bg-ink px-5 text-base font-semibold text-white transition-colors hover:bg-steel disabled:cursor-not-allowed disabled:opacity-50"
           >
+            <Mic size={18} />
             {phase === "connecting" ? "Connecting…" : phase === "ended" ? "Start again" : "Start the call"}
           </button>
         ) : (
@@ -408,8 +423,9 @@ function VoiceInterviewInner({
             type="button"
             onClick={end}
             disabled={phase === "ending"}
-            className="focus-ring inline-flex h-11 items-center justify-center gap-2 rounded-md bg-coral px-5 text-base font-semibold text-white hover:opacity-90 disabled:opacity-50"
+            className="focus-ring inline-flex h-11 items-center justify-center gap-2 rounded-md bg-coral px-5 text-base font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
           >
+            <PhoneOff size={18} />
             {phase === "ending" ? "Ending…" : "End call"}
           </button>
         )}
@@ -426,11 +442,18 @@ function VoiceInterviewInner({
       ) : null}
 
       {/* Transcript */}
-      <div className="rounded-lg border border-stone-200 bg-white">
-        <div className="flex items-center justify-between border-b border-stone-200 px-4 py-2">
-          <p className="text-meta uppercase text-steel">Live transcript</p>
+      <div className="overflow-hidden rounded-lg border border-stone-200 bg-white">
+        <div className="flex items-center justify-between border-b border-stone-200 px-4 py-2.5">
+          <p className="flex items-center gap-2 text-meta uppercase text-steel">
+            Live transcript
+            {phase === "live" ? (
+              <span className="inline-flex items-center gap-1 rounded-full bg-coral/10 px-2 py-0.5 text-coral">
+                <span className="voice-listen h-1.5 w-1.5 rounded-full bg-coral" aria-hidden /> Live
+              </span>
+            ) : null}
+          </p>
           {candidateLabel || jobTitle ? (
-            <p className="text-meta text-steel">
+            <p className="truncate pl-2 text-meta text-steel">
               {candidateLabel}
               {candidateLabel && jobTitle ? " · " : ""}
               {jobTitle}
@@ -438,69 +461,104 @@ function VoiceInterviewInner({
           ) : null}
         </div>
         <div
+          ref={logRef}
           role="log"
           aria-live="polite"
           aria-label="Live interview transcript"
-          className="max-h-[520px] space-y-3 overflow-y-auto p-4"
+          className="max-h-[520px] space-y-4 overflow-y-auto scroll-smooth p-4"
         >
           {turns.length === 0 ? (
-            <p className="text-base text-steel">The transcript will appear here as you talk.</p>
-          ) : (
-            turns.map((t, i) => (
-              <div key={i} className={t.role === "candidate" ? "text-right" : ""}>
-                <p className="text-meta uppercase text-steel">
-                  {t.role === "candidate" ? "Candidate" : t.role === "interviewer" ? "Interviewer (AI)" : "System"}
-                </p>
-                <p
-                  className={`mt-0.5 inline-block max-w-[85%] rounded-lg px-3 py-2 text-base leading-6 ${
-                    t.role === "candidate" ? "bg-limewash text-ink" : "bg-paper text-ink"
-                  }`}
-                >
-                  {t.text}
+            <div className="flex flex-col items-center justify-center gap-3 py-12 text-center">
+              <span className="grid h-12 w-12 place-items-center rounded-full bg-paper text-steel">
+                <Mic size={20} />
+              </span>
+              <div>
+                <p className="text-base text-ink">Your conversation will appear here.</p>
+                <p className="mt-1 text-sm text-steel">
+                  Press “Start the call” when you’re ready — the transcript builds live as you talk.
                 </p>
               </div>
-            ))
+            </div>
+          ) : (
+            turns.map((t, i) =>
+              t.role === "system" ? (
+                <p key={i} className="text-center text-sm text-steel">
+                  {t.text}
+                </p>
+              ) : (
+                <TranscriptTurn key={i} role={t.role} text={t.text} />
+              )
+            )
           )}
         </div>
-      </div>
       </div>
     </div>
   );
 }
 
-function RunOfShowAgenda({ items }: { items: string[] }) {
+function TranscriptTurn({ role, text }: { role: "candidate" | "interviewer"; text: string }) {
+  const isCandidate = role === "candidate";
   return (
-    <aside className="rounded-lg border border-stone-200 bg-paper p-3 md:sticky md:top-4 md:self-start">
-      <p className="text-meta uppercase text-steel">Today’s agenda</p>
-      <ol className="mt-2 space-y-1.5">
-        {items.map((t, i) => (
-          <li key={i} className="flex items-start gap-2 text-base text-ink">
-            <span className="mt-0.5 grid h-4 w-4 shrink-0 place-items-center rounded-full border border-stone-300 text-[10px] text-steel">
-              {i + 1}
-            </span>
-            <span>{t}</span>
-          </li>
-        ))}
-      </ol>
-      <p className="mt-2 text-meta text-steel">Your interviewer will guide you through each step.</p>
-    </aside>
+    <div className={`flex items-start gap-2.5 ${isCandidate ? "flex-row-reverse" : ""}`}>
+      <span
+        aria-hidden
+        className={`mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-full ${
+          isCandidate ? "bg-limewash text-moss" : "bg-ink text-white"
+        }`}
+      >
+        {isCandidate ? <User size={14} /> : <Sparkles size={14} />}
+      </span>
+      <div className={`min-w-0 max-w-[82%] ${isCandidate ? "text-right" : ""}`}>
+        <p className="text-meta uppercase text-steel">{isCandidate ? "You" : "Interviewer"}</p>
+        <p
+          className={`mt-1 inline-block rounded-2xl px-3.5 py-2 text-left text-base leading-6 ${
+            isCandidate
+              ? "rounded-tr-sm bg-limewash text-ink"
+              : "rounded-tl-sm border border-stone-200 bg-paper text-ink"
+          }`}
+        >
+          {text}
+        </p>
+      </div>
+    </div>
   );
 }
 
 function StatusPill({ phase, speaking }: { phase: Phase; speaking: boolean }) {
-  const map: Record<Phase, { label: string; cls: string }> = {
+  // role="status" → implicit aria-live="polite" so phase/speaking changes are
+  // announced to screen readers without stealing focus.
+  // Live gets a motion treatment: bouncing equalizer bars while the AI speaks,
+  // a single breathing pulse while the candidate's mic is open.
+  if (phase === "live") {
+    return (
+      <span
+        role="status"
+        className="inline-flex items-center gap-2 rounded-full bg-moss/15 px-3 py-1 text-meta text-moss"
+      >
+        {speaking ? (
+          <span className="flex h-3.5 items-end gap-[3px]" aria-hidden>
+            <span className="voice-eq-bar h-full w-[3px] rounded-full bg-moss" style={{ animationDelay: "0ms" }} />
+            <span className="voice-eq-bar h-full w-[3px] rounded-full bg-moss" style={{ animationDelay: "150ms" }} />
+            <span className="voice-eq-bar h-full w-[3px] rounded-full bg-moss" style={{ animationDelay: "300ms" }} />
+          </span>
+        ) : (
+          <span className="voice-listen h-2.5 w-2.5 rounded-full bg-moss" aria-hidden />
+        )}
+        {speaking ? "AI speaking" : "Listening"}
+      </span>
+    );
+  }
+  const map: Record<Exclude<Phase, "live">, { label: string; cls: string; dot?: string }> = {
     idle: { label: "Ready", cls: "bg-stone-100 text-steel" },
-    connecting: { label: "Connecting…", cls: "bg-dial-amber/20 text-ink" },
-    live: { label: speaking ? "AI speaking…" : "Listening…", cls: "bg-moss/15 text-moss" },
-    ending: { label: "Ending…", cls: "bg-dial-amber/20 text-ink" },
+    connecting: { label: "Connecting…", cls: "bg-dial-amber/20 text-ink", dot: "bg-dial-amber" },
+    ending: { label: "Ending…", cls: "bg-dial-amber/20 text-ink", dot: "bg-dial-amber" },
     ended: { label: "Call ended", cls: "bg-stone-100 text-steel" },
     error: { label: "Error", cls: "bg-coral/10 text-coral" },
   };
   const s = map[phase];
-  // role="status" → implicit aria-live="polite" so phase/speaking changes are
-  // announced to screen readers without stealing focus.
   return (
-    <span role="status" className={`rounded-full px-3 py-1 text-meta ${s.cls}`}>
+    <span role="status" className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-meta ${s.cls}`}>
+      {s.dot ? <span className={`voice-listen h-2 w-2 rounded-full ${s.dot}`} aria-hidden /> : null}
       {s.label}
     </span>
   );

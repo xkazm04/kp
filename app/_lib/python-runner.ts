@@ -17,9 +17,9 @@ export type AnalyzeOptions = {
 export type PythonError = {
   message: string;
   status: number;
-  // Stable, machine-readable code (e.g. "invalid_input" / "engine_error") the UI
-  // can branch on without string-matching the human message. Absent for CLIs
-  // that don't emit one yet.
+  // Stable, machine-readable code (e.g. "invalid_input" / "not_found" /
+  // "engine_error") the UI can branch on without string-matching the human
+  // message. Absent for CLIs that don't emit one yet.
   code?: string;
 };
 
@@ -117,7 +117,9 @@ export function spawnPython(
   result: Promise<SpawnResult>;
 } {
   const child = spawn(PYTHON_CMD, args, {
-    cwd: process.cwd(),
+    // cwd defaults to the parent's process.cwd() (the project root, where the
+    // `pipeline` package is importable for `python -m`); passing it explicitly is
+    // redundant and made Turbopack's file tracer over-include the project root.
     // Force UTF-8 for the child's stdio + subprocess I/O so Czech diacritics
     // survive on Windows (whose default locale is cp1250). PYTHONUTF8=1 also
     // makes any nested subprocess.run(text=True) default to UTF-8.
@@ -241,6 +243,7 @@ export function parsePythonJson<T>(stdout: string, stderr = ""): T {
 // Default code derived from status when the CLI didn't emit an explicit one
 // (older CLIs, or argparse usage errors that exit 2 with plain-text stderr).
 function codeForStatus(status: number): string {
+  if (status === 404) return "not_found";
   return status === 400 ? "invalid_input" : "engine_error";
 }
 

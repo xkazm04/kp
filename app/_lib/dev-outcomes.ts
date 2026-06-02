@@ -1,12 +1,56 @@
 import path from "node:path";
 import { mkdirSync } from "node:fs";
 import Database from "better-sqlite3";
+import { z } from "zod";
 
 // Direction E — the outcome loop. Record what actually happened to promoted candidates
 // (hired / rejected, and on-the-job performance) and CALIBRATE the pipeline's thresholds
 // against reality: did a high predicted score actually predict a good outcome? Self-contained
 // connection (own table) to stay clear of the main schema while the fork churns it.
 const DB_PATH = process.env.KP_DB_PATH ?? path.join(process.cwd(), "data", "kp.sqlite");
+
+// ── Canonical outcome vocabulary ─────────────────────────────────────────────
+// These four labels are the ONLY values the store accepts. Before this was enforced,
+// recordOutcome took any free-text string while calibrate() only counts exact "hired"/
+// "rejected" — so a typo ("Hired", "hire", "withdrew") was silently recorded but dropped
+// from calibration, biasing the promote-floor suggestion with no warning. The enum +
+// boundary validation make the contract explicit and keep the learning loop honest.
+//   • hired     — candidate was hired (the only outcome that carries a performance score)
+//   • rejected  — candidate was turned down
+//   • withdrawn — candidate withdrew themselves (not counted as a decided signal)
+//   • pending   — outcome not yet known (not counted as a decided signal)
+export const OUTCOMES = ["hired", "rejected", "withdrawn", "pending"] as const;
+export type Outcome = (typeof OUTCOMES)[number];
+
+// Performance is a 1..5 on-the-job rating that is ONLY meaningful for a hire — there is no
+// performance to rate for a candidate who was rejected, withdrew, or is still pending.
+export const PERFORMANCE_MIN = 1;
+export const PERFORMANCE_MAX = 5;
+
+// Single source of truth for the recordOutcome data contract. Validated at the
+// /api/devcase/outcomes boundary so a bad label or out-of-range score can never reach
+// the calibration store. The cross-field rule (performance only for "hired") is enforced
+// here too, so the meanPerformance bands can never be skewed by a stray score.
+export const outcomeInputSchema = z
+  .object({
+    ref: z.string().optional(),
+    candidateRef: z.string().optional(),
+    predictedScore: z.number().optional(),
+    outcome: z.enum(OUTCOMES, { error: `outcome must be one of: ${OUTCOMES.join(", ")}` }),
+    performance: z
+      .number()
+      .int({ error: "performance must be a whole number" })
+      .min(PERFORMANCE_MIN, { error: `performance must be between ${PERFORMANCE_MIN} and ${PERFORMANCE_MAX}` })
+      .max(PERFORMANCE_MAX, { error: `performance must be between ${PERFORMANCE_MIN} and ${PERFORMANCE_MAX}` })
+      .optional(),
+    note: z.string().optional(),
+  })
+  .refine((v) => v.performance == null || v.outcome === "hired", {
+    error: "performance applies only to a 'hired' outcome",
+    path: ["performance"],
+  });
+
+export type OutcomeInput = z.infer<typeof outcomeInputSchema>;
 
 let _db: Database.Database | null = null;
 function db(): Database.Database {
@@ -31,25 +75,21 @@ function db(): Database.Database {
   return d;
 }
 
-export type Outcome = {
+export type OutcomeRecord = {
   id: number;
   ref: string | null;
   candidateRef: string | null;
   predictedScore: number | null;
-  outcome: string; // hired | rejected | withdrawn | pending
-  performance: number | null; // 1..5 for hired
+  outcome: Outcome;
+  performance: number | null; // PERFORMANCE_MIN..PERFORMANCE_MAX, only set when outcome === "hired"
   note: string | null;
   recordedAt: string;
 };
 
-export function recordOutcome(input: {
-  ref?: string;
-  candidateRef?: string;
-  predictedScore?: number;
-  outcome: string;
-  performance?: number;
-  note?: string;
-}): void {
+// Persist a single outcome. `input` is expected to already be validated against
+// `outcomeInputSchema` at the API boundary — that is where the canonical vocabulary and the
+// 1..5 / hired-only performance rule are enforced, keeping the calibration inputs honest.
+export function recordOutcome(input: OutcomeInput): void {
   db()
     .prepare(`INSERT INTO dev_outcomes (ref, candidate_ref, predicted_score, outcome, performance, note, recorded_at) VALUES (?, ?, ?, ?, ?, ?, ?)`)
     .run(
@@ -63,14 +103,16 @@ export function recordOutcome(input: {
     );
 }
 
-export function listOutcomes(limit = 80): Outcome[] {
+export function listOutcomes(limit = 80): OutcomeRecord[] {
   const rows = db().prepare(`SELECT * FROM dev_outcomes ORDER BY id DESC LIMIT ?`).all(limit) as Array<Record<string, unknown>>;
   return rows.map((r) => ({
     id: r.id as number,
     ref: (r.ref as string) ?? null,
     candidateRef: (r.candidate_ref as string) ?? null,
     predictedScore: r.predicted_score == null ? null : Number(r.predicted_score),
-    outcome: r.outcome as string,
+    // Rows written before boundary validation may hold legacy free-text labels; they simply
+    // fall outside the canonical set and are excluded from calibration, exactly as before.
+    outcome: r.outcome as Outcome,
     performance: r.performance == null ? null : Number(r.performance),
     note: (r.note as string) ?? null,
     recordedAt: r.recorded_at as string,

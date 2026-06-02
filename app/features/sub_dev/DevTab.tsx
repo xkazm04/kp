@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useLoader } from "@/app/_lib/useLoader";
 import { useTasks } from "@/app/features/tasks/TasksProvider";
 import { NeedForm } from "./NeedForm";
 import { AnalysisView } from "./AnalysisView";
@@ -21,39 +22,37 @@ export function DevTab() {
   const [designId, setDesignId] = useState<string | null>(null);
   const [approving, setApproving] = useState(false);
   const [approvedId, setApprovedId] = useState<string | null>(null);
-  const [approvedCases, setApprovedCases] = useState<ApprovedCase[]>([]);
-  const [postings, setPostings] = useState<Posting[]>([]);
-  const [lifecycles, setLifecycles] = useState<Lifecycle[]>([]);
-  const [outbox, setOutbox] = useState<OutboxItem[]>([]);
   const [sourcedCounts, setSourcedCounts] = useState<Record<string, number>>({});
   const [sourcing, setSourcing] = useState<string | null>(null);
 
-  const loadCases = () =>
-    fetch("/api/devcase")
-      .then((r) => r.json())
-      .then((p) => setApprovedCases((p.cases as ApprovedCase[]) ?? []))
-      .catch(() => {});
-  const loadPostings = () =>
-    fetch("/api/devcase/postings")
-      .then((r) => r.json())
-      .then((p) => setPostings((p.postings as Posting[]) ?? []))
-      .catch(() => {});
-  const loadLifecycles = () =>
-    fetch("/api/devcase/lifecycle")
-      .then((r) => r.json())
-      .then((p) => setLifecycles((p.lifecycles as Lifecycle[]) ?? []))
-      .catch(() => {});
-  const loadOutbox = () =>
-    fetch("/api/devcase/comms")
-      .then((r) => r.json())
-      .then((p) => setOutbox((p.outbox as OutboxItem[]) ?? []))
-      .catch(() => {});
+  // Each loader tracks its own failure + last-updated so an outage renders an
+  // explicit banner/stale pill instead of looking identical to an empty pipeline.
+  const { data: approvedCases, state: casesState, reload: loadCases } = useLoader<ApprovedCase[]>(
+    "/api/devcase",
+    (p) => (p.cases as ApprovedCase[]) ?? [],
+    [],
+  );
+  const { data: postings, state: postingsState, reload: loadPostings } = useLoader<Posting[]>(
+    "/api/devcase/postings",
+    (p) => (p.postings as Posting[]) ?? [],
+    [],
+  );
+  const { data: lifecycles, state: lifecyclesState, reload: loadLifecycles } = useLoader<Lifecycle[]>(
+    "/api/devcase/lifecycle",
+    (p) => (p.lifecycles as Lifecycle[]) ?? [],
+    [],
+  );
+  const { data: outbox, state: outboxState, reload: loadOutbox } = useLoader<OutboxItem[]>(
+    "/api/devcase/comms",
+    (p) => (p.outbox as OutboxItem[]) ?? [],
+    [],
+  );
   useEffect(() => {
     loadCases();
     loadPostings();
     loadLifecycles();
     loadOutbox();
-  }, []);
+  }, [loadCases, loadPostings, loadLifecycles, loadOutbox]);
 
   // Reload orchestration state as background tasks progress (lifecycle/evaluate update it).
   const lifecycleActive = tasks.some((t) => t.kind === "lifecycle" && (t.status === "running" || t.status === "queued"));
@@ -214,7 +213,7 @@ export function DevTab() {
         />
       </div>
 
-      <LifecycleSection lifecycles={lifecycles} approveLifecycle={approveLifecycle} />
+      <LifecycleSection lifecycles={lifecycles} approveLifecycle={approveLifecycle} state={lifecyclesState} />
 
       <ApprovedCasesSection
         approvedCases={approvedCases}
@@ -223,11 +222,12 @@ export function DevTab() {
         source={source}
         sourcing={sourcing}
         sourcedCounts={sourcedCounts}
+        state={casesState}
       />
 
-      <PostingsSection postings={postings} loadPostings={loadPostings} />
+      <PostingsSection postings={postings} loadPostings={loadPostings} state={postingsState} />
 
-      <OutboxSection outbox={outbox} />
+      <OutboxSection outbox={outbox} state={outboxState} />
     </div>
   );
 }

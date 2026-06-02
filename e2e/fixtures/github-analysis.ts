@@ -49,11 +49,18 @@ export const GITHUB_ANALYSIS_FIXTURE: GithubAnalysis = {
   limitations: ["Public repositories only"],
   codeReview: {
     status: "ok" as const,
-    summary: "Code confirms strong Python + LLM tooling skills.",
+    summary: "Public repo signals evidence strong Python + LLM tooling skills.",
     confirmedSkills: ["Python", "LLM"],
     unverifiedClaims: [],
     hiddenStrengths: ["observability"],
     reposReviewed: ["llm-automation"],
+    evidenceBasis: [
+      "README text only, truncated to the first 3500 characters per repo.",
+      "Up to 10 recent commit subject lines (first line of each message) per repo.",
+      "Up to 30 root-level file and directory names per repo — names only, no file contents.",
+      "Primary language and repository topics from GitHub metadata.",
+      "Not read: file bodies, nested/recursive directory trees, private repos, and non-default branches.",
+    ],
     error: null,
   },
 };

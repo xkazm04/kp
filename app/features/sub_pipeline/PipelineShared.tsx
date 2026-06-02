@@ -1,5 +1,6 @@
 import {
   AlertCircle,
+  AlertTriangle,
   ArrowUpCircle,
   Briefcase,
   CalendarCheck,
@@ -9,6 +10,7 @@ import {
   GraduationCap,
   Repeat,
   Sparkles,
+  Wrench,
   XCircle,
   type LucideIcon,
 } from "lucide-react";
@@ -23,44 +25,73 @@ const ARCHETYPE_ICON: Record<string, LucideIcon> = {
   career_switcher: Repeat,
 };
 
-export function eventVerb(ev: PipelineEvent): string {
-  switch (ev.kind) {
-    case "matched":
-      return "was matched";
-    case "added":
-      return "was added to the pipeline";
-    case "advanced":
-      return `advanced to ${ev.toStage}`;
-    case "scheduled":
-      return `interview scheduled${ev.detail ? ` (${ev.detail})` : ""}`;
-    case "rejected":
-      return "was rejected";
-    default:
-      return ev.kind;
-  }
+// The pipeline-lifecycle event taxonomy that the activity feed renders richly.
+// These are the kinds recordEvent() emits in db.ts. Promoted from a bare string
+// to a string-literal union so EVENT_CATALOG below can be checked exhaustively.
+export const EVENT_KINDS = [
+  "matched",
+  "added",
+  "advanced",
+  "scheduled",
+  "rejected",
+  "intake_degraded",
+  "intake_resolved",
+] as const;
+
+export type EventKind = (typeof EVENT_KINDS)[number];
+
+type EventMeta = {
+  // Human verb for the feed row ("<candidate> <verb> · <job>"). A builder, not a
+  // bare string, so kinds that carry a target stage or detail can fold them in.
+  verb: (ev: PipelineEvent) => string;
+  // Glyph paired with a tone, so the row's state reads without relying on hue
+  // alone (mirrors Badge's icon-plus-label-not-color doctrine). aria-hidden — the
+  // adjacent row text already names the event for assistive tech.
+  Icon: LucideIcon;
+  tone: string;
+};
+
+// ONE source of truth mapping each event kind to its verb, glyph and tone. This
+// replaces the old eventVerb/eventDotCue switch pair that had to be kept in sync
+// by hand. Because the type is Record<EventKind, …>, adding a kind to EVENT_KINDS
+// without a row here is a compile error — a new kind can never ship half-styled
+// (missing a label or an icon), and a typo'd kind can't fall through to a raw
+// enum value rendered at the user. eventVerb/EventDot are now table lookups.
+export const EVENT_CATALOG: Record<EventKind, EventMeta> = {
+  matched: { verb: () => "was matched", Icon: Sparkles, tone: "text-steel" },
+  added: { verb: () => "was added to the pipeline", Icon: CirclePlus, tone: "text-steel" },
+  advanced: { verb: (ev) => `advanced to ${ev.toStage}`, Icon: ArrowUpCircle, tone: "text-moss" },
+  scheduled: {
+    verb: (ev) => `interview scheduled${ev.detail ? ` (${ev.detail})` : ""}`,
+    Icon: CalendarCheck,
+    tone: "text-moss",
+  },
+  rejected: { verb: () => "was rejected", Icon: XCircle, tone: "text-coral" },
+  intake_degraded: {
+    verb: (ev) => `applied, but intake couldn't be auto-profiled${ev.detail ? ` (${ev.detail})` : ""}`,
+    Icon: AlertTriangle,
+    tone: "text-red-600",
+  },
+  intake_resolved: { verb: () => "intake captured manually", Icon: Wrench, tone: "text-moss" },
+};
+
+// One documented fallback for kinds outside the catalog. The feed (listPipelineEvents)
+// also surfaces automation kinds — outreach_sent, offer_drafted, auto_rejected, … —
+// which carry their own rich label/attribution in DecisionLog's DECISION_META; here
+// they degrade gracefully to a humanized label and a neutral glyph rather than a raw
+// enum value or a hard crash on an unrecognized string from an older row.
+const EVENT_FALLBACK: { Icon: LucideIcon; tone: string } = { Icon: CircleDot, tone: "text-steel" };
+
+export function isEventKind(kind: string): kind is EventKind {
+  return (EVENT_KINDS as readonly string[]).includes(kind);
 }
 
-// A glyph + color (not color alone) for each activity kind. The adjacent row
-// text already names the event for assistive tech, so the icon stays aria-hidden.
-function eventDotCue(kind: string): { Icon: LucideIcon; tone: string } {
-  switch (kind) {
-    case "rejected":
-      return { Icon: XCircle, tone: "text-coral" };
-    case "advanced":
-      return { Icon: ArrowUpCircle, tone: "text-moss" };
-    case "scheduled":
-      return { Icon: CalendarCheck, tone: "text-moss" };
-    case "matched":
-      return { Icon: Sparkles, tone: "text-steel" };
-    case "added":
-      return { Icon: CirclePlus, tone: "text-steel" };
-    default:
-      return { Icon: CircleDot, tone: "text-steel" };
-  }
+export function eventVerb(ev: PipelineEvent): string {
+  return isEventKind(ev.kind) ? EVENT_CATALOG[ev.kind].verb(ev) : ev.kind.replace(/_/g, " ");
 }
 
 export function EventDot({ kind }: { kind: string }) {
-  const { Icon, tone } = eventDotCue(kind);
+  const { Icon, tone } = isEventKind(kind) ? EVENT_CATALOG[kind] : EVENT_FALLBACK;
   return <Icon className={`h-3.5 w-3.5 shrink-0 ${tone}`} aria-hidden />;
 }
 
@@ -167,15 +198,29 @@ export function CandidateRow({
 }) {
   const style = styleFor(entry.archetype);
   const days = daysSince(entry.stageChangedAt);
-  // pending (coral pulse) > aging (amber) > archetype color.
-  const dotClass = pending ? "bg-coral animate-pulse" : stale ? "bg-amber-400" : style.bg;
-  const dotTitle = pending ? "Awaiting your decision" : stale ? `Aging >${STALE_DAYS}d in stage` : style.label;
-  // Non-color cue inside the status dot: pending/aging get a distinct glyph,
-  // otherwise the archetype icon — so state never rides on color alone.
-  const StatusIcon = pending ? AlertCircle : stale ? Clock : ARCHETYPE_ICON[entry.archetype ?? "bau"] ?? Briefcase;
+  // Intake degraded is a data-integrity problem (a non-matchable stub), so it
+  // outranks every other cue: degraded (red triangle) > pending (coral pulse) >
+  // aging (amber) > archetype color. State never rides on color alone — each
+  // level has its own glyph.
+  const degraded = !!entry.intakeDegraded;
+  const dotClass = degraded ? "bg-red-600" : pending ? "bg-coral animate-pulse" : stale ? "bg-amber-400" : style.bg;
+  const dotTitle = degraded
+    ? `Intake degraded — needs manual profile capture${entry.intakeDegradedReason ? ` · ${entry.intakeDegradedReason}` : ""}`
+    : pending
+      ? "Awaiting your decision"
+      : stale
+        ? `Aging >${STALE_DAYS}d in stage`
+        : style.label;
+  const StatusIcon = degraded
+    ? AlertTriangle
+    : pending
+      ? AlertCircle
+      : stale
+        ? Clock
+        : ARCHETYPE_ICON[entry.archetype ?? "bau"] ?? Briefcase;
   const title = `${entry.candidateLabel} · ${style.label}${entry.matchScore != null ? ` · match ${entry.matchScore}` : ""}${
     days != null ? ` · ${days}d in stage` : ""
-  }`;
+  }${degraded ? " · intake degraded" : ""}`;
   return (
     <div className="group flex items-center gap-1.5 rounded-md px-1 py-0.5 hover:bg-paper">
       <span
@@ -230,6 +275,12 @@ export function Legend() {
       <span className="inline-flex items-center gap-1.5">
         <span className="h-2.5 w-2.5 rounded-full bg-amber-400" />
         Aging &gt;{STALE_DAYS}d in stage
+      </span>
+      <span className="inline-flex items-center gap-1.5">
+        <span className="inline-flex h-3 w-3 items-center justify-center rounded-full bg-red-600 text-white">
+          <AlertTriangle className="h-2 w-2" aria-hidden />
+        </span>
+        Intake degraded — needs manual capture
       </span>
     </div>
   );

@@ -1,6 +1,6 @@
 # KP — Job Fit & Salary Estimator
 
-Next.js + TypeScript UI backed by a Python analysis pipeline for CV/profile extraction, role-fit scoring, and Czech-market salary estimation. Ships with a code-aware GitHub deep-dive, a SQLite-backed workspace for saved analyses, and a golden-set eval harness used to keep the pipeline calibrated.
+Next.js + TypeScript UI backed by a Python analysis pipeline for CV/profile extraction, role-fit scoring, and Czech-market salary estimation. Ships with a GitHub repo-signal deep-dive (README, commit subjects, and root-level file names — not the source code itself), a SQLite-backed workspace for saved analyses, and a golden-set eval harness used to keep the pipeline calibrated.
 
 The browser uploads a CV/profile to a Next.js API route, which spawns the Python CLI (`python -m pipeline.jobfit.cli`) as a subprocess and consumes its stdout. A deterministic taxonomy pre-pass runs before the LLM and is fed in as structured evidence so Gemini reconciles its judgment with what the rules already detected. Results are validated with a Zod schema generated from the Pydantic models, so the TypeScript UI and Python pipeline cannot drift apart. There is no second long-lived server to manage.
 
@@ -22,7 +22,7 @@ Create `.env.local` in the project root:
 
 ```bash
 GEMINI_API_KEY=your_key_here
-# Optional — raises GitHub API rate limits and unlocks the GitHub code-aware review
+# Optional — raises GitHub API rate limits and unlocks the GitHub repo-signal review
 GITHUB_TOKEN=your_token_here
 # Optional — interpreter used when spawning the Python pipeline
 PYTHON_CMD=python
@@ -115,7 +115,7 @@ app/
   matrix/page.tsx                   Candidate × JD pivot view
   api/analyze/route.ts              Multi-variant analysis — one Python process per CV; persists result
   api/analyze/stream/route.ts       Single-CV SSE stream — pipes Python --stream stdout; persists captured result
-  api/github-analysis/route.ts      GitHub REST + Gemini code-aware deep-dive
+  api/github-analysis/route.ts      GitHub REST + Gemini repo-signal deep-dive (metadata/text, not source code)
   api/analyses/route.ts             GET — list saved analyses
   api/analyses/[slug]/route.ts      GET — load a single saved analysis
   api/jds/route.ts                  GET — list JDs;  POST — save a JD
@@ -162,12 +162,12 @@ e2e/                                Playwright tests across input combinations
 npm run lint
 npm run typecheck         # also regenerates the Zod schema
 npm run test:python       # python -m unittest discover pipeline/jobfit/tests
-npm run test:e2e          # Playwright; auto-skips when no GEMINI_API_KEY
+npm run test:e2e          # Playwright; Analyze suite auto-skips when no GEMINI_API_KEY
 npm run test:eval         # golden-set eval (markdown report)
 npm run test:eval:strict  # eval + non-zero exit when thresholds fail
 ```
 
-The unit suite (`pipeline/jobfit/tests/`) covers insights rules and PDF parsing quality. Playwright (`e2e/profile-smoke.spec.ts`) covers four input combinations: CV only, CV + JD, CV + JD + company, CV + JD + company + GitHub. Both suites skip cleanly without a Gemini key.
+The unit suite (`pipeline/jobfit/tests/`) covers insights rules and PDF parsing quality. Playwright splits into two specs: `e2e/analyze-smoke.spec.ts` exercises the LLM-backed Analyze flow over four input combinations (CV only, CV + JD, CV + JD + company, CV + JD + company + GitHub) and skips cleanly without a Gemini key; `e2e/profile-builder.spec.ts` is a deterministic build/save round-trip for the candidate profile builder (archetype routing + completeness scoring) that needs no API key.
 
 ### Eval harness
 

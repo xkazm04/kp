@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import re
 import unicodedata
+from datetime import date
 
 from .models import CandidateProfile
 from .taxonomy import (
@@ -13,15 +14,30 @@ from .taxonomy import (
 )
 
 
-def build_profile(text: str) -> CandidateProfile:
+def present_year() -> int:
+    """The reference "now" year, read from the system clock.
+
+    Ongoing roles (present/now/současnost/dosud) end in this year, and it is the
+    ceiling that clamps any experience interval so none extends past today.
+    Reading it from the clock means the anchor rolls over automatically every
+    January 1st instead of silently dropping a year of experience from every
+    still-running role; tests pin it via the ``as_of`` argument below.
+    """
+    return date.today().year
+
+
+def build_profile(text: str, as_of: int | None = None) -> CandidateProfile:
     """Regex-only profile builder used as the no-key classic fallback.
 
     Skills, traits, and language extraction now come from the LLM payload.
     This builder produces deterministic signals only: years of experience,
     seniority, education, name, and role family.
+
+    ``as_of`` overrides the present-year anchor used for ongoing roles; it
+    defaults to the current calendar year (see :func:`present_year`).
     """
     normalized = _normalize_for_matching(text)
-    years = _estimate_years(normalized)
+    years = _estimate_years(normalized, as_of=as_of)
     seniority = _infer_seniority(normalized, years)
     role_family = classify_role_family([], normalized)
     education = _infer_education(normalized)
@@ -51,7 +67,8 @@ def build_profile(text: str) -> CandidateProfile:
     )
 
 
-def _estimate_years(text: str) -> float:
+def _estimate_years(text: str, as_of: int | None = None) -> float:
+    reference_year = as_of if as_of is not None else present_year()
     text = _collapse_digit_spacing(text)
     year_ranges = re.findall(
         r"(20\d{2}|19\d{2})\s*(?:-|–|—|to|do)\s*(present|now|současnost|dosud|20\d{2})",
@@ -64,9 +81,9 @@ def _estimate_years(text: str) -> float:
     year_ranges.extend((start, re.search(r"(20\d{2}|19\d{2})$", end).group(1) if re.search(r"(20\d{2}|19\d{2})$", end) else end) for start, end in month_year_ranges)
     intervals = []
     for start, end in year_ranges:
-        end_year = 2026 if end in {"present", "now", "současnost", "dosud"} else int(end)
+        end_year = reference_year if end in {"present", "now", "současnost", "dosud"} else int(end)
         if end_year >= int(start):
-            intervals.append((int(start), min(end_year, 2026)))
+            intervals.append((int(start), min(end_year, reference_year)))
 
     explicit = [
         float(match.replace(",", "."))

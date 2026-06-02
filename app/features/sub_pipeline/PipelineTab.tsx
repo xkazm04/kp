@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Sparkles } from "lucide-react";
+import { AlertTriangle, Sparkles } from "lucide-react";
 import { buildUrl } from "@/app/features/tabs";
 import { useTasks } from "@/app/features/tasks/TasksProvider";
 import { useLiveRefresh } from "@/app/features/live-refresh";
@@ -24,10 +24,11 @@ function StatChip({
 }: {
   label: string;
   value: number;
-  tone?: "neutral" | "coral" | "amber";
+  tone?: "neutral" | "coral" | "amber" | "red";
   onClick?: () => void;
 }) {
-  const valueColor = tone === "coral" ? "text-coral" : tone === "amber" ? "text-amber-700" : "text-ink";
+  const valueColor =
+    tone === "coral" ? "text-coral" : tone === "amber" ? "text-amber-700" : tone === "red" ? "text-red-700" : "text-ink";
   const cls = "flex min-w-[5rem] flex-col items-center gap-0.5 rounded-md border border-stone-200 bg-white px-2.5 py-1.5 shadow-panel";
   const inner = (
     <>
@@ -94,6 +95,11 @@ export function PipelineTab() {
   const interviewCount = (entries ?? []).filter((e) => e.stage === "Interview").length;
   const isStale = (e: Entry) => e.stage !== "Hired" && (daysSince(e.stageChangedAt) ?? 0) >= STALE_DAYS;
   const staleCount = (entries ?? []).filter(isStale).length;
+  // Stubs from a failed intake normalization: visible, recoverable, and not yet
+  // matchable until a recruiter captures the profile. Active-only — a rejected
+  // stub is out of the funnel and doesn't need recovery.
+  const degraded = (entries ?? []).filter((e) => e.intakeDegraded && e.status !== "rejected");
+  const degradedCount = degraded.length;
 
   const openActions = (e: Entry) => setDrawerEntry(e);
   // Candidate name → the analyzed profile (Match view); falls back to the
@@ -146,6 +152,14 @@ export function PipelineTab() {
             <StatChip label="Active" value={activeCount} />
             <StatChip label="Interview" value={interviewCount} />
             <StatChip label={`Aging>${STALE_DAYS}d`} value={staleCount} tone={staleCount > 0 ? "amber" : "neutral"} />
+            {degradedCount > 0 ? (
+              <StatChip
+                label="Needs intake"
+                value={degradedCount}
+                tone="red"
+                onClick={() => setDrawerEntry(degraded[0])}
+              />
+            ) : null}
             <StatChip
               label="Awaiting you"
               value={approvals.length}
@@ -200,6 +214,24 @@ export function PipelineTab() {
         </p>
       ) : (
         <>
+          {degradedCount > 0 ? (
+            <button
+              type="button"
+              onClick={() => setDrawerEntry(degraded[0])}
+              className="focus-ring flex w-full items-center justify-between gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-left hover:bg-red-100"
+            >
+              <span className="flex min-w-0 items-center gap-2 text-base text-ink">
+                <AlertTriangle size={16} className="shrink-0 text-red-600" aria-hidden />
+                <span>
+                  <span className="font-semibold text-red-700">{degradedCount} application{degradedCount === 1 ? "" : "s"}</span>{" "}
+                  couldn&apos;t be auto-profiled and {degradedCount === 1 ? "is" : "are"} a non-matchable stub — capture
+                  the profile manually so they re-enter matching.
+                </span>
+              </span>
+              <span className="shrink-0 text-base font-semibold text-red-700">Review →</span>
+            </button>
+          ) : null}
+
           {approvals.length > 0 ? (
             <button
               type="button"

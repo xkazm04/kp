@@ -13,20 +13,21 @@ export const dynamic = "force-dynamic";
 const DIAGRAMS: { file: string; label: string; blurb: string; featured?: boolean }[] = [
   {
     file: "15-automated-pipeline-tobe.puml",
-    label: "to-be — fully automated JD → hire",
+    label: "live pipeline — JD → hire",
     blurb:
-      "The end-to-end pipeline from authoring a job description to a hired candidate. All five gap directions are now wired — click any step to open its real implementation: which UI module calls which function, against which data tables.",
+      "The end-to-end pipeline from authoring a job description to a hired candidate, with each wired step grouped under its simulation phase (Design JD · Source · Intake · Screen · Interview · Offer · Hired). All five gap directions are wired — click any step to open its real implementation: which UI module calls which function, against which data tables.",
     featured: true,
   },
   {
     file: "01-system-architecture-v1.puml",
-    label: "v1 — current",
-    blurb: "The app as it exists today: one CV → at most one JD → a single Gemini call.",
+    label: "v1 — original CV analysis",
+    blurb: "Where it began: one CV → at most one JD → a single Gemini call.",
   },
   {
     file: "02-system-architecture-v2.puml",
-    label: "v2 — target",
-    blurb: "The matching platform: job-ad ingestion, archetype routing, a matching engine, and the taxonomy graph.",
+    label: "v2 — matching platform (now built)",
+    blurb:
+      "The matching platform now powering the app: job-ad ingestion, archetype routing, the KO→score matching engine (deterministic, Claude-CLI reasoning), and the taxonomy graph. The embedding/semantic bridge is still planned.",
   },
 ];
 
@@ -89,7 +90,7 @@ export default function DiagramsPage() {
               it.featured ? (
                 <PipelineExplorer source={it.source} />
               ) : (
-                <PlantUml source={it.source} scale="natural" className="mt-4" />
+                <PlantUml source={it.source} scale="natural" className="mt-4" expandable />
               )
             ) : (
               <p className="mt-4 text-sm text-coral">Could not read {it.file}.</p>

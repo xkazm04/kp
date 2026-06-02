@@ -57,10 +57,18 @@ export type Analysis = z.infer<typeof analysisSchema>;
 export const codeReviewSchema = z.object({
   status: z.enum(["disabled", "ok", "error"]),
   summary: z.string(),
+  // `confirmedSkills` is the model's read on which skills the *public repo
+  // signals* evidence — NOT a confirmation that the source code was inspected.
+  // The deep review never reads file bodies or a recursive tree (see
+  // `evidenceBasis`), so the UI surfaces these as "Evidenced Skills".
   confirmedSkills: z.array(z.string()),
   unverifiedClaims: z.array(z.string()),
   hiddenStrengths: z.array(z.string()),
   reposReviewed: z.array(z.string()),
+  // Human-readable, deterministic description of the exact evidence the review
+  // was built from (README text, commit subjects, root-level file names, …),
+  // so the panel can state its scope instead of implying the code was read.
+  evidenceBasis: z.array(z.string()),
   error: z.string().nullable()
 });
 

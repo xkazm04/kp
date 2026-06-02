@@ -3,7 +3,13 @@
 import { useEffect, useRef, useState } from "react";
 import { AiDisclosure } from "@/app/_components/AiDisclosure";
 
-type Step = { id: string; type: "text" | "ko"; prompt: string; placeholder?: string };
+type Step = {
+  id: string;
+  type: "text" | "ko" | "choice";
+  prompt: string;
+  placeholder?: string;
+  options?: { value: string; label: string }[];
+};
 type Msg = { who: "bot" | "me"; text: string };
 
 export function ConversationalApply({ jobId }: { jobId: string }) {
@@ -15,7 +21,14 @@ export function ConversationalApply({ jobId }: { jobId: string }) {
   const [input, setInput] = useState("");
   const [done, setDone] = useState<{ result: "accepted" | "declined"; message: string } | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  // True during the 250ms hand-off between steps; locks the controls so a step
+  // can't be answered before the next prompt has even rendered.
+  const [transitioning, setTransitioning] = useState(false);
   const endRef = useRef<HTMLDivElement | null>(null);
+  // Step ids already answered — the synchronous guard that makes advance()
+  // idempotent even when two events fire within the same render frame.
+  const answeredRef = useRef<Set<string>>(new Set());
+  const stepTimer = useRef<number | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -42,13 +55,33 @@ export function ConversationalApply({ jobId }: { jobId: string }) {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [msgs, done]);
 
-  const advance = async (newAnswers: Record<string, unknown>, label: string) => {
+  useEffect(() => {
+    return () => {
+      if (stepTimer.current !== null) window.clearTimeout(stepTimer.current);
+    };
+  }, []);
+
+  // The controls are locked while a POST is in flight or while we're mid-hop
+  // between steps. advance() is the single entry point and answers each step
+  // exactly once, keyed by step id, so a double-click / double-Enter that slips
+  // past the disabled UI (or fires within one render frame) is a no-op.
+  const busy = submitting || transitioning;
+
+  const advance = async (stepId: string, newAnswers: Record<string, unknown>, label: string) => {
+    if (busy || answeredRef.current.has(stepId)) return;
+    answeredRef.current.add(stepId);
+
     setMsgs((m) => [...m, { who: "me", text: label }]);
     setAnswers(newAnswers);
     const next = idx + 1;
     if (steps && next < steps.length) {
-      setIdx(next);
-      window.setTimeout(() => setMsgs((m) => [...m, { who: "bot", text: steps[next].prompt }]), 250);
+      setTransitioning(true);
+      stepTimer.current = window.setTimeout(() => {
+        stepTimer.current = null;
+        setMsgs((m) => [...m, { who: "bot", text: steps[next].prompt }]);
+        setIdx(next);
+        setTransitioning(false);
+      }, 250);
     } else {
       setSubmitting(true);
       try {
@@ -70,13 +103,20 @@ export function ConversationalApply({ jobId }: { jobId: string }) {
 
   const submitText = () => {
     const v = input.trim();
-    if (!v || !steps) return;
-    advance({ ...answers, [steps[idx].id]: v }, v);
+    if (!v || !steps || busy) return;
+    const step = steps[idx];
+    advance(step.id, { ...answers, [step.id]: v }, v);
     setInput("");
   };
   const submitKo = (yes: boolean) => {
-    if (!steps) return;
-    advance({ ...answers, [steps[idx].id]: yes }, yes ? "Yes" : "No");
+    if (!steps || busy) return;
+    const step = steps[idx];
+    advance(step.id, { ...answers, [step.id]: yes }, yes ? "Yes" : "No");
+  };
+  const submitChoice = (value: string, label: string) => {
+    if (!steps || busy) return;
+    const step = steps[idx];
+    advance(step.id, { ...answers, [step.id]: value }, label);
   };
 
   if (error) return <p className="rounded-md border border-stone-200 bg-paper p-4 text-base text-coral">{error}</p>;
@@ -115,7 +155,7 @@ export function ConversationalApply({ jobId }: { jobId: string }) {
             <div className="flex gap-2">
               <button
                 type="button"
-                disabled={submitting}
+                disabled={busy}
                 onClick={() => submitKo(true)}
                 className="focus-ring rounded-md border border-stone-200 bg-white px-5 py-2 text-base font-semibold text-ink hover:border-moss/50 disabled:opacity-50"
               >
@@ -123,12 +163,26 @@ export function ConversationalApply({ jobId }: { jobId: string }) {
               </button>
               <button
                 type="button"
-                disabled={submitting}
+                disabled={busy}
                 onClick={() => submitKo(false)}
                 className="focus-ring rounded-md border border-stone-200 bg-white px-5 py-2 text-base font-semibold text-ink hover:border-coral/50 disabled:opacity-50"
               >
                 No
               </button>
+            </div>
+          ) : cur.type === "choice" ? (
+            <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+              {(cur.options ?? []).map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  disabled={busy}
+                  onClick={() => submitChoice(opt.value, opt.label)}
+                  className="focus-ring rounded-md border border-stone-200 bg-white px-4 py-2 text-left text-base font-semibold text-ink hover:border-coral/50 disabled:opacity-50"
+                >
+                  {opt.label}
+                </button>
+              ))}
             </div>
           ) : (
             <form
@@ -143,11 +197,12 @@ export function ConversationalApply({ jobId }: { jobId: string }) {
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 placeholder={cur.placeholder}
-                className="focus-ring h-11 flex-1 rounded-md border border-stone-200 px-3 text-base"
+                disabled={busy}
+                className="focus-ring h-11 flex-1 rounded-md border border-stone-200 px-3 text-base disabled:opacity-50"
               />
               <button
                 type="submit"
-                disabled={!input.trim() || submitting}
+                disabled={!input.trim() || busy}
                 className="focus-ring rounded-md bg-ink px-4 text-base font-semibold text-white hover:bg-steel disabled:opacity-50"
               >
                 Send

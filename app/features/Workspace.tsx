@@ -44,6 +44,7 @@ const PipelineTab = dynamic(() => import("./sub_pipeline/PipelineTab").then((m) 
 const ChannelsTab = dynamic(() => import("./sub_channels/ChannelsTab").then((m) => ({ default: m.ChannelsTab })), { loading });
 const DevTab = dynamic(() => import("./sub_dev/DevTab").then((m) => ({ default: m.DevTab })), { loading });
 const ProfileTab = dynamic(() => import("./sub_profile/ProfileTab").then((m) => ({ default: m.ProfileTab })), { loading });
+const TasksTab = dynamic(() => import("./tasks/TasksTab").then((m) => ({ default: m.TasksTab })), { loading });
 
 export function Workspace() {
   const router = useRouter();
@@ -116,7 +117,7 @@ export function Workspace() {
           ))}
         </nav>
         <div className="mt-auto" />
-        <TasksIndicator />
+        <TasksIndicator active={active === "tasks"} onOpen={() => selectTab("tasks")} />
       </aside>
 
       <main id="main" tabIndex={-1} className="min-w-0 flex-1 bg-white focus:outline-none">
@@ -138,6 +139,7 @@ export function Workspace() {
           {navActive === "analytics" ? <AnalyticsTab /> : null}
           {navActive === "dev" ? <DevTab /> : null}
           {navActive === "about" ? <AboutTab /> : null}
+          {navActive === "tasks" ? <TasksTab /> : null}
         </div>
       </main>
       <SimSpotlight />

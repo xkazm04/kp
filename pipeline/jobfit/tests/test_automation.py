@@ -42,7 +42,21 @@ class PolicyTest(unittest.TestCase):
         self.assertEqual(self.ev(matchScore=80, daysInStage=0)["action"], "hold")
 
     def test_bau_low_rejects(self):
+        # A *genuine* low score (present, below the floor) still auto-rejects.
         self.assertEqual(self.ev(matchScore=35)["action"], "reject")
+
+    def test_screened_without_score_holds_not_rejects(self):
+        # An unscored AI-matched entry (matching not run / data gap) must HOLD, not
+        # be auto-rejected: int(None or 0) == 0 < bau_reject_score must not fire.
+        for missing in (0, None):
+            d = self.ev(matchScore=missing)
+            self.assertEqual(d["action"], "hold", f"matchScore={missing!r}")
+            self.assertNotEqual(d["action"], "reject", f"matchScore={missing!r}")
+
+    def test_screened_missing_score_key_holds(self):
+        # matchScore key entirely absent behaves the same as null → hold.
+        d = automation.evaluate_entry({"stage": "Screened", "archetype": "bau", "daysInStage": 0})
+        self.assertEqual(d["action"], "hold")
 
     def test_bau_mid_holds(self):
         self.assertEqual(self.ev(matchScore=60)["action"], "hold")
@@ -70,7 +84,9 @@ class PolicyTest(unittest.TestCase):
         self.assertEqual((d["action"], d["toStage"]), ("advance", "Screened"))
 
     def test_accepted_without_score_holds(self):
-        self.assertEqual(self.ev(stage="Accepted", matchScore=0)["action"], "hold")
+        # Both a literal 0 and a null/absent score are "unscored" → hold for matching.
+        for missing in (0, None):
+            self.assertEqual(self.ev(stage="Accepted", matchScore=missing)["action"], "hold", f"matchScore={missing!r}")
 
     def test_offer_always_holds(self):
         # Extend is the recruiter's call; Offer -> Hired is the candidate's. Policy never advances/rejects.

@@ -7,8 +7,8 @@
 > so the pipeline never blocks when the CLI is missing. Deployment is out of scope.
 
 This spec turns the seven reviewed task designs + the adversarial review into one concrete build.
-It reuses the existing seams: Python CLIs (stdin/file JSON → stdout JSON, errors as `{"error","status"}`
-on stderr), `spawnPython` + workdir helpers in `app/_lib/python-runner.ts`, the `gemini_cache` table
+It reuses the existing seams: Python CLIs (stdin/file JSON → stdout JSON, errors as `{"error","status","code"}`
+on stderr with an honest status — 404/400/500, see §3.2), `spawnPython` + workdir helpers in `app/_lib/python-runner.ts`, the `gemini_cache` table
 for caching, and `pipeline_entries` / `pipeline_events` for state + audit.
 
 ---
@@ -139,7 +139,17 @@ Reuse, do not duplicate:
 ### 3.2 `pipeline/jobfit/automation_cli.py` (single entry point, sub-command per task)
 
 Mirrors `reasoning_cli.py` exactly: `reconfigure` stdout/stderr to UTF-8, read input from `--input-json`/stdin,
-emit one JSON object to stdout, emit `{"error": str, "status": int}` to stderr + `return 1` on failure.
+emit one JSON object to stdout. On failure it emits an `{"error": str, "status": int, "code": str}` envelope to
+stderr with an **honest** status (mapped from the failure type, not a blanket 500) so the TS seam and its callers
+can distinguish a bad request from a real outage:
+
+| Failure | status | code | exit |
+|---------|--------|------|------|
+| Missing job / entry (`NotFoundError`) | 404 | `not_found` | 1 |
+| Bad argument / malformed JSON / pydantic validation (`ValueError` & subclasses) | 400 | `invalid_input` | 2 |
+| Unexpected fault (any other exception) | 500 | `engine_error` | 1 |
+
+`parseStderrError` reads the explicit `status`/`code`; the exit code only matters as its fallback (2 → 400).
 
 ```
 python -m pipeline.jobfit.automation_cli screen     --candidate-json P --job-id J [--no-llm]

@@ -65,7 +65,7 @@ export function ChannelsTab() {
   const simulate = async () => {
     const jobId = jobs[0]?.[0];
     if (!jobId) {
-      setNote({ text: "Publish a JD first — then applications can arrive.", ok: false });
+      setNote({ text: "Source a JD into the Pipeline first — then applications can arrive.", ok: false });
       return;
     }
     setBusy(true);

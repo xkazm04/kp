@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { actOnPipelineEntry, getPipelineEntry, setApproval, type PipelineAction, type PipelineEntry } from "@/app/_lib/db";
+import { actOnPipelineEntry, clearIntakeDegraded, getPipelineEntry, setApproval, type PipelineAction, type PipelineEntry } from "@/app/_lib/db";
 import { dispatchOffer, dispatchRejection } from "@/app/_lib/comms-dispatch";
 import { createOffer, getOpenOfferForEntry } from "@/app/_lib/offers-store";
 
@@ -44,6 +44,17 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
   const { id } = await context.params;
   try {
     const body = (await request.json()) as { action?: string; detail?: string };
+
+    // Resolving a degraded-intake stub: the recruiter has manually captured the
+    // candidate's profile, so clear the flag (not a stage move) and keep the entry.
+    if (body.action === "resolve_intake") {
+      const cleared = clearIntakeDegraded(id);
+      if (!cleared) {
+        return NextResponse.json({ error: "No degraded-intake flag to resolve." }, { status: 404 });
+      }
+      return NextResponse.json({ entry: cleared });
+    }
+
     const action = body.action as PipelineAction;
     if (!ACTIONS.includes(action)) {
       return NextResponse.json({ error: "Unknown action." }, { status: 400 });

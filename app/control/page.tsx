@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { LoadStatus } from "@/app/_components/LoadStatus";
+import { useLoader } from "@/app/_lib/useLoader";
 
 type Audit = { id: number; lifecycleId: string | null; actor: string; action: string; reason: string | null; createdAt: string };
 type LC = { id: string; title: string | null; stage: string; detail: string | null };
@@ -35,22 +37,23 @@ function parseNum(v: string): number | undefined {
 }
 
 export default function ControlPage() {
-  const [s, setS] = useState<Status | null>(null);
-  const [o, setO] = useState<OutcomeData | null>(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [form, setForm] = useState({ candidate: "", score: "", outcome: "hired", perf: "4" });
 
-  const load = () =>
-    fetch("/api/devcase/control")
-      .then((r) => r.json())
-      .then((p) => (p.error ? null : setS(p as Status)))
-      .catch(() => {});
-  const loadOutcomes = () =>
-    fetch("/api/devcase/outcomes")
-      .then((r) => r.json())
-      .then((p) => (p.error ? null : setO(p as OutcomeData)))
-      .catch(() => {});
+  // The 3s poll keeps the last good status/outcomes visible when the API drops
+  // and tracks per-loader failure + freshness, so a stale view is flagged rather
+  // than silently mistaken for a live one.
+  const { data: s, state: sState, reload: load } = useLoader<Status | null>(
+    "/api/devcase/control",
+    (p) => p as unknown as Status,
+    null,
+  );
+  const { data: o, state: oState, reload: loadOutcomes } = useLoader<OutcomeData | null>(
+    "/api/devcase/outcomes",
+    (p) => p as unknown as OutcomeData,
+    null,
+  );
   useEffect(() => {
     load();
     loadOutcomes();
@@ -59,7 +62,13 @@ export default function ControlPage() {
       loadOutcomes();
     }, 3000);
     return () => window.clearInterval(t);
-  }, []);
+  }, [load, loadOutcomes]);
+
+  // Either loader failing means the room may be stale; report the oldest fresh
+  // point so the banner states the most conservative age of what's on screen.
+  const refreshFailed = sState.failed || oState.failed;
+  const freshAt = [sState.lastUpdated, oState.lastUpdated].filter((t): t is number => t != null);
+  const stalest = freshAt.length ? Math.min(...freshAt) : null;
 
   const recordOutcome = async () => {
     if (!form.candidate.trim()) return;
@@ -135,6 +144,10 @@ export default function ControlPage() {
             ← Dev cases
           </a>
         </header>
+
+        {refreshFailed ? (
+          <LoadStatus state={{ failed: true, lastUpdated: stalest }} label="the control room" className="mt-4" />
+        ) : null}
 
         {/* kill switch */}
         <section

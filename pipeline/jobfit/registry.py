@@ -1,0 +1,149 @@
+"""Archetype registry — loads the shared taxonomy (archetypes.json) that BOTH
+this package and the TypeScript app (app/_lib/archetypes.ts) read.
+
+Because Python and TS read the SAME file, the desync hazard the fairness gate
+feared is structurally impossible. This module is the Python view of that data:
+the archetype list, labels, fairness flags, scoring weights, dimension labels,
+the completeness-checklist specs, and the data-driven detection engine. Keep it a
+leaf module (stdlib only) so anything can import it without a cycle.
+
+Adding an archetype is a data change in archetypes.json — provided it reuses an
+existing `scoringModel`, known checklist `check` ids, and known detection
+`signal` names (a 4th genuinely-new scoring shape still needs code in
+transform.py/matching.py). tests/test_registry.py enforces those invariants.
+"""
+
+from __future__ import annotations
+
+import json
+from pathlib import Path
+from typing import Any
+
+_DATA: dict[str, Any] = json.loads(Path(__file__).with_name("archetypes.json").read_text(encoding="utf-8"))
+
+_ARCHETYPES: list[dict[str, Any]] = _DATA["archetypes"]
+_BY_ID: dict[str, dict[str, Any]] = {a["id"]: a for a in _ARCHETYPES}
+_DETECTION: dict[str, Any] = _DATA["detection"]
+_COMMON_CHECKLIST: list[dict[str, Any]] = _DATA["commonChecklist"]
+
+
+# ---- Accessors -------------------------------------------------------------
+
+def archetype_ids() -> tuple[str, ...]:
+    """Ids in declaration order — the order also breaks detection score ties."""
+    return tuple(a["id"] for a in _ARCHETYPES)
+
+
+def python_labels() -> dict[str, str]:
+    return {a["id"]: a["pythonLabel"] for a in _ARCHETYPES}
+
+
+def early_career_archetypes() -> tuple[str, ...]:
+    return tuple(a["id"] for a in _ARCHETYPES if a["scoringModel"] == "early_career")
+
+
+def fairness_protected_archetypes() -> frozenset[str]:
+    return frozenset(a["id"] for a in _ARCHETYPES if a.get("fairnessProtected"))
+
+
+def weights_map() -> dict[str, dict[str, float]]:
+    return {a["id"]: dict(a["weights"]) for a in _ARCHETYPES}
+
+
+def dimension_labels_map() -> dict[str, dict[str, str]]:
+    return {a["id"]: dict(a["dimensionLabels"]) for a in _ARCHETYPES}
+
+
+def checklist_specs(archetype: str) -> list[tuple[str, float, str]]:
+    """(check id, weight, label) — common items first, then this archetype's.
+
+    Mirrors the old hand-written branch order so completeness scores and the
+    biggest-gap-first ``missing`` ordering are byte-for-byte unchanged.
+    """
+    entry = _BY_ID.get(archetype, _BY_ID[_DETECTION["defaultArchetype"]])
+    specs = _COMMON_CHECKLIST + entry["checklist"]
+    return [(s["check"], float(s["weight"]), s["label"]) for s in specs]
+
+
+# ---- Detection engine (data-driven) ---------------------------------------
+
+def _truthy(val: Any) -> bool:
+    return bool(val)
+
+
+def _eval(cond: dict[str, Any], ctx: dict[str, Any]) -> bool:
+    if "all" in cond:
+        return all(_eval(c, ctx) for c in cond["all"])
+    if "any" in cond:
+        return any(_eval(c, ctx) for c in cond["any"])
+    val = ctx.get(cond["signal"])
+    if "truthy" in cond:
+        return _truthy(val) == cond["truthy"]
+    if "not" in cond:
+        return (not _truthy(val)) == cond["not"]
+    if "lt" in cond:
+        return val is not None and val < cond["lt"]
+    if "gte" in cond:
+        return val is not None and val >= cond["gte"]
+    return False
+
+
+def _render(reason: str, ctx: dict[str, Any]) -> str:
+    # Only the templated reasons (e.g. "{years_relevant_experience:g} years…")
+    # touch ctx; literals pass through untouched.
+    return reason.format(**ctx) if "{" in reason else reason
+
+
+def detect(
+    *,
+    self_declared: str | None = None,
+    years_relevant_experience: float | None = None,
+    is_enrolled: bool | None = None,
+    expected_graduation: str | None = None,
+    education_is_dominant: bool | None = None,
+    wants_domain_change: bool | None = None,
+    has_substantial_experience: bool | None = None,
+) -> tuple[str, float, list[str]]:
+    """Return (archetype, confidence in [0,1], reasons) from the registry rules.
+
+    A self-declaration is trusted (the archetype is returned as declared) but
+    auto-signals still run as *contradictions* that lower confidence and append a
+    reason. With no declaration, weighted signals decide and fall back to the
+    registry default when nothing is conclusive.
+    """
+    ids = archetype_ids()
+    labels = python_labels()
+    ctx = {
+        "years_relevant_experience": years_relevant_experience,
+        "is_enrolled": is_enrolled,
+        "expected_graduation": expected_graduation,
+        "education_is_dominant": education_is_dominant,
+        "wants_domain_change": wants_domain_change,
+        "has_substantial_experience": has_substantial_experience,
+    }
+    reasons: list[str] = []
+
+    if self_declared in ids:
+        reasons.append(f"self-declared: {labels[self_declared]}")
+        confidence = _DETECTION["selfDeclaredConfidence"]
+        for contradiction in _DETECTION["contradictions"].get(self_declared, []):
+            if _eval(contradiction["when"], ctx):
+                reasons.append(_render(contradiction["reason"], ctx))
+                confidence = contradiction["confidence"]
+        return self_declared, confidence, reasons
+
+    scores = {a: 0.0 for a in ids}
+    for rule in _DETECTION["signals"]:
+        if _eval(rule["when"], ctx):
+            for archetype, delta in rule["scores"].items():
+                scores[archetype] += delta
+            if rule.get("reason"):
+                reasons.append(_render(rule["reason"], ctx))
+
+    total = sum(scores.values())
+    if total <= 0:
+        reasons.append(_DETECTION["defaultReason"])
+        return _DETECTION["defaultArchetype"], _DETECTION["defaultConfidence"], reasons
+
+    best = max(ids, key=lambda a: scores[a])
+    return best, round(scores[best] / total, 2), reasons

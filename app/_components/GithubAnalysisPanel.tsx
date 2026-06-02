@@ -154,9 +154,17 @@ function CodeReviewBlock({
   return (
     <div className="rounded-lg border border-stone-200 bg-white p-4">
       <div className="flex items-center justify-between gap-3">
-        <h3 className="font-serif text-h3 text-ink">Code-Aware Review</h3>
+        <h3 className="font-serif text-h3 text-ink">Repo-Signal Review</h3>
         <CodeReviewStatusBadge status={review.status} />
       </div>
+      {/* The model never reads source code — only lightweight public signals — so
+          this panel is named for the evidence it actually uses, not "code-aware".
+          Spelling out the scope here keeps "Evidenced Skills" below from being
+          mistaken for a confirmation that the code itself was inspected. */}
+      <p className="mt-2 text-sm leading-5 text-steel">
+        Skills inferred from public repository signals — READMEs, commit subjects, root-level
+        file names, language, and topics — not from reading the source code.
+      </p>
       {review.summary ? (
         <p className="mt-3 text-base leading-6 text-ink">{review.summary}</p>
       ) : null}
@@ -168,8 +176,20 @@ function CodeReviewBlock({
           Repos reviewed: {review.reposReviewed.join(", ")}
         </p>
       ) : null}
+      {review.evidenceBasis.length ? (
+        <details className="mt-3 rounded-md bg-paper p-3">
+          <summary className="cursor-pointer text-sm font-semibold uppercase tracking-wide text-steel">
+            Evidence basis
+          </summary>
+          <ul className="mt-2 space-y-1 text-sm leading-5 text-ink">
+            {review.evidenceBasis.map((item, i) => (
+              <li key={`${item}-${i}`}>• {item}</li>
+            ))}
+          </ul>
+        </details>
+      ) : null}
       <div className="mt-4 grid gap-3 lg:grid-cols-3">
-        <ReviewList title="Confirmed Skills" items={review.confirmedSkills} accent="bg-moss/15" />
+        <ReviewList title="Evidenced Skills" items={review.confirmedSkills} accent="bg-moss/15" />
         <ReviewList title="Unverified Claims" items={review.unverifiedClaims} accent="bg-coral/10" />
         <ReviewList title="Hidden Strengths" items={review.hiddenStrengths} accent="bg-limewash" />
       </div>

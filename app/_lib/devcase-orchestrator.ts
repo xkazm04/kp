@@ -84,9 +84,12 @@ export async function runLifecycle(id: string, progress?: Progress): Promise<{ s
       // Proactive sourcing: rank the existing candidate DB against the role and seed the
       // pipeline at the Accepted stage — so the role finds candidates, not only waits for them.
       let sourced = 0;
+      let skipped = 0;
       try {
         const roleTitle = (lc.role as { title?: string } | null)?.title ?? lc.title ?? "Dev case";
-        for (const m of await runSourceForRole((lc.role as Record<string, unknown>) ?? {})) {
+        const outcome = await runSourceForRole((lc.role as Record<string, unknown>) ?? {});
+        skipped = outcome.skipped;
+        for (const m of outcome.candidates) {
           if (!m.candidateId) continue;
           createPipelineEntry({
             candidateId: m.candidateId,
@@ -103,10 +106,13 @@ export async function runLifecycle(id: string, progress?: Progress): Promise<{ s
       } catch {
         /* sourcing is best-effort — never block publishing */
       }
+      // Note unparseable candidates in the detail so "sourced 0" reads as "nobody qualified",
+      // not "the pool silently failed to load".
+      const skippedNote = skipped > 0 ? `; ${skipped} candidate(s) skipped (unparseable)` : "";
       updateLifecycle(id, {
         stage: "collecting",
         postingId: posting.id,
-        detail: `published; sourced ${sourced} candidate(s) into the pipeline; awaiting submissions`,
+        detail: `published; sourced ${sourced} candidate(s) into the pipeline${skippedNote}; awaiting submissions`,
       });
       recordAudit({ lifecycleId: id, actor: "auto", action: "published", reason: `sourced ${sourced} into pipeline`, ref: posting.id });
     } else if (lc.stage === "collecting") {

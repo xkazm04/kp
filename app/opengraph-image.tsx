@@ -91,8 +91,7 @@ export default async function OpengraphImage() {
             display: "flex",
             flexDirection: "row",
             alignItems: "center",
-            justifyContent: "space-between",
-            zIndex: 1
+            justifyContent: "space-between"
           }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
@@ -157,7 +156,6 @@ export default async function OpengraphImage() {
           style={{
             display: "flex",
             flexDirection: "column",
-            zIndex: 1,
             marginTop: 24
           }}
         >
@@ -195,8 +193,7 @@ export default async function OpengraphImage() {
             display: "flex",
             flexDirection: "row",
             alignItems: "flex-end",
-            justifyContent: "space-between",
-            zIndex: 1
+            justifyContent: "space-between"
           }}
         >
           <div

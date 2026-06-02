@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import type { LucideIcon } from "lucide-react";
 import {
   AlertTriangle,
@@ -48,7 +49,7 @@ export type EvalCandidate = {
   koPassed?: boolean;
   assumptions?: string[];
   // The candidate's own salary expectation (from their CV analysis). Absent for
-  // profile-only candidates; the salary section then shows just the role band.
+  // profile-only candidates; the salary row then shows just the role band.
   salaryExpectation?: { minimum: number; maximum: number; midpoint: number; currency: string; confidence: string } | null;
 };
 
@@ -66,10 +67,10 @@ export type GroupEvalPayload = {
   comparison?: Comparison | null;
   comparisonSummary?: string | null;
   comparisonSource?: string | null;
-  // Canonical role requirements (must-have first) for the skills matrix rows.
+  // Canonical role requirements (must-have first) for the skills rows.
   requirements?: { skill: string; kind: string }[];
   // The role's recommended salary band [min, max] — the reference the salary
-  // comparison plots each candidate's expectation against. Empty for a job-less role.
+  // row plots each candidate's expectation against. Empty for a job-less role.
   roleSalaryBand?: number[];
   // Coverage bookkeeping (group-eval-run): the top `cap` of `totalCandidates`
   // were compared, sorted by fit. `evaluatedLabels` is the pre-cap pool used to
@@ -91,8 +92,11 @@ const ranWhen = (iso?: string | null): string | null => {
 const initialsOf = (label: string) =>
   label.split(/\s+/).map((p) => p[0]).filter(Boolean).join("").slice(0, 2).toUpperCase() || "?";
 
-// Canonical skill-matrix rows: the role's requirements (must-have first), else the
-// union of every matched/missing skill (a skill is "missing" only when must-have).
+const percentOf = (c: EvalCandidate, key: string) => c.scoreBreakdown?.find((d) => d.key === key)?.percent ?? null;
+const coverageCount = (c: EvalCandidate, mustRows: string[]) => mustRows.filter((s) => (c.matchedSkills ?? []).includes(s)).length;
+
+// Canonical skill rows: the role's requirements (must-have first), else the union
+// of every matched/missing skill (a skill is "missing" only when must-have).
 function buildSkillRows(candidates: EvalCandidate[], requirements: { skill: string; kind: string }[]) {
   let rows: { skill: string; mustHave: boolean }[];
   if (requirements.length) {
@@ -136,9 +140,9 @@ export function GroupEvalModal({
   const ranAt = ranWhen(createdAt);
   const drift = poolDrift ?? 0;
   const candidates = evaluation?.candidates ?? [];
-  // Enriched layout (matrices) only when the recruiter breakdown is present;
-  // otherwise fall back to the compact text view so legacy/simulation payloads
-  // and job-less roles still render correctly.
+  // Enriched layout (the comparison table) only when the recruiter breakdown is
+  // present; otherwise fall back to the compact text view so legacy/simulation
+  // payloads and job-less roles still render correctly.
   const enriched = candidates.some((c) => (c.scoreBreakdown?.length ?? 0) > 0);
   const { rows: skillRows, mustRows } = buildSkillRows(candidates, evaluation?.requirements ?? []);
   const aiBacked = Boolean(evaluation?.comparison) && evaluation?.comparisonSource === "llm";
@@ -154,18 +158,18 @@ export function GroupEvalModal({
           type="button"
           onClick={onRerun}
           disabled={loading}
-          className="focus-ring inline-flex h-9 items-center gap-1 rounded-md border border-stone-200 px-3 text-sm font-semibold text-ink hover:border-coral/40 disabled:opacity-50"
+          className="focus-ring inline-flex h-9 items-center gap-1 rounded-md border border-stone-200 px-3 text-base font-semibold text-ink hover:border-coral/40 disabled:opacity-50"
         >
           <RefreshCw size={14} /> {loading ? "Generating…" : "Re-run"}
         </button>
       }
     >
       {loading && !evaluation ? (
-        <p className="flex items-center gap-2 text-sm text-steel">
+        <p className="flex items-center gap-2 text-base text-steel">
           <Loader2 size={16} className="animate-spin text-coral" /> Generating group evaluation across the role&apos;s candidates…
         </p>
       ) : !evaluation ? (
-        <p className="text-sm text-steel">No evaluation yet — run one to compare this role&apos;s candidates.</p>
+        <p className="text-base text-steel">No evaluation yet — run one to compare this role&apos;s candidates.</p>
       ) : (
         <div className="space-y-5">
           <Notices drift={drift} ranAt={ranAt} evaluation={evaluation} />
@@ -173,11 +177,8 @@ export function GroupEvalModal({
 
           {enriched ? (
             <>
-              <CandidateHeroStrip candidates={candidates} mustRows={mustRows} />
-              <ScoreMatrix candidates={candidates} />
-              <SkillsMatrix candidates={candidates} skillRows={skillRows} mustRows={mustRows} />
-              <SalaryComparison candidates={candidates} roleBand={evaluation.roleSalaryBand ?? []} />
-              <PerCandidateDetail candidates={candidates} differentiators={evaluation.differentiators ?? []} topPick={evaluation.topPick?.label} />
+              <ComparisonTable candidates={candidates} skillRows={skillRows} mustRows={mustRows} roleBand={evaluation.roleSalaryBand ?? []} />
+              <PerCandidateTabs candidates={candidates} differentiators={evaluation.differentiators ?? []} topPick={evaluation.topPick?.label} />
             </>
           ) : (
             <LegacyView evaluation={evaluation} />
@@ -202,7 +203,7 @@ const PILL_TONE: Record<string, string> = {
 
 function Pill({ children, tone = "neutral", className = "" }: { children: React.ReactNode; tone?: keyof typeof PILL_TONE; className?: string }) {
   return (
-    <span className={`inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[11px] font-semibold ${PILL_TONE[tone]} ${className}`}>{children}</span>
+    <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-sm font-semibold ${PILL_TONE[tone]} ${className}`}>{children}</span>
   );
 }
 
@@ -224,10 +225,11 @@ function RichText({ text }: { text: string }) {
   );
 }
 
-function Avatar({ label, archetype }: { label: string; archetype?: string | null }) {
+function Avatar({ label, archetype, size = "md" }: { label: string; archetype?: string | null; size?: "sm" | "md" }) {
   const s = styleFor(archetype ?? null);
+  const dim = size === "sm" ? "h-6 w-6 text-sm" : "h-8 w-8 text-base";
   return (
-    <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-full text-sm font-semibold text-white ${s.bg}`} title={s.label}>
+    <span className={`grid ${dim} shrink-0 place-items-center rounded-full font-semibold text-white ${s.bg}`} title={s.label}>
       {initialsOf(label)}
     </span>
   );
@@ -243,15 +245,15 @@ function ArchetypeTag({ archetype }: { archetype?: string | null }) {
 }
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
-  return <h3 className="text-meta uppercase tracking-wide text-steel">{children}</h3>;
+  return <h3 className="text-sm font-semibold uppercase tracking-wide text-steel">{children}</h3>;
 }
 
 function Notices({ drift, ranAt, evaluation }: { drift: number; ranAt: string | null; evaluation: GroupEvalPayload }) {
   return (
     <>
       {drift > 0 ? (
-        <div className="flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 p-2.5 text-sm text-amber-900">
-          <AlertTriangle size={15} className="mt-0.5 shrink-0" aria-hidden />
+        <div className="flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 p-2.5 text-base text-amber-900">
+          <AlertTriangle size={16} className="mt-0.5 shrink-0" aria-hidden />
           <span>
             <b>{drift} candidate{drift === 1 ? "" : "s"} changed</b> since this evaluation ran
             {ranAt ? ` (${ranAt})` : ""}. The ranking below may exclude a newly added candidate or
@@ -260,7 +262,7 @@ function Notices({ drift, ranAt, evaluation }: { drift: number; ranAt: string | 
         </div>
       ) : null}
       {evaluation.capped ? (
-        <p className="text-meta text-steel">
+        <p className="text-sm text-steel">
           Showing top {evaluation.cap ?? evaluation.candidates?.length} of {evaluation.totalCandidates} candidates, ranked by fit.
         </p>
       ) : null}
@@ -275,8 +277,8 @@ function AiVerdict({ comparison, fallback, aiBacked }: { comparison?: Comparison
   return (
     <section className="rounded-xl border border-stone-200 bg-paper/40 p-4">
       <div className="mb-1.5 flex items-center gap-2">
-        <Sparkles size={14} className="text-coral" aria-hidden />
-        <span className="text-meta uppercase tracking-wide text-steel">AI comparison</span>
+        <Sparkles size={15} className="text-coral" aria-hidden />
+        <span className="text-sm font-semibold uppercase tracking-wide text-steel">AI comparison</span>
         <Pill tone={aiBacked ? "info" : "neutral"}>{aiBacked ? "AI" : "rule-based"}</Pill>
       </div>
       {comparison ? (
@@ -285,10 +287,10 @@ function AiVerdict({ comparison, fallback, aiBacked }: { comparison?: Comparison
             <RichText text={comparison.headline} />
           </p>
           {comparison.keyPoints.length ? (
-            <ul className="mt-3 grid gap-x-5 gap-y-1.5 sm:grid-cols-2">
+            <ul className="mt-3 grid gap-x-5 gap-y-2 sm:grid-cols-2">
               {comparison.keyPoints.map((p, i) => (
-                <li key={i} className="flex gap-2 text-sm text-steel">
-                  <span className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full bg-coral/60" aria-hidden />
+                <li key={i} className="flex gap-2 text-base text-steel">
+                  <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-coral/60" aria-hidden />
                   <span>
                     <RichText text={p} />
                   </span>
@@ -297,8 +299,8 @@ function AiVerdict({ comparison, fallback, aiBacked }: { comparison?: Comparison
             </ul>
           ) : null}
           {comparison.recommendation ? (
-            <div className="mt-3 flex items-start gap-2 rounded-lg border border-moss/30 bg-moss/5 p-2.5 text-sm text-ink">
-              <ArrowRight size={15} className="mt-0.5 shrink-0 text-moss" aria-hidden />
+            <div className="mt-3 flex items-start gap-2 rounded-lg border border-moss/30 bg-moss/5 p-2.5 text-base text-ink">
+              <ArrowRight size={16} className="mt-0.5 shrink-0 text-moss" aria-hidden />
               <span>
                 <RichText text={comparison.recommendation} />
               </span>
@@ -312,155 +314,176 @@ function AiVerdict({ comparison, fallback, aiBacked }: { comparison?: Comparison
   );
 }
 
-// ---- Candidate hero strip (glanceable stat cards) -------------------------
+// ---- One comparison table (candidates = columns, attributes = grouped rows) ---
+// Candidate identity lives ONLY in the sticky header; every section below reuses
+// the same fixed column layout, so widths line up across Overview / Score / Skills
+// / Salary and the eye scans straight down a candidate's column.
 
-function HeroCard({ c, rank, isLead, mustRows }: { c: EvalCandidate; rank: number; isLead: boolean; mustRows: string[] }) {
-  const tone = scoreTone(c.score);
-  const matchedMust = mustRows.filter((s) => (c.matchedSkills ?? []).includes(s)).length;
+function CandidateHeader({ c, rank, isLead }: { c: EvalCandidate; rank: number; isLead: boolean }) {
   return (
-    <div className={`flex min-w-[200px] flex-1 flex-col rounded-xl border p-3 ${isLead ? "border-moss/50 bg-moss/5 shadow-panel" : "border-stone-200 bg-white"}`}>
-      <div className="flex items-center justify-between">
-        <span className="grid h-5 w-5 place-items-center rounded-full bg-ink/85 text-[11px] font-semibold text-white tabular-nums">{rank}</span>
+    <div className="flex items-center gap-2">
+      <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-ink/85 text-sm font-semibold text-white tabular-nums">{rank}</span>
+      <Avatar label={c.label} archetype={c.archetype} size="sm" />
+      <div className="min-w-0">
+        <div className="truncate font-semibold text-ink">{c.label}</div>
         {isLead ? (
           <Pill tone="moss">
-            <Crown size={11} /> Lead
+            <Crown size={12} /> Lead
           </Pill>
         ) : c.koPassed === false ? (
           <Pill tone="coral">KO</Pill>
         ) : null}
       </div>
-      <div className="mt-2 flex items-center gap-2">
-        <Avatar label={c.label} archetype={c.archetype} />
-        <span className="min-w-0">
-          <span className="block truncate font-semibold text-ink">{c.label}</span>
-        </span>
-      </div>
-      <div className="mt-1.5 flex flex-wrap gap-1">
-        <ArchetypeTag archetype={c.archetype} />
-        {c.seniority ? <Pill>{c.seniority}</Pill> : null}
-      </div>
-      <div className="mt-2 flex items-end gap-2">
-        <span className="font-serif text-[30px] leading-none tabular-nums" style={{ color: scoreToneColor(tone) }}>
-          {c.score}
-        </span>
-        <span className="pb-0.5">
-          <FitTierBadge tier={c.fitTier} score={c.score} />
-        </span>
-      </div>
-      {c.confidence ? (
-        <div className="mt-1.5 flex items-center gap-1.5">
-          <span className="nums text-[11px] text-steel" title={confidenceBandTitle(c.confidence.drivers)}>
-            {c.confidence.low}–{c.confidence.high}
-          </span>
-          <ConfidenceBandBadge level={c.confidence.level} drivers={c.confidence.drivers} />
-        </div>
-      ) : null}
-      {mustRows.length ? (
-        <div className="mt-auto pt-2.5">
-          <div className="flex items-center justify-between text-[11px] text-steel">
-            <span className="uppercase tracking-wide">Must-haves</span>
-            <span className="font-semibold tabular-nums text-ink">
-              {matchedMust}/{mustRows.length}
-            </span>
-          </div>
-          <div className="mt-1 flex gap-0.5" aria-hidden>
-            {mustRows.map((_, i) => (
-              <span key={i} className={`h-1.5 flex-1 rounded-full ${i < matchedMust ? "bg-moss" : "bg-stone-200"}`} />
-            ))}
-          </div>
-        </div>
-      ) : null}
     </div>
   );
 }
 
-function CandidateHeroStrip({ candidates, mustRows }: { candidates: EvalCandidate[]; mustRows: string[] }) {
+function GroupTr({ label, cols, aside }: { label: string; cols: number; aside?: React.ReactNode }) {
   return (
-    <section>
-      <SectionTitle>Candidates at a glance</SectionTitle>
-      <div className="mt-2 flex gap-3 overflow-x-auto pb-1">
-        {candidates.map((c, i) => (
-          <HeroCard key={c.label} c={c} rank={i + 1} isLead={i === 0} mustRows={mustRows} />
+    <tr className="bg-paper/60">
+      <td colSpan={cols} className="border-y border-stone-200 px-3 py-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="h-3.5 w-1 rounded-full bg-coral/50" aria-hidden />
+          <span className="text-sm font-semibold uppercase tracking-wide text-steel">{label}</span>
+          {aside}
+        </div>
+      </td>
+    </tr>
+  );
+}
+
+function SubGroupTr({ label, cols }: { label: string; cols: number }) {
+  return (
+    <tr className="bg-paper/30">
+      <td colSpan={cols} className="px-3 py-1 text-sm font-semibold uppercase tracking-wide text-steel">
+        {label}
+      </td>
+    </tr>
+  );
+}
+
+function RowHead({ title, sub }: { title: string; sub?: string }) {
+  return (
+    <>
+      <span className="block text-sm font-semibold uppercase tracking-wide text-steel">{title}</span>
+      {sub ? <span className="block text-sm font-normal normal-case text-steel">{sub}</span> : null}
+    </>
+  );
+}
+
+// A generic comparison row: a sticky label cell + one value cell per candidate.
+// `leaderValue` (when given) tints the winning cell so the column comparison reads
+// without hunting for the highest number.
+function Row({
+  head,
+  candidates,
+  render,
+  leaderValue,
+}: {
+  head: React.ReactNode;
+  candidates: EvalCandidate[];
+  render: (c: EvalCandidate, isLeader: boolean) => React.ReactNode;
+  leaderValue?: (c: EvalCandidate) => number;
+}) {
+  const leader = leaderValue && candidates.length > 1 ? Math.max(...candidates.map(leaderValue)) : null;
+  return (
+    <tr className="border-b border-stone-100 last:border-0">
+      <th scope="row" className="sticky left-0 z-10 bg-white px-3 py-2 text-left align-middle">
+        {head}
+      </th>
+      {candidates.map((c) => {
+        const isLeader = leader != null && leader > -Infinity && leaderValue!(c) === leader;
+        return (
+          <td key={c.label} className={`px-3 py-2 align-middle ${isLeader ? "bg-moss/5" : ""}`}>
+            {render(c, isLeader)}
+          </td>
+        );
+      })}
+    </tr>
+  );
+}
+
+const Dash = () => <span className="text-stone-300">—</span>;
+
+function FitCell({ c }: { c: EvalCandidate }) {
+  return (
+    <div className="flex items-center gap-2">
+      <span className="font-serif text-[26px] leading-none tabular-nums" style={{ color: scoreToneColor(scoreTone(c.score)) }}>
+        {c.score}
+      </span>
+      <FitTierBadge tier={c.fitTier} score={c.score} />
+    </div>
+  );
+}
+
+function ConfidenceCell({ c }: { c: EvalCandidate }) {
+  if (!c.confidence) return <Dash />;
+  return (
+    <div className="flex flex-wrap items-center gap-1.5">
+      <span className="nums text-sm text-steel" title={confidenceBandTitle(c.confidence.drivers)}>
+        {c.confidence.low}–{c.confidence.high}
+      </span>
+      <ConfidenceBandBadge level={c.confidence.level} drivers={c.confidence.drivers} />
+    </div>
+  );
+}
+
+function ProfileCell({ c }: { c: EvalCandidate }) {
+  return (
+    <div className="flex flex-wrap gap-1">
+      <ArchetypeTag archetype={c.archetype} />
+      {c.seniority ? <Pill>{c.seniority}</Pill> : null}
+      {c.potentialScore != null ? <Pill>potential {Math.round(c.potentialScore * 100)}</Pill> : null}
+    </div>
+  );
+}
+
+function CoverageCell({ c, mustRows }: { c: EvalCandidate; mustRows: string[] }) {
+  const n = coverageCount(c, mustRows);
+  const tone = n === mustRows.length ? "text-moss" : n === 0 ? "text-red-700" : "text-amber-700";
+  return (
+    <div>
+      <span className={`text-sm font-semibold tabular-nums ${tone}`}>
+        {n}/{mustRows.length}
+      </span>
+      <div className="mt-1 flex gap-0.5" aria-hidden>
+        {mustRows.map((_, i) => (
+          <span key={i} className={`h-2 flex-1 rounded-full ${i < n ? "bg-moss" : "bg-stone-200"}`} />
         ))}
       </div>
-    </section>
+    </div>
   );
 }
 
-// ---- Score matrix (dimension × candidate) ---------------------------------
-
-function ScoreMatrix({ candidates }: { candidates: EvalCandidate[] }) {
-  const dims: { key: string; label: string; weight: number }[] = [];
-  const seen = new Set<string>();
-  for (const c of candidates) {
-    for (const d of c.scoreBreakdown ?? []) {
-      if (!seen.has(d.key)) {
-        seen.add(d.key);
-        dims.push({ key: d.key, label: d.label, weight: d.weight });
-      }
-    }
-  }
-  if (!dims.length) return null;
-  const percentOf = (c: EvalCandidate, key: string) => c.scoreBreakdown?.find((d) => d.key === key)?.percent ?? null;
-  const leaderFor = (key: string) => Math.max(...candidates.map((c) => percentOf(c, key) ?? -1));
-
+function DimCell({ c, dimKey, isLeader }: { c: EvalCandidate; dimKey: string; isLeader: boolean }) {
+  const pct = percentOf(c, dimKey);
+  if (pct == null) return <Dash />;
   return (
-    <section>
-      <SectionTitle>Score breakdown</SectionTitle>
-      <div className="mt-2 overflow-x-auto rounded-lg border border-stone-200">
-        <table className="w-full border-collapse text-sm">
-          <thead>
-            <tr className="border-b border-stone-200 bg-paper/60">
-              <th className="sticky left-0 z-10 bg-paper/60 px-3 py-2 text-left text-meta uppercase tracking-wide text-steel">Dimension</th>
-              {candidates.map((c) => (
-                <th key={c.label} className="min-w-[170px] px-3 py-2 text-left font-normal">
-                  <span className="flex items-center gap-1.5">
-                    <Avatar label={c.label} archetype={c.archetype} />
-                    <span className="truncate font-semibold text-ink">{c.label}</span>
-                  </span>
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {dims.map((d) => {
-              const leader = leaderFor(d.key);
-              return (
-                <tr key={d.key} className="border-b border-stone-100 last:border-0">
-                  <th className="sticky left-0 z-10 bg-white px-3 py-2 text-left align-middle">
-                    <span className="block font-semibold uppercase tracking-wide text-steel">{d.label}</span>
-                    <span className="block text-[11px] text-steel">weight {d.weight}%</span>
-                  </th>
-                  {candidates.map((c) => {
-                    const pct = percentOf(c, d.key);
-                    const isLeader = pct != null && pct === leader && candidates.length > 1;
-                    return (
-                      <td key={c.label} className={`px-3 py-2 align-middle ${isLeader ? "bg-moss/5" : ""}`}>
-                        {pct == null ? (
-                          <span className="text-steel">—</span>
-                        ) : (
-                          <div className="flex items-center gap-2">
-                            <span className={`w-6 shrink-0 tabular-nums ${isLeader ? "font-semibold text-ink" : "text-ink"}`}>{pct}</span>
-                            <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-stone-100" aria-hidden>
-                              <span className="block h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: scoreToneColor(scoreTone(pct)) }} />
-                            </span>
-                            {isLeader ? <Pill tone="moss">lead</Pill> : null}
-                          </div>
-                        )}
-                      </td>
-                    );
-                  })}
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-    </section>
+    <div className="flex items-center gap-2">
+      <span className={`w-7 shrink-0 tabular-nums ${isLeader ? "font-semibold text-ink" : "text-ink"}`}>{pct}</span>
+      <span className="h-2 flex-1 overflow-hidden rounded-full bg-stone-100" aria-hidden>
+        <span className="block h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: scoreToneColor(scoreTone(pct)) }} />
+      </span>
+      {isLeader ? <Pill tone="moss">lead</Pill> : null}
+    </div>
   );
 }
 
-// ---- Skills matrix (skill × candidate) ------------------------------------
+function SkillsLegend() {
+  return (
+    <span className="flex flex-wrap items-center gap-1.5">
+      <Pill tone="moss">
+        <CheckCircle2 size={12} /> strong
+      </Pill>
+      <Pill tone="amber">
+        <CircleDot size={12} /> partial
+      </Pill>
+      <Pill tone="coral">
+        <XCircle size={12} /> missing
+      </Pill>
+    </span>
+  );
+}
 
 function SkillCell({ skill, c }: { skill: string; c: EvalCandidate }) {
   const matched = (c.matchedSkills ?? []).includes(skill);
@@ -471,119 +494,191 @@ function SkillCell({ skill, c }: { skill: string; c: EvalCandidate }) {
     const pl = provLabel(c.matchedSkillProvenance?.[skill] ?? "self_declared");
     return (
       <span className="inline-flex items-center gap-1" title={`match ${Math.round(strength * 100)}%${strong ? "" : " · partial (taxonomy / provenance-discounted)"}`}>
-        {strong ? <CheckCircle2 size={15} className="text-moss" aria-hidden /> : <CircleDot size={15} className="text-amber-600" aria-hidden />}
-        <span className={`rounded px-1 text-[10px] uppercase ${pl.tone}`}>{pl.text}</span>
-        {!strong ? <span className="nums text-[11px] text-steel">{Math.round(strength * 100)}%</span> : null}
+        {strong ? <CheckCircle2 size={16} className="text-moss" aria-hidden /> : <CircleDot size={16} className="text-amber-600" aria-hidden />}
+        <span className={`rounded px-1 text-sm uppercase ${pl.tone}`}>{pl.text}</span>
+        {!strong ? <span className="nums text-sm text-steel">{Math.round(strength * 100)}%</span> : null}
       </span>
     );
   }
   if (missing) {
     return (
       <span className="inline-flex items-center text-red-700" title="missing must-have" aria-label="missing">
-        <XCircle size={15} aria-hidden />
+        <XCircle size={16} aria-hidden />
       </span>
     );
   }
   return (
     <span className="inline-flex items-center text-stone-300" title="not required / not claimed" aria-label="not applicable">
-      <Minus size={15} aria-hidden />
+      <Minus size={16} aria-hidden />
     </span>
   );
 }
 
-function SkillGroup({ label, rows, candidates }: { label: string; rows: { skill: string }[]; candidates: EvalCandidate[] }) {
+// Verdict for a candidate's expectation midpoint against the role band [lo, hi].
+function salaryVerdict(mid: number, lo: number, hi: number): { label: string; tone: keyof typeof PILL_TONE } {
+  if (hi > 0 && mid > hi) return { label: `+${Math.round(((mid - hi) / hi) * 100)}% over`, tone: "coral" };
+  if (lo > 0 && mid < lo) return { label: `${Math.round(((lo - mid) / lo) * 100)}% under`, tone: "info" };
+  return { label: "within band", tone: "moss" };
+}
+
+type SalaryScale = { lo: number; hi: number; pct: (v: number) => number };
+
+function SalaryCell({ c, sal }: { c: EvalCandidate; sal: SalaryScale }) {
+  const s = c.salaryExpectation;
+  const verdict = s && sal.hi > 0 ? salaryVerdict(s.midpoint, sal.lo, sal.hi) : null;
   return (
-    <tbody>
-      <tr className="bg-paper/40">
-        <td colSpan={candidates.length + 1} className="px-3 py-1 text-left text-[11px] font-semibold uppercase tracking-wide text-steel">
-          {label}
-        </td>
-      </tr>
-      {rows.map(({ skill }) => (
-        <tr key={skill} className="border-b border-stone-100 last:border-0">
-          <th className="sticky left-0 z-10 bg-white px-3 py-2 text-left font-medium text-ink">{skill}</th>
-          {candidates.map((c) => (
-            <td key={c.label} className="px-3 py-2">
-              <SkillCell skill={skill} c={c} />
-            </td>
-          ))}
-        </tr>
-      ))}
-    </tbody>
+    <div className="space-y-1">
+      <div className="relative h-5 overflow-hidden rounded-md bg-stone-100">
+        {sal.hi > 0 ? (
+          <span
+            className="absolute inset-y-0 bg-moss/15 ring-1 ring-inset ring-moss/30"
+            style={{ left: `${sal.pct(sal.lo)}%`, width: `${Math.max(1, sal.pct(sal.hi) - sal.pct(sal.lo))}%` }}
+            aria-hidden
+          />
+        ) : null}
+        {s ? (
+          <>
+            <span
+              className="absolute inset-y-1 rounded-full bg-ink/70"
+              style={{ left: `${sal.pct(s.minimum)}%`, width: `${Math.max(1.5, sal.pct(s.maximum) - sal.pct(s.minimum))}%` }}
+              aria-hidden
+            />
+            <span className="absolute inset-y-0 w-0.5 bg-coral" style={{ left: `${sal.pct(s.midpoint)}%` }} title={`midpoint ${formatCzk(s.midpoint)}`} aria-hidden />
+          </>
+        ) : null}
+      </div>
+      <div className="flex items-center justify-between gap-1">
+        <span className="text-sm text-steel">{s ? `${formatCzk(s.minimum)}–${formatCzk(s.maximum)}` : "no expectation"}</span>
+        {verdict ? <Pill tone={verdict.tone}>{verdict.label}</Pill> : null}
+      </div>
+    </div>
   );
 }
 
-function SkillsMatrix({
+function ComparisonTable({
   candidates,
   skillRows,
   mustRows,
+  roleBand,
 }: {
   candidates: EvalCandidate[];
   skillRows: { skill: string; mustHave: boolean }[];
   mustRows: string[];
+  roleBand: number[];
 }) {
-  if (!skillRows.length) return null;
+  const cols = candidates.length + 1;
+
+  // Dimension rows: union of breakdown keys (skills/career/personal), labelled
+  // from the first candidate that carries each (archetype-aware labels).
+  const dims: { key: string; label: string; weight: number }[] = [];
+  const seenDim = new Set<string>();
+  for (const c of candidates) {
+    for (const d of c.scoreBreakdown ?? []) {
+      if (!seenDim.has(d.key)) {
+        seenDim.add(d.key);
+        dims.push({ key: d.key, label: d.label, weight: d.weight });
+      }
+    }
+  }
+
   const must = skillRows.filter((r) => r.mustHave);
   const nice = skillRows.filter((r) => !r.mustHave);
-  const coverageOf = (c: EvalCandidate) => mustRows.filter((s) => (c.matchedSkills ?? []).includes(s)).length;
+
+  // Salary: one shared scale across the role band + every expectation so the bars
+  // are comparable column-to-column (and align, since columns are equal width).
+  const [lo, hi] = roleBand.length >= 2 ? [roleBand[0], roleBand[1]] : [0, 0];
+  const withSalary = candidates.filter((c) => c.salaryExpectation);
+  const showSalary = withSalary.length > 0 || hi > 0;
+  const vals = [...(hi > 0 ? [lo, hi] : []), ...withSalary.flatMap((c) => [c.salaryExpectation!.minimum, c.salaryExpectation!.maximum])].filter((n) => n > 0);
+  const loScale = vals.length ? Math.min(...vals) : 0;
+  const hiScale = vals.length ? Math.max(...vals) : 1;
+  const span = hiScale - loScale || 1;
+  const sal: SalaryScale = { lo, hi, pct: (v) => Math.max(0, Math.min(100, ((v - loScale) / span) * 100)) };
 
   return (
     <section>
-      <div className="flex flex-wrap items-center gap-2">
-        <SectionTitle>Skills matrix</SectionTitle>
-        <span className="flex flex-wrap items-center gap-1.5">
-          <Pill tone="moss">
-            <CheckCircle2 size={11} /> strong
-          </Pill>
-          <Pill tone="amber">
-            <CircleDot size={11} /> partial
-          </Pill>
-          <Pill tone="coral">
-            <XCircle size={11} /> missing
-          </Pill>
-        </span>
-      </div>
-      <div className="mt-2 overflow-x-auto rounded-lg border border-stone-200">
-        <table className="w-full border-collapse text-sm">
+      <SectionTitle>Comparison</SectionTitle>
+      <div className="mt-2 overflow-x-auto rounded-xl border border-stone-200">
+        <table className="w-full min-w-[60rem] table-fixed border-collapse text-base">
+          <colgroup>
+            <col className="w-[12.5rem]" />
+            {candidates.map((c) => (
+              <col key={c.label} />
+            ))}
+          </colgroup>
           <thead>
-            <tr className="border-b border-stone-200 bg-paper/60">
-              <th className="sticky left-0 z-10 bg-paper/60 px-3 py-2 text-left text-meta uppercase tracking-wide text-steel">Required skill</th>
-              {candidates.map((c) => (
-                <th key={c.label} className="min-w-[120px] px-3 py-2 text-left">
-                  <span className="flex items-center gap-1.5">
-                    <Avatar label={c.label} archetype={c.archetype} />
-                    <span className="truncate font-semibold text-ink">{c.label}</span>
-                  </span>
+            <tr>
+              <th
+                scope="col"
+                className="sticky left-0 top-0 z-30 border-b border-stone-200 bg-paper px-3 py-2 text-left align-bottom text-sm font-semibold uppercase tracking-wide text-steel"
+              >
+                Candidate →
+              </th>
+              {candidates.map((c, i) => (
+                <th key={c.label} scope="col" className="sticky top-0 z-20 border-b border-stone-200 bg-paper px-3 py-2 text-left align-bottom font-normal">
+                  <CandidateHeader c={c} rank={i + 1} isLead={i === 0} />
                 </th>
               ))}
             </tr>
           </thead>
-          {must.length ? <SkillGroup label={`Must-have · ${must.length}`} rows={must} candidates={candidates} /> : null}
-          {nice.length ? <SkillGroup label={`Nice-to-have · ${nice.length}`} rows={nice} candidates={candidates} /> : null}
-          {mustRows.length ? (
-            <tfoot>
-              <tr className="border-t-2 border-stone-200 bg-paper/40">
-                <th className="sticky left-0 z-10 bg-paper/40 px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-wide text-steel">Must-have coverage</th>
-                {candidates.map((c) => {
-                  const n = coverageOf(c);
-                  const tone = n === mustRows.length ? "text-moss" : n === 0 ? "text-red-700" : "text-amber-700";
-                  return (
-                    <td key={c.label} className="px-3 py-2">
-                      <div className="flex items-center gap-2">
-                        <span className={`shrink-0 font-semibold tabular-nums ${tone}`}>
-                          {n}/{mustRows.length}
-                        </span>
-                        <span className="flex flex-1 gap-0.5" aria-hidden>
-                          {mustRows.map((_, i) => (
-                            <span key={i} className={`h-1.5 flex-1 rounded-full ${i < n ? "bg-moss" : "bg-stone-200"}`} />
-                          ))}
-                        </span>
-                      </div>
-                    </td>
-                  );
-                })}
-              </tr>
-            </tfoot>
+
+          {/* Overview */}
+          <tbody>
+            <GroupTr label="Overview" cols={cols} />
+            <Row head={<RowHead title="Overall fit" />} candidates={candidates} leaderValue={(c) => c.score} render={(c) => <FitCell c={c} />} />
+            <Row head={<RowHead title="Confidence band" />} candidates={candidates} render={(c) => <ConfidenceCell c={c} />} />
+            <Row head={<RowHead title="Profile" />} candidates={candidates} render={(c) => <ProfileCell c={c} />} />
+            {mustRows.length ? (
+              <Row
+                head={<RowHead title="Must-have coverage" />}
+                candidates={candidates}
+                leaderValue={(c) => coverageCount(c, mustRows)}
+                render={(c) => <CoverageCell c={c} mustRows={mustRows} />}
+              />
+            ) : null}
+          </tbody>
+
+          {/* Score breakdown */}
+          {dims.length ? (
+            <tbody>
+              <GroupTr label="Score breakdown" cols={cols} />
+              {dims.map((d) => (
+                <Row
+                  key={d.key}
+                  head={<RowHead title={d.label} sub={`weight ${d.weight}%`} />}
+                  candidates={candidates}
+                  leaderValue={(c) => percentOf(c, d.key) ?? -1}
+                  render={(c, isLeader) => <DimCell c={c} dimKey={d.key} isLeader={isLeader} />}
+                />
+              ))}
+            </tbody>
+          ) : null}
+
+          {/* Skills */}
+          {skillRows.length ? (
+            <tbody>
+              <GroupTr label="Skills" cols={cols} aside={<SkillsLegend />} />
+              {must.length ? <SubGroupTr label={`Must-have · ${must.length}`} cols={cols} /> : null}
+              {must.map((r) => (
+                <Row key={r.skill} head={<span className="font-medium text-ink">{r.skill}</span>} candidates={candidates} render={(c) => <SkillCell skill={r.skill} c={c} />} />
+              ))}
+              {nice.length ? <SubGroupTr label={`Nice-to-have · ${nice.length}`} cols={cols} /> : null}
+              {nice.map((r) => (
+                <Row key={r.skill} head={<span className="font-medium text-ink">{r.skill}</span>} candidates={candidates} render={(c) => <SkillCell skill={r.skill} c={c} />} />
+              ))}
+            </tbody>
+          ) : null}
+
+          {/* Salary */}
+          {showSalary ? (
+            <tbody>
+              <GroupTr
+                label="Salary · expectation vs band"
+                cols={cols}
+                aside={hi > 0 ? <Pill tone="info">role band {formatCzk(lo)}–{formatCzk(hi)}</Pill> : <Pill>no role band</Pill>}
+              />
+              <Row head={<RowHead title="Expected" sub="green = band · bar = range · tick = midpoint" />} candidates={candidates} render={(c) => <SalaryCell c={c} sal={sal} />} />
+            </tbody>
           ) : null}
         </table>
       </div>
@@ -591,18 +686,18 @@ function SkillsMatrix({
   );
 }
 
-// ---- Per-candidate detail (compact + progressive disclosure) --------------
+// ---- Per candidate (full-width tab switcher) ------------------------------
 
 function IconList({ title, items, icon: Icon, tone }: { title: string; items: string[]; icon: LucideIcon; tone: "moss" | "coral" | "steel" }) {
   if (!items.length) return null;
   const color = tone === "moss" ? "text-moss" : tone === "coral" ? "text-coral" : "text-steel";
   return (
     <div>
-      <p className="text-[11px] font-semibold uppercase tracking-wide text-steel">{title}</p>
-      <ul className="mt-0.5 space-y-1">
+      <p className="text-sm font-semibold uppercase tracking-wide text-steel">{title}</p>
+      <ul className="mt-1 space-y-1">
         {items.map((it, i) => (
-          <li key={i} className="flex gap-1.5 text-sm text-ink">
-            <Icon size={13} className={`mt-0.5 shrink-0 ${color}`} aria-hidden />
+          <li key={i} className="flex gap-1.5 text-base text-ink">
+            <Icon size={15} className={`mt-1 shrink-0 ${color}`} aria-hidden />
             <span>{it}</span>
           </li>
         ))}
@@ -611,156 +706,99 @@ function IconList({ title, items, icon: Icon, tone }: { title: string; items: st
   );
 }
 
-function PerCandidateDetail({ candidates, differentiators, topPick }: { candidates: EvalCandidate[]; differentiators: string[]; topPick?: string }) {
+// One candidate's full evaluation, laid out across the modal's full width so the
+// text-heavy strengths / gaps / probes get room instead of cramped cards.
+function CandidateDetail({ c, differentiators, topPick }: { c: EvalCandidate; differentiators: string[]; topPick?: string }) {
   return (
-    <section>
-      <SectionTitle>Per candidate</SectionTitle>
-      <div className="mt-2 grid gap-3 lg:grid-cols-2 xl:grid-cols-3">
-        {candidates.map((c) => (
-          <div key={c.label} className="rounded-xl border border-stone-200 p-3">
-            <div className="flex items-center gap-2">
-              <Avatar label={c.label} archetype={c.archetype} />
-              <span className="min-w-0 flex-1">
-                <span className="block truncate font-semibold text-ink">{c.label}</span>
-                {c.potentialScore != null ? <span className="block text-[11px] text-steel">potential {Math.round(c.potentialScore * 100)}</span> : null}
-              </span>
-              <ScoreBadge score={c.score} />
-              <FitTierBadge tier={c.fitTier} score={c.score} />
-            </div>
-
-            {c.scoreBreakdown?.length ? <ScoreBreakdown dims={c.scoreBreakdown} total={c.score} /> : null}
-            {c.verdict ? <p className="mt-2 text-sm text-ink">{c.verdict}</p> : null}
-
-            {topPick === c.label && differentiators.length ? (
-              <div className="mt-2 flex flex-wrap gap-1">
-                {differentiators.map((s) => (
-                  <Pill key={s} tone="moss">
-                    {s}
-                  </Pill>
-                ))}
-              </div>
-            ) : null}
-
-            <div className="mt-2 grid gap-2 sm:grid-cols-2">
-              <IconList title="Strengths" items={c.strengths.slice(0, 3)} icon={CheckCircle2} tone="moss" />
-              <IconList title="Gaps" items={c.gaps.slice(0, 3)} icon={AlertTriangle} tone="coral" />
-            </div>
-
-            {c.interviewProbes?.length || c.assumptions?.length ? (
-              <details className="mt-2">
-                <summary className="cursor-pointer text-[11px] font-semibold uppercase tracking-wide text-steel hover:text-ink">
-                  Interview probes &amp; assumptions
-                </summary>
-                <div className="mt-1.5 space-y-2">
-                  <IconList title="Interview probes" items={c.interviewProbes ?? []} icon={CircleDot} tone="steel" />
-                  {c.assumptions?.length ? (
-                    <p className="text-[12px] text-steel">
-                      <span className="font-semibold uppercase">Assumptions:</span> {c.assumptions[0]}
-                    </p>
-                  ) : null}
-                </div>
-              </details>
-            ) : null}
+    <div className="rounded-xl border border-stone-200 p-4">
+      <div className="flex flex-wrap items-center gap-3">
+        <Avatar label={c.label} archetype={c.archetype} />
+        <div className="min-w-0">
+          <p className="font-serif text-h3 text-ink">{c.label}</p>
+          <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
+            <ArchetypeTag archetype={c.archetype} />
+            {c.seniority ? <Pill>{c.seniority}</Pill> : null}
+            {c.potentialScore != null ? <Pill>potential {Math.round(c.potentialScore * 100)}</Pill> : null}
+            {c.koPassed === false ? <Pill tone="coral">KO-filtered</Pill> : null}
           </div>
-        ))}
+        </div>
+        <div className="ml-auto flex items-center gap-2">
+          <ScoreBadge score={c.score} />
+          <FitTierBadge tier={c.fitTier} score={c.score} />
+          {c.confidence ? <ConfidenceBandBadge level={c.confidence.level} drivers={c.confidence.drivers} /> : null}
+        </div>
       </div>
-    </section>
+
+      {c.scoreBreakdown?.length ? (
+        <div className="mt-3">
+          <ScoreBreakdown dims={c.scoreBreakdown} total={c.score} />
+        </div>
+      ) : null}
+
+      {c.verdict ? <p className="mt-3 text-base text-ink">{c.verdict}</p> : null}
+
+      {topPick === c.label && differentiators.length ? (
+        <div className="mt-3">
+          <p className="text-sm font-semibold uppercase tracking-wide text-steel">Unique strengths (lead)</p>
+          <div className="mt-1 flex flex-wrap gap-1">
+            {differentiators.map((s) => (
+              <Pill key={s} tone="moss">
+                {s}
+              </Pill>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
+      <div className="mt-3 grid gap-4 md:grid-cols-3">
+        <IconList title="Strengths" items={c.strengths} icon={CheckCircle2} tone="moss" />
+        <IconList title="Gaps" items={c.gaps} icon={AlertTriangle} tone="coral" />
+        <IconList title="Interview probes" items={c.interviewProbes ?? []} icon={CircleDot} tone="steel" />
+      </div>
+
+      {c.assumptions?.length ? (
+        <p className="mt-3 text-sm text-steel">
+          <span className="font-semibold uppercase">Assumptions:</span> {c.assumptions.join(" · ")}
+        </p>
+      ) : null}
+    </div>
   );
 }
 
-// ---- Salary comparison (expectation vs role recommendation) ---------------
-
-// Verdict for a candidate's expectation midpoint against the role band [lo, hi].
-function salaryVerdict(mid: number, lo: number, hi: number): { label: string; tone: keyof typeof PILL_TONE } {
-  if (hi > 0 && mid > hi) return { label: `+${Math.round(((mid - hi) / hi) * 100)}% over band`, tone: "coral" };
-  if (lo > 0 && mid < lo) return { label: `${Math.round(((lo - mid) / lo) * 100)}% under band`, tone: "info" };
-  return { label: "within band", tone: "moss" };
-}
-
-function SalaryComparison({ candidates, roleBand }: { candidates: EvalCandidate[]; roleBand: number[] }) {
-  const withSalary = candidates.filter((c) => c.salaryExpectation);
-  const [lo, hi] = roleBand.length >= 2 ? [roleBand[0], roleBand[1]] : [0, 0];
-  // Nothing to compare: no role band AND no candidate expectations.
-  if (!withSalary.length && !(hi > 0)) return null;
-
-  // One shared linear scale across the role band + every expectation, padded 8%,
-  // so the bars are visually comparable candidate-to-candidate and to the role.
-  const vals = [
-    ...(hi > 0 ? [lo, hi] : []),
-    ...withSalary.flatMap((c) => [c.salaryExpectation!.minimum, c.salaryExpectation!.maximum]),
-  ].filter((n) => n > 0);
-  const loScale = Math.min(...vals);
-  const hiScale = Math.max(...vals);
-  const span = hiScale - loScale || 1;
-  const pct = (v: number) => Math.max(0, Math.min(100, ((v - loScale) / span) * 100));
+function PerCandidateTabs({ candidates, differentiators, topPick }: { candidates: EvalCandidate[]; differentiators: string[]; topPick?: string }) {
+  const [active, setActive] = useState(0);
+  if (!candidates.length) return null;
+  const idx = Math.min(active, candidates.length - 1);
+  const current = candidates[idx];
 
   return (
     <section>
-      <div className="flex flex-wrap items-center gap-2">
-        <SectionTitle>Salary · expectation vs recommendation</SectionTitle>
-        {hi > 0 ? (
-          <Pill tone="info">
-            Role band {formatCzk(lo)}–{formatCzk(hi)}
-          </Pill>
-        ) : (
-          <Pill>No role band set</Pill>
-        )}
-      </div>
-      <div className="mt-2 space-y-2 rounded-lg border border-stone-200 p-3">
-        {candidates.map((c) => {
-          const s = c.salaryExpectation;
-          const verdict = s && hi > 0 ? salaryVerdict(s.midpoint, lo, hi) : null;
+      <SectionTitle>Per candidate</SectionTitle>
+      <div role="tablist" aria-label="Candidates" className="mt-2 flex flex-wrap gap-1 border-b border-stone-200">
+        {candidates.map((c, i) => {
+          const selected = i === idx;
+          const s = styleFor(c.archetype ?? null);
           return (
-            <div key={c.label} className="grid grid-cols-[minmax(120px,180px)_1fr] items-center gap-3">
-              <div className="flex items-center gap-2">
-                <Avatar label={c.label} archetype={c.archetype} />
-                <span className="min-w-0">
-                  <span className="block truncate text-sm font-semibold text-ink">{c.label}</span>
-                  {s ? (
-                    <span className="block text-[11px] text-steel">
-                      expects {formatCzk(s.minimum)}–{formatCzk(s.maximum)}
-                    </span>
-                  ) : (
-                    <span className="block text-[11px] text-steel">no expectation on file</span>
-                  )}
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="relative h-6 flex-1 overflow-hidden rounded-md bg-stone-100">
-                  {/* role band reference zone */}
-                  {hi > 0 ? (
-                    <span
-                      className="absolute inset-y-0 bg-moss/15 ring-1 ring-inset ring-moss/30"
-                      style={{ left: `${pct(lo)}%`, width: `${Math.max(1, pct(hi) - pct(lo))}%` }}
-                      aria-hidden
-                    />
-                  ) : null}
-                  {/* candidate expectation range + midpoint */}
-                  {s ? (
-                    <>
-                      <span
-                        className="absolute inset-y-1.5 rounded-full bg-ink/70"
-                        style={{ left: `${pct(s.minimum)}%`, width: `${Math.max(1.5, pct(s.maximum) - pct(s.minimum))}%` }}
-                        aria-hidden
-                      />
-                      <span
-                        className="absolute inset-y-0.5 w-0.5 bg-coral"
-                        style={{ left: `${pct(s.midpoint)}%` }}
-                        title={`expected midpoint ${formatCzk(s.midpoint)}`}
-                        aria-hidden
-                      />
-                    </>
-                  ) : null}
-                </div>
-                {verdict ? <Pill tone={verdict.tone}>{verdict.label}</Pill> : null}
-              </div>
-            </div>
+            <button
+              key={c.label}
+              type="button"
+              role="tab"
+              aria-selected={selected}
+              onClick={() => setActive(i)}
+              className={`focus-ring -mb-px inline-flex items-center gap-2 rounded-t-md border-b-2 px-3 py-2 text-base font-semibold ${
+                selected ? "border-coral text-ink" : "border-transparent text-steel hover:text-ink"
+              }`}
+            >
+              <span className={`h-2.5 w-2.5 rounded-full ${s.bg}`} aria-hidden />
+              <span className="max-w-[160px] truncate">{c.label}</span>
+              <ScoreBadge score={c.score} />
+            </button>
           );
         })}
       </div>
-      <p className="mt-1 text-[11px] text-steel">
-        Green zone = role&apos;s recommended band · dark bar = candidate&apos;s expected range · coral tick = their midpoint.
-      </p>
+      <div role="tabpanel" className="mt-3">
+        <CandidateDetail c={current} differentiators={differentiators} topPick={topPick} />
+      </div>
     </section>
   );
 }
@@ -769,13 +807,13 @@ function Risks({ risks }: { risks: string[] }) {
   if (!risks.length) return null;
   return (
     <section>
-      <p className="flex items-center gap-1.5 text-meta uppercase tracking-wide text-coral">
-        <AlertTriangle size={13} /> Watch-outs · {risks.length}
+      <p className="flex items-center gap-1.5 text-sm font-semibold uppercase tracking-wide text-coral">
+        <AlertTriangle size={14} /> Watch-outs · {risks.length}
       </p>
       <div className="mt-2 grid gap-1.5 sm:grid-cols-2">
         {risks.map((r, i) => (
-          <div key={i} className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50/60 p-2 text-sm text-amber-900">
-            <AlertTriangle size={14} className="mt-0.5 shrink-0" aria-hidden />
+          <div key={i} className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50/60 p-2 text-base text-amber-900">
+            <AlertTriangle size={15} className="mt-0.5 shrink-0" aria-hidden />
             <span>{r}</span>
           </div>
         ))}
@@ -791,13 +829,13 @@ function LegacyView({ evaluation }: { evaluation: GroupEvalPayload }) {
     <div className="space-y-4">
       {evaluation.topPick ? (
         <div className="rounded-lg border border-moss/30 bg-moss/5 p-3">
-          <p className="flex items-center gap-1.5 text-meta uppercase tracking-wide text-moss">
-            <Sparkles size={13} /> Recommended lead
+          <p className="flex items-center gap-1.5 text-sm font-semibold uppercase tracking-wide text-moss">
+            <Sparkles size={14} /> Recommended lead
           </p>
           <p className="mt-1 flex items-center gap-2 font-serif text-h3 text-ink">
             {evaluation.topPick.label} <ScoreBadge score={evaluation.topPick.score} />
           </p>
-          {evaluation.topPick.why ? <p className="mt-1 text-sm text-steel">{evaluation.topPick.why}</p> : null}
+          {evaluation.topPick.why ? <p className="mt-1 text-base text-steel">{evaluation.topPick.why}</p> : null}
         </div>
       ) : null}
 
@@ -807,13 +845,13 @@ function LegacyView({ evaluation }: { evaluation: GroupEvalPayload }) {
           <div className="mt-2 grid gap-2 lg:grid-cols-2">
             {evaluation.candidates.map((c, i) => (
               <div key={i} className="rounded-md border border-stone-200 p-2.5">
-                <p className="flex items-center gap-2 text-sm font-semibold text-ink">
+                <p className="flex items-center gap-2 text-base font-semibold text-ink">
                   {c.label}
                   <ScoreBadge score={c.score} />
                   {c.seniority ? <span className="font-normal text-steel">{c.seniority}</span> : null}
                 </p>
-                {c.verdict ? <p className="mt-0.5 text-sm text-ink">{c.verdict}</p> : null}
-                <div className="mt-1 grid gap-1 text-sm sm:grid-cols-2">
+                {c.verdict ? <p className="mt-0.5 text-base text-ink">{c.verdict}</p> : null}
+                <div className="mt-1 grid gap-1 text-base sm:grid-cols-2">
                   {c.strengths.length ? <p><span className="font-semibold text-moss">+ </span>{c.strengths.slice(0, 3).join("; ")}</p> : null}
                   {c.gaps.length ? <p><span className="font-semibold text-coral">! </span>{c.gaps.slice(0, 3).join("; ")}</p> : null}
                 </div>
@@ -824,7 +862,7 @@ function LegacyView({ evaluation }: { evaluation: GroupEvalPayload }) {
       ) : null}
 
       {evaluation.differentiators?.length ? (
-        <p className="text-sm text-ink">
+        <p className="text-base text-ink">
           <span className="font-semibold">Differentiators (lead):</span> {evaluation.differentiators.join(", ")}
         </p>
       ) : null}

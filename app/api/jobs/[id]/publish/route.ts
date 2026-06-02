@@ -6,9 +6,13 @@ import { runSourceForRole } from "@/app/_lib/devcase-run";
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
-// Publish a draft job: flip its status to 'published' and source candidates into
-// the pipeline (the step that used to happen implicitly on save). Idempotent —
-// re-publishing doesn't re-source.
+// Take a draft job live: flip its status to 'published' and source candidates
+// into the pipeline (the step that used to happen implicitly on save). Idempotent
+// — re-running doesn't re-source.
+//
+// User-facing this is "Source into Pipeline" (internal go-live), NOT external
+// "Publish to job boards". The route name and the 'published' DB status are kept
+// as a stable contract. See docs/JD_LIFECYCLE.md.
 export async function POST(_request: NextRequest, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params;
   try {
@@ -19,6 +23,11 @@ export async function POST(_request: NextRequest, context: { params: Promise<{ i
     setJobStatus(id, "published");
 
     let sourced = 0;
+    let skipped = 0;
+    // Soft-warning: set when the sourcing step itself errors (Python/CLI failure),
+    // so callers can tell "sourced 0 because nobody matched" apart from "sourced 0
+    // because sourcing broke". null = sourcing ran cleanly (even if it found nobody).
+    let sourcingWarning: string | null = null;
     if (!already) {
       try {
         const reqs = ((job as { requirements?: { skill: string; kind?: string }[] }).requirements ?? []);
@@ -31,7 +40,9 @@ export async function POST(_request: NextRequest, context: { params: Promise<{ i
           niceToHaves: reqs.filter((r) => r.kind === "nice_to_have").map((r) => r.skill),
           responsibilities: job.description ? [job.description] : [],
         };
-        for (const m of await runSourceForRole(role)) {
+        const outcome = await runSourceForRole(role);
+        skipped = outcome.skipped;
+        for (const m of outcome.candidates) {
           if (!m.candidateId) continue;
           createPipelineEntry({
             candidateId: m.candidateId,
@@ -45,13 +56,21 @@ export async function POST(_request: NextRequest, context: { params: Promise<{ i
           });
           sourced += 1;
         }
-      } catch {
-        /* sourcing is best-effort — publishing still succeeds */
+      } catch (sourcingError) {
+        // Sourcing is best-effort — the role still goes live — but DON'T swallow the
+        // reason. A broken pipeline that emits 0 candidates looks identical to an
+        // empty pool unless we surface why. The warning flows to the draft note.
+        sourcingWarning =
+          sourcingError instanceof Error ? sourcingError.message : "Sourcing failed for an unknown reason.";
       }
     }
 
-    return NextResponse.json({ ok: true, status: "published", sourced, alreadyPublished: already });
+    // `skipped` = candidates whose payload failed to parse (not low matches), so an empty
+    // pipeline after publish can be told apart from a pool that failed to load.
+    // `sourcingWarning` (non-null) = the sourcing step errored; the UI shows it instead of
+    // a misleading "sourced 0" success.
+    return NextResponse.json({ ok: true, status: "published", sourced, skipped, sourcingWarning, alreadyPublished: already });
   } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Publish failed." }, { status: 500 });
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Sourcing failed." }, { status: 500 });
   }
 }

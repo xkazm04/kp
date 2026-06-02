@@ -8,6 +8,9 @@ export type Entry = {
   stage: string;
   matchScore: number | null;
   status: string;
+  // Label-only stub from a failed intake normalization, needing manual capture.
+  intakeDegraded?: boolean;
+  intakeDegradedReason?: string | null;
 };
 
 export type TaskId = "screen" | "outreach" | "rejection" | "prep" | "scorecard" | "rematch" | "offer";

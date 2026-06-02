@@ -59,10 +59,10 @@ export default async function JdDetailPage({
           <button
             type="button"
             disabled
-            title="Job-board publishing integration coming soon"
+            title="Job-board publishing integration coming soon — this distributes the JD to external job boards, distinct from sourcing candidates into the Pipeline"
             className="inline-flex h-10 cursor-not-allowed items-center justify-center gap-2 rounded-md border border-stone-200 px-3 text-sm font-semibold text-steel opacity-70"
           >
-            <Send size={15} /> Publish
+            <Send size={15} /> Publish to job boards
           </button>
           <Link
             href={`/?tab=analyze&jd=${encodeURIComponent(slug)}`}

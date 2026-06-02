@@ -1,0 +1,87 @@
+{
+  "_comment": "SINGLE SOURCE OF TRUTH for the candidate-archetype taxonomy, read by BOTH Python (pipeline/jobfit/registry.py) and TypeScript (app/_lib/archetypes.ts). Because both sides read THIS file, the TS<->Python desync that the fairness gate feared is structurally impossible. Adding an archetype here (with a known scoringModel + checklist checks + detection signals) extends the system end-to-end without code changes. `fairnessProtected` is compliance-critical: it shields an archetype from AUTOMATED rejection. `scoringModel` selects the potential/scoring path ('experienced' = years-based; 'early_career' = potential replaces years). `checklist[].check` and detection `signal` names must reference predicates the engines know (see registry.py CHECKS / SIGNAL evaluator); a contract test (tests/test_registry.py) enforces this.",
+  "archetypes": [
+    {
+      "id": "bau",
+      "label": "Experienced",
+      "badge": "Experienced",
+      "pythonLabel": "Experienced (BAU)",
+      "applyLabel": "An experienced professional",
+      "fairnessProtected": false,
+      "scoringModel": "experienced",
+      "weights": { "skills": 0.50, "career": 0.35, "personal": 0.15 },
+      "dimensionLabels": { "skills": "Skills", "career": "Career", "personal": "Personal" },
+      "checklist": [
+        { "check": "has_seniority", "weight": 1.5, "label": "seniority" },
+        { "check": "has_years", "weight": 1.0, "label": "years of experience" },
+        { "check": "has_job", "weight": 1.5, "label": "a work-experience entry" }
+      ]
+    },
+    {
+      "id": "student",
+      "label": "Student / early-career",
+      "badge": "Student",
+      "pythonLabel": "Student / early-career",
+      "applyLabel": "A student or early in my career",
+      "fairnessProtected": true,
+      "scoringModel": "early_career",
+      "weights": { "skills": 0.40, "career": 0.40, "personal": 0.20 },
+      "dimensionLabels": { "skills": "Foundation", "career": "Potential", "personal": "Fit" },
+      "checklist": [
+        { "check": "has_aspirations", "weight": 1.5, "label": "target roles / aspirations" },
+        { "check": "has_education_detail", "weight": 1.0, "label": "study programme & specialisation" },
+        { "check": "has_project_or_thesis", "weight": 2.0, "label": "a project or thesis (your strongest evidence)" },
+        { "check": "has_activity", "weight": 1.0, "label": "an internship, activity, or certification" }
+      ]
+    },
+    {
+      "id": "career_switcher",
+      "label": "Career-switcher",
+      "badge": "Switcher",
+      "pythonLabel": "Career-switcher",
+      "applyLabel": "Switching into this field from another",
+      "fairnessProtected": true,
+      "scoringModel": "early_career",
+      "weights": { "skills": 0.35, "career": 0.40, "personal": 0.25 },
+      "dimensionLabels": { "skills": "Foundation", "career": "Potential", "personal": "Fit" },
+      "checklist": [
+        { "check": "has_aspirations", "weight": 1.5, "label": "target roles / aspirations" },
+        { "check": "has_education_detail", "weight": 1.0, "label": "study programme & specialisation" },
+        { "check": "has_project_or_thesis", "weight": 2.0, "label": "a project or thesis (your strongest evidence)" },
+        { "check": "has_activity", "weight": 1.0, "label": "an internship, activity, or certification" }
+      ]
+    }
+  ],
+  "commonChecklist": [
+    { "check": "education_known", "weight": 1.0, "label": "education level" },
+    { "check": "has_languages", "weight": 1.0, "label": "languages" },
+    { "check": "min_3_skills", "weight": 1.5, "label": "at least 3 skills" }
+  ],
+  "detection": {
+    "selfDeclaredConfidence": 0.9,
+    "defaultArchetype": "bau",
+    "defaultConfidence": 0.4,
+    "defaultReason": "no strong signal; defaulting to experienced",
+    "signals": [
+      { "id": "enrolled", "when": { "signal": "is_enrolled", "truthy": true }, "scores": { "student": 2.0 }, "reason": "currently enrolled" },
+      { "id": "expected_graduation", "when": { "signal": "expected_graduation", "truthy": true }, "scores": { "student": 1.0 }, "reason": "expected graduation: {expected_graduation}" },
+      { "id": "yre_low", "when": { "signal": "years_relevant_experience", "lt": 1 }, "scores": { "student": 1.5 }, "reason": "<1 year of relevant experience" },
+      { "id": "yre_high", "when": { "signal": "years_relevant_experience", "gte": 3 }, "scores": { "bau": 1.5 }, "reason": "{years_relevant_experience:g} years of relevant experience" },
+      { "id": "education_dominant", "when": { "signal": "education_is_dominant", "truthy": true }, "scores": { "student": 1.0 }, "reason": "education is the dominant CV block" },
+      { "id": "switch_strong", "when": { "all": [ { "signal": "wants_domain_change", "truthy": true }, { "signal": "has_substantial_experience", "truthy": true } ] }, "scores": { "career_switcher": 3.0 }, "reason": "wants a domain change and has substantial experience" },
+      { "id": "switch_weak", "when": { "all": [ { "signal": "wants_domain_change", "truthy": true }, { "signal": "has_substantial_experience", "not": true } ] }, "scores": { "career_switcher": 1.0 }, "reason": "wants a domain change" },
+      { "id": "substantial", "when": { "signal": "has_substantial_experience", "truthy": true }, "scores": { "bau": 1.0, "career_switcher": 0.5 } }
+    ],
+    "contradictions": {
+      "student": [
+        { "when": { "all": [ { "signal": "years_relevant_experience", "gte": 3 }, { "signal": "is_enrolled", "not": true } ] }, "confidence": 0.65, "reason": "contradiction: 3+ years of relevant experience for a 'student'" }
+      ],
+      "bau": [
+        { "when": { "any": [ { "signal": "is_enrolled", "truthy": true }, { "signal": "years_relevant_experience", "lt": 1 } ] }, "confidence": 0.65, "reason": "contradiction: enrollment / <1y experience suggests early-career" }
+      ],
+      "career_switcher": [
+        { "when": { "signal": "has_substantial_experience", "not": true }, "confidence": 0.7, "reason": "note: 'switcher' usually implies prior professional experience" }
+      ]
+    }
+  }
+}

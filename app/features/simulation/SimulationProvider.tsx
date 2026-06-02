@@ -281,8 +281,8 @@ export function SimulationProvider({ children }: { children: React.ReactNode }) 
         id: "source",
         tab: "jobs",
         target: '[data-sim="job-drafts"]',
-        title: "Publish & source",
-        caption: "The JD is saved as a draft. Publishing it from the Jobs tab sources the candidate pool into the pipeline.",
+        title: "Source into Pipeline",
+        caption: "The JD is saved as a draft. Sourcing it from the Jobs tab takes it live and pulls the candidate pool into the pipeline.",
         navExtra: { jdTitle: null, jdCompany: null, jdSeniority: null, jdFamily: null, jdNeed: null },
         action: async () => {
           // Save as a DRAFT (no sourcing yet).
@@ -296,13 +296,13 @@ export function SimulationProvider({ children }: { children: React.ReactNode }) 
           notifyDataChanged(); // the Jobs tab picks up the new draft
           await beat(900);
 
-          // Publish — a real click on the draft's Publish button (sources the pool).
+          // Source into Pipeline — a real click on the draft's button (sources the pool).
           const clicked = await clickEl(`[data-sim-entry="${jobId}"] [data-sim-click="publish"]`, {
-            title: "Publish the JD",
-            caption: "Publishing takes the JD live and sources the candidate pool into the pipeline.",
+            title: "Source into Pipeline",
+            caption: "This takes the JD live and sources the candidate pool into the pipeline.",
           });
           if (!clicked) {
-            log("(draft not visible — publishing via API)");
+            log("(draft not visible — sourcing via API)");
             await fetch(`/api/jobs/${jobId}/publish`, { method: "POST" });
           }
 
@@ -315,7 +315,7 @@ export function SimulationProvider({ children }: { children: React.ReactNode }) 
             if (sourced > 0) break;
             await sleep(400);
           }
-          log(`Published · sourced ${sourced} candidates → Accepted`);
+          log(`Live · sourced ${sourced} candidates → Accepted`);
           notifyDataChanged();
         },
       });

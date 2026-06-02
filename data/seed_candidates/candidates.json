@@ -6,8 +6,8 @@
     "displayName": "Klára Blažeková",
     "roleFamily": "software_engineering",
     "aspirations": [
-      "Staff/Principal engineer",
-      "Own platform architecture for high-throughput distributed systems"
+      "Java Backend Engineer",
+      "Tech lead / architect within a Česká spořitelna tribe"
     ],
     "yearsExperience": 9.0,
     "seniority": "senior",
@@ -21,43 +21,43 @@
     "location": "Brno, Czech Republic",
     "skillClaims": [
       {
-        "skill": "Go",
+        "skill": "Spring Boot",
         "level": "strong",
         "provenance": "professional",
         "confidence": 0.4
       },
       {
-        "skill": "Kubernetes",
+        "skill": "Kafka",
         "level": "strong",
         "provenance": "professional",
         "confidence": 0.4
       },
       {
-        "skill": "PostgreSQL",
-        "level": "strong",
-        "provenance": "professional",
-        "confidence": 0.4
-      },
-      {
-        "skill": "Distributed systems design",
+        "skill": "Oracle",
         "level": "working",
         "provenance": "professional",
         "confidence": 0.4
       },
       {
-        "skill": "gRPC / Protobuf",
+        "skill": "Java",
         "level": "working",
         "provenance": "professional",
         "confidence": 0.4
       },
       {
-        "skill": "Terraform",
+        "skill": "Microservices",
         "level": "working",
         "provenance": "professional",
         "confidence": 0.4
       },
       {
-        "skill": "Observability (Prometheus/Grafana)",
+        "skill": "REST APIs",
+        "level": "working",
+        "provenance": "professional",
+        "confidence": 0.4
+      },
+      {
+        "skill": "Docker",
         "level": "working",
         "provenance": "professional",
         "confidence": 0.4
@@ -69,10 +69,8 @@
         "title": "Senior Backend Engineer, Kentico Software",
         "text": "Led the rewrite of the content-delivery API from a monolith to Go microservices on Kubernetes, cutting p99 latency ~40% and supporting 3x traffic growth. Mentored two medior engineers and owned the on-call runbook.",
         "skills": [
-          "Go",
-          "Kubernetes",
-          "PostgreSQL",
-          "gRPC / Protobuf"
+          "Java",
+          "Spring Boot"
         ],
         "provenance": "professional",
         "confidence": 0.6
@@ -82,10 +80,9 @@
         "title": "Backend Engineer, Seznam.cz",
         "text": "Built and operated billing-event ingestion services handling millions of events/day; introduced Terraform-managed infra and Prometheus-based SLO alerting.",
         "skills": [
-          "Go",
-          "Terraform",
-          "Observability (Prometheus/Grafana)",
-          "PostgreSQL"
+          "Spring Boot",
+          "Oracle",
+          "Kafka"
         ],
         "provenance": "professional",
         "confidence": 0.6
@@ -93,7 +90,8 @@
     ],
     "learningSignals": [],
     "completeness": 1.0,
-    "id": "cand-000"
+    "id": "cand-000",
+    "targetRole": "Java Backend Engineer"
   },
   {
     "archetype": "student",
@@ -102,9 +100,8 @@
     "displayName": "Ondřej Tichý",
     "roleFamily": "software_engineering",
     "aspirations": [
-      "Junior backend engineer role working on distributed systems",
-      "Grow into infrastructure / platform engineering",
-      "Contribute to an open-source project long-term"
+      "Junior iOS Engineer – George",
+      "Grow into a core engineering role at a bank"
     ],
     "educationLevel": "master",
     "educationDetail": "Navazující magisterské studium oboru Softwarové inženýrství, Fakulta informatiky, Masarykova univerzita, Brno (2. ročník, očekávané ukončení 2026)",
@@ -116,39 +113,27 @@
     "location": "Brno, Czech Republic",
     "skillClaims": [
       {
-        "skill": "Python",
-        "level": "strong",
-        "provenance": "academic_project",
-        "confidence": 0.4
-      },
-      {
-        "skill": "Go",
+        "skill": "Git",
         "level": "working",
         "provenance": "coursework",
         "confidence": 0.4
       },
       {
-        "skill": "PostgreSQL",
-        "level": "working",
+        "skill": "SwiftUI",
+        "level": "foundational",
         "provenance": "academic_project",
         "confidence": 0.4
       },
       {
-        "skill": "Docker",
-        "level": "working",
+        "skill": "Swift",
+        "level": "foundational",
         "provenance": "self_declared",
         "confidence": 0.4
       },
       {
-        "skill": "Distributed systems",
+        "skill": "Combine",
         "level": "foundational",
-        "provenance": "coursework",
-        "confidence": 0.4
-      },
-      {
-        "skill": "REST API design",
-        "level": "working",
-        "provenance": "academic_project",
+        "provenance": "personal_project",
         "confidence": 0.4
       }
     ],
@@ -158,9 +143,8 @@
         "title": "Bakalářská práce: Detekce anomálií v logech pomocí streamovaného zpracování dat",
         "text": "Navrhla a implementovala prototyp v Pythonu nad Apache Kafka, který v reálném čase vyhodnocuje odchylky v aplikačních logech. Práce obhájena s hodnocením A.",
         "skills": [
-          "Python",
-          "Apache Kafka",
-          "Distributed systems"
+          "Swift",
+          "SwiftUI"
         ],
         "provenance": "thesis",
         "confidence": 0.6
@@ -170,10 +154,9 @@
         "title": "studyplanner — plánovač předmětů pro studenty FI",
         "text": "Open-source webová aplikace (Go backend, PostgreSQL, REST API) pro sestavení rozvrhu z nabídky předmětů. Nasazeno v Dockeru, používá ji asi 40 spolužáků.",
         "skills": [
-          "Go",
-          "PostgreSQL",
-          "Docker",
-          "REST API design"
+          "SwiftUI",
+          "iOS",
+          "Combine"
         ],
         "provenance": "personal_project",
         "confidence": 0.6,
@@ -184,9 +167,8 @@
         "title": "Vedoucí studentského kroužku Competitive Programming",
         "text": "Organizovala týdenní setkání, připravovala algoritmické úlohy a mentorovala začínající studenty. Tým postoupil do regionálního kola CTU Open.",
         "skills": [
-          "Algorithms",
-          "Python",
-          "Mentoring"
+          "iOS",
+          "Combine"
         ],
         "provenance": "extracurricular",
         "confidence": 0.6
@@ -194,7 +176,8 @@
     ],
     "learningSignals": [],
     "completeness": 1.0,
-    "id": "cand-001"
+    "id": "cand-001",
+    "targetRole": "iOS Engineer – George"
   },
   {
     "archetype": "student",
@@ -203,9 +186,8 @@
     "displayName": "Karolína Dvořáková",
     "roleFamily": "software_engineering",
     "aspirations": [
-      "Join a backend or platform team where I can grow toward a backend engineer role",
-      "Work on scalable distributed systems and clean API design",
-      "Eventually contribute to open-source developer tooling"
+      "Junior Android Engineer – George",
+      "Grow into a core engineering role at a bank"
     ],
     "educationLevel": "master",
     "educationDetail": "Mgr. studies in Open Informatics (Software Engineering specialization), Faculty of Electrical Engineering, Czech Technical University in Prague (ČVUT FEL), expected 2026",
@@ -217,38 +199,38 @@
     "location": "Prague, Czech Republic",
     "skillClaims": [
       {
-        "skill": "Java",
-        "level": "strong",
+        "skill": "REST APIs",
+        "level": "working",
         "provenance": "coursework",
         "confidence": 0.4
       },
       {
-        "skill": "Python",
-        "level": "working",
+        "skill": "Coroutines",
+        "level": "foundational",
         "provenance": "academic_project",
         "confidence": 0.4
       },
       {
-        "skill": "PostgreSQL",
-        "level": "working",
-        "provenance": "coursework",
-        "confidence": 0.4
-      },
-      {
-        "skill": "Docker",
+        "skill": "Android",
         "level": "foundational",
         "provenance": "self_declared",
         "confidence": 0.4
       },
       {
-        "skill": "Algorithms and Data Structures",
-        "level": "strong",
+        "skill": "Kotlin",
+        "level": "foundational",
+        "provenance": "personal_project",
+        "confidence": 0.4
+      },
+      {
+        "skill": "Jetpack Compose",
+        "level": "foundational",
         "provenance": "coursework",
         "confidence": 0.4
       },
       {
         "skill": "Git",
-        "level": "working",
+        "level": "foundational",
         "provenance": "academic_project",
         "confidence": 0.4
       }
@@ -259,9 +241,8 @@
         "title": "Bachelor's thesis: A REST-based Service for Carpooling Schedule Optimization",
         "text": "Designed and implemented a Spring Boot backend that matched commuter routes using a greedy heuristic, with a PostgreSQL store and a small React front end. Defended with honors.",
         "skills": [
-          "Java",
-          "PostgreSQL",
-          "Algorithms and Data Structures"
+          "Kotlin",
+          "Android"
         ],
         "provenance": "thesis",
         "confidence": 0.6,
@@ -272,9 +253,9 @@
         "title": "Semester project: Dockerized Microservice Demo for Distributed Systems course",
         "text": "Built a three-service demo (auth, catalog, orders) communicating over REST, containerized with Docker Compose. Wrote integration tests and a short report on failure handling between services.",
         "skills": [
-          "Docker",
-          "Python",
-          "Git"
+          "Android",
+          "Jetpack Compose",
+          "Coroutines"
         ],
         "provenance": "personal_project",
         "confidence": 0.6,
@@ -285,7 +266,8 @@
         "title": "Mentor at CoderDojo Prague",
         "text": "Volunteered for two semesters teaching teenagers basic programming in Python and Scratch, preparing weekly exercises and reviewing their small projects.",
         "skills": [
-          "Python"
+          "Jetpack Compose",
+          "Coroutines"
         ],
         "provenance": "extracurricular",
         "confidence": 0.6
@@ -293,7 +275,8 @@
     ],
     "learningSignals": [],
     "completeness": 1.0,
-    "id": "cand-002"
+    "id": "cand-002",
+    "targetRole": "Android Engineer – George"
   },
   {
     "archetype": "bau",
@@ -302,9 +285,8 @@
     "displayName": "Martin Novotný",
     "roleFamily": "software_engineering",
     "aspirations": [
-      "Grow into a staff/principal engineering track",
-      "Own platform reliability and observability",
-      "Mentor medior engineers toward senior"
+      "Frontend Engineer – George web",
+      "Tech lead / architect within a Česká spořitelna tribe"
     ],
     "yearsExperience": 9.0,
     "seniority": "senior",
@@ -318,43 +300,43 @@
     "location": "Brno, Czech Republic",
     "skillClaims": [
       {
-        "skill": "Java",
+        "skill": "RxJS",
         "level": "strong",
         "provenance": "professional",
         "confidence": 0.4
       },
       {
-        "skill": "Spring Boot",
+        "skill": "React",
         "level": "strong",
         "provenance": "professional",
         "confidence": 0.4
       },
       {
-        "skill": "PostgreSQL",
-        "level": "strong",
-        "provenance": "professional",
-        "confidence": 0.4
-      },
-      {
-        "skill": "Distributed systems design",
-        "level": "strong",
-        "provenance": "professional",
-        "confidence": 0.4
-      },
-      {
-        "skill": "Apache Kafka",
+        "skill": "Angular",
         "level": "working",
         "provenance": "professional",
         "confidence": 0.4
       },
       {
-        "skill": "Kubernetes",
+        "skill": "JavaScript",
         "level": "working",
         "provenance": "professional",
         "confidence": 0.4
       },
       {
-        "skill": "AWS",
+        "skill": "REST APIs",
+        "level": "working",
+        "provenance": "professional",
+        "confidence": 0.4
+      },
+      {
+        "skill": "CSS",
+        "level": "working",
+        "provenance": "professional",
+        "confidence": 0.4
+      },
+      {
+        "skill": "TypeScript",
         "level": "working",
         "provenance": "professional",
         "confidence": 0.4
@@ -366,12 +348,8 @@
         "title": "Senior Backend Engineer — payments platform, fintech scale-up (Brno)",
         "text": "Led the redesign of a monolithic billing service into event-driven microservices on Kafka and Kubernetes, cutting end-of-month reconciliation time from 6 hours to under 20 minutes. Owned PostgreSQL schema and query performance for a system handling ~4M transactions/day, and mentored three medior engineers.",
         "skills": [
-          "Java",
-          "Spring Boot",
-          "Apache Kafka",
-          "PostgreSQL",
-          "Kubernetes",
-          "Distributed systems design"
+          "TypeScript",
+          "Angular"
         ],
         "provenance": "professional",
         "confidence": 0.6
@@ -381,10 +359,9 @@
         "title": "Backend Engineer — search & recommendations, Czech tech company (Prague)",
         "text": "Built and maintained high-throughput REST and gRPC services backing product search, deployed on AWS. Introduced structured logging and tracing that reduced mean time to resolution for production incidents by roughly 40%.",
         "skills": [
-          "Java",
-          "Spring Boot",
-          "AWS",
-          "PostgreSQL"
+          "Angular",
+          "React",
+          "JavaScript"
         ],
         "provenance": "professional",
         "confidence": 0.6
@@ -392,7 +369,8 @@
     ],
     "learningSignals": [],
     "completeness": 1.0,
-    "id": "cand-003"
+    "id": "cand-003",
+    "targetRole": "Frontend Engineer – George web"
   },
   {
     "archetype": "bau",
@@ -401,9 +379,8 @@
     "displayName": "Hana Černá",
     "roleFamily": "software_engineering",
     "aspirations": [
-      "Grow into a backend tech lead role",
-      "Design resilient distributed systems at scale",
-      "Mentor medior engineers and shape team architecture practices"
+      "Cloud / DevOps Engineer",
+      "Tech lead / architect within a Česká spořitelna tribe"
     ],
     "yearsExperience": 9.0,
     "seniority": "senior",
@@ -417,25 +394,19 @@
     "location": "Brno, Czech Republic",
     "skillClaims": [
       {
-        "skill": "Java",
+        "skill": "AWS",
         "level": "strong",
         "provenance": "professional",
         "confidence": 0.4
       },
       {
-        "skill": "Spring Boot",
+        "skill": "Linux",
         "level": "strong",
         "provenance": "professional",
         "confidence": 0.4
       },
       {
-        "skill": "PostgreSQL",
-        "level": "strong",
-        "provenance": "professional",
-        "confidence": 0.4
-      },
-      {
-        "skill": "Apache Kafka",
+        "skill": "GitLab CI",
         "level": "working",
         "provenance": "professional",
         "confidence": 0.4
@@ -447,14 +418,20 @@
         "confidence": 0.4
       },
       {
-        "skill": "AWS",
+        "skill": "Ansible",
         "level": "working",
         "provenance": "professional",
         "confidence": 0.4
       },
       {
-        "skill": "Microservices architecture",
-        "level": "strong",
+        "skill": "Docker",
+        "level": "working",
+        "provenance": "professional",
+        "confidence": 0.4
+      },
+      {
+        "skill": "Terraform",
+        "level": "working",
         "provenance": "professional",
         "confidence": 0.4
       }
@@ -465,11 +442,8 @@
         "title": "Senior Backend Engineer, Platform Team — Recombee (Prague/Brno)",
         "text": "Led the redesign of a recommendation-serving microservice handling ~40k requests/second, cutting p99 latency by 35% by introducing a Kafka-based event pipeline and tuning PostgreSQL read replicas. Owned the Kubernetes deployment topology and on-call runbooks for the team.",
         "skills": [
-          "Java",
-          "Spring Boot",
-          "Apache Kafka",
-          "Kubernetes",
-          "PostgreSQL"
+          "AWS",
+          "Kubernetes"
         ],
         "provenance": "professional",
         "confidence": 0.6
@@ -479,10 +453,9 @@
         "title": "Backend Engineer — Kiwi.com (Brno)",
         "text": "Built and maintained booking-flow services integrating with multiple airline GDS providers. Migrated a monolithic payments module into independently deployable microservices on AWS, improving release frequency from biweekly to daily.",
         "skills": [
-          "Java",
-          "Spring Boot",
-          "Microservices architecture",
-          "AWS"
+          "Kubernetes",
+          "Terraform",
+          "Docker"
         ],
         "provenance": "professional",
         "confidence": 0.6
@@ -490,7 +463,8 @@
     ],
     "learningSignals": [],
     "completeness": 1.0,
-    "id": "cand-004"
+    "id": "cand-004",
+    "targetRole": "Cloud / DevOps Engineer"
   },
   {
     "archetype": "bau",
@@ -499,9 +473,8 @@
     "displayName": "Aneta Kovářová",
     "roleFamily": "software_engineering",
     "aspirations": [
-      "Move into a staff/principal engineer track with cross-team technical ownership",
-      "Lead the design of event-driven backend platforms at scale",
-      "Mentor medior engineers and grow a healthy code-review culture"
+      "Site Reliability Engineer",
+      "Tech lead / architect within a Česká spořitelna tribe"
     ],
     "yearsExperience": 9.0,
     "seniority": "senior",
@@ -515,50 +488,44 @@
     "location": "Brno, Czech Republic",
     "skillClaims": [
       {
-        "skill": "Java",
+        "skill": "Observability",
         "level": "strong",
         "provenance": "professional",
         "confidence": 0.4
       },
       {
-        "skill": "Spring Boot",
+        "skill": "Go",
         "level": "strong",
+        "provenance": "professional",
+        "confidence": 0.4
+      },
+      {
+        "skill": "Linux",
+        "level": "working",
+        "provenance": "professional",
+        "confidence": 0.4
+      },
+      {
+        "skill": "Docker",
+        "level": "working",
+        "provenance": "professional",
+        "confidence": 0.4
+      },
+      {
+        "skill": "Grafana",
+        "level": "working",
+        "provenance": "professional",
+        "confidence": 0.4
+      },
+      {
+        "skill": "Prometheus",
+        "level": "working",
         "provenance": "professional",
         "confidence": 0.4
       },
       {
         "skill": "Kubernetes",
         "level": "working",
-        "provenance": "professional",
-        "confidence": 0.4
-      },
-      {
-        "skill": "PostgreSQL",
-        "level": "strong",
-        "provenance": "professional",
-        "confidence": 0.4
-      },
-      {
-        "skill": "Apache Kafka",
-        "level": "working",
-        "provenance": "professional",
-        "confidence": 0.4
-      },
-      {
-        "skill": "Distributed systems design",
-        "level": "strong",
-        "provenance": "professional",
-        "confidence": 0.4
-      },
-      {
-        "skill": "AWS",
-        "level": "working",
-        "provenance": "professional",
-        "confidence": 0.4
-      },
-      {
-        "skill": "Go",
-        "level": "foundational",
         "provenance": "professional",
         "confidence": 0.4
       }
@@ -569,12 +536,8 @@
         "title": "Senior Backend Engineer — Payments Platform, Skytale Systems s.r.o.",
         "text": "Owned the core ledger and settlement services processing ~4M transactions/day. Led migration from a monolith to event-driven microservices on Kubernetes, cutting p99 latency by 38% and reducing on-call incidents by half. Introduced contract testing and a Kafka-based outbox pattern adopted across three teams.",
         "skills": [
-          "Java",
-          "Spring Boot",
-          "Apache Kafka",
           "Kubernetes",
-          "PostgreSQL",
-          "Distributed systems design"
+          "Prometheus"
         ],
         "provenance": "professional",
         "confidence": 0.6
@@ -584,10 +547,9 @@
         "title": "Backend Engineer — Logistics Optimization, Vltava Mobility a.s.",
         "text": "Built route-optimization and fleet-tracking APIs serving regional carriers. Designed the PostgreSQL data model and caching layer, and set up CI/CD on AWS that took deploys from weekly to multiple times per day.",
         "skills": [
-          "Java",
-          "PostgreSQL",
-          "AWS",
-          "Spring Boot"
+          "Prometheus",
+          "Grafana",
+          "Go"
         ],
         "provenance": "professional",
         "confidence": 0.6
@@ -595,7 +557,8 @@
     ],
     "learningSignals": [],
     "completeness": 1.0,
-    "id": "cand-005"
+    "id": "cand-005",
+    "targetRole": "Site Reliability Engineer"
   },
   {
     "archetype": "student",
@@ -604,9 +567,8 @@
     "displayName": "Karolína Veselá",
     "roleFamily": "product_project",
     "aspirations": [
-      "junior product manager v SaaS produktovém týmu",
-      "vést produktový objav (discovery) a propojovat byznys s vývojem",
-      "dlouhodobě růst směrem k vlastnictví produktové roadmapy"
+      "Junior Agile Coach / Scrum Master",
+      "Grow into a core engineering role at a bank"
     ],
     "educationLevel": "master",
     "educationDetail": "Navazující magisterské studium Informačního managementu, Vysoká škola ekonomická v Praze (VŠE), 2. ročník, předpokládané ukončení 2026",
@@ -618,33 +580,33 @@
     "location": "Praha",
     "skillClaims": [
       {
-        "skill": "agilní řízení (Scrum)",
+        "skill": "Scrum",
         "level": "working",
         "provenance": "coursework",
         "confidence": 0.4
       },
       {
-        "skill": "user research a rozhovory se zákazníky",
-        "level": "working",
+        "skill": "Kanban",
+        "level": "foundational",
         "provenance": "academic_project",
         "confidence": 0.4
       },
       {
-        "skill": "tvorba produktových roadmap a prioritizace",
-        "level": "foundational",
-        "provenance": "coursework",
-        "confidence": 0.4
-      },
-      {
-        "skill": "datová analýza v SQL",
+        "skill": "agile",
         "level": "foundational",
         "provenance": "self_declared",
         "confidence": 0.4
       },
       {
-        "skill": "wireframing a prototypování ve Figmě",
-        "level": "working",
-        "provenance": "academic_project",
+        "skill": "Jira",
+        "level": "foundational",
+        "provenance": "personal_project",
+        "confidence": 0.4
+      },
+      {
+        "skill": "facilitation",
+        "level": "foundational",
+        "provenance": "coursework",
         "confidence": 0.4
       }
     ],
@@ -654,8 +616,8 @@
         "title": "Měření Product-Market Fit u českých early-stage SaaS startupů",
         "text": "Diplomová práce kombinující dotazníkové šetření mezi 40 zakladateli a hloubkové rozhovory; navrhuje praktický rámec metrik PMF pro malé týmy bez datového oddělení.",
         "skills": [
-          "user research a rozhovory se zákazníky",
-          "datová analýza v SQL"
+          "Scrum",
+          "Kanban"
         ],
         "provenance": "thesis",
         "confidence": 0.6
@@ -665,9 +627,9 @@
         "title": "StudyBuddy — semestrální produktový projekt",
         "text": "V pětičlenném týmu jsem působila jako product owner mobilní aplikace pro sdílení studijních poznámek; vedla jsem discovery rozhovory, sestavila backlog a prioritizovala funkce metodou MoSCoW přes dva sprinty.",
         "skills": [
-          "agilní řízení (Scrum)",
-          "tvorba produktových roadmap a prioritizace",
-          "wireframing a prototypování ve Figmě"
+          "Kanban",
+          "facilitation",
+          "agile"
         ],
         "provenance": "personal_project",
         "confidence": 0.6,
@@ -678,7 +640,8 @@
         "title": "Koordinátorka studentského hackathonu VŠE Hack",
         "text": "Spolupořádala dvoudenní hackathon pro ~80 účastníků; měla na starosti harmonogram, komunikaci se sponzory a onboarding mentorů.",
         "skills": [
-          "agilní řízení (Scrum)"
+          "facilitation",
+          "agile"
         ],
         "provenance": "extracurricular",
         "confidence": 0.6
@@ -686,7 +649,8 @@
     ],
     "learningSignals": [],
     "completeness": 1.0,
-    "id": "cand-006"
+    "id": "cand-006",
+    "targetRole": "Agile Coach / Scrum Master"
   },
   {
     "archetype": "bau",
@@ -695,9 +659,8 @@
     "displayName": "Vít Malý",
     "roleFamily": "software_engineering",
     "aspirations": [
-      "Grow into a software architect role",
-      "Lead backend platform and reliability initiatives",
-      "Mentor medior engineers toward senior level"
+      "Integration Engineer – Payments",
+      "Tech lead / architect within a Česká spořitelna tribe"
     ],
     "yearsExperience": 9.0,
     "seniority": "senior",
@@ -711,43 +674,37 @@
     "location": "Brno, Czechia",
     "skillClaims": [
       {
-        "skill": "Java",
-        "level": "strong",
-        "provenance": "professional",
-        "confidence": 0.4
-      },
-      {
         "skill": "Spring Boot",
         "level": "strong",
         "provenance": "professional",
         "confidence": 0.4
       },
       {
-        "skill": "PostgreSQL",
+        "skill": "Kafka",
         "level": "strong",
         "provenance": "professional",
         "confidence": 0.4
       },
       {
-        "skill": "Distributed systems & system design",
-        "level": "strong",
-        "provenance": "professional",
-        "confidence": 0.4
-      },
-      {
-        "skill": "Apache Kafka",
+        "skill": "REST APIs",
         "level": "working",
         "provenance": "professional",
         "confidence": 0.4
       },
       {
-        "skill": "Kubernetes",
+        "skill": "ISO 20022",
         "level": "working",
         "provenance": "professional",
         "confidence": 0.4
       },
       {
-        "skill": "AWS",
+        "skill": "Java",
+        "level": "working",
+        "provenance": "professional",
+        "confidence": 0.4
+      },
+      {
+        "skill": "SQL",
         "level": "working",
         "provenance": "professional",
         "confidence": 0.4
@@ -760,11 +717,7 @@
         "text": "Owned the order-orchestration platform serving ~2M shipments/month. Led the breakup of a Spring monolith into event-driven services on Kafka, cutting peak-hour latency by 40% and on-call incidents by half. Mentored three engineers and ran the team's design-review process.",
         "skills": [
           "Java",
-          "Spring Boot",
-          "Apache Kafka",
-          "PostgreSQL",
-          "Kubernetes",
-          "Distributed systems & system design"
+          "Kafka"
         ],
         "provenance": "professional",
         "confidence": 0.6
@@ -774,10 +727,9 @@
         "title": "Backend Engineer — Modravá Apps a.s.",
         "text": "Built and operated REST/gRPC services for a fintech onboarding product on AWS. Introduced contract tests and a CI gate that reduced production regressions, and migrated the primary datastore to partitioned PostgreSQL for 5x write throughput.",
         "skills": [
-          "Java",
-          "Spring Boot",
-          "PostgreSQL",
-          "AWS"
+          "Kafka",
+          "REST APIs",
+          "ISO 20022"
         ],
         "provenance": "professional",
         "confidence": 0.6
@@ -785,7 +737,8 @@
     ],
     "learningSignals": [],
     "completeness": 1.0,
-    "id": "cand-007"
+    "id": "cand-007",
+    "targetRole": "Integration Engineer – Payments"
   },
   {
     "archetype": "student",
@@ -794,9 +747,8 @@
     "displayName": "Roman Malý",
     "roleFamily": "product_project",
     "aspirations": [
-      "Junior Product Manager v SaaS firmě",
-      "Associate Project Manager",
-      "Dlouhodobě růst směrem k product strategy a discovery"
+      "Junior Product Owner – George",
+      "Grow into a core engineering role at a bank"
     ],
     "educationLevel": "master",
     "educationDetail": "Navazující magisterské studium oboru Informační management, Vysoká škola ekonomická v Praze (VŠE), očekávané ukončení 2026",
@@ -808,33 +760,39 @@
     "location": "Praha, Czechia",
     "skillClaims": [
       {
-        "skill": "Agile / Scrum",
+        "skill": "stakeholder management",
         "level": "working",
-        "provenance": "academic_project",
-        "confidence": 0.4
-      },
-      {
-        "skill": "Product discovery a uživatelský výzkum",
-        "level": "foundational",
         "provenance": "coursework",
         "confidence": 0.4
       },
       {
-        "skill": "Roadmapping a prioritizace backlogu",
-        "level": "working",
+        "skill": "roadmapping",
+        "level": "foundational",
         "provenance": "academic_project",
         "confidence": 0.4
       },
       {
-        "skill": "Stakeholder komunikace a facilitace",
-        "level": "working",
+        "skill": "agile",
+        "level": "foundational",
         "provenance": "self_declared",
         "confidence": 0.4
       },
       {
-        "skill": "Datová analýza (SQL, Excel)",
+        "skill": "Scrum",
+        "level": "foundational",
+        "provenance": "personal_project",
+        "confidence": 0.4
+      },
+      {
+        "skill": "Jira",
         "level": "foundational",
         "provenance": "coursework",
+        "confidence": 0.4
+      },
+      {
+        "skill": "product discovery",
+        "level": "foundational",
+        "provenance": "academic_project",
         "confidence": 0.4
       }
     ],
@@ -844,8 +802,8 @@
         "title": "Diplomová práce: Adopce OKR frameworku v českých SaaS startupech",
         "text": "Kvalitativní studie napříč šesti českými startupy zkoumající, jak zavedení OKR ovlivňuje prioritizaci produktového backlogu a sladění týmů.",
         "skills": [
-          "Roadmapping a prioritizace backlogu",
-          "Stakeholder komunikace a facilitace"
+          "agile",
+          "product discovery"
         ],
         "provenance": "thesis",
         "confidence": 0.6
@@ -855,9 +813,9 @@
         "title": "Semestrální capstone: redesign aplikace pro studentské akce",
         "text": "Vedla pětičlenný tým při discovery, tvorbě person a definici MVP backlogu; práce probíhala ve dvoutýdenních sprintech s prototypem ve Figmě.",
         "skills": [
-          "Agile / Scrum",
-          "Product discovery a uživatelský výzkum",
-          "Roadmapping a prioritizace backlogu"
+          "product discovery",
+          "roadmapping",
+          "stakeholder management"
         ],
         "provenance": "personal_project",
         "confidence": 0.6,
@@ -868,8 +826,8 @@
         "title": "Vedoucí studentského Product klubu na VŠE",
         "text": "Organizovala měsíční workshopy s produkťáky z praxe a koordinovala dobrovolnický tým; nacvičovala facilitaci a komunikaci se stakeholdery.",
         "skills": [
-          "Stakeholder komunikace a facilitace",
-          "Datová analýza (SQL, Excel)"
+          "roadmapping",
+          "stakeholder management"
         ],
         "provenance": "extracurricular",
         "confidence": 0.6
@@ -877,7 +835,8 @@
     ],
     "learningSignals": [],
     "completeness": 1.0,
-    "id": "cand-008"
+    "id": "cand-008",
+    "targetRole": "Product Owner – George"
   },
   {
     "archetype": "student",
@@ -886,9 +845,8 @@
     "displayName": "Eliška Novotná",
     "roleFamily": "software_engineering",
     "aspirations": [
-      "Nastoupit jako junior backend developer v produktovém týmu",
-      "Dlouhodobě se posouvat směrem k distribuovaným systémům a cloudové infrastruktuře",
-      "Přispívat do open-source projektů v ekosystému Go a Pythonu"
+      "Junior iOS Engineer – George",
+      "Grow into a core engineering role at a bank"
     ],
     "educationLevel": "master",
     "educationDetail": "Navazující magisterský program Otevřená informatika (Software Engineering), Fakulta elektrotechnická, ČVUT v Praze, 2. ročník (očekávané ukončení 2026)",
@@ -900,39 +858,27 @@
     "location": "Praha, Česká republika",
     "skillClaims": [
       {
-        "skill": "Python",
-        "level": "strong",
+        "skill": "Swift",
+        "level": "working",
+        "provenance": "coursework",
+        "confidence": 0.4
+      },
+      {
+        "skill": "Combine",
+        "level": "foundational",
         "provenance": "academic_project",
-        "confidence": 0.4
-      },
-      {
-        "skill": "Java",
-        "level": "working",
-        "provenance": "coursework",
-        "confidence": 0.4
-      },
-      {
-        "skill": "SQL / PostgreSQL",
-        "level": "working",
-        "provenance": "coursework",
         "confidence": 0.4
       },
       {
         "skill": "Git",
-        "level": "strong",
-        "provenance": "self_declared",
-        "confidence": 0.4
-      },
-      {
-        "skill": "REST API design",
-        "level": "working",
-        "provenance": "academic_project",
-        "confidence": 0.4
-      },
-      {
-        "skill": "Docker",
         "level": "foundational",
         "provenance": "self_declared",
+        "confidence": 0.4
+      },
+      {
+        "skill": "Xcode",
+        "level": "foundational",
+        "provenance": "personal_project",
         "confidence": 0.4
       }
     ],
@@ -942,9 +888,8 @@
         "title": "Detekce anomálií v provozních logech pomocí strojového učení",
         "text": "Bakalářská práce zaměřená na zpracování velkých objemů aplikačních logů a nasazení modelu pro detekci odchylek. Implementováno v Pythonu (scikit-learn, pandas), vyhodnoceno na reálném anonymizovaném datasetu fakultního clusteru.",
         "skills": [
-          "Python",
-          "Machine Learning",
-          "Data Processing"
+          "Swift",
+          "SwiftUI"
         ],
         "provenance": "thesis",
         "confidence": 0.6
@@ -954,10 +899,9 @@
         "title": "Studijní rozvrhovač — webová aplikace pro plánování semestru",
         "text": "Týmový semestrální projekt: backend v Pythonu (FastAPI) s PostgreSQL databází a REST API, frontend v Reactu. Zodpovídala jsem za návrh datového modelu a autentizaci. Nasazeno v Dockeru.",
         "skills": [
-          "Python",
-          "REST API design",
-          "SQL / PostgreSQL",
-          "Docker"
+          "SwiftUI",
+          "iOS",
+          "Combine"
         ],
         "provenance": "personal_project",
         "confidence": 0.6,
@@ -968,8 +912,8 @@
         "title": "Mentorka v studentském spolku Robotárna ČVUT",
         "text": "Vedení úvodních workshopů programování v Pythonu pro studenty prvních ročníků, příprava výukových materiálů a code review studentských řešení.",
         "skills": [
-          "Python",
-          "Git"
+          "iOS",
+          "Combine"
         ],
         "provenance": "extracurricular",
         "confidence": 0.6
@@ -977,7 +921,8 @@
     ],
     "learningSignals": [],
     "completeness": 1.0,
-    "id": "cand-009"
+    "id": "cand-009",
+    "targetRole": "iOS Engineer – George"
   },
   {
     "archetype": "career_switcher",
@@ -986,8 +931,8 @@
     "displayName": "Jan Sedláček",
     "roleFamily": "software_engineering",
     "aspirations": [
-      "Junior Backend Engineer (Python)",
-      "Bioinformatics Software Engineer"
+      "Android Engineer – George",
+      "Apply prior-domain experience in a banking-tech team"
     ],
     "yearsExperience": 6.0,
     "educationLevel": "master",
@@ -1000,33 +945,39 @@
     "location": "Brno, Czechia",
     "skillClaims": [
       {
-        "skill": "Python",
-        "level": "working",
-        "provenance": "Daily lab automation scripts + 9-month retraining bootcamp projects",
+        "skill": "REST APIs",
+        "level": "foundational",
+        "provenance": "coursework",
         "confidence": 0.4
       },
       {
-        "skill": "SQL",
+        "skill": "Android",
         "level": "working",
-        "provenance": "Designed and queried a PostgreSQL sample-tracking database during course capstone",
+        "provenance": "personal_project",
+        "confidence": 0.4
+      },
+      {
+        "skill": "Kotlin",
+        "level": "working",
+        "provenance": "self_declared",
         "confidence": 0.4
       },
       {
         "skill": "Git",
         "level": "working",
-        "provenance": "Version-controlled all bootcamp and personal projects on GitHub",
+        "provenance": "coursework",
         "confidence": 0.4
       },
       {
-        "skill": "Pandas / data wrangling",
-        "level": "strong",
-        "provenance": "Years of experimental data analysis, deepened during retraining",
+        "skill": "Jetpack Compose",
+        "level": "working",
+        "provenance": "personal_project",
         "confidence": 0.4
       },
       {
-        "skill": "Flask / REST APIs",
-        "level": "foundational",
-        "provenance": "Built a small REST service in the backend module of the retraining program",
+        "skill": "Coroutines",
+        "level": "working",
+        "provenance": "self_declared",
         "confidence": 0.4
       }
     ],
@@ -1036,9 +987,8 @@
         "title": "Research Scientist (Molecular Biology) — CEITEC, Masaryk University",
         "text": "Designed and ran genomics experiments for six years, managing large sequencing datasets. Wrote internal Python scripts to clean and visualize results, which sparked the move toward software engineering.",
         "skills": [
-          "Python",
-          "Pandas / data wrangling",
-          "experimental design"
+          "Kotlin",
+          "Android"
         ],
         "provenance": "professional",
         "confidence": 0.6
@@ -1048,9 +998,9 @@
         "title": "Laboratory Data Coordinator — Biotech startup (contract)",
         "text": "Maintained sample-tracking spreadsheets and built semi-automated reporting, replacing manual steps with scripted exports.",
         "skills": [
-          "Python",
-          "SQL",
-          "data wrangling"
+          "Android",
+          "Jetpack Compose",
+          "Coroutines"
         ],
         "provenance": "professional",
         "confidence": 0.6
@@ -1060,10 +1010,8 @@
         "title": "GeneTrack — sample-tracking web app (retraining capstone)",
         "text": "Built a Flask + PostgreSQL app to register lab samples, track their status, and export CSV reports. Includes auth and a small REST API.",
         "skills": [
-          "Python",
-          "Flask / REST APIs",
-          "SQL",
-          "Git"
+          "Jetpack Compose",
+          "Coroutines"
         ],
         "provenance": "personal_project",
         "confidence": 0.6,
@@ -1074,8 +1022,8 @@
         "title": "Backend Web Development with Python (ČVUT lifelong learning)",
         "text": "120-hour evening course covering HTTP, REST, relational databases, testing, and deployment. Completed all project assignments.",
         "skills": [
-          "Flask / REST APIs",
-          "SQL",
+          "Coroutines",
+          "REST APIs",
           "Git"
         ],
         "provenance": "coursework",
@@ -1085,7 +1033,8 @@
     ],
     "learningSignals": [],
     "completeness": 1.0,
-    "id": "cand-010"
+    "id": "cand-010",
+    "targetRole": "Android Engineer – George"
   },
   {
     "archetype": "career_switcher",
@@ -1094,8 +1043,8 @@
     "displayName": "Aneta Veselá",
     "roleFamily": "software_engineering",
     "aspirations": [
-      "Junior Backend Developer",
-      "Software Engineer (Python)"
+      "Frontend Engineer – George web",
+      "Apply prior-domain experience in a banking-tech team"
     ],
     "yearsExperience": 8.0,
     "educationLevel": "master",
@@ -1108,33 +1057,33 @@
     "location": "Brno, Czech Republic",
     "skillClaims": [
       {
-        "skill": "Python",
-        "level": "working",
-        "provenance": "Self-study (CS50P) plus three personal projects over 18 months; wrote a grading-automation tool used by colleagues.",
+        "skill": "React",
+        "level": "foundational",
+        "provenance": "coursework",
         "confidence": 0.4
       },
       {
-        "skill": "SQL",
+        "skill": "TypeScript",
         "level": "working",
-        "provenance": "Completed a relational-databases course and designed the schema for a student-progress tracker (PostgreSQL).",
-        "confidence": 0.4
-      },
-      {
-        "skill": "Git / version control",
-        "level": "working",
-        "provenance": "Daily use across all coursework and side projects; comfortable with branching, rebasing, and pull-request workflows.",
+        "provenance": "personal_project",
         "confidence": 0.4
       },
       {
         "skill": "JavaScript",
-        "level": "foundational",
-        "provenance": "Built the front-end of a classroom quiz app following freeCodeCamp; understands the DOM and async basics.",
+        "level": "working",
+        "provenance": "self_declared",
         "confidence": 0.4
       },
       {
-        "skill": "Flask / REST APIs",
-        "level": "foundational",
-        "provenance": "Created a small REST backend for the quiz app; learning request/response design and basic auth.",
+        "skill": "Angular",
+        "level": "working",
+        "provenance": "coursework",
+        "confidence": 0.4
+      },
+      {
+        "skill": "REST APIs",
+        "level": "working",
+        "provenance": "personal_project",
         "confidence": 0.4
       }
     ],
@@ -1144,9 +1093,8 @@
         "title": "Physics Teacher — Gymnázium Brno, třída Kapitána Jaroše",
         "text": "Taught physics and an elective robotics seminar to students aged 15–19 for eight years. Designed lab curricula, mentored teams for the Czech Physics Olympiad, and introduced Arduino-based experiments. Strong record of breaking complex systems into teachable steps and debugging student projects under time pressure.",
         "skills": [
-          "problem decomposition",
-          "mentoring",
-          "Arduino"
+          "TypeScript",
+          "Angular"
         ],
         "provenance": "professional",
         "confidence": 0.6
@@ -1156,9 +1104,9 @@
         "title": "Curriculum Coordinator (part-time) — same school",
         "text": "Coordinated the science department's digital materials, migrating shared resources to a structured Google Drive system and writing simple Apps Script automations to generate grade reports. First sustained exposure to scripting as a way to remove repetitive work.",
         "skills": [
-          "scripting",
-          "automation",
-          "data organization"
+          "Angular",
+          "React",
+          "JavaScript"
         ],
         "provenance": "professional",
         "confidence": 0.6
@@ -1168,11 +1116,8 @@
         "title": "KvízPlus — classroom quiz web app",
         "text": "Full-stack side project: Flask + PostgreSQL backend with a vanilla-JS front end that lets teachers create timed quizzes and see per-student analytics. Deployed on Render; includes a small test suite and a documented README.",
         "skills": [
-          "Python",
-          "Flask",
-          "SQL",
-          "JavaScript",
-          "Git"
+          "React",
+          "JavaScript"
         ],
         "provenance": "personal_project",
         "confidence": 0.6,
@@ -1183,9 +1128,9 @@
         "title": "CS50P: Introduction to Programming with Python (HarvardX)",
         "text": "Completed all nine problem sets and the final project (a CLI study-planner that parses ICS calendars). Certificate issued in 2025.",
         "skills": [
-          "Python",
-          "problem decomposition",
-          "testing"
+          "JavaScript",
+          "RxJS",
+          "CSS"
         ],
         "provenance": "coursework",
         "confidence": 0.6,
@@ -1194,7 +1139,8 @@
     ],
     "learningSignals": [],
     "completeness": 1.0,
-    "id": "cand-011"
+    "id": "cand-011",
+    "targetRole": "Frontend Engineer – George web"
   },
   {
     "archetype": "bau",
@@ -1203,9 +1149,8 @@
     "displayName": "Matěj Pospíšil",
     "roleFamily": "software_engineering",
     "aspirations": [
-      "Grow into a staff/principal engineering track",
-      "Own platform reliability and on-call culture for a product org",
-      "Mentor medior engineers toward senior"
+      "Cloud / DevOps Engineer",
+      "Tech lead / architect within a Česká spořitelna tribe"
     ],
     "yearsExperience": 10.0,
     "seniority": "senior",
@@ -1219,31 +1164,31 @@
     "location": "Brno, Czech Republic",
     "skillClaims": [
       {
-        "skill": "Java",
-        "level": "strong",
-        "provenance": "professional",
-        "confidence": 0.4
-      },
-      {
-        "skill": "Spring Boot",
-        "level": "strong",
-        "provenance": "professional",
-        "confidence": 0.4
-      },
-      {
-        "skill": "PostgreSQL",
-        "level": "strong",
-        "provenance": "professional",
-        "confidence": 0.4
-      },
-      {
-        "skill": "Distributed systems design",
-        "level": "strong",
-        "provenance": "professional",
-        "confidence": 0.4
-      },
-      {
         "skill": "Kubernetes",
+        "level": "strong",
+        "provenance": "professional",
+        "confidence": 0.4
+      },
+      {
+        "skill": "Ansible",
+        "level": "strong",
+        "provenance": "professional",
+        "confidence": 0.4
+      },
+      {
+        "skill": "Docker",
+        "level": "working",
+        "provenance": "professional",
+        "confidence": 0.4
+      },
+      {
+        "skill": "Linux",
+        "level": "working",
+        "provenance": "professional",
+        "confidence": 0.4
+      },
+      {
+        "skill": "Terraform",
         "level": "working",
         "provenance": "professional",
         "confidence": 0.4
@@ -1255,7 +1200,7 @@
         "confidence": 0.4
       },
       {
-        "skill": "Observability (Prometheus/Grafana)",
+        "skill": "GitLab CI",
         "level": "working",
         "provenance": "professional",
         "confidence": 0.4
@@ -1267,11 +1212,8 @@
         "title": "Senior Backend Engineer — Platform Team, Kentico Software",
         "text": "Led the decomposition of a billing monolith into Spring Boot services on Kubernetes, cutting p99 latency by 40% and enabling independent team deploys. Introduced SLO-based alerting and an on-call runbook adopted across three squads.",
         "skills": [
-          "Java",
-          "Spring Boot",
-          "Kubernetes",
-          "Distributed systems design",
-          "Observability (Prometheus/Grafana)"
+          "AWS",
+          "Kubernetes"
         ],
         "provenance": "professional",
         "confidence": 0.6
@@ -1281,10 +1223,9 @@
         "title": "Software Engineer — Payments, Mews Systems",
         "text": "Built and scaled PostgreSQL-backed transaction services on AWS handling peak hotel-checkout load, owning schema migrations and idempotent payment retries. Mentored two junior engineers through their first production launches.",
         "skills": [
-          "Java",
-          "PostgreSQL",
-          "AWS",
-          "Spring Boot"
+          "Kubernetes",
+          "Terraform",
+          "Docker"
         ],
         "provenance": "professional",
         "confidence": 0.6
@@ -1292,7 +1233,8 @@
     ],
     "learningSignals": [],
     "completeness": 1.0,
-    "id": "cand-012"
+    "id": "cand-012",
+    "targetRole": "Cloud / DevOps Engineer"
   },
   {
     "archetype": "bau",
@@ -1301,8 +1243,8 @@
     "displayName": "Karolína Hájeková",
     "roleFamily": "product_project",
     "aspirations": [
-      "Lead a cross-functional product organization",
-      "Scale a B2B SaaS product into the DACH region"
+      "Business Analyst",
+      "Tech lead / architect within a Česká spořitelna tribe"
     ],
     "yearsExperience": 9.0,
     "seniority": "senior",
@@ -1316,43 +1258,37 @@
     "location": "Prague, Czechia",
     "skillClaims": [
       {
-        "skill": "Product roadmapping",
+        "skill": "SQL",
         "level": "strong",
         "provenance": "professional",
         "confidence": 0.4
       },
       {
-        "skill": "Stakeholder management",
+        "skill": "BPMN",
         "level": "strong",
         "provenance": "professional",
         "confidence": 0.4
       },
       {
-        "skill": "Agile/Scrum delivery",
-        "level": "strong",
-        "provenance": "professional",
-        "confidence": 0.4
-      },
-      {
-        "skill": "Backlog management (Jira)",
-        "level": "strong",
-        "provenance": "professional",
-        "confidence": 0.4
-      },
-      {
-        "skill": "OKR-based prioritization",
+        "skill": "requirements analysis",
         "level": "working",
         "provenance": "professional",
         "confidence": 0.4
       },
       {
-        "skill": "User research & discovery",
+        "skill": "process mapping",
         "level": "working",
         "provenance": "professional",
         "confidence": 0.4
       },
       {
-        "skill": "Go-to-market strategy",
+        "skill": "stakeholder management",
+        "level": "working",
+        "provenance": "professional",
+        "confidence": 0.4
+      },
+      {
+        "skill": "Jira",
         "level": "working",
         "provenance": "professional",
         "confidence": 0.4
@@ -1364,10 +1300,8 @@
         "title": "Senior Product Manager, Productboard (Prague)",
         "text": "Owned the integrations product line end-to-end for 3 years; led a squad of 6 engineers and a designer, defined the quarterly roadmap, and grew connected-account adoption from 18% to 41% of active workspaces. Ran continuous discovery interviews and translated findings into prioritized OKRs.",
         "skills": [
-          "Product roadmapping",
-          "Stakeholder management",
-          "OKR-based prioritization",
-          "User research & discovery"
+          "requirements analysis",
+          "BPMN"
         ],
         "provenance": "professional",
         "confidence": 0.6
@@ -1377,10 +1311,9 @@
         "title": "Project Manager / Product Owner, Kiwi.com (Brno)",
         "text": "Acted as Product Owner for the booking-flow team during a payments migration. Managed a 20+ item backlog in Jira, coordinated 4 dependent teams, and delivered the migration two weeks ahead of schedule with zero critical incidents at launch.",
         "skills": [
-          "Agile/Scrum delivery",
-          "Backlog management (Jira)",
-          "Stakeholder management",
-          "Go-to-market strategy"
+          "BPMN",
+          "SQL",
+          "stakeholder management"
         ],
         "provenance": "professional",
         "confidence": 0.6
@@ -1388,7 +1321,8 @@
     ],
     "learningSignals": [],
     "completeness": 1.0,
-    "id": "cand-013"
+    "id": "cand-013",
+    "targetRole": "Business Analyst"
   },
   {
     "archetype": "bau",
@@ -1397,9 +1331,8 @@
     "displayName": "Aneta Černá",
     "roleFamily": "data_ai",
     "aspirations": [
-      "Lead ML / MLOps role",
-      "Mentor a data science team",
-      "Own end-to-end production ML systems"
+      "AI Engineer – AI First domain",
+      "Tech lead / architect within a Česká spořitelna tribe"
     ],
     "yearsExperience": 9.0,
     "seniority": "senior",
@@ -1419,13 +1352,7 @@
         "confidence": 0.4
       },
       {
-        "skill": "Machine Learning",
-        "level": "strong",
-        "provenance": "professional",
-        "confidence": 0.4
-      },
-      {
-        "skill": "MLOps",
+        "skill": "LLM",
         "level": "strong",
         "provenance": "professional",
         "confidence": 0.4
@@ -1437,19 +1364,19 @@
         "confidence": 0.4
       },
       {
-        "skill": "SQL",
-        "level": "strong",
-        "provenance": "professional",
-        "confidence": 0.4
-      },
-      {
-        "skill": "AWS SageMaker",
+        "skill": "cloud",
         "level": "working",
         "provenance": "professional",
         "confidence": 0.4
       },
       {
-        "skill": "Airflow",
+        "skill": "prompt engineering",
+        "level": "working",
+        "provenance": "professional",
+        "confidence": 0.4
+      },
+      {
+        "skill": "MLOps",
         "level": "working",
         "provenance": "professional",
         "confidence": 0.4
@@ -1462,10 +1389,7 @@
         "text": "Owned the recommendation and churn-prediction stack serving B2B SaaS customers. Built the feature store and CI/CD retraining pipelines on AWS SageMaker + Airflow, cutting model deployment time from weeks to a day and improving churn-model AUC by 11%. Mentored three medior data scientists.",
         "skills": [
           "Python",
-          "Machine Learning",
-          "MLOps",
-          "AWS SageMaker",
-          "Airflow"
+          "LLM"
         ],
         "provenance": "professional",
         "confidence": 0.6
@@ -1475,10 +1399,9 @@
         "title": "Data Scientist — Kiwi.com",
         "text": "Developed dynamic flight-pricing and demand-forecasting models in PyTorch and scikit-learn, deployed as low-latency services. Partnered with engineering to productionize models and built SQL-based analytics that informed pricing strategy across European markets.",
         "skills": [
-          "Python",
+          "LLM",
           "PyTorch",
-          "Machine Learning",
-          "SQL"
+          "MLOps"
         ],
         "provenance": "professional",
         "confidence": 0.6
@@ -1486,7 +1409,8 @@
     ],
     "learningSignals": [],
     "completeness": 1.0,
-    "id": "cand-014"
+    "id": "cand-014",
+    "targetRole": "AI Engineer – AI First domain"
   },
   {
     "archetype": "student",
@@ -1495,9 +1419,8 @@
     "displayName": "Tadeáš Jelínek",
     "roleFamily": "software_engineering",
     "aspirations": [
-      "Backend engineer working on distributed systems and APIs",
-      "Contribute to open-source developer tooling",
-      "Grow toward a technical lead role over the next few years"
+      "Junior Integration Engineer – Payments",
+      "Grow into a core engineering role at a bank"
     ],
     "educationLevel": "master",
     "educationDetail": "Master's programme in Open Informatics, specialization Software Engineering, Czech Technical University in Prague (ČVUT FEL), expected graduation 2026",
@@ -1509,39 +1432,27 @@
     "location": "Prague, Czech Republic",
     "skillClaims": [
       {
-        "skill": "Python",
-        "level": "strong",
+        "skill": "REST APIs",
+        "level": "working",
+        "provenance": "coursework",
+        "confidence": 0.4
+      },
+      {
+        "skill": "ISO 20022",
+        "level": "foundational",
         "provenance": "academic_project",
         "confidence": 0.4
       },
       {
-        "skill": "Java",
-        "level": "working",
-        "provenance": "coursework",
-        "confidence": 0.4
-      },
-      {
-        "skill": "PostgreSQL",
-        "level": "working",
-        "provenance": "coursework",
-        "confidence": 0.4
-      },
-      {
-        "skill": "Docker",
+        "skill": "Spring Boot",
         "level": "foundational",
         "provenance": "self_declared",
         "confidence": 0.4
       },
       {
-        "skill": "Git",
-        "level": "working",
-        "provenance": "self_declared",
-        "confidence": 0.4
-      },
-      {
-        "skill": "REST API design",
-        "level": "working",
-        "provenance": "academic_project",
+        "skill": "Kafka",
+        "level": "foundational",
+        "provenance": "personal_project",
         "confidence": 0.4
       }
     ],
@@ -1551,8 +1462,8 @@
         "title": "Bachelor's thesis: Anomaly detection in public-transport sensor streams",
         "text": "Built a streaming pipeline in Python that ingested tram telemetry and flagged sensor faults using a lightweight statistical model. Evaluated against a labelled dataset and documented precision/recall trade-offs.",
         "skills": [
-          "Python",
-          "PostgreSQL"
+          "Java",
+          "Kafka"
         ],
         "provenance": "thesis",
         "confidence": 0.6
@@ -1562,10 +1473,9 @@
         "title": "Semester project: Self-hosted study-group scheduler",
         "text": "Team of three built a web app that proposes meeting slots from members' calendars. I owned the backend: a Flask REST API, PostgreSQL schema, and a Docker Compose setup for local development.",
         "skills": [
-          "Python",
-          "REST API design",
-          "PostgreSQL",
-          "Docker"
+          "Kafka",
+          "REST APIs",
+          "ISO 20022"
         ],
         "provenance": "personal_project",
         "confidence": 0.6,
@@ -1576,8 +1486,8 @@
         "title": "Volunteer mentor, university intro-to-programming workshops",
         "text": "Ran weekly hands-on Java sessions for first-year students, reviewing their exercises and explaining version control with Git.",
         "skills": [
-          "Java",
-          "Git"
+          "REST APIs",
+          "ISO 20022"
         ],
         "provenance": "extracurricular",
         "confidence": 0.6
@@ -1585,7 +1495,8 @@
     ],
     "learningSignals": [],
     "completeness": 1.0,
-    "id": "cand-015"
+    "id": "cand-015",
+    "targetRole": "Integration Engineer – Payments"
   },
   {
     "archetype": "student",
@@ -1594,9 +1505,8 @@
     "displayName": "Adam Malý",
     "roleFamily": "software_engineering",
     "aspirations": [
-      "backendové inženýrství a distribuované systémy",
-      "práce na datově náročných aplikacích",
-      "dlouhodobý růst směrem k roli platform/infrastructure engineera"
+      "Junior Java Backend Engineer",
+      "Grow into a core engineering role at a bank"
     ],
     "educationLevel": "master",
     "educationDetail": "Navazující magisterské studium oboru Softwarové inženýrství, Fakulta informačních technologií ČVUT v Praze (FIT ČVUT), předpokládané ukončení 2026",
@@ -1608,39 +1518,33 @@
     "location": "Praha, Česko",
     "skillClaims": [
       {
-        "skill": "Python",
+        "skill": "Microservices",
         "level": "working",
+        "provenance": "coursework",
+        "confidence": 0.4
+      },
+      {
+        "skill": "REST APIs",
+        "level": "foundational",
         "provenance": "academic_project",
         "confidence": 0.4
       },
       {
-        "skill": "Java",
-        "level": "working",
-        "provenance": "coursework",
-        "confidence": 0.4
-      },
-      {
-        "skill": "PostgreSQL",
-        "level": "working",
-        "provenance": "coursework",
-        "confidence": 0.4
-      },
-      {
-        "skill": "Docker",
+        "skill": "Oracle",
         "level": "foundational",
         "provenance": "self_declared",
         "confidence": 0.4
       },
       {
-        "skill": "Git",
-        "level": "working",
-        "provenance": "academic_project",
+        "skill": "Docker",
+        "level": "foundational",
+        "provenance": "personal_project",
         "confidence": 0.4
       },
       {
-        "skill": "REST API design",
+        "skill": "Spring Boot",
         "level": "foundational",
-        "provenance": "academic_project",
+        "provenance": "coursework",
         "confidence": 0.4
       }
     ],
@@ -1650,9 +1554,8 @@
         "title": "Bakalářská práce: Detekce anomálií v provozních logech pomocí strojového učení",
         "text": "Navrhl a implementoval pipeline v Pythonu pro sběr a předzpracování serverových logů a porovnal několik metod detekce anomálií. Práce obhájena s hodnocením A na FIT ČVUT.",
         "skills": [
-          "Python",
-          "strojové učení",
-          "zpracování dat"
+          "Java",
+          "Spring Boot"
         ],
         "provenance": "thesis",
         "confidence": 0.6
@@ -1662,11 +1565,9 @@
         "title": "Semestrální projekt: Webová aplikace pro rezervaci studijních místností",
         "text": "Tříčlenný tým, kde jsem měl na starosti backend (Java + Spring Boot, PostgreSQL) a návrh REST API. Aplikace byla nasazena v Docker kontejnerech v rámci CI pipeline na GitLabu.",
         "skills": [
-          "Java",
-          "PostgreSQL",
-          "REST API design",
-          "Docker",
-          "Git"
+          "Spring Boot",
+          "Oracle",
+          "Kafka"
         ],
         "provenance": "personal_project",
         "confidence": 0.6,
@@ -1677,9 +1578,8 @@
         "title": "Mentor v studentském spolku Bytubytu (úvod do programování)",
         "text": "Dvě semestry jsem dobrovolně vedl workshopy základů Pythonu a Gitu pro studenty prvních ročníků a pomáhal jim s prvními projekty.",
         "skills": [
-          "Python",
-          "Git",
-          "mentoring"
+          "Oracle",
+          "Kafka"
         ],
         "provenance": "extracurricular",
         "confidence": 0.6
@@ -1687,7 +1587,8 @@
     ],
     "learningSignals": [],
     "completeness": 1.0,
-    "id": "cand-016"
+    "id": "cand-016",
+    "targetRole": "Java Backend Engineer"
   },
   {
     "archetype": "bau",
@@ -1696,9 +1597,8 @@
     "displayName": "Pavel Zeman",
     "roleFamily": "software_engineering",
     "aspirations": [
-      "Grow into a backend/platform tech-lead role",
-      "Design resilient, event-driven systems at scale",
-      "Mentor medior engineers and shape team engineering standards"
+      "iOS Engineer – George",
+      "Tech lead / architect within a Česká spořitelna tribe"
     ],
     "yearsExperience": 11.0,
     "seniority": "senior",
@@ -1712,49 +1612,43 @@
     "location": "Brno, Czech Republic",
     "skillClaims": [
       {
-        "skill": "Java",
+        "skill": "Xcode",
         "level": "strong",
         "provenance": "professional",
         "confidence": 0.4
       },
       {
-        "skill": "Spring Boot",
+        "skill": "Combine",
         "level": "strong",
         "provenance": "professional",
         "confidence": 0.4
       },
       {
-        "skill": "Apache Kafka / event-driven architecture",
-        "level": "strong",
-        "provenance": "professional",
-        "confidence": 0.4
-      },
-      {
-        "skill": "PostgreSQL",
-        "level": "strong",
-        "provenance": "professional",
-        "confidence": 0.4
-      },
-      {
-        "skill": "Kubernetes",
+        "skill": "SwiftUI",
         "level": "working",
         "provenance": "professional",
         "confidence": 0.4
       },
       {
-        "skill": "AWS (ECS, RDS, S3)",
+        "skill": "Swift",
         "level": "working",
         "provenance": "professional",
         "confidence": 0.4
       },
       {
-        "skill": "Go",
+        "skill": "REST APIs",
         "level": "working",
         "provenance": "professional",
         "confidence": 0.4
       },
       {
-        "skill": "Observability (Prometheus, Grafana)",
+        "skill": "iOS",
+        "level": "working",
+        "provenance": "professional",
+        "confidence": 0.4
+      },
+      {
+        "skill": "Git",
         "level": "working",
         "provenance": "professional",
         "confidence": 0.4
@@ -1766,11 +1660,8 @@
         "title": "Senior Backend Engineer, Recombee (Brno)",
         "text": "Owned the payments and ledger services for a B2B SaaS platform serving ~4M daily API calls. Migrated a monolithic billing module to event-driven microservices on Kafka, cutting end-of-month reconciliation time from hours to minutes. Introduced contract testing and on-call runbooks for a 6-engineer team.",
         "skills": [
-          "Java",
-          "Spring Boot",
-          "Apache Kafka / event-driven architecture",
-          "PostgreSQL",
-          "Kubernetes"
+          "Swift",
+          "SwiftUI"
         ],
         "provenance": "professional",
         "confidence": 0.6
@@ -1780,10 +1671,9 @@
         "title": "Backend Engineer, Kentico Software (Brno)",
         "text": "Built and scaled REST and gRPC services backing a headless CMS. Led the adoption of Go for two latency-sensitive services and set up Prometheus/Grafana observability that reduced mean time-to-detection of incidents by roughly 40%.",
         "skills": [
-          "Go",
-          "PostgreSQL",
-          "AWS (ECS, RDS, S3)",
-          "Observability (Prometheus, Grafana)"
+          "SwiftUI",
+          "iOS",
+          "Combine"
         ],
         "provenance": "professional",
         "confidence": 0.6
@@ -1791,7 +1681,8 @@
     ],
     "learningSignals": [],
     "completeness": 1.0,
-    "id": "cand-017"
+    "id": "cand-017",
+    "targetRole": "iOS Engineer – George"
   },
   {
     "archetype": "student",
@@ -1800,9 +1691,8 @@
     "displayName": "Adéla Růžičková",
     "roleFamily": "software_engineering",
     "aspirations": [
-      "Nastoupit jako junior backend developer v produktovém týmu",
-      "Naučit se navrhovat škálovatelné API a pracovat s distribuovanými systémy",
-      "Postupně se posunout k roli, kde mohu spoluvytvářet technický návrh služeb"
+      "Junior Android Engineer – George",
+      "Grow into a core engineering role at a bank"
     ],
     "educationLevel": "master",
     "educationDetail": "Navazující magisterské studium, Otevřená informatika (Softwarové inženýrství), ČVUT FEL, Praha, 1. ročník (2025–2027)",
@@ -1814,39 +1704,33 @@
     "location": "Praha, Česko",
     "skillClaims": [
       {
-        "skill": "Java",
-        "level": "strong",
-        "provenance": "academic_project",
-        "confidence": 0.4
-      },
-      {
-        "skill": "Python",
-        "level": "working",
-        "provenance": "coursework",
-        "confidence": 0.4
-      },
-      {
-        "skill": "SQL / relační databáze",
-        "level": "working",
-        "provenance": "coursework",
-        "confidence": 0.4
-      },
-      {
         "skill": "Git",
         "level": "working",
+        "provenance": "coursework",
+        "confidence": 0.4
+      },
+      {
+        "skill": "Coroutines",
+        "level": "foundational",
         "provenance": "academic_project",
         "confidence": 0.4
       },
       {
-        "skill": "Docker",
+        "skill": "Kotlin",
         "level": "foundational",
         "provenance": "self_declared",
         "confidence": 0.4
       },
       {
-        "skill": "REST API design",
+        "skill": "Jetpack Compose",
         "level": "foundational",
-        "provenance": "academic_project",
+        "provenance": "personal_project",
+        "confidence": 0.4
+      },
+      {
+        "skill": "REST APIs",
+        "level": "foundational",
+        "provenance": "coursework",
         "confidence": 0.4
       }
     ],
@@ -1856,10 +1740,8 @@
         "title": "StudyPlanner – semestrální aplikace pro plánování studia",
         "text": "Týmový semestrální projekt (3 lidé) v předmětu Softwarové inženýrství. Vyvinula jsem backend ve Springu s REST API a PostgreSQL, nastavila jsem Docker Compose pro lokální vývoj. Měla jsem na starosti datový model rozvrhů a autentizaci uživatelů.",
         "skills": [
-          "Java",
-          "REST API design",
-          "SQL / relační databáze",
-          "Docker"
+          "Kotlin",
+          "Android"
         ],
         "provenance": "personal_project",
         "confidence": 0.6,
@@ -1870,7 +1752,9 @@
         "title": "Algoritmy a datové struktury (zápočtový projekt)",
         "text": "Implementace a porovnání několika grafových algoritmů (Dijkstra, A*) v Pythonu s důrazem na časovou složitost. Zápočtová práce hodnocena plným počtem bodů.",
         "skills": [
-          "Python"
+          "Android",
+          "Jetpack Compose",
+          "Coroutines"
         ],
         "provenance": "coursework",
         "confidence": 0.6
@@ -1880,7 +1764,8 @@
         "title": "Mentorka na studentském hackathonu HackFEL",
         "text": "Dva víkendy jsem pomáhala začínajícím studentům s prací v Gitu a se základní strukturou backendových projektů. Vysvětlovala jsem branching a code review.",
         "skills": [
-          "Git"
+          "Jetpack Compose",
+          "Coroutines"
         ],
         "provenance": "extracurricular",
         "confidence": 0.6
@@ -1888,7 +1773,8 @@
     ],
     "learningSignals": [],
     "completeness": 1.0,
-    "id": "cand-018"
+    "id": "cand-018",
+    "targetRole": "Android Engineer – George"
   },
   {
     "archetype": "bau",
@@ -1897,9 +1783,8 @@
     "displayName": "Kateřina Šimeková",
     "roleFamily": "data_ai",
     "aspirations": [
-      "Grow into an ML platform / MLOps architect role",
-      "Lead the design of production model-serving infrastructure",
-      "Mentor junior data scientists and establish ML best practices"
+      "AI Engineer – AI First domain",
+      "Tech lead / architect within a Česká spořitelna tribe"
     ],
     "yearsExperience": 9.0,
     "seniority": "senior",
@@ -1913,49 +1798,37 @@
     "location": "Brno, Czech Republic",
     "skillClaims": [
       {
-        "skill": "Python",
-        "level": "strong",
-        "provenance": "professional",
-        "confidence": 0.4
-      },
-      {
         "skill": "PyTorch",
         "level": "strong",
         "provenance": "professional",
         "confidence": 0.4
       },
       {
-        "skill": "MLOps (MLflow, Kubeflow)",
+        "skill": "LLM",
         "level": "strong",
         "provenance": "professional",
         "confidence": 0.4
       },
       {
-        "skill": "PySpark / distributed data processing",
+        "skill": "Python",
         "level": "working",
         "provenance": "professional",
         "confidence": 0.4
       },
       {
-        "skill": "SQL & data modeling",
-        "level": "strong",
-        "provenance": "professional",
-        "confidence": 0.4
-      },
-      {
-        "skill": "Model deployment on Kubernetes",
+        "skill": "MLOps",
         "level": "working",
         "provenance": "professional",
         "confidence": 0.4
       },
       {
-        "skill": "Feature engineering & experiment tracking",
-        "level": "strong",
+        "skill": "prompt engineering",
+        "level": "working",
         "provenance": "professional",
         "confidence": 0.4
       },
       {
-        "skill": "AWS (SageMaker, S3, Lambda)",
+        "skill": "cloud",
         "level": "working",
         "provenance": "professional",
         "confidence": 0.4
@@ -1968,9 +1841,7 @@
         "text": "Led a team of three building and deploying recommendation and churn-prediction models serving ~2M monthly users. Designed an MLflow-based training-to-production pipeline that cut model release time from weeks to two days and owned the PyTorch model-serving stack on Kubernetes.",
         "skills": [
           "Python",
-          "PyTorch",
-          "MLOps (MLflow, Kubeflow)",
-          "Model deployment on Kubernetes"
+          "LLM"
         ],
         "provenance": "professional",
         "confidence": 0.6
@@ -1980,10 +1851,9 @@
         "title": "Data Scientist — Seznam.cz, Prague",
         "text": "Built large-scale feature pipelines in PySpark over clickstream data and developed gradient-boosting and deep-learning ranking models for search relevance, improving click-through rate by 7% in A/B testing.",
         "skills": [
-          "PySpark / distributed data processing",
-          "SQL & data modeling",
-          "Feature engineering & experiment tracking",
-          "Python"
+          "LLM",
+          "PyTorch",
+          "MLOps"
         ],
         "provenance": "professional",
         "confidence": 0.6
@@ -1991,7 +1861,8 @@
     ],
     "learningSignals": [],
     "completeness": 1.0,
-    "id": "cand-019"
+    "id": "cand-019",
+    "targetRole": "AI Engineer – AI First domain"
   },
   {
     "archetype": "student",
@@ -2000,9 +1871,8 @@
     "displayName": "Anna Bartošová",
     "roleFamily": "software_engineering",
     "aspirations": [
-      "Junior backend developer role on a product team",
-      "Grow toward distributed systems and cloud infrastructure",
-      "Contribute to open-source tooling"
+      "Junior Cloud / DevOps Engineer",
+      "Grow into a core engineering role at a bank"
     ],
     "educationLevel": "master",
     "educationDetail": "Navazující magisterské studium oboru Softwarové inženýrství, Fakulta informatiky, Masarykova univerzita, Brno (2. ročník, předpokládané ukončení 2026)",
@@ -2014,19 +1884,7 @@
     "location": "Brno, Czechia",
     "skillClaims": [
       {
-        "skill": "Python",
-        "level": "strong",
-        "provenance": "academic_project",
-        "confidence": 0.4
-      },
-      {
-        "skill": "Java",
-        "level": "working",
-        "provenance": "coursework",
-        "confidence": 0.4
-      },
-      {
-        "skill": "SQL / PostgreSQL",
+        "skill": "AWS",
         "level": "working",
         "provenance": "coursework",
         "confidence": 0.4
@@ -2034,19 +1892,19 @@
       {
         "skill": "Docker",
         "level": "foundational",
+        "provenance": "academic_project",
+        "confidence": 0.4
+      },
+      {
+        "skill": "Linux",
+        "level": "foundational",
         "provenance": "self_declared",
         "confidence": 0.4
       },
       {
-        "skill": "Git",
-        "level": "strong",
-        "provenance": "academic_project",
-        "confidence": 0.4
-      },
-      {
-        "skill": "REST API design",
-        "level": "working",
-        "provenance": "academic_project",
+        "skill": "Kubernetes",
+        "level": "foundational",
+        "provenance": "personal_project",
         "confidence": 0.4
       }
     ],
@@ -2056,9 +1914,8 @@
         "title": "Diplomová práce: Anomaly detection in time-series sensor data using lightweight ML models",
         "text": "Designing and evaluating a pipeline that detects anomalies in IoT temperature/humidity streams. Implemented in Python (scikit-learn, pandas), with a focus on models that run on resource-constrained edge devices. Currently in the evaluation phase.",
         "skills": [
-          "Python",
-          "machine learning",
-          "data analysis"
+          "AWS",
+          "Kubernetes"
         ],
         "provenance": "thesis",
         "confidence": 0.6
@@ -2068,11 +1925,9 @@
         "title": "StudyPlanner — semester scheduling web app",
         "text": "Team academic project (4 students) building a course-scheduling assistant. I owned the backend: a Flask REST API backed by PostgreSQL, containerised with Docker. Set up the team's Git workflow and code reviews.",
         "skills": [
-          "Python",
-          "REST API design",
-          "SQL / PostgreSQL",
-          "Docker",
-          "Git"
+          "Kubernetes",
+          "Terraform",
+          "Docker"
         ],
         "provenance": "personal_project",
         "confidence": 0.6,
@@ -2083,9 +1938,8 @@
         "title": "Volunteer mentor, Czechitas coding workshops",
         "text": "Mentored beginners in introductory Python workshops on weekends, helping participants debug their first programs and understand version control basics.",
         "skills": [
-          "Python",
-          "Git",
-          "mentoring"
+          "Terraform",
+          "Docker"
         ],
         "provenance": "extracurricular",
         "confidence": 0.6
@@ -2093,7 +1947,8 @@
     ],
     "learningSignals": [],
     "completeness": 1.0,
-    "id": "cand-020"
+    "id": "cand-020",
+    "targetRole": "Cloud / DevOps Engineer"
   },
   {
     "archetype": "student",
@@ -2103,8 +1958,7 @@
     "roleFamily": "data_ai",
     "aspirations": [
       "Junior Machine Learning Engineer",
-      "Work on NLP for the Czech language",
-      "Contribute to open-source ML tooling"
+      "Grow into a core engineering role at a bank"
     ],
     "educationLevel": "master",
     "educationDetail": "Master's in Data Science (Open Informatics), Faculty of Electrical Engineering, Czech Technical University in Prague (FEL ČVUT), expected June 2026",
@@ -2116,39 +1970,39 @@
     "location": "Prague, Czech Republic",
     "skillClaims": [
       {
-        "skill": "Python",
-        "level": "strong",
+        "skill": "MLOps",
+        "level": "working",
+        "provenance": "coursework",
+        "confidence": 0.4
+      },
+      {
+        "skill": "MLflow",
+        "level": "foundational",
         "provenance": "academic_project",
         "confidence": 0.4
       },
       {
-        "skill": "Machine Learning",
-        "level": "working",
-        "provenance": "coursework",
+        "skill": "cloud",
+        "level": "foundational",
+        "provenance": "self_declared",
+        "confidence": 0.4
+      },
+      {
+        "skill": "scikit-learn",
+        "level": "foundational",
+        "provenance": "personal_project",
         "confidence": 0.4
       },
       {
         "skill": "PyTorch",
-        "level": "working",
-        "provenance": "academic_project",
-        "confidence": 0.4
-      },
-      {
-        "skill": "SQL",
-        "level": "working",
-        "provenance": "coursework",
-        "confidence": 0.4
-      },
-      {
-        "skill": "Statistics",
-        "level": "working",
-        "provenance": "coursework",
-        "confidence": 0.4
-      },
-      {
-        "skill": "Data Visualization",
         "level": "foundational",
-        "provenance": "self_declared",
+        "provenance": "coursework",
+        "confidence": 0.4
+      },
+      {
+        "skill": "Python",
+        "level": "foundational",
+        "provenance": "academic_project",
         "confidence": 0.4
       }
     ],
@@ -2158,9 +2012,8 @@
         "title": "Master's thesis: Named-Entity Recognition for Czech Clinical Notes",
         "text": "Building a transformer-based NER model fine-tuned on anonymized Czech medical records to extract diagnoses and medications, comparing a fine-tuned Czech BERT against a multilingual baseline.",
         "skills": [
-          "NLP",
-          "PyTorch",
-          "Python"
+          "Python",
+          "MLflow"
         ],
         "provenance": "thesis",
         "confidence": 0.6
@@ -2170,8 +2023,8 @@
         "title": "Energy consumption forecasting (semester project)",
         "text": "Team project forecasting household electricity demand from a year of smart-meter data using gradient boosting and LSTM models; placed 3rd in the course's internal leaderboard.",
         "skills": [
-          "Python",
-          "Time Series",
+          "MLflow",
+          "PyTorch",
           "scikit-learn"
         ],
         "provenance": "personal_project",
@@ -2183,9 +2036,8 @@
         "title": "Member, ČVUT Data Science student club",
         "text": "Organized two intro-to-Pandas workshops for first-year students and presented a short talk on reproducible ML experiments with MLflow.",
         "skills": [
-          "Python",
-          "Pandas",
-          "MLflow"
+          "PyTorch",
+          "scikit-learn"
         ],
         "provenance": "extracurricular",
         "confidence": 0.6
@@ -2193,7 +2045,8 @@
     ],
     "learningSignals": [],
     "completeness": 1.0,
-    "id": "cand-021"
+    "id": "cand-021",
+    "targetRole": "Machine Learning Engineer"
   },
   {
     "archetype": "bau",
@@ -2202,8 +2055,8 @@
     "displayName": "Petr Navrátil",
     "roleFamily": "data_ai",
     "aspirations": [
-      "Lead an ML platform / MLOps team",
-      "Take applied LLM systems from prototype to production at scale"
+      "Data Engineer – Data tribe",
+      "Tech lead / architect within a Česká spořitelna tribe"
     ],
     "yearsExperience": 8.0,
     "seniority": "senior",
@@ -2217,43 +2070,37 @@
     "location": "Brno, Czech Republic",
     "skillClaims": [
       {
+        "skill": "Airflow",
+        "level": "strong",
+        "provenance": "professional",
+        "confidence": 0.4
+      },
+      {
+        "skill": "Snowflake",
+        "level": "strong",
+        "provenance": "professional",
+        "confidence": 0.4
+      },
+      {
+        "skill": "SQL",
+        "level": "working",
+        "provenance": "professional",
+        "confidence": 0.4
+      },
+      {
         "skill": "Python",
-        "level": "strong",
-        "provenance": "professional",
-        "confidence": 0.4
-      },
-      {
-        "skill": "Machine Learning (scikit-learn, XGBoost)",
-        "level": "strong",
-        "provenance": "professional",
-        "confidence": 0.4
-      },
-      {
-        "skill": "Deep Learning (PyTorch)",
         "level": "working",
         "provenance": "professional",
         "confidence": 0.4
       },
       {
-        "skill": "MLOps (MLflow, Kubeflow, Docker)",
-        "level": "strong",
-        "provenance": "professional",
-        "confidence": 0.4
-      },
-      {
-        "skill": "SQL & data modeling",
-        "level": "strong",
-        "provenance": "professional",
-        "confidence": 0.4
-      },
-      {
-        "skill": "Apache Spark",
+        "skill": "Spark",
         "level": "working",
         "provenance": "professional",
         "confidence": 0.4
       },
       {
-        "skill": "LLM fine-tuning & RAG pipelines",
+        "skill": "Kafka",
         "level": "working",
         "provenance": "professional",
         "confidence": 0.4
@@ -2266,9 +2113,7 @@
         "text": "Owned the recommendation and content-scoring models for a CMS used by enterprise clients. Built and maintained the MLflow-based training and deployment pipeline, cutting model release time from weeks to days. Mentored two junior data scientists.",
         "skills": [
           "Python",
-          "MLOps (MLflow, Kubeflow, Docker)",
-          "Machine Learning (scikit-learn, XGBoost)",
-          "SQL & data modeling"
+          "Spark"
         ],
         "provenance": "professional",
         "confidence": 0.6
@@ -2278,10 +2123,9 @@
         "title": "Data Scientist — Seznam.cz",
         "text": "Developed click-through-rate prediction models for the search advertising platform, processing terabyte-scale logs with Spark. Prototyped a PyTorch ranking model that improved offline NDCG by 4%.",
         "skills": [
-          "Deep Learning (PyTorch)",
-          "Apache Spark",
-          "Python",
-          "Machine Learning (scikit-learn, XGBoost)"
+          "Spark",
+          "SQL",
+          "Airflow"
         ],
         "provenance": "professional",
         "confidence": 0.6
@@ -2289,7 +2133,8 @@
     ],
     "learningSignals": [],
     "completeness": 1.0,
-    "id": "cand-022"
+    "id": "cand-022",
+    "targetRole": "Data Engineer – Data tribe"
   },
   {
     "archetype": "student",
@@ -2298,9 +2143,8 @@
     "displayName": "Nikola Křížová",
     "roleFamily": "product_project",
     "aspirations": [
-      "Nastartovat kariéru jako junior product owner nebo project coordinator v softwarovém týmu",
-      "Naučit se vést cross-funkční tým a doručovat produkt iterativně podle zpětné vazby uživatelů",
-      "Dlouhodobě směřovat k roli product managera v B2B SaaS produktu"
+      "Junior IT Project Manager",
+      "Grow into a core engineering role at a bank"
     ],
     "educationLevel": "master",
     "educationDetail": "Navazující magisterské studium oboru Podniková informatika, Ekonomicko-správní fakulta, Masarykova univerzita v Brně, 2. ročník (očekávané ukončení 2026)",
@@ -2312,37 +2156,31 @@
     "location": "Brno, Česká republika",
     "skillClaims": [
       {
-        "skill": "Agile / Scrum",
-        "level": "working",
-        "provenance": "academic_project",
-        "confidence": 0.4
-      },
-      {
-        "skill": "Sběr a analýza požadavků",
+        "skill": "Jira",
         "level": "working",
         "provenance": "coursework",
         "confidence": 0.4
       },
       {
-        "skill": "Roadmapping a prioritizace (MoSCoW, RICE)",
-        "level": "foundational",
-        "provenance": "coursework",
-        "confidence": 0.4
-      },
-      {
-        "skill": "Uživatelský výzkum a rozhovory",
+        "skill": "stakeholder management",
         "level": "foundational",
         "provenance": "academic_project",
         "confidence": 0.4
       },
       {
-        "skill": "Jira / Confluence",
-        "level": "working",
+        "skill": "budgeting",
+        "level": "foundational",
         "provenance": "self_declared",
         "confidence": 0.4
       },
       {
-        "skill": "Datová analýza v Excelu a SQL",
+        "skill": "project management",
+        "level": "foundational",
+        "provenance": "personal_project",
+        "confidence": 0.4
+      },
+      {
+        "skill": "delivery",
         "level": "foundational",
         "provenance": "coursework",
         "confidence": 0.4
@@ -2354,9 +2192,8 @@
         "title": "Návrh produktového discovery procesu pro studentský startup",
         "text": "Diplomová práce mapující, jak malé týmy bez dedikovaného produktového manažera validují nápady. Navrhla jsem lehký discovery framework a otestovala ho na třech studentských projektech, včetně šablon pro problémové rozhovory a opportunity-solution stromu.",
         "skills": [
-          "Sběr a analýza požadavků",
-          "Uživatelský výzkum a rozhovory",
-          "Roadmapping a prioritizace (MoSCoW, RICE)"
+          "project management",
+          "delivery"
         ],
         "provenance": "thesis",
         "confidence": 0.6
@@ -2366,9 +2203,9 @@
         "title": "Semestrální týmový projekt — mobilní aplikace pro sdílení skript",
         "text": "V pětičlenném týmu jsem působila jako product owner: vedla jsem backlog v Jira, facilitovala dvoutýdenní sprinty a retrospektivy a převáděla zpětnou vazbu od testerů na prioritizované user stories. Aplikaci jsme dovedli do funkčního prototypu prezentovaného před vyučujícími.",
         "skills": [
-          "Agile / Scrum",
-          "Jira / Confluence",
-          "Roadmapping a prioritizace (MoSCoW, RICE)"
+          "delivery",
+          "risk management",
+          "stakeholder management"
         ],
         "provenance": "personal_project",
         "confidence": 0.6,
@@ -2379,8 +2216,8 @@
         "title": "Koordinátorka studentské konference DigiDay Brno",
         "text": "Dobrovolnicky jsem koordinovala přípravu jednodenní studentské konference o digitálních produktech — sestavila jsem harmonogram, sledovala úkoly napříč třemi dílčími týmy a hlídala termíny. Souběžně jsem si přivydělávala brigádou v kavárně mimo obor.",
         "skills": [
-          "Agile / Scrum",
-          "Sběr a analýza požadavků"
+          "risk management",
+          "stakeholder management"
         ],
         "provenance": "extracurricular",
         "confidence": 0.6
@@ -2388,7 +2225,8 @@
     ],
     "learningSignals": [],
     "completeness": 1.0,
-    "id": "cand-023"
+    "id": "cand-023",
+    "targetRole": "IT Project Manager"
   },
   {
     "archetype": "student",
@@ -2397,9 +2235,8 @@
     "displayName": "Gabriela Černá",
     "roleFamily": "software_engineering",
     "aspirations": [
-      "Become a backend engineer working on distributed systems",
-      "Contribute to open-source developer tooling",
-      "Grow toward a software architecture role"
+      "Junior Java Backend Engineer",
+      "Grow into a core engineering role at a bank"
     ],
     "educationLevel": "master",
     "educationDetail": "Open Informatics, Software Engineering specialization, Faculty of Electrical Engineering, Czech Technical University in Prague (ČVUT FEL), expected 2026",
@@ -2411,33 +2248,27 @@
     "location": "Prague, Czech Republic",
     "skillClaims": [
       {
-        "skill": "Python",
-        "level": "working",
-        "provenance": "coursework",
-        "confidence": 0.4
-      },
-      {
-        "skill": "Java",
-        "level": "working",
-        "provenance": "academic_project",
-        "confidence": 0.4
-      },
-      {
-        "skill": "Algorithms and Data Structures",
-        "level": "strong",
-        "provenance": "coursework",
-        "confidence": 0.4
-      },
-      {
-        "skill": "PostgreSQL",
-        "level": "working",
-        "provenance": "academic_project",
-        "confidence": 0.4
-      },
-      {
         "skill": "Docker",
+        "level": "working",
+        "provenance": "coursework",
+        "confidence": 0.4
+      },
+      {
+        "skill": "Microservices",
+        "level": "foundational",
+        "provenance": "academic_project",
+        "confidence": 0.4
+      },
+      {
+        "skill": "Kafka",
         "level": "foundational",
         "provenance": "self_declared",
+        "confidence": 0.4
+      },
+      {
+        "skill": "Oracle",
+        "level": "foundational",
+        "provenance": "personal_project",
         "confidence": 0.4
       }
     ],
@@ -2448,7 +2279,7 @@
         "text": "Built a prototype tool that flags potential data races in multithreaded Java code using control-flow analysis. Evaluated on a set of open-source projects and documented false-positive rates.",
         "skills": [
           "Java",
-          "Algorithms and Data Structures"
+          "Spring Boot"
         ],
         "provenance": "thesis",
         "confidence": 0.6
@@ -2458,9 +2289,9 @@
         "title": "Distributed URL Shortener (semester project)",
         "text": "Designed a horizontally scalable URL shortener with a Python FastAPI backend, PostgreSQL storage, and Redis caching, packaged with Docker Compose. Wrote load tests demonstrating throughput under concurrent traffic.",
         "skills": [
-          "Python",
-          "PostgreSQL",
-          "Docker"
+          "Spring Boot",
+          "Oracle",
+          "Kafka"
         ],
         "provenance": "personal_project",
         "confidence": 0.6,
@@ -2471,8 +2302,8 @@
         "title": "Teaching assistant for Introduction to Programming",
         "text": "Volunteered as a TA leading weekly lab sessions for first-year students, reviewing Python assignments and explaining algorithmic concepts during office hours.",
         "skills": [
-          "Python",
-          "Algorithms and Data Structures"
+          "Oracle",
+          "Kafka"
         ],
         "provenance": "extracurricular",
         "confidence": 0.6
@@ -2480,7 +2311,8 @@
     ],
     "learningSignals": [],
     "completeness": 1.0,
-    "id": "cand-024"
+    "id": "cand-024",
+    "targetRole": "Java Backend Engineer"
   },
   {
     "archetype": "career_switcher",
@@ -2489,8 +2321,8 @@
     "displayName": "Roman Kolář",
     "roleFamily": "software_engineering",
     "aspirations": [
-      "Junior Backend Software Engineer",
-      "Data Engineer"
+      "iOS Engineer – George",
+      "Apply prior-domain experience in a banking-tech team"
     ],
     "yearsExperience": 7.0,
     "educationLevel": "master",
@@ -2503,33 +2335,27 @@
     "location": "Brno, Czech Republic",
     "skillClaims": [
       {
-        "skill": "Python",
-        "level": "working",
-        "provenance": "Engeto Python Academy bootcamp + lab automation scripts",
-        "confidence": 0.4
-      },
-      {
-        "skill": "SQL",
-        "level": "working",
-        "provenance": "Databases course + querying LIMS chromatography datasets",
-        "confidence": 0.4
-      },
-      {
-        "skill": "FastAPI",
+        "skill": "Swift",
         "level": "foundational",
-        "provenance": "Built the REST backend for my bootcamp capstone",
+        "provenance": "coursework",
         "confidence": 0.4
       },
       {
         "skill": "Git",
-        "level": "foundational",
-        "provenance": "Version control for all bootcamp and personal projects",
+        "level": "working",
+        "provenance": "personal_project",
         "confidence": 0.4
       },
       {
-        "skill": "Docker",
-        "level": "foundational",
-        "provenance": "Containerized the capstone API for deployment",
+        "skill": "SwiftUI",
+        "level": "working",
+        "provenance": "self_declared",
+        "confidence": 0.4
+      },
+      {
+        "skill": "iOS",
+        "level": "working",
+        "provenance": "coursework",
         "confidence": 0.4
       }
     ],
@@ -2539,9 +2365,8 @@
         "title": "Analytical Chemist, Quality Control",
         "text": "Seven years in pharma QC at a generics manufacturer: ran HPLC/GC methods, validated assays under GMP, and authored SOPs. Cut routine reporting time ~30% by scripting Python to parse instrument exports into the LIMS — the work that pulled me toward software.",
         "skills": [
-          "Python",
-          "data analysis",
-          "process automation"
+          "Swift",
+          "SwiftUI"
         ],
         "provenance": "professional",
         "confidence": 0.6
@@ -2551,8 +2376,9 @@
         "title": "Laboratory Technician",
         "text": "Early-career bench role: sample preparation, calibration, and maintenance of analytical instruments; first exposure to structured data and reproducible documentation.",
         "skills": [
-          "attention to detail",
-          "documentation"
+          "SwiftUI",
+          "iOS",
+          "Combine"
         ],
         "provenance": "professional",
         "confidence": 0.6
@@ -2562,10 +2388,8 @@
         "title": "Capstone: LabTrack reagent-inventory API",
         "text": "Bootcamp capstone — a FastAPI + PostgreSQL service tracking reagent stock and expiry with low-stock alerts, JWT auth, pytest coverage, and a Dockerized deploy. Designed from my own QC-lab pain points.",
         "skills": [
-          "Python",
-          "FastAPI",
-          "SQL",
-          "Docker"
+          "iOS",
+          "Combine"
         ],
         "provenance": "personal_project",
         "confidence": 0.6,
@@ -2576,9 +2400,9 @@
         "title": "Engeto Python Academy — Junior Programmer (graduate)",
         "text": "Four-month intensive part-time bootcamp covering Python fundamentals, OOP, relational databases, Git workflow, and a final team project. Graduated 2024.",
         "skills": [
-          "Python",
-          "SQL",
-          "Git"
+          "Combine",
+          "REST APIs",
+          "Xcode"
         ],
         "provenance": "coursework",
         "confidence": 0.6,
@@ -2587,7 +2411,8 @@
     ],
     "learningSignals": [],
     "completeness": 1.0,
-    "id": "cand-025"
+    "id": "cand-025",
+    "targetRole": "iOS Engineer – George"
   },
   {
     "archetype": "student",
@@ -2596,9 +2421,8 @@
     "displayName": "Jana Holubová",
     "roleFamily": "data_ai",
     "aspirations": [
-      "Junior Data Scientist nebo ML Engineer v produktovém týmu",
-      "Práce na NLP pro češtinu a další málo zdrojové jazyky",
-      "Postupný přesun směrem k MLOps a nasazování modelů do produkce"
+      "Junior Machine Learning Engineer",
+      "Grow into a core engineering role at a bank"
     ],
     "educationLevel": "master",
     "educationDetail": "Navazující magisterské studium oboru Zpracování přirozeného jazyka a umělá inteligence, Fakulta informatiky, Masarykova univerzita (Brno), 2025",
@@ -2609,18 +2433,6 @@
     ],
     "location": "Brno, Česko",
     "skillClaims": [
-      {
-        "skill": "Python",
-        "level": "strong",
-        "provenance": "academic_project",
-        "confidence": 0.4
-      },
-      {
-        "skill": "SQL",
-        "level": "working",
-        "provenance": "coursework",
-        "confidence": 0.4
-      },
       {
         "skill": "scikit-learn",
         "level": "working",
@@ -2634,15 +2446,15 @@
         "confidence": 0.4
       },
       {
-        "skill": "statistika a pravděpodobnost",
-        "level": "working",
-        "provenance": "coursework",
+        "skill": "cloud",
+        "level": "foundational",
+        "provenance": "self_declared",
         "confidence": 0.4
       },
       {
-        "skill": "vizualizace dat (matplotlib, Plotly)",
-        "level": "working",
-        "provenance": "self_declared",
+        "skill": "MLOps",
+        "level": "foundational",
+        "provenance": "personal_project",
         "confidence": 0.4
       }
     ],
@@ -2653,8 +2465,7 @@
         "text": "Diplomová práce, ve které jsem dotrénovala model typu BERT na ručně anotovaném korpusu českých titulků a porovnala jej s klasickými baseline klasifikátory. Dosáhla jsem F1 skóre 0,84 a popsala hlavní zdroje chyb.",
         "skills": [
           "Python",
-          "PyTorch",
-          "NLP"
+          "MLflow"
         ],
         "provenance": "thesis",
         "confidence": 0.6
@@ -2664,10 +2475,9 @@
         "title": "Predikce zpoždění brněnské MHD",
         "text": "Semestrální projekt — sběr otevřených dat o jízdních řádech a polohách vozů, čištění dat a trénink regresního modelu pro odhad zpoždění tramvají. Výsledky jsem prezentovala jednoduchým dashboardem.",
         "skills": [
-          "Python",
-          "scikit-learn",
-          "SQL",
-          "vizualizace dat (matplotlib, Plotly)"
+          "MLflow",
+          "PyTorch",
+          "scikit-learn"
         ],
         "provenance": "personal_project",
         "confidence": 0.6,
@@ -2678,8 +2488,8 @@
         "title": "Mentorka v studentském spolku Datová laboratoř FI MU",
         "text": "Vedla jsem úvodní workshopy o Pythonu a analýze dat pro studenty prvních ročníků a pomáhala s organizací interní datové soutěže.",
         "skills": [
-          "Python",
-          "statistika a pravděpodobnost"
+          "PyTorch",
+          "scikit-learn"
         ],
         "provenance": "extracurricular",
         "confidence": 0.6
@@ -2687,7 +2497,8 @@
     ],
     "learningSignals": [],
     "completeness": 1.0,
-    "id": "cand-026"
+    "id": "cand-026",
+    "targetRole": "Machine Learning Engineer"
   },
   {
     "archetype": "bau",
@@ -2696,8 +2507,8 @@
     "displayName": "Zuzana Černá",
     "roleFamily": "software_engineering",
     "aspirations": [
-      "Lead a backend platform team",
-      "Drive event-driven architecture adoption across services"
+      "Frontend Engineer – George web",
+      "Tech lead / architect within a Česká spořitelna tribe"
     ],
     "yearsExperience": 9.0,
     "seniority": "senior",
@@ -2711,44 +2522,38 @@
     "location": "Brno, Czech Republic",
     "skillClaims": [
       {
-        "skill": "Java",
+        "skill": "TypeScript",
         "level": "strong",
         "provenance": "professional",
         "confidence": 0.4
       },
       {
-        "skill": "Spring Boot",
+        "skill": "REST APIs",
         "level": "strong",
         "provenance": "professional",
         "confidence": 0.4
       },
       {
-        "skill": "Kubernetes",
+        "skill": "RxJS",
         "level": "working",
         "provenance": "professional",
         "confidence": 0.4
       },
       {
-        "skill": "PostgreSQL",
-        "level": "strong",
-        "provenance": "professional",
-        "confidence": 0.4
-      },
-      {
-        "skill": "Apache Kafka",
+        "skill": "JavaScript",
         "level": "working",
         "provenance": "professional",
         "confidence": 0.4
       },
       {
-        "skill": "Go",
+        "skill": "CSS",
         "level": "working",
         "provenance": "professional",
         "confidence": 0.4
       },
       {
-        "skill": "System design",
-        "level": "strong",
+        "skill": "React",
+        "level": "working",
         "provenance": "professional",
         "confidence": 0.4
       }
@@ -2759,11 +2564,8 @@
         "title": "Senior Backend Engineer, Kentico Software",
         "text": "Led the decomposition of a monolithic CMS billing module into Kafka-driven microservices on Kubernetes, cutting p95 latency by 40% and mentoring three medior engineers.",
         "skills": [
-          "Java",
-          "Spring Boot",
-          "Apache Kafka",
-          "Kubernetes",
-          "System design"
+          "TypeScript",
+          "Angular"
         ],
         "provenance": "professional",
         "confidence": 0.6
@@ -2773,9 +2575,9 @@
         "title": "Backend Engineer, Y Soft",
         "text": "Built and operated PostgreSQL-backed print-management services, owning schema migrations and on-call reliability for a multi-tenant SaaS used by enterprise customers across the EU.",
         "skills": [
-          "Java",
-          "PostgreSQL",
-          "Go"
+          "Angular",
+          "React",
+          "JavaScript"
         ],
         "provenance": "professional",
         "confidence": 0.6
@@ -2783,7 +2585,8 @@
     ],
     "learningSignals": [],
     "completeness": 1.0,
-    "id": "cand-027"
+    "id": "cand-027",
+    "targetRole": "Frontend Engineer – George web"
   },
   {
     "archetype": "bau",
@@ -2792,9 +2595,8 @@
     "displayName": "David Polák",
     "roleFamily": "data_ai",
     "aspirations": [
-      "Lead ML engineering for production recommender systems",
-      "Grow into an ML platform / staff engineer role",
-      "Mentor junior data scientists and shape data culture"
+      "Risk Data Analyst",
+      "Tech lead / architect within a Česká spořitelna tribe"
     ],
     "yearsExperience": 8.0,
     "seniority": "senior",
@@ -2808,43 +2610,37 @@
     "location": "Brno, Czech Republic",
     "skillClaims": [
       {
+        "skill": "Power BI",
+        "level": "strong",
+        "provenance": "professional",
+        "confidence": 0.4
+      },
+      {
+        "skill": "credit risk",
+        "level": "strong",
+        "provenance": "professional",
+        "confidence": 0.4
+      },
+      {
+        "skill": "statistics",
+        "level": "working",
+        "provenance": "professional",
+        "confidence": 0.4
+      },
+      {
+        "skill": "SQL",
+        "level": "working",
+        "provenance": "professional",
+        "confidence": 0.4
+      },
+      {
         "skill": "Python",
-        "level": "strong",
-        "provenance": "professional",
-        "confidence": 0.4
-      },
-      {
-        "skill": "Machine Learning (scikit-learn, XGBoost)",
-        "level": "strong",
-        "provenance": "professional",
-        "confidence": 0.4
-      },
-      {
-        "skill": "Deep Learning (PyTorch)",
         "level": "working",
         "provenance": "professional",
         "confidence": 0.4
       },
       {
-        "skill": "MLOps (MLflow, Docker, Kubernetes)",
-        "level": "working",
-        "provenance": "professional",
-        "confidence": 0.4
-      },
-      {
-        "skill": "SQL & dimensional data modeling",
-        "level": "strong",
-        "provenance": "professional",
-        "confidence": 0.4
-      },
-      {
-        "skill": "Distributed processing (Apache Spark)",
-        "level": "working",
-        "provenance": "professional",
-        "confidence": 0.4
-      },
-      {
-        "skill": "Cloud ML (AWS SageMaker)",
+        "skill": "data analysis",
         "level": "working",
         "provenance": "professional",
         "confidence": 0.4
@@ -2856,10 +2652,8 @@
         "title": "Senior Machine Learning Engineer — Kiwi.com",
         "text": "Owned the ranking and recommendation models for flight search, serving ~10M daily requests. Migrated training from ad-hoc notebooks to a reproducible MLflow + Airflow pipeline, cutting model release time from two weeks to two days and lifting CTR on recommended itineraries by 6%.",
         "skills": [
-          "Python",
-          "Machine Learning (scikit-learn, XGBoost)",
-          "MLOps (MLflow, Docker, Kubernetes)",
-          "Cloud ML (AWS SageMaker)"
+          "SQL",
+          "Python"
         ],
         "provenance": "professional",
         "confidence": 0.6
@@ -2870,9 +2664,8 @@
         "text": "Built and shipped click-through prediction and user-segmentation models for the advertising platform. Worked on Spark-based feature pipelines over terabyte-scale event logs and partnered with product teams to A/B test model changes in production.",
         "skills": [
           "Python",
-          "Deep Learning (PyTorch)",
-          "SQL & dimensional data modeling",
-          "Distributed processing (Apache Spark)"
+          "statistics",
+          "credit risk"
         ],
         "provenance": "professional",
         "confidence": 0.6
@@ -2880,7 +2673,8 @@
     ],
     "learningSignals": [],
     "completeness": 1.0,
-    "id": "cand-028"
+    "id": "cand-028",
+    "targetRole": "Risk Data Analyst"
   },
   {
     "archetype": "student",
@@ -2889,9 +2683,8 @@
     "displayName": "Ondřej Dvořák",
     "roleFamily": "data_ai",
     "aspirations": [
-      "Nastoupit jako junior data scientist nebo ML engineer ve výzkumně zaměřeném týmu",
-      "Specializovat se na NLP a zpracování přirozeného jazyka pro češtinu",
-      "Postupně se posunout k MLOps a nasazování modelů do produkce"
+      "Junior AI Engineer – AI First domain",
+      "Grow into a core engineering role at a bank"
     ],
     "educationLevel": "master",
     "educationDetail": "Navazující magisterské studium, obor Strojové učení a zpracování dat, Fakulta informačních technologií VUT v Brně, 2. ročník (předpokládané ukončení 2026)",
@@ -2903,39 +2696,39 @@
     "location": "Brno, Česká republika",
     "skillClaims": [
       {
-        "skill": "Python",
-        "level": "strong",
-        "provenance": "academic_project",
-        "confidence": 0.4
-      },
-      {
         "skill": "PyTorch",
         "level": "working",
         "provenance": "coursework",
         "confidence": 0.4
       },
       {
-        "skill": "SQL",
-        "level": "working",
-        "provenance": "coursework",
-        "confidence": 0.4
-      },
-      {
-        "skill": "scikit-learn",
-        "level": "strong",
+        "skill": "prompt engineering",
+        "level": "foundational",
         "provenance": "academic_project",
         "confidence": 0.4
       },
       {
-        "skill": "statistika a pravděpodobnost",
-        "level": "working",
+        "skill": "LLM",
+        "level": "foundational",
+        "provenance": "self_declared",
+        "confidence": 0.4
+      },
+      {
+        "skill": "cloud",
+        "level": "foundational",
+        "provenance": "personal_project",
+        "confidence": 0.4
+      },
+      {
+        "skill": "MLOps",
+        "level": "foundational",
         "provenance": "coursework",
         "confidence": 0.4
       },
       {
-        "skill": "Docker",
+        "skill": "Python",
         "level": "foundational",
-        "provenance": "self_declared",
+        "provenance": "academic_project",
         "confidence": 0.4
       }
     ],
@@ -2946,8 +2739,7 @@
         "text": "Bakalářská práce, ve které jsem doladila model typu BERT pro češtinu na vlastním anotovaném datasetu komentářů. Dosáhla jsem F1 skóre 0,81 a porovnala výsledky s klasickými baseline klasifikátory.",
         "skills": [
           "Python",
-          "PyTorch",
-          "NLP"
+          "LLM"
         ],
         "provenance": "thesis",
         "confidence": 0.6
@@ -2957,10 +2749,9 @@
         "title": "Predikce spotřeby energie domácností",
         "text": "Semestrální projekt v týmu tří lidí — postavili jsme pipeline pro čištění dat, feature engineering a gradient boosting model na predikci denní spotřeby. Měla jsem na starosti přípravu dat a vyhodnocení modelu.",
         "skills": [
-          "Python",
-          "scikit-learn",
-          "SQL",
-          "statistika a pravděpodobnost"
+          "LLM",
+          "PyTorch",
+          "MLOps"
         ],
         "provenance": "personal_project",
         "confidence": 0.6,
@@ -2971,8 +2762,8 @@
         "title": "Mentorka v Czechitas — kurz Datová analýza v Pythonu",
         "text": "Dobrovolně jsem vedla cvičení pro začátečnice, pomáhala s pandas a vizualizací dat. Zlepšila jsem si schopnost vysvětlovat technické koncepty srozumitelně.",
         "skills": [
-          "Python",
-          "SQL"
+          "PyTorch",
+          "MLOps"
         ],
         "provenance": "extracurricular",
         "confidence": 0.6
@@ -2980,7 +2771,8 @@
     ],
     "learningSignals": [],
     "completeness": 1.0,
-    "id": "cand-029"
+    "id": "cand-029",
+    "targetRole": "AI Engineer – AI First domain"
   },
   {
     "archetype": "career_switcher",
@@ -2989,8 +2781,8 @@
     "displayName": "Filip Sýkora",
     "roleFamily": "software_engineering",
     "aspirations": [
-      "Junior Frontend Developer",
-      "Junior Full-Stack Developer"
+      "Test Automation Engineer (SDET)",
+      "Apply prior-domain experience in a banking-tech team"
     ],
     "yearsExperience": 5.0,
     "educationLevel": "master",
@@ -3003,33 +2795,27 @@
     "location": "Brno, Czech Republic",
     "skillClaims": [
       {
-        "skill": "JavaScript",
-        "level": "working",
-        "provenance": "Built several interactive web apps during bootcamp and self-study; primary language for personal projects.",
-        "confidence": 0.4
-      },
-      {
-        "skill": "React",
-        "level": "working",
-        "provenance": "Used as the main framework for bootcamp capstone and a personal patient-exercise tracker app.",
-        "confidence": 0.4
-      },
-      {
-        "skill": "HTML/CSS",
-        "level": "strong",
-        "provenance": "Hand-built responsive layouts across all course projects; comfortable with Flexbox/Grid.",
-        "confidence": 0.4
-      },
-      {
-        "skill": "SQL",
+        "skill": "Java",
         "level": "foundational",
-        "provenance": "Designed and queried relational schemas for the bootcamp backend module (PostgreSQL).",
+        "provenance": "coursework",
         "confidence": 0.4
       },
       {
-        "skill": "Git",
+        "skill": "CI/CD",
         "level": "working",
-        "provenance": "Daily use for personal projects; comfortable with branching, PRs, and resolving merge conflicts.",
+        "provenance": "personal_project",
+        "confidence": 0.4
+      },
+      {
+        "skill": "Selenium",
+        "level": "working",
+        "provenance": "self_declared",
+        "confidence": 0.4
+      },
+      {
+        "skill": "Playwright",
+        "level": "working",
+        "provenance": "coursework",
         "confidence": 0.4
       }
     ],
@@ -3039,9 +2825,8 @@
         "title": "Physiotherapist — Rehabilitační centrum Lužánky",
         "text": "Led individual and group rehabilitation programs for 15–20 patients daily, tracked recovery metrics, and coordinated treatment plans with physicians. Built internal spreadsheet tooling to automate progress reporting, which sparked my interest in software.",
         "skills": [
-          "Data tracking",
-          "Process automation",
-          "Communication"
+          "test automation",
+          "Selenium"
         ],
         "provenance": "professional",
         "confidence": 0.6
@@ -3051,8 +2836,9 @@
         "title": "Physiotherapist (junior) — Nemocnice Milosrdných bratří",
         "text": "Provided post-operative and orthopedic rehabilitation in a hospital setting; documented patient outcomes in the clinic's information system and trained two new hires on the documentation workflow.",
         "skills": [
-          "Documentation",
-          "Mentoring"
+          "Selenium",
+          "Playwright",
+          "Java"
         ],
         "provenance": "professional",
         "confidence": 0.6
@@ -3062,10 +2848,8 @@
         "title": "RehabTrack — patient exercise tracker (React + PostgreSQL)",
         "text": "Personal capstone: a web app letting physiotherapists assign exercise plans and letting patients log completion. React frontend, Node/Express API, PostgreSQL. Drew directly on my clinical domain knowledge.",
         "skills": [
-          "React",
-          "JavaScript",
-          "SQL",
-          "Git"
+          "Playwright",
+          "Java"
         ],
         "provenance": "personal_project",
         "confidence": 0.6,
@@ -3076,10 +2860,9 @@
         "title": "Czechitas Full-Stack Web Development — completion certificate",
         "text": "Six-month part-time program covering HTML/CSS, JavaScript, React, REST APIs, and relational databases. Graduated with a team final project (event-booking app).",
         "skills": [
-          "JavaScript",
-          "React",
-          "HTML/CSS",
-          "SQL"
+          "Java",
+          "CI/CD",
+          "Appium"
         ],
         "provenance": "coursework",
         "confidence": 0.6,
@@ -3088,7 +2871,8 @@
     ],
     "learningSignals": [],
     "completeness": 1.0,
-    "id": "cand-030"
+    "id": "cand-030",
+    "targetRole": "Test Automation Engineer (SDET)"
   },
   {
     "archetype": "student",
@@ -3098,8 +2882,7 @@
     "roleFamily": "data_ai",
     "aspirations": [
       "Junior Machine Learning Engineer",
-      "Work on NLP and LLM-based applications",
-      "Contribute to open-source ML tooling"
+      "Grow into a core engineering role at a bank"
     ],
     "educationLevel": "master",
     "educationDetail": "Master's programme in Artificial Intelligence, Faculty of Information Technology, Czech Technical University in Prague (ČVUT FIT), expected 2026",
@@ -3111,39 +2894,39 @@
     "location": "Prague, Czech Republic",
     "skillClaims": [
       {
-        "skill": "Python",
-        "level": "strong",
+        "skill": "MLOps",
+        "level": "working",
+        "provenance": "coursework",
+        "confidence": 0.4
+      },
+      {
+        "skill": "cloud",
+        "level": "foundational",
         "provenance": "academic_project",
         "confidence": 0.4
       },
       {
-        "skill": "PyTorch",
-        "level": "working",
-        "provenance": "coursework",
-        "confidence": 0.4
-      },
-      {
-        "skill": "SQL",
-        "level": "working",
-        "provenance": "coursework",
+        "skill": "Python",
+        "level": "foundational",
+        "provenance": "self_declared",
         "confidence": 0.4
       },
       {
         "skill": "scikit-learn",
-        "level": "working",
-        "provenance": "academic_project",
-        "confidence": 0.4
-      },
-      {
-        "skill": "Data wrangling (Pandas)",
-        "level": "strong",
-        "provenance": "self_declared",
-        "confidence": 0.4
-      },
-      {
-        "skill": "Git",
         "level": "foundational",
-        "provenance": "self_declared",
+        "provenance": "personal_project",
+        "confidence": 0.4
+      },
+      {
+        "skill": "MLflow",
+        "level": "foundational",
+        "provenance": "coursework",
+        "confidence": 0.4
+      },
+      {
+        "skill": "PyTorch",
+        "level": "foundational",
+        "provenance": "academic_project",
         "confidence": 0.4
       }
     ],
@@ -3154,8 +2937,7 @@
         "text": "Master's thesis fine-tuning a multilingual transformer to extract parties, dates, and obligations from Czech contracts; built a hand-annotated evaluation set and reported per-entity F1.",
         "skills": [
           "Python",
-          "PyTorch",
-          "NLP"
+          "MLflow"
         ],
         "provenance": "thesis",
         "confidence": 0.6
@@ -3165,9 +2947,9 @@
         "title": "Energy-consumption forecasting for student dormitories",
         "text": "Course capstone comparing gradient-boosted trees and an LSTM baseline to predict hourly electricity demand; handled missing-sensor imputation and seasonal feature engineering.",
         "skills": [
-          "Python",
-          "scikit-learn",
-          "Data wrangling (Pandas)"
+          "MLflow",
+          "PyTorch",
+          "scikit-learn"
         ],
         "provenance": "personal_project",
         "confidence": 0.6,
@@ -3178,9 +2960,8 @@
         "title": "Volunteer mentor, Czechitas data-analysis weekend",
         "text": "Helped beginners load, clean, and visualize open city datasets in Python during a two-day community workshop.",
         "skills": [
-          "Python",
-          "Data wrangling (Pandas)",
-          "SQL"
+          "PyTorch",
+          "scikit-learn"
         ],
         "provenance": "extracurricular",
         "confidence": 0.6
@@ -3188,7 +2969,8 @@
     ],
     "learningSignals": [],
     "completeness": 1.0,
-    "id": "cand-031"
+    "id": "cand-031",
+    "targetRole": "Machine Learning Engineer"
   },
   {
     "archetype": "student",
@@ -3197,9 +2979,8 @@
     "displayName": "Radek Čermák",
     "roleFamily": "software_engineering",
     "aspirations": [
-      "Backend engineer working on distributed systems",
-      "Contribute to open-source developer tooling",
-      "Grow toward a tech-lead role within a few years"
+      "Junior Java Backend Engineer",
+      "Grow into a core engineering role at a bank"
     ],
     "educationLevel": "master",
     "educationDetail": "Open Informatics (Software Engineering specialization), Faculty of Electrical Engineering, Czech Technical University in Prague (ČVUT FEL), expected 2026",
@@ -3211,39 +2992,33 @@
     "location": "Prague, Czech Republic",
     "skillClaims": [
       {
-        "skill": "Python",
-        "level": "strong",
-        "provenance": "academic_project",
-        "confidence": 0.4
-      },
-      {
-        "skill": "Java",
+        "skill": "Microservices",
         "level": "working",
         "provenance": "coursework",
-        "confidence": 0.4
-      },
-      {
-        "skill": "PostgreSQL",
-        "level": "working",
-        "provenance": "academic_project",
         "confidence": 0.4
       },
       {
         "skill": "Docker",
         "level": "foundational",
+        "provenance": "academic_project",
+        "confidence": 0.4
+      },
+      {
+        "skill": "Spring Boot",
+        "level": "foundational",
         "provenance": "self_declared",
         "confidence": 0.4
       },
       {
-        "skill": "Algorithms and Data Structures",
-        "level": "strong",
+        "skill": "Oracle",
+        "level": "foundational",
+        "provenance": "personal_project",
+        "confidence": 0.4
+      },
+      {
+        "skill": "PostgreSQL",
+        "level": "foundational",
         "provenance": "coursework",
-        "confidence": 0.4
-      },
-      {
-        "skill": "Git",
-        "level": "working",
-        "provenance": "self_declared",
         "confidence": 0.4
       }
     ],
@@ -3253,9 +3028,8 @@
         "title": "Bachelor Thesis: Scheduling Heuristics for Container Orchestration",
         "text": "Designed and evaluated bin-packing heuristics for placing containerized workloads under CPU and memory constraints, benchmarking against a baseline scheduler on synthetic cluster traces.",
         "skills": [
-          "Python",
-          "Algorithms and Data Structures",
-          "Docker"
+          "Java",
+          "Spring Boot"
         ],
         "provenance": "thesis",
         "confidence": 0.6
@@ -3265,9 +3039,9 @@
         "title": "StudyGroup Matcher (semester team project)",
         "text": "Built the backend for a web app that matches students into study groups by course and availability; implemented the REST API and the PostgreSQL schema in a four-person team.",
         "skills": [
-          "Python",
-          "PostgreSQL",
-          "Git"
+          "Spring Boot",
+          "Oracle",
+          "Kafka"
         ],
         "provenance": "personal_project",
         "confidence": 0.6,
@@ -3278,8 +3052,8 @@
         "title": "Mentor, Introductory Programming Tutoring Club",
         "text": "Volunteered for two semesters helping first-year students debug Java assignments and understand recursion and basic data structures.",
         "skills": [
-          "Java",
-          "Algorithms and Data Structures"
+          "Oracle",
+          "Kafka"
         ],
         "provenance": "extracurricular",
         "confidence": 0.6
@@ -3287,7 +3061,8 @@
     ],
     "learningSignals": [],
     "completeness": 1.0,
-    "id": "cand-032"
+    "id": "cand-032",
+    "targetRole": "Java Backend Engineer"
   },
   {
     "archetype": "career_switcher",
@@ -3296,8 +3071,8 @@
     "displayName": "Zuzana Čermáková",
     "roleFamily": "product_project",
     "aspirations": [
-      "Associate Product Manager",
-      "Product Manager in digital health / healthtech"
+      "Business Analyst",
+      "Apply prior-domain experience in a banking-tech team"
     ],
     "yearsExperience": 8.0,
     "educationLevel": "master",
@@ -3310,33 +3085,39 @@
     "location": "Brno, Czech Republic",
     "skillClaims": [
       {
-        "skill": "Product discovery",
-        "level": "working",
-        "provenance": "Czechitas Product Management course + capstone project, 2024",
-        "confidence": 0.4
-      },
-      {
-        "skill": "User research & interviews",
-        "level": "strong",
-        "provenance": "Moderated 18 patient/pharmacist interviews for a course capstone",
-        "confidence": 0.4
-      },
-      {
-        "skill": "Agile / Scrum",
-        "level": "working",
-        "provenance": "Professional Scrum Master I (PSM I) certification, 2024",
-        "confidence": 0.4
-      },
-      {
-        "skill": "Roadmapping & prioritization",
+        "skill": "BPMN",
         "level": "foundational",
-        "provenance": "Self-study (RICE/MoSCoW) applied in capstone",
+        "provenance": "coursework",
         "confidence": 0.4
       },
       {
-        "skill": "SQL & product analytics",
-        "level": "foundational",
-        "provenance": "DataCamp 'SQL for Product Analytics' track, 2025",
+        "skill": "SQL",
+        "level": "working",
+        "provenance": "personal_project",
+        "confidence": 0.4
+      },
+      {
+        "skill": "stakeholder management",
+        "level": "working",
+        "provenance": "self_declared",
+        "confidence": 0.4
+      },
+      {
+        "skill": "requirements analysis",
+        "level": "working",
+        "provenance": "coursework",
+        "confidence": 0.4
+      },
+      {
+        "skill": "process mapping",
+        "level": "working",
+        "provenance": "personal_project",
+        "confidence": 0.4
+      },
+      {
+        "skill": "Jira",
+        "level": "working",
+        "provenance": "self_declared",
         "confidence": 0.4
       }
     ],
@@ -3346,9 +3127,8 @@
         "title": "Lead Pharmacist, BENU Lékárna (Brno)",
         "text": "Ran daily operations of a high-traffic pharmacy: managed a team of 5, owned inventory and supplier coordination, and handled medication counseling. Introduced a triage checklist that cut average customer wait time by ~20%.",
         "skills": [
-          "Stakeholder communication",
-          "Process improvement",
-          "Team coordination"
+          "requirements analysis",
+          "BPMN"
         ],
         "provenance": "professional",
         "confidence": 0.6
@@ -3358,8 +3138,9 @@
         "title": "Clinical Pharmacist, Fakultní nemocnice Brno",
         "text": "Reviewed prescriptions and advised physicians on dosing and drug interactions on an internal medicine ward. Acted as liaison between the ward, hospital pharmacy, and suppliers.",
         "skills": [
-          "Domain expertise (healthcare)",
-          "Cross-functional collaboration"
+          "BPMN",
+          "SQL",
+          "stakeholder management"
         ],
         "provenance": "professional",
         "confidence": 0.6
@@ -3369,9 +3150,8 @@
         "title": "Capstone: 'LekarnaGo' medication-reminder app concept",
         "text": "End-to-end product case for the Czechitas course: ran discovery interviews, mapped a chronic-patient journey, prioritized an MVP with RICE, and built a clickable Figma prototype validated with 6 users.",
         "skills": [
-          "Product discovery",
-          "User research & interviews",
-          "Roadmapping & prioritization"
+          "SQL",
+          "stakeholder management"
         ],
         "provenance": "personal_project",
         "confidence": 0.6,
@@ -3382,7 +3162,9 @@
         "title": "Professional Scrum Master I (Scrum.org)",
         "text": "Certified in Scrum framework, sprint facilitation, and backlog refinement; applied the ceremonies while running the capstone as a two-week sprint cadence.",
         "skills": [
-          "Agile / Scrum"
+          "stakeholder management",
+          "process mapping",
+          "Jira"
         ],
         "provenance": "coursework",
         "confidence": 0.6,
@@ -3391,7 +3173,8 @@
     ],
     "learningSignals": [],
     "completeness": 1.0,
-    "id": "cand-033"
+    "id": "cand-033",
+    "targetRole": "Business Analyst"
   },
   {
     "archetype": "student",
@@ -3400,9 +3183,8 @@
     "displayName": "Lucie Konečná",
     "roleFamily": "data_ai",
     "aspirations": [
-      "Junior Data Scientist or ML Engineer role on a product team",
-      "Work on applied NLP / language models for Czech-language data",
-      "Grow toward an MLOps / production-ML specialization"
+      "Junior AI Engineer – AI First domain",
+      "Grow into a core engineering role at a bank"
     ],
     "educationLevel": "master",
     "educationDetail": "Ing. in Applied Informatics, Faculty of Informatics, Masaryk University Brno (graduated 2025)",
@@ -3414,39 +3196,27 @@
     "location": "Brno, Czechia",
     "skillClaims": [
       {
+        "skill": "cloud",
+        "level": "working",
+        "provenance": "coursework",
+        "confidence": 0.4
+      },
+      {
         "skill": "Python",
-        "level": "strong",
-        "provenance": "coursework",
-        "confidence": 0.4
-      },
-      {
-        "skill": "Machine Learning",
-        "level": "working",
+        "level": "foundational",
         "provenance": "academic_project",
         "confidence": 0.4
       },
       {
-        "skill": "PyTorch",
-        "level": "working",
-        "provenance": "academic_project",
-        "confidence": 0.4
-      },
-      {
-        "skill": "SQL",
-        "level": "working",
-        "provenance": "coursework",
-        "confidence": 0.4
-      },
-      {
-        "skill": "Data Visualization",
-        "level": "working",
-        "provenance": "self_declared",
-        "confidence": 0.4
-      },
-      {
-        "skill": "Docker",
+        "skill": "prompt engineering",
         "level": "foundational",
         "provenance": "self_declared",
+        "confidence": 0.4
+      },
+      {
+        "skill": "MLOps",
+        "level": "foundational",
+        "provenance": "personal_project",
         "confidence": 0.4
       }
     ],
@@ -3457,8 +3227,7 @@
         "text": "Master's thesis fine-tuning a Czech BERT model to extract sentiment toward specific product aspects. Built the labeled dataset, ran the training pipeline in PyTorch, and reached 0.81 macro-F1 on a held-out test set.",
         "skills": [
           "Python",
-          "PyTorch",
-          "Machine Learning"
+          "LLM"
         ],
         "provenance": "thesis",
         "confidence": 0.6,
@@ -3469,9 +3238,9 @@
         "title": "Brno Public Transport Delay Predictor",
         "text": "Team coursework project predicting tram/bus delays from open municipal data. I owned the data pipeline and feature engineering in pandas and built an interactive dashboard to compare model predictions against schedules.",
         "skills": [
-          "Python",
-          "SQL",
-          "Data Visualization"
+          "LLM",
+          "PyTorch",
+          "MLOps"
         ],
         "provenance": "personal_project",
         "confidence": 0.6,
@@ -3482,8 +3251,8 @@
         "title": "PyLadies Brno Study Group — Volunteer Mentor",
         "text": "Mentored beginners at monthly community workshops, preparing exercises on data cleaning and basic ML. Reinforced Python fundamentals and practiced explaining concepts clearly.",
         "skills": [
-          "Python",
-          "Machine Learning"
+          "PyTorch",
+          "MLOps"
         ],
         "provenance": "extracurricular",
         "confidence": 0.6
@@ -3491,7 +3260,8 @@
     ],
     "learningSignals": [],
     "completeness": 1.0,
-    "id": "cand-034"
+    "id": "cand-034",
+    "targetRole": "AI Engineer – AI First domain"
   },
   {
     "archetype": "bau",
@@ -3500,9 +3270,8 @@
     "displayName": "Kateřina Horáková",
     "roleFamily": "data_ai",
     "aspirations": [
-      "Lead an ML platform team end-to-end",
-      "Move more production models toward robust online evaluation",
-      "Mentor medior data scientists into senior roles"
+      "Data Scientist – retail banking",
+      "Tech lead / architect within a Česká spořitelna tribe"
     ],
     "yearsExperience": 9.0,
     "seniority": "senior",
@@ -3516,43 +3285,37 @@
     "location": "Brno, Czechia",
     "skillClaims": [
       {
+        "skill": "statistics",
+        "level": "strong",
+        "provenance": "professional",
+        "confidence": 0.4
+      },
+      {
+        "skill": "scikit-learn",
+        "level": "strong",
+        "provenance": "professional",
+        "confidence": 0.4
+      },
+      {
+        "skill": "SQL",
+        "level": "working",
+        "provenance": "professional",
+        "confidence": 0.4
+      },
+      {
         "skill": "Python",
-        "level": "strong",
-        "provenance": "professional",
-        "confidence": 0.4
-      },
-      {
-        "skill": "Machine Learning (scikit-learn, XGBoost)",
-        "level": "strong",
-        "provenance": "professional",
-        "confidence": 0.4
-      },
-      {
-        "skill": "Deep Learning (PyTorch)",
         "level": "working",
         "provenance": "professional",
         "confidence": 0.4
       },
       {
-        "skill": "MLOps (MLflow, Docker, Kubernetes)",
-        "level": "strong",
-        "provenance": "professional",
-        "confidence": 0.4
-      },
-      {
-        "skill": "SQL & data modeling",
-        "level": "strong",
-        "provenance": "professional",
-        "confidence": 0.4
-      },
-      {
-        "skill": "Spark / distributed data processing",
+        "skill": "data visualization",
         "level": "working",
         "provenance": "professional",
         "confidence": 0.4
       },
       {
-        "skill": "Cloud (AWS SageMaker)",
+        "skill": "pandas",
         "level": "working",
         "provenance": "professional",
         "confidence": 0.4
@@ -3565,9 +3328,7 @@
         "text": "Owned the churn-prediction and recommendation re-ranking models serving ~12M daily requests. Built an MLflow-based training and deployment pipeline on Kubernetes that cut model release time from days to hours, and introduced offline/online consistency checks that reduced production regressions.",
         "skills": [
           "Python",
-          "Machine Learning (scikit-learn, XGBoost)",
-          "MLOps (MLflow, Docker, Kubernetes)",
-          "SQL & data modeling"
+          "scikit-learn"
         ],
         "provenance": "professional",
         "confidence": 0.6
@@ -3577,10 +3338,9 @@
         "title": "Data Scientist — Kiwi.com, Brno",
         "text": "Developed pricing-anomaly detection and demand-forecasting models for flight search. Migrated batch feature engineering to Spark, scaling training data 20x, and deployed PyTorch sequence models for booking-intent scoring on AWS SageMaker.",
         "skills": [
-          "Deep Learning (PyTorch)",
-          "Spark / distributed data processing",
-          "Cloud (AWS SageMaker)",
-          "Python"
+          "scikit-learn",
+          "SQL",
+          "statistics"
         ],
         "provenance": "professional",
         "confidence": 0.6
@@ -3588,7 +3348,8 @@
     ],
     "learningSignals": [],
     "completeness": 1.0,
-    "id": "cand-035"
+    "id": "cand-035",
+    "targetRole": "Data Scientist – retail banking"
   },
   {
     "archetype": "student",
@@ -3597,9 +3358,8 @@
     "displayName": "Jiří Blažek",
     "roleFamily": "product_project",
     "aspirations": [
-      "Junior Product Manager v SaaS startupu",
-      "Associate Product Owner se zaměřením na uživatelský výzkum",
-      "dlouhodobě vést produktový tým od discovery po launch"
+      "Junior Product Owner – George",
+      "Grow into a core engineering role at a bank"
     ],
     "educationLevel": "master",
     "educationDetail": "Navazující magisterské studium, obor Management, Vysoká škola ekonomická v Praze (VŠE), 1. ročník (nástup 2024, předpokládané ukončení 2026)",
@@ -3611,33 +3371,33 @@
     "location": "Praha",
     "skillClaims": [
       {
-        "skill": "Agile / Scrum",
+        "skill": "Jira",
         "level": "working",
-        "provenance": "academic_project",
-        "confidence": 0.4
-      },
-      {
-        "skill": "uživatelský výzkum a rozhovory",
-        "level": "foundational",
         "provenance": "coursework",
         "confidence": 0.4
       },
       {
-        "skill": "prioritizace backlogu a roadmapping",
-        "level": "working",
+        "skill": "agile",
+        "level": "foundational",
         "provenance": "academic_project",
         "confidence": 0.4
       },
       {
-        "skill": "analýza dat (SQL, Excel)",
+        "skill": "Scrum",
         "level": "foundational",
-        "provenance": "coursework",
-        "confidence": 0.4
-      },
-      {
-        "skill": "komunikace se stakeholdery",
-        "level": "working",
         "provenance": "self_declared",
+        "confidence": 0.4
+      },
+      {
+        "skill": "stakeholder management",
+        "level": "foundational",
+        "provenance": "personal_project",
+        "confidence": 0.4
+      },
+      {
+        "skill": "roadmapping",
+        "level": "foundational",
+        "provenance": "coursework",
         "confidence": 0.4
       }
     ],
@@ -3647,9 +3407,8 @@
         "title": "Bakalářská práce: Aplikace metodiky Lean Startup při validaci studentského mobilního produktu",
         "text": "Zmapovala jsem proces od problémového rozhovoru po MVP, provedla 14 uživatelských rozhovorů a navrhla iterace na základě hypotéz value/growth. Práce obhájena s hodnocením výborně.",
         "skills": [
-          "uživatelský výzkum a rozhovory",
-          "Lean Startup",
-          "validace hypotéz"
+          "agile",
+          "product discovery"
         ],
         "provenance": "thesis",
         "confidence": 0.6
@@ -3659,9 +3418,9 @@
         "title": "SkriptaShare — semestrální projekt produktového týmu",
         "text": "Vedla jsem čtyřčlenný studentský tým jako product owner: spravovala backlog v Jira, plánovala dvoutýdenní sprinty a sestavila roadmapu pro aplikaci na sdílení studijních materiálů. Dodali jsme funkční prototyp v Figmě a klikací demo.",
         "skills": [
-          "Agile / Scrum",
-          "prioritizace backlogu a roadmapping",
-          "komunikace se stakeholdery"
+          "product discovery",
+          "roadmapping",
+          "stakeholder management"
         ],
         "provenance": "personal_project",
         "confidence": 0.6,
@@ -3672,8 +3431,8 @@
         "title": "Koordinátorka studentského spolku Buddy System VŠE",
         "text": "Organizovala jsem onboarding pro 60+ zahraničních studentů, koordinovala dobrovolníky a sbírala zpětnou vazbu pro zlepšení programu v dalším semestru.",
         "skills": [
-          "komunikace se stakeholdery",
-          "koordinace týmu"
+          "roadmapping",
+          "stakeholder management"
         ],
         "provenance": "extracurricular",
         "confidence": 0.6
@@ -3681,7 +3440,8 @@
     ],
     "learningSignals": [],
     "completeness": 1.0,
-    "id": "cand-036"
+    "id": "cand-036",
+    "targetRole": "Product Owner – George"
   },
   {
     "archetype": "career_switcher",
@@ -3690,8 +3450,8 @@
     "displayName": "Štěpán Procházka",
     "roleFamily": "software_engineering",
     "aspirations": [
-      "Junior Backend Engineer",
-      "Python Developer"
+      "Site Reliability Engineer",
+      "Apply prior-domain experience in a banking-tech team"
     ],
     "yearsExperience": 8.0,
     "educationLevel": "master",
@@ -3704,32 +3464,26 @@
     "location": "Brno, Czech Republic",
     "skillClaims": [
       {
-        "skill": "Python",
-        "level": "working",
+        "skill": "Go",
+        "level": "foundational",
         "provenance": "coursework",
         "confidence": 0.4
       },
       {
-        "skill": "SQL",
+        "skill": "Docker",
         "level": "working",
         "provenance": "personal_project",
         "confidence": 0.4
       },
       {
-        "skill": "Git",
+        "skill": "Observability",
         "level": "working",
-        "provenance": "personal_project",
+        "provenance": "self_declared",
         "confidence": 0.4
       },
       {
-        "skill": "Django",
-        "level": "foundational",
-        "provenance": "personal_project",
-        "confidence": 0.4
-      },
-      {
-        "skill": "JavaScript",
-        "level": "foundational",
+        "skill": "Kubernetes",
+        "level": "working",
         "provenance": "coursework",
         "confidence": 0.4
       }
@@ -3740,9 +3494,8 @@
         "title": "Physics & Mathematics Teacher — Gymnázium Brno, třída Kapitána Jaroše",
         "text": "Taught physics and mathematics to upper-secondary classes for eight years and led the science section. Built spreadsheet-based grade tooling and ran the school's robotics club, which is where programming first pulled me in.",
         "skills": [
-          "communication",
-          "mentoring",
-          "problem decomposition"
+          "Kubernetes",
+          "Prometheus"
         ],
         "provenance": "professional",
         "confidence": 0.6
@@ -3752,8 +3505,9 @@
         "title": "Curriculum Coordinator (Science) — Gymnázium Brno",
         "text": "Coordinated the natural-sciences curriculum and scheduling for ~30 staff, standardising assessment rubrics across the department.",
         "skills": [
-          "planning",
-          "stakeholder coordination"
+          "Prometheus",
+          "Grafana",
+          "Go"
         ],
         "provenance": "professional",
         "confidence": 0.6
@@ -3763,10 +3517,8 @@
         "title": "Lab-Report Tracker — Django + PostgreSQL",
         "text": "Full-stack app I built while reskilling: students submit lab reports, teachers grade and leave inline feedback. REST API, auth, and a small React front-end. Deployed on Fly.io.",
         "skills": [
-          "Python",
-          "Django",
-          "SQL",
-          "Git"
+          "Grafana",
+          "Go"
         ],
         "provenance": "personal_project",
         "confidence": 0.6,
@@ -3777,9 +3529,9 @@
         "title": "CS50x — Introduction to Computer Science (HarvardX)",
         "text": "Completed the full problem-set track (C, Python, SQL, Flask). Capstone was a Flask flashcard app for physics formulae.",
         "skills": [
-          "Python",
-          "SQL",
-          "JavaScript"
+          "Go",
+          "Linux",
+          "Docker"
         ],
         "provenance": "coursework",
         "confidence": 0.6,
@@ -3788,7 +3540,8 @@
     ],
     "learningSignals": [],
     "completeness": 1.0,
-    "id": "cand-037"
+    "id": "cand-037",
+    "targetRole": "Site Reliability Engineer"
   },
   {
     "archetype": "bau",
@@ -3797,9 +3550,8 @@
     "displayName": "Petra Burešová",
     "roleFamily": "data_ai",
     "aspirations": [
-      "Lead an applied ML team owning end-to-end model lifecycle",
-      "Move recommendation systems from batch to real-time inference",
-      "Mentor medior data scientists toward production-grade MLOps"
+      "Risk Data Analyst",
+      "Tech lead / architect within a Česká spořitelna tribe"
     ],
     "yearsExperience": 9.0,
     "seniority": "senior",
@@ -3813,50 +3565,38 @@
     "location": "Brno, Czech Republic",
     "skillClaims": [
       {
+        "skill": "SQL",
+        "level": "strong",
+        "provenance": "professional",
+        "confidence": 0.4
+      },
+      {
+        "skill": "statistics",
+        "level": "strong",
+        "provenance": "professional",
+        "confidence": 0.4
+      },
+      {
         "skill": "Python",
-        "level": "strong",
-        "provenance": "professional",
-        "confidence": 0.4
-      },
-      {
-        "skill": "Machine learning (scikit-learn, XGBoost)",
-        "level": "strong",
-        "provenance": "professional",
-        "confidence": 0.4
-      },
-      {
-        "skill": "Deep learning (PyTorch)",
         "level": "working",
         "provenance": "professional",
         "confidence": 0.4
       },
       {
-        "skill": "SQL & data modeling",
-        "level": "strong",
-        "provenance": "professional",
-        "confidence": 0.4
-      },
-      {
-        "skill": "MLOps (MLflow, Docker, Kubernetes)",
+        "skill": "data analysis",
         "level": "working",
         "provenance": "professional",
         "confidence": 0.4
       },
       {
-        "skill": "Spark / distributed data processing",
+        "skill": "credit risk",
         "level": "working",
         "provenance": "professional",
         "confidence": 0.4
       },
       {
-        "skill": "Cloud ML platforms (AWS SageMaker)",
+        "skill": "Power BI",
         "level": "working",
-        "provenance": "professional",
-        "confidence": 0.4
-      },
-      {
-        "skill": "A/B testing & experiment design",
-        "level": "strong",
         "provenance": "professional",
         "confidence": 0.4
       }
@@ -3867,10 +3607,8 @@
         "title": "Senior Data Scientist, Recombee",
         "text": "Owned the ranking models behind a real-time recommendation API serving 500M+ requests/day. Led migration of the candidate-retrieval stage to a two-tower neural architecture, lifting click-through rate by 11% in production A/B tests. Built the MLflow-based training and monitoring pipeline adopted across the modeling team.",
         "skills": [
-          "Python",
-          "Deep learning (PyTorch)",
-          "MLOps (MLflow, Docker, Kubernetes)",
-          "A/B testing & experiment design"
+          "SQL",
+          "Python"
         ],
         "provenance": "professional",
         "confidence": 0.6
@@ -3880,10 +3618,9 @@
         "title": "Data Scientist, Kiwi.com",
         "text": "Developed demand-forecasting and dynamic-pricing models for flight inventory using XGBoost and Spark over billions of search events. Productionized forecasting service on AWS SageMaker and partnered with revenue teams to validate uplift through controlled experiments.",
         "skills": [
-          "Machine learning (scikit-learn, XGBoost)",
-          "Spark / distributed data processing",
-          "Cloud ML platforms (AWS SageMaker)",
-          "SQL & data modeling"
+          "Python",
+          "statistics",
+          "credit risk"
         ],
         "provenance": "professional",
         "confidence": 0.6
@@ -3891,7 +3628,8 @@
     ],
     "learningSignals": [],
     "completeness": 1.0,
-    "id": "cand-038"
+    "id": "cand-038",
+    "targetRole": "Risk Data Analyst"
   },
   {
     "archetype": "bau",
@@ -3900,9 +3638,8 @@
     "displayName": "Klára Kovářová",
     "roleFamily": "software_engineering",
     "aspirations": [
-      "Grow into a staff/principal backend engineer role",
-      "Own the architecture of a high-throughput payments platform",
-      "Mentor medior engineers and formalize the team's design-review practice"
+      "Integration Engineer – Payments",
+      "Tech lead / architect within a Česká spořitelna tribe"
     ],
     "yearsExperience": 11.0,
     "seniority": "senior",
@@ -3916,43 +3653,37 @@
     "location": "Brno, Czech Republic",
     "skillClaims": [
       {
-        "skill": "Java",
+        "skill": "SQL",
+        "level": "strong",
+        "provenance": "professional",
+        "confidence": 0.4
+      },
+      {
+        "skill": "Kafka",
         "level": "strong",
         "provenance": "professional",
         "confidence": 0.4
       },
       {
         "skill": "Spring Boot",
-        "level": "strong",
-        "provenance": "professional",
-        "confidence": 0.4
-      },
-      {
-        "skill": "PostgreSQL",
-        "level": "strong",
-        "provenance": "professional",
-        "confidence": 0.4
-      },
-      {
-        "skill": "Distributed systems design",
-        "level": "strong",
-        "provenance": "professional",
-        "confidence": 0.4
-      },
-      {
-        "skill": "Apache Kafka",
         "level": "working",
         "provenance": "professional",
         "confidence": 0.4
       },
       {
-        "skill": "Kubernetes",
+        "skill": "REST APIs",
         "level": "working",
         "provenance": "professional",
         "confidence": 0.4
       },
       {
-        "skill": "Python",
+        "skill": "Java",
+        "level": "working",
+        "provenance": "professional",
+        "confidence": 0.4
+      },
+      {
+        "skill": "ISO 20022",
         "level": "working",
         "provenance": "professional",
         "confidence": 0.4
@@ -3965,10 +3696,7 @@
         "text": "Led the breakup of a monolithic CMS billing module into Spring Boot services backed by PostgreSQL and Kafka event streams, cutting invoice-run latency from minutes to seconds. Owned the on-call rotation's reliability backlog and drove the team's API design reviews.",
         "skills": [
           "Java",
-          "Spring Boot",
-          "PostgreSQL",
-          "Apache Kafka",
-          "Distributed systems design"
+          "Kafka"
         ],
         "provenance": "professional",
         "confidence": 0.6
@@ -3978,10 +3706,9 @@
         "title": "Backend Engineer, Seznam.cz (Prague)",
         "text": "Built and operated high-traffic search-adjacent APIs serving millions of daily requests, introduced Kubernetes-based deployments for the team's services, and added Python tooling for load testing and capacity planning.",
         "skills": [
-          "Java",
-          "Python",
-          "Kubernetes",
-          "PostgreSQL"
+          "Kafka",
+          "REST APIs",
+          "ISO 20022"
         ],
         "provenance": "professional",
         "confidence": 0.6
@@ -3989,7 +3716,8 @@
     ],
     "learningSignals": [],
     "completeness": 1.0,
-    "id": "cand-039"
+    "id": "cand-039",
+    "targetRole": "Integration Engineer – Payments"
   },
   {
     "archetype": "bau",
@@ -3998,9 +3726,8 @@
     "displayName": "David Kříž",
     "roleFamily": "software_engineering",
     "aspirations": [
-      "Lead a platform/backend team",
-      "Drive event-driven architecture across services",
-      "Mentor medior engineers into senior roles"
+      "Java Backend Engineer",
+      "Tech lead / architect within a Česká spořitelna tribe"
     ],
     "yearsExperience": 11.0,
     "seniority": "senior",
@@ -4014,50 +3741,44 @@
     "location": "Brno, Czech Republic",
     "skillClaims": [
       {
-        "skill": "Java",
+        "skill": "Oracle",
         "level": "strong",
         "provenance": "professional",
         "confidence": 0.4
       },
       {
-        "skill": "Spring Boot",
-        "level": "strong",
-        "provenance": "professional",
-        "confidence": 0.4
-      },
-      {
-        "skill": "Kubernetes",
-        "level": "working",
-        "provenance": "professional",
-        "confidence": 0.4
-      },
-      {
-        "skill": "Apache Kafka",
+        "skill": "REST APIs",
         "level": "strong",
         "provenance": "professional",
         "confidence": 0.4
       },
       {
         "skill": "PostgreSQL",
-        "level": "strong",
-        "provenance": "professional",
-        "confidence": 0.4
-      },
-      {
-        "skill": "Go",
         "level": "working",
         "provenance": "professional",
         "confidence": 0.4
       },
       {
-        "skill": "AWS",
+        "skill": "Spring Boot",
         "level": "working",
         "provenance": "professional",
         "confidence": 0.4
       },
       {
-        "skill": "Distributed Systems Design",
-        "level": "strong",
+        "skill": "Docker",
+        "level": "working",
+        "provenance": "professional",
+        "confidence": 0.4
+      },
+      {
+        "skill": "Microservices",
+        "level": "working",
+        "provenance": "professional",
+        "confidence": 0.4
+      },
+      {
+        "skill": "Java",
+        "level": "working",
         "provenance": "professional",
         "confidence": 0.4
       }
@@ -4069,10 +3790,7 @@
         "text": "Led the decomposition of a monolithic CMS billing module into Kafka-driven microservices, cutting invoice-processing latency by ~60% and enabling zero-downtime deploys on Kubernetes. Owned the on-call rotation design and mentored three medior engineers.",
         "skills": [
           "Java",
-          "Spring Boot",
-          "Apache Kafka",
-          "Kubernetes",
-          "Distributed Systems Design"
+          "Spring Boot"
         ],
         "provenance": "professional",
         "confidence": 0.6
@@ -4082,10 +3800,9 @@
         "title": "Backend Engineer, Y Soft",
         "text": "Built and scaled the printing-fleet telemetry pipeline ingesting events from 200k+ devices, migrating storage from a single PostgreSQL instance to a partitioned, read-replica setup on AWS RDS.",
         "skills": [
-          "Java",
-          "PostgreSQL",
-          "AWS",
-          "Go"
+          "Spring Boot",
+          "Oracle",
+          "Kafka"
         ],
         "provenance": "professional",
         "confidence": 0.6
@@ -4093,7 +3810,8 @@
     ],
     "learningSignals": [],
     "completeness": 1.0,
-    "id": "cand-040"
+    "id": "cand-040",
+    "targetRole": "Java Backend Engineer"
   },
   {
     "archetype": "bau",
@@ -4102,9 +3820,8 @@
     "displayName": "Radek Urban",
     "roleFamily": "data_ai",
     "aspirations": [
-      "Lead an ML platform team owning the full training-to-serving lifecycle",
-      "Take production LLM/RAG systems from prototype to reliable, monitored services",
-      "Mentor junior data scientists and grow the team's MLOps maturity"
+      "Machine Learning Engineer",
+      "Tech lead / architect within a Česká spořitelna tribe"
     ],
     "yearsExperience": 9.0,
     "seniority": "senior",
@@ -4118,44 +3835,38 @@
     "location": "Brno, Czech Republic",
     "skillClaims": [
       {
+        "skill": "MLflow",
+        "level": "strong",
+        "provenance": "professional",
+        "confidence": 0.4
+      },
+      {
+        "skill": "scikit-learn",
+        "level": "strong",
+        "provenance": "professional",
+        "confidence": 0.4
+      },
+      {
+        "skill": "MLOps",
+        "level": "working",
+        "provenance": "professional",
+        "confidence": 0.4
+      },
+      {
         "skill": "Python",
-        "level": "strong",
-        "provenance": "professional",
-        "confidence": 0.4
-      },
-      {
-        "skill": "Machine learning (scikit-learn, XGBoost)",
-        "level": "strong",
-        "provenance": "professional",
-        "confidence": 0.4
-      },
-      {
-        "skill": "Deep learning (PyTorch)",
         "level": "working",
         "provenance": "professional",
         "confidence": 0.4
       },
       {
-        "skill": "SQL & data warehousing (BigQuery, Snowflake)",
-        "level": "strong",
-        "provenance": "professional",
-        "confidence": 0.4
-      },
-      {
-        "skill": "MLOps (Docker, Kubernetes, MLflow)",
+        "skill": "PyTorch",
         "level": "working",
         "provenance": "professional",
         "confidence": 0.4
       },
       {
-        "skill": "NLP & LLM fine-tuning / RAG",
+        "skill": "cloud",
         "level": "working",
-        "provenance": "professional",
-        "confidence": 0.4
-      },
-      {
-        "skill": "Experiment design & A/B testing",
-        "level": "strong",
         "provenance": "professional",
         "confidence": 0.4
       }
@@ -4167,9 +3878,7 @@
         "text": "Owned demand-forecasting and dynamic-pricing models for flight search, replacing a rules-based baseline with gradient-boosted ensembles and cutting forecast error ~18%. Productionized models on Kubernetes with MLflow tracking and led the migration of the team's feature pipeline to BigQuery.",
         "skills": [
           "Python",
-          "Machine learning (scikit-learn, XGBoost)",
-          "SQL & data warehousing (BigQuery, Snowflake)",
-          "MLOps (Docker, Kubernetes, MLflow)"
+          "MLflow"
         ],
         "provenance": "professional",
         "confidence": 0.6
@@ -4179,10 +3888,9 @@
         "title": "Machine Learning Engineer, Seznam.cz",
         "text": "Built and shipped learning-to-rank models for search and content recommendation serving millions of daily users, and ran the offline/online A/B evaluation framework that gated launches. Introduced a PyTorch-based ranking prototype that improved click-through on the top results.",
         "skills": [
-          "Python",
-          "Deep learning (PyTorch)",
-          "Experiment design & A/B testing",
-          "NLP & LLM fine-tuning / RAG"
+          "MLflow",
+          "PyTorch",
+          "scikit-learn"
         ],
         "provenance": "professional",
         "confidence": 0.6
@@ -4190,7 +3898,8 @@
     ],
     "learningSignals": [],
     "completeness": 1.0,
-    "id": "cand-041"
+    "id": "cand-041",
+    "targetRole": "Machine Learning Engineer"
   },
   {
     "archetype": "bau",
@@ -4199,9 +3908,8 @@
     "displayName": "Jan Procházka",
     "roleFamily": "software_engineering",
     "aspirations": [
-      "Move into a staff/principal engineering track",
-      "Lead platform reliability initiatives",
-      "Mentor medior engineers into ownership roles"
+      "Android Engineer – George",
+      "Tech lead / architect within a Česká spořitelna tribe"
     ],
     "yearsExperience": 9.0,
     "seniority": "senior",
@@ -4215,44 +3923,38 @@
     "location": "Brno, Czech Republic",
     "skillClaims": [
       {
-        "skill": "Java",
+        "skill": "Android",
         "level": "strong",
         "provenance": "professional",
         "confidence": 0.4
       },
       {
-        "skill": "Spring Boot",
+        "skill": "Jetpack Compose",
         "level": "strong",
         "provenance": "professional",
         "confidence": 0.4
       },
       {
-        "skill": "Kubernetes",
+        "skill": "Kotlin",
         "level": "working",
         "provenance": "professional",
         "confidence": 0.4
       },
       {
-        "skill": "PostgreSQL",
-        "level": "strong",
-        "provenance": "professional",
-        "confidence": 0.4
-      },
-      {
-        "skill": "Kafka",
+        "skill": "Git",
         "level": "working",
         "provenance": "professional",
         "confidence": 0.4
       },
       {
-        "skill": "AWS",
+        "skill": "REST APIs",
         "level": "working",
         "provenance": "professional",
         "confidence": 0.4
       },
       {
-        "skill": "Distributed systems design",
-        "level": "strong",
+        "skill": "Coroutines",
+        "level": "working",
         "provenance": "professional",
         "confidence": 0.4
       }
@@ -4263,11 +3965,8 @@
         "title": "Senior Backend Engineer, Platform Team — Kentico Software",
         "text": "Owned the event-driven billing service handling ~4M daily transactions. Migrated a monolith module to Spring Boot microservices on Kubernetes, cutting p99 latency by 38%. Introduced Kafka-based async processing and led the on-call reliability rotation for the payments domain.",
         "skills": [
-          "Java",
-          "Spring Boot",
-          "Kafka",
-          "Kubernetes",
-          "PostgreSQL"
+          "Kotlin",
+          "Android"
         ],
         "provenance": "professional",
         "confidence": 0.6
@@ -4277,10 +3976,9 @@
         "title": "Backend Engineer — Y Soft",
         "text": "Built REST and gRPC services for the print-management cloud, scaling multi-tenant data isolation on PostgreSQL. Implemented CI/CD pipelines on AWS and reduced deployment time from 40 to 8 minutes.",
         "skills": [
-          "Java",
-          "PostgreSQL",
-          "AWS",
-          "Distributed systems design"
+          "Android",
+          "Jetpack Compose",
+          "Coroutines"
         ],
         "provenance": "professional",
         "confidence": 0.6
@@ -4288,7 +3986,8 @@
     ],
     "learningSignals": [],
     "completeness": 1.0,
-    "id": "cand-042"
+    "id": "cand-042",
+    "targetRole": "Android Engineer – George"
   },
   {
     "archetype": "bau",
@@ -4297,9 +3996,8 @@
     "displayName": "Eliška Králová",
     "roleFamily": "product_project",
     "aspirations": [
-      "Lead a cross-functional product org in a scale-up",
-      "Grow into a Head of Product role",
-      "Mentor junior product managers"
+      "IT Project Manager",
+      "Tech lead / architect within a Česká spořitelna tribe"
     ],
     "yearsExperience": 9.0,
     "seniority": "senior",
@@ -4313,43 +4011,37 @@
     "location": "Brno, Czech Republic",
     "skillClaims": [
       {
-        "skill": "Product roadmapping",
+        "skill": "risk management",
         "level": "strong",
         "provenance": "professional",
         "confidence": 0.4
       },
       {
-        "skill": "Stakeholder management",
+        "skill": "Jira",
         "level": "strong",
         "provenance": "professional",
         "confidence": 0.4
       },
       {
-        "skill": "Agile / Scrum delivery",
-        "level": "strong",
-        "provenance": "professional",
-        "confidence": 0.4
-      },
-      {
-        "skill": "Backlog prioritization (RICE, MoSCoW)",
-        "level": "strong",
-        "provenance": "professional",
-        "confidence": 0.4
-      },
-      {
-        "skill": "Product analytics & KPI definition",
+        "skill": "stakeholder management",
         "level": "working",
         "provenance": "professional",
         "confidence": 0.4
       },
       {
-        "skill": "User research & discovery",
+        "skill": "project management",
         "level": "working",
         "provenance": "professional",
         "confidence": 0.4
       },
       {
-        "skill": "OKR planning",
+        "skill": "budgeting",
+        "level": "working",
+        "provenance": "professional",
+        "confidence": 0.4
+      },
+      {
+        "skill": "delivery",
         "level": "working",
         "provenance": "professional",
         "confidence": 0.4
@@ -4361,10 +4053,8 @@
         "title": "Senior Product Manager — Kentico Software",
         "text": "Owned the roadmap for the content-personalization module across a 14-person delivery squad. Defined quarterly OKRs, ran discovery interviews with enterprise clients, and shipped a feature set that lifted activation by 22%.",
         "skills": [
-          "Product roadmapping",
-          "Stakeholder management",
-          "OKR planning",
-          "User research & discovery"
+          "project management",
+          "delivery"
         ],
         "provenance": "professional",
         "confidence": 0.6
@@ -4374,9 +4064,9 @@
         "title": "Project Manager — Y Soft",
         "text": "Coordinated delivery of a print-management platform release across distributed engineering teams in Brno and Ostrava. Introduced a RICE-based prioritization framework and reduced average cycle time by 18%.",
         "skills": [
-          "Agile / Scrum delivery",
-          "Backlog prioritization (RICE, MoSCoW)",
-          "Product analytics & KPI definition"
+          "delivery",
+          "risk management",
+          "stakeholder management"
         ],
         "provenance": "professional",
         "confidence": 0.6
@@ -4384,7 +4074,8 @@
     ],
     "learningSignals": [],
     "completeness": 1.0,
-    "id": "cand-043"
+    "id": "cand-043",
+    "targetRole": "IT Project Manager"
   },
   {
     "archetype": "bau",
@@ -4393,9 +4084,8 @@
     "displayName": "Karolína Pospíšilová",
     "roleFamily": "software_engineering",
     "aspirations": [
-      "Move into a staff/principal engineering track focused on platform reliability",
-      "Mentor medior backend engineers and formalize the team's on-call practices",
-      "Lead the migration of legacy monoliths toward event-driven services"
+      "Cloud / DevOps Engineer",
+      "Tech lead / architect within a Česká spořitelna tribe"
     ],
     "yearsExperience": 9.0,
     "seniority": "senior",
@@ -4409,43 +4099,37 @@
     "location": "Brno, Czech Republic",
     "skillClaims": [
       {
-        "skill": "Go",
+        "skill": "Terraform",
         "level": "strong",
         "provenance": "professional",
         "confidence": 0.4
       },
       {
-        "skill": "PostgreSQL",
+        "skill": "Docker",
         "level": "strong",
         "provenance": "professional",
         "confidence": 0.4
       },
       {
-        "skill": "Kubernetes",
+        "skill": "Linux",
         "level": "working",
         "provenance": "professional",
         "confidence": 0.4
       },
       {
-        "skill": "Distributed systems design",
-        "level": "strong",
-        "provenance": "professional",
-        "confidence": 0.4
-      },
-      {
-        "skill": "gRPC / Protocol Buffers",
+        "skill": "AWS",
         "level": "working",
         "provenance": "professional",
         "confidence": 0.4
       },
       {
-        "skill": "Observability (Prometheus, OpenTelemetry)",
+        "skill": "GitLab CI",
         "level": "working",
         "provenance": "professional",
         "confidence": 0.4
       },
       {
-        "skill": "Python",
+        "skill": "Ansible",
         "level": "working",
         "provenance": "professional",
         "confidence": 0.4
@@ -4457,9 +4141,7 @@
         "title": "Senior Backend Engineer — Platform Team, Logio s.r.o.",
         "text": "Owned the order-routing service handling ~4k req/s. Led the extraction of the billing domain from the monolith into a Go-based service backed by PostgreSQL, cutting p99 latency by 38% and reducing on-call incidents by half over two quarters.",
         "skills": [
-          "Go",
-          "PostgreSQL",
-          "Distributed systems design",
+          "AWS",
           "Kubernetes"
         ],
         "provenance": "professional",
@@ -4470,10 +4152,9 @@
         "title": "Backend Engineer — Payments, Kentico Software",
         "text": "Built idempotent payment-reconciliation pipelines and a gRPC internal API consumed by four teams. Introduced OpenTelemetry tracing across services, which became the standard for the engineering org.",
         "skills": [
-          "Go",
-          "gRPC / Protocol Buffers",
-          "Observability (Prometheus, OpenTelemetry)",
-          "Python"
+          "Kubernetes",
+          "Terraform",
+          "Docker"
         ],
         "provenance": "professional",
         "confidence": 0.6
@@ -4481,7 +4162,8 @@
     ],
     "learningSignals": [],
     "completeness": 1.0,
-    "id": "cand-044"
+    "id": "cand-044",
+    "targetRole": "Cloud / DevOps Engineer"
   },
   {
     "archetype": "student",
@@ -4490,9 +4172,8 @@
     "displayName": "Tereza Němecová",
     "roleFamily": "product_project",
     "aspirations": [
-      "Land an Associate Product Manager role at a B2B SaaS company",
-      "Grow into product discovery and data-informed prioritization",
-      "Eventually own a product area end-to-end"
+      "Junior Business Analyst",
+      "Grow into a core engineering role at a bank"
     ],
     "educationLevel": "master",
     "educationDetail": "Master's in Information Management, Faculty of Informatics and Statistics, Prague University of Economics and Business (VŠE), 2024",
@@ -4504,33 +4185,39 @@
     "location": "Prague, Czech Republic",
     "skillClaims": [
       {
-        "skill": "Agile / Scrum",
+        "skill": "requirements analysis",
         "level": "working",
         "provenance": "coursework",
         "confidence": 0.4
       },
       {
-        "skill": "Product discovery & user interviews",
+        "skill": "stakeholder management",
         "level": "foundational",
         "provenance": "academic_project",
         "confidence": 0.4
       },
       {
-        "skill": "Backlog prioritization & roadmapping",
-        "level": "working",
-        "provenance": "academic_project",
-        "confidence": 0.4
-      },
-      {
-        "skill": "SQL & data analysis",
+        "skill": "process mapping",
         "level": "foundational",
-        "provenance": "coursework",
-        "confidence": 0.4
-      },
-      {
-        "skill": "Stakeholder communication",
-        "level": "working",
         "provenance": "self_declared",
+        "confidence": 0.4
+      },
+      {
+        "skill": "BPMN",
+        "level": "foundational",
+        "provenance": "personal_project",
+        "confidence": 0.4
+      },
+      {
+        "skill": "Jira",
+        "level": "foundational",
+        "provenance": "coursework",
+        "confidence": 0.4
+      },
+      {
+        "skill": "SQL",
+        "level": "foundational",
+        "provenance": "academic_project",
         "confidence": 0.4
       }
     ],
@@ -4540,9 +4227,8 @@
         "title": "Adoption Barriers of Self-Service Analytics Tools in Mid-Sized Czech Firms",
         "text": "Master's thesis combining 14 semi-structured interviews with a survey (n=120) to map why non-technical teams abandon BI dashboards. Produced a prioritized list of friction points and feature recommendations.",
         "skills": [
-          "Product discovery & user interviews",
-          "SQL & data analysis",
-          "Stakeholder communication"
+          "requirements analysis",
+          "BPMN"
         ],
         "provenance": "thesis",
         "confidence": 0.6
@@ -4552,9 +4238,9 @@
         "title": "Skolní Burza — Campus Marketplace MVP",
         "text": "Led a four-person student team to ship a textbook-swap web app. Ran the backlog in Trello, facilitated weekly sprints, and prioritized features from a short user-interview round before launch to ~200 campus users.",
         "skills": [
-          "Agile / Scrum",
-          "Backlog prioritization & roadmapping",
-          "Product discovery & user interviews"
+          "BPMN",
+          "SQL",
+          "stakeholder management"
         ],
         "provenance": "personal_project",
         "confidence": 0.6,
@@ -4565,8 +4251,8 @@
         "title": "Product Track Lead, VŠE Student Startup Club",
         "text": "Organized a semester-long product workshop series for ~30 members, inviting practitioners to run sessions on roadmapping and metrics, and coordinated speakers and schedules.",
         "skills": [
-          "Stakeholder communication",
-          "Backlog prioritization & roadmapping"
+          "SQL",
+          "stakeholder management"
         ],
         "provenance": "extracurricular",
         "confidence": 0.6
@@ -4574,7 +4260,8 @@
     ],
     "learningSignals": [],
     "completeness": 1.0,
-    "id": "cand-045"
+    "id": "cand-045",
+    "targetRole": "Business Analyst"
   },
   {
     "archetype": "career_switcher",
@@ -4583,8 +4270,8 @@
     "displayName": "Jana Beráneková",
     "roleFamily": "product_project",
     "aspirations": [
-      "Associate / Junior Product Manager",
-      "Product Owner in a health-tech or B2B SaaS team"
+      "Agile Coach / Scrum Master",
+      "Apply prior-domain experience in a banking-tech team"
     ],
     "yearsExperience": 7.0,
     "educationLevel": "master",
@@ -4597,33 +4284,33 @@
     "location": "Brno, Czechia",
     "skillClaims": [
       {
-        "skill": "Agile & Scrum",
-        "level": "working",
-        "provenance": "coursework",
-        "confidence": 0.4
-      },
-      {
-        "skill": "Product discovery & user research",
-        "level": "working",
-        "provenance": "project",
-        "confidence": 0.4
-      },
-      {
-        "skill": "Roadmapping & backlog prioritization",
+        "skill": "stakeholder management",
         "level": "foundational",
         "provenance": "coursework",
         "confidence": 0.4
       },
       {
-        "skill": "Stakeholder management",
-        "level": "strong",
-        "provenance": "prior_career",
+        "skill": "agile",
+        "level": "working",
+        "provenance": "personal_project",
         "confidence": 0.4
       },
       {
-        "skill": "SQL & product analytics",
-        "level": "foundational",
-        "provenance": "project",
+        "skill": "Scrum",
+        "level": "working",
+        "provenance": "self_declared",
+        "confidence": 0.4
+      },
+      {
+        "skill": "Kanban",
+        "level": "working",
+        "provenance": "coursework",
+        "confidence": 0.4
+      },
+      {
+        "skill": "facilitation",
+        "level": "working",
+        "provenance": "personal_project",
         "confidence": 0.4
       }
     ],
@@ -4633,9 +4320,8 @@
         "title": "Lead Physiotherapist, RehaActive Clinic (2018–2024)",
         "text": "Ran the rehabilitation programme for a 6-clinician practice: coordinated patient caseloads, owned the treatment-scheduling process, and negotiated equipment purchases with suppliers. Trained four junior physios and acted as the patient liaison for insurer reporting.",
         "skills": [
-          "Stakeholder management",
-          "Process ownership",
-          "Team coordination"
+          "Scrum",
+          "Kanban"
         ],
         "provenance": "professional",
         "confidence": 0.6
@@ -4645,8 +4331,9 @@
         "title": "Physiotherapist, Sportovní centrum Lužánky (2015–2018)",
         "text": "Designed individual rehabilitation plans for sport-injury clients and tracked recovery outcomes, learning to translate qualitative feedback into measurable progress goals.",
         "skills": [
-          "Outcome tracking",
-          "Client communication"
+          "Kanban",
+          "facilitation",
+          "agile"
         ],
         "provenance": "professional",
         "confidence": 0.6
@@ -4656,9 +4343,8 @@
         "title": "Capstone: 'PhysioTrack' patient-progress app concept",
         "text": "Czechitas Product Management capstone. Ran 8 problem-discovery interviews with clinicians, built a prioritized opportunity-solution tree, and shipped a clickable Figma prototype validated in 5 usability sessions. Defined success metrics and a 3-sprint MVP roadmap.",
         "skills": [
-          "Product discovery & user research",
-          "Roadmapping & backlog prioritization",
-          "Agile & Scrum"
+          "facilitation",
+          "agile"
         ],
         "provenance": "personal_project",
         "confidence": 0.6,
@@ -4669,7 +4355,9 @@
         "title": "SQL for Product Analytics — DataCamp",
         "text": "Completed a hands-on track querying event data; final exercise analysed a funnel drop-off in a sample subscription product and proposed two activation experiments.",
         "skills": [
-          "SQL & product analytics"
+          "agile",
+          "stakeholder management",
+          "Jira"
         ],
         "provenance": "coursework",
         "confidence": 0.6,
@@ -4678,7 +4366,8 @@
     ],
     "learningSignals": [],
     "completeness": 1.0,
-    "id": "cand-046"
+    "id": "cand-046",
+    "targetRole": "Agile Coach / Scrum Master"
   },
   {
     "archetype": "bau",
@@ -4687,9 +4376,8 @@
     "displayName": "Jan Mareš",
     "roleFamily": "software_engineering",
     "aspirations": [
-      "Move into a staff/principal engineering track",
-      "Own platform reliability and developer-experience initiatives",
-      "Mentor medior engineers toward senior level"
+      "Integration Engineer – Payments",
+      "Tech lead / architect within a Česká spořitelna tribe"
     ],
     "yearsExperience": 9.0,
     "seniority": "senior",
@@ -4703,44 +4391,38 @@
     "location": "Brno, Czech Republic",
     "skillClaims": [
       {
-        "skill": "Go",
+        "skill": "REST APIs",
         "level": "strong",
         "provenance": "professional",
         "confidence": 0.4
       },
       {
-        "skill": "Kubernetes",
+        "skill": "ISO 20022",
         "level": "strong",
         "provenance": "professional",
         "confidence": 0.4
       },
       {
-        "skill": "PostgreSQL",
-        "level": "strong",
-        "provenance": "professional",
-        "confidence": 0.4
-      },
-      {
-        "skill": "Distributed systems",
+        "skill": "SQL",
         "level": "working",
         "provenance": "professional",
         "confidence": 0.4
       },
       {
-        "skill": "gRPC / Protocol Buffers",
+        "skill": "Kafka",
         "level": "working",
         "provenance": "professional",
         "confidence": 0.4
       },
       {
-        "skill": "Terraform",
+        "skill": "Spring Boot",
         "level": "working",
         "provenance": "professional",
         "confidence": 0.4
       },
       {
-        "skill": "Observability (Prometheus, Grafana)",
-        "level": "strong",
+        "skill": "Java",
+        "level": "working",
         "provenance": "professional",
         "confidence": 0.4
       }
@@ -4751,10 +4433,8 @@
         "title": "Senior Backend Engineer, Payments Platform — Kentico Software",
         "text": "Led the redesign of the payment-orchestration service in Go, cutting p99 latency by 40% and migrating the team off a monolith onto Kubernetes with zero-downtime rollouts. Owned the on-call rotation and the SLO/error-budget process for three production services.",
         "skills": [
-          "Go",
-          "Kubernetes",
-          "PostgreSQL",
-          "Observability (Prometheus, Grafana)"
+          "Java",
+          "Kafka"
         ],
         "provenance": "professional",
         "confidence": 0.6
@@ -4764,10 +4444,9 @@
         "title": "Backend Engineer — Y Soft Corporation",
         "text": "Built gRPC services for device fleet management handling 50k+ connected printers, and introduced Terraform-managed infrastructure that reduced environment provisioning time from days to under an hour.",
         "skills": [
-          "gRPC / Protocol Buffers",
-          "Terraform",
-          "Distributed systems",
-          "Go"
+          "Kafka",
+          "REST APIs",
+          "ISO 20022"
         ],
         "provenance": "professional",
         "confidence": 0.6
@@ -4775,7 +4454,8 @@
     ],
     "learningSignals": [],
     "completeness": 1.0,
-    "id": "cand-047"
+    "id": "cand-047",
+    "targetRole": "Integration Engineer – Payments"
   },
   {
     "archetype": "bau",
@@ -4784,8 +4464,8 @@
     "displayName": "Vít Dvořák",
     "roleFamily": "product_project",
     "aspirations": [
-      "Lead a cross-functional product organization",
-      "Scale a B2B SaaS product into new EU markets"
+      "Product Owner – George",
+      "Tech lead / architect within a Česká spořitelna tribe"
     ],
     "yearsExperience": 9.0,
     "seniority": "senior",
@@ -4799,43 +4479,37 @@
     "location": "Brno, Czechia",
     "skillClaims": [
       {
-        "skill": "Product roadmapping",
+        "skill": "roadmapping",
         "level": "strong",
         "provenance": "professional",
         "confidence": 0.4
       },
       {
-        "skill": "Stakeholder management",
+        "skill": "product discovery",
         "level": "strong",
         "provenance": "professional",
         "confidence": 0.4
       },
       {
-        "skill": "Agile/Scrum delivery",
-        "level": "strong",
-        "provenance": "professional",
-        "confidence": 0.4
-      },
-      {
-        "skill": "Data-driven prioritization",
+        "skill": "Scrum",
         "level": "working",
         "provenance": "professional",
         "confidence": 0.4
       },
       {
-        "skill": "OKR planning",
+        "skill": "agile",
         "level": "working",
         "provenance": "professional",
         "confidence": 0.4
       },
       {
-        "skill": "User research & discovery",
+        "skill": "Jira",
         "level": "working",
         "provenance": "professional",
         "confidence": 0.4
       },
       {
-        "skill": "Go-to-market strategy",
+        "skill": "stakeholder management",
         "level": "working",
         "provenance": "professional",
         "confidence": 0.4
@@ -4847,9 +4521,8 @@
         "title": "Senior Product Manager, Kentico Software",
         "text": "Owned the content-modeling area of a headless CMS platform, leading a squad of 7 across engineering and design. Defined and shipped a quarterly roadmap that grew enterprise activation by 22% and cut onboarding time by a third through staged discovery and continuous user interviews.",
         "skills": [
-          "Product roadmapping",
-          "Stakeholder management",
-          "User research & discovery"
+          "agile",
+          "product discovery"
         ],
         "provenance": "professional",
         "confidence": 0.6
@@ -4859,9 +4532,9 @@
         "title": "Product Owner, Y Soft",
         "text": "Acted as product owner for a print-management B2B module, running dual-track agile with two Scrum teams. Introduced an OKR framework and data-driven backlog prioritization that increased on-time release rate from 60% to 90% over four quarters.",
         "skills": [
-          "Agile/Scrum delivery",
-          "OKR planning",
-          "Data-driven prioritization"
+          "product discovery",
+          "roadmapping",
+          "stakeholder management"
         ],
         "provenance": "professional",
         "confidence": 0.6
@@ -4869,7 +4542,8 @@
     ],
     "learningSignals": [],
     "completeness": 1.0,
-    "id": "cand-048"
+    "id": "cand-048",
+    "targetRole": "Product Owner – George"
   },
   {
     "archetype": "career_switcher",
@@ -4878,8 +4552,8 @@
     "displayName": "Gabriela Burešová",
     "roleFamily": "software_engineering",
     "aspirations": [
-      "Junior Backend Developer (Python)",
-      "Bioinformatics Software Engineer"
+      "iOS Engineer – George",
+      "Apply prior-domain experience in a banking-tech team"
     ],
     "yearsExperience": 8.0,
     "educationLevel": "master",
@@ -4892,33 +4566,39 @@
     "location": "Brno, Czech Republic",
     "skillClaims": [
       {
-        "skill": "Python",
+        "skill": "Xcode",
+        "level": "foundational",
+        "provenance": "coursework",
+        "confidence": 0.4
+      },
+      {
+        "skill": "REST APIs",
         "level": "working",
-        "provenance": "Engeto Academy 6-month Python Developer bootcamp (2023) plus personal automation scripts; previously used Python for lab data processing",
+        "provenance": "personal_project",
         "confidence": 0.4
       },
       {
-        "skill": "SQL",
+        "skill": "Combine",
         "level": "working",
-        "provenance": "PostgreSQL coursework and a self-built inventory tracker for a community garden",
+        "provenance": "self_declared",
         "confidence": 0.4
       },
       {
-        "skill": "Git & GitHub",
-        "level": "foundational",
-        "provenance": "Version control used across all bootcamp and capstone projects",
+        "skill": "Swift",
+        "level": "working",
+        "provenance": "coursework",
         "confidence": 0.4
       },
       {
-        "skill": "FastAPI",
-        "level": "foundational",
-        "provenance": "Built REST endpoints for the bootcamp capstone project",
+        "skill": "Git",
+        "level": "working",
+        "provenance": "personal_project",
         "confidence": 0.4
       },
       {
-        "skill": "Data structures & algorithms",
-        "level": "foundational",
-        "provenance": "Self-study with LeetCode (~120 problems) and bootcamp curriculum",
+        "skill": "SwiftUI",
+        "level": "working",
+        "provenance": "self_declared",
         "confidence": 0.4
       }
     ],
@@ -4928,10 +4608,8 @@
         "title": "Research Scientist — Molecular Biology Lab, Loschmidt Laboratories (2014–2022)",
         "text": "Designed and ran protein-engineering experiments, managed sample pipelines, and processed large gene-expression datasets in R and Python. Authored standardized data-cleaning scripts adopted by the team, which sparked an interest in software and led to a deliberate career change.",
         "skills": [
-          "Python",
-          "data analysis",
-          "R",
-          "experimental design"
+          "Swift",
+          "SwiftUI"
         ],
         "provenance": "professional",
         "confidence": 0.6
@@ -4941,8 +4619,9 @@
         "title": "Laboratory Coordinator (part-time, 2022–2023)",
         "text": "Coordinated lab scheduling and reagent ordering for a 12-person research group while studying programming in the evenings; built a small spreadsheet-automation tool to reduce manual ordering errors.",
         "skills": [
-          "process automation",
-          "Python"
+          "SwiftUI",
+          "iOS",
+          "Combine"
         ],
         "provenance": "professional",
         "confidence": 0.6
@@ -4952,10 +4631,8 @@
         "title": "Capstone: 'SeedSwap' — community plant-exchange API",
         "text": "End-to-end FastAPI + PostgreSQL backend with JWT auth and a small React frontend, built as the Engeto bootcamp capstone. Deployed on Railway with CI via GitHub Actions.",
         "skills": [
-          "Python",
-          "FastAPI",
-          "SQL",
-          "Git & GitHub"
+          "iOS",
+          "Combine"
         ],
         "provenance": "personal_project",
         "confidence": 0.6,
@@ -4966,9 +4643,9 @@
         "title": "Engeto Python Developer Academy — Certificate of Completion (2023)",
         "text": "600+ hour intensive covering Python fundamentals, OOP, databases, web APIs, and testing; graduated in the top cohort group.",
         "skills": [
-          "Python",
-          "SQL",
-          "testing"
+          "Combine",
+          "REST APIs",
+          "Xcode"
         ],
         "provenance": "coursework",
         "confidence": 0.6,
@@ -4977,6 +4654,7 @@
     ],
     "learningSignals": [],
     "completeness": 1.0,
-    "id": "cand-049"
+    "id": "cand-049",
+    "targetRole": "iOS Engineer – George"
   }
 ]

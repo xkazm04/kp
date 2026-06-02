@@ -13,6 +13,10 @@ export type Entry = {
   approvalDetail: string | null;
   createdAt: string | null;
   stageChangedAt: string | null;
+  // Set when the application couldn't be normalized into a matchable profile and
+  // is a label-only stub needing manual capture; reason holds the failure detail.
+  intakeDegraded?: boolean;
+  intakeDegradedReason?: string | null;
 };
 
 export type PipelineEvent = {

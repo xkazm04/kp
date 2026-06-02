@@ -15,7 +15,8 @@ export type WorkspaceTabId =
   | "matrix"
   | "analytics"
   | "dev"
-  | "about";
+  | "about"
+  | "tasks";
 
 export type WorkspaceTabDef = {
   id: WorkspaceTabId;
@@ -101,6 +102,10 @@ const TAB_IDS = new Set<WorkspaceTabId>([
   "analytics",
   "dev",
   "about",
+  // Background tasks is a client-only live view reached from the sidebar footer
+  // (TasksIndicator), not a deep-link target — so it's a valid tab id here but
+  // intentionally absent from WORKSPACE_TABS/NAV_GROUPS above.
+  "tasks",
 ]);
 
 export function isWorkspaceTabId(value: string | null | undefined): value is WorkspaceTabId {

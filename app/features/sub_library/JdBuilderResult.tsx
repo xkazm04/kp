@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Check, ExternalLink, Loader2, Save, Send } from "lucide-react";
+import { AlertTriangle, Check, ExternalLink, Loader2, Save, Users } from "lucide-react";
 import { Markdown } from "@/app/_components/Markdown";
 import { buildUrl } from "@/app/features/tabs";
 import { JD_BODY_MAX_LENGTH } from "@/app/_lib/jd-limits";
@@ -24,9 +24,11 @@ export function JdBuilderResult({ result, title, company, onSaved }: { result: J
   const [markdown, setMarkdown] = useState(result.markdown);
   const [view, setView] = useState<"edit" | "preview">("preview");
   const [saving, setSaving] = useState(false);
-  const [publishing, setPublishing] = useState(false);
+  const [sourcing, setSourcing] = useState(false);
   const [saved, setSaved] = useState<{ slug: string; jobId: string } | null>(null);
-  const [published, setPublished] = useState<{ sourced: number } | null>(null);
+  // warning (non-null) = went live but the sourcing step errored — surfaced instead of a
+  // misleading "sourced 0" success, which would look like an empty candidate pool.
+  const [sourceResult, setSourceResult] = useState<{ sourced: number; warning: string | null } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const s = result.salary;
@@ -67,21 +69,25 @@ export function JdBuilderResult({ result, title, company, onSaved }: { result: J
     }
   };
 
-  // Publish = go live + source candidates into the pipeline.
-  const publish = async () => {
+  // "Source into Pipeline" = mark the saved draft live and source matching
+  // candidates into the Pipeline. This is the internal go-live action, NOT the
+  // external "Publish to job boards" distribution (the disabled button on the
+  // public /jds/[slug] page). The API route is still named /publish and the DB
+  // status it flips to is 'published'. See docs/JD_LIFECYCLE.md.
+  const sourceIntoPipeline = async () => {
     if (!saved) return;
-    setPublishing(true);
+    setSourcing(true);
     setError(null);
     try {
       const r = await fetch(`/api/jobs/${saved.jobId}/publish`, { method: "POST" });
       const p = await r.json();
-      if (!r.ok) throw new Error(p.error ?? "Publish failed.");
-      setPublished({ sourced: p.sourced ?? 0 });
+      if (!r.ok) throw new Error(p.error ?? "Sourcing failed.");
+      setSourceResult({ sourced: p.sourced ?? 0, warning: p.sourcingWarning ?? null });
       onSaved();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Publish failed.");
+      setError(e instanceof Error ? e.message : "Sourcing failed.");
     } finally {
-      setPublishing(false);
+      setSourcing(false);
     }
   };
 
@@ -159,15 +165,27 @@ export function JdBuilderResult({ result, title, company, onSaved }: { result: J
 
       {error ? <p role="alert" className="mt-2 rounded-md bg-red-50 p-2.5 text-sm text-red-700">{error}</p> : null}
 
-      {published ? (
-        <div className="mt-3 flex flex-wrap items-center gap-3 rounded-md border border-moss/30 bg-moss/5 px-3 py-2 text-sm text-ink">
-          <Check size={16} className="text-moss" />
-          Published <span className="font-mono text-coral">{saved?.slug}</span> · sourced {published.sourced} candidate
-          {published.sourced === 1 ? "" : "s"} into the Pipeline.
-          <button type="button" onClick={() => router.push(buildUrl({ tab: "pipeline" }))} className="focus-ring inline-flex items-center gap-1 font-semibold text-coral hover:underline">
-            Open Pipeline <ExternalLink size={13} />
-          </button>
-        </div>
+      {sourceResult ? (
+        sourceResult.warning ? (
+          <div className="mt-3 flex flex-wrap items-center gap-3 rounded-md border border-amber-200 bg-amber-50/60 px-3 py-2 text-sm text-amber-800">
+            <AlertTriangle size={16} className="shrink-0" />
+            <span>
+              <span className="font-mono text-coral">{saved?.slug}</span> is live, but sourcing failed: {sourceResult.warning}
+            </span>
+            <button type="button" onClick={() => router.push(buildUrl({ tab: "pipeline" }))} className="focus-ring inline-flex items-center gap-1 font-semibold text-coral hover:underline">
+              Open Pipeline <ExternalLink size={13} />
+            </button>
+          </div>
+        ) : (
+          <div className="mt-3 flex flex-wrap items-center gap-3 rounded-md border border-moss/30 bg-moss/5 px-3 py-2 text-sm text-ink">
+            <Check size={16} className="text-moss" />
+            <span className="font-mono text-coral">{saved?.slug}</span> is live · sourced {sourceResult.sourced} candidate
+            {sourceResult.sourced === 1 ? "" : "s"} into the Pipeline.
+            <button type="button" onClick={() => router.push(buildUrl({ tab: "pipeline" }))} className="focus-ring inline-flex items-center gap-1 font-semibold text-coral hover:underline">
+              Open Pipeline <ExternalLink size={13} />
+            </button>
+          </div>
+        )
       ) : saved ? (
         <div className="mt-3 flex flex-wrap items-center gap-3">
           <span className="inline-flex items-center gap-1.5 rounded-md border border-stone-200 bg-paper px-2.5 py-1 text-sm text-steel">
@@ -176,13 +194,14 @@ export function JdBuilderResult({ result, title, company, onSaved }: { result: J
           </span>
           <button
             type="button"
-            onClick={publish}
-            disabled={publishing}
+            onClick={sourceIntoPipeline}
+            disabled={sourcing}
             data-sim-click="publish"
+            title="Mark this JD live and source matching candidates into the Pipeline"
             className="focus-ring inline-flex h-10 items-center gap-2 rounded-md bg-coral px-4 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
           >
-            {publishing ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
-            {publishing ? "Publishing & sourcing…" : "Publish (go live + source)"}
+            {sourcing ? <Loader2 size={16} className="animate-spin" /> : <Users size={16} />}
+            {sourcing ? "Sourcing into Pipeline…" : "Source into Pipeline"}
           </button>
         </div>
       ) : (

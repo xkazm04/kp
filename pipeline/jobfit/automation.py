@@ -86,10 +86,19 @@ def evaluate_entry(entry: dict[str, Any]) -> dict[str, Any]:
 
     entry keys used: stage, archetype, matchScore, daysInStage, approvalKind, recentScreening.
     Returns {action: advance|reject|hold|none, toStage, alerts:[...], reason}.
+
+    An absent/null matchScore (matching not yet run, or a data gap) is treated as
+    "unscored" — distinct from a genuine low score — and never auto-rejects: it
+    holds for matching, mirroring the Accepted-stage gate. Without this, an
+    unscored entry would collapse to ``int(None or 0) == 0`` and be rejected for
+    ``0 < bau_reject_score``, silently turning a data gap into a rejection.
     """
     stage = entry.get("stage")
     archetype = entry.get("archetype") or "bau"
     score = int(entry.get("matchScore") or 0)
+    # `score == 0` means matching hasn't produced a real result yet (None, absent,
+    # or a literal 0 placeholder) — an unscored entry, not a genuine zero match.
+    scored = score > 0
     days = int(entry.get("daysInStage") or 0)
     approval = entry.get("approvalKind")
     recent_screening = bool(entry.get("recentScreening"))
@@ -114,7 +123,7 @@ def evaluate_entry(entry: dict[str, Any]) -> dict[str, Any]:
         # advance into Screened, where the archetype-aware gate decides. This move is
         # fair — archetype-neutral and never a reject — so intake doesn't stall in
         # Accepted. No score yet → hold until matching has run.
-        if score > 0:
+        if scored:
             return out("advance", "Screened", f"received with match score {score} → Screened")
         return out("hold", None, "accepted; awaiting match score")
     if stage == "Screened":
@@ -126,6 +135,10 @@ def evaluate_entry(entry: dict[str, Any]) -> dict[str, Any]:
             return out("hold", None, "approval already pending")
         if early:
             return out("hold", None, "early-career: human screening gate (never auto-advance/reject)")
+        if not scored:
+            # No match score yet (matching not run, or a data gap). Hold for matching
+            # rather than reading the missing score as 0 and auto-rejecting it.
+            return out("hold", None, "screened without a match score; awaiting match (not auto-rejected)")
         if score < POLICY["bau_reject_score"]:
             return out("reject", None, f"BAU score {score} < {POLICY['bau_reject_score']}")
         if score >= POLICY["bau_advance_score"]:

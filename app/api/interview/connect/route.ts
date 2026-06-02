@@ -25,11 +25,12 @@ export async function POST(request: NextRequest) {
       consent?: boolean;
     };
 
-    // A token-bound (real candidate) session fixes its provider; the test lab
-    // sends no token and switches provider freely.
+    // The browser picks the provider (the picker defaults to ElevenLabs and
+    // disables any provider whose keys are missing). Honor that choice; fall
+    // back to a token-bound session's stored provider when none is requested.
     const session0 = body.token ? getInterviewSessionByToken(body.token) : null;
     const requested = body.provider === "elevenlabs" ? "elevenlabs" : body.provider === "openai" ? "openai" : null;
-    const provider: InterviewProvider | null = session0 ? session0.provider : requested;
+    const provider: InterviewProvider | null = requested ?? session0?.provider ?? null;
     if (!provider) {
       return NextResponse.json({ error: "provider must be 'openai' or 'elevenlabs'" }, { status: 400 });
     }

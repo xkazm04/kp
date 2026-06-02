@@ -1,34 +1,50 @@
-// Single source of truth for the candidate archetype taxonomy: which archetypes
-// exist, how they are labelled/badged in the UI, and — the compliance-critical
-// part — the fairness gate that shields early-career candidates from AUTOMATED
-// rejection.
+// The candidate archetype taxonomy for the TS app — DERIVED FROM THE SHARED
+// REGISTRY (pipeline/jobfit/archetypes.json), the exact same file the Python
+// pipeline reads via registry.py. Because both sides read one file, the
+// TS<->Python desync this module used to guard against by hand (labels copied
+// into MatchTypes/ProfileTypes, the protected set copied into screen-wave /
+// group-eval-run / comms-dispatch) is now structurally impossible: a rename or a
+// new archetype lands in one place and both languages see it.
 //
-// The protected set ("student", "career_switcher") used to be hand-copied into
-// screen-wave.ts, group-eval-run.ts, comms-dispatch.ts, JobsTypes.ts and
-// MatchTypes.ts, while archetype labels lived separately again in MatchTypes.ts
-// and ProfileTypes.ts. A single rename in one copy could silently desync who is
-// shielded — a real fairness/compliance hazard. Everything now derives from the
-// constants here so the gate is auditable in one place.
+// The compliance-critical part is the FAIRNESS gate: which archetypes are
+// shielded from AUTOMATED rejection. That flag (`fairnessProtected`) lives in the
+// registry; the gate below still fails closed for anything it cannot classify.
+
+import archetypeRegistry from "@/pipeline/jobfit/archetypes.json";
+
+type ArchetypeDef = {
+  id: string;
+  label: string;
+  badge: string;
+  fairnessProtected: boolean;
+  scoringModel: string;
+};
+
+const ARCHETYPES = archetypeRegistry.archetypes as ArchetypeDef[];
 
 /** Full archetype display labels (Match / Profile result panels). */
-export const ARCHETYPE_LABEL: Record<string, string> = {
-  bau: "Experienced",
-  student: "Student / early-career",
-  career_switcher: "Career-switcher",
-};
+export const ARCHETYPE_LABEL: Record<string, string> = Object.fromEntries(
+  ARCHETYPES.map((a) => [a.id, a.label])
+);
 
 /** Short badge labels (compact lists, e.g. recruiter candidate cards). */
-export const ARCHETYPE_BADGE: Record<string, string> = {
-  bau: "Experienced",
-  student: "Student",
-  career_switcher: "Switcher",
-};
+export const ARCHETYPE_BADGE: Record<string, string> = Object.fromEntries(
+  ARCHETYPES.map((a) => [a.id, a.badge])
+);
 
 /** Early-career archetypes that are NEVER auto-rejected — the fairness
  *  guarantee DecisionRulesModal advertises. Mirror of the pipeline's
- *  automation.py early-career lever. */
-export const FAIRNESS_PROTECTED_ARCHETYPES = ["student", "career_switcher"] as const;
+ *  automation.py early-career lever; sourced from the registry's
+ *  `fairnessProtected` flag. */
+export const FAIRNESS_PROTECTED_ARCHETYPES: readonly string[] = ARCHETYPES.filter(
+  (a) => a.fairnessProtected
+).map((a) => a.id);
 const FAIRNESS_PROTECTED = new Set<string>(FAIRNESS_PROTECTED_ARCHETYPES);
+
+// Archetypes scored on the potential/readiness model (vs years-of-experience).
+const EARLY_CAREER = new Set<string>(
+  ARCHETYPES.filter((a) => a.scoringModel === "early_career").map((a) => a.id)
+);
 
 /** Canonical form of an archetype string: trimmed + lower-cased, so "Student",
  *  " student " and "STUDENT" all resolve to the same key. */
@@ -51,10 +67,10 @@ export function isFairnessProtected(archetype: string | null | undefined): boole
   return !isKnownArchetype(archetype) || FAIRNESS_PROTECTED.has(normalizeArchetype(archetype));
 }
 
-/** Positive classification: true only for archetypes that ARE early-career.
- *  Unlike {@link isFairnessProtected} this treats unknown as NOT early — it
- *  drives display grouping and encouraging copy, not a safety gate, so it must
- *  not over-claim. */
+/** Positive classification: true only for archetypes scored on the early-career
+ *  (potential) model. Unlike {@link isFairnessProtected} this treats unknown as
+ *  NOT early — it drives display grouping and encouraging copy, not a safety
+ *  gate, so it must not over-claim. */
 export function isEarlyCareer(archetype: string | null | undefined): boolean {
-  return FAIRNESS_PROTECTED.has(normalizeArchetype(archetype));
+  return EARLY_CAREER.has(normalizeArchetype(archetype));
 }

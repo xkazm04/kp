@@ -64,9 +64,9 @@ export function LibraryTab() {
         <p className="text-meta uppercase text-coral">Workspace</p>
         <h2 className="mt-1 font-serif text-display text-ink">Job description library</h2>
         <p className="mt-2 max-w-3xl text-body text-steel">
-          Describe a hiring need and let AI draft a publishable job description — clarifying the need,
-          designing the role, and researching market salary on the web. Save it and the role lands in
-          your <strong>Pipeline</strong> with matching candidates sourced.
+          Describe a hiring need and let AI draft a job description — clarifying the need,
+          designing the role, and researching market salary on the web. Save it as a draft, then
+          <strong> source it into your Pipeline</strong> to pull in matching candidates.
         </p>
       </header>
 

@@ -14,7 +14,7 @@ export async function POST(request: NextRequest) {
     if (!devCase) return NextResponse.json({ error: "case not found" }, { status: 404 });
 
     const role = (devCase.role as { title?: string } & Record<string, unknown>) ?? {};
-    const matches = await runSourceForRole(role);
+    const { candidates: matches, skipped, skippedReasons } = await runSourceForRole(role);
     const roleTitle = role.title ?? devCase.roleTitle ?? "Dev case";
     let added = 0;
     for (const m of matches) {
@@ -31,7 +31,9 @@ export async function POST(request: NextRequest) {
       });
       added += 1;
     }
-    return NextResponse.json({ ok: true, added, candidates: matches });
+    // `skipped` > 0 with an empty `candidates` means the pool failed to parse, not that
+    // nobody matched — surfaced so the UI can be honest about an empty shortlist.
+    return NextResponse.json({ ok: true, added, skipped, skippedReasons, candidates: matches });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Sourcing failed." }, { status: 500 });
   }

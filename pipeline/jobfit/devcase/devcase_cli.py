@@ -102,6 +102,9 @@ def main(argv: list[str] | None = None) -> int:
                 raise ValueError("source requires --role-json and --candidates-json")
             role = json.loads(args.role_json.read_text(encoding="utf-8"))
             candidates = json.loads(args.candidates_json.read_text(encoding="utf-8")) or []
+            # result = {"candidates": [...], "skipped": int, "skippedReasons": [...]} — the
+            # skipped count rides inside the envelope's `result` so the caller can tell an
+            # empty shortlist (nobody qualified) apart from a pool that failed to parse.
             result = _source.source_candidates(role, candidates, top_n=args.top_n, floor=args.floor)
             # Pure matching — no LLM — so its single step is always deterministic.
             _emit(result, {"source": "deterministic"})

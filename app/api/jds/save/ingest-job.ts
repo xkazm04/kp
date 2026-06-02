@@ -43,7 +43,8 @@ export async function ingestStructuredJob(input: {
   const band = normalizeSalaryBand(input.salary?.suggestedMinimum, input.salary?.suggestedMaximum);
   if (band) job.salaryBand = band;
 
-  // Authored JDs start as a DRAFT — publishing sources them into the pipeline.
+  // Authored JDs start as a DRAFT — "Source into Pipeline" takes them live and
+  // sources them into the pipeline.
   insertJob(job, jobContentHash(`${input.title}\n${input.markdown}`), "draft");
   return true;
 }

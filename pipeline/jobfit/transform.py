@@ -13,12 +13,15 @@ engine speaks for everyone:
 
 from __future__ import annotations
 
+from . import registry
 from .matching import MatchCandidate
 from .profile import CandidateProfileV2
 from .taxonomy import PROVENANCE_WEIGHTS
 from .transferable import map_transferable
 
-_EARLY_CAREER = ("student", "career_switcher")
+# Sourced from the shared registry (archetypes.json) so "which archetypes get the
+# potential/readiness path instead of years-of-experience" has one definition.
+_EARLY_CAREER = registry.early_career_archetypes()
 
 # Surface tokens hinting a degree is relevant to the target field.
 _FAMILY_DEGREE_TERMS = {

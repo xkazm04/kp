@@ -93,11 +93,11 @@ export function confidenceBandTitle(drivers: string[] = []): string {
     : "Narrow band — strong, verifiable evidence.";
 }
 
-/** code-review status: ok / error / disabled (GithubAnalysis.codeReview). */
+/** repo-signal review status: ok / error / disabled (GithubAnalysis.codeReview). */
 export function codeReviewStatusToken(status: string): BadgeContent {
-  if (status === "ok") return { tone: "positive", icon: CheckCircle2, label: "Reviewed", ariaLabel: "Code review status: reviewed" };
-  if (status === "error") return { tone: "critical", icon: XCircle, label: "Error", ariaLabel: "Code review status: error" };
-  return { tone: "neutral", icon: MinusCircle, label: "Disabled", ariaLabel: "Code review status: disabled" };
+  if (status === "ok") return { tone: "positive", icon: CheckCircle2, label: "Reviewed", ariaLabel: "Repo-signal review status: reviewed" };
+  if (status === "error") return { tone: "critical", icon: XCircle, label: "Error", ariaLabel: "Repo-signal review status: error" };
+  return { tone: "neutral", icon: MinusCircle, label: "Disabled", ariaLabel: "Repo-signal review status: disabled" };
 }
 
 /** Engine / extractor provenance (e.g. "gemini", "pypdf", "template"). */

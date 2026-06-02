@@ -7,8 +7,9 @@ export const runtime = "nodejs";
 export const maxDuration = 60;
 
 // Save a generated JD to the library and ingest its role as a structured Job —
-// as a DRAFT. It does NOT source candidates yet; publishing (POST
-// /api/jobs/[id]/publish) is what sources it into the pipeline.
+// as a DRAFT. It does NOT source candidates yet; "Source into Pipeline" (POST
+// /api/jobs/[id]/publish) is what takes it live and sources it into the
+// pipeline. See docs/JD_LIFECYCLE.md.
 export async function POST(request: NextRequest) {
   try {
     const body = (await request.json()) as {

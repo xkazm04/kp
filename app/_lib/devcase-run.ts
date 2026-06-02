@@ -201,12 +201,19 @@ export async function runEvaluateSubmission(submissionId: string): Promise<Submi
 }
 
 export type Sourced = { candidateId: string; label: string; archetype: string | null; score: number; matchedSkills: string[] };
+// One record per candidate dropped because its payload failed CandidateProfileV2 validation
+// (reason = the validation error type). Surfaced so an empty shortlist can be told apart from
+// a pool that failed to load — see source.py / idea-19e24fe9.
+export type SourceSkip = { candidateId: string | null; reason: string };
+export type SourceOutcome = { candidates: Sourced[]; skipped: number; skippedReasons: SourceSkip[] };
 
 // Phase C — proactive sourcing: rank the existing candidate DB against a designed role
-// (deterministic matching). The role becomes a Job the core matcher scores.
-export async function runSourceForRole(role: Record<string, unknown>, topN = 8, floor = 45): Promise<Sourced[]> {
+// (deterministic matching). The role becomes a Job the core matcher scores. Returns the ranked
+// `candidates` plus a `skipped` count (candidates whose payload failed to parse) so callers can
+// distinguish "nobody qualified" from "the whole pool failed to load".
+export async function runSourceForRole(role: Record<string, unknown>, topN = 8, floor = 45): Promise<SourceOutcome> {
   const profiles = listMatrixProfiles();
-  if (profiles.length === 0) return [];
+  if (profiles.length === 0) return { candidates: [], skipped: 0, skippedReasons: [] };
   const workdir = await createWorkdir();
   try {
     const rolePath = path.join(workdir, "role.json");
@@ -228,8 +235,9 @@ export async function runSourceForRole(role: Record<string, unknown>, topN = 8, 
     ]);
     const { stdout, stderr, exitCode } = await result;
     if (exitCode !== 0) throw new PipelineError(parseStderrError(stderr, exitCode));
-    const payload = parsePythonJson<{ result: Sourced[] }>(stdout, stderr);
-    return payload.result ?? [];
+    const payload = parsePythonJson<{ result: SourceOutcome }>(stdout, stderr);
+    const r = payload.result;
+    return { candidates: r?.candidates ?? [], skipped: r?.skipped ?? 0, skippedReasons: r?.skippedReasons ?? [] };
   } finally {
     await cleanupWorkdir(workdir);
   }
