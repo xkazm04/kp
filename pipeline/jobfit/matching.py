@@ -338,15 +338,17 @@ def dimension_labels(archetype: str) -> dict[str, str]:
 
 
 def build_score_breakdown(
-    archetype: str, skills: float, career: float, personal: float
+    archetype: str, skills: float, career: float, personal: float, *, weights: dict[str, float] | None = None
 ) -> list[ScoreDimension]:
-    """Project the three 0-1 dimension scores + archetype weights into a single
-    0-100 breakdown the UI can chart directly.
+    """Project the three 0-1 dimension scores + weights into a single 0-100
+    breakdown the UI can chart directly.
 
     ``contribution`` and ``total`` are computed from the same un-rounded inputs, so
     the contributions sum to ``total`` (modulo independent rounding of each row).
+    ``weights`` overrides the archetype baseline (a resolved dynamic vector); when
+    omitted the archetype's static weights are used, so the breakdown is unchanged.
     """
-    w = weights_for(archetype)
+    w = weights or weights_for(archetype)
     labels = dimension_labels(archetype)
     scores = {"skills": skills, "career": career, "personal": personal}
     return [
@@ -359,6 +361,96 @@ def build_score_breakdown(
         )
         for key in _DIMENSION_KEYS
     ]
+
+
+# --- Dynamic weighting (bounded; hybrid + fairness-matrix) -----------------
+# Per-candidate weights let demonstrated, role-relevant skill evidence count for
+# more for the candidate who actually has it — a student with a relevant part-time
+# job (or an observed live-case skill) vs a peer without. To stay fair and
+# comparable the weights are BOUNDED: a proposal may move each slot at most
+# _WEIGHT_MAX_DELTA from the archetype baseline and never past _WEIGHT_FLOOR /
+# _WEIGHT_CEIL, so one strong signal can neither erase a dimension nor let it
+# dominate. The deterministic propose_weights below (and, later, an LLM proposer)
+# feed resolve_weights, which enforces the bounds. score_job applies a resolved
+# vector ONLY when one is passed in, so default scoring is byte-identical to before;
+# cross-candidate comparison of differently-weighted candidates uses fairness_matrix.
+_WEIGHT_MAX_DELTA = 0.15
+_WEIGHT_FLOOR = 0.10
+_WEIGHT_CEIL = 0.60
+
+
+def weight_bounds(archetype: str) -> dict[str, tuple[float, float]]:
+    """Allowed [min, max] for each slot: a band around the archetype baseline,
+    clamped to the absolute floor/ceiling."""
+    base = weights_for(archetype)
+    return {
+        k: (
+            max(_WEIGHT_FLOOR, round(base[k] - _WEIGHT_MAX_DELTA, 4)),
+            min(_WEIGHT_CEIL, round(base[k] + _WEIGHT_MAX_DELTA, 4)),
+        )
+        for k in _DIMENSION_KEYS
+    }
+
+
+def resolve_weights(archetype: str, proposed: dict[str, float] | None = None) -> dict[str, float]:
+    """Enforce the contract on a proposed weight vector: clamp each slot to its
+    bounds, then make it sum to 1.0 by pushing the residual onto slots that still
+    have headroom in the needed direction — so the result both sums to 1 AND stays
+    inside the bounds (a plain clamp-then-divide can renormalize a slot back past
+    its ceiling). Returns the archetype baseline unchanged when no proposal is
+    given, so default scoring is identical to before; idempotent on a resolved
+    vector."""
+    base = weights_for(archetype)
+    if not proposed:
+        return dict(base)
+    bounds = weight_bounds(archetype)
+    w = {k: min(bounds[k][1], max(bounds[k][0], float(proposed.get(k, base[k])))) for k in _DIMENSION_KEYS}
+    for _ in range(8):  # bounded simplex projection; converges in a couple passes for 3 slots
+        residual = round(1.0 - sum(w.values()), 6)
+        if abs(residual) < 1e-6:
+            break
+        # add weight -> slots below their ceiling; remove weight -> slots above their floor
+        headroom = {
+            k: (bounds[k][1] - w[k]) if residual > 0 else (w[k] - bounds[k][0])
+            for k in _DIMENSION_KEYS
+        }
+        total_head = sum(h for h in headroom.values() if h > 0)
+        if total_head <= 1e-9:
+            break
+        for k in _DIMENSION_KEYS:
+            if headroom[k] > 0:
+                w[k] += residual * (headroom[k] / total_head)
+    return {k: round(w[k], 4) for k in _DIMENSION_KEYS}
+
+
+def propose_weights(candidate: MatchCandidate, job: Job) -> tuple[dict[str, float], list[str]]:
+    """Deterministic, relevance-driven weight proposal — the fallback an LLM
+    proposer will later refine. Shifts weight toward demonstrated skill when the
+    candidate backs the role's must-haves with HIGH-TRUST evidence (observed /
+    professional / internship / open-source), so a student with a relevant
+    part-time job or an observed live-case skill is scored more on proven ability
+    and less on the potential prior. Returns the (pre-bounds) vector + reasons;
+    resolve_weights enforces the bounds afterwards."""
+    base = dict(weights_for(candidate.archetype))
+    notes: list[str] = []
+    musts = [r.skill for r in job.requirements if r.kind == "must_have"]
+    high_trust = {"observed", "professional", "internship", "open_source"}
+    relevant_strong = [
+        s
+        for s in candidate.skills
+        if candidate.skill_provenance.get(s, candidate.provenance_default) in high_trust
+        and any(skill_match_score(s, m, "professional") >= _MATCH_THRESHOLD for m in musts)
+    ]
+    if relevant_strong:
+        bump = min(0.12, round(0.04 * len(relevant_strong), 4))
+        base["skills"] += bump
+        base["career"] -= bump / 2
+        base["personal"] -= bump / 2
+        notes.append(
+            f"{len(relevant_strong)} must-have skill(s) backed by high-trust evidence "
+            "— weighting demonstrated skill higher"
+        )
+    return base, notes
 
 
 # Band-width labels keyed off the total spread. The base spread is 4 and each
@@ -377,9 +469,16 @@ def _confidence(candidate: MatchCandidate, total: int, missing_musts: list[str])
     """
     spread = 4
     drivers: list[str] = []
+    has_observed = any(p == "observed" for p in candidate.skill_provenance.values())
     if candidate.archetype in _EARLY_CAREER:
-        spread += 6  # thinner, less-verifiable evidence -> wider honest band
-        drivers.append("Early-career: thinner, less-verifiable track record")
+        if has_observed:
+            # Directly observed skills (live case / interview) de-risk the thin
+            # paper trail — the early-career band stays tighter than a CV-only one.
+            spread += 2
+            drivers.append("Early-career, but some skills were directly observed (live case/interview)")
+        else:
+            spread += 6  # thinner, less-verifiable evidence -> wider honest band
+            drivers.append("Early-career: thinner, less-verifiable track record")
     if len(candidate.skills) < 3:
         spread += 6
         drivers.append("Fewer than 3 skills listed")
@@ -401,7 +500,7 @@ def _confidence(candidate: MatchCandidate, total: int, missing_musts: list[str])
     )
 
 
-def score_job(candidate: MatchCandidate, job: Job) -> MatchResult:
+def score_job(candidate: MatchCandidate, job: Job, *, weights: dict[str, float] | None = None) -> MatchResult:
     skills, matched, missing, matched_strength = score_skills(candidate, job)
     if candidate.archetype in _EARLY_CAREER:
         # career slot carries POTENTIAL (readiness); personal carries motivation/domain fit.
@@ -410,9 +509,11 @@ def score_job(candidate: MatchCandidate, job: Job) -> MatchResult:
     else:
         career = score_career(candidate, job)
         personal = score_personal(candidate, job)
-    w = weights_for(candidate.archetype)
+    # `weights` is an optional resolved dynamic vector; default = archetype static
+    # weights, so passing nothing reproduces the prior score exactly.
+    w = weights or weights_for(candidate.archetype)
     total = round(100 * (w["skills"] * skills + w["career"] * career + w["personal"] * personal))
-    breakdown = build_score_breakdown(candidate.archetype, skills, career, personal)
+    breakdown = build_score_breakdown(candidate.archetype, skills, career, personal, weights=w)
     tier = fit_tier_for(total)
     ep = job.entry_profile
     return MatchResult(
@@ -443,6 +544,32 @@ def score_job(candidate: MatchCandidate, job: Job) -> MatchResult:
     )
 
 
+def fairness_matrix(pairs: list[tuple[MatchCandidate, dict[str, float] | None]], job: Job) -> dict:
+    """Rank a pool whose candidates may carry DIFFERENT (bounded) weight vectors.
+
+    A single weighted scalar drawn from different yardsticks isn't comparable, so
+    instead of trusting each candidate's score under their own weights we score
+    every candidate under EVERY candidate's scheme and rank by the mean — a
+    candidate who stays strong under everyone's weights is robustly strong, not
+    just flattered by their own. ``own`` is each candidate's score under their own
+    scheme (the matrix diagonal). Each input weight vector is run through
+    resolve_weights, so callers may pass raw proposals."""
+    schemes = [resolve_weights(c.archetype, w) for c, w in pairs]
+    labels = [c.label for c, _w in pairs]
+    matrix = [[score_job(c, job, weights=scheme).total for scheme in schemes] for c, _w in pairs]
+    own = [matrix[i][i] for i in range(len(pairs))]
+    mean = [round(sum(row) / len(row)) for row in matrix] if pairs else []
+    order = sorted(range(len(pairs)), key=lambda i: mean[i], reverse=True)
+    return {
+        "labels": labels,
+        "schemes": schemes,
+        "matrix": matrix,
+        "own": own,
+        "mean": mean,
+        "ranking": [labels[i] for i in order],
+    }
+
+
 def candidate_assumptions(candidate: MatchCandidate) -> list[str]:
     """Imputations / uncertainties the recruiter should see to judge a score fairly."""
     out: list[str] = []
@@ -454,6 +581,8 @@ def candidate_assumptions(candidate: MatchCandidate) -> list[str]:
         out.append("Early-career: potential replaces years of experience; only entry-eligible roles are considered.")
         if "self_declared" in set(candidate.skill_provenance.values()):
             out.append("Some skills are self-declared — discounted; validate them in interview.")
+    if any(p == "observed" for p in candidate.skill_provenance.values()):
+        out.append("Some skills were directly observed (live case / interview) — high-confidence, not self-reported.")
     if len(candidate.skills) < 3:
         out.append("Thin skill profile — scores carry a wide confidence band.")
     return out

@@ -184,6 +184,15 @@ for _term in _TERMS:
 # self-rated list or touched once in a school project. Consumed by the student
 # transformation/scoring layers; defaults to ``professional`` for BAU.
 PROVENANCE_WEIGHTS: dict[str, float] = {
+    # Highest trust: a skill demonstrated FIRST-HAND in a live case or confirmed
+    # in the interview — observed directly, not taken on the candidate's word.
+    # The multiplier is capped at 1.0 (full match credit, like professional) so it
+    # never inflates a score past the base skill match; its extra value over
+    # professional is realized in the confidence band (matching._confidence
+    # narrows when a skill is observed) and in consolidation (it outranks the
+    # self-declared / coursework evidence a zero-experience student typically has).
+    # Set by the live-case / interview-scorecard producers — never self-declared.
+    "observed": 1.0,
     "professional": 1.0,
     "open_source": 0.85,
     "internship": 0.85,
