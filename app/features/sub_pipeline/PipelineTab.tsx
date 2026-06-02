@@ -130,7 +130,7 @@ export function PipelineTab() {
   };
 
   return (
-    <div className="space-y-6" aria-busy={entries == null}>
+    <div className="stagger-children space-y-6" aria-busy={entries == null}>
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <p className="text-meta uppercase text-coral">Pipeline</p>

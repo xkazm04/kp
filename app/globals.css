@@ -186,6 +186,42 @@ textarea {
   }
 }
 
+/* Main-content tab swap: a slightly larger fade + rise than the base fade-in. */
+.animate-tab-in {
+  animation: tab-in 320ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes tab-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Staggered entrance: a container's direct children cascade in (fade + rise)
+   with small incremental delays instead of all popping at once. Capped so long
+   lists don't accrue an ever-growing delay. */
+.stagger-children > * {
+  animation: tab-in 360ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.stagger-children > *:nth-child(1) { animation-delay: 40ms; }
+.stagger-children > *:nth-child(2) { animation-delay: 90ms; }
+.stagger-children > *:nth-child(3) { animation-delay: 140ms; }
+.stagger-children > *:nth-child(4) { animation-delay: 190ms; }
+.stagger-children > *:nth-child(5) { animation-delay: 240ms; }
+.stagger-children > *:nth-child(n + 6) { animation-delay: 280ms; }
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-tab-in,
+  .stagger-children > * {
+    animation: none;
+  }
+}
+
 .animate-slide-in {
   animation: slide-in 240ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
