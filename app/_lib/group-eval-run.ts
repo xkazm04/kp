@@ -1,7 +1,11 @@
-import { getProfileRecord } from "./db";
+import { writeFile } from "node:fs/promises";
+import path from "node:path";
+import { getJob, getProfileRecord, loadAnalysis, type JobRecord } from "./db";
 import { runReasoning } from "./reasoning-run";
 import { saveGroupEval } from "./group-eval";
 import { isEarlyCareer } from "./archetypes";
+import { resolveCandidatePoolEntry, type CandidatePoolEntry } from "./candidate-pool";
+import { cleanupWorkdir, createWorkdir, parsePythonJson, parseStderrError, spawnPython } from "./python-runner";
 
 // Cap on how many candidates one comparative evaluation covers. The strongest
 // are selected by fit BEFORE the cap (see below), and the modal surfaces
@@ -9,14 +13,54 @@ import { isEarlyCareer } from "./archetypes";
 const GROUP_EVAL_CAP = 6;
 
 // Decisions "group evaluation": a comparative read of every candidate competing
-// for one role, replacing the old per-candidate "Why this candidate". For each
-// candidate it pulls the gathered profile data + a best-effort AI fit reasoning
-// (cached Gemini), then synthesizes a ranking, a top pick, differentiators and
-// risks. LLM-enriched where available, deterministic otherwise — and persisted
-// so the modal can re-open it without re-running.
+// for one role. For each candidate it pulls the gathered profile data, the FULL
+// deterministic match breakdown (recruiter_cli — per-dimension scores, confidence
+// band, matched/missing skills with provenance & strength, fit tier), and a
+// best-effort AI fit reasoning (cached). It then synthesizes a ranking, a top
+// pick, differentiators, risks, and an AI "compare all" narrative — LLM-enriched
+// where available, deterministic otherwise — and persists the lot so the modal
+// can re-open it without re-running.
 
 export type GroupEvalCandidate = { entryId: string; candidateId: string | null; label: string; matchScore: number | null };
-type Reasoning = { verdict?: string; strengths?: string[]; gaps?: string[] };
+type Reasoning = { verdict?: string; strengths?: string[]; gaps?: string[]; interviewProbes?: string[] };
+// Structured, bold-formatted head-to-head narrative (group_compare_cli). Bold
+// spans are marked with **double asterisks** for the UI to render as <strong>.
+type Comparison = { headline: string; keyPoints: string[]; recommendation?: string };
+
+// One row of the weight-aware breakdown (matching.build_score_breakdown), all on
+// a single 0-100 scale — mirrors app/features/sub_match/MatchTypes.ScoreDimension.
+type ScoreDimension = { key: string; label: string; percent: number; weight: number; contribution: number };
+type Confidence = { low: number; high: number; level: string; drivers: string[] };
+// A candidate's own salary expectation, lifted from their saved CV analysis
+// (analysis.salary). Best-effort: absent for v2 profiles / candidates with no
+// analysis, in which case the modal just shows the role band for them.
+type SalaryExpectation = { minimum: number; maximum: number; midpoint: number; currency: string; confidence: string };
+// Full per-candidate MatchResult as emitted by recruiter_cli (model_dump by alias).
+type CandResult = {
+  total: number;
+  fitTier?: "strong" | "promising" | "partial";
+  confidence?: Confidence;
+  scoreBreakdown?: ScoreDimension[];
+  matchedSkills?: string[];
+  matchedSkillProvenance?: Record<string, string>;
+  matchedSkillStrength?: Record<string, number>;
+  missingSkills?: string[];
+  skillsScore?: number;
+  careerScore?: number;
+  personalScore?: number;
+};
+type RecruiterRow = {
+  candidateId: string;
+  label: string;
+  archetype: string;
+  seniority: string;
+  potentialScore?: number | null;
+  koPassed: boolean;
+  koReasons: string[];
+  assumptions: string[];
+  result: CandResult;
+};
+
 type PerCandidate = {
   label: string;
   score: number;
@@ -26,7 +70,37 @@ type PerCandidate = {
   verdict: string;
   strengths: string[];
   gaps: string[];
+  interviewProbes: string[];
+  // Enriched scoring (present when the role has a job and recruiter_cli ran).
+  fitTier?: "strong" | "promising" | "partial";
+  confidence?: Confidence;
+  scoreBreakdown?: ScoreDimension[];
+  matchedSkills?: string[];
+  matchedSkillProvenance?: Record<string, string>;
+  matchedSkillStrength?: Record<string, number>;
+  missingSkills?: string[];
+  potentialScore?: number | null;
+  koPassed?: boolean;
+  assumptions?: string[];
+  salaryExpectation?: SalaryExpectation | null;
 };
+
+// Best-effort salary expectation from a candidate's saved CV analysis. Returns
+// null for profile-only candidates or analyses with no salary section, so the
+// salary comparison degrades to "role band only" rather than breaking.
+function salaryExpectationOf(candidateId: string | null): SalaryExpectation | null {
+  if (!candidateId) return null;
+  const loaded = loadAnalysis(candidateId);
+  const s = (loaded?.payload as { salary?: Partial<SalaryExpectation> } | null)?.salary;
+  if (!s || !((s.minimum ?? 0) > 0 || (s.maximum ?? 0) > 0)) return null;
+  return {
+    minimum: s.minimum ?? 0,
+    maximum: s.maximum ?? 0,
+    midpoint: s.midpoint ?? Math.round(((s.minimum ?? 0) + (s.maximum ?? 0)) / 2),
+    currency: s.currency ?? "CZK",
+    confidence: s.confidence ?? "medium",
+  };
+}
 
 function topSkillsOf(payload: unknown): string[] {
   const claims = (payload as { skillClaims?: { skill?: string; level?: string }[] } | null)?.skillClaims ?? [];
@@ -36,6 +110,99 @@ function topSkillsOf(payload: unknown): string[] {
     .map((c) => c.skill)
     .filter((s): s is string => Boolean(s))
     .slice(0, 6);
+}
+
+const dimPercent = (c: PerCandidate, key: string): number | null =>
+  c.scoreBreakdown?.find((d) => d.key === key)?.percent ?? null;
+
+// Flatten the structured comparison to a plain (bold-stripped) string, kept as a
+// legacy `comparisonSummary` field for any consumer that reads the one-liner.
+const flattenComparison = (c: Comparison): string =>
+  [c.headline, ...c.keyPoints, c.recommendation ?? ""].filter(Boolean).join(" ").replace(/\*\*/g, "");
+
+// Rank the role's candidates against the role's job via the recruiter ranker
+// (ONE Python process for the whole field) to get the full MatchResult breakdown
+// per candidate. Best-effort: any failure returns an empty map and the eval
+// degrades to the score-only view, so a broken ranker never blocks a decision.
+async function rankCandidates(job: JobRecord, candidates: GroupEvalCandidate[]): Promise<Map<string, RecruiterRow>> {
+  const pool = candidates
+    .map((c) => (c.candidateId ? resolveCandidatePoolEntry(c.candidateId, c.label) : null))
+    .filter((e): e is CandidatePoolEntry => e !== null);
+  if (pool.length === 0) return new Map();
+
+  let workdir: string | null = null;
+  try {
+    workdir = await createWorkdir();
+    const inputPath = path.join(workdir, "recruiter.json");
+    await writeFile(inputPath, JSON.stringify({ jobId: job.id, candidates: pool }), "utf-8");
+    const jobPath = path.join(workdir, "job.json");
+    await writeFile(jobPath, JSON.stringify(job), "utf-8");
+
+    const { result } = spawnPython(["-m", "pipeline.jobfit.recruiter_cli", "--input-json", inputPath, "--job-json", jobPath]);
+    const { stdout, stderr, exitCode } = await result;
+    if (exitCode !== 0) {
+      const err = parseStderrError(stderr, exitCode);
+      throw new Error(err.message);
+    }
+    const parsed = parsePythonJson<{ candidates?: RecruiterRow[] }>(stdout, stderr);
+    const map = new Map<string, RecruiterRow>();
+    for (const row of parsed.candidates ?? []) map.set(row.candidateId, row);
+    return map;
+  } finally {
+    if (workdir) await cleanupWorkdir(workdir);
+  }
+}
+
+// AI "compare all" narrative across the ranked field (ONE Python process), with a
+// deterministic synthesis as the fallback. Returns null on failure so the caller
+// keeps the deterministic one-line `summary`.
+async function runGroupCompare(
+  roleTitle: string,
+  candidates: PerCandidate[],
+  roleSalaryBand: number[],
+): Promise<{ comparison: Comparison; source: string } | null> {
+  let workdir: string | null = null;
+  try {
+    workdir = await createWorkdir();
+    const context = {
+      roleTitle,
+      // The role's recommended band so the AI can weigh budget fit per candidate.
+      roleSalaryBand: roleSalaryBand.length >= 2 ? roleSalaryBand.slice(0, 2) : null,
+      candidates: candidates.map((c) => ({
+        label: c.label,
+        archetype: c.archetype,
+        seniority: c.seniority,
+        total: c.score,
+        skills: dimPercent(c, "skills"),
+        career: dimPercent(c, "career"),
+        personal: dimPercent(c, "personal"),
+        matchedSkills: c.matchedSkills ?? [],
+        missingSkills: c.missingSkills ?? [],
+        verdict: c.verdict,
+        potentialScore: c.potentialScore ?? null,
+        // Candidate's own salary expectation (midpoint) so the narrative can flag
+        // an over/under-budget candidate alongside fit.
+        salaryExpectation: c.salaryExpectation ? c.salaryExpectation.midpoint : null,
+      })),
+    };
+    const inputPath = path.join(workdir, "compare.json");
+    await writeFile(inputPath, JSON.stringify(context), "utf-8");
+
+    const { result } = spawnPython(["-m", "pipeline.jobfit.group_compare_cli", "--input-json", inputPath]);
+    const { stdout, stderr, exitCode } = await result;
+    if (exitCode !== 0) {
+      const err = parseStderrError(stderr, exitCode);
+      throw new Error(err.message);
+    }
+    const parsed = parsePythonJson<{ comparison?: Comparison; source?: string }>(stdout, stderr);
+    if (!parsed.comparison?.headline) return null;
+    return { comparison: parsed.comparison, source: parsed.source ?? "deterministic" };
+  } catch (error) {
+    console.warn(`[group-eval] compare summary failed for "${roleTitle}":`, error instanceof Error ? error.message : error);
+    return null;
+  } finally {
+    if (workdir) await cleanupWorkdir(workdir);
+  }
 }
 
 export async function runGroupEval(params: Record<string, unknown>): Promise<Record<string, unknown>> {
@@ -52,11 +219,24 @@ export async function runGroupEval(params: Record<string, unknown>): Promise<Rec
     .sort((a, b) => (b.matchScore ?? 0) - (a.matchScore ?? 0))
     .slice(0, GROUP_EVAL_CAP);
 
+  // Full deterministic breakdown per candidate (best-effort; needs the role's job).
+  const job = jobId ? getJob(jobId) : null;
+  let rows = new Map<string, RecruiterRow>();
+  if (job) {
+    try {
+      rows = await rankCandidates(job, input);
+    } catch (error) {
+      console.warn(`[group-eval] recruiter ranking failed for "${roleKey}":`, error instanceof Error ? error.message : error);
+    }
+  }
+
   const sources: string[] = [];
   const candidates: PerCandidate[] = [];
   for (const c of input) {
     const rec = c.candidateId ? getProfileRecord(c.candidateId) : null;
     const payload = rec?.payload as { seniority?: string; archetype?: string } | null;
+    const row = c.candidateId ? rows.get(c.candidateId) ?? null : null;
+    const result = row?.result;
     let reasoning: Reasoning = {};
     if (jobId && c.candidateId) {
       try {
@@ -69,13 +249,27 @@ export async function runGroupEval(params: Record<string, unknown>): Promise<Rec
     }
     candidates.push({
       label: c.label,
-      score: c.matchScore ?? 0,
-      seniority: payload?.seniority ?? null,
-      archetype: payload?.archetype ?? null,
+      // Prefer the fresh recruiter total (matches the breakdown shown) over the
+      // stored matchScore, falling back to it when the role has no job.
+      score: result?.total ?? c.matchScore ?? 0,
+      seniority: row?.seniority ?? payload?.seniority ?? null,
+      archetype: row?.archetype ?? payload?.archetype ?? null,
       topSkills: topSkillsOf(rec?.payload),
       verdict: reasoning.verdict ?? "",
       strengths: reasoning.strengths ?? [],
       gaps: reasoning.gaps ?? [],
+      interviewProbes: reasoning.interviewProbes ?? [],
+      fitTier: result?.fitTier,
+      confidence: result?.confidence,
+      scoreBreakdown: result?.scoreBreakdown,
+      matchedSkills: result?.matchedSkills,
+      matchedSkillProvenance: result?.matchedSkillProvenance,
+      matchedSkillStrength: result?.matchedSkillStrength,
+      missingSkills: result?.missingSkills,
+      potentialScore: row?.potentialScore ?? null,
+      koPassed: row?.koPassed,
+      assumptions: row?.assumptions ?? [],
+      salaryExpectation: salaryExpectationOf(c.candidateId),
     });
   }
 
@@ -96,6 +290,20 @@ export async function runGroupEval(params: Record<string, unknown>): Promise<Rec
   const uniqueSources = new Set(sources.filter(Boolean));
   const source = uniqueSources.size === 0 ? "deterministic" : uniqueSources.size === 1 && uniqueSources.has("llm") ? "llm" : uniqueSources.has("llm") ? "partial" : "deterministic";
 
+  // Canonical skill-matrix rows: the role's declared requirements (must-have
+  // first), so the matrix is ordered and complete even for a skill no candidate
+  // matched. The modal falls back to the union of matched∪missing when absent.
+  const requirements = (job?.requirements ?? []).map((r) => ({ skill: r.skill, kind: r.kind }));
+
+  // AI head-to-head narrative (best-effort; deterministic one-liner is the fallback).
+  const compare = candidates.length ? await runGroupCompare(roleTitle, candidates, job?.salaryBand ?? []) : null;
+
+  const deterministicSummary = top
+    ? `${candidates.length} candidate(s) for ${roleTitle}. Recommended lead: ${top.label} (fit ${top.score}). ${
+        differentiators.length ? `Unique strengths: ${differentiators.join(", ")}. ` : ""
+      }${risks.length ? `${risks.length} watch-out(s) flagged below.` : "No blocking risks flagged."}`
+    : `No candidates to evaluate for ${roleTitle}.`;
+
   const payload: Record<string, unknown> = {
     roleTitle,
     jobId,
@@ -114,11 +322,19 @@ export async function runGroupEval(params: Record<string, unknown>): Promise<Rec
     candidates,
     differentiators,
     risks,
-    summary: top
-      ? `${candidates.length} candidate(s) for ${roleTitle}. Recommended lead: ${top.label} (fit ${top.score}). ${
-          differentiators.length ? `Unique strengths: ${differentiators.join(", ")}. ` : ""
-        }${risks.length ? `${risks.length} watch-out(s) flagged below.` : "No blocking risks flagged."}`
-      : `No candidates to evaluate for ${roleTitle}.`,
+    // Canonical role requirements for the skills matrix (may be empty for a
+    // job-less role).
+    requirements,
+    // The role's recommended salary band [min, max] (job.salaryBand) — the
+    // reference each candidate's expectation is compared against. Empty for a
+    // job-less role, in which case the salary section just shows expectations.
+    roleSalaryBand: job?.salaryBand ?? [],
+    summary: deterministicSummary,
+    // Structured, bold-formatted AI comparison (the modal prefers it); the flat
+    // `comparisonSummary` stays for legacy/plain-text consumers.
+    comparison: compare?.comparison ?? null,
+    comparisonSummary: compare ? flattenComparison(compare.comparison) : null,
+    comparisonSource: compare?.source ?? null,
   };
 
   saveGroupEval(roleKey, roleTitle, payload);
