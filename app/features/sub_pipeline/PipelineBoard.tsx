@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { needsHumanDecision } from "@/app/_lib/approval-kinds";
 import { CandidateRow, Legend } from "./PipelineShared";
 import { STAGES, type Entry } from "./PipelineTypes";
@@ -70,24 +70,48 @@ export function PipelineBoard({
   openJob: (jobId: string) => void;
   openActions: (e: Entry) => void;
 }) {
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Click a stage header to glide that column to the centre of the viewport, so
+  // a wide pipeline is navigable left↔right without dragging the scrollbar.
+  const centerColumn = (e: React.MouseEvent<HTMLButtonElement>) => {
+    const container = scrollRef.current;
+    if (!container) return;
+    const cell = e.currentTarget;
+    const delta =
+      cell.getBoundingClientRect().left -
+      container.getBoundingClientRect().left -
+      (container.clientWidth - cell.clientWidth) / 2;
+    container.scrollBy({ left: delta, behavior: "smooth" });
+  };
+
   return (
     <section className="space-y-3">
-      <h3 className="text-meta uppercase tracking-wide text-steel">Positions</h3>
-      <div className="overflow-x-auto rounded-lg border border-stone-200 bg-white shadow-panel">
-        <div className="min-w-[2040px]">
-          <div className="grid grid-cols-[220px_repeat(7,minmax(0,1fr))] border-b border-stone-200 bg-paper">
-            <div className="px-3 py-2 text-meta uppercase text-steel">Position</div>
+      <div className="flex items-baseline justify-between">
+        <h3 className="text-meta uppercase tracking-wide text-steel">Positions</h3>
+        <span className="text-sm text-steel">Click a stage header to centre it · scroll horizontally to move across the pipeline</span>
+      </div>
+      <div ref={scrollRef} className="overflow-x-auto rounded-lg border border-stone-200 bg-white shadow-panel">
+        <div className="min-w-[2240px]">
+          <div className="grid grid-cols-[240px_repeat(7,minmax(280px,1fr))] border-b border-stone-200 bg-paper">
+            <div className="sticky left-0 z-20 bg-paper px-3 py-2 text-meta uppercase text-steel">Position</div>
             {STAGES.map((s, i) => (
-              <div key={s} className="px-3 py-2 text-center text-meta uppercase text-steel">
+              <button
+                key={s}
+                type="button"
+                onClick={centerColumn}
+                title={`Centre the ${s} column`}
+                className="focus-ring px-3 py-2 text-center text-meta uppercase text-steel hover:bg-stone-100 hover:text-ink"
+              >
                 <span className="text-stone-400">{i + 1}.</span> {s}
-              </div>
+              </button>
             ))}
           </div>
           {positions.map((pos) => {
             const lane = entries.filter((e) => (e.jobId ?? e.jobTitle) === pos.id);
             return (
-              <div key={pos.id} className="grid grid-cols-[220px_repeat(7,minmax(0,1fr))] border-b border-stone-100 last:border-0">
-                <div className="border-r border-stone-100 px-3 py-3">
+              <div key={pos.id} className="grid grid-cols-[240px_repeat(7,minmax(280px,1fr))] border-b border-stone-100 last:border-0">
+                <div className="sticky left-0 z-10 border-r border-stone-100 bg-white px-3 py-3">
                   <button
                     type="button"
                     onClick={() => openJob(pos.id)}
