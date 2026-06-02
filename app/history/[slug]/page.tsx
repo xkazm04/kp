@@ -13,7 +13,26 @@ export default async function HistoryDetailPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const found = loadAnalysis(slug);
+
+  let found: ReturnType<typeof loadAnalysis>;
+  try {
+    found = loadAnalysis(slug);
+  } catch (error) {
+    // Log the full error server-side; render a styled panel instead of letting
+    // a transient DB lock / IO error (SQLITE_BUSY, disk, seed failure) crash the
+    // Server Component into a raw 500. Mirrors the /api/analyses/[slug] route.
+    console.error(`[history] failed to load analysis "${slug}"`, error);
+    return (
+      <WorkspaceShell active="analyze">
+        <p className="rounded-md bg-red-50 p-4 text-sm text-red-700">
+          We couldn&apos;t load this analysis right now. Please try again in a moment.
+        </p>
+      </WorkspaceShell>
+    );
+  }
+
+  // notFound() throws the NEXT_NOT_FOUND signal — keep it outside the try/catch
+  // above so the 404 path is never swallowed by the DB error handler.
   if (!found) notFound();
 
   const parsed = analysisSchema.safeParse(found.payload);

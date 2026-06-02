@@ -21,7 +21,9 @@ export async function GET(_request: Request, context: { params: Promise<{ slug: 
       analysis: found.payload,
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Failed to load analysis.";
-    return NextResponse.json({ error: message }, { status: 500 });
+    // Log the full error server-side; return a generic, stable message so the
+    // SQLite path and engine internals never reach the client.
+    console.error(`[api:analyses] failed to load analysis "${slug}"`, error);
+    return NextResponse.json({ error: "Failed to load analysis." }, { status: 500 });
   }
 }
