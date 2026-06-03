@@ -11,31 +11,30 @@ from __future__ import annotations
 
 from typing import Any
 
+from . import weight_proposal
 from .jobs import Job
-from .matching import (
-    MatchCandidate,
-    candidate_assumptions,
-    fairness_matrix,
-    ko_filter,
-    propose_weights,
-    score_job,
-)
+from .matching import MatchCandidate, candidate_assumptions, fairness_matrix, ko_filter, score_job
 
 
-def fairness_check(candidates: list[tuple[str, MatchCandidate]], job: Job) -> dict[str, Any]:
-    """Bounded dynamic weights per candidate + the cross-scheme fairness matrix.
+def fairness_check(
+    candidates: list[tuple[str, MatchCandidate]], job: Job, *, provider: Any | None = None
+) -> dict[str, Any]:
+    """Per-candidate dynamic weights + the cross-scheme fairness matrix.
 
-    Each candidate gets a relevance-driven weight proposal (propose_weights) —
-    e.g. a student with a relevant part-time / observed skill leans toward
-    demonstrated skill. Because those vectors differ, a single weighted scalar
-    isn't comparable, so fairness_matrix re-scores the whole pool under EVERY
-    candidate's scheme and ranks by the mean. Returns the matrix plus the aligned
-    candidateIds and the per-candidate weight-adjustment notes for the audit trail.
-    A best-effort companion to rank_candidates_for_job — never required to decide."""
-    proposals = [(cid, cand, *propose_weights(cand, job)) for cid, cand in candidates]
-    matrix = fairness_matrix([(cand, weights) for _cid, cand, weights, _notes in proposals], job)
-    matrix["candidateIds"] = [cid for cid, _cand, _w, _notes in proposals]
-    matrix["weightNotes"] = {cid: notes for cid, _cand, _w, notes in proposals}
+    Each candidate gets a relevance-driven weight proposal — from the LLM proposer
+    when ``provider`` is given (calibrated across the cohort), otherwise the
+    deterministic matching.propose_weights. Because those vectors differ, a single
+    weighted scalar isn't comparable, so fairness_matrix re-scores the whole pool
+    under EVERY candidate's scheme (enforcing the per-archetype bounds) and ranks
+    by the mean. Returns the matrix plus the aligned candidateIds, the per-candidate
+    weight rationale, and whether the weights were LLM- or rule-derived. A
+    best-effort companion to rank_candidates_for_job — never required to decide."""
+    proposals, source = weight_proposal.generate(candidates, job, provider=provider)
+    pairs = [(cand, proposals[cid]["weights"]) for cid, cand in candidates]
+    matrix = fairness_matrix(pairs, job)
+    matrix["candidateIds"] = [cid for cid, _cand in candidates]
+    matrix["weightNotes"] = {cid: proposals[cid]["rationale"] for cid, _cand in candidates}
+    matrix["weightSource"] = source
     return matrix
 
 

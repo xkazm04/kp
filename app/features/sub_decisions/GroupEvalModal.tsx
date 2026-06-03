@@ -41,6 +41,8 @@ export type Fairness = {
   mean: number[];
   ranking: string[];
   weightNotes: Record<string, string[]>;
+  // "llm" when the weights were proposed by the AI (within bounds), else "deterministic".
+  weightSource?: string;
 };
 
 // One candidate as carried by a group evaluation. The base fields (score,
@@ -833,7 +835,7 @@ const fmtScheme = (s: FairnessScheme): string =>
 // the matrix is uniform and adds nothing, so we say that plainly instead.
 function FairnessPanel({ fairness, headlineOrder }: { fairness: Fairness | null; headlineOrder: string[] }) {
   if (!fairness || !fairness.labels?.length || !fairness.matrix?.length) return null;
-  const { labels, schemes, matrix, mean, ranking, weightNotes, candidateIds } = fairness;
+  const { labels, schemes, matrix, mean, ranking, weightNotes, candidateIds, weightSource } = fairness;
   const adjusted = candidateIds.some((id) => (weightNotes?.[id]?.length ?? 0) > 0);
 
   if (!adjusted) {
@@ -852,7 +854,12 @@ function FairnessPanel({ fairness, headlineOrder }: { fairness: Fairness | null;
 
   return (
     <section>
-      <SectionTitle>Fairness check</SectionTitle>
+      <div className="flex items-center gap-2">
+        <SectionTitle>Fairness check</SectionTitle>
+        <Pill tone={weightSource === "llm" ? "info" : "neutral"}>
+          {weightSource === "llm" ? "AI-tuned weights" : "Rule-based weights"}
+        </Pill>
+      </div>
       <p className="mt-1 text-base text-steel">
         Some candidates carry a bounded, evidence-driven weighting — demonstrated skill is weighted higher when backed by
         high-trust evidence. Each candidate is re-scored under <em>every</em> candidate&apos;s weighting; the robust order

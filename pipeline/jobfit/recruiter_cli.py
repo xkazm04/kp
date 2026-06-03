@@ -16,6 +16,7 @@ import json
 import sys
 from pathlib import Path
 
+from .claude_cli import ClaudeCliProvider
 from .jobs import Job
 from .matching import MatchCandidate, load_corpus
 from .profile import CandidateProfileV2
@@ -32,6 +33,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--input-json", type=Path, help="Input JSON file. Reads stdin if omitted.")
     parser.add_argument("--jobs", type=Path, default=None)
     parser.add_argument("--job-json", type=Path, default=None, help="A single Job record — used directly instead of the corpus lookup (lets newly-ingested DB jobs rank).")
+    parser.add_argument("--weights-llm", action="store_true", help="Use the LLM weight proposer for the fairness matrix (default: deterministic, no LLM).")
     args = parser.parse_args(argv)
 
     try:
@@ -71,10 +73,17 @@ def main(argv: list[str] | None = None) -> int:
             candidates.append((entry_id, cand))
 
         rows = rank_candidates_for_job(candidates, job)
-        # Cross-scheme fairness matrix (bounded dynamic weights). Best-effort: a
-        # failure here must not break the primary ranking, so degrade to null.
+        # Cross-scheme fairness matrix (bounded dynamic weights). Opt into the LLM
+        # weight proposer with --weights-llm (the group eval does; the cheap
+        # candidate-list endpoint stays deterministic). Best-effort: a failure here
+        # must not break the primary ranking, so degrade to null.
+        weights_provider = None
+        if args.weights_llm:
+            weights_provider = ClaudeCliProvider(timeout=120)
+            if not weights_provider.available():
+                weights_provider = None
         try:
-            fairness = fairness_check(candidates, job) if candidates else None
+            fairness = fairness_check(candidates, job, provider=weights_provider) if candidates else None
         except Exception:
             fairness = None
     except Exception as exc:

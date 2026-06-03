@@ -42,6 +42,9 @@ type Fairness = {
   mean: number[];
   ranking: string[];
   weightNotes: Record<string, string[]>;
+  // Whether the per-candidate weights were proposed by the LLM ("llm") or the
+  // deterministic relevance rule ("deterministic").
+  weightSource?: string;
 };
 
 // One row of the weight-aware breakdown (matching.build_score_breakdown), all on
@@ -158,7 +161,9 @@ async function rankCandidates(
     const jobPath = path.join(workdir, "job.json");
     await writeFile(jobPath, JSON.stringify(job), "utf-8");
 
-    const { result } = spawnPython(["-m", "pipeline.jobfit.recruiter_cli", "--input-json", inputPath, "--job-json", jobPath]);
+    // --weights-llm: the group eval opts into the LLM weight proposer for the
+    // fairness matrix (the candidate-list endpoint omits it and stays deterministic).
+    const { result } = spawnPython(["-m", "pipeline.jobfit.recruiter_cli", "--input-json", inputPath, "--job-json", jobPath, "--weights-llm"]);
     const { stdout, stderr, exitCode } = await result;
     if (exitCode !== 0) {
       const err = parseStderrError(stderr, exitCode);
