@@ -11,6 +11,7 @@ export type CoverageItem = {
 
 export const GROUP_V1 = "CV analysis (v1)";
 export const GROUP_V2 = "Matching platform & automation (v2)";
+export const GROUP_EARLY = "Early-career students (v2)";
 
 // Each capability is described with a short lead, a focused component diagram
 // (rendered by our own PlantUML renderer — the tinted box marks the part doing
@@ -531,10 +532,72 @@ eval --> out
 - Assumes near-100% LLM-generated code: the case probes judgement, debugging, and review rather than from-scratch authoring.
 - Lives under \`pipeline/jobfit/devcase\` with its own lifecycle, inbound, and evaluation model (Dev cases tab).`,
   },
+  {
+    slug: "early-career-mechanic",
+    title: "Students: how the mechanic works",
+    group: GROUP_EARLY,
+    lead: "Most students apply with ~0 real experience, so a normal CV pipeline has almost nothing to read. We re-gear the lens to potential and first-hand evidence.",
+    body: `\`\`\`puml
+@startuml
+title Re-geared for no track record
+[Student profile\\n(thin CV)] as cv
+[Archetype router\\nearly-career gate] <<gate>> as router
+package "Re-geared scoring" {
+  [Potential\\nreplaces years] <<auto>> as pot
+  [BARS interview\\n6 mental-model axes] <<auto>> as iv
+  [Live case\\nobserved evidence] <<focus>> as kase
+}
+[Bounded weights +\\nfairness matrix] <<auto>> as fair
+[Human decision\\nnever auto-rejected] <<gate>> as human
+cv --> router
+router --> pot
+router --> iv
+router --> kase
+pot --> fair
+iv --> fair
+kase --> fair
+fair --> human
+@enduml
+\`\`\`
+
+- **Routed, not floored.** The archetype router sends a zero-experience candidate down the early-career path: the seniority floor is replaced by the role's *entry-eligibility*, and an early-career candidate can never be auto-rejected — every low score is held for a human.
+- **Potential replaces years.** The "career" axis becomes a potential score (demonstrated depth, learning velocity, foundation, initiative) and the "personal" axis becomes motivation and direction — not keyword overlap with an ad written for veterans.
+- **The interview is scored on a fixed rubric.** Six behaviorally-anchored early-career constructs — problem decomposition, learning agility, coachability, conceptual depth, motivation, communication — with the *same* 1–5 anchors for every student, so two candidates are genuinely comparable.
+- **A live case can earn \`observed\` provenance** — the highest-trust signal in the engine, because we *watched* the skill rather than taking the CV's word. It narrows the early-career confidence band instead of inflating the score, and is granted only for skills the candidate actually demonstrated.
+- **Per-candidate weights, kept fair.** An LLM proposes how much to weight each axis for each student (within bounds — it can never erase or let one axis dominate), and a fairness matrix re-scores the whole shortlist under everyone's weighting, so a student leaning on demonstrated skill and one leaning on raw potential are ranked honestly. The final call is always a human's.`,
+  },
+  {
+    slug: "early-career-thesis",
+    title: "Students: what we honestly believe",
+    group: GROUP_EARLY,
+    lead: "An honest read on how to let students prove themselves, the mentality we look for, and where to spend our effort.",
+    body: `\`\`\`puml
+@startuml
+left to right direction
+title Interview-first, case for the shortlist
+[Every student] as all
+[Agentic interview\\nmental model · coachability] <<auto>> as iv
+[Shortlist] as short
+[Live case\\nobserved evidence] <<focus>> as kase
+[Human decision] <<gate>> as dec
+all --> iv
+iv --> short
+short --> kase
+iv --> dec
+kase --> dec
+@enduml
+\`\`\`
+
+- **The core shift: elicit, don't extract.** A normal pipeline reads evidence off the page; a student's page is nearly blank. So the signal has to be *generated* in a live setting, not parsed from a document. Everything below follows from that one move.
+- **How we let them prove it.** Two first-hand instruments: an adaptive interview that probes the *mental model* (how they decompose a problem, recover when stuck, and take a hint), and a short live case that shows working judgement under real ambiguity. Both can mint \`observed\` evidence — the only provenance we trust above a genuine professional track record.
+- **The mentality we seek — not polish.** We deliberately weight **coachability** (do they integrate a hint mid-problem?), **learning agility** (a repeatable diagnose-adjust loop, not a lucky success), and **calibration** (knowing what they don't know). A self-aware *"I'd verify X before committing"* beats a fluent, confident wrong answer. We score reasoning content separately from delivery fluency, so nerves and non-native English don't masquerade as weak thinking.
+- **Cases vs. interview — our honest take.** For zero-experience candidates the **live case carries the higher signal** and is the right *centerpiece for the shortlist*: it shows judgement under ambiguity and is the only thing that earns observed-provenance skills the score actually credits. But it is expensive to author, easy to over-fit, and slow to take. The **interview is the scalable default** and the *irreplaceable* probe for coachability and mental model — the one thing a take-home can't capture, because there is no examiner to push back. **Our stance: interview-first as the universal screen, live case as the centerpiece for the shortlist.** Lead with the interview to find the mentality cheaply; reserve the costlier observed case for the candidates worth the deeper read.
+- **What we stay honest about.** Potential scoring is a weak discriminator on its own — thin CVs cluster near the same value — so the live instruments carry the real weight, and every early-career score ships with a deliberately wide confidence band. The platform never auto-rejects a student; a human owns every decision, with the AI's reasoning as context.`,
+  },
 ];
 
 // v1 acceptance items first, then the v2 platform — each group sorted by title.
-const GROUP_ORDER = [GROUP_V1, GROUP_V2];
+const GROUP_ORDER = [GROUP_V1, GROUP_V2, GROUP_EARLY];
 
 export type CoverageGroup = { label: string; items: CoverageItem[] };
 
