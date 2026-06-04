@@ -1,10 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { Lightbulb, MessageCircleQuestion } from "lucide-react";
+import { FlaskConical, Lightbulb, MessageCircleQuestion } from "lucide-react";
 import { Markdown } from "../../_components/Markdown";
 import { rubricForArchetype } from "@/app/_lib/interview-rubric";
-import { STUDENT_SCRIPT } from "@/app/_lib/student-interview";
+import { DEMO_CASE_SCENARIO, STUDENT_SCRIPT } from "@/app/_lib/student-interview";
 import type { CoverageItem } from "./AboutCoverageData";
 
 // Dedicated About page for the early-career thesis: the selected card's diagram +
@@ -80,13 +80,13 @@ type ExampleStudent = {
 const STUDENTS: ExampleStudent[] = [
   {
     name: "Adéla",
-    tagline: "Part-time backend job + passed live case → observed evidence",
+    tagline: "Part-time job + strong case-grounded interview → observed skills minted",
     weights: { skills: 48, potential: 34, motivation: 18 },
     scores: { skills: 82, potential: 68, motivation: 71 },
     total: 75,
     band: [69, 81],
     bandLevel: "moderate",
-    bandWhy: "Early-career, but two skills were directly observed (live case) — band stays tighter.",
+    bandWhy: "Early-career, but skills were directly observed (case-grounded interview) — band stays tighter.",
     weightWhy: "Must-haves backed by observed + professional evidence → demonstrated skill weighted up (bounded).",
     ratings: {
       "Problem decomposition": { score: 4, evidence: "Split the task into ingestion, validation and API before touching code." },
@@ -148,8 +148,11 @@ const ratingColor = (r: number) =>
 
 function ExampleScoring() {
   // The interview grid rows come from the REAL early-career rubric (the same JSON
-  // the Python scorer reads) — only the candidates here are synthetic.
+  // the Python scorer reads) — only the candidates here are synthetic. The
+  // constructs the case-grounded phases feed (tagged "case") are the ones whose
+  // ratings can mint observed-provenance skills.
   const rubric = rubricForArchetype("student");
+  const caseFed = new Set(STUDENT_SCRIPT.filter((p) => p.caseGrounded).flatMap((p) => p.feeds));
 
   return (
     <div>
@@ -238,6 +241,14 @@ function ExampleScoring() {
               <tr key={comp.competency} className="border-t border-stone-100">
                 <td className="sticky left-0 bg-white p-2 text-ink" title={comp.description}>
                   {comp.competency}
+                  {caseFed.has(comp.competency) ? (
+                    <span
+                      className="ml-1.5 rounded-full bg-coral/10 px-1.5 py-0.5 text-meta font-medium text-coral"
+                      title="Fed by the case-grounded phases — these ratings gate observed minting"
+                    >
+                      case
+                    </span>
+                  ) : null}
                 </td>
                 {STUDENTS.map((s) => {
                   const r = s.ratings[comp.competency];
@@ -262,9 +273,12 @@ function ExampleScoring() {
         </table>
       </div>
       <p className="mt-2 text-sm text-steel">
-        Hover a rating for the verbatim evidence behind it — no quote, no score. Adéla&apos;s observed live case
-        narrows her band; Bára outscores her on potential but stays wide until something is observed; Cyril&apos;s
-        fluent delivery is scored separately from the content of his reasoning.
+        Hover a rating for the verbatim evidence behind it — no quote, no score. Adéla&apos;s{" "}
+        <span className="font-medium text-ink">case</span>-tagged constructs average 4.3 on quoted evidence —
+        above the 4/5 minting bar, so her case-grounded interview itself minted the observed skills that narrow
+        her band. Bára outscores her on potential but stays wide until something is observed; Cyril&apos;s fluent
+        delivery is scored separately from the content of his reasoning (and his 2s on the case constructs mean
+        nothing is minted).
       </p>
     </div>
   );
@@ -277,51 +291,85 @@ function ExampleScoring() {
 // interviewer actually runs.
 
 function InterviewScript() {
+  // Shown in its CASE-DESIGNED form: the fixed skeleton paired with the probes the
+  // demo scenario instantiated from the case, so the combination is visible —
+  // personal phases keep the generic probe; highlighted phases draw theirs from
+  // the role's case (the generic template shown muted underneath).
   return (
     <div>
       <p className="text-base text-steel">
-        The high-level thought-script the agentic interviewer follows (~20–25 minutes). The order is
-        deliberate — concrete → mechanism → counterfactual → metacognitive — and the agent may improvise
-        follow-ups, but it must leave with a scoreable, <em>quotable</em> observation for every rubric
-        construct before closing. Hints are injected on purpose: coachability only exists live.
+        The thought-script the agent follows (~{DEMO_CASE_SCENARIO.durationMin} minutes), shown in its
+        case-designed form. The skeleton is fixed — concrete → mechanism → counterfactual → metacognitive —
+        and the agent may improvise follow-ups, but the{" "}
+        <span className="font-medium text-ink">highlighted phases draw their questions from the role&apos;s
+        designed case</span>, so every candidate works the same material. Hints are injected on purpose:
+        coachability only exists live.
       </p>
 
+      <div className="mt-3 rounded-lg border border-coral/30 bg-coral/5 p-3">
+        <p className="flex items-center gap-1.5 text-meta uppercase tracking-wide text-coral">
+          <FlaskConical size={13} aria-hidden /> Narrated case — the shared material (demo)
+        </p>
+        <p className="mt-1 text-sm text-ink">{DEMO_CASE_SCENARIO.caseIntro}</p>
+      </div>
+
       <ol className="mt-4 space-y-3">
-        {STUDENT_SCRIPT.map((p, i) => (
-          <li key={p.phase} className="rounded-lg border border-stone-200 bg-paper/40 p-3">
-            <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-              <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-coral/10 text-sm font-semibold nums text-coral">
-                {i + 1}
-              </span>
-              <p className="font-medium text-ink">{p.phase}</p>
-              <span className="text-meta text-steel nums">{p.minutes}</span>
-            </div>
-            <p className="mt-1.5 text-sm text-steel">{p.goal}</p>
-            <p className="mt-2 flex items-start gap-1.5 text-sm text-ink">
-              <MessageCircleQuestion size={15} className="mt-0.5 shrink-0 text-coral" aria-hidden />
-              <span className="italic">{p.probe}</span>
-            </p>
-            <p className="mt-1.5 flex items-start gap-1.5 text-sm text-steel">
-              <Lightbulb size={14} className="mt-0.5 shrink-0 text-dial-amber" aria-hidden />
-              <span>
-                <span className="font-medium text-ink">Listen for:</span> {p.listenFor}
-              </span>
-            </p>
-            <div className="mt-2 flex flex-wrap gap-1">
-              {p.feeds.map((f) => (
-                <span key={f} className="rounded-full bg-stone-100 px-2 py-0.5 text-meta font-medium text-steel">
-                  {f}
+        {DEMO_CASE_SCENARIO.phases.map((p, i) => {
+          const generic = STUDENT_SCRIPT[i];
+          const fromCase = Boolean(p.caseRef);
+          return (
+            <li
+              key={p.phase}
+              className={`rounded-lg border p-3 ${fromCase ? "border-coral/30 bg-coral/5" : "border-stone-200 bg-paper/40"}`}
+            >
+              <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-coral/10 text-sm font-semibold nums text-coral">
+                  {i + 1}
                 </span>
-              ))}
-            </div>
-          </li>
-        ))}
+                <p className="font-medium text-ink">{p.phase}</p>
+                <span className="text-meta text-steel nums">{p.minutes}</span>
+                <span
+                  className={`rounded-full px-2 py-0.5 text-meta font-medium ${
+                    fromCase ? "bg-coral/10 text-coral" : "bg-stone-100 text-steel"
+                  }`}
+                >
+                  {fromCase ? "from the case" : "personal"}
+                </span>
+              </div>
+              <p className="mt-1.5 text-sm text-steel">{p.goal}</p>
+              <p className="mt-2 flex items-start gap-1.5 text-sm text-ink">
+                <MessageCircleQuestion size={15} className="mt-0.5 shrink-0 text-coral" aria-hidden />
+                <span className="italic">{p.probe}</span>
+              </p>
+              {fromCase && generic ? (
+                <p className="mt-1 pl-6 text-sm text-steel">
+                  Generic template it replaces: <span className="italic">{generic.probe}</span>
+                </p>
+              ) : null}
+              <p className="mt-1.5 flex items-start gap-1.5 text-sm text-steel">
+                <Lightbulb size={14} className="mt-0.5 shrink-0 text-dial-amber" aria-hidden />
+                <span>
+                  <span className="font-medium text-ink">Listen for:</span> {p.listenFor}
+                </span>
+              </p>
+              <div className="mt-2 flex flex-wrap gap-1">
+                {p.feeds.map((f) => (
+                  <span key={f} className="rounded-full bg-stone-100 px-2 py-0.5 text-meta font-medium text-steel">
+                    {f}
+                  </span>
+                ))}
+              </div>
+            </li>
+          );
+        })}
       </ol>
 
       <p className="mt-3 text-sm text-steel">
         Every rating must cite a verbatim transcript quote (no quote, no score), a short or evasive answer
         widens the confidence band instead of lowering the score, and reasoning content is scored separately
-        from delivery fluency — nerves and non-native English are not weak thinking.
+        from delivery fluency — nerves and non-native English are not weak thinking. When the case-fed
+        constructs all rate on quoted evidence and average above bar, the interview itself mints
+        observed-provenance skills onto the candidate&apos;s profile.
       </p>
     </div>
   );
