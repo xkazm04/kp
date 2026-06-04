@@ -58,6 +58,7 @@ const {
   caseGroundedInterviewerInstructions,
   scenarioRunOfShow,
   devCaseIdFromJobId,
+  submissionIdFromCandidateId,
   DEMO_CASE_SCENARIO,
 } = await import("@/app/_lib/student-interview.ts");
 
@@ -99,6 +100,15 @@ test("devCaseIdFromJobId resolves only dev-case jobIds", () => {
   assert.equal(devCaseIdFromJobId("job-42"), null);
   assert.equal(devCaseIdFromJobId(null), null);
   assert.equal(devCaseIdFromJobId(undefined), null);
+});
+
+test("submissionIdFromCandidateId resolves only dev-case submission candidates", () => {
+  // The "ds-" prefix is stamped by devcase-run.promoteSubmission — the key to the
+  // eval bundle whose minted follow-ups ground the submission-debrief interview.
+  assert.equal(submissionIdFromCandidateId("ds-sub_9f3"), "sub_9f3");
+  assert.equal(submissionIdFromCandidateId("cand-7"), null);
+  assert.equal(submissionIdFromCandidateId(null), null);
+  assert.equal(submissionIdFromCandidateId(undefined), null);
 });
 
 test("the demo scenario instantiates exactly the case-grounded phases", () => {

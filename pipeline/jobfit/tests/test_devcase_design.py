@@ -97,5 +97,41 @@ class TestProbeRevealsEnforced(unittest.TestCase):
         self.assertNotIn("case: probe missing 'reveals'", _check_case(case, None))
 
 
+class TestAmbiguityAsInstrument(unittest.TestCase):
+    """case-design v4: probes carry a decisionSpace of defensible options and the case
+    forces a visible decision trail, so the submission must encode the candidate's path
+    through the ambiguities (what mint_followups later verifies they own)."""
+
+    def setUp(self):
+        self.need = DevNeed(title="Backend Engineer", stack=["Python"], seniority_target="medior")
+        self.analysis = NeedAnalysis(real_stack=["Python"], true_complexity="medium")
+        self.role = {"title": "Backend Engineer", "seniority": "medior", "roleFamily": "software_engineering", "responsibilities": []}
+
+    def test_deterministic_case_forces_decision_log_and_decision_spaces(self):
+        case, source = design_case(self.need, self.analysis, self.role, provider=None)
+        self.assertEqual(source, "deterministic")
+        self.assertTrue(any("DECISIONS log" in t for t in case["tasks"]))
+        core = [p for p in case["coverProbes"] if p["id"] in ("p1", "p2", "p3")]
+        for p in core:
+            self.assertGreaterEqual(len(p["decisionSpace"]), 2, p["id"])
+
+    def test_llm_decision_space_is_coerced_and_optional(self):
+        payload = {
+            "title": "Case",
+            "brief": "b",
+            "repoSeed": "r",
+            "tasks": ["t"],
+            "coverProbes": [
+                {"id": "x1", "kind": "ambiguity", "where": "brief", "reveals": "r", "decisionSpace": ["Option A", "  ", "Option B"]},
+                {"id": "x2", "kind": "legacy_trap", "where": "old.py", "reveals": "r"},  # decisionSpace absent — legal
+            ],
+            "timeboxHours": 4,
+        }
+        case, _ = design_case(self.need, self.analysis, self.role, provider=_StubProvider(payload))
+        by_id = {p["id"]: p for p in case["coverProbes"]}
+        self.assertEqual(by_id["x1"]["decisionSpace"], ["Option A", "Option B"])  # cleaned
+        self.assertEqual(by_id["x2"]["decisionSpace"], [])  # pre-v4 probes degrade gracefully
+
+
 if __name__ == "__main__":
     unittest.main()

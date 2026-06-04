@@ -42,12 +42,21 @@ export type PerStepSources = Record<string, SourceKind>;
 // `snapshot` (= first of them) survives for bundles saved before multi-repo existed.
 export type Result = { analysis?: NeedAnalysis; snapshot?: RepoSnapshot | null; snapshots?: RepoSnapshot[]; source?: SourceKind; perStepSources?: PerStepSources };
 
-export type CoverProbe = { id?: string; kind?: string; where?: string; reveals?: string };
+export type CoverProbe = { id?: string; kind?: string; where?: string; reveals?: string; decisionSpace?: string[] };
 export type RubricDim = { name?: string; label?: string; weight?: number; description?: string };
 export type RoleSpec = { title?: string; seniority?: string; mustHaves?: string[]; niceToHaves?: string[]; responsibilities?: string[] };
 export type CaseScenario = { title?: string; brief?: string; repoSeed?: string; tasks?: string[]; coverProbes?: CoverProbe[]; rubricDimensions?: RubricDim[]; timeboxHours?: number };
 export type Design = { role?: RoleSpec; case?: CaseScenario; source?: SourceKind; perStepSources?: PerStepSources };
 export type ApprovedCase = { id: string; title: string | null; roleTitle: string | null; seniority: string | null; createdAt: string };
+// The full record GET /api/devcase actually returns per case (listDevCases sends the
+// whole row, JSON parsed) — the Cases tab table uses the summary fields and the detail
+// reader uses role/case/scenario without a second fetch.
+export type DevCaseDetail = ApprovedCase & {
+  role?: RoleSpec | null;
+  case?: CaseScenario | null;
+  scenario?: { phases?: unknown[]; durationMin?: number } | null;
+  status?: string;
+};
 export type Submission = {
   id: string;
   candidateRef: string | null;
@@ -96,7 +105,13 @@ export type Tooling = { fluency?: number; probeOutcomes?: ProbeOutcome[]; overRe
 export type DimensionScore = { name: string; label: string; weight: number; score: number; description: string };
 export type CaseEval = { dimensionScores?: Record<string, number>; dimensions?: DimensionScore[]; strengths?: string[]; concerns?: string[]; hasFindings?: boolean; summary?: string };
 export type Transfer = { transferScore?: number; transfers?: string[]; gaps?: string[]; hasTransfers?: boolean; roleFitRationale?: string };
-export type EvalBundle = { reflection?: Reflection; tooling?: Tooling; evaluation?: CaseEval; transfer?: Transfer; source?: SourceKind; perStepSources?: PerStepSources; commitCount?: number };
+// One candidate-specific interview question minted from the evaluated submission
+// (evaluate.mint_followups). `decision` names the observed call being verified;
+// listenFor/redFlag are INTERNAL interviewer notes — render them as such, never
+// candidate-facing.
+export type FollowupQuestion = { id?: string; probeId?: string; decision?: string; question?: string; listenFor?: string; redFlag?: string };
+export type Followups = { questions?: FollowupQuestion[] };
+export type EvalBundle = { reflection?: Reflection; tooling?: Tooling; evaluation?: CaseEval; transfer?: Transfer; followups?: Followups; source?: SourceKind; perStepSources?: PerStepSources; commitCount?: number };
 
 export const LIFECYCLE_STEPS = ["intake", "analyzed", "designed", "approved", "collecting", "ranked", "promoted"];
 export const STAGE_LABEL: Record<string, string> = {

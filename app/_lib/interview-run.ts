@@ -1,4 +1,4 @@
-import { getDevCase, getJob, getPipelineEntry, type InterviewTurn } from "./db";
+import { getDevCase, getJob, getPipelineEntry, getSubmission, type InterviewTurn } from "./db";
 import { runAutomationTask } from "./automation-run";
 import { defaultInterviewerInstructions } from "./voice";
 import { getInterviewPrep } from "./interview-prep";
@@ -13,6 +13,7 @@ import {
   STUDENT_SCRIPT_MIN,
   studentInterviewerInstructions,
   studentRunOfShow,
+  submissionIdFromCandidateId,
   type CaseInterviewScenario,
 } from "./student-interview";
 
@@ -61,6 +62,46 @@ function composeBrief(
   ].join(" ");
 }
 
+type SubmissionFollowup = { id?: string; decision?: string; question?: string; listenFor?: string; redFlag?: string };
+
+// Candidate-facing agenda for the submission debrief — deliberately generic: the
+// followups' decision/red-flag notes are interviewer-internal and must never leak
+// into the run-of-show the candidate sees.
+const DEBRIEF_RUN_OF_SHOW = ["Your take-home — how you approached it", "Decisions deep-dive", "Counterfactuals", "Your questions"];
+
+/** The agent brief for a SUBMISSION DEBRIEF: the candidate completed the take-home
+ *  and its evaluation minted authorship questions from THEIR observed decisions
+ *  (evaluate.mint_followups). The artifact alone can be wholly LLM-produced, so this
+ *  conversation — the why, the rejected alternative, the counterfactual — is where
+ *  the evaluation actually happens. Tone is curiosity, never suspicion. */
+function composeDebriefBrief(
+  company: string,
+  roleLine: string,
+  candidateLabel: string | null,
+  followups: SubmissionFollowup[],
+  durationMin: number
+): string {
+  const name = candidateLabel ? ` You are speaking with ${candidateLabel}.` : "";
+  const questions = followups
+    .map((f, i) => {
+      const listen = f.listenFor ? ` Listen for: ${f.listenFor}` : "";
+      const flag = f.redFlag ? ` Internal red flag — never say this aloud: ${f.redFlag}` : "";
+      return `${i + 1}. Ask: “${f.question}”${listen}${flag}`;
+    })
+    .join("  ");
+  return [
+    `You are a warm, professional interviewer at ${company} for the ${roleLine} role.${name}`,
+    "You are male — when you speak Czech, use masculine grammatical forms for yourself (e.g. „rád bych“, „zeptal bych se“, „řekl jsem“).",
+    "Detect whether the candidate speaks Czech or English and respond in that language; follow them if they switch.",
+    "Begin by briefly introducing yourself as an AI assistant in two sentences, mention the call is transcribed for a human recruiter, and say this conversation is about the take-home assignment they submitted — you'd like to understand how they approached it.",
+    "Using AI tools to build the submission is expected and NEVER penalised — what matters is whether they own the decisions in it. Never imply suspicion or that authorship is being verified; every question is genuine curiosity about their reasoning.",
+    `Open by letting them walk you through their approach in their own words for a couple of minutes, then work through these questions (about ${durationMin} minutes total), one at a time, adapting natural follow-ups to their answers — push gently for the WHY, the alternative they rejected, and what would make them decide differently:`,
+    questions,
+    "If an answer stays generic, ask for the specific moment in THEIR submission where they made that call. An honest “I don't know” or “the tool suggested it and I kept it” is useful signal — acknowledge it neutrally and move on.",
+    "Do not give feedback, scores, or any hiring decision. When the questions are covered, invite the candidate's questions, thank them, and say a human recruiter will review the conversation.",
+  ].join(" ");
+}
+
 /** Build the interviewer brief + candidate-facing run-of-show titles for an
  *  entry, grounded in the rich interview-prep artifact (generated if missing). */
 export async function buildGroundedInterview(entryId: string): Promise<{
@@ -79,6 +120,29 @@ export async function buildGroundedInterview(entryId: string): Promise<{
   const title = entry.jobTitle || job?.title || "the role";
   const ctx = [job?.seniority, job?.location, job?.workMode].filter(Boolean).join(" · ");
   const roleLine = ctx ? `${title} (${ctx})` : title;
+
+  // Entries promoted from an evaluated dev-case submission get the SUBMISSION
+  // DEBRIEF: the take-home's evaluation minted authorship questions from their
+  // observed decisions, and this conversation is where those hypotheses are
+  // verified (the artifact alone can be wholly LLM-produced). Most specific
+  // grounding available, so it wins over both the student script and prep.
+  const submissionId = submissionIdFromCandidateId(entry.candidateId);
+  const submission = submissionId ? getSubmission(submissionId) : null;
+  const followups = ((submission?.evaluation as { followups?: { questions?: SubmissionFollowup[] } } | null)?.followups?.questions ?? []).filter(
+    (f) => typeof f?.question === "string" && f.question.trim() !== ""
+  );
+  if (followups.length > 0) {
+    // ~3 min per minted question on top of the open walkthrough; capped to stay a screen.
+    const durationMin = Math.min(25, 8 + 3 * followups.length);
+    return {
+      instructions: composeDebriefBrief(company, roleLine, entry.candidateLabel ?? null, followups, durationMin),
+      runOfShow: DEBRIEF_RUN_OF_SHOW,
+      durationMin,
+      candidateLabel: entry.candidateLabel ?? null,
+      jobId: entry.jobId ?? null,
+      jobTitle: entry.jobTitle ?? null,
+    };
+  }
 
   // Early-career entries get the student methodology instead of the prep
   // chronology — their CV can't carry the evaluation, so the agent LEADS. When

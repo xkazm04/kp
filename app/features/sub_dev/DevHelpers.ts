@@ -1,4 +1,4 @@
-import type { SourceDescriptor, SourceKind } from "./DevTypes";
+import type { CaseScenario, RoleSpec, SourceDescriptor, SourceKind } from "./DevTypes";
 
 // Single source of truth for how each provenance state reads and looks, so the
 // label, chip colour and degraded warning are decided in one place and always
@@ -28,6 +28,33 @@ export function isSupportedRepoRef(raw: string): boolean {
   if (/github\.com/i.test(ref)) return true;
   if (/^[^/\s]+\/[^/\s]+$/.test(ref)) return true; // bare owner/repo
   return false;
+}
+
+// One markdown-list item must stay on one line for the renderer, but case tasks /
+// briefs may carry stray newlines from the LLM — collapse them inside an item.
+const oneLine = (s: string) => s.replace(/\s*\n\s*/g, " ").trim();
+
+// The CANDIDATE-FACING assignment document, composed as Markdown for the case
+// detail reader (rendered by app/_components/Markdown). Internal material — cover
+// probes, decision spaces, rubric weights, role spec — is deliberately NOT part of
+// this document, so copy-pasting it to a candidate can never leak a probe; the
+// detail view renders those in clearly-marked internal panels instead.
+export function caseToMarkdown(kase: CaseScenario, role?: RoleSpec | null): string {
+  const lines: string[] = [`# ${oneLine(kase.title || "Assignment")}`];
+  const meta = [
+    role?.title,
+    role?.seniority,
+    kase.timeboxHours ? `~${kase.timeboxHours}h timebox` : null,
+  ].filter(Boolean);
+  if (meta.length) lines.push("", `**${meta.join(" · ")}**`);
+  if (kase.brief?.trim()) lines.push("", "## Brief", kase.brief.trim());
+  if (kase.repoSeed?.trim()) lines.push("", "## What you're handed", kase.repoSeed.trim());
+  const tasks = (kase.tasks ?? []).map(oneLine).filter(Boolean);
+  if (tasks.length) {
+    lines.push("", "## Tasks");
+    tasks.forEach((t, i) => lines.push(`${i + 1}. ${t}`));
+  }
+  return lines.join("\n");
 }
 
 export function scoreColor(v: number): string {

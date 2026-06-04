@@ -6,14 +6,44 @@ import { useTasks } from "@/app/features/tasks/TasksProvider";
 import { NeedForm } from "./NeedForm";
 import { AnalysisView } from "./AnalysisView";
 import { LifecycleSection } from "./LifecycleSection";
-import { ApprovedCasesSection } from "./ApprovedCasesSection";
-import { PostingsSection } from "./PostingsSection";
-import { OutboxSection } from "./OutboxSection";
+import { CasesTable } from "./CasesTable";
+import { CaseDetail } from "./CaseDetail";
+import { OutboxTable } from "./OutboxSection";
 import { MAX_CODEBASES } from "@/app/_lib/devcase-constraints";
-import type { ApprovedCase, Design, JdSummary, Lifecycle, OutboxItem, Posting, Result, SelectedJd } from "./DevTypes";
+import type { Design, DevCaseDetail, JdSummary, Lifecycle, OutboxItem, Posting, Result, SelectedJd } from "./DevTypes";
+
+// The studio's three workspaces: the case library first (read + operate),
+// creation second, comms third. Local state only — the dev tab owns its own
+// sub-navigation, the workspace-level ?tab= param stays untouched.
+const DEV_VIEWS = [
+  { id: "cases", label: "Cases" },
+  { id: "define", label: "Define need" },
+  { id: "outbox", label: "Outbox" },
+] as const;
+type DevView = (typeof DEV_VIEWS)[number]["id"];
+
+const VIEW_HEADING: Record<DevView, { title: string; blurb: string }> = {
+  cases: {
+    title: "Active cases",
+    blurb:
+      "Every designed assignment in one place — stage, intake and evaluations. Click a case to read the full brief and its internal probe material.",
+  },
+  define: {
+    title: "Define the need",
+    blurb:
+      `Pick the job description and point us at the real codebases it covers (up to ${MAX_CODEBASES}). The engine reflects what the JD says you need against what the code actually is — surfacing the gaps before we design an assignment. Assume the candidate's code is LLM-generated; we'll grade judgment, not typing.`,
+  },
+  outbox: {
+    title: "Comms outbox",
+    blurb:
+      "Every message the pipeline sent — intake acknowledgements, promote invites, recruiter outreach, and rejections.",
+  },
+};
 
 export function DevTab() {
   const { startTask, tasks } = useTasks();
+  const [view, setView] = useState<DevView>("cases");
+  const [selectedCaseId, setSelectedCaseId] = useState<string | null>(null);
   // JD-first intake: the saved job description IS the need's metadata (title +
   // stack + responsibilities live in its body); the form only adds codebases +
   // a seniority target on top.
@@ -31,12 +61,14 @@ export function DevTab() {
 
   // Each loader tracks its own failure + last-updated so an outage renders an
   // explicit banner/stale pill instead of looking identical to an empty pipeline.
-  const { data: approvedCases, state: casesState, reload: loadCases } = useLoader<ApprovedCase[]>(
+  // /api/devcase returns FULL records (role/case/scenario JSON), so the detail
+  // reader opens instantly from the already-loaded list — no second fetch.
+  const { data: cases, state: casesState, reload: loadCases } = useLoader<DevCaseDetail[]>(
     "/api/devcase",
-    (p) => (p.cases as ApprovedCase[]) ?? [],
+    (p) => (p.cases as DevCaseDetail[]) ?? [],
     [],
   );
-  const { data: postings, state: postingsState, reload: loadPostings } = useLoader<Posting[]>(
+  const { data: postings, reload: loadPostings } = useLoader<Posting[]>(
     "/api/devcase/postings",
     (p) => (p.postings as Posting[]) ?? [],
     [],
@@ -225,72 +257,112 @@ export function DevTab() {
     }
   };
 
+  const selectedCase = selectedCaseId ? cases.find((c) => c.id === selectedCaseId) ?? null : null;
+  const heading = VIEW_HEADING[view];
+
   return (
     <div className="space-y-5">
       <header>
         <p className="text-meta uppercase text-coral">Dev extension</p>
-        <h2 className="mt-1 font-serif text-display text-ink">Define the need</h2>
-        <p className="mt-1 max-w-2xl text-body text-steel">
-          Pick the job description and point us at the real codebases it covers (up to {MAX_CODEBASES}). The
-          engine reflects what the JD says you need against what the code <em>actually is</em> — surfacing the
-          gaps before we design an assignment. Assume the candidate&apos;s code is LLM-generated; we&apos;ll
-          grade judgment, not typing.
-        </p>
+        <h2 className="mt-1 font-serif text-display text-ink">{heading.title}</h2>
+        <p className="mt-1 max-w-2xl text-body text-steel">{heading.blurb}</p>
       </header>
 
-      <div className="grid gap-5 lg:grid-cols-[minmax(0,360px)_1fr]">
-        {/* intake */}
-        <NeedForm
-          jds={jds}
-          jd={jd}
-          jdLoading={jdLoading}
-          pickJd={pickJd}
-          repoUrls={repoUrls}
-          setRepoUrl={setRepoUrl}
-          addRepo={addRepo}
-          removeRepo={removeRepo}
-          seniority={seniority}
-          setSeniority={setSeniority}
-          runLifecycle={runLifecycle}
-          lifecycleActive={lifecycleActive}
-          submit={submit}
-          running={running}
-          needTasks={needTasks}
-          viewed={viewed}
-          selectNeed={selectNeed}
-        />
-
-        {/* reality reflection */}
-        <AnalysisView
-          viewed={viewed}
-          running={running}
-          result={result}
-          analysis={analysis}
-          snapshots={snapshots}
-          design={design}
-          designing={designing}
-          startDesign={startDesign}
-          approve={approve}
-          approving={approving}
-          approvedId={approvedId}
-        />
+      {/* sub-tab switcher */}
+      <div role="tablist" aria-label="Dev studio sections" className="inline-flex rounded-lg border border-stone-200 bg-paper p-0.5">
+        {DEV_VIEWS.map((t) => {
+          const active = view === t.id;
+          const count = t.id === "cases" ? cases.length : t.id === "outbox" ? outbox.length : null;
+          return (
+            <button
+              key={t.id}
+              type="button"
+              role="tab"
+              aria-selected={active}
+              onClick={() => setView(t.id)}
+              className={`focus-ring inline-flex h-8 items-center gap-1.5 rounded-md px-3 text-sm font-semibold transition-colors ${
+                active ? "bg-white text-ink shadow-panel" : "text-steel hover:text-ink"
+              }`}
+            >
+              {t.label}
+              {count != null && count > 0 ? (
+                <span className={`rounded-full px-1.5 text-micro nums ${active ? "bg-coral/10 text-coral" : "bg-stone-200/70 text-steel"}`}>
+                  {count}
+                </span>
+              ) : null}
+            </button>
+          );
+        })}
       </div>
 
-      <LifecycleSection lifecycles={lifecycles} approveLifecycle={approveLifecycle} state={lifecyclesState} />
+      {view === "cases" ? (
+        selectedCase ? (
+          <CaseDetail
+            kase={selectedCase}
+            postings={postings}
+            onBack={() => setSelectedCaseId(null)}
+            publish={publish}
+            source={source}
+            sourcing={sourcing}
+            sourcedCounts={sourcedCounts}
+            loadPostings={loadPostings}
+          />
+        ) : (
+          <>
+            <CasesTable
+              cases={cases}
+              lifecycles={lifecycles}
+              postings={postings}
+              state={casesState}
+              onOpen={setSelectedCaseId}
+              onDefine={() => setView("define")}
+            />
+            <LifecycleSection lifecycles={lifecycles} approveLifecycle={approveLifecycle} state={lifecyclesState} />
+          </>
+        )
+      ) : null}
 
-      <ApprovedCasesSection
-        approvedCases={approvedCases}
-        postings={postings}
-        publish={publish}
-        source={source}
-        sourcing={sourcing}
-        sourcedCounts={sourcedCounts}
-        state={casesState}
-      />
+      {view === "define" ? (
+        <div className="grid gap-5 lg:grid-cols-[minmax(0,360px)_1fr]">
+          {/* intake */}
+          <NeedForm
+            jds={jds}
+            jd={jd}
+            jdLoading={jdLoading}
+            pickJd={pickJd}
+            repoUrls={repoUrls}
+            setRepoUrl={setRepoUrl}
+            addRepo={addRepo}
+            removeRepo={removeRepo}
+            seniority={seniority}
+            setSeniority={setSeniority}
+            runLifecycle={runLifecycle}
+            lifecycleActive={lifecycleActive}
+            submit={submit}
+            running={running}
+            needTasks={needTasks}
+            viewed={viewed}
+            selectNeed={selectNeed}
+          />
 
-      <PostingsSection postings={postings} loadPostings={loadPostings} state={postingsState} />
+          {/* reality reflection */}
+          <AnalysisView
+            viewed={viewed}
+            running={running}
+            result={result}
+            analysis={analysis}
+            snapshots={snapshots}
+            design={design}
+            designing={designing}
+            startDesign={startDesign}
+            approve={approve}
+            approving={approving}
+            approvedId={approvedId}
+          />
+        </div>
+      ) : null}
 
-      <OutboxSection outbox={outbox} state={outboxState} />
+      {view === "outbox" ? <OutboxTable outbox={outbox} state={outboxState} /> : null}
     </div>
   );
 }

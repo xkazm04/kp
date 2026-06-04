@@ -262,8 +262,13 @@ export type SubmissionEvaluation = {
   tooling: Record<string, unknown>;
   evaluation: Record<string, unknown>;
   transfer: Record<string, unknown>;
+  // Candidate-specific interview questions minted from THIS submission's observed
+  // decisions ({questions: FollowupQuestion[]}). The artifact alone can be wholly
+  // LLM-produced, so the scores are hypotheses — the followups are what the live
+  // interview uses to verify the candidate OWNS the decisions.
+  followups: Record<string, unknown>;
   source: string;
-  perStepSources: Record<string, string>; // {reflect, tooling, evaluate, transfer}
+  perStepSources: Record<string, string>; // {reflect, tooling, evaluate, transfer, followups}
   commitCount: number;
 };
 
@@ -313,11 +318,23 @@ export async function runEvaluateSubmission(submissionId: string): Promise<Submi
     const { stdout, stderr, exitCode } = await result;
     if (exitCode !== 0) throw new PipelineError(parseStderrError(stderr, exitCode));
     const payload = parsePythonJson<{
-      result: { reflection: Record<string, unknown>; tooling: Record<string, unknown>; evaluation: Record<string, unknown>; transfer: Record<string, unknown> };
+      result: {
+        reflection: Record<string, unknown>;
+        tooling: Record<string, unknown>;
+        evaluation: Record<string, unknown>;
+        transfer: Record<string, unknown>;
+        followups?: Record<string, unknown>;
+      };
       source: string;
       perStepSources?: Record<string, string>;
     }>(stdout, stderr);
-    const out = { ...payload.result, source: payload.source, perStepSources: payload.perStepSources ?? {}, commitCount: commits.length };
+    const out = {
+      ...payload.result,
+      followups: payload.result.followups ?? {},
+      source: payload.source,
+      perStepSources: payload.perStepSources ?? {},
+      commitCount: commits.length,
+    };
     const transferScore = Number((payload.result.transfer as { transferScore?: number } | null | undefined ?? {}).transferScore ?? 0);
     saveSubmissionEvaluation(submissionId, out, transferScore);
     return out;

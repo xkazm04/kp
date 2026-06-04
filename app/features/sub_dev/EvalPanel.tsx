@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, CircleDot, Info, Send, X, type LucideIcon } from "lucide-react";
+import { Check, CircleDot, Info, MessageCircleQuestion, Send, X, type LucideIcon } from "lucide-react";
 import { formatPercent } from "@/app/_lib/format";
 import { describeSource } from "./DevHelpers";
 import { ProvenanceStrip } from "./ProvenanceStrip";
@@ -110,7 +110,35 @@ export function EvalPanel({ ev, onPromote, promoted }: { ev: EvalBundle; onPromo
         </div>
       ) : null}
 
-      <p className="mt-1 text-micro italic text-steel">Code assumed LLM-generated — using AI is never penalised; judged on judgment + verification + transfer.</p>
+      {/* interview follow-ups — the evaluation's actionable output: the artifact alone can be
+          wholly LLM-produced, so each question verifies LIVE that the candidate owns one of
+          the submission's observed decisions. listenFor/redFlag are interviewer-internal. */}
+      {(ev.followups?.questions ?? []).length ? (
+        <div className="mt-2 rounded-md border border-blue-200 bg-blue-50/60 p-2.5">
+          <p className="flex items-center gap-1 text-micro font-semibold uppercase tracking-wide text-blue-700">
+            <MessageCircleQuestion size={11} /> Interview follow-ups — verify authorship live
+          </p>
+          <ol className="mt-1 list-decimal space-y-1.5 pl-4">
+            {(ev.followups?.questions ?? []).map((q, i) => (
+              <li key={q.id ?? i} className="text-micro text-ink">
+                {q.decision ? <span className="text-steel">[{q.decision}] </span> : null}
+                {q.question}
+                {q.listenFor ? (
+                  <span className="block text-micro text-steel">Listen for: {q.listenFor}</span>
+                ) : null}
+                {q.redFlag ? (
+                  <span className="block text-micro text-coral/80">Red flag: {q.redFlag}</span>
+                ) : null}
+              </li>
+            ))}
+          </ol>
+        </div>
+      ) : null}
+
+      <p className="mt-1 text-micro italic text-steel">
+        Code assumed LLM-generated — using AI is never penalised. Scores are hypotheses from the artifact;
+        the interview follow-ups above are what verifies them.
+      </p>
 
       {describeSource(ev.source).isDegraded ? (
         <p className="mt-2 rounded bg-amber-50 px-2 py-1 text-micro text-amber-800">

@@ -1,9 +1,10 @@
 "use client";
 
 import { Send } from "lucide-react";
+import { LoadStatus } from "@/app/_components/LoadStatus";
+import { formatRelativeTime } from "@/app/_lib/format";
 import type { LoadState } from "@/app/_lib/useLoader";
 import type { OutboxStatus } from "@/app/_lib/comms-status";
-import { DevSection } from "./DevShared";
 import type { OutboxItem } from "./DevTypes";
 
 // Badge tints by message kind — positive (invite/outreach/ack) vs. adverse (rejection).
@@ -22,34 +23,67 @@ const STATUS_STYLE: Record<OutboxStatus, string> = {
   failed: "text-red-700 font-semibold",
 };
 
-export function OutboxSection({ outbox, state }: { outbox: OutboxItem[]; state: LoadState }) {
+/** The Outbox tab: every message the pipeline sent, as a full table. */
+export function OutboxTable({ outbox, state }: { outbox: OutboxItem[]; state: LoadState }) {
+  if (outbox.length === 0) {
+    return (
+      <div className="space-y-3">
+        <LoadStatus state={state} label="the comms outbox" />
+        <div className="rounded-lg border border-dashed border-stone-300 bg-white p-10 text-center">
+          <Send size={22} className="mx-auto text-steel" aria-hidden />
+          <p className="mt-2 text-base font-semibold text-ink">No messages yet</p>
+          <p className="mx-auto mt-1 max-w-md text-sm text-steel">
+            The pipeline writes every intake acknowledgement, promote invite, recruiter outreach and rejection here
+            as cases collect submissions.
+          </p>
+        </div>
+      </div>
+    );
+  }
   return (
-    <DevSection icon={<Send size={13} className="text-coral" />} title="Comms outbox" count={outbox.length} state={state} label="the comms outbox">
-      <p className="mt-1 text-micro text-steel">
-        Every message the pipeline sent — intake acknowledgements, promote invites, recruiter outreach, and rejections.
+    <div className="space-y-2">
+      <p className="text-micro text-steel">
         &quot;queued&quot; = recorded locally (terminal until a relay is wired); set{" "}
-        <span className="font-mono">COMMS_WEBHOOK_URL</span> to relay through a real channel (email / ATS), where messages
-        resolve to <span className="text-moss">sent</span> or, on a dropped delivery,{" "}
+        <span className="font-mono">COMMS_WEBHOOK_URL</span> to relay through a real channel (email / ATS), where
+        messages resolve to <span className="text-moss">sent</span> or, on a dropped delivery,{" "}
         <span className="font-semibold text-red-700">failed</span> (dead-lettered — needs attention).
       </p>
-      <ul className="mt-2 divide-y divide-stone-100 rounded-lg border border-stone-200 bg-white shadow-panel">
-        {outbox.slice(0, 12).map((m) => (
-          <li key={m.id} className="flex items-center gap-2 px-3 py-1.5 text-micro">
-            <span
-              className={`rounded-full px-1.5 py-0.5 text-micro font-semibold uppercase ${
-                KIND_STYLE[m.kind ?? ""] ?? "bg-paper text-steel"
-              }`}
-            >
-              {m.kind}
-            </span>
-            <span className="w-28 shrink-0 truncate text-steel">{m.recipient}</span>
-            <span className="min-w-0 flex-1 truncate text-ink">{m.subject}</span>
-            <span className={`shrink-0 text-micro uppercase ${STATUS_STYLE[m.status] ?? "text-steel"}`}>
-              {m.status === "queued" ? `${m.channel}` : m.status}
-            </span>
-          </li>
-        ))}
-      </ul>
-    </DevSection>
+      <div className="overflow-hidden rounded-lg border border-stone-200 bg-white shadow-panel">
+        <table className="w-full border-collapse text-left">
+          <thead>
+            <tr className="border-b border-stone-200 bg-paper/60 text-micro font-semibold uppercase tracking-wide text-steel">
+              <th scope="col" className="px-3 py-2">Kind</th>
+              <th scope="col" className="px-3 py-2">Recipient</th>
+              <th scope="col" className="px-3 py-2">Subject</th>
+              <th scope="col" className="px-3 py-2">Status</th>
+              <th scope="col" className="hidden whitespace-nowrap px-3 py-2 sm:table-cell">Sent</th>
+            </tr>
+          </thead>
+          <tbody>
+            {outbox.slice(0, 50).map((m, i) => (
+              <tr
+                key={m.id}
+                style={{ animationDelay: `${i * 20}ms` }}
+                className="animate-fade-in border-b border-stone-100 last:border-b-0 motion-reduce:animate-none"
+              >
+                <td className="px-3 py-2">
+                  <span className={`rounded-full px-1.5 py-0.5 text-micro font-semibold uppercase ${KIND_STYLE[m.kind ?? ""] ?? "bg-paper text-steel"}`}>
+                    {(m.kind ?? "").replace(/_/g, " ")}
+                  </span>
+                </td>
+                <td className="max-w-0 truncate px-3 py-2 text-sm text-steel sm:max-w-40">{m.recipient}</td>
+                <td className="max-w-0 truncate px-3 py-2 text-sm text-ink">{m.subject}</td>
+                <td className={`whitespace-nowrap px-3 py-2 text-micro uppercase ${STATUS_STYLE[m.status] ?? "text-steel"}`}>
+                  {m.status === "queued" ? `${m.channel}` : m.status}
+                </td>
+                <td className="hidden whitespace-nowrap px-3 py-2 text-sm text-steel sm:table-cell">
+                  {formatRelativeTime(m.createdAt) || "—"}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
   );
 }

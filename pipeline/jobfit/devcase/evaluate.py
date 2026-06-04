@@ -15,6 +15,7 @@ from .models import RUBRIC_DIMENSIONS
 
 CASE_EVAL_PROMPT_VERSION = "case-eval-v1"
 TRANSFER_PROMPT_VERSION = "transfer-v1"
+FOLLOWUPS_PROMPT_VERSION = "followups-v1"
 
 _SYSTEM = (
     "You score a take-home submission for the LLM era. The code is assumed to be LLM-generated, so you "
@@ -218,4 +219,134 @@ def score_transfer(evaluation: dict, role: dict, *, provider: Any | None = None)
 
     result, source = _generate(provider, prompt, deterministic, coerce)
     result["promptVersion"] = TRANSFER_PROMPT_VERSION
+    return result, source
+
+
+# --- mint_followups -----------------------------------------------------------
+
+# The interview needs a handful of sharp questions, not an exam: enough to triangulate
+# authorship across the probes without turning the debrief into an interrogation.
+MAX_FOLLOWUPS = 6
+
+# Readable phrase per probe kind for the deterministic question templates.
+_KIND_PHRASE = {
+    "ambiguity": "an ambiguous requirement",
+    "underspecified": "an underspecified requirement",
+    "legacy_trap": "a surprising legacy area",
+    "verification_trap": "a thin verification setup",
+}
+
+
+def mint_followups(reflection: dict, tooling: dict, evaluation: dict, case: dict, role: dict, *, provider: Any | None = None) -> tuple[dict, str]:
+    """Mint candidate-specific interview questions FROM their evaluated submission.
+
+    This step is the point of the whole evaluation in the LLM era: the submission —
+    code, commits, decision log — may be entirely LLM-produced, so the scores above are
+    HYPOTHESES, not verdicts. What the submission reliably encodes is the candidate's
+    PATH through the case's deliberate ambiguities (which defensible option they shipped
+    at each probe). Each followup anchors to one such observed decision and asks for the
+    why / the rejected alternative / the counterfactual — things a candidate who merely
+    delegated the work cannot reconstruct live. ``listen_for``/``red_flag`` are internal
+    interviewer notes, never disclosed.
+    """
+    probes = [p for p in (case.get("coverProbes") or []) if isinstance(p, dict)]
+    outcomes = [o for o in (tooling.get("probeOutcomes") or []) if isinstance(o, dict)]
+    outcome_by_id = {str(o.get("probeId") or ""): o for o in outcomes}
+    ctx = {
+        "role": {"title": role.get("title"), "seniority": role.get("seniority")},
+        "caseProbes": [
+            {k: p.get(k) for k in ("id", "kind", "where", "reveals", "decisionSpace")} for p in probes
+        ],
+        "probeOutcomes": outcomes,
+        "evaluation": {k: evaluation.get(k) for k in ("strengths", "concerns", "summary")},
+        "reflection": {k: reflection.get(k) for k in ("narrative", "iterationPattern", "deadEnds", "verificationHabits")},
+        "overRelianceFlags": tooling.get("overRelianceFlags") or [],
+    }
+    prompt = (
+        "Mint 4-6 interview follow-up questions from THIS specific evaluated submission. The submission "
+        "(code, commits, decision log) may be ENTIRELY LLM-produced on the candidate's behalf — treat every "
+        "inference above as a hypothesis to VERIFY LIVE, not a fact. Anchor each question to ONE concrete "
+        "observed decision: which defensible option they shipped at a probe's decisionSpace, an assumption "
+        "they made silently, a dead end they abandoned, or a concern the evaluation raised. Ask for the WHY, "
+        "the REJECTED alternative, or the COUNTERFACTUAL ('what would have to change for you to choose "
+        "differently') — never anything answerable by generic preparation or by re-reading the submission "
+        "aloud. listenFor = what a genuine author of that decision sounds like (specifics, trade-offs they "
+        "actually hit); redFlag = the answer pattern of delegated work (restates WHAT was done but not why, "
+        "defends every option equally, cannot name what they rejected). Both are internal interviewer notes.\n"
+        f"{json.dumps(ctx, ensure_ascii=False, indent=2)}\n\n"
+        'Return JSON: { "questions": [ { "id": str, "probeId": str ("" if general), "decision": str (the observed '
+        'decision being verified), "question": str, "listenFor": str, "redFlag": str } ] }. JSON only.'
+    )
+
+    def deterministic() -> dict:
+        qs: list[dict] = []
+        for p in probes:
+            if len(qs) >= MAX_FOLLOWUPS - 1:
+                break
+            pid = str(p.get("id") or "")
+            where = str(p.get("where") or "the brief")
+            kind = _KIND_PHRASE.get(str(p.get("kind") or ""), "an open call")
+            space = [s for s in (p.get("decisionSpace") or []) if str(s).strip()]
+            o = outcome_by_id.get(pid)
+            handled = bool(o and o.get("handledWell"))
+            if handled:
+                question = (
+                    f"In {where} you made a call on {kind} and it held up — what would have to change "
+                    "about the situation for you to choose differently?"
+                )
+                decision = str((o or {}).get("note") or f"Handled the open call in {where}")
+            else:
+                question = (
+                    f"In {where}, the brief left {kind} open. Walk me through what you decided there, "
+                    "the alternative you rejected, and why."
+                )
+                decision = f"Shipped an undocumented/unclear call in {where}"
+            listen_for = str(p.get("reveals") or "Concrete reasoning anchored in what they actually hit.")
+            if space:
+                listen_for += f" Defensible options were: {'; '.join(space[:3])}."
+            qs.append(
+                {
+                    "id": f"f{len(qs) + 1}",
+                    "probeId": pid,
+                    "decision": decision,
+                    "question": question,
+                    "listenFor": listen_for,
+                    "redFlag": "Restates what was done but can't say why, or names no rejected alternative — the decision may not be theirs.",
+                }
+            )
+        for concern in _str_list(evaluation.get("concerns"))[: MAX_FOLLOWUPS - len(qs)]:
+            qs.append(
+                {
+                    "id": f"f{len(qs) + 1}",
+                    "probeId": "",
+                    "decision": concern,
+                    "question": f"The reviewer noted: “{concern}”. Take me through your side of that — what drove it?",
+                    "listenFor": "Owns the trade-off or honestly disputes the read with specifics.",
+                    "redFlag": "Surprised by their own submission, or agrees/disagrees without detail.",
+                }
+            )
+        return {"questions": qs[:MAX_FOLLOWUPS]}
+
+    def coerce(payload: Any) -> dict:
+        det = deterministic()
+        if not isinstance(payload, dict):
+            return det
+        qs: list[dict] = []
+        for q in payload.get("questions") or []:
+            if not isinstance(q, dict) or not str(q.get("question") or "").strip():
+                continue
+            qs.append(
+                {
+                    "id": str(q.get("id") or f"f{len(qs) + 1}"),
+                    "probeId": str(q.get("probeId") or ""),
+                    "decision": str(q.get("decision") or ""),
+                    "question": str(q.get("question")).strip(),
+                    "listenFor": str(q.get("listenFor") or ""),
+                    "redFlag": str(q.get("redFlag") or ""),
+                }
+            )
+        return {"questions": qs[:MAX_FOLLOWUPS]} if qs else det
+
+    result, source = _generate(provider, prompt, deterministic, coerce)
+    result["promptVersion"] = FOLLOWUPS_PROMPT_VERSION
     return result, source

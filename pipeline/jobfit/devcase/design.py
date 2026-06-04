@@ -16,7 +16,7 @@ from typing import Any
 from .models import RUBRIC_DIMENSIONS, DevNeed, NeedAnalysis
 
 ROLE_DESIGN_PROMPT_VERSION = "role-design-v3"  # v3: JD-first intake — full JD body anchors the role
-CASE_DESIGN_PROMPT_VERSION = "case-design-v3"  # v3: domain-neutral vocabulary (non-IT)
+CASE_DESIGN_PROMPT_VERSION = "case-design-v4"  # v4: ambiguity as the instrument — probes carry a decisionSpace, the case forces a visible decision log
 
 # Seniority-scaled timebox (the lifecycle eval flagged junior/lead cases looking alike).
 _TIMEBOX = {"junior": 3.0, "medior": 4.0, "senior": 6.0, "lead": 8.0}
@@ -227,10 +227,17 @@ def design_case(
         f"CALIBRATE to seniority '{seniority}': junior = narrow, well-scoped, more scaffolding, simpler probes; "
         "senior/lead = broader, more ambiguous, architectural and judgment-heavy. Fit the work to "
         f"~{timebox}h. Be concrete — name real files/symbols, avoid template phrases like 'per the brief'.\n"
-        "ASSUME the candidate's code will be 100% LLM-generated, so COVERTLY probe how they DRIVE the tools and "
-        "their judgment — WITHOUT telling them. Bake in 2-4 cover-probes: an underspecified/ambiguous "
-        "requirement (rewards clarifying); a legacy/surprising area (rewards reading before generating); a "
-        "verification trap where naive one-shot generation passes a shallow check but is subtly wrong.\n"
+        "ASSUME the candidate's code will be 100% LLM-generated — including the commits and any write-up, so "
+        "NOTHING in the artifact proves authorship. The case's real instrument is AMBIGUITY: bake in 2-4 "
+        "cover-probes — an underspecified/ambiguous requirement (rewards clarifying); a legacy/surprising area "
+        "(rewards reading before generating); a verification trap where naive one-shot generation passes a "
+        "shallow check but is subtly wrong — and design each so the submission CANNOT avoid encoding a choice. "
+        "For each probe, enumerate a 'decisionSpace': the 2-3 DEFENSIBLE options it admits, each with a "
+        "different trade-off (not one right answer + distractors). The candidate's path through these "
+        "ambiguities is what gets evaluated and what the post-evaluation interview verifies they OWN.\n"
+        "REQUIRE a visible decision trail: one task must ask the candidate to keep a short DECISIONS log — for "
+        "every call they made where the brief was open: what they chose, the alternative they rejected, and "
+        "what they would have asked the team. Frame it as normal engineering practice, never as a test.\n"
         + (
             "TARGETED CONFIRMATION — the candidate's CV raised these hypotheses; bake AT LEAST one cover-probe "
             "that specifically tests each (the candidate must NEVER see this):\n"
@@ -246,8 +253,9 @@ def design_case(
         '"repoSeed": str (the starting materials handed to the candidate — code, documents, data, or designs as fits the domain), '
         '"tasks": [str], '
         '"coverProbes": [ { "id": str, "kind": "ambiguity|legacy_trap|verification_trap|underspecified", '
-        '"where": str, "reveals": str (REQUIRED, non-empty — what a good vs naive response implies) } ], '
-        '"timeboxHours": number }. The "reveals" notes are INTERNAL. JSON only.'
+        '"where": str, "reveals": str (REQUIRED, non-empty — what a good vs naive response implies), '
+        '"decisionSpace": [str] (the 2-3 defensible options this ambiguity admits, each a different trade-off) } ], '
+        '"timeboxHours": number }. The "reveals" and "decisionSpace" notes are INTERNAL. JSON only.'
     )
 
     def deterministic() -> dict:
@@ -255,9 +263,27 @@ def design_case(
         title = role.get("title") or "Engineering"
         func = _human(role_family)
         det_probes = [
-            {"id": "p1", "kind": "underspecified", "where": "the brief", "reveals": _PROBE_REVEALS_DEFAULT["underspecified"]},
-            {"id": "p2", "kind": "legacy_trap", "where": "the legacy file", "reveals": _PROBE_REVEALS_DEFAULT["legacy_trap"]},
-            {"id": "p3", "kind": "verification_trap", "where": "the thin test suite", "reveals": _PROBE_REVEALS_DEFAULT["verification_trap"]},
+            {
+                "id": "p1",
+                "kind": "underspecified",
+                "where": "the brief",
+                "reveals": _PROBE_REVEALS_DEFAULT["underspecified"],
+                "decisionSpace": ["Clarify the open requirement before building", "Pick an interpretation, state it and proceed", "Build for both readings behind a switch"],
+            },
+            {
+                "id": "p2",
+                "kind": "legacy_trap",
+                "where": "the legacy file",
+                "reveals": _PROBE_REVEALS_DEFAULT["legacy_trap"],
+                "decisionSpace": ["Preserve the legacy behaviour and work around it", "Refactor it with a safety net first", "Replace it outright and accept the risk"],
+            },
+            {
+                "id": "p3",
+                "kind": "verification_trap",
+                "where": "the thin test suite",
+                "reveals": _PROBE_REVEALS_DEFAULT["verification_trap"],
+                "decisionSpace": ["Extend the existing tests before changing code", "Verify manually and document the steps", "Trust the existing suite and ship"],
+            },
         ]
         for i, b in enumerate(focus_probes or []):  # targeted probes from the CV soft-signal panel
             kind = b.get("kind") or "verification_trap"
@@ -269,6 +295,7 @@ def design_case(
                     "kind": kind,
                     "where": f"a task that exercises {b.get('focus') or 'the claimed strength'}",
                     "reveals": b.get("rationale") or "Confirm the CV claim with hands-on depth.",
+                    "decisionSpace": [],
                 }
             )
         return {
@@ -283,6 +310,9 @@ def design_case(
                 f"Do a representative {func} task on this {stack} codebase.",
                 "Engage the existing legacy area you find under-documented.",
                 "Make the change safe — show how you verified it.",
+                # The visible decision trail — the submission must encode the candidate's path
+                # through the ambiguities so the post-evaluation interview can verify they own it.
+                "Keep a short DECISIONS log: for every call you made where the brief was open — what you chose, the alternative you rejected, and what you would have asked the team.",
             ],
             "coverProbes": det_probes,
             "timeboxHours": timebox,
@@ -308,6 +338,10 @@ def design_case(
                     "kind": kind,
                     "where": str(p.get("where") or ""),
                     "reveals": reveals,
+                    # decisionSpace is best-effort (unlike reveals): an empty list means the
+                    # probe predates / omitted the decision-space contract, and mint_followups
+                    # falls back to the probe outcome alone.
+                    "decisionSpace": _str_list(p.get("decisionSpace")),
                 }
             )
         try:

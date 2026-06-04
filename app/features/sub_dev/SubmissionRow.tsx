@@ -7,7 +7,7 @@ import { scoreColor, scoreTextColor } from "./DevHelpers";
 import { EvalPanel } from "./EvalPanel";
 import type { EvalBundle, Submission } from "./DevTypes";
 
-export function SubmissionRow({ submission, caseId, rank, isTop = false, onChanged }: { submission: Submission; caseId: string | null; rank: number | null; isTop?: boolean; onChanged: () => void }) {
+export function SubmissionRow({ submission, rank, isTop = false, onChanged }: { submission: Submission; rank: number | null; isTop?: boolean; onChanged: () => void }) {
   const { startTask, tasks } = useTasks();
   const [taskId, setTaskId] = useState<string | null>(null);
   const [promoted, setPromoted] = useState(false);

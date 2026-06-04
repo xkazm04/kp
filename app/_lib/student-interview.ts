@@ -116,6 +116,14 @@ export function devCaseIdFromJobId(jobId: string | null | undefined): string | n
   return jobId && jobId.startsWith("dc-") ? jobId.slice(3) : null;
 }
 
+/** Entries promoted from an evaluated dev-case submission carry candidateId
+ *  "ds-<submissionId>" (devcase-run.promoteSubmission). Resolve it back to the
+ *  submission id — the key to the eval bundle whose minted interview follow-ups
+ *  ground the submission-debrief brief — or null for ordinary candidates. */
+export function submissionIdFromCandidateId(candidateId: string | null | undefined): string | null {
+  return candidateId && candidateId.startsWith("ds-") ? candidateId.slice(3) : null;
+}
+
 /** The agent brief for a CASE-DESIGNED interview: same persona contract, but the
  *  middle phases work shared case material, so every candidate on the role is
  *  rated against the same substance. The case mechanics (which probes are

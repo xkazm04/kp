@@ -220,9 +220,13 @@ def main(argv: list[str] | None = None) -> int:
             role = _require_object(json.loads(args.role_json.read_text(encoding="utf-8")), "--role-json")
             evaluation, esrc = _evaluate.evaluate_submission(reflection, tooling, case, role, provider=provider)
             transfer, xsrc = _evaluate.score_transfer(evaluation, role, provider=provider)
+            # The interview hand-off: candidate-specific authorship questions minted from
+            # THIS submission's observed decisions — the scores above are hypotheses the
+            # live conversation verifies (the artifact alone can be wholly LLM-produced).
+            followups, fsrc = _evaluate.mint_followups(reflection, tooling, evaluation, case, role, provider=provider)
             _emit(
-                {"reflection": reflection, "tooling": tooling, "evaluation": evaluation, "transfer": transfer},
-                {"reflect": rsrc, "tooling": tsrc, "evaluate": esrc, "transfer": xsrc},
+                {"reflection": reflection, "tooling": tooling, "evaluation": evaluation, "transfer": transfer, "followups": followups},
+                {"reflect": rsrc, "tooling": tsrc, "evaluate": esrc, "transfer": xsrc, "followups": fsrc},
                 _confidences(reflect=reflection, tooling=tooling),
             )
             return 0

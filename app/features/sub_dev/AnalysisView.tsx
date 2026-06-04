@@ -13,7 +13,7 @@ export function AnalysisView({
   running,
   result,
   analysis,
-  snapshot,
+  snapshots,
   design,
   designing,
   startDesign,
@@ -25,7 +25,7 @@ export function AnalysisView({
   running: boolean;
   result: Result | null;
   analysis: NeedAnalysis;
-  snapshot: RepoSnapshot | null;
+  snapshots: RepoSnapshot[];
   design: Design | null;
   designing: boolean;
   startDesign: () => void;
@@ -81,29 +81,35 @@ export function AnalysisView({
             ) : null}
           </div>
 
-          {snapshot ? (
-            <div className="rounded-lg border border-stone-200 bg-white p-4 shadow-panel">
-              <div className="mb-2 flex items-center gap-1.5">
-                <Boxes size={14} className="text-steel" />
-                <span className="text-meta uppercase tracking-wide text-steel">Codebase snapshot</span>
-                <span className="ml-auto text-micro text-steel">~{(snapshot.loc ?? 0).toLocaleString()} LOC</span>
-              </div>
-              <div className="flex flex-wrap gap-1.5">
-                {Object.entries(snapshot.languages ?? {}).slice(0, 6).map(([k, v]) => (
-                  <span key={k} className="rounded-md border border-stone-200 px-2 py-0.5 text-micro text-ink">
-                    {k} <span className="text-steel">{formatPercent(v, { fraction: true })}</span>
+          {snapshots.length > 0 ? (
+            // One card per grounded codebase (multi-repo: the role can span up to 3).
+            snapshots.map((snapshot, i) => (
+              <div key={snapshot.ref ?? i} className="rounded-lg border border-stone-200 bg-white p-4 shadow-panel">
+                <div className="mb-2 flex items-center gap-1.5">
+                  <Boxes size={14} className="text-steel" />
+                  <span className="text-meta uppercase tracking-wide text-steel">
+                    Codebase snapshot{snapshots.length > 1 ? ` ${i + 1}/${snapshots.length}` : ""}
                   </span>
-                ))}
+                  {snapshot.ref ? <span className="min-w-0 truncate text-micro text-steel">{snapshot.ref}</span> : null}
+                  <span className="ml-auto shrink-0 text-micro text-steel">~{(snapshot.loc ?? 0).toLocaleString()} LOC</span>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {Object.entries(snapshot.languages ?? {}).slice(0, 6).map(([k, v]) => (
+                    <span key={k} className="rounded-md border border-stone-200 px-2 py-0.5 text-micro text-ink">
+                      {k} <span className="text-steel">{formatPercent(v, { fraction: true })}</span>
+                    </span>
+                  ))}
+                </div>
+                {(snapshot.topDirs ?? []).length > 0 ? (
+                  <p className="mt-2 text-micro text-steel">Top dirs: {(snapshot.topDirs ?? []).slice(0, 10).join(" / ")}</p>
+                ) : null}
+                {(snapshot.recentCommitSummaries ?? []).length > 0 ? (
+                  <p className="mt-1 flex items-center gap-1 text-micro text-steel">
+                    <GitBranch size={11} /> {(snapshot.recentCommitSummaries ?? []).length} recent commits read
+                  </p>
+                ) : null}
               </div>
-              {(snapshot.topDirs ?? []).length > 0 ? (
-                <p className="mt-2 text-micro text-steel">Top dirs: {(snapshot.topDirs ?? []).slice(0, 10).join(" / ")}</p>
-              ) : null}
-              {(snapshot.recentCommitSummaries ?? []).length > 0 ? (
-                <p className="mt-1 flex items-center gap-1 text-micro text-steel">
-                  <GitBranch size={11} /> {(snapshot.recentCommitSummaries ?? []).length} recent commits read
-                </p>
-              ) : null}
-            </div>
+            ))
           ) : (
             <p className="rounded-md border border-dashed border-stone-200 p-3 text-sm text-steel">
               No codebase snapshot — analysis is ungrounded. Add a public GitHub URL to ground it in reality.

@@ -1,59 +1,133 @@
-# KP — Job Fit & Salary Estimator
+# KP studio — talent matching
 
-Next.js + TypeScript UI backed by a Python analysis pipeline for CV/profile extraction, role-fit scoring, and Czech-market salary estimation. Ships with a GitHub repo-signal deep-dive (README, commit subjects, and root-level file names — not the source code itself), a SQLite-backed workspace for saved analyses, and a golden-set eval harness used to keep the pipeline calibrated.
+Next.js + TypeScript hiring workspace backed by a Python analysis pipeline. What started as a CV/job-fit/salary analyzer for the Czech market has grown into an end-to-end hiring studio: a pipeline board with stage automation, sourcing channels, AI-assisted screening decisions behind human approval gates, candidate self-scheduling, AI voice screening interviews, a dev-case hiring extension built for the LLM era, and an autonomy control room with a kill switch and audit trail.
 
-The browser uploads a CV/profile to a Next.js API route, which spawns the Python CLI (`python -m pipeline.jobfit.cli`) as a subprocess and consumes its stdout. A deterministic taxonomy pre-pass runs before the LLM and is fed in as structured evidence so Gemini reconciles its judgment with what the rules already detected. Results are validated with a Zod schema generated from the Pydantic models, so the TypeScript UI and Python pipeline cannot drift apart. There is no second long-lived server to manage.
+Three LLM engines power it, each picked for its cost/capability profile:
 
-## 1. Quick start - UI
+- **Gemini** (`gemini-3-flash-preview`) — the production single-analysis path: multimodal CV extraction, role-fit scoring, salary estimation with optional Google Search grounding.
+- **Claude Code CLI** (headless `claude -p`, billed to your Claude Pro/Max **subscription**, not the metered API) — the batch engine for HR automation tasks, dev-case design/evaluation, match reasoning, and eval sweeps.
+- **ElevenLabs Conversational AI** (or OpenAI Realtime) — voice agents that run first-round screening interviews in Czech or English.
+
+Everything degrades gracefully: features that need an engine you haven't configured fall back to deterministic logic or simply hide.
+
+## 1. Preconditions
+
+| Capability | What you need |
+| --- | --- |
+| Workspace UI — pipeline board, jobs, JD library, profiles, matrix, simulation | Node 20+, Python 3.11+ (`npm install` + `pip install -r requirements.txt`) |
+| CV analysis (Analyze / Match tabs, CLI scripts, eval harness) | `GEMINI_API_KEY` |
+| HR automation (screen/outreach/rejection/prep/scorecard/rematch/offer), dev-case design & evaluation, match reasoning | **Claude Code CLI installed and logged in with a Claude Pro/Max subscription** |
+| Voice interviews (`/interview/[token]`, Interview-lab) | **`ELEVENLABS_API_KEY`** + `ELEVENLABS_AGENT_ID` (or `OPENAI_API_KEY` for the OpenAI Realtime provider) |
+| GitHub repo-signal deep dive | `GITHUB_TOKEN` (optional, raises rate limits) |
+
+### Claude subscription (via the Claude Code CLI)
+
+`pipeline/jobfit/claude_cli.py` spawns the headless CLI as a subprocess (`claude -p --output-format json`). It deliberately strips `ANTHROPIC_API_KEY` / `ANTHROPIC_AUTH_TOKEN` from the child environment so calls run on your interactive subscription login instead of metered API billing — that's what makes hundreds of automation/eval calls affordable. Setup:
+
+1. Install Claude Code (`npm install -g @anthropic-ai/claude-code` or the desktop app) so `claude` resolves on `PATH`.
+2. Log in once interactively (`claude` → `/login`) with a Pro/Max account.
+
+If the CLI is missing or not logged in, every consumer (automation tasks, devcase design/evaluate, match reasoning) falls back to its deterministic implementation — the app still runs, just with rule-based output instead of LLM judgment.
+
+### ElevenLabs voice agent
+
+```bash
+# Put ELEVENLABS_API_KEY in .env.local first, then:
+node scripts/setup-eleven-agent.mjs
+```
+
+The script creates the Conversational AI agent straight from the API (multilingual `eleven_flash_v2_5` model, Czech-capable voice, Czech-first interviewer prompt, runtime overrides enabled) and writes `ELEVENLABS_AGENT_ID` back into `.env.local` — no dashboard step needed. Re-running creates a new agent; the newest id wins.
+
+### Environment reference (`.env.local` in the project root)
+
+```bash
+# Required — CV analysis pipeline (Gemini is the only analysis engine)
+GEMINI_API_KEY=your_key_here
+
+# Voice interviews — ElevenLabs provider
+ELEVENLABS_API_KEY=your_key_here
+ELEVENLABS_AGENT_ID=written_by_setup_script
+
+# Voice interviews — optional OpenAI Realtime provider (A/B alternative)
+OPENAI_API_KEY=your_key_here
+OPENAI_REALTIME_MODEL=gpt-realtime   # default
+OPENAI_REALTIME_VOICE=marin          # default
+
+# Optional
+GITHUB_TOKEN=your_token_here         # GitHub repo-signal review + rate limits
+PYTHON_CMD=python                    # interpreter used to spawn the pipeline
+KP_DB_PATH=data/kp.sqlite            # SQLite workspace path
+KP_LOG_DIR=tmp                       # JSONL log directory
+KP_LOG_PROMPTS=1                     # capture Gemini prompts/responses (PII!)
+KP_CACHE_TTL_HOURS=24                # Gemini result cache TTL
+COMMS_WEBHOOK_URL=...                # outbound comms relay (dev-case outbox)
+AUTOMATION_SCHEDULER_AUTOSTART=1     # start the automation scheduler on boot
+```
+
+Note: `ANTHROPIC_API_KEY` is intentionally **not** part of the setup — the Claude CLI engine authenticates through your subscription login, and the spawner strips API-key vars to keep it that way.
+
+## 2. Quick start
 
 ```bash
 npm install
 pip install -r requirements.txt
+# create .env.local (see above), then optionally:
+node scripts/setup-eleven-agent.mjs   # bootstrap the voice-interview agent
 npm run dev
 ```
 
-Open `http://localhost:3000`, upload a PDF / DOCX / TXT / MD profile, optionally attach a job description, company overview, and GitHub profile, then click **Analyze**. Every successful run is auto-saved with a stable slug — open the **Saved analyses** link in the header to find it again.
+Open `http://localhost:3000`. The workspace lands on the **Pipeline** board. `python` must be on the `PATH` of whatever process runs `next dev` / `next start` (override with `PYTHON_CMD`). The SQLite workspace at `data/kp.sqlite` is created and seeded (example JD, jobs, candidate profiles, pipeline entries) on first run.
 
-`python` must be on the `PATH` of whatever process runs `next dev` / `next start`. Override the interpreter with the `PYTHON_CMD` env var if needed (defaults to `python` on Windows, `python3` elsewhere).
+## 3. Workspace tour
 
-### Environment
+The studio sidebar groups the tabs:
 
-Create `.env.local` in the project root:
+| Group | Tab | What it does |
+| --- | --- | --- |
+| — | Pipeline | Kanban board of candidates across hiring stages, scheduler control, candidate drawer |
+| — | Channels | Sourcing channels feeding the pipeline |
+| — | Decisions | AI screening recommendations, group eval, decision rules — all behind human review |
+| — | Schedule | Interview calendar, transcripts, prep kits |
+| Library | Jobs | Job postings table, ingest, publish, per-job candidates |
+| Library | Job descriptions | JD library + template-driven JD builder |
+| Tools | Profile | Candidate profile builder (archetype routing + completeness scoring) |
+| Tools | Match | Rank the candidate pool against a job (KO filters + scoring + LLM reasoning) |
+| Tools | Analyze | The original CV/job-fit/salary analysis (multi-variant compare, history) |
+| Tools | Interview sim | End-to-end pipeline simulation (Design JD → Source → Intake → Screen → Interview → Offer → Hired) with synthetic candidates |
+| Dev extension | Dev cases | Case-scenario hiring for developers (see below) |
+| Insights | Analytics / Matrix / About | Decision log, candidate × JD pivot, methodology docs |
 
-```bash
-GEMINI_API_KEY=your_key_here
-# Optional — raises GitHub API rate limits and unlocks the GitHub repo-signal review
-GITHUB_TOKEN=your_token_here
-# Optional — interpreter used when spawning the Python pipeline
-PYTHON_CMD=python
-# Optional — override SQLite path (default: data/kp.sqlite)
-KP_DB_PATH=data/kp.sqlite
-```
+Standalone pages outside the workspace shell:
 
-A `GEMINI_API_KEY` is required — the pipeline only ships the Gemini engine. The web UI compares Gemini extraction against a pypdf baseline so reviewers can see how much the LLM recovered from a noisy PDF.
+- `/apply/[id]` — public, formless conversational apply portal (chat-based knockout questions).
+- `/interview/[token]` — candidate-facing voice screening interview (consent, transcription notice, fixed provider per session).
+- `/schedule/[token]` — candidate self-scheduling (pick a slot, get confirmation).
+- `/offer/[token]` — candidate-facing offer accept/decline.
+- `/control` — autonomy control room: automation kill switch, pending human gates, lifecycle tracking, immutable audit trail, outcomes & calibration.
+- `/interview-lab` — internal A/B harness comparing voice providers (ElevenLabs vs OpenAI Realtime) in Czech/English.
+- `/diagrams` — live-rendered PlantUML architecture diagrams from `docs/diagrams/`.
 
-## 2. Quick Start - CLI
+### Dev-case hiring extension
 
-The web UI surfaces detail across five tabs. When you only need one slice — a salary check, a job-fit gap list, the keyword-coverage breakdown — the `scripts/` folder ships focused command-line entry points that call the same pipeline (`pipeline.jobfit.service.analyze`) and print well-formatted, color-aware terminal output.
+`pipeline/jobfit/devcase/` implements case-scenario hiring that assumes 100% of candidate code is LLM-generated, so it grades durable capabilities instead of lines of code: problem framing, tooling fluency, judgment/verification, architecture, transfer. The lifecycle runs Need analysis → Role + case design (with covert probes: ambiguity, legacy trap, verification trap, underspecification) → Publish to channels → Submission intake (repo + commit reflection) → Evaluation (reflection + tooling signal + rubric → transfer score) → case-grounded interview brief. Design and evaluation use the Claude CLI with deterministic fallbacks; an LLM-free policy pass auto-advances/rejects on rules with fairness gates — early-career candidates are never silently auto-advanced or auto-rejected.
 
-All scripts:
+### Voice interviews
 
-- accept any CV format the UI accepts (PDF, DOCX, TXT, MD);
-- read `GEMINI_API_KEY` from `.env.local` / your shell;
-- log per-stage progress on stderr (silence with `--quiet`);
-- detect a non-TTY stdout and degrade to plain text (or set `NO_COLOR=1`).
+A recruiter (or the automation) creates an interview session; the candidate opens `/interview/[token]`, consents, and talks to the agent. Server-side, `app/_lib/voice/elevenlabs.ts` mints a signed URL for the dashboard-free agent (browser connects via `@elevenlabs/react`); the OpenAI provider mints ephemeral Realtime secrets instead. The interviewer asks 3–4 grounded questions (per-candidate prompt overrides), the transcript is stored in `interview_sessions`, and a scorecard is generated on completion. No feedback or decisions are given to the candidate.
 
-Run from the project root:
+## 4. Quick start — CLI
 
-| Script                   | What it shows                                                                                  |
-| ------------------------ | ---------------------------------------------------------------------------------------------- |
-| `scripts/analyze.py`     | Full overview: profile, score breakdown, salary, strengths/gaps, recommendations.              |
-| `scripts/salary.py`      | Salary view: anchor band, final range, company multiplier, grounded market evidence.           |
-| `scripts/jobfit.py`      | Job-fit scoring: matching/missing skills, talking points, risk flags, keyword coverage.        |
-| `scripts/interview.py`   | Interview pack: questions grouped by bucket with STAR scaffolds.                               |
-| `scripts/compare.py`     | Side-by-side comparison of 2+ CV variants against one JD.                                      |
+When you only need one slice — a salary check, a job-fit gap list, keyword coverage — `scripts/` ships focused command-line entry points that call the same pipeline (`pipeline.jobfit.service.analyze`) and print well-formatted, color-aware terminal output.
 
-### Common options
+All scripts accept any CV format the UI accepts (PDF, DOCX, TXT, MD), read `GEMINI_API_KEY` from `.env.local` / your shell, log per-stage progress on stderr (silence with `--quiet`), and degrade to plain text on non-TTY stdout (or set `NO_COLOR=1`).
+
+| Script | What it shows |
+| --- | --- |
+| `scripts/analyze.py` | Full overview: profile, score breakdown, salary, strengths/gaps, recommendations |
+| `scripts/salary.py` | Salary view: anchor band, final range, company multiplier, grounded market evidence |
+| `scripts/jobfit.py` | Job-fit scoring: matching/missing skills, talking points, risk flags, keyword coverage |
+| `scripts/interview.py` | Interview pack: questions grouped by bucket with STAR scaffolds |
+| `scripts/compare.py` | Side-by-side comparison of 2+ CV variants against one JD |
 
 ```text
 cv                  Positional — path to the CV/profile file (or 2+ paths for compare.py).
@@ -63,90 +137,77 @@ cv                  Positional — path to the CV/profile file (or 2+ paths for 
 --company-text "…"  Inline company overview.
 --grounding         Enable Google Search grounding for live market context.
 --quiet             Suppress stage progress on stderr.
-NO_COLOR=1          Disable ANSI colors (env var, takes precedence over TTY detection).
 ```
-
-### Examples
 
 ```bash
-# Full overview of a CV (no JD, no company).
-python scripts/analyze.py samples/sample-cv.txt
-
-# CV vs JD: full overview including the Job-fit preview block.
-python scripts/analyze.py samples/sample-cv.txt \
-  --jd path/to/jd.txt
-
-# Salary check against a target company.
-python scripts/salary.py samples/sample-cv.txt \
-  --company-text "Multinational bank in Prague, NIS2 / DORA exposure" \
-  --grounding
-
-# Pure job-fit gap analysis (JD required) — includes keyword coverage.
-python scripts/jobfit.py samples/sample-cv.txt \
-  --jd-text "Senior Python + AWS SRE, English C1, on-call rotation"
-
-# Interview prep, only the experience bucket, no STAR scaffolds.
-python scripts/interview.py samples/sample-cv.txt \
-  --jd path/to/jd.txt \
-  --bucket experience \
-  --no-star
-
-# Compare two CV variants against one JD.
-python scripts/compare.py \
-  samples/sample-cv.txt \
-  samples/sample-cv.txt \
-  --jd path/to/jd.txt
-
-# Pipe results to a file (colors auto-strip when stdout is not a TTY).
-python scripts/analyze.py samples/sample-cv.txt > overview.txt
+python scripts/analyze.py samples/sample-cv.txt --jd path/to/jd.txt
+python scripts/salary.py samples/sample-cv.txt --company-text "Multinational bank in Prague" --grounding
+python scripts/jobfit.py samples/sample-cv.txt --jd-text "Senior Python + AWS SRE, English C1"
 ```
 
-## 3. Architecture
+Beyond the analysis scripts, the Python package ships operational CLIs:
+
+```bash
+python -m pipeline.jobfit.cli samples/sample-cv.txt        # core analysis (JSON out)
+python -m pipeline.jobfit.automation_cli screen            # HR automation tasks: screen|outreach|rejection|prep|scorecard|rematch|offer|policy-pass
+python -m pipeline.jobfit.devcase.devcase_cli              # dev-case lifecycle
+python -m pipeline.jobfit.devcase.lifecycle_eval --count 5 # dev-case eval harness (--judge / --audit for LLM passes)
+python -m pipeline.jobfit.reasoning_cli                    # match reasoning (Claude CLI)
+```
+
+## 5. Architecture
+
+The browser talks to Next.js API routes. CV analysis spawns the Python CLI (`python -m pipeline.jobfit.cli`) as a subprocess and runs it as a background task — the client polls `/api/tasks/[id]` and the global Tasks indicator tracks progress, so an analysis survives navigation and page refresh. A deterministic taxonomy pre-pass runs before the LLM and is fed in as structured evidence so Gemini reconciles its judgment with what the rules already detected. Results are validated with a Zod schema generated from the Pydantic models, so the TypeScript UI and Python pipeline cannot drift apart. There is no second long-lived server to manage.
 
 ```text
 app/
-  page.tsx                          Browser UI (analyze + workspace nav)
-  layout.tsx                        Fonts and metadata
-  globals.css                       Tailwind 4 entrypoint
-  analyses/page.tsx                 Saved analyses list (workspace)
-  analyses/[slug]/page.tsx          Reload a saved analysis by slug
-  jds/page.tsx                      JD library list + save form
-  jds/[slug]/page.tsx               JD body + ranked candidates analyzed against it
-  matrix/page.tsx                   Candidate × JD pivot view
-  api/analyze/route.ts              Multi-variant analysis — one Python process per CV; persists result
-  api/analyze/stream/route.ts       Single-CV SSE stream — pipes Python --stream stdout; persists captured result
-  api/github-analysis/route.ts      GitHub REST + Gemini repo-signal deep-dive (metadata/text, not source code)
-  api/analyses/route.ts             GET — list saved analyses
-  api/analyses/[slug]/route.ts      GET — load a single saved analysis
-  api/jds/route.ts                  GET — list JDs;  POST — save a JD
-  api/jds/[slug]/route.ts           GET — load a single JD
-  _components/                      Client-side React components
-  _lib/db.ts                        better-sqlite3 wrapper (analyses + jds tables)
-  _lib/python-runner.ts             Spawn helper: temp workdir, CLI args, stdout/stderr collection
+  page.tsx                          Workspace shell (tab-based studio UI)
+  apply/[id]/ interview/[token]/    Candidate-facing portals (apply chat, voice
+  schedule/[token]/ offer/[token]/    interview, self-scheduling, offer)
+  control/page.tsx                  Autonomy control room (kill switch, gates, audit)
+  interview-lab/page.tsx            Voice-provider A/B harness
+  diagrams/page.tsx                 Live PlantUML architecture diagrams
+  history/[slug]/ jds/[slug]/       Server-rendered deep links into saved work
+  features/                         Tab implementations (sub_analyze, sub_pipeline,
+                                      sub_dev, sub_decisions, sub_match, sub_jobs,
+                                      sub_schedule, simulation, tasks, …)
+  api/analyze/                      Multi-variant analysis as a background task
+  api/tasks/ api/pipeline/          Task polling; pipeline entries + events
+  api/interview/ api/schedule/      Voice interview sessions; slot booking
+  api/devcase/                      Dev-case lifecycle, postings, submissions, control
+  api/automation/                   Run/schedule automation passes
+  api/decisions/ api/sim/           Screening waves, group eval; simulation drafts
+  api/jds/ api/jobs/ api/templates/ Libraries (JDs, jobs, JD templates)
+  api/github-analysis/              GitHub repo-signal deep dive (metadata, not source)
+  _lib/db.ts                        better-sqlite3 wrapper (analyses, jds, jobs,
+                                      profiles, pipeline_entries/events, tasks,
+                                      dev_* tables, interview_sessions, gemini_cache)
+  _lib/python-runner.ts             Spawn helper: workdir, CLI args, output capture
+  _lib/voice/                       ElevenLabs + OpenAI Realtime provider adapters
   _lib/schemas.generated.ts         Zod schema generated from pipeline/jobfit/models.py
 pipeline/jobfit/                    Python analysis package
-  cli.py                            argparse entry point; --stream emits SSE events on stdout
-  service.py                        analyze() — shared entry point used by the CLI
-  pipeline.py                       Gemini orchestration; deterministic-evidence pre-pass
-  extractors.py                     PDF/DOCX/TXT/MD extraction; Czech repair; language detection
-  profiling.py                      Regex fallback profile (only used when Gemini omits a field)
-  insights.py                       Company classification, salary multiplier (capped), application strategy
-  ats.py                            Keyword coverage helper used by the Job-fit tab
-  interview.py                      Interview questions + STAR scaffolds
-  gemini.py                         Gemini call; injects evidence + output_language
-  taxonomy.py                       Single source of truth for skill / company / education matching
-  models.py                         Pydantic source of truth for the result shape
-  codegen.py                        Generates app/_lib/schemas.generated.ts
-  eval/                             Golden-set eval harness (fixtures + runner)
-data/                               salary_benchmarks.json (anchor bands), taxonomy.json
+  cli.py / service.py / pipeline.py Entry points + Gemini orchestration
+  gemini.py                         Gemini call; evidence injection, output language
+  claude_cli.py                     Headless Claude Code CLI provider (subscription)
+  extractors.py / profiling.py      PDF/DOCX/TXT/MD extraction, Czech repair, fallback
+  taxonomy.py / registry.py         Skill/company/education matching; archetypes
+  matching.py / match_reasoning.py  KO filters + pool scoring; LLM match reasoning
+  insights.py / ats.py / interview.py  Company multiplier; keyword coverage; questions
+  automation_cli.py                 HR automation tasks (Claude CLI + det. fallback)
+  devcase/                          Dev-case hiring: analyze, design, source, evaluate,
+                                      reflect, lifecycle_eval, interview_scenario
+  eval/                             Golden-set + matching + automation eval harnesses
+  models.py / codegen.py            Pydantic source of truth → Zod codegen
+data/                               salary_benchmarks.json, taxonomy.json, seeds
 data/kp.sqlite                      Workspace persistence (gitignored)
 samples/                            Fixture CV/profile files
-e2e/                                Playwright tests across input combinations
+e2e/                                Playwright specs
+docs/diagrams/                      PlantUML sources rendered on /diagrams
 ```
 
 `pipeline/jobfit/models.py` is the single source of truth for the result shape. `npm run schemas:gen` regenerates `app/_lib/schemas.generated.ts`. The `build` and `typecheck` scripts run it automatically; `npm run schemas:check` validates that the committed file is up to date.
 
-## 4. Pipeline stages
+## 6. Analysis pipeline stages
 
 1. `extractors.py` — extracts a pypdf baseline from PDF/DOCX/TXT/MD, repairs Czech encoding artifacts, and detects the dominant language. Used for both the Extraction-tab side-by-side comparison and the bilingual output flag.
 2. **Deterministic pre-pass** (`pipeline.py::_build_deterministic_evidence`) — runs `taxonomy.py` over the raw text and the company text to detect: role family, seniority bucket, anchor salary band (looked up in `data/salary_benchmarks.json`), salary signals (cloud / ai / security / devops / leadership / english / german / regulated_industry), surface-form skills, company type, company modifiers. Output is bundled as a JSON evidence block.
@@ -154,20 +215,23 @@ e2e/                                Playwright tests across input combinations
 4. `insights.py` — company-type classification, multiplier application (capped at 1.20×), evidence trace.
 5. `ats.py` — JD keyword coverage (matched / missing / over-used) consumed by the Job-fit tab.
 6. `interview.py` — interview question pack with STAR scaffolds derived from job-fit gaps.
-7. `taxonomy.py` — single source of truth for skill matching, role-family classification, company adjustments, education levels, seniority signals. Backed by `data/taxonomy.json` (151 terms, ~30 Czech surface forms, 8 salary signals, 5 company types, 3 modifiers).
+7. `taxonomy.py` — single source of truth for skill matching, role-family classification, company adjustments, education levels, seniority signals. Backed by `data/taxonomy.json`.
 
-## 5. Testing & evaluation
+## 7. Testing & evaluation
 
 ```bash
 npm run lint
 npm run typecheck         # also regenerates the Zod schema
+npm run test:unit         # Node --test over app/**/*.test.ts (no jest/vitest)
 npm run test:python       # python -m unittest discover pipeline/jobfit/tests
+npm run test:python:gate  # gated runner with skip baseline
 npm run test:e2e          # Playwright; Analyze suite auto-skips when no GEMINI_API_KEY
 npm run test:eval         # golden-set eval (markdown report)
 npm run test:eval:strict  # eval + non-zero exit when thresholds fail
+npm run test:eval:match   # matching-quality eval (strict)
 ```
 
-The unit suite (`pipeline/jobfit/tests/`) covers insights rules and PDF parsing quality. Playwright splits into two specs: `e2e/analyze-smoke.spec.ts` exercises the LLM-backed Analyze flow over four input combinations (CV only, CV + JD, CV + JD + company, CV + JD + company + GitHub) and skips cleanly without a Gemini key; `e2e/profile-builder.spec.ts` is a deterministic build/save round-trip for the candidate profile builder (archetype routing + completeness scoring) that needs no API key.
+The Python suite covers insights rules, PDF parsing quality, the matching engine, the Claude CLI provider, the automation tasks, fairness gates, and the full devcase module (analyze/design/source/evaluate/reflect/provenance). Tests that would need a live LLM are skipped unless enabled (`KP_CLAUDE_CLI_LIVE=1`). Playwright splits into `e2e/analyze-smoke.spec.ts` (LLM-backed Analyze flow across input combinations, skips cleanly without a Gemini key, includes a11y checks) and `e2e/profile-builder.spec.ts` (deterministic build/save round-trip, no API key needed).
 
 ### Eval harness
 
@@ -187,11 +251,11 @@ Each fixture is hand-verified (`label`, `expected_role_family`, `expected_senior
 
 `salary_overlap` is containment-aware — a Gemini range fully inside the expected band scores 1.0; partial overlaps fall back to IoU. The aggregate report and per-fixture breakdown print as a markdown table; `--json` swaps in machine-readable output for CI; `--strict` exits non-zero when any threshold is missed. Use it after every prompt or taxonomy change to catch drift.
 
-Known edge-case behaviors the harness surfaces today: occasional Gemini JSON truncation when a long CV + full job-fit overruns `max_output_tokens` — now detected via the response `finish_reason` and surfaced as a clear "truncated at the token cap" error (with a best-effort salvage of the partial object) instead of a misleading "non-JSON output"; language-detection ambiguity on mostly-English CVs that contain Czech proper nouns ("Bc. ČVUT"); narrower-than-expected Gemini ranges on niche specialisms (legacy mainframe, PhD pivot) where the public market data is thin.
+Beyond the golden set: `eval/matching_eval.py` scores the matching engine, `eval/automation_eval.py` scores the automation tasks, and `devcase/lifecycle_eval.py` hardens the dev-case design loop (scenario generation, reliability/integrity health checks, optional LLM design audits).
 
-## 6. Data approach
+## 8. Data approach
 
-`data/salary_benchmarks.json` carries role × seniority anchor bands per family (`software_engineering`, `data_ai`, `product_project`). The deterministic pre-pass looks up the band that matches the candidate's detected role family + seniority and feeds it into the Gemini prompt as the *primary* salary anchor; Gemini may adjust ±20% with stronger evidence. `data/taxonomy.json` (151 terms, 8 salary signals, 5 company types) drives skill matching, role classification, education detection, seniority signals, and the company-type multiplier (capped at 1.20×). Both files are editable without changing the API/UI contract.
+`data/salary_benchmarks.json` carries role × seniority anchor bands per family (`software_engineering`, `data_ai`, `product_project`). The deterministic pre-pass looks up the band that matches the candidate's detected role family + seniority and feeds it into the Gemini prompt as the *primary* salary anchor; Gemini may adjust ±20% with stronger evidence. `data/taxonomy.json` (151 terms, 8 salary signals, 5 company types, 3 modifiers) drives skill matching, role classification, education detection, seniority signals, and the company-type multiplier (capped at 1.20×). Both files are editable without changing the API/UI contract.
 
 ### Czech salary data (job-board aggregates)
 
@@ -241,24 +305,24 @@ Hays CZ 2026 PDF, Grafton 2025 PDF, Reed 2026 PDF, Cpl CEE 2025 PDF — all behi
 
 ---
 
-## 7. Result caching
+## 9. Result caching
 
-To avoid re-paying for identical Gemini calls (a common case while iterating on a JD against the same CV), the analyze routes hash the inputs and reuse a cached payload when one is available.
+To avoid re-paying for identical Gemini calls (a common case while iterating on a JD against the same CV), the analyze route hashes the inputs and reuses a cached payload when one is available.
 
-- **Cache key** — SHA-256 of `(PROMPT_VERSION, grounding flag, JD text + JD file bytes, company text + company file bytes, CV bytes)`. Computed in `app/_lib/cache.ts`.
+- **Cache key** — SHA-256 of `(PROMPT_VERSION, grounding flag, JD text + JD file bytes, company text + company file bytes, CV bytes)`. Computed in `app/_lib/cache-key.ts`.
 - **Cache store** — `gemini_cache` table in the SQLite workspace DB. Each row carries `payload_json`, `prompt_version`, `created_at`, `expires_at`. Default TTL 24h; override via `KP_CACHE_TTL_HOURS`.
-- **Invalidation** — bump `PROMPT_VERSION` in `app/_lib/cache.ts` whenever you edit the Gemini prompt, the Pydantic schema, the deterministic pre-pass, or the taxonomy in a way that should drop old results. Old hashes simply miss the lookup; nothing has to be deleted.
-- **Behavior** — on cache hit, the streaming route emits `stage:done` events for all six stages plus the cached `result` event so the UI flashes through the progress bar instantly. Each user-visible run still gets a fresh row in the History tab regardless of cache state, so the workspace timeline remains accurate.
+- **Invalidation** — bump `PROMPT_VERSION` in `app/_lib/cache-key.ts` whenever you edit the Gemini prompt, the Pydantic schema, the deterministic pre-pass, or the taxonomy in a way that should drop old results. Old hashes simply miss the lookup; nothing has to be deleted.
+- **Behavior** — on cache hit the background analyze task completes near-instantly with the cached result. Each user-visible run still gets a fresh row in the History view regardless of cache state, so the workspace timeline remains accurate.
 - **Implicit caching** — Gemini's own context caching for repeated content (within short windows, multi-variant runs against the same JD) is opportunistic and free; we don't manage it.
 
-## 8. Logging
+## 10. Logging
 
 Per-request structured JSONL logs help debug pipeline regressions and track token usage without rerunning the full e2e suite.
 
 | File | Written by | One line per |
 | --- | --- | --- |
 | `tmp/pipeline.log` | `pipeline/jobfit/logger.py` | `analyze_cv()` invocation — request_id, CV path, JD/company flags, total + per-stage durations, Gemini token usage (`prompt_tokens`, `candidate_tokens`, `total_tokens`, `cached_tokens`), error |
-| `tmp/analyze.log` | `app/_lib/logger.ts` | `/api/analyze` and `/api/analyze/stream` request — request_id, route, candidate label, JD slug, `cache_hit` flag, duration, saved slug, error |
+| `tmp/analyze.log` | `app/_lib/logger.ts` | `/api/analyze` request — request_id, route, candidate label, JD slug, `cache_hit` flag, duration, saved slug, error |
 | `tmp/github.log` | `app/api/github-analysis/route.ts` | `/api/github-analysis` request — request_id, GitHub user, REST repo count, `code_review` status, duration, error |
 
 Logs are append-only JSONL (one JSON object per line) so they're tail-friendly and grep-able. Override the directory with `KP_LOG_DIR`; the default `tmp/` is gitignored.
