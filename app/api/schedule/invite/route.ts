@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getPipelineEntry } from "@/app/_lib/db";
 import { createScheduleInvite } from "@/app/_lib/schedule-store";
+import { jsonError, jsonOk } from "@/app/_lib/api-response";
 
 export const runtime = "nodejs";
 
@@ -18,8 +19,8 @@ export async function POST(request: NextRequest) {
       candidateLabel: entry.candidateLabel,
       jobTitle: entry.jobTitle,
     });
-    return NextResponse.json({ token: invite.token, url: `/schedule/${invite.token}` });
+    return jsonOk({ token: invite.token, url: `/schedule/${invite.token}` });
   } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "invite failed" }, { status: 500 });
+    return jsonError(error, "invite failed");
   }
 }

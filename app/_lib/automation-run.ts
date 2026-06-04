@@ -13,6 +13,12 @@ import {
 } from "./db";
 import { cleanupWorkdir, createWorkdir, parsePythonJson, parseStderrError, spawnPython } from "./python-runner";
 import { dispatchOutreach } from "./comms-dispatch";
+import {
+  coerceInterviewRecommendation,
+  coerceScreenRoute,
+  isInterviewRecommendation,
+  INTERVIEW_RECOMMENDATION_FALLBACK,
+} from "./interview-recommendation";
 
 // Shared core for the on-demand LLM HR tasks. Used directly by /api/automation/[task]
 // AND by the background-task runner (single + batch). Claude CLI only.
@@ -43,6 +49,23 @@ export class AutomationError extends Error {
 
 export type AutomationResult = { result: Record<string, unknown>; source: string; applied: string };
 type CliPayload = { result: Record<string, unknown>; source: string };
+
+// Read the model's recommendation at the TS parse boundary, validated against the
+// canonical advance|hold|reject contract. A present-but-off-taxonomy value (model
+// drift) is logged once and coerced to the safe `hold` fallback before it reaches
+// the audit event — so drift is caught early instead of silently slipping a
+// misspelled verdict into pipeline_events. An absent value is the normal "no
+// verdict" case and is coerced quietly.
+function readRecommendation(result: Record<string, unknown>, task: string): string {
+  const raw = result.recommendation;
+  if (typeof raw === "string" && raw.trim() && !isInterviewRecommendation(raw)) {
+    console.warn(
+      `[automation:${task}] off-taxonomy interview recommendation ${JSON.stringify(raw)} → ` +
+        `falling back to "${INTERVIEW_RECOMMENDATION_FALLBACK}"`
+    );
+  }
+  return coerceInterviewRecommendation(raw);
+}
 
 export async function runAutomationTask(entryId: string, task: string, notes = ""): Promise<AutomationResult> {
   if (!(task in AUTOMATION_VERSION)) throw new AutomationError(`unknown task: ${task}`, 404);
@@ -93,12 +116,15 @@ export async function runAutomationTask(entryId: string, task: string, notes = "
 
   if (task === "screen") {
     if (entry.stage === "Screened") {
-      if (result.route === "advance") {
+      // Validate the screen-route gate at the TS parse boundary: anything other
+      // than a clean "advance" (incl. a missing/off-set value) holds for review,
+      // never silently auto-advances. (Python derives route ∈ {advance, hold}.)
+      if (coerceScreenRoute(result.route) === "advance") {
         actOnPipelineEntry(entry.id, "accept");
         applied = "advanced";
       } else {
         setApproval(entry.id, "screening_review", JSON.stringify(result));
-        recordAutomationEvent(entry.id, "screening_hold", String(result.recommendation ?? ""));
+        recordAutomationEvent(entry.id, "screening_hold", readRecommendation(result, task));
         applied = "held_for_review";
       }
     } else {
@@ -106,7 +132,7 @@ export async function runAutomationTask(entryId: string, task: string, notes = "
     }
   } else if (task === "scorecard") {
     setApproval(entry.id, "scorecard_review", JSON.stringify(result));
-    recordAutomationEvent(entry.id, "interview_scorecard", String(result.recommendation ?? ""));
+    recordAutomationEvent(entry.id, "interview_scorecard", readRecommendation(result, task));
     applied = "scorecard_ready";
   } else if (task === "offer") {
     setApproval(entry.id, "offer_review", JSON.stringify(result));

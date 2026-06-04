@@ -1,5 +1,5 @@
 import { ImageResponse } from "next/og";
-import { loadGoogleFont } from "@/app/_lib/og-fonts";
+import { loadOgFonts } from "@/app/_lib/og-fonts";
 
 export const alt = "KP Job Fit & Salary Estimator — Czech market";
 export const size = { width: 1200, height: 630 };
@@ -13,21 +13,11 @@ const MOSS = "#526b4f";
 const LIMEWASH = "#dce7d0";
 
 export default async function OpengraphImage() {
-  const [serif600, serif700, sans500] = await Promise.all([
-    loadGoogleFont("Fraunces", 600),
-    loadGoogleFont("Fraunces", 700),
-    loadGoogleFont("Inter", 500)
+  const fonts = await loadOgFonts([
+    { family: "Fraunces", weight: 600 },
+    { family: "Fraunces", weight: 700 },
+    { family: "Inter", weight: 500 }
   ]);
-
-  const fonts: Array<{
-    name: string;
-    data: ArrayBuffer;
-    weight: 400 | 500 | 600 | 700;
-    style: "normal";
-  }> = [];
-  if (serif600) fonts.push({ name: "Fraunces", data: serif600, weight: 600, style: "normal" });
-  if (serif700) fonts.push({ name: "Fraunces", data: serif700, weight: 700, style: "normal" });
-  if (sans500) fonts.push({ name: "Inter", data: sans500, weight: 500, style: "normal" });
 
   return new ImageResponse(
     (

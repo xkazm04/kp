@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import { FileText, UploadCloud, X } from "lucide-react";
-import { ACCEPT_EXTENSIONS, MAX_FILE_HINT, validateUpload } from "@/app/_lib/upload-constraints";
+import { ACCEPT_EXTENSIONS, MAX_FILE_HINT } from "@/app/_lib/upload-constraints";
 import { formatFileSize } from "./AnalyzeApi";
+import { useFileAccept } from "./useFileAccept";
 
 export function AnalyzeFileDropZone({
   inputId,
@@ -21,19 +22,14 @@ export function AnalyzeFileDropZone({
   hint?: string;
 }) {
   const [isOver, setIsOver] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  // The shared intake gate: every File below is handed to `accept(file, commit)`
+  // so a bad drop/select (wrong type or >8 MB) surfaces inline instead of only
+  // failing after the upload POST. No path here calls onFileChange directly.
+  const { error, accept } = useFileAccept();
 
-  // Pre-flight the file (extension + size) before handing it up, so a bad drop
-  // surfaces an inline message instead of failing only after the upload POST.
-  const accept = (next: File) => {
-    const err = validateUpload(next);
-    if (err) {
-      setError(err);
-      return;
-    }
-    setError(null);
-    onFileChange(next);
-  };
+  const errorRow = error ? (
+    <p className="mt-1 text-sm text-coral" role="alert">{error}</p>
+  ) : null;
 
   if (file) {
     return (
@@ -67,14 +63,15 @@ export function AnalyzeFileDropZone({
           id={inputId}
           ref={inputRef}
           type="file"
-          accept=".pdf,.docx,.txt,.md"
+          accept={ACCEPT_EXTENSIONS}
           className="sr-only"
           onChange={(event) => {
             const next = event.target.files?.[0];
-            if (next) onFileChange(next);
+            if (next) accept(next, onFileChange);
             event.target.value = "";
           }}
         />
+        {errorRow}
       </>
     );
   }
@@ -99,7 +96,7 @@ export function AnalyzeFileDropZone({
           event.preventDefault();
           setIsOver(false);
           const dropped = event.dataTransfer.files?.[0];
-          if (dropped) accept(dropped);
+          if (dropped) accept(dropped, onFileChange);
         }}
         className={`flex min-h-20 cursor-pointer flex-col items-center justify-center rounded-lg border border-dashed px-3 text-center transition-colors ${
           isOver
@@ -113,7 +110,7 @@ export function AnalyzeFileDropZone({
         </span>
         <span className="text-sm text-steel">{hint}</span>
       </label>
-      {error ? <p className="mt-1 text-sm text-coral" role="alert">{error}</p> : null}
+      {errorRow}
       <input
         id={inputId}
         ref={inputRef}
@@ -122,7 +119,7 @@ export function AnalyzeFileDropZone({
         className="sr-only"
         onChange={(event) => {
           const next = event.target.files?.[0];
-          if (next) accept(next);
+          if (next) accept(next, onFileChange);
           event.target.value = "";
         }}
       />

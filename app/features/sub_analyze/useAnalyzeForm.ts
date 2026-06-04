@@ -24,6 +24,11 @@ const ANALYZE_TASK_KEY = "kp.analyzeTaskId";
 export function useAnalyzeForm() {
   const jobInputRef = useRef<HTMLInputElement>(null);
   const companyInputRef = useRef<HTMLInputElement>(null);
+  // Monotonic id stamped on each submit's GitHub run. A fire-and-forget GitHub
+  // analysis from a SUPERSEDED submit (e.g. the recruiter edited the profile and
+  // resubmitted) must not last-write-win over the current one — its callbacks are
+  // ignored unless their captured id is still the latest (idea-8367f051).
+  const githubRunIdRef = useRef(0);
 
   const [cvFiles, setCvFiles] = useState<File[]>([]);
   const [jobDescriptionFile, setJobDescriptionFile] = useState<File | null>(null);
@@ -101,6 +106,9 @@ export function useAnalyzeForm() {
   }
 
   function reset() {
+    // Supersede any GitHub run still in flight so a late result can't clobber the
+    // cleared state (same guard as submit — see githubRunIdRef).
+    githubRunIdRef.current += 1;
     setCvFiles([]);
     clearJobDescription();
     clearCompany();
@@ -169,22 +177,34 @@ export function useAnalyzeForm() {
       setError("Select a CV or LinkedIn PDF export first.");
       return;
     }
+    // Supersede any GitHub run still in flight: only this submit's callbacks win.
+    // Resetting the status to "idle" here (and to "loading" below when we actually
+    // launch a run) also prevents a superseded run — whose guarded terminal
+    // callbacks we now ignore — from leaving the status stuck on "loading".
+    const githubRunId = ++githubRunIdRef.current;
+    const isCurrentGithubRun = () => githubRunId === githubRunIdRef.current;
+
     setIsLoading(true);
     setIsCompleting(false);
     setError(null);
     setAnalysis(null);
     setGithubAnalysis(null);
     setGithubError(null);
+    setGithubStatus("idle");
     setStageState(initialStageState());
 
     if (hasGithub) {
       void executeGithubAnalysis(githubProfile, { jobDescriptionText, jobDescriptionFile }, {
-        onLoading: () => setGithubStatus("loading"),
+        onLoading: () => {
+          if (isCurrentGithubRun()) setGithubStatus("loading");
+        },
         onResult: (result) => {
+          if (!isCurrentGithubRun()) return; // a newer submit superseded this run
           setGithubAnalysis(result);
           setGithubStatus("done");
         },
         onError: (message) => {
+          if (!isCurrentGithubRun()) return; // a newer submit superseded this run
           setGithubError(message);
           setGithubStatus("error");
         },
@@ -230,7 +250,10 @@ export function useAnalyzeForm() {
       reset,
       submit,
     },
-    flags: { hasJobDescription, hasCompany, isLoading, isCompleting },
+    // `githubLoading` lets the submit button block a resubmit while a GitHub run
+    // is still in flight (it can outlive the main analysis), preventing a duplicate
+    // full fan-out (idea-8367f051).
+    flags: { hasJobDescription, hasCompany, isLoading, isCompleting, githubLoading: githubStatus === "loading" },
     statuses: { cvStatus, jobStatus, companyStatus, githubStatusLabel },
     library: { jdLibrary, selectedJdSlug, setSelectedJdSlug },
     result: { analysis, githubAnalysis, githubStatus, githubError, error, stageState },

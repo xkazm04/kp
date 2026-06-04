@@ -135,11 +135,6 @@ function topSkillsOf(payload: unknown): string[] {
 const dimPercent = (c: PerCandidate, key: string): number | null =>
   c.scoreBreakdown?.find((d) => d.key === key)?.percent ?? null;
 
-// Flatten the structured comparison to a plain (bold-stripped) string, kept as a
-// legacy `comparisonSummary` field for any consumer that reads the one-liner.
-const flattenComparison = (c: Comparison): string =>
-  [c.headline, ...c.keyPoints, c.recommendation ?? ""].filter(Boolean).join(" ").replace(/\*\*/g, "");
-
 // Rank the role's candidates against the role's job via the recruiter ranker
 // (ONE Python process for the whole field) to get the full MatchResult breakdown
 // per candidate. Best-effort: any failure returns an empty map and the eval
@@ -362,10 +357,8 @@ export async function runGroupEval(params: Record<string, unknown>): Promise<Rec
     // candidate ranks honestly. Null for a job-less role or if the ranker failed.
     fairness,
     summary: deterministicSummary,
-    // Structured, bold-formatted AI comparison (the modal prefers it); the flat
-    // `comparisonSummary` stays for legacy/plain-text consumers.
+    // Structured, bold-formatted AI comparison (the modal prefers it).
     comparison: compare?.comparison ?? null,
-    comparisonSummary: compare ? flattenComparison(compare.comparison) : null,
     comparisonSource: compare?.source ?? null,
   };
 

@@ -94,6 +94,8 @@ def apply_live_case(
     skills added" rather than implying a silent success."""
     ev = observed_evidence(role, case, evaluation, transfer, threshold=threshold)
     if ev is None:
-        return normalize_profile(profile), []
+        normalize_profile(profile)  # re-stamp completeness in place
+        return profile, []
     profile.evidence.append(ev)
-    return normalize_profile(profile), list(ev.skills)
+    normalize_profile(profile)  # re-stamp completeness in place
+    return profile, list(ev.skills)

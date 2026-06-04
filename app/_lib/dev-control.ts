@@ -1,18 +1,21 @@
-import path from "node:path";
-import { mkdirSync } from "node:fs";
 import Database from "better-sqlite3";
+import { DB_PATH, ensureDbDir } from "./db-path";
 
 // Direction D — oversight & audit, kept in a self-contained connection (its own tables) so
 // the autonomous pipeline has an immutable decision log + a kill switch, independent of the
 // main schema. WAL lets this second connection share the same DB file safely.
-const DB_PATH = process.env.KP_DB_PATH ?? path.join(process.cwd(), "data", "kp.sqlite");
-
 let _db: Database.Database | null = null;
 function db(): Database.Database {
   if (_db) return _db;
-  mkdirSync(path.dirname(DB_PATH), { recursive: true });
+  ensureDbDir();
   const d = new Database(DB_PATH);
   d.pragma("journal_mode = WAL");
+  // This is a second connection to the same kp.sqlite file (db.ts + dev-outcomes
+  // each open their own). WAL allows many readers but only one writer, so when a
+  // lifecycle task and an API handler write at once the loser would instantly
+  // throw SQLITE_BUSY (default busy_timeout 0) — silently dropping an audit row.
+  // Make a concurrent writer wait briefly instead.
+  d.pragma("busy_timeout = 5000");
   d.exec(`
     CREATE TABLE IF NOT EXISTS dev_audit (
       id INTEGER PRIMARY KEY AUTOINCREMENT,

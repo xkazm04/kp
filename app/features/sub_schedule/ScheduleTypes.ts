@@ -24,6 +24,3 @@ export const ARCHETYPE = {
   career_switcher: { label: "Switcher", bg: "bg-moss" },
 } as const;
 export const styleFor = (a: string | null) => ARCHETYPE[(a as keyof typeof ARCHETYPE) ?? "bau"] ?? ARCHETYPE.bau;
-
-export const initialsOf = (label: string) =>
-  label.split(" ").map((p) => p[0]).filter(Boolean).join("").slice(0, 2).toUpperCase();

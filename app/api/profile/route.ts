@@ -12,6 +12,7 @@ import {
 import {
   cleanupWorkdir,
   createWorkdir,
+  parsePythonJson,
   parseStderrError,
   spawnPython,
 } from "@/app/_lib/python-runner";
@@ -45,7 +46,13 @@ async function routeAndScore(
       const err = parseStderrError(stderr, exitCode);
       return { error: { message: err.message, status: err.status } };
     }
-    return { data: JSON.parse(stdout) as RoutedProfile };
+    // parsePythonJson, not raw JSON.parse: profile_cli can emit stray warnings
+    // before the result and the interpreter prints shutdown noise after it
+    // (atexit/ResourceWarning), and an exit-0-with-empty-stdout would make a raw
+    // parse throw — each turning a successful build/edit into a 500 that
+    // discards the recruiter's just-entered intake. Scan from the end for the
+    // first JSON object, exactly like every other CLI seam.
+    return { data: parsePythonJson<RoutedProfile>(stdout, stderr) };
   } finally {
     if (workdir) await cleanupWorkdir(workdir);
   }

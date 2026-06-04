@@ -1,6 +1,6 @@
-import path from "node:path";
-import { mkdirSync } from "node:fs";
 import Database from "better-sqlite3";
+import { DB_PATH, ensureDbDir } from "./db-path";
+import { chunk, SQL_IN_CHUNK } from "./entries-param";
 
 // Persisted store for interview-prep artifacts — one timed interview plan per
 // pipeline entry (candidate × role), generated on accepted screening and opened
@@ -8,12 +8,10 @@ import Database from "better-sqlite3";
 // file (WAL), mirroring group-eval.ts / dev-control.ts so it never touches the
 // fork-churned db.ts.
 
-const DB_PATH = process.env.KP_DB_PATH ?? path.join(process.cwd(), "data", "kp.sqlite");
-
 let _db: Database.Database | null = null;
 function db(): Database.Database {
   if (_db) return _db;
-  mkdirSync(path.dirname(DB_PATH), { recursive: true });
+  ensureDbDir();
   const d = new Database(DB_PATH);
   d.pragma("journal_mode = WAL");
   // Shares the kp.sqlite file with db.ts and the reminder heartbeat; busy_timeout
@@ -73,12 +71,18 @@ export function getInterviewPrep(entryId: string): InterviewPrep | null {
   }
 }
 
-/** Which of the given entry ids already have a prep artifact. */
+/** Which of the given entry ids already have a prep artifact. The IN query is
+ *  chunked under the SQLite variable limit so a wide board never trips
+ *  SQLITE_MAX_VARIABLE_NUMBER (idea-191ccc0c). */
 export function listPreparedEntries(entryIds: string[]): Record<string, string> {
   if (entryIds.length === 0) return {};
-  const placeholders = entryIds.map(() => "?").join(",");
-  const rows = db()
-    .prepare(`SELECT entry_id, created_at FROM interview_preps WHERE entry_id IN (${placeholders})`)
-    .all(...entryIds) as { entry_id: string; created_at: string }[];
-  return Object.fromEntries(rows.map((r) => [r.entry_id, r.created_at]));
+  const out: Record<string, string> = {};
+  for (const ids of chunk(entryIds, SQL_IN_CHUNK)) {
+    const placeholders = ids.map(() => "?").join(",");
+    const rows = db()
+      .prepare(`SELECT entry_id, created_at FROM interview_preps WHERE entry_id IN (${placeholders})`)
+      .all(...ids) as { entry_id: string; created_at: string }[];
+    for (const r of rows) out[r.entry_id] = r.created_at;
+  }
+  return out;
 }

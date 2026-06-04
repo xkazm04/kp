@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createPipelineEntry, getJob, listMatrixProfiles, listPipeline } from "@/app/_lib/db";
+import { SIM_SCREEN_POLICY } from "@/app/features/simulation/constants";
 
 export const runtime = "nodejs";
 
@@ -18,7 +19,10 @@ export async function POST(request: NextRequest) {
     if (!applicant) return NextResponse.json({ error: "No available applicant." }, { status: 404 });
 
     // Deterministic mid score so the inbound applicant survives screening (demo).
-    const score = 62 + (applicant.id.charCodeAt(applicant.id.length - 1) % 10);
+    // The floor is single-sourced + invariant-checked against the screen reject
+    // ceiling in SIM_SCREEN_POLICY (simulation/constants.ts) — keep it there, not
+    // as a literal here, or the two coupled numbers drift apart silently.
+    const score = SIM_SCREEN_POLICY.inboundScoreFloor + (applicant.id.charCodeAt(applicant.id.length - 1) % 10);
     const { entry } = createPipelineEntry({
       candidateId: applicant.id,
       candidateLabel: applicant.label,

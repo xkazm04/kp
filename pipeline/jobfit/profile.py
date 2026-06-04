@@ -147,10 +147,16 @@ def completeness(profile: CandidateProfileV2) -> tuple[float, list[str]]:
     return score, missing
 
 
-def normalize_profile(profile: CandidateProfileV2) -> CandidateProfileV2:
-    """Stamp completeness and resolve evidence provenance defaults."""
+def normalize_profile(profile: CandidateProfileV2) -> tuple[float, list[str]]:
+    """Resolve evidence provenance defaults, stamp completeness, and return the
+    ``(score, missing)`` it already computes.
+
+    The profile is mutated in place (provenance + ``completeness``); the return
+    value hands callers BOTH the stamp and the still-missing gaps so they never
+    have to re-run the archetype checklist a second time.
+    """
     for ev in profile.evidence:
         ev.provenance = ev.resolved_provenance()
-    score, _missing = completeness(profile)
+    score, missing = completeness(profile)
     profile.completeness = score
-    return profile
+    return score, missing

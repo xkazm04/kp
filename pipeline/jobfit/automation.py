@@ -44,12 +44,46 @@ POLICY: dict[str, int] = {
     "screen_advance_conf": 80,
 }
 
-_EARLY_CAREER = ("student", "career_switcher")
+# Single-sourced from the shared registry (archetypes.json) so the in-code fairness
+# levers (never auto-advance/reject early-career) can't drift from the scorer's set.
+_EARLY_CAREER = registry.early_career_archetypes()
+
+# The interview / screening VERDICT contract — the canonical advance|hold|reject
+# vocabulary every LLM HR task emits and the whole pipeline branches on. Defined
+# ONCE here (previously an inline literal repeated in each prompt + a duplicated
+# coerce tuple) and mirrored on the TS side in
+# app/_lib/interview-recommendation.ts; the cross-language contract + fallback are
+# documented in docs/AUTOMATION_SPEC.md §2.5.
+RECOMMENDATIONS: tuple[str, ...] = ("advance", "hold", "reject")
+# Fallback for an unknown / empty / malformed verdict: the safe middle state.
+# Never silently `advance` (could auto-progress a candidate) or `reject` (the
+# fairness gate forbids a silent auto-reject) — `hold` routes to the human
+# Decisions gate. Mirrors INTERVIEW_RECOMMENDATION_FALLBACK on the TS side.
+RECOMMENDATION_FALLBACK = "hold"
+# Rendered into the prompts as "advance|hold|reject"; derived so the legal set is
+# stated in exactly one place and the prompt can never list a stale vocabulary.
+RECOMMENDATION_CHOICES = "|".join(RECOMMENDATIONS)
+# The screen-route gate: a strict SUBSET of the verdicts. screen_candidate()
+# collapses (recommendation, confidence, fairness gate) into result["route"] ∈
+# this set, which the TS layer reads to auto-advance vs. queue for review.
+# Mirrors SCREEN_ROUTES on the TS side.
+SCREEN_ROUTES: tuple[str, ...] = ("advance", "hold")
 
 _SYSTEM = (
     "You are an HR automation assistant for the Czech tech market. Be concise, specific, fair, and "
     "grounded only in the supplied facts. Write in the requested language. Output strict JSON only."
 )
+
+
+def coerce_recommendation(value: Any, default: str = RECOMMENDATION_FALLBACK) -> str:
+    """Validate a raw verdict against the canonical {advance, hold, reject} set.
+
+    Trims + lower-cases, then returns the member if recognised, else ``default``
+    (``RECOMMENDATION_FALLBACK`` = "hold" unless a caller supplies a context-aware
+    fallback such as the deterministic builder's own verdict). The single guard
+    both LLM-task coercers use, so the legal set lives in one place."""
+    rec = str(value or "").strip().lower()
+    return rec if rec in RECOMMENDATIONS else default
 
 
 # --- shared LLM-or-fallback helper -----------------------------------------
@@ -115,7 +149,10 @@ def evaluate_entry(entry: dict[str, Any]) -> dict[str, Any]:
     def out(action: str, to_stage: str | None, reason: str) -> dict[str, Any]:
         return {"action": action, "toStage": to_stage, "alerts": alerts, "reason": reason}
 
-    # Never override a screening decision younger than 24h (caller sets recentScreening).
+    # Never override a screening decision still inside the override-guard window. The window
+    # itself lives in TS as SCREENING_OVERRIDE_GUARD_HOURS (24h) in app/_lib/db.ts
+    # (listActiveEntriesForAutomation) — the single source of truth; Python only receives the
+    # opaque `recentScreening` boolean, so that constant is the checkable definition of "recent".
     if recent_screening:
         return out("none", None, "recent screening decision; policy pass skipped")
 
@@ -180,7 +217,7 @@ def screen_candidate(candidate: MatchCandidate, job: Job, m, *, provider: Any | 
             if early
             else ""
         )
-        + 'Return JSON: { "recommendation": "advance|hold|reject", "confidence": int 0-100, '
+        + f'Return JSON: {{ "recommendation": "{RECOMMENDATION_CHOICES}", "confidence": int 0-100, '
         '"rationale": str, "strengths": [str], "redFlags": [str] }. JSON only.'
     )
 
@@ -208,9 +245,9 @@ def screen_candidate(candidate: MatchCandidate, job: Job, m, *, provider: Any | 
         det = deterministic()
         if not isinstance(payload, dict):
             return det
-        rec = str(payload.get("recommendation") or "").strip().lower()
-        if rec not in ("advance", "hold", "reject"):
-            rec = det["recommendation"]
+        # Off-set / missing verdict falls back to the deterministic builder's own
+        # (context-aware) recommendation rather than a blind "hold".
+        rec = coerce_recommendation(payload.get("recommendation"), det["recommendation"])
         try:
             conf = max(0, min(100, int(payload.get("confidence"))))
         except (TypeError, ValueError):
@@ -409,8 +446,6 @@ INTERVIEW_RUBRICS: dict[str, list[dict]] = _RUBRIC_DATA["rubrics"]
 # Backwards-compatible alias: the historical flat rubric IS the experienced one.
 INTERVIEW_RUBRIC = INTERVIEW_RUBRICS["experienced"]
 
-_EARLY_CAREER = registry.early_career_archetypes()
-
 
 def scoring_model_for_archetype(archetype: str | None) -> str:
     """The rubric / scoring model for an archetype: 'early_career' for early-career
@@ -475,7 +510,7 @@ def interview_scorecard(candidate: MatchCandidate, job: Job, notes: str, *, prov
         "does not cover a competency, set its evidence to an empty string and rate it 3 (not assessed).\n"
         'Return JSON: { "ratings": [ { "competency": str (exactly one of the above), "rating": int 1-5, '
         '"evidence": str (verbatim candidate quote, or "") } ], "summary": str, '
-        '"recommendation": "advance|hold|reject" }. '
+        f'"recommendation": "{RECOMMENDATION_CHOICES}" }}. '
         "Include every competency, in the order listed. JSON only."
     )
 
@@ -521,9 +556,7 @@ def interview_scorecard(candidate: MatchCandidate, job: Job, notes: str, *, prov
                     "evidence": (got["evidence"] if got else "") or "Not assessed.",
                 }
             )
-        rec = str(payload.get("recommendation") or "").strip().lower()
-        if rec not in ("advance", "hold", "reject"):
-            rec = "hold"
+        rec = coerce_recommendation(payload.get("recommendation"))
         return {
             "ratings": ratings,
             "summary": str(payload.get("summary") or det["summary"]),

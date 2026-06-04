@@ -6,16 +6,39 @@ import { AlertTriangle, Check, ExternalLink, Loader2, Save, Users } from "lucide
 import { Markdown } from "@/app/_components/Markdown";
 import { buildUrl } from "@/app/features/tabs";
 import { JD_BODY_MAX_LENGTH } from "@/app/_lib/jd-limits";
+import { formatSalaryRange } from "@/app/_lib/format";
+import { dedupeBy } from "@/app/_lib/dedupe";
+import { safeHttpLinks } from "@/app/_lib/safe-url";
 
 // Order = tab order; drives both the role="tablist" render and arrow-key nav.
 const VIEWS = ["preview", "edit"] as const;
+
+// Provenance of the market-salary band, as emitted by market_salary_cli: "llm" is a
+// web-grounded lookup (live sources cited), "deterministic" is the rules-based
+// fallback band. Typed as an explicit union + exhaustive label map so a new source
+// kind can't silently collapse into the "estimated" bucket the way the old
+// `=== "llm" ? "web-grounded" : "estimated"` two-way did.
+export type SalarySource = "llm" | "deterministic";
+
+const SALARY_SOURCE_LABEL: Record<SalarySource, string> = {
+  llm: "web-grounded",
+  deterministic: "estimated",
+};
+
+// Map the provenance flag to its label. An absent source (legacy payloads) reads as
+// the conservative "estimated"; an unrecognized source is labeled "unverified" so it
+// stays visible instead of masquerading as the deterministic estimate.
+function salarySourceLabel(source: string | undefined): string {
+  if (source && source in SALARY_SOURCE_LABEL) return SALARY_SOURCE_LABEL[source as SalarySource];
+  return source ? "unverified" : "estimated";
+}
 
 export type JdBuildResult = {
   markdown: string;
   role: Record<string, unknown>;
   salary: { suggestedMinimum: number; suggestedMaximum: number; currency: string; confidence: string; summary: string };
   salarySources?: string[];
-  salarySource?: string;
+  salarySource?: SalarySource;
   snapshot?: { ref?: string; inferredStack?: string[]; loc?: number } | null;
 };
 
@@ -32,6 +55,10 @@ export function JdBuilderResult({ result, title, company, onSaved }: { result: J
   const [error, setError] = useState<string | null>(null);
 
   const s = result.salary;
+  // salarySources are web-grounded URLs the LLM returns — untrusted at this
+  // render boundary. Vet to http(s) only, drop the rest, dedupe by normalized
+  // href, and take the first three (mirrors SalaryTab's market-evidence guard).
+  const salaryLinks = dedupeBy(safeHttpLinks(result.salarySources ?? []), (link) => link.href).slice(0, 3);
 
   // Roving-tabindex arrow navigation across the preview/edit tabs (WAI-ARIA
   // tabs pattern), mirroring ResultPanel's onTabKeyDown.
@@ -97,16 +124,16 @@ export function JdBuilderResult({ result, title, company, onSaved }: { result: J
       <div className="rounded-lg border border-stone-200 bg-paper/50 p-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="text-meta uppercase tracking-wide text-steel">
-            Market salary {result.salarySource === "llm" ? "· web-grounded" : "· estimated"}
+            Market salary · {salarySourceLabel(result.salarySource)}
           </p>
           <span className="rounded-md bg-white px-2 py-1 text-sm font-semibold text-ink">
-            {s.suggestedMinimum.toLocaleString("cs-CZ")} – {s.suggestedMaximum.toLocaleString("cs-CZ")} {s.currency} · {s.confidence}
+            {formatSalaryRange(s.suggestedMinimum, s.suggestedMaximum, { currency: s.currency })} · {s.confidence}
           </span>
         </div>
         <p className="mt-1.5 text-sm text-ink">{s.summary}</p>
-        {result.salarySources?.length ? (
-          <p className="mt-1 text-sm text-steel">Sources: {result.salarySources.slice(0, 3).map((u, i) => (
-            <a key={i} href={u} target="_blank" rel="noreferrer" className="text-coral hover:underline">[{i + 1}]</a>
+        {salaryLinks.length ? (
+          <p className="mt-1 text-sm text-steel">Sources: {salaryLinks.map((link, i) => (
+            <span key={link.href}>{i > 0 ? " · " : ""}<a href={link.href} target="_blank" rel="noreferrer" className="text-coral hover:underline">{link.hostname}</a></span>
           ))}</p>
         ) : null}
         {result.snapshot?.ref ? (

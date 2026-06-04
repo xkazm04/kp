@@ -3,14 +3,18 @@ import { z } from "zod";
 import { GoogleGenAI } from "@google/genai";
 import { logGithub, newRequestId } from "@/app/_lib/logger";
 import { codeReviewSchema, githubAnalysisSchema } from "@/app/_lib/schemas";
+import { ACTIVE_WINDOW_MONTHS, RECENT_WINDOW_MONTHS, isWithinMonths } from "@/app/_lib/repo-activity";
+import {
+  COMMITS_PER_REPO,
+  FILES_PER_REPO,
+  README_TRUNCATE,
+  describeEvidenceBasis,
+} from "@/app/_lib/github-evidence";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
 const GEMINI_MODEL = "gemini-3-flash-preview";
-const README_TRUNCATE = 3500;
-const COMMITS_PER_REPO = 10;
-const FILES_PER_REPO = 30;
 const DEEP_REVIEW_REPO_LIMIT = 3;
 
 type GithubUser = {
@@ -77,8 +81,12 @@ export async function POST(request: Request) {
 
     const languageTotals = mergeLanguageMaps(languageMaps);
     const languageSummary = summarizeLanguages(languageTotals);
-    const topRepositories = ownedRepos
-      .sort((a, b) => repoRank(b) - repoRank(a))
+    // Rank the owned repos ONCE (on a copy, so the shared ownedRepos array isn't
+    // re-sorted in place under later readers) and take both slices from it — top-8
+    // for display and the deep-review shortlist — instead of sorting and
+    // re-evaluating repoRank twice.
+    const rankedRepos = [...ownedRepos].sort((a, b) => repoRank(b) - repoRank(a));
+    const topRepositories = rankedRepos
       .slice(0, 8)
       .map((repo) => ({
         name: repo.name,
@@ -95,8 +103,11 @@ export async function POST(request: Request) {
 
     const totalStars = ownedRepos.reduce((sum, repo) => sum + repo.stargazers_count, 0);
     const totalForks = ownedRepos.reduce((sum, repo) => sum + repo.forks_count, 0);
-    const activeRepos = ownedRepos.filter((repo) => isWithinMonths(repo.pushed_at ?? repo.updated_at, 12)).length;
-    const recentlyUpdatedRepos = ownedRepos.filter((repo) => isWithinMonths(repo.updated_at, 3)).length;
+    // Both windows count code activity (pushed_at), falling back to updated_at only when the
+    // repo never reported a push. Named windows + the pushed-vs-updated choice live in
+    // repo-activity.ts so these recruiter-facing counts are a decided spec (idea-889dcaf4).
+    const activeRepos = ownedRepos.filter((repo) => isWithinMonths(repo.pushed_at ?? repo.updated_at, ACTIVE_WINDOW_MONTHS)).length;
+    const recentlyUpdatedRepos = ownedRepos.filter((repo) => isWithinMonths(repo.pushed_at ?? repo.updated_at, RECENT_WINDOW_MONTHS)).length;
     const contributionSignals = buildContributionSignals({
       ownedRepos,
       totalStars,
@@ -106,9 +117,7 @@ export async function POST(request: Request) {
       languages: languageSummary
     });
     const jobFitSignals = buildJobFitSignals(jobDescription, ownedRepos, languageSummary);
-    const reviewableRepos = ownedRepos
-      .sort((a, b) => repoRank(b) - repoRank(a))
-      .slice(0, DEEP_REVIEW_REPO_LIMIT);
+    const reviewableRepos = rankedRepos.slice(0, DEEP_REVIEW_REPO_LIMIT);
     const codeReview = await runCodeReview(reviewableRepos, jobDescription);
 
     const payload = {
@@ -221,7 +230,7 @@ function summarizeLanguages(totals: Map<string, number>) {
 }
 
 function repoRank(repo: GithubRepo) {
-  return repo.stargazers_count * 4 + repo.forks_count * 3 + repo.size / 500 + (isWithinMonths(repo.pushed_at ?? repo.updated_at, 12) ? 20 : 0);
+  return repo.stargazers_count * 4 + repo.forks_count * 3 + repo.size / 500 + (isWithinMonths(repo.pushed_at ?? repo.updated_at, ACTIVE_WINDOW_MONTHS) ? 20 : 0);
 }
 
 function complexitySignals(repo: GithubRepo) {
@@ -233,15 +242,10 @@ function complexitySignals(repo: GithubRepo) {
     signals.push("delivery or engineering-practice topic");
   }
   if (repo.open_issues_count > 0) signals.push("issue-tracked project");
+  // 6 months is a distinct "recently maintained" heuristic for the complexity signal, separate
+  // from the named Active/Recent tile windows (repo-activity.ts) — kept local on purpose.
   if (isWithinMonths(repo.pushed_at ?? repo.updated_at, 6)) signals.push("recently maintained");
   return signals.length ? signals : ["metadata-only signal"];
-}
-
-function isWithinMonths(dateText: string | null, months: number) {
-  if (!dateText) return false;
-  const date = new Date(dateText).getTime();
-  const threshold = Date.now() - months * 30 * 24 * 60 * 60 * 1000;
-  return Number.isFinite(date) && date >= threshold;
 }
 
 function buildContributionSignals(input: {
@@ -254,7 +258,7 @@ function buildContributionSignals(input: {
 }) {
   const signals = [
     `${input.ownedRepos.length} owned public repositories analyzed.`,
-    `${input.activeRepos} repositories show activity in the last 12 months; ${input.recentlyUpdatedRepos} were updated in the last 3 months.`,
+    `${input.activeRepos} repositories had code activity in the last ${ACTIVE_WINDOW_MONTHS} months; ${input.recentlyUpdatedRepos} in the last ${RECENT_WINDOW_MONTHS} months.`,
     `${input.totalStars} total stars and ${input.totalForks} total forks across owned repositories.`
   ];
   if (input.languages.length) {
@@ -291,6 +295,10 @@ function buildJobFitSignals(
   repos: GithubRepo[],
   languages: Array<{ name: string; percent: number }>
 ) {
+  // Did we actually have a JD to compare against? Empty matchingSkills means something
+  // completely different depending on this: with no JD we never ran a comparison, while
+  // with a JD it means a genuine zero-overlap. Surfaced so the UI can disambiguate the two.
+  const jobDescriptionProvided = jobDescription.trim().length > 0;
   // Word-boundary token matching, NOT substring: a substring test credits "ai"
   // inside "available", "ts" inside dozens of words, "ci" inside "official". We
   // tokenize into a set and only credit a skill when an alias's word(s) appear as
@@ -325,6 +333,7 @@ function buildJobFitSignals(
         : "Public metadata is thin; treat GitHub as weak supplemental evidence unless deeper repo review is performed.";
 
   return {
+    jobDescriptionProvided,
     matchingSkills,
     potentialGaps,
     complexityAssessment
@@ -393,20 +402,9 @@ async function fetchReadme(fullName: string): Promise<string> {
 // the GithubAnalysis schema and the e2e fixture can't silently drift apart.
 type CodeReviewPayload = z.infer<typeof codeReviewSchema>;
 
-// The exact, deterministic evidence the deep review is built from. Derived from
-// the same constants `fetchRepoBundle` uses so the documented scope can NOT drift
-// from what is actually sent to the model. This is text-and-metadata only: no
-// file *bodies* and no recursive directory tree are ever read, so neither the
-// model nor the UI may imply the source code itself was inspected.
-function describeEvidenceBasis(): string[] {
-  return [
-    `README text only, truncated to the first ${README_TRUNCATE} characters per repo.`,
-    `Up to ${COMMITS_PER_REPO} recent commit subject lines (first line of each message) per repo.`,
-    `Up to ${FILES_PER_REPO} root-level file and directory names per repo — names only, no file contents.`,
-    "Primary language and repository topics from GitHub metadata.",
-    "Not read: file bodies, nested/recursive directory trees, private repos, and non-default branches.",
-  ];
-}
+// describeEvidenceBasis + the README_TRUNCATE / COMMITS_PER_REPO / FILES_PER_REPO
+// limits live in @/app/_lib/github-evidence so this route and the e2e fixture
+// share one source of truth (the fixture used to hardcode the numbers by value).
 
 // Shape the Gemini model is asked to emit (snake_case). Each field .catch()es to
 // a safe default so a malformed/partial field snaps to empty instead of throwing,
@@ -440,8 +438,10 @@ async function runCodeReview(
     };
   }
   if (repos.length === 0) {
+    // Distinct from "ok": the review ran successfully but found nothing to
+    // review, so consumers must not read this as evidenced-skills data.
     return {
-      status: "ok",
+      status: "empty",
       summary: "No owned public repositories were available to review.",
       confirmedSkills: [],
       unverifiedClaims: [],

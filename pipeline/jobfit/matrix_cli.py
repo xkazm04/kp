@@ -5,9 +5,13 @@
 Input  --profiles-json: JSON array of { "id", "label", "archetype", "payload": <CandidateProfileV2> }.
        --jobs-json: optional JSON array of Job records used in addition to the corpus — lets
        newly-ingested DB jobs (absent from the static corpus) be scored. Mirrors recruiter_cli --job-json.
-Output one JSON object: { candidates:[...], positions:[...], cells:[[ {score|null, blocked} ]], missing:[...] }.
+Output one JSON object:
+  { candidates:[...], positions:[...], cells:[[ {score|null, blocked} ]],
+    missing:[...], missingCandidates:[ {id, label, error} ] }.
 Any requested --job-ids absent from both the corpus and --jobs-json land in `missing` (surfaced, not
-silently dropped) so callers know which requested columns could not be produced.
+silently dropped) so callers know which requested columns could not be produced. Symmetrically, any
+profile whose CandidateProfileV2 fails to validate/transform lands in `missingCandidates` with its
+id/label and the error, so a vanished row is explained — not swallowed — to the recruiter.
 Rows follow the input profile order; columns follow --job-ids order (else corpus order).
 """
 
@@ -15,9 +19,9 @@ from __future__ import annotations
 
 import argparse
 import json
-import sys
 from pathlib import Path
 
+from ._cli import configure_stdio, emit_error
 from .jobs import Job
 from .matching import ko_filter, load_corpus, score_job
 from .profile import CandidateProfileV2
@@ -25,9 +29,7 @@ from .transform import build_match_candidate
 
 
 def main(argv: list[str] | None = None) -> int:
-    if hasattr(sys.stdout, "reconfigure"):
-        sys.stdout.reconfigure(encoding="utf-8")
-        sys.stderr.reconfigure(encoding="utf-8")
+    configure_stdio()
 
     parser = argparse.ArgumentParser(description="Candidate x position fit matrix (no LLM).")
     parser.add_argument("--profiles-json", type=Path, required=True)
@@ -64,10 +66,18 @@ def main(argv: list[str] | None = None) -> int:
 
         candidates: list[dict] = []
         cells: list[list[dict]] = []
-        for pr in profiles_raw:
+        # A profile that fails to validate/transform must not vanish from the grid
+        # without a trace (success theater in a hiring tool). Record its id/label and
+        # the error here — symmetric with `missing` positions — so the UI can flag it.
+        missing_candidates: list[dict] = []
+        for i, pr in enumerate(profiles_raw):
+            if not isinstance(pr, dict):
+                continue
+            cid = pr.get("id") or f"profile-{i}"
             try:
                 cand = build_match_candidate(CandidateProfileV2.model_validate(pr["payload"]))
-            except Exception:
+            except Exception as exc:
+                missing_candidates.append({"id": cid, "label": pr.get("label") or cid, "error": str(exc)})
                 continue
             row = []
             for job in jobs:
@@ -83,11 +93,21 @@ def main(argv: list[str] | None = None) -> int:
             {"id": j.id, "title": j.title, "seniority": j.seniority, "roleFamily": j.role_family, "salaryBand": list(j.salary_band or [])}
             for j in jobs
         ]
-        print(json.dumps({"candidates": candidates, "positions": positions, "cells": cells, "missing": missing}, ensure_ascii=False))
+        print(
+            json.dumps(
+                {
+                    "candidates": candidates,
+                    "positions": positions,
+                    "cells": cells,
+                    "missing": missing,
+                    "missingCandidates": missing_candidates,
+                },
+                ensure_ascii=False,
+            )
+        )
         return 0
     except Exception as exc:
-        print(json.dumps({"error": str(exc), "status": 500}, ensure_ascii=False), file=sys.stderr)
-        return 1
+        return emit_error(exc)
 
 
 if __name__ == "__main__":

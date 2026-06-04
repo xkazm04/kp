@@ -23,29 +23,29 @@ const RESULT_TONE: Record<RunResult["tone"], string> = {
   error: "bg-coral/10 text-coral",
 };
 
-// Turn a tick outcome into a short, legible chip: the real summary on success,
-// a neutral "nothing due" no-op, or the error message verbatim.
-function describeTick(tick: Tick): RunResult {
-  if (tick.error) return { tone: "error", text: tick.error };
-  if (!tick.ran) return { tone: "neutral", text: "nothing due" };
-  const s = tick.summary ?? {};
-  const parts: string[] = [];
-  if (s.advanced) parts.push(`${s.advanced} advanced`);
-  if (s.rejected) parts.push(`${s.rejected} rejected`);
-  if (s.held) parts.push(`${s.held} held`);
-  if (s.alerts) parts.push(`${s.alerts} alert${s.alerts === 1 ? "" : "s"}`);
-  return { tone: "ok", text: parts.length ? `ran · ${parts.join(", ")}` : "ran · no changes" };
-}
-
 // The four buckets a policy pass moves entries into, tone-coded so the last-run
 // row reads at a glance — and so `held` (tracked by the backend, AutomationSummary)
 // is shown instead of silently dropped. Zero counts render dimmed (Badge.muted).
+// This is the ONE table of buckets: both the badge row (SummaryBadges) and the
+// "Run now" chip (describeTick) are driven from it, so adding a fifth outcome is a
+// single-line change that can't leave the two summaries out of sync.
 const SUMMARY_COUNTS: { key: keyof Summary; tone: BadgeTone; icon: LucideIcon; label: (n: number) => string }[] = [
   { key: "advanced", tone: "positive", icon: ArrowUpRight, label: (n) => `${n} advanced` },
   { key: "rejected", tone: "critical", icon: XCircle, label: (n) => `${n} rejected` },
   { key: "held", tone: "neutral", icon: Pause, label: (n) => `${n} held` },
   { key: "alerts", tone: "caution", icon: AlertTriangle, label: (n) => `${n} alert${n === 1 ? "" : "s"}` },
 ];
+
+// Turn a tick outcome into a short, legible chip: the real summary on success,
+// a neutral "nothing due" no-op, or the error message verbatim. The per-bucket
+// parts come straight from SUMMARY_COUNTS so the chip and the badges never drift.
+function describeTick(tick: Tick): RunResult {
+  if (tick.error) return { tone: "error", text: tick.error };
+  if (!tick.ran) return { tone: "neutral", text: "nothing due" };
+  const s = tick.summary ?? {};
+  const parts = SUMMARY_COUNTS.filter(({ key }) => s[key]).map(({ key, label }) => label(s[key] ?? 0));
+  return { tone: "ok", text: parts.length ? `ran · ${parts.join(", ")}` : "ran · no changes" };
+}
 
 // Render the last-run summary as semantic badges (one per bucket), every count
 // through the shared Badge so outcomes look identical to the rest of the pipeline.

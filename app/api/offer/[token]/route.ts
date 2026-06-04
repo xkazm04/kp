@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { offerView, respondToOffer } from "@/app/_lib/offer-finalize";
+import { jsonError, jsonOk } from "@/app/_lib/api-response";
 
 export const runtime = "nodejs";
 
@@ -10,7 +11,7 @@ export async function GET(_request: NextRequest, context: { params: Promise<{ to
   const { token } = await context.params;
   const view = offerView(token);
   if (!view) return NextResponse.json({ error: "This offer link is not valid." }, { status: 404 });
-  return NextResponse.json({ offer: view });
+  return jsonOk({ offer: view });
 }
 
 export async function POST(request: NextRequest, context: { params: Promise<{ token: string }> }) {
@@ -23,9 +24,8 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
     }
     const result = await respondToOffer(token, response);
     if (!result.ok) return NextResponse.json({ error: result.error }, { status: 404 });
-    return NextResponse.json(result);
+    return jsonOk(result);
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Could not record your response.";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return jsonError(error, "Could not record your response.");
   }
 }

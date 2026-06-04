@@ -2,7 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { ingestJobAd, insertJob, jobContentHash } from "@/app/_lib/job-ingest";
 
 export const runtime = "nodejs";
-export const maxDuration = 60;
+// The parser this route spawns builds ClaudeCliProvider(timeout=120) for the LLM
+// ad-parse (pipeline/jobfit/jobs_cli.py). maxDuration must comfortably exceed that
+// provider timeout, or a platform enforcing it (e.g. Vercel) kills a slow-but-valid
+// parse at 60s — surfacing a 504 on work that would have succeeded and orphaning a
+// Python child that keeps burning a subscription call.
+export const maxDuration = 180;
 
 // Direction #1: turn a prose job ad into a structured, matchable Job in the
 // corpus. The Claude CLI parses the ad (jobs_cli ingest); the result is upserted

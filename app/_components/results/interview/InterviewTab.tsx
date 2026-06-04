@@ -1,16 +1,27 @@
 "use client";
 
 import { useState } from "react";
-import { MessagesSquare, Wrench, ShieldAlert, Filter } from "lucide-react";
+import { MessagesSquare, Wrench, ShieldAlert, HelpCircle, Filter } from "lucide-react";
 import type { Analysis } from "@/app/_lib/schemas";
+import {
+  classifyBucket,
+  groupBuckets,
+  OTHER_BUCKET,
+  type FilterKey,
+  type GroupKey,
+  type KnownBucket
+} from "./buckets.ts";
 
 type InterviewQuestion = NonNullable<Analysis["interviewKit"]>["questions"][number];
-type Bucket = "all" | "behavioral" | "technical" | "red-flag-defense";
 
-const BUCKET_META: Record<
-  Exclude<Bucket, "all">,
-  { label: string; tone: string; chip: string; icon: React.ComponentType<{ className?: string }> }
-> = {
+type BucketMeta = {
+  label: string;
+  tone: string;
+  chip: string;
+  icon: React.ComponentType<{ className?: string }>;
+};
+
+const BUCKET_META: Record<KnownBucket, BucketMeta> = {
   behavioral: {
     label: "Behavioral",
     tone: "border-moss/40 bg-moss/10 text-moss",
@@ -31,10 +42,29 @@ const BUCKET_META: Record<
   }
 };
 
-const BUCKET_ORDER: Array<Exclude<Bucket, "all">> = ["behavioral", "technical", "red-flag-defense"];
+// Catch-all styling for buckets the LLM emitted outside the known vocabulary.
+const OTHER_META: BucketMeta = {
+  label: "Other",
+  tone: "border-stone-200 bg-paper text-steel",
+  chip: "bg-ink text-white",
+  icon: HelpCircle
+};
+
+function metaFor(group: GroupKey): BucketMeta {
+  return group === OTHER_BUCKET ? OTHER_META : BUCKET_META[group];
+}
+
+// Tailwind needs whole class strings present in source, so map tile counts to
+// literal column classes rather than interpolating the number.
+function tileGridCols(count: number): string {
+  if (count <= 1) return "grid-cols-1";
+  if (count === 2) return "grid-cols-2";
+  if (count === 3) return "grid-cols-3";
+  return "grid-cols-2 sm:grid-cols-4";
+}
 
 export function InterviewTab({ analysis }: { analysis: Analysis }) {
-  const [bucket, setBucket] = useState<Bucket>("all");
+  const [bucket, setBucket] = useState<FilterKey>("all");
 
   if (!analysis.interviewKit) {
     return (
@@ -48,8 +78,12 @@ export function InterviewTab({ analysis }: { analysis: Analysis }) {
   }
 
   const { summary, questions } = analysis.interviewKit;
-  const counts = countBuckets(questions);
-  const filtered = bucket === "all" ? questions : questions.filter((question) => question.bucket === bucket);
+  // Derive tiles/chips from the buckets actually present (known buckets first,
+  // then an "Other" group for anything off-taxonomy) so the per-group counts
+  // sum to the total and no question can be silently filtered out of view.
+  const groups = groupBuckets(questions);
+  const filtered =
+    bucket === "all" ? questions : questions.filter((question) => classifyBucket(question.bucket) === bucket);
 
   return (
     <div className="space-y-5">
@@ -65,12 +99,12 @@ export function InterviewTab({ analysis }: { analysis: Analysis }) {
               Every question is tied to a specific evidence gap from this job description, with a STAR scaffold drawn from your profile.
             </p>
           </div>
-          <div className="grid grid-cols-3 gap-2 text-center sm:gap-3">
-            {BUCKET_ORDER.map((key) => {
-              const meta = BUCKET_META[key];
+          <div className={`grid gap-2 text-center sm:gap-3 ${tileGridCols(groups.length)}`}>
+            {groups.map((group) => {
+              const meta = metaFor(group.key);
               return (
-                <div key={key} className={`rounded-md border px-3 py-2 text-sm font-medium ${meta.tone}`}>
-                  <div className="text-lg font-semibold">{counts[key] ?? 0}</div>
+                <div key={group.key} className={`rounded-md border px-3 py-2 text-sm font-medium ${meta.tone}`}>
+                  <div className="text-lg font-semibold">{group.count}</div>
                   <div className="mt-0.5 leading-tight">{meta.label}</div>
                 </div>
               );
@@ -84,13 +118,12 @@ export function InterviewTab({ analysis }: { analysis: Analysis }) {
             Filter
           </span>
           <FilterButton active={bucket === "all"} label={`All (${questions.length})`} onClick={() => setBucket("all")} />
-          {BUCKET_ORDER.map((key) => (
+          {groups.map((group) => (
             <FilterButton
-              key={key}
-              active={bucket === key}
-              disabled={!counts[key]}
-              label={`${BUCKET_META[key].label} (${counts[key] ?? 0})`}
-              onClick={() => setBucket(key)}
+              key={group.key}
+              active={bucket === group.key}
+              label={`${metaFor(group.key).label} (${group.count})`}
+              onClick={() => setBucket(group.key)}
             />
           ))}
         </div>
@@ -106,11 +139,14 @@ export function InterviewTab({ analysis }: { analysis: Analysis }) {
 }
 
 function QuestionCard({ question, index }: { question: InterviewQuestion; index: number }) {
-  const meta = BUCKET_META[question.bucket as Exclude<Bucket, "all">];
-  const Icon = meta?.icon ?? MessagesSquare;
-  const tone = meta?.tone ?? "border-stone-200 bg-paper text-steel";
-  const chip = meta?.chip ?? "bg-ink text-white";
-  const label = meta?.label ?? question.bucket;
+  const group = classifyBucket(question.bucket);
+  const meta = metaFor(group);
+  const Icon = meta.icon;
+  const tone = meta.tone;
+  const chip = meta.chip;
+  // For off-taxonomy buckets show the raw value the model emitted (so the user
+  // sees what it actually was), falling back to the generic "Other" label.
+  const label = group === OTHER_BUCKET ? question.bucket || meta.label : meta.label;
 
   return (
     <article className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
@@ -181,12 +217,4 @@ function FilterButton({
       {label}
     </button>
   );
-}
-
-function countBuckets(questions: InterviewQuestion[]) {
-  const counts: Record<string, number> = {};
-  for (const question of questions) {
-    counts[question.bucket] = (counts[question.bucket] ?? 0) + 1;
-  }
-  return counts;
 }

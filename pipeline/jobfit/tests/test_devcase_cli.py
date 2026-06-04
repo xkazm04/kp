@@ -15,6 +15,8 @@ from pathlib import Path
 from unittest import mock
 
 from pipeline.jobfit.devcase import devcase_cli
+from pipeline.jobfit.devcase.models import LOW_CONFIDENCE
+from pipeline.jobfit.devcase.provenance import combine_source
 
 
 def _run(argv: list[str]) -> tuple[int, str, str]:
@@ -102,12 +104,22 @@ class TestDevcaseCliProvenanceContract(unittest.TestCase):
     """
 
     def _assert_envelope(self, payload: dict) -> None:
-        self.assertEqual(set(payload), {"result", "source", "perStepSources"})
+        # Base contract is the three required keys; `confidence` is an OPTIONAL block that
+        # only rides along when a step's artifact carries a 0..1 confidence self-rating.
+        self.assertTrue({"result", "source", "perStepSources"} <= set(payload))
+        self.assertTrue(set(payload) <= {"result", "source", "perStepSources", "confidence"})
         self.assertIn(payload["source"], ("llm", "deterministic", "partial"))
         self.assertIsInstance(payload["perStepSources"], dict)
         self.assertTrue(payload["perStepSources"], "perStepSources must never be empty")
         # `source` is always the combined verdict of the per-step sources, never independent.
-        self.assertEqual(payload["source"], devcase_cli._combine_source(*payload["perStepSources"].values()))
+        self.assertEqual(payload["source"], combine_source(*payload["perStepSources"].values()))
+        if "confidence" in payload:
+            conf = payload["confidence"]
+            self.assertEqual(set(conf), {"byStep", "threshold", "low"})
+            self.assertTrue(conf["byStep"], "confidence block is only emitted when non-empty")
+            self.assertEqual(conf["threshold"], LOW_CONFIDENCE)
+            # `low` is exactly the steps at/below the threshold, drawn from byStep.
+            self.assertEqual(conf["low"], sorted(s for s, v in conf["byStep"].items() if v <= LOW_CONFIDENCE))
 
     def test_source_command_emits_one_key_deterministic_map(self):
         # `source` is pure matching: it used to emit {result} alone — now it must
@@ -134,6 +146,11 @@ class TestDevcaseCliProvenanceContract(unittest.TestCase):
         self._assert_envelope(payload)
         self.assertEqual(list(payload["perStepSources"]), ["analyze"])
         self.assertEqual(payload["source"], "deterministic")  # --no-llm forces the template path
+        # idea-22b0e962: the deterministic, ungrounded analysis rates itself 0.3 (deliberately
+        # low), so the consumer surfaces it beside the badge and flags it as low-confidence.
+        self.assertIn("confidence", payload)
+        self.assertEqual(payload["confidence"]["byStep"], {"analyze": 0.3})
+        self.assertEqual(payload["confidence"]["low"], ["analyze"])
 
     def test_design_artifacts_emits_multi_step_map(self):
         with tempfile.TemporaryDirectory() as d:
@@ -148,6 +165,54 @@ class TestDevcaseCliProvenanceContract(unittest.TestCase):
         self._assert_envelope(payload)
         self.assertEqual(set(payload["perStepSources"]), {"role", "case"})
         self.assertEqual(set(payload["result"]), {"role", "case"})
+        # role/case carry no confidence self-rating, so the optional block is omitted entirely.
+        self.assertNotIn("confidence", payload)
+
+
+class TestDevcaseCliInputGuards(unittest.TestCase):
+    """Missing required flags (idea-1352c4e9) and wrong-SHAPE-but-valid-JSON inputs
+    (idea-e6c71e0a) must fail loudly as 400 invalid_input / exit 2 — never silently degrade
+    to a confident-looking ungrounded result, nor misroute to 500 engine_error."""
+
+    def test_evaluate_submission_requires_case_and_role(self):
+        # Omitting --case-json used to default the rubric to {} and exit 0 with an ungrounded
+        # CaseEvaluation; it must now be a loud 400 (fix-your-input) instead.
+        with tempfile.TemporaryDirectory() as d:
+            commits, role = Path(d) / "commits.json", Path(d) / "role.json"
+            commits.write_text(json.dumps([{"message": "wip"}]), encoding="utf-8")
+            role.write_text(json.dumps({"title": "Backend", "seniority": "medior"}), encoding="utf-8")
+            code, _out, err = _run(
+                ["evaluate-submission", "--no-llm", "--commits-json", str(commits), "--role-json", str(role)]
+            )
+        self.assertEqual(code, 2)
+        payload = _last_json(err)
+        self.assertEqual(payload["status"], 400)
+        self.assertEqual(payload["code"], "invalid_input")
+
+    def test_wrong_shape_commits_is_400_not_500(self):
+        # A valid-JSON object where an array of objects is required — parses, then would blow
+        # up in reflect_commits (iterating a dict) and misroute to 500 without the shape guard.
+        with tempfile.TemporaryDirectory() as d:
+            commits = Path(d) / "commits.json"
+            commits.write_text(json.dumps({"message": "not an array"}), encoding="utf-8")
+            code, _out, err = _run(["reflect-commits", "--no-llm", "--commits-json", str(commits)])
+        self.assertEqual(code, 2)
+        payload = _last_json(err)
+        self.assertEqual(payload["status"], 400)
+        self.assertEqual(payload["code"], "invalid_input")
+
+    def test_wrong_shape_candidates_is_400_not_500(self):
+        # An array of strings (not objects) for --candidates-json: source_candidates would
+        # AttributeError on c.get(...) and misroute to 500 without the guard.
+        with tempfile.TemporaryDirectory() as d:
+            role, cands = Path(d) / "role.json", Path(d) / "cands.json"
+            role.write_text(json.dumps({"title": "Backend", "roleFamily": "software_engineering"}), encoding="utf-8")
+            cands.write_text(json.dumps(["alice", "bob"]), encoding="utf-8")
+            code, _out, err = _run(["source", "--role-json", str(role), "--candidates-json", str(cands)])
+        self.assertEqual(code, 2)
+        payload = _last_json(err)
+        self.assertEqual(payload["status"], 400)
+        self.assertEqual(payload["code"], "invalid_input")
 
 
 if __name__ == "__main__":

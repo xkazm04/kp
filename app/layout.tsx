@@ -20,11 +20,33 @@ const SITE_DESCRIPTION = "AI-assisted CV seniority scoring and salary estimation
 
 // Anchors relative OG/Twitter image URLs to an absolute origin. Without it Next
 // falls back to http://localhost:3000 and warns at build. Overridable per deploy
-// via NEXT_PUBLIC_SITE_URL; defaults to the project's own domain.
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://nuda.dev";
+// via NEXT_PUBLIC_SITE_URL (documented in .env.example); defaults to the project's
+// own domain.
+const DEFAULT_SITE_URL = "https://nuda.dev";
+
+// Resolve metadataBase defensively: a malformed NEXT_PUBLIC_SITE_URL fed straight
+// into `new URL()` would THROW at module load and crash the whole app on boot.
+// Parse it, warn, and fall back to the default instead — an un-set or fat-fingered
+// origin must degrade gracefully, not take the site down.
+function resolveSiteUrl(): URL {
+  const raw = process.env.NEXT_PUBLIC_SITE_URL?.trim();
+  if (raw) {
+    try {
+      return new URL(raw);
+    } catch {
+      console.warn(
+        `[layout] Invalid NEXT_PUBLIC_SITE_URL ${JSON.stringify(raw)} — must be an absolute URL; ` +
+          `falling back to ${DEFAULT_SITE_URL}.`
+      );
+    }
+  }
+  return new URL(DEFAULT_SITE_URL);
+}
+
+const SITE_URL = resolveSiteUrl();
 
 export const metadata: Metadata = {
-  metadataBase: new URL(SITE_URL),
+  metadataBase: SITE_URL,
   title: SITE_TITLE,
   description: SITE_DESCRIPTION,
   applicationName: "KP Job Fit & Salary Estimator",

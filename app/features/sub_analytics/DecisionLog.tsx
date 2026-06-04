@@ -3,6 +3,7 @@
 import { useCallback } from "react";
 import { useReducedMotion } from "@/app/_lib/useReducedMotion";
 import { useInfiniteScroll, type InfinitePage } from "@/app/_lib/useInfiniteScroll";
+import { formatRelativeTime } from "@/app/_lib/format";
 
 type Decision = {
   id: number;
@@ -37,6 +38,8 @@ const DECISION_META: Record<string, { label: string; auto: boolean; tone: string
   outreach_sent: { label: "Outreach sent", auto: true, tone: "text-steel" },
   rejection_sent: { label: "Rejection sent", auto: true, tone: "text-coral" },
   rejected: { label: "Rejected", auto: false, tone: "text-coral" },
+  applied: { label: "Applied", auto: false, tone: "text-steel" },
+  re_applied: { label: "Re-applied", auto: false, tone: "text-amber-600" },
   scheduled: { label: "Interview slot set", auto: false, tone: "text-steel" },
   interview_scheduled: { label: "Interview confirmed", auto: false, tone: "text-moss" },
   offer_sent: { label: "Offer sent", auto: false, tone: "text-steel" },
@@ -65,15 +68,10 @@ const ATTRIBUTION_BADGE = {
   unknown: { text: "UNKNOWN", cls: "bg-stone-100 text-steel" },
 } as const;
 
+// Audit rows show "—" for a blank/malformed timestamp; otherwise the shared
+// relative-time renderer (formatRelativeTime, which returns "" on invalid).
 function timeAgo(iso: string): string {
-  const parsed = Date.parse(iso);
-  // Guard against a blank/malformed timestamp rendering as "NaNm ago".
-  if (!Number.isFinite(parsed)) return "—";
-  const mins = Math.max(0, Math.round((Date.now() - parsed) / 60000));
-  if (mins < 60) return `${mins}m ago`;
-  const hrs = Math.round(mins / 60);
-  if (hrs < 24) return `${hrs}h ago`;
-  return `${Math.round(hrs / 24)}d ago`;
+  return formatRelativeTime(iso) || "—";
 }
 
 // Auditable decision log that pages the full automation/human trail in 20-row

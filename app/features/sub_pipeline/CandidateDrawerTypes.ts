@@ -1,27 +1,26 @@
-export type Entry = {
-  id: string;
-  candidateId: string | null;
-  candidateLabel: string;
-  archetype: string | null;
-  jobId: string | null;
-  jobTitle: string | null;
-  stage: string;
-  matchScore: number | null;
-  status: string;
-  // Label-only stub from a failed intake normalization, needing manual capture.
-  intakeDegraded?: boolean;
-  intakeDegradedReason?: string | null;
-};
+import type { Entry as PipelineEntry } from "./PipelineTypes";
+
+// The drawer needs only a subset of the board's record. Pick it from the canonical
+// PipelineTypes.Entry instead of re-declaring the fields, so a rename or retype on
+// the board surfaces here as a compile error rather than a silently stale copy.
+export type Entry = Pick<
+  PipelineEntry,
+  | "id"
+  | "candidateId"
+  | "candidateLabel"
+  | "archetype"
+  | "jobId"
+  | "jobTitle"
+  | "stage"
+  | "matchScore"
+  | "status"
+  | "intakeDegraded"
+  | "intakeDegradedReason"
+>;
 
 export type TaskId = "screen" | "outreach" | "rejection" | "prep" | "scorecard" | "rematch" | "offer";
 
 export type Result = { task: TaskId; data: Record<string, unknown>; source: string; applied: string };
-
-export const ARCHETYPE: Record<string, { label: string; bg: string }> = {
-  bau: { label: "Experienced", bg: "bg-steel" },
-  student: { label: "Student", bg: "bg-coral" },
-  career_switcher: { label: "Switcher", bg: "bg-moss" },
-};
 
 export const APPLIED_LABEL: Record<string, string> = {
   advanced: "Advanced a stage.",

@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { Clock, ShieldCheck, Sparkles } from "lucide-react";
 import { getInterviewSessionByToken } from "@/app/_lib/db";
+import { durationLabel, GROUNDED_DEFAULT_MIN } from "@/app/_lib/interview-duration.mjs";
 import { AiDisclosure } from "@/app/_components/AiDisclosure";
 import { VoiceInterviewClient } from "@/app/_components/voice/VoiceInterviewClient";
 import { InterviewSidebar } from "@/app/_components/voice/InterviewSidebar";
@@ -13,6 +14,11 @@ export default async function InterviewPortalPage({ params }: { params: Promise<
   const { token } = await params;
   const session = getInterviewSessionByToken(token);
   if (!session) notFound();
+
+  // Truthful length from the session's grounded run-of-show (idea-0ecbe5a5),
+  // not a hardcoded "5 minutes" — older sessions without a stored duration fall
+  // back to the documented grounded default.
+  const durationMin = session.durationMin ?? GROUNDED_DEFAULT_MIN;
 
   if (session.status === "completed") {
     return (
@@ -38,7 +44,7 @@ export default async function InterviewPortalPage({ params }: { params: Promise<
         </p>
         <div className="mt-4 flex flex-wrap items-center gap-2">
           <span className="inline-flex items-center gap-1.5 rounded-full border border-stone-200 bg-white px-3 py-1 text-sm text-steel">
-            <Clock size={13} className="text-steel" /> About 5 minutes
+            <Clock size={13} className="text-steel" /> {durationLabel(durationMin)}
           </span>
           <span className="inline-flex items-center gap-1.5 rounded-full border border-stone-200 bg-white px-3 py-1 text-sm text-steel">
             <Sparkles size={13} className="text-moss" /> AI-led conversation
@@ -50,7 +56,7 @@ export default async function InterviewPortalPage({ params }: { params: Promise<
       </header>
 
       <div className="mt-8 grid items-start gap-8 lg:grid-cols-[360px_minmax(0,1fr)]">
-        <InterviewSidebar items={session.runOfShow ?? []} className="lg:sticky lg:top-10" />
+        <InterviewSidebar items={session.runOfShow ?? []} durationMin={durationMin} className="lg:sticky lg:top-10" />
         <div>
           <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel sm:p-6">
             <VoiceInterviewClient

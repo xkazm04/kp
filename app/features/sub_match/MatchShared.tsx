@@ -3,6 +3,7 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { SearchX } from "lucide-react";
 import { Meter } from "@/app/_components/Meter";
+import { Skeleton } from "@/app/_components/Skeleton";
 import { scoreTone, scoreToneColor } from "@/app/_lib/format";
 import { useReducedMotion } from "@/app/_lib/useReducedMotion";
 import type { KoReason, MatchResponse, Reasoning, ReasoningState, ScoreDimension } from "./MatchTypes";
@@ -89,28 +90,24 @@ function ReasoningSkeleton() {
   return (
     <div className="rounded-md border border-stone-200 bg-paper/50 p-3" aria-hidden>
       <div className="flex items-center gap-2">
-        <SkelBar className="h-4 w-24" />
-        <SkelBar className="h-4 w-20" />
+        <Skeleton className="h-4 w-24" />
+        <Skeleton className="h-4 w-20" />
       </div>
-      <SkelBar className="mt-2 h-4 w-3/4" />
+      <Skeleton className="mt-2 h-4 w-3/4" />
       <div className="mt-3 grid gap-3 sm:grid-cols-3">
         {[0, 1, 2].map((c) => (
           <div key={c}>
-            <SkelBar className="h-3.5 w-20" />
+            <Skeleton className="h-3.5 w-20" />
             <div className="mt-2 space-y-1.5">
-              <SkelBar className="h-3 w-full" />
-              <SkelBar className="h-3 w-5/6" />
-              <SkelBar className="h-3 w-2/3" />
+              <Skeleton className="h-3 w-full" />
+              <Skeleton className="h-3 w-5/6" />
+              <Skeleton className="h-3 w-2/3" />
             </div>
           </div>
         ))}
       </div>
     </div>
   );
-}
-
-function SkelBar({ className = "" }: { className?: string }) {
-  return <div className={`animate-pulse rounded bg-stone-200/80 motion-reduce:animate-none ${className}`} />;
 }
 
 function ReasonList({ title, items, tone }: { title: string; items: string[]; tone: "green" | "red" | "neutral" }) {

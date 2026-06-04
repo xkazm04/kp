@@ -1,8 +1,10 @@
 import { ElevenLabsVoiceAdapter } from "./elevenlabs";
 import { OpenAiVoiceAdapter } from "./openai";
+import { QUICK_SCREEN_MIN } from "../interview-duration.mjs";
 import type { VoiceAdapter, VoiceAvailability, VoiceProviderId } from "./types";
 
 export type { VoiceConnect, VoiceProviderId, VoiceAvailability } from "./types";
+export { coerceProviderId } from "./types";
 
 const adapters: Record<VoiceProviderId, VoiceAdapter> = {
   openai: new OpenAiVoiceAdapter(),
@@ -27,7 +29,7 @@ export function defaultInterviewerInstructions(opts?: { role?: string | null }):
     "Detect whether the candidate speaks Czech or English and respond in that language; follow them if they switch.",
     "Open with one sentence stating you are an AI assistant running a short first-round screen and that the call is transcribed.",
     "Ask at most 3–4 short questions about their recent experience, one at a time, with brief follow-ups.",
-    "Do not give feedback, scores, or any hiring decision. Keep the whole call under five minutes,",
+    `Do not give feedback, scores, or any hiring decision. Keep the whole call under ${QUICK_SCREEN_MIN} minutes,`,
     "then thank them and say a human recruiter will review the conversation.",
   ].join(" ");
 }

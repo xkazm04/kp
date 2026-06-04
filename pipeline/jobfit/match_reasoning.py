@@ -12,6 +12,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from . import registry
 from .jobs import Job
 from .matching import MatchCandidate, MatchResult, fit_tier_for
 
@@ -23,7 +24,10 @@ _SYSTEM = (
 )
 
 
-_EARLY_CAREER = ("student", "career_switcher")
+# Single-sourced from the shared registry (archetypes.json) — the same set matching.py
+# scores on — so the reasoning lens can't silently diverge from the scorer when a new
+# early-career archetype is added.
+_EARLY_CAREER = registry.early_career_archetypes()
 
 
 def reasoning_context(candidate: MatchCandidate, job: Job, m: MatchResult) -> dict[str, Any]:
@@ -117,10 +121,19 @@ def deterministic_reasoning(context: dict[str, Any]) -> dict[str, Any]:
         pot = int(round((cand.get("potentialScore") or 0.0) * 100))
         transferable = cand.get("transferableSkills") or []
         years = cand.get("priorExperienceYears") or 0
-        verdict = (
-            f"Career-switcher into {job['roleFamily']}: prior professional maturity plus a foundation in the target "
-            f"stack make this a realistic bridge (potential {pot}/100); expect a ramp-up."
-        )
+        # Tier-aware (via the canonical fit_tier_for) so the verdict tracks the badge instead of
+        # always reading as a 'realistic bridge': a 'partial' fit names the thin foundation up front.
+        if fit_tier_for(total) == "partial":
+            verdict = (
+                f"Career-switcher into {job['roleFamily']}: prior professional maturity is a real asset, but the "
+                f"target-stack foundation is still thin (potential {pot}/100) — core gaps to close before this is a "
+                f"realistic bridge."
+            )
+        else:
+            verdict = (
+                f"Career-switcher into {job['roleFamily']}: prior professional maturity plus a foundation in the target "
+                f"stack make this a realistic bridge (potential {pot}/100); expect a ramp-up."
+            )
         strengths = []
         if transferable:
             strengths.append(f"Transferable professional strengths: {', '.join(transferable[:4])}.")
@@ -145,10 +158,13 @@ def deterministic_reasoning(context: dict[str, Any]) -> dict[str, Any]:
     early_career = archetype in _EARLY_CAREER
     if early_career:
         pot = int(round((cand.get("potentialScore") or 0.0) * 100))
-        if total >= 60:
-            verdict = f"Promising early-career fit for {job['title']} (potential {pot}/100); recommend a junior/graduate track."
-        else:
+        # Pin the verdict cutoff to the canonical fit band (fit_tier_for) — not an ad-hoc >=60 —
+        # so the prose can't contradict the badge: a 'partial' tier reads as gaps-to-coach, while
+        # 'promising'/'strong' reads as a fit. (A 57 is 'promising' in both badge and prose now.)
+        if fit_tier_for(total) == "partial":
             verdict = f"Early-career candidate for {job['title']}; some foundation, but notable gaps to coach (potential {pot}/100)."
+        else:
+            verdict = f"Promising early-career fit for {job['title']} (potential {pot}/100); recommend a junior/graduate track."
         strengths = []
         for sig in (cand.get("learningSignals") or [])[:2]:
             strengths.append(sig[0].upper() + sig[1:])

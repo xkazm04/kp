@@ -5,7 +5,15 @@
 export type RepoSnapshot = {
   ref: string;
   languages: Record<string, number>; // name -> share 0..1
-  inferredStack: string[];
+  inferredStack: string[]; // derived from `languages`
+  // RESERVED — always [] by design (idea-e3a2ec25). Framework detection is deliberately NOT done
+  // deterministically here: consistent with this module's "collect durable raw signals, let the
+  // model interpret them" principle (see `fetchRepoSignals` below and reflect.py), we hand the
+  // languages / top-level names / README to the LLM and let IT name frameworks with its own
+  // current knowledge, rather than bake a brittle classifier that could mislabel a hiring signal.
+  // The field is kept (not deleted) because the cross-language RepoSnapshot contract (the Python
+  // pydantic model in pipeline/jobfit/devcase/models.py, which this JSON is validated against)
+  // carries it. Treat an empty `frameworks` as a documented decision, not a missing feature.
   frameworks: string[];
   topDirs: string[];
   recentCommitSummaries: string[];
@@ -79,6 +87,7 @@ export async function buildRepoSnapshot(ref: string): Promise<RepoSnapshot | nul
     }
   }
 
+  // frameworks: [] by design — see the RESERVED note on RepoSnapshot.frameworks above.
   return { ref, languages, inferredStack, frameworks: [], topDirs, recentCommitSummaries, loc, readmeExcerpt };
 }
 
@@ -108,9 +117,38 @@ export async function fetchCommitTrace(ref: string, max = 60): Promise<CommitEnt
 export type RepoSignals = {
   ref: string;
   commits: CommitEntry[];
+  // cadence describes the rhythm of the history. `bursty` flags a repo whose whole history
+  // landed in a single short sitting — a real cluster of commits within a few hours, as opposed
+  // to work spread across days/weeks — and feeds a durable "how they worked" submission signal
+  // (NOT a quality verdict). See `summarizeCadence` for the exact, unit-correct rule; `bursty`
+  // is `null` when there are too few dated commits (< 2) to judge.
   cadence: { count: number; spanHours: number | null; bursty: boolean | null };
   topLevel: { name: string; type: string }[];
 };
+
+// "Bursty" = the history landed in one short working sitting. The rule is named and
+// unit-correct: the old `spanHours <= Math.max(6, times.length)` compared a DURATION in hours
+// against a COUNT of commits — a unit mismatch nobody could safely tune. We instead require a
+// real cluster (≥ BURSTY_MIN_COMMITS dated commits) that spans no more than BURSTY_WINDOW_HOURS.
+export const BURSTY_WINDOW_HOURS = 6; // commits clustered within ~one working sitting
+export const BURSTY_MIN_COMMITS = 3; // need a genuine cluster, not just a pair an hour apart
+
+// Pure, testable cadence summary over commit timestamps. `count` is every commit; `spanHours`
+// and `bursty` use only commits with a parseable date, and are `null` when fewer than two of
+// those exist (no span to measure). Boundaries are inclusive (exactly BURSTY_WINDOW_HOURS counts).
+export function summarizeCadence(commits: Pick<CommitEntry, "date">[]): RepoSignals["cadence"] {
+  const times = commits
+    .map((c) => Date.parse(c.date))
+    .filter((t) => Number.isFinite(t))
+    .sort((a, b) => a - b);
+  let spanHours: number | null = null;
+  let bursty: boolean | null = null;
+  if (times.length >= 2) {
+    spanHours = Math.round(((times[times.length - 1] - times[0]) / 3_600_000) * 10) / 10;
+    bursty = times.length >= BURSTY_MIN_COMMITS && spanHours <= BURSTY_WINDOW_HOURS;
+  }
+  return { count: commits.length, spanHours, bursty };
+}
 
 export async function fetchRepoSignals(ref: string, max = 60, statsDepth = 12): Promise<RepoSignals | null> {
   const parsed = parseRepoRef(ref);
@@ -142,16 +180,7 @@ export async function fetchRepoSignals(ref: string, max = 60, statsDepth = 12): 
     }
   });
 
-  // Cadence: span + a coarse "bursty" (most commits within a short window).
-  const times = commits.map((c) => Date.parse(c.date)).filter((t) => Number.isFinite(t)).sort((a, b) => a - b);
-  let spanHours: number | null = null;
-  let bursty: boolean | null = null;
-  if (times.length >= 2) {
-    spanHours = Math.round(((times[times.length - 1] - times[0]) / 3_600_000) * 10) / 10;
-    bursty = spanHours <= Math.max(6, times.length); // many commits in a short window
-  }
-
   const topLevel = (contents ?? []).map((e) => ({ name: e.name, type: e.type })).slice(0, 60);
 
-  return { ref, commits, cadence: { count: commits.length, spanHours, bursty }, topLevel };
+  return { ref, commits, cadence: summarizeCadence(commits), topLevel };
 }

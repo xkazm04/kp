@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { formatRelativeTime } from "@/app/_lib/format";
 
 type AnalysisRow = {
   slug: string;
@@ -128,9 +129,8 @@ function Td({ children, className = "" }: { children: React.ReactNode; className
 function formatRelative(iso: string): string {
   const ts = new Date(iso).getTime();
   if (!Number.isFinite(ts)) return iso;
-  const seconds = Math.max(0, Math.round((Date.now() - ts) / 1000));
-  if (seconds < 60) return `${seconds}s ago`;
-  if (seconds < 3600) return `${Math.round(seconds / 60)}m ago`;
-  if (seconds < 86400) return `${Math.round(seconds / 3600)}h ago`;
+  // Within a day: the shared relative "ago" renderer. Older: an absolute date,
+  // which reads better than "37d ago" for a history view.
+  if (Date.now() - ts < 86_400_000) return formatRelativeTime(iso);
   return new Date(iso).toLocaleDateString();
 }

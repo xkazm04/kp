@@ -110,11 +110,11 @@ SCENARIOS: list[Scenario] = [
 
 def _check_screen(out: dict, s: Scenario) -> list[str]:
     issues = []
-    if out.get("recommendation") not in ("advance", "hold", "reject"):
+    if out.get("recommendation") not in automation.RECOMMENDATIONS:
         issues.append("bad recommendation")
     if not isinstance(out.get("confidence"), int) or not (0 <= out["confidence"] <= 100):
         issues.append("confidence out of range")
-    if out.get("route") not in ("advance", "hold"):
+    if out.get("route") not in automation.SCREEN_ROUTES:
         issues.append("bad route")
     if s.candidate.archetype in _EARLY:
         if out.get("recommendation") == "reject":
@@ -151,7 +151,7 @@ def _check_prep(out: dict, s: Scenario) -> list[str]:
 
 def _check_scorecard(out: dict, s: Scenario) -> list[str]:
     issues = []
-    if out.get("recommendation") not in ("advance", "hold", "reject"):
+    if out.get("recommendation") not in automation.RECOMMENDATIONS:
         issues.append("bad recommendation")
     if not isinstance(out.get("ratings"), list) or not out["ratings"]:
         issues.append("no ratings")

@@ -59,8 +59,19 @@ export function formatPercent(
 ): string {
   const scaled = options.fraction ? value * 100 : value;
   let safe = Number.isFinite(scaled) ? scaled : 0;
-  if (options.clamp) safe = Math.min(100, Math.max(0, safe));
+  if (options.clamp) safe = clampPercent(safe);
   return `${safe.toFixed(options.digits ?? 0)}%`;
+}
+
+/**
+ * Bound a value to the [0, 100] percent domain — the single clamp for gauges,
+ * meters, and dials that assume a 0–100 scale, so an out-of-range value (150, -20)
+ * fills/empties the bar instead of overflowing it. Presentation-only; never throws.
+ * A non-finite input (NaN) passes through unchanged — callers that can produce one
+ * guard it separately (see SalaryGauge's degenerate-range check).
+ */
+export function clampPercent(value: number): number {
+  return Math.max(0, Math.min(100, value));
 }
 
 /**
@@ -89,6 +100,24 @@ export function formatCount(value: number, singular?: string, plural?: string): 
 }
 
 /**
+ * A coarse "time ago" label from an ISO timestamp — e.g. "5s ago", "12m ago",
+ * "3h ago", "2d ago". The single relative-time renderer for the control page,
+ * audit log, outbox, tasks, history, etc. (previously a `rel()`/`relTime()` copy
+ * hand-rolled in each). Buckets: seconds < 60, minutes < 60, hours < 24, then days.
+ * A blank/unparseable input returns "" — callers wanting a placeholder use
+ * `formatRelativeTime(x) || "—"`, and callers wanting an absolute date past some
+ * age compose this with their own threshold.
+ */
+export function formatRelativeTime(iso: string): string {
+  const seconds = (Date.now() - Date.parse(iso)) / 1000;
+  if (!Number.isFinite(seconds)) return "";
+  if (seconds < 60) return `${Math.max(0, Math.floor(seconds))}s ago`;
+  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+  if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
+  return `${Math.floor(seconds / 86400)}d ago`;
+}
+
+/**
  * The four rank tiers every score collapses to before it picks up a color.
  * `null` is its own tier so a missing score reads as a neutral chip rather than
  * silently scoring "weak". Mirrors the `--color-score-*` tokens in globals.css.
@@ -96,15 +125,24 @@ export function formatCount(value: number, singular?: string, plural?: string): 
 export type ScoreTone = "strong" | "mid" | "weak" | "null";
 
 /**
- * The canonical score→tone decision: the ONE place the 75/50 cutoffs live.
- * Badge, meter, dial, and factor bars all route through this so a candidate can
- * never read "strong" on one surface and "mid" on another. A null/non-finite
- * score returns "null" (the neutral, score-absent tier).
+ * The two score cutoffs that split a 0–100 score into strong/mid/weak — the ONE
+ * place these numbers live. They are canonical app-wide: the Python CLI scripts
+ * (`score_color` in scripts/_common.py) mirror these exact values so the same
+ * score never reads "mid" in the web UI and "weak/red" in the terminal.
+ */
+export const SCORE_STRONG_MIN = 75;
+export const SCORE_MID_MIN = 50;
+
+/**
+ * The canonical score→tone decision, routing through {@link SCORE_STRONG_MIN} /
+ * {@link SCORE_MID_MIN}. Badge, meter, dial, and factor bars all call this so a
+ * candidate can never read "strong" on one surface and "mid" on another. A
+ * null/non-finite score returns "null" (the neutral, score-absent tier).
  */
 export function scoreTone(score: number | null | undefined): ScoreTone {
   if (score == null || !Number.isFinite(score)) return "null";
-  if (score >= 75) return "strong";
-  if (score >= 50) return "mid";
+  if (score >= SCORE_STRONG_MIN) return "strong";
+  if (score >= SCORE_MID_MIN) return "mid";
   return "weak";
 }
 

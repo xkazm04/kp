@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createInterviewSession, type InterviewProvider } from "@/app/_lib/db";
 import { buildGroundedInterview } from "@/app/_lib/interview-run";
-import { voiceAvailability } from "@/app/_lib/voice";
+import { jsonError } from "@/app/_lib/api-response";
+import { coerceProviderId, voiceAvailability } from "@/app/_lib/voice";
 
 export const runtime = "nodejs";
 
@@ -18,16 +19,10 @@ export async function POST(request: NextRequest) {
     if (!body.entryId) return NextResponse.json({ error: "entryId is required" }, { status: 400 });
 
     const avail = voiceAvailability();
+    // Honor an explicitly requested provider; otherwise prefer a configured one,
+    // defaulting to openai.
     const provider: InterviewProvider =
-      body.provider === "elevenlabs"
-        ? "elevenlabs"
-        : body.provider === "openai"
-          ? "openai"
-          : avail.openai
-            ? "openai"
-            : avail.elevenlabs
-              ? "elevenlabs"
-              : "openai";
+      coerceProviderId(body.provider) ?? (avail.openai ? "openai" : avail.elevenlabs ? "elevenlabs" : "openai");
 
     const grounded = await buildGroundedInterview(body.entryId);
     const session = createInterviewSession({
@@ -39,6 +34,7 @@ export async function POST(request: NextRequest) {
       jobTitle: grounded.jobTitle,
       instructions: grounded.instructions,
       runOfShow: grounded.runOfShow,
+      durationMin: grounded.durationMin,
       language: body.language ?? null,
     });
 
@@ -51,6 +47,6 @@ export async function POST(request: NextRequest) {
       jobTitle: session.jobTitle,
     });
   } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "create failed" }, { status: 500 });
+    return jsonError(error, "create failed");
   }
 }

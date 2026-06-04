@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Lightbulb, MessageCircleQuestion } from "lucide-react";
 import { Markdown } from "../../_components/Markdown";
 import { rubricForArchetype } from "@/app/_lib/interview-rubric";
+import { STUDENT_SCRIPT } from "@/app/_lib/student-interview";
 import type { CoverageItem } from "./AboutCoverageData";
 
 // Dedicated About page for the early-career thesis: the selected card's diagram +
@@ -271,65 +272,9 @@ function ExampleScoring() {
 
 // ---- Tab 3: the interview thought-script ------------------------------------
 
-type ScriptPhase = {
-  phase: string;
-  minutes: string;
-  goal: string;
-  probe: string;
-  listenFor: string;
-  feeds: string[]; // rubric competency names
-};
-
-const SCRIPT: ScriptPhase[] = [
-  {
-    phase: "Anchor on their ground",
-    minutes: "3–4 min",
-    goal: "Start where they are strongest — their own project — to get a truthful baseline, not a rehearsed pitch.",
-    probe: "“Walk me through the project you're proudest of. What exactly was yours?”",
-    listenFor: "Ownership language (“I decided” vs “we were told”); specifics over buzzwords.",
-    feeds: ["Communication & collaboration", "Motivation & direction"],
-  },
-  {
-    phase: "Mechanism probes",
-    minutes: "4–5 min",
-    goal: "Move from what they built to WHY it works — the difference between understanding and recall.",
-    probe: "“Why X over Y? What breaks first if we remove Z?”",
-    listenFor: "Causal reasoning about their own choices; honest “I don't know” over confabulation.",
-    feeds: ["Conceptual depth", "Problem decomposition"],
-  },
-  {
-    phase: "Counterfactual & transfer",
-    minutes: "4–5 min",
-    goal: "Change one constraint and watch whether the knowledge generalises or was memorised.",
-    probe: "“Same system, but the data is 100× bigger — what changes first?”",
-    listenFor: "Re-decomposition under the new constraint, not a recited pattern.",
-    feeds: ["Conceptual depth", "Problem decomposition"],
-  },
-  {
-    phase: "Coachability injection",
-    minutes: "3–4 min",
-    goal: "Deliberately offer a hint or gentle pushback mid-problem — the one signal no take-home can capture.",
-    probe: "“Have you considered the case where the input arrives out of order?”",
-    listenFor: "Hint uptake: integrate and build on it (5) vs acknowledge and ignore (2). Score the uptake, not the answer.",
-    feeds: ["Coachability", "Learning agility"],
-  },
-  {
-    phase: "Stuck-and-recovered",
-    minutes: "3–4 min",
-    goal: "Surface the learning loop — how they behave when nothing works is the best ramp-up predictor we have.",
-    probe: "“Where did you get hardest stuck? Walk me through getting out.”",
-    listenFor: "A repeatable diagnose–experiment–adjust loop; reflection on what they'd do differently.",
-    feeds: ["Learning agility"],
-  },
-  {
-    phase: "Calibration & direction",
-    minutes: "3–4 min",
-    goal: "Test self-awareness: have them rate themselves, then probe the rating; close on where they want to go.",
-    probe: "“Rate your SQL 1–10. What would someone one point above you know that you don't?”",
-    listenFor: "Calibrated self-assessment (knowing the shape of what they don't know); intrinsic, specific direction.",
-    feeds: ["Motivation & direction", "Coachability"],
-  },
-];
+// The phases live in app/_lib/student-interview — the SAME source the simulator's
+// agent brief is built from, so this visualization can never drift from what the
+// interviewer actually runs.
 
 function InterviewScript() {
   return (
@@ -342,7 +287,7 @@ function InterviewScript() {
       </p>
 
       <ol className="mt-4 space-y-3">
-        {SCRIPT.map((p, i) => (
+        {STUDENT_SCRIPT.map((p, i) => (
           <li key={p.phase} className="rounded-lg border border-stone-200 bg-paper/40 p-3">
             <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
               <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-coral/10 text-sm font-semibold nums text-coral">

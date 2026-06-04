@@ -1,3 +1,5 @@
+import { Briefcase, GraduationCap, Repeat, type LucideIcon } from "lucide-react";
+
 export type Entry = {
   id: string;
   candidateId: string | null;
@@ -65,9 +67,17 @@ export function relativeTime(iso: string): string {
   return `${Math.floor(d / 30)}mo ago`;
 }
 
-export const ARCHETYPE_STYLE: Record<string, { ring: string; bg: string; label: string }> = {
-  bau: { ring: "ring-steel", bg: "bg-steel", label: "Experienced" },
-  student: { ring: "ring-coral", bg: "bg-coral", label: "Student" },
-  career_switcher: { ring: "ring-moss", bg: "bg-moss", label: "Switcher" },
+// ONE catalog of archetype presentation — label, fill (bg), focus ring, and glyph.
+// Every archetype-styled surface (candidate row, drawer, legend, analytics) reads
+// from this single source so a label/color/icon tweak lands in exactly one place
+// instead of drifting across the copies that used to live in PipelineShared
+// (ARCHETYPE_ICON) and CandidateDrawerTypes (ARCHETYPE). The glyph lets a surface
+// read without relying on hue alone (mirrors Badge's icon-plus-label doctrine).
+export type ArchetypeStyle = { label: string; bg: string; ring: string; icon: LucideIcon };
+
+export const ARCHETYPE_STYLE: Record<string, ArchetypeStyle> = {
+  bau: { label: "Experienced", bg: "bg-steel", ring: "ring-steel", icon: Briefcase },
+  student: { label: "Student", bg: "bg-coral", ring: "ring-coral", icon: GraduationCap },
+  career_switcher: { label: "Switcher", bg: "bg-moss", ring: "ring-moss", icon: Repeat },
 };
-export const styleFor = (a: string | null) => ARCHETYPE_STYLE[a ?? "bau"] ?? ARCHETYPE_STYLE.bau;
+export const styleFor = (a: string | null): ArchetypeStyle => ARCHETYPE_STYLE[a ?? "bau"] ?? ARCHETYPE_STYLE.bau;

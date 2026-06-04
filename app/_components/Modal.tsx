@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useId, useRef } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 
@@ -10,6 +10,27 @@ import { X } from "lucide-react";
 // that establishes a containing block for `fixed` (e.g. the tab wrapper's
 // transform-based fade-in animation), which otherwise pinned it to tab content.
 const SIZE: Record<string, string> = { md: "max-w-md", lg: "max-w-lg", xl: "max-w-xl", "2xl": "max-w-2xl", "3xl": "max-w-3xl", "4xl": "max-w-4xl", full: "max-w-[1600px]" };
+
+// Ref-counted body-scroll lock shared across all mounted modals. The page behind
+// a portalled dialog must not scroll (visible bleed on touch/mobile, and the
+// modal itself can scroll off-screen). Stacked dialogs (e.g. a confirm over a
+// detail modal) share ONE lock via this counter: only the first mount hides body
+// overflow — saving whatever was there — and only the last unmount restores it,
+// so closing the top dialog never prematurely unlocks scroll behind the one
+// still open.
+let scrollLockCount = 0;
+let prevBodyOverflow = "";
+function lockBodyScroll(): void {
+  if (scrollLockCount === 0) {
+    prevBodyOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+  }
+  scrollLockCount += 1;
+}
+function unlockBodyScroll(): void {
+  scrollLockCount = Math.max(0, scrollLockCount - 1);
+  if (scrollLockCount === 0) document.body.style.overflow = prevBodyOverflow;
+}
 
 export function Modal({
   title,
@@ -27,10 +48,19 @@ export function Modal({
   size?: "md" | "lg" | "xl" | "2xl" | "3xl" | "4xl" | "full";
 }) {
   const ref = useRef<HTMLDivElement | null>(null);
+  // Unique per-instance id so stacked dialogs never share id="modal-title" —
+  // aria-labelledby resolves to the FIRST match in the DOM, so a hardcoded id
+  // made a confirm-over-detail stack announce the wrong dialog's title.
+  const titleId = useId();
   const onCloseRef = useRef(onClose);
   useEffect(() => {
     onCloseRef.current = onClose;
   });
+  // Lock background scroll while this modal is mounted (ref-counted for stacks).
+  useEffect(() => {
+    lockBodyScroll();
+    return () => unlockBodyScroll();
+  }, []);
   useEffect(() => {
     const node = ref.current;
     const prev = document.activeElement as HTMLElement | null;
@@ -78,12 +108,12 @@ export function Modal({
         ref={ref}
         role="dialog"
         aria-modal="true"
-        aria-labelledby="modal-title"
+        aria-labelledby={titleId}
         className={`animate-fade-in relative flex w-full ${isFull ? "h-[92vh] max-h-[92vh]" : "max-h-[85vh]"} ${SIZE[size] ?? SIZE["2xl"]} flex-col overflow-hidden rounded-lg border border-stone-200 bg-white shadow-2xl`}
       >
         <header className="flex items-start gap-3 border-b border-stone-200 px-5 py-3.5">
           <div className="min-w-0 flex-1">
-            <h2 id="modal-title" className="truncate font-serif text-h3 text-ink">
+            <h2 id={titleId} className="truncate font-serif text-h3 text-ink">
               {title}
             </h2>
             {subtitle ? <p className="truncate text-sm text-steel">{subtitle}</p> : null}

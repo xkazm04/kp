@@ -18,6 +18,8 @@ import { runLifecycle } from "./devcase-orchestrator";
 import { runGroupEval } from "./group-eval-run";
 import { runJdBuild } from "./jd-build-run";
 import { runInterviewPrep } from "./interview-prep-run";
+import { randomId } from "./random-id";
+import { buildDedupeKey } from "./task-dedupe";
 
 // ---------------------------------------------------------------------------
 // In-process background-task runner. Works because `next dev` is one long-lived
@@ -45,10 +47,13 @@ export type TaskCtx = {
   signal: AbortSignal;
 };
 
+// The dedupe key is built by ./task-dedupe (buildDedupeKey), keyed by the same
+// kind string as HANDLERS — kept out of the Spec so the identity logic stays
+// pure and unit-testable and can return null ("no stable identity") for
+// incomplete params.
 type Spec = {
   run: (ctx: TaskCtx) => Promise<unknown>;
   label: (p: Record<string, unknown>) => string;
-  dedupe: (p: Record<string, unknown>) => string;
 };
 
 async function batchScreen(ctx: TaskCtx): Promise<unknown> {
@@ -75,17 +80,14 @@ const HANDLERS: Record<string, Spec> = {
   automation: {
     run: (ctx) => runAutomationTask(String(ctx.params.entryId), String(ctx.params.task), String(ctx.params.notes ?? "")),
     label: (p) => `${p.task} · ${p.entryLabel ?? p.entryId}`,
-    dedupe: (p) => `automation:${p.entryId}:${p.task}:${p.notes ? "n" : ""}`,
   },
   reasoning: {
     run: (ctx) => runReasoning(ctx.params),
     label: (p) => `Why this candidate · ${p.label ?? p.jobId}`,
-    dedupe: (p) => `reasoning:${p.profileId ?? p.analysisSlug ?? JSON.stringify(p.candidate ?? "")}:${p.jobId}`,
   },
   batch_screen: {
     run: batchScreen,
     label: () => "AI-screen all matched candidates",
-    dedupe: () => "batch_screen",
   },
   analyze: {
     run: (ctx) => runAnalyze(ctx.params as unknown as AnalyzeParams, ctx.progress),
@@ -93,47 +95,38 @@ const HANDLERS: Record<string, Spec> = {
       const variants = (p.variants as { label: string }[]) ?? [];
       return `Analyze · ${variants[0]?.label ?? "CV"}${variants.length > 1 ? ` +${variants.length - 1}` : ""}`;
     },
-    dedupe: (p) => `analyze:${p.baseDir}`, // baseDir is unique per upload
   },
   need_analysis: {
     run: (ctx) => runNeedAnalysis(ctx.params.need as DevNeed),
     label: (p) => `Need analysis · ${(p.need as { title?: string })?.title || "untitled"}`,
-    dedupe: (p) => `need_analysis:${JSON.stringify(p.need ?? {})}`,
   },
   design_artifacts: {
     run: (ctx) => runDesignArtifacts(ctx.params.need as DevNeed, (ctx.params.analysis as Record<string, unknown>) ?? {}),
     label: (p) => `Design artifacts · ${(p.need as { title?: string })?.title || "untitled"}`,
-    dedupe: (p) => `design_artifacts:${JSON.stringify(p.need ?? {})}:${JSON.stringify(p.analysis ?? {})}`,
   },
   commit_reflection: {
     run: (ctx) => runCommitReflection(String(ctx.params.repoRef), ctx.params.caseId ? String(ctx.params.caseId) : undefined),
     label: (p) => `Commit reflection · ${p.candidateRef ?? p.repoRef ?? ""}`,
-    dedupe: (p) => `commit_reflection:${p.repoRef}:${p.caseId ?? ""}`,
   },
   evaluate_submission: {
     run: (ctx) => runEvaluateSubmission(String(ctx.params.submissionId)),
     label: (p) => `Evaluate · ${p.candidateRef ?? p.submissionId ?? ""}`,
-    dedupe: (p) => `evaluate_submission:${p.submissionId}`,
   },
   lifecycle: {
     run: (ctx) => runLifecycle(String(ctx.params.lifecycleId), ctx.progress),
     label: (p) => `Lifecycle · ${p.title ?? p.lifecycleId ?? ""}`,
-    dedupe: (p) => `lifecycle:${p.lifecycleId}`, // one run per case; a re-trigger resumes when idle
   },
   group_eval: {
     run: (ctx) => runGroupEval(ctx.params),
     label: (p) => `Group evaluation · ${p.roleTitle ?? p.roleKey ?? ""}`,
-    dedupe: (p) => `group_eval:${p.roleKey}`, // one run per role; re-trigger reuses an in-flight run
   },
   jd_build: {
     run: (ctx) => runJdBuild(ctx.params, ctx.progress),
     label: (p) => `Build JD · ${p.title ?? "role"}`,
-    dedupe: (p) => `jd_build:${p.title}:${p.needText ? String(p.needText).length : 0}:${p.repoUrl ?? ""}`,
   },
   interview_prep: {
     run: (ctx) => runInterviewPrep(ctx.params),
     label: (p) => `Interview prep · ${p.candidateLabel ?? p.entryId ?? ""}`,
-    dedupe: (p) => `interview_prep:${p.entryId}`, // one plan per entry; re-trigger reuses an in-flight run
   },
 };
 
@@ -182,10 +175,17 @@ export function startTask(kind: string, params: Record<string, unknown>): TaskRe
   ensureRecovered();
   const spec = HANDLERS[kind];
   if (!spec) throw new Error(`unknown task kind: ${kind}`);
-  const dedupeKey = spec.dedupe(params);
-  const existing = getActiveTaskByDedupe(dedupeKey); // <- dedup: reuse the in-flight run
-  if (existing) return existing;
-  const id = `t-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+  // A stable key may reuse an in-flight run; a null key means the identifying
+  // params were missing/empty, so we must NOT dedupe — merging on a collapsed
+  // constant like `analyze:undefined` would hand this caller an unrelated
+  // candidate's task and result (idea-5e38b9ad). Reuse only with a real identity.
+  const stableKey = buildDedupeKey(kind, params);
+  if (stableKey) {
+    const existing = getActiveTaskByDedupe(stableKey);
+    if (existing) return existing;
+  }
+  const id = randomId("t");
+  const dedupeKey = stableKey ?? `${kind}:nodedupe:${id}`; // guaranteed-unique; never merges
   const rec = createTask(id, kind, dedupeKey, spec.label(params), params);
   queue.push(id);
   pump();

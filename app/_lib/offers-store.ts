@@ -1,6 +1,6 @@
-import path from "node:path";
-import { mkdirSync } from "node:fs";
 import Database from "better-sqlite3";
+import { DB_PATH, ensureDbDir } from "./db-path";
+import { randomId, randomToken } from "./random-id";
 
 // Direction #4 — offer extension + candidate response capture. Isolated-connection
 // store (same pattern as job-ingest.ts): opens its OWN better-sqlite3 handle on
@@ -9,11 +9,10 @@ import Database from "better-sqlite3";
 // accept/decline) and a couple of narrow writes to pipeline_entries for the
 // terminal decline status. Stage transitions on accept go through db.ts.
 
-const DB_PATH = process.env.KP_DB_PATH ?? path.join(process.cwd(), "data", "kp.sqlite");
 let _db: Database.Database | null = null;
 function db(): Database.Database {
   if (_db) return _db;
-  mkdirSync(path.dirname(DB_PATH), { recursive: true });
+  ensureDbDir();
   const d = new Database(DB_PATH);
   d.pragma("journal_mode = WAL");
   // respondToOffer interleaves writes across this connection (markOfferResponded/
@@ -92,24 +91,28 @@ export function createOffer(input: {
 }): OfferRow {
   const d = db();
   const now = new Date().toISOString();
-  const id = `off-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
-  const token = `tk-${Math.random().toString(36).slice(2, 12)}${Math.random().toString(36).slice(2, 12)}`;
-  d.prepare(
-    `INSERT INTO offers (id, token, entry_id, candidate_label, job_id, job_title, currency, salary, payload_json, status, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'extended', ?)`
-  ).run(
-    id,
-    token,
-    input.entryId,
-    input.candidateLabel,
-    input.jobId,
-    input.jobTitle,
-    input.currency,
-    input.salary,
-    JSON.stringify(input.payload ?? null),
-    now
-  );
-  return rowToOffer(d.prepare(`SELECT * FROM offers WHERE id = ?`).get(id) as Record<string, unknown>);
+  const id = randomId("off");
+  const token = randomToken("tk");
+  // RETURNING * hands the freshly-inserted row back in the same statement, so we
+  // don't issue a second SELECT to read what we just wrote.
+  const row = d
+    .prepare(
+      `INSERT INTO offers (id, token, entry_id, candidate_label, job_id, job_title, currency, salary, payload_json, status, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'extended', ?) RETURNING *`
+    )
+    .get(
+      id,
+      token,
+      input.entryId,
+      input.candidateLabel,
+      input.jobId,
+      input.jobTitle,
+      input.currency,
+      input.salary,
+      JSON.stringify(input.payload ?? null),
+      now
+    ) as Record<string, unknown>;
+  return rowToOffer(row);
 }
 
 export function getOfferByToken(token: string): OfferRow | null {
@@ -128,11 +131,14 @@ export function getOpenOfferForEntry(entryId: string): OfferRow | null {
 /** Record the candidate's (or recruiter-on-behalf) response. Idempotent. */
 export function markOfferResponded(token: string, status: "accepted" | "declined"): OfferRow | null {
   const d = db();
-  const existing = getOfferByToken(token);
-  if (!existing) return null;
-  if (existing.status === "extended") {
-    d.prepare(`UPDATE offers SET status = ?, responded_at = ? WHERE token = ?`).run(status, new Date().toISOString(), token);
-  }
+  // Idempotent: the `status = 'extended'` guard means only the first response
+  // flips the row, and RETURNING * hands back the fresh row in the same statement
+  // — no separate re-SELECT on the common (still-open) path.
+  const updated = d
+    .prepare(`UPDATE offers SET status = ?, responded_at = ? WHERE token = ? AND status = 'extended' RETURNING *`)
+    .get(status, new Date().toISOString(), token) as Record<string, unknown> | undefined;
+  if (updated) return rowToOffer(updated);
+  // Already responded, or no such token — return the current row (or null) as-is.
   return getOfferByToken(token);
 }
 

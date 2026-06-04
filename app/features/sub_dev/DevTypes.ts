@@ -1,3 +1,5 @@
+import type { OutboxStatus } from "@/app/_lib/comms-status";
+
 export type NeedAnalysis = {
   realStack?: string[];
   coreResponsibilities?: string[];
@@ -16,17 +18,25 @@ export type RepoSnapshot = {
   loc?: number;
   readmeExcerpt?: string;
 };
-// `perStepSources` ({step: "llm"|"deterministic"}) comes from the uniform CLI
-// provenance envelope; the ProvenanceStrip renders it, falling back to `source`
-// for bundles saved before it existed.
-export type PerStepSources = Record<string, string>;
-export type Result = { analysis?: NeedAnalysis; snapshot?: RepoSnapshot | null; source?: string; perStepSources?: PerStepSources };
+// Provenance of a pipeline step or whole run: a real LLM call (`llm`), a mixed
+// run where some steps fell back to deterministic templates (`partial`), or a
+// fully templated/deterministic run (`deterministic`). Typed as a union so a typo
+// or a new state can't silently slip past the label / colour / degraded checks.
+export type SourceKind = "llm" | "partial" | "deterministic";
+// Presentation contract for a SourceKind, produced by `describeSource` (DevHelpers)
+// so the chip colour, label and degraded warning are decided in exactly one place.
+export type SourceDescriptor = { label: string; dotClass: string; textClass: string; isDegraded: boolean };
+// `perStepSources` ({step: SourceKind}) comes from the uniform CLI provenance
+// envelope; the ProvenanceStrip renders it, falling back to `source` for bundles
+// saved before it existed. Per-step values are "llm" or "deterministic".
+export type PerStepSources = Record<string, SourceKind>;
+export type Result = { analysis?: NeedAnalysis; snapshot?: RepoSnapshot | null; source?: SourceKind; perStepSources?: PerStepSources };
 
 export type CoverProbe = { id?: string; kind?: string; where?: string; reveals?: string };
 export type RubricDim = { name?: string; label?: string; weight?: number; description?: string };
 export type RoleSpec = { title?: string; seniority?: string; mustHaves?: string[]; niceToHaves?: string[]; responsibilities?: string[] };
 export type CaseScenario = { title?: string; brief?: string; repoSeed?: string; tasks?: string[]; coverProbes?: CoverProbe[]; rubricDimensions?: RubricDim[]; timeboxHours?: number };
-export type Design = { role?: RoleSpec; case?: CaseScenario; source?: string; perStepSources?: PerStepSources };
+export type Design = { role?: RoleSpec; case?: CaseScenario; source?: SourceKind; perStepSources?: PerStepSources };
 export type ApprovedCase = { id: string; title: string | null; roleTitle: string | null; seniority: string | null; createdAt: string };
 export type Submission = {
   id: string;
@@ -59,7 +69,7 @@ export type Lifecycle = {
   createdAt: string;
 };
 
-export type OutboxItem = { id: string; recipient: string | null; subject: string | null; kind: string | null; channel: string | null; status: string; createdAt: string };
+export type OutboxItem = { id: string; recipient: string | null; subject: string | null; kind: string | null; channel: string | null; status: OutboxStatus; createdAt: string };
 
 export type Reflection = {
   narrative?: string;
@@ -76,7 +86,7 @@ export type Tooling = { fluency?: number; probeOutcomes?: ProbeOutcome[]; overRe
 export type DimensionScore = { name: string; label: string; weight: number; score: number; description: string };
 export type CaseEval = { dimensionScores?: Record<string, number>; dimensions?: DimensionScore[]; strengths?: string[]; concerns?: string[]; hasFindings?: boolean; summary?: string };
 export type Transfer = { transferScore?: number; transfers?: string[]; gaps?: string[]; hasTransfers?: boolean; roleFitRationale?: string };
-export type EvalBundle = { reflection?: Reflection; tooling?: Tooling; evaluation?: CaseEval; transfer?: Transfer; source?: string; perStepSources?: PerStepSources; commitCount?: number };
+export type EvalBundle = { reflection?: Reflection; tooling?: Tooling; evaluation?: CaseEval; transfer?: Transfer; source?: SourceKind; perStepSources?: PerStepSources; commitCount?: number };
 
 export const LIFECYCLE_STEPS = ["intake", "analyzed", "designed", "approved", "collecting", "ranked", "promoted"];
 export const STAGE_LABEL: Record<string, string> = {

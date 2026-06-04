@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import { FileText, Plus, UploadCloud, X } from "lucide-react";
-import { ACCEPT_EXTENSIONS, MAX_FILE_HINT, validateUpload } from "@/app/_lib/upload-constraints";
+import { ACCEPT_EXTENSIONS, MAX_FILE_HINT } from "@/app/_lib/upload-constraints";
 import { formatFileSize } from "./AnalyzeApi";
+import { useFileAccept } from "./useFileAccept";
 import { useGlobalFileDrag } from "./useGlobalFileDrag";
 
 export function AnalyzeProfileInput({
@@ -21,28 +22,14 @@ export function AnalyzeProfileInput({
 }) {
   const [isOverDropzone, setIsOverDropzone] = useState(false);
   const [isLoadingSample, setIsLoadingSample] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
-  // Pre-flight every accepted file (extension + size) so a bad drop/select is
-  // rejected inline rather than after the upload POST.
-  const addFile = (file: File) => {
-    const err = validateUpload(file);
-    if (err) {
-      setError(err);
-      return;
-    }
-    setError(null);
-    onAdd(file);
-  };
-  const replaceFile = (index: number, file: File) => {
-    const err = validateUpload(file);
-    if (err) {
-      setError(err);
-      return;
-    }
-    setError(null);
-    onReplace(index, file);
-  };
+  // The shared intake gate: add (incl. the sample + drop-anywhere paths) and
+  // replace both route their File through `accept(file, commit)`, so a bad
+  // drop/select is rejected inline rather than after the upload POST. Nothing
+  // here calls onAdd/onReplace without first clearing the gate.
+  const { error, accept } = useFileAccept();
+  const addFile = (file: File) => accept(file, onAdd);
+  const replaceFile = (index: number, file: File) => accept(file, (next) => onReplace(index, next));
 
   const isWindowDragging = useGlobalFileDrag(addFile);
 

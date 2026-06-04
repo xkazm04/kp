@@ -3,9 +3,11 @@
 import { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { Modal } from "@/app/_components/Modal";
+import { SCREENING_DEFAULT as FALLBACK, type ScreeningRule } from "@/app/_lib/decision-config-schema";
 
-type ScreeningRule = { autoRejectEnabled: boolean; rejectBottomPercent: number; maxMatchToReject: number };
-const FALLBACK: ScreeningRule = { autoRejectEnabled: false, rejectBottomPercent: 20, maxMatchToReject: 45 };
+// Type + default come from the pure decision-config-schema module — the same
+// source the API validates writes against — so the client clamps and the server
+// contract can't drift.
 
 // Phase 3 — configure the per-phase decision rules. Today: the screening
 // "first wave" auto-reject (off by default). Early-career is never auto-rejected
@@ -110,7 +112,15 @@ export function DecisionRulesModal({ onClose }: { onClose: () => void }) {
 
           <p id="screening-rule-sentence" className="rounded-md bg-paper p-3 text-sm text-ink">
             Reject the bottom <strong>{rule.rejectBottomPercent}%</strong> of a role&apos;s matched candidates whose match is
-            also below <strong>{rule.maxMatchToReject}</strong>. Every auto-decision is logged with a rationale (see Analytics).
+            also below <strong>{rule.maxMatchToReject}</strong>
+            {rule.rejectBottomPercent > 0 ? (
+              <>
+                {" "}
+                — rounded down, but <strong>at least the single weakest</strong> candidate in any non-empty pool, so a small
+                role is never silently skipped
+              </>
+            ) : null}
+            . Every auto-decision is logged with a rationale (see Analytics).
           </p>
           <p className="text-sm text-steel">
             <span className="font-semibold text-moss">Fairness:</span> early-career candidates (student / career-switcher) are{" "}

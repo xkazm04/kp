@@ -10,6 +10,48 @@ const VOICE = process.env.OPENAI_REALTIME_VOICE ?? "marin";
 const CALLS_URL = "https://api.openai.com/v1/realtime/calls";
 const SECRETS_URL = "https://api.openai.com/v1/realtime/client_secrets";
 
+// ── Realtime data-channel wire protocol ──────────────────────────────────────
+// The OpenAI Realtime API namespaces the same logical event under several type
+// prefixes across model lines (e.g. `conversation.item.input_audio_transcription
+// .completed`, `response.output_audio_transcript.delta`). We match on the stable
+// suffix/substring rather than the full string. These live here, beside the
+// OpenAI adapter, so the wire contract is documented next to the rest of the
+// OpenAI integration instead of buried as magic substrings in the UI component —
+// a silent typo here would just drop the transcript turns that feed the scorecard.
+const OAI_EVENT_SUFFIX = {
+  // Final transcription of a candidate (input audio) utterance — carries `transcript`.
+  inputTranscriptionCompleted: "input_audio_transcription.completed",
+  // Streaming chunk of the assistant's spoken-response transcript — carries `delta`.
+  outputTranscriptDelta: "output_audio_transcript.delta",
+  // The assistant's spoken-response transcript is complete.
+  outputTranscriptDone: "output_audio_transcript.done",
+} as const;
+
+// The transcript action a realtime event implies, normalized for the UI so the
+// component never re-derives it from raw event-type strings.
+export type OaiTranscriptEvent =
+  | { kind: "candidateUtterance"; text: string }
+  | { kind: "assistantDelta"; text: string }
+  | { kind: "assistantDone" };
+
+/** Parse a raw OpenAI Realtime data-channel event into the transcript action it
+ *  implies, or `null` when it isn't a transcript event we track. Matching is by
+ *  suffix/substring (see OAI_EVENT_SUFFIX) and guards the payload fields, so a
+ *  malformed event is ignored rather than pushed as an empty turn. */
+export function parseOaiTranscriptEvent(ev: Record<string, unknown>): OaiTranscriptEvent | null {
+  const type = String(ev.type ?? "");
+  if (type.endsWith(OAI_EVENT_SUFFIX.inputTranscriptionCompleted) && typeof ev.transcript === "string") {
+    return { kind: "candidateUtterance", text: ev.transcript };
+  }
+  if (type.includes(OAI_EVENT_SUFFIX.outputTranscriptDelta) && typeof ev.delta === "string") {
+    return { kind: "assistantDelta", text: ev.delta };
+  }
+  if (type.includes(OAI_EVENT_SUFFIX.outputTranscriptDone)) {
+    return { kind: "assistantDone" };
+  }
+  return null;
+}
+
 type SecretResponse = {
   value?: string;
   expires_at?: number;

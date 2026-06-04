@@ -2,25 +2,31 @@
 
 import { useEffect, useRef, useState } from "react";
 import { AiDisclosure } from "@/app/_components/AiDisclosure";
+import type { ApplyStep } from "@/app/_lib/apply";
 
-type Step = {
-  id: string;
-  type: "text" | "ko" | "choice";
-  prompt: string;
-  placeholder?: string;
-  options?: { value: string; label: string }[];
-};
 type Msg = { who: "bot" | "me"; text: string };
 
 export function ConversationalApply({ jobId }: { jobId: string }) {
-  const [steps, setSteps] = useState<Step[] | null>(null);
+  const [steps, setSteps] = useState<ApplyStep[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [idx, setIdx] = useState(0);
   const [msgs, setMsgs] = useState<Msg[]>([]);
   const [answers, setAnswers] = useState<Record<string, unknown>>({});
   const [input, setInput] = useState("");
-  const [done, setDone] = useState<{ result: "accepted" | "declined"; message: string } | null>(null);
+  // `duplicate` flags a repeat application (the candidate already applied to this
+  // role): the submission is still "accepted" — their first application stands —
+  // but we acknowledge it plainly rather than re-celebrating a fresh "You're in".
+  const [done, setDone] = useState<{
+    result: "accepted" | "declined";
+    message: string;
+    duplicate?: boolean;
+  } | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  // A FAILED final submit — recoverable, unlike `error` (a fatal load failure
+  // that replaces the whole screen). Rendered inline so the conversation and every
+  // captured answer survive a transient network blip on the last step, with a
+  // "Try again" button that re-POSTs the already-collected answers.
+  const [submitError, setSubmitError] = useState<string | null>(null);
   // True during the 250ms hand-off between steps; locks the controls so a step
   // can't be answered before the next prompt has even rendered.
   const [transitioning, setTransitioning] = useState(false);
@@ -28,6 +34,10 @@ export function ConversationalApply({ jobId }: { jobId: string }) {
   // Step ids already answered — the synchronous guard that makes advance()
   // idempotent even when two events fire within the same render frame.
   const answeredRef = useRef<Set<string>>(new Set());
+  // The fully-collected answers from the final step, kept so "Try again" can
+  // re-submit them directly — bypassing advance()'s answeredRef guard, which has
+  // already marked the final step answered and would otherwise block a resend.
+  const finalAnswersRef = useRef<Record<string, unknown> | null>(null);
   const stepTimer = useRef<number | null>(null);
 
   useEffect(() => {
@@ -53,7 +63,7 @@ export function ConversationalApply({ jobId }: { jobId: string }) {
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [msgs, done]);
+  }, [msgs, done, submitError]);
 
   useEffect(() => {
     return () => {
@@ -66,6 +76,40 @@ export function ConversationalApply({ jobId }: { jobId: string }) {
   // exactly once, keyed by step id, so a double-click / double-Enter that slips
   // past the disabled UI (or fires within one render frame) is a no-op.
   const busy = submitting || transitioning;
+
+  // POST the completed application. Failures set `submitError` (recoverable,
+  // inline) rather than `error` (fatal, full-screen) so a transient last-step blip
+  // never destroys the conversation. `finalAnswers` is remembered so "Try again"
+  // can re-POST the same payload without re-walking the chat.
+  const submitApplication = async (finalAnswers: Record<string, unknown>) => {
+    finalAnswersRef.current = finalAnswers;
+    // Don't clear submitError up front: on a retry that keeps the inline error
+    // block (now showing "Sending…") in place instead of flashing the answered
+    // step's disabled controls. A success swaps in `done`; a failure overwrites it.
+    setSubmitting(true);
+    try {
+      const res = await fetch(`/api/apply/${jobId}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ answers: finalAnswers }),
+      });
+      const d = await res.json();
+      if (res.ok) setDone({ result: d.result, message: d.message, duplicate: Boolean(d.duplicate) });
+      else setSubmitError(d.error || "Couldn't submit your application. Please try again.");
+    } catch {
+      setSubmitError("Couldn't reach us just now — check your connection and try again. Your answers are saved.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  // Re-POST the already-collected final answers after a failed submit. Goes
+  // straight to submitApplication (not advance), since the final step is already
+  // in answeredRef and advance() would no-op.
+  const retrySubmit = () => {
+    if (submitting || !finalAnswersRef.current) return;
+    submitApplication(finalAnswersRef.current);
+  };
 
   const advance = async (stepId: string, newAnswers: Record<string, unknown>, label: string) => {
     if (busy || answeredRef.current.has(stepId)) return;
@@ -83,21 +127,7 @@ export function ConversationalApply({ jobId }: { jobId: string }) {
         setTransitioning(false);
       }, 250);
     } else {
-      setSubmitting(true);
-      try {
-        const res = await fetch(`/api/apply/${jobId}`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ answers: newAnswers }),
-        });
-        const d = await res.json();
-        if (res.ok) setDone({ result: d.result, message: d.message });
-        else setError(d.error || "Couldn't submit your application.");
-      } catch {
-        setError("Couldn't submit your application.");
-      } finally {
-        setSubmitting(false);
-      }
+      await submitApplication(newAnswers);
     }
   };
 
@@ -139,9 +169,12 @@ export function ConversationalApply({ jobId }: { jobId: string }) {
           </div>
         ))}
         {done ? (
-          <div className={`rounded-lg border p-4 ${done.result === "accepted" ? "border-moss/40 bg-moss/5" : "border-stone-200 bg-paper"}`}>
-            <p className={`font-serif text-h3 ${done.result === "accepted" ? "text-moss" : "text-ink"}`}>
-              {done.result === "accepted" ? "You're in 🎉" : "Thanks for applying"}
+          // A fresh acceptance celebrates (moss); a repeat application and a
+          // decline both render neutrally — a repeat isn't a new win, and a
+          // decline shouldn't read as one.
+          <div className={`rounded-lg border p-4 ${done.result === "accepted" && !done.duplicate ? "border-moss/40 bg-moss/5" : "border-stone-200 bg-paper"}`}>
+            <p className={`font-serif text-h3 ${done.result === "accepted" && !done.duplicate ? "text-moss" : "text-ink"}`}>
+              {done.result === "accepted" ? (done.duplicate ? "Already applied" : "You're in 🎉") : "Thanks for applying"}
             </p>
             <p className="mt-1 text-base text-steel">{done.message}</p>
           </div>
@@ -149,7 +182,23 @@ export function ConversationalApply({ jobId }: { jobId: string }) {
         <div ref={endRef} />
       </div>
 
-      {!done && cur ? (
+      {!done && submitError ? (
+        // Recoverable last-step failure: the conversation and answers above stay
+        // intact; the candidate resends without starting over.
+        <div className="mt-4 rounded-lg border border-coral/40 bg-coral/5 p-4">
+          <p className="text-base text-coral">{submitError}</p>
+          <button
+            type="button"
+            disabled={submitting}
+            onClick={retrySubmit}
+            className="focus-ring mt-3 rounded-md bg-ink px-4 py-2 text-base font-semibold text-white hover:bg-steel disabled:opacity-50"
+          >
+            {submitting ? "Sending…" : "Try again"}
+          </button>
+        </div>
+      ) : null}
+
+      {!done && cur && !submitError ? (
         <div className="mt-4">
           {cur.type === "ko" ? (
             <div className="flex gap-2">

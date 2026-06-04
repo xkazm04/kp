@@ -1,11 +1,10 @@
 import {
+  approveLifecycleCase,
   createPipelineEntry,
   getDevCase,
   getLifecycle,
   listSubmissions,
-  saveDevCase,
   updateLifecycle,
-  type LifecycleRecord,
 } from "./db";
 import { promoteSubmission, runDesignArtifacts, runEvaluateSubmission, runNeedAnalysis, runSourceForRole, type DevNeed } from "./devcase-run";
 import { getAdapter } from "./distribution";
@@ -68,9 +67,8 @@ export async function runLifecycle(id: string, progress?: Progress): Promise<{ s
     } else if (lc.stage === "designed") {
       const gate = gateApproval(lc.analysis as Analysis | null);
       if (lc.auto && gate.pass) {
-        const saved = saveDevCase({ need: lc.need, analysis: lc.analysis, role: lc.role as Record<string, unknown>, case: lc.case as Record<string, unknown> });
-        updateLifecycle(id, { stage: "approved", caseId: saved.id, detail: gate.reason });
-        recordAudit({ lifecycleId: id, actor: "auto", action: "auto_approved", reason: gate.reason, ref: saved.id });
+        const { caseId } = approveLifecycleCase(id, lc, gate.reason);
+        recordAudit({ lifecycleId: id, actor: "auto", action: "auto_approved", reason: gate.reason, ref: caseId });
       } else {
         updateLifecycle(id, { stage: "awaiting_approval", detail: gate.reason });
         recordAudit({ lifecycleId: id, actor: "auto", action: "routed_to_human", reason: gate.reason });
@@ -162,16 +160,4 @@ export async function runLifecycle(id: string, progress?: Progress): Promise<{ s
   }
   const lc = getLifecycle(id);
   return { stage: lc?.stage ?? "unknown", detail: "step budget exhausted" };
-}
-
-// Human gate resume: approve the designed artifacts, then continue the walk.
-export async function approveLifecycle(id: string, progress?: Progress): Promise<{ stage: string; detail: string }> {
-  const lc = getLifecycle(id);
-  if (!lc) throw new Error("lifecycle not found");
-  if (lc.stage === "awaiting_approval" || lc.stage === "designed") {
-    const saved = saveDevCase({ need: lc.need, analysis: lc.analysis, role: lc.role as Record<string, unknown>, case: lc.case as Record<string, unknown> });
-    updateLifecycle(id, { stage: "approved", caseId: saved.id, detail: "approved by a human" });
-    recordAudit({ lifecycleId: id, actor: "human", action: "approved", ref: saved.id });
-  }
-  return runLifecycle(id, progress);
 }

@@ -2,6 +2,7 @@ import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { positiveNumericEnv } from "./env";
 
 const PYTHON_CMD = process.env.PYTHON_CMD ?? (process.platform === "win32" ? "python" : "python3");
 
@@ -104,10 +105,9 @@ const DEFAULT_TIMEOUT_MS = 600_000; // 10 min — a hang backstop, not a deadlin
 // output in the heap until close — up to DEFAULT_TIMEOUT_MS — and can OOM the
 // Next.js process, taking down every route, not just the one that spawned it.
 // Overridable via PYTHON_MAX_BUFFER_MB for operability (matching PYTHON_CMD).
-const DEFAULT_MAX_BUFFER_BYTES = (() => {
-  const mb = Number(process.env.PYTHON_MAX_BUFFER_MB);
-  return Number.isFinite(mb) && mb > 0 ? Math.floor(mb * 1024 * 1024) : 64 * 1024 * 1024;
-})();
+const DEFAULT_MAX_BUFFER_BYTES = positiveNumericEnv("PYTHON_MAX_BUFFER_MB", 64, {
+  scale: 1024 * 1024,
+});
 
 export function spawnPython(
   args: string[],

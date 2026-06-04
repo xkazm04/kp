@@ -1,13 +1,11 @@
-import path from "node:path";
-import { mkdirSync } from "node:fs";
 import Database from "better-sqlite3";
+import { DB_PATH, ensureDbDir } from "./db-path";
 import { z } from "zod";
 
 // Direction E — the outcome loop. Record what actually happened to promoted candidates
 // (hired / rejected, and on-the-job performance) and CALIBRATE the pipeline's thresholds
 // against reality: did a high predicted score actually predict a good outcome? Self-contained
 // connection (own table) to stay clear of the main schema while the fork churns it.
-const DB_PATH = process.env.KP_DB_PATH ?? path.join(process.cwd(), "data", "kp.sqlite");
 
 // ── Canonical outcome vocabulary ─────────────────────────────────────────────
 // These four labels are the ONLY values the store accepts. Before this was enforced,
@@ -35,7 +33,16 @@ export const outcomeInputSchema = z
   .object({
     ref: z.string().optional(),
     candidateRef: z.string().optional(),
-    predictedScore: z.number().optional(),
+    // The predicted score MUST sit on the same 0..100 scale the calibration bands
+    // cover. An out-of-range value (a typo like 850, or a negative) would still
+    // count toward the resolved sample yet fall into NO band, so the engine would
+    // compute a floor suggestion over fewer in-band outcomes than the count it
+    // advertises — a falsely confident, biased recommendation. Bound it here.
+    predictedScore: z
+      .number()
+      .min(0, { error: "predictedScore must be between 0 and 100" })
+      .max(100, { error: "predictedScore must be between 0 and 100" })
+      .optional(),
     outcome: z.enum(OUTCOMES, { error: `outcome must be one of: ${OUTCOMES.join(", ")}` }),
     performance: z
       .number()
@@ -55,9 +62,13 @@ export type OutcomeInput = z.infer<typeof outcomeInputSchema>;
 let _db: Database.Database | null = null;
 function db(): Database.Database {
   if (_db) return _db;
-  mkdirSync(path.dirname(DB_PATH), { recursive: true });
+  ensureDbDir();
   const d = new Database(DB_PATH);
   d.pragma("journal_mode = WAL");
+  // Own connection to the shared kp.sqlite file (db.ts + dev-control open theirs).
+  // WAL serializes writers, so without a busy_timeout a recordOutcome racing a
+  // lifecycle/API write would instantly throw SQLITE_BUSY; wait briefly instead.
+  d.pragma("busy_timeout = 5000");
   d.exec(`
     CREATE TABLE IF NOT EXISTS dev_outcomes (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -119,6 +130,19 @@ export function listOutcomes(limit = 80): OutcomeRecord[] {
   }));
 }
 
+// Fixed predicted-score buckets used to ask "do higher scores actually convert better?".
+// The four boundaries [0, 55, 70, 85, 101] are HAND-CHOSEN tiers, not learned from data — they
+// stay constant no matter how many outcomes accumulate:
+//   • 55  is the default promote floor (DEV_POLICY.promoteFloor), so the first band [0–54] is
+//         exactly the "scored below the floor" region — candidates that normally wouldn't be
+//         promoted at all. Anchoring band 1 to the live default keeps the chart legible.
+//   • 70 and 85 split the promotable range into borderline (55–69), good (70–84) and strong
+//         (85+) tiers — round, legible cut-points, NOT fitted to the observed hire rates.
+//   • 101 (not 100) is the top bound because band membership is a half-open [lo, hi) test in
+//         calibrate() below; using 101 makes a perfect score of 100 fall into the top band
+//         instead of being dropped by the strict `< hi` comparison.
+// Because the cuts are fixed, any single band can hold very few outcomes (even n = 1). See the
+// SMALL-SAMPLE caveat on calibrate() — a near-empty band can swing `predictive`/`suggestedFloor`.
 const BANDS: Array<[number, number]> = [
   [0, 55],
   [55, 70],
@@ -139,11 +163,54 @@ export type Calibration = {
 
 // Bucket resolved outcomes by predicted-score band and read whether higher scores actually
 // produced more hires / better performance — then suggest where the promote floor should sit.
+//
+// This output is acted on by a HUMAN: the "Apply suggested → N" button on the control page moves
+// the live promote floor to `suggestedFloor`. So each threshold below is documented with what it
+// means and why it holds that value (none of these are tuned/learned — they are deliberate,
+// defensible defaults):
+//   • MIN RESOLVED = 4 — do not calibrate until at least 4 *decided* (hired|rejected) outcomes
+//     WITH AN IN-RANGE predicted score exist (the only ones a band can hold). Below that the
+//     bands are too sparse for any hire-rate comparison to mean anything.
+//     4 is a low "show me *something*" bar, not a statistically powered sample — it just stops
+//     the engine from making a recommendation off one or two data points.
+//   • MONOTONICITY TOLERANCE = 0.05 — "predictive" means each populated band's hire rate is at
+//     least as high as the previous (lower-score) band's, i.e. higher scores → more hires. We
+//     permit a 5-percentage-point dip before declaring the trend broken, so ordinary sampling
+//     noise doesn't flip a genuinely-rising trend to "not predictive". The 0.05 is a judgement
+//     call (small enough to catch real reversals, loose enough to ignore jitter), not derived.
+//   • MAJORITY-HIRE THRESHOLD = 0.5 — the suggested floor is the lowest band where a simple
+//     majority (≥ 50%) of promoted candidates were actually hired: the cheapest band that "pays
+//     off" more often than not. 0.5 is a plain coin-flip majority, chosen for being an obvious,
+//     defensible cut rather than an optimised one.
+//   • NO-CONVERGING-BAND FALLBACK = 85 — when NO band reaches the 0.5 hire rate, fall back to 85
+//     (the floor of the top BANDS tier): the most conservative advice available — "only promote
+//     the very strongest until the data shows a lower band converting".
+//
+// SMALL-SAMPLE CAVEAT (why a suggestion can be noise): because BANDS are fixed, a band can be
+// decided by a single outcome. At n = 1 a band's hireRate is forced to exactly 0.0 or 1.0, so
+// one hire or one rejection can (a) break or restore the monotonic trend and flip `predictive`,
+// and (b) make or break the ≥ 0.5 majority test and so move `suggestedFloor` by a whole tier.
+// Treat a suggestion backed by low-`count` bands as a weak signal, not proof; prefer waiting for
+// more outcomes over reacting to a near-empty band. NOTE the MIN RESOLVED = 4 gate is on the
+// TOTAL in-range decided count, not per-band — individual bands can still be tiny once it passes.
 export function calibrate(currentFloor: number): Calibration {
   const all = listOutcomes(1000);
   const decided = all.filter((o) => o.outcome === "hired" || o.outcome === "rejected"); // exclude pending/withdrawn
+  // Only decided outcomes whose predicted score lands inside the banded range
+  // [RANGE_LO, RANGE_HI) inform calibration. A null/absent score — or a legacy,
+  // pre-validation out-of-range one (a typo like 850, a negative) — buckets into
+  // NO band, so counting it toward the resolved sample would advertise more
+  // outcomes than the bands actually hold and bias the human-facing floor
+  // suggestion. The gate and `resolved` below therefore use this in-range count,
+  // not the raw decided count. New inputs are bounded to 0..100 at the boundary
+  // (outcomeInputSchema), so out-of-range data can only be pre-existing rows.
+  const RANGE_LO = BANDS[0][0];
+  const RANGE_HI = BANDS[BANDS.length - 1][1];
+  const inRange = decided.filter(
+    (o) => o.predictedScore != null && o.predictedScore >= RANGE_LO && o.predictedScore < RANGE_HI
+  );
   const bands: CalibrationBand[] = BANDS.map(([lo, hi]) => {
-    const inBand = decided.filter((o) => (o.predictedScore ?? -1) >= lo && (o.predictedScore ?? -1) < hi);
+    const inBand = inRange.filter((o) => (o.predictedScore as number) >= lo && (o.predictedScore as number) < hi);
     const hires = inBand.filter((o) => o.outcome === "hired");
     const perfs = hires.map((o) => o.performance).filter((p): p is number => typeof p === "number");
     return {
@@ -155,18 +222,35 @@ export function calibrate(currentFloor: number): Calibration {
     };
   });
 
-  if (decided.length < 4) {
-    return { resolved: decided.length, bands, predictive: null, currentFloor, suggestedFloor: null, rationale: "Not enough resolved outcomes yet to calibrate (need ≥ 4)." };
+  // Invariant: BANDS partition [RANGE_LO, RANGE_HI) with no gaps or overlaps, so
+  // every in-range decided outcome lands in exactly one band. If the band counts
+  // ever fail to sum to the in-range count, a band definition introduced a gap or
+  // overlap — fail loud rather than silently compute a floor suggestion over a
+  // sample that doesn't match the `resolved` count shown to the human.
+  const bandTotal = bands.reduce((sum, b) => sum + b.count, 0);
+  if (bandTotal !== inRange.length) {
+    throw new Error(
+      `calibration band accounting mismatch: bands sum ${bandTotal} != ${inRange.length} in-range decided outcomes`
+    );
   }
 
-  // monotonic-ish: each populated band's hire rate >= the previous populated band's
+  // MIN RESOLVED gate (see docstring): too few in-range decided outcomes for any band comparison
+  // to be meaningful, so we make no recommendation rather than one driven by one or two data points.
+  if (inRange.length < 4) {
+    return { resolved: inRange.length, bands, predictive: null, currentFloor, suggestedFloor: null, rationale: "Not enough resolved outcomes yet to calibrate (need ≥ 4)." };
+  }
+
+  // monotonic-ish: each populated band's hire rate >= the previous populated band's, within the
+  // 0.05 MONOTONICITY TOLERANCE (see docstring) so a small noise dip doesn't read as a reversal.
   const populated = bands.filter((b) => b.count > 0 && b.hireRate != null);
   let predictive = true;
   for (let i = 1; i < populated.length; i += 1) {
     if ((populated[i].hireRate ?? 0) + 0.05 < (populated[i - 1].hireRate ?? 0)) predictive = false;
   }
 
-  // suggested floor: the lowest band where the majority of promoted candidates actually got hired
+  // suggested floor: the lowest band where a majority (≥ 0.5 MAJORITY-HIRE THRESHOLD) of promoted
+  // candidates actually got hired; the 85 FALLBACK (top BANDS tier) is the most conservative
+  // advice when no band converts at all. See docstring for why these values and the n=1 caveat.
   const good = populated.find((b) => (b.hireRate ?? 0) >= 0.5);
   const suggestedFloor = good ? good.lo : 85;
 
@@ -181,5 +265,5 @@ export function calibrate(currentFloor: number): Calibration {
     rationale = `The floor of ${currentFloor} is well-calibrated — it sits at the first band where most promoted candidates were hired.`;
   }
 
-  return { resolved: decided.length, bands, predictive, currentFloor, suggestedFloor, rationale };
+  return { resolved: inRange.length, bands, predictive, currentFloor, suggestedFloor, rationale };
 }

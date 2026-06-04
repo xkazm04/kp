@@ -14,6 +14,9 @@ type MatrixOut = {
   // Requested position ids that matched neither the static corpus nor a DB job —
   // surfaced so the grid can flag the gap instead of silently dropping the column.
   missing: string[];
+  // Profiles dropped because their CandidateProfileV2 failed to validate/transform —
+  // surfaced (with the error) so a vanished candidate row is explained, not swallowed.
+  missingCandidates: { id: string; label: string; error: string }[];
 };
 
 // Candidate x open-position fit heatmap. Scores are deterministic (no LLM).
@@ -23,7 +26,7 @@ export async function GET() {
     const profiles = listMatrixProfiles();
     const positions = listOpenPositions();
     if (profiles.length === 0 || positions.length === 0) {
-      return NextResponse.json({ candidates: [], positions: [], cells: [], missing: [], placements: {} });
+      return NextResponse.json({ candidates: [], positions: [], cells: [], missing: [], missingCandidates: [], placements: {} });
     }
 
     workdir = await createWorkdir();
@@ -59,7 +62,11 @@ export async function GET() {
     // positions rather than show opaque ids.
     const titleById = new Map(positions.map((p) => [p.id, p.title]));
     const missing = (matrix.missing ?? []).map((id) => ({ id, title: titleById.get(id) ?? id }));
-    return NextResponse.json({ ...matrix, missing, placements: pipelinePlacements() });
+    // matrix_cli already names the dropped candidates (id/label/error from the profile
+    // payload itself), so unlike `missing` positions there is nothing to re-attach —
+    // pass them straight through (defaulting for older CLI output).
+    const missingCandidates = matrix.missingCandidates ?? [];
+    return NextResponse.json({ ...matrix, missing, missingCandidates, placements: pipelinePlacements() });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Matrix build failed.";
     return NextResponse.json({ error: message }, { status: 500 });

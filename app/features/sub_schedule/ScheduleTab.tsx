@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { AnimatePresence, motion, type TargetAndTransition } from "framer-motion";
 import { Calendar, Check, ClipboardList, FileText, Phone, X } from "lucide-react";
 import { ScheduleCalendar } from "./ScheduleCalendar";
@@ -11,6 +11,30 @@ import { ScoreBadge } from "@/app/_components/ScoreBadge";
 import { useReducedMotion } from "@/app/_lib/useReducedMotion";
 
 type IvStatus = { sessionId: string; status: string; hasTranscript: boolean; endedAt: string | null };
+
+// Shared candidate summary used by both the Pending and Interviewed lists: the
+// truncated label + job title + archetype dot/label on the left, and the score
+// (plus any list-specific `trailing` node, e.g. the proposed slot chip) on the
+// right. Keeps the two lists provably consistent — a tweak here changes both.
+function CandidateCardHeader({ entry, trailing }: { entry: SchedEntry; trailing?: ReactNode }) {
+  const s = styleFor(entry.archetype);
+  return (
+    <>
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-sm font-semibold text-ink">{entry.candidateLabel}</span>
+        <span className="block truncate text-sm text-steel">{entry.jobTitle}</span>
+        <span className="mt-1 inline-flex items-center gap-1.5">
+          <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${s.bg}`} title={s.label} aria-hidden />
+          <span className="text-meta uppercase tracking-wide text-steel">{s.label}</span>
+        </span>
+      </span>
+      <span className="flex shrink-0 flex-col items-end gap-1.5">
+        <ScoreBadge score={entry.matchScore} />
+        {trailing}
+      </span>
+    </>
+  );
+}
 
 export function ScheduleTab() {
   const [entries, setEntries] = useState<SchedEntry[] | null>(null);
@@ -188,7 +212,6 @@ export function ScheduleTab() {
             </h3>
             <AnimatePresence custom={lastDir}>
             {calendarEntries.map((e, i) => {
-              const s = styleFor(e.archetype);
               const active = e.id === selectedId;
               const iv = interviews[e.id];
               return (
@@ -207,18 +230,10 @@ export function ScheduleTab() {
                   className={`rounded-lg border bg-white p-2.5 shadow-panel transition-colors ${active ? "border-coral" : "border-stone-200"}`}
                 >
                   <button type="button" onClick={() => setSelectedId(e.id)} className="focus-ring flex w-full items-start gap-2 text-left">
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-sm font-semibold text-ink">{e.candidateLabel}</span>
-                      <span className="block truncate text-sm text-steel">{e.jobTitle}</span>
-                      <span className="mt-1 inline-flex items-center gap-1.5">
-                        <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${s.bg}`} title={s.label} aria-hidden />
-                        <span className="text-meta uppercase tracking-wide text-steel">{s.label}</span>
-                      </span>
-                    </span>
-                    <span className="flex shrink-0 flex-col items-end gap-1.5">
-                      <ScoreBadge score={e.matchScore} />
-                      <span className="rounded bg-paper px-1.5 py-0.5 text-sm font-semibold text-ink">{picks[e.id]}</span>
-                    </span>
+                    <CandidateCardHeader
+                      entry={e}
+                      trailing={<span className="rounded bg-paper px-1.5 py-0.5 text-sm font-semibold text-ink">{picks[e.id]}</span>}
+                    />
                   </button>
                   <button
                     type="button"
@@ -284,19 +299,10 @@ export function ScheduleTab() {
                   Interviewed <span className="text-moss">· {interviewedEntries.length}</span>
                 </h3>
                 {interviewedEntries.map((e) => {
-                  const s = styleFor(e.archetype);
                   return (
                     <div key={e.id} className="rounded-lg border border-stone-200 bg-white p-2.5 shadow-panel">
                       <div className="flex w-full items-start gap-2">
-                        <span className="min-w-0 flex-1">
-                          <span className="block truncate text-sm font-semibold text-ink">{e.candidateLabel}</span>
-                          <span className="block truncate text-sm text-steel">{e.jobTitle}</span>
-                          <span className="mt-1 inline-flex items-center gap-1.5">
-                            <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${s.bg}`} title={s.label} aria-hidden />
-                            <span className="text-meta uppercase tracking-wide text-steel">{s.label}</span>
-                          </span>
-                        </span>
-                        <ScoreBadge score={e.matchScore} />
+                        <CandidateCardHeader entry={e} />
                       </div>
                       <button
                         type="button"

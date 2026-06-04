@@ -1,14 +1,21 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 // One place for the read-only "fetch JSON into state" pattern the dashboard tabs
 // all repeated. Handles the cases the hand-rolled copies missed: a non-OK HTTP
 // status, a body carrying `{ error }`, and `.json()` throwing on a non-JSON
 // (e.g. HTML 500) response. Ignores results after unmount.
-export function useJsonFetch<T>(url: string, errorLabel = "Couldn't load this."): { data: T | null; error: string | null } {
+//
+// `reload()` re-runs the request (for a retry button on the error state) — it
+// resets to the loading state and bumps an internal nonce so the effect refires.
+export function useJsonFetch<T>(
+  url: string,
+  errorLabel = "Couldn't load this."
+): { data: T | null; error: string | null; reload: () => void } {
   const [data, setData] = useState<T | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [nonce, setNonce] = useState(0);
 
   useEffect(() => {
     let alive = true;
@@ -28,7 +35,16 @@ export function useJsonFetch<T>(url: string, errorLabel = "Couldn't load this.")
     return () => {
       alive = false;
     };
-  }, [url, errorLabel]);
+  }, [url, errorLabel, nonce]);
 
-  return { data, error };
+  // Clear to the loading state (so `data === null && error === null` reads true
+  // again) and bump the nonce to refire the effect. Done in this handler rather
+  // than inside the effect to avoid a synchronous setState in the effect body.
+  const reload = useCallback(() => {
+    setData(null);
+    setError(null);
+    setNonce((n) => n + 1);
+  }, []);
+
+  return { data, error, reload };
 }

@@ -1,5 +1,5 @@
 import { ImageResponse } from "next/og";
-import { loadGoogleFont } from "@/app/_lib/og-fonts";
+import { loadOgFonts } from "@/app/_lib/og-fonts";
 
 export const size = { width: 180, height: 180 };
 export const contentType = "image/png";
@@ -9,7 +9,7 @@ const INK = "#17202a";
 const CORAL = "#d65a4a";
 
 export default async function AppleIcon() {
-  const serif = await loadGoogleFont("Fraunces", 700);
+  const fonts = await loadOgFonts([{ family: "Fraunces", weight: 700 }]);
 
   return new ImageResponse(
     (
@@ -36,9 +36,7 @@ export default async function AppleIcon() {
     ),
     {
       ...size,
-      fonts: serif
-        ? [{ name: "Fraunces", data: serif, weight: 700, style: "normal" }]
-        : []
+      fonts
     }
   );
 }

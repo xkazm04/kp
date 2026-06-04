@@ -1,8 +1,9 @@
 "use client";
 
 import { Send } from "lucide-react";
-import { LoadStatus } from "@/app/_components/LoadStatus";
 import type { LoadState } from "@/app/_lib/useLoader";
+import type { OutboxStatus } from "@/app/_lib/comms-status";
+import { DevSection } from "./DevShared";
 import type { OutboxItem } from "./DevTypes";
 
 // Badge tints by message kind — positive (invite/outreach/ack) vs. adverse (rejection).
@@ -13,18 +14,23 @@ const KIND_STYLE: Record<string, string> = {
   rejection: "bg-red-50 text-red-700",
 };
 
+// Delivery-status tint — `failed` (dead-letter) is loud so a dropped offer/rejection
+// never reads as benign. `queued` shows the channel (local, terminal dev state).
+const STATUS_STYLE: Record<OutboxStatus, string> = {
+  queued: "text-steel",
+  sent: "text-moss",
+  failed: "text-red-700 font-semibold",
+};
+
 export function OutboxSection({ outbox, state }: { outbox: OutboxItem[]; state: LoadState }) {
-  if (outbox.length === 0) return <LoadStatus state={state} label="the comms outbox" />;
   return (
-    <section>
-      <h3 className="flex items-center gap-1.5 text-meta uppercase tracking-wide text-steel">
-        <Send size={13} className="text-coral" /> Comms outbox <span className="text-coral">· {outbox.length}</span>
-        <LoadStatus state={state} label="the comms outbox" variant="pill" />
-      </h3>
+    <DevSection icon={<Send size={13} className="text-coral" />} title="Comms outbox" count={outbox.length} state={state} label="the comms outbox">
       <p className="mt-1 text-micro text-steel">
         Every message the pipeline sent — intake acknowledgements, promote invites, recruiter outreach, and rejections.
-        &quot;queued&quot; = recorded locally; set <span className="font-mono">COMMS_WEBHOOK_URL</span> to relay through a real
-        channel (email / ATS).
+        &quot;queued&quot; = recorded locally (terminal until a relay is wired); set{" "}
+        <span className="font-mono">COMMS_WEBHOOK_URL</span> to relay through a real channel (email / ATS), where messages
+        resolve to <span className="text-moss">sent</span> or, on a dropped delivery,{" "}
+        <span className="font-semibold text-red-700">failed</span> (dead-lettered — needs attention).
       </p>
       <ul className="mt-2 divide-y divide-stone-100 rounded-lg border border-stone-200 bg-white shadow-panel">
         {outbox.slice(0, 12).map((m) => (
@@ -38,10 +44,12 @@ export function OutboxSection({ outbox, state }: { outbox: OutboxItem[]; state: 
             </span>
             <span className="w-28 shrink-0 truncate text-steel">{m.recipient}</span>
             <span className="min-w-0 flex-1 truncate text-ink">{m.subject}</span>
-            <span className="shrink-0 text-micro uppercase text-steel">{m.status === "queued" ? `${m.channel}` : m.status}</span>
+            <span className={`shrink-0 text-micro uppercase ${STATUS_STYLE[m.status] ?? "text-steel"}`}>
+              {m.status === "queued" ? `${m.channel}` : m.status}
+            </span>
           </li>
         ))}
       </ul>
-    </section>
+    </DevSection>
   );
 }

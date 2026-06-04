@@ -64,12 +64,22 @@ export function DevTab() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tasks]);
 
+  // Title is REQUIRED — the single recorded contract for this field. NeedForm marks
+  // it `*`, sets aria-invalid when blank, shows "A role title is required to run",
+  // and disables both Run and Analyze while `title.trim() === ""`, so buildNeed only
+  // ever runs with a non-empty title. The old `|| "Untitled role"` fallback was an
+  // unreachable branch that quietly asserted the opposite (optional) policy — removed.
   const buildNeed = () => ({
-    title: title.trim() || "Untitled role",
+    title: title.trim(),
     stack: stackStr.split(",").map((s) => s.trim()).filter(Boolean),
     responsibilities: respStr.split("\n").map((s) => s.trim()).filter(Boolean),
     codebaseRefs: repoUrl.trim() ? [{ kind: "github", ref: repoUrl.trim() }] : [],
     seniorityTarget: seniority,
+    // Intentionally FIXED for now (recorded decision, not a config knob): the Dev
+    // case flow only supports engineering roles end-to-end (design + eval backend),
+    // so roleFamily is a constant rather than a NeedForm selector like
+    // seniorityTarget. Add a selector here and thread the value through if/when
+    // other families become real.
     roleFamily: "software_engineering",
   });
 

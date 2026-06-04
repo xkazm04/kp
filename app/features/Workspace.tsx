@@ -3,6 +3,7 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback } from "react";
 import dynamic from "next/dynamic";
+import { Skeleton } from "@/app/_components/Skeleton";
 import { TasksIndicator } from "./tasks/TasksIndicator";
 import { TasksProvider } from "./tasks/TasksProvider";
 import { SimulationProvider } from "./simulation/SimulationProvider";
@@ -20,9 +21,9 @@ export type { WorkspaceTabId } from "./tabs";
 function TabSkeleton() {
   return (
     <div className="space-y-4" aria-hidden>
-      <div className="h-8 w-1/3 animate-pulse rounded bg-stone-200/80 motion-reduce:animate-none" />
-      <div className="h-4 w-2/3 animate-pulse rounded bg-stone-200/70 motion-reduce:animate-none" />
-      <div className="h-48 w-full animate-pulse rounded-lg bg-stone-200/60 motion-reduce:animate-none" />
+      <Skeleton className="h-8 w-1/3" />
+      <Skeleton className="h-4 w-2/3" />
+      <Skeleton className="h-48 w-full rounded-lg" />
     </div>
   );
 }
@@ -44,6 +45,7 @@ const PipelineTab = dynamic(() => import("./sub_pipeline/PipelineTab").then((m) 
 const ChannelsTab = dynamic(() => import("./sub_channels/ChannelsTab").then((m) => ({ default: m.ChannelsTab })), { loading });
 const DevTab = dynamic(() => import("./sub_dev/DevTab").then((m) => ({ default: m.DevTab })), { loading });
 const ProfileTab = dynamic(() => import("./sub_profile/ProfileTab").then((m) => ({ default: m.ProfileTab })), { loading });
+const InterviewSimTab = dynamic(() => import("./sub_interview/InterviewSimTab").then((m) => ({ default: m.InterviewSimTab })), { loading });
 const TasksTab = dynamic(() => import("./tasks/TasksTab").then((m) => ({ default: m.TasksTab })), { loading });
 
 export function Workspace() {
@@ -130,6 +132,7 @@ export function Workspace() {
           {navActive === "schedule" ? <ScheduleTab /> : null}
           {navActive === "profile" ? <ProfileTab /> : null}
           {navActive === "match" ? <MatchTab /> : null}
+          {navActive === "interview" ? <InterviewSimTab /> : null}
           {navActive === "analyze" ? (
             <AnalyzeWorkspace initialMode={active === "history" ? "history" : "new"} />
           ) : null}

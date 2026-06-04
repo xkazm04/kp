@@ -15,7 +15,7 @@ import sys
 from pathlib import Path
 
 from .archetype import ARCHETYPES, detect_archetype
-from .profile import CandidateProfileV2, completeness, normalize_profile
+from .profile import CandidateProfileV2, normalize_profile
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -49,8 +49,9 @@ def main(argv: list[str] | None = None) -> int:
         profile.archetype = archetype
         profile.archetype_confidence = confidence
         profile.archetype_reasons = reasons
-        normalize_profile(profile)  # resolve evidence provenance + stamp completeness
-        score, missing = completeness(profile)
+        # Resolves evidence provenance + stamps completeness, and returns the
+        # (score, missing) it computed — no second checklist pass.
+        score, missing = normalize_profile(profile)
     except Exception as exc:
         print(json.dumps({"error": str(exc), "status": 500}, ensure_ascii=False), file=sys.stderr)
         return 1

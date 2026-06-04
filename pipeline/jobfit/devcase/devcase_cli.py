@@ -5,11 +5,14 @@
     python -m pipeline.jobfit.devcase.devcase_cli reflect-commits     --commits-json C [--probes-json P] [--no-llm]
     python -m pipeline.jobfit.devcase.devcase_cli evaluate-submission --commits-json C --case-json K --role-json R [--probes-json P] [--no-llm]
 
-Output: one JSON object {"result","source","perStepSources"} to stdout — a uniform
-provenance envelope every command shares. `perStepSources` maps each pipeline step to
-its "llm"/"deterministic" source and `source` is their combined tri-state verdict;
+Output: one JSON object {"result","source","perStepSources"[,"confidence"]} to stdout — a
+uniform provenance envelope every command shares. `perStepSources` maps each pipeline step
+to its "llm"/"deterministic" source and `source` is their combined tri-state verdict;
 single-step commands emit a one-key map, so the UI has ONE stable contract to render a
-consistent provenance strip (and its degraded "partial" badge) across every command.
+consistent provenance strip (and its degraded "partial" badge) across every command. The
+optional `confidence` block (present only when a step's artifact carries a 0..1 confidence
+self-rating — analyze/reflect/tooling) rides beside the badge so the UI can warn a reviewer
+not to over-trust a thin/ungrounded step; see the confidence scale in models.py.
 On failure: {"error","status","code"} to stderr, where status/code distinguish a
 user-fixable input error (400 / "invalid_input", exit 2) from a genuine engine failure
 (500 / "engine_error", exit 1) — mirroring jobfit/cli.py so the UI can render a precise
@@ -28,7 +31,8 @@ from . import analyze as _analyze
 from . import design as _design
 from . import evaluate as _evaluate
 from . import reflect as _reflect
-from .models import DevNeed, NeedAnalysis, RepoSnapshot
+from .models import LOW_CONFIDENCE, DevNeed, NeedAnalysis, RepoSnapshot
+from .provenance import combine_source
 
 # Stable, machine-readable error codes the UI branches on. INVALID_INPUT is a
 # user-correctable problem (missing/garbled --*-json arg, failed pydantic
@@ -38,38 +42,68 @@ ERR_INVALID_INPUT = "invalid_input"
 ERR_ENGINE = "engine_error"
 
 
-def _combine_source(*srcs: str) -> str:
-    """Collapse per-step sources into one verdict.
+def _require_list_of_dicts(value: object, flag: str) -> list:
+    """Guard a --*-json input that must be a JSON array of objects (commits/probes/candidates).
+    A valid-JSON file of the WRONG SHAPE (an object instead of an array, or an array of strings)
+    parses fine but blows up downstream (iterating a dict yields keys; ``c.get`` on a str raises
+    AttributeError) and the bare ``except Exception`` would misroute it to 500 engine_error. Raise
+    ValueError so it lands as 400 invalid_input / exit 2 — the documented 'fix your input' signal."""
+    if not isinstance(value, list) or not all(isinstance(x, dict) for x in value):
+        raise ValueError(f"{flag} must be a JSON array of objects")
+    return value
 
-    The old `"llm" if "llm" in srcs else "deterministic"` reported a fully-LLM
-    run whenever a *single* step used the LLM, hiding that the rest fell back to
-    deterministic templates. We return a tri-state instead — ``"partial"`` for a
-    mix — so the UI can flag a degraded evaluation (and gate promotion on it).
+
+def _require_object(value: object, flag: str) -> dict:
+    """Guard a --*-json input that must be a JSON object (case/role/repo) — see
+    :func:`_require_list_of_dicts` for why wrong-shape input must be 400, not 500."""
+    if not isinstance(value, dict):
+        raise ValueError(f"{flag} must be a JSON object")
+    return value
+
+
+def _confidences(**named: object) -> dict[str, float]:
+    """Map step -> its artifact's ``confidence`` (0..1), skipping artifacts without one.
+
+    Only NeedAnalysis, CommitReflection and ToolingSignal carry a confidence self-rating
+    (see the confidence scale in models.py); role/case/evaluation/transfer do not, so they
+    are silently omitted rather than reported as 0.0.
     """
-    uniq = {s for s in srcs if s}
-    if uniq == {"llm"}:
-        return "llm"
-    if uniq <= {"deterministic"}:  # all deterministic (or empty)
-        return "deterministic"
-    return "partial"
+    out: dict[str, float] = {}
+    for step, art in named.items():
+        if isinstance(art, dict) and isinstance(art.get("confidence"), (int, float)):
+            out[step] = float(art["confidence"])
+    return out
 
 
-def _emit(result: object, per_step: dict[str, str]) -> None:
+def _emit(result: object, per_step: dict[str, str], confidences: dict[str, float] | None = None) -> None:
     """Print the uniform provenance envelope every command shares.
 
-    ``result`` is the command's payload; ``per_step`` maps each pipeline step to
-    its ``"llm"``/``"deterministic"`` source. ``source`` is derived here as their
-    combined tri-state verdict (:func:`_combine_source`) so the two can never
-    drift. Single-step commands pass a one-key map — the UI still gets the same
-    {result, source, perStepSources} shape and one provenance component covers
-    the whole pipeline.
+    ``result`` is the command's payload; ``per_step`` maps each pipeline step to its
+    ``"llm"``/``"deterministic"`` source. ``source`` is derived here as their combined
+    tri-state verdict (:func:`provenance.combine_source`) so the two can never drift.
+    Single-step commands pass a one-key map — the UI still gets the same
+    {result, source, perStepSources} shape and one provenance component covers the
+    whole pipeline.
+
+    When the command's artifacts carry a ``confidence`` self-rating, ``confidences`` is
+    surfaced BESIDE the provenance badge as an optional ``confidence`` block — its
+    per-step values, the threshold, and the steps at/below it (``low``) — so a reviewer
+    is warned not to over-trust a thin/ungrounded or deterministic-fallback step. The
+    key is omitted entirely when no artifact carries a confidence (e.g. design-artifacts,
+    source), keeping the base envelope unchanged for those commands.
     """
-    print(
-        json.dumps(
-            {"result": result, "source": _combine_source(*per_step.values()), "perStepSources": per_step},
-            ensure_ascii=False,
-        )
-    )
+    envelope: dict[str, object] = {
+        "result": result,
+        "source": combine_source(*per_step.values()),
+        "perStepSources": per_step,
+    }
+    if confidences:
+        envelope["confidence"] = {
+            "byStep": confidences,
+            "threshold": LOW_CONFIDENCE,
+            "low": sorted(step for step, v in confidences.items() if v <= LOW_CONFIDENCE),
+        }
+    print(json.dumps(envelope, ensure_ascii=False))
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -100,8 +134,8 @@ def main(argv: list[str] | None = None) -> int:
 
             if not args.role_json or not args.candidates_json:
                 raise ValueError("source requires --role-json and --candidates-json")
-            role = json.loads(args.role_json.read_text(encoding="utf-8"))
-            candidates = json.loads(args.candidates_json.read_text(encoding="utf-8")) or []
+            role = _require_object(json.loads(args.role_json.read_text(encoding="utf-8")), "--role-json")
+            candidates = _require_list_of_dicts(json.loads(args.candidates_json.read_text(encoding="utf-8")), "--candidates-json")
             # result = {"candidates": [...], "skipped": int, "skippedReasons": [...]} — the
             # skipped count rides inside the envelope's `result` so the caller can tell an
             # empty shortlist (nobody qualified) apart from a pool that failed to parse.
@@ -117,22 +151,36 @@ def main(argv: list[str] | None = None) -> int:
         if args.command in ("reflect-commits", "evaluate-submission"):
             if not args.commits_json:
                 raise ValueError(f"{args.command} requires --commits-json")
-            commits = json.loads(args.commits_json.read_text(encoding="utf-8")) or []
-            probes = json.loads(args.probes_json.read_text(encoding="utf-8")) if args.probes_json else []
-            repo = json.loads(args.repo_json.read_text(encoding="utf-8")) if args.repo_json else None
+            # Require the rubric + role for evaluation: defaulting them to {} runs the scorer on
+            # an empty rubric and a titleless role and exits 0 with a confident-looking but
+            # ungrounded evaluation (success theater). Fail loudly (400 invalid_input) instead.
+            if args.command == "evaluate-submission" and (not args.case_json or not args.role_json):
+                raise ValueError("evaluate-submission requires --case-json and --role-json")
+            commits = _require_list_of_dicts(json.loads(args.commits_json.read_text(encoding="utf-8")), "--commits-json")
+            probes = (
+                _require_list_of_dicts(json.loads(args.probes_json.read_text(encoding="utf-8")), "--probes-json")
+                if args.probes_json
+                else []
+            )
+            repo = _require_object(json.loads(args.repo_json.read_text(encoding="utf-8")), "--repo-json") if args.repo_json else None
             reflection, rsrc = _reflect.reflect_commits(commits, repo, provider=provider)
             tooling, tsrc = _reflect.assess_tooling(reflection, commits, probes, repo, provider=provider)
             if args.command == "reflect-commits":
-                _emit({"reflection": reflection, "tooling": tooling}, {"reflect": rsrc, "tooling": tsrc})
+                _emit(
+                    {"reflection": reflection, "tooling": tooling},
+                    {"reflect": rsrc, "tooling": tsrc},
+                    _confidences(reflect=reflection, tooling=tooling),
+                )
                 return 0
-            # evaluate-submission continues the chain
-            case = json.loads(args.case_json.read_text(encoding="utf-8")) if args.case_json else {}
-            role = json.loads(args.role_json.read_text(encoding="utf-8")) if args.role_json else {}
+            # evaluate-submission continues the chain — case/role are required (guarded above).
+            case = _require_object(json.loads(args.case_json.read_text(encoding="utf-8")), "--case-json")
+            role = _require_object(json.loads(args.role_json.read_text(encoding="utf-8")), "--role-json")
             evaluation, esrc = _evaluate.evaluate_submission(reflection, tooling, case, role, provider=provider)
             transfer, xsrc = _evaluate.score_transfer(evaluation, role, provider=provider)
             _emit(
                 {"reflection": reflection, "tooling": tooling, "evaluation": evaluation, "transfer": transfer},
                 {"reflect": rsrc, "tooling": tsrc, "evaluate": esrc, "transfer": xsrc},
+                _confidences(reflect=reflection, tooling=tooling),
             )
             return 0
 
@@ -147,7 +195,7 @@ def main(argv: list[str] | None = None) -> int:
                 else None
             )
             result, source = _analyze.analyze_need(need, snapshot, provider=provider)
-            _emit(result, {"analyze": source})
+            _emit(result, {"analyze": source}, _confidences(analyze=result))
             return 0
 
         if args.command == "design-artifacts":

@@ -1,22 +1,38 @@
 // Tab definitions shared by the interactive Workspace (studio sidebar) and the
 // server-rendered deep-link pages (which reuse the sidebar via WorkspaceNav).
 
-export type WorkspaceTabId =
-  | "pipeline"
-  | "channels"
-  | "decisions"
-  | "schedule"
-  | "profile"
-  | "match"
-  | "analyze"
-  | "history"
-  | "jobs"
-  | "library"
-  | "matrix"
-  | "analytics"
-  | "dev"
-  | "about"
-  | "tasks";
+// Single source of truth for the tab universe. The WorkspaceTabId union AND the
+// runtime allowlist behind isWorkspaceTabId are both derived from this one
+// literal array, so the type and the guard can never drift — adding a tab is a
+// one-line edit the compiler keeps consistent (an id missing from the guard, or
+// an extra one, used to be a silent bug: a deep link to a valid tab 404'd to the
+// default with no error).
+export const WORKSPACE_TAB_IDS = [
+  "pipeline",
+  "channels",
+  "decisions",
+  "schedule",
+  "interview",
+  "profile",
+  "match",
+  "analyze",
+  // Analyze history is a sub-view reached from the Analyze tab (Workspace maps
+  // it onto the Analyze nav item); a valid id but intentionally absent from
+  // NAV_GROUPS below.
+  "history",
+  "jobs",
+  "library",
+  "matrix",
+  "analytics",
+  "dev",
+  "about",
+  // Background tasks is a client-only live view reached from the sidebar footer
+  // (TasksIndicator), not a deep-link target — so it's a valid tab id here but
+  // intentionally absent from NAV_GROUPS below.
+  "tasks",
+] as const;
+
+export type WorkspaceTabId = (typeof WORKSPACE_TAB_IDS)[number];
 
 export type WorkspaceTabDef = {
   id: WorkspaceTabId;
@@ -26,25 +42,9 @@ export type WorkspaceTabDef = {
 // The Pipeline dashboard is the default landing surface.
 export const DEFAULT_TAB: WorkspaceTabId = "pipeline";
 
-// Flat list (no standalone History — it's consolidated into Analyze). Used by
-// the deep-link breadcrumb.
-export const WORKSPACE_TABS: WorkspaceTabDef[] = [
-  { id: "pipeline", label: "Pipeline" },
-  { id: "channels", label: "Channels" },
-  { id: "decisions", label: "Decisions" },
-  { id: "schedule", label: "Schedule" },
-  { id: "profile", label: "Profile" },
-  { id: "match", label: "Match" },
-  { id: "analyze", label: "Analyze" },
-  { id: "jobs", label: "Jobs" },
-  { id: "library", label: "Job descriptions" },
-  { id: "matrix", label: "Matrix" },
-  { id: "analytics", label: "Analytics" },
-  { id: "dev", label: "Dev cases" },
-  { id: "about", label: "About" },
-];
-
-// Grouped structure for the studio left sidebar.
+// Grouped structure for the studio left sidebar. A flat tab list, if ever needed
+// (e.g. a deep-link breadcrumb), should be derived from NAV_GROUPS.flatMap(g => g.items)
+// rather than maintained as a fourth parallel declaration.
 export type NavGroup = { label?: string; items: WorkspaceTabDef[] };
 
 export const NAV_GROUPS: NavGroup[] = [
@@ -71,6 +71,7 @@ export const NAV_GROUPS: NavGroup[] = [
       { id: "profile", label: "Profile" },
       { id: "match", label: "Match" },
       { id: "analyze", label: "Analyze" },
+      { id: "interview", label: "Interview sim" },
     ],
   },
   {
@@ -87,26 +88,9 @@ export const NAV_GROUPS: NavGroup[] = [
   },
 ];
 
-const TAB_IDS = new Set<WorkspaceTabId>([
-  "pipeline",
-  "channels",
-  "decisions",
-  "schedule",
-  "profile",
-  "match",
-  "analyze",
-  "history",
-  "jobs",
-  "library",
-  "matrix",
-  "analytics",
-  "dev",
-  "about",
-  // Background tasks is a client-only live view reached from the sidebar footer
-  // (TasksIndicator), not a deep-link target — so it's a valid tab id here but
-  // intentionally absent from WORKSPACE_TABS/NAV_GROUPS above.
-  "tasks",
-]);
+// Built from the canonical array above — never re-listed — so it stays in lockstep
+// with the WorkspaceTabId union.
+const TAB_IDS: ReadonlySet<WorkspaceTabId> = new Set(WORKSPACE_TAB_IDS);
 
 export function isWorkspaceTabId(value: string | null | undefined): value is WorkspaceTabId {
   return typeof value === "string" && TAB_IDS.has(value as WorkspaceTabId);

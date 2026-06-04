@@ -1,4 +1,28 @@
-export type JobRequirement = { skill: string; termId?: string | null; kind: string; hardness: string };
+// Literal unions mirror the Python source of truth (jobs.py KINDS/HARDNESS) so an
+// off-taxonomy value is a compile-time error here, not a silent miscategorisation.
+export type RequirementKind = "must_have" | "nice_to_have";
+export type RequirementHardness = "prerequisite" | "learnable";
+export type JobRequirement = { skill: string; termId?: string | null; kind: RequirementKind; hardness: RequirementHardness };
+
+// Single source of truth for the must/nice partition. It previously lived in two
+// places with OPPOSITE fallbacks — jobMarkdown split on `kind === "must_have"` (so
+// anything else fell to nice) while publish split on `kind !== "nice_to_have"` (so
+// anything else fell to must) — meaning any future or off-taxonomy `kind` landed in
+// different buckets in the published posting vs. the sourcing must-haves. Canonical
+// rule: a skill is a must-have ONLY when kind === "must_have"; everything else
+// (including any off-taxonomy value) is a nice-to-have, so a malformed kind can
+// never be silently promoted into a hard sourcing filter. Returns skill strings —
+// the shape both call sites consume. Tolerant of loosely-typed runtime data.
+export function splitRequirements(
+  reqs: readonly { skill: string; kind?: string | null }[] | null | undefined
+): { mustHaves: string[]; niceToHaves: string[] } {
+  const mustHaves: string[] = [];
+  const niceToHaves: string[] = [];
+  for (const r of reqs ?? []) {
+    (r.kind === "must_have" ? mustHaves : niceToHaves).push(r.skill);
+  }
+  return { mustHaves, niceToHaves };
+}
 export type JobEntryProfile = {
   isEntryEligible: boolean;
   graduateFriendliness: number;
@@ -24,6 +48,12 @@ export type Job = {
   salaryBand?: number[];
   entryProfile?: JobEntryProfile | null;
 };
+// A candidate the recruiter ranker (recruiter_cli) couldn't score because its
+// profile failed CandidateProfileV2/MatchCandidate validation. Surfaced — never
+// dropped — so a malformed CV is explained rather than silently missing from the
+// results, on both the candidates and rediscovery surfaces.
+export type SkippedCandidate = { id: string; label: string; reason: string };
+
 export type Stats = {
   total: number;
   entryEligible: number;

@@ -8,6 +8,13 @@ Each scenario is a synthetic work/git trace representing a candidate BEHAVIOUR +
 Domain-aware: IT traces (git log) vs non-IT (work/process log); `domain="mixed"` spans all.
 
 Deterministic (varied by index, no RNG). Complements scenarios.py (the design half).
+
+COVERAGE: the synthetic commits below carry messages ONLY (no additions/files counts) and
+run with repo=None, so this landscape exercises reflect_commits' MESSAGE-KEYWORD path only.
+The structural branches — size-driven big-bang (biggestShareOfChange >= 0.6), file-tree test
+detection, and the burstiness branch — are NOT reached here; they are covered directly by
+tests/test_devcase_reflect.py::TestReflectStructuralSignals. Keep this note honest if the
+synthetic traces are ever enriched with structural signals.
 """
 
 from __future__ import annotations
@@ -15,7 +22,9 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-from .scenarios import DOMAINS, SENIORITIES
+from ._synth import SENIORITIES, pick as _pick
+from .models import RUBRIC_DIMENSIONS
+from .scenarios import DOMAINS, _DOMAIN_KEYS
 
 # Traces are newest-first (matches how the GitHub fetch + reflect_commits read them).
 # `trace` = software flavour (the deterministic reflect heuristic keys off "test"/"explore");
@@ -53,7 +62,6 @@ BEHAVIORS: dict[str, dict[str, Any]] = {
     },
 }
 _BEHAVIOR_KEYS = list(BEHAVIORS)
-_DOMAIN_KEYS = list(DOMAINS)
 
 
 @dataclass
@@ -66,10 +74,6 @@ class SubScenario:
     planted: dict[str, Any] = field(default_factory=dict)
 
 
-def _pick(seq: list, i: int):
-    return seq[i % len(seq)]
-
-
 def _case() -> dict:
     return {
         "title": "Take-home case",
@@ -78,10 +82,9 @@ def _case() -> dict:
             {"id": "p2", "kind": "legacy_trap", "where": "the legacy module", "reveals": "read before generating?"},
             {"id": "p3", "kind": "underspecified", "where": "the brief", "reveals": "clarify or silently assume?"},
         ],
-        "rubricDimensions": [
-            {"name": n, "weight": w}
-            for n, w in [("framing", 0.2), ("tooling", 0.25), ("judgment", 0.25), ("architecture", 0.15), ("transfer", 0.15)]
-        ],
+        # Names + weights sourced from the canonical rubric (models.RUBRIC_DIMENSIONS) so the
+        # synthetic fixture can't silently test stale weights if the rubric is reweighted.
+        "rubricDimensions": [{"name": d["name"], "weight": d["weight"]} for d in RUBRIC_DIMENSIONS],
     }
 
 

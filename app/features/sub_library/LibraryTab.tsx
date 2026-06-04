@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { RotateCcw, Search } from "lucide-react";
 import { formatCount } from "@/app/_lib/format";
+import { Skeleton } from "@/app/_components/Skeleton";
 import { JdBuilder } from "./JdBuilder";
 import { LibraryJdForm } from "./LibraryJdForm";
 
@@ -156,12 +157,6 @@ export function LibraryTab() {
       </details>
     </section>
   );
-}
-
-// Reusable shimmer primitive for async lists/detail panes. The pulse is disabled
-// under prefers-reduced-motion so motion-sensitive users see a static block.
-function Skeleton({ className = "" }: { className?: string }) {
-  return <div className={`animate-pulse rounded bg-stone-200/80 motion-reduce:animate-none ${className}`} />;
 }
 
 // Placeholder rows that mirror the real <li> (60% title bar, three body lines,

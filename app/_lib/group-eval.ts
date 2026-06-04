@@ -1,20 +1,21 @@
-import path from "node:path";
-import { mkdirSync } from "node:fs";
 import Database from "better-sqlite3";
+import { DB_PATH, ensureDbDir } from "./db-path";
 
 // Persisted store for Decisions "group evaluations" — one comparative evaluation
 // per role, regenerated on demand and read back into the modal. Uses its OWN
 // better-sqlite3 connection to the shared DB file (WAL allows this) so it never
 // touches the fork-churned db.ts, mirroring dev-control.ts / dev-outcomes.ts.
 
-const DB_PATH = process.env.KP_DB_PATH ?? path.join(process.cwd(), "data", "kp.sqlite");
-
 let _db: Database.Database | null = null;
 function db(): Database.Database {
   if (_db) return _db;
-  mkdirSync(path.dirname(DB_PATH), { recursive: true });
+  ensureDbDir();
   const d = new Database(DB_PATH);
   d.pragma("journal_mode = WAL");
+  // Shares kp.sqlite with db.ts / offers-store; without this a concurrent writer can
+  // make a saveGroupEval write throw SQLITE_BUSY instantly. Wait briefly instead of
+  // crashing (mirrors offers-store's documented fix).
+  d.pragma("busy_timeout = 5000");
   d.exec(`
     CREATE TABLE IF NOT EXISTS group_evals (
       role_key TEXT PRIMARY KEY,

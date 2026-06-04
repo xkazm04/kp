@@ -1,16 +1,17 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Loader2 } from "lucide-react";
+import { AlertTriangle, Loader2, RefreshCw } from "lucide-react";
 import { Modal } from "@/app/_components/Modal";
 import { InterviewRecommendationBadge } from "@/app/_components/Badge";
 import { Meter } from "@/app/_components/Meter";
 import { scoreTone } from "@/app/_lib/format";
+import { useJsonFetch } from "@/app/_lib/useJsonFetch";
+import type { InterviewRecommendation } from "@/app/_lib/interview-recommendation";
 import type { SchedEntry } from "./ScheduleTypes";
 
 type Turn = { role: string; text: string };
 type Rating = { competency: string; rating: number; evidence?: string };
-type Scorecard = { ratings?: Rating[]; summary?: string; recommendation?: string };
+type Scorecard = { ratings?: Rating[]; summary?: string; recommendation?: InterviewRecommendation };
 type Session = {
   provider?: string;
   status?: string;
@@ -25,21 +26,28 @@ type Session = {
 // at a glance and matches the colors every other ranked surface uses.
 const ratingTone = (r: number) => scoreTone((r / 5) * 100);
 
-export function InterviewTranscriptModal({ entry, onClose }: { entry: SchedEntry; onClose: () => void }) {
-  const [session, setSession] = useState<Session | null>(null);
-  const [loading, setLoading] = useState(true);
+// Defense-in-depth at the trust boundary: latestInterviewByEntry returns the stored
+// scorecard JSON verbatim (no per-rating validation), so a legacy row, a partial/
+// failed synthesis, or a non-Python provider can carry a rating that is a string,
+// null, or out of range. Coerce to a finite int clamped to [1,5]; return null
+// ("Not assessed") for anything non-numeric so the meter and N/5 label never render
+// NaN. Mirrors the clamp already enforced on the Python path.
+const cleanRating = (raw: unknown): number | null => {
+  const n = typeof raw === "number" ? raw : typeof raw === "string" ? Number(raw) : NaN;
+  if (!Number.isFinite(n)) return null;
+  return Math.min(5, Math.max(1, Math.round(n)));
+};
 
-  useEffect(() => {
-    let alive = true;
-    fetch(`/api/interview/by-entry?entry=${encodeURIComponent(entry.id)}`)
-      .then((r) => r.json())
-      .then((d) => alive && setSession((d.session as Session) ?? null))
-      .catch(() => alive && setSession(null))
-      .finally(() => alive && setLoading(false));
-    return () => {
-      alive = false;
-    };
-  }, [entry.id]);
+export function InterviewTranscriptModal({ entry, onClose }: { entry: SchedEntry; onClose: () => void }) {
+  // The shared hook captures a non-OK status / {error} body that the old bare
+  // .then(r => r.json()) swallowed — a 500 now reads as an error rather than an
+  // empty "no interview recorded" — and ignores results after unmount.
+  const { data, error, reload } = useJsonFetch<{ session?: Session }>(
+    `/api/interview/by-entry?entry=${encodeURIComponent(entry.id)}`,
+    "Couldn't load the interview."
+  );
+  const loading = data === null && error === null;
+  const session = data?.session ?? null;
 
   const sc = session?.scorecard ?? null;
   const transcript = session?.transcript ?? [];
@@ -50,6 +58,21 @@ export function InterviewTranscriptModal({ entry, onClose }: { entry: SchedEntry
         <p className="flex items-center gap-2 text-sm text-steel">
           <Loader2 size={16} className="animate-spin text-coral" /> Loading…
         </p>
+      ) : error ? (
+        // Distinct failure state with a retry: a 500 / DB lock / parse error must
+        // never read as the reassuring "no interview recorded" empty state below.
+        <div className="space-y-2">
+          <p className="flex items-center gap-2 text-sm text-coral">
+            <AlertTriangle size={15} /> {error}
+          </p>
+          <button
+            type="button"
+            onClick={reload}
+            className="focus-ring inline-flex h-9 items-center gap-1.5 rounded-md border border-stone-200 px-3 text-sm font-semibold text-ink hover:border-coral/40"
+          >
+            <RefreshCw size={14} /> Retry
+          </button>
+        </div>
       ) : !session ? (
         <p className="text-sm text-steel">No interview has been recorded for this candidate yet.</p>
       ) : (
@@ -63,21 +86,26 @@ export function InterviewTranscriptModal({ entry, onClose }: { entry: SchedEntry
               {sc.summary ? <p className="mt-1.5 text-base text-ink">{sc.summary}</p> : null}
               {sc.ratings && sc.ratings.length ? (
                 <ul className="mt-2.5 space-y-2.5">
-                  {sc.ratings.map((r, i) => (
-                    <li key={i} className="text-sm text-ink">
-                      <div className="flex items-baseline justify-between gap-2">
-                        <span className="font-semibold">{r.competency}</span>
-                        <span className="shrink-0 nums text-steel">{r.rating}/5</span>
-                      </div>
-                      <Meter
-                        value={(r.rating / 5) * 100}
-                        tone={ratingTone(r.rating)}
-                        className="mt-1"
-                        aria-label={`${r.competency} rating ${r.rating} out of 5`}
-                      />
-                      {r.evidence ? <p className="mt-1 text-meta text-steel">{r.evidence}</p> : null}
-                    </li>
-                  ))}
+                  {sc.ratings.map((r, i) => {
+                    const rating = cleanRating(r.rating);
+                    return (
+                      <li key={i} className="text-sm text-ink">
+                        <div className="flex items-baseline justify-between gap-2">
+                          <span className="font-semibold">{r.competency}</span>
+                          <span className="shrink-0 nums text-steel">{rating != null ? `${rating}/5` : "Not assessed"}</span>
+                        </div>
+                        {rating != null ? (
+                          <Meter
+                            value={(rating / 5) * 100}
+                            tone={ratingTone(rating)}
+                            className="mt-1"
+                            aria-label={`${r.competency} rating ${rating} out of 5`}
+                          />
+                        ) : null}
+                        {r.evidence ? <p className="mt-1 text-meta text-steel">{r.evidence}</p> : null}
+                      </li>
+                    );
+                  })}
                 </ul>
               ) : null}
               <p className="mt-2 text-meta text-steel">Feeds the scorecard review in Decisions and the candidate&apos;s analysis.</p>

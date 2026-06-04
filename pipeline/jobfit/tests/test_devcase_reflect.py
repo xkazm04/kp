@@ -50,5 +50,51 @@ class TestReflect(unittest.TestCase):
         self.assertEqual(t["probeOutcomes"], [])
 
 
+class TestReflectStructuralSignals(unittest.TestCase):
+    """The deterministic reflect_commits branches driven by STRUCTURAL signals (commit sizes,
+    the file tree, cadence) rather than message keywords. The submission eval landscape feeds
+    messages only and repo=None (see submission_scenarios' COVERAGE note), so these branches
+    have no eval coverage — they are exercised directly here instead."""
+
+    def test_size_driven_big_bang(self):
+        # One commit is ~94% of all additions -> biggestShareOfChange >= 0.6 -> "big-bang",
+        # via the SIZE branch (n>2, so the n<=2 shortcut is NOT what triggers it).
+        commits = [
+            {"message": "tweak config", "additions": 5, "files": 1},
+            {"message": "add helper", "additions": 10, "files": 2},
+            {"message": "implement feature", "additions": 300, "files": 5},
+            {"message": "initial scaffold", "additions": 5, "files": 1},
+        ]
+        r, source = reflect_commits(commits, provider=None)
+        self.assertEqual(source, "deterministic")
+        self.assertEqual(r["iterationPattern"], "big-bang")
+        # the size summary actually ran (withStats>0 surfaces additions in the narrative)
+        self.assertIn("additions", r["narrative"])
+
+    def test_file_tree_test_detection(self):
+        # No "test" in any commit message; the tests/ dir in the repo tree is the ONLY thing
+        # that marks verification -> exercises the file-tree detection branch.
+        commits = [
+            {"message": "add endpoint", "additions": 40, "files": 3},
+            {"message": "wire handler", "additions": 35, "files": 2},
+            {"message": "shape the module", "additions": 30, "files": 2},
+            {"message": "config", "additions": 30, "files": 1},
+        ]
+        repo = {"topLevel": [{"name": "src", "type": "dir"}, {"name": "tests", "type": "dir"}]}
+        r, _ = reflect_commits(commits, repo, provider=None)
+        self.assertEqual(r["iterationPattern"], "test-driven")
+        self.assertTrue(any("tree" in v.lower() for v in r["verificationHabits"]))
+
+    def test_burstiness_branch(self):
+        # 5 evenly-sized commits, no tests, no reverts: cadence.bursty is what flips the
+        # classification from "linear" to "exploratory".
+        commits = [{"message": f"step {k}", "additions": 20, "files": 1} for k in range(5)]
+        bursty, _ = reflect_commits(commits, {"cadence": {"bursty": True}}, provider=None)
+        steady, _ = reflect_commits(commits, {"cadence": {"bursty": False}}, provider=None)
+        self.assertEqual(bursty["iterationPattern"], "exploratory")
+        self.assertEqual(steady["iterationPattern"], "linear")  # control: same commits, not bursty
+        self.assertEqual(bursty["deadEnds"], [])  # exploratory came from burstiness, not reverts
+
+
 if __name__ == "__main__":
     unittest.main()

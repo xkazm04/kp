@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { interviewStatusByEntries, latestInterviewByEntry } from "@/app/_lib/db";
+import { jsonError } from "@/app/_lib/api-response";
+import { parseEntriesParam } from "@/app/_lib/entries-param";
 
 export const runtime = "nodejs";
 
@@ -12,12 +14,11 @@ export async function GET(request: NextRequest) {
     if (entry) {
       return NextResponse.json({ session: latestInterviewByEntry(entry) });
     }
-    const entries = (sp.get("entries") ?? "")
-      .split(",")
-      .map((s) => s.trim())
-      .filter(Boolean);
+    // Bounded + de-duped at the trust boundary so a crafted/huge `entries` list
+    // can't blow the SQLite variable limit or amplify the IN query (idea-191ccc0c).
+    const entries = parseEntriesParam(sp.get("entries"));
     return NextResponse.json({ status: interviewStatusByEntries(entries) });
   } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Failed." }, { status: 500 });
+    return jsonError(error, "Failed.");
   }
 }

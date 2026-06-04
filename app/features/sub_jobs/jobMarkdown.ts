@@ -1,4 +1,4 @@
-import { FAMILY_LABEL, type Job } from "./JobsTypes";
+import { FAMILY_LABEL, splitRequirements, type Job } from "./JobsTypes";
 
 const fmtSalary = (band?: number[]) =>
   band && band.length >= 2 ? `${band[0].toLocaleString("cs-CZ")} – ${band[1].toLocaleString("cs-CZ")} CZK / month` : null;
@@ -27,9 +27,7 @@ export function jobToMarkdown(job: Job): string {
     lines.push(job.description);
   }
 
-  const reqs = job.requirements ?? [];
-  const musts = reqs.filter((r) => r.kind === "must_have").map((r) => r.skill);
-  const nices = reqs.filter((r) => r.kind !== "must_have").map((r) => r.skill);
+  const { mustHaves: musts, niceToHaves: nices } = splitRequirements(job.requirements);
   if (musts.length) {
     lines.push("");
     lines.push("## What you'll bring");

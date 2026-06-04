@@ -24,6 +24,11 @@ export function buildComparison(inputs: ComparisonInput[]): ComparisonPayload {
     throw new Error("buildComparison requires at least one CV variant");
   }
 
+  // `variants` preserves UPLOAD ORDER (the map over `inputs`), NOT score rank.
+  // CompareTab uses variants[0] — the FIRST CV uploaded — as the delta baseline
+  // that every other column's ▲/▼ is measured against. Rank is separate: it lives
+  // in `ranked`/`bestLabel` below and is surfaced as the crowned winner. Keep this
+  // order stable so the baseline the UI documents stays the first-uploaded variant.
   const variants: ComparisonVariant[] = inputs.map(({ label, analysis }) => ({
     label,
     score: {

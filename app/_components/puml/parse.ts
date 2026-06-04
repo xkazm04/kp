@@ -7,11 +7,18 @@
 //   @startuml [name] ... @enduml          (bounds; name ignored)
 //   title <single line>                   (diagram title)
 //   skinparam ... { ... }                 (ignored — we own the styling)
-//   package | rectangle | frame | node | folder | database | cloud "Name" [<<s>>] [as id] {
+//   package | database | folder "Name" [<<s>>] [as id] {
 //       ... nested elements ...
 //   }
 //   [Component label\nsecond line] [<<stereotype>>] [as id]
-//   actor|database|cloud|folder|node|component|interface|queue "Label" [<<s>>] [as id]
+//   actor|database|cloud|folder|component "Label" [<<s>>] [as id]
+//
+// The container/leaf keyword sets below are the HONEST subset the committed
+// diagrams (docs/diagrams/*.puml + the inline STEP_DETAILS / About sources)
+// actually use — speculative kinds that rendered identically to a generic box
+// (leaf node/interface/queue; container rectangle/frame/node/cloud) were pruned
+// so the parser surface matches the renderer's real capabilities. parse.test.ts
+// pins this with the committed sources as proof the deletion is safe.
 //   a --> b : label        (solid arrow)     a ..> b        (dashed/dotted)
 //   a <-- b                (reversed)         a -- b / a .. b (undirected)
 //   directional + colored arrows (-down->, -[#aaa]->, etc.) are normalized
@@ -20,18 +27,9 @@
 // Labels are allowed to contain "->" etc. because bracketed/quoted spans are
 // masked out before a line is classified as an edge.
 
-export type PumlNodeKind =
-  | "component"
-  | "actor"
-  | "database"
-  | "cloud"
-  | "folder"
-  | "node"
-  | "interface"
-  | "queue"
-  | "note";
+export type PumlNodeKind = "component" | "actor" | "database" | "cloud" | "folder" | "note";
 
-export type PumlContainerKind = "package" | "rectangle" | "frame" | "node" | "folder" | "database" | "cloud";
+export type PumlContainerKind = "package" | "database" | "folder";
 
 export interface PumlNode {
   type: "node";
@@ -69,21 +67,22 @@ export interface PumlDiagram {
   edges: PumlEdge[];
   /** Flat lookup of every node + container by canonical id. */
   index: Map<string, PumlElement>;
+  /** Edge endpoints that resolved to no declared alias/label (deduped). In a
+   *  declared-only diagram these are typos; the strict-mode contract test asserts
+   *  this is empty and the renderer warns in dev. See `resolveEndpoint`. */
+  unresolvedEndpoints: string[];
 }
 
 const NL = ""; // placeholder for an escaped "\n" inside a label
 const MASK = ""; // fill char for masked bracket / quote spans
 
-const CONTAINER_KEYWORDS = new Set(["package", "rectangle", "frame", "node", "folder", "database", "cloud"]);
+const CONTAINER_KEYWORDS = new Set(["package", "database", "folder"]);
 const LEAF_KEYWORDS: Record<string, PumlNodeKind> = {
   actor: "actor",
   database: "database",
   cloud: "cloud",
   folder: "folder",
-  node: "node",
   component: "component",
-  interface: "interface",
-  queue: "queue",
 };
 
 /** Replace `[...]` and `"..."` spans with same-length runs of MASK so arrows
@@ -123,6 +122,10 @@ type ParseState = {
   stack: PumlContainer[]; // current open containers
   aliases: Map<string, string>; // alias / label key -> canonical id
   counter: { n: number };
+  /** When true, an edge endpoint that resolves to nothing is recorded and the
+   *  edge dropped, instead of fabricating a phantom node (PlantUML-style
+   *  auto-vivification). Used for declared-only diagrams (idea-bf583bb5). */
+  strict: boolean;
 };
 
 function currentChildren(state: ParseState): PumlElement[] {
@@ -173,6 +176,22 @@ function genId(state: ParseState): string {
   return `__n${state.counter.n}`;
 }
 
+/** Create a leaf node, attach it to the current container (the diagram roots at
+ *  top level), and register its id under any alias + label key. This is the one
+ *  place the create-and-register ritual lives, so the bracket-leaf, keyword-leaf
+ *  and implicit-edge-endpoint paths can't drift apart (e.g. a new alias rule
+ *  applied to one and missed in another). Returns the created node. */
+function addLeaf(
+  state: ParseState,
+  attrs: { label: string; kind: PumlNodeKind; stereotype?: string; alias?: string }
+): PumlNode {
+  const id = attrs.alias ?? genId(state);
+  const node: PumlNode = { type: "node", id, label: attrs.label, kind: attrs.kind, stereotype: attrs.stereotype };
+  currentChildren(state).push(node);
+  register(state, node, attrs.alias, attrs.label);
+  return node;
+}
+
 function tryContainerOpen(line: string, state: ParseState): boolean {
   const masked = maskSpans(line);
   if (!masked.trimEnd().endsWith("{")) return false;
@@ -198,20 +217,30 @@ function tryContainerOpen(line: string, state: ParseState): boolean {
   return true;
 }
 
+/** Index of the "]" that closes the leading "[" of `s` (s[0] must be "["),
+ *  tracking nesting depth so a label containing bracketed tokens — route params
+ *  like /interview/[token], array access, generics — keeps its real closing
+ *  bracket instead of truncating at the first inner "]". Returns -1 when the
+ *  bracket is never closed (caller treats the line as a non-leaf). */
+function closingBracket(s: string): number {
+  let depth = 0;
+  for (let i = 0; i < s.length; i += 1) {
+    if (s[i] === "[") depth += 1;
+    else if (s[i] === "]" && --depth === 0) return i;
+  }
+  return -1;
+}
+
 function tryLeaf(line: string, state: ParseState): boolean {
   const trimmed = line.trim();
 
   // [Component label] <<s>> as id
   if (trimmed.startsWith("[")) {
-    const end = trimmed.indexOf("]");
+    const end = closingBracket(trimmed);
     if (end === -1) return false;
     const inner = trimmed.slice(1, end);
     const { stereotype, alias } = extractTrailers(trimmed.slice(end + 1));
-    const label = cleanLabel(inner);
-    const id = alias ?? genId(state);
-    const node: PumlNode = { type: "node", id, label, kind: "component", stereotype };
-    currentChildren(state).push(node);
-    register(state, node, alias, label);
+    addLeaf(state, { label: cleanLabel(inner), kind: "component", stereotype, alias });
     return true;
   }
 
@@ -220,11 +249,7 @@ function tryLeaf(line: string, state: ParseState): boolean {
   if (m && LEAF_KEYWORDS[m[1].toLowerCase()]) {
     const kind = LEAF_KEYWORDS[m[1].toLowerCase()];
     const { rest, stereotype, alias } = extractTrailers(m[2]);
-    const label = cleanLabel(unquote(rest));
-    const id = alias ?? genId(state);
-    const node: PumlNode = { type: "node", id, label, kind, stereotype };
-    currentChildren(state).push(node);
-    register(state, node, alias, label);
+    addLeaf(state, { label: cleanLabel(unquote(rest)), kind, stereotype, alias });
     return true;
   }
   return false;
@@ -235,7 +260,7 @@ function tryLeaf(line: string, state: ParseState): boolean {
 // Bracket/quote spans are masked before this runs, so "->" inside a label is safe.
 const ARROW_RE = /(<?)([-.]+)(>?)/;
 
-function resolveEndpoint(token: string, state: ParseState): string {
+function resolveEndpoint(token: string, state: ParseState): string | null {
   let t = token.trim();
   // strip a leading/trailing bracket or quote pair
   if (t.startsWith("[") && t.endsWith("]")) t = t.slice(1, -1);
@@ -245,12 +270,17 @@ function resolveEndpoint(token: string, state: ParseState): string {
   if (byAlias) return byAlias;
   const byKey = state.aliases.get(key);
   if (byKey) return byKey;
-  // Implicit node — PlantUML auto-creates components referenced by an edge.
-  const id = genId(state);
-  const node: PumlNode = { type: "node", id, label: cleanLabel(t), kind: "component" };
-  state.diagram.roots.push(node);
-  register(state, node, undefined, cleanLabel(t));
-  return id;
+  // Unresolved endpoint: record it (deduped) so callers can surface the likely
+  // typo. In a declared-only diagram a stray endpoint is a mistyped alias, not an
+  // intended node — strict mode drops the edge rather than fabricating a phantom
+  // box that becomes a dead click target. Non-strict keeps PlantUML's legacy
+  // auto-vivification (some class diagrams render purely from edge endpoints).
+  const label = cleanLabel(t);
+  if (!state.diagram.unresolvedEndpoints.includes(label)) {
+    state.diagram.unresolvedEndpoints.push(label);
+  }
+  if (state.strict) return null;
+  return addLeaf(state, { label, kind: "component" }).id;
 }
 
 function tryEdge(line: string, state: ParseState): boolean {
@@ -284,15 +314,30 @@ function tryEdge(line: string, state: ParseState): boolean {
 
   const leftId = resolveEndpoint(leftRaw, state);
   const rightId = resolveEndpoint(rightRaw, state);
+  // Strict mode may leave an endpoint unresolved (recorded above). Drop the edge
+  // rather than connect to a phantom — the line was still recognized as an edge.
+  if (leftId == null || rightId == null) return true;
   const [source, target] = reversed ? [rightId, leftId] : [leftId, rightId];
 
   state.diagram.edges.push({ source, target, style, undirected, label: label ? cleanLabel(label) : undefined });
   return true;
 }
 
-export function parsePuml(source: string): PumlDiagram {
-  const diagram: PumlDiagram = { direction: "DOWN", roots: [], edges: [], index: new Map() };
-  const state: ParseState = { diagram, stack: [], aliases: new Map(), counter: { n: 0 } };
+export function parsePuml(source: string, opts?: { strict?: boolean }): PumlDiagram {
+  const diagram: PumlDiagram = {
+    direction: "DOWN",
+    roots: [],
+    edges: [],
+    index: new Map(),
+    unresolvedEndpoints: [],
+  };
+  const state: ParseState = {
+    diagram,
+    stack: [],
+    aliases: new Map(),
+    counter: { n: 0 },
+    strict: opts?.strict ?? false,
+  };
 
   // Normalize escaped newlines up front so labels survive masking.
   const lines = source.replace(/\r\n/g, "\n").replace(/\\n/g, NL).split("\n");

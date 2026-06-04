@@ -4,7 +4,8 @@ import { useState } from "react";
 import { Check, History, RotateCcw, UserPlus } from "lucide-react";
 import { useJsonFetch } from "@/app/_lib/useJsonFetch";
 import { ScoreBadge } from "@/app/_components/ScoreBadge";
-import { EmptyState } from "./JobsShared";
+import { EmptyState, SkippedCandidatesNote } from "./JobsShared";
+import type { SkippedCandidate } from "./JobsTypes";
 
 type Rediscovered = {
   candidateId: string;
@@ -21,11 +22,12 @@ const PRIOR_STYLE: Record<string, string> = {
 };
 
 export function RediscoverPanel({ jobId, jobTitle }: { jobId: string; jobTitle: string }) {
-  const { data: body, error } = useJsonFetch<{ rediscovered?: Rediscovered[] }>(
+  const { data: body, error } = useJsonFetch<{ rediscovered?: Rediscovered[]; skipped?: SkippedCandidate[] }>(
     `/api/jobs/${encodeURIComponent(jobId)}/rediscover`,
     "Couldn't run rediscovery."
   );
   const data = body ? body.rediscovered ?? [] : null;
+  const skipped = body?.skipped ?? [];
   const [added, setAdded] = useState<Record<string, boolean>>({});
   const [adding, setAdding] = useState<string | null>(null);
   const [addError, setAddError] = useState<Record<string, string>>({});
@@ -68,13 +70,18 @@ export function RediscoverPanel({ jobId, jobTitle }: { jobId: string; jobTitle: 
 
   if (error) return <p className="text-base text-coral">{error}</p>;
   if (!data) return <p className="text-base text-steel">Scanning past candidates for a fit…</p>;
+  // The skipped note rides above the results regardless of whether any candidate
+  // resurfaced — a malformed profile may be exactly why the list looks empty.
   if (data.length === 0) {
     return (
-      <EmptyState
-        icon={History}
-        title="No past candidates resurface yet"
-        body="As people are rejected or hired elsewhere, strong cross-role fits will appear here."
-      />
+      <div>
+        <SkippedCandidatesNote skipped={skipped} />
+        <EmptyState
+          icon={History}
+          title="No past candidates resurface yet"
+          body="As people are rejected or hired elsewhere, strong cross-role fits will appear here."
+        />
+      </div>
     );
   }
 
@@ -83,6 +90,7 @@ export function RediscoverPanel({ jobId, jobTitle }: { jobId: string; jobTitle: 
       <p role="status" aria-live="polite" className="sr-only">
         {announce}
       </p>
+      <SkippedCandidatesNote skipped={skipped} />
       <p className="text-base text-steel">
         Past candidates who clear the bar for <span className="font-medium text-ink">{jobTitle}</span> but aren&apos;t in
         its pipeline — worth a second look.

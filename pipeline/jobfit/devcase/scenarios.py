@@ -17,9 +17,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
+from ._synth import SENIORITIES, pick as _pick
 from .models import DevNeed, RepoSnapshot
-
-SENIORITIES = ["junior", "medior", "senior", "lead"]
 
 # Each domain: families (role -> titles/skills/responsibilities) + work-context archetypes.
 DOMAINS: dict[str, dict[str, Any]] = {
@@ -166,10 +165,6 @@ class Scenario:
     need: DevNeed
     snapshot: RepoSnapshot | None
     planted: dict[str, Any] = field(default_factory=dict)
-
-
-def _pick(seq: list, i: int):
-    return seq[i % len(seq)]
 
 
 def _loc(rng: tuple[int, int], i: int) -> int:

@@ -30,6 +30,7 @@ export function PipelineExplorer({ source }: { source: string }) {
           scale="natural"
           className="mt-3"
           expandable
+          strict
           activeNodeId={active?.id}
           onNodeClick={(node) => {
             const detail = STEP_DETAILS[node.id];
@@ -86,7 +87,7 @@ function StepDrawer({ detail, onClose }: { detail: StepDetail; onClose: () => vo
 
         <div className="px-6 py-6">
           <p className="max-w-2xl text-body leading-7 text-steel">{detail.summary}</p>
-          <PlantUml source={detail.puml} scale="natural" className="mt-5" />
+          <PlantUml source={detail.puml} scale="natural" className="mt-5" strict />
           <div className="mt-5">
             <p className="text-meta uppercase text-steel">Code</p>
             <ul className="mt-1 space-y-0.5">

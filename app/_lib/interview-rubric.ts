@@ -7,6 +7,10 @@
 // Rubrics are keyed by the archetype's scoringModel. `experienced` keeps the
 // historical generic axes; `early_career` re-gears them for zero-/low-experience
 // candidates with full behaviorally-anchored (BARS) descriptors per level.
+//
+// "Both read the JSON" is enforced, not just asserted: interview-rubric.test.ts
+// pins these exports to the JSON, and test_interview_rubrics.py pins the Python
+// scorer to the same file — so TS == JSON == Python fails CI on drift.
 
 import rubricData from "@/pipeline/jobfit/interview-rubrics.json";
 import { isEarlyCareer } from "@/app/_lib/archetypes";

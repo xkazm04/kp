@@ -1,15 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { isLoadFailure, type LoadState } from "./load-state";
 
-export type LoadState = {
-  // True when the most recent attempt failed (network error, non-OK status, a
-  // `{ error }` body, or non-JSON response). Stays true until a load succeeds.
-  failed: boolean;
-  // Epoch ms of the last successful load, or null if it has never succeeded — so
-  // the UI can show how stale the data behind a failed refresh actually is.
-  lastUpdated: number | null;
-};
+// `LoadState` (and the failure/staleness contract) lives in the React-free
+// `load-state` module so it can be unit-tested; re-exported here so existing
+// consumers can keep importing it from the hook.
+export type { LoadState };
 
 // Reloadable / pollable sibling of `useJsonFetch`. Unlike the one-shot hook this
 // keeps the last good `data` visible when a refresh fails and tracks whether the
@@ -35,8 +32,9 @@ export function useLoader<T>(
     try {
       const r = await fetch(url);
       const body = (await r.json().catch(() => null)) as Record<string, unknown> | null;
-      if (!r.ok || !body || body.error) throw new Error("load failed");
-      setData(selectRef.current(body));
+      if (isLoadFailure(r.ok, body)) throw new Error("load failed");
+      // isLoadFailure is true whenever body is null, so reaching here means it's set.
+      setData(selectRef.current(body!));
       setState({ failed: false, lastUpdated: Date.now() });
     } catch {
       setState((s) => ({ ...s, failed: true }));

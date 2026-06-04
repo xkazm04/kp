@@ -2,6 +2,7 @@
 
 import { Check, CircleDot, Info, Send, X, type LucideIcon } from "lucide-react";
 import { formatPercent } from "@/app/_lib/format";
+import { describeSource } from "./DevHelpers";
 import { ProvenanceStrip } from "./ProvenanceStrip";
 import { ScoreBar } from "./ScoreBar";
 import type { DimensionScore, EvalBundle, ProbeOutcome } from "./DevTypes";
@@ -111,7 +112,7 @@ export function EvalPanel({ ev, onPromote, promoted }: { ev: EvalBundle; onPromo
 
       <p className="mt-1 text-micro italic text-steel">Code assumed LLM-generated — using AI is never penalised; judged on judgment + verification + transfer.</p>
 
-      {ev.source === "partial" ? (
+      {describeSource(ev.source).isDegraded ? (
         <p className="mt-2 rounded bg-amber-50 px-2 py-1 text-micro text-amber-800">
           Degraded evaluation — some steps fell back to deterministic templates. Review before promoting.
         </p>

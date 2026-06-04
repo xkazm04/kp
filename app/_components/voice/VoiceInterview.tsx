@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ConversationProvider, useConversation } from "@elevenlabs/react";
 import { Mic, PhoneOff, Sparkles, User } from "lucide-react";
+import { parseOaiTranscriptEvent } from "@/app/_lib/voice/openai";
 
 // Live voice-interview MVP. OpenAI Realtime runs over raw WebRTC; ElevenLabs
 // runs through the @elevenlabs/react SDK. A switcher lets you A/B both on the
@@ -189,12 +190,15 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle }: VoiceInterview
   }, []);
 
   function handleOaiEvent(ev: Record<string, unknown>) {
-    const type = String(ev.type ?? "");
-    if (type.endsWith("input_audio_transcription.completed") && typeof ev.transcript === "string") {
-      pushTurn("candidate", ev.transcript);
-    } else if (type.includes("output_audio_transcript.delta") && typeof ev.delta === "string") {
-      asstBuf.current += ev.delta;
-    } else if (type.includes("output_audio_transcript.done")) {
+    // The realtime wire protocol (event-type strings + payload shape) is parsed
+    // in voice/openai.ts; here we only apply the resulting transcript action.
+    const parsed = parseOaiTranscriptEvent(ev);
+    if (!parsed) return;
+    if (parsed.kind === "candidateUtterance") {
+      pushTurn("candidate", parsed.text);
+    } else if (parsed.kind === "assistantDelta") {
+      asstBuf.current += parsed.text;
+    } else {
       pushTurn("interviewer", asstBuf.current);
       asstBuf.current = "";
     }

@@ -8,8 +8,7 @@ import { buildUrl, type WorkspaceTabId } from "@/app/features/tabs";
 import { useLiveRefresh } from "@/app/features/live-refresh";
 import { Badge } from "@/app/_components/Badge";
 import { useReducedMotion } from "@/app/_lib/useReducedMotion";
-
-type Entry = { jobId: string | null; jobTitle: string | null; stage: string; status: string };
+import type { PipelineEntryView } from "@/app/_lib/db";
 
 // A gentle count-up tween (framer) for the headline inbound figure, so a freshly
 // arrived application visibly ticks the number rather than swapping it in place;
@@ -30,11 +29,18 @@ function InboundCount({ value }: { value: number }) {
   return <motion.span className="font-serif text-2xl text-ink nums">{rounded}</motion.span>;
 }
 
+// ENTRY-STAGE RULE (single source of truth: PIPELINE_STAGES / LEGACY_STAGE_MAP in
+// app/_lib/db.ts). The consolidated 5-stage model has NO separate "Sourced" stage —
+// it was folded into "Accepted". So EVERY channel below — inbound apply, email, job
+// boards, proactive sourcing, manual add — lands its candidates at "Accepted", which
+// then flows into "Screened". Proactive sourcing ranks the pool in Match, but the
+// ranked candidates still ENTER at "Accepted" like everyone else. Keep each channel's
+// `desc` copy (and /api/sim/inbound's stage) saying "Accepted", never "Sourced".
 const CHANNELS: { id: string; icon: typeof Link2; name: string; status: string; live: boolean; desc: string; tab?: WorkspaceTabId; cta?: string }[] = [
   { id: "apply", icon: Link2, name: "Careers page · Apply link", status: "Listening", live: true, desc: "A conversational apply link — submitted applications land at ‘Accepted’." },
   { id: "email", icon: Mail, name: "Email intake", status: "Not configured", live: false, desc: "Forward applications@ to ingest CVs automatically." },
   { id: "boards", icon: Globe, name: "Job boards", status: "Not configured", live: false, desc: "Syndicate a published JD to LinkedIn, jobs.cz, StackOverflow…" },
-  { id: "sourcing", icon: Sparkles, name: "Proactive sourcing", status: "Active", live: true, tab: "match", cta: "Open Match", desc: "Rank the candidate pool against the role in Match — proactively sourced candidates land at ‘Sourced’." },
+  { id: "sourcing", icon: Sparkles, name: "Proactive sourcing", status: "Active", live: true, tab: "match", cta: "Open Match", desc: "Rank the candidate pool against the role in Match — proactively sourced candidates land at ‘Accepted’." },
   { id: "manual", icon: UserPlus, name: "Manual add", status: "Recruiter", live: true, tab: "profile", cta: "Build a profile", desc: "Build a candidate profile by hand (Profile) and add them to a role." },
 ];
 
@@ -43,7 +49,7 @@ const CHANNELS: { id: string; icon: typeof Link2; name: string; status: string; 
 // candidates arrive at ‘Accepted’, then flow into ‘Screened’ (first-wave evaluation).
 export function ChannelsTab() {
   const router = useRouter();
-  const [entries, setEntries] = useState<Entry[]>([]);
+  const [entries, setEntries] = useState<PipelineEntryView[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<{ text: string; ok: boolean } | null>(null);
@@ -51,7 +57,7 @@ export function ChannelsTab() {
   const load = () =>
     fetch("/api/pipeline")
       .then((r) => r.json())
-      .then((p) => setEntries((p.entries as Entry[]) ?? []))
+      .then((p) => setEntries((p.entries as PipelineEntryView[]) ?? []))
       .catch(() => undefined)
       .finally(() => setLoaded(true));
   useEffect(() => {

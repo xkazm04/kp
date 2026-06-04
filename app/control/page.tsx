@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { LoadStatus } from "@/app/_components/LoadStatus";
 import { useLoader } from "@/app/_lib/useLoader";
+import { aggregateLoadState } from "@/app/_lib/load-state";
+import { formatRelativeTime } from "@/app/_lib/format";
 
 type Audit = { id: number; lifecycleId: string | null; actor: string; action: string; reason: string | null; createdAt: string };
 type LC = { id: string; title: string | null; stage: string; detail: string | null };
@@ -19,15 +21,6 @@ const ACTOR: Record<string, string> = {
   human: "bg-moss/15 text-moss",
   system: "bg-stone-200 text-steel",
 };
-
-function rel(iso: string): string {
-  const d = (Date.now() - Date.parse(iso)) / 1000;
-  if (!Number.isFinite(d)) return "";
-  if (d < 60) return `${Math.max(0, Math.floor(d))}s ago`;
-  if (d < 3600) return `${Math.floor(d / 60)}m ago`;
-  if (d < 86400) return `${Math.floor(d / 3600)}h ago`;
-  return `${Math.floor(d / 86400)}d ago`;
-}
 
 // Blank → undefined, but a legitimate "0" survives (Number("") === 0 would otherwise leak in).
 function parseNum(v: string): number | undefined {
@@ -64,11 +57,10 @@ export default function ControlPage() {
     return () => window.clearInterval(t);
   }, [load, loadOutcomes]);
 
-  // Either loader failing means the room may be stale; report the oldest fresh
-  // point so the banner states the most conservative age of what's on screen.
-  const refreshFailed = sState.failed || oState.failed;
-  const freshAt = [sState.lastUpdated, oState.lastUpdated].filter((t): t is number => t != null);
-  const stalest = freshAt.length ? Math.min(...freshAt) : null;
+  // Either loader failing means the room may be stale; the merged state reports
+  // the oldest fresh point so the banner states the most conservative age of
+  // what's on screen (LoadStatus self-hides while both loaders are healthy).
+  const roomState = aggregateLoadState([sState, oState]);
 
   const recordOutcome = async () => {
     if (!form.candidate.trim()) return;
@@ -145,9 +137,7 @@ export default function ControlPage() {
           </a>
         </header>
 
-        {refreshFailed ? (
-          <LoadStatus state={{ failed: true, lastUpdated: stalest }} label="the control room" className="mt-4" />
-        ) : null}
+        <LoadStatus state={roomState} label="the control room" className="mt-4" />
 
         {/* kill switch */}
         <section
@@ -229,7 +219,7 @@ export default function ControlPage() {
                 </span>
                 <span className="w-28 shrink-0 truncate font-semibold text-ink">{a.action}</span>
                 <span className="min-w-0 flex-1 truncate text-steel">{a.reason}</span>
-                <span className="shrink-0 text-[10px] text-steel">{rel(a.createdAt)}</span>
+                <span className="shrink-0 text-[10px] text-steel">{formatRelativeTime(a.createdAt)}</span>
               </li>
             ))}
             {(s?.audit ?? []).length === 0 ? <li className="px-3 py-2 text-[11px] text-steel">No decisions logged yet.</li> : null}

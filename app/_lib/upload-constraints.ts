@@ -19,13 +19,26 @@ export const MAX_CV_VARIANTS = 3;
 
 const EXTENSION_RE = /\.(pdf|docx|txt|md)$/i;
 
+/** Result of the upload gate: the accepted File, or the reason it was rejected. */
+export type UploadAcceptance =
+  | { ok: true; file: File }
+  | { ok: false; error: string };
+
 /**
- * Client-side pre-flight check (by extension + size) so a bad file is rejected
- * at the drop/select moment with an inline message, instead of only failing
- * after the upload round-trips to the server. Returns an error string or null.
+ * The single client-side gate every CV / job-description / company File must
+ * pass through before it enters component state. Checks extension + size so a
+ * bad file — a 20 MB PNG dropped anywhere on the page, or used to Replace an
+ * existing upload — is rejected instantly with an inline message, instead of
+ * only failing after the upload round-trips to the server. Every intake path
+ * (empty drop zone, Replace, Add-variant, drop-anywhere overlay) routes through
+ * here via the `useFileAccept` hook; see app/features/sub_analyze/useFileAccept.ts.
  */
-export function validateUpload(file: File): string | null {
-  if (!EXTENSION_RE.test(file.name)) return "Use a PDF, DOCX, TXT, or MD file.";
-  if (file.size > MAX_FILE_BYTES) return `File exceeds the ${MAX_FILE_MB} MB limit.`;
-  return null;
+export function acceptUpload(file: File): UploadAcceptance {
+  if (!EXTENSION_RE.test(file.name)) {
+    return { ok: false, error: "Use a PDF, DOCX, TXT, or MD file." };
+  }
+  if (file.size > MAX_FILE_BYTES) {
+    return { ok: false, error: `File exceeds the ${MAX_FILE_MB} MB limit.` };
+  }
+  return { ok: true, file };
 }

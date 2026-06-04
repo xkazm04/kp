@@ -10,6 +10,31 @@ import { PipelineExplorer } from "./PipelineExplorer";
 
 export const dynamic = "force-dynamic";
 
+// docs/diagrams/*.puml are committed build artifacts: in production they never
+// change at runtime, so reading them from disk on every (force-dynamic) request
+// is pure repeated I/O. Cache each read by filename in module scope. In
+// development we always re-read so edits to the .puml sources show up live
+// without a restart — preserving the "always reflects the committed source"
+// behavior the page comment describes. A failed read is never cached, so a file
+// that appears later still recovers.
+const sourceCache = new Map<string, string>();
+
+function readDiagramSource(file: string): string {
+  const isProd = process.env.NODE_ENV === "production";
+  if (isProd) {
+    const cached = sourceCache.get(file);
+    if (cached !== undefined) return cached;
+  }
+  let source: string;
+  try {
+    source = readFileSync(join(process.cwd(), "docs", "diagrams", file), "utf8");
+  } catch {
+    return ""; // missing/unreadable — the page shows "Could not read …"; don't cache it
+  }
+  if (isProd) sourceCache.set(file, source);
+  return source;
+}
+
 const DIAGRAMS: { file: string; label: string; blurb: string; featured?: boolean }[] = [
   {
     file: "15-automated-pipeline-tobe.puml",
@@ -54,14 +79,7 @@ function Legend() {
 }
 
 export default function DiagramsPage() {
-  const dir = join(process.cwd(), "docs", "diagrams");
-  const items = DIAGRAMS.map((d) => {
-    try {
-      return { ...d, source: readFileSync(join(dir, d.file), "utf8") };
-    } catch {
-      return { ...d, source: "" };
-    }
-  });
+  const items = DIAGRAMS.map((d) => ({ ...d, source: readDiagramSource(d.file) }));
 
   return (
     <WorkspaceShell active="about">

@@ -1,9 +1,15 @@
 import path from "node:path";
-import { mkdirSync, readFileSync, existsSync } from "node:fs";
+import { readFileSync, existsSync } from "node:fs";
 import Database from "better-sqlite3";
 import type { ApprovalKind } from "./approval-kinds";
-
-const DB_PATH = process.env.KP_DB_PATH ?? path.join(process.cwd(), "data", "kp.sqlite");
+import { coerceOutboxStatus, type OutboxStatus } from "./comms-status";
+import { coerceInterviewRecommendation, type InterviewRecommendation } from "./interview-recommendation";
+import { normalizeApplicantName } from "./apply-intake";
+import { coerceProviderId } from "./voice/types";
+import { DB_PATH, ensureDbDir } from "./db-path";
+import { randomId, randomToken } from "./random-id";
+import { chunk, SQL_IN_CHUNK } from "./entries-param";
+import { pickBottleneck, type Bottleneck } from "./analytics-bottleneck";
 
 let _db: Database.Database | null = null;
 
@@ -44,6 +50,40 @@ export function getSeedHealth(): SeedHealth {
 }
 
 /**
+ * Load a seed file as a JSON array, recording the one issue kind that applies
+ * and returning null so the caller bails before its insert transaction. This is
+ * the single place the three seed-load failure modes are handled — missing file
+ * (warn), unreadable/invalid JSON (error), and a top-level value that isn't an
+ * array (error) — so every seeder degrades identically and adding a new seed is
+ * just a load call plus its insert. The empty-table guard stays per-seeder
+ * (only some seeders re-seed on every boot), and `T` is asserted, not validated:
+ * callers already skip malformed rows during insert.
+ */
+function loadSeedArray<T>(seed: SeedIssue["seed"], filePath: string): T[] | null {
+  if (!existsSync(filePath)) {
+    recordSeedIssue({ seed, path: filePath, reason: "file does not exist", severity: "missing" });
+    return null;
+  }
+  let data: unknown;
+  try {
+    data = JSON.parse(readFileSync(filePath, "utf-8"));
+  } catch (error) {
+    recordSeedIssue({
+      seed,
+      path: filePath,
+      reason: error instanceof Error ? error.message : String(error),
+      severity: "error",
+    });
+    return null;
+  }
+  if (!Array.isArray(data)) {
+    recordSeedIssue({ seed, path: filePath, reason: "seed JSON is not an array", severity: "error" });
+    return null;
+  }
+  return data as T[];
+}
+
+/**
  * Parse a JSON column from a DB row without letting one corrupt row throw the
  * whole read. A single poisoned payload used to 500 an entire list endpoint
  * (and, for seeds, wedge ensureDb so every request re-threw). We now log the
@@ -79,7 +119,7 @@ export function coreTableCounts(): Record<string, number> {
 
 function ensureDb(): Database.Database {
   if (_db) return _db;
-  mkdirSync(path.dirname(DB_PATH), { recursive: true });
+  ensureDbDir();
   const db = new Database(DB_PATH);
   db.pragma("journal_mode = WAL");
   // The scheduler writes scheduler/scheduler_runs on its own connection to the
@@ -317,6 +357,7 @@ function ensureDb(): Database.Database {
       status TEXT NOT NULL DEFAULT 'created',
       instructions TEXT,
       run_of_show_json TEXT,
+      duration_min INTEGER,
       consent_at TEXT,
       started_at TEXT,
       ended_at TEXT,
@@ -351,12 +392,14 @@ function ensureDb(): Database.Database {
   }
   // Migration for dev_submissions evaluation + contact columns (Phase D6 / B),
   // plus the interview run-of-show column added when the voice screen grew a
-  // candidate-facing agenda.
+  // candidate-facing agenda, and duration_min so the candidate portal shows the
+  // session's true length instead of a hardcoded "5 minutes" (idea-0ecbe5a5).
   for (const sql of [
     "ALTER TABLE dev_submissions ADD COLUMN eval_json TEXT",
     "ALTER TABLE dev_submissions ADD COLUMN transfer_score INTEGER",
     "ALTER TABLE dev_submissions ADD COLUMN contact TEXT",
     "ALTER TABLE interview_sessions ADD COLUMN run_of_show_json TEXT",
+    "ALTER TABLE interview_sessions ADD COLUMN duration_min INTEGER",
   ]) {
     try {
       db.exec(sql);
@@ -597,11 +640,9 @@ export function listAnalysisRecords(limit = 100): { row: AnalysisRow; payload: u
     .all(limit) as AnalysisRow[];
   const out: { row: AnalysisRow; payload: unknown }[] = [];
   for (const row of rows) {
-    try {
-      out.push({ row, payload: JSON.parse(row.payload_json) });
-    } catch {
-      /* skip rows with unparseable payloads */
-    }
+    const payload = safeRowParse(row.payload_json, "listAnalysisRecords", row.slug);
+    if (payload == null) continue; // corrupt row already logged by safeRowParse; degrade to N-1
+    out.push({ row, payload });
   }
   return out;
 }
@@ -615,12 +656,8 @@ export function loadAnalysis(slug: string): { row: AnalysisRow; payload: unknown
     )
     .get(slug) as AnalysisRow | undefined;
   if (!row) return null;
-  let payload: unknown;
-  try {
-    payload = JSON.parse(row.payload_json);
-  } catch {
-    return null;
-  }
+  const payload = safeRowParse(row.payload_json, "loadAnalysis", slug);
+  if (payload == null) return null;
   return { row, payload };
 }
 
@@ -699,11 +736,9 @@ export function lookupGeminiCache(hash: string, promptVersion: string): unknown 
   // a harmless miss instead of being served as an indefinitely-stale cache HIT.
   const expiresAt = Date.parse(row.expires_at);
   if (!Number.isFinite(expiresAt) || expiresAt < Date.now()) return null;
-  try {
-    return JSON.parse(row.payload_json);
-  } catch {
-    return null;
-  }
+  // A corrupt cache payload logs (with the hash) and reads as a miss, same as a
+  // miss — never an error served as a 200.
+  return safeRowParse(row.payload_json, "lookupGeminiCache", hash);
 }
 
 export function storeGeminiCache(
@@ -790,26 +825,8 @@ const SEED_JOBS_PATH = path.join(process.cwd(), "data", "seed_jobs", "jobs.norma
 function seedJobs(db: Database.Database): void {
   const count = db.prepare(`SELECT COUNT(*) AS n FROM jobs`).get() as { n: number };
   if (count.n > 0) return;
-  if (!existsSync(SEED_JOBS_PATH)) {
-    recordSeedIssue({ seed: "jobs", path: SEED_JOBS_PATH, reason: "file does not exist", severity: "missing" });
-    return;
-  }
-  let jobs: JobRecord[];
-  try {
-    jobs = JSON.parse(readFileSync(SEED_JOBS_PATH, "utf-8")) as JobRecord[];
-  } catch (error) {
-    recordSeedIssue({
-      seed: "jobs",
-      path: SEED_JOBS_PATH,
-      reason: error instanceof Error ? error.message : String(error),
-      severity: "error",
-    });
-    return;
-  }
-  if (!Array.isArray(jobs)) {
-    recordSeedIssue({ seed: "jobs", path: SEED_JOBS_PATH, reason: "seed JSON is not an array", severity: "error" });
-    return;
-  }
+  const jobs = loadSeedArray<JobRecord>("jobs", SEED_JOBS_PATH);
+  if (!jobs) return;
   const now = new Date().toISOString();
   const insert = db.prepare(`INSERT OR IGNORE INTO jobs
       (id, title, company, location, work_mode, seniority, role_family, employment_type,
@@ -989,12 +1006,10 @@ export function listProfileRecords(limit = 100): { row: ProfileRow; payload: unk
     .all(limit) as (ProfileRow & { payload_json: string })[];
   const out: { row: ProfileRow; payload: unknown }[] = [];
   for (const r of rows) {
-    try {
-      const { payload_json, ...rest } = r;
-      out.push({ row: rest, payload: JSON.parse(payload_json) });
-    } catch {
-      /* skip rows with unparseable payloads */
-    }
+    const { payload_json, ...rest } = r;
+    const payload = safeRowParse(payload_json, "listProfileRecords", rest.id);
+    if (payload == null) continue; // corrupt row already logged by safeRowParse; degrade to N-1
+    out.push({ row: rest, payload });
   }
   return out;
 }
@@ -1008,12 +1023,10 @@ export function getProfileRecord(id: string): { row: ProfileRow; payload: unknow
     )
     .get(id) as (ProfileRow & { payload_json: string }) | undefined;
   if (!row) return null;
-  try {
-    const { payload_json, ...rest } = row;
-    return { row: rest, payload: JSON.parse(payload_json) };
-  } catch {
-    return null;
-  }
+  const { payload_json, ...rest } = row;
+  const payload = safeRowParse(payload_json, "getProfileRecord", rest.id);
+  if (payload == null) return null;
+  return { row: rest, payload };
 }
 
 // Overwrite an existing profile in place (created_at is preserved so the roster
@@ -1052,26 +1065,8 @@ function seedCandidates(db: Database.Database): void {
   // the committed candidate seed — e.g. after the ČS skill alignment — refreshes
   // the profiles pool without a DB reset. Recruiter-built profiles use random,
   // non-`cand-` slugs, so they are never touched or replaced.
-  if (!existsSync(SEED_CANDIDATES_PATH)) {
-    recordSeedIssue({ seed: "candidates", path: SEED_CANDIDATES_PATH, reason: "file does not exist", severity: "missing" });
-    return;
-  }
-  let records: Array<Record<string, unknown>>;
-  try {
-    records = JSON.parse(readFileSync(SEED_CANDIDATES_PATH, "utf-8"));
-  } catch (error) {
-    recordSeedIssue({
-      seed: "candidates",
-      path: SEED_CANDIDATES_PATH,
-      reason: error instanceof Error ? error.message : String(error),
-      severity: "error",
-    });
-    return;
-  }
-  if (!Array.isArray(records)) {
-    recordSeedIssue({ seed: "candidates", path: SEED_CANDIDATES_PATH, reason: "seed JSON is not an array", severity: "error" });
-    return;
-  }
+  const records = loadSeedArray<Record<string, unknown>>("candidates", SEED_CANDIDATES_PATH);
+  if (!records) return;
   const insert = db.prepare(
     `INSERT OR REPLACE INTO profiles (id, label, archetype, role_family, completeness, payload_json, created_at)
      VALUES (@id, @label, @archetype, @role_family, @completeness, @payload_json, @created_at)`
@@ -1112,26 +1107,8 @@ function seedAnalyses(db: Database.Database): void {
   // (no empty-table guard) so regenerating the committed JSON — e.g. after the
   // analysis shape grows — refreshes the seeded analyses without a DB reset. Real
   // analyses use random, non-`seed-` slugs, so they are never touched or replaced.
-  if (!existsSync(SEED_ANALYSES_PATH)) {
-    recordSeedIssue({ seed: "analyses", path: SEED_ANALYSES_PATH, reason: "file does not exist", severity: "missing" });
-    return;
-  }
-  let records: Array<Record<string, unknown>>;
-  try {
-    records = JSON.parse(readFileSync(SEED_ANALYSES_PATH, "utf-8"));
-  } catch (error) {
-    recordSeedIssue({
-      seed: "analyses",
-      path: SEED_ANALYSES_PATH,
-      reason: error instanceof Error ? error.message : String(error),
-      severity: "error",
-    });
-    return;
-  }
-  if (!Array.isArray(records)) {
-    recordSeedIssue({ seed: "analyses", path: SEED_ANALYSES_PATH, reason: "seed JSON is not an array", severity: "error" });
-    return;
-  }
+  const records = loadSeedArray<Record<string, unknown>>("analyses", SEED_ANALYSES_PATH);
+  if (!records) return;
   const insert = db.prepare(
     `INSERT OR REPLACE INTO analyses (slug, candidate_label, jd_slug, score, role_family, seniority, payload_json, created_at)
      VALUES (@slug, @candidate_label, @jd_slug, @score, @role_family, @seniority, @payload_json, @created_at)`
@@ -1157,17 +1134,18 @@ function seedAnalyses(db: Database.Database): void {
 
 // ---- Hiring pipeline (Phase 10) -------------------------------------------
 
-// Consolidated 5-stage model. "Accepted" = CV received (inbound or proactively
-// sourced), waiting for screening; "Screened" = run through the first wave of
-// evaluation (matching + AI screening). Legacy Sourced→Accepted and
-// AI-matched/Screening→Screened are remapped by migratePipelineStages() on boot.
-export const PIPELINE_STAGES = ["Accepted", "Screened", "Interview", "Offer", "Hired"] as const;
-export type PipelineStage = (typeof PIPELINE_STAGES)[number];
-
-// Accepted is now a real first stage IN the canonical progression, so the funnel
-// axis is just the pipeline stages — no separate prefix.
-export const FUNNEL_STAGES = PIPELINE_STAGES;
-export type FunnelStage = (typeof FUNNEL_STAGES)[number];
+// The canonical stage axis + the archetype-fairness predicate live in the pure,
+// DB-free pipeline-stages module (so the metric is unit-testable). Re-exported here
+// so existing `import { PIPELINE_STAGES } from "./db"` call sites keep working.
+import {
+  PIPELINE_STAGES,
+  FUNNEL_STAGES,
+  hasAdvancedPastScreening,
+  type PipelineStage,
+  type FunnelStage,
+} from "./pipeline-stages";
+export { PIPELINE_STAGES, FUNNEL_STAGES, hasAdvancedPastScreening };
+export type { PipelineStage, FunnelStage };
 
 // Legacy → consolidated stage mapping, applied to persisted rows + the seed.
 export const LEGACY_STAGE_MAP: Record<string, PipelineStage> = {
@@ -1198,6 +1176,14 @@ export type PipelineEntry = {
   intakeDegraded: boolean;
   intakeDegradedReason: string | null;
 };
+
+// Canonical shape of a /api/pipeline row. That endpoint returns listPipeline()
+// (PipelineEntry[]) verbatim, so this IS the client-facing view contract. Client
+// consumers (SimulationProvider, ChannelsTab) import this with `import type`
+// instead of re-declaring divergent, partial local row types — those drift
+// silently from the server the moment a field is renamed. (`import type` is
+// erased at compile time, so no server code enters the client bundle.)
+export type PipelineEntryView = PipelineEntry;
 
 export type PipelineEvent = {
   id: number;
@@ -1304,26 +1290,8 @@ function migratePipelineStages(db: Database.Database): void {
 function seedPipeline(db: Database.Database): void {
   const count = db.prepare(`SELECT COUNT(*) AS n FROM pipeline_entries`).get() as { n: number };
   if (count.n > 0) return;
-  if (!existsSync(SEED_PIPELINE_PATH)) {
-    recordSeedIssue({ seed: "pipeline", path: SEED_PIPELINE_PATH, reason: "file does not exist", severity: "missing" });
-    return;
-  }
-  let entries: PipelineEntry[];
-  try {
-    entries = JSON.parse(readFileSync(SEED_PIPELINE_PATH, "utf-8"));
-  } catch (error) {
-    recordSeedIssue({
-      seed: "pipeline",
-      path: SEED_PIPELINE_PATH,
-      reason: error instanceof Error ? error.message : String(error),
-      severity: "error",
-    });
-    return;
-  }
-  if (!Array.isArray(entries)) {
-    recordSeedIssue({ seed: "pipeline", path: SEED_PIPELINE_PATH, reason: "seed JSON is not an array", severity: "error" });
-    return;
-  }
+  const entries = loadSeedArray<PipelineEntry>("pipeline", SEED_PIPELINE_PATH);
+  if (!entries) return;
   const nowMs = Date.now();
   const day = 86_400_000;
   const insert = db.prepare(
@@ -1454,8 +1422,10 @@ export type PipelineAnalytics = {
   funnel: { stage: string; reached: number; current: number; conversionPct: number | null }[];
   avgTimeToHireDays: number | null;
   avgAgeDays: number | null;
-  bottleneck: { stage: string; avgDaysInStage: number } | null;
+  bottleneck: Bottleneck | null;
   byJob: { jobTitle: string; total: number; reachedInterview: number; hired: number; hireRatePct: number }[];
+  // Distinct job count before the byJob cap, so the UI can show "top N of M".
+  byJobTotal: number;
   byArchetype: { archetype: string; total: number; hired: number; advanceRatePct: number }[];
 };
 
@@ -1525,11 +1495,10 @@ export function pipelineAnalytics(): PipelineAnalytics {
     const d = daysSince(r.stage_changed_at ?? r.created_at);
     if (d != null) (perStageDays[r.stage] ??= []).push(d);
   }
-  let bottleneck: { stage: string; avgDaysInStage: number } | null = null;
-  for (const [stage, arr] of Object.entries(perStageDays)) {
-    const avg = arr.reduce((a, b) => a + b, 0) / arr.length;
-    if (!bottleneck || avg > bottleneck.avgDaysInStage) bottleneck = { stage, avgDaysInStage: Math.round(avg) };
-  }
+  // Small-sample guard: a stage needs >= BOTTLENECK_MIN_SAMPLE active entries
+  // before its average wait counts as a systemic bottleneck, so a lone stale
+  // entry can't masquerade as a trend in the amber banner (idea-bdaf9b2c).
+  const bottleneck = pickBottleneck(perStageDays);
 
   const jobMap = new Map<string, { total: number; reachedInterview: number; hired: number }>();
   for (const r of rows) {
@@ -1540,6 +1509,11 @@ export function pipelineAnalytics(): PipelineAnalytics {
     if (r.stage === "Hired") m.hired += 1;
     jobMap.set(key, m);
   }
+  // Cap the role table to the highest-volume jobs, but report the true distinct-job
+  // count alongside it so the UI can say "top N of M" — a silently truncated table
+  // would otherwise read as "these are all my roles" for larger orgs.
+  const BY_JOB_CAP = 12;
+  const byJobTotal = jobMap.size;
   const byJob = [...jobMap.entries()]
     .map(([jobTitle, m]) => ({
       jobTitle,
@@ -1549,7 +1523,7 @@ export function pipelineAnalytics(): PipelineAnalytics {
       hireRatePct: m.total ? Math.round((m.hired / m.total) * 100) : 0,
     }))
     .sort((a, b) => b.total - a.total)
-    .slice(0, 12);
+    .slice(0, BY_JOB_CAP);
 
   const archMap = new Map<string, { total: number; hired: number; advanced: number }>();
   for (const r of rows) {
@@ -1557,7 +1531,9 @@ export function pipelineAnalytics(): PipelineAnalytics {
     const m = archMap.get(key) ?? { total: 0, hired: 0, advanced: 0 };
     m.total += 1;
     if (r.stage === "Hired") m.hired += 1;
-    if (idxOf(r.stage) >= idxOf("Screened")) m.advanced += 1;
+    // "advanced past screening" = reached Interview or beyond (see
+    // hasAdvancedPastScreening); a candidate AT Screened has not advanced past it.
+    if (hasAdvancedPastScreening(r.stage)) m.advanced += 1;
     archMap.set(key, m);
   }
   const byArchetype = [...archMap.entries()]
@@ -1569,7 +1545,7 @@ export function pipelineAnalytics(): PipelineAnalytics {
     }))
     .sort((a, b) => b.total - a.total);
 
-  return { total, active, hired, rejected, funnel, avgTimeToHireDays, avgAgeDays, bottleneck, byJob, byArchetype };
+  return { total, active, hired, rejected, funnel, avgTimeToHireDays, avgAgeDays, bottleneck, byJob, byJobTotal, byArchetype };
 }
 
 // Prior pipeline outcomes per candidate — used by talent rediscovery to spot
@@ -1595,7 +1571,11 @@ export function candidateOutcomes(): Map<string, CandidateOutcome[]> {
 export type InterviewedCandidate = {
   entryId: string | null;
   candidateLabel: string | null;
-  recommendation: string | null;
+  // Canonical advance|hold|reject verdict, or null when the (completed) interview
+  // has no scorecard. A present-but-malformed value is coerced to the safe `hold`
+  // fallback (see app/_lib/interview-recommendation.ts), so the compare grid only
+  // ever receives a legal verdict or a clean null.
+  recommendation: InterviewRecommendation | null;
   summary: string | null;
   // Which rubric this candidate was scored on, so the compare view can render
   // each cohort against its own axes. Older (pre-v3) scorecards predate the
@@ -1628,22 +1608,17 @@ export function interviewedForJob(jobId: string): InterviewedCandidate[] {
     const key = r.entry_id ?? r.candidate_label ?? String(out.length);
     if (seen.has(key)) continue; // latest interview per candidate
     seen.add(key);
-    let sc: {
+    const sc: {
       recommendation?: string;
       summary?: string;
       scoringModel?: string;
       confidence?: { level: string; reason?: string };
       ratings?: InterviewedCandidate["ratings"];
-    } = {};
-    try {
-      sc = r.scorecard_json ? JSON.parse(r.scorecard_json) : {};
-    } catch {
-      sc = {};
-    }
+    } = safeRowParse(r.scorecard_json, "interviewedCandidates.scorecard", key) ?? {};
     out.push({
       entryId: r.entry_id,
       candidateLabel: r.candidate_label,
-      recommendation: sc.recommendation ?? null,
+      recommendation: sc.recommendation != null ? coerceInterviewRecommendation(sc.recommendation) : null,
       summary: sc.summary ?? null,
       scoringModel: sc.scoringModel ?? "experienced",
       confidence: sc.confidence ?? null,
@@ -1666,13 +1641,27 @@ export type CreatePipelineInput = {
   // short human-readable reason. Defaults to not-degraded for normal additions.
   intakeDegraded?: boolean;
   intakeDegradedReason?: string | null;
+  // Optional stable identity to key idempotency on when `candidateId` itself is
+  // NOT stable across submissions. The conversational apply flow mints a fresh
+  // profile id per submission, so keying the entry id on candidateId would let
+  // the same person spawn unlimited Accepted rows for one role. When set, the
+  // entry's primary key derives from this instead (the candidate_id column still
+  // stores the real profile id), so repeat applies collapse onto one row. See
+  // `applyDedupeKey` in apply-intake.ts. Recruiter/Match adds omit it and keep
+  // the historical candidateId-keyed behavior.
+  dedupeKey?: string | null;
 };
 
 // Idempotent: a (candidate, job) pair maps to one entry, so re-adding from Match
-// or the recruiter view returns the existing row rather than duplicating it.
+// or the recruiter view returns the existing row rather than duplicating it. When
+// the caller supplies a `dedupeKey` (the apply flow does — candidateId is a fresh
+// per-submission profile id there), the id keys on that stable value instead, so
+// repeat applications dedup rather than piling up. Returns created:false when an
+// entry already existed, letting the caller surface the repeat.
 export function createPipelineEntry(input: CreatePipelineInput): { entry: PipelineEntry; created: boolean } {
   const db = ensureDb();
-  const id = `m-${input.candidateId}-${input.jobId}`.replace(/[^A-Za-z0-9_-]/g, "").slice(0, 90);
+  const keySource = input.dedupeKey || input.candidateId;
+  const id = `m-${keySource}-${input.jobId}`.replace(/[^A-Za-z0-9_-]/g, "").slice(0, 90);
   const existing = db.prepare(`SELECT * FROM pipeline_entries WHERE id = ?`).get(id) as PipelineRow | undefined;
   if (existing) {
     // re-surface a previously-rejected candidate if a recruiter re-adds them
@@ -1725,6 +1714,32 @@ export function createPipelineEntry(input: CreatePipelineInput): { entry: Pipeli
   return { entry: rowToEntry(row), created: true };
 }
 
+// Duplicate-application policy lookup for the conversational apply flow: returns
+// the EXISTING pipeline entry if this applicant has already applied to this role,
+// else null. The flow captures no contact field, so a repeat is identified by
+// (jobId + normalized applicant name) — the only stable signal we have. Matching
+// is intentionally name-based and status-agnostic (an already-rejected or
+// already-hired applicant re-applying is still a repeat to surface, not a new
+// row): two genuinely distinct people who share a name applying to one role is an
+// accepted, documented limitation of having no contact field.
+//
+// The earliest matching entry is returned so a repeat attaches its `re_applied`
+// event to the original application (the canonical row). A blank name yields null
+// — anonymous applicants can't be told apart, so they aren't merged. This is the
+// primary, pre-build check the POST handler runs to avoid both a duplicate
+// pipeline row AND a wasted profile build; createPipelineEntry's `dedupeKey`
+// backstops the rare concurrent-submission race.
+export function findApplicationByApplicant(jobId: string, name: string): PipelineEntry | null {
+  const key = normalizeApplicantName(name);
+  if (!key) return null;
+  const db = ensureDb();
+  const rows = db
+    .prepare(`SELECT * FROM pipeline_entries WHERE job_id = ? ORDER BY created_at ASC, id ASC`)
+    .all(jobId) as PipelineRow[];
+  const match = rows.find((r) => normalizeApplicantName(r.candidate_label) === key);
+  return match ? rowToEntry(match) : null;
+}
+
 // Recruiter resolution of a degraded-intake stub: once the profile has been
 // captured manually the flag is cleared and an event logged, so the audit trail
 // shows the gap was recovered rather than the entry silently slipping through.
@@ -1752,6 +1767,14 @@ export function clearIntakeDegraded(id: string): PipelineEntry | null {
 
 // ---- Automation helpers (Phase 15) ----------------------------------------
 
+// SINGLE SOURCE for the "don't stomp a fresh screening decision" window. Task 7
+// (the policy pass) must never override a screening decision made within this many
+// hours; `recentScreening` below flags entries with a `screening_*` event newer than
+// the cutoff so the pass skips them. The Python boundary (automation.evaluate_entry)
+// only receives the opaque `recentScreening` boolean and documents this contract —
+// it cannot see the number — so this constant is the one place the window is defined.
+export const SCREENING_OVERRIDE_GUARD_HOURS = 24;
+
 export type AutomationEntry = PipelineEntry & { daysInStage: number; recentScreening: boolean };
 
 export function getPipelineEntry(id: string): PipelineEntry | null {
@@ -1760,7 +1783,8 @@ export function getPipelineEntry(id: string): PipelineEntry | null {
   return row ? rowToEntry(row) : null;
 }
 
-/** Active entries enriched with daysInStage + whether a screening decision is <24h old (Task 7 input). */
+/** Active entries enriched with daysInStage + whether a screening decision is newer than
+ *  SCREENING_OVERRIDE_GUARD_HOURS (the recentScreening guard, Task 7 input). */
 export function listActiveEntriesForAutomation(): AutomationEntry[] {
   const db = ensureDb();
   const rows = db
@@ -1771,7 +1795,7 @@ export function listActiveEntriesForAutomation(): AutomationEntry[] {
        FROM pipeline_entries WHERE status = 'active'`
     )
     .all() as PipelineRow[];
-  const cutoff = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
+  const cutoff = new Date(Date.now() - SCREENING_OVERRIDE_GUARD_HOURS * 3600 * 1000).toISOString();
   const recent = new Set(
     (
       db
@@ -2067,25 +2091,16 @@ type DevCaseRow = {
   created_at: string;
 };
 
-const parseJson = (s: string | null): unknown => {
-  if (!s) return null;
-  try {
-    return JSON.parse(s);
-  } catch {
-    return null;
-  }
-};
-
 function rowToDevCase(r: DevCaseRow): DevCaseRecord {
   return {
     id: r.id,
     title: r.title,
     roleTitle: r.role_title,
     seniority: r.seniority,
-    need: parseJson(r.need_json),
-    analysis: parseJson(r.analysis_json),
-    role: parseJson(r.role_json),
-    case: parseJson(r.case_json),
+    need: safeRowParse(r.need_json, "devCase.need", r.id),
+    analysis: safeRowParse(r.analysis_json, "devCase.analysis", r.id),
+    role: safeRowParse(r.role_json, "devCase.role", r.id),
+    case: safeRowParse(r.case_json, "devCase.case", r.id),
     status: r.status,
     createdAt: r.created_at,
   };
@@ -2099,7 +2114,7 @@ export function saveDevCase(input: {
 }): { id: string; createdAt: string } {
   const db = ensureDb();
   const now = new Date().toISOString();
-  const id = `dc-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+  const id = randomId("dc");
   db.prepare(
     `INSERT INTO dev_cases (id, title, role_title, seniority, need_json, analysis_json, role_json, case_json, status, created_at)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'approved', ?)`
@@ -2153,10 +2168,10 @@ function rowToLifecycle(r: Record<string, unknown>): LifecycleRecord {
     title: (r.title as string) ?? null,
     stage: r.stage as string,
     auto: Number(r.auto ?? 1) === 1,
-    need: parseJson((r.need_json as string) ?? null),
-    analysis: parseJson((r.analysis_json as string) ?? null),
-    role: parseJson((r.role_json as string) ?? null),
-    case: parseJson((r.case_json as string) ?? null),
+    need: safeRowParse(r.need_json as string | null, "lifecycle.need", r.id as string),
+    analysis: safeRowParse(r.analysis_json as string | null, "lifecycle.analysis", r.id as string),
+    role: safeRowParse(r.role_json as string | null, "lifecycle.role", r.id as string),
+    case: safeRowParse(r.case_json as string | null, "lifecycle.case", r.id as string),
     caseId: (r.case_id as string) ?? null,
     postingId: (r.posting_id as string) ?? null,
     detail: (r.detail as string) ?? null,
@@ -2168,7 +2183,7 @@ function rowToLifecycle(r: Record<string, unknown>): LifecycleRecord {
 export function createLifecycle(need: { title?: string } & Record<string, unknown>, auto: boolean): LifecycleRecord {
   const db = ensureDb();
   const now = new Date().toISOString();
-  const id = `lc-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+  const id = randomId("lc");
   db.prepare(
     `INSERT INTO dev_lifecycle (id, title, stage, auto, need_json, detail, created_at, updated_at)
      VALUES (?, ?, 'intake', ?, ?, 'created', ?, ?)`
@@ -2213,6 +2228,33 @@ export function updateLifecycle(
   db.prepare(`UPDATE dev_lifecycle SET ${sets.join(", ")} WHERE id = ?`).run(...vals);
 }
 
+// The one approve transition: persist the designed artifacts as a dev case and
+// flip the lifecycle to "approved" in a SINGLE transaction. Both writes hit this
+// connection, so wrapping them means a concurrent writer (another lifecycle task,
+// an API handler) can never observe — nor a mid-sequence failure leave — a saved
+// case with its lifecycle still stuck pre-approval. Shared by the orchestrator's
+// auto-approve gate and the human-approve route; `detail` carries the path-specific
+// reason and the caller records the (separate-connection) audit row after this
+// returns. Returns the new case id.
+export function approveLifecycleCase(
+  id: string,
+  lc: Pick<LifecycleRecord, "need" | "analysis" | "role" | "case">,
+  detail: string
+): { caseId: string } {
+  const db = ensureDb();
+  const caseId = db.transaction(() => {
+    const saved = saveDevCase({
+      need: lc.need,
+      analysis: lc.analysis,
+      role: (lc.role as Record<string, unknown>) ?? {},
+      case: (lc.case as Record<string, unknown>) ?? {},
+    });
+    updateLifecycle(id, { stage: "approved", caseId: saved.id, detail });
+    return saved.id;
+  })();
+  return { caseId };
+}
+
 // ---- Dev extension — distribution: postings (OUT) + submissions (IN) (D4) -
 
 export type Posting = {
@@ -2249,7 +2291,7 @@ function rowToSubmission(r: Record<string, unknown>): DevSubmission {
     notes: (r.notes as string) ?? null,
     contact: (r.contact as string) ?? null,
     status: r.status as string,
-    evaluation: parseJson((r.eval_json as string) ?? null),
+    evaluation: safeRowParse(r.eval_json as string | null, "submission.eval", r.id as string),
     transferScore: r.transfer_score == null ? null : Number(r.transfer_score),
     receivedAt: r.received_at as string,
   };
@@ -2264,7 +2306,8 @@ export type OutboxEntry = {
   body: string | null;
   kind: string | null;
   channel: string | null;
-  status: string;
+  // Delivery status — the canonical three-state contract (see comms-status.ts).
+  status: OutboxStatus;
   ref: string | null;
   createdAt: string;
 };
@@ -2275,12 +2318,12 @@ export function recordOutbox(input: {
   body: string;
   kind: string;
   channel: string;
-  status: string;
+  status: OutboxStatus;
   ref?: string | null;
 }): OutboxEntry {
   const db = ensureDb();
   const now = new Date().toISOString();
-  const id = `out-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+  const id = randomId("out");
   db.prepare(
     `INSERT INTO dev_outbox (id, recipient, subject, body, kind, channel, status, ref, created_at)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
@@ -2306,6 +2349,7 @@ export type InterviewSession = {
   status: string;
   instructions: string | null;
   runOfShow: string[] | null;
+  durationMin: number | null;
   consentAt: string | null;
   startedAt: string | null;
   endedAt: string | null;
@@ -2328,6 +2372,7 @@ type InterviewRow = {
   status: string;
   instructions: string | null;
   run_of_show_json: string | null;
+  duration_min: number | null;
   consent_at: string | null;
   started_at: string | null;
   ended_at: string | null;
@@ -2345,12 +2390,13 @@ function rowToInterview(r: InterviewRow): InterviewSession {
     candidateLabel: r.candidate_label,
     jobId: r.job_id,
     jobTitle: r.job_title,
-    provider: (r.provider === "elevenlabs" ? "elevenlabs" : "openai") as InterviewProvider,
+    provider: coerceProviderId(r.provider, "openai"),
     language: r.language,
     mode: r.mode === "candidate" ? "candidate" : "test",
     status: r.status,
     instructions: r.instructions,
     runOfShow: safeRowParse<string[]>(r.run_of_show_json, "interview.runofshow", r.id),
+    durationMin: r.duration_min,
     consentAt: r.consent_at,
     startedAt: r.started_at,
     endedAt: r.ended_at,
@@ -2371,15 +2417,16 @@ export function createInterviewSession(input: {
   jobTitle?: string | null;
   instructions?: string | null;
   runOfShow?: string[] | null;
+  durationMin?: number | null;
 }): InterviewSession {
   const db = ensureDb();
   const now = new Date().toISOString();
-  const id = `iv-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
-  const token = `tk-${Math.random().toString(36).slice(2, 12)}${Math.random().toString(36).slice(2, 12)}`;
+  const id = randomId("iv");
+  const token = randomToken("tk");
   db.prepare(
     `INSERT INTO interview_sessions
-       (id, token, entry_id, candidate_label, job_id, job_title, provider, language, mode, status, instructions, run_of_show_json, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'created', ?, ?, ?)`
+       (id, token, entry_id, candidate_label, job_id, job_title, provider, language, mode, status, instructions, run_of_show_json, duration_min, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'created', ?, ?, ?, ?)`
   ).run(
     id,
     token,
@@ -2392,6 +2439,7 @@ export function createInterviewSession(input: {
     input.mode ?? "test",
     input.instructions ?? null,
     input.runOfShow && input.runOfShow.length ? JSON.stringify(input.runOfShow) : null,
+    input.durationMin ?? null,
     now
   );
   return getInterviewSessionById(id)!;
@@ -2402,20 +2450,25 @@ export function interviewStatusByEntries(
   entryIds: string[]
 ): Record<string, { sessionId: string; status: string; hasTranscript: boolean; endedAt: string | null }> {
   if (entryIds.length === 0) return {};
-  const placeholders = entryIds.map(() => "?").join(",");
-  const rows = ensureDb()
-    .prepare(
-      `SELECT s.id, s.entry_id, s.status, s.ended_at,
-              (s.transcript_json IS NOT NULL AND s.transcript_json != '[]') AS has_tr
-       FROM interview_sessions s
-       WHERE s.entry_id IN (${placeholders})
-       ORDER BY s.created_at DESC`
-    )
-    .all(...entryIds) as { id: string; entry_id: string; status: string; ended_at: string | null; has_tr: number }[];
   const out: Record<string, { sessionId: string; status: string; hasTranscript: boolean; endedAt: string | null }> = {};
-  for (const r of rows) {
-    if (out[r.entry_id]) continue; // first = latest (DESC)
-    out[r.entry_id] = { sessionId: r.id, status: r.status, hasTranscript: !!r.has_tr, endedAt: r.ended_at };
+  // Chunk the IN query under the SQLite variable limit so a wide board never trips
+  // SQLITE_MAX_VARIABLE_NUMBER (idea-191ccc0c). Chunks partition the ids, so the
+  // "first row per entry = latest" dedup below holds across chunk boundaries.
+  for (const ids of chunk(entryIds, SQL_IN_CHUNK)) {
+    const placeholders = ids.map(() => "?").join(",");
+    const rows = ensureDb()
+      .prepare(
+        `SELECT s.id, s.entry_id, s.status, s.ended_at,
+                (s.transcript_json IS NOT NULL AND s.transcript_json != '[]') AS has_tr
+         FROM interview_sessions s
+         WHERE s.entry_id IN (${placeholders})
+         ORDER BY s.created_at DESC`
+      )
+      .all(...ids) as { id: string; entry_id: string; status: string; ended_at: string | null; has_tr: number }[];
+    for (const r of rows) {
+      if (out[r.entry_id]) continue; // first = latest (DESC)
+      out[r.entry_id] = { sessionId: r.id, status: r.status, hasTranscript: !!r.has_tr, endedAt: r.ended_at };
+    }
   }
   return out;
 }
@@ -2482,7 +2535,9 @@ export function listOutbox(limit = 50): OutboxEntry[] {
     body: (r.body as string) ?? null,
     kind: (r.kind as string) ?? null,
     channel: (r.channel as string) ?? null,
-    status: r.status as string,
+    // Normalize so legacy rows (e.g. "failed:500") and any stray value map to the
+    // canonical enum — callers/UI can rely on exactly the three documented states.
+    status: coerceOutboxStatus(r.status as string | null),
     ref: (r.ref as string) ?? null,
     createdAt: r.created_at as string,
   }));
@@ -2497,7 +2552,7 @@ export function createPosting(input: {
 }): Posting {
   const db = ensureDb();
   const now = new Date().toISOString();
-  const id = `pst-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+  const id = randomId("pst");
   db.prepare(
     `INSERT INTO dev_postings (id, case_id, channel, token, role_title, case_title, status, created_at)
      VALUES (?, ?, ?, ?, ?, ?, 'open', ?)`
@@ -2555,7 +2610,7 @@ export function createSubmission(input: {
 }): { submission: DevSubmission; created: boolean } {
   const db = ensureDb();
   const now = new Date().toISOString();
-  const id = `sub-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+  const id = randomId("sub");
   const info = db
     .prepare(
       `INSERT INTO dev_submissions (id, posting_id, candidate_ref, repo_ref, notes, contact, status, received_at)

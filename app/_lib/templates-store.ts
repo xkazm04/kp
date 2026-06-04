@@ -1,20 +1,18 @@
-import path from "node:path";
-import { mkdirSync } from "node:fs";
 import Database from "better-sqlite3";
+import { DB_PATH, ensureDbDir } from "./db-path";
+import { randomId } from "./random-id";
 import { DEFAULT_TEMPLATE_BODY } from "@/app/features/sub_library/render-template";
 
 // Company JD templates — full CRUD. Isolated connection (job-ingest/offers/
 // scheduler/decision-config pattern) so we don't touch the fork-active db.ts.
 // A template is markdown with {{placeholders}}; see render-template.ts.
 
-const DB_PATH = process.env.KP_DB_PATH ?? path.join(process.cwd(), "data", "kp.sqlite");
-
 export type JdTemplate = { id: string; name: string; body: string; isDefault: boolean; createdAt: string; updatedAt: string };
 
 let _db: Database.Database | null = null;
 function db(): Database.Database {
   if (_db) return _db;
-  mkdirSync(path.dirname(DB_PATH), { recursive: true });
+  ensureDbDir();
   const d = new Database(DB_PATH);
   d.pragma("journal_mode = WAL");
   d.exec(`
@@ -46,7 +44,7 @@ function db(): Database.Database {
   return d;
 }
 
-const newId = () => `tpl-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+const newId = () => randomId("tpl");
 
 function rowTo(r: Record<string, unknown>): JdTemplate {
   return {

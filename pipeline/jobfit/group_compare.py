@@ -15,6 +15,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from . import registry
+
 GROUP_COMPARE_PROMPT_VERSION = "group-compare-v2"
 
 _SYSTEM = (
@@ -23,7 +25,9 @@ _SYSTEM = (
     "facts. Write in English."
 )
 
-_EARLY_CAREER = ("student", "career_switcher")
+# Single-sourced from the shared registry (archetypes.json) so the fairness branch
+# below can't drift from the scorer's early-career set.
+_EARLY_CAREER = registry.early_career_archetypes()
 
 
 def _candidates(context: dict[str, Any]) -> list[dict[str, Any]]:

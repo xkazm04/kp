@@ -1,11 +1,20 @@
 import { Clock, Headphones, ListChecks, Mic, Volume2 } from "lucide-react";
+import { durationChip } from "@/app/_lib/interview-duration.mjs";
 
 // Candidate-facing left rail for the interview portal. Rendered on the server
 // (no realtime SDK), so the agenda + readiness tips paint instantly while the
 // client-only voice bundle hydrates in the main column. Moving the run-of-show
 // here (it used to be a 260px column inside VoiceInterview) hands the live
 // transcript the full remaining width.
-export function InterviewSidebar({ items, className = "" }: { items: string[]; className?: string }) {
+export function InterviewSidebar({
+  items,
+  durationMin,
+  className = "",
+}: {
+  items: string[];
+  durationMin: number;
+  className?: string;
+}) {
   const hasAgenda = items.length > 0;
   return (
     <aside className={`space-y-4 ${className}`}>
@@ -16,7 +25,7 @@ export function InterviewSidebar({ items, className = "" }: { items: string[]; c
               <ListChecks size={14} className="text-moss" /> Today’s agenda
             </p>
             <span className="inline-flex items-center gap-1 rounded-full bg-paper px-2 py-0.5 text-sm text-steel">
-              <Clock size={12} /> ~5 min
+              <Clock size={12} /> {durationChip(durationMin)}
             </span>
           </div>
           <ol className="mt-3.5 space-y-2.5">

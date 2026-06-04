@@ -6,8 +6,10 @@ import { AlertTriangle, Ban, Banknote, Calendar, Check, ClipboardList, Copy, Ext
 import { buildUrl } from "@/app/features/tabs";
 import { useTasks } from "@/app/features/tasks/TasksProvider";
 import { ResultView } from "./CandidateResultView";
-import { ARCHETYPE, type Entry, type Result, type TaskId } from "./CandidateDrawerTypes";
+import { type Entry, type Result, type TaskId } from "./CandidateDrawerTypes";
+import { styleFor } from "./PipelineTypes";
 import { RUBRIC_ANCHOR_LINE } from "@/app/_lib/interview-rubric";
+import { initials } from "@/app/_lib/initials";
 
 const ACTIONS: { id: TaskId; label: string; icon: typeof Mail; stages: string[] | "all"; note?: string }[] = [
   { id: "screen", label: "Screen with AI", icon: UserCheck, stages: ["Screened"], note: "Routes to advance or holds for your review in Decisions." },
@@ -126,8 +128,8 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
     };
   }, [entry.id]);
 
-  const a = ARCHETYPE[entry.archetype ?? "bau"] ?? ARCHETYPE.bau;
-  const initials = entry.candidateLabel.split(" ").map((p) => p[0]).filter(Boolean).join("").slice(0, 2).toUpperCase();
+  const a = styleFor(entry.archetype);
+  const monogram = initials(entry.candidateLabel);
   const actions = ACTIONS.filter((act) => act.stages === "all" || act.stages.includes(entry.stage)).filter(
     (act) => entry.status === "active" || act.id === "rematch"
   );
@@ -252,7 +254,7 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
         className="animate-slide-in relative flex h-full w-full max-w-md flex-col overflow-y-auto border-l border-stone-200 bg-paper shadow-2xl"
       >
         <header className="sticky top-0 z-10 flex items-start gap-3 border-b border-stone-200 bg-paper/95 p-4 backdrop-blur">
-          <span className={`grid h-11 w-11 shrink-0 place-items-center rounded-full text-base font-semibold text-white ${a.bg}`}>{initials}</span>
+          <span className={`grid h-11 w-11 shrink-0 place-items-center rounded-full text-base font-semibold text-white ${a.bg}`}>{monogram}</span>
           <div className="min-w-0 flex-1">
             <p id="drawer-title" className="truncate font-serif text-lg text-ink">{entry.candidateLabel}</p>
             <p className="truncate text-sm text-steel">

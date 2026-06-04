@@ -2,7 +2,7 @@
 
 import { useEffect, useState, type CSSProperties } from "react";
 import { useReducedMotion } from "@/app/_lib/useReducedMotion";
-import { scoreToneColor } from "@/app/_lib/format";
+import { clampPercent, scoreToneColor } from "@/app/_lib/format";
 
 type ScoreDialProps = {
   score: number;
@@ -72,7 +72,7 @@ function useCountUp(target: number, durationMs: number) {
 }
 
 export function ScoreDial({ score }: ScoreDialProps) {
-  const clamped = Math.max(0, Math.min(score, 100));
+  const clamped = clampPercent(score);
   const displayed = useCountUp(clamped, TOTAL_MS);
   const activeIndex = bandIndex(clamped);
   const activeBand = BANDS[activeIndex];

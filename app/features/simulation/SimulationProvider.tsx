@@ -5,15 +5,19 @@ import { useRouter } from "next/navigation";
 import { buildUrl } from "@/app/features/tabs";
 import { notifyDataChanged } from "@/app/features/live-refresh";
 import type { GroupEvalPayload } from "@/app/features/sub_decisions/GroupEvalModal";
-import { SIM_COMPANY, SIM_JD_MARKDOWN, SIM_ROLE, SIM_SALARY, SIM_TITLE, type SimPhaseId } from "./constants";
+import { SIM_COMPANY, SIM_JD_MARKDOWN, SIM_ROLE, SIM_SALARY, SIM_SCREEN_POLICY, SIM_TITLE, type SimPhaseId } from "./constants";
+import { STAGES as PIPELINE_STAGES } from "@/app/features/sub_pipeline/PipelineTypes";
+import type { PipelineEntryView } from "@/app/_lib/db";
 
-type GroupEval = { roleTitle: string; payload: GroupEvalPayload | null; loading: boolean };
+// `error` is the explicit unavailable/timed-out state: set when the evaluation
+// can't be produced in time, so the reused modal shows an honest message instead
+// of a blank "no evaluation yet" comparison during the climactic Offer step.
+type GroupEval = { roleTitle: string; payload: GroupEvalPayload | null; loading: boolean; error: string | null };
 type WaveDecision = { entryId: string; label: string; archetype: string | null; matchScore: number; action: "reject" | "keep"; rationale: string };
 type ScreenWave = { decisions: WaveDecision[]; rejected: number; kept: number; cohort: number };
 
 type Spotlight = { selector: string | null; title: string; caption: string };
 type LogLine = { at: number; text: string };
-type Entry = { id: string; candidateId: string | null; jobId: string | null; stage: string; approvalKind: string | null; matchScore: number | null; candidateLabel: string };
 
 type SimState = {
   running: boolean;
@@ -57,29 +61,51 @@ export const useSimulation = () => {
 
 // Slow is the demo baseline — every beat runs at this factor.
 const SLOW_FACTOR = 1.8;
+// advance() steps an entry exactly one PIPELINE stage per call, so reaching a target
+// from any earlier stage takes at most (stages − 1) advances. Derived from the
+// canonical 5-stage list — NOT a literal — so the 7→5 stage consolidation (and any
+// future reshaping) can't silently invalidate the bound the way the old hardcoded
+// `4` did. (The board's STAGES mirror db.ts PIPELINE_STAGES; both are 5 stages.)
+const MAX_STAGE_ADVANCES = PIPELINE_STAGES.length - 1;
 class SimStop extends Error {}
 const JSON_HEADERS = { "Content-Type": "application/json" };
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+// The fully-cleared baseline SimState: nothing running, no overlays, idle status.
+// Single source for the three places that need an everything-cleared shape — the
+// initial useState, start(), and reset() — so adding a SimState field can't leave a
+// stale value behind in one of them. start/reset spread this and override only the
+// fields that differ (and preserve the user's stepMode / explain-drawer state).
+const IDLE_STATE: SimState = {
+  running: false,
+  paused: false,
+  stepMode: true, // step-through is the default for demos
+  awaitingNext: false,
+  explainOpen: false,
+  phase: null,
+  spotlight: null,
+  frame: null,
+  groupEval: null,
+  screenWave: null,
+  status: "Idle",
+  log: [],
+  targetLabel: null,
+  error: null,
+  done: false,
+};
+
+// The transient overlays, cleared together whenever a run ends (done/stop/fail) so
+// no spotlight/frame/modal survives into the next state. Spread into a patch().
+const CLEAR_OVERLAYS: Pick<SimState, "spotlight" | "frame" | "groupEval" | "screenWave"> = {
+  spotlight: null,
+  frame: null,
+  groupEval: null,
+  screenWave: null,
+};
+
 export function SimulationProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
-  const [state, setState] = useState<SimState>({
-    running: false,
-    paused: false,
-    stepMode: true, // step-through is the default for demos
-    awaitingNext: false,
-    explainOpen: false,
-    phase: null,
-    spotlight: null,
-    frame: null,
-    groupEval: null,
-    screenWave: null,
-    status: "Idle",
-    log: [],
-    targetLabel: null,
-    error: null,
-    done: false,
-  });
+  const [state, setState] = useState<SimState>(IDLE_STATE);
 
   const ctrl = useRef<{ stop: boolean; paused: boolean; wake: (() => void) | null }>({ stop: false, paused: false, wake: null });
   const stepRef = useRef<boolean>(true);
@@ -120,8 +146,8 @@ export function SimulationProvider({ children }: { children: React.ReactNode }) 
 
   // ---- Observation + real-click engine ---------------------------------------
 
-  const getEntries = useCallback(async (): Promise<Entry[]> => {
-    return fetch("/api/pipeline").then((r) => r.json()).then((p) => (p.entries as Entry[]) ?? []);
+  const getEntries = useCallback(async (): Promise<PipelineEntryView[]> => {
+    return fetch("/api/pipeline").then((r) => r.json()).then((p) => (p.entries as PipelineEntryView[]) ?? []);
   }, []);
 
   // Poll a DOM predicate until satisfied (element appears / iframe ready).
@@ -137,16 +163,21 @@ export function SimulationProvider({ children }: { children: React.ReactNode }) 
   }, []);
 
   // Poll the server until a pipeline entry matches (so we don't race the UI's fetch).
+  // FAILURE POLICY (shared with advanceTo): a timeout means an expected server
+  // transition never happened, so the next step's precondition is broken — THROW a
+  // clear, labelled message that halts the demo (surfaced as "Failed: …" by run's
+  // catch), rather than returning a silent false and walking on stale state. `label`
+  // names what we were waiting for so the halt message is legible per call site.
   const waitEntry = useCallback(
-    async (id: string, pred: (e: Entry) => boolean, timeout = 9000): Promise<boolean> => {
+    async (id: string, pred: (e: PipelineEntryView) => boolean, label: string, timeout = 9000): Promise<void> => {
       const deadline = Date.now() + timeout;
       while (Date.now() < deadline) {
         if (ctrl.current.stop) throw new SimStop();
         const e = (await getEntries()).find((x) => x.id === id);
-        if (e && pred(e)) return true;
+        if (e && pred(e)) return;
         await sleep(250);
       }
-      return false;
+      throw new Error(`Timed out after ${Math.round(timeout / 1000)}s waiting for ${label}.`);
     },
     [getEntries]
   );
@@ -177,14 +208,20 @@ export function SimulationProvider({ children }: { children: React.ReactNode }) 
     return p.entry?.stage as string;
   }, []);
 
+  // Advance an entry until it reaches `stage`, bounded by the real pipeline depth.
+  // FAILURE POLICY (shared with waitEntry): if the target isn't reached within the
+  // bound — the entry stalled or overshot — THROW so the demo halts with a clear
+  // message instead of silently returning the wrong stage and breaking a later step
+  // cryptically. Callers that are deliberately best-effort (the cohort match) opt
+  // out by catching this explicitly.
   const advanceTo = useCallback(
     async (entryId: string, stage: string): Promise<string> => {
       let st = "";
-      for (let i = 0; i < 4; i++) {
+      for (let i = 0; i < MAX_STAGE_ADVANCES; i++) {
         st = await advance(entryId);
-        if (st === stage) break;
+        if (st === stage) return st;
       }
-      return st;
+      throw new Error(`Could not advance entry ${entryId} to "${stage}" within ${MAX_STAGE_ADVANCES} steps (stalled at "${st || "unknown"}").`);
     },
     [advance]
   );
@@ -197,14 +234,15 @@ export function SimulationProvider({ children }: { children: React.ReactNode }) 
       const candidates = (await getEntries())
         .filter((e) => e.jobId === jobId)
         .map((e) => ({ entryId: e.id, candidateId: e.candidateId, label: e.candidateLabel, matchScore: e.matchScore }));
-      patch({ groupEval: { roleTitle, payload: null, loading: true } });
+      patch({ groupEval: { roleTitle, payload: null, loading: true, error: null } });
       try {
         await fetch("/api/tasks", {
           method: "POST",
           headers: JSON_HEADERS,
           body: JSON.stringify({ kind: "group_eval", params: { roleKey: jobId, roleTitle, jobId, candidates } }),
         });
-        const deadline = Date.now() + 25_000;
+        const TIMEOUT_MS = 25_000;
+        const deadline = Date.now() + TIMEOUT_MS;
         let payload: GroupEvalPayload | null = null;
         while (Date.now() < deadline) {
           if (ctrl.current.stop) throw new SimStop();
@@ -215,13 +253,28 @@ export function SimulationProvider({ children }: { children: React.ReactNode }) 
           }
           await sleep(400);
         }
-        patch({ groupEval: { roleTitle, payload, loading: false } });
+        if (payload) {
+          patch({ groupEval: { roleTitle, payload, loading: false, error: null } });
+        } else {
+          // Timed out waiting for the evaluation to be written. Surface it explicitly
+          // (the modal renders this message) rather than dropping to a blank/"run one"
+          // comparison during the climactic Offer step.
+          const error = `The group evaluation didn't finish within ${Math.round(
+            TIMEOUT_MS / 1000
+          )}s. The candidates are still in the pipeline — the comparison just couldn't be generated in time.`;
+          patch({ groupEval: { roleTitle, payload: null, loading: false, error } });
+          log("⚠︎ Group evaluation timed out — showing an unavailable notice.");
+        }
       } catch (e) {
         if (e instanceof SimStop) throw e;
-        patch({ groupEval: null, screenWave: null });
+        // Same honest-failure treatment as the timeout: show why, don't blank out.
+        patch({
+          groupEval: { roleTitle, payload: null, loading: false, error: "The group evaluation couldn't be generated." },
+          screenWave: null,
+        });
       }
     },
-    [getEntries, patch]
+    [getEntries, log, patch]
   );
 
   // ---- The walk --------------------------------------------------------------
@@ -336,7 +389,18 @@ export function SimulationProvider({ children }: { children: React.ReactNode }) 
 
           // Match all intake (Accepted) → Screened (first-wave evaluation: match + AI screen).
           const intake = (await getEntries()).filter((e) => e.jobId === jobId && e.stage === "Accepted");
-          for (const e of intake) await advanceTo(e.id, "Screened");
+          // Best-effort cohort advance: this is the ONE site that deliberately opts
+          // out of advanceTo's throw-on-failure policy — a stray un-advanceable stub
+          // shouldn't abort the whole demo. Log each straggler and continue; the
+          // `if (!top)` guard below still HALTS if the cohort produced nobody Screened.
+          for (const e of intake) {
+            try {
+              await advanceTo(e.id, "Screened");
+            } catch (err) {
+              if (err instanceof SimStop) throw err;
+              log(`⚠︎ ${e.candidateLabel} stuck before Screened — skipping (${err instanceof Error ? err.message : "advance failed"})`);
+            }
+          }
           const top = (await getEntries())
             .filter((e) => e.jobId === jobId && e.stage === "Screened")
             .sort((a, b) => (b.matchScore ?? 0) - (a.matchScore ?? 0))[0];
@@ -361,7 +425,11 @@ export function SimulationProvider({ children }: { children: React.ReactNode }) 
           const wave = await fetch("/api/decisions/screen-wave", {
             method: "POST",
             headers: JSON_HEADERS,
-            body: JSON.stringify({ jobId, override: { autoRejectEnabled: true, rejectBottomPercent: 25, maxMatchToReject: 60 } }),
+            // Override thresholds are single-sourced in SIM_SCREEN_POLICY
+            // (constants.ts), coupled to its inboundScoreFloor by an invariant (the
+            // scripted applicant must outscore the reject ceiling, or it gets
+            // auto-rejected mid-demo). constants.test.ts pins that invariant.
+            body: JSON.stringify({ jobId, override: SIM_SCREEN_POLICY.screenWaveOverride }),
           }).then((r) => r.json());
           patch({ screenWave: { decisions: wave.decisions ?? [], rejected: wave.rejected ?? 0, kept: wave.kept ?? 0, cohort: wave.cohort ?? 0 } });
           notifyDataChanged();
@@ -373,7 +441,7 @@ export function SimulationProvider({ children }: { children: React.ReactNode }) 
           await advance(targetId); // Screened → Interview
           await fetch("/api/sim/screen-draft", { method: "POST", headers: JSON_HEADERS, body: JSON.stringify({ entryId: targetId }) });
           await fetch(`/api/pipeline/${targetId}`, { method: "POST", headers: JSON_HEADERS, body: JSON.stringify({ action: "accept" }) });
-          await waitEntry(targetId, (e) => e.stage === "Interview" || e.approvalKind === "calendar");
+          await waitEntry(targetId, (e) => e.stage === "Interview" || e.approvalKind === "calendar", "screening to open the interview / calendar gate");
           notifyDataChanged();
           log(`${targetLabel} passed screening → Interview`);
         },
@@ -423,7 +491,7 @@ export function SimulationProvider({ children }: { children: React.ReactNode }) 
               notifyDataChanged();
             }
           }
-          await waitEntry(targetId, (e) => e.approvalKind !== "calendar");
+          await waitEntry(targetId, (e) => e.approvalKind !== "calendar", "the interview slot to be confirmed");
           const st = await advanceTo(targetId, "Offer");
           log(`→ ${st}`);
         },
@@ -454,7 +522,7 @@ export function SimulationProvider({ children }: { children: React.ReactNode }) 
             log("(offer card not visible — extending via API)");
             await fetch(`/api/pipeline/${targetId}`, { method: "POST", headers: JSON_HEADERS, body: JSON.stringify({ action: "accept" }) });
           }
-          await waitEntry(targetId, (e) => e.approvalKind !== "offer_review");
+          await waitEntry(targetId, (e) => e.approvalKind !== "offer_review", "the offer to be extended");
           const { token } = await fetch(`/api/sim/offer-link?entryId=${targetId}`).then((r) => r.json());
           if (!token) throw new Error("offer token not found after extend");
           offerToken = token;
@@ -493,38 +561,24 @@ export function SimulationProvider({ children }: { children: React.ReactNode }) 
         settleMs: 1400,
       });
 
-      patch({ done: true, running: false, status: "Done — candidate hired 🎉", spotlight: null, frame: null, groupEval: null, screenWave: null });
+      patch({ done: true, running: false, status: "Done — candidate hired 🎉", ...CLEAR_OVERLAYS });
     } catch (e) {
       if (e instanceof SimStop) {
-        patch({ running: false, status: "Stopped", spotlight: null, frame: null, groupEval: null, screenWave: null });
+        patch({ running: false, status: "Stopped", ...CLEAR_OVERLAYS });
         log("Simulation stopped.");
         return;
       }
       const msg = e instanceof Error ? e.message : "Simulation failed.";
-      patch({ running: false, error: msg, status: `Failed: ${msg}`, spotlight: null, frame: null, groupEval: null, screenWave: null });
+      patch({ running: false, error: msg, status: `Failed: ${msg}`, ...CLEAR_OVERLAYS });
       log(`Error: ${msg}`);
     }
   }, [advance, advanceTo, beat, clickEl, getEntries, log, nav, patch, runGroupEval, step, waitDom, waitEntry]);
 
   const start = useCallback(() => {
     ctrl.current = { stop: false, paused: false, wake: null };
-    setState((s) => ({
-      ...s,
-      running: true,
-      paused: false,
-      awaitingNext: false,
-      explainOpen: true,
-      phase: null,
-      spotlight: null,
-      frame: null,
-      groupEval: null,
-      screenWave: null,
-      status: "Starting…",
-      log: [],
-      targetLabel: null,
-      error: null,
-      done: false,
-    }));
+    // Everything cleared to IDLE, then the run-starting overrides. stepMode is
+    // preserved — it mirrors stepRef.current, the engine's source of truth.
+    setState((s) => ({ ...IDLE_STATE, stepMode: s.stepMode, running: true, explainOpen: true, status: "Starting…" }));
     void run();
   }, [run]);
 
@@ -552,22 +606,8 @@ export function SimulationProvider({ children }: { children: React.ReactNode }) 
     ctrl.current.stop = true;
     ctrl.current.wake?.();
     await fetch("/api/sim/reset", { method: "POST" }).catch(() => undefined);
-    setState((s) => ({
-      ...s,
-      running: false,
-      paused: false,
-      awaitingNext: false,
-      phase: null,
-      spotlight: null,
-      frame: null,
-      groupEval: null,
-      screenWave: null,
-      status: "Reset",
-      log: [],
-      targetLabel: null,
-      error: null,
-      done: false,
-    }));
+    // Everything cleared to IDLE; keep the user's stepMode + explain-drawer state.
+    setState((s) => ({ ...IDLE_STATE, stepMode: s.stepMode, explainOpen: s.explainOpen, status: "Reset" }));
   }, []);
 
   const toggleStep = useCallback(() => {

@@ -60,16 +60,13 @@ _MATCH_THRESHOLD = 0.5
 
 # Score -> fit tier: the SINGLE SOURCE OF TRUTH for the strong/promising/partial
 # banding every match surface renders (match cards, recruiter table, simulation).
-# match_reasoning.py reads ``fit_tier_for`` for its verdict wording, and the tier +
-# tone ride on MatchResult so the UI never re-derives these thresholds. ``tone``
-# mirrors the frontend Badge vocabulary (app/_components/Badge.tsx BadgeTone) so one
-# score yields one color + label + icon on every screen.
+# match_reasoning.py reads ``fit_tier_for`` for its verdict wording, and the tier
+# rides on MatchResult so the UI bands a score exactly the way the server does —
+# FitTierBadge maps the tier to its color/label/icon client-side.
 FIT_STRONG_THRESHOLD = 70
 FIT_PROMISING_THRESHOLD = 55
 
 FitTier = Literal["strong", "promising", "partial"]
-
-_FIT_TONE: dict[str, str] = {"strong": "positive", "promising": "info", "partial": "caution"}
 
 
 def fit_tier_for(total: int) -> FitTier:
@@ -78,10 +75,6 @@ def fit_tier_for(total: int) -> FitTier:
     if total >= FIT_PROMISING_THRESHOLD:
         return "promising"
     return "partial"
-
-
-def fit_tone_for(tier: str) -> str:
-    return _FIT_TONE.get(tier, "neutral")
 
 
 class MatchCandidate(_Base):
@@ -160,7 +153,6 @@ class MatchResult(_Base):
     total: int = 0
     # Server-computed banding so cards/recruiter/sim share one badge (see fit_tier_for).
     fit_tier: FitTier = "partial"
-    tone: str = "caution"
     skills_score: float = 0.0
     career_score: float = 0.0
     personal_score: float = 0.0
@@ -527,7 +519,6 @@ def score_job(candidate: MatchCandidate, job: Job, *, weights: dict[str, float] 
         salary_band=job.salary_band,
         total=total,
         fit_tier=tier,
-        tone=fit_tone_for(tier),
         skills_score=skills,
         career_score=career,
         personal_score=personal,

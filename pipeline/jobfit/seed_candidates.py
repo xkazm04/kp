@@ -24,7 +24,7 @@ from typing import Any
 
 from ._summary import format_distribution
 from .claude_cli import ClaudeCliError, ClaudeCliProvider
-from .profile import CandidateProfileV2, completeness, normalize_profile
+from .profile import CandidateProfileV2, normalize_profile
 
 ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_OUT = ROOT / "data" / "seed_candidates" / "candidates.json"
@@ -143,11 +143,11 @@ def _gen_one(provider: ClaudeCliProvider, spec: dict[str, Any], *, retries: int,
                 profile = CandidateProfileV2.model_validate(raw)
                 profile.archetype = spec["archetype"]  # guarantee the distribution
                 profile.role_family = spec["family"]
-                normalize_profile(profile)
+                score, _missing = normalize_profile(profile)  # stamp + reuse the score
                 rec = profile.model_dump(by_alias=True, exclude_none=True)
                 rec["id"] = spec["id"]
                 rec["displayName"] = spec["display_name"]  # stamp the guaranteed-unique name
-                rec["completeness"], _missing = completeness(profile)
+                rec["completeness"] = score
                 return rec, None
             last = "not-a-dict"
         except ClaudeCliError as exc:

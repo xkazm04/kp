@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { buildUrl } from "@/app/features/tabs";
+import { ARCHETYPE_BADGE, normalizeArchetype } from "@/app/_lib/archetypes";
 import { cellClass, MatrixLegend, type Cell } from "./MatrixShared";
 
 type Candidate = { id: string; label: string; archetype: string | null };
@@ -14,14 +15,27 @@ type Matrix = {
   // Requested positions that couldn't be scored (job record missing) — flagged
   // so the grid never quietly omits a column the recruiter asked for.
   missing: { id: string; title: string }[];
+  // Candidates whose profile failed to validate/transform — flagged (with the error)
+  // so the grid never quietly omits a row, the symmetric counterpart to `missing`.
+  missingCandidates: { id: string; label: string; error: string }[];
   placements: Record<string, { stage: string; status: string }>;
 };
 
-const ARCH: Record<string, { bg: string; label: string }> = {
-  bau: { bg: "bg-steel", label: "Experienced" },
-  student: { bg: "bg-coral", label: "Student" },
-  career_switcher: { bg: "bg-moss", label: "Switcher" },
+// Dot colours are pure presentation, keyed by the canonical archetype id. The id set and
+// short labels come from the shared registry (ARCHETYPE_BADGE — the same source the Match
+// tab uses), so a newly added archetype renders with its OWN label (and a neutral dot when
+// no colour is configured) instead of silently mislabelling as bau/"Experienced".
+const ARCH_DOT: Record<string, string> = {
+  bau: "bg-steel",
+  student: "bg-coral",
+  career_switcher: "bg-moss",
 };
+const ARCH_DOT_FALLBACK = "bg-stone-400";
+
+function archStyle(archetype: string | null): { bg: string; label: string } {
+  const id = normalizeArchetype(archetype) || "bau"; // null/blank → the experienced default, as before
+  return { bg: ARCH_DOT[id] ?? ARCH_DOT_FALLBACK, label: ARCHETYPE_BADGE[id] ?? ARCHETYPE_BADGE.bau ?? "Experienced" };
+}
 const STAGE_INITIAL: Record<string, string> = {
   Accepted: "A",
   Screened: "S",
@@ -167,6 +181,25 @@ export function MatrixTab() {
         </p>
       ) : null}
 
+      {data && data.missingCandidates.length > 0 ? (
+        <p className="rounded-md border border-amber-200 bg-amber-50/60 p-3 text-sm text-amber-800">
+          <span className="font-semibold">
+            {data.missingCandidates.length} {data.missingCandidates.length === 1 ? "candidate" : "candidates"} could not be scored
+          </span>{" "}
+          and {data.missingCandidates.length === 1 ? "is" : "are"} omitted from the grid (profile failed to
+          load). Hover a name for the reason:{" "}
+          {data.missingCandidates.map((m, i) => (
+            <span key={m.id}>
+              {i > 0 ? ", " : ""}
+              <span title={m.error} className="cursor-help underline decoration-dotted decoration-amber-400">
+                {m.label}
+              </span>
+            </span>
+          ))}
+          .
+        </p>
+      ) : null}
+
       {error ? (
         <p className="rounded-md bg-red-50 p-3 text-base text-red-700">{error}</p>
       ) : !data ? (
@@ -213,7 +246,7 @@ export function MatrixTab() {
               </thead>
               <tbody>
                 {rows.map(({ cand, ri }) => {
-                  const a = ARCH[cand.archetype ?? "bau"] ?? ARCH.bau;
+                  const a = archStyle(cand.archetype);
                   return (
                     <tr key={cand.id} className="hover:bg-paper/40">
                       <td className="sticky left-0 z-10 border-b border-r border-stone-100 bg-white p-2">

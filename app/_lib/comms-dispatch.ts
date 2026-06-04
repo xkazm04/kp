@@ -9,9 +9,17 @@ import { isEarlyCareer } from "./archetypes";
 // log as the dev lifecycle's comms. Mirrors the inline-template pattern already
 // used by distribution.ts (intake ack) and devcase-orchestrator.ts (invite).
 
-// No candidate email is stored in the data model yet, so the human-readable
-// candidate label is the recipient; a configured relay/ATS maps it to a real
-// address (the email-enrichment hook — see the automation-pipeline-gaps note).
+// RECIPIENT CONTRACT (full write-up in docs/COMMS_DELIVERY.md). The data model
+// stores no candidate email, so a relay never receives a deliverable address from
+// us — it receives a best-effort *identifier* it must resolve itself, in priority:
+//   1. candidateLabel — the human display name (the normal case; an ATS/relay maps
+//      name → address via its own directory).
+//   2. candidateId    — a stable opaque id when no label exists.
+//   3. "candidate"    — last-resort literal. UNADDRESSABLE: a relay cannot deliver
+//      to it, so the message will dead-letter. `ref` (the entry id) on every
+//      OutboundMessage keeps even this case traceable in the Outbox audit log.
+// This is the documented email-enrichment seam: store/resolve a real address here
+// before wiring a production relay.
 export function candidateRecipient(entry: { candidateLabel?: string | null; candidateId?: string | null }): string {
   return (entry.candidateLabel ?? "").trim() || (entry.candidateId ?? "").trim() || "candidate";
 }
@@ -75,16 +83,31 @@ export async function dispatchOffer(
   recordAutomationEvent(entry.id, "offer_sent", entry.jobTitle ?? "");
 }
 
-/** Confirm a candidate's self-booked interview slot + promise a reminder. */
-export async function dispatchInterviewConfirmation(entry: PipelineEntry, slot: string): Promise<void> {
+/** Confirm a candidate's self-booked interview slot. For a normal booking this
+ *  promises a separate reminder before the call. For a *short-notice* booking
+ *  (`opts.shortNotice`, decided by interview-reminder-policy.ts) no timed reminder
+ *  will fire — the slot is too close — so the wording drops that promise and the
+ *  confirmation reads as the candidate's "see you soon" heads-up instead. Keeping
+ *  the copy honest is the point: we never tell someone a reminder is coming and
+ *  then silently skip it. */
+export async function dispatchInterviewConfirmation(
+  entry: PipelineEntry,
+  slot: string,
+  opts?: { shortNotice?: boolean }
+): Promise<void> {
   const name = (entry.candidateLabel ?? "").trim() || "there";
   const role = entry.jobTitle ?? "the role";
   const subject = `Interview confirmed — ${role}`;
-  const body =
-    `Hi ${name},\n\n` +
-    `Your interview for ${role} is booked for ${slot}. ` +
-    `We'll send a reminder before the call with everything you need.\n\n` +
-    `If you need to change the time, just reply and we'll sort it out.\n\nSee you then,\nThe hiring team`;
+  const body = opts?.shortNotice
+    ? `Hi ${name},\n\n` +
+      `Your interview for ${role} is booked for ${slot} — that's coming up shortly, ` +
+      `so treat this as your heads-up: everything you need is right here and we won't ` +
+      `send a separate reminder given the short notice.\n\n` +
+      `If you need to change the time, just reply and we'll sort it out.\n\nSee you soon,\nThe hiring team`
+    : `Hi ${name},\n\n` +
+      `Your interview for ${role} is booked for ${slot}. ` +
+      `We'll send a reminder before the call with everything you need.\n\n` +
+      `If you need to change the time, just reply and we'll sort it out.\n\nSee you then,\nThe hiring team`;
   await sendComm({ to: candidateRecipient(entry), subject, body, kind: "interview_confirmation", ref: entry.id });
   recordAutomationEvent(entry.id, "interview_scheduled", slot);
 }

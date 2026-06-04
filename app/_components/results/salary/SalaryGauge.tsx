@@ -2,7 +2,7 @@
 
 import { motion } from "framer-motion";
 import { useRef, useState } from "react";
-import { formatCzk } from "@/app/_lib/format";
+import { clampPercent, formatCzk } from "@/app/_lib/format";
 import { useReducedMotion } from "@/app/_lib/useReducedMotion";
 
 interface SalaryGaugeProps {
@@ -28,8 +28,7 @@ export function SalaryGauge({ minimum, maximum, midpoint, confidence }: SalaryGa
   // so the bar degrades gracefully instead of collapsing with React warnings.
   const degenerate = !(range > 0);
 
-  const clampPct = (value: number) => Math.max(0, Math.min(100, value));
-  const pct = (value: number) => (degenerate ? 50 : clampPct(((value - gaugeMin) / range) * 100));
+  const pct = (value: number) => (degenerate ? 50 : clampPercent(((value - gaugeMin) / range) * 100));
   const minPct = pct(minimum);
   const maxPct = pct(maximum);
   const midPct = pct(midpoint);

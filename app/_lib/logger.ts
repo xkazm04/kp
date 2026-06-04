@@ -2,6 +2,8 @@ import { mkdirSync } from "node:fs";
 import { appendFile } from "node:fs/promises";
 import path from "node:path";
 import crypto from "node:crypto";
+import type { CodeReviewStatus } from "./code-review-status";
+import type { OutboxStatus } from "./comms-status";
 
 const LOG_DIR = process.env.KP_LOG_DIR ?? path.join(process.cwd(), "tmp");
 
@@ -58,10 +60,57 @@ export type GithubLog = {
   duration_ms: number;
   status: "ok" | "error";
   rest_repos: number;
-  code_review_status?: "disabled" | "ok" | "error";
+  code_review_status?: CodeReviewStatus;
   error?: string;
 };
 
 export async function logGithub(entry: GithubLog): Promise<void> {
   await appendLine("github.log", entry);
+}
+
+// Outbound-comms delivery log. Today it only records dead-letters (status
+// "failed") — the durable half of the escalation a silently-dropped offer or
+// rejection never got (see comms.ts `alertDeadLetter`). A real deployment would
+// ship comms.log to an alerting sink so candidate-facing drops page someone.
+export type CommsLog = {
+  kind: string; // message kind: offer | rejection | outreach | acknowledgement | …
+  recipient: string; // the resolved identifier the relay received (see candidateRecipient)
+  ref: string | null; // pipeline entry id, so the drop is traceable to a candidate
+  channel: string;
+  status: OutboxStatus;
+  attempts: number; // how many delivery attempts ran before dead-lettering
+  detail: string; // last HTTP/network failure detail
+};
+
+export async function logComms(entry: CommsLog): Promise<void> {
+  await appendLine("comms.log", entry);
+}
+
+// Schedule invite/pipeline drift. The candidate confirmed a slot (their invite
+// reads "booked") but advancing the linked pipeline entry threw, so the recruiter
+// board still shows them waiting — a silent divergence that, before this, left no
+// log, metric, or flag. We count every occurrence (readable via
+// getScheduleReconcileCount()) and record a structured line so operators can find
+// and reconcile invite/pipeline drift. A real deployment would ship
+// schedule-reconcile.log to an alerting sink.
+export type ScheduleReconcileLog = {
+  token: string;
+  entry_id: string;
+  slot: string;
+  error: string;
+};
+
+let scheduleReconcileCount = 0;
+
+/** Total schedule-confirm pipeline-advance failures seen this process. */
+export function getScheduleReconcileCount(): number {
+  return scheduleReconcileCount;
+}
+
+export async function logScheduleReconcile(entry: ScheduleReconcileLog): Promise<void> {
+  scheduleReconcileCount += 1;
+  console.error(
+    `[schedule:reconcile] confirmed invite but pipeline advance failed — token=${entry.token} entry=${entry.entry_id}: ${entry.error}`
+  );
+  await appendLine("schedule-reconcile.log", entry);
 }

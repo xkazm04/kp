@@ -20,6 +20,7 @@ import { ConfidenceBandBadge, confidenceBandTitle, FitTierBadge } from "@/app/_c
 import { ScoreBreakdown } from "@/app/features/sub_match/MatchShared";
 import { provLabel, type Confidence, type ScoreDimension } from "@/app/features/sub_match/MatchTypes";
 import { formatCzk, scoreTone, scoreToneColor } from "@/app/_lib/format";
+import { initials } from "@/app/_lib/initials";
 import { styleFor } from "./DecisionsTypes";
 
 // Structured, bold-formatted head-to-head narrative (group_compare_cli). Bold
@@ -81,10 +82,8 @@ export type GroupEvalPayload = {
   differentiators?: string[];
   risks?: string[];
   summary?: string;
-  // Structured AI head-to-head narrative (the modal prefers it); `comparisonSummary`
-  // is the flat, bold-stripped legacy string.
+  // Structured AI head-to-head narrative (the modal prefers it).
   comparison?: Comparison | null;
-  comparisonSummary?: string | null;
   comparisonSource?: string | null;
   // Canonical role requirements (must-have first) for the skills rows.
   requirements?: { skill: string; kind: string }[];
@@ -109,9 +108,6 @@ const ranWhen = (iso?: string | null): string | null => {
   const t = Date.parse(iso);
   return Number.isFinite(t) ? new Date(t).toLocaleString() : null;
 };
-
-const initialsOf = (label: string) =>
-  label.split(/\s+/).map((p) => p[0]).filter(Boolean).join("").slice(0, 2).toUpperCase() || "?";
 
 const percentOf = (c: EvalCandidate, key: string) => c.scoreBreakdown?.find((d) => d.key === key)?.percent ?? null;
 const coverageCount = (c: EvalCandidate, mustRows: string[]) => mustRows.filter((s) => (c.matchedSkills ?? []).includes(s)).length;
@@ -142,6 +138,7 @@ export function GroupEvalModal({
   roleTitle,
   evaluation,
   loading,
+  error,
   createdAt,
   poolDrift,
   onClose,
@@ -150,6 +147,11 @@ export function GroupEvalModal({
   roleTitle: string;
   evaluation: GroupEvalPayload | null;
   loading: boolean;
+  /** Explicit unavailable/timed-out message. When set (and there's no evaluation),
+   *  the modal shows an honest "evaluation unavailable" notice instead of the
+   *  ambiguous "no evaluation yet" empty state — used by the simulation when the
+   *  group-eval poll times out. */
+  error?: string | null;
   /** When the cached evaluation was generated (ISO); null for a fresh run. */
   createdAt?: string | null;
   /** How many candidates were added/removed from the role's pool since this
@@ -189,12 +191,19 @@ export function GroupEvalModal({
         <p className="flex items-center gap-2 text-base text-steel">
           <Loader2 size={16} className="animate-spin text-coral" /> Generating group evaluation across the role&apos;s candidates…
         </p>
+      ) : error && !evaluation ? (
+        <div className="flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 p-3 text-base text-amber-900">
+          <AlertTriangle size={18} className="mt-0.5 shrink-0" aria-hidden />
+          <span>
+            <span className="font-semibold">Evaluation unavailable.</span> {error}
+          </span>
+        </div>
       ) : !evaluation ? (
         <p className="text-base text-steel">No evaluation yet — run one to compare this role&apos;s candidates.</p>
       ) : (
         <div className="space-y-5">
           <Notices drift={drift} ranAt={ranAt} evaluation={evaluation} />
-          <AiVerdict comparison={evaluation.comparison} fallback={evaluation.comparisonSummary || evaluation.summary} aiBacked={aiBacked} />
+          <AiVerdict comparison={evaluation.comparison} fallback={evaluation.summary} aiBacked={aiBacked} />
 
           {enriched ? (
             <>
@@ -252,7 +261,7 @@ function Avatar({ label, archetype, size = "md" }: { label: string; archetype?: 
   const dim = size === "sm" ? "h-6 w-6 text-sm" : "h-8 w-8 text-base";
   return (
     <span className={`grid ${dim} shrink-0 place-items-center rounded-full font-semibold text-white ${s.bg}`} title={s.label}>
-      {initialsOf(label)}
+      {initials(label, "?")}
     </span>
   );
 }

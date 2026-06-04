@@ -6,9 +6,8 @@ import { Loader2, Settings2, Sparkles } from "lucide-react";
 import { useTasks } from "@/app/features/tasks/TasksProvider";
 import { JdBuilderResult, type JdBuildResult } from "./JdBuilderResult";
 import { JdTemplateManager } from "./JdTemplateManager";
-import { renderTemplate } from "./render-template";
-
-type Template = { id: string; name: string; body: string; isDefault: boolean };
+import { fetchTemplates, renderTemplate, type Template } from "./render-template";
+import { formatSalaryRange } from "@/app/_lib/format";
 
 const SENIORITIES = ["junior", "medior", "senior", "lead"];
 const FAMILIES: { v: string; label: string }[] = [
@@ -43,16 +42,12 @@ export function JdBuilder({ onSaved }: { onSaved: () => void }) {
   const [error, setError] = useState<string | null>(null);
 
   const loadTemplates = () =>
-    fetch("/api/templates")
-      .then((r) => r.json())
-      .then((p) => {
-        const list = (p.templates as Template[]) ?? [];
-        setTemplates(list);
-        // Keep the current selection if it still exists; else default to the
-        // marked default, else the first (matches JdTemplates' reconciliation).
-        setTemplateId((cur) => (list.some((t) => t.id === cur) ? cur : list.find((t) => t.isDefault)?.id ?? list[0]?.id ?? ""));
-      })
-      .catch(() => undefined);
+    fetchTemplates().then((list) => {
+      setTemplates(list);
+      // Keep the current selection if it still exists; else default to the
+      // marked default, else the first (matches JdTemplates' reconciliation).
+      setTemplateId((cur) => (list.some((t) => t.id === cur) ? cur : list.find((t) => t.isDefault)?.id ?? list[0]?.id ?? ""));
+    });
   useEffect(() => {
     loadTemplates();
   }, []);
@@ -75,7 +70,7 @@ export function JdBuilder({ onSaved }: { onSaved: () => void }) {
     const s = result.salary;
     const salaryLabel =
       s && s.suggestedMinimum > 0
-        ? `${s.suggestedMinimum.toLocaleString("cs-CZ")}–${s.suggestedMaximum.toLocaleString("cs-CZ")} ${s.currency}/mo`
+        ? formatSalaryRange(s.suggestedMinimum, s.suggestedMaximum, { currency: s.currency, period: "mo" })
         : "";
     const markdown = renderTemplate(tpl.body, {
       title: title.trim(),

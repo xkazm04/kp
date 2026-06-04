@@ -71,7 +71,7 @@ export function DecisionsTab() {
   const groups = useMemo<Group[]>(() => {
     const map = new Map<string, Group>();
     for (const e of keyDecisions) {
-      const roleKey = e.jobId ?? e.jobTitle ?? "unassigned";
+      const roleKey = roleKeyOf(e);
       if (!map.has(roleKey)) map.set(roleKey, { roleKey, roleTitle: e.jobTitle ?? "Unassigned role", jobId: e.jobId, entries: [] });
       map.get(roleKey)!.entries.push(e);
     }

@@ -1,5 +1,28 @@
 import type { LucideIcon } from "lucide-react";
-import type { JobRequirement } from "./JobsTypes";
+import type { JobRequirement, SkippedCandidate } from "./JobsTypes";
+
+// Amber disclosure listing candidates the ranker couldn't score (malformed
+// profile). Shared by RecruiterCandidates and RediscoverPanel so both surfaces
+// explain a skipped candidate identically: recruiter_cli produces this array
+// once, and neither view may silently drop it. Renders nothing when empty.
+export function SkippedCandidatesNote({ skipped }: { skipped: SkippedCandidate[] }) {
+  if (!skipped.length) return null;
+  return (
+    <details className="mt-2 rounded-md border border-amber-200 bg-amber-50/60 px-2.5 py-1.5 text-sm text-amber-800">
+      <summary className="cursor-pointer font-semibold">
+        {skipped.length} candidate{skipped.length === 1 ? "" : "s"} couldn&apos;t be scored (malformed profile) — the
+        rest ranked normally
+      </summary>
+      <ul className="mt-1 space-y-0.5">
+        {skipped.map((s) => (
+          <li key={s.id}>
+            <span className="font-medium">{s.label}</span> — {s.reason}
+          </li>
+        ))}
+      </ul>
+    </details>
+  );
+}
 
 export function ReqChip({ req }: { req: JobRequirement }) {
   const learnable = req.hardness === "learnable";

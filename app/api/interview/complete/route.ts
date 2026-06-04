@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { completeInterviewSession, getInterviewSessionById, type InterviewTurn } from "@/app/_lib/db";
 import { runInterviewScorecard } from "@/app/_lib/interview-run";
+import { clampTurn } from "@/app/_lib/interview-transcript";
+import { jsonError } from "@/app/_lib/api-response";
 
 export const runtime = "nodejs";
 
@@ -23,15 +25,29 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "session not found" }, { status: 404 });
     }
 
+    // Normalize + clamp each turn to MAX_TURN_TEXT_CHARS (documented sanity cap;
+    // see app/_lib/interview-transcript.ts). Track turns whose tail was actually
+    // discarded so an abnormally long turn is visible rather than silent.
+    let clippedTurns = 0;
+    let clippedChars = 0;
     const transcript: InterviewTurn[] = Array.isArray(body.transcript)
       ? body.transcript
           .filter((t) => t && typeof t.text === "string")
-          .map((t) => ({
-            role: t.role === "candidate" || t.role === "interviewer" ? t.role : "system",
-            text: String(t.text).slice(0, 4000),
-            at: t.at,
-          }))
+          .map((t) => {
+            const { turn, clippedChars: clip } = clampTurn(t);
+            if (clip > 0) {
+              clippedTurns += 1;
+              clippedChars += clip;
+            }
+            return turn;
+          })
       : [];
+    if (clippedTurns > 0) {
+      console.warn(
+        `[interview:complete] clamped ${clippedTurns} oversized turn(s) for session ${body.sessionId} ` +
+          `(${clippedChars} chars discarded; per-turn cap).`
+      );
+    }
 
     const status = body.status === "failed" ? "failed" : "completed";
 
@@ -53,9 +69,6 @@ export async function POST(request: NextRequest) {
     });
     return NextResponse.json({ ok: true, session: updated, scorecard });
   } catch (error) {
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : "complete failed" },
-      { status: 500 }
-    );
+    return jsonError(error, "complete failed");
   }
 }

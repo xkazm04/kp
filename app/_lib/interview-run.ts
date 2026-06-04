@@ -3,6 +3,12 @@ import { runAutomationTask } from "./automation-run";
 import { defaultInterviewerInstructions } from "./voice";
 import { getInterviewPrep } from "./interview-prep";
 import { runInterviewPrep, type ChronologyBlock } from "./interview-prep-run";
+import { buildScorecardNotes, transcriptToNotes } from "./interview-transcript";
+import { GROUNDED_DEFAULT_MIN, QUICK_SCREEN_MIN } from "./interview-duration.mjs";
+
+// Re-exported for back-compat: the transcript→notes flattener now lives with the
+// rest of the documented truncation policy in ./interview-transcript.
+export { transcriptToNotes };
 
 // Bridges the voice interview to the existing pipeline:
 //  - the agent's brief is built from the rich interview-prep artifact (the same
@@ -18,19 +24,15 @@ type PrepPayload = {
   chronology?: ChronologyBlock[];
 };
 
-export function transcriptToNotes(transcript: InterviewTurn[]): string {
-  return transcript
-    .map((t) => {
-      const who = t.role === "candidate" ? "Candidate" : t.role === "interviewer" ? "Interviewer" : "System";
-      return `${who}: ${t.text}`;
-    })
-    .join("\n");
-}
-
-function composeBrief(company: string, title: string, roleLine: string, prep: PrepPayload | undefined): string {
+function composeBrief(
+  company: string,
+  title: string,
+  roleLine: string,
+  prep: PrepPayload | undefined,
+  durationMin: number
+): string {
   const chron = prep?.chronology ?? [];
   if (chron.length === 0) return defaultInterviewerInstructions({ role: roleLine });
-  const durationMin = prep?.durationMin ?? 20;
   const runOfShow = chron
     .map((b, i) => {
       const qs = (b.questions ?? []).filter(Boolean).map((q) => `“${q}”`).join(" ");
@@ -54,6 +56,7 @@ function composeBrief(company: string, title: string, roleLine: string, prep: Pr
 export async function buildGroundedInterview(entryId: string): Promise<{
   instructions: string;
   runOfShow: string[];
+  durationMin: number;
   candidateLabel: string | null;
   jobId: string | null;
   jobTitle: string | null;
@@ -80,11 +83,18 @@ export async function buildGroundedInterview(entryId: string): Promise<{
     }
   }
 
+  // The session's canonical length: a grounded plan carries its own run-of-show
+  // duration (15–30 min, GROUNDED_DEFAULT_MIN if a plan omits it); with no
+  // chronology we fall back to the ungrounded quick screen, so the candidate
+  // portal shows the truthful ~5 min rather than a 20-minute promise it won't keep.
+  const grounded = (prep?.chronology?.length ?? 0) > 0;
+  const durationMin = grounded ? prep?.durationMin ?? GROUNDED_DEFAULT_MIN : QUICK_SCREEN_MIN;
   const runOfShow = (prep?.chronology ?? []).map((b) => b.topic).filter(Boolean);
-  const instructions = composeBrief(company, title, roleLine, prep);
+  const instructions = composeBrief(company, title, roleLine, prep, durationMin);
   return {
     instructions,
     runOfShow,
+    durationMin,
     candidateLabel: entry.candidateLabel ?? null,
     jobId: entry.jobId ?? null,
     jobTitle: entry.jobTitle ?? null,
@@ -97,8 +107,18 @@ export async function runInterviewScorecard(
   entryId: string,
   transcript: InterviewTurn[]
 ): Promise<Record<string, unknown> | null> {
-  const notes = transcriptToNotes(transcript).slice(0, 6000).trim();
+  const { notes, truncated, droppedTurns, droppedChars, keptTurns, totalTurns } =
+    buildScorecardNotes(transcript);
   if (!notes) return null;
+  // Make the silent-truncation cliff visible: only logs when sampling actually
+  // discarded turns from the middle of the transcript (see ./interview-transcript).
+  if (truncated) {
+    console.warn(
+      `[interview:scorecard] transcript head+tail sampled for entry ${entryId}: ` +
+        `kept ${keptTurns}/${totalTurns} turns, dropped ${droppedTurns} middle turns (${droppedChars} chars). ` +
+        `Scorecard scored a sampled transcript — opening and closing preserved, middle marked in-band.`
+    );
+  }
   const { result } = await runAutomationTask(entryId, "scorecard", notes);
   return result;
 }

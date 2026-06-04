@@ -27,6 +27,14 @@ _SYSTEM = (
 # rather than hardcoded here, so order/labels/weights stay in lockstep with the rubric.
 _DIMS = tuple(d["name"] for d in RUBRIC_DIMENSIONS)
 
+# Policy for a dimension ABSENT from a dimensionScores dict — which is NOT the same as a dimension
+# scored zero. A missing dimension carries no signal, so it is treated as ONE neutral midpoint
+# everywhere: it pulls the transfer average toward the middle and, being neither high nor low,
+# counts as neither a strength nor a gap. (Previously the same absent dimension silently read as
+# 50 in the average, 0 for the strong-list, 100 for the gap-list and 0 in the ordered breakdown —
+# so "not scored" was conflated with "scored zero" and a gap was both not-a-strength and not-a-gap.)
+MISSING_DIMENSION_SCORE = 50
+
 
 def _generate(provider: Any | None, prompt: str, deterministic, coerce) -> tuple[dict, str]:
     if provider is None:
@@ -71,7 +79,7 @@ def _ordered_dimensions(scores: dict, rubric: list) -> list[dict]:
                 "name": name,
                 "label": str(rd.get("label") or meta["label"]),
                 "weight": float(weight) if isinstance(weight, (int, float)) else meta["weight"],
-                "score": _score_int(scores.get(name), 0),
+                "score": _score_int(scores.get(name), MISSING_DIMENSION_SCORE),
                 "description": str(rd.get("description") or meta["description"]),
             }
         )
@@ -181,10 +189,10 @@ def score_transfer(evaluation: dict, role: dict, *, provider: Any | None = None)
 
     def deterministic() -> dict:
         dims = evaluation.get("dimensionScores") or {}
-        vals = [dims.get(d, 50) for d in _DIMS]
-        score = int(round(sum(vals) / len(vals))) if vals else 50
-        strong = [d for d in _DIMS if dims.get(d, 0) >= 65]
-        gaps = [d for d in _DIMS if dims.get(d, 100) < 45]
+        vals = [dims.get(d, MISSING_DIMENSION_SCORE) for d in _DIMS]
+        score = int(round(sum(vals) / len(vals))) if vals else MISSING_DIMENSION_SCORE
+        strong = [d for d in _DIMS if dims.get(d, MISSING_DIMENSION_SCORE) >= 65]
+        gaps = [d for d in _DIMS if dims.get(d, MISSING_DIMENSION_SCORE) < 45]
         # No '—' sentinel — empty transfers stay empty; `hasTransfers` signals the empty state.
         transfers = [f"Strong {d}" for d in strong]
         return {

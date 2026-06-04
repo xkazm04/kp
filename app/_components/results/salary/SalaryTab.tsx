@@ -4,12 +4,19 @@ import { CircleDollarSign } from "lucide-react";
 import { formatCzk, formatSalaryRange, labelize } from "@/app/_lib/format";
 import type { Analysis } from "@/app/_lib/schemas";
 import { ConfidenceBadge } from "@/app/_components/Badge";
-import { dedupe } from "@/app/_lib/dedupe";
+import { dedupe, dedupeBy } from "@/app/_lib/dedupe";
+import { safeHttpLinks } from "@/app/_lib/safe-url";
 import { InlineList } from "../shared";
 import { SalaryGauge } from "./SalaryGauge";
 
 export function SalaryTab({ analysis }: { analysis: Analysis }) {
   const targetSalary = Math.round((analysis.salary.midpoint * 1.3) / 5000) * 5000;
+  // marketEvidence.sources are model-supplied (CV/JD text -> LLM), so they are
+  // untrusted at this render boundary: vet to http(s) only, drop the rest, and
+  // dedupe by normalized href before taking the first three.
+  const marketLinks = analysis.marketEvidence
+    ? dedupeBy(safeHttpLinks(analysis.marketEvidence.sources), (link) => link.href).slice(0, 3)
+    : [];
 
   return (
     <div className="grid gap-5 xl:grid-cols-[380px_1fr]">
@@ -84,12 +91,12 @@ export function SalaryTab({ analysis }: { analysis: Analysis }) {
                 ? `grounded range: ${formatSalaryRange(analysis.marketEvidence.suggestedMinimum, analysis.marketEvidence.suggestedMaximum)}`
                 : ""}
             </p>
-            {analysis.marketEvidence.sources.length ? (
+            {marketLinks.length ? (
               <ul className="mt-3 space-y-2 text-base leading-6">
-                {dedupe(analysis.marketEvidence.sources).slice(0, 3).map((source, index) => (
-                  <li key={`${source}-${index}`}>
-                    <a className="text-steel underline" href={source} target="_blank" rel="noreferrer">
-                      Source {index + 1}
+                {marketLinks.map((link) => (
+                  <li key={link.href}>
+                    <a className="text-steel underline" href={link.href} target="_blank" rel="noreferrer">
+                      {link.hostname}
                     </a>
                   </li>
                 ))}

@@ -10,6 +10,28 @@ type Position = { id: string; title: string; family: string; count: number };
 
 const CELL_LIMIT = 6;
 
+// Board layout is DERIVED from the stage list so it can never drift out of sync
+// with STAGES. A hardcoded grid-cols repeat(7) + min-w-[2240px] previously painted
+// two empty phantom columns after the 7→5 stage consolidation; computing both from
+// STAGES.length makes the board self-adjust to any future stage add/remove.
+const POSITION_COL = 240; // px — the sticky leading "Position" column
+const STAGE_COL = 280; // px — the min width of each stage column
+const BOARD_GRID: React.CSSProperties = {
+  gridTemplateColumns: `${POSITION_COL}px repeat(${STAGES.length}, minmax(${STAGE_COL}px, 1fr))`,
+};
+const BOARD_MIN_WIDTH: React.CSSProperties = { minWidth: POSITION_COL + STAGES.length * STAGE_COL };
+
+// Dev-time guard: the grid must carry exactly one track per stage (plus the leading
+// position column), so the derived template can never silently decouple from
+// STAGES.length the way the old hardcoded repeat(7) did.
+if (process.env.NODE_ENV !== "production") {
+  const stageTracks = Number(/repeat\((\d+),/.exec(String(BOARD_GRID.gridTemplateColumns))?.[1]);
+  console.assert(
+    stageTracks === STAGES.length,
+    `[PipelineBoard] grid stage tracks (${stageTracks}) must equal STAGES.length (${STAGES.length})`
+  );
+}
+
 // One stage cell. The overflow control is a real focusable button (was a
 // title-only <p>) so keyboard/touch users can reveal the hidden candidates,
 // which then render as the same navigable CandidateRows.
@@ -122,8 +144,8 @@ export function PipelineBoard({
         </div>
       </div>
       <div ref={scrollRef} className="overflow-x-auto rounded-lg border border-stone-200 bg-white shadow-panel">
-        <div className="min-w-[2240px]">
-          <div className="grid grid-cols-[240px_repeat(7,minmax(280px,1fr))] border-b border-stone-200 bg-paper">
+        <div style={BOARD_MIN_WIDTH}>
+          <div className="grid border-b border-stone-200 bg-paper" style={BOARD_GRID}>
             <div className="sticky left-0 z-20 border-r border-stone-200 bg-paper px-3 py-2 text-meta uppercase text-steel">Position</div>
             {STAGES.map((s, i) => (
               <button
@@ -141,7 +163,7 @@ export function PipelineBoard({
           {positions.map((pos) => {
             const lane = entries.filter((e) => (e.jobId ?? e.jobTitle) === pos.id);
             return (
-              <div key={pos.id} className="grid grid-cols-[240px_repeat(7,minmax(280px,1fr))] border-b border-stone-200 last:border-0">
+              <div key={pos.id} className="grid border-b border-stone-200 last:border-0" style={BOARD_GRID}>
                 <div className="sticky left-0 z-10 border-r border-stone-200 bg-white px-3 py-3">
                   <button
                     type="button"

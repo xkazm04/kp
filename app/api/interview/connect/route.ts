@@ -5,7 +5,9 @@ import {
   markInterviewStarted,
   type InterviewProvider,
 } from "@/app/_lib/db";
-import { defaultInterviewerInstructions, getVoiceAdapter, voiceAvailability } from "@/app/_lib/voice";
+import { coerceProviderId, defaultInterviewerInstructions, getVoiceAdapter, voiceAvailability } from "@/app/_lib/voice";
+import { QUICK_SCREEN_MIN } from "@/app/_lib/interview-duration.mjs";
+import { jsonError } from "@/app/_lib/api-response";
 
 export const runtime = "nodejs";
 
@@ -29,7 +31,7 @@ export async function POST(request: NextRequest) {
     // disables any provider whose keys are missing). Honor that choice; fall
     // back to a token-bound session's stored provider when none is requested.
     const session0 = body.token ? getInterviewSessionByToken(body.token) : null;
-    const requested = body.provider === "elevenlabs" ? "elevenlabs" : body.provider === "openai" ? "openai" : null;
+    const requested = coerceProviderId(body.provider);
     const provider: InterviewProvider | null = requested ?? session0?.provider ?? null;
     if (!provider) {
       return NextResponse.json({ error: "provider must be 'openai' or 'elevenlabs'" }, { status: 400 });
@@ -48,8 +50,17 @@ export async function POST(request: NextRequest) {
       session0?.instructions ||
       defaultInterviewerInstructions({ role: session0?.jobTitle });
 
+    // An untokened lab session is the ungrounded quick screen, so it carries the
+    // canonical quick-screen length (matches the "under 5 minutes" persona).
     const session =
-      session0 ?? createInterviewSession({ provider, language: body.language ?? null, mode: "test", instructions });
+      session0 ??
+      createInterviewSession({
+        provider,
+        language: body.language ?? null,
+        mode: "test",
+        instructions,
+        durationMin: QUICK_SCREEN_MIN,
+      });
 
     markInterviewStarted(session.id, Boolean(body.consent));
 
@@ -59,9 +70,6 @@ export async function POST(request: NextRequest) {
     const groundedPrompt = session.mode === "candidate" ? instructions : null;
     return NextResponse.json({ sessionId: session.id, provider, instructions, groundedPrompt, connect });
   } catch (error) {
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : "connect failed" },
-      { status: 500 }
-    );
+    return jsonError(error, "connect failed");
   }
 }

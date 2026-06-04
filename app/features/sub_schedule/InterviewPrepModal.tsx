@@ -1,10 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Clock, Loader2, ListChecks, RefreshCw, Sparkles } from "lucide-react";
+import { AlertTriangle, Clock, Loader2, ListChecks, RefreshCw, Sparkles } from "lucide-react";
 import { Modal } from "@/app/_components/Modal";
 import { Meter } from "@/app/_components/Meter";
+import { PrepSourceBadge, isPrepFallback } from "@/app/_components/Badge";
 import { useTasks } from "@/app/features/tasks/TasksProvider";
+import { useJsonFetch } from "@/app/_lib/useJsonFetch";
 import type { SchedEntry } from "./ScheduleTypes";
 
 type Block = { fromMin: number; toMin: number; topic: string; goal: string; questions: string[]; followUp?: string };
@@ -13,31 +15,35 @@ type Prep = { scenario: string; durationMin: number; focusAreas: string[]; chron
 
 export function InterviewPrepModal({ entry, onClose }: { entry: SchedEntry; onClose: () => void }) {
   const { startTask, tasks } = useTasks();
-  const [prep, setPrep] = useState<Prep | null>(null);
-  const [loading, setLoading] = useState(true);
+  // Load any saved artifact via the shared hook (handles non-OK status, an {error}
+  // body, and unmount). A load FAILURE now surfaces as a distinct error+retry state
+  // (idea-bc78b8f5), never collapsed into the "none yet" empty state.
+  const { data, error, reload } = useJsonFetch<{ prep?: { payload?: Prep } }>(
+    `/api/interview-prep?entry=${encodeURIComponent(entry.id)}`,
+    "Couldn't load this candidate's saved prep."
+  );
+  const [generated, setGenerated] = useState<Prep | null>(null);
   const [taskId, setTaskId] = useState<string | null>(null);
   const [checked, setChecked] = useState<Record<string, boolean>>({});
 
-  // Load any saved artifact for this entry.
-  useEffect(() => {
-    let alive = true;
-    fetch(`/api/interview-prep?entry=${encodeURIComponent(entry.id)}`)
-      .then((r) => (r.ok ? r.json() : Promise.reject(new Error())))
-      .then((p) => alive && setPrep((p.prep?.payload as Prep) ?? null))
-      .catch(() => alive && setPrep(null))
-      .finally(() => alive && setLoading(false));
-    return () => {
-      alive = false;
-    };
-  }, [entry.id]);
+  // A completed (re)generation (`generated`) ALWAYS supersedes the fetched copy, so
+  // a slow initial GET resolving after a fast generation can't wipe a freshly saved
+  // plan back to the empty state — the stale-GET race (idea-73f7b1a0).
+  const prep = generated ?? data?.prep?.payload ?? null;
+  // The hook starts with data === null; once it resolves (an artifact, an empty
+  // body, or an error) we're no longer waiting on the initial load.
+  const loading = data === null && error === null;
+  // A deterministic template fallback (LLM unavailable) is generic, not tailored —
+  // disclosed below with a prompt to regenerate (idea-0864adb5).
+  const fallback = prep ? isPrepFallback(prep.source) : false;
 
-  // Poll a generation task.
+  // Poll a generation task; its result supersedes any saved artifact.
   useEffect(() => {
     if (!taskId) return;
     const t = tasks.find((x) => x.id === taskId);
     if (!t) return;
     if (t.status === "succeeded") {
-      setPrep((t.result as Prep) ?? null);
+      setGenerated((t.result as Prep) ?? null);
       setTaskId(null);
     } else if (t.status === "failed" || t.status === "canceled" || t.status === "interrupted") {
       setTaskId(null);
@@ -85,6 +91,32 @@ export function InterviewPrepModal({ entry, onClose }: { entry: SchedEntry; onCl
         <p className="flex items-center gap-2 text-sm text-steel">
           <Loader2 size={16} className="animate-spin text-coral" /> Designing the interview plan from the CV&apos;s recommended questions…
         </p>
+      ) : error && !prep ? (
+        // Distinct failure state: a 500 / DB lock / parse error must never read as
+        // "no prep yet". Offer a retry (re-fetch) and a generate-fresh path.
+        <div className="text-center">
+          <p className="flex items-center justify-center gap-2 text-sm text-coral">
+            <AlertTriangle size={15} /> {error}
+          </p>
+          <p className="mt-1 text-meta text-steel">This is a load error, not an empty candidate — retry, or generate a fresh plan.</p>
+          <div className="mt-3 flex items-center justify-center gap-2">
+            <button
+              type="button"
+              onClick={reload}
+              className="focus-ring inline-flex h-9 items-center gap-1.5 rounded-md border border-stone-200 px-3 text-sm font-semibold text-ink hover:border-coral/40"
+            >
+              <RefreshCw size={14} /> Retry
+            </button>
+            <button
+              type="button"
+              onClick={generate}
+              disabled={generating}
+              className="focus-ring inline-flex h-9 items-center gap-2 rounded-md bg-coral px-4 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
+            >
+              <Sparkles size={16} /> Generate
+            </button>
+          </div>
+        </div>
       ) : !prep ? (
         <div className="text-center">
           <p className="text-sm text-steel">No interview prep generated yet for this candidate.</p>
@@ -99,10 +131,28 @@ export function InterviewPrepModal({ entry, onClose }: { entry: SchedEntry; onCl
       ) : (
         <div className="space-y-4">
           <div className="space-y-2">
-            <div className="flex items-start justify-between gap-3">
-              <p className="text-base text-ink">{prep.scenario}</p>
+            <div className="flex items-center justify-between gap-3">
+              {/* Provenance: AI-tailored vs deterministic template fallback. */}
+              <PrepSourceBadge source={prep.source} />
               <span className="nums shrink-0 rounded-md bg-paper px-2 py-1 text-sm font-semibold text-coral">{doneItems}/{totalItems} done</span>
             </div>
+            {fallback ? (
+              <div className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 p-2.5 text-sm text-amber-800">
+                <AlertTriangle size={15} className="mt-0.5 shrink-0" />
+                <span>
+                  Built from a generic template because the AI model was unavailable — these questions aren&apos;t tailored to this candidate.{" "}
+                  <button
+                    type="button"
+                    onClick={generate}
+                    disabled={generating}
+                    className="font-semibold underline underline-offset-2 hover:text-amber-900 disabled:opacity-50"
+                  >
+                    {generating ? "Regenerating…" : "Regenerate with AI"}
+                  </button>
+                </span>
+              </div>
+            ) : null}
+            <p className="text-base text-ink">{prep.scenario}</p>
             {/* Ambient coverage bar: fills moss (score-strong) as topics/signals check off,
                 so the interviewer can read progress without breaking eye contact. */}
             <Meter

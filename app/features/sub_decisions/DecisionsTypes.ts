@@ -1,3 +1,5 @@
+import type { InterviewRecommendation } from "@/app/_lib/interview-recommendation";
+
 export type Entry = {
   id: string;
   candidateId: string | null;
@@ -14,8 +16,11 @@ export type Entry = {
 };
 
 export type Reasoning = { verdict: string; strengths: string[]; gaps: string[]; interviewProbes: string[] };
-export type Screening = { recommendation?: string; confidence?: number; rationale?: string; strengths?: string[]; redFlags?: string[] };
-export type Scorecard = { recommendation?: string; summary?: string; ratings?: { competency: string; rating: number; evidence?: string }[] };
+// `recommendation` is the canonical advance|hold|reject verdict — see
+// app/_lib/interview-recommendation.ts. The stored approval_detail JSON always
+// holds a coerced member (the Python coerce guarantees it), so the union is sound.
+export type Screening = { recommendation?: InterviewRecommendation; confidence?: number; rationale?: string; strengths?: string[]; redFlags?: string[] };
+export type Scorecard = { recommendation?: InterviewRecommendation; summary?: string; ratings?: { competency: string; rating: number; evidence?: string }[] };
 export type Offer = { recommended?: number; salaryMin?: number; salaryMax?: number; currency?: string; rationale?: string; subject?: string; body?: string };
 
 export const STAGES = ["Accepted", "Screened", "Interview", "Offer", "Hired"];

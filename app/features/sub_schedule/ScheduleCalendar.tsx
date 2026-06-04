@@ -2,8 +2,9 @@
 
 import { useEffect, useRef, useState } from "react";
 import { LayoutGroup, motion } from "framer-motion";
-import { DAYS, initialsOf, styleFor, TIMES, type SchedEntry } from "./ScheduleTypes";
+import { DAYS, styleFor, TIMES, type SchedEntry } from "./ScheduleTypes";
 import { useReducedMotion } from "@/app/_lib/useReducedMotion";
+import { initials } from "@/app/_lib/initials";
 
 // One shared week grid holding every pending interview. Each candidate sits in
 // their (picked) slot; selecting a candidate and clicking a cell re-proposes
@@ -111,7 +112,7 @@ export function ScheduleCalendar({
                                   aria-hidden
                                   className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-white/25 text-[10px]"
                                 >
-                                  {initialsOf(e.candidateLabel)}
+                                  {initials(e.candidateLabel)}
                                 </span>
                                 <span className="truncate">{e.candidateLabel}</span>
                               </motion.button>

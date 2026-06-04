@@ -5,7 +5,7 @@ import re
 import unicodedata
 from enum import Enum
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any
 
 
 _DATA_DIR = Path(__file__).resolve().parents[2] / "data"
@@ -323,53 +323,6 @@ def classify_role_family(skills: list[str], text: str, recent_text: str = "") ->
             best_score = scores[family]
             best = family
     return best
-
-
-def signal_term_ids(signal: str) -> set[str]:
-    """Canonical ids of terms tagged with the given salary signal (e.g. 'ai', 'cloud')."""
-    return {
-        term["id"]
-        for term in _TERMS
-        if term.get("salary_signal") == signal
-    }
-
-
-def signal_surface_forms(signal: str) -> set[str]:
-    """All normalized surface forms (incl. Czech variants) of terms with the given signal."""
-    forms: set[str] = set()
-    for term in _TERMS:
-        if term.get("salary_signal") != signal:
-            continue
-        for form in term["match"]:
-            forms.add(_normalize(form))
-    return forms
-
-
-def has_any_signal(values: Iterable[str], signal: str) -> bool:
-    """True if any item in `values` (skills/traits/languages) matches a term tagged with `signal`."""
-    surface = signal_surface_forms(signal)
-    return any(_normalize(value) in surface for value in values)
-
-
-def category_surface_forms(category: str) -> set[str]:
-    """All normalized surface forms (incl. Czech variants) of terms in the given category."""
-    forms: set[str] = set()
-    for term in _terms_by_category(category):
-        for form in term["match"]:
-            forms.add(_normalize(form))
-    return forms
-
-
-def has_any_in_category(values: Iterable[str], category: str) -> bool:
-    """True if any item in `values` matches a term in the given category."""
-    surface = category_surface_forms(category)
-    return any(_normalize(value) in surface for value in values)
-
-
-def has_any_in_text(text: str, category: str) -> bool:
-    text_n = _normalize(text)
-    compact = _compact(text_n)
-    return any(_term_in_text(term, text_n, compact) for term in _terms_by_category(category))
 
 
 def scan_category(text: str, category: str, attr: str) -> list[str]:

@@ -44,7 +44,6 @@ export type MatchResult = {
   salaryBand?: number[];
   total: number;
   fitTier?: "strong" | "promising" | "partial";
-  tone?: string;
   skillsScore: number;
   careerScore: number;
   personalScore: number;

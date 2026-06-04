@@ -186,7 +186,15 @@ def compute_entry_profile(
     requirements: list[JobRequirement],
     description: str,
 ) -> JobEntryProfile:
-    """Deterministic graduate lens over already-structured requirements."""
+    """Deterministic graduate lens over already-structured requirements.
+
+    The constants below (assumed 3.0y for non-junior ads, the +0.5/+0.2/+0.2/+0.1
+    additive weights, the years<=1.0 entry threshold, and the 0.15 non-entry
+    ceiling) are justified and pinned by golden-value tests; see
+    docs/GRADUATE_FRIENDLINESS.md and test_jobs.GraduateFriendlinessGoldenTest.
+    This score orders the opportunities a zero-experience student is shown, so
+    changing any constant deliberately must update the doc and the golden tests.
+    """
     et = (employment_type or "").lower()
     years = min_years if min_years is not None else (0.0 if seniority == "junior" else 3.0)
     text = description.lower()

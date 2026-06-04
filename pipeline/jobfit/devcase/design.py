@@ -10,6 +10,7 @@ their AI use — and grades the five durable capabilities, not lines of code.
 from __future__ import annotations
 
 import json
+import threading
 from typing import Any
 
 from .models import RUBRIC_DIMENSIONS, DevNeed, NeedAnalysis
@@ -26,6 +27,10 @@ def _timebox(seniority: str) -> float:
 
 
 _CORPUS_CACHE: list | None = None
+# design_role runs inside lifecycle_eval / audit_role_fit ThreadPoolExecutors, so on a cold
+# cache N workers could each see _CORPUS_CACHE is None and redundantly call load_corpus() (racing
+# the assignment). Guard the lazy init with a lock; the outer check keeps the hot path lock-free.
+_CORPUS_LOCK = threading.Lock()
 
 
 def _comparable_roles(family: str, seniority: str) -> list[dict]:
@@ -33,9 +38,12 @@ def _comparable_roles(family: str, seniority: str) -> list[dict]:
     global _CORPUS_CACHE
     try:
         if _CORPUS_CACHE is None:
-            from ..matching import load_corpus
+            # Double-checked: re-test inside the lock so exactly one thread loads the corpus.
+            with _CORPUS_LOCK:
+                if _CORPUS_CACHE is None:
+                    from ..matching import load_corpus
 
-            _CORPUS_CACHE = load_corpus()
+                    _CORPUS_CACHE = load_corpus()
         out = []
         for j in _CORPUS_CACHE:
             if j.role_family == family and j.seniority == seniority:
@@ -57,6 +65,21 @@ _SYSTEM = (
 # truth lives in models.RUBRIC_DIMENSIONS so the case rubric and the evaluation breakdown
 # can never drift apart.
 _RUBRIC = RUBRIC_DIMENSIONS
+
+PROBE_KINDS = ("ambiguity", "legacy_trap", "verification_trap", "underspecified")
+
+# A cover-probe is meaningless without `reveals` — it IS the internal note on what a good vs
+# naive response implies, so the field is MANDATORY (see CoverProbe in models.py). The producer
+# (coerce, below) and the validator (lifecycle_eval._check_case) used to disagree: coerce kept a
+# probe whose `reveals` the LLM left empty, then the validator failed the case for it. We close
+# that gap here — coerce backfills any empty `reveals` from this kind-keyed default, so a probe is
+# never emitted without one. The deterministic template draws its probe notes from the same map.
+_PROBE_REVEALS_DEFAULT: dict[str, str] = {
+    "ambiguity": "Do they clarify the ambiguity or silently assume?",
+    "underspecified": "Do they clarify the ambiguity or silently assume?",
+    "legacy_trap": "Do they read it before generating, or break it?",
+    "verification_trap": "Do they add real tests / validate, or trust one-shot output?",
+}
 
 
 def _generate(provider: Any | None, prompt: str, deterministic, coerce) -> tuple[dict, str]:
@@ -218,7 +241,8 @@ def design_case(
         '"repoSeed": str (the starting materials handed to the candidate — code, documents, data, or designs as fits the domain), '
         '"tasks": [str], '
         '"coverProbes": [ { "id": str, "kind": "ambiguity|legacy_trap|verification_trap|underspecified", '
-        '"where": str, "reveals": str } ], "timeboxHours": number }. The "reveals" notes are INTERNAL. JSON only.'
+        '"where": str, "reveals": str (REQUIRED, non-empty — what a good vs naive response implies) } ], '
+        '"timeboxHours": number }. The "reveals" notes are INTERNAL. JSON only.'
     )
 
     def deterministic() -> dict:
@@ -226,13 +250,13 @@ def design_case(
         title = role.get("title") or "Engineering"
         func = _human(role_family)
         det_probes = [
-            {"id": "p1", "kind": "underspecified", "where": "the brief", "reveals": "Do they clarify the ambiguity or silently assume?"},
-            {"id": "p2", "kind": "legacy_trap", "where": "the legacy file", "reveals": "Do they read it before generating, or break it?"},
-            {"id": "p3", "kind": "verification_trap", "where": "the thin test suite", "reveals": "Do they add real tests / validate, or trust one-shot output?"},
+            {"id": "p1", "kind": "underspecified", "where": "the brief", "reveals": _PROBE_REVEALS_DEFAULT["underspecified"]},
+            {"id": "p2", "kind": "legacy_trap", "where": "the legacy file", "reveals": _PROBE_REVEALS_DEFAULT["legacy_trap"]},
+            {"id": "p3", "kind": "verification_trap", "where": "the thin test suite", "reveals": _PROBE_REVEALS_DEFAULT["verification_trap"]},
         ]
         for i, b in enumerate(focus_probes or []):  # targeted probes from the CV soft-signal panel
             kind = b.get("kind") or "verification_trap"
-            if kind not in ("ambiguity", "legacy_trap", "verification_trap", "underspecified"):
+            if kind not in PROBE_KINDS:
                 kind = "verification_trap"
             det_probes.append(
                 {
@@ -268,14 +292,17 @@ def design_case(
             if not isinstance(p, dict) or not p.get("kind"):
                 continue
             kind = str(p["kind"]).strip().lower()
-            if kind not in ("ambiguity", "legacy_trap", "verification_trap", "underspecified"):
+            if kind not in PROBE_KINDS:
                 kind = "ambiguity"
+            # `reveals` is mandatory: backfill a kind-appropriate default when the LLM omits it
+            # so a probe never reaches a case (or the lifecycle validator) with an empty note.
+            reveals = str(p.get("reveals") or "").strip() or _PROBE_REVEALS_DEFAULT[kind]
             probes.append(
                 {
                     "id": str(p.get("id") or f"p{len(probes) + 1}"),
                     "kind": kind,
                     "where": str(p.get("where") or ""),
-                    "reveals": str(p.get("reveals") or ""),
+                    "reveals": reveals,
                 }
             )
         try:

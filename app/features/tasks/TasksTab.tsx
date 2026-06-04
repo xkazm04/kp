@@ -5,6 +5,7 @@ import { AlertTriangle, Ban, Check, Clock, Loader2, RefreshCw, X } from "lucide-
 import { useTasks, type Task, type TaskStatus } from "./TasksProvider";
 import { useReducedMotion } from "@/app/_lib/useReducedMotion";
 import { useInfiniteScroll, type InfinitePage } from "@/app/_lib/useInfiniteScroll";
+import { formatRelativeTime } from "@/app/_lib/format";
 
 // Default window the live view shows; older runs page in via the history table.
 // Mirrors RECENT_TASK_WINDOW_DAYS in app/_lib/tasks.ts (server-only, so the value
@@ -35,17 +36,10 @@ function pct(t: Task): number {
   return Math.round((t.progressDone / t.progressTotal) * 100);
 }
 
+// Tasks show "—" for a never-run/invalid timestamp; otherwise the shared
+// relative-time renderer (formatRelativeTime, which returns "" on invalid).
 function relTime(iso: string | null): string {
-  if (!iso) return "—";
-  const parsed = Date.parse(iso);
-  if (!Number.isFinite(parsed)) return "—";
-  const secs = Math.max(0, Math.round((Date.now() - parsed) / 1000));
-  if (secs < 60) return `${secs}s ago`;
-  const mins = Math.round(secs / 60);
-  if (mins < 60) return `${mins}m ago`;
-  const hrs = Math.round(mins / 60);
-  if (hrs < 24) return `${hrs}h ago`;
-  return `${Math.round(hrs / 24)}d ago`;
+  return (iso && formatRelativeTime(iso)) || "—";
 }
 
 // Wall-clock a task took (or has been running). Falls back gracefully when a

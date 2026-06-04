@@ -1,8 +1,8 @@
 "use client";
 
 import { Send, ShieldCheck, Users } from "lucide-react";
-import { LoadStatus } from "@/app/_components/LoadStatus";
 import type { LoadState } from "@/app/_lib/useLoader";
+import { DevSection } from "./DevShared";
 import type { ApprovedCase, Posting } from "./DevTypes";
 
 export function ApprovedCasesSection({
@@ -22,13 +22,8 @@ export function ApprovedCasesSection({
   sourcedCounts: Record<string, number>;
   state: LoadState;
 }) {
-  if (approvedCases.length === 0) return <LoadStatus state={state} label="approved assignments" />;
   return (
-    <section>
-      <h3 className="flex items-center gap-1.5 text-meta uppercase tracking-wide text-steel">
-        <ShieldCheck size={13} className="text-moss" /> Approved assignments <span className="text-coral">· {approvedCases.length}</span>
-        <LoadStatus state={state} label="approved assignments" variant="pill" />
-      </h3>
+    <DevSection icon={<ShieldCheck size={13} className="text-moss" />} title="Approved assignments" count={approvedCases.length} state={state} label="approved assignments">
       <ul className="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
         {approvedCases.map((c, ci) => {
           const published = postings.some((p) => p.caseId === c.id);
@@ -64,6 +59,6 @@ export function ApprovedCasesSection({
           );
         })}
       </ul>
-    </section>
+    </DevSection>
   );
 }

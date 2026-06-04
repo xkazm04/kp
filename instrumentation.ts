@@ -48,9 +48,24 @@ export async function register(): Promise<void> {
     }
   };
 
-  setTimeout(tick, 8_000); // let the server finish booting before the first tick
-  const handle = setInterval(tick, HEARTBEAT_MS);
-  if (typeof (handle as { unref?: () => void }).unref === "function") {
-    (handle as { unref: () => void }).unref(); // never keep the process alive for the clock alone
-  }
+  // Self-rescheduling chain instead of setInterval: arm the NEXT tick only AFTER the
+  // current one fully settles, so a slow run (slow LLM calls, or SQLite contention
+  // where busy_timeout makes a writer wait up to 5s) can never overlap the next and
+  // re-enter the scheduler + reminder sweep concurrently — two overlapping sweeps
+  // could both read the same due reminders and double-send candidate-facing messages.
+  const armNext = (delay: number) => {
+    const handle = setTimeout(runTick, delay);
+    if (typeof (handle as { unref?: () => void }).unref === "function") {
+      (handle as { unref: () => void }).unref(); // never keep the process alive for the clock alone
+    }
+  };
+  const runTick = async () => {
+    try {
+      await tick();
+    } finally {
+      armNext(HEARTBEAT_MS); // only re-arm once this tick has resolved
+    }
+  };
+
+  armNext(8_000); // let the server finish booting before the first tick
 }

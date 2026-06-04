@@ -12,6 +12,8 @@ import {
   parseYearsExperience,
   buildIntakeProfile,
   DEFAULT_APPLY_LANGUAGES,
+  normalizeApplicantName,
+  applyDedupeKey,
 } from "./apply-intake.ts";
 import type { JobRecord } from "./db.ts";
 
@@ -144,4 +146,43 @@ test("splits skills on commas and semicolons into evidence", () => {
   const profile = buildIntakeProfile(baseJob, { ...baseAnswers, skills: "Rust, SQL; Go" });
   const evidence = profile.evidence as Array<{ skills: string[] }>;
   assert.deepEqual(evidence[0].skills, ["Rust", "SQL", "Go"]);
+});
+
+// ---------------------------------------------------------------------------
+// normalizeApplicantName / applyDedupeKey — the duplicate-application identity.
+// These pin the key the apply flow dedups repeat applications on (jobId + name),
+// since the flow captures no contact field. See route.ts + db.ts.
+// ---------------------------------------------------------------------------
+
+test("normalizeApplicantName lowercases, trims, and collapses inner whitespace", () => {
+  assert.equal(normalizeApplicantName("  Jane   DOE "), "jane doe");
+});
+
+test("normalizeApplicantName treats casing/spacing variants of one name as equal", () => {
+  assert.equal(normalizeApplicantName("Jane Doe"), normalizeApplicantName("jane  doe"));
+});
+
+test("normalizeApplicantName returns empty string for a blank/whitespace name", () => {
+  assert.equal(normalizeApplicantName("   "), "");
+  assert.equal(normalizeApplicantName(""), "");
+});
+
+test("applyDedupeKey builds a slug-safe appl- key from the normalized name", () => {
+  assert.equal(applyDedupeKey("Jane Doe"), "appl-jane-doe");
+  assert.equal(applyDedupeKey("  Jane   DOE "), "appl-jane-doe");
+});
+
+test("applyDedupeKey is stable across casing/spacing variants of one applicant", () => {
+  assert.equal(applyDedupeKey("Ada Lovelace"), applyDedupeKey("  ada   lovelace "));
+});
+
+test("applyDedupeKey returns empty string for a nameless applicant (no dedup)", () => {
+  // A blank key is the signal to the caller NOT to dedup — two anonymous
+  // applicants must not collapse onto one pipeline entry.
+  assert.equal(applyDedupeKey(""), "");
+  assert.equal(applyDedupeKey("   "), "");
+});
+
+test("applyDedupeKey distinguishes genuinely different names", () => {
+  assert.notEqual(applyDedupeKey("Jane Doe"), applyDedupeKey("John Doe"));
 });

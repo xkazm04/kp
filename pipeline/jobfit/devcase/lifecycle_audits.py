@@ -16,8 +16,9 @@ import json
 from collections import Counter
 from typing import Any
 
-from ..claude_cli import ClaudeCliError, ClaudeCliProvider
+from ..claude_cli import ClaudeCliProvider
 from .lifecycle_eval import LEVERS, Row, run
+from .llm_judge import run_judge
 from .scenarios import Scenario
 
 
@@ -25,35 +26,30 @@ from .scenarios import Scenario
 
 
 def judge(rows: list[Row], provider: ClaudeCliProvider, workers: int = 4) -> None:
-    jobs: list[tuple[Row, str, str]] = []
-    for r in rows:
-        if r.source == "error":
-            continue
-        for task, payload in (("analysis", r.analysis), ("case", r.case)):
-            jobs.append(
-                (
-                    r,
-                    task,
-                    f"You QA AI hiring artifacts. Rate this '{task}' output 1-5 for being specific, grounded, fair, and useful.\n"
-                    f"Scenario: {r.label}\nOutput:\n{json.dumps(payload, ensure_ascii=False)[:1800]}\n\n"
-                    f"Then choose from this list which would MOST improve it (0-3 items): {LEVERS}.\n"
-                    'Return JSON: { "score": int 1-5, "levers": [str], "note": str }. JSON only.',
-                )
-            )
-    results = provider.map([p for _, _, p in jobs], max_workers=workers)
-    for (r, task, _), res in zip(jobs, results):
-        if isinstance(res, ClaudeCliError):
-            continue
-        try:
-            payload = res.json()
-            if isinstance(payload, dict):
-                r.quality[task] = {
-                    "score": max(1, min(5, int(payload.get("score", 0)))),
-                    "levers": [str(x) for x in (payload.get("levers") or []) if str(x) in LEVERS],
-                    "note": str(payload.get("note") or "")[:200],
-                }
-        except Exception:
-            continue
+    # Each non-error row yields two judge jobs (one per artifact task).
+    jobs: list[tuple[Row, str]] = [
+        (r, task) for r in rows if r.source != "error" for task in ("analysis", "case")
+    ]
+
+    def _prompt(job: tuple[Row, str]) -> str:
+        r, task = job
+        payload = r.analysis if task == "analysis" else r.case
+        return (
+            f"You QA AI hiring artifacts. Rate this '{task}' output 1-5 for being specific, grounded, fair, and useful.\n"
+            f"Scenario: {r.label}\nOutput:\n{json.dumps(payload, ensure_ascii=False)[:1800]}\n\n"
+            f"Then choose from this list which would MOST improve it (0-3 items): {LEVERS}.\n"
+            'Return JSON: { "score": int 1-5, "levers": [str], "note": str }. JSON only.'
+        )
+
+    def _shape(job: tuple[Row, str], payload: dict) -> None:
+        r, task = job
+        r.quality[task] = {
+            "score": max(1, min(5, int(payload.get("score", 0)))),
+            "levers": [str(x) for x in (payload.get("levers") or []) if str(x) in LEVERS],
+            "note": str(payload.get("note") or "")[:200],
+        }
+
+    run_judge(jobs, _prompt, _shape, provider, workers)
 
 
 def quality_summary(rows: list[Row]) -> dict[str, Any]:
@@ -82,27 +78,29 @@ def audit_role_fit(scenarios: list[Scenario], provider: ClaudeCliProvider, worke
     absolute 1-5 scoring (which is swamped by judge variance)."""
     subset = [s for s in scenarios if s.planted.get("mismatch") or s.planted.get("incoherent")]
     rows = run(subset, provider, workers=workers)
-    prompts = []
-    for r in rows:
+
+    def _prompt(r: Row) -> str:
         role, case = r.role, r.case
-        prompts.append(
+        return (
             f"A '{role.get('seniority')} {role.get('title')}' (function: {role.get('roleFamily')}) is being hired. "
             f"This take-home was generated:\n"
             f"{json.dumps({'title': case.get('title'), 'brief': case.get('brief'), 'tasks': case.get('tasks')}, ensure_ascii=False)[:1400]}\n\n"
             "Do the TASKS match what THIS role actually DOES, or do they drift into the provided context's "
             'unrelated domain? Return JSON: { "matchesRole": bool, "note": str }. JSON only.'
         )
-    results = provider.map(prompts, max_workers=workers)
+
+    # Keyed by object identity so an unjudged row (error/parse failure) keeps its
+    # None verdict in row order — the report distinguishes None ("??") from False.
+    shaped: dict[int, tuple[bool, str]] = {}
+
+    def _shape(r: Row, payload: dict) -> None:
+        shaped[id(r)] = (bool(payload.get("matchesRole")), str(payload.get("note") or "")[:160])
+
+    run_judge(rows, _prompt, _shape, provider, workers)
+
     verdicts = []
-    for r, res in zip(rows, results):
-        ok, note = None, ""
-        if not isinstance(res, ClaudeCliError):
-            try:
-                p = res.json()
-                if isinstance(p, dict):
-                    ok, note = bool(p.get("matchesRole")), str(p.get("note") or "")[:160]
-            except Exception:
-                pass
+    for r in rows:
+        ok, note = shaped.get(id(r), (None, ""))
         verdicts.append({"id": r.id, "label": r.label, "matchesRole": ok, "note": note})
     judged = [v for v in verdicts if v["matchesRole"] is not None]
     rate = sum(1 for v in judged if v["matchesRole"]) / len(judged) if judged else None

@@ -39,6 +39,21 @@ class DevNeed(_Base):
 # --- 2. Reality reflection -------------------------------------------------
 
 
+# Confidence scale — shared by NeedAnalysis, CommitReflection and ToolingSignal.
+#
+# Each of those artifacts carries a ``confidence`` float in 0..1 that answers HOW MUCH TO
+# TRUST this inference — it rates the strength of the EVIDENCE behind the artifact, not the
+# quality of the candidate or the need. Read it as:
+#   >= 0.7   high     — well-grounded; safe to lean on for a decision.
+#   0.4..0.7 moderate — usable, but corroborate before weighting it heavily.
+#   <  0.4   low      — thin / ungrounded; treat as a weak hint only.
+# The deterministic fallbacks rate themselves DELIBERATELY low (they pattern-match, they do
+# not reason): analyze 0.5 grounded / 0.3 ungrounded, reflect 0.3, tooling 0.2 — so a degraded
+# run never looks more certain than an LLM one. The LLM path may return any value in 0..1.
+# Consumed by devcase_cli, which surfaces the low-confidence steps beside the provenance badge.
+LOW_CONFIDENCE = 0.4  # at or below this, a reviewer should be warned the inference is thin
+
+
 class RepoSnapshot(_Base):
     """Grounded reality pulled from a real codebase (reuses the GitHub fetch layer)."""
 
@@ -61,7 +76,7 @@ class NeedAnalysis(_Base):
     true_complexity: str = "medium"  # low | medium | high
     risk_areas: list[str] = Field(default_factory=list)
     reflection: str = ""
-    confidence: float = 0.0
+    confidence: float = 0.0  # 0..1 trust in this inference — see the shared "Confidence scale" above
     prompt_version: str = ""
 
 
@@ -71,13 +86,18 @@ class NeedAnalysis(_Base):
 class CoverProbe(_Base):
     """A COVERT tooling-probe baked into the case — never disclosed to the candidate.
 
-    `reveals` is the internal note on what handling/missing this probe tells us.
+    ``reveals`` is the internal note on what a good vs naive handling (or a miss) of this
+    probe tells us — it is what makes the probe a probe, so it is MANDATORY. The field
+    defaults to ``""`` only so the model stays trivially constructible, but a probe that
+    reaches a real case must carry a non-empty ``reveals``: ``design.coerce()`` backfills
+    any LLM probe that omits it from a kind-keyed default (``design._PROBE_REVEALS_DEFAULT``),
+    and ``lifecycle_eval._check_case`` flags an empty ``reveals`` as a reliability failure.
     """
 
     id: str = ""
     kind: str = "ambiguity"  # ambiguity | legacy_trap | verification_trap | underspecified
     where: str = ""  # which task / file / requirement it lives in
-    reveals: str = ""  # what a good vs naive response implies (internal only)
+    reveals: str = ""  # REQUIRED (non-empty in a real case) — what a good vs naive response implies (internal only)
 
 
 class RubricDimension(_Base):
@@ -146,7 +166,7 @@ class CommitReflection(_Base):
     dead_ends: list[str] = Field(default_factory=list)
     read_before_write: float = 0.0  # 0..1 evidence they read before generating
     verification_habits: list[str] = Field(default_factory=list)
-    confidence: float = 0.0
+    confidence: float = 0.0  # 0..1 trust in this inference — see the shared "Confidence scale" above
 
 
 class ProbeOutcome(_Base):
@@ -167,7 +187,7 @@ class ToolingSignal(_Base):
     probe_outcomes: list[ProbeOutcome] = Field(default_factory=list)
     over_reliance_flags: list[str] = Field(default_factory=list)
     evidence: list[str] = Field(default_factory=list)
-    confidence: float = 0.0
+    confidence: float = 0.0  # 0..1 trust in this inference — see the shared "Confidence scale" above
 
 
 class DimensionScore(_Base):

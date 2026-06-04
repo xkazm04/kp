@@ -1,6 +1,5 @@
-import path from "node:path";
-import { mkdirSync } from "node:fs";
 import Database from "better-sqlite3";
+import { DB_PATH, ensureDbDir } from "./db-path";
 
 // Direction #5 — durable scheduler state for the automation clock. Isolated
 // connection (job-ingest.ts / offers-store.ts pattern) so we don't touch the
@@ -8,15 +7,13 @@ import Database from "better-sqlite3";
 // cadence, last/next run) so the clock survives restarts and never double-fires;
 // `scheduler_runs` is the durable run log surfaced in the UI.
 
-const DB_PATH = process.env.KP_DB_PATH ?? path.join(process.cwd(), "data", "kp.sqlite");
-
 export const POLICY_JOB = "policy_pass";
 const DEFAULT_INTERVAL_MIN = 15;
 
 let _db: Database.Database | null = null;
 function db(): Database.Database {
   if (_db) return _db;
-  mkdirSync(path.dirname(DB_PATH), { recursive: true });
+  ensureDbDir();
   const d = new Database(DB_PATH);
   d.pragma("journal_mode = WAL");
   // The policy pass writes pipeline_entries/pipeline_events on db.ts's separate

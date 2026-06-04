@@ -2,6 +2,7 @@ import path from "node:path";
 import { writeFile } from "node:fs/promises";
 import { cleanupWorkdir, createWorkdir, parsePythonJson, parseStderrError, spawnPython } from "./python-runner";
 import { runDesignArtifacts, runNeedAnalysis, type DevNeed } from "./devcase-run";
+import { formatSalaryRange } from "./format";
 
 // The AI job-description builder: a free-text need (+ optional GitHub repo for
 // dev roles) → our devcase need→design machinery → a structured RoleSpec, then
@@ -56,7 +57,7 @@ function composeMarkdown(role: RoleSpec, opts: { company?: string; location?: st
   const meta = [opts.company, opts.location, role.seniority ? `${role.seniority} level` : null].filter(Boolean);
   if (meta.length) lines.push(`**${meta.join(" · ")}**`);
   const s = opts.salary;
-  if (s?.suggestedMinimum > 0) lines.push(`**Salary:** ${s.suggestedMinimum.toLocaleString("cs-CZ")} – ${s.suggestedMaximum.toLocaleString("cs-CZ")} ${s.currency} / month`);
+  if (s?.suggestedMinimum > 0) lines.push(`**Salary:** ${formatSalaryRange(s.suggestedMinimum, s.suggestedMaximum, { currency: s.currency, period: "month" })}`);
 
   lines.push("", "## About the role");
   lines.push(`We're hiring a ${title}${opts.company ? ` at ${opts.company}` : ""}. ${s?.summary ?? ""}`.trim());

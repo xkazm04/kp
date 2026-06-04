@@ -2,14 +2,13 @@ import {
   AlertCircle,
   AlertTriangle,
   ArrowUpCircle,
-  Briefcase,
   CalendarCheck,
   CircleDot,
   CirclePlus,
   Clock,
-  GraduationCap,
   Repeat,
   Sparkles,
+  UserPlus,
   Wrench,
   XCircle,
   type LucideIcon,
@@ -17,20 +16,14 @@ import {
 import { ScoreBadge } from "@/app/_components/ScoreBadge";
 import { ARCHETYPE_STYLE, daysSince, STALE_DAYS, styleFor, type Entry, type PipelineEvent } from "./PipelineTypes";
 
-// Archetype → glyph, so the candidate-row status reads without relying on hue
-// alone (mirrors Badge's icon-plus-label-not-color doctrine).
-const ARCHETYPE_ICON: Record<string, LucideIcon> = {
-  bau: Briefcase,
-  student: GraduationCap,
-  career_switcher: Repeat,
-};
-
 // The pipeline-lifecycle event taxonomy that the activity feed renders richly.
 // These are the kinds recordEvent() emits in db.ts. Promoted from a bare string
 // to a string-literal union so EVENT_CATALOG below can be checked exhaustively.
 export const EVENT_KINDS = [
   "matched",
   "added",
+  "applied",
+  "re_applied",
   "advanced",
   "scheduled",
   "rejected",
@@ -60,6 +53,8 @@ type EventMeta = {
 export const EVENT_CATALOG: Record<EventKind, EventMeta> = {
   matched: { verb: () => "was matched", Icon: Sparkles, tone: "text-steel" },
   added: { verb: () => "was added to the pipeline", Icon: CirclePlus, tone: "text-steel" },
+  applied: { verb: () => "applied via the application link", Icon: UserPlus, tone: "text-steel" },
+  re_applied: { verb: () => "applied again (already in the pipeline)", Icon: Repeat, tone: "text-amber-600" },
   advanced: { verb: (ev) => `advanced to ${ev.toStage}`, Icon: ArrowUpCircle, tone: "text-moss" },
   scheduled: {
     verb: (ev) => `interview scheduled${ev.detail ? ` (${ev.detail})` : ""}`,
@@ -93,91 +88,6 @@ export function eventVerb(ev: PipelineEvent): string {
 export function EventDot({ kind }: { kind: string }) {
   const { Icon, tone } = isEventKind(kind) ? EVENT_CATALOG[kind] : EVENT_FALLBACK;
   return <Icon className={`h-3.5 w-3.5 shrink-0 ${tone}`} aria-hidden />;
-}
-
-export function Kpi({
-  icon,
-  label,
-  value,
-  tone = "neutral",
-  onClick,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  value: number;
-  tone?: "neutral" | "coral" | "amber";
-  onClick?: () => void;
-}) {
-  const border =
-    tone === "coral" ? "border-coral/30 bg-coral/5" : tone === "amber" ? "border-amber-300/50 bg-amber-50" : "border-stone-200 bg-white";
-  const accent = tone === "coral" ? "text-coral" : tone === "amber" ? "text-amber-700" : "text-steel";
-  const valueColor = tone === "coral" ? "text-coral" : tone === "amber" ? "text-amber-700" : "text-ink";
-  const cls = `rounded-lg border p-3 text-left shadow-panel ${border} ${
-    onClick ? "focus-ring transition-colors hover:border-coral/50" : ""
-  }`;
-  const body = (
-    <>
-      <div className="flex items-center gap-2 text-steel">
-        <span className={accent}>{icon}</span>
-        <span className="text-meta uppercase">{label}</span>
-      </div>
-      <p className={`mt-1 font-serif text-3xl ${valueColor}`}>{value}</p>
-    </>
-  );
-  return onClick ? (
-    <button type="button" onClick={onClick} className={`${cls} block w-full`}>
-      {body}
-    </button>
-  ) : (
-    <div className={cls}>{body}</div>
-  );
-}
-
-export function Avatar({
-  entry,
-  pending = false,
-  stale = false,
-  onClick,
-}: {
-  entry: Entry;
-  pending?: boolean;
-  stale?: boolean;
-  onClick?: () => void;
-}) {
-  const style = styleFor(entry.archetype);
-  const initials = entry.candidateLabel
-    .split(" ")
-    .map((p) => p[0])
-    .filter(Boolean)
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
-  const days = daysSince(entry.stageChangedAt);
-  const title = `${entry.candidateLabel} · ${style.label}${entry.matchScore != null ? ` · match ${entry.matchScore}` : ""}${
-    days != null ? ` · ${days}d in stage` : ""
-  }`;
-  // pending (coral, pulsing) takes visual priority; otherwise show an amber aging ring.
-  const ring = pending ? `ring-2 ring-offset-1 ${style.ring}` : stale ? "ring-2 ring-offset-1 ring-amber-400" : "";
-  const cls = `relative inline-flex h-7 w-7 items-center justify-center rounded-full text-sm font-semibold text-white ${style.bg} ${ring}`;
-  const dot = pending ? (
-    <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 animate-pulse rounded-full border border-white bg-coral" />
-  ) : stale ? (
-    <span className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full border border-white bg-amber-400" />
-  ) : null;
-  if (onClick) {
-    return (
-      <button type="button" onClick={onClick} title={`${title} · open`} className={`focus-ring ${cls} cursor-pointer hover:opacity-90`}>
-        {initials}
-        {dot}
-      </button>
-    );
-  }
-  return (
-    <span title={title} className={cls}>
-      {initials}
-      {dot}
-    </span>
-  );
 }
 
 // A candidate in a position cell: full name + a prominent status dot (~2x the
@@ -217,7 +127,7 @@ export function CandidateRow({
       ? AlertCircle
       : stale
         ? Clock
-        : ARCHETYPE_ICON[entry.archetype ?? "bau"] ?? Briefcase;
+        : style.icon;
   const title = `${entry.candidateLabel} · ${style.label}${entry.matchScore != null ? ` · match ${entry.matchScore}` : ""}${
     days != null ? ` · ${days}d in stage` : ""
   }${degraded ? " · intake degraded" : ""}`;

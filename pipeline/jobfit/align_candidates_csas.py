@@ -26,7 +26,7 @@ from collections import Counter
 from pathlib import Path
 from typing import Any
 
-from .profile import CandidateProfileV2, completeness, normalize_profile
+from .profile import CandidateProfileV2, normalize_profile
 
 ROOT = Path(__file__).resolve().parents[2]
 CANDIDATES_PATH = ROOT / "data" / "seed_candidates" / "candidates.json"
@@ -128,11 +128,11 @@ def align_record(record: dict[str, Any], idx: int) -> dict[str, Any]:
     # Re-validate + normalize so evidence provenance defaults and completeness are
     # recomputed against the aligned content.
     profile = CandidateProfileV2.model_validate(record)
-    normalize_profile(profile)
+    score, _missing = normalize_profile(profile)  # stamp + reuse the score
     out = profile.model_dump(by_alias=True, exclude_none=True)
     out["id"] = record.get("id")
     out["displayName"] = record.get("displayName")
-    out["completeness"], _missing = completeness(profile)
+    out["completeness"] = score
     # The ČS role this candidate is aligned to — seed_analyses reads it to score
     # them against the matching role JD (not a generic family one). Extra,
     # non-model key; CandidateProfileV2 ignores it, so it never reaches scoring.

@@ -5,6 +5,18 @@
 
 export type VoiceProviderId = "openai" | "elevenlabs";
 
+/** Narrow an untrusted value to a VoiceProviderId — the single source of
+ *  provider-id validation shared by the create/connect routes and the DB row
+ *  mapper, so adding or renaming a provider is a one-line change here.
+ *  With no fallback, returns null when the value isn't a known provider (lets a
+ *  caller fall through to a stored/default choice); with a fallback, always
+ *  returns a VoiceProviderId. */
+export function coerceProviderId(value: unknown): VoiceProviderId | null;
+export function coerceProviderId(value: unknown, fallback: VoiceProviderId): VoiceProviderId;
+export function coerceProviderId(value: unknown, fallback: VoiceProviderId | null = null): VoiceProviderId | null {
+  return value === "openai" || value === "elevenlabs" ? value : fallback;
+}
+
 /** What the browser needs to open an OpenAI Realtime WebRTC session. */
 export type OpenAiConnect = {
   provider: "openai";

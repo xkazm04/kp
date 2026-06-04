@@ -3,7 +3,7 @@ import { writeFile } from "node:fs/promises";
 import path from "node:path";
 import { candidateOutcomes, getJob, type CandidateOutcome } from "@/app/_lib/db";
 import { buildCandidatePool } from "@/app/_lib/candidate-pool";
-import { cleanupWorkdir, createWorkdir, parseStderrError, spawnPython } from "@/app/_lib/python-runner";
+import { cleanupWorkdir, createWorkdir, parsePythonJson, parseStderrError, spawnPython } from "@/app/_lib/python-runner";
 
 export const runtime = "nodejs";
 
@@ -42,7 +42,7 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
 
     const pool = buildCandidatePool();
     if (pool.length === 0) {
-      return NextResponse.json({ job: { id: job.id, title: job.title }, rediscovered: [] });
+      return NextResponse.json({ job: { id: job.id, title: job.title }, rediscovered: [], skipped: [] });
     }
 
     workdir = await createWorkdir();
@@ -65,7 +65,11 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
       return NextResponse.json({ error: err.message }, { status: err.status });
     }
 
-    const ranked = JSON.parse(stdout) as {
+    // parsePythonJson, not raw JSON.parse: the interpreter routinely prints
+    // trailing non-JSON at shutdown (asyncio "Event loop is closed", leaked-
+    // semaphore / ResourceWarning, atexit — common on Windows), and one such line
+    // would turn a successful ranking into a JSON.parse throw / 500.
+    const ranked = parsePythonJson<{
       candidates: {
         candidateId: string;
         label: string;
@@ -73,7 +77,10 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
         koPassed: boolean;
         result?: { total?: number };
       }[];
-    };
+      // recruiter_cli skips (never drops) any candidate whose profile fails to
+      // validate — a malformed silver-medalist must still be surfaced, not lost.
+      skipped?: { id: string; label: string; reason: string }[];
+    }>(stdout, stderr);
     const outcomes = candidateOutcomes();
 
     const rediscovered = ranked.candidates
@@ -99,6 +106,11 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
     return NextResponse.json({
       job: { id: job.id, title: job.title },
       rediscovered: shown,
+      // Candidates the ranker couldn't score (malformed profile). The candidates
+      // view already surfaces these; rediscovery — whose whole promise is "we won't
+      // let strong past candidates fall through the cracks" — must not silently
+      // drop them, so thread the array through to the same disclosure.
+      skipped: ranked.skipped ?? [],
       // How many eligible silver-medalists were dropped by the cap (0 when all shown).
       more: Math.max(0, rediscovered.length - shown.length),
     });

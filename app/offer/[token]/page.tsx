@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { AiDisclosure } from "@/app/_components/AiDisclosure";
+import { initials } from "@/app/_lib/initials";
 
 type OfferView = {
   token: string;
@@ -14,20 +15,6 @@ type OfferView = {
   salary: number | null;
   company: string | null;
 };
-
-// Monogram for the company logo slot — same initials convention used by the
-// candidate avatars elsewhere in the app (e.g. PipelineShared/Avatar).
-function companyInitials(name: string): string {
-  return (
-    name
-      .split(/\s+/)
-      .map((part) => part[0])
-      .filter(Boolean)
-      .join("")
-      .slice(0, 2)
-      .toUpperCase() || "•"
-  );
-}
 
 // Public, token-gated offer page. The candidate accepts or declines here; accept
 // drives the Hired transition + onboarding, decline closes the entry.
@@ -105,7 +92,7 @@ export default function OfferPage() {
                   className="grid h-11 w-11 shrink-0 place-items-center rounded-lg bg-steel font-serif text-base font-semibold text-white"
                   aria-hidden="true"
                 >
-                  {companyInitials(offer.company)}
+                  {initials(offer.company, "•")}
                 </span>
                 <div className="min-w-0">
                   <p className="text-meta uppercase tracking-wide text-coral">Your offer</p>

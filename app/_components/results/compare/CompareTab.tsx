@@ -69,6 +69,15 @@ export function CompareTab({ analysis }: { analysis: Analysis }) {
             <p className="mt-1 text-base leading-6 text-steel">
               {comparison.variants.length} variants scored against the same job. Winner highlighted with{" "}
               <Crown className="inline h-3.5 w-3.5 text-coral" aria-hidden />.
+              {comparison.variants.length > 1 ? (
+                <>
+                  {" "}Each ▲/▼ delta is measured against{" "}
+                  <span className="font-medium text-ink" title={baseline.label}>
+                    {baseline.label}
+                  </span>{" "}
+                  — the first variant you uploaded (the &ldquo;baseline&rdquo; column), not the winner.
+                </>
+              ) : null}
             </p>
           </div>
           <div className="rounded-md bg-limewash px-3 py-2 text-base text-ink">
@@ -234,7 +243,7 @@ function ComponentRow({
             <div className="flex items-center gap-2">
               <span className="font-semibold nums text-ink">{value.toFixed(0)}</span>
               {index === 0 ? (
-                <span className="text-sm text-steel">baseline</span>
+                <span className="text-sm text-steel" title="First uploaded variant — every other column's delta is measured against this one.">baseline</span>
               ) : (
                 <DeltaPill delta={delta} />
               )}
@@ -277,7 +286,7 @@ function ExtraRow({
               <div className="flex items-center gap-2">
                 <span className="font-semibold nums text-ink">{integer ? value.toFixed(0) : value.toFixed(0)}</span>
                 {index === 0 ? (
-                  <span className="text-sm text-steel">baseline</span>
+                  <span className="text-sm text-steel" title="First uploaded variant — every other column's delta is measured against this one.">baseline</span>
                 ) : delta != null ? (
                   <DeltaPill delta={delta} />
                 ) : null}

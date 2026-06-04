@@ -90,20 +90,21 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps({"error": str(exc), "status": 500}, ensure_ascii=False), file=sys.stderr)
         return 1
 
+    # Source field names/casing from the single Pydantic definition: pick the
+    # recruiter-view keys straight out of Job.model_dump(by_alias=True) — the same
+    # camelCase aliasing jobs_cli emits — so they can't drift from the Job model,
+    # then overlay the derived entryEligible (flattened from entry_profile).
+    job_dump = job.model_dump(by_alias=True)
+    job_out = {
+        key: job_dump[key]
+        for key in ("id", "title", "company", "location", "workMode", "seniority", "roleFamily", "salaryBand")
+    }
+    job_out["entryEligible"] = bool(job.entry_profile and job.entry_profile.is_entry_eligible)
+
     print(
         json.dumps(
             {
-                "job": {
-                    "id": job.id,
-                    "title": job.title,
-                    "company": job.company,
-                    "location": job.location,
-                    "workMode": job.work_mode,
-                    "seniority": job.seniority,
-                    "roleFamily": job.role_family,
-                    "salaryBand": job.salary_band,
-                    "entryEligible": bool(job.entry_profile and job.entry_profile.is_entry_eligible),
-                },
+                "job": job_out,
                 "candidates": rows,
                 "fairness": fairness,
                 "skipped": skipped,

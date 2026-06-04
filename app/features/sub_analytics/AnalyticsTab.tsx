@@ -13,8 +13,9 @@ type Analytics = {
   funnel: Funnel[];
   avgTimeToHireDays: number | null;
   avgAgeDays: number | null;
-  bottleneck: { stage: string; avgDaysInStage: number } | null;
+  bottleneck: { stage: string; avgDaysInStage: number; entryCount: number } | null;
   byJob: { jobTitle: string; total: number; reachedInterview: number; hired: number; hireRatePct: number }[];
+  byJobTotal: number;
   byArchetype: { archetype: string; total: number; hired: number; advanceRatePct: number }[];
 };
 
@@ -79,7 +80,8 @@ export function AnalyticsTab() {
           </ul>
           {data.bottleneck ? (
             <p className="mt-4 rounded-md border border-dial-amber/40 bg-dial-amber/10 px-3 py-2 text-base text-ink">
-              <span className="font-semibold">Bottleneck:</span> candidates in{" "}
+              <span className="font-semibold">Bottleneck:</span> the{" "}
+              <span className="font-medium">{data.bottleneck.entryCount}</span> active candidates in{" "}
               <span className="font-medium">{data.bottleneck.stage}</span> have waited{" "}
               <span className="font-medium">{data.bottleneck.avgDaysInStage} days</span> on average.
             </p>
@@ -109,7 +111,14 @@ export function AnalyticsTab() {
       </div>
 
       <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
-        <h3 className="font-serif text-h2 text-ink">By role</h3>
+        <div className="flex items-baseline justify-between gap-2">
+          <h3 className="font-serif text-h2 text-ink">By role</h3>
+          {/* The table is capped to the highest-volume roles; say so explicitly when
+              there are more, so it never reads as the complete list of open roles. */}
+          {data.byJobTotal > data.byJob.length ? (
+            <p className="text-meta uppercase text-steel">Top {data.byJob.length} of {data.byJobTotal} by volume</p>
+          ) : null}
+        </div>
         <table className="mt-3 w-full text-base">
           <thead>
             <tr className="border-b border-stone-200 text-left text-meta uppercase text-steel">

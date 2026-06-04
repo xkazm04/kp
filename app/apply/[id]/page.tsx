@@ -13,6 +13,8 @@ export default async function ApplyPage({ params }: { params: Promise<{ id: stri
 
   return (
     <main className="mx-auto max-w-xl px-4 py-12">
+      {/* This server component is the single source of truth for the apply header
+          (role title / company); GET /api/apply/[id] returns only the chat steps. */}
       <p className="text-meta uppercase text-coral">Apply</p>
       <h1 className="mt-1 font-serif text-display text-ink">{job.title}</h1>
       {job.company ? <p className="mt-1 text-body text-steel">{job.company}</p> : null}

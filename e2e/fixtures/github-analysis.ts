@@ -1,5 +1,10 @@
 import type { Page } from "@playwright/test";
 import type { GithubAnalysis } from "@/app/_lib/schemas";
+// Relative (not "@/") on purpose: this is a runtime VALUE import, and the
+// Playwright config wires no tsconfig path alias — a relative path resolves in
+// both tsc and the Playwright runner. Derives the evidence-basis strings from
+// the same generator the route uses, so a truncation/limit change can't desync.
+import { describeEvidenceBasis } from "../../app/_lib/github-evidence";
 
 // A deterministic GitHub-analysis payload. Typed against GithubAnalysis (derived
 // from githubAnalysisSchema) so a shape drift between the route, the schema and
@@ -42,6 +47,7 @@ export const GITHUB_ANALYSIS_FIXTURE: GithubAnalysis = {
   ],
   contributionSignals: ["consistent recent commits", "maintains multiple active repos"],
   jobFitSignals: {
+    jobDescriptionProvided: true,
     matchingSkills: ["Python", "TypeScript", "LLM", "RAG"],
     potentialGaps: ["Azure"],
     complexityAssessment: "Handles production-grade automation with real complexity.",
@@ -54,13 +60,7 @@ export const GITHUB_ANALYSIS_FIXTURE: GithubAnalysis = {
     unverifiedClaims: [],
     hiddenStrengths: ["observability"],
     reposReviewed: ["llm-automation"],
-    evidenceBasis: [
-      "README text only, truncated to the first 3500 characters per repo.",
-      "Up to 10 recent commit subject lines (first line of each message) per repo.",
-      "Up to 30 root-level file and directory names per repo — names only, no file contents.",
-      "Primary language and repository topics from GitHub metadata.",
-      "Not read: file bodies, nested/recursive directory trees, private repos, and non-default branches.",
-    ],
+    evidenceBasis: describeEvidenceBasis(),
     error: null,
   },
 };

@@ -1,7 +1,9 @@
 import { ChevronRight } from "lucide-react";
 import { Badge, interviewRecommendationToken } from "@/app/_components/Badge";
 import { ScoreBadge } from "@/app/_components/ScoreBadge";
+import { INTERVIEW_RECOMMENDATION_FALLBACK, type InterviewRecommendation } from "@/app/_lib/interview-recommendation";
 import { STAGES, styleFor, type Entry } from "./DecisionsTypes";
+import { initials } from "@/app/_lib/initials";
 
 export function Empty({ children }: { children: React.ReactNode }) {
   return <p className="rounded-md border border-dashed border-stone-200 p-3 text-sm text-steel">{children}</p>;
@@ -21,11 +23,11 @@ export function NextStage({ stage }: { stage: string }) {
 
 export function CandidateHead({ entry }: { entry: Entry }) {
   const s = styleFor(entry.archetype);
-  const initials = entry.candidateLabel.split(" ").map((p) => p[0]).filter(Boolean).join("").slice(0, 2).toUpperCase();
+  const monogram = initials(entry.candidateLabel);
   return (
     <div className="flex items-center gap-2">
       <span className={`grid h-9 w-9 place-items-center rounded-full text-sm font-semibold text-white ${s.bg}`}>
-        {initials}
+        {monogram}
       </span>
       <div className="min-w-0">
         <p className="truncate text-base font-semibold text-ink">{entry.candidateLabel}</p>
@@ -64,8 +66,8 @@ export function MiniList({ title, items, tone }: { title: string; items: string[
 // Badge token so it carries an icon + accessible label, not color alone, and
 // looks identical to the same verdict everywhere else (e.g. the interview
 // scorecard). The optional "· {confidence}%" suffix stays tabular-nums.
-export function RecBadge({ rec, confidence }: { rec?: string; confidence?: number }) {
-  const content = interviewRecommendationToken(rec ?? "hold");
+export function RecBadge({ rec, confidence }: { rec?: InterviewRecommendation; confidence?: number }) {
+  const content = interviewRecommendationToken(rec ?? INTERVIEW_RECOMMENDATION_FALLBACK);
   const hasConfidence = typeof confidence === "number";
   return (
     <Badge

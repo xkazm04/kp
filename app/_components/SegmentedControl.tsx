@@ -1,9 +1,10 @@
 "use client";
 
-import { useId, useRef } from "react";
+import { useEffect, useId, useRef } from "react";
 import type { KeyboardEvent, ReactNode } from "react";
 import { motion } from "framer-motion";
 import { useReducedMotion } from "@/app/_lib/useReducedMotion";
+import { resolveSegmentedSelection } from "./segmented-control-selection";
 
 export type SegmentedOption<T extends string> = { value: T; label: ReactNode };
 
@@ -16,6 +17,12 @@ export type SegmentedOption<T extends string> = { value: T; label: ReactNode };
 // `bg-ink` pill that defines the app's segmented-control motion standard and
 // snaps to its end state under the OS "reduce motion" preference. Extracted so
 // every single-select toggle shares this behavior instead of re-deriving it.
+//
+// Unmatched `value` is a DEVELOPER ERROR, not a supported empty state (see the
+// contract in segmented-control-selection.ts): when `value` matches no option the
+// group announces nothing selected and the pill is hidden, and we warn in
+// non-production so the bug surfaces. Callers needing a real empty state must add
+// an explicit option rather than passing an out-of-range value.
 export function SegmentedControl<T extends string>({
   label,
   options,
@@ -36,9 +43,21 @@ export function SegmentedControl<T extends string>({
   const refs = useRef<(HTMLButtonElement | null)[]>([]);
 
   // The selected option is the sole tab stop; fall back to the first option so
-  // the group is always reachable even if `value` matches nothing.
-  const selectedIndex = options.findIndex((o) => o.value === value);
-  const focusIndex = selectedIndex >= 0 ? selectedIndex : 0;
+  // the group stays keyboard-reachable even if `value` matches nothing.
+  const { focusIndex, hasSelection } = resolveSegmentedSelection(options, value);
+
+  // An unmatched value is a caller bug (see the doc comment + the selection-helper
+  // contract): it leaves the group announcing nothing selected. Surface it in dev
+  // so it doesn't ship as a silent empty radiogroup; production renders the
+  // graceful unselected state without console noise. In an effect, not in render,
+  // to keep render side-effect-free and avoid warning on every re-render.
+  useEffect(() => {
+    if (hasSelection || process.env.NODE_ENV === "production") return;
+    console.warn(
+      `SegmentedControl "${label}": value ${JSON.stringify(value)} matches none of its options — ` +
+        "the group will announce nothing selected."
+    );
+  }, [hasSelection, value, label]);
 
   const move = (next: number) => {
     const count = options.length;

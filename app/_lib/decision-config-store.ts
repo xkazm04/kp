@@ -1,30 +1,27 @@
-import path from "node:path";
-import { mkdirSync } from "node:fs";
 import Database from "better-sqlite3";
+import { DB_PATH, ensureDbDir } from "./db-path";
+import { DecisionConfigError, SCREENING_DEFAULT, validateDecisionConfig } from "./decision-config-schema";
 
 // Phase 3 — data-driven decision rules per pipeline phase, replacing the
 // hard-coded Python POLICY for the configurable bits. Isolated connection
 // (job-ingest/offers/scheduler pattern) so we don't touch the fork-active db.ts.
+//
+// The config SHAPE and write-validation live in decision-config-schema.ts (a
+// pure, DB-free module) so the contract has one source of truth and can be unit
+// tested; this module is just the SQLite persistence around it.
 
-const DB_PATH = process.env.KP_DB_PATH ?? path.join(process.cwd(), "data", "kp.sqlite");
-
-// Screening auto-reject: drop the bottom `rejectBottomPercent` of a role's
-// matched candidates that are ALSO below `maxMatchToReject` match — never
-// early-career. Off by default (opt-in), like the automation clock.
-export type ScreeningRule = {
-  autoRejectEnabled: boolean;
-  rejectBottomPercent: number; // 0–100
-  maxMatchToReject: number; // 0–100 match score
-};
+// Re-exported so existing importers (screen-wave.ts, the screen-wave route) keep
+// resolving `ScreeningRule` from here.
+export type { ScreeningRule } from "./decision-config-schema";
 
 const DEFAULTS: Record<string, unknown> = {
-  screening: { autoRejectEnabled: false, rejectBottomPercent: 20, maxMatchToReject: 45 } as ScreeningRule,
+  screening: SCREENING_DEFAULT,
 };
 
 let _db: Database.Database | null = null;
 function db(): Database.Database {
   if (_db) return _db;
-  mkdirSync(path.dirname(DB_PATH), { recursive: true });
+  ensureDbDir();
   const d = new Database(DB_PATH);
   d.pragma("journal_mode = WAL");
   d.exec(`
@@ -50,12 +47,19 @@ export function getDecisionConfig<T = Record<string, unknown>>(phase: string): T
 }
 
 export function setDecisionConfig(phase: string, config: Record<string, unknown>): void {
+  // Backstop: never persist an unvalidated config, no matter the caller. The
+  // route validates first (and returns a 400), but enforcing the schema HERE —
+  // at the actual write boundary — guarantees a bad write (out-of-range,
+  // wrong-type, stray-key, unknown-phase) can't slip into runScreenWave's math
+  // through any other path. The clamped, fully-typed result is what we store.
+  const result = validateDecisionConfig(phase, config);
+  if (!result.ok) throw new DecisionConfigError(result.error);
   db()
     .prepare(
       `INSERT INTO decision_config (phase, config_json, updated_at) VALUES (?, ?, ?)
        ON CONFLICT(phase) DO UPDATE SET config_json = excluded.config_json, updated_at = excluded.updated_at`
     )
-    .run(phase, JSON.stringify(config), new Date().toISOString());
+    .run(result.phase, JSON.stringify(result.config), new Date().toISOString());
 }
 
 export function getAllDecisionConfigs(): Record<string, unknown> {

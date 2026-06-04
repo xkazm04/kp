@@ -111,7 +111,15 @@ def _wrap(text: str, *, indent: int) -> str:
     return ("\n" + pad).join(lines)
 
 
-def score_color(score: int, *, good: int = 75, ok: int = 55) -> str:
+# Score→tone cutoffs, mirrored from scoreTone() in app/_lib/format.ts (the
+# canonical source: SCORE_STRONG_MIN / SCORE_MID_MIN). Kept in lockstep so a
+# score is colored the same in the terminal as in the web UI — >=75 green/strong,
+# >=50 yellow/mid, else red/weak. Update both sides together if the bands change.
+SCORE_STRONG_MIN = 75
+SCORE_MID_MIN = 50
+
+
+def score_color(score: int, *, good: int = SCORE_STRONG_MIN, ok: int = SCORE_MID_MIN) -> str:
     if score >= good:
         return GREEN
     if score >= ok:

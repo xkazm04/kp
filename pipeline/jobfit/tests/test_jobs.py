@@ -113,6 +113,115 @@ class EntryProfileTest(unittest.TestCase):
         self.assertTrue(out.lower().startswith("demonstrated foundation"))
 
 
+class GraduateFriendlinessGoldenTest(unittest.TestCase):
+    """Locks graduate_friendliness for representative junior/medior/senior specs so
+    the score bands — which order the opportunities a zero-experience student sees —
+    can't drift silently. Every constant exercised here is justified in
+    docs/GRADUATE_FRIENDLINESS.md; keep the doc, these values, and the formula in
+    pipeline/jobfit/jobs.compute_entry_profile in sync on any deliberate change.
+    """
+
+    def _score(self, *, seniority, min_years, requirements, description, employment_type="full-time"):
+        return compute_entry_profile(
+            seniority=seniority,
+            employment_type=employment_type,
+            min_years=min_years,
+            requirements=_requirements_from(requirements),
+            description=description,
+        )
+
+    def test_junior_welcoming_scores_max(self) -> None:
+        # 0.5 (junior) + 0.2 (years<=1) + 0.1 (1/2 must-haves learnable) + 0.2
+        # (early-career language) = 1.0.
+        ep = self._score(
+            seniority="junior",
+            min_years=0,
+            requirements=[
+                {"skill": "React", "kind": "must_have", "hardness": "prerequisite"},
+                {"skill": "TypeScript", "kind": "must_have", "hardness": "learnable"},
+                {"skill": "k8s", "kind": "nice_to_have", "hardness": "learnable"},
+            ],
+            description="Join our team; mentoring and training provided for graduates.",
+        )
+        self.assertEqual(ep.graduate_friendliness, 1.0)
+        self.assertTrue(ep.is_entry_eligible)
+        self.assertEqual(ep.trainable_gaps, ["TypeScript"])
+
+    def test_medior_no_stated_years_plain_ad_is_capped(self) -> None:
+        # Non-junior ad with no stated years assumes 3.0 (the conservative default),
+        # so it isn't entry-eligible and the raw 0.3 is capped to the 0.15 ceiling.
+        ep = self._score(
+            seniority="medior",
+            min_years=None,
+            requirements=[
+                {"skill": "Python", "kind": "must_have", "hardness": "prerequisite"},
+                {"skill": "Docker", "kind": "must_have", "hardness": "learnable"},
+            ],
+            description="We need someone to own our backend services.",
+        )
+        self.assertEqual(ep.graduate_friendliness, 0.15)
+        self.assertFalse(ep.is_entry_eligible)
+
+    def test_medior_one_year_required_is_entry_midrange(self) -> None:
+        # years<=1 opens the gate: 0.2 (medior) + 0.2 (years<=1) + 0.1 (1/2 learnable) = 0.5.
+        ep = self._score(
+            seniority="medior",
+            min_years=1,
+            requirements=[
+                {"skill": "Python", "kind": "must_have", "hardness": "prerequisite"},
+                {"skill": "Docker", "kind": "must_have", "hardness": "learnable"},
+            ],
+            description="We need someone to own our backend services.",
+        )
+        self.assertEqual(ep.graduate_friendliness, 0.5)
+        self.assertTrue(ep.is_entry_eligible)
+
+    def test_senior_only_floors_at_zero(self) -> None:
+        # No seniority/years/learnable/signal credit -> 0.0; not entry, stays 0.0.
+        ep = self._score(
+            seniority="senior",
+            min_years=5,
+            requirements=[{"skill": "Go", "kind": "must_have", "hardness": "prerequisite"}],
+            description="We need a seasoned engineer to own our platform.",
+        )
+        self.assertEqual(ep.graduate_friendliness, 0.0)
+        self.assertFalse(ep.is_entry_eligible)
+
+    def test_learnable_must_ratio_scales_the_score(self) -> None:
+        # The learnable term is 0.2 * (learnable / all must-haves). On an otherwise
+        # identical entry-eligible junior ad (0.5 junior + 0.2 years, no signal),
+        # it moves the total from 0.7 (all prerequisite) to 0.9 (all learnable).
+        base = dict(
+            seniority="junior",
+            min_years=0,
+            description="We build payment systems for our platform team.",
+        )
+        all_prereq = self._score(
+            **base,
+            requirements=[
+                {"skill": "Go", "kind": "must_have", "hardness": "prerequisite"},
+                {"skill": "Rust", "kind": "must_have", "hardness": "prerequisite"},
+            ],
+        )
+        half_learnable = self._score(
+            **base,
+            requirements=[
+                {"skill": "Go", "kind": "must_have", "hardness": "prerequisite"},
+                {"skill": "Rust", "kind": "must_have", "hardness": "learnable"},
+            ],
+        )
+        all_learnable = self._score(
+            **base,
+            requirements=[
+                {"skill": "Go", "kind": "must_have", "hardness": "learnable"},
+                {"skill": "Rust", "kind": "must_have", "hardness": "learnable"},
+            ],
+        )
+        self.assertEqual(all_prereq.graduate_friendliness, 0.7)
+        self.assertEqual(half_learnable.graduate_friendliness, 0.8)
+        self.assertEqual(all_learnable.graduate_friendliness, 0.9)
+
+
 class FakeProvider:
     def __init__(self, payload: dict) -> None:
         self.payload = payload

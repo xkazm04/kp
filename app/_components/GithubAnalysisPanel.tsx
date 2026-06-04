@@ -49,6 +49,16 @@ export function GithubAnalysisPanel({ status, analysis, error }: GithubAnalysisP
 }
 
 function GithubAnalysisBody({ analysis }: { analysis: GithubAnalysis }) {
+  // Disambiguate "no JD supplied" from "JD analyzed, zero overlap" (idea-2dd27822): the same
+  // empty matchingSkills list means opposite things to a recruiter, so the empty-state copy
+  // must spell out which one happened instead of always reading as a damning skills gap.
+  const { jobDescriptionProvided } = analysis.jobFitSignals;
+  const matchesEmpty = jobDescriptionProvided
+    ? "Job description analyzed — no overlapping skills found in public GitHub metadata."
+    : "No job description supplied — add one to compare it against this candidate's public work.";
+  const gapsEmpty = jobDescriptionProvided
+    ? "No job-mentioned gaps detected from public GitHub metadata."
+    : "No job description supplied — gaps are only measured against a job description.";
   return (
     <div className="mt-5 grid gap-5 xl:grid-cols-[380px_1fr]">
       <div className="space-y-5">
@@ -84,17 +94,17 @@ function GithubAnalysisBody({ analysis }: { analysis: GithubAnalysis }) {
       </div>
 
       <div className="space-y-5">
-        <Panel title="Contribution Signals" items={analysis.contributionSignals} />
+        <TitledList title="Contribution Signals" items={analysis.contributionSignals} />
         <div className="grid gap-5 lg:grid-cols-2">
-          <Panel title="Job Skill Matches" items={analysis.jobFitSignals.matchingSkills} empty="No job-specific public GitHub matches detected." />
-          <Panel title="Potential Gaps" items={analysis.jobFitSignals.potentialGaps} empty="No job-mentioned gaps detected from public GitHub metadata." />
+          <TitledList title="Job Skill Matches" items={analysis.jobFitSignals.matchingSkills} empty={matchesEmpty} />
+          <TitledList title="Potential Gaps" items={analysis.jobFitSignals.potentialGaps} empty={gapsEmpty} />
         </div>
         <div className="rounded-lg border border-stone-200 bg-white p-4">
           <h3 className="font-serif text-h3 text-ink">Complexity Assessment</h3>
           <p className="mt-3 text-base leading-6 text-ink">{analysis.jobFitSignals.complexityAssessment}</p>
         </div>
         {analysis.codeReview ? <CodeReviewBlock review={analysis.codeReview} /> : null}
-        <Panel title="Limitations" items={analysis.limitations} />
+        <TitledList title="Limitations" items={analysis.limitations} />
       </div>
     </div>
   );
@@ -189,27 +199,10 @@ function CodeReviewBlock({
         </details>
       ) : null}
       <div className="mt-4 grid gap-3 lg:grid-cols-3">
-        <ReviewList title="Evidenced Skills" items={review.confirmedSkills} accent="bg-moss/15" />
-        <ReviewList title="Unverified Claims" items={review.unverifiedClaims} accent="bg-coral/10" />
-        <ReviewList title="Hidden Strengths" items={review.hiddenStrengths} accent="bg-limewash" />
+        <TitledList title="Evidenced Skills" items={review.confirmedSkills} accent="bg-moss/15" empty="None detected." />
+        <TitledList title="Unverified Claims" items={review.unverifiedClaims} accent="bg-coral/10" empty="None detected." />
+        <TitledList title="Hidden Strengths" items={review.hiddenStrengths} accent="bg-limewash" empty="None detected." />
       </div>
-    </div>
-  );
-}
-
-function ReviewList({ title, items, accent }: { title: string; items: string[]; accent: string }) {
-  return (
-    <div className={`rounded-md ${accent} p-3`}>
-      <p className="text-sm font-semibold uppercase tracking-wide text-steel">{title}</p>
-      {items.length ? (
-        <ul className="mt-2 space-y-1 text-base leading-6 text-ink">
-          {dedupe(items).map((item, i) => (
-            <li key={`${item}-${i}`}>• {item}</li>
-          ))}
-        </ul>
-      ) : (
-        <p className="mt-2 text-sm text-steel">None detected.</p>
-      )}
     </div>
   );
 }
@@ -223,15 +216,43 @@ function Metric({ label, value }: { label: string; value: number }) {
   );
 }
 
-function Panel({ title, items, empty = "No items detected." }: { title: string; items: string[]; empty?: string }) {
+// One titled card with a deduped bullet list and an empty-state fallback — the
+// single source for both the body panels (Contribution / Job / Limitations) and
+// the compact review columns (Evidenced Skills / Unverified Claims / Hidden
+// Strengths). `accent` switches to the compact review look (tinted card,
+// uppercase label, "•" bullets); without it the panel look renders (white
+// bordered card, serif heading). Either way the dedupe call and the
+// key={item-index} strategy live here in exactly one place.
+function TitledList({
+  title,
+  items,
+  accent,
+  empty = "No items detected.",
+}: {
+  title: string;
+  items: string[];
+  accent?: string;
+  empty?: string;
+}) {
+  const rows = dedupe(items);
   return (
-    <div className="rounded-lg border border-stone-200 bg-white p-4">
-      <h3 className="font-serif text-h3 text-ink">{title}</h3>
-      <ul className="mt-3 space-y-2">
-        {(items.length ? dedupe(items) : [empty]).map((item, i) => (
-          <li key={`${item}-${i}`} className="text-base leading-6 text-ink">{item}</li>
-        ))}
-      </ul>
+    <div className={accent ? `rounded-md ${accent} p-3` : "rounded-lg border border-stone-200 bg-white p-4"}>
+      {accent ? (
+        <p className="text-sm font-semibold uppercase tracking-wide text-steel">{title}</p>
+      ) : (
+        <h3 className="font-serif text-h3 text-ink">{title}</h3>
+      )}
+      {rows.length ? (
+        <ul className={accent ? "mt-2 space-y-1" : "mt-3 space-y-2"}>
+          {rows.map((item, i) => (
+            <li key={`${item}-${i}`} className="text-base leading-6 text-ink">
+              {accent ? `• ${item}` : item}
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className={accent ? "mt-2 text-sm text-steel" : "mt-3 text-base leading-6 text-ink"}>{empty}</p>
+      )}
     </div>
   );
 }

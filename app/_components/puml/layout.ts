@@ -7,9 +7,9 @@
 
 import type { ElkNode, ElkExtendedEdge, ElkLabel } from "elkjs/lib/elk-api";
 import type { PumlContainer, PumlDiagram, PumlElement, PumlNodeKind } from "./parse";
-import { NODE_FONT, TITLE_FONT, measure, measureLines } from "./measure";
+import { LINE_H, NODE_FONT, TITLE_FONT } from "./constants";
+import { measure, measureLines } from "./measure";
 
-const LINE_H = 18; // 14px text needs a touch more leading
 const PAD_X = 13;
 const PAD_Y = 9;
 

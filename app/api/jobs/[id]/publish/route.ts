@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createPipelineEntry, getJob } from "@/app/_lib/db";
 import { getJobStatus, setJobStatus } from "@/app/_lib/job-ingest";
 import { runSourceForRole } from "@/app/_lib/devcase-run";
+import { splitRequirements } from "@/app/features/sub_jobs/JobsTypes";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -31,13 +32,16 @@ export async function POST(_request: NextRequest, context: { params: Promise<{ i
     if (!already) {
       try {
         const reqs = ((job as { requirements?: { skill: string; kind?: string }[] }).requirements ?? []);
+        // Single-sourced split (JobsTypes.splitRequirements) so the sourcing
+        // must-haves can't diverge from the published posting's must/nice buckets.
+        const { mustHaves, niceToHaves } = splitRequirements(reqs);
         const role = {
           title: job.title,
           seniority: job.seniority,
           roleFamily: job.roleFamily,
           languages: job.languages ?? [],
-          mustHaves: reqs.filter((r) => r.kind !== "nice_to_have").map((r) => r.skill),
-          niceToHaves: reqs.filter((r) => r.kind === "nice_to_have").map((r) => r.skill),
+          mustHaves,
+          niceToHaves,
           responsibilities: job.description ? [job.description] : [],
         };
         const outcome = await runSourceForRole(role);

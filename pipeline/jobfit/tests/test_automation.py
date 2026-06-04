@@ -135,6 +135,70 @@ class ScreeningTest(unittest.TestCase):
         self.assertNotEqual(result["recommendation"], "reject")
 
 
+class _CaptureProvider:
+    """Fake LLM provider: records the prompt it was handed and returns a canned
+    payload, so a test can assert what the model was asked AND how the coercer
+    handles what it returns."""
+
+    def __init__(self, payload):
+        self.payload = payload
+        self.prompt = None
+
+    def complete_json(self, prompt, system=None):
+        self.prompt = prompt
+        return self.payload
+
+
+class RecommendationContractTest(unittest.TestCase):
+    """Pins the Python half of the advance|hold|reject verdict contract
+    (idea-d00da358). The TS half lives in app/_lib/interview-recommendation.ts,
+    pinned by interview-recommendation.test.ts."""
+
+    def test_canonical_set_and_fallback(self):
+        self.assertEqual(automation.RECOMMENDATIONS, ("advance", "hold", "reject"))
+        self.assertEqual(automation.RECOMMENDATION_FALLBACK, "hold")
+        self.assertIn(automation.RECOMMENDATION_FALLBACK, automation.RECOMMENDATIONS)
+        # The prompt-facing choice string is derived from the set, never hand-typed.
+        self.assertEqual(automation.RECOMMENDATION_CHOICES, "advance|hold|reject")
+
+    def test_coerce_recommendation_normalizes_and_falls_back(self):
+        self.assertEqual(automation.coerce_recommendation("Advance"), "advance")
+        self.assertEqual(automation.coerce_recommendation(" REJECT "), "reject")
+        self.assertEqual(automation.coerce_recommendation("hold"), "hold")
+        # Off-set / empty / None → the default fallback (hold)...
+        for bad in ("advanced", "yes", "", None, 42):
+            self.assertEqual(automation.coerce_recommendation(bad), "hold", repr(bad))
+        # ...unless the caller supplies a context-aware default.
+        self.assertEqual(automation.coerce_recommendation("nope", "advance"), "advance")
+
+    def test_prompts_list_the_canonical_vocabulary(self):
+        # The legal set must reach the model byte-for-byte as "advance|hold|reject"
+        # (derived, so it can never go stale relative to RECOMMENDATIONS).
+        job = mkjob()
+        cap = _CaptureProvider({"recommendation": "advance", "confidence": 90})
+        automation.screen_candidate(BAU, job, score_job(BAU, job), provider=cap)
+        self.assertIn('"recommendation": "advance|hold|reject"', cap.prompt)
+
+        cap2 = _CaptureProvider({"ratings": [], "summary": "ok", "recommendation": "hold"})
+        automation.interview_scorecard(BAU, job, "notes", provider=cap2)
+        self.assertIn('"recommendation": "advance|hold|reject"', cap2.prompt)
+
+    def test_screen_never_emits_off_taxonomy_verdict(self):
+        # A model that returns garbage must be coerced before it leaves the function.
+        job = mkjob()
+        cap = _CaptureProvider({"recommendation": "definitely-hire", "confidence": 95})
+        result, source = automation.screen_candidate(BAU, job, score_job(BAU, job), provider=cap)
+        self.assertEqual(source, "llm")
+        self.assertIn(result["recommendation"], automation.RECOMMENDATIONS)
+        self.assertIn(result["route"], ("advance", "hold"))
+
+    def test_scorecard_garbage_verdict_falls_back_to_hold(self):
+        job = mkjob()
+        cap = _CaptureProvider({"ratings": [], "summary": "s", "recommendation": "🤷 maybe"})
+        result, _ = automation.interview_scorecard(BAU, job, "notes", provider=cap)
+        self.assertEqual(result["recommendation"], "hold")
+
+
 class DraftsTest(unittest.TestCase):
     def setUp(self):
         self.job = mkjob()

@@ -79,10 +79,14 @@ class CompletenessTest(unittest.TestCase):
     def test_normalize_resolves_provenance_and_stamps_completeness(self) -> None:
         profile = _full_student()
         # thesis evidence left at default 'unknown' provenance -> resolved to 'thesis'
-        normalize_profile(profile)
+        score, missing = normalize_profile(profile)
         thesis = next(e for e in profile.evidence if e.kind == "thesis")
         self.assertEqual(thesis.provenance, "thesis")
         self.assertGreater(profile.completeness, 0.0)
+        # normalize returns the SAME (score, missing) it stamped — callers reuse it
+        # instead of re-running the checklist.
+        self.assertEqual(score, profile.completeness)
+        self.assertEqual((score, missing), completeness(profile))
 
 
 if __name__ == "__main__":

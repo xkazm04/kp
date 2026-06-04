@@ -28,12 +28,17 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from typing import Any
 
-from ..claude_cli import ClaudeCliError, ClaudeCliProvider
+from ..claude_cli import ClaudeCliProvider
 from .evaluate import evaluate_submission, score_transfer
+from .llm_judge import run_judge
+from .models import RUBRIC_DIMENSIONS
+from .provenance import combine_source
 from .reflect import assess_tooling, reflect_commits
 from .submission_scenarios import SubScenario, generate_submissions
 
-_DIMS = {"framing", "tooling", "judgment", "architecture", "transfer"}
+# Derived from the canonical rubric (models.RUBRIC_DIMENSIONS) — mirroring evaluate._DIMS —
+# so the reliability validator's dimension set can never drift from the rubric it checks.
+_DIMS = {d["name"] for d in RUBRIC_DIMENSIONS}
 _PATTERNS = {"exploratory", "linear", "big-bang", "test-driven", "unclear"}
 
 
@@ -96,7 +101,9 @@ def run_one(scn: SubScenario, provider: Any | None) -> Row:
         tr, s4 = score_transfer(ev, scn.role, provider=provider)
     except Exception as exc:  # pragma: no cover
         return Row(id=scn.id, label=scn.label, planted=scn.planted, source="error", issues=[f"raised: {type(exc).__name__}: {exc}"])
-    src = "llm" if "llm" in (s1, s2, s3, s4) else "deterministic"
+    # One shared tri-state collapse (provenance.combine_source): a mixed run reads as
+    # "partial", so llm_rows + the --strict gate count only fully-LLM runs as LLM.
+    src = combine_source(s1, s2, s3, s4)
     issues = _check(refl, tool, ev, tr, scn)
     return Row(id=scn.id, label=scn.label, planted=scn.planted, source=src, issues=issues, reflection=refl, tooling=tool, evaluation=ev, transfer=tr)
 
@@ -175,31 +182,22 @@ def signals(rows: list[Row]) -> dict[str, Any]:
 
 
 def judge(rows: list[Row], provider: ClaudeCliProvider, workers: int = 4) -> None:
-    jobs = [
-        (
-            r,
+    def _prompt(r: Row) -> str:
+        return (
             f"You QA an AI hiring evaluation. Code is assumed LLM-generated, so it must grade judgment/verification/"
             f"transfer, NOT AI use, and must not penalise using tools.\nScenario: {r.label}\n"
             f"Evaluation: {json.dumps(r.evaluation, ensure_ascii=False)[:1200]}\nTransfer: {json.dumps(r.transfer, ensure_ascii=False)[:800]}\n\n"
-            'Return JSON: { "score": int 1-5, "fairToAiUse": bool, "note": str }. JSON only.',
+            'Return JSON: { "score": int 1-5, "fairToAiUse": bool, "note": str }. JSON only.'
         )
-        for r in rows
-        if r.source != "error"
-    ]
-    results = provider.map([p for _, p in jobs], max_workers=workers)
-    for (r, _), res in zip(jobs, results):
-        if isinstance(res, ClaudeCliError):
-            continue
-        try:
-            payload = res.json()
-            if isinstance(payload, dict):
-                r.quality = {
-                    "score": max(1, min(5, int(payload.get("score", 0)))),
-                    "fairToAiUse": bool(payload.get("fairToAiUse", True)),
-                    "note": str(payload.get("note") or "")[:200],
-                }
-        except Exception:
-            continue
+
+    def _shape(r: Row, payload: dict) -> None:
+        r.quality = {
+            "score": max(1, min(5, int(payload.get("score", 0)))),
+            "fairToAiUse": bool(payload.get("fairToAiUse", True)),
+            "note": str(payload.get("note") or "")[:200],
+        }
+
+    run_judge([r for r in rows if r.source != "error"], _prompt, _shape, provider, workers)
 
 
 def _quality_summary(rows: list[Row]) -> dict[str, Any]:

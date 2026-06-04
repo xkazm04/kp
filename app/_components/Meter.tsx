@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { ScoreTone } from "@/app/_lib/format";
+import { clampPercent, type ScoreTone } from "@/app/_lib/format";
 
 // One animated progress meter for every bar in the app: grows from 0 to `value`%
 // on mount so the row reads as a live measurement, exposes proper progressbar
@@ -22,7 +22,7 @@ export function Meter({
   trackClassName?: string;
   "aria-label"?: string;
 }) {
-  const pct = Math.max(0, Math.min(100, Math.round(value)));
+  const pct = clampPercent(Math.round(value));
   const [filled, setFilled] = useState(false);
   useEffect(() => {
     const id = requestAnimationFrame(() => setFilled(true));

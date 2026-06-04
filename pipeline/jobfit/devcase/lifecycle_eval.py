@@ -28,10 +28,14 @@ from typing import Any
 from ..claude_cli import ClaudeCliProvider
 from .analyze import analyze_need
 from .design import design_case, design_role
-from .models import NeedAnalysis
+from .models import RUBRIC_DIMENSIONS, NeedAnalysis
+from .provenance import combine_source
 from .scenarios import DOMAINS, Scenario, generate_mixed, generate_scenarios
 
 PROBE_KINDS = {"ambiguity", "legacy_trap", "verification_trap", "underspecified"}
+# Derived from the canonical rubric so _check_case validates against the single source of
+# truth (models.RUBRIC_DIMENSIONS) rather than a hardcoded copy that could silently go stale.
+RUBRIC_NAMES = {d["name"] for d in RUBRIC_DIMENSIONS}
 LEVERS = [
     "salary/market benchmarks",
     "skill taxonomy",
@@ -78,7 +82,7 @@ def _check_case(c: dict, scn: Scenario) -> list[str]:
     if any(not p.get("reveals") for p in probes):
         issues.append("case: probe missing 'reveals'")
     rub = c.get("rubricDimensions") or []
-    if {d.get("name") for d in rub} != {"framing", "tooling", "judgment", "architecture", "transfer"}:
+    if {d.get("name") for d in rub} != RUBRIC_NAMES:
         issues.append("case: rubric dimensions off")
     elif abs(sum(d.get("weight", 0) for d in rub) - 1.0) > 0.02:
         issues.append("case: rubric weights != 1")
@@ -114,7 +118,9 @@ def run_one(scn: Scenario, provider: Any | None) -> Row:
         c, csrc = design_case(scn.need, na, r, provider=provider)
     except Exception as exc:  # pragma: no cover
         return Row(id=scn.id, label=scn.label, planted=scn.planted, source="error", issues=[f"raised: {type(exc).__name__}: {exc}"])
-    src = "llm" if "llm" in (asrc, rsrc, csrc) else "deterministic"
+    # One shared tri-state collapse (provenance.combine_source): a mixed run reads as
+    # "partial" everywhere, so llm_rows reflects only fully-LLM designs, not any-LLM ones.
+    src = combine_source(asrc, rsrc, csrc)
     issues = _check_analysis(a, scn) + _check_role(r, scn) + _check_case(c, scn)
     return Row(id=scn.id, label=scn.label, planted=scn.planted, source=src, issues=issues, analysis=a, role=r, case=c)
 

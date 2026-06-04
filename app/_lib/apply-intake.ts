@@ -44,6 +44,37 @@ export function parseYearsExperience(experience: string): number | undefined {
   return match ? Number(match[1]) : undefined;
 }
 
+/**
+ * Normalize an applicant's display name into a stable comparison key:
+ * trimmed, internal whitespace collapsed to single spaces, lowercased. So
+ * "  Jane   DOE " and "jane doe" resolve to the same person. Returns "" for a
+ * blank/whitespace-only name — the signal that we have nothing to dedup on.
+ *
+ * This is the identity the duplicate-application policy keys on. The
+ * conversational apply flow captures no contact field (email/phone), so the
+ * applicant's name (paired with the role) is the only stable signal available;
+ * see {@link applyDedupeKey} and `findApplicationByApplicant` in db.ts.
+ */
+export function normalizeApplicantName(name: string): string {
+  return name.trim().replace(/\s+/g, " ").toLowerCase();
+}
+
+/**
+ * Build the stable per-applicant idempotency key the apply flow hands to
+ * `createPipelineEntry` so repeat submissions from the same (person, role)
+ * collapse onto one pipeline row instead of minting a fresh entry each time.
+ *
+ * Shape: `appl-<normalized-name-with-spaces-as-hyphens>` (e.g. "Jane Doe" →
+ * `appl-jane-doe`). The hyphen/alphanumeric form survives createPipelineEntry's
+ * slug strip so the derived entry id stays stable and human-legible. Returns ""
+ * for a nameless applicant, which the caller treats as "don't dedup" (we can't
+ * tell two anonymous applicants apart, so each gets its own entry).
+ */
+export function applyDedupeKey(name: string): string {
+  const norm = normalizeApplicantName(name);
+  return norm ? `appl-${norm.replace(/ /g, "-")}` : "";
+}
+
 /** The free-text answers captured by the conversational apply flow. */
 export type ApplyAnswers = { name: string; experience: string; skills: string; archetype?: string };
 

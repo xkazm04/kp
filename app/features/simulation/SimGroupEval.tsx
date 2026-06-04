@@ -13,6 +13,7 @@ export function SimGroupEval() {
       roleTitle={groupEval.roleTitle}
       evaluation={groupEval.payload}
       loading={groupEval.loading}
+      error={groupEval.error}
       onClose={closeGroupEval}
       onRerun={() => undefined}
     />

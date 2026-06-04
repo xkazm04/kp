@@ -3,8 +3,8 @@
 import { useEffect, useState } from "react";
 import { Users } from "lucide-react";
 import { ARCHETYPE_BADGE, isEarlyCareer, provLabel } from "./JobsTypes";
-import type { CandRow } from "./JobsTypes";
-import { EmptyState } from "./JobsShared";
+import type { CandRow, SkippedCandidate } from "./JobsTypes";
+import { EmptyState, SkippedCandidatesNote } from "./JobsShared";
 import { ConfidenceBandBadge, confidenceBandTitle, FitTierBadge } from "@/app/_components/Badge";
 import { ScoreBadge } from "@/app/_components/ScoreBadge";
 
@@ -21,7 +21,7 @@ export function RecruiterCandidates({
 }) {
   const [data, setData] = useState<{
     candidates: CandRow[];
-    skipped?: { id: string; label: string; reason: string }[];
+    skipped?: SkippedCandidate[];
   } | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -128,21 +128,7 @@ export function RecruiterCandidates({
         Early-career candidates are shown as a separate pipeline and scored on potential — never ranked on one number
         against experienced candidates.
       </p>
-      {skipped.length ? (
-        <details className="mt-2 rounded-md border border-amber-200 bg-amber-50/60 px-2.5 py-1.5 text-sm text-amber-800">
-          <summary className="cursor-pointer font-semibold">
-            {skipped.length} candidate{skipped.length === 1 ? "" : "s"} couldn&apos;t be scored (malformed profile) — the
-            rest ranked normally
-          </summary>
-          <ul className="mt-1 space-y-0.5">
-            {skipped.map((s) => (
-              <li key={s.id}>
-                <span className="font-medium">{s.label}</span> — {s.reason}
-              </li>
-            ))}
-          </ul>
-        </details>
-      ) : null}
+      <SkippedCandidatesNote skipped={skipped} />
       <div className="mt-3 grid gap-4 lg:grid-cols-2">
         <CandidateColumn
           title="Experienced"

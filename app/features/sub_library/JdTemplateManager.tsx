@@ -3,9 +3,8 @@
 import { useEffect, useState } from "react";
 import { Loader2, Pencil, Plus, Star, Trash2 } from "lucide-react";
 import { Modal } from "@/app/_components/Modal";
-import { DEFAULT_TEMPLATE_BODY, TEMPLATE_PLACEHOLDERS, type TemplateData } from "./render-template";
+import { DEFAULT_TEMPLATE_BODY, fetchTemplates, TEMPLATE_PLACEHOLDERS, type Template, type TemplateData } from "./render-template";
 
-type Template = { id: string; name: string; body: string; isDefault: boolean };
 type Editing = { id?: string; name: string; body: string };
 
 // Phase 1 follow-up — full CRUD of company JD templates. A template is markdown
@@ -18,8 +17,7 @@ export function JdTemplateManager({ onClose, onChanged }: { onClose: () => void;
   // Id of the template whose delete is awaiting inline confirmation (null = none).
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
 
-  const load = () =>
-    fetch("/api/templates").then((r) => r.json()).then((p) => setTemplates(p.templates ?? [])).catch(() => undefined);
+  const load = () => fetchTemplates().then(setTemplates);
   useEffect(() => {
     load();
   }, []);

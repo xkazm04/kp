@@ -1,6 +1,7 @@
 "use client";
 
 import { AlertTriangle, BriefcaseBusiness } from "lucide-react";
+import { Meter } from "@/app/_components/Meter";
 import { ScoreDial } from "@/app/_components/ScoreDial";
 import type { Analysis } from "@/app/_lib/schemas";
 import { dedupe, dedupeBy } from "@/app/_lib/dedupe";
@@ -104,7 +105,9 @@ function KeywordCoverageBlock({ coverage }: { coverage: KeywordCoverage }) {
           {coverage.coveragePercent}%
         </span>
       </div>
-      <CoverageBar percent={coverage.coveragePercent} />
+      {/* Shared Meter (fixed "strong" tone — coverage is a more-is-better bar): gives
+          progressbar a11y + reduced-motion that the old bespoke bar lacked. */}
+      <Meter value={coverage.coveragePercent} tone="strong" className="mt-3" aria-label="Keyword coverage" />
 
       {hits.length ? (
         <div className="mt-4 grid gap-2 sm:grid-cols-2">
@@ -158,18 +161,6 @@ function KeywordCoverageBlock({ coverage }: { coverage: KeywordCoverage }) {
           </ul>
         </div>
       ) : null}
-    </div>
-  );
-}
-
-function CoverageBar({ percent }: { percent: number }) {
-  const clamped = Math.max(0, Math.min(100, percent));
-  return (
-    <div className="mt-3 h-2.5 overflow-hidden rounded-full bg-stone-200">
-      <div
-        className="h-full rounded-full bg-moss transition-[width] duration-500 motion-reduce:transition-none"
-        style={{ width: `${clamped}%` }}
-      />
     </div>
   );
 }

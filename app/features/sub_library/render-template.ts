@@ -2,6 +2,8 @@
 // (the composer's live preview). A template is markdown with {{placeholders}};
 // list placeholders expand to bullet lists.
 
+import type { JdTemplate } from "@/app/_lib/templates-store";
+
 export type TemplateData = {
   title?: string;
   company?: string;
@@ -104,4 +106,24 @@ export function renderTemplate(body: string, data: TemplateData): string {
     .replaceAll(`${TEMPLATE_SEPARATOR}${EMPTY_MARK}`, "")
     .replaceAll(`${EMPTY_MARK}${TEMPLATE_SEPARATOR}`, "")
     .replaceAll(EMPTY_MARK, "");
+}
+
+// ---- Client-facing template list ------------------------------------------
+
+/** The client-facing subset of a stored JD template — exactly what the JD builder
+ *  and the template manager render. Derived from the store's JdTemplate (Pick) so
+ *  the UI shape can't silently drift from the DB row it represents. */
+export type Template = Pick<JdTemplate, "id" | "name" | "body" | "isDefault">;
+
+/** Load the company JD templates from the API. One shared fetch contract — the
+ *  endpoint shape AND the swallow-to-empty error behavior — for every caller, so a
+ *  change to either lives in one place. JdBuilder layers its default-selection
+ *  reconciliation on top of the returned list. */
+export async function fetchTemplates(): Promise<Template[]> {
+  try {
+    const payload = await fetch("/api/templates").then((r) => r.json());
+    return (payload.templates as Template[]) ?? [];
+  } catch {
+    return [];
+  }
 }

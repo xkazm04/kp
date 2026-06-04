@@ -6,6 +6,7 @@ import { buildCandidatePool } from "@/app/_lib/candidate-pool";
 import {
   cleanupWorkdir,
   createWorkdir,
+  parsePythonJson,
   parseStderrError,
   spawnPython,
 } from "@/app/_lib/python-runner";
@@ -42,7 +43,11 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
       const err = parseStderrError(stderr, exitCode);
       return NextResponse.json({ error: err.message }, { status: err.status });
     }
-    return NextResponse.json(JSON.parse(stdout));
+    // parsePythonJson, not raw JSON.parse: the interpreter routinely prints
+    // trailing non-JSON at shutdown (asyncio "Event loop is closed", leaked-
+    // semaphore / ResourceWarning, atexit — common on Windows), and one such line
+    // would turn a successful ranking into a JSON.parse throw / 500.
+    return NextResponse.json(parsePythonJson(stdout, stderr));
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to rank candidates.";
     return NextResponse.json({ error: message }, { status: 500 });

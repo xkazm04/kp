@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { analysisResultSchema } from "./schemas.generated";
+import { CODE_REVIEW_STATUSES } from "./code-review-status";
 
 export { analysisResultSchema };
 export type { AnalysisResult } from "./schemas.generated";
@@ -55,7 +56,10 @@ export type Analysis = z.infer<typeof analysisSchema>;
 // its CodeReviewPayload from this via z.infer, and the e2e fixture is typed
 // against it, so the three former hand-maintained mirrors can no longer drift.
 export const codeReviewSchema = z.object({
-  status: z.enum(["disabled", "ok", "error"]),
+  // Derived from the single CODE_REVIEW_STATUSES list (see that module for what
+  // each of the four states means). `empty` is distinct from `ok` so an empty
+  // review — no owned public repos — is never mistaken for evidenced-skills data.
+  status: z.enum(CODE_REVIEW_STATUSES),
   summary: z.string(),
   // `confirmedSkills` is the model's read on which skills the *public repo
   // signals* evidence — NOT a confirmation that the source code was inspected.
@@ -109,6 +113,11 @@ export const githubAnalysisSchema = z.object({
   ),
   contributionSignals: z.array(z.string()),
   jobFitSignals: z.object({
+    // True iff a non-empty job description was supplied for this run. Lets the UI tell
+    // "no JD provided — we never ran a comparison" apart from "JD analyzed, zero overlap",
+    // which are opposite conclusions about the same candidate (idea-2dd27822). Without it,
+    // an empty matchingSkills list is ambiguous and a benign empty input reads as a skills gap.
+    jobDescriptionProvided: z.boolean(),
     matchingSkills: z.array(z.string()),
     potentialGaps: z.array(z.string()),
     complexityAssessment: z.string()

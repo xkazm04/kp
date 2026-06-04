@@ -5,15 +5,20 @@ import { Maximize2, ZoomIn, ZoomOut } from "lucide-react";
 import { Modal } from "@/app/_components/Modal";
 import { parsePuml } from "./parse";
 import { layoutDiagram, type Box, type PositionedDiagram, type PositionedEdge } from "./layout";
+import { DIAGRAM_PAD, FONT_FAMILY, LINE_H } from "./constants";
 
 // SVG renderer for our PlantUML component-diagram subset. Layout coordinates
 // come from ELK; every shape, colour, and stroke here is ours, drawn from the
 // app design tokens so diagrams read as part of the product, not a screenshot.
+// LINE_H / FONT_FAMILY / DIAGRAM_PAD are shared with measure + layout (see
+// ./constants) so text sizing and positioning never drift.
 
-const LINE_H = 18;
-const FONT = 'ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
-
-// Design tokens (mirrors globals.css @theme).
+// The single home for every diagram colour. The top block mirrors globals.css
+// @theme tokens; the shape-fill block holds the bespoke primitive tints that are
+// diagram-only (no CSS-variable equivalent) — they used to live as ~ten orphaned
+// hex literals scattered through the shape renderers (idea-a1c39c26), so retuning
+// a shape meant hunting for a stray hex. One map = one edit to re-tone a diagram.
+// (The component status trichotomy in componentStyle is unified separately.)
 const C = {
   ink: "#17202a",
   paper: "#f7f5ef",
@@ -25,6 +30,21 @@ const C = {
   dialStone: "#8c8779",
   dialAmber: "#caa54c",
   white: "#ffffff",
+
+  // Database cylinder (body + lid).
+  dbFill: "#eef2f3",
+  dbLid: "#e2e9ea",
+  // Cloud silhouette fill.
+  cloudFill: "#f3f1ea",
+  // Sticky note (face + folded corner + ink).
+  noteFill: "#fbf4e0",
+  noteFold: "#efe2ba",
+  noteText: "#5b4f2e",
+  // Container group box, kind-agnostic: tagged (has a stereotype) vs plain.
+  groupTaggedStroke: "#9cb394",
+  groupPlainStroke: "#dcd8cf",
+  groupTaggedFill: "rgba(233,241,226,0.45)",
+  groupPlainFill: "rgba(247,245,239,0.55)",
 };
 
 // A hand-tuned cloud silhouette in its own coordinate box (≈ x:13–94, y:22–71);
@@ -54,7 +74,7 @@ function Label({
 }) {
   const total = lines.length * LINE_H;
   return (
-    <text fontFamily={FONT} fontSize={size} fontWeight={weight} fill={fill} textAnchor={anchor}>
+    <text fontFamily={FONT_FAMILY} fontSize={size} fontWeight={weight} fill={fill} textAnchor={anchor}>
       {lines.map((line, i) => (
         <tspan key={i} x={cx} y={cy - total / 2 + i * LINE_H + LINE_H * 0.74}>
           {line}
@@ -176,7 +196,7 @@ function renderNode(box: Box, onNodeClick?: NodeClick, activeNodeId?: string) {
     case "database":
       return (
         <g key={box.id} {...clickProps}>
-          <Cylinder box={box} fill="#eef2f3" lid="#e2e9ea" stroke={C.steel} />
+          <Cylinder box={box} fill={C.dbFill} lid={C.dbLid} stroke={C.steel} />
           <Label lines={box.lines} cx={cx} cy={cy + 4} fill={C.ink} />
         </g>
       );
@@ -188,7 +208,7 @@ function renderNode(box: Box, onNodeClick?: NodeClick, activeNodeId?: string) {
           <path
             transform={`translate(${box.x},${box.y}) scale(${sx},${sy}) translate(${-CLOUD_BBOX.x},${-CLOUD_BBOX.y})`}
             d={CLOUD_PATH}
-            fill="#f3f1ea"
+            fill={C.cloudFill}
             stroke={C.dialStone}
             strokeWidth={1.4}
             vectorEffect="non-scaling-stroke"
@@ -207,8 +227,8 @@ function renderNode(box: Box, onNodeClick?: NodeClick, activeNodeId?: string) {
     case "note":
       return (
         <g key={box.id}>
-          <Note box={box} fill="#fbf4e0" fold="#efe2ba" stroke={C.dialAmber} />
-          <Label lines={box.lines} cx={cx} cy={cy} fill="#5b4f2e" size={14} weight={500} />
+          <Note box={box} fill={C.noteFill} fold={C.noteFold} stroke={C.dialAmber} />
+          <Label lines={box.lines} cx={cx} cy={cy} fill={C.noteText} size={14} weight={500} />
         </g>
       );
     default: {
@@ -235,8 +255,8 @@ function renderNode(box: Box, onNodeClick?: NodeClick, activeNodeId?: string) {
 
 function renderContainer(box: Box) {
   const tagged = !!box.stereotype;
-  const stroke = tagged ? "#9cb394" : "#dcd8cf";
-  const fill = tagged ? "rgba(233,241,226,0.45)" : "rgba(247,245,239,0.55)";
+  const stroke = tagged ? C.groupTaggedStroke : C.groupPlainStroke;
+  const fill = tagged ? C.groupTaggedFill : C.groupPlainFill;
   const titleColor = tagged ? C.moss : C.coral;
   return (
     <g key={box.id}>
@@ -244,7 +264,7 @@ function renderContainer(box: Box) {
       <text
         x={box.x + 15}
         y={box.y + 25}
-        fontFamily={FONT}
+        fontFamily={FONT_FAMILY}
         fontSize={14}
         fontWeight={600}
         letterSpacing="0.06em"
@@ -310,6 +330,7 @@ export function PlantUml({
   onNodeClick,
   activeNodeId,
   expandable = false,
+  strict = false,
 }: {
   source: string;
   className?: string;
@@ -324,15 +345,33 @@ export function PlantUml({
   // When true, overlays a button that opens the diagram in a full-screen modal —
   // worth it for the dense architecture diagrams whose text shrinks in a column.
   expandable?: boolean;
+  // Declared-only diagrams (e.g. the interactive funnel) opt into strict parsing:
+  // a mistyped edge endpoint is dropped + warned in dev rather than fabricating a
+  // phantom node that becomes a dead click target (idea-bf583bb5). Leave false for
+  // class diagrams that legitimately render from edge endpoints alone.
+  strict?: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
   const diagram = useMemo(() => {
     try {
-      return parsePuml(source);
+      return parsePuml(source, { strict });
     } catch {
       return null;
     }
-  }, [source]);
+  }, [source, strict]);
+
+  // Surface mistyped aliases in declared-only diagrams: a strict parse records
+  // any endpoint that resolved to no declared node, so a typo no longer ships a
+  // silently-wrong architecture picture with zero signal.
+  useEffect(() => {
+    if (process.env.NODE_ENV === "production" || !strict || !diagram) return;
+    if (diagram.unresolvedEndpoints.length === 0) return;
+    console.warn(
+      `[puml] ${diagram.title ? `diagram "${diagram.title}" ` : ""}has ` +
+        `${diagram.unresolvedEndpoints.length} unresolved edge endpoint(s) — likely a mistyped alias: ` +
+        `${diagram.unresolvedEndpoints.join(", ")}. The edge was dropped rather than fabricating a phantom node.`
+    );
+  }, [diagram, strict]);
 
   // A parse failure or empty diagram is derivable during render — only the
   // async ELK layout needs an effect. The result is keyed to `diagram` so a
@@ -423,7 +462,7 @@ function ExpandedDiagram({ layout, onClose }: { layout: PositionedDiagram; onClo
   const [zoom, setZoom] = useState(1);
   const viewportRef = useRef<HTMLDivElement | null>(null);
 
-  const pad = 8;
+  const pad = DIAGRAM_PAD;
   const W = layout.width + pad * 2;
   const H = layout.height + pad * 2;
   const clamp = (z: number) => Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, z));
@@ -494,7 +533,7 @@ function DiagramSvg({
   const uid = useId().replace(/:/g, "");
   const markerSolid = `puml-arrow-solid-${uid}`;
   const markerDashed = `puml-arrow-dashed-${uid}`;
-  const pad = 8;
+  const pad = DIAGRAM_PAD;
   const W = layout.width + pad * 2;
   const H = layout.height + pad * 2;
   const zoomed = sizing === "zoom";

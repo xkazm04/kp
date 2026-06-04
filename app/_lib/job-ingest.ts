@@ -1,8 +1,8 @@
 import path from "node:path";
 import { writeFile } from "node:fs/promises";
-import { mkdirSync } from "node:fs";
 import { createHash } from "node:crypto";
 import Database from "better-sqlite3";
+import { DB_PATH, ensureDbDir } from "./db-path";
 import type { JobRecord } from "./db";
 import { cleanupWorkdir, createWorkdir, parsePythonJson, parseStderrError, spawnPython } from "./python-runner";
 
@@ -12,11 +12,10 @@ import { cleanupWorkdir, createWorkdir, parsePythonJson, parseStderrError, spawn
 // `job_ingests` table content-hash-guards re-ingestion of the same ad. The jobs
 // DDL mirrors db.ts (idempotent) so this module is self-contained.
 
-const DB_PATH = process.env.KP_DB_PATH ?? path.join(process.cwd(), "data", "kp.sqlite");
 let _db: Database.Database | null = null;
 function db(): Database.Database {
   if (_db) return _db;
-  mkdirSync(path.dirname(DB_PATH), { recursive: true });
+  ensureDbDir();
   const d = new Database(DB_PATH);
   d.pragma("journal_mode = WAL");
   d.exec(`

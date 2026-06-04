@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Check, Loader2, Save } from "lucide-react";
-import { JD_BODY_MAX_LENGTH, JD_TITLE_MAX_LENGTH } from "@/app/_lib/jd-limits";
+import { JD_BODY_MAX_LENGTH, JD_TITLE_MAX_LENGTH, validateJdFields } from "@/app/_lib/jd-limits";
 
 export function LibraryJdForm({ onSaved }: { onSaved: () => void }) {
   const [title, setTitle] = useState("");
@@ -20,18 +20,11 @@ export function LibraryJdForm({ onSaved }: { onSaved: () => void }) {
   }, []);
 
   async function submit() {
-    if (!title.trim() || !body.trim()) {
-      setError("Title and body are both required.");
-      return;
-    }
-    // Client-side guard mirroring the server caps so oversized pastes fail fast
-    // with a clear message instead of a round-trip 400.
-    if (title.trim().length > JD_TITLE_MAX_LENGTH) {
-      setError(`Title must be ${JD_TITLE_MAX_LENGTH} characters or fewer.`);
-      return;
-    }
-    if (body.trim().length > JD_BODY_MAX_LENGTH) {
-      setError(`Body must be ${JD_BODY_MAX_LENGTH.toLocaleString("en-US")} characters or fewer.`);
+    // Shared validator (same caps + wording as POST /api/jds) so the form fails fast
+    // with the identical message instead of a round-trip 400.
+    const fields = validateJdFields(title, body);
+    if (!fields.ok) {
+      setError(fields.error);
       return;
     }
     setSubmitting(true);
@@ -41,7 +34,7 @@ export function LibraryJdForm({ onSaved }: { onSaved: () => void }) {
       const response = await fetch("/api/jds", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: title.trim(), body: body.trim() }),
+        body: JSON.stringify({ title: fields.title, body: fields.body }),
       });
       if (!response.ok) {
         const payload = await response.json().catch(() => ({}));

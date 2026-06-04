@@ -50,6 +50,9 @@ export function PipelineTab() {
   const [entries, setEntries] = useState<Entry[] | null>(null);
   const [events, setEvents] = useState<PipelineEvent[]>([]);
   const [error, setError] = useState<string | null>(null);
+  // Activity-feed health is tracked separately from the board: a failed events
+  // fetch must read as "couldn't load activity", never as a genuine empty feed.
+  const [eventsError, setEventsError] = useState<string | null>(null);
   const [running, setRunning] = useState(false);
   const [passSummary, setPassSummary] = useState<{
     advanced: number;
@@ -71,9 +74,16 @@ export function PipelineTab() {
       })
       .catch((e) => setError(e instanceof Error ? e.message : "Failed to load pipeline."));
     fetch("/api/pipeline/events")
-      .then((r) => r.json())
-      .then((p) => setEvents((p.events as PipelineEvent[]) ?? []))
-      .catch(() => undefined);
+      .then((r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.json();
+      })
+      .then((p) => {
+        if (p.error) throw new Error(p.error);
+        setEvents((p.events as PipelineEvent[]) ?? []);
+        setEventsError(null);
+      })
+      .catch(() => setEventsError("Couldn't load recent activity."));
   };
   useEffect(() => {
     load();
@@ -258,22 +268,31 @@ export function PipelineTab() {
             />
           </div>
 
-          {events.length > 0 ? (
+          {eventsError || events.length > 0 ? (
             <section className="space-y-2">
               <h3 className="text-meta uppercase tracking-wide text-steel">Activity</h3>
-              <ol className="divide-y divide-stone-100 rounded-lg border border-stone-200 bg-white shadow-panel">
-                {events.slice(0, 12).map((ev) => (
-                  <li key={ev.id} className="flex items-center gap-3 px-3 py-2 text-base">
-                    <EventDot kind={ev.kind} />
-                    <span className="min-w-0 flex-1 truncate text-ink">
-                      <span className="font-medium">{ev.candidateLabel ?? "Candidate"}</span>{" "}
-                      <span className="text-steel">{eventVerb(ev)}</span>{" "}
-                      {ev.jobTitle ? <span className="text-steel">· {ev.jobTitle}</span> : null}
-                    </span>
-                    <span className="shrink-0 text-sm text-steel">{relativeTime(ev.createdAt)}</span>
-                  </li>
-                ))}
-              </ol>
+              {/* A failed events fetch shows a low-key note so a broken feed is
+                  observable and never masquerades as "no activity yet". */}
+              {eventsError ? (
+                <p role="status" className="inline-flex items-center gap-1.5 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-medium text-amber-700">
+                  <AlertTriangle size={14} className="shrink-0" aria-hidden /> {eventsError}
+                </p>
+              ) : null}
+              {events.length > 0 ? (
+                <ol className="divide-y divide-stone-100 rounded-lg border border-stone-200 bg-white shadow-panel">
+                  {events.slice(0, 12).map((ev) => (
+                    <li key={ev.id} className="flex items-center gap-3 px-3 py-2 text-base">
+                      <EventDot kind={ev.kind} />
+                      <span className="min-w-0 flex-1 truncate text-ink">
+                        <span className="font-medium">{ev.candidateLabel ?? "Candidate"}</span>{" "}
+                        <span className="text-steel">{eventVerb(ev)}</span>{" "}
+                        {ev.jobTitle ? <span className="text-steel">· {ev.jobTitle}</span> : null}
+                      </span>
+                      <span className="shrink-0 text-sm text-steel">{relativeTime(ev.createdAt)}</span>
+                    </li>
+                  ))}
+                </ol>
+              ) : null}
             </section>
           ) : null}
         </>

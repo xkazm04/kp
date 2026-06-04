@@ -2,13 +2,14 @@
 
 import { Scale } from "lucide-react";
 import { useJsonFetch } from "@/app/_lib/useJsonFetch";
+import type { InterviewRecommendation } from "@/app/_lib/interview-recommendation";
 import { EmptyState } from "./JobsShared";
 
 type Rating = { competency: string; rating: number; evidence?: string };
 type Candidate = {
   entryId: string | null;
   candidateLabel: string | null;
-  recommendation: string | null;
+  recommendation: InterviewRecommendation | null;
   summary: string | null;
   scoringModel: string;
   confidence: { level: string; reason?: string } | null;
@@ -24,7 +25,9 @@ const COHORT_LABEL: Record<string, string> = {
 };
 const COHORT_ORDER = ["experienced", "early_career"];
 
-const REC_STYLE: Record<string, string> = {
+// Keyed by the InterviewRecommendation union so every canonical verdict is
+// styled (a new verdict in the contract is a compile error here until handled).
+const REC_STYLE: Record<InterviewRecommendation, string> = {
   advance: "bg-moss/15 text-moss",
   hold: "bg-dial-amber/20 text-ink",
   reject: "bg-coral/10 text-coral",

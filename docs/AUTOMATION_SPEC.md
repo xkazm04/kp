@@ -95,6 +95,21 @@ Creates a fresh entry via `createPipelineEntry(stage='AI-matched', matchScore=be
 - **Task 1 vs Task 7 ordering:** Task 7 must NOT override a Task 1 recommendation younger than 24h (check newest `screening_*` event timestamp). Task 7 only acts on aged/SLA-breached entries.
 - **Caching:** every LLM task caches on `(prompt_version, candidate_signature|candidate_id, job_id[, notes_hash])` in `gemini_cache` (TTL 168h, like reasoning). Re-submitting a duplicate returns the cached artifact — no new `claude` call.
 
+### 2.5 Recommendation / route verdict contract
+
+The interview/screening **verdict** is a closed vocabulary, single-sourced per language and validated at every parse boundary so a misspelled or off-taxonomy value from the model can never slip silently to the UI.
+
+| Concept | Legal values | Emitted by | Read by |
+|---------|--------------|-----------|---------|
+| `recommendation` (verdict) | **`advance` \| `hold` \| `reject`** | Task 1 `screen_candidate`, Task 5 `interview_scorecard` | Decisions queue (`AiReviewCard`/`RecBadge`), interview transcript modal, recruiter compare grid, `screening_hold`/`interview_scorecard` audit events |
+| `route` (screen gate) | **`advance` \| `hold`** (subset) | Task 1 `screen_candidate` only | `automation-run.ts` (auto-advance vs. queue for review) |
+
+- **Canonical fallback = `hold`.** Any unknown / empty / malformed verdict coerces to `hold` — never `advance` (could silently auto-progress) and never `reject` (the fairness gate forbids a silent auto-reject). `hold` routes to the human Decisions gate, which is exactly where an unrecognised verdict belongs. The `route` fallback is likewise `hold` (queue for review). `reject` is a legal *verdict* but never a *route*.
+- **Single source per side:**
+  - Python — `RECOMMENDATIONS` / `RECOMMENDATION_FALLBACK` / `RECOMMENDATION_CHOICES` + `coerce_recommendation()` in `pipeline/jobfit/automation.py`. The prompts render the set via `RECOMMENDATION_CHOICES` (derived, never hand-typed), and both task coercers validate the model output through `coerce_recommendation()`.
+  - TS — `INTERVIEW_RECOMMENDATIONS` / `INTERVIEW_RECOMMENDATION_FALLBACK` / `SCREEN_ROUTES` + `isInterviewRecommendation` / `coerceInterviewRecommendation` / `coerceScreenRoute` in `app/_lib/interview-recommendation.ts`. `automation-run.ts` validates `result.route`/`result.recommendation` here (logging a warning on off-taxonomy drift); `db.ts` coerces stored scorecards on read; the Badge surfaces an unrecognised raw value in a neutral badge (drift visibility) instead of masking it.
+- **Drift guard:** the branching literals (`route === "advance"`, `== "reject"`) necessarily live in each language, but the legal set + fallback are pinned by tests on each side — `app/_lib/interview-recommendation.test.ts` (TS) and `RecommendationContractTest` in `pipeline/jobfit/tests/test_automation.py` (Python, incl. a byte-identical-prompt assertion).
+
 ---
 
 ## 3. Python Module Shape

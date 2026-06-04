@@ -1,9 +1,22 @@
-// A run is "partial" when some pipeline steps used the LLM and others fell back
-// to deterministic templates — surface that instead of mislabelling it full LLM.
-export function sourceLabel(source?: string): string {
-  if (source === "llm") return "Claude CLI";
-  if (source === "partial") return "Partial (degraded)";
-  return "template";
+import type { SourceDescriptor, SourceKind } from "./DevTypes";
+
+// Single source of truth for how each provenance state reads and looks, so the
+// label, chip colour and degraded warning are decided in one place and always
+// agree. A run is "partial" (isDegraded) when some pipeline steps used the LLM
+// and others fell back to deterministic templates — surfaced instead of
+// mislabelling it a full LLM run. Visual language: moss = real LLM, amber =
+// degraded/mixed, muted stone = template/deterministic.
+const SOURCE_DESCRIPTORS: Record<SourceKind, SourceDescriptor> = {
+  llm: { label: "Claude CLI", dotClass: "bg-moss", textClass: "text-ink", isDegraded: false },
+  partial: { label: "Partial (degraded)", dotClass: "bg-amber-400", textClass: "text-amber-700", isDegraded: true },
+  deterministic: { label: "template", dotClass: "bg-stone-300", textClass: "text-steel", isDegraded: false },
+};
+
+// Unknown / legacy / absent values degrade to the deterministic descriptor — the
+// runtime lookup catches strings outside the union (e.g. a future "cached") that
+// the type checker can't see in data parsed from JSON.
+export function describeSource(source?: SourceKind | null): SourceDescriptor {
+  return (source && SOURCE_DESCRIPTORS[source]) ?? SOURCE_DESCRIPTORS.deterministic;
 }
 
 // The grounded repo analysis only supports GitHub (github.com URL or bare

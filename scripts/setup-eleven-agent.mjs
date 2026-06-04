@@ -12,6 +12,7 @@
 
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import path from "node:path";
+import { QUICK_SCREEN_MIN, PROVIDER_MAX_DURATION_SECONDS } from "../app/_lib/interview-duration.mjs";
 
 const ENV_PATH = path.join(process.cwd(), ".env.local");
 const API = "https://api.elevenlabs.io";
@@ -38,7 +39,7 @@ const PROMPT = [
   "Detect whether the candidate speaks Czech or English and respond in that language; follow them if they switch.",
   "Open by stating in one sentence that you are an AI assistant running a short first-round screen and that the call is transcribed.",
   "Ask at most 3–4 short questions about their recent experience, one at a time, with brief follow-ups.",
-  "Do not give feedback, scores, or any hiring decision. Keep the whole call under five minutes,",
+  `Do not give feedback, scores, or any hiring decision. Keep the whole call under ${QUICK_SCREEN_MIN} minutes,`,
   "then thank them and say a human recruiter will review the conversation.",
 ].join(" ");
 
@@ -89,7 +90,11 @@ async function main() {
         prompt: { prompt: PROMPT, llm: "gemini-2.5-flash", temperature: 0.3 },
       },
       tts: { model_id: model, voice_id: voiceId },
-      conversation: { text_only: false, max_duration_seconds: 600 },
+      // Cap sized for the GROUNDED screen, not the baseline prompt: this one agent
+      // also serves per-candidate run-of-shows (15–30 min) pushed via override, so
+      // the cap clears the grounded maximum to avoid cutting a real interview off
+      // mid-answer (idea-0ecbe5a5 — single source of truth in interview-duration.mjs).
+      conversation: { text_only: false, max_duration_seconds: PROVIDER_MAX_DURATION_SECONDS },
     },
     platform_settings: {
       overrides: {
