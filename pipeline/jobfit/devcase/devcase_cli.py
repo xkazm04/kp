@@ -1,6 +1,6 @@
 """CLI for Dev-extension tasks (Phase D2+). Mirrors automation_cli / reasoning_cli.
 
-    python -m pipeline.jobfit.devcase.devcase_cli analyze-need      --need-json N [--snapshot-json S] [--no-llm]
+    python -m pipeline.jobfit.devcase.devcase_cli analyze-need      --need-json N [--snapshot-json S | --snapshots-json SS] [--no-llm]
     python -m pipeline.jobfit.devcase.devcase_cli design-artifacts  --need-json N --analysis-json A [--no-llm]
     python -m pipeline.jobfit.devcase.devcase_cli reflect-commits     --commits-json C [--probes-json P] [--no-llm]
     python -m pipeline.jobfit.devcase.devcase_cli evaluate-submission --commits-json C --case-json K --role-json R [--probes-json P] [--no-llm]
@@ -116,6 +116,10 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("command", choices=["analyze-need", "design-artifacts", "reflect-commits", "evaluate-submission", "source", "interview-scenario"])
     parser.add_argument("--need-json", type=Path)
     parser.add_argument("--snapshot-json", type=Path)
+    # Multi-repo grounding: a JSON ARRAY of RepoSnapshot objects (the role can span up
+    # to a few codebases). Takes precedence over the single-object --snapshot-json,
+    # which is kept for older callers.
+    parser.add_argument("--snapshots-json", type=Path)
     parser.add_argument("--analysis-json", type=Path)
     parser.add_argument("--commits-json", type=Path)
     parser.add_argument("--probes-json", type=Path)
@@ -203,11 +207,13 @@ def main(argv: list[str] | None = None) -> int:
         need = DevNeed.model_validate(json.loads(args.need_json.read_text(encoding="utf-8")))
 
         if args.command == "analyze-need":
-            snapshot = (
-                RepoSnapshot.model_validate(json.loads(args.snapshot_json.read_text(encoding="utf-8")))
-                if args.snapshot_json
-                else None
-            )
+            if args.snapshots_json:
+                raw = _require_list_of_dicts(json.loads(args.snapshots_json.read_text(encoding="utf-8")), "--snapshots-json")
+                snapshot: RepoSnapshot | list[RepoSnapshot] | None = [RepoSnapshot.model_validate(s) for s in raw]
+            elif args.snapshot_json:
+                snapshot = RepoSnapshot.model_validate(json.loads(args.snapshot_json.read_text(encoding="utf-8")))
+            else:
+                snapshot = None
             result, source = _analyze.analyze_need(need, snapshot, provider=provider)
             _emit(result, {"analyze": source}, _confidences(analyze=result))
             return 0

@@ -10,6 +10,7 @@ import {
   saveSubmissionEvaluation,
   setApproval,
 } from "./db";
+import { MAX_CODEBASES } from "./devcase-constraints";
 import { cleanupWorkdir, createWorkdir, parsePythonJson, parseStderrError, PipelineError, spawnPython } from "./python-runner";
 import { buildRepoSnapshot, fetchRepoSignals, type RepoSnapshot } from "./repo-snapshot";
 
@@ -22,11 +23,19 @@ export type DevNeed = {
   seniorityTarget?: string;
   roleFamily?: string;
   notes?: string;
+  // JD-first intake: the saved job description the need was built from. jdText is
+  // the PRIMARY statement of the need — stack/responsibilities may be empty, the
+  // analyze step extracts them from the JD body.
+  jdSlug?: string;
+  jdText?: string;
 };
 
 export type NeedAnalysisResult = {
   analysis: Record<string, unknown>;
+  // All grounded codebases (multi-repo). `snapshot` stays as the first one so older
+  // consumers (jd-build, saved bundles) keep working; `snapshots` is what the UI reads.
   snapshot: RepoSnapshot | null;
+  snapshots: RepoSnapshot[];
   source: string;
   // Per-step provenance ({step: "llm"|"deterministic"}) from the uniform CLI
   // envelope — single-step here ({analyze}), but typed the same across the
@@ -34,26 +43,30 @@ export type NeedAnalysisResult = {
   perStepSources: Record<string, string>;
 };
 
-// D2 core: pull the real codebase, then reflect the need against it (LLM + fallback).
+// D2 core: pull the real codebase(s), then reflect the need against them (LLM + fallback).
 export async function runNeedAnalysis(need: DevNeed): Promise<NeedAnalysisResult> {
-  const ghRef = (need.codebaseRefs ?? []).find((r) => r.kind === "github" || /github\.com/.test(r.ref));
-  const snapshot = ghRef ? await buildRepoSnapshot(ghRef.ref) : null;
+  const ghRefs = (need.codebaseRefs ?? [])
+    .filter((r) => r.kind === "github" || /github\.com/.test(r.ref))
+    .slice(0, MAX_CODEBASES);
+  const snapshots = (await Promise.all(ghRefs.map((r) => buildRepoSnapshot(r.ref)))).filter(
+    (s): s is RepoSnapshot => s !== null,
+  );
 
   const workdir = await createWorkdir();
   try {
     const needPath = path.join(workdir, "need.json");
     await writeFile(needPath, JSON.stringify(need), "utf-8");
     const args = ["-m", "pipeline.jobfit.devcase.devcase_cli", "analyze-need", "--need-json", needPath];
-    if (snapshot) {
-      const snapPath = path.join(workdir, "snapshot.json");
-      await writeFile(snapPath, JSON.stringify(snapshot), "utf-8");
-      args.push("--snapshot-json", snapPath);
+    if (snapshots.length > 0) {
+      const snapPath = path.join(workdir, "snapshots.json");
+      await writeFile(snapPath, JSON.stringify(snapshots), "utf-8");
+      args.push("--snapshots-json", snapPath);
     }
     const { result } = spawnPython(args);
     const { stdout, stderr, exitCode } = await result;
     if (exitCode !== 0) throw new PipelineError(parseStderrError(stderr, exitCode));
     const payload = parsePythonJson<{ result: Record<string, unknown>; source: string; perStepSources?: Record<string, string> }>(stdout, stderr);
-    return { analysis: payload.result, snapshot, source: payload.source, perStepSources: payload.perStepSources ?? {} };
+    return { analysis: payload.result, snapshot: snapshots[0] ?? null, snapshots, source: payload.source, perStepSources: payload.perStepSources ?? {} };
   } finally {
     await cleanupWorkdir(workdir);
   }
@@ -87,6 +100,43 @@ export async function runDesignArtifacts(need: DevNeed, analysis: Record<string,
     if (exitCode !== 0) throw new PipelineError(parseStderrError(stderr, exitCode));
     const payload = parsePythonJson<{ result: { role: Record<string, unknown>; case: Record<string, unknown> }; source: string; perStepSources?: Record<string, string> }>(stdout, stderr);
     return { role: payload.result.role, case: payload.result.case, source: payload.source, perStepSources: payload.perStepSources ?? {} };
+  } finally {
+    await cleanupWorkdir(workdir);
+  }
+}
+
+export type InterviewScenarioResult = {
+  scenario: Record<string, unknown>;
+  source: string;
+  perStepSources: Record<string, string>; // {scenario}
+};
+
+/** Case → AI-interview scenario: instantiate the six-phase early-career script
+ *  from the approved case (devcase/interview_scenario.py). Generated once per
+ *  ROLE and reused for every candidate, so interview ratings stay comparable. */
+export async function runInterviewScenario(
+  kase: Record<string, unknown>,
+  role: Record<string, unknown>
+): Promise<InterviewScenarioResult> {
+  const workdir = await createWorkdir();
+  try {
+    const casePath = path.join(workdir, "case.json");
+    const rolePath = path.join(workdir, "role.json");
+    await writeFile(casePath, JSON.stringify(kase), "utf-8");
+    await writeFile(rolePath, JSON.stringify(role), "utf-8");
+    const { result } = spawnPython([
+      "-m",
+      "pipeline.jobfit.devcase.devcase_cli",
+      "interview-scenario",
+      "--case-json",
+      casePath,
+      "--role-json",
+      rolePath,
+    ]);
+    const { stdout, stderr, exitCode } = await result;
+    if (exitCode !== 0) throw new PipelineError(parseStderrError(stderr, exitCode));
+    const payload = parsePythonJson<{ result: { scenario: Record<string, unknown> }; source: string; perStepSources?: Record<string, string> }>(stdout, stderr);
+    return { scenario: payload.result.scenario, source: payload.source, perStepSources: payload.perStepSources ?? {} };
   } finally {
     await cleanupWorkdir(workdir);
   }

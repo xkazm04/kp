@@ -1,5 +1,13 @@
 import type { OutboxStatus } from "@/app/_lib/comms-status";
 
+// Summary row from GET /api/jds (the saved-JD library backing the NeedForm picker) —
+// mirrors sub_analyze/AnalyzeTypes.JdSummary; kept local so the dev feature doesn't
+// import the analyze feature for one row shape.
+export type JdSummary = { slug: string; title: string; preview: string; created_at: string };
+// A picked JD with its full body loaded (GET /api/jds/[slug]) — the body becomes
+// need.jdText, the primary statement of the need.
+export type SelectedJd = { slug: string; title: string; body: string };
+
 export type NeedAnalysis = {
   realStack?: string[];
   coreResponsibilities?: string[];
@@ -30,7 +38,9 @@ export type SourceDescriptor = { label: string; dotClass: string; textClass: str
 // envelope; the ProvenanceStrip renders it, falling back to `source` for bundles
 // saved before it existed. Per-step values are "llm" or "deterministic".
 export type PerStepSources = Record<string, SourceKind>;
-export type Result = { analysis?: NeedAnalysis; snapshot?: RepoSnapshot | null; source?: SourceKind; perStepSources?: PerStepSources };
+// `snapshots` (multi-repo grounding, up to MAX_CODEBASES) is what the UI renders;
+// `snapshot` (= first of them) survives for bundles saved before multi-repo existed.
+export type Result = { analysis?: NeedAnalysis; snapshot?: RepoSnapshot | null; snapshots?: RepoSnapshot[]; source?: SourceKind; perStepSources?: PerStepSources };
 
 export type CoverProbe = { id?: string; kind?: string; where?: string; reveals?: string };
 export type RubricDim = { name?: string; label?: string; weight?: number; description?: string };

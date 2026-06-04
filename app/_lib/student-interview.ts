@@ -108,6 +108,14 @@ export function scenarioRunOfShow(scenario: CaseInterviewScenario): string[] {
   return scenario.phases.map((p) => p.phase);
 }
 
+/** Pipeline entries sourced for a dev case carry jobId "dc-<caseId>"
+ *  (devcase-orchestrator's proactive sourcing). Resolve it back to the dev case
+ *  id — the key to the role's stored interview scenario — or null for ordinary
+ *  jobs. */
+export function devCaseIdFromJobId(jobId: string | null | undefined): string | null {
+  return jobId && jobId.startsWith("dc-") ? jobId.slice(3) : null;
+}
+
 /** The agent brief for a CASE-DESIGNED interview: same persona contract, but the
  *  middle phases work shared case material, so every candidate on the role is
  *  rated against the same substance. The case mechanics (which probes are

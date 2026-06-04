@@ -57,6 +57,7 @@ const {
   studentInterviewerInstructions,
   caseGroundedInterviewerInstructions,
   scenarioRunOfShow,
+  devCaseIdFromJobId,
   DEMO_CASE_SCENARIO,
 } = await import("@/app/_lib/student-interview.ts");
 
@@ -90,6 +91,14 @@ test("the case-grounded brief narrates the case, carries every probe, keeps mech
     scenarioRunOfShow(DEMO_CASE_SCENARIO),
     SOURCE.phases.map((p) => p.phase)
   );
+});
+
+test("devCaseIdFromJobId resolves only dev-case jobIds", () => {
+  // The "dc-" prefix is stamped by devcase-orchestrator's proactive sourcing.
+  assert.equal(devCaseIdFromJobId("dc-dc_abc123"), "dc_abc123");
+  assert.equal(devCaseIdFromJobId("job-42"), null);
+  assert.equal(devCaseIdFromJobId(null), null);
+  assert.equal(devCaseIdFromJobId(undefined), null);
 });
 
 test("the demo scenario instantiates exactly the case-grounded phases", () => {

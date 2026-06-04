@@ -4,9 +4,18 @@ import {
   getDevCase,
   getLifecycle,
   listSubmissions,
+  saveDevCaseScenario,
   updateLifecycle,
 } from "./db";
-import { promoteSubmission, runDesignArtifacts, runEvaluateSubmission, runNeedAnalysis, runSourceForRole, type DevNeed } from "./devcase-run";
+import {
+  promoteSubmission,
+  runDesignArtifacts,
+  runEvaluateSubmission,
+  runInterviewScenario,
+  runNeedAnalysis,
+  runSourceForRole,
+  type DevNeed,
+} from "./devcase-run";
 import { getAdapter } from "./distribution";
 import { sendComm } from "./comms";
 import { getAutonomy, getPromoteFloor, recordAudit } from "./dev-control";
@@ -79,6 +88,23 @@ export async function runLifecycle(id: string, progress?: Progress): Promise<{ s
       if (!devCase) throw new Error("approved lifecycle has no dev case");
       const posting = await getAdapter("local").publish(devCase);
 
+      // Case-designed interview: turn the approved case into the role's
+      // AI-interview scenario (one per role, reused for every candidate so
+      // ratings stay comparable). Best-effort — a scenario failure must never
+      // block publishing; early-career interviews fall back to the generic script.
+      let scenarioNote = "";
+      try {
+        const { scenario } = await runInterviewScenario(
+          (devCase.case as Record<string, unknown>) ?? {},
+          (lc.role as Record<string, unknown>) ?? {}
+        );
+        saveDevCaseScenario(devCase.id, scenario);
+        scenarioNote = "; interview scenario ready";
+        recordAudit({ lifecycleId: id, actor: "auto", action: "interview_scenario", ref: devCase.id });
+      } catch {
+        /* interviews fall back to the generic early-career script */
+      }
+
       // Proactive sourcing: rank the existing candidate DB against the role and seed the
       // pipeline at the Accepted stage — so the role finds candidates, not only waits for them.
       let sourced = 0;
@@ -110,7 +136,7 @@ export async function runLifecycle(id: string, progress?: Progress): Promise<{ s
       updateLifecycle(id, {
         stage: "collecting",
         postingId: posting.id,
-        detail: `published; sourced ${sourced} candidate(s) into the pipeline${skippedNote}; awaiting submissions`,
+        detail: `published${scenarioNote}; sourced ${sourced} candidate(s) into the pipeline${skippedNote}; awaiting submissions`,
       });
       recordAudit({ lifecycleId: id, actor: "auto", action: "published", reason: `sourced ${sourced} into pipeline`, ref: posting.id });
     } else if (lc.stage === "collecting") {

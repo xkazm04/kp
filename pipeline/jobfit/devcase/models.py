@@ -24,7 +24,13 @@ class CodebaseRef(_Base):
 
 
 class DevNeed(_Base):
-    """Customer intake: what they actually need a dev for."""
+    """Customer intake: what they actually need a dev for.
+
+    Since the JD-first intake (the dev tab picks a saved job description instead of
+    typing metadata), ``jd_text`` carries the full JD body and is the PRIMARY statement
+    of the need — ``stack``/``responsibilities`` may legitimately be empty, with the
+    analyze step extracting them from the JD. ``jd_slug`` records which library JD the
+    need was built from ("" = ad-hoc need typed by hand)."""
 
     id: str = ""
     title: str = ""
@@ -34,6 +40,8 @@ class DevNeed(_Base):
     seniority_target: str = "medior"  # junior | medior | senior | lead
     role_family: str = "software_engineering"
     notes: str = ""
+    jd_slug: str = ""
+    jd_text: str = ""
 
 
 # --- 2. Reality reflection -------------------------------------------------

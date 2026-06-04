@@ -15,7 +15,7 @@ from typing import Any
 
 from .models import RUBRIC_DIMENSIONS, DevNeed, NeedAnalysis
 
-ROLE_DESIGN_PROMPT_VERSION = "role-design-v2"
+ROLE_DESIGN_PROMPT_VERSION = "role-design-v3"  # v3: JD-first intake — full JD body anchors the role
 CASE_DESIGN_PROMPT_VERSION = "case-design-v3"  # v3: domain-neutral vocabulary (non-IT)
 
 # Seniority-scaled timebox (the lifecycle eval flagged junior/lead cases looking alike).
@@ -113,6 +113,9 @@ def design_role(need: DevNeed, analysis: NeedAnalysis, *, provider: Any | None =
             "statedResponsibilities": need.responsibilities,
             "seniorityTarget": need.seniority_target,
             "roleFamily": need.role_family,
+            # JD-first intake: when the need came from a saved job description its body is
+            # the primary statement of what they're hiring for — anchor the role to it.
+            "jobDescription": need.jd_text[:4000] or None,
         },
         "analysis": {
             "realStack": real,
@@ -124,7 +127,9 @@ def design_role(need: DevNeed, analysis: NeedAnalysis, *, provider: Any | None =
     }
     prompt = (
         "Design a precise RoleSpec. ANCHOR the role's IDENTITY to what they are HIRING FOR — the stated "
-        "title, function (roleFamily) and responsibilities. Do NOT rename the role to the codebase's domain; "
+        "title, function (roleFamily) and responsibilities; when a jobDescription is supplied it is the "
+        "authoritative statement of the need, so draw must-haves and responsibilities from it. Do NOT "
+        "rename the role to the codebase's domain; "
         "the codebase is where this person will WORK, not what defines the role. Use the REAL stack to "
         "calibrate must-haves and to note honestly what transfers and what is a gap (e.g. a Flask codebase "
         "for a 'Backend Engineer' is fine and Python transfers; a security role on a data-pipeline codebase "

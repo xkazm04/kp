@@ -400,6 +400,10 @@ function ensureDb(): Database.Database {
     "ALTER TABLE dev_submissions ADD COLUMN contact TEXT",
     "ALTER TABLE interview_sessions ADD COLUMN run_of_show_json TEXT",
     "ALTER TABLE interview_sessions ADD COLUMN duration_min INTEGER",
+    // Case-designed interview: the role's AI-interview scenario generated from the
+    // approved case (devcase/interview_scenario.py) — one per role, reused for
+    // every candidate so ratings stay comparable.
+    "ALTER TABLE dev_cases ADD COLUMN scenario_json TEXT",
   ]) {
     try {
       db.exec(sql);
@@ -2074,6 +2078,9 @@ export type DevCaseRecord = {
   analysis: unknown;
   role: unknown;
   case: unknown;
+  // The role's AI-interview scenario generated from the approved case
+  // (devcase/interview_scenario.py) — null until the lifecycle generates it.
+  scenario: unknown;
   status: string;
   createdAt: string;
 };
@@ -2087,6 +2094,7 @@ type DevCaseRow = {
   analysis_json: string | null;
   role_json: string | null;
   case_json: string | null;
+  scenario_json: string | null;
   status: string;
   created_at: string;
 };
@@ -2101,9 +2109,16 @@ function rowToDevCase(r: DevCaseRow): DevCaseRecord {
     analysis: safeRowParse(r.analysis_json, "devCase.analysis", r.id),
     role: safeRowParse(r.role_json, "devCase.role", r.id),
     case: safeRowParse(r.case_json, "devCase.case", r.id),
+    scenario: safeRowParse(r.scenario_json, "devCase.scenario", r.id),
     status: r.status,
     createdAt: r.created_at,
   };
+}
+
+/** Persist the case-designed interview scenario on its dev case (one per role). */
+export function saveDevCaseScenario(id: string, scenario: unknown): void {
+  const db = ensureDb();
+  db.prepare(`UPDATE dev_cases SET scenario_json = ? WHERE id = ?`).run(JSON.stringify(scenario ?? null), id);
 }
 
 export function saveDevCase(input: {

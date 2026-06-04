@@ -9,14 +9,18 @@ import { LifecycleSection } from "./LifecycleSection";
 import { ApprovedCasesSection } from "./ApprovedCasesSection";
 import { PostingsSection } from "./PostingsSection";
 import { OutboxSection } from "./OutboxSection";
-import type { ApprovedCase, Design, Lifecycle, OutboxItem, Posting, Result } from "./DevTypes";
+import { MAX_CODEBASES } from "@/app/_lib/devcase-constraints";
+import type { ApprovedCase, Design, JdSummary, Lifecycle, OutboxItem, Posting, Result, SelectedJd } from "./DevTypes";
 
 export function DevTab() {
   const { startTask, tasks } = useTasks();
-  const [title, setTitle] = useState("");
-  const [stackStr, setStackStr] = useState("");
-  const [respStr, setRespStr] = useState("");
-  const [repoUrl, setRepoUrl] = useState("");
+  // JD-first intake: the saved job description IS the need's metadata (title +
+  // stack + responsibilities live in its body); the form only adds codebases +
+  // a seniority target on top.
+  const [jds, setJds] = useState<JdSummary[]>([]);
+  const [jd, setJd] = useState<SelectedJd | null>(null);
+  const [jdLoading, setJdLoading] = useState(false);
+  const [repoUrls, setRepoUrls] = useState<string[]>([""]);
   const [seniority, setSeniority] = useState("medior");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [designId, setDesignId] = useState<string | null>(null);
@@ -54,6 +58,45 @@ export function DevTab() {
     loadOutbox();
   }, [loadCases, loadPostings, loadLifecycles, loadOutbox]);
 
+  // The saved-JD library backing the picker (same source as the Analyze tab).
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/jds")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((p) => {
+        if (!cancelled && p?.jds) setJds(p.jds as JdSummary[]);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Picking a JD fetches its full body — that body travels as need.jdText, the
+  // primary statement of the need the analyze step extracts metadata from.
+  const pickJd = async (slug: string) => {
+    if (!slug) {
+      setJd(null);
+      return;
+    }
+    setJdLoading(true);
+    try {
+      const r = await fetch(`/api/jds/${encodeURIComponent(slug)}`);
+      if (r.ok) {
+        const p = (await r.json()) as SelectedJd;
+        setJd({ slug: p.slug, title: p.title, body: p.body });
+      }
+    } finally {
+      setJdLoading(false);
+    }
+  };
+
+  const setRepoUrl = (index: number, value: string) =>
+    setRepoUrls((urls) => urls.map((u, i) => (i === index ? value : u)));
+  const addRepo = () => setRepoUrls((urls) => (urls.length < MAX_CODEBASES ? [...urls, ""] : urls));
+  const removeRepo = (index: number) =>
+    setRepoUrls((urls) => (urls.length > 1 ? urls.filter((_, i) => i !== index) : [""]));
+
   // Reload orchestration state as background tasks progress (lifecycle/evaluate update it).
   const lifecycleActive = tasks.some((t) => t.kind === "lifecycle" && (t.status === "running" || t.status === "queued"));
   useEffect(() => {
@@ -64,16 +107,21 @@ export function DevTab() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tasks]);
 
-  // Title is REQUIRED — the single recorded contract for this field. NeedForm marks
-  // it `*`, sets aria-invalid when blank, shows "A role title is required to run",
-  // and disables both Run and Analyze while `title.trim() === ""`, so buildNeed only
-  // ever runs with a non-empty title. The old `|| "Untitled role"` fallback was an
-  // unreachable branch that quietly asserted the opposite (optional) policy — removed.
+  // A selected JD is REQUIRED — the single recorded contract for the need. NeedForm
+  // marks the picker `*`, sets aria-invalid while nothing is selected, and disables
+  // both Run and Analyze until a JD body has loaded, so buildNeed only ever runs
+  // with a real title + jdText. Stack/responsibilities are deliberately empty: the
+  // analyze step extracts them from the JD body (the old free-text metadata fields
+  // duplicated what every JD already says).
   const buildNeed = () => ({
-    title: title.trim(),
-    stack: stackStr.split(",").map((s) => s.trim()).filter(Boolean),
-    responsibilities: respStr.split("\n").map((s) => s.trim()).filter(Boolean),
-    codebaseRefs: repoUrl.trim() ? [{ kind: "github", ref: repoUrl.trim() }] : [],
+    title: (jd?.title ?? "").trim(),
+    stack: [],
+    responsibilities: [],
+    codebaseRefs: repoUrls
+      .map((u) => u.trim())
+      .filter(Boolean)
+      .slice(0, MAX_CODEBASES)
+      .map((ref) => ({ kind: "github", ref })),
     seniorityTarget: seniority,
     // Intentionally FIXED for now (recorded decision, not a config knob): the Dev
     // case flow only supports engineering roles end-to-end (design + eval backend),
@@ -81,6 +129,8 @@ export function DevTab() {
     // seniorityTarget. Add a selector here and thread the value through if/when
     // other families become real.
     roleFamily: "software_engineering",
+    jdSlug: jd?.slug ?? "",
+    jdText: jd?.body ?? "",
   });
 
   const runLifecycle = async () => {
@@ -129,7 +179,9 @@ export function DevTab() {
   const running = viewed ? viewed.status === "running" || viewed.status === "queued" : false;
   const result = viewed?.status === "succeeded" ? (viewed.result as Result) : null;
   const analysis = result?.analysis ?? {};
-  const snapshot = result?.snapshot ?? null;
+  // Multi-repo: `snapshots` is canonical; lift a legacy single `snapshot` into a
+  // one-item list so bundles saved before multi-repo render identically.
+  const snapshots = result?.snapshots ?? (result?.snapshot ? [result.snapshot] : []);
   const viewedNeed = (viewed?.params as { need?: Record<string, unknown> } | undefined)?.need;
 
   const designTask = useMemo(() => tasks.find((t) => t.id === designId), [tasks, designId]);
@@ -179,23 +231,24 @@ export function DevTab() {
         <p className="text-meta uppercase text-coral">Dev extension</p>
         <h2 className="mt-1 font-serif text-display text-ink">Define the need</h2>
         <p className="mt-1 max-w-2xl text-body text-steel">
-          Describe the role and point us at the real codebase. The engine reflects what you say you need against
-          what the code <em>actually is</em> — surfacing the gaps before we design an assignment. Assume the
-          candidate&apos;s code is LLM-generated; we&apos;ll grade judgment, not typing.
+          Pick the job description and point us at the real codebases it covers (up to {MAX_CODEBASES}). The
+          engine reflects what the JD says you need against what the code <em>actually is</em> — surfacing the
+          gaps before we design an assignment. Assume the candidate&apos;s code is LLM-generated; we&apos;ll
+          grade judgment, not typing.
         </p>
       </header>
 
       <div className="grid gap-5 lg:grid-cols-[minmax(0,360px)_1fr]">
         {/* intake */}
         <NeedForm
-          title={title}
-          setTitle={setTitle}
-          stackStr={stackStr}
-          setStackStr={setStackStr}
-          respStr={respStr}
-          setRespStr={setRespStr}
-          repoUrl={repoUrl}
+          jds={jds}
+          jd={jd}
+          jdLoading={jdLoading}
+          pickJd={pickJd}
+          repoUrls={repoUrls}
           setRepoUrl={setRepoUrl}
+          addRepo={addRepo}
+          removeRepo={removeRepo}
           seniority={seniority}
           setSeniority={setSeniority}
           runLifecycle={runLifecycle}
@@ -213,7 +266,7 @@ export function DevTab() {
           running={running}
           result={result}
           analysis={analysis}
-          snapshot={snapshot}
+          snapshots={snapshots}
           design={design}
           designing={designing}
           startDesign={startDesign}

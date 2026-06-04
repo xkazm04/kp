@@ -1,10 +1,20 @@
-import { getJob, getPipelineEntry, type InterviewTurn } from "./db";
+import { getDevCase, getJob, getPipelineEntry, type InterviewTurn } from "./db";
 import { runAutomationTask } from "./automation-run";
 import { defaultInterviewerInstructions } from "./voice";
 import { getInterviewPrep } from "./interview-prep";
 import { runInterviewPrep, type ChronologyBlock } from "./interview-prep-run";
 import { buildScorecardNotes, transcriptToNotes } from "./interview-transcript";
 import { GROUNDED_DEFAULT_MIN, QUICK_SCREEN_MIN } from "./interview-duration.mjs";
+import { isEarlyCareer } from "./archetypes";
+import {
+  caseGroundedInterviewerInstructions,
+  devCaseIdFromJobId,
+  scenarioRunOfShow,
+  STUDENT_SCRIPT_MIN,
+  studentInterviewerInstructions,
+  studentRunOfShow,
+  type CaseInterviewScenario,
+} from "./student-interview";
 
 // Re-exported for back-compat: the transcript→notes flattener now lives with the
 // rest of the documented truncation policy in ./interview-transcript.
@@ -69,6 +79,39 @@ export async function buildGroundedInterview(entryId: string): Promise<{
   const title = entry.jobTitle || job?.title || "the role";
   const ctx = [job?.seniority, job?.location, job?.workMode].filter(Boolean).join(" · ");
   const roleLine = ctx ? `${title} (${ctx})` : title;
+
+  // Early-career entries get the student methodology instead of the prep
+  // chronology — their CV can't carry the evaluation, so the agent LEADS. When
+  // the role's dev case has a generated interview scenario, the brief is
+  // case-grounded (every candidate hears the same material, so ratings stay
+  // comparable); otherwise the generic six-phase script is the fallback.
+  if (isEarlyCareer(entry.archetype)) {
+    const base = {
+      candidateLabel: entry.candidateLabel ?? null,
+      jobId: entry.jobId ?? null,
+      jobTitle: entry.jobTitle ?? null,
+    };
+    const caseId = devCaseIdFromJobId(entry.jobId);
+    const scenario = caseId ? ((getDevCase(caseId)?.scenario as CaseInterviewScenario | null) ?? null) : null;
+    if (scenario && Array.isArray(scenario.phases) && scenario.phases.length > 0) {
+      return {
+        instructions: caseGroundedInterviewerInstructions(scenario, {
+          candidateLabel: entry.candidateLabel,
+          roleLine,
+          company,
+        }),
+        runOfShow: scenarioRunOfShow(scenario),
+        durationMin: scenario.durationMin || STUDENT_SCRIPT_MIN,
+        ...base,
+      };
+    }
+    return {
+      instructions: studentInterviewerInstructions({ candidateLabel: entry.candidateLabel, roleLine, company }),
+      runOfShow: studentRunOfShow(),
+      durationMin: STUDENT_SCRIPT_MIN,
+      ...base,
+    };
+  }
 
   let prep = (getInterviewPrep(entryId)?.payload as PrepPayload | undefined) ?? undefined;
   if (!prep || !(prep.chronology && prep.chronology.length)) {
