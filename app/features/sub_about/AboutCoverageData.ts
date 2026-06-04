@@ -574,13 +574,15 @@ fair --> human
     body: `\`\`\`puml
 @startuml
 left to right direction
-title Interview-first, case for the shortlist
-[Every student] as all
-[Agentic interview\\nmental model · coachability] <<auto>> as iv
+title The case IS the interview
+[AI case design\\n(one per role)] <<auto>> as design
+[Interview scenario\\nfrom the case] <<auto>> as scen
+[Case-grounded interview\\nevery student] <<focus>> as iv
 [Shortlist] as short
-[Live case\\nobserved evidence] <<focus>> as kase
+[Full take-home case\\n(deepest observed read)] as kase
 [Human decision] <<gate>> as dec
-all --> iv
+design --> scen
+scen --> iv
 iv --> short
 short --> kase
 iv --> dec
@@ -591,7 +593,7 @@ kase --> dec
 - **The core shift: elicit, don't extract.** A normal pipeline reads evidence off the page; a student's page is nearly blank. So the signal has to be *generated* in a live setting, not parsed from a document. Everything below follows from that one move.
 - **How we let them prove it.** Two first-hand instruments: an adaptive interview that probes the *mental model* (how they decompose a problem, recover when stuck, and take a hint), and a short live case that shows working judgement under real ambiguity. Both can mint \`observed\` evidence — the only provenance we trust above a genuine professional track record.
 - **The mentality we seek — not polish.** We deliberately weight **coachability** (do they integrate a hint mid-problem?), **learning agility** (a repeatable diagnose-adjust loop, not a lucky success), and **calibration** (knowing what they don't know). A self-aware *"I'd verify X before committing"* beats a fluent, confident wrong answer. We score reasoning content separately from delivery fluency, so nerves and non-native English don't masquerade as weak thinking.
-- **Cases vs. interview — our honest take.** For zero-experience candidates the **live case carries the higher signal** and is the right *centerpiece for the shortlist*: it shows judgement under ambiguity and is the only thing that earns observed-provenance skills the score actually credits. But it is expensive to author, easy to over-fit, and slow to take. The **interview is the scalable default** and the *irreplaceable* probe for coachability and mental model — the one thing a take-home can't capture, because there is no examiner to push back. **Our stance: interview-first as the universal screen, live case as the centerpiece for the shortlist.** Lead with the interview to find the mentality cheaply; reserve the costlier observed case for the candidates worth the deeper read.
+- **Cases vs. interview — the dichotomy dissolved.** We used to hold *interview-first as the screen, case for the shortlist* — until we noticed the expensive part of a case is the candidate's hours and the submission review, not the design. So the case is **AI-designed once per role and delivered through the interview**: the mechanism and counterfactual probes work the shared case material, and the deliberate hint derives from the case's covert probe. Every student faces the same substance — comparable by construction — at interview cost. A strong, confidently-scored case conversation can even mint \`observed\` skills (gated: every case construct rated on quoted evidence, averaging above bar; a thin transcript never mints). The full take-home survives as the *deepest* observed read, reserved for the final shortlist.
 - **What we stay honest about.** Potential scoring is a weak discriminator on its own — thin CVs cluster near the same value — so the live instruments carry the real weight, and every early-career score ships with a deliberately wide confidence band. The platform never auto-rejects a student; a human owns every decision, with the AI's reasoning as context.`,
   },
 ];

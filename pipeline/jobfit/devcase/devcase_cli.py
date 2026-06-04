@@ -5,6 +5,7 @@
     python -m pipeline.jobfit.devcase.devcase_cli reflect-commits     --commits-json C [--probes-json P] [--no-llm]
     python -m pipeline.jobfit.devcase.devcase_cli evaluate-submission --commits-json C --case-json K --role-json R [--probes-json P] [--no-llm]
     python -m pipeline.jobfit.devcase.devcase_cli interview-scenario  --case-json K --role-json R [--no-llm]
+    python -m pipeline.jobfit.devcase.devcase_cli observed-interview  --case-json K --role-json R --scorecard-json S --profile-json P
 
 Output: one JSON object {"result","source","perStepSources"[,"confidence"]} to stdout — a
 uniform provenance envelope every command shares. `perStepSources` maps each pipeline step
@@ -113,7 +114,7 @@ def main(argv: list[str] | None = None) -> int:
         sys.stderr.reconfigure(encoding="utf-8")
 
     parser = argparse.ArgumentParser(description="Dev-extension tasks (Claude CLI only).")
-    parser.add_argument("command", choices=["analyze-need", "design-artifacts", "reflect-commits", "evaluate-submission", "source", "interview-scenario"])
+    parser.add_argument("command", choices=["analyze-need", "design-artifacts", "reflect-commits", "evaluate-submission", "source", "interview-scenario", "observed-interview"])
     parser.add_argument("--need-json", type=Path)
     parser.add_argument("--snapshot-json", type=Path)
     # Multi-repo grounding: a JSON ARRAY of RepoSnapshot objects (the role can span up
@@ -126,6 +127,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--repo-json", type=Path)
     parser.add_argument("--case-json", type=Path)
     parser.add_argument("--role-json", type=Path)
+    parser.add_argument("--scorecard-json", type=Path)
+    parser.add_argument("--profile-json", type=Path)
     parser.add_argument("--candidates-json", type=Path)
     parser.add_argument("--top-n", type=int, default=8)
     parser.add_argument("--floor", type=int, default=45)
@@ -147,6 +150,28 @@ def main(argv: list[str] | None = None) -> int:
             result = _source.source_candidates(role, candidates, top_n=args.top_n, floor=args.floor)
             # Pure matching — no LLM — so its single step is always deterministic.
             _emit(result, {"source": "deterministic"})
+            return 0
+
+        # Observed evidence from a case-grounded interview's scorecard — a pure
+        # deterministic gate (live_case.apply_interview_case), no provider needed.
+        if args.command == "observed-interview":
+            from ..live_case import apply_interview_case
+            from ..profile import CandidateProfileV2
+            from .models import CaseScenario, RoleSpec
+
+            if not (args.case_json and args.role_json and args.scorecard_json and args.profile_json):
+                raise ValueError("observed-interview requires --case-json, --role-json, --scorecard-json and --profile-json")
+            case = CaseScenario.model_validate(_require_object(json.loads(args.case_json.read_text(encoding="utf-8")), "--case-json"))
+            role = RoleSpec.model_validate(_require_object(json.loads(args.role_json.read_text(encoding="utf-8")), "--role-json"))
+            scorecard = _require_object(json.loads(args.scorecard_json.read_text(encoding="utf-8")), "--scorecard-json")
+            profile = CandidateProfileV2.model_validate(
+                _require_object(json.loads(args.profile_json.read_text(encoding="utf-8")), "--profile-json")
+            )
+            updated, credited = apply_interview_case(profile, role, case, scorecard)
+            _emit(
+                {"creditedSkills": credited, "profile": updated.model_dump(by_alias=True, exclude_none=True)},
+                {"observed": "deterministic"},
+            )
             return 0
 
         provider = None if args.no_llm else ClaudeCliProvider(timeout=120)

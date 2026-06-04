@@ -163,5 +163,19 @@ export async function runInterviewScorecard(
     );
   }
   const { result } = await runAutomationTask(entryId, "scorecard", notes);
+  // Case-grounded interviews can mint observed evidence (step 4 of the case-first
+  // design): when the conversation worked the role's shared case AND cleared the
+  // honest gates, the candidate's profile gains observed-provenance skills — their
+  // next match credits them at full trust and the early-career band narrows.
+  // Best-effort enrichment, never a gate on the scorecard itself.
+  try {
+    const { mintObservedFromCaseInterview } = await import("./devcase-run");
+    const { credited } = await mintObservedFromCaseInterview(entryId, result);
+    if (credited.length > 0) {
+      (result as Record<string, unknown>).observedSkills = credited;
+    }
+  } catch {
+    /* minting is enrichment — a failure must not lose the scorecard */
+  }
   return result;
 }

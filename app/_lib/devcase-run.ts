@@ -3,16 +3,21 @@ import path from "node:path";
 import {
   createPipelineEntry,
   getDevCase,
+  getPipelineEntry,
   getPosting,
+  getProfileRecord,
   getSubmission,
   listMatrixProfiles,
   recordAutomationEvent,
   saveSubmissionEvaluation,
   setApproval,
+  updateProfile,
 } from "./db";
 import { MAX_CODEBASES } from "./devcase-constraints";
 import { cleanupWorkdir, createWorkdir, parsePythonJson, parseStderrError, PipelineError, spawnPython } from "./python-runner";
 import { buildRepoSnapshot, fetchRepoSignals, type RepoSnapshot } from "./repo-snapshot";
+import { isEarlyCareer } from "./archetypes";
+import { devCaseIdFromJobId } from "./student-interview";
 
 export type DevNeed = {
   id?: string;
@@ -137,6 +142,77 @@ export async function runInterviewScenario(
     if (exitCode !== 0) throw new PipelineError(parseStderrError(stderr, exitCode));
     const payload = parsePythonJson<{ result: { scenario: Record<string, unknown> }; source: string; perStepSources?: Record<string, string> }>(stdout, stderr);
     return { scenario: payload.result.scenario, source: payload.source, perStepSources: payload.perStepSources ?? {} };
+  } finally {
+    await cleanupWorkdir(workdir);
+  }
+}
+
+export type ObservedMintResult = { credited: string[]; applied: boolean };
+
+/** After a CASE-GROUNDED interview completes, run the deterministic observed gate
+ *  (live_case.apply_interview_case) over the scorecard and — when earned — persist
+ *  the enriched profile, so the candidate's next match credits the observed skills
+ *  and narrows their early-career confidence band.
+ *
+ *  Quietly returns {applied: false} unless EVERY precondition holds: an
+ *  early-career entry with a saved profile, on a dev-case role whose case carries
+ *  a generated interview scenario (i.e. the conversation really was case-grounded).
+ *  The honest gates themselves (all case constructs rated on quoted evidence, mean
+ *  ≥ "Above bar", never from a wide-confidence transcript) live in Python with the
+ *  rest of the scoring contract. */
+export async function mintObservedFromCaseInterview(
+  entryId: string,
+  scorecard: Record<string, unknown>
+): Promise<ObservedMintResult> {
+  const entry = getPipelineEntry(entryId);
+  if (!entry || !entry.candidateId || !isEarlyCareer(entry.archetype)) return { credited: [], applied: false };
+  const caseId = devCaseIdFromJobId(entry.jobId);
+  const devCase = caseId ? getDevCase(caseId) : null;
+  if (!devCase?.scenario || !devCase.case || !devCase.role) return { credited: [], applied: false };
+  const rec = getProfileRecord(entry.candidateId);
+  if (!rec) return { credited: [], applied: false };
+
+  const workdir = await createWorkdir();
+  try {
+    const casePath = path.join(workdir, "case.json");
+    const rolePath = path.join(workdir, "role.json");
+    const scorecardPath = path.join(workdir, "scorecard.json");
+    const profilePath = path.join(workdir, "profile.json");
+    await writeFile(casePath, JSON.stringify(devCase.case), "utf-8");
+    await writeFile(rolePath, JSON.stringify(devCase.role), "utf-8");
+    await writeFile(scorecardPath, JSON.stringify(scorecard), "utf-8");
+    await writeFile(profilePath, JSON.stringify(rec.payload), "utf-8");
+    const { result } = spawnPython([
+      "-m",
+      "pipeline.jobfit.devcase.devcase_cli",
+      "observed-interview",
+      "--case-json",
+      casePath,
+      "--role-json",
+      rolePath,
+      "--scorecard-json",
+      scorecardPath,
+      "--profile-json",
+      profilePath,
+    ]);
+    const { stdout, stderr, exitCode } = await result;
+    if (exitCode !== 0) throw new PipelineError(parseStderrError(stderr, exitCode));
+    const payload = parsePythonJson<{ result: { creditedSkills?: string[]; profile?: Record<string, unknown> } }>(
+      stdout,
+      stderr
+    );
+    const credited = payload.result.creditedSkills ?? [];
+    const profile = payload.result.profile;
+    if (credited.length === 0 || !profile) return { credited: [], applied: false };
+    updateProfile(rec.row.id, {
+      label: (profile.displayName as string) || rec.row.label,
+      archetype: (profile.archetype as string) ?? rec.row.archetype,
+      roleFamily: (profile.roleFamily as string) ?? rec.row.role_family,
+      completeness: typeof profile.completeness === "number" ? profile.completeness : rec.row.completeness,
+      payload: profile,
+    });
+    recordAutomationEvent(entryId, "observed_minted", credited.join(", "));
+    return { credited, applied: true };
   } finally {
     await cleanupWorkdir(workdir);
   }
