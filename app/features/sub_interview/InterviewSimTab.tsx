@@ -1,13 +1,15 @@
 "use client";
 
 import { useState } from "react";
-import { Briefcase, GraduationCap, Loader2, Play, RotateCcw } from "lucide-react";
+import { Briefcase, FlaskConical, GraduationCap, Loader2, Play, RotateCcw } from "lucide-react";
 import { AiDisclosure } from "@/app/_components/AiDisclosure";
 import { InterviewSidebar } from "@/app/_components/voice/InterviewSidebar";
 import { VoiceInterviewClient } from "@/app/_components/voice/VoiceInterviewClient";
 import { QUICK_SCREEN_MIN } from "@/app/_lib/interview-duration.mjs";
 import {
+  DEMO_CASE_SCENARIO,
   REGULAR_DEMO_RUN_OF_SHOW,
+  scenarioRunOfShow,
   STUDENT_SCRIPT,
   STUDENT_SCRIPT_MIN,
   studentRunOfShow,
@@ -21,15 +23,21 @@ import {
 // entry: the transcript is stored, but no scorecard is synthesized and nothing
 // in the pipeline moves.
 
-type SimMode = "student" | "regular";
+type SimMode = "student" | "student-case" | "regular";
 type Session = { token: string; candidateLabel: string | null; jobTitle: string | null };
 
 const MODES: { id: SimMode; label: string; blurb: string; icon: typeof GraduationCap }[] = [
   {
     id: "student",
-    label: "Student (early-career script)",
+    label: "Student (generic script)",
     blurb: "Agent leads the six-phase thought-script — mental model, coachability, calibration.",
     icon: GraduationCap,
+  },
+  {
+    id: "student-case",
+    label: "Student — case-grounded",
+    blurb: "Same six phases, but the mechanism, counterfactual and hint work a shared designed case.",
+    icon: FlaskConical,
   },
   {
     id: "regular",
@@ -45,9 +53,11 @@ export function InterviewSimTab() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const student = mode === "student";
-  const runOfShow = student ? studentRunOfShow() : REGULAR_DEMO_RUN_OF_SHOW;
-  const durationMin = student ? STUDENT_SCRIPT_MIN : QUICK_SCREEN_MIN;
+  const studentish = mode !== "regular";
+  const runOfShow =
+    mode === "student" ? studentRunOfShow() : mode === "student-case" ? scenarioRunOfShow(DEMO_CASE_SCENARIO) : REGULAR_DEMO_RUN_OF_SHOW;
+  const durationMin =
+    mode === "student" ? STUDENT_SCRIPT_MIN : mode === "student-case" ? DEMO_CASE_SCENARIO.durationMin : QUICK_SCREEN_MIN;
   const constructs = Array.from(new Set(STUDENT_SCRIPT.flatMap((p) => p.feeds)));
 
   function pick(next: SimMode) {
@@ -93,7 +103,7 @@ export function InterviewSimTab() {
         </p>
       </header>
 
-      <div className="mt-4 grid gap-2 sm:grid-cols-2" role="radiogroup" aria-label="Simulation mode">
+      <div className="mt-4 grid gap-2 sm:grid-cols-3" role="radiogroup" aria-label="Simulation mode">
         {MODES.map((m) => {
           const active = m.id === mode;
           const Icon = m.icon;
@@ -147,14 +157,24 @@ export function InterviewSimTab() {
             </>
           ) : (
             <div className="rounded-lg border border-stone-200 bg-paper/40 p-5">
-              {student ? (
+              {studentish ? (
                 <>
-                  <p className="text-base text-ink">
-                    The agent <span className="font-medium">leads</span> the conversation through the six-phase
-                    early-career script — concrete → mechanism → counterfactual → metacognitive — and injects one
-                    deliberate hint mid-problem to read coachability live. Every phase exists to produce a
-                    quotable observation for a rubric construct:
-                  </p>
+                  {mode === "student-case" ? (
+                    <p className="text-base text-ink">
+                      Same six phases, but the mechanism probe, the counterfactual and the deliberate hint all
+                      work a <span className="font-medium">shared designed case</span> — every candidate on the
+                      role hears the same scenario, so ratings are genuinely comparable. Demo case:{" "}
+                      <em className="text-steel">{DEMO_CASE_SCENARIO.caseIntro.split(":")[0]}</em>. Each phase
+                      still produces a quotable observation for a rubric construct:
+                    </p>
+                  ) : (
+                    <p className="text-base text-ink">
+                      The agent <span className="font-medium">leads</span> the conversation through the six-phase
+                      early-career script — concrete → mechanism → counterfactual → metacognitive — and injects one
+                      deliberate hint mid-problem to read coachability live. Every phase exists to produce a
+                      quotable observation for a rubric construct:
+                    </p>
+                  )}
                   <div className="mt-3 flex flex-wrap gap-1">
                     {constructs.map((c) => (
                       <span key={c} className="rounded-full bg-stone-100 px-2 py-0.5 text-meta font-medium text-steel">

@@ -1,0 +1,181 @@
+"""Case -> AI-interview scenario (the case-designed interview).
+
+Takes a designed CaseScenario + RoleSpec and instantiates the canonical six-phase
+early-career skeleton (pipeline/jobfit/interview-script.json — the SAME file the
+TS brief renderer reads) with case-specific material: mechanism probes about the
+case's brief/tasks, a counterfactual that flips a real case constraint, and a
+coachability hint derived from a cover probe's internal ``reveals``. Personal
+phases (anchor / stuck-and-recovered / calibration) pass through unchanged — the
+metacognitive read stays about the candidate, the substance phases stay on shared
+material so every candidate on the role is rated against the same case.
+
+LLM path (Claude CLI) + deterministic template fallback, mirroring design.py.
+One scenario per ROLE: generated once after case approval, reused for every
+candidate, so comparability is structural rather than aspirational.
+"""
+
+from __future__ import annotations
+
+import json
+from pathlib import Path
+from typing import Any
+
+from .models import CaseScenario, InterviewScenario, RoleSpec, ScenarioPhase
+
+INTERVIEW_SCENARIO_PROMPT_VERSION = "interview-scenario-v1"
+
+# The shared skeleton — also imported by app/_lib/student-interview.ts, so the
+# phase structure can never drift between the generator and the agent brief.
+_SCRIPT: dict[str, Any] = json.loads(
+    (Path(__file__).resolve().parents[1] / "interview-script.json").read_text(encoding="utf-8")
+)
+
+# Keep the narrated intro tight — roughly two minutes of speech.
+_INTRO_MAX = 600
+
+_SYSTEM = (
+    "You turn a designed work-sample case into the material for a live, AI-led interview with an "
+    "EARLY-CAREER candidate. Keep the canonical phase structure exactly; instantiate ONLY the "
+    "case-grounded phases with concrete probes drawn from the supplied case, in plain spoken "
+    "language a voice agent can deliver. The candidate must never be able to tell which questions "
+    "are scripted probes. Output strict JSON only."
+)
+
+
+def _skeleton_phases() -> list[ScenarioPhase]:
+    return [
+        ScenarioPhase(
+            phase=p["phase"],
+            minutes=p["minutes"],
+            goal=p["goal"],
+            probe=p["probe"],
+            listen_for=p["listenFor"],
+            feeds=list(p["feeds"]),
+            case_grounded=bool(p.get("caseGrounded")),
+        )
+        for p in _SCRIPT["phases"]
+    ]
+
+
+def deterministic_scenario(case: CaseScenario, role: RoleSpec) -> InterviewScenario:
+    """Template instantiation from the case fields — never fails.
+
+    Mechanism anchors on the first task, the counterfactual flips scale/deadline on
+    the brief, and the coachability hint points at the first cover probe's location
+    with its ``reveals`` as the listen-for. Crude next to the LLM path, but every
+    probe still references the SHARED case, which is what buys comparability."""
+    phases = _skeleton_phases()
+    task = (case.tasks[0].strip() if case.tasks else "the scenario's first task")
+    probe0 = case.cover_probes[0] if case.cover_probes else None
+    for p in phases:
+        if not p.case_grounded:
+            continue
+        if p.phase.startswith("Mechanism"):
+            p.probe = (
+                f"“Looking at the scenario — {task} — why might it be set up this way, "
+                "and what breaks first if we change it?”"
+            )
+            p.case_ref = "tasks[0]" if case.tasks else "brief"
+        elif p.phase.startswith("Counterfactual"):
+            p.probe = (
+                "“Same scenario, but the volume is 100× and the deadline is half — "
+                "what changes first in your approach?”"
+            )
+            p.case_ref = "brief"
+        elif p.phase.startswith("Coachability"):
+            where = (probe0.where.strip() if probe0 and probe0.where.strip() else "one constraint they have not questioned")
+            p.probe = f"Mid-discussion, offer ONE gentle hint pointing at {where} and observe whether they integrate it."
+            if probe0 and probe0.reveals.strip():
+                p.listen_for = probe0.reveals.strip()
+            p.case_ref = f"coverProbes[{probe0.id}]" if probe0 and probe0.id else ("coverProbes[0]" if probe0 else "")
+    intro = f"{case.title or 'A short scenario'}: {(case.brief or 'a short work scenario').strip()}"
+    if len(intro) > _INTRO_MAX:
+        intro = intro[: _INTRO_MAX - 1].rstrip() + "…"
+    return InterviewScenario(
+        case_id=case.id,
+        role_title=role.title,
+        case_intro=intro,
+        phases=phases,
+        duration_min=int(_SCRIPT["durationMin"]),
+        prompt_version=INTERVIEW_SCENARIO_PROMPT_VERSION,
+    )
+
+
+def build_prompt(case: CaseScenario, role: RoleSpec) -> str:
+    skeleton = [
+        {"phase": p.phase, "goal": p.goal, "listenFor": p.listen_for, "feeds": p.feeds}
+        for p in _skeleton_phases()
+        if p.case_grounded
+    ]
+    ctx = {
+        "role": {"title": role.title, "seniority": role.seniority, "mustHaves": role.must_haves},
+        "case": {
+            "title": case.title,
+            "brief": case.brief,
+            "tasks": case.tasks,
+            # `reveals` is INTERNAL agent material — it shapes the hint and the
+            # listen-for, and must never surface to the candidate.
+            "coverProbes": [
+                {"id": cp.id, "kind": cp.kind, "where": cp.where, "reveals": cp.reveals}
+                for cp in case.cover_probes
+            ],
+        },
+        "caseGroundedPhases": skeleton,
+    }
+    return (
+        "Instantiate the case-grounded interview phases for this role from this case. Use ONLY these facts:\n"
+        f"{json.dumps(ctx, ensure_ascii=False, indent=2)}\n\n"
+        "Write (1) caseIntro: at most two minutes of plain spoken narration introducing the scenario to the "
+        "candidate — context and the problem, NO solutions, NO mention of probes; and (2) for EACH phase in "
+        "caseGroundedPhases, a concrete probe drawn from the case: Mechanism = why the case is shaped the way "
+        "it is / what breaks; Counterfactual = flip one REAL constraint of the case; Coachability = the ONE "
+        "hint the agent should offer mid-discussion, derived from a cover probe, plus what good uptake looks "
+        "like. Match each phase's goal; keep the candidate unaware anything is scripted.\n"
+        'Return JSON: { "caseIntro": str, "phases": [ { "phase": str (exactly one of the listed phase names), '
+        '"probe": str (spoken, concrete), "listenFor": str, "caseRef": str (which case element, e.g. "tasks[1]" '
+        'or "coverProbes[p2]") } ] }. Cover every listed phase. JSON only.'
+    )
+
+
+def _coerce(payload: Any, case: CaseScenario, role: RoleSpec) -> InterviewScenario:
+    out = deterministic_scenario(case, role)
+    if not isinstance(payload, dict):
+        return out
+    intro = str(payload.get("caseIntro") or "").strip()
+    if intro:
+        out.case_intro = intro[:_INTRO_MAX]
+    by_phase: dict[str, dict] = {}
+    for p in payload.get("phases") or []:
+        if isinstance(p, dict) and p.get("phase"):
+            by_phase[str(p["phase"]).strip()] = p
+    # Merge LLM probes onto the skeleton; any phase the model missed or garbled
+    # keeps its deterministic instantiation, so the scenario is always complete.
+    for phase in out.phases:
+        if not phase.case_grounded:
+            continue
+        got = by_phase.get(phase.phase)
+        if not got:
+            continue
+        probe = str(got.get("probe") or "").strip()
+        if probe:
+            phase.probe = probe
+        listen = str(got.get("listenFor") or "").strip()
+        if listen:
+            phase.listen_for = listen
+        ref = str(got.get("caseRef") or "").strip()
+        if ref:
+            phase.case_ref = ref
+    return out
+
+
+def scenario_from_case(
+    case: CaseScenario, role: RoleSpec, *, provider: Any | None = None
+) -> tuple[dict, str]:
+    """Return (scenario as a by-alias dict, source 'llm'|'deterministic')."""
+    if provider is None:
+        return deterministic_scenario(case, role).model_dump(by_alias=True), "deterministic"
+    try:
+        payload = provider.complete_json(build_prompt(case, role), system=_SYSTEM)
+        return _coerce(payload, case, role).model_dump(by_alias=True), "llm"
+    except Exception:
+        return deterministic_scenario(case, role).model_dump(by_alias=True), "deterministic"

@@ -4,6 +4,7 @@
     python -m pipeline.jobfit.devcase.devcase_cli design-artifacts  --need-json N --analysis-json A [--no-llm]
     python -m pipeline.jobfit.devcase.devcase_cli reflect-commits     --commits-json C [--probes-json P] [--no-llm]
     python -m pipeline.jobfit.devcase.devcase_cli evaluate-submission --commits-json C --case-json K --role-json R [--probes-json P] [--no-llm]
+    python -m pipeline.jobfit.devcase.devcase_cli interview-scenario  --case-json K --role-json R [--no-llm]
 
 Output: one JSON object {"result","source","perStepSources"[,"confidence"]} to stdout — a
 uniform provenance envelope every command shares. `perStepSources` maps each pipeline step
@@ -112,7 +113,7 @@ def main(argv: list[str] | None = None) -> int:
         sys.stderr.reconfigure(encoding="utf-8")
 
     parser = argparse.ArgumentParser(description="Dev-extension tasks (Claude CLI only).")
-    parser.add_argument("command", choices=["analyze-need", "design-artifacts", "reflect-commits", "evaluate-submission", "source"])
+    parser.add_argument("command", choices=["analyze-need", "design-artifacts", "reflect-commits", "evaluate-submission", "source", "interview-scenario"])
     parser.add_argument("--need-json", type=Path)
     parser.add_argument("--snapshot-json", type=Path)
     parser.add_argument("--analysis-json", type=Path)
@@ -147,6 +148,19 @@ def main(argv: list[str] | None = None) -> int:
         provider = None if args.no_llm else ClaudeCliProvider(timeout=120)
         if provider is not None and not provider.available():
             provider = None
+
+        # Case -> AI-interview scenario (one per role; reused for every candidate).
+        if args.command == "interview-scenario":
+            from . import interview_scenario as _scenario
+            from .models import CaseScenario, RoleSpec
+
+            if not args.case_json or not args.role_json:
+                raise ValueError("interview-scenario requires --case-json and --role-json")
+            case = CaseScenario.model_validate(json.loads(args.case_json.read_text(encoding="utf-8")))
+            role = RoleSpec.model_validate(json.loads(args.role_json.read_text(encoding="utf-8")))
+            scenario, src = _scenario.scenario_from_case(case, role, provider=provider)
+            _emit({"scenario": scenario}, {"scenario": src})
+            return 0
 
         if args.command in ("reflect-commits", "evaluate-submission"):
             if not args.commits_json:

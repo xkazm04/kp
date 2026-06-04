@@ -227,3 +227,36 @@ class TransferAssessment(_Base):
     gaps: list[str] = Field(default_factory=list)
     role_fit_rationale: str = ""
     prompt_version: str = ""
+
+
+# --- 5. Case-designed interview ---------------------------------------------
+
+
+class ScenarioPhase(_Base):
+    """One phase of a case-designed interview: the canonical six-phase skeleton
+    (pipeline/jobfit/interview-script.json) with the case-grounded phases
+    (mechanism / counterfactual / coachability) instantiated from a designed
+    CaseScenario. Personal phases pass through unchanged."""
+
+    phase: str = ""
+    minutes: str = ""
+    goal: str = ""
+    probe: str = ""
+    listen_for: str = ""
+    feeds: list[str] = Field(default_factory=list)
+    case_grounded: bool = False
+    case_ref: str = ""  # which case element this instantiates (e.g. "tasks[0]"); "" = personal
+
+
+class InterviewScenario(_Base):
+    """The material for a live AI-led interview generated FROM a designed case —
+    every candidate on the role hears the same caseIntro and faces the same
+    instantiated probes, so ratings stay comparable. Rendered into the agent
+    brief by app/_lib/student-interview.caseGroundedInterviewerInstructions."""
+
+    case_id: str = ""
+    role_title: str = ""
+    case_intro: str = ""  # 1-2 minutes of narration introducing the shared material
+    phases: list[ScenarioPhase] = Field(default_factory=list)
+    duration_min: int = 22
+    prompt_version: str = ""
