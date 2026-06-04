@@ -4,7 +4,8 @@ import { useState } from "react";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { Markdown } from "../../_components/Markdown";
-import { allCoverageItems, coverageGroups, type CoverageItem } from "./AboutCoverageData";
+import { allCoverageItems, coverageGroups, GROUP_EARLY, type CoverageItem } from "./AboutCoverageData";
+import { StudentsAbout } from "./StudentsAbout";
 
 export function AboutTab() {
   const [selected, setSelected] = useState<CoverageItem>(allCoverageItems[0]);
@@ -61,12 +62,19 @@ export function AboutTab() {
           ))}
         </nav>
 
-        <article className="rounded-lg border border-stone-200 bg-white p-5">
-          <p className="text-meta uppercase text-coral">Capability</p>
-          <h3 className="mt-1 font-serif text-h2 text-ink">{selected.title}</h3>
-          <p className="mt-2 text-base leading-7 text-steel">{selected.lead}</p>
-          <Markdown content={selected.body} className="mt-4" />
-        </article>
+        {selected.group === GROUP_EARLY ? (
+          // The early-career thesis gets a dedicated tabbed page: the card's
+          // diagram + description stay the default view, with a worked scoring
+          // example and the interview thought-script as sibling tabs.
+          <StudentsAbout item={selected} />
+        ) : (
+          <article className="rounded-lg border border-stone-200 bg-white p-5">
+            <p className="text-meta uppercase text-coral">Capability</p>
+            <h3 className="mt-1 font-serif text-h2 text-ink">{selected.title}</h3>
+            <p className="mt-2 text-base leading-7 text-steel">{selected.lead}</p>
+            <Markdown content={selected.body} className="mt-4" />
+          </article>
+        )}
       </div>
     </section>
   );
