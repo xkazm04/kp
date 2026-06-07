@@ -34,7 +34,11 @@ export async function submitAnalysis(
 
 // Poll a running analyze task to completion, animating the stage strip on a
 // soft timeline (the pipeline emits one final result, not per-token stages).
-export async function watchAnalysis(taskId: string, onProgress: ProgressEmitter): Promise<Analysis> {
+export async function watchAnalysis(
+  taskId: string,
+  onProgress: ProgressEmitter,
+  signal?: AbortSignal
+): Promise<Analysis> {
   const stages: StageId[] = ["extract", "gemini", "profile", "scoring", "salary", "insights"];
   let active = true;
   let idx = 0;
@@ -48,13 +52,48 @@ export async function watchAnalysis(taskId: string, onProgress: ProgressEmitter)
     }
   }, 1800);
 
+  // A permanently-failing poll (the task row was reaped after a `next dev`
+  // hot-restart, or the in-memory runner was lost) must not spin forever with no
+  // escape. Count consecutive non-OK polls and bail past a threshold; a healthy
+  // slow run keeps returning 200 (status "running") and resets the counter, so a
+  // legitimately long analysis is never abandoned. A 404 is terminal on its own.
+  const MAX_CONSECUTIVE_ERRORS = 10; // ~15s of solid failure at the 1.5s cadence
+  let consecutiveErrors = 0;
+  const aborted = () => signal?.aborted ?? false;
+
   try {
     while (true) {
+      if (aborted()) throw new DOMException("Analysis watch aborted", "AbortError");
       await delay(1500);
-      const r = await fetch(`/api/tasks/${taskId}`);
-      if (!r.ok) continue;
-      const { task } = await r.json();
-      if (!task) continue;
+      if (aborted()) throw new DOMException("Analysis watch aborted", "AbortError");
+      let r: Response;
+      try {
+        r = await fetch(`/api/tasks/${taskId}`, { signal });
+      } catch (err) {
+        if (aborted()) throw err; // intentional cancel — surfaced as AbortError
+        if ((consecutiveErrors += 1) >= MAX_CONSECUTIVE_ERRORS) {
+          throw new Error("Lost track of the analysis — please retry.");
+        }
+        continue;
+      }
+      // 404 = the task is gone (reaped / lost to a restart); it will never reach a
+      // terminal success, so stop now rather than poll a vanished task forever.
+      if (r.status === 404) throw new Error("The analysis is no longer available — please retry.");
+      if (!r.ok) {
+        if ((consecutiveErrors += 1) >= MAX_CONSECUTIVE_ERRORS) {
+          throw new Error("Lost track of the analysis — please retry.");
+        }
+        continue;
+      }
+      const body = await r.json().catch(() => null);
+      const task = body?.task;
+      if (!task) {
+        if ((consecutiveErrors += 1) >= MAX_CONSECUTIVE_ERRORS) {
+          throw new Error("Lost track of the analysis — please retry.");
+        }
+        continue;
+      }
+      consecutiveErrors = 0;
       if (task.status === "succeeded") {
         const parsed = analysisSchema.safeParse(task.result);
         if (parsed.success) return parsed.data;

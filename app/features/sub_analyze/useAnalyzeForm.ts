@@ -30,6 +30,12 @@ export function useAnalyzeForm() {
   // resubmitted) must not last-write-win over the current one — its callbacks are
   // ignored unless their captured id is still the latest (idea-8367f051).
   const githubRunIdRef = useRef(0);
+  // Aborts the in-flight analyze poll when the user resets/cancels or the tab
+  // unmounts — without this, watchAnalysis's loop + interval poll forever and
+  // setState on an unmounted component (the segmented control unmounts the tab).
+  const abortRef = useRef<AbortController | null>(null);
+  // The current server-side task id, so reset/cancel can DELETE (cancel) it.
+  const taskIdRef = useRef<string | null>(null);
 
   const [cvFiles, setCvFiles] = useState<File[]>([]);
   const [jobDescriptionFile, setJobDescriptionFile] = useState<File | null>(null);
@@ -162,6 +168,7 @@ export function useAnalyzeForm() {
       clearStoredTask();
     },
     onTaskStarted: (id: string) => {
+      taskIdRef.current = id;
       try {
         sessionStorage.setItem(ANALYZE_TASK_KEY, id);
       } catch {
@@ -184,13 +191,20 @@ export function useAnalyzeForm() {
     if (!stored) return;
     const resumeStored = stored;
     const t = window.setTimeout(() => {
+      const controller = new AbortController();
+      abortRef.current = controller;
+      taskIdRef.current = resumeStored;
       setIsLoading(true);
       setIsCompleting(false);
-      void resumeAnalysis(resumeStored, buildCallbacks());
+      void resumeAnalysis(resumeStored, buildCallbacks(), controller.signal);
     }, 0);
     return () => window.clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Abort an in-flight analyze run when the tab unmounts (e.g. switching the
+  // workspace segmented control), so the poll loop + stage interval don't leak.
+  useEffect(() => () => abortRef.current?.abort(), []);
 
   async function submit() {
     if (cvFiles.length === 0) {
@@ -239,6 +253,9 @@ export function useAnalyzeForm() {
       });
     }
 
+    const controller = new AbortController();
+    abortRef.current = controller;
+
     await executeAnalysis(
       {
         cvFiles,
@@ -248,7 +265,8 @@ export function useAnalyzeForm() {
         companyText,
         selectedJdSlug,
       },
-      buildCallbacks()
+      buildCallbacks(),
+      controller.signal
     );
   }
 

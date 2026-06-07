@@ -33,30 +33,39 @@ export type AnalysisCallbacks = {
   onTaskStarted?: (taskId: string) => void;
 };
 
+// An intentional abort (reset / cancel / tab unmount) is not a failure — the
+// caller already tore the UI down, so it must not surface an error toast.
+function isAbort(signal: AbortSignal | undefined, caught: unknown): boolean {
+  return Boolean(signal?.aborted) || (caught as { name?: string } | null)?.name === "AbortError";
+}
+
 export async function executeAnalysis(
   inputs: AnalysisInputs,
-  callbacks: AnalysisCallbacks
+  callbacks: AnalysisCallbacks,
+  signal?: AbortSignal
 ): Promise<void> {
   const { cvFiles, jobDescriptionFile, jobDescriptionText, companyFile, companyText, selectedJdSlug } = inputs;
   try {
     const taskId = await submitAnalysis(cvFiles, jobDescriptionFile, jobDescriptionText, companyFile, companyText, selectedJdSlug);
     callbacks.onTaskStarted?.(taskId);
-    const parsed = await watchAnalysis(taskId, callbacks.onProgress);
+    const parsed = await watchAnalysis(taskId, callbacks.onProgress, signal);
     callbacks.onFinalize();
     window.setTimeout(() => callbacks.onResult(parsed), 320);
   } catch (caught) {
+    if (isAbort(signal, caught)) return;
     callbacks.onError(caught instanceof Error ? caught.message : "Analysis failed.");
   }
 }
 
 // Re-attach to an analyze task already running on the server (e.g. after a page
 // refresh) and resolve it like a fresh run.
-export async function resumeAnalysis(taskId: string, callbacks: AnalysisCallbacks): Promise<void> {
+export async function resumeAnalysis(taskId: string, callbacks: AnalysisCallbacks, signal?: AbortSignal): Promise<void> {
   try {
-    const parsed = await watchAnalysis(taskId, callbacks.onProgress);
+    const parsed = await watchAnalysis(taskId, callbacks.onProgress, signal);
     callbacks.onFinalize();
     window.setTimeout(() => callbacks.onResult(parsed), 320);
   } catch (caught) {
+    if (isAbort(signal, caught)) return;
     callbacks.onError(caught instanceof Error ? caught.message : "Analysis failed.");
   }
 }
