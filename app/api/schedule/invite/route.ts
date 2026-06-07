@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { getPipelineEntry } from "@/app/_lib/db";
 import { createScheduleInvite } from "@/app/_lib/schedule-store";
 import { plannedInterviewMinutes } from "@/app/_lib/interview-run";
-import { jsonError, jsonOk } from "@/app/_lib/api-response";
+import { jsonOk, safeJsonError } from "@/app/_lib/api-response";
+import { clientIpFrom, rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
 
 export const runtime = "nodejs";
 
@@ -10,6 +11,13 @@ export const runtime = "nodejs";
 // candidate opens /schedule/<token> and picks a slot.
 export async function POST(request: NextRequest) {
   try {
+    // No caller restriction exists yet (no auth layer): any request with a
+    // valid entryId mints a link and a confirmation-email path. Throttle
+    // per-IP so link-minting can't be used to flood the comms provider
+    // (idea-3e49abaf); generous enough for any human recruiter.
+    if (!rateLimit(`invite:${clientIpFrom(request.headers)}`, { limit: 30, windowMs: 60_000 })) {
+      return NextResponse.json({ error: RATE_LIMITED_ERROR }, { status: 429 });
+    }
     const body = (await request.json().catch(() => ({}))) as { entryId?: string };
     if (!body.entryId) return NextResponse.json({ error: "entryId is required" }, { status: 400 });
     const entry = getPipelineEntry(body.entryId);
@@ -26,6 +34,6 @@ export async function POST(request: NextRequest) {
     });
     return jsonOk({ token: invite.token, url: `/schedule/${invite.token}` });
   } catch (error) {
-    return jsonError(error, "invite failed");
+    return safeJsonError(error, "api:schedule:invite", "SCHEDULE_INVITE_FAILED");
   }
 }

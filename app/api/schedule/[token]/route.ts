@@ -12,6 +12,7 @@ import { offeredSlotFor, proposeSlots } from "@/app/_lib/schedule-slots";
 import { logScheduleReconcile } from "@/app/_lib/logger";
 import { jsonOk, safeJsonError } from "@/app/_lib/api-response";
 import { isShortNoticeBooking } from "@/app/_lib/interview-reminder-policy";
+import { clientIpFrom, rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
 
 export const runtime = "nodejs";
 
@@ -45,6 +46,11 @@ export async function GET(_request: NextRequest, context: { params: Promise<{ to
 export async function POST(request: NextRequest, context: { params: Promise<{ token: string }> }) {
   try {
     const { token } = await context.params;
+    // Side-effect-bearing public endpoint (a confirm dispatches candidate
+    // email) — throttle per caller+token (idea-3e49abaf).
+    if (!rateLimit(`sched:${clientIpFrom(request.headers)}:${token}`, { limit: 10, windowMs: 60_000 })) {
+      return NextResponse.json({ error: RATE_LIMITED_ERROR }, { status: 429 });
+    }
     const body = (await request.json().catch(() => ({}))) as { slot?: string; slotAt?: string };
     const invite = getScheduleInviteByToken(token);
     if (!invite) return NextResponse.json({ error: "not found" }, { status: 404 });

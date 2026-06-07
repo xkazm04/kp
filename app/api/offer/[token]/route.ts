@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { offerView, respondToOffer } from "@/app/_lib/offer-finalize";
-import { jsonError, jsonOk } from "@/app/_lib/api-response";
+import { jsonOk, safeJsonError } from "@/app/_lib/api-response";
+import { clientIpFrom, rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
 
 export const runtime = "nodejs";
 
@@ -17,6 +18,11 @@ export async function GET(_request: NextRequest, context: { params: Promise<{ to
 export async function POST(request: NextRequest, context: { params: Promise<{ token: string }> }) {
   const { token } = await context.params;
   try {
+    // Side-effect-bearing public endpoint (accept fires onboarding dispatch)
+    // — throttle per caller+token (idea-3e49abaf).
+    if (!rateLimit(`offer:${clientIpFrom(request.headers)}:${token}`, { limit: 10, windowMs: 60_000 })) {
+      return NextResponse.json({ error: RATE_LIMITED_ERROR }, { status: 429 });
+    }
     const body = (await request.json()) as { response?: string };
     const response = body.response;
     if (response !== "accept" && response !== "decline") {
@@ -26,6 +32,6 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
     if (!result.ok) return NextResponse.json({ error: result.error }, { status: 404 });
     return jsonOk(result);
   } catch (error) {
-    return jsonError(error, "Could not record your response.");
+    return safeJsonError(error, "api:offer:respond", "OFFER_RESPOND_FAILED");
   }
 }
