@@ -18,7 +18,9 @@
     "test:eval": "python -m pipeline.jobfit.eval",
     "test:eval:strict": "python -m pipeline.jobfit.eval --strict",
     "test:eval:match": "python -m pipeline.jobfit.eval.matching_eval --strict",
-    "pipeline:sample": "python -m pipeline.jobfit.cli samples/sample-cv.txt"
+    "pipeline:sample": "python -m pipeline.jobfit.cli samples/sample-cv.txt",
+    "db:dump": "node scripts/db-dump.mjs",
+    "db:load": "node scripts/db-load.mjs"
   },
   "dependencies": {
     "@elevenlabs/react": "^1.6.4",

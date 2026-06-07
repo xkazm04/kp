@@ -30,6 +30,8 @@ pipeline-sidecar*.log
 data/*.sqlite
 data/*.sqlite-wal
 data/*.sqlite-shm
+# Workspace dumps (npm run db:dump) — share/seed them out-of-band, don't commit
+data/dumps/
 
 # Stray tooling artifacts
 # cygwin/msys crash dumps (e.g. grep.exe.stackdump)
