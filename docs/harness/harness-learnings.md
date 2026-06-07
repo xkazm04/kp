@@ -1,6 +1,9 @@
 # kp — harness learnings
 
 ## Structural facts
+- **2026-06-07 (bug-hunt W2)** — The grounded Gemini path (`use_grounding=True`) sets NO `response_mime_type`, so `_parse_json` decodes with a stock `JSONDecoder` that admits `Infinity`/`NaN`. `int(float('inf'))` raises `OverflowError` (NOT ValueError) and `inf` passes `>= 0` guards. `pipeline.py` `_optional_int`/`_optional_float` now reject non-finite (`math.isfinite`) + catch `OverflowError`; route ALL numeric LLM fields through them (or `salary_band`'s inf/nan-safe `normalize_band`/`round_salary`). `market_salary_cli._coerce` likewise catches `OverflowError`.
+- **2026-06-07 (bug-hunt W2)** — `gemini.grounded_answer` now retries transient failures via `_generate_with_retry`/`_is_transient_error` (429/5xx/timeout by code or message → retry; auth/4xx → fail fast; 3 attempts, 90s each, backoff+jitter). Callers no longer need to pass a `fallback` just to survive a rate-limit blip.
+- **2026-06-07 (bug-hunt W2)** — Salary midpoint is clamped to `[min,max]` in `_salary_from_payload` (a model midpoint is trusted only when in-band, else re-derived). `apply_company_salary_context` bails on a 0/0 band (`salary.maximum <= 0`).
 - **2026-06-07 (bug-hunt W1)** — Two event-dedup helpers in `db.ts`: `hasEvent(entryId, kind)` (unbounded "ever logged" — gates real-world side effects across multi-day cache windows) and `hasEventToday(entryId, kind)` (now buckets on the **business timezone**, `BUSINESS_TZ` env, default `Europe/Prague`, DST-correct via `Intl`, compares the most-recent event's local-date — NOT UTC midnight anymore).
 - **2026-06-07 (bug-hunt W1)** — `outreach` delivery is idempotent: `runAutomationTask` skips `dispatchOutreach` when an `outreach_sent` event already exists (prompt cache makes the draft cheap, but the SEND is gated on the durable marker). Any new candidate-facing send added to automation must follow the same gate-on-event pattern, not rely on the cache.
 - **2026-06-07 (bug-hunt W1)** — Scheduler clock: `claimDueRun` is the clock-path writer of `next_due_at`; the `force`/manual path in `tickScheduler` now calls `advanceAfterForcedRun` (scheduler-store.ts) to advance the window itself, so a manual "Run now" no longer leaves the window due for the next heartbeat to re-fire.
@@ -37,8 +40,8 @@
 - An `else` catch-all on a parsed-event union: adding a new event kind silently misroutes through the old `else` (VoiceInterview's `handleOaiEvent` had to switch to explicit kinds when the parser grew).
 
 ## Open follow-ups (from bug-hunt 2026-06-07 — Bug Hunter scan)
-- **Scan**: 51 findings across 8 high-risk contexts (3 critical / 17 high / 21 medium / 10 low) in `docs/harness/bug-hunt-2026-06-07/` (`INDEX.md` + 8 reports). **Wave 1 done** (6 findings closed, see `FIXES-WAVE-1.md`). **45 findings open** in waves W2–W8.
-- Still-open criticals: **W2** `Infinity` in a Gemini JSON response crashes the whole analysis (`pipeline.py:626` `_optional_int`); **W3** analyze `watchAnalysis` poll-loop + interval never abort → zombie pollers on tab-switch (`AnalyzeApi.ts:37`).
+- **Scan**: 51 findings across 8 high-risk contexts (3 critical / 17 high / 21 medium / 10 low) in `docs/harness/bug-hunt-2026-06-07/` (`INDEX.md` + 8 reports). **Waves 1–2 done** (12 findings closed; `FIXES-WAVE-1.md`, `FIXES-WAVE-2.md`). **39 findings open** in waves W3–W8.
+- Only remaining critical: **W3** analyze `watchAnalysis` poll-loop + interval never abort → zombie pollers on tab-switch (`AnalyzeApi.ts:37`). (W1 outreach re-send + W2 `Infinity` crash now closed.)
 - TOOLING GOTCHA: `npx vitest run` reports "no test suite found (69 failed)" — a FALSE baseline. kp's unit tests target Node's built-in runner; use `npm run test:unit` (`node --test`) + `npm run test:python`. Don't trust vitest here.
 - W5 (dev-case) and W8 (scheduling-format) overlap the pre-Wave-1 WIP snapshot `7597c20` (`evaluate.py`/`models.py`; `schedule-slots.ts`/`schedule/[token]/route.ts`/`SchedulePicker.tsx`) — re-read those before applying; some findings may already be addressed by that WIP.
 
