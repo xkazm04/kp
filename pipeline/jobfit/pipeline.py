@@ -535,7 +535,13 @@ def _salary_from_payload(raw: Any, repairs: list[str] | None = None) -> SalaryEs
         maximum = minimum
     elif minimum <= 0 and maximum <= 0 and had_section and repairs is not None:
         repairs.append("Salary range missing — estimate unavailable (manual review)")
-    midpoint = _optional_int(raw.get("midpoint")) or round_salary((minimum + maximum) / 2)
+    # A model-supplied midpoint can be inconsistent with its own min/max (e.g. an
+    # annual figure among monthly bounds). Trust it only when it falls inside the
+    # repaired band; otherwise derive it — so the displayed headline figure is
+    # never a bogus out-of-range number the recruiter negotiates against.
+    midpoint = _optional_int(raw.get("midpoint"))
+    if midpoint is None or not (minimum <= midpoint <= maximum):
+        midpoint = round_salary((minimum + maximum) / 2)
     return SalaryEstimate(
         currency=str(raw.get("currency") or "CZK"),
         period=str(raw.get("period") or "month"),
