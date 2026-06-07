@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { actOnPipelineEntry, clearIntakeDegraded, getPipelineEntry, setApproval, type PipelineAction, type PipelineEntry } from "@/app/_lib/db";
 import { dispatchOffer, dispatchRejection } from "@/app/_lib/comms-dispatch";
-import { createOffer, getOpenOfferForEntry } from "@/app/_lib/offers-store";
+import { getOrCreateOpenOffer } from "@/app/_lib/offers-store";
 
 export const runtime = "nodejs";
 
@@ -18,18 +18,19 @@ async function extendOffer(request: NextRequest, entry: PipelineEntry) {
     draft = {};
   }
 
-  // Reuse an already-open offer for this entry (idempotent re-extends).
-  const offer =
-    getOpenOfferForEntry(entry.id) ??
-    createOffer({
-      entryId: entry.id,
-      candidateLabel: entry.candidateLabel,
-      jobId: entry.jobId,
-      jobTitle: entry.jobTitle,
-      currency: typeof draft.currency === "string" ? draft.currency : "CZK",
-      salary: Number(draft.recommended) || null,
-      payload: draft,
-    });
+  // Reuse an already-open offer for this entry (idempotent re-extends). Atomic
+  // (idea-00987b3c): the old `getOpenOfferForEntry() ?? createOffer()` was a
+  // TOCTOU that a double-clicked approval defeated, minting two live offer
+  // links. A re-extend re-sends the SAME link — never a second one.
+  const { offer } = getOrCreateOpenOffer({
+    entryId: entry.id,
+    candidateLabel: entry.candidateLabel,
+    jobId: entry.jobId,
+    jobTitle: entry.jobTitle,
+    currency: typeof draft.currency === "string" ? draft.currency : "CZK",
+    salary: Number(draft.recommended) || null,
+    payload: draft,
+  });
 
   const base = process.env.APP_BASE_URL ?? new URL(request.url).origin;
   const link = `${base}/offer/${offer.token}`;

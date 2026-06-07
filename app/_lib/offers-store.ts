@@ -38,6 +38,18 @@ function db(): Database.Database {
     );
     CREATE INDEX IF NOT EXISTS idx_offers_entry ON offers (entry_id);
   `);
+  // At most ONE open offer per entry, enforced by the database itself
+  // (idea-00987b3c): the route's read-then-create dedupe is a TOCTOU two
+  // near-simultaneous approvals both pass. Partial unique index = the backstop
+  // no race can slip through. try/catch: a legacy DB that already holds
+  // duplicate open offers would fail the CREATE — keep running (the
+  // transactional getOrCreateOpenOffer still dedupes go-forward) and log so an
+  // operator can clean up and let the index take on the next boot.
+  try {
+    d.exec(`CREATE UNIQUE INDEX IF NOT EXISTS uq_offers_open_entry ON offers (entry_id) WHERE status = 'extended'`);
+  } catch (e) {
+    console.warn("[offers-store] could not create uq_offers_open_entry (duplicate open offers exist?)", e);
+  }
   _db = d;
   return d;
 }
@@ -127,6 +139,24 @@ export function getOpenOfferForEntry(entryId: string): OfferRow | null {
     .prepare(`SELECT * FROM offers WHERE entry_id = ? AND status = 'extended' ORDER BY created_at DESC LIMIT 1`)
     .get(entryId) as Record<string, unknown> | undefined;
   return r ? rowToOffer(r) : null;
+}
+
+/** Atomic "reuse the open offer or mint one" (idea-00987b3c). The route used
+ *  `getOpenOfferForEntry(id) ?? createOffer(...)` — a read-then-create TOCTOU:
+ *  two near-simultaneous approvals (a double-clicked Accept, or two recruiters)
+ *  both saw no open offer and both minted one, sending the candidate TWO live
+ *  offer links with different tokens. The IMMEDIATE transaction serializes the
+ *  check-then-insert across connections, and the partial unique index above
+ *  backstops any writer that bypasses this helper. `created` tells the caller
+ *  whether this call minted the row (vs. reusing an existing open offer). */
+export function getOrCreateOpenOffer(input: Parameters<typeof createOffer>[0]): { offer: OfferRow; created: boolean } {
+  const d = db();
+  const tx = d.transaction((): { offer: OfferRow; created: boolean } => {
+    const open = getOpenOfferForEntry(input.entryId);
+    if (open) return { offer: open, created: false };
+    return { offer: createOffer(input), created: true };
+  });
+  return tx.immediate();
 }
 
 /** Record the candidate's (or recruiter-on-behalf) response. Idempotent. */
