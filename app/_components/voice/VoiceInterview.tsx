@@ -249,6 +249,17 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle }: VoiceInterview
 
   const conversation = useConversation({
     onConnect: () => {
+      // A late onConnect after the 30s connect timeout (which latched finalizedRef
+      // and tore down) must NOT flip to "live": the candidate would talk into a
+      // call whose transcript can never be POSTed. Abandon it instead.
+      if (finalizedRef.current) {
+        try {
+          conversation.endSession();
+        } catch {
+          /* noop */
+        }
+        return;
+      }
       clearConnectTimer();
       reachedLiveRef.current = true;
       setPhase("live");
@@ -361,6 +372,13 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle }: VoiceInterview
       if (audioRef.current) audioRef.current.srcObject = e.streams[0];
     };
     const mic = await navigator.mediaDevices.getUserMedia({ audio: true });
+    // The permission prompt can sit open for seconds; if the connect timeout or an
+    // unmount tore down (or replaced) this connection meanwhile, stop the freshly
+    // acquired tracks rather than leaving the microphone hot on a dead call.
+    if (finalizedRef.current || pcRef.current !== pc) {
+      mic.getTracks().forEach((tr) => tr.stop());
+      return;
+    }
     micRef.current = mic;
     mic.getTracks().forEach((tr) => pc.addTrack(tr, mic));
 
@@ -386,6 +404,18 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle }: VoiceInterview
       throw new Error(`OpenAI calls ${resp.status}: ${detail.slice(0, 200)}`);
     }
     await pc.setRemoteDescription({ type: "answer", sdp: await resp.text() });
+    // Same guard as after getUserMedia: if the connect timeout fired (or this pc
+    // was torn down / replaced) while dialing, don't present a live call that can
+    // never be finalized — stop the connection we just built.
+    if (finalizedRef.current || pcRef.current !== pc) {
+      try {
+        pc.getSenders().forEach((s) => s.track?.stop());
+        pc.close();
+      } catch {
+        /* noop */
+      }
+      return;
+    }
     clearConnectTimer();
     setPhase("live");
   }
@@ -410,6 +440,11 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle }: VoiceInterview
     finalizedRef.current = false;
     reachedLiveRef.current = false;
     erroredRef.current = false;
+    // Clear the prior call's session capability ids too: a re-connect that fails
+    // before /connect returns fresh ones must not let finalize POST against the
+    // previous (already-completed) session.
+    sessionIdRef.current = null;
+    sessionTokenRef.current = null;
     setPhase("connecting");
     // Never hang on "Connecting…": if we aren't live within 30s, surface an error.
     clearConnectTimer();
