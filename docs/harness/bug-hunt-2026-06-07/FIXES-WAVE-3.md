@@ -34,9 +34,9 @@
 11. **A poll must distinguish terminal from transient and bound its failures.** Treating "404 / row gone" identically to "still running" spins forever; count consecutive failures (real progress resets the counter) and treat resource-gone as terminal.
 12. **Guard supersedable async callbacks with a monotonic run-id.** When a long op can be superseded (reset / cancel / resubmit), stamp each run and ignore callbacks whose id is stale — else a zombie completion overwrites fresh state.
 
-## Partial closure — Data#1
+## Data#1 — now FULLY closed (follow-up commit `4e819e0`)
 
-Data#1 (cancel never kills the spawned Python child) is **closed for the `analyze` handler**. The identical one-line forward — `spawnPython(args, { signal: ctx.signal })`, with each handler accepting `ctx.signal` — still applies to the other task handlers: `reasoning`, `group_eval`, `jd_build`, `automation`, and the dev-case handlers (`devcase-run.ts`, which also overlaps W5). Tracked in `harness-learnings.md` as remaining Data#1 work; mechanical, ~6 spawn sites.
+W3 closed Data#1 for the `analyze` handler. A later follow-up forwarded `ctx.signal` to **every** remaining Python-spawning task handler — `reasoning`, `automation` (+ `batch_screen`), `group_eval` (`rankCandidates` + per-candidate `runReasoning` + `runGroupCompare`), `jd_build` (`runMarketSalary` + `runNeedAnalysis` + `runDesignArtifacts`), and the dev-case handlers (`need_analysis`/`design_artifacts`/`commit_reflection`/`evaluate_submission`). `runLifecycle` checks `signal.aborted` between stages and forwards to its analyze/design steps. So canceling any task now SIGKILLs its Python child instead of leaving a billable LLM call to finish. (The only un-threaded spawns are lifecycle's best-effort publish-stage sub-steps.)
 
 ## Cumulative status (waves 1–3)
 
