@@ -1,5 +1,6 @@
 "use client";
 
+import { useRef } from "react";
 import {
   BriefcaseBusiness,
   Building2,
@@ -18,6 +19,10 @@ import type { AnalyzeFormState } from "./useAnalyzeForm";
 
 export function AnalyzeForm({ state }: { state: AnalyzeFormState }) {
   const { refs, inputs, setters, handlers, flags, statuses, library, result } = state;
+  // Monotonic pick counter: ignore a slow saved-JD body fetch that resolves after a
+  // newer pick, so the textarea can't end up holding JD A's body while the dropdown
+  // shows JD B (the run would then silently use the wrong JD).
+  const jdPickSeqRef = useRef(0);
   const { setJobDescriptionFile, setJobDescriptionText, setCompanyFile, setCompanyText, setGithubProfile } = setters;
   const { setSelectedJdSlug } = library;
 
@@ -88,10 +93,14 @@ export function AnalyzeForm({ state }: { state: AnalyzeFormState }) {
                 // The list payload only carries a preview now, so fetch the full
                 // body on demand before populating the textarea.
                 setSelectedJdSlug(jd.slug);
+                const seq = ++jdPickSeqRef.current;
                 try {
                   const response = await fetch(`/api/jds/${encodeURIComponent(jd.slug)}`);
                   if (!response.ok) return;
                   const full = await response.json();
+                  // Drop a stale response: a slower earlier pick must not last-write-win
+                  // over a newer one (textarea/slug would then disagree).
+                  if (seq !== jdPickSeqRef.current) return;
                   if (typeof full?.body === "string") setJobDescriptionText(full.body);
                 } catch {
                   /* leave the textarea as-is; the selection is still recorded */

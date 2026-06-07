@@ -29,8 +29,12 @@ export function useAnalyzeJdLibrary(setJobDescriptionText: (value: string) => vo
       .then((response) => (response.ok ? response.json() : null))
       .then((jd) => {
         if (!jd) return;
-        setSelectedJdSlug(jd.slug);
-        setJobDescriptionText(jd.body);
+        // The slug endpoint can return a non-{body:string} shape (an { error }, a
+        // renamed field, a partial record); setting a non-string into the controlled
+        // textarea white-screens the whole tab from a shareable ?jd= URL. Guard like
+        // the on-demand picker (AnalyzeForm) already does.
+        if (typeof jd.slug === "string") setSelectedJdSlug(jd.slug);
+        if (typeof jd.body === "string") setJobDescriptionText(jd.body);
       })
       .catch(() => {});
   }, [setJobDescriptionText]);
