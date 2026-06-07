@@ -438,6 +438,19 @@ function ensureDb(): Database.Database {
   } catch {
     /* pre-existing duplicate rows prevent the unique index; skip */
   }
+  // Atomic task dedup across connections (the scheduler ticks on its own connection
+  // and an external cron can hit /api/automation/run): a partial UNIQUE index forbids
+  // two ACTIVE rows sharing a dedupe_key, turning startTask's app-level read-then-write
+  // into a hard guarantee. Guarded like the submissions index — a legacy DB with
+  // active duplicates keeps the app-level coalescing instead.
+  try {
+    db.exec(
+      `CREATE UNIQUE INDEX IF NOT EXISTS uq_tasks_active_dedupe
+         ON tasks (dedupe_key) WHERE status IN ('queued','running')`
+    );
+  } catch {
+    /* pre-existing active duplicates prevent the unique index; skip */
+  }
   seedExampleJd(db);
   seedJobs(db);
   seedCandidates(db);
@@ -2171,9 +2184,20 @@ function rowToTaskLite(r: TaskLiteRow): TaskRecord {
 
 export function createTask(id: string, kind: string, dedupeKey: string | null, label: string | null, params: unknown): TaskRecord {
   const db = ensureDb();
-  db.prepare(
-    `INSERT INTO tasks (id, kind, dedupe_key, label, status, params_json, created_at) VALUES (?, ?, ?, ?, 'queued', ?, ?)`
-  ).run(id, kind, dedupeKey, label, JSON.stringify(params ?? null), new Date().toISOString());
+  try {
+    db.prepare(
+      `INSERT INTO tasks (id, kind, dedupe_key, label, status, params_json, created_at) VALUES (?, ?, ?, ?, 'queued', ?, ?)`
+    ).run(id, kind, dedupeKey, label, JSON.stringify(params ?? null), new Date().toISOString());
+  } catch (e) {
+    // uq_tasks_active_dedupe (when present) makes dedup atomic across connections: a
+    // concurrent writer already started an active task with this key, so return that
+    // instead of inserting a duplicate. Re-throw anything that isn't the collision.
+    if (dedupeKey && (e as { code?: string }).code === "SQLITE_CONSTRAINT_UNIQUE") {
+      const existing = getActiveTaskByDedupe(dedupeKey);
+      if (existing) return existing;
+    }
+    throw e;
+  }
   return getTask(id)!;
 }
 
@@ -2247,12 +2271,16 @@ export function countTaskHistory(beforeIso: string): number {
 
 export function markTaskRunning(id: string): void {
   const db = ensureDb();
-  db.prepare(`UPDATE tasks SET status='running', started_at=? WHERE id=?`).run(new Date().toISOString(), id);
+  // Guard on a non-terminal status so a late / recovery-re-enqueued write can't
+  // resurrect or restamp a canceled / interrupted / finished task (terminal is final).
+  db.prepare(`UPDATE tasks SET status='running', started_at=? WHERE id=? AND status IN ('queued','running')`).run(new Date().toISOString(), id);
 }
 
 export function setTaskProgress(id: string, done: number, total: number, msg?: string): void {
   const db = ensureDb();
-  db.prepare(`UPDATE tasks SET progress_done=?, progress_total=?, progress_msg=? WHERE id=?`).run(done, total, msg ?? null, id);
+  // A straggler progress callback from a handler still running after cancel must not
+  // write to the terminal row (stale "Screening…" text on a dead task).
+  db.prepare(`UPDATE tasks SET progress_done=?, progress_total=?, progress_msg=? WHERE id=? AND status IN ('queued','running')`).run(done, total, msg ?? null, id);
 }
 
 // A task's result is arbitrary handler output, so JSON.stringify can throw (a
