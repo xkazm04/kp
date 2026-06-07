@@ -26,8 +26,18 @@ export async function respondToOffer(token: string, response: "accept" | "declin
     };
   }
 
+  // The CAS in markOfferResponded is the ONLY claim that counts (idea-e80f60f1):
+  // the status read above is a snapshot, and two concurrent responses (candidate
+  // double-click; candidate + recruiter-on-behalf) both pass it. Previously the
+  // result was ignored and BOTH callers ran the terminal side effects — double
+  // onboarding dispatch, phantom Hired transitions, duplicate automation events.
+  // Now the loser reports the recorded outcome and touches nothing.
   if (response === "accept") {
-    markOfferResponded(token, "accepted");
+    const { offer: claimedOffer, claimed } = markOfferResponded(token, "accepted");
+    if (!claimed) {
+      const status = claimedOffer?.status === "accepted" ? "accepted" : "declined";
+      return { ok: true, status, alreadyResponded: true, jobTitle: offer.jobTitle, candidateLabel: offer.candidateLabel };
+    }
     if (offer.entryId) {
       recordAutomationEvent(offer.entryId, "offer_accepted", offer.jobTitle ?? "");
       const hired = actOnPipelineEntry(offer.entryId, "accept"); // Offer -> Hired (clears approval, logs `advanced`)
@@ -38,7 +48,11 @@ export async function respondToOffer(token: string, response: "accept" | "declin
   }
 
   // decline
-  markOfferResponded(token, "declined");
+  const { offer: claimedOffer, claimed } = markOfferResponded(token, "declined");
+  if (!claimed) {
+    const status = claimedOffer?.status === "accepted" ? "accepted" : "declined";
+    return { ok: true, status, alreadyResponded: true, jobTitle: offer.jobTitle, candidateLabel: offer.candidateLabel };
+  }
   if (offer.entryId) {
     // Terminal `declined` — the candidate turned us down. Distinct from the
     // recruiter's `rejected` so funnel/re-engagement reporting can tell a

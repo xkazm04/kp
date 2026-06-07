@@ -159,18 +159,26 @@ export function getOrCreateOpenOffer(input: Parameters<typeof createOffer>[0]): 
   return tx.immediate();
 }
 
-/** Record the candidate's (or recruiter-on-behalf) response. Idempotent. */
-export function markOfferResponded(token: string, status: "accepted" | "declined"): OfferRow | null {
+/** Record the candidate's (or recruiter-on-behalf) response. Idempotent at the
+ *  row level — and the CALLER must be too: `claimed` is true only for the one
+ *  call whose CAS actually flipped the row (idea-e80f60f1). respondToOffer used
+ *  to ignore this and run the terminal side effects (onboarding dispatch, the
+ *  Hired transition, automation events) unconditionally, so two concurrent
+ *  accepts both fired them. Side effects belong to the claimer alone. */
+export function markOfferResponded(
+  token: string,
+  status: "accepted" | "declined"
+): { offer: OfferRow | null; claimed: boolean } {
   const d = db();
-  // Idempotent: the `status = 'extended'` guard means only the first response
-  // flips the row, and RETURNING * hands back the fresh row in the same statement
-  // — no separate re-SELECT on the common (still-open) path.
+  // The `status = 'extended'` guard means only the first response flips the row,
+  // and RETURNING * hands back the fresh row in the same statement — no separate
+  // re-SELECT on the common (still-open) path.
   const updated = d
     .prepare(`UPDATE offers SET status = ?, responded_at = ? WHERE token = ? AND status = 'extended' RETURNING *`)
     .get(status, new Date().toISOString(), token) as Record<string, unknown> | undefined;
-  if (updated) return rowToOffer(updated);
+  if (updated) return { offer: rowToOffer(updated), claimed: true };
   // Already responded, or no such token — return the current row (or null) as-is.
-  return getOfferByToken(token);
+  return { offer: getOfferByToken(token), claimed: false };
 }
 
 /** Terminal status write for a declined offer (candidate said no). Typed against
