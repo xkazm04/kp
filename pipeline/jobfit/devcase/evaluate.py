@@ -117,12 +117,20 @@ def evaluate_submission(reflection: dict, tooling: dict, case: dict, role: dict,
         fluency = float(tooling.get("fluency") or 0.5)
         rbw = float(reflection.get("readBeforeWrite") or 0.4)
         verif = min(1.0, len(reflection.get("verificationHabits") or []) / 2.0)
-        outcomes = tooling.get("probeOutcomes") or []
-        handled = (sum(1 for o in outcomes if o.get("handledWell")) / len(outcomes)) if outcomes else 0.5
+        # Filter to dict outcomes (a stored / hand-built ToolingSignal may carry
+        # strings or None) so `.get` can't raise — mirrors mint_followups and
+        # assess_tooling, the sibling consumers that already guard.
+        outcomes = [o for o in (tooling.get("probeOutcomes") or []) if isinstance(o, dict)]
+        has_probes = bool(outcomes)
+        handled = (sum(1 for o in outcomes if o.get("handledWell")) / len(outcomes)) if has_probes else 0.0
         dims = {
             "framing": _pct(0.55 * rbw + 0.45 * 0.5),
             "tooling": _pct(fluency),
-            "judgment": _pct(0.5 * verif + 0.5 * handled),
+            # With NO probes assessed, judgment rests on verification alone rather than
+            # a free 0.5 "half-handled" midpoint for an assessment that never ran — the
+            # deterministic path must not score success-theater on the fairness-critical
+            # dimension when there was no probe signal at all.
+            "judgment": _pct(0.5 * verif + 0.5 * handled) if has_probes else _pct(verif),
             "architecture": _pct(0.4 + 0.35 * fluency),
             "transfer": _pct(0.5 * fluency + 0.5 * verif),
         }
