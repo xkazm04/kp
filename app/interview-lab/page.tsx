@@ -4,6 +4,11 @@ import { isInterviewLabEnabled } from "@/app/_lib/interview-lab";
 
 export const metadata = { title: "Voice interview lab" };
 
+// The lab gate reads INTERVIEW_LAB_ENABLED at request time; without this the
+// page would be statically prerendered and bake the BUILD-time flag value in,
+// drifting from the /connect route's runtime decision.
+export const dynamic = "force-dynamic";
+
 // Internal A/B harness: switch OpenAI ↔ ElevenLabs and run a short screen to
 // compare Czech/English quality, latency, turn-taking, and transcript fidelity.
 export default function InterviewLabPage() {
