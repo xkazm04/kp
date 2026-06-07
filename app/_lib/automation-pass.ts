@@ -22,7 +22,7 @@ export type AutomationDecision = {
   alerts: string[];
   reason: string;
 };
-export type AutomationSummary = { advanced: number; rejected: number; held: number; alerts: number };
+export type AutomationSummary = { advanced: number; rejected: number; held: number; alerts: number; errors: number };
 export type AutomationPassResult = { summary: AutomationSummary; decisions: AutomationDecision[] };
 
 export class AutomationPassError extends Error {
@@ -55,7 +55,7 @@ export function runAutomationPass(): Promise<AutomationPassResult> {
 
 async function executeAutomationPass(): Promise<AutomationPassResult> {
   const entries = listActiveEntriesForAutomation();
-  const summary: AutomationSummary = { advanced: 0, rejected: 0, held: 0, alerts: 0 };
+  const summary: AutomationSummary = { advanced: 0, rejected: 0, held: 0, alerts: 0, errors: 0 };
   if (entries.length === 0) return { summary, decisions: [] };
 
   let workdir: string | null = null;
@@ -77,6 +77,11 @@ async function executeAutomationPass(): Promise<AutomationPassResult> {
     const byId = new Map(entries.map((e) => [e.id, e]));
     for (const d of decisions) {
       if (!d.entryId) continue;
+      // One decision's apply failing (a comm throw from dispatchRejection, a
+      // transient SQLITE_BUSY past busy_timeout) must NOT abort the whole pass —
+      // that discards the summary of everything already applied AND skips every
+      // later decision, leaving a half-applied board. Isolate each decision.
+      try {
       // Optimistic CAS (idea-b6310b92): the policy decided against the SNAPSHOT
       // stage, but the Python hop takes seconds — a recruiter (or a concurrent
       // pass) may have moved the entry meanwhile. Passing expectedStage makes a
@@ -126,6 +131,15 @@ async function executeAutomationPass(): Promise<AutomationPassResult> {
           recordAutomationEvent(d.entryId, alert, d.reason);
           summary.alerts += 1;
         }
+      }
+      } catch (applyError) {
+        // A reject's DB transition may already be committed (rejected count stands);
+        // a post-commit comm failure is recorded here and the pass continues rather
+        // than aborting. The errors count surfaces the partial in the run summary.
+        summary.errors += 1;
+        const reason = applyError instanceof Error ? applyError.message : String(applyError);
+        d.reason = `Apply failed: ${reason}. Original policy decision: ${d.reason}`;
+        console.error(`[automation-pass] decision apply failed for ${d.entryId}: ${reason}`);
       }
     }
 
