@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 import re
 import time
 from pathlib import Path
@@ -618,17 +619,28 @@ def _optional_float(value: Any, default: float) -> float:
     if value is None:
         return default
     try:
-        return float(value)
-    except (TypeError, ValueError):
+        parsed = float(value)
+    except (TypeError, ValueError, OverflowError):
         return default
+    # The grounded Gemini path decodes with a stock JSON decoder that admits
+    # Infinity/NaN. A non-finite float passes every downstream `>= 0` guard and
+    # formats as "inf years", so reject it here at the coercion boundary.
+    return parsed if math.isfinite(parsed) else default
 
 
 def _optional_int(value: Any) -> int | None:
     if value is None:
         return None
+    # `int(round(float('inf')))` raises OverflowError (NOT ValueError), and the
+    # stock JSON decoder on the grounded path admits Infinity/NaN — so guard both
+    # the non-finite value and the OverflowError before they abort the whole
+    # analysis after the (expensive) Gemini call already succeeded.
     try:
-        return int(round(float(value)))
-    except (TypeError, ValueError):
+        parsed = float(value)
+        if not math.isfinite(parsed):
+            return None
+        return int(round(parsed))
+    except (TypeError, ValueError, OverflowError):
         return None
 
 
