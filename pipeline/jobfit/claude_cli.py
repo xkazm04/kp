@@ -201,6 +201,15 @@ class ClaudeCliProvider:
                 if return_exceptions:
                     return exc
                 raise
+            except Exception as exc:
+                # complete() can also raise a non-ClaudeCliError (e.g. ValueError on an
+                # empty prompt). Without this, pool.map re-raises it and aborts the
+                # WHOLE batch — sinking every other item's result, the opposite of the
+                # "one bad prompt can't sink a sweep" guarantee above. Wrap it as a
+                # ClaudeCliError so callers that skip those (run_judge) skip this too.
+                if return_exceptions:
+                    return ClaudeCliError(f"{type(exc).__name__}: {exc}")
+                raise
 
         with ThreadPoolExecutor(max_workers=workers) as pool:
             return list(pool.map(_one, prompts))
