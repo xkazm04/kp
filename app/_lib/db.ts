@@ -2002,14 +2002,30 @@ export function hasEvent(entryId: string, kind: string): boolean {
     .get(entryId, kind);
 }
 
-/** True if an event of this kind for the entry was already logged today (UTC) — alert dedup. */
+// Per-day alert dedup is bucketed by the BUSINESS timezone, not UTC: kp serves the
+// Czech market (CET/CEST), and bucketing by UTC midnight reset "once per day" at
+// ~01:00–02:00 local, so an aging/stale/fairness alert could fire twice in a single
+// local evening. Intl handles DST. Override the zone with BUSINESS_TZ.
+const BUSINESS_TZ = process.env.BUSINESS_TZ || "Europe/Prague";
+function businessDay(iso: string): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: BUSINESS_TZ,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date(iso));
+}
+
+/** True if an event of this kind for the entry was already logged today (in the
+ *  business timezone, BUSINESS_TZ) — alert dedup. Compares the local-date of the
+ *  most recent matching event to today's local-date, so the once-per-day window
+ *  aligns with the operator's day rather than UTC midnight. */
 export function hasEventToday(entryId: string, kind: string): boolean {
   const db = ensureDb();
-  const start = new Date();
-  start.setUTCHours(0, 0, 0, 0);
-  return !!db
-    .prepare(`SELECT 1 FROM pipeline_events WHERE entry_id=? AND kind=? AND created_at>=? LIMIT 1`)
-    .get(entryId, kind, start.toISOString());
+  const row = db
+    .prepare(`SELECT created_at FROM pipeline_events WHERE entry_id=? AND kind=? ORDER BY created_at DESC LIMIT 1`)
+    .get(entryId, kind) as { created_at: string } | undefined;
+  return !!row && businessDay(row.created_at) === businessDay(new Date().toISOString());
 }
 
 // ---- Fit matrix (Phase 16) ------------------------------------------------
