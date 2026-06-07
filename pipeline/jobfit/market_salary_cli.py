@@ -46,7 +46,10 @@ def _coerce(payload: dict, role_family: str, seniority: str) -> tuple[dict, bool
     try:
         lo = int(payload.get("suggestedMinimum") or 0)
         hi = int(payload.get("suggestedMaximum") or 0)
-    except (TypeError, ValueError):
+    except (TypeError, ValueError, OverflowError):
+        # int(float('inf')) raises OverflowError, not ValueError: the grounded
+        # decoder admits Infinity, and without this it escaped to main()'s 500
+        # handler instead of degrading to the promised taxonomy band.
         lo = hi = 0
     if lo <= 0 or hi < lo:
         return fb, False
