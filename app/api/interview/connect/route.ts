@@ -16,6 +16,7 @@ import {
 import { QUICK_SCREEN_MIN } from "@/app/_lib/interview-duration.mjs";
 import { safeJsonError } from "@/app/_lib/api-response";
 import { CONSENT_REQUIRED_ERROR, isConnectConsentSatisfied } from "@/app/_lib/interview-consent";
+import { INTERVIEW_LAB_DISABLED_ERROR, isInterviewLabEnabled } from "@/app/_lib/interview-lab";
 
 export const runtime = "nodejs";
 
@@ -39,6 +40,21 @@ export async function POST(request: NextRequest) {
     // disables any provider whose keys are missing). Honor that choice; fall
     // back to a token-bound session's stored provider when none is requested.
     const session0 = token ? getInterviewSessionByToken(token) : null;
+
+    // Credential-minting gates (idea-6236b597). Both bad-token and tokenless
+    // requests used to fall through to "create a test session and mint real
+    // provider credentials" — free, unauthenticated minting of the most
+    // expensive operation in the system (denial-of-wallet):
+    //  - a PRESENTED token that doesn't resolve is a bad link, not an invitation
+    //    to open a lab session — refuse it;
+    //  - a truly tokenless request is the lab path, which is a dev harness:
+    //    enabled outside production, opt-in via INTERVIEW_LAB_ENABLED=1 in it.
+    if (token && !session0) {
+      return NextResponse.json({ error: "interview link not found" }, { status: 404 });
+    }
+    if (!token && !isInterviewLabEnabled()) {
+      return NextResponse.json({ error: INTERVIEW_LAB_DISABLED_ERROR }, { status: 403 });
+    }
 
     // Single-use semantics, enforced server-side (idea-836e08d8): the portal
     // page only blocks the RENDER of a completed session — the API used to
