@@ -156,7 +156,18 @@ export async function runAutomationTask(entryId: string, task: string, notes = "
       entry.stage,
       coerceScreenRoute(result.route)
     );
-    if (advance) actOnPipelineEntry(entry.id, "accept"); // Accepted→Screened or Screened→Interview
+    // CAS on the snapshot stage: `entry` was read before the seconds-long Python/LLM
+    // hop, so a recruiter (Decisions) or a concurrent pass may have advanced/rejected
+    // it meanwhile. A stale screen verdict must no-op instead of moving whatever stage
+    // the entry is in NOW — mirrors the policy-pass hardening (automation-pass.ts).
+    if (advance) {
+      const moved = actOnPipelineEntry(entry.id, "accept", undefined, { expectedStage: entry.stage });
+      if (!moved) {
+        // Stage changed mid-hop — skip the move AND the dependent approval/event so
+        // the screening_review can't land on a now-unexpected (or terminal) stage.
+        return { result, source: payload.source, applied: "skipped_stage_changed" };
+      }
+    }
     if (holdForReview) {
       setApproval(entry.id, "screening_review", JSON.stringify(result));
       recordAutomationEvent(entry.id, "screening_hold", readRecommendation(result, task));
