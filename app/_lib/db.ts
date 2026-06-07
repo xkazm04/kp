@@ -801,18 +801,26 @@ export function storePromptCache(
   // failure must never fail the write that just succeeded.
   if (Math.random() < CACHE_PRUNE_PROBABILITY) {
     try {
-      prunePromptCache();
+      // Bound the opportunistic prune: it fires on a user-facing write path, so an
+      // unbounded DELETE over a large expired backlog would hold the write lock for
+      // seconds and stall (SQLITE_BUSY) concurrent storePromptCache/scheduler writes.
+      // The boot prune stays unbounded but runs off the hot path.
+      prunePromptCache(500);
     } catch (error) {
       console.error("[db] prompt-cache opportunistic prune failed", error);
     }
   }
 }
 
-export function prunePromptCache(): number {
+export function prunePromptCache(limit?: number): number {
   const db = ensureDb();
-  const result = db
-    .prepare(`DELETE FROM gemini_cache WHERE expires_at < ?`)
-    .run(new Date().toISOString());
+  const now = new Date().toISOString();
+  const result =
+    limit && limit > 0
+      ? db
+          .prepare(`DELETE FROM gemini_cache WHERE rowid IN (SELECT rowid FROM gemini_cache WHERE expires_at < ? LIMIT ?)`)
+          .run(now, limit)
+      : db.prepare(`DELETE FROM gemini_cache WHERE expires_at < ?`).run(now);
   return Number(result.changes ?? 0);
 }
 
