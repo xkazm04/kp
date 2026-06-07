@@ -4,7 +4,7 @@ import { getJob, getProfileRecord, loadAnalysis, type JobRecord } from "./db";
 import { runReasoning } from "./reasoning-run";
 import { saveGroupEval } from "./group-eval";
 import { isEarlyCareer } from "./archetypes";
-import { resolveCandidatePoolEntry, type CandidatePoolEntry } from "./candidate-pool";
+import { poolEntryFromAnalysis, type CandidatePoolEntry } from "./candidate-pool";
 import { cleanupWorkdir, createWorkdir, parsePythonJson, parseStderrError, spawnPython } from "./python-runner";
 import { computeDifferentiators } from "./group-eval-differentiators";
 
@@ -105,12 +105,42 @@ type PerCandidate = {
   salaryExpectation?: SalaryExpectation | null;
 };
 
+// One up-front resolution of a candidate's stored rows (idea-c7c2d014): the
+// pool entry for rankCandidates, the archetype/seniority payload read, and the
+// salary expectation each used to re-read the same rows through separate helper
+// paths (resolveCandidatePoolEntry + getProfileRecord + loadAnalysis-per-call) —
+// ~3x duplicated single-row reads AND payload JSON.parse work per candidate.
+// Resolving once also means all three consumers provably see the SAME snapshot.
+type ResolvedCandidate = {
+  profile: ReturnType<typeof getProfileRecord>;
+  analysis: ReturnType<typeof loadAnalysis>;
+};
+
+function resolveCandidates(input: GroupEvalCandidate[]): Map<string, ResolvedCandidate> {
+  const resolved = new Map<string, ResolvedCandidate>();
+  for (const c of input) {
+    if (!c.candidateId || resolved.has(c.candidateId)) continue;
+    // The analysis doubles as the pool fallback AND the salary source, so it is
+    // loaded for everyone; profile-only candidates simply carry null.
+    resolved.set(c.candidateId, { profile: getProfileRecord(c.candidateId), analysis: loadAnalysis(c.candidateId) });
+  }
+  return resolved;
+}
+
+/** The recruiter-pool entry for one resolved candidate (profile first, analysis
+ *  fallback) — mirrors candidate-pool.resolveCandidatePoolEntry over the shared
+ *  snapshot instead of re-reading the DB. */
+function poolEntryOf(candidateId: string, label: string, r: ResolvedCandidate | undefined): CandidatePoolEntry | null {
+  if (!r) return null;
+  if (r.profile) return { id: candidateId, label, profile: r.profile.payload };
+  if (r.analysis) return poolEntryFromAnalysis(candidateId, label, r.analysis.payload);
+  return null;
+}
+
 // Best-effort salary expectation from a candidate's saved CV analysis. Returns
 // null for profile-only candidates or analyses with no salary section, so the
 // salary comparison degrades to "role band only" rather than breaking.
-function salaryExpectationOf(candidateId: string | null): SalaryExpectation | null {
-  if (!candidateId) return null;
-  const loaded = loadAnalysis(candidateId);
+function salaryExpectationFrom(loaded: ReturnType<typeof loadAnalysis>): SalaryExpectation | null {
   const s = (loaded?.payload as { salary?: Partial<SalaryExpectation> } | null)?.salary;
   if (!s || !((s.minimum ?? 0) > 0 || (s.maximum ?? 0) > 0)) return null;
   return {
@@ -131,11 +161,8 @@ const dimPercent = (c: PerCandidate, key: string): number | null =>
 // degrades to the score-only view, so a broken ranker never blocks a decision.
 async function rankCandidates(
   job: JobRecord,
-  candidates: GroupEvalCandidate[]
+  pool: CandidatePoolEntry[]
 ): Promise<{ rows: Map<string, RecruiterRow>; fairness: Fairness | null }> {
-  const pool = candidates
-    .map((c) => (c.candidateId ? resolveCandidatePoolEntry(c.candidateId, c.label) : null))
-    .filter((e): e is CandidatePoolEntry => e !== null);
   if (pool.length === 0) return { rows: new Map(), fairness: null };
 
   let workdir: string | null = null;
@@ -232,13 +259,20 @@ export async function runGroupEval(params: Record<string, unknown>): Promise<Rec
     .sort((a, b) => (b.matchScore ?? 0) - (a.matchScore ?? 0))
     .slice(0, GROUP_EVAL_CAP);
 
+  // Resolve every candidate's stored rows ONCE; rankCandidates, the payload
+  // read and the salary expectation below all share this snapshot (idea-c7c2d014).
+  const resolved = resolveCandidates(input);
+
   // Full deterministic breakdown per candidate (best-effort; needs the role's job).
   const job = jobId ? getJob(jobId) : null;
   let rows = new Map<string, RecruiterRow>();
   let fairness: Fairness | null = null;
   if (job) {
     try {
-      const ranked = await rankCandidates(job, input);
+      const pool = input
+        .map((c) => (c.candidateId ? poolEntryOf(c.candidateId, c.label, resolved.get(c.candidateId)) : null))
+        .filter((e): e is CandidatePoolEntry => e !== null);
+      const ranked = await rankCandidates(job, pool);
       rows = ranked.rows;
       fairness = ranked.fairness;
     } catch (error) {
@@ -249,7 +283,7 @@ export async function runGroupEval(params: Record<string, unknown>): Promise<Rec
   const sources: string[] = [];
   const candidates: PerCandidate[] = [];
   for (const c of input) {
-    const rec = c.candidateId ? getProfileRecord(c.candidateId) : null;
+    const rec = c.candidateId ? resolved.get(c.candidateId)?.profile ?? null : null;
     const payload = rec?.payload as { seniority?: string; archetype?: string } | null;
     const row = c.candidateId ? rows.get(c.candidateId) ?? null : null;
     const result = row?.result;
@@ -284,7 +318,7 @@ export async function runGroupEval(params: Record<string, unknown>): Promise<Rec
       potentialScore: row?.potentialScore ?? null,
       koPassed: row?.koPassed,
       assumptions: row?.assumptions ?? [],
-      salaryExpectation: salaryExpectationOf(c.candidateId),
+      salaryExpectation: c.candidateId ? salaryExpectationFrom(resolved.get(c.candidateId)?.analysis ?? null) : null,
     });
   }
 

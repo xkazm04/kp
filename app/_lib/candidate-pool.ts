@@ -19,9 +19,10 @@ export const ANALYSIS_POOL_CAP = 60;
 
 // Derive a recruiter-pool entry from a saved CV analysis payload: prefer the v2
 // profile when the analysis carries one, else fall back to the legacy flat
-// candidate shape with safe defaults. Single-sourced here so the batch builder
-// and the single-id resolver below never diverge.
-function poolEntryFromAnalysis(id: string, label: string, payload: unknown): CandidatePoolEntry {
+// candidate shape with safe defaults. Single-sourced here so the batch builder,
+// the single-id resolver below, AND the group-eval's shared-resolution path
+// (group-eval-run.ts, idea-c7c2d014) never diverge.
+export function poolEntryFromAnalysis(id: string, label: string, payload: unknown): CandidatePoolEntry {
   const p = payload as { candidate?: Record<string, unknown>; v2Profile?: Record<string, unknown> } | null;
   if (p?.v2Profile && Object.keys(p.v2Profile).length > 0) {
     return { id, label, profile: p.v2Profile };
