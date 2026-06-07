@@ -90,7 +90,7 @@ const HANDLERS: Record<string, Spec> = {
     label: () => "AI-screen all matched candidates",
   },
   analyze: {
-    run: (ctx) => runAnalyze(ctx.params as unknown as AnalyzeParams, ctx.progress),
+    run: (ctx) => runAnalyze(ctx.params as unknown as AnalyzeParams, ctx.progress, ctx.signal),
     label: (p) => {
       const variants = (p.variants as { label: string }[]) ?? [];
       return `Analyze · ${variants[0]?.label ?? "CV"}${variants.length > 1 ? ` +${variants.length - 1}` : ""}`;

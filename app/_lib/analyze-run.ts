@@ -64,7 +64,7 @@ function baseAnalyzeLog(
   };
 }
 
-export async function runAnalyze(p: AnalyzeParams, onProgress?: ProgressFn): Promise<unknown> {
+export async function runAnalyze(p: AnalyzeParams, onProgress?: ProgressFn, signal?: AbortSignal): Promise<unknown> {
   const startedAt = Date.now();
   try {
     const jdFileBytes = p.jobDescriptionPath ? await readFile(p.jobDescriptionPath) : null;
@@ -94,7 +94,11 @@ export async function runAnalyze(p: AnalyzeParams, onProgress?: ProgressFn): Pro
           }
         }
 
-        const { result } = spawnPython(cliArgs(cvPath, p));
+        // Forward the task's abort signal so canceling the task (DELETE
+        // /api/tasks/[id] → cancelTask → controller.abort()) actually SIGKILLs the
+        // Python child instead of leaving it to finish a billable LLM call whose
+        // result is thrown away. spawnPython wires abort → SIGKILL.
+        const { result } = spawnPython(cliArgs(cvPath, p), { signal });
         const { stdout, stderr, exitCode } = await result;
         if (exitCode !== 0) {
           const err = parseStderrError(stderr, exitCode);
