@@ -21,11 +21,13 @@ export type Entry = {
   intakeDegradedReason?: string | null;
 };
 
+// Mirrors the PUBLIC event projection served by /api/pipeline/events
+// (pipeline-events-public.ts): candidateLabel is initials only, and the
+// internal entryId/archetype never reach the client (idea-4c41d103).
 export type PipelineEvent = {
   id: number;
   candidateLabel: string | null;
   jobTitle: string | null;
-  archetype: string | null;
   kind: string;
   toStage: string | null;
   detail: string | null;
