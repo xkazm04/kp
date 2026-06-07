@@ -238,11 +238,20 @@ export function bookedSlots(): string[] {
  *  every 60s. Defaults to REMINDER_LEAD_MS so callers needn't re-derive the window. */
 export function dueReminders(windowMs: number = REMINDER_LEAD_MS): ScheduleInvite[] {
   const now = Date.now();
+  // Join the linked pipeline entry so we never remind a candidate who has left the
+  // interview track. A confirmed invite alone isn't enough: after the candidate is
+  // rejected/declined (terminal status) or Hired (status stays 'active', stage
+  // 'Hired' — see pipeline-status.ts), the slot is still in-window so the sweep
+  // would email "see you at your interview" for a call that won't happen. LEFT JOIN
+  // keeps the orphaned-invite case (no entry row) behaving as before. Same
+  // kp.sqlite file, separate connection — the join resolves against db.ts's tables.
   const rows = db()
     .prepare(
-      `SELECT * FROM schedule_invites
-        WHERE status = 'confirmed' AND slot_at IS NOT NULL AND reminder_sent_at IS NULL
-          AND reminder_attempts < ?`
+      `SELECT s.* FROM schedule_invites s
+         LEFT JOIN pipeline_entries p ON p.id = s.entry_id
+        WHERE s.status = 'confirmed' AND s.slot_at IS NOT NULL AND s.reminder_sent_at IS NULL
+          AND s.reminder_attempts < ?
+          AND (p.id IS NULL OR (p.status = 'active' AND p.stage != 'Hired'))`
     )
     .all(REMINDER_MAX_ATTEMPTS) as Record<string, unknown>[];
   return rows.map(rowTo).filter((inv) => {
