@@ -35,7 +35,11 @@ export async function respondToOffer(token: string, response: "accept" | "declin
   if (response === "accept") {
     const { offer: claimedOffer, claimed } = markOfferResponded(token, "accepted");
     if (!claimed) {
-      const status = claimedOffer?.status === "accepted" ? "accepted" : "declined";
+      // The CAS lost — someone else recorded the response first. Report the
+      // AUTHORITATIVE recorded status, re-reading the offer if markOfferResponded
+      // couldn't return it, so a null offer never defaults an accepter to "declined".
+      const recorded = claimedOffer ?? getOfferByToken(token);
+      const status = recorded?.status === "accepted" ? "accepted" : "declined";
       return { ok: true, status, alreadyResponded: true, jobTitle: offer.jobTitle, candidateLabel: offer.candidateLabel };
     }
     if (offer.entryId) {
@@ -50,7 +54,8 @@ export async function respondToOffer(token: string, response: "accept" | "declin
   // decline
   const { offer: claimedOffer, claimed } = markOfferResponded(token, "declined");
   if (!claimed) {
-    const status = claimedOffer?.status === "accepted" ? "accepted" : "declined";
+    const recorded = claimedOffer ?? getOfferByToken(token);
+    const status = recorded?.status === "accepted" ? "accepted" : "declined";
     return { ok: true, status, alreadyResponded: true, jobTitle: offer.jobTitle, candidateLabel: offer.candidateLabel };
   }
   if (offer.entryId) {
