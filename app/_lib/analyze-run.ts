@@ -4,7 +4,7 @@ import { computeCacheKey, lookupCachedAnalysis, storeCachedAnalysis } from "@/ap
 import { buildComparison } from "@/app/_lib/comparison";
 import { saveAnalysis } from "@/app/_lib/db";
 import { logAnalyze, type AnalyzeLog } from "@/app/_lib/logger";
-import { cleanupWorkdir, parseStderrError, spawnPython } from "@/app/_lib/python-runner";
+import { cleanupWorkdir, parsePythonJson, parseStderrError, spawnPython } from "@/app/_lib/python-runner";
 
 // Shared core for CV analysis, lifted out of /api/analyze so it can run inside
 // the background-task runner (detached from the request → survives navigation
@@ -107,10 +107,20 @@ export async function runAnalyze(p: AnalyzeParams, onProgress?: ProgressFn, sign
         }
         let payload: unknown;
         try {
-          payload = JSON.parse(stdout);
-        } catch {
+          // parsePythonJson, not raw JSON.parse: the analyze CLI invokes an LLM and
+          // the interpreter can print shutdown chatter (asyncio "Event loop is
+          // closed", ResourceWarning, "leaked semaphore") AFTER the JSON line — a raw
+          // parse then 502s an already-paid, successful analysis and never caches it.
+          // Sibling LLM runners (reasoning-run) already use this for the same reason.
+          payload = parsePythonJson<unknown>(stdout, stderr);
+        } catch (parseError) {
           onProgress?.(++done, total, `${label} (bad output)`);
-          return { label, ok: false as const, error: `Pipeline returned non-JSON output for "${label}".`, status: 502 };
+          return {
+            label,
+            ok: false as const,
+            error: parseError instanceof Error ? parseError.message : `Pipeline returned non-JSON output for "${label}".`,
+            status: 502,
+          };
         }
         const parsed = analysisSchema.safeParse(payload);
         if (!parsed.success) {
