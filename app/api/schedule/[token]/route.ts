@@ -75,6 +75,16 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
     if (!invite) return NextResponse.json({ error: "not found" }, { status: 404 });
     if (invite.status === "confirmed") return jsonOk({ ok: true, invite: publicInviteView(invite) });
 
+    // Don't let a still-valid token book an interview for a candidate rejected/
+    // declined since the link was minted (status goes terminal; Hired keeps
+    // 'active'). approve_event guards this server-side too (defense-in-depth).
+    if (invite.entryId) {
+      const linkedEntry = getPipelineEntry(invite.entryId);
+      if (linkedEntry && linkedEntry.status !== "active") {
+        return NextResponse.json({ error: "This interview is no longer available." }, { status: 409 });
+      }
+    }
+
     // Only a slot the server itself would offer is bookable (idea-e05aedfb):
     // the handler used to trust body.slot/body.slotAt verbatim, letting a token
     // holder book a 3am-Sunday/past time and inject arbitrary label text into

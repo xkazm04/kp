@@ -3052,6 +3052,10 @@ export function actOnPipelineEntry(
     db.prepare(`UPDATE pipeline_entries SET status='rejected', approval_kind=NULL, updated_at=? WHERE id=?`).run(now, id);
     recordEvent(db, { ...meta, kind: "rejected", toStage: row.stage });
   } else if (action === "approve_event") {
+    // A rejected/declined entry is terminal — a stale/reused schedule token must not
+    // re-activate its approval or write a 'scheduled' event for a closed-out
+    // candidate. (Hired keeps status 'active', so a legitimate reschedule still works.)
+    if (isTerminalEntryStatus(row.status)) return null;
     // Honor a slot override (the shared calendar lets you move a candidate's
     // proposed time); fall back to the originally-proposed slot.
     const slot = detail && detail.trim() ? detail.trim() : row.approval_detail;
