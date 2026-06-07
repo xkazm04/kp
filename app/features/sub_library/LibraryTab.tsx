@@ -53,10 +53,16 @@ export function LibraryTab() {
     }
   }, []);
 
+  // Deferred kick-off (0 ms timer): load() resets rows/error synchronously, and a
+  // sync setState in the effect body would cascade a render before the first
+  // commit settles. The abort cleanup still covers the in-flight request.
   useEffect(() => {
     const controller = new AbortController();
-    load(controller.signal);
-    return () => controller.abort();
+    const t = window.setTimeout(() => load(controller.signal), 0);
+    return () => {
+      window.clearTimeout(t);
+      controller.abort();
+    };
   }, [load]);
 
   return (

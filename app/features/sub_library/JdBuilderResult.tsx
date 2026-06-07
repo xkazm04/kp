@@ -313,7 +313,7 @@ export function JdBuilderResult({
             <div className="flex flex-wrap items-center gap-3 rounded-md border border-amber-200 bg-amber-50/60 px-3 py-2 text-sm text-amber-800">
               <AlertTriangle size={16} className="shrink-0" />
               <span>
-                Saved <span className="font-mono">{saved.slug}</span> as a draft, but adding it to the workspace failed — so it can't be sourced into the Pipeline yet. The draft is still saved and reusable for analysis.
+                Saved <span className="font-mono">{saved.slug}</span> as a draft, but adding it to the workspace failed — so it can&apos;t be sourced into the Pipeline yet. The draft is still saved and reusable for analysis.
               </span>
               <button
                 type="button"

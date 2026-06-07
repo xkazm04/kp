@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useTasks, useTaskResult } from "@/app/features/tasks/TasksProvider";
 import { ConfidenceBandBadge, confidenceBandTitle } from "@/app/_components/Badge";
 import type { MatchRef, MatchResult, Reasoning, ReasoningState } from "./MatchTypes";
@@ -51,19 +51,17 @@ export function MatchCard({
   };
 
   const { status: reasoningStatus, error: reasoningError, full: reasoningFull } = useTaskResult(taskId);
-  useEffect(() => {
-    if (!taskId) return;
-    if (reasoningStatus === "succeeded") {
-      if (reasoningFull) {
-        const p = reasoningFull.result as { reasoning?: Reasoning; source?: string; cached?: boolean } | null;
-        setReasoning(p?.reasoning ? { data: p.reasoning, source: p.source, cached: p.cached } : { error: "No reasoning returned." });
-        setTaskId(null);
-      }
-    } else if (reasoningStatus === "failed" || reasoningStatus === "canceled" || reasoningStatus === "interrupted") {
-      setReasoning({ error: reasoningError ?? "Reasoning failed." });
-      setTaskId(null);
-    }
-  }, [taskId, reasoningStatus, reasoningError, reasoningFull]);
+  // Task completion is consumed DURING render (guarded: taskId is cleared in the
+  // same pass, so this runs once per task) — the guarded render-phase pattern,
+  // so the result paints in the same commit instead of one effect-frame later.
+  if (taskId && reasoningStatus === "succeeded" && reasoningFull) {
+    const p = reasoningFull.result as { reasoning?: Reasoning; source?: string; cached?: boolean } | null;
+    setReasoning(p?.reasoning ? { data: p.reasoning, source: p.source, cached: p.cached } : { error: "No reasoning returned." });
+    setTaskId(null);
+  } else if (taskId && (reasoningStatus === "failed" || reasoningStatus === "canceled" || reasoningStatus === "interrupted")) {
+    setReasoning({ error: reasoningError ?? "Reasoning failed." });
+    setTaskId(null);
+  }
 
   return (
     <li className="rounded-lg border border-stone-200 p-3">

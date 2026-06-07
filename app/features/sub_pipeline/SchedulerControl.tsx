@@ -100,11 +100,14 @@ export function SchedulerControl({ onRan, className = "" }: { onRan?: () => void
   }, []);
 
   // Mirror the persisted cadence into the editable field on initial load, the 30s
-  // poll, and the clamped value a POST echoes back. Keyed on the stored value so it
-  // only fires when that actually changes — it won't clobber what you're typing.
-  useEffect(() => {
-    if (sched) setIntervalDraft(String(sched.intervalMinutes));
-  }, [sched?.intervalMinutes]);
+  // poll, and the clamped value a POST echoes back. Guarded render-phase
+  // adjustment keyed on the stored value, so it only fires when that actually
+  // changes — it won't clobber what you're typing.
+  const [mirroredInterval, setMirroredInterval] = useState<number | null>(null);
+  if (sched && sched.intervalMinutes !== mirroredInterval) {
+    setMirroredInterval(sched.intervalMinutes);
+    setIntervalDraft(String(sched.intervalMinutes));
+  }
 
   // Auto-dismiss the "Run now" result chip a few seconds after it appears.
   useEffect(() => {

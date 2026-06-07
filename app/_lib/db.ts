@@ -2412,13 +2412,17 @@ export function updateLifecycle(
   const db = ensureDb();
   const sets: string[] = ["updated_at = ?"];
   const vals: unknown[] = [new Date().toISOString()];
-  if (patch.stage !== undefined) (sets.push("stage = ?"), vals.push(patch.stage));
-  if (patch.analysis !== undefined) (sets.push("analysis_json = ?"), vals.push(JSON.stringify(patch.analysis)));
-  if (patch.role !== undefined) (sets.push("role_json = ?"), vals.push(JSON.stringify(patch.role)));
-  if (patch.case !== undefined) (sets.push("case_json = ?"), vals.push(JSON.stringify(patch.case)));
-  if (patch.caseId !== undefined) (sets.push("case_id = ?"), vals.push(patch.caseId));
-  if (patch.postingId !== undefined) (sets.push("posting_id = ?"), vals.push(patch.postingId));
-  if (patch.detail !== undefined) (sets.push("detail = ?"), vals.push(patch.detail));
+  const set = (column: string, value: unknown) => {
+    sets.push(`${column} = ?`);
+    vals.push(value);
+  };
+  if (patch.stage !== undefined) set("stage", patch.stage);
+  if (patch.analysis !== undefined) set("analysis_json", JSON.stringify(patch.analysis));
+  if (patch.role !== undefined) set("role_json", JSON.stringify(patch.role));
+  if (patch.case !== undefined) set("case_json", JSON.stringify(patch.case));
+  if (patch.caseId !== undefined) set("case_id", patch.caseId);
+  if (patch.postingId !== undefined) set("posting_id", patch.postingId);
+  if (patch.detail !== undefined) set("detail", patch.detail);
   vals.push(id);
   db.prepare(`UPDATE dev_lifecycle SET ${sets.join(", ")} WHERE id = ?`).run(...vals);
 }

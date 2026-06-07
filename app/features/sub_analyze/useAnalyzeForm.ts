@@ -171,6 +171,9 @@ export function useAnalyzeForm() {
   });
 
   // Re-attach to an analyze task that was still running when the page reloaded.
+  // Deferred kick-off (0 ms timer): resuming flips the loading flags, and a sync
+  // setState in the effect body would cascade a render before the first commit
+  // settles. Behavior is unchanged — the resume still starts right away.
   useEffect(() => {
     let stored: string | null = null;
     try {
@@ -179,9 +182,13 @@ export function useAnalyzeForm() {
       /* ignore */
     }
     if (!stored) return;
-    setIsLoading(true);
-    setIsCompleting(false);
-    void resumeAnalysis(stored, buildCallbacks());
+    const resumeStored = stored;
+    const t = window.setTimeout(() => {
+      setIsLoading(true);
+      setIsCompleting(false);
+      void resumeAnalysis(resumeStored, buildCallbacks());
+    }, 0);
+    return () => window.clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

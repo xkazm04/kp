@@ -100,18 +100,16 @@ export function JdBuilder({ onSaved }: { onSaved: () => void }) {
     return { ...result, markdown };
   }, [result, templates, templateId, title, company, seniority]);
 
-  useEffect(() => {
-    if (!taskId) return;
-    if (buildStatus === "succeeded") {
-      if (buildFull) {
-        setResult((buildFull.result as JdBuildResult) ?? null);
-        setTaskId(null);
-      }
-    } else if (buildStatus === "failed" || buildStatus === "canceled" || buildStatus === "interrupted") {
-      setError(buildError ?? "Generation failed.");
-      setTaskId(null);
-    }
-  }, [taskId, buildStatus, buildError, buildFull]);
+  // Build-task completion is consumed DURING render (guarded: the task id is
+  // cleared in the same pass, so this runs once per task) — the guarded
+  // render-phase pattern instead of an effect round-trip.
+  if (taskId && buildStatus === "succeeded" && buildFull) {
+    setResult((buildFull.result as JdBuildResult) ?? null);
+    setTaskId(null);
+  } else if (taskId && (buildStatus === "failed" || buildStatus === "canceled" || buildStatus === "interrupted")) {
+    setError(buildError ?? "Generation failed.");
+    setTaskId(null);
+  }
 
   // Commit a template choice: re-render the body through it (the JdBuilderResult
   // remount keyed by templateId does the actual reformat) and clear any staged

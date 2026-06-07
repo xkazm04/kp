@@ -45,8 +45,16 @@ export function RecruiterCandidates({
     }
   };
 
+  // Deferred kick-off (0 ms timer): load() flips the loading flag synchronously,
+  // and a sync setState in the effect body would cascade a render before the
+  // first commit settles. The guard runs inside the tick with the values it
+  // captured at effect time — the same read the original synchronous check made.
   useEffect(() => {
-    if (autoLoad && !data && !loading) load();
+    if (!autoLoad) return;
+    const t = window.setTimeout(() => {
+      if (!data && !loading) load();
+    }, 0);
+    return () => window.clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoLoad]);
 

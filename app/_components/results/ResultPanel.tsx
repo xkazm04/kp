@@ -72,12 +72,12 @@ export function ResultPanel({ analysis, github }: ResultPanelProps) {
   // so activeTab can point at a tab that no longer exists — e.g. running a
   // multi-variant compare (defaults to "compare") then a single-CV analysis
   // drops the Compare tab. Without this, activeIndex is -1 and the panel
-  // renders blank. Fall back to the first available tab when that happens.
-  useEffect(() => {
-    if (activeIndex === -1 && tabs.length > 0) {
-      setActiveTab(tabs[0].id);
-    }
-  }, [activeIndex, tabs]);
+  // renders blank. Fall back to the first available tab when that happens —
+  // adjusted DURING render (the guarded render-phase pattern), so the stale tab
+  // never paints for a frame the way an effect-driven reset would let it.
+  if (activeIndex === -1 && tabs.length > 0) {
+    setActiveTab(tabs[0].id);
+  }
 
   const onTabKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
     let next = activeIndex;

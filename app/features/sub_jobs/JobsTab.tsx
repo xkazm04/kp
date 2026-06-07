@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { SearchX, X } from "lucide-react";
 import { formatPercent } from "@/app/_lib/format";
@@ -40,15 +40,18 @@ export function JobsTab() {
 
   const [openJob, setOpenJob] = useState<Job | null>(null);
 
-  // Deep link from the Pipeline (?tab=jobs&job=<id>): auto-open that job's posting.
+  // Deep link from the Pipeline (?tab=jobs&job=<id>): auto-open that job's
+  // posting. Applied during render (guarded render-phase adjustment) once the
+  // corpus is loaded — once per param value, so a list refetch can no longer
+  // re-open a modal the user already closed.
   const search = useSearchParams();
   const jobParam = search.get("job");
-  useEffect(() => {
-    if (jobParam && jobs) {
-      const match = jobs.find((j) => j.id === jobParam);
-      if (match) setOpenJob(match);
-    }
-  }, [jobParam, jobs]);
+  const [appliedJobParam, setAppliedJobParam] = useState<string | null>(null);
+  if (jobs && jobParam !== appliedJobParam) {
+    setAppliedJobParam(jobParam);
+    const match = jobParam ? jobs.find((j) => j.id === jobParam) : null;
+    if (match) setOpenJob(match);
+  }
 
   return (
     <section className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">

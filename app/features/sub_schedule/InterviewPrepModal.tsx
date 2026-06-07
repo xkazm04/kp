@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { AlertTriangle, Clock, Loader2, ListChecks, RefreshCw, Sparkles } from "lucide-react";
 import { Modal } from "@/app/_components/Modal";
 import { Meter } from "@/app/_components/Meter";
@@ -39,18 +39,16 @@ export function InterviewPrepModal({ entry, onClose }: { entry: SchedEntry; onCl
   // Watch a generation task; its result (fetched on demand — the poll omits it)
   // supersedes any saved artifact. Hold taskId until the full result lands so the
   // "Generating…" state persists through the brief fetch, then clear it.
+  // Completion is consumed DURING render (guarded: the task id is cleared in the
+  // same pass, so this runs once per task) — the guarded render-phase pattern
+  // instead of an effect round-trip.
   const { status: genStatus, full: genFull } = useTaskResult(taskId);
-  useEffect(() => {
-    if (!taskId) return;
-    if (genStatus === "succeeded") {
-      if (genFull) {
-        setGenerated((genFull.result as Prep) ?? null);
-        setTaskId(null);
-      }
-    } else if (genStatus === "failed" || genStatus === "canceled" || genStatus === "interrupted") {
-      setTaskId(null);
-    }
-  }, [taskId, genStatus, genFull]);
+  if (taskId && genStatus === "succeeded" && genFull) {
+    setGenerated((genFull.result as Prep) ?? null);
+    setTaskId(null);
+  } else if (taskId && (genStatus === "failed" || genStatus === "canceled" || genStatus === "interrupted")) {
+    setTaskId(null);
+  }
 
   const generate = async () => {
     setChecked({});
@@ -61,10 +59,12 @@ export function InterviewPrepModal({ entry, onClose }: { entry: SchedEntry; onCl
 
   // The chronology blocks plus the flat "Signals to confirm" list are the checkable
   // items; `?? []` only guards a malformed payload, not a second group shape.
+  // Derived from `prep` alone (no intermediate `?? []` value in the deps, which
+  // would re-make a fresh array — and re-fire the memo — every render).
   const signals = prep?.signals ?? [];
   const totalItems = useMemo(
-    () => (prep ? prep.chronology.length + signals.length : 0),
-    [prep, signals]
+    () => (prep ? prep.chronology.length + (prep.signals ?? []).length : 0),
+    [prep]
   );
   const doneItems = Object.values(checked).filter(Boolean).length;
 

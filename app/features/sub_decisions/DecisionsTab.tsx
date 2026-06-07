@@ -91,21 +91,17 @@ export function DecisionsTab() {
   }, [roleKeys]);
 
   // Watch the group-eval background task; its result is fetched on demand once it
-  // finishes (the poll omits the blob).
+  // finishes (the poll omits the blob). Completion is consumed DURING render
+  // (guarded: the task id is cleared in the same pass, so this runs once per
+  // task) — the guarded render-phase pattern instead of an effect round-trip.
   const { status: evalStatus, full: evalFull } = useTaskResult(evalTaskId);
-  useEffect(() => {
-    if (!evalTaskId) return;
-    if (evalStatus === "succeeded") {
-      if (evalFull) {
-        setEvalData((evalFull.result as GroupEvalPayload) ?? null);
-        setEvalTaskId(null);
-        if (evalRole) setEvaluated((s) => ({ ...s, [evalRole.roleKey]: new Date().toISOString() }));
-      }
-    } else if (evalStatus === "failed" || evalStatus === "canceled" || evalStatus === "interrupted") {
-      setEvalTaskId(null);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [evalTaskId, evalStatus, evalFull]);
+  if (evalTaskId && evalStatus === "succeeded" && evalFull) {
+    setEvalData((evalFull.result as GroupEvalPayload) ?? null);
+    setEvalTaskId(null);
+    if (evalRole) setEvaluated((s) => ({ ...s, [evalRole.roleKey]: new Date().toISOString() }));
+  } else if (evalTaskId && (evalStatus === "failed" || evalStatus === "canceled" || evalStatus === "interrupted")) {
+    setEvalTaskId(null);
+  }
 
   const act = async (e: Entry, action: "accept" | "reject" | "approve_event") => {
     setResolving((s) => ({ ...s, [e.id]: action }));

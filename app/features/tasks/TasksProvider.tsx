@@ -123,20 +123,28 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
 
   // Poll while mounted (above the tabs → survives view switches; re-reads running
   // tasks on mount → survives a page refresh). Pause when the tab is hidden.
+  // The activity flag is written in a commit-phase effect (never during render —
+  // render must stay pure); the polling loop only reads it on its next tick, so
+  // post-commit freshness is exactly enough.
   const anyActive = useRef(false);
-  anyActive.current = tasks.some(ACTIVE);
   useEffect(() => {
-    void refresh();
+    anyActive.current = tasks.some(ACTIVE);
+  }, [tasks]);
+  useEffect(() => {
+    // Deferred kick-off: the first refresh runs on an immediate (0 ms) timer
+    // tick rather than synchronously in the effect body — refresh sets state,
+    // and a sync setState here would cascade a second render before the first
+    // commit settles. Mount behavior is unchanged: data still loads right away.
     let cancelled = false;
     let timeout: number;
-    const loop = () => {
+    const loop = (delay: number) => {
       if (cancelled) return;
       timeout = window.setTimeout(async () => {
         if (!document.hidden) await refresh();
-        loop();
-      }, anyActive.current ? 2000 : 6000);
+        loop(anyActive.current ? 2000 : 6000);
+      }, delay);
     };
-    loop();
+    loop(0);
     const onFocus = () => void refresh();
     window.addEventListener("focus", onFocus);
     return () => {

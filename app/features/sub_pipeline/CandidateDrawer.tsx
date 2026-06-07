@@ -70,8 +70,13 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
   // Modal focus management: trap Tab within the dialog, close on Escape, and
   // restore focus to the trigger on unmount (WCAG dialog requirements).
   const dialogRef = useRef<HTMLElement | null>(null);
+  // Latest-callback ref, updated in a commit-phase effect (never during render —
+  // render must stay pure) so the long-lived keydown listener sees the current
+  // onClose without re-binding.
   const onCloseRef = useRef(onClose);
-  onCloseRef.current = onClose;
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  });
   useEffect(() => {
     const node = dialogRef.current;
     const previouslyFocused = document.activeElement as HTMLElement | null;
@@ -184,26 +189,40 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
   // The automation task's result + params (which `task` it ran) are fetched on
   // demand once it finishes — the poll omits both. Hold pendingId until the full
   // record lands so the drawer stays in its busy state through the brief fetch.
+  // Completion is consumed DURING render (guarded: pendingId is cleared in the
+  // same pass, so this runs once per task); only the parent notification stays
+  // in an effect below, because onChanged touches PARENT state and render-phase
+  // updates are legal only for this component's own.
   const { status: actionStatus, error: actionError, full: actionFull } = useTaskResult(pendingId);
-  useEffect(() => {
-    if (!pendingId) return;
-    if (actionStatus === "succeeded") {
-      if (!actionFull) return; // still fetching the full result/params
-      const data = actionFull.result as { result: Record<string, unknown>; source: string; applied: string } | null;
-      const sub = (((actionFull.params as { task?: string } | null)?.task ?? busy) ?? "screen") as TaskId;
-      if (data) {
-        setResult({ task: sub, data: data.result, source: data.source, applied: data.applied });
-        if (["advanced", "held_for_review", "scorecard_ready", "offer_ready", "rematched"].includes(data.applied)) onChanged();
-      }
-      setBusy(null);
-      setPendingId(null);
-    } else if (actionStatus === "failed" || actionStatus === "canceled" || actionStatus === "interrupted") {
-      setError(actionError ?? "Task did not complete.");
-      setBusy(null);
-      setPendingId(null);
+  if (pendingId && actionStatus === "succeeded" && actionFull) {
+    const data = actionFull.result as { result: Record<string, unknown>; source: string; applied: string } | null;
+    const sub = (((actionFull.params as { task?: string } | null)?.task ?? busy) ?? "screen") as TaskId;
+    if (data) {
+      setResult({ task: sub, data: data.result, source: data.source, applied: data.applied });
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pendingId, actionStatus, actionError, actionFull]);
+    setBusy(null);
+    setPendingId(null);
+  } else if (pendingId && (actionStatus === "failed" || actionStatus === "canceled" || actionStatus === "interrupted")) {
+    setError(actionError ?? "Task did not complete.");
+    setBusy(null);
+    setPendingId(null);
+  }
+
+  // Post-commit parent notification: an applied action changed the entry, so the
+  // board behind the drawer must reload. Keyed on the consumed result object (a
+  // fresh object per completion → fires once per applied task); reads onChanged
+  // through the latest-ref so a parent re-render can't re-trigger a reload.
+  const onChangedRef = useRef(onChanged);
+  useEffect(() => {
+    onChangedRef.current = onChanged;
+  });
+  const appliedResult =
+    result && ["advanced", "held_for_review", "scorecard_ready", "offer_ready", "rematched"].includes(result.applied)
+      ? result
+      : null;
+  useEffect(() => {
+    if (appliedResult) onChangedRef.current();
+  }, [appliedResult]);
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end">

@@ -18,10 +18,14 @@ export function SimOfferFrame() {
   const [loaded, setLoaded] = useState(false);
   const url = frame?.url ?? null;
 
-  // A fresh page is loading whenever the framed URL changes.
-  useEffect(() => {
+  // A fresh page is loading whenever the framed URL changes — reset the shimmer
+  // DURING render (guarded render-phase adjustment) so the old page's "loaded"
+  // state never paints for a frame against the new URL.
+  const [prevUrl, setPrevUrl] = useState(url);
+  if (url !== prevUrl) {
+    setPrevUrl(url);
     setLoaded(false);
-  }, [url]);
+  }
 
   // Escape closes the overlay regardless of run state.
   useEffect(() => {

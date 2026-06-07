@@ -68,15 +68,19 @@ export function MatchTab() {
   const runMatch = () =>
     runMatchFor(source === "profile" ? { profileId: selProfile } : { analysisSlug: selAnalysis });
 
-  // Deep link from the Pipeline (?tab=match&profile=<id>): preselect + auto-run once.
+  // Deep link from the Pipeline (?tab=match&profile=<id>): preselect + auto-run
+  // once. Deferred kick-off (0 ms timer): the preselect setters and runMatchFor's
+  // loading flag would otherwise fire synchronously in the effect body and
+  // cascade a render before the first commit settles.
   useEffect(() => {
-    if (profileParam && !autoRan) {
+    if (!profileParam || autoRan) return;
+    const t = window.setTimeout(() => {
       setSource("profile");
       setSelProfile(profileParam);
       setAutoRan(true);
       void runMatchFor({ profileId: profileParam });
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, 0);
+    return () => window.clearTimeout(t);
   }, [profileParam, autoRan]);
 
   return (

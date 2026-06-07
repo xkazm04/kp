@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { LoadStatus } from "@/app/_components/LoadStatus";
 import { useLoader } from "@/app/_lib/useLoader";
 import { aggregateLoadState } from "@/app/_lib/load-state";
@@ -132,9 +133,9 @@ export default function ControlPage() {
               immutable audit trail of every automated decision (the record-keeping a high-risk AI hiring system requires).
             </p>
           </div>
-          <a href="/?tab=dev" className="focus-ring rounded-md border border-stone-200 bg-white px-3 py-1.5 text-sm font-semibold text-ink hover:border-coral/40">
+          <Link href="/?tab=dev" className="focus-ring rounded-md border border-stone-200 bg-white px-3 py-1.5 text-sm font-semibold text-ink hover:border-coral/40">
             ← Dev cases
-          </a>
+          </Link>
         </header>
 
         <LoadStatus state={roomState} label="the control room" className="mt-4" />
