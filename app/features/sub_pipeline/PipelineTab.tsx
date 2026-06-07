@@ -173,11 +173,18 @@ export function PipelineTab() {
     setPassSummary(null);
     try {
       const r = await fetch("/api/automation/run", { method: "POST" });
-      const p = await r.json();
+      const p = await r.json().catch(() => null);
       if (r.ok) {
+        setError(null); // a clean pass clears any prior transient error
         setPassSummary(p.summary);
         load();
+      } else {
+        // A failing pass used to read identically to a successful no-op (empty
+        // else, no catch) — the operator believed the funnel was processed.
+        setError(p?.error ?? "Automation pass failed.");
       }
+    } catch {
+      setError("Automation pass failed — couldn't reach the server.");
     } finally {
       setRunning(false);
     }
