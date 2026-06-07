@@ -105,9 +105,20 @@ export async function runScreenWave(
       // shrunk from the raw bottom-% so the auto-reject boundary stays reproducible.
       const tieNote = effectiveBottomCount < bottomCount ? ` (tie-adjusted from ${bottomCount} so no equal score is split)` : "";
       const rationale = `Auto-rejected · bottom ${cfg.rejectBottomPercent}% of ${n} → ${effectiveBottomCount}${tieNote} (rank ${rank + 1}) and match ${score} < ${cfg.maxMatchToReject} threshold.`;
-      const updated = actOnPipelineEntry(e.id, "reject");
+      // Optimistic CAS (idea-b24a6d3c): the cohort was snapshotted up-front and
+      // this loop awaits a comms dispatch between iterations — a wide window in
+      // which a recruiter can manually advance a candidate. Pinning the wave's
+      // verdict to the snapshot stage makes a stale reject a NO-OP: no status
+      // flip, no audit event claiming an action that didn't happen, and — the
+      // part a candidate would have felt — no rejection email.
+      const updated = actOnPipelineEntry(e.id, "reject", undefined, { expectedStage: e.stage });
+      if (!updated) {
+        const skipped = `Skipped — stage changed mid-wave (was ${e.stage}); left untouched.`;
+        decisions.push({ entryId: e.id, label: e.candidateLabel, archetype: e.archetype, matchScore: score, action: "keep", rationale: skipped });
+        continue;
+      }
       recordAutomationEvent(e.id, "auto_rejected", rationale); // audit trail (shows in Analytics)
-      if (updated) await dispatchRejection(updated, { automated: true }); // queued, never ghosts
+      await dispatchRejection(updated, { automated: true }); // queued, never ghosts
       decisions.push({ entryId: e.id, label: e.candidateLabel, archetype: e.archetype, matchScore: score, action: "reject", rationale });
       rejected += 1;
     } else {
