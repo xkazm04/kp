@@ -99,10 +99,15 @@ def analyze_need(
         loc = sum(s.loc for s in snapshots)
         complexity = "high" if loc > 50_000 else "medium" if loc > 8_000 else "low"
         dirs = sum(len(s.top_dirs) for s in snapshots)
+        # A snapshot can carry stack/dir signal but loc<=0 (the LOC probe failed on a
+        # private repo). Such repos vanish from a pure LOC sum, so call them out rather
+        # than letting an under-measured multi-repo role read as fully grounded.
+        unmeasured = sum(1 for s in snapshots if s.loc <= 0)
+        unmeasured_note = f" {unmeasured} repo(s) of unmeasured size — the LOC total is a floor." if unmeasured else ""
         grounding = (
-            f"Codebase is ~{loc:,} LOC across {dirs} top-level areas. "
+            f"Codebase is ~{loc:,} LOC across {dirs} top-level areas.{unmeasured_note} "
             if len(snapshots) == 1
-            else f"{len(snapshots)} codebases totalling ~{loc:,} LOC across {dirs} top-level areas. "
+            else f"{len(snapshots)} codebases totalling ~{loc:,} LOC across {dirs} top-level areas.{unmeasured_note} "
             if snapshots
             else "No codebase snapshot supplied — this analysis is ungrounded. "
         )
