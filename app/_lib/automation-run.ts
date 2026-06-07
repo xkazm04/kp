@@ -5,6 +5,7 @@ import {
   createPipelineEntry,
   getPipelineEntry,
   getProfileRecord,
+  hasEvent,
   listCorpusJobs,
   lookupPromptCache,
   recordAutomationEvent,
@@ -189,8 +190,20 @@ export async function runAutomationTask(entryId: string, task: string, notes = "
   } else if (task === "outreach") {
     // Non-adverse and recruiter-initiated — deliver the generated draft through
     // the comms channel (queued to the outbox by default; relayed if configured).
-    await dispatchOutreach(entry, result);
-    applied = "sent";
+    //
+    // The prompt cache makes the DRAFT idempotent, but dispatchOutreach is a real
+    // side effect: it queues an outbox row and, with a relay configured, POSTs the
+    // message to the candidate. A cache HIT within the 7-day TTL (double-click,
+    // refresh-retry, or the same entry re-screened then outreach'd again) would
+    // otherwise re-fire the send every time. Gate the dispatch on the durable
+    // per-entry "outreach_sent" marker that dispatchOutreach itself records, so an
+    // outreach is delivered at most once per entry — first-contact, not a resend.
+    if (hasEvent(entry.id, "outreach_sent")) {
+      applied = "already_sent";
+    } else {
+      await dispatchOutreach(entry, result);
+      applied = "sent";
+    }
   } else {
     recordAutomationEvent(entry.id, DRAFT_EVENT[task] ?? task, "");
     applied = "drafted";

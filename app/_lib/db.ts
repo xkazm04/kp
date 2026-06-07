@@ -1991,6 +1991,17 @@ export function recordAutomationEvent(entryId: string, kind: string, detail?: st
   });
 }
 
+/** True if an event of this kind was EVER logged for the entry (unbounded). Used
+ *  to make a real-world side effect idempotent across a multi-day window — e.g. a
+ *  cached outreach draft (7-day prompt-cache TTL) must not re-deliver, where the
+ *  per-day hasEventToday would let a resend slip through after midnight. */
+export function hasEvent(entryId: string, kind: string): boolean {
+  const db = ensureDb();
+  return !!db
+    .prepare(`SELECT 1 FROM pipeline_events WHERE entry_id=? AND kind=? LIMIT 1`)
+    .get(entryId, kind);
+}
+
 /** True if an event of this kind for the entry was already logged today (UTC) — alert dedup. */
 export function hasEventToday(entryId: string, kind: string): boolean {
   const db = ensureDb();
