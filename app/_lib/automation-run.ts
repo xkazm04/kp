@@ -172,7 +172,11 @@ export async function runAutomationTask(entryId: string, task: string, notes = "
     applied = "offer_ready";
   } else if (task === "rematch") {
     if (result.found && result.jobId) {
-      createPipelineEntry({
+      // createPipelineEntry is idempotent (a corpus edit self-invalidates the
+      // rematch cache, so re-runs are frequent). Only log "rematched" and report it
+      // as applied when a NEW entry was actually created — otherwise we re-emit the
+      // event and re-fire its audit on every re-run for a single real placement.
+      const { created } = createPipelineEntry({
         candidateId: entry.candidateId,
         candidateLabel: entry.candidateLabel,
         archetype: entry.archetype,
@@ -182,8 +186,12 @@ export async function runAutomationTask(entryId: string, task: string, notes = "
         matchScore: (result.score as number) ?? null,
         stage: "Screened",
       });
-      recordAutomationEvent(entry.id, "rematched", `${entry.jobId ?? "?"} -> ${result.jobId}`);
-      applied = "rematched";
+      if (created) {
+        recordAutomationEvent(entry.id, "rematched", `${entry.jobId ?? "?"} -> ${result.jobId}`);
+        applied = "rematched";
+      } else {
+        applied = "already_rematched";
+      }
     } else {
       applied = "no_alternative";
     }
