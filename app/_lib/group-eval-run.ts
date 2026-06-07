@@ -280,23 +280,35 @@ export async function runGroupEval(params: Record<string, unknown>): Promise<Rec
     }
   }
 
+  // Per-candidate AI reasoning, CONCURRENTLY (idea-bce9547b): this used to be a
+  // sequential `await runReasoning(...)` per candidate — on cache misses, up to
+  // GROUP_EVAL_CAP=6 cold Python spawns run strictly serially behind the modal
+  // spinner, making group eval ~6x one reasoning round-trip in wall time. The
+  // calls are independent (own workdir, own process, per-candidate cache slot),
+  // so they run in parallel; the field is already capped at 6, which is the
+  // concurrency bound. Per-candidate failures degrade to the deterministic
+  // source exactly as before.
+  const reasonings = await Promise.all(
+    input.map(async (c): Promise<{ reasoning: Reasoning; source: string | null }> => {
+      if (!jobId || !c.candidateId) return { reasoning: {}, source: null };
+      try {
+        const out = await runReasoning({ jobId, profileId: c.candidateId });
+        return { reasoning: (out.reasoning as Reasoning) ?? {}, source: String(out.source ?? "deterministic") };
+      } catch {
+        return { reasoning: {}, source: "deterministic" };
+      }
+    })
+  );
+
   const sources: string[] = [];
   const candidates: PerCandidate[] = [];
-  for (const c of input) {
+  for (const [idx, c] of input.entries()) {
     const rec = c.candidateId ? resolved.get(c.candidateId)?.profile ?? null : null;
     const payload = rec?.payload as { seniority?: string; archetype?: string } | null;
     const row = c.candidateId ? rows.get(c.candidateId) ?? null : null;
     const result = row?.result;
-    let reasoning: Reasoning = {};
-    if (jobId && c.candidateId) {
-      try {
-        const out = await runReasoning({ jobId, profileId: c.candidateId });
-        reasoning = (out.reasoning as Reasoning) ?? {};
-        sources.push(String(out.source ?? "deterministic"));
-      } catch {
-        sources.push("deterministic");
-      }
-    }
+    const { reasoning, source } = reasonings[idx];
+    if (source !== null) sources.push(source);
     candidates.push({
       label: c.label,
       // Prefer the fresh recruiter total (matches the breakdown shown) over the
