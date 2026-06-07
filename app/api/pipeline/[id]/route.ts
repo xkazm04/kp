@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { actOnPipelineEntry, clearIntakeDegraded, getPipelineEntry, setApproval, type PipelineAction, type PipelineEntry } from "@/app/_lib/db";
 import { dispatchOffer, dispatchRejection } from "@/app/_lib/comms-dispatch";
 import { getOrCreateOpenOffer } from "@/app/_lib/offers-store";
+import { safeJsonError } from "@/app/_lib/api-response";
 
 export const runtime = "nodejs";
 
@@ -77,7 +78,6 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     if (action === "reject") await dispatchRejection(updated);
     return NextResponse.json({ entry: updated });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Action failed.";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return safeJsonError(error, "api:pipeline:action", "PIPELINE_ACTION_FAILED");
   }
 }

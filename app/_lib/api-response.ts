@@ -53,6 +53,15 @@ export const STORE_ERRORS = {
   INTERVIEW_COMPLETE_FAILED: "Could not save the interview. Please try again.",
   INTERVIEW_LOOKUP_FAILED: "Could not load interview data. Please try again.",
   INTERVIEW_PREP_FAILED: "Could not load interview prep. Please try again.",
+  // Pipeline board routes (idea-66f52a3a): all sit directly on better-sqlite3.
+  PIPELINE_LIST_FAILED: "Could not load the pipeline. Please try again.",
+  PIPELINE_CREATE_FAILED: "Could not add to the pipeline. Please try again.",
+  PIPELINE_ACTION_FAILED: "Could not apply that action. Please try again.",
+  PIPELINE_EVENTS_FAILED: "Could not load recent activity. Please try again.",
+  // Scheduling & offer public token routes (converted alongside, same class).
+  SCHEDULE_INVITE_FAILED: "Could not create the scheduling link. Please try again.",
+  SCHEDULE_CONFIRM_FAILED: "Could not confirm that slot. Please try again.",
+  OFFER_RESPOND_FAILED: "Could not record your response. Please try again.",
 } as const;
 
 export type StoreErrorCode = keyof typeof STORE_ERRORS;

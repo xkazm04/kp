@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createPipelineEntry, listPipeline, PIPELINE_STAGES } from "@/app/_lib/db";
+import { safeJsonError } from "@/app/_lib/api-response";
 
 export const runtime = "nodejs";
 
@@ -7,8 +8,7 @@ export async function GET() {
   try {
     return NextResponse.json({ entries: listPipeline(), stages: PIPELINE_STAGES });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Failed to load pipeline.";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return safeJsonError(error, "api:pipeline", "PIPELINE_LIST_FAILED");
   }
 }
 
@@ -49,7 +49,8 @@ export async function POST(request: NextRequest) {
     });
     return NextResponse.json(result);
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Failed to add to pipeline.";
-    return NextResponse.json({ error: message }, { status: 500 });
+    // Raw err.message surfaces better-sqlite3 internals (constraint names, the
+    // absolute db path) — log server-side, return the generic catalogue message.
+    return safeJsonError(error, "api:pipeline", "PIPELINE_CREATE_FAILED");
   }
 }
