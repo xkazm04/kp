@@ -33,7 +33,27 @@ export class AutomationPassError extends Error {
   }
 }
 
-export async function runAutomationPass(): Promise<AutomationPassResult> {
+// Single-flight guard (idea-3ee43d5c). claimDueRun() only serializes the CLOCK
+// path — the "Run automation pass" button (/api/automation/run), an external
+// cron hitting that route, and a forced tick (tickScheduler {force:true}) all
+// call runAutomationPass directly. Two overlapping passes each snapshot ALL
+// active entries, spend seconds in Python, then both apply: every per-entry race
+// amplified across the whole board at once, plus duplicate candidate emails.
+// In-process single-flight closes this: the second caller JOINS the in-flight
+// pass and receives its result instead of starting a competing one. (Cross-
+// process overlap is already covered for the clock by claimDueRun; the manual
+// surfaces run in the same Next server process as the heartbeat.)
+let inFlightPass: Promise<AutomationPassResult> | null = null;
+
+export function runAutomationPass(): Promise<AutomationPassResult> {
+  if (inFlightPass) return inFlightPass;
+  inFlightPass = executeAutomationPass().finally(() => {
+    inFlightPass = null;
+  });
+  return inFlightPass;
+}
+
+async function executeAutomationPass(): Promise<AutomationPassResult> {
   const entries = listActiveEntriesForAutomation();
   const summary: AutomationSummary = { advanced: 0, rejected: 0, held: 0, alerts: 0 };
   if (entries.length === 0) return { summary, decisions: [] };
