@@ -94,7 +94,11 @@ def main(argv: list[str] | None = None) -> int:
                     row.append({"score": None, "blocked": True})
                 else:
                     row.append({"score": score_job(cand, job).total, "blocked": False})
-            candidates.append({"id": pr.get("id"), "label": pr.get("label"), "archetype": pr.get("archetype")})
+            # Same id fallback as the missing_candidates path above (idea-d4bd3d30):
+            # a profile without an "id" must still get a unique, stable row key —
+            # a null id collapses the grid's React keys so rows silently merge or
+            # vanish from a matrix the recruiter trusts as complete.
+            candidates.append({"id": cid, "label": pr.get("label") or cid, "archetype": pr.get("archetype")})
             cells.append(row)
 
         positions = [
