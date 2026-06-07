@@ -1,5 +1,5 @@
 import { runAutomationPass } from "./automation-pass";
-import { claimDueRun, ensureSchedule, recordRun } from "./scheduler-store";
+import { advanceAfterForcedRun, claimDueRun, ensureSchedule, recordRun } from "./scheduler-store";
 
 // The clock's per-tick work: atomically claim a due run, run the SHARED policy
 // pass, and record it durably. Called by the heartbeat in instrumentation.ts and
@@ -13,6 +13,11 @@ export async function tickScheduler(opts?: { force?: boolean; trigger?: string }
   // claimDueRun is the lock: exactly one caller wins per due window, and it
   // advances next_due_at so a restart / second process can't double-fire.
   if (!opts?.force && !claimDueRun()) return { ran: false };
+  // A forced/manual tick skips claimDueRun (the only writer of next_due_at on the
+  // run path). Advance the clock here — exactly as claimDueRun would on the clock
+  // path — so the still-due window isn't immediately re-claimed by the next
+  // heartbeat, which would double-fire the pass seconds later.
+  if (opts?.force) advanceAfterForcedRun();
 
   const startedAt = new Date().toISOString();
   try {

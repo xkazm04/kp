@@ -157,6 +157,29 @@ export function claimDueRun(name = POLICY_JOB): boolean {
   return res.changes === 1;
 }
 
+/**
+ * Advance the durable clock after a forced/manual tick. The `force` path in
+ * tickScheduler bypasses claimDueRun — the ONLY writer of next_due_at on the run
+ * path — so without this the clock stays pointed at an already-due window and the
+ * next ~60s heartbeat re-claims and re-runs the same pass. Mirrors claimDueRun's
+ * advancement (last_run_at = now, next_due_at = now + interval). No-op when the
+ * job is disabled, so a manual "Run now" while off doesn't arm the clock.
+ */
+export function advanceAfterForcedRun(name = POLICY_JOB): void {
+  const d = db();
+  ensureSchedule(name);
+  const sched = getSchedule(name);
+  if (!sched.enabled) return;
+  const now = new Date().toISOString();
+  const next = new Date(Date.now() + sched.intervalMinutes * 60_000).toISOString();
+  d.prepare(`UPDATE scheduler SET last_run_at = ?, next_due_at = ?, updated_at = ? WHERE name = ?`).run(
+    now,
+    next,
+    now,
+    name
+  );
+}
+
 export function recordRun(input: {
   job?: string;
   trigger?: string;
