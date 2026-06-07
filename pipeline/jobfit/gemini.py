@@ -3,7 +3,9 @@ from __future__ import annotations
 import json
 import mimetypes
 import os
+import random
 import re
+import time
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Sequence
@@ -162,6 +164,52 @@ class GroundedAnswer:
     def truncated(self) -> bool:
         """True when the model stopped because it hit ``max_output_tokens``."""
         return self.finish_reason == "MAX_TOKENS"
+
+
+_MAX_GEMINI_ATTEMPTS = 3
+
+
+def _is_transient_error(exc: Exception) -> bool:
+    """True for retryable Gemini failures (rate limit, 5xx, network timeout) — NOT
+    auth / 4xx / bad-request, which are permanent and should fail fast."""
+    code = getattr(exc, "code", None)
+    if not isinstance(code, int):
+        code = getattr(exc, "status_code", None)
+    if isinstance(code, int) and code in {429, 500, 502, 503, 504}:
+        return True
+    text = f"{type(exc).__name__}: {exc}".lower()
+    return any(
+        marker in text
+        for marker in (
+            "resource_exhausted", "unavailable", "deadline_exceeded",
+            "429", "503", "502", "504", "timeout", "timed out", "temporarily",
+        )
+    )
+
+
+def _generate_with_retry(client: genai.Client, contents: list[Any], config_kwargs: dict[str, Any]) -> Any:
+    """generate_content with a small bounded retry on transient errors.
+
+    Gemini 429 / 5xx / network timeouts are normal recoverable conditions on a
+    busy key; one blip used to abort an analysis a single retry would have
+    completed (analyze_profile_with_gemini passes no fallback). Permanent failures
+    (auth, 4xx) re-raise immediately. The per-attempt 90s timeout is unchanged, so
+    the worst case is bounded by attempts x 90s.
+    """
+    last: Exception | None = None
+    for attempt in range(_MAX_GEMINI_ATTEMPTS):
+        try:
+            return client.models.generate_content(
+                model=GEMINI_MODEL,
+                contents=contents,
+                config=types.GenerateContentConfig(**config_kwargs),
+            )
+        except Exception as exc:  # noqa: BLE001 — re-raised below unless transient
+            last = exc
+            if attempt == _MAX_GEMINI_ATTEMPTS - 1 or not _is_transient_error(exc):
+                raise
+            time.sleep(0.5 * (2 ** attempt) + random.uniform(0, 0.25))
+    raise last  # pragma: no cover — the loop always returns or raises
 
 
 def grounded_answer(
