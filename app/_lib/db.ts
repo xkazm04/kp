@@ -2713,23 +2713,34 @@ export function markInterviewStarted(id: string, consent: boolean): void {
   }
 }
 
+/** Persist the end of a call. The UPDATE is guarded at the row level so a
+ *  session that already reached 'completed' is never overwritten (idea-beb71894):
+ *  a duplicate POST — a network retry, a second tab, or the ElevenLabs
+ *  onDisconnect firing alongside a manual End across a reload — must not wipe
+ *  the persisted transcript, the only durable artifact of the interview. The
+ *  guard lives in the WHERE clause (not a read-then-write in the route) so two
+ *  concurrent completions can't both pass a status check; `applied` tells the
+ *  caller whether THIS call performed the write. A 'failed' session stays
+ *  writable: a successful retry after a dropped call may upgrade it. */
 export function completeInterviewSession(
   id: string,
   input: { transcript: VoiceTurn[]; scorecard?: unknown; status?: string }
-): InterviewSession | null {
+): { session: InterviewSession | null; applied: boolean } {
   const db = ensureDb();
   const now = new Date().toISOString();
-  db.prepare(
-    `UPDATE interview_sessions SET status=?, ended_at=?, transcript_json=?, scorecard_json=COALESCE(?, scorecard_json), updated_at=? WHERE id=?`
-  ).run(
-    input.status ?? "completed",
-    now,
-    JSON.stringify(input.transcript ?? []),
-    input.scorecard !== undefined ? JSON.stringify(input.scorecard) : null,
-    now,
-    id
-  );
-  return getInterviewSessionById(id);
+  const res = db
+    .prepare(
+      `UPDATE interview_sessions SET status=?, ended_at=?, transcript_json=?, scorecard_json=COALESCE(?, scorecard_json), updated_at=? WHERE id=? AND status != 'completed'`
+    )
+    .run(
+      input.status ?? "completed",
+      now,
+      JSON.stringify(input.transcript ?? []),
+      input.scorecard !== undefined ? JSON.stringify(input.scorecard) : null,
+      now,
+      id
+    );
+  return { session: getInterviewSessionById(id), applied: res.changes > 0 };
 }
 
 export function listOutbox(limit = 50): OutboxEntry[] {

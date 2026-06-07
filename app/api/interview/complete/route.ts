@@ -28,6 +28,20 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "session not found" }, { status: 404 });
     }
 
+    // Idempotency / terminal-state guard (idea-beb71894): a completed session is
+    // done — a duplicate POST (network retry, second tab, provider disconnect
+    // racing a manual End) must neither overwrite the persisted transcript nor
+    // re-run the scorecard that gates Interview→Offer. Return the stored state
+    // as success so a retrying client settles instead of erroring.
+    if (session.status === "completed") {
+      return NextResponse.json({
+        ok: true,
+        alreadyCompleted: true,
+        session,
+        scorecard: session.scorecard ?? null,
+      });
+    }
+
     // Consent invariant (idea-98e6cf23): never persist a candidate transcript
     // unless consent was recorded server-side (consent_at non-null). /connect
     // already gates the start, so this is defense in depth against a bypassed or
@@ -71,6 +85,18 @@ export async function POST(request: NextRequest) {
 
     const status = body.status === "failed" ? "failed" : "completed";
 
+    // Never replace a persisted non-empty transcript with an empty one
+    // (idea-beb71894): a stray empty/failed finalize after a real one (e.g. a
+    // reloaded tab tearing down) is data loss a recruiter cannot recover.
+    if (transcript.length === 0 && (session.transcript?.length ?? 0) > 0) {
+      return NextResponse.json({
+        ok: true,
+        alreadyCompleted: true,
+        session,
+        scorecard: session.scorecard ?? null,
+      });
+    }
+
     // Synthesize the scorecard for candidate-mode sessions (best-effort: the
     // transcript is always saved even if scoring fails). Gating on "completed"
     // is load-bearing: a call that dropped abnormally (provider/network error or
@@ -86,11 +112,20 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const updated = completeInterviewSession(sessionId, {
+    const { session: updated, applied } = completeInterviewSession(sessionId, {
       transcript,
       scorecard: scorecard ?? undefined,
       status,
     });
+    if (!applied) {
+      // A concurrent completion won the row-level guard — its transcript stands.
+      return NextResponse.json({
+        ok: true,
+        alreadyCompleted: true,
+        session: updated,
+        scorecard: updated?.scorecard ?? null,
+      });
+    }
     return NextResponse.json({ ok: true, session: updated, scorecard });
   } catch (error) {
     return safeJsonError(error, "api:interview:complete", "INTERVIEW_COMPLETE_FAILED");
