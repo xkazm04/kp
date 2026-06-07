@@ -344,7 +344,10 @@ export function PipelineTab() {
       )}
 
       {drawerEntry ? (
-        <CandidateDrawer entry={drawerEntry} onClose={() => setDrawerEntry(null)} onChanged={load} />
+        // key on the entry id so switching candidates remounts the drawer, resetting
+        // its per-entry result/notes/busy/token-link state instead of briefly showing
+        // the previous candidate's.
+        <CandidateDrawer key={drawerEntry.id} entry={drawerEntry} onClose={() => setDrawerEntry(null)} onChanged={load} />
       ) : null}
     </div>
   );
