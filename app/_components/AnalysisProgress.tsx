@@ -81,12 +81,14 @@ export function AnalysisProgress({
   stages,
   complete,
   fileName,
-  variantCount
+  variantCount,
+  onCancel
 }: {
   stages: StageState;
   complete: boolean;
   fileName?: string;
   variantCount?: number;
+  onCancel?: () => void;
 }) {
   const completedCount = STAGE_ORDER.filter((id) => stages[id] === "done").length;
   const totalCount = STAGE_ORDER.length;
@@ -125,9 +127,20 @@ export function AnalysisProgress({
                 : "Working on your profile."}
           </p>
         </div>
-        <div className="flex flex-col items-start sm:items-end">
-          <span className="text-meta uppercase tracking-wide text-steel">Progress</span>
-          <span className="font-serif text-h2 text-ink">{percent}%</span>
+        <div className="flex flex-col items-start gap-2 sm:items-end">
+          <div className="flex flex-col items-start sm:items-end">
+            <span className="text-meta uppercase tracking-wide text-steel">Progress</span>
+            <span className="font-serif text-h2 text-ink">{percent}%</span>
+          </div>
+          {onCancel && !complete && (
+            <button
+              type="button"
+              onClick={onCancel}
+              className="rounded-md border border-stone-300 px-2.5 py-1 text-sm font-medium text-steel transition-colors hover:border-coral hover:text-coral focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral"
+            >
+              Cancel scan
+            </button>
+          )}
         </div>
       </div>
 

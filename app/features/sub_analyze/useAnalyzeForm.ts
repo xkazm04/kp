@@ -36,6 +36,10 @@ export function useAnalyzeForm() {
   const abortRef = useRef<AbortController | null>(null);
   // The current server-side task id, so reset/cancel can DELETE (cancel) it.
   const taskIdRef = useRef<string | null>(null);
+  // Monotonic id for the MAIN analysis run (mirrors githubRunIdRef): a superseded
+  // run's late callbacks are ignored, so a zombie poll that resolves after a
+  // Reset/Cancel can't write the stale result back over the cleared form.
+  const analysisRunIdRef = useRef(0);
 
   const [cvFiles, setCvFiles] = useState<File[]>([]);
   const [jobDescriptionFile, setJobDescriptionFile] = useState<File | null>(null);
@@ -127,6 +131,10 @@ export function useAnalyzeForm() {
     // Supersede any GitHub run still in flight so a late result can't clobber the
     // cleared state (same guard as submit — see githubRunIdRef).
     githubRunIdRef.current += 1;
+    // Stop the main analyze run too: abort the poll, cancel the server task, reset
+    // the loading flags, and supersede its callbacks — otherwise the orphaned poll
+    // resolves and writes the stale result back over the just-cleared form.
+    stopActiveRun();
     setCvFiles([]);
     clearJobDescription();
     clearCompany();
@@ -148,34 +156,63 @@ export function useAnalyzeForm() {
     }
   };
 
-  const buildCallbacks = () => ({
-    onProgress: (stage: Parameters<typeof applyStageEvent>[1], status: Parameters<typeof applyStageEvent>[2]) =>
-      setStageState((prev) => applyStageEvent(prev, stage, status)),
-    onFinalize: () => {
-      setIsCompleting(true);
-      setStageState(finalizeStages);
-    },
-    onResult: (parsed: Analysis) => {
-      setAnalysis(parsed);
-      setIsLoading(false);
-      setIsCompleting(false);
-      clearStoredTask();
-    },
-    onError: (message: string) => {
-      setError(message);
-      setIsLoading(false);
-      setIsCompleting(false);
-      clearStoredTask();
-    },
-    onTaskStarted: (id: string) => {
-      taskIdRef.current = id;
-      try {
-        sessionStorage.setItem(ANALYZE_TASK_KEY, id);
-      } catch {
-        /* ignore */
-      }
-    },
-  });
+  // Stop the in-flight analyze run cleanly: supersede its callbacks, abort the
+  // local poll, and tell the server to cancel the task (DELETE → cancelTask aborts
+  // the run and kills its Python child). Shared by reset() and cancel().
+  const stopActiveRun = () => {
+    analysisRunIdRef.current += 1;
+    abortRef.current?.abort();
+    abortRef.current = null;
+    const id = taskIdRef.current;
+    taskIdRef.current = null;
+    if (id) void fetch(`/api/tasks/${id}`, { method: "DELETE" }).catch(() => {});
+    clearStoredTask();
+    setIsLoading(false);
+    setIsCompleting(false);
+  };
+
+  const buildCallbacks = (runId: number) => {
+    const current = () => runId === analysisRunIdRef.current;
+    return {
+      onProgress: (stage: Parameters<typeof applyStageEvent>[1], status: Parameters<typeof applyStageEvent>[2]) => {
+        if (!current()) return;
+        setStageState((prev) => applyStageEvent(prev, stage, status));
+      },
+      onFinalize: () => {
+        if (!current()) return;
+        setIsCompleting(true);
+        setStageState(finalizeStages);
+      },
+      onResult: (parsed: Analysis) => {
+        if (!current()) return;
+        setAnalysis(parsed);
+        setIsLoading(false);
+        setIsCompleting(false);
+        clearStoredTask();
+      },
+      onError: (message: string) => {
+        if (!current()) return;
+        setError(message);
+        setIsLoading(false);
+        setIsCompleting(false);
+        clearStoredTask();
+      },
+      onTaskStarted: (id: string) => {
+        if (!current()) {
+          // Superseded before the task id returned — cancel the orphan now, since
+          // nobody else holds its id to DELETE it.
+          void fetch(`/api/tasks/${id}`, { method: "DELETE" }).catch(() => {});
+          return;
+        }
+        taskIdRef.current = id;
+        try {
+          sessionStorage.setItem(ANALYZE_TASK_KEY, id);
+        } catch {
+          /* ignore */
+        }
+      },
+    };
+  };
 
   // Re-attach to an analyze task that was still running when the page reloaded.
   // Deferred kick-off (0 ms timer): resuming flips the loading flags, and a sync
@@ -194,9 +231,10 @@ export function useAnalyzeForm() {
       const controller = new AbortController();
       abortRef.current = controller;
       taskIdRef.current = resumeStored;
+      const runId = ++analysisRunIdRef.current;
       setIsLoading(true);
       setIsCompleting(false);
-      void resumeAnalysis(resumeStored, buildCallbacks(), controller.signal);
+      void resumeAnalysis(resumeStored, buildCallbacks(runId), controller.signal);
     }, 0);
     return () => window.clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -255,6 +293,7 @@ export function useAnalyzeForm() {
 
     const controller = new AbortController();
     abortRef.current = controller;
+    const analysisRunId = ++analysisRunIdRef.current;
 
     await executeAnalysis(
       {
@@ -265,9 +304,16 @@ export function useAnalyzeForm() {
         companyText,
         selectedJdSlug,
       },
-      buildCallbacks(),
+      buildCallbacks(analysisRunId),
       controller.signal
     );
+  }
+
+  // User-initiated stop of a running scan (the Cancel button in AnalysisProgress).
+  // Keeps the inputs so the user can retry; just halts the run and clears progress.
+  function cancel() {
+    stopActiveRun();
+    setStageState(initialStageState());
   }
 
   return {
@@ -295,6 +341,7 @@ export function useAnalyzeForm() {
       clearCompany,
       reset,
       submit,
+      cancel,
     },
     // `githubLoading` lets the submit button block a resubmit while a GitHub run
     // is still in flight (it can outlive the main analysis), preventing a duplicate

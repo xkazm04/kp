@@ -9,7 +9,7 @@ import { useAnalyzeForm } from "./useAnalyzeForm";
 
 export function AnalyzeTab() {
   const state = useAnalyzeForm();
-  const { inputs, flags, result } = state;
+  const { inputs, flags, result, handlers } = state;
   const isAnalyzing = flags.isLoading || flags.isCompleting;
   const hasResult = result.analysis !== null;
 
@@ -40,6 +40,7 @@ export function AnalyzeTab() {
           complete={flags.isCompleting}
           fileName={inputs.cvFiles.length === 1 ? inputs.cvFiles[0].name : undefined}
           variantCount={inputs.cvFiles.length}
+          onCancel={handlers.cancel}
         />
       ) : null}
 
