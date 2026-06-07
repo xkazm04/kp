@@ -1,6 +1,6 @@
 import { getJob, lookupPromptCache, storePromptCache } from "./db";
 import { writeMatchInput, type MatchInputBody } from "./match-input";
-import { cleanupWorkdir, createWorkdir, parseStderrError, spawnPython } from "./python-runner";
+import { cleanupWorkdir, createWorkdir, parsePythonJson, parseStderrError, spawnPython } from "./python-runner";
 import { reasoningCacheKey } from "./reasoning-cache-key";
 import { isCacheableReasoning } from "./reasoning-cache-policy";
 
@@ -49,7 +49,11 @@ export async function runReasoning(body: ReasoningInput): Promise<Record<string,
       const err = parseStderrError(stderr, exitCode);
       throw new ReasoningError(err.message, err.status);
     }
-    const data = JSON.parse(stdout) as Record<string, unknown>;
+    // parsePythonJson, not raw JSON.parse (idea-37493de3): reasoning_cli invokes
+    // an LLM, and the interpreter can print shutdown chatter after the JSON line
+    // — a successful, PAID reasoning call must not throw here (and skip the
+    // cache!) because asyncio logged 'Event loop is closed'.
+    const data = parsePythonJson<Record<string, unknown>>(stdout, stderr);
     // Persist authoritative LLM verdicts only; a deterministic fallback is left
     // uncached so it is recomputed (and upgraded) the moment the provider returns.
     // See reasoning-cache-policy.ts for the full invalidation contract.

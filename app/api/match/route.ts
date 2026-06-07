@@ -3,6 +3,7 @@ import { writeMatchInput, type MatchInputBody } from "@/app/_lib/match-input";
 import {
   cleanupWorkdir,
   createWorkdir,
+  parsePythonJson,
   parseStderrError,
   spawnPython,
 } from "@/app/_lib/python-runner";
@@ -42,7 +43,11 @@ export async function POST(request: NextRequest) {
       const err = parseStderrError(stderr, exitCode);
       return NextResponse.json({ error: err.message }, { status: err.status });
     }
-    return NextResponse.json(JSON.parse(stdout));
+    // parsePythonJson, not raw JSON.parse (idea-37493de3): the CLIs can print
+    // stray non-JSON to stdout AFTER the result line (asyncio shutdown chatter,
+    // ResourceWarnings) — a successful match must not be reported as a 500
+    // because the interpreter logged a teardown notice.
+    return NextResponse.json(parsePythonJson<Record<string, unknown>>(stdout, stderr));
   } catch (error) {
     const message = error instanceof Error ? error.message : "Match failed.";
     return NextResponse.json({ error: message }, { status: 500 });
