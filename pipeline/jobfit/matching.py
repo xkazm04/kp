@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import json
 import re
+from functools import lru_cache
 from pathlib import Path
 from typing import Any, Literal
 
@@ -313,12 +314,23 @@ def score_career(candidate: MatchCandidate, job: Job) -> float:
 _WORD_RE = re.compile(r"[a-z0-9]+")
 
 
-def _term_in_words(term: str, desc_words: set[str]) -> bool:
+def _term_in_words(term: str, desc_words: frozenset[str] | set[str]) -> bool:
     """Whole-word containment: every alphanumeric word-part of ``term`` must appear
     as a standalone word in the description, never merely as a substring (so "Rust"
     no longer hits the "rust" inside "trust")."""
     parts = _WORD_RE.findall(term.casefold())
     return bool(parts) and all(part in desc_words for part in parts)
+
+
+@lru_cache(maxsize=512)
+def _description_words(description: str) -> frozenset[str]:
+    """Tokenize a job description once and reuse it across candidates
+    (idea-c749455b). ``score_personal`` runs once per (candidate, job) cell —
+    the matrix calls it N x M times — and the regex pass over long ad text was
+    its heaviest per-cell cost, recomputed identically for every candidate row.
+    Keyed by the description string itself (so an edited ad re-tokenizes); the
+    cache spans one CLI process, exactly the scope of a matrix/recruiter run."""
+    return frozenset(_WORD_RE.findall(description.casefold()))
 
 
 def score_personal(candidate: MatchCandidate, job: Job, *, embedder: Any | None = None) -> float:
@@ -342,7 +354,7 @@ def score_personal(candidate: MatchCandidate, job: Job, *, embedder: Any | None 
 
         overlap = semantic_overlap(" ".join(candidate.traits + candidate.skills), job.description or "", embedder)
     if overlap is None:
-        desc_words = set(_WORD_RE.findall((job.description or "").casefold()))
+        desc_words = _description_words(job.description or "")
         tokens = [t for t in (candidate.traits + candidate.skills) if len(t) > 3]
         hits = sum(1 for t in tokens if _term_in_words(t, desc_words))
         overlap = min(1.0, hits / 5.0)
