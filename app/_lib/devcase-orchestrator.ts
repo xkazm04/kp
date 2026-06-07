@@ -62,8 +62,11 @@ const MAX_LIFECYCLE_STEPS = STAGES.length;
 
 // Drive a lifecycle from its current stage as far as policy + readiness allow, stopping at a
 // human gate (awaiting_approval), at collecting (no submissions yet), or at promoted (done).
-export async function runLifecycle(id: string, progress?: Progress): Promise<{ stage: string; detail: string }> {
+export async function runLifecycle(id: string, progress?: Progress, signal?: AbortSignal): Promise<{ stage: string; detail: string }> {
   for (let step = 0; step < MAX_LIFECYCLE_STEPS; step += 1) {
+    // Stop advancing on cancel (the heaviest steps — analyze/design — also forward
+    // the signal so their Python child is killed; the loop break stops further stages).
+    if (signal?.aborted) return { stage: getLifecycle(id)?.stage ?? "unknown", detail: "canceled" };
     const lc = getLifecycle(id);
     if (!lc) throw new Error("lifecycle not found");
     const pct = (s: string) => progress?.(Math.max(0, STAGES.indexOf(s)), STAGES.length, s);
@@ -77,12 +80,12 @@ export async function runLifecycle(id: string, progress?: Progress): Promise<{ s
 
     if (lc.stage === "intake") {
       if (!lc.need) throw new Error("lifecycle has no need to analyze");
-      const { analysis } = await runNeedAnalysis(lc.need);
+      const { analysis } = await runNeedAnalysis(lc.need, signal);
       updateLifecycle(id, { stage: "analyzed", analysis, detail: "reality reflection done" });
       recordAudit({ lifecycleId: id, actor: "auto", action: "analyzed", reason: lc.title ?? undefined });
     } else if (lc.stage === "analyzed") {
       if (!lc.need) throw new Error("lifecycle has no need to design from");
-      const { role, case: kase } = await runDesignArtifacts(lc.need, lc.analysis ?? {});
+      const { role, case: kase } = await runDesignArtifacts(lc.need, lc.analysis ?? {}, signal);
       updateLifecycle(id, { stage: "designed", role, case: kase, detail: "role + assignment designed" });
       recordAudit({ lifecycleId: id, actor: "auto", action: "designed" });
     } else if (lc.stage === "designed") {

@@ -21,7 +21,7 @@ export class ReasoningError extends Error {
 export type ReasoningInput = MatchInputBody & { jobId?: string };
 
 // Shared core for /api/match/reasoning AND the background-task runner.
-export async function runReasoning(body: ReasoningInput): Promise<Record<string, unknown>> {
+export async function runReasoning(body: ReasoningInput, signal?: AbortSignal): Promise<Record<string, unknown>> {
   if (!body.jobId) throw new ReasoningError("jobId is required.", 400);
   let workdir: string | null = null;
   try {
@@ -43,7 +43,7 @@ export async function runReasoning(body: ReasoningInput): Promise<Record<string,
     const cached = lookupPromptCache(hash, REASONING_PROMPT_VERSION);
     if (cached) return { ...(cached as object), cached: true };
 
-    const { result } = spawnPython(args);
+    const { result } = spawnPython(args, { signal });
     const { stdout, stderr, exitCode } = await result;
     if (exitCode !== 0) {
       const err = parseStderrError(stderr, exitCode);

@@ -69,7 +69,7 @@ function readRecommendation(result: Record<string, unknown>, task: string): stri
   return coerceInterviewRecommendation(raw);
 }
 
-export async function runAutomationTask(entryId: string, task: string, notes = ""): Promise<AutomationResult> {
+export async function runAutomationTask(entryId: string, task: string, notes = "", signal?: AbortSignal): Promise<AutomationResult> {
   if (!(task in AUTOMATION_VERSION)) throw new AutomationError(`unknown task: ${task}`, 404);
   const entry = getPipelineEntry(entryId);
   if (!entry) throw new AutomationError("entry not found", 404);
@@ -128,7 +128,7 @@ export async function runAutomationTask(entryId: string, task: string, notes = "
         args.push("--notes-file", notesPath);
       }
 
-      const { result } = spawnPython(args);
+      const { result } = spawnPython(args, { signal });
       const { stdout, stderr, exitCode } = await result;
       if (exitCode !== 0) {
         const err = parseStderrError(stderr, exitCode);

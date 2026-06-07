@@ -161,7 +161,8 @@ const dimPercent = (c: PerCandidate, key: string): number | null =>
 // degrades to the score-only view, so a broken ranker never blocks a decision.
 async function rankCandidates(
   job: JobRecord,
-  pool: CandidatePoolEntry[]
+  pool: CandidatePoolEntry[],
+  signal?: AbortSignal
 ): Promise<{ rows: Map<string, RecruiterRow>; fairness: Fairness | null }> {
   if (pool.length === 0) return { rows: new Map(), fairness: null };
 
@@ -178,7 +179,7 @@ async function rankCandidates(
     // the embedding bridge for the personal/motivation dimension. Each fails open
     // to its deterministic twin (no key/provider → unchanged scores), and the
     // cheap candidate-list endpoint omits both and stays fully deterministic.
-    const { result } = spawnPython(["-m", "pipeline.jobfit.recruiter_cli", "--input-json", inputPath, "--job-json", jobPath, "--weights-llm", "--embeddings"]);
+    const { result } = spawnPython(["-m", "pipeline.jobfit.recruiter_cli", "--input-json", inputPath, "--job-json", jobPath, "--weights-llm", "--embeddings"], { signal });
     const { stdout, stderr, exitCode } = await result;
     if (exitCode !== 0) {
       const err = parseStderrError(stderr, exitCode);
@@ -200,6 +201,7 @@ async function runGroupCompare(
   roleTitle: string,
   candidates: PerCandidate[],
   roleSalaryBand: number[],
+  signal?: AbortSignal,
 ): Promise<{ comparison: Comparison; source: string } | null> {
   let workdir: string | null = null;
   try {
@@ -228,7 +230,7 @@ async function runGroupCompare(
     const inputPath = path.join(workdir, "compare.json");
     await writeFile(inputPath, JSON.stringify(context), "utf-8");
 
-    const { result } = spawnPython(["-m", "pipeline.jobfit.group_compare_cli", "--input-json", inputPath]);
+    const { result } = spawnPython(["-m", "pipeline.jobfit.group_compare_cli", "--input-json", inputPath], { signal });
     const { stdout, stderr, exitCode } = await result;
     if (exitCode !== 0) {
       const err = parseStderrError(stderr, exitCode);
@@ -245,7 +247,7 @@ async function runGroupCompare(
   }
 }
 
-export async function runGroupEval(params: Record<string, unknown>): Promise<Record<string, unknown>> {
+export async function runGroupEval(params: Record<string, unknown>, signal?: AbortSignal): Promise<Record<string, unknown>> {
   const roleKey = String(params.roleKey ?? "");
   const roleTitle = (params.roleTitle as string) ?? "the role";
   const jobId = params.jobId ? String(params.jobId) : null;
@@ -272,7 +274,7 @@ export async function runGroupEval(params: Record<string, unknown>): Promise<Rec
       const pool = input
         .map((c) => (c.candidateId ? poolEntryOf(c.candidateId, c.label, resolved.get(c.candidateId)) : null))
         .filter((e): e is CandidatePoolEntry => e !== null);
-      const ranked = await rankCandidates(job, pool);
+      const ranked = await rankCandidates(job, pool, signal);
       rows = ranked.rows;
       fairness = ranked.fairness;
     } catch (error) {
@@ -292,7 +294,7 @@ export async function runGroupEval(params: Record<string, unknown>): Promise<Rec
     input.map(async (c): Promise<{ reasoning: Reasoning; source: string | null }> => {
       if (!jobId || !c.candidateId) return { reasoning: {}, source: null };
       try {
-        const out = await runReasoning({ jobId, profileId: c.candidateId });
+        const out = await runReasoning({ jobId, profileId: c.candidateId }, signal);
         return { reasoning: (out.reasoning as Reasoning) ?? {}, source: String(out.source ?? "deterministic") };
       } catch {
         return { reasoning: {}, source: "deterministic" };
@@ -359,7 +361,7 @@ export async function runGroupEval(params: Record<string, unknown>): Promise<Rec
   const source = uniqueSources.size === 0 ? "deterministic" : uniqueSources.size === 1 && uniqueSources.has("llm") ? "llm" : uniqueSources.has("llm") ? "partial" : "deterministic";
 
   // AI head-to-head narrative (best-effort; deterministic one-liner is the fallback).
-  const compare = candidates.length ? await runGroupCompare(roleTitle, candidates, job?.salaryBand ?? []) : null;
+  const compare = candidates.length ? await runGroupCompare(roleTitle, candidates, job?.salaryBand ?? [], signal) : null;
 
   const deterministicSummary = top
     ? `${candidates.length} candidate(s) for ${roleTitle}. Recommended lead: ${top.label} (fit ${top.score}). ${

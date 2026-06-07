@@ -55,7 +55,7 @@ export type NeedAnalysisResult = {
 };
 
 // D2 core: pull the real codebase(s), then reflect the need against them (LLM + fallback).
-export async function runNeedAnalysis(need: DevNeed): Promise<NeedAnalysisResult> {
+export async function runNeedAnalysis(need: DevNeed, signal?: AbortSignal): Promise<NeedAnalysisResult> {
   const ghRefs = (need.codebaseRefs ?? [])
     .filter((r) => r.kind === "github" || /github\.com/.test(r.ref))
     .slice(0, MAX_CODEBASES);
@@ -73,7 +73,7 @@ export async function runNeedAnalysis(need: DevNeed): Promise<NeedAnalysisResult
       await writeFile(snapPath, JSON.stringify(snapshots), "utf-8");
       args.push("--snapshots-json", snapPath);
     }
-    const { result } = spawnPython(args);
+    const { result } = spawnPython(args, { signal });
     const { stdout, stderr, exitCode } = await result;
     if (exitCode !== 0) throw new PipelineError(parseStderrError(stderr, exitCode));
     const payload = parsePythonJson<{ result: Record<string, unknown>; source: string; perStepSources?: Record<string, string>; fallbackReason?: Record<string, string> }>(stdout, stderr);
@@ -92,22 +92,25 @@ export type DesignArtifactsResult = {
 };
 
 // D3 core: design a RoleSpec + a CaseScenario (covert tooling-probes) from the need + analysis.
-export async function runDesignArtifacts(need: DevNeed, analysis: Record<string, unknown>): Promise<DesignArtifactsResult> {
+export async function runDesignArtifacts(need: DevNeed, analysis: Record<string, unknown>, signal?: AbortSignal): Promise<DesignArtifactsResult> {
   const workdir = await createWorkdir();
   try {
     const needPath = path.join(workdir, "need.json");
     const analysisPath = path.join(workdir, "analysis.json");
     await writeFile(needPath, JSON.stringify(need), "utf-8");
     await writeFile(analysisPath, JSON.stringify(analysis), "utf-8");
-    const { result } = spawnPython([
-      "-m",
-      "pipeline.jobfit.devcase.devcase_cli",
-      "design-artifacts",
-      "--need-json",
-      needPath,
-      "--analysis-json",
-      analysisPath,
-    ]);
+    const { result } = spawnPython(
+      [
+        "-m",
+        "pipeline.jobfit.devcase.devcase_cli",
+        "design-artifacts",
+        "--need-json",
+        needPath,
+        "--analysis-json",
+        analysisPath,
+      ],
+      { signal },
+    );
     const { stdout, stderr, exitCode } = await result;
     if (exitCode !== 0) throw new PipelineError(parseStderrError(stderr, exitCode));
     const payload = parsePythonJson<{ result: { role: Record<string, unknown>; case: Record<string, unknown> }; source: string; perStepSources?: Record<string, string>; fallbackReason?: Record<string, string> }>(stdout, stderr);
@@ -356,7 +359,7 @@ export type CommitReflectionResult = {
 
 // D5 core: pull the submission repo's git trace, then reflect ("where they mentally
 // went") + assess tooling against the case's covert probes.
-export async function runCommitReflection(repoRef: string, caseId?: string): Promise<CommitReflectionResult> {
+export async function runCommitReflection(repoRef: string, caseId?: string, signal?: AbortSignal): Promise<CommitReflectionResult> {
   const signals = await fetchRepoSignals(repoRef);
   const commits = signals?.commits ?? [];
   const repo = signals ? { cadence: signals.cadence, topLevel: signals.topLevel } : null;
@@ -375,7 +378,7 @@ export async function runCommitReflection(repoRef: string, caseId?: string): Pro
       await writeFile(repoPath, JSON.stringify(repo), "utf-8");
       args.push("--repo-json", repoPath);
     }
-    const { result } = spawnPython(args);
+    const { result } = spawnPython(args, { signal });
     const { stdout, stderr, exitCode } = await result;
     if (exitCode !== 0) throw new PipelineError(parseStderrError(stderr, exitCode));
     const payload = parsePythonJson<{ result: { reflection: Record<string, unknown>; tooling: Record<string, unknown> }; source: string; perStepSources?: Record<string, string>; fallbackReason?: Record<string, string> }>(stdout, stderr);
@@ -411,7 +414,7 @@ export type SubmissionEvaluation = {
 
 // D6 core: the full incoming-evaluation chain for one submission — trace -> reflect +
 // tooling -> CaseEvaluation -> TransferAssessment. Persists the result on the submission.
-export async function runEvaluateSubmission(submissionId: string): Promise<SubmissionEvaluation> {
+export async function runEvaluateSubmission(submissionId: string, signal?: AbortSignal): Promise<SubmissionEvaluation> {
   const sub = getSubmission(submissionId);
   if (!sub) throw new Error("submission not found");
   if (!sub.repoRef) throw new Error("submission has no repo");
@@ -451,7 +454,7 @@ export async function runEvaluateSubmission(submissionId: string): Promise<Submi
     ];
     if (repo) args.push("--repo-json", await write("repo.json", repo));
 
-    const { result } = spawnPython(args);
+    const { result } = spawnPython(args, { signal });
     const { stdout, stderr, exitCode } = await result;
     if (exitCode !== 0) throw new PipelineError(parseStderrError(stderr, exitCode));
     const payload = parsePythonJson<{

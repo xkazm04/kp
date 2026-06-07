@@ -32,12 +32,12 @@ export async function runMarketSalary(input: {
   roleFamily: string;
   company?: string;
   stack?: string[];
-}): Promise<{ result: MarketSalary; sources: string[]; source: string }> {
+}, signal?: AbortSignal): Promise<{ result: MarketSalary; sources: string[]; source: string }> {
   const workdir = await createWorkdir();
   try {
     const p = path.join(workdir, "salary.json");
     await writeFile(p, JSON.stringify(input), "utf-8");
-    const { result } = spawnPython(["-m", "pipeline.jobfit.market_salary_cli", "--input-json", p]);
+    const { result } = spawnPython(["-m", "pipeline.jobfit.market_salary_cli", "--input-json", p], { signal });
     const { stdout, stderr, exitCode } = await result;
     if (exitCode !== 0) throw new Error(parseStderrError(stderr, exitCode).message);
     // The CLI payload is untrusted — parsePythonJson hands back whatever the
@@ -99,7 +99,7 @@ function composeMarkdown(role: RoleSpec, opts: { company?: string; location?: st
 
 type Progress = (done: number, total: number, msg?: string) => void;
 
-export async function runJdBuild(params: Record<string, unknown>, progress?: Progress): Promise<Record<string, unknown>> {
+export async function runJdBuild(params: Record<string, unknown>, progress?: Progress, signal?: AbortSignal): Promise<Record<string, unknown>> {
   const input = params as unknown as JdBuildInput;
   // Enforce the minimum-need contract HERE, not just in the form gate: a deep-link
   // /simulation prefill or a programmatic startTask reaches this handler directly,
@@ -123,9 +123,9 @@ export async function runJdBuild(params: Record<string, unknown>, progress?: Pro
   progress?.(0, 2, "Analyzing the need and researching market salary…");
   const [design, salary] = await Promise.all([
     (async () => {
-      const { analysis, snapshot } = await runNeedAnalysis(need);
+      const { analysis, snapshot } = await runNeedAnalysis(need, signal);
       progress?.(1, 2, "Designing the role from the need…");
-      const { role } = await runDesignArtifacts(need, analysis);
+      const { role } = await runDesignArtifacts(need, analysis, signal);
       return { role: role as RoleSpec, snapshot };
     })(),
     runMarketSalary({
@@ -134,7 +134,7 @@ export async function runJdBuild(params: Record<string, unknown>, progress?: Pro
       roleFamily: input.roleFamily || "software_engineering",
       company: input.company,
       stack: need.responsibilities ?? [],
-    }),
+    }, signal),
   ]);
   const spec = design.role;
   const snapshot = design.snapshot;

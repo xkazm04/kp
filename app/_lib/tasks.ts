@@ -64,7 +64,7 @@ async function batchScreen(ctx: TaskCtx): Promise<unknown> {
   for (const e of entries) {
     if (ctx.signal.aborted) break;
     try {
-      const out = await runAutomationTask(e.id, "screen");
+      const out = await runAutomationTask(e.id, "screen", "", ctx.signal);
       if (out.applied === "advanced") summary.advanced += 1;
       else if (out.applied === "held_for_review") summary.held += 1;
       else summary.advisory += 1;
@@ -78,11 +78,11 @@ async function batchScreen(ctx: TaskCtx): Promise<unknown> {
 
 const HANDLERS: Record<string, Spec> = {
   automation: {
-    run: (ctx) => runAutomationTask(String(ctx.params.entryId), String(ctx.params.task), String(ctx.params.notes ?? "")),
+    run: (ctx) => runAutomationTask(String(ctx.params.entryId), String(ctx.params.task), String(ctx.params.notes ?? ""), ctx.signal),
     label: (p) => `${p.task} · ${p.entryLabel ?? p.entryId}`,
   },
   reasoning: {
-    run: (ctx) => runReasoning(ctx.params),
+    run: (ctx) => runReasoning(ctx.params, ctx.signal),
     label: (p) => `Why this candidate · ${p.label ?? p.jobId}`,
   },
   batch_screen: {
@@ -97,31 +97,31 @@ const HANDLERS: Record<string, Spec> = {
     },
   },
   need_analysis: {
-    run: (ctx) => runNeedAnalysis(ctx.params.need as DevNeed),
+    run: (ctx) => runNeedAnalysis(ctx.params.need as DevNeed, ctx.signal),
     label: (p) => `Need analysis · ${(p.need as { title?: string })?.title || "untitled"}`,
   },
   design_artifacts: {
-    run: (ctx) => runDesignArtifacts(ctx.params.need as DevNeed, (ctx.params.analysis as Record<string, unknown>) ?? {}),
+    run: (ctx) => runDesignArtifacts(ctx.params.need as DevNeed, (ctx.params.analysis as Record<string, unknown>) ?? {}, ctx.signal),
     label: (p) => `Design artifacts · ${(p.need as { title?: string })?.title || "untitled"}`,
   },
   commit_reflection: {
-    run: (ctx) => runCommitReflection(String(ctx.params.repoRef), ctx.params.caseId ? String(ctx.params.caseId) : undefined),
+    run: (ctx) => runCommitReflection(String(ctx.params.repoRef), ctx.params.caseId ? String(ctx.params.caseId) : undefined, ctx.signal),
     label: (p) => `Commit reflection · ${p.candidateRef ?? p.repoRef ?? ""}`,
   },
   evaluate_submission: {
-    run: (ctx) => runEvaluateSubmission(String(ctx.params.submissionId)),
+    run: (ctx) => runEvaluateSubmission(String(ctx.params.submissionId), ctx.signal),
     label: (p) => `Evaluate · ${p.candidateRef ?? p.submissionId ?? ""}`,
   },
   lifecycle: {
-    run: (ctx) => runLifecycle(String(ctx.params.lifecycleId), ctx.progress),
+    run: (ctx) => runLifecycle(String(ctx.params.lifecycleId), ctx.progress, ctx.signal),
     label: (p) => `Lifecycle · ${p.title ?? p.lifecycleId ?? ""}`,
   },
   group_eval: {
-    run: (ctx) => runGroupEval(ctx.params),
+    run: (ctx) => runGroupEval(ctx.params, ctx.signal),
     label: (p) => `Group evaluation · ${p.roleTitle ?? p.roleKey ?? ""}`,
   },
   jd_build: {
-    run: (ctx) => runJdBuild(ctx.params, ctx.progress),
+    run: (ctx) => runJdBuild(ctx.params, ctx.progress, ctx.signal),
     label: (p) => `Build JD · ${p.title ?? "role"}`,
   },
   interview_prep: {
