@@ -26,9 +26,27 @@ INTERVIEW_SCENARIO_PROMPT_VERSION = "interview-scenario-v1"
 
 # The shared skeleton — also imported by app/_lib/student-interview.ts, so the
 # phase structure can never drift between the generator and the agent brief.
-_SCRIPT: dict[str, Any] = json.loads(
-    (Path(__file__).resolve().parents[1] / "interview-script.json").read_text(encoding="utf-8")
-)
+def _load_script() -> dict[str, Any]:
+    path = Path(__file__).resolve().parents[1] / "interview-script.json"
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        # A missing/corrupt asset used to surface as a raw FileNotFoundError /
+        # JSONDecodeError at import time (before any CLI try/except) → an opaque 500.
+        # The skeleton is required — the "never fails" deterministic fallback also
+        # reads its phases — so there's no safe silent default; raise a legible,
+        # actionable error instead of a stack-trace-ish one.
+        raise RuntimeError(
+            f"interview-scenario skeleton missing or invalid at {path} "
+            f"({type(exc).__name__}: {exc}). This shared asset (also read by the TS "
+            "brief renderer) is required for the interview-scenario command."
+        ) from exc
+    if not isinstance(data.get("phases"), list) or not data["phases"]:
+        raise RuntimeError(f"interview-scenario skeleton at {path} has no non-empty 'phases' array.")
+    return data
+
+
+_SCRIPT: dict[str, Any] = _load_script()
 
 # Keep the narrated intro tight — roughly two minutes of speech.
 _INTRO_MAX = 600
