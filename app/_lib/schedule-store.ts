@@ -272,33 +272,7 @@ export function markReminderSent(id: string): void {
   db().prepare(`UPDATE schedule_invites SET reminder_sent_at = ? WHERE id = ?`).run(new Date().toISOString(), id);
 }
 
-const TIMES = ["10:00", "14:00"];
-const DOW = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-const MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-
-/** Propose the next few business-day interview slots, skipping ones already
- *  taken (by ISO `value`, the same identity `bookedSlots()` returns). `value` is
- *  the slot's ISO datetime (used for timed reminders + collision checks); `label`
- *  is the human-readable time shown to the candidate. */
-export function proposeSlots(taken: string[] = [], count = 6): { value: string; label: string }[] {
-  const out: { value: string; label: string }[] = [];
-  const takenSet = new Set(taken);
-  const base = new Date();
-  for (let day = 1; day <= 21 && out.length < count; day += 1) {
-    const dt = new Date(base);
-    dt.setDate(base.getDate() + day);
-    const dow = dt.getDay();
-    if (dow === 0 || dow === 6) continue; // skip weekends
-    for (const t of TIMES) {
-      const [h, m] = t.split(":").map(Number);
-      const slot = new Date(dt);
-      slot.setHours(h, m, 0, 0);
-      const value = slot.toISOString();
-      const label = `${DOW[dow]} ${slot.getDate()} ${MON[slot.getMonth()]} · ${t}`;
-      if (takenSet.has(value)) continue;
-      out.push({ value, label });
-      if (out.length >= count) break;
-    }
-  }
-  return out;
-}
+// Slot proposal + structural validation live in schedule-slots.ts (pure, no
+// DB, unit-testable) so the confirm-side validation (idea-e05aedfb) and the
+// proposal can never drift apart. This store keeps only the persistence side
+// (bookedSlots/confirmScheduleInvite are the collision authority).

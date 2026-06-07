@@ -6,9 +6,9 @@ import {
   confirmScheduleInvite,
   getScheduleInviteByToken,
   markScheduleInviteNeedsReconcile,
-  proposeSlots,
   type ScheduleInvite,
 } from "@/app/_lib/schedule-store";
+import { offeredSlotFor, proposeSlots } from "@/app/_lib/schedule-slots";
 import { logScheduleReconcile } from "@/app/_lib/logger";
 import { jsonOk, safeJsonError } from "@/app/_lib/api-response";
 import { isShortNoticeBooking } from "@/app/_lib/interview-reminder-policy";
@@ -50,10 +50,19 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
     if (!invite) return NextResponse.json({ error: "not found" }, { status: 404 });
     if (invite.status === "confirmed") return jsonOk({ ok: true, invite: publicInviteView(invite) });
 
-    const slot = (body.slot ?? "").trim();
-    if (!slot) return NextResponse.json({ error: "slot is required" }, { status: 400 });
+    // Only a slot the server itself would offer is bookable (idea-e05aedfb):
+    // the handler used to trust body.slot/body.slotAt verbatim, letting a token
+    // holder book a 3am-Sunday/past time and inject arbitrary label text into
+    // the confirmation + reminder EMAILS and the recruiter activity feed. The
+    // submitted time is validated structurally and the label is RE-DERIVED
+    // server-side — the client's body.slot is ignored entirely.
+    const offered = offeredSlotFor(body.slotAt);
+    if (!offered) {
+      return NextResponse.json({ error: "That time isn't one of the offered slots — please pick from the list." }, { status: 400 });
+    }
+    const slot = offered.label;
 
-    const result = confirmScheduleInvite(token, slot, body.slotAt ?? null);
+    const result = confirmScheduleInvite(token, slot, offered.value);
     if (!result.ok) {
       if (result.reason === "taken") {
         // Another candidate confirmed this exact time between page load and submit.
