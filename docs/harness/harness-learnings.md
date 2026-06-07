@@ -1,6 +1,11 @@
 # kp — harness learnings
 
 ## Structural facts
+- **2026-06-07 (run #3)** — The `expectedStage` CAS on `actOnPipelineEntry` is now passed by ALL THREE destructive batch/snapshot callers: the automation pass (run #2), `runScreenWave`, and the Decisions UI (via `POST /api/pipeline/[id]` body `expectedStage` → 409 + fresh entry on mismatch). Any NEW caller that decides from a snapshot must pass it too — grep `actOnPipelineEntry(` when adding decision surfaces.
+- **2026-06-07 (run #3)** — Python stdout MUST be parsed with `parsePythonJson(stdout, stderr)` (python-runner), never raw `JSON.parse`: the CLIs print asyncio/ResourceWarning chatter after the JSON line. All spawn sites now comply (match, reasoning-run, matrix, group-eval, automation).
+- **2026-06-07 (run #3)** — Matrix perf model: ONE batched Python spawn (good by design), now content-address-cached in `app/api/matrix/route.ts` (sha1 of the exact profiles/jobs JSON — profiles/jobs tables have NO updated_at, so content hashing is the only edit-safe key). JD tokenization memoized per description (`matching._description_words`, lru_cache). Group-eval: reasoning spawns parallelized (cap 6 = concurrency bound), candidate rows resolved once and shared.
+- **2026-06-07 (run #3)** — `getJobsByIds` (db.ts) is the batched IN-query twin of `getJob`; prefer it for any multi-id job lookup.
+- **2026-06-07 (run #3)** — TOOLING GOTCHA: writing a raw NUL character (U+0000) into a source file makes git classify it as binary (and bash refuses NUL in command args). Use the `backslash-u0000` escape sequence in string literals; commit messages via `git commit -F <file>`.
 - **2026-06-07 (run #2)** — Pipeline write-concurrency model: `actOnPipelineEntry` is the single stage-transition authority and now runs read→write in an IMMEDIATE transaction with an optional `expectedStage` CAS; the automation pass passes its snapshot stage so stale Python-hop decisions no-op. Pass-level overlap is contained by in-process single-flight in `automation-pass.ts` (`claimDueRun` only guards the clock path). `app/_lib/db.ts`, `app/_lib/automation-pass.ts`.
 - **2026-06-07 (run #2)** — Offer lifecycle invariants: at most one open offer per entry (partial unique index `uq_offers_open_entry` + transactional `getOrCreateOpenOffer`); offer-response side effects (onboarding dispatch, Hired transition) belong exclusively to the `markOfferResponded` CAS winner (`{offer, claimed}` contract). `app/_lib/offers-store.ts`, `offer-finalize.ts`.
 - **2026-06-07 (run #2)** — Activity feed contract: `/api/pipeline/events` serves a PUBLIC projection (initials, no entryId/archetype — `pipeline-events-public.ts`) and a loss-free cursor (`?since=<id>`, AUTOINCREMENT pk as cursor, oldest-first bounded). PipelineTab keeps the cursor in a ref.
@@ -26,6 +31,10 @@
 - Page-level guards standing in for API guards: the portal page blocked *rendering* a completed session while `/connect` happily reopened it (idea-836e08d8).
 - Scoring before persisting: any side-effecting step (approvals, skill minting) ordered before the durable artifact write produces phantom state on partial failure (idea-55fd89f9).
 - An `else` catch-all on a parsed-event union: adding a new event kind silently misroutes through the old `else` (VoiceInterview's `handleOaiEvent` had to switch to explicit kinds when the parser grew).
+
+## Open follow-ups (from Pipeline C run #3, 2026-06-07)
+- The decisions/match/matrix routes still return raw `error.message` on their catch paths (`/api/decisions/config|group-eval|screen-wave`, `/api/match`, `/api/match/reasoning`, `/api/matrix`) — the safeJsonError sweep covered interview/pipeline/schedule/offer only. Same low-risk conversion + hygiene-test pattern when next touched.
+- The matrix cache is single-entry and in-process (same caveat as the rate limiter): fine for one server process, swap the store if kp scales out.
 
 ## Open follow-ups (from Pipeline C run #2, 2026-06-07)
 - The Activity feed shows initials-only until an auth layer lands (idea-4c41d103 tradeoff): full candidate names on the feed are blocked on the same app-wide auth decision as the rejected ccb4d851. When auth ships, add an authenticated full-detail mode to `/api/pipeline/events`.
