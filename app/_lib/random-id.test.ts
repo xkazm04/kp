@@ -16,10 +16,15 @@ test("randomId: '<prefix>-<base36 time>-<random>' shape", () => {
   assert.match(parts[2], /^[0-9a-z]*$/); // up to 6 base36 random chars
 });
 
-test("randomToken: '<prefix>-<base36 random>' shape", () => {
+test("randomToken: '<prefix>-<32 base64url CSPRNG chars>' shape", () => {
   const token = randomToken("tk");
   assert.ok(token.startsWith("tk-"));
-  assert.match(token.slice("tk-".length), /^[0-9a-z]*$/);
+  const body = token.slice("tk-".length);
+  // 24 CSPRNG bytes -> exactly 32 unpadded base64url chars. Pinning length + the
+  // base64url charset guards against a regression to the old short Math.random()
+  // token (which was non-crypto, lowercase base36, and predictable).
+  assert.equal(body.length, 32);
+  assert.match(body, /^[A-Za-z0-9_-]+$/);
 });
 
 test("ids and tokens are distinct across calls", () => {

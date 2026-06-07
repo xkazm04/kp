@@ -135,6 +135,7 @@ export async function runLifecycle(id: string, progress?: Progress): Promise<{ s
       // pipeline at the Accepted stage — so the role finds candidates, not only waits for them.
       let sourced = 0;
       let skipped = 0;
+      let sourcingError: string | null = null;
       try {
         const roleTitle = lc.role?.title ?? lc.title ?? "Dev case";
         const outcome = await runSourceForRole(lc.role ?? {});
@@ -153,33 +154,61 @@ export async function runLifecycle(id: string, progress?: Progress): Promise<{ s
           });
           sourced += 1;
         }
-      } catch {
-        /* sourcing is best-effort — never block publishing */
+      } catch (err) {
+        // Sourcing is best-effort — never block publishing — but record the failure so a real
+        // crash (e.g. the matching bridge threw) is distinguishable from a legitimately empty
+        // result, instead of hiding behind a benign-looking "sourced 0 candidate(s)".
+        sourcingError = err instanceof Error ? err.message : String(err);
+        recordAudit({ lifecycleId: id, actor: "system", action: "sourcing_failed", reason: sourcingError, ref: posting.id });
       }
-      // Note unparseable candidates in the detail so "sourced 0" reads as "nobody qualified",
-      // not "the pool silently failed to load".
+      // Note unparseable candidates in the detail so "sourced 0" reads as "nobody
+      // qualified", not "the pool silently failed to load" — and a real sourcing
+      // CRASH stays distinguishable from a legitimately empty result.
       const skippedNote = skipped > 0 ? `; ${skipped} candidate(s) skipped (unparseable)` : "";
+      const sourcedDetail = sourcingError
+        ? `published${scenarioNote}; sourced ${sourced} candidate(s) before sourcing failed (${sourcingError}); awaiting submissions`
+        : `published${scenarioNote}; sourced ${sourced} candidate(s) into the pipeline${skippedNote}; awaiting submissions`;
       updateLifecycle(id, {
         stage: "collecting",
         postingId: posting.id,
-        detail: `published${scenarioNote}; sourced ${sourced} candidate(s) into the pipeline${skippedNote}; awaiting submissions`,
+        detail: sourcedDetail,
       });
-      recordAudit({ lifecycleId: id, actor: "auto", action: "published", reason: `sourced ${sourced} into pipeline`, ref: posting.id });
+      recordAudit({
+        lifecycleId: id,
+        actor: "auto",
+        action: "published",
+        reason: sourcingError ? `sourcing failed after ${sourced} (${sourcingError})` : `sourced ${sourced} into pipeline`,
+        ref: posting.id,
+      });
     } else if (lc.stage === "collecting") {
       const subs = lc.postingId ? listSubmissions(lc.postingId) : [];
       if (subs.length === 0) return { stage: "collecting", detail: "awaiting submissions" };
       const todo = subs.filter((s) => !s.evaluation);
       let done = 0;
+      let failed = 0;
       for (const s of todo) {
         try {
           await runEvaluateSubmission(s.id);
-        } catch {
-          /* keep going; a failed eval shouldn't block the batch */
+        } catch (err) {
+          // Keep going; a failed eval shouldn't block the batch — but record it so a crash is
+          // distinguishable from a legitimately unscored submission, and count it for the detail.
+          failed += 1;
+          recordAudit({
+            lifecycleId: id,
+            actor: "system",
+            action: "eval_failed",
+            reason: err instanceof Error ? err.message : String(err),
+            ref: s.id,
+          });
         }
         progress?.(STAGES.indexOf("collecting"), STAGES.length, `evaluating ${++done}/${todo.length}`);
       }
-      updateLifecycle(id, { stage: "ranked", detail: `evaluated ${subs.length} submission(s)` });
-      recordAudit({ lifecycleId: id, actor: "auto", action: "evaluated", reason: `${subs.length} submission(s)` });
+      const evalDetail =
+        failed > 0
+          ? `evaluated ${todo.length - failed}, ${failed} failed (of ${subs.length} submission(s))`
+          : `evaluated ${subs.length} submission(s)`;
+      updateLifecycle(id, { stage: "ranked", detail: evalDetail });
+      recordAudit({ lifecycleId: id, actor: "auto", action: "evaluated", reason: evalDetail });
     } else if (lc.stage === "ranked") {
       // Floor is calibration-adjustable (Direction E): a human applies an outcome-driven
       // suggestion via dev_control; we fall back to the DEV_POLICY default when unset.

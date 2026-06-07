@@ -276,11 +276,20 @@ def role_band(family: str, seniority: str) -> tuple[int, int] | None:
     return None
 
 
-def detected_skills(text: str, limit: int = 40) -> list[str]:
+# Default cap on the skill surface-forms returned by ``detected_skills``.
+# Generous by design: the list only *seeds* Gemini's extraction (which wins),
+# so it errs toward recall. Callers feeding a size-sensitive prompt may pass a
+# smaller ``limit`` (see ``DETECTED_SKILLS_PREPASS_LIMIT`` in pipeline.py).
+DEFAULT_DETECTED_SKILLS_LIMIT = 40
+
+
+def detected_skills(text: str, limit: int = DEFAULT_DETECTED_SKILLS_LIMIT) -> list[str]:
     """Surface forms of skill terms present in ``text``.
 
     Used by the deterministic pre-pass to give Gemini a starting list it can
-    confirm or correct. Not authoritative — Gemini's extraction wins.
+    confirm or correct. Not authoritative — Gemini's extraction wins. The list
+    is capped at ``limit`` (default ``DEFAULT_DETECTED_SKILLS_LIMIT``); the cap
+    bounds prompt size and is not surfaced to the user, so no "+N more" applies.
     """
     text_n = _normalize(text)
     compact = _compact(text_n)

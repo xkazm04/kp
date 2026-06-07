@@ -7,6 +7,31 @@ from .models import KeywordCoverage, KeywordHit, KeywordStatus
 from .taxonomy import skill_keyword_pool
 
 
+# --- Display caps -----------------------------------------------------------
+# The keyword breakdown feeds a side panel, not an exhaustive table, so each
+# list is capped before it leaves the pipeline. These are presentation limits,
+# NOT analysis limits: ``coverage_percent`` is always computed over the *full*
+# hit set (see ``evaluate_keyword_coverage``), and the pre-truncation totals
+# travel alongside each list (``KeywordCoverage.*_total``) so the UI can show a
+# "+N more" affordance instead of silently presenting a capped list as complete.
+MAX_KEYWORD_HITS = 24       # matched/missing terms shown, most JD-relevant first
+MAX_MISSING_KEYWORDS = 12   # "add these to your CV" gaps shown
+MAX_OVER_USED_KEYWORDS = 6  # possible keyword-stuffing flags shown
+
+# --- Keyword-stuffing threshold ---------------------------------------------
+# A term is flagged ``over_used`` when it appears in the CV far more often than
+# the job description warrants — the recruiter-visible "keyword stuffing"
+# signal. This is a product decision, so it lives here as named constants rather
+# than a bare literal. BOTH conditions must hold for a flag:
+#   * the term occurs at least KEYWORD_STUFFING_MIN_CV_OCCURRENCES times in the
+#     CV (so a term used once or twice is never flagged), AND
+#   * it occurs more than KEYWORD_STUFFING_JD_RATIO times its JD frequency (so
+#     heavy use is only flagged when it clearly outstrips real JD demand).
+# Raise either value to flag fewer terms; lower it to flag more.
+KEYWORD_STUFFING_MIN_CV_OCCURRENCES = 6
+KEYWORD_STUFFING_JD_RATIO = 3
+
+
 def evaluate_keyword_coverage(
     candidate_text: str,
     job_description_text: str,
@@ -43,22 +68,30 @@ def evaluate_keyword_coverage(
 
     return KeywordCoverage(
         coverage_percent=coverage_percent,
-        hits=hits[:24],
-        missing=missing[:12],
-        over_used=over_used[:6],
+        hits=hits[:MAX_KEYWORD_HITS],
+        missing=missing[:MAX_MISSING_KEYWORDS],
+        over_used=over_used[:MAX_OVER_USED_KEYWORDS],
+        # Pre-truncation totals so a capped list isn't misread as the full set.
+        hits_total=len(hits),
+        missing_total=len(missing),
+        over_used_total=len(over_used),
     )
 
 
 def _keyword_status(matched: bool, in_jd: int, in_cv: int) -> KeywordStatus:
     """Resolve a single per-keyword coverage state.
 
-    ``over_used`` is the one place the keyword-stuffing threshold lives: a
+    ``over_used`` applies the keyword-stuffing threshold (documented on
+    ``KEYWORD_STUFFING_MIN_CV_OCCURRENCES`` / ``KEYWORD_STUFFING_JD_RATIO``): a
     keyword present in the CV far more often than the JD demands. It implies
     ``matched`` (the term is present), so callers treat it as covered.
     """
     if not matched:
         return "missing"
-    if in_cv >= 6 and in_cv > in_jd * 3:
+    if (
+        in_cv >= KEYWORD_STUFFING_MIN_CV_OCCURRENCES
+        and in_cv > in_jd * KEYWORD_STUFFING_JD_RATIO
+    ):
         return "over_used"
     return "matched"
 

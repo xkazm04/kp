@@ -49,6 +49,12 @@ ProgressCallback = Callable[[str, str], None]
 
 _T = TypeVar("_T")
 
+# Cap on the deterministic skill list fed into the Gemini prompt as a hint.
+# Set below the taxonomy default (``DEFAULT_DETECTED_SKILLS_LIMIT`` = 40) to
+# bound prompt size. No "+N more" indicator: this is an internal LLM hint, not a
+# user-facing "complete" list, and Gemini's extraction supersedes it.
+DETECTED_SKILLS_PREPASS_LIMIT = 30
+
 
 def _softly(label: str, fn: Callable[[], _T | None], notes: list[str]) -> _T | None:
     """Run an optional, best-effort insight add-on.
@@ -763,7 +769,7 @@ def _build_deterministic_evidence(
     """
     cleaned = clean_text(raw_text)
     signals = detected_signals(cleaned)
-    skills_found = detected_skills(cleaned, limit=30)
+    skills_found = detected_skills(cleaned, limit=DETECTED_SKILLS_PREPASS_LIMIT)
 
     role_family = classify_role_family([], cleaned)
 

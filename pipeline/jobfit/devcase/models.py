@@ -244,6 +244,12 @@ class CaseEvaluation(_Base):
     dimensions: list[DimensionScore] = Field(default_factory=list)
     strengths: list[str] = Field(default_factory=list)
     concerns: list[str] = Field(default_factory=list)
+    # Deliberate empty-state flag (serialized as `hasFindings`). True when the evaluator
+    # produced any strengths/concerns, False when it intentionally produced none — so the UI
+    # renders a real empty state instead of a bare em-dash bullet that reads as a render bug.
+    # evaluate.py emits this on both the LLM and deterministic paths; declared here so the
+    # model stays the source of truth and round-trips it (mirrors DevTypes.ts CaseEval.hasFindings).
+    has_findings: bool = False
     summary: str = ""
     commit_reflection: CommitReflection | None = None
     tooling_signal: ToolingSignal | None = None
@@ -256,6 +262,12 @@ class TransferAssessment(_Base):
     transfer_score: int = 0  # 0..100
     transfers: list[str] = Field(default_factory=list)
     gaps: list[str] = Field(default_factory=list)
+    # Deliberate empty-state flag (serialized as `hasTransfers`). True when at least one
+    # transfer was found, False when the evaluator intentionally produced none — so the UI
+    # shows a real empty state, not a stray em-dash. score_transfer emits this on both the LLM
+    # and deterministic paths; declared here so the model stays the source of truth and
+    # round-trips it (mirrors DevTypes.ts Transfer.hasTransfers).
+    has_transfers: bool = False
     role_fit_rationale: str = ""
     prompt_version: str = ""
 

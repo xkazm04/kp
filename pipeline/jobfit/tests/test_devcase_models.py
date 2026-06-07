@@ -66,6 +66,8 @@ class TestDevCaseModels(unittest.TestCase):
         ev = CaseEvaluation(
             dimension_scores={"tooling": 80},
             dimensions=[DimensionScore(name="tooling", label="Tooling fluency", weight=0.25, score=80, description="x")],
+            strengths=["Shows verification habits"],
+            has_findings=True,
             commit_reflection=CommitReflection(narrative="explored then narrowed", read_before_write=0.7),
             tooling_signal=ToolingSignal(fluency=0.8, probe_outcomes=[ProbeOutcome(probe_id="p1", detected=True, handled_well=True)]),
         )
@@ -74,9 +76,14 @@ class TestDevCaseModels(unittest.TestCase):
         self.assertEqual(dumped["dimensions"][0]["label"], "Tooling fluency")
         self.assertEqual(dumped["commitReflection"]["readBeforeWrite"], 0.7)
         self.assertTrue(dumped["toolingSignal"]["probeOutcomes"][0]["handledWell"])
+        # the deliberate empty-state flag is declared on the model and round-trips via its alias
+        self.assertTrue(dumped["hasFindings"])
         restored = CaseEvaluation.model_validate(dumped)
         self.assertEqual(restored.tooling_signal.fluency, 0.8)
         self.assertEqual(restored.dimensions[0].weight, 0.25)
+        self.assertTrue(restored.has_findings)
+        # defaults False so an evaluation with no findings serializes a real empty state
+        self.assertFalse(CaseEvaluation().model_dump(by_alias=True)["hasFindings"])
 
     def test_canonical_rubric_is_ordered_and_normalized(self):
         # Single source of truth: five capabilities, in order, weights summing to 1.0, each labelled.
@@ -85,9 +92,15 @@ class TestDevCaseModels(unittest.TestCase):
         self.assertTrue(all(d["label"] and d["description"] for d in RUBRIC_DIMENSIONS))
 
     def test_transfer_defaults(self):
-        t = TransferAssessment(transfer_score=64, transfers=["API design"], gaps=["k8s"])
+        t = TransferAssessment(transfer_score=64, transfers=["API design"], gaps=["k8s"], has_transfers=True)
         self.assertEqual(t.transfer_score, 64)
-        self.assertEqual(t.model_dump(by_alias=True)["transferScore"], 64)
+        dumped = t.model_dump(by_alias=True)
+        self.assertEqual(dumped["transferScore"], 64)
+        # the deliberate empty-state flag is declared on the model and round-trips via its alias
+        self.assertTrue(dumped["hasTransfers"])
+        self.assertTrue(TransferAssessment.model_validate(dumped).has_transfers)
+        # defaults False so an assessment with no transfers serializes a real empty state
+        self.assertFalse(TransferAssessment().model_dump(by_alias=True)["hasTransfers"])
 
 
 if __name__ == "__main__":

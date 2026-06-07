@@ -17,6 +17,41 @@ export const maxDuration = 60;
 const GEMINI_MODEL = "gemini-3-flash-preview";
 const DEEP_REVIEW_REPO_LIMIT = 3;
 
+// --- Repo ranking & complexity heuristics ----------------------------------
+// These constants decide which of a candidate's repos surface as hiring
+// evidence and how their complexity is described in the analysis. They feed a
+// hiring-facing score, so they are grouped and documented here to stay
+// auditable: a future maintainer can re-tune a weight or threshold in one place
+// without reverse-engineering the math, and can't accidentally misread a unit.
+//
+// UNIT NOTE — repo.size is GitHub's reported size in KILOBYTES (per the REST
+// API), NOT bytes and NOT lines of code. So `size > COMPLEXITY_SIZE_KB` (5000)
+// means roughly "larger than ~5 MB", and `size / REPO_RANK_SIZE_DIVISOR` turns
+// KB into a small, bounded ranking contribution.
+
+// repoRank() weights — a repo's rank is a weighted sum used to order the
+// "top repositories" list and to pick which repos get a deep code review.
+const REPO_RANK_STAR_WEIGHT = 4; // points per star; stars are the strongest public-interest signal, so weighted highest
+const REPO_RANK_FORK_WEIGHT = 3; // points per fork; forks signal reuse/collaboration, weighted just below stars
+const REPO_RANK_SIZE_DIVISOR = 500; // size(KB) ÷ 500 → at most a few points, so a large repo can't out-rank real traction
+const REPO_RANK_RECENT_BONUS = 20; // flat bonus for a repo pushed within REPO_RANK_RECENT_MONTHS; favors maintained work
+const REPO_RANK_RECENT_MONTHS = 12; // "recent" window (months) for the repoRank freshness bonus
+
+// complexitySignals() thresholds — each crossed threshold adds one
+// human-readable "this repo is non-trivial" signal. The bar is intentionally
+// low because these are supplemental hints, not a verdict.
+const COMPLEXITY_SIZE_KB = 5000; // > 5000 KB (~5 MB) counts as a "large codebase footprint"
+const COMPLEXITY_STARS = 10; // >= 10 stars counts as "external interest through stars"
+const COMPLEXITY_FORKS = 3; // >= 3 forks counts as "forked by other developers"
+const COMPLEXITY_RECENT_MONTHS = 6; // pushed within 6 months counts as "recently maintained"
+
+// complexityAssessment cutoffs — a repo is "complex" when it shows MORE than
+// COMPLEXITY_MIN_SIGNALS signals (i.e. at least two). The count of such repos
+// then escalates the overall assessment wording.
+const COMPLEXITY_MIN_SIGNALS = 1; // a repo counts as "complex" when its signal count exceeds this (>= 2 signals)
+const COMPLEX_REPOS_STRONG = 4; // >= 4 complex repos → strongest "multiple complexity signals" wording
+const COMPLEX_REPOS_SOME = 1; // >= 1 complex repo → cautious "inspect substance before trusting" wording
+
 type GithubUser = {
   login: string;
   html_url: string;
@@ -230,21 +265,26 @@ function summarizeLanguages(totals: Map<string, number>) {
 }
 
 function repoRank(repo: GithubRepo) {
-  return repo.stargazers_count * 4 + repo.forks_count * 3 + repo.size / 500 + (isWithinMonths(repo.pushed_at ?? repo.updated_at, ACTIVE_WINDOW_MONTHS) ? 20 : 0);
+  return (
+    repo.stargazers_count * REPO_RANK_STAR_WEIGHT +
+    repo.forks_count * REPO_RANK_FORK_WEIGHT +
+    repo.size / REPO_RANK_SIZE_DIVISOR +
+    (isWithinMonths(repo.pushed_at ?? repo.updated_at, REPO_RANK_RECENT_MONTHS) ? REPO_RANK_RECENT_BONUS : 0)
+  );
 }
 
 function complexitySignals(repo: GithubRepo) {
   const signals: string[] = [];
-  if (repo.size > 5000) signals.push("large codebase footprint");
-  if (repo.stargazers_count >= 10) signals.push("external interest through stars");
-  if (repo.forks_count >= 3) signals.push("forked by other developers");
+  if (repo.size > COMPLEXITY_SIZE_KB) signals.push("large codebase footprint");
+  if (repo.stargazers_count >= COMPLEXITY_STARS) signals.push("external interest through stars");
+  if (repo.forks_count >= COMPLEXITY_FORKS) signals.push("forked by other developers");
   if ((repo.topics ?? []).some((topic) => /test|ci|docker|kubernetes|deploy|infra|automation/i.test(topic))) {
     signals.push("delivery or engineering-practice topic");
   }
   if (repo.open_issues_count > 0) signals.push("issue-tracked project");
-  // 6 months is a distinct "recently maintained" heuristic for the complexity signal, separate
+  // A distinct "recently maintained" heuristic for the complexity signal, separate
   // from the named Active/Recent tile windows (repo-activity.ts) — kept local on purpose.
-  if (isWithinMonths(repo.pushed_at ?? repo.updated_at, 6)) signals.push("recently maintained");
+  if (isWithinMonths(repo.pushed_at ?? repo.updated_at, COMPLEXITY_RECENT_MONTHS)) signals.push("recently maintained");
   return signals.length ? signals : ["metadata-only signal"];
 }
 
@@ -324,11 +364,11 @@ function buildJobFitSignals(
     }
   }
 
-  const complexRepos = repos.filter((repo) => complexitySignals(repo).length > 1).length;
+  const complexRepos = repos.filter((repo) => complexitySignals(repo).length > COMPLEXITY_MIN_SIGNALS).length;
   const complexityAssessment =
-    complexRepos >= 4
+    complexRepos >= COMPLEX_REPOS_STRONG
       ? "Public repositories show multiple complexity signals across maintained, non-trivial projects."
-      : complexRepos >= 1
+      : complexRepos >= COMPLEX_REPOS_SOME
         ? "Public repositories show some complexity signals, but the LLM should inspect repo substance before treating them as production-grade evidence."
         : "Public metadata is thin; treat GitHub as weak supplemental evidence unless deeper repo review is performed.";
 

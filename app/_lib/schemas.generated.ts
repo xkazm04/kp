@@ -128,7 +128,10 @@ export const analysisResultSchema = z.object({
       status: z.enum(["matched", "missing", "over_used"])
     })),
     missing: z.array(z.string()),
-    overUsed: z.array(z.string())
+    overUsed: z.array(z.string()),
+    hitsTotal: z.number().nullish(),
+    missingTotal: z.number().nullish(),
+    overUsedTotal: z.number().nullish()
   }).nullish(),
   v2Profile: z.record(z.string(), z.unknown()).nullish()
 });

@@ -19,7 +19,14 @@ from __future__ import annotations
 
 import unittest
 
-from pipeline.jobfit.ats import evaluate_keyword_coverage
+from pipeline.jobfit.ats import (
+    KEYWORD_STUFFING_JD_RATIO,
+    KEYWORD_STUFFING_MIN_CV_OCCURRENCES,
+    MAX_KEYWORD_HITS,
+    MAX_MISSING_KEYWORDS,
+    _keyword_status,
+    evaluate_keyword_coverage,
+)
 from pipeline.jobfit.extractors import clean_text
 from pipeline.jobfit.profiling import build_profile
 
@@ -103,6 +110,68 @@ class AuthoritativeJobSkillsTest(unittest.TestCase):
         coverage = evaluate_keyword_coverage(_CV, _JD)
         self.assertEqual(coverage.missing, [])
         self.assertIsInstance(coverage.coverage_percent, int)
+
+
+class KeywordStuffingThresholdTest(unittest.TestCase):
+    """Locks the documented keyword-stuffing policy (both conditions required)."""
+
+    def test_below_cv_floor_is_not_flagged(self) -> None:
+        # Disproportionate to the JD (in_jd=0) but under the absolute CV floor,
+        # so a lightly-used term is never flagged.
+        below_floor = KEYWORD_STUFFING_MIN_CV_OCCURRENCES - 1
+        self.assertEqual(
+            _keyword_status(matched=True, in_jd=0, in_cv=below_floor), "matched"
+        )
+
+    def test_meets_both_conditions_is_over_used(self) -> None:
+        in_jd = 1
+        in_cv = KEYWORD_STUFFING_MIN_CV_OCCURRENCES  # >= floor and > in_jd * ratio
+        self.assertEqual(
+            _keyword_status(matched=True, in_jd=in_jd, in_cv=in_cv), "over_used"
+        )
+
+    def test_proportional_to_jd_is_not_flagged(self) -> None:
+        # Heavy CV use that only matches (does not strictly exceed) the JD ratio
+        # is legitimate demand, not stuffing.
+        in_jd = 3
+        in_cv = in_jd * KEYWORD_STUFFING_JD_RATIO  # == ratio, not strictly greater
+        self.assertEqual(
+            _keyword_status(matched=True, in_jd=in_jd, in_cv=in_cv), "matched"
+        )
+
+    def test_unmatched_is_missing(self) -> None:
+        self.assertEqual(_keyword_status(matched=False, in_jd=5, in_cv=0), "missing")
+
+
+class DisplayCapTest(unittest.TestCase):
+    """Caps are presentation-only: lists truncate but totals/percent stay whole."""
+
+    def test_hits_capped_with_full_total_preserved(self) -> None:
+        skills = [f"kw{i:02d}" for i in range(MAX_KEYWORD_HITS + 6)]
+        text = " ".join(skills)
+        coverage = evaluate_keyword_coverage(
+            candidate_text=text,
+            job_description_text=text,
+            job_skills=skills,
+            matching_skills=skills,
+            missing_skills=[],
+        )
+        self.assertEqual(len(coverage.hits), MAX_KEYWORD_HITS)
+        self.assertEqual(coverage.hits_total, len(skills))
+        # coverage_percent is computed over the FULL hit set, not the capped view.
+        self.assertEqual(coverage.coverage_percent, 100)
+
+    def test_missing_capped_with_full_total_preserved(self) -> None:
+        missing = [f"gap{i:02d}" for i in range(MAX_MISSING_KEYWORDS + 5)]
+        coverage = evaluate_keyword_coverage(
+            candidate_text="",
+            job_description_text="",
+            job_skills=["python"],
+            matching_skills=[],
+            missing_skills=missing,
+        )
+        self.assertEqual(len(coverage.missing), MAX_MISSING_KEYWORDS)
+        self.assertEqual(coverage.missing_total, len(missing))
 
 
 if __name__ == "__main__":

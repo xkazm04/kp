@@ -11,6 +11,7 @@ from pipeline.jobfit.devcase.evaluate import (
     mint_followups,
     score_transfer,
 )
+from pipeline.jobfit.devcase.models import CaseEvaluation, TransferAssessment
 
 _DIMS = {"framing", "tooling", "judgment", "architecture", "transfer"}
 
@@ -59,6 +60,18 @@ class TestEvaluate(unittest.TestCase):
         weights = {d["name"]: d["weight"] for d in ev["dimensions"]}
         self.assertAlmostEqual(sum(weights.values()), 1.0, places=2)
         self.assertEqual(weights["tooling"], 0.25)
+
+    def test_emitted_empty_state_flags_survive_model_validation(self):
+        # The crux of the reconciliation: hasFindings / hasTransfers are emitted by evaluate.py
+        # AND declared on the models, so validating the emitted dict through the model no longer
+        # silently drops them — the model stays the source of truth for the real artifact shape.
+        ev, _ = evaluate_submission(self.reflection, self.tooling, self.case, self.role, provider=None)
+        self.assertIn("hasFindings", ev)
+        self.assertEqual(CaseEvaluation.model_validate(ev).has_findings, ev["hasFindings"])
+
+        t, _ = score_transfer(ev, self.role, provider=None)
+        self.assertIn("hasTransfers", t)
+        self.assertEqual(TransferAssessment.model_validate(t).has_transfers, t["hasTransfers"])
 
 
 class TestMintFollowups(unittest.TestCase):

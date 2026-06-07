@@ -136,6 +136,13 @@ class KeywordCoverage(_Base):
     hits: list[KeywordHit] = Field(default_factory=list)
     missing: list[str] = Field(default_factory=list)
     over_used: list[str] = Field(default_factory=list)
+    # Pre-truncation totals for the capped lists above (see the display caps in
+    # ats.py), so the UI can render a "+N more" affordance and a capped list is
+    # never read as the full picture. ``None`` on analyses recorded before
+    # totals were tracked — treated as "unknown", so no indicator is shown.
+    hits_total: int | None = None
+    missing_total: int | None = None
+    over_used_total: int | None = None
 
 
 class JobFitResult(_Base):

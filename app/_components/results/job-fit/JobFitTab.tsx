@@ -101,6 +101,14 @@ function KeywordCoverageBlock({ coverage }: { coverage: KeywordCoverage }) {
   const missing = dedupe(coverage.missing);
   const overUsed = dedupe(coverage.overUsed);
 
+  // "+N more" reflects entries the server-side display cap dropped (see the
+  // caps in pipeline/jobfit/ats.py). It's measured against the raw list the
+  // server sent — not the de-duped view — so the cap is never conflated with
+  // client-side de-duping.
+  const hitsHidden = hiddenByCap(coverage.hitsTotal, coverage.hits.length);
+  const missingHidden = hiddenByCap(coverage.missingTotal, coverage.missing.length);
+  const overUsedHidden = hiddenByCap(coverage.overUsedTotal, coverage.overUsed.length);
+
   return (
     <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
       <div className="flex items-center justify-between gap-3">
@@ -114,11 +122,14 @@ function KeywordCoverageBlock({ coverage }: { coverage: KeywordCoverage }) {
       <Meter value={coverage.coveragePercent} tone="strong" className="mt-3" aria-label="Keyword coverage" />
 
       {hits.length ? (
-        <div className="mt-4 grid gap-2 sm:grid-cols-2">
-          {hits.map((hit, i) => (
-            <KeywordRow key={`${hit.keyword}-${i}`} hit={hit} />
-          ))}
-        </div>
+        <>
+          <div className="mt-4 grid gap-2 sm:grid-cols-2">
+            {hits.map((hit, i) => (
+              <KeywordRow key={`${hit.keyword}-${i}`} hit={hit} />
+            ))}
+          </div>
+          <MoreIndicator count={hitsHidden} />
+        </>
       ) : (
         <p className="mt-4 text-base leading-6 text-steel">
           No role keywords were extracted from the job description.
@@ -141,6 +152,7 @@ function KeywordCoverageBlock({ coverage }: { coverage: KeywordCoverage }) {
               </li>
             ))}
           </ul>
+          <MoreIndicator count={missingHidden} />
         </div>
       ) : null}
 
@@ -163,9 +175,28 @@ function KeywordCoverageBlock({ coverage }: { coverage: KeywordCoverage }) {
               </li>
             ))}
           </ul>
+          <MoreIndicator count={overUsedHidden} />
         </div>
       ) : null}
     </div>
+  );
+}
+
+// Entries the server-side display cap dropped: total minus what was sent. A
+// missing total (null/undefined) means the analysis predates total-tracking
+// (see KeywordCoverage in pipeline/jobfit/models.py) — treat as "unknown" and
+// show nothing rather than guess.
+function hiddenByCap(total: number | null | undefined, shown: number): number {
+  return total == null ? 0 : Math.max(0, total - shown);
+}
+
+// Renders a quiet "+N more" note so a capped list reads as capped, not complete.
+function MoreIndicator({ count }: { count: number }) {
+  if (count <= 0) return null;
+  return (
+    <p className="mt-2 text-sm text-steel">
+      +{count} more not shown
+    </p>
   );
 }
 
