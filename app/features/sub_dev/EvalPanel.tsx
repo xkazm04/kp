@@ -1,7 +1,7 @@
 "use client";
 
 import { Check, CircleDot, Info, MessageCircleQuestion, Send, X, type LucideIcon } from "lucide-react";
-import { formatPercent } from "@/app/_lib/format";
+import { assertScore, formatFraction } from "@/app/_lib/format";
 import { describeSource } from "./DevHelpers";
 import { ProvenanceStrip } from "./ProvenanceStrip";
 import { ScoreBar } from "./ScoreBar";
@@ -53,7 +53,7 @@ export function EvalPanel({ ev, onPromote, promoted }: { ev: EvalBundle; onPromo
       <div className="mb-1 flex items-center gap-2">
         <span className="text-micro font-semibold uppercase tracking-wide text-steel">Capability scores</span>
         <span className="ml-auto text-micro uppercase text-steel">
-          transfer <b className="text-ink">{x.transferScore ?? "—"}</b> · {ev.commitCount ?? 0} commits
+          transfer <b className="text-ink">{x.transferScore != null ? assertScore(x.transferScore, "transferScore") : "—"}</b> · {ev.commitCount ?? 0} commits
         </span>
       </div>
       {/* per-step provenance: one consistent strip across the pipeline; muted/amber chips flag steps that fell back */}
@@ -83,8 +83,8 @@ export function EvalPanel({ ev, onPromote, promoted }: { ev: EvalBundle; onPromo
       {/* trace + tooling (D5) */}
       <div className="mt-2 border-t border-stone-100 pt-2 text-micro text-steel">
         <span className="rounded bg-paper px-1.5 py-0.5 uppercase">{r.iterationPattern}</span>{" "}
-        read-before-write <b className="text-ink">{formatPercent(r.readBeforeWrite ?? 0, { fraction: true })}</b>{" "}
-        · fluency <b className="text-ink">{formatPercent(t.fluency ?? 0, { fraction: true })}</b>
+        read-before-write <b className="text-ink">{formatFraction(r.readBeforeWrite ?? 0, { label: "readBeforeWrite" })}</b>{" "}
+        · fluency <b className="text-ink">{formatFraction(t.fluency ?? 0, { label: "fluency" })}</b>
         {(x.gaps ?? []).length ? <span> · gaps: {(x.gaps ?? []).join(", ")}</span> : null}
       </div>
 

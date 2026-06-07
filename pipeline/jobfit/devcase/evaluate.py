@@ -68,7 +68,13 @@ def _ordered_dimensions(scores: dict, rubric: list) -> list[dict]:
     """Echo the canonical rubric — ordered, with name/label/weight/description — annotated with
     each achieved score, so the UI can draw the breakdown without hardcoding order, human labels
     or weights. label/weight/description prefer the case's own rubric (so a case that overrides
-    them stays in sync), falling back to the canonical defaults; order is always canonical."""
+    them stays in sync), falling back to the canonical defaults; order is always canonical.
+
+    Each row's `score` is read from `scores` — i.e. CaseEvaluation.dimension_scores, the single
+    source of truth for the numbers (see the canonical-score contract on models.CaseEvaluation).
+    This makes `dimensions` a pure projection of `dimension_scores`; the model re-asserts the
+    same invariant in `_mirror_dimension_scores` so the two can never drift. A capability absent
+    from `scores` carries no signal and reads MISSING_DIMENSION_SCORE (the neutral midpoint)."""
     by_name = {d.get("name"): d for d in rubric if isinstance(d, dict) and d.get("name")}
     out = []
     for meta in RUBRIC_DIMENSIONS:

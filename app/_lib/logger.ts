@@ -114,3 +114,32 @@ export async function logScheduleReconcile(entry: ScheduleReconcileLog): Promise
   );
   await appendLine("schedule-reconcile.log", entry);
 }
+
+// Zero offerable slots. A candidate opened a scheduling link but every slot in
+// the proposal horizon was already booked (idea-5df8e10f) — before this the
+// picker showed a "we'll be in touch" dead-end with no recruiter-side signal, so
+// the booking could quietly stall. We count every fresh occurrence (readable via
+// getScheduleNoSlotsCount()) and record a structured line so the recruiter can
+// open more times / widen the horizon for that candidate. The invite is also
+// flagged (needs_more_slots) by the store. A real deployment would ship
+// schedule-no-slots.log to an alerting sink.
+export type ScheduleNoSlotsLog = {
+  token: string;
+  entry_id: string | null; // pipeline entry the stalled invite belongs to (for the recruiter)
+};
+
+let scheduleNoSlotsCount = 0;
+
+/** Total zero-slots stalls flagged this process (each counted once, on the flag's
+ *  0→1 transition — page refreshes don't re-count). */
+export function getScheduleNoSlotsCount(): number {
+  return scheduleNoSlotsCount;
+}
+
+export async function logScheduleNoSlots(entry: ScheduleNoSlotsLog): Promise<void> {
+  scheduleNoSlotsCount += 1;
+  console.error(
+    `[schedule:no-slots] candidate hit a fully-booked horizon — token=${entry.token} entry=${entry.entry_id ?? "?"}; recruiter must open more times`
+  );
+  await appendLine("schedule-no-slots.log", entry);
+}

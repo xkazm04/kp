@@ -85,6 +85,38 @@ class TestDevCaseModels(unittest.TestCase):
         # defaults False so an evaluation with no findings serializes a real empty state
         self.assertFalse(CaseEvaluation().model_dump(by_alias=True)["hasFindings"])
 
+    def test_dimension_scores_is_canonical_mirror_cannot_diverge(self):
+        # The canonical-score contract: dimension_scores is the single source of truth, so the
+        # ordered `dimensions` mirror can NEVER hold a different number for the same capability.
+        # Construct one with a deliberately divergent mirror score and a stale value...
+        ev = CaseEvaluation(
+            dimension_scores={"judgment": 80, "architecture": 40},
+            dimensions=[
+                DimensionScore(name="judgment", label="Judgment", weight=0.25, score=12, description="x"),
+                DimensionScore(name="architecture", label="Architecture", weight=0.15, score=99, description="y"),
+            ],
+        )
+        # ...and the validator force-syncs each row's score back to the dict (dict wins).
+        synced = {d.name: d.score for d in ev.dimensions}
+        self.assertEqual(synced, {"judgment": 80, "architecture": 40})
+        # Same enforcement on the deserialization path (a stored/LLM artifact with a stale mirror).
+        restored = CaseEvaluation.model_validate(
+            {
+                "dimensionScores": {"tooling": 70},
+                "dimensions": [{"name": "tooling", "label": "Tooling fluency", "weight": 0.25, "score": 3, "description": "z"}],
+            }
+        )
+        self.assertEqual(restored.dimensions[0].score, 70)
+
+    def test_mirror_row_absent_from_dict_is_left_untouched(self):
+        # A capability NOT scored in dimension_scores carries no signal to sync from, so its
+        # mirror row keeps the neutral midpoint evaluate._ordered_dimensions seeded — no clobbering.
+        ev = CaseEvaluation(
+            dimension_scores={"judgment": 80},
+            dimensions=[DimensionScore(name="transfer", label="Transfer", weight=0.15, score=50, description="d")],
+        )
+        self.assertEqual(ev.dimensions[0].score, 50)
+
     def test_canonical_rubric_is_ordered_and_normalized(self):
         # Single source of truth: five capabilities, in order, weights summing to 1.0, each labelled.
         self.assertEqual([d["name"] for d in RUBRIC_DIMENSIONS], ["framing", "tooling", "judgment", "architecture", "transfer"])

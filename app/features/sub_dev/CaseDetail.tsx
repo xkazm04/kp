@@ -3,7 +3,7 @@
 import { Fragment } from "react";
 import { ArrowLeft, ClipboardList, Lock, MicVocal, Send, Users } from "lucide-react";
 import { Markdown } from "@/app/_components/Markdown";
-import { formatPercent, formatRelativeTime } from "@/app/_lib/format";
+import { formatFraction, formatRelativeTime } from "@/app/_lib/format";
 import { ApplyTokenPill } from "./ApplyTokenPill";
 import { caseToMarkdown } from "./DevHelpers";
 import { MiniList } from "./DevShared";
@@ -118,7 +118,7 @@ export function CaseDetail({
           <div className="mt-3 flex flex-wrap gap-1.5">
             {(c.rubricDimensions ?? []).map((d) => (
               <span key={d.name} title={d.description} className="rounded-full bg-white px-2 py-0.5 text-micro text-ink ring-1 ring-amber-200/70">
-                {d.label ?? d.name} <span className="text-steel">{formatPercent(d.weight ?? 0, { fraction: true })}</span>
+                {d.label ?? d.name} <span className="text-steel">{formatFraction(d.weight ?? 0, { label: "rubric weight" })}</span>
               </span>
             ))}
           </div>

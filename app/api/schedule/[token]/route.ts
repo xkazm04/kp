@@ -4,12 +4,13 @@ import { dispatchInterviewConfirmation } from "@/app/_lib/comms-dispatch";
 import {
   bookedSlots,
   confirmScheduleInvite,
+  flagScheduleInviteNeedsMoreSlots,
   getScheduleInviteByToken,
   markScheduleInviteNeedsReconcile,
   type ScheduleInvite,
 } from "@/app/_lib/schedule-store";
 import { offeredSlotFor, proposeSlots } from "@/app/_lib/schedule-slots";
-import { logScheduleReconcile } from "@/app/_lib/logger";
+import { logScheduleNoSlots, logScheduleReconcile } from "@/app/_lib/logger";
 import { jsonOk, safeJsonError } from "@/app/_lib/api-response";
 import { isShortNoticeBooking } from "@/app/_lib/interview-reminder-policy";
 import { clientIpFrom, rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
@@ -38,7 +39,25 @@ export async function GET(_request: NextRequest, context: { params: Promise<{ to
   const { token } = await context.params;
   const invite = getScheduleInviteByToken(token);
   if (!invite) return NextResponse.json({ error: "not found" }, { status: 404 });
-  return jsonOk({ invite: publicInviteView(invite), slots: invite.status === "confirmed" ? [] : proposeSlots(bookedSlots()) });
+  const slots = invite.status === "confirmed" ? [] : proposeSlots(bookedSlots());
+  // The busiest-calendar edge (idea-5df8e10f): a pending invite whose entire
+  // proposal horizon is already booked yields zero slots. Rather than handing
+  // the candidate a silent dead-end, flag the invite so the recruiter can open
+  // more times — the detection happens server-side on the read that surfaces the
+  // emptiness, so the booking can't stall waiting on a candidate action. The
+  // flag is idempotent and logs/counts only on the 0→1 transition, so a page
+  // refresh doesn't re-alert; flagging is best-effort and never blocks the read.
+  const noSlots = invite.status !== "confirmed" && slots.length === 0;
+  if (noSlots) {
+    try {
+      if (flagScheduleInviteNeedsMoreSlots(token)) {
+        await logScheduleNoSlots({ token, entry_id: invite.entryId });
+      }
+    } catch {
+      /* flagging is best-effort — never block the candidate's read */
+    }
+  }
+  return jsonOk({ invite: publicInviteView(invite), slots, noSlots });
 }
 
 // POST → candidate confirms a slot: record it, set it on the pipeline entry

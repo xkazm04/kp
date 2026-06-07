@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { GitBranch, Sparkles } from "lucide-react";
 import { useTasks, useTaskResult } from "@/app/features/tasks/TasksProvider";
-import { scoreTone, type ScoreTone } from "@/app/_lib/format";
+import { assertScore, scoreTone, type ScoreTone } from "@/app/_lib/format";
 import { EvalPanel } from "./EvalPanel";
 import type { EvalBundle, Submission } from "./DevTypes";
 
@@ -55,7 +55,9 @@ export function SubmissionRow({ submission, rank, isTop = false, onChanged }: { 
     if (r.ok) setPromoted(true);
   };
 
-  const ts = submission.transferScore ?? ev?.transfer?.transferScore ?? null;
+  const tsRaw = submission.transferScore ?? ev?.transfer?.transferScore ?? null;
+  // Guard the 0..100 score domain before it tones/labels the fit chip.
+  const ts = tsRaw == null ? null : assertScore(tsRaw, "transferScore");
 
   return (
     <li className={`rounded-md border p-2 ${isTop ? "border-moss/30 bg-moss/5 ring-1 ring-moss/40" : "border-stone-100 bg-paper/40"}`}>

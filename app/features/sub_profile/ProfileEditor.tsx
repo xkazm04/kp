@@ -10,7 +10,7 @@ import {
   EDU_LEVELS,
   SENIORITIES,
 } from "./ProfileTypes";
-import { Section, Text, Pick, Check } from "./ProfileFields";
+import { Section, Text, Pick, Check, Textarea } from "./ProfileFields";
 import { ProfileEvidenceColumn } from "./ProfileEvidenceColumn";
 import { ResultPanel } from "./ProfileResultPanel";
 import { hydrate, SKILL_FALLBACK, EVIDENCE_FALLBACK, archetypeFieldVisibility, archetypeScopedProfileFields } from "./ProfileForm";
@@ -246,12 +246,12 @@ export function ProfileEditor({
         </button>
         {aiOpen ? (
           <div className="mt-2.5">
-            <textarea
+            <Textarea
               value={aiText}
               onChange={(e) => setAiText(e.target.value)}
               rows={4}
               placeholder="e.g. 3rd-year CS student at ČVUT, expected 2026. Built a React recommender app for her thesis (on GitHub). Did a summer internship in Python. Wants a junior frontend role. Czech + English."
-              className="focus-ring w-full rounded-md border border-stone-200 bg-white px-3 py-2 text-base text-ink"
+              className="bg-white px-3 py-2 text-ink"
             />
             <div className="mt-2 flex flex-wrap items-center gap-2">
               <button

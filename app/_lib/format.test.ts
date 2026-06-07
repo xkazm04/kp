@@ -12,7 +12,11 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
+  assertFraction,
+  assertScore,
   classifyTimestamp,
+  clampFraction,
+  formatFraction,
   formatRelativeTime,
   RATING_MAX,
   ratingToPercent,
@@ -263,4 +267,137 @@ test("dropping the zone shifts the rendered age unless the host runs in UTC", ()
   } else {
     assert.notEqual(formatRelativeTime(naive), formatRelativeTime(zoned));
   }
+});
+
+// --- the numeric-range contract: fractions (0..1) vs scores (0..100) ----------
+// Confidence / fluency / readBeforeWrite / rubric weight / language share are
+// 0..1 fractions rendered as percents; capability scores and transferScore are
+// 0..100. Nothing on the JSON wire from the Python evaluator enforces it, so a
+// unit-swap (a confidence emitted as 85, not 0.85) would render "8500%" on a
+// hiring screen. These guards catch the swap at the render boundary: clamp for a
+// safe render and report it once. Each warning test uses a UNIQUE value/label so
+// the module-level once-per-message dedup doesn't cross-contaminate across tests.
+
+function captureRangeWarnings(fn: () => void): string[] {
+  const original = console.warn;
+  const lines: string[] = [];
+  console.warn = (...args: unknown[]) => {
+    lines.push(args.map(String).join(" "));
+  };
+  try {
+    fn();
+  } finally {
+    console.warn = original;
+  }
+  return lines.filter((l) => l.includes("[range-contract]"));
+}
+
+test("clampFraction bounds a value to [0, 1]", () => {
+  assert.equal(clampFraction(0.5), 0.5);
+  assert.equal(clampFraction(1.4), 1);
+  assert.equal(clampFraction(-0.2), 0);
+});
+
+test("formatFraction renders an in-range 0..1 fraction as a percent, quietly", () => {
+  const warnings = captureRangeWarnings(() => {
+    assert.equal(formatFraction(0.73), "73%");
+    assert.equal(formatFraction(0), "0%");
+    assert.equal(formatFraction(1), "100%");
+  });
+  assert.equal(warnings.length, 0);
+});
+
+test("formatFraction honors the digits option", () => {
+  assert.equal(formatFraction(0.736, { digits: 1 }), "73.6%");
+});
+
+test("formatFraction catches a 0..100 score fed as a fraction — '100%', not '8500%'", () => {
+  // The exact failure the contract bans: a Python evaluator emitting confidence on
+  // the 0..100 scale instead of 0..1. Without the guard, formatPercent scales 85 to
+  // "8500%" on a recruiter's screen; with it, the swap is reported and clamped.
+  const warnings = captureRangeWarnings(() => {
+    assert.equal(formatFraction(85, { label: "confidence" }), "100%");
+  });
+  assert.equal(warnings.length, 1);
+  assert.match(warnings[0], /confidence/);
+  assert.match(warnings[0], /0\.\.1/);
+  assert.match(warnings[0], /8500%/);
+});
+
+test("assertFraction passes an in-range value through untouched and quiet", () => {
+  const warnings = captureRangeWarnings(() => {
+    assert.equal(assertFraction(0.42, "share"), 0.42);
+    assert.equal(assertFraction(0, "share"), 0);
+    assert.equal(assertFraction(1, "share"), 1);
+  });
+  assert.equal(warnings.length, 0);
+});
+
+test("assertFraction clamps an above-range value to 1 and warns once", () => {
+  const warnings = captureRangeWarnings(() => {
+    assert.equal(assertFraction(42, "fluency"), 1);
+  });
+  assert.equal(warnings.length, 1);
+  assert.match(warnings[0], /fluency/);
+});
+
+test("assertFraction clamps a below-range value to 0 and warns once", () => {
+  const warnings = captureRangeWarnings(() => {
+    assert.equal(assertFraction(-0.5, "weight"), 0);
+  });
+  assert.equal(warnings.length, 1);
+  assert.match(warnings[0], /weight/);
+});
+
+test("assertFraction collapses a non-finite value to 0 without warning", () => {
+  const warnings = captureRangeWarnings(() => {
+    assert.equal(assertFraction(NaN, "nanFrac"), 0);
+    assert.equal(assertFraction(Infinity, "infFrac"), 0);
+  });
+  assert.equal(warnings.length, 0);
+});
+
+test("assertFraction dedups repeat warnings for the same bad value", () => {
+  // EvalPanel re-renders the same bundle on every poll; one bad value must warn
+  // once, not once per render.
+  const warnings = captureRangeWarnings(() => {
+    assertFraction(7.5, "dedupFrac");
+    assertFraction(7.5, "dedupFrac");
+    assertFraction(7.5, "dedupFrac");
+  });
+  assert.equal(warnings.length, 1);
+});
+
+test("assertScore passes an in-range 0..100 score through untouched and quiet", () => {
+  const warnings = captureRangeWarnings(() => {
+    assert.equal(assertScore(73, "dimScore"), 73);
+    assert.equal(assertScore(0, "dimScore"), 0);
+    assert.equal(assertScore(100, "dimScore"), 100);
+  });
+  assert.equal(warnings.length, 0);
+});
+
+test("assertScore clamps an above-range score to 100 and warns once", () => {
+  // A double-scaled score (850) would otherwise paint a bar overflowing to 850%.
+  const warnings = captureRangeWarnings(() => {
+    assert.equal(assertScore(850, "capability score"), 100);
+  });
+  assert.equal(warnings.length, 1);
+  assert.match(warnings[0], /capability score/);
+  assert.match(warnings[0], /0\.\.100/);
+});
+
+test("assertScore clamps a negative score to 0 and warns once", () => {
+  const warnings = captureRangeWarnings(() => {
+    assert.equal(assertScore(-7, "transferScore"), 0);
+  });
+  assert.equal(warnings.length, 1);
+  assert.match(warnings[0], /transferScore/);
+});
+
+test("assertScore collapses a non-finite score to 0 without warning", () => {
+  const warnings = captureRangeWarnings(() => {
+    assert.equal(assertScore(NaN, "nanScore"), 0);
+  });
+  assert.equal(warnings.length, 0);
 });

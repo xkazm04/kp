@@ -1,5 +1,40 @@
+import type { InputHTMLAttributes, SelectHTMLAttributes, TextareaHTMLAttributes } from "react";
+
 export function upd<T>(arr: T[], i: number, patch: Partial<T>): T[] {
   return arr.map((x, j) => (j === i ? { ...x, ...patch } : x));
+}
+
+// One source of truth for field chrome — tweak the focus-ring, radius, or border
+// here and every profile-form control (Input/Select/Textarea, and Text/Pick which
+// build on them) picks it up. The border *color* is appended per-control so an
+// invalid Input can swap stone-200 for coral without a class collision.
+const FIELD_CHROME = "focus-ring rounded-md border";
+const FIELD_BORDER = "border-stone-200";
+
+export function Input({
+  className = "",
+  error = false,
+  ...rest
+}: InputHTMLAttributes<HTMLInputElement> & { error?: boolean }) {
+  return (
+    <input
+      {...rest}
+      aria-invalid={error || undefined}
+      className={`${FIELD_CHROME} h-9 px-2 text-base ${error ? "border-coral" : FIELD_BORDER} ${className}`}
+    />
+  );
+}
+
+export function Select({ className = "", children, ...rest }: SelectHTMLAttributes<HTMLSelectElement>) {
+  return (
+    <select {...rest} className={`${FIELD_CHROME} ${FIELD_BORDER} h-9 ${className}`}>
+      {children}
+    </select>
+  );
+}
+
+export function Textarea({ className = "", ...rest }: TextareaHTMLAttributes<HTMLTextAreaElement>) {
+  return <textarea {...rest} className={`${FIELD_CHROME} ${FIELD_BORDER} w-full text-base ${className}`} />;
 }
 
 export function Section({ title, children }: { title: string; children: React.ReactNode }) {
@@ -11,6 +46,8 @@ export function Section({ title, children }: { title: string; children: React.Re
   );
 }
 
+// Labeled text field — its uppercase caption + styled input is the standard
+// intake field. Routes its control through the shared Input primitive.
 export function Text({
   label,
   value,
@@ -30,19 +67,19 @@ export function Text({
   return (
     <label className={`flex flex-col gap-1 ${className}`}>
       <span className="text-sm uppercase tracking-wide text-steel">{label}</span>
-      <input
+      <Input
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        aria-invalid={Boolean(error)}
+        error={Boolean(error)}
         aria-describedby={errId}
-        className={`focus-ring h-9 rounded-md border px-2 text-base ${error ? "border-coral" : "border-stone-200"}`}
       />
       {error ? <span id={errId} className="text-sm text-coral">{error}</span> : null}
     </label>
   );
 }
 
+// Labeled select — routes its control through the shared Select primitive.
 export function Pick({
   label,
   value,
@@ -57,26 +94,43 @@ export function Pick({
   return (
     <label className="flex flex-col gap-1">
       <span className="text-sm uppercase tracking-wide text-steel">{label}</span>
-      <select
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="focus-ring h-9 rounded-md border border-stone-200 bg-white px-2 text-base capitalize"
-      >
+      <Select value={value} onChange={(e) => onChange(e.target.value)} className="bg-white px-2 text-base capitalize">
         {options.map((o) => (
           <option key={o.v} value={o.v}>
             {o.label}
           </option>
         ))}
-      </select>
+      </Select>
     </label>
   );
 }
 
-export function Check({ label, checked, onChange }: { label: string; checked: boolean; onChange: (v: boolean) => void }) {
+export function Check({
+  label,
+  checked,
+  onChange,
+  className = "",
+}: {
+  label: string;
+  checked: boolean;
+  onChange: (v: boolean) => void;
+  className?: string;
+}) {
   return (
-    <label className="flex items-center gap-2 text-base text-ink">
+    <label className={`flex items-center gap-2 text-base text-ink ${className}`}>
       <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} className="h-4 w-4 accent-coral" />
       {label}
+    </label>
+  );
+}
+
+// Generic labeled-field wrapper: a caption above an arbitrary control. Shared so
+// forms (e.g. ArchetypeManager) don't each redefine the same label markup.
+export function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <label className="block">
+      <span className="mb-1 block text-sm font-medium text-steel">{label}</span>
+      {children}
     </label>
   );
 }

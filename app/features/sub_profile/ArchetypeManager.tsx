@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { Pencil, Plus, Shield, ShieldOff } from "lucide-react";
 import type { ArchetypeDef } from "./ProfileTypes";
+import { Input, Select, Check, Field } from "./ProfileFields";
 
 type Slot = "skills" | "career" | "personal";
 const SLOTS: Slot[] = ["skills", "career", "personal"];
@@ -295,35 +296,32 @@ function EditPanel({
       <div className="mt-3 grid gap-3 sm:grid-cols-2">
         {mode === "create" ? (
           <Field label="Id (immutable)">
-            <input
-              value={draft.id}
-              onChange={(e) => set("id", e.target.value)}
-              placeholder="e.g. returner"
-              className="h-9 w-full rounded-md border border-stone-200 px-2 text-base text-ink focus-ring"
-            />
+            <Input value={draft.id} onChange={(e) => set("id", e.target.value)} placeholder="e.g. returner" className="w-full text-ink" />
           </Field>
         ) : null}
         <Field label="Label">
-          <input value={draft.label} onChange={(e) => set("label", e.target.value)} className="h-9 w-full rounded-md border border-stone-200 px-2 text-base text-ink focus-ring" />
+          <Input value={draft.label} onChange={(e) => set("label", e.target.value)} className="w-full text-ink" />
         </Field>
         <Field label="Badge (short)">
-          <input value={draft.badge} onChange={(e) => set("badge", e.target.value)} className="h-9 w-full rounded-md border border-stone-200 px-2 text-base text-ink focus-ring" />
+          <Input value={draft.badge} onChange={(e) => set("badge", e.target.value)} className="w-full text-ink" />
         </Field>
         <Field label="Scoring model">
-          <select value={draft.scoringModel} onChange={(e) => set("scoringModel", e.target.value)} className="h-9 w-full rounded-md border border-stone-200 bg-white px-2 text-base text-ink focus-ring">
+          <Select value={draft.scoringModel} onChange={(e) => set("scoringModel", e.target.value)} className="w-full bg-white px-2 text-base text-ink">
             <option value="experienced">experienced (years-based)</option>
             <option value="early_career">early_career (potential-based)</option>
-          </select>
+          </Select>
         </Field>
         <Field label="Apply self-declaration (optional)">
-          <input value={draft.applyLabel} onChange={(e) => set("applyLabel", e.target.value)} placeholder="shown in the apply chat" className="h-9 w-full rounded-md border border-stone-200 px-2 text-base text-ink focus-ring" />
+          <Input value={draft.applyLabel} onChange={(e) => set("applyLabel", e.target.value)} placeholder="shown in the apply chat" className="w-full text-ink" />
         </Field>
       </div>
 
-      <label className="mt-3 flex items-center gap-2 text-base text-ink">
-        <input type="checkbox" checked={draft.fairnessProtected} onChange={(e) => set("fairnessProtected", e.target.checked)} className="h-4 w-4 accent-coral" />
-        Fairness-protected (never auto-rejected)
-      </label>
+      <Check
+        className="mt-3"
+        label="Fairness-protected (never auto-rejected)"
+        checked={draft.fairnessProtected}
+        onChange={(v) => set("fairnessProtected", v)}
+      />
 
       <div className="mt-4">
         <div className="flex items-center justify-between">
@@ -333,13 +331,13 @@ function EditPanel({
         <div className="mt-2 grid gap-2 sm:grid-cols-3">
           {SLOTS.map((slot) => (
             <Field key={slot} label={`${slot} weight %`}>
-              <input
+              <Input
                 type="number"
                 min={0}
                 max={100}
                 value={draft.pct[slot]}
                 onChange={(e) => setPct(slot, Number(e.target.value))}
-                className="h-9 w-full rounded-md border border-stone-200 px-2 text-base text-ink focus-ring"
+                className="w-full text-ink"
               />
             </Field>
           ))}
@@ -347,7 +345,7 @@ function EditPanel({
         <div className="mt-2 grid gap-2 sm:grid-cols-3">
           {SLOTS.map((slot) => (
             <Field key={slot} label={`${slot} label`}>
-              <input value={draft.dim[slot]} onChange={(e) => setDim(slot, e.target.value)} className="h-9 w-full rounded-md border border-stone-200 px-2 text-base text-ink focus-ring" />
+              <Input value={draft.dim[slot]} onChange={(e) => setDim(slot, e.target.value)} className="w-full text-ink" />
             </Field>
           ))}
         </div>
@@ -369,14 +367,5 @@ function EditPanel({
         </button>
       </div>
     </div>
-  );
-}
-
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <label className="block">
-      <span className="mb-1 block text-sm font-medium text-steel">{label}</span>
-      {children}
-    </label>
   );
 }

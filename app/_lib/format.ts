@@ -75,6 +75,105 @@ export function clampPercent(value: number): number {
 }
 
 /**
+ * The numeric-range contract: fractions (0..1) vs scores (0..100)
+ * --------------------------------------------------------------
+ * Two numeric domains flow through the scoring UI and must never be confused:
+ *   - a FRACTION runs 0..1 — a confidence, a tooling fluency, a read-before-write
+ *     ratio, a rubric weight, a language share — rendered as a percent via
+ *     {@link formatFraction} (or `formatPercent(x, {fraction:true})`).
+ *   - a SCORE runs 0..100 — a capability score, a transferScore — rendered as a
+ *     raw number (a bar width, a "/100" chip).
+ *
+ * The producer of both is the Python evaluator (pipeline/jobfit/devcase/models.py),
+ * whose field docs pin each range; the TS mirrors live in sub_dev/DevTypes.ts. But
+ * nothing on the JSON wire enforces it: if a generation emits a confidence as 85
+ * instead of 0.85, `formatPercent(85, {fraction:true})` scales it to "8500%" and a
+ * recruiter reads an absurd figure on a hiring screen with no signal it's wrong.
+ * These guards assert the domain at the render boundary — clamping for a safe
+ * render and reporting the violation once (loud in dev/test, silent in prod) — so
+ * a unit-swap surfaces as a caught contract error rather than a silent absurdity.
+ * Mirrors {@link reconcileScoreTotal} (the score-breakdown invariant) and
+ * {@link formatRelativeTime} (the timestamp contract).
+ */
+const warnedRanges = new Set<string>();
+
+function warnRangeContract(message: string): void {
+  if (typeof process !== "undefined" && process.env.NODE_ENV === "production") return;
+  if (warnedRanges.has(message)) return;
+  warnedRanges.add(message);
+  console.warn(`[range-contract] ${message}`);
+}
+
+/**
+ * Bound a value to the [0, 1] fraction domain — the sibling of {@link clampPercent}
+ * for the 0..1 scale. Presentation-only; never throws. A non-finite input (NaN)
+ * passes through unchanged — callers guard it separately (see {@link assertFraction}).
+ */
+export function clampFraction(value: number): number {
+  return Math.max(0, Math.min(1, value));
+}
+
+/**
+ * Assert a value really is a 0..1 fraction, returning it clamped to [0, 1]. The
+ * catchable violation is a 0..100 score fed where a fraction is expected (a
+ * confidence emitted as 85, not 0.85): it is reported once via
+ * {@link warnRangeContract} and clamped to 1, so it renders "100%" instead of
+ * "8500%". A non-finite input collapses to 0 (matching formatPercent's zero
+ * fallback). `label` names the field in the warning so the bad producer is findable.
+ */
+export function assertFraction(value: number, label = "value"): number {
+  if (!Number.isFinite(value)) return 0;
+  if (value < 0 || value > 1) {
+    warnRangeContract(
+      `${label} (${value}) is outside the 0..1 fraction range — clamped to ${clampFraction(value)} for display. ` +
+        `A 0..100 value fed as a fraction renders as e.g. "8500%"; the producer must emit a 0..1 ${label} ` +
+        `(pipeline/jobfit/devcase/models.py).`
+    );
+    return clampFraction(value);
+  }
+  return value;
+}
+
+/**
+ * A 0..1 fraction rendered as a percent (0.73 -> "73%"), guarding the range. THE
+ * render-boundary helper for every dev-case fraction (confidence, fluency,
+ * readBeforeWrite, rubric weight, language share): an out-of-range value is caught
+ * and clamped (see {@link assertFraction}) instead of silently rendering an absurd
+ * "8500%". Pass `label` to name the field in any contract warning.
+ */
+export function formatFraction(
+  value: number,
+  options: { label?: string; digits?: number } = {}
+): string {
+  return formatPercent(assertFraction(value, options.label), {
+    fraction: true,
+    digits: options.digits,
+  });
+}
+
+/**
+ * Assert a value really is a 0..100 score, returning it clamped to [0, 100] (the
+ * score domain IS the percent domain, so it reuses {@link clampPercent}). The
+ * sibling of {@link assertFraction} for capability scores and transferScore: a
+ * negative or >100 value (a malformed or double-scaled score) is reported once and
+ * clamped to a paintable width. Note the asymmetry — a 0..1 fraction mistakenly fed
+ * here (0.85) is numerically a valid score, so the range check can't catch it; the
+ * catchable direction is a score fed as a fraction, which {@link assertFraction}
+ * flags as ">8500%". A non-finite input collapses to 0; `label` names the field.
+ */
+export function assertScore(value: number, label = "score"): number {
+  if (!Number.isFinite(value)) return 0;
+  if (value < 0 || value > 100) {
+    warnRangeContract(
+      `${label} (${value}) is outside the 0..100 score range — clamped to ${clampPercent(value)} for display. ` +
+        `Expected a 0..100 ${label}; check the producer isn't double-scaling it (pipeline/jobfit/devcase/models.py).`
+    );
+    return clampPercent(value);
+  }
+  return value;
+}
+
+/**
  * Years of experience, trimmed of noise: 0 -> "0 yrs", 1 -> "1 yr",
  * 3.5 -> "3.5 yrs". Keeps at most one decimal and drops a trailing ".0".
  */

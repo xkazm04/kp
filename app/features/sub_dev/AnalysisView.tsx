@@ -1,7 +1,7 @@
 "use client";
 
 import { Boxes, Check, ClipboardList, GitBranch, Loader2, Lock, ShieldCheck } from "lucide-react";
-import { formatPercent } from "@/app/_lib/format";
+import { formatFraction } from "@/app/_lib/format";
 import { ProvenanceStrip } from "./ProvenanceStrip";
 import { MiniList } from "./DevShared";
 import { COMPLEXITY } from "./DevTypes";
@@ -57,7 +57,7 @@ export function AnalysisView({
               ) : null}
               <span className="ml-auto flex items-center gap-1.5 text-micro uppercase text-steel">
                 <ProvenanceStrip perStepSources={result.perStepSources} source={result.source} />
-                <span>conf {formatPercent(analysis.confidence ?? 0, { fraction: true })}</span>
+                <span>conf {formatFraction(analysis.confidence ?? 0, { label: "confidence" })}</span>
               </span>
             </div>
             <p className="text-base text-ink">{analysis.reflection}</p>
@@ -96,7 +96,7 @@ export function AnalysisView({
                 <div className="flex flex-wrap gap-1.5">
                   {Object.entries(snapshot.languages ?? {}).slice(0, 6).map(([k, v]) => (
                     <span key={k} className="rounded-md border border-stone-200 px-2 py-0.5 text-micro text-ink">
-                      {k} <span className="text-steel">{formatPercent(v, { fraction: true })}</span>
+                      {k} <span className="text-steel">{formatFraction(v, { label: "language share" })}</span>
                     </span>
                   ))}
                 </div>
@@ -179,7 +179,7 @@ export function AnalysisView({
                   <div className="mt-2 flex flex-wrap gap-1.5">
                     {(design.case?.rubricDimensions ?? []).map((d) => (
                       <span key={d.name} className="rounded-full bg-paper px-2 py-0.5 text-micro text-ink">
-                        {d.label ?? d.name} <span className="text-steel">{formatPercent(d.weight ?? 0, { fraction: true })}</span>
+                        {d.label ?? d.name} <span className="text-steel">{formatFraction(d.weight ?? 0, { label: "rubric weight" })}</span>
                       </span>
                     ))}
                   </div>

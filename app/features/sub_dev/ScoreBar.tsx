@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { scoreTone, scoreToneColor } from "@/app/_lib/format";
+import { assertFraction, assertScore, scoreTone, scoreToneColor } from "@/app/_lib/format";
 
 // A single capability bar that grows from 0 to its value on mount, so the row
 // reads as a live measurement rather than a static printout. Rows stagger by
@@ -16,7 +16,14 @@ export function ScoreBar({ label, value, index, weight, title }: { label: string
     const id = requestAnimationFrame(() => setFilled(true));
     return () => cancelAnimationFrame(id);
   }, []);
-  const pct = typeof weight === "number" && weight > 0 ? Math.round(weight * 100) : null;
+  // Guard the 0..100 score domain at the render boundary: a malformed/double-scaled
+  // value (e.g. 850) is clamped so the bar fills to 100% instead of overflowing to
+  // 850%, and the violation is reported once via the range contract (see format.ts).
+  const score = assertScore(value, `${label} score`);
+  // The muted weight % is the same 0..1 fraction domain (rubric weight) rendered
+  // by hand, so it routes through the same guard; a 0 weight still hides the label.
+  const w = typeof weight === "number" ? assertFraction(weight, "rubric weight") : null;
+  const pct = w != null && w > 0 ? Math.round(w * 100) : null;
   return (
     <div className="flex items-center gap-2" title={title || undefined}>
       <span className="flex w-28 shrink-0 items-baseline gap-1 text-micro text-steel">
@@ -25,10 +32,10 @@ export function ScoreBar({ label, value, index, weight, title }: { label: string
       </span>
       <span
         role="progressbar"
-        aria-valuenow={value}
+        aria-valuenow={score}
         aria-valuemin={0}
         aria-valuemax={100}
-        aria-label={`${label} score ${value} of 100${pct != null ? `, weighted ${pct}%` : ""}`}
+        aria-label={`${label} score ${score} of 100${pct != null ? `, weighted ${pct}%` : ""}`}
         className="h-1.5 flex-1 overflow-hidden rounded-full bg-stone-200"
       >
         <span
@@ -38,13 +45,13 @@ export function ScoreBar({ label, value, index, weight, title }: { label: string
             // 75/50 cutoffs) so a capability bar shares the badge/dial hue for the
             // same tier — the bar already styles via inline width, so the raw
             // --color-score-* var slots in beside it.
-            backgroundColor: scoreToneColor(scoreTone(value)),
-            width: filled ? `${value}%` : "0%",
+            backgroundColor: scoreToneColor(scoreTone(score)),
+            width: filled ? `${score}%` : "0%",
             transitionDelay: `${index * 60}ms`,
           }}
         />
       </span>
-      <span className="w-6 shrink-0 text-right text-micro text-ink">{value}</span>
+      <span className="w-6 shrink-0 text-right text-micro text-ink">{score}</span>
     </div>
   );
 }

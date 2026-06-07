@@ -8,7 +8,7 @@ lifecycle: DevNeed -> NeedAnalysis -> (CaseScenario + RoleSpec) -> Submission ->
 
 from __future__ import annotations
 
-from pydantic import AliasChoices, Field
+from pydantic import AliasChoices, Field, model_validator
 
 from ..models import _Base
 
@@ -237,10 +237,31 @@ class DimensionScore(_Base):
 
 
 class CaseEvaluation(_Base):
-    """Scores the five durable capabilities — not lines/correctness."""
+    """Scores the five durable capabilities — not lines/correctness.
+
+    CANONICAL SCORE CONTRACT — the single authoritative representation is ``dimension_scores``.
+      * ``dimension_scores`` (dict name -> 0..100) is THE source of truth for every capability
+        number. Everything that needs a score reads it from here: ``evaluate.score_transfer``
+        averages it, ``submission_eval`` validates/ranks on it, and the UI's legacy fallback
+        reads it. There are deliberately NO per-capability scalar fields — the old
+        ``structure_score`` / ``judgment_score`` / ``architecture_score`` scalars were dropped
+        because they duplicated this dict and could silently diverge from it (e.g. a reviewer
+        reading ``judgment_score`` vs ``dimension_scores['judgment']`` getting two numbers).
+        Note there is no "structure" capability at all: the rubric's five names are
+        framing/tooling/judgment/architecture/transfer (models.RUBRIC_DIMENSIONS), and the
+        STRUCTURAL axis is ``architecture`` — ``structure_score`` meant nothing distinct.
+      * ``dimensions`` is a DERIVED, ordered, weight-annotated MIRROR of ``dimension_scores``
+        (see DimensionScore + evaluate._ordered_dimensions) — it adds canonical order + human
+        label + rubric weight + description for the UI, but each row's ``score`` is, by
+        contract, exactly ``dimension_scores[row.name]``. It is a pure projection, never an
+        independently authored number. ``_mirror_dimension_scores`` below force-syncs it on
+        every construct/validate so the two representations can never disagree.
+    """
 
     dimension_scores: dict[str, int] = Field(default_factory=dict)
-    # Ordered, weight-annotated mirror of dimension_scores (see DimensionScore) — what the UI reads.
+    # DERIVED ordered mirror of dimension_scores (see DimensionScore + the canonical-score
+    # contract above) — what the UI reads. Each row's `score` is force-synced from
+    # dimension_scores by `_mirror_dimension_scores`, so it is a projection, never its own score.
     dimensions: list[DimensionScore] = Field(default_factory=list)
     strengths: list[str] = Field(default_factory=list)
     concerns: list[str] = Field(default_factory=list)
@@ -254,6 +275,20 @@ class CaseEvaluation(_Base):
     commit_reflection: CommitReflection | None = None
     tooling_signal: ToolingSignal | None = None
     prompt_version: str = ""
+
+    @model_validator(mode="after")
+    def _mirror_dimension_scores(self) -> "CaseEvaluation":
+        """Enforce the canonical-score contract: dimension_scores is the single source of truth,
+        so every ordered-mirror row whose capability is scored in the dict takes its score FROM
+        the dict. This makes the two representations structurally incapable of diverging — on
+        plain construction AND on model_validate of any stored/LLM-produced artifact — so the
+        latent 'which number is right?' trap can't reappear. A mirror row for a capability absent
+        from dimension_scores is left untouched (evaluate._ordered_dimensions already seeds it
+        with the documented MISSING_DIMENSION_SCORE neutral midpoint)."""
+        for d in self.dimensions:
+            if d.name in self.dimension_scores:
+                d.score = self.dimension_scores[d.name]
+        return self
 
 
 class TransferAssessment(_Base):

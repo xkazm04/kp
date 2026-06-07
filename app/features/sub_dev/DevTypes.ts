@@ -8,6 +8,17 @@ export type JdSummary = { slug: string; title: string; preview: string; created_
 // need.jdText, the primary statement of the need.
 export type SelectedJd = { slug: string; title: string; body: string };
 
+// The numeric-range contract for the scoring UI
+// ----------------------------------------------
+// Every numeric field below is one of two domains, annotated inline and enforced
+// at the render boundary by app/_lib/format (assertFraction/formatFraction for
+// 0..1, assertScore for 0..100):
+//   - FRACTION (0..1): a confidence / fluency / read-before-write / rubric weight /
+//     language share — rendered as a percent (0.73 -> "73%").
+//   - SCORE (0..100): a capability score / transferScore — rendered raw.
+// These mirror the ranges pinned on the Python producer (pipeline/jobfit/devcase/
+// models.py); the guards turn a unit-swap (a confidence emitted as 85 not 0.85)
+// into a caught "[range-contract]" warning + clamp instead of an absurd "8500%".
 export type NeedAnalysis = {
   realStack?: string[];
   coreResponsibilities?: string[];
@@ -15,11 +26,11 @@ export type NeedAnalysis = {
   trueComplexity?: string;
   riskAreas?: string[];
   reflection?: string;
-  confidence?: number;
+  confidence?: number; // FRACTION 0..1 — trust in this inference (see models.py "Confidence scale")
 };
 export type RepoSnapshot = {
   ref?: string;
-  languages?: Record<string, number>;
+  languages?: Record<string, number>; // name -> FRACTION 0..1 (language share of the repo)
   inferredStack?: string[];
   topDirs?: string[];
   recentCommitSummaries?: string[];
@@ -43,7 +54,7 @@ export type PerStepSources = Record<string, SourceKind>;
 export type Result = { analysis?: NeedAnalysis; snapshot?: RepoSnapshot | null; snapshots?: RepoSnapshot[]; source?: SourceKind; perStepSources?: PerStepSources };
 
 export type CoverProbe = { id?: string; kind?: string; where?: string; reveals?: string; decisionSpace?: string[] };
-export type RubricDim = { name?: string; label?: string; weight?: number; description?: string };
+export type RubricDim = { name?: string; label?: string; weight?: number /* FRACTION 0..1 */; description?: string };
 export type RoleSpec = { title?: string; seniority?: string; mustHaves?: string[]; niceToHaves?: string[]; responsibilities?: string[] };
 export type CaseScenario = { title?: string; brief?: string; repoSeed?: string; tasks?: string[]; coverProbes?: CoverProbe[]; rubricDimensions?: RubricDim[]; timeboxHours?: number };
 export type Design = { role?: RoleSpec; case?: CaseScenario; source?: SourceKind; perStepSources?: PerStepSources };
@@ -65,7 +76,7 @@ export type Submission = {
   receivedAt: string;
   status?: string;
   evaluation?: EvalBundle | null;
-  transferScore?: number | null;
+  transferScore?: number | null; // SCORE 0..100 (mirror of evaluation.transfer.transferScore)
 };
 export type Posting = {
   id: string;
@@ -94,17 +105,23 @@ export type Reflection = {
   narrative?: string;
   iterationPattern?: string;
   deadEnds?: string[];
-  readBeforeWrite?: number;
+  readBeforeWrite?: number; // FRACTION 0..1 — evidence they read before generating
   verificationHabits?: string[];
-  confidence?: number;
+  confidence?: number; // FRACTION 0..1 — trust in this inference
 };
 export type ProbeOutcome = { probeId?: string; kind?: string; where?: string; detected?: boolean; handledWell?: boolean; note?: string };
-export type Tooling = { fluency?: number; probeOutcomes?: ProbeOutcome[]; overRelianceFlags?: string[]; evidence?: string[]; confidence?: number };
+export type Tooling = { fluency?: number /* FRACTION 0..1 */; probeOutcomes?: ProbeOutcome[]; overRelianceFlags?: string[]; evidence?: string[]; confidence?: number /* FRACTION 0..1 */ };
 // Self-describing breakdown row echoed by the Python evaluator (evaluate.py `_ordered_dimensions`):
-// canonical order + human label + weight, so the UI never hardcodes dimension metadata.
-export type DimensionScore = { name: string; label: string; weight: number; score: number; description: string };
-export type CaseEval = { dimensionScores?: Record<string, number>; dimensions?: DimensionScore[]; strengths?: string[]; concerns?: string[]; hasFindings?: boolean; summary?: string };
-export type Transfer = { transferScore?: number; transfers?: string[]; gaps?: string[]; hasTransfers?: boolean; roleFitRationale?: string };
+// canonical order + human label + weight, so the UI never hardcodes dimension metadata. `score`
+// is a MIRROR of `dimensionScores[name]` — never an independent number (see CaseEval below).
+export type DimensionScore = { name: string; label: string; weight: number /* FRACTION 0..1 */; score: number /* SCORE 0..100 */; description: string };
+// Canonical-score contract (mirrors models.CaseEvaluation): `dimensionScores` (name -> 0..100) is
+// the single source of truth for the capability numbers; `dimensions` is its derived, ordered,
+// weight-annotated projection for the UI (each row.score === dimensionScores[row.name], enforced
+// Python-side). There is no per-capability scalar — the structural axis IS `architecture`. The
+// UI prefers `dimensions`, falling back to `dimensionScores` only for bundles saved before it.
+export type CaseEval = { dimensionScores?: Record<string, number> /* name -> SCORE 0..100 */; dimensions?: DimensionScore[]; strengths?: string[]; concerns?: string[]; hasFindings?: boolean; summary?: string };
+export type Transfer = { transferScore?: number /* SCORE 0..100 */; transfers?: string[]; gaps?: string[]; hasTransfers?: boolean; roleFitRationale?: string };
 // One candidate-specific interview question minted from the evaluated submission
 // (evaluate.mint_followups). `decision` names the observed call being verified;
 // listenFor/redFlag are INTERNAL interviewer notes — render them as such, never

@@ -9,7 +9,7 @@
 //   npm run test:unit
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { offeredSlotFor, proposeSlots } from "./schedule-slots.ts";
+import { offeredSlotFor, proposeSlots, SLOT_HORIZON_DAYS } from "./schedule-slots.ts";
 
 // Fixed local reference: Monday 2026-06-08 12:00 local time.
 const NOW = new Date(2026, 5, 8, 12, 0, 0, 0).getTime();
@@ -45,5 +45,26 @@ test("everything proposeSlots offers passes offeredSlotFor — proposal and vali
     const v = offeredSlotFor(s.value);
     assert.ok(v, `proposed slot ${s.value} must validate`);
     assert.equal(v!.label, s.label, "validation must mint the same label the proposal showed");
+  }
+});
+
+test("a fully-booked horizon yields zero slots — the no-available-slots boundary (idea-5df8e10f)", () => {
+  // Feed back every slot the horizon could ever offer as "taken": the busiest-
+  // calendar edge. proposeSlots must report emptiness (so the route can flag the
+  // recruiter), never invent a slot outside its own grid.
+  const everySlot = proposeSlots([], 10_000).map((s) => s.value);
+  assert.ok(everySlot.length > 0, "sanity: an open horizon offers some slots");
+  assert.deepEqual(proposeSlots(everySlot), [], "every offerable slot taken ⇒ empty proposal");
+  assert.deepEqual(proposeSlots(everySlot, 6), [], "and the default page is empty too");
+});
+
+test("the scheduling horizon is a single source of truth bounding every proposal", () => {
+  assert.ok(SLOT_HORIZON_DAYS > 0, "horizon must be a positive number of days");
+  // No proposed slot may fall beyond the horizon (+1 day of end-of-day slack):
+  // proposeSlots' scan and offeredSlotFor's accept-window both derive from this
+  // one constant, so widening it can never let the two drift.
+  const horizonEndMs = Date.now() + (SLOT_HORIZON_DAYS + 1) * 86_400_000;
+  for (const s of proposeSlots([], 10_000)) {
+    assert.ok(Date.parse(s.value) <= horizonEndMs, `proposed slot ${s.value} stays within the horizon`);
   }
 });

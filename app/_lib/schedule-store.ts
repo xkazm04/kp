@@ -43,6 +43,12 @@ function db(): Database.Database {
       -- recruiter board still shows them waiting. Flags the drift for a human.
       needs_reconcile INTEGER NOT NULL DEFAULT 0,
       reconcile_reason TEXT,
+      -- Set when a candidate opened the picker but every slot in the proposal
+      -- horizon was already booked (idea-5df8e10f): zero offerable times. Flags
+      -- the stalled booking for the recruiter so the busiest-calendar edge can't
+      -- die silently; cleared when the candidate eventually confirms a slot.
+      needs_more_slots INTEGER NOT NULL DEFAULT 0,
+      more_slots_flagged_at TEXT,
       -- Planned interview length in minutes, captured when the invite is minted
       -- (plannedInterviewMinutes): a student's six-phase screen runs ~22 min, not
       -- the ~5-min quick screen, and the candidate should block the right time.
@@ -65,6 +71,8 @@ function db(): Database.Database {
     "reminder_last_attempt_at TEXT",
     "needs_reconcile INTEGER NOT NULL DEFAULT 0",
     "reconcile_reason TEXT",
+    "needs_more_slots INTEGER NOT NULL DEFAULT 0",
+    "more_slots_flagged_at TEXT",
     "duration_min INTEGER",
   ]) {
     try {
@@ -91,6 +99,8 @@ export type ScheduleInvite = {
   reminderLastAttemptAt: string | null; // ISO time of the most recent attempt (for backoff)
   needsReconcile: boolean; // confirmed here but the pipeline entry failed to advance
   reconcileReason: string | null; // why the advance failed (for the operator who reconciles)
+  needsMoreSlots: boolean; // candidate hit a fully-booked horizon (zero offerable slots); flagged for the recruiter
+  moreSlotsFlaggedAt: string | null; // ISO time the zero-slots stall was first flagged
   durationMin: number | null; // planned interview length (e.g. 22 for the student script)
   createdAt: string;
   confirmedAt: string | null;
@@ -111,6 +121,8 @@ function rowTo(r: Record<string, unknown>): ScheduleInvite {
     reminderLastAttemptAt: (r.reminder_last_attempt_at as string) ?? null,
     needsReconcile: Boolean(r.needs_reconcile),
     reconcileReason: (r.reconcile_reason as string) ?? null,
+    needsMoreSlots: Boolean(r.needs_more_slots),
+    moreSlotsFlaggedAt: (r.more_slots_flagged_at as string) ?? null,
     durationMin: r.duration_min == null ? null : Number(r.duration_min),
     createdAt: r.created_at as string,
     confirmedAt: (r.confirmed_at as string) ?? null,
@@ -168,8 +180,15 @@ export function confirmScheduleInvite(token: string, slot: string, slotAt?: stri
     if (clash) return { ok: false, reason: "taken", invite: inv };
     // RETURNING * gives the just-updated row back in the same statement (inside the
     // transaction), replacing the previous UPDATE-then-re-SELECT pair.
+    // Confirming clears any prior zero-slots flag: a candidate who once hit a
+    // fully-booked horizon (needs_more_slots) is no longer stalled once they
+    // book, so the flag stays honest as "currently stalled", not "ever stalled".
     const updated = d
-      .prepare(`UPDATE schedule_invites SET status = 'confirmed', slot = ?, slot_at = ?, confirmed_at = ? WHERE token = ? RETURNING *`)
+      .prepare(
+        `UPDATE schedule_invites
+            SET status = 'confirmed', slot = ?, slot_at = ?, confirmed_at = ?, needs_more_slots = 0, more_slots_flagged_at = NULL
+          WHERE token = ? RETURNING *`
+      )
       .get(slot, slotAt ?? null, new Date().toISOString(), token) as Record<string, unknown>;
     return { ok: true, invite: rowTo(updated) };
   });
@@ -182,6 +201,21 @@ export function confirmScheduleInvite(token: string, slot: string, slotAt?: stri
  *  of swallowing the error — lets an operator find and repair the divergence. */
 export function markScheduleInviteNeedsReconcile(token: string, reason: string): void {
   db().prepare(`UPDATE schedule_invites SET needs_reconcile = 1, reconcile_reason = ? WHERE token = ?`).run(reason, token);
+}
+
+/** Flag an invite whose entire proposal horizon was already booked when the
+ *  candidate opened the picker (zero offerable slots — idea-5df8e10f). Returns
+ *  true only on the 0→1 transition, so the caller logs/alerts exactly once
+ *  instead of on every page refresh. Cleared when the candidate confirms a slot
+ *  (see confirmScheduleInvite). */
+export function flagScheduleInviteNeedsMoreSlots(token: string): boolean {
+  const res = db()
+    .prepare(
+      `UPDATE schedule_invites SET needs_more_slots = 1, more_slots_flagged_at = ?
+        WHERE token = ? AND needs_more_slots = 0`
+    )
+    .run(new Date().toISOString(), token);
+  return res.changes > 0;
 }
 
 /** ISO datetimes already taken by confirmed invites — so two candidates don't

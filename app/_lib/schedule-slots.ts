@@ -19,9 +19,18 @@ const TIMES = ["10:00", "14:00"] as const;
 const DOW = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
-/** How far out slots are offered (proposeSlots scans day+1..21; +1 day of slack
- *  so a slot loaded just before midnight stays confirmable after it). */
-const MAX_SLOT_AHEAD_MS = 22 * 86_400_000;
+/** How many days ahead the candidate self-scheduling picker offers slots — the
+ *  ONE source of truth for the scheduling horizon. Widen this single constant to
+ *  open more dates; proposeSlots' scan and offeredSlotFor's accept-window both
+ *  derive from it, so they can't drift (they used to hardcode 21 and 22). When a
+ *  fully-booked horizon yields zero slots, the route flags the invite for the
+ *  recruiter rather than stranding the candidate (idea-5df8e10f). */
+export const SLOT_HORIZON_DAYS = 21;
+
+/** How far out a submitted slot still validates: the proposal horizon plus one
+ *  day of slack, so a slot loaded just before midnight stays confirmable after
+ *  the rollover. */
+const MAX_SLOT_AHEAD_MS = (SLOT_HORIZON_DAYS + 1) * 86_400_000;
 
 /** The one canonical human label for a slot — proposal and validation both
  *  mint it here, so the stored label is always server-authored. */
@@ -37,7 +46,7 @@ export function proposeSlots(taken: string[] = [], count = 6): { value: string; 
   const out: { value: string; label: string }[] = [];
   const takenSet = new Set(taken);
   const base = new Date();
-  for (let day = 1; day <= 21 && out.length < count; day += 1) {
+  for (let day = 1; day <= SLOT_HORIZON_DAYS && out.length < count; day += 1) {
     const dt = new Date(base);
     dt.setDate(base.getDate() + day);
     const dow = dt.getDay();
