@@ -22,6 +22,9 @@ export function SchedulePicker({ token }: { token: string }) {
   const [error, setError] = useState<string | null>(null);
   const [picking, setPicking] = useState<string | null>(null);
   const [confirmed, setConfirmed] = useState<string | null>(null);
+  // False when the server booked the slot but the confirmation email failed to
+  // send — the success card then softens its promise instead of lying.
+  const [confirmationSent, setConfirmationSent] = useState(true);
 
   useEffect(() => {
     let alive = true;
@@ -56,6 +59,7 @@ export function SchedulePicker({ token }: { token: string }) {
       });
       const d = await res.json();
       if (res.ok) {
+        setConfirmationSent(d.confirmationSent !== false);
         setConfirmed(s.label);
       } else {
         setError(d.error || "Couldn't confirm that slot.");
@@ -99,7 +103,9 @@ export function SchedulePicker({ token }: { token: string }) {
         </p>
         <p className="mt-2 text-base text-steel">
           {invite.durationMin ? `Plan for about ${invite.durationMin} minutes. ` : ""}
-          We&apos;ve sent a confirmation and will remind you before the call. You can close this page.
+          {confirmationSent
+            ? "We've sent a confirmation and will remind you before the call. You can close this page."
+            : "We've recorded your slot — we'll be in touch shortly to confirm the details. You can close this page."}
         </p>
       </div>
     );

@@ -99,6 +99,10 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
       return NextResponse.json({ error: "not found" }, { status: 404 });
     }
     const confirmed = result.invite;
+    // Whether the confirmation email actually went out. The candidate page must not
+    // promise "we've sent a confirmation" when delivery failed — worst for
+    // short-notice bookings, which get no separate timed reminder.
+    let confirmationSent = true;
     if (invite.entryId) {
       const entry = getPipelineEntry(invite.entryId);
       if (entry) {
@@ -122,12 +126,18 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
           const shortNotice =
             !Number.isNaN(slotAtMs) && !Number.isNaN(bookedAtMs) && isShortNoticeBooking(slotAtMs, bookedAtMs);
           await dispatchInterviewConfirmation(entry, slot, { shortNotice, durationMin: confirmed.durationMin });
-        } catch {
-          /* best-effort delivery */
+        } catch (dispatchError) {
+          // Don't swallow a delivery failure silently: flag + log it (reuse the
+          // reconcile machinery) and tell the client so the success copy softens
+          // instead of falsely claiming a confirmation was sent.
+          confirmationSent = false;
+          const reason = dispatchError instanceof Error ? dispatchError.message : String(dispatchError);
+          markScheduleInviteNeedsReconcile(token, `confirmation email failed: ${reason}`);
+          await logScheduleReconcile({ token, entry_id: entry.id, slot, error: `confirmation dispatch failed: ${reason}` });
         }
       }
     }
-    return jsonOk({ ok: true, invite: publicInviteView(confirmed) });
+    return jsonOk({ ok: true, invite: publicInviteView(confirmed), confirmationSent });
   } catch (error) {
     // Raw err.message would surface SQLite/dispatch internals on a public
     // token route — same hygiene as the pipeline/interview routes.
