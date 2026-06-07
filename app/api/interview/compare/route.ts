@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { interviewedForJob } from "@/app/_lib/db";
+import { safeJsonError } from "@/app/_lib/api-response";
 import { INTERVIEW_RUBRICS, RATING_ANCHORS } from "@/app/_lib/interview-rubric";
 
 export const runtime = "nodejs";
@@ -13,9 +14,15 @@ export const dynamic = "force-dynamic";
 export async function GET(request: NextRequest) {
   const jobId = request.nextUrl.searchParams.get("job");
   if (!jobId) return NextResponse.json({ error: "job is required" }, { status: 400 });
-  return NextResponse.json({
-    rubrics: INTERVIEW_RUBRICS,
-    anchors: RATING_ANCHORS,
-    candidates: interviewedForJob(jobId),
-  });
+  try {
+    return NextResponse.json({
+      rubrics: INTERVIEW_RUBRICS,
+      anchors: RATING_ANCHORS,
+      candidates: interviewedForJob(jobId),
+    });
+  } catch (error) {
+    // Previously uncaught — a thrown SQLite error fell through to the framework
+    // handler, which in dev forwards internal detail (idea-ab117371).
+    return safeJsonError(error, "api:interview:compare", "INTERVIEW_LOOKUP_FAILED");
+  }
 }

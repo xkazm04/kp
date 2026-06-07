@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getInterviewPrep, listPreparedEntries } from "@/app/_lib/interview-prep";
+import { safeJsonError } from "@/app/_lib/api-response";
 import { parseEntriesParam } from "@/app/_lib/entries-param";
 
 export const runtime = "nodejs";
@@ -19,6 +20,6 @@ export async function GET(request: NextRequest) {
     const entries = parseEntriesParam(sp.get("entries"));
     return NextResponse.json({ prepared: listPreparedEntries(entries) });
   } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Failed." }, { status: 500 });
+    return safeJsonError(error, "api:interview-prep", "INTERVIEW_PREP_FAILED");
   }
 }

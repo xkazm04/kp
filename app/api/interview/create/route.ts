@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createInterviewSession } from "@/app/_lib/db";
 import { buildGroundedInterview } from "@/app/_lib/interview-run";
-import { jsonError } from "@/app/_lib/api-response";
+import { safeJsonError } from "@/app/_lib/api-response";
 import { coerceLanguage, coerceProviderId, voiceAvailability, type VoiceProviderId } from "@/app/_lib/voice";
 
 export const runtime = "nodejs";
@@ -50,6 +50,13 @@ export async function POST(request: NextRequest) {
       jobTitle: session.jobTitle,
     });
   } catch (error) {
-    return jsonError(error, "create failed");
+    // buildGroundedInterview's not-found is a client-safe business rule, not an
+    // internal leak — keep it specific. Everything else (SQLite, automation,
+    // prep-generation errors) goes through the generic safe responder so raw
+    // err.message never crosses the wire (idea-ab117371).
+    if (error instanceof Error && error.message === "pipeline entry not found") {
+      return NextResponse.json({ error: error.message }, { status: 404 });
+    }
+    return safeJsonError(error, "api:interview:create", "INTERVIEW_CREATE_FAILED");
   }
 }

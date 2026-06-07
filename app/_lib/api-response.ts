@@ -45,6 +45,14 @@ export const STORE_ERRORS = {
   TEMPLATE_CREATE_FAILED: "Could not save the template. Please try again.",
   TEMPLATE_UPDATE_FAILED: "Could not update the template. Please try again.",
   TEMPLATE_DELETE_FAILED: "Could not delete the template. Please try again.",
+  // Voice-interview routes (idea-ab117371): their catch paths sit behind
+  // better-sqlite3, the scorecard automation AND the provider adapters, whose
+  // thrown errors embed upstream HTTP bodies — all internal detail.
+  INTERVIEW_CREATE_FAILED: "Could not create the interview. Please try again.",
+  INTERVIEW_CONNECT_FAILED: "Could not connect the voice call. Please try again.",
+  INTERVIEW_COMPLETE_FAILED: "Could not save the interview. Please try again.",
+  INTERVIEW_LOOKUP_FAILED: "Could not load interview data. Please try again.",
+  INTERVIEW_PREP_FAILED: "Could not load interview prep. Please try again.",
 } as const;
 
 export type StoreErrorCode = keyof typeof STORE_ERRORS;

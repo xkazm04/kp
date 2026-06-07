@@ -14,7 +14,7 @@ import {
   type VoiceProviderId,
 } from "@/app/_lib/voice";
 import { QUICK_SCREEN_MIN } from "@/app/_lib/interview-duration.mjs";
-import { jsonError } from "@/app/_lib/api-response";
+import { safeJsonError } from "@/app/_lib/api-response";
 import { CONSENT_REQUIRED_ERROR, isConnectConsentSatisfied } from "@/app/_lib/interview-consent";
 
 export const runtime = "nodejs";
@@ -88,6 +88,10 @@ export async function POST(request: NextRequest) {
     const groundedPrompt = session.mode === "candidate" ? instructions : null;
     return NextResponse.json({ sessionId: session.id, provider, instructions, groundedPrompt, connect });
   } catch (error) {
-    return jsonError(error, "connect failed");
+    // Adapter errors embed upstream provider HTTP bodies (OpenAI client_secrets
+    // / ElevenLabs signed-url responses) — internal detail that must not reach
+    // the client (idea-ab117371). The not-configured 503 above stays specific:
+    // its message is already client-safe by construction.
+    return safeJsonError(error, "api:interview:connect", "INTERVIEW_CONNECT_FAILED");
   }
 }

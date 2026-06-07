@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { interviewStatusByEntries, latestInterviewByEntry } from "@/app/_lib/db";
-import { jsonError } from "@/app/_lib/api-response";
+import { safeJsonError } from "@/app/_lib/api-response";
 import { parseEntriesParam } from "@/app/_lib/entries-param";
 
 export const runtime = "nodejs";
@@ -19,6 +19,6 @@ export async function GET(request: NextRequest) {
     const entries = parseEntriesParam(sp.get("entries"));
     return NextResponse.json({ status: interviewStatusByEntries(entries) });
   } catch (error) {
-    return jsonError(error, "Failed.");
+    return safeJsonError(error, "api:interview:by-entry", "INTERVIEW_LOOKUP_FAILED");
   }
 }
