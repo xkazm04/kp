@@ -7,19 +7,37 @@ import {
   getScheduleInviteByToken,
   markScheduleInviteNeedsReconcile,
   proposeSlots,
+  type ScheduleInvite,
 } from "@/app/_lib/schedule-store";
 import { logScheduleReconcile } from "@/app/_lib/logger";
-import { jsonError, jsonOk } from "@/app/_lib/api-response";
+import { jsonOk, safeJsonError } from "@/app/_lib/api-response";
 import { isShortNoticeBooking } from "@/app/_lib/interview-reminder-policy";
 
 export const runtime = "nodejs";
+
+// Candidate-facing projection of an invite (idea-69d1e4fd). The route used to
+// return the WHOLE ScheduleInvite row to the public token holder — including
+// entryId (an internal pipeline_entries primary key, the same IDOR handle
+// POST /api/schedule/invite and other entry-keyed flows accept) and
+// reconcileReason (raw internal error text persisted by the reconcile flag).
+// SchedulePicker only consumes these five fields; nothing else belongs on the
+// public wire.
+function publicInviteView(invite: ScheduleInvite) {
+  return {
+    candidateLabel: invite.candidateLabel,
+    jobTitle: invite.jobTitle,
+    status: invite.status,
+    slot: invite.slot,
+    durationMin: invite.durationMin,
+  };
+}
 
 // GET → candidate-facing data: the invite + proposed slots.
 export async function GET(_request: NextRequest, context: { params: Promise<{ token: string }> }) {
   const { token } = await context.params;
   const invite = getScheduleInviteByToken(token);
   if (!invite) return NextResponse.json({ error: "not found" }, { status: 404 });
-  return jsonOk({ invite, slots: invite.status === "confirmed" ? [] : proposeSlots(bookedSlots()) });
+  return jsonOk({ invite: publicInviteView(invite), slots: invite.status === "confirmed" ? [] : proposeSlots(bookedSlots()) });
 }
 
 // POST → candidate confirms a slot: record it, set it on the pipeline entry
@@ -30,7 +48,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
     const body = (await request.json().catch(() => ({}))) as { slot?: string; slotAt?: string };
     const invite = getScheduleInviteByToken(token);
     if (!invite) return NextResponse.json({ error: "not found" }, { status: 404 });
-    if (invite.status === "confirmed") return jsonOk({ ok: true, invite });
+    if (invite.status === "confirmed") return jsonOk({ ok: true, invite: publicInviteView(invite) });
 
     const slot = (body.slot ?? "").trim();
     if (!slot) return NextResponse.json({ error: "slot is required" }, { status: 400 });
@@ -40,7 +58,8 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
       if (result.reason === "taken") {
         // Another candidate confirmed this exact time between page load and submit.
         return NextResponse.json(
-          { error: "That time was just taken — please pick another.", invite: result.invite }, { status: 409 }
+          { error: "That time was just taken — please pick another.", invite: result.invite ? publicInviteView(result.invite) : null },
+          { status: 409 }
         );
       }
       return NextResponse.json({ error: "not found" }, { status: 404 });
@@ -74,8 +93,10 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
         }
       }
     }
-    return jsonOk({ ok: true, invite: confirmed });
+    return jsonOk({ ok: true, invite: publicInviteView(confirmed) });
   } catch (error) {
-    return jsonError(error, "confirm failed");
+    // Raw err.message would surface SQLite/dispatch internals on a public
+    // token route — same hygiene as the pipeline/interview routes.
+    return safeJsonError(error, "api:schedule:confirm", "SCHEDULE_CONFIRM_FAILED");
   }
 }
