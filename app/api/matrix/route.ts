@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { writeFile } from "node:fs/promises";
 import path from "node:path";
-import { getJob, listMatrixProfiles, listOpenPositions, pipelinePlacements } from "@/app/_lib/db";
+import { getJobsByIds, listMatrixProfiles, listOpenPositions, pipelinePlacements } from "@/app/_lib/db";
 import { cleanupWorkdir, createWorkdir, parsePythonJson, parseStderrError, spawnPython } from "@/app/_lib/python-runner";
 
 export const runtime = "nodejs";
@@ -37,7 +37,9 @@ export async function GET() {
     // Open positions come from pipeline entries, which can reference DB-ingested jobs
     // absent from the static corpus. Pass those full records so they score instead of
     // silently vanishing from the grid; matrix_cli reports any still-unresolved ids.
-    const dbJobs = positions.map((p) => getJob(p.id)).filter((j): j is NonNullable<typeof j> => j !== null);
+    // One IN-query for the whole position set (idea-f946db9d) — this sat on the
+    // matrix critical path as M point SELECTs before Python even started.
+    const dbJobs = getJobsByIds(positions.map((p) => p.id));
     const jobsPath = path.join(workdir, "jobs.json");
     await writeFile(jobsPath, JSON.stringify(dbJobs), "utf-8");
 

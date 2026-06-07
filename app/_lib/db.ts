@@ -945,6 +945,28 @@ export function getJob(id: string): JobRecord | null {
   return row ? safeRowParse<JobRecord>(row.payload_json, "getJob", id) : null;
 }
 
+/** Batch getJob (idea-f946db9d): one IN-query — chunked under the SQLite
+ *  variable limit, same pattern as interviewStatusByEntries — instead of one
+ *  point SELECT per id. Returns records in the REQUESTED order; unknown ids and
+ *  corrupt payloads (logged by safeRowParse) are skipped, matching getJob's
+ *  per-row degradation. */
+export function getJobsByIds(ids: string[]): JobRecord[] {
+  if (ids.length === 0) return [];
+  const db = ensureDb();
+  const byId = new Map<string, JobRecord>();
+  for (const part of chunk(ids, SQL_IN_CHUNK)) {
+    const placeholders = part.map(() => "?").join(",");
+    const rows = db
+      .prepare(`SELECT id, payload_json FROM jobs WHERE id IN (${placeholders})`)
+      .all(...part) as { id: string; payload_json: string }[];
+    for (const r of rows) {
+      const parsed = safeRowParse<JobRecord>(r.payload_json, "getJobsByIds", r.id);
+      if (parsed) byId.set(r.id, parsed);
+    }
+  }
+  return ids.map((id) => byId.get(id)).filter((j): j is JobRecord => j !== undefined);
+}
+
 // The full live job corpus — every current opening rematch scores against. Unlike
 // listJobs (paginated, filtered, ranked for the browse UI) this returns ALL live
 // jobs as full records, ordered by id, with drafts excluded (an unpublished JD is
