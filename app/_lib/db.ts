@@ -2922,10 +2922,34 @@ export function saveSubmissionEvaluation(id: string, evaluation: unknown, transf
 
 export type PipelineAction = "accept" | "reject" | "approve_event";
 
-export function actOnPipelineEntry(id: string, action: PipelineAction, detail?: string): PipelineEntry | null {
+/** Apply a pipeline action. The read→compute→write runs inside an IMMEDIATE
+ *  transaction (idea-b6310b92): the write lock is taken at BEGIN, so a write
+ *  from another connection (offers-store, schedule-store, a second process)
+ *  cannot land between the SELECT and the UPDATE — the classic lost-update
+ *  where a stale automated 'advance' clobbers a human correction.
+ *
+ *  `opts.expectedStage` is the optimistic-CAS half for callers whose DECISION
+ *  is older than the write (the automation pass snapshots entries, spawns
+ *  Python for seconds, then applies): when the row's stage no longer matches
+ *  what the decision was computed from, the action is SKIPPED and null is
+ *  returned — a policy verdict about a stage the entry is no longer in must
+ *  not be applied to whatever stage it is in now. */
+export function actOnPipelineEntry(
+  id: string,
+  action: PipelineAction,
+  detail?: string,
+  opts?: { expectedStage?: string }
+): PipelineEntry | null {
   const db = ensureDb();
+  const tx = db.transaction((): PipelineEntry | null => {
   const row = db.prepare(`SELECT * FROM pipeline_entries WHERE id = ?`).get(id) as PipelineRow | undefined;
   if (!row) return null;
+  if (opts?.expectedStage !== undefined && row.stage !== opts.expectedStage) {
+    console.warn(
+      `[pipeline:act] skipped stale ${action} for entry ${id}: decided at stage '${opts.expectedStage}', row is now '${row.stage}'.`
+    );
+    return null;
+  }
   const now = new Date().toISOString();
   const meta = {
     entryId: id,
@@ -2989,4 +3013,8 @@ export function actOnPipelineEntry(id: string, action: PipelineAction, detail?: 
   }
   const updated = db.prepare(`SELECT * FROM pipeline_entries WHERE id = ?`).get(id) as PipelineRow;
   return rowToEntry(updated);
+  });
+  // IMMEDIATE: take the write lock at BEGIN (not at first write), so the SELECT
+  // above can never read a row another connection is about to change under us.
+  return tx.immediate();
 }

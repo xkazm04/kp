@@ -57,9 +57,20 @@ export async function runAutomationPass(): Promise<AutomationPassResult> {
     const byId = new Map(entries.map((e) => [e.id, e]));
     for (const d of decisions) {
       if (!d.entryId) continue;
+      // Optimistic CAS (idea-b6310b92): the policy decided against the SNAPSHOT
+      // stage, but the Python hop takes seconds — a recruiter (or a concurrent
+      // pass) may have moved the entry meanwhile. Passing expectedStage makes a
+      // stale verdict a logged no-op instead of an action applied to whatever
+      // stage the entry happens to be in NOW.
+      const snapshotStage = byId.get(d.entryId)?.stage;
       if (d.action === "advance") {
-        actOnPipelineEntry(d.entryId, "accept"); // logs `advanced` + stamps stage_changed_at
-        summary.advanced += 1;
+        const applied = actOnPipelineEntry(d.entryId, "accept", undefined, { expectedStage: snapshotStage }); // logs `advanced` + stamps stage_changed_at
+        if (applied) {
+          summary.advanced += 1;
+        } else {
+          d.action = "none";
+          d.reason = `Skipped: stage changed mid-pass. Original policy decision: ${d.reason}`;
+        }
       } else if (d.action === "reject") {
         // Defense in depth: re-assert the fairness invariant before applying a
         // reject (BAU<40 only — enforced in evaluate_entry). If Python regressed and
@@ -67,9 +78,16 @@ export async function runAutomationPass(): Promise<AutomationPassResult> {
         // it — downgrade to a hold + alert rather than silently auto-rejecting.
         const verdict = assertAutoRejectFair(byId.get(d.entryId));
         if (verdict.allowed) {
-          const rejected = actOnPipelineEntry(d.entryId, "reject");
-          if (rejected) await dispatchRejection(rejected, { automated: true }); // tell the candidate (queued by default)
-          summary.rejected += 1;
+          const rejected = actOnPipelineEntry(d.entryId, "reject", undefined, { expectedStage: snapshotStage });
+          if (rejected) {
+            await dispatchRejection(rejected, { automated: true }); // tell the candidate (queued by default)
+            summary.rejected += 1;
+          } else {
+            // Stale (stage changed mid-pass) — and crucially, NO rejection email
+            // went out for a verdict the entry's current state never earned.
+            d.action = "none";
+            d.reason = `Skipped: stage changed mid-pass. Original policy decision: ${d.reason}`;
+          }
         } else {
           d.action = "hold";
           d.reason = `Auto-reject refused by fairness backstop: ${verdict.reason}. Original policy decision: ${d.reason}`;
