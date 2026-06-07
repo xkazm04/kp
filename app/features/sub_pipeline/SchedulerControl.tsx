@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AlertTriangle, ArrowUpRight, Clock, Loader2, Pause, XCircle } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Badge, type BadgeTone } from "@/app/_components/Badge";
@@ -80,6 +80,13 @@ export function SchedulerControl({ onRan, className = "" }: { onRan?: () => void
   // Draft string for the interval field so the user can clear/retype freely — a
   // number-bound input can't hold an empty string. Parsed + clamped on blur.
   const [intervalDraft, setIntervalDraft] = useState("");
+  // Single-flight: the toggle, interval-commit, and "Run now" all call update().
+  // `busy` disables the controls, but two near-simultaneous clicks can launch before
+  // it renders — this ref blocks a concurrent update() synchronously.
+  const inFlightRef = useRef(false);
+  // True while the interval field is focused, so the 30s poll's render-phase mirror
+  // doesn't overwrite what the operator is mid-typing.
+  const intervalFocusedRef = useRef(false);
 
   const load = () =>
     fetch("/api/automation/schedule")
@@ -104,7 +111,7 @@ export function SchedulerControl({ onRan, className = "" }: { onRan?: () => void
   // adjustment keyed on the stored value, so it only fires when that actually
   // changes — it won't clobber what you're typing.
   const [mirroredInterval, setMirroredInterval] = useState<number | null>(null);
-  if (sched && sched.intervalMinutes !== mirroredInterval) {
+  if (sched && sched.intervalMinutes !== mirroredInterval && !intervalFocusedRef.current) {
     setMirroredInterval(sched.intervalMinutes);
     setIntervalDraft(String(sched.intervalMinutes));
   }
@@ -117,6 +124,8 @@ export function SchedulerControl({ onRan, className = "" }: { onRan?: () => void
   }, [result]);
 
   const update = async (body: { enabled?: boolean; intervalMinutes?: number; tick?: boolean }) => {
+    if (inFlightRef.current) return; // a concurrent schedule op is already running
+    inFlightRef.current = true;
     setBusy(true);
     if (body.tick) setResult(null); // clear any stale chip before a fresh run
     try {
@@ -141,6 +150,7 @@ export function SchedulerControl({ onRan, className = "" }: { onRan?: () => void
       if (body.tick) setResult({ tone: "error", text: `Run failed — ${msg}` });
       else setError(`Couldn't update the schedule — ${msg}`);
     } finally {
+      inFlightRef.current = false;
       setBusy(false);
     }
   };
@@ -200,7 +210,13 @@ export function SchedulerControl({ onRan, className = "" }: { onRan?: () => void
           disabled={busy}
           aria-label="Automation interval in minutes (1–1440)"
           onChange={(e) => setIntervalDraft(e.target.value)}
-          onBlur={(e) => commitInterval(e.target.value)}
+          onFocus={() => {
+            intervalFocusedRef.current = true;
+          }}
+          onBlur={(e) => {
+            intervalFocusedRef.current = false;
+            commitInterval(e.target.value);
+          }}
           onKeyDown={(e) => {
             if (e.key === "Enter") e.currentTarget.blur();
           }}
