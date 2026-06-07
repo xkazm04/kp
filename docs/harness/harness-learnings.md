@@ -1,6 +1,10 @@
 # kp — harness learnings
 
 ## Structural facts
+- **2026-06-07 (bug-hunt W1)** — Two event-dedup helpers in `db.ts`: `hasEvent(entryId, kind)` (unbounded "ever logged" — gates real-world side effects across multi-day cache windows) and `hasEventToday(entryId, kind)` (now buckets on the **business timezone**, `BUSINESS_TZ` env, default `Europe/Prague`, DST-correct via `Intl`, compares the most-recent event's local-date — NOT UTC midnight anymore).
+- **2026-06-07 (bug-hunt W1)** — `outreach` delivery is idempotent: `runAutomationTask` skips `dispatchOutreach` when an `outreach_sent` event already exists (prompt cache makes the draft cheap, but the SEND is gated on the durable marker). Any new candidate-facing send added to automation must follow the same gate-on-event pattern, not rely on the cache.
+- **2026-06-07 (bug-hunt W1)** — Scheduler clock: `claimDueRun` is the clock-path writer of `next_due_at`; the `force`/manual path in `tickScheduler` now calls `advanceAfterForcedRun` (scheduler-store.ts) to advance the window itself, so a manual "Run now" no longer leaves the window due for the next heartbeat to re-fire.
+- **2026-06-07 (bug-hunt W1)** — `dueReminders` (schedule-store.ts) is now entry-lifecycle-aware: LEFT JOINs `pipeline_entries` and requires `status='active' AND stage!='Hired'` (a Hired candidate keeps status `active`). The isolated schedule-store connection can JOIN db.ts tables — same kp.sqlite file.
 - **2026-06-07 (run #3)** — The `expectedStage` CAS on `actOnPipelineEntry` is now passed by ALL THREE destructive batch/snapshot callers: the automation pass (run #2), `runScreenWave`, and the Decisions UI (via `POST /api/pipeline/[id]` body `expectedStage` → 409 + fresh entry on mismatch). Any NEW caller that decides from a snapshot must pass it too — grep `actOnPipelineEntry(` when adding decision surfaces.
 - **2026-06-07 (run #3)** — Python stdout MUST be parsed with `parsePythonJson(stdout, stderr)` (python-runner), never raw `JSON.parse`: the CLIs print asyncio/ResourceWarning chatter after the JSON line. All spawn sites now comply (match, reasoning-run, matrix, group-eval, automation).
 - **2026-06-07 (run #3)** — Matrix perf model: ONE batched Python spawn (good by design), now content-address-cached in `app/api/matrix/route.ts` (sha1 of the exact profiles/jobs JSON — profiles/jobs tables have NO updated_at, so content hashing is the only edit-safe key). JD tokenization memoized per description (`matching._description_words`, lru_cache). Group-eval: reasoning spawns parallelized (cap 6 = concurrency bound), candidate rows resolved once and shared.
@@ -31,6 +35,12 @@
 - Page-level guards standing in for API guards: the portal page blocked *rendering* a completed session while `/connect` happily reopened it (idea-836e08d8).
 - Scoring before persisting: any side-effecting step (approvals, skill minting) ordered before the durable artifact write produces phantom state on partial failure (idea-55fd89f9).
 - An `else` catch-all on a parsed-event union: adding a new event kind silently misroutes through the old `else` (VoiceInterview's `handleOaiEvent` had to switch to explicit kinds when the parser grew).
+
+## Open follow-ups (from bug-hunt 2026-06-07 — Bug Hunter scan)
+- **Scan**: 51 findings across 8 high-risk contexts (3 critical / 17 high / 21 medium / 10 low) in `docs/harness/bug-hunt-2026-06-07/` (`INDEX.md` + 8 reports). **Wave 1 done** (6 findings closed, see `FIXES-WAVE-1.md`). **45 findings open** in waves W2–W8.
+- Still-open criticals: **W2** `Infinity` in a Gemini JSON response crashes the whole analysis (`pipeline.py:626` `_optional_int`); **W3** analyze `watchAnalysis` poll-loop + interval never abort → zombie pollers on tab-switch (`AnalyzeApi.ts:37`).
+- TOOLING GOTCHA: `npx vitest run` reports "no test suite found (69 failed)" — a FALSE baseline. kp's unit tests target Node's built-in runner; use `npm run test:unit` (`node --test`) + `npm run test:python`. Don't trust vitest here.
+- W5 (dev-case) and W8 (scheduling-format) overlap the pre-Wave-1 WIP snapshot `7597c20` (`evaluate.py`/`models.py`; `schedule-slots.ts`/`schedule/[token]/route.ts`/`SchedulePicker.tsx`) — re-read those before applying; some findings may already be addressed by that WIP.
 
 ## Open follow-ups (from Pipeline C run #3, 2026-06-07)
 - The decisions/match/matrix routes still return raw `error.message` on their catch paths (`/api/decisions/config|group-eval|screen-wave`, `/api/match`, `/api/match/reasoning`, `/api/matrix`) — the safeJsonError sweep covered interview/pipeline/schedule/offer only. Same low-risk conversion + hygiene-test pattern when next touched.
