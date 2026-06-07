@@ -65,7 +65,10 @@ def build_company_context(company_text: str | None) -> CompanyCompensationContex
 
 
 def apply_company_salary_context(salary: SalaryEstimate, context: CompanyCompensationContext | None) -> None:
-    if context is None or context.adjustment_factor == 1.0:
+    # Bail when there is no factor OR no actual band to adjust: the 0/0 "no
+    # estimate" placeholder has nothing to scale, and without the maximum<=0 guard
+    # we appended a rationale claiming an adjustment was applied to an empty band.
+    if context is None or context.adjustment_factor == 1.0 or salary.maximum <= 0:
         return
     salary.minimum = round_salary(salary.minimum * context.adjustment_factor)
     salary.maximum = round_salary(salary.maximum * context.adjustment_factor)
