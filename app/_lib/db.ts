@@ -2743,6 +2743,22 @@ export function completeInterviewSession(
   return { session: getInterviewSessionById(id), applied: res.changes > 0 };
 }
 
+/** Attach the synthesized scorecard to an already-persisted session. Separate
+ *  from completeInterviewSession so the transcript write can happen FIRST and
+ *  scoring strictly after it (idea-55fd89f9) — a scoring step that sets the
+ *  Interview→Offer approval must never run ahead of the durable transcript it
+ *  scores. */
+export function attachInterviewScorecard(id: string, scorecard: unknown): InterviewSession | null {
+  const db = ensureDb();
+  const now = new Date().toISOString();
+  db.prepare(`UPDATE interview_sessions SET scorecard_json=?, updated_at=? WHERE id=?`).run(
+    JSON.stringify(scorecard),
+    now,
+    id
+  );
+  return getInterviewSessionById(id);
+}
+
 export function listOutbox(limit = 50): OutboxEntry[] {
   const db = ensureDb();
   const rows = db.prepare(`SELECT * FROM dev_outbox ORDER BY created_at DESC LIMIT ?`).all(limit) as Array<Record<string, unknown>>;

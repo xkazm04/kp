@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { completeInterviewSession, getInterviewSessionById, type VoiceTurn } from "@/app/_lib/db";
+import {
+  attachInterviewScorecard,
+  completeInterviewSession,
+  getInterviewSessionById,
+  type VoiceTurn,
+} from "@/app/_lib/db";
 import { runInterviewScorecard } from "@/app/_lib/interview-run";
 import { capTranscriptTurns, clampTurn } from "@/app/_lib/interview-transcript";
 import { safeJsonError } from "@/app/_lib/api-response";
@@ -97,35 +102,42 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Synthesize the scorecard for candidate-mode sessions (best-effort: the
-    // transcript is always saved even if scoring fails). Gating on "completed"
-    // is load-bearing: a call that dropped abnormally (provider/network error or
-    // a never-live connect) finalizes as "failed" (idea-3abeeb5f), so its
-    // truncated transcript is NEVER scored and never sets the scorecard_review
-    // approval that feeds the Interview→Offer gate.
-    let scorecard: Record<string, unknown> | null = null;
-    if (session.entryId && status === "completed" && transcript.length > 0) {
-      try {
-        scorecard = await runInterviewScorecard(session.entryId, transcript);
-      } catch {
-        /* transcript still persists below */
-      }
-    }
-
-    const { session: updated, applied } = completeInterviewSession(sessionId, {
-      transcript,
-      scorecard: scorecard ?? undefined,
-      status,
-    });
+    // Persist the transcript FIRST (idea-55fd89f9). The old order ran the
+    // scorecard — which sets the scorecard_review approval driving the
+    // Interview→Offer gate — before the transcript write, so a failed write
+    // (DB lock, SQLITE_BUSY) after successful scoring left a scored,
+    // offer-ready entry whose transcript modal showed nothing: a phantom gate
+    // approval with no evidence behind it. Now the durable artifact lands
+    // before any scoring side effect can exist.
+    const { session: persisted, applied } = completeInterviewSession(sessionId, { transcript, status });
     if (!applied) {
       // A concurrent completion won the row-level guard — its transcript stands.
       return NextResponse.json({
         ok: true,
         alreadyCompleted: true,
-        session: updated,
-        scorecard: updated?.scorecard ?? null,
+        session: persisted,
+        scorecard: persisted?.scorecard ?? null,
       });
     }
+
+    // Synthesize the scorecard for candidate-mode sessions (best-effort: the
+    // transcript is already safe above if scoring fails). Gating on "completed"
+    // is load-bearing: a call that dropped abnormally (provider/network error or
+    // a never-live connect) finalizes as "failed" (idea-3abeeb5f), so its
+    // truncated transcript is NEVER scored and never sets the scorecard_review
+    // approval that feeds the Interview→Offer gate. Running this only on the
+    // call whose write applied also means a duplicate POST can't double-score.
+    let scorecard: Record<string, unknown> | null = null;
+    let updated = persisted;
+    if (session.entryId && status === "completed" && transcript.length > 0) {
+      try {
+        scorecard = await runInterviewScorecard(session.entryId, transcript);
+      } catch {
+        /* transcript is already persisted — scoring is best-effort */
+      }
+      if (scorecard) updated = attachInterviewScorecard(sessionId, scorecard) ?? updated;
+    }
+
     return NextResponse.json({ ok: true, session: updated, scorecard });
   } catch (error) {
     return safeJsonError(error, "api:interview:complete", "INTERVIEW_COMPLETE_FAILED");
