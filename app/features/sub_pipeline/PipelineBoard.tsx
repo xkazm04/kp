@@ -161,7 +161,11 @@ export function PipelineBoard({
             ))}
           </div>
           {positions.map((pos) => {
-            const lane = entries.filter((e) => (e.jobId ?? e.jobTitle) === pos.id);
+            // Match the position-key derivation exactly (PipelineTab uses a 3-way
+            // `?? "?"` fallback). The 2-way fallback here disagreed precisely when
+            // both job fields are null, counting the entry under "?" but placing it
+            // in no lane.
+            const lane = entries.filter((e) => (e.jobId ?? e.jobTitle ?? "?") === pos.id);
             return (
               <div key={pos.id} className="grid border-b border-stone-200 last:border-0" style={BOARD_GRID}>
                 <div className="sticky left-0 z-10 border-r border-stone-200 bg-white px-3 py-3">
@@ -182,10 +186,16 @@ export function PipelineBoard({
                     Rank candidates →
                   </button>
                 </div>
-                {STAGES.map((stage) => (
+                {STAGES.map((stage, i) => (
                   <StageCell
                     key={stage}
-                    entries={lane.filter((e) => e.stage === stage)}
+                    // An entry whose stage isn't a known column (a legacy / unmapped
+                    // stage) would otherwise match no cell and vanish while still
+                    // counted — fold it into the first column so it stays visible and
+                    // actionable rather than becoming an invisible, unreachable row.
+                    entries={lane.filter(
+                      (e) => e.stage === stage || (i === 0 && !(STAGES as readonly string[]).includes(e.stage))
+                    )}
                     isStale={isStale}
                     openProfile={openProfile}
                     openActions={openActions}
