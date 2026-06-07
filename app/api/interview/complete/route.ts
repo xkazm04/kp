@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import {
   attachInterviewScorecard,
   completeInterviewSession,
-  getInterviewSessionById,
+  getInterviewSessionByToken,
   type VoiceTurn,
 } from "@/app/_lib/db";
 import { runInterviewScorecard } from "@/app/_lib/interview-run";
@@ -19,19 +19,29 @@ export const runtime = "nodejs";
 export async function POST(request: NextRequest) {
   try {
     // Validate at the trust boundary instead of casting request.json() to a
-    // typed shape (idea-c7df6b55): sessionId must be a plausibly-sized string
-    // and the transcript a bounded array — turn COUNT is capped below alongside
+    // typed shape (idea-c7df6b55): token must be a plausibly-sized string and
+    // the transcript a bounded array — turn COUNT is capped below alongside
     // the existing per-turn text clamp, so a crafted multi-thousand-turn POST
     // can't persist a multi-megabyte transcript_json.
     const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
-    const sessionId = typeof body.sessionId === "string" && body.sessionId.length <= 120 ? body.sessionId : null;
-    if (!sessionId) {
-      return NextResponse.json({ error: "sessionId is required" }, { status: 400 });
+
+    // Completion must present the session TOKEN, not just a sessionId
+    // (idea-5248c3e9). Looking the session up purely by a client-supplied id
+    // bound the write to nothing: an outsider who knew or guessed an id could
+    // inject an attacker-authored transcript that feeds the Interview→Offer
+    // scorecard (write-side IDOR + business-logic tampering). The token is the
+    // session's actual capability — the same credential that gates the public
+    // interview page — so it is the lookup key; a sessionId, when sent, is
+    // cross-checked against the token's session and never trusted alone.
+    const token = typeof body.token === "string" && body.token.length <= 200 ? body.token : null;
+    if (!token) {
+      return NextResponse.json({ error: "token is required" }, { status: 400 });
     }
-    const session = getInterviewSessionById(sessionId);
-    if (!session) {
+    const session = getInterviewSessionByToken(token);
+    if (!session || (typeof body.sessionId === "string" && body.sessionId !== session.id)) {
       return NextResponse.json({ error: "session not found" }, { status: 404 });
     }
+    const sessionId = session.id;
 
     // Idempotency / terminal-state guard (idea-beb71894): a completed session is
     // done — a duplicate POST (network retry, second tab, provider disconnect

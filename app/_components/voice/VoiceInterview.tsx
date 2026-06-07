@@ -55,6 +55,10 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle }: VoiceInterview
 
   // Refs avoid stale closures inside provider callbacks / teardown.
   const sessionIdRef = useRef<string | null>(null);
+  // /complete demands the session token as the completion capability
+  // (idea-5248c3e9). The portal/sim pages pass it as a prop; a lab session
+  // receives it from /connect when the session is created.
+  const sessionTokenRef = useRef<string | null>(null);
   const providerRef = useRef<VoiceProviderId>(provider);
   const turnsRef = useRef<VoiceTurn[]>([]);
   const finalizedRef = useRef(false);
@@ -134,19 +138,20 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle }: VoiceInterview
       teardownOpenAi();
       setPhase("ended");
       const sid = sessionIdRef.current;
-      if (sid) {
+      const tok = sessionTokenRef.current ?? token ?? null;
+      if (sid && tok) {
         try {
           await fetch("/api/interview/complete", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ sessionId: sid, transcript: turnsRef.current, status }),
+            body: JSON.stringify({ token: tok, sessionId: sid, transcript: turnsRef.current, status }),
           });
         } catch {
           /* best-effort persist */
         }
       }
     },
-    [teardownOpenAi, clearConnectTimer, pushTurn]
+    [teardownOpenAi, clearConnectTimer, pushTurn, token]
   );
 
   const conversation = useConversation({
@@ -303,6 +308,7 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle }: VoiceInterview
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || `connect failed (${res.status})`);
       sessionIdRef.current = data.sessionId;
+      sessionTokenRef.current = (typeof data.token === "string" ? data.token : null) ?? token ?? null;
       const c = data.connect;
       if (c.provider === "openai") {
         await startOpenAi(c);

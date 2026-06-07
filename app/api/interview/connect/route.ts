@@ -86,7 +86,18 @@ export async function POST(request: NextRequest) {
     // Candidate-mode sessions carry grounded questions; the browser passes this
     // to ElevenLabs as a prompt override (OpenAI gets it server-side already).
     const groundedPrompt = session.mode === "candidate" ? instructions : null;
-    return NextResponse.json({ sessionId: session.id, provider, instructions, groundedPrompt, connect });
+    // The session token rides back so /complete can demand it as the completion
+    // capability (idea-5248c3e9). Candidate/sim callers already hold it (it is
+    // how they got here); for a fresh lab session this is the creator receiving
+    // the capability for the session they just made — no new exposure.
+    return NextResponse.json({
+      sessionId: session.id,
+      token: session.token,
+      provider,
+      instructions,
+      groundedPrompt,
+      connect,
+    });
   } catch (error) {
     // Adapter errors embed upstream provider HTTP bodies (OpenAI client_secrets
     // / ElevenLabs signed-url responses) — internal detail that must not reach
