@@ -110,7 +110,12 @@ export function DecisionsTab() {
       const r = await fetch(`/api/pipeline/${e.id}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action }),
+        // expectedStage pins the decision to the snapshot this card/modal was
+        // rendered from (idea-84392364): the queue live-refreshes while the
+        // analysis modal can stay open across a state change, so a stale
+        // Advance/Reject now gets a 409 (and the catch below reloads the fresh
+        // queue) instead of blindly overriding what another actor did.
+        body: JSON.stringify({ action, expectedStage: e.stage }),
       });
       if (!r.ok) throw new Error();
       // Accepting an AI screening flows the candidate to interview scheduling —

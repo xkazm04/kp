@@ -45,7 +45,7 @@ async function extendOffer(request: NextRequest, entry: PipelineEntry) {
 export async function POST(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params;
   try {
-    const body = (await request.json()) as { action?: string; detail?: string };
+    const body = (await request.json()) as { action?: string; detail?: string; expectedStage?: string };
 
     // Resolving a degraded-intake stub: the recruiter has manually captured the
     // candidate's profile, so clear the flag (not a stage move) and keep the entry.
@@ -62,17 +62,42 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       return NextResponse.json({ error: "Unknown action." }, { status: 400 });
     }
 
+    // Optimistic-concurrency contract (idea-84392364): a client that decides
+    // from a SNAPSHOT (the Decisions queue's cards and analysis modal hold a
+    // frozen Entry while the live queue refreshes underneath) sends the stage
+    // it believes the candidate is in. A mismatch is a 409 carrying the fresh
+    // entry — the recruiter re-decides against reality instead of blindly
+    // overriding a state they never saw. Clients that omit expectedStage keep
+    // the prior act-on-current behavior.
+    const expectedStage = typeof body.expectedStage === "string" ? body.expectedStage : undefined;
+    const staleResponse = (entry: PipelineEntry) =>
+      NextResponse.json(
+        { error: "This candidate's stage changed since the view was opened — refresh and decide again.", entry },
+        { status: 409 }
+      );
+    const current = getPipelineEntry(id);
+    if (!current) {
+      return NextResponse.json({ error: "Pipeline entry not found." }, { status: 404 });
+    }
+    if (expectedStage && current.stage !== expectedStage) return staleResponse(current);
+
     // Approving a drafted offer extends it to the candidate (not a bare Hire click).
-    if (action === "accept") {
-      const current = getPipelineEntry(id);
-      if (current && current.stage === "Offer" && current.approvalKind === "offer_review") {
-        return await extendOffer(request, current);
-      }
+    if (action === "accept" && current.stage === "Offer" && current.approvalKind === "offer_review") {
+      return await extendOffer(request, current);
     }
 
-    const updated = actOnPipelineEntry(id, action, typeof body.detail === "string" ? body.detail : undefined);
+    const updated = actOnPipelineEntry(
+      id,
+      action,
+      typeof body.detail === "string" ? body.detail : undefined,
+      expectedStage ? { expectedStage } : undefined
+    );
     if (!updated) {
-      return NextResponse.json({ error: "Pipeline entry not found." }, { status: 404 });
+      // The pre-check passed but the guarded write refused — a concurrent actor
+      // moved the stage in the gap (the CAS held) or the row vanished.
+      const fresh = getPipelineEntry(id);
+      if (!fresh) return NextResponse.json({ error: "Pipeline entry not found." }, { status: 404 });
+      return staleResponse(fresh);
     }
     // A human reject is the gate; the candidate hears about it (queued by default).
     if (action === "reject") await dispatchRejection(updated);
