@@ -45,6 +45,13 @@ const PROVIDER_ORDER: VoiceProviderId[] = ["elevenlabs", "openai"];
 // streamed into the delta buffer rather than hanging the "Ending…" state.
 const OAI_FINAL_TURN_GRACE_MS = 2000;
 
+// How long end() waits for ElevenLabs onDisconnect to drive finalize() before
+// finalizing itself. The SDK delivers the candidate's final utterance via
+// onMessage a few hundred ms AFTER endSession(), then closes (onDisconnect), so
+// deferring to onDisconnect captures that closing turn; the timer is the fallback
+// if onDisconnect never lands.
+const EL_DISCONNECT_GRACE_MS = 3000;
+
 /** Poll `done` every 100ms until it holds or `timeoutMs` elapses. */
 async function waitUntil(done: () => boolean, timeoutMs: number): Promise<void> {
   const deadline = Date.now() + timeoutMs;
@@ -147,6 +154,46 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle }: VoiceInterview
     if (audioRef.current) audioRef.current.srcObject = null;
   }, []);
 
+  // Durable persist of the transcript — the ONLY record of the interview. Stash it
+  // locally first (so a total POST failure doesn't vanish it), then POST with a
+  // few retries; 4xx (consent/token/already-completed) won't improve on retry, so
+  // stop. keepalive lets it survive a closing tab. Returns whether it was saved.
+  const persistTranscript = useCallback(
+    async (tok: string, sid: string, transcript: VoiceTurn[], status: "completed" | "failed"): Promise<boolean> => {
+      const body = JSON.stringify({ token: tok, sessionId: sid, transcript, status });
+      const stashKey = `kp.iv.${sid}`;
+      try {
+        sessionStorage.setItem(stashKey, body);
+      } catch {
+        /* ignore */
+      }
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        try {
+          const res = await fetch("/api/interview/complete", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body,
+            keepalive: true,
+          });
+          if (res.ok) {
+            try {
+              sessionStorage.removeItem(stashKey);
+            } catch {
+              /* ignore */
+            }
+            return true;
+          }
+          if (res.status >= 400 && res.status < 500) break;
+        } catch {
+          /* network error — retry */
+        }
+        await new Promise((r) => setTimeout(r, 500 * (attempt + 1)));
+      }
+      return false;
+    },
+    []
+  );
+
   const finalize = useCallback(
     async (status: "completed" | "failed") => {
       if (finalizedRef.current) return;
@@ -189,18 +236,15 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle }: VoiceInterview
       const sid = sessionIdRef.current;
       const tok = sessionTokenRef.current ?? token ?? null;
       if (sid && tok) {
-        try {
-          await fetch("/api/interview/complete", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ token: tok, sessionId: sid, transcript: turnsRef.current, status }),
-          });
-        } catch {
-          /* best-effort persist */
+        const saved = await persistTranscript(tok, sid, turnsRef.current, status);
+        if (!saved) {
+          setError(
+            "We couldn't save your interview. Please keep this tab open — your answers may not have been recorded."
+          );
         }
       }
     },
-    [teardownOpenAi, clearConnectTimer, pushTurn, token]
+    [teardownOpenAi, clearConnectTimer, pushTurn, persistTranscript, token]
   );
 
   const conversation = useConversation({
@@ -262,6 +306,27 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle }: VoiceInterview
         if (providerRef.current === "elevenlabs") conversation.endSession();
       } catch {
         /* noop */
+      }
+      // Flush a partial transcript on unmount (tab close / back-navigation) so a
+      // real in-progress interview isn't lost silently. Only when the call went
+      // live and wasn't already finalized; sendBeacon survives unload where a
+      // normal fetch would be cancelled. Persisted as "failed" so /complete records
+      // the partial without scoring it as a passed screen.
+      if (!finalizedRef.current && reachedLiveRef.current) {
+        finalizedRef.current = true;
+        const sid = sessionIdRef.current;
+        const tok = sessionTokenRef.current ?? token ?? null;
+        if (sid && tok) {
+          try {
+            const blob = new Blob(
+              [JSON.stringify({ token: tok, sessionId: sid, transcript: turnsRef.current, status: "failed" })],
+              { type: "application/json" }
+            );
+            navigator.sendBeacon("/api/interview/complete", blob);
+          } catch {
+            /* best-effort */
+          }
+        }
       }
       teardownOpenAi();
     };
@@ -409,11 +474,28 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle }: VoiceInterview
   async function end() {
     setPhase("ending");
     if (providerRef.current === "elevenlabs") {
+      // Defer finalize to onDisconnect so the candidate's final answer — delivered
+      // by the SDK via onMessage a few hundred ms AFTER endSession() — is captured
+      // before turnsRef is snapshotted. Synchronously finalizing here latched
+      // finalizedRef first and dropped that closing turn. The timer is a fallback
+      // for a missing onDisconnect.
       try {
         conversation.endSession();
       } catch {
         /* noop */
       }
+      window.setTimeout(() => {
+        if (!finalizedRef.current) {
+          void finalize(
+            interviewFinalStatus({
+              errored: erroredRef.current,
+              reachedLive: reachedLiveRef.current,
+              turnCount: turnsRef.current.length,
+            })
+          );
+        }
+      }, EL_DISCONNECT_GRACE_MS);
+      return;
     }
     await finalize("completed");
   }
