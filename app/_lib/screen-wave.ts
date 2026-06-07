@@ -52,7 +52,16 @@ export function keepReason(
 export async function runScreenWave(
   jobId: string,
   override?: Partial<ScreeningRule>
-): Promise<{ decisions: ScreenDecision[]; rejected: number; kept: number; cohort: number; config: ScreeningRule }> {
+): Promise<{
+  decisions: ScreenDecision[];
+  rejected: number;
+  kept: number;
+  cohort: number;
+  config: ScreeningRule;
+  /** Rejections that applied but whose candidate notification failed to queue
+   *  (idea-961de357) — the wave completed; these candidates need a manual nudge. */
+  commsFailures: number;
+}> {
   // Backstop: never merge an unvalidated override into the live config that
   // drives irreversible auto-rejections. The route validates first (→ 400), but
   // enforcing the schema HERE — at the actual destructive operation — guarantees
@@ -82,6 +91,7 @@ export async function runScreenWave(
 
   const decisions: ScreenDecision[] = [];
   let rejected = 0;
+  let commsFailures = 0;
   for (let rank = 0; rank < sorted.length; rank++) {
     const e = sorted[rank];
     const score = e.matchScore ?? 0;
@@ -118,7 +128,20 @@ export async function runScreenWave(
         continue;
       }
       recordAutomationEvent(e.id, "auto_rejected", rationale); // audit trail (shows in Analytics)
-      await dispatchRejection(updated, { automated: true }); // queued, never ghosts
+      // A comms failure must not abort the wave (idea-961de357): the rejection
+      // is already applied + audited, and the loop holds the REST of the cohort
+      // — one transient SMTP error used to escape here, leaving the batch
+      // half-applied with a bare 500 and no record of what had landed. Isolate
+      // it per candidate: log it, surface it in the activity feed, count it for
+      // the caller, and keep going.
+      try {
+        await dispatchRejection(updated, { automated: true }); // queued, never ghosts
+      } catch (commsError) {
+        commsFailures += 1;
+        const msg = commsError instanceof Error ? commsError.message : String(commsError);
+        console.warn(`[screen-wave] rejection comms failed for ${e.candidateLabel} (${e.id}): ${msg}`);
+        recordAutomationEvent(e.id, "rejection_comms_failed", `Auto-rejected, but the notification failed to queue — nudge manually. (${msg})`);
+      }
       decisions.push({ entryId: e.id, label: e.candidateLabel, archetype: e.archetype, matchScore: score, action: "reject", rationale });
       rejected += 1;
     } else {
@@ -126,5 +149,5 @@ export async function runScreenWave(
       decisions.push({ entryId: e.id, label: e.candidateLabel, archetype: e.archetype, matchScore: score, action: "keep", rationale: reason });
     }
   }
-  return { decisions, rejected, kept: decisions.length - rejected, cohort: n, config: cfg };
+  return { decisions, rejected, kept: decisions.length - rejected, cohort: n, config: cfg, commsFailures };
 }
