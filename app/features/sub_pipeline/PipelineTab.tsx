@@ -74,6 +74,11 @@ export function PipelineTab() {
   // fetch blip can't latch the error screen: the next good poll recovers the
   // view without a hard refresh.
   const abortRef = useRef<AbortController | null>(null);
+  // Cursor into the events feed (idea-85f043ea): after the initial page, every
+  // poll asks only for events strictly newer than the last id seen, so a burst
+  // of automation activity can never scroll past a fixed-size window between
+  // polls and vanish unseen. null = initial page not yet loaded.
+  const eventsCursorRef = useRef<number | null>(null);
   const load = useCallback(() => {
     abortRef.current?.abort();
     const controller = new AbortController();
@@ -91,7 +96,8 @@ export function PipelineTab() {
         if (signal.aborted) return; // ignore aborted/stale failures
         setError(e instanceof Error ? e.message : "Failed to load pipeline.");
       });
-    fetch("/api/pipeline/events", { signal })
+    const since = eventsCursorRef.current;
+    fetch(since == null ? "/api/pipeline/events" : `/api/pipeline/events?since=${since}`, { signal })
       .then((r) => {
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
         return r.json();
@@ -99,7 +105,16 @@ export function PipelineTab() {
       .then((p) => {
         if (signal.aborted) return;
         if (p.error) throw new Error(p.error);
-        setEvents((p.events as PipelineEvent[]) ?? []);
+        const incoming = (p.events as PipelineEvent[]) ?? [];
+        if (since == null) {
+          setEvents(incoming); // initial page, newest-first
+        } else if (incoming.length > 0) {
+          // Delta mode returns oldest-first — newest belongs on top. Keep a
+          // bounded in-memory tail; the list renders the top 12 anyway.
+          const newestFirst = [...incoming].reverse();
+          setEvents((prev) => [...newestFirst, ...prev].slice(0, 100));
+        }
+        if (typeof p.cursor === "number") eventsCursorRef.current = p.cursor;
         setEventsError(null);
       })
       .catch(() => {

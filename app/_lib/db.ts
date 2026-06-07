@@ -1307,6 +1307,46 @@ export function listPipelineEvents(limit = 40, offset = 0): PipelineEvent[] {
   }));
 }
 
+/** Events strictly newer than `sinceId`, OLDEST-FIRST (idea-85f043ea). The
+ *  AUTOINCREMENT primary key is the cursor — monotonic, gap-tolerant, immune to
+ *  same-millisecond created_at ties. Oldest-first with a bounded LIMIT is the
+ *  loss-free contract: when a burst outruns the limit, the caller still gets
+ *  the OLDEST pending events and advances its cursor to the last id returned,
+ *  catching up across polls — a newest-first LIMIT would silently drop the
+ *  middle of the burst, which is exactly the bug this replaces. */
+export function listPipelineEventsSince(sinceId: number, limit = 200): PipelineEvent[] {
+  const db = ensureDb();
+  const rows = db
+    .prepare(
+      `SELECT id, entry_id, candidate_label, job_title, archetype, kind, from_stage, to_stage, detail, created_at
+       FROM pipeline_events WHERE id > ? ORDER BY id ASC LIMIT ?`
+    )
+    .all(sinceId, limit) as Array<{
+    id: number;
+    entry_id: string | null;
+    candidate_label: string | null;
+    job_title: string | null;
+    archetype: string | null;
+    kind: string;
+    from_stage: string | null;
+    to_stage: string | null;
+    detail: string | null;
+    created_at: string;
+  }>;
+  return rows.map((r) => ({
+    id: r.id,
+    entryId: r.entry_id,
+    candidateLabel: r.candidate_label,
+    jobTitle: r.job_title,
+    archetype: r.archetype,
+    kind: r.kind,
+    fromStage: r.from_stage,
+    toStage: r.to_stage,
+    detail: r.detail,
+    createdAt: r.created_at,
+  }));
+}
+
 // Total recorded events — lets the decision-log endpoint compute `hasMore`
 // without over-fetching, so the UI can page through the full audit trail.
 export function countPipelineEvents(): number {
