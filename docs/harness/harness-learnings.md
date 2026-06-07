@@ -1,6 +1,11 @@
 # kp — harness learnings
 
 ## Structural facts
+- **2026-06-07 (run #2)** — Pipeline write-concurrency model: `actOnPipelineEntry` is the single stage-transition authority and now runs read→write in an IMMEDIATE transaction with an optional `expectedStage` CAS; the automation pass passes its snapshot stage so stale Python-hop decisions no-op. Pass-level overlap is contained by in-process single-flight in `automation-pass.ts` (`claimDueRun` only guards the clock path). `app/_lib/db.ts`, `app/_lib/automation-pass.ts`.
+- **2026-06-07 (run #2)** — Offer lifecycle invariants: at most one open offer per entry (partial unique index `uq_offers_open_entry` + transactional `getOrCreateOpenOffer`); offer-response side effects (onboarding dispatch, Hired transition) belong exclusively to the `markOfferResponded` CAS winner (`{offer, claimed}` contract). `app/_lib/offers-store.ts`, `offer-finalize.ts`.
+- **2026-06-07 (run #2)** — Activity feed contract: `/api/pipeline/events` serves a PUBLIC projection (initials, no entryId/archetype — `pipeline-events-public.ts`) and a loss-free cursor (`?since=<id>`, AUTOINCREMENT pk as cursor, oldest-first bounded). PipelineTab keeps the cursor in a ref.
+- **2026-06-07 (run #2)** — Slot trust boundary: proposal AND validation live in pure `schedule-slots.ts`; `offeredSlotFor` validates structurally and re-mints the label server-side — the client's slot label never reaches storage/emails. `schedule-store.ts` keeps only persistence (collision authority = `confirmScheduleInvite`'s transaction).
+- **2026-06-07 (run #2)** — Public POST throttling: in-process fixed-window limiter `app/_lib/rate-limit.ts` guards `/api/offer/[token]`, `/api/schedule/[token]` (10/min per IP+token) and `/api/schedule/invite` (30/min per IP). In-process by design — single Next server process.
 - **2026-06-07** — Voice-interview architecture: `/connect` mints short-lived provider credentials server-side (OpenAI ephemeral client secret, ElevenLabs signed URL) so no API key reaches the browser; transcripts POST back to `/complete`, which runs `runInterviewScorecard` → `runAutomationTask(entryId, "scorecard")` → `setApproval(entryId, "scorecard_review")`, the Interview→Offer gate. `app/_lib/interview-run.ts`.
 - **2026-06-07** — The session **token** (`tk` + 24 random bytes, `randomToken`) is the only credential on the candidate link, and is now also the required completion capability at `/complete` (`app/api/interview/complete/route.ts`). `randomId("iv")` session ids are NOT capabilities.
 - **2026-06-07** — kp has **no authentication layer at all** (no middleware.ts, no session checks). The recruiter-facing read APIs `/api/interview/by-entry`, `/api/interview/compare`, `/api/interview-prep` remain unauthenticated — idea ccb4d851 (server-side authz) was rejected as out-of-scope for a scan run; it needs an app-wide auth decision. Same applies to most other recruiter API surfaces.
@@ -21,6 +26,11 @@
 - Page-level guards standing in for API guards: the portal page blocked *rendering* a completed session while `/connect` happily reopened it (idea-836e08d8).
 - Scoring before persisting: any side-effecting step (approvals, skill minting) ordered before the durable artifact write produces phantom state on partial failure (idea-55fd89f9).
 - An `else` catch-all on a parsed-event union: adding a new event kind silently misroutes through the old `else` (VoiceInterview's `handleOaiEvent` had to switch to explicit kinds when the parser grew).
+
+## Open follow-ups (from Pipeline C run #2, 2026-06-07)
+- The Activity feed shows initials-only until an auth layer lands (idea-4c41d103 tradeoff): full candidate names on the feed are blocked on the same app-wide auth decision as the rejected ccb4d851. When auth ships, add an authenticated full-detail mode to `/api/pipeline/events`.
+- The rate limiter is in-process; if kp ever runs multiple server processes, swap the Map store behind the same `rateLimit()` shape.
+- bug_hunter run #2 explicitly CLEARED as already-hardened: reminder dispatch (atomic CAS claim + bounded retry/backoff), slot double-booking (synchronous transaction + 409 + picker refresh), PipelineTab stale-fetch aborts, schedule-confirm-vs-advance drift (needs_reconcile). Don't re-flag these.
 
 ## Open follow-ups (from Pipeline C run #1, 2026-06-07)
 - **Recruiter API authz (rejected idea ccb4d851)**: `/api/interview/by-entry`, `/compare`, `/interview-prep` (and sibling recruiter surfaces) expose transcripts/scorecards/PII unauthenticated. Needs an app-wide auth layer decision — right-sized as its own Pipeline A goal.
