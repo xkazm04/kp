@@ -44,7 +44,7 @@ from ..claude_cli import ClaudeCliProvider
 from .evaluate import evaluate_submission, score_transfer
 from .llm_judge import run_judge
 from .models import RUBRIC_DIMENSIONS
-from .provenance import SOURCE_DETERMINISTIC, combine_source
+from .provenance import FALLBACK_REASON_KEY, SOURCE_DETERMINISTIC, combine_source
 from .reflect import assess_tooling, reflect_commits
 from .submission_scenarios import SubScenario, generate_submissions
 
@@ -182,6 +182,10 @@ class Row:
     evaluation: dict = field(default_factory=dict)
     transfer: dict = field(default_factory=dict)
     quality: dict = field(default_factory=dict)
+    # Per-step reasons the LLM path fell back to deterministic — provenance stashes
+    # these ONLY when a call RAISED (empty for a clean LLM run or an intentional
+    # --no-llm run). A non-empty map = the LLM path was degraded for this row.
+    fallback_reasons: dict = field(default_factory=dict)
 
     @property
     def reliable(self) -> bool:
@@ -209,8 +213,18 @@ def run_one(scn: SubScenario, provider: Any | None) -> Row:
     # One shared tri-state collapse (provenance.combine_source): a mixed run reads as
     # "partial", so llm_rows + the --strict gate count only fully-LLM runs as LLM.
     src = combine_source(s1, s2, s3, s4)
+    # Capture WHY any step fell back: provenance stashes FALLBACK_REASON_KEY on the
+    # artifact ONLY when the LLM RAISED (a --no-llm / provider-unavailable run never
+    # carries it). Without this the harness can't tell an intentional deterministic
+    # run from one where the provider was down/garbage — so an all-error-fallback run
+    # reads as a healthy 100%-reliable green (the deterministic templates pass _check).
+    fallback_reasons = {
+        step: art[FALLBACK_REASON_KEY]
+        for step, art in (("reflect", refl), ("tooling", tool), ("evaluate", ev), ("transfer", tr))
+        if isinstance(art, dict) and art.get(FALLBACK_REASON_KEY)
+    }
     issues = _check(refl, tool, ev, tr, scn)
-    return Row(id=scn.id, label=scn.label, planted=scn.planted, source=src, issues=issues, reflection=refl, tooling=tool, evaluation=ev, transfer=tr)
+    return Row(id=scn.id, label=scn.label, planted=scn.planted, source=src, issues=issues, reflection=refl, tooling=tool, evaluation=ev, transfer=tr, fallback_reasons=fallback_reasons)
 
 
 def run(scenarios: list[SubScenario], provider: Any | None, workers: int = 4) -> list[Row]:
@@ -343,6 +357,7 @@ def signals(rows: list[Row]) -> dict[str, Any]:
         "reliable": sum(1 for r in rows if r.reliable),
         "reliability": round(sum(1 for r in rows if r.reliable) / len(rows), 3) if rows else 0,
         "llm_rows": sum(1 for r in rows if r.source == "llm"),
+        "error_fallbacks": sum(1 for r in rows if r.fallback_reasons),
         "fairness": fairness(rows),
         "discrimination": discrimination(rows),
     }
@@ -386,7 +401,15 @@ def _report_md(rows: list[Row], sig: dict, qual: dict | None) -> str:
     d = sig["discrimination"]
     L = [
         "# Dev pipeline — submission evaluation eval\n",
-        f"Scenarios: {sig['scenarios']} · reliable: {sig['reliable']}/{sig['scenarios']} ({sig['reliability']:.0%}) · LLM rows: {sig['llm_rows']}\n",
+        f"Scenarios: {sig['scenarios']} · reliable: {sig['reliable']}/{sig['scenarios']} ({sig['reliability']:.0%}) · LLM rows: {sig['llm_rows']} · error-fallbacks: {sig['error_fallbacks']}\n",
+    ]
+    if sig["error_fallbacks"]:
+        L.append(
+            f"> **WARNING: {sig['error_fallbacks']} row(s) ran in LLM mode but ERROR-fell-back to deterministic** — "
+            "the LLM path is degraded (provider down / unparseable / rate-limited), so the reliability and gates "
+            "below reflect the DETERMINISTIC baseline, not the LLM path being certified. Treat as NOT green.\n"
+        )
+    L += [
         "## Fairness gate (the heart)\n",
         f"- **status: {f['status'].upper()}** (passed: {f['passed']})",
     ]
@@ -437,7 +460,7 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--domain", default="it", help="it | marketing | finance | sales | design | mixed")
     p.add_argument("--no-llm", action="store_true")
     p.add_argument("--judge", action="store_true")
-    p.add_argument("--strict", action="store_true", help="exit non-zero if reliability < 100%% or a gate is fail/inconclusive (a measured violation, or a thin-but-present sample the gate may not certify). A not_evaluable gate (an empty cohort / no surviving rows — e.g. a tiny --count, or every scenario errored) does NOT exit non-zero: absence of data is not a violation.")
+    p.add_argument("--strict", action="store_true", help="exit non-zero if reliability < 100%%, a gate is fail/inconclusive (a measured violation, or a thin-but-present sample the gate may not certify), OR any row error-fell-back from the LLM path (a degraded provider masquerading as a clean deterministic run). A not_evaluable gate (an empty cohort / no surviving rows — e.g. a tiny --count, or every scenario errored) does NOT exit non-zero: absence of data is not a violation.")
     p.add_argument("--workers", type=int, default=4)
     p.add_argument("--json", action="store_true")
     args = p.parse_args(argv)
@@ -465,6 +488,11 @@ def main(argv: list[str] | None = None) -> int:
         reasons = []
         if sig["reliability"] < 1.0:
             reasons.append(f"reliability {sig['reliability']:.0%} < 100%")
+        # An all-error-fallback run is the dangerous false-green: reliability stays
+        # 100% (deterministic templates pass _check) but the LLM path under test never
+        # actually ran. Fail strict so a degraded provider can't certify a prompt/model.
+        if sig["error_fallbacks"]:
+            reasons.append(f"{sig['error_fallbacks']} row(s) error-fell-back from the LLM path (degraded provider, not a clean --no-llm run)")
         # A 'fail' (measured violation) or 'inconclusive' (thin sample) exits non-zero; a
         # 'not_evaluable' gate (empty cohort / no data) does NOT — distinguishing a gate
         # that was VIOLATED from one that simply couldn't be evaluated.

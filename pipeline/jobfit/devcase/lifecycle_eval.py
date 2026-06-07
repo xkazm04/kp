@@ -29,7 +29,7 @@ from ..claude_cli import ClaudeCliProvider
 from .analyze import analyze_need
 from .design import design_case, design_role
 from .models import RUBRIC_DIMENSIONS, NeedAnalysis
-from .provenance import combine_source
+from .provenance import FALLBACK_REASON_KEY, combine_source
 from .scenarios import DOMAINS, Scenario, generate_mixed, generate_scenarios
 
 PROBE_KINDS = {"ambiguity", "legacy_trap", "verification_trap", "underspecified"}
@@ -104,6 +104,9 @@ class Row:
     role: dict = field(default_factory=dict)
     case: dict = field(default_factory=dict)
     quality: dict = field(default_factory=dict)  # task -> {score, levers, note}
+    # Per-step reasons the LLM path fell back to deterministic — provenance stashes
+    # these ONLY when a call RAISED (empty for a clean LLM run or a --no-llm run).
+    fallback_reasons: dict = field(default_factory=dict)
 
     @property
     def reliable(self) -> bool:
@@ -121,8 +124,16 @@ def run_one(scn: Scenario, provider: Any | None) -> Row:
     # One shared tri-state collapse (provenance.combine_source): a mixed run reads as
     # "partial" everywhere, so llm_rows reflects only fully-LLM designs, not any-LLM ones.
     src = combine_source(asrc, rsrc, csrc)
+    # Capture WHY any step fell back (provenance stashes FALLBACK_REASON_KEY on the
+    # artifact ONLY when the LLM RAISED) so an all-error-fallback run can't read as a
+    # healthy deterministic one — see submission_eval.run_one for the full rationale.
+    fallback_reasons = {
+        step: art[FALLBACK_REASON_KEY]
+        for step, art in (("analyze", a), ("role", r), ("case", c))
+        if isinstance(art, dict) and art.get(FALLBACK_REASON_KEY)
+    }
     issues = _check_analysis(a, scn) + _check_role(r, scn) + _check_case(c, scn)
-    return Row(id=scn.id, label=scn.label, planted=scn.planted, source=src, issues=issues, analysis=a, role=r, case=c)
+    return Row(id=scn.id, label=scn.label, planted=scn.planted, source=src, issues=issues, analysis=a, role=r, case=c, fallback_reasons=fallback_reasons)
 
 
 def run(scenarios: list[Scenario], provider: Any | None, workers: int = 4) -> list[Row]:
@@ -154,6 +165,7 @@ def signals(rows: list[Row]) -> dict[str, Any]:
         "reliable": sum(1 for r in rows if r.reliable),
         "reliability": round(sum(1 for r in rows if r.reliable) / len(rows), 3) if rows else 0,
         "llm_rows": sum(1 for r in rows if r.source == "llm"),
+        "error_fallbacks": sum(1 for r in rows if r.fallback_reasons),
         "gap_caught_on_mismatch": round(gap_caught, 3) if gap_caught is not None else None,
         "clarify_probe_on_ambiguous": round(clarify_on_ambig, 3) if clarify_on_ambig is not None else None,
         "probe_kind_diversity": round(len([k for k in all_kinds if k in PROBE_KINDS]) / len(PROBE_KINDS), 2),
@@ -169,7 +181,14 @@ def signals(rows: list[Row]) -> dict[str, Any]:
 def _report_md(rows: list[Row], sig: dict, qual: dict | None) -> str:
     L = [
         "# Dev pipeline — lifecycle scenario eval\n",
-        f"Scenarios: {sig['scenarios']} · reliable: {sig['reliable']}/{sig['scenarios']} ({sig['reliability']:.0%}) · LLM rows: {sig['llm_rows']}\n",
+        f"Scenarios: {sig['scenarios']} · reliable: {sig['reliable']}/{sig['scenarios']} ({sig['reliability']:.0%}) · LLM rows: {sig['llm_rows']} · error-fallbacks: {sig['error_fallbacks']}\n",
+    ]
+    if sig["error_fallbacks"]:
+        L.append(
+            f"> **WARNING: {sig['error_fallbacks']} row(s) ran in LLM mode but ERROR-fell-back to deterministic** — "
+            "the LLM path is degraded; the health signals below reflect the deterministic baseline, not the LLM path.\n"
+        )
+    L += [
         "## Health signals (no-LLM)\n",
         f"- gap caught on planted MISMATCH: {sig['gap_caught_on_mismatch']}",
         f"- clarify-probe present on AMBIGUOUS needs: {sig['clarify_probe_on_ambiguous']}",
