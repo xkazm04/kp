@@ -164,11 +164,17 @@ def write() -> list[Path]:
 def main(argv: list[str] | None = None) -> int:
     args = list(argv or sys.argv[1:])
     if "--check" in args:
-        stale = [
-            path
-            for path, renderer in _GENERATED
-            if (path.read_text(encoding="utf-8") if path.exists() else "") != renderer()
-        ]
+        def _is_stale(path: Path, renderer) -> bool:
+            try:
+                current = path.read_text(encoding="utf-8") if path.exists() else ""
+            except (OSError, UnicodeDecodeError):
+                # A corrupt / non-UTF-8 / locked generated file is "out of date" (run
+                # codegen), NOT a crash — keep --check's contract of exit 0 or the
+                # actionable stale message, never a raw UnicodeDecodeError traceback.
+                return True
+            return current != renderer()
+
+        stale = [path for path, renderer in _GENERATED if _is_stale(path, renderer)]
         if stale:
             names = ", ".join(p.relative_to(ROOT).as_posix() for p in stale)
             sys.stderr.write(
