@@ -39,6 +39,18 @@ export async function POST(request: NextRequest) {
     // disables any provider whose keys are missing). Honor that choice; fall
     // back to a token-bound session's stored provider when none is requested.
     const session0 = token ? getInterviewSessionByToken(token) : null;
+
+    // Single-use semantics, enforced server-side (idea-836e08d8): the portal
+    // page only blocks the RENDER of a completed session — the API used to
+    // force status back to in_progress and mint fresh provider credentials for
+    // anyone holding the token, letting a candidate retake a finished screen.
+    // The token is the only credential on the public link, so the server must
+    // hold the line. A 'failed' session stays reconnectable on purpose: a
+    // dropped call (provider hiccup, network blip) should be retryable.
+    if (session0 && session0.status === "completed") {
+      return NextResponse.json({ error: "This interview has already been completed." }, { status: 409 });
+    }
+
     const requested = coerceProviderId(body.provider);
     const provider: VoiceProviderId | null = requested ?? session0?.provider ?? null;
     if (!provider) {
@@ -80,7 +92,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: CONSENT_REQUIRED_ERROR }, { status: 403 });
     }
 
-    markInterviewStarted(session.id, body.consent === true);
+    // Atomic backstop for the check above: if a /complete landed between the
+    // status read and here, the guarded UPDATE refuses to reopen the session —
+    // and we must not mint credentials for it.
+    if (!markInterviewStarted(session.id, body.consent === true)) {
+      return NextResponse.json({ error: "This interview has already been completed." }, { status: 409 });
+    }
 
     const connect = await adapter.connect({ instructions, language: language ?? session.language });
     // Candidate-mode sessions carry grounded questions; the browser passes this

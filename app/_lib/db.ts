@@ -2698,19 +2698,33 @@ export function getInterviewSessionByToken(token: string): InterviewSession | nu
 /** Mark a session live (first connect); records consent_at the first time it is
  *  given. /connect enforces consent for candidate-mode sessions before calling
  *  this (see interview-consent.ts), so the consent=false branch below now only
- *  applies to ungated test/lab runs. */
-export function markInterviewStarted(id: string, consent: boolean): void {
+ *  applies to ungated test/lab runs.
+ *
+ *  The UPDATE never reopens a completed session (idea-836e08d8): it used to
+ *  force status='in_progress' unconditionally, so a direct POST to /connect
+ *  with a finished session's token reset it and minted fresh provider
+ *  credentials — the portal page only blocked the RENDER. The guard lives in
+ *  the WHERE clause so a /complete racing this call can't lose; returns whether
+ *  the session actually went live so the route can refuse to mint credentials. */
+export function markInterviewStarted(id: string, consent: boolean): boolean {
   const db = ensureDb();
   const now = new Date().toISOString();
   if (consent) {
-    db.prepare(
-      `UPDATE interview_sessions SET status='in_progress', started_at=COALESCE(started_at, ?), consent_at=COALESCE(consent_at, ?), updated_at=? WHERE id=?`
-    ).run(now, now, now, id);
-  } else {
-    db.prepare(
-      `UPDATE interview_sessions SET status='in_progress', started_at=COALESCE(started_at, ?), updated_at=? WHERE id=?`
-    ).run(now, now, id);
+    return (
+      db
+        .prepare(
+          `UPDATE interview_sessions SET status='in_progress', started_at=COALESCE(started_at, ?), consent_at=COALESCE(consent_at, ?), updated_at=? WHERE id=? AND status != 'completed'`
+        )
+        .run(now, now, now, id).changes > 0
+    );
   }
+  return (
+    db
+      .prepare(
+        `UPDATE interview_sessions SET status='in_progress', started_at=COALESCE(started_at, ?), updated_at=? WHERE id=? AND status != 'completed'`
+      )
+      .run(now, now, id).changes > 0
+  );
 }
 
 /** Persist the end of a call. The UPDATE is guarded at the row level so a
