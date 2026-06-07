@@ -20,7 +20,10 @@ import assert from "node:assert/strict";
 import type { VoiceTurn } from "./db.ts";
 import {
   MAX_TURN_TEXT_CHARS,
+  MAX_TURN_AT_CHARS,
   MAX_SCORECARD_NOTES_CHARS,
+  MAX_TRANSCRIPT_TURNS,
+  capTranscriptTurns,
   clampTurn,
   transcriptToNotes,
   buildScorecardNotes,
@@ -80,6 +83,41 @@ test("clampTurn coerces non-string text via String() before clamping", () => {
   const { turn: t, clippedChars } = clampTurn({ role: "candidate", text: 42 as unknown });
   assert.equal(t.text, "42");
   assert.equal(clippedChars, 0);
+});
+
+test("clampTurn drops a non-string or oversized `at` instead of persisting it (idea-c7df6b55)", () => {
+  // `at` used to ride through unvalidated — a crafted turn could smuggle an
+  // arbitrarily large blob (or an object) under the timestamp field.
+  assert.equal(clampTurn({ role: "candidate", text: "x", at: { huge: true } }).turn.at, undefined);
+  assert.equal(clampTurn({ role: "candidate", text: "x", at: "z".repeat(MAX_TURN_AT_CHARS + 1) }).turn.at, undefined);
+  // A genuine ISO timestamp passes through untouched.
+  const iso = "2026-06-07T12:00:00.000Z";
+  assert.equal(clampTurn({ role: "candidate", text: "x", at: iso }).turn.at, iso);
+});
+
+// ---------------------------------------------------------------------------
+// capTranscriptTurns — turn-count cap at the persistence boundary
+// ---------------------------------------------------------------------------
+
+test("capTranscriptTurns passes a within-cap transcript through whole", () => {
+  const transcript = [turn("interviewer", "Hi."), turn("candidate", "Hello.")];
+  const r = capTranscriptTurns(transcript);
+  assert.equal(r.droppedTurns, 0);
+  assert.equal(r.turns, transcript);
+});
+
+test("capTranscriptTurns keeps opening AND closing, drops the middle behind a marker turn", () => {
+  const over = MAX_TRANSCRIPT_TURNS + 100;
+  const transcript = Array.from({ length: over }, (_, i) => turn("candidate", `turn ${i}`));
+  const r = capTranscriptTurns(transcript);
+  assert.equal(r.turns.length, MAX_TRANSCRIPT_TURNS);
+  assert.equal(r.droppedTurns, over - (MAX_TRANSCRIPT_TURNS - 1));
+  // First and last original turns survive; the marker sits in the middle.
+  assert.equal(r.turns[0].text, "turn 0");
+  assert.equal(r.turns[r.turns.length - 1].text, `turn ${over - 1}`);
+  const marker = r.turns.find((t) => t.role === "system" && t.text.includes("omitted"));
+  assert.ok(marker, "expected an in-band omission marker turn");
+  assert.ok(marker!.text.includes(String(r.droppedTurns)));
 });
 
 // ---------------------------------------------------------------------------

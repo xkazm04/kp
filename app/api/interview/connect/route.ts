@@ -5,6 +5,7 @@ import {
   markInterviewStarted,
 } from "@/app/_lib/db";
 import {
+  coerceLanguage,
   coerceProviderId,
   defaultInterviewerInstructions,
   getVoiceAdapter,
@@ -27,17 +28,17 @@ export async function GET() {
 // create/load the interview session. The browser connects directly afterward.
 export async function POST(request: NextRequest) {
   try {
-    const body = (await request.json().catch(() => ({}))) as {
-      provider?: string;
-      token?: string;
-      language?: string;
-      consent?: boolean;
-    };
+    // Validate at the trust boundary instead of casting request.json() to a
+    // typed shape (idea-c7df6b55): token must be a plausibly-sized string,
+    // language must look like a language tag, consent must be literally true.
+    const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
+    const token = typeof body.token === "string" && body.token.length <= 200 ? body.token : null;
+    const language = coerceLanguage(body.language);
 
     // The browser picks the provider (the picker defaults to ElevenLabs and
     // disables any provider whose keys are missing). Honor that choice; fall
     // back to a token-bound session's stored provider when none is requested.
-    const session0 = body.token ? getInterviewSessionByToken(body.token) : null;
+    const session0 = token ? getInterviewSessionByToken(token) : null;
     const requested = coerceProviderId(body.provider);
     const provider: VoiceProviderId | null = requested ?? session0?.provider ?? null;
     if (!provider) {
@@ -65,7 +66,7 @@ export async function POST(request: NextRequest) {
       session0 ??
       createInterviewSession({
         provider,
-        language: body.language ?? null,
+        language,
         mode: "test",
         instructions,
         durationMin: QUICK_SCREEN_MIN,
@@ -79,9 +80,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: CONSENT_REQUIRED_ERROR }, { status: 403 });
     }
 
-    markInterviewStarted(session.id, Boolean(body.consent));
+    markInterviewStarted(session.id, body.consent === true);
 
-    const connect = await adapter.connect({ instructions, language: body.language ?? session.language });
+    const connect = await adapter.connect({ instructions, language: language ?? session.language });
     // Candidate-mode sessions carry grounded questions; the browser passes this
     // to ElevenLabs as a prompt override (OpenAI gets it server-side already).
     const groundedPrompt = session.mode === "candidate" ? instructions : null;

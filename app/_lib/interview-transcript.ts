@@ -40,6 +40,18 @@ import type { VoiceTurn } from "./db";
  *  input). Applied when the transcript is persisted in /api/interview/complete. */
 export const MAX_TURN_TEXT_CHARS = 4000;
 
+/** Max turns persisted for one session (sanity cap at the trust boundary,
+ *  idea-c7df6b55). A 30-minute screen lands in the low hundreds of turns; this
+ *  only bites on a crafted multi-thousand-turn POST, which together with the
+ *  per-turn cap would otherwise persist a multi-megabyte transcript_json. */
+export const MAX_TRANSCRIPT_TURNS = 500;
+
+/** Max characters accepted for a turn's `at` timestamp (ISO-8601 is 24). The
+ *  field used to ride through `clampTurn` unvalidated — `at?: string` in the
+ *  type but never checked at runtime — so a crafted turn could persist an
+ *  arbitrarily large blob under `at` while `text` was dutifully clamped. */
+export const MAX_TURN_AT_CHARS = 40;
+
 /** Character budget for the notes string handed to the scorecard task. The
  *  joined transcript is kept whole below this; above it, head+tail sampled. */
 export const MAX_SCORECARD_NOTES_CHARS = 6000;
@@ -58,8 +70,10 @@ function turnLine(t: VoiceTurn): string {
 
 /** Normalize an inbound turn to the canonical role set and clamp its text to
  *  MAX_TURN_TEXT_CHARS. Reports how many characters the clamp discarded (0 when
- *  the turn was within the cap) so the caller can surface real truncation. */
-export function clampTurn(raw: { role?: unknown; text: unknown; at?: string }): {
+ *  the turn was within the cap) so the caller can surface real truncation.
+ *  `at` is untrusted too: anything that isn't a plausibly-sized string is
+ *  dropped rather than persisted (idea-c7df6b55). */
+export function clampTurn(raw: { role?: unknown; text: unknown; at?: unknown }): {
   turn: VoiceTurn;
   clippedChars: number;
 } {
@@ -67,7 +81,29 @@ export function clampTurn(raw: { role?: unknown; text: unknown; at?: string }): 
     raw.role === "candidate" || raw.role === "interviewer" ? raw.role : "system";
   const full = String(raw.text);
   const text = full.slice(0, MAX_TURN_TEXT_CHARS);
-  return { turn: { role, text, at: raw.at }, clippedChars: full.length - text.length };
+  const at = typeof raw.at === "string" && raw.at.length <= MAX_TURN_AT_CHARS ? raw.at : undefined;
+  return { turn: { role, text, at }, clippedChars: full.length - text.length };
+}
+
+/** Cap a transcript to MAX_TRANSCRIPT_TURNS at the persistence boundary. Within
+ *  the cap the transcript passes through whole. Above it we keep the head and
+ *  the tail — the same opening/closing-preserving policy buildScorecardNotes
+ *  documents — and replace the middle with one in-band system turn, so both the
+ *  recruiter's transcript modal and the scorer see that turns were omitted
+ *  instead of silently reading a front-sliced conversation. */
+export function capTranscriptTurns(turns: VoiceTurn[]): { turns: VoiceTurn[]; droppedTurns: number } {
+  if (turns.length <= MAX_TRANSCRIPT_TURNS) return { turns, droppedTurns: 0 };
+  const headCount = Math.ceil((MAX_TRANSCRIPT_TURNS - 1) / 2);
+  const tailCount = MAX_TRANSCRIPT_TURNS - 1 - headCount;
+  const droppedTurns = turns.length - headCount - tailCount;
+  const marker: VoiceTurn = {
+    role: "system",
+    text: `[… ${droppedTurns} turns omitted from the middle of the transcript at the persistence cap; the opening and closing are kept verbatim …]`,
+  };
+  return {
+    turns: [...turns.slice(0, headCount), marker, ...turns.slice(turns.length - tailCount)],
+    droppedTurns,
+  };
 }
 
 /** Flatten a transcript to the plain "Speaker: text" notes the scorer reads. */

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createInterviewSession } from "@/app/_lib/db";
 import { buildGroundedInterview } from "@/app/_lib/interview-run";
 import { jsonError } from "@/app/_lib/api-response";
-import { coerceProviderId, voiceAvailability, type VoiceProviderId } from "@/app/_lib/voice";
+import { coerceLanguage, coerceProviderId, voiceAvailability, type VoiceProviderId } from "@/app/_lib/voice";
 
 export const runtime = "nodejs";
 
@@ -11,12 +11,15 @@ export const runtime = "nodejs";
 // to hand to the candidate. After the call, /complete runs the scorecard.
 export async function POST(request: NextRequest) {
   try {
-    const body = (await request.json().catch(() => ({}))) as {
-      entryId?: string;
-      provider?: string;
-      language?: string;
-    };
-    if (!body.entryId) return NextResponse.json({ error: "entryId is required" }, { status: 400 });
+    // Validate at the trust boundary instead of casting request.json() to a
+    // typed shape (idea-c7df6b55): entryId must be a plausibly-sized string and
+    // language must look like a language tag — anything else is rejected or
+    // dropped rather than passed into the DB layer.
+    const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
+    const entryId = typeof body.entryId === "string" ? body.entryId.trim() : "";
+    if (!entryId || entryId.length > 120) {
+      return NextResponse.json({ error: "entryId is required" }, { status: 400 });
+    }
 
     const avail = voiceAvailability();
     // Honor an explicitly requested provider; otherwise prefer a configured one,
@@ -24,18 +27,18 @@ export async function POST(request: NextRequest) {
     const provider: VoiceProviderId =
       coerceProviderId(body.provider) ?? (avail.openai ? "openai" : avail.elevenlabs ? "elevenlabs" : "openai");
 
-    const grounded = await buildGroundedInterview(body.entryId);
+    const grounded = await buildGroundedInterview(entryId);
     const session = createInterviewSession({
       provider,
       mode: "candidate",
-      entryId: body.entryId,
+      entryId,
       candidateLabel: grounded.candidateLabel,
       jobId: grounded.jobId,
       jobTitle: grounded.jobTitle,
       instructions: grounded.instructions,
       runOfShow: grounded.runOfShow,
       durationMin: grounded.durationMin,
-      language: body.language ?? null,
+      language: coerceLanguage(body.language),
     });
 
     return NextResponse.json({

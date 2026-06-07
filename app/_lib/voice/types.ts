@@ -17,6 +17,16 @@ export function coerceProviderId(value: unknown, fallback: VoiceProviderId | nul
   return value === "openai" || value === "elevenlabs" ? value : fallback;
 }
 
+/** Narrow an untrusted value to a plausible BCP-47-ish language hint, or null.
+ *  The interview routes used to store `body.language` verbatim — an unbounded
+ *  attacker-controlled string persisted to the session row and echoed into
+ *  provider connect calls (idea-c7df6b55). The UI only ever sends "cs"/"en",
+ *  but the boundary shouldn't rely on that. */
+export function coerceLanguage(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  return value.length <= 16 && /^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})*$/.test(value) ? value : null;
+}
+
 /** What the browser needs to open an OpenAI Realtime WebRTC session. */
 export type OpenAiConnect = {
   provider: "openai";

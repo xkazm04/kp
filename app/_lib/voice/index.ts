@@ -4,7 +4,7 @@ import { QUICK_SCREEN_MIN } from "../interview-duration.mjs";
 import type { VoiceAdapter, VoiceAvailability, VoiceProviderId } from "./types.ts";
 
 export type { VoiceConnect, VoiceProviderId, VoiceAvailability, VoiceTurn, VoiceAdapter } from "./types.ts";
-export { coerceProviderId, missingVoiceEnv } from "./types.ts";
+export { coerceLanguage, coerceProviderId, missingVoiceEnv } from "./types.ts";
 
 const adapters: Record<VoiceProviderId, VoiceAdapter> = {
   openai: new OpenAiVoiceAdapter(),
