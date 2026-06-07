@@ -39,6 +39,20 @@ export type VoiceInterviewProps = {
 const DEFAULT_PROVIDER: VoiceProviderId = "elevenlabs";
 const PROVIDER_ORDER: VoiceProviderId[] = ["elevenlabs", "openai"];
 
+// How long finalize() waits for a candidate utterance whose transcription is
+// still in flight when the call ends (idea-b70b8bd7). Whisper turnaround for a
+// short closing answer is well under this; past it we fall back to whatever
+// streamed into the delta buffer rather than hanging the "Ending…" state.
+const OAI_FINAL_TURN_GRACE_MS = 2000;
+
+/** Poll `done` every 100ms until it holds or `timeoutMs` elapses. */
+async function waitUntil(done: () => boolean, timeoutMs: number): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
+  while (!done() && Date.now() < deadline) {
+    await new Promise((r) => setTimeout(r, 100));
+  }
+}
+
 export function VoiceInterview(props: VoiceInterviewProps) {
   // useConversation must live under a ConversationProvider.
   return (
@@ -77,6 +91,13 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle }: VoiceInterview
   const dcRef = useRef<RTCDataChannel | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const asstBuf = useRef("");
+  // The candidate side is asymmetric (idea-b70b8bd7): an utterance only becomes
+  // a turn when its async transcription .completed event lands. candBuf collects
+  // streamed transcription deltas (empty on whisper-1, which doesn't stream);
+  // pendingCandidateRef tracks VAD speech_started → transcription completed, so
+  // finalize knows a final answer is still in flight at hang-up.
+  const candBuf = useRef("");
+  const pendingCandidateRef = useRef(false);
   const connectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const logRef = useRef<HTMLDivElement | null>(null);
 
@@ -131,6 +152,24 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle }: VoiceInterview
       if (finalizedRef.current) return;
       finalizedRef.current = true;
       clearConnectTimer();
+      // The candidate's LAST answer is the asymmetric gap (idea-b70b8bd7): the
+      // assistant side is buffered locally (flushed below), but a candidate
+      // utterance only becomes a turn when its async transcription .completed
+      // event arrives. A candidate who finishes speaking and immediately clicks
+      // End would have that final — often most decision-relevant — answer
+      // silently dropped from the transcript that feeds the scorecard. When an
+      // utterance is pending at hang-up, stop capture (so server VAD sees
+      // end-of-speech and transcribes what it heard) but keep the data channel
+      // open briefly to receive it.
+      if (
+        status === "completed" &&
+        providerRef.current === "openai" &&
+        pendingCandidateRef.current &&
+        dcRef.current?.readyState === "open"
+      ) {
+        micRef.current?.getTracks().forEach((tr) => tr.stop());
+        await waitUntil(() => !pendingCandidateRef.current, OAI_FINAL_TURN_GRACE_MS);
+      }
       // Flush any AI turn still buffered from output_audio_transcript.delta
       // events. Teardown can fire before the matching .done arrives (the
       // candidate hangs up mid-sentence, or .done never lands), which would
@@ -139,6 +178,12 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle }: VoiceInterview
       // the flushed turn is included in the POST body below.
       pushTurn("interviewer", asstBuf.current);
       asstBuf.current = "";
+      // Grace expired with the utterance still pending: fall back to whatever
+      // transcription deltas streamed in (empty on whisper-1 — then the turn is
+      // genuinely unrecoverable, but we no longer drop one we already hold).
+      pushTurn("candidate", candBuf.current);
+      candBuf.current = "";
+      pendingCandidateRef.current = false;
       teardownOpenAi();
       setPhase("ended");
       const sid = sessionIdRef.current;
@@ -228,11 +273,17 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle }: VoiceInterview
     // in voice/openai.ts; here we only apply the resulting transcript action.
     const parsed = parseOaiTranscriptEvent(ev);
     if (!parsed) return;
-    if (parsed.kind === "candidateUtterance") {
+    if (parsed.kind === "candidateSpeechStarted") {
+      pendingCandidateRef.current = true;
+    } else if (parsed.kind === "candidateDelta") {
+      candBuf.current += parsed.text;
+    } else if (parsed.kind === "candidateUtterance") {
+      pendingCandidateRef.current = false;
+      candBuf.current = "";
       pushTurn("candidate", parsed.text);
     } else if (parsed.kind === "assistantDelta") {
       asstBuf.current += parsed.text;
-    } else {
+    } else if (parsed.kind === "assistantDone") {
       pushTurn("interviewer", asstBuf.current);
       asstBuf.current = "";
     }
@@ -289,6 +340,8 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle }: VoiceInterview
     setTurns([]);
     turnsRef.current = [];
     asstBuf.current = "";
+    candBuf.current = "";
+    pendingCandidateRef.current = false;
     finalizedRef.current = false;
     reachedLiveRef.current = false;
     erroredRef.current = false;

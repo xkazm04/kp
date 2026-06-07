@@ -21,6 +21,14 @@ const SECRETS_URL = "https://api.openai.com/v1/realtime/client_secrets";
 const OAI_EVENT_SUFFIX = {
   // Final transcription of a candidate (input audio) utterance — carries `transcript`.
   inputTranscriptionCompleted: "input_audio_transcription.completed",
+  // Streaming chunk of a candidate utterance's transcription — carries `delta`.
+  // whisper-1 only emits the final .completed; newer transcription models
+  // stream deltas, so both are tracked (idea-b70b8bd7).
+  inputTranscriptionDelta: "input_audio_transcription.delta",
+  // Server VAD heard the candidate start speaking — an utterance is now PENDING
+  // until its transcription completes. Finalize uses this to know a last answer
+  // is still in flight on hang-up (idea-b70b8bd7).
+  inputSpeechStarted: "input_audio_buffer.speech_started",
   // Streaming chunk of the assistant's spoken-response transcript — carries `delta`.
   outputTranscriptDelta: "output_audio_transcript.delta",
   // The assistant's spoken-response transcript is complete.
@@ -31,6 +39,8 @@ const OAI_EVENT_SUFFIX = {
 // component never re-derives it from raw event-type strings.
 export type OaiTranscriptEvent =
   | { kind: "candidateUtterance"; text: string }
+  | { kind: "candidateDelta"; text: string }
+  | { kind: "candidateSpeechStarted" }
   | { kind: "assistantDelta"; text: string }
   | { kind: "assistantDone" };
 
@@ -42,6 +52,12 @@ export function parseOaiTranscriptEvent(ev: Record<string, unknown>): OaiTranscr
   const type = String(ev.type ?? "");
   if (type.endsWith(OAI_EVENT_SUFFIX.inputTranscriptionCompleted) && typeof ev.transcript === "string") {
     return { kind: "candidateUtterance", text: ev.transcript };
+  }
+  if (type.includes(OAI_EVENT_SUFFIX.inputTranscriptionDelta) && typeof ev.delta === "string") {
+    return { kind: "candidateDelta", text: ev.delta };
+  }
+  if (type.endsWith(OAI_EVENT_SUFFIX.inputSpeechStarted)) {
+    return { kind: "candidateSpeechStarted" };
   }
   if (type.includes(OAI_EVENT_SUFFIX.outputTranscriptDelta) && typeof ev.delta === "string") {
     return { kind: "assistantDelta", text: ev.delta };
