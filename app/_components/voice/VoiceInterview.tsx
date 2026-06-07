@@ -12,6 +12,10 @@ import type { VoiceAvailability, VoiceProviderId, VoiceTurn } from "@/app/_lib/v
 // Browser-safe pure helper (no server deps), so the "what counts as completed"
 // decision is single-sourced and unit-tested rather than inline in a callback.
 import { interviewFinalStatus } from "@/app/_lib/voice/finalize-status";
+// Pre-flight capability check (idea-b0fc8018) — same browser-safe pure-helper
+// pattern; fails fast with an actionable message instead of letting
+// getUserMedia throw the generic "Failed to start the call".
+import { collectVoicePreflightEnv, voicePreflightError } from "@/app/_lib/voice/preflight";
 
 // Live voice-interview MVP. OpenAI Realtime runs over raw WebRTC; ElevenLabs
 // runs through the @elevenlabs/react SDK. A switcher lets you A/B both on the
@@ -271,6 +275,16 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle }: VoiceInterview
   }
 
   async function start() {
+    // Pre-flight BEFORE dialing (idea-b0fc8018): an in-app webview, a plain-HTTP
+    // link, or a WebRTC-less browser is the most common real-world failure of a
+    // first-round screen — name the root cause and the fix, and never burn a
+    // /connect call (which mints provider credentials) on a doomed environment.
+    const preflight = voicePreflightError(collectVoicePreflightEnv(), provider);
+    if (preflight) {
+      setError(preflight);
+      setPhase("error");
+      return;
+    }
     setError(null);
     setTurns([]);
     turnsRef.current = [];
