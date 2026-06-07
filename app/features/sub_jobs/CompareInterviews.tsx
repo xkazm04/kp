@@ -3,9 +3,9 @@
 import { Scale } from "lucide-react";
 import { useJsonFetch } from "@/app/_lib/useJsonFetch";
 import type { InterviewRecommendation } from "@/app/_lib/interview-recommendation";
+import type { ScorecardRating } from "@/app/_lib/interview-scorecard";
 import { EmptyState } from "./JobsShared";
 
-type Rating = { competency: string; rating: number; evidence?: string };
 type Candidate = {
   entryId: string | null;
   candidateLabel: string | null;
@@ -13,7 +13,10 @@ type Candidate = {
   summary: string | null;
   scoringModel: string;
   confidence: { level: string; reason?: string } | null;
-  ratings: Rating[];
+  ratings: ScorecardRating[];
+  // Skills this interview minted as observed-provenance evidence (the
+  // case-grounded gates) — the highest-trust artifact, stamped visibly below.
+  observedSkills: string[];
 };
 type RubricComp = { competency: string; description: string; anchors?: Record<string, string> };
 
@@ -69,6 +72,18 @@ function CohortTable({ rubric, candidates }: { rubric: RubricComp[]; candidates:
                       title={c.confidence.reason || ""}
                     >
                       {c.confidence.level} confidence
+                    </span>
+                  ) : null}
+                  {c.observedSkills.length > 0 ? (
+                    <span
+                      className="inline-block rounded-full bg-moss/15 px-2 py-0.5 text-meta font-semibold text-moss"
+                      title={
+                        "This interview cleared the observed gates (every case-fed construct rated on quoted evidence, " +
+                        "mean ≥ 4/5) and minted these skills as observed-provenance evidence — the candidate's next match " +
+                        "credits them at full trust."
+                      }
+                    >
+                      ✓ observed: {c.observedSkills.join(", ")}
                     </span>
                   ) : null}
                 </span>
@@ -157,19 +172,30 @@ export function CompareInterviews({ jobId }: { jobId: string }) {
         </div>
       ))}
 
-      <p className="mt-5 text-meta uppercase text-steel">Highlights</p>
+      <p className="mt-5 text-meta uppercase text-steel">Evidence — verbatim quotes behind every rating</p>
       <div className="mt-2 grid gap-3 sm:grid-cols-2">
         {data.candidates.map((c, i) => (
           <div key={i} className="rounded-md border border-stone-200 bg-paper/40 p-3">
             <p className="font-medium text-ink">{c.candidateLabel}</p>
             {c.summary ? <p className="mt-0.5 text-sm text-steel">{c.summary}</p> : null}
             <ul className="mt-2 space-y-1">
+              {/* Every evidenced rating, visibly — the quotes ARE the scorecard's
+                  accountability, so they must not hide behind hover tooltips. */}
               {c.ratings
                 .filter((r) => r.evidence && r.evidence !== "Not assessed.")
-                .slice(0, 3)
                 .map((r, j) => (
-                  <li key={j} className="text-sm text-ink">
-                    <span className="font-medium">{r.competency}:</span> <span className="text-steel">{r.evidence}</span>
+                  <li key={j} className="flex items-baseline gap-1.5 text-sm text-ink">
+                    <span
+                      className={`inline-flex h-5 w-6 shrink-0 items-center justify-center rounded font-semibold nums ${ratingColor(
+                        r.rating
+                      )}`}
+                    >
+                      {r.rating}
+                    </span>
+                    <span>
+                      <span className="font-medium">{r.competency}:</span>{" "}
+                      <span className="text-steel">{r.evidence}</span>
+                    </span>
                   </li>
                 ))}
             </ul>

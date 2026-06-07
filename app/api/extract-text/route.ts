@@ -7,10 +7,20 @@ import {
   persistFile,
   spawnPython,
 } from "@/app/_lib/python-runner";
-import { ACCEPT_MIME, MAX_FILE_BYTES, MAX_FILE_MB } from "@/app/_lib/upload-constraints";
+import { validateUploadServer } from "@/app/_lib/upload-constraints";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
+
+// Kill the Python child a few seconds INSIDE the function's own hard limit
+// instead of letting it inherit spawnPython's 600s hang-backstop. If the
+// extractor is still running when the platform kills the serverless function at
+// maxDuration, the finally{ cleanupWorkdir } below never runs — the temp dir
+// leaks and the child is orphaned — and because the only caller swallows the
+// error (executeGithubAnalysis → extractFileText.catch(() => "")) it fails
+// silently and accumulates. Derived from maxDuration so the two can't drift; the
+// 5s headroom leaves room for the SIGKILL + cleanup to finish inside the budget.
+const EXTRACT_TIMEOUT_MS = (maxDuration - 5) * 1000;
 
 // Extract plain text from an uploaded document (PDF/DOCX/TXT/MD) using the same
 // Python extractor the CV pipeline uses. Lets a caller that only holds the file
@@ -22,11 +32,11 @@ export async function POST(request: Request) {
   if (!(file instanceof File) || file.size === 0) {
     return NextResponse.json({ error: "Attach a file under the field name 'file'." }, { status: 400 });
   }
-  if (!ACCEPT_MIME.has(file.type)) {
-    return NextResponse.json({ error: "Use PDF, DOCX, TXT, or MD." }, { status: 400 });
-  }
-  if (file.size > MAX_FILE_BYTES) {
-    return NextResponse.json({ error: `The upload limit is ${MAX_FILE_MB} MB.` }, { status: 400 });
+  // Same MIME + size gate as /api/analyze, so the two upload endpoints can't
+  // drift on accepted types or the size cap (see upload-constraints.ts).
+  const rejection = validateUploadServer(file, "file");
+  if (rejection) {
+    return NextResponse.json({ error: rejection.error }, { status: rejection.status });
   }
 
   // persistFile keeps the original extension, which the extractor uses to pick
@@ -34,7 +44,13 @@ export async function POST(request: Request) {
   const baseDir = await createWorkdir();
   try {
     const filePath = await persistFile(baseDir, file, "document");
-    const { result } = spawnPython(["-m", "pipeline.jobfit.extract_cli", filePath]);
+    // timeoutMs keeps the child inside the function's budget so cleanup always
+    // runs; request.signal also SIGKILLs it the moment the caller abandons the
+    // request (navigates away / closes the tab) instead of waiting out the timeout.
+    const { result } = spawnPython(["-m", "pipeline.jobfit.extract_cli", filePath], {
+      timeoutMs: EXTRACT_TIMEOUT_MS,
+      signal: request.signal,
+    });
     const { stdout, stderr, exitCode } = await result;
     if (exitCode !== 0) {
       const err = parseStderrError(stderr, exitCode);

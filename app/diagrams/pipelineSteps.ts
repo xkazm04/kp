@@ -125,7 +125,7 @@ fn --> ui : ranked + bands`,
     title: "AI screening",
     status: "live",
     summary:
-      "Fairness-gated screening (Task 1) runs the Claude CLI with a deterministic fallback. Confident BAU matches auto-advance; early-career and low-confidence are held for the Decisions queue — never auto-rejected.",
+      "Fairness-gated screening (Task 1) runs the Claude CLI with a deterministic fallback. Available one-by-one at both pre-interview stages: at Accepted it triages a fresh applicant into Screened; at Screened it advances toward Interview. Confident matches advance; early-career and low-confidence are held for the Decisions queue — never auto-rejected.",
     files: ["app/features/sub_pipeline/CandidateDrawer.tsx", "app/_lib/automation-run.ts", "pipeline/jobfit/automation.py"],
     puml: `[CandidateDrawer\\n"Screen with AI"] <<auto>> as ui
 [runAutomationTask\\nscreen] as fn

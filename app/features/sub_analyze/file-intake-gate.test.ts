@@ -57,9 +57,15 @@ test("AnalyzeProfileInput routes every File through the accept() gate", () => {
   }
 });
 
-test("acceptUpload is the single exported gate", () => {
+test("upload-constraints exports the paired client + server gates, no divergent duplicate", () => {
   const src = read("../../_lib/upload-constraints.ts");
-  assert.match(src, /export function acceptUpload/, "acceptUpload must be the exported gate");
-  // No second, divergent validator export to drift from acceptUpload.
-  assert.doesNotMatch(src, /export function validateUpload/, "validateUpload must not be a second exported gate");
+  assert.match(src, /export function acceptUpload/, "acceptUpload must be the exported client gate");
+  // The server twin (idea-5b61d729): one shared MIME+size gate both upload
+  // routes call, instead of each route re-implementing it inline. Its presence
+  // is what lets the two endpoints stay paired here rather than drift.
+  assert.match(src, /export function validateUploadServer/, "validateUploadServer must be the exported server gate");
+  // No second *client* validator (the old per-component `validateUpload`) to
+  // drift from acceptUpload. The trailing `(` keeps this from matching the
+  // legitimate server gate validateUploadServer.
+  assert.doesNotMatch(src, /export function validateUpload\(/, "validateUpload must not be a second client gate");
 });

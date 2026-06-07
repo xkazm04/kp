@@ -22,15 +22,22 @@ from .archetype import BAU
 from .models import _Base
 from .taxonomy import PROVENANCE_WEIGHTS
 
-# Evidence categories the student/switcher intake collects.
+# Source of truth for the evidence/skill taxonomy shared with the frontend: the
+# TS dropdowns (app/_lib/taxonomy.generated.ts) are generated from these lists
+# by codegen.py, so adding a kind/level here flows to the UI and the build /
+# `npm run schemas:check` gate fails if the generated file drifts (idea-ba28f11b).
+
+# Evidence categories the student/switcher intake collects. Order is the frontend
+# dropdown order (student-centric: project/thesis first), since the generated TS
+# list mirrors it; logic only ever tests membership, never position.
 EVIDENCE_KINDS = (
-    "job",
-    "internship",
     "project",
     "thesis",
+    "internship",
     "course",
     "extracurricular",
     "certification",
+    "job",
     "other",
 )
 SKILL_LEVELS = ("foundational", "working", "strong")
@@ -45,6 +52,24 @@ _KIND_PROVENANCE = {
     "certification": "certification",
     "other": "unknown",
 }
+
+# These developer-authored maps must agree or evidence silently scores wrong:
+# every evidence kind needs a default provenance, and every default must be a
+# real provenance carrying a scoring weight. Checked at import so a drifting edit
+# fails loudly here, not as a zero score deep in matching (idea-ba28f11b).
+if set(_KIND_PROVENANCE) != set(EVIDENCE_KINDS):
+    raise RuntimeError(
+        "EVIDENCE_KINDS and _KIND_PROVENANCE keys disagree: "
+        f"{sorted(set(EVIDENCE_KINDS) ^ set(_KIND_PROVENANCE))}"
+    )
+_unweighted_kind_provenance = sorted(
+    v for v in _KIND_PROVENANCE.values() if v not in PROVENANCE_WEIGHTS
+)
+if _unweighted_kind_provenance:
+    raise RuntimeError(
+        "_KIND_PROVENANCE maps to provenance(s) with no weight: "
+        f"{_unweighted_kind_provenance}"
+    )
 
 
 class Evidence(_Base):
@@ -145,6 +170,20 @@ def completeness(profile: CandidateProfileV2) -> tuple[float, list[str]]:
     missing.sort(key=lambda label: weight_by_label.get(label, 0.0), reverse=True)
     score = round(got / total, 2) if total else 0.0
     return score, missing
+
+
+def completeness_gaps(profile: CandidateProfileV2) -> list[dict[str, str]]:
+    """Machine-readable twin of :func:`completeness`'s missing list: the unmet
+    checklist items as ``{check, label}`` dicts, biggest weight first — so an
+    intake follow-up UI can render one TARGETED field per gap (keyed by the
+    check id) instead of a generic "profile incomplete" nudge."""
+    unmet = [
+        (weight, check, label)
+        for check, weight, label in registry.checklist_specs(profile.archetype)
+        if not CHECKS.get(check, lambda _p: False)(profile)
+    ]
+    unmet.sort(key=lambda item: item[0], reverse=True)
+    return [{"check": check, "label": label} for _weight, check, label in unmet]
 
 
 def normalize_profile(profile: CandidateProfileV2) -> tuple[float, list[str]]:

@@ -7,11 +7,15 @@ to ground the stated need in what the code actually is — surfacing stated-vs-r
 from __future__ import annotations
 
 import json
+import logging
 from typing import Any
 
 from .models import DevNeed, RepoSnapshot
+from .provenance import generate_with_fallback
 
 ANALYZE_NEED_PROMPT_VERSION = "need-analysis-v2"  # v2: JD-first intake + multi-codebase reflection
+
+_LOG = logging.getLogger(__name__)
 
 _SYSTEM = (
     "You are a senior engineering hiring analyst. Reflect a stated hiring need against the REAL "
@@ -21,13 +25,9 @@ _SYSTEM = (
 
 
 def _generate(provider: Any | None, prompt: str, deterministic, coerce) -> tuple[dict, str]:
-    if provider is None:
-        return deterministic(), "deterministic"
-    try:
-        payload = provider.complete_json(prompt, system=_SYSTEM)
-        return coerce(payload), "llm"
-    except Exception:
-        return deterministic(), "deterministic"
+    # Shared LLM-or-deterministic runner: on an LLM failure it logs the cause at WARNING
+    # and stashes a one-line fallbackReason on the artifact (see provenance.generate_with_fallback).
+    return generate_with_fallback(provider, prompt, _SYSTEM, deterministic, coerce, _LOG)
 
 
 def _str_list(value: Any) -> list[str]:

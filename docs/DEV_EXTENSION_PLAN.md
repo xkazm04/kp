@@ -82,7 +82,8 @@ New Pydantic models (camelCase alias `_Base`, codegen → Zod), in `devcase/mode
   `frameworks[]`, `recentCommitSummaries[]`, `loc`, `readmeExcerpt`, `inferredStack[]`.
 - **`NeedAnalysis`** — `realStack[]`, `statedVsRealGaps[]`, `trueComplexity`, `coreResponsibilities[]`,
   `riskAreas[]`, `reflection` (prose), `confidence`.
-- **`CaseScenario`** (the assignment) — `title`, `brief`, `repoSeed` (what code/fixture to hand over),
+- **`CaseScenario`** (the assignment) — `title`, `brief`, `repoSeed` (domain-neutral starting materials
+  to hand over — code for software, but documents/designs/models/etc. otherwise; alias `startingMaterials`),
   `tasks[]`, `coverProbes[]` (hidden tooling-probes + what each reveals), `rubricDimensions[]`,
   `timeboxHours`, `promptVersion`.
 - **`RoleSpec`** — bridges to `Job`: `title`, `seniority`, `roleFamily`, `mustHaves[]`, `niceToHaves[]`,
@@ -92,7 +93,7 @@ New Pydantic models (camelCase alias `_Base`, codegen → Zod), in `devcase/mode
   `deadEnds[]`, `readBeforeWrite` (bool/score), `verificationHabits[]`, `confidence`.
 - **`ToolingSignal`** — `fluency` (0..1), `evidence[]`, `probeOutcomes[]` (per cover-probe:
   did they detect/handle it), `overReliance` flags, `confidence`. *Using tools is never penalised.*
-- **`CaseEvaluation`** — `structureScore`, `judgmentScore`, `architectureScore`, `dimensionScores{}`,
+- **`CaseEvaluation`** — `dimensionScores{}`, `dimensions[]` (ordered, weight-annotated mirror),
   `strengths[]`, `concerns[]`, `summary`, links a `CommitReflection` + `ToolingSignal`.
 - **`TransferAssessment`** — `transferScore` (0..100), `transfers[]`, `gaps[]`, `roleFitRationale`,
   feeds the existing match/scoring + pipeline.

@@ -32,6 +32,10 @@ export function JobFitTab({ analysis }: { analysis: Analysis }) {
               </div>
               <p className="mt-3 text-base leading-6 text-ink">{analysis.jobFit.summary}</p>
             </div>
+            {/* jobFit.score is a standalone 0-100 role-fit scalar, NOT the
+                experience+skills+… breakdown total — there is no FactorChart
+                here to contradict, so the score-breakdown invariant
+                (reconcileScoreTotal) does not apply to this dial. */}
             <ScoreDial score={analysis.jobFit.score} />
           </div>
           <div className="mt-4">

@@ -1,10 +1,18 @@
-"""Generate the TypeScript Zod schema from the Pydantic AnalysisResult model.
+"""Generate the TypeScript artifacts the frontend shares with the Python pipeline.
 
 The Pydantic models in ``models.py`` are the single source of truth for the
-analysis result shape. This module exports their JSON Schema (with camelCase
+analysis result shape; this module exports their JSON Schema (with camelCase
 aliases) and transpiles it into Zod definitions written to
-``app/_lib/schemas.generated.ts``. Run via ``python -m pipeline.jobfit.codegen``
-(also wired into the ``npm run build`` step).
+``app/_lib/schemas.generated.ts``.
+
+It also generates ``app/_lib/taxonomy.generated.ts`` — the evidence/skill/
+provenance dropdown lists — from the Python taxonomy (``profile.EVIDENCE_KINDS``,
+``profile.SKILL_LEVELS`` and ``taxonomy.UI_PROVENANCE``) so those enums have ONE
+source of truth instead of a hand-maintained TS copy that silently drifts
+(idea-ba28f11b).
+
+Run via ``python -m pipeline.jobfit.codegen`` (also wired into ``npm run build``);
+``--check`` (``npm run schemas:check``) fails CI if either file is out of date.
 """
 
 from __future__ import annotations
@@ -15,16 +23,25 @@ from pathlib import Path
 from typing import Any
 
 from .models import AnalysisResult
+from .profile import EVIDENCE_KINDS, SKILL_LEVELS
+from .taxonomy import UI_PROVENANCE
 
 
 ROOT = Path(__file__).resolve().parents[2]
 OUTPUT = ROOT / "app" / "_lib" / "schemas.generated.ts"
+TAXONOMY_OUTPUT = ROOT / "app" / "_lib" / "taxonomy.generated.ts"
 
 HEADER = """// AUTO-GENERATED — DO NOT EDIT.
 // Source of truth: pipeline/jobfit/models.py
 // Regenerate with: python -m pipeline.jobfit.codegen
 
 import { z } from "zod";
+"""
+
+TAXONOMY_HEADER = """// AUTO-GENERATED — DO NOT EDIT.
+// Source of truth: pipeline/jobfit/profile.py (EVIDENCE_KINDS, SKILL_LEVELS)
+// and pipeline/jobfit/taxonomy.py (UI_PROVENANCE).
+// Regenerate with: python -m pipeline.jobfit.codegen
 """
 
 
@@ -80,12 +97,15 @@ def _emit_object(node: dict[str, Any], defs: dict[str, Any], indent: int) -> str
     lines: list[str] = []
     for name, sub in node["properties"].items():
         zod = _emit(sub, defs, indent + 1)
-        # `model_dump(exclude_none=True)` only drops fields whose type allows
-        # None — list/dict/string defaults always serialize. Mirror that here:
-        # `.optional()` reflects "may be missing on the wire", not "has a
-        # Python default".
+        # A field whose Python type allows `None` can reach the wire two ways:
+        # absent (the serializer passed `exclude_none=True`) or present as JSON
+        # `null` (it did not). Emit `.nullish()` — accepts both `undefined` and
+        # `null` — so the cross-language contract does NOT silently depend on
+        # every serializer remembering `exclude_none=True`. List/dict/string
+        # defaults are not nullable and always serialize, so they stay required.
+        # The round-trip is pinned by app/_lib/schemas-null-contract.test.ts.
         if _is_nullable(sub, defs):
-            zod += ".optional()"
+            zod += ".nullish()"
         lines.append(f"{pad}{name}: {zod}")
     body = ",\n".join(lines)
     return f"z.object({{\n{body}\n{close_pad}}})"
@@ -109,19 +129,50 @@ def render() -> str:
     )
 
 
-def write() -> Path:
-    OUTPUT.parent.mkdir(parents=True, exist_ok=True)
-    OUTPUT.write_text(render(), encoding="utf-8")
-    return OUTPUT
+def _emit_string_list(name: str, values: tuple[str, ...]) -> str:
+    """A ``export const NAME = ["a", "b"];`` whose inferred type is ``string[]``,
+    matching the hand-written lists this replaces (consumers ``.map`` over them)."""
+    items = "".join(f"  {json.dumps(v)},\n" for v in values)
+    return f"export const {name} = [\n{items}];"
+
+
+def render_taxonomy() -> str:
+    lists = [
+        _emit_string_list("EVIDENCE_KINDS", tuple(EVIDENCE_KINDS)),
+        _emit_string_list("SKILL_LEVELS", tuple(SKILL_LEVELS)),
+        _emit_string_list("PROVENANCE", tuple(UI_PROVENANCE)),
+    ]
+    return f"{TAXONOMY_HEADER}\n" + "\n\n".join(lists) + "\n"
+
+
+# (path, renderer) for every generated TS file — keeps write() and --check in lockstep.
+_GENERATED = (
+    (OUTPUT, render),
+    (TAXONOMY_OUTPUT, render_taxonomy),
+)
+
+
+def write() -> list[Path]:
+    written: list[Path] = []
+    for path, renderer in _GENERATED:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(renderer(), encoding="utf-8")
+        written.append(path)
+    return written
 
 
 def main(argv: list[str] | None = None) -> int:
     args = list(argv or sys.argv[1:])
     if "--check" in args:
-        existing = OUTPUT.read_text(encoding="utf-8") if OUTPUT.exists() else ""
-        if existing != render():
+        stale = [
+            path
+            for path, renderer in _GENERATED
+            if (path.read_text(encoding="utf-8") if path.exists() else "") != renderer()
+        ]
+        if stale:
+            names = ", ".join(p.relative_to(ROOT).as_posix() for p in stale)
             sys.stderr.write(
-                "schemas.generated.ts is out of date. Run `python -m pipeline.jobfit.codegen`.\n"
+                f"{names} out of date. Run `python -m pipeline.jobfit.codegen`.\n"
             )
             return 1
         return 0
@@ -132,8 +183,8 @@ def main(argv: list[str] | None = None) -> int:
             indent=2,
         )
         return 0
-    path = write()
-    sys.stdout.write(f"wrote {path.relative_to(ROOT)}\n")
+    for path in write():
+        sys.stdout.write(f"wrote {path.relative_to(ROOT)}\n")
     return 0
 
 

@@ -3,7 +3,7 @@ import { analysisSchema, type Analysis } from "@/app/_lib/schemas";
 import { computeCacheKey, lookupCachedAnalysis, storeCachedAnalysis } from "@/app/_lib/cache";
 import { buildComparison } from "@/app/_lib/comparison";
 import { saveAnalysis } from "@/app/_lib/db";
-import { logAnalyze } from "@/app/_lib/logger";
+import { logAnalyze, type AnalyzeLog } from "@/app/_lib/logger";
 import { cleanupWorkdir, parseStderrError, spawnPython } from "@/app/_lib/python-runner";
 
 // Shared core for CV analysis, lifted out of /api/analyze so it can run inside
@@ -39,6 +39,29 @@ function cliArgs(cvPath: string, p: AnalyzeParams): string[] {
   if (p.companyPath) args.push("--company-path", p.companyPath);
   else if (p.companyText?.trim()) args.push("--company-text", p.companyText.trim());
   return args;
+}
+
+// Shared shape for every analyze.log line: the request/context fields that are
+// identical across the failure, single-analysis, and comparison branches. Each
+// call site spreads this and adds only its status-specific keys (status, error,
+// candidate_label, variant_count, cache_hit, saved_slug) so the common fields
+// can never drift between success and failure runs.
+function baseAnalyzeLog(
+  p: AnalyzeParams,
+  startedAt: number
+): Pick<
+  AnalyzeLog,
+  "request_id" | "route" | "jd_present" | "jd_slug" | "company_present" | "github_present" | "duration_ms"
+> {
+  return {
+    request_id: p.requestId,
+    route: "analyze",
+    jd_present: Boolean(p.jobDescriptionPath || p.jobDescriptionText?.trim()),
+    jd_slug: p.jdSlug ?? null,
+    company_present: Boolean(p.companyPath || p.companyText?.trim()),
+    github_present: false,
+    duration_ms: Date.now() - startedAt,
+  };
 }
 
 export async function runAnalyze(p: AnalyzeParams, onProgress?: ProgressFn): Promise<unknown> {
@@ -99,16 +122,10 @@ export async function runAnalyze(p: AnalyzeParams, onProgress?: ProgressFn): Pro
     const failure = results.find((r) => !r.ok);
     if (failure && !failure.ok) {
       void logAnalyze({
-        request_id: p.requestId,
-        route: "analyze",
+        ...baseAnalyzeLog(p, startedAt),
         candidate_label: p.variants[0]?.label,
         variant_count: total,
-        jd_present: Boolean(p.jobDescriptionPath || p.jobDescriptionText?.trim()),
-        jd_slug: p.jdSlug ?? null,
-        company_present: Boolean(p.companyPath || p.companyText?.trim()),
-        github_present: false,
         cache_hit: false,
-        duration_ms: Date.now() - startedAt,
         status: "error",
         error: failure.error,
       });
@@ -124,16 +141,10 @@ export async function runAnalyze(p: AnalyzeParams, onProgress?: ProgressFn): Pro
       const single = analyses[0];
       const persisted = persistAnalysis(single.label, p.jdSlug ?? null, single.analysis);
       void logAnalyze({
-        request_id: p.requestId,
-        route: "analyze",
+        ...baseAnalyzeLog(p, startedAt),
         candidate_label: single.label,
         variant_count: 1,
-        jd_present: Boolean(p.jobDescriptionPath || p.jobDescriptionText?.trim()),
-        jd_slug: p.jdSlug ?? null,
-        company_present: Boolean(p.companyPath || p.companyText?.trim()),
-        github_present: false,
         cache_hit: allCached,
-        duration_ms: Date.now() - startedAt,
         status: "ok",
         saved_slug: persisted?.slug ?? null,
       });
@@ -145,16 +156,10 @@ export async function runAnalyze(p: AnalyzeParams, onProgress?: ProgressFn): Pro
     const merged = { ...winner.analysis, comparison };
     const persisted = persistAnalysis(`${winner.label} (best of ${analyses.length})`, p.jdSlug ?? null, merged);
     void logAnalyze({
-      request_id: p.requestId,
-      route: "analyze",
+      ...baseAnalyzeLog(p, startedAt),
       candidate_label: `${winner.label} (best of ${analyses.length})`,
       variant_count: analyses.length,
-      jd_present: Boolean(p.jobDescriptionPath || p.jobDescriptionText?.trim()),
-      jd_slug: p.jdSlug ?? null,
-      company_present: Boolean(p.companyPath || p.companyText?.trim()),
-      github_present: false,
       cache_hit: allCached,
-      duration_ms: Date.now() - startedAt,
       status: "ok",
       saved_slug: persisted?.slug ?? null,
     });

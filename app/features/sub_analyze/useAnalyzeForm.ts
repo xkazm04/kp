@@ -7,6 +7,7 @@ import {
   type StageState,
 } from "@/app/_components/AnalysisProgress";
 import type { Analysis, GithubAnalysis } from "@/app/_lib/schemas";
+import { isDuplicateCvVariant } from "@/app/_lib/cv-variant";
 import {
   MAX_CV_VARIANTS,
   type ColumnStatus,
@@ -41,6 +42,7 @@ export function useAnalyzeForm() {
   const [githubAnalysis, setGithubAnalysis] = useState<GithubAnalysis | null>(null);
   const [githubStatus, setGithubStatus] = useState<GithubStatus>("idle");
   const [githubError, setGithubError] = useState<string | null>(null);
+  const [githubWarning, setGithubWarning] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isCompleting, setIsCompleting] = useState(false);
@@ -74,14 +76,24 @@ export function useAnalyzeForm() {
     ? { tone: "attached", label: githubProfile.trim() }
     : { tone: "optional", label: "Optional" };
 
-  function addCvFile(file: File) {
-    setCvFiles((prev) => {
-      if (prev.length >= MAX_CV_VARIANTS) return prev;
-      if (prev.some((existing) => existing.name === file.name && existing.size === file.size)) {
-        return prev;
-      }
-      return [...prev, file];
-    });
+  async function addCvFile(file: File) {
+    if (cvFiles.length >= MAX_CV_VARIANTS) return;
+    // Same-variant identity is by CONTENT, via the one cvVariantHash helper that
+    // the server intake (collectCvFiles) also uses, so the two sides can't
+    // disagree on what a duplicate is. The old rule here — name && size match —
+    // silently merged two different CVs that shared a filename and byte length;
+    // content hashing only merges true byte-for-byte clones.
+    let duplicate = false;
+    try {
+      duplicate = await isDuplicateCvVariant(file, cvFiles);
+    } catch {
+      // Hashing needs crypto.subtle (a secure context). If it's unavailable we
+      // must not silently drop the file — add it and let the server, which can
+      // always hash, be the authoritative dedupe.
+      duplicate = false;
+    }
+    if (duplicate) return;
+    setCvFiles((prev) => (prev.length >= MAX_CV_VARIANTS ? prev : [...prev, file]));
   }
 
   function replaceCvFile(index: number, file: File) {
@@ -117,6 +129,7 @@ export function useAnalyzeForm() {
     setGithubAnalysis(null);
     setGithubStatus("idle");
     setGithubError(null);
+    setGithubWarning(null);
     setError(null);
     setStageState(initialStageState());
   }
@@ -190,6 +203,7 @@ export function useAnalyzeForm() {
     setAnalysis(null);
     setGithubAnalysis(null);
     setGithubError(null);
+    setGithubWarning(null);
     setGithubStatus("idle");
     setStageState(initialStageState());
 
@@ -203,9 +217,16 @@ export function useAnalyzeForm() {
           setGithubAnalysis(result);
           setGithubStatus("done");
         },
+        onWarning: (message) => {
+          if (!isCurrentGithubRun()) return; // a newer submit superseded this run
+          setGithubWarning(message);
+        },
         onError: (message) => {
           if (!isCurrentGithubRun()) return; // a newer submit superseded this run
           setGithubError(message);
+          // A hard failure replaces any JD-dropped warning — there's no result
+          // for the warning to qualify.
+          setGithubWarning(null);
           setGithubStatus("error");
         },
       });
@@ -256,6 +277,6 @@ export function useAnalyzeForm() {
     flags: { hasJobDescription, hasCompany, isLoading, isCompleting, githubLoading: githubStatus === "loading" },
     statuses: { cvStatus, jobStatus, companyStatus, githubStatusLabel },
     library: { jdLibrary, selectedJdSlug, setSelectedJdSlug },
-    result: { analysis, githubAnalysis, githubStatus, githubError, error, stageState },
+    result: { analysis, githubAnalysis, githubStatus, githubError, githubWarning, error, stageState },
   };
 }

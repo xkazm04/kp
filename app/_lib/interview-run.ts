@@ -1,4 +1,4 @@
-import { getDevCase, getJob, getPipelineEntry, getSubmission, type InterviewTurn } from "./db";
+import { getDevCase, getJob, getPipelineEntry, getSubmission, type PipelineEntry, type VoiceTurn } from "./db";
 import { runAutomationTask } from "./automation-run";
 import { defaultInterviewerInstructions } from "./voice";
 import { getInterviewPrep } from "./interview-prep";
@@ -10,12 +10,14 @@ import {
   caseGroundedInterviewerInstructions,
   devCaseIdFromJobId,
   scenarioRunOfShow,
+  STUDENT_SCRIPT,
   STUDENT_SCRIPT_MIN,
   studentInterviewerInstructions,
   studentRunOfShow,
   submissionIdFromCandidateId,
   type CaseInterviewScenario,
 } from "./student-interview";
+import { extractTelemetry } from "./interview-telemetry";
 
 // Re-exported for back-compat: the transcript→notes flattener now lives with the
 // rest of the documented truncation policy in ./interview-transcript.
@@ -63,6 +65,22 @@ function composeBrief(
 }
 
 type SubmissionFollowup = { id?: string; decision?: string; question?: string; listenFor?: string; redFlag?: string };
+
+/** Debrief length: ~3 min per minted question on top of the open walkthrough;
+ *  capped to stay a screen. Single source for the brief AND the schedule estimate. */
+function debriefDurationMin(followupCount: number): number {
+  return Math.min(25, 8 + 3 * followupCount);
+}
+
+/** The minted authorship questions on an entry's evaluated submission (empty when
+ *  the entry isn't a promoted dev-case submission or nothing was minted). */
+function submissionFollowups(entry: PipelineEntry): SubmissionFollowup[] {
+  const submissionId = submissionIdFromCandidateId(entry.candidateId);
+  const submission = submissionId ? getSubmission(submissionId) : null;
+  return ((submission?.evaluation as { followups?: { questions?: SubmissionFollowup[] } } | null)?.followups?.questions ?? []).filter(
+    (f) => typeof f?.question === "string" && f.question.trim() !== ""
+  );
+}
 
 // Candidate-facing agenda for the submission debrief — deliberately generic: the
 // followups' decision/red-flag notes are interviewer-internal and must never leak
@@ -126,14 +144,9 @@ export async function buildGroundedInterview(entryId: string): Promise<{
   // observed decisions, and this conversation is where those hypotheses are
   // verified (the artifact alone can be wholly LLM-produced). Most specific
   // grounding available, so it wins over both the student script and prep.
-  const submissionId = submissionIdFromCandidateId(entry.candidateId);
-  const submission = submissionId ? getSubmission(submissionId) : null;
-  const followups = ((submission?.evaluation as { followups?: { questions?: SubmissionFollowup[] } } | null)?.followups?.questions ?? []).filter(
-    (f) => typeof f?.question === "string" && f.question.trim() !== ""
-  );
+  const followups = submissionFollowups(entry);
   if (followups.length > 0) {
-    // ~3 min per minted question on top of the open walkthrough; capped to stay a screen.
-    const durationMin = Math.min(25, 8 + 3 * followups.length);
+    const durationMin = debriefDurationMin(followups.length);
     return {
       instructions: composeDebriefBrief(company, roleLine, entry.candidateLabel ?? null, followups, durationMin),
       runOfShow: DEBRIEF_RUN_OF_SHOW,
@@ -208,11 +221,33 @@ export async function buildGroundedInterview(entryId: string): Promise<{
   };
 }
 
+/** Read-only estimate of how long the entry's interview will run — the same
+ *  branch order as buildGroundedInterview (debrief > case-grounded student >
+ *  generic student > grounded prep > quick screen) WITHOUT its side effects: it
+ *  never generates missing prep, so it is safe to call when minting a scheduling
+ *  link. An entry whose prep doesn't exist yet reports the quick screen — the
+ *  truthful floor — rather than a promise the brief may not keep. */
+export function plannedInterviewMinutes(entry: PipelineEntry): number {
+  const followups = submissionFollowups(entry);
+  if (followups.length > 0) return debriefDurationMin(followups.length);
+  if (isEarlyCareer(entry.archetype)) {
+    const caseId = devCaseIdFromJobId(entry.jobId);
+    const scenario = caseId ? ((getDevCase(caseId)?.scenario as CaseInterviewScenario | null) ?? null) : null;
+    if (scenario && Array.isArray(scenario.phases) && scenario.phases.length > 0) {
+      return scenario.durationMin || STUDENT_SCRIPT_MIN;
+    }
+    return STUDENT_SCRIPT_MIN;
+  }
+  const prep = (getInterviewPrep(entry.id)?.payload as PrepPayload | undefined) ?? undefined;
+  const grounded = (prep?.chronology?.length ?? 0) > 0;
+  return grounded ? prep?.durationMin ?? GROUNDED_DEFAULT_MIN : QUICK_SCREEN_MIN;
+}
+
 /** Synthesize a scorecard from the call transcript (Task 5). Also sets the
  *  scorecard_review approval on the entry, so it lands in the Decisions queue. */
 export async function runInterviewScorecard(
   entryId: string,
-  transcript: InterviewTurn[]
+  transcript: VoiceTurn[]
 ): Promise<Record<string, unknown> | null> {
   const { notes, truncated, droppedTurns, droppedChars, keptTurns, totalTurns } =
     buildScorecardNotes(transcript);
@@ -227,6 +262,25 @@ export async function runInterviewScorecard(
     );
   }
   const { result } = await runAutomationTask(entryId, "scorecard", notes);
+  // Deterministic call telemetry (hint-uptake, talk ratio, recovery-time proxies)
+  // rides the scorecard, so validating potential_score's weights later has DATA
+  // per interview instead of anecdotes. The hint to track is the scripted
+  // coachability injection — the scenario's instantiated probe when the role has
+  // a designed case, the generic script's otherwise. Proxies, not measurements
+  // (extractTelemetry documents each one); best-effort, never a gate.
+  try {
+    const entry = getPipelineEntry(entryId);
+    let hintText: string | null = null;
+    if (entry && isEarlyCareer(entry.archetype)) {
+      const caseId = devCaseIdFromJobId(entry.jobId);
+      const scenario = caseId ? ((getDevCase(caseId)?.scenario as CaseInterviewScenario | null) ?? null) : null;
+      const phases = scenario?.phases?.length ? scenario.phases : STUDENT_SCRIPT;
+      hintText = phases.find((p) => p.caseGrounded && (p.feeds ?? []).includes("Coachability"))?.probe ?? null;
+    }
+    (result as Record<string, unknown>).telemetry = extractTelemetry(transcript, { hintText });
+  } catch {
+    /* telemetry is enrichment — a failure must not lose the scorecard */
+  }
   // Case-grounded interviews can mint observed evidence (step 4 of the case-first
   // design): when the conversation worked the role's shared case AND cleared the
   // honest gates, the candidate's profile gains observed-provenance skills — their

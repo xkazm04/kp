@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { buildUrl } from "@/app/features/tabs";
 import { ARCHETYPE_BADGE, normalizeArchetype } from "@/app/_lib/archetypes";
+import { isTerminalEntryStatus } from "@/app/_lib/pipeline-status";
 import { cellClass, MatrixLegend, type Cell } from "./MatrixShared";
 
 type Candidate = { id: string; label: string; archetype: string | null };
@@ -92,7 +93,7 @@ export function MatrixTab() {
   // means cols is empty and every reset is gated on scopedPosition — detect it so
   // we can offer a way back instead of stranding the user on a zero-column grid.
   const staleJob = Boolean(jobParam) && Boolean(data) && !scopedPosition;
-  const clearJob = () => router.push(buildUrl({ tab: "matrix", job: null }));
+  const clearJob = () => router.push(buildUrl({ tab: "matrix", job: null }, search.toString()));
 
   // rows sorted by best visible fit (or alphabetical)
   const rows = useMemo(() => {
@@ -107,7 +108,7 @@ export function MatrixTab() {
     return order;
   }, [data, cols, sortByFit]);
 
-  const open = (candId: string, posId: string) => router.push(buildUrl({ tab: "match", profile: candId, job: posId }));
+  const open = (candId: string, posId: string) => router.push(buildUrl({ tab: "match", profile: candId, job: posId }, search.toString()));
 
   return (
     <section className="space-y-4">
@@ -258,7 +259,10 @@ export function MatrixTab() {
                       {cols.map(({ p, i }) => {
                         const c = data.cells[ri]?.[i] ?? { score: null, blocked: true };
                         const place = data.placements[`${cand.id}|${p.id}`];
-                        const inPipe = place && place.status !== "rejected";
+                        // "In the pipeline" = placed and not in a terminal state.
+                        // Must exclude `declined` as well as `rejected`, else a
+                        // candidate who turned us down still rings as in-flight.
+                        const inPipe = place && !isTerminalEntryStatus(place.status);
                         return (
                           <td key={p.id} className="border-b border-l border-stone-50 p-0">
                             <button

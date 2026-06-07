@@ -5,6 +5,13 @@ Runs the archetype router (signals.selfDeclared is primary; "auto"/absent ->
 heuristic) and the completeness model, then emits the normalized profile plus
 archetype/confidence/reasons/completeness/missing. Pure logic — no LLM — so the
 intake stays fast. Invoked by /api/profile.
+
+On failure an {"error","status","code"} envelope goes to stderr with an HONEST
+status — 400/invalid_input for a malformed draft or bad JSON (the editor can show
+a field-level hint), 500/engine_error for an unexpected fault — plus a matching
+exit code (2 for 400, 1 otherwise), so the TS seam (python-runner.parseStderrError)
+and /api/profile can tell user-fixable bad input from a real engine outage instead
+of seeing every failure as a 500. Mirrors automation_cli.py / devcase_cli.py.
 """
 
 from __future__ import annotations
@@ -16,6 +23,13 @@ from pathlib import Path
 
 from .archetype import ARCHETYPES, detect_archetype
 from .profile import CandidateProfileV2, normalize_profile
+
+# --- Honest error taxonomy (mirrors automation_cli.py / devcase_cli.py) ------
+#   400 / invalid_input — a malformed intake draft (pydantic ValidationError) or
+#                         bad JSON (json.JSONDecodeError); user-correctable
+#   500 / engine_error  — an unexpected fault (retry/escalate, don't edit input)
+ERR_INVALID_INPUT = "invalid_input"
+ERR_ENGINE = "engine_error"
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -52,8 +66,17 @@ def main(argv: list[str] | None = None) -> int:
         # Resolves evidence provenance + stamps completeness, and returns the
         # (score, missing) it computed — no second checklist pass.
         score, missing = normalize_profile(profile)
+    except ValueError as exc:
+        # A malformed intake draft (pydantic ValidationError) and bad JSON
+        # (json.JSONDecodeError) are both ValueError subclasses and both
+        # user-correctable, so they map to 400 invalid_input — the editor can
+        # surface a field-level hint instead of a scary 500. Exit 2 matches
+        # jobfit/cli.py and python-runner's parseStderrError fallback.
+        print(json.dumps({"error": str(exc), "status": 400, "code": ERR_INVALID_INPUT}, ensure_ascii=False), file=sys.stderr)
+        return 2
     except Exception as exc:
-        print(json.dumps({"error": str(exc), "status": 500}, ensure_ascii=False), file=sys.stderr)
+        # Genuine engine failure — the caller should retry/escalate, not edit input.
+        print(json.dumps({"error": str(exc), "status": 500, "code": ERR_ENGINE}, ensure_ascii=False), file=sys.stderr)
         return 1
 
     print(

@@ -55,6 +55,7 @@ const {
   STUDENT_SCRIPT_MIN,
   studentRunOfShow,
   studentInterviewerInstructions,
+  studentPrepRunOfShow,
   caseGroundedInterviewerInstructions,
   scenarioRunOfShow,
   devCaseIdFromJobId,
@@ -117,4 +118,60 @@ test("the demo scenario instantiates exactly the case-grounded phases", () => {
     const changed = p.caseRef != null && p.caseRef !== "";
     assert.equal(changed, grounded.has(p.phase), `${p.phase}: caseRef presence should match caseGrounded`);
   }
+});
+
+// ---------------------------------------------------------------------------
+// studentPrepRunOfShow — the early-career interview-prep plan. The plan must BE
+// the six-phase script (the conversation the agent actually leads), with the
+// CV-derived hypotheses riding the PERSONAL phases only — a per-candidate
+// question on a case-grounded phase would break rating comparability.
+// ---------------------------------------------------------------------------
+
+const PREP_QUESTIONS = [
+  { competency: "Ownership", question: "What exactly was yours in the uni e-shop project?" },
+  { competency: "Depth", question: "Why Postgres over Mongo in your thesis?" },
+  { competency: "Learning", question: "How did you debug the failing scheduler?" },
+];
+
+test("student prep plan is the six phases, in script order", () => {
+  const plan = studentPrepRunOfShow(PREP_QUESTIONS, ["SQL depth"], "Bea", "Junior Backend");
+  assert.deepEqual(
+    plan.chronology.map((b) => b.topic),
+    SOURCE.phases.map((p) => p.phase)
+  );
+});
+
+test("student prep duration equals the script total and the last block end", () => {
+  const plan = studentPrepRunOfShow(PREP_QUESTIONS, [], null, null);
+  assert.equal(plan.durationMin, STUDENT_SCRIPT_MIN);
+  assert.equal(plan.chronology[plan.chronology.length - 1].toMin, plan.durationMin);
+});
+
+test("CV-derived questions land on personal phases only; case phases keep the script probe", () => {
+  const plan = studentPrepRunOfShow(PREP_QUESTIONS, [], null, null);
+  const grounded = new Set(SOURCE.phases.filter((p) => p.caseGrounded).map((p) => p.phase));
+  const prepTexts = PREP_QUESTIONS.map((q) => q.question);
+  for (const block of plan.chronology) {
+    const phase = SOURCE.phases.find((p) => p.phase === block.topic);
+    assert.equal(block.questions[0], phase?.probe, `${block.topic}: the script probe always leads`);
+    if (grounded.has(block.topic)) {
+      assert.equal(block.questions.length, 1, `${block.topic}: a case phase must carry no per-candidate question`);
+    }
+  }
+  const attached = plan.chronology.flatMap((b) => b.questions.slice(1));
+  assert.deepEqual([...attached].sort(), [...prepTexts].sort(), "every CV question lands somewhere personal");
+});
+
+test("question overflow is capped at two per personal phase", () => {
+  const many = Array.from({ length: 12 }, (_, i) => ({ question: `Q${i}?` }));
+  const plan = studentPrepRunOfShow(many, [], null, null);
+  for (const block of plan.chronology) {
+    assert.ok(block.questions.length <= 3, `${block.topic}: probe + at most 2 CV questions`);
+  }
+});
+
+test("student prep signals carry the hint-uptake check", () => {
+  const plan = studentPrepRunOfShow([], ["SQL depth"], null, null);
+  assert.ok(plan.signals.some((s) => s.includes("coachability")), "hint-uptake signal present");
+  assert.ok(plan.signals.includes("SQL depth"), "focus areas survive");
 });

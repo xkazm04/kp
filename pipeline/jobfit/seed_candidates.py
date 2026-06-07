@@ -64,13 +64,46 @@ def _feminize(surname: str) -> str:
     return surname + "ová"
 
 
+def _base_name_pool() -> list[str]:
+    """Every distinct gender-consistent full name mint-able from the curated pools.
+
+    Female first names pair with feminized surnames, male first names with the
+    masculine base form, so the two halves never collide.
+    """
+    pool = [f"{first} {_feminize(s)}" for first in _FEMALE_FIRST for s in _SURNAMES]
+    pool += [f"{first} {s}" for first in _MALE_FIRST for s in _SURNAMES]
+    return pool
+
+
+def name_pool_capacity() -> int:
+    """How many distinct base full names the curated pools can mint (no suffixes)."""
+    return (len(_FEMALE_FIRST) + len(_MALE_FIRST)) * len(_SURNAMES)
+
+
 def unique_czech_names(n: int, *, seed: int = 7) -> list[str]:
-    """``n`` deterministic, gender-consistent, UNIQUE Czech full names."""
+    """``n`` deterministic, gender-consistent, UNIQUE Czech full names.
+
+    Always returns EXACTLY ``n`` distinct names. Within the curated pool
+    (``name_pool_capacity()`` names) they are randomly sampled for variety;
+    beyond it the pool is enumerated exhaustively and any further names degrade
+    deterministically to numbered suffixes (e.g. ``"Jan Novák 2"``). This keeps
+    callers that index ``names[i]`` or ``zip(records, names)`` from crashing or
+    silently truncating when ``n`` approaches/exceeds the pool — the feature's
+    enterprise-scale promise should not 2 AM-IndexError mid-run.
+    """
+    if n <= 0:
+        return []
     rng = random.Random(seed)
     used: set[str] = set()
     out: list[str] = []
+    base = _base_name_pool()
+    capacity = len(base)
+    target = min(n, capacity)
+
+    # Phase 1: random sampling within the curated pool. Output is unchanged from
+    # prior versions for n <= capacity (same body, same termination on len==n).
     guard = 0
-    while len(out) < n and guard < n * 200:
+    while len(out) < target and guard < capacity * 200:
         guard += 1
         if rng.random() < 0.5:
             full = f"{rng.choice(_FEMALE_FIRST)} {_feminize(rng.choice(_SURNAMES))}"
@@ -79,6 +112,28 @@ def unique_czech_names(n: int, *, seed: int = 7) -> list[str]:
         if full not in used:
             used.add(full)
             out.append(full)
+
+    # Phase 2: deterministic top-up if sampling didn't drain the curated pool
+    # (coupon-collector tail) — guarantees we reach the full capacity.
+    for full in base:
+        if len(out) >= target:
+            break
+        if full not in used:
+            used.add(full)
+            out.append(full)
+
+    # Phase 3: beyond the curated capacity, degrade with numbered suffixes so the
+    # result is still exactly n unique names instead of self-capping short.
+    suffix = 2
+    while len(out) < n:
+        for full in base:
+            if len(out) >= n:
+                break
+            candidate = f"{full} {suffix}"
+            if candidate not in used:
+                used.add(candidate)
+                out.append(candidate)
+        suffix += 1
     return out
 
 _SYSTEM = (
@@ -201,6 +256,18 @@ def generate(
     return ordered, dict(failures)
 
 
+def _warn_if_over_capacity(requested: int) -> None:
+    """Tell the operator up front when names will degrade to numbered suffixes."""
+    capacity = name_pool_capacity()
+    if requested > capacity:
+        print(
+            f"Note: requested {requested} names exceeds the curated pool ({capacity}); "
+            f"the extra {requested - capacity} get deterministic numbered suffixes "
+            "(e.g. 'Jan Novák 2').",
+            file=sys.stderr,
+        )
+
+
 def summarize(records: list[dict[str, Any]]) -> str:
     arche = Counter(r.get("archetype") for r in records)
     fam = Counter(r.get("roleFamily") for r in records)
@@ -238,6 +305,7 @@ def main(argv: list[str] | None = None) -> int:
             return 1
         records = json.loads(args.out.read_text(encoding="utf-8"))
         records.sort(key=lambda r: r.get("id", ""))
+        _warn_if_over_capacity(len(records))
         names = unique_czech_names(len(records), seed=args.seed)
         for rec, name in zip(records, names):
             rec["displayName"] = name
@@ -246,6 +314,7 @@ def main(argv: list[str] | None = None) -> int:
         print(f"Renamed {len(records)} candidates to {distinct} unique names.", file=sys.stderr)
         return 0 if distinct == len(records) else 1
 
+    _warn_if_over_capacity(args.count)
     existing: dict[str, dict[str, Any]] = {}
     if args.out.exists() and not args.no_resume:
         try:

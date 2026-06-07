@@ -61,6 +61,7 @@
     "selfDeclaredConfidence": 0.9,
     "defaultArchetype": "bau",
     "defaultConfidence": 0.4,
+    "lowConfidenceThreshold": 0.55,
     "defaultReason": "no strong signal; defaulting to experienced",
     "signals": [
       { "id": "enrolled", "when": { "signal": "is_enrolled", "truthy": true }, "scores": { "student": 2.0 }, "reason": "currently enrolled" },

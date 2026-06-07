@@ -28,3 +28,51 @@ export type FunnelStage = (typeof FUNNEL_STAGES)[number];
 export function hasAdvancedPastScreening(stage: string): boolean {
   return FUNNEL_STAGES.indexOf(stage as FunnelStage) >= FUNNEL_STAGES.indexOf("Interview");
 }
+
+// The pre-interview screening stages — the funnel positions where a manual
+// "Screen with AI" run is meaningful, exactly the stages BEFORE Interview.
+// "Accepted" (CV received) screens a fresh applicant INTO "Screened"; "Screened"
+// (matched + AI-screened) screens them on toward "Interview". Defined here, off
+// the canonical axis, so the drawer's action gate and runAutomationTask's screen
+// handler read ONE set instead of each hardcoding stage literals. Kept in lockstep
+// with hasAdvancedPastScreening by the pipeline-screening test (these are precisely
+// the not-yet-past-screening stages).
+export const SCREENING_STAGES = ["Accepted", "Screened"] as const;
+export type ScreeningStage = (typeof SCREENING_STAGES)[number];
+
+export function isScreeningStage(stage: string): stage is ScreeningStage {
+  return (SCREENING_STAGES as readonly string[]).includes(stage);
+}
+
+// The pipeline effect of a manual AI screen run at `stage`, given the screen
+// `route` ∈ {advance, hold} (the {advance,hold} subset of the verdict taxonomy —
+// see SCREEN_ROUTES; a weak/early-career verdict is already coerced to "hold" by
+// the fairness gate in screen_candidate, so a screen NEVER auto-rejects).
+//   - advance:       advance the entry ONE stage (Accepted→Screened, Screened→Interview).
+//   - holdForReview: set a screening_review approval + log a screening_hold so a
+//                    human resolves it in the Decisions queue.
+//   - applied:       the AutomationResult.applied label the drawer surfaces.
+export type ScreenStageOutcome = { advance: boolean; holdForReview: boolean; applied: string };
+
+/** Decide what a manual AI screen does at a given stage. Pure, so the
+ *  Accepted-stage triage contract is unit-tested in isolation; runAutomationTask
+ *  applies the effects.
+ *
+ *  Accepted is the funnel entry: screening a fresh applicant ALWAYS moves them
+ *  into Screened — the same fair, archetype-neutral, never-reject Accepted→Screened
+ *  move the policy pass makes once a candidate is scored. The screen's confidence
+ *  only decides how they land: a clean "advance" lands them in Screened ready for
+ *  the interview gate; a cautious "hold" lands them in Screened flagged for human
+ *  review. Either way the screening_review ends up on a Screened entry, so the
+ *  existing Decisions→Interview machinery (calendar queue, interview-prep) is
+ *  reused unchanged. From Screened a clean advance moves to Interview; otherwise it
+ *  holds in place for review. A non-screening stage is advisory only — the verdict
+ *  is informational and nothing moves. */
+export function screenStageOutcome(stage: string, route: string): ScreenStageOutcome {
+  if (!isScreeningStage(stage)) return { advance: false, holdForReview: false, applied: "advisory" };
+  const cleared = route === "advance";
+  if (stage === "Accepted") {
+    return { advance: true, holdForReview: !cleared, applied: cleared ? "advanced" : "held_for_review" };
+  }
+  return { advance: cleared, holdForReview: !cleared, applied: cleared ? "advanced" : "held_for_review" };
+}

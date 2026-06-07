@@ -17,7 +17,7 @@
 //   npm run test:unit
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import type { InterviewTurn } from "./db.ts";
+import type { VoiceTurn } from "./db.ts";
 import {
   MAX_TURN_TEXT_CHARS,
   MAX_SCORECARD_NOTES_CHARS,
@@ -26,7 +26,7 @@ import {
   buildScorecardNotes,
 } from "./interview-transcript.ts";
 
-const turn = (role: InterviewTurn["role"], text: string, at?: string): InterviewTurn => ({
+const turn = (role: VoiceTurn["role"], text: string, at?: string): VoiceTurn => ({
   role,
   text,
   at,
@@ -106,7 +106,7 @@ test("an over-budget transcript keeps opening AND closing, drops the middle behi
   // markers at the boundaries and the middle let us assert what survives.
   const pad = (s: string) => `${s}_${"x".repeat(380)}`;
   const last = 39;
-  const transcript: InterviewTurn[] = Array.from({ length: 40 }, (_, i) =>
+  const transcript: VoiceTurn[] = Array.from({ length: 40 }, (_, i) =>
     turn(
       i % 2 === 0 ? "interviewer" : "candidate",
       pad(i === 0 ? "OPENING" : i === last ? "CLOSING" : i === 20 ? "MIDDLE" : `mid${i}`),

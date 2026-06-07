@@ -28,8 +28,6 @@ class TestEvaluate(unittest.TestCase):
         self.assertEqual(set(ev["dimensionScores"].keys()), _DIMS)
         for v in ev["dimensionScores"].values():
             self.assertTrue(0 <= v <= 100)
-        for k in ("structureScore", "judgmentScore", "architectureScore"):
-            self.assertTrue(0 <= ev[k] <= 100)
         self.assertEqual(ev["promptVersion"], CASE_EVAL_PROMPT_VERSION)
 
     def test_transfer_is_avg_of_dims(self):

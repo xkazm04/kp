@@ -3,7 +3,9 @@
 import { ArrowDownRight, ArrowUpRight, Crown, Minus } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import type { Analysis } from "@/app/_lib/schemas";
-import { dedupe } from "@/app/_lib/dedupe";
+import { hasRenderableComparison } from "@/app/_lib/comparison";
+import { reconcileScoreTotal } from "@/app/_lib/format";
+import { BulletList } from "../shared";
 
 type ComparisonPayload = NonNullable<Analysis["comparison"]>;
 type ComparisonVariant = ComparisonPayload["variants"][number];
@@ -41,11 +43,12 @@ export function CompareTab({ analysis }: { analysis: Analysis }) {
     };
   }, [variantCount]);
 
-  // Fall back to the upload prompt when there is no comparison, or when a
-  // malformed/partially-filtered persisted payload carries an empty variants
-  // array — reading variants[0] as the baseline below would otherwise throw and
-  // take down the whole Result view.
-  if (!comparison || comparison.variants.length < 1) {
+  // Fall back to the upload prompt unless the comparison meets the minimum-variant
+  // contract (>= MIN_COMPARISON_VARIANTS). This is the SAME gate ResultPanel uses to
+  // show/default the Compare tab, so the two can't disagree — and it also guards the
+  // table below, where a 0- or 1-variant payload would make the baseline/delta math
+  // (variants[0], the comparison narrative) meaningless or throw.
+  if (!hasRenderableComparison(comparison)) {
     return (
       <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
         <h3 className="font-serif text-h3 text-ink">CV Variants</h3>
@@ -68,16 +71,11 @@ export function CompareTab({ analysis }: { analysis: Analysis }) {
             <h3 className="font-serif text-h3 text-ink">CV Variant Comparison</h3>
             <p className="mt-1 text-base leading-6 text-steel">
               {comparison.variants.length} variants scored against the same job. Winner highlighted with{" "}
-              <Crown className="inline h-3.5 w-3.5 text-coral" aria-hidden />.
-              {comparison.variants.length > 1 ? (
-                <>
-                  {" "}Each ▲/▼ delta is measured against{" "}
-                  <span className="font-medium text-ink" title={baseline.label}>
-                    {baseline.label}
-                  </span>{" "}
-                  — the first variant you uploaded (the &ldquo;baseline&rdquo; column), not the winner.
-                </>
-              ) : null}
+              <Crown className="inline h-3.5 w-3.5 text-coral" aria-hidden />. Each ▲/▼ delta is measured against{" "}
+              <span className="font-medium text-ink" title={baseline.label}>
+                {baseline.label}
+              </span>{" "}
+              — the first variant you uploaded (the &ldquo;baseline&rdquo; column), not the winner.
             </p>
           </div>
           <div className="rounded-md bg-limewash px-3 py-2 text-base text-ink">
@@ -112,33 +110,41 @@ export function CompareTab({ analysis }: { analysis: Analysis }) {
               </thead>
               <tbody>
                 {COMPONENT_ROWS.map((row) => (
-                  <ComponentRow key={row.key} row={row} variants={comparison.variants} winnerIndex={winnerIndex} />
+                  <DeltaRow
+                    key={row.key}
+                    label={row.label}
+                    variants={comparison.variants}
+                    // The Overall row reads the component sum, not the raw
+                    // pipeline total, so it always equals the component rows
+                    // beneath it (the score-breakdown invariant; see
+                    // reconcileScoreTotal).
+                    extract={(v) => (row.key === "total" ? reconcileScoreTotal(v.score) : v.score[row.key])}
+                    winnerIndex={winnerIndex}
+                  />
                 ))}
-                <ExtraRow
+                <DeltaRow
                   label="Job-fit score"
-                  values={comparison.variants.map((v) => v.jobFitScore)}
+                  variants={comparison.variants}
+                  extract={(v) => v.jobFitScore}
                   winnerIndex={winnerIndex}
-                  baseline={baseline.jobFitScore}
                 />
-                <ExtraRow
+                <DeltaRow
                   label="Keyword coverage %"
-                  values={comparison.variants.map((v) => v.keywordCoveragePercent)}
+                  variants={comparison.variants}
+                  extract={(v) => v.keywordCoveragePercent}
                   winnerIndex={winnerIndex}
-                  baseline={baseline.keywordCoveragePercent}
                 />
-                <ExtraRow
+                <DeltaRow
                   label="Skills indexed"
-                  values={comparison.variants.map((v) => v.skillsCount)}
+                  variants={comparison.variants}
+                  extract={(v) => v.skillsCount}
                   winnerIndex={winnerIndex}
-                  baseline={baseline.skillsCount}
-                  integer
                 />
-                <ExtraRow
+                <DeltaRow
                   label="Years experience"
-                  values={comparison.variants.map((v) => v.yearsExperience)}
+                  variants={comparison.variants}
+                  extract={(v) => v.yearsExperience}
                   winnerIndex={winnerIndex}
-                  baseline={baseline.yearsExperience}
-                  integer
                 />
               </tbody>
             </table>
@@ -154,17 +160,12 @@ export function CompareTab({ analysis }: { analysis: Analysis }) {
       <div className="grid gap-5 lg:grid-cols-2">
         <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
           <h3 className="font-serif text-h3 text-ink">Score Delta Drivers</h3>
-          {comparison.driverInsights.length ? (
-            <ul className="mt-3 space-y-2 text-base leading-6 text-ink">
-              {dedupe(comparison.driverInsights).map((insight, i) => (
-                <li key={`${insight}-${i}`} className="rounded-md bg-paper p-3">
-                  {insight}
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="mt-3 text-base leading-6 text-steel">Variants score identically — no drivers to highlight.</p>
-          )}
+          <BulletList
+            items={comparison.driverInsights}
+            listClassName="mt-3 space-y-2 text-base leading-6 text-ink"
+            itemClassName="rounded-md bg-paper p-3"
+            empty={<p className="mt-3 text-base leading-6 text-steel">Variants score identically — no drivers to highlight.</p>}
+          />
         </div>
 
         <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
@@ -202,74 +203,40 @@ export function CompareTab({ analysis }: { analysis: Analysis }) {
 
         <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
           <h3 className="font-serif text-h3 text-ink">Top Bullets (merged)</h3>
-          {comparison.mergedRecommendation.bullets.length ? (
-            <ul className="mt-3 space-y-2 text-base leading-6 text-ink">
-              {dedupe(comparison.mergedRecommendation.bullets).map((bullet, i) => (
-                <li key={`${bullet}-${i}`} className="rounded-md bg-paper p-3">
-                  {bullet}
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="mt-3 text-base leading-6 text-steel">No rewrite bullets surfaced from any variant.</p>
-          )}
+          <BulletList
+            items={comparison.mergedRecommendation.bullets}
+            listClassName="mt-3 space-y-2 text-base leading-6 text-ink"
+            itemClassName="rounded-md bg-paper p-3"
+            empty={<p className="mt-3 text-base leading-6 text-steel">No rewrite bullets surfaced from any variant.</p>}
+          />
         </div>
       </div>
     </div>
   );
 }
 
-function ComponentRow({
-  row,
-  variants,
-  winnerIndex
-}: {
-  row: { key: keyof ComparisonVariant["score"]; label: string };
-  variants: ComparisonVariant[];
-  winnerIndex: number;
-}) {
-  const baseline = variants[0].score[row.key];
-  return (
-    <tr className="even:bg-paper/40">
-      <td className="sticky left-0 bg-white px-3 py-2 text-left font-medium text-ink">{row.label}</td>
-      {variants.map((variant, index) => {
-        const value = variant.score[row.key];
-        const delta = index === 0 ? 0 : value - baseline;
-        return (
-          <td
-            key={variant.label}
-            className={`px-3 py-2 ${index === winnerIndex ? "bg-limewash/40" : ""}`}
-          >
-            <div className="flex items-center gap-2">
-              <span className="font-semibold nums text-ink">{value.toFixed(0)}</span>
-              {index === 0 ? (
-                <span className="text-sm text-steel" title="First uploaded variant — every other column's delta is measured against this one.">baseline</span>
-              ) : (
-                <DeltaPill delta={delta} />
-              )}
-            </div>
-          </td>
-        );
-      })}
-    </tr>
-  );
-}
-
-function ExtraRow({
+// One row of the compare table. Every column is measured against the first
+// variant (values[0], the baseline); a value extractor pulls the metric off
+// each variant and an optional formatter controls how it renders. Columns whose
+// extracted value is null show an em-dash and contribute no delta, so the same
+// component serves both always-present score components and the optional
+// job-fit/keyword metrics. The whole row is dropped when no variant has a value.
+function DeltaRow({
   label,
-  values,
+  variants,
+  extract,
   winnerIndex,
-  baseline,
-  integer = false
+  format = (value) => value.toFixed(0)
 }: {
   label: string;
-  values: Array<number | null>;
+  variants: ComparisonVariant[];
+  extract: (variant: ComparisonVariant) => number | null;
   winnerIndex: number;
-  baseline: number | null;
-  integer?: boolean;
+  format?: (value: number) => string;
 }) {
-  const hasAny = values.some((v) => v != null);
-  if (!hasAny) return null;
+  const values = variants.map(extract);
+  if (!values.some((v) => v != null)) return null;
+  const baseline = values[0];
   return (
     <tr className="even:bg-paper/40">
       <td className="sticky left-0 bg-white px-3 py-2 text-left font-medium text-ink">{label}</td>
@@ -284,7 +251,7 @@ function ExtraRow({
               <span className="text-steel">—</span>
             ) : (
               <div className="flex items-center gap-2">
-                <span className="font-semibold nums text-ink">{integer ? value.toFixed(0) : value.toFixed(0)}</span>
+                <span className="font-semibold nums text-ink">{format(value)}</span>
                 {index === 0 ? (
                   <span className="text-sm text-steel" title="First uploaded variant — every other column's delta is measured against this one.">baseline</span>
                 ) : delta != null ? (

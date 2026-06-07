@@ -3,6 +3,7 @@
 import { Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import type { Analysis } from "@/app/_lib/schemas";
 import { scoreTone, scoreToneColor } from "@/app/_lib/format";
+import { INK, STEEL } from "@/app/_lib/brand";
 
 type FactorChartProps = {
   score: Analysis["score"];
@@ -37,11 +38,11 @@ export function FactorChart({ score }: FactorChartProps) {
       <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
         <BarChart data={data} margin={{ top: 8, right: 4, left: -24, bottom: 0 }}>
           <CartesianGrid stroke="#ded6c6" vertical={false} />
-          <XAxis dataKey="factor" tick={{ fill: "#42606f", fontSize: 12 }} tickLine={false} axisLine={false} />
-          <YAxis tick={{ fill: "#42606f", fontSize: 12 }} tickLine={false} axisLine={false} />
+          <XAxis dataKey="factor" tick={{ fill: STEEL, fontSize: 12 }} tickLine={false} axisLine={false} />
+          <YAxis tick={{ fill: STEEL, fontSize: 12 }} tickLine={false} axisLine={false} />
           <Tooltip
             cursor={{ fill: "#f0ebe1" }}
-            contentStyle={{ border: "1px solid #ded6c6", borderRadius: 8, color: "#17202a" }}
+            contentStyle={{ border: "1px solid #ded6c6", borderRadius: 8, color: INK }}
             formatter={(value, _name, item) => [`${value}/${item.payload.max}`, "Points"]}
           />
           <Bar dataKey="value" radius={[6, 6, 0, 0]}>

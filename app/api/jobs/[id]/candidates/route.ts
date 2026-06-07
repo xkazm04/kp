@@ -13,7 +13,7 @@ import {
 
 export const runtime = "nodejs";
 
-export async function GET(_request: Request, context: { params: Promise<{ id: string }> }) {
+export async function GET(request: Request, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params;
   let workdir: string | null = null;
   try {
@@ -37,7 +37,14 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
     const jobPath = path.join(workdir, "job.json");
     await writeFile(jobPath, JSON.stringify(job), "utf-8");
 
-    const { result } = spawnPython(["-m", "pipeline.jobfit.recruiter_cli", "--input-json", inputPath, "--job-json", jobPath]);
+    // Thread the request's AbortSignal so abandoning this scan (clicking to the
+    // next role, closing the modal) promptly SIGKILLs the recruiter_cli child
+    // instead of letting it run to the 600s backstop and pile up orphaned
+    // ranking processes that contend for CPU.
+    const { result } = spawnPython(
+      ["-m", "pipeline.jobfit.recruiter_cli", "--input-json", inputPath, "--job-json", jobPath],
+      { signal: request.signal },
+    );
     const { stdout, stderr, exitCode } = await result;
     if (exitCode !== 0) {
       const err = parseStderrError(stderr, exitCode);

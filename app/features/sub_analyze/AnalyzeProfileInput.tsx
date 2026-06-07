@@ -4,6 +4,7 @@ import { useState } from "react";
 import { FileText, Plus, UploadCloud, X } from "lucide-react";
 import { ACCEPT_EXTENSIONS, MAX_FILE_HINT } from "@/app/_lib/upload-constraints";
 import { formatFileSize } from "./AnalyzeApi";
+import { ownedDropZoneProps } from "./dropRouting";
 import { useFileAccept } from "./useFileAccept";
 import { useGlobalFileDrag } from "./useGlobalFileDrag";
 
@@ -27,8 +28,17 @@ export function AnalyzeProfileInput({
   // replace both route their File through `accept(file, commit)`, so a bad
   // drop/select is rejected inline rather than after the upload POST. Nothing
   // here calls onAdd/onReplace without first clearing the gate.
-  const { error, accept } = useFileAccept();
-  const addFile = (file: File) => accept(file, onAdd);
+  const { error, accept, reject } = useFileAccept();
+  // The variant cap is enforced here, at the single add choke point, so a drop
+  // beyond the limit (the drop-anywhere overlay stays live even once the Add
+  // button is hidden) surfaces the inline message instead of silently vanishing.
+  const addFile = (file: File) => {
+    if (files.length >= maxVariants) {
+      reject(`You can attach up to ${maxVariants} CV variant${maxVariants === 1 ? "" : "s"}. Remove one to add another.`);
+      return;
+    }
+    accept(file, onAdd);
+  };
   const replaceFile = (index: number, file: File) => accept(file, (next) => onReplace(index, next));
 
   const isWindowDragging = useGlobalFileDrag(addFile);
@@ -39,7 +49,16 @@ export function AnalyzeProfileInput({
     <div className="animate-fade-in pointer-events-none fixed inset-0 z-50 flex items-center justify-center bg-coral/5" aria-hidden>
       <div className="flex flex-col items-center gap-2 rounded-2xl border-2 border-dashed border-coral bg-white/90 px-10 py-8 shadow-panel">
         <UploadCloud className="h-8 w-8 text-coral" />
-        <span className="text-base font-semibold text-ink">Drop your CV anywhere</span>
+        <div className="flex flex-col items-center gap-0.5 text-center">
+          <span className="text-base font-semibold text-ink">Drop your CV anywhere</span>
+          {/* Spell out the routing carve-out (idea-9f3a1c52): the labeled Job
+              description and Company zones own their drops, so a file released on
+              one of them files THERE — it is not also added as a CV variant.
+              "anywhere" on its own would imply those zones too. */}
+          <span className="text-sm text-steel">
+            The Job description and Company zones keep their own files
+          </span>
+        </div>
       </div>
     </div>
   ) : null;
@@ -53,10 +72,14 @@ export function AnalyzeProfileInput({
     setIsLoadingSample(true);
     try {
       const response = await fetch("/samples/sample-cv.txt");
-      if (!response.ok) return;
+      if (!response.ok) throw new Error(`sample fetch failed (${response.status})`);
       const blob = await response.blob();
       const file = new File([blob], "sample-cv.txt", { type: "text/plain" });
       addFile(file);
+    } catch {
+      // A failed/blank fetch used to no-op, leaving the user staring at an
+      // unchanged form after clicking "Try sample CV". Say so inline.
+      reject("Couldn't load the sample CV. Check your connection and try again.");
     } finally {
       setIsLoadingSample(false);
     }
@@ -67,8 +90,13 @@ export function AnalyzeProfileInput({
     return (
       <>
         {dragOverlay}
+        {/* The empty CV zone owns its drop, so a file dropped squarely on it is
+            added once by this onDrop — not also by the window catch (which would
+            duplicate it). Drops elsewhere still fall through to the window catch
+            as the first CV. (idea-1a75b476) */}
         <label
           htmlFor="profile-file-0"
+          {...ownedDropZoneProps}
           onDragEnter={(event) => {
             event.preventDefault();
             setIsOverDropzone(true);

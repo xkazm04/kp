@@ -174,6 +174,14 @@ function CandidateColumn({
       <p className="text-sm font-semibold uppercase tracking-wide text-steel">
         {title} ({rows.length})
       </p>
+      {highlight ? (
+        // The fairness guarantee, stated where the candidates actually are — not
+        // only in the policy modal: this cohort is scored on potential and is
+        // structurally shielded from automated rejection.
+        <p className="mt-0.5 text-sm text-steel">
+          Fairness-shielded: scored on potential, never auto-rejected — adverse decisions stay human.
+        </p>
+      ) : null}
       {rows.length === 0 ? (
         <EmptyState icon={Users} title="No candidates in this group" compact />
       ) : (

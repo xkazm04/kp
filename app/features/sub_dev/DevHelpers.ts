@@ -56,19 +56,3 @@ export function caseToMarkdown(kase: CaseScenario, role?: RoleSpec | null): stri
   }
   return lines.join("\n");
 }
-
-export function scoreColor(v: number): string {
-  if (v >= 72) return "bg-moss";
-  if (v >= 55) return "bg-moss/60";
-  if (v >= 40) return "bg-amber-400";
-  return "bg-coral";
-}
-
-// Foreground that stays legible on each scoreColor band: dark text on the light
-// amber / translucent-moss bands, white on the solid moss / coral ones.
-export function scoreTextColor(v: number): string {
-  if (v >= 72) return "text-white";
-  if (v >= 55) return "text-ink";
-  if (v >= 40) return "text-ink";
-  return "text-white";
-}

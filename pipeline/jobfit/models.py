@@ -27,6 +27,20 @@ class CandidateProfile(_Base):
 
 
 class ScoreBreakdown(_Base):
+    """Fit score split into a total and its five weighted components.
+
+    Contract: ``total`` is the sum of the five components
+    (experience/skills/role_seniority/education/traits), whose maxima
+    25/30/23/12/10 add to exactly 100. ``_score_from_payload`` in pipeline.py
+    takes the model's own ``total`` (clamped) rather than recomputing it, so a
+    bad generation can return a ``total`` that disagrees with its parts. The web
+    UI treats the component sum as authoritative for display and pins the score
+    dial to it (see ``reconcileScoreTotal`` / the score-breakdown invariant in
+    app/_lib/format.ts) so the dial can never contradict the factor breakdown.
+    On the Python side ``_score_sanity_checks`` flags a divergence past
+    ``SCORE_TOTAL_TOLERANCE`` into ``sanity_checks`` for manual review.
+    """
+
     total: int
     experience: int
     skills: int

@@ -18,3 +18,42 @@ export function jsonError(err: unknown, fallback: string, status = 500): NextRes
 export function jsonOk<T>(body: T, status = 200): NextResponse {
   return NextResponse.json(body, { status });
 }
+
+// --- Safe error hygiene for the SQLite-backed JD & template stores ----------
+//
+// A thrown better-sqlite3 / fs error carries raw internal detail in its
+// `.message`: "SQLITE_CORRUPT", "UNIQUE constraint failed: jds.slug", the
+// absolute db file path. Forwarding that to the client (which `jsonError` does)
+// is an information-disclosure leak — the exact leak POST /api/jds hand-guards
+// against while its siblings did not. `safeJsonError` closes that gap uniformly:
+// it logs the full error server-side and returns ONLY a generic message plus a
+// stable machine code, so every current and future JD/template endpoint is
+// leak-safe by default. Use it — not `jsonError` — on any catch/500 path that
+// can surface a store error. `jsonError` remains fine for routes whose messages
+// are already client-safe (validation, business rules).
+
+/** Single source of truth: each stable code paired with its GENERIC, client-safe
+ *  message. The raw thrown error is logged server-side only and never reaches the
+ *  client, so adding an endpoint means adding a code here — not re-deriving the
+ *  safe pattern per route. */
+export const STORE_ERRORS = {
+  JD_LIST_FAILED: "Could not load the JD library. Please try again.",
+  JD_LOAD_FAILED: "Could not load the JD. Please try again.",
+  JD_SAVE_FAILED: "Could not save the JD. Please try again.",
+  TEMPLATE_LIST_FAILED: "Could not load templates. Please try again.",
+  TEMPLATE_LOAD_FAILED: "Could not load the template. Please try again.",
+  TEMPLATE_CREATE_FAILED: "Could not save the template. Please try again.",
+  TEMPLATE_UPDATE_FAILED: "Could not update the template. Please try again.",
+  TEMPLATE_DELETE_FAILED: "Could not delete the template. Please try again.",
+} as const;
+
+export type StoreErrorCode = keyof typeof STORE_ERRORS;
+
+/** Safe 500 responder for store-backed handlers. Logs the full error server-side
+ *  under `[route] CODE`, then returns `{ error: <generic message>, code }` — the
+ *  raw `err.message` (and any SQLite/filesystem detail in it) never crosses the
+ *  wire. `route` is a short tag for the server log only, e.g. "api:jds". */
+export function safeJsonError(err: unknown, route: string, code: StoreErrorCode, status = 500): NextResponse {
+  console.error(`[${route}] ${code}`, err);
+  return NextResponse.json({ error: STORE_ERRORS[code], code }, { status });
+}

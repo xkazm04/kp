@@ -7,11 +7,23 @@ over a landscape of synthetic candidate behaviours (submission_scenarios.py) and
                 range, reflection hedged).
   FAIRNESS    — the heart of the Dev extension. Code is assumed LLM-generated, so the score must
                 track VERIFICATION/JUDGMENT, never AI use: (1) no over-reliance flag is invented
-                from tool use alone (deterministic), (2) candidates who VERIFY score judgment >=
-                those who don't, (3) using AI is not penalised — an AI-heavy verifier scores at
-                least as well on judgment as a non-verifier.
+                from tool use alone — tested on the LLM path that actually assigns flags (the
+                deterministic fallback hardcodes none), (2) candidates who VERIFY lead non-verifiers
+                on judgment by a meaningful margin (>= MIN_VERIFY_MARGIN, not just a tie),
+                (3) using AI is not penalised — an AI-heavy verifier scores within a small noise
+                band of (or above) a non-verifier on judgment.
+  DISCRIMINATION — strong submissions out-score weak ones (and the AI-no-verify gamer) by a
+                meaningful margin (>= MIN_DISCRIMINATION_MARGIN), not merely any positive gap.
   QUALITY     — with --judge, an LLM rates the evaluation AND answers whether it unfairly
                 penalises AI use (it must not).
+
+  When a compared group is too small the gates withhold a verdict in one of two distinct ways
+  (never a silent pass): 'inconclusive' for a thin-but-present cohort (1..MIN_GROUP_N-1 rows —
+  real data, just too little to trust) and 'not_evaluable' for an EMPTY cohort or no surviving
+  rows (no data at all — e.g. a tiny --count below the 6 behaviours, or every scenario errored).
+  --strict treats fail and inconclusive as a non-zero exit, but NOT not_evaluable: absence of
+  data is not a fairness violation, so an empty run can't be misread as an unfair/non-
+  discriminating evaluator. Thresholds are encoded as module constants below.
 
 Complements lifecycle_eval.py (the design half).
 
@@ -32,7 +44,7 @@ from ..claude_cli import ClaudeCliProvider
 from .evaluate import evaluate_submission, score_transfer
 from .llm_judge import run_judge
 from .models import RUBRIC_DIMENSIONS
-from .provenance import combine_source
+from .provenance import SOURCE_DETERMINISTIC, combine_source
 from .reflect import assess_tooling, reflect_commits
 from .submission_scenarios import SubScenario, generate_submissions
 
@@ -40,6 +52,99 @@ from .submission_scenarios import SubScenario, generate_submissions
 # so the reliability validator's dimension set can never drift from the rubric it checks.
 _DIMS = {d["name"] for d in RUBRIC_DIMENSIONS}
 _PATTERNS = {"exploratory", "linear", "big-bang", "test-driven", "unclear"}
+
+
+# --- gate thresholds (the defensible bar) ----------------------------------
+# These turn a soft "looks fair" into a reproducible pass/fail. A gate reports
+# pass/fail ONLY on a meaningful margin measured over a minimum per-group sample.
+# Below the sample bar the sub-check can't conclude (None); the gate then reports
+# "inconclusive" when the thin cohort still had >= 1 row on each compared side, or
+# "not_evaluable" when a compared cohort was EMPTY / no rows survived (no data at
+# all). --strict treats fail and inconclusive as non-zero exits (the gate certifies
+# only what it measured) but lets not_evaluable pass — no data is not a violation.
+#
+# Margins are in points on the 0-100 score scale (judgment dimension for fairness,
+# the 5-dim overall for discrimination). The deterministic landscape clears them
+# comfortably (verify lead ~18.8, strong-vs-weak ~8.9, strong-vs-gamer ~7.5),
+# leaving headroom for the noisier --judge/LLM path while still rejecting a tie.
+MIN_GROUP_N = 3                  # each compared group needs >= this many rows, else inconclusive
+MIN_VERIFY_MARGIN = 5.0          # verifiers must out-score non-verifiers by >= this many judgment pts
+AI_PENALTY_TOLERANCE = 2.0       # "not penalised": AI-verifiers may sit at most this far below non-verifiers
+MIN_DISCRIMINATION_MARGIN = 5.0  # strong must out-score weak AND the gamer by >= this many overall pts
+
+
+def _lead_verdict(lead: float | None, base: float | None, lead_n: int, base_n: int, margin: float) -> bool | None:
+    """Tri-state pass for a 'lead must clear a margin' check. Returns None
+    (INCONCLUSIVE — too few samples to trust either way) when either compared
+    group is below MIN_GROUP_N or unpopulated; otherwise whether ``lead`` leads
+    ``base`` by at least ``margin`` points (a tie/near-tie is False)."""
+    if lead is None or base is None or lead_n < MIN_GROUP_N or base_n < MIN_GROUP_N:
+        return None
+    return (lead - base) >= margin
+
+
+def _not_below_verdict(test: float | None, base: float | None, test_n: int, base_n: int, tol: float) -> bool | None:
+    """Tri-state NON-INFERIORITY: ``test`` must not fall more than ``tol`` below
+    ``base``. A tie passes (that is the whole point of 'AI use is not penalised'),
+    a real dip fails, too-few-samples is None. Unlike a lead check this does NOT
+    require AI-verifiers to BEAT non-verifiers — only to not be punished for AI use."""
+    if test is None or base is None or test_n < MIN_GROUP_N or base_n < MIN_GROUP_N:
+        return None
+    return (test - base) >= -tol
+
+
+def _evaluable(*sizes: int) -> bool:
+    """A comparison is evaluable only if EVERY cohort it touches has at least one row.
+    An empty cohort (0 rows) means there is no data on that side, so the sub-check is
+    'not evaluable' (no verdict possible) — distinct from a thin-but-present cohort
+    (1..MIN_GROUP_N-1 rows) whose withheld verdict is merely 'inconclusive'."""
+    return all(n >= 1 for n in sizes)
+
+
+def _gate_status(checks: list[tuple[bool | None, bool]], *, hard_ok: bool = True) -> str:
+    """Collapse a gate's sub-checks into 'pass' | 'fail' | 'inconclusive' | 'not_evaluable'.
+    Each check is ``(verdict, evaluable)``: verdict is True/False/None (None == data on both
+    sides but too thin to trust); evaluable is whether both compared cohorts were non-empty.
+
+    Precedence — a real signal always wins over the absence of one:
+      fail          a broken hard invariant or any False verdict (a MEASURED violation)
+      inconclusive  a thin-but-present sample (a None verdict that WAS evaluable)
+      not_evaluable every unresolved check was blocked by an empty cohort (NO data at all)
+      pass          all checks True
+    not_evaluable is deliberately distinct from fail: 'no data' must never read as 'unfair'."""
+    if not hard_ok or any(v is False for v, _ in checks):
+        return "fail"
+    if any(v is None and ev for v, ev in checks):
+        return "inconclusive"
+    if any(v is None and not ev for v, ev in checks):
+        return "not_evaluable"
+    return "pass"
+
+
+def _verdict_str(v: bool | None) -> str:
+    return "inconclusive" if v is None else ("yes" if v else "no")
+
+
+def _cohort_warnings(sample: dict[str, int]) -> list[str]:
+    """Every cohort below MIN_GROUP_N, phrased for the report — the minimum-cohort-size
+    warning. Surfaced whenever a cohort is thin/empty, even if the gate still resolves on
+    its other checks, so a too-small run is always visibly flagged."""
+    return [
+        f"{name}: {n} row{'' if n == 1 else 's'} (< {MIN_GROUP_N} needed for a verdict)"
+        for name, n in sample.items()
+        if n < MIN_GROUP_N
+    ]
+
+
+def _not_evaluable_reason(sample: dict[str, int], done_n: int) -> str:
+    """Why a gate could not be evaluated at all: no rows survived (every scenario errored)
+    or a compared cohort is empty. Only meaningful when the gate status is 'not_evaluable'."""
+    if done_n == 0:
+        return "no evaluable rows — every scenario errored or produced no evaluation"
+    empty = [name for name, n in sample.items() if n == 0]
+    if empty:
+        return "empty cohort(s): " + ", ".join(empty)
+    return "no comparison had data on both sides"
 
 
 # --- reliability validators -------------------------------------------------
@@ -117,6 +222,36 @@ def run(scenarios: list[SubScenario], provider: Any | None, workers: int = 4) ->
 # --- fairness invariants (the gate) ----------------------------------------
 
 
+def _overreliance_from_tool_use(done: list[Row]) -> list[Row]:
+    """Rows whose over-reliance flag was invented FROM TOOL USE ALONE — the flag-assigning
+    path's fairness violation. Returns the offending rows (empty == invariant holds).
+
+    Over-reliance flags are only ever assigned on the LLM path: the deterministic
+    assess_tooling fallback hardcodes overRelianceFlags=[], so an invariant guarded by
+    source=="deterministic" can never fire (it was vacuously True). reflect.py's prompt is
+    explicit — flag over-reliance ONLY from concrete evidence (a large unverified dump),
+    NEVER from tool use itself. So a flag is "from tool use alone" when it lands on an AI
+    user while a behaviour-matched non-AI peer (same `verifies` habit, who would show the
+    same dump/verification evidence) is NOT flagged: there, the only thing that differs is
+    that AI was used. If both the AI user and its non-AI peer are flagged, the justification
+    is the shared behaviour (the dump / missing verification), not the AI — and that is fair.
+    """
+    flag_rows = [r for r in done if r.source != SOURCE_DETERMINISTIC]
+
+    def _flagged(r: Row) -> bool:
+        return bool(r.tooling.get("overRelianceFlags") or [])
+
+    def _peer_flagged(r: Row) -> bool:
+        verifies = bool(r.planted.get("verifies"))
+        return any(
+            _flagged(p)
+            for p in flag_rows
+            if not p.planted.get("usesAI") and bool(p.planted.get("verifies")) == verifies
+        )
+
+    return [r for r in flag_rows if r.planted.get("usesAI") and _flagged(r) and not _peer_flagged(r)]
+
+
 def fairness(rows: list[Row]) -> dict[str, Any]:
     done = [r for r in rows if r.source != "error" and r.evaluation]
     verifiers = [r for r in done if r.planted.get("verifies")]
@@ -126,19 +261,39 @@ def fairness(rows: list[Row]) -> dict[str, Any]:
     def mean_j(rs):
         return round(sum(r.judgment for r in rs) / len(rs), 1) if rs else None
 
-    no_invented_overreliance = all(not (r.source == "deterministic" and (r.tooling.get("overRelianceFlags") or [])) for r in done)
-    v_mean, nv_mean = mean_j(verifiers), mean_j(non_verifiers)
-    verify_rewarded = (v_mean is not None and nv_mean is not None and v_mean >= nv_mean)
-    aiv_mean = mean_j(ai_verifiers)
-    ai_not_penalised = (aiv_mean is not None and nv_mean is not None and aiv_mean >= nv_mean)
+    overreliance_violations = _overreliance_from_tool_use(done)
+    no_invented_overreliance = not overreliance_violations
+    v_mean, nv_mean, aiv_mean = mean_j(verifiers), mean_j(non_verifiers), mean_j(ai_verifiers)
 
-    passed = no_invented_overreliance and verify_rewarded and ai_not_penalised
+    # verify_rewarded: a STRICT lead (rejects the meaningless tie). ai_not_penalised:
+    # non-inferiority within a small noise band (a tie is the desired outcome, not a fail).
+    verify_rewarded = _lead_verdict(v_mean, nv_mean, len(verifiers), len(non_verifiers), MIN_VERIFY_MARGIN)
+    ai_not_penalised = _not_below_verdict(aiv_mean, nv_mean, len(ai_verifiers), len(non_verifiers), AI_PENALTY_TOLERANCE)
+    status = _gate_status(
+        [
+            (verify_rewarded, _evaluable(len(verifiers), len(non_verifiers))),
+            (ai_not_penalised, _evaluable(len(ai_verifiers), len(non_verifiers))),
+        ],
+        hard_ok=no_invented_overreliance,
+    )
+    sample = {"verifiers": len(verifiers), "non_verifiers": len(non_verifiers), "ai_verifiers": len(ai_verifiers)}
+
     return {
         "no_invented_overreliance": no_invented_overreliance,
+        "overreliance_violations": [r.id for r in overreliance_violations],
         "verify_rewarded": verify_rewarded,
         "ai_not_penalised": ai_not_penalised,
         "judgment_mean": {"verifiers": v_mean, "non_verifiers": nv_mean, "ai_verifiers": aiv_mean},
-        "passed": passed,
+        "margins": {
+            "verify_lead": round(v_mean - nv_mean, 1) if (v_mean is not None and nv_mean is not None) else None,
+            "ai_gap": round(aiv_mean - nv_mean, 1) if (aiv_mean is not None and nv_mean is not None) else None,
+        },
+        "sample": sample,
+        "thresholds": {"min_group_n": MIN_GROUP_N, "verify_margin": MIN_VERIFY_MARGIN, "ai_penalty_tolerance": AI_PENALTY_TOLERANCE},
+        "cohort_warnings": _cohort_warnings(sample),
+        "not_evaluable_reason": _not_evaluable_reason(sample, len(done)) if status == "not_evaluable" else None,
+        "status": status,
+        "passed": status == "pass",
     }
 
 
@@ -154,16 +309,31 @@ def discrimination(rows: list[Row]) -> dict[str, Any]:
         return round(sum(r.overall for r in rs) / len(rs), 1) if rs else None
 
     s_mean, w_mean, g_mean = mean_o(strong), mean_o(weak), mean_o(gamer)
-    strong_beats_weak = s_mean is not None and w_mean is not None and s_mean > w_mean
-    gamer_below_strong = g_mean is not None and s_mean is not None and g_mean < s_mean
+    # Both directions require a meaningful margin (was: ANY positive gap) and a
+    # minimum sample, so a near-tie or a tiny run is inconclusive, not a pass.
+    strong_beats_weak = _lead_verdict(s_mean, w_mean, len(strong), len(weak), MIN_DISCRIMINATION_MARGIN)
+    gamer_below_strong = _lead_verdict(s_mean, g_mean, len(strong), len(gamer), MIN_DISCRIMINATION_MARGIN)
+    status = _gate_status(
+        [
+            (strong_beats_weak, _evaluable(len(strong), len(weak))),
+            (gamer_below_strong, _evaluable(len(strong), len(gamer))),
+        ]
+    )
+    sample = {"strong": len(strong), "weak": len(weak), "gamer": len(gamer)}
     return {
         "strong_mean": s_mean,
         "weak_mean": w_mean,
         "margin": round(s_mean - w_mean, 1) if (s_mean is not None and w_mean is not None) else None,
         "gamer_mean": g_mean,
+        "gamer_margin": round(s_mean - g_mean, 1) if (s_mean is not None and g_mean is not None) else None,
+        "sample": sample,
+        "thresholds": {"min_group_n": MIN_GROUP_N, "discrimination_margin": MIN_DISCRIMINATION_MARGIN},
+        "cohort_warnings": _cohort_warnings(sample),
+        "not_evaluable_reason": _not_evaluable_reason(sample, len(done)) if status == "not_evaluable" else None,
         "strong_beats_weak": strong_beats_weak,
         "gamer_below_strong": gamer_below_strong,
-        "passed": strong_beats_weak and gamer_below_strong,
+        "status": status,
+        "passed": status == "pass",
     }
 
 
@@ -218,15 +388,34 @@ def _report_md(rows: list[Row], sig: dict, qual: dict | None) -> str:
         "# Dev pipeline — submission evaluation eval\n",
         f"Scenarios: {sig['scenarios']} · reliable: {sig['reliable']}/{sig['scenarios']} ({sig['reliability']:.0%}) · LLM rows: {sig['llm_rows']}\n",
         "## Fairness gate (the heart)\n",
-        f"- **passed: {f['passed']}**",
-        f"- no invented over-reliance from tool use: {f['no_invented_overreliance']}",
-        f"- verification rewarded (verifiers judgment >= non): {f['verify_rewarded']}",
-        f"- AI use not penalised (ai-verifiers >= non-verifiers): {f['ai_not_penalised']}",
-        f"- judgment means: {f['judgment_mean']}",
-        "\n## Discrimination\n",
-        f"- **passed: {d['passed']}** · strong {d['strong_mean']} vs weak {d['weak_mean']} (margin {d['margin']})",
-        f"- gamer (AI-no-verify) {d['gamer_mean']} below strong: {d['gamer_below_strong']}",
+        f"- **status: {f['status'].upper()}** (passed: {f['passed']})",
     ]
+    if f.get("not_evaluable_reason"):
+        L.append(f"- not evaluable (no data — does NOT fail --strict): {f['not_evaluable_reason']}")
+    L += [
+        f"- no invented over-reliance from tool use: {f['no_invented_overreliance']}"
+        + (f" — VIOLATED by {f['overreliance_violations']}" if f["overreliance_violations"] else ""),
+        f"- verification rewarded (verifiers lead non by >= {MIN_VERIFY_MARGIN:g} judgment pts): "
+        f"{_verdict_str(f['verify_rewarded'])} · lead {f['margins']['verify_lead']}",
+        f"- AI use not penalised (ai-verifiers within {AI_PENALTY_TOLERANCE:g} pts of non-verifiers): "
+        f"{_verdict_str(f['ai_not_penalised'])} · gap {f['margins']['ai_gap']}",
+        f"- judgment means: {f['judgment_mean']} · samples {f['sample']}",
+    ]
+    if f.get("cohort_warnings"):
+        L.append(f"- minimum-cohort-size warning: {'; '.join(f['cohort_warnings'])}")
+    L.append("\n## Discrimination\n")
+    L.append(
+        f"- **status: {d['status'].upper()}** (passed: {d['passed']}) · strong {d['strong_mean']} vs weak "
+        f"{d['weak_mean']} (margin {d['margin']}, bar >= {MIN_DISCRIMINATION_MARGIN:g})"
+    )
+    if d.get("not_evaluable_reason"):
+        L.append(f"- not evaluable (no data — does NOT fail --strict): {d['not_evaluable_reason']}")
+    L.append(
+        f"- strong beats weak: {_verdict_str(d['strong_beats_weak'])} · gamer (AI-no-verify) {d['gamer_mean']} "
+        f"below strong by {d['gamer_margin']}: {_verdict_str(d['gamer_below_strong'])} · samples {d['sample']}"
+    )
+    if d.get("cohort_warnings"):
+        L.append(f"- minimum-cohort-size warning: {'; '.join(d['cohort_warnings'])}")
     fails = [r for r in rows if not r.reliable]
     if fails:
         L.append("\n## Reliability failures\n")
@@ -248,7 +437,7 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--domain", default="it", help="it | marketing | finance | sales | design | mixed")
     p.add_argument("--no-llm", action="store_true")
     p.add_argument("--judge", action="store_true")
-    p.add_argument("--strict", action="store_true", help="exit non-zero if reliability < 100% or the fairness/discrimination gates fail")
+    p.add_argument("--strict", action="store_true", help="exit non-zero if reliability < 100%% or a gate is fail/inconclusive (a measured violation, or a thin-but-present sample the gate may not certify). A not_evaluable gate (an empty cohort / no surviving rows — e.g. a tiny --count, or every scenario errored) does NOT exit non-zero: absence of data is not a violation.")
     p.add_argument("--workers", type=int, default=4)
     p.add_argument("--json", action="store_true")
     args = p.parse_args(argv)
@@ -272,8 +461,19 @@ def main(argv: list[str] | None = None) -> int:
     else:
         print(_report_md(rows, sig, qual))
 
-    if args.strict and (sig["reliability"] < 1.0 or not sig["fairness"]["passed"] or not sig["discrimination"]["passed"]):
-        return 1
+    if args.strict:
+        reasons = []
+        if sig["reliability"] < 1.0:
+            reasons.append(f"reliability {sig['reliability']:.0%} < 100%")
+        # A 'fail' (measured violation) or 'inconclusive' (thin sample) exits non-zero; a
+        # 'not_evaluable' gate (empty cohort / no data) does NOT — distinguishing a gate
+        # that was VIOLATED from one that simply couldn't be evaluated.
+        for name in ("fairness", "discrimination"):
+            if sig[name]["status"] in ("fail", "inconclusive"):
+                reasons.append(f"{name} gate {sig[name]['status']}")
+        if reasons:
+            sys.stderr.write("submission_eval --strict failed: " + "; ".join(reasons) + "\n")
+            return 1
     return 0
 
 

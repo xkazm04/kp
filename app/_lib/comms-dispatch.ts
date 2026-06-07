@@ -93,39 +93,58 @@ export async function dispatchOffer(
 export async function dispatchInterviewConfirmation(
   entry: PipelineEntry,
   slot: string,
-  opts?: { shortNotice?: boolean }
+  opts?: { shortNotice?: boolean; durationMin?: number | null }
 ): Promise<void> {
   const name = (entry.candidateLabel ?? "").trim() || "there";
   const role = entry.jobTitle ?? "the role";
+  // Tell the candidate how long to block: a student's scripted screen runs ~22
+  // minutes, and "booked for Tue 10:00" alone reads like a quick call.
+  const length = opts?.durationMin ? ` Please set aside about ${opts.durationMin} minutes for the call.` : "";
   const subject = `Interview confirmed — ${role}`;
   const body = opts?.shortNotice
     ? `Hi ${name},\n\n` +
       `Your interview for ${role} is booked for ${slot} — that's coming up shortly, ` +
       `so treat this as your heads-up: everything you need is right here and we won't ` +
-      `send a separate reminder given the short notice.\n\n` +
+      `send a separate reminder given the short notice.${length}\n\n` +
       `If you need to change the time, just reply and we'll sort it out.\n\nSee you soon,\nThe hiring team`
     : `Hi ${name},\n\n` +
-      `Your interview for ${role} is booked for ${slot}. ` +
+      `Your interview for ${role} is booked for ${slot}.${length} ` +
       `We'll send a reminder before the call with everything you need.\n\n` +
       `If you need to change the time, just reply and we'll sort it out.\n\nSee you then,\nThe hiring team`;
   await sendComm({ to: candidateRecipient(entry), subject, body, kind: "interview_confirmation", ref: entry.id });
   recordAutomationEvent(entry.id, "interview_scheduled", slot);
 }
 
-/** Reminder fired by the scheduler heartbeat before a confirmed interview. */
+/** Reminder fired by the scheduler heartbeat before a confirmed interview.
+ *
+ *  Delivery boundary matters here: the heartbeat retries a *throw* from this call,
+ *  so a throw must mean "the message did NOT go out." The channel handoff (sendComm)
+ *  is the only step that may throw — if it resolves, the candidate has been reminded.
+ *  The audit write that follows is post-send bookkeeping; were it allowed to throw
+ *  (e.g. a transient SQLite contention after the message already left), the caller
+ *  would re-arm and send the candidate a DUPLICATE reminder. So it is logged and
+ *  swallowed, never surfaced as a delivery failure. */
 export async function dispatchInterviewReminder(
   entry: { id?: string | null; candidateLabel?: string | null; candidateId?: string | null; jobTitle?: string | null },
-  slot: string
+  slot: string,
+  opts?: { durationMin?: number | null }
 ): Promise<void> {
   const name = (entry.candidateLabel ?? "").trim() || "there";
   const role = entry.jobTitle ?? "the role";
+  const length = opts?.durationMin ? ` Plan for about ${opts.durationMin} minutes.` : "";
   const subject = `Reminder — your interview ${slot}`;
   const body =
     `Hi ${name},\n\n` +
-    `A quick reminder that your interview for ${role} is coming up at ${slot}. ` +
+    `A quick reminder that your interview for ${role} is coming up at ${slot}.${length} ` +
     `We're looking forward to speaking with you — see you then!\n\nThe hiring team`;
   await sendComm({ to: candidateRecipient(entry), subject, body, kind: "interview_reminder", ref: entry.id ?? slot });
-  if (entry.id) recordAutomationEvent(entry.id, "interview_reminder_sent", slot);
+  // Post-send: the reminder is delivered. Do not let an audit-log failure re-throw —
+  // that would look like a delivery failure and trigger a duplicate send.
+  try {
+    if (entry.id) recordAutomationEvent(entry.id, "interview_reminder_sent", slot);
+  } catch (e) {
+    console.error(`[reminder] delivered but audit-log write failed for entry ${entry.id}: ${e instanceof Error ? e.message : e}`);
+  }
 }
 
 /**

@@ -1,4 +1,4 @@
-import { lookupGeminiCache, storeGeminiCache } from "./db";
+import { lookupPromptCache, storePromptCache } from "./db";
 import { positiveNumericEnv } from "./env";
 import { PROMPT_VERSION } from "./cache-key";
 
@@ -10,17 +10,17 @@ const TTL_HOURS = positiveNumericEnv("KP_CACHE_TTL_HOURS", 24);
 
 export function lookupCachedAnalysis(hash: string): unknown | null {
   try {
-    return lookupGeminiCache(hash, PROMPT_VERSION);
+    return lookupPromptCache(hash, PROMPT_VERSION);
   } catch (error) {
-    console.error("gemini cache lookup failed", error);
+    console.error("prompt cache lookup failed", error);
     return null;
   }
 }
 
 export function storeCachedAnalysis(hash: string, payload: unknown): void {
   try {
-    storeGeminiCache(hash, payload, PROMPT_VERSION, TTL_HOURS);
+    storePromptCache(hash, payload, PROMPT_VERSION, TTL_HOURS);
   } catch (error) {
-    console.error("gemini cache write failed", error);
+    console.error("prompt cache write failed", error);
   }
 }

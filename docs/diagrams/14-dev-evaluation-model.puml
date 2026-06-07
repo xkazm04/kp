@@ -17,10 +17,8 @@ class "Two evaluation surfaces" as surfaces {
 }
 
 class CaseEvaluation {
-  structureScore
-  judgmentScore
-  architectureScore
   dimensionScores{}
+  dimensions[]  (weight-annotated, ordered)
   strengths[] / concerns[]
 }
 

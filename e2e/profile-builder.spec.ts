@@ -13,6 +13,10 @@
 // fully determined. We self-declare the archetype (signals.selfDeclared) so routing
 // never depends on heuristics, and fill exactly the fields each checklist scores.
 //
+// Note: the form starts HONEST — it no longer auto-seeds education / languages /
+// seniority (idea-fa7d5360), so these tests fill them explicitly. Their completeness
+// now reflects real recruiter input rather than unchosen create-mode defaults.
+//
 // Completeness = weighted ratio of satisfied checks (archetypes.json):
 //   Experienced (bau): education 1 + languages 1 + 3 skills 1.5 + seniority 1.5
 //                      + years 1 + work-experience entry 1.5  (total 7.5)
@@ -88,6 +92,12 @@ test.describe("Profile builder — archetype routing + completeness", () => {
     await openBuilder(page);
     await page.getByRole("radio", { name: "Experienced" }).click();
     await page.getByLabel("Name", { exact: true }).fill("E2E Experienced Candidate");
+    // education / languages / seniority are no longer auto-seeded (idea-fa7d5360),
+    // so fill them explicitly — they are the education_known / has_languages /
+    // has_seniority checks that take this intake to 100%.
+    await page.getByLabel("Education level", { exact: true }).selectOption("master");
+    await page.getByLabel("Languages", { exact: true }).fill("Czech, English");
+    await page.getByLabel("Seniority", { exact: true }).selectOption("senior");
     await page.getByLabel("Years of experience", { exact: true }).fill("6");
     await fillSkills(page, ["TypeScript", "React", "SQL"]);
     await fillEvidence(page, "job", "Senior Engineer at Acme (2019–2024)");
@@ -123,6 +133,10 @@ test.describe("Profile builder — archetype routing + completeness", () => {
     await openBuilder(page);
     await page.getByRole("radio", { name: "Student / early-career" }).click();
     await page.getByLabel("Name", { exact: true }).fill("E2E Student Candidate");
+    // education + languages are no longer auto-seeded (idea-fa7d5360); fill them so
+    // the only remaining gap is the missing activity (→ 8/9 = 89%).
+    await page.getByLabel("Education level", { exact: true }).selectOption("bachelor");
+    await page.getByLabel("Languages", { exact: true }).fill("Czech, English");
     await page.getByLabel("Aspirations / target roles", { exact: true }).fill("Junior frontend developer");
     await page.getByLabel("Study programme & specialisation", { exact: true }).fill("CS, ČVUT FEL — focus on ML");
     await fillSkills(page, ["JavaScript", "React", "Git"]);

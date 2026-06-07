@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useTasks } from "@/app/features/tasks/TasksProvider";
+import { useTasks, useTaskResult } from "@/app/features/tasks/TasksProvider";
 import { ConfidenceBandBadge, confidenceBandTitle } from "@/app/_components/Badge";
 import type { MatchRef, MatchResult, Reasoning, ReasoningState } from "./MatchTypes";
 import { isEarlyCareer, FAMILY_LABEL, provLabel } from "./MatchTypes";
@@ -29,7 +29,7 @@ export function MatchCard({
   addError?: string;
   onAdd: () => void;
 }) {
-  const { startTask, tasks } = useTasks();
+  const { startTask } = useTasks();
   const [reasoning, setReasoning] = useState<ReasoningState | null>(null);
   const [taskId, setTaskId] = useState<string | null>(null);
   const [skillsExpanded, setSkillsExpanded] = useState(false);
@@ -50,20 +50,20 @@ export function MatchCard({
     setTaskId(t.id);
   };
 
+  const { status: reasoningStatus, error: reasoningError, full: reasoningFull } = useTaskResult(taskId);
   useEffect(() => {
     if (!taskId) return;
-    const t = tasks.find((x) => x.id === taskId);
-    if (!t) return;
-    if (t.status === "succeeded") {
-      const p = t.result as { reasoning?: Reasoning; source?: string; cached?: boolean } | null;
-      setReasoning(p?.reasoning ? { data: p.reasoning, source: p.source, cached: p.cached } : { error: "No reasoning returned." });
-      setTaskId(null);
-    } else if (t.status === "failed" || t.status === "canceled" || t.status === "interrupted") {
-      setReasoning({ error: t.error ?? "Reasoning failed." });
+    if (reasoningStatus === "succeeded") {
+      if (reasoningFull) {
+        const p = reasoningFull.result as { reasoning?: Reasoning; source?: string; cached?: boolean } | null;
+        setReasoning(p?.reasoning ? { data: p.reasoning, source: p.source, cached: p.cached } : { error: "No reasoning returned." });
+        setTaskId(null);
+      }
+    } else if (reasoningStatus === "failed" || reasoningStatus === "canceled" || reasoningStatus === "interrupted") {
+      setReasoning({ error: reasoningError ?? "Reasoning failed." });
       setTaskId(null);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tasks, taskId]);
+  }, [taskId, reasoningStatus, reasoningError, reasoningFull]);
 
   return (
     <li className="rounded-lg border border-stone-200 p-3">
@@ -132,6 +132,15 @@ export function MatchCard({
               <Bar label={early ? "Fit" : "Personal"} value={m.personalScore} />
             </div>
           )}
+
+          {/* A non-tight band's WHY belongs in plain sight, not in a tooltip — a
+              recruiter reading "34–62" must see "early-career, thinner record"
+              without knowing to hover. Tight bands stay quiet. */}
+          {m.confidence.level !== "tight" && m.confidence.drivers.length > 0 ? (
+            <p className="mt-1.5 text-sm text-steel">
+              <span className="font-medium text-ink">Why this band:</span> {m.confidence.drivers.join(" · ")}
+            </p>
+          ) : null}
 
           {(() => {
             const matched = m.matchedSkills ?? [];

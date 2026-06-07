@@ -53,6 +53,7 @@ export function AnalyzeTab() {
                   status: result.githubStatus,
                   analysis: result.githubAnalysis,
                   error: result.githubError,
+                  warning: result.githubWarning,
                 }
           }
         />

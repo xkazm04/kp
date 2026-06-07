@@ -1,8 +1,8 @@
 "use client";
 
-import { createContext, useCallback, useContext, useMemo, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
-import { buildUrl } from "@/app/features/tabs";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { buildUrl, clearedTabScopedParams } from "@/app/features/tabs";
 import { notifyDataChanged } from "@/app/features/live-refresh";
 import type { GroupEvalPayload } from "@/app/features/sub_decisions/GroupEvalModal";
 import { SIM_COMPANY, SIM_JD_MARKDOWN, SIM_ROLE, SIM_SALARY, SIM_SCREEN_POLICY, SIM_TITLE, type SimPhaseId } from "./constants";
@@ -105,17 +105,29 @@ const CLEAR_OVERLAYS: Pick<SimState, "spotlight" | "frame" | "groupEval" | "scre
 
 export function SimulationProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [state, setState] = useState<SimState>(IDLE_STATE);
 
   const ctrl = useRef<{ stop: boolean; paused: boolean; wake: (() => void) | null }>({ stop: false, paused: false, wake: null });
   const stepRef = useRef<boolean>(true);
+
+  // The latest committed query, read through a ref so the long-running walk's nav()
+  // composes each patch off the CURRENT router state — not the stale value captured
+  // when `run` was created, and not window.location (which next/navigation hasn't
+  // updated yet mid-tick). useSearchParams re-renders on every committed navigation;
+  // syncing it into a ref (post-commit) lets the frozen run() closure read the fresh
+  // string. The walk awaits a `beat` between nav()s, so the effect always lands first.
+  const searchRef = useRef(searchParams.toString());
+  useEffect(() => {
+    searchRef.current = searchParams.toString();
+  }, [searchParams]);
 
   const patch = useCallback((p: Partial<SimState>) => setState((s) => ({ ...s, ...p })), []);
   const log = useCallback(
     (text: string) => setState((s) => ({ ...s, log: [...s.log, { at: Date.now(), text }].slice(-40) })),
     []
   );
-  const nav = useCallback((updates: Record<string, string | null>) => router.replace(buildUrl(updates), { scroll: false }), [router]);
+  const nav = useCallback((updates: Record<string, string | null>) => router.replace(buildUrl(updates, searchRef.current), { scroll: false }), [router]);
 
   // Paced wait — paused time doesn't count; stop interrupts.
   const beat = useCallback(async (ms: number) => {
@@ -336,7 +348,9 @@ export function SimulationProvider({ children }: { children: React.ReactNode }) 
         target: '[data-sim="job-drafts"]',
         title: "Source into Pipeline",
         caption: "The JD is saved as a draft. Sourcing it from the Jobs tab takes it live and pulls the candidate pool into the pipeline.",
-        navExtra: { jdTitle: null, jdCompany: null, jdSeniority: null, jdFamily: null, jdNeed: null },
+        // Leaving the JD builder: clear the prefill (and any other tab-scoped
+        // param) from the canonical allowlist rather than re-listing jd* keys.
+        navExtra: clearedTabScopedParams(),
         action: async () => {
           // Save as a DRAFT (no sourcing yet).
           const save = await fetch("/api/jds/save", {

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { FileText, UploadCloud, X } from "lucide-react";
 import { ACCEPT_EXTENSIONS, MAX_FILE_HINT } from "@/app/_lib/upload-constraints";
 import { formatFileSize } from "./AnalyzeApi";
+import { ownedDropZoneProps } from "./dropRouting";
 import { useFileAccept } from "./useFileAccept";
 
 export function AnalyzeFileDropZone({
@@ -34,7 +35,9 @@ export function AnalyzeFileDropZone({
   if (file) {
     return (
       <>
-        <div className="flex h-20 items-center gap-2 rounded-lg border border-stone-200 bg-white px-3">
+        {/* Owns its drop: a file dropped here is a JD/company replacement, never a
+            phantom CV the window catch should also claim (idea-1a75b476). */}
+        <div {...ownedDropZoneProps} className="flex h-20 items-center gap-2 rounded-lg border border-stone-200 bg-white px-3">
           <FileText className="h-4 w-4 shrink-0 text-steel" aria-hidden />
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-medium text-ink" title={file.name}>
@@ -80,6 +83,7 @@ export function AnalyzeFileDropZone({
     <>
       <label
         htmlFor={inputId}
+        {...ownedDropZoneProps}
         onDragEnter={(event) => {
           event.preventDefault();
           setIsOver(true);

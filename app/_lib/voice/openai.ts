@@ -1,4 +1,4 @@
-import type { OpenAiConnect, VoiceAdapter } from "./types";
+import { missingVoiceEnv, type OpenAiConnect, type VoiceAdapter } from "./types.ts";
 
 // OpenAI Realtime (gpt-realtime, GA). Browser uses WebRTC; the server mints an
 // ephemeral client secret via /v1/realtime/client_secrets and the browser POSTs
@@ -60,9 +60,10 @@ type SecretResponse = {
 
 export class OpenAiVoiceAdapter implements VoiceAdapter {
   readonly id = "openai" as const;
+  readonly requiredEnv = ["OPENAI_API_KEY"] as const;
 
   available(): boolean {
-    return Boolean(process.env.OPENAI_API_KEY);
+    return missingVoiceEnv(this).length === 0;
   }
 
   async connect({ instructions }: { instructions: string; language?: string | null }): Promise<OpenAiConnect> {

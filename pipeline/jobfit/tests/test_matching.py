@@ -11,6 +11,7 @@ from pipeline.jobfit.matching import (
     match,
     score_career,
     score_job,
+    score_personal,
     score_skills,
 )
 
@@ -163,6 +164,34 @@ class ScoreBreakdownTest(unittest.TestCase):
         self.assertEqual(student, ["Foundation", "Potential", "Fit"])
 
 
+class ScorePersonalOverlapTest(unittest.TestCase):
+    """Description overlap is counted on whole, length-guarded words — not raw
+    substrings — so short, ubiquitous tokens stop inflating personal fit
+    (idea-c574596a-fix-substring-false-positives)."""
+
+    @staticmethod
+    def _personal(skills: list[str], description: str) -> float:
+        # No job languages -> language coverage is a constant 1.0, isolating the
+        # 0.5 * overlap term so any phantom hit shows up directly in the score.
+        cand = MatchCandidate(skills=skills, seniority="senior", languages=["English"])
+        job = mkjob(languages=[], description=description)
+        return score_personal(cand, job)
+
+    def test_short_tokens_do_not_match_as_substrings(self) -> None:
+        # "go" in "good", "ai" in "training", "c" in "category" were all bogus
+        # substring hits; length-guarded to nothing now -> pure 0.5 * lang_cov.
+        self.assertEqual(self._personal(["Go", "AI", "C"], "Good engineers training for any category."), 0.5)
+
+    def test_substring_inside_a_longer_word_is_not_a_hit(self) -> None:
+        # "Rust" (len 4, survives the guard) must not match the "rust" in "trust".
+        self.assertEqual(self._personal(["Rust"], "A team you can trust."), 0.5)
+
+    def test_whole_word_skill_still_counts(self) -> None:
+        # The same skill as a standalone word is a genuine overlap hit: one of five
+        # -> overlap 0.2 -> 0.5 * 1.0 + 0.5 * 0.2.
+        self.assertEqual(self._personal(["Rust"], "We build core services in Rust."), 0.6)
+
+
 class MatchTest(unittest.TestCase):
     def test_ranking_and_meta(self) -> None:
         good = mkjob(
@@ -270,6 +299,42 @@ class AggregateKoReasonsTest(unittest.TestCase):
             [self._r("early_career")],
         ]
         self.assertEqual(len(aggregate_ko_reasons(lists, top=3)), 3)
+
+
+class PotentialScoreClampTest(unittest.TestCase):
+    """The 0-1 readiness contract is enforced at the MatchCandidate boundary so an
+    out-of-range potential can't push `total` past 100 (clamp-out-of-range idea).
+    The inline /api/match path forwards untrusted client JSON straight into
+    MatchCandidate.model_validate, so the clamp must live on the model."""
+
+    def test_above_range_potential_is_clamped_to_one(self) -> None:
+        # Mirrors the untrusted inline /api/match path (camelCase alias, no limit-only validation).
+        cand = MatchCandidate.model_validate(
+            {"archetype": "student", "potentialScore": 9, "skills": ["Python"], "languages": ["English"]}
+        )
+        self.assertEqual(cand.potential_score, 1.0)
+
+    def test_negative_potential_is_clamped_to_zero(self) -> None:
+        self.assertEqual(MatchCandidate(archetype="student", potential_score=-3.0).potential_score, 0.0)
+
+    def test_in_range_potential_is_unchanged(self) -> None:
+        self.assertEqual(MatchCandidate(archetype="student", potential_score=0.7).potential_score, 0.7)
+
+    def test_none_potential_stays_none(self) -> None:
+        self.assertIsNone(MatchCandidate(archetype="student").potential_score)
+
+    def test_out_of_range_potential_keeps_total_and_bar_within_0_100(self) -> None:
+        # An adversarial readiness rides the early-career `career` slot verbatim; both
+        # the headline total and the Potential breakdown bar must stay inside 0-100.
+        job = mkjob(seniority="junior", description="Graduates welcome; training and mentoring provided.")
+        cand = MatchCandidate.model_validate(
+            {"archetype": "student", "potentialScore": 9, "skills": ["Python"], "languages": ["English"]}
+        )
+        m = score_job(cand, job)
+        self.assertLessEqual(m.total, 100)
+        self.assertGreaterEqual(m.total, 0)
+        potential_bar = next(d for d in m.score_breakdown if d.key == "career")
+        self.assertLessEqual(potential_bar.percent, 100)
 
 
 if __name__ == "__main__":

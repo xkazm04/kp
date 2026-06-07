@@ -16,10 +16,11 @@ The scorer is archetype-aware via :func:`weights_for`; BAU is wired now,
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 from typing import Any, Literal
 
-from pydantic import Field
+from pydantic import Field, field_validator
 
 from . import registry
 from .jobs import Job
@@ -96,9 +97,31 @@ class MatchCandidate(_Base):
     aspirations: list[str] = Field(default_factory=list)
     # career-switcher: meta-skills mapped from a prior domain, credited at professional level.
     transferable_skills: list[str] = Field(default_factory=list)
+    # career-switcher: how far the prior domain sits from the target role family
+    # (transferable.domain_distance: "adjacent" | "moderate" | "far"); informs the
+    # bridge narrative + potential, never a hard score multiplier.
+    domain_distance: str | None = None
     # preferences (optional KO inputs)
     preferred_work_modes: list[str] = Field(default_factory=list)
     label: str = "Candidate"
+
+    @field_validator("potential_score")
+    @classmethod
+    def _clamp_potential_score(cls, v: float | None) -> float | None:
+        """Enforce the 0-1 readiness contract at the trust boundary.
+
+        potential_score is the only candidate-supplied SCORE dimension (it rides
+        the early-career ``career`` slot verbatim in score_job). The /api/match
+        inline path forwards untrusted client JSON straight into
+        ``MatchCandidate.model_validate`` validating only ``limit``, so a
+        ``{"potentialScore": 9}`` would push ``total`` far past 100 and corrupt
+        the score dial, fit-tier banding, and matrix-cell coloring that all assume
+        0-100. Clamping here (validate-on-construction covers build_match_candidate
+        too) makes the contract enforced rather than assumed.
+        """
+        if v is None:
+            return None
+        return max(0.0, min(1.0, v))
 
 
 class ScoreDimension(_Base):
@@ -284,17 +307,45 @@ def score_career(candidate: MatchCandidate, job: Job) -> float:
     return round(0.6 * family + 0.4 * max(0.0, seniority_proximity), 4)
 
 
-def score_personal(candidate: MatchCandidate, job: Job) -> float:
-    """Lightweight heuristic until the embedding bridge lands.
+# Word splitter for the description-overlap heuristic: alphanumeric runs only, so
+# both the description and each candidate token reduce to whole words and matching
+# is never substring-based.
+_WORD_RE = re.compile(r"[a-z0-9]+")
 
-    Blends language coverage with keyword overlap of the candidate's traits/skills
-    against the role description. Deliberately modest and clearly a heuristic.
+
+def _term_in_words(term: str, desc_words: set[str]) -> bool:
+    """Whole-word containment: every alphanumeric word-part of ``term`` must appear
+    as a standalone word in the description, never merely as a substring (so "Rust"
+    no longer hits the "rust" inside "trust")."""
+    parts = _WORD_RE.findall(term.casefold())
+    return bool(parts) and all(part in desc_words for part in parts)
+
+
+def score_personal(candidate: MatchCandidate, job: Job, *, embedder: Any | None = None) -> float:
+    """Keyword heuristic by default; the embedding bridge when opted in.
+
+    Blends language coverage with the overlap of the candidate's traits/skills
+    against the role description. The overlap TERM has two implementations:
+
+    * default — whole-word keyword overlap (never substrings, tokens of <=3
+      chars skipped — a bare ``t in desc`` made C/R/Go/AI match almost every ad).
+      Deterministic and offline: the reproducible baseline.
+    * ``embedder`` passed (the opt-in embedding bridge, recruiter_cli
+      ``--embeddings``) — embedding cosine between the candidate's own words and
+      the ad, so paraphrases finally meet without sharing a token. Fail-open:
+      any bridge failure falls back to the keyword term.
     """
     lang_cov = _language_coverage(candidate, job)
-    desc = (job.description or "").casefold()
-    tokens = [t for t in (candidate.traits + candidate.skills) if t]
-    hits = sum(1 for t in tokens if t.casefold() in desc)
-    overlap = min(1.0, hits / 5.0)
+    overlap: float | None = None
+    if embedder is not None:
+        from .embedding_bridge import semantic_overlap
+
+        overlap = semantic_overlap(" ".join(candidate.traits + candidate.skills), job.description or "", embedder)
+    if overlap is None:
+        desc_words = set(_WORD_RE.findall((job.description or "").casefold()))
+        tokens = [t for t in (candidate.traits + candidate.skills) if len(t) > 3]
+        hits = sum(1 for t in tokens if _term_in_words(t, desc_words))
+        overlap = min(1.0, hits / 5.0)
     return round(0.5 * lang_cov + 0.5 * overlap, 4)
 
 
@@ -305,18 +356,28 @@ def _language_coverage(candidate: MatchCandidate, job: Job) -> float:
     return covered / len(job.languages)
 
 
-def score_motivation(candidate: MatchCandidate, job: Job) -> float:
+def score_motivation(candidate: MatchCandidate, job: Job, *, embedder: Any | None = None) -> float:
     """Early-career 'personal' dimension: aspirations + domain fit + language coverage.
 
     Replaces the BAU description-keyword heuristic — a student's fit is better
     read from whether the role matches their stated target and field than from
-    keyword overlap with an experience-oriented ad.
+    keyword overlap with an experience-oriented ad. The aspiration TERM follows
+    the same opt-in pattern as score_personal: title-token containment by
+    default; with the embedding bridge, a cosine between the stated aspirations
+    and the role's title+description ("aiming for data work" can meet an
+    "Analytics Engineer" ad). Fail-open to the token heuristic.
     """
     family_hit = 1.0 if candidate.role_family == job.role_family else 0.3
     asp = " ".join(candidate.aspirations).casefold()
     title = (job.title or "").casefold()
-    asp_tokens = [t for t in asp.replace("/", " ").split() if len(t) > 3]
-    aspiration_hit = 1.0 if asp_tokens and any(t in title for t in asp_tokens) else 0.0
+    aspiration_hit: float | None = None
+    if embedder is not None and asp.strip():
+        from .embedding_bridge import semantic_overlap
+
+        aspiration_hit = semantic_overlap(asp, f"{job.title or ''} {job.description or ''}", embedder)
+    if aspiration_hit is None:
+        asp_tokens = [t for t in asp.replace("/", " ").split() if len(t) > 3]
+        aspiration_hit = 1.0 if asp_tokens and any(t in title for t in asp_tokens) else 0.0
     lang_cov = _language_coverage(candidate, job)
     return round(0.4 * family_hit + 0.35 * aspiration_hit + 0.25 * lang_cov, 4)
 
@@ -492,19 +553,29 @@ def _confidence(candidate: MatchCandidate, total: int, missing_musts: list[str])
     )
 
 
-def score_job(candidate: MatchCandidate, job: Job, *, weights: dict[str, float] | None = None) -> MatchResult:
+def score_job(
+    candidate: MatchCandidate,
+    job: Job,
+    *,
+    weights: dict[str, float] | None = None,
+    embedder: Any | None = None,
+) -> MatchResult:
     skills, matched, missing, matched_strength = score_skills(candidate, job)
     if candidate.archetype in _EARLY_CAREER:
         # career slot carries POTENTIAL (readiness); personal carries motivation/domain fit.
         career = candidate.potential_score if candidate.potential_score is not None else score_career(candidate, job)
-        personal = score_motivation(candidate, job)
+        personal = score_motivation(candidate, job, embedder=embedder)
     else:
         career = score_career(candidate, job)
-        personal = score_personal(candidate, job)
+        personal = score_personal(candidate, job, embedder=embedder)
     # `weights` is an optional resolved dynamic vector; default = archetype static
     # weights, so passing nothing reproduces the prior score exactly.
     w = weights or weights_for(candidate.archetype)
-    total = round(100 * (w["skills"] * skills + w["career"] * career + w["personal"] * personal))
+    # Clamp the headline to the 0-100 contract every downstream surface (score dial,
+    # fit-tier banding, matrix coloring) assumes. With dimensions already in [0,1]
+    # this is a no-op; it's the belt-and-suspenders guard against a future
+    # out-of-range dimension or a misbehaving readiness model.
+    total = max(0, min(100, round(100 * (w["skills"] * skills + w["career"] * career + w["personal"] * personal))))
     breakdown = build_score_breakdown(candidate.archetype, skills, career, personal, weights=w)
     tier = fit_tier_for(total)
     ep = job.entry_profile

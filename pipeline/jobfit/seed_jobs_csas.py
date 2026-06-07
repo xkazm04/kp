@@ -16,14 +16,12 @@ salary bands (role_band -> realistic CZK), the Matrix and the pipeline all keep 
 
 from __future__ import annotations
 
-import argparse
 import json
 import random
-import sys
 from typing import Any
 
 from .jobs import SENIORITIES, WORK_MODES
-from .seed_jobs import DEFAULT_OUT, ROOT, generate, summarize, write_normalized
+from .seed_jobs import run_seed_main
 
 COMPANY = "Česká spořitelna"
 
@@ -137,62 +135,25 @@ Constraints:
 Output JSON only, no markdown fences, no commentary."""
 
 
+def _stamp_company(records: list[dict[str, Any]]) -> None:
+    # belt-and-suspenders: the company is fixed for this profile
+    for rec in records:
+        rec["company"] = COMPANY
+
+
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Re-seed the job corpus for Česká spořitelna.")
-    parser.add_argument("--count", type=int, default=100)
-    parser.add_argument("--workers", type=int, default=6)
-    parser.add_argument("--seed", type=int, default=42)
-    parser.add_argument("--retries", type=int, default=2)
-    parser.add_argument("--limit", type=int, default=None)
-    parser.add_argument("--no-resume", action="store_true")
-    parser.add_argument("--dry-run", action="store_true")
-    parser.add_argument("--materialize", action="store_true", help="Skip generation; rewrite normalized from the raw corpus.")
-    args = parser.parse_args(argv)
-
-    out = DEFAULT_OUT
-    if args.dry_run:
-        for spec in build_specs(args.count, seed=args.seed)[: (args.limit or 3)]:
-            print(json.dumps(spec, ensure_ascii=False))
-        return 0
-
-    if args.materialize:
-        records = json.loads(out.read_text(encoding="utf-8"))
-        norm = write_normalized(records, out)
-        print(f"Materialized {len(records)} jobs -> {norm.name}", file=sys.stderr)
-        print(summarize(records), file=sys.stderr)
-        return 0
-
-    specs = build_specs(args.count, seed=args.seed)
-    existing: dict[str, dict[str, Any]] = {}
-    if out.exists() and not args.no_resume:
-        for rec in json.loads(out.read_text(encoding="utf-8")):
-            # only resume from records that are already ČS (don't merge the old synthetic corpus)
-            if isinstance(rec, dict) and rec.get("id") and rec.get("company") == COMPANY:
-                existing[rec["id"]] = rec
-
-    records, failures = generate(
-        args.count,
-        workers=args.workers,
-        seed=args.seed,
-        limit=args.limit,
-        retries=args.retries,
-        existing=existing,
-        specs=specs,
-        prompt_fn=spec_to_prompt,
+    return run_seed_main(
+        build_specs,
+        spec_to_prompt,
+        default_count=100,
+        default_workers=6,
+        description="Re-seed the job corpus for Česká spořitelna.",
+        # only resume from records that are already ČS (don't merge the old synthetic corpus)
+        resume_filter=lambda rec: rec.get("company") == COMPANY,
+        finalize=_stamp_company,
+        summary_label="Česká spořitelna jobs",
+        argv=argv,
     )
-    if not records:
-        print("No records generated.", file=sys.stderr)
-        return 1
-
-    for r in records:  # belt-and-suspenders: the company is fixed for this profile
-        r["company"] = COMPANY
-
-    out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text(json.dumps(records, ensure_ascii=False, indent=2), encoding="utf-8")
-    norm = write_normalized(records, out)
-    print(f"\nWrote {len(records)} Česká spořitelna jobs -> {out.relative_to(ROOT)} (+ {norm.name}; failures: {dict(failures)})", file=sys.stderr)
-    print(summarize(records), file=sys.stderr)
-    return 0
 
 
 if __name__ == "__main__":

@@ -4,6 +4,14 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { ConversationProvider, useConversation } from "@elevenlabs/react";
 import { Mic, PhoneOff, Sparkles, User } from "lucide-react";
 import { parseOaiTranscriptEvent } from "@/app/_lib/voice/openai";
+// Provider id, transcript turn, and availability map are single-sourced in the
+// voice adapter layer. Import from voice/types (not the package index, which
+// pulls the server-only adapters into the bundle); these are type-only, so the
+// import is erased at compile time.
+import type { VoiceAvailability, VoiceProviderId, VoiceTurn } from "@/app/_lib/voice/types";
+// Browser-safe pure helper (no server deps), so the "what counts as completed"
+// decision is single-sourced and unit-tested rather than inline in a callback.
+import { interviewFinalStatus } from "@/app/_lib/voice/finalize-status";
 
 // Live voice-interview MVP. OpenAI Realtime runs over raw WebRTC; ElevenLabs
 // runs through the @elevenlabs/react SDK. A switcher lets you A/B both on the
@@ -11,13 +19,10 @@ import { parseOaiTranscriptEvent } from "@/app/_lib/voice/openai";
 // creds so no API key reaches the browser; the transcript is POSTed to
 // /api/interview/complete on hang-up.
 
-type Provider = "openai" | "elevenlabs";
-type Turn = { role: "candidate" | "interviewer" | "system"; text: string; at: string };
-type Availability = Record<Provider, boolean>;
 type Phase = "idle" | "connecting" | "live" | "ending" | "ended" | "error";
 type LangHint = "auto" | "cs" | "en";
 
-const PROVIDER_LABEL: Record<Provider, string> = { openai: "OpenAI Realtime", elevenlabs: "ElevenLabs Agents" };
+const PROVIDER_LABEL: Record<VoiceProviderId, string> = { openai: "OpenAI Realtime", elevenlabs: "ElevenLabs Agents" };
 
 export type VoiceInterviewProps = {
   token?: string;
@@ -27,8 +32,8 @@ export type VoiceInterviewProps = {
 
 // ElevenLabs is the preferred default; the picker falls back to whatever is
 // actually configured once availability resolves (see the effect below).
-const DEFAULT_PROVIDER: Provider = "elevenlabs";
-const PROVIDER_ORDER: Provider[] = ["elevenlabs", "openai"];
+const DEFAULT_PROVIDER: VoiceProviderId = "elevenlabs";
+const PROVIDER_ORDER: VoiceProviderId[] = ["elevenlabs", "openai"];
 
 export function VoiceInterview(props: VoiceInterviewProps) {
   // useConversation must live under a ConversationProvider.
@@ -40,19 +45,25 @@ export function VoiceInterview(props: VoiceInterviewProps) {
 }
 
 function VoiceInterviewInner({ token, candidateLabel, jobTitle }: VoiceInterviewProps) {
-  const [availability, setAvailability] = useState<Availability | null>(null);
-  const [provider, setProvider] = useState<Provider>(DEFAULT_PROVIDER);
+  const [availability, setAvailability] = useState<VoiceAvailability | null>(null);
+  const [provider, setProvider] = useState<VoiceProviderId>(DEFAULT_PROVIDER);
   const [consent, setConsent] = useState(false);
   const [language, setLanguage] = useState<LangHint>("auto");
   const [phase, setPhase] = useState<Phase>("idle");
   const [error, setError] = useState<string | null>(null);
-  const [turns, setTurns] = useState<Turn[]>([]);
+  const [turns, setTurns] = useState<VoiceTurn[]>([]);
 
   // Refs avoid stale closures inside provider callbacks / teardown.
   const sessionIdRef = useRef<string | null>(null);
-  const providerRef = useRef<Provider>(provider);
-  const turnsRef = useRef<Turn[]>([]);
+  const providerRef = useRef<VoiceProviderId>(provider);
+  const turnsRef = useRef<VoiceTurn[]>([]);
   const finalizedRef = useRef(false);
+  // End-of-call signals that decide completed-vs-failed (see finalize-status.ts):
+  // whether the call ever went live, and whether a provider/network error fired.
+  // The ElevenLabs SDK fires onDisconnect on EVERY close — including the one
+  // right after onError — so we must not blindly persist those as "completed".
+  const reachedLiveRef = useRef(false);
+  const erroredRef = useRef(false);
   const pcRef = useRef<RTCPeerConnection | null>(null);
   const micRef = useRef<MediaStream | null>(null);
   const dcRef = useRef<RTCDataChannel | null>(null);
@@ -80,10 +91,10 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle }: VoiceInterview
     }
   }, []);
 
-  const pushTurn = useCallback((role: Turn["role"], text: string) => {
+  const pushTurn = useCallback((role: VoiceTurn["role"], text: string) => {
     const t = (text ?? "").trim();
     if (!t) return;
-    const turn: Turn = { role, text: t, at: new Date().toISOString() };
+    const turn: VoiceTurn = { role, text: t, at: new Date().toISOString() };
     turnsRef.current = [...turnsRef.current, turn];
     setTurns(turnsRef.current);
   }, []);
@@ -141,13 +152,27 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle }: VoiceInterview
   const conversation = useConversation({
     onConnect: () => {
       clearConnectTimer();
+      reachedLiveRef.current = true;
       setPhase("live");
     },
     onDisconnect: () => {
-      if (providerRef.current === "elevenlabs") void finalize("completed");
+      // ElevenLabs fires this on every socket close, including the one that
+      // follows onError. Finalize as "completed" ONLY when the call actually
+      // held a real conversation; an error blip or a never-live connect becomes
+      // "failed" so /api/interview/complete skips scoring (and never sets the
+      // Interview→Offer approval) and the candidate can retry the link.
+      if (providerRef.current !== "elevenlabs") return;
+      void finalize(
+        interviewFinalStatus({
+          errored: erroredRef.current,
+          reachedLive: reachedLiveRef.current,
+          turnCount: turnsRef.current.length,
+        })
+      );
     },
     onError: (message: string) => {
       clearConnectTimer();
+      erroredRef.current = true;
       setError(message || "Voice session error");
       setPhase("error");
     },
@@ -161,7 +186,7 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle }: VoiceInterview
       .then((r) => r.json())
       .then((d) => {
         if (cancelled) return;
-        const avail: Availability | null = d.availability ?? null;
+        const avail: VoiceAvailability | null = d.availability ?? null;
         setAvailability(avail);
         // Never leave the picker on a provider whose keys are missing: if the
         // default (ElevenLabs) isn't configured, drop to the first one that is.
@@ -246,6 +271,8 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle }: VoiceInterview
     turnsRef.current = [];
     asstBuf.current = "";
     finalizedRef.current = false;
+    reachedLiveRef.current = false;
+    erroredRef.current = false;
     setPhase("connecting");
     // Never hang on "Connecting…": if we aren't live within 30s, surface an error.
     clearConnectTimer();

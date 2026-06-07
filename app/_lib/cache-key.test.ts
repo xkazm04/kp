@@ -67,6 +67,6 @@ test("leading/trailing whitespace in text fields is normalized (trim is part of 
 
 test("PROMPT_VERSION is bumped to retire the old (collision-prone) keys", () => {
   // The framing change must invalidate prior cache entries; the version is how
-  // lookupGeminiCache rejects them.
+  // lookupPromptCache rejects them.
   assert.ok(PROMPT_VERSION.startsWith("v4-"), `expected a v4 prompt version, got ${PROMPT_VERSION}`);
 });

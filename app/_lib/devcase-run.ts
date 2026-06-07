@@ -8,10 +8,12 @@ import {
   getProfileRecord,
   getSubmission,
   listMatrixProfiles,
+  listProfileRecords,
   recordAutomationEvent,
   saveSubmissionEvaluation,
   setApproval,
   updateProfile,
+  type DevSubmission,
 } from "./db";
 import { MAX_CODEBASES } from "./devcase-constraints";
 import { cleanupWorkdir, createWorkdir, parsePythonJson, parseStderrError, PipelineError, spawnPython } from "./python-runner";
@@ -46,6 +48,10 @@ export type NeedAnalysisResult = {
   // envelope — single-step here ({analyze}), but typed the same across the
   // pipeline so one provenance strip renders every command.
   perStepSources: Record<string, string>;
+  // Why a step fell back ({step: "<ExceptionType>: <message>"}) — present only for steps
+  // whose LLM call raised, so the UI can tell a timeout from a JSON parse error from a
+  // misconfigured provider instead of a silent deterministic run. Empty when nothing failed.
+  fallbackReason: Record<string, string>;
 };
 
 // D2 core: pull the real codebase(s), then reflect the need against them (LLM + fallback).
@@ -70,8 +76,8 @@ export async function runNeedAnalysis(need: DevNeed): Promise<NeedAnalysisResult
     const { result } = spawnPython(args);
     const { stdout, stderr, exitCode } = await result;
     if (exitCode !== 0) throw new PipelineError(parseStderrError(stderr, exitCode));
-    const payload = parsePythonJson<{ result: Record<string, unknown>; source: string; perStepSources?: Record<string, string> }>(stdout, stderr);
-    return { analysis: payload.result, snapshot: snapshots[0] ?? null, snapshots, source: payload.source, perStepSources: payload.perStepSources ?? {} };
+    const payload = parsePythonJson<{ result: Record<string, unknown>; source: string; perStepSources?: Record<string, string>; fallbackReason?: Record<string, string> }>(stdout, stderr);
+    return { analysis: payload.result, snapshot: snapshots[0] ?? null, snapshots, source: payload.source, perStepSources: payload.perStepSources ?? {}, fallbackReason: payload.fallbackReason ?? {} };
   } finally {
     await cleanupWorkdir(workdir);
   }
@@ -82,6 +88,7 @@ export type DesignArtifactsResult = {
   case: Record<string, unknown>;
   source: string;
   perStepSources: Record<string, string>; // {role, case}
+  fallbackReason: Record<string, string>; // {step: "<ExceptionType>: <message>"} for steps whose LLM call raised
 };
 
 // D3 core: design a RoleSpec + a CaseScenario (covert tooling-probes) from the need + analysis.
@@ -103,8 +110,8 @@ export async function runDesignArtifacts(need: DevNeed, analysis: Record<string,
     ]);
     const { stdout, stderr, exitCode } = await result;
     if (exitCode !== 0) throw new PipelineError(parseStderrError(stderr, exitCode));
-    const payload = parsePythonJson<{ result: { role: Record<string, unknown>; case: Record<string, unknown> }; source: string; perStepSources?: Record<string, string> }>(stdout, stderr);
-    return { role: payload.result.role, case: payload.result.case, source: payload.source, perStepSources: payload.perStepSources ?? {} };
+    const payload = parsePythonJson<{ result: { role: Record<string, unknown>; case: Record<string, unknown> }; source: string; perStepSources?: Record<string, string>; fallbackReason?: Record<string, string> }>(stdout, stderr);
+    return { role: payload.result.role, case: payload.result.case, source: payload.source, perStepSources: payload.perStepSources ?? {}, fallbackReason: payload.fallbackReason ?? {} };
   } finally {
     await cleanupWorkdir(workdir);
   }
@@ -142,6 +149,44 @@ export async function runInterviewScenario(
     if (exitCode !== 0) throw new PipelineError(parseStderrError(stderr, exitCode));
     const payload = parsePythonJson<{ result: { scenario: Record<string, unknown> }; source: string; perStepSources?: Record<string, string> }>(stdout, stderr);
     return { scenario: payload.result.scenario, source: payload.source, perStepSources: payload.perStepSources ?? {} };
+  } finally {
+    await cleanupWorkdir(workdir);
+  }
+}
+
+export type SeedMaterializeResult = {
+  seed: Record<string, unknown>; // {files: [{path, contents}], note, promptVersion}
+  source: string;
+  perStepSources: Record<string, string>; // {seed}
+};
+
+/** Case -> materialized seed: turn the case's prose starting materials into a
+ *  concrete starter file tree (devcase/seed_materializer.py). One seed per CASE,
+ *  identical for every candidate, so the take-home submission becomes a diff
+ *  against shared ground truth instead of GPT-gradeable prose. */
+export async function runMaterializeSeed(
+  kase: Record<string, unknown>,
+  role: Record<string, unknown>
+): Promise<SeedMaterializeResult> {
+  const workdir = await createWorkdir();
+  try {
+    const casePath = path.join(workdir, "case.json");
+    const rolePath = path.join(workdir, "role.json");
+    await writeFile(casePath, JSON.stringify(kase), "utf-8");
+    await writeFile(rolePath, JSON.stringify(role), "utf-8");
+    const { result } = spawnPython([
+      "-m",
+      "pipeline.jobfit.devcase.devcase_cli",
+      "materialize-seed",
+      "--case-json",
+      casePath,
+      "--role-json",
+      rolePath,
+    ]);
+    const { stdout, stderr, exitCode } = await result;
+    if (exitCode !== 0) throw new PipelineError(parseStderrError(stderr, exitCode));
+    const payload = parsePythonJson<{ result: { seed: Record<string, unknown> }; source: string; perStepSources?: Record<string, string> }>(stdout, stderr);
+    return { seed: payload.result.seed, source: payload.source, perStepSources: payload.perStepSources ?? {} };
   } finally {
     await cleanupWorkdir(workdir);
   }
@@ -218,11 +263,94 @@ export async function mintObservedFromCaseInterview(
   }
 }
 
+/** A submission carries only a free-text candidateRef — resolve it to a saved
+ *  profile honestly: an exact profile-record id wins; otherwise a UNIQUE
+ *  case-insensitive label match. Ambiguous or unknown refs resolve to null (mint
+ *  nothing) — observed evidence must never land on the wrong person's profile. */
+function profileForSubmission(sub: DevSubmission): NonNullable<ReturnType<typeof getProfileRecord>> | null {
+  const ref = (sub.candidateRef ?? "").trim();
+  if (!ref) return null;
+  const byId = getProfileRecord(ref);
+  if (byId) return byId;
+  const needle = ref.toLowerCase();
+  const matches = listProfileRecords().filter((p) => (p.row.label ?? "").trim().toLowerCase() === needle);
+  return matches.length === 1 ? matches[0] : null;
+}
+
+/** The take-home twin of mintObservedFromCaseInterview: after a submission is
+ *  PROMOTED, run the deterministic transfer gate (live_case.apply_live_case via
+ *  `devcase_cli observed-skills`) and — when earned — persist the enriched
+ *  profile, so the candidate's next match credits the demonstrated skills at
+ *  observed provenance (confidence capped 0.95, the deepest read we have).
+ *
+ *  Quietly returns {applied: false} unless every precondition holds: an evaluated
+ *  submission on a posting whose dev case carries its role + case, AND a
+ *  candidateRef that resolves unambiguously to a saved profile. The competence
+ *  bar itself (transfer_score >= 65) lives in Python with the scoring contract. */
+export async function mintObservedFromSubmission(
+  submissionId: string,
+  entryId?: string | null
+): Promise<ObservedMintResult> {
+  const sub = getSubmission(submissionId);
+  const bundle = (sub?.evaluation ?? null) as { evaluation?: Record<string, unknown>; transfer?: Record<string, unknown> } | null;
+  if (!sub || !bundle?.evaluation || !bundle?.transfer) return { credited: [], applied: false };
+  const posting = sub.postingId ? getPosting(sub.postingId) : null;
+  const devCase = posting?.caseId ? getDevCase(posting.caseId) : null;
+  if (!devCase?.case || !devCase.role) return { credited: [], applied: false };
+  const rec = profileForSubmission(sub);
+  if (!rec) return { credited: [], applied: false };
+
+  const workdir = await createWorkdir();
+  try {
+    const write = async (name: string, data: unknown) => {
+      const fp = path.join(workdir, name);
+      await writeFile(fp, JSON.stringify(data), "utf-8");
+      return fp;
+    };
+    const { result } = spawnPython([
+      "-m",
+      "pipeline.jobfit.devcase.devcase_cli",
+      "observed-skills",
+      "--case-json",
+      await write("case.json", devCase.case),
+      "--role-json",
+      await write("role.json", devCase.role),
+      "--evaluation-json",
+      await write("evaluation.json", bundle.evaluation),
+      "--transfer-json",
+      await write("transfer.json", bundle.transfer),
+      "--profile-json",
+      await write("profile.json", rec.payload),
+    ]);
+    const { stdout, stderr, exitCode } = await result;
+    if (exitCode !== 0) throw new PipelineError(parseStderrError(stderr, exitCode));
+    const payload = parsePythonJson<{ result: { creditedSkills?: string[]; profile?: Record<string, unknown> } }>(
+      stdout,
+      stderr
+    );
+    const credited = payload.result.creditedSkills ?? [];
+    const profile = payload.result.profile;
+    if (credited.length === 0 || !profile) return { credited: [], applied: false };
+    updateProfile(rec.row.id, {
+      label: (profile.displayName as string) || rec.row.label,
+      archetype: (profile.archetype as string) ?? rec.row.archetype,
+      roleFamily: (profile.roleFamily as string) ?? rec.row.role_family,
+      completeness: typeof profile.completeness === "number" ? profile.completeness : rec.row.completeness,
+      payload: profile,
+    });
+    if (entryId) recordAutomationEvent(entryId, "observed_minted", credited.join(", "));
+    return { credited, applied: true };
+  } finally {
+    await cleanupWorkdir(workdir);
+  }
+}
+
 export type CommitReflectionResult = {
   reflection: Record<string, unknown>;
   tooling: Record<string, unknown>;
   source: string;
   perStepSources: Record<string, string>; // {reflect, tooling}
+  fallbackReason: Record<string, string>; // {step: "<ExceptionType>: <message>"} for steps whose LLM call raised
   commitCount: number;
 };
 
@@ -250,8 +378,8 @@ export async function runCommitReflection(repoRef: string, caseId?: string): Pro
     const { result } = spawnPython(args);
     const { stdout, stderr, exitCode } = await result;
     if (exitCode !== 0) throw new PipelineError(parseStderrError(stderr, exitCode));
-    const payload = parsePythonJson<{ result: { reflection: Record<string, unknown>; tooling: Record<string, unknown> }; source: string; perStepSources?: Record<string, string> }>(stdout, stderr);
-    return { reflection: payload.result.reflection, tooling: payload.result.tooling, source: payload.source, perStepSources: payload.perStepSources ?? {}, commitCount: commits.length };
+    const payload = parsePythonJson<{ result: { reflection: Record<string, unknown>; tooling: Record<string, unknown> }; source: string; perStepSources?: Record<string, string>; fallbackReason?: Record<string, string> }>(stdout, stderr);
+    return { reflection: payload.result.reflection, tooling: payload.result.tooling, source: payload.source, perStepSources: payload.perStepSources ?? {}, fallbackReason: payload.fallbackReason ?? {}, commitCount: commits.length };
   } finally {
     await cleanupWorkdir(workdir);
   }
@@ -267,8 +395,17 @@ export type SubmissionEvaluation = {
   // LLM-produced, so the scores are hypotheses — the followups are what the live
   // interview uses to verify the candidate OWNS the decisions.
   followups: Record<string, unknown>;
+  // Deterministic process-trace telemetry persisted with the bundle (the
+  // submission-side twin of the interview's scorecard telemetry): raw signals
+  // for later outcome-validation, beside the LLM reflection that interprets them.
+  processTrace: {
+    commitCount: number;
+    cadence: { count: number; spanHours: number | null; bursty: boolean | null } | null;
+    decisionsLogPresent: boolean;
+  };
   source: string;
   perStepSources: Record<string, string>; // {reflect, tooling, evaluate, transfer, followups}
+  fallbackReason: Record<string, string>; // {step: "<ExceptionType>: <message>"} for steps whose LLM call raised
   commitCount: number;
 };
 
@@ -327,12 +464,23 @@ export async function runEvaluateSubmission(submissionId: string): Promise<Submi
       };
       source: string;
       perStepSources?: Record<string, string>;
+      fallbackReason?: Record<string, string>;
     }>(stdout, stderr);
     const out = {
       ...payload.result,
       followups: payload.result.followups ?? {},
+      // Raw process signals, not interpretation: did they actually keep the
+      // forced DECISIONS log (case-design v4's authorship contract), how many
+      // commits, what cadence. Persisted so the decisions-log contract is
+      // checkable later instead of taken on faith from the narrative.
+      processTrace: {
+        commitCount: commits.length,
+        cadence: signals?.cadence ?? null,
+        decisionsLogPresent: (signals?.topLevel ?? []).some((f) => /decision/i.test(f.name)),
+      },
       source: payload.source,
       perStepSources: payload.perStepSources ?? {},
+      fallbackReason: payload.fallbackReason ?? {},
       commitCount: commits.length,
     };
     const transferScore = Number((payload.result.transfer as { transferScore?: number } | null | undefined ?? {}).transferScore ?? 0);
@@ -354,7 +502,13 @@ export type SourceOutcome = { candidates: Sourced[]; skipped: number; skippedRea
 // (deterministic matching). The role becomes a Job the core matcher scores. Returns the ranked
 // `candidates` plus a `skipped` count (candidates whose payload failed to parse) so callers can
 // distinguish "nobody qualified" from "the whole pool failed to load".
-export async function runSourceForRole(role: Record<string, unknown>, topN = 8, floor = 45): Promise<SourceOutcome> {
+//
+// `signal` lets a caller (e.g. the publish route) abort the sourcing child when its
+// request is abandoned, so it's SIGKILLed instead of running to the backstop.
+export async function runSourceForRole(
+  role: Record<string, unknown>,
+  { topN = 8, floor = 45, signal }: { topN?: number; floor?: number; signal?: AbortSignal } = {},
+): Promise<SourceOutcome> {
   const profiles = listMatrixProfiles();
   if (profiles.length === 0) return { candidates: [], skipped: 0, skippedReasons: [] };
   const workdir = await createWorkdir();
@@ -363,19 +517,22 @@ export async function runSourceForRole(role: Record<string, unknown>, topN = 8, 
     const candsPath = path.join(workdir, "cands.json");
     await writeFile(rolePath, JSON.stringify(role), "utf-8");
     await writeFile(candsPath, JSON.stringify(profiles), "utf-8");
-    const { result } = spawnPython([
-      "-m",
-      "pipeline.jobfit.devcase.devcase_cli",
-      "source",
-      "--role-json",
-      rolePath,
-      "--candidates-json",
-      candsPath,
-      "--top-n",
-      String(topN),
-      "--floor",
-      String(floor),
-    ]);
+    const { result } = spawnPython(
+      [
+        "-m",
+        "pipeline.jobfit.devcase.devcase_cli",
+        "source",
+        "--role-json",
+        rolePath,
+        "--candidates-json",
+        candsPath,
+        "--top-n",
+        String(topN),
+        "--floor",
+        String(floor),
+      ],
+      { signal },
+    );
     const { stdout, stderr, exitCode } = await result;
     if (exitCode !== 0) throw new PipelineError(parseStderrError(stderr, exitCode));
     const payload = parsePythonJson<{ result: SourceOutcome }>(stdout, stderr);

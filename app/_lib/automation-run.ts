@@ -1,17 +1,19 @@
 import { writeFile } from "node:fs/promises";
-import { createHash } from "node:crypto";
 import path from "node:path";
 import {
   actOnPipelineEntry,
   createPipelineEntry,
   getPipelineEntry,
   getProfileRecord,
-  lookupGeminiCache,
+  listCorpusJobs,
+  lookupPromptCache,
   recordAutomationEvent,
   setApproval,
-  storeGeminiCache,
+  storePromptCache,
 } from "./db";
 import { cleanupWorkdir, createWorkdir, parsePythonJson, parseStderrError, spawnPython } from "./python-runner";
+import { computeAutomationCacheKey, computeCorpusFingerprint } from "./automation-cache-key";
+import { screenStageOutcome } from "./pipeline-stages";
 import { dispatchOutreach } from "./comms-dispatch";
 import {
   coerceInterviewRecommendation,
@@ -37,7 +39,6 @@ const DRAFT_EVENT: Record<string, string> = {
   prep: "interview_prep_generated",
 };
 const TTL_HOURS = 168;
-const shortHash = (s: string) => createHash("sha256").update(s).digest("hex").slice(0, 24);
 
 export class AutomationError extends Error {
   status: number;
@@ -76,21 +77,49 @@ export async function runAutomationTask(entryId: string, task: string, notes = "
   if (!rec) throw new AutomationError("candidate profile not found", 400);
 
   const version = AUTOMATION_VERSION[task];
-  const cacheKey = shortHash(
-    [version, entry.candidateId, entry.jobId ?? "", task === "rejection" ? entry.stage : "", task === "scorecard" ? shortHash(notes) : ""].join("|")
-  );
+  // Serialize the profile ONCE: the same bytes are both fed to Python (profile.json
+  // below) and folded into the cache key, so the key provably tracks the model's
+  // input. Without the profile in the key, a re-extracted/edited CV left the key
+  // unchanged and served up-to-7-day-stale output on Regenerate (idea-8dcf7828).
+  const profileJson = JSON.stringify(rec.payload);
+  // rematch is the one task whose correct answer depends on data OUTSIDE the cache
+  // key — it scores the ENTIRE live job corpus, not just (candidate, currentJob). So
+  // load that corpus ONCE here: its sorted-id fingerprint binds the cache key to the
+  // current openings (a stale HIT self-invalidates the moment a role is added/removed),
+  // and the SAME records are handed to Python below so the key tracks exactly what was
+  // scored. The static seed file Python would otherwise read never reflects ingested/
+  // published openings, so without this rematch could never even see a newer better
+  // fit (idea-e01935e9). Other tasks score a single job and skip the corpus entirely.
+  const corpusJobs = task === "rematch" ? listCorpusJobs() : null;
+  const cacheKey = computeAutomationCacheKey({
+    version,
+    task,
+    candidateId: entry.candidateId,
+    profileJson,
+    jobId: entry.jobId ?? null,
+    stage: entry.stage,
+    notes,
+    corpusFingerprint: corpusJobs ? computeCorpusFingerprint(corpusJobs.map((j) => j.id)) : undefined,
+  });
 
-  let payload = lookupGeminiCache(cacheKey, version) as CliPayload | null;
+  let payload = lookupPromptCache(cacheKey, version) as CliPayload | null;
   let workdir: string | null = null;
   try {
     if (!payload) {
       workdir = await createWorkdir();
       const profilePath = path.join(workdir, "profile.json");
-      await writeFile(profilePath, JSON.stringify(rec.payload), "utf-8");
+      await writeFile(profilePath, profileJson, "utf-8");
 
       const args = ["-m", "pipeline.jobfit.automation_cli", task, "--profile-json", profilePath];
-      if (task === "rematch") args.push("--current-job-id", entry.jobId ?? "");
-      else args.push("--job-id", entry.jobId ?? "");
+      if (task === "rematch") {
+        args.push("--current-job-id", entry.jobId ?? "");
+        // Score the SAME live corpus we fingerprinted into the cache key (not Python's
+        // static seed file) so the recommendation reflects current openings and the
+        // HIT/MISS boundary stays honest. corpusJobs is non-null on the rematch path.
+        const jobsPath = path.join(workdir, "jobs.json");
+        await writeFile(jobsPath, JSON.stringify(corpusJobs ?? []), "utf-8");
+        args.push("--jobs", jobsPath);
+      } else args.push("--job-id", entry.jobId ?? "");
       if (task === "rejection") args.push("--stage", entry.stage);
       if (task === "scorecard") {
         const notesPath = path.join(workdir, "notes.txt");
@@ -105,7 +134,7 @@ export async function runAutomationTask(entryId: string, task: string, notes = "
         throw new AutomationError(err.message, err.status);
       }
       payload = parsePythonJson<CliPayload>(stdout, stderr);
-      storeGeminiCache(cacheKey, payload, version, TTL_HOURS);
+      storePromptCache(cacheKey, payload, version, TTL_HOURS);
     }
   } finally {
     if (workdir) await cleanupWorkdir(workdir);
@@ -115,21 +144,23 @@ export async function runAutomationTask(entryId: string, task: string, notes = "
   let applied = "drafted";
 
   if (task === "screen") {
-    if (entry.stage === "Screened") {
-      // Validate the screen-route gate at the TS parse boundary: anything other
-      // than a clean "advance" (incl. a missing/off-set value) holds for review,
-      // never silently auto-advances. (Python derives route ∈ {advance, hold}.)
-      if (coerceScreenRoute(result.route) === "advance") {
-        actOnPipelineEntry(entry.id, "accept");
-        applied = "advanced";
-      } else {
-        setApproval(entry.id, "screening_review", JSON.stringify(result));
-        recordAutomationEvent(entry.id, "screening_hold", readRecommendation(result, task));
-        applied = "held_for_review";
-      }
-    } else {
-      applied = "advisory";
+    // Validate the screen-route gate at the TS parse boundary (Python derives
+    // route ∈ {advance, hold}; anything off-set holds, never silently advances),
+    // then map (stage, route) → pipeline effect. The Accepted stage triages a
+    // fresh applicant: a clean advance screens them cleanly into Screened, a hold
+    // screens them into Screened flagged for review — so the screening_review
+    // always lands on a Screened entry and the Decisions→Interview path is reused
+    // unchanged. From Screened: advance → Interview, hold → stays for review.
+    const { advance, holdForReview, applied: screenApplied } = screenStageOutcome(
+      entry.stage,
+      coerceScreenRoute(result.route)
+    );
+    if (advance) actOnPipelineEntry(entry.id, "accept"); // Accepted→Screened or Screened→Interview
+    if (holdForReview) {
+      setApproval(entry.id, "screening_review", JSON.stringify(result));
+      recordAutomationEvent(entry.id, "screening_hold", readRecommendation(result, task));
     }
+    applied = screenApplied;
   } else if (task === "scorecard") {
     setApproval(entry.id, "scorecard_review", JSON.stringify(result));
     recordAutomationEvent(entry.id, "interview_scorecard", readRecommendation(result, task));

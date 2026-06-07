@@ -3,7 +3,13 @@
 import { useEffect, useState } from "react";
 import { Check } from "lucide-react";
 
-type Invite = { candidateLabel?: string | null; jobTitle?: string | null; status: string; slot?: string | null };
+type Invite = {
+  candidateLabel?: string | null;
+  jobTitle?: string | null;
+  status: string;
+  slot?: string | null;
+  durationMin?: number | null;
+};
 type Slot = { value: string; label: string };
 
 export function SchedulePicker({ token }: { token: string }) {
@@ -84,6 +90,7 @@ export function SchedulePicker({ token }: { token: string }) {
           <span className="font-semibold">{confirmed}</span>.
         </p>
         <p className="mt-2 text-base text-steel">
+          {invite.durationMin ? `Plan for about ${invite.durationMin} minutes. ` : ""}
           We&apos;ve sent a confirmation and will remind you before the call. You can close this page.
         </p>
       </div>
@@ -95,6 +102,7 @@ export function SchedulePicker({ token }: { token: string }) {
       {invite.jobTitle ? (
         <p className="text-base text-steel">
           Role: <span className="font-medium text-ink">{invite.jobTitle}</span>
+          {invite.durationMin ? <span className="ml-2 text-steel">· ~{invite.durationMin} min</span> : null}
         </p>
       ) : null}
       {slots.length === 0 ? (

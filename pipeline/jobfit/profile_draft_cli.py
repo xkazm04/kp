@@ -22,11 +22,15 @@ from pathlib import Path
 from typing import Any
 
 from .archetype import detect_archetype
+from .profile import EVIDENCE_KINDS, SKILL_LEVELS
 from .taxonomy import PROVENANCE_WEIGHTS, ROLE_FAMILIES
 
-_SKILL_LEVELS = {"foundational", "working", "strong"}
+# Sanitization vocabularies — sourced from the single source of truth (profile.py
+# / taxonomy.py) so a kind/level/provenance added there is accepted here too,
+# instead of a hand-kept copy that silently rejects new values (idea-ba28f11b).
+_SKILL_LEVELS = set(SKILL_LEVELS)
 _EDU_LEVELS = {"phd", "master", "bachelor", "university", "unknown"}
-_EVIDENCE_KINDS = {"job", "internship", "project", "thesis", "course", "extracurricular", "certification", "other"}
+_EVIDENCE_KINDS = set(EVIDENCE_KINDS)
 
 # The shape we ask Gemini to return. Mirrors the manual intake fields so the
 # resulting draft loads straight into the editor.

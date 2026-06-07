@@ -48,11 +48,22 @@ class TestDevCaseModels(unittest.TestCase):
         # cover-probe reveals are internal but still serialize (UI hides them)
         self.assertIn("coverProbes", case.model_dump(by_alias=True))
 
+    def test_repo_seed_is_domain_neutral_and_round_trips(self):
+        # The misnomer field holds domain-neutral starting materials, not necessarily a repo.
+        # Both the legacy `repoSeed` wire name and the `startingMaterials` alias populate it...
+        from_legacy = CaseScenario.model_validate({"repoSeed": "a design system + 3 mockups"})
+        from_alias = CaseScenario.model_validate({"startingMaterials": "a CRM export + playbooks"})
+        self.assertEqual(from_legacy.repo_seed, "a design system + 3 mockups")
+        self.assertEqual(from_alias.repo_seed, "a CRM export + playbooks")
+        # ...but it ALWAYS serializes back as `repoSeed` (never `startingMaterials`) so the TS
+        # round-trip is unbroken.
+        dumped = from_alias.model_dump(by_alias=True)
+        self.assertEqual(dumped["repoSeed"], "a CRM export + playbooks")
+        self.assertNotIn("startingMaterials", dumped)
+        self.assertEqual(CaseScenario.model_validate(dumped).repo_seed, "a CRM export + playbooks")
+
     def test_evaluation_nests_reflection_and_tooling(self):
         ev = CaseEvaluation(
-            structure_score=72,
-            judgment_score=68,
-            architecture_score=70,
             dimension_scores={"tooling": 80},
             dimensions=[DimensionScore(name="tooling", label="Tooling fluency", weight=0.25, score=80, description="x")],
             commit_reflection=CommitReflection(narrative="explored then narrowed", read_before_write=0.7),

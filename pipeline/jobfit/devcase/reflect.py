@@ -16,11 +16,16 @@ tooling, not which tools were used.
 from __future__ import annotations
 
 import json
+import logging
 from statistics import median
 from typing import Any
 
+from .provenance import generate_with_fallback
+
 COMMIT_REFLECTION_PROMPT_VERSION = "commit-reflection-v2"
 TOOLING_SIGNAL_PROMPT_VERSION = "tooling-signal-v2"
+
+_LOG = logging.getLogger(__name__)
 
 _SYSTEM = (
     "You read a code repository's DURABLE signals — the shape of its history and structure — to infer "
@@ -42,13 +47,9 @@ _AGNOSTIC = (
 
 
 def _generate(provider: Any | None, prompt: str, deterministic, coerce) -> tuple[dict, str]:
-    if provider is None:
-        return deterministic(), "deterministic"
-    try:
-        payload = provider.complete_json(prompt, system=_SYSTEM)
-        return coerce(payload), "llm"
-    except Exception:
-        return deterministic(), "deterministic"
+    # Shared LLM-or-deterministic runner: on an LLM failure it logs the cause at WARNING
+    # and stashes a one-line fallbackReason on the artifact (see provenance.generate_with_fallback).
+    return generate_with_fallback(provider, prompt, _SYSTEM, deterministic, coerce, _LOG)
 
 
 def _str_list(value: Any) -> list[str]:

@@ -1,0 +1,26 @@
+/**
+ * Brand palette — the JS-side mirror of the @theme color tokens in
+ * app/globals.css.
+ *
+ * CSS surfaces never need these: they resolve the same hues through Tailwind
+ * utilities (bg-paper, text-ink, …) or raw var(--color-*). This module exists
+ * only for the surfaces the CSS token system cannot reach —
+ *   - the OG/edge-runtime social card and icons (opengraph-image, apple-icon),
+ *     which render to a PNG with no stylesheet, and
+ *   - raw SVG fills (the nav icons, ScanAnimation, FactorChart, the
+ *     results/shared vignettes) that pass a literal color straight to a fill/
+ *     stroke attribute.
+ *
+ * Keep these literals in lockstep with the @theme block: a rebrand still edits
+ * both halves, but the JS copies now live in exactly one place instead of being
+ * smeared across ~15 files where the social-card and icon colors could quietly
+ * drift from the live UI.
+ */
+export const INK = "#17202a";
+export const PAPER = "#f7f5ef";
+export const MOSS = "#526b4f";
+export const CORAL = "#d65a4a";
+export const STEEL = "#42606f";
+export const LIMEWASH = "#dce7d0";
+export const DIAL_STONE = "#8c8779";
+export const DIAL_AMBER = "#caa54c";

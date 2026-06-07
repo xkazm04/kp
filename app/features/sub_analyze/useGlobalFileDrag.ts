@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { resolveWindowDropTarget } from "./dropRouting";
 
 // Listens for window-level drag events so the CV dropzone can highlight even
 // before the cursor enters its bounding box. Returns true while a file drag
@@ -55,12 +56,19 @@ export function useGlobalFileDrag(onDrop: (file: File) => void): boolean {
     }
 
     function handleDrop(event: DragEvent) {
-      // A drop always ends the drag — clear the overlay regardless of payload type.
+      // A drop always ends the drag — clear the overlay regardless of payload type
+      // OR where it landed, so the overlay can never stick after a drop on a
+      // labeled zone (external file drags fire no balancing dragleave/dragend).
       const fileDrag = isFileDrag(event);
       reset();
-      if (!fileDrag) return;
-      event.preventDefault();
-      const file = event.dataTransfer?.files?.[0];
+      // Stop the browser opening the file for ANY file drag on the page, even one
+      // a labeled zone will claim.
+      if (fileDrag) event.preventDefault();
+      // Route to the CV catch ONLY for a file dropped OUTSIDE the labeled zones
+      // (JD, company, and the empty CV zone own their own drops). A drop inside one
+      // resolves to null here, so it can't also be added as a phantom CV variant
+      // (idea-1a75b476).
+      const file = resolveWindowDropTarget(fileDrag, event.target, event.dataTransfer?.files?.[0] ?? null);
       if (file) onDropRef.current(file);
     }
 

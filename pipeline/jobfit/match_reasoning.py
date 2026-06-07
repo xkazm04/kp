@@ -51,6 +51,8 @@ def reasoning_context(candidate: MatchCandidate, job: Job, m: MatchResult) -> di
         if candidate.archetype == "career_switcher":
             cand["priorExperienceYears"] = candidate.years_experience
             cand["transferableSkills"] = candidate.transferable_skills
+            if candidate.domain_distance:
+                cand["domainDistance"] = candidate.domain_distance
     return {
         "candidate": cand,
         "job": {
@@ -82,7 +84,10 @@ def build_prompt(context: dict[str, Any]) -> str:
             "Lead with the BRIDGE NARRATIVE: how their prior-domain professional strengths (the transferable "
             "skills) de-risk the switch, which target-domain hard skills are genuinely new (treat like a "
             "graduate — provenance-discounted), and a realistic ramp-up. Credit meta-skills (communication, "
-            "delivery, ownership) at professional level; do not treat them as a blank-slate beginner.\n\n"
+            "delivery, ownership) at professional level; do not treat them as a blank-slate beginner. "
+            "domainDistance grades the bridge: 'adjacent' (neighbouring field — shorter ramp, some hard skills "
+            "carry over), 'moderate' (meta-skills transfer, the domain doesn't), 'far' (plan the longest ramp); "
+            "calibrate the narrative and the ramp-up estimate to it.\n\n"
         )
     elif archetype in _EARLY_CAREER:
         lens = (
@@ -141,7 +146,12 @@ def deterministic_reasoning(context: dict[str, Any]) -> dict[str, Any]:
             strengths.append(f"{years:g}y delivering in a prior career — proven ability to learn and ship.")
         if matched:
             strengths.append(f"Already has a foundation in {', '.join(matched[:4])}.")
+        distance = cand.get("domainDistance")
+        if distance == "adjacent":
+            strengths.append("Prior field sits adjacent to the target — a shorter ramp than the switch label suggests.")
         gaps = [f"{s} is new — learnable, but unproven in this domain." for s in missing[:4]]
+        if distance == "far":
+            gaps.append("Prior field is distant from the target — the bridge runs through meta-skills; plan a longer ramp.")
         if not gaps:
             gaps.append("No hard must-have gaps; validate the depth of the newly-acquired skills.")
         probes = ["Why this switch now, and what have you already built in the new field?"]

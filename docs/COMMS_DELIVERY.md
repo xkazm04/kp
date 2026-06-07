@@ -92,6 +92,8 @@ inequality rather than a decision. It is now pinned in
 |----------|-------|------|
 | `REMINDER_LEAD_MS` | 24h | **Look-ahead window.** A reminder fires once the slot's start falls within this much time and none has been sent. |
 | `REMINDER_MIN_NOTICE_MS` | 2h | **Short-notice floor.** If the candidate confirms with this little time (or less) left before the slot, no timed reminder is sent — the confirmation note IS the reminder. |
+| `REMINDER_MAX_ATTEMPTS` | 5 | **Retry cap.** After this many failed dispatch attempts the heartbeat gives up on the invite (and logs) instead of retrying forever. |
+| `REMINDER_RETRY_BASE_MS` | 1m | **Backoff base.** Gap before the first retry; doubles each attempt (`reminderRetryDelayMs`), capped by `REMINDER_RETRY_MAX_BACKOFF_MS` (30m). |
 
 ### Q: What does a candidate who books less than 24h out receive?
 **A reminder, unless they're inside the short-notice floor.** The old code skipped
@@ -108,6 +110,25 @@ still being told "we'll send a reminder." Now:
 The two durations are deliberately unequal so the silent-gap coincidence cannot
 reappear; `isReminderDue` / `isShortNoticeBooking` are pure so the decision is
 unit-testable without the DB or the clock.
+
+### Q: What happens when a reminder fails to dispatch?
+
+**It is retried a bounded number of times with a growing backoff, then given up.**
+The old sweep reset the claim to `NULL` on *any* dispatch error, so the next ~60s
+tick re-claimed and re-fired immediately. A down comms provider therefore turned
+into a tight re-claim/re-fail/re-release storm across every due invite, and a
+dispatch that delivered-then-threw (e.g. a post-send audit write) got re-armed and
+sent the candidate a **duplicate**. Now each attempt is claimed atomically
+(`claimReminderAttempt` records the attempt + stamps the time on the
+`reminder_attempts` / `reminder_last_attempt_at` columns), retries are spaced by
+`reminderRetryDelayMs` (1m → 2m → 4m …, capped at 30m) and capped at
+`REMINDER_MAX_ATTEMPTS`, after which the heartbeat logs and stops. `reminder_sent_at`
+is now set **only on success** (`markReminderSent`), and the post-send audit write in
+`dispatchInterviewReminder` is swallowed-and-logged — a throw from dispatch means the
+message did not go out, so a failed attempt is left to age past its backoff rather
+than released for an immediate (duplicate-risking) re-send. `reminderRetryDelayMs`
+and the cap are pure, so the retry cadence is locked in
+`interview-reminder-policy.test.ts`.
 
 ## 6. Legacy normalization
 

@@ -159,5 +159,57 @@ class ObservedFromInterviewTest(unittest.TestCase):
         self.assertTrue(any("observed" in d.lower() for d in scored.confidence.drivers))
 
 
+class RoutingCorroborationTest(unittest.TestCase):
+    """A passed work sample is routing evidence too: it nudges an unsettled
+    archetype confidence up (bounded, never past the ceiling — performing well is
+    corroboration, not identity), while a failed one touches nothing."""
+
+    role = RoleSpec(title="Backend", role_family="software_engineering", seniority="junior",
+                    must_haves=["Python", "SQL"])
+    case = CaseScenario(title="Order notifications")
+
+    def _unsettled_student(self) -> CandidateProfileV2:
+        prof = _student()
+        prof.archetype_confidence = 0.5  # heuristic routing, below the manual-review line
+        return prof
+
+    def test_minting_lifts_unsettled_confidence_and_records_why(self):
+        transfer = TransferAssessment(transfer_score=82, transfers=["Python", "SQL"])
+        enriched, credited = apply_live_case(self._unsettled_student(), self.role, self.case,
+                                             CaseEvaluation(summary="Solid."), transfer)
+        self.assertTrue(credited)
+        self.assertEqual(enriched.archetype_confidence, 0.65)  # 0.5 + 0.15, inside the ceiling
+        self.assertTrue(any("routing corroborated" in r for r in enriched.archetype_reasons))
+
+    def test_lift_never_exceeds_the_ceiling(self):
+        prof = self._unsettled_student()
+        prof.archetype_confidence = 0.7
+        transfer = TransferAssessment(transfer_score=82, transfers=["Python", "SQL"])
+        enriched, _ = apply_live_case(prof, self.role, self.case, CaseEvaluation(), transfer)
+        self.assertEqual(enriched.archetype_confidence, 0.75)
+
+    def test_settled_confidence_is_left_alone(self):
+        prof = self._unsettled_student()
+        prof.archetype_confidence = 0.9  # a real self-declaration outranks corroboration
+        transfer = TransferAssessment(transfer_score=82, transfers=["Python", "SQL"])
+        enriched, _ = apply_live_case(prof, self.role, self.case, CaseEvaluation(), transfer)
+        self.assertEqual(enriched.archetype_confidence, 0.9)
+
+    def test_failed_case_touches_nothing(self):
+        prof = self._unsettled_student()
+        transfer = TransferAssessment(transfer_score=40, transfers=["Python"])
+        enriched, credited = apply_live_case(prof, self.role, self.case, CaseEvaluation(), transfer)
+        self.assertEqual(credited, [])
+        self.assertEqual(enriched.archetype_confidence, 0.5)
+        self.assertFalse(any("routing corroborated" in r for r in enriched.archetype_reasons))
+
+    def test_interview_minting_corroborates_too(self):
+        enriched, credited = apply_interview_case(self._unsettled_student(), self.role, self.case,
+                                                  _case_scorecard())
+        self.assertTrue(credited)
+        self.assertTrue(any("routing corroborated" in r for r in enriched.archetype_reasons))
+        self.assertEqual(enriched.archetype_confidence, 0.65)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -75,37 +75,164 @@ export function applyDedupeKey(name: string): string {
   return norm ? `appl-${norm.replace(/ /g, "-")}` : "";
 }
 
-/** The free-text answers captured by the conversational apply flow. */
-export type ApplyAnswers = { name: string; experience: string; skills: string; archetype?: string };
+/**
+ * The conversational-apply submit-failure recovery contract: given the HTTP
+ * status of a failed FINAL submit, is re-POSTing the *same* answers worth
+ * offering? This is what selects "Try again" vs. "Start over" in the inline
+ * recovery UI (see app/apply/[id]/ConversationalApply.tsx).
+ *
+ *   - RETRYABLE (true) — 5xx (the server errored on its side), plus 408 Request
+ *     Timeout and 429 Too Many Requests (transient back-pressure). The same
+ *     payload can succeed on a later attempt, so the candidate is offered an
+ *     in-place "Try again" that re-POSTs the already-collected answers — no
+ *     re-walking the chat. A network error with NO HTTP response at all (offline)
+ *     is also retryable; the caller defaults to true in that case.
+ *
+ *   - NOT RETRYABLE (false) — every other 4xx (400 answer-too-long, 413
+ *     payload-too-large, 404 role-gone, …). Here the server rejected THIS input,
+ *     so re-POSTing the identical payload fails identically — an infinite "Try
+ *     again" dead-end. The candidate is instead offered a deliberate restart to
+ *     re-answer with valid input.
+ *
+ * Centralized here (registry-free, so the candidate-facing apply bundle can import
+ * it without pulling in the archetype registry) and pinned by apply-intake.test.ts,
+ * so the retry-vs-restart boundary is an explicit contract rather than an inline
+ * magic-number check that can quietly drift.
+ */
+export function isRetryableApplyStatus(status: number): boolean {
+  return status >= 500 || status === 408 || status === 429;
+}
+
+/**
+ * Declarative visibility condition for an apply step: the step is shown only
+ * when a previously-captured answer matches. `oneOf` shows the step iff the
+ * referenced answer IS one of the values; `notOneOf` shows it iff the answer is
+ * absent OR not in the list — so a flow whose branching question was never
+ * offered (e.g. the registry exposes one archetype) degrades to the default
+ * lane instead of asking nothing. Registry-free and pinned by tests, because
+ * this is what decides which intake questions a student vs an experienced
+ * applicant actually sees.
+ */
+export type StepCondition = { stepId: string; oneOf?: string[]; notOneOf?: string[] };
+
+export function stepConditionMet(when: StepCondition | undefined, answers: Record<string, unknown>): boolean {
+  if (!when) return true;
+  const raw = answers[when.stepId];
+  const answer = typeof raw === "string" ? raw : undefined;
+  if (when.oneOf) return answer !== undefined && when.oneOf.includes(answer);
+  if (when.notOneOf) return answer === undefined || !when.notOneOf.includes(answer);
+  return true;
+}
+
+/**
+ * The index of the next step visible under the captured answers, or -1 when the
+ * conversation is complete. The conversational client calls this instead of
+ * `idx + 1`, which is what lets one server-built script carry per-archetype
+ * lanes (student / switcher / experienced) without becoming dynamic.
+ */
+export function nextVisibleStepIndex(
+  steps: readonly { when?: StepCondition }[],
+  fromIdx: number,
+  answers: Record<string, unknown>
+): number {
+  for (let i = fromIdx + 1; i < steps.length; i += 1) {
+    if (stepConditionMet(steps[i].when, answers)) return i;
+  }
+  return -1;
+}
+
+/** The free-text answers captured by the conversational apply flow. The
+ *  early-career lanes capture their own fields (project/thesis, education,
+ *  aspirations for a student; prior field + direction for a switcher) instead of
+ *  the BAU "most relevant recent experience" question — exactly one lane's
+ *  fields are present per application. */
+export type ApplyAnswers = {
+  name: string;
+  experience?: string;
+  skills: string;
+  archetype?: string;
+  studentProject?: string;
+  studentEducation?: string;
+  studentAspirations?: string;
+  switchPrior?: string;
+  switchAspirations?: string;
+};
 
 /**
  * Assemble the registry-free part of a CandidateProfileV2 intake draft from the
  * captured answers: display name, role family, languages (job's own, else the
- * {@link DEFAULT_APPLY_LANGUAGES} fallback), skill evidence, and a parsed
+ * {@link DEFAULT_APPLY_LANGUAGES} fallback), evidence, and a parsed
  * {@link parseYearsExperience} count. A genuine "0 years" is preserved; an
  * unparseable experience simply omits `yearsExperience`.
+ *
+ * Lane mapping — the early-career answers become TYPED evidence so the Python
+ * normalizer prices them honestly instead of as generic experience:
+ *  - student: the project/thesis answer is `kind: "project"` evidence carrying
+ *    the claimed skills; education detail and aspirations land as profile fields
+ *    (the completeness checklist's highest-weight items for this archetype).
+ *  - switcher: the prior field is `kind: "job"` evidence WITHOUT the claimed
+ *    skills (it feeds transferable-meta-skill extraction; attaching target-domain
+ *    skill claims to it would inflate them to professional provenance), and the
+ *    claimed skills ride a `kind: "other"` item instead.
+ *  - experienced/default: unchanged — one project-kind item with the skills.
  */
 export function buildIntakeProfile(job: JobRecord, answers: ApplyAnswers): Record<string, unknown> {
   const skillList = answers.skills
     .split(/[,;]/)
     .map((s) => s.trim())
     .filter(Boolean);
-  const yearsExperience = parseYearsExperience(answers.experience);
+
+  const evidence: Record<string, unknown>[] = [];
+  if (answers.studentProject) {
+    evidence.push({
+      kind: "project",
+      title: "Project or thesis (from application)",
+      text: answers.studentProject,
+      skills: skillList,
+    });
+  }
+  if (answers.switchPrior) {
+    evidence.push({
+      kind: "job",
+      title: "Previous field (from application)",
+      text: answers.switchPrior,
+      skills: [],
+    });
+    evidence.push({
+      kind: "other",
+      title: "Skills brought to this role (from application)",
+      text: answers.switchAspirations || answers.switchPrior,
+      skills: skillList,
+    });
+  }
+  // The default lane — also the fallback when no lane captured anything, so an
+  // application never produces a profile with zero evidence.
+  if (answers.experience || evidence.length === 0) {
+    evidence.push({
+      kind: "project",
+      title: "Recent experience (from application)",
+      text: answers.experience || "—",
+      skills: skillList,
+    });
+  }
 
   const profile: Record<string, unknown> = {
     displayName: answers.name,
     roleFamily: job.roleFamily ?? "software_engineering",
     languages:
       job.languages && job.languages.length ? job.languages : [...DEFAULT_APPLY_LANGUAGES],
-    evidence: [
-      {
-        kind: "project",
-        title: "Recent experience (from application)",
-        text: answers.experience || "—",
-        skills: skillList,
-      },
-    ],
+    evidence,
   };
+
+  const aspirations = (answers.studentAspirations || answers.switchAspirations || "").trim();
+  if (aspirations) profile.aspirations = [aspirations];
+  const education = (answers.studentEducation || "").trim();
+  if (education) profile.educationDetail = education;
+
+  // Years parse only from answers that describe WORK history (the BAU experience
+  // answer, or a switcher's prior field) — a "2 years" inside a thesis description
+  // is project age, not professional tenure.
+  const yearsExperience = parseYearsExperience(answers.experience ?? answers.switchPrior ?? "");
   // Check against undefined (not truthiness) so a genuine "0 years" is kept.
   if (yearsExperience !== undefined) profile.yearsExperience = yearsExperience;
   return profile;

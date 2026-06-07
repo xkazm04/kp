@@ -6,15 +6,21 @@
     python -m pipeline.jobfit.devcase.devcase_cli evaluate-submission --commits-json C --case-json K --role-json R [--probes-json P] [--no-llm]
     python -m pipeline.jobfit.devcase.devcase_cli interview-scenario  --case-json K --role-json R [--no-llm]
     python -m pipeline.jobfit.devcase.devcase_cli observed-interview  --case-json K --role-json R --scorecard-json S --profile-json P
+    python -m pipeline.jobfit.devcase.devcase_cli observed-skills    --case-json K --role-json R --evaluation-json E --transfer-json T --profile-json P
+    python -m pipeline.jobfit.devcase.devcase_cli materialize-seed  --case-json K --role-json R [--no-llm]
 
-Output: one JSON object {"result","source","perStepSources"[,"confidence"]} to stdout — a
-uniform provenance envelope every command shares. `perStepSources` maps each pipeline step
-to its "llm"/"deterministic" source and `source` is their combined tri-state verdict;
-single-step commands emit a one-key map, so the UI has ONE stable contract to render a
-consistent provenance strip (and its degraded "partial" badge) across every command. The
-optional `confidence` block (present only when a step's artifact carries a 0..1 confidence
-self-rating — analyze/reflect/tooling) rides beside the badge so the UI can warn a reviewer
-not to over-trust a thin/ungrounded step; see the confidence scale in models.py.
+Output: one JSON object {"result","source","perStepSources"[,"fallbackReason"][,"confidence"]}
+to stdout — a uniform provenance envelope every command shares. `perStepSources` maps each
+pipeline step to its "llm"/"deterministic" source and `source` is their combined tri-state
+verdict; single-step commands emit a one-key map, so the UI has ONE stable contract to render
+a consistent provenance strip (and its degraded "partial" badge) across every command. The
+optional `fallbackReason` block (present only when a step's LLM call RAISED and fell back to
+its deterministic template) maps that step to a one-line "<ExceptionType>: <message>" cause —
+so an operator/UI can tell a timeout from a JSON parse error from a misconfigured provider,
+instead of a silent deterministic run that looks identical in every failure mode. The optional
+`confidence` block (present only when a step's artifact carries a 0..1 confidence self-rating —
+analyze/reflect/tooling) rides beside the badge so the UI can warn a reviewer not to over-trust
+a thin/ungrounded step; see the confidence scale in models.py.
 On failure: {"error","status","code"} to stderr, where status/code distinguish a
 user-fixable input error (400 / "invalid_input", exit 2) from a genuine engine failure
 (500 / "engine_error", exit 1) — mirroring jobfit/cli.py so the UI can render a precise
@@ -34,7 +40,7 @@ from . import design as _design
 from . import evaluate as _evaluate
 from . import reflect as _reflect
 from .models import LOW_CONFIDENCE, DevNeed, NeedAnalysis, RepoSnapshot
-from .provenance import combine_source
+from .provenance import FALLBACK_REASON_KEY, combine_source
 
 # Stable, machine-readable error codes the UI branches on. INVALID_INPUT is a
 # user-correctable problem (missing/garbled --*-json arg, failed pydantic
@@ -77,7 +83,31 @@ def _confidences(**named: object) -> dict[str, float]:
     return out
 
 
-def _emit(result: object, per_step: dict[str, str], confidences: dict[str, float] | None = None) -> None:
+def _fallback_reasons(**named: object) -> dict[str, str]:
+    """Map step -> the reason its LLM call fell back to its deterministic template.
+
+    The reason is stashed on each artifact by ``provenance.generate_with_fallback`` when the
+    LLM path raises; here we POP it OFF the artifact so it rides in the envelope (beside
+    ``perStepSources``) rather than polluting the artifact and its model round-trip. Only
+    steps whose LLM call actually raised carry one — a clean LLM run or a ``--no-llm`` /
+    provider-unavailable run records none — so the map (and the envelope key) is empty/omitted
+    in the common case. ``named`` keys MUST match the ``per_step`` keys so the two line up.
+    """
+    out: dict[str, str] = {}
+    for step, art in named.items():
+        if isinstance(art, dict):
+            reason = art.pop(FALLBACK_REASON_KEY, None)
+            if reason:
+                out[step] = str(reason)
+    return out
+
+
+def _emit(
+    result: object,
+    per_step: dict[str, str],
+    confidences: dict[str, float] | None = None,
+    fallback_reasons: dict[str, str] | None = None,
+) -> None:
     """Print the uniform provenance envelope every command shares.
 
     ``result`` is the command's payload; ``per_step`` maps each pipeline step to its
@@ -86,6 +116,13 @@ def _emit(result: object, per_step: dict[str, str], confidences: dict[str, float
     Single-step commands pass a one-key map — the UI still gets the same
     {result, source, perStepSources} shape and one provenance component covers the
     whole pipeline.
+
+    When a step's LLM call RAISED and fell back to its deterministic template, its cause is
+    surfaced as an optional ``fallbackReason`` block (step -> "<ExceptionType>: <message>"),
+    so a degraded run no longer looks identical whether the provider was down, slow, or
+    returning garbage. The key is omitted when nothing fell back due to an error (a clean LLM
+    run, or a deliberate ``--no-llm`` / provider-unavailable run — both already honest via
+    ``source``), keeping the base envelope unchanged for those.
 
     When the command's artifacts carry a ``confidence`` self-rating, ``confidences`` is
     surfaced BESIDE the provenance badge as an optional ``confidence`` block — its
@@ -99,6 +136,8 @@ def _emit(result: object, per_step: dict[str, str], confidences: dict[str, float
         "source": combine_source(*per_step.values()),
         "perStepSources": per_step,
     }
+    if fallback_reasons:
+        envelope["fallbackReason"] = fallback_reasons
     if confidences:
         envelope["confidence"] = {
             "byStep": confidences,
@@ -114,7 +153,7 @@ def main(argv: list[str] | None = None) -> int:
         sys.stderr.reconfigure(encoding="utf-8")
 
     parser = argparse.ArgumentParser(description="Dev-extension tasks (Claude CLI only).")
-    parser.add_argument("command", choices=["analyze-need", "design-artifacts", "reflect-commits", "evaluate-submission", "source", "interview-scenario", "observed-interview"])
+    parser.add_argument("command", choices=["analyze-need", "design-artifacts", "reflect-commits", "evaluate-submission", "source", "interview-scenario", "observed-interview", "observed-skills", "materialize-seed"])
     parser.add_argument("--need-json", type=Path)
     parser.add_argument("--snapshot-json", type=Path)
     # Multi-repo grounding: a JSON ARRAY of RepoSnapshot objects (the role can span up
@@ -128,6 +167,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--case-json", type=Path)
     parser.add_argument("--role-json", type=Path)
     parser.add_argument("--scorecard-json", type=Path)
+    parser.add_argument("--evaluation-json", type=Path)
+    parser.add_argument("--transfer-json", type=Path)
     parser.add_argument("--profile-json", type=Path)
     parser.add_argument("--candidates-json", type=Path)
     parser.add_argument("--top-n", type=int, default=8)
@@ -174,6 +215,37 @@ def main(argv: list[str] | None = None) -> int:
             )
             return 0
 
+        # Observed evidence from a completed TAKE-HOME evaluation — the deterministic
+        # transfer gate (live_case.apply_live_case), no provider needed. The take-home
+        # is the deeper read, so its evidence confidence caps higher (0.95) than the
+        # case-grounded interview's (0.9).
+        if args.command == "observed-skills":
+            from ..live_case import apply_live_case
+            from ..profile import CandidateProfileV2
+            from .models import CaseEvaluation, CaseScenario, RoleSpec, TransferAssessment
+
+            if not (args.case_json and args.role_json and args.evaluation_json and args.transfer_json and args.profile_json):
+                raise ValueError(
+                    "observed-skills requires --case-json, --role-json, --evaluation-json, --transfer-json and --profile-json"
+                )
+            case = CaseScenario.model_validate(_require_object(json.loads(args.case_json.read_text(encoding="utf-8")), "--case-json"))
+            role = RoleSpec.model_validate(_require_object(json.loads(args.role_json.read_text(encoding="utf-8")), "--role-json"))
+            evaluation = CaseEvaluation.model_validate(
+                _require_object(json.loads(args.evaluation_json.read_text(encoding="utf-8")), "--evaluation-json")
+            )
+            transfer = TransferAssessment.model_validate(
+                _require_object(json.loads(args.transfer_json.read_text(encoding="utf-8")), "--transfer-json")
+            )
+            profile = CandidateProfileV2.model_validate(
+                _require_object(json.loads(args.profile_json.read_text(encoding="utf-8")), "--profile-json")
+            )
+            updated, credited = apply_live_case(profile, role, case, evaluation, transfer)
+            _emit(
+                {"creditedSkills": credited, "profile": updated.model_dump(by_alias=True, exclude_none=True)},
+                {"observed": "deterministic"},
+            )
+            return 0
+
         provider = None if args.no_llm else ClaudeCliProvider(timeout=120)
         if provider is not None and not provider.available():
             provider = None
@@ -189,6 +261,20 @@ def main(argv: list[str] | None = None) -> int:
             role = RoleSpec.model_validate(json.loads(args.role_json.read_text(encoding="utf-8")))
             scenario, src = _scenario.scenario_from_case(case, role, provider=provider)
             _emit({"scenario": scenario}, {"scenario": src})
+            return 0
+
+        # Case -> materialized seed (real starter files; one per case, shared by
+        # every candidate — see seed_materializer.py for why prose isn't enough).
+        if args.command == "materialize-seed":
+            from . import seed_materializer as _seed
+            from .models import CaseScenario, RoleSpec
+
+            if not args.case_json or not args.role_json:
+                raise ValueError("materialize-seed requires --case-json and --role-json")
+            case = CaseScenario.model_validate(json.loads(args.case_json.read_text(encoding="utf-8")))
+            role = RoleSpec.model_validate(json.loads(args.role_json.read_text(encoding="utf-8")))
+            seed, src = _seed.materialize_seed(case, role, provider=provider)
+            _emit({"seed": seed}, {"seed": src})
             return 0
 
         if args.command in ("reflect-commits", "evaluate-submission"):
@@ -213,6 +299,7 @@ def main(argv: list[str] | None = None) -> int:
                     {"reflection": reflection, "tooling": tooling},
                     {"reflect": rsrc, "tooling": tsrc},
                     _confidences(reflect=reflection, tooling=tooling),
+                    _fallback_reasons(reflect=reflection, tooling=tooling),
                 )
                 return 0
             # evaluate-submission continues the chain — case/role are required (guarded above).
@@ -228,6 +315,7 @@ def main(argv: list[str] | None = None) -> int:
                 {"reflection": reflection, "tooling": tooling, "evaluation": evaluation, "transfer": transfer, "followups": followups},
                 {"reflect": rsrc, "tooling": tsrc, "evaluate": esrc, "transfer": xsrc, "followups": fsrc},
                 _confidences(reflect=reflection, tooling=tooling),
+                _fallback_reasons(reflect=reflection, tooling=tooling, evaluate=evaluation, transfer=transfer, followups=followups),
             )
             return 0
 
@@ -244,7 +332,7 @@ def main(argv: list[str] | None = None) -> int:
             else:
                 snapshot = None
             result, source = _analyze.analyze_need(need, snapshot, provider=provider)
-            _emit(result, {"analyze": source}, _confidences(analyze=result))
+            _emit(result, {"analyze": source}, _confidences(analyze=result), _fallback_reasons(analyze=result))
             return 0
 
         if args.command == "design-artifacts":
@@ -253,7 +341,11 @@ def main(argv: list[str] | None = None) -> int:
             analysis = NeedAnalysis.model_validate(json.loads(args.analysis_json.read_text(encoding="utf-8")))
             role, role_src = _design.design_role(need, analysis, provider=provider)
             case, case_src = _design.design_case(need, analysis, role, provider=provider)
-            _emit({"role": role, "case": case}, {"role": role_src, "case": case_src})
+            _emit(
+                {"role": role, "case": case},
+                {"role": role_src, "case": case_src},
+                fallback_reasons=_fallback_reasons(role=role, case=case),
+            )
             return 0
 
         raise ValueError(f"unhandled command {args.command}")  # pragma: no cover

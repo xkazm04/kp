@@ -90,6 +90,14 @@ class RegistryShapeTest(unittest.TestCase):
     def test_fairness_protected_is_a_subset_of_ids(self) -> None:
         self.assertLessEqual(registry.fairness_protected_archetypes(), self.ids)
 
+    def test_low_confidence_threshold_is_valid_and_flags_the_default(self) -> None:
+        threshold = registry.low_confidence_threshold()
+        self.assertGreaterEqual(threshold, 0.0)
+        self.assertLessEqual(threshold, 1.0)
+        # The unguided fallback must sit BELOW the threshold, else a silent default
+        # routing would read as "confident" — the exact failure this surfaces.
+        self.assertLess(registry._DETECTION["defaultConfidence"], threshold)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -38,12 +38,17 @@ def fairness_check(
     return matrix
 
 
-def rank_candidates_for_job(candidates: list[tuple[str, MatchCandidate]], job: Job) -> list[dict[str, Any]]:
-    """``candidates`` are (candidate_id, MatchCandidate) pairs so rows can carry identity."""
+def rank_candidates_for_job(
+    candidates: list[tuple[str, MatchCandidate]], job: Job, *, embedder: Any | None = None
+) -> list[dict[str, Any]]:
+    """``candidates`` are (candidate_id, MatchCandidate) pairs so rows can carry identity.
+
+    ``embedder`` is the opt-in embedding bridge for the personal/motivation
+    dimension (matching.score_job); omitted = the deterministic default."""
     rows: list[dict[str, Any]] = []
     for candidate_id, candidate in candidates:
         passed, reasons = ko_filter(candidate, job)
-        result = score_job(candidate, job)
+        result = score_job(candidate, job, embedder=embedder)
         rows.append(
             {
                 "candidateId": candidate_id,

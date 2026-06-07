@@ -3,6 +3,8 @@
 import { GitBranch } from "lucide-react";
 import { useEffect, useState } from "react";
 import { GithubAnalysisPanel } from "@/app/_components/GithubAnalysisPanel";
+import { hasRenderableComparison } from "@/app/_lib/comparison";
+import { reconcileScoreTotal } from "@/app/_lib/format";
 import { ArchetypeBanner } from "./ArchetypeBanner";
 import type { Analysis, GithubAnalysis } from "@/app/_lib/schemas";
 import { CompareIcon, ExtractionIcon, InterviewIcon, JobFitIcon, SalaryIcon } from "../icons";
@@ -16,6 +18,7 @@ export type ResultPanelGithub = {
   status: "loading" | "done" | "error";
   analysis: GithubAnalysis | null;
   error: string | null;
+  warning: string | null;
 };
 
 type ResultPanelProps = {
@@ -26,7 +29,11 @@ type ResultPanelProps = {
 type ResultTab = "extraction" | "compare" | "jobFit" | "salary" | "interview" | "github";
 
 export function ResultPanel({ analysis, github }: ResultPanelProps) {
-  const hasComparison = Boolean(analysis.comparison);
+  // A comparison only counts — for showing the Compare tab AND for defaulting
+  // to it below — when it meets the minimum-variant contract. A stray 1-variant
+  // payload no longer auto-opens an empty Compare tab; it falls through to
+  // Extraction like any non-comparison analysis. Same gate CompareTab renders by.
+  const hasComparison = hasRenderableComparison(analysis.comparison);
   const hasGithub = Boolean(github);
 
   const tabs: Array<{ id: ResultTab; label: string; icon: React.ReactNode }> = [
@@ -47,6 +54,15 @@ export function ResultPanel({ analysis, github }: ResultPanelProps) {
         ]
       : []),
   ];
+
+  // Score-breakdown invariant, asserted on load: ScoreDial (total) and
+  // FactorChart (components) must tell one story. reconcileScoreTotal reports —
+  // once, in dev/test only — any analysis whose pipeline total disagrees with
+  // its component sum, so bad generations are caught here regardless of which
+  // tab the recruiter opens (the extraction dial may never be rendered).
+  useEffect(() => {
+    reconcileScoreTotal(analysis.score);
+  }, [analysis.score]);
 
   const [activeTab, setActiveTab] = useState<ResultTab>(hasComparison ? "compare" : "extraction");
 
@@ -132,6 +148,7 @@ export function ResultPanel({ analysis, github }: ResultPanelProps) {
             status={github.status}
             analysis={github.analysis}
             error={github.error}
+            warning={github.warning}
           />
         ) : null}
       </div>

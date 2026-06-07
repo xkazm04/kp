@@ -2,29 +2,44 @@
 
 import { useEffect, useRef, useState } from "react";
 import { GitBranch, Sparkles } from "lucide-react";
-import { useTasks } from "@/app/features/tasks/TasksProvider";
-import { scoreColor, scoreTextColor } from "./DevHelpers";
+import { useTasks, useTaskResult } from "@/app/features/tasks/TasksProvider";
+import { scoreTone, type ScoreTone } from "@/app/_lib/format";
 import { EvalPanel } from "./EvalPanel";
 import type { EvalBundle, Submission } from "./DevTypes";
 
+// The transfer-fit chip on the canonical score scale — scoreTone owns the 75/50
+// cutoffs, so a fit score can never read strong-green here yet mid on a badge or
+// dial elsewhere (the four-band 72/55/40 dev scale this replaced silently did).
+// Solid `--color-score-*` fill with a legible foreground: white on the darker
+// moss/coral bands, ink on the lighter amber mid band.
+const CHIP_TONE: Record<ScoreTone, string> = {
+  strong: "bg-score-strong text-white",
+  mid: "bg-score-mid text-ink",
+  weak: "bg-score-weak text-white",
+  null: "bg-score-null text-white",
+};
+
 export function SubmissionRow({ submission, rank, isTop = false, onChanged }: { submission: Submission; rank: number | null; isTop?: boolean; onChanged: () => void }) {
-  const { startTask, tasks } = useTasks();
+  const { startTask } = useTasks();
   const [taskId, setTaskId] = useState<string | null>(null);
   const [promoted, setPromoted] = useState(false);
   const seen = useRef(false);
-  const task = tasks.find((t) => t.id === taskId);
-  const busy = task ? task.status === "running" || task.status === "queued" : false;
-  const fresh = task?.status === "succeeded" ? (task.result as EvalBundle) : null;
+  // The poll omits the eval bundle; useTaskResult fetches it on demand once the
+  // evaluate task finishes. `fresh` stays null during that brief fetch, falling
+  // back to the submission's saved evaluation.
+  const { status: evalStatus, full: evalFull } = useTaskResult(taskId);
+  const busy = evalStatus === "running" || evalStatus === "queued";
+  const fresh = evalStatus === "succeeded" ? ((evalFull?.result as EvalBundle | undefined) ?? null) : null;
   const ev = fresh ?? submission.evaluation ?? null;
 
   // reload postings once when the evaluate task lands (so the score persists into the list)
   useEffect(() => {
-    if (task?.status === "succeeded" && !seen.current) {
+    if (evalStatus === "succeeded" && !seen.current) {
       seen.current = true;
       onChanged();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [task?.status]);
+  }, [evalStatus]);
 
   const evaluate = async () => {
     seen.current = false;
@@ -58,7 +73,7 @@ export function SubmissionRow({ submission, rank, isTop = false, onChanged }: { 
         <span className="min-w-0 flex-1 truncate text-steel">{submission.repoRef}</span>
         {ts != null ? (
           <span
-            className={`shrink-0 rounded px-1.5 py-0.5 text-micro font-semibold nums ${scoreColor(ts)} ${scoreTextColor(ts)}`}
+            className={`shrink-0 rounded px-1.5 py-0.5 text-micro font-semibold nums ${CHIP_TONE[scoreTone(ts)]}`}
             aria-label={`Transfer fit score ${ts} of 100`}
           >
             {ts}<span className="opacity-70"> fit</span>

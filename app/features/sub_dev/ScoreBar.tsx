@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { scoreColor } from "./DevHelpers";
+import { scoreTone, scoreToneColor } from "@/app/_lib/format";
 
 // A single capability bar that grows from 0 to its value on mount, so the row
 // reads as a live measurement rather than a static printout. Rows stagger by
@@ -32,8 +32,16 @@ export function ScoreBar({ label, value, index, weight, title }: { label: string
         className="h-1.5 flex-1 overflow-hidden rounded-full bg-stone-200"
       >
         <span
-          className={`block h-full rounded-full transition-[width] duration-700 ease-out motion-reduce:transition-none ${scoreColor(value)}`}
-          style={{ width: filled ? `${value}%` : "0%", transitionDelay: `${index * 60}ms` }}
+          className="block h-full rounded-full transition-[width] duration-700 ease-out motion-reduce:transition-none"
+          style={{
+            // Fill resolves through the canonical score scale (scoreTone owns the
+            // 75/50 cutoffs) so a capability bar shares the badge/dial hue for the
+            // same tier — the bar already styles via inline width, so the raw
+            // --color-score-* var slots in beside it.
+            backgroundColor: scoreToneColor(scoreTone(value)),
+            width: filled ? `${value}%` : "0%",
+            transitionDelay: `${index * 60}ms`,
+          }}
         />
       </span>
       <span className="w-6 shrink-0 text-right text-micro text-ink">{value}</span>

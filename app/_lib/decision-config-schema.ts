@@ -35,6 +35,10 @@ export type DecisionConfigResult =
   | { ok: true; phase: DecisionPhase; config: ScreeningRule }
   | { ok: false; error: string };
 
+export type ScreeningOverrideResult =
+  | { ok: true; override: Partial<ScreeningRule> }
+  | { ok: false; error: string };
+
 // Thrown by the persistence backstop (setDecisionConfig) when an unvalidated
 // config reaches the write boundary. The route maps it to a 400; everywhere else
 // it surfaces the contract violation loudly instead of silently persisting it.
@@ -103,6 +107,55 @@ function validateScreeningRule(raw: Record<string, unknown>): DecisionConfigResu
 }
 
 /**
+ * Validate the OPTIONAL per-run `override` accepted by /api/decisions/screen-wave.
+ *
+ * Unlike a full config write, an override is a PARTIAL ScreeningRule — any subset
+ * of the three known fields, merged over the saved config inside runScreenWave.
+ * The same trust-boundary guarantees as validateDecisionConfig apply per PRESENT
+ * field: stray keys are rejected, present fields are type-checked, and present
+ * out-of-range numbers are CLAMPED to 0–100. An absent override (undefined/null)
+ * is the no-op `{}` — run with the saved config — but a non-object override
+ * (array, string, number) is a hard error: that's a malformed request, not
+ * "no override".
+ *
+ * This closes the same catastrophe as the config boundary from the other side:
+ * a raw `override` of { autoRejectEnabled:true, rejectBottomPercent:100,
+ * maxMatchToReject:100 } would otherwise make the bottom-% the WHOLE cohort and
+ * auto-reject every non-protected candidate — each firing an irreversible
+ * rejection comm — straight past the modal's client-side clamps.
+ *
+ * On success returns ONLY the clamped known fields — never the raw body — so the
+ * merge into runScreenWave's config can't carry a stray key or unclamped value.
+ */
+export function validateScreeningOverride(raw: unknown): ScreeningOverrideResult {
+  if (raw === undefined || raw === null) return { ok: true, override: {} };
+  if (typeof raw !== "object" || Array.isArray(raw)) {
+    return { ok: false, error: "override must be a plain object." };
+  }
+  const obj = raw as Record<string, unknown>;
+  const stray = Object.keys(obj).filter((k) => !(SCREENING_KEYS as readonly string[]).includes(k));
+  if (stray.length > 0) {
+    return { ok: false, error: `Unknown screening rule field(s): ${stray.join(", ")}.` };
+  }
+  const override: Partial<ScreeningRule> = {};
+  if (obj.autoRejectEnabled !== undefined) {
+    if (typeof obj.autoRejectEnabled !== "boolean") {
+      return { ok: false, error: "autoRejectEnabled must be a boolean." };
+    }
+    override.autoRejectEnabled = obj.autoRejectEnabled;
+  }
+  for (const field of ["rejectBottomPercent", "maxMatchToReject"] as const) {
+    const v = obj[field];
+    if (v === undefined) continue;
+    if (typeof v !== "number" || !Number.isFinite(v)) {
+      return { ok: false, error: `${field} must be a finite number.` };
+    }
+    override[field] = clampPercent(v);
+  }
+  return { ok: true, override };
+}
+
+/**
  * SMALL-COHORT POLICY for the screening auto-reject "bottom %" selection.
  *
  * `rejectBottomPercent` of a cohort of `n` rarely lands on a whole candidate.
@@ -130,4 +183,48 @@ function validateScreeningRule(raw: Record<string, unknown>): DecisionConfigResu
 export function screenBottomCount(cohortSize: number, rejectBottomPercent: number): number {
   if (cohortSize <= 0 || rejectBottomPercent <= 0) return 0;
   return Math.max(1, Math.floor((cohortSize * rejectBottomPercent) / 100));
+}
+
+/**
+ * DETERMINISTIC TIE-BREAK at the auto-reject cutoff — keep equal scores on the
+ * SAME side of the boundary.
+ *
+ * `screenBottomCount` answers "how many of the bottom to reject", but that count
+ * can land in the MIDDLE of a run of candidates sharing the IDENTICAL match
+ * score. The cohort is sorted ascending by score with JS's STABLE sort, so a tie
+ * straddling the cutoff would be split purely by pipeline ARRIVAL ORDER — one
+ * candidate auto-rejected, an indistinguishable peer kept, with no merit-based or
+ * documented reason (idea-50062f77). That is indefensible for an irreversible
+ * automated rejection and makes the boundary non-reproducible from the scores.
+ *
+ * DECISION — never split a tied score across the cutoff, resolved IN THE
+ * CANDIDATE'S FAVOUR: when a tie straddles the boundary, shrink the reject window
+ * to the lower edge of that tied run so the whole tied group is KEPT. Rationale:
+ *   • The boundary becomes deterministic and reproducible from the scores alone,
+ *     independent of insertion order — the exact property the bug violated — so
+ *     equal candidates always get the equal outcome.
+ *   • It matches this module's fail-closed stance: when automation cannot justify
+ *     singling out one of several identical candidates, it rejects NONE of them
+ *     rather than an arbitrary subset. Expanding the window (reject the whole tied
+ *     run) was rejected as over-eager — it would auto-reject candidates the
+ *     configured bottom-% never selected, purely because they tied with someone
+ *     below the cutoff.
+ *   • Only the straddling tie is spared: candidates with a strictly LOWER score
+ *     than the tied run are unaffected and still auto-rejected.
+ *
+ * Takes the ascending-sorted scores (worst first — using the SAME `?? 0` coercion
+ * the caller sorts by, so this stays orthogonal to the separate null-score policy)
+ * and the raw bottomCount; returns the tie-safe count to reject (0 ≤ result ≤
+ * bottomCount). Pure and order-independent for equal scores, so it is unit-tested
+ * directly. Mirrors the keep-side rationale in screen-wave.ts.
+ */
+export function tieSafeBottomCount(sortedScoresAsc: readonly number[], bottomCount: number): number {
+  if (bottomCount <= 0) return 0;
+  if (bottomCount >= sortedScoresAsc.length) return sortedScoresAsc.length;
+  // The cutoff sits between index b-1 (last rejected) and b (first kept). While
+  // those two share a score the cutoff is splitting a tied run — walk it DOWN to
+  // the run's lower edge so the entire tied group lands on the keep side.
+  let b = bottomCount;
+  while (b > 0 && sortedScoresAsc[b - 1] === sortedScoresAsc[b]) b -= 1;
+  return b;
 }

@@ -1,16 +1,10 @@
 import { ImageResponse } from "next/og";
 import { loadOgFonts } from "@/app/_lib/og-fonts";
+import { PAPER, INK, CORAL, STEEL, MOSS, LIMEWASH } from "@/app/_lib/brand";
 
 export const alt = "KP Job Fit & Salary Estimator — Czech market";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
-
-const PAPER = "#f7f5ef";
-const INK = "#17202a";
-const CORAL = "#d65a4a";
-const STEEL = "#42606f";
-const MOSS = "#526b4f";
-const LIMEWASH = "#dce7d0";
 
 export default async function OpengraphImage() {
   const fonts = await loadOgFonts([

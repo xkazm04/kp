@@ -9,13 +9,17 @@ reward judgment / verification / tooling / architecture / transfer — never lin
 from __future__ import annotations
 
 import json
+import logging
 from typing import Any
 
 from .models import RUBRIC_DIMENSIONS
+from .provenance import generate_with_fallback
 
 CASE_EVAL_PROMPT_VERSION = "case-eval-v1"
 TRANSFER_PROMPT_VERSION = "transfer-v1"
 FOLLOWUPS_PROMPT_VERSION = "followups-v1"
+
+_LOG = logging.getLogger(__name__)
 
 _SYSTEM = (
     "You score a take-home submission for the LLM era. The code is assumed to be LLM-generated, so you "
@@ -38,13 +42,9 @@ MISSING_DIMENSION_SCORE = 50
 
 
 def _generate(provider: Any | None, prompt: str, deterministic, coerce) -> tuple[dict, str]:
-    if provider is None:
-        return deterministic(), "deterministic"
-    try:
-        payload = provider.complete_json(prompt, system=_SYSTEM)
-        return coerce(payload), "llm"
-    except Exception:
-        return deterministic(), "deterministic"
+    # Shared LLM-or-deterministic runner: on an LLM failure it logs the cause at WARNING
+    # and stashes a one-line fallbackReason on the artifact (see provenance.generate_with_fallback).
+    return generate_with_fallback(provider, prompt, _SYSTEM, deterministic, coerce, _LOG)
 
 
 def _str_list(value: Any) -> list[str]:
@@ -104,8 +104,7 @@ def evaluate_submission(reflection: dict, tooling: dict, case: dict, role: dict,
         "judgment + verification + how they drove the work, not correctness.\n"
         f"{json.dumps(ctx, ensure_ascii=False, indent=2)}\n\n"
         'Return JSON: { "dimensionScores": { "framing": int, "tooling": int, "judgment": int, "architecture": int, '
-        '"transfer": int }, "structureScore": int, "judgmentScore": int, "architectureScore": int, "strengths": [str], '
-        '"concerns": [str], "summary": str }. JSON only.'
+        '"transfer": int }, "strengths": [str], "concerns": [str], "summary": str }. JSON only.'
     )
 
     def deterministic() -> dict:
@@ -134,9 +133,6 @@ def evaluate_submission(reflection: dict, tooling: dict, case: dict, role: dict,
         # deliberate empty state instead of a bare em-dash bullet that reads as a render bug.
         return {
             "dimensionScores": dims,
-            "structureScore": dims["architecture"],
-            "judgmentScore": dims["judgment"],
-            "architectureScore": dims["architecture"],
             "strengths": strengths,
             "concerns": concerns,
             "hasFindings": bool(strengths or concerns),
@@ -153,9 +149,6 @@ def evaluate_submission(reflection: dict, tooling: dict, case: dict, role: dict,
         concerns = _str_list(payload.get("concerns")) or det["concerns"]
         return {
             "dimensionScores": dims,
-            "structureScore": _score_int(payload.get("structureScore"), dims["architecture"]),
-            "judgmentScore": _score_int(payload.get("judgmentScore"), dims["judgment"]),
-            "architectureScore": _score_int(payload.get("architectureScore"), dims["architecture"]),
             "strengths": strengths,
             "concerns": concerns,
             "hasFindings": bool(strengths or concerns),

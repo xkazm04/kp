@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { BookOpen, Check, ChevronDown, ChevronRight, ChevronUp, Footprints, Pause, Play, RotateCcw, Square, Workflow } from "lucide-react";
 import { buildUrl } from "@/app/features/tabs";
 import { SIM_PHASES } from "./constants";
@@ -12,6 +12,7 @@ import { useSimulation } from "./SimulationProvider";
 // back — the run keeps playing behind the pill.
 export function SimBar() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const sim = useSimulation();
   const [collapsed, setCollapsed] = useState(true);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -108,7 +109,7 @@ export function SimBar() {
                 <li key={p.id} className="flex items-center">
                   <button
                     type="button"
-                    onClick={() => router.replace(buildUrl({ tab: p.tab }), { scroll: false })}
+                    onClick={() => router.replace(buildUrl({ tab: p.tab }, searchParams.toString()), { scroll: false })}
                     aria-current={active ? "step" : undefined}
                     className={`focus-ring inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-sm transition-all motion-reduce:transition-none ${
                       active

@@ -10,21 +10,33 @@ from .taxonomy import skill_keyword_pool
 def evaluate_keyword_coverage(
     candidate_text: str,
     job_description_text: str,
-    job_skills: list[str],
-    matching_skills: list[str],
-    missing_skills: list[str],
+    job_skills: list[str] | None = None,
+    matching_skills: list[str] | None = None,
+    missing_skills: list[str] | None = None,
 ) -> KeywordCoverage:
     """Compute job-description keyword coverage against the candidate text.
 
     Slimmed-down successor to the old full ATS analysis: only the keyword
     section was kept after the ATS tab was retired. The hits / missing /
     over-used breakdown now lives inside the Job-fit tab.
+
+    ``job_skills`` is the *authoritative* set of JD-required keywords for callers
+    that have one (e.g. structured job requirements). Omit it (or pass it empty)
+    to make this a genuinely INDEPENDENT ATS check: the JD keyword universe is
+    then harvested from the JD text itself via :func:`_harvest_jd_keywords` (the
+    taxonomy's ``skill_keyword_pool``, matched on word boundaries), so the panel
+    can surface a JD keyword the candidate — or the upstream LLM — missed instead
+    of only re-checking skills the LLM already labelled. ``matching_skills`` still
+    augments literal CV matching (a semantic match the LLM saw); ``missing_skills``
+    populates the missing list.
     """
+    matching = matching_skills or []
+    missing = missing_skills or []
     cv_norm = _normalize(candidate_text or "")
     jd_norm = _normalize(job_description_text or "")
 
     effective_job_skills = list(job_skills) if job_skills else _harvest_jd_keywords(jd_norm)
-    hits = _keyword_hits(jd_norm, cv_norm, effective_job_skills, matching_skills)
+    hits = _keyword_hits(jd_norm, cv_norm, effective_job_skills, matching)
     matched_count = sum(1 for hit in hits if hit.matched)
     coverage_percent = round(matched_count / max(len(hits), 1) * 100) if hits else 0
     over_used = [hit.keyword for hit in hits if hit.status == "over_used"]
@@ -32,7 +44,7 @@ def evaluate_keyword_coverage(
     return KeywordCoverage(
         coverage_percent=coverage_percent,
         hits=hits[:24],
-        missing=missing_skills[:12],
+        missing=missing[:12],
         over_used=over_used[:6],
     )
 

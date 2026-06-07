@@ -1,4 +1,4 @@
-import type { Analysis } from "@/app/_lib/schemas";
+import { MIN_COMPARISON_VARIANTS, type Analysis } from "./schemas.ts";
 
 type ComparisonInput = { label: string; analysis: Analysis };
 
@@ -17,11 +17,29 @@ const COMPONENT_LABELS: Record<ComponentKey, string> = {
   traits: "traits"
 };
 
+/**
+ * True when an analysis carries a comparison that meets the minimum-variant
+ * contract (>= MIN_COMPARISON_VARIANTS). This is the SINGLE gate the UI consults:
+ * ResultPanel uses it to decide whether the Compare tab exists and is the default,
+ * and CompareTab uses it to choose between the comparison table and the upload
+ * prompt — so the two can never disagree about what counts as "a comparison".
+ * Narrows the payload to NonNullable so callers can read `.variants` afterwards.
+ */
+export function hasRenderableComparison(
+  comparison: Analysis["comparison"] | null | undefined
+): comparison is ComparisonPayload {
+  return (comparison?.variants.length ?? 0) >= MIN_COMPARISON_VARIANTS;
+}
+
 export function buildComparison(inputs: ComparisonInput[]): ComparisonPayload {
-  // Reject empty input: with no variants, ranked[0] below is undefined and
-  // reading .label throws. Callers must supply at least one variant.
-  if (inputs.length < 1) {
-    throw new Error("buildComparison requires at least one CV variant");
+  // THE minimum-variant contract (idea-38a6fd70, MIN_COMPARISON_VARIANTS): a
+  // comparison only means something when it contrasts at least two variants.
+  // Below that there is nothing to compare and the single-variant special cases
+  // this used to carry (an "only one variant" merged summary, an empty driver
+  // list) were a half-supported state, not a feature — so refuse to build one.
+  // Callers (analyze-run) already branch to the single-analysis path at <2.
+  if (inputs.length < MIN_COMPARISON_VARIANTS) {
+    throw new Error(`buildComparison requires at least ${MIN_COMPARISON_VARIANTS} CV variants`);
   }
 
   // `variants` preserves UPLOAD ORDER (the map over `inputs`), NOT score rank.
@@ -72,7 +90,8 @@ function primaryScore(variant: ComparisonVariant): number {
 }
 
 function computeDriverInsights(variants: ComparisonVariant[], best: ComparisonVariant): string[] {
-  if (variants.length < 2) return [];
+  // buildComparison guarantees >= MIN_COMPARISON_VARIANTS, so `others` is never
+  // empty and there is always a real comparison to describe.
   const others = variants.filter((variant) => variant.label !== best.label);
   const insights: string[] = [];
 
@@ -172,7 +191,7 @@ function buildMergedRecommendation(
   const bullets = mergeBestBullets(inputs, variants);
 
   return {
-    summary: buildMergedSummary(variants, best, sectionPicks),
+    summary: buildMergedSummary(best, sectionPicks),
     headline,
     skillsLine,
     bullets,
@@ -218,13 +237,11 @@ function mergeBestBullets(inputs: ComparisonInput[], variants: ComparisonVariant
 }
 
 function buildMergedSummary(
-  variants: ComparisonVariant[],
   best: ComparisonVariant,
   picks: ComparisonPayload["mergedRecommendation"]["sectionPicks"]
 ): string {
-  if (variants.length < 2) {
-    return `Only one variant submitted — keep using "${best.label}".`;
-  }
+  // Reaches here only with >= MIN_COMPARISON_VARIANTS (buildComparison's
+  // contract), so there is always more than one variant's sections to weigh.
   const distinct = new Set(picks.map((pick) => pick.sourceLabel));
   if (distinct.size === 1) {
     return `"${best.label}" wins every section. Send that variant as-is.`;

@@ -14,6 +14,9 @@ import {
   DEFAULT_APPLY_LANGUAGES,
   normalizeApplicantName,
   applyDedupeKey,
+  isRetryableApplyStatus,
+  nextVisibleStepIndex,
+  stepConditionMet,
 } from "./apply-intake.ts";
 import type { JobRecord } from "./db.ts";
 
@@ -149,6 +152,135 @@ test("splits skills on commas and semicolons into evidence", () => {
 });
 
 // ---------------------------------------------------------------------------
+// buildIntakeProfile — the early-career lanes. A student's answers become TYPED
+// evidence + the profile fields the early-career completeness checklist requires;
+// a switcher's prior field stays skill-free job evidence (it feeds transferable
+// meta-skills, and target-domain claims must not inherit professional provenance).
+// ---------------------------------------------------------------------------
+
+const studentAnswers = {
+  name: "Bea",
+  skills: "Python, SQL",
+  archetype: "student",
+  studentProject: "Bachelor thesis: built a small REST API for lab scheduling",
+  studentEducation: "Computer Science at CTU, graduating June 2027",
+  studentAspirations: "junior backend developer",
+};
+
+test("student lane: project/thesis becomes project evidence carrying the skills", () => {
+  const profile = buildIntakeProfile(baseJob, studentAnswers);
+  const evidence = profile.evidence as Array<{ kind: string; title: string; text: string; skills: string[] }>;
+  assert.equal(evidence.length, 1);
+  assert.equal(evidence[0].kind, "project");
+  assert.match(evidence[0].title, /thesis/i);
+  assert.deepEqual(evidence[0].skills, ["Python", "SQL"]);
+});
+
+test("student lane: education detail and aspirations land as profile fields", () => {
+  const profile = buildIntakeProfile(baseJob, studentAnswers);
+  assert.equal(profile.educationDetail, "Computer Science at CTU, graduating June 2027");
+  assert.deepEqual(profile.aspirations, ["junior backend developer"]);
+});
+
+test("student lane: years inside a project description are NOT tenure", () => {
+  const profile = buildIntakeProfile(baseJob, {
+    ...studentAnswers,
+    studentProject: "2 years of weekend work on my thesis robot",
+  });
+  assert.ok(!("yearsExperience" in profile));
+});
+
+const switcherAnswers = {
+  name: "Cyril",
+  skills: "Python, SQL",
+  archetype: "career_switcher",
+  switchPrior: "6 years in finance as an analyst",
+  switchAspirations: "moving into data engineering",
+};
+
+test("switcher lane: prior field is job evidence WITHOUT the claimed skills", () => {
+  const profile = buildIntakeProfile(baseJob, switcherAnswers);
+  const evidence = profile.evidence as Array<{ kind: string; skills: string[] }>;
+  const job = evidence.find((e) => e.kind === "job");
+  assert.ok(job, "prior field must land as job evidence");
+  assert.deepEqual(job?.skills, []);
+});
+
+test("switcher lane: claimed skills ride a separate non-job evidence item", () => {
+  const profile = buildIntakeProfile(baseJob, switcherAnswers);
+  const evidence = profile.evidence as Array<{ kind: string; skills: string[] }>;
+  const other = evidence.find((e) => e.kind === "other");
+  assert.deepEqual(other?.skills, ["Python", "SQL"]);
+});
+
+test("switcher lane: tenure parses from the prior-field answer", () => {
+  const profile = buildIntakeProfile(baseJob, switcherAnswers);
+  assert.equal(profile.yearsExperience, 6);
+  assert.deepEqual(profile.aspirations, ["moving into data engineering"]);
+});
+
+test("no lane captured anything → the default evidence item still exists", () => {
+  const profile = buildIntakeProfile(baseJob, { name: "Dan", skills: "Go" });
+  const evidence = profile.evidence as Array<{ kind: string; text: string }>;
+  assert.equal(evidence.length, 1);
+  assert.equal(evidence[0].text, "—");
+});
+
+// ---------------------------------------------------------------------------
+// stepConditionMet / nextVisibleStepIndex — the lane router. These decide which
+// intake questions a student vs an experienced applicant actually sees, and how
+// the flow degrades when the archetype question was never offered.
+// ---------------------------------------------------------------------------
+
+const LANED_SCRIPT = [
+  { id: "name" },
+  { id: "archetype" },
+  { id: "student_q", when: { stepId: "archetype", oneOf: ["student"] } },
+  { id: "experience", when: { stepId: "archetype", notOneOf: ["student", "career_switcher"] } },
+  { id: "skills" },
+];
+
+test("a step with no condition is always visible", () => {
+  assert.equal(stepConditionMet(undefined, {}), true);
+});
+
+test("oneOf shows the step only for a matching answer", () => {
+  const when = { stepId: "archetype", oneOf: ["student"] };
+  assert.equal(stepConditionMet(when, { archetype: "student" }), true);
+  assert.equal(stepConditionMet(when, { archetype: "bau" }), false);
+  assert.equal(stepConditionMet(when, {}), false);
+});
+
+test("notOneOf shows the step for other answers AND when the answer is absent", () => {
+  const when = { stepId: "archetype", notOneOf: ["student"] };
+  assert.equal(stepConditionMet(when, { archetype: "bau" }), true);
+  assert.equal(stepConditionMet(when, {}), true);
+  assert.equal(stepConditionMet(when, { archetype: "student" }), false);
+});
+
+test("a student walks the student lane and skips the experience question", () => {
+  const answers = { archetype: "student" };
+  assert.equal(nextVisibleStepIndex(LANED_SCRIPT, 1, answers), 2); // → student_q
+  assert.equal(nextVisibleStepIndex(LANED_SCRIPT, 2, answers), 4); // → skills (experience skipped)
+});
+
+test("an experienced applicant skips the student lane", () => {
+  const answers = { archetype: "bau" };
+  assert.equal(nextVisibleStepIndex(LANED_SCRIPT, 1, answers), 3); // → experience
+});
+
+test("with the archetype question never offered, the default lane shows", () => {
+  // No archetype answer at all (registry exposed <2 options): the student lane
+  // can't match, the notOneOf default lane does.
+  assert.equal(nextVisibleStepIndex(LANED_SCRIPT, 0, {}), 1);
+  assert.equal(nextVisibleStepIndex(LANED_SCRIPT, 1, {}), 3);
+});
+
+test("returns -1 past the last visible step (the submit signal)", () => {
+  assert.equal(nextVisibleStepIndex(LANED_SCRIPT, 4, { archetype: "student" }), -1);
+});
+
+// ---------------------------------------------------------------------------
 // normalizeApplicantName / applyDedupeKey — the duplicate-application identity.
 // These pin the key the apply flow dedups repeat applications on (jobId + name),
 // since the flow captures no contact field. See route.ts + db.ts.
@@ -185,4 +317,36 @@ test("applyDedupeKey returns empty string for a nameless applicant (no dedup)", 
 
 test("applyDedupeKey distinguishes genuinely different names", () => {
   assert.notEqual(applyDedupeKey("Jane Doe"), applyDedupeKey("John Doe"));
+});
+
+// ---------------------------------------------------------------------------
+// isRetryableApplyStatus — the apply submit-failure recovery contract.
+// Pins which failed-submit statuses can re-POST the same answers ("Try again")
+// vs. must restart so the candidate can fix their input ("Start over"). See the
+// contract doc in apply-intake.ts and the inline recovery UI in
+// app/apply/[id]/ConversationalApply.tsx.
+// ---------------------------------------------------------------------------
+
+test("5xx server errors are retryable — a re-POST of the same answers can succeed", () => {
+  assert.equal(isRetryableApplyStatus(500), true);
+  assert.equal(isRetryableApplyStatus(502), true);
+  assert.equal(isRetryableApplyStatus(503), true);
+});
+
+test("408 Request Timeout and 429 Too Many Requests are retryable (transient)", () => {
+  assert.equal(isRetryableApplyStatus(408), true);
+  assert.equal(isRetryableApplyStatus(429), true);
+});
+
+test("input-rejection 4xx are NOT retryable — resending the same payload loops", () => {
+  // 400 answer-too-long, 413 payload-too-large, 404 role-gone: the server
+  // rejected THIS input, so the candidate must restart rather than retry.
+  assert.equal(isRetryableApplyStatus(400), false);
+  assert.equal(isRetryableApplyStatus(404), false);
+  assert.equal(isRetryableApplyStatus(413), false);
+});
+
+test("a 2xx is not classified as a retryable failure", () => {
+  // Success is handled before classification ever runs; guard the boundary anyway.
+  assert.equal(isRetryableApplyStatus(200), false);
 });

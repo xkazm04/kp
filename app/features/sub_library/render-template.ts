@@ -57,6 +57,13 @@ export const TEMPLATE_SEPARATOR = " · ";
 // copy from the body so template authors can't spoof it. See the collapse contract.
 const EMPTY_MARK = "\uE000";
 
+// The one definition of "what a placeholder token looks like". Both the renderer
+// (which substitutes these) and the linter below (which validates them against
+// TEMPLATE_PLACEHOLDERS) read from this single regex, so they can never disagree
+// on what counts as a token. Global flag: `.replace` resets lastIndex each call
+// and `.matchAll` operates on a clone, so sharing one object is safe here.
+const PLACEHOLDER_RE = /\{\{(\w+)\}\}/g;
+
 // Separator-collapse contract
 // ----------------------------
 // `renderTemplate` substitutes every `{{key}}` with its value from `data`
@@ -95,7 +102,7 @@ export function renderTemplate(body: string, data: TemplateData): string {
   // collapse step can find the separators that became orphaned by them.
   const substituted = body
     .replaceAll(EMPTY_MARK, "")
-    .replace(/\{\{(\w+)\}\}/g, (_, key: string) => {
+    .replace(PLACEHOLDER_RE, (_, key: string) => {
       if (!(key in map)) return `{{${key}}}`;
       return map[key] === "" ? EMPTY_MARK : map[key];
     });
@@ -106,6 +113,120 @@ export function renderTemplate(body: string, data: TemplateData): string {
     .replaceAll(`${TEMPLATE_SEPARATOR}${EMPTY_MARK}`, "")
     .replaceAll(`${EMPTY_MARK}${TEMPLATE_SEPARATOR}`, "")
     .replaceAll(EMPTY_MARK, "");
+}
+
+// ---- Placeholder validation -----------------------------------------------
+//
+// Unknown-token policy: BLOCKED
+// -----------------------------
+// renderTemplate leaves any {{token}} not in TEMPLATE_PLACEHOLDERS verbatim in
+// its output, so a typo ({{tilte}}) or an out-of-set token ({{location}},
+// {{roleFamily}}) would render raw onto a public, shareable JD page. We make
+// that impossible at save time by BLOCKING — not stripping or keeping — bodies
+// that reference unknown tokens:
+//   • blocked  ← chosen. JdTemplateManager warns live and disables Save, and
+//                POST/PUT /api/templates return 400, so the author fixes the
+//                token before it can ship. The error is precise and reversible.
+//   • stripped ← rejected. Silently deleting an author's text hides the mistake
+//                and would quietly mangle any intentional "{{…}}" content.
+//   • kept     ← rejected. This is the original defect: the raw token ships.
+// The renderer is intentionally left as-is (still emits unknown tokens verbatim)
+// so it stays a pure, total function; this guard is the gate that stops such a
+// body from ever being stored.
+
+/** The unique unknown {{token}} names in a template body, in first-seen order.
+ *  An empty array means every placeholder is one of TEMPLATE_PLACEHOLDERS. This
+ *  is the single source of truth behind the manager's live warning and the
+ *  templates API's 400 guard, so client and server can never disagree on which
+ *  tokens are valid. Matches exactly the tokens renderTemplate would substitute
+ *  (same PLACEHOLDER_RE), so it flags precisely what would otherwise ship raw. */
+export function findUnknownPlaceholders(body: string): string[] {
+  const known = new Set<string>(TEMPLATE_PLACEHOLDERS);
+  const seen = new Set<string>();
+  const unknown: string[] = [];
+  for (const [, key] of body.matchAll(PLACEHOLDER_RE)) {
+    if (!known.has(key) && !seen.has(key)) {
+      seen.add(key);
+      unknown.push(key);
+    }
+  }
+  return unknown;
+}
+
+/** Human-readable message for a non-empty list of unknown tokens, shared by the
+ *  manager warning and the API 400 so the wording lives in one place. */
+export function unknownPlaceholderMessage(unknown: string[]): string {
+  const tokens = unknown.map((k) => `{{${k}}}`).join(", ");
+  return `Unknown placeholder${unknown.length === 1 ? "" : "s"}: ${tokens}. Use only the supported placeholders: ${TEMPLATE_PLACEHOLDERS.map((p) => `{{${p}}}`).join(", ")}.`;
+}
+
+// ---- Template field length caps & validation ------------------------------
+//
+// A template is a fan-out point: it is re-fetched on every builder/manager open
+// and rendered into every JD generated from it. Saved JDs are already length-
+// capped at their write boundary (JD_TITLE_MAX_LENGTH / JD_BODY_MAX_LENGTH in
+// jd-limits.ts); templates were not — POST/PUT /api/templates accepted an
+// arbitrary-length name/body behind only a truthiness check, so a multi-megabyte
+// body could be stored, re-fetched, and re-rendered indefinitely (unbounded
+// storage growth + slow renders). These caps mirror the JD caps the team already
+// trusts and are enforced by the validators below at the write boundary AND by
+// the manager's inputs (maxLength + counter), so the two can't drift on bounds.
+export const TEMPLATE_NAME_MAX_LENGTH = 200;
+export const TEMPLATE_BODY_MAX_LENGTH = 20000;
+
+// Single source for the over-cap wording, shared by both validators below so the
+// create and edit paths can't drift on the message. Returns null when in bounds.
+function templateTooLong(label: "name" | "body", value: string, max: number): string | null {
+  return value.length > max ? `Template ${label} must be ${max.toLocaleString("en-US")} characters or fewer.` : null;
+}
+
+export type TemplateFieldsResult =
+  | { ok: true; name: string; body: string }
+  | { ok: false; error: string };
+
+/** Required-and-length validation for a NEW template's name/body (POST
+ *  /api/templates) — the single source for both the caps AND the exact error
+ *  wording, shared by the write boundary and the manager form so they can't
+ *  drift. Trims both fields and rejects a whitespace-only name (which the store
+ *  would otherwise silently coerce to "Untitled template") or body. Returns the
+ *  trimmed fields on success, or one user-facing error. Accepts `unknown` so a
+ *  raw request field can be passed without re-implementing the string guard. */
+export function validateTemplateFields(name: unknown, body: unknown): TemplateFieldsResult {
+  const n = typeof name === "string" ? name.trim() : "";
+  const b = typeof body === "string" ? body.trim() : "";
+  if (!n || !b) return { ok: false, error: "Template name and body are both required." };
+  const lenError = templateTooLong("name", n, TEMPLATE_NAME_MAX_LENGTH) ?? templateTooLong("body", b, TEMPLATE_BODY_MAX_LENGTH);
+  if (lenError) return { ok: false, error: lenError };
+  return { ok: true, name: n, body: b };
+}
+
+export type TemplateUpdateResult =
+  | { ok: true; name?: string; body?: string }
+  | { ok: false; error: string };
+
+/** Partial validation for an in-place template edit (PUT /api/templates/[id]),
+ *  where name and body are each optional (a rename-only or body-only edit; a
+ *  promote-to-default carries neither). Only the fields actually present are
+ *  trimmed, capped, and returned — and a present field may not be whitespace-only
+ *  — so a partial edit can neither store an empty name/body nor exceed the caps.
+ *  Same caps and wording as validateTemplateFields, via templateTooLong. */
+export function validateTemplateUpdate(input: { name?: unknown; body?: unknown }): TemplateUpdateResult {
+  const out: { name?: string; body?: string } = {};
+  if (input.name !== undefined) {
+    const n = typeof input.name === "string" ? input.name.trim() : "";
+    if (!n) return { ok: false, error: "Template name can't be empty." };
+    const e = templateTooLong("name", n, TEMPLATE_NAME_MAX_LENGTH);
+    if (e) return { ok: false, error: e };
+    out.name = n;
+  }
+  if (input.body !== undefined) {
+    const b = typeof input.body === "string" ? input.body.trim() : "";
+    if (!b) return { ok: false, error: "Template body can't be empty." };
+    const e = templateTooLong("body", b, TEMPLATE_BODY_MAX_LENGTH);
+    if (e) return { ok: false, error: e };
+    out.body = b;
+  }
+  return { ok: true, ...out };
 }
 
 // ---- Client-facing template list ------------------------------------------

@@ -17,7 +17,7 @@ from . import registry
 from .matching import MatchCandidate
 from .profile import CandidateProfileV2
 from .taxonomy import PROVENANCE_WEIGHTS
-from .transferable import map_transferable
+from .transferable import DISTANCE_ADJACENT, DISTANCE_FAR, domain_distance, map_transferable
 
 # Sourced from the shared registry (archetypes.json) so "which archetypes get the
 # potential/readiness path instead of years-of-experience" has one definition.
@@ -88,6 +88,16 @@ def compute_potential(profile: CandidateProfileV2) -> tuple[float, list[str]]:
         if (profile.years_experience or 0) >= 3:
             depth = max(depth, 0.6)
             signals.append(f"{profile.years_experience:g}y professional track record (different field)")
+        # Domain distance grades the bridge: an ADJACENT prior field (finance
+        # analyst → data work) is target-domain foundation a binary "switching"
+        # flag can't see; a FAR field changes no number — the meta-skill credit
+        # already prices it — but the signal keeps the narrative honest.
+        distance, _reason = domain_distance(ev, profile.role_family)
+        if distance == DISTANCE_ADJACENT and prior:
+            foundation = max(foundation, 0.5)
+            signals.append("prior field adjacent to the target — shorter bridge")
+        elif distance == DISTANCE_FAR and prior:
+            signals.append("distant prior field — the bridge runs through meta-skills")
 
     score = round(0.35 * depth + 0.25 * velocity + 0.25 * foundation + 0.15 * initiative, 3)
     return score, signals
@@ -118,18 +128,28 @@ def build_match_candidate(profile: CandidateProfileV2) -> MatchCandidate:
         for skill in evidence.skills:
             consider(skill, prov)
 
-    # career-switcher: credit transferable meta-skills from the prior domain at
-    # PROFESSIONAL provenance (the difference from a true beginner).
+    is_early = profile.archetype in _EARLY_CAREER
+
+    # Credit transferable meta-skills from prior job/internship evidence at
+    # PROFESSIONAL provenance (the difference from a true beginner). Deliberately
+    # gated on the SCORING MODEL, not the career_switcher id: a switcher misread
+    # as a student — or a student whose brigáda was in another field — still earns
+    # the meta-skill credit their real prior role implies. map_transferable itself
+    # yields nothing without job/internship evidence, so a true beginner gains
+    # nothing. BAU stays out: their job evidence already carries professional
+    # provenance for the actual skills.
     transferable: list[str] = []
-    if profile.archetype == "career_switcher":
+    if is_early:
         for skill, _source in map_transferable(profile.evidence):
             consider(skill, "professional")
             transferable.append(skill)
 
+    # Grade the switch bridge for the reasoning layer (adjacent | moderate | far).
+    distance = domain_distance(profile.evidence, profile.role_family)[0] if profile.archetype == "career_switcher" else None
+
     skills = [display_by_norm[k] for k in display_by_norm]
     skill_provenance = {display_by_norm[k]: prov_by_norm[k] for k in prov_by_norm}
 
-    is_early = profile.archetype in _EARLY_CAREER
     potential, signals = compute_potential(profile) if is_early else (None, [])
 
     return MatchCandidate(
@@ -146,5 +166,6 @@ def build_match_candidate(profile: CandidateProfileV2) -> MatchCandidate:
         learning_signals=signals,
         aspirations=profile.aspirations,
         transferable_skills=transferable,
+        domain_distance=distance,
         label=profile.display_name or "Candidate",
     )

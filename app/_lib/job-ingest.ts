@@ -45,6 +45,9 @@ export const jobContentHash = (s: string) => createHash("sha256").update(s).dige
  * Upsert a structured job into the corpus. With a contentHash, a previously
  * ingested identical ad is reused (returns its id, created=false) so the same
  * JD/ad doesn't pile up duplicate jobs.
+ *
+ * `status` seeds the lifecycle ONLY when a brand-new row is inserted; updating an
+ * existing row preserves its stored status (setJobStatus owns transitions).
  */
 export function insertJob(job: JobRecord, contentHash?: string, status: string = "published"): { id: string; created: boolean } {
   const d = db();
@@ -62,6 +65,12 @@ export function insertJob(job: JobRecord, contentHash?: string, status: string =
     }
   }
   const now = new Date().toISOString();
+  // `status` is set ONLY on first INSERT — the ON CONFLICT UPDATE deliberately
+  // omits it so re-upserting an existing row preserves its stored lifecycle
+  // value. setJobStatus is the sole writer of transitions; if this UPDATE wrote
+  // excluded.status it would clobber that: re-saving an already-published
+  // authored JD (same jd-<slug> id) would revert it to 'draft', and re-ingesting
+  // a prose ad under an explicit jobId would force-flip it to 'published'.
   d.prepare(
     `INSERT INTO jobs (id, title, company, location, work_mode, seniority, role_family, employment_type,
        min_years, min_education, languages, is_entry_eligible, graduate_friendliness, salary_min, salary_max, payload_json, status, created_at)
@@ -71,7 +80,7 @@ export function insertJob(job: JobRecord, contentHash?: string, status: string =
        work_mode=excluded.work_mode, seniority=excluded.seniority, role_family=excluded.role_family,
        employment_type=excluded.employment_type, min_years=excluded.min_years, min_education=excluded.min_education,
        languages=excluded.languages, is_entry_eligible=excluded.is_entry_eligible, graduate_friendliness=excluded.graduate_friendliness,
-       salary_min=excluded.salary_min, salary_max=excluded.salary_max, payload_json=excluded.payload_json, status=excluded.status`
+       salary_min=excluded.salary_min, salary_max=excluded.salary_max, payload_json=excluded.payload_json`
   ).run({
     id: job.id,
     title: job.title,
@@ -130,19 +139,21 @@ export async function normalizeJob(record: Record<string, unknown>, jobId?: stri
   return runJobsCli(["normalize", ...(jobId ? ["--job-id", jobId] : [])], "record.json", record);
 }
 
-/** Parse a prose job ad into a structured Job via the Claude CLI. */
-export async function ingestJobAd(adText: string, jobId?: string): Promise<JobCliOut> {
-  return runJobsCli(["ingest", ...(jobId ? ["--job-id", jobId] : [])], "ad.txt", adText);
+/** Parse a prose job ad into a structured Job via the Claude CLI. `signal` aborts
+ *  the LLM ad-parse child when the request is abandoned, so it stops burning
+ *  subscription calls instead of running to the backstop. */
+export async function ingestJobAd(adText: string, jobId?: string, signal?: AbortSignal): Promise<JobCliOut> {
+  return runJobsCli(["ingest", ...(jobId ? ["--job-id", jobId] : [])], "ad.txt", adText, signal);
 }
 
-async function runJobsCli(cliArgs: string[], fileName: string, payload: unknown): Promise<JobCliOut> {
+async function runJobsCli(cliArgs: string[], fileName: string, payload: unknown, signal?: AbortSignal): Promise<JobCliOut> {
   const workdir = await createWorkdir();
   try {
     const p = path.join(workdir, fileName);
     const isText = fileName.endsWith(".txt");
     await writeFile(p, isText ? String(payload) : JSON.stringify(payload), "utf-8");
     const flag = isText ? "--ad-file" : "--record-json";
-    const { result } = spawnPython(["-m", "pipeline.jobfit.jobs_cli", ...cliArgs, flag, p]);
+    const { result } = spawnPython(["-m", "pipeline.jobfit.jobs_cli", ...cliArgs, flag, p], { signal });
     const { stdout, stderr, exitCode } = await result;
     if (exitCode !== 0) throw new Error(parseStderrError(stderr, exitCode).message);
     return parsePythonJson<JobCliOut>(stdout, stderr);

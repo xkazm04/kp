@@ -14,7 +14,7 @@ export const maxDuration = 60;
 // User-facing this is "Source into Pipeline" (internal go-live), NOT external
 // "Publish to job boards". The route name and the 'published' DB status are kept
 // as a stable contract. See docs/JD_LIFECYCLE.md.
-export async function POST(_request: NextRequest, context: { params: Promise<{ id: string }> }) {
+export async function POST(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params;
   try {
     const job = getJob(id);
@@ -44,7 +44,10 @@ export async function POST(_request: NextRequest, context: { params: Promise<{ i
           niceToHaves,
           responsibilities: job.description ? [job.description] : [],
         };
-        const outcome = await runSourceForRole(role);
+        // Thread the request's AbortSignal so abandoning the publish (closing the
+        // modal mid-source) SIGKILLs the sourcing child instead of leaving it to
+        // run — and keep spending — to the backstop.
+        const outcome = await runSourceForRole(role, { signal: request.signal });
         skipped = outcome.skipped;
         for (const m of outcome.candidates) {
           if (!m.candidateId) continue;

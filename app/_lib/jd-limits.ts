@@ -5,6 +5,18 @@
 export const JD_TITLE_MAX_LENGTH = 200;
 export const JD_BODY_MAX_LENGTH = 20000;
 
+// The minimum-need contract for the AI JD builder. The builder fans a free-text
+// need into a 1–2 minute AI need→design chain, so a title that is barely a word
+// or a need that is barely a phrase burns that whole run on empty input. These
+// were once undocumented client-only thresholds buried in JdBuilder
+// (`title.trim().length > 1 && needText.trim().length > 10`), which a deep-link
+// /simulation prefill (the jd* query params) or any programmatic startTask could
+// bypass entirely. Naming them here lets the form gate AND the runJdBuild
+// boundary enforce the same contract. Inclusive minimums: length must be >= the
+// value (so >= 2 ⟺ the old `> 1`, and >= 11 ⟺ the old `> 10`).
+export const JD_BUILD_TITLE_MIN_LENGTH = 2;
+export const JD_BUILD_NEED_MIN_LENGTH = 11;
+
 export type JdFieldsResult =
   | { ok: true; title: string; body: string }
   | { ok: false; error: string };
@@ -26,4 +38,27 @@ export function validateJdFields(title: unknown, body: unknown): JdFieldsResult 
     return { ok: false, error: `Body must be ${JD_BODY_MAX_LENGTH.toLocaleString("en-US")} characters or fewer.` };
   }
   return { ok: true, title: t, body: b };
+}
+
+export type JdBuildInputResult =
+  | { ok: true; title: string; needText: string }
+  | { ok: false; error: string };
+
+/** Minimum-need validation for the AI JD builder — the single source for both
+ *  the thresholds (JD_BUILD_*_MIN_LENGTH) AND the exact error wording, shared by
+ *  the client gate (JdBuilder.canGenerate) and the server boundary (runJdBuild)
+ *  so a non-form entry path can't feed a near-empty need into the AI chain.
+ *  Returns the trimmed title/needText on success, or one user-facing error.
+ *  Accepts `unknown` so raw task params can be validated without re-implementing
+ *  the string type guard. */
+export function validateJdBuildInput(title: unknown, needText: unknown): JdBuildInputResult {
+  const t = typeof title === "string" ? title.trim() : "";
+  const n = typeof needText === "string" ? needText.trim() : "";
+  if (t.length < JD_BUILD_TITLE_MIN_LENGTH) {
+    return { ok: false, error: `Role title must be at least ${JD_BUILD_TITLE_MIN_LENGTH} characters.` };
+  }
+  if (n.length < JD_BUILD_NEED_MIN_LENGTH) {
+    return { ok: false, error: `Describe the need in at least ${JD_BUILD_NEED_MIN_LENGTH} characters so the AI has something to design from.` };
+  }
+  return { ok: true, title: t, needText: n };
 }

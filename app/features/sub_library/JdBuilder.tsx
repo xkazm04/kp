@@ -3,11 +3,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Loader2, Settings2, Sparkles } from "lucide-react";
-import { useTasks } from "@/app/features/tasks/TasksProvider";
+import { useTasks, useTaskResult } from "@/app/features/tasks/TasksProvider";
 import { JdBuilderResult, type JdBuildResult } from "./JdBuilderResult";
 import { JdTemplateManager } from "./JdTemplateManager";
 import { fetchTemplates, renderTemplate, type Template } from "./render-template";
 import { formatSalaryRange } from "@/app/_lib/format";
+import { normalizeMarketSalary } from "@/app/_lib/salary-band";
+import { validateJdBuildInput } from "@/app/_lib/jd-limits";
 
 const SENIORITIES = ["junior", "medior", "senior", "lead"];
 const FAMILIES: { v: string; label: string }[] = [
@@ -21,7 +23,7 @@ const INP = "focus-ring w-full rounded-md border border-stone-200 px-2.5 py-1.5 
 // dev roles) → our need→design machinery → an editable, publishable JD with a
 // web-grounded market-salary analysis.
 export function JdBuilder({ onSaved }: { onSaved: () => void }) {
-  const { startTask, tasks } = useTasks();
+  const { startTask } = useTasks();
   // Deep-link / simulation prefill (jd* query params) — mirrors MatchTab's pattern.
   const sp = useSearchParams();
   const [title, setTitle] = useState(sp.get("jdTitle") ?? "");
@@ -36,6 +38,14 @@ export function JdBuilder({ onSaved }: { onSaved: () => void }) {
   const [templates, setTemplates] = useState<Template[]>([]);
   const [templateId, setTemplateId] = useState("");
   const [manageOpen, setManageOpen] = useState(false);
+  // Template-switch contract (see docs/JD_LIFECYCLE.md): templates are a LIVE
+  // reformat — switching after generation re-renders the AI output through the
+  // new format, which replaces the editable body. That is the intended behavior
+  // when the body is untouched, but it would silently discard manual edits. So
+  // when the result has been hand-edited (resultDirty), a switch is staged in
+  // pendingTemplateId and an inline confirm gates it instead of applying at once.
+  const [resultDirty, setResultDirty] = useState(false);
+  const [pendingTemplateId, setPendingTemplateId] = useState<string | null>(null);
 
   const [taskId, setTaskId] = useState<string | null>(null);
   const [result, setResult] = useState<JdBuildResult | null>(null);
@@ -52,8 +62,11 @@ export function JdBuilder({ onSaved }: { onSaved: () => void }) {
     loadTemplates();
   }, []);
 
-  const task = tasks.find((t) => t.id === taskId) ?? null;
-  const generating = Boolean(taskId) && task?.status !== "succeeded" && task?.status !== "failed";
+  // taskId brackets the whole in-progress lifecycle: it's held until the on-demand
+  // result fetch lands (success) or an error is recorded (failure), so it doubles
+  // as the "generating" signal — no flash of the empty state during the fetch.
+  const { status: buildStatus, error: buildError, progressMsg: buildProgress, full: buildFull } = useTaskResult(taskId);
+  const generating = Boolean(taskId);
 
   // The AI build produces a structured RoleSpec + salary; if a template is
   // selected we render those fields THROUGH it (so the AI output adopts the
@@ -67,11 +80,14 @@ export function JdBuilder({ onSaved }: { onSaved: () => void }) {
       mustHaves?: string[];
       niceToHaves?: string[];
     };
-    const s = result.salary;
-    const salaryLabel =
-      s && s.suggestedMinimum > 0
-        ? formatSalaryRange(s.suggestedMinimum, s.suggestedMaximum, { currency: s.currency, period: "mo" })
-        : "";
+    // Normalize at this boundary too: the template label must never bake a
+    // bogus "0–N" range (or "undefined") from a partial CLI band into the
+    // rendered JD body — an unavailable band yields an empty label, so the
+    // template's salary slot simply renders blank.
+    const s = normalizeMarketSalary(result.salary);
+    const salaryLabel = s.available
+      ? formatSalaryRange(s.suggestedMinimum, s.suggestedMaximum, { currency: s.currency, period: "mo" })
+      : "";
     const markdown = renderTemplate(tpl.body, {
       title: title.trim(),
       company: company.trim(),
@@ -85,26 +101,48 @@ export function JdBuilder({ onSaved }: { onSaved: () => void }) {
   }, [result, templates, templateId, title, company, seniority]);
 
   useEffect(() => {
-    if (!task) return;
-    if (task.status === "succeeded") {
-      setResult((task.result as JdBuildResult) ?? null);
-      setTaskId(null);
-    } else if (task.status === "failed" || task.status === "canceled" || task.status === "interrupted") {
-      setError(task.error ?? "Generation failed.");
+    if (!taskId) return;
+    if (buildStatus === "succeeded") {
+      if (buildFull) {
+        setResult((buildFull.result as JdBuildResult) ?? null);
+        setTaskId(null);
+      }
+    } else if (buildStatus === "failed" || buildStatus === "canceled" || buildStatus === "interrupted") {
+      setError(buildError ?? "Generation failed.");
       setTaskId(null);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tasks, taskId]);
+  }, [taskId, buildStatus, buildError, buildFull]);
+
+  // Commit a template choice: re-render the body through it (the JdBuilderResult
+  // remount keyed by templateId does the actual reformat) and clear any staged
+  // switch. The freshly mounted result reports edited=false, resetting resultDirty.
+  const applyTemplate = (id: string) => {
+    setTemplateId(id);
+    setPendingTemplateId(null);
+  };
+
+  // Selector entry point. With unsaved hand-edits we stage the switch and let the
+  // inline confirm decide; otherwise we reformat immediately (the common case,
+  // kept frictionless). No result on screen → nothing to protect, apply at once.
+  const onSelectTemplate = (id: string) => {
+    if (resultDirty && displayResult) setPendingTemplateId(id);
+    else applyTemplate(id);
+  };
 
   const generate = async () => {
     setError(null);
     setResult(null);
+    // A new build replaces any prior result, so no edits are pending discard.
+    setResultDirty(false);
+    setPendingTemplateId(null);
     const t = await startTask("jd_build", { title: title.trim(), company: company.trim(), seniority, roleFamily, needText: needText.trim(), repoUrl: repoUrl.trim() });
     if (t) setTaskId(t.id);
     else setError("Couldn't start the build.");
   };
 
-  const canGenerate = title.trim().length > 1 && needText.trim().length > 10 && !generating;
+  // Same minimum-need contract the server enforces in runJdBuild — shared so the
+  // disabled-button gate and the AI boundary can never drift on the thresholds.
+  const canGenerate = validateJdBuildInput(title, needText).ok && !generating;
 
   return (
     <div data-sim="jd-builder" className="rounded-lg border border-stone-200 bg-white p-4 shadow-panel">
@@ -116,10 +154,13 @@ export function JdBuilder({ onSaved }: { onSaved: () => void }) {
         need, designing the role (optionally analyzing a public repo for dev roles), and researching market salary.
       </p>
 
-      {/* Step 1: pick the output format. The AI fills whichever template is chosen. */}
+      {/* Step 1: pick the output format. The AI fills whichever template is chosen.
+          After generation this doubles as a live reformat — see the switch contract
+          on pendingTemplateId above. The selector reflects a staged switch
+          (pendingTemplateId) until the inline confirm below resolves it. */}
       <div className="mt-3 flex items-end gap-2">
         <Field label="Template" className="flex-1">
-          <select value={templateId} onChange={(e) => setTemplateId(e.target.value)} className={INP}>
+          <select value={pendingTemplateId ?? templateId} onChange={(e) => onSelectTemplate(e.target.value)} className={INP}>
             <option value="">AI default format (no template)</option>
             {templates.map((t) => (
               <option key={t.id} value={t.id}>
@@ -138,6 +179,34 @@ export function JdBuilder({ onSaved }: { onSaved: () => void }) {
           <Settings2 size={14} /> Manage
         </button>
       </div>
+
+      {/* Guard the destructive reformat: a staged switch (only set when the body
+          has unsaved hand-edits) waits here for explicit confirmation. Mirrors the
+          inline Confirm/Cancel idiom in JdTemplateManager. */}
+      {pendingTemplateId !== null ? (
+        <div className="animate-fade-in mt-2 flex flex-wrap items-center gap-2 rounded-md border border-amber-200 bg-amber-50/60 px-3 py-2 text-sm text-amber-800" role="group" aria-label="Confirm template switch">
+          <span>
+            Switching the template rebuilds the description from the AI draft and discards your manual edits.
+          </span>
+          <span className="ml-auto inline-flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => applyTemplate(pendingTemplateId)}
+              className="focus-ring rounded-md border border-red-300 bg-red-50 px-2.5 py-1 font-semibold text-red-700 hover:bg-red-100"
+            >
+              Replace edits
+            </button>
+            <button
+              type="button"
+              autoFocus
+              onClick={() => setPendingTemplateId(null)}
+              className="focus-ring rounded-md px-2.5 py-1 font-semibold text-steel hover:bg-stone-100"
+            >
+              Keep editing
+            </button>
+          </span>
+        </div>
+      ) : null}
 
       <div className="mt-3 grid gap-2 sm:grid-cols-2">
         <Field label="Role title *">
@@ -182,15 +251,18 @@ export function JdBuilder({ onSaved }: { onSaved: () => void }) {
         className="focus-ring mt-3 inline-flex h-10 items-center gap-2 rounded-md bg-coral px-4 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
       >
         {generating ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
-        {generating ? task?.progressMsg || "Generating…" : "Generate job description"}
+        {generating ? buildProgress || "Generating…" : "Generate job description"}
       </button>
       {generating ? <p className="mt-1.5 text-sm text-steel">This runs a few AI steps and takes ~1–2 minutes — it keeps going if you navigate away.</p> : null}
       {error ? <p role="alert" className="mt-2 rounded-md bg-red-50 p-2.5 text-sm text-red-700">{error}</p> : null}
 
       {displayResult ? (
         // Keyed by template so switching the format after generation re-renders
-        // the AI output through the newly chosen template.
-        <JdBuilderResult key={templateId} result={displayResult} title={title.trim()} company={company.trim()} onSaved={onSaved} />
+        // the AI output through the newly chosen template. The key change remounts
+        // this component and reformats the editable body — which is why a switch
+        // over hand-edited text is gated by the confirm above (onEditedChange feeds
+        // resultDirty). See the template-switch contract in docs/JD_LIFECYCLE.md.
+        <JdBuilderResult key={templateId} result={displayResult} title={title.trim()} company={company.trim()} onSaved={onSaved} onEditedChange={setResultDirty} />
       ) : null}
 
       {manageOpen ? <JdTemplateManager onClose={() => setManageOpen(false)} onChanged={loadTemplates} /> : null}

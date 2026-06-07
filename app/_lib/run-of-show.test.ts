@@ -74,11 +74,11 @@ test("question blocks are capped at six even when more are supplied", () => {
   assert.ok(plan.durationMin <= MAX_DURATION_MIN, "still within the band with the cap applied");
 });
 
-test("focus areas are capped and surfaced in the scenario + checklist", () => {
+test("focus areas are capped and surfaced in the scenario + signals", () => {
   const plan = buildRunOfShow(mkQuestions(3), ["a", "b", "c", "d", "e", "f", "g"], "Sam", "Designer");
-  const signals = plan.checklist[0].items;
-  // The first five focus areas lead the checklist; the 6th/7th are dropped.
-  assert.ok(signals.slice(0, 5).join("|") === "a|b|c|d|e", "checklist leads with the first five focus areas");
+  const signals = plan.signals;
+  // The first five focus areas lead the signals list; the 6th/7th are dropped.
+  assert.ok(signals.slice(0, 5).join("|") === "a|b|c|d|e", "signals lead with the first five focus areas");
   assert.ok(!signals.includes("f") && !signals.includes("g"), "surplus focus areas are dropped");
   assert.match(plan.scenario, /Sam/);
   assert.match(plan.scenario, /Designer/);

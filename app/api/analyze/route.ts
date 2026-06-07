@@ -1,9 +1,14 @@
 import { NextResponse } from "next/server";
 import type { AnalyzeParams } from "@/app/_lib/analyze-run";
+import { dedupeCvVariants } from "@/app/_lib/cv-variant";
 import { newRequestId } from "@/app/_lib/logger";
 import { createWorkdir, persistFile } from "@/app/_lib/python-runner";
 import { startTask } from "@/app/_lib/tasks";
-import { ACCEPT_MIME, MAX_CV_VARIANTS, MAX_FILE_BYTES, MAX_FILE_MB } from "@/app/_lib/upload-constraints";
+import {
+  MAX_CV_VARIANTS,
+  validateOptionalUploadServer,
+  validateUploadServer,
+} from "@/app/_lib/upload-constraints";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -20,7 +25,7 @@ export async function POST(request: Request) {
   const companyText = form.get("companyText");
   const jdSlug = typeof form.get("jdSlug") === "string" ? (form.get("jdSlug") as string) : null;
 
-  const cvFiles = collectCvFiles(form);
+  const cvFiles = await collectCvFiles(form);
   if (cvFiles.length === 0) {
     return NextResponse.json({ error: "Upload a CV or profile file under the field name cv." }, { status: 400 });
   }
@@ -29,12 +34,14 @@ export async function POST(request: Request) {
   }
 
   const fileValidation = cvFiles
-    .map(({ file }, index) => validateFile(file, cvFiles.length > 1 ? `CV variant ${index + 1}` : "profile"))
+    .map(({ file }, index) => validateUploadServer(file, cvFiles.length > 1 ? `CV variant ${index + 1}` : "profile"))
     .find(Boolean);
   const validationError =
-    fileValidation || validateOptionalFile(jobDescriptionFile, "job description") || validateOptionalFile(companyFile, "company overview");
+    fileValidation ||
+    validateOptionalUploadServer(jobDescriptionFile, "job description") ||
+    validateOptionalUploadServer(companyFile, "company overview");
   if (validationError) {
-    return NextResponse.json({ error: validationError }, { status: 400 });
+    return NextResponse.json({ error: validationError.error }, { status: validationError.status });
   }
 
   const jobDescFile = jobDescriptionFile instanceof File && jobDescriptionFile.size > 0 ? jobDescriptionFile : null;
@@ -66,28 +73,31 @@ export async function POST(request: Request) {
   return NextResponse.json({ task });
 }
 
-function collectCvFiles(form: FormData): Array<{ file: File; label: string }> {
+// Collect the uploaded CV file(s), drop content-duplicate uploads, then label
+// what's left. Dedupe is by CONTENT via the one cvVariantHash helper the client
+// intake (addCvFile) also uses (app/_lib/cv-variant.ts), so the same file added
+// twice no longer runs twice, hits the same analyze cache key, and ranks an
+// identical clone against itself. The (n) suffix still disambiguates genuinely
+// different files that happen to share a display name.
+async function collectCvFiles(form: FormData): Promise<Array<{ file: File; label: string }>> {
+  const uploaded: File[] = [];
+  for (const value of form.getAll("cvs")) {
+    if (value instanceof File && value.size > 0) uploaded.push(value);
+  }
+  if (uploaded.length === 0) {
+    const single = form.get("cv");
+    if (single instanceof File && single.size > 0) uploaded.push(single);
+  }
+
+  const unique = await dedupeCvVariants(uploaded);
+
   const out: Array<{ file: File; label: string }> = [];
   const seenLabels = new Set<string>();
-  const pushFile = (entry: FormDataEntryValue | null, indexLabel?: string) => {
-    if (!(entry instanceof File) || entry.size === 0) return;
-    let label = entry.name || indexLabel || `CV ${out.length + 1}`;
+  for (const file of unique) {
+    let label = file.name || `CV ${out.length + 1}`;
     if (seenLabels.has(label)) label = `${label} (${out.length + 1})`;
     seenLabels.add(label);
-    out.push({ file: entry, label });
-  };
-  for (const value of form.getAll("cvs")) pushFile(value);
-  if (out.length === 0) pushFile(form.get("cv"));
+    out.push({ file, label });
+  }
   return out;
-}
-
-function validateOptionalFile(file: FormDataEntryValue | null, label: string) {
-  if (!(file instanceof File) || file.size === 0) return null;
-  return validateFile(file, label);
-}
-
-function validateFile(file: File, label: string) {
-  if (!ACCEPT_MIME.has(file.type)) return `Use PDF, DOCX, TXT, or MD for the ${label}.`;
-  if (file.size > MAX_FILE_BYTES) return `The ${label} upload limit is ${MAX_FILE_MB} MB.`;
-  return null;
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { animate, motion, useMotionValue, useTransform } from "framer-motion";
 import { ArrowRight, Globe, Link2, Mail, Radio, Sparkles, UserPlus } from "lucide-react";
 import { buildUrl, type WorkspaceTabId } from "@/app/features/tabs";
@@ -49,6 +49,7 @@ const CHANNELS: { id: string; icon: typeof Link2; name: string; status: string; 
 // candidates arrive at ‘Accepted’, then flow into ‘Screened’ (first-wave evaluation).
 export function ChannelsTab() {
   const router = useRouter();
+  const search = useSearchParams();
   const [entries, setEntries] = useState<PipelineEntryView[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -118,7 +119,7 @@ export function ChannelsTab() {
         )}
         <button
           type="button"
-          onClick={() => router.push(buildUrl({ tab: "pipeline" }))}
+          onClick={() => router.push(buildUrl({ tab: "pipeline" }, search.toString()))}
           className="focus-ring inline-flex items-center gap-1 text-base font-semibold text-coral hover:underline"
         >
           Open Pipeline <ArrowRight size={14} />
@@ -144,7 +145,7 @@ export function ChannelsTab() {
             {c.tab ? (
               <button
                 type="button"
-                onClick={() => router.push(buildUrl({ tab: c.tab! }))}
+                onClick={() => router.push(buildUrl({ tab: c.tab! }, search.toString()))}
                 className="focus-ring mt-2 inline-flex items-center gap-1 text-sm font-semibold text-coral hover:underline"
               >
                 {c.cta ?? "Open"} <ArrowRight size={13} />

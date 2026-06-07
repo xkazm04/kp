@@ -1,4 +1,5 @@
 import type { SVGProps } from "react";
+import { MOSS } from "@/app/_lib/brand";
 
 export function ExtractionIcon(props: SVGProps<SVGSVGElement>) {
   return (
@@ -20,7 +21,7 @@ export function ExtractionIcon(props: SVGProps<SVGSVGElement>) {
       <path d="M5.5 13.25h4" />
       <circle cx="16.25" cy="15.25" r="3.75" />
       <path d="m18.9 17.9 2.6 2.6" />
-      <circle cx="16.25" cy="15.25" r="0.9" fill="#526b4f" stroke="none" />
+      <circle cx="16.25" cy="15.25" r="0.9" fill={MOSS} stroke="none" />
     </svg>
   );
 }

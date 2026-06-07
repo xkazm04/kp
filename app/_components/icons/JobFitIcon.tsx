@@ -1,4 +1,5 @@
 import type { SVGProps } from "react";
+import { CORAL, MOSS } from "@/app/_lib/brand";
 
 export function JobFitIcon(props: SVGProps<SVGSVGElement>) {
   return (
@@ -15,12 +16,12 @@ export function JobFitIcon(props: SVGProps<SVGSVGElement>) {
     >
       <path
         d="M10 12a5 5 0 0 1 1.66-3.74L14 12l-2.34 3.74A5 5 0 0 1 10 12Z"
-        fill="#d65a4a"
+        fill={CORAL}
         stroke="none"
       />
       <path d="M9 4 14 12 9 20 4 12Z" />
       <circle cx="15" cy="12" r="5" />
-      <circle cx="7" cy="12" r="0.95" fill="#526b4f" stroke="none" />
+      <circle cx="7" cy="12" r="0.95" fill={MOSS} stroke="none" />
     </svg>
   );
 }

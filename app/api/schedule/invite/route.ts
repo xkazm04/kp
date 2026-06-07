@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getPipelineEntry } from "@/app/_lib/db";
 import { createScheduleInvite } from "@/app/_lib/schedule-store";
+import { plannedInterviewMinutes } from "@/app/_lib/interview-run";
 import { jsonError, jsonOk } from "@/app/_lib/api-response";
 
 export const runtime = "nodejs";
@@ -18,6 +19,10 @@ export async function POST(request: NextRequest) {
       entryId: entry.id,
       candidateLabel: entry.candidateLabel,
       jobTitle: entry.jobTitle,
+      // A student's six-phase screen runs ~22 min (vs the ~5-min quick screen) —
+      // stamp the planned length so the picker, confirmation and reminder all
+      // tell the candidate how long to block.
+      durationMin: plannedInterviewMinutes(entry),
     });
     return jsonOk({ token: invite.token, url: `/schedule/${invite.token}` });
   } catch (error) {

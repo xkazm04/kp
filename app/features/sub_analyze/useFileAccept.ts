@@ -26,5 +26,11 @@ export function useFileAccept() {
     commit(result.file);
   }, []);
 
-  return { error, accept };
+  // Surface an inline rejection that isn't an acceptUpload (extension/size)
+  // failure — e.g. the sample-CV fetch failing, or a drop that exceeds the
+  // variant cap. Routing these through the same `error` row keeps every "your
+  // file didn't go in" message in one place instead of silently vanishing.
+  const reject = useCallback((message: string) => setError(message), []);
+
+  return { error, accept, reject };
 }

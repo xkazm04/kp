@@ -66,3 +66,59 @@ def map_transferable(evidence: Iterable) -> list[tuple[str, str]]:
         for skill in _GENERIC_PROFESSIONAL:
             found.setdefault(skill, "prior professional experience")
     return list(found.items())
+
+
+# --- Domain distance ---------------------------------------------------------------
+
+# Which prior-role surface signals sit ADJACENT to which target role families: a
+# finance analyst moving into data work crosses a far shorter bridge than a nurse
+# into backend engineering, and a binary "wants_domain_change" can't tell those
+# apart. Token lists are surface substrings (CZ + EN) matched against prior
+# job/internship evidence text — the same mechanism as _TRANSFERABLE_MAP.
+_ADJACENT_SIGNALS: dict[str, tuple[str, ...]] = {
+    "data_ai": (
+        "analyst", "analytik", "finance", "účet", "controller", "controlling", "audit",
+        "research", "statist", "math", "excel", "sql", "reporting", "bi ",
+    ),
+    "software_engineering": (
+        "develop", "vývoj", "program", "engineer", "inženýr", "qa", "test",
+        "support", "helpdesk", "admin", "it ", "analyst", "analytik", "data",
+    ),
+    "product_project": (
+        "manager", "vedoucí", "coordinator", "koordinátor", "project", "projekt",
+        "product", "produkt", "marketing", "sales", "obchod", "consultant",
+        "konzultant", "business",
+    ),
+}
+
+DISTANCE_ADJACENT = "adjacent"
+DISTANCE_MODERATE = "moderate"
+DISTANCE_FAR = "far"
+
+
+def domain_distance(evidence: Iterable, target_family: str) -> tuple[str, str]:
+    """Grade how far a switcher's prior domain sits from the target role family.
+
+    Returns ``(distance, reason)``:
+      * ``adjacent`` — prior job/internship evidence carries surface signals that
+        neighbour the target family (a finance analyst → data work): the hard
+        skills are closer than provenance discounting alone suggests.
+      * ``moderate`` — a recognized professional background whose META-skills map
+        (the _TRANSFERABLE_MAP groups) but whose domain doesn't neighbour the
+        target: the bridge is real but runs through meta-skills.
+      * ``far`` — no prior role at all (nothing to bridge FROM is the farthest
+        case) or a field sharing no surface signals with the target.
+
+    Deterministic and surface-level by design — the honest alternative to
+    pretending we can measure semantic domain similarity we have no data for.
+    """
+    prior = [e for e in evidence if getattr(e, "kind", "") in ("job", "internship")]
+    if not prior:
+        return DISTANCE_FAR, "no prior professional role to bridge from"
+    text = " ".join(f"{getattr(e, 'title', '')} {getattr(e, 'text', '')}" for e in prior).casefold()
+    for sig in _ADJACENT_SIGNALS.get(target_family, ()):
+        if sig in text:
+            return DISTANCE_ADJACENT, f"prior role signals '{sig.strip()}' neighbour {target_family}"
+    if any(any(sig in text for sig in signals) for signals, _skills in _TRANSFERABLE_MAP):
+        return DISTANCE_MODERATE, "recognized professional background; meta-skills transfer, the domain does not"
+    return DISTANCE_FAR, "prior field shares no surface signals with the target"

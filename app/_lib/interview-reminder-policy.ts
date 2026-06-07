@@ -49,3 +49,37 @@ export function isReminderDue(opts: {
   if (bookedAtMs === null || Number.isNaN(bookedAtMs)) return true;
   return !isShortNoticeBooking(slotAtMs, bookedAtMs);
 }
+
+// --- Bounded reminder dispatch: retry cap + backoff (idea-edab792a) ------------
+//
+// The heartbeat re-runs the reminder sweep every ~60s. The old loop reset a claim
+// to NULL on ANY dispatch error, so a down comms provider turned into a tight
+// re-claim/re-fail/re-release storm across every due invite — unbounded retries
+// with no backoff hammering a failing dependency. These constants bound that: a
+// reminder gets at most REMINDER_MAX_ATTEMPTS dispatch attempts, spaced by a
+// growing backoff, after which the heartbeat gives up (and logs) instead of
+// retrying forever. Kept here — pure, no DB, no clock — so the retry cadence is
+// unit-testable exactly like the lead/short-notice policy above.
+
+/** Hard cap on dispatch attempts for a single reminder. After this many failed
+ *  sends the heartbeat stops retrying and logs, rather than re-hitting a failing
+ *  comms provider on every tick until the slot passes. */
+export const REMINDER_MAX_ATTEMPTS = 5;
+
+/** Base gap before the first retry; doubles each subsequent attempt (capped). */
+export const REMINDER_RETRY_BASE_MS = 60 * 1000; // 1 min
+
+/** Upper bound on the per-retry gap, so the backoff never balloons past this. */
+export const REMINDER_RETRY_MAX_BACKOFF_MS = 30 * 60 * 1000; // 30 min
+
+/** Minimum time that must elapse after `attemptsMade` failed dispatch attempts
+ *  before the next attempt may be claimed: exponential backoff (base · 2^(n-1))
+ *  capped at REMINDER_RETRY_MAX_BACKOFF_MS. So a down provider is retried a handful
+ *  of times with widening gaps (1m, 2m, 4m, 8m…), not every 60s. Pure (no clock) so
+ *  the cadence is unit-testable. `attemptsMade <= 0` means no attempt has run yet →
+ *  no wait (the first send fires immediately). */
+export function reminderRetryDelayMs(attemptsMade: number): number {
+  if (attemptsMade <= 0) return 0;
+  const exp = REMINDER_RETRY_BASE_MS * 2 ** (attemptsMade - 1);
+  return Math.min(exp, REMINDER_RETRY_MAX_BACKOFF_MS);
+}

@@ -33,7 +33,7 @@ function pickPrior(hist: CandidateOutcome[], jobId: string): PriorOutcome | null
   return null;
 }
 
-export async function GET(_request: Request, context: { params: Promise<{ id: string }> }) {
+export async function GET(request: Request, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params;
   let workdir: string | null = null;
   try {
@@ -51,14 +51,20 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
     const jobPath = path.join(workdir, "job.json");
     await writeFile(jobPath, JSON.stringify(job), "utf-8");
 
-    const { result } = spawnPython([
-      "-m",
-      "pipeline.jobfit.recruiter_cli",
-      "--input-json",
-      inputPath,
-      "--job-json",
-      jobPath,
-    ]);
+    // Thread the request's AbortSignal so abandoning rediscovery (clicking to the
+    // next role, closing the panel) promptly SIGKILLs the recruiter_cli child
+    // instead of leaking an orphaned ranking process to the 600s backstop.
+    const { result } = spawnPython(
+      [
+        "-m",
+        "pipeline.jobfit.recruiter_cli",
+        "--input-json",
+        inputPath,
+        "--job-json",
+        jobPath,
+      ],
+      { signal: request.signal },
+    );
     const { stdout, stderr, exitCode } = await result;
     if (exitCode !== 0) {
       const err = parseStderrError(stderr, exitCode);

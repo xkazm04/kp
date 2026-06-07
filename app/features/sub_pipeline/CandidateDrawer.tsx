@@ -1,23 +1,31 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
-import { AlertTriangle, Ban, Banknote, Calendar, Check, ClipboardList, Copy, ExternalLink, Mail, Pencil, Phone, Shuffle, Sparkles, UserCheck, Wrench, X } from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { AlertTriangle, Ban, Banknote, Calendar, ClipboardList, ExternalLink, Mail, Pencil, Phone, Shuffle, Sparkles, UserCheck, Wrench, X } from "lucide-react";
 import { buildUrl } from "@/app/features/tabs";
-import { useTasks } from "@/app/features/tasks/TasksProvider";
+import { useTasks, useTaskResult } from "@/app/features/tasks/TasksProvider";
 import { ResultView } from "./CandidateResultView";
+import { useTokenLink, TokenLinkPanel } from "./TokenLink";
 import { type Entry, type Result, type TaskId } from "./CandidateDrawerTypes";
 import { styleFor } from "./PipelineTypes";
+import { SCREENING_STAGES } from "@/app/_lib/pipeline-stages";
 import { RUBRIC_ANCHOR_LINE } from "@/app/_lib/interview-rubric";
+import { RATING_MAX } from "@/app/_lib/format";
+import type { Scorecard, ScorecardRating } from "@/app/_lib/interview-scorecard";
 import { initials } from "@/app/_lib/initials";
 
 const ACTIONS: { id: TaskId; label: string; icon: typeof Mail; stages: string[] | "all"; note?: string }[] = [
-  { id: "screen", label: "Screen with AI", icon: UserCheck, stages: ["Screened"], note: "Routes to advance or holds for your review in Decisions." },
+  // Screening is the triage gate for both pre-interview stages (SCREENING_STAGES):
+  // at Accepted it screens a fresh applicant into Screened (or into Screened held
+  // for review); at Screened it advances to Interview or holds. So the top of the
+  // funnel — where triage volume is highest — is now individually actionable.
+  { id: "screen", label: "Screen with AI", icon: UserCheck, stages: [...SCREENING_STAGES], note: "A confident pass advances the candidate; otherwise it holds for your review in Decisions." },
   { id: "prep", label: "Interview prep", icon: ClipboardList, stages: ["Screened", "Interview"] },
   { id: "scorecard", label: "Synthesize scorecard", icon: ClipboardList, stages: ["Interview"], note: "From your notes → a structured scorecard in Decisions." },
   { id: "offer", label: "Draft offer", icon: Banknote, stages: ["Offer"], note: "Salary from the role band, scaled by fit → an offer to approve in Decisions." },
   { id: "outreach", label: "Draft outreach", icon: Mail, stages: "all" },
-  { id: "rejection", label: "Draft rejection", icon: Ban, stages: ["Screened", "Interview", "Offer"] },
+  { id: "rejection", label: "Draft rejection", icon: Ban, stages: ["Accepted", "Screened", "Interview", "Offer"] },
   { id: "rematch", label: "Explore alternatives", icon: Shuffle, stages: ["Screened", "Interview", "Offer"] },
 ];
 
@@ -30,31 +38,26 @@ const REC_STYLE: Record<string, string> = {
 type InterviewOutcome = {
   recommendation?: string;
   summary?: string;
-  ratings?: { competency: string; rating: number; evidence?: string }[];
+  ratings?: ScorecardRating[];
   hasTranscript?: boolean;
 };
 
 export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; onClose: () => void; onChanged: () => void }) {
   const router = useRouter();
-  const { startTask, tasks } = useTasks();
+  const search = useSearchParams();
+  const { startTask } = useTasks();
   const [busy, setBusy] = useState<TaskId | null>(null);
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [result, setResult] = useState<Result | null>(null);
   const [notes, setNotes] = useState("");
   const [error, setError] = useState<string | null>(null);
 
-  // Voice 1st-round screen: create a grounded, tokenized candidate link.
+  // Voice 1st-round screen and self-scheduling both mint a tokenized candidate link.
+  // The shared POST/url/copy plumbing lives in useTokenLink; only the endpoint, the
+  // POST body, and the surrounding panel UI differ between the two.
   const [voiceProvider, setVoiceProvider] = useState<"openai" | "elevenlabs">("openai");
-  const [voiceBusy, setVoiceBusy] = useState(false);
-  const [voiceLink, setVoiceLink] = useState<{ url: string; configured: boolean } | null>(null);
-  const [voiceErr, setVoiceErr] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
-
-  // Self-scheduling: mint a candidate link to pick an interview slot.
-  const [schedBusy, setSchedBusy] = useState(false);
-  const [schedUrl, setSchedUrl] = useState<string | null>(null);
-  const [schedErr, setSchedErr] = useState<string | null>(null);
-  const [schedCopied, setSchedCopied] = useState(false);
+  const voice = useTokenLink("/api/interview/create");
+  const sched = useTokenLink("/api/schedule/invite");
 
   // Degraded-intake recovery: clear the flag once the profile is captured manually.
   const [resolvingIntake, setResolvingIntake] = useState(false);
@@ -112,7 +115,7 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
     fetch(`/api/interview/by-entry?entry=${encodeURIComponent(entry.id)}`)
       .then((r) => r.json())
       .then((d) => {
-        const s = d.session as { status?: string; transcript?: unknown[]; scorecard?: InterviewOutcome | null } | null;
+        const s = d.session as { status?: string; transcript?: unknown[]; scorecard?: Scorecard | null } | null;
         if (!alive || !s || s.status !== "completed") return;
         const sc = s.scorecard ?? null;
         setIvOutcome({
@@ -155,27 +158,6 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
     setPendingId(t.id);
   };
 
-  const createVoiceScreen = async () => {
-    setVoiceBusy(true);
-    setVoiceErr(null);
-    setVoiceLink(null);
-    setCopied(false);
-    try {
-      const res = await fetch("/api/interview/create", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ entryId: entry.id, provider: voiceProvider }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || `create failed (${res.status})`);
-      setVoiceLink({ url: data.url, configured: Boolean(data.configured) });
-    } catch (e) {
-      setVoiceErr(e instanceof Error ? e.message : "Couldn't create the link.");
-    } finally {
-      setVoiceBusy(false);
-    }
-  };
-
   const resolveIntake = async () => {
     setResolvingIntake(true);
     setIntakeErr(null);
@@ -196,52 +178,32 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
     }
   };
 
-  const showVoice = entry.status === "active" && ["Screened", "Interview"].includes(entry.stage);
-  const voiceFullUrl = voiceLink ? (typeof window !== "undefined" ? window.location.origin : "") + voiceLink.url : "";
+  // Both link panels share one gate: an active candidate in a screening/interview stage.
+  const showLinks = entry.status === "active" && ["Screened", "Interview"].includes(entry.stage);
 
-  const showSchedule = entry.status === "active" && ["Screened", "Interview"].includes(entry.stage);
-  const schedFullUrl = schedUrl ? (typeof window !== "undefined" ? window.location.origin : "") + schedUrl : "";
-  const createScheduleLink = async () => {
-    setSchedBusy(true);
-    setSchedErr(null);
-    setSchedUrl(null);
-    setSchedCopied(false);
-    try {
-      const res = await fetch("/api/schedule/invite", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ entryId: entry.id }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || `link failed (${res.status})`);
-      setSchedUrl(data.url);
-    } catch (e) {
-      setSchedErr(e instanceof Error ? e.message : "Couldn't create the link.");
-    } finally {
-      setSchedBusy(false);
-    }
-  };
-
+  // The automation task's result + params (which `task` it ran) are fetched on
+  // demand once it finishes — the poll omits both. Hold pendingId until the full
+  // record lands so the drawer stays in its busy state through the brief fetch.
+  const { status: actionStatus, error: actionError, full: actionFull } = useTaskResult(pendingId);
   useEffect(() => {
     if (!pendingId) return;
-    const t = tasks.find((x) => x.id === pendingId);
-    if (!t) return;
-    if (t.status === "succeeded") {
-      const data = t.result as { result: Record<string, unknown>; source: string; applied: string } | null;
-      const sub = (((t.params as { task?: string } | null)?.task ?? busy) ?? "screen") as TaskId;
+    if (actionStatus === "succeeded") {
+      if (!actionFull) return; // still fetching the full result/params
+      const data = actionFull.result as { result: Record<string, unknown>; source: string; applied: string } | null;
+      const sub = (((actionFull.params as { task?: string } | null)?.task ?? busy) ?? "screen") as TaskId;
       if (data) {
         setResult({ task: sub, data: data.result, source: data.source, applied: data.applied });
         if (["advanced", "held_for_review", "scorecard_ready", "offer_ready", "rematched"].includes(data.applied)) onChanged();
       }
       setBusy(null);
       setPendingId(null);
-    } else if (t.status === "failed" || t.status === "canceled" || t.status === "interrupted") {
-      setError(t.error ?? "Task did not complete.");
+    } else if (actionStatus === "failed" || actionStatus === "canceled" || actionStatus === "interrupted") {
+      setError(actionError ?? "Task did not complete.");
       setBusy(null);
       setPendingId(null);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tasks, pendingId]);
+  }, [pendingId, actionStatus, actionError, actionFull]);
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
@@ -318,7 +280,7 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
                 <ul className="mt-1.5 space-y-0.5">
                   {ivOutcome.ratings.slice(0, 6).map((r, i) => (
                     <li key={i} className="text-sm text-ink">
-                      <span className="font-semibold nums text-coral">{r.rating}/5</span> {r.competency}
+                      <span className="font-semibold nums text-coral">{r.rating}/{RATING_MAX}</span> {r.competency}
                     </li>
                   ))}
                 </ul>
@@ -368,7 +330,7 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
             </div>
           ) : null}
 
-          {showVoice ? (
+          {showLinks ? (
             <div className="rounded-md border border-stone-200 bg-white p-3">
               <p className="flex items-center gap-1.5 text-meta uppercase tracking-wide text-coral">
                 <Phone size={13} /> Voice screen (1st round)
@@ -382,7 +344,7 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
                   <button
                     key={p}
                     type="button"
-                    disabled={voiceBusy}
+                    disabled={voice.busy}
                     aria-pressed={voiceProvider === p}
                     onClick={() => setVoiceProvider(p)}
                     className={`focus-ring rounded px-2.5 py-1 text-sm font-medium transition-colors ${
@@ -395,46 +357,19 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
               </div>
               <button
                 type="button"
-                onClick={createVoiceScreen}
-                disabled={voiceBusy}
+                onClick={() => voice.create({ entryId: entry.id, provider: voiceProvider })}
+                disabled={voice.busy}
                 className="focus-ring ml-2 inline-flex items-center gap-1.5 rounded-md border border-stone-200 bg-white px-2.5 py-1.5 text-sm font-semibold text-ink hover:border-coral/40 disabled:opacity-50"
               >
-                <Phone size={13} className="text-coral" /> {voiceBusy ? "Creating…" : "Create link"}
+                <Phone size={13} className="text-coral" /> {voice.busy ? "Creating…" : "Create link"}
               </button>
 
-              {voiceErr ? <p className="mt-2 text-sm text-red-700">{voiceErr}</p> : null}
+              {voice.err ? <p role="alert" className="mt-2 text-sm text-red-700">{voice.err}</p> : null}
 
-              {voiceLink ? (
+              {voice.data ? (
                 <div className="mt-2 space-y-1.5">
-                  <div className="flex items-center gap-1.5">
-                    <input
-                      readOnly
-                      value={voiceFullUrl}
-                      onFocus={(e) => e.currentTarget.select()}
-                      className="focus-ring min-w-0 flex-1 rounded-md border border-stone-200 bg-paper px-2 py-1 text-sm text-ink"
-                    />
-                    <button
-                      type="button"
-                      title="Copy link"
-                      onClick={() => {
-                        void navigator.clipboard?.writeText(voiceFullUrl);
-                        setCopied(true);
-                      }}
-                      className="focus-ring rounded-md border border-stone-200 bg-white p-1.5 text-steel hover:text-coral"
-                    >
-                      {copied ? <Check size={14} /> : <Copy size={14} />}
-                    </button>
-                    <a
-                      href={voiceLink.url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="focus-ring rounded-md border border-stone-200 bg-white p-1.5 text-steel hover:text-coral"
-                      title="Open as candidate"
-                    >
-                      <ExternalLink size={14} />
-                    </a>
-                  </div>
-                  {!voiceLink.configured ? (
+                  <TokenLinkPanel link={voice} />
+                  {!voice.data.configured ? (
                     <p className="text-sm text-coral">
                       {voiceProvider === "openai" ? "OPENAI_API_KEY" : "ELEVENLABS_API_KEY + ELEVENLABS_AGENT_ID"} not set —
                       the call won&apos;t connect until configured.
@@ -445,7 +380,7 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
             </div>
           ) : null}
 
-          {showSchedule ? (
+          {showLinks ? (
             <div className="rounded-md border border-stone-200 bg-white p-3">
               <p className="flex items-center gap-1.5 text-meta uppercase tracking-wide text-coral">
                 <Calendar size={13} /> Self-scheduling
@@ -456,41 +391,16 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
               </p>
               <button
                 type="button"
-                onClick={createScheduleLink}
-                disabled={schedBusy}
+                onClick={() => sched.create({ entryId: entry.id })}
+                disabled={sched.busy}
                 className="focus-ring mt-2 inline-flex items-center gap-1.5 rounded-md border border-stone-200 bg-white px-2.5 py-1.5 text-sm font-semibold text-ink hover:border-coral/40 disabled:opacity-50"
               >
-                <Calendar size={13} className="text-coral" /> {schedBusy ? "Creating…" : "Create scheduling link"}
+                <Calendar size={13} className="text-coral" /> {sched.busy ? "Creating…" : "Create scheduling link"}
               </button>
-              {schedErr ? <p role="alert" className="mt-2 text-sm text-red-700">{schedErr}</p> : null}
-              {schedUrl ? (
-                <div className="mt-2 flex items-center gap-1.5">
-                  <input
-                    readOnly
-                    value={schedFullUrl}
-                    onFocus={(e) => e.currentTarget.select()}
-                    className="focus-ring min-w-0 flex-1 rounded-md border border-stone-200 bg-paper px-2 py-1 text-sm text-ink"
-                  />
-                  <button
-                    type="button"
-                    title="Copy link"
-                    onClick={() => {
-                      void navigator.clipboard?.writeText(schedFullUrl);
-                      setSchedCopied(true);
-                    }}
-                    className="focus-ring rounded-md border border-stone-200 bg-white p-1.5 text-steel hover:text-coral"
-                  >
-                    {schedCopied ? <Check size={14} /> : <Copy size={14} />}
-                  </button>
-                  <a
-                    href={schedUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="focus-ring rounded-md border border-stone-200 bg-white p-1.5 text-steel hover:text-coral"
-                    title="Open as candidate"
-                  >
-                    <ExternalLink size={14} />
-                  </a>
+              {sched.err ? <p role="alert" className="mt-2 text-sm text-red-700">{sched.err}</p> : null}
+              {sched.data ? (
+                <div className="mt-2">
+                  <TokenLinkPanel link={sched} />
                 </div>
               ) : null}
             </div>
@@ -504,7 +414,7 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
             <button
               type="button"
               onClick={() => {
-                if (entry.candidateId) router.push(buildUrl({ tab: "match", profile: entry.candidateId }));
+                if (entry.candidateId) router.push(buildUrl({ tab: "match", profile: entry.candidateId }, search.toString()));
               }}
               className="focus-ring inline-flex items-center gap-1 text-sm font-semibold text-steel hover:text-coral"
             >
@@ -513,7 +423,7 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
             {entry.candidateId ? (
               <button
                 type="button"
-                onClick={() => router.push(buildUrl({ tab: "profile", edit: entry.candidateId as string }))}
+                onClick={() => router.push(buildUrl({ tab: "profile", edit: entry.candidateId as string }, search.toString()))}
                 className="focus-ring inline-flex items-center gap-1 text-sm font-semibold text-steel hover:text-coral"
               >
                 <Pencil size={13} /> Edit profile

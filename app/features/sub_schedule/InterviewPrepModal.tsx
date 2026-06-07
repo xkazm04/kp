@@ -5,16 +5,15 @@ import { AlertTriangle, Clock, Loader2, ListChecks, RefreshCw, Sparkles } from "
 import { Modal } from "@/app/_components/Modal";
 import { Meter } from "@/app/_components/Meter";
 import { PrepSourceBadge, isPrepFallback } from "@/app/_components/Badge";
-import { useTasks } from "@/app/features/tasks/TasksProvider";
+import { useTasks, useTaskResult } from "@/app/features/tasks/TasksProvider";
 import { useJsonFetch } from "@/app/_lib/useJsonFetch";
 import type { SchedEntry } from "./ScheduleTypes";
 
 type Block = { fromMin: number; toMin: number; topic: string; goal: string; questions: string[]; followUp?: string };
-type Group = { group: string; items: string[] };
-type Prep = { scenario: string; durationMin: number; focusAreas: string[]; chronology: Block[]; checklist: Group[]; source?: string };
+type Prep = { scenario: string; durationMin: number; focusAreas: string[]; chronology: Block[]; signals: string[]; source?: string };
 
 export function InterviewPrepModal({ entry, onClose }: { entry: SchedEntry; onClose: () => void }) {
-  const { startTask, tasks } = useTasks();
+  const { startTask } = useTasks();
   // Load any saved artifact via the shared hook (handles non-OK status, an {error}
   // body, and unmount). A load FAILURE now surfaces as a distinct error+retry state
   // (idea-bc78b8f5), never collapsed into the "none yet" empty state.
@@ -37,18 +36,21 @@ export function InterviewPrepModal({ entry, onClose }: { entry: SchedEntry; onCl
   // disclosed below with a prompt to regenerate (idea-0864adb5).
   const fallback = prep ? isPrepFallback(prep.source) : false;
 
-  // Poll a generation task; its result supersedes any saved artifact.
+  // Watch a generation task; its result (fetched on demand — the poll omits it)
+  // supersedes any saved artifact. Hold taskId until the full result lands so the
+  // "Generating…" state persists through the brief fetch, then clear it.
+  const { status: genStatus, full: genFull } = useTaskResult(taskId);
   useEffect(() => {
     if (!taskId) return;
-    const t = tasks.find((x) => x.id === taskId);
-    if (!t) return;
-    if (t.status === "succeeded") {
-      setGenerated((t.result as Prep) ?? null);
-      setTaskId(null);
-    } else if (t.status === "failed" || t.status === "canceled" || t.status === "interrupted") {
+    if (genStatus === "succeeded") {
+      if (genFull) {
+        setGenerated((genFull.result as Prep) ?? null);
+        setTaskId(null);
+      }
+    } else if (genStatus === "failed" || genStatus === "canceled" || genStatus === "interrupted") {
       setTaskId(null);
     }
-  }, [tasks, taskId]);
+  }, [taskId, genStatus, genFull]);
 
   const generate = async () => {
     setChecked({});
@@ -57,12 +59,12 @@ export function InterviewPrepModal({ entry, onClose }: { entry: SchedEntry; onCl
   };
   const generating = taskId !== null;
 
-  // Defensive: older artifacts carried a duplicate "Run of show" checklist group;
-  // the chronology now serves that, so only show the cross-cutting signal groups.
-  const signalGroups = (prep?.checklist ?? []).filter((g) => g.group !== "Run of show");
+  // The chronology blocks plus the flat "Signals to confirm" list are the checkable
+  // items; `?? []` only guards a malformed payload, not a second group shape.
+  const signals = prep?.signals ?? [];
   const totalItems = useMemo(
-    () => (prep ? prep.chronology.length + signalGroups.reduce((n, g) => n + g.items.length, 0) : 0),
-    [prep, signalGroups]
+    () => (prep ? prep.chronology.length + signals.length : 0),
+    [prep, signals]
   );
   const doneItems = Object.values(checked).filter(Boolean).length;
 
@@ -198,15 +200,15 @@ export function InterviewPrepModal({ entry, onClose }: { entry: SchedEntry; onCl
             </ol>
           </section>
 
-          {/* Cross-cutting signals to confirm. */}
-          {signalGroups.map((g, gi) => (
-            <section key={gi}>
+          {/* Cross-cutting signals to confirm — one flat list under a static heading. */}
+          {signals.length ? (
+            <section>
               <p className="flex items-center gap-1.5 text-meta uppercase tracking-wide text-steel">
-                <ListChecks size={13} /> {g.group}
+                <ListChecks size={13} /> Signals to confirm
               </p>
               <ul className="mt-1.5 space-y-1">
-                {g.items.map((it, ii) => {
-                  const key = `k-${gi}-${ii}`;
+                {signals.map((it, ii) => {
+                  const key = `k-${ii}`;
                   return (
                     <li key={key}>
                       <label className="flex cursor-pointer items-start gap-2 text-sm text-ink">
@@ -223,7 +225,7 @@ export function InterviewPrepModal({ entry, onClose }: { entry: SchedEntry; onCl
                 })}
               </ul>
             </section>
-          ))}
+          ) : null}
         </div>
       )}
     </Modal>

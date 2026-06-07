@@ -48,7 +48,7 @@ export function ProfileTab() {
   useEffect(() => {
     const editId = params.get("edit");
     if (!editId) return;
-    router.replace(buildUrl({ edit: null }), { scroll: false });
+    router.replace(buildUrl({ edit: null }, params.toString()), { scroll: false });
     let alive = true;
     fetch(`/api/profile?id=${encodeURIComponent(editId)}`)
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error("not found"))))

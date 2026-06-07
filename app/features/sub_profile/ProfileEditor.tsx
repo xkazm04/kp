@@ -13,44 +13,10 @@ import {
 import { Section, Text, Pick, Check } from "./ProfileFields";
 import { ProfileEvidenceColumn } from "./ProfileEvidenceColumn";
 import { ResultPanel } from "./ProfileResultPanel";
+import { hydrate, SKILL_FALLBACK, EVIDENCE_FALLBACK, archetypeFieldVisibility, archetypeScopedProfileFields } from "./ProfileForm";
 import { SegmentedControl } from "@/app/_components/SegmentedControl";
 
 export type EditorMode = "create" | "edit" | "duplicate";
-
-const joinList = (xs: string[] | undefined) => (xs ?? []).join(", ");
-
-// Map a persisted (normalized) payload back into editable form state. Intake
-// signals (isEnrolled / wantsDomainChange / …) are NOT stored on the payload —
-// they only feed auto-detection — so on edit we pin `choice` to the stored
-// archetype, which keeps re-routing stable without those booleans.
-function hydrate(payload: ProfilePayload | null) {
-  return {
-    choice: payload?.archetype || "auto",
-    displayName: payload?.displayName ?? "",
-    roleFamily: payload?.roleFamily ?? "software_engineering",
-    educationLevel: payload?.educationLevel ?? "bachelor",
-    educationDetail: payload?.educationDetail ?? "",
-    languages: payload?.languages?.length ? joinList(payload.languages) : "Czech, English",
-    location: payload?.location ?? "",
-    availability: payload?.availability ?? "",
-    yearsExperience: payload?.yearsExperience != null ? String(payload.yearsExperience) : "",
-    seniority: payload?.seniority ?? "junior",
-    aspirations: joinList(payload?.aspirations),
-    skills: (payload?.skillClaims ?? [])
-      .filter((s) => (s.skill ?? "").trim())
-      .map((s) => ({ skill: s.skill ?? "", level: s.level ?? "working", provenance: s.provenance ?? "self_declared" })) as SkillRow[],
-    evidence: (payload?.evidence ?? []).map((e) => ({
-      kind: e.kind ?? "project",
-      title: e.title ?? "",
-      text: e.text ?? "",
-      skills: joinList(e.skills),
-      link: e.link ?? "",
-    })) as EvidenceRow[],
-  };
-}
-
-const SKILL_FALLBACK: SkillRow[] = [{ skill: "", level: "working", provenance: "self_declared" }];
-const EVIDENCE_FALLBACK: EvidenceRow[] = [{ kind: "project", title: "", text: "", skills: "", link: "" }];
 
 export function ProfileEditor({
   mode,
@@ -65,6 +31,10 @@ export function ProfileEditor({
   onSaved: (savedId: string) => void;
   onCancel: () => void;
 }) {
+  // hydrate() maps a stored payload (edit/duplicate) — or null (blank create) —
+  // into form state honestly: it never pre-fills education/languages/seniority the
+  // candidate didn't declare, so a blank intake's completeness reflects real input
+  // rather than unchosen defaults (idea-fa7d5360). Create and edit are identical now.
   const init = hydrate(initialPayload);
 
   const [choice, setChoice] = useState(init.choice);
@@ -100,6 +70,10 @@ export function ProfileEditor({
   const [aiNote, setAiNote] = useState<string | null>(null);
 
   const isStudentish = choice === "student" || choice === "auto" || choice === "career_switcher";
+  // Years/seniority visibility for the chosen archetype. The render conditions below
+  // and build()'s submission both read this one map, so what is shown is exactly what
+  // is saved — no hidden, retained state can leak into the payload (idea-7ac9e45f).
+  const fieldVis = archetypeFieldVisibility(choice);
 
   // Push an AI (or any) hydrated draft into the live form fields. Reuses the same
   // payload→form mapping as edit/duplicate so there is one source of that logic.
@@ -108,6 +82,8 @@ export function ProfileEditor({
     signals?: { isEnrolled?: boolean; expectedGraduation?: string | null; wantsDomainChange?: boolean; hasSubstantialExperience?: boolean };
     archetype?: string;
   }) => {
+    // A drafted profile is source data — reflect it faithfully so the AI's
+    // omissions aren't backfilled with values the candidate never gave.
     const h = hydrate(draft.profile);
     setChoice(draft.archetype || h.choice);
     setDisplayName(h.displayName);
@@ -186,8 +162,11 @@ export function ProfileEditor({
             link: e.link.trim() || undefined,
           })),
       };
-      if (yearsExperience.trim()) profile.yearsExperience = Number(yearsExperience);
-      if (choice === "bau") profile.seniority = seniority;
+      // Submit years/seniority strictly by archetype visibility (idea-7ac9e45f): the
+      // useState values persist across an archetype switch, but a field the form hid
+      // for the selected archetype is never persisted. Shares its visibility source
+      // with the inputs below, so the saved payload matches what is on screen.
+      Object.assign(profile, archetypeScopedProfileFields(choice, yearsExperience, seniority));
 
       const signals = {
         selfDeclared: choice,
@@ -219,8 +198,10 @@ export function ProfileEditor({
 
   // Inline field validation: catch a non-numeric "years" (would POST NaN) and a
   // malformed graduation year before the request, and gate Save on validity.
+  // Validate years only while the field is visible for the chosen archetype — a
+  // stale, hidden value won't be submitted, so it must not block Save either.
   const yearsError =
-    yearsExperience.trim() !== "" && !/^\d{1,2}(\.\d)?$/.test(yearsExperience.trim())
+    fieldVis.years && yearsExperience.trim() !== "" && !/^\d{1,2}(\.\d)?$/.test(yearsExperience.trim())
       ? "Enter a number (e.g. 6)."
       : undefined;
   const gradError =
@@ -324,7 +305,7 @@ export function ProfileEditor({
               onChange={setEducationDetail}
               placeholder="CS, ČVUT FEL — focus on ML"
             />
-            {choice === "bau" || choice === "career_switcher" ? (
+            {fieldVis.years ? (
               <div className="mt-2 grid gap-2 sm:grid-cols-2">
                 <Text
                   label={choice === "career_switcher" ? "Years of prior (other-field) experience" : "Years of experience"}
@@ -333,8 +314,16 @@ export function ProfileEditor({
                   placeholder="6"
                   error={yearsError}
                 />
-                {choice === "bau" ? (
-                  <Pick label="Seniority" value={seniority} onChange={setSeniority} options={SENIORITIES.map((v) => ({ v, label: v }))} />
+                {fieldVis.seniority ? (
+                  <Pick
+                    label="Seniority"
+                    value={seniority}
+                    onChange={setSeniority}
+                    // Offer an explicit "not set" option when seniority is empty (an
+                    // edited profile that never declared one) so the select shows the
+                    // true state instead of defaulting its display to "junior".
+                    options={(seniority ? SENIORITIES : ["", ...SENIORITIES]).map((v) => ({ v, label: v || "not set" }))}
+                  />
                 ) : null}
               </div>
             ) : null}

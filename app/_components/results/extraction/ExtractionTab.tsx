@@ -3,7 +3,7 @@
 import { AlertTriangle, BadgeCheck, BrainCircuit } from "lucide-react";
 import { FactorChart } from "@/app/_components/FactorChart";
 import { ScoreDial } from "@/app/_components/ScoreDial";
-import { labelize } from "@/app/_lib/format";
+import { labelize, reconcileScoreTotal } from "@/app/_lib/format";
 import type { Analysis } from "@/app/_lib/schemas";
 import { EnginePanel, InlineList, ListBlock, Metric } from "../shared";
 
@@ -18,7 +18,10 @@ export function ExtractionTab({ analysis }: { analysis: Analysis }) {
               <h2 className="mt-1 text-2xl font-semibold text-ink">{labelize(analysis.candidate.currentSeniority)}</h2>
               <p className="mt-1 text-base text-steel">{labelize(analysis.candidate.roleFamily)}</p>
             </div>
-            <ScoreDial score={analysis.score.total} />
+            {/* Dial reads the component sum, not the raw pipeline total, so the
+                arc can never disagree with the FactorChart bars below it (the
+                score-breakdown invariant; see reconcileScoreTotal). */}
+            <ScoreDial score={reconcileScoreTotal(analysis.score)} />
           </div>
         </div>
 

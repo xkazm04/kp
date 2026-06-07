@@ -5,14 +5,18 @@ run". The CLI envelope and BOTH eval harnesses call it, so a mixed run reads as 
 everywhere — the old binary "llm-if-any" collapse (which overstated LLM coverage) is gone.
 """
 
+import logging
 import unittest
 
 from pipeline.jobfit.devcase import lifecycle_eval, submission_eval
 from pipeline.jobfit.devcase.provenance import (
+    FALLBACK_REASON_KEY,
     SOURCE_DETERMINISTIC,
     SOURCE_LLM,
     SOURCE_PARTIAL,
     combine_source,
+    describe_fallback,
+    generate_with_fallback,
 )
 from pipeline.jobfit.devcase.scenarios import generate_scenarios
 from pipeline.jobfit.devcase.submission_scenarios import generate_submissions
@@ -34,6 +38,66 @@ class TestCombineSource(unittest.TestCase):
         self.assertEqual(combine_source("", "llm"), SOURCE_LLM)
         self.assertEqual(combine_source("", ""), SOURCE_DETERMINISTIC)
         self.assertEqual(combine_source(), SOURCE_DETERMINISTIC)
+
+
+class TestDescribeFallback(unittest.TestCase):
+    """idea-81a8c28f — the one-line cause that lets an operator tell failure modes apart."""
+
+    def test_formats_type_and_message(self):
+        self.assertEqual(describe_fallback(TimeoutError("timed out after 120s")), "TimeoutError: timed out after 120s")
+        self.assertEqual(describe_fallback(ValueError("not parseable JSON")), "ValueError: not parseable JSON")
+
+    def test_bare_type_when_no_message(self):
+        self.assertEqual(describe_fallback(RuntimeError()), "RuntimeError")
+
+    def test_truncated_so_a_huge_body_cant_bloat_the_envelope(self):
+        reason = describe_fallback(ValueError("x" * 5000))
+        self.assertLessEqual(len(reason), 300)
+
+
+class _RaisingProvider:
+    def __init__(self, exc):
+        self._exc = exc
+
+    def complete_json(self, prompt, system=None):
+        raise self._exc
+
+
+class TestGenerateWithFallback(unittest.TestCase):
+    """The shared LLM-or-deterministic runner: provider=None is a clean (reason-free)
+    deterministic run, a success is 'llm', and a raise logs at WARNING + stashes the cause."""
+
+    def _det(self):
+        return {"value": 1}
+
+    def _coerce(self, payload):
+        return {"value": 2}
+
+    def test_provider_none_is_clean_deterministic_no_reason(self):
+        result, source = generate_with_fallback(None, "p", "sys", self._det, self._coerce, logging.getLogger("t"))
+        self.assertEqual(source, SOURCE_DETERMINISTIC)
+        self.assertNotIn(FALLBACK_REASON_KEY, result)  # off by design is NOT a failure
+
+    def test_success_is_llm(self):
+        class _Ok:
+            def complete_json(self, prompt, system=None):
+                return {"raw": True}
+
+        result, source = generate_with_fallback(_Ok(), "p", "sys", self._det, self._coerce, logging.getLogger("t"))
+        self.assertEqual(source, SOURCE_LLM)
+        self.assertEqual(result, {"value": 2})  # coerce ran
+        self.assertNotIn(FALLBACK_REASON_KEY, result)
+
+    def test_raise_falls_back_logs_and_stashes_reason(self):
+        logger = logging.getLogger("pipeline.jobfit.devcase.test_runner")
+        with self.assertLogs(logger, level="WARNING") as cm:
+            result, source = generate_with_fallback(
+                _RaisingProvider(RuntimeError("provider down")), "p", "sys", self._det, self._coerce, logger
+            )
+        self.assertEqual(source, SOURCE_DETERMINISTIC)
+        self.assertEqual(result["value"], 1)  # the deterministic template
+        self.assertEqual(result[FALLBACK_REASON_KEY], "RuntimeError: provider down")
+        self.assertTrue(any("fell back to deterministic" in m for m in cm.output))
 
 
 class _PartialReflectProvider:

@@ -1,6 +1,7 @@
 import Database from "better-sqlite3";
 import { DB_PATH, ensureDbDir } from "./db-path";
 import { randomId, randomToken } from "./random-id";
+import type { PipelineEntryStatus } from "./pipeline-status";
 
 // Direction #4 — offer extension + candidate response capture. Isolated-connection
 // store (same pattern as job-ingest.ts): opens its OWN better-sqlite3 handle on
@@ -142,7 +143,8 @@ export function markOfferResponded(token: string, status: "accepted" | "declined
   return getOfferByToken(token);
 }
 
-/** Terminal status write for a declined offer (candidate said no). */
-export function markEntryStatus(entryId: string, status: string): void {
+/** Terminal status write for a declined offer (candidate said no). Typed against
+ *  the canonical taxonomy so a stray free-form string can't be persisted. */
+export function markEntryStatus(entryId: string, status: PipelineEntryStatus): void {
   db().prepare(`UPDATE pipeline_entries SET status = ?, updated_at = ? WHERE id = ?`).run(status, new Date().toISOString(), entryId);
 }

@@ -38,10 +38,33 @@ export type VoiceConnect = OpenAiConnect | ElevenLabsConnect;
 
 export type VoiceAvailability = Record<VoiceProviderId, boolean>;
 
+/** One line of an interview transcript — the single canonical shape shared by
+ *  the browser (which appends turns live and POSTs them on hang-up), the
+ *  interview_sessions DB row mapper, and the scorecard/notes builders. `at`
+ *  (ISO timestamp) is optional: the live client always stamps it, but persisted
+ *  or externally-generated transcripts may omit it, so the superset keeps the
+ *  compiler honest across every layer without forcing a timestamp that isn't
+ *  guaranteed to exist. */
+export type VoiceTurn = { role: "candidate" | "interviewer" | "system"; text: string; at?: string };
+
 export interface VoiceAdapter {
   readonly id: VoiceProviderId;
+  /** The env vars this provider needs before it can mint credentials. This is
+   *  the single source of truth for which keys a provider requires: available()
+   *  derives from it, and the connect route builds its "not configured" message
+   *  from it (see missingVoiceEnv), so adding a provider or renaming a var is a
+   *  one-file change here instead of three disconnected edits. */
+  readonly requiredEnv: readonly string[];
   /** True when the required API keys/agent are configured. */
   available(): boolean;
   /** Mint browser-safe, short-lived credentials for one session. */
   connect(opts: { instructions: string; language?: string | null }): Promise<VoiceConnect>;
+}
+
+/** Which of an adapter's requiredEnv vars are currently unset — empty when the
+ *  provider is fully configured. Both available() and the connect route's
+ *  not-configured message run through this, so the message can never drift from
+ *  the actual check and the route never re-encodes provider-specific var names. */
+export function missingVoiceEnv(adapter: VoiceAdapter): string[] {
+  return adapter.requiredEnv.filter((name) => !process.env[name]);
 }

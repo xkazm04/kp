@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { listJds, saveJd } from "@/app/_lib/db";
 import { validateJdFields } from "@/app/_lib/jd-limits";
+import { safeJsonError } from "@/app/_lib/api-response";
 
 export const runtime = "nodejs";
 
@@ -9,8 +10,7 @@ export async function GET() {
     const rows = listJds(200);
     return NextResponse.json({ jds: rows });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Failed to list JDs.";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return safeJsonError(error, "api:jds", "JD_LIST_FAILED");
   }
 }
 
@@ -32,9 +32,10 @@ export async function POST(request: Request) {
   try {
     const saved = saveJd({ title: fields.title, body: fields.body });
     return NextResponse.json({ ...saved, title: fields.title, body: fields.body });
-  } catch {
-    // Generic message — never forward raw SQLite text (e.g. "UNIQUE constraint
-    // failed: jds.slug") which would leak schema internals.
-    return NextResponse.json({ error: "Could not save the JD. Please try again." }, { status: 500 });
+  } catch (error) {
+    // Never forward raw SQLite text (e.g. "UNIQUE constraint failed: jds.slug")
+    // — the shared safe responder logs it server-side and returns a generic
+    // message + stable code instead. Every JD/template sibling routes here too.
+    return safeJsonError(error, "api:jds", "JD_SAVE_FAILED");
   }
 }

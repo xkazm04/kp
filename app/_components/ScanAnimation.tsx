@@ -1,13 +1,7 @@
 "use client";
 
 import { useReducedMotion } from "@/app/_lib/useReducedMotion";
-
-const INK = "#17202a";
-const PAPER = "#f7f5ef";
-const MOSS = "#526b4f";
-const CORAL = "#d65a4a";
-const STEEL = "#42606f";
-const LIMEWASH = "#dce7d0";
+import { INK, PAPER, MOSS, CORAL, STEEL, LIMEWASH } from "@/app/_lib/brand";
 
 export function ScanAnimationCompact({ className }: { className?: string }) {
   const reducedMotion = useReducedMotion();

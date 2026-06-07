@@ -1,8 +1,14 @@
 "use client";
 
 import { Check, Sparkles, X } from "lucide-react";
+import { RATING_MAX } from "@/app/_lib/format";
 import { CandidateHead, MiniList, RecBadge } from "./DecisionsShared";
 import type { Entry, Offer, Scorecard, Screening } from "./DecisionsTypes";
+
+// The 1..RATING_MAX rubric scale as an ascending array, for the per-competency
+// dot strip — derived from the single source so re-gearing the rubric reshapes
+// the dots too (no second [1,2,3,4,5] to chase).
+const RATING_SCALE = Array.from({ length: RATING_MAX }, (_, i) => i + 1);
 
 export function AiReviewCard({ entry, onAccept, onReject }: { entry: Entry; onAccept: () => void; onReject: () => void }) {
   let parsed: (Screening & Scorecard & Offer) | null = null;
@@ -58,7 +64,7 @@ export function AiReviewCard({ entry, onAccept, onReject }: { entry: Entry; onAc
                   <li key={i} className="flex items-center justify-between gap-2">
                     <span className="truncate text-steel">{r.competency}</span>
                     <span className="flex shrink-0 gap-0.5">
-                      {[1, 2, 3, 4, 5].map((n) => (
+                      {RATING_SCALE.map((n) => (
                         <span key={n} className={`h-1.5 w-1.5 rounded-full ${n <= r.rating ? "bg-moss" : "bg-stone-200"}`} />
                       ))}
                     </span>

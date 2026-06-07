@@ -10,9 +10,11 @@ type GithubAnalysisPanelProps = {
   status: "idle" | "loading" | "done" | "error";
   analysis: GithubAnalysis | null;
   error: string | null;
+  /** Non-fatal degradation note shown above the result (e.g. JD-blind run). */
+  warning?: string | null;
 };
 
-export function GithubAnalysisPanel({ status, analysis, error }: GithubAnalysisPanelProps) {
+export function GithubAnalysisPanel({ status, analysis, error, warning }: GithubAnalysisPanelProps) {
   if (status === "idle") return null;
 
   return (
@@ -42,6 +44,12 @@ export function GithubAnalysisPanel({ status, analysis, error }: GithubAnalysisP
       ) : null}
 
       {status === "error" ? <p className="mt-4 rounded-md bg-red-50 p-3 text-base text-red-700">{error}</p> : null}
+
+      {warning ? (
+        <p className="mt-4 rounded-md border border-amber-200 bg-amber-50/60 p-3 text-base text-amber-800" role="status">
+          {warning}
+        </p>
+      ) : null}
 
       {analysis ? <GithubAnalysisBody analysis={analysis} /> : null}
     </section>

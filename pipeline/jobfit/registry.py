@@ -46,6 +46,23 @@ def fairness_protected_archetypes() -> frozenset[str]:
     return frozenset(a["id"] for a in _ARCHETYPES if a.get("fairnessProtected"))
 
 
+def low_confidence_threshold() -> float:
+    """Archetype-routing confidence below which the routing is an unsettled guess a
+    human should verify, not a decision to trust. The unguided default
+    (``defaultConfidence``) sits below it by construction, so a silent fallback
+    always trips it."""
+    return float(_DETECTION["lowConfidenceThreshold"])
+
+
+def signals_absent(reasons: list[str]) -> bool:
+    """True when :func:`detect` fired NO signal and fell back to the registry
+    default. ``detect`` appends ``defaultReason`` only on that no-signal branch, so
+    its presence in the returned reasons is the precise marker of an unguided
+    default — distinguishing a defaulted routing from one a low score merely made
+    uncertain."""
+    return _DETECTION["defaultReason"] in reasons
+
+
 def weights_map() -> dict[str, dict[str, float]]:
     return {a["id"]: dict(a["weights"]) for a in _ARCHETYPES}
 

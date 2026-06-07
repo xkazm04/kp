@@ -20,6 +20,18 @@ import math
 # Salaries round to the nearest 5000 (CZK/month gross).
 SALARY_STEP = 5000
 
+# Plausibility ceiling for a single monthly gross salary figure, in CZK/month —
+# the same market and period the pipeline emits by default (see
+# ``SalaryEstimate`` currency/period defaults in pipeline._salary_from_payload).
+# A band whose maximum exceeds this is almost certainly a data error — a yearly
+# figure mistaken for monthly, or a stray extra zero — rather than a real offer,
+# so the analysis flags it for manual review instead of trusting it. 350k
+# CZK/month sits well above the top of the Czech tech market (senior/principal
+# and most exec comp land far below it), giving generous headroom while still
+# catching garbage. This bounds CZK/month specifically; revisit it if the
+# pipeline's default currency or period ever changes.
+SALARY_PLAUSIBILITY_CEILING = 350_000
+
 
 def round_salary(value: float) -> int:
     """Round a salary to the nearest :data:`SALARY_STEP`."""

@@ -1,12 +1,9 @@
 import { ImageResponse } from "next/og";
 import { loadOgFonts } from "@/app/_lib/og-fonts";
+import { PAPER, INK, CORAL } from "@/app/_lib/brand";
 
 export const size = { width: 180, height: 180 };
 export const contentType = "image/png";
-
-const PAPER = "#f7f5ef";
-const INK = "#17202a";
-const CORAL = "#d65a4a";
 
 export default async function AppleIcon() {
   const fonts = await loadOgFonts([{ family: "Fraunces", weight: 700 }]);

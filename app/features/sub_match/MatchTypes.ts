@@ -97,6 +97,10 @@ export const FAMILY_LABEL: Record<string, string> = {
 export { ARCHETYPE_LABEL, isEarlyCareer } from "@/app/_lib/archetypes";
 
 export function provLabel(p: string): { text: string; tone: string } {
+  // `observed` is the highest-trust provenance the pipeline can mint (a passed
+  // live case or case-grounded interview) — it gets the strongest visual stamp,
+  // and must never fall through to the generic "academic" bucket.
+  if (p === "observed") return { text: "observed", tone: "bg-moss/15 text-moss" };
   if (p === "professional") return { text: "prod", tone: "bg-stone-200 text-ink" };
   if (p === "internship") return { text: "intern", tone: "bg-blue-50 text-blue-700" };
   if (p === "self_declared") return { text: "self", tone: "bg-stone-100 text-steel" };

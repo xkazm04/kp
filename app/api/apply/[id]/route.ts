@@ -9,6 +9,7 @@ import {
   saveProfile,
 } from "@/app/_lib/db";
 import { applyDedupeKey, buildApplyProfileDraft, buildApplyScript, FALLBACK_ARCHETYPE, KO_STEP_IDS } from "@/app/_lib/apply";
+import type { ApplyAnswers } from "@/app/_lib/apply-intake";
 import { cleanupWorkdir, createWorkdir, parsePythonJson, spawnPython } from "@/app/_lib/python-runner";
 import { validateProfileCliResult } from "@/app/_lib/apply-profile-result";
 import { randomId } from "@/app/_lib/random-id";
@@ -48,7 +49,7 @@ function degradedReason(detail: string): string {
 // label-only entry (flagged intake-degraded) so applying never hard-errors.
 async function buildApplicantProfile(
   job: ReturnType<typeof getJob>,
-  answers: { name: string; experience: string; skills: string; archetype?: string }
+  answers: ApplyAnswers
 ): Promise<BuildOutcome> {
   if (!job) return { ok: false, reason: degradedReason("role not found at intake") };
   let workdir: string | null = null;
@@ -107,10 +108,14 @@ async function buildApplicantProfile(
 }
 
 // GET → the conversational apply script for a job (capture + KO questions).
+// The apply PAGE no longer hits this route on load: page.tsx server-builds the
+// same script (buildApplyScript) from its own getJob and passes it to the client
+// as a prop, sparing a round-trip and a duplicate getJob per page view. This
+// route is retained for any standalone use of the script.
 // SINGLE SOURCE OF TRUTH: page.tsx owns the apply header (role title / company),
 // rendered from its own server-side getJob. This endpoint deliberately returns
 // ONLY `steps` — no `job` payload — so there is no second, divergent read of the
-// same record for the client to (mis)use.
+// same record for a caller to (mis)use.
 export async function GET(_request: NextRequest, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params;
   const job = getJob(id);
@@ -178,13 +183,21 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     const experience = String(answers.experience ?? "").trim();
     const skills = String(answers.skills ?? "").trim();
     const archetype = String(answers.archetype ?? "").trim();
+    // Early-career lane answers (step ids from buildApplyScript) — exactly one
+    // lane's fields arrive per application; the others stay "".
+    const studentProject = String(answers.student_project ?? "").trim();
+    const studentEducation = String(answers.student_education ?? "").trim();
+    const studentAspirations = String(answers.student_aspirations ?? "").trim();
+    const switchPrior = String(answers.switch_prior ?? "").trim();
+    const switchAspirations = String(answers.switch_aspirations ?? "").trim();
 
     // Per-field caps — fail closed BEFORE the dedup query, profile build, intake.json
     // write, or Python spawn. Reject (don't truncate) so the applicant fixes the input.
     if (name.length > MAX_NAME_LENGTH) {
       return NextResponse.json({ error: "Your name is too long." }, { status: 400 });
     }
-    if (experience.length > MAX_TEXT_LENGTH || skills.length > MAX_TEXT_LENGTH) {
+    const freeText = [experience, skills, studentProject, studentEducation, studentAspirations, switchPrior, switchAspirations];
+    if (freeText.some((t) => t.length > MAX_TEXT_LENGTH)) {
       return NextResponse.json({ error: "One of your answers is too long — please shorten it." }, { status: 400 });
     }
     if (archetype.length > MAX_ARCHETYPE_LENGTH) {
@@ -204,7 +217,17 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     // Build a real, matchable V2 candidate from the answers; on failure fall back
     // to a label-only id AND flag the entry intake-degraded so the recruiter sees
     // a stub that needs manual profile capture (rather than a silent demotion).
-    const built = await buildApplicantProfile(job, { name, experience, skills, archetype });
+    const built = await buildApplicantProfile(job, {
+      name,
+      experience,
+      skills,
+      archetype,
+      studentProject,
+      studentEducation,
+      studentAspirations,
+      switchPrior,
+      switchAspirations,
+    });
     const candidateId = built.ok ? built.id : randomId("apply");
 
     const { entry, created } = createPipelineEntry({
@@ -234,9 +257,11 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     }
 
     // createPipelineEntry already logs an `intake_degraded` event for the stub; for
-    // a healthy intake record the usual `applied` provenance.
+    // a healthy intake record the usual `applied` provenance. The event detail is
+    // whichever lane's story the applicant told.
     if (built.ok) {
-      recordAutomationEvent(entry.id, "applied", experience ? experience.slice(0, 160) : "via conversational apply");
+      const story = experience || studentProject || switchPrior;
+      recordAutomationEvent(entry.id, "applied", story ? story.slice(0, 160) : "via conversational apply");
     }
 
     return NextResponse.json({

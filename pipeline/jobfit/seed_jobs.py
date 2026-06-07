@@ -24,7 +24,7 @@ import time
 from collections import Counter
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 from ._summary import format_distribution
 from .claude_cli import ClaudeCliError, ClaudeCliProvider
@@ -236,10 +236,34 @@ def write_normalized(records: list[dict[str, Any]], raw_out: Path) -> Path:
     return norm_path
 
 
-def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Generate the synthetic job corpus.")
-    parser.add_argument("--count", type=int, default=150)
-    parser.add_argument("--workers", type=int, default=4)
+def run_seed_main(
+    build_specs: Callable[..., list[dict[str, Any]]],
+    spec_to_prompt: Callable[[dict[str, Any]], str],
+    *,
+    default_count: int,
+    default_workers: int = 4,
+    description: str = "Generate the synthetic job corpus.",
+    resume_filter: Callable[[dict[str, Any]], bool] | None = None,
+    finalize: Callable[[list[dict[str, Any]]], None] | None = None,
+    summary_label: str = "records",
+    argv: list[str] | None = None,
+) -> int:
+    """Shared CLI runner for the seed-corpus generators.
+
+    Builds the common argparse surface and runs the dry-run, materialize,
+    resume-merge and generate-then-write branches. The corpus generators differ
+    only in their ``build_specs``/``spec_to_prompt`` pair plus a few knobs:
+
+    - ``default_count``/``default_workers`` — the ``--count``/``--workers`` defaults.
+    - ``resume_filter`` — predicate kept records must satisfy when resuming from an
+      existing corpus (e.g. the ČS variant keeps only records whose company matches
+      the bank, so it never merges the old generic synthetic corpus).
+    - ``finalize`` — post-generation mutation hook (e.g. stamp a fixed company).
+    - ``summary_label`` — the noun used in the "Wrote N <label>" log line.
+    """
+    parser = argparse.ArgumentParser(description=description)
+    parser.add_argument("--count", type=int, default=default_count)
+    parser.add_argument("--workers", type=int, default=default_workers)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--model", default=None)
     parser.add_argument("--retries", type=int, default=2)
@@ -273,7 +297,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.out.exists() and not args.no_resume:
         try:
             for rec in json.loads(args.out.read_text(encoding="utf-8")):
-                if isinstance(rec, dict) and rec.get("id"):
+                if isinstance(rec, dict) and rec.get("id") and (resume_filter is None or resume_filter(rec)):
                     existing[rec["id"]] = rec
         except (json.JSONDecodeError, OSError):
             pass
@@ -286,10 +310,15 @@ def main(argv: list[str] | None = None) -> int:
         limit=args.limit,
         retries=args.retries,
         existing=existing,
+        specs=build_specs(args.count, seed=args.seed),
+        prompt_fn=spec_to_prompt,
     )
     if not records:
         print("No records generated.", file=sys.stderr)
         return 1
+
+    if finalize is not None:
+        finalize(records)
 
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text(json.dumps(records, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -299,11 +328,15 @@ def main(argv: list[str] | None = None) -> int:
         shown = args.out
     norm_path = write_normalized(records, args.out)
     print(
-        f"\nWrote {len(records)} records to {shown} (+ {norm_path.name}; failures: {dict(failures)})",
+        f"\nWrote {len(records)} {summary_label} to {shown} (+ {norm_path.name}; failures: {dict(failures)})",
         file=sys.stderr,
     )
     print(summarize(records), file=sys.stderr)
     return 0
+
+
+def main(argv: list[str] | None = None) -> int:
+    return run_seed_main(build_specs, spec_to_prompt, default_count=150, argv=argv)
 
 
 if __name__ == "__main__":

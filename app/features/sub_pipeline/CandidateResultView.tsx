@@ -1,3 +1,5 @@
+import { RATING_MAX } from "@/app/_lib/format";
+import type { ScorecardRating } from "@/app/_lib/interview-scorecard";
 import { APPLIED_LABEL, type Result } from "./CandidateDrawerTypes";
 
 function SourceBadge({ source }: { source: string }) {
@@ -54,10 +56,10 @@ export function ResultView({ result }: { result: Result }) {
           <p className="font-semibold uppercase">{String(d.recommendation ?? "")}</p>
           {d.summary ? <p>{String(d.summary)}</p> : null}
           <ul className="space-y-0.5">
-            {((d.ratings as { competency: string; rating: number }[]) ?? []).map((r, i) => (
+            {((d.ratings as ScorecardRating[]) ?? []).map((r, i) => (
               <li key={i} className="flex justify-between">
                 <span className="text-steel">{r.competency}</span>
-                <span className="font-semibold">{r.rating}/5</span>
+                <span className="font-semibold">{r.rating}/{RATING_MAX}</span>
               </li>
             ))}
           </ul>

@@ -1,4 +1,5 @@
 import type { SVGProps } from "react";
+import { LIMEWASH } from "@/app/_lib/brand";
 
 export function CompareIcon(props: SVGProps<SVGSVGElement>) {
   return (
@@ -13,7 +14,7 @@ export function CompareIcon(props: SVGProps<SVGSVGElement>) {
       aria-hidden="true"
       {...props}
     >
-      <rect x="3" y="4" width="8" height="16" rx="1.5" fill="#dce7d0" stroke="currentColor" />
+      <rect x="3" y="4" width="8" height="16" rx="1.5" fill={LIMEWASH} stroke="currentColor" />
       <rect x="13" y="4" width="8" height="16" rx="1.5" fill="#f7d4ce" stroke="currentColor" />
       <line x1="5.5" y1="9" x2="8.5" y2="9" />
       <line x1="5.5" y1="12" x2="8.5" y2="12" />

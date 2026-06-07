@@ -1,9 +1,8 @@
-import { writeFile } from "node:fs/promises";
-import { createHash } from "node:crypto";
-import path from "node:path";
-import { getProfileRecord, lookupGeminiCache, storeGeminiCache } from "./db";
-import { candidateSignature, resolveCandidate, type CandidateInput } from "./match-candidate";
+import { getJob, lookupPromptCache, storePromptCache } from "./db";
+import { writeMatchInput, type MatchInputBody } from "./match-input";
 import { cleanupWorkdir, createWorkdir, parseStderrError, spawnPython } from "./python-runner";
+import { reasoningCacheKey } from "./reasoning-cache-key";
+import { isCacheableReasoning } from "./reasoning-cache-policy";
 
 // Must match pipeline/jobfit/match_reasoning.py::REASONING_PROMPT_VERSION — a
 // drift here leaves the reasoning cache silently stale. The pairing is enforced
@@ -19,7 +18,7 @@ export class ReasoningError extends Error {
   }
 }
 
-export type ReasoningInput = { analysisSlug?: string; candidate?: CandidateInput; profileId?: string; jobId?: string };
+export type ReasoningInput = MatchInputBody & { jobId?: string };
 
 // Shared core for /api/match/reasoning AND the background-task runner.
 export async function runReasoning(body: ReasoningInput): Promise<Record<string, unknown>> {
@@ -27,31 +26,21 @@ export async function runReasoning(body: ReasoningInput): Promise<Record<string,
   let workdir: string | null = null;
   try {
     workdir = await createWorkdir();
-    let keyPart: string;
-    let args: string[];
+    const input = await writeMatchInput(body, workdir);
+    if ("error" in input) throw new ReasoningError(input.error, input.status);
+    const args = ["-m", "pipeline.jobfit.reasoning_cli", ...input.inputArgs, "--job-id", String(body.jobId)];
 
-    if (body.profileId) {
-      const record = getProfileRecord(body.profileId);
-      if (!record) throw new ReasoningError("Profile not found.", 404);
-      // Mix a content hash of the profile payload into the key so an in-place
-      // edit (same profileId, changed skills/aspirations/etc.) invalidates its
-      // cached reasoning instead of serving the pre-edit verdict.
-      const contentHash = createHash("sha256").update(JSON.stringify(record.payload)).digest("hex");
-      keyPart = `profile:${body.profileId}:${contentHash}`;
-      const profilePath = path.join(workdir, "profile.json");
-      await writeFile(profilePath, JSON.stringify(record.payload), "utf-8");
-      args = ["-m", "pipeline.jobfit.reasoning_cli", "--profile-json", profilePath, "--job-id", String(body.jobId)];
-    } else {
-      const resolved = resolveCandidate(body);
-      if ("error" in resolved) throw new ReasoningError(resolved.error, resolved.status);
-      keyPart = candidateSignature(resolved.candidate);
-      const candidatePath = path.join(workdir, "candidate.json");
-      await writeFile(candidatePath, JSON.stringify(resolved.candidate), "utf-8");
-      args = ["-m", "pipeline.jobfit.reasoning_cli", "--candidate-json", candidatePath, "--job-id", String(body.jobId)];
-    }
-
-    const hash = createHash("sha256").update(`${REASONING_PROMPT_VERSION}|${keyPart}|${body.jobId}`).digest("hex");
-    const cached = lookupGeminiCache(hash, REASONING_PROMPT_VERSION);
+    // Content-address the job (not just its id) so an in-place edit to the job's
+    // requirements/title invalidates the cached verdict — symmetric with the
+    // profile content hash in input.keyPart. See reasoning-cache-key.ts for the
+    // full invalidation contract.
+    const hash = reasoningCacheKey({
+      promptVersion: REASONING_PROMPT_VERSION,
+      candidateKeyPart: input.keyPart,
+      jobId: body.jobId,
+      jobPayload: getJob(body.jobId),
+    });
+    const cached = lookupPromptCache(hash, REASONING_PROMPT_VERSION);
     if (cached) return { ...(cached as object), cached: true };
 
     const { result } = spawnPython(args);
@@ -60,8 +49,13 @@ export async function runReasoning(body: ReasoningInput): Promise<Record<string,
       const err = parseStderrError(stderr, exitCode);
       throw new ReasoningError(err.message, err.status);
     }
-    const data = JSON.parse(stdout);
-    storeGeminiCache(hash, data, REASONING_PROMPT_VERSION, CACHE_TTL_HOURS);
+    const data = JSON.parse(stdout) as Record<string, unknown>;
+    // Persist authoritative LLM verdicts only; a deterministic fallback is left
+    // uncached so it is recomputed (and upgraded) the moment the provider returns.
+    // See reasoning-cache-policy.ts for the full invalidation contract.
+    if (isCacheableReasoning(data)) {
+      storePromptCache(hash, data, REASONING_PROMPT_VERSION, CACHE_TTL_HOURS);
+    }
     return { ...data, cached: false };
   } finally {
     if (workdir) await cleanupWorkdir(workdir);

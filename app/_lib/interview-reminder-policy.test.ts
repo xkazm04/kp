@@ -13,8 +13,12 @@ import assert from "node:assert/strict";
 import {
   REMINDER_LEAD_MS,
   REMINDER_MIN_NOTICE_MS,
+  REMINDER_MAX_ATTEMPTS,
+  REMINDER_RETRY_BASE_MS,
+  REMINDER_RETRY_MAX_BACKOFF_MS,
   isShortNoticeBooking,
   isReminderDue,
+  reminderRetryDelayMs,
 } from "./interview-reminder-policy.ts";
 
 const HOUR = 60 * 60 * 1000;
@@ -89,4 +93,44 @@ test("the lead window is honored at its exact boundary", () => {
     false,
     "one ms past the window is excluded"
   );
+});
+
+// --- Bounded reminder dispatch: retry cap + backoff (idea-edab792a) ------------
+// Lock the cadence that turns the old re-claim/re-fail/re-release storm into a
+// capped, backed-off handful of attempts. Pure (no DB / no clock) like the rest.
+
+const MIN = 60 * 1000;
+
+test("the retry cap and backoff bounds are sane positive integers", () => {
+  assert.ok(Number.isInteger(REMINDER_MAX_ATTEMPTS) && REMINDER_MAX_ATTEMPTS >= 1, "at least one attempt is allowed");
+  assert.ok(REMINDER_RETRY_BASE_MS > 0, "base backoff is a positive duration");
+  assert.ok(
+    REMINDER_RETRY_MAX_BACKOFF_MS >= REMINDER_RETRY_BASE_MS,
+    "the backoff cap is not below the base"
+  );
+});
+
+test("no attempt yet means no wait — the first send fires immediately", () => {
+  assert.equal(reminderRetryDelayMs(0), 0, "zero attempts → no backoff");
+  assert.equal(reminderRetryDelayMs(-1), 0, "negative (defensive) → no backoff");
+});
+
+test("backoff grows exponentially from the base, doubling each failed attempt", () => {
+  assert.equal(reminderRetryDelayMs(1), REMINDER_RETRY_BASE_MS, "after 1 failure → base (1m)");
+  assert.equal(reminderRetryDelayMs(2), REMINDER_RETRY_BASE_MS * 2, "after 2 → 2×base (2m)");
+  assert.equal(reminderRetryDelayMs(3), REMINDER_RETRY_BASE_MS * 4, "after 3 → 4×base (4m)");
+  assert.equal(reminderRetryDelayMs(1), MIN, "base is 1 minute");
+});
+
+test("backoff never exceeds the cap, no matter how many attempts", () => {
+  assert.ok(reminderRetryDelayMs(1000) <= REMINDER_RETRY_MAX_BACKOFF_MS, "huge attempt count is still capped");
+  assert.equal(
+    reminderRetryDelayMs(1000),
+    REMINDER_RETRY_MAX_BACKOFF_MS,
+    "well past the doubling, the delay pins to the cap"
+  );
+  // Monotonic non-decreasing across the whole capped range.
+  for (let n = 1; n < 12; n += 1) {
+    assert.ok(reminderRetryDelayMs(n + 1) >= reminderRetryDelayMs(n), `delay does not shrink from ${n} → ${n + 1}`);
+  }
 });

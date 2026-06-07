@@ -3,6 +3,8 @@ import { writeFile } from "node:fs/promises";
 import { cleanupWorkdir, createWorkdir, parsePythonJson, parseStderrError, spawnPython } from "./python-runner";
 import { runDesignArtifacts, runNeedAnalysis, type DevNeed } from "./devcase-run";
 import { formatSalaryRange } from "./format";
+import { validateJdBuildInput } from "./jd-limits";
+import { normalizeMarketSalary, type MarketSalary } from "./salary-band";
 
 // The AI job-description builder: a free-text need (+ optional GitHub repo for
 // dev roles) → our devcase need→design machinery → a structured RoleSpec, then
@@ -18,7 +20,11 @@ export type JdBuildInput = {
   repoUrl?: string;
 };
 
-export type MarketSalary = { suggestedMinimum: number; suggestedMaximum: number; currency: string; confidence: string; summary: string };
+// The canonical band shape + its trust-boundary normalizer live in salary-band
+// (a pure module shared with the client renderer and the ingest write path), so
+// the producer here and the consumers can't drift. Re-exported for callers that
+// import it from this module.
+export type { MarketSalary };
 
 export async function runMarketSalary(input: {
   title: string;
@@ -34,7 +40,18 @@ export async function runMarketSalary(input: {
     const { result } = spawnPython(["-m", "pipeline.jobfit.market_salary_cli", "--input-json", p]);
     const { stdout, stderr, exitCode } = await result;
     if (exitCode !== 0) throw new Error(parseStderrError(stderr, exitCode).message);
-    return parsePythonJson<{ result: MarketSalary; sources: string[]; source: string }>(stdout, stderr);
+    // The CLI payload is untrusted — parsePythonJson hands back whatever the
+    // child printed, cast to a type the runtime never enforces. Normalize the
+    // salary band HERE, at the trust boundary, so a partial/garbage band (or the
+    // CLI's 0–0 taxonomy miss) becomes a render-safe `available: false` shape
+    // instead of a `suggestedMaximum` that white-screens the result panel after a
+    // 1–2 minute build, or a literal `undefined` baked into the saved JD body.
+    const parsed = parsePythonJson<{ result?: unknown; sources?: unknown; source?: unknown }>(stdout, stderr);
+    return {
+      result: normalizeMarketSalary(parsed.result),
+      sources: Array.isArray(parsed.sources) ? parsed.sources.filter((s): s is string => typeof s === "string") : [],
+      source: typeof parsed.source === "string" ? parsed.source : "deterministic",
+    };
   } finally {
     await cleanupWorkdir(workdir);
   }
@@ -57,10 +74,15 @@ function composeMarkdown(role: RoleSpec, opts: { company?: string; location?: st
   const meta = [opts.company, opts.location, role.seniority ? `${role.seniority} level` : null].filter(Boolean);
   if (meta.length) lines.push(`**${meta.join(" · ")}**`);
   const s = opts.salary;
-  if (s?.suggestedMinimum > 0) lines.push(`**Salary:** ${formatSalaryRange(s.suggestedMinimum, s.suggestedMaximum, { currency: s.currency, period: "month" })}`);
+  // Only advertise a band when the normalizer confirmed a usable one. An
+  // unavailable band omits the line entirely — a published JD shouldn't print
+  // "Salary: 0 CZK" or "salary unavailable" to candidates; omission is the
+  // graceful degradation here. (The builder card surfaces the unavailability to
+  // the recruiter; see JdBuilderResult.)
+  if (s.available) lines.push(`**Salary:** ${formatSalaryRange(s.suggestedMinimum, s.suggestedMaximum, { currency: s.currency, period: "month" })}`);
 
   lines.push("", "## About the role");
-  lines.push(`We're hiring a ${title}${opts.company ? ` at ${opts.company}` : ""}. ${s?.summary ?? ""}`.trim());
+  lines.push(`We're hiring a ${title}${opts.company ? ` at ${opts.company}` : ""}. ${s.summary}`.trim());
 
   const section = (heading: string, items?: string[]) => {
     if (items && items.length) {
@@ -79,14 +101,21 @@ type Progress = (done: number, total: number, msg?: string) => void;
 
 export async function runJdBuild(params: Record<string, unknown>, progress?: Progress): Promise<Record<string, unknown>> {
   const input = params as unknown as JdBuildInput;
+  // Enforce the minimum-need contract HERE, not just in the form gate: a deep-link
+  // /simulation prefill or a programmatic startTask reaches this handler directly,
+  // and the need→design chain below is a 1–2 minute AI run we refuse to spend on a
+  // barely-there title or an empty need. Throwing fails the task fast (before any
+  // Python spawn) with the same user-facing message the form would have shown.
+  const valid = validateJdBuildInput(input.title, input.needText);
+  if (!valid.ok) throw new Error(valid.error);
   const need: DevNeed = {
-    title: input.title,
+    title: valid.title,
     stack: [],
-    responsibilities: (input.needText || "").split("\n").map((l) => l.trim()).filter(Boolean),
+    responsibilities: valid.needText.split("\n").map((l) => l.trim()).filter(Boolean),
     codebaseRefs: input.repoUrl?.trim() ? [{ kind: "github", ref: input.repoUrl.trim() }] : [],
     seniorityTarget: input.seniority || "medior",
     roleFamily: input.roleFamily || "software_engineering",
-    notes: input.needText,
+    notes: valid.needText,
   };
 
   // The design chain (analyze need → design role) and the grounded salary
@@ -100,7 +129,7 @@ export async function runJdBuild(params: Record<string, unknown>, progress?: Pro
       return { role: role as RoleSpec, snapshot };
     })(),
     runMarketSalary({
-      title: input.title,
+      title: valid.title,
       seniority: input.seniority || "medior",
       roleFamily: input.roleFamily || "software_engineering",
       company: input.company,

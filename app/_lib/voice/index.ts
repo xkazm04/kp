@@ -1,10 +1,10 @@
-import { ElevenLabsVoiceAdapter } from "./elevenlabs";
-import { OpenAiVoiceAdapter } from "./openai";
+import { ElevenLabsVoiceAdapter } from "./elevenlabs.ts";
+import { OpenAiVoiceAdapter } from "./openai.ts";
 import { QUICK_SCREEN_MIN } from "../interview-duration.mjs";
-import type { VoiceAdapter, VoiceAvailability, VoiceProviderId } from "./types";
+import type { VoiceAdapter, VoiceAvailability, VoiceProviderId } from "./types.ts";
 
-export type { VoiceConnect, VoiceProviderId, VoiceAvailability } from "./types";
-export { coerceProviderId } from "./types";
+export type { VoiceConnect, VoiceProviderId, VoiceAvailability, VoiceTurn, VoiceAdapter } from "./types.ts";
+export { coerceProviderId, missingVoiceEnv } from "./types.ts";
 
 const adapters: Record<VoiceProviderId, VoiceAdapter> = {
   openai: new OpenAiVoiceAdapter(),

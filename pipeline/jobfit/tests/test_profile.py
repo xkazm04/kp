@@ -8,6 +8,7 @@ from pipeline.jobfit.profile import (
     Evidence,
     SkillClaim,
     completeness,
+    completeness_gaps,
     normalize_profile,
 )
 
@@ -75,6 +76,21 @@ class CompletenessTest(unittest.TestCase):
         _score, missing = completeness(CandidateProfileV2(archetype="bau"))
         self.assertTrue(any("seniority" in m for m in missing))
         self.assertTrue(any("work-experience" in m for m in missing))
+
+    def test_gaps_are_the_structured_twin_of_missing(self) -> None:
+        # completeness_gaps carries the CHECK ID a follow-up form keys its field
+        # on; its labels (and their biggest-weight-first order) must be exactly
+        # the human list completeness() reports — one source, two shapes.
+        profile = CandidateProfileV2(archetype="student")
+        _score, missing = completeness(profile)
+        gaps = completeness_gaps(profile)
+        self.assertEqual([g["label"] for g in gaps], missing)
+        self.assertIn("has_project_or_thesis", [g["check"] for g in gaps])
+        # the highest-weight student gap leads
+        self.assertEqual(gaps[0]["check"], "has_project_or_thesis")
+
+    def test_full_student_has_no_gaps(self) -> None:
+        self.assertEqual(completeness_gaps(_full_student()), [])
 
     def test_normalize_resolves_provenance_and_stamps_completeness(self) -> None:
         profile = _full_student()

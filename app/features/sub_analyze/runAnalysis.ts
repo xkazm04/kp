@@ -71,6 +71,13 @@ export type GithubCallbacks = {
   onLoading: () => void;
   onResult: (analysis: GithubAnalysis) => void;
   onError: (message: string) => void;
+  /**
+   * A non-fatal degradation note: the deep-dive still produced a result, but it
+   * ran with less than the user supplied (e.g. JD-blind because the attached JD
+   * couldn't be read). Surfaced as a warning, not an error, so the result still
+   * shows alongside it.
+   */
+  onWarning?: (message: string) => void;
 };
 
 // The JD as the form holds it: textarea/library text plus the optional uploaded
@@ -98,6 +105,16 @@ export async function executeGithubAnalysis(
     if (jd.jobDescriptionFile) {
       const extracted = (await extractFileText(jd.jobDescriptionFile).catch(() => "")).trim();
       if (extracted) jobDescriptionText = extracted;
+    }
+    // The user supplied a JD but we ended up with no usable text — the only way
+    // this happens is a JD file that wouldn't extract and no typed fallback, so
+    // the deep-dive below is about to run JD-blind. Tell the user the JD was
+    // dropped instead of showing a result that quietly ignored it.
+    const jdSupplied = Boolean(jd.jobDescriptionFile) || jd.jobDescriptionText.trim().length > 0;
+    if (jdSupplied && !jobDescriptionText) {
+      callbacks.onWarning?.(
+        "Couldn't read the job description, so it's excluded from the GitHub analysis."
+      );
     }
     const response = await fetch("/api/github-analysis", {
       method: "POST",

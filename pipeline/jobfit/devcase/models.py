@@ -8,7 +8,7 @@ lifecycle: DevNeed -> NeedAnalysis -> (CaseScenario + RoleSpec) -> Submission ->
 
 from __future__ import annotations
 
-from pydantic import Field
+from pydantic import AliasChoices, Field
 
 from ..models import _Base
 
@@ -135,12 +135,32 @@ RUBRIC_DIMENSIONS: list[dict] = [
 
 
 class CaseScenario(_Base):
-    """The designed assignment, grounded in the real codebase."""
+    """The designed assignment, grounded in the supplied reality (a codebase for software
+    roles; the role's own materials — documents, models, designs, … — for other domains)."""
 
     id: str = ""
     title: str = ""
     brief: str = ""
-    repo_seed: str = ""  # what code / fixture the candidate is handed
+    # The starting materials handed to the candidate — domain-NEUTRAL despite the name.
+    # `repoSeed` is the legacy wire name kept ONLY for back-compat round-trips (the TS side and
+    # stored cases read `repoSeed`, and design.py emits it); the `startingMaterials` validation
+    # alias names what the field actually holds. On input any of `repoSeed`, `startingMaterials`
+    # or the snake field name is accepted; `model_dump(by_alias=True)` always emits `repoSeed`
+    # so the round-trip stays unbroken. The domain contract lives in `description` below — read
+    # that, NOT the name — so models.py readers stop assuming this is always a repository.
+    repo_seed: str = Field(
+        default="",
+        validation_alias=AliasChoices("repoSeed", "startingMaterials"),
+        serialization_alias="repoSeed",
+        alias_priority=2,  # keep our explicit aliases; don't let _Base's to_camel overwrite them
+        description=(
+            "Domain-neutral starting materials handed to the candidate — NOT necessarily a "
+            "repository. A codebase/repo fixture for software roles, but the role's own materials "
+            "in any other domain: documents, spreadsheets, dashboards, designs, recordings, a CRM "
+            "export, a financial model, a content/campaign library, etc. Named `repoSeed` for "
+            "legacy reasons only; describe it in the role's own terms, not as a 'repo'."
+        ),
+    )
     tasks: list[str] = Field(default_factory=list)
     cover_probes: list[CoverProbe] = Field(default_factory=list)
     rubric_dimensions: list[RubricDimension] = Field(default_factory=list)
@@ -219,9 +239,6 @@ class DimensionScore(_Base):
 class CaseEvaluation(_Base):
     """Scores the five durable capabilities — not lines/correctness."""
 
-    structure_score: int = 0  # 0..100
-    judgment_score: int = 0
-    architecture_score: int = 0
     dimension_scores: dict[str, int] = Field(default_factory=dict)
     # Ordered, weight-annotated mirror of dimension_scores (see DimensionScore) — what the UI reads.
     dimensions: list[DimensionScore] = Field(default_factory=list)

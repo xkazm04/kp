@@ -4,9 +4,9 @@ import { CircleDollarSign } from "lucide-react";
 import { formatCzk, formatSalaryRange, labelize } from "@/app/_lib/format";
 import type { Analysis } from "@/app/_lib/schemas";
 import { ConfidenceBadge } from "@/app/_components/Badge";
-import { dedupe, dedupeBy } from "@/app/_lib/dedupe";
+import { dedupeBy } from "@/app/_lib/dedupe";
 import { safeHttpLinks } from "@/app/_lib/safe-url";
-import { InlineList } from "../shared";
+import { BulletList, InlineList } from "../shared";
 import { SalaryGauge } from "./SalaryGauge";
 
 export function SalaryTab({ analysis }: { analysis: Analysis }) {
@@ -49,11 +49,7 @@ export function SalaryTab({ analysis }: { analysis: Analysis }) {
             <p className="mt-3 text-base leading-6 text-ink">
               {labelize(analysis.companyContext.companyType)}: {analysis.companyContext.salaryEffect} ({analysis.companyContext.adjustmentFactor}x)
             </p>
-            <ul className="mt-3 space-y-2">
-              {dedupe(analysis.companyContext.rationale).map((item, i) => (
-                <li key={`${item}-${i}`} className="text-base leading-6 text-ink">{item}</li>
-              ))}
-            </ul>
+            <BulletList items={analysis.companyContext.rationale} listClassName="mt-3 space-y-2" />
           </div>
         ) : null}
       </div>
@@ -61,11 +57,7 @@ export function SalaryTab({ analysis }: { analysis: Analysis }) {
       <div className="space-y-5">
         <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
           <h3 className="font-serif text-h3 text-ink">Salary Rationale</h3>
-          <ul className="mt-4 space-y-3">
-            {dedupe(analysis.salary.rationale).map((item, i) => (
-              <li key={`${item}-${i}`} className="text-base leading-6 text-ink">{item}</li>
-            ))}
-          </ul>
+          <BulletList items={analysis.salary.rationale} listClassName="mt-4 space-y-3" />
         </div>
 
         {analysis.evidenceTrace ? (

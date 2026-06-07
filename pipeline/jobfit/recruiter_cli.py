@@ -34,6 +34,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--jobs", type=Path, default=None)
     parser.add_argument("--job-json", type=Path, default=None, help="A single Job record — used directly instead of the corpus lookup (lets newly-ingested DB jobs rank).")
     parser.add_argument("--weights-llm", action="store_true", help="Use the LLM weight proposer for the fairness matrix (default: deterministic, no LLM).")
+    parser.add_argument("--embeddings", action="store_true", help="Use the embedding bridge for the personal/motivation dimension (default: deterministic keyword heuristic, no network).")
     args = parser.parse_args(argv)
 
     try:
@@ -72,7 +73,15 @@ def main(argv: list[str] | None = None) -> int:
                 cand.label = entry["label"]
             candidates.append((entry_id, cand))
 
-        rows = rank_candidates_for_job(candidates, job)
+        # Opt-in embedding bridge for the personal/motivation dimension. Fail-open
+        # by construction: no key/SDK → default_provider() is None → the keyword
+        # heuristic; a mid-run provider error falls back per-call inside matching.
+        embedder = None
+        if args.embeddings:
+            from .embedding_bridge import default_provider
+
+            embedder = default_provider()
+        rows = rank_candidates_for_job(candidates, job, embedder=embedder)
         # Cross-scheme fairness matrix (bounded dynamic weights). Opt into the LLM
         # weight proposer with --weights-llm (the group eval does; the cheap
         # candidate-list endpoint stays deterministic). Best-effort: a failure here

@@ -58,7 +58,15 @@ def main(argv: list[str] | None = None) -> int:
 
         missing: list[str] = []
         if args.job_ids:
-            wanted = [j.strip() for j in args.job_ids.split(",") if j.strip()]
+            # Dedupe requested ids (first-occurrence order preserved): the grid keys
+            # each column by id, so a repeated id ("id,id") would emit two identical
+            # columns with duplicate React keys. Collapse it to one before scoring.
+            seen: set[str] = set()
+            wanted: list[str] = []
+            for j in (s.strip() for s in args.job_ids.split(",")):
+                if j and j not in seen:
+                    seen.add(j)
+                    wanted.append(j)
             jobs = [by_id[i] for i in wanted if i in by_id]  # preserve requested order
             missing = [i for i in wanted if i not in by_id]  # surfaced below, not silently dropped
         else:

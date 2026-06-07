@@ -207,6 +207,35 @@ PROVENANCE_WEIGHTS: dict[str, float] = {
 }
 DEFAULT_PROVENANCE = "professional"
 
+# The user-selectable provenance values, in dropdown display order (weakest →
+# strongest evidence). A curated SUBSET of PROVENANCE_WEIGHTS: it omits
+# "observed" (set only by the live-case / interview-scorecard producers, never
+# picked by a candidate) and "unknown" (the scoring fallback, not a real choice).
+# This is the single source of truth the frontend dropdown is generated from —
+# codegen.py emits it into app/_lib/taxonomy.generated.ts (idea-ba28f11b), so a
+# value added here reaches the UI, and a value the UI offers always has a weight.
+UI_PROVENANCE: tuple[str, ...] = (
+    "self_declared",
+    "coursework",
+    "academic_project",
+    "thesis",
+    "personal_project",
+    "open_source",
+    "internship",
+    "professional",
+    "certification",
+    "extracurricular",
+)
+
+# Fail fast if a selectable provenance has no scoring weight — otherwise it would
+# silently score as PROVENANCE_WEIGHTS["unknown"] downstream with no error.
+_unweighted_ui_provenance = [p for p in UI_PROVENANCE if p not in PROVENANCE_WEIGHTS]
+if _unweighted_ui_provenance:
+    raise RuntimeError(
+        "UI_PROVENANCE values missing from PROVENANCE_WEIGHTS: "
+        f"{_unweighted_ui_provenance}"
+    )
+
 # Hierarchy match weights (base, before provenance).
 _SPECIALIZATION_MATCH = 0.9   # candidate knows a specialization of the requirement
 _GENERALIZATION_MATCH = 0.55  # candidate knows only the broader / foundational skill

@@ -4,6 +4,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback } from "react";
 import dynamic from "next/dynamic";
 import { Skeleton } from "@/app/_components/Skeleton";
+import { ErrorBoundary } from "@/app/_components/ErrorBoundary";
 import { TasksIndicator } from "./tasks/TasksIndicator";
 import { TasksProvider } from "./tasks/TasksProvider";
 import { SimulationProvider } from "./simulation/SimulationProvider";
@@ -13,7 +14,7 @@ import { SimExplainDrawer } from "./simulation/SimExplainDrawer";
 import { SimOfferFrame } from "./simulation/SimOfferFrame";
 import { SimGroupEval } from "./simulation/SimGroupEval";
 import { SimDecisionWave } from "./simulation/SimDecisionWave";
-import { buildUrl, DEFAULT_TAB, isWorkspaceTabId, navItemClass, NAV_GROUPS, type WorkspaceTabId } from "./tabs";
+import { buildTabSwitchUrl, DEFAULT_TAB, isWorkspaceTabId, navItemClass, NAV_GROUPS, type WorkspaceTabId } from "./tabs";
 
 export type { WorkspaceTabId } from "./tabs";
 
@@ -51,17 +52,20 @@ const TasksTab = dynamic(() => import("./tasks/TasksTab").then((m) => ({ default
 export function Workspace() {
   const router = useRouter();
   const params = useSearchParams();
+  const search = params.toString();
   const tabParam = params.get("tab");
   const active: WorkspaceTabId = isWorkspaceTabId(tabParam) ? tabParam : DEFAULT_TAB;
   // History is consolidated into Analyze; ?tab=history opens Analyze in history mode.
   const navActive: WorkspaceTabId = active === "history" ? "analyze" : active;
 
-  // Switching tabs from the sidebar clears any cross-tab deep-link params.
+  // Switching tabs from the sidebar clears every tab-scoped deep-link param
+  // (the allowlist lives in tabs.ts, not in this call site) so the destination
+  // never inherits the prior tab's selection.
   const selectTab = useCallback(
     (id: WorkspaceTabId): void => {
-      router.replace(buildUrl({ tab: id, profile: null, job: null }), { scroll: false });
+      router.replace(buildTabSwitchUrl(id, search), { scroll: false });
     },
-    [router]
+    [router, search]
   );
 
   return (
@@ -123,26 +127,32 @@ export function Workspace() {
       </aside>
 
       <main id="main" tabIndex={-1} className="min-w-0 flex-1 bg-white focus:outline-none">
-        {/* key on the active tab so each switch replays the fade-in entrance.
-            pb-24 keeps content clear of the fixed simulation bar. */}
-        <div key={navActive} className="animate-tab-in mx-auto max-w-[108rem] px-3 py-6 pb-24 sm:px-4 lg:px-6">
-          {navActive === "pipeline" ? <PipelineTab /> : null}
-          {navActive === "channels" ? <ChannelsTab /> : null}
-          {navActive === "decisions" ? <DecisionsTab /> : null}
-          {navActive === "schedule" ? <ScheduleTab /> : null}
-          {navActive === "profile" ? <ProfileTab /> : null}
-          {navActive === "match" ? <MatchTab /> : null}
-          {navActive === "interview" ? <InterviewSimTab /> : null}
-          {navActive === "analyze" ? (
-            <AnalyzeWorkspace initialMode={active === "history" ? "history" : "new"} />
-          ) : null}
-          {navActive === "jobs" ? <JobsTab /> : null}
-          {navActive === "library" ? <LibraryTab /> : null}
-          {navActive === "matrix" ? <MatrixTab /> : null}
-          {navActive === "analytics" ? <AnalyticsTab /> : null}
-          {navActive === "dev" ? <DevTab /> : null}
-          {navActive === "about" ? <AboutTab /> : null}
-          {navActive === "tasks" ? <TasksTab /> : null}
+        {/* pb-24 keeps content clear of the fixed simulation bar. The boundary
+            contains a single tab's render crash to this panel (sidebar + sim bar
+            survive) and clears itself when resetKey/navActive changes on a tab
+            switch. The inner key replays the fade-in entrance on each switch. */}
+        <div className="mx-auto max-w-[108rem] px-3 py-6 pb-24 sm:px-4 lg:px-6">
+          <ErrorBoundary resetKey={navActive} label="This tab">
+            <div key={navActive} className="animate-tab-in">
+              {navActive === "pipeline" ? <PipelineTab /> : null}
+              {navActive === "channels" ? <ChannelsTab /> : null}
+              {navActive === "decisions" ? <DecisionsTab /> : null}
+              {navActive === "schedule" ? <ScheduleTab /> : null}
+              {navActive === "profile" ? <ProfileTab /> : null}
+              {navActive === "match" ? <MatchTab /> : null}
+              {navActive === "interview" ? <InterviewSimTab /> : null}
+              {navActive === "analyze" ? (
+                <AnalyzeWorkspace initialMode={active === "history" ? "history" : "new"} />
+              ) : null}
+              {navActive === "jobs" ? <JobsTab /> : null}
+              {navActive === "library" ? <LibraryTab /> : null}
+              {navActive === "matrix" ? <MatrixTab /> : null}
+              {navActive === "analytics" ? <AnalyticsTab /> : null}
+              {navActive === "dev" ? <DevTab /> : null}
+              {navActive === "about" ? <AboutTab /> : null}
+              {navActive === "tasks" ? <TasksTab /> : null}
+            </div>
+          </ErrorBoundary>
         </div>
       </main>
       <SimSpotlight />

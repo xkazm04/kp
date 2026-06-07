@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { ArrowRight, Check, Sparkles, UserPlus } from "lucide-react";
 import { ARCHETYPE_LABEL } from "@/app/_lib/archetypes";
+import { GAP_FIELDS, mergeGapAnswers, type CompletenessGap } from "@/app/_lib/completeness-followup";
 
 // Reads the archetype-relevant fields off the analysis's best-effort v2Profile
 // (a normalized CandidateProfileV2 dump, by_alias camelCase). The pipeline
@@ -16,6 +17,9 @@ type V2 = {
   archetypeReasons?: string[];
   completeness?: number;
   displayName?: string;
+  // The archetype checklist's unmet items (profile.completeness_gaps), riding
+  // transiently on the dump — drives the targeted "fill the gaps" follow-up.
+  completenessGaps?: CompletenessGap[];
 };
 
 type SaveState =
@@ -27,6 +31,9 @@ type SaveState =
 export function ArchetypeBanner({ v2Profile }: { v2Profile: Record<string, unknown> }) {
   const v2 = v2Profile as V2;
   const [save, setSave] = useState<SaveState>({ kind: "idle" });
+  // Answers to the completeness follow-up, keyed by check id. Optional: saving
+  // with everything blank is the old behavior exactly.
+  const [gapAnswers, setGapAnswers] = useState<Record<string, string>>({});
 
   if (!v2.archetype) return null;
 
@@ -34,16 +41,21 @@ export function ArchetypeBanner({ v2Profile }: { v2Profile: Record<string, unkno
   const confidence = Math.round((v2.archetypeConfidence ?? 0) * 100);
   const completeness = Math.round((v2.completeness ?? 0) * 100);
   const reasons = v2.archetypeReasons ?? [];
+  // Only gaps the form knows how to collect for (an unknown/new check id has no
+  // field and must not render as a label with no input).
+  const gaps = (v2.completenessGaps ?? []).filter((g) => GAP_FIELDS[g.check]);
 
   const saveAsProfile = async () => {
     setSave({ kind: "saving" });
     try {
-      // Pin the inferred archetype as the self-declaration so the re-route is
+      // Fold the answered follow-up fields into the analyzed profile, then pin
+      // the inferred archetype as the self-declaration so the re-route is
       // deterministic; profile_cli re-validates + re-scores completeness on save.
+      const profile = mergeGapAnswers(v2Profile, gapAnswers);
       const r = await fetch("/api/profile", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ profile: v2Profile, signals: { selfDeclared: v2.archetype }, persist: true }),
+        body: JSON.stringify({ profile, signals: { selfDeclared: v2.archetype }, persist: true }),
       });
       const payload = await r.json();
       if (!r.ok) throw new Error(payload.error ?? `Save failed (${r.status}).`);
@@ -90,6 +102,39 @@ export function ArchetypeBanner({ v2Profile }: { v2Profile: Record<string, unkno
         Early-career CVs are routed so potential replaces years of experience — saving promotes this candidate into the
         pool Match, Jobs, and the pipeline rank.
       </p>
+
+      {gaps.length > 0 && save.kind !== "saved" ? (
+        // The completeness-driven follow-up: one targeted field per unmet
+        // checklist item (the CV simply didn't carry these), biggest gap first.
+        // Optional — saving with blanks is fine; answers merge into the profile.
+        <div className="mt-3 border-t border-coral/20 pt-3">
+          <p className="text-meta uppercase tracking-wide text-coral">
+            Fill the gaps the CV left ({gaps.length}) — optional, raises completeness
+          </p>
+          <div className="mt-2 grid gap-2 sm:grid-cols-2">
+            {gaps.map((gap) => {
+              const field = GAP_FIELDS[gap.check];
+              const shared = {
+                value: gapAnswers[gap.check] ?? "",
+                onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
+                  setGapAnswers((a) => ({ ...a, [gap.check]: e.target.value })),
+                placeholder: field.placeholder,
+                disabled: save.kind === "saving",
+              };
+              return (
+                <label key={gap.check} className="block text-sm text-ink">
+                  <span className="text-steel">{field.prompt}</span>
+                  {field.multiline ? (
+                    <textarea {...shared} rows={2} className="focus-ring mt-1 w-full rounded-md border border-stone-200 px-2.5 py-1.5 text-sm" />
+                  ) : (
+                    <input {...shared} className="focus-ring mt-1 h-9 w-full rounded-md border border-stone-200 px-2.5 text-sm" />
+                  )}
+                </label>
+              );
+            })}
+          </div>
+        </div>
+      ) : null}
       {save.kind === "error" ? (
         <p className="mt-1.5 text-sm text-red-700" role="alert">
           {save.message}

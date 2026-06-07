@@ -1,4 +1,4 @@
-import type { InterviewTurn } from "./db";
+import type { VoiceTurn } from "./db";
 
 // ---------------------------------------------------------------------------
 // Transcript truncation policy for interview scoring
@@ -48,11 +48,11 @@ export const MAX_SCORECARD_NOTES_CHARS = 6000;
  *  marker, so the kept head + tail + marker stays within MAX_SCORECARD_NOTES_CHARS. */
 const MARKER_RESERVE_CHARS = 200;
 
-function speaker(role: InterviewTurn["role"]): string {
+function speaker(role: VoiceTurn["role"]): string {
   return role === "candidate" ? "Candidate" : role === "interviewer" ? "Interviewer" : "System";
 }
 
-function turnLine(t: InterviewTurn): string {
+function turnLine(t: VoiceTurn): string {
   return `${speaker(t.role)}: ${t.text}`;
 }
 
@@ -60,10 +60,10 @@ function turnLine(t: InterviewTurn): string {
  *  MAX_TURN_TEXT_CHARS. Reports how many characters the clamp discarded (0 when
  *  the turn was within the cap) so the caller can surface real truncation. */
 export function clampTurn(raw: { role?: unknown; text: unknown; at?: string }): {
-  turn: InterviewTurn;
+  turn: VoiceTurn;
   clippedChars: number;
 } {
-  const role: InterviewTurn["role"] =
+  const role: VoiceTurn["role"] =
     raw.role === "candidate" || raw.role === "interviewer" ? raw.role : "system";
   const full = String(raw.text);
   const text = full.slice(0, MAX_TURN_TEXT_CHARS);
@@ -71,7 +71,7 @@ export function clampTurn(raw: { role?: unknown; text: unknown; at?: string }): 
 }
 
 /** Flatten a transcript to the plain "Speaker: text" notes the scorer reads. */
-export function transcriptToNotes(transcript: InterviewTurn[]): string {
+export function transcriptToNotes(transcript: VoiceTurn[]): string {
   return transcript.map(turnLine).join("\n");
 }
 
@@ -103,7 +103,7 @@ function omittedMarker(droppedTurns: number, droppedChars: number): string {
  * explicit marker — and the returned metadata records exactly what was dropped
  * so the caller can log/flag it. See the policy note at the top of this file.
  */
-export function buildScorecardNotes(transcript: InterviewTurn[]): ScorecardNotes {
+export function buildScorecardNotes(transcript: VoiceTurn[]): ScorecardNotes {
   const totalTurns = transcript.length;
   const lines = transcript.map(turnLine);
   const full = lines.join("\n");

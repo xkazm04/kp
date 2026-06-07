@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useLoader } from "@/app/_lib/useLoader";
-import { useTasks } from "@/app/features/tasks/TasksProvider";
+import { useTasks, useTaskResult } from "@/app/features/tasks/TasksProvider";
 import { NeedForm } from "./NeedForm";
 import { AnalysisView } from "./AnalysisView";
 import { LifecycleSection } from "./LifecycleSection";
@@ -208,17 +208,23 @@ export function DevTab() {
     () => needTasks.find((t) => t.id === selectedId) ?? needTasks[0] ?? null,
     [needTasks, selectedId]
   );
-  const running = viewed ? viewed.status === "running" || viewed.status === "queued" : false;
-  const result = viewed?.status === "succeeded" ? (viewed.result as Result) : null;
+  // result/params live in the full task record, which the poll omits — fetch the
+  // viewed need-analysis task's full record on demand. `awaitingResult` holds the
+  // "analyzing" state through the brief fetch after the task succeeds, so the panel
+  // never flashes its "did not complete" error between finish and result arrival.
+  const { full: viewedFull } = useTaskResult(viewed?.id ?? null);
+  const awaitingResult = viewed?.status === "succeeded" && !viewedFull;
+  const running = (viewed ? viewed.status === "running" || viewed.status === "queued" : false) || awaitingResult;
+  const result = viewed?.status === "succeeded" ? ((viewedFull?.result as Result | undefined) ?? null) : null;
   const analysis = result?.analysis ?? {};
   // Multi-repo: `snapshots` is canonical; lift a legacy single `snapshot` into a
   // one-item list so bundles saved before multi-repo render identically.
   const snapshots = result?.snapshots ?? (result?.snapshot ? [result.snapshot] : []);
-  const viewedNeed = (viewed?.params as { need?: Record<string, unknown> } | undefined)?.need;
+  const viewedNeed = (viewedFull?.params as { need?: Record<string, unknown> } | undefined)?.need;
 
-  const designTask = useMemo(() => tasks.find((t) => t.id === designId), [tasks, designId]);
-  const designing = designTask ? designTask.status === "running" || designTask.status === "queued" : false;
-  const design = designTask?.status === "succeeded" ? (designTask.result as Design) : null;
+  const { full: designFull, status: designStatus } = useTaskResult(designId);
+  const designing = designStatus === "running" || designStatus === "queued" || (designStatus === "succeeded" && !designFull);
+  const design = designStatus === "succeeded" ? ((designFull?.result as Design | undefined) ?? null) : null;
 
   const selectNeed = (id: string) => {
     setSelectedId(id);

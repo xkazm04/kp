@@ -40,7 +40,10 @@ export async function respondToOffer(token: string, response: "accept" | "declin
   // decline
   markOfferResponded(token, "declined");
   if (offer.entryId) {
-    markEntryStatus(offer.entryId, "rejected"); // terminal; the `offer_declined` event carries the true semantic
+    // Terminal `declined` — the candidate turned us down. Distinct from the
+    // recruiter's `rejected` so funnel/re-engagement reporting can tell a
+    // candidate-side close from a company-side one (see pipeline-status.ts).
+    markEntryStatus(offer.entryId, "declined");
     recordAutomationEvent(offer.entryId, "offer_declined", offer.jobTitle ?? "");
   }
   return { ok: true, status: "declined", alreadyResponded: false, jobTitle: offer.jobTitle, candidateLabel: offer.candidateLabel };

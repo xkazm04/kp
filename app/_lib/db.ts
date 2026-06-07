@@ -2,14 +2,17 @@ import path from "node:path";
 import { readFileSync, existsSync } from "node:fs";
 import Database from "better-sqlite3";
 import type { ApprovalKind } from "./approval-kinds";
+import { isTerminalEntryStatus, TERMINAL_ENTRY_STATUSES } from "./pipeline-status";
 import { coerceOutboxStatus, type OutboxStatus } from "./comms-status";
 import { coerceInterviewRecommendation, type InterviewRecommendation } from "./interview-recommendation";
+import type { ScorecardRating } from "./interview-scorecard";
 import { normalizeApplicantName } from "./apply-intake";
-import { coerceProviderId } from "./voice/types";
+import { coerceProviderId, type VoiceProviderId, type VoiceTurn } from "./voice/types";
 import { DB_PATH, ensureDbDir } from "./db-path";
 import { randomId, randomToken } from "./random-id";
 import { chunk, SQL_IN_CHUNK } from "./entries-param";
 import { pickBottleneck, type Bottleneck } from "./analytics-bottleneck";
+import type { DevNeed } from "./devcase-run";
 
 let _db: Database.Database | null = null;
 
@@ -155,6 +158,8 @@ function ensureDb(): Database.Database {
     CREATE INDEX IF NOT EXISTS idx_jds_created_at
       ON jds (created_at DESC);
 
+    -- Generic prompt cache (see lookup/store/prunePromptCache). Name is legacy:
+    -- the real provider is ClaudeCliProvider, kept to preserve existing rows.
     CREATE TABLE IF NOT EXISTS gemini_cache (
       hash TEXT PRIMARY KEY,
       payload_json TEXT NOT NULL,
@@ -404,6 +409,16 @@ function ensureDb(): Database.Database {
     // approved case (devcase/interview_scenario.py) — one per role, reused for
     // every candidate so ratings stay comparable.
     "ALTER TABLE dev_cases ADD COLUMN scenario_json TEXT",
+    // Materialized seed: the case's concrete starter file tree
+    // (devcase/seed_materializer.py) — one per case, identical for every
+    // candidate, so the submission is a diff against shared ground truth.
+    "ALTER TABLE dev_cases ADD COLUMN seed_json TEXT",
+    // draft→publish lifecycle for the jobs corpus. job-ingest.ts ALTERs this in on
+    // its own connection; mirror it here so the db.ts connection can filter drafts
+    // out of the rematch corpus (listCorpusJobs) even when ingestion never ran this
+    // boot. NULL status = a seeded/live corpus job; authored JDs are 'draft' until
+    // published.
+    "ALTER TABLE jobs ADD COLUMN status TEXT",
   ]) {
     try {
       db.exec(sql);
@@ -429,18 +444,19 @@ function ensureDb(): Database.Database {
   seedAnalyses(db);
   seedPipeline(db);
   migratePipelineStages(db); // remap any legacy 7-stage rows to the 5-stage model
+  backfillDeclinedStatus(db); // split candidate declines out of overloaded `rejected`
   _db = db;
   // Reclaim expired (and, once their TTL lapses, superseded-PROMPT_VERSION)
-  // cache rows on boot. lookupGeminiCache only SKIPS expired rows — it never
-  // deletes them — so without this the gemini_cache table and its WAL grow
+  // cache rows on boot. lookupPromptCache only SKIPS expired rows — it never
+  // deletes them — so without this the prompt cache table and its WAL grow
   // unbounded for the life of the deployment. _db is assigned first so the
-  // ensureDb() inside pruneGeminiCache() short-circuits instead of re-entering
+  // ensureDb() inside prunePromptCache() short-circuits instead of re-entering
   // this initializer. A prune failure must never wedge boot.
   try {
-    const pruned = pruneGeminiCache();
-    if (pruned > 0) console.log(`[db] pruned ${pruned} expired gemini_cache row(s) on boot`);
+    const pruned = prunePromptCache();
+    if (pruned > 0) console.log(`[db] pruned ${pruned} expired prompt-cache row(s) on boot`);
   } catch (error) {
-    console.error("[db] gemini_cache boot prune failed", error);
+    console.error("[db] prompt-cache boot prune failed", error);
   }
   return db;
 }
@@ -720,12 +736,16 @@ type CacheRow = {
 };
 
 // Fraction of cache writes that also trigger an opportunistic prune. Combined
-// with the boot prune in ensureDb, this keeps gemini_cache bounded on a
+// with the boot prune in ensureDb, this keeps the prompt cache bounded on a
 // long-running deployment without any scheduler dependency — every distinct
 // analyze input adds a row, so spreading the GC across writes amortizes it.
 const CACHE_PRUNE_PROBABILITY = 0.02;
 
-export function lookupGeminiCache(hash: string, promptVersion: string): unknown | null {
+// Generic prompt cache (analyze, per-match reasoning, automation tasks). The
+// backing table is named `gemini_cache` for historical reasons — the real
+// provider is ClaudeCliProvider, not Gemini — kept as-is to avoid orphaning the
+// cached rows on existing deployments; the function names carry the accurate name.
+export function lookupPromptCache(hash: string, promptVersion: string): unknown | null {
   const db = ensureDb();
   const row = db
     .prepare(
@@ -742,10 +762,10 @@ export function lookupGeminiCache(hash: string, promptVersion: string): unknown 
   if (!Number.isFinite(expiresAt) || expiresAt < Date.now()) return null;
   // A corrupt cache payload logs (with the hash) and reads as a miss, same as a
   // miss — never an error served as a 200.
-  return safeRowParse(row.payload_json, "lookupGeminiCache", hash);
+  return safeRowParse(row.payload_json, "lookupPromptCache", hash);
 }
 
-export function storeGeminiCache(
+export function storePromptCache(
   hash: string,
   payload: unknown,
   promptVersion: string,
@@ -768,14 +788,14 @@ export function storeGeminiCache(
   // failure must never fail the write that just succeeded.
   if (Math.random() < CACHE_PRUNE_PROBABILITY) {
     try {
-      pruneGeminiCache();
+      prunePromptCache();
     } catch (error) {
-      console.error("[db] gemini_cache opportunistic prune failed", error);
+      console.error("[db] prompt-cache opportunistic prune failed", error);
     }
   }
 }
 
-export function pruneGeminiCache(): number {
+export function prunePromptCache(): number {
   const db = ensureDb();
   const result = db
     .prepare(`DELETE FROM gemini_cache WHERE expires_at < ?`)
@@ -923,6 +943,24 @@ export function getJob(id: string): JobRecord | null {
     | { payload_json: string }
     | undefined;
   return row ? safeRowParse<JobRecord>(row.payload_json, "getJob", id) : null;
+}
+
+// The full live job corpus — every current opening rematch scores against. Unlike
+// listJobs (paginated, filtered, ranked for the browse UI) this returns ALL live
+// jobs as full records, ordered by id, with drafts excluded (an unpublished JD is
+// not a real opening). It backs the rematch path two ways at once: the caller
+// fingerprints the sorted ids into the cache key AND hands the exact same set to
+// the Python scorer, so the key provably tracks the corpus that was scored
+// (idea-e01935e9). NULL status = seeded/live corpus job; 'published' = live; only
+// 'draft' is held back.
+export function listCorpusJobs(): JobRecord[] {
+  const db = ensureDb();
+  const rows = db
+    .prepare(`SELECT payload_json FROM jobs WHERE status IS NULL OR status != 'draft' ORDER BY id`)
+    .all() as { payload_json: string }[];
+  return rows
+    .map((r) => safeRowParse<JobRecord>(r.payload_json, "listCorpusJobs"))
+    .filter((j): j is JobRecord => j !== null);
 }
 
 export type JobStats = {
@@ -1144,12 +1182,16 @@ function seedAnalyses(db: Database.Database): void {
 import {
   PIPELINE_STAGES,
   FUNNEL_STAGES,
+  SCREENING_STAGES,
   hasAdvancedPastScreening,
+  isScreeningStage,
+  screenStageOutcome,
   type PipelineStage,
   type FunnelStage,
+  type ScreeningStage,
 } from "./pipeline-stages";
-export { PIPELINE_STAGES, FUNNEL_STAGES, hasAdvancedPastScreening };
-export type { PipelineStage, FunnelStage };
+export { PIPELINE_STAGES, FUNNEL_STAGES, SCREENING_STAGES, hasAdvancedPastScreening, isScreeningStage, screenStageOutcome };
+export type { PipelineStage, FunnelStage, ScreeningStage };
 
 // Legacy → consolidated stage mapping, applied to persisted rows + the seed.
 export const LEGACY_STAGE_MAP: Record<string, PipelineStage> = {
@@ -1291,6 +1333,27 @@ function migratePipelineStages(db: Database.Database): void {
   })();
 }
 
+// Retroactively split candidate declines out of the overloaded `rejected` status
+// (idea-275e251e). Before declines had their own status, offer-finalize wrote
+// 'rejected' and left the real meaning in the `offer_declined` event — and,
+// crucially, it logged NO `rejected` pipeline event (only a recruiter reject via
+// actOnPipelineEntry does that). So a row that is `rejected`, carries an
+// `offer_declined` event, and has NO `rejected` event was a candidate decline
+// mislabeled by the old code — flip those to 'declined'. The `rejected`-event
+// guard is what keeps a genuine recruiter reject (including the rare
+// decline → re-add → reject sequence, which DOES log a `rejected` event)
+// untouched. Deterministic and idempotent — once flipped the row no longer
+// matches `status='rejected'` — so it is safe to run on every boot.
+function backfillDeclinedStatus(db: Database.Database): void {
+  db.prepare(
+    `UPDATE pipeline_entries
+        SET status = 'declined', updated_at = ?
+      WHERE status = 'rejected'
+        AND id IN (SELECT entry_id FROM pipeline_events WHERE kind = 'offer_declined' AND entry_id IS NOT NULL)
+        AND id NOT IN (SELECT entry_id FROM pipeline_events WHERE kind = 'rejected' AND entry_id IS NOT NULL)`
+  ).run(new Date().toISOString());
+}
+
 function seedPipeline(db: Database.Database): void {
   const count = db.prepare(`SELECT COUNT(*) AS n FROM pipeline_entries`).get() as { n: number };
   if (count.n > 0) return;
@@ -1399,14 +1462,23 @@ function rowToEntry(r: PipelineRow): PipelineEntry {
   };
 }
 
+// SQL list literal of the terminal statuses, e.g. ('rejected', 'declined'),
+// derived from the taxonomy const so the active-pipeline filters can't drift from
+// it. The values are trusted compile-time literals (never user input), so inlining
+// them into the statement is injection-safe.
+const TERMINAL_STATUS_SQL_LIST = `(${TERMINAL_ENTRY_STATUSES.map((s) => `'${s}'`).join(", ")})`;
+
 export function listPipeline(): PipelineEntry[] {
   const db = ensureDb();
   const rows = db
     .prepare(
+      // Exclude BOTH terminal states (recruiter `rejected` and candidate
+      // `declined`) from the active pipeline view — this used to be a bare
+      // `status != 'rejected'`, which leaked declined entries back into the board.
       `SELECT id, candidate_id, candidate_label, archetype, role_family, job_id, job_title,
               stage, match_score, status, approval_kind, approval_detail, created_at, stage_changed_at,
               intake_degraded, intake_degraded_reason
-       FROM pipeline_entries WHERE status != 'rejected'
+       FROM pipeline_entries WHERE status NOT IN ${TERMINAL_STATUS_SQL_LIST}
        ORDER BY job_title, match_score DESC`
     )
     .all() as PipelineRow[];
@@ -1422,7 +1494,12 @@ export type PipelineAnalytics = {
   total: number;
   active: number;
   hired: number;
+  // Two DISTINCT terminal closes (see pipeline-status.ts): `rejected` = the
+  // company passed; `declined` = the candidate turned down an offer. Kept
+  // separate so offer-acceptance / re-engagement metrics aren't muddied by
+  // lumping candidate declines into recruiter rejects.
   rejected: number;
+  declined: number;
   funnel: { stage: string; reached: number; current: number; conversionPct: number | null }[];
   avgTimeToHireDays: number | null;
   avgAgeDays: number | null;
@@ -1463,7 +1540,10 @@ export function pipelineAnalytics(): PipelineAnalytics {
 
   const total = rows.length;
   const hired = rows.filter((r) => r.stage === "Hired").length;
+  // Now that declines carry their own status, `rejected` counts only company-side
+  // passes; `declined` is the candidate-side close that used to be folded in.
   const rejected = rows.filter((r) => r.status === "rejected").length;
+  const declined = rows.filter((r) => r.status === "declined").length;
   const active = rows.filter((r) => r.status === "active" && r.stage !== "Hired").length;
 
   const reached = FUNNEL_STAGES.map(() => 0);
@@ -1549,7 +1629,7 @@ export function pipelineAnalytics(): PipelineAnalytics {
     }))
     .sort((a, b) => b.total - a.total);
 
-  return { total, active, hired, rejected, funnel, avgTimeToHireDays, avgAgeDays, bottleneck, byJob, byJobTotal, byArchetype };
+  return { total, active, hired, rejected, declined, funnel, avgTimeToHireDays, avgAgeDays, bottleneck, byJob, byJobTotal, byArchetype };
 }
 
 // Prior pipeline outcomes per candidate — used by talent rediscovery to spot
@@ -1586,7 +1666,12 @@ export type InterviewedCandidate = {
   // early-career rubric, so a missing value is correctly 'experienced'.
   scoringModel: string;
   confidence: { level: string; reason?: string } | null;
-  ratings: { competency: string; rating: number; evidence?: string }[];
+  ratings: ScorecardRating[];
+  // Skills minted as observed-provenance evidence by THIS interview (the
+  // case-grounded gates in live_case.observed_from_interview); empty when the
+  // interview minted nothing. The compare grid stamps these — the single
+  // highest-trust artifact the pipeline produces must be visible, not implicit.
+  observedSkills: string[];
 };
 
 export function interviewedForJob(jobId: string): InterviewedCandidate[] {
@@ -1618,6 +1703,7 @@ export function interviewedForJob(jobId: string): InterviewedCandidate[] {
       scoringModel?: string;
       confidence?: { level: string; reason?: string };
       ratings?: InterviewedCandidate["ratings"];
+      observedSkills?: unknown;
     } = safeRowParse(r.scorecard_json, "interviewedCandidates.scorecard", key) ?? {};
     out.push({
       entryId: r.entry_id,
@@ -1627,6 +1713,7 @@ export function interviewedForJob(jobId: string): InterviewedCandidate[] {
       scoringModel: sc.scoringModel ?? "experienced",
       confidence: sc.confidence ?? null,
       ratings: Array.isArray(sc.ratings) ? sc.ratings : [],
+      observedSkills: Array.isArray(sc.observedSkills) ? sc.observedSkills.map(String) : [],
     });
   }
   return out;
@@ -1668,8 +1755,10 @@ export function createPipelineEntry(input: CreatePipelineInput): { entry: Pipeli
   const id = `m-${keySource}-${input.jobId}`.replace(/[^A-Za-z0-9_-]/g, "").slice(0, 90);
   const existing = db.prepare(`SELECT * FROM pipeline_entries WHERE id = ?`).get(id) as PipelineRow | undefined;
   if (existing) {
-    // re-surface a previously-rejected candidate if a recruiter re-adds them
-    if (existing.status === "rejected") {
+    // re-surface a previously-closed candidate if a recruiter re-adds them —
+    // either a company reject OR a candidate decline (both terminal; a re-add
+    // means "let's reconsider them", which applies equally to a past decline).
+    if (isTerminalEntryStatus(existing.status)) {
       db.prepare(`UPDATE pipeline_entries SET status='active', updated_at=? WHERE id=?`).run(
         new Date().toISOString(),
         id
@@ -1870,12 +1959,25 @@ export function listMatrixProfiles(limit = 200): MatrixProfile[] {
 /** Distinct positions we are actively hiring for = jobs that appear in the pipeline. */
 export function listOpenPositions(): { id: string; title: string; roleFamily: string | null }[] {
   const db = ensureDb();
-  return db
+  // DISTINCT on the (job_id, title, role_family) tuple is NOT distinct by position:
+  // one job_id recorded with two titles/families (a title edited between pipeline
+  // adds) surfaces the SAME id twice → duplicate matrix columns and duplicate React
+  // keys downstream. Collapse on the stable job_id here, the single source of truth.
+  // Order so the most-recently recorded row comes first (created_at desc — NULLs sort
+  // last in SQLite — with id desc as a deterministic tiebreak) and keep the first per
+  // id, so an edited title wins deterministically rather than picking an arbitrary row.
+  const rows = db
     .prepare(
-      `SELECT DISTINCT job_id AS id, job_title AS title, role_family AS roleFamily
-       FROM pipeline_entries WHERE job_id IS NOT NULL ORDER BY job_title`
+      `SELECT job_id AS id, job_title AS title, role_family AS roleFamily
+       FROM pipeline_entries
+       WHERE job_id IS NOT NULL
+       ORDER BY created_at DESC, id DESC`
     )
     .all() as { id: string; title: string; roleFamily: string | null }[];
+  const byId = new Map<string, { id: string; title: string; roleFamily: string | null }>();
+  for (const r of rows) if (!byId.has(r.id)) byId.set(r.id, r);
+  // Columns are presented alphabetically by title, preserving the prior ORDER BY job_title.
+  return [...byId.values()].sort((a, b) => a.title.localeCompare(b.title));
 }
 
 /** candidateId|jobId -> {stage,status} for overlaying pipeline placement onto the matrix. */
@@ -1946,6 +2048,38 @@ function rowToTask(r: TaskRow): TaskRecord {
   };
 }
 
+// The live Background-tasks poll (GET /api/tasks fires every 2s while a task is
+// active) and the history pager render only a task's status, label, progress and
+// timing — never its result or params. A finished analyze/group_eval row carries
+// multi-MB result_json/params_json, so SELECT * + re-parsing them for up to 60
+// rows on every tick turns a lightweight status poll into a recurring multi-MB
+// transfer and JSON re-parse, shipped to every connected client. List queries
+// therefore project ONLY these light columns and leave result/params null; the
+// full blob is fetched on demand for ONE row via getTask (GET /api/tasks/[id]).
+const TASK_LITE_COLUMNS =
+  "id, kind, dedupe_key, label, status, error, progress_done, progress_total, progress_msg, created_at, started_at, finished_at";
+
+type TaskLiteRow = Omit<TaskRow, "params_json" | "result_json">;
+
+function rowToTaskLite(r: TaskLiteRow): TaskRecord {
+  return {
+    id: r.id,
+    kind: r.kind,
+    dedupeKey: r.dedupe_key,
+    label: r.label,
+    status: r.status as TaskStatus,
+    params: null, // omitted from list payloads — fetch the full task by id
+    result: null, // omitted from list payloads — fetch the full task by id
+    error: r.error,
+    progressDone: r.progress_done ?? 0,
+    progressTotal: r.progress_total ?? 0,
+    progressMsg: r.progress_msg,
+    createdAt: r.created_at,
+    startedAt: r.started_at,
+    finishedAt: r.finished_at,
+  };
+}
+
 export function createTask(id: string, kind: string, dedupeKey: string | null, label: string | null, params: unknown): TaskRecord {
   const db = ensureDb();
   db.prepare(
@@ -1972,12 +2106,14 @@ export function getActiveTaskByDedupe(dedupeKey: string): TaskRecord | null {
 // The live Background-tasks view: every active (queued/running) task regardless
 // of age — a long run started days ago must stay visible — plus tasks that
 // finished on/after `sinceIso`. Older finished tasks are excluded here and paged
-// in on demand via listTaskHistory, so the polled payload stays bounded.
+// in on demand via listTaskHistory, so the polled payload stays bounded. Result
+// and params are projected out (see TASK_LITE_COLUMNS) so this hot poll never
+// re-ships multi-MB blobs; callers fetch the full task by id when they need it.
 export function listRecentTasks(sinceIso: string, limit = 60): TaskRecord[] {
   const db = ensureDb();
   const rows = db
     .prepare(
-      `SELECT * FROM tasks
+      `SELECT ${TASK_LITE_COLUMNS} FROM tasks
        WHERE status IN ('queued','running')
           OR COALESCE(finished_at, created_at) >= @since
        ORDER BY (CASE WHEN status IN ('queued','running') THEN 0 ELSE 1 END),
@@ -1985,8 +2121,8 @@ export function listRecentTasks(sinceIso: string, limit = 60): TaskRecord[] {
                 finished_at DESC
        LIMIT @limit`
     )
-    .all({ since: sinceIso, limit }) as TaskRow[];
-  return rows.map(rowToTask);
+    .all({ since: sinceIso, limit }) as TaskLiteRow[];
+  return rows.map(rowToTaskLite);
 }
 
 // Finished tasks older than `beforeIso`, newest-first, offset-paged — the
@@ -1998,14 +2134,14 @@ export function listTaskHistory(beforeIso: string, limit: number, offset: number
   const db = ensureDb();
   const rows = db
     .prepare(
-      `SELECT * FROM tasks
+      `SELECT ${TASK_LITE_COLUMNS} FROM tasks
        WHERE status NOT IN ('queued','running')
          AND COALESCE(finished_at, created_at) < @before
        ORDER BY COALESCE(finished_at, created_at) DESC, id DESC
        LIMIT @limit OFFSET @offset`
     )
-    .all({ before: beforeIso, limit, offset }) as TaskRow[];
-  return rows.map(rowToTask);
+    .all({ before: beforeIso, limit, offset }) as TaskLiteRow[];
+  return rows.map(rowToTaskLite);
 }
 
 export function countTaskHistory(beforeIso: string): number {
@@ -2030,11 +2166,30 @@ export function setTaskProgress(id: string, done: number, total: number, msg?: s
   db.prepare(`UPDATE tasks SET progress_done=?, progress_total=?, progress_msg=? WHERE id=?`).run(done, total, msg ?? null, id);
 }
 
+// A task's result is arbitrary handler output, so JSON.stringify can throw (a
+// circular reference) or quietly return undefined (a function/symbol-valued root).
+// finishTask runs inside runOne's SUCCESS path, so an unguarded throw there is
+// caught and re-records a genuinely succeeded — often costly — run as 'failed',
+// dropping its output. Degrade a non-serializable result to a stored marker and
+// preserve the real status instead. undefined (no result passed) still stores NULL.
+function serializeResult(result: unknown): string | null {
+  if (result === undefined) return null;
+  try {
+    const json = JSON.stringify(result);
+    if (json === undefined) throw new Error("result is not JSON-representable");
+    return json;
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : String(error);
+    console.error(`[db:task.result] unserializable result — stored a marker instead: ${reason}`);
+    return JSON.stringify({ __unserializable: true, reason });
+  }
+}
+
 export function finishTask(id: string, status: TaskStatus, opts: { result?: unknown; error?: string }): void {
   const db = ensureDb();
   db.prepare(`UPDATE tasks SET status=?, result_json=?, error=?, finished_at=? WHERE id=?`).run(
     status,
-    opts.result !== undefined ? JSON.stringify(opts.result) : null,
+    serializeResult(opts.result),
     opts.error ?? null,
     new Date().toISOString(),
     id
@@ -2081,6 +2236,9 @@ export type DevCaseRecord = {
   // The role's AI-interview scenario generated from the approved case
   // (devcase/interview_scenario.py) — null until the lifecycle generates it.
   scenario: unknown;
+  // The case's materialized seed ({files: [{path, contents}], note}) — null
+  // until the lifecycle materializes it (devcase/seed_materializer.py).
+  seed: unknown;
   status: string;
   createdAt: string;
 };
@@ -2095,6 +2253,7 @@ type DevCaseRow = {
   role_json: string | null;
   case_json: string | null;
   scenario_json: string | null;
+  seed_json: string | null;
   status: string;
   created_at: string;
 };
@@ -2110,6 +2269,7 @@ function rowToDevCase(r: DevCaseRow): DevCaseRecord {
     role: safeRowParse(r.role_json, "devCase.role", r.id),
     case: safeRowParse(r.case_json, "devCase.case", r.id),
     scenario: safeRowParse(r.scenario_json, "devCase.scenario", r.id),
+    seed: safeRowParse(r.seed_json, "devCase.seed", r.id),
     status: r.status,
     createdAt: r.created_at,
   };
@@ -2119,6 +2279,12 @@ function rowToDevCase(r: DevCaseRow): DevCaseRecord {
 export function saveDevCaseScenario(id: string, scenario: unknown): void {
   const db = ensureDb();
   db.prepare(`UPDATE dev_cases SET scenario_json = ? WHERE id = ?`).run(JSON.stringify(scenario ?? null), id);
+}
+
+/** Persist the materialized seed (the concrete starter file tree) on its dev case. */
+export function saveDevCaseSeed(id: string, seed: unknown): void {
+  const db = ensureDb();
+  db.prepare(`UPDATE dev_cases SET seed_json = ? WHERE id = ?`).run(JSON.stringify(seed ?? null), id);
 }
 
 export function saveDevCase(input: {
@@ -2161,15 +2327,29 @@ export function getDevCase(id: string): DevCaseRecord | null {
 
 // ---- Dev extension — lifecycle orchestration state (Direction A) -----------
 
+// The orchestrator branches on these payload fields, so they carry real shapes
+// rather than `unknown` — a mismatch is then a compile error at the read site,
+// not a runtime `undefined`. Each keeps an index signature: the Python design
+// steps emit richer objects than the orchestrator reads, and those extra keys
+// must round-trip through saveDevCase / the UI untouched.
+//
+// Reality-reflection output the auto-approve gate scores (statedVsRealGaps + confidence).
+export type LifecycleAnalysis = { statedVsRealGaps?: string[]; confidence?: number } & Record<string, unknown>;
+// Designed RoleSpec — title/seniority drive sourcing labels + candidate comms.
+export type LifecycleRole = { title?: string; seniority?: string } & Record<string, unknown>;
+// Designed CaseScenario (covert probes, rubric, tasks) — opaque to the orchestrator.
+export type LifecycleCase = Record<string, unknown>;
+
 export type LifecycleRecord = {
   id: string;
   title: string | null;
   stage: string;
   auto: boolean;
-  need: unknown;
-  analysis: unknown;
-  role: unknown;
-  case: unknown;
+  // null only when the stored JSON is absent or corrupt (safeRowParse fell back).
+  need: DevNeed | null;
+  analysis: LifecycleAnalysis | null;
+  role: LifecycleRole | null;
+  case: LifecycleCase | null;
   caseId: string | null;
   postingId: string | null;
   detail: string | null;
@@ -2183,10 +2363,10 @@ function rowToLifecycle(r: Record<string, unknown>): LifecycleRecord {
     title: (r.title as string) ?? null,
     stage: r.stage as string,
     auto: Number(r.auto ?? 1) === 1,
-    need: safeRowParse(r.need_json as string | null, "lifecycle.need", r.id as string),
-    analysis: safeRowParse(r.analysis_json as string | null, "lifecycle.analysis", r.id as string),
-    role: safeRowParse(r.role_json as string | null, "lifecycle.role", r.id as string),
-    case: safeRowParse(r.case_json as string | null, "lifecycle.case", r.id as string),
+    need: safeRowParse<DevNeed>(r.need_json as string | null, "lifecycle.need", r.id as string),
+    analysis: safeRowParse<LifecycleAnalysis>(r.analysis_json as string | null, "lifecycle.analysis", r.id as string),
+    role: safeRowParse<LifecycleRole>(r.role_json as string | null, "lifecycle.role", r.id as string),
+    case: safeRowParse<LifecycleCase>(r.case_json as string | null, "lifecycle.case", r.id as string),
     caseId: (r.case_id as string) ?? null,
     postingId: (r.posting_id as string) ?? null,
     detail: (r.detail as string) ?? null,
@@ -2261,8 +2441,8 @@ export function approveLifecycleCase(
     const saved = saveDevCase({
       need: lc.need,
       analysis: lc.analysis,
-      role: (lc.role as Record<string, unknown>) ?? {},
-      case: (lc.case as Record<string, unknown>) ?? {},
+      role: lc.role ?? {},
+      case: lc.case ?? {},
     });
     updateLifecycle(id, { stage: "approved", caseId: saved.id, detail });
     return saved.id;
@@ -2348,8 +2528,13 @@ export function recordOutbox(input: {
 
 // ---- Interview sessions (voice 1st-round MVP) -----------------------------
 
-export type InterviewProvider = "openai" | "elevenlabs";
-export type InterviewTurn = { role: "candidate" | "interviewer" | "system"; text: string; at?: string };
+// The provider union and transcript-turn shape are single-sourced in the voice
+// adapter layer (app/_lib/voice/types): VoiceProviderId is the same union the
+// create/connect routes validate with coerceProviderId, and VoiceTurn is the
+// exact shape the browser POSTs on hang-up. Re-exported here so existing
+// `import { ... } from "./db"` call sites resolve, and so the row mapper below
+// cannot drift from the wire/client shape — the compiler now enforces it.
+export type { VoiceProviderId, VoiceTurn } from "./voice/types";
 
 export type InterviewSession = {
   id: string;
@@ -2358,7 +2543,7 @@ export type InterviewSession = {
   candidateLabel: string | null;
   jobId: string | null;
   jobTitle: string | null;
-  provider: InterviewProvider;
+  provider: VoiceProviderId;
   language: string | null;
   mode: "test" | "candidate";
   status: string;
@@ -2368,7 +2553,7 @@ export type InterviewSession = {
   consentAt: string | null;
   startedAt: string | null;
   endedAt: string | null;
-  transcript: InterviewTurn[] | null;
+  transcript: VoiceTurn[] | null;
   scorecard: unknown | null;
   createdAt: string;
   updatedAt: string | null;
@@ -2415,7 +2600,7 @@ function rowToInterview(r: InterviewRow): InterviewSession {
     consentAt: r.consent_at,
     startedAt: r.started_at,
     endedAt: r.ended_at,
-    transcript: safeRowParse<InterviewTurn[]>(r.transcript_json, "interview.transcript", r.id),
+    transcript: safeRowParse<VoiceTurn[]>(r.transcript_json, "interview.transcript", r.id),
     scorecard: safeRowParse<unknown>(r.scorecard_json, "interview.scorecard", r.id),
     createdAt: r.created_at,
     updatedAt: r.updated_at,
@@ -2423,7 +2608,7 @@ function rowToInterview(r: InterviewRow): InterviewSession {
 }
 
 export function createInterviewSession(input: {
-  provider: InterviewProvider;
+  provider: VoiceProviderId;
   language?: string | null;
   mode?: "test" | "candidate";
   entryId?: string | null;
@@ -2506,7 +2691,10 @@ export function getInterviewSessionByToken(token: string): InterviewSession | nu
   return r ? rowToInterview(r) : null;
 }
 
-/** Mark a session live (first connect); records consent the first time. */
+/** Mark a session live (first connect); records consent_at the first time it is
+ *  given. /connect enforces consent for candidate-mode sessions before calling
+ *  this (see interview-consent.ts), so the consent=false branch below now only
+ *  applies to ungated test/lab runs. */
 export function markInterviewStarted(id: string, consent: boolean): void {
   const db = ensureDb();
   const now = new Date().toISOString();
@@ -2523,7 +2711,7 @@ export function markInterviewStarted(id: string, consent: boolean): void {
 
 export function completeInterviewSession(
   id: string,
-  input: { transcript: InterviewTurn[]; scorecard?: unknown; status?: string }
+  input: { transcript: VoiceTurn[]; scorecard?: unknown; status?: string }
 ): InterviewSession | null {
   const db = ensureDb();
   const now = new Date().toISOString();

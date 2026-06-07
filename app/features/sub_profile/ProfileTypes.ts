@@ -30,14 +30,11 @@ export type CandidateRow = {
 };
 export type EvidenceRow = { kind: string; title: string; text: string; skills: string; link: string };
 
-export type BuildResult = {
-  archetype: string;
-  confidence: number;
-  reasons: string[];
-  completeness: number;
-  missing: string[];
-  saved?: { id: string } | null;
-};
+// The build/edit API response the editor consumes: the full profile_cli output
+// (/api/profile spreads ...data onto the response) plus the persistence outcome.
+// Derived from the one CLI contract (ProfileCliOutput) so a field added or
+// renamed Python-side can't silently drift from this client-side view.
+export type BuildResult = ProfileCliOutput & { saved?: { id: string } | null };
 
 export type ProfileRow = {
   id: string;
@@ -67,6 +64,21 @@ export type ProfilePayload = {
   evidence?: { kind?: string; title?: string; text?: string; skills?: string[]; link?: string }[];
 };
 
+// The full profile_cli stdout contract (pipeline/jobfit/profile_cli.py): the
+// normalized profile payload plus the archetype router + completeness scoring.
+// SINGLE SOURCE OF TRUTH for that JSON shape — /api/profile types JSON.parse
+// against it, persistFieldsFrom reads it, and BuildResult is derived from it. A
+// field added or renamed on the Python side therefore surfaces as a TS error at
+// these seams instead of leaking through untyped via ...data / unchecked casts.
+export type ProfileCliOutput = {
+  profile: ProfilePayload;
+  archetype: string;
+  confidence: number;
+  reasons: string[];
+  completeness: number;
+  missing: string[];
+};
+
 export const ARCHETYPE_CHOICES = [
   { v: "auto", label: "Auto-detect" },
   { v: "bau", label: "Experienced" },
@@ -80,28 +92,12 @@ export const ROLE_FAMILIES = [
 ];
 export const EDU_LEVELS = ["unknown", "university", "bachelor", "master", "phd"];
 export const SENIORITIES = ["junior", "medior", "senior", "lead"];
-export const SKILL_LEVELS = ["foundational", "working", "strong"];
-export const PROVENANCE = [
-  "self_declared",
-  "coursework",
-  "academic_project",
-  "thesis",
-  "personal_project",
-  "open_source",
-  "internship",
-  "professional",
-  "certification",
-  "extracurricular",
-];
-export const EVIDENCE_KINDS = [
-  "project",
-  "thesis",
-  "internship",
-  "course",
-  "extracurricular",
-  "certification",
-  "job",
-  "other",
-];
+// EVIDENCE_KINDS / SKILL_LEVELS / PROVENANCE are GENERATED from the Python
+// taxonomy (the single source of truth): EVIDENCE_KINDS + SKILL_LEVELS from
+// pipeline/jobfit/profile.py, the user-selectable PROVENANCE from
+// pipeline/jobfit/taxonomy.py's UI_PROVENANCE. To change the dropdown options,
+// edit the Python lists and run `python -m pipeline.jobfit.codegen`; the build
+// and `npm run schemas:check` gate fail if this file drifts from Python.
+export { EVIDENCE_KINDS, SKILL_LEVELS, PROVENANCE } from "@/app/_lib/taxonomy.generated";
 // Single source of truth for archetype labels (app/_lib/archetypes).
 export { ARCHETYPE_LABEL } from "@/app/_lib/archetypes";

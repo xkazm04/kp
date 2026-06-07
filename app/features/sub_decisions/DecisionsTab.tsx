@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Check, SlidersHorizontal, Sparkles } from "lucide-react";
 import { buildUrl } from "@/app/features/tabs";
-import { useTasks } from "@/app/features/tasks/TasksProvider";
+import { useTasks, useTaskResult } from "@/app/features/tasks/TasksProvider";
 import { useLiveRefresh } from "@/app/features/live-refresh";
 import { AiReviewCard } from "./AiReviewCard";
 import { DecisionRulesModal } from "./DecisionRulesModal";
@@ -21,7 +21,7 @@ const roleKeyOf = (e: Entry) => e.jobId ?? e.jobTitle ?? "unassigned";
 export function DecisionsTab() {
   const router = useRouter();
   const search = useSearchParams();
-  const { startTask, tasks } = useTasks();
+  const { startTask } = useTasks();
   // Filter the queue to one opened JD (deep-linkable via ?job=<id>).
   const [jobFilter, setJobFilter] = useState<string | null>(search.get("job"));
   const [rulesOpen, setRulesOpen] = useState(false);
@@ -90,20 +90,22 @@ export function DecisionsTab() {
       .catch(() => undefined);
   }, [roleKeys]);
 
-  // Poll the group-eval background task.
+  // Watch the group-eval background task; its result is fetched on demand once it
+  // finishes (the poll omits the blob).
+  const { status: evalStatus, full: evalFull } = useTaskResult(evalTaskId);
   useEffect(() => {
     if (!evalTaskId) return;
-    const t = tasks.find((x) => x.id === evalTaskId);
-    if (!t) return;
-    if (t.status === "succeeded") {
-      setEvalData((t.result as GroupEvalPayload) ?? null);
-      setEvalTaskId(null);
-      if (evalRole) setEvaluated((s) => ({ ...s, [evalRole.roleKey]: new Date().toISOString() }));
-    } else if (t.status === "failed" || t.status === "canceled" || t.status === "interrupted") {
+    if (evalStatus === "succeeded") {
+      if (evalFull) {
+        setEvalData((evalFull.result as GroupEvalPayload) ?? null);
+        setEvalTaskId(null);
+        if (evalRole) setEvaluated((s) => ({ ...s, [evalRole.roleKey]: new Date().toISOString() }));
+      }
+    } else if (evalStatus === "failed" || evalStatus === "canceled" || evalStatus === "interrupted") {
       setEvalTaskId(null);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tasks, evalTaskId]);
+  }, [evalTaskId, evalStatus, evalFull]);
 
   const act = async (e: Entry, action: "accept" | "reject" | "approve_event") => {
     setResolving((s) => ({ ...s, [e.id]: action }));
@@ -185,7 +187,7 @@ export function DecisionsTab() {
           <p className="mt-1 max-w-2xl text-body text-steel">
             The human-in-the-loop step, grouped by role. Click a candidate for their analysis summary, or run a
             group evaluation to compare a role&apos;s candidates. Interview slots live in{" "}
-            <button type="button" onClick={() => router.push(buildUrl({ tab: "schedule" }))} className="focus-ring font-semibold text-coral hover:underline">
+            <button type="button" onClick={() => router.push(buildUrl({ tab: "schedule" }, search.toString()))} className="focus-ring font-semibold text-coral hover:underline">
               Schedule
             </button>
             .

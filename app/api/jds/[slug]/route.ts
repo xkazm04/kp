@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { loadJd } from "@/app/_lib/db";
+import { safeJsonError } from "@/app/_lib/api-response";
 
 export const runtime = "nodejs";
 
@@ -12,7 +13,6 @@ export async function GET(_request: Request, context: { params: Promise<{ slug: 
     }
     return NextResponse.json(row);
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Failed to load JD.";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return safeJsonError(error, "api:jds/[slug]", "JD_LOAD_FAILED");
   }
 }

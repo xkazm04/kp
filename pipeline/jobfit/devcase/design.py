@@ -10,10 +10,14 @@ their AI use — and grades the five durable capabilities, not lines of code.
 from __future__ import annotations
 
 import json
+import logging
 import threading
 from typing import Any
 
 from .models import RUBRIC_DIMENSIONS, DevNeed, NeedAnalysis
+from .provenance import generate_with_fallback
+
+_LOG = logging.getLogger(__name__)
 
 ROLE_DESIGN_PROMPT_VERSION = "role-design-v3"  # v3: JD-first intake — full JD body anchors the role
 CASE_DESIGN_PROMPT_VERSION = "case-design-v4"  # v4: ambiguity as the instrument — probes carry a decisionSpace, the case forces a visible decision log
@@ -83,13 +87,9 @@ _PROBE_REVEALS_DEFAULT: dict[str, str] = {
 
 
 def _generate(provider: Any | None, prompt: str, deterministic, coerce) -> tuple[dict, str]:
-    if provider is None:
-        return deterministic(), "deterministic"
-    try:
-        payload = provider.complete_json(prompt, system=_SYSTEM)
-        return coerce(payload), "llm"
-    except Exception:
-        return deterministic(), "deterministic"
+    # Shared LLM-or-deterministic runner: on an LLM failure it logs the cause at WARNING
+    # and stashes a one-line fallbackReason on the artifact (see provenance.generate_with_fallback).
+    return generate_with_fallback(provider, prompt, _SYSTEM, deterministic, coerce, _LOG)
 
 
 def _str_list(value: Any) -> list[str]:
@@ -205,6 +205,9 @@ def design_case(
         "riskAreas": analysis.risk_areas,
         "timeboxHours": timebox,
     }
+    # The `repoSeed` JSON field below is the domain-neutral "starting materials" — its real,
+    # canonical contract now lives on models.CaseScenario.repo_seed (kept named `repoSeed` only
+    # for the TS round-trip). The prompt still steers the LLM to describe it in the role's terms.
     prompt = (
         "Design a CASE / work-sample EXERCISE for THIS role.\n"
         f"{json.dumps(ctx, ensure_ascii=False, indent=2)}\n\n"
@@ -351,7 +354,10 @@ def design_case(
         return {
             "title": str(payload.get("title") or det["title"]),
             "brief": str(payload.get("brief") or det["brief"]),
-            "repoSeed": str(payload.get("repoSeed") or det["repoSeed"]),
+            # Emitted as `repoSeed` for the TS round-trip; also accept the `startingMaterials`
+            # alias, mirroring CaseScenario.repo_seed (whose docstring carries the real contract:
+            # these are domain-neutral starting materials, not necessarily a repository).
+            "repoSeed": str(payload.get("repoSeed") or payload.get("startingMaterials") or det["repoSeed"]),
             "tasks": _str_list(payload.get("tasks")) or det["tasks"],
             "coverProbes": probes or det["coverProbes"],
             "timeboxHours": tb,

@@ -1,5 +1,9 @@
 import type { InterviewRecommendation } from "@/app/_lib/interview-recommendation";
 
+// The interview scorecard shape is single-sourced — see app/_lib/interview-scorecard.ts.
+// Re-exported here so Decisions consumers keep importing it from the local types barrel.
+export type { Scorecard } from "@/app/_lib/interview-scorecard";
+
 export type Entry = {
   id: string;
   candidateId: string | null;
@@ -20,7 +24,6 @@ export type Reasoning = { verdict: string; strengths: string[]; gaps: string[]; 
 // app/_lib/interview-recommendation.ts. The stored approval_detail JSON always
 // holds a coerced member (the Python coerce guarantees it), so the union is sound.
 export type Screening = { recommendation?: InterviewRecommendation; confidence?: number; rationale?: string; strengths?: string[]; redFlags?: string[] };
-export type Scorecard = { recommendation?: InterviewRecommendation; summary?: string; ratings?: { competency: string; rating: number; evidence?: string }[] };
 export type Offer = { recommended?: number; salaryMin?: number; salaryMax?: number; currency?: string; rationale?: string; subject?: string; body?: string };
 
 export const STAGES = ["Accepted", "Screened", "Interview", "Offer", "Hired"];

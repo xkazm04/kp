@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { Loader2, Pencil, Plus, Star, Trash2 } from "lucide-react";
 import { Modal } from "@/app/_components/Modal";
-import { DEFAULT_TEMPLATE_BODY, fetchTemplates, TEMPLATE_PLACEHOLDERS, type Template, type TemplateData } from "./render-template";
+import { DEFAULT_TEMPLATE_BODY, fetchTemplates, findUnknownPlaceholders, TEMPLATE_BODY_MAX_LENGTH, TEMPLATE_NAME_MAX_LENGTH, TEMPLATE_PLACEHOLDERS, unknownPlaceholderMessage, validateTemplateFields, type Template, type TemplateData } from "./render-template";
 
 type Editing = { id?: string; name: string; body: string };
 
@@ -22,8 +22,27 @@ export function JdTemplateManager({ onClose, onChanged }: { onClose: () => void;
     load();
   }, []);
 
+  // Unknown {{tokens}} in the body being edited — the same check the API enforces
+  // (render-template.ts), surfaced live so the author fixes a typo before saving
+  // rather than discovering it as raw text on a published JD.
+  const unknownTokens = editing ? findUnknownPlaceholders(editing.body) : [];
+
   const save = async () => {
     if (!editing) return;
+    // Same caps + wording as the write boundary (validateTemplateFields), so the
+    // form fails fast with the identical message — including rejecting a
+    // whitespace-only name — instead of a round-trip 400.
+    const fields = validateTemplateFields(editing.name, editing.body);
+    if (!fields.ok) {
+      setError(fields.error);
+      return;
+    }
+    // Belt-and-suspenders: the Save button is disabled while tokens are unknown,
+    // but never let a bad body reach the API (which would 400 anyway).
+    if (unknownTokens.length) {
+      setError(unknownPlaceholderMessage(unknownTokens));
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
@@ -31,7 +50,7 @@ export function JdTemplateManager({ onClose, onChanged }: { onClose: () => void;
       const r = await fetch(url, {
         method: editing.id ? "PUT" : "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: editing.name, body: editing.body }),
+        body: JSON.stringify({ name: fields.name, body: fields.body }),
       });
       const p = await r.json();
       if (!r.ok) throw new Error(p.error ?? "Save failed.");
@@ -82,20 +101,32 @@ export function JdTemplateManager({ onClose, onChanged }: { onClose: () => void;
           <input
             value={editing.name}
             onChange={(e) => setEditing({ ...editing, name: e.target.value })}
+            maxLength={TEMPLATE_NAME_MAX_LENGTH}
             placeholder="Template name"
             className="focus-ring w-full rounded-md border border-stone-200 px-2.5 py-1.5 text-sm font-semibold"
           />
           <textarea
             value={editing.body}
             onChange={(e) => setEditing({ ...editing, body: e.target.value })}
+            maxLength={TEMPLATE_BODY_MAX_LENGTH}
             rows={16}
             className="focus-ring w-full rounded-md border border-stone-200 p-3 font-mono text-sm"
           />
-          <p className="text-sm text-steel">
-            Placeholders: {TEMPLATE_PLACEHOLDERS.map((p) => <code key={p} className="mr-1 rounded bg-paper px-1 text-coral">{`{{${p}}}`}</code>)}
-          </p>
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-sm text-steel">
+              Placeholders: {TEMPLATE_PLACEHOLDERS.map((p) => <code key={p} className="mr-1 rounded bg-paper px-1 text-coral">{`{{${p}}}`}</code>)}
+            </p>
+            <p className={`shrink-0 text-sm tabular-nums ${editing.body.length >= TEMPLATE_BODY_MAX_LENGTH * 0.9 ? "text-coral" : "text-steel"}`}>
+              {editing.body.length.toLocaleString("en-US")} / {TEMPLATE_BODY_MAX_LENGTH.toLocaleString("en-US")}
+            </p>
+          </div>
+          {unknownTokens.length ? (
+            <p className="animate-fade-in rounded-md bg-amber-50 p-2.5 text-sm text-amber-800" role="alert">
+              {unknownPlaceholderMessage(unknownTokens)}
+            </p>
+          ) : null}
           <div className="flex items-center gap-2">
-            <button type="button" onClick={save} disabled={busy} className="focus-ring inline-flex h-9 items-center gap-2 rounded-md bg-ink px-4 text-sm font-semibold text-white hover:bg-steel disabled:opacity-50">
+            <button type="button" onClick={save} disabled={busy || unknownTokens.length > 0} className="focus-ring inline-flex h-9 items-center gap-2 rounded-md bg-ink px-4 text-sm font-semibold text-white hover:bg-steel disabled:opacity-50">
               {busy ? <Loader2 size={15} className="animate-spin" /> : null} Save template
             </button>
             <button type="button" onClick={() => setEditing(null)} className="focus-ring h-9 rounded-md border border-stone-200 px-3 text-sm font-semibold text-steel hover:bg-stone-50">

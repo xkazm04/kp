@@ -16,6 +16,7 @@
 //     material and ratings stay comparable.
 
 import script from "@/pipeline/jobfit/interview-script.json";
+import type { PrepQuestion, RunOfShow, ChronologyBlock } from "./run-of-show";
 
 export type StudentScriptPhase = {
   phase: string;
@@ -42,6 +43,82 @@ export function studentRunOfShow(): string[] {
 /** The simulator's "regular candidate" lane: the standard ungrounded quick screen
  *  (defaultInterviewerInstructions) with a matching candidate-facing agenda. */
 export const REGULAR_DEMO_RUN_OF_SHOW = ["Recent experience", "Depth follow-ups", "Your questions"];
+
+// ---- CV-grounded prep on the student script ------------------------------------
+
+/** How many CV-derived questions a personal phase can absorb before the plan
+ *  stops being the script and starts being a quiz. 3 personal phases × 2 = the
+ *  same six-question budget the BAU run-of-show plans for. */
+const PREP_QUESTIONS_PER_PERSONAL_PHASE = 2;
+
+/** Lower bound of a phase's "3–4 min" style budget; the script's own total
+ *  (STUDENT_SCRIPT_MIN) absorbs the slack via the last block. */
+function phaseMinutes(p: StudentScriptPhase): number {
+  const n = parseInt(p.minutes, 10);
+  return Number.isFinite(n) && n > 0 ? n : 3;
+}
+
+/** The early-career twin of buildRunOfShow: the recruiter's interview-prep plan
+ *  SHAPED AS THE SIX-PHASE SCRIPT rather than a CV chronology. The CV-derived
+ *  question hypotheses (the "prep" automation's output) are mapped round-robin
+ *  onto the PERSONAL phases only — anchor / stuck-and-recovered / calibration —
+ *  where the candidate's own story is the material; the case-grounded phases
+ *  keep exactly the script probe, because their material is SHARED across every
+ *  candidate on the role and a per-candidate question there would break rating
+ *  comparability. Pure and deterministic, mirroring run-of-show.ts's contract
+ *  that the header duration equals the last block's end. */
+export function studentPrepRunOfShow(
+  rawQuestions: PrepQuestion[],
+  rawFocusAreas: string[],
+  candidateLabel: string | null,
+  jobTitle: string | null
+): RunOfShow {
+  const focusAreas = (rawFocusAreas ?? []).slice(0, 5);
+  const personalPhases = STUDENT_SCRIPT.filter((p) => !p.caseGrounded);
+  const capacity = personalPhases.length * PREP_QUESTIONS_PER_PERSONAL_PHASE;
+  const questions = (rawQuestions ?? []).filter((q) => q.question).slice(0, capacity);
+
+  const byPhase = new Map<string, string[]>();
+  questions.forEach((q, i) => {
+    const phase = personalPhases[i % personalPhases.length].phase;
+    byPhase.set(phase, [...(byPhase.get(phase) ?? []), q.question as string]);
+  });
+
+  const chronology: ChronologyBlock[] = [];
+  let cursor = 0;
+  for (const p of STUDENT_SCRIPT) {
+    const mins = phaseMinutes(p);
+    chronology.push({
+      fromMin: cursor,
+      toMin: cursor + mins,
+      topic: p.phase,
+      goal: `${p.goal} Listen for: ${p.listenFor}`,
+      questions: [p.probe, ...(byPhase.get(p.phase) ?? [])],
+    });
+    cursor += mins;
+  }
+  // Phase lower bounds usually undershoot the script's honest total — extend the
+  // final block so the header duration and the last end time never disagree.
+  if (cursor < STUDENT_SCRIPT_MIN) {
+    chronology[chronology.length - 1].toMin += STUDENT_SCRIPT_MIN - cursor;
+    cursor = STUDENT_SCRIPT_MIN;
+  }
+
+  const signals: string[] = [
+    ...focusAreas,
+    "Hint offered in the coachability phase — uptake observed",
+    "Verbatim quotes captured for every rubric construct",
+    "CV hypotheses probed on the personal phases (anchor / stuck / calibration)",
+  ];
+
+  const scenario =
+    `A ${cursor}-minute six-phase early-career screen${candidateLabel ? ` for ${candidateLabel}` : ""}${jobTitle ? ` (${jobTitle})` : ""}. ` +
+    `The agent leads; case-grounded phases stay on the role's shared material for comparability, ` +
+    `and the CV-derived probes ride the personal phases. ` +
+    `Validate ${focusAreas.slice(0, 3).join(", ") || "the candidate's strongest project"} against the rubric live.`;
+
+  return { scenario, durationMin: cursor, focusAreas, chronology, signals };
+}
 
 // ---- Shared persona contract -------------------------------------------------
 

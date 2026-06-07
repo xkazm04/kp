@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createInterviewSession, type InterviewProvider } from "@/app/_lib/db";
+import { createInterviewSession } from "@/app/_lib/db";
 import { buildGroundedInterview } from "@/app/_lib/interview-run";
 import { jsonError } from "@/app/_lib/api-response";
-import { coerceProviderId, voiceAvailability } from "@/app/_lib/voice";
+import { coerceProviderId, voiceAvailability, type VoiceProviderId } from "@/app/_lib/voice";
 
 export const runtime = "nodejs";
 
@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
     const avail = voiceAvailability();
     // Honor an explicitly requested provider; otherwise prefer a configured one,
     // defaulting to openai.
-    const provider: InterviewProvider =
+    const provider: VoiceProviderId =
       coerceProviderId(body.provider) ?? (avail.openai ? "openai" : avail.elevenlabs ? "elevenlabs" : "openai");
 
     const grounded = await buildGroundedInterview(body.entryId);

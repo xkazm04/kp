@@ -6,7 +6,7 @@ import { z } from "zod";
 
 export const analysisResultSchema = z.object({
   candidate: z.object({
-    name: z.string().optional(),
+    name: z.string().nullish(),
     rawText: z.string(),
     yearsExperience: z.number(),
     currentSeniority: z.string(),
@@ -53,31 +53,31 @@ export const analysisResultSchema = z.object({
     mustProveEvidence: z.array(z.string()),
     negotiationAngle: z.string(),
     recruiterRiskFlags: z.array(z.string())
-  }).optional(),
+  }).nullish(),
   metadata: z.object({
     analysisEngine: z.string(),
     textExtractor: z.string(),
-    model: z.string().optional(),
+    model: z.string().nullish(),
     parsingNotes: z.array(z.string()),
     groundingSources: z.array(z.string()),
     deterministicEvidence: z.object({
       detectedRoleFamily: z.string(),
-      detectedSeniority: z.string().optional(),
+      detectedSeniority: z.string().nullish(),
       anchorBand: z.array(z.number()),
       detectedSignals: z.array(z.string()),
       detectedSkills: z.array(z.string()),
-      detectedCompanyType: z.string().optional(),
+      detectedCompanyType: z.string().nullish(),
       detectedCompanyModifiers: z.array(z.string())
-    }).optional()
-  }).optional(),
+    }).nullish()
+  }).nullish(),
   marketEvidence: z.object({
     summary: z.string(),
-    suggestedMinimum: z.number().optional(),
-    suggestedMaximum: z.number().optional(),
+    suggestedMinimum: z.number().nullish(),
+    suggestedMaximum: z.number().nullish(),
     confidence: z.string(),
     sources: z.array(z.string()),
     notes: z.array(z.string())
-  }).optional(),
+  }).nullish(),
   extractionQuality: z.object({
     pypdfSkills: z.number(),
     geminiSkills: z.number(),
@@ -86,24 +86,24 @@ export const analysisResultSchema = z.object({
     pypdfTextLength: z.number(),
     geminiTextLength: z.number(),
     recommendation: z.string()
-  }).optional(),
+  }).nullish(),
   extractionComparison: z.object({
     pypdfText: z.string(),
     geminiText: z.string()
-  }).optional(),
+  }).nullish(),
   companyContext: z.object({
     companyType: z.string(),
     salaryEffect: z.string(),
     adjustmentFactor: z.number(),
     rationale: z.array(z.string())
-  }).optional(),
+  }).nullish(),
   evidenceTrace: z.object({
     experience: z.array(z.string()),
     skills: z.array(z.string()),
     seniority: z.array(z.string()),
     education: z.array(z.string()),
     salary: z.array(z.string())
-  }).optional(),
+  }).nullish(),
   interviewKit: z.object({
     summary: z.string(),
     questions: z.array(z.object({
@@ -117,7 +117,7 @@ export const analysisResultSchema = z.object({
         result: z.string()
       })
     }))
-  }).optional(),
+  }).nullish(),
   keywordCoverage: z.object({
     coveragePercent: z.number(),
     hits: z.array(z.object({
@@ -129,8 +129,8 @@ export const analysisResultSchema = z.object({
     })),
     missing: z.array(z.string()),
     overUsed: z.array(z.string())
-  }).optional(),
-  v2Profile: z.record(z.string(), z.unknown()).optional()
+  }).nullish(),
+  v2Profile: z.record(z.string(), z.unknown()).nullish()
 });
 
 export type AnalysisResult = z.infer<typeof analysisResultSchema>;

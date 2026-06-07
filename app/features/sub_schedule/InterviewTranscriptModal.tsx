@@ -4,38 +4,33 @@ import { AlertTriangle, Loader2, RefreshCw } from "lucide-react";
 import { Modal } from "@/app/_components/Modal";
 import { InterviewRecommendationBadge } from "@/app/_components/Badge";
 import { Meter } from "@/app/_components/Meter";
-import { scoreTone } from "@/app/_lib/format";
+import { RATING_MAX, ratingToPercent, ratingTone } from "@/app/_lib/format";
 import { useJsonFetch } from "@/app/_lib/useJsonFetch";
-import type { InterviewRecommendation } from "@/app/_lib/interview-recommendation";
+import type { Scorecard } from "@/app/_lib/interview-scorecard";
+import type { VoiceTurn } from "@/app/_lib/voice/types";
 import type { SchedEntry } from "./ScheduleTypes";
 
-type Turn = { role: string; text: string };
-type Rating = { competency: string; rating: number; evidence?: string };
-type Scorecard = { ratings?: Rating[]; summary?: string; recommendation?: InterviewRecommendation };
+// Mirrors the /api/interview/by-entry response (a serialized InterviewSession):
+// the transcript is the same canonical VoiceTurn[] the server persists and the
+// browser produces, so the modal's row type can't drift from what it renders.
 type Session = {
   provider?: string;
   status?: string;
   endedAt?: string | null;
-  transcript?: Turn[] | null;
+  transcript?: VoiceTurn[] | null;
   scorecard?: Scorecard | null;
 };
-
-// Rating tone tracks strength, not just bar length, on the app-wide score scale:
-// the 1-5 rating is mapped to 0-100 and run through scoreTone (75/50 cutoffs), so
-// a 4-5 reads strong, a 3 mid, and a 1-2 weak — the scorecard's shape is legible
-// at a glance and matches the colors every other ranked surface uses.
-const ratingTone = (r: number) => scoreTone((r / 5) * 100);
 
 // Defense-in-depth at the trust boundary: latestInterviewByEntry returns the stored
 // scorecard JSON verbatim (no per-rating validation), so a legacy row, a partial/
 // failed synthesis, or a non-Python provider can carry a rating that is a string,
-// null, or out of range. Coerce to a finite int clamped to [1,5]; return null
-// ("Not assessed") for anything non-numeric so the meter and N/5 label never render
-// NaN. Mirrors the clamp already enforced on the Python path.
+// null, or out of range. Coerce to a finite int clamped to [1, RATING_MAX]; return
+// null ("Not assessed") for anything non-numeric so the meter and N/RATING_MAX label
+// never render NaN. Mirrors the clamp already enforced on the Python path.
 const cleanRating = (raw: unknown): number | null => {
   const n = typeof raw === "number" ? raw : typeof raw === "string" ? Number(raw) : NaN;
   if (!Number.isFinite(n)) return null;
-  return Math.min(5, Math.max(1, Math.round(n)));
+  return Math.min(RATING_MAX, Math.max(1, Math.round(n)));
 };
 
 export function InterviewTranscriptModal({ entry, onClose }: { entry: SchedEntry; onClose: () => void }) {
@@ -92,14 +87,14 @@ export function InterviewTranscriptModal({ entry, onClose }: { entry: SchedEntry
                       <li key={i} className="text-sm text-ink">
                         <div className="flex items-baseline justify-between gap-2">
                           <span className="font-semibold">{r.competency}</span>
-                          <span className="shrink-0 nums text-steel">{rating != null ? `${rating}/5` : "Not assessed"}</span>
+                          <span className="shrink-0 nums text-steel">{rating != null ? `${rating}/${RATING_MAX}` : "Not assessed"}</span>
                         </div>
                         {rating != null ? (
                           <Meter
-                            value={(rating / 5) * 100}
+                            value={ratingToPercent(rating)}
                             tone={ratingTone(rating)}
                             className="mt-1"
-                            aria-label={`${r.competency} rating ${rating} out of 5`}
+                            aria-label={`${r.competency} rating ${rating} out of ${RATING_MAX}`}
                           />
                         ) : null}
                         {r.evidence ? <p className="mt-1 text-meta text-steel">{r.evidence}</p> : null}

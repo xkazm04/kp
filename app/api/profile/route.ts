@@ -16,16 +16,11 @@ import {
   parseStderrError,
   spawnPython,
 } from "@/app/_lib/python-runner";
+import type { ProfileCliOutput } from "@/app/features/sub_profile/ProfileTypes";
 
 export const runtime = "nodejs";
 
-type RoutedProfile = {
-  profile: Record<string, unknown>;
-  archetype: string;
-  completeness: number;
-};
-
-type RouteOutcome = { data: RoutedProfile } | { error: { message: string; status: number } };
+type RouteOutcome = { data: ProfileCliOutput } | { error: { message: string; status: number } };
 
 // Run the pure-logic profile_cli (archetype router + completeness) over an intake
 // draft. Shared by POST (create) and PUT (edit) so both re-route and re-score the
@@ -52,7 +47,7 @@ async function routeAndScore(
     // parse throw — each turning a successful build/edit into a 500 that
     // discards the recruiter's just-entered intake. Scan from the end for the
     // first JSON object, exactly like every other CLI seam.
-    return { data: parsePythonJson<RoutedProfile>(stdout, stderr) };
+    return { data: parsePythonJson<ProfileCliOutput>(stdout, stderr) };
   } finally {
     if (workdir) await cleanupWorkdir(workdir);
   }
@@ -60,12 +55,12 @@ async function routeAndScore(
 
 // Project the routed profile into the columns the profiles table denormalizes
 // (label/archetype/role_family/completeness) alongside the full payload.
-function persistFieldsFrom(data: RoutedProfile): SaveProfileInput {
+function persistFieldsFrom(data: ProfileCliOutput): SaveProfileInput {
   const profile = data.profile;
   return {
-    label: (profile.displayName as string) || "Candidate",
+    label: profile.displayName || "Candidate",
     archetype: data.archetype ?? null,
-    roleFamily: (profile.roleFamily as string) ?? null,
+    roleFamily: profile.roleFamily ?? null,
     completeness: data.completeness ?? null,
     payload: profile,
   };

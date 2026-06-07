@@ -68,7 +68,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
           const bookedAtMs = confirmed.confirmedAt ? Date.parse(confirmed.confirmedAt) : NaN;
           const shortNotice =
             !Number.isNaN(slotAtMs) && !Number.isNaN(bookedAtMs) && isShortNoticeBooking(slotAtMs, bookedAtMs);
-          await dispatchInterviewConfirmation(entry, slot, { shortNotice });
+          await dispatchInterviewConfirmation(entry, slot, { shortNotice, durationMin: confirmed.durationMin });
         } catch {
           /* best-effort delivery */
         }

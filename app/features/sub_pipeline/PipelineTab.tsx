@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { AlertTriangle, Sparkles } from "lucide-react";
 import { buildUrl } from "@/app/features/tabs";
 import { useTasks } from "@/app/features/tasks/TasksProvider";
@@ -47,6 +47,7 @@ function StatChip({
 
 export function PipelineTab() {
   const router = useRouter();
+  const search = useSearchParams();
   const [entries, setEntries] = useState<Entry[] | null>(null);
   const [events, setEvents] = useState<PipelineEvent[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -65,29 +66,51 @@ export function PipelineTab() {
   const batch = findActive((t) => t.kind === "batch_screen");
   const lastBatchDone = useRef<string | null>(null);
 
-  const load = () => {
-    fetch("/api/pipeline")
+  // load() fires from many triggers (mount, live refresh, batch-done, the pass,
+  // the scheduler, the drawer), so it self-sequences: each call aborts the prior
+  // call's in-flight fetches, and a superseded response writes no state. That
+  // kills two failure modes at once — a slow earlier response can't clobber a
+  // newer board, and (because success always clears `error`) a single transient
+  // fetch blip can't latch the error screen: the next good poll recovers the
+  // view without a hard refresh.
+  const abortRef = useRef<AbortController | null>(null);
+  const load = useCallback(() => {
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+    const { signal } = controller;
+    fetch("/api/pipeline", { signal })
       .then((r) => r.json())
       .then((p) => {
+        if (signal.aborted) return; // a newer load superseded this one
         if (p.error) throw new Error(p.error);
         setEntries((p.entries as Entry[]) ?? []);
+        setError(null); // success clears any prior transient error
       })
-      .catch((e) => setError(e instanceof Error ? e.message : "Failed to load pipeline."));
-    fetch("/api/pipeline/events")
+      .catch((e) => {
+        if (signal.aborted) return; // ignore aborted/stale failures
+        setError(e instanceof Error ? e.message : "Failed to load pipeline.");
+      });
+    fetch("/api/pipeline/events", { signal })
       .then((r) => {
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
         return r.json();
       })
       .then((p) => {
+        if (signal.aborted) return;
         if (p.error) throw new Error(p.error);
         setEvents((p.events as PipelineEvent[]) ?? []);
         setEventsError(null);
       })
-      .catch(() => setEventsError("Couldn't load recent activity."));
-  };
+      .catch(() => {
+        if (signal.aborted) return;
+        setEventsError("Couldn't load recent activity.");
+      });
+  }, []);
   useEffect(() => {
     load();
-  }, []);
+    return () => abortRef.current?.abort(); // drop in-flight fetches on unmount
+  }, [load]);
   useLiveRefresh(load); // re-fetch the board live when the simulation (or any actor) changes state
 
   const positions = useMemo(() => {
@@ -115,8 +138,8 @@ export function PipelineTab() {
   // Candidate name → the analyzed profile (Match view); falls back to the
   // AI-actions drawer when the entry has no linked candidate id.
   const openProfile = (e: Entry) =>
-    e.candidateId ? router.push(buildUrl({ tab: "match", profile: e.candidateId })) : setDrawerEntry(e);
-  const openJob = (jobId: string) => router.push(buildUrl({ tab: "jobs", job: jobId }));
+    e.candidateId ? router.push(buildUrl({ tab: "match", profile: e.candidateId }, search.toString())) : setDrawerEntry(e);
+  const openJob = (jobId: string) => router.push(buildUrl({ tab: "jobs", job: jobId }, search.toString()));
 
   // Reload the board when a background batch-screen finishes (it mutates many entries).
   useEffect(() => {
@@ -128,7 +151,7 @@ export function PipelineTab() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tasks]);
   // "Rank candidates" → the Fit matrix scoped to this position (a per-position ranking).
-  const openPositionRanking = (jobId: string) => router.push(buildUrl({ tab: "matrix", job: jobId }));
+  const openPositionRanking = (jobId: string) => router.push(buildUrl({ tab: "matrix", job: jobId }, search.toString()));
 
   const runPass = async () => {
     setRunning(true);
@@ -174,7 +197,7 @@ export function PipelineTab() {
               label="Awaiting you"
               value={approvals.length}
               tone={approvals.length > 0 ? "coral" : "neutral"}
-              onClick={() => router.push(buildUrl({ tab: "decisions" }))}
+              onClick={() => router.push(buildUrl({ tab: "decisions" }, search.toString()))}
             />
           </div>
         ) : null}
@@ -245,7 +268,7 @@ export function PipelineTab() {
           {approvals.length > 0 ? (
             <button
               type="button"
-              onClick={() => router.push(buildUrl({ tab: "decisions" }))}
+              onClick={() => router.push(buildUrl({ tab: "decisions" }, search.toString()))}
               className="focus-ring flex w-full items-center justify-between rounded-lg border border-coral/30 bg-coral/5 px-4 py-3 text-left hover:bg-coral/10"
             >
               <span className="text-base text-ink">

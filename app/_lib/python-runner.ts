@@ -104,7 +104,12 @@ const DEFAULT_TIMEOUT_MS = 600_000; // 10 min — a hang backstop, not a deadlin
 // library logging in a loop, a multi-MB base64 blob) accumulates its entire
 // output in the heap until close — up to DEFAULT_TIMEOUT_MS — and can OOM the
 // Next.js process, taking down every route, not just the one that spawned it.
-// Overridable via PYTHON_MAX_BUFFER_MB for operability (matching PYTHON_CMD).
+// This caps the child's *output*, NOT the user's *input*: the max upload size a
+// user can submit is the separate per-file MAX_FILE_BYTES (8 MB) contract in
+// app/_lib/upload-constraints.ts, enforced at the route boundary. 64 MB sits
+// far above any expected result so a legitimate grounding dump is never
+// truncated by it. Overridable via PYTHON_MAX_BUFFER_MB for operability
+// (matching PYTHON_CMD).
 const DEFAULT_MAX_BUFFER_BYTES = positiveNumericEnv("PYTHON_MAX_BUFFER_MB", 64, {
   scale: 1024 * 1024,
 });

@@ -1,4 +1,4 @@
-import type { ElevenLabsConnect, VoiceAdapter } from "./types";
+import { missingVoiceEnv, type ElevenLabsConnect, type VoiceAdapter } from "./types.ts";
 
 // ElevenLabs Agents (Conversational AI). The agent itself — prompt, voice,
 // language(s) — is configured in the ElevenLabs dashboard; create one with a
@@ -10,9 +10,10 @@ const SIGNED_URL = "https://api.elevenlabs.io/v1/convai/conversation/get-signed-
 
 export class ElevenLabsVoiceAdapter implements VoiceAdapter {
   readonly id = "elevenlabs" as const;
+  readonly requiredEnv = ["ELEVENLABS_API_KEY", "ELEVENLABS_AGENT_ID"] as const;
 
   available(): boolean {
-    return Boolean(process.env.ELEVENLABS_API_KEY && process.env.ELEVENLABS_AGENT_ID);
+    return missingVoiceEnv(this).length === 0;
   }
 
   async connect(): Promise<ElevenLabsConnect> {

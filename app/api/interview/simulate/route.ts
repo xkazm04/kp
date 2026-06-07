@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createInterviewSession, type InterviewProvider } from "@/app/_lib/db";
+import { createInterviewSession } from "@/app/_lib/db";
 import { jsonError } from "@/app/_lib/api-response";
-import { coerceProviderId, defaultInterviewerInstructions, voiceAvailability } from "@/app/_lib/voice";
+import { coerceProviderId, defaultInterviewerInstructions, voiceAvailability, type VoiceProviderId } from "@/app/_lib/voice";
 import { QUICK_SCREEN_MIN } from "@/app/_lib/interview-duration.mjs";
 import {
   caseGroundedInterviewerInstructions,
@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
     const mode: SimMode = body.mode === "student" || body.mode === "student-case" ? body.mode : "regular";
 
     const avail = voiceAvailability();
-    const provider: InterviewProvider =
+    const provider: VoiceProviderId =
       coerceProviderId(body.provider) ?? (avail.openai ? "openai" : avail.elevenlabs ? "elevenlabs" : "openai");
 
     let candidateLabel = "Demo candidate";

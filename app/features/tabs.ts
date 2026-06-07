@@ -107,12 +107,23 @@ export function navItemClass(isActive: boolean): string {
   return isActive ? "bg-coral/10 text-coral" : "text-steel hover:bg-stone-50 hover:text-ink";
 }
 
-// Build a "/?…" href by patching the current query with `updates` (null clears
-// a key). Components pass the result to next/navigation's router so App Router's
+// Build a "/?…" href by patching `search` (the current query string, e.g. from
+// useSearchParams().toString()) with `updates` (null/"" clears a key).
+//
+// `search` MUST be the React-tracked searchParams string — callers pass it in
+// rather than letting this read window.location. router.replace/push
+// (next/navigation) do NOT update window.location in the same tick, so when two
+// navigations fire close together — a programmatic SimulationProvider.nav() during
+// a sim run, or a user clicking a deep link then a tab — a window.location read on
+// the second call would see the pre-first-navigation URL and clobber the first
+// update (lost profile/job/tab params). Composing off the committed router state
+// (useSearchParams) instead makes successive patches stack correctly.
+//
+// Components still pass the result to next/navigation's router so App Router's
 // useSearchParams reliably re-renders — a raw history.pushState does NOT trigger
 // that in Next 16, which is why sidebar clicks weren't switching content.
-export function buildUrl(updates: Record<string, string | null>): string {
-  const params = new URLSearchParams(typeof window !== "undefined" ? window.location.search : "");
+export function buildUrl(updates: Record<string, string | null>, search: string): string {
+  const params = new URLSearchParams(search);
   for (const [key, value] of Object.entries(updates)) {
     if (value === null || value === "") params.delete(key);
     else params.set(key, value);
@@ -120,4 +131,43 @@ export function buildUrl(updates: Record<string, string | null>): string {
   if (params.get("tab") === DEFAULT_TAB) params.delete("tab");
   const qs = params.toString();
   return qs ? `/?${qs}` : "/";
+}
+
+// The deep-link query params that scope a tab's view to a specific selection or
+// prefill — a candidate (`profile`), a job (`job`), the profile editor's target
+// (`edit`), the JD-builder draft (`jd*`). Unlike a future global/filter param,
+// these must NOT survive a bare tab switch: otherwise the destination tab
+// inherits the previous tab's selection (Profile's ?edit= or the JD-builder
+// prefill silently leaking onto Jobs). This is the single canonical declaration
+// of which params are tab-scoped — `buildTabSwitchUrl` clears every key here, the
+// simulation reuses it to wipe the JD prefill, and the unit test pins the exact
+// set so adding a deep-link param is a deliberate, reviewed edit rather than a
+// silent leak. Anything NOT listed here survives a tab switch by design.
+export const TAB_SCOPED_PARAM_KEYS = [
+  "profile",
+  "job",
+  "edit",
+  "jdTitle",
+  "jdCompany",
+  "jdSeniority",
+  "jdFamily",
+  "jdNeed",
+] as const;
+
+export type TabScopedParamKey = (typeof TAB_SCOPED_PARAM_KEYS)[number];
+
+// A `{ key: null }` patch that clears every tab-scoped param. Spread into
+// buildUrl (or the simulation's nav) to wipe a tab's selection/prefill from one
+// place instead of hand-listing keys — re-listing them at a call site is exactly
+// the literal that rots as new deep-link params are added.
+export function clearedTabScopedParams(): Record<TabScopedParamKey, null> {
+  return Object.fromEntries(TAB_SCOPED_PARAM_KEYS.map((key) => [key, null])) as Record<TabScopedParamKey, null>;
+}
+
+// Href for a bare tab switch (sidebar nav, TasksIndicator): select `tab` and
+// clear every tab-scoped param so the destination opens on a clean view. `search`
+// is the React-tracked searchParams string (see buildUrl) — threaded through so the
+// switch composes off the committed router state, not a stale window.location read.
+export function buildTabSwitchUrl(id: WorkspaceTabId, search: string): string {
+  return buildUrl({ tab: id, ...clearedTabScopedParams() }, search);
 }

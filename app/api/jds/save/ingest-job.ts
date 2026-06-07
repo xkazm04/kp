@@ -38,8 +38,14 @@ export async function ingestStructuredJob(input: {
   };
 
   const { job } = await normalizeJob(record, `jd-${input.slug}`);
+  // The matchable band is FIXED to the AI/market analysis's salary, on purpose:
+  // it carries that analysis's provenance, confidence, and cited sources, so a
+  // hand-typed override (e.g. a number edited into the JD markdown) is NOT honored
+  // here — that would let an arbitrary figure masquerade as web-grounded research.
+  // The builder's salary card is read-only and says so (JdBuilderResult.tsx);
+  // editing the salary line in the markdown changes the published wording only.
   // Clamp/swap a backwards or non-positive band rather than dropping it, so the
-  // matchable Job's band never silently disagrees with the published JD.
+  // matchable Job's band never silently disagrees with the analysis it came from.
   const band = normalizeSalaryBand(input.salary?.suggestedMinimum, input.salary?.suggestedMaximum);
   if (band) job.salaryBand = band;
 

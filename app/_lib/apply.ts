@@ -1,6 +1,6 @@
 import archetypeRegistry from "@/pipeline/jobfit/archetypes.json";
 import type { JobRecord } from "./db";
-import { buildIntakeProfile, type ApplyAnswers } from "./apply-intake";
+import { buildIntakeProfile, type ApplyAnswers, type StepCondition } from "./apply-intake";
 
 // Conversational, formless apply: a short chat that captures the candidate and
 // runs job-derived knockout (KO) questions before they enter the pipeline.
@@ -17,9 +17,9 @@ export {
 } from "./apply-intake";
 
 export type ApplyStep =
-  | { id: string; type: "text"; prompt: string; placeholder?: string }
-  | { id: string; type: "ko"; prompt: string }
-  | { id: string; type: "choice"; prompt: string; options: { value: string; label: string }[] };
+  | { id: string; type: "text"; prompt: string; placeholder?: string; when?: StepCondition }
+  | { id: string; type: "ko"; prompt: string; when?: StepCondition }
+  | { id: string; type: "choice"; prompt: string; options: { value: string; label: string }[]; when?: StepCondition };
 
 /** The KO step ids — a "no" on any of these declines the application. */
 export const KO_STEP_IDS = ["ko_auth", "ko_mode", "ko_lang"] as const;
@@ -56,6 +56,12 @@ const MIN_ARCHETYPE_OPTIONS_TO_OFFER = 2;
  *  `?? "bau"` default. */
 export const FALLBACK_ARCHETYPE = "bau";
 
+// The archetype ids that get their own intake lane below. Any OTHER archetype —
+// bau, a skipped question, or a future registry addition without a lane — falls
+// through to the default "most relevant experience" question, so a new archetype
+// can never silently get an empty intake.
+const LANED_ARCHETYPES = ["student", "career_switcher"];
+
 export function buildApplyScript(job: JobRecord): ApplyStep[] {
   const steps: ApplyStep[] = [
     {
@@ -64,10 +70,70 @@ export function buildApplyScript(job: JobRecord): ApplyStep[] {
       prompt: `Hi! Let's get you applied for ${job.title}${job.company ? ` at ${job.company}` : ""}. What's your name?`,
       placeholder: "Your name",
     },
+  ];
+
+  // Asked EARLY (right after the name) because it now routes the rest of the
+  // intake: a student's CV-equivalent information is their project/thesis,
+  // studies and direction — not a "most relevant experience" question they can
+  // only answer apologetically.
+  if (APPLY_ARCHETYPE_OPTIONS.length >= MIN_ARCHETYPE_OPTIONS_TO_OFFER) {
+    steps.push({
+      id: "archetype",
+      type: "choice",
+      prompt: "Nice to meet you! Which best describes you right now? It helps us ask the right questions and assess you fairly.",
+      options: APPLY_ARCHETYPE_OPTIONS,
+    });
+  }
+
+  steps.push(
+    // — student lane: evidence the early-career scoring model actually prices
+    //   (project/thesis is the completeness checklist's highest-weight item;
+    //   education detail + aspirations are its required fields).
+    {
+      id: "student_project",
+      type: "text",
+      when: { stepId: "archetype", oneOf: ["student"] },
+      prompt:
+        "Tell us about a school project, thesis, or anything you've built that you're proud of — and what exactly was yours in it?",
+      placeholder: "e.g. My bachelor thesis: a small REST API for…",
+    },
+    {
+      id: "student_education",
+      type: "text",
+      when: { stepId: "archetype", oneOf: ["student"] },
+      prompt: "What are you studying — programme and specialisation — and when do you expect to graduate?",
+      placeholder: "e.g. Computer Science at CTU, graduating June 2027",
+    },
+    {
+      id: "student_aspirations",
+      type: "text",
+      when: { stepId: "archetype", oneOf: ["student"] },
+      prompt: "What kind of role are you aiming for as you start out?",
+      placeholder: "e.g. junior backend developer",
+    },
+    // — switcher lane: the prior field feeds transferable-meta-skill extraction;
+    //   the direction answer becomes their aspirations.
+    {
+      id: "switch_prior",
+      type: "text",
+      when: { stepId: "archetype", oneOf: ["career_switcher"] },
+      prompt: "Which field are you coming from, and what did you do there?",
+      placeholder: "e.g. 6 years in finance as an analyst",
+    },
+    {
+      id: "switch_aspirations",
+      type: "text",
+      when: { stepId: "archetype", oneOf: ["career_switcher"] },
+      prompt: "What's drawing you to this field, and what kind of role are you aiming for?",
+      placeholder: "e.g. moving into data engineering because…",
+    },
+    // — default lane (experienced, a skipped archetype question, or any archetype
+    //   without its own lane).
     {
       id: "experience",
       type: "text",
-      prompt: "Nice to meet you. In a sentence or two, what's your most relevant recent experience for this role?",
+      when: { stepId: "archetype", notOneOf: LANED_ARCHETYPES },
+      prompt: "In a sentence or two, what's your most relevant recent experience for this role?",
       placeholder: "e.g. 3 years building Node.js APIs…",
     },
     {
@@ -75,17 +141,8 @@ export function buildApplyScript(job: JobRecord): ApplyStep[] {
       type: "text",
       prompt: "Which skills should we highlight for this role? (comma-separated)",
       placeholder: "e.g. React, Node.js, SQL",
-    },
-  ];
-
-  if (APPLY_ARCHETYPE_OPTIONS.length >= MIN_ARCHETYPE_OPTIONS_TO_OFFER) {
-    steps.push({
-      id: "archetype",
-      type: "choice",
-      prompt: "Which best describes you right now? It helps us assess you fairly.",
-      options: APPLY_ARCHETYPE_OPTIONS,
-    });
-  }
+    }
+  );
 
   steps.push({
     id: "ko_auth",

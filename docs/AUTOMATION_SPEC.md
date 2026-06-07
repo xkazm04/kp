@@ -184,7 +184,8 @@ python -m pipeline.jobfit.automation_cli policy-pass --entries-json E      # Tas
 ## 4. API Routes (Next.js, `runtime = "nodejs"`)
 
 All spawn Python through `spawnPython` + `createWorkdir`/`cleanupWorkdir` + `parseStderrError`, mirroring
-`app/api/match/reasoning/route.ts`. LLM responses cached via `lookupGeminiCache`/`storeGeminiCache`.
+`app/api/match/reasoning/route.ts`. LLM responses cached via `lookupPromptCache`/`storePromptCache` (only
+authoritative `source: "llm"` payloads are cached; deterministic fallbacks are recomputed each request).
 
 | Route | Method | Purpose | CLI sub-command | Cache key |
 |-------|--------|---------|-----------------|-----------|
@@ -266,7 +267,7 @@ Guardrails: Outreach button hidden when `status='rejected'`; Reject draft requir
 
 | Risk | Mitigation |
 |------|-----------|
-| **Silent auto-reject of early-career** | Task 1 pre-LLM fairness gate forces `hold`; Task 7 auto-reject is **BAU-only**; early-career low scores get 30-day aging + human escalation. Audit `pipeline_events` monthly for any early-career `hold→rejected` via automation (would be a bug). |
+| **Silent auto-reject of early-career** | Task 1 pre-LLM fairness gate forces `hold`; Task 7 auto-reject is **BAU-only**; early-career low scores get 30-day aging + human escalation. **Defense in depth:** the TS apply boundary (`automation-pass.ts`) re-asserts the invariant via `assertAutoRejectFair` (`automation-fairness.ts`) before applying any reject — a reject for a protected/unknown archetype, an unscored entry, or a score `>= bau_reject_score` is refused and downgraded to `hold` + a `fairness_gate_blocked_reject` alert, so a Python regression can't auto-reject unfairly. Audit `pipeline_events` for any `fairness_gate_blocked_reject` (a refused upstream bug) or early-career `hold→rejected` via automation (would be a bug). |
 | **Confidence miscalibration** | Only `confidence>=80` + BAU bypasses the human gate. No ground truth yet → recommend logging post-interview outcomes to validate bands later. |
 | **Outreach sent to a reject candidate** | Outreach disabled when `status='rejected'`; outreach and reject flows are physically separate UI actions. |
 | **Rejection draft sent unreviewed** | Always human-initiated; recruiter edits the editable draft and confirms before the `reject` action; (optional) require an edit/confirm checkbox. |

@@ -32,6 +32,17 @@ function unlockBodyScroll(): void {
   if (scrollLockCount === 0) document.body.style.overflow = prevBodyOverflow;
 }
 
+// Mount-order stack of open dialogs. The key handler now lives on `document`
+// (so Escape works even when focus sits on the dialog container or <body>),
+// which means every open modal's listener fires for one keypress. Gating on
+// "am I the top of the stack?" keeps Escape closing only the frontmost dialog
+// and Tab trapping only within it — the behavior the old node-bound listener
+// got for free from event bubbling through the focused element.
+const modalStack: symbol[] = [];
+function isTopModal(token: symbol): boolean {
+  return modalStack[modalStack.length - 1] === token;
+}
+
 export function Modal({
   title,
   subtitle,
@@ -64,35 +75,59 @@ export function Modal({
   useEffect(() => {
     const node = ref.current;
     const prev = document.activeElement as HTMLElement | null;
+    const token = Symbol("modal");
+    modalStack.push(token);
     const focusables = () =>
       node
         ? Array.from(node.querySelectorAll<HTMLElement>('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])')).filter(
             (el) => !el.hasAttribute("disabled")
           )
         : [];
-    focusables()[0]?.focus();
+    // Contract: focus always lands inside the dialog so Escape/Tab have an
+    // anchor. Prefer the first focusable child; for content-only modals with
+    // none, fall back to the dialog container (focusable via tabIndex={-1}) so
+    // focus never stays on <body>.
+    (focusables()[0] ?? node)?.focus();
+    // Listen on document, not the dialog node: a keydown handler bound to the
+    // node only fires while focus is inside it, so a content-only modal (focus
+    // sitting on the container or escaped to <body>) could never be closed with
+    // Escape. document-level listening makes Escape-closes-always hold. Gate on
+    // being the top of the modal stack so stacked dialogs each handle their own
+    // keys instead of all closing at once.
     const onKey = (e: KeyboardEvent) => {
+      if (!isTopModal(token)) return;
       if (e.key === "Escape") {
         e.preventDefault();
         onCloseRef.current();
         return;
       }
-      if (e.key !== "Tab") return;
+      if (e.key !== "Tab" || !node) return;
       const items = focusables();
-      if (!items.length) return;
+      // No focusable children: keep focus pinned to the dialog container so Tab
+      // can't escape to the page behind the modal.
+      if (!items.length) {
+        e.preventDefault();
+        node.focus();
+        return;
+      }
       const first = items[0];
       const last = items[items.length - 1];
-      if (e.shiftKey && document.activeElement === first) {
+      const active = document.activeElement;
+      // active === node covers the container-focused fallback above, plus any
+      // moment focus has drifted off the trapped children.
+      if (e.shiftKey && (active === first || active === node)) {
         e.preventDefault();
         last.focus();
-      } else if (!e.shiftKey && document.activeElement === last) {
+      } else if (!e.shiftKey && (active === last || active === node)) {
         e.preventDefault();
         first.focus();
       }
     };
-    node?.addEventListener("keydown", onKey);
+    document.addEventListener("keydown", onKey);
     return () => {
-      node?.removeEventListener("keydown", onKey);
+      document.removeEventListener("keydown", onKey);
+      const i = modalStack.indexOf(token);
+      if (i !== -1) modalStack.splice(i, 1);
       prev?.focus?.();
     };
   }, []);
@@ -109,7 +144,11 @@ export function Modal({
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        className={`animate-fade-in relative flex w-full ${isFull ? "h-[92vh] max-h-[92vh]" : "max-h-[85vh]"} ${SIZE[size] ?? SIZE["2xl"]} flex-col overflow-hidden rounded-lg border border-stone-200 bg-white shadow-2xl`}
+        // Programmatically focusable (but not in the Tab order) so a content-only
+        // modal with no focusable children still has a guaranteed first focus
+        // target — keeping focus inside the dialog and the Escape/Tab handler live.
+        tabIndex={-1}
+        className={`animate-fade-in relative flex w-full ${isFull ? "h-[92vh] max-h-[92vh]" : "max-h-[85vh]"} ${SIZE[size] ?? SIZE["2xl"]} flex-col overflow-hidden rounded-lg border border-stone-200 bg-white shadow-2xl focus:outline-none`}
       >
         <header className="flex items-start gap-3 border-b border-stone-200 px-5 py-3.5">
           <div className="min-w-0 flex-1">

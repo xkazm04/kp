@@ -14,13 +14,15 @@
 
 export type PrepQuestion = { competency?: string; question?: string; whatsGoodLooksLike?: string; followUpIfAnswer?: string };
 export type ChronologyBlock = { fromMin: number; toMin: number; topic: string; goal: string; questions: string[]; followUp?: string };
-export type ChecklistGroup = { group: string; items: string[] };
 export type RunOfShow = {
   scenario: string;
   durationMin: number;
   focusAreas: string[];
   chronology: ChronologyBlock[];
-  checklist: ChecklistGroup[];
+  // The cross-cutting "Signals to confirm" the interviewer ticks off alongside the
+  // timed chronology. Always one flat list (the heading is static in the modal), so
+  // it's a plain string[] rather than a grouped shape that never had >1 group.
+  signals: string[];
 };
 
 /** Documented run-of-show duration band (minutes). The computed plan is clamped
@@ -103,17 +105,12 @@ export function buildRunOfShow(
   const durationMin = clamp(cursor, MIN_DURATION_MIN, MAX_DURATION_MIN);
 
   // The chronology IS the run-of-show checklist (each block is checkable in the
-  // modal), so the checklist here only carries the cross-cutting signals.
-  const checklist: ChecklistGroup[] = [
-    {
-      group: "Signals to confirm",
-      items: [
-        ...focusAreas,
-        "Probed the depth behind self-declared / project skills",
-        "Covered the missing must-haves",
-        "Gave the candidate space to ask questions",
-      ],
-    },
+  // modal), so these are only the cross-cutting signals the interviewer confirms.
+  const signals: string[] = [
+    ...focusAreas,
+    "Probed the depth behind self-declared / project skills",
+    "Covered the missing must-haves",
+    "Gave the candidate space to ask questions",
   ];
 
   const scenario =
@@ -121,5 +118,5 @@ export function buildRunOfShow(
     `Validate strengths and probe ${focusAreas.slice(0, 3).join(", ") || "the key gaps"}. ` +
     "Keep each topic timeboxed and use the checklist to track coverage live.";
 
-  return { scenario, durationMin, focusAreas, chronology, checklist };
+  return { scenario, durationMin, focusAreas, chronology, signals };
 }

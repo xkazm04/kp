@@ -107,5 +107,38 @@ class MatrixCliMissingCandidatesTest(unittest.TestCase):
         self.assertEqual(miss[0]["label"], "no-label")
 
 
+class MatrixCliDuplicatePositionTest(unittest.TestCase):
+    def test_duplicate_job_ids_collapse_to_one_column(self) -> None:
+        # listOpenPositions can repeat a job_id (a title edited between pipeline adds),
+        # so --job-ids may arrive as "id,id". The grid keys columns by id, so a repeated
+        # id must collapse to a single column instead of emitting duplicate React keys.
+        with tempfile.TemporaryDirectory() as tmp:
+            profiles_path = Path(tmp) / "profiles.json"
+            profiles_path.write_text(json.dumps([GOOD_PROFILE]), encoding="utf-8")
+            jobs_path = Path(tmp) / "jobs.json"
+            jobs_path.write_text(json.dumps([JOB.model_dump(mode="json")]), encoding="utf-8")
+
+            out = io.StringIO()
+            with contextlib.redirect_stdout(out):
+                code = main(
+                    [
+                        "--profiles-json",
+                        str(profiles_path),
+                        "--job-ids",
+                        f"{JOB.id},{JOB.id}",
+                        "--jobs-json",
+                        str(jobs_path),
+                    ]
+                )
+            payload = json.loads(out.getvalue() or "{}")
+
+        self.assertEqual(code, 0)
+        # Exactly one column, no duplicate id.
+        self.assertEqual([p["id"] for p in payload["positions"]], [JOB.id])
+        # The scored row has exactly one cell — one column, not two.
+        self.assertEqual(len(payload["cells"][0]), 1)
+        self.assertEqual(payload["missing"], [])
+
+
 if __name__ == "__main__":
     unittest.main()

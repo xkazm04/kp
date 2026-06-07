@@ -20,7 +20,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Provide the full job ad text (at least ~30 chars)." }, { status: 400 });
     }
 
-    const { job, source } = await ingestJobAd(adText, body.jobId);
+    // Thread the request's AbortSignal so abandoning the ingest (navigating away
+    // mid-parse) SIGKILLs the Claude CLI child instead of leaving it to finish a
+    // parse whose result nobody will read — and keep spending a subscription call.
+    const { job, source } = await ingestJobAd(adText, body.jobId, request.signal);
     const { id, created } = insertJob(job, jobContentHash(adText));
     return NextResponse.json({ jobId: id, created, source, title: job.title });
   } catch (error) {

@@ -6,6 +6,7 @@ import { saveGroupEval } from "./group-eval";
 import { isEarlyCareer } from "./archetypes";
 import { resolveCandidatePoolEntry, type CandidatePoolEntry } from "./candidate-pool";
 import { cleanupWorkdir, createWorkdir, parsePythonJson, parseStderrError, spawnPython } from "./python-runner";
+import { computeDifferentiators } from "./group-eval-differentiators";
 
 // Cap on how many candidates one comparative evaluation covers. The strongest
 // are selected by fit BEFORE the cap (see below), and the modal surfaces
@@ -86,7 +87,6 @@ type PerCandidate = {
   score: number;
   seniority: string | null;
   archetype: string | null;
-  topSkills: string[];
   verdict: string;
   strengths: string[];
   gaps: string[];
@@ -122,16 +122,6 @@ function salaryExpectationOf(candidateId: string | null): SalaryExpectation | nu
   };
 }
 
-function topSkillsOf(payload: unknown): string[] {
-  const claims = (payload as { skillClaims?: { skill?: string; level?: string }[] } | null)?.skillClaims ?? [];
-  return claims
-    .slice()
-    .sort((a, b) => (a.level === "strong" ? -1 : 0) - (b.level === "strong" ? -1 : 0))
-    .map((c) => c.skill)
-    .filter((s): s is string => Boolean(s))
-    .slice(0, 6);
-}
-
 const dimPercent = (c: PerCandidate, key: string): number | null =>
   c.scoreBreakdown?.find((d) => d.key === key)?.percent ?? null;
 
@@ -156,9 +146,12 @@ async function rankCandidates(
     const jobPath = path.join(workdir, "job.json");
     await writeFile(jobPath, JSON.stringify(job), "utf-8");
 
-    // --weights-llm: the group eval opts into the LLM weight proposer for the
-    // fairness matrix (the candidate-list endpoint omits it and stays deterministic).
-    const { result } = spawnPython(["-m", "pipeline.jobfit.recruiter_cli", "--input-json", inputPath, "--job-json", jobPath, "--weights-llm"]);
+    // --weights-llm + --embeddings: the group eval is the deep read, so it opts
+    // into BOTH enrichments — the LLM weight proposer for the fairness matrix and
+    // the embedding bridge for the personal/motivation dimension. Each fails open
+    // to its deterministic twin (no key/provider → unchanged scores), and the
+    // cheap candidate-list endpoint omits both and stays fully deterministic.
+    const { result } = spawnPython(["-m", "pipeline.jobfit.recruiter_cli", "--input-json", inputPath, "--job-json", jobPath, "--weights-llm", "--embeddings"]);
     const { stdout, stderr, exitCode } = await result;
     if (exitCode !== 0) {
       const err = parseStderrError(stderr, exitCode);
@@ -277,7 +270,6 @@ export async function runGroupEval(params: Record<string, unknown>): Promise<Rec
       score: result?.total ?? c.matchScore ?? 0,
       seniority: row?.seniority ?? payload?.seniority ?? null,
       archetype: row?.archetype ?? payload?.archetype ?? null,
-      topSkills: topSkillsOf(rec?.payload),
       verdict: reasoning.verdict ?? "",
       strengths: reasoning.strengths ?? [],
       gaps: reasoning.gaps ?? [],
@@ -299,9 +291,16 @@ export async function runGroupEval(params: Record<string, unknown>): Promise<Rec
   candidates.sort((a, b) => b.score - a.score);
   const top = candidates[0] ?? null;
 
-  // Differentiators: skills the top pick has that no one else in the group does.
-  const othersSkills = new Set(candidates.slice(1).flatMap((c) => c.topSkills));
-  const differentiators = top ? top.topSkills.filter((s) => !othersSkills.has(s)).slice(0, 5) : [];
+  // Canonical role requirements (must-have first): the role's declared
+  // requirements, so the skills matrix is ordered and complete even for a skill no
+  // candidate matched, AND the anchor the lead's differentiators are filtered to.
+  // The modal falls back to the union of matched∪missing when this is absent.
+  const requirements = (job?.requirements ?? []).map((r) => ({ skill: r.skill, kind: r.kind }));
+
+  // Differentiators: the lead's *role-relevant* edge — requirement skills the lead
+  // matched that every rival missed (NOT raw self-declared claims, which could be
+  // off-topic). See computeDifferentiators for the full definition and rationale.
+  const differentiators = computeDifferentiators(top, candidates.slice(1), requirements);
 
   const risks: string[] = [];
   for (const c of candidates) {
@@ -312,11 +311,6 @@ export async function runGroupEval(params: Record<string, unknown>): Promise<Rec
 
   const uniqueSources = new Set(sources.filter(Boolean));
   const source = uniqueSources.size === 0 ? "deterministic" : uniqueSources.size === 1 && uniqueSources.has("llm") ? "llm" : uniqueSources.has("llm") ? "partial" : "deterministic";
-
-  // Canonical skill-matrix rows: the role's declared requirements (must-have
-  // first), so the matrix is ordered and complete even for a skill no candidate
-  // matched. The modal falls back to the union of matched∪missing when absent.
-  const requirements = (job?.requirements ?? []).map((r) => ({ skill: r.skill, kind: r.kind }));
 
   // AI head-to-head narrative (best-effort; deterministic one-liner is the fallback).
   const compare = candidates.length ? await runGroupCompare(roleTitle, candidates, job?.salaryBand ?? []) : null;

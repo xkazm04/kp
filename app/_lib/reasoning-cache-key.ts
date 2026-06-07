@@ -1,0 +1,54 @@
+import { createHash } from "node:crypto";
+
+// The cache-KEY contract for per-match reasoning — the explicit, single-place
+// answer to "what invalidates a cached verdict?". Kept DB-free (no ./db import)
+// so it is unit-testable in isolation, mirroring reasoning-cache-policy.ts (the
+// sibling cache-WRITE contract) and cache-key.ts (the analysis-cache contract).
+//
+// A cached rationale is reused only when ALL three axes match:
+//
+//   1. promptVersion    — REASONING_PROMPT_VERSION, the reasoning prompt/template
+//                         generation. Bumping it retires every prior entry.
+//   2. candidateKeyPart — the candidate identity AND content: candidateSignature
+//                         for an inline candidate, or `profile:<id>:<contentHash>`
+//                         for a saved profile (built in writeMatchInput). The
+//                         profile is content-addressed so an in-place edit (same
+//                         profileId, changed skills/aspirations) invalidates it.
+//   3. job              — the job identity AND content (see jobKeyPart below).
+//
+// Axis 3 closes the hole this module exists to fix: the reasoning text literally
+// quotes the job's must-have and the candidate's missing skills, so editing a
+// job's requirements/title in place (same id — see job-ingest.ts's upsert) must
+// invalidate the cached verdict instead of serving the pre-edit rationale for the
+// full TTL. Folding a content hash of the resolved Job record into the key makes
+// the job axis symmetric with the content-addressed profile axis.
+
+/**
+ * Cache-key contribution of the job: its id plus a content hash of the resolved
+ * Job record, so any in-place edit to the job changes the key.
+ *
+ * `jobPayload` is null when the job can't be resolved from the DB (the Python
+ * matcher loads it from the seed corpus independently, so reasoning can still
+ * run). The key then degrades to id-only — preserving prior behavior rather than
+ * blocking the request — and re-tightens the moment the record is resolvable.
+ */
+export function jobKeyPart(jobId: string, jobPayload: unknown): string {
+  if (jobPayload == null) return `job:${jobId}`;
+  const contentHash = createHash("sha256").update(JSON.stringify(jobPayload)).digest("hex");
+  return `job:${jobId}:${contentHash}`;
+}
+
+/**
+ * Build the sha256 digest that keys a reasoning verdict in the prompt cache from
+ * the three invalidation axes documented above.
+ */
+export function reasoningCacheKey(input: {
+  promptVersion: string;
+  candidateKeyPart: string;
+  jobId: string;
+  jobPayload: unknown;
+}): string {
+  return createHash("sha256")
+    .update(`${input.promptVersion}|${input.candidateKeyPart}|${jobKeyPart(input.jobId, input.jobPayload)}`)
+    .digest("hex");
+}

@@ -1,10 +1,16 @@
 import { z } from "zod";
-import { analysisResultSchema } from "./schemas.generated";
-import { CODE_REVIEW_STATUSES } from "./code-review-status";
+import { analysisResultSchema } from "./schemas.generated.ts";
+import { CODE_REVIEW_STATUSES } from "./code-review-status.ts";
 
 export { analysisResultSchema };
-export type { AnalysisResult } from "./schemas.generated";
+export type { AnalysisResult } from "./schemas.generated.ts";
 
+// Mirrors the `score` breakdown on `analysisResultSchema` (above, generated from
+// pipeline/jobfit/models.py::ScoreBreakdown). Contract: `total` is DEFINED as the
+// sum of the five components (experience/skills/roleSeniority/education/traits,
+// maxima 25/30/23/12/10 → 100). The pipeline doesn't enforce that, so any surface
+// rendering a total beside its parts reconciles it via reconcileScoreTotal in
+// ./format.ts — see the score-breakdown invariant documented there.
 const comparisonScoreSchema = z.object({
   total: z.number(),
   experience: z.number(),
@@ -27,8 +33,22 @@ const comparisonVariantSchema = z.object({
   yearsExperience: z.number()
 });
 
+// THE minimum-variant contract for a comparison (idea-38a6fd70). A comparison
+// exists to contrast CV variants against one another, so it is only meaningful
+// with at least two of them. Pinned here once so the four paths that used to
+// disagree about what "a comparison" is now read from one number: buildComparison
+// refuses to build one below this, comparisonSchema below refuses to parse one,
+// and the UI (ResultPanel's Compare tab default + CompareTab's render guard, via
+// hasRenderableComparison) refuses to render one. Change it here and everywhere
+// follows.
+export const MIN_COMPARISON_VARIANTS = 2;
+
 export const comparisonSchema = z.object({
-  variants: z.array(comparisonVariantSchema),
+  // The persisted contract: a comparison carries at least MIN_COMPARISON_VARIANTS
+  // variants. A 0- or 1-variant payload is rejected on read (the history/task
+  // loaders surface "saved in an older schema"), which is exactly right — such a
+  // payload is never produced today and is no longer a state the UI supports.
+  variants: z.array(comparisonVariantSchema).min(MIN_COMPARISON_VARIANTS),
   bestLabel: z.string(),
   driverInsights: z.array(z.string()),
   mergedRecommendation: z.object({

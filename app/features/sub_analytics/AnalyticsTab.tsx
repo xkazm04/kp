@@ -9,7 +9,9 @@ type Analytics = {
   total: number;
   active: number;
   hired: number;
+  // Distinct terminal closes: company-side reject vs. candidate-side decline.
   rejected: number;
+  declined: number;
   funnel: Funnel[];
   avgTimeToHireDays: number | null;
   avgAgeDays: number | null;
@@ -42,7 +44,17 @@ export function AnalyticsTab() {
             keep four figures in the space one full-size card used to take. */}
         <div className="grid shrink-0 grid-cols-2 gap-px overflow-hidden rounded-lg border border-stone-200 bg-stone-200 shadow-panel lg:w-[22rem]">
           <Stat label="Candidates" value={data.total} sub={`${data.active} active`} />
-          <Stat label="Hired" value={data.hired} sub={data.rejected ? `${data.rejected} rejected` : undefined} />
+          <Stat
+            label="Hired"
+            value={data.hired}
+            // Reject and decline read separately so the offer-acceptance signal
+            // (candidates who turned us down) isn't hidden inside "rejected".
+            sub={
+              [data.rejected ? `${data.rejected} rejected` : null, data.declined ? `${data.declined} declined` : null]
+                .filter(Boolean)
+                .join(" · ") || undefined
+            }
+          />
           <Stat label="Time-to-hire" value={data.avgTimeToHireDays ?? "—"} sub={data.avgTimeToHireDays != null ? "days avg" : "no hires yet"} />
           <Stat label="Age in pipeline" value={data.avgAgeDays ?? "—"} sub={data.avgAgeDays != null ? "days, active" : undefined} />
         </div>

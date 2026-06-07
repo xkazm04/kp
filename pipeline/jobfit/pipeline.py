@@ -28,8 +28,9 @@ from .models import (
     ScoreBreakdown,
 )
 from .profiling import build_profile
-from .salary_band import round_salary
+from .salary_band import SALARY_PLAUSIBILITY_CEILING, round_salary
 from .taxonomy import (
+    DEFAULT_FAMILY,
     ROLE_FAMILY_SET,
     classify_company_type,
     classify_role_family,
@@ -89,11 +90,17 @@ def analyze_cv(
     gemini_usage: dict[str, int] = {}
     error: str | None = None
 
+    # Soft repairs/degradations collected across stages: a CV that pypdf can't
+    # parse or a single malformed LLM field should degrade-and-flag, not abort the
+    # whole analysis. These surface in sanity_checks so a human sees exactly what
+    # was repaired or skipped. Declared before the first stage so the best-effort
+    # extract pre-pass can record a note too.
+    repairs: list[str] = []
+
     try:
         _emit(progress, "extract", "active")
         with StageTimer(timings, "extract"):
-            pypdf_text = extract_text(path)
-            evidence = _build_deterministic_evidence(pypdf_text, company_text)
+            pypdf_text, evidence = _extract_pre_pass(path, company_text, repairs)
         _emit(progress, "extract", "done")
 
         _emit(progress, "gemini", "active")
@@ -107,11 +114,6 @@ def analyze_cv(
                 request_id=request_id,
             )
         _emit(progress, "gemini", "done")
-
-        # Soft repairs collected across stages: one malformed LLM field should
-        # degrade-and-flag, not abort the whole analysis. These surface in
-        # sanity_checks so a human sees exactly what was repaired.
-        repairs: list[str] = []
 
         _emit(progress, "profile", "active")
         with StageTimer(timings, "profile"):
@@ -172,15 +174,27 @@ def analyze_cv(
             interview_kit = _softly(
                 "Interview kit", lambda: build_interview_kit(profile, job_fit), repairs
             )
+            # Independent ATS check: no authoritative JD skill list is passed, so
+            # evaluate_keyword_coverage harvests the JD keyword universe from the JD
+            # text itself (the taxonomy's skill_keyword_pool). That lets the panel
+            # surface a JD keyword the candidate — or the LLM — missed, rather than
+            # re-checking only what the LLM already labelled.
+            #
+            # The old third argument — build_profile(clean_text(jd)).skills OR the
+            # LLM's matching+missing lists — was a dead tautology: the regex builder
+            # always returns skills=[], so that operand paid for a full profiling
+            # pass whose result it then discarded, and the `or` fell through to the
+            # LLM's own lists, making coverage_percent re-report what the LLM said.
+            # matching_skills still augments literal CV matching; missing_skills
+            # populates the missing list.
             keyword_coverage = _softly(
                 "Keyword coverage",
                 lambda: (
                     evaluate_keyword_coverage(
                         raw_text,
                         job_description_text,
-                        list(build_profile(clean_text(job_description_text)).skills) or list(job_fit.matching_skills + job_fit.missing_skills),
-                        job_fit.matching_skills,
-                        job_fit.missing_skills,
+                        matching_skills=job_fit.matching_skills,
+                        missing_skills=job_fit.missing_skills,
                     )
                     if job_description_text and job_fit
                     else None
@@ -206,12 +220,20 @@ def analyze_cv(
 
             # Archetype-routed v2 profile so a CV-uploaded student/switcher is
             # scored fairly, not silently as an experienced hire. Best-effort —
-            # never let the v2 add-on break the core analysis.
-            v2_profile = _softly(
+            # never let the v2 add-on break the core analysis. The same add-on
+            # also surfaces the routing's confidence (and whether any signal fired
+            # at all) into sanity_checks, so a recruiter can verify a low-confidence
+            # default rather than trust a silent "experienced hire".
+            routing = _softly(
                 "Archetype v2 profile",
-                lambda: _v2_profile_from_payload(profile_payload, profile).model_dump(by_alias=True),
+                lambda: _v2_profile_and_routing(profile_payload, profile),
                 sanity_checks,
             )
+            if routing is None:
+                v2_profile = None
+            else:
+                v2_profile, archetype_checks = routing
+                sanity_checks.extend(archetype_checks)
         _emit(progress, "insights", "done")
 
         return AnalysisResult(
@@ -435,6 +457,30 @@ def _v2_profile_from_payload(payload: dict[str, Any], profile: CandidateProfile)
     return v2
 
 
+def _v2_profile_and_routing(
+    payload: dict[str, Any], profile: CandidateProfile
+) -> tuple[dict[str, Any], list[str]]:
+    """Build the archetype-routed v2 profile AND its routing sanity check together.
+
+    Returned as one unit so the whole archetype add-on (detect + build + serialize
+    + the confidence note) lives under a single :func:`_softly` umbrella: if any of
+    it raises, the lot degrades to ``None`` plus the uniform skip note and the core
+    analysis still ships. ``archetype_confidence``/``archetype_reasons`` are read
+    off the built profile so the note can never disagree with what was routed.
+    """
+    v2 = _v2_profile_from_payload(payload, profile)
+    checks = _archetype_sanity_checks(v2.archetype, v2.archetype_confidence, v2.archetype_reasons)
+    from .profile import completeness_gaps
+
+    dump = v2.model_dump(by_alias=True)
+    # The unmet checklist items ride BESIDE the profile fields (transient key):
+    # the intake UI renders one targeted follow-up field per gap, and pydantic
+    # ignores the extra key when the completed profile is saved back through
+    # profile_cli — so the gap list itself never persists.
+    dump["completenessGaps"] = completeness_gaps(v2)
+    return dump, checks
+
+
 def _score_from_payload(raw: Any, repairs: list[str] | None = None) -> ScoreBreakdown:
     if not isinstance(raw, dict):
         if repairs is not None:
@@ -641,6 +687,70 @@ def _current_level_text(cleaned: str) -> str:
     return " ".join(kept)
 
 
+def _short_error(exc: Exception) -> str:
+    """A compact, single-line ``Type: message`` rendering of an exception.
+
+    Used to name a fail-soft extraction error in a sanity-check note without
+    spilling a multi-line traceback or an unbounded message into the result.
+    """
+    message = " ".join(str(exc).split())
+    name = type(exc).__name__
+    if not message:
+        return name
+    if len(message) > 120:
+        message = message[:117] + "..."
+    return f"{name}: {message}"
+
+
+def _empty_deterministic_evidence() -> DeterministicEvidence:
+    """The degraded pre-pass result: a DeterministicEvidence carrying no findings.
+
+    Used when local extraction or the rule pre-pass fails, so the Gemini path
+    (which reads the raw file bytes itself) can still run. ``detected_role_family``
+    is required by the model, so it holds the taxonomy's default family as a
+    neutral placeholder — not a detected signal.
+    """
+    return DeterministicEvidence(detected_role_family=DEFAULT_FAMILY)
+
+
+def _extract_pre_pass(
+    path: Path,
+    company_text: str | None,
+    notes: list[str],
+) -> tuple[str, DeterministicEvidence]:
+    """Best-effort local text extraction + deterministic rule pre-pass.
+
+    The rule-based layer (pypdf/docx parse → taxonomy regexes) only PRIMES the
+    Gemini prompt with deterministic findings; Gemini reads the raw file bytes
+    itself, so it can often still analyze a document pypdf cannot. Encrypted,
+    password-protected, or scanner-corrupt PDFs make pypdf throw (PdfReadError /
+    FileNotDecryptedError), and the docx/zip readers fail the same way — but that
+    must degrade the cheap pre-pass, not abort an analysis the LLM could finish.
+
+    On an extraction failure we fall back to empty text + empty
+    DeterministicEvidence; on a (rare) failure of the in-memory rule pass we keep
+    the extracted text but still empty the evidence. Either way a sanity-check
+    note is recorded and the Gemini path proceeds.
+    """
+    try:
+        pypdf_text = extract_text(path)
+    except Exception as exc:
+        notes.append(
+            f"Local text extraction failed ({_short_error(exc)}) — deterministic "
+            "pre-pass skipped; relying on Gemini's own read of the document (manual review)"
+        )
+        return "", _empty_deterministic_evidence()
+    try:
+        evidence = _build_deterministic_evidence(pypdf_text, company_text)
+    except Exception as exc:
+        notes.append(
+            f"Deterministic pre-pass failed ({_short_error(exc)}) — evidence findings "
+            "skipped; Gemini analysis proceeds unprimed (manual review)"
+        )
+        evidence = _empty_deterministic_evidence()
+    return pypdf_text, evidence
+
+
 def _build_deterministic_evidence(
     raw_text: str,
     company_text: str | None,
@@ -704,14 +814,113 @@ def _build_deterministic_evidence(
     )
 
 
+# Largest gap (in score points) tolerated between the headline total and the sum
+# of its five components before it is flagged for manual review. The contract is
+# total == experience+skills+role_seniority+education+traits (whose maxima
+# 25+30+23+12+10 sum to exactly 100), but _score_from_payload takes the model's
+# own clamped total rather than recomputing it, so a bad generation can hand back
+# a headline number that contradicts its own breakdown. A couple of points absorbs
+# trivial model rounding; a wider gap is a real contradiction — the score dial
+# telling a different story than the factor bars — and is surfaced for a human.
+SCORE_TOTAL_TOLERANCE = 2
+
+
 def _sanity_checks(text: str, score: ScoreBreakdown, salary: SalaryEstimate) -> list[str]:
     checks = []
     checks.append("Profile text length OK" if len(text) >= 120 else "Profile text is short")
-    checks.append("Score is inside 0-100" if 0 <= score.total <= 100 else "Score outside expected range")
-    checks.append(
-        "Salary range order OK"
-        if 0 < salary.minimum <= salary.midpoint <= salary.maximum
-        else "Salary range is inconsistent"
-    )
-    checks.append("Salary range seems plausible" if salary.maximum <= 350000 else "Salary range needs manual review")
+    checks.extend(_score_sanity_checks(score))
+    checks.extend(_salary_sanity_checks(salary))
     return checks
+
+
+def _score_sanity_checks(score: ScoreBreakdown) -> list[str]:
+    """Sanity-state the fit score: its 0-100 range AND whether the headline total
+    agrees with its own breakdown.
+
+    ``_score_from_payload`` takes the model's own ``total`` (clamped to 0-100)
+    rather than recomputing it from the five components, so a bad generation can
+    return a total that contradicts its parts — e.g. a 95 sitting above components
+    that sum to 40. The web UI pins the *displayed* total to the component sum so
+    the dial can't visibly disagree with the bars (see ``reconcileScoreTotal`` in
+    app/_lib/format.ts), but that divergence is otherwise silent in the result.
+    Flag it here for manual review when it exceeds :data:`SCORE_TOTAL_TOLERANCE`,
+    turning a quiet data-integrity defect into a visible, reviewable one. A total
+    re-derived from the parts (when the model omits it) sums exactly and never
+    trips this.
+    """
+    component_sum = (
+        score.experience
+        + score.skills
+        + score.role_seniority
+        + score.education
+        + score.traits
+    )
+    divergence = abs(score.total - component_sum)
+    return [
+        "Score is inside 0-100" if 0 <= score.total <= 100 else "Score outside expected range",
+        "Score total matches its breakdown"
+        if divergence <= SCORE_TOTAL_TOLERANCE
+        else (
+            f"Score total ({score.total}) disagrees with its breakdown "
+            f"(components sum to {component_sum}, off by {divergence}) — "
+            "verify the score before trusting it"
+        ),
+    ]
+
+
+def _archetype_sanity_checks(
+    archetype: str, confidence: float, reasons: list[str]
+) -> list[str]:
+    """Surface how the candidate was routed to an archetype so an uncertain
+    auto-detection is visible to the recruiter acting on the score.
+
+    The CV path auto-detects the archetype from best-effort Gemini booleans that
+    are frequently null; when no early-career signal fires, detection falls back to
+    the registry default (Experienced/BAU at a low confidence) — silently scoring a
+    student or career-switcher as an experienced hire. This always states the
+    routing and its confidence, and flags it for human verification when EITHER the
+    confidence is below the registry's low-confidence threshold OR no detection
+    signal fired at all. The signals-absent guard is independent of the numeric
+    threshold so an unguided default stays flagged even if its confidence were ever
+    tuned upward.
+    """
+    from . import registry
+    from .archetype import label_for
+
+    label = label_for(archetype)
+    pct = round(confidence * 100)
+    absent = registry.signals_absent(reasons)
+    low = confidence < registry.low_confidence_threshold()
+    if absent or low:
+        why = "no detection signals fired" if absent else "weak signals"
+        return [
+            f"Archetype routing is low-confidence — {label} at {pct}% ({why}); "
+            "verify the candidate's archetype before trusting the score"
+        ]
+    return [f"Archetype routing OK — {label} at {pct}% confidence"]
+
+
+def _salary_sanity_checks(salary: SalaryEstimate) -> list[str]:
+    """Sanity-state the salary band, keeping three outcomes distinct.
+
+    - *No estimate*: Gemini surfaced no comp signal, so ``_salary_from_payload``
+      hands back the zero/zero placeholder. That is a legitimate "nothing to
+      say" — NOT a malformed range — and gets its own explicit state so a
+      recruiter reads it as "no comp data", never "the analysis is broken".
+    - *Inconsistent*: a populated band whose endpoints fail
+      ``0 < min <= midpoint <= max`` — a genuinely broken range.
+    - *Implausible*: an order-valid band whose top exceeds the documented
+      :data:`SALARY_PLAUSIBILITY_CEILING` (likely a yearly figure or stray zero),
+      flagged for manual review.
+
+    The empty case returns a single state and skips the plausibility line, since
+    calling a non-existent band "plausible" would be misleading.
+    """
+    if salary.minimum <= 0 and salary.maximum <= 0:
+        return ["No salary estimate produced"]
+    order_ok = 0 < salary.minimum <= salary.midpoint <= salary.maximum
+    plausible = salary.maximum <= SALARY_PLAUSIBILITY_CEILING
+    return [
+        "Salary range order OK" if order_ok else "Salary range is inconsistent",
+        "Salary range seems plausible" if plausible else "Salary range needs manual review",
+    ]

@@ -20,6 +20,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from . import registry
 from .devcase.models import CaseEvaluation, CaseScenario, RoleSpec, TransferAssessment
 from .profile import CandidateProfileV2, Evidence, normalize_profile
 
@@ -28,6 +29,30 @@ from .profile import CandidateProfileV2, Evidence, normalize_profile
 # earn the highest-trust provenance.
 OBSERVED_THRESHOLD = 65
 LIVE_CASE_EVIDENCE_KIND = "live_case"
+
+# Routing feedback: a passed work sample also corroborates the EARLY-CAREER ROUTING
+# itself — an unsettled heuristic classification (low archetype_confidence, flagged
+# for manual review) of someone who then DEMONSTRATES capability on the potential
+# model is no longer an open routing question. The nudge is bounded: it never lifts
+# confidence past the ceiling, which deliberately sits BELOW a real self-declaration
+# (0.9, registry.py) — performing well is corroboration, not identity.
+ROUTING_CONFIDENCE_LIFT = 0.15
+ROUTING_CONFIDENCE_CEIL = 0.75
+
+_EARLY_CAREER = registry.early_career_archetypes()
+
+
+def _corroborate_routing(profile: CandidateProfileV2, note: str) -> None:
+    """Append the routing-corroboration reason and apply the bounded confidence
+    nudge. Only for early-career archetypes, and only when minting actually
+    happened — a failed case must never touch the routing either way."""
+    if profile.archetype not in _EARLY_CAREER:
+        return
+    profile.archetype_reasons.append(note)
+    if profile.archetype_confidence < ROUTING_CONFIDENCE_CEIL:
+        profile.archetype_confidence = round(
+            min(ROUTING_CONFIDENCE_CEIL, profile.archetype_confidence + ROUTING_CONFIDENCE_LIFT), 2
+        )
 
 
 def _norm(s: str) -> str:
@@ -100,6 +125,11 @@ def apply_live_case(
         normalize_profile(profile)  # re-stamp completeness in place
         return profile, []
     profile.evidence.append(ev)
+    _corroborate_routing(
+        profile,
+        f"live case '{case.title or 'work sample'}' cleared the observed bar "
+        f"(transfer {transfer.transfer_score}/100) — early-career routing corroborated",
+    )
     normalize_profile(profile)  # re-stamp completeness in place
     return profile, list(ev.skills)
 
@@ -195,5 +225,10 @@ def apply_interview_case(
         normalize_profile(profile)  # re-stamp completeness in place
         return profile, []
     profile.evidence.append(ev)
+    _corroborate_routing(
+        profile,
+        f"case-grounded interview '{case.title or 'work scenario'}' cleared the observed bar "
+        f"— early-career routing corroborated",
+    )
     normalize_profile(profile)  # re-stamp completeness in place
     return profile, list(ev.skills)
