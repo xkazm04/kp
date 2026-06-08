@@ -3,10 +3,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { buildUrl } from "@/app/features/tabs";
-import { Check, ListChecks, X } from "lucide-react";
+import { Check, Download, ListChecks, X } from "lucide-react";
 import { ARCHETYPE_BADGE, normalizeArchetype } from "@/app/_lib/archetypes";
 import { isTerminalEntryStatus } from "@/app/_lib/pipeline-status";
 import { postPipelineAdd } from "@/app/_lib/useAddToPipeline";
+import { downloadFile, toCsv } from "@/app/_lib/export-utils";
 import { cellClass, ColumnStats, MatrixLegend, type Cell } from "./MatrixShared";
 import { STRONG_THRESHOLD } from "./matrix-stats";
 
@@ -232,6 +233,24 @@ export function MatrixTab() {
     setSelected(new Set());
   };
 
+  // Export the grid AS SHOWN (MAT4 matrix half): the visible columns × the
+  // filtered+sorted rows, so the CSV matches the recruiter's current view. Blocked
+  // / unscored cells render as "–", matching the on-screen cell. Built from data
+  // already on screen via the shared toCsv/downloadFile — no backend call.
+  const exportCsv = () => {
+    if (!data) return;
+    const header = ["Candidate", ...cols.map(({ p }) => p.title)];
+    const body = rows.map(({ cand, ri }) => [
+      cand.label,
+      ...cols.map(({ i }) => {
+        const c = data.cells[ri]?.[i];
+        return c && !c.blocked && c.score != null ? c.score : "–";
+      }),
+    ]);
+    const name = scopedPosition ? `fit-${scopedPosition.title}` : "fit-matrix";
+    downloadFile(`${name.replace(/[^\w-]+/g, "_").slice(0, 60)}.csv`, toCsv([header, ...body]), "text/csv");
+  };
+
   return (
     <section className="space-y-4">
       <header className="flex flex-wrap items-end justify-between gap-4">
@@ -292,6 +311,16 @@ export function MatrixTab() {
                 title="Select cells to add multiple candidates to the pipeline at once"
               >
                 <ListChecks size={14} /> {selectMode ? "Done selecting" : "Shortlist"}
+              </button>
+            ) : null}
+            {data && data.candidates.length > 0 && rows.length > 0 ? (
+              <button
+                type="button"
+                onClick={exportCsv}
+                className="focus-ring inline-flex items-center gap-1.5 rounded-md border border-stone-200 bg-white px-2.5 py-1 text-sm font-semibold text-ink hover:border-coral/40"
+                title="Download the grid as shown (CSV)"
+              >
+                <Download size={14} className="text-steel" /> Export CSV
               </button>
             ) : null}
           </div>
