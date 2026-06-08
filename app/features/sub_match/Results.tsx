@@ -5,6 +5,8 @@ import type { MatchRef, MatchResponse, MatchResult } from "./MatchTypes";
 import { ARCHETYPE_LABEL, isEarlyCareer } from "./MatchTypes";
 import { Chip, KoReasonsNote, NoMatchesExplainer } from "./MatchShared";
 import { MatchCard } from "./MatchCard";
+import { Download } from "lucide-react";
+import { downloadFile, toCsv } from "@/app/_lib/export-utils";
 
 // Below this many survivors the result reads as "thin", so we name the dominant KO
 // blocker inline; a full corpus that simply hits the limit shouldn't trigger it.
@@ -83,6 +85,26 @@ export function Results({ result, matchRef }: { result: MatchResponse; matchRef:
 
   const shortlistTop = (n: number) => setSelected(new Set(addableMatches.slice(0, n).map((m) => m.jobId)));
 
+  // Export the ranking as CSV (Theme C) — a hiring decision happens in a meeting
+  // or email thread outside the app, so the ranking has to be able to leave it.
+  // Built entirely from data already on screen; no backend call.
+  const exportCsv = () => {
+    const header = ["Rank", "Role", "Company", "Score", "Conf. low", "Conf. high", "Fit tier", "Matched skills", "Missing skills"];
+    const rows = matches.map((m, i) => [
+      i + 1,
+      m.title,
+      m.company ?? "",
+      m.total,
+      m.confidence.low,
+      m.confidence.high,
+      m.fitTier,
+      (m.matchedSkills ?? []).join("; "),
+      (m.missingSkills ?? []).join("; "),
+    ]);
+    const safe = (candidate.label ?? "candidate").replace(/[^\w-]+/g, "_").slice(0, 60) || "candidate";
+    downloadFile(`matches-${safe}.csv`, toCsv([header, ...rows]), "text/csv");
+  };
+
   // File the candidate under every ticked role in one go (sequentially, so the
   // per-card added/adding/error state stays coherent). Failures are kept selected
   // for a one-click retry; successes drop out via the local `failed` set (React
@@ -109,6 +131,15 @@ export function Results({ result, matchRef }: { result: MatchResponse; matchRef:
         <Chip label="Evaluated" value={meta.evaluated ?? 0} />
         <Chip label="KO-filtered" value={meta.koFiltered ?? 0} tone="amber" />
         <Chip label="Ranked" value={meta.returned ?? matches.length} tone="green" />
+        {matches.length > 0 ? (
+          <button
+            type="button"
+            onClick={exportCsv}
+            className="focus-ring ml-auto inline-flex h-8 items-center gap-1.5 rounded-md border border-stone-200 bg-white px-2.5 text-sm font-semibold text-ink hover:bg-paper"
+          >
+            <Download size={14} className="text-steel" /> Export CSV
+          </button>
+        ) : null}
       </div>
       {early ? (
         <p className="mt-2 text-sm text-steel">
