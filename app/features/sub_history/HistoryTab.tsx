@@ -12,6 +12,15 @@ type AnalysisRow = {
   role_family: string | null;
   seniority: string | null;
   created_at: string;
+  disposition?: string | null;
+};
+
+// RES5 — the recruiter's recorded decision on a saved analysis, shown as a pill on
+// the history row. Tone mirrors the decision queue's language.
+const DISPOSITION_STYLE: Record<string, string> = {
+  advance: "bg-moss/10 text-moss",
+  hold: "bg-dial-amber/20 text-ink",
+  pass: "bg-coral/10 text-coral",
 };
 
 // Distinct, sorted, non-null values of a column — drives the filter dropdowns
@@ -153,6 +162,7 @@ export function HistoryTab() {
                       <Th>Role family</Th>
                       <Th>Seniority</Th>
                       <Th>Score</Th>
+                      <Th>Decision</Th>
                       <Th>JD</Th>
                       <Th>Saved</Th>
                     </tr>
@@ -172,6 +182,19 @@ export function HistoryTab() {
                     <Td className="capitalize">{row.role_family ?? "—"}</Td>
                     <Td className="capitalize">{row.seniority ?? "—"}</Td>
                     <Td>{row.score ?? "—"}</Td>
+                    <Td>
+                      {row.disposition ? (
+                        <span
+                          className={`inline-block rounded-full px-2 py-0.5 text-sm font-semibold capitalize ${
+                            DISPOSITION_STYLE[row.disposition] ?? "bg-stone-100 text-steel"
+                          }`}
+                        >
+                          {row.disposition}
+                        </span>
+                      ) : (
+                        "—"
+                      )}
+                    </Td>
                     <Td>
                       {row.jd_slug ? (
                         <Link

@@ -139,7 +139,13 @@ function ensureDb(): Database.Database {
       role_family TEXT,
       seniority TEXT,
       payload_json TEXT NOT NULL,
-      created_at TEXT NOT NULL
+      created_at TEXT NOT NULL,
+      -- Human-in-the-loop record on a saved analysis (RES5): the recruiter's
+      -- disposition (advance | hold | pass) + a free-text reason. The report was
+      -- read-only — AiDisclosure promises "a human makes every decision" but it was
+      -- never captured against the analysis. NULL = not yet dispositioned.
+      disposition TEXT,
+      decision_note TEXT
     );
 
     CREATE INDEX IF NOT EXISTS idx_analyses_created_at
@@ -427,6 +433,9 @@ function ensureDb(): Database.Database {
     // boot. NULL status = a seeded/live corpus job; authored JDs are 'draft' until
     // published.
     "ALTER TABLE jobs ADD COLUMN status TEXT",
+    // Human disposition + reason on a saved analysis (RES5) — see the table CREATE.
+    "ALTER TABLE analyses ADD COLUMN disposition TEXT",
+    "ALTER TABLE analyses ADD COLUMN decision_note TEXT",
   ]) {
     try {
       db.exec(sql);
@@ -542,7 +551,16 @@ export type AnalysisRow = {
   seniority: string | null;
   payload_json: string;
   created_at: string;
+  // RES5 — present on SELECTs that fetch them (loadAnalysis, listAnalyses);
+  // optional because the narrower pool/JD SELECTs don't read them.
+  disposition?: string | null;
+  decision_note?: string | null;
 };
+
+// The recruiter dispositions a saved analysis can carry (RES5). advance/hold/pass
+// mirror the language of the decision queue; "" clears the disposition.
+export const ANALYSIS_DISPOSITIONS = ["advance", "hold", "pass"] as const;
+export type AnalysisDisposition = (typeof ANALYSIS_DISPOSITIONS)[number];
 
 export type AnalysisSummary = Omit<AnalysisRow, "payload_json">;
 
@@ -645,13 +663,27 @@ export function listAnalyses(limit = 100): AnalysisSummary[] {
   const db = ensureDb();
   const rows = db
     .prepare(
-      `SELECT slug, candidate_label, jd_slug, score, role_family, seniority, created_at
+      `SELECT slug, candidate_label, jd_slug, score, role_family, seniority, created_at, disposition, decision_note
        FROM analyses
        ORDER BY created_at DESC
        LIMIT ?`
     )
     .all(limit) as AnalysisSummary[];
   return rows;
+}
+
+/** Record (or clear) the human disposition + note on a saved analysis (RES5).
+ *  An empty/whitespace disposition clears both fields back to NULL. Returns false
+ *  for an unknown slug. The display/storage is the analysis row itself — no event
+ *  log, since an analysis isn't a pipeline entry. */
+export function setAnalysisDisposition(slug: string, disposition: string, note: string): boolean {
+  const db = ensureDb();
+  const clean = (ANALYSIS_DISPOSITIONS as readonly string[]).includes(disposition) ? disposition : null;
+  const noteVal = clean && note.trim() ? note.trim() : null;
+  const res = db
+    .prepare(`UPDATE analyses SET disposition = ?, decision_note = ? WHERE slug = ?`)
+    .run(clean, clean ? noteVal : null, slug);
+  return res.changes > 0;
 }
 
 // Every analysis tagged with a JD slug, ordered best-score-first. Uses the
@@ -692,7 +724,7 @@ export function loadAnalysis(slug: string): { row: AnalysisRow; payload: unknown
   const db = ensureDb();
   const row = db
     .prepare(
-      `SELECT slug, candidate_label, jd_slug, score, role_family, seniority, payload_json, created_at
+      `SELECT slug, candidate_label, jd_slug, score, role_family, seniority, payload_json, created_at, disposition, decision_note
        FROM analyses WHERE slug = ?`
     )
     .get(slug) as AnalysisRow | undefined;

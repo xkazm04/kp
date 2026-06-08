@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ResultPanel } from "@/app/_components/results/ResultPanel";
 import { ReportActions } from "@/app/_components/results/ReportActions";
+import { DispositionEditor } from "@/app/_components/results/DispositionEditor";
 import { WorkspaceShell } from "@/app/features/WorkspaceNav";
 import { loadAnalysis } from "@/app/_lib/db";
 import { analysisSchema } from "@/app/_lib/schemas";
@@ -67,6 +68,11 @@ export default async function HistoryDetailPage({
             </>
           ) : null}
         </p>
+        <DispositionEditor
+          slug={slug}
+          initialDisposition={found.row.disposition ?? null}
+          initialNote={found.row.decision_note ?? null}
+        />
       </header>
 
       <div className="mt-6">
