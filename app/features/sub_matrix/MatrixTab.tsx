@@ -3,8 +3,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { buildUrl } from "@/app/features/tabs";
+import { Check, ListChecks, X } from "lucide-react";
 import { ARCHETYPE_BADGE, normalizeArchetype } from "@/app/_lib/archetypes";
 import { isTerminalEntryStatus } from "@/app/_lib/pipeline-status";
+import { postPipelineAdd } from "@/app/_lib/useAddToPipeline";
 import { cellClass, ColumnStats, MatrixLegend, type Cell } from "./MatrixShared";
 
 type Candidate = { id: string; label: string; archetype: string | null };
@@ -55,6 +57,14 @@ export function MatrixTab() {
   const [error, setError] = useState<string | null>(null);
   const [sortByFit, setSortByFit] = useState(true);
   const [family, setFamily] = useState<string>("all");
+  // Bulk shortlist from the matrix (MAT3 matrix half). In select mode a cell click
+  // toggles selection instead of navigating; the action bar files every selected
+  // (candidate → that position) into the pipeline in one pass. Cell key = candId|posId.
+  const [selectMode, setSelectMode] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(() => new Set());
+  const [added, setAdded] = useState<Set<string>>(() => new Set());
+  const [adding, setAdding] = useState(false);
+  const [announce, setAnnounce] = useState("");
 
   useEffect(() => {
     (async () => {
@@ -127,6 +137,65 @@ export function MatrixTab() {
 
   const open = (candId: string, posId: string) => router.push(buildUrl({ tab: "match", profile: candId, job: posId }, search.toString()));
 
+  const cellKey = (candId: string, posId: string) => `${candId}|${posId}`;
+  const toggleCell = (candId: string, posId: string) =>
+    setSelected((s) => {
+      const k = cellKey(candId, posId);
+      const n = new Set(s);
+      if (n.has(k)) n.delete(k);
+      else n.add(k);
+      return n;
+    });
+
+  // File every selected (candidate → position) into the pipeline at Screened, in
+  // one pass — sequentially, reusing the canonical postPipelineAdd so this surface
+  // can't drift from the Match-side add. Successes ring locally (the matrix doesn't
+  // refetch placements); failures stay selected for a one-click retry. The score is
+  // looked up from `cells` by the candidate row + position column at add time.
+  const addSelected = async () => {
+    if (adding || !data || selected.size === 0) return;
+    setAdding(true);
+    const failed = new Set<string>();
+    let ok = 0;
+    for (const key of selected) {
+      const [candId, posId] = key.split("|");
+      const cand = data.candidates.find((c) => c.id === candId);
+      const pos = data.positions.find((p) => p.id === posId);
+      if (!cand || !pos) {
+        failed.add(key);
+        continue;
+      }
+      const ri = data.candidates.findIndex((c) => c.id === candId);
+      const ci = data.positions.findIndex((p) => p.id === posId);
+      const score = data.cells[ri]?.[ci]?.score ?? null;
+      const res = await postPipelineAdd(pos.id, pos.title, {
+        candidateId: cand.id,
+        candidateLabel: cand.label,
+        archetype: cand.archetype,
+        matchScore: score,
+        roleFamily: pos.roleFamily,
+      });
+      if (res.ok) {
+        ok += 1;
+        setAdded((a) => new Set(a).add(key));
+      } else {
+        failed.add(key);
+      }
+    }
+    setSelected(failed);
+    setAnnounce(
+      failed.size === 0
+        ? `Added ${ok} candidate${ok === 1 ? "" : "s"} to the pipeline.`
+        : `Added ${ok}; ${failed.size} failed — still selected for retry.`
+    );
+    setAdding(false);
+  };
+
+  const exitSelect = () => {
+    setSelectMode(false);
+    setSelected(new Set());
+  };
+
   return (
     <section className="space-y-4">
       <header className="flex flex-wrap items-end justify-between gap-4">
@@ -155,9 +224,60 @@ export function MatrixTab() {
             >
               Sort: {sortByFit ? "best fit" : "A–Z"}
             </button>
+            {data && data.candidates.length > 0 ? (
+              <button
+                type="button"
+                onClick={() => (selectMode ? exitSelect() : setSelectMode(true))}
+                aria-pressed={selectMode}
+                className={`focus-ring inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-sm font-semibold ${
+                  selectMode ? "border-coral bg-coral/10 text-coral" : "border-stone-200 bg-white text-ink hover:border-coral/40"
+                }`}
+                title="Select cells to add multiple candidates to the pipeline at once"
+              >
+                <ListChecks size={14} /> {selectMode ? "Done selecting" : "Shortlist"}
+              </button>
+            ) : null}
           </div>
         ) : null}
       </header>
+
+      <p role="status" aria-live="polite" className="sr-only">{announce}</p>
+
+      {selectMode ? (
+        <div className="flex flex-wrap items-center gap-2 rounded-md border border-coral/30 bg-coral/5 px-3 py-2">
+          <span className="text-sm font-semibold text-ink">
+            {selected.size > 0 ? `${selected.size} selected` : "Tap cells to shortlist"}
+          </span>
+          <button
+            type="button"
+            onClick={addSelected}
+            disabled={selected.size === 0 || adding}
+            className="focus-ring inline-flex h-8 items-center gap-1.5 rounded-md bg-ink px-3 text-sm font-semibold text-white hover:bg-ink/90 disabled:opacity-40"
+          >
+            <Check size={14} /> {adding ? "Adding…" : selected.size > 0 ? `Add ${selected.size} to pipeline` : "Add to pipeline"}
+          </button>
+          {selected.size > 0 ? (
+            <button
+              type="button"
+              onClick={() => setSelected(new Set())}
+              disabled={adding}
+              className="focus-ring inline-flex h-8 items-center rounded-md px-2 text-sm font-semibold text-steel hover:text-ink disabled:opacity-40"
+            >
+              Clear
+            </button>
+          ) : null}
+          <button
+            type="button"
+            onClick={exitSelect}
+            className="focus-ring ml-auto inline-flex h-8 items-center gap-1 rounded-md px-2 text-sm font-semibold text-steel hover:text-ink"
+          >
+            <X size={13} /> Exit
+          </button>
+          <span className="w-full text-meta text-steel">
+            Each tick files that candidate into the position&apos;s pipeline (Screened). Blocked / already-in-pipeline cells can&apos;t be selected.
+          </span>
+        </div>
+      ) : null}
 
       {scopedPosition ? (
         <div className="flex flex-wrap items-center gap-2">
@@ -281,21 +401,40 @@ export function MatrixTab() {
                         // Must exclude `declined` as well as `rejected`, else a
                         // candidate who turned us down still rings as in-flight.
                         const inPipe = place && !isTerminalEntryStatus(place.status);
+                        const key = `${cand.id}|${p.id}`;
+                        const wasAdded = added.has(key);
+                        const ringed = inPipe || wasAdded;
+                        // Selectable only when there's something to add: a scored
+                        // (non-blocked) cell that isn't already in the pipeline / just added.
+                        const selectable = selectMode && !c.blocked && !ringed;
+                        const isSel = selected.has(key);
                         return (
                           <td key={p.id} className="border-b border-l border-stone-50 p-0">
                             <button
                               type="button"
-                              onClick={() => open(cand.id, p.id)}
-                              title={`${cand.label} → ${p.title}: ${c.blocked ? "blocked (KO)" : c.score}${place ? ` · in pipeline (${place.stage})` : ""}`}
-                              aria-label={`${cand.label} to ${p.title}: ${c.blocked ? "blocked" : `match ${c.score}`}${place ? `, in pipeline at ${place.stage}` : ""}`}
-                              className={`relative grid h-9 w-full place-items-center font-semibold transition-transform hover:scale-105 ${cellClass(c)} ${
-                                inPipe ? "ring-2 ring-inset ring-ink/50" : ""
+                              onClick={() => (selectMode ? selectable && toggleCell(cand.id, p.id) : open(cand.id, p.id))}
+                              disabled={selectMode && !selectable}
+                              title={
+                                selectMode
+                                  ? selectable
+                                    ? `${isSel ? "Deselect" : "Select"} ${cand.label} → ${p.title}`
+                                    : `${cand.label} → ${p.title}: ${c.blocked ? "blocked (KO)" : ringed ? "already in pipeline" : ""}`
+                                  : `${cand.label} → ${p.title}: ${c.blocked ? "blocked (KO)" : c.score}${place ? ` · in pipeline (${place.stage})` : ""}`
+                              }
+                              aria-label={`${cand.label} to ${p.title}: ${c.blocked ? "blocked" : `match ${c.score}`}${ringed ? ", in pipeline" : ""}${selectMode && selectable ? (isSel ? " — selected" : " — selectable") : ""}`}
+                              aria-pressed={selectMode ? isSel : undefined}
+                              className={`relative grid h-9 w-full place-items-center font-semibold transition-transform ${
+                                selectMode ? (selectable ? "cursor-pointer" : "cursor-default opacity-50") : "hover:scale-105"
+                              } ${cellClass(c)} ${
+                                isSel ? "ring-2 ring-inset ring-coral" : ringed ? "ring-2 ring-inset ring-ink/50" : ""
                               }`}
                             >
                               {c.blocked ? "–" : c.score}
-                              {inPipe ? (
+                              {isSel ? (
+                                <span className="absolute right-0.5 top-0.5"><Check size={11} className="text-coral" /></span>
+                              ) : ringed ? (
                                 <span className="absolute right-0.5 top-0.5 text-sm font-bold text-ink/70">
-                                  {STAGE_INITIAL[place.stage] ?? ""}
+                                  {wasAdded && !inPipe ? "+" : STAGE_INITIAL[place?.stage ?? ""] ?? ""}
                                 </span>
                               ) : null}
                             </button>
