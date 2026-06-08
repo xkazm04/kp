@@ -1,13 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { CalendarClock, Check } from "lucide-react";
+import { CalendarClock, CalendarPlus, Check } from "lucide-react";
+import { buildIcs, downloadFile } from "@/app/_lib/export-utils";
 
 type Invite = {
   candidateLabel?: string | null;
   jobTitle?: string | null;
   status: string;
   slot?: string | null;
+  slotAt?: string | null;
   durationMin?: number | null;
 };
 type Slot = { value: string; label: string };
@@ -68,6 +70,9 @@ export function SchedulePicker({ token }: { token: string }) {
       if (res.ok) {
         setConfirmationSent(d.confirmationSent !== false);
         setConfirmed(s.label);
+        // Adopt the server's confirmed invite (carries the ISO slotAt) so the
+        // booked card's "Add to calendar" has a real datetime for a fresh booking.
+        if (d.invite) setInvite(d.invite);
         if (isReschedule) {
           // Back to the booked card showing the new time; refresh the remaining
           // reschedule allowance + slot pool so the affordance disappears at the cap.
@@ -104,6 +109,21 @@ export function SchedulePicker({ token }: { token: string }) {
     }
   };
 
+  // Download the confirmed slot as an .ics the candidate imports into any calendar
+  // (SCH1) — the top no-show cause is a time that never made it onto the calendar.
+  const downloadInvite = () => {
+    if (!invite?.slotAt) return;
+    const ics = buildIcs({
+      uid: `kp-interview-${token}`,
+      start: invite.slotAt,
+      durationMin: invite.durationMin ?? 30,
+      title: `Interview${invite.jobTitle ? ` — ${invite.jobTitle}` : ""}`,
+      description: "Your interview with the hiring team.",
+      stamp: new Date().toISOString(),
+    });
+    downloadFile("interview.ics", ics, "text/calendar");
+  };
+
   if (error)
     return (
       <p role="alert" className="rounded-md border border-stone-200 bg-paper p-4 text-base text-coral">
@@ -128,18 +148,29 @@ export function SchedulePicker({ token }: { token: string }) {
             ? "We've sent a confirmation and will remind you before the call. You can close this page."
             : "We've recorded your slot — we'll be in touch shortly to confirm the details. You can close this page."}
         </p>
-        {canReschedule ? (
-          <button
-            type="button"
-            onClick={() => {
-              setError(null);
-              setRescheduling(true);
-            }}
-            className="focus-ring mt-3 inline-flex items-center gap-1.5 rounded-md border border-stone-300 bg-white px-3 py-1.5 text-base font-semibold text-ink hover:border-coral/50"
-          >
-            <CalendarClock size={15} className="text-coral" /> Need a different time?
-          </button>
-        ) : null}
+        <div className="mt-3 flex flex-wrap gap-2">
+          {invite.slotAt ? (
+            <button
+              type="button"
+              onClick={downloadInvite}
+              className="focus-ring inline-flex items-center gap-1.5 rounded-md border border-stone-300 bg-white px-3 py-1.5 text-base font-semibold text-ink hover:border-coral/50"
+            >
+              <CalendarPlus size={15} className="text-coral" /> Add to calendar
+            </button>
+          ) : null}
+          {canReschedule ? (
+            <button
+              type="button"
+              onClick={() => {
+                setError(null);
+                setRescheduling(true);
+              }}
+              className="focus-ring inline-flex items-center gap-1.5 rounded-md border border-stone-300 bg-white px-3 py-1.5 text-base font-semibold text-ink hover:border-coral/50"
+            >
+              <CalendarClock size={15} className="text-coral" /> Need a different time?
+            </button>
+          ) : null}
+        </div>
       </div>
     );
   }

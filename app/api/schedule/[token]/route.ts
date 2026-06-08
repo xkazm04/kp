@@ -32,6 +32,10 @@ function publicInviteView(invite: ScheduleInvite) {
     jobTitle: invite.jobTitle,
     status: invite.status,
     slot: invite.slot,
+    // The ISO slot time — the candidate's OWN confirmed booking, surfaced so the
+    // booked card can offer an "Add to calendar" (.ics) download (SCH1). Not an
+    // internal handle (unlike entryId/reconcileReason, which stay off the wire).
+    slotAt: invite.slotAt,
     durationMin: invite.durationMin,
   };
 }
