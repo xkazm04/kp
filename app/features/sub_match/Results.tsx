@@ -6,7 +6,8 @@ import { ARCHETYPE_LABEL, isEarlyCareer } from "./MatchTypes";
 import { Chip, KoReasonsNote, NoMatchesExplainer } from "./MatchShared";
 import { MatchCard } from "./MatchCard";
 import { WeightsPanel } from "./WeightsPanel";
-import { Download } from "lucide-react";
+import { JobCompare } from "./JobCompare";
+import { Download, Scale } from "lucide-react";
 import { downloadFile, toCsv } from "@/app/_lib/export-utils";
 import type { WeightVector } from "./MatchTypes";
 
@@ -38,6 +39,8 @@ export function Results({
   // Bulk shortlist: which roles are ticked, and whether a batch add is running.
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkBusy, setBulkBusy] = useState(false);
+  // MAT5: compare the ticked roles side by side (reuses the same selection).
+  const [comparing, setComparing] = useState(false);
 
   // Add this candidate to one role's pipeline. Returns whether it landed, so the
   // bulk runner can keep only the failures selected for a retry.
@@ -209,6 +212,19 @@ export function Results({
               >
                 Shortlist top {Math.min(5, addableMatches.length)}
               </button>
+              {/* MAT5: compare the ticked roles side by side (2–4 reads best). */}
+              {selected.size >= 2 && selected.size <= 4 ? (
+                <button
+                  type="button"
+                  onClick={() => setComparing((v) => !v)}
+                  aria-pressed={comparing}
+                  className={`focus-ring inline-flex h-8 items-center gap-1.5 rounded-md border px-3 text-sm font-semibold ${
+                    comparing ? "border-coral bg-coral/10 text-coral" : "border-stone-200 bg-white text-ink hover:bg-paper"
+                  }`}
+                >
+                  <Scale size={14} /> Compare {selected.size}
+                </button>
+              ) : null}
               {selected.size > 0 ? (
                 <button
                   type="button"
@@ -221,6 +237,9 @@ export function Results({
               ) : null}
               <span className="text-meta text-steel">Tick roles below, then add them to the pipeline together.</span>
             </div>
+          ) : null}
+          {comparing && selected.size >= 2 ? (
+            <JobCompare matches={matches.filter((m) => selected.has(m.jobId))} onClose={() => setComparing(false)} />
           ) : null}
           <ol className="mt-4 space-y-2">
             {matches.map((m, i) => (
