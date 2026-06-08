@@ -58,10 +58,32 @@ export type MatchResult = {
   isEntryEligible?: boolean;
   graduateFriendliness?: number;
 };
+
+// The per-candidate recruiter result subset shared across the decision UI — the
+// group-eval run (group-eval-run.ts), the single-candidate summary
+// (AnalysisSummaryModal), and the comparison modal (GroupEvalModal). A Pick view
+// onto the canonical MatchResult so an added/renamed field (e.g. matchedSkillStrength)
+// propagates to every consumer instead of silently drifting across hand-maintained
+// copies. Mirrors MatchResult's optionality: total/confidence required, the rest optional.
+export type MatchResultView = Pick<
+  MatchResult,
+  | "total"
+  | "fitTier"
+  | "confidence"
+  | "scoreBreakdown"
+  | "matchedSkills"
+  | "matchedSkillProvenance"
+  | "matchedSkillStrength"
+  | "missingSkills"
+>;
 // One aggregated KO blocker: how many roles tripped a given hard gate, with a
 // candidate-facing clause that reads after "{count} role(s)" (server-supplied so
 // the wording stays a single source of truth). See matching.aggregate_ko_reasons.
 export type KoReason = { key: string; label: string; count: number };
+
+// The three score dimensions a recruiter can re-weight (MAT1). Keys match the
+// Python scorer (`_DIMENSION_KEYS`); labels are archetype-aware in the UI.
+export type WeightVector = { skills: number; career: number; personal: number };
 
 export type MatchResponse = {
   candidate: {
@@ -72,6 +94,10 @@ export type MatchResponse = {
     skills?: number;
     potentialScore?: number | null;
     assumptions?: string[];
+    // MAT1: the weight vector actually used + the archetype's allowed [min,max]
+    // per dimension, so the UI seeds bounded sliders at the values in effect.
+    weights?: WeightVector;
+    weightBounds?: Record<string, [number, number]>;
   };
   meta: {
     evaluated?: number;

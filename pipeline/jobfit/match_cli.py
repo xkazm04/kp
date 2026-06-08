@@ -30,12 +30,27 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument("--jobs", type=Path, default=None, help="Override corpus path.")
     parser.add_argument("--limit", type=int, default=50)
+    parser.add_argument(
+        "--weights",
+        type=str,
+        default=None,
+        help='Recruiter weight override, JSON object {"skills","career","personal"} (MAT1). '
+        "Clamped to the archetype's bounds server-side; ignored if not a JSON object.",
+    )
     args = parser.parse_args(argv)
 
     try:
         candidate = load_candidate_arg(args.profile_json, args.candidate_json)
         jobs = load_corpus(args.jobs)
-        response = match(candidate, jobs, limit=args.limit)
+        # A malformed --weights must not abort the match — coerce a non-object to
+        # None so it falls back to the archetype baseline (resolve_weights handles
+        # clamping/renormalizing a valid partial vector).
+        weights = None
+        if args.weights:
+            parsed = json.loads(args.weights)
+            if isinstance(parsed, dict):
+                weights = parsed
+        response = match(candidate, jobs, limit=args.limit, weights=weights)
     except Exception as exc:  # surface as JSON on stderr, mirroring cli.py
         return emit_error(exc)
 

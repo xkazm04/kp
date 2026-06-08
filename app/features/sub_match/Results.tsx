@@ -5,14 +5,28 @@ import type { MatchRef, MatchResponse, MatchResult } from "./MatchTypes";
 import { ARCHETYPE_LABEL, isEarlyCareer } from "./MatchTypes";
 import { Chip, KoReasonsNote, NoMatchesExplainer } from "./MatchShared";
 import { MatchCard } from "./MatchCard";
+import { WeightsPanel } from "./WeightsPanel";
 import { Download } from "lucide-react";
 import { downloadFile, toCsv } from "@/app/_lib/export-utils";
+import type { WeightVector } from "./MatchTypes";
 
 // Below this many survivors the result reads as "thin", so we name the dominant KO
 // blocker inline; a full corpus that simply hits the limit shouldn't trigger it.
 const THIN_RESULT_MAX = 4;
 
-export function Results({ result, matchRef }: { result: MatchResponse; matchRef: MatchRef }) {
+export function Results({
+  result,
+  matchRef,
+  loading = false,
+  onReweight,
+}: {
+  result: MatchResponse;
+  matchRef: MatchRef;
+  // MAT1: re-run the match with a recruiter weight override (undefined = reset to
+  // the archetype baseline). Omitted where re-weighting isn't wired.
+  loading?: boolean;
+  onReweight?: (weights?: WeightVector) => void;
+}) {
   const { candidate, meta, matches } = result;
   const archetype = candidate.archetype ?? "bau";
   const early = isEarlyCareer(archetype);
@@ -152,6 +166,17 @@ export function Results({ result, matchRef }: { result: MatchResponse; matchRef:
         <p className="mt-1 text-sm text-steel">
           <span className="font-semibold uppercase">Assumptions:</span> {candidate.assumptions.join(" · ")}
         </p>
+      ) : null}
+
+      {onReweight && candidate.weights && candidate.weightBounds ? (
+        <WeightsPanel
+          weights={candidate.weights}
+          bounds={candidate.weightBounds}
+          archetype={archetype}
+          busy={loading}
+          onApply={(w) => onReweight(w)}
+          onReset={() => onReweight(undefined)}
+        />
       ) : null}
 
       {matches.length === 0 ? (

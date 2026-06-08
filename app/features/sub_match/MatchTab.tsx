@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import type { AnalysisRow, MatchRef, MatchResponse, ProfileRow } from "./MatchTypes";
+import type { AnalysisRow, MatchRef, MatchResponse, ProfileRow, WeightVector } from "./MatchTypes";
 import { ARCHETYPE_LABEL } from "./MatchTypes";
 import { Results } from "./Results";
 import { SegmentedControl } from "@/app/_components/SegmentedControl";
@@ -43,7 +43,9 @@ export function MatchTab() {
       .catch(() => undefined);
   }, []);
 
-  const runMatchFor = async (ref: MatchRef) => {
+  // `weights` (MAT1) is the recruiter's optional override for a re-rank; omitted on
+  // a fresh run (server uses the archetype baseline) and on a reset.
+  const runMatchFor = async (ref: MatchRef, weights?: WeightVector) => {
     if (!ref.profileId && !ref.analysisSlug) return;
     setLoading(true);
     setError(null);
@@ -52,7 +54,7 @@ export function MatchTab() {
       const r = await fetch("/api/match", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...ref, limit: 25 }),
+        body: JSON.stringify({ ...ref, limit: 25, ...(weights ? { weights } : {}) }),
       });
       const payload = await r.json();
       if (!r.ok) throw new Error(payload.error ?? `Match failed (${r.status}).`);
@@ -163,7 +165,12 @@ export function MatchTab() {
         {error ? (
           <p className="rounded-md bg-red-50 p-3 text-base text-red-700">{error}</p>
         ) : result ? (
-          <Results result={result} matchRef={matchRef} />
+          <Results
+            result={result}
+            matchRef={matchRef}
+            loading={loading}
+            onReweight={(w) => runMatchFor(matchRef, w)}
+          />
         ) : (
           <p className="rounded-md bg-paper p-4 text-base text-steel">
             Pick a candidate and run matching to see ranked, KO-filtered, scored jobs.

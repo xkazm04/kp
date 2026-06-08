@@ -696,8 +696,21 @@ def aggregate_ko_reasons(reason_lists: list[list[KoReason]], *, top: int = 4) ->
     ]
 
 
-def match(candidate: MatchCandidate, jobs: list[Job], *, limit: int = 50) -> MatchResponse:
-    """Run the full KO -> score -> rank pipeline over a job corpus."""
+def match(
+    candidate: MatchCandidate,
+    jobs: list[Job],
+    *,
+    limit: int = 50,
+    weights: dict[str, float] | None = None,
+) -> MatchResponse:
+    """Run the full KO -> score -> rank pipeline over a job corpus.
+
+    ``weights`` is an optional recruiter override (MAT1): a single bounded vector
+    resolved ONCE against the candidate's archetype and applied to every job, so
+    the whole ranking re-weights consistently. Omitted -> the archetype baseline
+    (scoring identical to before). The resolved vector + the archetype's allowed
+    bounds ride back on the candidate block so the UI can render bounded sliders
+    seeded at the values actually used."""
     survivors: list[Job] = []
     ko_reason_lists: list[list[KoReason]] = []
     for job in jobs:
@@ -707,7 +720,14 @@ def match(candidate: MatchCandidate, jobs: list[Job], *, limit: int = 50) -> Mat
         else:
             ko_reason_lists.append(reasons)
 
-    scored = sorted((score_job(candidate, job) for job in survivors), key=lambda m: m.total, reverse=True)
+    # Resolve once (clamp to the archetype's bounds + renormalize to sum 1) so the
+    # whole pool is ranked under one comparable yardstick, not a per-job vector.
+    resolved = resolve_weights(candidate.archetype, weights)
+    scored = sorted(
+        (score_job(candidate, job, weights=resolved) for job in survivors),
+        key=lambda m: m.total,
+        reverse=True,
+    )
     top = scored[:limit]
     return MatchResponse(
         candidate={
@@ -718,6 +738,9 @@ def match(candidate: MatchCandidate, jobs: list[Job], *, limit: int = 50) -> Mat
             "skills": len(candidate.skills),
             "potentialScore": candidate.potential_score,
             "assumptions": candidate_assumptions(candidate),
+            # MAT1: the weights actually used + the bounds the UI must respect.
+            "weights": resolved,
+            "weightBounds": {k: list(v) for k, v in weight_bounds(candidate.archetype).items()},
         },
         meta={
             "evaluated": len(jobs),

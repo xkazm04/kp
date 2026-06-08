@@ -259,6 +259,67 @@ class MatchTest(unittest.TestCase):
         self.assertTrue(reasons[0]["label"])  # candidate-facing clause is populated
 
 
+class MatchWeightOverrideTest(unittest.TestCase):
+    """MAT1 — match() takes an optional recruiter weight override, resolved ONCE
+    against the candidate's archetype and exposed (with the bounds) on the
+    candidate block so the UI can seed bounded sliders."""
+
+    def test_baseline_exposes_resolved_weights_and_bounds(self) -> None:
+        job = mkjob(seniority="senior", languages=["English"])
+        resp = match(SENIOR_PY, [job], limit=1)
+        w = resp.candidate["weights"]
+        bounds = resp.candidate["weightBounds"]
+        self.assertEqual(set(w), {"skills", "career", "personal"})
+        self.assertAlmostEqual(sum(w.values()), 1.0, places=3)  # resolved vector sums to 1
+        # Each bound is a [min, max] pair the slider must respect, and the baseline
+        # weight sits inside it.
+        for k in ("skills", "career", "personal"):
+            lo, hi = bounds[k]
+            self.assertLessEqual(lo, w[k])
+            self.assertLessEqual(w[k], hi)
+
+    def test_override_is_clamped_to_bounds_and_renormalized(self) -> None:
+        job = mkjob(seniority="senior", languages=["English"])
+        # An adversarial all-into-skills proposal must be clamped to the ceiling and
+        # the result must still sum to 1 within the bounds (never the raw 0.99).
+        resp = match(SENIOR_PY, [job], limit=1, weights={"skills": 0.99, "career": 0.0, "personal": 0.0})
+        w = resp.candidate["weights"]
+        bounds = resp.candidate["weightBounds"]
+        self.assertAlmostEqual(sum(w.values()), 1.0, places=3)
+        self.assertLessEqual(w["skills"], bounds["skills"][1])
+        self.assertGreaterEqual(w["personal"], bounds["personal"][0])
+
+    def test_override_shifts_the_resolved_vector(self) -> None:
+        # The deterministic contract: a skills-heavy override resolves to a higher
+        # skills weight (and lower personal) than a personal-heavy one, so the
+        # recruiter's intent is actually applied to the ranking. (Not a claim about
+        # which TOTAL is higher — that depends on the candidate's dimension scores.)
+        job = mkjob(seniority="senior", languages=["English"])
+        skills_heavy = match(
+            SENIOR_PY, [job], limit=1, weights={"skills": 0.6, "career": 0.2, "personal": 0.2}
+        ).candidate["weights"]
+        personal_heavy = match(
+            SENIOR_PY, [job], limit=1, weights={"skills": 0.2, "career": 0.2, "personal": 0.6}
+        ).candidate["weights"]
+        self.assertGreater(skills_heavy["skills"], personal_heavy["skills"])
+        self.assertGreater(personal_heavy["personal"], skills_heavy["personal"])
+        # The headline total is a weighted sum of the same dimensions, so a shifted
+        # vector generally produces a different score — confirm the override reaches it.
+        same = match(SENIOR_PY, [job], limit=1).matches[0].total
+        skewed = match(
+            SENIOR_PY, [job], limit=1, weights={"skills": 0.6, "career": 0.2, "personal": 0.2}
+        ).matches[0]
+        self.assertEqual(skewed.score_breakdown[0].weight, round(100 * skills_heavy["skills"]))
+        self.assertIsInstance(same, int)
+
+    def test_malformed_override_falls_back_to_baseline(self) -> None:
+        job = mkjob(seniority="senior", languages=["English"])
+        baseline = match(SENIOR_PY, [job], limit=1).candidate["weights"]
+        # An empty proposal is treated as "no override" -> archetype baseline.
+        same = match(SENIOR_PY, [job], limit=1, weights={}).candidate["weights"]
+        self.assertEqual(same, baseline)
+
+
 class AggregateKoReasonsTest(unittest.TestCase):
     @staticmethod
     def _r(key: str) -> KoReason:

@@ -27,7 +27,7 @@ function resolveMatchLimit(raw: unknown): number {
 export async function POST(request: NextRequest) {
   let workdir: string | null = null;
   try {
-    const body = (await request.json()) as MatchInputBody & { limit?: number };
+    const body = (await request.json()) as MatchInputBody & { limit?: number; weights?: unknown };
     const limit = resolveMatchLimit(body.limit);
 
     workdir = await createWorkdir();
@@ -36,6 +36,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: input.error }, { status: input.status });
     }
     const args = ["-m", "pipeline.jobfit.match_cli", ...input.inputArgs, "--limit", String(limit)];
+    // Recruiter weight override (MAT1): forwarded as a JSON arg only when it's a
+    // plain object of finite numbers. The Python scorer clamps it to the
+    // archetype's bounds + renormalizes, so the client can't push an out-of-range
+    // or non-summing vector; anything malformed falls back to the baseline there too.
+    if (body.weights && typeof body.weights === "object" && !Array.isArray(body.weights)) {
+      const w: Record<string, number> = {};
+      for (const [k, v] of Object.entries(body.weights as Record<string, unknown>)) {
+        if (typeof v === "number" && Number.isFinite(v)) w[k] = v;
+      }
+      if (Object.keys(w).length > 0) args.push("--weights", JSON.stringify(w));
+    }
 
     const { result } = spawnPython(args);
     const { stdout, stderr, exitCode } = await result;
