@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { buildUrl } from "@/app/features/tabs";
 import { ARCHETYPE_BADGE, normalizeArchetype } from "@/app/_lib/archetypes";
 import { isTerminalEntryStatus } from "@/app/_lib/pipeline-status";
-import { cellClass, MatrixLegend, type Cell } from "./MatrixShared";
+import { cellClass, ColumnStats, MatrixLegend, type Cell } from "./MatrixShared";
 
 type Candidate = { id: string; label: string; archetype: string | null };
 type Position = { id: string; title: string; seniority: string; roleFamily: string };
@@ -107,6 +107,23 @@ export function MatrixTab() {
     );
     return order;
   }, [data, cols, sortByFit]);
+
+  // Per-column non-blocked scores across the whole candidate pool (MAT2) — the
+  // distribution the header strip summarizes. Keyed by the position's index into
+  // `cells` so it lines up with the rendered columns.
+  const colScores = useMemo(() => {
+    const out: Record<number, number[]> = {};
+    if (!data) return out;
+    for (const { i } of cols) {
+      const scores: number[] = [];
+      for (let ri = 0; ri < data.candidates.length; ri += 1) {
+        const c = data.cells[ri]?.[i];
+        if (c && !c.blocked && c.score != null) scores.push(c.score);
+      }
+      out[i] = scores;
+    }
+    return out;
+  }, [data, cols]);
 
   const open = (candId: string, posId: string) => router.push(buildUrl({ tab: "match", profile: candId, job: posId }, search.toString()));
 
@@ -233,7 +250,7 @@ export function MatrixTab() {
                   <th className="sticky left-0 top-0 z-20 border-b border-r border-stone-200 bg-paper p-2 text-left font-semibold text-steel">
                     Candidate
                   </th>
-                  {cols.map(({ p }) => (
+                  {cols.map(({ p, i }) => (
                     <th
                       key={p.id}
                       title={`${p.title} · ${p.seniority}`}
@@ -241,6 +258,7 @@ export function MatrixTab() {
                     >
                       <div className="mx-auto w-[84px] truncate text-left font-semibold text-ink">{p.title}</div>
                       <div className="text-left text-sm uppercase text-steel">{p.seniority}</div>
+                      <ColumnStats scores={colScores[i] ?? []} />
                     </th>
                   ))}
                 </tr>

@@ -1,3 +1,5 @@
+import { columnStats, STRONG_THRESHOLD, type ColumnStat } from "./matrix-stats";
+
 export type Cell = { score: number | null; blocked: boolean };
 
 // Blocked/empty cells get a diagonal hatch so they read as "not applicable"
@@ -14,6 +16,43 @@ export function cellClass(c: Cell): string {
   if (s < 72) return "bg-moss/20 text-moss";
   if (s < 85) return "bg-moss/40 text-ink";
   return "bg-moss/70 text-white";
+}
+
+// Per-band fill for the mini-histogram, mirroring cellClass's diverging scale so
+// the strip reads consistently with the grid below it.
+const BAND_FILL = ["bg-coral/40", "bg-amber-300", "bg-moss/40", "bg-moss/60", "bg-moss/80"] as const;
+
+// MAT2 — a compact distribution strip under a position header: a 5-bar histogram
+// of the column's non-blocked scores (bands match the legend) plus best / median /
+// strong-count. Reads the column's pool fit at a glance: deep bench vs one hit.
+export function ColumnStats({ scores }: { scores: number[] }) {
+  const s: ColumnStat = columnStats(scores);
+  if (s.count === 0) {
+    return <div className="mt-1 text-[10px] text-stone-400">no fits</div>;
+  }
+  const maxBucket = Math.max(...s.buckets, 1);
+  return (
+    <div
+      className="mt-1"
+      title={`${s.count} scored · best ${s.best} · median ${s.median} · ${s.strong} strong (≥${STRONG_THRESHOLD})`}
+    >
+      <div className="flex h-5 items-end gap-px" aria-hidden>
+        {s.buckets.map((n, i) => (
+          <span
+            key={i}
+            className={`w-1.5 rounded-sm ${n > 0 ? BAND_FILL[i] : "bg-stone-100"}`}
+            style={{ height: `${Math.max(2, Math.round((n / maxBucket) * 20))}px` }}
+          />
+        ))}
+      </div>
+      <div className="mt-0.5 flex items-center gap-1 text-[10px] leading-none text-steel">
+        <span className="nums font-semibold text-ink">{s.best}</span>
+        <span className="text-stone-400">·</span>
+        <span className="nums">~{s.median}</span>
+        {s.strong > 0 ? <span className="nums text-moss">· {s.strong}★</span> : null}
+      </div>
+    </div>
+  );
 }
 
 export function MatrixLegend() {
