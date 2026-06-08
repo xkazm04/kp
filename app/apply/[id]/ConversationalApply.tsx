@@ -43,6 +43,10 @@ export function ConversationalApply({ jobId, steps }: { jobId: string; steps: Ap
   // True during the 250ms hand-off between steps; locks the controls so a step
   // can't be answered before the next prompt has even rendered.
   const [transitioning, setTransitioning] = useState(false);
+  // CV-upload step: text extraction is in flight, or it failed (recoverable — the
+  // candidate can pick another file or skip; the step is optional).
+  const [uploading, setUploading] = useState(false);
+  const [uploadErr, setUploadErr] = useState<string | null>(null);
   const endRef = useRef<HTMLDivElement | null>(null);
   // Step ids already answered — the synchronous guard that makes advance()
   // idempotent even when two events fire within the same render frame.
@@ -172,6 +176,36 @@ export function ConversationalApply({ jobId, steps }: { jobId: string; steps: Ap
     const step = steps[idx];
     advance(step.id, { ...answers, [step.id]: value }, label);
   };
+  // CV-upload step: extract the file's text via the same /api/extract-text the
+  // recruiter Profile form uses (kept as an inline fetch — importing AnalyzeApi
+  // would pull schema deps into this lean candidate bundle), then store the text
+  // as this step's answer. The step is optional, so any failure is recoverable in
+  // place (pick another file / skip) and never blocks the application.
+  const uploadCv = async (file: File) => {
+    if (busy || uploading) return;
+    setUploading(true);
+    setUploadErr(null);
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      const res = await fetch("/api/extract-text", { method: "POST", body: form });
+      const d = (await res.json().catch(() => null)) as { text?: string; error?: string } | null;
+      if (!res.ok || !d || typeof d.text !== "string" || !d.text.trim()) {
+        throw new Error(d?.error || "Couldn't read that file. Try another, or skip.");
+      }
+      const step = steps[idx];
+      advance(step.id, { ...answers, [step.id]: d.text }, `Attached ${file.name}`);
+    } catch (e) {
+      setUploadErr(e instanceof Error ? e.message : "Couldn't read that file. Try another, or skip.");
+    } finally {
+      setUploading(false);
+    }
+  };
+  const skipFile = () => {
+    if (busy || uploading) return;
+    const step = steps[idx];
+    advance(step.id, { ...answers, [step.id]: "" }, "Skipped — I'll go with what I typed.");
+  };
 
   const cur = !done ? steps[idx] : null;
 
@@ -265,6 +299,38 @@ export function ConversationalApply({ jobId, steps }: { jobId: string; steps: Ap
                   {opt.label}
                 </button>
               ))}
+            </div>
+          ) : cur.type === "file" ? (
+            <div className="flex flex-col gap-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <label
+                  className={`focus-ring inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-stone-200 bg-white px-4 py-2 text-base font-semibold text-ink hover:border-coral/50 ${
+                    busy || uploading ? "pointer-events-none opacity-50" : ""
+                  }`}
+                >
+                  {uploading ? "Reading…" : "Attach CV"}
+                  <input
+                    type="file"
+                    accept=".pdf,.docx,.doc,.txt,.md,application/pdf"
+                    disabled={busy || uploading}
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      e.currentTarget.value = ""; // allow re-picking the same file after an error
+                      if (f) void uploadCv(f);
+                    }}
+                    className="sr-only"
+                  />
+                </label>
+                <button
+                  type="button"
+                  disabled={busy || uploading}
+                  onClick={skipFile}
+                  className="focus-ring rounded-md px-3 py-2 text-base font-semibold text-steel hover:text-ink disabled:opacity-50"
+                >
+                  Skip
+                </button>
+              </div>
+              {uploadErr ? <p role="alert" className="text-sm text-coral">{uploadErr}</p> : null}
             </div>
           ) : (
             <form

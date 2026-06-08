@@ -18,6 +18,9 @@ export {
 
 export type ApplyStep =
   | { id: string; type: "text"; prompt: string; placeholder?: string; when?: StepCondition }
+  // An optional document upload (the CV step): the client extracts its text via
+  // /api/extract-text and stores that as the step's answer, or the candidate skips.
+  | { id: string; type: "file"; prompt: string; placeholder?: string; when?: StepCondition }
   | { id: string; type: "ko"; prompt: string; when?: StepCondition }
   | { id: string; type: "choice"; prompt: string; options: { value: string; label: string }[]; when?: StepCondition };
 
@@ -152,6 +155,17 @@ export function buildApplyScript(job: JobRecord): ApplyStep[] {
       placeholder: "e.g. React, Node.js, SQL",
     }
   );
+
+  // Optional CV upload — folded in as high-weight evidence so a polished résumé
+  // turns a thin typed stub into a fully matchable candidate. Skippable: the flow
+  // never blocks on a file, and the typed answers above already build a profile.
+  steps.push({
+    id: "cv",
+    type: "file",
+    prompt:
+      "Last thing — want to attach your CV? We'll read it in to round out your profile (PDF, DOCX, or TXT). Totally optional; skip it and we'll go with what you've told us.",
+    placeholder: "Attach your CV (optional)",
+  });
 
   steps.push({
     id: "ko_auth",

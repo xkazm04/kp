@@ -22,11 +22,15 @@ export const dynamic = "force-dynamic";
 // them a single POST can buffer a multi-hundred-MB body in the Node heap
 // (request.json), then get written to the temp disk (intake.json) and fed to a
 // Python subprocess — a trivial memory/disk DoS. Fail closed at the trust boundary.
-const MAX_APPLY_BODY_BYTES = 64 * 1024; // 64 KB — ample for a few short answers
+// 256 KB — ample for a few short answers PLUS the text extracted from an
+// optional uploaded CV (the `cv` answer). Still small enough to fail closed on a
+// DoS-sized body before buffering it into the heap.
+const MAX_APPLY_BODY_BYTES = 256 * 1024;
 const MAX_NAME_LENGTH = 200;
 const MAX_TEXT_LENGTH = 8 * 1024; // 8 KB per free-text answer (experience, skills)
 const MAX_ARCHETYPE_LENGTH = 64; // a registry id, never long
 const MAX_EMAIL_LENGTH = 254; // RFC 5321 max address length
+const MAX_CV_TEXT_LENGTH = 64 * 1024; // extracted CV text — bounded, head-sampled if longer
 
 // Outcome of normalizing an application into a matchable profile. On failure we
 // carry a short, bounded `reason` (not just null) so the caller can persist it
@@ -193,6 +197,11 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     const studentAspirations = String(answers.student_aspirations ?? "").trim();
     const switchPrior = String(answers.switch_prior ?? "").trim();
     const switchAspirations = String(answers.switch_aspirations ?? "").trim();
+    // Optional CV: the client already extracted the file's text via
+    // /api/extract-text and sent it as the `cv` answer. Head-sample (don't reject)
+    // an over-long extract — it's evidence, not an exact field, and the most
+    // relevant content sits at the top of a CV.
+    const cvText = String(answers.cv ?? "").trim().slice(0, MAX_CV_TEXT_LENGTH);
 
     // Per-field caps — fail closed BEFORE the dedup query, profile build, intake.json
     // write, or Python spawn. Reject (don't truncate) so the applicant fixes the input.
@@ -239,6 +248,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       studentAspirations,
       switchPrior,
       switchAspirations,
+      cvText,
     });
     const candidateId = built.ok ? built.id : randomId("apply");
 

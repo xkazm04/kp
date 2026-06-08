@@ -156,6 +156,9 @@ export type ApplyAnswers = {
   studentAspirations?: string;
   switchPrior?: string;
   switchAspirations?: string;
+  // Text extracted from an uploaded CV (via /api/extract-text), folded in as
+  // high-weight `kind: "cv"` evidence. Optional — the flow never requires a file.
+  cvText?: string;
 };
 
 /**
@@ -183,6 +186,19 @@ export function buildIntakeProfile(job: JobRecord, answers: ApplyAnswers): Recor
     .filter(Boolean);
 
   const evidence: Record<string, unknown>[] = [];
+  // An uploaded CV is the richest signal an applicant can give — surface it first
+  // as `kind: "cv"` so the Python normalizer prices it as a full résumé (the same
+  // evidence kind the recruiter Profile path produces), carrying the typed skills
+  // alongside the extracted text.
+  const cvText = (answers.cvText ?? "").trim();
+  if (cvText) {
+    evidence.push({
+      kind: "cv",
+      title: "CV (uploaded at application)",
+      text: cvText,
+      skills: skillList,
+    });
+  }
   if (answers.studentProject) {
     evidence.push({
       kind: "project",
