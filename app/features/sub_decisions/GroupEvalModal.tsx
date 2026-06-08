@@ -18,8 +18,9 @@ import { Modal } from "@/app/_components/Modal";
 import { ScoreBadge } from "@/app/_components/ScoreBadge";
 import { ConfidenceBandBadge, confidenceBandTitle, FitTierBadge } from "@/app/_components/Badge";
 import { ScoreBreakdown } from "@/app/features/sub_match/MatchShared";
-import { provLabel, type Confidence, type ScoreDimension } from "@/app/features/sub_match/MatchTypes";
-import { formatCzk, scoreTone, scoreToneColor } from "@/app/_lib/format";
+import { provLabel, type MatchResultView } from "@/app/features/sub_match/MatchTypes";
+import { APP_CURRENCY, formatSalaryRange, scoreTone, scoreToneColor } from "@/app/_lib/format";
+import { isSameCurrency, normalizeCurrency, salaryBandPosition } from "@/app/_lib/salary-band";
 import { initials } from "@/app/_lib/initials";
 import { styleFor } from "./DecisionsTypes";
 
@@ -47,8 +48,10 @@ export type Fairness = {
 };
 
 // One candidate as carried by a group evaluation. The base fields (score,
-// verdict, strengths, gaps) are always present; the rest are added when the role
-// has a job and the recruiter ranker produced a full breakdown (group-eval-run).
+// verdict, strengths, gaps) are always present; the recruiter breakdown fields
+// are the shared MatchResultView (single-sourced from MatchTypes), all optional
+// here since they're added only when the role has a job and the recruiter ranker
+// ran (group-eval-run) — `total` is omitted because it is carried as `score`.
 export type EvalCandidate = {
   label: string;
   score: number;
@@ -58,20 +61,13 @@ export type EvalCandidate = {
   strengths: string[];
   gaps: string[];
   interviewProbes?: string[];
-  fitTier?: "strong" | "promising" | "partial";
-  confidence?: Confidence;
-  scoreBreakdown?: ScoreDimension[];
-  matchedSkills?: string[];
-  matchedSkillProvenance?: Record<string, string>;
-  matchedSkillStrength?: Record<string, number>;
-  missingSkills?: string[];
   potentialScore?: number | null;
   koPassed?: boolean;
   assumptions?: string[];
   // The candidate's own salary expectation (from their CV analysis). Absent for
   // profile-only candidates; the salary row then shows just the role band.
   salaryExpectation?: { minimum: number; maximum: number; midpoint: number; currency: string; confidence: string } | null;
-};
+} & Partial<Omit<MatchResultView, "total">>;
 
 export type GroupEvalPayload = {
   roleTitle?: string;
@@ -143,6 +139,7 @@ export function GroupEvalModal({
   poolDrift,
   onClose,
   onRerun,
+  onDecide,
 }: {
   roleTitle: string;
   evaluation: GroupEvalPayload | null;
@@ -159,8 +156,23 @@ export function GroupEvalModal({
   poolDrift?: number;
   onClose: () => void;
   onRerun: () => void;
+  /** Advance/reject a candidate inline from the comparison (DEC3), resolved by
+   *  label back to the live pipeline entry in DecisionsTab. Omitted (read-only)
+   *  for the simulation, which has no live decision queue behind the modal. */
+  onDecide?: (label: string, action: "accept" | "reject") => void;
 }) {
   const ranAt = ranWhen(createdAt);
+  // Candidates decided here this session, so their buttons flip to a result pill
+  // (the cached `evaluation` snapshot doesn't refetch; the live queue updates
+  // underneath via act()).
+  const [decided, setDecided] = useState<Record<string, "accept" | "reject">>({});
+  const decide =
+    onDecide &&
+    ((label: string, action: "accept" | "reject") => {
+      if (decided[label]) return; // already acted this session
+      setDecided((d) => ({ ...d, [label]: action }));
+      onDecide(label, action);
+    });
   const drift = poolDrift ?? 0;
   const candidates = evaluation?.candidates ?? [];
   // Enriched layout (the comparison table) only when the recruiter breakdown is
@@ -209,7 +221,13 @@ export function GroupEvalModal({
             <>
               <ComparisonTable candidates={candidates} skillRows={skillRows} mustRows={mustRows} roleBand={evaluation.roleSalaryBand ?? []} />
               <FairnessPanel fairness={evaluation.fairness ?? null} headlineOrder={evaluation.recommendedOrder ?? []} />
-              <PerCandidateTabs candidates={candidates} differentiators={evaluation.differentiators ?? []} topPick={evaluation.topPick?.label} />
+              <PerCandidateTabs
+                candidates={candidates}
+                differentiators={evaluation.differentiators ?? []}
+                topPick={evaluation.topPick?.label}
+                decided={decided}
+                onDecide={decide || undefined}
+              />
             </>
           ) : (
             <LegacyView evaluation={evaluation} />
@@ -232,9 +250,21 @@ const PILL_TONE: Record<string, string> = {
   info: "bg-blue-50 text-blue-700",
 };
 
-function Pill({ children, tone = "neutral", className = "" }: { children: React.ReactNode; tone?: keyof typeof PILL_TONE; className?: string }) {
+function Pill({
+  children,
+  tone = "neutral",
+  className = "",
+  title,
+}: {
+  children: React.ReactNode;
+  tone?: keyof typeof PILL_TONE;
+  className?: string;
+  title?: string;
+}) {
   return (
-    <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-sm font-semibold ${PILL_TONE[tone]} ${className}`}>{children}</span>
+    <span title={title} className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-sm font-semibold ${PILL_TONE[tone]} ${className}`}>
+      {children}
+    </span>
   );
 }
 
@@ -545,18 +575,28 @@ function SkillCell({ skill, c }: { skill: string; c: EvalCandidate }) {
   );
 }
 
-// Verdict for a candidate's expectation midpoint against the role band [lo, hi].
+// Presentation of the over/under-band verdict: the pure math + the currency-safety
+// contract live in salary-band.ts; this only maps the position to a label + tone.
+// Callers MUST gate on isSameCurrency first (see SalaryCell) so this never prints a
+// confident "% over" for an expectation in a different currency than the band.
 function salaryVerdict(mid: number, lo: number, hi: number): { label: string; tone: keyof typeof PILL_TONE } {
-  if (hi > 0 && mid > hi) return { label: `+${Math.round(((mid - hi) / hi) * 100)}% over`, tone: "coral" };
-  if (lo > 0 && mid < lo) return { label: `${Math.round(((lo - mid) / lo) * 100)}% under`, tone: "info" };
+  const { position, pct } = salaryBandPosition(mid, lo, hi);
+  if (position === "over") return { label: `+${pct}% over`, tone: "coral" };
+  if (position === "under") return { label: `${pct}% under`, tone: "info" };
   return { label: "within band", tone: "moss" };
 }
 
 type SalaryScale = { lo: number; hi: number; pct: (v: number) => number };
 
-function SalaryCell({ c, sal }: { c: EvalCandidate; sal: SalaryScale }) {
+function SalaryCell({ c, sal, bandCurrency }: { c: EvalCandidate; sal: SalaryScale; bandCurrency: string }) {
   const s = c.salaryExpectation;
-  const verdict = s && sal.hi > 0 ? salaryVerdict(s.midpoint, sal.lo, sal.hi) : null;
+  // The over/under-band verdict AND the band-relative bar position are only
+  // meaningful when the expectation shares the band's currency — the app does no
+  // FX, so a EUR expectation against a CZK band would otherwise print a confident
+  // but meaningless "% over" and plot at a bogus spot. On a mismatch we drop the
+  // bar/verdict and surface the currencies explicitly instead.
+  const comparable = Boolean(s) && isSameCurrency(s!.currency, bandCurrency);
+  const verdict = s && comparable && sal.hi > 0 ? salaryVerdict(s.midpoint, sal.lo, sal.hi) : null;
   return (
     <div className="space-y-1">
       <div className="relative h-5 overflow-hidden rounded-md bg-stone-100">
@@ -567,20 +607,39 @@ function SalaryCell({ c, sal }: { c: EvalCandidate; sal: SalaryScale }) {
             aria-hidden
           />
         ) : null}
-        {s ? (
+        {s && comparable ? (
           <>
             <span
               className="absolute inset-y-1 rounded-full bg-ink/70"
               style={{ left: `${sal.pct(s.minimum)}%`, width: `${Math.max(1.5, sal.pct(s.maximum) - sal.pct(s.minimum))}%` }}
               aria-hidden
             />
-            <span className="absolute inset-y-0 w-0.5 bg-coral" style={{ left: `${sal.pct(s.midpoint)}%` }} title={`midpoint ${formatCzk(s.midpoint)}`} aria-hidden />
+            <span
+              className="absolute inset-y-0 w-0.5 bg-coral"
+              style={{ left: `${sal.pct(s.midpoint)}%` }}
+              title={`midpoint ${formatSalaryRange(s.midpoint, s.midpoint, { currency: s.currency })}`}
+              aria-hidden
+            />
           </>
         ) : null}
       </div>
       <div className="flex items-center justify-between gap-1">
-        <span className="text-sm text-steel">{s ? `${formatCzk(s.minimum)}–${formatCzk(s.maximum)}` : "no expectation"}</span>
-        {verdict ? <Pill tone={verdict.tone}>{verdict.label}</Pill> : null}
+        <span className="text-sm text-steel">
+          {s ? formatSalaryRange(s.minimum, s.maximum, { currency: s.currency }) : "no expectation"}
+        </span>
+        {verdict ? (
+          <Pill tone={verdict.tone}>{verdict.label}</Pill>
+        ) : s && !comparable && sal.hi > 0 ? (
+          <Pill
+            tone="amber"
+            className="whitespace-nowrap"
+            title={`Expectation is in ${normalizeCurrency(s.currency)}; the role band is in ${normalizeCurrency(
+              bandCurrency
+            )}. No currency conversion is applied, so the over/under-band comparison is skipped.`}
+          >
+            {normalizeCurrency(s.currency)} · vs {normalizeCurrency(bandCurrency)} band
+          </Pill>
+        ) : null}
       </div>
     </div>
   );
@@ -615,12 +674,19 @@ function ComparisonTable({
   const must = skillRows.filter((r) => r.mustHave);
   const nice = skillRows.filter((r) => !r.mustHave);
 
-  // Salary: one shared scale across the role band + every expectation so the bars
-  // are comparable column-to-column (and align, since columns are equal width).
+  // Salary: one shared scale across the role band + every SAME-CURRENCY expectation
+  // so the bars are comparable column-to-column (and align, since columns are equal
+  // width). The band is a bare [min, max] denominated in APP_CURRENCY by contract
+  // (see format.ts); a cross-currency expectation (EUR vs a CZK band) is excluded
+  // from the scale on purpose — mixing it in would distort every bar's position and
+  // plot the outlier at a meaningless spot — and its cell shows an explicit "not
+  // comparable" note instead (SalaryCell).
+  const bandCurrency = APP_CURRENCY;
   const [lo, hi] = roleBand.length >= 2 ? [roleBand[0], roleBand[1]] : [0, 0];
   const withSalary = candidates.filter((c) => c.salaryExpectation);
+  const comparableSalary = withSalary.filter((c) => isSameCurrency(c.salaryExpectation!.currency, bandCurrency));
   const showSalary = withSalary.length > 0 || hi > 0;
-  const vals = [...(hi > 0 ? [lo, hi] : []), ...withSalary.flatMap((c) => [c.salaryExpectation!.minimum, c.salaryExpectation!.maximum])].filter((n) => n > 0);
+  const vals = [...(hi > 0 ? [lo, hi] : []), ...comparableSalary.flatMap((c) => [c.salaryExpectation!.minimum, c.salaryExpectation!.maximum])].filter((n) => n > 0);
   const loScale = vals.length ? Math.min(...vals) : 0;
   const hiScale = vals.length ? Math.max(...vals) : 1;
   const span = hiScale - loScale || 1;
@@ -706,9 +772,9 @@ function ComparisonTable({
               <GroupTr
                 label="Salary · expectation vs band"
                 cols={cols}
-                aside={hi > 0 ? <Pill tone="info">role band {formatCzk(lo)}–{formatCzk(hi)}</Pill> : <Pill>no role band</Pill>}
+                aside={hi > 0 ? <Pill tone="info">role band {formatSalaryRange(lo, hi, { currency: bandCurrency })}</Pill> : <Pill>no role band</Pill>}
               />
-              <Row head={<RowHead title="Expected" sub="green = band · bar = range · tick = midpoint" />} candidates={candidates} render={(c) => <SalaryCell c={c} sal={sal} />} />
+              <Row head={<RowHead title="Expected" sub="green = band · bar = range · tick = midpoint" />} candidates={candidates} render={(c) => <SalaryCell c={c} sal={sal} bandCurrency={bandCurrency} />} />
             </tbody>
           ) : null}
         </table>
@@ -739,7 +805,19 @@ function IconList({ title, items, icon: Icon, tone }: { title: string; items: st
 
 // One candidate's full evaluation, laid out across the modal's full width so the
 // text-heavy strengths / gaps / probes get room instead of cramped cards.
-function CandidateDetail({ c, differentiators, topPick }: { c: EvalCandidate; differentiators: string[]; topPick?: string }) {
+function CandidateDetail({
+  c,
+  differentiators,
+  topPick,
+  decision,
+  onDecide,
+}: {
+  c: EvalCandidate;
+  differentiators: string[];
+  topPick?: string;
+  decision?: "accept" | "reject";
+  onDecide?: (label: string, action: "accept" | "reject") => void;
+}) {
   return (
     <div className="rounded-xl border border-stone-200 p-4">
       <div className="flex flex-wrap items-center gap-3">
@@ -757,6 +835,36 @@ function CandidateDetail({ c, differentiators, topPick }: { c: EvalCandidate; di
           <ScoreBadge score={c.score} />
           <FitTierBadge tier={c.fitTier} score={c.score} />
           {c.confidence ? <ConfidenceBandBadge level={c.confidence.level} drivers={c.confidence.drivers} /> : null}
+          {/* Decide right here (DEC3) — at the moment of highest comparative
+              context — instead of closing the modal to open a per-candidate one.
+              Reuses the same act()/expectedStage path as the queue. Once decided,
+              the buttons collapse to the recorded outcome (the live queue has
+              already moved the candidate underneath). */}
+          {onDecide ? (
+            decision ? (
+              <Pill tone={decision === "accept" ? "moss" : "coral"}>
+                {decision === "accept" ? <CheckCircle2 size={13} /> : <XCircle size={13} />}
+                {decision === "accept" ? "Advanced" : "Rejected"}
+              </Pill>
+            ) : (
+              <span className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => onDecide(c.label, "reject")}
+                  className="focus-ring inline-flex h-8 items-center gap-1 rounded-md border border-stone-200 px-2.5 text-sm font-semibold text-coral hover:bg-coral/5"
+                >
+                  <XCircle size={14} /> Reject
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onDecide(c.label, "accept")}
+                  className="focus-ring inline-flex h-8 items-center gap-1 rounded-md bg-moss px-2.5 text-sm font-semibold text-white hover:opacity-90"
+                >
+                  <CheckCircle2 size={14} /> Advance
+                </button>
+              </span>
+            )
+          ) : null}
         </div>
       </div>
 
@@ -796,7 +904,19 @@ function CandidateDetail({ c, differentiators, topPick }: { c: EvalCandidate; di
   );
 }
 
-function PerCandidateTabs({ candidates, differentiators, topPick }: { candidates: EvalCandidate[]; differentiators: string[]; topPick?: string }) {
+function PerCandidateTabs({
+  candidates,
+  differentiators,
+  topPick,
+  decided,
+  onDecide,
+}: {
+  candidates: EvalCandidate[];
+  differentiators: string[];
+  topPick?: string;
+  decided: Record<string, "accept" | "reject">;
+  onDecide?: (label: string, action: "accept" | "reject") => void;
+}) {
   const [active, setActive] = useState(0);
   if (!candidates.length) return null;
   const idx = Math.min(active, candidates.length - 1);
@@ -809,6 +929,7 @@ function PerCandidateTabs({ candidates, differentiators, topPick }: { candidates
         {candidates.map((c, i) => {
           const selected = i === idx;
           const s = styleFor(c.archetype ?? null);
+          const tabDecision = decided[c.label];
           return (
             <button
               key={c.label}
@@ -822,13 +943,21 @@ function PerCandidateTabs({ candidates, differentiators, topPick }: { candidates
             >
               <span className={`h-2.5 w-2.5 rounded-full ${s.bg}`} aria-hidden />
               <span className="max-w-[160px] truncate">{c.label}</span>
-              <ScoreBadge score={c.score} />
+              {/* A tab badges its decided outcome so the recruiter sees, across the
+                  whole pool, who's been actioned without opening each tab. */}
+              {tabDecision === "accept" ? (
+                <CheckCircle2 size={14} className="text-moss" aria-label="advanced" />
+              ) : tabDecision === "reject" ? (
+                <XCircle size={14} className="text-coral" aria-label="rejected" />
+              ) : (
+                <ScoreBadge score={c.score} />
+              )}
             </button>
           );
         })}
       </div>
       <div role="tabpanel" className="mt-3">
-        <CandidateDetail c={current} differentiators={differentiators} topPick={topPick} />
+        <CandidateDetail c={current} differentiators={differentiators} topPick={topPick} decision={decided[current.label]} onDecide={onDecide} />
       </div>
     </section>
   );

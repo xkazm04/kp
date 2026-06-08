@@ -306,6 +306,14 @@ export function DecisionsTab() {
             setEvalTaskId(null);
           }}
           onRerun={() => evalGroup && openGroupEval(evalGroup, true)}
+          onDecide={(label, action) => {
+            // Resolve the eval candidate (by label) back to the live pipeline
+            // entry, then reuse act() — same expectedStage CAS + comms as the
+            // queue. Acts only on still-pending entries (a candidate decided
+            // elsewhere has already left evalGroup.entries).
+            const e = evalGroup?.entries.find((x) => x.candidateLabel === label);
+            if (e) void act(e, action);
+          }}
         />
       ) : null}
 
