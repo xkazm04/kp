@@ -5,6 +5,8 @@ import { Users } from "lucide-react";
 import { ARCHETYPE_BADGE, isEarlyCareer, provLabel } from "./JobsTypes";
 import type { CandRow, SkippedCandidate } from "./JobsTypes";
 import { EmptyState, SkippedCandidatesNote } from "./JobsShared";
+import { useAddToPipeline } from "@/app/_lib/useAddToPipeline";
+import { useReachOut } from "@/app/_lib/useReachOut";
 import { ConfidenceBandBadge, confidenceBandTitle, FitTierBadge } from "@/app/_components/Badge";
 import { ScoreBadge } from "@/app/_components/ScoreBadge";
 
@@ -25,10 +27,8 @@ export function RecruiterCandidates({
   } | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [added, setAdded] = useState<Set<string>>(new Set());
-  const [adding, setAdding] = useState<Set<string>>(new Set());
-  const [failed, setFailed] = useState<Map<string, string>>(new Map());
-  const [announce, setAnnounce] = useState("");
+  const { add, added, adding, error: cardError, announce } = useAddToPipeline(jobId, jobTitle);
+  const { reach, reached, reaching, error: reachError, announce: reachAnnounce } = useReachOut(jobId);
 
   const load = async () => {
     setLoading(true);
@@ -58,46 +58,15 @@ export function RecruiterCandidates({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoLoad]);
 
-  const addToPipeline = async (c: CandRow) => {
-    if (!c.candidateId || added.has(c.candidateId) || adding.has(c.candidateId)) return;
-    setAdding((s) => new Set(s).add(c.candidateId));
-    setFailed((m) => {
-      if (!m.has(c.candidateId)) return m;
-      const n = new Map(m);
-      n.delete(c.candidateId);
-      return n;
-    });
-    try {
-      const r = await fetch("/api/pipeline", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          candidateId: c.candidateId,
-          candidateLabel: c.label,
-          archetype: c.archetype,
-          roleFamily,
-          jobId,
-          jobTitle,
-          matchScore: c.result.total,
-          stage: "Screened",
-        }),
-      });
-      const payload = await r.json().catch(() => null);
-      if (!r.ok) throw new Error(payload?.error ?? `Couldn't add (${r.status}).`);
-      setAdded((s) => new Set(s).add(c.candidateId));
-      setAnnounce(`${c.label} added to the pipeline.`);
-    } catch (caught) {
-      const message = caught instanceof Error ? caught.message : "Couldn't add to the pipeline.";
-      setFailed((m) => new Map(m).set(c.candidateId, message));
-      setAnnounce(`Couldn't add ${c.label} to the pipeline. ${message}`);
-    } finally {
-      setAdding((s) => {
-        const n = new Set(s);
-        n.delete(c.candidateId);
-        return n;
-      });
-    }
-  };
+  const candidateInput = (c: CandRow) => ({
+    candidateId: c.candidateId,
+    candidateLabel: c.label,
+    archetype: c.archetype,
+    matchScore: c.result.total,
+    roleFamily,
+  });
+  const addToPipeline = (c: CandRow) => add(candidateInput(c));
+  const reachOut = (c: CandRow) => reach(candidateInput(c));
 
   if (!data) {
     return (
@@ -124,7 +93,7 @@ export function RecruiterCandidates({
   return (
     <div className="rounded-md border border-stone-200 p-3">
       <p role="status" aria-live="polite" className="sr-only">
-        {announce}
+        {[announce, reachAnnounce].filter(Boolean).join(" ")}
       </p>
       <div className="flex items-center justify-between">
         <p className="text-sm font-semibold uppercase tracking-wide text-coral">
@@ -143,8 +112,12 @@ export function RecruiterCandidates({
           rows={experienced}
           added={added}
           adding={adding}
-          failed={failed}
+          error={cardError}
           onAdd={addToPipeline}
+          reached={reached}
+          reaching={reaching}
+          reachError={reachError}
+          onReach={reachOut}
         />
         <CandidateColumn
           title="Early-career pipeline"
@@ -152,8 +125,12 @@ export function RecruiterCandidates({
           highlight
           added={added}
           adding={adding}
-          failed={failed}
+          error={cardError}
           onAdd={addToPipeline}
+          reached={reached}
+          reaching={reaching}
+          reachError={reachError}
+          onReach={reachOut}
         />
       </div>
     </div>
@@ -166,16 +143,24 @@ function CandidateColumn({
   highlight,
   added,
   adding,
-  failed,
+  error,
   onAdd,
+  reached,
+  reaching,
+  reachError,
+  onReach,
 }: {
   title: string;
   rows: CandRow[];
   highlight?: boolean;
-  added: Set<string>;
-  adding: Set<string>;
-  failed: Map<string, string>;
+  added: (id: string) => boolean;
+  adding: (id: string) => boolean;
+  error: (id: string) => string | null;
   onAdd: (c: CandRow) => void;
+  reached: (id: string) => boolean;
+  reaching: (id: string) => boolean;
+  reachError: (id: string) => string | null;
+  onReach: (c: CandRow) => void;
 }) {
   return (
     <div className={`rounded-md border p-2 ${highlight ? "border-green-200 bg-green-50/40" : "border-stone-200"}`}>
@@ -198,10 +183,14 @@ function CandidateColumn({
             <CandidateCard
               key={c.candidateId || `${c.label}-${i}`}
               c={c}
-              added={added.has(c.candidateId)}
-              adding={adding.has(c.candidateId)}
-              error={failed.get(c.candidateId) ?? null}
+              added={added(c.candidateId)}
+              adding={adding(c.candidateId)}
+              error={error(c.candidateId)}
               onAdd={() => onAdd(c)}
+              reached={reached(c.candidateId)}
+              reaching={reaching(c.candidateId)}
+              reachError={reachError(c.candidateId)}
+              onReach={() => onReach(c)}
             />
           ))}
         </ol>
@@ -216,12 +205,20 @@ function CandidateCard({
   adding,
   error,
   onAdd,
+  reached,
+  reaching,
+  reachError,
+  onReach,
 }: {
   c: CandRow;
   added: boolean;
   adding: boolean;
   error: string | null;
   onAdd: () => void;
+  reached: boolean;
+  reaching: boolean;
+  reachError: string | null;
+  onReach: () => void;
 }) {
   const res = c.result;
   const early = isEarlyCareer(c.archetype);
@@ -239,29 +236,53 @@ function CandidateCard({
           {ARCHETYPE_BADGE[c.archetype] ?? c.archetype}
         </span>
         <FitTierBadge tier={res.fitTier} score={res.total} />
-        <span className="ml-auto flex items-center gap-2">
+        <span className="ml-auto flex items-center gap-1.5">
           {early && c.potentialScore != null ? (
             <span className="text-sm text-steel">potential {Math.round(c.potentialScore * 100)}</span>
           ) : null}
-          <button
-            type="button"
-            onClick={onAdd}
-            disabled={added || adding}
-            title={error ?? undefined}
-            className={`focus-ring rounded px-1.5 py-0.5 text-sm font-semibold ${
-              added
-                ? "bg-moss/10 text-moss"
-                : error
-                  ? "border border-red-300 bg-red-50 text-red-700 hover:bg-red-100 disabled:opacity-40"
-                  : "border border-stone-200 text-ink hover:bg-paper disabled:opacity-40"
-            }`}
-          >
-            {added ? "✓ pipeline" : adding ? "…" : error ? "↻ retry" : "+ pipeline"}
-          </button>
+          {reached ? (
+            // Reaching out also filed them into the pipeline, so a reached candidate
+            // collapses to one badge — no redundant "+ pipeline" button.
+            <span className="rounded bg-moss/10 px-1.5 py-0.5 text-sm font-semibold text-moss">✓ Reached out</span>
+          ) : (
+            <>
+              <button
+                type="button"
+                onClick={onReach}
+                disabled={reaching}
+                title={reachError ?? "Add to the pipeline and send a first-touch message"}
+                className={`focus-ring rounded px-1.5 py-0.5 text-sm font-semibold ${
+                  reachError
+                    ? "border border-red-300 bg-red-50 text-red-700 hover:bg-red-100 disabled:opacity-40"
+                    : "border border-coral/40 bg-coral/5 text-coral hover:bg-coral/10 disabled:opacity-40"
+                }`}
+              >
+                {reaching ? "Reaching…" : reachError ? "↻ retry" : "Reach out"}
+              </button>
+              <button
+                type="button"
+                onClick={onAdd}
+                disabled={added || adding}
+                title={error ?? undefined}
+                className={`focus-ring rounded px-1.5 py-0.5 text-sm font-semibold ${
+                  added
+                    ? "bg-moss/10 text-moss"
+                    : error
+                      ? "border border-red-300 bg-red-50 text-red-700 hover:bg-red-100 disabled:opacity-40"
+                      : "border border-stone-200 text-ink hover:bg-paper disabled:opacity-40"
+                }`}
+              >
+                {added ? "✓ pipeline" : adding ? "…" : error ? "↻ retry" : "+ pipeline"}
+              </button>
+            </>
+          )}
         </span>
       </div>
       {error && !added ? (
         <p className="mt-1 text-sm text-red-700">Couldn&apos;t add to the pipeline — {error}</p>
+      ) : null}
+      {reachError && !reached ? (
+        <p className="mt-1 text-sm text-red-700">Couldn&apos;t reach out — {reachError}</p>
       ) : null}
       <div className="mt-1 flex flex-wrap gap-1">
         {(res.matchedSkills ?? []).slice(0, 8).map((s) => {

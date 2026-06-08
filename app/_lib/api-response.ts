@@ -58,6 +58,9 @@ export const STORE_ERRORS = {
   PIPELINE_CREATE_FAILED: "Could not add to the pipeline. Please try again.",
   PIPELINE_ACTION_FAILED: "Could not apply that action. Please try again.",
   PIPELINE_EVENTS_FAILED: "Could not load recent activity. Please try again.",
+  // Sourcing "reach out" (idea JOB3): sits on createPipelineEntry + the outreach
+  // automation subprocess (Claude CLI), whose thrown errors embed internal detail.
+  OUTREACH_FAILED: "Could not reach out to that candidate. Please try again.",
   // Scheduling & offer public token routes (converted alongside, same class).
   SCHEDULE_INVITE_FAILED: "Could not create the scheduling link. Please try again.",
   SCHEDULE_CONFIRM_FAILED: "Could not confirm that slot. Please try again.",
