@@ -5,6 +5,13 @@
 > subset of the candidate→hire journey. Each subagent scouted one context for
 > feature gaps, half-built capabilities, automation and integration opportunities.
 
+> **⛔ BACKLOG RETIRED — 2026-06-08.** This scan drove Waves 1–16 (see FIXES-WAVE-*.md);
+> all 7 themes were covered, every High shipped, plus a Med/Low sweep. The remaining
+> Medium/Low items below (VOX2, VOX4, VOX5, JOB5, DEC5, DEC6, PREP4, SCH4, all-tabs PDF,
+> + minor follow-ups) are **NOT being pursued** — development moved to a different
+> technique. This file is kept as the historical record of the scan; treat the
+> unshipped rows as archived, not as a to-do list.
+
 ---
 
 ## Totals
