@@ -1,7 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { AlertTriangle, Clock, Loader2, ListChecks, RefreshCw, Sparkles } from "lucide-react";
+import { AlertTriangle, Check, Clock, Copy, Loader2, ListChecks, RefreshCw, Sparkles } from "lucide-react";
+import { copyText } from "@/app/_lib/export-utils";
 import { Modal } from "@/app/_components/Modal";
 import { Meter } from "@/app/_components/Meter";
 import { PrepSourceBadge, isPrepFallback } from "@/app/_components/Badge";
@@ -24,6 +25,7 @@ export function InterviewPrepModal({ entry, onClose }: { entry: SchedEntry; onCl
   const [generated, setGenerated] = useState<Prep | null>(null);
   const [taskId, setTaskId] = useState<string | null>(null);
   const [checked, setChecked] = useState<Record<string, boolean>>({});
+  const [copied, setCopied] = useState(false);
 
   // A completed (re)generation (`generated`) ALWAYS supersedes the fetched copy, so
   // a slow initial GET resolving after a fast generation can't wipe a freshly saved
@@ -57,6 +59,33 @@ export function InterviewPrepModal({ entry, onClose }: { entry: SchedEntry; onCl
   };
   const generating = taskId !== null;
 
+  // Copy the whole prep guide as plain text (Theme C, PREP3) so an interviewer can
+  // drop it into their notes / a calendar invite / an email — the guide was
+  // render-only, lost the moment the modal closed.
+  const copyPrep = async () => {
+    if (!prep) return;
+    const lines: string[] = [
+      `Interview prep — ${entry.candidateLabel}${entry.jobTitle ? ` · ${entry.jobTitle}` : ""}`,
+      "",
+      prep.scenario,
+    ];
+    if (prep.focusAreas?.length) lines.push("", `Focus areas: ${prep.focusAreas.join(", ")}`);
+    lines.push("", `Run of show (${prep.durationMin} min):`);
+    for (const b of prep.chronology) {
+      lines.push(`- [${b.fromMin}–${b.toMin} min] ${b.topic} — ${b.goal}`);
+      for (const q of b.questions) lines.push(`    "${q}"`);
+      if (b.followUp) lines.push(`    ↳ Follow-up: ${b.followUp}`);
+    }
+    const sig = prep.signals ?? [];
+    if (sig.length) {
+      lines.push("", "Signals to confirm:");
+      for (const s of sig) lines.push(`- ${s}`);
+    }
+    const ok = await copyText(lines.join("\n"));
+    setCopied(ok);
+    if (ok) window.setTimeout(() => setCopied(false), 2000);
+  };
+
   // The chronology blocks plus the flat "Signals to confirm" list are the checkable
   // items; `?? []` only guards a malformed payload, not a second group shape.
   // Derived from `prep` alone (no intermediate `?? []` value in the deps, which
@@ -76,14 +105,24 @@ export function InterviewPrepModal({ entry, onClose }: { entry: SchedEntry; onCl
       size="3xl"
       footer={
         prep ? (
-          <button
-            type="button"
-            onClick={generate}
-            disabled={generating}
-            className="focus-ring inline-flex h-9 items-center gap-1 rounded-md border border-stone-200 px-3 text-sm font-semibold text-ink hover:border-coral/40 disabled:opacity-50"
-          >
-            <RefreshCw size={14} /> {generating ? "Generating…" : "Regenerate"}
-          </button>
+          <>
+            <button
+              type="button"
+              onClick={copyPrep}
+              className="focus-ring inline-flex h-9 items-center gap-1.5 rounded-md border border-stone-200 px-3 text-sm font-semibold text-ink hover:border-coral/40"
+            >
+              {copied ? <Check size={14} className="text-moss" /> : <Copy size={14} />}
+              {copied ? "Copied" : "Copy prep"}
+            </button>
+            <button
+              type="button"
+              onClick={generate}
+              disabled={generating}
+              className="focus-ring inline-flex h-9 items-center gap-1 rounded-md border border-stone-200 px-3 text-sm font-semibold text-ink hover:border-coral/40 disabled:opacity-50"
+            >
+              <RefreshCw size={14} /> {generating ? "Generating…" : "Regenerate"}
+            </button>
+          </>
         ) : null
       }
     >

@@ -1,7 +1,10 @@
 "use client";
 
+import { useState } from "react";
+import { Check, Copy } from "lucide-react";
 import type { Analysis } from "@/app/_lib/schemas";
 import { dedupe } from "@/app/_lib/dedupe";
+import { copyText } from "@/app/_lib/export-utils";
 import { PAPER, INK, MOSS, STEEL, LIMEWASH } from "@/app/_lib/brand";
 
 export function Metric({ label, value }: { label: string; value: number }) {
@@ -151,21 +154,44 @@ export function ListBlock({
   items,
   emptyHeadline = "Nothing to highlight yet",
   emptyHint = "Refine your CV to surface items in this list.",
+  copyable = true,
 }: {
   icon?: React.ReactNode;
   title: string;
   items: string[];
   emptyHeadline?: string;
   emptyHint?: string;
+  // The report's lists (interview talking points, must-prove evidence, CV rewrite
+  // suggestions) are highly reusable text an interviewer/recruiter wants to paste
+  // elsewhere; a header "Copy" yields them as markdown bullets (Theme C, RES6).
+  copyable?: boolean;
 }) {
+  const [copied, setCopied] = useState(false);
+  const unique = dedupe(items);
+  const copy = async () => {
+    const ok = await copyText(unique.map((i) => `- ${i}`).join("\n"));
+    setCopied(ok);
+    if (ok) window.setTimeout(() => setCopied(false), 2000);
+  };
   return (
     <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
       <div className="flex items-center gap-2">
         {icon ?? null}
         <h3 className="font-serif text-h3 text-ink">{title}</h3>
+        {copyable && unique.length > 0 ? (
+          <button
+            type="button"
+            onClick={copy}
+            title="Copy this list"
+            className="focus-ring ml-auto inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-sm font-semibold text-steel hover:text-coral print:hidden"
+          >
+            {copied ? <Check size={14} className="text-moss" /> : <Copy size={14} />}
+            {copied ? "Copied" : "Copy"}
+          </button>
+        ) : null}
       </div>
       <BulletList
-        items={items}
+        items={unique}
         listClassName="mt-4 space-y-3"
         empty={<EmptyState variant="items" headline={emptyHeadline} hint={emptyHint} />}
       />
