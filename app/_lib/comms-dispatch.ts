@@ -147,6 +147,33 @@ export async function dispatchInterviewReminder(
   }
 }
 
+/** Deliver the freshly-minted voice-screen link TO the candidate. Without this the
+ *  link only ever opened in the recruiter's own browser tab — the headline voice
+ *  feature was undeliverable end-to-end. Routes through the same sendComm channel
+ *  as every other candidate comm (durable local Outbox by default, a real relay
+ *  only when COMMS_WEBHOOK_URL is set), so it lands in the Outbox audit log and
+ *  dead-letters traceably if the recipient identifier can't be resolved. Records an
+ *  interview_invite_sent event. `link` must be ABSOLUTE — the candidate opens it
+ *  outside the app — so callers resolve it through publicBaseUrl. */
+export async function dispatchInterviewInvite(
+  entry: { id?: string | null; candidateLabel?: string | null; candidateId?: string | null; jobTitle?: string | null },
+  link: string,
+  opts?: { durationMin?: number | null }
+): Promise<void> {
+  const name = (entry.candidateLabel ?? "").trim() || "there";
+  const role = entry.jobTitle ?? "the role";
+  const length = opts?.durationMin ? ` It takes about ${opts.durationMin} minutes.` : "";
+  const subject = `Your AI first-round screen — ${role}`;
+  const body =
+    `Hi ${name},\n\n` +
+    `You're invited to a short AI-guided first-round screen for ${role}.${length} ` +
+    `You can take it whenever you're ready using your secure link:\n${link}\n\n` +
+    `It runs right in your browser — just allow microphone access when prompted.\n\n` +
+    `Looking forward to it,\nThe hiring team`;
+  await sendComm({ to: candidateRecipient(entry), subject, body, kind: "interview_invite", ref: entry.id ?? link });
+  if (entry.id) recordAutomationEvent(entry.id, "interview_invite_sent", role);
+}
+
 /**
  * Onboarding hook — fires when a candidate accepts and moves to Hired. A warm
  * welcome + the practical next step. Kept deterministic; a real onboarding

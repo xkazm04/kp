@@ -443,6 +443,17 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
               {voice.data ? (
                 <div className="mt-2 space-y-1.5">
                   <TokenLinkPanel link={voice} />
+                  {Boolean(voice.data.configured) && Boolean(voice.data.delivered) ? (
+                    <p className="text-sm text-moss">
+                      ✓ Invite sent to the candidate — they can take the screen whenever they&apos;re ready.
+                    </p>
+                  ) : null}
+                  {Boolean(voice.data.configured) && !voice.data.delivered ? (
+                    <p className="text-sm text-amber-700">
+                      Link created, but the invite couldn&apos;t be sent automatically — copy it above to share with the
+                      candidate.
+                    </p>
+                  ) : null}
                   {!voice.data.configured ? (
                     <p className="text-sm text-coral">
                       {voiceProvider === "openai" ? "OPENAI_API_KEY" : "ELEVENLABS_API_KEY + ELEVENLABS_AGENT_ID"} not set —

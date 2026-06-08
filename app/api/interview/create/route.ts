@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createInterviewSession } from "@/app/_lib/db";
 import { buildGroundedInterview } from "@/app/_lib/interview-run";
+import { dispatchInterviewInvite } from "@/app/_lib/comms-dispatch";
 import { safeJsonError } from "@/app/_lib/api-response";
+import { publicBaseUrl } from "@/app/_lib/public-base-url";
 import { coerceLanguage, coerceProviderId, voiceAvailability, type VoiceProviderId } from "@/app/_lib/voice";
 
 export const runtime = "nodejs";
@@ -41,11 +43,35 @@ export async function POST(request: NextRequest) {
       language: coerceLanguage(body.language),
     });
 
+    // Deliver the link TO the candidate (the screen is candidate-mode — they take
+    // the call). Gated on the provider being configured: an unconfigured key means
+    // the call can't connect, so don't invite someone to a dead link. Goes through
+    // the durable Outbox channel (real relay only when configured), and is
+    // best-effort — a comms failure must not fail session creation, since the
+    // recruiter can still copy the link returned below as a manual fallback.
+    let delivered = false;
+    if (avail[provider]) {
+      try {
+        const link = `${publicBaseUrl(new URL(request.url).origin)}/interview/${session.token}`;
+        await dispatchInterviewInvite(
+          { id: entryId, candidateLabel: session.candidateLabel, jobTitle: session.jobTitle },
+          link,
+          { durationMin: grounded.durationMin }
+        );
+        delivered = true;
+      } catch (commErr) {
+        console.error(
+          `[interview:create] session ${session.token} created but invite delivery failed: ${commErr instanceof Error ? commErr.message : commErr}`
+        );
+      }
+    }
+
     return NextResponse.json({
       token: session.token,
       url: `/interview/${session.token}`,
       provider,
       configured: avail[provider],
+      delivered,
       candidateLabel: session.candidateLabel,
       jobTitle: session.jobTitle,
     });
