@@ -45,6 +45,25 @@ function StatChip({
   );
 }
 
+type Position = { id: string; title: string; family: string; count: number };
+
+// Group entries into position lanes (job id ?? title ?? "?"), sorted by title.
+// Pulled out of the component so it can run over BOTH the full board (the
+// position count) and the filtered board (the lanes actually rendered) without
+// duplicating the keying — which must match PipelineBoard's own lane key.
+function groupPositions(entries: Entry[]): Position[] {
+  const map = new Map<string, Position>();
+  for (const e of entries) {
+    const key = e.jobId ?? e.jobTitle ?? "?";
+    if (!map.has(key)) map.set(key, { id: key, title: e.jobTitle ?? "—", family: e.roleFamily ?? "", count: 0 });
+    map.get(key)!.count += 1;
+  }
+  return [...map.values()].sort((a, b) => a.title.localeCompare(b.title));
+}
+
+// The board's quick-filter toggles (free-text name/role search runs alongside).
+type QuickFilter = "aging" | "awaiting" | "intake" | "interview";
+
 export function PipelineTab() {
   const router = useRouter();
   const search = useSearchParams();
@@ -62,6 +81,10 @@ export function PipelineTab() {
     alerts: number;
   } | null>(null);
   const [drawerEntry, setDrawerEntry] = useState<Entry | null>(null);
+  // Board search/filter (PIPE2): a free-text candidate/role query + one active
+  // quick-filter chip. Client-side — the board already holds every entry.
+  const [query, setQuery] = useState("");
+  const [quick, setQuick] = useState<QuickFilter | null>(null);
   const { startTask, findActive, tasks } = useTasks();
   const batch = findActive((t) => t.kind === "batch_screen");
   const lastBatchDone = useRef<string | null>(null);
@@ -128,15 +151,7 @@ export function PipelineTab() {
   }, [load]);
   useLiveRefresh(load); // re-fetch the board live when the simulation (or any actor) changes state
 
-  const positions = useMemo(() => {
-    const map = new Map<string, { id: string; title: string; family: string; count: number }>();
-    for (const e of entries ?? []) {
-      const key = e.jobId ?? e.jobTitle ?? "?";
-      if (!map.has(key)) map.set(key, { id: key, title: e.jobTitle ?? "—", family: e.roleFamily ?? "", count: 0 });
-      map.get(key)!.count += 1;
-    }
-    return [...map.values()].sort((a, b) => a.title.localeCompare(b.title));
-  }, [entries]);
+  const positions = useMemo(() => groupPositions(entries ?? []), [entries]);
 
   const approvals = (entries ?? []).filter((e) => needsHumanDecision(e.approvalKind) && e.status === "active");
   const activeCount = (entries ?? []).filter((e) => e.stage !== "Hired").length;
@@ -148,6 +163,37 @@ export function PipelineTab() {
   // stub is out of the funnel and doesn't need recovery.
   const degraded = (entries ?? []).filter((e) => e.intakeDegraded && e.status !== "rejected");
   const degradedCount = degraded.length;
+
+  // Board search + quick-filter (PIPE2). The summary StatChips above stay full
+  // totals; only the board (its lanes + cards) narrows. boardPositions drops lanes
+  // with no surviving candidate so a name search doesn't leave empty columns.
+  const q = query.trim().toLowerCase();
+  const filteredEntries = useMemo(() => {
+    return (entries ?? []).filter((e) => {
+      const hitQuery =
+        !q || (e.candidateLabel ?? "").toLowerCase().includes(q) || (e.jobTitle ?? "").toLowerCase().includes(q);
+      if (!hitQuery) return false;
+      switch (quick) {
+        case "aging":
+          return e.stage !== "Hired" && (daysSince(e.stageChangedAt) ?? 0) >= STALE_DAYS;
+        case "awaiting":
+          return needsHumanDecision(e.approvalKind) && e.status === "active";
+        case "intake":
+          return e.intakeDegraded && e.status !== "rejected";
+        case "interview":
+          return e.stage === "Interview";
+        default:
+          return true;
+      }
+    });
+  }, [entries, q, quick]);
+  const boardPositions = useMemo(() => groupPositions(filteredEntries), [filteredEntries]);
+  const filtering = Boolean(q) || quick !== null;
+  const toggleQuick = (f: QuickFilter) => setQuick((cur) => (cur === f ? null : f));
+  const clearFilters = () => {
+    setQuery("");
+    setQuick(null);
+  };
 
   const openActions = (e: Entry) => setDrawerEntry(e);
   // Candidate name → the analyzed profile (Match view); falls back to the
@@ -206,7 +252,12 @@ export function PipelineTab() {
             <StatChip label="Positions" value={positions.length} />
             <StatChip label="Active" value={activeCount} />
             <StatChip label="Interview" value={interviewCount} />
-            <StatChip label={`Aging>${STALE_DAYS}d`} value={staleCount} tone={staleCount > 0 ? "amber" : "neutral"} />
+            <StatChip
+              label={`Aging>${STALE_DAYS}d`}
+              value={staleCount}
+              tone={staleCount > 0 ? "amber" : "neutral"}
+              onClick={staleCount > 0 ? () => toggleQuick("aging") : undefined}
+            />
             {degradedCount > 0 ? (
               <StatChip
                 label="Needs intake"
@@ -301,17 +352,72 @@ export function PipelineTab() {
             </button>
           ) : null}
 
-          <div data-sim="pipeline-board">
-            <PipelineBoard
-              positions={positions}
-              entries={entries ?? []}
-              isStale={isStale}
-              openPositionRanking={openPositionRanking}
-              openProfile={openProfile}
-              openJob={openJob}
-              openActions={openActions}
+          <div className="flex flex-wrap items-center gap-2">
+            <label htmlFor="pipeline-search" className="sr-only">Search candidates or roles</label>
+            <input
+              id="pipeline-search"
+              type="search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search candidate or role…"
+              className="focus-ring h-9 min-w-[200px] flex-1 rounded-md border border-stone-200 px-3 text-base"
             />
+            {(
+              [
+                ["interview", "Interview"],
+                ["aging", `Aging>${STALE_DAYS}d`],
+                ["awaiting", "Awaiting decision"],
+                ["intake", "Needs intake"],
+              ] as [QuickFilter, string][]
+            ).map(([f, label]) => (
+              <button
+                key={f}
+                type="button"
+                onClick={() => toggleQuick(f)}
+                aria-pressed={quick === f}
+                className={`focus-ring rounded-full border px-3 py-1 text-sm font-semibold transition-colors ${
+                  quick === f ? "border-coral bg-coral/10 text-coral" : "border-stone-200 text-steel hover:border-coral/40"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+            {filtering ? (
+              <span className="text-sm text-steel" aria-live="polite">
+                Showing {filteredEntries.length} of {(entries ?? []).length}
+              </span>
+            ) : null}
+            {filtering ? (
+              <button
+                type="button"
+                onClick={clearFilters}
+                className="focus-ring inline-flex items-center gap-1 rounded-full border border-coral/40 bg-coral/5 px-2.5 py-0.5 text-sm font-semibold text-coral hover:bg-coral/10"
+              >
+                Clear
+              </button>
+            ) : null}
           </div>
+
+          {filtering && filteredEntries.length === 0 ? (
+            <p className="rounded-lg border border-stone-200 bg-paper p-4 text-base text-steel">
+              No candidates match your search or filter.{" "}
+              <button type="button" onClick={clearFilters} className="font-semibold text-coral underline underline-offset-2">
+                Clear filters
+              </button>
+            </p>
+          ) : (
+            <div data-sim="pipeline-board">
+              <PipelineBoard
+                positions={boardPositions}
+                entries={filteredEntries}
+                isStale={isStale}
+                openPositionRanking={openPositionRanking}
+                openProfile={openProfile}
+                openJob={openJob}
+                openActions={openActions}
+              />
+            </div>
+          )}
 
           {eventsError || events.length > 0 ? (
             <section className="space-y-2">
