@@ -72,6 +72,10 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
   // Latest completed voice interview — surfaced as an evidence source in the
   // candidate's analysis (its scorecard also feeds the Decisions gate).
   const [ivOutcome, setIvOutcome] = useState<InterviewOutcome | null>(null);
+  // The recruiter's human scorecard for this candidate (PREP1), if one was filled
+  // from the prep modal — surfaced here so a human-led round isn't invisible on
+  // the board the way the AI voice-screen scorecard already is.
+  const [humanSc, setHumanSc] = useState<Scorecard | null>(null);
 
   // Per-candidate history (PIPE3): the entry's events oldest→newest — applied →
   // screened → advanced → scheduled → moved → … — so a recruiter opening a
@@ -140,6 +144,22 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
           ratings: sc?.ratings,
           hasTranscript: Array.isArray(s.transcript) && s.transcript.length > 0,
         });
+      })
+      .catch(() => undefined);
+    return () => {
+      alive = false;
+    };
+  }, [entry.id]);
+
+  // Load any human scorecard saved against this entry's prep artifact (PREP1).
+  // Best-effort; absent for candidates no one has hand-scored.
+  useEffect(() => {
+    let alive = true;
+    fetch(`/api/interview-prep?entry=${encodeURIComponent(entry.id)}`)
+      .then((r) => r.json())
+      .then((d) => {
+        const sc = (d.prep?.payload as { humanScorecard?: Scorecard } | undefined)?.humanScorecard ?? null;
+        if (alive) setHumanSc(sc && (sc.ratings?.length || sc.summary) ? sc : null);
       })
       .catch(() => undefined);
     return () => {
@@ -362,6 +382,32 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
               <p className="mt-1.5 text-meta text-steel">
                 A voice 1st-round interview now feeds this candidate&apos;s scorecard review and assessment.
               </p>
+            </div>
+          ) : null}
+
+          {humanSc ? (
+            <div className="rounded-md border border-stone-200 bg-white p-3">
+              <div className="flex items-center justify-between gap-2">
+                <p className="flex items-center gap-1.5 text-meta uppercase tracking-wide text-steel">
+                  <ClipboardList size={13} /> Human scorecard
+                </p>
+                {humanSc.recommendation ? (
+                  <span className={`rounded-full px-2 py-0.5 text-meta font-semibold uppercase ${REC_STYLE[humanSc.recommendation] ?? "bg-stone-100 text-steel"}`}>
+                    {humanSc.recommendation}
+                  </span>
+                ) : null}
+              </div>
+              {humanSc.summary ? <p className="mt-1 text-sm text-ink">{humanSc.summary}</p> : null}
+              {humanSc.ratings?.length ? (
+                <ul className="mt-1.5 space-y-0.5">
+                  {humanSc.ratings.slice(0, 8).map((r, i) => (
+                    <li key={i} className="text-sm text-ink">
+                      <span className="font-semibold nums text-coral">{r.rating}/{RATING_MAX}</span> {r.competency}
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+              <p className="mt-1.5 text-meta text-steel">Recorded by a recruiter from the interview prep rubric.</p>
             </div>
           ) : null}
 

@@ -1,6 +1,7 @@
 import Database from "better-sqlite3";
 import { DB_PATH, ensureDbDir } from "./db-path";
 import { chunk, SQL_IN_CHUNK } from "./entries-param";
+import type { Scorecard } from "./interview-scorecard";
 
 // Persisted store for interview-prep artifacts — one timed interview plan per
 // pipeline entry (candidate × role), generated on accepted screening and opened
@@ -79,6 +80,30 @@ export function saveInterviewPrepProgress(entryId: string, progress: InterviewPr
     .prepare(`UPDATE interview_preps SET payload_json = ? WHERE entry_id = ?`)
     .run(JSON.stringify(payload), entryId);
   return res.changes > 0;
+}
+
+/** Persist the recruiter's human-filled scorecard (PREP1) onto an EXISTING prep
+ *  artifact, under a reserved `humanScorecard` key in the payload — same seam as
+ *  saveInterviewPrepProgress, so no schema change and the generated plan +
+ *  created_at are untouched. Always tagged source:"human". Returns false when
+ *  there's no prep to attach to (the scorecard is filled from the prep modal, so
+ *  one always exists in practice). */
+export function saveHumanScorecard(entryId: string, scorecard: Scorecard): boolean {
+  const existing = getInterviewPrep(entryId);
+  if (!existing) return false;
+  const payload = { ...existing.payload, humanScorecard: { ...scorecard, source: "human" as const } };
+  const res = db()
+    .prepare(`UPDATE interview_preps SET payload_json = ? WHERE entry_id = ?`)
+    .run(JSON.stringify(payload), entryId);
+  return res.changes > 0;
+}
+
+/** The human scorecard saved on an entry's prep artifact, if any (PREP1). Read by
+ *  surfaces that show interview results so a human-led round isn't invisible. */
+export function getHumanScorecard(entryId: string): Scorecard | null {
+  const prep = getInterviewPrep(entryId);
+  const sc = (prep?.payload as { humanScorecard?: Scorecard } | undefined)?.humanScorecard;
+  return sc ?? null;
 }
 
 export function getInterviewPrep(entryId: string): InterviewPrep | null {

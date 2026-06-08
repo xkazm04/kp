@@ -36,4 +36,8 @@ export type Scorecard = {
   ratings?: ScorecardRating[];
   summary?: string;
   recommendation?: InterviewRecommendation;
+  // Who produced this scorecard. Omitted on the AI-synthesized one (treated as
+  // "ai" by consumers, the historical default); set to "human" for one a recruiter
+  // filled against the rubric (PREP1), so a surface showing both can label them.
+  source?: "ai" | "human";
 };

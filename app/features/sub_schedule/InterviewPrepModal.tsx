@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AlertTriangle, Check, Clock, Copy, Loader2, ListChecks, NotebookPen, RefreshCw, Sparkles } from "lucide-react";
 import { copyText } from "@/app/_lib/export-utils";
+import { HumanScorecardPanel } from "./HumanScorecardPanel";
+import type { Scorecard } from "@/app/_lib/interview-scorecard";
 import { Modal } from "@/app/_components/Modal";
 import { Meter } from "@/app/_components/Meter";
 import { PrepSourceBadge, isPrepFallback } from "@/app/_components/Badge";
@@ -14,7 +16,7 @@ type Block = { fromMin: number; toMin: number; topic: string; goal: string; ques
 // userProgress (PREP2) rides inside the persisted artifact payload — the
 // interviewer's ticked items + notes, restored on reopen.
 type UserProgress = { checked?: Record<string, boolean>; notes?: string };
-type Prep = { scenario: string; durationMin: number; focusAreas: string[]; chronology: Block[]; signals: string[]; source?: string; userProgress?: UserProgress };
+type Prep = { scenario: string; durationMin: number; focusAreas: string[]; chronology: Block[]; signals: string[]; source?: string; userProgress?: UserProgress; humanScorecard?: Scorecard };
 
 export function InterviewPrepModal({ entry, onClose }: { entry: SchedEntry; onClose: () => void }) {
   const { startTask } = useTasks();
@@ -339,6 +341,11 @@ export function InterviewPrepModal({ entry, onClose }: { entry: SchedEntry; onCl
               className="focus-ring mt-1.5 w-full rounded-md border border-stone-200 bg-white p-2 text-sm text-ink"
             />
           </section>
+
+          {/* Human scorecard (PREP1): fill the role's rubric live and save it
+              against this candidate — the human counterpart to the AI voice-screen
+              scorecard. Hydrated from the saved artifact (not a fresh regenerate). */}
+          <HumanScorecardPanel entryId={entry.id} archetype={entry.archetype} initial={data?.prep?.payload?.humanScorecard} />
         </div>
       )}
     </Modal>
