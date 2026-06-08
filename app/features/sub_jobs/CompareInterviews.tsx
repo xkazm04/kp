@@ -1,9 +1,9 @@
 "use client";
 
-import { Scale } from "lucide-react";
+import { Scale, ClipboardCheck } from "lucide-react";
 import { useJsonFetch } from "@/app/_lib/useJsonFetch";
 import type { InterviewRecommendation } from "@/app/_lib/interview-recommendation";
-import type { ScorecardRating } from "@/app/_lib/interview-scorecard";
+import type { Scorecard, ScorecardRating } from "@/app/_lib/interview-scorecard";
 import { EmptyState } from "./JobsShared";
 
 type Candidate = {
@@ -17,6 +17,9 @@ type Candidate = {
   // Skills this interview minted as observed-provenance evidence (the
   // case-grounded gates) — the highest-trust artifact, stamped visibly below.
   observedSkills: string[];
+  // A recruiter's human scorecard for this candidate (PREP1), if one was filled —
+  // shown beside the AI screen so a human-led round isn't invisible here.
+  humanScorecard?: Scorecard | null;
 };
 type RubricComp = { competency: string; description: string; anchors?: Record<string, string> };
 
@@ -84,6 +87,18 @@ function CohortTable({ rubric, candidates }: { rubric: RubricComp[]; candidates:
                       }
                     >
                       ✓ observed: {c.observedSkills.join(", ")}
+                    </span>
+                  ) : null}
+                  {c.humanScorecard?.recommendation ? (
+                    // The verdict from a recruiter's human round, distinct from the
+                    // AI badge above (icon + "human" so the two never read as one).
+                    <span
+                      className={`inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-meta font-semibold uppercase ${
+                        REC_STYLE[c.humanScorecard.recommendation] ?? "bg-stone-100 text-steel"
+                      }`}
+                      title="A recruiter's human scorecard verdict"
+                    >
+                      <ClipboardCheck size={11} /> human: {c.humanScorecard.recommendation}
                     </span>
                   ) : null}
                 </span>
@@ -199,6 +214,29 @@ export function CompareInterviews({ jobId }: { jobId: string }) {
                   </li>
                 ))}
             </ul>
+            {c.humanScorecard?.ratings?.length || c.humanScorecard?.summary ? (
+              // The recruiter's human scorecard for this candidate — its own ratings
+              // + evidence, kept distinct from the AI list above.
+              <div className="mt-2 border-t border-stone-200 pt-2">
+                <p className="flex items-center gap-1 text-meta uppercase tracking-wide text-steel">
+                  <ClipboardCheck size={11} className="text-coral" /> Human scorecard
+                </p>
+                {c.humanScorecard.summary ? <p className="mt-0.5 text-sm text-steel">{c.humanScorecard.summary}</p> : null}
+                <ul className="mt-1 space-y-1">
+                  {(c.humanScorecard.ratings ?? []).map((r, j) => (
+                    <li key={j} className="flex items-baseline gap-1.5 text-sm text-ink">
+                      <span className={`inline-flex h-5 w-6 shrink-0 items-center justify-center rounded font-semibold nums ${ratingColor(r.rating)}`}>
+                        {r.rating}
+                      </span>
+                      <span>
+                        <span className="font-medium">{r.competency}:</span>{" "}
+                        {r.evidence ? <span className="text-steel">{r.evidence}</span> : null}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
           </div>
         ))}
       </div>

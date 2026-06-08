@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { interviewedForJob } from "@/app/_lib/db";
+import { getHumanScorecard } from "@/app/_lib/interview-prep";
 import { safeJsonError } from "@/app/_lib/api-response";
 import { INTERVIEW_RUBRICS, RATING_ANCHORS } from "@/app/_lib/interview-rubric";
 
@@ -15,10 +16,18 @@ export async function GET(request: NextRequest) {
   const jobId = request.nextUrl.searchParams.get("job");
   if (!jobId) return NextResponse.json({ error: "job is required" }, { status: 400 });
   try {
+    // Attach each candidate's human scorecard (PREP1), if a recruiter filled one
+    // from the prep rubric — so the compare grid shows the human verdict + ratings
+    // alongside the AI screen, not just the voice-synthesized one. Null for the
+    // common case of no human round.
+    const candidates = interviewedForJob(jobId).map((c) => ({
+      ...c,
+      humanScorecard: c.entryId ? getHumanScorecard(c.entryId) : null,
+    }));
     return NextResponse.json({
       rubrics: INTERVIEW_RUBRICS,
       anchors: RATING_ANCHORS,
-      candidates: interviewedForJob(jobId),
+      candidates,
     });
   } catch (error) {
     // Previously uncaught — a thrown SQLite error fell through to the framework

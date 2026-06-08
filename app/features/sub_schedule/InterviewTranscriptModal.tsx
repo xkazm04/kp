@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { AlertTriangle, Loader2, Quote, RefreshCw } from "lucide-react";
+import { AlertTriangle, ClipboardCheck, Loader2, Quote, RefreshCw } from "lucide-react";
 import { Modal } from "@/app/_components/Modal";
 import { InterviewRecommendationBadge } from "@/app/_components/Badge";
 import { Meter } from "@/app/_components/Meter";
@@ -65,6 +65,43 @@ function findEvidenceTurn(evidence: string, turns: VoiceTurn[]): number {
   return bestScore >= 0.5 ? best : -1; // require a majority of distinctive words to overlap
 }
 
+// A recruiter's human scorecard (PREP1), styled to read as the human counterpart
+// to the AI one — same rubric layout (rating meters + evidence), coral-tinted so
+// the two are never confused. Used both alongside an AI screen and on its own.
+function HumanScorecardSection({ sc }: { sc: Scorecard }) {
+  return (
+    <section className="rounded-md border border-coral/30 bg-coral/5 p-3">
+      <div className="flex items-center justify-between gap-2">
+        <p className="flex items-center gap-1.5 text-meta uppercase tracking-wide text-steel">
+          <ClipboardCheck size={13} className="text-coral" /> Human scorecard
+        </p>
+        {sc.recommendation ? <InterviewRecommendationBadge rec={sc.recommendation} /> : null}
+      </div>
+      {sc.summary ? <p className="mt-1.5 text-base text-ink">{sc.summary}</p> : null}
+      {sc.ratings && sc.ratings.length ? (
+        <ul className="mt-2.5 space-y-2.5">
+          {sc.ratings.map((r, i) => {
+            const rating = cleanRating(r.rating);
+            return (
+              <li key={i} className="text-sm text-ink">
+                <div className="flex items-baseline justify-between gap-2">
+                  <span className="font-semibold">{r.competency}</span>
+                  <span className="shrink-0 nums text-steel">{rating != null ? `${rating}/${RATING_MAX}` : "Not assessed"}</span>
+                </div>
+                {rating != null ? (
+                  <Meter value={ratingToPercent(rating)} tone={ratingTone(rating)} className="mt-1" aria-label={`${r.competency} rating ${rating} out of ${RATING_MAX}`} />
+                ) : null}
+                {r.evidence ? <p className="mt-1 text-meta text-steel">{r.evidence}</p> : null}
+              </li>
+            );
+          })}
+        </ul>
+      ) : null}
+      <p className="mt-2 text-meta text-steel">Recorded by a recruiter from the interview prep rubric.</p>
+    </section>
+  );
+}
+
 export function InterviewTranscriptModal({ entry, onClose }: { entry: SchedEntry; onClose: () => void }) {
   // The shared hook captures a non-OK status / {error} body that the old bare
   // .then(r => r.json()) swallowed — a 500 now reads as an error rather than an
@@ -75,6 +112,14 @@ export function InterviewTranscriptModal({ entry, onClose }: { entry: SchedEntry
   );
   const loading = data === null && error === null;
   const session = data?.session ?? null;
+
+  // The recruiter's human scorecard (PREP1), if one was filled from the prep
+  // rubric — shown beside the AI screen so a human-led round isn't invisible here.
+  const { data: prepData } = useJsonFetch<{ prep?: { payload?: { humanScorecard?: Scorecard } } }>(
+    `/api/interview-prep?entry=${encodeURIComponent(entry.id)}`,
+    "Couldn't load the scorecard."
+  );
+  const humanSc = prepData?.prep?.payload?.humanScorecard ?? null;
 
   const sc = session?.scorecard ?? null;
   const transcript = session?.transcript ?? [];
@@ -116,7 +161,16 @@ export function InterviewTranscriptModal({ entry, onClose }: { entry: SchedEntry
           </button>
         </div>
       ) : !session ? (
-        <p className="text-sm text-steel">No interview has been recorded for this candidate yet.</p>
+        // No voice screen — but a recruiter may still have filed a human scorecard
+        // (a human-led round), so show that rather than a bare empty state.
+        humanSc ? (
+          <div className="space-y-3">
+            <HumanScorecardSection sc={humanSc} />
+            <p className="text-sm text-steel">No voice interview transcript for this candidate — showing the recruiter&apos;s scorecard.</p>
+          </div>
+        ) : (
+          <p className="text-sm text-steel">No interview has been recorded for this candidate yet.</p>
+        )
       ) : (
         <div className="space-y-5">
           {sc ? (
@@ -169,6 +223,8 @@ export function InterviewTranscriptModal({ entry, onClose }: { entry: SchedEntry
               <p className="mt-2 text-meta text-steel">Feeds the scorecard review in Decisions and the candidate&apos;s analysis.</p>
             </section>
           ) : null}
+
+          {humanSc ? <HumanScorecardSection sc={humanSc} /> : null}
 
           <section>
             <p className="text-meta uppercase tracking-wide text-steel">
