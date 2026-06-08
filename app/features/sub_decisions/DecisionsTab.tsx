@@ -8,6 +8,7 @@ import { useTasks, useTaskResult } from "@/app/features/tasks/TasksProvider";
 import { useLiveRefresh } from "@/app/features/live-refresh";
 import { AiReviewCard } from "./AiReviewCard";
 import { DecisionRulesModal } from "./DecisionRulesModal";
+import { ScreenWaveModal } from "./ScreenWaveModal";
 import { AnalysisSummaryModal } from "./AnalysisSummaryModal";
 import { Empty } from "./DecisionsShared";
 import { GroupEvalModal, type GroupEvalPayload } from "./GroupEvalModal";
@@ -31,6 +32,8 @@ export function DecisionsTab() {
 
   // Modal + group-eval state
   const [summaryEntry, setSummaryEntry] = useState<Entry | null>(null);
+  // The role whose screening wave (DEC1/DEC2) is open — jobId + title for the modal.
+  const [waveRole, setWaveRole] = useState<{ jobId: string; title: string } | null>(null);
   const [evalRole, setEvalRole] = useState<{ roleKey: string; roleTitle: string } | null>(null);
   const [evalData, setEvalData] = useState<GroupEvalPayload | null>(null);
   const [evalCreatedAt, setEvalCreatedAt] = useState<string | null>(null);
@@ -271,6 +274,7 @@ export function DecisionsTab() {
                   busy={evalTaskId !== null && evalRole?.roleKey === g.roleKey}
                   onCandidate={setSummaryEntry}
                   onGroupEval={() => openGroupEval(g)}
+                  onScreenWave={g.jobId ? () => setWaveRole({ jobId: g.jobId as string, title: g.roleTitle }) : undefined}
                 />
               ))}
               {visibleGroups.length === 0 ? <Empty>No key decisions pending.</Empty> : null}
@@ -306,6 +310,15 @@ export function DecisionsTab() {
       ) : null}
 
       {rulesOpen ? <DecisionRulesModal onClose={() => setRulesOpen(false)} /> : null}
+
+      {waveRole ? (
+        <ScreenWaveModal
+          jobId={waveRole.jobId}
+          roleTitle={waveRole.title}
+          onClose={() => setWaveRole(null)}
+          onCommitted={load}
+        />
+      ) : null}
     </div>
   );
 }

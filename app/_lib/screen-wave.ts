@@ -51,7 +51,8 @@ export function keepReason(
 
 export async function runScreenWave(
   jobId: string,
-  override?: Partial<ScreeningRule>
+  override?: Partial<ScreeningRule>,
+  opts?: { dryRun?: boolean }
 ): Promise<{
   decisions: ScreenDecision[];
   rejected: number;
@@ -59,9 +60,16 @@ export async function runScreenWave(
   cohort: number;
   config: ScreeningRule;
   /** Rejections that applied but whose candidate notification failed to queue
-   *  (idea-961de357) — the wave completed; these candidates need a manual nudge. */
+   *  (idea-961de357) — the wave completed; these candidates need a manual nudge.
+   *  Always 0 on a dry run (nothing is dispatched). */
   commsFailures: number;
+  /** True when this was a PREVIEW (DEC2): the full ranking / fairness / tie-break
+   *  math ran and `decisions` is populated with rationales, but NO status was
+   *  flipped, NO rejection email queued, and NO audit event written. The recruiter
+   *  reviews this, then re-runs with dryRun:false to commit. */
+  dryRun: boolean;
 }> {
+  const dryRun = opts?.dryRun ?? false;
   // Backstop: never merge an unvalidated override into the live config that
   // drives irreversible auto-rejections. The route validates first (→ 400), but
   // enforcing the schema HERE — at the actual destructive operation — guarantees
@@ -101,7 +109,9 @@ export async function runScreenWave(
     // candidate the fairness rule was meant to protect.
     const protectedFromAutoReject = isFairnessProtected(e.archetype);
     const knownArchetype = isKnownArchetype(e.archetype);
-    if (!knownArchetype) {
+    // A preview writes nothing — the unknown-archetype audit marker only fires on a
+    // committed run, so a recruiter re-previewing doesn't spam the audit trail.
+    if (!knownArchetype && !dryRun) {
       recordAutomationEvent(e.id, "fairness_gate_unknown_archetype", `Unknown archetype "${e.archetype ?? "(null)"}" — shielded from auto-rejection (fail-closed).`);
     }
     const inBottom = rank < effectiveBottomCount;
@@ -114,7 +124,16 @@ export async function runScreenWave(
       // Report the EFFECTIVE (tie-safe) cutoff actually applied, noting when it was
       // shrunk from the raw bottom-% so the auto-reject boundary stays reproducible.
       const tieNote = effectiveBottomCount < bottomCount ? ` (tie-adjusted from ${bottomCount} so no equal score is split)` : "";
-      const rationale = `Auto-rejected · bottom ${cfg.rejectBottomPercent}% of ${n} → ${effectiveBottomCount}${tieNote} (rank ${rank + 1}) and match ${score} < ${cfg.maxMatchToReject} threshold.`;
+      const verb = dryRun ? "Would auto-reject" : "Auto-rejected";
+      const rationale = `${verb} · bottom ${cfg.rejectBottomPercent}% of ${n} → ${effectiveBottomCount}${tieNote} (rank ${rank + 1}) and match ${score} < ${cfg.maxMatchToReject} threshold.`;
+      // DEC2 preview: compute the verdict + rationale but commit NOTHING — no CAS
+      // write, no audit event, no rejection email. The recruiter reviews this set,
+      // then re-runs with dryRun:false to apply it.
+      if (dryRun) {
+        decisions.push({ entryId: e.id, label: e.candidateLabel, archetype: e.archetype, matchScore: score, action: "reject", rationale });
+        rejected += 1;
+        continue;
+      }
       // Optimistic CAS (idea-b24a6d3c): the cohort was snapshotted up-front and
       // this loop awaits a comms dispatch between iterations — a wide window in
       // which a recruiter can manually advance a candidate. Pinning the wave's
@@ -149,5 +168,5 @@ export async function runScreenWave(
       decisions.push({ entryId: e.id, label: e.candidateLabel, archetype: e.archetype, matchScore: score, action: "keep", rationale: reason });
     }
   }
-  return { decisions, rejected, kept: decisions.length - rejected, cohort: n, config: cfg, commsFailures };
+  return { decisions, rejected, kept: decisions.length - rejected, cohort: n, config: cfg, commsFailures, dryRun };
 }

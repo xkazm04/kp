@@ -10,7 +10,7 @@ export const maxDuration = 60;
 // config.
 export async function POST(request: NextRequest) {
   try {
-    const body = (await request.json()) as { jobId?: string; override?: unknown };
+    const body = (await request.json()) as { jobId?: string; override?: unknown; dryRun?: unknown };
     if (!body.jobId) return NextResponse.json({ error: "jobId is required." }, { status: 400 });
     // Validate the optional per-run override at the trust boundary: auto-reject is
     // irreversible (status change + queued candidate email), so a malformed or
@@ -18,7 +18,11 @@ export async function POST(request: NextRequest) {
     // body, is what reaches runScreenWave's bottom-% math (idea-1852b219).
     const checked = validateScreeningOverride(body.override);
     if (!checked.ok) return NextResponse.json({ error: checked.error }, { status: 400 });
-    const result = await runScreenWave(body.jobId, checked.override);
+    // dryRun (DEC2): preview the cohort the wave WOULD reject — full math, zero
+    // mutation/comms. Default false (commit), so an old client without the flag
+    // behaves exactly as before; only an explicit `true` previews.
+    const dryRun = body.dryRun === true;
+    const result = await runScreenWave(body.jobId, checked.override, { dryRun });
     return NextResponse.json(result);
   } catch (error) {
     // runScreenWave's backstop throws DecisionConfigError on a bad override —
