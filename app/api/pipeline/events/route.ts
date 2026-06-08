@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { listPipelineEvents, listPipelineEventsSince } from "@/app/_lib/db";
+import { listPipelineEvents, listPipelineEventsForEntry, listPipelineEventsSince } from "@/app/_lib/db";
 import { toPublicPipelineEvent } from "@/app/_lib/pipeline-events-public";
 import { safeJsonError } from "@/app/_lib/api-response";
 
@@ -17,6 +17,18 @@ export const runtime = "nodejs";
 // `cursor` is the id to resume from on the next poll in both modes.
 export async function GET(request: NextRequest) {
   try {
+    // Per-candidate history for the drawer (PIPE3): full, oldest-first events for
+    // one entry. Recruiter context (keyed by the internal entry id, not exposed on
+    // the public feed), so NOT run through the anonymizing public projection — the
+    // timeline needs the real stage transitions + detail.
+    const entry = request.nextUrl.searchParams.get("entry");
+    if (entry !== null) {
+      if (!entry.trim() || entry.length > 120) {
+        return NextResponse.json({ error: "entry must be a non-empty id" }, { status: 400 });
+      }
+      return NextResponse.json({ events: listPipelineEventsForEntry(entry) });
+    }
+
     const sinceRaw = request.nextUrl.searchParams.get("since");
     if (sinceRaw !== null) {
       const since = Number(sinceRaw);

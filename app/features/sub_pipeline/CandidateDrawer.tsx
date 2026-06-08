@@ -2,13 +2,14 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { AlertTriangle, ArrowLeftRight, Ban, Banknote, Calendar, ClipboardList, ExternalLink, Mail, Pencil, Phone, Shuffle, Sparkles, UserCheck, Wrench, X } from "lucide-react";
+import { AlertTriangle, ArrowLeftRight, Ban, Banknote, Calendar, ClipboardList, ExternalLink, History, Mail, Pencil, Phone, Shuffle, Sparkles, UserCheck, Wrench, X } from "lucide-react";
 import { buildUrl } from "@/app/features/tabs";
 import { useTasks, useTaskResult } from "@/app/features/tasks/TasksProvider";
 import { ResultView } from "./CandidateResultView";
 import { useTokenLink, TokenLinkPanel } from "./TokenLink";
 import { type Entry, type Result, type TaskId } from "./CandidateDrawerTypes";
-import { styleFor } from "./PipelineTypes";
+import { relativeTime, styleFor, type PipelineEvent } from "./PipelineTypes";
+import { EventDot, eventVerb } from "./PipelineShared";
 import { PIPELINE_STAGES, SCREENING_STAGES } from "@/app/_lib/pipeline-stages";
 import { RUBRIC_ANCHOR_LINE } from "@/app/_lib/interview-rubric";
 import { RATING_MAX } from "@/app/_lib/format";
@@ -71,6 +72,11 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
   // Latest completed voice interview — surfaced as an evidence source in the
   // candidate's analysis (its scorecard also feeds the Decisions gate).
   const [ivOutcome, setIvOutcome] = useState<InterviewOutcome | null>(null);
+
+  // Per-candidate history (PIPE3): the entry's events oldest→newest — applied →
+  // screened → advanced → scheduled → moved → … — so a recruiter opening a
+  // candidate sees the story of how they got here, not just the latest state.
+  const [history, setHistory] = useState<PipelineEvent[] | null>(null);
 
   // Modal focus management: trap Tab within the dialog, close on Escape, and
   // restore focus to the trigger on unmount (WCAG dialog requirements).
@@ -136,6 +142,23 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
         });
       })
       .catch(() => undefined);
+    return () => {
+      alive = false;
+    };
+  }, [entry.id]);
+
+  // Load this candidate's event timeline (PIPE3). Best-effort: a failed/empty load
+  // just hides the section — the drawer's actions don't depend on it.
+  useEffect(() => {
+    let alive = true;
+    fetch(`/api/pipeline/events?entry=${encodeURIComponent(entry.id)}`)
+      .then((r) => r.json())
+      .then((d) => {
+        if (alive) setHistory((d.events as PipelineEvent[]) ?? []);
+      })
+      .catch(() => {
+        if (alive) setHistory([]);
+      });
     return () => {
       alive = false;
     };
@@ -339,6 +362,25 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
               <p className="mt-1.5 text-meta text-steel">
                 A voice 1st-round interview now feeds this candidate&apos;s scorecard review and assessment.
               </p>
+            </div>
+          ) : null}
+
+          {history && history.length > 0 ? (
+            <div>
+              <p className="flex items-center gap-1.5 text-meta uppercase tracking-wide text-steel">
+                <History size={13} /> History
+              </p>
+              <ol className="mt-2 space-y-1.5">
+                {history.map((ev) => (
+                  <li key={ev.id} className="flex items-start gap-2 text-sm">
+                    <span className="mt-0.5">
+                      <EventDot kind={ev.kind} />
+                    </span>
+                    <span className="min-w-0 flex-1 text-ink">{eventVerb(ev)}</span>
+                    <span className="shrink-0 text-meta text-steel">{relativeTime(ev.createdAt)}</span>
+                  </li>
+                ))}
+              </ol>
             </div>
           ) : null}
 

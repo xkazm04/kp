@@ -1361,6 +1361,44 @@ export function listPipelineEvents(limit = 40, offset = 0): PipelineEvent[] {
   }));
 }
 
+/** Every event for ONE entry, OLDEST-FIRST — the candidate's story (applied →
+ *  screened → advanced → scheduled → …) for the drawer's per-candidate history
+ *  (PIPE3). Full detail (kind/from-to stage/detail), unlike the anonymized public
+ *  activity feed: this is keyed by the internal entry id a recruiter surface
+ *  already holds, so it's the same recruiter-data posture as /api/interview/by-entry. */
+export function listPipelineEventsForEntry(entryId: string, limit = 50): PipelineEvent[] {
+  const db = ensureDb();
+  const rows = db
+    .prepare(
+      `SELECT id, entry_id, candidate_label, job_title, archetype, kind, from_stage, to_stage, detail, created_at
+       FROM pipeline_events WHERE entry_id = ? ORDER BY created_at ASC, id ASC LIMIT ?`
+    )
+    .all(entryId, limit) as Array<{
+    id: number;
+    entry_id: string | null;
+    candidate_label: string | null;
+    job_title: string | null;
+    archetype: string | null;
+    kind: string;
+    from_stage: string | null;
+    to_stage: string | null;
+    detail: string | null;
+    created_at: string;
+  }>;
+  return rows.map((r) => ({
+    id: r.id,
+    entryId: r.entry_id,
+    candidateLabel: r.candidate_label,
+    jobTitle: r.job_title,
+    archetype: r.archetype,
+    kind: r.kind,
+    fromStage: r.from_stage,
+    toStage: r.to_stage,
+    detail: r.detail,
+    createdAt: r.created_at,
+  }));
+}
+
 /** Events strictly newer than `sinceId`, OLDEST-FIRST (idea-85f043ea). The
  *  AUTOINCREMENT primary key is the cursor — monotonic, gap-tolerant, immune to
  *  same-millisecond created_at ties. Oldest-first with a bounded LIMIT is the
