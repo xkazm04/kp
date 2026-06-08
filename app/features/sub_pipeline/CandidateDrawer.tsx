@@ -2,14 +2,14 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { AlertTriangle, Ban, Banknote, Calendar, ClipboardList, ExternalLink, Mail, Pencil, Phone, Shuffle, Sparkles, UserCheck, Wrench, X } from "lucide-react";
+import { AlertTriangle, ArrowLeftRight, Ban, Banknote, Calendar, ClipboardList, ExternalLink, Mail, Pencil, Phone, Shuffle, Sparkles, UserCheck, Wrench, X } from "lucide-react";
 import { buildUrl } from "@/app/features/tabs";
 import { useTasks, useTaskResult } from "@/app/features/tasks/TasksProvider";
 import { ResultView } from "./CandidateResultView";
 import { useTokenLink, TokenLinkPanel } from "./TokenLink";
 import { type Entry, type Result, type TaskId } from "./CandidateDrawerTypes";
 import { styleFor } from "./PipelineTypes";
-import { SCREENING_STAGES } from "@/app/_lib/pipeline-stages";
+import { PIPELINE_STAGES, SCREENING_STAGES } from "@/app/_lib/pipeline-stages";
 import { RUBRIC_ANCHOR_LINE } from "@/app/_lib/interview-rubric";
 import { RATING_MAX } from "@/app/_lib/format";
 import type { Scorecard, ScorecardRating } from "@/app/_lib/interview-scorecard";
@@ -62,6 +62,11 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
   // Degraded-intake recovery: clear the flag once the profile is captured manually.
   const [resolvingIntake, setResolvingIntake] = useState(false);
   const [intakeErr, setIntakeErr] = useState<string | null>(null);
+
+  // Manual stage override: move a candidate backward / skip / correct a
+  // miscategorization — the transitions the AI accept/reject can't express.
+  const [movingStage, setMovingStage] = useState(false);
+  const [moveErr, setMoveErr] = useState<string | null>(null);
 
   // Latest completed voice interview — surfaced as an evidence source in the
   // candidate's analysis (its scorecard also feeds the Decisions gate).
@@ -180,6 +185,30 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
     } catch (e) {
       setIntakeErr(e instanceof Error ? e.message : "Couldn't clear the flag.");
       setResolvingIntake(false);
+    }
+  };
+
+  // Manually move the candidate to a chosen stage. Sends expectedStage so a move
+  // decided against this (possibly stale) drawer view 409s instead of clobbering a
+  // concurrent change. On success the entry is stale (new stage), so reload + close
+  // — same pattern as resolveIntake.
+  const moveStage = async (toStage: string) => {
+    if (toStage === entry.stage || movingStage) return;
+    setMovingStage(true);
+    setMoveErr(null);
+    try {
+      const res = await fetch(`/api/pipeline/${encodeURIComponent(entry.id)}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "set_stage", toStage, expectedStage: entry.stage }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || `Move failed (${res.status})`);
+      onChanged();
+      onClose();
+    } catch (e) {
+      setMoveErr(e instanceof Error ? e.message : "Couldn't move the candidate.");
+      setMovingStage(false);
     }
   };
 
@@ -310,6 +339,32 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
               <p className="mt-1.5 text-meta text-steel">
                 A voice 1st-round interview now feeds this candidate&apos;s scorecard review and assessment.
               </p>
+            </div>
+          ) : null}
+
+          {entry.status === "active" ? (
+            <div>
+              <label htmlFor="move-stage" className="flex items-center gap-1.5 text-meta uppercase tracking-wide text-steel">
+                <ArrowLeftRight size={13} /> Move stage
+              </label>
+              <p className="mt-1 text-sm text-steel">
+                Manually correct this candidate&apos;s stage — send them back after a no-show, skip ahead, or fix a misfile.
+              </p>
+              <select
+                id="move-stage"
+                value={entry.stage}
+                disabled={movingStage}
+                onChange={(e) => moveStage(e.target.value)}
+                className="focus-ring mt-2 w-full rounded-md border border-stone-200 bg-white p-2 text-sm font-semibold text-ink disabled:opacity-50"
+              >
+                {PIPELINE_STAGES.map((s) => (
+                  <option key={s} value={s}>
+                    {s}
+                    {s === entry.stage ? " (current)" : ""}
+                  </option>
+                ))}
+              </select>
+              {moveErr ? <p role="alert" className="mt-1.5 text-sm text-red-700">{moveErr}</p> : null}
             </div>
           ) : null}
 

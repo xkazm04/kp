@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { actOnPipelineEntry, clearIntakeDegraded, getPipelineEntry, setApproval, type PipelineAction, type PipelineEntry } from "@/app/_lib/db";
+import { actOnPipelineEntry, clearIntakeDegraded, getPipelineEntry, PIPELINE_STAGES, setApproval, setPipelineEntryStage, type PipelineAction, type PipelineEntry } from "@/app/_lib/db";
 import { dispatchOffer, dispatchRejection } from "@/app/_lib/comms-dispatch";
 import { getOrCreateOpenOffer } from "@/app/_lib/offers-store";
 import { safeJsonError } from "@/app/_lib/api-response";
+import { publicBaseUrl } from "@/app/_lib/public-base-url";
 
 export const runtime = "nodejs";
 
@@ -33,8 +34,10 @@ async function extendOffer(request: NextRequest, entry: PipelineEntry) {
     payload: draft,
   });
 
-  const base = process.env.APP_BASE_URL ?? new URL(request.url).origin;
-  const link = `${base}/offer/${offer.token}`;
+  // Canonical candidate-link origin (idea-e6c66bcd): the same resolver the client
+  // uses, so this server-minted offer link can't diverge from the voice/scheduling
+  // links the recruiter copies in the drawer.
+  const link = `${publicBaseUrl(new URL(request.url).origin)}/offer/${offer.token}`;
   await dispatchOffer(entry, draft, link); // records the `offer_sent` event + outbox message
 
   // The offer is out — clear the recruiter approval; now awaiting the candidate.
@@ -45,7 +48,38 @@ async function extendOffer(request: NextRequest, entry: PipelineEntry) {
 export async function POST(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params;
   try {
-    const body = (await request.json()) as { action?: string; detail?: string; expectedStage?: string };
+    const body = (await request.json()) as { action?: string; detail?: string; expectedStage?: string; toStage?: string };
+
+    // Manual recruiter stage override (set_stage): move a candidate backward, skip
+    // a stage, or fix a miscategorization — the transitions accept/reject can't
+    // express. Same expectedStage CAS as the AI actions: a client deciding from a
+    // snapshot sends the stage it saw, and a mismatch is a 409 carrying the fresh
+    // entry rather than a blind overwrite.
+    if (body.action === "set_stage") {
+      const toStage = typeof body.toStage === "string" ? body.toStage : "";
+      if (!(PIPELINE_STAGES as readonly string[]).includes(toStage)) {
+        return NextResponse.json(
+          { error: `Unknown stage "${toStage}". Expected one of: ${PIPELINE_STAGES.join(", ")}.` },
+          { status: 400 }
+        );
+      }
+      const expected = typeof body.expectedStage === "string" ? body.expectedStage : undefined;
+      const moved = setPipelineEntryStage(id, toStage, expected ? { expectedStage: expected } : undefined);
+      if (!moved) {
+        const fresh = getPipelineEntry(id);
+        if (!fresh) return NextResponse.json({ error: "Pipeline entry not found." }, { status: 404 });
+        // Missing was handled above, so null here means the CAS lost in the gap or
+        // the entry is closed out — either way the caller's view is stale.
+        return NextResponse.json(
+          {
+            error: "Couldn't move this candidate — they were just changed or are closed out. Refresh and try again.",
+            entry: fresh,
+          },
+          { status: 409 }
+        );
+      }
+      return NextResponse.json({ entry: moved });
+    }
 
     // Resolving a degraded-intake stub: the recruiter has manually captured the
     // candidate's profile, so clear the flag (not a stage move) and keep the entry.

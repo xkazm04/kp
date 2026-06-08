@@ -1,6 +1,7 @@
 import {
   AlertCircle,
   AlertTriangle,
+  ArrowLeftRight,
   ArrowUpCircle,
   CalendarCheck,
   CircleDot,
@@ -25,6 +26,7 @@ export const EVENT_KINDS = [
   "applied",
   "re_applied",
   "advanced",
+  "moved",
   "scheduled",
   "rejected",
   "intake_degraded",
@@ -56,6 +58,7 @@ export const EVENT_CATALOG: Record<EventKind, EventMeta> = {
   applied: { verb: () => "applied via the application link", Icon: UserPlus, tone: "text-steel" },
   re_applied: { verb: () => "applied again (already in the pipeline)", Icon: Repeat, tone: "text-amber-600" },
   advanced: { verb: (ev) => `advanced to ${ev.toStage}`, Icon: ArrowUpCircle, tone: "text-moss" },
+  moved: { verb: (ev) => `was moved to ${ev.toStage} by a recruiter`, Icon: ArrowLeftRight, tone: "text-steel" },
   scheduled: {
     verb: (ev) => `interview scheduled${ev.detail ? ` (${ev.detail})` : ""}`,
     Icon: CalendarCheck,

@@ -3147,3 +3147,122 @@ export function actOnPipelineEntry(
   // above can never read a row another connection is about to change under us.
   return tx.immediate();
 }
+
+/** Manually set a pipeline entry's stage — the recruiter override the AI-driven
+ *  accept/reject can't express: move BACKWARD (Interview → Screened after a
+ *  no-show), skip a stage, or fix a miscategorized entry. Same IMMEDIATE-tx +
+ *  optional expectedStage CAS as actOnPipelineEntry, so a hand move can't clobber
+ *  (or be clobbered by) a concurrent automated write. Clears any pending approval
+ *  (the context it was drafted for is gone) and stamps stage_changed_at on a real
+ *  move so time-in-stage stays honest; a no-op (toStage === current) returns the
+ *  entry unchanged. Records a `moved` event so the override is auditable in the
+ *  activity feed and the candidate's history. Returns null on a missing row, a CAS
+ *  miss, a terminal entry (a closed-out candidate isn't reopened by a stage nudge),
+ *  or an unknown toStage. */
+export function setPipelineEntryStage(
+  id: string,
+  toStage: string,
+  opts?: { expectedStage?: string }
+): PipelineEntry | null {
+  if (!(PIPELINE_STAGES as readonly string[]).includes(toStage)) return null;
+  const db = ensureDb();
+  const tx = db.transaction((): PipelineEntry | null => {
+    const row = db.prepare(`SELECT * FROM pipeline_entries WHERE id = ?`).get(id) as PipelineRow | undefined;
+    if (!row) return null;
+    if (opts?.expectedStage !== undefined && row.stage !== opts.expectedStage) {
+      console.warn(
+        `[pipeline:set_stage] skipped stale move for entry ${id}: expected '${opts.expectedStage}', row is now '${row.stage}'.`
+      );
+      return null;
+    }
+    // A rejected / declined / rematched entry is terminal — moving its stage would
+    // imply a reopen this surface doesn't model (status, not stage, closes a
+    // candidate). The board only lists active entries, so this is belt-and-braces.
+    if (isTerminalEntryStatus(row.status)) return null;
+    if (row.stage === toStage) return rowToEntry(row); // no-op: already there
+    const now = new Date().toISOString();
+    db.prepare(
+      `UPDATE pipeline_entries SET stage=?, approval_kind=NULL, approval_detail='', stage_changed_at=?, updated_at=? WHERE id=?`
+    ).run(toStage, now, now, id);
+    recordEvent(db, {
+      entryId: id,
+      candidateLabel: row.candidate_label,
+      jobTitle: row.job_title,
+      archetype: row.archetype,
+      fromStage: row.stage,
+      kind: "moved",
+      toStage,
+      detail: "manual",
+    });
+    const updated = db.prepare(`SELECT * FROM pipeline_entries WHERE id = ?`).get(id) as PipelineRow;
+    return rowToEntry(updated);
+  });
+  return tx.immediate();
+}
+
+// What `rematchSourceEntry` did to the source entry, so the caller can label the
+// AutomationResult and tests can pin each branch. `closed` is true ONLY when this
+// call flipped a live source to the terminal `rematched` status.
+export type RematchSourceResult = {
+  closed: boolean;
+  outcome: "closed" | "already_terminal" | "hired" | "missing";
+};
+
+/** Resolve the SOURCE entry of a rematch (idea-9ad8a777). Rematch REDIRECTS a
+ *  candidate to a better-fit open role by opening a TARGET entry for another job;
+ *  this closes out the source so the same person is never live + automatable in two
+ *  funnels at once (which would let the policy pass advance / reject / email them
+ *  twice and double-count them in the active funnel).
+ *
+ *  Atomic + CAS-guarded: the rematch decision came from a seconds-long LLM/Python
+ *  hop, so the source may have moved or closed meanwhile — we re-read it inside the
+ *  tx and branch on its CURRENT state, never the stale snapshot:
+ *    - active & not Hired → close to the dedicated terminal `rematched` status
+ *      (distinct from a company `reject` / candidate `decline` so the funnel counts
+ *      stay honest), clearing any pending approval. closed=true.
+ *    - already terminal (rejected / declined) → the documented rejected/idle
+ *      re-engagement case: leave the status, just stamp the link. closed=false.
+ *    - Hired (placed; status stays 'active', stage 'Hired') → never redirected,
+ *      and crucially never linked, so a placed candidate can't be pulled into a
+ *      second funnel. closed=false. (runAutomationTask also guards Hired up front.)
+ *    - missing → no-op.
+ *  In every reachable non-Hired case the `rematched` source→target link event is
+ *  recorded, so the redirect is traceable from the source side (Activity log,
+ *  candidateOutcomes). The symmetric `rematched_from` back-link on the target is
+ *  recorded by the caller, which owns the target row. */
+export function rematchSourceEntry(
+  sourceId: string,
+  targetEntryId: string,
+  targetJobId: string
+): RematchSourceResult {
+  const db = ensureDb();
+  const hiredStage = PIPELINE_STAGES[PIPELINE_STAGES.length - 1]; // terminal STAGE ("Hired")
+  const tx = db.transaction((): RematchSourceResult => {
+    const row = db.prepare(`SELECT * FROM pipeline_entries WHERE id = ?`).get(sourceId) as PipelineRow | undefined;
+    if (!row) return { closed: false, outcome: "missing" };
+    // A placed candidate (Hired keeps status='active') is never redirected — and
+    // is left entirely untouched so no rematch link attaches to a hire.
+    if (row.status === "active" && row.stage === hiredStage) return { closed: false, outcome: "hired" };
+    const meta = {
+      entryId: sourceId,
+      candidateLabel: row.candidate_label,
+      jobTitle: row.job_title,
+      archetype: row.archetype,
+    };
+    // Stamp the concrete source→target link (job ids + target entry id) regardless
+    // of whether we also flip the status, so the redirect is always auditable.
+    const linkDetail = `${row.job_id ?? "?"} -> ${targetJobId} (${targetEntryId})`;
+    if (isTerminalEntryStatus(row.status)) {
+      recordEvent(db, { ...meta, kind: "rematched", toStage: row.stage, detail: linkDetail });
+      return { closed: false, outcome: "already_terminal" };
+    }
+    const now = new Date().toISOString();
+    db.prepare(
+      `UPDATE pipeline_entries SET status='rematched', approval_kind=NULL, approval_detail='', updated_at=? WHERE id=?`
+    ).run(now, sourceId);
+    recordEvent(db, { ...meta, kind: "rematched", toStage: row.stage, detail: linkDetail });
+    return { closed: true, outcome: "closed" };
+  });
+  // IMMEDIATE: lock at BEGIN so the re-read can't race a concurrent move/close.
+  return tx.immediate();
+}
