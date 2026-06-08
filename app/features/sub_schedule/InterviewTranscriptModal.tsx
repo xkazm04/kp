@@ -1,6 +1,7 @@
 "use client";
 
-import { AlertTriangle, Loader2, RefreshCw } from "lucide-react";
+import { useMemo, useState } from "react";
+import { AlertTriangle, Loader2, Quote, RefreshCw } from "lucide-react";
 import { Modal } from "@/app/_components/Modal";
 import { InterviewRecommendationBadge } from "@/app/_components/Badge";
 import { Meter } from "@/app/_components/Meter";
@@ -33,6 +34,37 @@ const cleanRating = (raw: unknown): number | null => {
   return Math.min(RATING_MAX, Math.max(1, Math.round(n)));
 };
 
+const normText = (s: string): string => s.toLowerCase().replace(/\s+/g, " ").trim();
+
+// Anchor a scorecard evidence quote to the transcript turn it came from (VOX3).
+// The quote is usually a verbatim (or near-verbatim) candidate line, so prefer
+// containment either way; otherwise fall back to the turn sharing the most
+// distinctive words. Returns -1 when nothing matches well enough, so a
+// paraphrased / synthesized quote isn't mis-anchored to an unrelated turn.
+function findEvidenceTurn(evidence: string, turns: VoiceTurn[]): number {
+  const e = normText(evidence);
+  if (e.length < 8) return -1;
+  for (let i = 0; i < turns.length; i++) {
+    const t = normText(turns[i].text ?? "");
+    if (t.length >= 8 && (t.includes(e) || e.includes(t))) return i;
+  }
+  const eWords = new Set(e.split(" ").filter((w) => w.length >= 4));
+  if (eWords.size === 0) return -1;
+  let best = -1;
+  let bestScore = 0;
+  for (let i = 0; i < turns.length; i++) {
+    const tWords = normText(turns[i].text ?? "").split(" ").filter((w) => w.length >= 4);
+    let shared = 0;
+    for (const w of tWords) if (eWords.has(w)) shared += 1;
+    const score = shared / eWords.size;
+    if (score > bestScore) {
+      bestScore = score;
+      best = i;
+    }
+  }
+  return bestScore >= 0.5 ? best : -1; // require a majority of distinctive words to overlap
+}
+
 export function InterviewTranscriptModal({ entry, onClose }: { entry: SchedEntry; onClose: () => void }) {
   // The shared hook captures a non-OK status / {error} body that the old bare
   // .then(r => r.json()) swallowed — a 500 now reads as an error rather than an
@@ -46,6 +78,21 @@ export function InterviewTranscriptModal({ entry, onClose }: { entry: SchedEntry
 
   const sc = session?.scorecard ?? null;
   const transcript = session?.transcript ?? [];
+
+  // The transcript turn each rating's evidence quote came from (VOX3) + which turn
+  // is currently highlighted by a click. Memoized on the loaded session so the
+  // matching doesn't re-run every render.
+  const [highlightIdx, setHighlightIdx] = useState<number | null>(null);
+  const evidenceTurns = useMemo(() => {
+    const ratings = session?.scorecard?.ratings ?? [];
+    const turns = session?.transcript ?? [];
+    return ratings.map((r) => (r.evidence ? findEvidenceTurn(r.evidence, turns) : -1));
+  }, [session]);
+  const citedTurns = useMemo(() => new Set(evidenceTurns.filter((i) => i >= 0)), [evidenceTurns]);
+  const jumpToTurn = (idx: number) => {
+    setHighlightIdx(idx);
+    document.getElementById(`iv-turn-${idx}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+  };
 
   return (
     <Modal title={`Interview transcript · ${entry.candidateLabel}`} subtitle={entry.jobTitle ?? undefined} onClose={onClose} size="3xl">
@@ -97,7 +144,23 @@ export function InterviewTranscriptModal({ entry, onClose }: { entry: SchedEntry
                             aria-label={`${r.competency} rating ${rating} out of ${RATING_MAX}`}
                           />
                         ) : null}
-                        {r.evidence ? <p className="mt-1 text-meta text-steel">{r.evidence}</p> : null}
+                        {r.evidence ? (
+                          evidenceTurns[i] >= 0 ? (
+                            // Clickable: jump to the transcript turn this quote came
+                            // from — "verify the AI in one click" at the Offer gate.
+                            <button
+                              type="button"
+                              onClick={() => jumpToTurn(evidenceTurns[i])}
+                              className="focus-ring mt-1 inline-flex items-start gap-1 rounded text-left text-meta text-steel hover:text-coral"
+                              title="Jump to this moment in the transcript"
+                            >
+                              <Quote size={11} className="mt-0.5 shrink-0 text-coral/70" aria-hidden />
+                              <span className="underline decoration-dotted underline-offset-2">{r.evidence}</span>
+                            </button>
+                          ) : (
+                            <p className="mt-1 text-meta text-steel">{r.evidence}</p>
+                          )
+                        ) : null}
                       </li>
                     );
                   })}
@@ -115,20 +178,24 @@ export function InterviewTranscriptModal({ entry, onClose }: { entry: SchedEntry
               <p className="mt-2 text-sm text-steel">No transcript captured.</p>
             ) : (
               <div className="mt-2 space-y-2.5">
-                {transcript.map((t, i) => (
-                  <div key={i} className={t.role === "candidate" ? "text-right" : ""}>
-                    <p className="text-meta uppercase text-steel">
-                      {t.role === "candidate" ? "Candidate" : t.role === "interviewer" ? "Interviewer (AI)" : "System"}
-                    </p>
-                    <p
-                      className={`mt-0.5 inline-block max-w-[85%] rounded-lg px-3 py-2 text-base leading-6 ${
-                        t.role === "candidate" ? "bg-limewash text-ink" : "bg-paper text-ink"
-                      }`}
-                    >
-                      {t.text}
-                    </p>
-                  </div>
-                ))}
+                {transcript.map((t, i) => {
+                  const highlighted = highlightIdx === i;
+                  return (
+                    <div key={i} id={`iv-turn-${i}`} className={t.role === "candidate" ? "text-right" : ""}>
+                      <p className="text-meta uppercase text-steel">
+                        {t.role === "candidate" ? "Candidate" : t.role === "interviewer" ? "Interviewer (AI)" : "System"}
+                        {citedTurns.has(i) ? <span className="ml-1.5 text-coral" title="Cited by the scorecard">· cited</span> : null}
+                      </p>
+                      <p
+                        className={`mt-0.5 inline-block max-w-[85%] rounded-lg px-3 py-2 text-base leading-6 transition-shadow ${
+                          t.role === "candidate" ? "bg-limewash text-ink" : "bg-paper text-ink"
+                        } ${highlighted ? "ring-2 ring-coral" : ""}`}
+                      >
+                        {t.text}
+                      </p>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </section>
