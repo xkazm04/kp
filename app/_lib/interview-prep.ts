@@ -65,17 +65,23 @@ export function saveInterviewPrep(entryId: string, candidateLabel: string | null
 // UNDER a reserved `userProgress` key inside the artifact payload so it rides the
 // same row without a schema change and the generated plan (scenario/chronology/…)
 // stays untouched.
-export type InterviewPrepProgress = { checked?: Record<string, boolean>; notes?: string };
+// `interviewer` (PREP5) is the assigned human owner of the round — distinct from
+// the checklist/notes, kept at the TOP of the payload (not inside userProgress) so
+// listPreparedEntries can surface it on the schedule card without parsing progress.
+export type InterviewPrepProgress = { checked?: Record<string, boolean>; notes?: string; interviewer?: string };
 
-/** Merge the interviewer's checklist + notes into an EXISTING prep artifact,
- *  preserving the generated plan AND `created_at` (a progress save is not a
- *  regeneration — `listPreparedEntries`/the "generated NN ago" stamp must not
- *  move). Returns false when there's no artifact to attach progress to (the prep
- *  must be generated first). Writes only `payload_json`. */
+/** Merge the interviewer's checklist + notes (+ assigned interviewer, PREP5) into
+ *  an EXISTING prep artifact, preserving the generated plan AND `created_at` (a
+ *  progress save is not a regeneration — `listPreparedEntries`/the "generated NN
+ *  ago" stamp must not move). ONE write path for all human prep inputs, so they
+ *  can't race each other. Returns false when there's no artifact to attach to. */
 export function saveInterviewPrepProgress(entryId: string, progress: InterviewPrepProgress): boolean {
   const existing = getInterviewPrep(entryId);
   if (!existing) return false;
-  const payload = { ...existing.payload, userProgress: progress };
+  const { interviewer, ...checklist } = progress;
+  const payload: Record<string, unknown> = { ...existing.payload, userProgress: checklist };
+  // Top-level interviewer; an empty assignment clears it (undefined drops on stringify).
+  payload.interviewer = interviewer && interviewer.trim() ? interviewer.trim() : undefined;
   const res = db()
     .prepare(`UPDATE interview_preps SET payload_json = ? WHERE entry_id = ?`)
     .run(JSON.stringify(payload), entryId);
@@ -118,18 +124,28 @@ export function getInterviewPrep(entryId: string): InterviewPrep | null {
   }
 }
 
-/** Which of the given entry ids already have a prep artifact. The IN query is
- *  chunked under the SQLite variable limit so a wide board never trips
- *  SQLITE_MAX_VARIABLE_NUMBER (idea-191ccc0c). */
-export function listPreparedEntries(entryIds: string[]): Record<string, string> {
+/** Which of the given entry ids already have a prep artifact — `createdAt` plus the
+ *  assigned `interviewer` (PREP5), so the schedule card shows who owns each round at
+ *  a glance. The IN query is chunked under the SQLite variable limit so a wide board
+ *  never trips SQLITE_MAX_VARIABLE_NUMBER (idea-191ccc0c). */
+export function listPreparedEntries(entryIds: string[]): Record<string, { createdAt: string; interviewer: string | null }> {
   if (entryIds.length === 0) return {};
-  const out: Record<string, string> = {};
+  const out: Record<string, { createdAt: string; interviewer: string | null }> = {};
   for (const ids of chunk(entryIds, SQL_IN_CHUNK)) {
     const placeholders = ids.map(() => "?").join(",");
     const rows = db()
-      .prepare(`SELECT entry_id, created_at FROM interview_preps WHERE entry_id IN (${placeholders})`)
-      .all(...ids) as { entry_id: string; created_at: string }[];
-    for (const r of rows) out[r.entry_id] = r.created_at;
+      .prepare(`SELECT entry_id, payload_json, created_at FROM interview_preps WHERE entry_id IN (${placeholders})`)
+      .all(...ids) as { entry_id: string; payload_json: string; created_at: string }[];
+    for (const r of rows) {
+      let interviewer: string | null = null;
+      try {
+        const p = JSON.parse(r.payload_json) as { interviewer?: unknown };
+        if (typeof p.interviewer === "string" && p.interviewer.trim()) interviewer = p.interviewer.trim();
+      } catch {
+        /* corrupt payload — no interviewer, createdAt still useful */
+      }
+      out[r.entry_id] = { createdAt: r.created_at, interviewer };
+    }
   }
   return out;
 }

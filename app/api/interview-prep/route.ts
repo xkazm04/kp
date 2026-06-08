@@ -10,6 +10,7 @@ export const runtime = "nodejs";
 // scratchpad, not a document.
 const MAX_NOTES_LENGTH = 8 * 1024;
 const MAX_CHECKED_KEYS = 200;
+const MAX_INTERVIEWER_LENGTH = 120; // a name/email, never long
 
 // Read interview-prep artifacts (generated via the background task interview_prep).
 //   GET ?entry=<id>          → the artifact for one pipeline entry (or null)
@@ -30,17 +31,18 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// PUT ?entry=<id> → persist the interviewer's checklist + notes onto an existing
-// prep artifact (PREP2). Validated at the boundary: a bounded checked map of
-// booleans + a length-capped notes string. 404 when no artifact exists yet (the
-// plan must be generated before progress can attach).
+// PUT ?entry=<id> → persist the interviewer's checklist + notes + assigned
+// interviewer (PREP2/PREP5) onto an existing prep artifact, in ONE write so the
+// human inputs can't race. Validated at the boundary: a bounded checked map of
+// booleans, a length-capped notes string, and a capped interviewer name. 404 when
+// no artifact exists yet (the plan must be generated before inputs can attach).
 export async function PUT(request: NextRequest) {
   try {
     const entry = request.nextUrl.searchParams.get("entry");
     if (!entry || !entry.trim() || entry.length > 120) {
       return NextResponse.json({ error: "entry is required" }, { status: 400 });
     }
-    const body = (await request.json().catch(() => ({}))) as { checked?: unknown; notes?: unknown };
+    const body = (await request.json().catch(() => ({}))) as { checked?: unknown; notes?: unknown; interviewer?: unknown };
 
     const checked: Record<string, boolean> = {};
     if (body.checked && typeof body.checked === "object") {
@@ -50,8 +52,9 @@ export async function PUT(request: NextRequest) {
       }
     }
     const notes = typeof body.notes === "string" ? body.notes.slice(0, MAX_NOTES_LENGTH) : "";
+    const interviewer = typeof body.interviewer === "string" ? body.interviewer.slice(0, MAX_INTERVIEWER_LENGTH) : "";
 
-    const ok = saveInterviewPrepProgress(entry, { checked, notes });
+    const ok = saveInterviewPrepProgress(entry, { checked, notes, interviewer });
     if (!ok) {
       return NextResponse.json({ error: "No interview prep to update — generate it first." }, { status: 404 });
     }

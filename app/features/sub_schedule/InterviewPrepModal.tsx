@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { AlertTriangle, Check, Clock, Copy, Loader2, ListChecks, NotebookPen, RefreshCw, Sparkles } from "lucide-react";
+import { AlertTriangle, Check, Clock, Copy, Loader2, ListChecks, NotebookPen, RefreshCw, Sparkles, UserRound } from "lucide-react";
 import { copyText } from "@/app/_lib/export-utils";
 import { HumanScorecardPanel } from "./HumanScorecardPanel";
 import type { Scorecard } from "@/app/_lib/interview-scorecard";
@@ -16,7 +16,7 @@ type Block = { fromMin: number; toMin: number; topic: string; goal: string; ques
 // userProgress (PREP2) rides inside the persisted artifact payload — the
 // interviewer's ticked items + notes, restored on reopen.
 type UserProgress = { checked?: Record<string, boolean>; notes?: string };
-type Prep = { scenario: string; durationMin: number; focusAreas: string[]; chronology: Block[]; signals: string[]; source?: string; userProgress?: UserProgress; humanScorecard?: Scorecard };
+type Prep = { scenario: string; durationMin: number; focusAreas: string[]; chronology: Block[]; signals: string[]; source?: string; userProgress?: UserProgress; humanScorecard?: Scorecard; interviewer?: string };
 
 export function InterviewPrepModal({ entry, onClose }: { entry: SchedEntry; onClose: () => void }) {
   const { startTask } = useTasks();
@@ -31,6 +31,7 @@ export function InterviewPrepModal({ entry, onClose }: { entry: SchedEntry; onCl
   const [taskId, setTaskId] = useState<string | null>(null);
   const [checked, setChecked] = useState<Record<string, boolean>>({});
   const [notes, setNotes] = useState("");
+  const [interviewer, setInterviewer] = useState(""); // assigned human owner (PREP5)
   const [copied, setCopied] = useState(false);
   // PREP2: hydrate the interviewer's saved checklist + notes once the artifact
   // loads, then debounce-persist edits. `hydratedRef` stops the saved state from
@@ -57,11 +58,13 @@ export function InterviewPrepModal({ entry, onClose }: { entry: SchedEntry; onCl
   // exactly once the GET resolves.
   useEffect(() => {
     if (hydratedRef.current || generated) return;
-    const up = (data?.prep?.payload as Prep | undefined)?.userProgress;
+    const payload = data?.prep?.payload as Prep | undefined;
+    const up = payload?.userProgress;
     if (up) {
       if (up.checked) setChecked(up.checked);
       if (typeof up.notes === "string") setNotes(up.notes);
     }
+    if (typeof payload?.interviewer === "string") setInterviewer(payload.interviewer);
     if (data) hydratedRef.current = true; // GET resolved (artifact or empty) — done hydrating
   }, [data, generated]);
 
@@ -74,13 +77,13 @@ export function InterviewPrepModal({ entry, onClose }: { entry: SchedEntry; onCl
       void fetch(`/api/interview-prep?entry=${encodeURIComponent(entry.id)}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ checked, notes }),
+        body: JSON.stringify({ checked, notes, interviewer }),
       }).catch(() => {
         /* progress save is best-effort — a blip shouldn't interrupt the interview */
       });
     }, 600);
     return () => window.clearTimeout(h);
-  }, [checked, notes, prep, entry.id]);
+  }, [checked, notes, interviewer, prep, entry.id]);
 
   // Watch a generation task; its result (fetched on demand — the poll omits it)
   // supersedes any saved artifact. Hold taskId until the full result lands so the
@@ -103,6 +106,7 @@ export function InterviewPrepModal({ entry, onClose }: { entry: SchedEntry; onCl
     // re-hydrated from the now-stale GET.
     setChecked({});
     setNotes("");
+    setInterviewer("");
     dirtyRef.current = false;
     hydratedRef.current = true;
     const t = await startTask("interview_prep", { entryId: entry.id, candidateLabel: entry.candidateLabel, jobTitle: entry.jobTitle });
@@ -322,6 +326,26 @@ export function InterviewPrepModal({ entry, onClose }: { entry: SchedEntry; onCl
               </ul>
             </section>
           ) : null}
+
+          {/* Interviewer assignment (PREP5): who owns this round. Autosaved with the
+              checklist; surfaced on the schedule card so a multi-interviewer team
+              sees ownership at a glance. */}
+          <section>
+            <label htmlFor="prep-interviewer" className="flex items-center gap-1.5 text-meta uppercase tracking-wide text-steel">
+              <UserRound size={13} /> Interviewer
+            </label>
+            <input
+              id="prep-interviewer"
+              type="text"
+              value={interviewer}
+              onChange={(e) => {
+                markEdited();
+                setInterviewer(e.target.value);
+              }}
+              placeholder="Who's running this interview? (name or email)"
+              className="focus-ring mt-1.5 w-full rounded-md border border-stone-200 bg-white p-2 text-sm text-ink"
+            />
+          </section>
 
           {/* Interviewer notes (PREP2): a durable scratchpad for verbatim quotes /
               evidence, autosaved with the checklist and restored on reopen. */}

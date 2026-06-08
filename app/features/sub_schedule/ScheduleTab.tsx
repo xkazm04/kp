@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { AnimatePresence, motion, type TargetAndTransition } from "framer-motion";
-import { Calendar, Check, ClipboardList, FileText, Phone, X } from "lucide-react";
+import { Calendar, Check, ClipboardList, FileText, Phone, UserRound, X } from "lucide-react";
 import { ScheduleCalendar } from "./ScheduleCalendar";
 import { InterviewPrepModal } from "./InterviewPrepModal";
 import { InterviewTranscriptModal } from "./InterviewTranscriptModal";
@@ -43,7 +43,8 @@ export function ScheduleTab() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [prepEntry, setPrepEntry] = useState<SchedEntry | null>(null);
-  const [prepared, setPrepared] = useState<Record<string, string>>({});
+  // entry id → { createdAt, interviewer } for entries with a prep artifact (PREP5).
+  const [prepared, setPrepared] = useState<Record<string, { createdAt: string; interviewer: string | null }>>({});
   const [interviews, setInterviews] = useState<Record<string, IvStatus>>({});
   const [creatingIv, setCreatingIv] = useState<string | null>(null);
   const [transcriptEntry, setTranscriptEntry] = useState<SchedEntry | null>(null);
@@ -235,6 +236,11 @@ export function ScheduleTab() {
                       trailing={<span className="rounded bg-paper px-1.5 py-0.5 text-sm font-semibold text-ink">{picks[e.id]}</span>}
                     />
                   </button>
+                  {prepared[e.id]?.interviewer ? (
+                    <p className="mt-1.5 flex items-center gap-1 truncate text-meta text-steel" title={`Interviewer: ${prepared[e.id]!.interviewer}`}>
+                      <UserRound size={11} className="shrink-0 text-coral" /> {prepared[e.id]!.interviewer}
+                    </p>
+                  ) : null}
                   <button
                     type="button"
                     onClick={() => setPrepEntry(e)}
@@ -304,6 +310,11 @@ export function ScheduleTab() {
                       <div className="flex w-full items-start gap-2">
                         <CandidateCardHeader entry={e} />
                       </div>
+                      {prepared[e.id]?.interviewer ? (
+                        <p className="mt-1.5 flex items-center gap-1 truncate text-meta text-steel" title={`Interviewer: ${prepared[e.id]!.interviewer}`}>
+                          <UserRound size={11} className="shrink-0 text-coral" /> {prepared[e.id]!.interviewer}
+                        </p>
+                      ) : null}
                       <button
                         type="button"
                         onClick={() => setTranscriptEntry(e)}
