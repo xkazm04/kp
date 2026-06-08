@@ -2,6 +2,7 @@ import Database from "better-sqlite3";
 import { DB_PATH, ensureDbDir } from "./db-path";
 import { randomId, randomToken } from "./random-id";
 import { isReminderDue, reminderRetryDelayMs, REMINDER_LEAD_MS, REMINDER_MAX_ATTEMPTS } from "./interview-reminder-policy";
+import { isEntryReminderEligible } from "./pipeline-status";
 
 // Self-scheduling: a candidate picks an interview slot from proposed times
 // (replacing the hardcoded "Tue 14:00"). Isolated-connection store (same
@@ -53,6 +54,10 @@ function db(): Database.Database {
       -- (plannedInterviewMinutes): a student's six-phase screen runs ~22 min, not
       -- the ~5-min quick screen, and the candidate should block the right time.
       duration_min INTEGER,
+      -- How many times the candidate has self-rescheduled a confirmed booking.
+      -- Capped (MAX_RESCHEDULES) so the "change time" affordance can't be used to
+      -- churn the recruiter's calendar indefinitely.
+      reschedule_count INTEGER NOT NULL DEFAULT 0,
       created_at TEXT NOT NULL,
       confirmed_at TEXT
     );
@@ -74,6 +79,7 @@ function db(): Database.Database {
     "needs_more_slots INTEGER NOT NULL DEFAULT 0",
     "more_slots_flagged_at TEXT",
     "duration_min INTEGER",
+    "reschedule_count INTEGER NOT NULL DEFAULT 0",
   ]) {
     try {
       d.exec(`ALTER TABLE schedule_invites ADD COLUMN ${col}`);
@@ -102,6 +108,7 @@ export type ScheduleInvite = {
   needsMoreSlots: boolean; // candidate hit a fully-booked horizon (zero offerable slots); flagged for the recruiter
   moreSlotsFlaggedAt: string | null; // ISO time the zero-slots stall was first flagged
   durationMin: number | null; // planned interview length (e.g. 22 for the student script)
+  rescheduleCount: number; // self-reschedules made on this confirmed booking (cap: MAX_RESCHEDULES)
   createdAt: string;
   confirmedAt: string | null;
 };
@@ -124,6 +131,7 @@ function rowTo(r: Record<string, unknown>): ScheduleInvite {
     needsMoreSlots: Boolean(r.needs_more_slots),
     moreSlotsFlaggedAt: (r.more_slots_flagged_at as string) ?? null,
     durationMin: r.duration_min == null ? null : Number(r.duration_min),
+    rescheduleCount: Number(r.reschedule_count ?? 0),
     createdAt: r.created_at as string,
     confirmedAt: (r.confirmed_at as string) ?? null,
   };
@@ -195,6 +203,55 @@ export function confirmScheduleInvite(token: string, slot: string, slotAt?: stri
   return tx();
 }
 
+/** Cap on candidate self-reschedules of a confirmed booking. Small on purpose:
+ *  the "change time" affordance exists to remove recruiter triage, not to let a
+ *  candidate churn the calendar — past this the email's "just reply" path takes
+ *  over (a human reschedules). */
+export const MAX_RESCHEDULES = 3;
+
+export type RescheduleResult =
+  | { ok: true; invite: ScheduleInvite }
+  | { ok: false; reason: "not_found" | "not_confirmed" | "taken" | "limit"; invite: ScheduleInvite | null };
+
+/** Move a CONFIRMED booking to a new slot. Same synchronous-transaction collision
+ *  authority as confirmScheduleInvite (two concurrent reschedules — or a reschedule
+ *  racing another candidate's first confirm — can't both claim the same slot_at;
+ *  identity is the ISO slot_at, not the label). The old slot is freed implicitly by
+ *  overwriting slot_at (it drops out of bookedSlots()). Re-anchors confirmed_at to
+ *  now and RESETS the reminder cycle (reminder_sent_at / attempts cleared) so the
+ *  reminder fires for the NEW time, not the abandoned one. Bounded by MAX_RESCHEDULES.
+ *  Only a confirmed invite is reschedulable — a pending one books via confirm. */
+export function rescheduleScheduleInvite(token: string, slot: string, slotAt: string): RescheduleResult {
+  const d = db();
+  const tx = d.transaction((): RescheduleResult => {
+    const current = d.prepare(`SELECT * FROM schedule_invites WHERE token = ?`).get(token) as Record<string, unknown> | undefined;
+    if (!current) return { ok: false, reason: "not_found", invite: null };
+    const inv = rowTo(current);
+    if (inv.status !== "confirmed") return { ok: false, reason: "not_confirmed", invite: inv };
+    if (inv.rescheduleCount >= MAX_RESCHEDULES) return { ok: false, reason: "limit", invite: inv };
+    // Re-picking the same time is a no-op (the reschedule count is precious) —
+    // don't burn a reschedule or churn the reminder cycle for an unchanged slot.
+    if (inv.slotAt === slotAt) return { ok: true, invite: inv };
+    // Collision identity is slot_at; exclude this invite's own row so freeing the
+    // old slot here can't be seen as a clash against itself.
+    const clash = d
+      .prepare(`SELECT 1 FROM schedule_invites WHERE status = 'confirmed' AND slot_at = ? AND token != ? LIMIT 1`)
+      .get(slotAt, token);
+    if (clash) return { ok: false, reason: "taken", invite: inv };
+    const updated = d
+      .prepare(
+        `UPDATE schedule_invites
+            SET slot = ?, slot_at = ?, confirmed_at = ?, reschedule_count = reschedule_count + 1,
+                reminder_sent_at = NULL, reminder_attempts = 0, reminder_last_attempt_at = NULL,
+                needs_more_slots = 0, more_slots_flagged_at = NULL
+          WHERE token = ? RETURNING *`
+      )
+      .get(slot, slotAt, new Date().toISOString(), token) as Record<string, unknown>;
+    return { ok: true, invite: rowTo(updated) };
+  });
+  return tx();
+}
+
 /** Flag an invite as needing manual reconciliation: the candidate's slot was
  *  confirmed (they see "booked") but advancing the linked pipeline entry failed,
  *  so the recruiter board still shows them waiting. Persisting the drift — instead
@@ -238,45 +295,56 @@ export function bookedSlots(): string[] {
  *  every 60s. Defaults to REMINDER_LEAD_MS so callers needn't re-derive the window. */
 export function dueReminders(windowMs: number = REMINDER_LEAD_MS): ScheduleInvite[] {
   const now = Date.now();
-  // Join the linked pipeline entry so we never remind a candidate who has left the
-  // interview track. A confirmed invite alone isn't enough: after the candidate is
-  // rejected/declined (terminal status) or Hired (status stays 'active', stage
-  // 'Hired' — see pipeline-status.ts), the slot is still in-window so the sweep
-  // would email "see you at your interview" for a call that won't happen. LEFT JOIN
-  // keeps the orphaned-invite case (no entry row) behaving as before. Same
-  // kp.sqlite file, separate connection — the join resolves against db.ts's tables.
+  // LEFT JOIN the linked pipeline entry and surface its status/stage so we never
+  // remind a candidate who has left the interview track. A confirmed invite alone
+  // isn't enough: after the candidate is rejected/declined (terminal status) or
+  // Hired (status stays 'active', stage 'Hired'), the slot is still in-window so the
+  // sweep would email "see you at your interview" for a call that won't happen. The
+  // eligibility rule itself lives in isEntryReminderEligible (pipeline-status.ts) —
+  // the single source the rest of the app shares — and is applied here in JS rather
+  // than re-encoded as a SQL predicate so the two can't drift; a null entry (orphan
+  // invite, no matching row) stays eligible, as before the join. The partial index
+  // still drives the invite-side filter; p is reached by primary key. Same kp.sqlite
+  // file, separate connection — the join resolves against db.ts's tables.
   const rows = db()
     .prepare(
-      `SELECT s.* FROM schedule_invites s
+      `SELECT s.*, p.id AS entry_row_id, p.status AS entry_status, p.stage AS entry_stage
+         FROM schedule_invites s
          LEFT JOIN pipeline_entries p ON p.id = s.entry_id
         WHERE s.status = 'confirmed' AND s.slot_at IS NOT NULL AND s.reminder_sent_at IS NULL
-          AND s.reminder_attempts < ?
-          AND (p.id IS NULL OR (p.status = 'active' AND p.stage != 'Hired'))`
+          AND s.reminder_attempts < ?`
     )
     .all(REMINDER_MAX_ATTEMPTS) as Record<string, unknown>[];
-  return rows.map(rowTo).filter((inv) => {
-    const slotAtMs = inv.slotAt ? Date.parse(inv.slotAt) : NaN;
-    const bookedAtMs = inv.confirmedAt ? Date.parse(inv.confirmedAt) : NaN;
-    if (
-      !isReminderDue({
-        nowMs: now,
-        slotAtMs,
-        bookedAtMs: Number.isNaN(bookedAtMs) ? null : bookedAtMs,
-        leadMs: windowMs,
-      })
-    ) {
-      return false;
-    }
-    // Honor the retry backoff: a prior failed attempt must age past its (growing)
-    // delay before this invite is offered for re-claiming.
-    if (inv.reminderLastAttemptAt) {
-      const lastMs = Date.parse(inv.reminderLastAttemptAt);
-      if (!Number.isNaN(lastMs) && now < lastMs + reminderRetryDelayMs(inv.reminderAttempts)) {
+  return rows
+    .filter((r) =>
+      isEntryReminderEligible(
+        r.entry_row_id == null ? null : { status: String(r.entry_status), stage: String(r.entry_stage) }
+      )
+    )
+    .map(rowTo)
+    .filter((inv) => {
+      const slotAtMs = inv.slotAt ? Date.parse(inv.slotAt) : NaN;
+      const bookedAtMs = inv.confirmedAt ? Date.parse(inv.confirmedAt) : NaN;
+      if (
+        !isReminderDue({
+          nowMs: now,
+          slotAtMs,
+          bookedAtMs: Number.isNaN(bookedAtMs) ? null : bookedAtMs,
+          leadMs: windowMs,
+        })
+      ) {
         return false;
       }
-    }
-    return true;
-  });
+      // Honor the retry backoff: a prior failed attempt must age past its (growing)
+      // delay before this invite is offered for re-claiming.
+      if (inv.reminderLastAttemptAt) {
+        const lastMs = Date.parse(inv.reminderLastAttemptAt);
+        if (!Number.isNaN(lastMs) && now < lastMs + reminderRetryDelayMs(inv.reminderAttempts)) {
+          return false;
+        }
+      }
+      return true;
+    });
 }
 
 /** Atomically claim the next dispatch attempt for a reminder so concurrent

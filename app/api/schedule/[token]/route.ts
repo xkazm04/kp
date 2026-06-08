@@ -7,6 +7,8 @@ import {
   flagScheduleInviteNeedsMoreSlots,
   getScheduleInviteByToken,
   markScheduleInviteNeedsReconcile,
+  MAX_RESCHEDULES,
+  rescheduleScheduleInvite,
   type ScheduleInvite,
 } from "@/app/_lib/schedule-store";
 import { offeredSlotFor, proposeSlots } from "@/app/_lib/schedule-slots";
@@ -39,7 +41,12 @@ export async function GET(_request: NextRequest, context: { params: Promise<{ to
   const { token } = await context.params;
   const invite = getScheduleInviteByToken(token);
   if (!invite) return NextResponse.json({ error: "not found" }, { status: 404 });
-  const slots = invite.status === "confirmed" ? [] : proposeSlots(bookedSlots());
+  // A confirmed candidate may still self-reschedule (under the cap) — offer slots
+  // in that case too, not just for a pending first booking. proposeSlots excludes
+  // already-booked times, including this candidate's current one (they're moving
+  // away from it). The cap stops the "change time" affordance from churning.
+  const canReschedule = invite.status === "confirmed" && invite.rescheduleCount < MAX_RESCHEDULES;
+  const slots = invite.status !== "confirmed" || canReschedule ? proposeSlots(bookedSlots()) : [];
   // The busiest-calendar edge (idea-5df8e10f): a pending invite whose entire
   // proposal horizon is already booked yields zero slots. Rather than handing
   // the candidate a silent dead-end, flag the invite so the recruiter can open
@@ -57,7 +64,7 @@ export async function GET(_request: NextRequest, context: { params: Promise<{ to
       /* flagging is best-effort — never block the candidate's read */
     }
   }
-  return jsonOk({ invite: publicInviteView(invite), slots, noSlots });
+  return jsonOk({ invite: publicInviteView(invite), slots, noSlots, canReschedule });
 }
 
 // POST → candidate confirms a slot: record it, set it on the pipeline entry
@@ -70,14 +77,21 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
     if (!rateLimit(`sched:${clientIpFrom(request.headers)}:${token}`, { limit: 10, windowMs: 60_000 })) {
       return NextResponse.json({ error: RATE_LIMITED_ERROR }, { status: 429 });
     }
-    const body = (await request.json().catch(() => ({}))) as { slot?: string; slotAt?: string };
+    const body = (await request.json().catch(() => ({}))) as { slot?: string; slotAt?: string; reschedule?: boolean };
     const invite = getScheduleInviteByToken(token);
     if (!invite) return NextResponse.json({ error: "not found" }, { status: 404 });
-    if (invite.status === "confirmed") return jsonOk({ ok: true, invite: publicInviteView(invite) });
 
-    // Don't let a still-valid token book an interview for a candidate rejected/
-    // declined since the link was minted (status goes terminal; Hired keeps
-    // 'active'). approve_event guards this server-side too (defense-in-depth).
+    // A confirmed invite hit again WITHOUT a reschedule intent is an idempotent
+    // re-confirm (double-submit / stale tab) — just echo the booking. A reschedule
+    // (body.reschedule) falls through to the move path below.
+    if (invite.status === "confirmed" && !body.reschedule) {
+      return jsonOk({ ok: true, invite: publicInviteView(invite) });
+    }
+
+    // Don't let a still-valid token book OR move an interview for a candidate
+    // rejected/declined since the link was minted (status goes terminal; Hired
+    // keeps 'active'). approve_event guards this server-side too (defense-in-depth).
+    // Applies to both a first confirm and a reschedule.
     if (invite.entryId) {
       const linkedEntry = getPipelineEntry(invite.entryId);
       if (linkedEntry && linkedEntry.status !== "active") {
@@ -90,13 +104,76 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
     // holder book a 3am-Sunday/past time and inject arbitrary label text into
     // the confirmation + reminder EMAILS and the recruiter activity feed. The
     // submitted time is validated structurally and the label is RE-DERIVED
-    // server-side — the client's body.slot is ignored entirely.
+    // server-side — the client's body.slot is ignored entirely. Shared by confirm
+    // and reschedule.
     const offered = offeredSlotFor(body.slotAt);
     if (!offered) {
       return NextResponse.json({ error: "That time isn't one of the offered slots — please pick from the list." }, { status: 400 });
     }
     const slot = offered.label;
 
+    // Record the chosen slot on the linked pipeline entry and send the
+    // confirmation. Shared by the first confirm and a reschedule so the
+    // approve_event + dispatch + reconcile-on-failure handling can't drift between
+    // them. Returns whether the confirmation email actually went out — the candidate
+    // page must not promise "we've sent a confirmation" when delivery failed (worst
+    // for short-notice bookings, which get no separate timed reminder).
+    // approve_event records the slot WITHOUT regressing an entry already past
+    // Interview, so a reschedule of an in-progress interview is safe.
+    const recordBooking = async (booked: ScheduleInvite): Promise<boolean> => {
+      if (!invite.entryId) return true;
+      const entry = getPipelineEntry(invite.entryId);
+      if (!entry) return true;
+      try {
+        actOnPipelineEntry(entry.id, "approve_event", slot);
+      } catch (advanceError) {
+        // The slot is recorded and the candidate sees "booked", but the pipeline
+        // entry didn't advance (stage gate not ready) — make the drift findable
+        // rather than swallow it: flag the invite, count it, and log it.
+        const reason = advanceError instanceof Error ? advanceError.message : String(advanceError);
+        markScheduleInviteNeedsReconcile(token, reason);
+        await logScheduleReconcile({ token, entry_id: entry.id, slot, error: reason });
+      }
+      try {
+        const slotAtMs = booked.slotAt ? Date.parse(booked.slotAt) : NaN;
+        const bookedAtMs = booked.confirmedAt ? Date.parse(booked.confirmedAt) : NaN;
+        const shortNotice =
+          !Number.isNaN(slotAtMs) && !Number.isNaN(bookedAtMs) && isShortNoticeBooking(slotAtMs, bookedAtMs);
+        await dispatchInterviewConfirmation(entry, slot, { shortNotice, durationMin: booked.durationMin });
+        return true;
+      } catch (dispatchError) {
+        const reason = dispatchError instanceof Error ? dispatchError.message : String(dispatchError);
+        markScheduleInviteNeedsReconcile(token, `confirmation email failed: ${reason}`);
+        await logScheduleReconcile({ token, entry_id: entry.id, slot, error: `confirmation dispatch failed: ${reason}` });
+        return false;
+      }
+    };
+
+    // RESCHEDULE — a confirmed candidate moving to a new time. Same collision
+    // authority as confirm (rescheduleScheduleInvite's transaction), bounded by
+    // MAX_RESCHEDULES, and the old slot is freed back into the pool.
+    if (invite.status === "confirmed") {
+      const moved = rescheduleScheduleInvite(token, slot, offered.value);
+      if (!moved.ok) {
+        if (moved.reason === "taken") {
+          return NextResponse.json(
+            { error: "That time was just taken — please pick another.", invite: moved.invite ? publicInviteView(moved.invite) : null },
+            { status: 409 }
+          );
+        }
+        if (moved.reason === "limit") {
+          return NextResponse.json(
+            { error: "You've changed your interview time a few times already — reply to your confirmation email and we'll help you find a slot." },
+            { status: 409 }
+          );
+        }
+        return NextResponse.json({ error: "not found" }, { status: 404 });
+      }
+      const confirmationSent = await recordBooking(moved.invite);
+      return jsonOk({ ok: true, invite: publicInviteView(moved.invite), confirmationSent, rescheduled: true });
+    }
+
+    // FIRST CONFIRM — a pending invite booking its slot.
     const result = confirmScheduleInvite(token, slot, offered.value);
     if (!result.ok) {
       if (result.reason === "taken") {
@@ -108,46 +185,8 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
       }
       return NextResponse.json({ error: "not found" }, { status: 404 });
     }
-    const confirmed = result.invite;
-    // Whether the confirmation email actually went out. The candidate page must not
-    // promise "we've sent a confirmation" when delivery failed — worst for
-    // short-notice bookings, which get no separate timed reminder.
-    let confirmationSent = true;
-    if (invite.entryId) {
-      const entry = getPipelineEntry(invite.entryId);
-      if (entry) {
-        try {
-          actOnPipelineEntry(entry.id, "approve_event", slot);
-        } catch (advanceError) {
-          // The slot is recorded and the candidate sees "booked", but the pipeline
-          // entry didn't advance (stage gate not ready) — without a signal this is
-          // an invisible invite/pipeline divergence. Keep the lenient behaviour, but
-          // make the drift findable: flag the invite, count it, and log it.
-          const reason = advanceError instanceof Error ? advanceError.message : String(advanceError);
-          markScheduleInviteNeedsReconcile(token, reason);
-          await logScheduleReconcile({ token, entry_id: entry.id, slot, error: reason });
-        }
-        try {
-          // Short-notice bookings won't get a separate timed reminder (the slot is
-          // too close — see interview-reminder-policy.ts), so the confirmation must
-          // read as the candidate's only heads-up rather than promising a reminder.
-          const slotAtMs = confirmed.slotAt ? Date.parse(confirmed.slotAt) : NaN;
-          const bookedAtMs = confirmed.confirmedAt ? Date.parse(confirmed.confirmedAt) : NaN;
-          const shortNotice =
-            !Number.isNaN(slotAtMs) && !Number.isNaN(bookedAtMs) && isShortNoticeBooking(slotAtMs, bookedAtMs);
-          await dispatchInterviewConfirmation(entry, slot, { shortNotice, durationMin: confirmed.durationMin });
-        } catch (dispatchError) {
-          // Don't swallow a delivery failure silently: flag + log it (reuse the
-          // reconcile machinery) and tell the client so the success copy softens
-          // instead of falsely claiming a confirmation was sent.
-          confirmationSent = false;
-          const reason = dispatchError instanceof Error ? dispatchError.message : String(dispatchError);
-          markScheduleInviteNeedsReconcile(token, `confirmation email failed: ${reason}`);
-          await logScheduleReconcile({ token, entry_id: entry.id, slot, error: `confirmation dispatch failed: ${reason}` });
-        }
-      }
-    }
-    return jsonOk({ ok: true, invite: publicInviteView(confirmed), confirmationSent });
+    const confirmationSent = await recordBooking(result.invite);
+    return jsonOk({ ok: true, invite: publicInviteView(result.invite), confirmationSent });
   } catch (error) {
     // Raw err.message would surface SQLite/dispatch internals on a public
     // token route — same hygiene as the pipeline/interview routes.

@@ -22,6 +22,10 @@ export function SchedulePicker({ token }: { token: string }) {
   const [error, setError] = useState<string | null>(null);
   const [picking, setPicking] = useState<string | null>(null);
   const [confirmed, setConfirmed] = useState<string | null>(null);
+  // The candidate may still self-reschedule a confirmed booking (server-gated by
+  // MAX_RESCHEDULES). `rescheduling` swaps the booked card for the slot picker.
+  const [canReschedule, setCanReschedule] = useState(false);
+  const [rescheduling, setRescheduling] = useState(false);
   // False when the server booked the slot but the confirmation email failed to
   // send — the success card then softens its promise instead of lying.
   const [confirmationSent, setConfirmationSent] = useState(true);
@@ -39,6 +43,7 @@ export function SchedulePicker({ token }: { token: string }) {
         setInvite(d.invite);
         setSlots(d.slots ?? []);
         setNoSlots(Boolean(d.noSlots));
+        setCanReschedule(Boolean(d.canReschedule));
         if (d.invite?.status === "confirmed") setConfirmed(d.invite.slot ?? "");
       })
       .catch(() => {
@@ -51,16 +56,32 @@ export function SchedulePicker({ token }: { token: string }) {
 
   const pick = async (s: Slot) => {
     setPicking(s.value);
+    setError(null);
+    const isReschedule = rescheduling;
     try {
       const res = await fetch(`/api/schedule/${token}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ slot: s.label, slotAt: s.value }),
+        body: JSON.stringify({ slot: s.label, slotAt: s.value, reschedule: isReschedule }),
       });
       const d = await res.json();
       if (res.ok) {
         setConfirmationSent(d.confirmationSent !== false);
         setConfirmed(s.label);
+        if (isReschedule) {
+          // Back to the booked card showing the new time; refresh the remaining
+          // reschedule allowance + slot pool so the affordance disappears at the cap.
+          setRescheduling(false);
+          fetch(`/api/schedule/${token}`)
+            .then((r) => r.json())
+            .then((nd) => {
+              if (!nd.error) {
+                setCanReschedule(Boolean(nd.canReschedule));
+                setSlots(nd.slots ?? []);
+              }
+            })
+            .catch(() => {});
+        }
       } else {
         setError(d.error || "Couldn't confirm that slot.");
         // Slot taken by someone else between load and submit — refresh the list.
@@ -91,7 +112,7 @@ export function SchedulePicker({ token }: { token: string }) {
     );
   if (!invite) return <p className="text-base text-steel">Loading…</p>;
 
-  if (confirmed) {
+  if (confirmed && !rescheduling) {
     return (
       <div className="rounded-lg border border-moss/40 bg-moss/5 p-5">
         <p className="flex items-center gap-2 font-serif text-h2 text-ink">
@@ -107,12 +128,41 @@ export function SchedulePicker({ token }: { token: string }) {
             ? "We've sent a confirmation and will remind you before the call. You can close this page."
             : "We've recorded your slot — we'll be in touch shortly to confirm the details. You can close this page."}
         </p>
+        {canReschedule ? (
+          <button
+            type="button"
+            onClick={() => {
+              setError(null);
+              setRescheduling(true);
+            }}
+            className="focus-ring mt-3 inline-flex items-center gap-1.5 rounded-md border border-stone-300 bg-white px-3 py-1.5 text-base font-semibold text-ink hover:border-coral/50"
+          >
+            <CalendarClock size={15} className="text-coral" /> Need a different time?
+          </button>
+        ) : null}
       </div>
     );
   }
 
   return (
     <div>
+      {rescheduling ? (
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <p className="text-base text-steel">
+            Pick a new time{confirmed ? <> — your current slot is <span className="font-medium text-ink">{confirmed}</span></> : null}.
+          </p>
+          <button
+            type="button"
+            onClick={() => {
+              setError(null);
+              setRescheduling(false);
+            }}
+            className="focus-ring rounded-md px-2 py-1 text-base font-semibold text-steel hover:text-ink"
+          >
+            Keep current time
+          </button>
+        </div>
+      ) : null}
       {invite.jobTitle ? (
         <p className="text-base text-steel">
           Role: <span className="font-medium text-ink">{invite.jobTitle}</span>
