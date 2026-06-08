@@ -50,7 +50,31 @@ export const STAGE_HELP: Record<string, string> = {
   Hired: "Offer accepted — candidate hired and onboarding.",
 };
 
-export const STALE_DAYS = 10;
+export const STALE_DAYS = 10; // legacy flat default — fallback for unknown stages
+
+// Per-stage aging SLAs in days (PIPE4). A candidate sitting 10 days in Offer is a
+// stall worth chasing; 10 days freshly Accepted is normal. Stage-appropriate
+// thresholds flag the right cards instead of one blunt global cut. Hired never
+// ages. Recruiters can override these per board (localStorage), so these are
+// defaults, not hard limits.
+export const STAGE_SLA_DEFAULTS: Record<string, number> = {
+  Accepted: 14,
+  Screened: 7,
+  Interview: 5,
+  Offer: 3,
+  Hired: 0,
+};
+
+/** Days a candidate may sit in `stage` before the board flags it as aging, given
+ *  optional per-board overrides. Falls back to the per-stage default, then the flat
+ *  STALE_DAYS for an unknown stage. A non-positive value (e.g. Hired = 0) means the
+ *  stage never ages — callers already exclude Hired, but this keeps it explicit. */
+export function slaForStage(stage: string, overrides?: Record<string, number> | null): number {
+  const o = overrides?.[stage];
+  if (typeof o === "number" && o > 0) return o;
+  const d = STAGE_SLA_DEFAULTS[stage];
+  return typeof d === "number" ? d : STALE_DAYS;
+}
 
 export function daysSince(iso: string | null): number | null {
   if (!iso) return null;

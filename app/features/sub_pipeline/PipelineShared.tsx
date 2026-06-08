@@ -15,7 +15,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { ScoreBadge } from "@/app/_components/ScoreBadge";
-import { ARCHETYPE_STYLE, daysSince, STALE_DAYS, styleFor, type Entry, type PipelineEvent } from "./PipelineTypes";
+import { ARCHETYPE_STYLE, daysSince, slaForStage, styleFor, type Entry, type PipelineEvent } from "./PipelineTypes";
 
 // The pipeline-lifecycle event taxonomy that the activity feed renders richly.
 // These are the kinds recordEvent() emits in db.ts. Promoted from a bare string
@@ -122,7 +122,7 @@ export function CandidateRow({
     : pending
       ? "Awaiting your decision"
       : stale
-        ? `Aging >${STALE_DAYS}d in stage`
+        ? `Aging >${slaForStage(entry.stage)}d in ${entry.stage}`
         : style.label;
   const StatusIcon = degraded
     ? AlertTriangle
@@ -187,7 +187,7 @@ export function Legend() {
       </span>
       <span className="inline-flex items-center gap-1.5">
         <span className="h-2.5 w-2.5 rounded-full bg-amber-400" />
-        Aging &gt;{STALE_DAYS}d in stage
+        Aging in stage (per-stage SLA)
       </span>
       <span className="inline-flex items-center gap-1.5">
         <span className="inline-flex h-3 w-3 items-center justify-center rounded-full bg-red-600 text-white">

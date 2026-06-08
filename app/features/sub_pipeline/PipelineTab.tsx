@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { AlertTriangle, BookmarkPlus, Sparkles, X } from "lucide-react";
+import { AlertTriangle, BookmarkPlus, Sparkles, Timer, X } from "lucide-react";
 import { buildUrl } from "@/app/features/tabs";
 import { useTasks } from "@/app/features/tasks/TasksProvider";
 import { useLiveRefresh } from "@/app/features/live-refresh";
@@ -11,7 +11,7 @@ import { CandidateDrawer } from "./CandidateDrawer";
 import { PipelineBoard } from "./PipelineBoard";
 import { SchedulerControl } from "./SchedulerControl";
 import { EventDot, eventVerb } from "./PipelineShared";
-import { daysSince, relativeTime, STALE_DAYS, type Entry, type PipelineEvent } from "./PipelineTypes";
+import { daysSince, relativeTime, slaForStage, STAGE_SLA_DEFAULTS, STAGES, type Entry, type PipelineEvent } from "./PipelineTypes";
 
 // Compact header stat: label over value, optionally clickable. Replaces the old
 // full-width Kpi card grid — the same numbers now live as a tight cluster in the
@@ -67,6 +67,7 @@ type QuickFilter = "aging" | "awaiting" | "intake" | "interview";
 // A saved board view (PIPE5): a named snapshot of the search + quick-filter.
 type SavedView = { id: string; name: string; query: string; quick: QuickFilter | null };
 const PIPELINE_VIEWS_KEY = "kp.pipelineViews";
+const PIPELINE_SLA_KEY = "kp.pipelineStageSla"; // per-stage aging overrides (PIPE4)
 
 export function PipelineTab() {
   const router = useRouter();
@@ -106,6 +107,29 @@ export function PipelineTab() {
       localStorage.setItem(PIPELINE_VIEWS_KEY, JSON.stringify(next));
     } catch {
       /* storage full / unavailable — the in-memory list still works this session */
+    }
+  };
+  // Per-stage aging SLA overrides (PIPE4): a recruiter's per-board tuning of the
+  // STAGE_SLA_DEFAULTS, persisted in localStorage (client-only, no schema).
+  const [slaOverrides, setSlaOverrides] = useState<Record<string, number>>({});
+  const [editingSla, setEditingSla] = useState(false);
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(PIPELINE_SLA_KEY);
+      if (raw) setSlaOverrides(JSON.parse(raw) as Record<string, number>);
+    } catch {
+      /* corrupt/absent — fall back to defaults */
+    }
+  }, []);
+  const setStageSla = (stage: string, days: number | null) => {
+    const next = { ...slaOverrides };
+    if (days && days > 0) next[stage] = days;
+    else delete next[stage]; // cleared → back to the default
+    setSlaOverrides(next);
+    try {
+      localStorage.setItem(PIPELINE_SLA_KEY, JSON.stringify(next));
+    } catch {
+      /* storage unavailable — in-memory override still applies this session */
     }
   };
   const { startTask, findActive, tasks } = useTasks();
@@ -179,7 +203,7 @@ export function PipelineTab() {
   const approvals = (entries ?? []).filter((e) => needsHumanDecision(e.approvalKind) && e.status === "active");
   const activeCount = (entries ?? []).filter((e) => e.stage !== "Hired").length;
   const interviewCount = (entries ?? []).filter((e) => e.stage === "Interview").length;
-  const isStale = (e: Entry) => e.stage !== "Hired" && (daysSince(e.stageChangedAt) ?? 0) >= STALE_DAYS;
+  const isStale = (e: Entry) => e.stage !== "Hired" && (daysSince(e.stageChangedAt) ?? 0) >= slaForStage(e.stage, slaOverrides);
   const staleCount = (entries ?? []).filter(isStale).length;
   // Stubs from a failed intake normalization: visible, recoverable, and not yet
   // matchable until a recruiter captures the profile. Active-only — a rejected
@@ -198,7 +222,7 @@ export function PipelineTab() {
       if (!hitQuery) return false;
       switch (quick) {
         case "aging":
-          return e.stage !== "Hired" && (daysSince(e.stageChangedAt) ?? 0) >= STALE_DAYS;
+          return e.stage !== "Hired" && (daysSince(e.stageChangedAt) ?? 0) >= slaForStage(e.stage, slaOverrides);
         case "awaiting":
           return needsHumanDecision(e.approvalKind) && e.status === "active";
         case "intake":
@@ -209,7 +233,7 @@ export function PipelineTab() {
           return true;
       }
     });
-  }, [entries, q, quick]);
+  }, [entries, q, quick, slaOverrides]);
   const boardPositions = useMemo(() => groupPositions(filteredEntries), [filteredEntries]);
   const filtering = Boolean(q) || quick !== null;
   const toggleQuick = (f: QuickFilter) => setQuick((cur) => (cur === f ? null : f));
@@ -289,7 +313,7 @@ export function PipelineTab() {
             <StatChip label="Active" value={activeCount} />
             <StatChip label="Interview" value={interviewCount} />
             <StatChip
-              label={`Aging>${STALE_DAYS}d`}
+              label="Aging"
               value={staleCount}
               tone={staleCount > 0 ? "amber" : "neutral"}
               onClick={staleCount > 0 ? () => toggleQuick("aging") : undefined}
@@ -401,7 +425,7 @@ export function PipelineTab() {
             {(
               [
                 ["interview", "Interview"],
-                ["aging", `Aging>${STALE_DAYS}d`],
+                ["aging", "Aging"],
                 ["awaiting", "Awaiting decision"],
                 ["intake", "Needs intake"],
               ] as [QuickFilter, string][]
@@ -443,7 +467,43 @@ export function PipelineTab() {
                 <BookmarkPlus size={13} /> Save view
               </button>
             ) : null}
+            {/* PIPE4: tune the per-stage aging thresholds for this board. */}
+            <button
+              type="button"
+              onClick={() => setEditingSla((v) => !v)}
+              aria-pressed={editingSla}
+              className={`focus-ring ml-auto inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-sm font-semibold ${
+                editingSla ? "border-coral bg-coral/10 text-coral" : "border-stone-200 bg-white text-steel hover:border-coral/40 hover:text-ink"
+              }`}
+              title="Set how long a candidate may sit in each stage before it flags as aging"
+            >
+              <Timer size={13} /> Aging SLAs
+            </button>
           </div>
+
+          {editingSla ? (
+            <div className="flex flex-wrap items-end gap-3 rounded-md border border-stone-200 bg-paper px-3 py-2">
+              <span className="text-meta uppercase tracking-wide text-steel">Days before aging, per stage</span>
+              {STAGES.filter((s) => s !== "Hired").map((stage) => (
+                <label key={stage} className="flex flex-col text-meta text-steel">
+                  {stage}
+                  <input
+                    type="number"
+                    min={1}
+                    max={365}
+                    value={slaOverrides[stage] ?? ""}
+                    placeholder={String(STAGE_SLA_DEFAULTS[stage] ?? "")}
+                    onChange={(ev) => {
+                      const n = parseInt(ev.target.value, 10);
+                      setStageSla(stage, Number.isFinite(n) ? n : null);
+                    }}
+                    className="focus-ring mt-0.5 h-8 w-16 rounded-md border border-stone-200 px-2 text-sm nums text-ink"
+                  />
+                </label>
+              ))}
+              <span className="text-meta text-steel">Blank = default. Saved for this browser.</span>
+            </div>
+          ) : null}
 
           {views.length > 0 ? (
             <div className="flex flex-wrap items-center gap-1.5">
