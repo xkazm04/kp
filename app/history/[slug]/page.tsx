@@ -66,7 +66,26 @@ export default async function HistoryDetailPage({
       </header>
 
       <div className="mt-6">
-        <ResultPanel analysis={parsed.data} />
+        <ResultPanel
+          analysis={parsed.data}
+          // Offer "Add to pipeline" only when the analysis was run against a saved
+          // JD — that slug is the role the candidate is filed under (the board keys
+          // lanes by jobId), and POST /api/pipeline requires it. A JD-less analysis
+          // has no role to add the candidate to, so the action is hidden.
+          pipelineRef={
+            found.row.jd_slug
+              ? {
+                  candidateId: slug,
+                  candidateLabel: found.row.candidate_label,
+                  archetype: null,
+                  matchScore: found.row.score ?? null,
+                  roleFamily: found.row.role_family ?? null,
+                  jobId: found.row.jd_slug,
+                  jobTitle: `JD ${found.row.jd_slug}`,
+                }
+              : undefined
+          }
+        />
       </div>
     </WorkspaceShell>
   );

@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { GithubAnalysisPanel } from "@/app/_components/GithubAnalysisPanel";
 import { hasRenderableComparison } from "@/app/_lib/comparison";
 import { reconcileScoreTotal } from "@/app/_lib/format";
+import { AddToPipelineButton, type PipelineRef } from "./AddToPipelineButton";
 import { ArchetypeBanner } from "./ArchetypeBanner";
 import type { Analysis, GithubAnalysis } from "@/app/_lib/schemas";
 import { CompareIcon, ExtractionIcon, InterviewIcon, JobFitIcon, SalaryIcon } from "../icons";
@@ -24,11 +25,16 @@ export type ResultPanelGithub = {
 type ResultPanelProps = {
   analysis: Analysis;
   github?: ResultPanelGithub;
+  // When the caller can identify the candidate AND the role this result was run
+  // against, the report offers an "Add to pipeline" action so the recruiter can
+  // act on a job-fit read without leaving for the Match tab. Omitted where the
+  // identifiers aren't available (e.g. a fresh, not-yet-saved analyze run).
+  pipelineRef?: PipelineRef;
 };
 
 type ResultTab = "extraction" | "compare" | "jobFit" | "salary" | "interview" | "github";
 
-export function ResultPanel({ analysis, github }: ResultPanelProps) {
+export function ResultPanel({ analysis, github, pipelineRef }: ResultPanelProps) {
   // A comparison only counts — for showing the Compare tab AND for defaulting
   // to it below — when it meets the minimum-variant contract. A stray 1-variant
   // payload no longer auto-opens an empty Compare tab; it falls through to
@@ -110,6 +116,11 @@ export function ResultPanel({ analysis, github }: ResultPanelProps) {
 
   return (
     <section className="animate-fade-in space-y-5">
+      {pipelineRef ? (
+        <div className="flex items-start justify-end">
+          <AddToPipelineButton pipelineRef={pipelineRef} />
+        </div>
+      ) : null}
       {analysis.v2Profile ? <ArchetypeBanner v2Profile={analysis.v2Profile} /> : null}
       <div className="rounded-lg border border-stone-200 bg-white p-2 shadow-panel">
         <div role="tablist" aria-label="Result sections" onKeyDown={onTabKeyDown} className={`grid gap-1 sm:grid-cols-2 ${lgGridClass}`}>
