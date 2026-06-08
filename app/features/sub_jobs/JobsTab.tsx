@@ -16,6 +16,7 @@ import { JobsTableFrame, JobsTableSkeleton } from "./JobsTable";
 import { JobRow } from "./JobRow";
 import { JobPostingModal } from "./JobPostingModal";
 import { DraftsPanel } from "./DraftsPanel";
+import { IngestAdPanel } from "./IngestAdPanel";
 import { useJobsList } from "./useJobsList";
 
 export function JobsTab() {
@@ -36,9 +37,21 @@ export function JobsTab() {
     setQ,
     anyFilter,
     clearAll,
+    reload,
   } = useJobsList();
 
   const [openJob, setOpenJob] = useState<Job | null>(null);
+
+  // A just-ingested job to auto-open once the refreshed corpus contains it
+  // (mirrors the ?job= deep-link below). Applied during render, cleared on match.
+  const [pendingOpenId, setPendingOpenId] = useState<string | null>(null);
+  if (jobs && pendingOpenId) {
+    const match = jobs.find((j) => j.id === pendingOpenId);
+    if (match) {
+      setPendingOpenId(null);
+      setOpenJob(match);
+    }
+  }
 
   // Deep link from the Pipeline (?tab=jobs&job=<id>): auto-open that job's
   // posting. Applied during render (guarded render-phase adjustment) once the
@@ -81,6 +94,15 @@ export function JobsTab() {
       ) : null}
 
       <DraftsPanel />
+
+      <IngestAdPanel
+        onIngested={(result) => {
+          // Refetch the corpus; the render-phase open above latches onto the new
+          // (or existing, on a dedup hit) job id once it lands in the list.
+          setPendingOpenId(result.jobId);
+          reload();
+        }}
+      />
 
       <div className="mt-4 flex flex-wrap items-center gap-2">
         <Select value={roleFamily} onChange={setRoleFamily} all="All families" label="Filter by role family">

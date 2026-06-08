@@ -19,6 +19,9 @@ export function useJobsList() {
   const [workMode, setWorkMode] = useState("");
   const [entryOnly, setEntryOnly] = useState(false);
   const [q, setQ] = useState("");
+  // Bumped to force a re-fetch with the current filters unchanged — e.g. after a
+  // new job is ingested into the catalog from the same screen.
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -53,7 +56,7 @@ export function useJobsList() {
       cancelled = true;
       clearTimeout(handle);
     };
-  }, [roleFamily, seniority, workMode, entryOnly, q]);
+  }, [roleFamily, seniority, workMode, entryOnly, q, reloadKey]);
 
   const anyFilter = Boolean(roleFamily || seniority || workMode || entryOnly || q.trim());
   const clearAll = () => {
@@ -81,5 +84,6 @@ export function useJobsList() {
     setQ,
     anyFilter,
     clearAll,
+    reload: () => setReloadKey((k) => k + 1),
   };
 }
