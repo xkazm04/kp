@@ -6,7 +6,7 @@ import { Modal } from "@/app/_components/Modal";
 import { ScoreBadge } from "@/app/_components/ScoreBadge";
 import { ConfidenceBandBadge, confidenceBandTitle, FitTierBadge } from "@/app/_components/Badge";
 import { ScoreBreakdown } from "@/app/features/sub_match/MatchShared";
-import { provLabel, type Confidence, type ScoreDimension } from "@/app/features/sub_match/MatchTypes";
+import { provLabel, type MatchResultView } from "@/app/features/sub_match/MatchTypes";
 import type { Entry } from "./DecisionsTypes";
 
 type SkillClaim = { skill?: string; level?: string; provenance?: string };
@@ -25,17 +25,9 @@ type Payload = {
 
 // The same full breakdown the recruiter ranker emits (matching.score_job), for
 // this one candidate against this role — surfaced so the single-candidate
-// decision carries the same evidence the comparison matrix does.
-type MatchView = {
-  total: number;
-  fitTier?: "strong" | "promising" | "partial";
-  confidence?: Confidence;
-  scoreBreakdown?: ScoreDimension[];
-  matchedSkills?: string[];
-  matchedSkillProvenance?: Record<string, string>;
-  matchedSkillStrength?: Record<string, number>;
-  missingSkills?: string[];
-};
+// decision carries the same evidence the comparison matrix does. The shared
+// recruiter result view (MatchResultView), single-sourced from MatchTypes.
+type MatchView = MatchResultView;
 type CandRow = { candidateId: string; result: MatchView };
 
 // Read-only analysis summary derived from the profile data already gathered for
@@ -49,10 +41,13 @@ export function AnalysisSummaryModal({
 }: {
   entry: Entry;
   onClose: () => void;
-  onAccept: () => void;
-  onReject: () => void;
+  // The optional decision note (DEC4) the recruiter typed below — recorded on the
+  // advanced/rejected event and shown in the Decision Log.
+  onAccept: (reason?: string) => void;
+  onReject: (reason?: string) => void;
 }) {
   const [payload, setPayload] = useState<Payload | null>(null);
+  const [reason, setReason] = useState("");
   const [loading, setLoading] = useState(Boolean(entry.candidateId));
   const [match, setMatch] = useState<MatchView | null>(null);
   const [matchLoading, setMatchLoading] = useState(Boolean(entry.candidateId && entry.jobId));
@@ -103,14 +98,14 @@ export function AnalysisSummaryModal({
         <>
           <button
             type="button"
-            onClick={onReject}
+            onClick={() => onReject(reason)}
             className="focus-ring inline-flex h-9 items-center gap-1 rounded-md border border-stone-200 px-3 text-sm font-semibold text-coral hover:bg-coral/5"
           >
             <X size={15} /> Reject
           </button>
           <button
             type="button"
-            onClick={onAccept}
+            onClick={() => onAccept(reason)}
             className="focus-ring inline-flex h-9 items-center gap-1 rounded-md bg-moss px-3 text-sm font-semibold text-white hover:opacity-90"
           >
             <Check size={15} /> Advance
@@ -221,6 +216,20 @@ export function AnalysisSummaryModal({
           <p className="text-sm text-steel">Summary derived from the candidate&apos;s gathered profile data and the deterministic match breakdown for this role.</p>
         </div>
       )}
+
+      <div className="mt-4 border-t border-stone-200 pt-4">
+        <label htmlFor="decision-note" className="text-meta uppercase tracking-wide text-steel">
+          Decision note <span className="font-normal normal-case text-steel/70">· optional, recorded in the Decision Log</span>
+        </label>
+        <textarea
+          id="decision-note"
+          value={reason}
+          onChange={(e) => setReason(e.target.value)}
+          rows={2}
+          placeholder="Why advance or reject? e.g. strong systems-design signal, but thin on the must-have stack."
+          className="focus-ring mt-1.5 w-full rounded-md border border-stone-200 bg-white p-2 text-sm text-ink"
+        />
+      </div>
     </Modal>
   );
 }

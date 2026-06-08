@@ -3139,9 +3139,15 @@ export function actOnPipelineEntry(
     fromStage: row.stage,
   };
 
+  // A human decision may carry a free-text reason (DEC4). The detail/display
+  // plumbing already existed end-to-end (route forwards body.detail; DecisionLog
+  // renders d.detail) — accept/reject just never recorded it, so every human
+  // advance/reject landed in the auditable log with a blank reason. Now the
+  // optional reason rides the event. (approve_event keeps using detail as the slot.)
+  const decisionNote = detail && detail.trim() ? detail.trim() : null;
   if (action === "reject") {
     db.prepare(`UPDATE pipeline_entries SET status='rejected', approval_kind=NULL, updated_at=? WHERE id=?`).run(now, id);
-    recordEvent(db, { ...meta, kind: "rejected", toStage: row.stage });
+    recordEvent(db, { ...meta, kind: "rejected", toStage: row.stage, detail: decisionNote });
   } else if (action === "approve_event") {
     // A rejected/declined entry is terminal — a stale/reused schedule token must not
     // re-activate its approval or write a 'scheduled' event for a closed-out
@@ -3177,7 +3183,7 @@ export function actOnPipelineEntry(
     db.prepare(
       `UPDATE pipeline_entries SET stage=?, approval_kind='calendar', approval_detail=?, stage_changed_at=?, updated_at=? WHERE id=?`
     ).run(next, "Tue 14:00", now, now, id);
-    recordEvent(db, { ...meta, kind: "advanced", toStage: next });
+    recordEvent(db, { ...meta, kind: "advanced", toStage: next, detail: decisionNote });
   } else {
     // accept: advance one stage, clear any pending approval
     const idx = PIPELINE_STAGES.indexOf(row.stage as PipelineStage);
@@ -3186,7 +3192,7 @@ export function actOnPipelineEntry(
       db.prepare(
         `UPDATE pipeline_entries SET stage=?, approval_kind=NULL, approval_detail='', stage_changed_at=?, updated_at=? WHERE id=?`
       ).run(next, now, now, id);
-      recordEvent(db, { ...meta, kind: "advanced", toStage: next });
+      recordEvent(db, { ...meta, kind: "advanced", toStage: next, detail: decisionNote });
     } else {
       // Already at the terminal stage (Hired): clear the approval but don't bump
       // stage_changed_at — that timestamp anchors time-to-hire and must not move.

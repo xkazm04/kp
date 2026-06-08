@@ -103,10 +103,11 @@ export function DecisionsTab() {
     setEvalTaskId(null);
   }
 
-  const act = async (e: Entry, action: "accept" | "reject" | "approve_event") => {
+  const act = async (e: Entry, action: "accept" | "reject" | "approve_event", detail?: string) => {
     setResolving((s) => ({ ...s, [e.id]: action }));
     window.setTimeout(() => setEntries((prev) => (prev ? prev.filter((x) => x.id !== e.id) : prev)), 260);
     try {
+      const note = detail?.trim();
       const r = await fetch(`/api/pipeline/${e.id}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -115,7 +116,9 @@ export function DecisionsTab() {
         // analysis modal can stay open across a state change, so a stale
         // Advance/Reject now gets a 409 (and the catch below reloads the fresh
         // queue) instead of blindly overriding what another actor did.
-        body: JSON.stringify({ action, expectedStage: e.stage }),
+        // An optional reason (DEC4) rides as `detail` → recorded on the
+        // advanced/rejected event → shown in the Decision Log.
+        body: JSON.stringify({ action, expectedStage: e.stage, ...(note ? { detail: note } : {}) }),
       });
       if (!r.ok) throw new Error();
       // Accepting an AI screening flows the candidate to interview scheduling —
@@ -154,9 +157,9 @@ export function DecisionsTab() {
     if (t) setEvalTaskId(t.id);
   };
 
-  const decide = (e: Entry, action: "accept" | "reject") => {
+  const decide = (e: Entry, action: "accept" | "reject", detail?: string) => {
     setSummaryEntry(null);
-    void act(e, action);
+    void act(e, action, detail);
   };
 
   const leavingWrapClass = (e: Entry) =>
@@ -280,8 +283,8 @@ export function DecisionsTab() {
         <AnalysisSummaryModal
           entry={summaryEntry}
           onClose={() => setSummaryEntry(null)}
-          onAccept={() => decide(summaryEntry, "accept")}
-          onReject={() => decide(summaryEntry, "reject")}
+          onAccept={(reason) => decide(summaryEntry, "accept", reason)}
+          onReject={(reason) => decide(summaryEntry, "reject", reason)}
         />
       ) : null}
 
