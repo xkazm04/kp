@@ -9,6 +9,7 @@ import {
   saveProfile,
 } from "@/app/_lib/db";
 import { applyDedupeKey, buildApplyProfileDraft, buildApplyScript, FALLBACK_ARCHETYPE, KO_STEP_IDS } from "@/app/_lib/apply";
+import { dispatchApplicationReceived } from "@/app/_lib/comms-dispatch";
 import type { ApplyAnswers } from "@/app/_lib/apply-intake";
 import { cleanupWorkdir, createWorkdir, parsePythonJson, spawnPython } from "@/app/_lib/python-runner";
 import { validateProfileCliResult } from "@/app/_lib/apply-profile-result";
@@ -25,6 +26,7 @@ const MAX_APPLY_BODY_BYTES = 64 * 1024; // 64 KB — ample for a few short answe
 const MAX_NAME_LENGTH = 200;
 const MAX_TEXT_LENGTH = 8 * 1024; // 8 KB per free-text answer (experience, skills)
 const MAX_ARCHETYPE_LENGTH = 64; // a registry id, never long
+const MAX_EMAIL_LENGTH = 254; // RFC 5321 max address length
 
 // Outcome of normalizing an application into a matchable profile. On failure we
 // carry a short, bounded `reason` (not just null) so the caller can persist it
@@ -180,6 +182,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     // is derived from `providedName` (blank ⇒ no dedup).
     const providedName = String(answers.name ?? "").trim();
     const name = providedName || "Applicant";
+    const email = String(answers.email ?? "").trim();
     const experience = String(answers.experience ?? "").trim();
     const skills = String(answers.skills ?? "").trim();
     const archetype = String(answers.archetype ?? "").trim();
@@ -202,6 +205,15 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     }
     if (archetype.length > MAX_ARCHETYPE_LENGTH) {
       return NextResponse.json({ error: "Invalid selection." }, { status: 400 });
+    }
+    // Apply doesn't HARD-block on a missing email (the entry still files; comms
+    // just stay undeliverable until a contact is captured) — but a clearly
+    // malformed address is rejected so the stored recipient is never junk.
+    if (email.length > MAX_EMAIL_LENGTH) {
+      return NextResponse.json({ error: "Your email is too long." }, { status: 400 });
+    }
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return NextResponse.json({ error: "Please enter a valid email address." }, { status: 400 });
     }
 
     // Duplicate-application policy (primary check): if this named applicant has
@@ -247,6 +259,9 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       dedupeKey: applyDedupeKey(providedName),
       intakeDegraded: !built.ok,
       intakeDegradedReason: built.ok ? null : built.reason,
+      // The deliverable recipient for every downstream comm; null when the
+      // applicant left it blank (the entry still files, comms just dead-letter).
+      contact: email || null,
     });
 
     // created:false here means the dedupeKey backstop caught a concurrent repeat
@@ -262,6 +277,20 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     if (built.ok) {
       const story = experience || studentProject || switchPrior;
       recordAutomationEvent(entry.id, "applied", story ? story.slice(0, 160) : "via conversational apply");
+    }
+
+    // Acknowledge the application (APP3) — a durable "we received it" instead of
+    // only the in-page bubble. Best-effort: the entry is already created, so a
+    // comms failure must never turn a successful application into a 500. Lands in
+    // the Outbox (deliverable when an email was captured above, traceable either
+    // way). Fires for degraded stubs too — they still applied.
+    try {
+      await dispatchApplicationReceived(entry);
+    } catch (ackErr) {
+      console.error(
+        `[apply] application accepted but acknowledgement failed for entry ${entry.id}:`,
+        ackErr instanceof Error ? ackErr.message : ackErr
+      );
     }
 
     return NextResponse.json({

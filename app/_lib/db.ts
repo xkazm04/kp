@@ -230,7 +230,12 @@ function ensureDb(): Database.Database {
       -- (the entry needs manual profile capture). The reason carries the bounded
       -- failure detail so the recruiter knows what to recover.
       intake_degraded INTEGER NOT NULL DEFAULT 0,
-      intake_degraded_reason TEXT
+      intake_degraded_reason TEXT,
+      -- Candidate contact (email/phone) captured at inbound apply. The data model
+      -- otherwise stores no address, so every downstream comm dead-lettered to the
+      -- literal "candidate"; when present this is the deliverable recipient
+      -- (candidateRecipient prefers it). Optional — recruiter/Match adds omit it.
+      contact TEXT
     );
 
     CREATE INDEX IF NOT EXISTS idx_pipeline_job ON pipeline_entries (job_id);
@@ -388,6 +393,9 @@ function ensureDb(): Database.Database {
   for (const sql of [
     "ALTER TABLE pipeline_entries ADD COLUMN intake_degraded INTEGER NOT NULL DEFAULT 0",
     "ALTER TABLE pipeline_entries ADD COLUMN intake_degraded_reason TEXT",
+    // Candidate contact captured at inbound apply (idea APP2) — makes the comms
+    // stack deliverable for applicants instead of dead-lettering to "candidate".
+    "ALTER TABLE pipeline_entries ADD COLUMN contact TEXT",
   ]) {
     try {
       db.exec(sql);
@@ -1264,6 +1272,9 @@ export type PipelineEntry = {
   // failure detail. See createPipelineEntry / clearIntakeDegraded.
   intakeDegraded: boolean;
   intakeDegradedReason: string | null;
+  // Candidate contact (email/phone) captured at inbound apply, else null. The
+  // deliverable comms recipient when present (see candidateRecipient).
+  contact: string | null;
 };
 
 // Canonical shape of a /api/pipeline row. That endpoint returns listPipeline()
@@ -1519,6 +1530,7 @@ type PipelineRow = {
   stage_changed_at: string | null;
   intake_degraded: number | null;
   intake_degraded_reason: string | null;
+  contact: string | null;
 };
 
 function rowToEntry(r: PipelineRow): PipelineEntry {
@@ -1542,6 +1554,7 @@ function rowToEntry(r: PipelineRow): PipelineEntry {
     // Stored as 0/1 (and absent on a SELECT that omits the column) — coerce to bool.
     intakeDegraded: r.intake_degraded === 1,
     intakeDegradedReason: r.intake_degraded_reason ?? null,
+    contact: r.contact ?? null,
   };
 }
 
@@ -1824,6 +1837,9 @@ export type CreatePipelineInput = {
   // `applyDedupeKey` in apply-intake.ts. Recruiter/Match adds omit it and keep
   // the historical candidateId-keyed behavior.
   dedupeKey?: string | null;
+  // Candidate contact (email/phone) from inbound apply; stored so downstream comms
+  // are deliverable. Omitted by recruiter/Match adds (they carry no address).
+  contact?: string | null;
 };
 
 // Idempotent: a (candidate, job) pair maps to one entry, so re-adding from Match
@@ -1859,10 +1875,10 @@ export function createPipelineEntry(input: CreatePipelineInput): { entry: Pipeli
     `INSERT INTO pipeline_entries
        (id, candidate_id, candidate_label, archetype, role_family, job_id, job_title,
         stage, match_score, status, approval_kind, approval_detail, created_at, stage_changed_at, updated_at,
-        intake_degraded, intake_degraded_reason)
+        intake_degraded, intake_degraded_reason, contact)
      VALUES (@id, @candidate_id, @candidate_label, @archetype, @role_family, @job_id, @job_title,
         @stage, @match_score, 'active', NULL, '', @now, @now, @now,
-        @intake_degraded, @intake_degraded_reason)`
+        @intake_degraded, @intake_degraded_reason, @contact)`
   ).run({
     id,
     candidate_id: input.candidateId,
@@ -1876,6 +1892,7 @@ export function createPipelineEntry(input: CreatePipelineInput): { entry: Pipeli
     now,
     intake_degraded: intakeDegraded,
     intake_degraded_reason: intakeDegradedReason,
+    contact: input.contact ?? null,
   });
   recordEvent(db, {
     entryId: id,

@@ -9,19 +9,45 @@ import { isEarlyCareer } from "./archetypes";
 // log as the dev lifecycle's comms. Mirrors the inline-template pattern already
 // used by distribution.ts (intake ack) and devcase-orchestrator.ts (invite).
 
-// RECIPIENT CONTRACT (full write-up in docs/COMMS_DELIVERY.md). The data model
-// stores no candidate email, so a relay never receives a deliverable address from
-// us — it receives a best-effort *identifier* it must resolve itself, in priority:
-//   1. candidateLabel — the human display name (the normal case; an ATS/relay maps
-//      name → address via its own directory).
-//   2. candidateId    — a stable opaque id when no label exists.
-//   3. "candidate"    — last-resort literal. UNADDRESSABLE: a relay cannot deliver
+// RECIPIENT CONTRACT (full write-up in docs/COMMS_DELIVERY.md). Resolved in
+// priority:
+//   1. contact        — a real address captured at inbound apply (idea APP2). When
+//      present this is a directly-deliverable recipient, not just an identifier —
+//      it closes the "unaddressable recipient" seam for applicants.
+//   2. candidateLabel — the human display name (the historical case; an ATS/relay
+//      maps name → address via its own directory).
+//   3. candidateId    — a stable opaque id when no label exists.
+//   4. "candidate"    — last-resort literal. UNADDRESSABLE: a relay cannot deliver
 //      to it, so the message will dead-letter. `ref` (the entry id) on every
 //      OutboundMessage keeps even this case traceable in the Outbox audit log.
-// This is the documented email-enrichment seam: store/resolve a real address here
-// before wiring a production relay.
-export function candidateRecipient(entry: { candidateLabel?: string | null; candidateId?: string | null }): string {
-  return (entry.candidateLabel ?? "").trim() || (entry.candidateId ?? "").trim() || "candidate";
+// Recruiter/Match-sourced entries still carry no contact, so they resolve to the
+// name as before — the enrichment is purely additive for inbound applicants.
+export function candidateRecipient(entry: {
+  candidateLabel?: string | null;
+  candidateId?: string | null;
+  contact?: string | null;
+}): string {
+  return (entry.contact ?? "").trim() || (entry.candidateLabel ?? "").trim() || (entry.candidateId ?? "").trim() || "candidate";
+}
+
+/** Acknowledge a freshly-received inbound application. Inbound applicants got only
+ *  an ephemeral in-page "You're in 🎉" bubble — no durable acknowledgement, even
+ *  though dev-case submissions auto-ack and every other pipeline event fires a
+ *  comm. Brings applicants to comms parity: a candidate who closes the tab still
+ *  has a record their application landed. Deterministic (works without an LLM) and
+ *  goes through the shared sendComm Outbox channel — the audit row is useful even
+ *  before a real address is captured, and deliverable once one is (APP2). */
+export async function dispatchApplicationReceived(entry: PipelineEntry): Promise<void> {
+  const name = (entry.candidateLabel ?? "").trim() || "there";
+  const role = entry.jobTitle ?? "the role";
+  const subject = `We received your application — ${role}`;
+  const body =
+    `Hi ${name},\n\n` +
+    `Thanks for applying for ${role} — we've received your application and a recruiter will review it shortly. ` +
+    `We'll be in touch about the next steps.\n\n` +
+    `Best,\nThe hiring team`;
+  await sendComm({ to: candidateRecipient(entry), subject, body, kind: "acknowledgement", ref: entry.id });
+  recordAutomationEvent(entry.id, "acknowledgement_sent", role);
 }
 
 /** Dispatch an outreach message — the LLM/deterministic draft just generated. */

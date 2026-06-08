@@ -70,6 +70,15 @@ export function buildApplyScript(job: JobRecord): ApplyStep[] {
       prompt: `Hi! Let's get you applied for ${job.title}${job.company ? ` at ${job.company}` : ""}. What's your name?`,
       placeholder: "Your name",
     },
+    {
+      // Captured up front so the candidate is reachable: without it every
+      // follow-up (acknowledgement, interview invite, offer, rejection) has no
+      // address and dead-letters. Stored on the pipeline entry as `contact`.
+      id: "email",
+      type: "text",
+      prompt: "Thanks! What's the best email to reach you at? We'll use it to follow up about your application.",
+      placeholder: "you@example.com",
+    },
   ];
 
   // Asked EARLY (right after the name) because it now routes the rest of the
