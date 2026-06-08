@@ -8,6 +8,7 @@ import { ARCHETYPE_BADGE, normalizeArchetype } from "@/app/_lib/archetypes";
 import { isTerminalEntryStatus } from "@/app/_lib/pipeline-status";
 import { postPipelineAdd } from "@/app/_lib/useAddToPipeline";
 import { cellClass, ColumnStats, MatrixLegend, type Cell } from "./MatrixShared";
+import { STRONG_THRESHOLD } from "./matrix-stats";
 
 type Candidate = { id: string; label: string; archetype: string | null };
 type Position = { id: string; title: string; seniority: string; roleFamily: string };
@@ -57,6 +58,12 @@ export function MatrixTab() {
   const [error, setError] = useState<string | null>(null);
   const [sortByFit, setSortByFit] = useState(true);
   const [family, setFamily] = useState<string>("all");
+  // MAT6: a fit floor that hides candidate rows whose best visible score is below
+  // it (0 = off), and an optional sort by a chosen position column (its original
+  // index, or null = the fit/A–Z toggle). On a real pool the grid is mostly weak
+  // cells; these make the strong candidates jump out.
+  const [minFit, setMinFit] = useState(0);
+  const [sortCol, setSortCol] = useState<number | null>(null);
   // Bulk shortlist from the matrix (MAT3 matrix half). In select mode a cell click
   // toggles selection instead of navigating; the action bar files every selected
   // (candidate → that position) into the pipeline in one pass. Cell key = candId|posId.
@@ -105,18 +112,47 @@ export function MatrixTab() {
   const staleJob = Boolean(jobParam) && Boolean(data) && !scopedPosition;
   const clearJob = () => router.push(buildUrl({ tab: "matrix", job: null }, search.toString()));
 
-  // rows sorted by best visible fit (or alphabetical)
+  // rows: best-visible-fit sort by default, A–Z when toggled, or by a chosen
+  // column's score when a header is clicked (MAT6); filtered to the min-fit floor.
   const rows = useMemo(() => {
     if (!data) return [];
     const colIdx = cols.map((c) => c.i);
     const best = (ri: number) =>
       Math.max(0, ...colIdx.map((ci) => data.cells[ri]?.[ci]?.score ?? -1));
-    const order = data.candidates.map((cand, ri) => ({ cand, ri }));
+    let order = data.candidates.map((cand, ri) => ({ cand, ri }));
+    // Fit floor: keep only candidates whose best VISIBLE score clears it, so a
+    // family filter or scoped view applies the floor to what's actually shown.
+    if (minFit > 0) order = order.filter(({ ri }) => best(ri) >= minFit);
+    // Only honor a column sort while that column is visible (a family filter can
+    // hide the sorted column); otherwise fall back to the fit/A–Z toggle.
+    const byCol = sortCol != null && colIdx.includes(sortCol) ? (ri: number) => data.cells[ri]?.[sortCol]?.score ?? -1 : null;
     order.sort((a, b) =>
-      sortByFit ? best(b.ri) - best(a.ri) : a.cand.label.localeCompare(b.cand.label)
+      byCol
+        ? byCol(b.ri) - byCol(a.ri)
+        : sortByFit
+        ? best(b.ri) - best(a.ri)
+        : a.cand.label.localeCompare(b.cand.label)
     );
     return order;
-  }, [data, cols, sortByFit]);
+  }, [data, cols, sortByFit, minFit, sortCol]);
+
+  // MAT2 row counterpart: how many VISIBLE roles each candidate is a strong fit
+  // for (score >= STRONG_THRESHOLD) — a versatile-vs-niche read per candidate,
+  // mirroring the per-column strong count. Keyed by candidate row index.
+  const rowStrong = useMemo(() => {
+    const out: Record<number, number> = {};
+    if (!data) return out;
+    const colIdx = cols.map((c) => c.i);
+    for (let ri = 0; ri < data.candidates.length; ri += 1) {
+      let n = 0;
+      for (const ci of colIdx) {
+        const s = data.cells[ri]?.[ci]?.score;
+        if (s != null && s >= STRONG_THRESHOLD) n += 1;
+      }
+      out[ri] = n;
+    }
+    return out;
+  }, [data, cols]);
 
   // Per-column non-blocked scores across the whole candidate pool (MAT2) — the
   // distribution the header strip summarizes. Keyed by the position's index into
@@ -214,15 +250,36 @@ export function MatrixTab() {
           <div className="flex items-center gap-2">
             {data ? (
               <span className="rounded-md border border-stone-200 bg-paper px-2.5 py-1 text-sm text-steel">
-                {data.candidates.length} candidates × {cols.length} positions
+                {minFit > 0 ? `${rows.length} of ${data.candidates.length}` : data.candidates.length} candidates × {cols.length} positions
               </span>
+            ) : null}
+            {/* Min-fit floor (MAT6): hide candidates whose best visible fit is
+                below the threshold so a noisy grid shows only the promising rows. */}
+            {data && data.candidates.length > 0 ? (
+              <div className="inline-flex items-center overflow-hidden rounded-md border border-stone-200 bg-white text-sm font-semibold">
+                <span className="px-2 py-1 text-steel">Min fit</span>
+                {[0, 55, 70].map((t) => (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => setMinFit(t)}
+                    aria-pressed={minFit === t}
+                    className={`focus-ring border-l border-stone-200 px-2.5 py-1 ${minFit === t ? "bg-ink text-white" : "text-ink hover:bg-paper"}`}
+                  >
+                    {t === 0 ? "Off" : `≥${t}`}
+                  </button>
+                ))}
+              </div>
             ) : null}
             <button
               type="button"
-              onClick={() => setSortByFit((v) => !v)}
+              onClick={() => {
+                setSortCol(null); // an explicit fit/A–Z choice overrides a column sort
+                setSortByFit((v) => !v);
+              }}
               className="focus-ring rounded-md border border-stone-200 bg-white px-2.5 py-1 text-sm font-semibold text-ink hover:border-coral/40"
             >
-              Sort: {sortByFit ? "best fit" : "A–Z"}
+              Sort: {sortCol != null ? "by column" : sortByFit ? "best fit" : "A–Z"}
             </button>
             {data && data.candidates.length > 0 ? (
               <button
@@ -373,11 +430,22 @@ export function MatrixTab() {
                   {cols.map(({ p, i }) => (
                     <th
                       key={p.id}
-                      title={`${p.title} · ${p.seniority}`}
-                      className="sticky top-0 z-10 border-b border-stone-100 bg-paper p-1.5 align-bottom"
+                      className={`sticky top-0 z-10 border-b bg-paper p-1.5 align-bottom ${sortCol === i ? "border-coral" : "border-stone-100"}`}
                     >
-                      <div className="mx-auto w-[84px] truncate text-left font-semibold text-ink">{p.title}</div>
-                      <div className="text-left text-sm uppercase text-steel">{p.seniority}</div>
+                      {/* Click a column to rank candidates by their fit for THAT role
+                          (MAT6); click again to clear back to best-overall. */}
+                      <button
+                        type="button"
+                        onClick={() => setSortCol((cur) => (cur === i ? null : i))}
+                        aria-pressed={sortCol === i}
+                        title={`${p.title} · ${p.seniority} — ${sortCol === i ? "sorting by this role; click to clear" : "click to sort by this role"}`}
+                        className="focus-ring block w-[84px] rounded text-left hover:text-coral"
+                      >
+                        <span className={`block truncate font-semibold ${sortCol === i ? "text-coral" : "text-ink"}`}>
+                          {sortCol === i ? "▼ " : ""}{p.title}
+                        </span>
+                        <span className="block text-sm uppercase text-steel">{p.seniority}</span>
+                      </button>
                       <ColumnStats scores={colScores[i] ?? []} />
                     </th>
                   ))}
@@ -392,6 +460,15 @@ export function MatrixTab() {
                         <div className="flex items-center gap-1.5">
                           <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${a.bg}`} title={a.label} />
                           <span className="w-[120px] truncate font-medium text-ink">{cand.label}</span>
+                          {/* MAT2 row counterpart: strong-fit count across visible roles. */}
+                          {rowStrong[ri] > 0 ? (
+                            <span
+                              className="ml-auto shrink-0 rounded-full bg-moss/10 px-1.5 text-meta font-semibold text-moss nums"
+                              title={`Strong fit (≥${STRONG_THRESHOLD}) for ${rowStrong[ri]} of ${cols.length} shown role${cols.length === 1 ? "" : "s"}`}
+                            >
+                              {rowStrong[ri]}★
+                            </span>
+                          ) : null}
                         </div>
                       </td>
                       {cols.map(({ p, i }) => {
