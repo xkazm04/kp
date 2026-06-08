@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { AlertTriangle, Sparkles } from "lucide-react";
+import { AlertTriangle, BookmarkPlus, Sparkles, X } from "lucide-react";
 import { buildUrl } from "@/app/features/tabs";
 import { useTasks } from "@/app/features/tasks/TasksProvider";
 import { useLiveRefresh } from "@/app/features/live-refresh";
@@ -64,6 +64,10 @@ function groupPositions(entries: Entry[]): Position[] {
 // The board's quick-filter toggles (free-text name/role search runs alongside).
 type QuickFilter = "aging" | "awaiting" | "intake" | "interview";
 
+// A saved board view (PIPE5): a named snapshot of the search + quick-filter.
+type SavedView = { id: string; name: string; query: string; quick: QuickFilter | null };
+const PIPELINE_VIEWS_KEY = "kp.pipelineViews";
+
 export function PipelineTab() {
   const router = useRouter();
   const search = useSearchParams();
@@ -85,6 +89,25 @@ export function PipelineTab() {
   // quick-filter chip. Client-side — the board already holds every entry.
   const [query, setQuery] = useState("");
   const [quick, setQuick] = useState<QuickFilter | null>(null);
+  // Saved board views (PIPE5): named {search + quick-filter} presets a recruiter
+  // returns to, persisted in localStorage (single board, client-only — no schema).
+  const [views, setViews] = useState<SavedView[]>([]);
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(PIPELINE_VIEWS_KEY);
+      if (raw) setViews(JSON.parse(raw) as SavedView[]);
+    } catch {
+      /* corrupt/absent — start empty */
+    }
+  }, []);
+  const persistViews = (next: SavedView[]) => {
+    setViews(next);
+    try {
+      localStorage.setItem(PIPELINE_VIEWS_KEY, JSON.stringify(next));
+    } catch {
+      /* storage full / unavailable — the in-memory list still works this session */
+    }
+  };
   const { startTask, findActive, tasks } = useTasks();
   const batch = findActive((t) => t.kind === "batch_screen");
   const lastBatchDone = useRef<string | null>(null);
@@ -194,6 +217,19 @@ export function PipelineTab() {
     setQuery("");
     setQuick(null);
   };
+  // PIPE5 — save the current filter combo as a named view, apply one, or drop it.
+  const activeViewId = views.find((v) => v.query === query && v.quick === quick)?.id ?? null;
+  const saveView = () => {
+    const suggested = query.trim() || (quick ? quick : "view");
+    const name = window.prompt("Name this view", suggested)?.trim();
+    if (!name) return;
+    persistViews([...views.filter((v) => v.name !== name), { id: name, name, query, quick }]);
+  };
+  const applyView = (v: SavedView) => {
+    setQuery(v.query);
+    setQuick(v.quick);
+  };
+  const deleteView = (id: string) => persistViews(views.filter((v) => v.id !== id));
 
   const openActions = (e: Entry) => setDrawerEntry(e);
   // Candidate name → the analyzed profile (Match view); falls back to the
@@ -396,7 +432,45 @@ export function PipelineTab() {
                 Clear
               </button>
             ) : null}
+            {/* PIPE5: save the current combo as a named view (only when it isn't
+                already one). */}
+            {filtering && !activeViewId ? (
+              <button
+                type="button"
+                onClick={saveView}
+                className="focus-ring inline-flex items-center gap-1 rounded-full border border-stone-200 bg-white px-2.5 py-0.5 text-sm font-semibold text-steel hover:border-coral/40 hover:text-ink"
+              >
+                <BookmarkPlus size={13} /> Save view
+              </button>
+            ) : null}
           </div>
+
+          {views.length > 0 ? (
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="text-meta uppercase tracking-wide text-steel">Views</span>
+              {views.map((v) => (
+                <span
+                  key={v.id}
+                  className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-sm font-semibold ${
+                    activeViewId === v.id ? "border-coral bg-coral/10 text-coral" : "border-stone-200 bg-white text-steel"
+                  }`}
+                >
+                  <button type="button" onClick={() => applyView(v)} className="focus-ring rounded hover:text-ink" title="Apply this view">
+                    {v.name}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => deleteView(v.id)}
+                    aria-label={`Delete view ${v.name}`}
+                    title="Delete view"
+                    className="focus-ring -mr-0.5 rounded text-steel hover:text-coral"
+                  >
+                    <X size={11} />
+                  </button>
+                </span>
+              ))}
+            </div>
+          ) : null}
 
           {filtering && filteredEntries.length === 0 ? (
             <p className="rounded-lg border border-stone-200 bg-paper p-4 text-base text-steel">
