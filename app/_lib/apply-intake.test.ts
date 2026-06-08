@@ -319,6 +319,27 @@ test("applyDedupeKey distinguishes genuinely different names", () => {
   assert.notEqual(applyDedupeKey("Jane Doe"), applyDedupeKey("John Doe"));
 });
 
+test("applyDedupeKey keys on the email when given (the stronger identity)", () => {
+  // Same name, DIFFERENT emails → DISTINCT keys (two real people, not a merge —
+  // the bug the name-only key had).
+  assert.notEqual(applyDedupeKey("Jane Doe", "jane1@x.com"), applyDedupeKey("Jane Doe", "jane2@x.com"));
+  // Same email, different name casing/spelling → SAME key (one person).
+  assert.equal(applyDedupeKey("Jane Doe", "jane@x.com"), applyDedupeKey("Jane D.", " JANE@X.com "));
+});
+
+test("applyDedupeKey email keys survive the slug strip without colliding", () => {
+  // `@` and `.` become hyphens, so a.b@x.com and ab@x.com stay distinct (a plain
+  // strip of non-alphanumerics would collapse both to 'abxcom').
+  assert.notEqual(applyDedupeKey("X", "a.b@x.com"), applyDedupeKey("X", "ab@x.com"));
+  assert.equal(applyDedupeKey("X", "a.b@x.com"), "appl-a-b-x-com");
+});
+
+test("applyDedupeKey falls back to the name when no email is captured", () => {
+  assert.equal(applyDedupeKey("Jane Doe"), "appl-jane-doe");
+  assert.equal(applyDedupeKey("Jane Doe", ""), "appl-jane-doe");
+  assert.equal(applyDedupeKey("Jane Doe", "   "), "appl-jane-doe");
+});
+
 // ---------------------------------------------------------------------------
 // isRetryableApplyStatus — the apply submit-failure recovery contract.
 // Pins which failed-submit statuses can re-POST the same answers ("Try again")

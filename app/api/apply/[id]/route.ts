@@ -228,8 +228,10 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     // Duplicate-application policy (primary check): if this named applicant has
     // already applied to this role, surface the repeat on the original entry and
     // acknowledge it — don't create a second pipeline row or burn a profile build.
-    if (providedName) {
-      const existing = findApplicationByApplicant(job.id, providedName);
+    // Dedup keys on the EMAIL when given (the stronger identity), else the name —
+    // so two same-named applicants with different addresses no longer merge.
+    if (providedName || email) {
+      const existing = findApplicationByApplicant(job.id, providedName, email);
       if (existing) {
         return acknowledgeReapply(existing.id);
       }
@@ -266,7 +268,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       // candidateId is a fresh profile id each submission. Backstops the rare
       // race where two concurrent first-time submissions slip past the check
       // above (each builds its own profile, but they collapse to one entry).
-      dedupeKey: applyDedupeKey(providedName),
+      dedupeKey: applyDedupeKey(providedName, email),
       intakeDegraded: !built.ok,
       intakeDegradedReason: built.ok ? null : built.reason,
       // The deliverable recipient for every downstream comm; null when the

@@ -6,7 +6,7 @@ import { isTerminalEntryStatus, TERMINAL_ENTRY_STATUSES } from "./pipeline-statu
 import { coerceOutboxStatus, type OutboxStatus } from "./comms-status";
 import { coerceInterviewRecommendation, type InterviewRecommendation } from "./interview-recommendation";
 import type { ScorecardRating } from "./interview-scorecard";
-import { normalizeApplicantName } from "./apply-intake";
+import { normalizeApplicantName, normalizeContact } from "./apply-intake";
 import { coerceProviderId, type VoiceProviderId, type VoiceTurn } from "./voice/types";
 import { DB_PATH, ensureDbDir } from "./db-path";
 import { randomId, randomToken } from "./random-id";
@@ -1992,14 +1992,23 @@ export function createPipelineEntry(input: CreatePipelineInput): { entry: Pipeli
 // primary, pre-build check the POST handler runs to avoid both a duplicate
 // pipeline row AND a wasted profile build; createPipelineEntry's `dedupeKey`
 // backstops the rare concurrent-submission race.
-export function findApplicationByApplicant(jobId: string, name: string): PipelineEntry | null {
-  const key = normalizeApplicantName(name);
-  if (!key) return null;
+export function findApplicationByApplicant(jobId: string, name: string, email?: string | null): PipelineEntry | null {
+  const emailKey = normalizeContact(email);
+  const nameKey = normalizeApplicantName(name);
+  // Nothing to key on (anonymous, no email) — never merge.
+  if (!emailKey && !nameKey) return null;
   const db = ensureDb();
   const rows = db
     .prepare(`SELECT * FROM pipeline_entries WHERE job_id = ? ORDER BY created_at ASC, id ASC`)
     .all(jobId) as PipelineRow[];
-  const match = rows.find((r) => normalizeApplicantName(r.candidate_label) === key);
+  // When the applicant gave an email, identity is the EMAIL: a repeat is an entry
+  // sharing that contact. NO name fallback in this case — two real people who share
+  // a name but gave different addresses are different applicants (the exact merge
+  // the old name-only match got wrong). When no email was captured, fall back to
+  // the legacy (jobId + normalized name) match.
+  const match = emailKey
+    ? rows.find((r) => normalizeContact(r.contact) === emailKey)
+    : rows.find((r) => normalizeApplicantName(r.candidate_label) === nameKey);
   return match ? rowToEntry(match) : null;
 }
 

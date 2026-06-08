@@ -70,7 +70,23 @@ export function normalizeApplicantName(name: string): string {
  * for a nameless applicant, which the caller treats as "don't dedup" (we can't
  * tell two anonymous applicants apart, so each gets its own entry).
  */
-export function applyDedupeKey(name: string): string {
+/** Normalize a captured contact (email) into a stable comparison key: trimmed +
+ *  lowercased. Email is the stronger identity than a display name (two real people
+ *  can share a name; an address is theirs), so when present it drives dedup. "" for
+ *  a blank/whitespace contact — the signal that we have no address to key on. */
+export function normalizeContact(contact: string | null | undefined): string {
+  return (contact ?? "").trim().toLowerCase();
+}
+
+export function applyDedupeKey(name: string, email?: string | null): string {
+  // Prefer the email (idea: dedup-by-email) — two same-named applicants with
+  // different addresses are different people and must get DISTINCT keys, which a
+  // name-only key collapsed onto one entry. Non-alphanumerics → hyphens so the key
+  // survives createPipelineEntry's slug strip distinctly (a.b@x vs ab@x don't
+  // collide once `@`/`.` become separators). Falls back to the name when no email
+  // was captured, preserving the legacy behavior for those applicants.
+  const e = normalizeContact(email);
+  if (e) return `appl-${e.replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "")}`;
   const norm = normalizeApplicantName(name);
   return norm ? `appl-${norm.replace(/ /g, "-")}` : "";
 }
