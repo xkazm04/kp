@@ -1,13 +1,14 @@
 # Feature Scout Fix Wave 2 — Close the candidate loop (Theme B)
 
-> 2 commits, 3 of 5 candidate-loop opportunities shipped (APP2 + APP3 keystone, then APP1).
-> Baseline preserved: tsc 0 → 0 · unit 617 → 617 · python 486 → 486 · next build ✓.
+> 3 commits, 4 of 5 candidate-loop opportunities shipped (APP2 + APP3 keystone, APP1, SCH2).
+> Baseline preserved: tsc 0 → 0 · unit 617 → 624 (+7 SCH2 store tests) · python 486 → 486 · next build ✓.
 
 Theme B is "close the candidate loop." Its keystone is **reachability** — APP2 closes
 the documented "unaddressable recipient" seam, which everything else in the theme
 (confirmations, interview invites, offers, rejections to inbound applicants) depends
-on. Wave 2 shipped that keystone + the confirmation that immediately rides on it; the
-remaining three candidate-loop items are independent surfaces queued for Wave 2b.
+on. Wave 2 shipped that keystone + the confirmation, then APP1 (CV upload) and SCH2
+(self-reschedule) — 4 of the 5 candidate-loop opportunities. Only JOB3 (sourcing
+reach-out) remains.
 
 ## Commit
 
@@ -15,6 +16,7 @@ remaining three candidate-loop items are independent surfaces queued for Wave 2b
 |---|---|---|---|
 | 1 | `5059861` | **APP2** + **APP3** — capture contact → deliverable comms + application-received ack | `db.ts` (contact column + migration + thread), `comms-dispatch.ts` (candidateRecipient + dispatchApplicationReceived), `apply.ts` (email step), `api/apply/[id]/route.ts` |
 | 2 | `47446a4` | **APP1** — optional CV upload at apply, folded in as evidence | `apply.ts` (`file` step type + step), `apply-intake.ts` (cvText → `kind:"cv"` evidence), `apply/[id]/ConversationalApply.tsx` (file-step UI + /api/extract-text), `api/apply/[id]/route.ts` |
+| 3 | `b69dba2` | **SCH2** — candidate self-reschedule of a confirmed interview | `schedule-store.ts` (rescheduleScheduleInvite + reschedule_count + test), `api/schedule/[token]/route.ts` (reschedule branch), `schedule/[token]/SchedulePicker.tsx` |
 
 ## What was shipped
 
@@ -43,6 +45,17 @@ remaining three candidate-loop items are independent surfaces queued for Wave 2b
   (carrying the typed skills) — turning a thin stub into a fully matchable candidate.
   Fully skippable, recoverable on a read failure; the server head-samples an over-long
   extract and the body cap rose to 256 KB to carry it.
+- **SCH2 — candidate self-reschedule.** The confirmation email promised "just reply to
+  change the time" but there was no path — a confirmed invite was a dead end. Adds
+  `rescheduleScheduleInvite` to the store with the SAME synchronous-transaction
+  collision authority as `confirmScheduleInvite` (slot_at identity — two concurrent
+  moves can't double-book), bounded by `MAX_RESCHEDULES`, freeing the old slot,
+  re-anchoring `confirmed_at`, and resetting the reminder cycle so the reminder fires
+  for the new time. The route's POST gained a reschedule branch that *shares* the
+  entry-record + confirmation-dispatch logic with first-confirm via one local helper
+  (so they can't drift); the picker's booked card grew a "Need a different time?"
+  affordance. Pinned by a new `schedule-store.test.ts` (7 tests, real store, throwaway
+  DB) covering move / taken / not_confirmed / limit / no-op / not_found / reminder-reset.
 
 ## Verification (before → after)
 
@@ -50,7 +63,7 @@ remaining three candidate-loop items are independent surfaces queued for Wave 2b
 |---|---|---|
 | `tsc --noEmit` | 0 errors | 0 errors |
 | `next build` | ✓ | ✓ |
-| `npm run test:unit` | 617 / 0 fail | 617 / 0 fail |
+| `npm run test:unit` | 617 / 0 fail | 624 / 0 fail (+7 SCH2 store tests) |
 | `npm run test:python` | 486 (4 skip) | 486 (4 skip) |
 
 The DB schema change (`contact` column) is additive + migrated (ALTER ADD COLUMN in
@@ -68,17 +81,7 @@ unit suite (which exercises `createPipelineEntry`/pipeline tests) stayed green.
    succeeded, so a comms throw must never surface as a 5xx (mirrors
    `dispatchInterviewReminder`'s post-send audit-swallow).
 
-## What remains (deferred)
-
-- **SCH2 — candidate self-reschedule** from the booked-confirmation page (the email
-  promises "just reply" but there's no path). **Deliberately deferred to a focused
-  wave**: it's a collision-safe reschedule on a PUBLIC, email-sending token route in a
-  flagged-delicate area (the slot machinery carries uncommitted WIP; Scheduling#3/#4
-  were deferred for slot-vocabulary rework). Needs a transactional
-  `rescheduleScheduleInvite` matching `confirmScheduleInvite`'s discipline, a GET
-  slot-pool change (offer slots when confirmed, excluding the candidate's own), a
-  reschedule cap, and a store-level concurrency test — best done fresh, not at the tail
-  of a long session.
+## What remains (deferred — JOB3 only)
 - **JOB3 — "Reach out" from a sourcing result.** Needs an outreach path for a sourced
   candidate not yet in the pipeline (the outreach automation task is entry-keyed) — not
   the small wire it first appears.
