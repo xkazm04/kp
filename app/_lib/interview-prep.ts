@@ -59,6 +59,28 @@ export function saveInterviewPrep(entryId: string, candidateLabel: string | null
     });
 }
 
+// The interviewer's working state on a prep guide (PREP2): which coverage items
+// are ticked + free-text notes (the verbatim quotes the rubric asks for). Stored
+// UNDER a reserved `userProgress` key inside the artifact payload so it rides the
+// same row without a schema change and the generated plan (scenario/chronology/…)
+// stays untouched.
+export type InterviewPrepProgress = { checked?: Record<string, boolean>; notes?: string };
+
+/** Merge the interviewer's checklist + notes into an EXISTING prep artifact,
+ *  preserving the generated plan AND `created_at` (a progress save is not a
+ *  regeneration — `listPreparedEntries`/the "generated NN ago" stamp must not
+ *  move). Returns false when there's no artifact to attach progress to (the prep
+ *  must be generated first). Writes only `payload_json`. */
+export function saveInterviewPrepProgress(entryId: string, progress: InterviewPrepProgress): boolean {
+  const existing = getInterviewPrep(entryId);
+  if (!existing) return false;
+  const payload = { ...existing.payload, userProgress: progress };
+  const res = db()
+    .prepare(`UPDATE interview_preps SET payload_json = ? WHERE entry_id = ?`)
+    .run(JSON.stringify(payload), entryId);
+  return res.changes > 0;
+}
+
 export function getInterviewPrep(entryId: string): InterviewPrep | null {
   const row = db()
     .prepare(`SELECT entry_id, candidate_label, job_title, payload_json, created_at FROM interview_preps WHERE entry_id = ?`)

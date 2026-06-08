@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { AlertTriangle, Check, Clock, Copy, Loader2, ListChecks, RefreshCw, Sparkles } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { AlertTriangle, Check, Clock, Copy, Loader2, ListChecks, NotebookPen, RefreshCw, Sparkles } from "lucide-react";
 import { copyText } from "@/app/_lib/export-utils";
 import { Modal } from "@/app/_components/Modal";
 import { Meter } from "@/app/_components/Meter";
@@ -11,7 +11,10 @@ import { useJsonFetch } from "@/app/_lib/useJsonFetch";
 import type { SchedEntry } from "./ScheduleTypes";
 
 type Block = { fromMin: number; toMin: number; topic: string; goal: string; questions: string[]; followUp?: string };
-type Prep = { scenario: string; durationMin: number; focusAreas: string[]; chronology: Block[]; signals: string[]; source?: string };
+// userProgress (PREP2) rides inside the persisted artifact payload — the
+// interviewer's ticked items + notes, restored on reopen.
+type UserProgress = { checked?: Record<string, boolean>; notes?: string };
+type Prep = { scenario: string; durationMin: number; focusAreas: string[]; chronology: Block[]; signals: string[]; source?: string; userProgress?: UserProgress };
 
 export function InterviewPrepModal({ entry, onClose }: { entry: SchedEntry; onClose: () => void }) {
   const { startTask } = useTasks();
@@ -25,7 +28,16 @@ export function InterviewPrepModal({ entry, onClose }: { entry: SchedEntry; onCl
   const [generated, setGenerated] = useState<Prep | null>(null);
   const [taskId, setTaskId] = useState<string | null>(null);
   const [checked, setChecked] = useState<Record<string, boolean>>({});
+  const [notes, setNotes] = useState("");
   const [copied, setCopied] = useState(false);
+  // PREP2: hydrate the interviewer's saved checklist + notes once the artifact
+  // loads, then debounce-persist edits. `hydratedRef` stops the saved state from
+  // being written straight back; `dirtyRef` gates the save to genuine user edits.
+  const hydratedRef = useRef(false);
+  const dirtyRef = useRef(false);
+  const markEdited = () => {
+    dirtyRef.current = true;
+  };
 
   // A completed (re)generation (`generated`) ALWAYS supersedes the fetched copy, so
   // a slow initial GET resolving after a fast generation can't wipe a freshly saved
@@ -37,6 +49,36 @@ export function InterviewPrepModal({ entry, onClose }: { entry: SchedEntry; onCl
   // A deterministic template fallback (LLM unavailable) is generic, not tailored —
   // disclosed below with a prompt to regenerate (idea-0864adb5).
   const fallback = prep ? isPrepFallback(prep.source) : false;
+
+  // Restore the interviewer's saved progress once, from the loaded artifact (never
+  // from a fresh generation — that has none). Guarded by hydratedRef so it runs
+  // exactly once the GET resolves.
+  useEffect(() => {
+    if (hydratedRef.current || generated) return;
+    const up = (data?.prep?.payload as Prep | undefined)?.userProgress;
+    if (up) {
+      if (up.checked) setChecked(up.checked);
+      if (typeof up.notes === "string") setNotes(up.notes);
+    }
+    if (data) hydratedRef.current = true; // GET resolved (artifact or empty) — done hydrating
+  }, [data, generated]);
+
+  // Debounce-persist checklist + notes edits to the artifact. Only fires after a
+  // genuine user edit (dirtyRef), so hydration doesn't echo back, and only when a
+  // prep exists to attach to.
+  useEffect(() => {
+    if (!dirtyRef.current || !prep) return;
+    const h = window.setTimeout(() => {
+      void fetch(`/api/interview-prep?entry=${encodeURIComponent(entry.id)}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ checked, notes }),
+      }).catch(() => {
+        /* progress save is best-effort — a blip shouldn't interrupt the interview */
+      });
+    }, 600);
+    return () => window.clearTimeout(h);
+  }, [checked, notes, prep, entry.id]);
 
   // Watch a generation task; its result (fetched on demand — the poll omits it)
   // supersedes any saved artifact. Hold taskId until the full result lands so the
@@ -53,7 +95,14 @@ export function InterviewPrepModal({ entry, onClose }: { entry: SchedEntry; onCl
   }
 
   const generate = async () => {
+    // A regeneration replaces the plan (the task re-saves the artifact with no
+    // userProgress), so clear the interviewer's working state and suppress a
+    // stale save of it; hydratedRef stays true so the cleared state isn't
+    // re-hydrated from the now-stale GET.
     setChecked({});
+    setNotes("");
+    dirtyRef.current = false;
+    hydratedRef.current = true;
     const t = await startTask("interview_prep", { entryId: entry.id, candidateLabel: entry.candidateLabel, jobTitle: entry.jobTitle });
     if (t) setTaskId(t.id);
   };
@@ -218,7 +267,10 @@ export function InterviewPrepModal({ entry, onClose }: { entry: SchedEntry; onCl
                       <input
                         type="checkbox"
                         checked={on}
-                        onChange={(e) => setChecked((s) => ({ ...s, [key]: e.target.checked }))}
+                        onChange={(e) => {
+                          markEdited();
+                          setChecked((s) => ({ ...s, [key]: e.target.checked }));
+                        }}
                         className="mt-0.5 h-4 w-4 shrink-0 accent-coral"
                       />
                       <span className="min-w-0 flex-1">
@@ -254,7 +306,10 @@ export function InterviewPrepModal({ entry, onClose }: { entry: SchedEntry; onCl
                         <input
                           type="checkbox"
                           checked={Boolean(checked[key])}
-                          onChange={(e) => setChecked((s) => ({ ...s, [key]: e.target.checked }))}
+                          onChange={(e) => {
+                            markEdited();
+                            setChecked((s) => ({ ...s, [key]: e.target.checked }));
+                          }}
                           className="mt-0.5 h-4 w-4 shrink-0 accent-coral"
                         />
                         <span className={checked[key] ? "text-steel line-through" : ""}>{it}</span>
@@ -265,6 +320,25 @@ export function InterviewPrepModal({ entry, onClose }: { entry: SchedEntry; onCl
               </ul>
             </section>
           ) : null}
+
+          {/* Interviewer notes (PREP2): a durable scratchpad for verbatim quotes /
+              evidence, autosaved with the checklist and restored on reopen. */}
+          <section>
+            <label htmlFor="prep-notes" className="flex items-center gap-1.5 text-meta uppercase tracking-wide text-steel">
+              <NotebookPen size={13} /> Interviewer notes
+            </label>
+            <textarea
+              id="prep-notes"
+              value={notes}
+              onChange={(e) => {
+                markEdited();
+                setNotes(e.target.value);
+              }}
+              rows={3}
+              placeholder="Jot quotes and observations during the call — saved automatically and here when you return."
+              className="focus-ring mt-1.5 w-full rounded-md border border-stone-200 bg-white p-2 text-sm text-ink"
+            />
+          </section>
         </div>
       )}
     </Modal>
