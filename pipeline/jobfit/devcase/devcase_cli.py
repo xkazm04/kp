@@ -18,9 +18,10 @@ optional `fallbackReason` block (present only when a step's LLM call RAISED and 
 its deterministic template) maps that step to a one-line "<ExceptionType>: <message>" cause —
 so an operator/UI can tell a timeout from a JSON parse error from a misconfigured provider,
 instead of a silent deterministic run that looks identical in every failure mode. The optional
-`confidence` block (present only when a step's artifact carries a 0..1 confidence self-rating —
-analyze/reflect/tooling) rides beside the badge so the UI can warn a reviewer not to over-trust
-a thin/ungrounded step; see the confidence scale in models.py.
+`confidence` block (present only when a step's artifact carries a 0..1 confidence — the
+self-rated analyze/reflect/tooling plus the PROPAGATED evaluate/transfer, which inherit the min of
+their upstream signals) rides beside the badge so the UI can warn a reviewer not to over-trust a
+thin/ungrounded step — or a decision built on one; see the confidence scale in models.py.
 On failure: {"error","status","code"} to stderr, where status/code distinguish a
 user-fixable input error (400 / "invalid_input", exit 2) from a genuine engine failure
 (500 / "engine_error", exit 1) — mirroring jobfit/cli.py so the UI can render a precise
@@ -72,9 +73,12 @@ def _require_object(value: object, flag: str) -> dict:
 def _confidences(**named: object) -> dict[str, float]:
     """Map step -> its artifact's ``confidence`` (0..1), skipping artifacts without one.
 
-    Only NeedAnalysis, CommitReflection and ToolingSignal carry a confidence self-rating
-    (see the confidence scale in models.py); role/case/evaluation/transfer do not, so they
-    are silently omitted rather than reported as 0.0.
+    NeedAnalysis, CommitReflection and ToolingSignal carry a confidence SELF-RATING, while
+    CaseEvaluation and TransferAssessment carry a PROPAGATED one (the min of their upstream
+    signals — see the confidence scale in models.py + evaluate._propagated_confidence). All five
+    surface here so a reviewer can see the decision artifact is only as trustworthy as the evidence
+    it was built from. Artifacts with no ``confidence`` (role/case) are silently omitted rather
+    than reported as 0.0.
     """
     out: dict[str, float] = {}
     for step, art in named.items():
@@ -124,12 +128,13 @@ def _emit(
     run, or a deliberate ``--no-llm`` / provider-unavailable run — both already honest via
     ``source``), keeping the base envelope unchanged for those.
 
-    When the command's artifacts carry a ``confidence`` self-rating, ``confidences`` is
-    surfaced BESIDE the provenance badge as an optional ``confidence`` block — its
-    per-step values, the threshold, and the steps at/below it (``low``) — so a reviewer
-    is warned not to over-trust a thin/ungrounded or deterministic-fallback step. The
-    key is omitted entirely when no artifact carries a confidence (e.g. design-artifacts,
-    source), keeping the base envelope unchanged for those commands.
+    When the command's artifacts carry a ``confidence`` (self-rated for analyze/reflect/tooling,
+    PROPAGATED for evaluate/transfer), ``confidences`` is surfaced BESIDE the provenance badge as
+    an optional ``confidence`` block — its per-step values, the threshold, and the steps at/below
+    it (``low``) — so a reviewer is warned not to over-trust a thin/ungrounded or
+    deterministic-fallback step, NOR a decision artifact built on one. The key is omitted entirely
+    when no artifact carries a confidence (e.g. design-artifacts, source), keeping the base
+    envelope unchanged for those commands.
     """
     envelope: dict[str, object] = {
         "result": result,
@@ -314,7 +319,10 @@ def main(argv: list[str] | None = None) -> int:
             _emit(
                 {"reflection": reflection, "tooling": tooling, "evaluation": evaluation, "transfer": transfer, "followups": followups},
                 {"reflect": rsrc, "tooling": tsrc, "evaluate": esrc, "transfer": xsrc, "followups": fsrc},
-                _confidences(reflect=reflection, tooling=tooling),
+                # evaluate/transfer now carry a PROPAGATED confidence (min of upstream), so the
+                # decision artifact is flagged alongside the thin steps it was built from — a
+                # deterministic-fallback evaluation no longer reads as authoritative.
+                _confidences(reflect=reflection, tooling=tooling, evaluate=evaluation, transfer=transfer),
                 _fallback_reasons(reflect=reflection, tooling=tooling, evaluate=evaluation, transfer=transfer, followups=followups),
             )
             return 0

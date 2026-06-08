@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { BarChart3, Check, Copy, FileText, History, Link2, Scale } from "lucide-react";
 import { Modal } from "@/app/_components/Modal";
 import { Markdown } from "@/app/_components/Markdown";
+import { publicBaseUrl } from "@/app/_lib/public-base-url";
 import { buildUrl } from "@/app/features/tabs";
 import { RecruiterCandidates } from "./RecruiterCandidates";
 import { RediscoverPanel } from "./RediscoverPanel";
@@ -24,7 +25,9 @@ export function JobPostingModal({ job, onClose }: { job: Job; onClose: () => voi
 
   const copyApplyLink = async () => {
     try {
-      const url = (typeof window !== "undefined" ? window.location.origin : "") + `/apply/${job.id}`;
+      // Candidate-facing apply link — canonicalized through publicBaseUrl
+      // (idea-e6c66bcd) so it carries the public host behind a proxy/localhost.
+      const url = publicBaseUrl(typeof window !== "undefined" ? window.location.origin : "") + `/apply/${job.id}`;
       await navigator.clipboard.writeText(url);
       setApplyCopied(true);
       window.setTimeout(() => setApplyCopied(false), 1500);

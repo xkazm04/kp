@@ -62,8 +62,14 @@ export async function respondToOffer(token: string, response: "accept" | "declin
     // Terminal `declined` — the candidate turned us down. Distinct from the
     // recruiter's `rejected` so funnel/re-engagement reporting can tell a
     // candidate-side close from a company-side one (see pipeline-status.ts).
-    markEntryStatus(offer.entryId, "declined");
-    recordAutomationEvent(offer.entryId, "offer_declined", offer.jobTitle ?? "");
+    // CONDITIONAL: tokens never expire and an entry can hold several offer links,
+    // so a decline on a STALE/duplicate link must not demote a candidate who has
+    // since been Hired or otherwise closed out — markEntryStatus guards that and
+    // reports whether the entry actually transitioned. Only stamp the decline on
+    // the entry's timeline when it did, so a Hired candidate's history can't grow a
+    // phantom `offer_declined` (recordAutomationEvent logs the entry's CURRENT stage).
+    const transitioned = markEntryStatus(offer.entryId, "declined");
+    if (transitioned) recordAutomationEvent(offer.entryId, "offer_declined", offer.jobTitle ?? "");
   }
   return { ok: true, status: "declined", alreadyResponded: false, jobTitle: offer.jobTitle, candidateLabel: offer.candidateLabel };
 }

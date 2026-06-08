@@ -1,7 +1,8 @@
 import Database from "better-sqlite3";
 import { DB_PATH, ensureDbDir } from "./db-path";
 import { randomId, randomToken } from "./random-id";
-import type { PipelineEntryStatus } from "./pipeline-status";
+import { TERMINAL_ENTRY_STATUSES, type PipelineEntryStatus } from "./pipeline-status";
+import { PIPELINE_STAGES } from "./pipeline-stages";
 
 // Direction #4 — offer extension + candidate response capture. Isolated-connection
 // store (same pattern as job-ingest.ts): opens its OWN better-sqlite3 handle on
@@ -181,8 +182,40 @@ export function markOfferResponded(
   return { offer: getOfferByToken(token), claimed: false };
 }
 
+// SQL list of the two terminal statuses, derived from the taxonomy const so this
+// guard can't drift from it (mirrors db.ts's TERMINAL_STATUS_SQL_LIST). Trusted
+// compile-time literals, never user input — injection-safe to inline.
+const TERMINAL_STATUS_SQL_LIST = `(${TERMINAL_ENTRY_STATUSES.map((s) => `'${s}'`).join(", ")})`;
+// The terminal STAGE: a Hired candidate keeps status='active' (see pipeline-status
+// header), so the status list alone wouldn't protect them — gate on stage too.
+const HIRED_STAGE = PIPELINE_STAGES[PIPELINE_STAGES.length - 1];
+
 /** Terminal status write for a declined offer (candidate said no). Typed against
- *  the canonical taxonomy so a stray free-form string can't be persisted. */
-export function markEntryStatus(entryId: string, status: PipelineEntryStatus): void {
-  db().prepare(`UPDATE pipeline_entries SET status = ?, updated_at = ? WHERE id = ?`).run(status, new Date().toISOString(), entryId);
+ *  the canonical taxonomy so a stray free-form string can't be persisted.
+ *
+ *  CONDITIONAL by design (idea-83614939). An entry can accumulate MANY offer links
+ *  (re-extends, duplicates) and offer tokens never expire, so a decline click on a
+ *  STALE link could otherwise fire an unconditional `UPDATE … SET status` that
+ *  silently demotes a candidate who has since been Hired (status stays 'active',
+ *  stage 'Hired') — or re-closes an already closed-out one — losing the hire with no
+ *  audit trail. The WHERE guard only transitions a still-live, not-yet-Hired entry;
+ *  it mirrors the approve_event guard in actOnPipelineEntry that protects the
+ *  symmetric stale-schedule-token path, and the isEntryReminderEligible predicate.
+ *  Returns true only when the row actually transitioned; logs when the guard blocks
+ *  the write so the dropped decline is never silent. */
+export function markEntryStatus(entryId: string, status: PipelineEntryStatus): boolean {
+  const res = db()
+    .prepare(
+      `UPDATE pipeline_entries SET status = ?, updated_at = ?
+        WHERE id = ? AND status NOT IN ${TERMINAL_STATUS_SQL_LIST} AND stage != ?`
+    )
+    .run(status, new Date().toISOString(), entryId, HIRED_STAGE);
+  if (res.changes === 0) {
+    console.warn(
+      `[offers-store] markEntryStatus('${status}') blocked for entry ${entryId}: ` +
+        `entry is already terminal or Hired (or missing) — refusing to overwrite (stale/duplicate offer decline).`
+    );
+    return false;
+  }
+  return true;
 }

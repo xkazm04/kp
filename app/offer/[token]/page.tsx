@@ -30,7 +30,7 @@ export default function OfferPage() {
   // Which response is mid-flight, so we can spin the pressed button and mute the other.
   const [pending, setPending] = useState<"accept" | "decline" | null>(null);
   const [result, setResult] = useState<"accepted" | "declined" | null>(null);
-  // Decline is terminal + irreversible (offer-finalize markEntryStatus 'rejected'), so it
+  // Decline is terminal + irreversible (offer-finalize markEntryStatus 'declined'), so it
   // routes through a deliberate inline confirm step before the POST fires — a single
   // misclick must not permanently close the offer.
   const [confirmingDecline, setConfirmingDecline] = useState(false);

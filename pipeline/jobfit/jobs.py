@@ -40,6 +40,22 @@ KINDS = ("must_have", "nice_to_have")
 HARDNESS = ("prerequisite", "learnable")
 EDU_LEVELS = ("phd", "master", "bachelor", "university", "none")
 
+# -- default policy (single source of truth) --------------------------------
+# THE one place the locale/market defaults live. ``normalize_job`` stamps these onto
+# a record that OMITS (or supplies an off-taxonomy value for) the field. Each is a
+# PHANTOM value the ad never actually stated, so a row that defaulted to
+# "Praha"/"medior" must not be read as one that really said it. ``normalize_job``
+# records every field it fills from this table in ``Job.defaulted_fields`` so
+# matching and any market-stats view can tell stated apart from assumed. The dict
+# order is the order ``defaulted_fields`` is reported in; keep these strings here and
+# nowhere else.
+DEFAULT_POLICY: dict[str, str] = {
+    "company": "Confidential",  # ad named no employer (blind / agency posting)
+    "location": "Praha",        # no city given — assume the CZ-market hub
+    "work_mode": "onsite",      # missing/off-taxonomy work mode — assume onsite
+    "seniority": "medior",      # missing/off-taxonomy seniority — assume mid-level
+}
+
 # Surface signals (CZ + EN) that an ad welcomes early-career candidates.
 _ENTRY_SIGNALS = (
     "junior",
@@ -102,6 +118,11 @@ class Job(_Base):
     detected_skills: list[str] = Field(default_factory=list)
     salary_band: list[int] = Field(default_factory=list)
     entry_profile: JobEntryProfile | None = None
+    # Provenance: names of the fields normalize_job filled from DEFAULT_POLICY because
+    # the source record omitted or mis-stated them. Empty => every field was stated.
+    # Lets a phantom "Praha"/"medior" be told from a value the ad actually gave, so
+    # matching and market-stats never read assumed data as real. See DEFAULT_POLICY.
+    defaulted_fields: list[str] = Field(default_factory=list)
     source: str = "synthetic"
 
 
@@ -114,15 +135,38 @@ class LlmProvider(Protocol):
 # -- coercion helpers -------------------------------------------------------
 
 
-def _choice(value: Any, allowed: tuple[str, ...], default: str) -> str:
+def _choice_defaulted(value: Any, allowed: tuple[str, ...], default: str) -> tuple[str, bool]:
+    """Resolve an enum value, also reporting whether the default was substituted.
+
+    ``defaulted`` is True when ``value`` is missing or off-taxonomy — the record never
+    stated a valid token, so the returned ``default`` is a phantom that
+    :func:`normalize_job` records in ``Job.defaulted_fields``. An explicitly-stated
+    value that merely equals the default (e.g. work_mode "onsite") is NOT defaulted.
+    """
     if value is None:
-        return default
+        return default, True
     token = str(value).strip().lower().replace("-", "_").replace(" ", "_")
-    return token if token in allowed else default
+    if token in allowed:
+        return token, False
+    return default, True
+
+
+def _choice(value: Any, allowed: tuple[str, ...], default: str) -> str:
+    return _choice_defaulted(value, allowed, default)[0]
 
 
 def _str(value: Any) -> str:
     return str(value).strip() if value is not None else ""
+
+
+def _str_or_default(value: Any, default: str) -> tuple[str, bool]:
+    """Resolve a free-text field, reporting whether the locale default was used.
+
+    The non-enum twin of :func:`_choice_defaulted` (for company/location): a
+    missing/blank value yields ``default`` with ``defaulted=True``.
+    """
+    text = _str(value)
+    return (text, False) if text else (default, True)
 
 
 def _str_list(value: Any) -> list[str]:
@@ -241,12 +285,32 @@ def compute_entry_profile(
 
 
 def normalize_job(raw: dict[str, Any], *, job_id: str | None = None) -> Job:
-    """Deterministically turn a structured (LLM-generated or sourced) record into a Job."""
+    """Deterministically turn a structured (LLM-generated or sourced) record into a Job.
+
+    Fields the record omits (or fills with an off-taxonomy value) are stamped with the
+    locale defaults in :data:`DEFAULT_POLICY`; every field so stamped is listed in
+    ``Job.defaulted_fields`` so a phantom "Praha"/"medior" can be told from one the ad
+    actually stated. :data:`DEFAULT_POLICY` is the single home of the default values.
+    """
     title = _str(raw.get("title")) or "Untitled role"
     description = _str(raw.get("description"))
     requirements = _requirements_from(raw.get("requirements"))
 
-    seniority = _choice(raw.get("seniority"), SENIORITIES, "medior")
+    # Resolve the four DEFAULT_POLICY fields together, recording each phantom default
+    # (in policy order) so the provenance set never depends on construction order below.
+    defaulted: list[str] = []
+    company, used_default = _str_or_default(raw.get("company"), DEFAULT_POLICY["company"])
+    if used_default:
+        defaulted.append("company")
+    location, used_default = _str_or_default(raw.get("location"), DEFAULT_POLICY["location"])
+    if used_default:
+        defaulted.append("location")
+    work_mode, used_default = _choice_defaulted(raw.get("work_mode"), WORK_MODES, DEFAULT_POLICY["work_mode"])
+    if used_default:
+        defaulted.append("work_mode")
+    seniority, used_default = _choice_defaulted(raw.get("seniority"), SENIORITIES, DEFAULT_POLICY["seniority"])
+    if used_default:
+        defaulted.append("seniority")
 
     role_family = _str(raw.get("role_family")).lower()
     if role_family not in ROLE_FAMILY_SET:
@@ -275,9 +339,9 @@ def normalize_job(raw: dict[str, Any], *, job_id: str | None = None) -> Job:
     return Job(
         id=job_id or _str(raw.get("id")) or _slug_from_title(title),
         title=title,
-        company=_str(raw.get("company")) or "Confidential",
-        location=_str(raw.get("location")) or "Praha",
-        work_mode=_choice(raw.get("work_mode"), WORK_MODES, "onsite"),
+        company=company,
+        location=location,
+        work_mode=work_mode,
         employment_type=employment_type,
         seniority=seniority,
         role_family=role_family,
@@ -289,6 +353,7 @@ def normalize_job(raw: dict[str, Any], *, job_id: str | None = None) -> Job:
         detected_skills=detected_unique,
         salary_band=salary_band,
         entry_profile=entry,
+        defaulted_fields=defaulted,
         source=_str(raw.get("source")) or "synthetic",
     )
 

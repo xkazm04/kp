@@ -584,7 +584,16 @@ def rematch_candidate(
     *,
     provider: Any | None = None,
 ) -> dict:
-    """Find the best ALTERNATIVE open role for a rejected/idle candidate (top-1, >floor)."""
+    """Find the best ALTERNATIVE open role for a candidate (top-1, >floor).
+
+    Pure ranking — this proposes the alternative; it does NOT touch pipeline state.
+    What rematch does to the SOURCE entry (close the current entry so the candidate
+    is never live in two automatable funnels at once, and link source→target) is the
+    TS layer's contract, enforced once in `rematchSourceEntry` (app/_lib/db.ts) and
+    applied by the rematch branch of `runAutomationTask` — idea-9ad8a777. Historically
+    framed as "for a rejected/idle candidate"; that re-engagement case is now one
+    branch of that contract (an already-terminal source is linked but left closed).
+    """
     scored = []
     for job in jobs:
         if job.id == current_job_id:

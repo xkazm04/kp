@@ -61,6 +61,35 @@ class TestEvaluate(unittest.TestCase):
         self.assertAlmostEqual(sum(weights.values()), 1.0, places=2)
         self.assertEqual(weights["tooling"], 0.25)
 
+    def test_evaluation_confidence_is_min_of_upstream(self):
+        # idea-9281c8e9: the evaluation is fused ENTIRELY from the reflection + tooling signals,
+        # so it can be no more trustworthy than its weakest input — it carries the MIN of their
+        # confidences, NOT a mean. A high-confidence reflection must not mask a thin (e.g.
+        # deterministic-fallback) tooling signal, or a degraded run would look authoritative.
+        reflection = {**self.reflection, "confidence": 0.8}
+        tooling = {**self.tooling, "confidence": 0.2}
+        ev, _ = evaluate_submission(reflection, tooling, self.case, self.role, provider=None)
+        self.assertEqual(ev["confidence"], 0.2)  # min(0.8, 0.2), not the mean 0.5
+        # and it round-trips through the model as a declared, propagated field
+        self.assertEqual(CaseEvaluation.model_validate(ev).confidence, 0.2)
+
+    def test_transfer_inherits_evaluation_confidence(self):
+        # Transfer is derived purely from the evaluation, so it inherits the evaluation's
+        # propagated confidence — the transfer score is exactly as trustworthy as what it weights.
+        reflection = {**self.reflection, "confidence": 0.6}
+        tooling = {**self.tooling, "confidence": 0.5}
+        ev, _ = evaluate_submission(reflection, tooling, self.case, self.role, provider=None)
+        self.assertEqual(ev["confidence"], 0.5)  # min(0.6, 0.5)
+        t, _ = score_transfer(ev, self.role, provider=None)
+        self.assertEqual(t["confidence"], 0.5)  # inherited from the evaluation
+        self.assertEqual(TransferAssessment.model_validate(t).confidence, 0.5)
+
+    def test_missing_upstream_confidence_is_zero_not_silently_high(self):
+        # When no upstream artifact carries a confidence, the propagated value is 0.0 — unknown
+        # evidence strength is treated as untrustworthy, never optimistically high.
+        ev, _ = evaluate_submission(self.reflection, self.tooling, self.case, self.role, provider=None)
+        self.assertEqual(ev["confidence"], 0.0)
+
     def test_emitted_empty_state_flags_survive_model_validation(self):
         # The crux of the reconciliation: hasFindings / hasTransfers are emitted by evaluate.py
         # AND declared on the models, so validating the emitted dict through the model no longer

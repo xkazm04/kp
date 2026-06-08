@@ -120,8 +120,12 @@ export type DimensionScore = { name: string; label: string; weight: number /* FR
 // weight-annotated projection for the UI (each row.score === dimensionScores[row.name], enforced
 // Python-side). There is no per-capability scalar — the structural axis IS `architecture`. The
 // UI prefers `dimensions`, falling back to `dimensionScores` only for bundles saved before it.
-export type CaseEval = { dimensionScores?: Record<string, number> /* name -> SCORE 0..100 */; dimensions?: DimensionScore[]; strengths?: string[]; concerns?: string[]; hasFindings?: boolean; summary?: string };
-export type Transfer = { transferScore?: number /* SCORE 0..100 */; transfers?: string[]; gaps?: string[]; hasTransfers?: boolean; roleFitRationale?: string };
+// `confidence` is PROPAGATED, not self-rated: the min of the upstream reflection/tooling
+// confidences (see models.py "Confidence scale"), so a decision built on a deterministic-fallback
+// signal carries that signal's low confidence and never reads as authoritative.
+export type CaseEval = { dimensionScores?: Record<string, number> /* name -> SCORE 0..100 */; dimensions?: DimensionScore[]; strengths?: string[]; concerns?: string[]; hasFindings?: boolean; summary?: string; confidence?: number /* FRACTION 0..1 — propagated from upstream evidence */ };
+// `confidence` is inherited from the evaluation it scores (transfer is derived purely from it).
+export type Transfer = { transferScore?: number /* SCORE 0..100 */; transfers?: string[]; gaps?: string[]; hasTransfers?: boolean; roleFitRationale?: string; confidence?: number /* FRACTION 0..1 — inherited from the evaluation */ };
 // One candidate-specific interview question minted from the evaluated submission
 // (evaluate.mint_followups). `decision` names the observed call being verified;
 // listenFor/redFlag are INTERNAL interviewer notes — render them as such, never
@@ -129,6 +133,11 @@ export type Transfer = { transferScore?: number /* SCORE 0..100 */; transfers?: 
 export type FollowupQuestion = { id?: string; probeId?: string; decision?: string; question?: string; listenFor?: string; redFlag?: string };
 export type Followups = { questions?: FollowupQuestion[] };
 export type EvalBundle = { reflection?: Reflection; tooling?: Tooling; evaluation?: CaseEval; transfer?: Transfer; followups?: Followups; source?: SourceKind; perStepSources?: PerStepSources; commitCount?: number };
+
+// At or below this a confidence (self-rated OR propagated) is "low" — the reviewer is warned the
+// inference is thin/ungrounded, or a decision rests on such evidence. Mirrors LOW_CONFIDENCE in
+// pipeline/jobfit/devcase/models.py (and the `threshold` the CLI confidence block emits).
+export const LOW_CONFIDENCE = 0.4;
 
 export const LIFECYCLE_STEPS = ["intake", "analyzed", "designed", "approved", "collecting", "ranked", "promoted"];
 export const STAGE_LABEL: Record<string, string> = {

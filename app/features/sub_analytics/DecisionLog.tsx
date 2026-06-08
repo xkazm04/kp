@@ -35,6 +35,7 @@ const DECISION_META: Record<string, { label: string; auto: boolean; tone: string
   interview_prep_generated: { label: "Interview prep generated", auto: true, tone: "text-steel" },
   offer_drafted: { label: "Offer drafted", auto: true, tone: "text-steel" },
   rematched: { label: "Re-matched to another role", auto: true, tone: "text-steel" },
+  rematched_from: { label: "Re-matched from another role", auto: true, tone: "text-steel" },
   outreach_sent: { label: "Outreach sent", auto: true, tone: "text-steel" },
   rejection_sent: { label: "Rejection sent", auto: true, tone: "text-coral" },
   rejected: { label: "Rejected", auto: false, tone: "text-coral" },

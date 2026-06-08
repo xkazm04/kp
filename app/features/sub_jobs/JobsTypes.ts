@@ -47,6 +47,11 @@ export type Job = {
   detectedSkills?: string[];
   salaryBand?: number[];
   entryProfile?: JobEntryProfile | null;
+  // Provenance from normalize_job (jobs.py DEFAULT_POLICY): field names that were
+  // filled with a locale/market default because the source omitted/mis-stated them.
+  // Empty/absent => every field was stated by the ad. Lets a phantom "Praha"/"medior"
+  // be told from a stated one. Older payloads predate the field, hence optional.
+  defaultedFields?: string[];
 };
 // A candidate the recruiter ranker (recruiter_cli) couldn't score because its
 // profile failed CandidateProfileV2/MatchCandidate validation. Surfaced — never

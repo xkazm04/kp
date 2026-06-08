@@ -31,7 +31,7 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from typing import Any, Callable
 
-from .. import automation
+from .. import automation, registry
 from ..claude_cli import ClaudeCliError, ClaudeCliProvider
 from ..jobs import normalize_job
 from ..matching import MatchCandidate, score_job
@@ -45,7 +45,10 @@ _PROTECTED_RE = re.compile(
     r"věk|pohlaví|rasa|rasov\w*|nábožen\w*|těhoten\w*)\b",
     re.IGNORECASE,
 )
-_EARLY = ("student", "career_switcher")
+# Single-sourced from the shared registry (archetypes.json) — the same set the
+# automation fairness gate scores on — so this eval can't certify a fairness
+# invariant against a stale early-career set the production code no longer uses.
+_EARLY = registry.early_career_archetypes()
 
 _NEG_NOTES = "Struggled with system design; vague on past projects; weak SQL; some communication gaps."
 

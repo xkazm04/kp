@@ -4,7 +4,18 @@
 // should reach for these helpers instead of formatting values ad-hoc.
 
 const LOCALE = "cs-CZ";
-const CURRENCY = "CZK";
+
+/**
+ * The single currency every stored/rendered monetary figure in this app is
+ * denominated in. The app does not do FX: salary bands, expectations, and offers
+ * all live on this one currency, so a figure carrying a *different* currency code
+ * (an LLM-extracted "EUR" expectation, say) is NOT directly comparable to one that
+ * doesn't — see `isSameCurrency` / `salaryBandPosition` in salary-band.ts, which
+ * gate the over/under-band verdict on a currency match instead of silently
+ * comparing across currencies. A figure with no currency of its own (the role
+ * salary band is a bare [min,max]) inherits this by contract.
+ */
+export const APP_CURRENCY = "CZK";
 const EN_DASH = "–";
 
 const integerFormat = new Intl.NumberFormat(LOCALE, { maximumFractionDigits: 0 });
@@ -30,7 +41,7 @@ export function formatSalaryRange(
   maximum: number,
   options: { currency?: string; period?: string } = {}
 ): string {
-  const currency = options.currency ?? CURRENCY;
+  const currency = options.currency ?? APP_CURRENCY;
   const a = Number.isFinite(minimum) ? minimum : 0;
   const b = Number.isFinite(maximum) ? maximum : 0;
   const low = Math.min(a, b);

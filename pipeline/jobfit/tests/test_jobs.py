@@ -3,6 +3,7 @@ from __future__ import annotations
 import unittest
 
 from pipeline.jobfit.jobs import (
+    DEFAULT_POLICY,
     Job,
     compute_entry_profile,
     ingest_raw_ad,
@@ -52,6 +53,8 @@ class NormalizeTest(unittest.TestCase):
         job = normalize_job(raw)
         self.assertEqual(job.work_mode, "onsite")
         self.assertEqual(job.seniority, "medior")
+        # An off-taxonomy value never stated a valid token, so it is a phantom default.
+        self.assertEqual(job.defaulted_fields, ["work_mode", "seniority"])
 
     def test_string_requirements_default_kind_hardness(self) -> None:
         reqs = _requirements_from(["Python", "SQL"])
@@ -72,6 +75,51 @@ class NormalizeTest(unittest.TestCase):
         job = normalize_job(raw)
         self.assertTrue(job.id)
         self.assertNotIn(" ", job.id)
+
+
+class DefaultedFieldsTest(unittest.TestCase):
+    """A fully-stated ad records no phantom defaults; a row that fell back to a
+    locale default flags exactly the fields it assumed, so matching/market-stats can
+    tell a stated "Praha"/"medior" from one normalize_job invented."""
+
+    def test_fully_stated_record_has_no_defaults(self) -> None:
+        # SE_JUNIOR states company/location/work_mode/seniority explicitly.
+        self.assertEqual(normalize_job(SE_JUNIOR).defaulted_fields, [])
+
+    def test_missing_fields_are_recorded_and_filled_from_policy(self) -> None:
+        raw = {**SE_JUNIOR}
+        for field in ("company", "location", "work_mode", "seniority"):
+            raw.pop(field, None)
+        job = normalize_job(raw)
+        # Reported in DEFAULT_POLICY order, and stamped with the policy values.
+        self.assertEqual(job.defaulted_fields, ["company", "location", "work_mode", "seniority"])
+        self.assertEqual(job.company, DEFAULT_POLICY["company"])
+        self.assertEqual(job.location, DEFAULT_POLICY["location"])
+        self.assertEqual(job.work_mode, DEFAULT_POLICY["work_mode"])
+        self.assertEqual(job.seniority, DEFAULT_POLICY["seniority"])
+
+    def test_blank_strings_count_as_missing(self) -> None:
+        raw = {**SE_JUNIOR, "company": "   ", "location": ""}
+        job = normalize_job(raw)
+        self.assertIn("company", job.defaulted_fields)
+        self.assertIn("location", job.defaulted_fields)
+        self.assertNotIn("work_mode", job.defaulted_fields)  # stated "hybrid"
+
+    def test_stated_value_equal_to_default_is_not_flagged(self) -> None:
+        # An ad that actually says onsite/medior must read as STATED, not phantom.
+        raw = {**SE_JUNIOR, "work_mode": "onsite", "seniority": "medior"}
+        job = normalize_job(raw)
+        self.assertEqual(job.work_mode, "onsite")
+        self.assertEqual(job.seniority, "medior")
+        self.assertNotIn("work_mode", job.defaulted_fields)
+        self.assertNotIn("seniority", job.defaulted_fields)
+
+    def test_defaulted_fields_survives_serialization_round_trip(self) -> None:
+        raw = {**SE_JUNIOR}
+        raw.pop("company", None)
+        dumped = normalize_job(raw).model_dump(by_alias=True)
+        self.assertEqual(dumped["defaultedFields"], ["company"])
+        self.assertEqual(Job.model_validate(dumped).defaulted_fields, ["company"])
 
 
 class EntryProfileTest(unittest.TestCase):

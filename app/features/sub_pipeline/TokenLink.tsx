@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Check, Copy, ExternalLink } from "lucide-react";
+import { publicBaseUrl } from "@/app/_lib/public-base-url";
 
 // A tokenized candidate link (voice screen, self-scheduling, …): the server mints a
 // per-candidate URL on POST. Every flow shares the same busy/url/err/copied state quad
@@ -39,8 +40,11 @@ export function useTokenLink(endpoint: string) {
   };
 
   // Absolute URL for the copy/readonly field; the relative `data.url` stays for the
-  // same-origin <a>. Origin is read lazily so SSR (no window) renders an empty field.
-  const fullUrl = data ? (typeof window !== "undefined" ? window.location.origin : "") + data.url : "";
+  // same-origin <a>. Resolved through publicBaseUrl (idea-e6c66bcd) so a candidate
+  // pasted this link points at the deployment's public host, not the recruiter's
+  // localhost/proxy origin — and matches the server-minted offer link exactly.
+  // Origin is read lazily so SSR (no window) renders an empty field.
+  const fullUrl = data ? publicBaseUrl(typeof window !== "undefined" ? window.location.origin : "") + data.url : "";
 
   const copy = () => {
     void navigator.clipboard?.writeText(fullUrl);

@@ -64,6 +64,23 @@ def _score_int(value: Any, default: int) -> int:
         return default
 
 
+def _propagated_confidence(*artifacts: Any) -> float:
+    """Decision-confidence PROPAGATED to a final artifact from the upstream signals it is built
+    from: the MIN of their 0..1 ``confidence`` self-ratings, clamped (see the confidence scale in
+    models.py). The evaluation/transfer is assembled ENTIRELY from these inputs, so it can be no
+    more trustworthy than its weakest one — MIN (not mean) preserves the scale's invariant that a
+    degraded / deterministic-fallback run never looks more certain than an LLM one: a high-confidence
+    reflection must not average away a confidence-0.2 deterministic tooling signal. Inputs without a
+    numeric ``confidence`` are skipped; with none present it is 0.0 — unknown evidence strength is
+    treated as untrustworthy, never silently high."""
+    vals = [
+        max(0.0, min(1.0, float(a["confidence"])))
+        for a in artifacts
+        if isinstance(a, dict) and isinstance(a.get("confidence"), (int, float))
+    ]
+    return round(min(vals), 4) if vals else 0.0
+
+
 def _ordered_dimensions(scores: dict, rubric: list) -> list[dict]:
     """Echo the canonical rubric — ordered, with name/label/weight/description — annotated with
     each achieved score, so the UI can draw the breakdown without hardcoding order, human labels
@@ -171,6 +188,10 @@ def evaluate_submission(reflection: dict, tooling: dict, case: dict, role: dict,
 
     result, source = _generate(provider, prompt, deterministic, coerce)
     result["dimensions"] = _ordered_dimensions(result.get("dimensionScores") or {}, rubric)
+    # Propagate decision-confidence from the evidence: the evaluation is fused ENTIRELY from the
+    # reflection + tooling signals, so it inherits the MIN of their confidences — an evaluation
+    # resting on a confidence-0.2 deterministic-fallback signal must not look authoritative.
+    result["confidence"] = _propagated_confidence(reflection, tooling)
     result["promptVersion"] = CASE_EVAL_PROMPT_VERSION
     return result, source
 
@@ -225,6 +246,9 @@ def score_transfer(evaluation: dict, role: dict, *, provider: Any | None = None)
         }
 
     result, source = _generate(provider, prompt, deterministic, coerce)
+    # Transfer is derived purely from the evaluation, so it INHERITS the evaluation's propagated
+    # confidence — the transfer score is exactly as trustworthy as the evaluation it weights.
+    result["confidence"] = _propagated_confidence(evaluation)
     result["promptVersion"] = TRANSFER_PROMPT_VERSION
     return result, source
 

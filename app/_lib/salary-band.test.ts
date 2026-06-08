@@ -10,7 +10,14 @@
 //   npm run test:unit
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { normalizeMarketSalary, normalizeSalaryBand } from "./salary-band.ts";
+import { APP_CURRENCY } from "./format.ts";
+import {
+  isSameCurrency,
+  normalizeCurrency,
+  normalizeMarketSalary,
+  normalizeSalaryBand,
+  salaryBandPosition,
+} from "./salary-band.ts";
 
 test("normalizeMarketSalary keeps a usable band and marks it available", () => {
   const s = normalizeMarketSalary({
@@ -93,4 +100,50 @@ test("normalizeSalaryBand underpins the contract: usable band, swap, or null", (
   assert.equal(normalizeSalaryBand(85000, undefined), null);
   assert.equal(normalizeSalaryBand(NaN, 90000), null);
   assert.equal(normalizeSalaryBand("80000", "90000"), null);
+});
+
+// ---- Currency comparability: the salary-comparison safety contract ----------
+// The role band carries no currency and is denominated in APP_CURRENCY; a
+// candidate's expectation carries its own. The over/under-band verdict is only
+// honest when the two match, since the app does no FX. These lock that gate.
+
+test("normalizeCurrency is case/whitespace-insensitive and blanks to empty", () => {
+  assert.equal(normalizeCurrency("czk"), "CZK");
+  assert.equal(normalizeCurrency(" CZK "), "CZK");
+  assert.equal(normalizeCurrency("eur"), "EUR");
+  assert.equal(normalizeCurrency(null), "");
+  assert.equal(normalizeCurrency(undefined), "");
+  assert.equal(normalizeCurrency("   "), "");
+});
+
+test("isSameCurrency matches regardless of case/whitespace", () => {
+  assert.equal(isSameCurrency("CZK", "czk"), true);
+  assert.equal(isSameCurrency(" CZK ", "CZK"), true);
+  assert.equal(isSameCurrency("", ""), true);
+});
+
+test("isSameCurrency flags a cross-currency pair — the bug this guards", () => {
+  // A EUR expectation against a CZK band must NOT be treated as comparable: that
+  // is exactly the case that used to print a confident-but-meaningless "% over".
+  assert.equal(isSameCurrency("EUR", APP_CURRENCY), false);
+  assert.equal(isSameCurrency("USD", "CZK"), false);
+  // A blank expectation currency is not the band currency, so it does not falsely
+  // pass the gate here — the producer (salaryExpectationFrom) defaults blanks to
+  // APP_CURRENCY upstream, so a real currency-less expectation still compares.
+  assert.equal(isSameCurrency("", "CZK"), false);
+});
+
+test("salaryBandPosition reports over/under/within with the right percentages", () => {
+  assert.deepEqual(salaryBandPosition(130000, 80000, 100000), { position: "over", pct: 30 });
+  assert.deepEqual(salaryBandPosition(60000, 80000, 100000), { position: "under", pct: 25 });
+  assert.deepEqual(salaryBandPosition(90000, 80000, 100000), { position: "within", pct: 0 });
+  // Boundaries are inclusive — sitting exactly on the band edge is "within".
+  assert.deepEqual(salaryBandPosition(100000, 80000, 100000), { position: "within", pct: 0 });
+  assert.deepEqual(salaryBandPosition(80000, 80000, 100000), { position: "within", pct: 0 });
+});
+
+test("salaryBandPosition won't manufacture a verdict from a degenerate band", () => {
+  // No usable max → nothing to be "over"; no usable min → nothing to be "under".
+  assert.deepEqual(salaryBandPosition(130000, 80000, 0), { position: "within", pct: 0 });
+  assert.deepEqual(salaryBandPosition(40000, 0, 100000), { position: "within", pct: 0 });
 });

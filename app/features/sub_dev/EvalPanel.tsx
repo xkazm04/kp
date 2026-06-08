@@ -5,6 +5,7 @@ import { assertScore, formatFraction } from "@/app/_lib/format";
 import { describeSource } from "./DevHelpers";
 import { ProvenanceStrip } from "./ProvenanceStrip";
 import { ScoreBar } from "./ScoreBar";
+import { LOW_CONFIDENCE } from "./DevTypes";
 import type { DimensionScore, EvalBundle, ProbeOutcome } from "./DevTypes";
 
 // Human labels for the legacy fallback only — current evaluations carry their own labels.
@@ -56,8 +57,21 @@ export function EvalPanel({ ev, onPromote, promoted }: { ev: EvalBundle; onPromo
           transfer <b className="text-ink">{x.transferScore != null ? assertScore(x.transferScore, "transferScore") : "—"}</b> · {ev.commitCount ?? 0} commits
         </span>
       </div>
-      {/* per-step provenance: one consistent strip across the pipeline; muted/amber chips flag steps that fell back */}
-      <ProvenanceStrip className="mb-1.5" perStepSources={ev.perStepSources} source={ev.source} />
+      {/* per-step provenance + the propagated decision-confidence: muted/amber chips flag steps that
+          fell back, and the conf badge (the min of the upstream reflection/tooling confidences) warns
+          when the evaluation rests on thin/degraded evidence. Tinted coral at/below LOW_CONFIDENCE so a
+          deterministic-fallback decision can't read as authoritative. Older bundles omit it (no badge). */}
+      <div className="mb-1.5 flex flex-wrap items-center gap-1.5">
+        <ProvenanceStrip perStepSources={ev.perStepSources} source={ev.source} />
+        {e.confidence != null ? (
+          <span
+            title="How much to trust this evaluation — the minimum confidence of the reflection + tooling signals it was built from."
+            className={`text-micro uppercase ${e.confidence <= LOW_CONFIDENCE ? "font-semibold text-coral" : "text-steel"}`}
+          >
+            conf {formatFraction(e.confidence, { label: "confidence" })}
+          </span>
+        ) : null}
+      </div>
       <div className="space-y-1">
         {breakdown.map((d, i) => (
           <ScoreBar key={d.name} label={d.label} value={d.score} weight={d.weight} title={d.description} index={i} />

@@ -202,6 +202,32 @@ class TestDevcaseCliProvenanceContract(unittest.TestCase):
         self.assertEqual(payload["confidence"]["byStep"], {"analyze": 0.3})
         self.assertEqual(payload["confidence"]["low"], ["analyze"])
 
+    def test_evaluate_submission_surfaces_propagated_decision_confidence(self):
+        # idea-9281c8e9: evaluate/transfer now carry a PROPAGATED confidence (min of the upstream
+        # reflection/tooling), surfaced beside the badge so a decision built on thin/degraded
+        # evidence isn't mistaken for an authoritative one. --no-llm => reflect 0.3, tooling 0.2,
+        # so evaluate = transfer = min = 0.2 — all at/below the low-confidence threshold.
+        with tempfile.TemporaryDirectory() as d:
+            commits = Path(d) / "commits.json"
+            commits.write_text(json.dumps([{"message": "wip"}]), encoding="utf-8")
+            case = Path(d) / "case.json"
+            case.write_text(json.dumps({"rubricDimensions": []}), encoding="utf-8")
+            role = Path(d) / "role.json"
+            role.write_text(json.dumps({"title": "Backend", "seniority": "medior"}), encoding="utf-8")
+            code, out, _err = _run(
+                ["evaluate-submission", "--no-llm", "--commits-json", str(commits), "--case-json", str(case), "--role-json", str(role)]
+            )
+        self.assertEqual(code, 0)
+        payload = _last_json(out)
+        self._assert_envelope(payload)
+        conf = payload["confidence"]["byStep"]
+        # All four evidence-bearing steps report a confidence; followups (interview material) does not.
+        self.assertEqual(set(conf), {"reflect", "tooling", "evaluate", "transfer"})
+        # The decision artifacts inherit the WEAKEST upstream signal (tooling 0.2), never a rosier mean.
+        self.assertEqual(conf["evaluate"], 0.2)
+        self.assertEqual(conf["transfer"], 0.2)
+        self.assertEqual(payload["confidence"]["low"], ["evaluate", "reflect", "tooling", "transfer"])
+
     def test_design_artifacts_emits_multi_step_map(self):
         with tempfile.TemporaryDirectory() as d:
             need, analysis = Path(d) / "need.json", Path(d) / "analysis.json"

@@ -9,6 +9,7 @@ import {
   listCorpusJobs,
   lookupPromptCache,
   recordAutomationEvent,
+  rematchSourceEntry,
   setApproval,
   storePromptCache,
 } from "./db";
@@ -76,6 +77,16 @@ export async function runAutomationTask(entryId: string, task: string, notes = "
   if (!entry.candidateId) throw new AutomationError("entry has no candidate profile", 400);
   const rec = getProfileRecord(entry.candidateId);
   if (!rec) throw new AutomationError("candidate profile not found", 400);
+
+  // Rematch REDIRECTS a candidate to a better-fit role and closes out their current
+  // entry (idea-9ad8a777). A Hired candidate is placed — never redirect them, and
+  // short-circuit BEFORE the LLM/corpus hop so a placed person is neither charged a
+  // model call nor forked into a second active funnel. (The "Explore alternatives"
+  // action is UI-gated to pre-Hired stages; this also guards the direct API /
+  // background-task path. "Hired" is the terminal PIPELINE_STAGES member.)
+  if (task === "rematch" && entry.stage === "Hired") {
+    return { result: { found: false, reason: "candidate is hired; rematch skipped" }, source: "skipped", applied: "skipped_hired" };
+  }
 
   const version = AUTOMATION_VERSION[task];
   // Serialize the profile ONCE: the same bytes are both fed to Python (profile.json
@@ -184,10 +195,11 @@ export async function runAutomationTask(entryId: string, task: string, notes = "
   } else if (task === "rematch") {
     if (result.found && result.jobId) {
       // createPipelineEntry is idempotent (a corpus edit self-invalidates the
-      // rematch cache, so re-runs are frequent). Only log "rematched" and report it
-      // as applied when a NEW entry was actually created — otherwise we re-emit the
-      // event and re-fire its audit on every re-run for a single real placement.
-      const { created } = createPipelineEntry({
+      // rematch cache, so re-runs are frequent). The source→target resolution below
+      // runs ONLY when a NEW target was actually created — so the source is closed
+      // and the link stamped exactly once per real redirect, never re-fired on a
+      // re-run for the same placement.
+      const { entry: target, created } = createPipelineEntry({
         candidateId: entry.candidateId,
         candidateLabel: entry.candidateLabel,
         archetype: entry.archetype,
@@ -198,7 +210,15 @@ export async function runAutomationTask(entryId: string, task: string, notes = "
         stage: "Screened",
       });
       if (created) {
-        recordAutomationEvent(entry.id, "rematched", `${entry.jobId ?? "?"} -> ${result.jobId}`);
+        // Define what rematch does to the SOURCE entry (idea-9ad8a777): close it so
+        // the candidate isn't live + automatable in two funnels at once, and stamp
+        // the bidirectional link so the funnel never double-counts one person. The
+        // close re-reads the source under a write lock — if a recruiter/pass already
+        // moved or closed it during the LLM hop, that branch is handled atomically
+        // (already-terminal links only; Hired is left untouched). The source-side
+        // `rematched` event is recorded inside rematchSourceEntry.
+        rematchSourceEntry(entry.id, target.id, result.jobId as string);
+        recordAutomationEvent(target.id, "rematched_from", `${entry.id} (${entry.jobId ?? "?"})`);
         applied = "rematched";
       } else {
         applied = "already_rematched";

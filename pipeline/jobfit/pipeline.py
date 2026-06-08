@@ -385,6 +385,7 @@ def _infer_evidence_kind(text: str) -> str:
 
 def _v2_profile_from_payload(payload: dict[str, Any], profile: CandidateProfile) -> Any:
     """Build an archetype-routed v2 profile from the CV analysis (LLM signals + deterministic fallbacks)."""
+    from . import registry
     from .archetype import detect_archetype
     from .profile import (
         EVIDENCE_KINDS,
@@ -406,7 +407,7 @@ def _v2_profile_from_payload(payload: dict[str, Any], profile: CandidateProfile)
         wants_domain_change=_as_bool(payload.get("wants_domain_change")),
         has_substantial_experience=_as_bool(payload.get("has_substantial_experience")),
     )
-    early = archetype in ("student", "career_switcher")
+    early = archetype in registry.early_career_archetypes()
     default_prov = "self_declared" if early else "professional"
     prov_ok = set(PROVENANCE_WEIGHTS)
 

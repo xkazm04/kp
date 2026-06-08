@@ -58,7 +58,7 @@ export function useAnalyzeForm() {
   const [isCompleting, setIsCompleting] = useState(false);
   const [stageState, setStageState] = useState<StageState>(initialStageState);
 
-  const { jdLibrary, selectedJdSlug, setSelectedJdSlug } =
+  const { jdLibrary, selectedJdSlug, setSelectedJdSlug, pickJd } =
     useAnalyzeJdLibrary(setJobDescriptionText);
 
   const hasJobDescription = Boolean(jobDescriptionFile || jobDescriptionText.trim());
@@ -348,7 +348,7 @@ export function useAnalyzeForm() {
     // full fan-out (idea-8367f051).
     flags: { hasJobDescription, hasCompany, isLoading, isCompleting, githubLoading: githubStatus === "loading" },
     statuses: { cvStatus, jobStatus, companyStatus, githubStatusLabel },
-    library: { jdLibrary, selectedJdSlug, setSelectedJdSlug },
+    library: { jdLibrary, selectedJdSlug, setSelectedJdSlug, pickJd },
     result: { analysis, githubAnalysis, githubStatus, githubError, githubWarning, error, stageState },
   };
 }

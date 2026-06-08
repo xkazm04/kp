@@ -4,9 +4,12 @@ import { getJob, getProfileRecord, loadAnalysis, type JobRecord } from "./db";
 import { runReasoning } from "./reasoning-run";
 import { saveGroupEval } from "./group-eval";
 import { isEarlyCareer } from "./archetypes";
+import { APP_CURRENCY } from "./format";
+import { isSameCurrency } from "./salary-band";
 import { poolEntryFromAnalysis, type CandidatePoolEntry } from "./candidate-pool";
 import { cleanupWorkdir, createWorkdir, parsePythonJson, parseStderrError, spawnPython } from "./python-runner";
 import { computeDifferentiators } from "./group-eval-differentiators";
+import type { MatchResultView } from "@/app/features/sub_match/MatchTypes";
 
 // Cap on how many candidates one comparative evaluation covers. The strongest
 // are selected by fit BEFORE the cap (see below), and the modal surfaces
@@ -56,16 +59,10 @@ type Confidence = { low: number; high: number; level: string; drivers: string[] 
 // (analysis.salary). Best-effort: absent for v2 profiles / candidates with no
 // analysis, in which case the modal just shows the role band for them.
 type SalaryExpectation = { minimum: number; maximum: number; midpoint: number; currency: string; confidence: string };
-// Full per-candidate MatchResult as emitted by recruiter_cli (model_dump by alias).
-type CandResult = {
-  total: number;
-  fitTier?: "strong" | "promising" | "partial";
-  confidence?: Confidence;
-  scoreBreakdown?: ScoreDimension[];
-  matchedSkills?: string[];
-  matchedSkillProvenance?: Record<string, string>;
-  matchedSkillStrength?: Record<string, number>;
-  missingSkills?: string[];
+// Full per-candidate MatchResult as emitted by recruiter_cli (model_dump by alias):
+// the shared 8-field recruiter view (MatchResultView, single-sourced from MatchTypes)
+// plus the three raw dimension scores recruiter_cli also emits.
+type CandResult = MatchResultView & {
   skillsScore?: number;
   careerScore?: number;
   personalScore?: number;
@@ -147,7 +144,9 @@ function salaryExpectationFrom(loaded: ReturnType<typeof loadAnalysis>): SalaryE
     minimum: s.minimum ?? 0,
     maximum: s.maximum ?? 0,
     midpoint: s.midpoint ?? Math.round(((s.minimum ?? 0) + (s.maximum ?? 0)) / 2),
-    currency: s.currency ?? "CZK",
+    // An absent currency is assumed to be the app currency (the band's denomination),
+    // so a currency-less expectation still compares against the role band.
+    currency: s.currency ?? APP_CURRENCY,
     confidence: s.confidence ?? "medium",
   };
 }
@@ -223,8 +222,15 @@ async function runGroupCompare(
         verdict: c.verdict,
         potentialScore: c.potentialScore ?? null,
         // Candidate's own salary expectation (midpoint) so the narrative can flag
-        // an over/under-budget candidate alongside fit.
-        salaryExpectation: c.salaryExpectation ? c.salaryExpectation.midpoint : null,
+        // an over/under-budget candidate alongside fit — but ONLY when it shares the
+        // band's currency. roleSalaryBand is in APP_CURRENCY and the app does no FX,
+        // so handing the LLM a cross-currency number (a EUR expectation against a CZK
+        // band) would let it assert a false "over/under budget" claim; on a mismatch
+        // we withhold the number so it can't compare incomparable figures.
+        salaryExpectation:
+          c.salaryExpectation && isSameCurrency(c.salaryExpectation.currency, APP_CURRENCY)
+            ? c.salaryExpectation.midpoint
+            : null,
       })),
     };
     const inputPath = path.join(workdir, "compare.json");
@@ -390,9 +396,11 @@ export async function runGroupEval(params: Record<string, unknown>, signal?: Abo
     // Canonical role requirements for the skills matrix (may be empty for a
     // job-less role).
     requirements,
-    // The role's recommended salary band [min, max] (job.salaryBand) — the
-    // reference each candidate's expectation is compared against. Empty for a
-    // job-less role, in which case the salary section just shows expectations.
+    // The role's recommended salary band [min, max] (job.salaryBand), denominated
+    // in APP_CURRENCY by contract — the reference each candidate's expectation is
+    // compared against, but ONLY when the expectation shares that currency (the
+    // modal gates the over/under verdict on a match; the app does no FX). Empty for
+    // a job-less role, in which case the salary section just shows expectations.
     roleSalaryBand: job?.salaryBand ?? [],
     // Cross-scheme fairness matrix: each candidate re-scored under every
     // candidate's bounded dynamic weighting, so a pool weighted differently per

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Check, Copy } from "lucide-react";
+import { publicBaseUrl } from "@/app/_lib/public-base-url";
 
 // The OUT side of the distribution seam: the apply token is the artifact you
 // hand to candidates/channels. Render it as a tappable pill that copies the full
@@ -20,10 +21,10 @@ export function ApplyTokenPill({ token }: { token: string | null }) {
     return <span className="font-mono text-micro text-steel">no token</span>;
   }
 
-  const applyUrl =
-    typeof window !== "undefined"
-      ? `${window.location.origin}/api/devcase/inbound?token=${token}`
-      : `/api/devcase/inbound?token=${token}`;
+  // Candidate-facing apply link — resolved through publicBaseUrl (idea-e6c66bcd)
+  // so the shared artifact carries the deployment's public host, not the
+  // recruiter's localhost/proxy origin. Empty base (SSR) keeps it relative.
+  const applyUrl = `${publicBaseUrl(typeof window !== "undefined" ? window.location.origin : "")}/api/devcase/inbound?token=${token}`;
 
   const copy = async () => {
     try {

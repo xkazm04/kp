@@ -28,6 +28,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from . import registry
 from .align_candidates_csas import TRACKS as _CSAS_TRACKS
 from .archetype import label_for
 from .ats import evaluate_keyword_coverage
@@ -388,7 +389,7 @@ def build_analysis(record: dict[str, Any]) -> dict[str, Any]:
     job = normalize_job(jd)
     mc = build_match_candidate(profile)
     res = score_job(mc, job)
-    early = profile.archetype in ("student", "career_switcher")
+    early = profile.archetype in registry.early_career_archetypes()
     seniority = profile.seniority or ("junior" if early else "medior")
 
     gp = _synth_payload(profile, mc, res, job, family, seniority, early)

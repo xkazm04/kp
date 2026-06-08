@@ -47,9 +47,10 @@ class DevNeed(_Base):
 # --- 2. Reality reflection -------------------------------------------------
 
 
-# Confidence scale — shared by NeedAnalysis, CommitReflection and ToolingSignal.
+# Confidence scale — the EVIDENCE-strength self-rating carried by NeedAnalysis, CommitReflection
+# and ToolingSignal, and PROPAGATED onward to CaseEvaluation and TransferAssessment.
 #
-# Each of those artifacts carries a ``confidence`` float in 0..1 that answers HOW MUCH TO
+# Each SELF-RATING artifact carries a ``confidence`` float in 0..1 that answers HOW MUCH TO
 # TRUST this inference — it rates the strength of the EVIDENCE behind the artifact, not the
 # quality of the candidate or the need. Read it as:
 #   >= 0.7   high     — well-grounded; safe to lean on for a decision.
@@ -58,7 +59,16 @@ class DevNeed(_Base):
 # The deterministic fallbacks rate themselves DELIBERATELY low (they pattern-match, they do
 # not reason): analyze 0.5 grounded / 0.3 ungrounded, reflect 0.3, tooling 0.2 — so a degraded
 # run never looks more certain than an LLM one. The LLM path may return any value in 0..1.
-# Consumed by devcase_cli, which surfaces the low-confidence steps beside the provenance badge.
+#
+# The final DECISION artifacts do NOT self-rate: CaseEvaluation and TransferAssessment carry a
+# PROPAGATED confidence instead. An evaluation is built ENTIRELY from the reflection + tooling
+# signals, so it can be no more trustworthy than its weakest input — evaluate.py sets it to the
+# MIN of the upstream confidences (transfer then inherits the evaluation's). MIN, not mean, keeps
+# the invariant above intact end-to-end: a high-confidence reflection can't average away a
+# confidence-0.2 deterministic tooling signal, so a decision resting on degraded/fallback evidence
+# is never presented as authoritatively as one from high-confidence LLM signals.
+# Consumed by devcase_cli, which surfaces every step's confidence (and flags the low ones) beside
+# the provenance badge.
 LOW_CONFIDENCE = 0.4  # at or below this, a reviewer should be warned the inference is thin
 
 
@@ -272,6 +282,15 @@ class CaseEvaluation(_Base):
     # model stays the source of truth and round-trips it (mirrors DevTypes.ts CaseEval.hasFindings).
     has_findings: bool = False
     summary: str = ""
+    # Decision-confidence (0..1) PROPAGATED from the upstream evidence — NOT a self-rating. The
+    # evaluation is fused ENTIRELY from the reflection + tooling signals, so it can be no more
+    # trustworthy than its weakest input: evaluate.evaluate_submission sets this to the MIN of
+    # those two confidences (see the shared "Confidence scale" above and evaluate._propagated_confidence).
+    # MIN, not mean, is deliberate — it stops a high-confidence reflection from masking a
+    # confidence-0.2 deterministic-fallback tooling signal, so an evaluation built on thin/degraded
+    # evidence never looks as authoritative as one from high-confidence LLM signals. devcase_cli
+    # surfaces it beside the provenance badge (and flags it when at/below LOW_CONFIDENCE).
+    confidence: float = 0.0
     commit_reflection: CommitReflection | None = None
     tooling_signal: ToolingSignal | None = None
     prompt_version: str = ""
@@ -304,6 +323,11 @@ class TransferAssessment(_Base):
     # round-trips it (mirrors DevTypes.ts Transfer.hasTransfers).
     has_transfers: bool = False
     role_fit_rationale: str = ""
+    # Decision-confidence (0..1) PROPAGATED from the evaluation this scores — NOT a self-rating.
+    # Transfer is derived purely from the evaluation's dimension scores + summary, so it INHERITS
+    # the evaluation's confidence (evaluate.score_transfer; see CaseEvaluation.confidence and the
+    # "Confidence scale" above). Surfaced beside the provenance badge like the other steps.
+    confidence: float = 0.0
     prompt_version: str = ""
 
 
