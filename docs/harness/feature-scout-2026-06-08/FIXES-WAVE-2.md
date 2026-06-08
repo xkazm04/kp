@@ -1,14 +1,14 @@
-# Feature Scout Fix Wave 2 — Close the candidate loop (Theme B)
+# Feature Scout Fix Wave 2 — Close the candidate loop (Theme B) ✅ COMPLETE
 
-> 3 commits, 4 of 5 candidate-loop opportunities shipped (APP2 + APP3 keystone, APP1, SCH2).
+> 4 commits, ALL 5 candidate-loop opportunities shipped (APP2 + APP3 keystone, APP1, SCH2, JOB3).
 > Baseline preserved: tsc 0 → 0 · unit 617 → 624 (+7 SCH2 store tests) · python 486 → 486 · next build ✓.
 
 Theme B is "close the candidate loop." Its keystone is **reachability** — APP2 closes
 the documented "unaddressable recipient" seam, which everything else in the theme
 (confirmations, interview invites, offers, rejections to inbound applicants) depends
-on. Wave 2 shipped that keystone + the confirmation, then APP1 (CV upload) and SCH2
-(self-reschedule) — 4 of the 5 candidate-loop opportunities. Only JOB3 (sourcing
-reach-out) remains.
+on. Wave 2 shipped that keystone + the confirmation, then APP1 (CV upload), SCH2
+(self-reschedule), and JOB3 (sourcing reach-out) — ALL 5 candidate-loop
+opportunities. The theme is complete.
 
 ## Commit
 
@@ -17,6 +17,7 @@ reach-out) remains.
 | 1 | `5059861` | **APP2** + **APP3** — capture contact → deliverable comms + application-received ack | `db.ts` (contact column + migration + thread), `comms-dispatch.ts` (candidateRecipient + dispatchApplicationReceived), `apply.ts` (email step), `api/apply/[id]/route.ts` |
 | 2 | `47446a4` | **APP1** — optional CV upload at apply, folded in as evidence | `apply.ts` (`file` step type + step), `apply-intake.ts` (cvText → `kind:"cv"` evidence), `apply/[id]/ConversationalApply.tsx` (file-step UI + /api/extract-text), `api/apply/[id]/route.ts` |
 | 3 | `b69dba2` | **SCH2** — candidate self-reschedule of a confirmed interview | `schedule-store.ts` (rescheduleScheduleInvite + reschedule_count + test), `api/schedule/[token]/route.ts` (reschedule branch), `schedule/[token]/SchedulePicker.tsx` |
+| 4 | `54830e5` | **JOB3** — one-click "Reach out" from sourcing results | `api/jobs/[id]/candidates/outreach/route.ts` (new), `useReachOut.ts` (new), `api-response.ts` (OUTREACH_FAILED), `RecruiterCandidates.tsx`, `RediscoverPanel.tsx` |
 
 ## What was shipped
 
@@ -56,6 +57,15 @@ reach-out) remains.
   (so they can't drift); the picker's booked card grew a "Need a different time?"
   affordance. Pinned by a new `schedule-store.test.ts` (7 tests, real store, throwaway
   DB) covering move / taken / not_confirmed / limit / no-op / not_found / reminder-reset.
+- **JOB3 — one-click reach-out from sourcing.** The sourcing surfaces could only
+  "+ pipeline"; acting on a resurfaced candidate meant hunting them down in the
+  pipeline tab to message them. A new `/api/jobs/[id]/candidates/outreach` route does
+  `createPipelineEntry` (idempotent) + `runAutomationTask("outreach")` (drafts via the
+  cache-keyed `automation_cli`, dispatches through the durable Outbox, gated on the
+  per-entry `outreach_sent` marker) — so a "Reach out" click files the candidate AND
+  sends a first-touch message at most once. A `useReachOut` hook (mirroring
+  `useAddToPipeline`) drives the button in both `RecruiterCandidates` and
+  `RediscoverPanel`; a reached candidate collapses to a single "✓ Reached out" badge.
 
 ## Verification (before → after)
 
@@ -81,13 +91,13 @@ unit suite (which exercises `createPipelineEntry`/pipeline tests) stayed green.
    succeeded, so a comms throw must never surface as a 5xx (mirrors
    `dispatchInterviewReminder`'s post-send audit-swallow).
 
-## What remains (deferred — JOB3 only)
-- **JOB3 — "Reach out" from a sourcing result.** Needs an outreach path for a sourced
-  candidate not yet in the pipeline (the outreach automation task is entry-keyed) — not
-  the small wire it first appears.
-- **dedup-by-email** — kept dedup name-based this wave to avoid touching the tested
-  `applyDedupeKey` contract; fold email into the dedup key as a follow-up.
-- Themes C–G (export, search, decision-record, config, AI-assist) remain in `INDEX.md`.
+## What remains (one minor refinement)
+- **dedup-by-email** — apply dedup is still name-based (the tested `applyDedupeKey`
+  contract was left untouched this wave); now that APP2 captures a contact, folding
+  email into the dedup key would distinguish two same-named applicants. A small
+  follow-up, not a candidate-loop gap — the theme is complete.
+- Themes C–G (export, search, decision-record, config, AI-assist) remain in `INDEX.md`
+  for future waves; DEC1 still needs its DEC2 dry-run companion.
 
 ## Branch
 
