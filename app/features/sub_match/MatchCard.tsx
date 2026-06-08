@@ -18,6 +18,9 @@ export function MatchCard({
   adding,
   addError,
   onAdd,
+  selectable = false,
+  selected = false,
+  onToggleSelect,
 }: {
   m: MatchResult;
   index: number;
@@ -28,6 +31,11 @@ export function MatchCard({
   adding: boolean;
   addError?: string;
   onAdd: () => void;
+  // Bulk-shortlist selection (only meaningful when the candidate can be added and
+  // isn't already in the pipeline). The checkbox is hidden otherwise.
+  selectable?: boolean;
+  selected?: boolean;
+  onToggleSelect?: () => void;
 }) {
   const { startTask } = useTasks();
   const [reasoning, setReasoning] = useState<ReasoningState | null>(null);
@@ -85,6 +93,16 @@ export function MatchCard({
             ) : null}
             <ConfidenceBandBadge level={m.confidence.level} drivers={m.confidence.drivers} />
             <div className="ml-auto flex items-center gap-1.5">
+              {selectable && canAdd && !added ? (
+                <input
+                  type="checkbox"
+                  checked={selected}
+                  onChange={onToggleSelect}
+                  aria-label={`Shortlist ${m.title} for bulk add`}
+                  title="Shortlist for bulk add"
+                  className="h-4 w-4 accent-coral"
+                />
+              ) : null}
               {canAdd ? (
                 <button
                   type="button"
