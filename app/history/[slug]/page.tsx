@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ResultPanel } from "@/app/_components/results/ResultPanel";
+import { ReportActions } from "@/app/_components/results/ReportActions";
 import { WorkspaceShell } from "@/app/features/WorkspaceNav";
 import { loadAnalysis } from "@/app/_lib/db";
 import { analysisSchema } from "@/app/_lib/schemas";
@@ -49,7 +50,10 @@ export default async function HistoryDetailPage({
   return (
     <WorkspaceShell active="analyze">
       <header className="flex flex-col gap-3 border-b border-stone-200 pb-5">
-        <p className="text-meta uppercase text-coral">History · {slug}</p>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <p className="text-meta uppercase text-coral">History · {slug}</p>
+          <ReportActions />
+        </div>
         <h1 className="font-serif text-display text-ink">{found.row.candidate_label}</h1>
         <p className="text-sm text-steel">
           {found.row.role_family ?? "—"} · {found.row.seniority ?? "—"} · score{" "}
