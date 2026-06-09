@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Users } from "lucide-react";
 import { ARCHETYPE_BADGE, isEarlyCareer, provLabel } from "./JobsTypes";
 import type { CandRow, SkippedCandidate } from "./JobsTypes";
@@ -27,6 +27,9 @@ export function RecruiterCandidates({
   } | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // The jobId whose candidates are currently loaded — so auto-load fires once per job
+  // (mount AND when the reused modal switches jobs), not just on first mount.
+  const loadedJobRef = useRef<string | null>(null);
   const { add, added, adding, error: cardError, announce } = useAddToPipeline(jobId, jobTitle);
   const { reach, reached, reaching, error: reachError, announce: reachAnnounce } = useReachOut(jobId);
 
@@ -34,7 +37,7 @@ export function RecruiterCandidates({
     setLoading(true);
     setError(null);
     try {
-      const r = await fetch(`/api/jobs/${jobId}/candidates`);
+      const r = await fetch(`/api/jobs/${encodeURIComponent(jobId)}/candidates`);
       const payload = await r.json();
       if (!r.ok) throw new Error(payload.error ?? `Failed (${r.status}).`);
       setData(payload);
@@ -52,11 +55,16 @@ export function RecruiterCandidates({
   useEffect(() => {
     if (!autoLoad) return;
     const t = window.setTimeout(() => {
-      if (!data && !loading) load();
+      // Fire once per jobId: on mount AND when the reused modal switches jobs (the old
+      // `!data` guard kept showing the previous job's candidates because data was non-null).
+      if (loadedJobRef.current !== jobId && !loading) {
+        loadedJobRef.current = jobId;
+        load();
+      }
     }, 0);
     return () => window.clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autoLoad]);
+  }, [autoLoad, jobId]);
 
   const candidateInput = (c: CandRow) => ({
     candidateId: c.candidateId,
