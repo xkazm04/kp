@@ -7,19 +7,31 @@ export function SubmissionForm({ postingId, onDone }: { postingId: string; onDon
   const [candidate, setCandidate] = useState("");
   const [repo, setRepo] = useState("");
   const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
 
   const send = async () => {
     if (!candidate.trim() || !repo.trim()) return;
     setBusy(true);
+    setErr(null);
     try {
-      await fetch("/api/devcase/submit", {
+      const r = await fetch("/api/devcase/submit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ postingId, candidateRef: candidate.trim(), repoRef: repo.trim() }),
       });
+      // Only clear the inputs + reload on a real success. The old code cleared and
+      // called onDone() unconditionally, so a non-2xx (validation, duplicate token,
+      // SQLITE_BUSY, 500) silently dropped the submission while looking like it took.
+      if (!r.ok) {
+        const p = (await r.json().catch(() => null)) as { error?: string } | null;
+        setErr(p?.error ?? `Couldn't record submission (${r.status}).`);
+        return;
+      }
       setCandidate("");
       setRepo("");
       onDone();
+    } catch {
+      setErr("Network error — submission not recorded. Please retry.");
     } finally {
       setBusy(false);
     }
@@ -35,6 +47,11 @@ export function SubmissionForm({ postingId, onDone }: { postingId: string; onDon
         className="focus-ring inline-flex h-7 items-center gap-1 rounded border border-stone-200 px-2 text-micro font-semibold text-coral hover:bg-coral/5 disabled:opacity-50">
         <Inbox size={11} /> {busy ? "…" : "Record"}
       </button>
+      {err ? (
+        <p role="alert" className="w-full text-micro text-coral">
+          {err}
+        </p>
+      ) : null}
     </div>
   );
 }
