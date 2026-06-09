@@ -6,6 +6,13 @@ import { dedupe } from "@/app/_lib/dedupe";
 import { CodeReviewStatusBadge } from "./Badge";
 import { Meter } from "./Meter";
 
+// Guard an untrusted/optional ISO date so a blank or malformed `updatedAt` renders an
+// em-dash instead of the literal "Invalid Date" in a candidate card.
+function safeDate(value: string): string {
+  const d = new Date(value);
+  return Number.isNaN(d.getTime()) ? "—" : d.toLocaleDateString();
+}
+
 type GithubAnalysisPanelProps = {
   status: "idle" | "loading" | "done" | "error";
   analysis: GithubAnalysis | null;
@@ -155,7 +162,7 @@ function TopRepositoriesBlock({
               <p className="mt-2 line-clamp-2 text-sm leading-5 text-ink">{repo.description}</p>
             ) : null}
             <p className="mt-2 text-sm text-steel">
-              {repo.primaryLanguage ?? "Mixed"} · {new Date(repo.updatedAt).toLocaleDateString()}
+              {repo.primaryLanguage ?? "Mixed"} · {safeDate(repo.updatedAt)}
             </p>
           </a>
         ))}

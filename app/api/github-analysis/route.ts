@@ -106,6 +106,12 @@ export async function POST(request: Request) {
     const repos = await githubFetch<GithubRepo[]>(
       `https://api.github.com/users/${encodeURIComponent(username)}/repos?per_page=100&sort=updated&type=owner`
     );
+    // GitHub can return a 200 whose body is an object (e.g. a secondary-rate-limit notice),
+    // not the declared array — `repos.filter` would then throw an opaque "is not a function".
+    // Validate the shape so the failure is a clear, logged error the panel can surface.
+    if (!Array.isArray(repos)) {
+      throw new Error("Unexpected GitHub response shape (expected a repository array).");
+    }
     const ownedRepos = repos.filter((repo) => !repo.fork);
     const reposForLanguages = ownedRepos.slice(0, 20);
     const languageMaps = await Promise.all(
