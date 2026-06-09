@@ -43,6 +43,9 @@ export function ScreenWaveModal({
   useEffect(() => {
     if (committed) return;
     let alive = true;
+    // Loading state is part of THIS data-fetching effect's lifecycle (true on start, false on
+    // settle below) — the legitimate fetch-in-effect pattern, not a cascading-render concern.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true);
     const h = window.setTimeout(() => {
       fetch("/api/decisions/screen-wave", {

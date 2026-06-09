@@ -96,6 +96,10 @@ export function PipelineTab() {
   useEffect(() => {
     try {
       const raw = localStorage.getItem(PIPELINE_VIEWS_KEY);
+      // localStorage is client-only, so hydrating it in a mount effect is the SSR-safe path:
+      // reading it during render / in a lazy initializer would mismatch the server's empty
+      // HTML. This one-time mount set isn't the cascading-render case the rule targets.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       if (raw) setViews(JSON.parse(raw) as SavedView[]);
     } catch {
       /* corrupt/absent — start empty */
@@ -116,6 +120,9 @@ export function PipelineTab() {
   useEffect(() => {
     try {
       const raw = localStorage.getItem(PIPELINE_SLA_KEY);
+      // Client-only localStorage — see the saved-views hydration above: a mount effect is the
+      // SSR-safe way to read it, and a one-time set isn't a cascading-render concern.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       if (raw) setSlaOverrides(JSON.parse(raw) as Record<string, number>);
     } catch {
       /* corrupt/absent — fall back to defaults */
