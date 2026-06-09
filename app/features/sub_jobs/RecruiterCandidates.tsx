@@ -233,7 +233,7 @@ function CandidateCard({
   const prov = res.matchedSkillProvenance ?? {};
   return (
     <li className="rounded-md border border-stone-200 bg-white p-2">
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <ScoreBadge score={res.total} />
         <span className="nums text-sm text-steel" title={confidenceBandTitle(res.confidence.drivers)}>
           {res.confidence.low}–{res.confidence.high}
