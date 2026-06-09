@@ -22,6 +22,21 @@ export const runtime = "nodejs";
 
 type RouteOutcome = { data: ProfileCliOutput } | { error: { message: string; status: number } };
 
+// The request body is a TS cast, not validated. Reject a non-object profile/signals at this
+// trust boundary BEFORE it is JSON.stringified into the Python intake — a string/array/number
+// would serialize into junk the CLI must defend against, and the AI-draft / direct-API paths
+// bypass the form's client-side guards. Field-level normalization (archetype, completeness,
+// numeric coercion) stays delegated to profile_cli; this only enforces the top-level shape.
+function isPlainObject(v: unknown): v is Record<string, unknown> {
+  return typeof v === "object" && v !== null && !Array.isArray(v);
+}
+
+function validateProfileBody(body: { profile?: unknown; signals?: unknown }): string | null {
+  if (body.profile !== undefined && !isPlainObject(body.profile)) return "profile must be an object.";
+  if (body.signals !== undefined && !isPlainObject(body.signals)) return "signals must be an object.";
+  return null;
+}
+
 // Run the pure-logic profile_cli (archetype router + completeness) over an intake
 // draft. Shared by POST (create) and PUT (edit) so both re-route and re-score the
 // same way — an edit must never persist a stale archetype/completeness.
@@ -92,6 +107,9 @@ export async function POST(request: NextRequest) {
       persist?: boolean;
     };
 
+    const invalid = validateProfileBody(body);
+    if (invalid) return NextResponse.json({ error: invalid }, { status: 400 });
+
     const outcome = await routeAndScore(body.profile ?? {}, body.signals ?? {});
     if ("error" in outcome) {
       return NextResponse.json({ error: outcome.error.message }, { status: outcome.error.status });
@@ -123,6 +141,9 @@ export async function PUT(request: NextRequest) {
     if (!getProfileRecord(body.id)) {
       return NextResponse.json({ error: "Profile not found." }, { status: 404 });
     }
+
+    const invalid = validateProfileBody(body);
+    if (invalid) return NextResponse.json({ error: invalid }, { status: 400 });
 
     const outcome = await routeAndScore(body.profile ?? {}, body.signals ?? {});
     if ("error" in outcome) {

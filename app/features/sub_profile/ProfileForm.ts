@@ -36,7 +36,13 @@ export function archetypeScopedProfileFields(
 ): { yearsExperience?: number; seniority?: string } {
   const visible = archetypeFieldVisibility(choice);
   const fields: { yearsExperience?: number; seniority?: string } = {};
-  if (visible.years && yearsExperience.trim()) fields.yearsExperience = Number(yearsExperience);
+  // Drop a non-finite years (e.g. a non-numeric AI-draft value) rather than emitting NaN,
+  // which JSON.stringify turns into null downstream — silently failing the years completeness
+  // check with no signal. Only persist a real finite number.
+  if (visible.years && yearsExperience.trim()) {
+    const years = Number(yearsExperience);
+    if (Number.isFinite(years)) fields.yearsExperience = years;
+  }
   // Only persist seniority when one is actually selected — editing a profile that
   // never had a seniority must not invent one (it stays empty in hydrate()).
   if (visible.seniority && seniority) fields.seniority = seniority;
