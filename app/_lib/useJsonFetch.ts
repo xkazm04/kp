@@ -27,6 +27,14 @@ export function useJsonFetch<T>(
           setError((body && body.error) || errorLabel);
           return;
         }
+        if (body == null) {
+          // A 2xx whose body is empty / unparseable JSON would otherwise setData(null),
+          // leaving the consumer in a permanent loading skeleton (data===null && error===null)
+          // with no retry. These read-only dashboard endpoints always return a JSON object, so
+          // an empty body is a server fault — surface it as an error (reload-able) instead.
+          setError(errorLabel);
+          return;
+        }
         setData(body as T);
       })
       .catch(() => {
