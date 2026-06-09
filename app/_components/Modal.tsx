@@ -80,7 +80,10 @@ export function Modal({
     const focusables = () =>
       node
         ? Array.from(node.querySelectorAll<HTMLElement>('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])')).filter(
-            (el) => !el.hasAttribute("disabled")
+            // Exclude aria-disabled controls too, not just `disabled`: an aria-disabled
+            // button is still tabbable, so counting it as a trap boundary let Tab land the
+            // first/last focus on a control the user can't actually act on.
+            (el) => !el.hasAttribute("disabled") && el.getAttribute("aria-disabled") !== "true"
           )
         : [];
     // Contract: focus always lands inside the dialog so Escape/Tab have an
