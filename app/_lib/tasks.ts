@@ -242,9 +242,21 @@ async function runOne(id: string): Promise<void> {
     });
     finishTask(id, controller.signal.aborted ? "canceled" : "succeeded", { result });
   } catch (error) {
-    finishTask(id, controller.signal.aborted ? "canceled" : "failed", {
-      error: error instanceof Error ? error.message : String(error),
-    });
+    // The recovery write reuses the same (possibly contended) DB connection that may
+    // have just failed markTaskRunning. Guard it: an unguarded throw here escapes
+    // `void runOne(id)` as an unhandled rejection AND leaves the row a phantom
+    // 'running'/'queued'. On failure we log and let interruptStaleTasks reclaim the
+    // row on the next start; the finally still restores the in-memory slot.
+    try {
+      finishTask(id, controller.signal.aborted ? "canceled" : "failed", {
+        error: error instanceof Error ? error.message : String(error),
+      });
+    } catch (finishErr) {
+      console.error(
+        `[tasks] could not mark task ${id} failed after a run error:`,
+        finishErr instanceof Error ? finishErr.message : finishErr
+      );
+    }
   } finally {
     controllers.delete(id);
     running -= 1;
