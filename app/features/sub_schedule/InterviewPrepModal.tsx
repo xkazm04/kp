@@ -87,7 +87,9 @@ export function InterviewPrepModal({ entry, onClose }: { entry: SchedEntry; onCl
 
   // Keep the freshest editable values in a ref so the unmount flush sends them.
   const latestProgressRef = useRef({ checked, notes, interviewer });
-  latestProgressRef.current = { checked, notes, interviewer };
+  useEffect(() => {
+    latestProgressRef.current = { checked, notes, interviewer };
+  }, [checked, notes, interviewer]);
 
   // Flush a pending edit on unmount (modal close). The debounce effect's cleanup
   // cancels an in-flight 600ms timer, so closing the modal within that window — very

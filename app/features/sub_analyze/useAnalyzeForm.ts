@@ -89,10 +89,13 @@ export function useAnalyzeForm() {
     ? { tone: "attached", label: githubProfile.trim() }
     : { tone: "optional", label: "Optional" };
 
-  // Mirror cvFiles into a ref (synced every render) so the serialized intake below can
-  // see pending appends across its async hash await, and a promise chain that serializes
-  // addCvFile calls.
-  cvFilesRef.current = cvFiles;
+  // Mirror cvFiles into a ref so the serialized intake below sees pending appends across
+  // its async hash await. Synced in an effect (post-commit) to avoid mutating a ref during
+  // render; addCvFileInner also advances it synchronously on append so a queued add sees
+  // the prior add before the next render lands.
+  useEffect(() => {
+    cvFilesRef.current = cvFiles;
+  }, [cvFiles]);
 
   function addCvFile(file: File): Promise<void> {
     // Serialize intake: two near-simultaneous drops of the SAME file would otherwise both
