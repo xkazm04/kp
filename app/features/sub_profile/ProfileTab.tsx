@@ -45,6 +45,11 @@ export function ProfileTab() {
   // profile in the editor. Clear the param up front so closing returns here and a
   // refresh doesn't reopen it. No synchronous setState — the editor opens in the
   // fetch continuation — so the effect stays render-safe.
+  //
+  // Runs ONCE at mount (empty deps), reading the initial `edit` param. The deep link is a
+  // one-time intent, and keying this on `params` was self-defeating: router.replace clears
+  // the param, which changes `params`, which re-ran the effect — firing the FIRST run's
+  // cleanup (alive=false) before its in-flight fetch resolved, so the editor never opened.
   useEffect(() => {
     const editId = params.get("edit");
     if (!editId) return;
@@ -67,7 +72,8 @@ export function ProfileTab() {
     return () => {
       alive = false;
     };
-  }, [params, router]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   if (editor) {
     return (
