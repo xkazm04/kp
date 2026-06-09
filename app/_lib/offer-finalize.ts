@@ -45,8 +45,26 @@ export async function respondToOffer(token: string, response: "accept" | "declin
     if (offer.entryId) {
       recordAutomationEvent(offer.entryId, "offer_accepted", offer.jobTitle ?? "");
       const hired = actOnPipelineEntry(offer.entryId, "accept"); // Offer -> Hired (clears approval, logs `advanced`)
-      // Onboarding hook — fires on the move to Hired.
-      if (hired) await dispatchOnboarding(hired);
+      // Onboarding hook — fires on the move to Hired. The accept already committed (offer
+      // accepted + entry Hired), and a retry early-returns "accepted" — so a comms blip here
+      // must NOT 500 (that masks the gap as success) or leave zero signal. Mirror the schedule
+      // confirm flow: catch the dispatch failure, record a durable operator-visible reconcile
+      // event so onboarding can be re-triggered, and still return ok.
+      if (hired) {
+        try {
+          await dispatchOnboarding(hired);
+        } catch (err) {
+          recordAutomationEvent(
+            offer.entryId,
+            "onboarding_failed",
+            err instanceof Error ? err.message.slice(0, 160) : "onboarding dispatch failed"
+          );
+          console.error(
+            `[offer] accepted + Hired but onboarding dispatch failed for entry ${offer.entryId}:`,
+            err instanceof Error ? err.message : err
+          );
+        }
+      }
     }
     return { ok: true, status: "accepted", alreadyResponded: false, jobTitle: offer.jobTitle, candidateLabel: offer.candidateLabel };
   }
