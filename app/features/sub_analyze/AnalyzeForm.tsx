@@ -178,7 +178,7 @@ export function AnalyzeForm({ state }: { state: AnalyzeFormState }) {
         <button
           type="button"
           onClick={handlers.submit}
-          disabled={flags.isLoading || flags.isCompleting || flags.githubLoading || inputs.cvFiles.length === 0}
+          disabled={flags.isLoading || flags.isCompleting || flags.githubLoading || flags.jdLoading || inputs.cvFiles.length === 0}
           className="focus-ring inline-flex h-11 items-center justify-center gap-2 rounded-md bg-ink px-5 text-base font-semibold text-white hover:bg-steel disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
         >
           {flags.isLoading ? (

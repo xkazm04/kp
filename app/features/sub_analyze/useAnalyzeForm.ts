@@ -61,7 +61,7 @@ export function useAnalyzeForm() {
   const [isCompleting, setIsCompleting] = useState(false);
   const [stageState, setStageState] = useState<StageState>(initialStageState);
 
-  const { jdLibrary, selectedJdSlug, setSelectedJdSlug, pickJd } =
+  const { jdLibrary, selectedJdSlug, setSelectedJdSlug, pickJd, jdLoading } =
     useAnalyzeJdLibrary(setJobDescriptionText);
 
   const hasJobDescription = Boolean(jobDescriptionFile || jobDescriptionText.trim());
@@ -337,6 +337,13 @@ export function useAnalyzeForm() {
   // User-initiated stop of a running scan (the Cancel button in AnalysisProgress).
   // Keeps the inputs so the user can retry; just halts the run and clears progress.
   function cancel() {
+    // Supersede a GitHub deep-dive still in flight too (it can outlive the main analysis).
+    // stopActiveRun only halts the MAIN poll; without this the orphaned GitHub run keeps
+    // going, its guarded callbacks still fire on the cancelled form, and githubStatus stays
+    // "loading" — which keeps the Analyze button disabled (githubLoading) until the
+    // abandoned call finally resolves. Mirrors reset()'s GitHub handling.
+    githubRunIdRef.current += 1;
+    setGithubStatus("idle");
     stopActiveRun();
     setStageState(initialStageState());
   }
@@ -371,7 +378,7 @@ export function useAnalyzeForm() {
     // `githubLoading` lets the submit button block a resubmit while a GitHub run
     // is still in flight (it can outlive the main analysis), preventing a duplicate
     // full fan-out (idea-8367f051).
-    flags: { hasJobDescription, hasCompany, isLoading, isCompleting, githubLoading: githubStatus === "loading" },
+    flags: { hasJobDescription, hasCompany, isLoading, isCompleting, githubLoading: githubStatus === "loading", jdLoading },
     statuses: { cvStatus, jobStatus, companyStatus, githubStatusLabel },
     library: { jdLibrary, selectedJdSlug, setSelectedJdSlug, pickJd },
     result: { analysis, githubAnalysis, githubStatus, githubError, githubWarning, error, stageState },

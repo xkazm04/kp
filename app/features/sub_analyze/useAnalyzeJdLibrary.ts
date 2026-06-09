@@ -6,6 +6,11 @@ import type { JdSummary } from "./AnalyzeTypes";
 export function useAnalyzeJdLibrary(setJobDescriptionText: (value: string) => void) {
   const [jdLibrary, setJdLibrary] = useState<JdSummary[]>([]);
   const [selectedJdSlug, setSelectedJdSlug] = useState<string | null>(null);
+  // True while a picked JD's body fetch is in flight. The textarea is populated only AFTER
+  // this resolves, and the server never resolves the slug→body itself — so submitting before
+  // it lands runs the analysis JD-blind while still tagging it with the slug. Callers OR this
+  // into the submit gate so a pick-then-immediately-Analyze can't run without the JD.
+  const [jdLoading, setJdLoading] = useState(false);
   // Monotonic pick counter: ignore a slow saved-JD body fetch that resolves after
   // a newer pick, so the textarea can't end up holding JD A's body while the slug
   // records JD B (the run would then silently use the wrong JD). One counter shared
@@ -36,6 +41,7 @@ export function useAnalyzeJdLibrary(setJobDescriptionText: (value: string) => vo
     (slug: string) => {
       setSelectedJdSlug(slug);
       const seq = ++jdPickSeqRef.current;
+      setJdLoading(true);
       fetch(`/api/jds/${encodeURIComponent(slug)}`)
         .then((response) => (response.ok ? response.json() : null))
         .then((full) => {
@@ -51,6 +57,11 @@ export function useAnalyzeJdLibrary(setJobDescriptionText: (value: string) => vo
         })
         .catch(() => {
           /* leave the textarea as-is; the selection is still recorded */
+        })
+        .finally(() => {
+          // Only the current pick owns the flag — a superseded pick's resolution must not
+          // clear a newer pick's loading state.
+          if (seq === jdPickSeqRef.current) setJdLoading(false);
         });
     },
     [setJobDescriptionText]
@@ -68,5 +79,5 @@ export function useAnalyzeJdLibrary(setJobDescriptionText: (value: string) => vo
     return () => window.clearTimeout(t);
   }, [pickJd]);
 
-  return { jdLibrary, selectedJdSlug, setSelectedJdSlug, pickJd };
+  return { jdLibrary, selectedJdSlug, setSelectedJdSlug, pickJd, jdLoading };
 }
