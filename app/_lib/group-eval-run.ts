@@ -80,6 +80,9 @@ type RecruiterRow = {
 };
 
 type PerCandidate = {
+  // Stable pipeline-entry id, so the Decisions modal can resolve an inline advance/reject
+  // back to the exact live entry by id (not by the non-unique display label).
+  entryId: string;
   label: string;
   score: number;
   seniority: string | null;
@@ -263,8 +266,21 @@ export async function runGroupEval(params: Record<string, unknown>, signal?: Abo
   // the ones compared — never an arbitrary insertion-order subset. The recommended
   // lead/ranking is presented as authoritative, so dropping the best candidate by
   // list order would be a correctness + trust bug.
+  // Dedupe by stable identity BEFORE the cap. Two pipeline entries for the SAME person
+  // (same candidateId — re-added/duplicated into one role) would otherwise each consume a
+  // GROUP_EVAL_CAP slot, emit duplicate comparison columns, double-count in the lead/order
+  // and risks, and evict a genuine candidate past the cap — while resolveCandidates and
+  // rankCandidates (keyed by candidateId) silently collapse the pair downstream. Identity
+  // is candidateId when present, else the always-unique entryId. Label stays display-only.
+  const seenIdentity = new Set<string>();
   const input = [...allCandidates]
     .sort((a, b) => (b.matchScore ?? 0) - (a.matchScore ?? 0))
+    .filter((c) => {
+      const identity = c.candidateId || c.entryId;
+      if (seenIdentity.has(identity)) return false;
+      seenIdentity.add(identity);
+      return true;
+    })
     .slice(0, GROUP_EVAL_CAP);
 
   // Resolve every candidate's stored rows ONCE; rankCandidates, the payload
@@ -318,6 +334,7 @@ export async function runGroupEval(params: Record<string, unknown>, signal?: Abo
     const { reasoning, source } = reasonings[idx];
     if (source !== null) sources.push(source);
     candidates.push({
+      entryId: c.entryId,
       label: c.label,
       // Prefer the fresh recruiter total (matches the breakdown shown) over the
       // stored matchScore, falling back to it when the role has no job.
