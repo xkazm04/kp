@@ -24,7 +24,11 @@ export async function POST(request: NextRequest) {
     // mid-parse) SIGKILLs the Claude CLI child instead of leaving it to finish a
     // parse whose result nobody will read — and keep spending a subscription call.
     const { job, source } = await ingestJobAd(adText, body.jobId, request.signal);
-    const { id, created } = insertJob(job, jobContentHash(adText));
+    // Ingest as a DRAFT (insertJob defaults to "published"). A pasted ad must enter the same
+    // draft → publish → source-into-pipeline lifecycle that JD-builder roles get; born
+    // "published" it skipped publish, so the role was live but never sourced candidates.
+    // Publishing it (Jobs tab) then runs sourcing exactly like an authored JD.
+    const { id, created } = insertJob(job, jobContentHash(adText), "draft");
     return NextResponse.json({ jobId: id, created, source, title: job.title });
   } catch (error) {
     return NextResponse.json(
