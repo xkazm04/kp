@@ -23,6 +23,11 @@ export function SubmissionRow({ submission, rank, isTop = false, onChanged }: { 
   const { startTask } = useTasks();
   const [taskId, setTaskId] = useState<string | null>(null);
   const [promoted, setPromoted] = useState(false);
+  const [promoting, setPromoting] = useState(false);
+  // Server truth OR the local just-clicked flag: an already-promoted submission — earlier
+  // this session before a reload, or auto-promoted by the lifecycle pipeline — must not
+  // re-expose the Promote button, since a second promote re-sends the invite from the outbox.
+  const isPromoted = promoted || submission.status === "promoted";
   const seen = useRef(false);
   // The poll omits the eval bundle; useTaskResult fetches it on demand once the
   // evaluate task finishes. `fresh` stays null during that brief fetch, falling
@@ -47,12 +52,18 @@ export function SubmissionRow({ submission, rank, isTop = false, onChanged }: { 
     if (t) setTaskId(t.id);
   };
   const promote = async () => {
-    const r = await fetch("/api/devcase/promote", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ submissionId: submission.id }),
-    });
-    if (r.ok) setPromoted(true);
+    if (promoting || isPromoted) return; // in-flight + already-promoted double-promote guard
+    setPromoting(true);
+    try {
+      const r = await fetch("/api/devcase/promote", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ submissionId: submission.id }),
+      });
+      if (r.ok) setPromoted(true);
+    } finally {
+      setPromoting(false);
+    }
   };
 
   const tsRaw = submission.transferScore ?? ev?.transfer?.transferScore ?? null;
@@ -86,7 +97,7 @@ export function SubmissionRow({ submission, rank, isTop = false, onChanged }: { 
           <Sparkles size={10} /> {busy ? "Evaluating…" : ev ? "Re-evaluate" : "Evaluate"}
         </button>
       </div>
-      {ev ? <EvalPanel ev={ev} onPromote={promote} promoted={promoted} /> : null}
+      {ev ? <EvalPanel ev={ev} onPromote={promote} promoted={isPromoted} promoting={promoting} /> : null}
     </li>
   );
 }

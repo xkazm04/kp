@@ -33,7 +33,7 @@ function probeStatus(o: ProbeOutcome): { label: string; cls: string; Icon: Lucid
   return { label: "missed", cls: "text-coral", Icon: X };
 }
 
-export function EvalPanel({ ev, onPromote, promoted }: { ev: EvalBundle; onPromote: () => void; promoted: boolean }) {
+export function EvalPanel({ ev, onPromote, promoted, promoting = false }: { ev: EvalBundle; onPromote: () => void; promoted: boolean; promoting?: boolean }) {
   const r = ev.reflection ?? {};
   const t = ev.tooling ?? {};
   const e = ev.evaluation ?? {};
@@ -164,9 +164,9 @@ export function EvalPanel({ ev, onPromote, promoted }: { ev: EvalBundle; onPromo
         {promoted ? (
           <span className="inline-flex items-center gap-1 text-micro font-semibold text-moss"><Check size={13} /> In pipeline</span>
         ) : (
-          <button type="button" onClick={onPromote}
-            className="focus-ring inline-flex h-7 items-center gap-1 rounded-md bg-ink px-2.5 text-micro font-semibold text-white hover:opacity-90">
-            <Send size={12} /> Promote to pipeline
+          <button type="button" onClick={onPromote} disabled={promoting}
+            className="focus-ring inline-flex h-7 items-center gap-1 rounded-md bg-ink px-2.5 text-micro font-semibold text-white hover:opacity-90 disabled:opacity-50">
+            <Send size={12} /> {promoting ? "Promoting…" : "Promote to pipeline"}
           </button>
         )}
         <span className="text-micro text-steel">→ becomes a Decisions review card</span>
