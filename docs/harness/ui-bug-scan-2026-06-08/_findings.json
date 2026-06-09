@@ -1,0 +1,666 @@
+[
+ {
+  "ctx": "dev-case-orchestration-api",
+  "title": "Inbound webhook bypasses the apply-token gate via a guessable `postingId`",
+  "sev": "Critical",
+  "lens": "🐛 Bug Hunter",
+  "cat": "Validation gap at trust boundary / broken access control",
+  "file": "`app/api/devcase/inbound/route.ts:22-24` (mirror: `app/api/devcase/submit/route.ts:19-21`)"
+ },
+ {
+  "ctx": "github-code-analysis",
+  "title": "`parseRepoRef` accepts traversal segments → confused-deputy fetch against the GitHub API with the server token attached",
+  "sev": "Critical",
+  "lens": "🐛 Bug Hunter",
+  "cat": "SSRF / path traversal / input validation at trust boundary",
+  "file": "`app/_lib/repo-snapshot.ts:33-38` (and the interpolations at `:56-59`, `:102-104`, `:159-160`, `:173`)"
+ },
+ {
+  "ctx": "interview-prep-rubric",
+  "title": "Regenerating a prep destroys the saved human scorecard (and any other prior payload key)",
+  "sev": "Critical",
+  "lens": "🐛 Bug",
+  "cat": "Data loss / silent overwrite",
+  "file": "`app/_lib/interview-prep-run.ts:38-39` (write) → `app/_lib/interview-prep.ts:43-61` (`saveInterviewPrep` full-payload upsert)"
+ },
+ {
+  "ctx": "analysis-results-reporting",
+  "title": "ScoreDial color tiers disagree with scoreTone — dial reads a different tone than badge/bars for the SAME score",
+  "sev": "High",
+  "lens": "ui-perfectionist",
+  "cat": "Visual inconsistency / success theater (comment asserts a guarantee the code doesn't keep)",
+  "file": "`app/_components/ScoreDial.tsx:35-51` (`bandIndex`/`bandColor`) vs `app/_lib/format.ts:328-342` (`scoreTone`, cutoffs 50/75)"
+ },
+ {
+  "ctx": "analytics-diagrams",
+  "title": "Analytics error state is a dead end — the hardened 500 path has no retry",
+  "sev": "High",
+  "lens": "🎨 UI",
+  "cat": "Missing error-recovery state",
+  "file": "`app/features/sub_analytics/AnalyticsTab.tsx:25-27`"
+ },
+ {
+  "ctx": "automation-orchestration",
+  "title": "Concurrent `/api/automation/outreach` for one entry double-sends the candidate (TOCTOU)",
+  "sev": "High",
+  "lens": "🐛 Bug Hunter",
+  "cat": "Race condition / silent duplicate side effect at a trust boundary",
+  "file": "`app/_lib/automation-run.ts:240-245` (gate) + `app/_lib/comms-dispatch.ts:54-62` (marker write); entered via `app/api/automation/[task]/route.ts:13`"
+ },
+ {
+  "ctx": "automation-orchestration",
+  "title": "`intervalMinutes: NaN` slips through the clamp and corrupts the clock cadence",
+  "sev": "High",
+  "lens": "🐛 Bug Hunter",
+  "cat": "Validation gap at a trust boundary",
+  "file": "`app/api/automation/schedule/route.ts:16` → `app/_lib/scheduler-store.ts:115`"
+ },
+ {
+  "ctx": "candidate-job-matching-fit-matrix",
+  "title": "Re-weighting blanks the whole result to the empty placeholder (no loading state)",
+  "sev": "High",
+  "lens": "🎨 UI / 🐛 Bug (silent state loss)",
+  "cat": "Missing loading state / state thrash on common path",
+  "file": "`app/features/sub_match/MatchTab.tsx:52` (setResult(null)) + `app/features/sub_match/MatchTab.tsx:164-178` (render gate)"
+ },
+ {
+  "ctx": "candidate-job-matching-fit-matrix",
+  "title": "Fit Matrix data table has no header/cell association (scope/th)",
+  "sev": "High",
+  "lens": "🎨 UI (accessibility)",
+  "cat": "A11y — data table semantics",
+  "file": "`app/features/sub_matrix/MatrixTab.tsx:456` (corner `<th>`), `:460` (column `<th>` no `scope`), `:488` (row label is `<td>`, not `<th scope=\"row\">`)"
+ },
+ {
+  "ctx": "candidate-profile-builder",
+  "title": "Deep-link editor open is cancelled by its own param-clear (self-aborting fetch)",
+  "sev": "High",
+  "lens": "bug-hunter",
+  "cat": "race-condition",
+  "file": "`app/features/sub_profile/ProfileTab.tsx:48`"
+ },
+ {
+  "ctx": "conversational-apply",
+  "title": "A mistyped email (step 2) is only caught at the FINAL submit and forces a full \"Start over\"",
+  "sev": "High",
+  "lens": "Bug (Bug Hunter) — validation timing on the common path",
+  "cat": "",
+  "file": "`app/apply/[id]/ConversationalApply.tsx:162-168` (text submit) + `app/api/apply/[id]/route.ts:224-226` (server reject)"
+ },
+ {
+  "ctx": "cv-analysis-workspace",
+  "title": "Picking a saved JD then submitting immediately runs the analysis JD-blind while recording the slug",
+  "sev": "High",
+  "lens": "🐛 Bug",
+  "cat": "Race / silent correctness gap at the submit boundary",
+  "file": "`app/features/sub_analyze/useAnalyzeJdLibrary.ts:35-57` (pick), `app/_lib/analyze-run.ts:34-41` (cliArgs), `app/features/sub_analyze/AnalyzeForm.tsx:178-182` (submit gate)"
+ },
+ {
+  "ctx": "cv-analysis-workspace",
+  "title": "Cancel scan leaves the GitHub deep-dive running and the Analyze button stuck disabled",
+  "sev": "High",
+  "lens": "🐛 Bug",
+  "cat": "Timing / orphaned async run, blocked recovery",
+  "file": "`app/features/sub_analyze/useAnalyzeForm.ts:314-317` (cancel), `162-172` (stopActiveRun), `256-291` (github launch), `349` (githubLoading gate)"
+ },
+ {
+  "ctx": "data-layer-schemas-python-bridge",
+  "title": "A DB write that throws inside `runOne`'s catch leaks the task as permanently 'running'",
+  "sev": "High",
+  "lens": "🐛 Bug Hunter",
+  "cat": "Race condition / silent failure under contention",
+  "file": "`app/_lib/tasks.ts:244-252` (with `app/_lib/db.ts:2409-2418`, `2376-2381`)"
+ },
+ {
+  "ctx": "decision-workflow-group-eval",
+  "title": "Inline group-eval decide resolves candidates by display label, not by id — wrong candidate can be advanced/rejected",
+  "sev": "High",
+  "lens": "🐛 Bug Hunter",
+  "cat": "Validation gap at a trust boundary / identity confusion on an irreversible action",
+  "file": "`app/features/sub_decisions/DecisionsTab.tsx:314` (resolution) + `app/features/sub_decisions/GroupEvalModal.tsx:168-175` (`decided` keyed by label)"
+ },
+ {
+  "ctx": "decision-workflow-group-eval",
+  "title": "Group-eval candidate count can drift from `candidateCount` when duplicate candidateIds collapse during resolution",
+  "sev": "High",
+  "lens": "🐛 Bug Hunter",
+  "cat": "Edge case / aggregation correctness",
+  "file": "`app/_lib/group-eval-run.ts:116-124` + `:266-272` + `:382-390`"
+ },
+ {
+  "ctx": "dev-case-orchestration-api",
+  "title": "`approved` lifecycle stage is non-idempotent — resume/restart mints a duplicate posting",
+  "sev": "High",
+  "lens": "🐛 Bug Hunter",
+  "cat": "Idempotency / durability (race on restart)",
+  "file": "`app/_lib/devcase-orchestrator.ts:101-185`"
+ },
+ {
+  "ctx": "dev-case-studio-ui",
+  "title": "Submission record silently lost on a failed POST",
+  "sev": "High",
+  "lens": "🐛 Bug Hunter",
+  "cat": "Silent failure / missing error handling",
+  "file": "`app/features/sub_dev/SubmissionForm.tsx:11-26`"
+ },
+ {
+  "ctx": "github-code-analysis",
+  "title": "Deep-review evidence silently empties under partial fetch failure → LLM produces a confident assessment on no data",
+  "sev": "High",
+  "lens": "🐛 Bug Hunter",
+  "cat": "silent failure / degraded result on a common path (rate limits)",
+  "file": "`app/api/github-analysis/route.ts:403-428` (`fetchRepoBundle`) feeding `runCodeReview:495-538`"
+ },
+ {
+  "ctx": "interview-prep-rubric",
+  "title": "Lost-update race between the progress autosave (PUT) and the scorecard save (POST)",
+  "sev": "High",
+  "lens": "🐛 Bug",
+  "cat": "Race condition / read-modify-write",
+  "file": "`app/_lib/interview-prep.ts:78-89` (progress) and `:97-105` (scorecard); triggered from `app/features/sub_schedule/InterviewPrepModal.tsx:74-86` (debounced PUT) + `app/features/sub_schedule/HumanScorecardPanel.tsx:57-77` (POST)"
+ },
+ {
+  "ctx": "interview-prep-rubric",
+  "title": "Stale-closure / coalesced-write loses keystrokes on the debounced autosave",
+  "sev": "High",
+  "lens": "🐛 Bug",
+  "cat": "Race / timing (debounce)",
+  "file": "`app/features/sub_schedule/InterviewPrepModal.tsx:74-86`"
+ },
+ {
+  "ctx": "jd-library-builder",
+  "title": "Editing Title/Company after generation silently saves a stale body (template path)",
+  "sev": "High",
+  "lens": "🐛 Bug",
+  "cat": "Stale state / silent data mismatch on the common save path",
+  "file": "`app/features/sub_library/JdBuilderResult.tsx:68` (with `app/features/sub_library/JdBuilder.tsx:74-101,263`)"
+ },
+ {
+  "ctx": "job-catalog-ingestion-sourcing",
+  "title": "Ingested ads go live as `published`, silently skipping the draft → source-into-pipeline lifecycle",
+  "sev": "High",
+  "lens": "🐛 Bug",
+  "cat": "State mutation at trust boundary / lifecycle inconsistency",
+  "file": "`app/api/jobs/ingest/route.ts:27`"
+ },
+ {
+  "ctx": "job-catalog-ingestion-sourcing",
+  "title": "Recruiter Candidates tab shows stale data (and a stuck error) when the open modal switches to a different job",
+  "sev": "High",
+  "lens": "🐛 Bug",
+  "cat": "Stale state / effect-dependency gap",
+  "file": "`app/features/sub_jobs/RecruiterCandidates.tsx:52-59` (and `app/features/sub_jobs/JobPostingModal.tsx:117`, `app/features/sub_jobs/JobsTab.tsx:213`)"
+ },
+ {
+  "ctx": "pipeline-board-scheduler",
+  "title": "Open board silently goes stale when the automation clock advances/rejects entries in the background",
+  "sev": "High",
+  "lens": "bug",
+  "cat": "live-update / stale board state",
+  "file": "`app/features/sub_pipeline/PipelineTab.tsx:195-199` (consumer) + `instrumentation.ts:30-70` (server clock) + `app/features/live-refresh.ts:12-14` (bus)"
+ },
+ {
+  "ctx": "scheduling-offers",
+  "title": "Onboarding dispatch failure after Accept is silent and never retried",
+  "sev": "High",
+  "lens": "🐛 Bug",
+  "cat": "Silent failure / unrecoverable side effect",
+  "file": "`app/_lib/offer-finalize.ts:45-50`"
+ },
+ {
+  "ctx": "scoring-extraction-engine-python",
+  "title": "Currency fallback is the hardcoded literal `\"CZK\"`, not the imported `APP_CURRENCY` — silent drift if the app currency changes",
+  "sev": "High",
+  "lens": "🐛 Bug Hunter",
+  "cat": "Latent failure / cross-currency comparison hazard (the exact bug the file is built to prevent)",
+  "file": "`app/_lib/salary-band.ts:118`"
+ },
+ {
+  "ctx": "voice-interview-runtime",
+  "title": "OpenAI hang-up with no turns locks the session as \"completed\" forever",
+  "sev": "High",
+  "lens": "bug",
+  "cat": "edge case / asymmetric finalize / candidate lockout",
+  "file": "`app/_components/voice/VoiceInterview.tsx:535` (and 509-536)"
+ },
+ {
+  "ctx": "voice-interview-runtime",
+  "title": "OpenAI path never sets `reachedLiveRef` → unmount transcript beacon never fires",
+  "sev": "High",
+  "lens": "bug",
+  "cat": "silent data loss / timing / teardown",
+  "file": "`app/_components/voice/VoiceInterview.tsx:419-420` (missing set); fault surfaces at `326`"
+ },
+ {
+  "ctx": "workspace-shell-shared-ui",
+  "title": "`useJsonFetch` treats a 204 / empty-body response as a load error",
+  "sev": "High",
+  "lens": "🐛 Bug",
+  "cat": "Silent failure on a common path",
+  "file": "`app/_lib/useJsonFetch.ts:22-30`"
+ },
+ {
+  "ctx": "analysis-results-reporting",
+  "title": "Compare table mis-crowns and key-collides when two CV variants share a label",
+  "sev": "Medium",
+  "lens": "bug-hunter",
+  "cat": "Edge case (duplicate upload filenames)",
+  "file": "`app/_components/results/compare/CompareTab.tsx:63,94-108` and `app/_lib/comparison.ts:50-73`"
+ },
+ {
+  "ctx": "analysis-results-reporting",
+  "title": "History \"Score\" and the report dial show two different numbers for the same analysis",
+  "sev": "Medium",
+  "lens": "bug-hunter",
+  "cat": "Silent cross-surface inconsistency",
+  "file": "`app/features/sub_history/HistoryTab.tsx:184` and `app/history/[slug]/page.tsx:61` vs `app/_components/results/extraction/ExtractionTab.tsx:24` (`reconcileScoreTotal(analysis.score)`)"
+ },
+ {
+  "ctx": "analytics-diagrams",
+  "title": "Empty pipeline renders a populated-looking zero funnel — inconsistent with the other panels",
+  "sev": "Medium",
+  "lens": "🎨 UI",
+  "cat": "Missing empty state / inconsistency",
+  "file": "`app/features/sub_analytics/AnalyticsTab.tsx:69-92`"
+ },
+ {
+  "ctx": "analytics-diagrams",
+  "title": "Diagram parse/layout failure dumps raw PlantUML source to the end user",
+  "sev": "Medium",
+  "lens": "🐛 Bug / 🎨 UI",
+  "cat": "Degraded failure surface",
+  "file": "`app/_components/puml/PlantUml.tsx:404-412` (`failed` branch)"
+ },
+ {
+  "ctx": "automation-orchestration",
+  "title": "Forced manual tick joins an in-flight clock pass → double clock-advance + duplicate run-log row",
+  "sev": "Medium",
+  "lens": "🐛 Bug Hunter",
+  "cat": "Race / success-theater accounting",
+  "file": "`app/_lib/scheduler.ts:15-31` (force path) + single-flight at `app/_lib/automation-pass.ts:48-54`; entered via `app/api/automation/schedule/route.ts:18`"
+ },
+ {
+  "ctx": "automation-orchestration",
+  "title": "Policy-pass entry snapshot can be empty due to terminal `status` filter — pass reports success over a stale board",
+  "sev": "Medium",
+  "lens": "🐛 Bug Hunter",
+  "cat": "Edge case / silent no-op (empty funnel)",
+  "file": "`app/_lib/automation-pass.ts:57-59` + `app/_lib/db.ts:2060-2082`"
+ },
+ {
+  "ctx": "candidate-job-matching-fit-matrix",
+  "title": "Bulk \"Add selected\" lookups can target the wrong candidate/position on duplicate ids",
+  "sev": "Medium",
+  "lens": "🐛 Bug (data integrity / ambiguous lookup)",
+  "cat": "",
+  "file": "`app/features/sub_matrix/MatrixTab.tsx:199-207`"
+ },
+ {
+  "ctx": "candidate-profile-builder",
+  "title": "POST/PUT forward unvalidated client JSON to the Python CLI (years coerces to NaN→null silently)",
+  "sev": "Medium",
+  "lens": "bug-hunter",
+  "cat": "validation-gap",
+  "file": "`app/api/profile/route.ts:89`"
+ },
+ {
+  "ctx": "candidate-profile-builder",
+  "title": "Skill/evidence rows keyed by array index corrupt focus and identity on insert/delete",
+  "sev": "Medium",
+  "lens": "bug-hunter",
+  "cat": "state-corruption",
+  "file": "`app/features/sub_profile/ProfileEvidenceColumn.tsx:22`"
+ },
+ {
+  "ctx": "candidate-profile-builder",
+  "title": "Result completeness meter uses a 2-tier color while the rest of the app uses 3 tiers",
+  "sev": "Medium",
+  "lens": "ui-perfectionist",
+  "cat": "visual-inconsistency",
+  "file": "`app/features/sub_profile/ProfileResultPanel.tsx:29`"
+ },
+ {
+  "ctx": "conversational-apply",
+  "title": "Knockout (KO) questions are skippable by omitting their keys on a direct POST",
+  "sev": "Medium",
+  "lens": "Bug (Bug Hunter)",
+  "cat": "Validation gap at a public trust boundary / silent acceptance",
+  "file": "`app/api/apply/[id]/route.ts:174`"
+ },
+ {
+  "ctx": "conversational-apply",
+  "title": "Streamed bot prompts are not announced to screen readers (no aria-live)",
+  "sev": "Medium",
+  "lens": "UI (UI Perfectionist) — accessibility, missing state announcement",
+  "cat": "",
+  "file": "`app/apply/[id]/ConversationalApply.tsx:214-238`"
+ },
+ {
+  "ctx": "conversational-apply",
+  "title": "Focus is lost between steps for keyboard/SR users (only `text` steps auto-focus)",
+  "sev": "Medium",
+  "lens": "UI (UI Perfectionist) — accessibility / keyboard navigation",
+  "cat": "",
+  "file": "`app/apply/[id]/ConversationalApply.tsx:268-360`"
+ },
+ {
+  "ctx": "cv-analysis-workspace",
+  "title": "Async content-hash dedupe races on rapid identical CV drops, admitting a true duplicate variant",
+  "sev": "Medium",
+  "lens": "🐛 Bug",
+  "cat": "Stale-closure race in async intake",
+  "file": "`app/features/sub_analyze/useAnalyzeForm.ts:89-107` (addCvFile)"
+ },
+ {
+  "ctx": "cv-analysis-workspace",
+  "title": "Saved-JD picker gives no loading or failure feedback while the JD body fetches",
+  "sev": "Medium",
+  "lens": "🎨 UI",
+  "cat": "Missing loading/error state",
+  "file": "`app/features/sub_analyze/AnalyzeSavedJdPicker.tsx:50-71`, `app/features/sub_analyze/useAnalyzeJdLibrary.ts:39-54`"
+ },
+ {
+  "ctx": "data-layer-schemas-python-bridge",
+  "title": "Large pasted JD / company text is shoved into a single argv entry — no length cap → spawn fails with an opaque OS error",
+  "sev": "Medium",
+  "lens": "🐛 Bug Hunter",
+  "cat": "Edge case / validation at the TS↔Python bridge",
+  "file": "`app/_lib/python-runner.ts:64-73` (`buildCliArgs`) and `app/_lib/analyze-run.ts:34-42` (`cliArgs`)"
+ },
+ {
+  "ctx": "data-layer-schemas-python-bridge",
+  "title": "`interview_prep` handler ignores the abort signal, so cancel can't actually stop it",
+  "sev": "Medium",
+  "lens": "🐛 Bug Hunter",
+  "cat": "Async runner lifecycle / ineffective cancellation",
+  "file": "`app/_lib/tasks.ts:127-130` (vs every other handler, e.g. 80-126)"
+ },
+ {
+  "ctx": "decision-workflow-group-eval",
+  "title": "Cached group-eval that fails to load shows the misleading \"No evaluation yet\" empty state",
+  "sev": "Medium",
+  "lens": "🎨 UI Perfectionist",
+  "cat": "Missing/wrong error state",
+  "file": "`app/features/sub_decisions/DecisionsTab.tsx:152-156` + `GroupEvalModal.tsx:213-214`"
+ },
+ {
+  "ctx": "demo-simulation-channels",
+  "title": "Reset mid-run re-orphans the rows it just deleted (in-flight mutations outrace the stop flag)",
+  "sev": "Medium",
+  "lens": "🐛 Bug",
+  "cat": "Race condition / reset mid-flow / data residue",
+  "file": "`app/features/simulation/SimulationProvider.tsx:619-625` (reset) vs `:354-387` (source action), `app/_lib/sim-store.ts:40-69`"
+ },
+ {
+  "ctx": "demo-simulation-channels",
+  "title": "`getEntries` swallows non-OK pipeline responses into an empty list → misleading demo halts",
+  "sev": "Medium",
+  "lens": "🐛 Bug",
+  "cat": "Silent failure at a trust boundary",
+  "file": "`app/features/simulation/SimulationProvider.tsx:161-163`"
+ },
+ {
+  "ctx": "demo-simulation-channels",
+  "title": "`/api/sim/offer-link` GET has no try/catch — a throw becomes an opaque 500 that halts the walk cryptically",
+  "sev": "Medium",
+  "lens": "🐛 Bug",
+  "cat": "Missing error handling at an API route / validation boundary inconsistency",
+  "file": "`app/api/sim/offer-link/route.ts:9-14`"
+ },
+ {
+  "ctx": "demo-simulation-channels",
+  "title": "Eval/wave Modals (z-50) sit above the SimBar controls (z-47) — Stop becomes unreachable and the backdrop dismisses the eval instead of pausing",
+  "sev": "Medium",
+  "lens": "🎨 UI",
+  "cat": "Z-index layering / control reachability / focus-trap interaction",
+  "file": "`app/_components/Modal.tsx:140-141` (z-50 + full-screen backdrop button) vs `app/globals.css:105-108` (sim z-scale: spotlight 45 / drawer 46 / bar 47 / frame 48); used by `SimDecisionWave.tsx:15` and `SimGroupEval.tsx:12`"
+ },
+ {
+  "ctx": "dev-case-orchestration-api",
+  "title": "Auto-approve gate fails OPEN when the analysis object is missing/partial",
+  "sev": "Medium",
+  "lens": "🐛 Bug Hunter",
+  "cat": "Approval gate / fail-closed correctness",
+  "file": "`app/_lib/devcase-orchestrator.ts:38-48` (`gateApproval`)"
+ },
+ {
+  "ctx": "dev-case-orchestration-api",
+  "title": "`setFloor` calibration accepts `NaN`/non-finite — silent no-op recorded as a real change",
+  "sev": "Medium",
+  "lens": "🐛 Bug Hunter",
+  "cat": "Validation gap / silent failure (success theater)",
+  "file": "`app/api/devcase/outcomes/route.ts:32-36`"
+ },
+ {
+  "ctx": "dev-case-studio-ui",
+  "title": "Already-promoted submissions re-expose the Promote button (duplicate promote)",
+  "sev": "Medium",
+  "lens": "🐛 Bug Hunter",
+  "cat": "State edge case / duplicate action",
+  "file": "`app/features/sub_dev/SubmissionRow.tsx:24,49-56` + `app/features/sub_dev/EvalPanel.tsx:163-171`"
+ },
+ {
+  "ctx": "dev-case-studio-ui",
+  "title": "Fit chip and rank disagree for a freshly-evaluated submission",
+  "sev": "Medium",
+  "lens": "🐛 Bug Hunter (with UI symptom)",
+  "cat": "Edge case / score-rendering inconsistency",
+  "file": "`app/features/sub_dev/CaseDetail.tsx:157-164` + `app/features/sub_dev/SubmissionRow.tsx:58-83`"
+ },
+ {
+  "ctx": "dev-case-studio-ui",
+  "title": "Kill-switch state glyph is unlabeled; control room drifts off the type/color scale",
+  "sev": "Medium",
+  "lens": "🎨 UI Perfectionist",
+  "cat": "Accessibility + design-system consistency",
+  "file": "`app/control/page.tsx:149-151` (glyph) ; `:204,217-223,233,239-256` (scale/actor)"
+ },
+ {
+  "ctx": "github-code-analysis",
+  "title": "`topRepositories` date can render \"Invalid Date\" and the loading bar is not exposed to assistive tech",
+  "sev": "Medium",
+  "lens": "🎨 UI Perfectionist",
+  "cat": "missing/invalid state + accessibility",
+  "file": "`app/_components/GithubAnalysisPanel.tsx:158` and `:40-44`"
+ },
+ {
+  "ctx": "jd-library-builder",
+  "title": "Template-rendered salary shows \"/ mo\" while every other JD path shows \"/ month\"",
+  "sev": "Medium",
+  "lens": "🐛 Bug (content correctness) / 🎨 consistency",
+  "cat": "Inconsistent rendered output across the two JD render paths",
+  "file": "`app/features/sub_library/JdBuilder.tsx:89`"
+ },
+ {
+  "ctx": "job-catalog-ingestion-sourcing",
+  "title": "Candidates fetch omits `encodeURIComponent(jobId)`, diverging from the sibling rediscover/compare panels",
+  "sev": "Medium",
+  "lens": "🐛 Bug",
+  "cat": "Validation gap at trust boundary / inconsistency",
+  "file": "`app/features/sub_jobs/RecruiterCandidates.tsx:37`"
+ },
+ {
+  "ctx": "job-catalog-ingestion-sourcing",
+  "title": "CandidateCard header row can't wrap — badges + action buttons overflow on narrow / two-column widths",
+  "sev": "Medium",
+  "lens": "🎨 UI",
+  "cat": "Missing responsive behavior",
+  "file": "`app/features/sub_jobs/RecruiterCandidates.tsx:228`"
+ },
+ {
+  "ctx": "pipeline-board-scheduler",
+  "title": "SchedulerControl's 30s poll observes background runs but never refreshes the board",
+  "sev": "Medium",
+  "lens": "bug",
+  "cat": "silent failure / missed propagation",
+  "file": "`app/features/sub_pipeline/SchedulerControl.tsx:91-107` (poll) vs `136-145` (`onRan` only on tick)"
+ },
+ {
+  "ctx": "pipeline-board-scheduler",
+  "title": "StageCell \"+N more\" expansion persists stale across filter/search/refresh",
+  "sev": "Medium",
+  "lens": "ui",
+  "cat": "missing state reset / stale local UI state",
+  "file": "`app/features/sub_pipeline/PipelineBoard.tsx:38-77` (`StageCell`, local `expanded`) + `:189-203` (`key={stage}`)"
+ },
+ {
+  "ctx": "scheduling-offers",
+  "title": "Reschedule into a fully-booked horizon renders a blank screen (missing empty state)",
+  "sev": "Medium",
+  "lens": "🎨 UI",
+  "cat": "Missing state (empty)",
+  "file": "`app/schedule/[token]/SchedulePicker.tsx:203-229` (with `app/api/schedule/[token]/route.ts:61`)"
+ },
+ {
+  "ctx": "scheduling-offers",
+  "title": "SchedulePicker booking outcome is not announced to assistive tech (no aria-live on success)",
+  "sev": "Medium",
+  "lens": "🎨 UI",
+  "cat": "Accessibility",
+  "file": "`app/schedule/[token]/SchedulePicker.tsx:135-176`"
+ },
+ {
+  "ctx": "scheduling-offers",
+  "title": "Recruiter \"decline\" (X) is terminal but fires with no confirmation step",
+  "sev": "Medium",
+  "lens": "🐛 Bug (irreversible-action UX defect)",
+  "cat": "",
+  "file": "`app/features/sub_schedule/ScheduleTab.tsx:281-289` (handler `act` lines 145-165)"
+ },
+ {
+  "ctx": "scoring-extraction-engine-python",
+  "title": "`coerceString` returns the UNTRIMMED string, so a padded currency persists with its whitespace",
+  "sev": "Medium",
+  "lens": "🐛 Bug Hunter",
+  "cat": "Validation gap at trust boundary / silent data corruption",
+  "file": "`app/_lib/salary-band.ts:95`"
+ },
+ {
+  "ctx": "scoring-extraction-engine-python",
+  "title": "`salaryBandPosition` silently classifies a NaN/Infinity midpoint as \"within\"",
+  "sev": "Medium",
+  "lens": "🐛 Bug Hunter",
+  "cat": "Edge case / NaN propagation / silent misclassification",
+  "file": "`app/_lib/salary-band.ts:51`"
+ },
+ {
+  "ctx": "voice-interview-runtime",
+  "title": "Candidate portal exposes the internal provider/language picker and lets the candidate override the per-session provider",
+  "sev": "Medium",
+  "lens": "ui (with a routing/grounding bug edge)",
+  "cat": "missing mode-awareness / design-contract violation / trust boundary",
+  "file": "`app/_components/voice/VoiceInterview.tsx:551-605`; consumed by `app/interview/[token]/page.tsx:62-66`"
+ },
+ {
+  "ctx": "workspace-shell-shared-ui",
+  "title": "Modal entrance (`animate-fade-in`) ignores prefers-reduced-motion",
+  "sev": "Medium",
+  "lens": "🎨 UI / a11y",
+  "cat": "Accessibility — reduced motion gap in a shared primitive",
+  "file": "`app/globals.css:174` (keyframe) consumed by `app/_components/Modal.tsx:151`"
+ },
+ {
+  "ctx": "workspace-shell-shared-ui",
+  "title": "Modal focus trap only snapshots focusables at mount — async/lazy content can't be Tab-reached",
+  "sev": "Medium",
+  "lens": "🐛 Bug / a11y",
+  "cat": "Edge case / focus management",
+  "file": "`app/_components/Modal.tsx:80-90`"
+ },
+ {
+  "ctx": "analysis-results-reporting",
+  "title": "SalaryGauge \"+30%\" marker + aria use the raw target; card text shows it rounded to 5 000",
+  "sev": "Low",
+  "lens": "ui-perfectionist",
+  "cat": "Label inconsistency (same figure, two values)",
+  "file": "`app/_components/results/salary/SalaryTab.tsx:13,42` vs `app/_components/results/salary/SalaryGauge.tsx:22,66,90-108`"
+ },
+ {
+  "ctx": "analytics-diagrams",
+  "title": "Funnel/archetype bars expose volume & conversion to sighted users only via the fill, but the percentage marker can render zero-width with the value buried",
+  "sev": "Low",
+  "lens": "🎨 UI",
+  "cat": "Accessibility / chart semantics",
+  "file": "`app/features/sub_analytics/AnalyticsTab.tsx:73-89` and `112-115`"
+ },
+ {
+  "ctx": "candidate-job-matching-fit-matrix",
+  "title": "Even-count median can land between legend bands; \"best\" picks an unsorted-edge value safely but median rounding under-reports",
+  "sev": "Low",
+  "lens": "🐛 Bug (stats edge) / 🎨 polish",
+  "cat": "",
+  "file": "`app/features/sub_matrix/matrix-stats.ts:36-38`"
+ },
+ {
+  "ctx": "data-layer-schemas-python-bridge",
+  "title": "Task indicator's live count and start-error alert have no `aria-live` — screen readers never hear them",
+  "sev": "Low",
+  "lens": "🎨 UI Perfectionist",
+  "cat": "Accessibility (dynamic content announcement)",
+  "file": "`app/features/tasks/TasksIndicator.tsx:16-32, 46-50`"
+ },
+ {
+  "ctx": "decision-workflow-group-eval",
+  "title": "DecisionRulesModal save returns to a stale view on a 400 — out-of-range/blur edits silently diverge from the saved config",
+  "sev": "Low",
+  "lens": "🐛 Bug Hunter (silent failure)",
+  "cat": "Silent failure / client-server state divergence",
+  "file": "`app/features/sub_decisions/DecisionRulesModal.tsx:27-44`"
+ },
+ {
+  "ctx": "github-code-analysis",
+  "title": "`repos`/`user` responses are trusted as the declared type without a runtime array/shape guard",
+  "sev": "Low",
+  "lens": "🐛 Bug Hunter",
+  "cat": "validation gap at external-data boundary",
+  "file": "`app/api/github-analysis/route.ts:106-109` (and `:223-243` `githubFetch`)"
+ },
+ {
+  "ctx": "interview-prep-rubric",
+  "title": "Coverage counter can exceed the item total and the empty/zero state has no checklist affordance",
+  "sev": "Low",
+  "lens": "🎨 UI",
+  "cat": "Missing/inconsistent state",
+  "file": "`app/features/sub_schedule/InterviewPrepModal.tsx:149-153, 233, 254-258`"
+ },
+ {
+  "ctx": "jd-library-builder",
+  "title": "Template name input and body textarea have no accessible name (and duplicate the JD form's pattern without its labels)",
+  "sev": "Low",
+  "lens": "🎨 UI Perfectionist (accessibility / forms)",
+  "cat": "Missing form label / accessibility gap + inconsistent form pattern",
+  "file": "`app/features/sub_library/JdTemplateManager.tsx:101-114`"
+ },
+ {
+  "ctx": "jd-library-builder",
+  "title": "Template manager flashes an empty bordered list with no loading/empty state",
+  "sev": "Low",
+  "lens": "🎨 UI Perfectionist (missing states)",
+  "cat": "Missing loading + empty state",
+  "file": "`app/features/sub_library/JdTemplateManager.tsx:13,20-23,138-191`"
+ },
+ {
+  "ctx": "pipeline-board-scheduler",
+  "title": "Horizontally-scrolling board region is not a focusable, labeled scroll container",
+  "sev": "Low",
+  "lens": "ui",
+  "cat": "accessibility (keyboard navigation)",
+  "file": "`app/features/sub_pipeline/PipelineBoard.tsx:146`"
+ },
+ {
+  "ctx": "voice-interview-runtime",
+  "title": "Transcript empty-state copy contradicts the active phase during connecting/ending",
+  "sev": "Low",
+  "lens": "ui",
+  "cat": "missing state / inconsistent affordance",
+  "file": "`app/_components/voice/VoiceInterview.tsx:691-702`"
+ },
+ {
+  "ctx": "workspace-shell-shared-ui",
+  "title": "`Markdown` inline parser drops bold/italic that contains other markers, and never linkifies — but renders raw `<` safely",
+  "sev": "Low",
+  "lens": "🎨 UI (with a verified security non-issue)",
+  "cat": "Rendering fidelity / design consistency",
+  "file": "`app/_components/Markdown.tsx:12,15-16`"
+ }
+]

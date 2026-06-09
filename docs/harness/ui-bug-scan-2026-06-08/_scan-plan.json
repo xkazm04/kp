@@ -1,0 +1,643 @@
+[
+ {
+  "name": "Candidate Profile Builder",
+  "slug": "candidate-profile-builder",
+  "group": "Candidate Analysis & Scoring",
+  "desc": "Build and edit a structured candidate profile from evidence (CV, links, manual fields). The resulting profile feeds matching, analysis and the pipeline.",
+  "files": [
+   "app/features/sub_profile/ProfileTab.tsx",
+   "app/features/sub_profile/ProfileFields.tsx",
+   "app/features/sub_profile/ProfileEvidenceColumn.tsx",
+   "app/features/sub_profile/ProfileResultPanel.tsx",
+   "app/features/sub_profile/ProfileTypes.ts",
+   "app/api/profile/route.ts",
+   "e2e/profile-smoke.spec.ts"
+  ],
+  "apiSurface": [
+   "GET /api/profile",
+   "POST /api/profile"
+  ],
+  "dbTables": [
+   "profiles"
+  ]
+ },
+ {
+  "name": "Scoring & Extraction Engine (Python)",
+  "slug": "scoring-extraction-engine-python",
+  "group": "Candidate Analysis & Scoring",
+  "desc": "The Python job-fit pipeline: parses CV text, builds candidate profiles, scores fit vs a JD, detects archetypes, flags ATS issues, maps transferable skills and estimates salary bands using Gemini.",
+  "files": [
+   "app/_lib/salary-band.ts"
+  ],
+  "apiSurface": [
+   "CLI: python -m pipeline.jobfit.cli",
+   "Gemini extract_profile / analyze_profile"
+  ],
+  "dbTables": [
+   "analyses",
+   "gemini_cache"
+  ]
+ },
+ {
+  "name": "Analysis Results & Reporting",
+  "slug": "analysis-results-reporting",
+  "group": "Candidate Analysis & Scoring",
+  "desc": "Renders the multi-tab candidate report \u00e2\u20ac\u201d job-fit, salary, interview, extraction and compare \u00e2\u20ac\u201d with score dials, factor charts and AI disclosures, and persists/reopens past analyses from history.",
+  "files": [
+   "app/_components/results/ResultPanel.tsx",
+   "app/_components/results/shared.tsx",
+   "app/_components/results/job-fit/JobFitTab.tsx",
+   "app/_components/results/job-fit/MissingSkillsTiers.tsx",
+   "app/_components/results/job-fit/SkillChips.tsx",
+   "app/_components/results/salary/SalaryTab.tsx",
+   "app/_components/results/salary/SalaryGauge.tsx",
+   "app/_components/results/interview/InterviewTab.tsx",
+   "app/_components/results/extraction/ExtractionTab.tsx",
+   "app/_components/results/compare/CompareTab.tsx",
+   "app/_components/ScoreDial.tsx",
+   "app/_components/ScoreBadge.tsx",
+   "app/_components/FactorChart.tsx",
+   "app/_components/Meter.tsx",
+   "app/_components/AiDisclosure.tsx",
+   "app/_components/DisclosureRow.tsx",
+   "app/_lib/comparison.ts",
+   "app/api/analyses/route.ts",
+   "app/api/analyses/[slug]/route.ts",
+   "app/features/sub_history/HistoryTab.tsx",
+   "app/history/[slug]/page.tsx"
+  ],
+  "apiSurface": [
+   "GET /api/analyses",
+   "POST /api/analyses",
+   "GET /api/analyses/[slug]",
+   "DELETE /api/analyses/[slug]"
+  ],
+  "dbTables": [
+   "analyses"
+  ]
+ },
+ {
+  "name": "CV Analysis Workspace",
+  "slug": "cv-analysis-workspace",
+  "group": "Candidate Analysis & Scoring",
+  "desc": "Upload or paste a CV and a job description, then run an AI job-fit analysis with live scan progress. The primary intake surface (Analyze tab) for evaluating a single candidate against a role.",
+  "files": [
+   "app/features/sub_analyze/AnalyzeTab.tsx",
+   "app/features/sub_analyze/AnalyzeWorkspace.tsx",
+   "app/features/sub_analyze/AnalyzeColumn.tsx",
+   "app/features/sub_analyze/AnalyzeForm.tsx",
+   "app/features/sub_analyze/AnalyzeFormCollapsed.tsx",
+   "app/features/sub_analyze/AnalyzeFileDropZone.tsx",
+   "app/features/sub_analyze/AnalyzePasteRow.tsx",
+   "app/features/sub_analyze/AnalyzeProfileInput.tsx",
+   "app/features/sub_analyze/AnalyzeSavedJdPicker.tsx",
+   "app/features/sub_analyze/AnalyzeApi.ts",
+   "app/features/sub_analyze/AnalyzeTypes.ts",
+   "app/features/sub_analyze/runAnalysis.ts",
+   "app/features/sub_analyze/useAnalyzeForm.ts",
+   "app/features/sub_analyze/useAnalyzeJdLibrary.ts",
+   "app/features/sub_analyze/useGlobalFileDrag.ts",
+   "app/api/analyze/route.ts",
+   "app/api/extract-text/route.ts",
+   "app/_lib/analyze-run.ts",
+   "app/_lib/upload-constraints.ts",
+   "app/_components/AnalysisProgress.tsx",
+   "app/_components/ScanAnimation.tsx"
+  ],
+  "apiSurface": [
+   "POST /api/analyze",
+   "POST /api/extract-text"
+  ],
+  "dbTables": [
+   "analyses",
+   "gemini_cache"
+  ]
+ },
+ {
+  "name": "Job Catalog, Ingestion & Sourcing",
+  "slug": "job-catalog-ingestion-sourcing",
+  "group": "Jobs & Job Descriptions",
+  "desc": "Manage the catalog of open roles \u00e2\u20ac\u201d ingest and parse external job postings, publish roles, rediscover and surface matched candidates, and produce recruiter sourcing output.",
+  "files": [
+   "app/features/sub_jobs/JobsTab.tsx",
+   "app/features/sub_jobs/JobsTable.tsx",
+   "app/features/sub_jobs/JobRow.tsx",
+   "app/features/sub_jobs/JobsShared.tsx",
+   "app/features/sub_jobs/JobsTypes.ts",
+   "app/features/sub_jobs/JobPostingModal.tsx",
+   "app/features/sub_jobs/RecruiterCandidates.tsx",
+   "app/features/sub_jobs/RediscoverPanel.tsx",
+   "app/features/sub_jobs/CompareInterviews.tsx",
+   "app/features/sub_jobs/jobMarkdown.ts",
+   "app/api/jobs/route.ts",
+   "app/api/jobs/ingest/route.ts",
+   "app/api/jobs/status/route.ts",
+   "app/api/jobs/[id]/candidates/route.ts",
+   "app/api/jobs/[id]/publish/route.ts",
+   "app/api/jobs/[id]/rediscover/route.ts",
+   "app/_lib/job-ingest.ts",
+   "app/_lib/candidate-pool.ts"
+  ],
+  "apiSurface": [
+   "GET/POST /api/jobs",
+   "POST /api/jobs/ingest",
+   "GET /api/jobs/status",
+   "GET /api/jobs/[id]/candidates",
+   "POST /api/jobs/[id]/publish",
+   "POST /api/jobs/[id]/rediscover"
+  ],
+  "dbTables": [
+   "jobs",
+   "job_ingests"
+  ]
+ },
+ {
+  "name": "JD Library & Builder",
+  "slug": "jd-library-builder",
+  "group": "Jobs & Job Descriptions",
+  "desc": "Create, AI-generate, template and store job descriptions; browse the JD library and render public JD pages. Saved JDs are reusable inputs for analysis and matching.",
+  "files": [
+   "app/features/sub_library/LibraryTab.tsx",
+   "app/features/sub_library/LibraryJdForm.tsx",
+   "app/features/sub_library/JdBuilder.tsx",
+   "app/features/sub_library/JdBuilderResult.tsx",
+   "app/features/sub_library/JdTemplates.tsx",
+   "app/features/sub_library/JdTemplateManager.tsx",
+   "app/features/sub_library/render-template.ts",
+   "app/api/jds/route.ts",
+   "app/api/jds/[slug]/route.ts",
+   "app/api/jds/save/route.ts",
+   "app/api/jds/save/ingest-job.ts",
+   "app/api/templates/route.ts",
+   "app/api/templates/[id]/route.ts",
+   "app/_lib/jd-build-run.ts",
+   "app/_lib/jd-limits.ts",
+   "app/_lib/templates-store.ts",
+   "app/jds/[slug]/page.tsx",
+   "app/jds/[slug]/JdBody.tsx"
+  ],
+  "apiSurface": [
+   "GET/POST /api/jds",
+   "GET/DELETE /api/jds/[slug]",
+   "POST /api/jds/save",
+   "GET/POST /api/templates",
+   "PUT/DELETE /api/templates/[id]"
+  ],
+  "dbTables": [
+   "jds",
+   "jd_templates"
+  ]
+ },
+ {
+  "name": "Decision Workflow & Group Eval",
+  "slug": "decision-workflow-group-eval",
+  "group": "Matching & Decisions",
+  "desc": "Review AI recommendations and make advance/reject decisions per role, run group evaluations across a candidate pool, and configure decision rules and screening waves.",
+  "files": [
+   "app/features/sub_decisions/DecisionsTab.tsx",
+   "app/features/sub_decisions/DecisionsShared.tsx",
+   "app/features/sub_decisions/DecisionsTypes.ts",
+   "app/features/sub_decisions/RoleDecisionRow.tsx",
+   "app/features/sub_decisions/AiReviewCard.tsx",
+   "app/features/sub_decisions/AnalysisSummaryModal.tsx",
+   "app/features/sub_decisions/DecisionRulesModal.tsx",
+   "app/features/sub_decisions/GroupEvalModal.tsx",
+   "app/api/decisions/config/route.ts",
+   "app/api/decisions/group-eval/route.ts",
+   "app/api/decisions/screen-wave/route.ts",
+   "app/_lib/decision-config-store.ts",
+   "app/_lib/group-eval.ts",
+   "app/_lib/group-eval-run.ts",
+   "app/_lib/screen-wave.ts"
+  ],
+  "apiSurface": [
+   "GET/POST /api/decisions/config",
+   "POST /api/decisions/group-eval",
+   "POST /api/decisions/screen-wave"
+  ],
+  "dbTables": [
+   "decision_config",
+   "group_evals"
+  ]
+ },
+ {
+  "name": "Candidate-Job Matching & Fit Matrix",
+  "slug": "candidate-job-matching-fit-matrix",
+  "group": "Matching & Decisions",
+  "desc": "Score and rank how well candidates match a role (and vice-versa) with explainable reasoning, and compare many candidates against many roles in a cross-tab fit matrix with score distribution.",
+  "files": [
+   "app/features/sub_match/MatchTab.tsx",
+   "app/features/sub_match/MatchCard.tsx",
+   "app/features/sub_match/MatchShared.tsx",
+   "app/features/sub_match/MatchTypes.ts",
+   "app/features/sub_match/Results.tsx",
+   "app/features/sub_matrix/MatrixTab.tsx",
+   "app/features/sub_matrix/MatrixShared.tsx",
+   "app/api/match/route.ts",
+   "app/api/match/reasoning/route.ts",
+   "app/api/matrix/route.ts",
+   "app/_lib/match-candidate.ts",
+   "app/_lib/reasoning-run.ts",
+   "app/_lib/distribution.ts"
+  ],
+  "apiSurface": [
+   "POST /api/match",
+   "POST /api/match/reasoning",
+   "GET /api/matrix"
+  ],
+  "dbTables": [
+   "jobs",
+   "profiles",
+   "analyses"
+  ]
+ },
+ {
+  "name": "Interview Prep & Rubric",
+  "slug": "interview-prep-rubric",
+  "group": "Interviews",
+  "desc": "Generate per-candidate interview prep guides and scoring rubrics, and open prep / transcript modals from the schedule surface.",
+  "files": [
+   "app/_lib/interview-prep.ts",
+   "app/_lib/interview-prep-run.ts",
+   "app/_lib/interview-rubric.ts",
+   "app/api/interview-prep/route.ts",
+   "app/features/sub_schedule/InterviewPrepModal.tsx",
+   "app/features/sub_schedule/InterviewTranscriptModal.tsx"
+  ],
+  "apiSurface": [
+   "GET/POST /api/interview-prep"
+  ],
+  "dbTables": [
+   "interview_preps"
+  ]
+ },
+ {
+  "name": "Voice Interview Runtime",
+  "slug": "voice-interview-runtime",
+  "group": "Interviews",
+  "desc": "Run real-time AI voice interviews with candidates (ElevenLabs / OpenAI realtime) \u00e2\u20ac\u201d create, connect and complete sessions, replay and compare transcripts; includes the interview lab and public interview link page.",
+  "files": [
+   "app/_components/voice/VoiceInterview.tsx",
+   "app/_components/voice/VoiceInterviewClient.tsx",
+   "app/_lib/voice/index.ts",
+   "app/_lib/voice/elevenlabs.ts",
+   "app/_lib/voice/openai.ts",
+   "app/_lib/voice/types.ts",
+   "app/_lib/interview-run.ts",
+   "app/api/interview/create/route.ts",
+   "app/api/interview/connect/route.ts",
+   "app/api/interview/complete/route.ts",
+   "app/api/interview/by-entry/route.ts",
+   "app/api/interview/compare/route.ts",
+   "app/interview/[token]/page.tsx",
+   "app/interview-lab/page.tsx",
+   "scripts/setup-eleven-agent.mjs"
+  ],
+  "apiSurface": [
+   "POST /api/interview/create",
+   "POST /api/interview/connect",
+   "POST /api/interview/complete",
+   "GET /api/interview/by-entry",
+   "GET /api/interview/compare"
+  ],
+  "dbTables": [
+   "interview_sessions"
+  ]
+ },
+ {
+  "name": "Scheduling & Offers",
+  "slug": "scheduling-offers",
+  "group": "Recruitment Pipeline & Scheduling",
+  "desc": "Send interview-schedule invites and offer links via public token pages, let candidates pick slots, finalize offers and dispatch reminders.",
+  "files": [
+   "app/features/sub_schedule/ScheduleTab.tsx",
+   "app/features/sub_schedule/ScheduleCalendar.tsx",
+   "app/features/sub_schedule/ScheduleTypes.ts",
+   "app/api/schedule/invite/route.ts",
+   "app/api/schedule/[token]/route.ts",
+   "app/api/offer/[token]/route.ts",
+   "app/_lib/schedule-store.ts",
+   "app/_lib/offers-store.ts",
+   "app/_lib/offer-finalize.ts",
+   "app/_lib/interview-reminders.ts",
+   "app/schedule/[token]/page.tsx",
+   "app/schedule/[token]/SchedulePicker.tsx",
+   "app/offer/[token]/page.tsx"
+  ],
+  "apiSurface": [
+   "POST /api/schedule/invite",
+   "GET/POST /api/schedule/[token]",
+   "GET/POST /api/offer/[token]"
+  ],
+  "dbTables": [
+   "schedule_invites",
+   "offers",
+   "interview_sessions"
+  ]
+ },
+ {
+  "name": "Pipeline Board & Scheduler",
+  "slug": "pipeline-board-scheduler",
+  "group": "Recruitment Pipeline & Scheduling",
+  "desc": "The kanban-style ATS board tracking candidates across stages, with a candidate drawer, live SSE updates and an automated stage scheduler that advances entries on a policy pass.",
+  "files": [
+   "app/features/sub_pipeline/PipelineTab.tsx",
+   "app/features/sub_pipeline/PipelineBoard.tsx",
+   "app/features/sub_pipeline/PipelineShared.tsx",
+   "app/features/sub_pipeline/PipelineTypes.ts",
+   "app/features/sub_pipeline/CandidateDrawer.tsx",
+   "app/features/sub_pipeline/CandidateDrawerTypes.ts",
+   "app/features/sub_pipeline/CandidateResultView.tsx",
+   "app/features/sub_pipeline/SchedulerControl.tsx",
+   "app/api/pipeline/route.ts",
+   "app/api/pipeline/[id]/route.ts",
+   "app/api/pipeline/events/route.ts",
+   "app/_lib/scheduler.ts",
+   "app/_lib/scheduler-store.ts"
+  ],
+  "apiSurface": [
+   "GET/POST /api/pipeline",
+   "PATCH /api/pipeline/[id]",
+   "GET /api/pipeline/events (SSE)"
+  ],
+  "dbTables": [
+   "pipeline_entries",
+   "pipeline_events",
+   "scheduler",
+   "scheduler_runs"
+  ]
+ },
+ {
+  "name": "Dev Case Orchestration & API",
+  "slug": "dev-case-orchestration-api",
+  "group": "Dev Case Automation",
+  "desc": "Server orchestration for the developer take-home pipeline \u00e2\u20ac\u201d API routes for design/source/submit/publish/promote/lifecycle, plus the orchestrator, autonomy control gating and outcome calibration store.",
+  "files": [
+   "app/api/devcase/route.ts",
+   "app/api/devcase/source/route.ts",
+   "app/api/devcase/submit/route.ts",
+   "app/api/devcase/publish/route.ts",
+   "app/api/devcase/promote/route.ts",
+   "app/api/devcase/postings/route.ts",
+   "app/api/devcase/outcomes/route.ts",
+   "app/api/devcase/inbound/route.ts",
+   "app/api/devcase/control/route.ts",
+   "app/api/devcase/comms/route.ts",
+   "app/api/devcase/lifecycle/route.ts",
+   "app/api/devcase/lifecycle/[id]/approve/route.ts",
+   "app/_lib/devcase-orchestrator.ts",
+   "app/_lib/devcase-run.ts",
+   "app/_lib/dev-control.ts",
+   "app/_lib/dev-outcomes.ts"
+  ],
+  "apiSurface": [
+   "GET/POST /api/devcase",
+   "POST /api/devcase/source|submit|publish|promote",
+   "GET /api/devcase/postings|outcomes",
+   "POST /api/devcase/inbound|control|comms",
+   "POST /api/devcase/lifecycle",
+   "POST /api/devcase/lifecycle/[id]/approve"
+  ],
+  "dbTables": [
+   "dev_cases",
+   "dev_postings",
+   "dev_submissions",
+   "dev_outbox",
+   "dev_lifecycle",
+   "dev_audit",
+   "dev_control",
+   "dev_outcomes"
+  ]
+ },
+ {
+  "name": "Dev Case Studio (UI)",
+  "slug": "dev-case-studio-ui",
+  "group": "Dev Case Automation",
+  "desc": "Recruiter-facing workspace for the automated developer take-home flow: define needs, generate/publish postings, review submissions, run evals, and walk cases through their lifecycle with an autonomy control panel.",
+  "files": [
+   "app/features/sub_dev/DevTab.tsx",
+   "app/features/sub_dev/DevShared.tsx",
+   "app/features/sub_dev/DevTypes.ts",
+   "app/features/sub_dev/DevHelpers.ts",
+   "app/features/sub_dev/NeedForm.tsx",
+   "app/features/sub_dev/PostingsSection.tsx",
+   "app/features/sub_dev/SubmissionForm.tsx",
+   "app/features/sub_dev/SubmissionRow.tsx",
+   "app/features/sub_dev/LifecycleSection.tsx",
+   "app/features/sub_dev/LifecycleRow.tsx",
+   "app/features/sub_dev/ApprovedCasesSection.tsx",
+   "app/features/sub_dev/EvalPanel.tsx",
+   "app/features/sub_dev/AnalysisView.tsx",
+   "app/features/sub_dev/OutboxSection.tsx",
+   "app/features/sub_dev/ProvenanceStrip.tsx",
+   "app/features/sub_dev/ScoreBar.tsx",
+   "app/features/sub_dev/ApplyTokenPill.tsx",
+   "app/control/page.tsx"
+  ],
+  "apiSurface": [
+   "consumes /api/devcase/*"
+  ],
+  "dbTables": [
+   "dev_cases",
+   "dev_postings",
+   "dev_submissions",
+   "dev_lifecycle",
+   "dev_outbox"
+  ]
+ },
+ {
+  "name": "Demo Simulation & Channels",
+  "slug": "demo-simulation-channels",
+  "group": "Automation & Simulation",
+  "desc": "An interactive scripted demo that simulates the whole recruiting flow (inbound applications, screening, decision waves, group eval, offers) with spotlight UI and reset controls, plus the Channels inbox aggregating inbound candidate comms.",
+  "files": [
+   "app/features/simulation/SimulationProvider.tsx",
+   "app/features/simulation/SimBar.tsx",
+   "app/features/simulation/SimSpotlight.tsx",
+   "app/features/simulation/SimDecisionWave.tsx",
+   "app/features/simulation/SimGroupEval.tsx",
+   "app/features/simulation/SimExplainDrawer.tsx",
+   "app/features/simulation/SimOfferFrame.tsx",
+   "app/features/simulation/company-template.ts",
+   "app/features/simulation/constants.ts",
+   "app/features/simulation/diagrams.ts",
+   "app/_lib/sim-store.ts",
+   "app/api/sim/inbound/route.ts",
+   "app/api/sim/reset/route.ts",
+   "app/api/sim/screen-draft/route.ts",
+   "app/api/sim/offer-draft/route.ts",
+   "app/api/sim/offer-link/route.ts",
+   "app/features/sub_channels/ChannelsTab.tsx",
+   "app/_lib/comms.ts",
+   "app/_lib/comms-dispatch.ts"
+  ],
+  "apiSurface": [
+   "POST /api/sim/inbound",
+   "POST /api/sim/reset",
+   "POST /api/sim/screen-draft",
+   "POST /api/sim/offer-draft",
+   "POST /api/sim/offer-link"
+  ],
+  "dbTables": [
+   "pipeline_entries",
+   "offers"
+  ]
+ },
+ {
+  "name": "Automation Orchestration",
+  "slug": "automation-orchestration",
+  "group": "Automation & Simulation",
+  "desc": "Run the end-to-end automated recruiting pipeline as scheduled or triggered passes \u00e2\u20ac\u201d execute per-task automation, schedule runs and surface automation status across the funnel.",
+  "files": [
+   "app/api/automation/run/route.ts",
+   "app/api/automation/[task]/route.ts",
+   "app/api/automation/schedule/route.ts",
+   "app/_lib/automation-run.ts",
+   "app/_lib/automation-pass.ts"
+  ],
+  "apiSurface": [
+   "POST /api/automation/run",
+   "POST /api/automation/[task]",
+   "POST /api/automation/schedule"
+  ],
+  "dbTables": [
+   "pipeline_entries",
+   "scheduler",
+   "tasks"
+  ]
+ },
+ {
+  "name": "GitHub Code Analysis",
+  "slug": "github-code-analysis",
+  "group": "Candidate-Facing Experiences",
+  "desc": "Analyze a candidate's GitHub repositories \u00e2\u20ac\u201d snapshot a repo and produce an AI code/skills assessment surfaced in a dedicated analysis panel.",
+  "files": [
+   "app/_components/GithubAnalysisPanel.tsx",
+   "app/api/github-analysis/route.ts",
+   "app/_lib/repo-snapshot.ts",
+   "e2e/fixtures/github-analysis.ts"
+  ],
+  "apiSurface": [
+   "POST /api/github-analysis"
+  ],
+  "dbTables": []
+ },
+ {
+  "name": "Conversational Apply",
+  "slug": "conversational-apply",
+  "group": "Candidate-Facing Experiences",
+  "desc": "The candidate-facing application experience reached via a token link \u00e2\u20ac\u201d a conversational apply flow that captures the applicant and feeds them into the recruiting pipeline.",
+  "files": [
+   "app/apply/[id]/page.tsx",
+   "app/apply/[id]/ConversationalApply.tsx",
+   "app/api/apply/[id]/route.ts",
+   "app/_lib/apply.ts"
+  ],
+  "apiSurface": [
+   "GET/POST /api/apply/[id]"
+  ],
+  "dbTables": [
+   "pipeline_entries",
+   "profiles"
+  ]
+ },
+ {
+  "name": "Analytics & Diagrams",
+  "slug": "analytics-diagrams",
+  "group": "Platform & Shared Infrastructure",
+  "desc": "Cross-cutting insight surfaces \u00e2\u20ac\u201d the Analytics funnel dashboard, the About/coverage overview, and the interactive PlantUML architecture diagram explorer.",
+  "files": [
+   "app/features/sub_analytics/AnalyticsTab.tsx",
+   "app/api/analytics/route.ts",
+   "app/features/sub_about/AboutTab.tsx",
+   "app/features/sub_about/AboutCoverageData.ts",
+   "app/diagrams/page.tsx",
+   "app/diagrams/PipelineExplorer.tsx",
+   "app/diagrams/pipelineSteps.ts",
+   "app/_components/puml/PlantUml.tsx",
+   "app/_components/puml/parse.ts",
+   "app/_components/puml/layout.ts",
+   "app/_components/puml/measure.ts"
+  ],
+  "apiSurface": [
+   "GET /api/analytics"
+  ],
+  "dbTables": [
+   "analyses",
+   "pipeline_entries",
+   "jobs"
+  ]
+ },
+ {
+  "name": "Workspace Shell & Shared UI",
+  "slug": "workspace-shell-shared-ui",
+  "group": "Platform & Shared Infrastructure",
+  "desc": "The studio shell that hosts every feature tab \u00e2\u20ac\u201d workspace layout, sidebar navigation, tab routing, live-refresh, root layout/metadata and the shared UI primitives (badges, modal, markdown, icons) reused across features.",
+  "files": [
+   "app/features/Workspace.tsx",
+   "app/features/WorkspaceNav.tsx",
+   "app/features/live-refresh.ts",
+   "app/features/tabs.ts",
+   "app/layout.tsx",
+   "app/page.tsx",
+   "app/globals.css",
+   "app/opengraph-image.tsx",
+   "app/apple-icon.tsx",
+   "app/_lib/og-fonts.ts",
+   "app/_lib/useJsonFetch.ts",
+   "app/_lib/useReducedMotion.ts",
+   "app/_components/Badge.tsx",
+   "app/_components/Modal.tsx",
+   "app/_components/Markdown.tsx",
+   "app/_components/SegmentedControl.tsx",
+   "app/_components/icons/index.ts",
+   "app/_components/icons/CompareIcon.tsx",
+   "app/_components/icons/ExtractionIcon.tsx",
+   "app/_components/icons/InterviewIcon.tsx",
+   "app/_components/icons/JobFitIcon.tsx",
+   "app/_components/icons/SalaryIcon.tsx"
+  ],
+  "apiSurface": [],
+  "dbTables": []
+ },
+ {
+  "name": "Data Layer, Schemas & Python Bridge",
+  "slug": "data-layer-schemas-python-bridge",
+  "group": "Platform & Shared Infrastructure",
+  "desc": "Core persistence and cross-language plumbing \u00e2\u20ac\u201d the SQLite database and all table schemas, the Gemini response cache, the TS\u00e2\u2020\u201dPython runner bridge, Zod schemas generated from Pydantic models, the async task runner, health probe, logging and shared utilities.",
+  "files": [
+   "app/_lib/db.ts",
+   "app/_lib/cache.ts",
+   "app/_lib/python-runner.ts",
+   "app/_lib/schemas.ts",
+   "app/_lib/schemas.generated.ts",
+   "app/_lib/logger.ts",
+   "app/_lib/format.ts",
+   "app/_lib/dedupe.ts",
+   "app/_lib/tasks.ts",
+   "app/api/tasks/route.ts",
+   "app/api/tasks/[id]/route.ts",
+   "app/api/health/route.ts",
+   "app/features/tasks/TasksProvider.tsx",
+   "app/features/tasks/TasksIndicator.tsx",
+   "instrumentation.ts",
+   "next.config.ts"
+  ],
+  "apiSurface": [
+   "GET/POST /api/tasks",
+   "GET /api/tasks/[id]",
+   "GET /api/health"
+  ],
+  "dbTables": [
+   "analyses",
+   "jds",
+   "gemini_cache",
+   "jobs",
+   "profiles",
+   "pipeline_entries",
+   "pipeline_events",
+   "tasks",
+   "interview_sessions"
+  ]
+ }
+]
