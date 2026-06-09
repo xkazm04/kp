@@ -36,13 +36,19 @@ export const DEV_POLICY = {
 };
 
 function gateApproval(analysis: LifecycleAnalysis | null): { pass: boolean; reason: string } {
-  const gaps = analysis?.statedVsRealGaps?.length ?? 0;
   const conf = analysis?.confidence ?? 0;
   if (conf < DEV_POLICY.autoApproveMinConfidence) {
     return { pass: false, reason: `low grounding confidence (${Math.round(conf * 100)}%) — human review` };
   }
-  if (gaps > DEV_POLICY.autoApproveMaxGaps) {
-    return { pass: false, reason: `${gaps} stated-vs-real gaps — human review before publishing` };
+  // Fail closed: a missing/non-array reality-reflection field means "we don't know how many
+  // reality gaps there are", NOT "verified zero". The old `?? 0` conflated absent with clean,
+  // letting an ungrounded design auto-publish on confidence alone — eroding the human gate.
+  const gapsField = analysis?.statedVsRealGaps;
+  if (!Array.isArray(gapsField)) {
+    return { pass: false, reason: "reality reflection incomplete — human review before publishing" };
+  }
+  if (gapsField.length > DEV_POLICY.autoApproveMaxGaps) {
+    return { pass: false, reason: `${gapsField.length} stated-vs-real gaps — human review before publishing` };
   }
   return { pass: true, reason: "clean (auto-approved)" };
 }
