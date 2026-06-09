@@ -97,7 +97,9 @@ export type MarketSalary = {
 };
 
 function coerceString(value: unknown, fallback: string): string {
-  return typeof value === "string" && value.trim() ? value : fallback;
+  // Return the TRIMMED value — the gate already requires non-blank, but the old code
+  // returned the raw string, so a padded " CZK " currency persisted/rendered with whitespace.
+  return typeof value === "string" && value.trim() ? value.trim() : fallback;
 }
 
 /**
@@ -119,7 +121,9 @@ export function normalizeMarketSalary(payload: unknown): MarketSalary {
     available: band !== null,
     suggestedMinimum: band ? band[0] : 0,
     suggestedMaximum: band ? band[1] : 0,
-    currency: coerceString(p.currency, "CZK"),
+    // Fall back to the app-wide currency (the salary-comparison contract's denomination),
+    // not a hardcoded "CZK" literal that silently mislabels bands if APP_CURRENCY ever changes.
+    currency: coerceString(p.currency, APP_CURRENCY),
     // Conservative defaults: an absent confidence reads "low", never a confident
     // claim the payload didn't actually make.
     confidence: coerceString(p.confidence, "low"),
