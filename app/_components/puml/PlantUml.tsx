@@ -391,8 +391,13 @@ export function PlantUml({
       .then((res) => {
         if (!cancelled) setResult({ key: diagram, layout: res, failed: false });
       })
-      .catch(() => {
-        if (!cancelled) setResult({ key: diagram, layout: null, failed: true });
+      .catch((err) => {
+        if (!cancelled) {
+          // Log the real layout error — the failure was previously swallowed and the user
+          // shown raw PlantUML source with no diagnostic anywhere.
+          console.error("[PlantUml] diagram layout failed:", err instanceof Error ? err.message : err);
+          setResult({ key: diagram, layout: null, failed: true });
+        }
       });
     return () => {
       cancelled = true;
@@ -403,6 +408,16 @@ export function PlantUml({
   const layout = ready ? result.layout : null;
   const failed = isEmpty || (ready && result.failed);
 
+  // A real layout FAILURE shows a friendly message (not a wall of raw PlantUML source,
+  // which read as a broken render to the user). An empty-but-parseable diagram keeps the
+  // source as a reasonable text fallback.
+  if (ready && result.failed) {
+    return (
+      <div role="alert" className={`rounded-lg border border-stone-200 bg-paper p-4 text-sm text-steel ${className}`}>
+        Couldn&apos;t render this diagram.
+      </div>
+    );
+  }
   if (failed) {
     return (
       <pre className={`overflow-x-auto rounded-lg border border-stone-200 bg-paper p-4 text-[12px] leading-5 text-steel ${className}`}>
