@@ -22,7 +22,11 @@ export type AutomationDecision = {
   alerts: string[];
   reason: string;
 };
-export type AutomationSummary = { advanced: number; rejected: number; held: number; alerts: number; errors: number };
+// `evaluated` = how many active entries the pass actually scanned. It distinguishes a
+// healthy idle pass (evaluated N, 0 actions) from a pass that saw NOTHING (evaluated 0 —
+// empty/terminal board, or a status-filter regression), which otherwise both logged an
+// all-zero "ok" run — the exact success-theater the orchestration status surface should prevent.
+export type AutomationSummary = { advanced: number; rejected: number; held: number; alerts: number; errors: number; evaluated: number };
 export type AutomationPassResult = { summary: AutomationSummary; decisions: AutomationDecision[] };
 
 export class AutomationPassError extends Error {
@@ -62,7 +66,7 @@ export function runAutomationPass(): Promise<AutomationPassResult> {
 
 async function executeAutomationPass(): Promise<AutomationPassResult> {
   const entries = listActiveEntriesForAutomation();
-  const summary: AutomationSummary = { advanced: 0, rejected: 0, held: 0, alerts: 0, errors: 0 };
+  const summary: AutomationSummary = { advanced: 0, rejected: 0, held: 0, alerts: 0, errors: 0, evaluated: entries.length };
   if (entries.length === 0) return { summary, decisions: [] };
 
   let workdir: string | null = null;
