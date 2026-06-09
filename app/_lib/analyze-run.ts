@@ -2,6 +2,7 @@ import { readFile } from "node:fs/promises";
 import { analysisSchema, type Analysis } from "@/app/_lib/schemas";
 import { computeCacheKey, lookupCachedAnalysis, storeCachedAnalysis } from "@/app/_lib/cache";
 import { buildComparison } from "@/app/_lib/comparison";
+import { reconcileScoreTotal } from "@/app/_lib/format";
 import { saveAnalysis } from "@/app/_lib/db";
 import { logAnalyze, type AnalyzeLog } from "@/app/_lib/logger";
 import { cleanupWorkdir, parsePythonJson, parseStderrError, spawnPython } from "@/app/_lib/python-runner";
@@ -188,7 +189,12 @@ function persistAnalysis(candidateLabel: string, jdSlug: string | null, analysis
     return saveAnalysis({
       candidateLabel,
       jdSlug,
-      score: analysis.score?.total ?? null,
+      // Store the RECONCILED total (component sum), the same value the report dial / Compare
+      // "Overall" render via reconcileScoreTotal — so the History list + detail header (which
+      // read this denormalized column) can't disagree with the dial when the pipeline's raw
+      // total drifts from the sum of its parts. The raw total stays in `payload` for anyone
+      // who needs it.
+      score: analysis.score ? reconcileScoreTotal(analysis.score) : null,
       roleFamily: analysis.candidate?.roleFamily ?? null,
       seniority: analysis.candidate?.currentSeniority ?? null,
       payload: analysis,
