@@ -32,6 +32,7 @@ export function SalaryTab({ analysis }: { analysis: Analysis }) {
               maximum={analysis.salary.maximum}
               midpoint={analysis.salary.midpoint}
               confidence={analysis.salary.confidence}
+              target={targetSalary}
             />
           </div>
           <div className="mt-1 text-base nums text-ink">

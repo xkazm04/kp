@@ -10,6 +10,9 @@ interface SalaryGaugeProps {
   maximum: number;
   midpoint: number;
   confidence: string;
+  // The +30% growth target, rounded once by the caller. Passed in so the dashed marker and
+  // the aria-label use the SAME figure the card text shows, instead of a third unrounded one.
+  target?: number;
 }
 
 const CONFIDENCE_OPACITY: Record<string, number> = {
@@ -18,8 +21,8 @@ const CONFIDENCE_OPACITY: Record<string, number> = {
   high: 1
 };
 
-export function SalaryGauge({ minimum, maximum, midpoint, confidence }: SalaryGaugeProps) {
-  const target = midpoint * 1.3;
+export function SalaryGauge({ minimum, maximum, midpoint, confidence, target: targetProp }: SalaryGaugeProps) {
+  const target = targetProp ?? midpoint * 1.3;
   const gaugeMin = minimum * 0.9;
   const gaugeMax = Math.max(maximum, target) * 1.08;
   const range = gaugeMax - gaugeMin;
