@@ -109,6 +109,10 @@ export function SimulationProvider({ children }: { children: React.ReactNode }) 
   const [state, setState] = useState<SimState>(IDLE_STATE);
 
   const ctrl = useRef<{ stop: boolean; paused: boolean; wake: (() => void) | null }>({ stop: false, paused: false, wake: null });
+  // The in-flight run's promise, so reset() can wait for it to settle (and its last in-flight
+  // mutation to finish) before deleting the SIM rows — otherwise a row-creating mutation
+  // already awaiting could land AFTER the delete and re-orphan rows.
+  const runPromiseRef = useRef<Promise<void> | null>(null);
   const stepRef = useRef<boolean>(true);
 
   // The latest committed query, read through a ref so the long-running walk's nav()
@@ -599,7 +603,7 @@ export function SimulationProvider({ children }: { children: React.ReactNode }) 
     // Everything cleared to IDLE, then the run-starting overrides. stepMode is
     // preserved — it mirrors stepRef.current, the engine's source of truth.
     setState((s) => ({ ...IDLE_STATE, stepMode: s.stepMode, running: true, explainOpen: true, status: "Starting…" }));
-    void run();
+    runPromiseRef.current = run();
   }, [run]);
 
   const pause = useCallback(() => {
@@ -625,6 +629,12 @@ export function SimulationProvider({ children }: { children: React.ReactNode }) 
   const reset = useCallback(async () => {
     ctrl.current.stop = true;
     ctrl.current.wake?.();
+    // Wait for the in-flight run to settle BEFORE deleting. The stop flag is only honored at
+    // await checkpoints, so a mutation already in flight (e.g. /api/sim/inbound, which CREATES
+    // SIM rows) would otherwise complete AFTER this delete and re-orphan the rows it removed.
+    // Awaiting the run promise guarantees that mutation finished, so the delete runs last.
+    await runPromiseRef.current?.catch(() => undefined);
+    runPromiseRef.current = null;
     await fetch("/api/sim/reset", { method: "POST" }).catch(() => undefined);
     // Everything cleared to IDLE; keep the user's stepMode + explain-drawer state.
     setState((s) => ({ ...IDLE_STATE, stepMode: s.stepMode, explainOpen: s.explainOpen, status: "Reset" }));
