@@ -85,6 +85,30 @@ export function InterviewPrepModal({ entry, onClose }: { entry: SchedEntry; onCl
     return () => window.clearTimeout(h);
   }, [checked, notes, interviewer, prep, entry.id]);
 
+  // Keep the freshest editable values in a ref so the unmount flush sends them.
+  const latestProgressRef = useRef({ checked, notes, interviewer });
+  latestProgressRef.current = { checked, notes, interviewer };
+
+  // Flush a pending edit on unmount (modal close). The debounce effect's cleanup
+  // cancels an in-flight 600ms timer, so closing the modal within that window — very
+  // common right after typing a final note at end of call — would otherwise drop the
+  // last edit. keepalive lets the request survive the unmount/navigation.
+  useEffect(() => {
+    return () => {
+      if (!dirtyRef.current || !prep) return;
+      const { checked, notes, interviewer } = latestProgressRef.current;
+      void fetch(`/api/interview-prep?entry=${encodeURIComponent(entry.id)}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ checked, notes, interviewer }),
+        keepalive: true,
+      }).catch(() => {
+        /* best-effort flush */
+      });
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [prep, entry.id]);
+
   // Watch a generation task; its result (fetched on demand — the poll omits it)
   // supersedes any saved artifact. Hold taskId until the full result lands so the
   // "Generating…" state persists through the brief fetch, then clear it.
