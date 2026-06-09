@@ -428,6 +428,12 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle, provider: pinned
       return;
     }
     clearConnectTimer();
+    // Mark the call as having gone live (parity with the ElevenLabs onConnect at the top of
+    // this file). The unmount transcript beacon and interviewFinalStatus both gate on this
+    // ref; without it an in-progress OpenAI call lost its transcript on tab-close and a
+    // hang-up couldn't be told from a never-live session. Safe here: we passed the
+    // still-current-connection guard above, so a torn-down/replaced pc never marks live.
+    reachedLiveRef.current = true;
     setPhase("live");
   }
 
@@ -543,7 +549,18 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle, provider: pinned
       }, EL_DISCONNECT_GRACE_MS);
       return;
     }
-    await finalize("completed");
+    // OpenAI branch: mirror ElevenLabs — derive completed-vs-failed from the same signals
+    // instead of hardcoding "completed". A zero-turn hang-up (silent mic, transcription
+    // failure, mistaken early End) previously locked the session terminal-completed, so the
+    // candidate was permanently shut out of their own link; interviewFinalStatus returns
+    // "failed" for turnCount 0, keeping it reconnectable just like the EL path.
+    await finalize(
+      interviewFinalStatus({
+        errored: erroredRef.current,
+        reachedLive: reachedLiveRef.current,
+        turnCount: turnsRef.current.length,
+      })
+    );
   }
 
   const isBusy = phase === "connecting" || phase === "live" || phase === "ending";
