@@ -42,6 +42,9 @@ export function useAnalyzeForm() {
   const analysisRunIdRef = useRef(0);
 
   const [cvFiles, setCvFiles] = useState<File[]>([]);
+  // Latest cvFiles + a promise chain — back the serialized, race-free CV intake (addCvFile).
+  const cvFilesRef = useRef<File[]>(cvFiles);
+  const addCvSeqRef = useRef<Promise<unknown>>(Promise.resolve());
   const [jobDescriptionFile, setJobDescriptionFile] = useState<File | null>(null);
   const [jobDescriptionText, setJobDescriptionText] = useState("");
   const [companyFile, setCompanyFile] = useState<File | null>(null);
@@ -86,8 +89,24 @@ export function useAnalyzeForm() {
     ? { tone: "attached", label: githubProfile.trim() }
     : { tone: "optional", label: "Optional" };
 
-  async function addCvFile(file: File) {
-    if (cvFiles.length >= MAX_CV_VARIANTS) return;
+  // Mirror cvFiles into a ref (synced every render) so the serialized intake below can
+  // see pending appends across its async hash await, and a promise chain that serializes
+  // addCvFile calls.
+  cvFilesRef.current = cvFiles;
+
+  function addCvFile(file: File): Promise<void> {
+    // Serialize intake: two near-simultaneous drops of the SAME file would otherwise both
+    // dedupe-check against the same stale snapshot and both append (the functional setState
+    // guards only the count cap, not content identity). Chaining each add means the second
+    // sees the first's append (via cvFilesRef, advanced synchronously on append).
+    const run = addCvSeqRef.current.then(() => addCvFileInner(file));
+    addCvSeqRef.current = run.catch(() => {});
+    return run;
+  }
+
+  async function addCvFileInner(file: File): Promise<void> {
+    const current = cvFilesRef.current;
+    if (current.length >= MAX_CV_VARIANTS) return;
     // Same-variant identity is by CONTENT, via the one cvVariantHash helper that
     // the server intake (collectCvFiles) also uses, so the two sides can't
     // disagree on what a duplicate is. The old rule here — name && size match —
@@ -95,7 +114,7 @@ export function useAnalyzeForm() {
     // content hashing only merges true byte-for-byte clones.
     let duplicate = false;
     try {
-      duplicate = await isDuplicateCvVariant(file, cvFiles);
+      duplicate = await isDuplicateCvVariant(file, current);
     } catch {
       // Hashing needs crypto.subtle (a secure context). If it's unavailable we
       // must not silently drop the file — add it and let the server, which can
@@ -103,7 +122,10 @@ export function useAnalyzeForm() {
       duplicate = false;
     }
     if (duplicate) return;
-    setCvFiles((prev) => (prev.length >= MAX_CV_VARIANTS ? prev : [...prev, file]));
+    const merged = [...cvFilesRef.current, file];
+    if (merged.length > MAX_CV_VARIANTS) return;
+    cvFilesRef.current = merged; // advance synchronously so the next queued add sees it
+    setCvFiles(merged);
   }
 
   function replaceCvFile(index: number, file: File) {
