@@ -104,7 +104,11 @@ body {
 :root {
   --z-sim-spotlight: 45;
   --z-sim-drawer: 46;
-  --z-sim-bar: 47;
+  /* Above the shared Modal (z-50): the sim's own eval/wave beats open Modals, and the
+     SimBar carries Stop/Pause — keeping it under the modal made Stop unreachable mid-beat
+     (a backdrop click dismissed the eval instead). The bar only renders during a sim, so
+     floating it above modals is scoped to sim mode. */
+  --z-sim-bar: 55;
   --z-sim-frame: 48;
   --sim-bar-h: 60px;
 }
