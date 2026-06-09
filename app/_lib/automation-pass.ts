@@ -45,6 +45,13 @@ export class AutomationPassError extends Error {
 // surfaces run in the same Next server process as the heartbeat.)
 let inFlightPass: Promise<AutomationPassResult> | null = null;
 
+/** True when a policy pass is mid-flight. tickScheduler checks this BEFORE calling
+ *  runAutomationPass so it can tell "I started the pass" from "I joined an in-flight one"
+ *  and only advance the clock / record a run for the caller that actually started it. */
+export function isPassInFlight(): boolean {
+  return inFlightPass !== null;
+}
+
 export function runAutomationPass(): Promise<AutomationPassResult> {
   if (inFlightPass) return inFlightPass;
   inFlightPass = executeAutomationPass().finally(() => {
