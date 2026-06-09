@@ -460,12 +460,13 @@ export function MatrixTab() {
             <table className="border-collapse text-sm">
               <thead>
                 <tr>
-                  <th className="sticky left-0 top-0 z-20 border-b border-r border-stone-200 bg-paper p-2 text-left font-semibold text-steel">
+                  <th scope="col" className="sticky left-0 top-0 z-20 border-b border-r border-stone-200 bg-paper p-2 text-left font-semibold text-steel">
                     Candidate
                   </th>
                   {cols.map(({ p, i }) => (
                     <th
                       key={p.id}
+                      scope="col"
                       className={`sticky top-0 z-10 border-b bg-paper p-1.5 align-bottom ${sortCol === i ? "border-coral" : "border-stone-100"}`}
                     >
                       {/* Click a column to rank candidates by their fit for THAT role
@@ -492,7 +493,7 @@ export function MatrixTab() {
                   const a = archStyle(cand.archetype);
                   return (
                     <tr key={cand.id} className="hover:bg-paper/40">
-                      <td className="sticky left-0 z-10 border-b border-r border-stone-100 bg-white p-2">
+                      <th scope="row" className="sticky left-0 z-10 border-b border-r border-stone-100 bg-white p-2 text-left font-normal">
                         <div className="flex items-center gap-1.5">
                           <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${a.bg}`} title={a.label} />
                           <span className="w-[120px] truncate font-medium text-ink">{cand.label}</span>
@@ -506,7 +507,7 @@ export function MatrixTab() {
                             </span>
                           ) : null}
                         </div>
-                      </td>
+                      </th>
                       {cols.map(({ p, i }) => {
                         const c = data.cells[ri]?.[i] ?? { score: null, blocked: true };
                         const place = data.placements[`${cand.id}|${p.id}`];
