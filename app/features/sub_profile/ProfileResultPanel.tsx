@@ -1,4 +1,5 @@
 import { Meter } from "@/app/_components/Meter";
+import { scoreTone } from "@/app/_lib/format";
 import type { BuildResult } from "./ProfileTypes";
 import { ARCHETYPE_LABEL } from "./ProfileTypes";
 
@@ -26,7 +27,7 @@ export function ResultPanel({ result }: { result: BuildResult }) {
           <span className="font-semibold uppercase tracking-wide">Completeness</span>
           <span>{pct}%</span>
         </div>
-        <Meter value={pct} tone={pct >= 70 ? "strong" : "weak"} className="mt-1 h-2" aria-label={`Profile completeness ${pct}%`} />
+        <Meter value={pct} tone={scoreTone(pct)} className="mt-1 h-2" aria-label={`Profile completeness ${pct}%`} />
       </div>
       {result.missing?.length ? (
         <div className="mt-2">
