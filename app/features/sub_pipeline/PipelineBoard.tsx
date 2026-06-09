@@ -186,21 +186,28 @@ export function PipelineBoard({
                     Rank candidates →
                   </button>
                 </div>
-                {STAGES.map((stage, i) => (
-                  <StageCell
-                    key={stage}
-                    // An entry whose stage isn't a known column (a legacy / unmapped
-                    // stage) would otherwise match no cell and vanish while still
-                    // counted — fold it into the first column so it stays visible and
-                    // actionable rather than becoming an invisible, unreachable row.
-                    entries={lane.filter(
-                      (e) => e.stage === stage || (i === 0 && !(STAGES as readonly string[]).includes(e.stage))
-                    )}
-                    isStale={isStale}
-                    openProfile={openProfile}
-                    openActions={openActions}
-                  />
-                ))}
+                {STAGES.map((stage, i) => {
+                  // An entry whose stage isn't a known column (a legacy / unmapped
+                  // stage) would otherwise match no cell and vanish while still
+                  // counted — fold it into the first column so it stays visible and
+                  // actionable rather than becoming an invisible, unreachable row.
+                  const cellEntries = lane.filter(
+                    (e) => e.stage === stage || (i === 0 && !(STAGES as readonly string[]).includes(e.stage))
+                  );
+                  // Fold the cell's contents into the key so the cell REMOUNTS (resetting its
+                  // local "+N more" expansion) when search/filter/live-refresh swaps this lane's
+                  // population — otherwise an expanded cell shows a different set than the user
+                  // expanded and the collapse toggle can silently vanish mid-interaction.
+                  return (
+                    <StageCell
+                      key={`${stage}:${cellEntries.map((e) => e.id).join(",")}`}
+                      entries={cellEntries}
+                      isStale={isStale}
+                      openProfile={openProfile}
+                      openActions={openActions}
+                    />
+                  );
+                })}
               </div>
             );
           })}
