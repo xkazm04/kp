@@ -176,7 +176,16 @@ export function InterviewPrepModal({ entry, onClose }: { entry: SchedEntry; onCl
     () => (prep ? prep.chronology.length + (prep.signals ?? []).length : 0),
     [prep]
   );
-  const doneItems = Object.values(checked).filter(Boolean).length;
+  // Count only keys that map to a CURRENTLY-rendered item (c-<i> for chronology, k-<i> for
+  // signals). Counting every truthy key in the stored map let a payload whose generated body
+  // shrank — but kept older userProgress keys — render "9/6 done" (> total) and a >100% meter.
+  const doneItems = useMemo(() => {
+    if (!prep) return 0;
+    let n = 0;
+    for (let i = 0; i < prep.chronology.length; i++) if (checked[`c-${i}`]) n += 1;
+    for (let i = 0; i < (prep.signals ?? []).length; i++) if (checked[`k-${i}`]) n += 1;
+    return n;
+  }, [prep, checked]);
 
   return (
     <Modal
