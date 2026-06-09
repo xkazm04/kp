@@ -204,7 +204,14 @@ export function MatrixTab() {
       }
       const ri = data.candidates.findIndex((c) => c.id === candId);
       const ci = data.positions.findIndex((p) => p.id === posId);
-      const score = data.cells[ri]?.[ci]?.score ?? null;
+      const score = ri >= 0 && ci >= 0 ? data.cells[ri]?.[ci]?.score ?? null : null;
+      // A selectable cell always carries a real score, so a null here means the index
+      // lookup missed (e.g. a duplicate id in candidates/positions). Fail the add rather
+      // than silently filing the candidate with a null/incorrect match score.
+      if (score == null) {
+        failed.add(key);
+        continue;
+      }
       const res = await postPipelineAdd(pos.id, pos.title, {
         candidateId: cand.id,
         candidateLabel: cand.label,
