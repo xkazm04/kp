@@ -280,11 +280,19 @@ export function ScheduleTab() {
                     </button>
                     <button
                       type="button"
-                      onClick={() => act(e, "reject")}
+                      // Decline writes a TERMINAL `rejected` with no undo, and the X sits
+                      // flush beside Confirm — a misclick permanently rejected the candidate.
+                      // Gate it behind a confirm and label the icon-only button for SR users.
+                      onClick={() => {
+                        if (window.confirm(`Decline ${e.candidateLabel}? This is a final rejection and can't be undone.`)) {
+                          act(e, "reject");
+                        }
+                      }}
                       disabled={busy === e.id}
+                      aria-label={`Decline ${e.candidateLabel}`}
                       className="focus-ring inline-flex h-8 items-center justify-center gap-1 rounded-md border border-stone-200 px-2.5 text-sm font-semibold text-coral hover:bg-coral/5 disabled:opacity-50"
                     >
-                      <X size={14} />
+                      <X size={14} aria-hidden />
                     </button>
                   </div>
                 </motion.div>
