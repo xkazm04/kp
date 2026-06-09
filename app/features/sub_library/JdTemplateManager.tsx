@@ -10,7 +10,9 @@ type Editing = { id?: string; name: string; body: string };
 // Phase 1 follow-up — full CRUD of company JD templates. A template is markdown
 // with {{placeholders}} (see render-template.ts).
 export function JdTemplateManager({ onClose, onChanged }: { onClose: () => void; onChanged: () => void }) {
-  const [templates, setTemplates] = useState<Template[]>([]);
+  // null = not loaded yet (render a skeleton), [] = genuinely empty (render an empty note),
+  // so a slow/failed fetch is no longer indistinguishable from "loaded zero".
+  const [templates, setTemplates] = useState<Template[] | null>(null);
   const [editing, setEditing] = useState<Editing | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -138,6 +140,19 @@ export function JdTemplateManager({ onClose, onChanged }: { onClose: () => void;
         </div>
       ) : (
         <div className="space-y-2">
+          {templates === null ? (
+            <ul aria-busy="true" className="divide-y divide-stone-100 rounded-lg border border-stone-200">
+              {[0, 1, 2].map((s) => (
+                <li key={s} className="px-3 py-2.5">
+                  <span className="block h-4 w-2/3 animate-pulse rounded bg-stone-100" />
+                </li>
+              ))}
+            </ul>
+          ) : templates.length === 0 ? (
+            <p className="rounded-lg border border-dashed border-stone-300 bg-paper p-3 text-sm text-steel">
+              No templates saved yet — create one below.
+            </p>
+          ) : (
           <ul className="divide-y divide-stone-100 rounded-lg border border-stone-200">
             {templates.map((t) => (
               <li key={t.id} className="flex items-center gap-2 px-3 py-2 text-sm">
@@ -187,6 +202,7 @@ export function JdTemplateManager({ onClose, onChanged }: { onClose: () => void;
               </li>
             ))}
           </ul>
+          )}
           <button type="button" onClick={() => { setConfirmingId(null); setEditing({ name: "", body: DEFAULT_TEMPLATE_BODY }); }} className="focus-ring inline-flex h-9 items-center gap-1.5 rounded-md border border-stone-200 px-3 text-sm font-semibold text-ink hover:bg-stone-50">
             <Plus size={15} /> New template
           </button>
