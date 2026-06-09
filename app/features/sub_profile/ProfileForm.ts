@@ -51,10 +51,16 @@ export function archetypeScopedProfileFields(
 
 export const joinList = (xs: string[] | undefined) => (xs ?? []).join(", ");
 
+// Monotonic client-only row-id generator for skill/evidence list keys. Stable per row
+// for the lifetime of the editor, never persisted (see SkillRow._id). A plain counter,
+// not crypto.randomUUID, so it has no secure-context / test-env dependency.
+let _rowSeq = 0;
+export const rowId = (): string => `row-${_rowSeq++}`;
+
 // A blank intake row the editor falls back to when a profile has no skills /
 // evidence, so the form always renders at least one (empty) input group.
-export const SKILL_FALLBACK: SkillRow[] = [{ skill: "", level: "working", provenance: "self_declared" }];
-export const EVIDENCE_FALLBACK: EvidenceRow[] = [{ kind: "project", title: "", text: "", skills: "", link: "" }];
+export const SKILL_FALLBACK: SkillRow[] = [{ skill: "", level: "working", provenance: "self_declared", _id: "fallback-skill" }];
+export const EVIDENCE_FALLBACK: EvidenceRow[] = [{ kind: "project", title: "", text: "", skills: "", link: "", _id: "fallback-evidence" }];
 
 export type HydratedForm = ReturnType<typeof hydrate>;
 
@@ -107,13 +113,14 @@ export function hydrate(payload: ProfilePayload | null) {
     aspirations: joinList(payload?.aspirations),
     skills: (payload?.skillClaims ?? [])
       .filter((s) => (s.skill ?? "").trim())
-      .map((s) => ({ skill: s.skill ?? "", level: s.level ?? "working", provenance: s.provenance ?? "self_declared" })) as SkillRow[],
+      .map((s) => ({ skill: s.skill ?? "", level: s.level ?? "working", provenance: s.provenance ?? "self_declared", _id: rowId() })) as SkillRow[],
     evidence: (payload?.evidence ?? []).map((e) => ({
       kind: e.kind ?? "project",
       title: e.title ?? "",
       text: e.text ?? "",
       skills: joinList(e.skills),
       link: e.link ?? "",
+      _id: rowId(),
     })) as EvidenceRow[],
   };
 }

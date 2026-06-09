@@ -2,6 +2,7 @@ import type { Dispatch, SetStateAction } from "react";
 import type { SkillRow, EvidenceRow } from "./ProfileTypes";
 import { SKILL_LEVELS, PROVENANCE, EVIDENCE_KINDS } from "./ProfileTypes";
 import { Section, Input, Select, Textarea, AddBtn, RemoveBtn, upd } from "./ProfileFields";
+import { rowId } from "./ProfileForm";
 
 export function ProfileEvidenceColumn({
   skills,
@@ -19,7 +20,7 @@ export function ProfileEvidenceColumn({
       <Section title="Skills (self-rated)">
         <div className="space-y-1.5">
           {skills.map((s, i) => (
-            <div key={i} className="flex gap-1.5">
+            <div key={s._id ?? i} className="flex gap-1.5">
               <Input
                 value={s.skill}
                 onChange={(e) => setSkills(upd(skills, i, { skill: e.target.value }))}
@@ -48,13 +49,13 @@ export function ProfileEvidenceColumn({
             </div>
           ))}
         </div>
-        <AddBtn label="+ skill" onClick={() => setSkills([...skills, { skill: "", level: "working", provenance: "self_declared" }])} />
+        <AddBtn label="+ skill" onClick={() => setSkills([...skills, { skill: "", level: "working", provenance: "self_declared", _id: rowId() }])} />
       </Section>
 
       <Section title="Evidence (projects, thesis, internships, activities)">
         <div className="space-y-2">
           {evidence.map((e, i) => (
-            <div key={i} className="rounded-md border border-stone-200 p-2">
+            <div key={e._id ?? i} className="rounded-md border border-stone-200 p-2">
               <div className="flex gap-1.5">
                 <Select
                   value={e.kind}
@@ -99,7 +100,7 @@ export function ProfileEvidenceColumn({
         </div>
         <AddBtn
           label="+ evidence"
-          onClick={() => setEvidence([...evidence, { kind: "project", title: "", text: "", skills: "", link: "" }])}
+          onClick={() => setEvidence([...evidence, { kind: "project", title: "", text: "", skills: "", link: "", _id: rowId() }])}
         />
       </Section>
     </div>

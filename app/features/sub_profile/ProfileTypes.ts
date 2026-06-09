@@ -1,4 +1,8 @@
-export type SkillRow = { skill: string; level: string; provenance: string };
+// `_id` is a stable CLIENT-ONLY key for React list rendering (idea-row-identity): it is
+// never persisted — ProfileEditor.build() maps each row to the payload field-by-field, so
+// _id can't leak into profiles.payload_json. Keying on it (not the array index) keeps focus,
+// text selection and IME state attached to the right row when a middle row is removed.
+export type SkillRow = { skill: string; level: string; provenance: string; _id?: string };
 
 // Client-side mirror of an archetype registry row (served by /api/archetypes).
 // Kept separate from the server helper (app/_lib/archetype-registry.ts), which
@@ -28,7 +32,7 @@ export type CandidateRow = {
   score: number | null;
   archetype: string;
 };
-export type EvidenceRow = { kind: string; title: string; text: string; skills: string; link: string };
+export type EvidenceRow = { kind: string; title: string; text: string; skills: string; link: string; _id?: string };
 
 // The build/edit API response the editor consumes: the full profile_cli output
 // (/api/profile spreads ...data onto the response) plus the persistence outcome.
