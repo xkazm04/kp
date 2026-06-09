@@ -159,7 +159,13 @@ export function SimulationProvider({ children }: { children: React.ReactNode }) 
   // ---- Observation + real-click engine ---------------------------------------
 
   const getEntries = useCallback(async (): Promise<PipelineEntryView[]> => {
-    return fetch("/api/pipeline").then((r) => r.json()).then((p) => (p.entries as PipelineEntryView[]) ?? []);
+    // Throw on a non-OK response instead of letting `?? []` coerce a transient 500 into an
+    // empty board — which read as "intake returned none" and silently halted the sim beat.
+    // A throw surfaces the failure to the sim run's error handling.
+    const r = await fetch("/api/pipeline");
+    if (!r.ok) throw new Error(`pipeline fetch failed (${r.status})`);
+    const p = await r.json();
+    return (p.entries as PipelineEntryView[]) ?? [];
   }, []);
 
   // Poll a DOM predicate until satisfied (element appears / iframe ready).
