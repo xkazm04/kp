@@ -112,7 +112,11 @@ export function setEnabled(name: string, enabled: boolean): Schedule {
 export function setIntervalMinutes(name: string, minutes: number): Schedule {
   const d = db();
   ensureSchedule(name);
-  const clamped = Math.max(1, Math.min(1440, Math.round(minutes)));
+  // Number.isFinite guard BEFORE the clamp: Math.max/min PROPAGATE NaN rather than clamping
+  // it, so a NaN/Infinity minutes would survive as interval_minutes and later throw
+  // "Invalid time value" inside claimDueRun (new Date(NaN)), wedging the clock. Non-finite
+  // input falls back to the default cadence.
+  const clamped = Number.isFinite(minutes) ? Math.max(1, Math.min(1440, Math.round(minutes))) : DEFAULT_INTERVAL_MIN;
   const now = new Date().toISOString();
   const sched = getSchedule(name);
   // Recompute the pending next run so a tightened cadence takes effect predictably
