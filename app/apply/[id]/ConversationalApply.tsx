@@ -47,6 +47,9 @@ export function ConversationalApply({ jobId, steps }: { jobId: string; steps: Ap
   // candidate can pick another file or skip; the step is optional).
   const [uploading, setUploading] = useState(false);
   const [uploadErr, setUploadErr] = useState<string | null>(null);
+  // Per-step validation error (currently the email step), shown inline so a typo is fixed
+  // in place rather than rejected only at the final submit — which forces a full restart.
+  const [stepError, setStepError] = useState<string | null>(null);
   const endRef = useRef<HTMLDivElement | null>(null);
   // Step ids already answered — the synchronous guard that makes advance()
   // idempotent even when two events fire within the same render frame.
@@ -163,6 +166,14 @@ export function ConversationalApply({ jobId, steps }: { jobId: string; steps: Ap
     const v = input.trim();
     if (!v || busy) return;
     const step = steps[idx];
+    // Validate the email at its own step (same regex the server uses). The server allows a
+    // blank email but rejects a malformed one only at the FINAL submit — a non-retryable 400
+    // that forces "Start over" and wipes every answer. Catching it here fixes a typo in place.
+    if (step.id === "email" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) {
+      setStepError("That doesn't look like a valid email — please check and try again.");
+      return;
+    }
+    setStepError(null);
     advance(step.id, { ...answers, [step.id]: v }, v);
     setInput("");
   };
@@ -346,9 +357,13 @@ export function ConversationalApply({ jobId, steps }: { jobId: string; steps: Ap
               <input
                 autoFocus
                 value={input}
-                onChange={(e) => setInput(e.target.value)}
+                onChange={(e) => {
+                  setInput(e.target.value);
+                  if (stepError) setStepError(null);
+                }}
                 placeholder={cur.placeholder}
                 disabled={busy}
+                aria-invalid={stepError ? true : undefined}
                 className="focus-ring h-11 flex-1 rounded-md border border-stone-200 px-3 text-base disabled:opacity-50"
               />
               <button
@@ -360,6 +375,7 @@ export function ConversationalApply({ jobId, steps }: { jobId: string; steps: Ap
               </button>
             </form>
           )}
+          {stepError ? <p role="alert" className="mt-1.5 text-sm text-coral">{stepError}</p> : null}
         </div>
       ) : null}
 
