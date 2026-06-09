@@ -217,6 +217,7 @@ textarea {
 
 @media (prefers-reduced-motion: reduce) {
   .animate-tab-in,
+  .animate-fade-in,
   .stagger-children > * {
     animation: none;
   }
