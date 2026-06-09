@@ -8,15 +8,27 @@ import { PlantUml } from "./puml/PlantUml";
 
 function inline(text: string, keyBase: string): ReactNode[] {
   const out: ReactNode[] = [];
-  // Split on **bold**, *italic*, `code` while keeping the delimiters.
-  const parts = text.split(/(\*\*[^*]+\*\*|\*[^*]+\*|`[^`]+`)/g).filter(Boolean);
-  parts.forEach((p, i) => {
-    const key = `${keyBase}-${i}`;
-    if (p.startsWith("**") && p.endsWith("**")) out.push(<strong key={key} className="font-semibold text-ink">{p.slice(2, -2)}</strong>);
-    else if (p.startsWith("*") && p.endsWith("*")) out.push(<em key={key}>{p.slice(1, -1)}</em>);
-    else if (p.startsWith("`") && p.endsWith("`")) out.push(<code key={key} className="rounded bg-stone-100 px-1 py-0.5 text-[0.9em]">{p.slice(1, -1)}</code>);
-    else out.push(<Fragment key={key}>{p}</Fragment>);
-  });
+  // Match the FIRST of **bold**, *italic*, `code` left to right — bold listed before italic
+  // so `**` wins over `*`, and a non-greedy `[\s\S]+?` lets an emphasis span CONTAIN other
+  // markers. The old `[^*]+` dropped any bold/italic that contained a `*` (rendering the raw
+  // asterisks). Bold and italic recurse into their content so nested emphasis renders; code
+  // is literal (no recursion). Still builds React elements, never dangerouslySetInnerHTML.
+  const re = /\*\*([\s\S]+?)\*\*|\*([\s\S]+?)\*|`([^`]+)`/;
+  let rest = text;
+  let n = 0;
+  while (rest.length) {
+    const m = re.exec(rest);
+    if (!m) {
+      out.push(<Fragment key={`${keyBase}-t${n++}`}>{rest}</Fragment>);
+      break;
+    }
+    if (m.index > 0) out.push(<Fragment key={`${keyBase}-t${n++}`}>{rest.slice(0, m.index)}</Fragment>);
+    const key = `${keyBase}-m${n++}`;
+    if (m[1] !== undefined) out.push(<strong key={key} className="font-semibold text-ink">{inline(m[1], key)}</strong>);
+    else if (m[2] !== undefined) out.push(<em key={key}>{inline(m[2], key)}</em>);
+    else out.push(<code key={key} className="rounded bg-stone-100 px-1 py-0.5 text-[0.9em]">{m[3]}</code>);
+    rest = rest.slice(m.index + m[0].length);
+  }
   return out;
 }
 
