@@ -34,7 +34,16 @@ export function parseRepoRef(ref: string): { owner: string; repo: string } | nul
   const m =
     ref.match(/github\.com[/:]([^/]+)\/([^/#?]+?)(?:\.git)?(?:[/#?].*)?$/i) ||
     ref.match(/^([^/\s]+)\/([^/\s]+)$/);
-  return m ? { owner: m[1], repo: m[2] } : null;
+  if (!m) return null;
+  const owner = m[1];
+  const repo = m[2];
+  // Enforce GitHub's name grammar so a crafted ref (e.g. "x/..", "x/%2e%2e") can't survive
+  // URL normalization and redirect the token-authenticated fetch to a DIFFERENT api.github.com
+  // endpoint (confused-deputy). Owner: alphanumerics + hyphen, ≤39 chars. Repo: adds dot/underscore,
+  // ≤100 chars, but never the traversal segments "." / "..". Anything else → unresolvable (null).
+  if (!/^[A-Za-z0-9-]{1,39}$/.test(owner)) return null;
+  if (!/^[A-Za-z0-9._-]{1,100}$/.test(repo) || repo === "." || repo === "..") return null;
+  return { owner, repo };
 }
 
 async function gh<T>(url: string): Promise<T | null> {
@@ -50,7 +59,7 @@ async function gh<T>(url: string): Promise<T | null> {
 export async function buildRepoSnapshot(ref: string): Promise<RepoSnapshot | null> {
   const parsed = parseRepoRef(ref);
   if (!parsed) return null;
-  const full = `${parsed.owner}/${parsed.repo}`;
+  const full = `${encodeURIComponent(parsed.owner)}/${encodeURIComponent(parsed.repo)}`;
 
   const [langs, commits, contents, readme] = await Promise.all([
     gh<Record<string, number>>(`${GH}/repos/${full}/languages`),
@@ -98,7 +107,7 @@ export type CommitEntry = { sha: string; message: string; date: string; addition
 export async function fetchCommitTrace(ref: string, max = 60): Promise<CommitEntry[] | null> {
   const parsed = parseRepoRef(ref);
   if (!parsed) return null;
-  const full = `${parsed.owner}/${parsed.repo}`;
+  const full = `${encodeURIComponent(parsed.owner)}/${encodeURIComponent(parsed.repo)}`;
   const commits = await gh<Array<{ sha: string; commit: { message: string; author?: { date?: string } } }>>(
     `${GH}/repos/${full}/commits?per_page=${Math.min(Math.max(max, 1), 100)}`
   );
@@ -153,7 +162,7 @@ export function summarizeCadence(commits: Pick<CommitEntry, "date">[]): RepoSign
 export async function fetchRepoSignals(ref: string, max = 60, statsDepth = 12): Promise<RepoSignals | null> {
   const parsed = parseRepoRef(ref);
   if (!parsed) return null;
-  const full = `${parsed.owner}/${parsed.repo}`;
+  const full = `${encodeURIComponent(parsed.owner)}/${encodeURIComponent(parsed.repo)}`;
 
   const [list, contents] = await Promise.all([
     gh<Array<{ sha: string; commit: { message: string; author?: { date?: string } } }>>(`${GH}/repos/${full}/commits?per_page=${Math.min(Math.max(max, 1), 100)}`),
