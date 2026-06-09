@@ -73,6 +73,15 @@ export function JdBuilderResult({
   useEffect(() => {
     onEditedChange?.(edited);
   }, [edited, onEditedChange]);
+  // Re-seed the editor when the parent recomputes the body. Fixing the Role title /
+  // Company after generation flows into result.markdown (a useMemo on title/company),
+  // but this component is keyed only by templateId so it never remounts — without this
+  // the preview/edit textarea and save() body keep the pre-correction title/company.
+  // Skip when the user has hand-edited, so a genuine edit isn't clobbered.
+  useEffect(() => {
+    if (!edited) setMarkdown(result.markdown);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [result.markdown]);
   const [view, setView] = useState<"edit" | "preview">("preview");
   const [saving, setSaving] = useState(false);
   const [sourcing, setSourcing] = useState(false);
