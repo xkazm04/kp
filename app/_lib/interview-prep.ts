@@ -76,16 +76,23 @@ export type InterviewPrepProgress = { checked?: Record<string, boolean>; notes?:
  *  ago" stamp must not move). ONE write path for all human prep inputs, so they
  *  can't race each other. Returns false when there's no artifact to attach to. */
 export function saveInterviewPrepProgress(entryId: string, progress: InterviewPrepProgress): boolean {
-  const existing = getInterviewPrep(entryId);
-  if (!existing) return false;
-  const { interviewer, ...checklist } = progress;
-  const payload: Record<string, unknown> = { ...existing.payload, userProgress: checklist };
-  // Top-level interviewer; an empty assignment clears it (undefined drops on stringify).
-  payload.interviewer = interviewer && interviewer.trim() ? interviewer.trim() : undefined;
-  const res = db()
-    .prepare(`UPDATE interview_preps SET payload_json = ? WHERE entry_id = ?`)
-    .run(JSON.stringify(payload), entryId);
-  return res.changes > 0;
+  // Atomic read-merge-write: this and saveHumanScorecard mutate disjoint keys of the
+  // same payload_json. A BEGIN IMMEDIATE transaction (re-reading inside) takes the write
+  // lock before the read, so a concurrent scorecard write on another connection/process
+  // (kp's fork-churned model) can't read-then-clobber — last-write-wins can't drop the
+  // other human input.
+  return db().transaction((): boolean => {
+    const existing = getInterviewPrep(entryId);
+    if (!existing) return false;
+    const { interviewer, ...checklist } = progress;
+    const payload: Record<string, unknown> = { ...existing.payload, userProgress: checklist };
+    // Top-level interviewer; an empty assignment clears it (undefined drops on stringify).
+    payload.interviewer = interviewer && interviewer.trim() ? interviewer.trim() : undefined;
+    const res = db()
+      .prepare(`UPDATE interview_preps SET payload_json = ? WHERE entry_id = ?`)
+      .run(JSON.stringify(payload), entryId);
+    return res.changes > 0;
+  }).immediate();
 }
 
 /** Persist the recruiter's human-filled scorecard (PREP1) onto an EXISTING prep
@@ -95,13 +102,18 @@ export function saveInterviewPrepProgress(entryId: string, progress: InterviewPr
  *  there's no prep to attach to (the scorecard is filled from the prep modal, so
  *  one always exists in practice). */
 export function saveHumanScorecard(entryId: string, scorecard: Scorecard): boolean {
-  const existing = getInterviewPrep(entryId);
-  if (!existing) return false;
-  const payload = { ...existing.payload, humanScorecard: { ...scorecard, source: "human" as const } };
-  const res = db()
-    .prepare(`UPDATE interview_preps SET payload_json = ? WHERE entry_id = ?`)
-    .run(JSON.stringify(payload), entryId);
-  return res.changes > 0;
+  // Atomic read-merge-write — see saveInterviewPrepProgress. The progress PUT and this
+  // scorecard POST share the row but touch disjoint keys; the IMMEDIATE transaction
+  // makes each merge serialize so neither clobbers the other's just-saved input.
+  return db().transaction((): boolean => {
+    const existing = getInterviewPrep(entryId);
+    if (!existing) return false;
+    const payload = { ...existing.payload, humanScorecard: { ...scorecard, source: "human" as const } };
+    const res = db()
+      .prepare(`UPDATE interview_preps SET payload_json = ? WHERE entry_id = ?`)
+      .run(JSON.stringify(payload), entryId);
+    return res.changes > 0;
+  }).immediate();
 }
 
 /** The human scorecard saved on an entry's prep artifact, if any (PREP1). Read by
