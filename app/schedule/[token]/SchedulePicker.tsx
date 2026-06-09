@@ -203,10 +203,15 @@ export function SchedulePicker({ token }: { token: string }) {
           {invite.durationMin ? <span className="ml-2 text-steel">· ~{invite.durationMin} min</span> : null}
         </p>
       ) : null}
-      {noSlots ? (
+      {noSlots || slots.length === 0 ? (
+        // `noSlots` is hard-coded false for a confirmed invite, so a RESCHEDULE into a
+        // fully-booked horizon (slots === []) used to fall through to an empty grid with no
+        // message. Showing this card whenever there are zero offerable slots covers both the
+        // first-booking and reschedule cases (the "Keep current time" button above remains
+        // the recovery in reschedule mode).
         <div role="status" className="mt-3 rounded-lg border border-stone-200 bg-paper p-5">
           <p className="flex items-center gap-2 font-serif text-h2 text-ink">
-            <CalendarClock className="text-steel" /> All current times are taken
+            <CalendarClock className="text-steel" aria-hidden /> All current times are taken
           </p>
           <p className="mt-2 text-body text-ink">
             Every interview slot in the next few weeks is already booked. We&apos;ve let the hiring team know you still
