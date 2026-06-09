@@ -14,7 +14,7 @@ export function TasksIndicator({ active, onOpen }: { active: boolean; onOpen: ()
   return (
     <div className="border-t border-stone-200 px-3 py-3">
       {startError && (
-        <div className="mb-2 flex items-start gap-1.5 rounded-md border border-coral/40 bg-coral/5 p-2">
+        <div role="alert" className="mb-2 flex items-start gap-1.5 rounded-md border border-coral/40 bg-coral/5 p-2">
           <AlertTriangle size={13} className="mt-0.5 shrink-0 text-coral" />
           <div className="min-w-0 flex-1">
             <p className="text-sm font-semibold text-coral">Couldn&apos;t start the task</p>
@@ -38,13 +38,15 @@ export function TasksIndicator({ active, onOpen }: { active: boolean; onOpen: ()
         className={`focus-ring flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-base font-medium transition-colors ${navItemClass(active)}`}
       >
         {running.length > 0 ? (
-          <Loader2 size={14} className="shrink-0 animate-spin text-coral" />
+          <Loader2 size={14} aria-hidden className="shrink-0 animate-spin text-coral" />
         ) : (
-          <Activity size={14} className="shrink-0 text-steel" />
+          <Activity size={14} aria-hidden className="shrink-0 text-steel" />
         )}
         <span>Background tasks</span>
+        {/* aria-live so a screen reader hears the running count tick up/down — the whole
+            point of this always-at-a-glance signal, previously announced visual-only. */}
         {running.length > 0 ? (
-          <span className="ml-auto rounded-full bg-coral px-1.5 text-sm font-semibold text-white">{running.length}</span>
+          <span aria-live="polite" aria-label={`${running.length} background task${running.length === 1 ? "" : "s"} running`} className="ml-auto rounded-full bg-coral px-1.5 text-sm font-semibold text-white">{running.length}</span>
         ) : tasks.length > 0 ? (
           <span className="ml-auto text-sm text-steel">{tasks.length}</span>
         ) : null}

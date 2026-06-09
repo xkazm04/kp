@@ -82,7 +82,14 @@ export function AnalyticsTab() {
             {data.funnel.map((f) => (
               <li key={f.stage} className="flex items-center gap-3">
                 <span className="w-28 shrink-0 text-base font-medium text-ink">{f.stage}</span>
-                <div className="relative h-7 flex-1 overflow-hidden rounded-md bg-paper">
+                <div
+                  className="relative h-7 flex-1 overflow-hidden rounded-md bg-paper"
+                  role="progressbar"
+                  aria-valuenow={f.reached}
+                  aria-valuemin={0}
+                  aria-valuemax={maxReached}
+                  aria-label={`${f.stage}: ${f.reached} reached${f.conversionPct != null ? `, ${f.conversionPct}% conversion` : ""}`}
+                >
                   <div
                     className="h-full rounded-md bg-moss/25"
                     style={{ width: `${Math.round((f.reached / maxReached) * 100)}%` }}

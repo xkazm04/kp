@@ -103,6 +103,7 @@ export function JdTemplateManager({ onClose, onChanged }: { onClose: () => void;
             onChange={(e) => setEditing({ ...editing, name: e.target.value })}
             maxLength={TEMPLATE_NAME_MAX_LENGTH}
             placeholder="Template name"
+            aria-label="Template name"
             className="focus-ring w-full rounded-md border border-stone-200 px-2.5 py-1.5 text-sm font-semibold"
           />
           <textarea
@@ -110,6 +111,7 @@ export function JdTemplateManager({ onClose, onChanged }: { onClose: () => void;
             onChange={(e) => setEditing({ ...editing, body: e.target.value })}
             maxLength={TEMPLATE_BODY_MAX_LENGTH}
             rows={16}
+            aria-label="Template body"
             className="focus-ring w-full rounded-md border border-stone-200 p-3 font-mono text-sm"
           />
           <div className="flex items-center justify-between gap-2">

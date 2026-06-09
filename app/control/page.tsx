@@ -146,7 +146,7 @@ export default function ControlPage() {
             paused ? "border-coral/40 bg-coral/5" : "border-moss/30 bg-moss/5"
           }`}
         >
-          <span className={`grid h-10 w-10 place-items-center rounded-full text-white ${paused ? "bg-coral" : "bg-moss"}`}>
+          <span aria-hidden className={`grid h-10 w-10 place-items-center rounded-full text-white ${paused ? "bg-coral" : "bg-moss"}`}>
             {paused ? "❚❚" : "▶"}
           </span>
           <div className="min-w-0 flex-1">

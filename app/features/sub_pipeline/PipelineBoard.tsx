@@ -143,7 +143,13 @@ export function PipelineBoard({
           </div>
         </div>
       </div>
-      <div ref={scrollRef} className="overflow-x-auto rounded-lg border border-stone-200 bg-white shadow-panel">
+      <div
+        ref={scrollRef}
+        tabIndex={0}
+        role="region"
+        aria-label="Pipeline board, scroll horizontally"
+        className="focus-ring overflow-x-auto rounded-lg border border-stone-200 bg-white shadow-panel"
+      >
         <div style={BOARD_MIN_WIDTH}>
           <div className="grid border-b border-stone-200 bg-paper" style={BOARD_GRID}>
             <div className="sticky left-0 z-20 border-r border-stone-200 bg-paper px-3 py-2 text-meta uppercase text-steel">Position</div>
