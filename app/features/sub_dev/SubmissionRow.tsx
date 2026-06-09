@@ -66,7 +66,12 @@ export function SubmissionRow({ submission, rank, isTop = false, onChanged }: { 
     }
   };
 
-  const tsRaw = submission.transferScore ?? ev?.transfer?.transferScore ?? null;
+  // Source the fit chip from the SAME persisted score the parent list sorts/ranks on, not the
+  // in-memory eval bundle. Otherwise, in the gap between "eval succeeded" and the onChanged
+  // postings reload, the row showed a fresh "82 fit" chip while the list (reading persisted
+  // null) sorted it last with no #rank — a self-contradictory ordering. Both now go empty
+  // during that gap and populate together after the reload (a brief, consistent flicker).
+  const tsRaw = submission.transferScore ?? null;
   // Guard the 0..100 score domain before it tones/labels the fit chip.
   const ts = tsRaw == null ? null : assertScore(tsRaw, "transferScore");
 
