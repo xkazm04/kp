@@ -90,6 +90,10 @@ export function getPromoteFloor(): number | null {
 }
 
 export function setPromoteFloor(value: number): void {
+  // Fail closed on non-finite input rather than stringifying "NaN" into the store (where it
+  // reads back as null and silently reverts to the default floor). Callers validate at the
+  // boundary; this is the durable backstop.
+  if (!Number.isFinite(value)) throw new Error("promote floor must be a finite number");
   const v = String(Math.max(0, Math.min(100, Math.round(value))));
   db().prepare(`INSERT INTO dev_control (key, value) VALUES ('promote_floor', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`).run(v);
 }

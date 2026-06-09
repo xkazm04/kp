@@ -30,6 +30,12 @@ export async function POST(request: NextRequest) {
 
     // Apply a calibrated threshold (human action — the loop stays human-in-the-loop).
     if (typeof body.setFloor === "number") {
+      // typeof NaN/Infinity === "number" — reject non-finite before it reaches the store,
+      // where it would stringify to "NaN", read back as null, and silently fall back to the
+      // default floor while the audit log claims a calibration that never took effect.
+      if (!Number.isFinite(body.setFloor)) {
+        return NextResponse.json({ error: "setFloor must be a finite number (0–100)." }, { status: 400 });
+      }
       setPromoteFloor(body.setFloor);
       recordAudit({ actor: "human", action: "set_promote_floor", reason: `floor → ${Math.round(body.setFloor)} (from calibration)` });
       return NextResponse.json({ activeFloor: activeFloor() });
