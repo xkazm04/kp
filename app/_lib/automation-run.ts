@@ -42,6 +42,13 @@ const DRAFT_EVENT: Record<string, string> = {
 };
 const TTL_HOURS = 168;
 
+// Per-entry in-process single-flight for outreach (mirrors automation-pass's inFlightPass).
+// The durable `outreach_sent` marker is written only AFTER sendComm, so two concurrent
+// same-process /api/automation/outreach calls for one entry both passed the hasEvent gate
+// and double-sent. The manual surfaces run in the same Next server process as the heartbeat,
+// so an in-process guard suffices; on send failure the entry is released so a retry works.
+const outreachInFlight = new Set<string>();
+
 export class AutomationError extends Error {
   status: number;
   constructor(message: string, status: number) {
@@ -237,11 +244,18 @@ export async function runAutomationTask(entryId: string, task: string, notes = "
     // otherwise re-fire the send every time. Gate the dispatch on the durable
     // per-entry "outreach_sent" marker that dispatchOutreach itself records, so an
     // outreach is delivered at most once per entry — first-contact, not a resend.
-    if (hasEvent(entry.id, "outreach_sent")) {
+    if (hasEvent(entry.id, "outreach_sent") || outreachInFlight.has(entry.id)) {
       applied = "already_sent";
     } else {
-      await dispatchOutreach(entry, result);
-      applied = "sent";
+      outreachInFlight.add(entry.id);
+      try {
+        await dispatchOutreach(entry, result);
+        applied = "sent";
+      } finally {
+        // Release on completion AND on failure: dispatchOutreach records the durable marker
+        // only on a successful send, so clearing the in-flight slot lets a failed send retry.
+        outreachInFlight.delete(entry.id);
+      }
     }
   } else {
     recordAutomationEvent(entry.id, DRAFT_EVENT[task] ?? task, "");
