@@ -1,6 +1,6 @@
 import { getPipelineEntry } from "./db";
 import { runAutomationTask } from "./automation-run";
-import { saveInterviewPrep } from "./interview-prep";
+import { getInterviewPrep, saveInterviewPrep } from "./interview-prep";
 import { isEarlyCareer } from "./archetypes";
 import { studentPrepRunOfShow } from "./student-interview";
 import { buildRunOfShow, type PrepQuestion } from "./run-of-show";
@@ -36,6 +36,17 @@ export async function runInterviewPrep(params: Record<string, unknown>): Promise
     : buildRunOfShow(questions, focusAreas, candidateLabel, jobTitle);
 
   const payload: Record<string, unknown> = { ...plan, source: prep.source };
+  // Carry forward human-authored keys across a regeneration. The generated plan is
+  // rebuilt from scratch and saveInterviewPrep is a full-payload upsert, so without
+  // this a Regenerate would silently destroy the recruiter's hand-entered scorecard,
+  // checklist progress, and assigned interviewer (PREP1/PREP2/PREP5 payload seam) —
+  // those live on the same row and survive only if re-merged here.
+  const prev = getInterviewPrep(entryId);
+  if (prev) {
+    for (const key of ["humanScorecard", "userProgress", "interviewer"] as const) {
+      if (prev.payload[key] !== undefined) payload[key] = prev.payload[key];
+    }
+  }
   saveInterviewPrep(entryId, candidateLabel, jobTitle, payload);
   return payload;
 }
