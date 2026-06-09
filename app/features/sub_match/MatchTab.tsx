@@ -49,7 +49,10 @@ export function MatchTab() {
     if (!ref.profileId && !ref.analysisSlug) return;
     setLoading(true);
     setError(null);
-    setResult(null);
+    // Don't clear the prior result on a re-rank/re-weight: clearing unmounts <Results> (and
+    // the WeightsPanel the user is dragging) to the empty placeholder until the fetch returns.
+    // Keeping it mounted lets <Results loading> show its in-place busy state; a fresh run with
+    // no prior result falls to the loading branch in the gate below.
     try {
       const r = await fetch("/api/match", {
         method: "POST",
@@ -171,6 +174,8 @@ export function MatchTab() {
             loading={loading}
             onReweight={(w) => runMatchFor(matchRef, w)}
           />
+        ) : loading ? (
+          <p className="rounded-md bg-paper p-4 text-base text-steel">Matching…</p>
         ) : (
           <p className="rounded-md bg-paper p-4 text-base text-steel">
             Pick a candidate and run matching to see ranked, KO-filtered, scored jobs.
