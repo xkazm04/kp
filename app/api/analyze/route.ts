@@ -57,14 +57,33 @@ export async function POST(request: Request) {
   const jobDescriptionPath = jobDescFile ? await persistFile(baseDir, jobDescFile, "job-description") : null;
   const companyPath = compFile ? await persistFile(baseDir, compFile, "company") : null;
 
+  // Spill a large pasted JD/company blob to a workdir file and pass it as a PATH, not as one
+  // inline argv element: a multi-MB paste in a single argv string trips the OS command-line
+  // limit (E2BIG, ~32KB total on Windows) before Python runs — a cryptic spawn failure on
+  // otherwise-valid input. Normal JDs (well under the threshold) still go inline; the path
+  // route is the same one an uploaded JD file already uses, so the content is preserved.
+  const ARGV_TEXT_LIMIT = 8 * 1024;
+  let jdPath = jobDescriptionPath;
+  let jdText = typeof jobDescriptionText === "string" ? jobDescriptionText : null;
+  if (!jdPath && jdText && Buffer.byteLength(jdText, "utf8") > ARGV_TEXT_LIMIT) {
+    jdPath = await persistFile(baseDir, new File([jdText], "job-description-text.txt"), "job-description-text");
+    jdText = null;
+  }
+  let coPath = companyPath;
+  let coText = typeof companyText === "string" ? companyText : null;
+  if (!coPath && coText && Buffer.byteLength(coText, "utf8") > ARGV_TEXT_LIMIT) {
+    coPath = await persistFile(baseDir, new File([coText], "company-text.txt"), "company-text");
+    coText = null;
+  }
+
   const params: AnalyzeParams = {
     baseDir,
     grounding,
     variants,
-    jobDescriptionPath,
-    jobDescriptionText: typeof jobDescriptionText === "string" ? jobDescriptionText : null,
-    companyPath,
-    companyText: typeof companyText === "string" ? companyText : null,
+    jobDescriptionPath: jdPath,
+    jobDescriptionText: jdText,
+    companyPath: coPath,
+    companyText: coText,
     jdSlug,
     requestId: newRequestId(),
   };
