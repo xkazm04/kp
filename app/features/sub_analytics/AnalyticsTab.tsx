@@ -78,6 +78,11 @@ export function AnalyticsTab() {
             <h3 className="font-serif text-h2 text-ink">Funnel</h3>
             <p className="text-meta uppercase text-steel">reached · conversion · active now</p>
           </div>
+          {data.total === 0 ? (
+            <p className="mt-4 rounded-md bg-paper p-3 text-base text-steel">
+              No candidates in the pipeline yet — the funnel fills in as applicants arrive.
+            </p>
+          ) : (
           <ul className="mt-4 space-y-2.5">
             {data.funnel.map((f) => (
               <li key={f.stage} className="flex items-center gap-3">
@@ -109,6 +114,7 @@ export function AnalyticsTab() {
               </li>
             ))}
           </ul>
+          )}
           {data.bottleneck ? (
             <p className="mt-4 rounded-md border border-dial-amber/40 bg-dial-amber/10 px-3 py-2 text-base text-ink">
               <span className="font-semibold">Bottleneck:</span> the{" "}
