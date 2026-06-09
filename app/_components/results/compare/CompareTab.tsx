@@ -60,7 +60,15 @@ export function CompareTab({ analysis }: { analysis: Analysis }) {
     );
   }
 
-  const winnerIndex = comparison.variants.findIndex((variant) => variant.label === comparison.bestLabel);
+  // Resolve the winner by INDEX via max primary score, not by `findIndex(label === bestLabel)`.
+  // Variant labels aren't unique (two CV variants can share a filename / "CV"), so a label
+  // match returns the FIRST same-named column and could crown the wrong one. Max primary
+  // score with strict `>` keeps the earliest on a tie — matching buildComparison's stable sort.
+  const primary = (v: (typeof comparison.variants)[number]) => (v.jobFitScore != null ? v.jobFitScore : v.score.total);
+  let winnerIndex = 0;
+  for (let i = 1; i < comparison.variants.length; i++) {
+    if (primary(comparison.variants[i]) > primary(comparison.variants[winnerIndex])) winnerIndex = i;
+  }
   const baseline = comparison.variants[0];
 
   return (
@@ -93,7 +101,7 @@ export function CompareTab({ analysis }: { analysis: Analysis }) {
                   </th>
                   {comparison.variants.map((variant, index) => (
                     <th
-                      key={variant.label}
+                      key={index}
                       className={`px-3 py-2 text-left text-sm font-semibold uppercase tracking-wide ${
                         index === winnerIndex ? "text-coral" : "text-steel"
                       }`}
