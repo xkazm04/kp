@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { RotateCcw, Search } from "lucide-react";
-import { formatCount } from "@/app/_lib/format";
+import { useTranslations } from "next-intl";
 import { Skeleton } from "@/app/_components/Skeleton";
 import { JdBuilder } from "./JdBuilder";
 import { LibraryJdForm } from "./LibraryJdForm";
@@ -16,6 +16,7 @@ type JdRow = {
 };
 
 export function LibraryTab() {
+  const t = useTranslations("library.tab");
   const [rows, setRows] = useState<JdRow[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
@@ -42,25 +43,25 @@ export function LibraryTab() {
     setRows(null);
     try {
       const response = await fetch("/api/jds", { signal });
-      if (!response.ok) throw new Error(`Load failed (${response.status}).`);
+      if (!response.ok) throw new Error(t("loadFailedStatus", { status: response.status }));
       const payload = await response.json();
       if (signal?.aborted) return;
       setRows((payload.jds as JdRow[]) ?? []);
     } catch (caught) {
       // An abort is expected on unmount — don't surface it as an error.
       if (signal?.aborted || (caught instanceof DOMException && caught.name === "AbortError")) return;
-      setError(caught instanceof Error ? caught.message : "Load failed.");
+      setError(caught instanceof Error ? caught.message : t("loadFailed"));
     }
-  }, []);
+  }, [t]);
 
   // Deferred kick-off (0 ms timer): load() resets rows/error synchronously, and a
   // sync setState in the effect body would cascade a render before the first
   // commit settles. The abort cleanup still covers the in-flight request.
   useEffect(() => {
     const controller = new AbortController();
-    const t = window.setTimeout(() => load(controller.signal), 0);
+    const timer = window.setTimeout(() => load(controller.signal), 0);
     return () => {
-      window.clearTimeout(t);
+      window.clearTimeout(timer);
       controller.abort();
     };
   }, [load]);
@@ -68,12 +69,10 @@ export function LibraryTab() {
   return (
     <section className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
       <header className="border-b border-stone-200 pb-4">
-        <p className="text-meta uppercase text-coral">Workspace</p>
-        <h2 className="mt-1 font-serif text-display text-ink">Job description library</h2>
+        <p className="text-meta uppercase text-coral">{t("eyebrow")}</p>
+        <h2 className="mt-1 font-serif text-display text-ink">{t("title")}</h2>
         <p className="mt-2 max-w-3xl text-body text-steel">
-          Describe a hiring need and let AI draft a job description — clarifying the need,
-          designing the role, and researching market salary on the web. Save it as a draft, then
-          <strong> source it into your Pipeline</strong> to pull in matching candidates.
+          {t.rich("intro", { strong: (chunks) => <strong>{chunks}</strong> })}
         </p>
       </header>
 
@@ -84,9 +83,9 @@ export function LibraryTab() {
       <div className="mt-5">
         <div className="rounded-lg border border-stone-200 bg-white">
           <div className="flex items-center justify-between border-b border-stone-200 px-5 py-3">
-            <h3 className="font-serif text-h2 text-ink">Saved JDs</h3>
+            <h3 className="font-serif text-h2 text-ink">{t("savedJds")}</h3>
             <span className="text-sm uppercase tracking-wide text-steel">
-              {formatCount(visible.length, "entry", "entries")}
+              {t("entryCount", { count: visible.length })}
             </span>
           </div>
           {error ? (
@@ -98,13 +97,13 @@ export function LibraryTab() {
                 className="focus-ring inline-flex h-9 items-center gap-2 rounded-md border border-stone-300 bg-white px-3 text-base font-semibold text-ink hover:bg-stone-50"
               >
                 <RotateCcw className="h-3.5 w-3.5" aria-hidden />
-                Try again
+                {t("tryAgain")}
               </button>
             </div>
           ) : rows == null ? (
             <JdListSkeleton />
           ) : rows.length === 0 ? (
-            <p className="px-5 py-8 text-base text-steel">No JDs saved yet. Use the form to add one.</p>
+            <p className="px-5 py-8 text-base text-steel">{t("emptyNoJds")}</p>
           ) : (
             <>
               <div className="border-b border-stone-200 px-5 py-3">
@@ -114,17 +113,17 @@ export function LibraryTab() {
                     type="search"
                     value={query}
                     onChange={(event) => setQuery(event.target.value)}
-                    placeholder="Search title, slug, or content…"
-                    aria-label="Search saved JDs"
+                    placeholder={t("searchPlaceholder")}
+                    aria-label={t("searchAria")}
                     className="focus-ring h-10 w-full rounded-md border border-stone-300 bg-white pl-9 pr-3 text-base text-ink"
                   />
                 </div>
               </div>
               {visible.length === 0 ? (
                 <div className="px-5 py-10 text-center">
-                  <p className="text-base font-semibold text-ink">No matching JDs</p>
+                  <p className="text-base font-semibold text-ink">{t("noMatchTitle")}</p>
                   <p className="mt-1 text-base text-steel">
-                    Nothing matches “{query.trim()}”. Try a different search.
+                    {t("noMatchBody", { query: query.trim() })}
                   </p>
                 </div>
               ) : (
@@ -144,7 +143,7 @@ export function LibraryTab() {
                         {row.preview}
                       </p>
                       <p className="mt-2 text-sm text-steel">
-                        Saved {new Date(row.created_at).toLocaleString()}
+                        {t("savedAt", { date: new Date(row.created_at).toLocaleString() })}
                       </p>
                     </li>
                   ))}
@@ -156,7 +155,7 @@ export function LibraryTab() {
       </div>
 
       <details className="mt-5 rounded-lg border border-stone-200 bg-paper/40 p-4">
-        <summary className="cursor-pointer text-sm font-semibold text-steel">Or paste a job description manually</summary>
+        <summary className="cursor-pointer text-sm font-semibold text-steel">{t("orPasteManually")}</summary>
         <div className="mt-3">
           <LibraryJdForm onSaved={load} />
         </div>

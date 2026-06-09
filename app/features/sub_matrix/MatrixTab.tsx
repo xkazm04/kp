@@ -2,12 +2,14 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { buildUrl } from "@/app/features/tabs";
 import { Check, Download, ListChecks, X } from "lucide-react";
-import { ARCHETYPE_BADGE, normalizeArchetype } from "@/app/_lib/archetypes";
+import { normalizeArchetype } from "@/app/_lib/archetypes";
 import { isTerminalEntryStatus } from "@/app/_lib/pipeline-status";
 import { postPipelineAdd } from "@/app/_lib/useAddToPipeline";
 import { downloadFile, toCsv } from "@/app/_lib/export-utils";
+import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { cellClass, ColumnStats, MatrixLegend, type Cell } from "./MatrixShared";
 import { STRONG_THRESHOLD } from "./matrix-stats";
 
@@ -37,9 +39,11 @@ const ARCH_DOT: Record<string, string> = {
 };
 const ARCH_DOT_FALLBACK = "bg-stone-400";
 
-function archStyle(archetype: string | null): { bg: string; label: string } {
+// Returns the dot colour + the canonical archetype id; the display label is
+// resolved via useEnumLabel("archetype", id) at the call site.
+function archStyle(archetype: string | null): { bg: string; id: string } {
   const id = normalizeArchetype(archetype) || "bau"; // null/blank → the experienced default, as before
-  return { bg: ARCH_DOT[id] ?? ARCH_DOT_FALLBACK, label: ARCHETYPE_BADGE[id] ?? ARCHETYPE_BADGE.bau ?? "Experienced" };
+  return { bg: ARCH_DOT[id] ?? ARCH_DOT_FALLBACK, id };
 }
 const STAGE_INITIAL: Record<string, string> = {
   Accepted: "A",
@@ -50,6 +54,8 @@ const STAGE_INITIAL: Record<string, string> = {
 };
 
 export function MatrixTab() {
+  const t = useTranslations("matrix");
+  const enumLabel = useEnumLabel();
   const router = useRouter();
   const search = useSearchParams();
   // When arriving from a Pipeline position ("Rank candidates"), scope the matrix
@@ -82,13 +88,14 @@ export function MatrixTab() {
         // on failure — read it so the real cause reaches the screen instead of
         // an opaque status code.
         const body = await r.json().catch(() => ({}));
-        if (!r.ok) throw new Error(body.error || `matrix ${r.status}`);
+        if (!r.ok) throw new Error(body.error || t("loadFailedStatus", { status: r.status }));
         if (body.error) throw new Error(body.error);
         setData(body as Matrix);
       } catch (e) {
-        setError(e instanceof Error ? e.message : "Load failed.");
+        setError(e instanceof Error ? e.message : t("loadFailed"));
       }
     })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const families = useMemo(() => {
@@ -229,8 +236,8 @@ export function MatrixTab() {
     setSelected(failed);
     setAnnounce(
       failed.size === 0
-        ? `Added ${ok} candidate${ok === 1 ? "" : "s"} to the pipeline.`
-        : `Added ${ok}; ${failed.size} failed — still selected for retry.`
+        ? t("addedAnnounce", { count: ok })
+        : t("addedPartial", { ok, failed: failed.size })
     );
     setAdding(false);
   };
@@ -246,7 +253,7 @@ export function MatrixTab() {
   // already on screen via the shared toCsv/downloadFile — no backend call.
   const exportCsv = () => {
     if (!data) return;
-    const header = ["Candidate", ...cols.map(({ p }) => p.title)];
+    const header = [t("csvCandidate"), ...cols.map(({ p }) => p.title)];
     const body = rows.map(({ cand, ri }) => [
       cand.label,
       ...cols.map(({ i }) => {
@@ -262,37 +269,40 @@ export function MatrixTab() {
     <section className="space-y-4">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="text-meta uppercase text-coral">Workspace</p>
-          <h2 className="mt-1 font-serif text-display text-ink">Fit matrix</h2>
+          <p className="text-meta uppercase text-coral">{t("eyebrow")}</p>
+          <h2 className="mt-1 font-serif text-display text-ink">{t("title")}</h2>
           <p className="mt-1 max-w-2xl text-body text-steel">
             {staleJob
-              ? "The link you followed points to a position that is no longer open."
+              ? t("introStale")
               : scopedPosition
-              ? `Candidates ranked by fit for ${scopedPosition.title}. Colour = match strength; a ring marks candidates already in this position's pipeline.`
-              : "Every candidate scored against every open position. Colour = match strength; a ring marks candidates already in that position's pipeline. Click any cell to open the full match."}
+              ? t("introScoped", { title: scopedPosition.title })
+              : t("introDefault")}
           </p>
         </div>
         {!staleJob ? (
           <div className="flex items-center gap-2">
             {data ? (
               <span className="rounded-md border border-stone-200 bg-paper px-2.5 py-1 text-sm text-steel">
-                {minFit > 0 ? `${rows.length} of ${data.candidates.length}` : data.candidates.length} candidates × {cols.length} positions
+                {t("countLine", {
+                  cands: minFit > 0 ? t("ofCount", { shown: rows.length, total: data.candidates.length }) : `${data.candidates.length}`,
+                  positions: cols.length,
+                })}
               </span>
             ) : null}
             {/* Min-fit floor (MAT6): hide candidates whose best visible fit is
                 below the threshold so a noisy grid shows only the promising rows. */}
             {data && data.candidates.length > 0 ? (
               <div className="inline-flex items-center overflow-hidden rounded-md border border-stone-200 bg-white text-sm font-semibold">
-                <span className="px-2 py-1 text-steel">Min fit</span>
-                {[0, 55, 70].map((t) => (
+                <span className="px-2 py-1 text-steel">{t("minFit")}</span>
+                {[0, 55, 70].map((lvl) => (
                   <button
-                    key={t}
+                    key={lvl}
                     type="button"
-                    onClick={() => setMinFit(t)}
-                    aria-pressed={minFit === t}
-                    className={`focus-ring border-l border-stone-200 px-2.5 py-1 ${minFit === t ? "bg-ink text-white" : "text-ink hover:bg-paper"}`}
+                    onClick={() => setMinFit(lvl)}
+                    aria-pressed={minFit === lvl}
+                    className={`focus-ring border-l border-stone-200 px-2.5 py-1 ${minFit === lvl ? "bg-ink text-white" : "text-ink hover:bg-paper"}`}
                   >
-                    {t === 0 ? "Off" : `≥${t}`}
+                    {lvl === 0 ? t("off") : `≥${lvl}`}
                   </button>
                 ))}
               </div>
@@ -305,7 +315,7 @@ export function MatrixTab() {
               }}
               className="focus-ring rounded-md border border-stone-200 bg-white px-2.5 py-1 text-sm font-semibold text-ink hover:border-coral/40"
             >
-              Sort: {sortCol != null ? "by column" : sortByFit ? "best fit" : "A–Z"}
+              {t("sortLabel", { mode: sortCol != null ? t("sortByCol") : sortByFit ? t("sortBestFit") : t("sortAz") })}
             </button>
             {data && data.candidates.length > 0 ? (
               <button
@@ -315,9 +325,9 @@ export function MatrixTab() {
                 className={`focus-ring inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-sm font-semibold ${
                   selectMode ? "border-coral bg-coral/10 text-coral" : "border-stone-200 bg-white text-ink hover:border-coral/40"
                 }`}
-                title="Select cells to add multiple candidates to the pipeline at once"
+                title={t("shortlistTitle")}
               >
-                <ListChecks size={14} /> {selectMode ? "Done selecting" : "Shortlist"}
+                <ListChecks size={14} /> {selectMode ? t("doneSelecting") : t("shortlist")}
               </button>
             ) : null}
             {data && data.candidates.length > 0 && rows.length > 0 ? (
@@ -325,9 +335,9 @@ export function MatrixTab() {
                 type="button"
                 onClick={exportCsv}
                 className="focus-ring inline-flex items-center gap-1.5 rounded-md border border-stone-200 bg-white px-2.5 py-1 text-sm font-semibold text-ink hover:border-coral/40"
-                title="Download the grid as shown (CSV)"
+                title={t("exportTitle")}
               >
-                <Download size={14} className="text-steel" /> Export CSV
+                <Download size={14} className="text-steel" /> {t("exportCsv")}
               </button>
             ) : null}
           </div>
@@ -339,7 +349,7 @@ export function MatrixTab() {
       {selectMode ? (
         <div className="flex flex-wrap items-center gap-2 rounded-md border border-coral/30 bg-coral/5 px-3 py-2">
           <span className="text-sm font-semibold text-ink">
-            {selected.size > 0 ? `${selected.size} selected` : "Tap cells to shortlist"}
+            {selected.size > 0 ? t("selectedCount", { count: selected.size }) : t("tapToShortlist")}
           </span>
           <button
             type="button"
@@ -347,7 +357,7 @@ export function MatrixTab() {
             disabled={selected.size === 0 || adding}
             className="focus-ring inline-flex h-8 items-center gap-1.5 rounded-md bg-ink px-3 text-sm font-semibold text-white hover:bg-ink/90 disabled:opacity-40"
           >
-            <Check size={14} /> {adding ? "Adding…" : selected.size > 0 ? `Add ${selected.size} to pipeline` : "Add to pipeline"}
+            <Check size={14} /> {adding ? t("adding") : selected.size > 0 ? t("addN", { count: selected.size }) : t("addToPipeline")}
           </button>
           {selected.size > 0 ? (
             <button
@@ -356,7 +366,7 @@ export function MatrixTab() {
               disabled={adding}
               className="focus-ring inline-flex h-8 items-center rounded-md px-2 text-sm font-semibold text-steel hover:text-ink disabled:opacity-40"
             >
-              Clear
+              {t("clear")}
             </button>
           ) : null}
           <button
@@ -364,25 +374,23 @@ export function MatrixTab() {
             onClick={exitSelect}
             className="focus-ring ml-auto inline-flex h-8 items-center gap-1 rounded-md px-2 text-sm font-semibold text-steel hover:text-ink"
           >
-            <X size={13} /> Exit
+            <X size={13} /> {t("exit")}
           </button>
-          <span className="w-full text-meta text-steel">
-            Each tick files that candidate into the position&apos;s pipeline (Screened). Blocked / already-in-pipeline cells can&apos;t be selected.
-          </span>
+          <span className="w-full text-meta text-steel">{t("selectHint")}</span>
         </div>
       ) : null}
 
       {scopedPosition ? (
         <div className="flex flex-wrap items-center gap-2">
           <span className="rounded-full bg-coral/10 px-2.5 py-1 text-sm font-semibold text-coral">
-            Ranking for {scopedPosition.title}
+            {t("rankingFor", { title: scopedPosition.title })}
           </span>
           <button
             type="button"
             onClick={clearJob}
             className="focus-ring rounded-full border border-stone-200 bg-white px-2.5 py-1 text-sm font-semibold text-steel hover:border-coral/40"
           >
-            Show all positions
+            {t("showAll")}
           </button>
         </div>
       ) : !staleJob && families.length > 1 ? (
@@ -396,7 +404,7 @@ export function MatrixTab() {
                 family === f ? "bg-ink text-white" : "border border-stone-200 bg-white text-steel hover:border-coral/40"
               }`}
             >
-              {f === "all" ? "All families" : f.replace(/_/g, " ")}
+              {f === "all" ? t("allFamilies") : enumLabel("family", f)}
             </button>
           ))}
         </div>
@@ -404,21 +412,20 @@ export function MatrixTab() {
 
       {data && data.missing.length > 0 ? (
         <p className="rounded-md border border-amber-200 bg-amber-50/60 p-3 text-sm text-amber-800">
-          <span className="font-semibold">
-            {data.missing.length} requested {data.missing.length === 1 ? "position" : "positions"} could not be scored
-          </span>{" "}
-          and {data.missing.length === 1 ? "is" : "are"} omitted from the grid (no matching job record):{" "}
-          {data.missing.map((m) => m.title).join(", ")}.
+          {t.rich("missingPositions", {
+            count: data.missing.length,
+            titles: data.missing.map((m) => m.title).join(", "),
+            b: (chunks) => <span className="font-semibold">{chunks}</span>,
+          })}
         </p>
       ) : null}
 
       {data && data.missingCandidates.length > 0 ? (
         <p className="rounded-md border border-amber-200 bg-amber-50/60 p-3 text-sm text-amber-800">
-          <span className="font-semibold">
-            {data.missingCandidates.length} {data.missingCandidates.length === 1 ? "candidate" : "candidates"} could not be scored
-          </span>{" "}
-          and {data.missingCandidates.length === 1 ? "is" : "are"} omitted from the grid (profile failed to
-          load). Hover a name for the reason:{" "}
+          {t.rich("missingCandidatesPrefix", {
+            count: data.missingCandidates.length,
+            b: (chunks) => <span className="font-semibold">{chunks}</span>,
+          })}
           {data.missingCandidates.map((m, i) => (
             <span key={m.id}>
               {i > 0 ? ", " : ""}
@@ -427,33 +434,28 @@ export function MatrixTab() {
               </span>
             </span>
           ))}
-          .
+          {"."}
         </p>
       ) : null}
 
       {error ? (
         <p className="rounded-md bg-red-50 p-3 text-base text-red-700">{error}</p>
       ) : !data ? (
-        <p className="text-base text-steel">Computing the matrix…</p>
+        <p className="text-base text-steel">{t("computing")}</p>
       ) : staleJob ? (
         <div className="rounded-lg border border-stone-200 bg-paper p-8 text-center shadow-panel">
-          <p className="font-serif text-xl text-ink">Position no longer open</p>
-          <p className="mx-auto mt-2 max-w-md text-base text-steel">
-            It was closed or filled after this link was shared, so its candidate ranking isn&apos;t
-            available. Other positions are still ranked.
-          </p>
+          <p className="font-serif text-xl text-ink">{t("staleTitle")}</p>
+          <p className="mx-auto mt-2 max-w-md text-base text-steel">{t("staleBody")}</p>
           <button
             type="button"
             onClick={clearJob}
             className="focus-ring mt-5 rounded-full bg-ink px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-ink/90"
           >
-            Show all positions
+            {t("showAll")}
           </button>
         </div>
       ) : data.candidates.length === 0 || data.positions.length === 0 ? (
-        <p className="rounded-md bg-paper p-4 text-base text-steel">
-          No seeded candidates or open positions yet. Positions are the jobs that appear in the pipeline.
-        </p>
+        <p className="rounded-md bg-paper p-4 text-base text-steel">{t("emptyGrid")}</p>
       ) : (
         <>
           <div className="overflow-auto rounded-lg border border-stone-200 bg-white shadow-panel" style={{ maxHeight: "70vh" }}>
@@ -461,7 +463,7 @@ export function MatrixTab() {
               <thead>
                 <tr>
                   <th scope="col" className="sticky left-0 top-0 z-20 border-b border-r border-stone-200 bg-paper p-2 text-left font-semibold text-steel">
-                    Candidate
+                    {t("candidateHeader")}
                   </th>
                   {cols.map(({ p, i }) => (
                     <th
@@ -475,13 +477,13 @@ export function MatrixTab() {
                         type="button"
                         onClick={() => setSortCol((cur) => (cur === i ? null : i))}
                         aria-pressed={sortCol === i}
-                        title={`${p.title} · ${p.seniority} — ${sortCol === i ? "sorting by this role; click to clear" : "click to sort by this role"}`}
+                        title={t("colTitle", { title: p.title, seniority: enumLabel("seniority", p.seniority), action: sortCol === i ? t("colSortingClear") : t("colClickSort") })}
                         className="focus-ring block w-[84px] rounded text-left hover:text-coral"
                       >
                         <span className={`block truncate font-semibold ${sortCol === i ? "text-coral" : "text-ink"}`}>
                           {sortCol === i ? "▼ " : ""}{p.title}
                         </span>
-                        <span className="block text-sm uppercase text-steel">{p.seniority}</span>
+                        <span className="block text-sm uppercase text-steel">{enumLabel("seniority", p.seniority)}</span>
                       </button>
                       <ColumnStats scores={colScores[i] ?? []} />
                     </th>
@@ -495,15 +497,15 @@ export function MatrixTab() {
                     <tr key={cand.id} className="hover:bg-paper/40">
                       <th scope="row" className="sticky left-0 z-10 border-b border-r border-stone-100 bg-white p-2 text-left font-normal">
                         <div className="flex items-center gap-1.5">
-                          <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${a.bg}`} title={a.label} />
+                          <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${a.bg}`} title={enumLabel("archetype", a.id)} />
                           <span className="w-[120px] truncate font-medium text-ink">{cand.label}</span>
                           {/* MAT2 row counterpart: strong-fit count across visible roles. */}
                           {rowStrong[ri] > 0 ? (
                             <span
                               className="ml-auto shrink-0 rounded-full bg-moss/10 px-1.5 text-meta font-semibold text-moss nums"
-                              title={`Strong fit (≥${STRONG_THRESHOLD}) for ${rowStrong[ri]} of ${cols.length} shown role${cols.length === 1 ? "" : "s"}`}
+                              title={t("strongFitTitle", { threshold: STRONG_THRESHOLD, count: rowStrong[ri], total: cols.length })}
                             >
-                              {rowStrong[ri]}★
+                              {`${rowStrong[ri]}★`}
                             </span>
                           ) : null}
                         </div>
@@ -531,11 +533,17 @@ export function MatrixTab() {
                               title={
                                 selectMode
                                   ? selectable
-                                    ? `${isSel ? "Deselect" : "Select"} ${cand.label} → ${p.title}`
-                                    : `${cand.label} → ${p.title}: ${c.blocked ? "blocked (KO)" : ringed ? "already in pipeline" : ""}`
-                                  : `${cand.label} → ${p.title}: ${c.blocked ? "blocked (KO)" : c.score}${place ? ` · in pipeline (${place.stage})` : ""}`
+                                    ? t("cellSelectTitle", { action: isSel ? t("deselect") : t("select"), cand: cand.label, pos: p.title })
+                                    : t("cellBlockedTitle", { cand: cand.label, pos: p.title, reason: c.blocked ? t("blockedKo") : ringed ? t("alreadyInPipe") : "" })
+                                  : t("cellTitle", { cand: cand.label, pos: p.title, val: c.blocked ? t("blockedKo") : c.score ?? 0, place: place ? t("inPipelineStage", { stage: enumLabel("stage", place.stage) }) : "" })
                               }
-                              aria-label={`${cand.label} to ${p.title}: ${c.blocked ? "blocked" : `match ${c.score}`}${ringed ? ", in pipeline" : ""}${selectMode && selectable ? (isSel ? " — selected" : " — selectable") : ""}`}
+                              aria-label={t("cellAria", {
+                                cand: cand.label,
+                                pos: p.title,
+                                val: c.blocked ? t("blocked") : t("matchVal", { score: c.score ?? 0 }),
+                                ring: ringed ? t("inPipelineSuffix") : "",
+                                sel: selectMode && selectable ? (isSel ? t("selectedSuffix") : t("selectableSuffix")) : "",
+                              })}
                               aria-pressed={selectMode ? isSel : undefined}
                               className={`relative grid h-9 w-full place-items-center font-semibold transition-transform ${
                                 selectMode ? (selectable ? "cursor-pointer" : "cursor-default opacity-50") : "hover:scale-105"

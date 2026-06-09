@@ -13,6 +13,7 @@ from __future__ import annotations
 from typing import Any
 
 from . import registry
+from .i18n import language_directive
 from .jobs import Job
 from .matching import MatchCandidate, MatchResult, fit_tier_for
 
@@ -20,7 +21,7 @@ REASONING_PROMPT_VERSION = "match-reasoning-v1"
 
 _SYSTEM = (
     "You are a precise technical recruiter for the Czech tech market. Give honest, "
-    "specific hiring reasoning grounded only in the supplied facts. Write in English."
+    "specific hiring reasoning grounded only in the supplied facts. Write in the requested language."
 )
 
 
@@ -255,14 +256,21 @@ def generate(
     job: Job,
     m: MatchResult,
     *,
+    lang: str = "en",
     provider: Any | None = None,
 ) -> tuple[dict[str, Any], str]:
-    """Return (reasoning, source) where source is 'llm' or 'deterministic'."""
+    """Return (reasoning, source) where source is 'llm' or 'deterministic'.
+
+    ``lang`` is the output locale for the narrative (verdict/strengths/gaps are
+    free-form); the verdict's canonical value stays English (it is coerced
+    downstream). The deterministic fallback is English-only.
+    """
     context = reasoning_context(candidate, job, m)
     if provider is None:
         return deterministic_reasoning(context), "deterministic"
     try:
-        payload = provider.complete_json(build_prompt(context), system=_SYSTEM)
+        prompt = f"{build_prompt(context)}\n\n{language_directive(lang)}"
+        payload = provider.complete_json(prompt, system=_SYSTEM)
         return _coerce(payload, context), "llm"
     except Exception:
         return deterministic_reasoning(context), "deterministic"

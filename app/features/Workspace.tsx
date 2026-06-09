@@ -3,8 +3,10 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback } from "react";
 import dynamic from "next/dynamic";
+import { useTranslations } from "next-intl";
 import { Skeleton } from "@/app/_components/Skeleton";
 import { ErrorBoundary } from "@/app/_components/ErrorBoundary";
+import { LanguageSwitcher } from "@/app/_components/LanguageSwitcher";
 import { TasksIndicator } from "./tasks/TasksIndicator";
 import { TasksProvider } from "./tasks/TasksProvider";
 import { SimulationProvider } from "./simulation/SimulationProvider";
@@ -52,6 +54,13 @@ const TasksTab = dynamic(() => import("./tasks/TasksTab").then((m) => ({ default
 export function Workspace() {
   const router = useRouter();
   const params = useSearchParams();
+  const t = useTranslations("nav");
+  // Translate a nav key (tabs.<id> / groups.<key>) through the catalog, falling
+  // back to the English label baked into tabs.ts for any not-yet-translated entry.
+  const navText = (key: string, fallback: string): string => {
+    const k = key as Parameters<typeof t>[0];
+    return t.has(k) ? t(k) : fallback;
+  };
   const search = params.toString();
   const tabParam = params.get("tab");
   const active: WorkspaceTabId = isWorkspaceTabId(tabParam) ? tabParam : DEFAULT_TAB;
@@ -76,27 +85,27 @@ export function Workspace() {
         href="#main"
         className="focus-ring sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-coral focus:px-3 focus:py-2 focus:text-base focus:font-semibold focus:text-white"
       >
-        Skip to content
+        {t("skipToContent")}
       </a>
       <aside className="flex flex-col border-b border-stone-300 bg-paper md:sticky md:top-0 md:h-screen md:w-64 md:shrink-0 md:overflow-y-auto md:border-b-0 md:border-r">
         <div className="px-4 py-5">
           <div className="flex items-center gap-2.5">
             <span className="grid h-9 w-9 place-items-center rounded-lg bg-ink font-serif text-base font-semibold text-white">
-              KP
+              {t("brandMark")}
             </span>
             <div className="leading-tight">
-              <p className="font-serif text-h3 text-ink">studio</p>
-              <p className="text-sm uppercase tracking-[0.12em] text-steel">talent matching</p>
+              <p className="font-serif text-h3 text-ink">{t("brandName")}</p>
+              <p className="text-sm uppercase tracking-[0.12em] text-steel">{t("tagline")}</p>
             </div>
           </div>
         </div>
 
-        <nav aria-label="Workspace" className="space-y-5 px-3 pb-6">
+        <nav aria-label={t("ariaLabel")} className="space-y-5 px-3 pb-6">
           {NAV_GROUPS.map((group, gi) => (
-            <div key={group.label ?? `g${gi}`}>
-              {group.label ? (
+            <div key={group.key ?? `g${gi}`}>
+              {group.key ? (
                 <p className="px-2 pb-1 text-sm font-semibold uppercase tracking-[0.12em] text-steel/70">
-                  {group.label}
+                  {navText(`groups.${group.key}`, group.label ?? "")}
                 </p>
               ) : null}
               <div className="space-y-0.5">
@@ -114,7 +123,7 @@ export function Workspace() {
                         className={`h-1.5 w-1.5 rounded-full ${isActive ? "bg-coral" : "bg-stone-300"}`}
                         aria-hidden
                       />
-                      {item.label}
+                      {navText(`tabs.${item.id}`, item.label)}
                     </button>
                   );
                 })}
@@ -122,7 +131,9 @@ export function Workspace() {
             </div>
           ))}
         </nav>
-        <div className="mt-auto" />
+        <div className="mt-auto px-3 py-3">
+          <LanguageSwitcher />
+        </div>
         <TasksIndicator active={active === "tasks"} onOpen={() => selectTab("tasks")} />
       </aside>
 

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Pencil, X } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 export function AnalyzePasteRow({
   ariaLabel,
@@ -16,6 +17,7 @@ export function AnalyzePasteRow({
   onChange: (value: string) => void;
   onClear: () => void;
 }) {
+  const t = useTranslations("analyze");
   const [isEditing, setIsEditing] = useState(false);
   const hasContent = text.trim().length > 0;
   // Visible textarea when empty or while editing; otherwise a compact preview.
@@ -27,7 +29,7 @@ export function AnalyzePasteRow({
         htmlFor={inputId}
         className="block text-sm font-semibold uppercase tracking-wide text-steel"
       >
-        Paste content
+        {t("pasteContent")}
       </label>
       <textarea
         id={inputId}
@@ -49,20 +51,20 @@ export function AnalyzePasteRow({
         <div className="rounded-md border border-stone-200 bg-paper px-2 py-1.5">
           <p className="line-clamp-2 whitespace-pre-wrap text-sm text-ink">{text.trim()}</p>
           <div className="mt-1 flex items-center justify-between">
-            <span className="text-sm text-steel">{text.trim().length} chars</span>
+            <span className="text-sm text-steel">{t("charsCount", { count: text.trim().length })}</span>
             <div className="flex items-center gap-1">
               <button
                 type="button"
                 onClick={() => setIsEditing(true)}
                 className="focus-ring inline-flex h-6 items-center gap-1 rounded-md px-1.5 text-sm font-semibold text-ink hover:bg-stone-100"
               >
-                <Pencil className="h-3 w-3" aria-hidden /> Edit
+                <Pencil className="h-3 w-3" aria-hidden /> {t("edit")}
               </button>
               <button
                 type="button"
                 onClick={onClear}
-                aria-label="Clear pasted content"
-                title="Clear"
+                aria-label={t("clearPastedAria")}
+                title={t("clear")}
                 className="focus-ring inline-flex h-6 w-6 items-center justify-center rounded-md text-coral hover:bg-coral/10"
               >
                 <X className="h-3.5 w-3.5" aria-hidden />

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { FileText, UploadCloud, X } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { ACCEPT_EXTENSIONS, MAX_FILE_HINT } from "@/app/_lib/upload-constraints";
 import { formatFileSize } from "./AnalyzeApi";
 import { ownedDropZoneProps } from "./dropRouting";
@@ -22,6 +23,7 @@ export function AnalyzeFileDropZone({
   onRemove: () => void;
   hint?: string;
 }) {
+  const t = useTranslations("analyze");
   const [isOver, setIsOver] = useState(false);
   // The shared intake gate: every File below is handed to `accept(file, commit)`
   // so a bad drop/select (wrong type or >8 MB) surfaces inline instead of only
@@ -48,16 +50,16 @@ export function AnalyzeFileDropZone({
           <label
             htmlFor={inputId}
             className="focus-ring inline-flex h-7 cursor-pointer items-center justify-center rounded-md border border-stone-300 bg-white px-2 text-sm font-semibold text-ink hover:bg-stone-50"
-            title="Replace"
+            title={t("replace")}
           >
-            Replace
+            {t("replace")}
           </label>
           <button
             type="button"
             onClick={onRemove}
             className="focus-ring inline-flex h-7 w-7 items-center justify-center rounded-md border border-stone-300 bg-white text-ink hover:bg-stone-50"
-            title="Remove"
-            aria-label="Remove file"
+            title={t("remove")}
+            aria-label={t("removeFileAria")}
           >
             <X className="h-3 w-3" aria-hidden />
           </button>
@@ -110,7 +112,7 @@ export function AnalyzeFileDropZone({
       >
         <UploadCloud className={`h-5 w-5 ${isOver ? "text-coral" : "text-steel"}`} aria-hidden />
         <span className="mt-1 text-sm font-semibold text-ink">
-          {isOver ? "Drop here" : "Drop file or click"}
+          {isOver ? t("dropHere") : t("dropFileOrClick")}
         </span>
         <span className="text-sm text-steel">{hint}</span>
       </label>

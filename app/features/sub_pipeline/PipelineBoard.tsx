@@ -2,7 +2,9 @@
 
 import { useRef, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { needsHumanDecision } from "@/app/_lib/approval-kinds";
+import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { CandidateRow, Legend } from "./PipelineShared";
 import { STAGE_HELP, STAGES, type Entry } from "./PipelineTypes";
 
@@ -46,6 +48,7 @@ function StageCell({
   openProfile: (e: Entry) => void;
   openActions: (e: Entry) => void;
 }) {
+  const t = useTranslations("pipeline");
   const [expanded, setExpanded] = useState(false);
   const overflow = entries.length - CELL_LIMIT;
   const visible = expanded ? entries : entries.slice(0, CELL_LIMIT);
@@ -68,7 +71,7 @@ function StageCell({
           aria-expanded={expanded}
           className="focus-ring w-full rounded px-1 text-left text-sm font-semibold text-steel hover:text-coral"
         >
-          {expanded ? "Show fewer" : `+${overflow} more`}
+          {expanded ? t("board.showFewer") : t("board.moreCount", { count: overflow })}
         </button>
       ) : null}
       {entries.length === 0 ? <span className="px-1 text-sm text-stone-300">·</span> : null}
@@ -93,6 +96,14 @@ export function PipelineBoard({
   openJob: (jobId: string) => void;
   openActions: (e: Entry) => void;
 }) {
+  const t = useTranslations("pipeline");
+  const enumLabel = useEnumLabel();
+  // Stage help tooltip: catalog `stageHelp.<stage>`, falling back to the English
+  // STAGE_HELP source (then the raw stage) for any unmapped stage.
+  const stageHelp = (s: string): string => {
+    const k = `stageHelp.${s}` as Parameters<typeof t>[0];
+    return t.has(k) ? t(k) : STAGE_HELP[s] ?? s;
+  };
   const scrollRef = useRef<HTMLDivElement>(null);
 
   // Click a stage header to glide that column to the centre of the viewport, so
@@ -120,14 +131,14 @@ export function PipelineBoard({
   return (
     <section className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h3 className="text-meta uppercase tracking-wide text-steel">Positions</h3>
+        <h3 className="text-meta uppercase tracking-wide text-steel">{t("board.positions")}</h3>
         <div className="flex items-center gap-2">
-          <span className="hidden text-sm text-steel sm:inline">Click a stage header to centre it · scroll to move across the pipeline</span>
+          <span className="hidden text-sm text-steel sm:inline">{t("board.scrollHint")}</span>
           <div className="flex items-center gap-1">
             <button
               type="button"
               onClick={() => scrollByColumn(-1)}
-              aria-label="Scroll one stage left"
+              aria-label={t("board.scrollLeft")}
               className="focus-ring inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded-md border border-stone-200 text-steel transition-colors hover:border-coral/40 hover:bg-stone-100 hover:text-coral"
             >
               <ChevronLeft size={16} />
@@ -135,7 +146,7 @@ export function PipelineBoard({
             <button
               type="button"
               onClick={() => scrollByColumn(1)}
-              aria-label="Scroll one stage right"
+              aria-label={t("board.scrollRight")}
               className="focus-ring inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded-md border border-stone-200 text-steel transition-colors hover:border-coral/40 hover:bg-stone-100 hover:text-coral"
             >
               <ChevronRight size={16} />
@@ -147,22 +158,22 @@ export function PipelineBoard({
         ref={scrollRef}
         tabIndex={0}
         role="region"
-        aria-label="Pipeline board, scroll horizontally"
+        aria-label={t("board.boardAria")}
         className="focus-ring overflow-x-auto rounded-lg border border-stone-200 bg-white shadow-panel"
       >
         <div style={BOARD_MIN_WIDTH}>
           <div className="grid border-b border-stone-200 bg-paper" style={BOARD_GRID}>
-            <div className="sticky left-0 z-20 border-r border-stone-200 bg-paper px-3 py-2 text-meta uppercase text-steel">Position</div>
+            <div className="sticky left-0 z-20 border-r border-stone-200 bg-paper px-3 py-2 text-meta uppercase text-steel">{t("board.position")}</div>
             {STAGES.map((s, i) => (
               <button
                 key={s}
                 type="button"
                 data-stage-header
                 onClick={centerColumn}
-                title={STAGE_HELP[s] ?? s}
+                title={stageHelp(s)}
                 className="focus-ring cursor-pointer border-r border-stone-200 px-3 py-2 text-center text-meta uppercase text-steel transition-colors last:border-0 hover:bg-stone-100 hover:text-coral"
               >
-                <span className="text-stone-400">{i + 1}.</span> {s}
+                <span className="text-stone-400">{i + 1}.</span> {enumLabel("stage", s)}
               </button>
             ))}
           </div>
@@ -178,18 +189,18 @@ export function PipelineBoard({
                   <button
                     type="button"
                     onClick={() => openJob(pos.id)}
-                    title="Open the job description"
+                    title={t("board.openJd")}
                     className="focus-ring text-left text-base font-semibold leading-tight text-ink hover:text-coral"
                   >
                     {pos.title}
                   </button>
-                  <p className="text-sm text-steel">{pos.count} active</p>
+                  <p className="text-sm text-steel">{t("board.active", { count: pos.count })}</p>
                   <button
                     type="button"
                     onClick={() => openPositionRanking(pos.id)}
                     className="focus-ring mt-1 text-sm font-semibold text-coral hover:underline"
                   >
-                    Rank candidates →
+                    {t("board.rankCandidates")}
                   </button>
                 </div>
                 {STAGES.map((stage, i) => {

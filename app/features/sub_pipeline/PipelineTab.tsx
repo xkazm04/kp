@@ -3,15 +3,17 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AlertTriangle, BookmarkPlus, Sparkles, Timer, X } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { buildUrl } from "@/app/features/tabs";
 import { useTasks } from "@/app/features/tasks/TasksProvider";
 import { useLiveRefresh } from "@/app/features/live-refresh";
 import { needsHumanDecision } from "@/app/_lib/approval-kinds";
+import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { CandidateDrawer } from "./CandidateDrawer";
 import { PipelineBoard } from "./PipelineBoard";
 import { SchedulerControl } from "./SchedulerControl";
-import { EventDot, eventVerb } from "./PipelineShared";
-import { daysSince, relativeTime, slaForStage, STAGE_SLA_DEFAULTS, STAGES, type Entry, type PipelineEvent } from "./PipelineTypes";
+import { EventDot, useEventVerb, useRelativeTime } from "./PipelineShared";
+import { daysSince, slaForStage, STAGE_SLA_DEFAULTS, STAGES, type Entry, type PipelineEvent } from "./PipelineTypes";
 
 // Compact header stat: label over value, optionally clickable. Replaces the old
 // full-width Kpi card grid — the same numbers now live as a tight cluster in the
@@ -72,6 +74,10 @@ const PIPELINE_SLA_KEY = "kp.pipelineStageSla"; // per-stage aging overrides (PI
 export function PipelineTab() {
   const router = useRouter();
   const search = useSearchParams();
+  const t = useTranslations("pipeline.tab");
+  const enumLabel = useEnumLabel();
+  const eventVerb = useEventVerb();
+  const relativeTime = useRelativeTime();
   const [entries, setEntries] = useState<Entry[] | null>(null);
   const [events, setEvents] = useState<PipelineEvent[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -171,7 +177,7 @@ export function PipelineTab() {
       })
       .catch((e) => {
         if (signal.aborted) return; // ignore aborted/stale failures
-        setError(e instanceof Error ? e.message : "Failed to load pipeline.");
+        setError(e instanceof Error ? e.message : t("loadFailed"));
       });
     const since = eventsCursorRef.current;
     fetch(since == null ? "/api/pipeline/events" : `/api/pipeline/events?since=${since}`, { signal })
@@ -196,9 +202,9 @@ export function PipelineTab() {
       })
       .catch(() => {
         if (signal.aborted) return;
-        setEventsError("Couldn't load recent activity.");
+        setEventsError(t("eventsError"));
       });
-  }, []);
+  }, [t]);
   useEffect(() => {
     load();
     return () => abortRef.current?.abort(); // drop in-flight fetches on unmount
@@ -272,7 +278,7 @@ export function PipelineTab() {
   const activeViewId = views.find((v) => v.query === query && v.quick === quick)?.id ?? null;
   const saveView = () => {
     const suggested = query.trim() || (quick ? quick : "view");
-    const name = window.prompt("Name this view", suggested)?.trim();
+    const name = window.prompt(t("saveViewPrompt"), suggested)?.trim();
     if (!name) return;
     persistViews([...views.filter((v) => v.name !== name), { id: name, name, query, quick }]);
   };
@@ -314,10 +320,10 @@ export function PipelineTab() {
       } else {
         // A failing pass used to read identically to a successful no-op (empty
         // else, no catch) — the operator believed the funnel was processed.
-        setError(p?.error ?? "Automation pass failed.");
+        setError(t("passFailed"));
       }
     } catch {
-      setError("Automation pass failed — couldn't reach the server.");
+      setError(t("passFailedNetwork"));
     } finally {
       setRunning(false);
     }
@@ -327,34 +333,31 @@ export function PipelineTab() {
     <div className="stagger-children space-y-6" aria-busy={entries == null}>
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <p className="text-meta uppercase text-coral">Pipeline</p>
-          <h2 className="mt-1 font-serif text-display text-ink">Hiring pipeline</h2>
-          <p className="mt-1 max-w-2xl text-body text-steel">
-            Live view of candidates moving through open positions. Items that need a human decision
-            surface at the top — approve or reject, or confirm a proposed interview slot.
-          </p>
+          <p className="text-meta uppercase text-coral">{t("eyebrow")}</p>
+          <h2 className="mt-1 font-serif text-display text-ink">{t("title")}</h2>
+          <p className="mt-1 max-w-2xl text-body text-steel">{t("intro")}</p>
         </div>
         {entries && entries.length > 0 ? (
           <div className="flex flex-wrap items-stretch gap-1.5">
-            <StatChip label="Positions" value={positions.length} />
-            <StatChip label="Active" value={activeCount} />
-            <StatChip label="Interview" value={interviewCount} />
+            <StatChip label={t("statPositions")} value={positions.length} />
+            <StatChip label={t("statActive")} value={activeCount} />
+            <StatChip label={t("statInterview")} value={interviewCount} />
             <StatChip
-              label="Aging"
+              label={t("statAging")}
               value={staleCount}
               tone={staleCount > 0 ? "amber" : "neutral"}
               onClick={staleCount > 0 ? () => toggleQuick("aging") : undefined}
             />
             {degradedCount > 0 ? (
               <StatChip
-                label="Needs intake"
+                label={t("statNeedsIntake")}
                 value={degradedCount}
                 tone="red"
                 onClick={() => setDrawerEntry(degraded[0])}
               />
             ) : null}
             <StatChip
-              label="Awaiting you"
+              label={t("statAwaitingYou")}
               value={approvals.length}
               tone={approvals.length > 0 ? "coral" : "neutral"}
               onClick={() => router.push(buildUrl({ tab: "decisions" }, search.toString()))}
@@ -370,41 +373,38 @@ export function PipelineTab() {
           onClick={() => startTask("batch_screen")}
           disabled={!!batch}
           className="focus-ring inline-flex h-9 items-center gap-1.5 rounded-md border border-coral/40 bg-coral/5 px-3 text-base font-semibold text-coral hover:bg-coral/10 disabled:opacity-60"
-          title="Background LLM task: screen every matched candidate (runs for minutes; keeps going as you navigate; survives refresh)"
+          title={t("batchTitle")}
         >
           <Sparkles size={14} />
-          {batch ? `Screening ${batch.progressDone}/${batch.progressTotal}…` : "AI-screen all matched"}
+          {batch ? t("batchScreening", { done: batch.progressDone, total: batch.progressTotal }) : t("batchScreenAll")}
         </button>
         <button
           type="button"
           onClick={runPass}
           disabled={running}
           className="focus-ring inline-flex h-9 items-center gap-1.5 rounded-md bg-ink px-3 text-base font-semibold text-white hover:opacity-90 disabled:opacity-50"
-          title="Deterministic policy pass: auto-advance strong BAU matches, hold early-career for a human, flag aging"
+          title={t("runPassTitle")}
         >
-          {running ? "Running pass…" : "▷ Run automation pass"}
+          {running ? t("runningPass") : t("runPass")}
         </button>
         <SchedulerControl onRan={load} className="flex-1 min-w-[20rem]" />
       </div>
 
       {passSummary ? (
         <div className="animate-fade-in rounded-md border border-moss/30 bg-moss/5 px-4 py-2 text-base text-ink">
-          Automation pass · <span className="font-semibold text-moss">{passSummary.advanced} advanced</span> ·{" "}
-          <span className="font-semibold">{passSummary.rejected} rejected</span> · {passSummary.held} held for review ·{" "}
-          {passSummary.alerts} aging alerts logged.{" "}
-          <span className="text-steel">Early-career candidates are always held for a human.</span>
+          {t("passSummaryLead")} · <span className="font-semibold text-moss">{t("passAdvanced", { n: passSummary.advanced })}</span> ·{" "}
+          <span className="font-semibold">{t("passRejected", { n: passSummary.rejected })}</span> · {t("passHeld", { n: passSummary.held })} ·{" "}
+          {t("passAlerts", { n: passSummary.alerts })}{" "}
+          <span className="text-steel">{t("passEarlyCareer")}</span>
         </div>
       ) : null}
 
       {error ? (
         <p role="alert" className="rounded-md bg-red-50 p-3 text-base text-red-700">{error}</p>
       ) : entries == null ? (
-        <p role="status" className="text-base text-steel">Loading…</p>
+        <p role="status" className="text-base text-steel">{t("loading")}</p>
       ) : entries.length === 0 ? (
-        <p className="rounded-lg border border-stone-200 bg-paper p-4 text-base text-steel">
-          No candidates in the pipeline yet. Seed the candidate population and pipeline (see the data-population
-          step), or build a profile and match it.
-        </p>
+        <p className="rounded-lg border border-stone-200 bg-paper p-4 text-base text-steel">{t("empty")}</p>
       ) : (
         <>
           {degradedCount > 0 ? (
@@ -416,12 +416,11 @@ export function PipelineTab() {
               <span className="flex min-w-0 items-center gap-2 text-base text-ink">
                 <AlertTriangle size={16} className="shrink-0 text-red-600" aria-hidden />
                 <span>
-                  <span className="font-semibold text-red-700">{degradedCount} application{degradedCount === 1 ? "" : "s"}</span>{" "}
-                  couldn&apos;t be auto-profiled and {degradedCount === 1 ? "is" : "are"} a non-matchable stub — capture
-                  the profile manually so they re-enter matching.
+                  <span className="font-semibold text-red-700">{t("degradedBannerCount", { count: degradedCount })}</span>{" "}
+                  {t("degradedBannerBody", { count: degradedCount })}
                 </span>
               </span>
-              <span className="shrink-0 text-base font-semibold text-red-700">Review →</span>
+              <span className="shrink-0 text-base font-semibold text-red-700">{t("review")}</span>
             </button>
           ) : null}
 
@@ -432,29 +431,29 @@ export function PipelineTab() {
               className="focus-ring flex w-full items-center justify-between rounded-lg border border-coral/30 bg-coral/5 px-4 py-3 text-left hover:bg-coral/10"
             >
               <span className="text-base text-ink">
-                <span className="font-semibold text-coral">{approvals.length} candidates</span> need your decision —
-                advance, reject, or confirm an interview slot.
+                <span className="font-semibold text-coral">{t("approvalsCount", { count: approvals.length })}</span>{" "}
+                {t("approvalsBody")}
               </span>
-              <span className="text-base font-semibold text-coral">Open Decisions →</span>
+              <span className="text-base font-semibold text-coral">{t("openDecisions")}</span>
             </button>
           ) : null}
 
           <div className="flex flex-wrap items-center gap-2">
-            <label htmlFor="pipeline-search" className="sr-only">Search candidates or roles</label>
+            <label htmlFor="pipeline-search" className="sr-only">{t("searchLabel")}</label>
             <input
               id="pipeline-search"
               type="search"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search candidate or role…"
+              placeholder={t("searchPlaceholder")}
               className="focus-ring h-9 min-w-[200px] flex-1 rounded-md border border-stone-200 px-3 text-base"
             />
             {(
               [
-                ["interview", "Interview"],
-                ["aging", "Aging"],
-                ["awaiting", "Awaiting decision"],
-                ["intake", "Needs intake"],
+                ["interview", t("filterInterview")],
+                ["aging", t("filterAging")],
+                ["awaiting", t("filterAwaiting")],
+                ["intake", t("filterIntake")],
               ] as [QuickFilter, string][]
             ).map(([f, label]) => (
               <button
@@ -471,7 +470,7 @@ export function PipelineTab() {
             ))}
             {filtering ? (
               <span className="text-sm text-steel" aria-live="polite">
-                Showing {filteredEntries.length} of {(entries ?? []).length}
+                {t("showingCount", { shown: filteredEntries.length, total: (entries ?? []).length })}
               </span>
             ) : null}
             {filtering ? (
@@ -480,7 +479,7 @@ export function PipelineTab() {
                 onClick={clearFilters}
                 className="focus-ring inline-flex items-center gap-1 rounded-full border border-coral/40 bg-coral/5 px-2.5 py-0.5 text-sm font-semibold text-coral hover:bg-coral/10"
               >
-                Clear
+                {t("clear")}
               </button>
             ) : null}
             {/* PIPE5: save the current combo as a named view (only when it isn't
@@ -491,7 +490,7 @@ export function PipelineTab() {
                 onClick={saveView}
                 className="focus-ring inline-flex items-center gap-1 rounded-full border border-stone-200 bg-white px-2.5 py-0.5 text-sm font-semibold text-steel hover:border-coral/40 hover:text-ink"
               >
-                <BookmarkPlus size={13} /> Save view
+                <BookmarkPlus size={13} /> {t("saveView")}
               </button>
             ) : null}
             {/* PIPE4: tune the per-stage aging thresholds for this board. */}
@@ -502,18 +501,18 @@ export function PipelineTab() {
               className={`focus-ring ml-auto inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-sm font-semibold ${
                 editingSla ? "border-coral bg-coral/10 text-coral" : "border-stone-200 bg-white text-steel hover:border-coral/40 hover:text-ink"
               }`}
-              title="Set how long a candidate may sit in each stage before it flags as aging"
+              title={t("agingSlasTitle")}
             >
-              <Timer size={13} /> Aging SLAs
+              <Timer size={13} /> {t("agingSlas")}
             </button>
           </div>
 
           {editingSla ? (
             <div className="flex flex-wrap items-end gap-3 rounded-md border border-stone-200 bg-paper px-3 py-2">
-              <span className="text-meta uppercase tracking-wide text-steel">Days before aging, per stage</span>
+              <span className="text-meta uppercase tracking-wide text-steel">{t("slaEditorTitle")}</span>
               {STAGES.filter((s) => s !== "Hired").map((stage) => (
                 <label key={stage} className="flex flex-col text-meta text-steel">
-                  {stage}
+                  {enumLabel("stage", stage)}
                   <input
                     type="number"
                     min={1}
@@ -528,13 +527,13 @@ export function PipelineTab() {
                   />
                 </label>
               ))}
-              <span className="text-meta text-steel">Blank = default. Saved for this browser.</span>
+              <span className="text-meta text-steel">{t("slaEditorNote")}</span>
             </div>
           ) : null}
 
           {views.length > 0 ? (
             <div className="flex flex-wrap items-center gap-1.5">
-              <span className="text-meta uppercase tracking-wide text-steel">Views</span>
+              <span className="text-meta uppercase tracking-wide text-steel">{t("views")}</span>
               {views.map((v) => (
                 <span
                   key={v.id}
@@ -542,14 +541,14 @@ export function PipelineTab() {
                     activeViewId === v.id ? "border-coral bg-coral/10 text-coral" : "border-stone-200 bg-white text-steel"
                   }`}
                 >
-                  <button type="button" onClick={() => applyView(v)} className="focus-ring rounded hover:text-ink" title="Apply this view">
+                  <button type="button" onClick={() => applyView(v)} className="focus-ring rounded hover:text-ink" title={t("applyView")}>
                     {v.name}
                   </button>
                   <button
                     type="button"
                     onClick={() => deleteView(v.id)}
-                    aria-label={`Delete view ${v.name}`}
-                    title="Delete view"
+                    aria-label={t("deleteView", { name: v.name })}
+                    title={t("deleteViewTitle")}
                     className="focus-ring -mr-0.5 rounded text-steel hover:text-coral"
                   >
                     <X size={11} />
@@ -561,9 +560,9 @@ export function PipelineTab() {
 
           {filtering && filteredEntries.length === 0 ? (
             <p className="rounded-lg border border-stone-200 bg-paper p-4 text-base text-steel">
-              No candidates match your search or filter.{" "}
+              {t("noMatch")}{" "}
               <button type="button" onClick={clearFilters} className="font-semibold text-coral underline underline-offset-2">
-                Clear filters
+                {t("clearFilters")}
               </button>
             </p>
           ) : (
@@ -582,7 +581,7 @@ export function PipelineTab() {
 
           {eventsError || events.length > 0 ? (
             <section className="space-y-2">
-              <h3 className="text-meta uppercase tracking-wide text-steel">Activity</h3>
+              <h3 className="text-meta uppercase tracking-wide text-steel">{t("activity")}</h3>
               {/* A failed events fetch shows a low-key note so a broken feed is
                   observable and never masquerades as "no activity yet". */}
               {eventsError ? (
@@ -596,7 +595,7 @@ export function PipelineTab() {
                     <li key={ev.id} className="flex items-center gap-3 px-3 py-2 text-base">
                       <EventDot kind={ev.kind} />
                       <span className="min-w-0 flex-1 truncate text-ink">
-                        <span className="font-medium">{ev.candidateLabel ?? "Candidate"}</span>{" "}
+                        <span className="font-medium">{ev.candidateLabel ?? t("candidateFallback")}</span>{" "}
                         <span className="text-steel">{eventVerb(ev)}</span>{" "}
                         {ev.jobTitle ? <span className="text-steel">· {ev.jobTitle}</span> : null}
                       </span>

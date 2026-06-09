@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { BarChart3, Check, Copy, FileText, History, Link2, Scale } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { Modal } from "@/app/_components/Modal";
 import { Markdown } from "@/app/_components/Markdown";
 import { publicBaseUrl } from "@/app/_lib/public-base-url";
@@ -16,6 +17,7 @@ import type { Job } from "./JobsTypes";
 // Clicking a job opens this: a publish-ready posting (Markdown) with a copy
 // action, plus the candidate ranking for the role in a second tab.
 export function JobPostingModal({ job, onClose }: { job: Job; onClose: () => void }) {
+  const t = useTranslations("jobs.posting");
   const router = useRouter();
   const search = useSearchParams();
   const [tab, setTab] = useState<"posting" | "candidates" | "rediscover" | "compare">("posting");
@@ -59,32 +61,32 @@ export function JobPostingModal({ job, onClose }: { job: Job; onClose: () => voi
             onClick={copyApplyLink}
             className="focus-ring inline-flex h-9 items-center gap-1 rounded-md border border-stone-200 px-3 text-sm font-semibold text-ink hover:border-coral/40"
           >
-            {applyCopied ? <Check size={14} /> : <Link2 size={14} />} {applyCopied ? "Copied" : "Apply link"}
+            {applyCopied ? <Check size={14} /> : <Link2 size={14} />} {applyCopied ? t("copied") : t("applyLink")}
           </button>
           <button
             type="button"
             onClick={() => router.push(buildUrl({ tab: "matrix", job: job.id }, search.toString()))}
             className="focus-ring inline-flex h-9 items-center gap-1 rounded-md border border-stone-200 px-3 text-sm font-semibold text-ink hover:border-coral/40"
           >
-            <BarChart3 size={14} /> Rank in matrix
+            <BarChart3 size={14} /> {t("rankInMatrix")}
           </button>
           <button
             type="button"
             onClick={copy}
             className="focus-ring inline-flex h-9 items-center gap-1 rounded-md bg-ink px-3 text-sm font-semibold text-white hover:bg-steel"
           >
-            {copied ? <Check size={14} /> : <Copy size={14} />} {copied ? "Copied" : "Copy markdown"}
+            {copied ? <Check size={14} /> : <Copy size={14} />} {copied ? t("copied") : t("copyMarkdown")}
           </button>
         </>
       }
     >
-      <div role="tablist" aria-label="Job views" className="mb-3 flex gap-1 border-b border-stone-200">
+      <div role="tablist" aria-label={t("viewsAria")} className="mb-3 flex gap-1 border-b border-stone-200">
         {([
-          ["posting", "Posting", FileText],
-          ["candidates", "Candidates", BarChart3],
-          ["rediscover", "Rediscover", History],
-          ["compare", "Compare", Scale],
-        ] as const).map(([id, label, Icon]) => (
+          ["posting", "tabPosting", FileText],
+          ["candidates", "tabCandidates", BarChart3],
+          ["rediscover", "tabRediscover", History],
+          ["compare", "tabCompare", Scale],
+        ] as const).map(([id, labelKey, Icon]) => (
           <button
             key={id}
             type="button"
@@ -97,7 +99,7 @@ export function JobPostingModal({ job, onClose }: { job: Job; onClose: () => voi
               tab === id ? "border-coral text-coral" : "border-transparent text-steel hover:text-ink"
             }`}
           >
-            <Icon size={14} /> {label}
+            <Icon size={14} /> {t(labelKey)}
           </button>
         ))}
       </div>

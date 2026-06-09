@@ -3,7 +3,9 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { AiDisclosure } from "@/app/_components/AiDisclosure";
+import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { initials } from "@/app/_lib/initials";
 
 type OfferView = {
@@ -21,6 +23,9 @@ type OfferView = {
 export default function OfferPage() {
   const params = useParams<{ token: string }>();
   const token = params?.token;
+  const t = useTranslations("offer");
+  const tCommon = useTranslations("common");
+  const errMsg = useErrorMessage();
   const [offer, setOffer] = useState<OfferView | null>(null);
   // Two distinct failure modes, deliberately separated: a GET load failure has nothing to show,
   // so it replaces the whole card; a POST response failure surfaces as an inline banner that
@@ -51,8 +56,8 @@ export default function OfferPage() {
         setOffer(p.offer as OfferView);
         if (p.offer?.status === "accepted" || p.offer?.status === "declined") setResult(p.offer.status);
       })
-      .catch((e) => setLoadError(e instanceof Error ? e.message : "Could not load this offer."));
-  }, [token]);
+      .catch(() => setLoadError(t("loadFailed")));
+  }, [token, t]);
 
   const respond = async (response: "accept" | "decline") => {
     setPending(response);
@@ -64,10 +69,15 @@ export default function OfferPage() {
         body: JSON.stringify({ response }),
       });
       const p = await r.json();
-      if (!r.ok) throw new Error(p.error ?? "Could not record your response.");
+      if (!r.ok) {
+        // Prefer the server's stable error `code` (localized via the errors
+        // catalog); fall back to the page's own localized respond-failed message.
+        setResponseError(errMsg(p, t("respondFailed")));
+        return;
+      }
       setResult(p.status as "accepted" | "declined");
-    } catch (e) {
-      setResponseError(e instanceof Error ? e.message : "Could not record your response.");
+    } catch {
+      setResponseError(t("respondFailed"));
     } finally {
       setPending(null);
     }
@@ -82,7 +92,7 @@ export default function OfferPage() {
         {loadError ? (
           <p className="rounded-md bg-red-50 p-3 text-sm text-red-700">{loadError}</p>
         ) : !offer ? (
-          <p className="text-center text-sm text-steel">Loading…</p>
+          <p className="text-center text-sm text-steel">{tCommon("loading")}</p>
         ) : (
           <>
             {offer.company ? (
@@ -95,21 +105,23 @@ export default function OfferPage() {
                   {initials(offer.company, "•")}
                 </span>
                 <div className="min-w-0">
-                  <p className="text-meta uppercase tracking-wide text-coral">Your offer</p>
+                  <p className="text-meta uppercase tracking-wide text-coral">{t("eyebrow")}</p>
                   <p className="truncate font-serif text-lg text-ink">{offer.company}</p>
                 </div>
               </header>
             ) : (
-              <p className="text-meta uppercase tracking-wide text-coral">Your offer</p>
+              <p className="text-meta uppercase tracking-wide text-coral">{t("eyebrow")}</p>
             )}
             <h1 className="mt-4 font-serif text-2xl text-ink">
-              {offer.jobTitle ?? (offer.company ? `A role at ${offer.company}` : "A role with us")}
+              {offer.jobTitle ?? (offer.company ? t("roleAt", { company: offer.company }) : t("roleGeneric"))}
             </h1>
-            {offer.candidateLabel ? <p className="mt-1 text-sm text-steel">Prepared for {offer.candidateLabel}</p> : null}
+            {offer.candidateLabel ? (
+              <p className="mt-1 text-sm text-steel">{t("preparedFor", { name: offer.candidateLabel })}</p>
+            ) : null}
 
             {offer.salary ? (
               <div className="mt-4 rounded-lg border border-stone-200 bg-paper/60 p-4">
-                <p className="text-meta uppercase tracking-wide text-steel">Proposed compensation</p>
+                <p className="text-meta uppercase tracking-wide text-steel">{t("compensation")}</p>
                 <p className="mt-0.5 font-serif text-3xl text-ink">
                   {offer.salary.toLocaleString()} <span className="text-lg text-steel">{offer.currency ?? "CZK"}</span>
                 </p>
@@ -118,21 +130,20 @@ export default function OfferPage() {
 
             {result === "accepted" ? (
               <div className="mt-6 rounded-lg bg-moss/10 p-4 text-center">
-                <p className="text-lg font-semibold text-moss">🎉 Offer accepted</p>
+                <p className="text-lg font-semibold text-moss">{t("acceptedTitle")}</p>
                 <p className="mt-1 text-sm text-steel">
-                  {offer.company ? `Welcome to ${offer.company}!` : "Wonderful — welcome aboard!"} Our People team will be in
-                  touch shortly with your onboarding details.
+                  {offer.company ? t("acceptedBodyCompany", { company: offer.company }) : t("acceptedBodyGeneric")}
                 </p>
               </div>
             ) : result === "declined" ? (
               <div className="mt-6 rounded-lg bg-stone-100 p-4 text-center">
-                <p className="text-base font-semibold text-ink">Response recorded</p>
-                <p className="mt-1 text-sm text-steel">Thank you for letting us know. We wish you all the best.</p>
+                <p className="text-base font-semibold text-ink">{t("declinedTitle")}</p>
+                <p className="mt-1 text-sm text-steel">{t("declinedBody")}</p>
               </div>
             ) : (
               <>
                 <p className="mt-5 text-sm text-steel">
-                  We&apos;d be thrilled to have you join {offer.company ?? "us"}. Please let us know your decision below.
+                  {offer.company ? t("prompt", { company: offer.company }) : t("promptGeneric")}
                 </p>
                 {/* POST failure: inline + retryable. The card and buttons below stay put. */}
                 {responseError ? (
@@ -151,10 +162,10 @@ export default function OfferPage() {
                     className="mt-4 rounded-lg border border-coral/30 bg-coral/5 p-4"
                   >
                     <p id="decline-confirm-title" className="text-base font-semibold text-ink">
-                      Decline this offer?
+                      {t("declineConfirmTitle")}
                     </p>
                     <p id="decline-confirm-desc" className="mt-0.5 text-sm text-steel">
-                      This cannot be undone.
+                      {t("declineConfirmBody")}
                     </p>
                     <div className="mt-3 flex gap-3">
                       <button
@@ -168,10 +179,10 @@ export default function OfferPage() {
                         {pending === "decline" ? (
                           <>
                             <Loader2 size={16} className="animate-spin" aria-hidden="true" />
-                            Recording…
+                            {t("recording")}
                           </>
                         ) : (
-                          "Confirm"
+                          t("confirm")
                         )}
                       </button>
                       <button
@@ -181,7 +192,7 @@ export default function OfferPage() {
                         disabled={pending !== null}
                         className="focus-ring inline-flex h-11 items-center justify-center rounded-md border border-stone-200 px-4 text-base font-semibold text-steel transition-opacity hover:bg-stone-50 disabled:opacity-60"
                       >
-                        Go back
+                        {t("goBack")}
                       </button>
                     </div>
                   </div>
@@ -200,10 +211,10 @@ export default function OfferPage() {
                       {pending === "accept" ? (
                         <>
                           <Loader2 size={16} className="animate-spin" aria-hidden="true" />
-                          Recording…
+                          {t("recording")}
                         </>
                       ) : (
-                        "Accept offer"
+                        t("accept")
                       )}
                     </button>
                     <button
@@ -214,7 +225,7 @@ export default function OfferPage() {
                         pending === "accept" ? "opacity-40" : ""
                       }`}
                     >
-                      Decline
+                      {t("decline")}
                     </button>
                   </div>
                 )}

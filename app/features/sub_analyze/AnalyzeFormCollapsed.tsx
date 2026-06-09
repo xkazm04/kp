@@ -1,6 +1,7 @@
 "use client";
 
 import { ChevronDown, FileText, RotateCcw } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { ScanAnimationCompact } from "@/app/_components/ScanAnimation";
 import type { AnalyzeFormState } from "./useAnalyzeForm";
 
@@ -11,10 +12,11 @@ export function AnalyzeFormCollapsed({
   state: AnalyzeFormState;
   onExpand: () => void;
 }) {
+  const t = useTranslations("analyze");
   const { inputs, flags, statuses, handlers } = state;
   const isAnalyzing = flags.isLoading || flags.isCompleting;
 
-  const summary = buildSummary({
+  const summary = buildSummary(t, {
     cvFiles: inputs.cvFiles,
     jobAttached: statuses.jobStatus.tone === "attached",
     jobLabel: statuses.jobStatus.label,
@@ -34,14 +36,14 @@ export function AnalyzeFormCollapsed({
             <FileText className="h-4 w-4 text-coral" aria-hidden />
           )}
           <span className="text-base font-semibold text-ink">
-            {isAnalyzing ? "Analyzing…" : "Analyze profile"}
+            {isAnalyzing ? t("analyzing") : t("analyzeProfile")}
           </span>
         </div>
         <p
           className="min-w-0 flex-1 truncate text-sm text-steel"
           title={summary || undefined}
         >
-          {summary || "No inputs attached"}
+          {summary || t("noInputs")}
         </p>
         <div className="flex shrink-0 items-center gap-2">
           <button
@@ -49,20 +51,20 @@ export function AnalyzeFormCollapsed({
             onClick={onExpand}
             disabled={isAnalyzing}
             className="focus-ring inline-flex h-8 items-center gap-1.5 rounded-md border border-stone-300 bg-white px-2.5 text-sm font-semibold text-ink hover:bg-stone-50 disabled:cursor-not-allowed disabled:opacity-60"
-            title={isAnalyzing ? "Wait for analysis to finish" : "Edit form"}
+            title={isAnalyzing ? t("waitForAnalysis") : t("editForm")}
           >
             <ChevronDown className="h-3.5 w-3.5" aria-hidden />
-            Edit
+            {t("edit")}
           </button>
           <button
             type="button"
             onClick={handlers.reset}
             disabled={isAnalyzing}
             className="focus-ring inline-flex h-8 items-center gap-1.5 rounded-md border border-stone-300 bg-white px-2.5 text-sm font-semibold text-ink hover:bg-stone-50 disabled:cursor-not-allowed disabled:opacity-60"
-            title="Reset and start over"
+            title={t("resetTitle")}
           >
             <RotateCcw className="h-3.5 w-3.5" aria-hidden />
-            Reset
+            {t("reset")}
           </button>
         </div>
       </div>
@@ -70,20 +72,23 @@ export function AnalyzeFormCollapsed({
   );
 }
 
-function buildSummary(args: {
-  cvFiles: File[];
-  jobAttached: boolean;
-  jobLabel: string;
-  companyAttached: boolean;
-  companyLabel: string;
-  githubAttached: boolean;
-  githubLabel: string;
-}): string {
+function buildSummary(
+  t: ReturnType<typeof useTranslations<"analyze">>,
+  args: {
+    cvFiles: File[];
+    jobAttached: boolean;
+    jobLabel: string;
+    companyAttached: boolean;
+    companyLabel: string;
+    githubAttached: boolean;
+    githubLabel: string;
+  }
+): string {
   const parts: string[] = [];
   if (args.cvFiles.length === 1) parts.push(args.cvFiles[0].name);
-  else if (args.cvFiles.length > 1) parts.push(`${args.cvFiles.length} CV variants`);
-  if (args.jobAttached) parts.push(`JD: ${args.jobLabel}`);
-  if (args.companyAttached) parts.push(`Company: ${args.companyLabel}`);
-  if (args.githubAttached) parts.push(`GitHub: ${args.githubLabel}`);
+  else if (args.cvFiles.length > 1) parts.push(t("cvVariants", { count: args.cvFiles.length }));
+  if (args.jobAttached) parts.push(t("summaryJd", { label: args.jobLabel }));
+  if (args.companyAttached) parts.push(t("summaryCompany", { label: args.companyLabel }));
+  if (args.githubAttached) parts.push(t("summaryGithub", { label: args.githubLabel }));
   return parts.join(" · ");
 }

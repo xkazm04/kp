@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { animate, motion, useMotionValue, useTransform } from "framer-motion";
 import { ArrowRight, Globe, Link2, Mail, Radio, Sparkles, UserPlus } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { buildUrl, type WorkspaceTabId } from "@/app/features/tabs";
 import { useLiveRefresh } from "@/app/features/live-refresh";
 import { Badge } from "@/app/_components/Badge";
@@ -36,18 +37,24 @@ function InboundCount({ value }: { value: number }) {
 // then flows into "Screened". Proactive sourcing ranks the pool in Match, but the
 // ranked candidates still ENTER at "Accepted" like everyone else. Keep each channel's
 // `desc` copy (and /api/sim/inbound's stage) saying "Accepted", never "Sourced".
-const CHANNELS: { id: string; icon: typeof Link2; name: string; status: string; live: boolean; desc: string; tab?: WorkspaceTabId; cta?: string }[] = [
-  { id: "apply", icon: Link2, name: "Careers page · Apply link", status: "Listening", live: true, desc: "A conversational apply link — submitted applications land at ‘Accepted’." },
-  { id: "email", icon: Mail, name: "Email intake", status: "Not configured", live: false, desc: "Forward applications@ to ingest CVs automatically." },
-  { id: "boards", icon: Globe, name: "Job boards", status: "Not configured", live: false, desc: "Syndicate a published JD to LinkedIn, jobs.cz, StackOverflow…" },
-  { id: "sourcing", icon: Sparkles, name: "Proactive sourcing", status: "Active", live: true, tab: "match", cta: "Open Match", desc: "Rank the candidate pool against the role in Match — proactively sourced candidates land at ‘Accepted’." },
-  { id: "manual", icon: UserPlus, name: "Manual add", status: "Recruiter", live: true, tab: "profile", cta: "Build a profile", desc: "Build a candidate profile by hand (Profile) and add them to a role." },
+// Structural channel definitions; display text (name/status/desc/cta) is resolved
+// from the `channels.items.<id>.*` catalog so it localizes. The `desc` copy must
+// keep saying "Accepted" (the entry stage) — see the ENTRY-STAGE RULE above.
+const CHANNELS: { id: string; icon: typeof Link2; live: boolean; tab?: WorkspaceTabId }[] = [
+  { id: "apply", icon: Link2, live: true },
+  { id: "email", icon: Mail, live: false },
+  { id: "boards", icon: Globe, live: false },
+  { id: "sourcing", icon: Sparkles, live: true, tab: "match" },
+  { id: "manual", icon: UserPlus, live: true, tab: "profile" },
 ];
 
 // Phase 2 — inbound channels & integrations. Where candidates ENTER the pipeline
 // (the front redesign): both inbound applications and proactively-sourced
 // candidates arrive at ‘Accepted’, then flow into ‘Screened’ (first-wave evaluation).
 export function ChannelsTab() {
+  const t = useTranslations("channels");
+  // Resolve a channel's display text from the catalog by id (e.g. items.apply.name).
+  const item = (id: string, key: string) => t(`items.${id}.${key}` as Parameters<typeof t>[0]);
   const router = useRouter();
   const search = useSearchParams();
   const [entries, setEntries] = useState<PipelineEntryView[]>([]);
@@ -72,7 +79,7 @@ export function ChannelsTab() {
   const simulate = async () => {
     const jobId = jobs[0]?.[0];
     if (!jobId) {
-      setNote({ text: "Source a JD into the Pipeline first — then applications can arrive.", ok: false });
+      setNote({ text: t("noJobNote"), ok: false });
       return;
     }
     setBusy(true);
@@ -80,11 +87,11 @@ export function ChannelsTab() {
     try {
       const r = await fetch("/api/sim/inbound", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ jobId }) });
       const p = await r.json();
-      if (!r.ok) throw new Error(p.error ?? "failed");
-      setNote({ text: `${p.label} applied → Accepted (match ${p.score}).`, ok: true });
+      if (!r.ok) throw new Error(p.error ?? t("failed"));
+      setNote({ text: t("appliedNote", { label: p.label, score: p.score }), ok: true });
       load();
     } catch (e) {
-      setNote({ text: e instanceof Error ? e.message : "Failed.", ok: false });
+      setNote({ text: e instanceof Error ? e.message : t("failed"), ok: false });
     } finally {
       setBusy(false);
     }
@@ -93,13 +100,13 @@ export function ChannelsTab() {
   return (
     <section data-sim="channels" className="space-y-6">
       <header>
-        <p className="text-meta uppercase text-coral">Workspace</p>
-        <h2 className="mt-1 font-serif text-display text-ink">Channels &amp; integrations</h2>
+        <p className="text-meta uppercase text-coral">{t("eyebrow")}</p>
+        <h2 className="mt-1 font-serif text-display text-ink">{t("title")}</h2>
         <p className="mt-2 max-w-2xl text-body text-steel">
-          Where candidates enter the pipeline. Both inbound <strong>applications</strong> and
-          proactively-sourced candidates arrive at{" "}
-          <span className="font-semibold text-ink">Accepted</span>, then flow into{" "}
-          <span className="font-semibold text-ink">Screened</span> for first-wave evaluation.
+          {t.rich("intro", {
+            b: (chunks) => <strong>{chunks}</strong>,
+            hl: (chunks) => <span className="font-semibold text-ink">{chunks}</span>,
+          })}
         </p>
       </header>
 
@@ -107,13 +114,16 @@ export function ChannelsTab() {
         <Radio size={18} className="text-moss" />
         {loaded ? (
           <span className="text-base text-ink">
-            <InboundCount value={accepted.length} /> application
-            {accepted.length === 1 ? "" : "s"} received → <span className="font-semibold">Accepted</span>
+            <InboundCount value={accepted.length} />{" "}
+            {t.rich("received", {
+              count: accepted.length,
+              hl: (chunks) => <span className="font-semibold">{chunks}</span>,
+            })}
           </span>
         ) : (
           <span
             role="status"
-            aria-label="Loading inbound applications"
+            aria-label={t("loadingInbound")}
             className="inline-block h-6 w-52 animate-pulse rounded bg-moss/20"
           />
         )}
@@ -122,7 +132,7 @@ export function ChannelsTab() {
           onClick={() => router.push(buildUrl({ tab: "pipeline" }, search.toString()))}
           className="focus-ring inline-flex items-center gap-1 text-base font-semibold text-coral hover:underline"
         >
-          Open Pipeline <ArrowRight size={14} />
+          {t("openPipeline")} <ArrowRight size={14} />
         </button>
       </div>
 
@@ -131,24 +141,24 @@ export function ChannelsTab() {
           <div key={c.id} className="rounded-lg border border-stone-200 bg-white p-4 shadow-panel">
             <div className="flex items-center justify-between gap-2">
               <span className="flex items-center gap-2 font-semibold text-ink">
-                <c.icon size={16} className="text-coral" /> {c.name}
+                <c.icon size={16} className="text-coral" /> {item(c.id, "name")}
               </span>
               <Badge
                 tone={c.live ? "positive" : "neutral"}
-                label={c.status}
+                label={item(c.id, "status")}
                 dot={c.live}
-                ariaLabel={`${c.name}: ${c.live ? "live" : "not configured"} — ${c.status}`}
+                ariaLabel={t(c.live ? "channelAriaLive" : "channelAriaOff", { name: item(c.id, "name"), status: item(c.id, "status") })}
                 className="shrink-0"
               />
             </div>
-            <p className="mt-1.5 text-sm text-steel">{c.desc}</p>
+            <p className="mt-1.5 text-sm text-steel">{item(c.id, "desc")}</p>
             {c.tab ? (
               <button
                 type="button"
                 onClick={() => router.push(buildUrl({ tab: c.tab! }, search.toString()))}
                 className="focus-ring mt-2 inline-flex items-center gap-1 text-sm font-semibold text-coral hover:underline"
               >
-                {c.cta ?? "Open"} <ArrowRight size={13} />
+                {t.has(`items.${c.id}.cta` as Parameters<typeof t>[0]) ? item(c.id, "cta") : t("open")} <ArrowRight size={13} />
               </button>
             ) : null}
           </div>
@@ -163,7 +173,7 @@ export function ChannelsTab() {
           disabled={busy}
           className="focus-ring inline-flex h-9 items-center gap-2 rounded-md bg-ink px-4 text-sm font-semibold text-white hover:bg-steel disabled:opacity-50"
         >
-          <Link2 size={15} /> {busy ? "Receiving…" : "Simulate an application"}
+          <Link2 size={15} /> {busy ? t("receiving") : t("simulate")}
         </button>
         {note ? (
           <span

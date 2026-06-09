@@ -2,12 +2,15 @@
 
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import type { AnalysisRow, MatchRef, MatchResponse, ProfileRow, WeightVector } from "./MatchTypes";
-import { ARCHETYPE_LABEL } from "./MatchTypes";
 import { Results } from "./Results";
 import { SegmentedControl } from "@/app/_components/SegmentedControl";
+import { useEnumLabel } from "@/app/_lib/use-enum-label";
 
 export function MatchTab() {
+  const t = useTranslations("match.tab");
+  const enumLabel = useEnumLabel();
   const [source, setSource] = useState<"profile" | "analysis">("profile");
   const [profiles, setProfiles] = useState<ProfileRow[]>([]);
   const [analyses, setAnalyses] = useState<AnalysisRow[]>([]);
@@ -60,11 +63,11 @@ export function MatchTab() {
         body: JSON.stringify({ ...ref, limit: 25, ...(weights ? { weights } : {}) }),
       });
       const payload = await r.json();
-      if (!r.ok) throw new Error(payload.error ?? `Match failed (${r.status}).`);
+      if (!r.ok) throw new Error(payload.error ?? t("matchFailedStatus", { status: r.status }));
       setResult(payload as MatchResponse);
       setMatchRef(ref);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Match failed.");
+      setError(caught instanceof Error ? caught.message : t("matchFailed"));
     } finally {
       setLoading(false);
     }
@@ -79,45 +82,42 @@ export function MatchTab() {
   // cascade a render before the first commit settles.
   useEffect(() => {
     if (!profileParam || autoRan) return;
-    const t = window.setTimeout(() => {
+    const timer = window.setTimeout(() => {
       setSource("profile");
       setSelProfile(profileParam);
       setAutoRan(true);
       void runMatchFor({ profileId: profileParam });
     }, 0);
-    return () => window.clearTimeout(t);
+    return () => window.clearTimeout(timer);
   }, [profileParam, autoRan]);
 
   return (
     <section className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
       <header className="border-b border-stone-200 pb-4">
-        <p className="text-meta uppercase text-coral">Workspace</p>
-        <h2 className="mt-1 font-serif text-display text-ink">Match candidate → jobs</h2>
+        <p className="text-meta uppercase text-coral">{t("eyebrow")}</p>
+        <h2 className="mt-1 font-serif text-display text-ink">{t("title")}</h2>
         <p className="mt-2 max-w-3xl text-body text-steel">
-          Run a candidate against the whole corpus. KO filters narrow it, a multi-factor scorer ranks the survivors,
-          and the per-match reasoning explains the fit. Student / career-switcher profiles are scored on a different
-          profile — <strong>potential replaces years of experience</strong>, skills are provenance-discounted, and
-          the KO filter keeps only entry-eligible roles.
+          {t.rich("intro", { strong: (chunks) => <strong>{chunks}</strong> })}
         </p>
       </header>
 
       <div className="mt-4 flex flex-wrap items-end gap-3">
         <div className="flex flex-col gap-1">
-          <span className="text-sm font-semibold uppercase tracking-wide text-steel">Source</span>
+          <span className="text-sm font-semibold uppercase tracking-wide text-steel">{t("source")}</span>
           <SegmentedControl
-            label="Source"
+            label={t("source")}
             className="flex gap-1"
             value={source}
             onChange={setSource}
             options={[
-              { value: "profile", label: "Saved profile" },
-              { value: "analysis", label: "Saved analysis" },
+              { value: "profile", label: t("savedProfile") },
+              { value: "analysis", label: t("savedAnalysis") },
             ]}
           />
         </div>
 
         <label className="flex flex-col gap-1">
-          <span className="text-sm font-semibold uppercase tracking-wide text-steel">Candidate</span>
+          <span className="text-sm font-semibold uppercase tracking-wide text-steel">{t("candidate")}</span>
           {source === "profile" ? (
             <select
               value={selProfile}
@@ -125,12 +125,15 @@ export function MatchTab() {
               className="focus-ring h-10 min-w-[280px] rounded-md border border-stone-200 bg-white px-2 text-base text-ink"
             >
               {profiles.length === 0 ? (
-                <option value="">No saved profiles — build one in Profile</option>
+                <option value="">{t("noProfiles")}</option>
               ) : (
                 profiles.map((p) => (
                   <option key={p.id} value={p.id}>
-                    {p.label} · {ARCHETYPE_LABEL[p.archetype ?? ""] ?? p.archetype} ·{" "}
-                    {Math.round((p.completeness ?? 0) * 100)}%
+                    {t("profileOption", {
+                      label: p.label,
+                      archetype: enumLabel("archetype", p.archetype ?? ""),
+                      completeness: Math.round((p.completeness ?? 0) * 100),
+                    })}
                   </option>
                 ))
               )}
@@ -142,11 +145,11 @@ export function MatchTab() {
               className="focus-ring h-10 min-w-[280px] rounded-md border border-stone-200 bg-white px-2 text-base text-ink"
             >
               {analyses.length === 0 ? (
-                <option value="">No saved analyses — run one in Analyze</option>
+                <option value="">{t("noAnalyses")}</option>
               ) : (
                 analyses.map((a) => (
                   <option key={a.slug} value={a.slug}>
-                    {a.candidate_label} · {a.role_family ?? "—"} / {a.seniority ?? "—"}
+                    {t("analysisOption", { label: a.candidate_label, family: a.role_family ?? "—", seniority: a.seniority ?? "—" })}
                   </option>
                 ))
               )}
@@ -160,7 +163,7 @@ export function MatchTab() {
           disabled={loading || (source === "profile" ? !selProfile : !selAnalysis)}
           className="focus-ring h-10 rounded-md bg-ink px-4 text-base font-semibold text-white disabled:opacity-40"
         >
-          {loading ? "Matching…" : "Run matching"}
+          {loading ? t("matching") : t("runMatching")}
         </button>
       </div>
 
@@ -175,11 +178,9 @@ export function MatchTab() {
             onReweight={(w) => runMatchFor(matchRef, w)}
           />
         ) : loading ? (
-          <p className="rounded-md bg-paper p-4 text-base text-steel">Matching…</p>
+          <p className="rounded-md bg-paper p-4 text-base text-steel">{t("matching")}</p>
         ) : (
-          <p className="rounded-md bg-paper p-4 text-base text-steel">
-            Pick a candidate and run matching to see ranked, KO-filtered, scored jobs.
-          </p>
+          <p className="rounded-md bg-paper p-4 text-base text-steel">{t("emptyPrompt")}</p>
         )}
       </div>
     </section>

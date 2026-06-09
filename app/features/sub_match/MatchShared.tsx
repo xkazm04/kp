@@ -2,6 +2,7 @@
 
 import { AnimatePresence, motion } from "framer-motion";
 import { SearchX } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { Meter } from "@/app/_components/Meter";
 import { Skeleton } from "@/app/_components/Skeleton";
 import { scoreTone, scoreToneColor } from "@/app/_lib/format";
@@ -17,12 +18,13 @@ import { isEarlyCareer } from "./MatchTypes";
 // AnimatePresence crossfades the swap, turning a jarring pop into a soft reveal.
 // Both effects collapse to a snap under the OS "reduce motion" preference.
 export function ReasoningPanel({ state }: { state: ReasoningState }) {
+  const t = useTranslations("match.shared");
   const reduced = useReducedMotion();
 
   const content = state.loading ? (
     <motion.div key="loading" initial={false} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: reduced ? 0.1 : 0.15 }}>
       <ReasoningSkeleton />
-      <span className="sr-only">Generating fit reasoning…</span>
+      <span className="sr-only">{t("generatingReasoning")}</span>
     </motion.div>
   ) : state.error ? (
     <motion.p
@@ -63,20 +65,21 @@ export function ReasoningPanel({ state }: { state: ReasoningState }) {
 }
 
 function ResolvedReasoning({ r, source, cached }: { r: Reasoning; source?: string; cached?: boolean }) {
+  const t = useTranslations("match.shared");
   return (
     <div className="rounded-md border border-stone-200 bg-paper/50 p-3">
       <div className="flex items-center gap-2">
-        <span className="text-sm font-semibold uppercase tracking-wide text-coral">Reasoning</span>
+        <span className="text-sm font-semibold uppercase tracking-wide text-coral">{t("reasoning")}</span>
         <span className="rounded bg-white px-1.5 py-0.5 text-sm text-steel">
-          {source === "llm" ? "LLM" : "rule-based"}
-          {cached ? " · cached" : ""}
+          {source === "llm" ? t("sourceLlm") : t("sourceRuleBased")}
+          {cached ? t("cachedSuffix") : ""}
         </span>
       </div>
       <p className="mt-1 text-base text-ink">{r.verdict}</p>
       <div className="mt-2 grid gap-3 sm:grid-cols-3">
-        <ReasonList title="Strengths" items={r.strengths} tone="green" />
-        <ReasonList title="Gaps" items={r.gaps} tone="red" />
-        <ReasonList title="Interview probes" items={r.interviewProbes} tone="neutral" />
+        <ReasonList title={t("strengths")} items={r.strengths} tone="green" />
+        <ReasonList title={t("gaps")} items={r.gaps} tone="red" />
+        <ReasonList title={t("interviewProbes")} items={r.interviewProbes} tone="neutral" />
       </div>
     </div>
   );
@@ -128,6 +131,7 @@ function ReasonList({ title, items, tone }: { title: string; items: string[]; to
 }
 
 export function Bar({ label, value }: { label: string; value: number }) {
+  const t = useTranslations("match.shared");
   const pct = Math.round(Math.max(0, Math.min(1, value)) * 100);
   // Fill color tracks the score (weak -> mid -> strong), not just bar length,
   // and shares the app-wide 75/50 cutoffs via scoreTone so a bar never disagrees
@@ -139,7 +143,7 @@ export function Bar({ label, value }: { label: string; value: number }) {
         <span className="uppercase">{label}</span>
         <span className="tabular-nums tracking-tight">{pct}</span>
       </div>
-      <Meter value={pct} tone={tone} className="mt-0.5" aria-label={`${label} score ${pct}`} />
+      <Meter value={pct} tone={tone} className="mt-0.5" aria-label={t("barAria", { label, score: pct })} />
     </div>
   );
 }
@@ -154,15 +158,17 @@ export function Bar({ label, value }: { label: string; value: number }) {
 // the legend carries `percent` + `weight`, so it renders with zero client-side math
 // and no 0-1 vs 0-100 scale guessing — the bug this replaces.
 export function ScoreBreakdown({ dims, total }: { dims: ScoreDimension[]; total: number }) {
+  const t = useTranslations("match.shared");
   const remainder = Math.max(0, 100 - total);
+  const detail = dims
+    .map((d) => t("dimContribution", { label: d.label, contribution: Math.round(d.contribution), weight: d.weight }))
+    .join(", ");
   return (
     <div className="mt-2 max-w-md">
       <div
         className="flex h-2 gap-px overflow-hidden rounded-full bg-stone-100"
         role="img"
-        aria-label={`Score ${total} of 100 — ${dims
-          .map((d) => `${d.label} contributes ${Math.round(d.contribution)} of ${d.weight} points`)
-          .join(", ")}`}
+        aria-label={t("scoreBreakdownAria", { total, detail })}
       >
         {dims.map((d) => (
           <div
@@ -183,7 +189,7 @@ export function ScoreBreakdown({ dims, total }: { dims: ScoreDimension[]; total:
             />
             <span className="uppercase">{d.label}</span>
             <span className="tabular-nums tracking-tight text-ink">{d.percent}</span>
-            <span className="tabular-nums tracking-tight">· {d.weight}%</span>
+            <span className="tabular-nums tracking-tight">{t("weightPercent", { weight: d.weight })}</span>
           </div>
         ))}
       </div>
@@ -191,27 +197,15 @@ export function ScoreBreakdown({ dims, total }: { dims: ScoreDimension[]; total:
   );
 }
 
-// Next-action hint keyed off the dominant KO category — turns the "why nothing
-// matched" breakdown into a single concrete thing the recruiter can do next.
-const KO_HINT: Record<string, string> = {
-  language: "Add the languages the candidate speaks to the profile, then re-run.",
-  seniority: "These roles sit outside the candidate's level — try a profile closer to their seniority.",
-  education: "The roles required a higher formal education level than the profile records.",
-  work_mode: "Loosen the work-mode preference on the profile to widen the field.",
-  early_career: "Few roles in this corpus are open to early-career candidates yet.",
-  other: "Adjust the profile and re-run to widen the field.",
-};
-
-const roleCount = (n: number) => `${n} role${n === 1 ? "" : "s"}`;
-
 // The KO reasons match() now rolls into meta.koReasons (matching.aggregate_ko_reasons):
 // one "{n} roles {clause}" line per blocker, counts first so the worst gate reads first.
 function KoReasonList({ reasons }: { reasons: KoReason[] }) {
+  const t = useTranslations("match.shared");
   return (
     <ul className="mt-2 space-y-1 text-left">
       {reasons.map((r) => (
         <li key={r.key} className="flex gap-2 text-sm text-steel">
-          <span className="shrink-0 font-semibold tabular-nums text-ink">{roleCount(r.count)}</span>
+          <span className="shrink-0 font-semibold tabular-nums text-ink">{t("roleCount", { count: r.count })}</span>
           <span>{r.label}</span>
         </li>
       ))}
@@ -223,6 +217,7 @@ function KoReasonList({ reasons }: { reasons: KoReason[] }) {
 // aggregated blockers ARE the explanation — surface them plus a keyed next action
 // instead of a blank list. (An empty corpus is a distinct, simpler story.)
 export function NoMatchesExplainer({ meta, archetype }: { meta: MatchResponse["meta"]; archetype: string }) {
+  const t = useTranslations("match.shared");
   const evaluated = meta.evaluated ?? 0;
   const reasons = meta.koReasons ?? [];
   const early = isEarlyCareer(archetype);
@@ -230,21 +225,22 @@ export function NoMatchesExplainer({ meta, archetype }: { meta: MatchResponse["m
   if (evaluated === 0) {
     return (
       <Card>
-        <p className="text-base font-semibold text-ink">No jobs to match against</p>
-        <p className="mt-1 text-base text-steel">The job corpus is empty — seed roles first, then re-run.</p>
+        <p className="text-base font-semibold text-ink">{t("noJobsTitle")}</p>
+        <p className="mt-1 text-base text-steel">{t("noJobsBody")}</p>
       </Card>
     );
   }
 
-  const hint = (reasons.length ? KO_HINT[reasons[0].key] : undefined) ?? KO_HINT.other;
+  // Next-action hint keyed off the dominant KO category (catalog: match.shared.koHint.*).
+  const hintKey = reasons.length ? reasons[0].key : "other";
+  const hintPath = `koHint.${hintKey}` as Parameters<typeof t>[0];
+  const hint = t.has(hintPath) ? t(hintPath) : t("koHint.other");
   return (
     <Card>
       <p className="text-base font-semibold text-ink">
-        {early ? "No entry-eligible roles cleared the filters" : "No roles cleared the filters"}
+        {early ? t("noEntryRoles") : t("noRoles")}
       </p>
-      <p className="mt-1 text-base text-steel">
-        All {roleCount(evaluated)} were knocked out before scoring. Top blockers:
-      </p>
+      <p className="mt-1 text-base text-steel">{t("allKnockedOut", { count: evaluated })}</p>
       {reasons.length ? <KoReasonList reasons={reasons} /> : null}
       <p className="mt-3 max-w-sm text-sm text-steel">{hint}</p>
     </Card>
@@ -254,11 +250,15 @@ export function NoMatchesExplainer({ meta, archetype }: { meta: MatchResponse["m
 // Thin-but-non-empty result: most of the corpus was filtered, so name the dominant
 // blocker inline above the (short) list rather than leaving the gap unexplained.
 export function KoReasonsNote({ koFiltered, reasons }: { koFiltered: number; reasons: KoReason[] }) {
+  const t = useTranslations("match.shared");
   if (!koFiltered || !reasons.length) return null;
   return (
     <p className="mt-2 text-sm text-steel">
-      <span className="font-semibold text-ink">{roleCount(koFiltered)}</span> didn&apos;t make the cut — mostly
-      because they {reasons[0].label}.
+      {t.rich("koReasonsNote", {
+        count: koFiltered,
+        reason: reasons[0].label,
+        b: (chunks) => <span className="font-semibold text-ink">{chunks}</span>,
+      })}
     </p>
   );
 }

@@ -1,11 +1,13 @@
 import { ChevronRight } from "lucide-react";
 import { formatPercent } from "@/app/_lib/format";
-import { FAMILY_LABEL, formatBand } from "./JobsTypes";
+import { formatBand } from "./JobsTypes";
 import type { Job } from "./JobsTypes";
 import { Td } from "./JobsShared";
+import { useEnumLabel } from "@/app/_lib/use-enum-label";
 
 // A clickable corpus row: activating it opens the publish-format posting modal.
 export function JobRow({ job, onOpen }: { job: Job; onOpen: () => void }) {
+  const enumLabel = useEnumLabel();
   const ep = job.entryProfile;
   return (
     <tr
@@ -28,14 +30,14 @@ export function JobRow({ job, onOpen }: { job: Job; onOpen: () => void }) {
         <span className="block text-sm text-steel">{job.company ?? "—"}</span>
       </Td>
       <Td>{job.location ?? "—"}</Td>
-      <Td className="capitalize">{job.workMode ?? "—"}</Td>
-      <Td className="capitalize">{job.seniority ?? "—"}</Td>
-      <Td>{FAMILY_LABEL[job.roleFamily ?? ""] ?? job.roleFamily ?? "—"}</Td>
+      <Td className="capitalize">{job.workMode ? enumLabel("workMode", job.workMode) : "—"}</Td>
+      <Td className="capitalize">{job.seniority ? enumLabel("seniority", job.seniority) : "—"}</Td>
+      <Td>{job.roleFamily ? enumLabel("family", job.roleFamily) : "—"}</Td>
       <Td>{formatBand(job.salaryBand)}</Td>
       <Td>
         {ep?.isEntryEligible ? (
           <span className="inline-flex items-center gap-1 rounded-full bg-green-50 px-2 py-0.5 text-sm font-semibold text-green-700">
-            ✓ {formatPercent(ep.graduateFriendliness ?? 0, { fraction: true })}
+            {`✓ ${formatPercent(ep.graduateFriendliness ?? 0, { fraction: true })}`}
           </span>
         ) : (
           <span className="text-sm text-steel">—</span>

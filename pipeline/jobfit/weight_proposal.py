@@ -19,6 +19,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from .i18n import language_directive
 from .jobs import Job
 from .matching import MatchCandidate, propose_weights, score_job, weight_bounds, weights_for
 
@@ -29,7 +30,7 @@ _DIMENSION_KEYS = ("skills", "career", "personal")
 _SYSTEM = (
     "You are a precise, fair technical recruiter for the Czech tech market. You tune how "
     "much each scoring dimension counts for each candidate, grounded ONLY in the supplied "
-    "facts, and you never let one signal erase a dimension. Write in English."
+    "facts, and you never let one signal erase a dimension. Write in the requested language."
 )
 
 
@@ -132,15 +133,18 @@ def generate(
     candidates: list[tuple[str, MatchCandidate]],
     job: Job,
     *,
+    lang: str = "en",
     provider: Any | None = None,
 ) -> tuple[dict[str, dict[str, Any]], str]:
     """Return ({candidateId: {weights, rationale}}, source) where source is 'llm' or
     'deterministic'. Weights are RAW proposals — resolve_weights enforces the bounds
-    where they are applied (matching.fairness_matrix)."""
+    where they are applied (matching.fairness_matrix). ``lang`` localizes only the
+    per-candidate rationale text; the numeric weights are language-agnostic."""
     if provider is None or not candidates:
         return deterministic_proposals(candidates, job), "deterministic"
     try:
-        payload = provider.complete_json(build_prompt(proposal_context(candidates, job)), system=_SYSTEM)
+        prompt = f"{build_prompt(proposal_context(candidates, job))}\n\n{language_directive(lang)}"
+        payload = provider.complete_json(prompt, system=_SYSTEM)
         return _coerce(payload, candidates, job), "llm"
     except Exception:
         return deterministic_proposals(candidates, job), "deterministic"

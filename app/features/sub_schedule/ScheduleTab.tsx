@@ -3,11 +3,13 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { AnimatePresence, motion, type TargetAndTransition } from "framer-motion";
 import { Calendar, Check, ClipboardList, FileText, Phone, UserRound, X } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { ScheduleCalendar } from "./ScheduleCalendar";
 import { InterviewPrepModal } from "./InterviewPrepModal";
 import { InterviewTranscriptModal } from "./InterviewTranscriptModal";
 import { DEFAULT_SLOT, styleFor, type SchedEntry } from "./ScheduleTypes";
 import { ScoreBadge } from "@/app/_components/ScoreBadge";
+import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { useReducedMotion } from "@/app/_lib/useReducedMotion";
 
 type IvStatus = { sessionId: string; status: string; hasTranscript: boolean; endedAt: string | null };
@@ -17,15 +19,17 @@ type IvStatus = { sessionId: string; status: string; hasTranscript: boolean; end
 // (plus any list-specific `trailing` node, e.g. the proposed slot chip) on the
 // right. Keeps the two lists provably consistent — a tweak here changes both.
 function CandidateCardHeader({ entry, trailing }: { entry: SchedEntry; trailing?: ReactNode }) {
+  const enumLabel = useEnumLabel();
   const s = styleFor(entry.archetype);
+  const archLabel = enumLabel("archetype", entry.archetype);
   return (
     <>
       <span className="min-w-0 flex-1">
         <span className="block truncate text-sm font-semibold text-ink">{entry.candidateLabel}</span>
         <span className="block truncate text-sm text-steel">{entry.jobTitle}</span>
         <span className="mt-1 inline-flex items-center gap-1.5">
-          <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${s.bg}`} title={s.label} aria-hidden />
-          <span className="text-meta uppercase tracking-wide text-steel">{s.label}</span>
+          <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${s.bg}`} title={archLabel} aria-hidden />
+          <span className="text-meta uppercase tracking-wide text-steel">{archLabel}</span>
         </span>
       </span>
       <span className="flex shrink-0 flex-col items-end gap-1.5">
@@ -37,6 +41,14 @@ function CandidateCardHeader({ entry, trailing }: { entry: SchedEntry; trailing?
 }
 
 export function ScheduleTab() {
+  const t = useTranslations("scheduleTab");
+  const enumLabel = useEnumLabel();
+  // Display a stored "Day HH:MM" slot with the localized day; the canonical value
+  // (sent to the server, kept in `picks`) stays English.
+  const slotLabel = (slot: string): string => {
+    const [d, ...rest] = slot.split(" ");
+    return `${enumLabel("day", d)} ${rest.join(" ")}`.trim();
+  };
   const [entries, setEntries] = useState<SchedEntry[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [picks, setPicks] = useState<Record<string, string>>({});
@@ -73,7 +85,7 @@ export function ScheduleTab() {
           )
         );
       })
-      .catch((e) => setError(e instanceof Error ? e.message : "Failed to load."));
+      .catch((e) => setError(e instanceof Error ? e.message : t("loadFailed")));
   useEffect(() => {
     load();
   }, []);
@@ -126,10 +138,10 @@ export function ScheduleTab() {
         body: JSON.stringify({ entryId: e.id }),
       });
       const d = await r.json();
-      if (!r.ok) throw new Error(d.error || "Couldn't start the interview.");
+      if (!r.ok) throw new Error(d.error || t("startFailed"));
       window.open(d.url, "_blank", "noopener,noreferrer");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Couldn't start the interview.");
+      setError(err instanceof Error ? err.message : t("startFailed"));
     } finally {
       setCreatingIv(null);
     }
@@ -177,12 +189,9 @@ export function ScheduleTab() {
   return (
     <div data-sim="schedule" className="space-y-6">
       <header>
-        <p className="text-meta uppercase text-coral">Decisions · Schedule</p>
-        <h2 className="mt-1 font-serif text-display text-ink">Interview calendar</h2>
-        <p className="mt-1 max-w-2xl text-body text-steel">
-          Every candidate awaiting an interview slot, on one shared week. Select a candidate, click a cell to
-          move their proposed time, then confirm — or decline to send them back.
-        </p>
+        <p className="text-meta uppercase text-coral">{t("eyebrow")}</p>
+        <h2 className="mt-1 font-serif text-display text-ink">{t("title")}</h2>
+        <p className="mt-1 max-w-2xl text-body text-steel">{t("intro")}</p>
       </header>
 
       {error ? (
@@ -190,12 +199,12 @@ export function ScheduleTab() {
           {error}
         </p>
       ) : entries == null ? (
-        <p className="text-base text-steel">Loading…</p>
+        <p className="text-base text-steel">{t("loading")}</p>
       ) : calendarEntries.length === 0 && interviewedEntries.length === 0 ? (
         <div className="rounded-lg border border-stone-200 bg-paper p-6 text-center">
           <Calendar className="mx-auto text-moss" size={28} />
-          <p className="mt-2 text-base font-semibold text-ink">No interviews to schedule.</p>
-          <p className="text-sm text-steel">Candidates appear here once they reach the scheduling step.</p>
+          <p className="mt-2 text-base font-semibold text-ink">{t("emptyTitle")}</p>
+          <p className="text-sm text-steel">{t("emptyBody")}</p>
         </div>
       ) : (
         <div className="grid gap-5 lg:grid-cols-[1fr_300px]">
@@ -209,7 +218,7 @@ export function ScheduleTab() {
 
           <aside className="space-y-2">
             <h3 className="text-meta uppercase tracking-wide text-steel">
-              Pending interviews <span className="text-coral">· {calendarEntries.length}</span>
+              {t("pendingInterviews")} <span className="text-coral">· {calendarEntries.length}</span>
             </h3>
             <AnimatePresence custom={lastDir}>
             {calendarEntries.map((e, i) => {
@@ -233,11 +242,11 @@ export function ScheduleTab() {
                   <button type="button" onClick={() => setSelectedId(e.id)} className="focus-ring flex w-full items-start gap-2 text-left">
                     <CandidateCardHeader
                       entry={e}
-                      trailing={<span className="rounded bg-paper px-1.5 py-0.5 text-sm font-semibold text-ink">{picks[e.id]}</span>}
+                      trailing={<span className="rounded bg-paper px-1.5 py-0.5 text-sm font-semibold text-ink">{slotLabel(picks[e.id] ?? "")}</span>}
                     />
                   </button>
                   {prepared[e.id]?.interviewer ? (
-                    <p className="mt-1.5 flex items-center gap-1 truncate text-meta text-steel" title={`Interviewer: ${prepared[e.id]!.interviewer}`}>
+                    <p className="mt-1.5 flex items-center gap-1 truncate text-meta text-steel" title={t("interviewerTitle", { name: prepared[e.id]!.interviewer! })}>
                       <UserRound size={11} className="shrink-0 text-coral" /> {prepared[e.id]!.interviewer}
                     </p>
                   ) : null}
@@ -247,7 +256,7 @@ export function ScheduleTab() {
                     className="focus-ring mt-2 inline-flex h-8 w-full items-center justify-center gap-1.5 rounded-md border border-stone-200 text-sm font-semibold text-ink hover:border-coral/40"
                   >
                     <ClipboardList size={14} className="text-coral" />
-                    {prepared[e.id] ? "View interview prep" : "Interview prep"}
+                    {prepared[e.id] ? t("viewPrep") : t("prepButton")}
                   </button>
                   {iv?.hasTranscript ? (
                     <button
@@ -255,7 +264,7 @@ export function ScheduleTab() {
                       onClick={() => setTranscriptEntry(e)}
                       className="focus-ring mt-1.5 inline-flex h-8 w-full items-center justify-center gap-1.5 rounded-md border border-moss/40 bg-moss/5 text-sm font-semibold text-moss hover:bg-moss/10"
                     >
-                      <FileText size={14} /> Transcript ready · View
+                      <FileText size={14} /> {t("transcriptReady")}
                     </button>
                   ) : (
                     <button
@@ -265,7 +274,7 @@ export function ScheduleTab() {
                       className="focus-ring mt-1.5 inline-flex h-8 w-full items-center justify-center gap-1.5 rounded-md border border-stone-200 text-sm font-semibold text-ink hover:border-coral/40 disabled:opacity-50"
                     >
                       <Phone size={14} className="text-coral" />
-                      {creatingIv === e.id ? "Opening…" : iv?.status === "in_progress" ? "Interview in progress" : "Start AI interview"}
+                      {creatingIv === e.id ? t("opening") : iv?.status === "in_progress" ? t("interviewInProgress") : t("startInterview")}
                     </button>
                   )}
                   <div className="mt-1.5 flex gap-1.5">
@@ -276,7 +285,7 @@ export function ScheduleTab() {
                       disabled={busy === e.id}
                       className="focus-ring inline-flex h-8 flex-1 items-center justify-center gap-1 rounded-md bg-moss text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
                     >
-                      <Check size={14} /> Confirm
+                      <Check size={14} /> {t("confirm")}
                     </button>
                     <button
                       type="button"
@@ -284,12 +293,12 @@ export function ScheduleTab() {
                       // flush beside Confirm — a misclick permanently rejected the candidate.
                       // Gate it behind a confirm and label the icon-only button for SR users.
                       onClick={() => {
-                        if (window.confirm(`Decline ${e.candidateLabel}? This is a final rejection and can't be undone.`)) {
+                        if (window.confirm(t("declineConfirm", { name: e.candidateLabel }))) {
                           act(e, "reject");
                         }
                       }}
                       disabled={busy === e.id}
-                      aria-label={`Decline ${e.candidateLabel}`}
+                      aria-label={t("declineAria", { name: e.candidateLabel })}
                       className="focus-ring inline-flex h-8 items-center justify-center gap-1 rounded-md border border-stone-200 px-2.5 text-sm font-semibold text-coral hover:bg-coral/5 disabled:opacity-50"
                     >
                       <X size={14} aria-hidden />
@@ -301,16 +310,19 @@ export function ScheduleTab() {
             </AnimatePresence>
             {calendarEntries.length === 0 ? null : selected ? (
               <p className="px-1 text-sm text-steel">
-                Click a calendar cell to move <span className="font-semibold text-ink">{selected.candidateLabel}</span>.
+                {t.rich("clickToMove", {
+                  name: selected.candidateLabel,
+                  b: (chunks) => <span className="font-semibold text-ink">{chunks}</span>,
+                })}
               </p>
             ) : (
-              <p className="px-1 text-sm text-steel">Select a candidate to move their slot.</p>
+              <p className="px-1 text-sm text-steel">{t("selectCandidate")}</p>
             )}
 
             {interviewedEntries.length ? (
               <div className="mt-3 space-y-2">
                 <h3 className="text-meta uppercase tracking-wide text-steel">
-                  Interviewed <span className="text-moss">· {interviewedEntries.length}</span>
+                  {t("interviewed")} <span className="text-moss">· {interviewedEntries.length}</span>
                 </h3>
                 {interviewedEntries.map((e) => {
                   return (
@@ -319,7 +331,7 @@ export function ScheduleTab() {
                         <CandidateCardHeader entry={e} />
                       </div>
                       {prepared[e.id]?.interviewer ? (
-                        <p className="mt-1.5 flex items-center gap-1 truncate text-meta text-steel" title={`Interviewer: ${prepared[e.id]!.interviewer}`}>
+                        <p className="mt-1.5 flex items-center gap-1 truncate text-meta text-steel" title={t("interviewerTitle", { name: prepared[e.id]!.interviewer! })}>
                           <UserRound size={11} className="shrink-0 text-coral" /> {prepared[e.id]!.interviewer}
                         </p>
                       ) : null}
@@ -328,7 +340,7 @@ export function ScheduleTab() {
                         onClick={() => setTranscriptEntry(e)}
                         className="focus-ring mt-2 inline-flex h-8 w-full items-center justify-center gap-1.5 rounded-md border border-moss/40 bg-moss/5 text-sm font-semibold text-moss hover:bg-moss/10"
                       >
-                        <FileText size={14} /> View transcript &amp; scorecard
+                        <FileText size={14} /> {t("viewTranscriptScorecard")}
                       </button>
                     </div>
                   );

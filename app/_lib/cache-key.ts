@@ -18,7 +18,12 @@ import crypto from "node:crypto";
 // v4 bumps the key for the length-framed serialization below (idea-c2c4b498):
 // the prior delimiter-only key could collide across field boundaries, so every
 // old hash must miss and be recomputed under the unambiguous framing.
-export const PROMPT_VERSION = "v4-2026-06-03-framed-cachekey";
+//
+// v5 adds the output `lang` to the key: the same CV now analyzes to a different
+// (localized) narrative per locale, so an en result must NOT be served for a cs
+// request and vice-versa. Mixing them would show English narrative under a Czech
+// UI (or stale-cache the wrong language). Bumping invalidates every pre-i18n hash.
+export const PROMPT_VERSION = "v5-2026-06-09-lang-cachekey";
 
 export type CacheKeyInput = {
   cvBytes: Buffer;
@@ -27,6 +32,9 @@ export type CacheKeyInput = {
   companyText: string;
   companyFileBytes: Buffer | null;
   grounding: boolean;
+  // Output locale the narrative was generated in ("en" | "cs"). Part of the key
+  // so localized results don't collide — see the v5 note above.
+  lang: string;
 };
 
 export function computeCacheKey(input: CacheKeyInput): string {
@@ -53,6 +61,7 @@ export function computeCacheKey(input: CacheKeyInput): string {
   };
   field(PROMPT_VERSION);
   field(input.grounding);
+  field(input.lang);
   field(input.jobDescriptionText.trim());
   field(input.jobDescriptionFileBytes ?? Buffer.alloc(0));
   field(input.companyText.trim());

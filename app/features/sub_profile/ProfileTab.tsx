@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { buildUrl } from "@/app/features/tabs";
 import type { ArchetypeDef, ProfilePayload } from "./ProfileTypes";
 import { ArchetypeManager } from "./ArchetypeManager";
@@ -20,6 +21,7 @@ type EditorState = {
 // still reachable (a deep link from the pipeline drawer, or the "Build profile"
 // button) but is no longer the centre of gravity.
 export function ProfileTab() {
+  const t = useTranslations("profile.tab");
   const router = useRouter();
   const params = useSearchParams();
   const [archetypes, setArchetypes] = useState<ArchetypeDef[]>([]);
@@ -67,7 +69,7 @@ export function ProfileTab() {
         }
       })
       .catch(() => {
-        if (alive) setNote("Couldn't open that candidate's profile — it may not be saved as a profile yet.");
+        if (alive) setNote(t("deepLinkError"));
       });
     return () => {
       alive = false;

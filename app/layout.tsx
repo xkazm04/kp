@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { Fraunces, Inter } from "next/font/google";
+import { NextIntlClientProvider } from "next-intl";
+import { getLocale, getMessages } from "next-intl/server";
 import "./globals.css";
 
 const inter = Inter({
@@ -74,10 +76,19 @@ export const metadata: Metadata = {
   }
 };
 
-export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+  // Locale + catalog are resolved per-request in i18n/request.ts (cookie/header).
+  // `<html lang>` now tracks the active locale, and the provider hands the
+  // catalog to every client component's useTranslations().
+  const locale = await getLocale();
+  const messages = await getMessages();
   return (
-    <html lang="en" className={`${inter.variable} ${fraunces.variable}`}>
-      <body className="font-sans">{children}</body>
+    <html lang={locale} className={`${inter.variable} ${fraunces.variable}`}>
+      <body className="font-sans">
+        <NextIntlClientProvider locale={locale} messages={messages}>
+          {children}
+        </NextIntlClientProvider>
+      </body>
     </html>
   );
 }

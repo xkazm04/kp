@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AlertTriangle, Check, ExternalLink, Loader2, Lock, RefreshCw, Save, Users } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { Markdown } from "@/app/_components/Markdown";
 import { buildUrl } from "@/app/features/tabs";
 import { JD_BODY_MAX_LENGTH } from "@/app/_lib/jd-limits";
@@ -21,17 +22,20 @@ const VIEWS = ["preview", "edit"] as const;
 // `=== "llm" ? "web-grounded" : "estimated"` two-way did.
 export type SalarySource = "llm" | "deterministic";
 
-const SALARY_SOURCE_LABEL: Record<SalarySource, string> = {
-  llm: "web-grounded",
-  deterministic: "estimated",
+type SalarySourceKey = "sourceWebGrounded" | "sourceEstimated" | "sourceUnverified";
+
+const SALARY_SOURCE_KEY: Record<SalarySource, SalarySourceKey> = {
+  llm: "sourceWebGrounded",
+  deterministic: "sourceEstimated",
 };
 
-// Map the provenance flag to its label. An absent source (legacy payloads) reads as
-// the conservative "estimated"; an unrecognized source is labeled "unverified" so it
-// stays visible instead of masquerading as the deterministic estimate.
-function salarySourceLabel(source: string | undefined): string {
-  if (source && source in SALARY_SOURCE_LABEL) return SALARY_SOURCE_LABEL[source as SalarySource];
-  return source ? "unverified" : "estimated";
+// Map the provenance flag to a catalog key (resolved via t() at the render site —
+// this is module-level, so it can't call the hook itself). An absent source (legacy
+// payloads) reads as the conservative "estimated"; an unrecognized source is labeled
+// "unverified" so it stays visible instead of masquerading as the deterministic estimate.
+function salarySourceKey(source: string | undefined): SalarySourceKey {
+  if (source && source in SALARY_SOURCE_KEY) return SALARY_SOURCE_KEY[source as SalarySource];
+  return source ? "sourceUnverified" : "sourceEstimated";
 }
 
 export type JdBuildResult = {
@@ -63,6 +67,7 @@ export function JdBuilderResult({
   // See the template-switch contract in JdBuilder.tsx / docs/JD_LIFECYCLE.md.
   onEditedChange?: (edited: boolean) => void;
 }) {
+  const t = useTranslations("library.result");
   const router = useRouter();
   const search = useSearchParams();
   const [markdown, setMarkdown] = useState(result.markdown);
@@ -137,11 +142,11 @@ export function JdBuilderResult({
         body: JSON.stringify({ title, body: markdown, role: result.role, salary: result.salary, company }),
       });
       const p = await r.json();
-      if (!r.ok) throw new Error(p.error ?? "Save failed.");
+      if (!r.ok) throw new Error(p.error ?? t("saveFailed"));
       setSaved({ slug: p.slug, jobId: p.jobId ?? `jd-${p.slug}`, jobIngested: Boolean(p.jobIngested) });
       onSaved();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Save failed.");
+      setError(e instanceof Error ? e.message : t("saveFailed"));
     } finally {
       setSaving(false);
     }
@@ -163,11 +168,11 @@ export function JdBuilderResult({
         body: JSON.stringify({ slug: saved.slug, title, body: markdown, role: result.role, salary: result.salary, company }),
       });
       const p = await r.json();
-      if (!r.ok) throw new Error(p.error ?? "Retry failed.");
-      if (!p.jobIngested) throw new Error("Adding this JD to the workspace failed again. Try once more, or recreate the JD if it keeps failing.");
+      if (!r.ok) throw new Error(p.error ?? t("retryFailed"));
+      if (!p.jobIngested) throw new Error(t("ingestFailedAgain"));
       setSaved({ slug: p.slug, jobId: p.jobId ?? `jd-${p.slug}`, jobIngested: true });
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Retry failed.");
+      setError(e instanceof Error ? e.message : t("retryFailed"));
     } finally {
       setRetrying(false);
     }
@@ -185,11 +190,11 @@ export function JdBuilderResult({
     try {
       const r = await fetch(`/api/jobs/${saved.jobId}/publish`, { method: "POST" });
       const p = await r.json();
-      if (!r.ok) throw new Error(p.error ?? "Sourcing failed.");
+      if (!r.ok) throw new Error(p.error ?? t("sourcingFailed"));
       setSourceResult({ sourced: p.sourced ?? 0, warning: p.sourcingWarning ?? null });
       onSaved();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Sourcing failed.");
+      setError(e instanceof Error ? e.message : t("sourcingFailed"));
     } finally {
       setSourcing(false);
     }
@@ -210,39 +215,39 @@ export function JdBuilderResult({
           <p className="text-meta uppercase tracking-wide text-steel">
             {/* Drop the provenance suffix when there's no band — "· estimated"
                 next to "Salary unavailable" reads as a contradiction. */}
-            Market salary{s.available ? ` · ${salarySourceLabel(result.salarySource)}` : ""}
+            {s.available
+              ? t("marketSalaryWithSource", { source: t(salarySourceKey(result.salarySource)) })
+              : t("marketSalary")}
           </p>
           {s.available ? (
-            <span className="inline-flex items-center gap-1.5 rounded-md bg-white px-2 py-1 text-sm font-semibold text-ink" title="Fixed by the analysis — the Pipeline matches against this band">
+            <span className="inline-flex items-center gap-1.5 rounded-md bg-white px-2 py-1 text-sm font-semibold text-ink" title={t("fixedTitle")}>
               <Lock size={12} className="text-steel" aria-hidden />
               {formatSalaryRange(s.suggestedMinimum, s.suggestedMaximum, { currency: s.currency })} · {s.confidence}
             </span>
           ) : (
-            <span className="inline-flex items-center gap-1.5 rounded-md bg-white px-2 py-1 text-sm font-semibold text-steel" title="No grounded salary band was returned for this role">
+            <span className="inline-flex items-center gap-1.5 rounded-md bg-white px-2 py-1 text-sm font-semibold text-steel" title={t("noBandTitle")}>
               <AlertTriangle size={12} className="text-amber-500" aria-hidden />
-              Salary unavailable
+              {t("salaryUnavailable")}
             </span>
           )}
         </div>
         {s.summary ? <p className="mt-1.5 text-sm text-ink">{s.summary}</p> : null}
         {salaryLinks.length ? (
-          <p className="mt-1 text-sm text-steel">Sources: {salaryLinks.map((link, i) => (
+          <p className="mt-1 text-sm text-steel">{t("sources")}{salaryLinks.map((link, i) => (
             <span key={link.href}>{i > 0 ? " · " : ""}<a href={link.href} target="_blank" rel="noreferrer" className="text-coral hover:underline">{link.hostname}</a></span>
           ))}</p>
         ) : null}
         {result.snapshot?.ref ? (
-          <p className="mt-1 text-sm text-steel">Analyzed repo: {result.snapshot.ref} · {(result.snapshot.inferredStack ?? []).slice(0, 5).join(", ")}</p>
+          <p className="mt-1 text-sm text-steel">{t("analyzedRepo", { ref: result.snapshot.ref, stack: (result.snapshot.inferredStack ?? []).slice(0, 5).join(", ") })}</p>
         ) : null}
         <p className="mt-2 border-t border-stone-200 pt-2 text-sm text-steel">
-          {s.available
-            ? "This band is fixed by the analysis — it's what the Pipeline matches against. Editing the salary in the text below changes the published wording only, not the matchable band."
-            : "No market salary band was returned for this role, so none is advertised or matched against. Add a salary line in the text below if you want one in the published wording."}
+          {s.available ? t("bandFixedNote") : t("noBandNote")}
         </p>
       </div>
 
       {/* Editable output + preview */}
       <div className="mt-3 flex items-center gap-1 border-b border-stone-200">
-        <div role="tablist" aria-label="Job description view" onKeyDown={onViewKeyDown} className="flex items-center gap-1">
+        <div role="tablist" aria-label={t("viewTablistAria")} onKeyDown={onViewKeyDown} className="flex items-center gap-1">
           {VIEWS.map((v) => (
             <button
               key={v}
@@ -255,11 +260,11 @@ export function JdBuilderResult({
               onClick={() => setView(v)}
               className={`focus-ring -mb-px border-b-2 px-3 py-2 text-sm font-semibold capitalize ${view === v ? "border-coral text-coral" : "border-transparent text-steel hover:text-ink"}`}
             >
-              {v}
+              {t(v === "preview" ? "viewPreview" : "viewEdit")}
             </button>
           ))}
         </div>
-        <span className="ml-auto text-sm text-steel">Edit the wording or requirements before saving. The salary band is fixed (above).</span>
+        <span className="ml-auto text-sm text-steel">{t("editHint")}</span>
       </div>
 
       <div
@@ -282,7 +287,7 @@ export function JdBuilderResult({
               className="focus-ring w-full rounded-md border border-stone-200 p-3 font-mono text-sm"
             />
             <p className={`mt-1 text-sm ${markdown.length >= JD_BODY_MAX_LENGTH * 0.9 ? "text-coral" : "text-steel"}`}>
-              {markdown.length.toLocaleString("en-US")} / {JD_BODY_MAX_LENGTH.toLocaleString("en-US")} characters
+              {t("charCount", { used: markdown.length, max: JD_BODY_MAX_LENGTH })}
             </p>
           </>
         ) : (
@@ -299,19 +304,28 @@ export function JdBuilderResult({
           <div className="mt-3 flex flex-wrap items-center gap-3 rounded-md border border-amber-200 bg-amber-50/60 px-3 py-2 text-sm text-amber-800">
             <AlertTriangle size={16} className="shrink-0" />
             <span>
-              <span className="font-mono text-coral">{saved?.slug}</span> is live, but sourcing failed: {sourceResult.warning}
+              {t.rich("liveButSourcingFailed", {
+                slug: saved?.slug ?? "",
+                warning: sourceResult.warning,
+                mono: (chunks) => <span className="font-mono text-coral">{chunks}</span>,
+              })}
             </span>
             <button type="button" onClick={() => router.push(buildUrl({ tab: "pipeline" }, search.toString()))} className="focus-ring inline-flex items-center gap-1 font-semibold text-coral hover:underline">
-              Open Pipeline <ExternalLink size={13} />
+              {t("openPipeline")} <ExternalLink size={13} />
             </button>
           </div>
         ) : (
           <div className="mt-3 flex flex-wrap items-center gap-3 rounded-md border border-moss/30 bg-moss/5 px-3 py-2 text-sm text-ink">
             <Check size={16} className="text-moss" />
-            <span className="font-mono text-coral">{saved?.slug}</span> is live · sourced {sourceResult.sourced} candidate
-            {sourceResult.sourced === 1 ? "" : "s"} into the Pipeline.
+            <span>
+              {t.rich("liveSourced", {
+                count: sourceResult.sourced,
+                slug: saved?.slug ?? "",
+                mono: (chunks) => <span className="font-mono text-coral">{chunks}</span>,
+              })}
+            </span>
             <button type="button" onClick={() => router.push(buildUrl({ tab: "pipeline" }, search.toString()))} className="focus-ring inline-flex items-center gap-1 font-semibold text-coral hover:underline">
-              Open Pipeline <ExternalLink size={13} />
+              {t("openPipeline")} <ExternalLink size={13} />
             </button>
           </div>
         )
@@ -325,7 +339,10 @@ export function JdBuilderResult({
             <div className="flex flex-wrap items-center gap-3 rounded-md border border-amber-200 bg-amber-50/60 px-3 py-2 text-sm text-amber-800">
               <AlertTriangle size={16} className="shrink-0" />
               <span>
-                Saved <span className="font-mono">{saved.slug}</span> as a draft, but adding it to the workspace failed — so it can&apos;t be sourced into the Pipeline yet. The draft is still saved and reusable for analysis.
+                {t.rich("savedDraftIngestFailed", {
+                  slug: saved.slug,
+                  mono: (chunks) => <span className="font-mono">{chunks}</span>,
+                })}
               </span>
               <button
                 type="button"
@@ -334,25 +351,25 @@ export function JdBuilderResult({
                 className="focus-ring inline-flex items-center gap-1.5 rounded-md border border-amber-300 bg-white px-2.5 py-1 font-semibold text-amber-800 hover:bg-amber-50 disabled:opacity-50"
               >
                 {retrying ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
-                {retrying ? "Retrying…" : "Retry"}
+                {retrying ? t("retrying") : t("retry")}
               </button>
             </div>
           ) : null}
           <div className="flex flex-wrap items-center gap-3">
             <span className="inline-flex items-center gap-1.5 rounded-md border border-stone-200 bg-paper px-2.5 py-1 text-sm text-steel">
-              <span className="rounded-full bg-stone-200 px-1.5 py-0.5 text-micro font-semibold uppercase text-steel">Draft</span>
-              Saved as <span className="font-mono text-ink">{saved.slug}</span>
+              <span className="rounded-full bg-stone-200 px-1.5 py-0.5 text-micro font-semibold uppercase text-steel">{t("draftBadge")}</span>
+              {t.rich("savedAs", { slug: saved.slug, mono: (chunks) => <span className="font-mono text-ink">{chunks}</span> })}
             </span>
             <button
               type="button"
               onClick={sourceIntoPipeline}
               disabled={sourcing || !saved.jobIngested}
               data-sim-click="publish"
-              title={saved.jobIngested ? "Mark this JD live and source matching candidates into the Pipeline" : "This JD isn't in the workspace yet — retry adding it before sourcing."}
+              title={saved.jobIngested ? t("sourceTitleLive") : t("sourceTitleBlocked")}
               className="focus-ring inline-flex h-10 items-center gap-2 rounded-md bg-coral px-4 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
             >
               {sourcing ? <Loader2 size={16} className="animate-spin" /> : <Users size={16} />}
-              {sourcing ? "Sourcing into Pipeline…" : "Source into Pipeline"}
+              {sourcing ? t("sourcingIntoPipeline") : t("sourceIntoPipeline")}
             </button>
           </div>
         </div>
@@ -365,7 +382,7 @@ export function JdBuilderResult({
             className="focus-ring inline-flex h-10 items-center gap-2 rounded-md bg-ink px-4 text-sm font-semibold text-white hover:bg-steel disabled:opacity-50"
           >
             {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-            {saving ? "Saving draft…" : "Save as draft"}
+            {saving ? t("savingDraft") : t("saveAsDraft")}
           </button>
         </div>
       )}

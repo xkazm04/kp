@@ -1,6 +1,7 @@
 "use client";
 
 import { X } from "lucide-react";
+import { useTranslations } from "next-intl";
 import type { ColumnStatus } from "./AnalyzeTypes";
 
 export function AnalyzeColumn({
@@ -18,6 +19,7 @@ export function AnalyzeColumn({
   onClear?: () => void;
   children: React.ReactNode;
 }) {
+  const t = useTranslations("analyze");
   return (
     <div
       className={`flex flex-col rounded-lg border border-stone-200 bg-paper p-3 ${
@@ -37,7 +39,7 @@ export function AnalyzeColumn({
               required ? "bg-coral/10 text-coral" : "bg-stone-100 text-steel"
             }`}
           >
-            {required ? "Required" : "Optional"}
+            {required ? t("required") : t("optional")}
           </span>
         </div>
         {onClear ? (
@@ -45,10 +47,10 @@ export function AnalyzeColumn({
             type="button"
             onClick={onClear}
             className="focus-ring inline-flex h-7 items-center gap-1 rounded-md border border-stone-300 bg-white px-2 text-sm font-semibold text-ink hover:bg-stone-50"
-            title="Clear"
+            title={t("clear")}
           >
             <X className="h-3 w-3" aria-hidden />
-            Clear
+            {t("clear")}
           </button>
         ) : null}
       </div>

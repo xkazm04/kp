@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Plus, Users } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { ScoreBadge } from "@/app/_components/ScoreBadge";
 import type { ArchetypeDef, CandidateRow } from "./ProfileTypes";
 
@@ -13,6 +14,7 @@ export function CandidateMatrix({
   archetypes: ArchetypeDef[];
   onNewProfile: () => void;
 }) {
+  const t = useTranslations("profile.matrix");
   const [candidates, setCandidates] = useState<CandidateRow[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -26,12 +28,12 @@ export function CandidateMatrix({
         else setCandidates((p.candidates as CandidateRow[]) ?? []);
       })
       .catch(() => {
-        if (alive) setError("Couldn't load candidates.");
+        if (alive) setError(t("loadFailed"));
       });
     return () => {
       alive = false;
     };
-  }, []);
+  }, [t]);
 
   // Columns = the registry archetypes, plus any archetype that appears on a
   // candidate but isn't (or no longer is) in the registry, so no candidate is
@@ -58,19 +60,16 @@ export function CandidateMatrix({
     <section className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
       <header className="flex flex-wrap items-start justify-between gap-3 border-b border-stone-200 pb-4">
         <div>
-          <p className="text-meta uppercase text-coral">Candidates</p>
-          <h2 className="mt-1 font-serif text-h2 text-ink">Candidates by archetype</h2>
-          <p className="mt-2 max-w-3xl text-body text-steel">
-            Every analyzed candidate, placed in the archetype they were routed to. Open one to see its full Analyze
-            output.
-          </p>
+          <p className="text-meta uppercase text-coral">{t("eyebrow")}</p>
+          <h2 className="mt-1 font-serif text-h2 text-ink">{t("title")}</h2>
+          <p className="mt-2 max-w-3xl text-body text-steel">{t("intro")}</p>
         </div>
         <button
           type="button"
           onClick={onNewProfile}
           className="focus-ring inline-flex h-9 shrink-0 items-center gap-1.5 rounded-md border border-stone-200 px-3 text-sm font-semibold text-ink hover:bg-paper"
         >
-          <Plus size={15} /> Build candidate profile
+          <Plus size={15} /> {t("newProfile")}
         </button>
       </header>
 
@@ -82,9 +81,9 @@ export function CandidateMatrix({
         ) : rows.length === 0 ? (
           <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-stone-300 bg-paper px-4 py-10 text-center">
             <Users className="h-7 w-7 text-steel" aria-hidden />
-            <p className="mt-2 font-semibold text-ink">No analyzed candidates yet</p>
+            <p className="mt-2 font-semibold text-ink">{t("emptyTitle")}</p>
             <p className="mt-1 max-w-sm text-sm text-steel">
-              Run a CV in the <strong>Analyze</strong> tab — each result is routed to an archetype and appears here.
+              {t.rich("emptyBody", { b: (chunks) => <strong>{chunks}</strong> })}
             </p>
           </div>
         ) : (
@@ -108,7 +107,7 @@ export function CandidateMatrix({
                   <tr key={cand.slug} className="align-top">
                     {columns.map((c) => (
                       <td key={c.id} className="px-3 py-2">
-                        {c.id === cand.archetype ? <CandidateCell cand={cand} /> : <span className="text-stone-300">·</span>}
+                        {c.id === cand.archetype ? <CandidateCell cand={cand} /> : <span className="text-stone-300">{"·"}</span>}
                       </td>
                     ))}
                   </tr>
@@ -123,11 +122,12 @@ export function CandidateMatrix({
 }
 
 function CandidateCell({ cand }: { cand: CandidateRow }) {
+  const t = useTranslations("profile.matrix");
   return (
     <Link
       href={`/history/${cand.slug}`}
       className="focus-ring group block rounded-md border border-stone-200 bg-white px-2.5 py-1.5 hover:border-coral/50 hover:bg-coral/5"
-      title={`Open ${cand.name}'s analysis`}
+      title={t("openAnalysisTitle", { name: cand.name })}
     >
       <div className="flex items-center justify-between gap-2">
         <span className="min-w-0 truncate font-semibold text-ink group-hover:text-coral">{cand.name}</span>

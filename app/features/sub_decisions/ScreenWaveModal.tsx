@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { AlertTriangle, Ban, Check, Loader2, ShieldCheck } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { Modal } from "@/app/_components/Modal";
 import { SCREENING_DEFAULT } from "@/app/_lib/decision-config-schema";
 
@@ -27,6 +28,7 @@ export function ScreenWaveModal({
   onClose: () => void;
   onCommitted: () => void;
 }) {
+  const t = useTranslations("decisions.wave");
   const [enabled, setEnabled] = useState(true);
   const [bottomPercent, setBottomPercent] = useState(SCREENING_DEFAULT.rejectBottomPercent);
   const [maxMatch, setMaxMatch] = useState(SCREENING_DEFAULT.maxMatchToReject);
@@ -65,7 +67,7 @@ export function ScreenWaveModal({
           }
         })
         .catch((e) => {
-          if (alive) setError(e instanceof Error ? e.message : "Preview failed.");
+          if (alive) setError(e instanceof Error ? e.message : t("previewFailed"));
         })
         .finally(() => {
           if (alive) setLoading(false);
@@ -75,7 +77,7 @@ export function ScreenWaveModal({
       alive = false;
       window.clearTimeout(h);
     };
-  }, [enabled, bottomPercent, maxMatch, jobId, committed]);
+  }, [enabled, bottomPercent, maxMatch, jobId, committed, t]);
 
   const commit = async () => {
     setCommitting(true);
@@ -91,7 +93,7 @@ export function ScreenWaveModal({
       setCommitted(d as WaveResult);
       onCommitted(); // live-refresh the queue so rejected rows drop out
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Wave failed.");
+      setError(e instanceof Error ? e.message : t("waveFailed"));
     } finally {
       setCommitting(false);
     }
@@ -103,8 +105,8 @@ export function ScreenWaveModal({
 
   return (
     <Modal
-      title={`Screening wave · ${roleTitle}`}
-      subtitle={committed ? "Committed" : "Preview — nothing is applied until you commit"}
+      title={t("title", { role: roleTitle })}
+      subtitle={committed ? t("committedSubtitle") : t("previewSubtitle")}
       onClose={onClose}
       size="3xl"
       footer={
@@ -114,17 +116,17 @@ export function ScreenWaveModal({
             onClick={onClose}
             className="focus-ring inline-flex h-9 items-center rounded-md bg-ink px-4 text-sm font-semibold text-white hover:bg-ink/90"
           >
-            Done
+            {t("done")}
           </button>
         ) : (
           <button
             type="button"
             onClick={commit}
             disabled={committing || loading || !enabled || rejects.length === 0}
-            title={!enabled ? "Enable auto-reject to commit" : rejects.length === 0 ? "Nothing to reject with these settings" : undefined}
+            title={!enabled ? t("enableToCommit") : rejects.length === 0 ? t("nothingToReject") : undefined}
             className="focus-ring inline-flex h-9 items-center gap-1.5 rounded-md bg-coral px-4 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-40"
           >
-            <Ban size={15} /> {committing ? "Rejecting…" : `Reject ${rejects.length} & notify`}
+            <Ban size={15} /> {committing ? t("rejecting") : t("rejectAndNotify", { count: rejects.length })}
           </button>
         )
       }
@@ -133,9 +135,14 @@ export function ScreenWaveModal({
         <div className="space-y-3">
           <p className="flex items-center gap-2 rounded-md border border-moss/40 bg-moss/5 p-3 text-base text-ink">
             <Check size={16} className="text-moss" />
-            Wave committed — <span className="font-semibold">{committed.rejected} rejected</span>, {committed.kept} kept of {committed.cohort}.
+            {t.rich("committedBanner", {
+              rejected: committed.rejected,
+              kept: committed.kept,
+              cohort: committed.cohort,
+              b: (chunks) => <span className="font-semibold">{chunks}</span>,
+            })}
             {committed.commsFailures > 0 ? (
-              <span className="text-amber-700"> {committed.commsFailures} notification(s) failed to queue — nudge those manually.</span>
+              <span className="text-amber-700"> {t("commsFailures", { count: committed.commsFailures })}</span>
             ) : null}
           </p>
         </div>
@@ -145,26 +152,26 @@ export function ScreenWaveModal({
           <div className="rounded-md border border-stone-200 bg-paper p-3">
             <label className="flex items-center gap-2 text-sm font-semibold text-ink">
               <input type="checkbox" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} className="h-4 w-4 accent-coral" />
-              Auto-reject the weakest candidates
+              {t("autoRejectWeakest")}
             </label>
             <div className={`mt-3 space-y-3 ${enabled ? "" : "pointer-events-none opacity-40"}`}>
               <label className="block">
                 <span className="flex items-center justify-between text-sm text-ink">
-                  <span>Reject bottom</span>
+                  <span>{t("rejectBottom")}</span>
                   <span className="nums font-semibold">{bottomPercent}%</span>
                 </span>
                 <input type="range" min={0} max={100} step={5} value={bottomPercent} onChange={(e) => setBottomPercent(Number(e.target.value))} className="mt-1 w-full accent-coral" />
               </label>
               <label className="block">
                 <span className="flex items-center justify-between text-sm text-ink">
-                  <span>…only if match is below</span>
+                  <span>{t("onlyIfBelow")}</span>
                   <span className="nums font-semibold">{maxMatch}</span>
                 </span>
                 <input type="range" min={0} max={100} step={5} value={maxMatch} onChange={(e) => setMaxMatch(Number(e.target.value))} className="mt-1 w-full accent-coral" />
               </label>
             </div>
             <p className="mt-2 flex items-center gap-1.5 text-meta text-steel">
-              <ShieldCheck size={12} className="text-moss" /> Early-career &amp; unrecognized archetypes are always shielded from auto-rejection.
+              <ShieldCheck size={12} className="text-moss" /> {t("shieldNote")}
             </p>
           </div>
 
@@ -178,21 +185,25 @@ export function ScreenWaveModal({
             {loading ? <Loader2 size={15} className="animate-spin text-coral" /> : null}
             {view ? (
               <span>
-                Would reject <span className="font-semibold text-coral">{rejects.length}</span> of {view.cohort} ·{" "}
-                <span className="text-steel">{keeps.length} kept</span>
+                {t.rich("wouldReject", {
+                  rejected: rejects.length,
+                  cohort: view.cohort,
+                  b: (chunks) => <span className="font-semibold text-coral">{chunks}</span>,
+                })}{" "}
+                · <span className="text-steel">{t("keptCount", { count: keeps.length })}</span>
               </span>
             ) : (
-              <span className="text-steel">Computing preview…</span>
+              <span className="text-steel">{t("computingPreview")}</span>
             )}
           </p>
 
           {rejects.length > 0 ? (
             <section>
-              <p className="text-meta uppercase tracking-wide text-coral">Would reject</p>
+              <p className="text-meta uppercase tracking-wide text-coral">{t("wouldRejectHeading")}</p>
               <ul className="mt-1.5 space-y-1">
                 {rejects.map((d) => (
                   <li key={d.entryId} className="rounded-md border border-coral/30 bg-coral/5 px-2.5 py-1.5 text-sm">
-                    <span className="font-medium text-ink">{d.label}</span> <span className="nums text-steel">· match {d.matchScore}</span>
+                    <span className="font-medium text-ink">{d.label}</span> <span className="nums text-steel">{t("matchSuffix", { score: d.matchScore })}</span>
                     <span className="mt-0.5 block text-meta text-steel">{d.rationale}</span>
                   </li>
                 ))}
@@ -202,7 +213,7 @@ export function ScreenWaveModal({
 
           {keeps.length > 0 ? (
             <section>
-              <p className="text-meta uppercase tracking-wide text-steel">Kept ({keeps.length})</p>
+              <p className="text-meta uppercase tracking-wide text-steel">{t("keptHeading", { count: keeps.length })}</p>
               <ul className="mt-1.5 space-y-1">
                 {keeps.map((d) => (
                   <li key={d.entryId} className="flex items-baseline justify-between gap-2 px-2.5 py-1 text-sm">

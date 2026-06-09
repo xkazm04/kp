@@ -20,6 +20,11 @@ export type AnalyzeParams = {
   companyText?: string | null;
   jdSlug?: string | null;
   requestId: string;
+  // Output locale for the LLM-generated narrative ("en" | "cs"). Captured at
+  // request time (the background task runs outside request scope, so it can't
+  // read the cookie itself) and forwarded to the Python CLI via --lang. Part of
+  // the cache key so localized results don't collide. Defaults to "en".
+  lang?: string;
 };
 
 export class AnalyzeError extends Error {
@@ -35,6 +40,7 @@ type ProgressFn = (done: number, total: number, msg?: string) => void;
 function cliArgs(cvPath: string, p: AnalyzeParams): string[] {
   const args = ["-m", "pipeline.jobfit.cli", cvPath];
   if (p.grounding) args.push("--grounding");
+  args.push("--lang", p.lang || "en");
   if (p.jobDescriptionPath) args.push("--job-description-path", p.jobDescriptionPath);
   else if (p.jobDescriptionText?.trim()) args.push("--job-description-text", p.jobDescriptionText.trim());
   if (p.companyPath) args.push("--company-path", p.companyPath);
@@ -84,6 +90,7 @@ export async function runAnalyze(p: AnalyzeParams, onProgress?: ProgressFn, sign
           companyText: p.companyText ?? "",
           companyFileBytes: coFileBytes,
           grounding: p.grounding,
+          lang: p.lang || "en",
         });
 
         const cached = lookupCachedAnalysis(cacheKey);

@@ -128,11 +128,19 @@ test("both JD/company zone states and the empty CV zone carry the owned marker",
 test("the drop-anywhere overlay names the JD/company carve-out (idea-9f3a1c52)", () => {
   // "Drop your CV anywhere" alone implies the labeled Job description and Company
   // zones too — but those own their drops and never become a CV. The overlay must
-  // spell out the carve-out so the copy matches the routing contract above.
+  // spell out the carve-out so the copy matches the routing contract above. The
+  // copy is i18n-localized, so the component renders the `dropCarveout` key and
+  // the actual wording lives in the message catalog (messages/en.json).
   const profile = read("./AnalyzeProfileInput.tsx");
   assert.match(
     profile,
+    /t\("dropCarveout"\)/,
+    "the overlay must render the carve-out message via the dropCarveout catalog key",
+  );
+  const en = JSON.parse(read("../../../messages/en.json")) as { analyze?: { dropCarveout?: string } };
+  assert.match(
+    en.analyze?.dropCarveout ?? "",
     /Job description and Company zones keep their own files/,
-    "the overlay must tell the user the JD/company zones keep their own drops",
+    "the dropCarveout copy must tell the user the JD/company zones keep their own drops",
   );
 });

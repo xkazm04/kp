@@ -3,8 +3,9 @@
 import { useEffect, useRef, useState } from "react";
 import { AlertTriangle, ArrowUpRight, Clock, Loader2, Pause, XCircle } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { Badge, type BadgeTone } from "@/app/_components/Badge";
-import { relativeTime } from "./PipelineTypes";
+import { useRelativeTime } from "./PipelineShared";
 
 type Summary = { advanced?: number; rejected?: number; held?: number; alerts?: number };
 type Schedule = {
@@ -29,39 +30,32 @@ const RESULT_TONE: Record<RunResult["tone"], string> = {
 // This is the ONE table of buckets: both the badge row (SummaryBadges) and the
 // "Run now" chip (describeTick) are driven from it, so adding a fifth outcome is a
 // single-line change that can't leave the two summaries out of sync.
-const SUMMARY_COUNTS: { key: keyof Summary; tone: BadgeTone; icon: LucideIcon; label: (n: number) => string }[] = [
-  { key: "advanced", tone: "positive", icon: ArrowUpRight, label: (n) => `${n} advanced` },
-  { key: "rejected", tone: "critical", icon: XCircle, label: (n) => `${n} rejected` },
-  { key: "held", tone: "neutral", icon: Pause, label: (n) => `${n} held` },
-  { key: "alerts", tone: "caution", icon: AlertTriangle, label: (n) => `${n} alert${n === 1 ? "" : "s"}` },
+// The per-bucket presentation; the human label is localized via the
+// `pipeline.scheduler` catalog (labelKey), so the chip and the badges never drift.
+const SUMMARY_COUNTS: { key: keyof Summary; tone: BadgeTone; icon: LucideIcon; labelKey: string }[] = [
+  { key: "advanced", tone: "positive", icon: ArrowUpRight, labelKey: "summaryAdvanced" },
+  { key: "rejected", tone: "critical", icon: XCircle, labelKey: "summaryRejected" },
+  { key: "held", tone: "neutral", icon: Pause, labelKey: "summaryHeld" },
+  { key: "alerts", tone: "caution", icon: AlertTriangle, labelKey: "summaryAlerts" },
 ];
-
-// Turn a tick outcome into a short, legible chip: the real summary on success,
-// a neutral "nothing due" no-op, or the error message verbatim. The per-bucket
-// parts come straight from SUMMARY_COUNTS so the chip and the badges never drift.
-function describeTick(tick: Tick): RunResult {
-  if (tick.error) return { tone: "error", text: tick.error };
-  if (!tick.ran) return { tone: "neutral", text: "nothing due" };
-  const s = tick.summary ?? {};
-  const parts = SUMMARY_COUNTS.filter(({ key }) => s[key]).map(({ key, label }) => label(s[key] ?? 0));
-  return { tone: "ok", text: parts.length ? `ran · ${parts.join(", ")}` : "ran · no changes" };
-}
 
 // Render the last-run summary as semantic badges (one per bucket), every count
 // through the shared Badge so outcomes look identical to the rest of the pipeline.
 function SummaryBadges({ summary }: { summary: Summary }) {
+  const t = useTranslations("pipeline.scheduler");
   return (
     <>
-      {SUMMARY_COUNTS.map(({ key, tone, icon, label }) => {
+      {SUMMARY_COUNTS.map(({ key, tone, icon, labelKey }) => {
         const n = summary[key] ?? 0;
+        const label = t(labelKey as Parameters<typeof t>[0], { n });
         return (
           <Badge
             key={key}
             tone={tone}
             icon={icon}
             muted={n === 0}
-            label={label(n)}
-            ariaLabel={`${label(n)} this run`}
+            label={label}
+            ariaLabel={t("thisRun", { label })}
             className="nums"
           />
         );
@@ -73,6 +67,21 @@ function SummaryBadges({ summary }: { summary: Summary }) {
 // Direction #5 — control + status for the automation clock (the durable
 // scheduler that runs the Task-7 policy pass on a cadence). Disabled by default.
 export function SchedulerControl({ onRan, className = "" }: { onRan?: () => void; className?: string }) {
+  const t = useTranslations("pipeline.scheduler");
+  const relativeTime = useRelativeTime();
+  // Turn a tick outcome into a short, legible chip: the real summary on success, a
+  // neutral no-op, or the error verbatim. The per-bucket parts come from
+  // SUMMARY_COUNTS so the chip and the badges never drift. Local (not module) so
+  // it can read the request locale.
+  const describeTick = (tick: Tick): RunResult => {
+    if (tick.error) return { tone: "error", text: tick.error };
+    if (!tick.ran) return { tone: "neutral", text: t("nothingDue") };
+    const s = tick.summary ?? {};
+    const parts = SUMMARY_COUNTS.filter(({ key }) => s[key]).map(({ key, labelKey }) =>
+      t(labelKey as Parameters<typeof t>[0], { n: s[key] ?? 0 })
+    );
+    return { tone: "ok", text: parts.length ? t("ranWith", { parts: parts.join(", ") }) : t("ranNoChanges") };
+  };
   const [sched, setSched] = useState<Schedule | null>(null);
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<RunResult | null>(null);
@@ -101,7 +110,7 @@ export function SchedulerControl({ onRan, className = "" }: { onRan?: () => void
         setSched(p.schedule as Schedule);
         setError(null);
       })
-      .catch(() => setError("Couldn't reach the automation engine."));
+      .catch(() => setError(t("engineUnreachable")));
 
   useEffect(() => {
     load();
@@ -144,14 +153,14 @@ export function SchedulerControl({ onRan, className = "" }: { onRan?: () => void
       if (body.tick) {
         onRan?.();
         if (p.tick) setResult(describeTick(p.tick as Tick));
-        else setResult({ tone: "error", text: typeof p.error === "string" ? p.error : "Run failed" });
+        else setResult({ tone: "error", text: typeof p.error === "string" ? p.error : t("runFailed") });
       }
     } catch (e) {
-      const msg = e instanceof Error && e.message ? e.message : "network error";
+      const msg = e instanceof Error && e.message ? e.message : t("networkError");
       // Tick failures surface in the run-result chip; config failures (toggle /
       // interval) get the inline error so the bar can't fail silently.
-      if (body.tick) setResult({ tone: "error", text: `Run failed — ${msg}` });
-      else setError(`Couldn't update the schedule — ${msg}`);
+      if (body.tick) setResult({ tone: "error", text: t("runFailedMsg", { msg }) });
+      else setError(t("updateFailed", { msg }));
     } finally {
       inFlightRef.current = false;
       setBusy(false);
@@ -177,7 +186,7 @@ export function SchedulerControl({ onRan, className = "" }: { onRan?: () => void
     return (
       <div className={`flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-md border border-stone-200 bg-paper/60 px-3 py-2 text-sm text-steel ${className}`}>
         <span className="flex items-center gap-1.5 font-medium text-ink">
-          <Clock size={14} className="text-coral" /> Automation clock
+          <Clock size={14} className="text-coral" /> {t("clock")}
         </span>
         <span role="status" className="inline-flex items-center gap-1 font-medium text-coral">
           <AlertTriangle size={14} className="shrink-0" /> {error}
@@ -190,7 +199,7 @@ export function SchedulerControl({ onRan, className = "" }: { onRan?: () => void
   return (
     <div className={`flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-md border border-stone-200 bg-paper/60 px-3 py-2 text-sm text-steel ${className}`}>
       <span className="flex items-center gap-1.5 font-medium text-ink">
-        <Clock size={14} className="text-coral" /> Automation clock
+        <Clock size={14} className="text-coral" /> {t("clock")}
       </span>
       <button
         type="button"
@@ -199,19 +208,19 @@ export function SchedulerControl({ onRan, className = "" }: { onRan?: () => void
         className={`focus-ring inline-flex h-7 items-center rounded-full px-2.5 text-sm font-semibold ${
           sched.enabled ? "bg-moss/15 text-moss" : "bg-stone-200 text-steel"
         }`}
-        title="Run the deterministic policy pass automatically on a timer"
+        title={t("toggleTitle")}
       >
-        {sched.enabled ? "On" : "Off"}
+        {sched.enabled ? t("on") : t("off")}
       </button>
       <label className="flex items-center gap-1">
-        every
+        {t("every")}
         <input
           type="number"
           min={1}
           max={1440}
           value={intervalDraft}
           disabled={busy}
-          aria-label="Automation interval in minutes (1–1440)"
+          aria-label={t("intervalAria")}
           onChange={(e) => setIntervalDraft(e.target.value)}
           onFocus={() => setIntervalFocused(true)}
           onBlur={(e) => {
@@ -223,25 +232,25 @@ export function SchedulerControl({ onRan, className = "" }: { onRan?: () => void
           }}
           className="focus-ring w-14 rounded border border-stone-200 px-1 py-0.5 text-center nums"
         />
-        min
+        {t("min")}
       </label>
       {sched.lastRunAt ? (
         <span className="inline-flex flex-wrap items-center gap-x-2 gap-y-1">
-          <span>· last auto-run {relativeTime(sched.lastRunAt)}</span>
+          <span>{t("lastAutoRun", { time: relativeTime(sched.lastRunAt) })}</span>
           {s ? <SummaryBadges summary={s} /> : null}
         </span>
       ) : (
-        <span>· never run yet</span>
+        <span>{t("neverRun")}</span>
       )}
       <button
         type="button"
         onClick={() => update({ tick: true })}
         disabled={busy}
         className="focus-ring ml-auto inline-flex items-center gap-1.5 rounded-md border border-stone-200 px-2 py-0.5 text-sm hover:bg-stone-50 disabled:opacity-50"
-        title="Force a scheduler run now (logged to the run history)"
+        title={t("runNowTitle")}
       >
         {busy ? <Loader2 size={14} className="animate-spin" /> : null}
-        {busy ? "Running…" : "Run now"}
+        {busy ? t("running") : t("runNow")}
       </button>
       {result ? (
         <span

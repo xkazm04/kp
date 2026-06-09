@@ -2,7 +2,9 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
 import { formatRelativeTime } from "@/app/_lib/format";
+import { useEnumLabel } from "@/app/_lib/use-enum-label";
 
 type AnalysisRow = {
   slug: string;
@@ -30,6 +32,12 @@ function distinct(values: (string | null)[]): string[] {
 }
 
 export function HistoryTab() {
+  const t = useTranslations("history");
+  const enumLabel = useEnumLabel();
+  const dispLabel = (d: string) => {
+    const key = `disposition.${d}` as Parameters<typeof t>[0];
+    return t.has(key) ? t(key) : d;
+  };
   const [rows, setRows] = useState<AnalysisRow[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   // Client-side search + filter (RES3). History was an un-queryable flat table —
@@ -44,7 +52,7 @@ export function HistoryTab() {
     let cancelled = false;
     fetch("/api/analyses")
       .then(async (response) => {
-        if (!response.ok) throw new Error(`Load failed (${response.status}).`);
+        if (!response.ok) throw new Error(t("loadFailedStatus", { status: response.status }));
         return response.json();
       })
       .then((payload) => {
@@ -53,12 +61,12 @@ export function HistoryTab() {
       })
       .catch((caught) => {
         if (cancelled) return;
-        setError(caught instanceof Error ? caught.message : "Load failed.");
+        setError(caught instanceof Error ? caught.message : t("loadFailed"));
       });
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [t]);
 
   const families = useMemo(() => distinct((rows ?? []).map((r) => r.role_family)), [rows]);
   const seniorities = useMemo(() => distinct((rows ?? []).map((r) => r.seniority)), [rows]);
@@ -81,59 +89,56 @@ export function HistoryTab() {
   return (
     <section className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
       <header className="border-b border-stone-200 pb-4">
-        <p className="text-meta uppercase text-coral">Workspace</p>
-        <h2 className="mt-1 font-serif text-display text-ink">History</h2>
-        <p className="mt-2 max-w-3xl text-body text-steel">
-          Every successful run is auto-persisted with a stable slug. Open one to reload the full
-          result or share the slug with the team.
-        </p>
+        <p className="text-meta uppercase text-coral">{t("eyebrow")}</p>
+        <h2 className="mt-1 font-serif text-display text-ink">{t("title")}</h2>
+        <p className="mt-2 max-w-3xl text-body text-steel">{t("intro")}</p>
       </header>
 
       <div className="mt-5">
         {error ? (
           <p className="rounded-md bg-red-50 p-3 text-base text-red-700">{error}</p>
         ) : rows == null ? (
-          <p className="text-base text-steel">Loading…</p>
+          <p className="text-base text-steel">{t("loading")}</p>
         ) : rows.length === 0 ? (
           <p className="rounded-md bg-paper p-4 text-base text-steel">
-            No saved runs yet. Run one from the <strong>Analyze</strong> tab; it will appear here.
+            {t.rich("emptyNoRuns", { b: (chunks) => <strong>{chunks}</strong> })}
           </p>
         ) : (
           <>
             <div className="flex flex-wrap items-center gap-2">
-              <label htmlFor="history-search" className="sr-only">Search candidate or slug</label>
+              <label htmlFor="history-search" className="sr-only">{t("searchLabel")}</label>
               <input
                 id="history-search"
                 type="search"
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
-                placeholder="Search candidate or slug…"
+                placeholder={t("searchPlaceholder")}
                 className="focus-ring h-9 min-w-[200px] flex-1 rounded-md border border-stone-200 px-3 text-base"
               />
               <select
                 value={roleFamily}
                 onChange={(e) => setRoleFamily(e.target.value)}
-                aria-label="Filter by role family"
+                aria-label={t("filterFamily")}
                 className="focus-ring h-9 rounded-md border border-stone-200 px-2 text-base capitalize"
               >
-                <option value="">All role families</option>
+                <option value="">{t("allFamilies")}</option>
                 {families.map((f) => (
-                  <option key={f} value={f}>{f}</option>
+                  <option key={f} value={f}>{enumLabel("family", f)}</option>
                 ))}
               </select>
               <select
                 value={seniority}
                 onChange={(e) => setSeniority(e.target.value)}
-                aria-label="Filter by seniority"
+                aria-label={t("filterSeniority")}
                 className="focus-ring h-9 rounded-md border border-stone-200 px-2 text-base capitalize"
               >
-                <option value="">All seniority</option>
+                <option value="">{t("allSeniority")}</option>
                 {seniorities.map((s) => (
-                  <option key={s} value={s}>{s}</option>
+                  <option key={s} value={s}>{enumLabel("seniority", s)}</option>
                 ))}
               </select>
               {filtering ? (
-                <span className="text-sm text-steel" aria-live="polite">Showing {filtered.length} of {rows.length}</span>
+                <span className="text-sm text-steel" aria-live="polite">{t("showing", { shown: filtered.length, total: rows.length })}</span>
               ) : null}
               {filtering ? (
                 <button
@@ -141,15 +146,15 @@ export function HistoryTab() {
                   onClick={clearAll}
                   className="focus-ring inline-flex items-center gap-1 rounded-full border border-coral/40 bg-coral/5 px-2.5 py-0.5 text-sm font-semibold text-coral hover:bg-coral/10"
                 >
-                  Clear
+                  {t("clear")}
                 </button>
               ) : null}
             </div>
             {filtered.length === 0 ? (
               <p className="mt-4 rounded-md bg-paper p-4 text-base text-steel">
-                No runs match your search or filter.{" "}
+                {t("noMatch")}{" "}
                 <button type="button" onClick={clearAll} className="font-semibold text-coral underline underline-offset-2">
-                  Clear filters
+                  {t("clearFilters")}
                 </button>
               </p>
             ) : (
@@ -157,14 +162,14 @@ export function HistoryTab() {
                 <table className="min-w-full divide-y divide-stone-200">
                   <thead className="bg-paper">
                     <tr>
-                      <Th>Slug</Th>
-                      <Th>Candidate</Th>
-                      <Th>Role family</Th>
-                      <Th>Seniority</Th>
-                      <Th>Score</Th>
-                      <Th>Decision</Th>
-                      <Th>JD</Th>
-                      <Th>Saved</Th>
+                      <Th>{t("colSlug")}</Th>
+                      <Th>{t("colCandidate")}</Th>
+                      <Th>{t("colFamily")}</Th>
+                      <Th>{t("colSeniority")}</Th>
+                      <Th>{t("colScore")}</Th>
+                      <Th>{t("colDecision")}</Th>
+                      <Th>{t("colJd")}</Th>
+                      <Th>{t("colSaved")}</Th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-stone-200">
@@ -179,8 +184,8 @@ export function HistoryTab() {
                       </Link>
                     </Td>
                     <Td>{row.candidate_label}</Td>
-                    <Td className="capitalize">{row.role_family ?? "—"}</Td>
-                    <Td className="capitalize">{row.seniority ?? "—"}</Td>
+                    <Td className="capitalize">{row.role_family ? enumLabel("family", row.role_family) : "—"}</Td>
+                    <Td className="capitalize">{row.seniority ? enumLabel("seniority", row.seniority) : "—"}</Td>
                     <Td>{row.score ?? "—"}</Td>
                     <Td>
                       {row.disposition ? (
@@ -189,7 +194,7 @@ export function HistoryTab() {
                             DISPOSITION_STYLE[row.disposition] ?? "bg-stone-100 text-steel"
                           }`}
                         >
-                          {row.disposition}
+                          {dispLabel(row.disposition)}
                         </span>
                       ) : (
                         "—"

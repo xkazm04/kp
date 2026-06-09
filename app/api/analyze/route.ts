@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { getServerLocale } from "@/i18n/server";
 import type { AnalyzeParams } from "@/app/_lib/analyze-run";
 import { dedupeCvVariants } from "@/app/_lib/cv-variant";
 import { newRequestId } from "@/app/_lib/logger";
@@ -76,6 +77,12 @@ export async function POST(request: Request) {
     coText = null;
   }
 
+  // Capture the locale HERE (request scope): the background task runs detached
+  // from the request, so it can't read the NEXT_LOCALE cookie itself — the
+  // resolved locale rides along in the task params and becomes the Python CLI's
+  // --lang, so the LLM narrative comes back in the user's language.
+  const lang = await getServerLocale();
+
   const params: AnalyzeParams = {
     baseDir,
     grounding,
@@ -86,6 +93,7 @@ export async function POST(request: Request) {
     companyText: coText,
     jdSlug,
     requestId: newRequestId(),
+    lang,
   };
 
   const task = startTask("analyze", params as unknown as Record<string, unknown>);

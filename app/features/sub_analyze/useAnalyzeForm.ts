@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   applyStageEvent,
   initialStageState,
@@ -23,6 +24,7 @@ export type AnalyzeFormState = ReturnType<typeof useAnalyzeForm>;
 const ANALYZE_TASK_KEY = "kp.analyzeTaskId";
 
 export function useAnalyzeForm() {
+  const t = useTranslations("analyze");
   const jobInputRef = useRef<HTMLInputElement>(null);
   const companyInputRef = useRef<HTMLInputElement>(null);
   // Monotonic id stamped on each submit's GitHub run. A fire-and-forget GitHub
@@ -271,7 +273,7 @@ export function useAnalyzeForm() {
 
   async function submit() {
     if (cvFiles.length === 0) {
-      setError("Select a CV or LinkedIn PDF export first.");
+      setError(t("selectCvFirst"));
       return;
     }
     // Supersede any GitHub run still in flight: only this submit's callbacks win.

@@ -1,7 +1,8 @@
 import { notFound } from "next/navigation";
 import { Clock, ShieldCheck, Sparkles } from "lucide-react";
+import { getTranslations } from "next-intl/server";
 import { getInterviewSessionByToken } from "@/app/_lib/db";
-import { durationLabel, GROUNDED_DEFAULT_MIN } from "@/app/_lib/interview-duration.mjs";
+import { GROUNDED_DEFAULT_MIN } from "@/app/_lib/interview-duration.mjs";
 import { AiDisclosure } from "@/app/_components/AiDisclosure";
 import { VoiceInterviewClient } from "@/app/_components/voice/VoiceInterviewClient";
 import { InterviewSidebar } from "@/app/_components/voice/InterviewSidebar";
@@ -15,6 +16,8 @@ export default async function InterviewPortalPage({ params }: { params: Promise<
   const session = getInterviewSessionByToken(token);
   if (!session) notFound();
 
+  const t = await getTranslations("interview");
+
   // Truthful length from the session's grounded run-of-show (idea-0ecbe5a5),
   // not a hardcoded "5 minutes" — older sessions without a stored duration fall
   // back to the documented grounded default.
@@ -23,10 +26,8 @@ export default async function InterviewPortalPage({ params }: { params: Promise<
   if (session.status === "completed") {
     return (
       <main className="mx-auto max-w-2xl px-4 py-16 text-center">
-        <h1 className="font-serif text-h2 text-ink">Thank you</h1>
-        <p className="mt-2 text-body text-steel">
-          This interview has already been completed. A human recruiter will review the conversation and follow up.
-        </p>
+        <h1 className="font-serif text-h2 text-ink">{t("completedTitle")}</h1>
+        <p className="mt-2 text-body text-steel">{t("completedBody")}</p>
       </main>
     );
   }
@@ -34,23 +35,20 @@ export default async function InterviewPortalPage({ params }: { params: Promise<
   return (
     <main className="mx-auto max-w-[1380px] px-4 py-10">
       <header className="max-w-3xl">
-        <p className="text-meta uppercase text-coral">First-round interview</p>
+        <p className="text-meta uppercase text-coral">{t("eyebrow")}</p>
         <h1 className="mt-1 font-serif text-display text-ink">
-          {session.jobTitle ? `Screen — ${session.jobTitle}` : "Voice screen"}
+          {session.jobTitle ? t("titleRole", { role: session.jobTitle }) : t("titleGeneric")}
         </h1>
-        <p className="mt-2 text-body text-steel">
-          A short, AI-led first-round conversation. Talk through a few questions at your own pace — a human recruiter
-          reviews the transcript afterward.
-        </p>
+        <p className="mt-2 text-body text-steel">{t("intro")}</p>
         <div className="mt-4 flex flex-wrap items-center gap-2">
           <span className="inline-flex items-center gap-1.5 rounded-full border border-stone-200 bg-white px-3 py-1 text-sm text-steel">
-            <Clock size={13} className="text-steel" /> {durationLabel(durationMin)}
+            <Clock size={13} className="text-steel" /> {t("durationApprox", { min: durationMin })}
           </span>
           <span className="inline-flex items-center gap-1.5 rounded-full border border-stone-200 bg-white px-3 py-1 text-sm text-steel">
-            <Sparkles size={13} className="text-moss" /> AI-led conversation
+            <Sparkles size={13} className="text-moss" /> {t("chipAiLed")}
           </span>
           <span className="inline-flex items-center gap-1.5 rounded-full border border-stone-200 bg-white px-3 py-1 text-sm text-steel">
-            <ShieldCheck size={13} className="text-moss" /> Reviewed by a human
+            <ShieldCheck size={13} className="text-moss" /> {t("chipHuman")}
           </span>
         </div>
       </header>

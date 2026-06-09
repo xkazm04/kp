@@ -183,9 +183,13 @@ def build_draft(payload: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def _extract(text: str) -> dict[str, Any]:
-    """Single Gemini call: free text -> DRAFT_SCHEMA payload."""
+def _extract(text: str, lang: str = "en") -> dict[str, Any]:
+    """Single Gemini call: free text -> DRAFT_SCHEMA payload.
+
+    ``lang`` localizes only the free-form text fields; archetype/provenance
+    enum values stay canonical (they are coerced downstream)."""
     from .gemini import grounded_answer
+    from .i18n import language_directive
 
     schema_text = json.dumps(DRAFT_SCHEMA, ensure_ascii=False, indent=2)
     prompt = (
@@ -199,7 +203,7 @@ def _extract(text: str) -> dict[str, Any]:
         "- Tag each skill's provenance from how the notes describe it (a school project is coursework/personal_project, "
         "not professional). Default to self_declared when unstated.\n"
         "- Do not invent facts that are not supported by the notes. Empty lists are fine.\n"
-        "- Freeform text fields must be in English.\n\n"
+        f"- {language_directive(lang)}\n\n"
         f"Notes:\n{text.strip()}\n"
     )
     answer = grounded_answer(
@@ -222,6 +226,7 @@ def main(argv: list[str] | None = None) -> int:
 
     parser = argparse.ArgumentParser(description="Draft a candidate intake from free-text notes via AI.")
     parser.add_argument("--input-json", type=Path, help="Input JSON file. Reads stdin if omitted.")
+    parser.add_argument("--lang", default="en", help="Output locale for free-form fields (en, cs).")
     args = parser.parse_args(argv)
 
     try:
@@ -232,7 +237,7 @@ def main(argv: list[str] | None = None) -> int:
         if not text:
             print(json.dumps({"error": "No notes supplied.", "status": 400}, ensure_ascii=False), file=sys.stderr)
             return 1
-        payload = _extract(text)
+        payload = _extract(text, lang=args.lang)
         draft = build_draft(payload)
     except Exception as exc:
         print(json.dumps({"error": str(exc), "status": 500}, ensure_ascii=False), file=sys.stderr)

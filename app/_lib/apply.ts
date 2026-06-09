@@ -1,6 +1,15 @@
+import type { useTranslations } from "next-intl";
 import archetypeRegistry from "@/pipeline/jobfit/archetypes.json";
 import type { JobRecord } from "./db";
 import { buildIntakeProfile, type ApplyAnswers, type StepCondition } from "./apply-intake";
+
+// The "apply"-namespace translator the caller threads in so the chat prompts are
+// localized at build time (the candidate reads them verbatim — they cannot be
+// English while the page chrome is Czech). Server-resolved per request via
+// next-intl's getTranslations("apply"); this is its (structurally identical)
+// type. Used only for the candidate-facing `prompt`/`placeholder`/option labels —
+// step ids, conditions, and answer keys stay canonical.
+export type ApplyTranslator = ReturnType<typeof useTranslations<"apply">>;
 
 // Conversational, formless apply: a short chat that captures the candidate and
 // runs job-derived knockout (KO) questions before they enter the pipeline.
@@ -65,13 +74,38 @@ export const FALLBACK_ARCHETYPE = "bau";
 // can never silently get an empty intake.
 const LANED_ARCHETYPES = ["student", "career_switcher"];
 
-export function buildApplyScript(job: JobRecord): ApplyStep[] {
+// Candidate-facing label for a self-declared archetype, localized. Uses LITERAL
+// catalog keys (typed) for the registry's known apply archetypes and falls back
+// to the registry's own English `applyLabel` for any future archetype that
+// hasn't been given a translation yet — so a new registry entry degrades to its
+// English label rather than throwing on a missing key.
+function archetypeApplyLabel(t: ApplyTranslator, id: string, fallback: string): string {
+  switch (id) {
+    case "bau":
+      return t("archetypeBau");
+    case "student":
+      return t("archetypeStudent");
+    case "career_switcher":
+      return t("archetypeSwitcher");
+    default:
+      return fallback;
+  }
+}
+
+// `t` is the per-request "apply" translator (server-resolved): the prompts the
+// candidate reads must be in their language, so they're localized HERE at build
+// time, not in the client (which receives them as plain display strings). Step
+// ids, `when` conditions, and option `value`s stay canonical — only the visible
+// `prompt`/`placeholder`/label text is localized.
+export function buildApplyScript(job: JobRecord, t: ApplyTranslator): ApplyStep[] {
   const steps: ApplyStep[] = [
     {
       id: "name",
       type: "text",
-      prompt: `Hi! Let's get you applied for ${job.title}${job.company ? ` at ${job.company}` : ""}. What's your name?`,
-      placeholder: "Your name",
+      prompt: job.company
+        ? t("script.greetingCompany", { jobTitle: job.title, company: job.company })
+        : t("script.greeting", { jobTitle: job.title }),
+      placeholder: t("script.namePlaceholder"),
     },
     {
       // Captured up front so the candidate is reachable: without it every
@@ -79,21 +113,28 @@ export function buildApplyScript(job: JobRecord): ApplyStep[] {
       // address and dead-letters. Stored on the pipeline entry as `contact`.
       id: "email",
       type: "text",
-      prompt: "Thanks! What's the best email to reach you at? We'll use it to follow up about your application.",
-      placeholder: "you@example.com",
+      prompt: t("script.emailPrompt"),
+      placeholder: t("script.emailPlaceholder"),
     },
   ];
+
+  // Localized option labels, keyed off the same registry ids (the `value` stays
+  // canonical so routing/dedup are language-agnostic).
+  const archetypeOptions = APPLY_ARCHETYPE_OPTIONS.map((o) => ({
+    value: o.value,
+    label: archetypeApplyLabel(t, o.value, o.label),
+  }));
 
   // Asked EARLY (right after the name) because it now routes the rest of the
   // intake: a student's CV-equivalent information is their project/thesis,
   // studies and direction — not a "most relevant experience" question they can
   // only answer apologetically.
-  if (APPLY_ARCHETYPE_OPTIONS.length >= MIN_ARCHETYPE_OPTIONS_TO_OFFER) {
+  if (archetypeOptions.length >= MIN_ARCHETYPE_OPTIONS_TO_OFFER) {
     steps.push({
       id: "archetype",
       type: "choice",
-      prompt: "Nice to meet you! Which best describes you right now? It helps us ask the right questions and assess you fairly.",
-      options: APPLY_ARCHETYPE_OPTIONS,
+      prompt: t("script.archetypePrompt"),
+      options: archetypeOptions,
     });
   }
 
@@ -105,23 +146,22 @@ export function buildApplyScript(job: JobRecord): ApplyStep[] {
       id: "student_project",
       type: "text",
       when: { stepId: "archetype", oneOf: ["student"] },
-      prompt:
-        "Tell us about a school project, thesis, or anything you've built that you're proud of — and what exactly was yours in it?",
-      placeholder: "e.g. My bachelor thesis: a small REST API for…",
+      prompt: t("script.studentProjectPrompt"),
+      placeholder: t("script.studentProjectPlaceholder"),
     },
     {
       id: "student_education",
       type: "text",
       when: { stepId: "archetype", oneOf: ["student"] },
-      prompt: "What are you studying — programme and specialisation — and when do you expect to graduate?",
-      placeholder: "e.g. Computer Science at CTU, graduating June 2027",
+      prompt: t("script.studentEducationPrompt"),
+      placeholder: t("script.studentEducationPlaceholder"),
     },
     {
       id: "student_aspirations",
       type: "text",
       when: { stepId: "archetype", oneOf: ["student"] },
-      prompt: "What kind of role are you aiming for as you start out?",
-      placeholder: "e.g. junior backend developer",
+      prompt: t("script.studentAspirationsPrompt"),
+      placeholder: t("script.studentAspirationsPlaceholder"),
     },
     // — switcher lane: the prior field feeds transferable-meta-skill extraction;
     //   the direction answer becomes their aspirations.
@@ -129,15 +169,15 @@ export function buildApplyScript(job: JobRecord): ApplyStep[] {
       id: "switch_prior",
       type: "text",
       when: { stepId: "archetype", oneOf: ["career_switcher"] },
-      prompt: "Which field are you coming from, and what did you do there?",
-      placeholder: "e.g. 6 years in finance as an analyst",
+      prompt: t("script.switchPriorPrompt"),
+      placeholder: t("script.switchPriorPlaceholder"),
     },
     {
       id: "switch_aspirations",
       type: "text",
       when: { stepId: "archetype", oneOf: ["career_switcher"] },
-      prompt: "What's drawing you to this field, and what kind of role are you aiming for?",
-      placeholder: "e.g. moving into data engineering because…",
+      prompt: t("script.switchAspirationsPrompt"),
+      placeholder: t("script.switchAspirationsPlaceholder"),
     },
     // — default lane (experienced, a skipped archetype question, or any archetype
     //   without its own lane).
@@ -145,14 +185,14 @@ export function buildApplyScript(job: JobRecord): ApplyStep[] {
       id: "experience",
       type: "text",
       when: { stepId: "archetype", notOneOf: LANED_ARCHETYPES },
-      prompt: "In a sentence or two, what's your most relevant recent experience for this role?",
-      placeholder: "e.g. 3 years building Node.js APIs…",
+      prompt: t("script.experiencePrompt"),
+      placeholder: t("script.experiencePlaceholder"),
     },
     {
       id: "skills",
       type: "text",
-      prompt: "Which skills should we highlight for this role? (comma-separated)",
-      placeholder: "e.g. React, Node.js, SQL",
+      prompt: t("script.skillsPrompt"),
+      placeholder: t("script.skillsPlaceholder"),
     }
   );
 
@@ -162,29 +202,30 @@ export function buildApplyScript(job: JobRecord): ApplyStep[] {
   steps.push({
     id: "cv",
     type: "file",
-    prompt:
-      "Last thing — want to attach your CV? We'll read it in to round out your profile (PDF, DOCX, or TXT). Totally optional; skip it and we'll go with what you've told us.",
-    placeholder: "Attach your CV (optional)",
+    prompt: t("script.cvPrompt"),
+    placeholder: t("script.cvPlaceholder"),
   });
 
   steps.push({
     id: "ko_auth",
     type: "ko",
-    prompt: `Are you legally authorized to work in ${job.location || "the country for this role"}?`,
+    prompt: t("script.koAuth", { location: job.location || t("script.koAuthFallbackLocation") }),
   });
 
   if (job.workMode && job.workMode.toLowerCase() !== "remote") {
     steps.push({
       id: "ko_mode",
       type: "ko",
-      prompt: `This role is ${job.workMode}${job.location ? ` in ${job.location}` : ""}. Does that work for you?`,
+      prompt: job.location
+        ? t("script.koModeLocation", { workMode: job.workMode, location: job.location })
+        : t("script.koMode", { workMode: job.workMode }),
     });
   }
   if (job.languages && job.languages.length) {
     steps.push({
       id: "ko_lang",
       type: "ko",
-      prompt: `The role works in ${job.languages.join(" / ")}. Are you comfortable with that?`,
+      prompt: t("script.koLang", { languages: job.languages.join(" / ") }),
     });
   }
   return steps;

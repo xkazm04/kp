@@ -2,9 +2,11 @@
 
 import { useState } from "react";
 import { Check, ClipboardCheck, Loader2 } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { rubricForArchetype, RATING_ANCHORS } from "@/app/_lib/interview-rubric";
 import { RATING_MAX } from "@/app/_lib/format";
 import { INTERVIEW_RECOMMENDATIONS, type InterviewRecommendation } from "@/app/_lib/interview-recommendation";
+import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import type { Scorecard } from "@/app/_lib/interview-scorecard";
 
 const REC_STYLE: Record<InterviewRecommendation, string> = {
@@ -29,6 +31,8 @@ export function HumanScorecardPanel({
   archetype: string | null | undefined;
   initial?: Scorecard | null;
 }) {
+  const t = useTranslations("scheduleTab.scorecard");
+  const enumLabel = useEnumLabel();
   const rubric = rubricForArchetype(archetype);
   const seed = (): { ratings: Record<string, number>; evidence: Record<string, string> } => {
     const ratings: Record<string, number> = {};
@@ -67,10 +71,10 @@ export function HumanScorecardPanel({
         body: JSON.stringify({ ratings: payloadRatings, summary, recommendation: recommendation || undefined }),
       });
       const d = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(d.error || `Save failed (${res.status}).`);
+      if (!res.ok) throw new Error(d.error || t("saveFailedStatus", { status: res.status }));
       setSaved(true);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Couldn't save the scorecard.");
+      setError(e instanceof Error ? e.message : t("saveFailed"));
     } finally {
       setSaving(false);
     }
@@ -85,7 +89,7 @@ export function HumanScorecardPanel({
           className="focus-ring inline-flex items-center gap-1.5 rounded-md border border-stone-200 bg-white px-3 py-1.5 text-base font-semibold text-ink hover:border-coral/40"
         >
           <ClipboardCheck size={15} className="text-coral" />
-          {saved ? "Edit your scorecard" : "Score this interview"}
+          {saved ? t("editScorecard") : t("scoreInterview")}
           {saved ? <Check size={14} className="text-moss" /> : null}
         </button>
       </section>
@@ -96,16 +100,13 @@ export function HumanScorecardPanel({
     <section className="rounded-md border border-coral/30 bg-coral/5 p-3">
       <div className="flex items-center justify-between">
         <p className="flex items-center gap-1.5 text-meta uppercase tracking-wide text-coral">
-          <ClipboardCheck size={13} /> Your scorecard
+          <ClipboardCheck size={13} /> {t("yourScorecard")}
         </p>
         <button type="button" onClick={() => setOpen(false)} className="focus-ring rounded px-2 py-0.5 text-sm font-semibold text-steel hover:text-ink">
-          Collapse
+          {t("collapse")}
         </button>
       </div>
-      <p className="mt-1 text-sm text-steel">
-        Rate each competency on the role&apos;s rubric (1–{RATING_MAX}) with a quote or observation. Saved against this
-        candidate.
-      </p>
+      <p className="mt-1 text-sm text-steel">{t("rateEach", { max: RATING_MAX })}</p>
 
       <div className="mt-3 space-y-3">
         {rubric.map((c) => {
@@ -135,7 +136,7 @@ export function HumanScorecardPanel({
                 value={evidence[c.competency] ?? ""}
                 onChange={(e) => setEvidence(c.competency, e.target.value)}
                 rows={2}
-                placeholder="Evidence — a quote or what you observed."
+                placeholder={t("evidencePlaceholder")}
                 className="focus-ring mt-2 w-full rounded-md border border-stone-200 bg-white p-1.5 text-sm text-ink"
               />
             </div>
@@ -144,7 +145,7 @@ export function HumanScorecardPanel({
       </div>
 
       <div className="mt-3 flex flex-wrap items-center gap-2">
-        <span className="text-sm font-semibold text-ink">Verdict</span>
+        <span className="text-sm font-semibold text-ink">{t("verdict")}</span>
         {INTERVIEW_RECOMMENDATIONS.map((r) => (
           <button
             key={r}
@@ -155,7 +156,7 @@ export function HumanScorecardPanel({
               recommendation === r ? REC_STYLE[r] : "border border-stone-200 text-steel hover:border-coral/40"
             }`}
           >
-            {r}
+            {enumLabel("recommendation", r)}
           </button>
         ))}
       </div>
@@ -163,7 +164,7 @@ export function HumanScorecardPanel({
         value={summary}
         onChange={(e) => setSummary(e.target.value)}
         rows={2}
-        placeholder="Overall summary (optional)."
+        placeholder={t("summaryPlaceholder")}
         className="focus-ring mt-2 w-full rounded-md border border-stone-200 bg-white p-2 text-sm text-ink"
       />
 
@@ -175,10 +176,10 @@ export function HumanScorecardPanel({
           className="focus-ring inline-flex h-9 items-center gap-1.5 rounded-md bg-coral px-3 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-40"
         >
           {saving ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
-          {saving ? "Saving…" : "Save scorecard"}
+          {saving ? t("saving") : t("saveScorecard")}
         </button>
-        <span className="text-meta text-steel">{ratedCount} of {rubric.length} rated</span>
-        {saved && !saving ? <span className="text-sm font-semibold text-moss">Saved</span> : null}
+        <span className="text-meta text-steel">{t("ratedCount", { rated: ratedCount, total: rubric.length })}</span>
+        {saved && !saving ? <span className="text-sm font-semibold text-moss">{t("saved")}</span> : null}
         {error ? <span className="text-sm text-coral">{error}</span> : null}
       </div>
     </section>

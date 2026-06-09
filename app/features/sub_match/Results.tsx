@@ -1,14 +1,16 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import type { MatchRef, MatchResponse, MatchResult } from "./MatchTypes";
-import { ARCHETYPE_LABEL, isEarlyCareer } from "./MatchTypes";
+import { isEarlyCareer } from "./MatchTypes";
 import { Chip, KoReasonsNote, NoMatchesExplainer } from "./MatchShared";
 import { MatchCard } from "./MatchCard";
 import { WeightsPanel } from "./WeightsPanel";
 import { JobCompare } from "./JobCompare";
 import { Download, Scale } from "lucide-react";
 import { downloadFile, toCsv } from "@/app/_lib/export-utils";
+import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import type { WeightVector } from "./MatchTypes";
 
 // Below this many survivors the result reads as "thin", so we name the dominant KO
@@ -28,6 +30,8 @@ export function Results({
   loading?: boolean;
   onReweight?: (weights?: WeightVector) => void;
 }) {
+  const t = useTranslations("match.results");
+  const enumLabel = useEnumLabel();
   const { candidate, meta, matches } = result;
   const archetype = candidate.archetype ?? "bau";
   const early = isEarlyCareer(archetype);
@@ -74,11 +78,11 @@ export function Results({
         return true;
       }
       const payload = await r.json().catch(() => null);
-      const message = (payload as { error?: string } | null)?.error ?? `Couldn't add to pipeline (${r.status}).`;
+      const message = (payload as { error?: string } | null)?.error ?? t("addFailedStatus", { status: r.status });
       setErrors((e) => new Map(e).set(m.jobId, message));
       return false;
     } catch {
-      setErrors((e) => new Map(e).set(m.jobId, "Couldn't add to pipeline — network error. Try again."));
+      setErrors((e) => new Map(e).set(m.jobId, t("addFailedNetwork")));
       return false;
     } finally {
       setAdding((s) => {
@@ -106,7 +110,7 @@ export function Results({
   // or email thread outside the app, so the ranking has to be able to leave it.
   // Built entirely from data already on screen; no backend call.
   const exportCsv = () => {
-    const header = ["Rank", "Role", "Company", "Score", "Conf. low", "Conf. high", "Fit tier", "Matched skills", "Missing skills"];
+    const header = [t("csv.rank"), t("csv.role"), t("csv.company"), t("csv.score"), t("csv.confLow"), t("csv.confHigh"), t("csv.fitTier"), t("csv.matchedSkills"), t("csv.missingSkills")];
     const rows = matches.map((m, i) => [
       i + 1,
       m.title,
@@ -142,32 +146,30 @@ export function Results({
   return (
     <div>
       <div className="flex flex-wrap items-center gap-2">
-        <Chip label="Candidate" value={candidate.label ?? "—"} />
-        <Chip label="Archetype" value={ARCHETYPE_LABEL[archetype] ?? archetype} tone={early ? "green" : "neutral"} />
-        <Chip label="Profile" value={`${candidate.roleFamily ?? "—"} / ${candidate.seniority ?? "—"}`} />
-        <Chip label="Evaluated" value={meta.evaluated ?? 0} />
-        <Chip label="KO-filtered" value={meta.koFiltered ?? 0} tone="amber" />
-        <Chip label="Ranked" value={meta.returned ?? matches.length} tone="green" />
+        <Chip label={t("chipCandidate")} value={candidate.label ?? "—"} />
+        <Chip label={t("chipArchetype")} value={enumLabel("archetype", archetype)} tone={early ? "green" : "neutral"} />
+        <Chip label={t("chipProfile")} value={`${candidate.roleFamily ? enumLabel("family", candidate.roleFamily) : "—"} / ${candidate.seniority ?? "—"}`} />
+        <Chip label={t("chipEvaluated")} value={meta.evaluated ?? 0} />
+        <Chip label={t("chipKoFiltered")} value={meta.koFiltered ?? 0} tone="amber" />
+        <Chip label={t("chipRanked")} value={meta.returned ?? matches.length} tone="green" />
         {matches.length > 0 ? (
           <button
             type="button"
             onClick={exportCsv}
             className="focus-ring ml-auto inline-flex h-8 items-center gap-1.5 rounded-md border border-stone-200 bg-white px-2.5 text-sm font-semibold text-ink hover:bg-paper"
           >
-            <Download size={14} className="text-steel" /> Export CSV
+            <Download size={14} className="text-steel" /> {t("exportCsv")}
           </button>
         ) : null}
       </div>
       {early ? (
         <p className="mt-2 text-sm text-steel">
-          Early-career scoring profile: the <strong>Potential</strong> bar is the readiness model (replacing years of
-          experience), and only entry-eligible roles survive the KO filter. Scores are not comparable to experienced
-          candidates&apos; numbers.
+          {t.rich("earlyNote", { b: (chunks) => <strong>{chunks}</strong> })}
         </p>
       ) : null}
       {candidate.assumptions?.length ? (
         <p className="mt-1 text-sm text-steel">
-          <span className="font-semibold uppercase">Assumptions:</span> {candidate.assumptions.join(" · ")}
+          <span className="font-semibold uppercase">{t("assumptions")}</span> {candidate.assumptions.join(" · ")}
         </p>
       ) : null}
 
@@ -194,7 +196,7 @@ export function Results({
           {candidateId && addableMatches.length > 1 ? (
             <div className="mt-4 flex flex-wrap items-center gap-2 rounded-md border border-stone-200 bg-paper px-3 py-2">
               <span className="text-sm font-semibold text-ink">
-                {selected.size > 0 ? `${selected.size} selected` : "Shortlist roles"}
+                {selected.size > 0 ? t("selectedCount", { count: selected.size }) : t("shortlistRoles")}
               </span>
               <button
                 type="button"
@@ -202,7 +204,7 @@ export function Results({
                 disabled={selected.size === 0 || bulkBusy}
                 className="focus-ring inline-flex h-8 items-center gap-1.5 rounded-md bg-ink px-3 text-sm font-semibold text-white hover:bg-ink/90 disabled:opacity-40"
               >
-                {bulkBusy ? "Adding…" : selected.size > 0 ? `Add ${selected.size} to pipeline` : "Add to pipeline"}
+                {bulkBusy ? t("adding") : selected.size > 0 ? t("addN", { count: selected.size }) : t("addToPipeline")}
               </button>
               <button
                 type="button"
@@ -210,7 +212,7 @@ export function Results({
                 disabled={bulkBusy}
                 className="focus-ring inline-flex h-8 items-center rounded-md border border-stone-200 bg-white px-3 text-sm font-semibold text-ink hover:bg-paper disabled:opacity-40"
               >
-                Shortlist top {Math.min(5, addableMatches.length)}
+                {t("shortlistTopN", { n: Math.min(5, addableMatches.length) })}
               </button>
               {/* MAT5: compare the ticked roles side by side (2–4 reads best). */}
               {selected.size >= 2 && selected.size <= 4 ? (
@@ -222,7 +224,7 @@ export function Results({
                     comparing ? "border-coral bg-coral/10 text-coral" : "border-stone-200 bg-white text-ink hover:bg-paper"
                   }`}
                 >
-                  <Scale size={14} /> Compare {selected.size}
+                  <Scale size={14} /> {t("compareN", { count: selected.size })}
                 </button>
               ) : null}
               {selected.size > 0 ? (
@@ -232,10 +234,10 @@ export function Results({
                   disabled={bulkBusy}
                   className="focus-ring inline-flex h-8 items-center rounded-md px-2 text-sm font-semibold text-steel hover:text-ink disabled:opacity-40"
                 >
-                  Clear
+                  {t("clear")}
                 </button>
               ) : null}
-              <span className="text-meta text-steel">Tick roles below, then add them to the pipeline together.</span>
+              <span className="text-meta text-steel">{t("tickHint")}</span>
             </div>
           ) : null}
           {comparing && selected.size >= 2 ? (

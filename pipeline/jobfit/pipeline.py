@@ -89,6 +89,7 @@ def analyze_cv(
     job_description_text: str | None = None,
     company_text: str | None = None,
     use_grounding: bool = False,
+    lang: str = "en",
     progress: ProgressCallback | None = None,
 ) -> AnalysisResult:
     request_id = new_request_id()
@@ -118,6 +119,7 @@ def analyze_cv(
                 company_text=company_text,
                 use_grounding=use_grounding,
                 evidence=evidence.model_dump(by_alias=True, exclude_none=True),
+                lang=lang,
                 request_id=request_id,
             )
         _emit(progress, "gemini", "done")
@@ -274,6 +276,7 @@ def analyze_cv(
                 "has_jd": bool(job_description_text and job_description_text.strip()),
                 "has_company": bool(company_text and company_text.strip()),
                 "grounding": bool(use_grounding),
+                "lang": lang,
                 "duration_ms": int((time.monotonic() - started) * 1000),
                 "stages_ms": timings,
                 "gemini": {"model": GEMINI_MODEL, **gemini_usage},

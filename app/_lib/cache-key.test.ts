@@ -19,6 +19,7 @@ const base: CacheKeyInput = {
   companyText: "",
   companyFileBytes: null,
   grounding: false,
+  lang: "en",
 };
 
 test("identical inputs hash identically (cache stays usable)", () => {
@@ -50,6 +51,9 @@ test("each field independently affects the key", () => {
   assert.notEqual(k0, computeCacheKey({ ...base, jobDescriptionFileBytes: Buffer.from("file") }));
   assert.notEqual(k0, computeCacheKey({ ...base, companyFileBytes: Buffer.from("file") }));
   assert.notEqual(k0, computeCacheKey({ ...base, grounding: true }));
+  // The output locale is part of the key: an en analysis must not be served for
+  // a cs request (it would show English narrative under a Czech UI).
+  assert.notEqual(k0, computeCacheKey({ ...base, lang: "cs" }));
 });
 
 test("text content equal to a file's bytes does not collide across the text/file boundary", () => {
@@ -65,8 +69,8 @@ test("leading/trailing whitespace in text fields is normalized (trim is part of 
   );
 });
 
-test("PROMPT_VERSION is bumped to retire the old (collision-prone) keys", () => {
-  // The framing change must invalidate prior cache entries; the version is how
-  // lookupPromptCache rejects them.
-  assert.ok(PROMPT_VERSION.startsWith("v4-"), `expected a v4 prompt version, got ${PROMPT_VERSION}`);
+test("PROMPT_VERSION is bumped to retire the old (pre-i18n) keys", () => {
+  // Adding `lang` to the key must invalidate prior cache entries; the version is
+  // how lookupPromptCache rejects them.
+  assert.ok(PROMPT_VERSION.startsWith("v5-"), `expected a v5 prompt version, got ${PROMPT_VERSION}`);
 });

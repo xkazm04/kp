@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getTranslations } from "next-intl/server";
 import { writeFile } from "node:fs/promises";
 import path from "node:path";
 import {
@@ -126,22 +127,18 @@ export async function GET(_request: NextRequest, context: { params: Promise<{ id
   const { id } = await context.params;
   const job = getJob(id);
   if (!job) return NextResponse.json({ error: "Role not found." }, { status: 404 });
-  return NextResponse.json({ steps: buildApplyScript(job) });
+  const t = await getTranslations("apply");
+  return NextResponse.json({ steps: buildApplyScript(job, t) });
 }
-
-// Friendly acknowledgment shown when a passing applicant submits a SECOND time
-// for the same role. Duplicate-application policy is dedup + surface: their first
-// application is the one that stands, repeats don't create a second pipeline row.
-const ALREADY_APPLIED_MESSAGE =
-  "Thanks for your enthusiasm! It looks like you've already applied to this role — your earlier application is in our pipeline and a recruiter will be in touch. We've noted your renewed interest.";
 
 // Record the renewed interest on the applicant's ORIGINAL entry and return the
 // "already applied" acknowledgment. Shared by BOTH dedup paths — the primary
-// name-based check and the dedupeKey backstop race — so the event name, message,
-// and duplicate flag can never drift between them.
-function acknowledgeReapply(entryId: string): NextResponse {
+// name-based check and the dedupeKey backstop race — so the event name and
+// duplicate flag can never drift between them. The localized `message` (shown to
+// the candidate) is passed in by the caller from the request's "apply" catalog.
+function acknowledgeReapply(entryId: string, message: string): NextResponse {
   recordAutomationEvent(entryId, "re_applied", "repeat application via conversational apply");
-  return NextResponse.json({ result: "accepted", duplicate: true, message: ALREADY_APPLIED_MESSAGE });
+  return NextResponse.json({ result: "accepted", duplicate: true, message });
 }
 
 // POST → evaluate KO answers. Pass → create an Accepted pipeline entry; fail → a
@@ -160,6 +157,10 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     const job = getJob(id);
     if (!job) return NextResponse.json({ error: "Role not found." }, { status: 404 });
 
+    // Candidate-facing outcome messages (returned in the JSON and shown verbatim
+    // in the chat) are localized from the request's "apply" catalog.
+    const t = await getTranslations("apply");
+
     // Reject an oversized body BEFORE buffering it into the heap. Content-Length is
     // the only pre-read signal; the per-field caps below backstop an absent/spoofed one.
     const contentLength = Number(request.headers.get("content-length") ?? 0);
@@ -176,15 +177,14 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     // "decline only if a KO key is present and === false" treated an ABSENT key as a pass, so
     // a scripted POST could skip work-authorization / mode / language eligibility by simply
     // omitting the keys and still land an Accepted entry. Missing-or-not-true now declines.
-    const expectedKoIds = buildApplyScript(job)
+    const expectedKoIds = buildApplyScript(job, t)
       .filter((s) => s.type === "ko")
       .map((s) => s.id);
     const passedKo = expectedKoIds.every((koId) => answers[koId] === true);
     if (!passedKo) {
       return NextResponse.json({
         result: "declined",
-        message:
-          "Thanks for your interest! Based on your answers this role isn't the right fit right now, but we'd welcome a future application as our openings evolve.",
+        message: t("declinedMessage"),
       });
     }
 
@@ -241,7 +241,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     if (providedName || email) {
       const existing = findApplicationByApplicant(job.id, providedName, email);
       if (existing) {
-        return acknowledgeReapply(existing.id);
+        return acknowledgeReapply(existing.id, t("alreadyMessage"));
       }
     }
 
@@ -288,7 +288,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     // submission — surface it as a re-apply rather than logging a second
     // "applied" against the same entry.
     if (!created) {
-      return acknowledgeReapply(entry.id);
+      return acknowledgeReapply(entry.id, t("alreadyMessage"));
     }
 
     // createPipelineEntry already logs an `intake_degraded` event for the stub; for
@@ -315,8 +315,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
 
     return NextResponse.json({
       result: "accepted",
-      message:
-        "You're in! Thanks for applying — a recruiter will review your profile and reach out about next steps shortly.",
+      message: t("acceptedMessage"),
     });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "apply failed" }, { status: 500 });

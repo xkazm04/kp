@@ -18,6 +18,7 @@ except ImportError:  # pragma: no cover
 from google import genai
 from google.genai import types
 
+from .i18n import language_name
 from .taxonomy import ROLE_FAMILIES
 
 
@@ -351,6 +352,7 @@ def analyze_profile_with_gemini(
     company_text: str | None = None,
     use_grounding: bool = False,
     evidence: dict[str, Any] | None = None,
+    lang: str = "en",
     request_id: str | None = None,
 ) -> tuple[dict[str, Any], list[str], dict[str, int]]:
     """Single Gemini call returning a structured analysis payload.
@@ -364,11 +366,15 @@ def analyze_profile_with_gemini(
     is asked to reconcile its own reading with these findings rather than
     invent freely.
 
-    All narrative output is always English even when the input CV is Czech —
-    bilingual output was retired because mixed-language LLM outputs were
-    unreliable. The CV's raw_text retains its original language; only the
-    LLM-generated narrative fields are guaranteed English.
+    ``lang`` is the output locale for the narrative fields (en | cs). The model
+    writes every free-form field in that language regardless of the CV's own
+    language, while ``profile.raw_text`` keeps the document's original language
+    and every enumerated/code value (seniority, role_family, …) stays canonical
+    so the downstream coercion/scoring is unaffected. A SINGLE output language is
+    requested — mixed-language output was unreliable; the difference now is only
+    *which* single language, driven by the user's locale.
     """
+    output_language = language_name(lang)
     job_block = (job_description_text or "").strip()
     company_block = (company_text or "").strip()
     schema_text = json.dumps(ANALYSIS_RESPONSE_SCHEMA, ensure_ascii=False, indent=2)
@@ -393,8 +399,9 @@ def analyze_profile_with_gemini(
         f"{evidence_text}\n\n"
         "Rules:\n"
         "- Output JSON only, no markdown fences, no commentary.\n"
-        "- The CV may be in Czech. Preserve Czech diacritics in profile.raw_text and reconstruct letter-spaced PDF words. Skill names, technology names, and proper nouns stay verbatim.\n"
-        "- Every other freeform field (strengths, gaps, recommendations, explanation, summary, salary.rationale, all job_fit text fields, market_evidence.summary/notes) MUST be written in English regardless of the CV language. Translate Czech content into clean English in those fields.\n"
+        "- The CV may be in any language (often Czech or English). Preserve the document's original language and its diacritics in profile.raw_text and reconstruct letter-spaced PDF words. Skill names, technology names, and proper nouns stay verbatim everywhere.\n"
+        f"- Every other freeform field (strengths, gaps, recommendations, explanation, summary, salary.rationale, all job_fit text fields, market_evidence.summary/notes) MUST be written in {output_language} regardless of the CV's language. Translate the source content into clean, natural {output_language} in those fields.\n"
+        "- Keep every enumerated/code value exactly as the schema specifies and DO NOT translate it: current_seniority (junior|medior|senior|lead), role_family, education_level, salary.confidence, skill_claims.level/provenance, experiences.kind. These are matched downstream by exact value.\n"
         "- Salary numbers are monthly gross CZK based on the current Prague/Czech tech market.\n"
         "- Use the deterministic anchor_band as the primary anchor for your salary range. Adjust within roughly ±20% only if the document supplies stronger evidence (rare specialism, exceptional seniority signal, executive scope). Cite the anchor in salary.rationale.\n"
         "- Your role_family must be one of the families above. Prefer detected_role_family unless the CV's recent roles point clearly elsewhere; explain disagreement in evidence.\n"

@@ -17,9 +17,14 @@ def analyze(
     job_description_text: str | None = None,
     company_path: Path | None = None,
     company_text: str | None = None,
+    lang: str = "en",
     progress: ProgressCallback | None = None,
 ) -> dict[str, Any]:
-    """Run the CV analysis pipeline and return its serialized result."""
+    """Run the CV analysis pipeline and return its serialized result.
+
+    ``lang`` is the output locale for the LLM-generated narrative (en | cs);
+    canonical code values, skills, and proper nouns stay verbatim regardless.
+    """
     job_text = job_description_text
     if job_description_path is not None:
         job_text = extract_text(job_description_path)
@@ -33,6 +38,7 @@ def analyze(
         job_description_text=job_text,
         company_text=company,
         use_grounding=grounding,
+        lang=lang,
         progress=progress,
     )
 

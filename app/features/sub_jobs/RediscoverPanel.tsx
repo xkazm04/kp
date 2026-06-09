@@ -1,6 +1,7 @@
 "use client";
 
 import { Check, History, RotateCcw, Send, UserPlus } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { useJsonFetch } from "@/app/_lib/useJsonFetch";
 import { useAddToPipeline } from "@/app/_lib/useAddToPipeline";
 import { useReachOut } from "@/app/_lib/useReachOut";
@@ -23,9 +24,10 @@ const PRIOR_STYLE: Record<string, string> = {
 };
 
 export function RediscoverPanel({ jobId, jobTitle }: { jobId: string; jobTitle: string }) {
+  const t = useTranslations("jobs.rediscover");
   const { data: body, error } = useJsonFetch<{ rediscovered?: Rediscovered[]; skipped?: SkippedCandidate[] }>(
     `/api/jobs/${encodeURIComponent(jobId)}/rediscover`,
-    "Couldn't run rediscovery."
+    t("loadFailed")
   );
   const data = body ? body.rediscovered ?? [] : null;
   const skipped = body?.skipped ?? [];
@@ -33,7 +35,7 @@ export function RediscoverPanel({ jobId, jobTitle }: { jobId: string; jobTitle: 
   const { reach, reached, reaching, error: reachError, announce: reachAnnounce } = useReachOut(jobId);
 
   if (error) return <p className="text-base text-coral">{error}</p>;
-  if (!data) return <p className="text-base text-steel">Scanning past candidates for a fit…</p>;
+  if (!data) return <p className="text-base text-steel">{t("scanning")}</p>;
   // The skipped note rides above the results regardless of whether any candidate
   // resurfaced — a malformed profile may be exactly why the list looks empty.
   if (data.length === 0) {
@@ -42,8 +44,8 @@ export function RediscoverPanel({ jobId, jobTitle }: { jobId: string; jobTitle: 
         <SkippedCandidatesNote skipped={skipped} />
         <EmptyState
           icon={History}
-          title="No past candidates resurface yet"
-          body="As people are rejected or hired elsewhere, strong cross-role fits will appear here."
+          title={t("emptyTitle")}
+          body={t("emptyBody")}
         />
       </div>
     );
@@ -56,8 +58,10 @@ export function RediscoverPanel({ jobId, jobTitle }: { jobId: string; jobTitle: 
       </p>
       <SkippedCandidatesNote skipped={skipped} />
       <p className="text-base text-steel">
-        Past candidates who clear the bar for <span className="font-medium text-ink">{jobTitle}</span> but aren&apos;t in
-        its pipeline — worth a second look.
+        {t.rich("intro", {
+          jobTitle,
+          b: (chunks) => <span className="font-medium text-ink">{chunks}</span>,
+        })}
       </p>
       <ul className="mt-3 space-y-2">
         {data.map((c) => {
@@ -77,7 +81,7 @@ export function RediscoverPanel({ jobId, jobTitle }: { jobId: string; jobTitle: 
                 // Reaching out also pipelines them, so a reached candidate is a
                 // single badge — no redundant add button.
                 <span className="inline-flex items-center gap-1 text-sm font-semibold text-moss">
-                  <Check size={14} /> Reached out
+                  <Check size={14} /> {t("reachedOut")}
                 </span>
               ) : (
                 <div className="flex shrink-0 flex-col items-end gap-1">
@@ -86,17 +90,17 @@ export function RediscoverPanel({ jobId, jobTitle }: { jobId: string; jobTitle: 
                       type="button"
                       onClick={() => reach(input)}
                       disabled={reaching(c.candidateId)}
-                      title={reachErr ?? "Add to the pipeline and send a first-touch message"}
+                      title={reachErr ?? t("reachTitle")}
                       className={`focus-ring inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-sm font-semibold disabled:opacity-50 ${
                         reachErr ? "border-coral/60 bg-coral/10 text-coral" : "border-coral/40 bg-coral/5 text-coral hover:bg-coral/10"
                       }`}
                     >
                       {reachErr ? <RotateCcw size={14} /> : <Send size={14} />}{" "}
-                      {reaching(c.candidateId) ? "Reaching…" : reachErr ? "Try again" : "Reach out"}
+                      {reaching(c.candidateId) ? t("reaching") : reachErr ? t("tryAgain") : t("reachOut")}
                     </button>
                     {added(c.candidateId) ? (
                       <span className="inline-flex items-center gap-1 text-sm font-semibold text-moss">
-                        <Check size={14} /> Added
+                        <Check size={14} /> {t("added")}
                       </span>
                     ) : (
                       <button
@@ -111,15 +115,15 @@ export function RediscoverPanel({ jobId, jobTitle }: { jobId: string; jobTitle: 
                         }`}
                       >
                         {err ? <RotateCcw size={14} className="text-coral" /> : <UserPlus size={14} className="text-coral" />}{" "}
-                        {adding(c.candidateId) ? "Adding…" : err ? "Try again" : "Add to pipeline"}
+                        {adding(c.candidateId) ? t("adding") : err ? t("tryAgain") : t("addToPipeline")}
                       </button>
                     )}
                   </div>
                   {err ? (
-                    <span className="max-w-[12rem] text-right text-meta text-coral">Couldn&apos;t add — {err}</span>
+                    <span className="max-w-[12rem] text-right text-meta text-coral">{t("couldntAdd", { error: err })}</span>
                   ) : null}
                   {reachErr ? (
-                    <span className="max-w-[12rem] text-right text-meta text-coral">Couldn&apos;t reach out — {reachErr}</span>
+                    <span className="max-w-[12rem] text-right text-meta text-coral">{t("couldntReach", { error: reachErr })}</span>
                   ) : null}
                 </div>
               )}

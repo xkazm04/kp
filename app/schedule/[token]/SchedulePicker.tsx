@@ -2,7 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { CalendarClock, CalendarPlus, Check } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { buildIcs, downloadFile } from "@/app/_lib/export-utils";
+import { useErrorMessage } from "@/app/_lib/use-error-message";
 
 type Invite = {
   candidateLabel?: string | null;
@@ -15,6 +17,9 @@ type Invite = {
 type Slot = { value: string; label: string };
 
 export function SchedulePicker({ token }: { token: string }) {
+  const t = useTranslations("schedule");
+  const tCommon = useTranslations("common");
+  const errMsg = useErrorMessage();
   const [invite, setInvite] = useState<Invite | null>(null);
   const [slots, setSlots] = useState<Slot[]>([]);
   // Server-authoritative "the whole horizon is booked" signal (idea-5df8e10f) —
@@ -39,7 +44,7 @@ export function SchedulePicker({ token }: { token: string }) {
       .then((d) => {
         if (!alive) return;
         if (d.error) {
-          setError("This scheduling link is no longer valid.");
+          setError(t("linkInvalid"));
           return;
         }
         setInvite(d.invite);
@@ -49,12 +54,12 @@ export function SchedulePicker({ token }: { token: string }) {
         if (d.invite?.status === "confirmed") setConfirmed(d.invite.slot ?? "");
       })
       .catch(() => {
-        if (alive) setError("Couldn't load this page.");
+        if (alive) setError(t("loadFailed"));
       });
     return () => {
       alive = false;
     };
-  }, [token]);
+  }, [token, t]);
 
   const pick = async (s: Slot) => {
     setPicking(s.value);
@@ -88,7 +93,7 @@ export function SchedulePicker({ token }: { token: string }) {
             .catch(() => {});
         }
       } else {
-        setError(d.error || "Couldn't confirm that slot.");
+        setError(errMsg(d, t("confirmFailed")));
         // Slot taken by someone else between load and submit — refresh the list.
         if (res.status === 409) {
           fetch(`/api/schedule/${token}`)
@@ -103,7 +108,7 @@ export function SchedulePicker({ token }: { token: string }) {
         }
       }
     } catch {
-      setError("Couldn't confirm that slot.");
+      setError(t("confirmFailed"));
     } finally {
       setPicking(null);
     }
@@ -117,8 +122,8 @@ export function SchedulePicker({ token }: { token: string }) {
       uid: `kp-interview-${token}`,
       start: invite.slotAt,
       durationMin: invite.durationMin ?? 30,
-      title: `Interview${invite.jobTitle ? ` — ${invite.jobTitle}` : ""}`,
-      description: "Your interview with the hiring team.",
+      title: invite.jobTitle ? t("icsTitleRole", { role: invite.jobTitle }) : t("icsTitle"),
+      description: t("icsDescription"),
       stamp: new Date().toISOString(),
     });
     downloadFile("interview.ics", ics, "text/calendar");
@@ -130,7 +135,7 @@ export function SchedulePicker({ token }: { token: string }) {
         {error}
       </p>
     );
-  if (!invite) return <p className="text-base text-steel">Loading…</p>;
+  if (!invite) return <p className="text-base text-steel">{tCommon("loading")}</p>;
 
   if (confirmed && !rescheduling) {
     return (
@@ -139,17 +144,23 @@ export function SchedulePicker({ token }: { token: string }) {
       // signal that the slot was booked.
       <div role="status" aria-live="polite" className="rounded-lg border border-moss/40 bg-moss/5 p-5">
         <p className="flex items-center gap-2 font-serif text-h2 text-ink">
-          <Check className="text-moss" aria-hidden /> You&apos;re booked
+          <Check className="text-moss" aria-hidden /> {t("bookedTitle")}
         </p>
         <p className="mt-2 text-body text-ink">
-          Your interview{invite.jobTitle ? ` for ${invite.jobTitle}` : ""} is confirmed for{" "}
-          <span className="font-semibold">{confirmed}</span>.
+          {invite.jobTitle
+            ? t.rich("bookedForRole", {
+                role: invite.jobTitle,
+                slot: confirmed,
+                b: (chunks) => <span className="font-semibold">{chunks}</span>,
+              })
+            : t.rich("bookedForGeneric", {
+                slot: confirmed,
+                b: (chunks) => <span className="font-semibold">{chunks}</span>,
+              })}
         </p>
         <p className="mt-2 text-base text-steel">
-          {invite.durationMin ? `Plan for about ${invite.durationMin} minutes. ` : ""}
-          {confirmationSent
-            ? "We've sent a confirmation and will remind you before the call. You can close this page."
-            : "We've recorded your slot — we'll be in touch shortly to confirm the details. You can close this page."}
+          {invite.durationMin ? t("planFor", { min: invite.durationMin }) : ""}
+          {confirmationSent ? t("confirmationSent") : t("confirmationUnsent")}
         </p>
         <div className="mt-3 flex flex-wrap gap-2">
           {invite.slotAt ? (
@@ -158,7 +169,7 @@ export function SchedulePicker({ token }: { token: string }) {
               onClick={downloadInvite}
               className="focus-ring inline-flex items-center gap-1.5 rounded-md border border-stone-300 bg-white px-3 py-1.5 text-base font-semibold text-ink hover:border-coral/50"
             >
-              <CalendarPlus size={15} className="text-coral" /> Add to calendar
+              <CalendarPlus size={15} className="text-coral" /> {t("addToCalendar")}
             </button>
           ) : null}
           {canReschedule ? (
@@ -170,7 +181,7 @@ export function SchedulePicker({ token }: { token: string }) {
               }}
               className="focus-ring inline-flex items-center gap-1.5 rounded-md border border-stone-300 bg-white px-3 py-1.5 text-base font-semibold text-ink hover:border-coral/50"
             >
-              <CalendarClock size={15} className="text-coral" /> Need a different time?
+              <CalendarClock size={15} className="text-coral" /> {t("differentTime")}
             </button>
           ) : null}
         </div>
@@ -183,7 +194,12 @@ export function SchedulePicker({ token }: { token: string }) {
       {rescheduling ? (
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <p className="text-base text-steel">
-            Pick a new time{confirmed ? <> — your current slot is <span className="font-medium text-ink">{confirmed}</span></> : null}.
+            {confirmed
+              ? t.rich("reschedulePromptCurrent", {
+                  slot: confirmed,
+                  b: (chunks) => <span className="font-medium text-ink">{chunks}</span>,
+                })
+              : t("reschedulePrompt")}
           </p>
           <button
             type="button"
@@ -193,14 +209,19 @@ export function SchedulePicker({ token }: { token: string }) {
             }}
             className="focus-ring rounded-md px-2 py-1 text-base font-semibold text-steel hover:text-ink"
           >
-            Keep current time
+            {t("keepCurrentTime")}
           </button>
         </div>
       ) : null}
       {invite.jobTitle ? (
         <p className="text-base text-steel">
-          Role: <span className="font-medium text-ink">{invite.jobTitle}</span>
-          {invite.durationMin ? <span className="ml-2 text-steel">· ~{invite.durationMin} min</span> : null}
+          {t.rich("role", {
+            role: invite.jobTitle,
+            b: (chunks) => <span className="font-medium text-ink">{chunks}</span>,
+          })}
+          {invite.durationMin ? (
+            <span className="ml-2 text-steel">{t("roleMinutes", { min: invite.durationMin })}</span>
+          ) : null}
         </p>
       ) : null}
       {noSlots || slots.length === 0 ? (
@@ -211,13 +232,10 @@ export function SchedulePicker({ token }: { token: string }) {
         // the recovery in reschedule mode).
         <div role="status" className="mt-3 rounded-lg border border-stone-200 bg-paper p-5">
           <p className="flex items-center gap-2 font-serif text-h2 text-ink">
-            <CalendarClock className="text-steel" aria-hidden /> All current times are taken
+            <CalendarClock className="text-steel" aria-hidden /> {t("allTakenTitle")}
           </p>
-          <p className="mt-2 text-body text-ink">
-            Every interview slot in the next few weeks is already booked. We&apos;ve let the hiring team know you still
-            need a time — they&apos;ll open more and email you a fresh scheduling link.
-          </p>
-          <p className="mt-2 text-base text-steel">Nothing to do right now — you can close this page.</p>
+          <p className="mt-2 text-body text-ink">{t("allTakenBody")}</p>
+          <p className="mt-2 text-base text-steel">{t("nothingToDo")}</p>
         </div>
       ) : (
         <ul className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
@@ -229,7 +247,7 @@ export function SchedulePicker({ token }: { token: string }) {
                 onClick={() => pick(s)}
                 className="focus-ring w-full rounded-md border border-stone-200 bg-white px-4 py-3 text-left text-base font-medium text-ink hover:border-coral/50 hover:bg-coral/5 disabled:opacity-50"
               >
-                {picking === s.value ? "Booking…" : s.label}
+                {picking === s.value ? t("booking") : s.label}
               </button>
             </li>
           ))}

@@ -16,13 +16,14 @@ from __future__ import annotations
 from typing import Any
 
 from . import registry
+from .i18n import language_directive
 
 GROUP_COMPARE_PROMPT_VERSION = "group-compare-v2"
 
 _SYSTEM = (
     "You are a precise technical recruiter for the Czech tech market. Compare the "
     "candidates for one role honestly and specifically, grounded ONLY in the supplied "
-    "facts. Write in English."
+    "facts. Write in the requested language."
 )
 
 # Single-sourced from the shared registry (archetypes.json) so the fairness branch
@@ -143,12 +144,17 @@ def _coerce(payload: Any, context: dict[str, Any]) -> dict[str, Any]:
     return deterministic_comparison(context)
 
 
-def generate(context: dict[str, Any], *, provider: Any | None = None) -> tuple[dict[str, Any], str]:
-    """Return (comparison, source) where source is 'llm' or 'deterministic'."""
+def generate(
+    context: dict[str, Any], *, lang: str = "en", provider: Any | None = None
+) -> tuple[dict[str, Any], str]:
+    """Return (comparison, source) where source is 'llm' or 'deterministic'.
+    ``lang`` is the output locale for the narrative; the deterministic fallback is
+    English-only."""
     if provider is None:
         return deterministic_comparison(context), "deterministic"
     try:
-        payload = provider.complete_json(build_prompt(context), system=_SYSTEM)
+        prompt = f"{build_prompt(context)}\n\n{language_directive(lang)}"
+        payload = provider.complete_json(prompt, system=_SYSTEM)
         return _coerce(payload, context), "llm"
     except Exception:
         return deterministic_comparison(context), "deterministic"

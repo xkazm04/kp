@@ -2,17 +2,19 @@
 
 import { useState } from "react";
 import { RotateCcw, SlidersHorizontal } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { isEarlyCareer, type WeightVector } from "./MatchTypes";
 
 const DIMS = ["skills", "career", "personal"] as const;
 type Dim = (typeof DIMS)[number];
 
-// Archetype-aware labels — early-career profiles score on potential/foundation,
-// not experience (mirrors MatchCard's Bar labels).
-function labelsFor(archetype: string): Record<Dim, string> {
+// Archetype-aware dimension labels — early-career profiles score on
+// potential/foundation, not experience (mirrors MatchCard's Bar labels). Returns
+// the `match.dims.*` catalog key per dimension; resolved via t() at the render site.
+function dimKeysFor(archetype: string): Record<Dim, string> {
   return isEarlyCareer(archetype)
-    ? { skills: "Foundation", career: "Potential", personal: "Fit" }
-    : { skills: "Skills", career: "Career", personal: "Personal" };
+    ? { skills: "foundation", career: "potential", personal: "fit" }
+    : { skills: "skills", career: "career", personal: "personal" };
 }
 
 // Recruiter-adjustable match weighting (MAT1). The Python scorer always carried a
@@ -35,9 +37,11 @@ export function WeightsPanel({
   onApply: (w: WeightVector) => void;
   onReset: () => void;
 }) {
+  const t = useTranslations("match");
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState<WeightVector>(weights);
-  const labels = labelsFor(archetype);
+  const dimKeys = dimKeysFor(archetype);
+  const dimLabel = (d: Dim) => t(`dims.${dimKeys[d]}` as Parameters<typeof t>[0]);
 
   // Did the recruiter move anything off the in-effect vector? (rounded — the
   // sliders step in whole percent.)
@@ -53,7 +57,7 @@ export function WeightsPanel({
         }}
         className="focus-ring mt-3 inline-flex items-center gap-1.5 rounded-md border border-stone-200 bg-white px-3 py-1.5 text-sm font-semibold text-ink hover:border-coral/40"
       >
-        <SlidersHorizontal size={14} className="text-coral" /> Adjust weighting
+        <SlidersHorizontal size={14} className="text-coral" /> {t("weights.adjustWeighting")}
       </button>
     );
   }
@@ -62,22 +66,20 @@ export function WeightsPanel({
     <div className="mt-3 rounded-md border border-stone-200 bg-paper p-3">
       <div className="flex items-center justify-between">
         <p className="flex items-center gap-1.5 text-meta uppercase tracking-wide text-steel">
-          <SlidersHorizontal size={13} /> Match weighting
+          <SlidersHorizontal size={13} /> {t("weights.matchWeighting")}
         </p>
         <button type="button" onClick={() => setOpen(false)} className="focus-ring rounded px-2 py-0.5 text-sm font-semibold text-steel hover:text-ink">
-          Close
+          {t("weights.close")}
         </button>
       </div>
-      <p className="mt-1 text-sm text-steel">
-        Tune how much each dimension counts for this candidate. Bounded to keep ranking fair; normalized to 100% on apply.
-      </p>
+      <p className="mt-1 text-sm text-steel">{t("weights.intro")}</p>
       <div className="mt-2 space-y-2.5">
         {DIMS.map((d) => {
           const [lo, hi] = bounds[d] ?? [0.1, 0.6];
           return (
             <label key={d} className="block">
               <span className="flex items-center justify-between text-sm text-ink">
-                <span className="font-semibold">{labels[d]}</span>
+                <span className="font-semibold">{dimLabel(d)}</span>
                 <span className="nums text-steel">{Math.round(draft[d] * 100)}%</span>
               </span>
               <input
@@ -89,7 +91,7 @@ export function WeightsPanel({
                 disabled={busy}
                 onChange={(e) => setDraft((s) => ({ ...s, [d]: Number(e.target.value) / 100 }))}
                 className="mt-1 w-full accent-coral"
-                aria-label={`${labels[d]} weight`}
+                aria-label={t("weights.weightAria", { label: dimLabel(d) })}
               />
             </label>
           );
@@ -102,7 +104,7 @@ export function WeightsPanel({
           disabled={busy || !dirty}
           className="focus-ring inline-flex h-8 items-center rounded-md bg-ink px-3 text-sm font-semibold text-white hover:bg-ink/90 disabled:opacity-40"
         >
-          {busy ? "Re-ranking…" : "Apply & re-rank"}
+          {busy ? t("weights.reranking") : t("weights.applyRerank")}
         </button>
         <button
           type="button"
@@ -110,7 +112,7 @@ export function WeightsPanel({
           disabled={busy}
           className="focus-ring inline-flex h-8 items-center gap-1.5 rounded-md border border-stone-200 bg-white px-2.5 text-sm font-semibold text-steel hover:text-ink disabled:opacity-40"
         >
-          <RotateCcw size={13} /> Reset to default
+          <RotateCcw size={13} /> {t("weights.resetDefault")}
         </button>
       </div>
     </div>

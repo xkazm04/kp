@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AlertTriangle, Check, Clock, Copy, Loader2, ListChecks, NotebookPen, RefreshCw, Sparkles, UserRound } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { copyText } from "@/app/_lib/export-utils";
 import { HumanScorecardPanel } from "./HumanScorecardPanel";
 import type { Scorecard } from "@/app/_lib/interview-scorecard";
@@ -19,13 +20,14 @@ type UserProgress = { checked?: Record<string, boolean>; notes?: string };
 type Prep = { scenario: string; durationMin: number; focusAreas: string[]; chronology: Block[]; signals: string[]; source?: string; userProgress?: UserProgress; humanScorecard?: Scorecard; interviewer?: string };
 
 export function InterviewPrepModal({ entry, onClose }: { entry: SchedEntry; onClose: () => void }) {
+  const t = useTranslations("scheduleTab.prep");
   const { startTask } = useTasks();
   // Load any saved artifact via the shared hook (handles non-OK status, an {error}
   // body, and unmount). A load FAILURE now surfaces as a distinct error+retry state
   // (idea-bc78b8f5), never collapsed into the "none yet" empty state.
   const { data, error, reload } = useJsonFetch<{ prep?: { payload?: Prep } }>(
     `/api/interview-prep?entry=${encodeURIComponent(entry.id)}`,
-    "Couldn't load this candidate's saved prep."
+    t("loadFailed")
   );
   const [generated, setGenerated] = useState<Prep | null>(null);
   const [taskId, setTaskId] = useState<string | null>(null);
@@ -134,8 +136,8 @@ export function InterviewPrepModal({ entry, onClose }: { entry: SchedEntry; onCl
     setInterviewer("");
     dirtyRef.current = false;
     setHydrated(true);
-    const t = await startTask("interview_prep", { entryId: entry.id, candidateLabel: entry.candidateLabel, jobTitle: entry.jobTitle });
-    if (t) setTaskId(t.id);
+    const started = await startTask("interview_prep", { entryId: entry.id, candidateLabel: entry.candidateLabel, jobTitle: entry.jobTitle });
+    if (started) setTaskId(started.id);
   };
   const generating = taskId !== null;
 
@@ -145,20 +147,20 @@ export function InterviewPrepModal({ entry, onClose }: { entry: SchedEntry; onCl
   const copyPrep = async () => {
     if (!prep) return;
     const lines: string[] = [
-      `Interview prep — ${entry.candidateLabel}${entry.jobTitle ? ` · ${entry.jobTitle}` : ""}`,
+      t("copyHeading", { name: entry.candidateLabel, job: entry.jobTitle ? ` · ${entry.jobTitle}` : "" }),
       "",
       prep.scenario,
     ];
-    if (prep.focusAreas?.length) lines.push("", `Focus areas: ${prep.focusAreas.join(", ")}`);
-    lines.push("", `Run of show (${prep.durationMin} min):`);
+    if (prep.focusAreas?.length) lines.push("", t("copyFocusAreas", { areas: prep.focusAreas.join(", ") }));
+    lines.push("", t("copyRunOfShow", { min: prep.durationMin }));
     for (const b of prep.chronology) {
       lines.push(`- [${b.fromMin}–${b.toMin} min] ${b.topic} — ${b.goal}`);
       for (const q of b.questions) lines.push(`    "${q}"`);
-      if (b.followUp) lines.push(`    ↳ Follow-up: ${b.followUp}`);
+      if (b.followUp) lines.push(`    ${t("copyFollowUp", { text: b.followUp })}`);
     }
     const sig = prep.signals ?? [];
     if (sig.length) {
-      lines.push("", "Signals to confirm:");
+      lines.push("", t("copySignals"));
       for (const s of sig) lines.push(`- ${s}`);
     }
     const ok = await copyText(lines.join("\n"));
@@ -188,7 +190,7 @@ export function InterviewPrepModal({ entry, onClose }: { entry: SchedEntry; onCl
 
   return (
     <Modal
-      title={`Interview prep · ${entry.candidateLabel}`}
+      title={t("title", { name: entry.candidateLabel })}
       subtitle={entry.jobTitle ?? undefined}
       onClose={onClose}
       size="3xl"
@@ -201,7 +203,7 @@ export function InterviewPrepModal({ entry, onClose }: { entry: SchedEntry; onCl
               className="focus-ring inline-flex h-9 items-center gap-1.5 rounded-md border border-stone-200 px-3 text-sm font-semibold text-ink hover:border-coral/40"
             >
               {copied ? <Check size={14} className="text-moss" /> : <Copy size={14} />}
-              {copied ? "Copied" : "Copy prep"}
+              {copied ? t("copied") : t("copyPrep")}
             </button>
             <button
               type="button"
@@ -209,17 +211,17 @@ export function InterviewPrepModal({ entry, onClose }: { entry: SchedEntry; onCl
               disabled={generating}
               className="focus-ring inline-flex h-9 items-center gap-1 rounded-md border border-stone-200 px-3 text-sm font-semibold text-ink hover:border-coral/40 disabled:opacity-50"
             >
-              <RefreshCw size={14} /> {generating ? "Generating…" : "Regenerate"}
+              <RefreshCw size={14} /> {generating ? t("generating") : t("regenerate")}
             </button>
           </>
         ) : null
       }
     >
       {loading ? (
-        <p className="text-sm text-steel">Loading…</p>
+        <p className="text-sm text-steel">{t("loading")}</p>
       ) : generating && !prep ? (
         <p className="flex items-center gap-2 text-sm text-steel">
-          <Loader2 size={16} className="animate-spin text-coral" /> Designing the interview plan from the CV&apos;s recommended questions…
+          <Loader2 size={16} className="animate-spin text-coral" /> {t("generatingPlan")}
         </p>
       ) : error && !prep ? (
         // Distinct failure state: a 500 / DB lock / parse error must never read as
@@ -228,14 +230,14 @@ export function InterviewPrepModal({ entry, onClose }: { entry: SchedEntry; onCl
           <p className="flex items-center justify-center gap-2 text-sm text-coral">
             <AlertTriangle size={15} /> {error}
           </p>
-          <p className="mt-1 text-meta text-steel">This is a load error, not an empty candidate — retry, or generate a fresh plan.</p>
+          <p className="mt-1 text-meta text-steel">{t("loadErrorHint")}</p>
           <div className="mt-3 flex items-center justify-center gap-2">
             <button
               type="button"
               onClick={reload}
               className="focus-ring inline-flex h-9 items-center gap-1.5 rounded-md border border-stone-200 px-3 text-sm font-semibold text-ink hover:border-coral/40"
             >
-              <RefreshCw size={14} /> Retry
+              <RefreshCw size={14} /> {t("retry")}
             </button>
             <button
               type="button"
@@ -243,19 +245,19 @@ export function InterviewPrepModal({ entry, onClose }: { entry: SchedEntry; onCl
               disabled={generating}
               className="focus-ring inline-flex h-9 items-center gap-2 rounded-md bg-coral px-4 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
             >
-              <Sparkles size={16} /> Generate
+              <Sparkles size={16} /> {t("generate")}
             </button>
           </div>
         </div>
       ) : !prep ? (
         <div className="text-center">
-          <p className="text-sm text-steel">No interview prep generated yet for this candidate.</p>
+          <p className="text-sm text-steel">{t("noPrep")}</p>
           <button
             type="button"
             onClick={generate}
             className="focus-ring mt-3 inline-flex h-10 items-center gap-2 rounded-md bg-coral px-4 text-sm font-semibold text-white hover:opacity-90"
           >
-            <Sparkles size={16} /> Generate interview prep
+            <Sparkles size={16} /> {t("generatePrep")}
           </button>
         </div>
       ) : (
@@ -264,20 +266,20 @@ export function InterviewPrepModal({ entry, onClose }: { entry: SchedEntry; onCl
             <div className="flex items-center justify-between gap-3">
               {/* Provenance: AI-tailored vs deterministic template fallback. */}
               <PrepSourceBadge source={prep.source} />
-              <span className="nums shrink-0 rounded-md bg-paper px-2 py-1 text-sm font-semibold text-coral">{doneItems}/{totalItems} done</span>
+              <span className="nums shrink-0 rounded-md bg-paper px-2 py-1 text-sm font-semibold text-coral">{t("doneCount", { done: doneItems, total: totalItems })}</span>
             </div>
             {fallback ? (
               <div className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 p-2.5 text-sm text-amber-800">
                 <AlertTriangle size={15} className="mt-0.5 shrink-0" />
                 <span>
-                  Built from a generic template because the AI model was unavailable — these questions aren&apos;t tailored to this candidate.{" "}
+                  {t("fallbackNote")}{" "}
                   <button
                     type="button"
                     onClick={generate}
                     disabled={generating}
                     className="font-semibold underline underline-offset-2 hover:text-amber-900 disabled:opacity-50"
                   >
-                    {generating ? "Regenerating…" : "Regenerate with AI"}
+                    {generating ? t("regenerating") : t("regenerateWithAi")}
                   </button>
                 </span>
               </div>
@@ -288,14 +290,14 @@ export function InterviewPrepModal({ entry, onClose }: { entry: SchedEntry; onCl
             <Meter
               value={totalItems ? (doneItems / totalItems) * 100 : 0}
               tone="strong"
-              aria-label={`Interview coverage: ${doneItems} of ${totalItems} items checked`}
+              aria-label={t("coverageAria", { done: doneItems, total: totalItems })}
             />
           </div>
 
           {/* Run of show — the timed plan, checkable topic-by-topic during the interview. */}
           <section>
             <p className="flex items-center gap-1.5 text-meta uppercase tracking-wide text-steel">
-              <Clock size={13} /> Run of show · {prep.durationMin} min
+              <Clock size={13} /> {t("runOfShow", { min: prep.durationMin })}
             </p>
             <ol className="mt-2 space-y-1.5">
               {prep.chronology.map((b, i) => {
@@ -316,13 +318,13 @@ export function InterviewPrepModal({ entry, onClose }: { entry: SchedEntry; onCl
                       <span className="min-w-0 flex-1">
                         <span className="flex items-baseline justify-between gap-2">
                           <span className={`text-sm font-semibold ${on ? "text-steel line-through" : "text-ink"}`}>{b.topic}</span>
-                          <span className="shrink-0 rounded bg-paper px-1.5 py-0.5 text-sm nums text-steel">{b.fromMin}–{b.toMin} min</span>
+                          <span className="shrink-0 rounded bg-paper px-1.5 py-0.5 text-sm nums text-steel">{t("minRange", { from: b.fromMin, to: b.toMin })}</span>
                         </span>
                         <span className="mt-0.5 block text-sm text-steel">{b.goal}</span>
                         {b.questions.map((q, j) => (
                           <span key={j} className="mt-1 block text-sm text-ink">“{q}”</span>
                         ))}
-                        {b.followUp ? <span className="mt-0.5 block text-sm text-steel">↳ Follow-up: {b.followUp}</span> : null}
+                        {b.followUp ? <span className="mt-0.5 block text-sm text-steel">{t("followUp", { text: b.followUp })}</span> : null}
                       </span>
                     </label>
                   </li>
@@ -335,7 +337,7 @@ export function InterviewPrepModal({ entry, onClose }: { entry: SchedEntry; onCl
           {signals.length ? (
             <section>
               <p className="flex items-center gap-1.5 text-meta uppercase tracking-wide text-steel">
-                <ListChecks size={13} /> Signals to confirm
+                <ListChecks size={13} /> {t("signalsToConfirm")}
               </p>
               <ul className="mt-1.5 space-y-1">
                 {signals.map((it, ii) => {
@@ -366,7 +368,7 @@ export function InterviewPrepModal({ entry, onClose }: { entry: SchedEntry; onCl
               sees ownership at a glance. */}
           <section>
             <label htmlFor="prep-interviewer" className="flex items-center gap-1.5 text-meta uppercase tracking-wide text-steel">
-              <UserRound size={13} /> Interviewer
+              <UserRound size={13} /> {t("interviewer")}
             </label>
             <input
               id="prep-interviewer"
@@ -376,7 +378,7 @@ export function InterviewPrepModal({ entry, onClose }: { entry: SchedEntry; onCl
                 markEdited();
                 setInterviewer(e.target.value);
               }}
-              placeholder="Who's running this interview? (name or email)"
+              placeholder={t("interviewerPlaceholder")}
               className="focus-ring mt-1.5 w-full rounded-md border border-stone-200 bg-white p-2 text-sm text-ink"
             />
           </section>
@@ -385,7 +387,7 @@ export function InterviewPrepModal({ entry, onClose }: { entry: SchedEntry; onCl
               evidence, autosaved with the checklist and restored on reopen. */}
           <section>
             <label htmlFor="prep-notes" className="flex items-center gap-1.5 text-meta uppercase tracking-wide text-steel">
-              <NotebookPen size={13} /> Interviewer notes
+              <NotebookPen size={13} /> {t("interviewerNotes")}
             </label>
             <textarea
               id="prep-notes"
@@ -395,7 +397,7 @@ export function InterviewPrepModal({ entry, onClose }: { entry: SchedEntry; onCl
                 setNotes(e.target.value);
               }}
               rows={3}
-              placeholder="Jot quotes and observations during the call — saved automatically and here when you return."
+              placeholder={t("notesPlaceholder")}
               className="focus-ring mt-1.5 w-full rounded-md border border-stone-200 bg-white p-2 text-sm text-ink"
             />
           </section>

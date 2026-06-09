@@ -45,7 +45,10 @@ export const DEFAULT_TAB: WorkspaceTabId = "pipeline";
 // Grouped structure for the studio left sidebar. A flat tab list, if ever needed
 // (e.g. a deep-link breadcrumb), should be derived from NAV_GROUPS.flatMap(g => g.items)
 // rather than maintained as a fourth parallel declaration.
-export type NavGroup = { label?: string; items: WorkspaceTabDef[] };
+// `label` is the English source/fallback; `key` is the i18n key (under the `nav`
+// catalog: tabs.<id> for items, groups.<key> for group headers) the renderers
+// translate through, falling back to `label` for any not-yet-translated entry.
+export type NavGroup = { label?: string; key?: string; items: WorkspaceTabDef[] };
 
 export const NAV_GROUPS: NavGroup[] = [
   {
@@ -58,6 +61,7 @@ export const NAV_GROUPS: NavGroup[] = [
   },
   {
     label: "Library",
+    key: "library",
     items: [
       { id: "jobs", label: "Jobs" },
       { id: "library", label: "Job descriptions" },
@@ -67,6 +71,7 @@ export const NAV_GROUPS: NavGroup[] = [
     // Phase 6: Profile + Match are standalone tools (reachable from Channels:
     // Match = proactive sourcing, Profile = manual add), de-emphasized here.
     label: "Tools",
+    key: "tools",
     items: [
       { id: "profile", label: "Profile" },
       { id: "match", label: "Match" },
@@ -76,10 +81,12 @@ export const NAV_GROUPS: NavGroup[] = [
   },
   {
     label: "Dev extension",
+    key: "devExtension",
     items: [{ id: "dev", label: "Dev cases" }],
   },
   {
     label: "Insights",
+    key: "insights",
     items: [
       { id: "analytics", label: "Analytics" },
       { id: "matrix", label: "Matrix" },

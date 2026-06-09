@@ -14,7 +14,9 @@ import {
   XCircle,
   type LucideIcon,
 } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { ScoreBadge } from "@/app/_components/ScoreBadge";
+import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { ARCHETYPE_STYLE, daysSince, slaForStage, styleFor, type Entry, type PipelineEvent } from "./PipelineTypes";
 
 // The pipeline-lifecycle event taxonomy that the activity feed renders richly.
@@ -36,9 +38,6 @@ export const EVENT_KINDS = [
 export type EventKind = (typeof EVENT_KINDS)[number];
 
 type EventMeta = {
-  // Human verb for the feed row ("<candidate> <verb> · <job>"). A builder, not a
-  // bare string, so kinds that carry a target stage or detail can fold them in.
-  verb: (ev: PipelineEvent) => string;
   // Glyph paired with a tone, so the row's state reads without relying on hue
   // alone (mirrors Badge's icon-plus-label-not-color doctrine). aria-hidden — the
   // adjacent row text already names the event for assistive tech.
@@ -46,31 +45,23 @@ type EventMeta = {
   tone: string;
 };
 
-// ONE source of truth mapping each event kind to its verb, glyph and tone. This
-// replaces the old eventVerb/eventDotCue switch pair that had to be kept in sync
-// by hand. Because the type is Record<EventKind, …>, adding a kind to EVENT_KINDS
-// without a row here is a compile error — a new kind can never ship half-styled
-// (missing a label or an icon), and a typo'd kind can't fall through to a raw
-// enum value rendered at the user. eventVerb/EventDot are now table lookups.
+// ONE source of truth mapping each event kind to its glyph and tone. The human
+// VERB is localized via the `pipeline.events` catalog through useEventVerb (not
+// baked in here). Because the type is Record<EventKind, …>, adding a kind to
+// EVENT_KINDS without a row here is a compile error — a new kind can never ship
+// half-styled (missing an icon), and a typo'd kind can't fall through to a raw
+// enum value rendered at the user.
 export const EVENT_CATALOG: Record<EventKind, EventMeta> = {
-  matched: { verb: () => "was matched", Icon: Sparkles, tone: "text-steel" },
-  added: { verb: () => "was added to the pipeline", Icon: CirclePlus, tone: "text-steel" },
-  applied: { verb: () => "applied via the application link", Icon: UserPlus, tone: "text-steel" },
-  re_applied: { verb: () => "applied again (already in the pipeline)", Icon: Repeat, tone: "text-amber-600" },
-  advanced: { verb: (ev) => `advanced to ${ev.toStage}`, Icon: ArrowUpCircle, tone: "text-moss" },
-  moved: { verb: (ev) => `was moved to ${ev.toStage} by a recruiter`, Icon: ArrowLeftRight, tone: "text-steel" },
-  scheduled: {
-    verb: (ev) => `interview scheduled${ev.detail ? ` (${ev.detail})` : ""}`,
-    Icon: CalendarCheck,
-    tone: "text-moss",
-  },
-  rejected: { verb: () => "was rejected", Icon: XCircle, tone: "text-coral" },
-  intake_degraded: {
-    verb: (ev) => `applied, but intake couldn't be auto-profiled${ev.detail ? ` (${ev.detail})` : ""}`,
-    Icon: AlertTriangle,
-    tone: "text-red-600",
-  },
-  intake_resolved: { verb: () => "intake captured manually", Icon: Wrench, tone: "text-moss" },
+  matched: { Icon: Sparkles, tone: "text-steel" },
+  added: { Icon: CirclePlus, tone: "text-steel" },
+  applied: { Icon: UserPlus, tone: "text-steel" },
+  re_applied: { Icon: Repeat, tone: "text-amber-600" },
+  advanced: { Icon: ArrowUpCircle, tone: "text-moss" },
+  moved: { Icon: ArrowLeftRight, tone: "text-steel" },
+  scheduled: { Icon: CalendarCheck, tone: "text-moss" },
+  rejected: { Icon: XCircle, tone: "text-coral" },
+  intake_degraded: { Icon: AlertTriangle, tone: "text-red-600" },
+  intake_resolved: { Icon: Wrench, tone: "text-moss" },
 };
 
 // One documented fallback for kinds outside the catalog. The feed (listPipelineEvents)
@@ -84,8 +75,54 @@ export function isEventKind(kind: string): kind is EventKind {
   return (EVENT_KINDS as readonly string[]).includes(kind);
 }
 
-export function eventVerb(ev: PipelineEvent): string {
-  return isEventKind(ev.kind) ? EVENT_CATALOG[ev.kind].verb(ev) : ev.kind.replace(/_/g, " ");
+// Localized feed verb for an event. The `pipeline.events` catalog holds one entry
+// per kind; advanced/moved interpolate the localized stage, scheduled/
+// intake_degraded carry a detail variant, and an unknown (older) kind degrades to
+// a humanized raw label. A HOOK (not a pure fn) so it reads the request locale.
+export function useEventVerb(): (ev: PipelineEvent) => string {
+  const t = useTranslations("pipeline.events");
+  const enumLabel = useEnumLabel();
+  return (ev) => {
+    if (!isEventKind(ev.kind)) return ev.kind.replace(/_/g, " ");
+    switch (ev.kind) {
+      case "advanced":
+        return t("advanced", { stage: enumLabel("stage", ev.toStage) });
+      case "moved":
+        return t("moved", { stage: enumLabel("stage", ev.toStage) });
+      case "scheduled":
+        return ev.detail ? t("scheduledDetail", { detail: ev.detail }) : t("scheduled");
+      case "intake_degraded":
+        return ev.detail ? t("intakeDegradedDetail", { detail: ev.detail }) : t("intake_degraded");
+      case "matched":
+        return t("matched");
+      case "added":
+        return t("added");
+      case "applied":
+        return t("applied");
+      case "re_applied":
+        return t("re_applied");
+      case "rejected":
+        return t("rejected");
+      case "intake_resolved":
+        return t("intake_resolved");
+    }
+  };
+}
+
+// Localized "time ago" for the feed (today / yesterday / Nd / Nw / Nmo). A hook so
+// it reads the request locale; replaces the English-only relativeTime() at its
+// call sites (feed rows, the drawer history, the scheduler's last-run line).
+export function useRelativeTime(): (iso: string) => string {
+  const t = useTranslations("pipeline.relTime");
+  return (iso) => {
+    const d = daysSince(iso);
+    if (d == null) return "";
+    if (d <= 0) return t("today");
+    if (d === 1) return t("yesterday");
+    if (d < 7) return t("daysAgo", { d });
+    if (d < 30) return t("weeksAgo", { w: Math.floor(d / 7) });
+    return t("monthsAgo", { mo: Math.floor(d / 30) });
+  };
 }
 
 export function EventDot({ kind }: { kind: string }) {
@@ -109,7 +146,10 @@ export function CandidateRow({
   onOpen: () => void;
   onActions?: () => void;
 }) {
+  const t = useTranslations("pipeline");
+  const enumLabel = useEnumLabel();
   const style = styleFor(entry.archetype);
+  const archLabel = enumLabel("archetype", entry.archetype);
   const days = daysSince(entry.stageChangedAt);
   // Intake degraded is a data-integrity problem (a non-matchable stub), so it
   // outranks every other cue: degraded (red triangle) > pending (coral pulse) >
@@ -118,12 +158,12 @@ export function CandidateRow({
   const degraded = !!entry.intakeDegraded;
   const dotClass = degraded ? "bg-red-600" : pending ? "bg-coral animate-pulse" : stale ? "bg-amber-400" : style.bg;
   const dotTitle = degraded
-    ? `Intake degraded — needs manual profile capture${entry.intakeDegradedReason ? ` · ${entry.intakeDegradedReason}` : ""}`
+    ? `${t("candidateRow.intakeDegraded")}${entry.intakeDegradedReason ? t("candidateRow.degradedReasonSuffix", { reason: entry.intakeDegradedReason }) : ""}`
     : pending
-      ? "Awaiting your decision"
+      ? t("candidateRow.awaitingDecision")
       : stale
-        ? `Aging >${slaForStage(entry.stage)}d in ${entry.stage}`
-        : style.label;
+        ? t("candidateRow.aging", { days: slaForStage(entry.stage), stage: enumLabel("stage", entry.stage) })
+        : archLabel;
   const StatusIcon = degraded
     ? AlertTriangle
     : pending
@@ -131,9 +171,7 @@ export function CandidateRow({
       : stale
         ? Clock
         : style.icon;
-  const title = `${entry.candidateLabel} · ${style.label}${entry.matchScore != null ? ` · match ${entry.matchScore}` : ""}${
-    days != null ? ` · ${days}d in stage` : ""
-  }${degraded ? " · intake degraded" : ""}`;
+  const title = `${t("candidateRow.cardTitle", { name: entry.candidateLabel, archetype: archLabel })}${entry.matchScore != null ? t("candidateRow.matchSuffix", { score: entry.matchScore }) : ""}${days != null ? t("candidateRow.daysInStage", { days }) : ""}${degraded ? t("candidateRow.degradedSuffix") : ""}`;
   return (
     <div className="group flex items-center gap-1.5 rounded-md px-1 py-0.5 hover:bg-paper">
       <span
@@ -147,7 +185,7 @@ export function CandidateRow({
       <button
         type="button"
         onClick={onOpen}
-        title={`${title} · open analyzed profile`}
+        title={`${title}${t("candidateRow.openProfileSuffix")}`}
         className="focus-ring min-w-0 flex-1 truncate text-left text-base font-medium text-ink hover:text-coral"
       >
         {entry.candidateLabel}
@@ -161,8 +199,8 @@ export function CandidateRow({
         <button
           type="button"
           onClick={onActions}
-          aria-label={`AI actions for ${entry.candidateLabel}`}
-          title="AI actions"
+          aria-label={t("candidateRow.aiActionsFor", { name: entry.candidateLabel })}
+          title={t("candidateRow.aiActions")}
           className="focus-ring shrink-0 rounded p-0.5 text-steel opacity-0 transition-opacity hover:text-coral group-hover:opacity-100"
         >
           <Sparkles size={14} />
@@ -173,27 +211,29 @@ export function CandidateRow({
 }
 
 export function Legend() {
+  const t = useTranslations("pipeline");
+  const enumLabel = useEnumLabel();
   return (
     <div className="flex flex-wrap items-center gap-4 text-sm text-steel">
-      {Object.values(ARCHETYPE_STYLE).map((s) => (
-        <span key={s.label} className="inline-flex items-center gap-1.5">
+      {Object.entries(ARCHETYPE_STYLE).map(([id, s]) => (
+        <span key={id} className="inline-flex items-center gap-1.5">
           <span className={`h-3 w-3 rounded-full ${s.bg}`} />
-          {s.label}
+          {enumLabel("archetype", id)}
         </span>
       ))}
       <span className="inline-flex items-center gap-1.5">
         <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-coral" />
-        Awaiting your decision
+        {t("legend.awaitingDecision")}
       </span>
       <span className="inline-flex items-center gap-1.5">
         <span className="h-2.5 w-2.5 rounded-full bg-amber-400" />
-        Aging in stage (per-stage SLA)
+        {t("legend.aging")}
       </span>
       <span className="inline-flex items-center gap-1.5">
         <span className="inline-flex h-3 w-3 items-center justify-center rounded-full bg-red-600 text-white">
           <AlertTriangle className="h-2 w-2" aria-hidden />
         </span>
-        Intake degraded — needs manual capture
+        {t("legend.intakeDegraded")}
       </span>
     </div>
   );

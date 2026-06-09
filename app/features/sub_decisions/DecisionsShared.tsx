@@ -1,6 +1,8 @@
 import { ChevronRight } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { Badge, interviewRecommendationToken } from "@/app/_components/Badge";
 import { ScoreBadge } from "@/app/_components/ScoreBadge";
+import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { INTERVIEW_RECOMMENDATION_FALLBACK, type InterviewRecommendation } from "@/app/_lib/interview-recommendation";
 import { STAGES, styleFor, type Entry } from "./DecisionsTypes";
 import { initials } from "@/app/_lib/initials";
@@ -10,18 +12,21 @@ export function Empty({ children }: { children: React.ReactNode }) {
 }
 
 export function NextStage({ stage }: { stage: string }) {
+  const enumLabel = useEnumLabel();
   const idx = STAGES.indexOf(stage);
   const next = STAGES[Math.min(idx + 1, STAGES.length - 1)];
   return (
     <span className="inline-flex items-center gap-1 text-sm text-steel">
-      <span className="rounded bg-stone-100 px-1.5 py-0.5">{stage}</span>
+      <span className="rounded bg-stone-100 px-1.5 py-0.5">{enumLabel("stage", stage)}</span>
       <ChevronRight size={12} />
-      <span className="rounded bg-moss/10 px-1.5 py-0.5 font-semibold text-moss">{next}</span>
+      <span className="rounded bg-moss/10 px-1.5 py-0.5 font-semibold text-moss">{enumLabel("stage", next)}</span>
     </span>
   );
 }
 
 export function CandidateHead({ entry }: { entry: Entry }) {
+  const t = useTranslations("decisions");
+  const enumLabel = useEnumLabel();
   const s = styleFor(entry.archetype);
   const monogram = initials(entry.candidateLabel);
   return (
@@ -32,13 +37,13 @@ export function CandidateHead({ entry }: { entry: Entry }) {
       <div className="min-w-0">
         <p className="truncate text-base font-semibold text-ink">{entry.candidateLabel}</p>
         <p className="truncate text-sm text-steel">
-          {s.label} · {entry.jobTitle}
+          {enumLabel("archetype", entry.archetype)} · {entry.jobTitle}
         </p>
       </div>
       {entry.matchScore != null ? (
         <span className="ml-auto inline-flex items-center gap-1.5">
           <ScoreBadge score={entry.matchScore} />
-          <span className="text-sm uppercase text-steel">match</span>
+          <span className="text-sm uppercase text-steel">{t("match")}</span>
         </span>
       ) : null}
     </div>
@@ -67,13 +72,19 @@ export function MiniList({ title, items, tone }: { title: string; items: string[
 // looks identical to the same verdict everywhere else (e.g. the interview
 // scorecard). The optional "· {confidence}%" suffix stays tabular-nums.
 export function RecBadge({ rec, confidence }: { rec?: InterviewRecommendation; confidence?: number }) {
-  const content = interviewRecommendationToken(rec ?? INTERVIEW_RECOMMENDATION_FALLBACK);
+  const t = useTranslations("decisions");
+  const enumLabel = useEnumLabel();
+  const resolved = rec ?? INTERVIEW_RECOMMENDATION_FALLBACK;
+  // Icon + tone come from the canonical Badge token; the visible label is
+  // localized via the enums catalog (the verdict value stays canonical).
+  const content = interviewRecommendationToken(resolved);
+  const label = enumLabel("recommendation", resolved);
   const hasConfidence = typeof confidence === "number";
   return (
     <Badge
       {...content}
-      label={hasConfidence ? `${content.label} · ${confidence}%` : content.label}
-      ariaLabel={`${content.label} recommendation${hasConfidence ? `, ${confidence}% confidence` : ""}`}
+      label={hasConfidence ? t("recConfidenceSuffix", { label, confidence }) : label}
+      ariaLabel={hasConfidence ? t("recAriaConfidence", { label, confidence }) : t("recAria", { label })}
       className="tabular-nums"
     />
   );

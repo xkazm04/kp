@@ -2,9 +2,11 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Check, Loader2, Save } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { JD_BODY_MAX_LENGTH, JD_TITLE_MAX_LENGTH, validateJdFields } from "@/app/_lib/jd-limits";
 
 export function LibraryJdForm({ onSaved }: { onSaved: () => void }) {
+  const t = useTranslations("library.form");
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -38,7 +40,7 @@ export function LibraryJdForm({ onSaved }: { onSaved: () => void }) {
       });
       if (!response.ok) {
         const payload = await response.json().catch(() => ({}));
-        throw new Error(payload.error ?? `Save failed (${response.status}).`);
+        throw new Error(payload.error ?? t("saveFailedStatus", { status: response.status }));
       }
       setTitle("");
       setBody("");
@@ -49,7 +51,7 @@ export function LibraryJdForm({ onSaved }: { onSaved: () => void }) {
       if (savedTimeout.current) clearTimeout(savedTimeout.current);
       savedTimeout.current = setTimeout(() => setSaved(false), 2000);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Save failed.");
+      setError(caught instanceof Error ? caught.message : t("saveFailed"));
     } finally {
       setSubmitting(false);
     }
@@ -57,13 +59,13 @@ export function LibraryJdForm({ onSaved }: { onSaved: () => void }) {
 
   return (
     <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
-      <h3 className="font-serif text-h2 text-ink">Save a JD</h3>
+      <h3 className="font-serif text-h2 text-ink">{t("saveAjd")}</h3>
       <p className="mt-2 text-base text-steel">
-        Stored locally in <code className="rounded bg-paper px-1 text-sm">data/kp.sqlite</code>.
+        {t.rich("storedLocally", { code: (chunks) => <code className="rounded bg-paper px-1 text-sm">{chunks}</code> })}
       </p>
 
       <label htmlFor="jd-title" className="mt-4 block text-base font-semibold text-ink">
-        Title
+        {t("title")}
       </label>
       <input
         id="jd-title"
@@ -71,23 +73,23 @@ export function LibraryJdForm({ onSaved }: { onSaved: () => void }) {
         value={title}
         maxLength={JD_TITLE_MAX_LENGTH}
         onChange={(event) => setTitle(event.target.value)}
-        placeholder="Senior AI Automation Engineer — RetailCloud"
+        placeholder={t("titlePlaceholder")}
         className="focus-ring mt-1 h-10 w-full rounded-md border border-stone-300 bg-white px-3 text-base text-ink"
       />
 
       <label htmlFor="jd-body" className="mt-4 block text-base font-semibold text-ink">
-        Body
+        {t("body")}
       </label>
       <textarea
         id="jd-body"
         value={body}
         maxLength={JD_BODY_MAX_LENGTH}
         onChange={(event) => setBody(event.target.value)}
-        placeholder={"Paste the full role requirements, responsibilities, seniority, skills, and salary range when available."}
+        placeholder={t("bodyPlaceholder")}
         className="focus-ring mt-1 min-h-48 w-full resize-y rounded-md border border-stone-300 bg-white p-3 text-base leading-6 text-ink"
       />
       <p className={`mt-1 text-sm ${body.length >= JD_BODY_MAX_LENGTH * 0.9 ? "text-coral" : "text-steel"}`}>
-        {body.length.toLocaleString("en-US")} / {JD_BODY_MAX_LENGTH.toLocaleString("en-US")} characters
+        {t("charCount", { used: body.length, max: JD_BODY_MAX_LENGTH })}
       </p>
 
       {error ? (
@@ -106,11 +108,11 @@ export function LibraryJdForm({ onSaved }: { onSaved: () => void }) {
           ) : (
             <Save className="h-4 w-4" aria-hidden />
           )}
-          {submitting ? "Saving…" : "Save JD"}
+          {submitting ? t("saving") : t("saveJd")}
         </button>
         {saved ? (
           <span className="animate-fade-in inline-flex items-center gap-1 text-base font-semibold text-moss" role="status">
-            <Check className="h-4 w-4" aria-hidden /> Saved
+            <Check className="h-4 w-4" aria-hidden /> {t("saved")}
           </span>
         ) : null}
       </div>

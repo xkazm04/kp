@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import type { LucideIcon } from "lucide-react";
 import {
   AlertTriangle,
@@ -22,6 +23,7 @@ import { provLabel, type MatchResultView } from "@/app/features/sub_match/MatchT
 import { APP_CURRENCY, formatSalaryRange, scoreTone, scoreToneColor } from "@/app/_lib/format";
 import { isSameCurrency, normalizeCurrency, salaryBandPosition } from "@/app/_lib/salary-band";
 import { initials } from "@/app/_lib/initials";
+import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { styleFor } from "./DecisionsTypes";
 
 // Structured, bold-formatted head-to-head narrative (group_compare_cli). Bold
@@ -108,7 +110,8 @@ export type GroupEvalPayload = {
   evaluatedLabels?: string[];
 };
 
-const sourceLabel = (s?: string) => (s === "llm" ? "Claude/Gemini" : s === "partial" ? "Partial (some AI)" : "Deterministic");
+// Returns the catalog key for the source pill; resolved through t() at the call site.
+const sourceLabelKey = (s?: string) => (s === "llm" ? "sourceLlm" : s === "partial" ? "sourcePartial" : "sourceDeterministic");
 
 const ranWhen = (iso?: string | null): string | null => {
   if (!iso) return null;
@@ -173,6 +176,7 @@ export function GroupEvalModal({
    *  person. Omitted (read-only) for the simulation, which has no live decision queue. */
   onDecide?: (identity: string, action: "accept" | "reject") => void;
 }) {
+  const t = useTranslations("decisions.groupEval");
   const ranAt = ranWhen(createdAt);
   // Candidates decided here this session, so their buttons flip to a result pill
   // (the cached `evaluation` snapshot doesn't refetch; the live queue updates
@@ -197,8 +201,14 @@ export function GroupEvalModal({
   return (
     <Modal
       size="full"
-      title={`Group evaluation · ${roleTitle}`}
-      subtitle={evaluation ? `Source: ${sourceLabel(evaluation.source)}${ranAt ? ` · ran ${ranAt}` : ""}` : undefined}
+      title={t("title", { role: roleTitle })}
+      subtitle={
+        evaluation
+          ? `${t("subtitleSource", { source: t(sourceLabelKey(evaluation.source) as Parameters<typeof t>[0]) })}${
+              ranAt ? t("subtitleRan", { when: ranAt }) : ""
+            }`
+          : undefined
+      }
       onClose={onClose}
       footer={
         <button
@@ -207,23 +217,23 @@ export function GroupEvalModal({
           disabled={loading}
           className="focus-ring inline-flex h-9 items-center gap-1 rounded-md border border-stone-200 px-3 text-base font-semibold text-ink hover:border-coral/40 disabled:opacity-50"
         >
-          <RefreshCw size={14} /> {loading ? "Generating…" : "Re-run"}
+          <RefreshCw size={14} /> {loading ? t("generating") : t("rerun")}
         </button>
       }
     >
       {loading && !evaluation ? (
         <p className="flex items-center gap-2 text-base text-steel">
-          <Loader2 size={16} className="animate-spin text-coral" /> Generating group evaluation across the role&apos;s candidates…
+          <Loader2 size={16} className="animate-spin text-coral" /> {t("generatingFull")}
         </p>
       ) : error && !evaluation ? (
         <div className="flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 p-3 text-base text-amber-900">
           <AlertTriangle size={18} className="mt-0.5 shrink-0" aria-hidden />
           <span>
-            <span className="font-semibold">Evaluation unavailable.</span> {error}
+            <span className="font-semibold">{t("unavailable")}</span> {error}
           </span>
         </div>
       ) : !evaluation ? (
-        <p className="text-base text-steel">No evaluation yet — run one to compare this role&apos;s candidates.</p>
+        <p className="text-base text-steel">{t("noEval")}</p>
       ) : (
         <div className="space-y-5">
           <Notices drift={drift} ranAt={ranAt} evaluation={evaluation} />
@@ -299,20 +309,22 @@ function RichText({ text }: { text: string }) {
 }
 
 function Avatar({ label, archetype, size = "md" }: { label: string; archetype?: string | null; size?: "sm" | "md" }) {
+  const enumLabel = useEnumLabel();
   const s = styleFor(archetype ?? null);
   const dim = size === "sm" ? "h-6 w-6 text-sm" : "h-8 w-8 text-base";
   return (
-    <span className={`grid ${dim} shrink-0 place-items-center rounded-full font-semibold text-white ${s.bg}`} title={s.label}>
+    <span className={`grid ${dim} shrink-0 place-items-center rounded-full font-semibold text-white ${s.bg}`} title={enumLabel("archetype", archetype ?? "bau")}>
       {initials(label, "?")}
     </span>
   );
 }
 
 function ArchetypeTag({ archetype }: { archetype?: string | null }) {
+  const enumLabel = useEnumLabel();
   const s = styleFor(archetype ?? null);
   return (
     <Pill>
-      <span className={`h-2 w-2 rounded-full ${s.bg}`} aria-hidden /> {s.label}
+      <span className={`h-2 w-2 rounded-full ${s.bg}`} aria-hidden /> {enumLabel("archetype", archetype ?? "bau")}
     </Pill>
   );
 }
@@ -322,21 +334,20 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
 }
 
 function Notices({ drift, ranAt, evaluation }: { drift: number; ranAt: string | null; evaluation: GroupEvalPayload }) {
+  const t = useTranslations("decisions.groupEval");
   return (
     <>
       {drift > 0 ? (
         <div className="flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 p-2.5 text-base text-amber-900">
           <AlertTriangle size={16} className="mt-0.5 shrink-0" aria-hidden />
           <span>
-            <b>{drift} candidate{drift === 1 ? "" : "s"} changed</b> since this evaluation ran
-            {ranAt ? ` (${ranAt})` : ""}. The ranking below may exclude a newly added candidate or
-            recommend one already decided — re-run for an up-to-date comparison.
+            {t.rich("driftNotice", { count: drift, when: ranAt ? ` (${ranAt})` : "", b: (chunks) => <b>{chunks}</b> })}
           </span>
         </div>
       ) : null}
       {evaluation.capped ? (
         <p className="text-sm text-steel">
-          Showing top {evaluation.cap ?? evaluation.candidates?.length} of {evaluation.totalCandidates} candidates, ranked by fit.
+          {t("capped", { cap: evaluation.cap ?? evaluation.candidates?.length ?? 0, total: evaluation.totalCandidates ?? 0 })}
         </p>
       ) : null}
     </>
@@ -346,13 +357,14 @@ function Notices({ drift, ranAt, evaluation }: { drift: number; ranAt: string | 
 // ---- AI verdict (formatted, bold) -----------------------------------------
 
 function AiVerdict({ comparison, fallback, aiBacked }: { comparison?: Comparison | null; fallback?: string; aiBacked: boolean }) {
+  const t = useTranslations("decisions.groupEval");
   if (!comparison && !fallback) return null;
   return (
     <section className="rounded-xl border border-stone-200 bg-paper/40 p-4">
       <div className="mb-1.5 flex items-center gap-2">
         <Sparkles size={15} className="text-coral" aria-hidden />
-        <span className="text-sm font-semibold uppercase tracking-wide text-steel">AI comparison</span>
-        <Pill tone={aiBacked ? "info" : "neutral"}>{aiBacked ? "AI" : "rule-based"}</Pill>
+        <span className="text-sm font-semibold uppercase tracking-wide text-steel">{t("aiComparison")}</span>
+        <Pill tone={aiBacked ? "info" : "neutral"}>{aiBacked ? t("aiBacked") : t("ruleBased")}</Pill>
       </div>
       {comparison ? (
         <>
@@ -393,6 +405,7 @@ function AiVerdict({ comparison, fallback, aiBacked }: { comparison?: Comparison
 // / Salary and the eye scans straight down a candidate's column.
 
 function CandidateHeader({ c, rank, isLead }: { c: EvalCandidate; rank: number; isLead: boolean }) {
+  const t = useTranslations("decisions.groupEval");
   return (
     <div className="flex items-center gap-2">
       <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-ink/85 text-sm font-semibold text-white tabular-nums">{rank}</span>
@@ -401,10 +414,10 @@ function CandidateHeader({ c, rank, isLead }: { c: EvalCandidate; rank: number; 
         <div className="truncate font-semibold text-ink">{c.label}</div>
         {isLead ? (
           <Pill tone="moss">
-            <Crown size={12} /> Lead
+            <Crown size={12} /> {t("lead")}
           </Pill>
         ) : c.koPassed === false ? (
-          <Pill tone="coral">KO</Pill>
+          <Pill tone="coral">{t("ko")}</Pill>
         ) : null}
       </div>
     </div>
@@ -502,11 +515,13 @@ function ConfidenceCell({ c }: { c: EvalCandidate }) {
 }
 
 function ProfileCell({ c }: { c: EvalCandidate }) {
+  const t = useTranslations("decisions.groupEval");
+  const enumLabel = useEnumLabel();
   return (
     <div className="flex flex-wrap gap-1">
       <ArchetypeTag archetype={c.archetype} />
-      {c.seniority ? <Pill>{c.seniority}</Pill> : null}
-      {c.potentialScore != null ? <Pill>potential {Math.round(c.potentialScore * 100)}</Pill> : null}
+      {c.seniority ? <Pill>{enumLabel("seniority", c.seniority)}</Pill> : null}
+      {c.potentialScore != null ? <Pill>{t("potential", { n: Math.round(c.potentialScore * 100) })}</Pill> : null}
     </div>
   );
 }
@@ -529,6 +544,7 @@ function CoverageCell({ c, mustRows }: { c: EvalCandidate; mustRows: string[] })
 }
 
 function DimCell({ c, dimKey, isLeader }: { c: EvalCandidate; dimKey: string; isLeader: boolean }) {
+  const t = useTranslations("decisions.groupEval");
   const pct = percentOf(c, dimKey);
   if (pct == null) return <Dash />;
   return (
@@ -537,51 +553,55 @@ function DimCell({ c, dimKey, isLeader }: { c: EvalCandidate; dimKey: string; is
       <span className="h-2 flex-1 overflow-hidden rounded-full bg-stone-100" aria-hidden>
         <span className="block h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: scoreToneColor(scoreTone(pct)) }} />
       </span>
-      {isLeader ? <Pill tone="moss">lead</Pill> : null}
+      {isLeader ? <Pill tone="moss">{t("dimLeader")}</Pill> : null}
     </div>
   );
 }
 
 function SkillsLegend() {
+  const t = useTranslations("decisions.groupEval");
   return (
     <span className="flex flex-wrap items-center gap-1.5">
       <Pill tone="moss">
-        <CheckCircle2 size={12} /> strong
+        <CheckCircle2 size={12} /> {t("strong")}
       </Pill>
       <Pill tone="amber">
-        <CircleDot size={12} /> partial
+        <CircleDot size={12} /> {t("partial")}
       </Pill>
       <Pill tone="coral">
-        <XCircle size={12} /> missing
+        <XCircle size={12} /> {t("missing")}
       </Pill>
     </span>
   );
 }
 
 function SkillCell({ skill, c }: { skill: string; c: EvalCandidate }) {
+  const t = useTranslations("decisions.groupEval");
+  const enumLabel = useEnumLabel();
   const matched = (c.matchedSkills ?? []).includes(skill);
   const missing = (c.missingSkills ?? []).includes(skill);
   if (matched) {
     const strength = c.matchedSkillStrength?.[skill] ?? 1;
     const strong = strength >= 0.85;
+    const pct = Math.round(strength * 100);
     const pl = provLabel(c.matchedSkillProvenance?.[skill] ?? "self_declared");
     return (
-      <span className="inline-flex items-center gap-1" title={`match ${Math.round(strength * 100)}%${strong ? "" : " · partial (taxonomy / provenance-discounted)"}`}>
+      <span className="inline-flex items-center gap-1" title={strong ? t("skillStrongTitle", { pct }) : t("skillPartialTitle", { pct })}>
         {strong ? <CheckCircle2 size={16} className="text-moss" aria-hidden /> : <CircleDot size={16} className="text-amber-600" aria-hidden />}
-        <span className={`rounded px-1 text-sm uppercase ${pl.tone}`}>{pl.text}</span>
-        {!strong ? <span className="nums text-sm text-steel">{Math.round(strength * 100)}%</span> : null}
+        <span className={`rounded px-1 text-sm uppercase ${pl.tone}`}>{enumLabel("provenance", pl.key)}</span>
+        {!strong ? <span className="nums text-sm text-steel">{pct}%</span> : null}
       </span>
     );
   }
   if (missing) {
     return (
-      <span className="inline-flex items-center text-red-700" title="missing must-have" aria-label="missing">
+      <span className="inline-flex items-center text-red-700" title={t("missingMustHaveTitle")} aria-label={t("missingAria")}>
         <XCircle size={16} aria-hidden />
       </span>
     );
   }
   return (
-    <span className="inline-flex items-center text-stone-300" title="not required / not claimed" aria-label="not applicable">
+    <span className="inline-flex items-center text-stone-300" title={t("notApplicableTitle")} aria-label={t("notApplicableAria")}>
       <Minus size={16} aria-hidden />
     </span>
   );
@@ -591,16 +611,17 @@ function SkillCell({ skill, c }: { skill: string; c: EvalCandidate }) {
 // contract live in salary-band.ts; this only maps the position to a label + tone.
 // Callers MUST gate on isSameCurrency first (see SalaryCell) so this never prints a
 // confident "% over" for an expectation in a different currency than the band.
-function salaryVerdict(mid: number, lo: number, hi: number): { label: string; tone: keyof typeof PILL_TONE } {
+function salaryVerdict(mid: number, lo: number, hi: number): { position: "over" | "under" | "within"; pct: number; tone: keyof typeof PILL_TONE } {
   const { position, pct } = salaryBandPosition(mid, lo, hi);
-  if (position === "over") return { label: `+${pct}% over`, tone: "coral" };
-  if (position === "under") return { label: `${pct}% under`, tone: "info" };
-  return { label: "within band", tone: "moss" };
+  if (position === "over") return { position: "over", pct, tone: "coral" };
+  if (position === "under") return { position: "under", pct, tone: "info" };
+  return { position: "within", pct: 0, tone: "moss" };
 }
 
 type SalaryScale = { lo: number; hi: number; pct: (v: number) => number };
 
 function SalaryCell({ c, sal, bandCurrency }: { c: EvalCandidate; sal: SalaryScale; bandCurrency: string }) {
+  const t = useTranslations("decisions.groupEval");
   const s = c.salaryExpectation;
   // The over/under-band verdict AND the band-relative bar position are only
   // meaningful when the expectation shares the band's currency — the app does no
@@ -629,7 +650,7 @@ function SalaryCell({ c, sal, bandCurrency }: { c: EvalCandidate; sal: SalarySca
             <span
               className="absolute inset-y-0 w-0.5 bg-coral"
               style={{ left: `${sal.pct(s.midpoint)}%` }}
-              title={`midpoint ${formatSalaryRange(s.midpoint, s.midpoint, { currency: s.currency })}`}
+              title={t("midpointTitle", { range: formatSalaryRange(s.midpoint, s.midpoint, { currency: s.currency }) })}
               aria-hidden
             />
           </>
@@ -637,19 +658,25 @@ function SalaryCell({ c, sal, bandCurrency }: { c: EvalCandidate; sal: SalarySca
       </div>
       <div className="flex items-center justify-between gap-1">
         <span className="text-sm text-steel">
-          {s ? formatSalaryRange(s.minimum, s.maximum, { currency: s.currency }) : "no expectation"}
+          {s ? formatSalaryRange(s.minimum, s.maximum, { currency: s.currency }) : t("noExpectation")}
         </span>
         {verdict ? (
-          <Pill tone={verdict.tone}>{verdict.label}</Pill>
+          <Pill tone={verdict.tone}>
+            {t(
+              verdict.position === "over" ? "salaryOver" : verdict.position === "under" ? "salaryUnder" : "salaryWithin",
+              { pct: verdict.pct }
+            )}
+          </Pill>
         ) : s && !comparable && sal.hi > 0 ? (
           <Pill
             tone="amber"
             className="whitespace-nowrap"
-            title={`Expectation is in ${normalizeCurrency(s.currency)}; the role band is in ${normalizeCurrency(
-              bandCurrency
-            )}. No currency conversion is applied, so the over/under-band comparison is skipped.`}
+            title={t("crossCurrencyTitle", {
+              expectation: normalizeCurrency(s.currency),
+              band: normalizeCurrency(bandCurrency),
+            })}
           >
-            {normalizeCurrency(s.currency)} · vs {normalizeCurrency(bandCurrency)} band
+            {t("crossCurrencyPill", { expectation: normalizeCurrency(s.currency), band: normalizeCurrency(bandCurrency) })}
           </Pill>
         ) : null}
       </div>
@@ -668,6 +695,7 @@ function ComparisonTable({
   mustRows: string[];
   roleBand: number[];
 }) {
+  const t = useTranslations("decisions.groupEval");
   const cols = candidates.length + 1;
 
   // Dimension rows: union of breakdown keys (skills/career/personal), labelled
@@ -706,7 +734,7 @@ function ComparisonTable({
 
   return (
     <section>
-      <SectionTitle>Comparison</SectionTitle>
+      <SectionTitle>{t("comparison")}</SectionTitle>
       <div className="mt-2 overflow-x-auto rounded-xl border border-stone-200">
         <table className="w-full min-w-[60rem] table-fixed border-collapse text-base">
           <colgroup>
@@ -721,7 +749,7 @@ function ComparisonTable({
                 scope="col"
                 className="sticky left-0 top-0 z-30 border-b border-stone-200 bg-paper px-3 py-2 text-left align-bottom text-sm font-semibold uppercase tracking-wide text-steel"
               >
-                Candidate →
+                {t("candidateHeader")}
               </th>
               {candidates.map((c, i) => (
                 <th key={candIdentity(c)} scope="col" className="sticky top-0 z-20 border-b border-stone-200 bg-paper px-3 py-2 text-left align-bottom font-normal">
@@ -733,13 +761,13 @@ function ComparisonTable({
 
           {/* Overview */}
           <tbody>
-            <GroupTr label="Overview" cols={cols} />
-            <Row head={<RowHead title="Overall fit" />} candidates={candidates} leaderValue={(c) => c.score} render={(c) => <FitCell c={c} />} />
-            <Row head={<RowHead title="Confidence band" />} candidates={candidates} render={(c) => <ConfidenceCell c={c} />} />
-            <Row head={<RowHead title="Profile" />} candidates={candidates} render={(c) => <ProfileCell c={c} />} />
+            <GroupTr label={t("overview")} cols={cols} />
+            <Row head={<RowHead title={t("overallFit")} />} candidates={candidates} leaderValue={(c) => c.score} render={(c) => <FitCell c={c} />} />
+            <Row head={<RowHead title={t("confidenceBand")} />} candidates={candidates} render={(c) => <ConfidenceCell c={c} />} />
+            <Row head={<RowHead title={t("profile")} />} candidates={candidates} render={(c) => <ProfileCell c={c} />} />
             {mustRows.length ? (
               <Row
-                head={<RowHead title="Must-have coverage" />}
+                head={<RowHead title={t("mustHaveCoverage")} />}
                 candidates={candidates}
                 leaderValue={(c) => coverageCount(c, mustRows)}
                 render={(c) => <CoverageCell c={c} mustRows={mustRows} />}
@@ -750,11 +778,11 @@ function ComparisonTable({
           {/* Score breakdown */}
           {dims.length ? (
             <tbody>
-              <GroupTr label="Score breakdown" cols={cols} />
+              <GroupTr label={t("scoreBreakdownSection")} cols={cols} />
               {dims.map((d) => (
                 <Row
                   key={d.key}
-                  head={<RowHead title={d.label} sub={`weight ${d.weight}%`} />}
+                  head={<RowHead title={d.label} sub={t("weight", { weight: d.weight })} />}
                   candidates={candidates}
                   leaderValue={(c) => percentOf(c, d.key) ?? -1}
                   render={(c, isLeader) => <DimCell c={c} dimKey={d.key} isLeader={isLeader} />}
@@ -766,12 +794,12 @@ function ComparisonTable({
           {/* Skills */}
           {skillRows.length ? (
             <tbody>
-              <GroupTr label="Skills" cols={cols} aside={<SkillsLegend />} />
-              {must.length ? <SubGroupTr label={`Must-have · ${must.length}`} cols={cols} /> : null}
+              <GroupTr label={t("skillsSection")} cols={cols} aside={<SkillsLegend />} />
+              {must.length ? <SubGroupTr label={t("mustHaveCount", { n: must.length })} cols={cols} /> : null}
               {must.map((r) => (
                 <Row key={r.skill} head={<span className="font-medium text-ink">{r.skill}</span>} candidates={candidates} render={(c) => <SkillCell skill={r.skill} c={c} />} />
               ))}
-              {nice.length ? <SubGroupTr label={`Nice-to-have · ${nice.length}`} cols={cols} /> : null}
+              {nice.length ? <SubGroupTr label={t("niceToHaveCount", { n: nice.length })} cols={cols} /> : null}
               {nice.map((r) => (
                 <Row key={r.skill} head={<span className="font-medium text-ink">{r.skill}</span>} candidates={candidates} render={(c) => <SkillCell skill={r.skill} c={c} />} />
               ))}
@@ -782,11 +810,11 @@ function ComparisonTable({
           {showSalary ? (
             <tbody>
               <GroupTr
-                label="Salary · expectation vs band"
+                label={t("salarySection")}
                 cols={cols}
-                aside={hi > 0 ? <Pill tone="info">role band {formatSalaryRange(lo, hi, { currency: bandCurrency })}</Pill> : <Pill>no role band</Pill>}
+                aside={hi > 0 ? <Pill tone="info">{t("roleBand", { range: formatSalaryRange(lo, hi, { currency: bandCurrency }) })}</Pill> : <Pill>{t("noRoleBand")}</Pill>}
               />
-              <Row head={<RowHead title="Expected" sub="green = band · bar = range · tick = midpoint" />} candidates={candidates} render={(c) => <SalaryCell c={c} sal={sal} bandCurrency={bandCurrency} />} />
+              <Row head={<RowHead title={t("expected")} sub={t("salaryLegend")} />} candidates={candidates} render={(c) => <SalaryCell c={c} sal={sal} bandCurrency={bandCurrency} />} />
             </tbody>
           ) : null}
         </table>
@@ -830,6 +858,8 @@ function CandidateDetail({
   decision?: "accept" | "reject";
   onDecide?: (label: string, action: "accept" | "reject") => void;
 }) {
+  const t = useTranslations("decisions.groupEval");
+  const enumLabel = useEnumLabel();
   return (
     <div className="rounded-xl border border-stone-200 p-4">
       <div className="flex flex-wrap items-center gap-3">
@@ -838,9 +868,9 @@ function CandidateDetail({
           <p className="font-serif text-h3 text-ink">{c.label}</p>
           <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
             <ArchetypeTag archetype={c.archetype} />
-            {c.seniority ? <Pill>{c.seniority}</Pill> : null}
-            {c.potentialScore != null ? <Pill>potential {Math.round(c.potentialScore * 100)}</Pill> : null}
-            {c.koPassed === false ? <Pill tone="coral">KO-filtered</Pill> : null}
+            {c.seniority ? <Pill>{enumLabel("seniority", c.seniority)}</Pill> : null}
+            {c.potentialScore != null ? <Pill>{t("potential", { n: Math.round(c.potentialScore * 100) })}</Pill> : null}
+            {c.koPassed === false ? <Pill tone="coral">{t("koFiltered")}</Pill> : null}
           </div>
         </div>
         <div className="ml-auto flex items-center gap-2">
@@ -856,7 +886,7 @@ function CandidateDetail({
             decision ? (
               <Pill tone={decision === "accept" ? "moss" : "coral"}>
                 {decision === "accept" ? <CheckCircle2 size={13} /> : <XCircle size={13} />}
-                {decision === "accept" ? "Advanced" : "Rejected"}
+                {decision === "accept" ? t("advanced") : t("rejected")}
               </Pill>
             ) : (
               <span className="flex items-center gap-1.5">
@@ -865,14 +895,14 @@ function CandidateDetail({
                   onClick={() => onDecide(candIdentity(c), "reject")}
                   className="focus-ring inline-flex h-8 items-center gap-1 rounded-md border border-stone-200 px-2.5 text-sm font-semibold text-coral hover:bg-coral/5"
                 >
-                  <XCircle size={14} /> Reject
+                  <XCircle size={14} /> {t("reject")}
                 </button>
                 <button
                   type="button"
                   onClick={() => onDecide(candIdentity(c), "accept")}
                   className="focus-ring inline-flex h-8 items-center gap-1 rounded-md bg-moss px-2.5 text-sm font-semibold text-white hover:opacity-90"
                 >
-                  <CheckCircle2 size={14} /> Advance
+                  <CheckCircle2 size={14} /> {t("advance")}
                 </button>
               </span>
             )
@@ -890,7 +920,7 @@ function CandidateDetail({
 
       {topPick === c.label && differentiators.length ? (
         <div className="mt-3">
-          <p className="text-sm font-semibold uppercase tracking-wide text-steel">Unique strengths (lead)</p>
+          <p className="text-sm font-semibold uppercase tracking-wide text-steel">{t("uniqueStrengths")}</p>
           <div className="mt-1 flex flex-wrap gap-1">
             {differentiators.map((s) => (
               <Pill key={s} tone="moss">
@@ -902,14 +932,14 @@ function CandidateDetail({
       ) : null}
 
       <div className="mt-3 grid gap-4 md:grid-cols-3">
-        <IconList title="Strengths" items={c.strengths} icon={CheckCircle2} tone="moss" />
-        <IconList title="Gaps" items={c.gaps} icon={AlertTriangle} tone="coral" />
-        <IconList title="Interview probes" items={c.interviewProbes ?? []} icon={CircleDot} tone="steel" />
+        <IconList title={t("strengths")} items={c.strengths} icon={CheckCircle2} tone="moss" />
+        <IconList title={t("gaps")} items={c.gaps} icon={AlertTriangle} tone="coral" />
+        <IconList title={t("interviewProbes")} items={c.interviewProbes ?? []} icon={CircleDot} tone="steel" />
       </div>
 
       {c.assumptions?.length ? (
         <p className="mt-3 text-sm text-steel">
-          <span className="font-semibold uppercase">Assumptions:</span> {c.assumptions.join(" · ")}
+          <span className="font-semibold uppercase">{t("assumptions")}</span> {c.assumptions.join(" · ")}
         </p>
       ) : null}
     </div>
@@ -929,6 +959,7 @@ function PerCandidateTabs({
   decided: Record<string, "accept" | "reject">;
   onDecide?: (label: string, action: "accept" | "reject") => void;
 }) {
+  const t = useTranslations("decisions.groupEval");
   const [active, setActive] = useState(0);
   if (!candidates.length) return null;
   const idx = Math.min(active, candidates.length - 1);
@@ -936,8 +967,8 @@ function PerCandidateTabs({
 
   return (
     <section>
-      <SectionTitle>Per candidate</SectionTitle>
-      <div role="tablist" aria-label="Candidates" className="mt-2 flex flex-wrap gap-1 border-b border-stone-200">
+      <SectionTitle>{t("perCandidate")}</SectionTitle>
+      <div role="tablist" aria-label={t("candidatesAria")} className="mt-2 flex flex-wrap gap-1 border-b border-stone-200">
         {candidates.map((c, i) => {
           const selected = i === idx;
           const s = styleFor(c.archetype ?? null);
@@ -958,9 +989,9 @@ function PerCandidateTabs({
               {/* A tab badges its decided outcome so the recruiter sees, across the
                   whole pool, who's been actioned without opening each tab. */}
               {tabDecision === "accept" ? (
-                <CheckCircle2 size={14} className="text-moss" aria-label="advanced" />
+                <CheckCircle2 size={14} className="text-moss" aria-label={t("advancedAria")} />
               ) : tabDecision === "reject" ? (
-                <XCircle size={14} className="text-coral" aria-label="rejected" />
+                <XCircle size={14} className="text-coral" aria-label={t("rejectedAria")} />
               ) : (
                 <ScoreBadge score={c.score} />
               )}
@@ -984,6 +1015,7 @@ const fmtScheme = (s: FairnessScheme): string =>
 // per-candidate weight-adjustment notes. When no weighting was actually adjusted
 // the matrix is uniform and adds nothing, so we say that plainly instead.
 function FairnessPanel({ fairness, headlineOrder }: { fairness: Fairness | null; headlineOrder: string[] }) {
+  const t = useTranslations("decisions.groupEval");
   if (!fairness || !fairness.labels?.length || !fairness.matrix?.length) return null;
   const { labels, schemes, matrix, mean, ranking, weightNotes, candidateIds, weightSource } = fairness;
   const adjusted = candidateIds.some((id) => (weightNotes?.[id]?.length ?? 0) > 0);
@@ -991,11 +1023,8 @@ function FairnessPanel({ fairness, headlineOrder }: { fairness: Fairness | null;
   if (!adjusted) {
     return (
       <section>
-        <SectionTitle>Fairness check</SectionTitle>
-        <p className="mt-1 text-base text-steel">
-          Every candidate used the standard weighting for their archetype — the ranking above already compares
-          like-for-like.
-        </p>
+        <SectionTitle>{t("fairnessCheck")}</SectionTitle>
+        <p className="mt-1 text-base text-steel">{t("fairnessUniform")}</p>
       </section>
     );
   }
@@ -1005,29 +1034,27 @@ function FairnessPanel({ fairness, headlineOrder }: { fairness: Fairness | null;
   return (
     <section>
       <div className="flex items-center gap-2">
-        <SectionTitle>Fairness check</SectionTitle>
+        <SectionTitle>{t("fairnessCheck")}</SectionTitle>
         <Pill tone={weightSource === "llm" ? "info" : "neutral"}>
-          {weightSource === "llm" ? "AI-tuned weights" : "Rule-based weights"}
+          {weightSource === "llm" ? t("aiTunedWeights") : t("ruleBasedWeights")}
         </Pill>
       </div>
       <p className="mt-1 text-base text-steel">
-        Some candidates carry a bounded, evidence-driven weighting — demonstrated skill is weighted higher when backed by
-        high-trust evidence. Each candidate is re-scored under <em>every</em> candidate&apos;s weighting; the robust order
-        is the average across all schemes, so a candidate strong under everyone&apos;s weights is robustly strong.
+        {t.rich("fairnessExplain", { em: (chunks) => <em>{chunks}</em> })}
       </p>
 
       <div className="mt-3 overflow-x-auto">
         <table className="w-full border-collapse text-sm">
           <thead>
             <tr>
-              <th className="sticky left-0 bg-white p-2 text-left text-meta uppercase text-steel">Scored candidate</th>
+              <th className="sticky left-0 bg-white p-2 text-left text-meta uppercase text-steel">{t("scoredCandidate")}</th>
               {labels.map((l, j) => (
                 <th key={j} className="min-w-[120px] p-2 text-left align-bottom">
-                  <p className="font-medium text-ink">under {l}</p>
+                  <p className="font-medium text-ink">{t("underLabel", { label: l })}</p>
                   <p className="text-meta text-steel nums">{fmtScheme(schemes[j])}</p>
                 </th>
               ))}
-              <th className="p-2 text-left text-meta uppercase text-steel">Mean</th>
+              <th className="p-2 text-left text-meta uppercase text-steel">{t("mean")}</th>
             </tr>
           </thead>
           <tbody>
@@ -1040,7 +1067,7 @@ function FairnessPanel({ fairness, headlineOrder }: { fairness: Fairness | null;
                       className={`inline-flex h-7 w-9 items-center justify-center rounded-md font-semibold nums ${
                         i === j ? "bg-coral/10 text-coral ring-1 ring-coral/30" : "bg-stone-100 text-ink"
                       }`}
-                      title={i === j ? "Under their own weighting" : `${l} under ${other}'s weighting`}
+                      title={i === j ? t("ownWeighting") : t("crossWeighting", { label: l, other })}
                     >
                       {matrix[i][j]}
                     </span>
@@ -1054,7 +1081,7 @@ function FairnessPanel({ fairness, headlineOrder }: { fairness: Fairness | null;
       </div>
 
       <div className="mt-3 flex flex-wrap items-center gap-1.5">
-        <span className="text-meta uppercase text-steel">Robust order</span>
+        <span className="text-meta uppercase text-steel">{t("robustOrder")}</span>
         {ranking.map((l, i) => (
           <span key={i} className="inline-flex items-center gap-1.5">
             {i > 0 ? <ArrowRight size={12} className="text-steel" aria-hidden /> : null}
@@ -1063,9 +1090,7 @@ function FairnessPanel({ fairness, headlineOrder }: { fairness: Fairness | null;
         ))}
       </div>
       <p className={`mt-1.5 text-sm ${diverges ? "text-amber-700" : "text-steel"}`}>
-        {diverges
-          ? "Under each candidate's own weighting, the robust order differs from the headline fit order above — weigh the matrix before deciding."
-          : "Agrees with the headline fit order above."}
+        {diverges ? t("robustDiverges") : t("robustAgrees")}
       </p>
 
       <ul className="mt-2 space-y-1">
@@ -1083,11 +1108,12 @@ function FairnessPanel({ fairness, headlineOrder }: { fairness: Fairness | null;
 }
 
 function Risks({ risks }: { risks: string[] }) {
+  const t = useTranslations("decisions.groupEval");
   if (!risks.length) return null;
   return (
     <section>
       <p className="flex items-center gap-1.5 text-sm font-semibold uppercase tracking-wide text-coral">
-        <AlertTriangle size={14} /> Watch-outs · {risks.length}
+        <AlertTriangle size={14} /> {t("watchOuts", { n: risks.length })}
       </p>
       <div className="mt-2 grid gap-1.5 sm:grid-cols-2">
         {risks.map((r, i) => (
@@ -1104,12 +1130,14 @@ function Risks({ risks }: { risks: string[] }) {
 // ---- Legacy fallback (no recruiter breakdown: job-less role, old saved eval,
 // or the simulation's loading payload) ------------------------------------
 function LegacyView({ evaluation }: { evaluation: GroupEvalPayload }) {
+  const t = useTranslations("decisions.groupEval");
+  const enumLabel = useEnumLabel();
   return (
     <div className="space-y-4">
       {evaluation.topPick ? (
         <div className="rounded-lg border border-moss/30 bg-moss/5 p-3">
           <p className="flex items-center gap-1.5 text-sm font-semibold uppercase tracking-wide text-moss">
-            <Sparkles size={14} /> Recommended lead
+            <Sparkles size={14} /> {t("recommendedLead")}
           </p>
           <p className="mt-1 flex items-center gap-2 font-serif text-h3 text-ink">
             {evaluation.topPick.label} <ScoreBadge score={evaluation.topPick.score} />
@@ -1120,14 +1148,14 @@ function LegacyView({ evaluation }: { evaluation: GroupEvalPayload }) {
 
       {evaluation.candidates?.length ? (
         <section>
-          <SectionTitle>Per candidate</SectionTitle>
+          <SectionTitle>{t("perCandidate")}</SectionTitle>
           <div className="mt-2 grid gap-2 lg:grid-cols-2">
             {evaluation.candidates.map((c, i) => (
               <div key={i} className="rounded-md border border-stone-200 p-2.5">
                 <p className="flex items-center gap-2 text-base font-semibold text-ink">
                   {c.label}
                   <ScoreBadge score={c.score} />
-                  {c.seniority ? <span className="font-normal text-steel">{c.seniority}</span> : null}
+                  {c.seniority ? <span className="font-normal text-steel">{enumLabel("seniority", c.seniority)}</span> : null}
                 </p>
                 {c.verdict ? <p className="mt-0.5 text-base text-ink">{c.verdict}</p> : null}
                 <div className="mt-1 grid gap-1 text-base sm:grid-cols-2">
@@ -1142,7 +1170,7 @@ function LegacyView({ evaluation }: { evaluation: GroupEvalPayload }) {
 
       {evaluation.differentiators?.length ? (
         <p className="text-base text-ink">
-          <span className="font-semibold">Differentiators (lead):</span> {evaluation.differentiators.join(", ")}
+          <span className="font-semibold">{t("differentiators")}</span> {evaluation.differentiators.join(", ")}
         </p>
       ) : null}
     </div>

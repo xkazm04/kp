@@ -2,10 +2,10 @@
 
 import { useState } from "react";
 import { ArrowLeft, Sparkles, Wand2 } from "lucide-react";
+import { useTranslations } from "next-intl";
 import type { SkillRow, EvidenceRow, BuildResult, ProfilePayload } from "./ProfileTypes";
 import {
   ARCHETYPE_CHOICES,
-  ARCHETYPE_LABEL,
   ROLE_FAMILIES,
   EDU_LEVELS,
   SENIORITIES,
@@ -15,6 +15,7 @@ import { ProfileEvidenceColumn } from "./ProfileEvidenceColumn";
 import { ResultPanel } from "./ProfileResultPanel";
 import { hydrate, SKILL_FALLBACK, EVIDENCE_FALLBACK, archetypeFieldVisibility, archetypeScopedProfileFields } from "./ProfileForm";
 import { SegmentedControl } from "@/app/_components/SegmentedControl";
+import { useEnumLabel } from "@/app/_lib/use-enum-label";
 
 export type EditorMode = "create" | "edit" | "duplicate";
 
@@ -31,6 +32,8 @@ export function ProfileEditor({
   onSaved: (savedId: string) => void;
   onCancel: () => void;
 }) {
+  const t = useTranslations("profile.editor");
+  const enumLabel = useEnumLabel();
   // hydrate() maps a stored payload (edit/duplicate) — or null (blank create) —
   // into form state honestly: it never pre-fills education/languages/seniority the
   // candidate didn't declare, so a blank intake's completeness reflects real input
@@ -117,12 +120,12 @@ export function ProfileEditor({
         body: JSON.stringify({ text: aiText }),
       });
       const payload = await r.json();
-      if (!r.ok) throw new Error(payload.error ?? `Draft failed (${r.status}).`);
+      if (!r.ok) throw new Error(payload.error ?? t("draftFailedStatus", { status: r.status }));
       applyDraft(payload);
-      const label = ARCHETYPE_LABEL[payload.archetype] ?? payload.archetype;
-      setAiNote(`Drafted as ${label} (${Math.round((payload.confidence ?? 0) * 100)}% confidence). Review and edit below, then Save.`);
+      const label = enumLabel("archetype", payload.archetype);
+      setAiNote(t("draftedAs", { label, pct: Math.round((payload.confidence ?? 0) * 100) }));
     } catch (caught) {
-      setAiError(caught instanceof Error ? caught.message : "AI draft failed.");
+      setAiError(caught instanceof Error ? caught.message : t("aiDraftFailed"));
     } finally {
       setAiLoading(false);
     }
@@ -183,14 +186,14 @@ export function ProfileEditor({
         body: JSON.stringify(isEdit ? { id: editingId, profile, signals } : { profile, signals, persist }),
       });
       const payload = await r.json();
-      if (!r.ok) throw new Error(payload.error ?? `Build failed (${r.status}).`);
+      if (!r.ok) throw new Error(payload.error ?? t("buildFailedStatus", { status: r.status }));
       setResult(payload as BuildResult);
       if (persist) {
         const savedId = (payload.saved as { id?: string } | null)?.id ?? editingId ?? "";
         onSaved(savedId);
       }
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Build failed.");
+      setError(caught instanceof Error ? caught.message : t("buildFailed"));
     } finally {
       setLoading(false);
     }
@@ -202,17 +205,17 @@ export function ProfileEditor({
   // stale, hidden value won't be submitted, so it must not block Save either.
   const yearsError =
     fieldVis.years && yearsExperience.trim() !== "" && !/^\d{1,2}(\.\d)?$/.test(yearsExperience.trim())
-      ? "Enter a number (e.g. 6)."
+      ? t("yearsError")
       : undefined;
   const gradError =
     expectedGraduation.trim() !== "" && !/^(19|20)\d{2}$/.test(expectedGraduation.trim())
-      ? "Enter a 4-digit year (e.g. 2026)."
+      ? t("gradError")
       : undefined;
   const hasFieldErrors = Boolean(yearsError || gradError);
 
   const heading =
-    mode === "edit" ? "Edit candidate profile" : mode === "duplicate" ? "Duplicate candidate profile" : "Build a candidate profile";
-  const saveLabel = mode === "edit" ? "Save changes" : "Save profile";
+    mode === "edit" ? t("headingEdit") : mode === "duplicate" ? t("headingDuplicate") : t("headingCreate");
+  const saveLabel = mode === "edit" ? t("saveChanges") : t("saveProfile");
 
   return (
     <section className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
@@ -222,13 +225,11 @@ export function ProfileEditor({
           onClick={onCancel}
           className="focus-ring -ml-1 inline-flex items-center gap-1 rounded text-sm font-semibold text-steel hover:text-coral"
         >
-          <ArrowLeft size={14} /> Back to profiles
+          <ArrowLeft size={14} /> {t("back")}
         </button>
         <h2 className="mt-2 font-serif text-display text-ink">{heading}</h2>
         <p className="mt-2 max-w-3xl text-body text-steel">
-          A guided intake that works for students and career-switchers, not just experienced hires. We route the
-          archetype, collect the signals a thin CV omits (projects, thesis, coursework, aspirations), tag each piece of
-          evidence with its <strong>provenance</strong>, and score completeness so you know what to add next.
+          {t.rich("intro", { b: (chunks) => <strong>{chunks}</strong> })}
         </p>
       </header>
 
@@ -240,8 +241,8 @@ export function ProfileEditor({
           className="focus-ring flex w-full items-center gap-2 rounded text-left text-sm font-semibold text-ink"
         >
           <Sparkles size={15} className="text-coral" aria-hidden />
-          Draft from notes with AI
-          <span className="ml-1 font-normal text-steel">— paste a CV blurb, LinkedIn, or notes; we structure + route it</span>
+          {t("draftToggle")}
+          <span className="ml-1 font-normal text-steel">{t("draftHint")}</span>
           <span className="ml-auto text-steel">{aiOpen ? "−" : "+"}</span>
         </button>
         {aiOpen ? (
@@ -250,7 +251,7 @@ export function ProfileEditor({
               value={aiText}
               onChange={(e) => setAiText(e.target.value)}
               rows={4}
-              placeholder="e.g. 3rd-year CS student at ČVUT, expected 2026. Built a React recommender app for her thesis (on GitHub). Did a summer internship in Python. Wants a junior frontend role. Czech + English."
+              placeholder={t("draftPlaceholder")}
               className="bg-white px-3 py-2 text-ink"
             />
             <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -260,9 +261,9 @@ export function ProfileEditor({
                 disabled={aiLoading || !aiText.trim()}
                 className="focus-ring inline-flex h-9 items-center gap-1.5 rounded-md bg-ink px-3 text-sm font-semibold text-white hover:bg-steel disabled:opacity-40"
               >
-                <Wand2 size={14} /> {aiLoading ? "Drafting…" : "Draft with AI"}
+                <Wand2 size={14} /> {aiLoading ? t("drafting") : t("draftWithAi")}
               </button>
-              <span className="text-sm text-steel">Fills the fields below — nothing is saved until you click Save.</span>
+              <span className="text-sm text-steel">{t("draftSavedHint")}</span>
             </div>
             {aiNote ? <p className="mt-2 text-sm font-medium text-moss" role="status">{aiNote}</p> : null}
             {aiError ? <p className="mt-2 text-sm text-red-700" role="alert">{aiError}</p> : null}
@@ -272,67 +273,67 @@ export function ProfileEditor({
 
       <div className="mt-4 grid gap-5 lg:grid-cols-2">
         <div className="space-y-4">
-          <Section title="Who is this candidate?">
+          <Section title={t("whoTitle")}>
             <SegmentedControl
-              label="Candidate archetype"
+              label={t("candidateArchetype")}
               value={choice}
               onChange={setChoice}
-              options={ARCHETYPE_CHOICES.map((c) => ({ value: c.v, label: c.label }))}
+              options={ARCHETYPE_CHOICES.map((c) => ({ value: c.v, label: t(`choice.${c.v}` as Parameters<typeof t>[0]) }))}
             />
             {isStudentish ? (
               <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                <Check label="Currently enrolled" checked={isEnrolled} onChange={setIsEnrolled} />
-                <Text label="Expected graduation" value={expectedGraduation} onChange={setExpectedGraduation} placeholder="e.g. 2026" error={gradError} />
-                <Check label="Wants to change field" checked={wantsDomainChange} onChange={setWantsDomainChange} />
-                <Check label="Has prior pro experience" checked={hasSubstantialExperience} onChange={setHasSubstantialExperience} />
+                <Check label={t("enrolled")} checked={isEnrolled} onChange={setIsEnrolled} />
+                <Text label={t("expectedGrad")} value={expectedGraduation} onChange={setExpectedGraduation} placeholder={t("expectedGradPlaceholder")} error={gradError} />
+                <Check label={t("wantsChange")} checked={wantsDomainChange} onChange={setWantsDomainChange} />
+                <Check label={t("hasPrior")} checked={hasSubstantialExperience} onChange={setHasSubstantialExperience} />
               </div>
             ) : null}
           </Section>
 
-          <Section title="Basics">
+          <Section title={t("basicsTitle")}>
             <div className="grid gap-2 sm:grid-cols-2">
-              <Text label="Name" value={displayName} onChange={setDisplayName} placeholder="Jana Nováková" />
-              <Pick label="Target field" value={roleFamily} onChange={setRoleFamily} options={ROLE_FAMILIES} />
-              <Pick label="Education level" value={educationLevel} onChange={setEducationLevel} options={EDU_LEVELS.map((v) => ({ v, label: v }))} />
-              <Text label="Languages" value={languages} onChange={setLanguages} placeholder="Czech, English" />
-              <Text label="Location" value={location} onChange={setLocation} placeholder="Praha" />
-              <Text label="Availability" value={availability} onChange={setAvailability} placeholder="from July, part-time now" />
+              <Text label={t("name")} value={displayName} onChange={setDisplayName} placeholder={t("namePlaceholder")} />
+              <Pick label={t("targetField")} value={roleFamily} onChange={setRoleFamily} options={ROLE_FAMILIES.map((f) => ({ v: f.v, label: enumLabel("family", f.v) }))} />
+              <Pick label={t("eduLevel")} value={educationLevel} onChange={setEducationLevel} options={EDU_LEVELS.map((v) => ({ v, label: enumLabel("education", v) }))} />
+              <Text label={t("languages")} value={languages} onChange={setLanguages} placeholder={t("languagesPlaceholder")} />
+              <Text label={t("location")} value={location} onChange={setLocation} placeholder={t("locationPlaceholder")} />
+              <Text label={t("availability")} value={availability} onChange={setAvailability} placeholder={t("availabilityPlaceholder")} />
             </div>
             <Text
               className="mt-2"
-              label="Study programme & specialisation"
+              label={t("studyProgramme")}
               value={educationDetail}
               onChange={setEducationDetail}
-              placeholder="CS, ČVUT FEL — focus on ML"
+              placeholder={t("studyPlaceholder")}
             />
             {fieldVis.years ? (
               <div className="mt-2 grid gap-2 sm:grid-cols-2">
                 <Text
-                  label={choice === "career_switcher" ? "Years of prior (other-field) experience" : "Years of experience"}
+                  label={choice === "career_switcher" ? t("yearsExperienceSwitcher") : t("yearsExperience")}
                   value={yearsExperience}
                   onChange={setYearsExperience}
-                  placeholder="6"
+                  placeholder={t("yearsPlaceholder")}
                   error={yearsError}
                 />
                 {fieldVis.seniority ? (
                   <Pick
-                    label="Seniority"
+                    label={t("seniority")}
                     value={seniority}
                     onChange={setSeniority}
                     // Offer an explicit "not set" option when seniority is empty (an
                     // edited profile that never declared one) so the select shows the
                     // true state instead of defaulting its display to "junior".
-                    options={(seniority ? SENIORITIES : ["", ...SENIORITIES]).map((v) => ({ v, label: v || "not set" }))}
+                    options={(seniority ? SENIORITIES : ["", ...SENIORITIES]).map((v) => ({ v, label: v ? enumLabel("seniority", v) : t("notSet") }))}
                   />
                 ) : null}
               </div>
             ) : null}
             <Text
               className="mt-2"
-              label="Aspirations / target roles"
+              label={t("aspirations")}
               value={aspirations}
               onChange={setAspirations}
-              placeholder="Junior frontend developer, ML engineer"
+              placeholder={t("aspirationsPlaceholder")}
             />
           </Section>
         </div>
@@ -347,7 +348,7 @@ export function ProfileEditor({
           disabled={loading || hasFieldErrors}
           className="focus-ring h-10 rounded-md border border-stone-200 px-4 text-base font-semibold text-ink hover:bg-paper disabled:opacity-40"
         >
-          {loading ? "Working…" : "Check (preview)"}
+          {loading ? t("working") : t("checkPreview")}
         </button>
         <button
           type="button"

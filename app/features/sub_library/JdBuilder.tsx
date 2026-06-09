@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Loader2, Settings2, Sparkles } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { useTasks, useTaskResult } from "@/app/features/tasks/TasksProvider";
 import { JdBuilderResult, type JdBuildResult } from "./JdBuilderResult";
 import { JdTemplateManager } from "./JdTemplateManager";
@@ -10,19 +11,19 @@ import { fetchTemplates, renderTemplate, type Template } from "./render-template
 import { formatSalaryRange } from "@/app/_lib/format";
 import { normalizeMarketSalary } from "@/app/_lib/salary-band";
 import { validateJdBuildInput } from "@/app/_lib/jd-limits";
+import { useEnumLabel } from "@/app/_lib/use-enum-label";
 
 const SENIORITIES = ["junior", "medior", "senior", "lead"];
-const FAMILIES: { v: string; label: string }[] = [
-  { v: "software_engineering", label: "Software" },
-  { v: "data_ai", label: "Data / AI" },
-  { v: "product_project", label: "Product / Project" },
-];
+// Role-family slugs (canonical; the display label comes from the enums catalog).
+const FAMILIES = ["software_engineering", "data_ai", "product_project"];
 const INP = "focus-ring w-full rounded-md border border-stone-200 px-2.5 py-1.5 text-sm";
 
 // AI job-description builder: free-text need (+ optional public GitHub repo for
 // dev roles) → our need→design machinery → an editable, publishable JD with a
 // web-grounded market-salary analysis.
 export function JdBuilder({ onSaved }: { onSaved: () => void }) {
+  const t = useTranslations("library.builder");
+  const enumLabel = useEnumLabel();
   const { startTask } = useTasks();
   // Deep-link / simulation prefill (jd* query params) — mirrors MatchTab's pattern.
   const sp = useSearchParams();
@@ -107,7 +108,7 @@ export function JdBuilder({ onSaved }: { onSaved: () => void }) {
     setResult((buildFull.result as JdBuildResult) ?? null);
     setTaskId(null);
   } else if (taskId && (buildStatus === "failed" || buildStatus === "canceled" || buildStatus === "interrupted")) {
-    setError(buildError ?? "Generation failed.");
+    setError(buildError ?? t("genFailed"));
     setTaskId(null);
   }
 
@@ -133,9 +134,9 @@ export function JdBuilder({ onSaved }: { onSaved: () => void }) {
     // A new build replaces any prior result, so no edits are pending discard.
     setResultDirty(false);
     setPendingTemplateId(null);
-    const t = await startTask("jd_build", { title: title.trim(), company: company.trim(), seniority, roleFamily, needText: needText.trim(), repoUrl: repoUrl.trim() });
-    if (t) setTaskId(t.id);
-    else setError("Couldn't start the build.");
+    const started = await startTask("jd_build", { title: title.trim(), company: company.trim(), seniority, roleFamily, needText: needText.trim(), repoUrl: repoUrl.trim() });
+    if (started) setTaskId(started.id);
+    else setError(t("startFailed"));
   };
 
   // Same minimum-need contract the server enforces in runJdBuild — shared so the
@@ -145,25 +146,22 @@ export function JdBuilder({ onSaved }: { onSaved: () => void }) {
   return (
     <div data-sim="jd-builder" className="rounded-lg border border-stone-200 bg-white p-4 shadow-panel">
       <p className="flex items-center gap-1.5 text-meta uppercase tracking-wide text-coral">
-        <Sparkles size={14} /> Generate with AI
+        <Sparkles size={14} /> {t("generateWithAi")}
       </p>
-      <p className="mt-1 text-sm text-steel">
-        Pick a company template, describe the need in your own words, and AI fills the template — clarifying the
-        need, designing the role (optionally analyzing a public repo for dev roles), and researching market salary.
-      </p>
+      <p className="mt-1 text-sm text-steel">{t("intro")}</p>
 
       {/* Step 1: pick the output format. The AI fills whichever template is chosen.
           After generation this doubles as a live reformat — see the switch contract
           on pendingTemplateId above. The selector reflects a staged switch
           (pendingTemplateId) until the inline confirm below resolves it. */}
       <div className="mt-3 flex items-end gap-2">
-        <Field label="Template" className="flex-1">
+        <Field label={t("templateLabel")} className="flex-1">
           <select value={pendingTemplateId ?? templateId} onChange={(e) => onSelectTemplate(e.target.value)} className={INP}>
-            <option value="">AI default format (no template)</option>
-            {templates.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.name}
-                {t.isDefault ? " (default)" : ""}
+            <option value="">{t("aiDefaultFormat")}</option>
+            {templates.map((tpl) => (
+              <option key={tpl.id} value={tpl.id}>
+                {tpl.name}
+                {tpl.isDefault ? t("defaultSuffix") : ""}
               </option>
             ))}
           </select>
@@ -172,9 +170,9 @@ export function JdBuilder({ onSaved }: { onSaved: () => void }) {
           type="button"
           onClick={() => setManageOpen(true)}
           className="focus-ring inline-flex h-9 shrink-0 items-center gap-1.5 rounded-md border border-stone-200 px-2.5 text-sm font-semibold text-steel hover:bg-stone-50"
-          title="Create, edit, or delete company templates"
+          title={t("manageTitle")}
         >
-          <Settings2 size={14} /> Manage
+          <Settings2 size={14} /> {t("manage")}
         </button>
       </div>
 
@@ -182,17 +180,15 @@ export function JdBuilder({ onSaved }: { onSaved: () => void }) {
           has unsaved hand-edits) waits here for explicit confirmation. Mirrors the
           inline Confirm/Cancel idiom in JdTemplateManager. */}
       {pendingTemplateId !== null ? (
-        <div className="animate-fade-in mt-2 flex flex-wrap items-center gap-2 rounded-md border border-amber-200 bg-amber-50/60 px-3 py-2 text-sm text-amber-800" role="group" aria-label="Confirm template switch">
-          <span>
-            Switching the template rebuilds the description from the AI draft and discards your manual edits.
-          </span>
+        <div className="animate-fade-in mt-2 flex flex-wrap items-center gap-2 rounded-md border border-amber-200 bg-amber-50/60 px-3 py-2 text-sm text-amber-800" role="group" aria-label={t("confirmSwitchAria")}>
+          <span>{t("switchWarning")}</span>
           <span className="ml-auto inline-flex items-center gap-2">
             <button
               type="button"
               onClick={() => applyTemplate(pendingTemplateId)}
               className="focus-ring rounded-md border border-red-300 bg-red-50 px-2.5 py-1 font-semibold text-red-700 hover:bg-red-100"
             >
-              Replace edits
+              {t("replaceEdits")}
             </button>
             <button
               type="button"
@@ -200,46 +196,46 @@ export function JdBuilder({ onSaved }: { onSaved: () => void }) {
               onClick={() => setPendingTemplateId(null)}
               className="focus-ring rounded-md px-2.5 py-1 font-semibold text-steel hover:bg-stone-100"
             >
-              Keep editing
+              {t("keepEditing")}
             </button>
           </span>
         </div>
       ) : null}
 
       <div className="mt-3 grid gap-2 sm:grid-cols-2">
-        <Field label="Role title *">
-          <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Senior Platform Engineer" className={INP} />
+        <Field label={t("roleTitle")}>
+          <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t("roleTitlePlaceholder")} className={INP} />
         </Field>
-        <Field label="Company">
-          <input value={company} onChange={(e) => setCompany(e.target.value)} placeholder="Česká spořitelna" className={INP} />
+        <Field label={t("company")}>
+          <input value={company} onChange={(e) => setCompany(e.target.value)} placeholder={t("companyPlaceholder")} className={INP} />
         </Field>
-        <Field label="Seniority">
+        <Field label={t("seniority")}>
           <select value={seniority} onChange={(e) => setSeniority(e.target.value)} className={`${INP} capitalize`}>
             {SENIORITIES.map((s) => (
-              <option key={s} value={s}>{s}</option>
+              <option key={s} value={s}>{enumLabel("seniority", s)}</option>
             ))}
           </select>
         </Field>
-        <Field label="Field">
+        <Field label={t("field")}>
           <select value={roleFamily} onChange={(e) => setRoleFamily(e.target.value)} className={INP}>
             {FAMILIES.map((f) => (
-              <option key={f.v} value={f.v}>{f.label}</option>
+              <option key={f} value={f}>{enumLabel("family", f)}</option>
             ))}
           </select>
         </Field>
       </div>
 
-      <Field label="Describe the need *" className="mt-2">
+      <Field label={t("describeNeed")} className="mt-2">
         <textarea
           value={needText}
           onChange={(e) => setNeedText(e.target.value)}
           rows={4}
-          placeholder="What does this person own? What problems will they solve? What does the team look like?"
+          placeholder={t("needPlaceholder")}
           className={INP}
         />
       </Field>
-      <Field label="Codebase to analyze (public GitHub URL — optional, for dev roles)" className="mt-2">
-        <input value={repoUrl} onChange={(e) => setRepoUrl(e.target.value)} placeholder="https://github.com/owner/repo" className={INP} />
+      <Field label={t("codebaseLabel")} className="mt-2">
+        <input value={repoUrl} onChange={(e) => setRepoUrl(e.target.value)} placeholder={t("codebasePlaceholder")} className={INP} />
       </Field>
 
       <button
@@ -249,9 +245,9 @@ export function JdBuilder({ onSaved }: { onSaved: () => void }) {
         className="focus-ring mt-3 inline-flex h-10 items-center gap-2 rounded-md bg-coral px-4 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
       >
         {generating ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
-        {generating ? buildProgress || "Generating…" : "Generate job description"}
+        {generating ? buildProgress || t("generating") : t("generateJd")}
       </button>
-      {generating ? <p className="mt-1.5 text-sm text-steel">This runs a few AI steps and takes ~1–2 minutes — it keeps going if you navigate away.</p> : null}
+      {generating ? <p className="mt-1.5 text-sm text-steel">{t("generatingNote")}</p> : null}
       {error ? <p role="alert" className="mt-2 rounded-md bg-red-50 p-2.5 text-sm text-red-700">{error}</p> : null}
 
       {displayResult ? (

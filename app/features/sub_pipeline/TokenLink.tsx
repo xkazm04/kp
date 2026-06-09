@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Check, Copy, ExternalLink } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { publicBaseUrl } from "@/app/_lib/public-base-url";
 
 // A tokenized candidate link (voice screen, self-scheduling, …): the server mints a
@@ -13,6 +14,7 @@ import { publicBaseUrl } from "@/app/_lib/public-base-url";
 export type TokenLinkData = { url: string } & Record<string, unknown>;
 
 export function useTokenLink(endpoint: string) {
+  const t = useTranslations("pipeline");
   const [busy, setBusy] = useState(false);
   const [data, setData] = useState<TokenLinkData | null>(null);
   const [err, setErr] = useState<string | null>(null);
@@ -32,8 +34,8 @@ export function useTokenLink(endpoint: string) {
       const payload = await res.json();
       if (!res.ok) throw new Error(payload.error || `link failed (${res.status})`);
       setData(payload as TokenLinkData);
-    } catch (e) {
-      setErr(e instanceof Error ? e.message : "Couldn't create the link.");
+    } catch {
+      setErr(t("tokenLink.createFailed"));
     } finally {
       setBusy(false);
     }
@@ -58,6 +60,7 @@ export function useTokenLink(endpoint: string) {
 // to a check once clicked, and an open-as-candidate external link. Renders nothing until
 // a link has been minted, so callers can drop it in unconditionally.
 export function TokenLinkPanel({ link }: { link: ReturnType<typeof useTokenLink> }) {
+  const t = useTranslations("pipeline");
   if (!link.data) return null;
   return (
     <div className="flex items-center gap-1.5">
@@ -69,7 +72,7 @@ export function TokenLinkPanel({ link }: { link: ReturnType<typeof useTokenLink>
       />
       <button
         type="button"
-        title="Copy link"
+        title={t("tokenLink.copy")}
         onClick={link.copy}
         className="focus-ring rounded-md border border-stone-200 bg-white p-1.5 text-steel hover:text-coral"
       >
@@ -80,7 +83,7 @@ export function TokenLinkPanel({ link }: { link: ReturnType<typeof useTokenLink>
         target="_blank"
         rel="noreferrer"
         className="focus-ring rounded-md border border-stone-200 bg-white p-1.5 text-steel hover:text-coral"
-        title="Open as candidate"
+        title={t("tokenLink.openAsCandidate")}
       >
         <ExternalLink size={14} />
       </a>

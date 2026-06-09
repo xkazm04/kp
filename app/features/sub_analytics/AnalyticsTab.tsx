@@ -1,7 +1,8 @@
 "use client";
 
-import { ARCHETYPE_STYLE } from "../sub_pipeline/PipelineTypes";
+import { useTranslations } from "next-intl";
 import { useJsonFetch } from "@/app/_lib/useJsonFetch";
+import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { DecisionLog } from "./DecisionLog";
 
 type Funnel = { stage: string; reached: number; current: number; conversionPct: number | null };
@@ -22,7 +23,9 @@ type Analytics = {
 };
 
 export function AnalyticsTab() {
-  const { data, error, reload } = useJsonFetch<Analytics>("/api/analytics", "Couldn't load analytics.");
+  const t = useTranslations("analytics");
+  const enumLabel = useEnumLabel();
+  const { data, error, reload } = useJsonFetch<Analytics>("/api/analytics", t("loadFailed"));
 
   if (error)
     return (
@@ -33,11 +36,11 @@ export function AnalyticsTab() {
           onClick={reload}
           className="focus-ring inline-flex h-8 items-center rounded-md border border-stone-200 px-3 text-sm font-semibold text-ink hover:border-coral/40"
         >
-          Retry
+          {t("retry")}
         </button>
       </div>
     );
-  if (!data) return <p className="text-base text-steel">Loading analytics…</p>;
+  if (!data) return <p className="text-base text-steel">{t("loading")}</p>;
 
   const maxReached = Math.max(1, ...data.funnel.map((f) => f.reached));
 
@@ -45,55 +48,55 @@ export function AnalyticsTab() {
     <section className="space-y-6">
       <header className="flex flex-col gap-5 border-b border-stone-200 pb-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
-          <p className="text-meta uppercase text-coral">Insights</p>
-          <h2 className="mt-1 font-serif text-display text-ink">Pipeline analytics</h2>
-          <p className="mt-2 max-w-3xl text-body text-steel">
-            Funnel health across every job — where candidates are, how they convert stage to stage, and where they stall.
-          </p>
+          <p className="text-meta uppercase text-coral">{t("eyebrow")}</p>
+          <h2 className="mt-1 font-serif text-display text-ink">{t("title")}</h2>
+          <p className="mt-2 max-w-3xl text-body text-steel">{t("intro")}</p>
         </div>
 
         {/* Compact key-stat cluster pinned to the top-right; hairline dividers
             keep four figures in the space one full-size card used to take. */}
         <div className="grid shrink-0 grid-cols-2 gap-px overflow-hidden rounded-lg border border-stone-200 bg-stone-200 shadow-panel lg:w-[22rem]">
-          <Stat label="Candidates" value={data.total} sub={`${data.active} active`} />
+          <Stat label={t("statCandidates")} value={data.total} sub={t("activeSub", { count: data.active })} />
           <Stat
-            label="Hired"
+            label={t("statHired")}
             value={data.hired}
             // Reject and decline read separately so the offer-acceptance signal
             // (candidates who turned us down) isn't hidden inside "rejected".
             sub={
-              [data.rejected ? `${data.rejected} rejected` : null, data.declined ? `${data.declined} declined` : null]
+              [data.rejected ? t("rejectedSub", { count: data.rejected }) : null, data.declined ? t("declinedSub", { count: data.declined }) : null]
                 .filter(Boolean)
                 .join(" · ") || undefined
             }
           />
-          <Stat label="Time-to-hire" value={data.avgTimeToHireDays ?? "—"} sub={data.avgTimeToHireDays != null ? "days avg" : "no hires yet"} />
-          <Stat label="Age in pipeline" value={data.avgAgeDays ?? "—"} sub={data.avgAgeDays != null ? "days, active" : undefined} />
+          <Stat label={t("statTimeToHire")} value={data.avgTimeToHireDays ?? "—"} sub={data.avgTimeToHireDays != null ? t("daysAvg") : t("noHires")} />
+          <Stat label={t("statAge")} value={data.avgAgeDays ?? "—"} sub={data.avgAgeDays != null ? t("daysActive") : undefined} />
         </div>
       </header>
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
         <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
           <div className="flex items-baseline justify-between">
-            <h3 className="font-serif text-h2 text-ink">Funnel</h3>
-            <p className="text-meta uppercase text-steel">reached · conversion · active now</p>
+            <h3 className="font-serif text-h2 text-ink">{t("funnel")}</h3>
+            <p className="text-meta uppercase text-steel">{t("funnelLegend")}</p>
           </div>
           {data.total === 0 ? (
-            <p className="mt-4 rounded-md bg-paper p-3 text-base text-steel">
-              No candidates in the pipeline yet — the funnel fills in as applicants arrive.
-            </p>
+            <p className="mt-4 rounded-md bg-paper p-3 text-base text-steel">{t("funnelEmpty")}</p>
           ) : (
           <ul className="mt-4 space-y-2.5">
             {data.funnel.map((f) => (
               <li key={f.stage} className="flex items-center gap-3">
-                <span className="w-28 shrink-0 text-base font-medium text-ink">{f.stage}</span>
+                <span className="w-28 shrink-0 text-base font-medium text-ink">{enumLabel("stage", f.stage)}</span>
                 <div
                   className="relative h-7 flex-1 overflow-hidden rounded-md bg-paper"
                   role="progressbar"
                   aria-valuenow={f.reached}
                   aria-valuemin={0}
                   aria-valuemax={maxReached}
-                  aria-label={`${f.stage}: ${f.reached} reached${f.conversionPct != null ? `, ${f.conversionPct}% conversion` : ""}`}
+                  aria-label={t("funnelBarAria", {
+                    stage: enumLabel("stage", f.stage),
+                    reached: f.reached,
+                    conv: f.conversionPct != null ? t("funnelConvSuffix", { pct: f.conversionPct }) : "",
+                  })}
                 >
                   <div
                     className="h-full rounded-md bg-moss/25"
@@ -101,7 +104,7 @@ export function AnalyticsTab() {
                   />
                   <div className="absolute inset-0 flex items-center gap-2 px-2.5 text-sm text-ink">
                     <span className="font-semibold">{f.reached}</span>
-                    {f.current > 0 ? <span className="text-steel">· {f.current} here now</span> : null}
+                    {f.current > 0 ? <span className="text-steel">{t("hereNow", { count: f.current })}</span> : null}
                   </div>
                 </div>
                 <span className="w-16 shrink-0 text-right text-sm">
@@ -117,31 +120,34 @@ export function AnalyticsTab() {
           )}
           {data.bottleneck ? (
             <p className="mt-4 rounded-md border border-dial-amber/40 bg-dial-amber/10 px-3 py-2 text-base text-ink">
-              <span className="font-semibold">Bottleneck:</span> the{" "}
-              <span className="font-medium">{data.bottleneck.entryCount}</span> active candidates in{" "}
-              <span className="font-medium">{data.bottleneck.stage}</span> have waited{" "}
-              <span className="font-medium">{data.bottleneck.avgDaysInStage} days</span> on average.
+              {t.rich("bottleneck", {
+                count: data.bottleneck.entryCount,
+                stage: enumLabel("stage", data.bottleneck.stage),
+                days: data.bottleneck.avgDaysInStage,
+                b: (chunks) => <span className="font-semibold">{chunks}</span>,
+                m: (chunks) => <span className="font-medium">{chunks}</span>,
+              })}
             </p>
           ) : null}
         </div>
 
         <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
-          <h3 className="font-serif text-h2 text-ink">By archetype</h3>
+          <h3 className="font-serif text-h2 text-ink">{t("byArchetype")}</h3>
           <ul className="mt-3 space-y-3">
             {data.byArchetype.map((a) => (
               <li key={a.archetype}>
                 <div className="flex items-baseline justify-between text-base">
-                  <span className="font-medium text-ink">{ARCHETYPE_STYLE[a.archetype]?.label ?? a.archetype}</span>
-                  <span className="text-steel">{a.total} · {a.hired} hired</span>
+                  <span className="font-medium text-ink">{enumLabel("archetype", a.archetype)}</span>
+                  <span className="text-steel">{t("totalHired", { total: a.total, hired: a.hired })}</span>
                 </div>
                 <div className="mt-1 h-2 overflow-hidden rounded-full bg-paper">
                   <div className="h-full rounded-full bg-steel/40" style={{ width: `${a.advanceRatePct}%` }} />
                 </div>
-                <p className="mt-0.5 text-sm text-steel">{a.advanceRatePct}% advanced past screening</p>
+                <p className="mt-0.5 text-sm text-steel">{t("advancedPct", { pct: a.advanceRatePct })}</p>
               </li>
             ))}
             {data.byArchetype.length === 0 ? (
-              <li className="text-base text-steel">No archetype data yet.</li>
+              <li className="text-base text-steel">{t("noArchetypeData")}</li>
             ) : null}
           </ul>
         </div>
@@ -149,21 +155,21 @@ export function AnalyticsTab() {
 
       <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
         <div className="flex items-baseline justify-between gap-2">
-          <h3 className="font-serif text-h2 text-ink">By role</h3>
+          <h3 className="font-serif text-h2 text-ink">{t("byRole")}</h3>
           {/* The table is capped to the highest-volume roles; say so explicitly when
               there are more, so it never reads as the complete list of open roles. */}
           {data.byJobTotal > data.byJob.length ? (
-            <p className="text-meta uppercase text-steel">Top {data.byJob.length} of {data.byJobTotal} by volume</p>
+            <p className="text-meta uppercase text-steel">{t("topByVolume", { shown: data.byJob.length, total: data.byJobTotal })}</p>
           ) : null}
         </div>
         <table className="mt-3 w-full text-base">
           <thead>
             <tr className="border-b border-stone-200 text-left text-meta uppercase text-steel">
-              <th className="pb-2 font-semibold">Job</th>
-              <th className="pb-2 text-right font-semibold">In pipeline</th>
-              <th className="pb-2 text-right font-semibold">Reached interview</th>
-              <th className="pb-2 text-right font-semibold">Hired</th>
-              <th className="pb-2 text-right font-semibold">Hire rate</th>
+              <th className="pb-2 font-semibold">{t("colJob")}</th>
+              <th className="pb-2 text-right font-semibold">{t("colInPipeline")}</th>
+              <th className="pb-2 text-right font-semibold">{t("colReachedInterview")}</th>
+              <th className="pb-2 text-right font-semibold">{t("colHired")}</th>
+              <th className="pb-2 text-right font-semibold">{t("colHireRate")}</th>
             </tr>
           </thead>
           <tbody>
@@ -179,7 +185,7 @@ export function AnalyticsTab() {
             {data.byJob.length === 0 ? (
               <tr>
                 <td colSpan={5} className="py-3 text-steel">
-                  No pipeline entries yet.
+                  {t("noPipelineEntries")}
                 </td>
               </tr>
             ) : null}

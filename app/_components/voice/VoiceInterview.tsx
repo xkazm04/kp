@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ConversationProvider, useConversation } from "@elevenlabs/react";
+import { useLocale, useTranslations } from "next-intl";
 import { Mic, PhoneOff, Sparkles, User } from "lucide-react";
 import { parseOaiTranscriptEvent } from "@/app/_lib/voice/openai";
 // Provider id, transcript turn, and availability map are single-sourced in the
@@ -76,12 +77,20 @@ export function VoiceInterview(props: VoiceInterviewProps) {
 }
 
 function VoiceInterviewInner({ token, candidateLabel, jobTitle, provider: pinnedProvider, lockSettings }: VoiceInterviewProps) {
+  const t = useTranslations("interview.voice");
+  const locale = useLocale();
   const [availability, setAvailability] = useState<VoiceAvailability | null>(null);
   // In locked (candidate) mode the provider is pinned to the session's stored value;
   // the lab starts on the default and lets the user pick.
   const [provider, setProvider] = useState<VoiceProviderId>(pinnedProvider ?? DEFAULT_PROVIDER);
   const [consent, setConsent] = useState(false);
-  const [language, setLanguage] = useState<LangHint>("auto");
+  // The language picker is hidden on the candidate portal (lockSettings), so seed
+  // the spoken-agent language hint from the candidate's UI locale — the agent then
+  // speaks Czech for a cs visitor instead of falling to "auto". The lab keeps the
+  // explicit "auto" default + the visible picker.
+  const [language, setLanguage] = useState<LangHint>(
+    lockSettings ? (locale === "cs" ? "cs" : "en") : "auto"
+  );
   const [phase, setPhase] = useState<Phase>("idle");
   const [error, setError] = useState<string | null>(null);
   const [turns, setTurns] = useState<VoiceTurn[]>([]);
@@ -246,13 +255,11 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle, provider: pinned
       if (sid && tok) {
         const saved = await persistTranscript(tok, sid, turnsRef.current, status);
         if (!saved) {
-          setError(
-            "We couldn't save your interview. Please keep this tab open — your answers may not have been recorded."
-          );
+          setError(t("saveFailed"));
         }
       }
     },
-    [teardownOpenAi, clearConnectTimer, pushTurn, persistTranscript, token]
+    [teardownOpenAi, clearConnectTimer, pushTurn, persistTranscript, token, t]
   );
 
   const conversation = useConversation({
@@ -290,7 +297,7 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle, provider: pinned
     onError: (message: string) => {
       clearConnectTimer();
       erroredRef.current = true;
-      setError(message || "Voice session error");
+      setError(message || t("errVoiceSession"));
       setPhase("error");
     },
     onMessage: ({ message, source }: { message: string; source: "user" | "ai" }) =>
@@ -473,9 +480,7 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle, provider: pinned
       } catch {
         /* noop */
       }
-      setError(
-        "Couldn't connect within 30s. Check microphone permission, that the provider is configured, and (ElevenLabs) that the agent allows overrides."
-      );
+      setError(t("errConnectTimeout"));
       setPhase("error");
     }, 30000);
     try {
@@ -510,14 +515,14 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle, provider: pinned
         if (maybe && typeof (maybe as { then?: unknown }).then === "function") {
           (maybe as Promise<unknown>).catch((err) => {
             clearConnectTimer();
-            setError(err instanceof Error ? err.message : "ElevenLabs failed to connect");
+            setError(err instanceof Error ? err.message : t("errElevenConnect"));
             setPhase("error");
           });
         }
       }
     } catch (e) {
       clearConnectTimer();
-      setError(e instanceof Error ? e.message : "Failed to start the call");
+      setError(e instanceof Error ? e.message : t("errStartCall"));
       setPhase("error");
       teardownOpenAi();
     }
@@ -581,11 +586,11 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle, provider: pinned
       <div className="flex flex-wrap gap-x-8 gap-y-4">
         {/* Language hint */}
         <div>
-          <p className="text-meta uppercase text-steel">Language</p>
+          <p className="text-meta uppercase text-steel">{t("languageLabel")}</p>
           <div className="mt-1.5 inline-flex rounded-lg border border-stone-200 bg-paper p-1">
             {(
               [
-                ["auto", "Auto-detect"],
+                ["auto", t("langAuto")],
                 ["cs", "Čeština"],
                 ["en", "English"],
               ] as [LangHint, string][]
@@ -608,7 +613,7 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle, provider: pinned
 
         {/* Provider picker */}
         <div>
-          <p className="text-meta uppercase text-steel">Voice provider</p>
+          <p className="text-meta uppercase text-steel">{t("providerLabel")}</p>
           <div className="mt-1.5 inline-flex rounded-lg border border-stone-200 bg-paper p-1">
             {PROVIDER_ORDER.map((p) => {
               const active = provider === p;
@@ -620,13 +625,13 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle, provider: pinned
                   disabled={isBusy || off}
                   aria-pressed={active}
                   onClick={() => setProvider(p)}
-                  title={off ? `${PROVIDER_LABEL[p]} — keys not configured` : undefined}
+                  title={off ? t("keysNotConfigured", { provider: PROVIDER_LABEL[p] }) : undefined}
                   className={`focus-ring rounded-md px-3 py-1.5 text-base transition-colors ${
                     active ? "bg-white text-ink shadow-panel" : "text-steel hover:text-ink"
                   } ${off ? "cursor-not-allowed opacity-40" : isBusy ? "cursor-not-allowed" : ""}`}
                 >
                   {PROVIDER_LABEL[p]}
-                  {off ? " · not set" : ""}
+                  {off ? ` · ${t("notSet")}` : ""}
                 </button>
               );
             })}
@@ -649,9 +654,7 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle, provider: pinned
           className="mt-0.5 h-4 w-4 shrink-0 rounded text-moss focus-ring"
         />
         <span className="leading-6">
-          I understand this is an <span className="font-medium">AI-conducted</span> first-round screen and that the
-          conversation is <span className="font-medium">transcribed</span> for a human recruiter to review. No audio is
-          stored.
+          {t.rich("consent", { b: (chunks) => <span className="font-medium">{chunks}</span> })}
         </span>
       </label>
 
@@ -668,7 +671,7 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle, provider: pinned
             className="focus-ring inline-flex h-11 items-center justify-center gap-2 rounded-md bg-ink px-5 text-base font-semibold text-white transition-colors hover:bg-steel disabled:cursor-not-allowed disabled:opacity-50"
           >
             <Mic size={18} />
-            {phase === "connecting" ? "Connecting…" : phase === "ended" ? "Start again" : "Start the call"}
+            {phase === "connecting" ? t("connecting") : phase === "ended" ? t("startAgain") : t("startCall")}
           </button>
         ) : (
           <button
@@ -678,12 +681,14 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle, provider: pinned
             className="focus-ring inline-flex h-11 items-center justify-center gap-2 rounded-md bg-coral px-5 text-base font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
           >
             <PhoneOff size={18} />
-            {phase === "ending" ? "Ending…" : "End call"}
+            {phase === "ending" ? t("ending") : t("endCall")}
           </button>
         )}
         <StatusPill phase={phase} speaking={conversation.isSpeaking} />
         {!providerAvailable ? (
-          <span className="text-meta text-coral">{PROVIDER_LABEL[liveProvider]} keys not configured</span>
+          <span className="text-meta text-coral">
+            {t("keysNotConfigured", { provider: PROVIDER_LABEL[liveProvider] })}
+          </span>
         ) : null}
       </div>
 
@@ -697,10 +702,10 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle, provider: pinned
       <div className="overflow-hidden rounded-lg border border-stone-200 bg-white">
         <div className="flex items-center justify-between border-b border-stone-200 px-4 py-2.5">
           <p className="flex items-center gap-2 text-meta uppercase text-steel">
-            Live transcript
+            {t("liveTranscript")}
             {phase === "live" ? (
               <span className="inline-flex items-center gap-1 rounded-full bg-coral/10 px-2 py-0.5 text-coral">
-                <span className="voice-listen h-1.5 w-1.5 rounded-full bg-coral" aria-hidden /> Live
+                <span className="voice-listen h-1.5 w-1.5 rounded-full bg-coral" aria-hidden /> {t("liveBadge")}
               </span>
             ) : null}
           </p>
@@ -728,17 +733,15 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle, provider: pinned
                 {/* Phase-aware: the idle "Press Start" copy contradicted the live phases
                     (it showed even while Connecting/Live/Ending with no turns yet). */}
                 {phase === "connecting" ? (
-                  <p className="text-base text-ink">Connecting…</p>
+                  <p className="text-base text-ink">{t("connecting")}</p>
                 ) : phase === "live" ? (
-                  <p className="text-base text-ink">Listening — waiting for the first question…</p>
+                  <p className="text-base text-ink">{t("listeningFirst")}</p>
                 ) : phase === "ending" ? (
-                  <p className="text-base text-ink">Wrapping up the conversation…</p>
+                  <p className="text-base text-ink">{t("wrappingUp")}</p>
                 ) : (
                   <>
-                    <p className="text-base text-ink">Your conversation will appear here.</p>
-                    <p className="mt-1 text-sm text-steel">
-                      Press “Start the call” when you’re ready — the transcript builds live as you talk.
-                    </p>
+                    <p className="text-base text-ink">{t("transcriptEmpty")}</p>
+                    <p className="mt-1 text-sm text-steel">{t("transcriptHint")}</p>
                   </>
                 )}
               </div>
@@ -761,6 +764,7 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle, provider: pinned
 }
 
 function TranscriptTurn({ role, text }: { role: "candidate" | "interviewer"; text: string }) {
+  const t = useTranslations("interview.voice");
   const isCandidate = role === "candidate";
   return (
     <div className={`flex items-start gap-2.5 ${isCandidate ? "flex-row-reverse" : ""}`}>
@@ -773,7 +777,7 @@ function TranscriptTurn({ role, text }: { role: "candidate" | "interviewer"; tex
         {isCandidate ? <User size={14} /> : <Sparkles size={14} />}
       </span>
       <div className={`min-w-0 max-w-[82%] ${isCandidate ? "text-right" : ""}`}>
-        <p className="text-meta uppercase text-steel">{isCandidate ? "You" : "Interviewer"}</p>
+        <p className="text-meta uppercase text-steel">{isCandidate ? t("turnYou") : t("turnInterviewer")}</p>
         <p
           className={`mt-1 inline-block rounded-2xl px-3.5 py-2 text-left text-base leading-6 ${
             isCandidate
@@ -789,6 +793,7 @@ function TranscriptTurn({ role, text }: { role: "candidate" | "interviewer"; tex
 }
 
 function StatusPill({ phase, speaking }: { phase: Phase; speaking: boolean }) {
+  const t = useTranslations("interview.voice");
   // role="status" → implicit aria-live="polite" so phase/speaking changes are
   // announced to screen readers without stealing focus.
   // Live gets a motion treatment: bouncing equalizer bars while the AI speaks,
@@ -808,16 +813,16 @@ function StatusPill({ phase, speaking }: { phase: Phase; speaking: boolean }) {
         ) : (
           <span className="voice-listen h-2.5 w-2.5 rounded-full bg-moss" aria-hidden />
         )}
-        {speaking ? "AI speaking" : "Listening"}
+        {speaking ? t("status.aiSpeaking") : t("status.listening")}
       </span>
     );
   }
   const map: Record<Exclude<Phase, "live">, { label: string; cls: string; dot?: string }> = {
-    idle: { label: "Ready", cls: "bg-stone-100 text-steel" },
-    connecting: { label: "Connecting…", cls: "bg-dial-amber/20 text-ink", dot: "bg-dial-amber" },
-    ending: { label: "Ending…", cls: "bg-dial-amber/20 text-ink", dot: "bg-dial-amber" },
-    ended: { label: "Call ended", cls: "bg-stone-100 text-steel" },
-    error: { label: "Error", cls: "bg-coral/10 text-coral" },
+    idle: { label: t("status.ready"), cls: "bg-stone-100 text-steel" },
+    connecting: { label: t("status.connecting"), cls: "bg-dial-amber/20 text-ink", dot: "bg-dial-amber" },
+    ending: { label: t("status.ending"), cls: "bg-dial-amber/20 text-ink", dot: "bg-dial-amber" },
+    ended: { label: t("status.ended"), cls: "bg-stone-100 text-steel" },
+    error: { label: t("status.error"), cls: "bg-coral/10 text-coral" },
   };
   const s = map[phase];
   return (

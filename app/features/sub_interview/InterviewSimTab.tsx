@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Briefcase, FlaskConical, GraduationCap, Loader2, Play, RotateCcw } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { AiDisclosure } from "@/app/_components/AiDisclosure";
 import { InterviewSidebar } from "@/app/_components/voice/InterviewSidebar";
 import { VoiceInterviewClient } from "@/app/_components/voice/VoiceInterviewClient";
@@ -26,28 +27,15 @@ import {
 type SimMode = "student" | "student-case" | "regular";
 type Session = { token: string; candidateLabel: string | null; jobTitle: string | null };
 
-const MODES: { id: SimMode; label: string; blurb: string; icon: typeof GraduationCap }[] = [
-  {
-    id: "student",
-    label: "Student (generic script)",
-    blurb: "Agent leads the six-phase thought-script — mental model, coachability, calibration.",
-    icon: GraduationCap,
-  },
-  {
-    id: "student-case",
-    label: "Student — case-grounded",
-    blurb: "Same six phases, but the mechanism, counterfactual and hint work a shared designed case.",
-    icon: FlaskConical,
-  },
-  {
-    id: "regular",
-    label: "Regular candidate",
-    blurb: "Standard quick screen — a few questions on recent experience with follow-ups.",
-    icon: Briefcase,
-  },
+// Structural mode definitions; label/blurb come from the `interviewSim.modes.<id>.*` catalog.
+const MODES: { id: SimMode; icon: typeof GraduationCap }[] = [
+  { id: "student", icon: GraduationCap },
+  { id: "student-case", icon: FlaskConical },
+  { id: "regular", icon: Briefcase },
 ];
 
 export function InterviewSimTab() {
+  const t = useTranslations("interviewSim");
   const [mode, setMode] = useState<SimMode>("student");
   const [session, setSession] = useState<Session | null>(null);
   const [busy, setBusy] = useState(false);
@@ -82,10 +70,10 @@ export function InterviewSimTab() {
         jobTitle?: string | null;
         error?: string;
       };
-      if (!res.ok || !data.token) throw new Error(data.error || "Couldn't create the simulation.");
+      if (!res.ok || !data.token) throw new Error(data.error || t("createFailed"));
       setSession({ token: data.token, candidateLabel: data.candidateLabel ?? null, jobTitle: data.jobTitle ?? null });
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Couldn't create the simulation.");
+      setError(e instanceof Error ? e.message : t("createFailed"));
     } finally {
       setBusy(false);
     }
@@ -94,16 +82,12 @@ export function InterviewSimTab() {
   return (
     <section className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
       <header className="border-b border-stone-200 pb-4">
-        <p className="text-meta uppercase text-coral">Interview simulator</p>
-        <h2 className="mt-1 font-serif text-display text-ink">Take the screen yourself</h2>
-        <p className="mt-2 max-w-3xl text-body text-steel">
-          The exact AI-led first round a candidate gets at their tokenized link — switched between the two
-          evaluation lenses. Demo sessions aren&apos;t linked to a pipeline entry: the transcript is captured,
-          but no scorecard is generated and nothing in the pipeline moves.
-        </p>
+        <p className="text-meta uppercase text-coral">{t("eyebrow")}</p>
+        <h2 className="mt-1 font-serif text-display text-ink">{t("title")}</h2>
+        <p className="mt-2 max-w-3xl text-body text-steel">{t("intro")}</p>
       </header>
 
-      <div className="mt-4 grid gap-2 sm:grid-cols-3" role="radiogroup" aria-label="Simulation mode">
+      <div className="mt-4 grid gap-2 sm:grid-cols-3" role="radiogroup" aria-label={t("modeAria")}>
         {MODES.map((m) => {
           const active = m.id === mode;
           const Icon = m.icon;
@@ -119,9 +103,9 @@ export function InterviewSimTab() {
               }`}
             >
               <p className="flex items-center gap-1.5 font-medium text-ink">
-                <Icon size={16} className={active ? "text-coral" : "text-steel"} /> {m.label}
+                <Icon size={16} className={active ? "text-coral" : "text-steel"} /> {t(`modes.${m.id}.label` as Parameters<typeof t>[0])}
               </p>
-              <p className="mt-1 text-sm text-steel">{m.blurb}</p>
+              <p className="mt-1 text-sm text-steel">{t(`modes.${m.id}.blurb` as Parameters<typeof t>[0])}</p>
             </button>
           );
         })}
@@ -135,15 +119,18 @@ export function InterviewSimTab() {
             <>
               <div className="mb-3 flex items-center justify-between gap-2">
                 <p className="text-sm text-steel">
-                  Simulating <span className="font-medium text-ink">{session.candidateLabel}</span>
-                  {session.jobTitle ? <> · {session.jobTitle}</> : null}
+                  {t.rich("simulating", {
+                    name: session.candidateLabel ?? "",
+                    job: session.jobTitle ? ` · ${session.jobTitle}` : "",
+                    b: (chunks) => <span className="font-medium text-ink">{chunks}</span>,
+                  })}
                 </p>
                 <button
                   type="button"
                   onClick={() => setSession(null)}
                   className="focus-ring inline-flex h-8 items-center gap-1 rounded-md border border-stone-200 px-2.5 text-sm font-medium text-ink hover:border-coral/40"
                 >
-                  <RotateCcw size={13} /> Start over
+                  <RotateCcw size={13} /> {t("startOver")}
                 </button>
               </div>
               <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
@@ -161,18 +148,15 @@ export function InterviewSimTab() {
                 <>
                   {mode === "student-case" ? (
                     <p className="text-base text-ink">
-                      Same six phases, but the mechanism probe, the counterfactual and the deliberate hint all
-                      work a <span className="font-medium">shared designed case</span> — every candidate on the
-                      role hears the same scenario, so ratings are genuinely comparable. Demo case:{" "}
-                      <em className="text-steel">{DEMO_CASE_SCENARIO.caseIntro.split(":")[0]}</em>. Each phase
-                      still produces a quotable observation for a rubric construct:
+                      {t.rich("caseDescCase", {
+                        case: DEMO_CASE_SCENARIO.caseIntro.split(":")[0],
+                        b: (chunks) => <span className="font-medium">{chunks}</span>,
+                        em: (chunks) => <em className="text-steel">{chunks}</em>,
+                      })}
                     </p>
                   ) : (
                     <p className="text-base text-ink">
-                      The agent <span className="font-medium">leads</span> the conversation through the six-phase
-                      early-career script — concrete → mechanism → counterfactual → metacognitive — and injects one
-                      deliberate hint mid-problem to read coachability live. Every phase exists to produce a
-                      quotable observation for a rubric construct:
+                      {t.rich("caseDescGeneric", { b: (chunks) => <span className="font-medium">{chunks}</span> })}
                     </p>
                   )}
                   <div className="mt-3 flex flex-wrap gap-1">
@@ -182,17 +166,10 @@ export function InterviewSimTab() {
                       </span>
                     ))}
                   </div>
-                  <p className="mt-3 text-sm text-steel">
-                    In the real flow this transcript is scored on the early-career BARS rubric and compared
-                    within the student cohort. The full script is documented in About → Early-career students.
-                  </p>
+                  <p className="mt-3 text-sm text-steel">{t("studentFooter")}</p>
                 </>
               ) : (
-                <p className="text-base text-ink">
-                  The standard ungrounded quick screen: the agent asks a few short questions about recent
-                  experience with brief follow-ups, under {QUICK_SCREEN_MIN} minutes. In the real flow the
-                  transcript is scored on the five experienced-hire axes.
-                </p>
+                <p className="text-base text-ink">{t("regularDesc", { min: QUICK_SCREEN_MIN })}</p>
               )}
               {error ? <p className="mt-3 text-sm text-coral">{error}</p> : null}
               <button
@@ -202,7 +179,7 @@ export function InterviewSimTab() {
                 className="focus-ring mt-4 inline-flex h-10 items-center gap-1.5 rounded-md bg-coral px-4 text-base font-semibold text-white hover:bg-coral/90 disabled:opacity-50"
               >
                 {busy ? <Loader2 size={15} className="animate-spin" /> : <Play size={15} />}
-                {busy ? "Creating session…" : "Start simulation"}
+                {busy ? t("creating") : t("startSim")}
               </button>
             </div>
           )}

@@ -1,4 +1,5 @@
 import type { InputHTMLAttributes, SelectHTMLAttributes, TextareaHTMLAttributes } from "react";
+import { useTranslations } from "next-intl";
 
 export function upd<T>(arr: T[], i: number, patch: Partial<T>): T[] {
   return arr.map((x, j) => (j === i ? { ...x, ...patch } : x));
@@ -144,9 +145,10 @@ export function AddBtn({ label, onClick }: { label: string; onClick: () => void 
 }
 
 export function RemoveBtn({ onClick }: { onClick: () => void }) {
+  const t = useTranslations("profile.fields");
   return (
-    <button type="button" onClick={onClick} className="focus-ring rounded-md px-2 text-base text-steel hover:text-red-600" aria-label="Remove">
-      ×
+    <button type="button" onClick={onClick} className="focus-ring rounded-md px-2 text-base text-steel hover:text-red-600" aria-label={t("remove")}>
+      {"×"}
     </button>
   );
 }

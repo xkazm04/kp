@@ -7,6 +7,7 @@ import {
   GitBranch,
   RotateCcw,
 } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { ScanAnimationCompact } from "@/app/_components/ScanAnimation";
 import { AnalyzeColumn } from "./AnalyzeColumn";
 import { AnalyzeFileDropZone } from "./AnalyzeFileDropZone";
@@ -17,6 +18,7 @@ import { MAX_CV_VARIANTS } from "./AnalyzeTypes";
 import type { AnalyzeFormState } from "./useAnalyzeForm";
 
 export function AnalyzeForm({ state }: { state: AnalyzeFormState }) {
+  const t = useTranslations("analyze");
   const { refs, inputs, setters, handlers, flags, statuses, library, result } = state;
   const { setJobDescriptionFile, setJobDescriptionText, setCompanyFile, setCompanyText, setGithubProfile } = setters;
   const { setSelectedJdSlug } = library;
@@ -28,20 +30,17 @@ export function AnalyzeForm({ state }: { state: AnalyzeFormState }) {
     >
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h2 className="font-serif text-h2 text-ink">Analyze profile</h2>
-          <p className="mt-1 text-base text-steel">
-            CV is required. Job description, company overview, and GitHub profile are optional —
-            attach any combination and run.
-          </p>
+          <h2 className="font-serif text-h2 text-ink">{t("analyzeProfile")}</h2>
+          <p className="mt-1 text-base text-steel">{t("formIntro")}</p>
         </div>
         <button
           type="button"
           onClick={handlers.reset}
           className="focus-ring inline-flex h-9 items-center gap-2 rounded-md border border-stone-300 bg-white px-3 text-sm font-semibold text-ink hover:bg-stone-50"
-          title="Reset"
+          title={t("reset")}
         >
           <RotateCcw className="h-3.5 w-3.5" aria-hidden />
-          Reset
+          {t("reset")}
         </button>
       </div>
 
@@ -51,7 +50,7 @@ export function AnalyzeForm({ state }: { state: AnalyzeFormState }) {
       <div className="mt-5 grid gap-4 xl:grid-cols-4">
         <AnalyzeColumn
           icon={<FileText className="h-4 w-4 text-coral" aria-hidden />}
-          heading="CV"
+          heading={t("colCv")}
           status={statuses.cvStatus}
           required
         >
@@ -67,7 +66,7 @@ export function AnalyzeForm({ state }: { state: AnalyzeFormState }) {
         <div className="grid gap-4 border-t border-stone-200 pt-4 sm:grid-cols-2 lg:grid-cols-3 xl:col-span-3 xl:border-l xl:border-t-0 xl:pl-4 xl:pt-0">
           <AnalyzeColumn
             icon={<BriefcaseBusiness className="h-4 w-4 text-coral" aria-hidden />}
-            heading="Job description"
+            heading={t("colJob")}
             status={statuses.jobStatus}
             onClear={flags.hasJobDescription ? handlers.clearJobDescription : undefined}
           >
@@ -92,7 +91,7 @@ export function AnalyzeForm({ state }: { state: AnalyzeFormState }) {
             />
             <div className="mt-auto">
               <AnalyzePasteRow
-                ariaLabel="Job description text"
+                ariaLabel={t("jobTextAria")}
                 inputId="job-description-paste"
                 text={inputs.jobDescriptionText}
                 onChange={(value) => {
@@ -109,7 +108,7 @@ export function AnalyzeForm({ state }: { state: AnalyzeFormState }) {
 
           <AnalyzeColumn
             icon={<Building2 className="h-4 w-4 text-coral" aria-hidden />}
-            heading="Company overview"
+            heading={t("colCompany")}
             status={statuses.companyStatus}
             onClear={flags.hasCompany ? handlers.clearCompany : undefined}
           >
@@ -122,7 +121,7 @@ export function AnalyzeForm({ state }: { state: AnalyzeFormState }) {
             />
             <div className="mt-auto">
               <AnalyzePasteRow
-                ariaLabel="Company overview text"
+                ariaLabel={t("companyTextAria")}
                 inputId="company-overview-paste"
                 text={inputs.companyText}
                 onChange={setCompanyText}
@@ -133,7 +132,7 @@ export function AnalyzeForm({ state }: { state: AnalyzeFormState }) {
 
           <AnalyzeColumn
             icon={<GitBranch className="h-4 w-4 text-coral" aria-hidden />}
-            heading="GitHub profile"
+            heading={t("colGithub")}
             status={statuses.githubStatusLabel}
           >
             {/* The GitHub input is a single field rather than a drop zone, so
@@ -149,14 +148,14 @@ export function AnalyzeForm({ state }: { state: AnalyzeFormState }) {
                   aria-hidden
                 />
                 <input
-                  aria-label="GitHub profile"
+                  aria-label={t("githubAria")}
                   value={inputs.githubProfile}
                   onChange={(event) => setGithubProfile(event.target.value)}
                   className="focus-ring h-10 w-full rounded-md border border-stone-300 bg-white pl-9 pr-3 text-base text-ink"
-                  placeholder="https://github.com/username or username"
+                  placeholder={t("githubPlaceholder")}
                 />
               </div>
-              <p className="text-sm text-steel">Public profile — we read pinned repos.</p>
+              <p className="text-sm text-steel">{t("githubHelper")}</p>
             </div>
           </AnalyzeColumn>
         </div>
@@ -170,9 +169,7 @@ export function AnalyzeForm({ state }: { state: AnalyzeFormState }) {
             </p>
           ) : (
             <p className="text-base text-steel">
-              {inputs.cvFiles.length === 0
-                ? "Attach a CV to enable Analyze."
-                : "Ready — Gemini takes 15–25 seconds."}
+              {inputs.cvFiles.length === 0 ? t("attachCv") : t("ready")}
             </p>
           )}
         </div>
@@ -187,7 +184,7 @@ export function AnalyzeForm({ state }: { state: AnalyzeFormState }) {
           ) : (
             <FileText className="h-4 w-4" aria-hidden />
           )}
-          Analyze
+          {t("analyze")}
         </button>
       </div>
     </section>

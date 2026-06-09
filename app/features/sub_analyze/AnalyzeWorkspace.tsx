@@ -2,13 +2,14 @@
 
 import { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
+import { useTranslations } from "next-intl";
 import { AnalyzeTab } from "./AnalyzeTab";
 import { HistoryTab } from "@/app/features/sub_history/HistoryTab";
 import { useReducedMotion } from "@/app/_lib/useReducedMotion";
 
 const MODES = [
-  { id: "new", label: "New analysis" },
-  { id: "history", label: "History" },
+  { id: "new", labelKey: "modeNew" },
+  { id: "history", labelKey: "modeHistory" },
 ] as const;
 
 // Consolidates the v1 deep-analysis tool and its saved-runs list into one
@@ -20,6 +21,7 @@ const MODES = [
 // motion standard reused by the app's other toggles. Both effects snap to their
 // end state under the OS "reduce motion" preference.
 export function AnalyzeWorkspace({ initialMode = "new" }: { initialMode?: "new" | "history" }) {
+  const t = useTranslations("analyze");
   const [mode, setMode] = useState<"new" | "history">(initialMode);
   const reduced = useReducedMotion();
   return (
@@ -44,7 +46,7 @@ export function AnalyzeWorkspace({ initialMode = "new" }: { initialMode?: "new" 
                   transition={reduced ? { duration: 0 } : { type: "spring", stiffness: 420, damping: 34 }}
                 />
               ) : null}
-              <span className="relative z-10">{m.label}</span>
+              <span className="relative z-10">{t(m.labelKey)}</span>
             </button>
           );
         })}

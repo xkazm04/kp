@@ -1,9 +1,11 @@
 "use client";
 
 import { X } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { ConfidenceBandBadge, confidenceBandTitle, FitTierBadge } from "@/app/_components/Badge";
 import { scoreTone, scoreToneColor } from "@/app/_lib/format";
-import { FAMILY_LABEL, type MatchResult } from "./MatchTypes";
+import { type MatchResult } from "./MatchTypes";
+import { useEnumLabel } from "@/app/_lib/use-enum-label";
 
 // Compare-jobs-for-one-candidate (MAT5): the role-for-candidate mirror of the
 // candidate-for-role compare. Given 2–4 selected matches, render a transposed
@@ -13,6 +15,8 @@ import { FAMILY_LABEL, type MatchResult } from "./MatchTypes";
 const fmtBand = (b?: number[]) => (b && b.length === 2 ? `${Math.round(b[0] / 1000)}–${Math.round(b[1] / 1000)}k` : "—");
 
 export function JobCompare({ matches, onClose }: { matches: MatchResult[]; onClose: () => void }) {
+  const t = useTranslations("match.jobCompare");
+  const enumLabel = useEnumLabel();
   // Dimension rows: union of breakdown keys across the selected roles, labelled
   // from the first that carries each (archetype-aware labels), aligned by key.
   const dims: { key: string; label: string }[] = [];
@@ -35,21 +39,21 @@ export function JobCompare({ matches, onClose }: { matches: MatchResult[]; onClo
   return (
     <div className="mt-4 rounded-lg border border-stone-200 bg-white p-3 shadow-panel">
       <div className="flex items-center justify-between">
-        <p className="text-meta uppercase tracking-wide text-coral">Compare {matches.length} roles</p>
+        <p className="text-meta uppercase tracking-wide text-coral">{t("compareRoles", { count: matches.length })}</p>
         <button type="button" onClick={onClose} className="focus-ring inline-flex items-center gap-1 rounded px-2 py-0.5 text-sm font-semibold text-steel hover:text-ink">
-          <X size={13} /> Close
+          <X size={13} /> {t("close")}
         </button>
       </div>
       <div className="mt-2 overflow-x-auto">
         <table className="w-full min-w-[40rem] border-collapse text-sm">
           <thead>
             <tr>
-              <th className="sticky left-0 bg-white p-2 text-left text-meta uppercase text-steel">Role →</th>
+              <th className="sticky left-0 bg-white p-2 text-left text-meta uppercase text-steel">{t("roleHeader")}</th>
               {matches.map((m) => (
                 <th key={m.jobId} className="min-w-[140px] p-2 text-left align-bottom">
                   <p className="font-semibold text-ink">{m.title}</p>
                   <p className="text-meta text-steel">
-                    {m.company ?? "—"} · {FAMILY_LABEL[m.roleFamily ?? ""] ?? m.roleFamily} / {m.seniority}
+                    {t("roleMeta", { company: m.company ?? "—", family: m.roleFamily ? enumLabel("family", m.roleFamily) : "—", seniority: m.seniority ?? "—" })}
                   </p>
                 </th>
               ))}
@@ -57,7 +61,7 @@ export function JobCompare({ matches, onClose }: { matches: MatchResult[]; onClo
           </thead>
           <tbody>
             <tr className="border-t border-stone-100">
-              <th scope="row" className="sticky left-0 bg-white p-2 text-left text-steel">Overall fit</th>
+              <th scope="row" className="sticky left-0 bg-white p-2 text-left text-steel">{t("overallFit")}</th>
               {matches.map((m) => (
                 <td key={m.jobId} className={`p-2 ${m.total === totalLead ? "bg-moss/5" : ""}`}>
                   <span className="inline-flex items-center gap-1.5">
@@ -68,7 +72,7 @@ export function JobCompare({ matches, onClose }: { matches: MatchResult[]; onClo
               ))}
             </tr>
             <tr className="border-t border-stone-100">
-              <th scope="row" className="sticky left-0 bg-white p-2 text-left text-steel">Confidence</th>
+              <th scope="row" className="sticky left-0 bg-white p-2 text-left text-steel">{t("confidence")}</th>
               {matches.map((m) => (
                 <td key={m.jobId} className="p-2">
                   <span className="inline-flex items-center gap-1.5">
@@ -105,7 +109,7 @@ export function JobCompare({ matches, onClose }: { matches: MatchResult[]; onClo
               );
             })}
             <tr className="border-t border-stone-100">
-              <th scope="row" className="sticky left-0 bg-white p-2 text-left align-top text-steel">Matched skills</th>
+              <th scope="row" className="sticky left-0 bg-white p-2 text-left align-top text-steel">{t("matchedSkills")}</th>
               {matches.map((m) => (
                 <td key={m.jobId} className="p-2 align-top">
                   <div className="flex flex-wrap gap-1">
@@ -118,20 +122,20 @@ export function JobCompare({ matches, onClose }: { matches: MatchResult[]; onClo
               ))}
             </tr>
             <tr className="border-t border-stone-100">
-              <th scope="row" className="sticky left-0 bg-white p-2 text-left align-top text-steel">Missing must-haves</th>
+              <th scope="row" className="sticky left-0 bg-white p-2 text-left align-top text-steel">{t("missingMustHaves")}</th>
               {matches.map((m) => (
                 <td key={m.jobId} className="p-2 align-top">
                   <div className="flex flex-wrap gap-1">
                     {(m.missingSkills ?? []).slice(0, 8).map((s) => (
-                      <span key={s} className="rounded bg-red-50 px-1.5 py-0.5 text-sm text-red-700">✗ {s}</span>
+                      <span key={s} className="rounded bg-red-50 px-1.5 py-0.5 text-sm text-red-700">{`✗ ${s}`}</span>
                     ))}
-                    {(m.missingSkills?.length ?? 0) === 0 ? <span className="text-moss">none</span> : null}
+                    {(m.missingSkills?.length ?? 0) === 0 ? <span className="text-moss">{t("none")}</span> : null}
                   </div>
                 </td>
               ))}
             </tr>
             <tr className="border-t border-stone-100">
-              <th scope="row" className="sticky left-0 bg-white p-2 text-left text-steel">Salary band</th>
+              <th scope="row" className="sticky left-0 bg-white p-2 text-left text-steel">{t("salaryBand")}</th>
               {matches.map((m) => (
                 <td key={m.jobId} className="p-2 nums text-ink">{fmtBand(m.salaryBand)} {m.salaryBand && m.salaryBand.length === 2 ? "CZK" : ""}</td>
               ))}

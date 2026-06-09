@@ -3,13 +3,15 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AlertTriangle, ArrowLeftRight, Ban, Banknote, Calendar, ClipboardList, ExternalLink, History, Mail, Pencil, Phone, Shuffle, Sparkles, UserCheck, Wrench, X } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { buildUrl } from "@/app/features/tabs";
 import { useTasks, useTaskResult } from "@/app/features/tasks/TasksProvider";
+import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { ResultView } from "./CandidateResultView";
 import { useTokenLink, TokenLinkPanel } from "./TokenLink";
 import { type Entry, type Result, type TaskId } from "./CandidateDrawerTypes";
-import { relativeTime, styleFor, type PipelineEvent } from "./PipelineTypes";
-import { EventDot, eventVerb } from "./PipelineShared";
+import { styleFor, type PipelineEvent } from "./PipelineTypes";
+import { EventDot, useEventVerb, useRelativeTime } from "./PipelineShared";
 import { PIPELINE_STAGES, SCREENING_STAGES } from "@/app/_lib/pipeline-stages";
 import { RUBRIC_ANCHOR_LINE } from "@/app/_lib/interview-rubric";
 import { RATING_MAX } from "@/app/_lib/format";
@@ -46,6 +48,11 @@ type InterviewOutcome = {
 export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; onClose: () => void; onChanged: () => void }) {
   const router = useRouter();
   const search = useSearchParams();
+  const t = useTranslations("pipeline.drawer");
+  const tActions = useTranslations("pipeline.actions");
+  const enumLabel = useEnumLabel();
+  const eventVerb = useEventVerb();
+  const relativeTime = useRelativeTime();
   const { startTask } = useTasks();
   const [busy, setBusy] = useState<TaskId | null>(null);
   const [pendingId, setPendingId] = useState<string | null>(null);
@@ -197,18 +204,18 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
     setError(null);
     setResult(null);
     setPendingId(null);
-    const t = await startTask("automation", {
+    const started = await startTask("automation", {
       entryId: entry.id,
       task,
       notes: task === "scorecard" ? notes : undefined,
       entryLabel: entry.candidateLabel,
     });
-    if (!t) {
-      setError("Couldn't start the task.");
+    if (!started) {
+      setError(t("taskStartFailed"));
       setBusy(null);
       return;
     }
-    setPendingId(t.id);
+    setPendingId(started.id);
   };
 
   const resolveIntake = async () => {
@@ -225,8 +232,8 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
       // The flag is cleared server-side; reload the board and close (this entry is now stale).
       onChanged();
       onClose();
-    } catch (e) {
-      setIntakeErr(e instanceof Error ? e.message : "Couldn't clear the flag.");
+    } catch {
+      setIntakeErr(t("clearFlagFailed"));
       setResolvingIntake(false);
     }
   };
@@ -249,8 +256,8 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
       if (!res.ok) throw new Error(data.error || `Move failed (${res.status})`);
       onChanged();
       onClose();
-    } catch (e) {
-      setMoveErr(e instanceof Error ? e.message : "Couldn't move the candidate.");
+    } catch {
+      setMoveErr(t("moveFailed"));
       setMovingStage(false);
     }
   };
@@ -275,7 +282,7 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
     setBusy(null);
     setPendingId(null);
   } else if (pendingId && (actionStatus === "failed" || actionStatus === "canceled" || actionStatus === "interrupted")) {
-    setError(actionError ?? "Task did not complete.");
+    setError(actionError ?? t("taskIncomplete"));
     setBusy(null);
     setPendingId(null);
   }
@@ -298,7 +305,7 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
-      <button type="button" aria-label="Close" onClick={onClose} className="absolute inset-0 bg-ink/20 backdrop-blur-[1px]" />
+      <button type="button" aria-label={t("close")} onClick={onClose} className="absolute inset-0 bg-ink/20 backdrop-blur-[1px]" />
       <aside
         ref={dialogRef}
         role="dialog"
@@ -311,13 +318,13 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
           <div className="min-w-0 flex-1">
             <p id="drawer-title" className="truncate font-serif text-lg text-ink">{entry.candidateLabel}</p>
             <p className="truncate text-sm text-steel">
-              {a.label} · {entry.jobTitle} · <span className="text-ink">{entry.stage}</span>
+              {enumLabel("archetype", entry.archetype)} · {entry.jobTitle} · <span className="text-ink">{enumLabel("stage", entry.stage)}</span>
             </p>
           </div>
           {entry.matchScore != null ? (
             <span className="rounded-md bg-white px-2 py-1 text-center">
               <span className="block font-serif text-lg leading-none text-ink">{entry.matchScore}</span>
-              <span className="text-sm uppercase text-steel">match</span>
+              <span className="text-sm uppercase text-steel">{t("match")}</span>
             </span>
           ) : null}
           <button type="button" onClick={onClose} className="focus-ring rounded-md p-1 text-steel hover:bg-stone-100">
@@ -329,12 +336,10 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
           {entry.intakeDegraded ? (
             <div className="rounded-md border border-red-200 bg-red-50 p-3">
               <p className="flex items-center gap-1.5 text-meta uppercase tracking-wide text-red-700">
-                <AlertTriangle size={13} /> Intake degraded — needs manual capture
+                <AlertTriangle size={13} /> {t("intakeDegradedTitle")}
               </p>
               <p className="mt-1 text-sm text-ink">
-                This application couldn&apos;t be normalized into a matchable profile, so it&apos;s a label-only stub
-                (archetype defaulted to <span className="font-semibold">bau</span>) and won&apos;t surface in matching
-                until the profile is captured by hand.
+                {t.rich("intakeDegradedBody", { b: (chunks) => <span className="font-semibold">{chunks}</span> })}
               </p>
               {entry.intakeDegradedReason ? (
                 <p className="mt-1.5 break-words rounded bg-white/70 px-2 py-1 font-mono text-meta text-steel">
@@ -347,9 +352,9 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
                 disabled={resolvingIntake}
                 className="focus-ring mt-2 inline-flex items-center gap-1.5 rounded-md border border-red-200 bg-white px-2.5 py-1.5 text-sm font-semibold text-red-700 hover:bg-red-100 disabled:opacity-50"
               >
-                <Wrench size={13} /> {resolvingIntake ? "Resolving…" : "Mark intake captured"}
+                <Wrench size={13} /> {resolvingIntake ? t("resolving") : t("markCaptured")}
               </button>
-              <p className="mt-1 text-meta text-steel">Clears the flag once you&apos;ve added the candidate&apos;s real profile.</p>
+              <p className="mt-1 text-meta text-steel">{t("clearsFlagNote")}</p>
               {intakeErr ? <p role="alert" className="mt-1.5 text-sm text-red-700">{intakeErr}</p> : null}
             </div>
           ) : null}
@@ -358,11 +363,11 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
             <div className="rounded-md border border-moss/40 bg-moss/5 p-3">
               <div className="flex items-center justify-between gap-2">
                 <p className="flex items-center gap-1.5 text-meta uppercase tracking-wide text-moss">
-                  <Phone size={13} /> Interview outcome
+                  <Phone size={13} /> {t("interviewOutcome")}
                 </p>
                 {ivOutcome.recommendation ? (
                   <span className={`rounded-full px-2 py-0.5 text-meta font-semibold uppercase ${REC_STYLE[ivOutcome.recommendation] ?? "bg-stone-100 text-steel"}`}>
-                    {ivOutcome.recommendation}
+                    {enumLabel("recommendation", ivOutcome.recommendation)}
                   </span>
                 ) : null}
               </div>
@@ -377,11 +382,9 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
                 </ul>
               ) : null}
               {ivOutcome.ratings?.length ? (
-                <p className="mt-1 text-meta text-steel">Fixed rubric · {RUBRIC_ANCHOR_LINE}</p>
+                <p className="mt-1 text-meta text-steel">{t("fixedRubric", { anchor: RUBRIC_ANCHOR_LINE })}</p>
               ) : null}
-              <p className="mt-1.5 text-meta text-steel">
-                A voice 1st-round interview now feeds this candidate&apos;s scorecard review and assessment.
-              </p>
+              <p className="mt-1.5 text-meta text-steel">{t("voiceFeedsNote")}</p>
             </div>
           ) : null}
 
@@ -389,11 +392,11 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
             <div className="rounded-md border border-stone-200 bg-white p-3">
               <div className="flex items-center justify-between gap-2">
                 <p className="flex items-center gap-1.5 text-meta uppercase tracking-wide text-steel">
-                  <ClipboardList size={13} /> Human scorecard
+                  <ClipboardList size={13} /> {t("humanScorecard")}
                 </p>
                 {humanSc.recommendation ? (
                   <span className={`rounded-full px-2 py-0.5 text-meta font-semibold uppercase ${REC_STYLE[humanSc.recommendation] ?? "bg-stone-100 text-steel"}`}>
-                    {humanSc.recommendation}
+                    {enumLabel("recommendation", humanSc.recommendation)}
                   </span>
                 ) : null}
               </div>
@@ -407,14 +410,14 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
                   ))}
                 </ul>
               ) : null}
-              <p className="mt-1.5 text-meta text-steel">Recorded by a recruiter from the interview prep rubric.</p>
+              <p className="mt-1.5 text-meta text-steel">{t("humanScorecardNote")}</p>
             </div>
           ) : null}
 
           {history && history.length > 0 ? (
             <div>
               <p className="flex items-center gap-1.5 text-meta uppercase tracking-wide text-steel">
-                <History size={13} /> History
+                <History size={13} /> {t("history")}
               </p>
               <ol className="mt-2 space-y-1.5">
                 {history.map((ev) => (
@@ -433,11 +436,9 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
           {entry.status === "active" ? (
             <div>
               <label htmlFor="move-stage" className="flex items-center gap-1.5 text-meta uppercase tracking-wide text-steel">
-                <ArrowLeftRight size={13} /> Move stage
+                <ArrowLeftRight size={13} /> {t("moveStage")}
               </label>
-              <p className="mt-1 text-sm text-steel">
-                Manually correct this candidate&apos;s stage — send them back after a no-show, skip ahead, or fix a misfile.
-              </p>
+              <p className="mt-1 text-sm text-steel">{t("moveStageHelp")}</p>
               <select
                 id="move-stage"
                 value={entry.stage}
@@ -447,8 +448,8 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
               >
                 {PIPELINE_STAGES.map((s) => (
                   <option key={s} value={s}>
-                    {s}
-                    {s === entry.stage ? " (current)" : ""}
+                    {enumLabel("stage", s)}
+                    {s === entry.stage ? t("current") : ""}
                   </option>
                 ))}
               </select>
@@ -458,9 +459,9 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
 
           <div>
             <p className="flex items-center gap-1.5 text-meta uppercase tracking-wide text-coral">
-              <Sparkles size={13} /> AI actions
+              <Sparkles size={13} /> {t("aiActions")}
             </p>
-            <p className="mt-1 text-sm text-steel">Each task runs locally through the Claude CLI, with a deterministic fallback.</p>
+            <p className="mt-1 text-sm text-steel">{t("aiActionsNote")}</p>
             <div className="mt-2 grid grid-cols-2 gap-2">
               {actions.map((act) => (
                 <button
@@ -473,7 +474,7 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
                   }`}
                 >
                   <act.icon size={14} className="shrink-0 text-coral" />
-                  {busy === act.id ? "Working…" : act.label}
+                  {busy === act.id ? t("working") : tActions(act.id)}
                 </button>
               ))}
             </div>
@@ -481,12 +482,12 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
 
           {actions.some((act) => act.id === "scorecard") ? (
             <div>
-              <label className="text-sm font-semibold uppercase tracking-wide text-steel">Interview notes (for scorecard)</label>
+              <label className="text-sm font-semibold uppercase tracking-wide text-steel">{t("notesLabel")}</label>
               <textarea
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 rows={3}
-                placeholder="Paste raw interviewer notes here, then click Synthesize scorecard."
+                placeholder={t("notesPlaceholder")}
                 className="focus-ring mt-1 w-full rounded-md border border-stone-200 bg-white p-2 text-sm text-ink"
               />
             </div>
@@ -495,12 +496,9 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
           {showLinks ? (
             <div className="rounded-md border border-stone-200 bg-white p-3">
               <p className="flex items-center gap-1.5 text-meta uppercase tracking-wide text-coral">
-                <Phone size={13} /> Voice screen (1st round)
+                <Phone size={13} /> {t("voiceScreen")}
               </p>
-              <p className="mt-1 text-sm text-steel">
-                Creates a candidate link with questions grounded in this match. After the call, the scorecard lands in
-                Decisions automatically.
-              </p>
+              <p className="mt-1 text-sm text-steel">{t("voiceScreenHelp")}</p>
               <div className="mt-2 inline-flex rounded-md border border-stone-200 bg-paper p-0.5">
                 {(["openai", "elevenlabs"] as const).map((p) => (
                   <button
@@ -523,7 +521,7 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
                 disabled={voice.busy}
                 className="focus-ring ml-2 inline-flex items-center gap-1.5 rounded-md border border-stone-200 bg-white px-2.5 py-1.5 text-sm font-semibold text-ink hover:border-coral/40 disabled:opacity-50"
               >
-                <Phone size={13} className="text-coral" /> {voice.busy ? "Creating…" : "Create link"}
+                <Phone size={13} className="text-coral" /> {voice.busy ? t("creating") : t("createLink")}
               </button>
 
               {voice.err ? <p role="alert" className="mt-2 text-sm text-red-700">{voice.err}</p> : null}
@@ -532,20 +530,16 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
                 <div className="mt-2 space-y-1.5">
                   <TokenLinkPanel link={voice} />
                   {Boolean(voice.data.configured) && Boolean(voice.data.delivered) ? (
-                    <p className="text-sm text-moss">
-                      ✓ Invite sent to the candidate — they can take the screen whenever they&apos;re ready.
-                    </p>
+                    <p className="text-sm text-moss">{t("inviteSent")}</p>
                   ) : null}
                   {Boolean(voice.data.configured) && !voice.data.delivered ? (
-                    <p className="text-sm text-amber-700">
-                      Link created, but the invite couldn&apos;t be sent automatically — copy it above to share with the
-                      candidate.
-                    </p>
+                    <p className="text-sm text-amber-700">{t("inviteNotSent")}</p>
                   ) : null}
                   {!voice.data.configured ? (
                     <p className="text-sm text-coral">
-                      {voiceProvider === "openai" ? "OPENAI_API_KEY" : "ELEVENLABS_API_KEY + ELEVENLABS_AGENT_ID"} not set —
-                      the call won&apos;t connect until configured.
+                      {t("notConfigured", {
+                        vars: voiceProvider === "openai" ? "OPENAI_API_KEY" : "ELEVENLABS_API_KEY + ELEVENLABS_AGENT_ID",
+                      })}
                     </p>
                   ) : null}
                 </div>
@@ -556,19 +550,16 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
           {showLinks ? (
             <div className="rounded-md border border-stone-200 bg-white p-3">
               <p className="flex items-center gap-1.5 text-meta uppercase tracking-wide text-coral">
-                <Calendar size={13} /> Self-scheduling
+                <Calendar size={13} /> {t("selfScheduling")}
               </p>
-              <p className="mt-1 text-sm text-steel">
-                Send the candidate a link to pick their own interview slot — they get an instant confirmation and a
-                reminder.
-              </p>
+              <p className="mt-1 text-sm text-steel">{t("selfSchedulingHelp")}</p>
               <button
                 type="button"
                 onClick={() => sched.create({ entryId: entry.id })}
                 disabled={sched.busy}
                 className="focus-ring mt-2 inline-flex items-center gap-1.5 rounded-md border border-stone-200 bg-white px-2.5 py-1.5 text-sm font-semibold text-ink hover:border-coral/40 disabled:opacity-50"
               >
-                <Calendar size={13} className="text-coral" /> {sched.busy ? "Creating…" : "Create scheduling link"}
+                <Calendar size={13} className="text-coral" /> {sched.busy ? t("creating") : t("createSchedulingLink")}
               </button>
               {sched.err ? <p role="alert" className="mt-2 text-sm text-red-700">{sched.err}</p> : null}
               {sched.data ? (
@@ -591,7 +582,7 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
               }}
               className="focus-ring inline-flex items-center gap-1 text-sm font-semibold text-steel hover:text-coral"
             >
-              <ExternalLink size={13} /> Open full match in Profile &amp; Match
+              <ExternalLink size={13} /> {t("openFullMatch")}
             </button>
             {entry.candidateId ? (
               <button
@@ -599,7 +590,7 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
                 onClick={() => router.push(buildUrl({ tab: "profile", edit: entry.candidateId as string }, search.toString()))}
                 className="focus-ring inline-flex items-center gap-1 text-sm font-semibold text-steel hover:text-coral"
               >
-                <Pencil size={13} /> Edit profile
+                <Pencil size={13} /> {t("editProfile")}
               </button>
             ) : null}
           </div>

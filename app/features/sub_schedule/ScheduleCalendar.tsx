@@ -2,8 +2,10 @@
 
 import { useEffect, useRef, useState } from "react";
 import { LayoutGroup, motion } from "framer-motion";
+import { useTranslations } from "next-intl";
 import { DAYS, styleFor, TIMES, type SchedEntry } from "./ScheduleTypes";
 import { useReducedMotion } from "@/app/_lib/useReducedMotion";
+import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { initials } from "@/app/_lib/initials";
 
 // One shared week grid holding every pending interview. Each candidate sits in
@@ -28,6 +30,8 @@ export function ScheduleCalendar({
   onSelect: (id: string) => void;
   onPickSlot: (slot: string) => void;
 }) {
+  const tCal = useTranslations("scheduleTab.calendar");
+  const enumLabel = useEnumLabel();
   const reduced = useReducedMotion();
   const scrollerRef = useRef<HTMLDivElement>(null);
   const [edges, setEdges] = useState({ left: false, right: false });
@@ -64,7 +68,7 @@ export function ScheduleCalendar({
               <div className="py-2" />
               {DAYS.map((d) => (
                 <div key={d} className="py-2 font-semibold">
-                  {d}
+                  {enumLabel("day", d)}
                 </div>
               ))}
             </div>
@@ -83,7 +87,7 @@ export function ScheduleCalendar({
                       <button
                         type="button"
                         onClick={() => onPickSlot(slot)}
-                        aria-label={`Assign selected candidate to ${slot}`}
+                        aria-label={tCal("assignAria", { slot: `${enumLabel("day", d)} ${t}` })}
                         className="focus-ring absolute inset-0 transition-colors hover:bg-coral/5"
                       />
                       {here.length > 0 ? (
@@ -102,8 +106,8 @@ export function ScheduleCalendar({
                                 type="button"
                                 onClick={() => onSelect(e.id)}
                                 aria-pressed={selected}
-                                title={`${e.candidateLabel} · ${s.label}${e.jobTitle ? ` · ${e.jobTitle}` : ""}`}
-                                aria-label={`${e.candidateLabel}, ${s.label}${e.jobTitle ? `, ${e.jobTitle}` : ""}`}
+                                title={tCal("chipTitle", { name: e.candidateLabel, archetype: enumLabel("archetype", e.archetype), job: e.jobTitle ? ` · ${e.jobTitle}` : "" })}
+                                aria-label={tCal("chipAria", { name: e.candidateLabel, archetype: enumLabel("archetype", e.archetype), job: e.jobTitle ? `, ${e.jobTitle}` : "" })}
                                 className={`focus-ring pointer-events-auto flex w-full items-center gap-1 rounded-md px-1.5 py-1 text-left text-sm font-medium text-white ${s.bg} ${
                                   selected ? "ring-2 ring-coral ring-offset-1" : ""
                                 }`}

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { FlaskConical, Lightbulb, MessageCircleQuestion } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { Markdown } from "../../_components/Markdown";
 import { rubricForArchetype } from "@/app/_lib/interview-rubric";
 import { DEMO_CASE_SCENARIO, STUDENT_SCRIPT } from "@/app/_lib/student-interview";
@@ -17,26 +18,32 @@ const TABS = ["Overview", "Example scoring", "Interview script"] as const;
 type Tab = (typeof TABS)[number];
 
 export function StudentsAbout({ item }: { item: CoverageItem }) {
+  const t = useTranslations("about.students");
   const [tab, setTab] = useState<Tab>("Overview");
+  const tabLabel: Record<Tab, string> = {
+    Overview: t("tabOverview"),
+    "Example scoring": t("tabExample"),
+    "Interview script": t("tabScript"),
+  };
   return (
     <article className="rounded-lg border border-stone-200 bg-white p-5">
-      <p className="text-meta uppercase text-coral">Early-career students</p>
+      <p className="text-meta uppercase text-coral">{t("eyebrow")}</p>
       <h3 className="mt-1 font-serif text-h2 text-ink">{item.title}</h3>
       <p className="mt-2 text-base leading-7 text-steel">{item.lead}</p>
 
-      <div role="tablist" aria-label="Early-career views" className="mt-4 flex gap-1 rounded-lg border border-stone-200 bg-paper p-1">
-        {TABS.map((t) => (
+      <div role="tablist" aria-label={t("viewsAria")} className="mt-4 flex gap-1 rounded-lg border border-stone-200 bg-paper p-1">
+        {TABS.map((tb) => (
           <button
-            key={t}
+            key={tb}
             type="button"
             role="tab"
-            aria-selected={tab === t}
-            onClick={() => setTab(t)}
+            aria-selected={tab === tb}
+            onClick={() => setTab(tb)}
             className={`focus-ring flex-1 rounded-md px-3 py-1.5 text-base font-medium transition-colors ${
-              tab === t ? "bg-white text-ink shadow-panel" : "text-steel hover:text-ink"
+              tab === tb ? "bg-white text-ink shadow-panel" : "text-steel hover:text-ink"
             }`}
           >
-            {t}
+            {tabLabel[tb]}
           </button>
         ))}
       </div>
@@ -147,6 +154,7 @@ const ratingColor = (r: number) =>
   r >= 4 ? "bg-moss/15 text-moss" : r <= 2 ? "bg-coral/10 text-coral" : "bg-stone-100 text-ink";
 
 function ExampleScoring() {
+  const t = useTranslations("about.students");
   // The interview grid rows come from the REAL early-career rubric (the same JSON
   // the Python scorer reads) — only the candidates here are synthetic. The
   // constructs the case-grounded phases feed (tagged "case") are the ones whose
@@ -157,17 +165,15 @@ function ExampleScoring() {
   return (
     <div>
       <p className="text-base text-steel">
-        Three illustrative students against one junior backend role. Each carries a <em>bounded</em>,
-        evidence-driven weighting — the axes are the same, how much each counts is earned. The real
-        version of this table lives in Decisions → Group evaluation.
+        {t.rich("exampleIntro", { em: (chunks) => <em>{chunks}</em> })}
       </p>
 
-      <p className="mt-4 text-meta uppercase tracking-wide text-steel">Weighted dimensions</p>
+      <p className="mt-4 text-meta uppercase tracking-wide text-steel">{t("weightedDimensions")}</p>
       <div className="mt-2 overflow-x-auto">
         <table className="w-full border-collapse text-base">
           <thead>
             <tr>
-              <th className="sticky left-0 bg-white p-2 text-left text-meta uppercase text-steel">Dimension</th>
+              <th className="sticky left-0 bg-white p-2 text-left text-meta uppercase text-steel">{t("colDimension")}</th>
               {STUDENTS.map((s) => (
                 <th key={s.name} className="min-w-[170px] p-2 text-left align-bottom">
                   <p className="font-medium text-ink">{s.name}</p>
@@ -187,14 +193,14 @@ function ExampleScoring() {
                   <td key={s.name} className="p-2 align-top">
                     <span className="font-semibold nums text-ink">{s.scores[axis.key]}</span>
                     <span className="ml-1.5 text-meta text-steel nums">
-                      w {s.weights[axis.key]}% · +{((s.scores[axis.key] * s.weights[axis.key]) / 100).toFixed(1)}
+                      {`w ${s.weights[axis.key]}% · +${((s.scores[axis.key] * s.weights[axis.key]) / 100).toFixed(1)}`}
                     </span>
                   </td>
                 ))}
               </tr>
             ))}
             <tr className="border-t border-stone-200">
-              <td className="sticky left-0 bg-white p-2 font-semibold text-ink">Total</td>
+              <td className="sticky left-0 bg-white p-2 font-semibold text-ink">{t("rowTotal")}</td>
               {STUDENTS.map((s) => (
                 <td key={s.name} className="p-2">
                   <span className="inline-flex h-7 min-w-9 items-center justify-center rounded-md bg-stone-100 px-1.5 font-semibold nums text-ink">
@@ -204,17 +210,17 @@ function ExampleScoring() {
               ))}
             </tr>
             <tr className="border-t border-stone-100">
-              <td className="sticky left-0 bg-white p-2 text-ink">Confidence band</td>
+              <td className="sticky left-0 bg-white p-2 text-ink">{t("rowConfidence")}</td>
               {STUDENTS.map((s) => (
                 <td key={s.name} className="p-2" title={s.bandWhy}>
                   <span className={`text-sm font-medium nums ${BAND_STYLE[s.bandLevel]}`}>
-                    {s.band[0]}–{s.band[1]} · {s.bandLevel}
+                    {`${s.band[0]}–${s.band[1]} · ${s.bandLevel}`}
                   </span>
                 </td>
               ))}
             </tr>
             <tr className="border-t border-stone-100">
-              <td className="sticky left-0 bg-white p-2 text-ink">Why this weighting</td>
+              <td className="sticky left-0 bg-white p-2 text-ink">{t("rowWhyWeighting")}</td>
               {STUDENTS.map((s) => (
                 <td key={s.name} className="p-2 align-top">
                   <p className="text-sm text-steel">{s.weightWhy}</p>
@@ -225,12 +231,12 @@ function ExampleScoring() {
         </table>
       </div>
 
-      <p className="mt-5 text-meta uppercase tracking-wide text-steel">Interview rubric · 1–5 with quoted evidence</p>
+      <p className="mt-5 text-meta uppercase tracking-wide text-steel">{t("rubricHeading")}</p>
       <div className="mt-2 overflow-x-auto">
         <table className="w-full border-collapse text-base">
           <thead>
             <tr>
-              <th className="sticky left-0 bg-white p-2 text-left text-meta uppercase text-steel">Construct</th>
+              <th className="sticky left-0 bg-white p-2 text-left text-meta uppercase text-steel">{t("colConstruct")}</th>
               {STUDENTS.map((s) => (
                 <th key={s.name} className="min-w-[100px] p-2 text-left text-ink">{s.name}</th>
               ))}
@@ -244,9 +250,9 @@ function ExampleScoring() {
                   {caseFed.has(comp.competency) ? (
                     <span
                       className="ml-1.5 rounded-full bg-coral/10 px-1.5 py-0.5 text-meta font-medium text-coral"
-                      title="Fed by the case-grounded phases — these ratings gate observed minting"
+                      title={t("caseBadgeTitle")}
                     >
-                      case
+                      {t("caseBadge")}
                     </span>
                   ) : null}
                 </td>
@@ -262,7 +268,7 @@ function ExampleScoring() {
                           {r.score}
                         </span>
                       ) : (
-                        <span className="text-steel">—</span>
+                        <span className="text-steel">{"—"}</span>
                       )}
                     </td>
                   );
@@ -273,12 +279,7 @@ function ExampleScoring() {
         </table>
       </div>
       <p className="mt-2 text-sm text-steel">
-        Hover a rating for the verbatim evidence behind it — no quote, no score. Adéla&apos;s{" "}
-        <span className="font-medium text-ink">case</span>-tagged constructs average 4.3 on quoted evidence —
-        above the 4/5 minting bar, so her case-grounded interview itself minted the observed skills that narrow
-        her band. Bára outscores her on potential but stays wide until something is observed; Cyril&apos;s fluent
-        delivery is scored separately from the content of his reasoning (and his 2s on the case constructs mean
-        nothing is minted).
+        {t.rich("scoringFootnote", { b: (chunks) => <span className="font-medium text-ink">{chunks}</span> })}
       </p>
     </div>
   );
@@ -291,6 +292,7 @@ function ExampleScoring() {
 // interviewer actually runs.
 
 function InterviewScript() {
+  const t = useTranslations("about.students");
   // Shown in its CASE-DESIGNED form: the fixed skeleton paired with the probes the
   // demo scenario instantiated from the case, so the combination is visible —
   // personal phases keep the generic probe; highlighted phases draw theirs from
@@ -298,17 +300,15 @@ function InterviewScript() {
   return (
     <div>
       <p className="text-base text-steel">
-        The thought-script the agent follows (~{DEMO_CASE_SCENARIO.durationMin} minutes), shown in its
-        case-designed form. The skeleton is fixed — concrete → mechanism → counterfactual → metacognitive —
-        and the agent may improvise follow-ups, but the{" "}
-        <span className="font-medium text-ink">highlighted phases draw their questions from the role&apos;s
-        designed case</span>, so every candidate works the same material. Hints are injected on purpose:
-        coachability only exists live.
+        {t.rich("scriptIntro", {
+          min: DEMO_CASE_SCENARIO.durationMin,
+          b: (chunks) => <span className="font-medium text-ink">{chunks}</span>,
+        })}
       </p>
 
       <div className="mt-3 rounded-lg border border-coral/30 bg-coral/5 p-3">
         <p className="flex items-center gap-1.5 text-meta uppercase tracking-wide text-coral">
-          <FlaskConical size={13} aria-hidden /> Narrated case — the shared material (demo)
+          <FlaskConical size={13} aria-hidden /> {t("narratedCase")}
         </p>
         <p className="mt-1 text-sm text-ink">{DEMO_CASE_SCENARIO.caseIntro}</p>
       </div>
@@ -333,7 +333,7 @@ function InterviewScript() {
                     fromCase ? "bg-coral/10 text-coral" : "bg-stone-100 text-steel"
                   }`}
                 >
-                  {fromCase ? "from the case" : "personal"}
+                  {fromCase ? t("fromCase") : t("personal")}
                 </span>
               </div>
               <p className="mt-1.5 text-sm text-steel">{p.goal}</p>
@@ -343,13 +343,13 @@ function InterviewScript() {
               </p>
               {fromCase && generic ? (
                 <p className="mt-1 pl-6 text-sm text-steel">
-                  Generic template it replaces: <span className="italic">{generic.probe}</span>
+                  {t("genericReplaces")} <span className="italic">{generic.probe}</span>
                 </p>
               ) : null}
               <p className="mt-1.5 flex items-start gap-1.5 text-sm text-steel">
                 <Lightbulb size={14} className="mt-0.5 shrink-0 text-dial-amber" aria-hidden />
                 <span>
-                  <span className="font-medium text-ink">Listen for:</span> {p.listenFor}
+                  <span className="font-medium text-ink">{t("listenFor")}</span> {p.listenFor}
                 </span>
               </p>
               <div className="mt-2 flex flex-wrap gap-1">
@@ -364,13 +364,7 @@ function InterviewScript() {
         })}
       </ol>
 
-      <p className="mt-3 text-sm text-steel">
-        Every rating must cite a verbatim transcript quote (no quote, no score), a short or evasive answer
-        widens the confidence band instead of lowering the score, and reasoning content is scored separately
-        from delivery fluency — nerves and non-native English are not weak thinking. When the case-fed
-        constructs all rate on quoted evidence and average above bar, the interview itself mints
-        observed-provenance skills onto the candidate&apos;s profile.
-      </p>
+      <p className="mt-3 text-sm text-steel">{t("scriptFootnote")}</p>
     </div>
   );
 }

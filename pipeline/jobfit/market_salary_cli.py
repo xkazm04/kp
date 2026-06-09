@@ -70,6 +70,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Grounded market-salary estimate for a role.")
     parser.add_argument("--input-json", type=Path, help="Role JSON. Reads stdin if omitted.")
     parser.add_argument("--no-grounding", action="store_true", help="Skip web search; taxonomy band only.")
+    parser.add_argument("--lang", default="en", help="Output locale for the summary text (en, cs).")
     args = parser.parse_args(argv)
 
     try:
@@ -88,11 +89,14 @@ def main(argv: list[str] | None = None) -> int:
             print(json.dumps({"result": result, "sources": [], "source": "deterministic"}, ensure_ascii=False))
             return 0
 
+        from .i18n import language_name
+
         prompt = (
             "You are a compensation analyst. Using current web search results, estimate the typical MONTHLY GROSS "
             f"salary range for this role in {region}.\n"
             f"- Title: {title}\n- Seniority: {seniority}\n- Field: {role_family}\n"
             f"- Company profile: similar to {company}\n- Key stack: {stack}\n\n"
+            f"Write the summary in {language_name(args.lang)}; keep the currency code and numbers as specified.\n"
             "Respond with ONLY a JSON object (no prose, no fences):\n"
             '{"suggestedMinimum": <int CZK/month>, "suggestedMaximum": <int CZK/month>, '
             '"currency": "CZK", "confidence": "low|medium|high", '

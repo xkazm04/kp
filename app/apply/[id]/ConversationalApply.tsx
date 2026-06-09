@@ -1,21 +1,26 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 import { AiDisclosure } from "@/app/_components/AiDisclosure";
 import type { ApplyStep } from "@/app/_lib/apply";
 // Imported straight from the registry-free intake module (not the apply.ts
 // barrel) so the candidate-facing bundle doesn't pull in the archetype registry.
 import { isRetryableApplyStatus, nextVisibleStepIndex } from "@/app/_lib/apply-intake";
+import { useErrorMessage } from "@/app/_lib/use-error-message";
 
 type Msg = { who: "bot" | "me"; text: string };
 
 export function ConversationalApply({ jobId, steps }: { jobId: string; steps: ApplyStep[] }) {
+  const t = useTranslations("apply");
+  const tCommon = useTranslations("common");
+  const errMsg = useErrorMessage();
   const [idx, setIdx] = useState(0);
   // Seeded from the server-built steps so the first prompt paints on hydration —
   // no initial fetch, no fatal load-error branch, no Loading… flash. The script
   // is fixed for the page's lifetime, so it's a prop rather than fetched state.
   const [msgs, setMsgs] = useState<Msg[]>(() => [
-    { who: "bot", text: steps[0]?.prompt ?? "Let's begin." },
+    { who: "bot", text: steps[0]?.prompt ?? t("letsBegin") },
   ]);
   const [answers, setAnswers] = useState<Record<string, unknown>>({});
   const [input, setInput] = useState("");
@@ -112,14 +117,14 @@ export function ConversationalApply({ jobId, steps }: { jobId: string; steps: Ap
         // re-POST of the same answers could succeed (5xx / transient) or is futile
         // (4xx — the input itself was rejected), which selects Try-again vs Start-over.
         setSubmitError({
-          message: d.error || "Couldn't submit your application. Please try again.",
+          message: errMsg(d, t("submitFailed")),
           retryable: isRetryableApplyStatus(res.status),
         });
       }
     } catch {
       // No HTTP response at all (offline / network blip) — always retryable.
       setSubmitError({
-        message: "Couldn't reach us just now — check your connection and try again. Your answers are saved.",
+        message: t("networkFailed"),
         retryable: true,
       });
     } finally {
@@ -148,7 +153,7 @@ export function ConversationalApply({ jobId, steps }: { jobId: string; steps: Ap
     setAnswers({});
     setInput("");
     setIdx(0);
-    setMsgs([{ who: "bot", text: steps[0]?.prompt ?? "Let's begin." }]);
+    setMsgs([{ who: "bot", text: steps[0]?.prompt ?? t("letsBegin") }]);
   };
 
   const advance = async (stepId: string, newAnswers: Record<string, unknown>, label: string) => {
@@ -182,7 +187,7 @@ export function ConversationalApply({ jobId, steps }: { jobId: string; steps: Ap
     // blank email but rejects a malformed one only at the FINAL submit — a non-retryable 400
     // that forces "Start over" and wipes every answer. Catching it here fixes a typo in place.
     if (step.id === "email" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) {
-      setStepError("That doesn't look like a valid email — please check and try again.");
+      setStepError(t("invalidEmail"));
       return;
     }
     setStepError(null);
@@ -214,12 +219,12 @@ export function ConversationalApply({ jobId, steps }: { jobId: string; steps: Ap
       const res = await fetch("/api/extract-text", { method: "POST", body: form });
       const d = (await res.json().catch(() => null)) as { text?: string; error?: string } | null;
       if (!res.ok || !d || typeof d.text !== "string" || !d.text.trim()) {
-        throw new Error(d?.error || "Couldn't read that file. Try another, or skip.");
+        throw new Error("extract-text failed");
       }
       const step = steps[idx];
-      advance(step.id, { ...answers, [step.id]: d.text }, `Attached ${file.name}`);
-    } catch (e) {
-      setUploadErr(e instanceof Error ? e.message : "Couldn't read that file. Try another, or skip.");
+      advance(step.id, { ...answers, [step.id]: d.text }, t("attachedFile", { name: file.name }));
+    } catch {
+      setUploadErr(t("fileReadFailed"));
     } finally {
       setUploading(false);
     }
@@ -227,7 +232,7 @@ export function ConversationalApply({ jobId, steps }: { jobId: string; steps: Ap
   const skipFile = () => {
     if (busy || uploading) return;
     const step = steps[idx];
-    advance(step.id, { ...answers, [step.id]: "" }, "Skipped — I'll go with what I typed.");
+    advance(step.id, { ...answers, [step.id]: "" }, t("skippedFile"));
   };
 
   const cur = !done ? steps[idx] : null;
@@ -255,7 +260,7 @@ export function ConversationalApply({ jobId, steps }: { jobId: string; steps: Ap
           // decline shouldn't read as one.
           <div className={`rounded-lg border p-4 ${done.result === "accepted" && !done.duplicate ? "border-moss/40 bg-moss/5" : "border-stone-200 bg-paper"}`}>
             <p className={`font-serif text-h3 ${done.result === "accepted" && !done.duplicate ? "text-moss" : "text-ink"}`}>
-              {done.result === "accepted" ? (done.duplicate ? "Already applied" : "You're in 🎉") : "Thanks for applying"}
+              {done.result === "accepted" ? (done.duplicate ? t("alreadyApplied") : t("youreIn")) : t("thanksApplying")}
             </p>
             <p className="mt-1 text-base text-steel">{done.message}</p>
           </div>
@@ -277,7 +282,7 @@ export function ConversationalApply({ jobId, steps }: { jobId: string; steps: Ap
               onClick={retrySubmit}
               className="focus-ring mt-3 rounded-md bg-ink px-4 py-2 text-base font-semibold text-white hover:bg-steel disabled:opacity-50"
             >
-              {submitting ? "Sending…" : "Try again"}
+              {submitting ? t("sending") : tCommon("retry")}
             </button>
           ) : (
             <button
@@ -285,7 +290,7 @@ export function ConversationalApply({ jobId, steps }: { jobId: string; steps: Ap
               onClick={restartConversation}
               className="focus-ring mt-3 rounded-md bg-ink px-4 py-2 text-base font-semibold text-white hover:bg-steel"
             >
-              Start over
+              {t("startOver")}
             </button>
           )}
         </div>
@@ -301,7 +306,7 @@ export function ConversationalApply({ jobId, steps }: { jobId: string; steps: Ap
                 onClick={() => submitKo(true)}
                 className="focus-ring rounded-md border border-stone-200 bg-white px-5 py-2 text-base font-semibold text-ink hover:border-moss/50 disabled:opacity-50"
               >
-                Yes
+                {tCommon("yes")}
               </button>
               <button
                 type="button"
@@ -309,7 +314,7 @@ export function ConversationalApply({ jobId, steps }: { jobId: string; steps: Ap
                 onClick={() => submitKo(false)}
                 className="focus-ring rounded-md border border-stone-200 bg-white px-5 py-2 text-base font-semibold text-ink hover:border-coral/50 disabled:opacity-50"
               >
-                No
+                {tCommon("no")}
               </button>
             </div>
           ) : cur.type === "choice" ? (
@@ -334,7 +339,7 @@ export function ConversationalApply({ jobId, steps }: { jobId: string; steps: Ap
                     busy || uploading ? "pointer-events-none opacity-50" : ""
                   }`}
                 >
-                  {uploading ? "Reading…" : "Attach CV"}
+                  {uploading ? t("reading") : t("attachCv")}
                   <input
                     type="file"
                     accept=".pdf,.docx,.doc,.txt,.md,application/pdf"
@@ -353,7 +358,7 @@ export function ConversationalApply({ jobId, steps }: { jobId: string; steps: Ap
                   onClick={skipFile}
                   className="focus-ring rounded-md px-3 py-2 text-base font-semibold text-steel hover:text-ink disabled:opacity-50"
                 >
-                  Skip
+                  {t("skip")}
                 </button>
               </div>
               {uploadErr ? <p role="alert" className="text-sm text-coral">{uploadErr}</p> : null}
@@ -383,7 +388,7 @@ export function ConversationalApply({ jobId, steps }: { jobId: string; steps: Ap
                 disabled={!input.trim() || busy}
                 className="focus-ring rounded-md bg-ink px-4 text-base font-semibold text-white hover:bg-steel disabled:opacity-50"
               >
-                Send
+                {t("send")}
               </button>
             </form>
           )}

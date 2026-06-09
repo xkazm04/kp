@@ -1,3 +1,4 @@
+import { useTranslations } from "next-intl";
 import { columnStats, STRONG_THRESHOLD, type ColumnStat } from "./matrix-stats";
 
 export type Cell = { score: number | null; blocked: boolean };
@@ -26,15 +27,16 @@ const BAND_FILL = ["bg-coral/40", "bg-amber-300", "bg-moss/40", "bg-moss/60", "b
 // of the column's non-blocked scores (bands match the legend) plus best / median /
 // strong-count. Reads the column's pool fit at a glance: deep bench vs one hit.
 export function ColumnStats({ scores }: { scores: number[] }) {
+  const t = useTranslations("matrix");
   const s: ColumnStat = columnStats(scores);
   if (s.count === 0) {
-    return <div className="mt-1 text-[10px] text-stone-400">no fits</div>;
+    return <div className="mt-1 text-[10px] text-stone-400">{t("noFits")}</div>;
   }
   const maxBucket = Math.max(...s.buckets, 1);
   return (
     <div
       className="mt-1"
-      title={`${s.count} scored · best ${s.best} · median ${s.median} · ${s.strong} strong (≥${STRONG_THRESHOLD})`}
+      title={t("colStatsTitle", { count: s.count, best: s.best ?? 0, median: s.median ?? 0, strong: s.strong, threshold: STRONG_THRESHOLD })}
     >
       <div className="flex h-5 items-end gap-px" aria-hidden>
         {s.buckets.map((n, i) => (
@@ -49,16 +51,17 @@ export function ColumnStats({ scores }: { scores: number[] }) {
         <span className="nums font-semibold text-ink">{s.best}</span>
         <span className="text-stone-400">·</span>
         <span className="nums">~{s.median}</span>
-        {s.strong > 0 ? <span className="nums text-moss">· {s.strong}★</span> : null}
+        {s.strong > 0 ? <span className="nums text-moss">{`· ${s.strong}★`}</span> : null}
       </div>
     </div>
   );
 }
 
 export function MatrixLegend() {
+  const t = useTranslations("matrix");
   return (
     <div className="flex flex-wrap items-center gap-3 text-sm text-steel">
-      <span className="font-semibold uppercase tracking-wide">Match</span>
+      <span className="font-semibold uppercase tracking-wide">{t("legendMatch")}</span>
       {[
         ["bg-coral/15 text-coral", "<45"],
         ["bg-amber-100 text-amber-700", "45–59"],
@@ -69,11 +72,11 @@ export function MatrixLegend() {
       ].map(([cls, label]) => (
         <span key={label} className="inline-flex items-center gap-1">
           <span className={`grid h-5 w-6 place-items-center rounded ${cls} text-sm font-semibold`}>{label === "blocked" ? "–" : ""}</span>
-          {label}
+          {label === "blocked" ? t("blocked") : label}
         </span>
       ))}
       <span className="inline-flex items-center gap-1">
-        <span className="h-4 w-4 rounded ring-2 ring-inset ring-ink/50" /> in pipeline
+        <span className="h-4 w-4 rounded ring-2 ring-inset ring-ink/50" /> {t("inPipeline")}
       </span>
     </div>
   );

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { Modal } from "@/app/_components/Modal";
 import { SCREENING_DEFAULT as FALLBACK, type ScreeningRule } from "@/app/_lib/decision-config-schema";
 
@@ -13,6 +14,7 @@ import { SCREENING_DEFAULT as FALLBACK, type ScreeningRule } from "@/app/_lib/de
 // "first wave" auto-reject (off by default). Early-career is never auto-rejected
 // — that fairness gate is enforced in code, not configurable.
 export function DecisionRulesModal({ onClose }: { onClose: () => void }) {
+  const t = useTranslations("decisions.rules");
   const [rule, setRule] = useState<ScreeningRule | null>(null);
   const [saving, setSaving] = useState(false);
   const [note, setNote] = useState<string | null>(null);
@@ -39,9 +41,9 @@ export function DecisionRulesModal({ onClose }: { onClose: () => void }) {
       // shows exactly what was persisted rather than the possibly out-of-range value typed.
       const d = (await r.json().catch(() => null)) as { configs?: { screening?: Partial<ScreeningRule> } } | null;
       if (d?.configs?.screening) setRule({ ...FALLBACK, ...d.configs.screening });
-      setNote("Saved.");
+      setNote(t("saved"));
     } catch {
-      setNote("Save failed.");
+      setNote(t("saveFailed"));
     } finally {
       setSaving(false);
     }
@@ -49,8 +51,8 @@ export function DecisionRulesModal({ onClose }: { onClose: () => void }) {
 
   return (
     <Modal
-      title="Decision rules · Screening"
-      subtitle="The first automated decision wave"
+      title={t("title")}
+      subtitle={t("subtitle")}
       size="lg"
       onClose={onClose}
       footer={
@@ -61,7 +63,7 @@ export function DecisionRulesModal({ onClose }: { onClose: () => void }) {
             disabled={saving || !rule}
             className="focus-ring inline-flex h-9 items-center gap-2 rounded-md bg-ink px-4 text-sm font-semibold text-white hover:bg-steel disabled:opacity-50"
           >
-            {saving ? <Loader2 size={15} className="animate-spin" /> : null} Save rules
+            {saving ? <Loader2 size={15} className="animate-spin" /> : null} {t("saveRules")}
           </button>
           {note ? (
             <span role="status" aria-live="polite" className="text-sm text-steel">
@@ -72,7 +74,7 @@ export function DecisionRulesModal({ onClose }: { onClose: () => void }) {
       }
     >
       {!rule ? (
-        <p className="text-sm text-steel">Loading…</p>
+        <p className="text-sm text-steel">{t("loading")}</p>
       ) : (
         <div className="space-y-4">
           <label className="flex items-center gap-3">
@@ -82,12 +84,12 @@ export function DecisionRulesModal({ onClose }: { onClose: () => void }) {
               onChange={(e) => setRule({ ...rule, autoRejectEnabled: e.target.checked })}
               className="h-4 w-4 accent-coral"
             />
-            <span className="text-sm font-semibold text-ink">Auto-reject the weakest matches at screening</span>
+            <span className="text-sm font-semibold text-ink">{t("autoReject")}</span>
           </label>
 
           <div className={`grid grid-cols-2 gap-3 ${rule.autoRejectEnabled ? "" : "opacity-50"}`}>
             <label className="block">
-              <span className="mb-1 block text-sm text-steel">Reject bottom %</span>
+              <span className="mb-1 block text-sm text-steel">{t("rejectBottomPct")}</span>
               <input
                 type="number"
                 min={0}
@@ -100,7 +102,7 @@ export function DecisionRulesModal({ onClose }: { onClose: () => void }) {
               />
             </label>
             <label className="block">
-              <span className="mb-1 block text-sm text-steel">…only if match below</span>
+              <span className="mb-1 block text-sm text-steel">{t("onlyIfBelow")}</span>
               <input
                 type="number"
                 min={0}
@@ -115,20 +117,17 @@ export function DecisionRulesModal({ onClose }: { onClose: () => void }) {
           </div>
 
           <p id="screening-rule-sentence" className="rounded-md bg-paper p-3 text-sm text-ink">
-            Reject the bottom <strong>{rule.rejectBottomPercent}%</strong> of a role&apos;s matched candidates whose match is
-            also below <strong>{rule.maxMatchToReject}</strong>
-            {rule.rejectBottomPercent > 0 ? (
-              <>
-                {" "}
-                — rounded down, but <strong>at least the single weakest</strong> candidate in any non-empty pool, so a small
-                role is never silently skipped
-              </>
-            ) : null}
-            . Every auto-decision is logged with a rationale (see Analytics).
+            {t.rich("ruleSentence", {
+              pct: rule.rejectBottomPercent,
+              max: rule.maxMatchToReject,
+              b: (chunks) => <strong>{chunks}</strong>,
+            })}
+            {rule.rejectBottomPercent > 0 ? t.rich("ruleWeakest", { b: (chunks) => <strong>{chunks}</strong> }) : null}
+            {t("ruleLog")}
           </p>
           <p className="text-sm text-steel">
-            <span className="font-semibold text-moss">Fairness:</span> early-career candidates (student / career-switcher) are{" "}
-            <strong>never</strong> auto-rejected — that gate is enforced in code.
+            <span className="font-semibold text-moss">{t("fairnessLabel")}</span>{" "}
+            {t.rich("fairnessBody", { b: (chunks) => <strong>{chunks}</strong> })}
           </p>
         </div>
       )}

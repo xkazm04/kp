@@ -1,4 +1,10 @@
 import type { NextConfig } from "next";
+import createNextIntlPlugin from "next-intl/plugin";
+
+// next-intl in "without i18n routing" mode: the locale is resolved per-request
+// from the cookie/header in i18n/request.ts (no `[locale]` URL segment), which
+// fits the ?tab=-driven single-page workspace without restructuring routing.
+const withNextIntl = createNextIntlPlugin("./i18n/request.ts");
 
 const nextConfig: NextConfig = {
   experimental: {
@@ -17,4 +23,4 @@ const nextConfig: NextConfig = {
   }
 };
 
-export default nextConfig;
+export default withNextIntl(nextConfig);

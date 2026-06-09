@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import type { JdSummary } from "./AnalyzeTypes";
 
 export function AnalyzeSavedJdPicker({
@@ -16,17 +17,17 @@ export function AnalyzeSavedJdPicker({
   onPick: (jd: JdSummary) => void;
   onClear: () => void;
 }) {
+  const t = useTranslations("analyze");
   if (jds.length === 0) {
     return (
       <p className="rounded-md border border-dashed border-stone-300 bg-white p-2 text-sm text-steel">
-        No JDs saved.{" "}
-        <Link
-          href="/?tab=library"
-          className="font-semibold text-coral underline-offset-2 hover:underline"
-        >
-          Save one
-        </Link>{" "}
-        for reuse.
+        {t.rich("noJds", {
+          link: (chunks) => (
+            <Link href="/?tab=library" className="font-semibold text-coral underline-offset-2 hover:underline">
+              {chunks}
+            </Link>
+          ),
+        })}
       </p>
     );
   }
@@ -37,17 +38,17 @@ export function AnalyzeSavedJdPicker({
           htmlFor="saved-jd-picker"
           className="text-sm font-semibold uppercase tracking-wide text-steel"
         >
-          From library
+          {t("fromLibrary")}
         </label>
         {loading ? (
-          <span role="status" className="text-sm font-medium text-steel">Loading JD…</span>
+          <span role="status" className="text-sm font-medium text-steel">{t("loadingJd")}</span>
         ) : selectedSlug ? (
           <button
             type="button"
             onClick={onClear}
             className="text-sm font-medium text-coral underline-offset-2 hover:underline"
           >
-            Detach
+            {t("detach")}
           </button>
         ) : null}
       </div>
@@ -66,10 +67,10 @@ export function AnalyzeSavedJdPicker({
         }}
         className="focus-ring mt-1 h-9 w-full rounded-md border border-stone-300 bg-white px-2 text-sm text-ink"
       >
-        <option value="">Pick a saved JD…</option>
+        <option value="">{t("pickJd")}</option>
         {jds.map((jd) => (
           <option key={jd.slug} value={jd.slug}>
-            {jd.title.length > 40 ? `${jd.title.slice(0, 38)}…` : jd.title} ({jd.slug})
+            {t("jdOption", { title: jd.title.length > 40 ? `${jd.title.slice(0, 38)}…` : jd.title, slug: jd.slug })}
           </option>
         ))}
       </select>

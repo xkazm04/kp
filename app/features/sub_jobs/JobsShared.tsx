@@ -1,4 +1,5 @@
 import type { LucideIcon } from "lucide-react";
+import { useTranslations } from "next-intl";
 import type { JobRequirement, SkippedCandidate } from "./JobsTypes";
 
 // Amber disclosure listing candidates the ranker couldn't score (malformed
@@ -6,17 +7,17 @@ import type { JobRequirement, SkippedCandidate } from "./JobsTypes";
 // explain a skipped candidate identically: recruiter_cli produces this array
 // once, and neither view may silently drop it. Renders nothing when empty.
 export function SkippedCandidatesNote({ skipped }: { skipped: SkippedCandidate[] }) {
+  const t = useTranslations("jobs.shared");
   if (!skipped.length) return null;
   return (
     <details className="mt-2 rounded-md border border-amber-200 bg-amber-50/60 px-2.5 py-1.5 text-sm text-amber-800">
       <summary className="cursor-pointer font-semibold">
-        {skipped.length} candidate{skipped.length === 1 ? "" : "s"} couldn&apos;t be scored (malformed profile) — the
-        rest ranked normally
+        {t("skippedSummary", { count: skipped.length })}
       </summary>
       <ul className="mt-1 space-y-0.5">
         {skipped.map((s) => (
           <li key={s.id}>
-            <span className="font-medium">{s.label}</span> — {s.reason}
+            <span className="font-medium">{s.label}</span>{` — ${s.reason}`}
           </li>
         ))}
       </ul>
@@ -25,6 +26,7 @@ export function SkippedCandidatesNote({ skipped }: { skipped: SkippedCandidate[]
 }
 
 export function ReqChip({ req }: { req: JobRequirement }) {
+  const t = useTranslations("jobs.shared");
   const learnable = req.hardness === "learnable";
   return (
     <span
@@ -34,7 +36,7 @@ export function ReqChip({ req }: { req: JobRequirement }) {
       title={`${req.kind} · ${req.hardness}${req.termId ? ` · ${req.termId}` : ""}`}
     >
       {req.skill}
-      <span className="text-sm uppercase opacity-70">{learnable ? "learnable" : "prereq"}</span>
+      <span className="text-sm uppercase opacity-70">{learnable ? t("reqLearnable") : t("reqPrereq")}</span>
     </span>
   );
 }

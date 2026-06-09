@@ -29,6 +29,12 @@ def main() -> int:
     parser.add_argument("--job-description-text")
     parser.add_argument("--company-path", type=Path)
     parser.add_argument("--company-text")
+    parser.add_argument(
+        "--lang",
+        default="en",
+        help="Output locale for LLM-generated narrative (e.g. en, cs). "
+        "Code values, skills, and proper nouns stay verbatim regardless.",
+    )
     parser.add_argument("--pretty", action="store_true")
     parser.add_argument(
         "--stream",
@@ -50,6 +56,7 @@ def main() -> int:
             job_description_text=args.job_description_text,
             company_path=args.company_path,
             company_text=args.company_text,
+            lang=args.lang,
             progress=progress,
         )
     except ValueError as exc:

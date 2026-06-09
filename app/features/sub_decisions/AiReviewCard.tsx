@@ -1,6 +1,7 @@
 "use client";
 
 import { Check, Sparkles, X } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { RATING_MAX } from "@/app/_lib/format";
 import { CandidateHead, MiniList, RecBadge } from "./DecisionsShared";
 import type { Entry, Offer, Scorecard, Screening } from "./DecisionsTypes";
@@ -11,6 +12,7 @@ import type { Entry, Offer, Scorecard, Screening } from "./DecisionsTypes";
 const RATING_SCALE = Array.from({ length: RATING_MAX }, (_, i) => i + 1);
 
 export function AiReviewCard({ entry, onAccept, onReject }: { entry: Entry; onAccept: () => void; onReject: () => void }) {
+  const t = useTranslations("decisions.aiReview");
   let parsed: (Screening & Scorecard & Offer) | null = null;
   try {
     parsed = entry.approvalDetail ? (JSON.parse(entry.approvalDetail) as Screening & Scorecard & Offer) : null;
@@ -20,8 +22,8 @@ export function AiReviewCard({ entry, onAccept, onReject }: { entry: Entry; onAc
   const kind = entry.approvalKind;
   const isScorecard = kind === "scorecard_review";
   const isOffer = kind === "offer_review";
-  const tag = isOffer ? "Offer package" : isScorecard ? "Interview scorecard" : "AI screening";
-  const acceptLabel = isOffer ? "Send offer" : isScorecard ? "To offer" : "Advance";
+  const tag = isOffer ? t("tagOffer") : isScorecard ? t("tagScorecard") : t("tagScreening");
+  const acceptLabel = isOffer ? t("acceptSendOffer") : isScorecard ? t("acceptToOffer") : t("acceptAdvance");
 
   return (
     <article className="animate-fade-in rounded-lg border border-stone-200 bg-white p-3 shadow-panel">
@@ -52,7 +54,11 @@ export function AiReviewCard({ entry, onAccept, onReject }: { entry: Entry; onAc
                 />
               </div>
               <p className="mt-1 text-sm text-steel">
-                band {Number(parsed.salaryMin ?? 0).toLocaleString()}–{Number(parsed.salaryMax ?? 0).toLocaleString()} {parsed.currency}
+                {t("band", {
+                  min: Number(parsed.salaryMin ?? 0).toLocaleString(),
+                  max: Number(parsed.salaryMax ?? 0).toLocaleString(),
+                  currency: String(parsed.currency ?? ""),
+                })}
               </p>
               <p className="mt-1">{parsed.rationale}</p>
             </>
@@ -77,8 +83,8 @@ export function AiReviewCard({ entry, onAccept, onReject }: { entry: Entry; onAc
               <p>{parsed.rationale}</p>
               {parsed.strengths?.length || parsed.redFlags?.length ? (
                 <div className="mt-2 grid grid-cols-2 gap-2">
-                  <MiniList title="Strengths" items={parsed.strengths ?? []} tone="green" />
-                  <MiniList title="Red flags" items={parsed.redFlags ?? []} tone="red" />
+                  <MiniList title={t("strengths")} items={parsed.strengths ?? []} tone="green" />
+                  <MiniList title={t("redFlags")} items={parsed.redFlags ?? []} tone="red" />
                 </div>
               ) : null}
             </>
@@ -100,7 +106,7 @@ export function AiReviewCard({ entry, onAccept, onReject }: { entry: Entry; onAc
           onClick={onReject}
           className="focus-ring inline-flex h-9 items-center justify-center gap-1 rounded-md border border-stone-200 px-3 text-base font-semibold text-coral hover:bg-coral/5"
         >
-          <X size={16} /> Reject
+          <X size={16} /> {t("reject")}
         </button>
       </div>
     </article>

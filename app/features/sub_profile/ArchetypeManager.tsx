@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { Pencil, Plus, Shield, ShieldOff } from "lucide-react";
+import { useTranslations } from "next-intl";
 import type { ArchetypeDef } from "./ProfileTypes";
 import { Input, Select, Check, Field } from "./ProfileFields";
 
@@ -56,6 +57,7 @@ export function ArchetypeManager({
   loading: boolean;
   onChanged: () => void;
 }) {
+  const t = useTranslations("profile.archetypes");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [mode, setMode] = useState<"view" | "edit" | "create">("view");
   const [draft, setDraft] = useState<Draft>(BLANK_DRAFT);
@@ -69,7 +71,7 @@ export function ArchetypeManager({
   }, [archetypes, selectedId]);
 
   const pctSum = SLOTS.reduce((n, s) => n + (Number(draft.pct[s]) || 0), 0);
-  const sumError = pctSum !== 100 ? `Weights must total 100% (currently ${pctSum}%).` : null;
+  const sumError = pctSum !== 100 ? t("weightsSumError", { pct: pctSum }) : null;
 
   const startEdit = () => {
     if (!selected) return;
@@ -93,7 +95,7 @@ export function ArchetypeManager({
       return;
     }
     if (!draft.label.trim()) {
-      setError("Label is required.");
+      setError(t("labelRequired"));
       return;
     }
     setSaving(true);
@@ -116,12 +118,12 @@ export function ArchetypeManager({
         body: JSON.stringify(payload),
       });
       const data = await r.json();
-      if (!r.ok) throw new Error(data.error ?? `Save failed (${r.status}).`);
+      if (!r.ok) throw new Error(data.error ?? t("saveFailedStatus", { status: r.status }));
       setSelectedId(data.archetype?.id ?? null);
       setMode("view");
       onChanged();
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Save failed.");
+      setError(caught instanceof Error ? caught.message : t("saveFailed"));
     } finally {
       setSaving(false);
     }
@@ -131,20 +133,16 @@ export function ArchetypeManager({
     <section className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
       <header className="flex flex-wrap items-start justify-between gap-3 border-b border-stone-200 pb-4">
         <div>
-          <p className="text-meta uppercase text-coral">Workspace</p>
-          <h2 className="mt-1 font-serif text-display text-ink">Archetypes</h2>
-          <p className="mt-2 max-w-3xl text-body text-steel">
-            The candidate taxonomy that drives intake, scoring weights, the fairness shield, and how every candidate is
-            ranked. Select one to inspect it; edit its weights, labels, and protections — changes apply to matching and
-            intake immediately.
-          </p>
+          <p className="text-meta uppercase text-coral">{t("eyebrow")}</p>
+          <h2 className="mt-1 font-serif text-display text-ink">{t("title")}</h2>
+          <p className="mt-2 max-w-3xl text-body text-steel">{t("intro")}</p>
         </div>
         <button
           type="button"
           onClick={startCreate}
           className="focus-ring inline-flex h-9 shrink-0 items-center gap-1.5 rounded-md border border-stone-200 px-3 text-sm font-semibold text-ink hover:bg-paper"
         >
-          <Plus size={15} /> New archetype
+          <Plus size={15} /> {t("newArchetype")}
         </button>
       </header>
 
@@ -171,7 +169,7 @@ export function ArchetypeManager({
                   >
                     <span className={`h-1.5 w-1.5 rounded-full ${active ? "bg-coral" : "bg-stone-300"}`} aria-hidden />
                     <span className="min-w-0 flex-1 truncate">{a.label}</span>
-                    {a.fairnessProtected ? <Shield size={13} className="shrink-0 text-moss" aria-label="Fairness-protected" /> : null}
+                    {a.fairnessProtected ? <Shield size={13} className="shrink-0 text-moss" aria-label={t("fairnessProtectedAria")} /> : null}
                   </button>
                 </li>
               );
@@ -203,6 +201,7 @@ export function ArchetypeManager({
 }
 
 function ViewPanel({ archetype, onEdit }: { archetype: ArchetypeDef; onEdit: () => void }) {
+  const t = useTranslations("profile.archetypes");
   return (
     <div>
       <div className="flex flex-wrap items-center gap-2">
@@ -211,25 +210,25 @@ function ViewPanel({ archetype, onEdit }: { archetype: ArchetypeDef; onEdit: () 
         <span className="rounded-md bg-white px-2 py-0.5 text-sm text-steel">{archetype.scoringModel}</span>
         <span className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-sm ${archetype.fairnessProtected ? "bg-moss/10 text-moss" : "bg-stone-100 text-steel"}`}>
           {archetype.fairnessProtected ? <Shield size={12} /> : <ShieldOff size={12} />}
-          {archetype.fairnessProtected ? "Fairness-protected" : "Not protected"}
+          {archetype.fairnessProtected ? t("fairnessProtected") : t("notProtected")}
         </span>
         <button
           type="button"
           onClick={onEdit}
           className="focus-ring ml-auto inline-flex h-8 items-center gap-1.5 rounded-md bg-ink px-3 text-sm font-semibold text-white hover:bg-steel"
         >
-          <Pencil size={13} /> Edit
+          <Pencil size={13} /> {t("edit")}
         </button>
       </div>
 
       <p className="mt-1 text-sm text-steel">
-        Scoring model <strong className="text-ink">{archetype.scoringModel}</strong>
-        {archetype.scoringModel === "early_career" ? " — potential replaces years of experience." : " — years/seniority drive the fit."}
-        {archetype.applyLabel ? <> · Apply self-declaration: “{archetype.applyLabel}”.</> : null}
+        {t.rich("scoringModelLabel", { model: archetype.scoringModel, b: (chunks) => <strong className="text-ink">{chunks}</strong> })}
+        {archetype.scoringModel === "early_career" ? t("earlyModelNote") : t("expModelNote")}
+        {archetype.applyLabel ? t("applyClause", { label: archetype.applyLabel }) : null}
       </p>
 
       <div className="mt-4">
-        <p className="text-meta uppercase tracking-wide text-steel">Scoring weights</p>
+        <p className="text-meta uppercase tracking-wide text-steel">{t("scoringWeights")}</p>
         <div className="mt-2 space-y-2">
           {SLOTS.map((slot) => {
             const pct = Math.round(archetype.weights[slot] * 100);
@@ -250,11 +249,11 @@ function ViewPanel({ archetype, onEdit }: { archetype: ArchetypeDef; onEdit: () 
 
       {archetype.checklist.length ? (
         <div className="mt-4">
-          <p className="text-meta uppercase tracking-wide text-steel">Completeness checklist (specific)</p>
+          <p className="text-meta uppercase tracking-wide text-steel">{t("checklistTitle")}</p>
           <ul className="mt-1.5 flex flex-wrap gap-1.5">
             {archetype.checklist.map((c) => (
               <li key={c.check} className="rounded-md border border-stone-200 bg-white px-2 py-0.5 text-sm text-ink">
-                {c.label} <span className="text-steel">·{c.weight}</span>
+                {c.label} <span className="text-steel">{`·${c.weight}`}</span>
               </li>
             ))}
           </ul>
@@ -285,52 +284,53 @@ function EditPanel({
   onSave: () => void;
   onCancel: () => void;
 }) {
+  const t = useTranslations("profile.archetypes");
   const set = <K extends keyof Draft>(key: K, value: Draft[K]) => setDraft((d) => ({ ...d, [key]: value }));
   const setPct = (slot: Slot, value: number) => setDraft((d) => ({ ...d, pct: { ...d.pct, [slot]: value } }));
   const setDim = (slot: Slot, value: string) => setDraft((d) => ({ ...d, dim: { ...d.dim, [slot]: value } }));
 
   return (
     <div>
-      <h3 className="font-serif text-h3 text-ink">{mode === "create" ? "New archetype" : `Edit ${draft.label || "archetype"}`}</h3>
+      <h3 className="font-serif text-h3 text-ink">{mode === "create" ? t("newArchetype") : t("editArchetype", { label: draft.label || t("archetypeFallback") })}</h3>
 
       <div className="mt-3 grid gap-3 sm:grid-cols-2">
         {mode === "create" ? (
-          <Field label="Id (immutable)">
-            <Input value={draft.id} onChange={(e) => set("id", e.target.value)} placeholder="e.g. returner" className="w-full text-ink" />
+          <Field label={t("idLabel")}>
+            <Input value={draft.id} onChange={(e) => set("id", e.target.value)} placeholder={t("idPlaceholder")} className="w-full text-ink" />
           </Field>
         ) : null}
-        <Field label="Label">
+        <Field label={t("labelField")}>
           <Input value={draft.label} onChange={(e) => set("label", e.target.value)} className="w-full text-ink" />
         </Field>
-        <Field label="Badge (short)">
+        <Field label={t("badgeField")}>
           <Input value={draft.badge} onChange={(e) => set("badge", e.target.value)} className="w-full text-ink" />
         </Field>
-        <Field label="Scoring model">
+        <Field label={t("scoringModelField")}>
           <Select value={draft.scoringModel} onChange={(e) => set("scoringModel", e.target.value)} className="w-full bg-white px-2 text-base text-ink">
-            <option value="experienced">experienced (years-based)</option>
-            <option value="early_career">early_career (potential-based)</option>
+            <option value="experienced">{t("scoringExperienced")}</option>
+            <option value="early_career">{t("scoringEarlyCareer")}</option>
           </Select>
         </Field>
-        <Field label="Apply self-declaration (optional)">
-          <Input value={draft.applyLabel} onChange={(e) => set("applyLabel", e.target.value)} placeholder="shown in the apply chat" className="w-full text-ink" />
+        <Field label={t("applyField")}>
+          <Input value={draft.applyLabel} onChange={(e) => set("applyLabel", e.target.value)} placeholder={t("applyPlaceholder")} className="w-full text-ink" />
         </Field>
       </div>
 
       <Check
         className="mt-3"
-        label="Fairness-protected (never auto-rejected)"
+        label={t("fairnessCheck")}
         checked={draft.fairnessProtected}
         onChange={(v) => set("fairnessProtected", v)}
       />
 
       <div className="mt-4">
         <div className="flex items-center justify-between">
-          <p className="text-meta uppercase tracking-wide text-steel">Scoring weights (must total 100%)</p>
+          <p className="text-meta uppercase tracking-wide text-steel">{t("scoringWeightsTotal")}</p>
           <span className={`text-sm font-semibold ${pctSum === 100 ? "text-moss" : "text-coral"}`}>{pctSum}%</span>
         </div>
         <div className="mt-2 grid gap-2 sm:grid-cols-3">
           {SLOTS.map((slot) => (
-            <Field key={slot} label={`${slot} weight %`}>
+            <Field key={slot} label={t("weightFieldLabel", { slot })}>
               <Input
                 type="number"
                 min={0}
@@ -344,7 +344,7 @@ function EditPanel({
         </div>
         <div className="mt-2 grid gap-2 sm:grid-cols-3">
           {SLOTS.map((slot) => (
-            <Field key={slot} label={`${slot} label`}>
+            <Field key={slot} label={t("dimFieldLabel", { slot })}>
               <Input value={draft.dim[slot]} onChange={(e) => setDim(slot, e.target.value)} className="w-full text-ink" />
             </Field>
           ))}
@@ -360,10 +360,10 @@ function EditPanel({
           disabled={saving || Boolean(sumError)}
           className="focus-ring h-9 rounded-md bg-ink px-4 text-sm font-semibold text-white hover:bg-steel disabled:opacity-40"
         >
-          {saving ? "Saving…" : mode === "create" ? "Create archetype" : "Save changes"}
+          {saving ? t("saving") : mode === "create" ? t("createArchetype") : t("saveChanges")}
         </button>
         <button type="button" onClick={onCancel} className="focus-ring h-9 rounded-md border border-stone-200 px-4 text-sm font-semibold text-ink hover:bg-paper">
-          Cancel
+          {t("cancel")}
         </button>
       </div>
     </div>

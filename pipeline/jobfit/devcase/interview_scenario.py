@@ -187,13 +187,20 @@ def _coerce(payload: Any, case: CaseScenario, role: RoleSpec) -> InterviewScenar
 
 
 def scenario_from_case(
-    case: CaseScenario, role: RoleSpec, *, provider: Any | None = None
+    case: CaseScenario, role: RoleSpec, *, lang: str = "en", provider: Any | None = None
 ) -> tuple[dict, str]:
-    """Return (scenario as a by-alias dict, source 'llm'|'deterministic')."""
+    """Return (scenario as a by-alias dict, source 'llm'|'deterministic').
+
+    ``lang`` is the spoken language of the interview the voice agent delivers
+    (en | cs); the canonical phase structure stays fixed. The deterministic
+    fallback is English-only."""
+    from ..i18n import language_directive
+
     if provider is None:
         return deterministic_scenario(case, role).model_dump(by_alias=True), "deterministic"
     try:
-        payload = provider.complete_json(build_prompt(case, role), system=_SYSTEM)
+        prompt = f"{build_prompt(case, role)}\n\n{language_directive(lang)}"
+        payload = provider.complete_json(prompt, system=_SYSTEM)
         return _coerce(payload, case, role).model_dump(by_alias=True), "llm"
     except Exception:
         return deterministic_scenario(case, role).model_dump(by_alias=True), "deterministic"

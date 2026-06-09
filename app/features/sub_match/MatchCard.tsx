@@ -1,12 +1,14 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { useTasks, useTaskResult } from "@/app/features/tasks/TasksProvider";
 import { ConfidenceBandBadge, confidenceBandTitle } from "@/app/_components/Badge";
 import type { MatchRef, MatchResult, Reasoning, ReasoningState } from "./MatchTypes";
-import { isEarlyCareer, FAMILY_LABEL, provLabel } from "./MatchTypes";
+import { isEarlyCareer, provLabel } from "./MatchTypes";
 import { Bar, ReasoningPanel, ScoreBreakdown } from "./MatchShared";
 import { FitTierBadge } from "@/app/_components/Badge";
+import { useEnumLabel } from "@/app/_lib/use-enum-label";
 
 export function MatchCard({
   m,
@@ -37,6 +39,8 @@ export function MatchCard({
   selected?: boolean;
   onToggleSelect?: () => void;
 }) {
+  const t = useTranslations("match");
+  const enumLabel = useEnumLabel();
   const { startTask } = useTasks();
   const [reasoning, setReasoning] = useState<ReasoningState | null>(null);
   const [taskId, setTaskId] = useState<string | null>(null);
@@ -50,12 +54,12 @@ export function MatchCard({
   const explain = async () => {
     if (reasoning?.loading) return;
     setReasoning({ loading: true });
-    const t = await startTask("reasoning", { ...matchRef, jobId: m.jobId, label: m.title });
-    if (!t) {
-      setReasoning({ error: "Couldn't start the fit analysis." });
+    const started = await startTask("reasoning", { ...matchRef, jobId: m.jobId, label: m.title });
+    if (!started) {
+      setReasoning({ error: t("card.startFailed") });
       return;
     }
-    setTaskId(t.id);
+    setTaskId(started.id);
   };
 
   const { status: reasoningStatus, error: reasoningError, full: reasoningFull } = useTaskResult(taskId);
@@ -64,10 +68,10 @@ export function MatchCard({
   // so the result paints in the same commit instead of one effect-frame later.
   if (taskId && reasoningStatus === "succeeded" && reasoningFull) {
     const p = reasoningFull.result as { reasoning?: Reasoning; source?: string; cached?: boolean } | null;
-    setReasoning(p?.reasoning ? { data: p.reasoning, source: p.source, cached: p.cached } : { error: "No reasoning returned." });
+    setReasoning(p?.reasoning ? { data: p.reasoning, source: p.source, cached: p.cached } : { error: t("card.noReasoning") });
     setTaskId(null);
   } else if (taskId && (reasoningStatus === "failed" || reasoningStatus === "canceled" || reasoningStatus === "interrupted")) {
-    setReasoning({ error: reasoningError ?? "Reasoning failed." });
+    setReasoning({ error: reasoningError ?? t("card.reasoningFailed") });
     setTaskId(null);
   }
 
@@ -88,7 +92,7 @@ export function MatchCard({
             <FitTierBadge tier={m.fitTier} score={m.total} />
             {m.isEntryEligible ? (
               <span className="rounded-full bg-green-50 px-2 py-0.5 text-sm font-semibold text-green-700">
-                entry-eligible
+                {t("card.entryEligible")}
               </span>
             ) : null}
             <ConfidenceBandBadge level={m.confidence.level} drivers={m.confidence.drivers} />
@@ -98,8 +102,8 @@ export function MatchCard({
                   type="checkbox"
                   checked={selected}
                   onChange={onToggleSelect}
-                  aria-label={`Shortlist ${m.title} for bulk add`}
-                  title="Shortlist for bulk add"
+                  aria-label={t("card.shortlistAria", { title: m.title })}
+                  title={t("card.shortlistTitle")}
                   className="h-4 w-4 accent-coral"
                 />
               ) : null}
@@ -114,7 +118,7 @@ export function MatchCard({
                       : "border border-stone-200 text-ink hover:bg-paper disabled:opacity-40"
                   }`}
                 >
-                  {added ? "✓ In pipeline" : adding ? "Adding…" : "+ Pipeline"}
+                  {added ? t("card.inPipeline") : adding ? t("card.adding") : t("card.addPipeline")}
                 </button>
               ) : null}
               {canExplain ? (
@@ -124,17 +128,24 @@ export function MatchCard({
                   disabled={reasoning?.loading}
                   className="focus-ring rounded-md border border-stone-200 px-2 py-0.5 text-sm font-semibold text-coral hover:bg-paper disabled:opacity-40"
                 >
-                  {reasoning?.loading ? "Reasoning…" : reasoning?.data ? "Refresh reasoning" : "Explain fit"}
+                  {reasoning?.loading ? t("card.reasoningBusy") : reasoning?.data ? t("card.refreshReasoning") : t("card.explainFit")}
                 </button>
               ) : null}
             </div>
           </div>
           <p className="mt-0.5 text-sm text-steel tabular-nums tracking-tight">
-            <span className="font-medium text-ink">{m.company ?? "—"}</span> · {m.location ?? "—"} · {m.workMode ?? "—"} ·{" "}
-            {FAMILY_LABEL[m.roleFamily ?? ""] ?? m.roleFamily} / {m.seniority} ·{" "}
-            {m.salaryBand && m.salaryBand.length === 2
-              ? `${Math.round(m.salaryBand[0] / 1000)}–${Math.round(m.salaryBand[1] / 1000)}k CZK`
-              : "—"}
+            {t.rich("card.metaLine", {
+              company: m.company ?? "—",
+              location: m.location ?? "—",
+              workMode: m.workMode ? enumLabel("workMode", m.workMode) : "—",
+              family: m.roleFamily ? enumLabel("family", m.roleFamily) : "—",
+              seniority: m.seniority ?? "—",
+              salary:
+                m.salaryBand && m.salaryBand.length === 2
+                  ? `${Math.round(m.salaryBand[0] / 1000)}–${Math.round(m.salaryBand[1] / 1000)}k CZK`
+                  : "—",
+              b: (chunks) => <span className="font-medium text-ink">{chunks}</span>,
+            })}
           </p>
 
           {m.scoreBreakdown && m.scoreBreakdown.length > 0 ? (
@@ -143,9 +154,9 @@ export function MatchCard({
             // Fallback for a response without the server breakdown (e.g. an older
             // cached shape): the raw per-dimension scores, weight-blind.
             <div className="mt-2 grid max-w-md grid-cols-3 gap-2">
-              <Bar label={early ? "Foundation" : "Skills"} value={m.skillsScore} />
-              <Bar label={early ? "Potential" : "Career"} value={m.careerScore} />
-              <Bar label={early ? "Fit" : "Personal"} value={m.personalScore} />
+              <Bar label={early ? t("dims.foundation") : t("dims.skills")} value={m.skillsScore} />
+              <Bar label={early ? t("dims.potential") : t("dims.career")} value={m.careerScore} />
+              <Bar label={early ? t("dims.fit") : t("dims.personal")} value={m.personalScore} />
             </div>
           )}
 
@@ -154,7 +165,7 @@ export function MatchCard({
               without knowing to hover. Tight bands stay quiet. */}
           {m.confidence.level !== "tight" && m.confidence.drivers.length > 0 ? (
             <p className="mt-1.5 text-sm text-steel">
-              <span className="font-medium text-ink">Why this band:</span> {m.confidence.drivers.join(" · ")}
+              <span className="font-medium text-ink">{t("card.whyBandLabel")}</span> {m.confidence.drivers.join(" · ")}
             </p>
           ) : null}
 
@@ -176,11 +187,11 @@ export function MatchCard({
                   return (
                     <span
                       key={`m-${s}`}
-                      title={partial ? `Partial match (${Math.round(strength * 100)}%) — a related/sibling or self-declared skill, not a verified exact match` : undefined}
+                      title={partial ? t("card.partialTitle", { pct: Math.round(strength * 100) }) : undefined}
                       className={`inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-sm text-green-700 ${partial ? "bg-green-50/60 ring-1 ring-inset ring-green-600/30" : "bg-green-50"}`}
                     >
                       {partial ? `~ ${s}` : s}
-                      {pl ? <span className={`rounded px-1 text-sm uppercase ${pl.tone}`}>{pl.text}</span> : null}
+                      {pl ? <span className={`rounded px-1 text-sm uppercase ${pl.tone}`}>{enumLabel("provenance", pl.key)}</span> : null}
                     </span>
                   );
                 })}
@@ -188,9 +199,9 @@ export function MatchCard({
                   <span
                     key={`x-${s}`}
                     className="rounded-md bg-red-50 px-1.5 py-0.5 text-sm text-red-700"
-                    title={early ? "Missing must-have (often learnable)" : "Missing must-have"}
+                    title={early ? t("card.missingTitleEarly") : t("card.missingTitle")}
                   >
-                    ✗ {s}
+                    {`✗ ${s}`}
                   </span>
                 ))}
                 {hidden > 0 || skillsExpanded ? (
@@ -199,7 +210,7 @@ export function MatchCard({
                     onClick={() => setSkillsExpanded((v) => !v)}
                     className="focus-ring rounded-md bg-stone-100 px-1.5 py-0.5 text-sm font-semibold text-steel hover:bg-stone-200"
                   >
-                    {skillsExpanded ? "Show less" : `+${hidden} more`}
+                    {skillsExpanded ? t("card.showLess") : t("card.moreCount", { count: hidden })}
                   </button>
                 ) : null}
               </div>

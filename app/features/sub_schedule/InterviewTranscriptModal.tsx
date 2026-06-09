@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { AlertTriangle, ClipboardCheck, Loader2, Quote, RefreshCw } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { Modal } from "@/app/_components/Modal";
 import { InterviewRecommendationBadge } from "@/app/_components/Badge";
 import { Meter } from "@/app/_components/Meter";
@@ -69,11 +70,12 @@ function findEvidenceTurn(evidence: string, turns: VoiceTurn[]): number {
 // to the AI one — same rubric layout (rating meters + evidence), coral-tinted so
 // the two are never confused. Used both alongside an AI screen and on its own.
 function HumanScorecardSection({ sc }: { sc: Scorecard }) {
+  const t = useTranslations("scheduleTab.transcript");
   return (
     <section className="rounded-md border border-coral/30 bg-coral/5 p-3">
       <div className="flex items-center justify-between gap-2">
         <p className="flex items-center gap-1.5 text-meta uppercase tracking-wide text-steel">
-          <ClipboardCheck size={13} className="text-coral" /> Human scorecard
+          <ClipboardCheck size={13} className="text-coral" /> {t("humanScorecard")}
         </p>
         {sc.recommendation ? <InterviewRecommendationBadge rec={sc.recommendation} /> : null}
       </div>
@@ -86,10 +88,10 @@ function HumanScorecardSection({ sc }: { sc: Scorecard }) {
               <li key={i} className="text-sm text-ink">
                 <div className="flex items-baseline justify-between gap-2">
                   <span className="font-semibold">{r.competency}</span>
-                  <span className="shrink-0 nums text-steel">{rating != null ? `${rating}/${RATING_MAX}` : "Not assessed"}</span>
+                  <span className="shrink-0 nums text-steel">{rating != null ? `${rating}/${RATING_MAX}` : t("notAssessed")}</span>
                 </div>
                 {rating != null ? (
-                  <Meter value={ratingToPercent(rating)} tone={ratingTone(rating)} className="mt-1" aria-label={`${r.competency} rating ${rating} out of ${RATING_MAX}`} />
+                  <Meter value={ratingToPercent(rating)} tone={ratingTone(rating)} className="mt-1" aria-label={t("ratingAria", { competency: r.competency, rating, max: RATING_MAX })} />
                 ) : null}
                 {r.evidence ? <p className="mt-1 text-meta text-steel">{r.evidence}</p> : null}
               </li>
@@ -97,18 +99,19 @@ function HumanScorecardSection({ sc }: { sc: Scorecard }) {
           })}
         </ul>
       ) : null}
-      <p className="mt-2 text-meta text-steel">Recorded by a recruiter from the interview prep rubric.</p>
+      <p className="mt-2 text-meta text-steel">{t("humanScorecardNote")}</p>
     </section>
   );
 }
 
 export function InterviewTranscriptModal({ entry, onClose }: { entry: SchedEntry; onClose: () => void }) {
+  const t = useTranslations("scheduleTab.transcript");
   // The shared hook captures a non-OK status / {error} body that the old bare
   // .then(r => r.json()) swallowed — a 500 now reads as an error rather than an
   // empty "no interview recorded" — and ignores results after unmount.
   const { data, error, reload } = useJsonFetch<{ session?: Session }>(
     `/api/interview/by-entry?entry=${encodeURIComponent(entry.id)}`,
-    "Couldn't load the interview."
+    t("loadFailed")
   );
   const loading = data === null && error === null;
   const session = data?.session ?? null;
@@ -117,7 +120,7 @@ export function InterviewTranscriptModal({ entry, onClose }: { entry: SchedEntry
   // rubric — shown beside the AI screen so a human-led round isn't invisible here.
   const { data: prepData } = useJsonFetch<{ prep?: { payload?: { humanScorecard?: Scorecard } } }>(
     `/api/interview-prep?entry=${encodeURIComponent(entry.id)}`,
-    "Couldn't load the scorecard."
+    t("scorecardLoadFailed")
   );
   const humanSc = prepData?.prep?.payload?.humanScorecard ?? null;
 
@@ -140,10 +143,10 @@ export function InterviewTranscriptModal({ entry, onClose }: { entry: SchedEntry
   };
 
   return (
-    <Modal title={`Interview transcript · ${entry.candidateLabel}`} subtitle={entry.jobTitle ?? undefined} onClose={onClose} size="3xl">
+    <Modal title={t("title", { name: entry.candidateLabel })} subtitle={entry.jobTitle ?? undefined} onClose={onClose} size="3xl">
       {loading ? (
         <p className="flex items-center gap-2 text-sm text-steel">
-          <Loader2 size={16} className="animate-spin text-coral" /> Loading…
+          <Loader2 size={16} className="animate-spin text-coral" /> {t("loading")}
         </p>
       ) : error ? (
         // Distinct failure state with a retry: a 500 / DB lock / parse error must
@@ -157,7 +160,7 @@ export function InterviewTranscriptModal({ entry, onClose }: { entry: SchedEntry
             onClick={reload}
             className="focus-ring inline-flex h-9 items-center gap-1.5 rounded-md border border-stone-200 px-3 text-sm font-semibold text-ink hover:border-coral/40"
           >
-            <RefreshCw size={14} /> Retry
+            <RefreshCw size={14} /> {t("retry")}
           </button>
         </div>
       ) : !session ? (
@@ -166,17 +169,17 @@ export function InterviewTranscriptModal({ entry, onClose }: { entry: SchedEntry
         humanSc ? (
           <div className="space-y-3">
             <HumanScorecardSection sc={humanSc} />
-            <p className="text-sm text-steel">No voice interview transcript for this candidate — showing the recruiter&apos;s scorecard.</p>
+            <p className="text-sm text-steel">{t("noVoiceShowScorecard")}</p>
           </div>
         ) : (
-          <p className="text-sm text-steel">No interview has been recorded for this candidate yet.</p>
+          <p className="text-sm text-steel">{t("noInterview")}</p>
         )
       ) : (
         <div className="space-y-5">
           {sc ? (
             <section className="rounded-md border border-stone-200 bg-paper p-3">
               <div className="flex items-center justify-between gap-2">
-                <p className="text-meta uppercase tracking-wide text-steel">AI scorecard</p>
+                <p className="text-meta uppercase tracking-wide text-steel">{t("aiScorecard")}</p>
                 {sc.recommendation ? <InterviewRecommendationBadge rec={sc.recommendation} /> : null}
               </div>
               {sc.summary ? <p className="mt-1.5 text-base text-ink">{sc.summary}</p> : null}
@@ -188,14 +191,14 @@ export function InterviewTranscriptModal({ entry, onClose }: { entry: SchedEntry
                       <li key={i} className="text-sm text-ink">
                         <div className="flex items-baseline justify-between gap-2">
                           <span className="font-semibold">{r.competency}</span>
-                          <span className="shrink-0 nums text-steel">{rating != null ? `${rating}/${RATING_MAX}` : "Not assessed"}</span>
+                          <span className="shrink-0 nums text-steel">{rating != null ? `${rating}/${RATING_MAX}` : t("notAssessed")}</span>
                         </div>
                         {rating != null ? (
                           <Meter
                             value={ratingToPercent(rating)}
                             tone={ratingTone(rating)}
                             className="mt-1"
-                            aria-label={`${r.competency} rating ${rating} out of ${RATING_MAX}`}
+                            aria-label={t("ratingAria", { competency: r.competency, rating, max: RATING_MAX })}
                           />
                         ) : null}
                         {r.evidence ? (
@@ -206,7 +209,7 @@ export function InterviewTranscriptModal({ entry, onClose }: { entry: SchedEntry
                               type="button"
                               onClick={() => jumpToTurn(evidenceTurns[i])}
                               className="focus-ring mt-1 inline-flex items-start gap-1 rounded text-left text-meta text-steel hover:text-coral"
-                              title="Jump to this moment in the transcript"
+                              title={t("jumpToMoment")}
                             >
                               <Quote size={11} className="mt-0.5 shrink-0 text-coral/70" aria-hidden />
                               <span className="underline decoration-dotted underline-offset-2">{r.evidence}</span>
@@ -220,7 +223,7 @@ export function InterviewTranscriptModal({ entry, onClose }: { entry: SchedEntry
                   })}
                 </ul>
               ) : null}
-              <p className="mt-2 text-meta text-steel">Feeds the scorecard review in Decisions and the candidate&apos;s analysis.</p>
+              <p className="mt-2 text-meta text-steel">{t("feedsReview")}</p>
             </section>
           ) : null}
 
@@ -228,26 +231,26 @@ export function InterviewTranscriptModal({ entry, onClose }: { entry: SchedEntry
 
           <section>
             <p className="text-meta uppercase tracking-wide text-steel">
-              Transcript {session.provider ? `· ${session.provider}` : ""}
+              {t("transcriptHeading")} {session.provider ? `· ${session.provider}` : ""}
             </p>
             {transcript.length === 0 ? (
-              <p className="mt-2 text-sm text-steel">No transcript captured.</p>
+              <p className="mt-2 text-sm text-steel">{t("noTranscript")}</p>
             ) : (
               <div className="mt-2 space-y-2.5">
-                {transcript.map((t, i) => {
+                {transcript.map((turn, i) => {
                   const highlighted = highlightIdx === i;
                   return (
-                    <div key={i} id={`iv-turn-${i}`} className={t.role === "candidate" ? "text-right" : ""}>
+                    <div key={i} id={`iv-turn-${i}`} className={turn.role === "candidate" ? "text-right" : ""}>
                       <p className="text-meta uppercase text-steel">
-                        {t.role === "candidate" ? "Candidate" : t.role === "interviewer" ? "Interviewer (AI)" : "System"}
-                        {citedTurns.has(i) ? <span className="ml-1.5 text-coral" title="Cited by the scorecard">· cited</span> : null}
+                        {turn.role === "candidate" ? t("roleCandidate") : turn.role === "interviewer" ? t("roleInterviewer") : t("roleSystem")}
+                        {citedTurns.has(i) ? <span className="ml-1.5 text-coral" title={t("citedTitle")}>{t("cited")}</span> : null}
                       </p>
                       <p
                         className={`mt-0.5 inline-block max-w-[85%] rounded-lg px-3 py-2 text-base leading-6 transition-shadow ${
-                          t.role === "candidate" ? "bg-limewash text-ink" : "bg-paper text-ink"
+                          turn.role === "candidate" ? "bg-limewash text-ink" : "bg-paper text-ink"
                         } ${highlighted ? "ring-2 ring-coral" : ""}`}
                       >
-                        {t.text}
+                        {turn.text}
                       </p>
                     </div>
                   );
