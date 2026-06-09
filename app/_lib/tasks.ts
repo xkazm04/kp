@@ -125,7 +125,7 @@ const HANDLERS: Record<string, Spec> = {
     label: (p) => `Build JD · ${p.title ?? "role"}`,
   },
   interview_prep: {
-    run: (ctx) => runInterviewPrep(ctx.params),
+    run: (ctx) => runInterviewPrep(ctx.params, ctx.signal),
     label: (p) => `Interview prep · ${p.candidateLabel ?? p.entryId ?? ""}`,
   },
 };

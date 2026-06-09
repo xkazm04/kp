@@ -18,7 +18,7 @@ import { buildRunOfShow, type PrepQuestion } from "./run-of-show";
 // Re-exported so existing importers (interview-run.ts) keep their import paths.
 export type { ChronologyBlock } from "./run-of-show";
 
-export async function runInterviewPrep(params: Record<string, unknown>): Promise<Record<string, unknown>> {
+export async function runInterviewPrep(params: Record<string, unknown>, signal?: AbortSignal): Promise<Record<string, unknown>> {
   const entryId = String(params.entryId ?? "");
   const candidateLabel = (params.candidateLabel as string) ?? null;
   const jobTitle = (params.jobTitle as string) ?? null;
@@ -26,7 +26,10 @@ export async function runInterviewPrep(params: Record<string, unknown>): Promise
   // The CV-derived recommended questions (LLM with deterministic fallback). The
   // `source` ("llm" | "deterministic") rides along in the payload so the modal can
   // disclose whether the plan was AI-tailored or a template fallback.
-  const prep = await runAutomationTask(entryId, "prep");
+  // Forward the abort signal so a DELETE on a running interview_prep task actually stops the
+  // (slow, LLM-bound) prep work + kills its Python child, instead of the cancel being a no-op
+  // that leaves the work running and the slot held while the UI flips to "canceled".
+  const prep = await runAutomationTask(entryId, "prep", "", signal);
   const questions = (prep.result.questions as PrepQuestion[]) ?? [];
   const focusAreas = (prep.result.focusAreas as string[]) ?? [];
 
