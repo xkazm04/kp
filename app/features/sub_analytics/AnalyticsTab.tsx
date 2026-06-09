@@ -22,9 +22,21 @@ type Analytics = {
 };
 
 export function AnalyticsTab() {
-  const { data, error } = useJsonFetch<Analytics>("/api/analytics", "Couldn't load analytics.");
+  const { data, error, reload } = useJsonFetch<Analytics>("/api/analytics", "Couldn't load analytics.");
 
-  if (error) return <p className="text-base text-coral">{error}</p>;
+  if (error)
+    return (
+      <div role="alert" className="flex flex-wrap items-center gap-3 text-base text-coral">
+        <span>{error}</span>
+        <button
+          type="button"
+          onClick={reload}
+          className="focus-ring inline-flex h-8 items-center rounded-md border border-stone-200 px-3 text-sm font-semibold text-ink hover:border-coral/40"
+        >
+          Retry
+        </button>
+      </div>
+    );
   if (!data) return <p className="text-base text-steel">Loading analytics…</p>;
 
   const maxReached = Math.max(1, ...data.funnel.map((f) => f.reached));
