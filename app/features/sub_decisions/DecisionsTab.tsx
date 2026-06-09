@@ -306,12 +306,17 @@ export function DecisionsTab() {
             setEvalTaskId(null);
           }}
           onRerun={() => evalGroup && openGroupEval(evalGroup, true)}
-          onDecide={(label, action) => {
-            // Resolve the eval candidate (by label) back to the live pipeline
-            // entry, then reuse act() — same expectedStage CAS + comms as the
-            // queue. Acts only on still-pending entries (a candidate decided
-            // elsewhere has already left evalGroup.entries).
-            const e = evalGroup?.entries.find((x) => x.candidateLabel === label);
+          onDecide={(identity, action) => {
+            // Resolve the eval candidate back to the live pipeline entry by stable id
+            // (candIdentity = entry id, label fallback), then reuse act() — same
+            // expectedStage CAS + comms as the queue. Resolving by id prevents an
+            // irreversible advance/reject from landing on the wrong same-named candidate;
+            // the label fallback keeps evals saved before entryId existed working. Acts
+            // only on still-pending entries (a candidate decided elsewhere has left
+            // evalGroup.entries).
+            const e =
+              evalGroup?.entries.find((x) => x.id === identity) ??
+              evalGroup?.entries.find((x) => x.candidateLabel === identity);
             if (e) void act(e, action);
           }}
         />

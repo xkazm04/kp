@@ -53,6 +53,11 @@ export type Fairness = {
 // here since they're added only when the role has a job and the recruiter ranker
 // ran (group-eval-run) — `total` is omitted because it is carried as `score`.
 export type EvalCandidate = {
+  // Stable pipeline-entry id (present on evals produced after this fix). Inline
+  // advance/reject and the per-session `decided` map key on it, not the display label,
+  // which isn't unique. Optional so older saved payloads still render (they fall back to
+  // label via candIdentity).
+  entryId?: string;
   label: string;
   score: number;
   seniority: string | null;
@@ -68,6 +73,12 @@ export type EvalCandidate = {
   // profile-only candidates; the salary row then shows just the role band.
   salaryExpectation?: { minimum: number; maximum: number; midpoint: number; currency: string; confidence: string } | null;
 } & Partial<Omit<MatchResultView, "total">>;
+
+// Stable identity for an eval candidate: the pipeline entry id when present, else the
+// (non-unique) display label for backward-compat with evals saved before entryId existed.
+// All decide/selection keying routes through this so a duplicate display name can't apply
+// an irreversible decision to the wrong person.
+export const candIdentity = (c: EvalCandidate): string => c.entryId ?? c.label;
 
 export type GroupEvalPayload = {
   roleTitle?: string;
@@ -156,10 +167,11 @@ export function GroupEvalModal({
   poolDrift?: number;
   onClose: () => void;
   onRerun: () => void;
-  /** Advance/reject a candidate inline from the comparison (DEC3), resolved by
-   *  label back to the live pipeline entry in DecisionsTab. Omitted (read-only)
-   *  for the simulation, which has no live decision queue behind the modal. */
-  onDecide?: (label: string, action: "accept" | "reject") => void;
+  /** Advance/reject a candidate inline from the comparison (DEC3). The first arg is the
+   *  candidate IDENTITY (candIdentity: entry id, label fallback), resolved back to the live
+   *  pipeline entry by id in DecisionsTab so a duplicate display name can't act on the wrong
+   *  person. Omitted (read-only) for the simulation, which has no live decision queue. */
+  onDecide?: (identity: string, action: "accept" | "reject") => void;
 }) {
   const ranAt = ranWhen(createdAt);
   // Candidates decided here this session, so their buttons flip to a result pill
@@ -455,7 +467,7 @@ function Row({
       {candidates.map((c) => {
         const isLeader = leader != null && leader > -Infinity && leaderValue!(c) === leader;
         return (
-          <td key={c.label} className={`px-3 py-2 align-middle ${isLeader ? "bg-moss/5" : ""}`}>
+          <td key={candIdentity(c)} className={`px-3 py-2 align-middle ${isLeader ? "bg-moss/5" : ""}`}>
             {render(c, isLeader)}
           </td>
         );
@@ -700,7 +712,7 @@ function ComparisonTable({
           <colgroup>
             <col className="w-[12.5rem]" />
             {candidates.map((c) => (
-              <col key={c.label} />
+              <col key={candIdentity(c)} />
             ))}
           </colgroup>
           <thead>
@@ -712,7 +724,7 @@ function ComparisonTable({
                 Candidate →
               </th>
               {candidates.map((c, i) => (
-                <th key={c.label} scope="col" className="sticky top-0 z-20 border-b border-stone-200 bg-paper px-3 py-2 text-left align-bottom font-normal">
+                <th key={candIdentity(c)} scope="col" className="sticky top-0 z-20 border-b border-stone-200 bg-paper px-3 py-2 text-left align-bottom font-normal">
                   <CandidateHeader c={c} rank={i + 1} isLead={i === 0} />
                 </th>
               ))}
@@ -850,14 +862,14 @@ function CandidateDetail({
               <span className="flex items-center gap-1.5">
                 <button
                   type="button"
-                  onClick={() => onDecide(c.label, "reject")}
+                  onClick={() => onDecide(candIdentity(c), "reject")}
                   className="focus-ring inline-flex h-8 items-center gap-1 rounded-md border border-stone-200 px-2.5 text-sm font-semibold text-coral hover:bg-coral/5"
                 >
                   <XCircle size={14} /> Reject
                 </button>
                 <button
                   type="button"
-                  onClick={() => onDecide(c.label, "accept")}
+                  onClick={() => onDecide(candIdentity(c), "accept")}
                   className="focus-ring inline-flex h-8 items-center gap-1 rounded-md bg-moss px-2.5 text-sm font-semibold text-white hover:opacity-90"
                 >
                   <CheckCircle2 size={14} /> Advance
@@ -929,10 +941,10 @@ function PerCandidateTabs({
         {candidates.map((c, i) => {
           const selected = i === idx;
           const s = styleFor(c.archetype ?? null);
-          const tabDecision = decided[c.label];
+          const tabDecision = decided[candIdentity(c)];
           return (
             <button
-              key={c.label}
+              key={candIdentity(c)}
               type="button"
               role="tab"
               aria-selected={selected}
@@ -957,7 +969,7 @@ function PerCandidateTabs({
         })}
       </div>
       <div role="tabpanel" className="mt-3">
-        <CandidateDetail c={current} differentiators={differentiators} topPick={topPick} decision={decided[current.label]} onDecide={onDecide} />
+        <CandidateDetail c={current} differentiators={differentiators} topPick={topPick} decision={decided[candIdentity(current)]} onDecide={onDecide} />
       </div>
     </section>
   );
