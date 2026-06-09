@@ -2,7 +2,7 @@
 
 import { useEffect, useState, type CSSProperties } from "react";
 import { useReducedMotion } from "@/app/_lib/useReducedMotion";
-import { clampPercent, scoreToneColor } from "@/app/_lib/format";
+import { clampPercent, scoreTone, scoreToneColor } from "@/app/_lib/format";
 
 type ScoreDialProps = {
   score: number;
@@ -76,9 +76,12 @@ export function ScoreDial({ score }: ScoreDialProps) {
   const displayed = useCountUp(clamped, TOTAL_MS);
   const activeIndex = bandIndex(clamped);
   const activeBand = BANDS[activeIndex];
-  // Carry the same score->color meaning the arc encodes into the readout, so the
-  // number and band label speak the shared language used by ScoreBadge/FactorChart.
-  const readoutColor = bandColor(activeIndex);
+  // Color the central number + label from the app-wide scoreTone (cutoffs 50/75) so the
+  // most prominent score reads the SAME tone as ScoreBadge / Meter / FactorChart for a given
+  // number. The arc keeps its five aesthetic bands (bandColor); only the readout was crossing
+  // tones (e.g. 45 read amber on the dial but coral on the badge — the dial's 40/70 split
+  // disagreed with 50/75). Now they agree.
+  const readoutColor = scoreToneColor(scoreTone(clamped));
 
   return (
     <div
