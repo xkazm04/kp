@@ -6,11 +6,13 @@ import type { JdSummary } from "./AnalyzeTypes";
 export function AnalyzeSavedJdPicker({
   jds,
   selectedSlug,
+  loading = false,
   onPick,
   onClear,
 }: {
   jds: JdSummary[];
   selectedSlug: string | null;
+  loading?: boolean;
   onPick: (jd: JdSummary) => void;
   onClear: () => void;
 }) {
@@ -37,7 +39,9 @@ export function AnalyzeSavedJdPicker({
         >
           From library
         </label>
-        {selectedSlug ? (
+        {loading ? (
+          <span role="status" className="text-sm font-medium text-steel">Loading JD…</span>
+        ) : selectedSlug ? (
           <button
             type="button"
             onClick={onClear}
@@ -50,6 +54,7 @@ export function AnalyzeSavedJdPicker({
       <select
         id="saved-jd-picker"
         value={selectedSlug ?? ""}
+        disabled={loading}
         onChange={(event) => {
           const slug = event.target.value;
           if (!slug) {

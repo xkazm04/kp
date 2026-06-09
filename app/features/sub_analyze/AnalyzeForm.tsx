@@ -84,6 +84,7 @@ export function AnalyzeForm({ state }: { state: AnalyzeFormState }) {
             <AnalyzeSavedJdPicker
               jds={library.jdLibrary}
               selectedSlug={library.selectedJdSlug}
+              loading={flags.jdLoading}
               // The hook owns the load-full-JD-by-slug flow (fetch + textarea +
               // slug bookkeeping); the form just hands it the picked slug.
               onPick={(jd) => library.pickJd(jd.slug)}
