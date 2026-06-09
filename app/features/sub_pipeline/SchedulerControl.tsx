@@ -86,7 +86,10 @@ export function SchedulerControl({ onRan, className = "" }: { onRan?: () => void
   const inFlightRef = useRef(false);
   // True while the interval field is focused, so the 30s poll's render-phase mirror
   // doesn't overwrite what the operator is mid-typing.
-  const intervalFocusedRef = useRef(false);
+  // Whether the interval input has focus — state (not a ref) so the render-phase mirror below
+  // can read it without accessing a ref during render. Focus/blur are infrequent, so the extra
+  // render is immaterial.
+  const [intervalFocused, setIntervalFocused] = useState(false);
 
   const load = () =>
     fetch("/api/automation/schedule")
@@ -111,7 +114,7 @@ export function SchedulerControl({ onRan, className = "" }: { onRan?: () => void
   // adjustment keyed on the stored value, so it only fires when that actually
   // changes — it won't clobber what you're typing.
   const [mirroredInterval, setMirroredInterval] = useState<number | null>(null);
-  if (sched && sched.intervalMinutes !== mirroredInterval && !intervalFocusedRef.current) {
+  if (sched && sched.intervalMinutes !== mirroredInterval && !intervalFocused) {
     setMirroredInterval(sched.intervalMinutes);
     setIntervalDraft(String(sched.intervalMinutes));
   }
@@ -210,11 +213,9 @@ export function SchedulerControl({ onRan, className = "" }: { onRan?: () => void
           disabled={busy}
           aria-label="Automation interval in minutes (1–1440)"
           onChange={(e) => setIntervalDraft(e.target.value)}
-          onFocus={() => {
-            intervalFocusedRef.current = true;
-          }}
+          onFocus={() => setIntervalFocused(true)}
           onBlur={(e) => {
-            intervalFocusedRef.current = false;
+            setIntervalFocused(false);
             commitInterval(e.target.value);
           }}
           onKeyDown={(e) => {

@@ -34,9 +34,9 @@ export function InterviewPrepModal({ entry, onClose }: { entry: SchedEntry; onCl
   const [interviewer, setInterviewer] = useState(""); // assigned human owner (PREP5)
   const [copied, setCopied] = useState(false);
   // PREP2: hydrate the interviewer's saved checklist + notes once the artifact
-  // loads, then debounce-persist edits. `hydratedRef` stops the saved state from
+  // loads, then debounce-persist edits. The `hydrated` flag stops the saved state from
   // being written straight back; `dirtyRef` gates the save to genuine user edits.
-  const hydratedRef = useRef(false);
+  const [hydrated, setHydrated] = useState(false);
   const dirtyRef = useRef(false);
   const markEdited = () => {
     dirtyRef.current = true;
@@ -53,20 +53,19 @@ export function InterviewPrepModal({ entry, onClose }: { entry: SchedEntry; onCl
   // disclosed below with a prompt to regenerate (idea-0864adb5).
   const fallback = prep ? isPrepFallback(prep.source) : false;
 
-  // Restore the interviewer's saved progress once, from the loaded artifact (never
-  // from a fresh generation — that has none). Guarded by hydratedRef so it runs
-  // exactly once the GET resolves.
-  useEffect(() => {
-    if (hydratedRef.current || generated) return;
+  // Restore the interviewer's saved progress once, from the loaded artifact (never from a
+  // fresh generation — that has none). Derived DURING render — the React-recommended "adjust
+  // state when an input changes" pattern (You Might Not Need an Effect) — rather than in an
+  // effect, so it doesn't trip react-hooks/set-state-in-effect. The `hydrated` flag makes it
+  // run exactly once the GET resolves; React applies these sets before the browser paints.
+  if (!hydrated && !generated && data) {
+    setHydrated(true);
     const payload = data?.prep?.payload as Prep | undefined;
     const up = payload?.userProgress;
-    if (up) {
-      if (up.checked) setChecked(up.checked);
-      if (typeof up.notes === "string") setNotes(up.notes);
-    }
+    if (up?.checked) setChecked(up.checked);
+    if (up && typeof up.notes === "string") setNotes(up.notes);
     if (typeof payload?.interviewer === "string") setInterviewer(payload.interviewer);
-    if (data) hydratedRef.current = true; // GET resolved (artifact or empty) — done hydrating
-  }, [data, generated]);
+  }
 
   // Debounce-persist checklist + notes edits to the artifact. Only fires after a
   // genuine user edit (dirtyRef), so hydration doesn't echo back, and only when a
@@ -128,13 +127,13 @@ export function InterviewPrepModal({ entry, onClose }: { entry: SchedEntry; onCl
   const generate = async () => {
     // A regeneration replaces the plan (the task re-saves the artifact with no
     // userProgress), so clear the interviewer's working state and suppress a
-    // stale save of it; hydratedRef stays true so the cleared state isn't
+    // stale save of it; `hydrated` stays true so the cleared state isn't
     // re-hydrated from the now-stale GET.
     setChecked({});
     setNotes("");
     setInterviewer("");
     dirtyRef.current = false;
-    hydratedRef.current = true;
+    setHydrated(true);
     const t = await startTask("interview_prep", { entryId: entry.id, candidateLabel: entry.candidateLabel, jobTitle: entry.jobTitle });
     if (t) setTaskId(t.id);
   };
