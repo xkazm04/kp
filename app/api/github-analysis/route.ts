@@ -508,6 +508,27 @@ async function runCodeReview(
     };
   }
 
+  // fetchRepoBundle swallows each sub-fetch to a benign default ("" / []), so a
+  // rate-limited or 5xx run yields bundles with no readme, commits, or files yet
+  // Promise.all still "succeeds". If EVERY bundle is empty there is no signal to review —
+  // sending it to Gemini would fabricate a confident, authoritative-looking assessment from
+  // nothing. Fail loudly instead (almost always a transient rate limit, not empty repos).
+  const hasAnySignal = bundles.some(
+    (b) => b.readme.trim() || b.recentCommits.length > 0 || b.files.length > 0
+  );
+  if (!hasAnySignal) {
+    return {
+      status: "error",
+      summary: "Couldn't gather any public repo signals (GitHub may be rate-limiting). Try again shortly.",
+      confirmedSkills: [],
+      unverifiedClaims: [],
+      hiddenStrengths: [],
+      reposReviewed,
+      evidenceBasis,
+      error: "insufficient_evidence: no readme/commits/files fetched across all repos",
+    };
+  }
+
   const evidenceJson = JSON.stringify(
     bundles.map((b) => ({
       name: b.name,
