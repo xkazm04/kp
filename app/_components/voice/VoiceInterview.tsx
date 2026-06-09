@@ -722,13 +722,25 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle, provider: pinned
           {turns.length === 0 ? (
             <div className="flex flex-col items-center justify-center gap-3 py-12 text-center">
               <span className="grid h-12 w-12 place-items-center rounded-full bg-paper text-steel">
-                <Mic size={20} />
+                <Mic size={20} aria-hidden />
               </span>
               <div>
-                <p className="text-base text-ink">Your conversation will appear here.</p>
-                <p className="mt-1 text-sm text-steel">
-                  Press “Start the call” when you’re ready — the transcript builds live as you talk.
-                </p>
+                {/* Phase-aware: the idle "Press Start" copy contradicted the live phases
+                    (it showed even while Connecting/Live/Ending with no turns yet). */}
+                {phase === "connecting" ? (
+                  <p className="text-base text-ink">Connecting…</p>
+                ) : phase === "live" ? (
+                  <p className="text-base text-ink">Listening — waiting for the first question…</p>
+                ) : phase === "ending" ? (
+                  <p className="text-base text-ink">Wrapping up the conversation…</p>
+                ) : (
+                  <>
+                    <p className="text-base text-ink">Your conversation will appear here.</p>
+                    <p className="mt-1 text-sm text-steel">
+                      Press “Start the call” when you’re ready — the transcript builds live as you talk.
+                    </p>
+                  </>
+                )}
               </div>
             </div>
           ) : (
