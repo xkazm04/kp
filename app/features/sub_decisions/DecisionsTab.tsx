@@ -38,6 +38,9 @@ export function DecisionsTab() {
   const [evalData, setEvalData] = useState<GroupEvalPayload | null>(null);
   const [evalCreatedAt, setEvalCreatedAt] = useState<string | null>(null);
   const [evalTaskId, setEvalTaskId] = useState<string | null>(null);
+  // Set when a role marked "evaluated" has an unreadable/missing saved payload, so the modal
+  // shows an honest "couldn't load — re-run" instead of the misleading "no evaluation yet".
+  const [evalError, setEvalError] = useState<string | null>(null);
   const [evaluated, setEvaluated] = useState<Record<string, string>>({});
 
   const load = () =>
@@ -149,10 +152,21 @@ export function DecisionsTab() {
     setEvalData(null);
     setEvalCreatedAt(null);
     setEvalTaskId(null);
+    setEvalError(null);
     if (evaluated[g.roleKey] && !rerun) {
-      const p = await fetch(`/api/decisions/group-eval?role=${encodeURIComponent(g.roleKey)}`).then((r) => r.json());
-      setEvalData((p.evaluation?.payload as GroupEvalPayload) ?? null);
-      setEvalCreatedAt((p.evaluation?.createdAt as string) ?? null);
+      const p = await fetch(`/api/decisions/group-eval?role=${encodeURIComponent(g.roleKey)}`)
+        .then((r) => r.json())
+        .catch(() => null);
+      const payload = (p?.evaluation?.payload as GroupEvalPayload) ?? null;
+      // The role is marked evaluated but the stored eval is unreadable/missing (parse failed,
+      // or removed between the list and this read). Surface an error so the modal doesn't fall
+      // through to "No evaluation yet" for a role its own button promised had one.
+      if (!payload) {
+        setEvalError("This role's saved evaluation couldn't be loaded — re-run it to compare the candidates.");
+        return;
+      }
+      setEvalData(payload);
+      setEvalCreatedAt((p?.evaluation?.createdAt as string) ?? null);
       return;
     }
     const candidates = g.entries.map((e) => ({ entryId: e.id, candidateId: e.candidateId, label: e.candidateLabel, matchScore: e.matchScore }));
@@ -297,6 +311,7 @@ export function DecisionsTab() {
           roleTitle={evalRole.roleTitle}
           evaluation={evalData}
           loading={evalTaskId !== null}
+          error={evalError}
           createdAt={evalCreatedAt}
           poolDrift={evalDrift}
           onClose={() => {
@@ -304,6 +319,7 @@ export function DecisionsTab() {
             setEvalData(null);
             setEvalCreatedAt(null);
             setEvalTaskId(null);
+            setEvalError(null);
           }}
           onRerun={() => evalGroup && openGroupEval(evalGroup, true)}
           onDecide={(identity, action) => {
