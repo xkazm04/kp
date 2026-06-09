@@ -107,7 +107,20 @@ export async function runLifecycle(id: string, progress?: Progress, signal?: Abo
     } else if (lc.stage === "approved") {
       const devCase = lc.caseId ? getDevCase(lc.caseId) : null;
       if (!devCase) throw new Error("approved lifecycle has no dev case");
-      const posting = await getAdapter("local").publish(devCase);
+      // Idempotent publish. publish() mints a NEW posting + token with no caseId dedup
+      // (createPosting), so a crash/restart between here and the stage→collecting write
+      // below would re-run this handler and orphan a DUPLICATE posting — submissions on
+      // the earlier still-live token then disconnect from the lifecycle. If a prior run
+      // already published, reuse its postingId; otherwise publish once and persist the id
+      // IMMEDIATELY (before the long best-effort scenario/seed/sourcing steps) so a resume
+      // skips re-publishing. (Sourcing re-runs are safe — createPipelineEntry dedups on
+      // the stable dc-<caseId> jobId.)
+      let postingId = lc.postingId;
+      if (!postingId) {
+        const posting = await getAdapter("local").publish(devCase);
+        postingId = posting.id;
+        updateLifecycle(id, { postingId });
+      }
 
       // Case-designed interview: turn the approved case into the role's
       // AI-interview scenario (one per role, reused for every candidate so
@@ -168,7 +181,7 @@ export async function runLifecycle(id: string, progress?: Progress, signal?: Abo
         // crash (e.g. the matching bridge threw) is distinguishable from a legitimately empty
         // result, instead of hiding behind a benign-looking "sourced 0 candidate(s)".
         sourcingError = err instanceof Error ? err.message : String(err);
-        recordAudit({ lifecycleId: id, actor: "system", action: "sourcing_failed", reason: sourcingError, ref: posting.id });
+        recordAudit({ lifecycleId: id, actor: "system", action: "sourcing_failed", reason: sourcingError, ref: postingId });
       }
       // Note unparseable candidates in the detail so "sourced 0" reads as "nobody
       // qualified", not "the pool silently failed to load" — and a real sourcing
@@ -179,7 +192,7 @@ export async function runLifecycle(id: string, progress?: Progress, signal?: Abo
         : `published${scenarioNote}; sourced ${sourced} candidate(s) into the pipeline${skippedNote}; awaiting submissions`;
       updateLifecycle(id, {
         stage: "collecting",
-        postingId: posting.id,
+        postingId,
         detail: sourcedDetail,
       });
       recordAudit({
@@ -187,7 +200,7 @@ export async function runLifecycle(id: string, progress?: Progress, signal?: Abo
         actor: "auto",
         action: "published",
         reason: sourcingError ? `sourcing failed after ${sourced} (${sourcingError})` : `sourced ${sourced} into pipeline`,
-        ref: posting.id,
+        ref: postingId,
       });
     } else if (lc.stage === "collecting") {
       const subs = lc.postingId ? listSubmissions(lc.postingId) : [];
