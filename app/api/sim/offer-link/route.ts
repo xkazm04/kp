@@ -7,8 +7,17 @@ export const runtime = "nodejs";
 // Decisions UI discards. The simulation reads it back here to open the
 // candidate's actual /offer/[token] page (and click Accept inside it).
 export async function GET(request: NextRequest) {
-  const entryId = new URL(request.url).searchParams.get("entryId");
-  if (!entryId) return NextResponse.json({ error: "entryId is required." }, { status: 400 });
-  const offer = getOpenOfferForEntry(entryId);
-  return NextResponse.json({ token: offer?.token ?? null });
+  try {
+    const entryId = new URL(request.url).searchParams.get("entryId");
+    if (!entryId) return NextResponse.json({ error: "entryId is required." }, { status: 400 });
+    const offer = getOpenOfferForEntry(entryId);
+    return NextResponse.json({ token: offer?.token ?? null });
+  } catch (error) {
+    // Match the four sibling sim routes' try/catch: without it a DB throw becomes an opaque
+    // non-JSON 500 that crashes the offer step's .json() instead of surfacing a clean error.
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "Failed to read offer link." },
+      { status: 500 }
+    );
+  }
 }
