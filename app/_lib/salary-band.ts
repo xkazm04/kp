@@ -48,6 +48,10 @@ export function salaryBandPosition(
   lo: number,
   hi: number
 ): { position: SalaryBandPosition; pct: number } {
+  // A non-finite midpoint yields no meaningful verdict: NaN would silently fall through to
+  // "within" (a positive "matches the band" claim), and Infinity would produce an
+  // "Infinity% over". Treat it as no reference instead of manufacturing a verdict.
+  if (!Number.isFinite(midpoint)) return { position: "within", pct: 0 };
   if (hi > 0 && midpoint > hi) return { position: "over", pct: Math.round(((midpoint - hi) / hi) * 100) };
   if (lo > 0 && midpoint < lo) return { position: "under", pct: Math.round(((lo - midpoint) / lo) * 100) };
   return { position: "within", pct: 0 };
