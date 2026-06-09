@@ -8,7 +8,7 @@ import {
   recordAutomationEvent,
   saveProfile,
 } from "@/app/_lib/db";
-import { applyDedupeKey, buildApplyProfileDraft, buildApplyScript, FALLBACK_ARCHETYPE, KO_STEP_IDS } from "@/app/_lib/apply";
+import { applyDedupeKey, buildApplyProfileDraft, buildApplyScript, FALLBACK_ARCHETYPE } from "@/app/_lib/apply";
 import { dispatchApplicationReceived } from "@/app/_lib/comms-dispatch";
 import type { ApplyAnswers } from "@/app/_lib/apply-intake";
 import { cleanupWorkdir, createWorkdir, parsePythonJson, spawnPython } from "@/app/_lib/python-runner";
@@ -170,9 +170,17 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     const body = (await request.json().catch(() => ({}))) as { answers?: Record<string, unknown> };
     const answers = body.answers ?? {};
 
-    // A "no" on any KO question declines the application.
-    const failedKo = KO_STEP_IDS.some((k) => k in answers && answers[k] === false);
-    if (failedKo) {
+    // Knockout gate. Derive THIS job's KO steps from its own script (ko_mode/ko_lang are
+    // conditional on workMode/languages) and require every expected KO answer to be present
+    // AND explicitly true. The POST body is the public, untrusted trust boundary — the old
+    // "decline only if a KO key is present and === false" treated an ABSENT key as a pass, so
+    // a scripted POST could skip work-authorization / mode / language eligibility by simply
+    // omitting the keys and still land an Accepted entry. Missing-or-not-true now declines.
+    const expectedKoIds = buildApplyScript(job)
+      .filter((s) => s.type === "ko")
+      .map((s) => s.id);
+    const passedKo = expectedKoIds.every((koId) => answers[koId] === true);
+    if (!passedKo) {
       return NextResponse.json({
         result: "declined",
         message:
