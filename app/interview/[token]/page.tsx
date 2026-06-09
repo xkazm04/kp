@@ -63,6 +63,8 @@ export default async function InterviewPortalPage({ params }: { params: Promise<
               token={session.token}
               candidateLabel={session.candidateLabel ?? undefined}
               jobTitle={session.jobTitle ?? undefined}
+              provider={session.provider}
+              lockSettings
             />
           </div>
           <AiDisclosure className="mt-6" />

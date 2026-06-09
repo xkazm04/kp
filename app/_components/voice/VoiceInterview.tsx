@@ -32,6 +32,12 @@ export type VoiceInterviewProps = {
   token?: string;
   candidateLabel?: string;
   jobTitle?: string;
+  // Candidate-portal mode (idea voice-3): pin the provider to the recruiter's
+  // per-session choice and hide the provider/language picker, so a candidate can't
+  // override the grounded provider the session was created for. The lab passes
+  // neither and keeps the full A/B picker.
+  provider?: VoiceProviderId;
+  lockSettings?: boolean;
 };
 
 // ElevenLabs is the preferred default; the picker falls back to whatever is
@@ -69,9 +75,11 @@ export function VoiceInterview(props: VoiceInterviewProps) {
   );
 }
 
-function VoiceInterviewInner({ token, candidateLabel, jobTitle }: VoiceInterviewProps) {
+function VoiceInterviewInner({ token, candidateLabel, jobTitle, provider: pinnedProvider, lockSettings }: VoiceInterviewProps) {
   const [availability, setAvailability] = useState<VoiceAvailability | null>(null);
-  const [provider, setProvider] = useState<VoiceProviderId>(DEFAULT_PROVIDER);
+  // In locked (candidate) mode the provider is pinned to the session's stored value;
+  // the lab starts on the default and lets the user pick.
+  const [provider, setProvider] = useState<VoiceProviderId>(pinnedProvider ?? DEFAULT_PROVIDER);
   const [consent, setConsent] = useState(false);
   const [language, setLanguage] = useState<LangHint>("auto");
   const [phase, setPhase] = useState<Phase>("idle");
@@ -299,7 +307,10 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle }: VoiceInterview
         setAvailability(avail);
         // Never leave the picker on a provider whose keys are missing: if the
         // default (ElevenLabs) isn't configured, drop to the first one that is.
-        if (avail) setProvider((cur) => (avail[cur] ? cur : (PROVIDER_ORDER.find((p) => avail[p]) ?? cur)));
+        // Skip in locked (candidate) mode — the recruiter's pinned provider must
+        // stand; an unconfigured one surfaces "keys not configured" rather than
+        // silently switching the candidate onto a different, ungrounded provider.
+        if (avail && !lockSettings) setProvider((cur) => (avail[cur] ? cur : (PROVIDER_ORDER.find((p) => avail[p]) ?? cur)));
       })
       .catch(() => {
         if (!cancelled) setAvailability(null);
@@ -545,9 +556,11 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle }: VoiceInterview
     <div className="space-y-6">
       <audio ref={audioRef} autoPlay hidden />
 
-      {/* Settings — language + provider, side by side. The provider picker
-          defaults to ElevenLabs and disables any provider whose keys aren't
-          configured. Both lock once a call is in flight. */}
+      {/* Settings — language + provider, side by side. Hidden on the candidate
+          portal (lockSettings): the provider is pinned to the session and the
+          candidate must not see/override these internal A/B controls. Shown only
+          in the lab. Both lock once a call is in flight. */}
+      {!lockSettings && (
       <div className="flex flex-wrap gap-x-8 gap-y-4">
         {/* Language hint */}
         <div>
@@ -603,6 +616,7 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle }: VoiceInterview
           </div>
         </div>
       </div>
+      )}
 
       {/* Consent */}
       <label
