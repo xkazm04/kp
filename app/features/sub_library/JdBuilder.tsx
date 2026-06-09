@@ -86,7 +86,7 @@ export function JdBuilder({ onSaved }: { onSaved: () => void }) {
     // template's salary slot simply renders blank.
     const s = normalizeMarketSalary(result.salary);
     const salaryLabel = s.available
-      ? formatSalaryRange(s.suggestedMinimum, s.suggestedMaximum, { currency: s.currency, period: "mo" })
+      ? formatSalaryRange(s.suggestedMinimum, s.suggestedMaximum, { currency: s.currency, period: "month" })
       : "";
     const markdown = renderTemplate(tpl.body, {
       title: title.trim(),
