@@ -59,6 +59,7 @@ export function ConversationalApply({ jobId, steps }: { jobId: string; steps: Ap
   // already marked the final step answered and would otherwise block a resend.
   const finalAnswersRef = useRef<Record<string, unknown> | null>(null);
   const stepTimer = useRef<number | null>(null);
+  const stepControlsRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -69,6 +70,17 @@ export function ConversationalApply({ jobId, steps }: { jobId: string; steps: Ap
       if (stepTimer.current !== null) window.clearTimeout(stepTimer.current);
     };
   }, []);
+
+  // Move focus to the first control of a newly-rendered step so keyboard / screen-reader
+  // users don't have to tab from the top of the page on every ko / choice / file step (only
+  // the free-text input previously autoFocused). Runs once the step settles (not transitioning)
+  // and skips text steps, whose <input autoFocus> already handles it.
+  useEffect(() => {
+    if (done || submitError || transitioning) return;
+    const step = steps[idx];
+    if (!step || step.type === "text") return;
+    stepControlsRef.current?.querySelector<HTMLElement>("button:not([disabled])")?.focus();
+  }, [idx, transitioning, done, submitError, steps]);
 
   // The controls are locked while a POST is in flight or while we're mid-hop
   // between steps. advance() is the single entry point and answers each step
@@ -280,7 +292,7 @@ export function ConversationalApply({ jobId, steps }: { jobId: string; steps: Ap
       ) : null}
 
       {!done && cur && !submitError ? (
-        <div className="mt-4">
+        <div className="mt-4" ref={stepControlsRef}>
           {cur.type === "ko" ? (
             <div className="flex gap-2">
               <button
