@@ -35,6 +35,10 @@ export function DecisionRulesModal({ onClose }: { onClose: () => void }) {
         body: JSON.stringify({ phase: "screening", config: rule }),
       });
       if (!r.ok) throw new Error();
+      // Re-sync from the server's canonical (clamped) config in the response, so the modal
+      // shows exactly what was persisted rather than the possibly out-of-range value typed.
+      const d = (await r.json().catch(() => null)) as { configs?: { screening?: Partial<ScreeningRule> } } | null;
+      if (d?.configs?.screening) setRule({ ...FALLBACK, ...d.configs.screening });
       setNote("Saved.");
     } catch {
       setNote("Save failed.");
