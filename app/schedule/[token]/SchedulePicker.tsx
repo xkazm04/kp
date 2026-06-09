@@ -134,9 +134,12 @@ export function SchedulePicker({ token }: { token: string }) {
 
   if (confirmed && !rescheduling) {
     return (
-      <div className="rounded-lg border border-moss/40 bg-moss/5 p-5">
+      // role="status" + aria-live so the booking confirmation is announced — the primary
+      // action of the page previously swapped in visual-only, leaving SR users with no
+      // signal that the slot was booked.
+      <div role="status" aria-live="polite" className="rounded-lg border border-moss/40 bg-moss/5 p-5">
         <p className="flex items-center gap-2 font-serif text-h2 text-ink">
-          <Check className="text-moss" /> You&apos;re booked
+          <Check className="text-moss" aria-hidden /> You&apos;re booked
         </p>
         <p className="mt-2 text-body text-ink">
           Your interview{invite.jobTitle ? ` for ${invite.jobTitle}` : ""} is confirmed for{" "}
