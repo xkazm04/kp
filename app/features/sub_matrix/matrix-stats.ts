@@ -34,8 +34,11 @@ export function columnStats(scores: number[]): ColumnStat {
   }
   const sorted = [...scores].sort((a, b) => a - b);
   const mid = Math.floor(sorted.length / 2);
+  // Floor (not round) the even-count midpoint so a band-straddling pair like [71, 72] reports
+  // 71, never rounding UP to 72 and falsely crossing STRONG_THRESHOLD when only half the pool
+  // is strong. The "median averages the two middles" test (exact integer) is unaffected.
   const median =
-    sorted.length % 2 === 0 ? Math.round((sorted[mid - 1] + sorted[mid]) / 2) : sorted[mid];
+    sorted.length % 2 === 0 ? Math.floor((sorted[mid - 1] + sorted[mid]) / 2) : sorted[mid];
   return {
     count: scores.length,
     best: sorted[sorted.length - 1],
