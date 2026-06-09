@@ -198,6 +198,26 @@ export function PipelineTab() {
   }, [load]);
   useLiveRefresh(load); // re-fetch the board live when the simulation (or any actor) changes state
 
+  // Live board poll. The automation clock (instrumentation.ts heartbeat) mutates
+  // pipeline_entries SERVER-side with no client signal — useLiveRefresh only fires on
+  // same-document changes — so an open board silently went stale under automation (and the
+  // SchedulerControl bar could show "ran · 3 advanced" while the lanes didn't move). Poll
+  // every 30s, reusing load()'s abort+cursor machinery (one /api/pipeline + one delta
+  // /api/pipeline/events?since= per tick). Paused while a drawer is open (don't yank state
+  // mid-action) or the tab is hidden. Drawer state is read via a ref so the interval stays
+  // stable instead of restarting its countdown on every drawer toggle.
+  const drawerOpenRef = useRef(false);
+  useEffect(() => {
+    drawerOpenRef.current = drawerEntry != null;
+  }, [drawerEntry]);
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      if (drawerOpenRef.current || document.hidden) return;
+      load();
+    }, 30_000);
+    return () => window.clearInterval(id);
+  }, [load]);
+
   const positions = useMemo(() => groupPositions(entries ?? []), [entries]);
 
   const approvals = (entries ?? []).filter((e) => needsHumanDecision(e.approvalKind) && e.status === "active");
