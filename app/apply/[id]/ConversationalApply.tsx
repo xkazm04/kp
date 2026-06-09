@@ -211,7 +211,10 @@ export function ConversationalApply({ jobId, steps }: { jobId: string; steps: Ap
 
   return (
     <div>
-      <div className="space-y-3">
+      {/* role="log" + aria-live so each new bot prompt (and the final outcome) is announced
+          to screen readers — the conversation previously advanced visual-only, leaving SR
+          users with silence after each answer on this public candidate flow. */}
+      <div className="space-y-3" role="log" aria-live="polite">
         {msgs.map((m, i) => (
           <div key={i} className={m.who === "me" ? "text-right" : ""}>
             <span
