@@ -63,8 +63,17 @@ const ARCHETYPES: { archetypes: Array<{ id: string; scoringModel: string }> } = 
   "../../pipeline/jobfit/archetypes.json"
 );
 
-const { RATING_ANCHORS, INTERVIEW_RUBRIC, INTERVIEW_RUBRICS, RUBRIC_ANCHOR_LINE, rubricForArchetype } =
-  await import("@/app/_lib/interview-rubric.ts");
+const {
+  RATING_ANCHORS,
+  INTERVIEW_RUBRIC,
+  INTERVIEW_RUBRICS,
+  RUBRIC_ANCHOR_LINE,
+  rubricForArchetype,
+  RUBRIC_CS,
+  RATING_ANCHORS_CS,
+  localizedRubric,
+  rubricLabel,
+} = await import("@/app/_lib/interview-rubric.ts");
 
 // ---------------------------------------------------------------------------
 // The TS exports ARE the JSON (no hand-written literal, no mis-coercion).
@@ -189,4 +198,57 @@ test("RUBRIC_ANCHOR_LINE is derived from RATING_ANCHORS", () => {
   assert.equal(RUBRIC_ANCHOR_LINE, expected);
   assert.match(RUBRIC_ANCHOR_LINE, /\b1 = /);
   assert.match(RUBRIC_ANCHOR_LINE, /\b5 = /);
+});
+
+// ---------------------------------------------------------------------------
+// PREP3 — the Czech display overlay must stay key-stable: every overlay key is
+// a canonical competency, every canonical competency has an overlay, and
+// localizedRubric keeps the canonical key while swapping display strings.
+// ---------------------------------------------------------------------------
+
+test("every RUBRIC_CS key maps to a canonical competency (no orphaned overlay)", () => {
+  const canonical = new Set(
+    [...INTERVIEW_RUBRICS.experienced, ...INTERVIEW_RUBRICS.early_career].map((c: { competency: string }) => c.competency)
+  );
+  for (const key of Object.keys(RUBRIC_CS)) {
+    assert.ok(canonical.has(key), `RUBRIC_CS key "${key}" is not a canonical competency`);
+  }
+});
+
+test("every canonical competency has a cs overlay (no English leaking through cs)", () => {
+  const all = [...INTERVIEW_RUBRICS.experienced, ...INTERVIEW_RUBRICS.early_career];
+  for (const c of all) {
+    assert.ok(RUBRIC_CS[c.competency], `competency "${c.competency}" has no Czech overlay`);
+    // Early-career competencies carry BARS anchors — their overlay must too.
+    if (c.anchors) {
+      const csAnchors = RUBRIC_CS[c.competency].anchors;
+      assert.ok(csAnchors, `competency "${c.competency}" overlay is missing anchors`);
+      assert.deepEqual(
+        Object.keys(csAnchors ?? {}).sort(),
+        Object.keys(c.anchors).sort(),
+        `competency "${c.competency}" overlay anchors must cover the same levels`
+      );
+    }
+  }
+});
+
+test("RATING_ANCHORS_CS covers the same levels as RATING_ANCHORS", () => {
+  assert.deepEqual(
+    Object.keys(RATING_ANCHORS_CS).map(Number).sort(),
+    Object.keys(RATING_ANCHORS).map(Number).sort()
+  );
+});
+
+test("localizedRubric keeps the canonical key, swaps display, and falls back for en", () => {
+  const en = localizedRubric(INTERVIEW_RUBRICS.early_career, "en");
+  const cs = localizedRubric(INTERVIEW_RUBRICS.early_career, "cs");
+  for (let i = 0; i < en.length; i++) {
+    // The canonical scoring key is identical across locales.
+    assert.equal(en[i].competency, cs[i].competency);
+    // en falls back to canonical strings; cs uses the overlay.
+    assert.equal(en[i].label, en[i].competency);
+    assert.equal(cs[i].label, RUBRIC_CS[cs[i].competency].label);
+  }
+  // rubricLabel degrades to the canonical key for an unmapped competency.
+  assert.equal(rubricLabel("Some custom LLM competency", "cs"), "Some custom LLM competency");
 });

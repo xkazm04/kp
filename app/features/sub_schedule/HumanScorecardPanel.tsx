@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { Check, ClipboardCheck, Loader2 } from "lucide-react";
-import { useTranslations } from "next-intl";
-import { rubricForArchetype, RATING_ANCHORS } from "@/app/_lib/interview-rubric";
+import { useLocale, useTranslations } from "next-intl";
+import { rubricForArchetype, localizedRubric, localizedRatingAnchors } from "@/app/_lib/interview-rubric";
 import { RATING_MAX } from "@/app/_lib/format";
 import { INTERVIEW_RECOMMENDATIONS, type InterviewRecommendation } from "@/app/_lib/interview-recommendation";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
@@ -32,8 +32,13 @@ export function HumanScorecardPanel({
   initial?: Scorecard | null;
 }) {
   const t = useTranslations("scheduleTab.scorecard");
+  const locale = useLocale();
   const enumLabel = useEnumLabel();
-  const rubric = rubricForArchetype(archetype);
+  // PREP3 — render the rubric in the recruiter's language; the canonical English
+  // `competency` stays the POSTed scorecard key (ratings/evidence are keyed by
+  // it below), so localizing display can't corrupt the scoring contract.
+  const rubric = localizedRubric(rubricForArchetype(archetype), locale);
+  const ratingAnchors = localizedRatingAnchors(locale);
   const seed = (): { ratings: Record<string, number>; evidence: Record<string, string> } => {
     const ratings: Record<string, number> = {};
     const evidence: Record<string, string> = {};
@@ -111,10 +116,10 @@ export function HumanScorecardPanel({
       <div className="mt-3 space-y-3">
         {rubric.map((c) => {
           const chosen = ratings[c.competency];
-          const anchorText = chosen != null ? c.anchors?.[String(chosen)] ?? RATING_ANCHORS[chosen] : null;
+          const anchorText = chosen != null ? c.anchors?.[String(chosen)] ?? ratingAnchors[chosen] : null;
           return (
             <div key={c.competency} className="rounded-md border border-stone-200 bg-white p-2.5">
-              <p className="text-sm font-semibold text-ink">{c.competency}</p>
+              <p className="text-sm font-semibold text-ink">{c.label}</p>
               <p className="mt-0.5 text-meta text-steel">{c.description}</p>
               <div className="mt-1.5 flex items-center gap-1">
                 {Array.from({ length: RATING_MAX }, (_, i) => i + 1).map((n) => (

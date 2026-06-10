@@ -1,8 +1,9 @@
 "use client";
 
 import { Scale, ClipboardCheck } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { useJsonFetch } from "@/app/_lib/useJsonFetch";
+import { rubricLabel, RUBRIC_CS } from "@/app/_lib/interview-rubric";
 import type { InterviewRecommendation } from "@/app/_lib/interview-recommendation";
 import type { Scorecard, ScorecardRating } from "@/app/_lib/interview-scorecard";
 import { EmptyState } from "./JobsShared";
@@ -51,6 +52,7 @@ const ratingColor = (r: number) =>
 
 function CohortTable({ rubric, candidates }: { rubric: RubricComp[]; candidates: Candidate[] }) {
   const t = useTranslations("jobs.compare");
+  const locale = useLocale();
   const enumLabel = useEnumLabel();
   const ratingOf = (c: Candidate, comp: string) =>
     c.ratings.find((r) => r.competency.toLowerCase() === comp.toLowerCase());
@@ -122,8 +124,9 @@ function CohortTable({ rubric, candidates }: { rubric: RubricComp[]; candidates:
         <tbody>
           {rubric.map((comp) => (
             <tr key={comp.competency} className="border-t border-stone-100">
-              <td className="sticky left-0 bg-white p-2 text-ink" title={comp.description}>
-                {comp.competency}
+              {/* PREP3 — localized display; the match on r.competency stays canonical. */}
+              <td className="sticky left-0 bg-white p-2 text-ink" title={(locale === "cs" ? RUBRIC_CS[comp.competency]?.description : undefined) ?? comp.description}>
+                {rubricLabel(comp.competency, locale)}
               </td>
               {candidates.map((c, i) => {
                 const r = ratingOf(c, comp.competency);
@@ -154,6 +157,7 @@ function CohortTable({ rubric, candidates }: { rubric: RubricComp[]; candidates:
 
 export function CompareInterviews({ jobId }: { jobId: string }) {
   const t = useTranslations("jobs.compare");
+  const locale = useLocale(); // PREP3 — localize the per-rating competency display
   const { data, error } = useJsonFetch<{ rubrics: Record<string, RubricComp[]>; candidates: Candidate[] }>(
     `/api/interview/compare?job=${encodeURIComponent(jobId)}`,
     t("loadFailed")
@@ -224,7 +228,7 @@ export function CompareInterviews({ jobId }: { jobId: string }) {
                       {r.rating}
                     </span>
                     <span>
-                      <span className="font-medium">{`${r.competency}:`}</span>{" "}
+                      <span className="font-medium">{`${rubricLabel(r.competency, locale)}:`}</span>{" "}
                       <span className="text-steel">{r.evidence}</span>
                     </span>
                   </li>
@@ -245,7 +249,7 @@ export function CompareInterviews({ jobId }: { jobId: string }) {
                         {r.rating}
                       </span>
                       <span>
-                        <span className="font-medium">{`${r.competency}:`}</span>{" "}
+                        <span className="font-medium">{`${rubricLabel(r.competency, locale)}:`}</span>{" "}
                         {r.evidence ? <span className="text-steel">{r.evidence}</span> : null}
                       </span>
                     </li>

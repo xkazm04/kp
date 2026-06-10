@@ -45,3 +45,135 @@ export function rubricForArchetype(archetype: string | null | undefined): Rubric
 export const RUBRIC_ANCHOR_LINE = Object.entries(RATING_ANCHORS)
   .map(([k, v]) => `${k} = ${v}`)
   .join(" · ");
+
+// PREP3 — Czech DISPLAY overlay. The canonical English `competency` stays the
+// storage + scoring KEY (stored in ScorecardRating.competency by both the
+// Python scorer and the human panel, matched across surfaces), so this overlay
+// is keyed BY that canonical string and provides only display strings. A cs
+// recruiter sees a Czech rubric while every POST still carries the canonical
+// key; the Python scorer is untouched, and interview-rubric.test.ts asserts
+// every overlay key maps to a canonical competency so a typo can't silently
+// fall back to English forever.
+type RubricCsEntry = { label: string; description: string; anchors?: Record<string, string> };
+export const RUBRIC_CS: Record<string, RubricCsEntry> = {
+  // experienced
+  "Technical depth": { label: "Technická hloubka", description: "Hloubka a správnost v klíčových dovednostech role." },
+  "Problem-solving": { label: "Řešení problémů", description: "Uvažování, ladění chyb a strukturované myšlení pod otázkami." },
+  Communication: { label: "Komunikace", description: "Srozumitelnost, struktura a aktivní naslouchání." },
+  "Experience & fit": { label: "Zkušenosti a vhodnost", description: "Relevance zázemí a projektů k této konkrétní roli." },
+  Motivation: { label: "Motivace", description: "Skutečný zájem o roli a tým." },
+  // early_career
+  "Problem decomposition": {
+    label: "Rozklad problému",
+    description: "Jak rozloží neznámý problém: odkrytí předpokladů, omezení a struktury dříve, než sáhnou po řešení.",
+    anchors: {
+      "1": "Pouze přeformuluje problém nebo skočí k naučené odpovědi; žádný rozklad.",
+      "2": "Pojmenuje pár částí, ale mine klíčová omezení nebo závislosti.",
+      "3": "Rozloží problém na souvislé podproblémy a uvede hlavní omezení.",
+      "4": "Rozkládá čistě, odkrývá skryté předpoklady a ptá se na upřesnění před rozhodnutím.",
+      "5": "Přerámuje problém tak, aby odhalil jeho jádro, řadí podproblémy podle rizika a sám uvažuje o hraničních případech.",
+    },
+  },
+  "Learning agility": {
+    label: "Schopnost učení",
+    description: "Jak se učí a zotavují, když uvíznou: důkaz opakovatelné smyčky, ne jednorázového úspěchu.",
+    anchors: {
+      "1": "Neumí popsat, jak se učí nebo jak se odblokovali; přičítá to štěstí nebo jiným lidem.",
+      "2": "Popisuje pasivní učení (sledování tutoriálů) bez reflexe toho, co fungovalo.",
+      "3": "Pojmenuje konkrétní strategii učení a jednu věc, kterou by udělali jinak.",
+      "4": "Ukazuje cílenou smyčku diagnostika–experiment–úprava na reálném příkladu uvíznutí a zotavení.",
+      "5": "Přenáší poznatek z jedné oblasti do nové a reflektuje, jak se jejich přístup sám zlepšuje.",
+    },
+  },
+  Coachability: {
+    label: "Trénovatelnost",
+    description: "Jak v reálném čase přijmou nápovědu, opravu nebo nesouhlas: zapojí ji, odmítnou, nebo ztuhnou.",
+    anchors: {
+      "1": "Nápovědu ignoruje nebo se proti ní reflexivně brání.",
+      "2": "Nápovědu uzná, ale neumí podle ní jednat.",
+      "3": "Po nápovědě se přizpůsobí, s určitým pobízením.",
+      "4": "Nápovědu rychle zapojí a vysvětlí, jak mění jejich přístup.",
+      "5": "Nápovědu prozkoumá, položí zpřesňující otázku a zobecní ji nad rámec daného problému.",
+    },
+  },
+  "Conceptual depth": {
+    label: "Pojmová hloubka",
+    description: "Zda chápou proč, nejen co: testováno protipříklady a přenosem na nové případy.",
+    anchors: {
+      "1": "Vybaví si definice, ale neumí vysvětlit proč; selže při jakékoli variantě „co kdyby“.",
+      "2": "Vysvětlí ideální průběh, ale ne kompromisy ani co se mění za jiných podmínek.",
+      "3": "Vysvětlí mechanismus a zvládne jednoduchý protipříklad.",
+      "4": "Uvažuje o kompromisech a přizpůsobí koncept změněnému požadavku.",
+      "5": "Odvodí myšlenku z prvních principů a předpoví, kde selže za nového omezení.",
+    },
+  },
+  "Motivation & direction": {
+    label: "Motivace a směřování",
+    description: "Soudržnost a konkrétnost toho, proč tento obor a tato role: vnitřní pohon nad naučenými odpověďmi.",
+    anchors: {
+      "1": "Obecné nebo čistě vnější („dobrý plat“); žádný konkrétní zájem.",
+      "2": "Uvádí zájem, ale neumí ho navázat na nic, co skutečně dělali.",
+      "3": "Uvede konkrétní, konzistentní důvod opřený o reálnou zkušenost nebo projekt.",
+      "4": "Ukazuje souvislou linii od minulých voleb k této roli a budoucímu cíli.",
+      "5": "Vyjádří ostré, sebereflektující směřování s důkazy o samostatném zkoumání směrem k němu.",
+    },
+  },
+  "Communication & collaboration": {
+    label: "Komunikace a spolupráce",
+    description: "Srozumitelnost a struktura vysvětlení, aktivní naslouchání a jak pracují s podněty druhých.",
+    anchors: {
+      "1": "Neuspořádané nebo vyhýbavé; neodpovídá na položenou otázku.",
+      "2": "Odpoví, ale odbíhá nebo postrádá strukturu; těžko se sleduje.",
+      "3": "Jasné, strukturované odpovědi; naslouchá a reaguje na skutečnou otázku.",
+      "4": "Vysvětlí složité myšlenky jednoduše a ověří porozumění.",
+      "5": "Přizpůsobí vysvětlení posluchači a konstruktivně otevře nesouhlas.",
+    },
+  },
+};
+
+export const RATING_ANCHORS_CS: Record<number, string> = {
+  1: "Hluboko pod laťkou",
+  2: "Pod laťkou",
+  3: "Splňuje laťku",
+  4: "Nad laťkou",
+  5: "Výjimečné",
+};
+
+// A competency with its display strings resolved for a locale; `competency` is
+// always the canonical KEY that surfaces POST, never the localized label.
+export type LocalizedRubricCompetency = {
+  competency: string;
+  label: string;
+  description: string;
+  anchors?: Record<string, string>;
+};
+
+/** Resolve a rubric's display strings for `locale`. English (or an unmapped
+ *  competency) falls back to the canonical strings, so a missing overlay entry
+ *  degrades gracefully rather than rendering blank. The canonical `competency`
+ *  key is preserved for the scorecard POST. */
+export function localizedRubric(rubric: RubricCompetency[], locale: string): LocalizedRubricCompetency[] {
+  const cs = locale === "cs";
+  return rubric.map((c) => {
+    const overlay = cs ? RUBRIC_CS[c.competency] : undefined;
+    return {
+      competency: c.competency,
+      label: overlay?.label ?? c.competency,
+      description: overlay?.description ?? c.description,
+      anchors: (cs ? overlay?.anchors : undefined) ?? c.anchors,
+    };
+  });
+}
+
+/** The 1–5 rating scale labels for a locale (falls back to English). */
+export function localizedRatingAnchors(locale: string): Record<number, string> {
+  return locale === "cs" ? RATING_ANCHORS_CS : RATING_ANCHORS;
+}
+
+/** Display label for a STORED (canonical) competency key — for surfaces that
+ *  render persisted ScorecardRating rows rather than iterating the rubric. Falls
+ *  back to the canonical key when there's no overlay (English, or a custom
+ *  competency the LLM scorer emitted that isn't in the fixed rubric). */
+export function rubricLabel(canonicalCompetency: string, locale: string): string {
+  return (locale === "cs" ? RUBRIC_CS[canonicalCompetency]?.label : undefined) ?? canonicalCompetency;
+}

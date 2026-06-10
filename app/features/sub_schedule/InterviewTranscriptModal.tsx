@@ -2,7 +2,8 @@
 
 import { useMemo, useState } from "react";
 import { AlertTriangle, ClipboardCheck, Loader2, Quote, RefreshCw } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import { rubricLabel } from "@/app/_lib/interview-rubric";
 import { Modal } from "@/app/_components/Modal";
 import { InterviewRecommendationBadge } from "@/app/_components/Badge";
 import { Meter } from "@/app/_components/Meter";
@@ -71,6 +72,7 @@ function findEvidenceTurn(evidence: string, turns: VoiceTurn[]): number {
 // the two are never confused. Used both alongside an AI screen and on its own.
 function HumanScorecardSection({ sc }: { sc: Scorecard }) {
   const t = useTranslations("scheduleTab.transcript");
+  const locale = useLocale(); // PREP3 — display the stored canonical competency localized
   return (
     <section className="rounded-md border border-coral/30 bg-coral/5 p-3">
       <div className="flex items-center justify-between gap-2">
@@ -87,11 +89,11 @@ function HumanScorecardSection({ sc }: { sc: Scorecard }) {
             return (
               <li key={i} className="text-sm text-ink">
                 <div className="flex items-baseline justify-between gap-2">
-                  <span className="font-semibold">{r.competency}</span>
+                  <span className="font-semibold">{rubricLabel(r.competency, locale)}</span>
                   <span className="shrink-0 nums text-steel">{rating != null ? `${rating}/${RATING_MAX}` : t("notAssessed")}</span>
                 </div>
                 {rating != null ? (
-                  <Meter value={ratingToPercent(rating)} tone={ratingTone(rating)} className="mt-1" aria-label={t("ratingAria", { competency: r.competency, rating, max: RATING_MAX })} />
+                  <Meter value={ratingToPercent(rating)} tone={ratingTone(rating)} className="mt-1" aria-label={t("ratingAria", { competency: rubricLabel(r.competency, locale), rating, max: RATING_MAX })} />
                 ) : null}
                 {r.evidence ? <p className="mt-1 text-meta text-steel">{r.evidence}</p> : null}
               </li>
@@ -106,6 +108,7 @@ function HumanScorecardSection({ sc }: { sc: Scorecard }) {
 
 export function InterviewTranscriptModal({ entry, onClose }: { entry: SchedEntry; onClose: () => void }) {
   const t = useTranslations("scheduleTab.transcript");
+  const locale = useLocale(); // PREP3 — localize stored competency display
   // The shared hook captures a non-OK status / {error} body that the old bare
   // .then(r => r.json()) swallowed — a 500 now reads as an error rather than an
   // empty "no interview recorded" — and ignores results after unmount.
@@ -190,7 +193,7 @@ export function InterviewTranscriptModal({ entry, onClose }: { entry: SchedEntry
                     return (
                       <li key={i} className="text-sm text-ink">
                         <div className="flex items-baseline justify-between gap-2">
-                          <span className="font-semibold">{r.competency}</span>
+                          <span className="font-semibold">{rubricLabel(r.competency, locale)}</span>
                           <span className="shrink-0 nums text-steel">{rating != null ? `${rating}/${RATING_MAX}` : t("notAssessed")}</span>
                         </div>
                         {rating != null ? (
@@ -198,7 +201,7 @@ export function InterviewTranscriptModal({ entry, onClose }: { entry: SchedEntry
                             value={ratingToPercent(rating)}
                             tone={ratingTone(rating)}
                             className="mt-1"
-                            aria-label={t("ratingAria", { competency: r.competency, rating, max: RATING_MAX })}
+                            aria-label={t("ratingAria", { competency: rubricLabel(r.competency, locale), rating, max: RATING_MAX })}
                           />
                         ) : null}
                         {r.evidence ? (
