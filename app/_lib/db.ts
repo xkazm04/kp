@@ -1965,6 +1965,90 @@ export function pipelineAnalytics(windowDays?: number | null): PipelineAnalytics
   };
 }
 
+// ---- Cross-entity search (SHELL1, the command palette) ---------------------
+
+export type SearchHit = {
+  type: "profile" | "entry" | "job" | "jd" | "analysis";
+  // The navigation handle the client maps to a deep link per type: profile id,
+  // entry id (label drives the board filter), job id, JD slug, analysis slug.
+  id: string;
+  label: string;
+  sub: string | null;
+};
+
+// Escape LIKE wildcards in user input so "100%" searches for the literal string;
+// queries below pair the pattern with ESCAPE '\'.
+function escapeLike(q: string): string {
+  return q.replace(/[\\%_]/g, (c) => `\\${c}`);
+}
+
+// One palette query across the five user-recallable entity tables. Plain LIKE
+// over indexed-enough tables (all are small, capped per type) — newest rows
+// first so the recently-touched record the recruiter is hunting for surfaces on
+// top. Read-only; the route wraps it in safeJsonError.
+export function searchEntities(query: string, limitPerType = 5): SearchHit[] {
+  const db = ensureDb();
+  const like = `%${escapeLike(query)}%`;
+  const hits: SearchHit[] = [];
+
+  const profiles = db
+    .prepare(
+      `SELECT id, label, archetype FROM profiles WHERE label LIKE ? ESCAPE '\\'
+       ORDER BY created_at DESC LIMIT ?`
+    )
+    .all(like, limitPerType) as { id: string; label: string; archetype: string | null }[];
+  for (const p of profiles) hits.push({ type: "profile", id: p.id, label: p.label, sub: p.archetype });
+
+  const entries = db
+    .prepare(
+      `SELECT id, candidate_label, job_title, stage FROM pipeline_entries
+       WHERE candidate_label LIKE ? ESCAPE '\\' OR job_title LIKE ? ESCAPE '\\'
+       ORDER BY updated_at DESC LIMIT ?`
+    )
+    .all(like, like, limitPerType) as { id: string; candidate_label: string; job_title: string | null; stage: string }[];
+  for (const e of entries)
+    hits.push({
+      type: "entry",
+      id: e.id,
+      label: e.candidate_label,
+      sub: [e.job_title, e.stage].filter(Boolean).join(" · ") || null,
+    });
+
+  const jobs = db
+    .prepare(
+      `SELECT id, title, company FROM jobs WHERE title LIKE ? ESCAPE '\\' OR company LIKE ? ESCAPE '\\'
+       ORDER BY created_at DESC LIMIT ?`
+    )
+    .all(like, like, limitPerType) as { id: string; title: string; company: string | null }[];
+  for (const j of jobs) hits.push({ type: "job", id: j.id, label: j.title, sub: j.company });
+
+  const jds = db
+    .prepare(
+      `SELECT slug, title FROM jds
+       WHERE (title LIKE ? ESCAPE '\\' OR slug LIKE ? ESCAPE '\\') AND archived_at IS NULL
+       ORDER BY created_at DESC LIMIT ?`
+    )
+    .all(like, like, limitPerType) as { slug: string; title: string }[];
+  for (const d of jds) hits.push({ type: "jd", id: d.slug, label: d.title, sub: d.slug });
+
+  const analyses = db
+    .prepare(
+      `SELECT slug, candidate_label, score FROM analyses
+       WHERE candidate_label LIKE ? ESCAPE '\\' OR slug LIKE ? ESCAPE '\\'
+       ORDER BY created_at DESC LIMIT ?`
+    )
+    .all(like, like, limitPerType) as { slug: string; candidate_label: string | null; score: number | null }[];
+  for (const a of analyses)
+    hits.push({
+      type: "analysis",
+      id: a.slug,
+      label: a.candidate_label || a.slug,
+      sub: a.score != null ? String(a.score) : null,
+    });
+
+  return hits;
+}
+
 // Prior pipeline outcomes per candidate — used by talent rediscovery to spot
 // "silver medalists" (rejected/closed elsewhere) who fit a different role.
 export type CandidateOutcome = { jobId: string | null; jobTitle: string | null; stage: string; status: string };

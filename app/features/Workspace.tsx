@@ -7,6 +7,7 @@ import { useTranslations } from "next-intl";
 import { Skeleton } from "@/app/_components/Skeleton";
 import { ErrorBoundary } from "@/app/_components/ErrorBoundary";
 import { LanguageSwitcher } from "@/app/_components/LanguageSwitcher";
+import { CommandPalette } from "./CommandPalette";
 import { TasksIndicator } from "./tasks/TasksIndicator";
 import { TasksProvider } from "./tasks/TasksProvider";
 import { SimulationProvider } from "./simulation/SimulationProvider";
@@ -98,6 +99,12 @@ export function Workspace() {
               <p className="text-sm uppercase tracking-[0.12em] text-steel">{t("tagline")}</p>
             </div>
           </div>
+        </div>
+
+        {/* SHELL1: the global search affordance — the palette itself also opens
+            anywhere via Ctrl/Cmd+K. */}
+        <div className="px-3 pb-4">
+          <CommandPalette />
         </div>
 
         <nav aria-label={t("ariaLabel")} className="space-y-5 px-3 pb-6">

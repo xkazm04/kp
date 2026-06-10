@@ -185,6 +185,22 @@
       }
     }
   },
+  "palette": {
+    "trigger": "Hledat…",
+    "title": "Hledání",
+    "placeholder": "Hledat kandidáty, pozice, JD, analýzy…",
+    "empty": "Pište pro hledání — nebo přejděte na záložku níže.",
+    "noResults": "Žádné výsledky pro „{q}“.",
+    "searchFailed": "Hledání je momentálně nedostupné.",
+    "groups": {
+      "tabs": "Přejít na",
+      "profile": "Kandidáti",
+      "entry": "V pipeline",
+      "job": "Pozice",
+      "jd": "Popisy pozic",
+      "analysis": "Analýzy CV"
+    }
+  },
   "nav": {
     "skipToContent": "Přejít na obsah",
     "ariaLabel": "Pracovní plocha",

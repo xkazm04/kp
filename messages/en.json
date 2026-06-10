@@ -185,6 +185,22 @@
       }
     }
   },
+  "palette": {
+    "trigger": "Search…",
+    "title": "Search",
+    "placeholder": "Search candidates, roles, JDs, analyses…",
+    "empty": "Type to search — or jump to a tab below.",
+    "noResults": "No matches for “{q}”.",
+    "searchFailed": "Search is unavailable right now.",
+    "groups": {
+      "tabs": "Go to",
+      "profile": "Candidates",
+      "entry": "In pipeline",
+      "job": "Roles",
+      "jd": "Job descriptions",
+      "analysis": "CV analyses"
+    }
+  },
   "nav": {
     "skipToContent": "Skip to content",
     "ariaLabel": "Workspace",
