@@ -5,6 +5,7 @@ import { ScoreBadge } from "@/app/_components/ScoreBadge";
 import { WorkspaceShell } from "@/app/features/WorkspaceNav";
 import { getJob, listAnalysesByJd, loadJd, type AnalysisSummary, type JdRow } from "@/app/_lib/db";
 import { getJobStatus, isJobOpenForApplications } from "@/app/_lib/job-ingest";
+import { JdActions } from "./JdActions";
 import { JdBody } from "./JdBody";
 
 export const dynamic = "force-dynamic";
@@ -98,6 +99,15 @@ export default async function JdDetailPage({
           </Link>
         </div>
       </header>
+
+      {jd.archived_at ? (
+        <p className="mt-4 rounded-md border border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-800" role="status">
+          This JD is archived — it no longer appears in the library or the Analyze picker, but this page (and every
+          analysis link to it) keeps working.
+        </p>
+      ) : null}
+
+      <JdActions slug={slug} title={jd.title} body={jd.body} archived={Boolean(jd.archived_at)} />
 
       <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_380px]">
         <JdBody markdown={jd.body} />

@@ -450,6 +450,9 @@ function ensureDb(): Database.Database {
     // after save via PATCH /api/analyses/[slug] once the client holds both the
     // saved slug and a done GitHub result. NULL = no deep-dive ran for this row.
     "ALTER TABLE analyses ADD COLUMN github_json TEXT",
+    // JD archive (W8-4/JDL1): archived JDs drop out of listJds and the pickers,
+    // but loadJd keeps serving them so existing analysis links never 404.
+    "ALTER TABLE jds ADD COLUMN archived_at TEXT",
   ]) {
     try {
       db.exec(sql);
@@ -587,6 +590,8 @@ export type JdRow = {
   title: string;
   body: string;
   created_at: string;
+  // W8-4 — set when archived; loadJd still serves the row (banner, no 404).
+  archived_at?: string | null;
 };
 
 // What the list endpoint exposes: identity + a short, server-truncated preview
@@ -787,7 +792,7 @@ export function listJds(limit = 100): JdListItem[] {
       `SELECT slug, title, created_at,
               substr(body, 1, ${JD_PREVIEW_CHARS + 1}) AS body_head,
               length(body) AS body_len
-       FROM jds ORDER BY created_at DESC LIMIT ?`
+       FROM jds WHERE archived_at IS NULL ORDER BY created_at DESC LIMIT ?`
     )
     .all(limit) as Array<{
     slug: string;
@@ -806,10 +811,31 @@ export function listJds(limit = 100): JdListItem[] {
 
 export function loadJd(slug: string): JdRow | null {
   const db = ensureDb();
+  // Archived rows still load (W8-4): the public page renders them with a
+  // banner so existing analysis/report links never 404.
   const row = db
-    .prepare(`SELECT slug, title, body, created_at FROM jds WHERE slug = ?`)
+    .prepare(`SELECT slug, title, body, created_at, archived_at FROM jds WHERE slug = ?`)
     .get(slug) as JdRow | undefined;
   return row ?? null;
+}
+
+/** Edit a saved JD in place (W8-4/JDL1 — the library was fully append-only, so
+ *  every revision forked a permanent near-duplicate and orphaned the analysis
+ *  history keyed on jd_slug). Caller validates via validateJdFields. */
+export function updateJd(slug: string, input: { title: string; body: string }): boolean {
+  const db = ensureDb();
+  return db.prepare(`UPDATE jds SET title = ?, body = ? WHERE slug = ?`).run(input.title, input.body, slug).changes > 0;
+}
+
+/** Archive / unarchive a JD (W8-4). Archived JDs leave listJds and the
+ *  pickers; their public page stays up with a banner. */
+export function setJdArchived(slug: string, archived: boolean): boolean {
+  const db = ensureDb();
+  return (
+    db
+      .prepare(`UPDATE jds SET archived_at = ? WHERE slug = ?`)
+      .run(archived ? new Date().toISOString() : null, slug).changes > 0
+  );
 }
 
 type CacheRow = {
