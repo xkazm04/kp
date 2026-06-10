@@ -33,6 +33,12 @@ type Ctx = {
   running: Task[];
   /** Resolves to the started Task, or null if it never started (see `startError`). */
   startTask: (kind: string, params?: Record<string, unknown>) => Promise<Task | null>;
+  /**
+   * DATA1 — replay a failed/interrupted/canceled task from its persisted params
+   * (server-side via POST /api/tasks/[id]/retry, so the blobs never round-trip).
+   * Resolves to the NEW task, or null on failure (surfaced via `startError`).
+   */
+  retryTask: (id: string) => Promise<Task | null>;
   cancelTask: (id: string) => Promise<void>;
   refresh: () => void;
   /**
@@ -107,6 +113,24 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
     [refresh]
   );
 
+  const retryTask = useCallback(
+    async (id: string) => {
+      try {
+        const r = await fetch(`/api/tasks/${id}/retry`, { method: "POST" });
+        const p = (await r.json().catch(() => ({}))) as { task?: Task; error?: string };
+        if (!r.ok) throw new Error(p.error || `Request failed (${r.status})`);
+        setStartError(null);
+        void refresh();
+        return p.task ?? null;
+      } catch (e) {
+        // Same contract as startTask: a dead retry click must never be silent.
+        setStartError({ kind: "retry", message: e instanceof Error && e.message ? e.message : "Couldn't reach the server." });
+        return null;
+      }
+    },
+    [refresh]
+  );
+
   // On-demand fetch of a single full task — the only path to a task's result/params,
   // which the polled list deliberately omits. Swallows failures into null so callers
   // can simply retry on the next poll tick (see useTaskResult).
@@ -158,6 +182,7 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
     tasks,
     running: tasks.filter(ACTIVE),
     startTask,
+    retryTask,
     cancelTask,
     refresh,
     fetchTask,

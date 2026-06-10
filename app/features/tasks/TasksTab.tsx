@@ -279,9 +279,15 @@ function ActiveCard({ task, onCancel }: { task: Task; onCancel: () => void }) {
 // rows omit it so polling never re-triggers motion. CSS animations only fire on
 // mount, so already-present rows never re-animate regardless.
 function DoneRow({ task, animateDelayMs = null }: { task: Task; animateDelayMs?: number | null }) {
+  const { retryTask } = useTasks();
+  const [retrying, setRetrying] = useState(false);
   const meta = STATUS[task.status];
   const dur = duration(task.startedAt, task.finishedAt);
   const failed = task.status === "failed" || task.status === "interrupted";
+  // DATA1 — every dead-end terminal row can replay from its persisted params;
+  // the new run appears in "In progress" via the existing poll (the old row
+  // stays as the audit record of the failure).
+  const retryable = task.status === "failed" || task.status === "interrupted" || task.status === "canceled";
   const animate = animateDelayMs != null;
   return (
     <li
@@ -297,6 +303,20 @@ function DoneRow({ task, animateDelayMs = null }: { task: Task; animateDelayMs?:
         {failed && task.error ? <p className="mt-0.5 break-words text-sm text-coral">{task.error}</p> : null}
         <p className="mt-0.5 font-mono text-sm text-steel/70">{task.kind}</p>
       </div>
+      {retryable ? (
+        <button
+          type="button"
+          onClick={() => {
+            setRetrying(true);
+            void retryTask(task.id).finally(() => setRetrying(false));
+          }}
+          disabled={retrying}
+          title="Run this task again with the same inputs"
+          className="focus-ring mt-0.5 inline-flex shrink-0 items-center gap-1 rounded-md border border-stone-300 bg-white px-2 py-1 text-sm font-medium text-steel transition-colors hover:bg-paper hover:text-coral disabled:opacity-60"
+        >
+          <RefreshCw size={12} className={retrying ? "animate-spin" : ""} /> Retry
+        </button>
+      ) : null}
       <div className="shrink-0 text-right text-sm text-steel">
         <p>{relTime(task.finishedAt ?? task.startedAt ?? task.createdAt)}</p>
         {dur ? <p className="text-sm text-steel/70">took {dur}</p> : null}
