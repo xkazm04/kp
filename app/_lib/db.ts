@@ -923,6 +923,16 @@ export function prunePromptCache(limit?: number): number {
   return Number(result.changes ?? 0);
 }
 
+// DATA2 — prompt-cache visibility for the ops panel: live row count plus the
+// expired backlog the bounded opportunistic prune hasn't reclaimed yet.
+export function promptCacheStats(): { rows: number; expiredBacklog: number } {
+  const db = ensureDb();
+  const now = new Date().toISOString();
+  const rows = (db.prepare(`SELECT COUNT(*) AS n FROM gemini_cache`).get() as { n: number }).n;
+  const expired = (db.prepare(`SELECT COUNT(*) AS n FROM gemini_cache WHERE expires_at < ?`).get(now) as { n: number }).n;
+  return { rows, expiredBacklog: expired };
+}
+
 // ---- Jobs (v2 matching platform) ------------------------------------------
 // The store holds fully-normalized jobs (resolved taxonomy terms, salary anchor
 // band, graduate lens) produced by the Python pipeline, so TypeScript never

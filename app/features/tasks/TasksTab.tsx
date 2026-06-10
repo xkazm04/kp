@@ -4,6 +4,7 @@ import { useCallback, useState } from "react";
 import Link from "next/link";
 import { AlertTriangle, Ban, Check, ChevronDown, ChevronRight, Clock, Loader2, RefreshCw, X } from "lucide-react";
 import { useTasks, type Task, type TaskStatus } from "./TasksProvider";
+import { SystemCard } from "./SystemCard";
 import { useReducedMotion } from "@/app/_lib/useReducedMotion";
 import { useInfiniteScroll, type InfinitePage } from "@/app/_lib/useInfiniteScroll";
 import { formatRelativeTime } from "@/app/_lib/format";
@@ -231,6 +232,9 @@ export function TasksTab() {
       {showHistory ? (
         <TaskHistory key={`${kindFilter}|${statusFilter ?? ""}`} kind={kindFilter} status={statusFilter} text={text} />
       ) : null}
+
+      {/* DATA2: the System/ops panel — the tasks tab is the operator's home. */}
+      <SystemCard />
     </section>
   );
 }
