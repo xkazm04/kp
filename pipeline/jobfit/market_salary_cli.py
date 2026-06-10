@@ -22,18 +22,30 @@ from .taxonomy import role_band
 REGION_DEFAULT = "Czech Republic (Prague)"
 
 
-def _fallback(role_family: str, seniority: str) -> dict:
+# SCOR6 — the deterministic fallback summary lands in the candidate-facing JD
+# ("About the role" interpolates it), so localize it: an English fallback inside
+# a Czech JD is the exact mixed-language seam the bilingual i18n closed. Keyed by
+# normalized lang; falls back to English for any unknown code.
+_FALLBACK_SUMMARY = {
+    "en": "Estimated from the internal role-family salary table (no live web evidence).",
+    "cs": "Odhadnuto z interní tabulky mezd podle oborů (bez živých webových podkladů).",
+}
+
+
+def _fallback(role_family: str, seniority: str, lang: str = "en") -> dict:
+    from .i18n import normalize_lang
+
     band = role_band(role_family, seniority) or (0, 0)
     return {
         "suggestedMinimum": int(band[0]),
         "suggestedMaximum": int(band[1]),
         "currency": "CZK",
         "confidence": "low",
-        "summary": "Estimated from the internal role-family salary table (no live web evidence).",
+        "summary": _FALLBACK_SUMMARY[normalize_lang(lang)],
     }
 
 
-def _coerce(payload: dict, role_family: str, seniority: str) -> tuple[dict, bool]:
+def _coerce(payload: dict, role_family: str, seniority: str, lang: str = "en") -> tuple[dict, bool]:
     """Validate the grounded JSON; repair to the taxonomy band if unusable.
 
     Returns (result, grounded) where ``grounded`` is True only when the payload
@@ -42,7 +54,7 @@ def _coerce(payload: dict, role_family: str, seniority: str) -> tuple[dict, bool
     raising — the caller derives its source label from this flag rather than
     re-parsing the raw payload.
     """
-    fb = _fallback(role_family, seniority)
+    fb = _fallback(role_family, seniority, lang)
     try:
         lo = int(payload.get("suggestedMinimum") or 0)
         hi = int(payload.get("suggestedMaximum") or 0)
@@ -85,7 +97,7 @@ def main(argv: list[str] | None = None) -> int:
         load_local_env()
 
         if args.no_grounding:
-            result = _fallback(role_family, seniority)
+            result = _fallback(role_family, seniority, args.lang)
             print(json.dumps({"result": result, "sources": [], "source": "deterministic"}, ensure_ascii=False))
             return 0
 
@@ -109,7 +121,7 @@ def main(argv: list[str] | None = None) -> int:
             expected_keys=("suggestedMinimum", "suggestedMaximum", "currency", "confidence", "summary"),
             fallback=GroundedAnswer(text="", payload={}, sources=[]),
         )
-        result, grounded = _coerce(ans.payload or {}, role_family, seniority)
+        result, grounded = _coerce(ans.payload or {}, role_family, seniority, args.lang)
         print(
             json.dumps(
                 {"result": result, "sources": ans.sources[:8], "source": "llm" if grounded else "deterministic"},
