@@ -422,6 +422,7 @@
       "githubUnverified": "Unverified claims:",
       "githubHidden": "Hidden strengths:",
       "githubEvidenceNote": "From the GitHub deep-dive attached when this candidate was added — public repo signals, not inspected source.",
+      "messages": "Messages ({count})",
       "history": "History",
       "moveStage": "Move stage",
       "moveStageHelp": "Manually correct this candidate's stage — send them back after a no-show, skip ahead, or fix a misfile.",
@@ -1351,6 +1352,15 @@
     }
   },
   "channels": {
+    "comms": {
+      "title": "Communications",
+      "count": "{count, plural, one {# message} other {# messages}}",
+      "deadLetters": "{count, plural, one {# dead-letter — needs attention} other {# dead-letters — need attention}}",
+      "intro": "Every candidate-facing message the pipeline sent — acknowledgements, outreach, interview invites, rejections, offers. Expand a row to read the full letter; failed sends can be re-delivered.",
+      "empty": "No messages sent yet — they'll appear here as candidates move through the funnel.",
+      "loadFailed": "Couldn't load communications.",
+      "loading": "Loading communications"
+    },
     "eyebrow": "Workspace",
     "title": "Channels & integrations",
     "intro": "Where candidates enter the pipeline. Both inbound <b>applications</b> and proactively-sourced candidates arrive at <hl>Accepted</hl>, then flow into <hl>Screened</hl> for first-wave evaluation.",

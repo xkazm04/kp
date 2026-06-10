@@ -174,6 +174,25 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
     };
   }, [entry.id]);
 
+  // W6-2 (SIM1) — the actual letters this candidate received (events say
+  // "rejection_sent"; this shows the rejection). Best-effort, hides when empty.
+  const [comms, setComms] = useState<
+    { id: string; kind: string | null; status: string; channel: string | null; subject: string | null; body: string | null; createdAt: string }[] | null
+  >(null);
+  useEffect(() => {
+    let alive = true;
+    fetch(`/api/comms?entry=${encodeURIComponent(entry.id)}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (alive && d) setComms((d.messages as typeof comms) ?? []);
+      })
+      .catch(() => undefined);
+    return () => {
+      alive = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [entry.id]);
+
   // Load this candidate's event timeline (PIPE3). Best-effort: a failed/empty load
   // just hides the section — the drawer's actions don't depend on it.
   useEffect(() => {
@@ -469,6 +488,37 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
                 </p>
               ) : null}
               <p className="mt-1.5 text-meta text-steel">{t("githubEvidenceNote")}</p>
+            </div>
+          ) : null}
+
+          {/* W6-2 — what this candidate actually received (full letters, not
+              just the event line), with failed sends visible at the source. */}
+          {comms && comms.length > 0 ? (
+            <div>
+              <p className="flex items-center gap-1.5 text-meta uppercase tracking-wide text-steel">
+                <Mail size={13} /> {t("messages", { count: comms.length })}
+              </p>
+              <ul className="mt-2 space-y-1">
+                {comms.map((m) => (
+                  <li key={m.id} className={`rounded-md border px-2.5 py-1 ${m.status === "failed" ? "border-red-200 bg-red-50/50" : "border-stone-100 bg-paper/40"}`}>
+                    <details>
+                      <summary className="focus-ring flex cursor-pointer flex-wrap items-center gap-x-2 gap-y-0.5 text-sm">
+                        <span className="rounded-full bg-stone-100 px-1.5 py-0.5 text-meta font-semibold uppercase text-steel">
+                          {(m.kind ?? "").replace(/_/g, " ")}
+                        </span>
+                        <span className={`text-meta font-semibold uppercase ${m.status === "failed" ? "text-red-700" : m.status === "sent" ? "text-moss" : "text-steel"}`}>
+                          {m.status === "queued" ? (m.channel ?? m.status) : m.status}
+                        </span>
+                        <span className="ml-auto text-meta text-steel">{relativeTime(m.createdAt)}</span>
+                      </summary>
+                      <div className="mt-1 border-t border-stone-100 pt-1 text-sm">
+                        {m.subject ? <p className="font-semibold text-ink">{m.subject}</p> : null}
+                        {m.body ? <pre className="mt-0.5 whitespace-pre-wrap font-sans text-sm leading-5 text-steel">{m.body}</pre> : null}
+                      </div>
+                    </details>
+                  </li>
+                ))}
+              </ul>
             </div>
           ) : null}
 

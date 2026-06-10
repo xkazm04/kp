@@ -422,6 +422,7 @@
       "githubUnverified": "Neověřená tvrzení:",
       "githubHidden": "Skryté silné stránky:",
       "githubEvidenceNote": "Z hloubkové analýzy GitHubu připojené při přidání kandidáta — signály z veřejných repozitářů, ne kontrola zdrojového kódu.",
+      "messages": "Zprávy ({count})",
       "history": "Historie",
       "moveStage": "Změnit fázi",
       "moveStageHelp": "Ručně opravte fázi kandidáta — vraťte ho po neúčasti, přeskočte vpřed nebo opravte špatné zařazení.",
@@ -1351,6 +1352,15 @@
     }
   },
   "channels": {
+    "comms": {
+      "title": "Komunikace",
+      "count": "{count, plural, one {# zpráva} few {# zprávy} other {# zpráv}}",
+      "deadLetters": "{count, plural, one {# nedoručená — vyžaduje pozornost} few {# nedoručené — vyžadují pozornost} other {# nedoručených — vyžadují pozornost}}",
+      "intro": "Každá zpráva kandidátům, kterou pipeline odeslala — potvrzení, oslovení, pozvánky na pohovor, zamítnutí, nabídky. Rozbalením řádku zobrazíte celý dopis; neodeslané lze doručit znovu.",
+      "empty": "Zatím žádné zprávy — objeví se zde, jak budou kandidáti procházet náborem.",
+      "loadFailed": "Komunikaci se nepodařilo načíst.",
+      "loading": "Načítání komunikace"
+    },
     "eyebrow": "Pracovní prostor",
     "title": "Kanály a integrace",
     "intro": "Kudy kandidáti vstupují do pipeline. Příchozí <b>přihlášky</b> i proaktivně vyhledaní kandidáti přicházejí do stavu <hl>Přijato</hl> a poté přecházejí do stavu <hl>Prověřeno</hl> pro první vlnu hodnocení.",

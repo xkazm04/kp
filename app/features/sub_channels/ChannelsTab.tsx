@@ -8,6 +8,7 @@ import { useTranslations } from "next-intl";
 import { buildUrl, type WorkspaceTabId } from "@/app/features/tabs";
 import { useLiveRefresh } from "@/app/features/live-refresh";
 import { Badge } from "@/app/_components/Badge";
+import { CommsCenter } from "./CommsCenter";
 import { useReducedMotion } from "@/app/_lib/useReducedMotion";
 import type { PipelineEntryView } from "@/app/_lib/db";
 
@@ -185,6 +186,10 @@ export function ChannelsTab() {
           </span>
         ) : null}
       </div>
+
+      {/* W6-2 (SIM1) — every candidate-facing message, where a recruiter
+          actually thinks "candidate communications". */}
+      <CommsCenter />
     </section>
   );
 }
