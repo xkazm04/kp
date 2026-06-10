@@ -23,6 +23,26 @@ export function JobPostingModal({ job, onClose }: { job: Job; onClose: () => voi
   const [tab, setTab] = useState<"posting" | "candidates" | "rediscover" | "compare">("posting");
   const [copied, setCopied] = useState(false);
   const [applyCopied, setApplyCopied] = useState(false);
+  // W8-1 (JOB1) — retire the role from the surface that owns it. The lifecycle
+  // had no terminal state: a filled role kept collecting applications forever.
+  const [closing, setClosing] = useState(false);
+  const [closed, setClosed] = useState(false);
+  const [closeError, setCloseError] = useState<string | null>(null);
+  const closeRole = async () => {
+    if (closing || closed) return;
+    if (typeof window !== "undefined" && !window.confirm(t("closeConfirm"))) return;
+    setClosing(true);
+    setCloseError(null);
+    try {
+      const r = await fetch(`/api/jobs/${encodeURIComponent(job.id)}/close`, { method: "POST" });
+      if (!r.ok) throw new Error();
+      setClosed(true);
+    } catch {
+      setCloseError(t("closeFailed"));
+    } finally {
+      setClosing(false);
+    }
+  };
   const markdown = useMemo(() => jobToMarkdown(job), [job]);
 
   const copyApplyLink = async () => {
@@ -56,6 +76,20 @@ export function JobPostingModal({ job, onClose }: { job: Job; onClose: () => voi
       size="4xl"
       footer={
         <>
+          <button
+            type="button"
+            onClick={closeRole}
+            disabled={closing || closed}
+            title={t("closeTitle")}
+            className="focus-ring mr-auto inline-flex h-9 items-center gap-1 rounded-md border border-stone-200 px-3 text-sm font-semibold text-steel hover:border-coral/40 hover:text-coral disabled:opacity-60"
+          >
+            {closed ? t("closedNow") : closing ? t("closing") : t("closeRole")}
+          </button>
+          {closeError ? (
+            <span role="alert" className="text-sm text-red-700">
+              {closeError}
+            </span>
+          ) : null}
           <button
             type="button"
             onClick={copyApplyLink}

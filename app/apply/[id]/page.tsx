@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { getJob } from "@/app/_lib/db";
+import { getJobStatus, isJobOpenForApplications } from "@/app/_lib/job-ingest";
 import { buildApplyScript } from "@/app/_lib/apply";
 import { ConversationalApply } from "./ConversationalApply";
 
@@ -14,6 +15,22 @@ export default async function ApplyPage({ params }: { params: Promise<{ id: stri
   if (!job) notFound();
 
   const t = await getTranslations("apply");
+
+  // W8-1 (JOB1) — the apply surface follows the role's lifecycle. A closed
+  // (filled/retired) role renders an honest card instead of collecting
+  // applications nobody will process; a never-published draft isn't publicly
+  // live at all. The POST API enforces the same gate.
+  const status = getJobStatus(id);
+  if (!isJobOpenForApplications(status)) {
+    if (status === "draft") notFound();
+    return (
+      <main className="mx-auto max-w-xl px-4 py-12">
+        <p className="text-meta uppercase text-coral">{t("eyebrow")}</p>
+        <h1 className="mt-1 font-serif text-display text-ink">{job.title}</h1>
+        <p className="mt-4 rounded-lg border border-stone-200 bg-paper/60 p-4 text-body text-steel">{t("roleClosed")}</p>
+      </main>
+    );
+  }
   // Build the chat script here, server-side, from the getJob we already did and
   // hand it to the client as a prop — so the first prompt paints on hydration with
   // no initial /api/apply/[id] round-trip, no second getJob, and no Loading… flash.

@@ -74,6 +74,7 @@
   },
   "apply": {
     "eyebrow": "Apply",
+    "roleClosed": "This role has been filled and is no longer accepting applications. Thank you for your interest!",
     "subtitle": "A quick chat — no forms, no logins. A few questions and you're done.",
     "letsBegin": "Let's begin.",
     "youreIn": "You're in 🎉",
@@ -1024,6 +1025,12 @@
     "posting": {
       "copied": "Copied",
       "applyLink": "Apply link",
+      "closeRole": "Close role",
+      "closeTitle": "Retire this role — the apply link stops accepting and the role reads as filled",
+      "closeConfirm": "Close this role? The public apply link will stop accepting applications.",
+      "closing": "Closing…",
+      "closedNow": "Role closed",
+      "closeFailed": "Couldn't close the role.",
       "rankInMatrix": "Rank in matrix",
       "copyMarkdown": "Copy markdown",
       "viewsAria": "Job views",

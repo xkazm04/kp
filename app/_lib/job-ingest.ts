@@ -108,9 +108,21 @@ export function insertJob(job: JobRecord, contentHash?: string, status: string =
   return { id: job.id, created: !targetsExisting };
 }
 
-/** Flip a job's lifecycle status (draft → published on publish). */
-export function setJobStatus(jobId: string, status: "draft" | "published"): void {
+/** Flip a job's lifecycle status. W8-1 (JOB1) adds the terminal state the
+ *  one-way draft → published ratchet lacked: `closed` retires a filled or
+ *  abandoned role — the apply surface stops accepting, the catalog badges it.
+ *  NULL status (seeded corpus job) remains "live". */
+export function setJobStatus(jobId: string, status: "draft" | "published" | "closed"): void {
   db().prepare(`UPDATE jobs SET status = ? WHERE id = ?`).run(status, jobId);
+}
+
+/** Can candidates apply to this job right now? NULL (seeded/live) and
+ *  published accept; a draft was never publicly live, and a closed role's
+ *  apply link must stop collecting candidates nobody will process. ONE
+ *  authority shared by the apply page (render) and the apply API (submission)
+ *  — page-level gating alone is the documented anti-pattern. */
+export function isJobOpenForApplications(status: string | null): boolean {
+  return status === null || status === "published";
 }
 
 export function getJobStatus(jobId: string): string | null {

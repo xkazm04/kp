@@ -10,6 +10,7 @@ import {
   saveProfile,
 } from "@/app/_lib/db";
 import { applyDedupeKey, buildApplyProfileDraft, buildApplyScript, FALLBACK_ARCHETYPE } from "@/app/_lib/apply";
+import { getJobStatus, isJobOpenForApplications } from "@/app/_lib/job-ingest";
 import { dispatchApplicationReceived } from "@/app/_lib/comms-dispatch";
 import type { ApplyAnswers } from "@/app/_lib/apply-intake";
 import { cleanupWorkdir, createWorkdir, parsePythonJson, spawnPython } from "@/app/_lib/python-runner";
@@ -160,6 +161,13 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     // Candidate-facing outcome messages (returned in the JSON and shown verbatim
     // in the chat) are localized from the request's "apply" catalog.
     const t = await getTranslations("apply");
+
+    // W8-1 (JOB1) — a closed/draft role refuses the SUBMISSION too (the page
+    // gate alone is the documented anti-pattern: the API used to accept
+    // applications for any existing job forever, drafts included).
+    if (!isJobOpenForApplications(getJobStatus(id))) {
+      return NextResponse.json({ error: t("roleClosed") }, { status: 410 });
+    }
 
     // Reject an oversized body BEFORE buffering it into the heap. Content-Length is
     // the only pre-read signal; the per-field caps below backstop an absent/spoofed one.

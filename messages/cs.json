@@ -74,6 +74,7 @@
   },
   "apply": {
     "eyebrow": "Přihláška",
+    "roleClosed": "Tato pozice už byla obsazena a nepřijímá další přihlášky. Děkujeme za váš zájem!",
     "subtitle": "Krátký rozhovor — žádné formuláře, žádné přihlašování. Pár otázek a máte hotovo.",
     "letsBegin": "Začněme.",
     "youreIn": "Jste ve hře! 🎉",
@@ -1024,6 +1025,12 @@
     "posting": {
       "copied": "Zkopírováno",
       "applyLink": "Odkaz pro přihlášení",
+      "closeRole": "Uzavřít pozici",
+      "closeTitle": "Vyřadit pozici — odkaz pro přihlášení přestane přijímat a pozice se zobrazí jako obsazená",
+      "closeConfirm": "Uzavřít tuto pozici? Veřejný odkaz pro přihlášení přestane přijímat přihlášky.",
+      "closing": "Uzavírání…",
+      "closedNow": "Pozice uzavřena",
+      "closeFailed": "Pozici se nepodařilo uzavřít.",
       "rankInMatrix": "Seřadit v matici",
       "copyMarkdown": "Kopírovat markdown",
       "viewsAria": "Zobrazení pozice",
