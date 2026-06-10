@@ -1,25 +1,54 @@
 import { NextRequest, NextResponse } from "next/server";
-import { POLICY_JOB, getSchedule, listRuns, setEnabled, setIntervalMinutes } from "@/app/_lib/scheduler-store";
+import {
+  POLICY_JOB,
+  REMINDERS_JOB,
+  ensureReminderJob,
+  getSchedule,
+  listRuns,
+  setEnabled,
+  setIntervalMinutes,
+} from "@/app/_lib/scheduler-store";
 import { tickScheduler } from "@/app/_lib/scheduler";
 
 export const runtime = "nodejs";
 
+// AUTO6 — both registered jobs ride one payload: the policy pass (schedule/runs,
+// the historical shape) plus the reminders job and its recent send/failure runs.
+function schedulePayload() {
+  return {
+    schedule: getSchedule(),
+    runs: listRuns(10),
+    reminders: ensureReminderJob(),
+    reminderRuns: listRuns(5, REMINDERS_JOB),
+  };
+}
+
 // Control surface for the automation clock: read status + recent runs, toggle it
 // on/off, set the cadence, or force an immediate tick.
 export async function GET() {
-  return NextResponse.json({ schedule: getSchedule(), runs: listRuns(10) });
+  return NextResponse.json(schedulePayload());
 }
 
 export async function POST(request: NextRequest) {
   try {
-    const body = (await request.json()) as { enabled?: boolean; intervalMinutes?: number; tick?: boolean };
+    const body = (await request.json()) as {
+      enabled?: boolean;
+      intervalMinutes?: number;
+      tick?: boolean;
+      // AUTO6 — pause/resume candidate reminder sends (the job defaults ON).
+      remindersEnabled?: boolean;
+    };
     if (body.intervalMinutes !== undefined && !Number.isFinite(body.intervalMinutes)) {
       return NextResponse.json({ error: "intervalMinutes must be a finite number." }, { status: 400 });
     }
     if (typeof body.intervalMinutes === "number") setIntervalMinutes(POLICY_JOB, body.intervalMinutes);
     if (typeof body.enabled === "boolean") setEnabled(POLICY_JOB, body.enabled);
+    if (typeof body.remindersEnabled === "boolean") {
+      ensureReminderJob(); // row exists with the right defaults before toggling
+      setEnabled(REMINDERS_JOB, body.remindersEnabled);
+    }
     const tick = body.tick ? await tickScheduler({ force: true, trigger: "manual" }) : undefined;
-    return NextResponse.json({ schedule: getSchedule(), runs: listRuns(10), tick });
+    return NextResponse.json({ ...schedulePayload(), tick });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to update schedule.";
     return NextResponse.json({ error: message }, { status: 500 });

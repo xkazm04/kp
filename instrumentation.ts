@@ -37,14 +37,37 @@ export async function register(): Promise<void> {
     } catch (e) {
       console.error("[clock] tick failed:", e);
     }
-    // Interview reminders run every tick, independent of the policy schedule
-    // (they're time-sensitive and don't require opting into auto-advance).
+    // Interview reminders — independent of the policy schedule (time-sensitive,
+    // no auto-advance opt-in required) but, since AUTO6, a REGISTERED scheduler
+    // job: claimDueRun gates the sweep (its row defaults ON at the historical
+    // every-minute cadence, and pausing it from the UI actually pauses sends),
+    // last_run_at proves the sweep is alive, and sends/failures land in
+    // scheduler_runs instead of living only in server logs. Zero-send sweeps
+    // record no run row — at a 1-minute cadence that would be pure noise.
     try {
-      const { sendDueInterviewReminders } = await import("./app/_lib/interview-reminders");
-      const n = await sendDueInterviewReminders();
-      if (n) console.log("[clock] interview reminders sent:", n);
+      const { ensureReminderJob, claimDueRun, recordRun, REMINDERS_JOB } = await import("./app/_lib/scheduler-store");
+      ensureReminderJob();
+      if (claimDueRun(REMINDERS_JOB)) {
+        const startedAt = new Date().toISOString();
+        try {
+          const { sendDueInterviewReminders } = await import("./app/_lib/interview-reminders");
+          const n = await sendDueInterviewReminders();
+          if (n) {
+            recordRun({ job: REMINDERS_JOB, status: "ok", summary: { sent: n }, startedAt });
+            console.log("[clock] interview reminders sent:", n);
+          }
+        } catch (e) {
+          recordRun({
+            job: REMINDERS_JOB,
+            status: "error",
+            error: e instanceof Error ? e.message : String(e),
+            startedAt,
+          });
+          console.error("[clock] reminder sweep failed:", e);
+        }
+      }
     } catch (e) {
-      console.error("[clock] reminder sweep failed:", e);
+      console.error("[clock] reminder job bookkeeping failed:", e);
     }
   };
 

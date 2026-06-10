@@ -8,7 +8,13 @@ import { DB_PATH, ensureDbDir } from "./db-path";
 // `scheduler_runs` is the durable run log surfaced in the UI.
 
 export const POLICY_JOB = "policy_pass";
+// AUTO6 — the interview-reminder sweep, registered as a second named job so the
+// most candidate-visible automation is no longer the least observable one.
+export const REMINDERS_JOB = "reminders";
 const DEFAULT_INTERVAL_MIN = 15;
+// Reminders historically ran on every 60s heartbeat unconditionally; a 1-minute
+// cadence under claimDueRun preserves that timing while making it durable.
+const REMINDERS_INTERVAL_MIN = 1;
 
 let _db: Database.Database | null = null;
 function db(): Database.Database {
@@ -84,18 +90,33 @@ function rowToSchedule(r: Record<string, unknown>): Schedule {
 }
 
 /** Create the job row once if absent. Default OFF — opt-in via the UI toggle or
- *  AUTOMATION_SCHEDULER_AUTOSTART=1 (so nothing auto-mutates data unexpectedly). */
-export function ensureSchedule(name = POLICY_JOB): Schedule {
+ *  AUTOMATION_SCHEDULER_AUTOSTART=1 (so nothing auto-mutates data unexpectedly).
+ *  `defaults` lets a job override that posture at first creation (the reminders
+ *  job defaults ON — see ensureReminderJob); an existing row is never altered. */
+export function ensureSchedule(
+  name = POLICY_JOB,
+  defaults?: { enabled?: boolean; intervalMinutes?: number }
+): Schedule {
   const d = db();
   const existing = d.prepare(`SELECT * FROM scheduler WHERE name = ?`).get(name) as Record<string, unknown> | undefined;
   if (existing) return rowToSchedule(existing);
   const now = new Date().toISOString();
   const autostart = process.env.AUTOMATION_SCHEDULER_AUTOSTART === "1" ? 1 : 0;
+  const enabled = defaults?.enabled != null ? (defaults.enabled ? 1 : 0) : autostart;
+  const interval = defaults?.intervalMinutes ?? DEFAULT_INTERVAL_MIN;
   d.prepare(
     `INSERT INTO scheduler (name, enabled, interval_minutes, last_run_at, next_due_at, last_summary_json, updated_at)
      VALUES (?, ?, ?, NULL, ?, NULL, ?)`
-  ).run(name, autostart, DEFAULT_INTERVAL_MIN, autostart ? now : null, now);
+  ).run(name, enabled, interval, enabled ? now : null, now);
   return rowToSchedule(d.prepare(`SELECT * FROM scheduler WHERE name = ?`).get(name) as Record<string, unknown>);
+}
+
+/** AUTO6 — the reminders job row, created ON at its historical every-minute
+ *  cadence so registering it can't silently stop candidate reminders. ALWAYS
+ *  reach the row through this (not getSchedule(REMINDERS_JOB)) so whichever
+ *  surface touches it first creates it with the right defaults. */
+export function ensureReminderJob(): Schedule {
+  return ensureSchedule(REMINDERS_JOB, { enabled: true, intervalMinutes: REMINDERS_INTERVAL_MIN });
 }
 
 export function getSchedule(name = POLICY_JOB): Schedule {

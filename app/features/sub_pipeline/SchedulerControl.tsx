@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { AlertTriangle, ArrowUpRight, Clock, History, Loader2, Pause, XCircle } from "lucide-react";
+import { AlertTriangle, ArrowUpRight, BellRing, Clock, History, Loader2, Pause, XCircle } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Badge, type BadgeTone } from "@/app/_components/Badge";
@@ -112,6 +112,9 @@ export function SchedulerControl({
     return { tone: "ok", text: parts.length ? t("ranWith", { parts: parts.join(", ") }) : t("ranNoChanges") };
   };
   const [sched, setSched] = useState<Schedule | null>(null);
+  // AUTO6 — the reminders job (second scheduler row) + its recent send runs.
+  const [reminders, setReminders] = useState<Schedule | null>(null);
+  const [reminderRuns, setReminderRuns] = useState<SchedulerRun[]>([]);
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<RunResult | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -141,6 +144,8 @@ export function SchedulerControl({
       .then((p) => {
         setSched(p.schedule as Schedule);
         if (Array.isArray(p.runs)) setRuns(p.runs as SchedulerRun[]);
+        if (p.reminders) setReminders(p.reminders as Schedule);
+        if (Array.isArray(p.reminderRuns)) setReminderRuns(p.reminderRuns as SchedulerRun[]);
         setError(null);
       })
       .catch(() => setError(t("engineUnreachable")));
@@ -168,7 +173,7 @@ export function SchedulerControl({
     return () => clearTimeout(h);
   }, [result]);
 
-  const update = async (body: { enabled?: boolean; intervalMinutes?: number; tick?: boolean }) => {
+  const update = async (body: { enabled?: boolean; intervalMinutes?: number; tick?: boolean; remindersEnabled?: boolean }) => {
     if (inFlightRef.current) return; // a concurrent schedule op is already running
     inFlightRef.current = true;
     setBusy(true);
@@ -183,6 +188,8 @@ export function SchedulerControl({
       if (!r.ok) throw new Error(typeof p?.error === "string" ? p.error : `HTTP ${r.status}`);
       if (p.schedule) setSched(p.schedule as Schedule);
       if (Array.isArray(p.runs)) setRuns(p.runs as SchedulerRun[]);
+      if (p.reminders) setReminders(p.reminders as Schedule);
+      if (Array.isArray(p.reminderRuns)) setReminderRuns(p.reminderRuns as SchedulerRun[]);
       setError(null);
       if (body.tick) {
         onRan?.();
@@ -392,6 +399,48 @@ export function SchedulerControl({
             );
           })}
         </ol>
+      </div>
+    ) : null}
+
+    {/* AUTO6 — the second registered job: candidate interview reminders. The
+        most candidate-visible automation finally shows it's alive (last sweep
+        time), what it sent (latest run), and can be paused. */}
+    {reminders ? (
+      <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-md border border-stone-200 bg-paper/40 px-3 py-1.5 text-sm text-steel">
+        <span className="flex items-center gap-1.5 font-medium text-ink">
+          <BellRing size={13} className="text-coral" aria-hidden /> {t("remindersJob")}
+        </span>
+        <button
+          type="button"
+          onClick={() => update({ remindersEnabled: !reminders.enabled })}
+          disabled={busy}
+          aria-pressed={reminders.enabled}
+          className={`focus-ring inline-flex h-6 items-center rounded-full px-2.5 text-sm font-semibold ${
+            reminders.enabled ? "bg-moss/15 text-moss" : "bg-stone-200 text-steel"
+          }`}
+          title={t("remindersToggleTitle")}
+        >
+          {reminders.enabled ? t("remindersOn") : t("remindersOff")}
+        </button>
+        <span>
+          {reminders.lastRunAt
+            ? t("remindersChecked", { time: relativeTime(reminders.lastRunAt) })
+            : t("remindersNever")}
+        </span>
+        {reminderRuns[0] ? (
+          reminderRuns[0].status === "error" ? (
+            <span className="inline-flex items-center gap-1 text-xs font-semibold text-coral">
+              <XCircle size={12} aria-hidden /> {reminderRuns[0].error ?? t("runFailed")}
+            </span>
+          ) : (
+            <span className="text-xs">
+              {t("remindersLastSent", {
+                n: Number((reminderRuns[0].summary as { sent?: number } | null)?.sent ?? 0),
+                time: relativeTime(reminderRuns[0].startedAt),
+              })}
+            </span>
+          )
+        ) : null}
       </div>
     ) : null}
     </div>
