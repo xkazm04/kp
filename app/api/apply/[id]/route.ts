@@ -6,8 +6,10 @@ import {
   createPipelineEntry,
   findApplicationByApplicant,
   getJob,
+  mergeReapplication,
   recordAutomationEvent,
   saveProfile,
+  updateProfile,
 } from "@/app/_lib/db";
 import { applyDedupeKey, buildApplyProfileDraft, buildApplyScript, FALLBACK_ARCHETYPE } from "@/app/_lib/apply";
 import { getJobStatus, isJobOpenForApplications } from "@/app/_lib/job-ingest";
@@ -55,9 +57,17 @@ function degradedReason(detail: string): string {
 // profile_cli path the Profile form uses). Returns the saved profile's id +
 // archetype on success, or a failure reason — the caller falls back to a
 // label-only entry (flagged intake-degraded) so applying never hard-errors.
+//
+// W8-6 (APP1): `intoProfileId` rebuilds IN PLACE — a re-apply that upgrades an
+// existing applicant overwrites their saved profile row instead of minting a
+// fresh one, so the candidate pool never grows a stale duplicate of the same
+// person. When the id has no profile row (the degraded-stub case: candidateId
+// is a random label-only id), updateProfile misses and we fall through to a
+// normal save — the caller re-points the entry at the new id.
 async function buildApplicantProfile(
   job: ReturnType<typeof getJob>,
-  answers: ApplyAnswers
+  answers: ApplyAnswers,
+  intoProfileId?: string | null
 ): Promise<BuildOutcome> {
   if (!job) return { ok: false, reason: degradedReason("role not found at intake") };
   let workdir: string | null = null;
@@ -92,13 +102,17 @@ async function buildApplicantProfile(
       return { ok: false, reason: degradedReason(validation.reason) };
     }
     const { profile: normalized, archetype, completeness } = validation.value;
-    const saved = saveProfile({
+    const profileFields = {
       label: answers.name,
       archetype,
       roleFamily: (normalized.roleFamily as string) ?? job.roleFamily ?? null,
       completeness,
       payload: normalized,
-    });
+    };
+    if (intoProfileId && updateProfile(intoProfileId, profileFields)) {
+      return { ok: true, id: intoProfileId, archetype };
+    }
+    const saved = saveProfile(profileFields);
     return { ok: true, id: saved.id, archetype };
   } catch (err) {
     // Don't swallow silently: a failed build demotes the applicant to a
@@ -137,8 +151,14 @@ export async function GET(_request: NextRequest, context: { params: Promise<{ id
 // name-based check and the dedupeKey backstop race — so the event name and
 // duplicate flag can never drift between them. The localized `message` (shown to
 // the candidate) is passed in by the caller from the request's "apply" catalog.
-function acknowledgeReapply(entryId: string, message: string): NextResponse {
-  recordAutomationEvent(entryId, "re_applied", "repeat application via conversational apply");
+// W8-6 (APP1): `changes` lists what the merge folded onto the original entry
+// (contact backfill, profile rebuild); it lands in the event detail so the feed
+// shows WHAT a repeat contributed, not just that one happened.
+function acknowledgeReapply(entryId: string, message: string, changes: string[] = []): NextResponse {
+  const detail = changes.length
+    ? `repeat application via conversational apply — ${changes.join("; ")}`
+    : "repeat application via conversational apply";
+  recordAutomationEvent(entryId, "re_applied", detail);
   return NextResponse.json({ result: "accepted", duplicate: true, message });
 }
 
@@ -146,11 +166,11 @@ function acknowledgeReapply(entryId: string, message: string): NextResponse {
 // polite decline (no entry created).
 //
 // Duplicate-application policy: one application per (applicant, role). A repeat
-// submission from the same person does NOT create a second entry — we record a
-// `re_applied` event on their original entry (so the renewed interest is visible
-// to recruiters rather than silently dropped or silently duplicated) and return
-// an "already applied" acknowledgment. Dedup is keyed on (jobId + normalized
-// name) since the flow captures no contact field; see findApplicationByApplicant
+// submission from the same person does NOT create a second entry — its fresh
+// signals MERGE onto the original (contact backfill, profile rebuild — see the
+// W8-6 block below), a `re_applied` event records what the repeat contributed,
+// and the applicant gets an "already applied" acknowledgment. Identity is the
+// email when captured, else the normalized name; see findApplicationByApplicant
 // and applyDedupeKey.
 export async function POST(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
@@ -243,13 +263,70 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
 
     // Duplicate-application policy (primary check): if this named applicant has
     // already applied to this role, surface the repeat on the original entry and
-    // acknowledge it — don't create a second pipeline row or burn a profile build.
-    // Dedup keys on the EMAIL when given (the stronger identity), else the name —
-    // so two same-named applicants with different addresses no longer merge.
+    // acknowledge it — don't create a second pipeline row. Dedup keys on the
+    // EMAIL when given (the stronger identity), else the name — so two same-named
+    // applicants with different addresses no longer merge.
+    //
+    // W8-6 (APP1) — merge, don't drop. Re-applying is the only self-service
+    // "update my info" path an applicant has, so a detected repeat folds its
+    // fresh signals onto the original entry before acknowledging:
+    //   - a valid email backfills a contactless entry (the applicant becoming
+    //     reachable is the point of re-applying for most);
+    //   - a CV-carrying repeat (or any repeat on a degraded stub) rebuilds the
+    //     profile — in place for a healthy original, a fresh save + re-point for
+    //     the stub. A FAILED rebuild touches nothing: a junk repeat can never
+    //     degrade a healthy entry, and a stub just stays a stub.
     if (providedName || email) {
       const existing = findApplicationByApplicant(job.id, providedName, email);
       if (existing) {
-        return acknowledgeReapply(existing.id, t("alreadyMessage"));
+        const changes: string[] = [];
+        const updates: { contact?: string; candidateId?: string; archetype?: string | null } = {};
+        if (email && !existing.contact) {
+          updates.contact = email;
+          changes.push("contact email captured");
+        }
+        if (cvText || existing.intakeDegraded) {
+          const rebuilt = await buildApplicantProfile(
+            job,
+            {
+              name,
+              experience,
+              skills,
+              archetype,
+              studentProject,
+              studentEducation,
+              studentAspirations,
+              switchPrior,
+              switchAspirations,
+              cvText,
+            },
+            existing.candidateId
+          );
+          if (rebuilt.ok) {
+            updates.candidateId = rebuilt.id;
+            updates.archetype = rebuilt.archetype;
+            changes.push(
+              existing.intakeDegraded ? "degraded intake recovered (profile rebuilt)" : "profile rebuilt with CV"
+            );
+          }
+        }
+        if (changes.length > 0) {
+          const merged = mergeReapplication(existing.id, updates);
+          // Newly reachable: the original acknowledgment dead-lettered (no
+          // recipient existed), so send it to the address just captured.
+          // Best-effort, same contract as the first-apply ack below.
+          if (updates.contact && merged) {
+            try {
+              await dispatchApplicationReceived(merged);
+            } catch (ackErr) {
+              console.error(
+                `[apply] re-apply merged but acknowledgement failed for entry ${merged.id}:`,
+                ackErr instanceof Error ? ackErr.message : ackErr
+              );
+            }
+          }
+        }
+        return acknowledgeReapply(existing.id, t("alreadyMessage"), changes);
       }
     }
 

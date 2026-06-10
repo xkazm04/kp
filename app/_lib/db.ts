@@ -2119,14 +2119,59 @@ export function findApplicationByApplicant(jobId: string, name: string, email?: 
     .prepare(`SELECT * FROM pipeline_entries WHERE job_id = ? ORDER BY created_at ASC, id ASC`)
     .all(jobId) as PipelineRow[];
   // When the applicant gave an email, identity is the EMAIL: a repeat is an entry
-  // sharing that contact. NO name fallback in this case — two real people who share
-  // a name but gave different addresses are different applicants (the exact merge
-  // the old name-only match got wrong). When no email was captured, fall back to
-  // the legacy (jobId + normalized name) match.
+  // sharing that contact. A row holding a DIFFERENT address is never matched —
+  // two real people who share a name but gave different addresses are different
+  // applicants (the exact merge the old name-only match got wrong). When no email
+  // was captured, fall back to the legacy (jobId + normalized name) match.
+  //
+  // W8-6 (APP1) upgrade path: when the email lookup misses, a same-named entry
+  // with NO contact on file is still this applicant — their first application
+  // simply predates their address (no-email applies are name-keyed). Without
+  // this fallback the re-apply-with-email minted a SECOND row for the person who
+  // was trying to become reachable. Restricted to contactless rows only, so the
+  // different-address doctrine above is untouched.
   const match = emailKey
-    ? rows.find((r) => normalizeContact(r.contact) === emailKey)
+    ? rows.find((r) => normalizeContact(r.contact) === emailKey) ??
+      (nameKey
+        ? rows.find((r) => !normalizeContact(r.contact) && normalizeApplicantName(r.candidate_label) === nameKey)
+        : undefined)
     : rows.find((r) => normalizeApplicantName(r.candidate_label) === nameKey);
   return match ? rowToEntry(match) : null;
+}
+
+// W8-6 (APP1) — fold a re-application's fresh signals onto the applicant's
+// ORIGINAL entry instead of discarding them. Two independent, guarded updates:
+//   - contact is BACKFILL-ONLY (SQL-guarded, same FILL-ONLY discipline as
+//     setEntryMatchScore): an entry that already has an address keeps it — a
+//     repeat with a different address never reaches here anyway (it's a new
+//     applicant per findApplicationByApplicant).
+//   - candidateId re-points the entry at a rebuilt profile and clears the
+//     intake-degraded flag (the rebuild succeeding IS the recovery); archetype
+//     refreshes alongside when the rebuild produced one.
+// Records NO event — the caller logs ONE `re_applied` event whose detail says
+// what merged, so the feed shows a single line per repeat. Returns the updated
+// entry, or null when the id is unknown.
+export function mergeReapplication(
+  id: string,
+  updates: { contact?: string | null; candidateId?: string | null; archetype?: string | null }
+): PipelineEntry | null {
+  const db = ensureDb();
+  const now = new Date().toISOString();
+  if (updates.contact) {
+    db.prepare(
+      `UPDATE pipeline_entries SET contact = ?, updated_at = ? WHERE id = ? AND (contact IS NULL OR contact = '')`
+    ).run(updates.contact, now, id);
+  }
+  if (updates.candidateId) {
+    db.prepare(
+      `UPDATE pipeline_entries
+         SET candidate_id = ?, archetype = COALESCE(?, archetype),
+             intake_degraded = 0, intake_degraded_reason = NULL, updated_at = ?
+       WHERE id = ?`
+    ).run(updates.candidateId, updates.archetype ?? null, now, id);
+  }
+  const row = db.prepare(`SELECT * FROM pipeline_entries WHERE id = ?`).get(id) as PipelineRow | undefined;
+  return row ? rowToEntry(row) : null;
 }
 
 // Recruiter resolution of a degraded-intake stub: once the profile has been
