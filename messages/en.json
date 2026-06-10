@@ -989,6 +989,7 @@
       "companyPlaceholder": "Česká spořitelna",
       "seniority": "Seniority",
       "field": "Field",
+      "outputLanguage": "JD language",
       "describeNeed": "Describe the need *",
       "needPlaceholder": "What does this person own? What problems will they solve? What does the team look like?",
       "codebaseLabel": "Codebase to analyze (public GitHub URL — optional, for dev roles)",

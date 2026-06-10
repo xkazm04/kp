@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Loader2, Settings2, Sparkles } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import { isLocale, LOCALES } from "@/i18n/locales";
 import { useTasks, useTaskResult } from "@/app/features/tasks/TasksProvider";
 import { JdBuilderResult, type JdBuildResult } from "./JdBuilderResult";
 import { JdTemplateManager } from "./JdTemplateManager";
@@ -33,6 +34,11 @@ export function JdBuilder({ onSaved }: { onSaved: () => void }) {
   const [roleFamily, setRoleFamily] = useState(sp.get("jdFamily") ?? "software_engineering");
   const [needText, setNeedText] = useState(sp.get("jdNeed") ?? "");
   const [repoUrl, setRepoUrl] = useState("");
+  // JDL5 — the generated JD's output language, defaulting to the active locale
+  // (a Czech-market recruiter gets a Czech JD without hand-translating). The
+  // role content + salary summary generate in it; composeMarkdown headings too.
+  const appLocale = useLocale();
+  const [outputLang, setOutputLang] = useState(isLocale(appLocale) ? appLocale : "en");
 
   // Template-first authoring: pick a company format, then let AI fill it. An
   // empty templateId means "use the AI's own default formatting".
@@ -134,7 +140,7 @@ export function JdBuilder({ onSaved }: { onSaved: () => void }) {
     // A new build replaces any prior result, so no edits are pending discard.
     setResultDirty(false);
     setPendingTemplateId(null);
-    const started = await startTask("jd_build", { title: title.trim(), company: company.trim(), seniority, roleFamily, needText: needText.trim(), repoUrl: repoUrl.trim() });
+    const started = await startTask("jd_build", { title: title.trim(), company: company.trim(), seniority, roleFamily, needText: needText.trim(), repoUrl: repoUrl.trim(), lang: outputLang });
     if (started) setTaskId(started.id);
     else setError(t("startFailed"));
   };
@@ -220,6 +226,18 @@ export function JdBuilder({ onSaved }: { onSaved: () => void }) {
           <select value={roleFamily} onChange={(e) => setRoleFamily(e.target.value)} className={INP}>
             {FAMILIES.map((f) => (
               <option key={f} value={f}>{enumLabel("family", f)}</option>
+            ))}
+          </select>
+        </Field>
+        {/* JDL5 — generate the JD in this language (defaults to the app locale). */}
+        <Field label={t("outputLanguage")}>
+          <select
+            value={outputLang}
+            onChange={(e) => setOutputLang(isLocale(e.target.value) ? e.target.value : "en")}
+            className={`${INP} uppercase`}
+          >
+            {LOCALES.map((l) => (
+              <option key={l} value={l}>{l}</option>
             ))}
           </select>
         </Field>

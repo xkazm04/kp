@@ -359,7 +359,7 @@ def main(argv: list[str] | None = None) -> int:
             if not args.analysis_json:
                 raise ValueError("design-artifacts requires --analysis-json")
             analysis = NeedAnalysis.model_validate(json.loads(args.analysis_json.read_text(encoding="utf-8")))
-            role, role_src = _design.design_role(need, analysis, provider=provider)
+            role, role_src = _design.design_role(need, analysis, provider=provider, lang=lang)
             case, case_src = _design.design_case(need, analysis, role, provider=provider, feedback=args.feedback, lang=lang)
             _emit(
                 {"role": role, "case": case},

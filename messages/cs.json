@@ -989,6 +989,7 @@
       "companyPlaceholder": "Česká spořitelna",
       "seniority": "Seniorita",
       "field": "Obor",
+      "outputLanguage": "Jazyk inzerátu",
       "describeNeed": "Popište potřebu *",
       "needPlaceholder": "Co bude tato osoba vlastnit? Jaké problémy bude řešit? Jak vypadá tým?",
       "codebaseLabel": "Kódová základna k analýze (veřejná URL na GitHubu — volitelné, pro vývojářské role)",

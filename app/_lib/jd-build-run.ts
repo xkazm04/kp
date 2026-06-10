@@ -18,6 +18,46 @@ export type JdBuildInput = {
   roleFamily?: string;
   needText: string;
   repoUrl?: string;
+  // JDL5 — the JD output language (en|cs). Threaded into the design chain
+  // (--lang on design-artifacts) + the market-salary summary, and used to
+  // localize composeMarkdown's headings. Defaults to "en".
+  lang?: string;
+};
+
+// JDL5 — the document's heading scaffolding, bilingual + self-contained (the
+// same approach as jobMarkdown's table): the recruiter-authored role content is
+// generated in `lang` by the design chain; only these headings are templated.
+type JdMarkdownStrings = {
+  level: (seniority: string) => string;
+  salary: string;
+  aboutRole: string;
+  hiringLine: (title: string, company?: string) => string;
+  responsibilities: string;
+  whatBring: string;
+  niceToHave: string;
+  languages: string;
+};
+const JD_MARKDOWN_STRINGS: Record<"en" | "cs", JdMarkdownStrings> = {
+  en: {
+    level: (s) => `${s} level`,
+    salary: "Salary:",
+    aboutRole: "About the role",
+    hiringLine: (title, company) => `We're hiring a ${title}${company ? ` at ${company}` : ""}.`,
+    responsibilities: "Responsibilities",
+    whatBring: "What you'll bring",
+    niceToHave: "Nice to have",
+    languages: "Languages",
+  },
+  cs: {
+    level: (s) => `úroveň ${s}`,
+    salary: "Mzda:",
+    aboutRole: "O pozici",
+    hiringLine: (title, company) => `Hledáme na pozici ${title}${company ? ` ve společnosti ${company}` : ""}.`,
+    responsibilities: "Odpovědnosti",
+    whatBring: "Co byste měli mít",
+    niceToHave: "Výhodou",
+    languages: "Jazyky",
+  },
 };
 
 // The canonical band shape + its trust-boundary normalizer live in salary-band
@@ -32,12 +72,18 @@ export async function runMarketSalary(input: {
   roleFamily: string;
   company?: string;
   stack?: string[];
+  lang?: string;
 }, signal?: AbortSignal): Promise<{ result: MarketSalary; sources: string[]; source: string }> {
   const workdir = await createWorkdir();
   try {
     const p = path.join(workdir, "salary.json");
     await writeFile(p, JSON.stringify(input), "utf-8");
-    const { result } = spawnPython(["-m", "pipeline.jobfit.market_salary_cli", "--input-json", p], { signal });
+    // JDL5 — the market-salary summary lands in the JD body, so render it in the
+    // JD language (the CLI already supports --lang; only the summary text localizes).
+    const { result } = spawnPython(
+      ["-m", "pipeline.jobfit.market_salary_cli", "--input-json", p, "--lang", input.lang || "en"],
+      { signal }
+    );
     const { stdout, stderr, exitCode } = await result;
     if (exitCode !== 0) throw new Error(parseStderrError(stderr, exitCode).message);
     // The CLI payload is untrusted — parsePythonJson hands back whatever the
@@ -67,11 +113,15 @@ type RoleSpec = {
   languages?: string[];
 };
 
-function composeMarkdown(role: RoleSpec, opts: { company?: string; location?: string; salary: MarketSalary }): string {
+function composeMarkdown(
+  role: RoleSpec,
+  opts: { company?: string; location?: string; salary: MarketSalary; lang?: string }
+): string {
+  const str = JD_MARKDOWN_STRINGS[opts.lang === "cs" ? "cs" : "en"];
   const lines: string[] = [];
   const title = role.title || "Untitled role";
   lines.push(`# ${title}`);
-  const meta = [opts.company, opts.location, role.seniority ? `${role.seniority} level` : null].filter(Boolean);
+  const meta = [opts.company, opts.location, role.seniority ? str.level(role.seniority) : null].filter(Boolean);
   if (meta.length) lines.push(`**${meta.join(" · ")}**`);
   const s = opts.salary;
   // Only advertise a band when the normalizer confirmed a usable one. An
@@ -79,10 +129,12 @@ function composeMarkdown(role: RoleSpec, opts: { company?: string; location?: st
   // "Salary: 0 CZK" or "salary unavailable" to candidates; omission is the
   // graceful degradation here. (The builder card surfaces the unavailability to
   // the recruiter; see JdBuilderResult.)
-  if (s.available) lines.push(`**Salary:** ${formatSalaryRange(s.suggestedMinimum, s.suggestedMaximum, { currency: s.currency, period: "month" })}`);
+  if (s.available) lines.push(`**${str.salary}** ${formatSalaryRange(s.suggestedMinimum, s.suggestedMaximum, { currency: s.currency, period: "month" })}`);
 
-  lines.push("", "## About the role");
-  lines.push(`We're hiring a ${title}${opts.company ? ` at ${opts.company}` : ""}. ${s.summary}`.trim());
+  lines.push("", `## ${str.aboutRole}`);
+  // The summary is generated in `lang` by market_salary_cli; the hiring sentence
+  // localizes here. Role content (responsibilities/skills) is generated in `lang`.
+  lines.push(`${str.hiringLine(title, opts.company)} ${s.summary}`.trim());
 
   const section = (heading: string, items?: string[]) => {
     if (items && items.length) {
@@ -90,10 +142,10 @@ function composeMarkdown(role: RoleSpec, opts: { company?: string; location?: st
       items.forEach((it) => lines.push(`- ${it}`));
     }
   };
-  section("Responsibilities", role.responsibilities);
-  section("What you'll bring", role.mustHaves);
-  section("Nice to have", role.niceToHaves);
-  section("Languages", role.languages);
+  section(str.responsibilities, role.responsibilities);
+  section(str.whatBring, role.mustHaves);
+  section(str.niceToHave, role.niceToHaves);
+  section(str.languages, role.languages);
   return lines.join("\n");
 }
 
@@ -108,6 +160,8 @@ export async function runJdBuild(params: Record<string, unknown>, progress?: Pro
   // Python spawn) with the same user-facing message the form would have shown.
   const valid = validateJdBuildInput(input.title, input.needText);
   if (!valid.ok) throw new Error(valid.error);
+  // JDL5 — the JD output language (validated to en|cs; anything else → en).
+  const lang = input.lang === "cs" ? "cs" : "en";
   const need: DevNeed = {
     title: valid.title,
     stack: [],
@@ -125,7 +179,7 @@ export async function runJdBuild(params: Record<string, unknown>, progress?: Pro
     (async () => {
       const { analysis, snapshot } = await runNeedAnalysis(need, signal);
       progress?.(1, 2, "Designing the role from the need…");
-      const { role } = await runDesignArtifacts(need, analysis, signal);
+      const { role } = await runDesignArtifacts(need, analysis, signal, undefined, lang);
       return { role: role as RoleSpec, snapshot };
     })(),
     runMarketSalary({
@@ -134,13 +188,14 @@ export async function runJdBuild(params: Record<string, unknown>, progress?: Pro
       roleFamily: input.roleFamily || "software_engineering",
       company: input.company,
       stack: need.responsibilities ?? [],
+      lang,
     }, signal),
   ]);
   const spec = design.role;
   const snapshot = design.snapshot;
   progress?.(2, 2, "Formatting the job description…");
 
-  const markdown = composeMarkdown(spec, { company: input.company, location: input.location, salary: salary.result });
+  const markdown = composeMarkdown(spec, { company: input.company, location: input.location, salary: salary.result, lang });
   return {
     markdown,
     role: spec,

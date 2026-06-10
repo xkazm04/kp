@@ -105,7 +105,7 @@ def _human(role_family: str) -> str:
 # --- role -------------------------------------------------------------------
 
 
-def design_role(need: DevNeed, analysis: NeedAnalysis, *, provider: Any | None = None) -> tuple[dict, str]:
+def design_role(need: DevNeed, analysis: NeedAnalysis, *, provider: Any | None = None, lang: str = "en") -> tuple[dict, str]:
     real = analysis.real_stack or need.stack
     ctx = {
         "need": {
@@ -139,6 +139,13 @@ def design_role(need: DevNeed, analysis: NeedAnalysis, *, provider: Any | None =
         'Return JSON: { "title": str, "seniority": "junior|medior|senior|lead", "roleFamily": str, '
         '"mustHaves": [str], "niceToHaves": [str], "responsibilities": [str], "languages": [str] }. JSON only.'
     )
+    # JDL5 — the role's responsibilities/must-haves become the JD body candidates
+    # read, so render that prose in the requested language; skill/role-family/
+    # seniority CODE values stay verbatim per the shared directive (so matching
+    # and the rubric never break). The deterministic fallback stays English.
+    from ..i18n import language_directive
+
+    prompt = f"{prompt}\n\n{language_directive(lang)}"
 
     def deterministic() -> dict:
         title = need.title or f"{need.seniority_target.title()} {real[0] if real else 'Software'} Engineer"
