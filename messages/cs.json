@@ -318,6 +318,8 @@
       "added": "byl/a přidán/a do náboru",
       "applied": "se přihlásil/a přes odkaz na přihlášku",
       "re_applied": "se přihlásil/a znovu (již je v náboru)",
+      "scored": "byl/a automaticky obodován/a pro třídění",
+      "scoredDetail": "byl/a automaticky obodován/a pro třídění ({detail})",
       "advanced": "postoupil/a do fáze {stage}",
       "moved": "byl/a přesunut/a do fáze {stage} náborářem",
       "scheduled": "naplánován pohovor",

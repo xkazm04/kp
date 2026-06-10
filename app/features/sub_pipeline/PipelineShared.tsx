@@ -7,6 +7,7 @@ import {
   CircleDot,
   CirclePlus,
   Clock,
+  Gauge,
   Repeat,
   Sparkles,
   UserPlus,
@@ -27,6 +28,7 @@ export const EVENT_KINDS = [
   "added",
   "applied",
   "re_applied",
+  "scored",
   "advanced",
   "moved",
   "scheduled",
@@ -56,6 +58,7 @@ export const EVENT_CATALOG: Record<EventKind, EventMeta> = {
   added: { Icon: CirclePlus, tone: "text-steel" },
   applied: { Icon: UserPlus, tone: "text-steel" },
   re_applied: { Icon: Repeat, tone: "text-amber-600" },
+  scored: { Icon: Gauge, tone: "text-steel" },
   advanced: { Icon: ArrowUpCircle, tone: "text-moss" },
   moved: { Icon: ArrowLeftRight, tone: "text-steel" },
   scheduled: { Icon: CalendarCheck, tone: "text-moss" },
@@ -101,6 +104,8 @@ export function useEventVerb(): (ev: PipelineEvent) => string {
         return t("applied");
       case "re_applied":
         return t("re_applied");
+      case "scored":
+        return ev.detail ? t("scoredDetail", { detail: ev.detail }) : t("scored");
       case "rejected":
         return t("rejected");
       case "intake_resolved":

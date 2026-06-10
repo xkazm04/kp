@@ -2145,6 +2145,17 @@ export function listActiveEntriesForAutomation(): AutomationEntry[] {
   });
 }
 
+/** Fill an entry's missing match score (AUTO1 — the auto-score sweep). FILL-ONLY:
+ *  the WHERE clause refuses to clobber a score already present (entry creation,
+ *  a recruiter's re-file), so the sweep can never overwrite a human-era value. */
+export function setEntryMatchScore(entryId: string, score: number): boolean {
+  const db = ensureDb();
+  const res = db
+    .prepare(`UPDATE pipeline_entries SET match_score=?, updated_at=? WHERE id=? AND match_score IS NULL`)
+    .run(score, new Date().toISOString(), entryId);
+  return res.changes > 0;
+}
+
 /** Set/clear a pending approval without a stage change (Task 1 hold, Task 5 scorecard gate). */
 export function setApproval(entryId: string, approvalKind: ApprovalKind | null, approvalDetail: string): void {
   const db = ensureDb();

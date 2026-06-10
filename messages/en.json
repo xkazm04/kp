@@ -318,6 +318,8 @@
       "added": "was added to the pipeline",
       "applied": "applied via the application link",
       "re_applied": "applied again (already in the pipeline)",
+      "scored": "was auto-scored for triage",
+      "scoredDetail": "was auto-scored for triage ({detail})",
       "advanced": "advanced to {stage}",
       "moved": "was moved to {stage} by a recruiter",
       "scheduled": "interview scheduled",
