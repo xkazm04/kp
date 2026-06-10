@@ -68,6 +68,8 @@ export const STORE_ERRORS = {
   SCHEDULE_LOOKUP_FAILED: "Could not load the scheduling overview. Please try again.",
   // Command-palette cross-entity search (SHELL1) — sits directly on better-sqlite3.
   SEARCH_FAILED: "Search is unavailable right now. Please try again.",
+  // Sidebar attention badges (SHELL2) — same store class.
+  ATTENTION_FAILED: "Could not load attention counts. Please try again.",
   OFFER_RESPOND_FAILED: "Could not record your response. Please try again.",
 } as const;
 

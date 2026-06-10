@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
+import { attentionCounts, type AttentionCounts } from "@/app/_lib/attention";
 import { navItemClass, NAV_GROUPS, tabHref, type WorkspaceTabId } from "./tabs";
 
 // Link-based copy of the Workspace sidebar for server-rendered deep-link pages
@@ -9,6 +10,15 @@ import { navItemClass, NAV_GROUPS, tabHref, type WorkspaceTabId } from "./tabs";
 // intentionally omitted here.
 export async function WorkspaceNav({ active }: { active: WorkspaceTabId }) {
   const t = await getTranslations("nav");
+  // SHELL2 — same badge counts as the interactive shell, computed server-side
+  // at render (a detail page is a snapshot; the SPA shell owns the live poll).
+  // Best-effort: a store fault must not take the whole page down for a badge.
+  let attention: AttentionCounts | null = null;
+  try {
+    attention = attentionCounts();
+  } catch (error) {
+    console.error("[WorkspaceNav] attention counts unavailable", error);
+  }
   // Mirror of Workspace.tsx navText: translate by nav key, fall back to the
   // English label in tabs.ts so the two sidebars read identically.
   const navText = (key: string, fallback: string): string => {
@@ -38,6 +48,7 @@ export async function WorkspaceNav({ active }: { active: WorkspaceTabId }) {
             <div className="space-y-0.5">
               {group.items.map((item) => {
                 const isActive = item.id === active;
+                const badge = item.badgeKey && attention ? attention[item.badgeKey] : 0;
                 return (
                   <Link
                     key={item.id}
@@ -46,7 +57,15 @@ export async function WorkspaceNav({ active }: { active: WorkspaceTabId }) {
                     className={`focus-ring flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-base font-medium transition-colors ${navItemClass(isActive)}`}
                   >
                     <span className={`h-1.5 w-1.5 rounded-full ${isActive ? "bg-coral" : "bg-stone-300"}`} aria-hidden />
-                    {navText(`tabs.${item.id}`, item.label)}
+                    <span className="min-w-0 flex-1 truncate">{navText(`tabs.${item.id}`, item.label)}</span>
+                    {badge > 0 ? (
+                      <span
+                        aria-label={t("attentionBadge", { count: badge })}
+                        className="shrink-0 rounded-full bg-coral/10 px-1.5 py-0.5 text-sm font-semibold leading-none text-coral"
+                      >
+                        {badge}
+                      </span>
+                    ) : null}
                   </Link>
                 );
               })}

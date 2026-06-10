@@ -34,9 +34,15 @@ export const WORKSPACE_TAB_IDS = [
 
 export type WorkspaceTabId = (typeof WORKSPACE_TAB_IDS)[number];
 
+// SHELL2 — the attention-count buckets /api/attention serves. A nav item opts
+// into a badge by declaring which bucket it renders (`badgeKey` below); the
+// mapping is declarative here, never positional in the renderers.
+export type AttentionKey = "decisions" | "pipeline" | "schedule" | "jobs";
+
 export type WorkspaceTabDef = {
   id: WorkspaceTabId;
   label: string;
+  badgeKey?: AttentionKey;
 };
 
 // The Pipeline dashboard is the default landing surface.
@@ -53,17 +59,17 @@ export type NavGroup = { label?: string; key?: string; items: WorkspaceTabDef[] 
 export const NAV_GROUPS: NavGroup[] = [
   {
     items: [
-      { id: "pipeline", label: "Pipeline" },
+      { id: "pipeline", label: "Pipeline", badgeKey: "pipeline" },
       { id: "channels", label: "Channels" },
-      { id: "decisions", label: "Decisions" },
-      { id: "schedule", label: "Schedule" },
+      { id: "decisions", label: "Decisions", badgeKey: "decisions" },
+      { id: "schedule", label: "Schedule", badgeKey: "schedule" },
     ],
   },
   {
     label: "Library",
     key: "library",
     items: [
-      { id: "jobs", label: "Jobs" },
+      { id: "jobs", label: "Jobs", badgeKey: "jobs" },
       { id: "library", label: "Job descriptions" },
     ],
   },

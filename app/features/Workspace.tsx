@@ -8,6 +8,7 @@ import { Skeleton } from "@/app/_components/Skeleton";
 import { ErrorBoundary } from "@/app/_components/ErrorBoundary";
 import { LanguageSwitcher } from "@/app/_components/LanguageSwitcher";
 import { CommandPalette } from "./CommandPalette";
+import { useAttention } from "./useAttention";
 import { TasksIndicator } from "./tasks/TasksIndicator";
 import { TasksProvider } from "./tasks/TasksProvider";
 import { SimulationProvider } from "./simulation/SimulationProvider";
@@ -64,6 +65,8 @@ export function Workspace() {
   };
   const search = params.toString();
   const tabParam = params.get("tab");
+  // SHELL2 — live "what needs my attention" counts behind the nav badges.
+  const attention = useAttention();
   const active: WorkspaceTabId = isWorkspaceTabId(tabParam) ? tabParam : DEFAULT_TAB;
   // History is consolidated into Analyze; ?tab=history opens Analyze in history mode.
   const navActive: WorkspaceTabId = active === "history" ? "analyze" : active;
@@ -118,6 +121,9 @@ export function Workspace() {
               <div className="space-y-0.5">
                 {group.items.map((item) => {
                   const isActive = item.id === navActive;
+                  // SHELL2: live queue-depth pill for items that declared a
+                  // badgeKey (Decisions / Pipeline / Schedule / Jobs).
+                  const badge = item.badgeKey && attention ? attention[item.badgeKey] : 0;
                   return (
                     <button
                       key={item.id}
@@ -130,7 +136,15 @@ export function Workspace() {
                         className={`h-1.5 w-1.5 rounded-full ${isActive ? "bg-coral" : "bg-stone-300"}`}
                         aria-hidden
                       />
-                      {navText(`tabs.${item.id}`, item.label)}
+                      <span className="min-w-0 flex-1 truncate text-left">{navText(`tabs.${item.id}`, item.label)}</span>
+                      {badge > 0 ? (
+                        <span
+                          aria-label={t("attentionBadge", { count: badge })}
+                          className="shrink-0 rounded-full bg-coral/10 px-1.5 py-0.5 text-sm font-semibold leading-none text-coral"
+                        >
+                          {badge}
+                        </span>
+                      ) : null}
                     </button>
                   );
                 })}

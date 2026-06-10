@@ -204,6 +204,7 @@
   "nav": {
     "skipToContent": "Skip to content",
     "ariaLabel": "Workspace",
+    "attentionBadge": "{count} need attention",
     "brandMark": "KP",
     "brandName": "studio",
     "tagline": "talent matching",

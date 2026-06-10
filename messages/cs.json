@@ -204,6 +204,7 @@
   "nav": {
     "skipToContent": "Přejít na obsah",
     "ariaLabel": "Pracovní plocha",
+    "attentionBadge": "{count} vyžaduje pozornost",
     "brandMark": "KP",
     "brandName": "studio",
     "tagline": "párování talentů",
