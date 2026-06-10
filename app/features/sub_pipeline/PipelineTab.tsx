@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AlertTriangle, BookmarkPlus, Sparkles, Timer, X } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { buildUrl } from "@/app/features/tabs";
+import { buildUrl, clearedTabScopedParams } from "@/app/features/tabs";
 import { useTasks } from "@/app/features/tasks/TasksProvider";
 import { useLiveRefresh } from "@/app/features/live-refresh";
 import { needsHumanDecision } from "@/app/_lib/approval-kinds";
@@ -14,6 +14,7 @@ import { PassPreviewModal } from "./PassPreviewModal";
 import { PipelineBoard } from "./PipelineBoard";
 import { SchedulerControl } from "./SchedulerControl";
 import { EventDot, useEventVerb, useRelativeTime } from "./PipelineShared";
+import { recordRecent } from "@/app/features/recents";
 import { daysSince, slaForStage, STAGE_SLA_DEFAULTS, STAGES, type Entry, type PipelineEvent } from "./PipelineTypes";
 
 // Compact header stat: label over value, optionally clickable. Replaces the old
@@ -317,12 +318,35 @@ export function PipelineTab() {
   };
   const deleteView = (id: string) => persistViews(views.filter((v) => v.id !== id));
 
-  const openActions = (e: Entry) => setDrawerEntry(e);
+  // SHELL3 — opening a candidate/profile/job from the board is the canonical
+  // "I'm working on this" moment; record it so the sidebar Recent group and the
+  // palette's resting state can resume it after the shell wipes the selection.
+  const openActions = (e: Entry) => {
+    recordRecent({
+      type: "entry",
+      id: e.id,
+      label: e.candidateLabel,
+      href: buildUrl({ ...clearedTabScopedParams(), tab: "pipeline", q: e.candidateLabel }, search.toString()),
+    });
+    setDrawerEntry(e);
+  };
   // Candidate name → the analyzed profile (Match view); falls back to the
   // AI-actions drawer when the entry has no linked candidate id.
-  const openProfile = (e: Entry) =>
-    e.candidateId ? router.push(buildUrl({ tab: "match", profile: e.candidateId }, search.toString())) : setDrawerEntry(e);
-  const openJob = (jobId: string) => router.push(buildUrl({ tab: "jobs", job: jobId }, search.toString()));
+  const openProfile = (e: Entry) => {
+    if (!e.candidateId) {
+      setDrawerEntry(e);
+      return;
+    }
+    const href = buildUrl({ tab: "match", profile: e.candidateId }, search.toString());
+    recordRecent({ type: "profile", id: e.candidateId, label: e.candidateLabel, href });
+    router.push(href);
+  };
+  const openJob = (jobId: string) => {
+    const href = buildUrl({ tab: "jobs", job: jobId }, search.toString());
+    const title = (entries ?? []).find((e) => e.jobId === jobId)?.jobTitle;
+    recordRecent({ type: "job", id: jobId, label: title ?? jobId, href });
+    router.push(href);
+  };
 
   // Reload the board when a background batch-screen finishes (it mutates many entries).
   useEffect(() => {

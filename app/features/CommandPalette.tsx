@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Search } from "lucide-react";
 import { Modal } from "@/app/_components/Modal";
+import { recordRecent, useRecents } from "./recents";
 import { buildTabSwitchUrl, buildUrl, clearedTabScopedParams, NAV_GROUPS, type WorkspaceTabId } from "./tabs";
 
 // SHELL1 — the global command palette: one Ctrl/Cmd+K surface that searches
@@ -14,7 +15,16 @@ import { buildTabSwitchUrl, buildUrl, clearedTabScopedParams, NAV_GROUPS, type W
 // palette can never land somewhere a sidebar click couldn't.
 
 type SearchHit = { type: "profile" | "entry" | "job" | "jd" | "analysis"; id: string; label: string; sub: string | null };
-type PaletteItem = { key: string; group: string; label: string; sub: string | null; href: string };
+type PaletteItem = {
+  key: string;
+  group: string;
+  label: string;
+  sub: string | null;
+  href: string;
+  // Entity identity for SHELL3 recents — picking the item records it (re-picks
+  // re-front via recordRecent's dedup). Absent on tab actions.
+  recent?: { type: SearchHit["type"]; id: string };
+};
 
 const DEBOUNCE_MS = 200;
 // Hit order mirrors how a recruiter recalls things: people first, then roles.
@@ -133,9 +143,25 @@ export function CommandPalette() {
     return nav.has(key) ? nav(key) : fallback;
   };
 
+  const recents = useRecents();
+
   const items = useMemo<PaletteItem[]>(() => {
     const q = query.trim().toLowerCase();
     const out: PaletteItem[] = [];
+    // SHELL3: the resting state leads with what was just worked on — recents
+    // make the palette a "resume" surface before a search one.
+    if (!q) {
+      for (const r of recents) {
+        out.push({
+          key: `recent-${r.type}-${r.id}`,
+          group: "recent",
+          label: r.label,
+          sub: null,
+          href: r.href,
+          recent: { type: r.type, id: r.id },
+        });
+      }
+    }
     // Jump-to-tab actions: all of them on an empty query (the palette's resting
     // state is a navigator), narrowed by label/id match while typing.
     for (const def of NAV_GROUPS.flatMap((g) => g.items)) {
@@ -146,17 +172,29 @@ export function CommandPalette() {
     }
     for (const type of HIT_TYPE_ORDER) {
       for (const hit of hits.filter((h) => h.type === type)) {
-        out.push({ key: `${hit.type}-${hit.id}`, group: hit.type, label: hit.label, sub: hit.sub, href: hitHref(hit, search) });
+        out.push({
+          key: `${hit.type}-${hit.id}`,
+          group: hit.type,
+          label: hit.label,
+          sub: hit.sub,
+          href: hitHref(hit, search),
+          recent: { type: hit.type, id: hit.id },
+        });
       }
     }
     return out;
     // eslint-disable-next-line react-hooks/exhaustive-deps -- tabLabel is stable per locale; nav/t hooks re-render on locale change anyway
-  }, [query, hits, search]);
+  }, [query, hits, search, recents]);
 
   // Clamp the highlight whenever the list shrinks under it.
   const active = Math.min(selected, Math.max(0, items.length - 1));
 
   const go = (item: PaletteItem) => {
+    // SHELL3: an entity pick is exactly the "I opened this" moment recents
+    // exist to capture (tab actions aren't — they're navigation, not work).
+    if (item.recent) {
+      recordRecent({ type: item.recent.type, id: item.recent.id, label: item.label, href: item.href });
+    }
     setOpen(false);
     router.push(item.href);
   };

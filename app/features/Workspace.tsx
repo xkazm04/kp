@@ -8,6 +8,7 @@ import { Skeleton } from "@/app/_components/Skeleton";
 import { ErrorBoundary } from "@/app/_components/ErrorBoundary";
 import { LanguageSwitcher } from "@/app/_components/LanguageSwitcher";
 import { CommandPalette } from "./CommandPalette";
+import { RecentsNav } from "./RecentsNav";
 import { useAttention } from "./useAttention";
 import { TasksIndicator } from "./tasks/TasksIndicator";
 import { TasksProvider } from "./tasks/TasksProvider";
@@ -109,6 +110,9 @@ export function Workspace() {
         <div className="px-3 pb-4">
           <CommandPalette />
         </div>
+
+        {/* SHELL3: pick-up-where-I-left-off deep links. */}
+        <RecentsNav />
 
         <nav aria-label={t("ariaLabel")} className="space-y-5 px-3 pb-6">
           {NAV_GROUPS.map((group, gi) => (

@@ -4,6 +4,7 @@ import { ResultPanel } from "@/app/_components/results/ResultPanel";
 import { ReportActions } from "@/app/_components/results/ReportActions";
 import { DispositionEditor } from "@/app/_components/results/DispositionEditor";
 import { WorkspaceShell } from "@/app/features/WorkspaceNav";
+import { RecordRecent } from "@/app/features/RecordRecent";
 import { loadAnalysis } from "@/app/_lib/db";
 import { analysisSchema, githubAnalysisSchema } from "@/app/_lib/schemas";
 import type { ResultPanelGithub } from "@/app/_components/results/ResultPanel";
@@ -67,6 +68,13 @@ export default async function HistoryDetailPage({
 
   return (
     <WorkspaceShell active="analyze">
+      {/* SHELL3: visiting the saved report IS opening the entity — record it. */}
+      <RecordRecent
+        type="analysis"
+        id={slug}
+        label={found.row.candidate_label || slug}
+        href={`/history/${encodeURIComponent(slug)}`}
+      />
       <header className="flex flex-col gap-3 border-b border-stone-200 pb-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <p className="text-meta uppercase text-coral">History · {slug}</p>

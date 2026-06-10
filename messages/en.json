@@ -193,6 +193,7 @@
     "noResults": "No matches for “{q}”.",
     "searchFailed": "Search is unavailable right now.",
     "groups": {
+      "recent": "Recent",
       "tabs": "Go to",
       "profile": "Candidates",
       "entry": "In pipeline",
@@ -205,6 +206,7 @@
     "skipToContent": "Skip to content",
     "ariaLabel": "Workspace",
     "attentionBadge": "{count} need attention",
+    "recent": "Recent",
     "brandMark": "KP",
     "brandName": "studio",
     "tagline": "talent matching",

@@ -193,6 +193,7 @@
     "noResults": "Žádné výsledky pro „{q}“.",
     "searchFailed": "Hledání je momentálně nedostupné.",
     "groups": {
+      "recent": "Nedávné",
       "tabs": "Přejít na",
       "profile": "Kandidáti",
       "entry": "V pipeline",
@@ -205,6 +206,7 @@
     "skipToContent": "Přejít na obsah",
     "ariaLabel": "Pracovní plocha",
     "attentionBadge": "{count} vyžaduje pozornost",
+    "recent": "Nedávné",
     "brandMark": "KP",
     "brandName": "studio",
     "tagline": "párování talentů",

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { attentionCounts, type AttentionCounts } from "@/app/_lib/attention";
+import { RecentsNav } from "./RecentsNav";
 import { navItemClass, NAV_GROUPS, tabHref, type WorkspaceTabId } from "./tabs";
 
 // Link-based copy of the Workspace sidebar for server-rendered deep-link pages
@@ -36,6 +37,10 @@ export async function WorkspaceNav({ active }: { active: WorkspaceTabId }) {
           </div>
         </div>
       </Link>
+
+      {/* SHELL3: same Recent group as the interactive shell — a client island,
+          since localStorage is unreachable from this server component. */}
+      <RecentsNav />
 
       <nav aria-label={t("ariaLabel")} className="space-y-5 px-3 pb-6">
         {NAV_GROUPS.map((group, gi) => (

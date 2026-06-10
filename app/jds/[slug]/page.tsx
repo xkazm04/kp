@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { Send, UserPlus } from "lucide-react";
 import { ScoreBadge } from "@/app/_components/ScoreBadge";
 import { WorkspaceShell } from "@/app/features/WorkspaceNav";
+import { RecordRecent } from "@/app/features/RecordRecent";
 import { getJob, listAnalysesByJd, loadJd, type AnalysisSummary, type JdRow } from "@/app/_lib/db";
 import { getJobStatus, isJobOpenForApplications } from "@/app/_lib/job-ingest";
 import { JdActions } from "./JdActions";
@@ -56,6 +57,8 @@ export default async function JdDetailPage({
 
   return (
     <WorkspaceShell active="library">
+      {/* SHELL3: visiting the detail page IS opening the entity — record it. */}
+      <RecordRecent type="jd" id={slug} label={jd.title} href={`/jds/${encodeURIComponent(slug)}`} />
       <header className="flex flex-col gap-3 border-b border-stone-200 pb-5 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <p className="text-meta uppercase text-coral">Job description · {slug}</p>
