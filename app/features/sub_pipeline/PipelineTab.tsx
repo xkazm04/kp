@@ -10,6 +10,7 @@ import { useLiveRefresh } from "@/app/features/live-refresh";
 import { needsHumanDecision } from "@/app/_lib/approval-kinds";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { CandidateDrawer } from "./CandidateDrawer";
+import { PassPreviewModal } from "./PassPreviewModal";
 import { PipelineBoard } from "./PipelineBoard";
 import { SchedulerControl } from "./SchedulerControl";
 import { EventDot, useEventVerb, useRelativeTime } from "./PipelineShared";
@@ -91,6 +92,14 @@ export function PipelineTab() {
     held: number;
     alerts: number;
   } | null>(null);
+  // AUTO3 — the dry-run preview the "Run pass" button now opens before anything
+  // commits (mirrors the screening wave's DEC2 gate: the pass auto-rejects AND
+  // emails candidates, so it gets the same look-before-commit grammar).
+  const [preview, setPreview] = useState<{
+    summary: { advanced: number; rejected: number; held: number; alerts: number; errors: number; evaluated: number };
+    decisions: { entryId: string; action: string; toStage: string | null; reason: string }[];
+  } | null>(null);
+  const [previewing, setPreviewing] = useState(false);
   const [drawerEntry, setDrawerEntry] = useState<Entry | null>(null);
   // Board search/filter (PIPE2): a free-text candidate/role query + one active
   // quick-filter chip. Client-side — the board already holds every entry.
@@ -307,6 +316,31 @@ export function PipelineTab() {
   // "Rank candidates" → the Fit matrix scoped to this position (a per-position ranking).
   const openPositionRanking = (jobId: string) => router.push(buildUrl({ tab: "matrix", job: jobId }, search.toString()));
 
+  // AUTO3 — "Run pass" opens a preview first: identical decisions, nothing
+  // applied, no candidate emailed. The commit happens only from the modal.
+  const previewPass = async () => {
+    setPreviewing(true);
+    setPassSummary(null);
+    try {
+      const r = await fetch("/api/automation/run", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ dryRun: true }),
+      });
+      const p = await r.json().catch(() => null);
+      if (r.ok && p) {
+        setError(null);
+        setPreview({ summary: p.summary, decisions: p.decisions ?? [] });
+      } else {
+        setError(t("passFailed"));
+      }
+    } catch {
+      setError(t("passFailedNetwork"));
+    } finally {
+      setPreviewing(false);
+    }
+  };
+
   const runPass = async () => {
     setRunning(true);
     setPassSummary(null);
@@ -316,6 +350,7 @@ export function PipelineTab() {
       if (r.ok) {
         setError(null); // a clean pass clears any prior transient error
         setPassSummary(p.summary);
+        setPreview(null);
         load();
       } else {
         // A failing pass used to read identically to a successful no-op (empty
@@ -380,12 +415,12 @@ export function PipelineTab() {
         </button>
         <button
           type="button"
-          onClick={runPass}
-          disabled={running}
+          onClick={previewPass}
+          disabled={running || previewing}
           className="focus-ring inline-flex h-9 items-center gap-1.5 rounded-md bg-ink px-3 text-base font-semibold text-white hover:opacity-90 disabled:opacity-50"
           title={t("runPassTitle")}
         >
-          {running ? t("runningPass") : t("runPass")}
+          {previewing ? t("previewingPass") : running ? t("runningPass") : t("runPass")}
         </button>
         <SchedulerControl onRan={load} className="flex-1 min-w-[20rem]" />
       </div>
@@ -397,6 +432,16 @@ export function PipelineTab() {
           {t("passAlerts", { n: passSummary.alerts })}{" "}
           <span className="text-steel">{t("passEarlyCareer")}</span>
         </div>
+      ) : null}
+
+      {preview ? (
+        <PassPreviewModal
+          preview={preview}
+          entries={entries ?? []}
+          committing={running}
+          onCommit={runPass}
+          onClose={() => setPreview(null)}
+        />
       ) : null}
 
       {error ? (

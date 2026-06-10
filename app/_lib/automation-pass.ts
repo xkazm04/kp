@@ -65,9 +65,13 @@ export function isPassInFlight(): boolean {
   return inFlightPass !== null;
 }
 
-export function runAutomationPass(): Promise<AutomationPassResult> {
+export function runAutomationPass(opts?: { dryRun?: boolean }): Promise<AutomationPassResult> {
+  // AUTO3 — a dry run is read-only (no applies, no dispatches, no score writes),
+  // so it neither joins nor blocks the single-flight: previewing must never
+  // return an already-APPLIED pass's result as if it were a preview.
+  if (opts?.dryRun) return executeAutomationPass(true);
   if (inFlightPass) return inFlightPass;
-  inFlightPass = executeAutomationPass().finally(() => {
+  inFlightPass = executeAutomationPass(false).finally(() => {
     inFlightPass = null;
   });
   return inFlightPass;
@@ -82,7 +86,7 @@ export function runAutomationPass(): Promise<AutomationPassResult> {
 // same deterministic recruiter_cli ranking the candidates/rediscovery surfaces
 // use (LLM-free, sub-second). Best-effort per job: a scoring failure leaves the
 // entry held exactly as before, never blocks the pass.
-async function scoreUnscoredEntries(entries: AutomationEntry[]): Promise<void> {
+async function scoreUnscoredEntries(entries: AutomationEntry[], dryRun: boolean): Promise<void> {
   const unscored = entries.filter(
     (e) => e.matchScore == null && !e.intakeDegraded && e.candidateId && e.jobId && !e.candidateId.startsWith("ds-")
   );
@@ -133,7 +137,12 @@ async function scoreUnscoredEntries(entries: AutomationEntry[]): Promise<void> {
       for (const e of group) {
         const score = scoreById.get(e.candidateId as string);
         if (score == null) continue;
-        if (setEntryMatchScore(e.id, score)) {
+        if (dryRun) {
+          // Preview-only: patch the snapshot so the policy step previews the
+          // post-scoring verdict, but persist nothing — the committed run
+          // recomputes the same deterministic score and writes it then.
+          e.matchScore = score;
+        } else if (setEntryMatchScore(e.id, score)) {
           // Patch the in-memory snapshot so THIS pass's policy step (and the
           // fairness backstop reading the same snapshot) sees the fresh score.
           e.matchScore = score;
@@ -148,14 +157,14 @@ async function scoreUnscoredEntries(entries: AutomationEntry[]): Promise<void> {
   }
 }
 
-async function executeAutomationPass(): Promise<AutomationPassResult> {
+async function executeAutomationPass(dryRun: boolean): Promise<AutomationPassResult> {
   const entries = listActiveEntriesForAutomation();
   const summary: AutomationSummary = { advanced: 0, rejected: 0, held: 0, alerts: 0, errors: 0, evaluated: entries.length };
   if (entries.length === 0) return { summary, decisions: [] };
 
   // AUTO1 — score the unscored BEFORE the policy step, so an inbound applicant
   // is triaged on this very pass instead of held "awaiting match score" forever.
-  await scoreUnscoredEntries(entries);
+  await scoreUnscoredEntries(entries, dryRun);
 
   let workdir: string | null = null;
   try {
@@ -174,6 +183,36 @@ async function executeAutomationPass(): Promise<AutomationPassResult> {
     // Keep the entry snapshots keyed by id so the apply boundary can re-check the
     // fairness invariant against the SAME archetype/score the policy pass saw.
     const byId = new Map(entries.map((e) => [e.id, e]));
+
+    // AUTO3 — dry run: identical snapshot → Python → decisions flow, but the
+    // apply/dispatch loop is replaced by annotation. The fairness backstop is
+    // still consulted per reject (the preview must show the verdict the commit
+    // would actually enforce); nothing is written and no candidate is emailed.
+    if (dryRun) {
+      for (const d of decisions) {
+        if (!d.entryId) continue;
+        if (d.action === "advance") {
+          summary.advanced += 1;
+        } else if (d.action === "reject") {
+          const verdict = assertAutoRejectFair(byId.get(d.entryId));
+          if (verdict.allowed) {
+            summary.rejected += 1;
+          } else {
+            d.action = "hold";
+            d.reason = `Auto-reject would be refused by fairness backstop: ${verdict.reason}. Original policy decision: ${d.reason}`;
+            d.alerts = (d.alerts ?? []).includes(FAIRNESS_BLOCKED_REJECT_ALERT)
+              ? d.alerts
+              : [...(d.alerts ?? []), FAIRNESS_BLOCKED_REJECT_ALERT];
+            summary.held += 1;
+          }
+        } else if (d.action === "hold") {
+          summary.held += 1;
+        }
+        summary.alerts += (d.alerts ?? []).length;
+      }
+      return { summary, decisions };
+    }
+
     for (const d of decisions) {
       if (!d.entryId) continue;
       // One decision's apply failing (a comm throw from dispatchRejection, a
