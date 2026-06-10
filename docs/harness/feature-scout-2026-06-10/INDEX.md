@@ -1,5 +1,11 @@
 # Feature Scout Scan #2 — kp, 2026-06-10
 
+> **CAMPAIGN COMPLETE (2026-06-10).** All 10 waves + the Med/Low sweep shipped and
+> pushed (origin/main `44d3932`). ~80 of 110 findings closed; per-wave detail in
+> FIXES-WAVE-1..10.md, FIXES-SWEEP.md, and FIXES-WAVE-3/4.md (i18n). Remaining: the
+> RES2 deep per-tab body labels (scoped follow-up — see FIXES-WAVE-4.md) + the
+> residual Med/Low tail FIXES-SWEEP.md lists as not-pursued.
+
 > Opportunity audit (NOT a defect hunt — bug-hunt 2026-06-07 + ui-bug-scan 2026-06-08 already ran).
 > 22 parallel subagent runs over ALL 22 contexts — the 12 never-scouted contexts got the full scout;
 > the 10 contexts mined by the retired 2026-06-08 campaign got a hard-dedup re-scan
