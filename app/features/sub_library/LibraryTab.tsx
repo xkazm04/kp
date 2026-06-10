@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { RotateCcw, Search } from "lucide-react";
+import { Briefcase, RotateCcw, Search } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Skeleton } from "@/app/_components/Skeleton";
 import { JdBuilder } from "./JdBuilder";
@@ -13,7 +13,42 @@ type JdRow = {
   title: string;
   preview: string;
   created_at: string;
+  // W8-3 (JDL3) — the linked jd-<slug> job's lifecycle status; null = no job
+  // exists yet (an analysis-only pasted JD that can't be matched or applied to).
+  jobStatus?: string | null;
 };
+
+// W8-3 — make a pasted JD matchable: one click runs the existing hardened
+// ingest bridge (content-hash dedup, draft lifecycle) under the shared
+// "jd-<slug>" identity, landing the JD in the same draft → Source-into-Pipeline
+// path as builder-authored roles.
+function IngestAsJobButton({ slug, onDone }: { slug: string; onDone: () => void }) {
+  const t = useTranslations("library.tab");
+  const [state, setState] = useState<"idle" | "busy" | "error">("idle");
+  const ingest = async () => {
+    if (state === "busy") return;
+    setState("busy");
+    try {
+      const r = await fetch(`/api/jds/${encodeURIComponent(slug)}/ingest-job`, { method: "POST" });
+      if (!r.ok) throw new Error();
+      onDone();
+    } catch {
+      setState("error");
+    }
+  };
+  return (
+    <button
+      type="button"
+      onClick={ingest}
+      disabled={state === "busy"}
+      title={t("ingestAsJobTitle")}
+      className="focus-ring inline-flex items-center gap-1 rounded-md border border-stone-200 bg-white px-2 py-0.5 text-sm font-semibold text-coral hover:bg-coral/5 disabled:opacity-50"
+    >
+      <Briefcase size={12} aria-hidden />
+      {state === "busy" ? t("ingesting") : state === "error" ? t("ingestRetry") : t("ingestAsJob")}
+    </button>
+  );
+}
 
 export function LibraryTab() {
   const t = useTranslations("library.tab");
@@ -142,8 +177,15 @@ export function LibraryTab() {
                       <p className="mt-2 line-clamp-3 text-base leading-6 text-ink/80">
                         {row.preview}
                       </p>
-                      <p className="mt-2 text-sm text-steel">
+                      <p className="mt-2 flex flex-wrap items-center gap-2 text-sm text-steel">
                         {t("savedAt", { date: new Date(row.created_at).toLocaleString() })}
+                        {row.jobStatus ? (
+                          <span className="rounded-full bg-stone-100 px-1.5 py-0.5 text-xs font-semibold uppercase text-steel">
+                            {t("jobStatusChip", { status: row.jobStatus })}
+                          </span>
+                        ) : (
+                          <IngestAsJobButton slug={row.slug} onDone={() => load()} />
+                        )}
                       </p>
                     </li>
                   ))}

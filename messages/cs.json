@@ -855,6 +855,11 @@
       "noMatchTitle": "Žádné odpovídající popisy pozic",
       "noMatchBody": "Nic neodpovídá „{query}“. Zkuste jiné hledání.",
       "savedAt": "Uloženo {date}",
+      "ingestAsJob": "Vytvořit pozici",
+      "ingestAsJobTitle": "Zpracovat tento popis na párovatelnou pozici — půjde pak obsazovat, řadit, párovat a hlásit se na ni",
+      "ingesting": "Zpracovávání…",
+      "ingestRetry": "Zkusit znovu",
+      "jobStatusChip": "pozice: {status}",
       "orPasteManually": "Nebo vložte popis pozice ručně"
     },
     "form": {

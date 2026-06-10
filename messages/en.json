@@ -855,6 +855,11 @@
       "noMatchTitle": "No matching JDs",
       "noMatchBody": "Nothing matches “{query}”. Try a different search.",
       "savedAt": "Saved {date}",
+      "ingestAsJob": "Ingest as job",
+      "ingestAsJobTitle": "Parse this JD into a matchable role — it can then be sourced, ranked, matched and applied to",
+      "ingesting": "Ingesting…",
+      "ingestRetry": "Retry ingest",
+      "jobStatusChip": "role: {status}",
       "orPasteManually": "Or paste a job description manually"
     },
     "form": {
