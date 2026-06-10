@@ -1,6 +1,9 @@
 # kp — harness learnings
 
 ## Structural facts
+- **2026-06-10 (feature-scout#2 W6)** — Comms + links have operators now: `POST /api/comms/[id]/resend` (append-only — NEW outbox row + `comm_resent` event; never mutate the failed row), `GET /api/comms` (?entry/?status; refs resolved server-side) → Channels CommsCenter + drawer Messages; `listScheduleInvites()` + `GET /api/schedule` (SCHEDULE_LOOKUP_FAILED in catalogue) → ScheduleTab InviteLifecyclePanel (needs_more_slots/needs_reconcile finally read). Interview links: `isInterviewLinkExpired` is the ONE expiry authority (7d TTL, created-only) shared by /connect + portal; `revokeInterviewSession(s)` WHERE-guarded (completed never revocable); /create REVOKES prior open sessions (one live link per entry, response carries `revoked`); reject auto-revokes; `POST /api/interview/revoke`. GOTCHA: react-hooks/purity flags `Date.now()` during render EVEN in async server components — capture at fetch time or hoist into a lib helper.
+
+
 - **2026-06-10 (feature-scout#2 W7)** — Automation trust loop closed: `executeAutomationPass` runs a PRE-POLICY scoring sweep (recruiter_cli per job; FILL-ONLY `setEntryMatchScore` WHERE match_score IS NULL; new `scored` event kind in EVENT_KINDS — register catalog row + en/cs verb when adding kinds); `runAutomationPass({dryRun})` is read-only and BYPASSES the single-flight (joining would return applied results as a "preview") while still consulting `assertAutoRejectFair`; per-pass `decisions[]` persist in `scheduler_runs.decisions_json` from clock AND manual routes (the run route records trigger "manual" unless `isPassInFlight()` said it joined); the human scorecard route now sets `scorecard_review` (same JSON.stringify(Scorecard) detail the AI paths set, gate-open = approval null|calendar at Interview stage) and `/api/interview/compare` unions human-scorecard-only entries via `listEntriesForJob` (scoringModel from `isEarlyCareer(archetype)`).
 
 
