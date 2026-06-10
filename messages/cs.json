@@ -1426,6 +1426,29 @@
       }
     }
   },
+  "devApply": {
+    "eyebrow": "Domácí úkol",
+    "fallbackTitle": "Vývojářské zadání",
+    "subtitle": "Přečtěte si zadání, stáhněte si startovní soubory a po dokončení odešlete odkaz na repozitář s řešením.",
+    "closed": "Příjem řešení pro tuto pozici už byl uzavřen. Děkujeme za váš zájem.",
+    "briefUnavailable": "Zadání teď není k dispozici — zkuste to prosím později, nebo kontaktujte náboráře, který vám poslal tento odkaz.",
+    "seedHeading": "{count, plural, one {Startovní soubor} few {Startovní soubory (#)} other {Startovní soubory (#)}}",
+    "seedDownloadAll": "Stáhnout vše",
+    "seedDownloadOne": "Stáhnout tento soubor",
+    "submitHeading": "Odeslat řešení",
+    "submitHint": "Nahrajte svou práci do veřejného repozitáře a vložte odkaz níže. Potvrzení dostanete hned.",
+    "fieldName": "Vaše jméno",
+    "fieldContact": "E-mail",
+    "fieldContactPlaceholder": "Abychom se vám mohli ozvat",
+    "fieldRepo": "URL repozitáře s řešením",
+    "fieldNotes": "Poznámky (volitelné)",
+    "submit": "Odeslat řešení",
+    "sending": "Odesílání…",
+    "submitFailed": "Odeslání se nezdařilo — zkuste to prosím znovu.",
+    "received": "Přihláška přijata",
+    "receivedNote": "Vaše řešení posoudíme a ozveme se vám. Potvrzení je na cestě.",
+    "receivedDuplicate": "Pro toto zadání už od vás řešení máme — počítá se to první, není třeba odesílat znovu."
+  },
   "potential": {
     "badge": "potenciál {pct}",
     "explainTitle": "Z čeho potenciál vychází",

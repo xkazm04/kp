@@ -24,7 +24,10 @@ export function ApplyTokenPill({ token }: { token: string | null }) {
   // Candidate-facing apply link — resolved through publicBaseUrl (idea-e6c66bcd)
   // so the shared artifact carries the deployment's public host, not the
   // recruiter's localhost/proxy origin. Empty base (SSR) keeps it relative.
-  const applyUrl = `${publicBaseUrl(typeof window !== "undefined" ? window.location.origin : "")}/api/devcase/inbound?token=${token}`;
+  // W5-1: points at the human-facing apply PAGE (brief + starter files +
+  // submission form), not the raw POST-only inbound webhook a browser 405s on;
+  // the page submits through that same webhook.
+  const applyUrl = `${publicBaseUrl(typeof window !== "undefined" ? window.location.origin : "")}/devcase/apply/${token}`;
 
   const copy = async () => {
     try {

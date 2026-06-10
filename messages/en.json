@@ -1426,6 +1426,29 @@
       }
     }
   },
+  "devApply": {
+    "eyebrow": "Take-home assignment",
+    "fallbackTitle": "Developer assignment",
+    "subtitle": "Read the brief, grab the starter files, and submit a link to your solution repository when you're done.",
+    "closed": "This role's intake has closed and is no longer accepting submissions. Thank you for your interest.",
+    "briefUnavailable": "The assignment brief isn't available right now — please check back shortly or contact the recruiter who shared this link.",
+    "seedHeading": "{count, plural, one {Starter file} other {Starter files (#)}}",
+    "seedDownloadAll": "Download all",
+    "seedDownloadOne": "Download this file",
+    "submitHeading": "Submit your solution",
+    "submitHint": "Push your work to a public repository and share the link below. You'll get a confirmation right away.",
+    "fieldName": "Your name",
+    "fieldContact": "Email",
+    "fieldContactPlaceholder": "So we can get back to you",
+    "fieldRepo": "Solution repository URL",
+    "fieldNotes": "Notes (optional)",
+    "submit": "Submit solution",
+    "sending": "Submitting…",
+    "submitFailed": "Submission failed — please try again.",
+    "received": "Application received",
+    "receivedNote": "We'll review your submission and get back to you. A confirmation is on its way.",
+    "receivedDuplicate": "We already had a submission for you on this assignment — it's the one that counts, no need to resubmit."
+  },
   "potential": {
     "badge": "potential {pct}",
     "explainTitle": "Why this potential score",
