@@ -66,6 +66,15 @@ export default async function HistoryDetailPage({
     );
   }
 
+  // RES4 — the detected archetype rides the Add-to-pipeline ref. It was
+  // hardcoded null even while ArchetypeBanner announced "Detected archetype: X"
+  // on the same page — and the null has acquired real cost since RES2 shipped:
+  // entry.archetype now selects the human-scorecard rubric (PREP1) and feeds
+  // the screening wave's unknown-archetype audit path. Same best-effort
+  // narrowing the banner uses on the loosely-typed v2Profile record.
+  const v2Profile = parsed.data.v2Profile as { archetype?: unknown } | null | undefined;
+  const detectedArchetype = typeof v2Profile?.archetype === "string" && v2Profile.archetype ? v2Profile.archetype : null;
+
   return (
     <WorkspaceShell active="analyze">
       {/* SHELL3: visiting the saved report IS opening the entity — record it. */}
@@ -113,7 +122,7 @@ export default async function HistoryDetailPage({
               ? {
                   candidateId: slug,
                   candidateLabel: found.row.candidate_label,
-                  archetype: null,
+                  archetype: detectedArchetype,
                   matchScore: found.row.score ?? null,
                   roleFamily: found.row.role_family ?? null,
                   jobId: found.row.jd_slug,
