@@ -1133,6 +1133,7 @@
       "closeFailed": "Couldn't close the role.",
       "rankInMatrix": "Rank in matrix",
       "copyMarkdown": "Copy markdown",
+      "postingLanguage": "Posting language",
       "viewsAria": "Job views",
       "tabPosting": "Posting",
       "tabCandidates": "Candidates",

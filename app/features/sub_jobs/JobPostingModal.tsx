@@ -3,15 +3,16 @@
 import { useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { BarChart3, Check, Copy, FileText, History, Link2, Scale } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { Modal } from "@/app/_components/Modal";
 import { Markdown } from "@/app/_components/Markdown";
 import { publicBaseUrl } from "@/app/_lib/public-base-url";
 import { buildUrl } from "@/app/features/tabs";
+import { isLocale } from "@/i18n/locales";
 import { RecruiterCandidates } from "./RecruiterCandidates";
 import { RediscoverPanel } from "./RediscoverPanel";
 import { CompareInterviews } from "./CompareInterviews";
-import { jobToMarkdown } from "./jobMarkdown";
+import { jobToMarkdown, JOB_MARKDOWN_STRINGS, POSTING_LOCALES, type PostingLocale } from "./jobMarkdown";
 import type { Job } from "./JobsTypes";
 
 // Clicking a job opens this: a publish-ready posting (Markdown) with a copy
@@ -43,7 +44,12 @@ export function JobPostingModal({ job, onClose }: { job: Job; onClose: () => voi
       setClosing(false);
     }
   };
-  const markdown = useMemo(() => jobToMarkdown(job), [job]);
+  // JOB3 — the posting can be copied in a language different from the app
+  // (recruiter runs the studio in EN, posts to a Czech board). Default to the
+  // active locale; the toggle swaps the strings table for the render + copy.
+  const appLocale = useLocale();
+  const [postingLang, setPostingLang] = useState<PostingLocale>(isLocale(appLocale) ? appLocale : "en");
+  const markdown = useMemo(() => jobToMarkdown(job, JOB_MARKDOWN_STRINGS[postingLang]), [job, postingLang]);
 
   const copyApplyLink = async () => {
     try {
@@ -146,9 +152,28 @@ export function JobPostingModal({ job, onClose }: { job: Job; onClose: () => voi
         className="focus-ring rounded-lg"
       >
         {tab === "posting" ? (
-          <article className="rounded-lg border border-stone-200 bg-paper/40 p-4">
-            <Markdown content={markdown} />
-          </article>
+          <>
+            {/* JOB3 — choose the posting's language independently of the app. */}
+            <div className="mb-2 flex items-center gap-1.5">
+              <span className="text-meta uppercase text-steel">{t("postingLanguage")}</span>
+              {POSTING_LOCALES.map((loc) => (
+                <button
+                  key={loc}
+                  type="button"
+                  onClick={() => setPostingLang(loc)}
+                  aria-pressed={postingLang === loc}
+                  className={`focus-ring rounded-full border px-2.5 py-0.5 text-sm font-semibold uppercase transition-colors ${
+                    postingLang === loc ? "border-coral bg-coral/10 text-coral" : "border-stone-200 text-steel hover:border-coral/40"
+                  }`}
+                >
+                  {loc}
+                </button>
+              ))}
+            </div>
+            <article className="rounded-lg border border-stone-200 bg-paper/40 p-4">
+              <Markdown content={markdown} />
+            </article>
+          </>
         ) : tab === "candidates" ? (
           <RecruiterCandidates jobId={job.id} jobTitle={job.title} roleFamily={job.roleFamily ?? null} autoLoad />
         ) : tab === "rediscover" ? (
