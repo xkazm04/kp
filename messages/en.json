@@ -1,4 +1,49 @@
 {
+  "comms": {
+    "team": "The hiring team",
+    "there": "there",
+    "theRole": "the role",
+    "aRole": "a role",
+    "yourNewRole": "your new role",
+    "ack": {
+      "subject": "We received your application — {role}",
+      "body": "Hi {name},\n\nThanks for applying for {role} — we've received your application and a recruiter will review it shortly. We'll be in touch about the next steps.\n\nBest,\n{team}"
+    },
+    "outreach": {
+      "subjectFallback": "An opportunity: {role}"
+    },
+    "rejection": {
+      "subject": "Your application — {role}",
+      "opening": "Hi {name},\n\nThank you for your interest in {role} and for the time you put into your application. After careful review, we won't be moving forward at this stage.\n\n",
+      "early": "This is not a reflection of your potential. Early in a career the strongest signal is trajectory, and we'd genuinely encourage you to apply again as you build out more hands-on experience — we'll keep your profile on file.\n\n",
+      "standard": "The decision came down to fit against the specific needs of this role right now, not a judgement of your ability. We'd welcome a future application as our teams and openings evolve, and we'll keep your profile on file.\n\n",
+      "closing": "Wishing you the very best,\n{team}"
+    },
+    "offer": {
+      "subjectFallback": "Offer — {role}",
+      "responseFooter": "— — —\nTo accept or decline this offer, please use your secure link:\n{link}\n"
+    },
+    "interviewConfirmation": {
+      "subject": "Interview confirmed — {role}",
+      "length": " Please set aside about {minutes} minutes for the call.",
+      "short": "Hi {name},\n\nYour interview for {role} is booked for {slot} — that's coming up shortly, so treat this as your heads-up: everything you need is right here and we won't send a separate reminder given the short notice.{length}\n\nIf you need to change the time, just reply and we'll sort it out.\n\nSee you soon,\n{team}",
+      "normal": "Hi {name},\n\nYour interview for {role} is booked for {slot}.{length} We'll send a reminder before the call with everything you need.\n\nIf you need to change the time, just reply and we'll sort it out.\n\nSee you then,\n{team}"
+    },
+    "interviewReminder": {
+      "subject": "Reminder — your interview {slot}",
+      "length": " Plan for about {minutes} minutes.",
+      "body": "Hi {name},\n\nA quick reminder that your interview for {role} is coming up at {slot}.{length} We're looking forward to speaking with you — see you then!\n\n{team}"
+    },
+    "interviewInvite": {
+      "subject": "Your AI first-round screen — {role}",
+      "length": " It takes about {minutes} minutes.",
+      "body": "Hi {name},\n\nYou're invited to a short AI-guided first-round screen for {role}.{length} You can take it whenever you're ready using your secure link:\n{link}\n\nIt runs right in your browser — just allow microphone access when prompted.\n\nLooking forward to it,\n{team}"
+    },
+    "onboarding": {
+      "subject": "Welcome aboard — {role}",
+      "body": "Hi {name},\n\nWe're delighted you're joining us as {role}! Welcome to the team.\n\nYour onboarding is now underway. Our People team will reach out shortly with your start date, paperwork, equipment, and a first-week plan so you can hit the ground running.\n\nWe can't wait to work with you.\n\nWarmly,\n{team}"
+    }
+  },
   "language": {
     "label": "Language",
     "select": "Select language",

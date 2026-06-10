@@ -407,6 +407,10 @@ function ensureDb(): Database.Database {
     // Candidate contact captured at inbound apply (idea APP2) — makes the comms
     // stack deliverable for applicants instead of dead-lettering to "candidate".
     "ALTER TABLE pipeline_entries ADD COLUMN contact TEXT",
+    // Applicant's locale captured at inbound apply (SIM3) — so every downstream
+    // candidate-facing comm renders in the language they applied in, not
+    // English. NULL on recruiter/Match-sourced rows ⇒ default "en" at dispatch.
+    "ALTER TABLE pipeline_entries ADD COLUMN locale TEXT",
     // Compact GitHub evidence summary captured at add-to-pipeline (GH2):
     // coerceGithubEvidenceSummary-shaped JSON, bounded at write AND read.
     "ALTER TABLE pipeline_entries ADD COLUMN github_json TEXT",
@@ -1376,6 +1380,9 @@ export type PipelineEntry = {
   // Candidate contact (email/phone) captured at inbound apply, else null. The
   // deliverable comms recipient when present (see candidateRecipient).
   contact: string | null;
+  // Applicant's locale captured at inbound apply (SIM3), else null. Drives the
+  // language of every downstream candidate-facing comm; null ⇒ "en" at dispatch.
+  locale: string | null;
   // Compact GitHub evidence summary captured at add-to-pipeline (GH2), else
   // null. Bounded by coerceGithubEvidenceSummary on both write and read.
   githubEvidence: GithubEvidenceSummary | null;
@@ -1688,6 +1695,7 @@ type PipelineRow = {
   intake_degraded: number | null;
   intake_degraded_reason: string | null;
   contact: string | null;
+  locale?: string | null;
   github_json?: string | null;
 };
 
@@ -1713,6 +1721,7 @@ function rowToEntry(r: PipelineRow): PipelineEntry {
     intakeDegraded: r.intake_degraded === 1,
     intakeDegradedReason: r.intake_degraded_reason ?? null,
     contact: r.contact ?? null,
+    locale: r.locale ?? null,
     githubEvidence: parseGithubEvidence(r.github_json, r.id),
   };
 }
@@ -2266,6 +2275,9 @@ export type CreatePipelineInput = {
   // Candidate contact (email/phone) from inbound apply; stored so downstream comms
   // are deliverable. Omitted by recruiter/Match adds (they carry no address).
   contact?: string | null;
+  // Applicant's locale from inbound apply (SIM3); drives downstream comm
+  // language. Omitted by recruiter/Match adds ⇒ NULL ⇒ "en" at dispatch.
+  locale?: string | null;
   // Compact GitHub evidence summary (GH2) as validated JSON — the caller (the
   // pipeline POST route) coerces the shape before stringifying. Backfilled onto
   // an existing entry only when the column is still empty (evidence is additive;
@@ -2314,10 +2326,10 @@ export function createPipelineEntry(input: CreatePipelineInput): { entry: Pipeli
     `INSERT INTO pipeline_entries
        (id, candidate_id, candidate_label, archetype, role_family, job_id, job_title,
         stage, match_score, status, approval_kind, approval_detail, created_at, stage_changed_at, updated_at,
-        intake_degraded, intake_degraded_reason, contact, github_json)
+        intake_degraded, intake_degraded_reason, contact, locale, github_json)
      VALUES (@id, @candidate_id, @candidate_label, @archetype, @role_family, @job_id, @job_title,
         @stage, @match_score, 'active', NULL, '', @now, @now, @now,
-        @intake_degraded, @intake_degraded_reason, @contact, @github_json)`
+        @intake_degraded, @intake_degraded_reason, @contact, @locale, @github_json)`
   ).run({
     id,
     candidate_id: input.candidateId,
@@ -2332,6 +2344,7 @@ export function createPipelineEntry(input: CreatePipelineInput): { entry: Pipeli
     intake_degraded: intakeDegraded,
     intake_degraded_reason: intakeDegradedReason,
     contact: input.contact ?? null,
+    locale: input.locale ?? null,
     github_json: input.githubJson ?? null,
   });
   recordEvent(db, {

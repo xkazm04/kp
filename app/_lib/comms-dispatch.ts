@@ -1,6 +1,8 @@
+import { createTranslator } from "next-intl";
 import { sendComm } from "./comms";
 import { recordAutomationEvent, type PipelineEntry } from "./db";
 import { isEarlyCareer } from "./archetypes";
+import { DEFAULT_LOCALE, isLocale } from "@/i18n/locales";
 
 // Direction #3 — real comms delivery for the hiring pipeline. Routes recruiter
 // automation through the shared sendComm channel (durable local outbox by
@@ -8,6 +10,37 @@ import { isEarlyCareer } from "./archetypes";
 // rejections actually reach the candidate — and land in the same Outbox audit
 // log as the dev lifecycle's comms. Mirrors the inline-template pattern already
 // used by distribution.ts (intake ack) and devcase-orchestrator.ts (invite).
+//
+// SIM3 — every template renders in the CANDIDATE'S language. The deterministic
+// bodies moved into the `comms.*` namespace of messages/{en,cs}.json and render
+// through a locale-pinned translator built from the entry's stored `locale`
+// (captured at apply; NULL ⇒ "en" for recruiter/Match-sourced entries). The
+// LLM-authored bodies (outreach, the offer letter) stay as the model produced
+// them — only their deterministic chrome (fallback subject, the offer's
+// response-link footer) localizes.
+
+// One cached translator per locale: createTranslator is the non-request core
+// API, so it needs the messages handed in — loaded once per locale via the same
+// relative-path dynamic import the request config uses (so the bundler can
+// statically enumerate the catalogs). Synchronous after the first load.
+//
+// The catalogs load as `Record<string, unknown>`, so next-intl's compile-time
+// key checking can't see the `comms.*` keys and types every key as `never`.
+// This module is the one place that loads messages dynamically, so we narrow
+// the translator to a plain `(key, values) => string` callable — the catalog is
+// instead pinned by comms-dispatch.test.ts, which renders every key.
+type CommsTranslator = (key: string, values?: Record<string, string | number>) => string;
+const translatorByLocale = new Map<string, CommsTranslator>();
+
+async function commsTranslator(locale: string | null | undefined): Promise<CommsTranslator> {
+  const loc = isLocale(locale) ? locale : DEFAULT_LOCALE;
+  const cached = translatorByLocale.get(loc);
+  if (cached) return cached;
+  const messages = (await import(`../../messages/${loc}.json`)).default as Record<string, unknown>;
+  const t = createTranslator({ locale: loc, messages, namespace: "comms" }) as unknown as CommsTranslator;
+  translatorByLocale.set(loc, t);
+  return t;
+}
 
 // RECIPIENT CONTRACT (full write-up in docs/COMMS_DELIVERY.md). Resolved in
 // priority:
@@ -30,6 +63,12 @@ export function candidateRecipient(entry: {
   return (entry.contact ?? "").trim() || (entry.candidateLabel ?? "").trim() || (entry.candidateId ?? "").trim() || "candidate";
 }
 
+// The display name interpolated into every greeting; the catalog supplies the
+// localized "there" fallback so an anonymous applicant isn't greeted in English.
+function greetName(entry: { candidateLabel?: string | null }, t: CommsTranslator): string {
+  return (entry.candidateLabel ?? "").trim() || t("there");
+}
+
 /** Acknowledge a freshly-received inbound application. Inbound applicants got only
  *  an ephemeral in-page "You're in 🎉" bubble — no durable acknowledgement, even
  *  though dev-case submissions auto-ack and every other pipeline event fires a
@@ -38,24 +77,24 @@ export function candidateRecipient(entry: {
  *  goes through the shared sendComm Outbox channel — the audit row is useful even
  *  before a real address is captured, and deliverable once one is (APP2). */
 export async function dispatchApplicationReceived(entry: PipelineEntry): Promise<void> {
-  const name = (entry.candidateLabel ?? "").trim() || "there";
-  const role = entry.jobTitle ?? "the role";
-  const subject = `We received your application — ${role}`;
-  const body =
-    `Hi ${name},\n\n` +
-    `Thanks for applying for ${role} — we've received your application and a recruiter will review it shortly. ` +
-    `We'll be in touch about the next steps.\n\n` +
-    `Best,\nThe hiring team`;
+  const t = await commsTranslator(entry.locale);
+  const role = entry.jobTitle ?? t("theRole");
+  const subject = t("ack.subject", { role });
+  const body = t("ack.body", { name: greetName(entry, t), role, team: t("team") });
   await sendComm({ to: candidateRecipient(entry), subject, body, kind: "acknowledgement", ref: entry.id });
   recordAutomationEvent(entry.id, "acknowledgement_sent", role);
 }
 
-/** Dispatch an outreach message — the LLM/deterministic draft just generated. */
+/** Dispatch an outreach message — the LLM/deterministic draft just generated.
+ *  The body is the model's; only the fallback subject (used when the draft has
+ *  none) localizes. */
 export async function dispatchOutreach(
   entry: PipelineEntry,
   draft: { subject?: unknown; body?: unknown }
 ): Promise<void> {
-  const subject = String(draft.subject ?? `An opportunity: ${entry.jobTitle ?? "a role"}`).trim();
+  const t = await commsTranslator(entry.locale);
+  const role = entry.jobTitle ?? t("aRole");
+  const subject = String(draft.subject ?? t("outreach.subjectFallback", { role })).trim();
   const body = String(draft.body ?? "").trim();
   await sendComm({ to: candidateRecipient(entry), subject, body, kind: "outreach", ref: entry.id });
   recordAutomationEvent(entry.id, "outreach_sent", entry.jobTitle ?? "");
@@ -68,22 +107,13 @@ export async function dispatchOutreach(
  * keeping the fairness lever consistent through to the adverse comm.
  */
 export async function dispatchRejection(entry: PipelineEntry, opts?: { automated?: boolean }): Promise<void> {
-  const name = (entry.candidateLabel ?? "").trim() || "there";
-  const role = entry.jobTitle ?? "the role";
-  const early = isEarlyCareer(entry.archetype);
+  const t = await commsTranslator(entry.locale);
+  const name = greetName(entry, t);
+  const role = entry.jobTitle ?? t("theRole");
+  const middle = isEarlyCareer(entry.archetype) ? t("rejection.early") : t("rejection.standard");
 
-  const subject = `Your application — ${role}`;
-  const body =
-    `Hi ${name},\n\n` +
-    `Thank you for your interest in ${role} and for the time you put into your application. ` +
-    `After careful review, we won't be moving forward at this stage.\n\n` +
-    (early
-      ? `This is not a reflection of your potential. Early in a career the strongest signal is trajectory, ` +
-        `and we'd genuinely encourage you to apply again as you build out more hands-on experience — ` +
-        `we'll keep your profile on file.\n\n`
-      : `The decision came down to fit against the specific needs of this role right now, not a judgement of your ability. ` +
-        `We'd welcome a future application as our teams and openings evolve, and we'll keep your profile on file.\n\n`) +
-    `Wishing you the very best,\nThe hiring team`;
+  const subject = t("rejection.subject", { role });
+  const body = t("rejection.opening", { name, role }) + middle + t("rejection.closing", { team: t("team") });
 
   await sendComm({ to: candidateRecipient(entry), subject, body, kind: "rejection", ref: entry.id });
   recordAutomationEvent(entry.id, "rejection_sent", opts?.automated ? "policy auto-reject" : "manual reject");
@@ -93,18 +123,18 @@ export async function dispatchRejection(entry: PipelineEntry, opts?: { automated
  * Deliver the (recruiter-approved) offer to the candidate with a token-gated
  * accept/decline link. The offer DECISION stays human — this fires only after a
  * recruiter extends the drafted offer. Appends the response link to the letter.
+ * The letter body is the model's; only the fallback subject + response footer
+ * localize.
  */
 export async function dispatchOffer(
   entry: PipelineEntry,
   draft: { subject?: unknown; body?: unknown },
   responseLink: string
 ): Promise<void> {
-  const subject = String(draft.subject ?? `Offer — ${entry.jobTitle ?? "a role"}`).trim();
+  const t = await commsTranslator(entry.locale);
+  const subject = String(draft.subject ?? t("offer.subjectFallback", { role: entry.jobTitle ?? t("aRole") })).trim();
   const letter = String(draft.body ?? "").trim();
-  const body =
-    `${letter}\n\n` +
-    `— — —\n` +
-    `To accept or decline this offer, please use your secure link:\n${responseLink}\n`;
+  const body = `${letter}\n\n` + t("offer.responseFooter", { link: responseLink });
   await sendComm({ to: candidateRecipient(entry), subject, body, kind: "offer", ref: entry.id });
   recordAutomationEvent(entry.id, "offer_sent", entry.jobTitle ?? "");
 }
@@ -121,22 +151,16 @@ export async function dispatchInterviewConfirmation(
   slot: string,
   opts?: { shortNotice?: boolean; durationMin?: number | null }
 ): Promise<void> {
-  const name = (entry.candidateLabel ?? "").trim() || "there";
-  const role = entry.jobTitle ?? "the role";
+  const t = await commsTranslator(entry.locale);
+  const name = greetName(entry, t);
+  const role = entry.jobTitle ?? t("theRole");
   // Tell the candidate how long to block: a student's scripted screen runs ~22
   // minutes, and "booked for Tue 10:00" alone reads like a quick call.
-  const length = opts?.durationMin ? ` Please set aside about ${opts.durationMin} minutes for the call.` : "";
-  const subject = `Interview confirmed — ${role}`;
+  const length = opts?.durationMin ? t("interviewConfirmation.length", { minutes: opts.durationMin }) : "";
+  const subject = t("interviewConfirmation.subject", { role });
   const body = opts?.shortNotice
-    ? `Hi ${name},\n\n` +
-      `Your interview for ${role} is booked for ${slot} — that's coming up shortly, ` +
-      `so treat this as your heads-up: everything you need is right here and we won't ` +
-      `send a separate reminder given the short notice.${length}\n\n` +
-      `If you need to change the time, just reply and we'll sort it out.\n\nSee you soon,\nThe hiring team`
-    : `Hi ${name},\n\n` +
-      `Your interview for ${role} is booked for ${slot}.${length} ` +
-      `We'll send a reminder before the call with everything you need.\n\n` +
-      `If you need to change the time, just reply and we'll sort it out.\n\nSee you then,\nThe hiring team`;
+    ? t("interviewConfirmation.short", { name, role, slot, length, team: t("team") })
+    : t("interviewConfirmation.normal", { name, role, slot, length, team: t("team") });
   await sendComm({ to: candidateRecipient(entry), subject, body, kind: "interview_confirmation", ref: entry.id });
   recordAutomationEvent(entry.id, "interview_scheduled", slot);
 }
@@ -151,18 +175,16 @@ export async function dispatchInterviewConfirmation(
  *  would re-arm and send the candidate a DUPLICATE reminder. So it is logged and
  *  swallowed, never surfaced as a delivery failure. */
 export async function dispatchInterviewReminder(
-  entry: { id?: string | null; candidateLabel?: string | null; candidateId?: string | null; jobTitle?: string | null },
+  entry: { id?: string | null; candidateLabel?: string | null; candidateId?: string | null; jobTitle?: string | null; locale?: string | null },
   slot: string,
   opts?: { durationMin?: number | null }
 ): Promise<void> {
-  const name = (entry.candidateLabel ?? "").trim() || "there";
-  const role = entry.jobTitle ?? "the role";
-  const length = opts?.durationMin ? ` Plan for about ${opts.durationMin} minutes.` : "";
-  const subject = `Reminder — your interview ${slot}`;
-  const body =
-    `Hi ${name},\n\n` +
-    `A quick reminder that your interview for ${role} is coming up at ${slot}.${length} ` +
-    `We're looking forward to speaking with you — see you then!\n\nThe hiring team`;
+  const t = await commsTranslator(entry.locale);
+  const name = greetName(entry, t);
+  const role = entry.jobTitle ?? t("theRole");
+  const length = opts?.durationMin ? t("interviewReminder.length", { minutes: opts.durationMin }) : "";
+  const subject = t("interviewReminder.subject", { slot });
+  const body = t("interviewReminder.body", { name, role, slot, length, team: t("team") });
   await sendComm({ to: candidateRecipient(entry), subject, body, kind: "interview_reminder", ref: entry.id ?? slot });
   // Post-send: the reminder is delivered. Do not let an audit-log failure re-throw —
   // that would look like a delivery failure and trigger a duplicate send.
@@ -182,20 +204,16 @@ export async function dispatchInterviewReminder(
  *  interview_invite_sent event. `link` must be ABSOLUTE — the candidate opens it
  *  outside the app — so callers resolve it through publicBaseUrl. */
 export async function dispatchInterviewInvite(
-  entry: { id?: string | null; candidateLabel?: string | null; candidateId?: string | null; jobTitle?: string | null },
+  entry: { id?: string | null; candidateLabel?: string | null; candidateId?: string | null; jobTitle?: string | null; locale?: string | null },
   link: string,
   opts?: { durationMin?: number | null }
 ): Promise<void> {
-  const name = (entry.candidateLabel ?? "").trim() || "there";
-  const role = entry.jobTitle ?? "the role";
-  const length = opts?.durationMin ? ` It takes about ${opts.durationMin} minutes.` : "";
-  const subject = `Your AI first-round screen — ${role}`;
-  const body =
-    `Hi ${name},\n\n` +
-    `You're invited to a short AI-guided first-round screen for ${role}.${length} ` +
-    `You can take it whenever you're ready using your secure link:\n${link}\n\n` +
-    `It runs right in your browser — just allow microphone access when prompted.\n\n` +
-    `Looking forward to it,\nThe hiring team`;
+  const t = await commsTranslator(entry.locale);
+  const name = greetName(entry, t);
+  const role = entry.jobTitle ?? t("theRole");
+  const length = opts?.durationMin ? t("interviewInvite.length", { minutes: opts.durationMin }) : "";
+  const subject = t("interviewInvite.subject", { role });
+  const body = t("interviewInvite.body", { name, role, link, length, team: t("team") });
   await sendComm({ to: candidateRecipient(entry), subject, body, kind: "interview_invite", ref: entry.id ?? link });
   if (entry.id) recordAutomationEvent(entry.id, "interview_invite_sent", role);
 }
@@ -206,15 +224,10 @@ export async function dispatchInterviewInvite(
  * system would subscribe to the `onboarding_started` event downstream.
  */
 export async function dispatchOnboarding(entry: PipelineEntry): Promise<void> {
-  const name = (entry.candidateLabel ?? "").trim() || "there";
-  const role = entry.jobTitle ?? "your new role";
-  const subject = `Welcome aboard — ${role}`;
-  const body =
-    `Hi ${name},\n\n` +
-    `We're delighted you're joining us as ${role}! Welcome to the team.\n\n` +
-    `Your onboarding is now underway. Our People team will reach out shortly with your start date, ` +
-    `paperwork, equipment, and a first-week plan so you can hit the ground running.\n\n` +
-    `We can't wait to work with you.\n\nWarmly,\nThe hiring team`;
+  const t = await commsTranslator(entry.locale);
+  const role = entry.jobTitle ?? t("yourNewRole");
+  const subject = t("onboarding.subject", { role });
+  const body = t("onboarding.body", { name: greetName(entry, t), role, team: t("team") });
   await sendComm({ to: candidateRecipient(entry), subject, body, kind: "onboarding", ref: entry.id });
   recordAutomationEvent(entry.id, "onboarding_started", role);
 }

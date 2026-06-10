@@ -36,7 +36,7 @@ export async function sendDueInterviewReminders(windowMs: number = REMINDER_LEAD
     const attemptNo = priorAttempts + 1;
     try {
       await dispatchInterviewReminder(
-        { id: inv.entryId, candidateLabel: inv.candidateLabel, jobTitle: inv.jobTitle },
+        { id: inv.entryId, candidateLabel: inv.candidateLabel, jobTitle: inv.jobTitle, locale: inv.locale },
         inv.slot ?? "your scheduled time",
         { durationMin: inv.durationMin }
       );

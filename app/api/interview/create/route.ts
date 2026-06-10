@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createInterviewSession, revokeOpenInterviewSessions } from "@/app/_lib/db";
+import { createInterviewSession, getPipelineEntry, revokeOpenInterviewSessions } from "@/app/_lib/db";
 import { buildGroundedInterview } from "@/app/_lib/interview-run";
 import { dispatchInterviewInvite } from "@/app/_lib/comms-dispatch";
 import { safeJsonError } from "@/app/_lib/api-response";
@@ -61,8 +61,11 @@ export async function POST(request: NextRequest) {
     if (avail[provider]) {
       try {
         const link = `${publicBaseUrl(new URL(request.url).origin)}/interview/${session.token}`;
+        // SIM3 — invite in the applicant's language; the session carries no
+        // locale, so read it off the entry (one lookup, only on a delivered invite).
+        const inviteLocale = getPipelineEntry(entryId)?.locale ?? null;
         await dispatchInterviewInvite(
-          { id: entryId, candidateLabel: session.candidateLabel, jobTitle: session.jobTitle },
+          { id: entryId, candidateLabel: session.candidateLabel, jobTitle: session.jobTitle, locale: inviteLocale },
           link,
           { durationMin: grounded.durationMin }
         );

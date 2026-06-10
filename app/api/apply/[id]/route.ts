@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getTranslations } from "next-intl/server";
+import { getServerLocale } from "@/i18n/server";
 import { writeFile } from "node:fs/promises";
 import path from "node:path";
 import {
@@ -181,6 +182,10 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     // Candidate-facing outcome messages (returned in the JSON and shown verbatim
     // in the chat) are localized from the request's "apply" catalog.
     const t = await getTranslations("apply");
+    // SIM3 — the language the candidate applied in, persisted on the entry so
+    // every downstream comm (ack/rejection/interview/offer/onboarding) renders
+    // in it rather than defaulting to English.
+    const applicantLocale = await getServerLocale();
 
     // W8-1 (JOB1) — a closed/draft role refuses the SUBMISSION too (the page
     // gate alone is the documented anti-pattern: the API used to accept
@@ -367,6 +372,8 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       // The deliverable recipient for every downstream comm; null when the
       // applicant left it blank (the entry still files, comms just dead-letter).
       contact: email || null,
+      // SIM3 — the applicant's language, so downstream comms speak it.
+      locale: applicantLocale,
     });
 
     // created:false here means the dedupeKey backstop caught a concurrent repeat

@@ -109,6 +109,7 @@ export type ScheduleInvite = {
   moreSlotsFlaggedAt: string | null; // ISO time the zero-slots stall was first flagged
   durationMin: number | null; // planned interview length (e.g. 22 for the student script)
   rescheduleCount: number; // self-reschedules made on this confirmed booking (cap: MAX_RESCHEDULES)
+  locale: string | null; // SIM3 — the linked entry's applicant locale, when joined (dueReminders); null otherwise
   createdAt: string;
   confirmedAt: string | null;
 };
@@ -132,6 +133,8 @@ function rowTo(r: Record<string, unknown>): ScheduleInvite {
     moreSlotsFlaggedAt: (r.more_slots_flagged_at as string) ?? null,
     durationMin: r.duration_min == null ? null : Number(r.duration_min),
     rescheduleCount: Number(r.reschedule_count ?? 0),
+    // Only the dueReminders join selects entry_locale; every other read leaves it null.
+    locale: (r.entry_locale as string) ?? null,
     createdAt: r.created_at as string,
     confirmedAt: (r.confirmed_at as string) ?? null,
   };
@@ -325,7 +328,7 @@ export function dueReminders(windowMs: number = REMINDER_LEAD_MS): ScheduleInvit
   // file, separate connection — the join resolves against db.ts's tables.
   const rows = db()
     .prepare(
-      `SELECT s.*, p.id AS entry_row_id, p.status AS entry_status, p.stage AS entry_stage
+      `SELECT s.*, p.id AS entry_row_id, p.status AS entry_status, p.stage AS entry_stage, p.locale AS entry_locale
          FROM schedule_invites s
          LEFT JOIN pipeline_entries p ON p.id = s.entry_id
         WHERE s.status = 'confirmed' AND s.slot_at IS NOT NULL AND s.reminder_sent_at IS NULL

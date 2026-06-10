@@ -1,4 +1,49 @@
 {
+  "comms": {
+    "team": "Náborový tým",
+    "there": "dobrý den",
+    "theRole": "danou pozici",
+    "aRole": "pozice",
+    "yourNewRole": "vaši novou roli",
+    "ack": {
+      "subject": "Přijali jsme vaši přihlášku — {role}",
+      "body": "Dobrý den {name},\n\nděkujeme za přihlášku na pozici {role} — vaši přihlášku jsme obdrželi a náborář ji brzy posoudí. Ozveme se vám ohledně dalších kroků.\n\nS pozdravem,\n{team}"
+    },
+    "outreach": {
+      "subjectFallback": "Příležitost: {role}"
+    },
+    "rejection": {
+      "subject": "Vaše přihláška — {role}",
+      "opening": "Dobrý den {name},\n\nděkujeme za váš zájem o pozici {role} a za čas, který jste přihlášce věnovali. Po pečlivém zvážení v tuto chvíli nebudeme pokračovat dál.\n\n",
+      "early": "Není to odraz vašeho potenciálu. Na začátku kariéry je nejsilnějším signálem směřování a upřímně vás povzbuzujeme, abyste se přihlásili znovu, až získáte více praktických zkušeností — váš profil si ponecháme.\n\n",
+      "standard": "Rozhodnutí vycházelo z toho, jak profil odpovídá konkrétním potřebám této pozice právě teď, nikoli z posouzení vašich schopností. Budoucí přihlášku bychom uvítali, jak se naše týmy a pozice vyvíjejí, a váš profil si ponecháme.\n\n",
+      "closing": "Přejeme vám vše dobré,\n{team}"
+    },
+    "offer": {
+      "subjectFallback": "Nabídka — {role}",
+      "responseFooter": "— — —\nNabídku přijměte nebo odmítněte prosím přes svůj zabezpečený odkaz:\n{link}\n"
+    },
+    "interviewConfirmation": {
+      "subject": "Pohovor potvrzen — {role}",
+      "length": " Vyhraďte si prosím na hovor přibližně {minutes} minut.",
+      "short": "Dobrý den {name},\n\nváš pohovor na pozici {role} je domluven na {slot} — termín se blíží, berte tedy tuto zprávu jako upozornění: vše potřebné najdete zde a vzhledem ke krátkému předstihu už samostatnou připomínku neposíláme.{length}\n\nPokud potřebujete čas změnit, stačí odpovědět a domluvíme se.\n\nNa viděnou brzy,\n{team}",
+      "normal": "Dobrý den {name},\n\nváš pohovor na pozici {role} je domluven na {slot}.{length} Před hovorem vám pošleme připomínku se vším potřebným.\n\nPokud potřebujete čas změnit, stačí odpovědět a domluvíme se.\n\nTěšíme se,\n{team}"
+    },
+    "interviewReminder": {
+      "subject": "Připomínka — váš pohovor {slot}",
+      "length": " Počítejte přibližně s {minutes} minutami.",
+      "body": "Dobrý den {name},\n\njen krátká připomínka, že váš pohovor na pozici {role} se blíží, a to {slot}.{length} Těšíme se na rozhovor s vámi — na viděnou!\n\n{team}"
+    },
+    "interviewInvite": {
+      "subject": "Vaše AI první kolo — {role}",
+      "length": " Trvá přibližně {minutes} minut.",
+      "body": "Dobrý den {name},\n\nzveme vás na krátké AI první kolo na pozici {role}.{length} Můžete jej absolvovat, kdykoli budete připraveni, přes svůj zabezpečený odkaz:\n{link}\n\nProbíhá přímo ve vašem prohlížeči — po vyzvání jen povolte přístup k mikrofonu.\n\nTěšíme se,\n{team}"
+    },
+    "onboarding": {
+      "subject": "Vítejte v týmu — {role}",
+      "body": "Dobrý den {name},\n\nmáme velkou radost, že se k nám připojujete jako {role}! Vítejte v týmu.\n\nVáš nástup nyní začíná. Náš personální tým se vám brzy ozve s datem nástupu, dokumenty, vybavením a plánem prvního týdne, abyste se mohli rychle zapojit.\n\nMoc se na spolupráci těšíme.\n\nSrdečně,\n{team}"
+    }
+  },
   "language": {
     "label": "Jazyk",
     "select": "Vyberte jazyk",
