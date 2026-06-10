@@ -7,7 +7,7 @@ import {
   initialStageState,
   type StageState,
 } from "@/app/_components/AnalysisProgress";
-import type { Analysis, GithubAnalysis } from "@/app/_lib/schemas";
+import { githubAnalysisSchema, type Analysis, type GithubAnalysis } from "@/app/_lib/schemas";
 import { isDuplicateCvVariant } from "@/app/_lib/cv-variant";
 import {
   MAX_CV_VARIANTS,
@@ -241,6 +241,10 @@ export function useAnalyzeForm() {
     };
   };
 
+  // True once this mount re-attached to a server task after a refresh — gates
+  // the GitHub-restore effect below (a fresh submit never needs the restore).
+  const resumedRef = useRef(false);
+
   // Re-attach to an analyze task that was still running when the page reloaded.
   // Deferred kick-off (0 ms timer): resuming flips the loading flags, and a sync
   // setState in the effect body would cascade a render before the first commit
@@ -259,6 +263,7 @@ export function useAnalyzeForm() {
       abortRef.current = controller;
       taskIdRef.current = resumeStored;
       const runId = ++analysisRunIdRef.current;
+      resumedRef.current = true;
       setIsLoading(true);
       setIsCompleting(false);
       void resumeAnalysis(resumeStored, buildCallbacks(runId), controller.signal);
@@ -266,6 +271,57 @@ export function useAnalyzeForm() {
     return () => window.clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // GH1 — persist the GitHub deep-dive onto the saved analysis row once BOTH
+  // the save receipt (analysis.persistence.slug) and a done GitHub result
+  // exist. Completion order varies (the deep-dive can outlive the main run and
+  // vice versa), so this watches both. Per-slug guard so re-renders can't
+  // re-PATCH; cleared on failure so a later pass may retry. Best-effort: the
+  // live view already shows the result — only the saved report misses it.
+  const githubPersistedRef = useRef<string | null>(null);
+  useEffect(() => {
+    const slug = analysis?.persistence?.slug;
+    if (!slug || githubStatus !== "done" || !githubAnalysis) return;
+    if (githubPersistedRef.current === slug) return;
+    githubPersistedRef.current = slug;
+    void fetch(`/api/analyses/${encodeURIComponent(slug)}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ githubAnalysis }),
+    }).catch(() => {
+      if (githubPersistedRef.current === slug) githubPersistedRef.current = null;
+    });
+  }, [analysis, githubAnalysis, githubStatus]);
+
+  // GH1 — the deep-dive runs client-side, so a page refresh loses it even
+  // though the resumed server task restores the main analysis. Once the
+  // resumed analysis lands with its save receipt, restore the persisted
+  // deep-dive from the saved row (written by the pre-refresh session's PATCH).
+  useEffect(() => {
+    if (!resumedRef.current) return;
+    const slug = analysis?.persistence?.slug;
+    if (!slug || githubStatus !== "idle" || githubAnalysis) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const r = await fetch(`/api/analyses/${encodeURIComponent(slug)}`);
+        if (!r.ok || cancelled) return;
+        const payload = (await r.json()) as { githubAnalysis?: unknown };
+        if (cancelled || !payload.githubAnalysis) return;
+        const parsed = githubAnalysisSchema.safeParse(payload.githubAnalysis);
+        if (parsed.success && !cancelled) {
+          githubPersistedRef.current = slug; // already persisted — don't re-PATCH
+          setGithubAnalysis(parsed.data);
+          setGithubStatus("done");
+        }
+      } catch {
+        /* best-effort restore */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [analysis, githubAnalysis, githubStatus]);
 
   // Abort an in-flight analyze run when the tab unmounts (e.g. switching the
   // workspace segmented control), so the poll loop + stage interval don't leak.

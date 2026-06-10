@@ -440,6 +440,10 @@ function ensureDb(): Database.Database {
     // the History list can flag degraded analyses without scanning payloads.
     // NULL on rows saved before the column existed — renders as "no pill".
     "ALTER TABLE analyses ADD COLUMN review_flags INTEGER",
+    // GitHub deep-dive payload (GH1): validated GithubAnalysis JSON, attached
+    // after save via PATCH /api/analyses/[slug] once the client holds both the
+    // saved slug and a done GitHub result. NULL = no deep-dive ran for this row.
+    "ALTER TABLE analyses ADD COLUMN github_json TEXT",
   ]) {
     try {
       db.exec(sql);
@@ -561,6 +565,8 @@ export type AnalysisRow = {
   decision_note?: string | null;
   // SCOR2 — warn-shaped sanity-check count, same optionality rationale.
   review_flags?: number | null;
+  // GH1 — attached GitHub deep-dive JSON, fetched only by loadAnalysis.
+  github_json?: string | null;
 };
 
 // The recruiter dispositions a saved analysis can carry (RES5). advance/hold/pass
@@ -730,11 +736,20 @@ export function listAnalysisRecords(limit = 100): { row: AnalysisRow; payload: u
   return out;
 }
 
+/** Attach (or replace) the GitHub deep-dive payload on a saved analysis (GH1).
+ *  The caller (PATCH route) validates the shape; this stores the JSON string.
+ *  Returns false for an unknown slug. */
+export function setAnalysisGithub(slug: string, githubJson: string): boolean {
+  const db = ensureDb();
+  const res = db.prepare(`UPDATE analyses SET github_json = ? WHERE slug = ?`).run(githubJson, slug);
+  return res.changes > 0;
+}
+
 export function loadAnalysis(slug: string): { row: AnalysisRow; payload: unknown } | null {
   const db = ensureDb();
   const row = db
     .prepare(
-      `SELECT slug, candidate_label, jd_slug, score, role_family, seniority, payload_json, created_at, disposition, decision_note
+      `SELECT slug, candidate_label, jd_slug, score, role_family, seniority, payload_json, created_at, disposition, decision_note, github_json
        FROM analyses WHERE slug = ?`
     )
     .get(slug) as AnalysisRow | undefined;

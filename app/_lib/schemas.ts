@@ -67,7 +67,13 @@ export const comparisonSchema = z.object({
 });
 
 export const analysisSchema = analysisResultSchema.extend({
-  comparison: comparisonSchema.optional()
+  comparison: comparisonSchema.optional(),
+  // The save receipt analyze-run attaches server-side ({ slug, createdAt } or
+  // null when persistence failed). Declaring it here (CV1 enabler) keeps zod
+  // from stripping it on the client parse, so the live Analyze tab can address
+  // the saved row — e.g. PATCH the GitHub deep-dive onto it (GH1) or link the
+  // stable /history/<slug> report.
+  persistence: z.object({ slug: z.string(), createdAt: z.string() }).nullish()
 });
 
 export type Analysis = z.infer<typeof analysisSchema>;

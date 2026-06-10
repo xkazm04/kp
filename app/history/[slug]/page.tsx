@@ -5,9 +5,26 @@ import { ReportActions } from "@/app/_components/results/ReportActions";
 import { DispositionEditor } from "@/app/_components/results/DispositionEditor";
 import { WorkspaceShell } from "@/app/features/WorkspaceNav";
 import { loadAnalysis } from "@/app/_lib/db";
-import { analysisSchema } from "@/app/_lib/schemas";
+import { analysisSchema, githubAnalysisSchema } from "@/app/_lib/schemas";
+import type { ResultPanelGithub } from "@/app/_components/results/ResultPanel";
 
 export const dynamic = "force-dynamic";
+
+// GH1 — revive the persisted GitHub deep-dive for the saved report. Defensive
+// end to end: a corrupt column or a payload from an older schema renders the
+// report WITHOUT the GitHub tab (exactly the pre-persistence behavior), never
+// a crash.
+function parseGithub(githubJson: string | null | undefined, slug: string): ResultPanelGithub | undefined {
+  if (!githubJson) return undefined;
+  try {
+    const parsed = githubAnalysisSchema.safeParse(JSON.parse(githubJson));
+    if (!parsed.success) return undefined;
+    return { status: "done", analysis: parsed.data, error: null, warning: null };
+  } catch (error) {
+    console.error(`[history] corrupt github_json on "${slug}"`, error);
+    return undefined;
+  }
+}
 
 export default async function HistoryDetailPage({
   params,
@@ -78,6 +95,7 @@ export default async function HistoryDetailPage({
       <div className="mt-6">
         <ResultPanel
           analysis={parsed.data}
+          github={parseGithub(found.row.github_json, slug)}
           // Offer "Add to pipeline" only when the analysis was run against a saved
           // JD — that slug is the role the candidate is filed under (the board keys
           // lanes by jobId), and POST /api/pipeline requires it. A JD-less analysis
