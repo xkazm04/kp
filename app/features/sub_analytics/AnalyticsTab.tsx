@@ -3,7 +3,9 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
+import { Download } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
+import { downloadFile, toCsv } from "@/app/_lib/export-utils";
 import { useJsonFetch } from "@/app/_lib/useJsonFetch";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import type { MomentumWeek } from "@/app/_lib/analytics-momentum";
@@ -218,11 +220,31 @@ export function AnalyticsTab() {
       <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
         <div className="flex items-baseline justify-between gap-2">
           <h3 className="font-serif text-h2 text-ink">{t("byRole")}</h3>
-          {/* The table is capped to the highest-volume roles; say so explicitly when
-              there are more, so it never reads as the complete list of open roles. */}
-          {data.byJobTotal > data.byJob.length ? (
-            <p className="text-meta uppercase text-steel">{t("topByVolume", { shown: data.byJob.length, total: data.byJobTotal })}</p>
-          ) : null}
+          <div className="flex items-baseline gap-3">
+            {/* The table is capped to the highest-volume roles; say so explicitly when
+                there are more, so it never reads as the complete list of open roles. */}
+            {data.byJobTotal > data.byJob.length ? (
+              <p className="text-meta uppercase text-steel">{t("topByVolume", { shown: data.byJob.length, total: data.byJobTotal })}</p>
+            ) : null}
+            {/* ANA5: the role funnel as a file — what a hiring manager asks for. */}
+            <button
+              type="button"
+              onClick={() =>
+                downloadFile(
+                  "kp-roles.csv",
+                  toCsv([
+                    [t("colJob"), t("colInPipeline"), t("colReachedInterview"), t("colHired"), t("colHireRate")],
+                    ...data.byJob.map((j) => [j.jobTitle, j.total, j.reachedInterview, j.hired, `${j.hireRatePct}%`]),
+                  ]),
+                  "text/csv"
+                )
+              }
+              disabled={data.byJob.length === 0}
+              className="focus-ring inline-flex items-center gap-1 rounded-md border border-stone-300 bg-white px-2.5 py-1 text-sm font-medium text-steel hover:bg-paper hover:text-ink disabled:opacity-50 print:hidden"
+            >
+              <Download size={12} aria-hidden /> {t("exportCsv")}
+            </button>
+          </div>
         </div>
         <table className="mt-3 w-full text-base">
           <thead>

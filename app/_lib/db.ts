@@ -1432,14 +1432,26 @@ function recordEvent(
   });
 }
 
-export function listPipelineEvents(limit = 40, offset = 0): PipelineEvent[] {
+// ANA5 — optional kind narrowing for the decision log. The IN-list binds every
+// value as a parameter (never interpolated) and is bounded so a hostile query
+// string can't balloon the statement; the route resolves an `attribution`
+// filter to its kind set through the shared decision-attribution map.
+const EVENT_KIND_FILTER_MAX = 64;
+function eventKindClause(kinds?: readonly string[]): { sql: string; params: string[] } {
+  if (!kinds || kinds.length === 0) return { sql: "", params: [] };
+  const bounded = kinds.slice(0, EVENT_KIND_FILTER_MAX);
+  return { sql: ` WHERE kind IN (${bounded.map(() => "?").join(", ")})`, params: [...bounded] };
+}
+
+export function listPipelineEvents(limit = 40, offset = 0, kinds?: readonly string[]): PipelineEvent[] {
   const db = ensureDb();
+  const filter = eventKindClause(kinds);
   const rows = db
     .prepare(
       `SELECT id, entry_id, candidate_label, job_title, archetype, kind, from_stage, to_stage, detail, created_at
-       FROM pipeline_events ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?`
+       FROM pipeline_events${filter.sql} ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?`
     )
-    .all(limit, offset) as Array<{
+    .all(...filter.params, limit, offset) as Array<{
     id: number;
     entry_id: string | null;
     candidate_label: string | null;
@@ -1545,9 +1557,12 @@ export function listPipelineEventsSince(sinceId: number, limit = 200): PipelineE
 
 // Total recorded events — lets the decision-log endpoint compute `hasMore`
 // without over-fetching, so the UI can page through the full audit trail.
-export function countPipelineEvents(): number {
+export function countPipelineEvents(kinds?: readonly string[]): number {
   const db = ensureDb();
-  const row = db.prepare(`SELECT COUNT(*) AS n FROM pipeline_events`).get() as { n: number };
+  const filter = eventKindClause(kinds);
+  const row = db.prepare(`SELECT COUNT(*) AS n FROM pipeline_events${filter.sql}`).get(...filter.params) as {
+    n: number;
+  };
   return row.n;
 }
 

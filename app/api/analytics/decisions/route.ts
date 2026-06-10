@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { countPipelineEvents, listPipelineEvents } from "@/app/_lib/db";
+import { DECISION_META } from "@/app/_lib/decision-attribution";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -16,6 +17,20 @@ function clampInt(raw: string | null, fallback: number, min: number, max: number
   return Math.min(max, Math.max(min, Math.trunc(n)));
 }
 
+// ANA5 — resolve the optional ?kind=/?attribution= params to a kind set, both
+// allow-listed against the shared decision-attribution map (an invalid value
+// falls back to unfiltered, never an error). A specific kind wins over the
+// broader attribution bucket when both are sent.
+function resolveKindFilter(kindRaw: string | null, attributionRaw: string | null): string[] | undefined {
+  if (kindRaw && kindRaw in DECISION_META) return [kindRaw];
+  if (attributionRaw === "auto" || attributionRaw === "human") {
+    return Object.entries(DECISION_META)
+      .filter(([, meta]) => meta.auto === (attributionRaw === "auto"))
+      .map(([kind]) => kind);
+  }
+  return undefined;
+}
+
 // Cursor-by-offset page of the decision log. The analytics tab loads this 20 at
 // a time on scroll so the full audit trail is never pulled into the client at
 // once. `hasMore`/`nextOffset` let the client chain pages without re-deriving
@@ -25,8 +40,9 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const limit = clampInt(searchParams.get("limit"), DEFAULT_LIMIT, 1, MAX_LIMIT);
     const offset = clampInt(searchParams.get("offset"), 0, 0, Number.MAX_SAFE_INTEGER);
-    const total = countPipelineEvents();
-    const decisions = listPipelineEvents(limit, offset);
+    const kinds = resolveKindFilter(searchParams.get("kind"), searchParams.get("attribution"));
+    const total = countPipelineEvents(kinds);
+    const decisions = listPipelineEvents(limit, offset, kinds);
     const nextOffset = offset + decisions.length;
     return NextResponse.json({ decisions, total, hasMore: nextOffset < total, nextOffset });
   } catch (error) {

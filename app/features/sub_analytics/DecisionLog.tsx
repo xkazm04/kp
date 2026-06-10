@@ -1,11 +1,13 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import { useTranslations } from "next-intl";
+import { Download } from "lucide-react";
 import { useReducedMotion } from "@/app/_lib/useReducedMotion";
 import { useInfiniteScroll, type InfinitePage } from "@/app/_lib/useInfiniteScroll";
 import { formatRelativeTime } from "@/app/_lib/format";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
+import { toCsv, downloadFile } from "@/app/_lib/export-utils";
 import { DECISION_META } from "@/app/_lib/decision-attribution";
 
 type Decision = {
@@ -63,14 +65,47 @@ function timeAgo(iso: string): string {
 }
 
 // Auditable decision log that pages the full automation/human trail in 20-row
-// chunks. A sentinel below the list auto-loads the next page as it scrolls into
-// view (with a manual "Load more" fallback for keyboard/no-observer paths), and
-// each freshly loaded page cascades in unless the user prefers reduced motion.
+// chunks. ANA5: the outer component owns the attribution/kind filters — the
+// infinite-scroll engine accumulates per mount, so the inner list is KEYED on
+// the filter combo and pagination restarts from offset 0 on every change.
 export function DecisionLog() {
+  const t = useTranslations("analytics.log");
+  const [attribution, setAttribution] = useState<"auto" | "human" | null>(null);
+  const [kind, setKind] = useState("");
+  return (
+    <DecisionLogList
+      key={`${attribution ?? ""}|${kind}`}
+      attribution={attribution}
+      kind={kind}
+      setAttribution={setAttribution}
+      setKind={setKind}
+    />
+  );
+}
+
+function DecisionLogList({
+  attribution,
+  kind,
+  setAttribution,
+  setKind,
+}: {
+  attribution: "auto" | "human" | null;
+  kind: string;
+  setAttribution: (a: "auto" | "human" | null) => void;
+  setKind: (k: string) => void;
+}) {
   const t = useTranslations("analytics.log");
   const enumLabel = useEnumLabel();
   const reduced = useReducedMotion();
-  const buildUrl = useCallback((offset: number, limit: number) => `/api/analytics/decisions?offset=${offset}&limit=${limit}`, []);
+  const buildUrl = useCallback(
+    (offset: number, limit: number) => {
+      const params = new URLSearchParams({ offset: String(offset), limit: String(limit) });
+      if (kind) params.set("kind", kind);
+      else if (attribution) params.set("attribution", attribution);
+      return `/api/analytics/decisions?${params.toString()}`;
+    },
+    [kind, attribution]
+  );
   const selectPage = useCallback((body: unknown): InfinitePage<Decision> => {
     const b = body as DecisionPage;
     return { items: b.decisions, total: b.total, hasMore: b.hasMore, nextOffset: b.nextOffset };
@@ -81,6 +116,25 @@ export function DecisionLog() {
     selectPage,
     errorLabel: t("loadFailed"),
   });
+
+  // ANA5 — export the rows the recruiter has isolated (the loaded, filtered
+  // set), via the shared toolkit. Localized labels — the file mirrors the log.
+  const exportCsv = () => {
+    const kindLabel = (k: string) =>
+      k in DECISION_META ? t(`kinds.${k}` as Parameters<typeof t>[0]) : k.replace(/_/g, " ");
+    const rows: (string | number | null)[][] = [
+      [t("csvTime"), t("csvAttribution"), t("csvKind"), t("csvCandidate"), t("csvRole"), t("csvDetail")],
+      ...items.map((d) => [
+        d.createdAt,
+        t(`attribution.${decisionMeta(d.kind).attribution}` as Parameters<typeof t>[0]),
+        kindLabel(d.kind),
+        d.candidateLabel,
+        d.jobTitle,
+        d.detail,
+      ]),
+    ];
+    downloadFile("kp-decision-log.csv", toCsv(rows), "text/csv");
+  };
 
   return (
     <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
@@ -93,6 +147,47 @@ export function DecisionLog() {
         ) : (
           <p className="text-meta uppercase text-steel">{t("subtitle")}</p>
         )}
+      </div>
+
+      {/* ANA5: isolate the rows you're answering for — attribution chips, a kind
+          select, and a CSV of exactly what's isolated. print:hidden so the
+          existing print pattern captures the log, not its chrome. */}
+      <div className="mt-3 flex flex-wrap items-center gap-2 print:hidden">
+        {(["auto", "human"] as const).map((a) => (
+          <button
+            key={a}
+            type="button"
+            onClick={() => setAttribution(attribution === a ? null : a)}
+            aria-pressed={attribution === a}
+            disabled={Boolean(kind)}
+            className={`focus-ring rounded-full border px-3 py-1 text-sm font-semibold transition-colors disabled:opacity-50 ${
+              attribution === a ? "border-coral bg-coral/10 text-coral" : "border-stone-200 text-steel hover:border-coral/40"
+            }`}
+          >
+            {t(`attribution.${a}`)}
+          </button>
+        ))}
+        <select
+          value={kind}
+          onChange={(e) => setKind(e.target.value)}
+          aria-label={t("filterKindAria")}
+          className="focus-ring h-8 rounded-md border border-stone-200 bg-white px-2 text-sm text-ink"
+        >
+          <option value="">{t("allKinds")}</option>
+          {Object.keys(DECISION_META).map((k) => (
+            <option key={k} value={k}>
+              {t(`kinds.${k}` as Parameters<typeof t>[0])}
+            </option>
+          ))}
+        </select>
+        <button
+          type="button"
+          onClick={exportCsv}
+          disabled={items.length === 0}
+          className="focus-ring ml-auto inline-flex items-center gap-1 rounded-md border border-stone-300 bg-white px-2.5 py-1 text-sm font-medium text-steel hover:bg-paper hover:text-ink disabled:opacity-50"
+        >
+          <Download size={12} aria-hidden /> {t("exportCsv")}
+        </button>
       </div>
 
       {showInitialSkeleton ? (
