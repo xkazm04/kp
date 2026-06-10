@@ -1,15 +1,53 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { Activity, AlertTriangle, Loader2, X } from "lucide-react";
 import { useTasks } from "./TasksProvider";
 import { navItemClass } from "../tabs";
 
+// DATA5 — the "something failed while you were elsewhere" watermark. Failures
+// that finished after the last time the tasks tab was open count as unseen;
+// opening the tab acknowledges them (the timestamp persists across sessions).
+const FAILED_SEEN_KEY = "kp.tasksFailedSeenAt";
+
 // Sidebar-footer entry for the Background tasks view. It no longer expands an
 // inline list — clicking navigates to the dedicated ?tab=tasks page (onOpen).
-// What stays here is the always-at-a-glance signal: a live running count and a
-// start-failure alert, both visible regardless of which tab is open.
+// What stays here is the always-at-a-glance signal: a live running count, a
+// start-failure alert, and an unseen-failures badge — visible from any tab.
 export function TasksIndicator({ active, onOpen }: { active: boolean; onOpen: () => void }) {
   const { tasks, running, startError, clearStartError } = useTasks();
+  const [seenAt, setSeenAt] = useState("");
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(FAILED_SEEN_KEY);
+      // localStorage is client-only — a mount effect is the SSR-safe hydration
+      // path (the kp.pipelineViews convention); one-time set, not cascading.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      if (raw) setSeenAt(raw);
+    } catch {
+      /* unavailable — every failure counts as unseen this session */
+    }
+  }, []);
+  // While the tab is open the user IS seeing the failures — keep the ack
+  // watermark current so leaving the tab starts a fresh window.
+  useEffect(() => {
+    if (!active) return;
+    const now = new Date().toISOString();
+    try {
+      localStorage.setItem(FAILED_SEEN_KEY, now);
+    } catch {
+      /* in-memory ack still applies this session */
+    }
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- mirrors the external ack write above; runs only while the tasks tab is open
+    setSeenAt(now);
+  }, [active, tasks]);
+  const unseenFailed = active
+    ? 0
+    : tasks.filter(
+        (t) =>
+          (t.status === "failed" || t.status === "interrupted") &&
+          (t.finishedAt ?? t.createdAt) > seenAt
+      ).length;
 
   return (
     <div className="border-t border-stone-200 px-3 py-3">
@@ -45,9 +83,18 @@ export function TasksIndicator({ active, onOpen }: { active: boolean; onOpen: ()
         <span>Background tasks</span>
         {/* aria-live so a screen reader hears the running count tick up/down — the whole
             point of this always-at-a-glance signal, previously announced visual-only. */}
+        {unseenFailed > 0 ? (
+          <span
+            aria-live="polite"
+            aria-label={`${unseenFailed} background task${unseenFailed === 1 ? "" : "s"} failed since you last looked`}
+            className="ml-auto inline-flex items-center gap-1 rounded-full bg-coral/10 px-1.5 text-sm font-semibold text-coral"
+          >
+            <AlertTriangle size={10} aria-hidden /> {unseenFailed}
+          </span>
+        ) : null}
         {running.length > 0 ? (
-          <span aria-live="polite" aria-label={`${running.length} background task${running.length === 1 ? "" : "s"} running`} className="ml-auto rounded-full bg-coral px-1.5 text-sm font-semibold text-white">{running.length}</span>
-        ) : tasks.length > 0 ? (
+          <span aria-live="polite" aria-label={`${running.length} background task${running.length === 1 ? "" : "s"} running`} className={`${unseenFailed > 0 ? "ml-1" : "ml-auto"} rounded-full bg-coral px-1.5 text-sm font-semibold text-white`}>{running.length}</span>
+        ) : tasks.length > 0 && unseenFailed === 0 ? (
           <span className="ml-auto text-sm text-steel">{tasks.length}</span>
         ) : null}
       </button>
