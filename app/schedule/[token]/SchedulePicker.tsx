@@ -5,6 +5,7 @@ import { CalendarClock, CalendarPlus, Check } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { buildIcs, downloadFile } from "@/app/_lib/export-utils";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
+import { useSlotLabel } from "@/app/_lib/use-slot-label";
 
 type Invite = {
   candidateLabel?: string | null;
@@ -20,6 +21,10 @@ export function SchedulePicker({ token }: { token: string }) {
   const t = useTranslations("schedule");
   const tCommon = useTranslations("common");
   const errMsg = useErrorMessage();
+  // SCH4 — display the slot in the candidate's locale from the ISO time the API
+  // returns; the server-minted English label stays the fallback (and the stored
+  // canonical value for the recruiter feed + emails).
+  const slotLabel = useSlotLabel();
   const [invite, setInvite] = useState<Invite | null>(null);
   const [slots, setSlots] = useState<Slot[]>([]);
   // Server-authoritative "the whole horizon is booked" signal (idea-5df8e10f) —
@@ -150,11 +155,11 @@ export function SchedulePicker({ token }: { token: string }) {
           {invite.jobTitle
             ? t.rich("bookedForRole", {
                 role: invite.jobTitle,
-                slot: confirmed,
+                slot: slotLabel(invite.slotAt, confirmed),
                 b: (chunks) => <span className="font-semibold">{chunks}</span>,
               })
             : t.rich("bookedForGeneric", {
-                slot: confirmed,
+                slot: slotLabel(invite.slotAt, confirmed),
                 b: (chunks) => <span className="font-semibold">{chunks}</span>,
               })}
         </p>
@@ -196,7 +201,7 @@ export function SchedulePicker({ token }: { token: string }) {
           <p className="text-base text-steel">
             {confirmed
               ? t.rich("reschedulePromptCurrent", {
-                  slot: confirmed,
+                  slot: slotLabel(invite?.slotAt, confirmed),
                   b: (chunks) => <span className="font-medium text-ink">{chunks}</span>,
                 })
               : t("reschedulePrompt")}
@@ -247,7 +252,7 @@ export function SchedulePicker({ token }: { token: string }) {
                 onClick={() => pick(s)}
                 className="focus-ring w-full rounded-md border border-stone-200 bg-white px-4 py-3 text-left text-base font-medium text-ink hover:border-coral/50 hover:bg-coral/5 disabled:opacity-50"
               >
-                {picking === s.value ? t("booking") : s.label}
+                {picking === s.value ? t("booking") : slotLabel(s.value, s.label)}
               </button>
             </li>
           ))}

@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { AiDisclosure } from "@/app/_components/AiDisclosure";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { initials } from "@/app/_lib/initials";
@@ -25,6 +25,7 @@ export default function OfferPage() {
   const token = params?.token;
   const t = useTranslations("offer");
   const tCommon = useTranslations("common");
+  const locale = useLocale();
   const errMsg = useErrorMessage();
   const [offer, setOffer] = useState<OfferView | null>(null);
   // Two distinct failure modes, deliberately separated: a GET load failure has nothing to show,
@@ -123,7 +124,7 @@ export default function OfferPage() {
               <div className="mt-4 rounded-lg border border-stone-200 bg-paper/60 p-4">
                 <p className="text-meta uppercase tracking-wide text-steel">{t("compensation")}</p>
                 <p className="mt-0.5 font-serif text-3xl text-ink">
-                  {offer.salary.toLocaleString()} <span className="text-lg text-steel">{offer.currency ?? "CZK"}</span>
+                  {offer.salary.toLocaleString(locale)} <span className="text-lg text-steel">{offer.currency ?? "CZK"}</span>
                 </p>
               </div>
             ) : null}
