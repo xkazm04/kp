@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { AlertTriangle, BookmarkPlus, CheckSquare, Sparkles, Timer, X } from "lucide-react";
+import { AlertTriangle, BookmarkPlus, CheckSquare, Link2, Sparkles, Timer, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { buildUrl, clearedTabScopedParams } from "@/app/features/tabs";
 import { useTasks } from "@/app/features/tasks/TasksProvider";
@@ -15,6 +15,7 @@ import { PipelineBoard } from "./PipelineBoard";
 import { SchedulerControl } from "./SchedulerControl";
 import { EventDot, useEventVerb, useRelativeTime } from "./PipelineShared";
 import { recordRecent } from "@/app/features/recents";
+import { copyText } from "@/app/_lib/export-utils";
 import { daysSince, slaForStage, STAGE_SLA_DEFAULTS, STAGES, type Entry, type PipelineEvent } from "./PipelineTypes";
 
 // Compact header stat: label over value, optionally clickable. Replaces the old
@@ -305,11 +306,54 @@ export function PipelineTab() {
   }, [entries, q, quick, stageFilter, slaOverrides]);
   const boardPositions = useMemo(() => groupPositions(filteredEntries), [filteredEntries]);
   const filtering = Boolean(q) || quick !== null || stageFilter !== null;
-  const toggleQuick = (f: QuickFilter) => setQuick((cur) => (cur === f ? null : f));
+
+  // PIPE3 — two-way URL sync: filter changes write back to the same ?q/?quick/
+  // ?stage params the mount hydration (ANA1) reads, so the board's view state
+  // is always a pasteable, bookmarkable URL. router.replace (no history spam);
+  // typing debounces, chip clicks write immediately. Closes W9-1's deliberate
+  // write-back deferral.
+  const urlSyncTimer = useRef<number | null>(null);
+  useEffect(() => () => {
+    if (urlSyncTimer.current != null) window.clearTimeout(urlSyncTimer.current);
+  }, []);
+  const writeFiltersToUrl = (next: { q: string; quick: QuickFilter | null; stage: string | null }, debounceMs = 0) => {
+    const apply = () =>
+      router.replace(
+        buildUrl({ q: next.q.trim() || null, quick: next.quick, stage: next.stage }, search.toString()),
+        { scroll: false }
+      );
+    if (urlSyncTimer.current != null) window.clearTimeout(urlSyncTimer.current);
+    if (debounceMs > 0) urlSyncTimer.current = window.setTimeout(apply, debounceMs);
+    else apply();
+  };
+  const setQueryAndSync = (value: string) => {
+    setQuery(value);
+    writeFiltersToUrl({ q: value, quick, stage: stageFilter }, 400);
+  };
+  const toggleQuick = (f: QuickFilter) => {
+    const next = quick === f ? null : f;
+    setQuick(next);
+    writeFiltersToUrl({ q: query, quick: next, stage: stageFilter });
+  };
+  const clearStageFilter = () => {
+    setStageFilter(null);
+    writeFiltersToUrl({ q: query, quick, stage: null });
+  };
   const clearFilters = () => {
     setQuery("");
     setQuick(null);
     setStageFilter(null);
+    writeFiltersToUrl({ q: "", quick: null, stage: null });
+  };
+  // PIPE3 — a saved view as a pasteable link: built from a CLEAN query string
+  // (not the current one) so the share never drags along unrelated params.
+  const [copiedViewId, setCopiedViewId] = useState<string | null>(null);
+  const copyViewLink = async (v: SavedView) => {
+    const href = `${window.location.origin}${buildUrl({ tab: "pipeline", q: v.query.trim() || null, quick: v.quick }, "")}`;
+    if (await copyText(href)) {
+      setCopiedViewId(v.id);
+      window.setTimeout(() => setCopiedViewId((cur) => (cur === v.id ? null : cur)), 2000);
+    }
   };
   // PIPE5 — save the current filter combo as a named view, apply one, or drop it.
   const activeViewId = views.find((v) => v.query === query && v.quick === quick)?.id ?? null;
@@ -322,6 +366,7 @@ export function PipelineTab() {
   const applyView = (v: SavedView) => {
     setQuery(v.query);
     setQuick(v.quick);
+    writeFiltersToUrl({ q: v.query, quick: v.quick, stage: stageFilter });
   };
   const deleteView = (id: string) => persistViews(views.filter((v) => v.id !== id));
 
@@ -597,7 +642,7 @@ export function PipelineTab() {
               id="pipeline-search"
               type="search"
               value={query}
-              onChange={(e) => setQuery(e.target.value)}
+              onChange={(e) => setQueryAndSync(e.target.value)}
               placeholder={t("searchPlaceholder")}
               className="focus-ring h-9 min-w-[200px] flex-1 rounded-md border border-stone-200 px-3 text-base"
             />
@@ -626,7 +671,7 @@ export function PipelineTab() {
             {stageFilter ? (
               <button
                 type="button"
-                onClick={() => setStageFilter(null)}
+                onClick={clearStageFilter}
                 aria-pressed={true}
                 title={t("filterStageClear")}
                 className="focus-ring rounded-full border border-coral bg-coral/10 px-3 py-1 text-sm font-semibold text-coral"
@@ -777,6 +822,17 @@ export function PipelineTab() {
                 >
                   <button type="button" onClick={() => applyView(v)} className="focus-ring rounded hover:text-ink" title={t("applyView")}>
                     {v.name}
+                  </button>
+                  {/* PIPE3: the view as a pasteable link — localStorage views
+                      can't travel; the URL can. */}
+                  <button
+                    type="button"
+                    onClick={() => void copyViewLink(v)}
+                    aria-label={t("copyViewLink", { name: v.name })}
+                    title={copiedViewId === v.id ? t("viewLinkCopied") : t("copyViewLinkTitle")}
+                    className={`focus-ring rounded ${copiedViewId === v.id ? "text-moss" : "text-steel hover:text-ink"}`}
+                  >
+                    <Link2 size={11} />
                   </button>
                   <button
                     type="button"
