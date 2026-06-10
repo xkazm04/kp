@@ -1651,6 +1651,7 @@
     "githubPlaceholder": "https://github.com/uzivatel nebo uzivatel",
     "githubHelper": "Veřejný profil — čteme připnuté repozitáře.",
     "attachCv": "Připojte CV pro spuštění analýzy.",
+    "githubOnlyReady": "Hloubková analýza GitHubu připravena — pro plnou analýzu přiložte CV.",
     "ready": "Připraveno — Gemini trvá 15–25 sekund.",
     "analyze": "Analyzovat",
     "variantLimitReject": "{count, plural, one {Můžete připojit nejvýše # variantu CV. Jednu odeberte, abyste mohli přidat další.} few {Můžete připojit nejvýše # varianty CV. Jednu odeberte, abyste mohli přidat další.} many {Můžete připojit nejvýše # varianty CV. Jednu odeberte, abyste mohli přidat další.} other {Můžete připojit nejvýše # variant CV. Jednu odeberte, abyste mohli přidat další.}}",

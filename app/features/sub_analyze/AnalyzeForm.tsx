@@ -169,14 +169,20 @@ export function AnalyzeForm({ state }: { state: AnalyzeFormState }) {
             </p>
           ) : (
             <p className="text-base text-steel">
-              {inputs.cvFiles.length === 0 ? t("attachCv") : t("ready")}
+              {inputs.cvFiles.length === 0
+                ? flags.hasGithub
+                  ? t("githubOnlyReady")
+                  : t("attachCv")
+                : t("ready")}
             </p>
           )}
         </div>
         <button
           type="button"
           onClick={handlers.submit}
-          disabled={flags.isLoading || flags.isCompleting || flags.githubLoading || flags.jdLoading || inputs.cvFiles.length === 0}
+          // GH3 — a filled GitHub profile alone enables the run (a lighter,
+          // deep-dive-only analysis); only the fully empty form stays disabled.
+          disabled={flags.isLoading || flags.isCompleting || flags.githubLoading || flags.jdLoading || (inputs.cvFiles.length === 0 && !flags.hasGithub)}
           className="focus-ring inline-flex h-11 items-center justify-center gap-2 rounded-md bg-ink px-5 text-base font-semibold text-white hover:bg-steel disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
         >
           {flags.isLoading ? (

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { GithubAnalysisPanel } from "@/app/_components/GithubAnalysisPanel";
 import { ResultPanel } from "@/app/_components/results/ResultPanel";
 import { AnalysisProgress } from "@/app/_components/AnalysisProgress";
 import { AnalyzeForm } from "./AnalyzeForm";
@@ -11,7 +12,9 @@ export function AnalyzeTab() {
   const state = useAnalyzeForm();
   const { inputs, flags, result, handlers } = state;
   const isAnalyzing = flags.isLoading || flags.isCompleting;
-  const hasResult = result.analysis !== null;
+  // A GitHub-only run (GH3) produces no main analysis — its panel below counts
+  // as a result for the form auto-collapse too.
+  const hasResult = result.analysis !== null || result.githubStatus !== "idle";
 
   // Auto-collapse the form on the leading edge of an analysis (or when a
   // result lands), and auto-expand again once we return to an idle state
@@ -57,6 +60,15 @@ export function AnalyzeTab() {
                   warning: result.githubWarning,
                 }
           }
+        />
+      ) : result.githubStatus !== "idle" ? (
+        // GH3 — GitHub-only run: no CV attached, so there's no main analysis or
+        // tabbed report; the deep-dive panel stands alone in the result area.
+        <GithubAnalysisPanel
+          status={result.githubStatus}
+          analysis={result.githubAnalysis}
+          error={result.githubError}
+          warning={result.githubWarning}
         />
       ) : null}
     </div>

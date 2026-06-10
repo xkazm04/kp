@@ -1651,6 +1651,7 @@
     "githubPlaceholder": "https://github.com/username or username",
     "githubHelper": "Public profile — we read pinned repos.",
     "attachCv": "Attach a CV to enable Analyze.",
+    "githubOnlyReady": "GitHub-only deep-dive ready — attach a CV for the full analysis.",
     "ready": "Ready — Gemini takes 15–25 seconds.",
     "analyze": "Analyze",
     "variantLimitReject": "{count, plural, one {You can attach up to # CV variant. Remove one to add another.} other {You can attach up to # CV variants. Remove one to add another.}}",

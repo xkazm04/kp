@@ -328,7 +328,12 @@ export function useAnalyzeForm() {
   useEffect(() => () => abortRef.current?.abort(), []);
 
   async function submit() {
-    if (cvFiles.length === 0) {
+    // GH3 — a GitHub profile alone is a valid run: the deep-dive route needs
+    // nothing but the handle (+ optional JD), so a recruiter holding just a
+    // sourcing lead's username isn't forced to fabricate a CV upload. Only the
+    // empty form is rejected.
+    const githubOnly = cvFiles.length === 0;
+    if (githubOnly && !hasGithub) {
       setError(t("selectCvFirst"));
       return;
     }
@@ -339,15 +344,12 @@ export function useAnalyzeForm() {
     const githubRunId = ++githubRunIdRef.current;
     const isCurrentGithubRun = () => githubRunId === githubRunIdRef.current;
 
-    setIsLoading(true);
-    setIsCompleting(false);
     setError(null);
     setAnalysis(null);
     setGithubAnalysis(null);
     setGithubError(null);
     setGithubWarning(null);
     setGithubStatus("idle");
-    setStageState(initialStageState());
 
     if (hasGithub) {
       void executeGithubAnalysis(githubProfile, { jobDescriptionText, jobDescriptionFile }, {
@@ -373,6 +375,14 @@ export function useAnalyzeForm() {
         },
       });
     }
+
+    // GitHub-only run: the deep-dive above is the whole job — no server task,
+    // no main-analysis loading flags or stage strip.
+    if (githubOnly) return;
+
+    setIsLoading(true);
+    setIsCompleting(false);
+    setStageState(initialStageState());
 
     const controller = new AbortController();
     abortRef.current = controller;
@@ -436,7 +446,7 @@ export function useAnalyzeForm() {
     // `githubLoading` lets the submit button block a resubmit while a GitHub run
     // is still in flight (it can outlive the main analysis), preventing a duplicate
     // full fan-out (idea-8367f051).
-    flags: { hasJobDescription, hasCompany, isLoading, isCompleting, githubLoading: githubStatus === "loading", jdLoading },
+    flags: { hasJobDescription, hasCompany, hasGithub, isLoading, isCompleting, githubLoading: githubStatus === "loading", jdLoading },
     statuses: { cvStatus, jobStatus, companyStatus, githubStatusLabel },
     library: { jdLibrary, selectedJdSlug, setSelectedJdSlug, pickJd },
     result: { analysis, githubAnalysis, githubStatus, githubError, githubWarning, error, stageState },
