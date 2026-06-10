@@ -174,6 +174,9 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
     };
   }, [entry.id]);
 
+  // W6-4 — outcome note for the revoke-links action.
+  const [revokeNote, setRevokeNote] = useState<string | null>(null);
+
   // W6-2 (SIM1) — the actual letters this candidate received (events say
   // "rejection_sent"; this shows the rejection). Best-effort, hides when empty.
   const [comms, setComms] = useState<
@@ -643,6 +646,9 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
                   {Boolean(voice.data.configured) && !voice.data.delivered ? (
                     <p className="text-sm text-amber-700">{t("inviteNotSent")}</p>
                   ) : null}
+                  {Number(voice.data.revoked ?? 0) > 0 ? (
+                    <p className="text-sm text-steel">{t("priorLinksRevoked", { count: Number(voice.data.revoked) })}</p>
+                  ) : null}
                   {!voice.data.configured ? (
                     <p className="text-sm text-coral">
                       {t("notConfigured", {
@@ -652,6 +658,31 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
                   ) : null}
                 </div>
               ) : null}
+
+              {/* W6-4 — pull every live link for this candidate without minting
+                  a replacement (wrong candidate, shared too widely, changed mind). */}
+              <button
+                type="button"
+                onClick={async () => {
+                  setRevokeNote(null);
+                  try {
+                    const r = await fetch("/api/interview/revoke", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ entryId: entry.id }),
+                    });
+                    const p = (await r.json().catch(() => null)) as { revoked?: number } | null;
+                    if (!r.ok) throw new Error();
+                    setRevokeNote(t("linksRevoked", { count: p?.revoked ?? 0 }));
+                  } catch {
+                    setRevokeNote(t("revokeFailed"));
+                  }
+                }}
+                className="focus-ring mt-1.5 inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-sm text-steel hover:text-coral"
+              >
+                <Ban size={12} aria-hidden /> {t("revokeLinks")}
+              </button>
+              {revokeNote ? <p className="text-sm text-steel">{revokeNote}</p> : null}
             </div>
           ) : null}
 

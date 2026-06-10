@@ -2955,6 +2955,45 @@ export function createInterviewSession(input: {
   return getInterviewSessionById(id)!;
 }
 
+// W6-4 (VOX1) — delivered-link lifecycle. Links are auto-emailed on create, so
+// a live, indefinitely-valid AI-interview credential sat in candidates'
+// inboxes with no expiry, no revoke and no reissue semantics.
+// How long an undelivered/untaken link stays valid. Only `created` sessions
+// expire — an in_progress call is live, and completed/failed have their own
+// terminal semantics (failed stays reconnectable on purpose).
+export const INTERVIEW_LINK_TTL_DAYS = 7;
+
+/** Single expiry authority for an interview link — shared by /connect (the
+ *  credential gate) and the portal page so the two can never disagree. */
+export function isInterviewLinkExpired(session: { status: string; createdAt: string }): boolean {
+  return (
+    session.status === "created" &&
+    Date.parse(session.createdAt) < Date.now() - INTERVIEW_LINK_TTL_DAYS * 86_400_000
+  );
+}
+
+/** Revoke one open interview session. Concurrency guard in the WHERE (repo
+ *  convention): never touches completed (the transcript is evidence) and a
+ *  re-revoke is a no-op. `failed` is revocable — reconnectable-by-design ends
+ *  when the recruiter pulls the link. */
+export function revokeInterviewSession(id: string): boolean {
+  const db = ensureDb();
+  const res = db
+    .prepare(`UPDATE interview_sessions SET status='revoked' WHERE id = ? AND status IN ('created','in_progress','failed')`)
+    .run(id);
+  return res.changes > 0;
+}
+
+/** Revoke every open session for an entry — the reissue half (a fresh link
+ *  kills prior ones) and the terminal-transition cleanup. Returns the count. */
+export function revokeOpenInterviewSessions(entryId: string): number {
+  const db = ensureDb();
+  const res = db
+    .prepare(`UPDATE interview_sessions SET status='revoked' WHERE entry_id = ? AND status IN ('created','in_progress','failed')`)
+    .run(entryId);
+  return res.changes;
+}
+
 /** Latest interview session per entry (for the Schedule tab indicator). */
 export function interviewStatusByEntries(
   entryIds: string[]
@@ -3394,6 +3433,14 @@ export function actOnPipelineEntry(
       }
     } catch (error) {
       console.error("[pipeline:act] outcome auto-record failed", error);
+    }
+    // W6-4 (VOX1) — a rejected candidate must not keep a live AI-interview
+    // credential in their inbox. Best-effort; /connect's terminal-entry guard
+    // is the backstop for paths that don't run through here (e.g. decline).
+    try {
+      revokeOpenInterviewSessions(result.id);
+    } catch (error) {
+      console.error("[pipeline:act] interview-link revoke failed", error);
     }
   }
   return result;

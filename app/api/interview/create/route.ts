@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createInterviewSession } from "@/app/_lib/db";
+import { createInterviewSession, revokeOpenInterviewSessions } from "@/app/_lib/db";
 import { buildGroundedInterview } from "@/app/_lib/interview-run";
 import { dispatchInterviewInvite } from "@/app/_lib/comms-dispatch";
 import { safeJsonError } from "@/app/_lib/api-response";
@@ -28,6 +28,14 @@ export async function POST(request: NextRequest) {
     // defaulting to openai.
     const provider: VoiceProviderId =
       coerceProviderId(body.provider) ?? (avail.openai ? "openai" : avail.elevenlabs ? "elevenlabs" : "openai");
+
+    // W6-4 (VOX1) — reissue semantics: a fresh link kills the prior ones.
+    // Re-clicking "Create link" used to mint a SECOND live session (and email a
+    // second invite) while the first stayed valid forever — and the
+    // latest-by-created_at read meant an old link completed after a reissue
+    // wasn't even the surfaced session. Revoking first makes exactly one link
+    // live per entry.
+    const revoked = revokeOpenInterviewSessions(entryId);
 
     const grounded = await buildGroundedInterview(entryId);
     const session = createInterviewSession({
@@ -72,6 +80,8 @@ export async function POST(request: NextRequest) {
       provider,
       configured: avail[provider],
       delivered,
+      // W6-4 — how many prior open links this reissue invalidated (UI hint).
+      revoked,
       candidateLabel: session.candidateLabel,
       jobTitle: session.jobTitle,
     });

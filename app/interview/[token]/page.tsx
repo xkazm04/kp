@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { Clock, ShieldCheck, Sparkles } from "lucide-react";
 import { getTranslations } from "next-intl/server";
-import { getInterviewSessionByToken } from "@/app/_lib/db";
+import { getInterviewSessionByToken, isInterviewLinkExpired } from "@/app/_lib/db";
 import { GROUNDED_DEFAULT_MIN } from "@/app/_lib/interview-duration.mjs";
 import { AiDisclosure } from "@/app/_components/AiDisclosure";
 import { VoiceInterviewClient } from "@/app/_components/voice/VoiceInterviewClient";
@@ -28,6 +28,19 @@ export default async function InterviewPortalPage({ params }: { params: Promise<
       <main className="mx-auto max-w-2xl px-4 py-16 text-center">
         <h1 className="font-serif text-h2 text-ink">{t("completedTitle")}</h1>
         <p className="mt-2 text-body text-steel">{t("completedBody")}</p>
+      </main>
+    );
+  }
+
+  // W6-4 (VOX1) — a revoked or expired link renders an honest closed card
+  // (the /connect API refuses it regardless; this just spares the candidate a
+  // dead Start button). Expiry comes from the shared authority in db.ts so the
+  // page and the credential gate can never disagree.
+  if (session.status === "revoked" || isInterviewLinkExpired(session)) {
+    return (
+      <main className="mx-auto max-w-2xl px-4 py-16 text-center">
+        <h1 className="font-serif text-h2 text-ink">{t("inactiveTitle")}</h1>
+        <p className="mt-2 text-body text-steel">{t("inactiveBody")}</p>
       </main>
     );
   }

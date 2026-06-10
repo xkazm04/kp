@@ -2,8 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import {
   createInterviewSession,
   getInterviewSessionByToken,
+  getPipelineEntry,
+  isInterviewLinkExpired,
   markInterviewStarted,
+  revokeInterviewSession,
 } from "@/app/_lib/db";
+import { isTerminalEntryStatus } from "@/app/_lib/pipeline-status";
 import {
   coerceLanguage,
   coerceProviderId,
@@ -65,6 +69,32 @@ export async function POST(request: NextRequest) {
     // dropped call (provider hiccup, network blip) should be retryable.
     if (session0 && session0.status === "completed") {
       return NextResponse.json({ error: "This interview has already been completed." }, { status: 409 });
+    }
+    // W6-4 (VOX1) — the delivered link's lifecycle, enforced where the
+    // credential is minted (the same hold-the-line stance as the completed
+    // guard above):
+    //  - revoked: the recruiter pulled the link (wrong candidate, reissue, …);
+    //  - expired: an untaken `created` link past its TTL — auto-emailed links
+    //    must not stay valid credentials forever;
+    //  - terminal entry: W7 taught schedule-confirm to refuse rejected/declined
+    //    candidates, but /connect never checked — a rejected candidate could
+    //    still take (and be billed for) the AI screen. Revoke on sight. Hired
+    //    keeps status 'active', so a hired candidate's pending screen survives.
+    if (session0 && session0.status === "revoked") {
+      return NextResponse.json({ error: "This interview link is no longer active." }, { status: 409 });
+    }
+    if (session0 && isInterviewLinkExpired(session0)) {
+      return NextResponse.json(
+        { error: "This interview link has expired. Please ask the recruiter for a fresh one." },
+        { status: 409 }
+      );
+    }
+    if (session0?.entryId) {
+      const entry = getPipelineEntry(session0.entryId);
+      if (entry && isTerminalEntryStatus(entry.status)) {
+        revokeInterviewSession(session0.id);
+        return NextResponse.json({ error: "This interview link is no longer active." }, { status: 409 });
+      }
     }
 
     const requested = coerceProviderId(body.provider);
