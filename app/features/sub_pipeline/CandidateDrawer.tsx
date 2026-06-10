@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { AlertTriangle, ArrowLeftRight, Ban, Banknote, Calendar, ClipboardList, ExternalLink, History, Mail, Pencil, Phone, Shuffle, Sparkles, UserCheck, Wrench, X } from "lucide-react";
+import { AlertTriangle, ArrowLeftRight, Ban, Banknote, Calendar, ClipboardList, ExternalLink, GitBranch, History, Mail, Pencil, Phone, Shuffle, Sparkles, UserCheck, Wrench, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { buildUrl } from "@/app/features/tabs";
 import { useTasks, useTaskResult } from "@/app/features/tasks/TasksProvider";
@@ -411,6 +411,64 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
                 </ul>
               ) : null}
               <p className="mt-1.5 text-meta text-steel">{t("humanScorecardNote")}</p>
+            </div>
+          ) : null}
+
+          {/* GH2 — GitHub evidence attached at add-to-pipeline: corroborated vs
+              claimed skills beside the interview outcomes, at the surface where
+              advance/reject actually happens. */}
+          {entry.githubEvidence ? (
+            <div className="rounded-md border border-stone-200 bg-white p-3">
+              <div className="flex items-center justify-between gap-2">
+                <p className="flex items-center gap-1.5 text-meta uppercase tracking-wide text-steel">
+                  <GitBranch size={13} /> {t("githubEvidence")}
+                </p>
+                <a
+                  href={entry.githubEvidence.profileUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="focus-ring font-mono text-sm text-coral hover:underline"
+                >
+                  @{entry.githubEvidence.username}
+                </a>
+              </div>
+              {entry.githubEvidence.summary ? (
+                <p className="mt-1 text-sm text-ink">{entry.githubEvidence.summary}</p>
+              ) : null}
+              {entry.githubEvidence.confirmedSkills.length ? (
+                <p className="mt-1.5 text-sm text-ink">
+                  <span className="font-semibold text-moss">{t("githubEvidenced")}</span>{" "}
+                  {entry.githubEvidence.confirmedSkills.join(", ")}
+                </p>
+              ) : null}
+              {entry.githubEvidence.unverifiedClaims.length ? (
+                <p className="mt-1 text-sm text-ink">
+                  <span className="font-semibold text-amber-700">{t("githubUnverified")}</span>{" "}
+                  {entry.githubEvidence.unverifiedClaims.join(", ")}
+                </p>
+              ) : null}
+              {entry.githubEvidence.hiddenStrengths.length ? (
+                <p className="mt-1 text-sm text-ink">
+                  <span className="font-semibold text-steel">{t("githubHidden")}</span>{" "}
+                  {entry.githubEvidence.hiddenStrengths.join(", ")}
+                </p>
+              ) : null}
+              {entry.githubEvidence.topRepositories.length ? (
+                <p className="mt-1.5 flex flex-wrap gap-2">
+                  {entry.githubEvidence.topRepositories.map((r) => (
+                    <a
+                      key={r.url}
+                      href={r.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="focus-ring inline-flex items-center gap-1 rounded bg-paper px-1.5 py-0.5 font-mono text-sm text-steel hover:text-ink"
+                    >
+                      <ExternalLink size={11} aria-hidden /> {r.name}
+                    </a>
+                  ))}
+                </p>
+              ) : null}
+              <p className="mt-1.5 text-meta text-steel">{t("githubEvidenceNote")}</p>
             </div>
           ) : null}
 

@@ -119,7 +119,11 @@ export function ResultPanel({ analysis, github, pipelineRef }: ResultPanelProps)
     <section className="animate-fade-in space-y-5">
       {pipelineRef ? (
         <div className="flex items-start justify-end">
-          <AddToPipelineButton pipelineRef={pipelineRef} />
+          <AddToPipelineButton
+            pipelineRef={pipelineRef}
+            // GH2 — a done deep-dive rides the add as compact evidence.
+            github={github?.status === "done" ? github.analysis : null}
+          />
         </div>
       ) : null}
       {analysis.v2Profile ? <ArchetypeBanner v2Profile={analysis.v2Profile} /> : null}

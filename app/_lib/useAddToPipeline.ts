@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import type { GithubEvidenceSummary } from "./github-summary";
 
 // One canonical optimistic "add this candidate to the pipeline" flow. Both the
 // recruiter-candidates surface and the rediscovery panel hand-rolled an identical
@@ -20,6 +21,9 @@ export type PipelineAddInput = {
   archetype: string | null;
   matchScore: number | null;
   roleFamily?: string | null;
+  // GH2 — compact GitHub evidence summary to attach to the entry (only the
+  // report surface carries one; every other add surface omits it).
+  github?: GithubEvidenceSummary | null;
 };
 
 export type AddToPipeline = {
@@ -47,6 +51,7 @@ export function pipelineAddBody(jobId: string, jobTitle: string, c: PipelineAddI
     jobTitle,
     matchScore: c.matchScore ?? null,
     stage: "Screened" as const,
+    ...(c.github ? { github: c.github } : {}),
   };
 }
 

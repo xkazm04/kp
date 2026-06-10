@@ -12,6 +12,7 @@ import { DB_PATH, ensureDbDir } from "./db-path";
 import { randomId, randomToken } from "./random-id";
 import { chunk, SQL_IN_CHUNK } from "./entries-param";
 import { pickBottleneck, type Bottleneck } from "./analytics-bottleneck";
+import { coerceGithubEvidenceSummary, type GithubEvidenceSummary } from "./github-summary";
 import type { DevNeed } from "./devcase-run";
 
 let _db: Database.Database | null = null;
@@ -402,6 +403,9 @@ function ensureDb(): Database.Database {
     // Candidate contact captured at inbound apply (idea APP2) — makes the comms
     // stack deliverable for applicants instead of dead-lettering to "candidate".
     "ALTER TABLE pipeline_entries ADD COLUMN contact TEXT",
+    // Compact GitHub evidence summary captured at add-to-pipeline (GH2):
+    // coerceGithubEvidenceSummary-shaped JSON, bounded at write AND read.
+    "ALTER TABLE pipeline_entries ADD COLUMN github_json TEXT",
   ]) {
     try {
       db.exec(sql);
@@ -1332,6 +1336,9 @@ export type PipelineEntry = {
   // Candidate contact (email/phone) captured at inbound apply, else null. The
   // deliverable comms recipient when present (see candidateRecipient).
   contact: string | null;
+  // Compact GitHub evidence summary captured at add-to-pipeline (GH2), else
+  // null. Bounded by coerceGithubEvidenceSummary on both write and read.
+  githubEvidence: GithubEvidenceSummary | null;
 };
 
 // Canonical shape of a /api/pipeline row. That endpoint returns listPipeline()
@@ -1626,6 +1633,7 @@ type PipelineRow = {
   intake_degraded: number | null;
   intake_degraded_reason: string | null;
   contact: string | null;
+  github_json?: string | null;
 };
 
 function rowToEntry(r: PipelineRow): PipelineEntry {
@@ -1650,7 +1658,22 @@ function rowToEntry(r: PipelineRow): PipelineEntry {
     intakeDegraded: r.intake_degraded === 1,
     intakeDegradedReason: r.intake_degraded_reason ?? null,
     contact: r.contact ?? null,
+    githubEvidence: parseGithubEvidence(r.github_json, r.id),
   };
+}
+
+// GH2 — revive the per-entry GitHub evidence at the read boundary. Re-coerced
+// on every read (same validator the POST boundary uses) so a corrupt or
+// legacy-shaped column degrades to null, never an unbounded blob on the board
+// payload. NULL column (the overwhelmingly common case) costs nothing.
+function parseGithubEvidence(githubJson: string | null | undefined, entryId: string): GithubEvidenceSummary | null {
+  if (!githubJson) return null;
+  try {
+    return coerceGithubEvidenceSummary(JSON.parse(githubJson));
+  } catch (error) {
+    console.error(`[db] corrupt github_json on pipeline entry "${entryId}"`, error);
+    return null;
+  }
 }
 
 // SQL list literal of the terminal statuses, e.g. ('rejected', 'declined'),
@@ -1935,6 +1958,11 @@ export type CreatePipelineInput = {
   // Candidate contact (email/phone) from inbound apply; stored so downstream comms
   // are deliverable. Omitted by recruiter/Match adds (they carry no address).
   contact?: string | null;
+  // Compact GitHub evidence summary (GH2) as validated JSON — the caller (the
+  // pipeline POST route) coerces the shape before stringifying. Backfilled onto
+  // an existing entry only when the column is still empty (evidence is additive;
+  // a re-add must never silently overwrite earlier evidence).
+  githubJson?: string | null;
 };
 
 // Idempotent: a (candidate, job) pair maps to one entry, so re-adding from Match
@@ -1949,6 +1977,15 @@ export function createPipelineEntry(input: CreatePipelineInput): { entry: Pipeli
   const id = `m-${keySource}-${input.jobId}`.replace(/[^A-Za-z0-9_-]/g, "").slice(0, 90);
   const existing = db.prepare(`SELECT * FROM pipeline_entries WHERE id = ?`).get(id) as PipelineRow | undefined;
   if (existing) {
+    // A re-add carrying GitHub evidence backfills an entry that has none —
+    // additive only, never an overwrite of evidence already attached.
+    if (input.githubJson && !existing.github_json) {
+      db.prepare(`UPDATE pipeline_entries SET github_json=?, updated_at=? WHERE id=?`).run(
+        input.githubJson,
+        new Date().toISOString(),
+        id
+      );
+    }
     // re-surface a previously-closed candidate if a recruiter re-adds them —
     // either a company reject OR a candidate decline (both terminal; a re-add
     // means "let's reconsider them", which applies equally to a past decline).
@@ -1957,10 +1994,9 @@ export function createPipelineEntry(input: CreatePipelineInput): { entry: Pipeli
         new Date().toISOString(),
         id
       );
-      const row = db.prepare(`SELECT * FROM pipeline_entries WHERE id = ?`).get(id) as PipelineRow;
-      return { entry: rowToEntry(row), created: false };
     }
-    return { entry: rowToEntry(existing), created: false };
+    const row = db.prepare(`SELECT * FROM pipeline_entries WHERE id = ?`).get(id) as PipelineRow;
+    return { entry: rowToEntry(row), created: false };
   }
   const now = new Date().toISOString();
   const stage = input.stage ?? "Screened";
@@ -1970,10 +2006,10 @@ export function createPipelineEntry(input: CreatePipelineInput): { entry: Pipeli
     `INSERT INTO pipeline_entries
        (id, candidate_id, candidate_label, archetype, role_family, job_id, job_title,
         stage, match_score, status, approval_kind, approval_detail, created_at, stage_changed_at, updated_at,
-        intake_degraded, intake_degraded_reason, contact)
+        intake_degraded, intake_degraded_reason, contact, github_json)
      VALUES (@id, @candidate_id, @candidate_label, @archetype, @role_family, @job_id, @job_title,
         @stage, @match_score, 'active', NULL, '', @now, @now, @now,
-        @intake_degraded, @intake_degraded_reason, @contact)`
+        @intake_degraded, @intake_degraded_reason, @contact, @github_json)`
   ).run({
     id,
     candidate_id: input.candidateId,
@@ -1988,6 +2024,7 @@ export function createPipelineEntry(input: CreatePipelineInput): { entry: Pipeli
     intake_degraded: intakeDegraded,
     intake_degraded_reason: intakeDegradedReason,
     contact: input.contact ?? null,
+    github_json: input.githubJson ?? null,
   });
   recordEvent(db, {
     entryId: id,

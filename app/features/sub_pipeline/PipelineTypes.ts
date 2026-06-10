@@ -1,4 +1,5 @@
 import { Briefcase, GraduationCap, Repeat, type LucideIcon } from "lucide-react";
+import type { GithubEvidenceSummary } from "@/app/_lib/github-summary";
 
 export type Entry = {
   id: string;
@@ -19,6 +20,9 @@ export type Entry = {
   // is a label-only stub needing manual capture; reason holds the failure detail.
   intakeDegraded?: boolean;
   intakeDegradedReason?: string | null;
+  // GH2 — compact GitHub evidence attached at add-to-pipeline (null/absent on
+  // entries added without a deep-dive). Rendered in the drawer.
+  githubEvidence?: GithubEvidenceSummary | null;
 };
 
 // Mirrors the PUBLIC event projection served by /api/pipeline/events

@@ -2,6 +2,8 @@
 
 import { Check, Plus } from "lucide-react";
 import { useId, useState } from "react";
+import { buildGithubEvidenceSummary } from "@/app/_lib/github-summary";
+import type { GithubAnalysis } from "@/app/_lib/schemas";
 import { postPipelineAdd, type PipelineAddInput } from "@/app/_lib/useAddToPipeline";
 
 // Everything POST /api/pipeline needs to file this candidate under a role. The
@@ -16,7 +18,16 @@ export type PipelineRef = PipelineAddInput & { jobId: string; jobTitle: string }
 // optimistic add the Match results already offer, surfaced on the report. State
 // is local (one candidate, one button); the network call + its error handling
 // live in the shared postPipelineAdd so they're tested in one place.
-export function AddToPipelineButton({ pipelineRef }: { pipelineRef: PipelineRef }) {
+// `github` (GH2): when the report carries a done GitHub deep-dive, a compact
+// evidence summary rides the add so the drawer / Decisions surfaces see
+// corroborated-vs-claimed skills, not just a score.
+export function AddToPipelineButton({
+  pipelineRef,
+  github,
+}: {
+  pipelineRef: PipelineRef;
+  github?: GithubAnalysis | null;
+}) {
   const [state, setState] = useState<"idle" | "adding" | "added">("idle");
   const [error, setError] = useState<string | null>(null);
   const statusId = useId();
@@ -25,7 +36,10 @@ export function AddToPipelineButton({ pipelineRef }: { pipelineRef: PipelineRef 
     if (state !== "idle") return;
     setState("adding");
     setError(null);
-    const result = await postPipelineAdd(pipelineRef.jobId, pipelineRef.jobTitle, pipelineRef);
+    const result = await postPipelineAdd(pipelineRef.jobId, pipelineRef.jobTitle, {
+      ...pipelineRef,
+      github: github ? buildGithubEvidenceSummary(github) : pipelineRef.github,
+    });
     if (result.ok) {
       setState("added");
     } else {
