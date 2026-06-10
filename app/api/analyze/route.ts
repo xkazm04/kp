@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getServerLocale } from "@/i18n/server";
+import { isLocale } from "@/i18n/locales";
 import type { AnalyzeParams } from "@/app/_lib/analyze-run";
 import { dedupeCvVariants } from "@/app/_lib/cv-variant";
 import { newRequestId } from "@/app/_lib/logger";
@@ -81,7 +82,13 @@ export async function POST(request: Request) {
   // from the request, so it can't read the NEXT_LOCALE cookie itself — the
   // resolved locale rides along in the task params and becomes the Python CLI's
   // --lang, so the LLM narrative comes back in the user's language.
-  const lang = await getServerLocale();
+  // CV3 — a per-run report-language override (the form's "Report language"
+  // select) wins over the cookie locale when present and valid, so a recruiter
+  // can produce an English report for an international panel without flipping
+  // the whole app. The analyze cache is already lang-keyed, so re-running the
+  // same CV in the other language is cache-correct.
+  const reportLang = form.get("reportLang");
+  const lang = isLocale(reportLang) ? reportLang : await getServerLocale();
 
   const params: AnalyzeParams = {
     baseDir,

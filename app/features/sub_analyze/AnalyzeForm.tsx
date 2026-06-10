@@ -10,6 +10,7 @@ import {
 import { useTranslations } from "next-intl";
 import { ScanAnimationCompact } from "@/app/_components/ScanAnimation";
 import { useEngineAvailability } from "@/app/features/useEngineAvailability";
+import { LOCALES } from "@/i18n/locales";
 import { AnalyzeColumn } from "./AnalyzeColumn";
 import { AnalyzeFileDropZone } from "./AnalyzeFileDropZone";
 import { AnalyzePasteRow } from "./AnalyzePasteRow";
@@ -18,13 +19,15 @@ import { AnalyzeSavedJdPicker } from "./AnalyzeSavedJdPicker";
 import { MAX_CV_VARIANTS } from "./AnalyzeTypes";
 import type { AnalyzeFormState } from "./useAnalyzeForm";
 
+const REPORT_LANGS = LOCALES;
+
 export function AnalyzeForm({ state }: { state: AnalyzeFormState }) {
   const t = useTranslations("analyze");
   // DATA4 — preflight the Gemini engine so a doomed run is a fixable one-liner
   // BEFORE submit, not a cryptic task failure minutes later.
   const engines = useEngineAvailability();
   const { refs, inputs, setters, handlers, flags, statuses, library, result } = state;
-  const { setJobDescriptionFile, setJobDescriptionText, setCompanyFile, setCompanyText, setGithubProfile } = setters;
+  const { setJobDescriptionFile, setJobDescriptionText, setCompanyFile, setCompanyText, setGithubProfile, setReportLang } = setters;
   const { setSelectedJdSlug } = library;
 
   return (
@@ -202,6 +205,21 @@ export function AnalyzeForm({ state }: { state: AnalyzeFormState }) {
           )}
           {t("analyze")}
         </button>
+        {/* CV3 — pick the report-narrative language for this run (defaults to the
+            active locale); lets a recruiter produce an English report for an
+            international panel without flipping the whole app. */}
+        <label className="flex shrink-0 items-center gap-1.5 text-sm font-medium text-steel">
+          {t("reportLanguage")}
+          <select
+            value={inputs.reportLang}
+            onChange={(e) => setReportLang(e.target.value)}
+            className="focus-ring h-9 rounded-md border border-stone-300 bg-white px-2 text-sm uppercase text-ink"
+          >
+            {REPORT_LANGS.map((l) => (
+              <option key={l} value={l}>{l}</option>
+            ))}
+          </select>
+        </label>
       </div>
     </section>
   );

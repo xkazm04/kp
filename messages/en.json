@@ -1900,6 +1900,7 @@
     "githubPlaceholder": "https://github.com/username or username",
     "githubHelper": "Public profile — we read pinned repos.",
     "geminiMissing": "No Gemini API key is configured — the analysis will fail. Set GEMINI_API_KEY (or GOOGLE_API_KEY) and restart the server.",
+    "reportLanguage": "Report language",
     "attachCv": "Attach a CV to enable Analyze.",
     "githubOnlyReady": "GitHub-only deep-dive ready — attach a CV for the full analysis.",
     "ready": "Ready — Gemini takes 15–25 seconds.",

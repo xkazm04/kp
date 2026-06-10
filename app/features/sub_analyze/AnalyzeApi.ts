@@ -12,7 +12,8 @@ export async function submitAnalysis(
   jobDescriptionText: string,
   companyFile: File | null,
   companyText: string,
-  jdSlug: string | null
+  jdSlug: string | null,
+  reportLang?: string
 ): Promise<string> {
   const form = new FormData();
   form.append("grounding", "true");
@@ -23,6 +24,7 @@ export async function submitAnalysis(
   if (companyFile) form.append("company", companyFile);
   if (companyText.trim()) form.append("companyText", companyText);
   if (jdSlug) form.append("jdSlug", jdSlug);
+  if (reportLang) form.append("reportLang", reportLang); // CV3 — per-run report language
 
   const response = await fetch("/api/analyze", { method: "POST", body: form });
   const payload = await response.json();

@@ -1900,6 +1900,7 @@
     "githubPlaceholder": "https://github.com/uzivatel nebo uzivatel",
     "githubHelper": "Veřejný profil — čteme připnuté repozitáře.",
     "geminiMissing": "Není nastaven Gemini API klíč — analýza selže. Nastavte GEMINI_API_KEY (nebo GOOGLE_API_KEY) a restartujte server.",
+    "reportLanguage": "Jazyk reportu",
     "attachCv": "Připojte CV pro spuštění analýzy.",
     "githubOnlyReady": "Hloubková analýza GitHubu připravena — pro plnou analýzu přiložte CV.",
     "ready": "Připraveno — Gemini trvá 15–25 sekund.",

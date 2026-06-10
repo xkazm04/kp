@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import { isLocale } from "@/i18n/locales";
 import {
   applyStageEvent,
   initialStageState,
@@ -25,6 +26,10 @@ const ANALYZE_TASK_KEY = "kp.analyzeTaskId";
 
 export function useAnalyzeForm() {
   const t = useTranslations("analyze");
+  // CV3 — the report-narrative language for this run, defaulting to the active
+  // locale; threaded into the submit FormData so the route can override the
+  // cookie per run.
+  const appLocale = useLocale();
   const jobInputRef = useRef<HTMLInputElement>(null);
   const companyInputRef = useRef<HTMLInputElement>(null);
   // Monotonic id stamped on each submit's GitHub run. A fire-and-forget GitHub
@@ -52,6 +57,7 @@ export function useAnalyzeForm() {
   const [companyFile, setCompanyFile] = useState<File | null>(null);
   const [companyText, setCompanyText] = useState("");
   const [githubProfile, setGithubProfile] = useState("");
+  const [reportLang, setReportLang] = useState<string>(isLocale(appLocale) ? appLocale : "en");
 
   const [analysis, setAnalysis] = useState<Analysis | null>(null);
   const [githubAnalysis, setGithubAnalysis] = useState<GithubAnalysis | null>(null);
@@ -408,6 +414,7 @@ export function useAnalyzeForm() {
         companyFile,
         companyText,
         selectedJdSlug,
+        reportLang,
       },
       buildCallbacks(analysisRunId),
       controller.signal
@@ -437,6 +444,7 @@ export function useAnalyzeForm() {
       companyFile,
       companyText,
       githubProfile,
+      reportLang,
     },
     setters: {
       setJobDescriptionFile,
@@ -444,6 +452,7 @@ export function useAnalyzeForm() {
       setCompanyFile,
       setCompanyText,
       setGithubProfile,
+      setReportLang,
     },
     handlers: {
       addCvFile,

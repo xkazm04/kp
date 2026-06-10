@@ -22,6 +22,10 @@ export type AnalysisInputs = {
   companyFile: File | null;
   companyText: string;
   selectedJdSlug: string | null;
+  // CV3 — per-run report-narrative language (en|cs), defaulting to the active
+  // locale; the route prefers it over the cookie so a recruiter can produce an
+  // English report for an international panel without flipping the whole app.
+  reportLang?: string;
 };
 
 export type AnalysisCallbacks = {
@@ -44,9 +48,9 @@ export async function executeAnalysis(
   callbacks: AnalysisCallbacks,
   signal?: AbortSignal
 ): Promise<void> {
-  const { cvFiles, jobDescriptionFile, jobDescriptionText, companyFile, companyText, selectedJdSlug } = inputs;
+  const { cvFiles, jobDescriptionFile, jobDescriptionText, companyFile, companyText, selectedJdSlug, reportLang } = inputs;
   try {
-    const taskId = await submitAnalysis(cvFiles, jobDescriptionFile, jobDescriptionText, companyFile, companyText, selectedJdSlug);
+    const taskId = await submitAnalysis(cvFiles, jobDescriptionFile, jobDescriptionText, companyFile, companyText, selectedJdSlug, reportLang);
     callbacks.onTaskStarted?.(taskId);
     const parsed = await watchAnalysis(taskId, callbacks.onProgress, signal);
     callbacks.onFinalize();
