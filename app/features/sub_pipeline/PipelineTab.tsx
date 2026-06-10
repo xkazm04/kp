@@ -65,7 +65,10 @@ function groupPositions(entries: Entry[]): Position[] {
 }
 
 // The board's quick-filter toggles (free-text name/role search runs alongside).
-type QuickFilter = "aging" | "awaiting" | "intake" | "interview";
+// Canonical value list so the ?quick= deep-link param (ANA1) validates against
+// the same set the chips render from.
+const QUICK_FILTERS = ["interview", "aging", "awaiting", "intake"] as const;
+type QuickFilter = (typeof QUICK_FILTERS)[number];
 
 // A saved board view (PIPE5): a named snapshot of the search + quick-filter.
 type SavedView = { id: string; name: string; query: string; quick: QuickFilter | null };
@@ -103,8 +106,23 @@ export function PipelineTab() {
   const [drawerEntry, setDrawerEntry] = useState<Entry | null>(null);
   // Board search/filter (PIPE2): a free-text candidate/role query + one active
   // quick-filter chip. Client-side — the board already holds every entry.
-  const [query, setQuery] = useState("");
-  const [quick, setQuick] = useState<QuickFilter | null>(null);
+  // ANA1: state hydrates from the URL ONCE at mount (lazy initializers off the
+  // render-time searchParams) so analytics deep links (?q=/?quick=/?stage=)
+  // land pre-filtered — the tab unmounts on every switch, so each navigation
+  // re-reads them. In-board filter edits intentionally do NOT write back to the
+  // URL (shareable view URLs are their own finding, PIPE3 in the 06-10 scan).
+  const [query, setQuery] = useState(() => search.get("q") ?? "");
+  const [quick, setQuick] = useState<QuickFilter | null>(() => {
+    const v = search.get("quick");
+    return v && (QUICK_FILTERS as readonly string[]).includes(v) ? (v as QuickFilter) : null;
+  });
+  // Stage filter (ANA1): the one dimension the funnel needs that the quick chips
+  // don't cover. Deep-link-only entry (no always-visible chip mints it); shown
+  // as a dismissible pill while active.
+  const [stageFilter, setStageFilter] = useState<string | null>(() => {
+    const v = search.get("stage");
+    return v && STAGES.includes(v) ? v : null;
+  });
   // Saved board views (PIPE5): named {search + quick-filter} presets a recruiter
   // returns to, persisted in localStorage (single board, client-only — no schema).
   const [views, setViews] = useState<SavedView[]>([]);
@@ -262,6 +280,7 @@ export function PipelineTab() {
       const hitQuery =
         !q || (e.candidateLabel ?? "").toLowerCase().includes(q) || (e.jobTitle ?? "").toLowerCase().includes(q);
       if (!hitQuery) return false;
+      if (stageFilter && e.stage !== stageFilter) return false;
       switch (quick) {
         case "aging":
           return e.stage !== "Hired" && (daysSince(e.stageChangedAt) ?? 0) >= slaForStage(e.stage, slaOverrides);
@@ -275,13 +294,14 @@ export function PipelineTab() {
           return true;
       }
     });
-  }, [entries, q, quick, slaOverrides]);
+  }, [entries, q, quick, stageFilter, slaOverrides]);
   const boardPositions = useMemo(() => groupPositions(filteredEntries), [filteredEntries]);
-  const filtering = Boolean(q) || quick !== null;
+  const filtering = Boolean(q) || quick !== null || stageFilter !== null;
   const toggleQuick = (f: QuickFilter) => setQuick((cur) => (cur === f ? null : f));
   const clearFilters = () => {
     setQuery("");
     setQuick(null);
+    setStageFilter(null);
   };
   // PIPE5 — save the current filter combo as a named view, apply one, or drop it.
   const activeViewId = views.find((v) => v.query === query && v.quick === quick)?.id ?? null;
@@ -517,6 +537,19 @@ export function PipelineTab() {
                 {label}
               </button>
             ))}
+            {/* ANA1: the funnel-stage filter arrives via deep link only; while
+                active it reads as a pressed chip that a click dismisses. */}
+            {stageFilter ? (
+              <button
+                type="button"
+                onClick={() => setStageFilter(null)}
+                aria-pressed={true}
+                title={t("filterStageClear")}
+                className="focus-ring rounded-full border border-coral bg-coral/10 px-3 py-1 text-sm font-semibold text-coral"
+              >
+                {t("filterStage", { stage: enumLabel("stage", stageFilter) })} ×
+              </button>
+            ) : null}
             {filtering ? (
               <span className="text-sm text-steel" aria-live="polite">
                 {t("showingCount", { shown: filteredEntries.length, total: (entries ?? []).length })}

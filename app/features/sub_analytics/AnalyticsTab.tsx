@@ -1,8 +1,11 @@
 "use client";
 
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useJsonFetch } from "@/app/_lib/useJsonFetch";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
+import { buildUrl, clearedTabScopedParams } from "@/app/features/tabs";
 import { DecisionLog } from "./DecisionLog";
 
 type Funnel = { stage: string; reached: number; current: number; conversionPct: number | null };
@@ -25,7 +28,15 @@ type Analytics = {
 export function AnalyticsTab() {
   const t = useTranslations("analytics");
   const enumLabel = useEnumLabel();
+  const search = useSearchParams();
   const { data, error, reload } = useJsonFetch<Analytics>("/api/analytics", t("loadFailed"));
+
+  // ANA1 — every chart links to the candidates behind it: a board deep link
+  // carrying the matching filter (?stage= funnel stage, ?q= role title), with
+  // the other tab-scoped params cleared so the board opens on exactly this
+  // cohort. PipelineTab hydrates its filter bar from these at mount.
+  const boardHref = (filter: { q?: string; stage?: string }) =>
+    buildUrl({ ...clearedTabScopedParams(), tab: "pipeline", ...filter }, search.toString());
 
   if (error)
     return (
@@ -84,7 +95,12 @@ export function AnalyticsTab() {
           ) : (
           <ul className="mt-4 space-y-2.5">
             {data.funnel.map((f) => (
-              <li key={f.stage} className="flex items-center gap-3">
+              <li key={f.stage}>
+                <Link
+                  href={boardHref({ stage: f.stage })}
+                  title={t("viewInBoard")}
+                  className="focus-ring -mx-1.5 flex items-center gap-3 rounded-md px-1.5 py-0.5 hover:bg-paper/70"
+                >
                 <span className="w-28 shrink-0 text-base font-medium text-ink">{enumLabel("stage", f.stage)}</span>
                 <div
                   className="relative h-7 flex-1 overflow-hidden rounded-md bg-paper"
@@ -114,6 +130,7 @@ export function AnalyticsTab() {
                     <span className="text-steel">—</span>
                   )}
                 </span>
+                </Link>
               </li>
             ))}
           </ul>
@@ -126,7 +143,13 @@ export function AnalyticsTab() {
                 days: data.bottleneck.avgDaysInStage,
                 b: (chunks) => <span className="font-semibold">{chunks}</span>,
                 m: (chunks) => <span className="font-medium">{chunks}</span>,
-              })}
+              })}{" "}
+              <Link
+                href={boardHref({ stage: data.bottleneck.stage })}
+                className="focus-ring rounded font-semibold text-coral underline-offset-2 hover:underline"
+              >
+                {t("viewCandidates")}
+              </Link>
             </p>
           ) : null}
         </div>
@@ -175,7 +198,17 @@ export function AnalyticsTab() {
           <tbody>
             {data.byJob.map((j) => (
               <tr key={j.jobTitle} className="border-b border-stone-100 last:border-0">
-                <td className="py-2 pr-2 text-ink">{j.jobTitle}</td>
+                {/* The title cell links (a tr can't be a Link): the board's free-text
+                    filter matches on jobTitle, so ?q=<title> isolates this role. */}
+                <td className="py-2 pr-2 text-ink">
+                  <Link
+                    href={boardHref({ q: j.jobTitle })}
+                    title={t("viewInBoard")}
+                    className="focus-ring rounded underline-offset-2 hover:text-coral hover:underline"
+                  >
+                    {j.jobTitle}
+                  </Link>
+                </td>
                 <td className="py-2 text-right text-steel">{j.total}</td>
                 <td className="py-2 text-right text-steel">{j.reachedInterview}</td>
                 <td className="py-2 text-right text-ink">{j.hired}</td>
