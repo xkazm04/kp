@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Check, Link2, Printer } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { copyText } from "@/app/_lib/export-utils";
 
 // Share/export affordances for a saved candidate report (Theme C, RES1). The
@@ -11,6 +12,7 @@ import { copyText } from "@/app/_lib/export-utils";
 // "Copy report link" yields a link that reopens this exact report. `print:hidden`
 // keeps the buttons themselves out of the printed/PDF output.
 export function ReportActions() {
+  const t = useTranslations("report");
   const [copied, setCopied] = useState(false);
 
   const copyLink = async () => {
@@ -27,14 +29,14 @@ export function ReportActions() {
         className="focus-ring inline-flex h-9 items-center gap-1.5 rounded-md border border-stone-200 bg-white px-3 text-base font-semibold text-ink hover:border-coral/40"
       >
         {copied ? <Check size={15} className="text-moss" /> : <Link2 size={15} className="text-steel" />}
-        {copied ? "Link copied" : "Copy report link"}
+        {copied ? t("linkCopied") : t("copyLink")}
       </button>
       <button
         type="button"
         onClick={() => window.print()}
         className="focus-ring inline-flex h-9 items-center gap-1.5 rounded-md border border-stone-200 bg-white px-3 text-base font-semibold text-ink hover:border-coral/40"
       >
-        <Printer size={15} className="text-steel" /> Print / Save as PDF
+        <Printer size={15} className="text-steel" /> {t("print")}
       </button>
     </div>
   );

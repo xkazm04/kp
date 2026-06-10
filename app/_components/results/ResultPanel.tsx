@@ -2,6 +2,7 @@
 
 import { GitBranch } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { GithubAnalysisPanel } from "@/app/_components/GithubAnalysisPanel";
 import { hasRenderableComparison } from "@/app/_lib/comparison";
 import { reconcileScoreTotal } from "@/app/_lib/format";
@@ -39,6 +40,9 @@ type ResultPanelProps = {
 type ResultTab = "extraction" | "compare" | "jobFit" | "salary" | "interview" | "github";
 
 export function ResultPanel({ analysis, github, onGithubRetry, pipelineRef }: ResultPanelProps) {
+  // RES2 — the report chrome (tab labels, aria) is bilingual; the tab CONTENT
+  // is the LLM narrative, already generated in the recruiter's language.
+  const t = useTranslations("report");
   // A comparison only counts — for showing the Compare tab AND for defaulting
   // to it below — when it meets the minimum-variant contract. A stray 1-variant
   // payload no longer auto-opens an empty Compare tab; it falls through to
@@ -47,18 +51,18 @@ export function ResultPanel({ analysis, github, onGithubRetry, pipelineRef }: Re
   const hasGithub = Boolean(github);
 
   const tabs: Array<{ id: ResultTab; label: string; icon: React.ReactNode }> = [
-    { id: "extraction", label: "Extraction", icon: <ExtractionIcon className="h-4 w-4" /> },
+    { id: "extraction", label: t("tabs.extraction"), icon: <ExtractionIcon className="h-4 w-4" /> },
     ...(hasComparison
-      ? [{ id: "compare" as const, label: "Compare", icon: <CompareIcon className="h-4 w-4" /> }]
+      ? [{ id: "compare" as const, label: t("tabs.compare"), icon: <CompareIcon className="h-4 w-4" /> }]
       : []),
-    { id: "jobFit", label: "Job fit", icon: <JobFitIcon className="h-4 w-4" /> },
-    { id: "salary", label: "Salary", icon: <SalaryIcon className="h-4 w-4" /> },
-    { id: "interview", label: "Interview", icon: <InterviewIcon className="h-4 w-4" /> },
+    { id: "jobFit", label: t("tabs.jobFit"), icon: <JobFitIcon className="h-4 w-4" /> },
+    { id: "salary", label: t("tabs.salary"), icon: <SalaryIcon className="h-4 w-4" /> },
+    { id: "interview", label: t("tabs.interview"), icon: <InterviewIcon className="h-4 w-4" /> },
     ...(hasGithub
       ? [
           {
             id: "github" as const,
-            label: "GitHub",
+            label: t("tabs.github"),
             icon: <GitBranch className="h-4 w-4" />,
           },
         ]
@@ -132,7 +136,7 @@ export function ResultPanel({ analysis, github, onGithubRetry, pipelineRef }: Re
       {analysis.v2Profile ? <ArchetypeBanner v2Profile={analysis.v2Profile} /> : null}
       <QualityStrip checks={analysis.sanityChecks ?? []} />
       <div className="rounded-lg border border-stone-200 bg-white p-2 shadow-panel">
-        <div role="tablist" aria-label="Result sections" onKeyDown={onTabKeyDown} className={`grid gap-1 sm:grid-cols-2 ${lgGridClass}`}>
+        <div role="tablist" aria-label={t("sections")} onKeyDown={onTabKeyDown} className={`grid gap-1 sm:grid-cols-2 ${lgGridClass}`}>
           {tabs.map((tab) => {
             const selected = activeTab === tab.id;
             return (

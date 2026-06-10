@@ -2,6 +2,7 @@
 
 import { Check, Plus } from "lucide-react";
 import { useId, useState } from "react";
+import { useTranslations } from "next-intl";
 import { buildGithubEvidenceSummary } from "@/app/_lib/github-summary";
 import type { GithubAnalysis } from "@/app/_lib/schemas";
 import { postPipelineAdd, type PipelineAddInput } from "@/app/_lib/useAddToPipeline";
@@ -28,6 +29,7 @@ export function AddToPipelineButton({
   pipelineRef: PipelineRef;
   github?: GithubAnalysis | null;
 }) {
+  const t = useTranslations("report");
   const [state, setState] = useState<"idle" | "adding" | "added">("idle");
   const [error, setError] = useState<string | null>(null);
   const statusId = useId();
@@ -64,12 +66,12 @@ export function AddToPipelineButton({
         }`}
       >
         {added ? <Check className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
-        {added ? "Added to pipeline" : state === "adding" ? "Adding…" : "Add to pipeline"}
+        {added ? t("added") : state === "adding" ? t("adding") : t("addToPipeline")}
       </button>
       {/* aria-live so the outcome is announced; visible only on failure (success
           is conveyed by the button's own state change). */}
       <p id={statusId} role="status" aria-live="polite" className="min-h-0 text-sm text-red-700">
-        {error ? `Couldn't add to the pipeline. ${error}` : ""}
+        {error ? t("addFailed", { error }) : ""}
       </p>
     </div>
   );

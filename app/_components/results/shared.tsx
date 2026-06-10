@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Check, Copy } from "lucide-react";
+import { useTranslations } from "next-intl";
 import type { Analysis } from "@/app/_lib/schemas";
 import { dedupe } from "@/app/_lib/dedupe";
 import { copyText } from "@/app/_lib/export-utils";
@@ -128,21 +129,23 @@ export function BulletList({
 export function InlineList({
   title,
   items,
-  emptyHeadline = "Nothing to trace yet",
-  emptyHint = "Add more detail to your CV so we can surface evidence here.",
+  emptyHeadline,
+  emptyHint,
 }: {
   title: string;
   items: string[];
   emptyHeadline?: string;
   emptyHint?: string;
 }) {
+  // RES2 — localized empty-state defaults (callers can still override).
+  const t = useTranslations("report");
   return (
     <div className="rounded-md bg-paper p-3">
       <h4 className="font-serif text-h3 text-ink">{title}</h4>
       <BulletList
         items={items}
         listClassName="mt-2 space-y-2"
-        empty={<EmptyState variant="evidence" headline={emptyHeadline} hint={emptyHint} />}
+        empty={<EmptyState variant="evidence" headline={emptyHeadline ?? t("nothingTrace")} hint={emptyHint ?? t("nothingTraceHint")} />}
       />
     </div>
   );
@@ -152,8 +155,8 @@ export function ListBlock({
   icon,
   title,
   items,
-  emptyHeadline = "Nothing to highlight yet",
-  emptyHint = "Refine your CV to surface items in this list.",
+  emptyHeadline,
+  emptyHint,
   copyable = true,
 }: {
   icon?: React.ReactNode;
@@ -166,6 +169,7 @@ export function ListBlock({
   // elsewhere; a header "Copy" yields them as markdown bullets (Theme C, RES6).
   copyable?: boolean;
 }) {
+  const t = useTranslations("report");
   const [copied, setCopied] = useState(false);
   const unique = dedupe(items);
   const copy = async () => {
@@ -182,35 +186,36 @@ export function ListBlock({
           <button
             type="button"
             onClick={copy}
-            title="Copy this list"
+            title={t("copyList")}
             className="focus-ring ml-auto inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-sm font-semibold text-steel hover:text-coral print:hidden"
           >
             {copied ? <Check size={14} className="text-moss" /> : <Copy size={14} />}
-            {copied ? "Copied" : "Copy"}
+            {copied ? t("copied") : t("copy")}
           </button>
         ) : null}
       </div>
       <BulletList
         items={unique}
         listClassName="mt-4 space-y-3"
-        empty={<EmptyState variant="items" headline={emptyHeadline} hint={emptyHint} />}
+        empty={<EmptyState variant="items" headline={emptyHeadline ?? t("nothingHighlight")} hint={emptyHint ?? t("nothingHighlightHint")} />}
       />
     </div>
   );
 }
 
 export function EnginePanel({ analysis }: { analysis: Analysis }) {
+  const t = useTranslations("report");
   if (!analysis.metadata) {
     return null;
   }
 
   return (
     <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
-      <h3 className="font-serif text-h3 text-ink">Analysis Engine</h3>
+      <h3 className="font-serif text-h3 text-ink">{t("engineTitle")}</h3>
       <div className="mt-3 space-y-2 text-base leading-6 text-ink">
-        <p>Engine: {analysis.metadata.analysisEngine}</p>
-        <p>Extractor: {analysis.metadata.textExtractor}</p>
-        {analysis.metadata.model ? <p>Model: {analysis.metadata.model}</p> : null}
+        <p>{t("engine", { engine: analysis.metadata.analysisEngine })}</p>
+        <p>{t("extractor", { extractor: analysis.metadata.textExtractor })}</p>
+        {analysis.metadata.model ? <p>{t("model", { model: analysis.metadata.model })}</p> : null}
         {/* Dedupe before slicing so the cap of 3 counts distinct notes; BulletList
             re-dedupes (a no-op here) and renders nothing when the list is empty. */}
         <BulletList

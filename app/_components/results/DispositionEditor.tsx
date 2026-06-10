@@ -2,11 +2,12 @@
 
 import { useState } from "react";
 import { Check, Loader2 } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 const OPTIONS = [
-  { value: "advance", label: "Advance", on: "bg-moss text-white", off: "text-moss hover:bg-moss/10" },
-  { value: "hold", label: "Hold", on: "bg-dial-amber text-ink", off: "text-amber-700 hover:bg-amber-50" },
-  { value: "pass", label: "Pass", on: "bg-coral text-white", off: "text-coral hover:bg-coral/10" },
+  { value: "advance", labelKey: "dispAdvance", on: "bg-moss text-white", off: "text-moss hover:bg-moss/10" },
+  { value: "hold", labelKey: "dispHold", on: "bg-dial-amber text-ink", off: "text-amber-700 hover:bg-amber-50" },
+  { value: "pass", labelKey: "dispPass", on: "bg-coral text-white", off: "text-coral hover:bg-coral/10" },
 ] as const;
 
 // Human decision record on a saved analysis (RES5). The report was read-only —
@@ -23,6 +24,7 @@ export function DispositionEditor({
   initialDisposition: string | null;
   initialNote: string | null;
 }) {
+  const t = useTranslations("report");
   const [disposition, setDisposition] = useState(initialDisposition ?? "");
   const [note, setNote] = useState(initialNote ?? "");
   const [saving, setSaving] = useState(false);
@@ -58,7 +60,7 @@ export function DispositionEditor({
   return (
     <div className="rounded-lg border border-stone-200 bg-paper p-3 print:hidden">
       <div className="flex flex-wrap items-center gap-2">
-        <span className="text-meta uppercase tracking-wide text-steel">Your decision</span>
+        <span className="text-meta uppercase tracking-wide text-steel">{t("yourDecision")}</span>
         <div className="inline-flex overflow-hidden rounded-md border border-stone-200 bg-white">
           {OPTIONS.map((o) => (
             <button
@@ -71,17 +73,17 @@ export function DispositionEditor({
                 disposition === o.value ? o.on : o.off
               }`}
             >
-              {o.label}
+              {t(o.labelKey)}
             </button>
           ))}
         </div>
         {saving ? <Loader2 size={14} className="animate-spin text-steel" /> : null}
         {saved ? (
           <span className="inline-flex items-center gap-1 text-sm font-semibold text-moss">
-            <Check size={14} /> Saved
+            <Check size={14} /> {t("saved")}
           </span>
         ) : null}
-        {error ? <span className="text-sm text-coral">Couldn&apos;t save — try again.</span> : null}
+        {error ? <span className="text-sm text-coral">{t("saveFailed")}</span> : null}
       </div>
       {disposition ? (
         <textarea
@@ -89,7 +91,7 @@ export function DispositionEditor({
           onChange={(e) => setNote(e.target.value)}
           onBlur={() => save(disposition, note)}
           rows={2}
-          placeholder="Why? (optional) — saved when you click away."
+          placeholder={t("notePlaceholder")}
           className="focus-ring mt-2 w-full rounded-md border border-stone-200 bg-white p-2 text-sm text-ink"
         />
       ) : null}

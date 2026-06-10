@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { getTranslations } from "next-intl/server";
 import { ResultPanel } from "@/app/_components/results/ResultPanel";
 import { ReportActions } from "@/app/_components/results/ReportActions";
 import { DispositionEditor } from "@/app/_components/results/DispositionEditor";
@@ -33,6 +34,7 @@ export default async function HistoryDetailPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
+  const t = await getTranslations("report"); // RES2 — the report frame is bilingual
 
   let found: ReturnType<typeof loadAnalysis>;
   try {
@@ -44,9 +46,7 @@ export default async function HistoryDetailPage({
     console.error(`[history] failed to load analysis "${slug}"`, error);
     return (
       <WorkspaceShell active="analyze">
-        <p className="rounded-md bg-red-50 p-4 text-sm text-red-700">
-          We couldn&apos;t load this analysis right now. Please try again in a moment.
-        </p>
+        <p className="rounded-md bg-red-50 p-4 text-sm text-red-700">{t("histLoadFailed")}</p>
       </WorkspaceShell>
     );
   }
@@ -59,9 +59,7 @@ export default async function HistoryDetailPage({
   if (!parsed.success) {
     return (
       <WorkspaceShell active="analyze">
-        <p className="rounded-md bg-red-50 p-4 text-sm text-red-700">
-          This run was saved in an older schema and can&apos;t be rendered.
-        </p>
+        <p className="rounded-md bg-red-50 p-4 text-sm text-red-700">{t("histSchemaOld")}</p>
       </WorkspaceShell>
     );
   }
@@ -86,13 +84,12 @@ export default async function HistoryDetailPage({
       />
       <header className="flex flex-col gap-3 border-b border-stone-200 pb-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
-          <p className="text-meta uppercase text-coral">History · {slug}</p>
+          <p className="text-meta uppercase text-coral">{t("histEyebrow", { slug })}</p>
           <ReportActions />
         </div>
         <h1 className="font-serif text-display text-ink">{found.row.candidate_label}</h1>
         <p className="text-sm text-steel">
-          {found.row.role_family ?? "—"} · {found.row.seniority ?? "—"} · score{" "}
-          {found.row.score ?? "—"} · saved {new Date(found.row.created_at).toLocaleString()}
+          {found.row.role_family ?? "—"} · {found.row.seniority ?? "—"} · {t("histScore", { score: found.row.score ?? "—" })} · {t("histSaved", { date: new Date(found.row.created_at).toLocaleString() })}
           {found.row.jd_slug ? (
             <>
               {" · "}
