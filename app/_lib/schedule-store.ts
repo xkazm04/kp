@@ -166,6 +166,23 @@ export function getScheduleInviteByToken(token: string): ScheduleInvite | null {
   return r ? rowTo(r) : null;
 }
 
+/** Recruiter projection of every invite (W6-3/SCH1). The store had ONLY token
+ *  lookup / bookedSlots / dueReminders — once a link was minted its whole life
+ *  was invisible: no agenda of confirmed bookings, no view of un-booked
+ *  invites, and the two operator flags written for exactly this surface
+ *  (needs_more_slots, needs_reconcile) had zero readers. Confirmed bookings
+ *  first by slot time, then pending newest-first. */
+export function listScheduleInvites(limit = 200): ScheduleInvite[] {
+  const rows = db()
+    .prepare(
+      `SELECT * FROM schedule_invites
+       ORDER BY (slot_at IS NULL) ASC, slot_at ASC, created_at DESC
+       LIMIT ?`
+    )
+    .all(Math.min(Math.max(limit, 1), 500)) as Record<string, unknown>[];
+  return rows.map(rowTo);
+}
+
 export type ConfirmResult =
   | { ok: true; invite: ScheduleInvite }
   | { ok: false; reason: "not_found" | "taken"; invite: ScheduleInvite | null };

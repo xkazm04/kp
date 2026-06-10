@@ -717,6 +717,20 @@
     }
   },
   "scheduleTab": {
+    "lifecycle": {
+      "title": "Pohovory a pozvánky",
+      "loading": "Načítání přehledu plánování",
+      "loadFailed": "Přehled plánování se nepodařilo načíst.",
+      "attention": "{count, plural, one {# vyžaduje pozornost} few {# vyžadují pozornost} other {# vyžaduje pozornost}}",
+      "needsMoreSlots": "kandidát nenašel volný termín — otevřete další časy",
+      "needsReconcile": "rezervováno, ale nábor se neposunul ({reason})",
+      "upcoming": "{count, plural, one {Nadcházející pohovor (#)} few {Nadcházející pohovory (#)} other {Nadcházejících pohovorů (#)}}",
+      "rescheduled": "{count, plural, one {přeloženo ×#} other {přeloženo ×#}}",
+      "reminderSent": "připomínka odeslána",
+      "reminderPending": "připomínka čeká",
+      "awaiting": "{count, plural, one {Čeká na rezervaci (#)} few {Čekají na rezervaci (#)} other {Čeká na rezervaci (#)}}",
+      "sentAgo": "odesláno {time}"
+    },
     "eyebrow": "Rozhodnutí · Plánování",
     "title": "Kalendář pohovorů",
     "intro": "Každý kandidát čekající na termín pohovoru v jednom sdíleném týdnu. Vyberte kandidáta, kliknutím na buňku přesuňte jeho navržený čas a poté potvrďte — nebo odmítněte a pošlete ho zpět.",

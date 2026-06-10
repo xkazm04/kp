@@ -717,6 +717,20 @@
     }
   },
   "scheduleTab": {
+    "lifecycle": {
+      "title": "Interviews & invites",
+      "loading": "Loading scheduling overview",
+      "loadFailed": "Couldn't load the scheduling overview.",
+      "attention": "{count, plural, one {# needs attention} other {# need attention}}",
+      "needsMoreSlots": "candidate found no open slot — open more times",
+      "needsReconcile": "booked, but the pipeline didn't advance ({reason})",
+      "upcoming": "{count, plural, one {Upcoming interview (#)} other {Upcoming interviews (#)}}",
+      "rescheduled": "{count, plural, one {rescheduled ×#} other {rescheduled ×#}}",
+      "reminderSent": "reminder sent",
+      "reminderPending": "reminder pending",
+      "awaiting": "{count, plural, one {Awaiting booking (#)} other {Awaiting booking (#)}}",
+      "sentAgo": "sent {time}"
+    },
     "eyebrow": "Decisions · Schedule",
     "title": "Interview calendar",
     "intro": "Every candidate awaiting an interview slot, on one shared week. Select a candidate, click a cell to move their proposed time, then confirm — or decline to send them back.",

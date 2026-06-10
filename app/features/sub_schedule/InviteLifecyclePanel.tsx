@@ -1,0 +1,145 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { AlertTriangle, CalendarClock, Hourglass } from "lucide-react";
+import { useTranslations } from "next-intl";
+import { useRelativeTime } from "@/app/features/sub_pipeline/PipelineShared";
+
+type Invite = {
+  id: string;
+  entryId: string | null;
+  candidateLabel: string | null;
+  jobTitle: string | null;
+  status: string;
+  slot: string | null;
+  slotAt: string | null;
+  reminderSentAt: string | null;
+  needsReconcile: boolean;
+  reconcileReason: string | null;
+  needsMoreSlots: boolean;
+  durationMin: number | null;
+  rescheduleCount: number;
+  createdAt: string;
+  confirmedAt: string | null;
+};
+
+// W6-3 (SCH1) — the invite lifecycle, finally visible. Once a self-scheduling
+// link was minted its whole life was invisible: no agenda of confirmed
+// bookings, no view of sent-but-never-booked invites, and the operator flags
+// the store deliberately persists "for the recruiter" — needs_more_slots
+// (candidate hit a fully-booked horizon) and needs_reconcile (booked but the
+// pipeline didn't advance) — terminated in a server console. Attention rows
+// first; then the chronological agenda; then invites still awaiting a booking.
+export function InviteLifecyclePanel() {
+  const t = useTranslations("scheduleTab.lifecycle");
+  const relativeTime = useRelativeTime();
+  const [invites, setInvites] = useState<Invite[] | null>(null);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    fetch("/api/schedule")
+      .then((r) => {
+        if (!r.ok) throw new Error();
+        return r.json();
+      })
+      .then((p) => {
+        if (alive) setInvites((p.invites as Invite[]) ?? []);
+      })
+      .catch(() => {
+        if (alive) setFailed(true);
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  if (failed) {
+    return <p className="rounded-md bg-red-50 p-3 text-sm text-red-700">{t("loadFailed")}</p>;
+  }
+  if (invites === null) {
+    return <div role="status" aria-label={t("loading")} className="h-16 animate-pulse rounded-lg bg-stone-100" />;
+  }
+  if (invites.length === 0) return null;
+
+  const now = Date.now();
+  const attention = invites.filter((i) => i.needsMoreSlots || i.needsReconcile);
+  const upcoming = invites
+    .filter((i) => i.status === "confirmed" && i.slotAt && Date.parse(i.slotAt) >= now && !attention.includes(i))
+    .sort((a, b) => Date.parse(a.slotAt as string) - Date.parse(b.slotAt as string));
+  const awaiting = invites.filter((i) => i.status !== "confirmed" && !attention.includes(i));
+
+  if (attention.length === 0 && upcoming.length === 0 && awaiting.length === 0) return null;
+
+  const slotLine = (i: Invite) =>
+    i.slotAt
+      ? `${new Date(i.slotAt).toLocaleString()}${i.durationMin ? ` · ${i.durationMin} min` : ""}`
+      : (i.slot ?? "—");
+
+  return (
+    <section className="rounded-lg border border-stone-200 bg-white p-4 shadow-panel">
+      <h3 className="flex items-center gap-2 font-serif text-h3 text-ink">
+        <CalendarClock size={16} className="text-coral" aria-hidden /> {t("title")}
+      </h3>
+
+      {attention.length > 0 ? (
+        <div className="mt-2">
+          <p className="flex items-center gap-1.5 text-meta uppercase tracking-wide text-red-700">
+            <AlertTriangle size={13} aria-hidden /> {t("attention", { count: attention.length })}
+          </p>
+          <ul className="mt-1.5 space-y-1">
+            {attention.map((i) => (
+              <li key={i.id} className="rounded-md border border-red-200 bg-red-50/60 px-3 py-1.5 text-sm">
+                <span className="font-semibold text-ink">{i.candidateLabel ?? "—"}</span>
+                {i.jobTitle ? <span className="text-steel"> · {i.jobTitle}</span> : null}{" "}
+                <span className="text-red-700">
+                  {i.needsMoreSlots ? t("needsMoreSlots") : t("needsReconcile", { reason: i.reconcileReason ?? "" })}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
+      {upcoming.length > 0 ? (
+        <div className="mt-3">
+          <p className="text-meta uppercase tracking-wide text-steel">{t("upcoming", { count: upcoming.length })}</p>
+          <ul className="mt-1.5 space-y-1">
+            {upcoming.map((i) => (
+              <li key={i.id} className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 rounded-md border border-stone-100 bg-paper/40 px-3 py-1.5 text-sm">
+                <span className="font-semibold text-ink nums">{slotLine(i)}</span>
+                <span className="text-ink">{i.candidateLabel ?? "—"}</span>
+                {i.jobTitle ? <span className="text-steel">· {i.jobTitle}</span> : null}
+                {i.rescheduleCount > 0 ? (
+                  <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-xs font-semibold text-amber-800">
+                    {t("rescheduled", { count: i.rescheduleCount })}
+                  </span>
+                ) : null}
+                <span className="ml-auto text-xs text-steel">
+                  {i.reminderSentAt ? t("reminderSent") : t("reminderPending")}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
+      {awaiting.length > 0 ? (
+        <details className="mt-3">
+          <summary className="focus-ring flex cursor-pointer items-center gap-1.5 text-meta uppercase tracking-wide text-steel">
+            <Hourglass size={13} aria-hidden /> {t("awaiting", { count: awaiting.length })}
+          </summary>
+          <ul className="mt-1.5 space-y-1">
+            {awaiting.map((i) => (
+              <li key={i.id} className="flex flex-wrap items-baseline gap-x-2 rounded-md border border-stone-100 bg-paper/40 px-3 py-1.5 text-sm">
+                <span className="font-semibold text-ink">{i.candidateLabel ?? "—"}</span>
+                {i.jobTitle ? <span className="text-steel">· {i.jobTitle}</span> : null}
+                <span className="ml-auto text-xs text-steel">{t("sentAgo", { time: relativeTime(i.createdAt) })}</span>
+              </li>
+            ))}
+          </ul>
+        </details>
+      ) : null}
+    </section>
+  );
+}

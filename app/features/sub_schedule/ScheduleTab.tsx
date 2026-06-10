@@ -5,6 +5,7 @@ import { AnimatePresence, motion, type TargetAndTransition } from "framer-motion
 import { Calendar, Check, ClipboardList, FileText, Phone, UserRound, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { ScheduleCalendar } from "./ScheduleCalendar";
+import { InviteLifecyclePanel } from "./InviteLifecyclePanel";
 import { InterviewPrepModal } from "./InterviewPrepModal";
 import { InterviewTranscriptModal } from "./InterviewTranscriptModal";
 import { DEFAULT_SLOT, styleFor, type SchedEntry } from "./ScheduleTypes";
@@ -193,6 +194,10 @@ export function ScheduleTab() {
         <h2 className="mt-1 font-serif text-display text-ink">{t("title")}</h2>
         <p className="mt-1 max-w-2xl text-body text-steel">{t("intro")}</p>
       </header>
+
+      {/* W6-3 — confirmed bookings, stalled invites and confirm/advance drift:
+          the lifecycle the store tracked but no surface ever showed. */}
+      <InviteLifecyclePanel />
 
       {error ? (
         <p role="alert" className="rounded-md bg-red-50 p-3 text-base text-red-700">

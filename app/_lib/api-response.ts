@@ -64,6 +64,8 @@ export const STORE_ERRORS = {
   // Scheduling & offer public token routes (converted alongside, same class).
   SCHEDULE_INVITE_FAILED: "Could not create the scheduling link. Please try again.",
   SCHEDULE_CONFIRM_FAILED: "Could not confirm that slot. Please try again.",
+  // Recruiter invite-lifecycle read (W6-3).
+  SCHEDULE_LOOKUP_FAILED: "Could not load the scheduling overview. Please try again.",
   OFFER_RESPOND_FAILED: "Could not record your response. Please try again.",
 } as const;
 
