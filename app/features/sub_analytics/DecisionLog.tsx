@@ -6,6 +6,7 @@ import { useReducedMotion } from "@/app/_lib/useReducedMotion";
 import { useInfiniteScroll, type InfinitePage } from "@/app/_lib/useInfiniteScroll";
 import { formatRelativeTime } from "@/app/_lib/format";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
+import { DECISION_META } from "@/app/_lib/decision-attribution";
 
 type Decision = {
   id: number;
@@ -28,29 +29,11 @@ type DecisionPage = {
 
 const PAGE_SIZE = 20;
 
-// Decode raw event kinds into whether the system decided it (auto) or a human did,
-// plus a tone. The readable label comes from the `analytics.log.kinds.<kind>`
-// catalog, resolved at the render site (this map is module-level, no hook).
-const DECISION_META: Record<string, { auto: boolean; tone: string }> = {
-  advanced: { auto: true, tone: "text-moss" },
-  screening_hold: { auto: true, tone: "text-ink" },
-  interview_scorecard: { auto: true, tone: "text-steel" },
-  interview_prep_generated: { auto: true, tone: "text-steel" },
-  offer_drafted: { auto: true, tone: "text-steel" },
-  rematched: { auto: true, tone: "text-steel" },
-  rematched_from: { auto: true, tone: "text-steel" },
-  outreach_sent: { auto: true, tone: "text-steel" },
-  rejection_sent: { auto: true, tone: "text-coral" },
-  rejected: { auto: false, tone: "text-coral" },
-  applied: { auto: false, tone: "text-steel" },
-  re_applied: { auto: false, tone: "text-amber-600" },
-  scheduled: { auto: false, tone: "text-steel" },
-  interview_scheduled: { auto: false, tone: "text-moss" },
-  offer_sent: { auto: false, tone: "text-steel" },
-  offer_accepted: { auto: false, tone: "text-moss" },
-  offer_declined: { auto: false, tone: "text-coral" },
-  onboarding_started: { auto: false, tone: "text-moss" },
-};
+// The auto/human decode + tone per event kind now lives in the shared
+// decision-attribution module (ANA3) — the analytics automation rollup folds the
+// SAME map server-side, so the per-row badge and the aggregate can never drift.
+// The readable label still comes from the `analytics.log.kinds.<kind>` catalog,
+// resolved at the render site.
 
 // Attribution is three-state on purpose. In an auditable log, defaulting an
 // unrecognized kind to AUTO would misattribute accountability to the machine —

@@ -1604,8 +1604,34 @@
         "offer_sent": "Offer sent",
         "offer_accepted": "Offer accepted",
         "offer_declined": "Offer declined",
-        "onboarding_started": "Onboarding started"
+        "onboarding_started": "Onboarding started",
+        "auto_rejected": "Auto-rejected (policy)",
+        "scored": "Match score computed",
+        "acknowledgement_sent": "Application acknowledgement sent",
+        "interview_invite_sent": "Interview invite sent",
+        "interview_reminder_sent": "Interview reminder sent",
+        "comm_resent": "Message resent",
+        "onboarding_failed": "Onboarding dispatch failed",
+        "rejection_comms_failed": "Rejection email failed",
+        "moved": "Stage set manually",
+        "matched": "Matched to role",
+        "added": "Added to pipeline",
+        "intake_degraded": "Intake degraded",
+        "intake_resolved": "Intake captured manually",
+        "fairness_gate_unknown_archetype": "Fairness gate: unknown archetype",
+        "observed_minted": "Observer link minted"
       }
+    },
+    "automation": {
+      "title": "Automation impact",
+      "empty": "No recorded activity in this period yet.",
+      "headline": "{pct}% automated",
+      "split": "{auto} actions by automation · {human} by humans",
+      "autoAdvanced": "Auto-advances",
+      "autoRejected": "Auto-rejections",
+      "holds": "Holds raised → resolved",
+      "holdsValue": "{raised} → {resolved}",
+      "comms": "Comms delivered"
     }
   },
   "about": {

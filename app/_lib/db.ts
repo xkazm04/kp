@@ -13,6 +13,7 @@ import { randomId, randomToken } from "./random-id";
 import { chunk, SQL_IN_CHUNK } from "./entries-param";
 import { pickBottleneck, type Bottleneck } from "./analytics-bottleneck";
 import { MOMENTUM_EVENT_KINDS, MOMENTUM_WEEKS, weeklyMomentum, type MomentumWeek } from "./analytics-momentum";
+import { summarizeAutomationImpact, type AutomationImpact } from "./decision-attribution";
 import { coerceGithubEvidenceSummary, type GithubEvidenceSummary } from "./github-summary";
 import { recordPipelineOutcome } from "./dev-outcomes";
 import { recordAudit } from "./dev-control";
@@ -1757,6 +1758,9 @@ export type PipelineAnalytics = {
   // ANA2 — weekly inflow/outcome trend from pipeline_events (see
   // analytics-momentum.ts for the series mapping and bucket semantics).
   momentum: MomentumWeek[];
+  // ANA3 — automation-vs-human rollup over the same window, folded through the
+  // shared decision-attribution map the DecisionLog badges use.
+  automation: AutomationImpact;
 };
 
 // ANA2 — `windowDays` scopes the snapshot metrics to the COHORT of entries
@@ -1909,6 +1913,39 @@ export function pipelineAnalytics(windowDays?: number | null): PipelineAnalytics
     { weeks: momentumWeeks }
   );
 
+  // Automation impact (ANA3): one GROUP BY kind over the window (the fold
+  // through the shared attribution map happens in pure, tested code), plus a
+  // per-entry holds query — an entry counts RESOLVED when some decision event
+  // (advance / reject / auto-reject) landed AFTER its first in-window hold.
+  const kindCountRows = (
+    cutoffIso
+      ? db.prepare(`SELECT kind, COUNT(*) AS c FROM pipeline_events WHERE created_at >= ? GROUP BY kind`).all(cutoffIso)
+      : db.prepare(`SELECT kind, COUNT(*) AS c FROM pipeline_events GROUP BY kind`).all()
+  ) as { kind: string; c: number }[];
+  const kindCounts = Object.fromEntries(kindCountRows.map((r) => [r.kind, r.c]));
+  const holdRow = db
+    .prepare(
+      `SELECT COUNT(*) AS raised,
+              SUM(EXISTS (
+                SELECT 1 FROM pipeline_events e2
+                 WHERE e2.entry_id = h.entry_id
+                   AND e2.kind IN ('advanced', 'rejected', 'auto_rejected')
+                   AND e2.created_at > h.first_hold
+              )) AS resolved
+         FROM (
+           SELECT entry_id, MIN(created_at) AS first_hold
+             FROM pipeline_events
+            WHERE kind = 'screening_hold' AND entry_id IS NOT NULL
+              ${cutoffIso ? "AND created_at >= ?" : ""}
+            GROUP BY entry_id
+         ) h`
+    )
+    .get(...(cutoffIso ? [cutoffIso] : [])) as { raised: number; resolved: number | null };
+  const automation = summarizeAutomationImpact(kindCounts, {
+    raised: holdRow.raised,
+    resolved: holdRow.resolved ?? 0,
+  });
+
   return {
     total,
     active,
@@ -1924,6 +1961,7 @@ export function pipelineAnalytics(windowDays?: number | null): PipelineAnalytics
     byArchetype,
     windowDays: windowDays ?? null,
     momentum,
+    automation,
   };
 }
 

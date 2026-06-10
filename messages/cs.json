@@ -1604,8 +1604,34 @@
         "offer_sent": "Nabídka odeslána",
         "offer_accepted": "Nabídka přijata",
         "offer_declined": "Nabídka odmítnuta",
-        "onboarding_started": "Onboarding zahájen"
+        "onboarding_started": "Onboarding zahájen",
+        "auto_rejected": "Automaticky zamítnuto (pravidla)",
+        "scored": "Skóre shody vypočteno",
+        "acknowledgement_sent": "Potvrzení přihlášky odesláno",
+        "interview_invite_sent": "Pozvánka na pohovor odeslána",
+        "interview_reminder_sent": "Připomínka pohovoru odeslána",
+        "comm_resent": "Zpráva odeslána znovu",
+        "onboarding_failed": "Odeslání onboardingu selhalo",
+        "rejection_comms_failed": "E-mail o zamítnutí selhal",
+        "moved": "Fáze nastavena ručně",
+        "matched": "Spárováno s pozicí",
+        "added": "Přidáno do pipeline",
+        "intake_degraded": "Neúplné zadání",
+        "intake_resolved": "Zadání doplněno ručně",
+        "fairness_gate_unknown_archetype": "Fairness pojistka: neznámý archetyp",
+        "observed_minted": "Odkaz pro pozorovatele vytvořen"
       }
+    },
+    "automation": {
+      "title": "Dopad automatizace",
+      "empty": "V tomto období zatím žádná zaznamenaná aktivita.",
+      "headline": "{pct} % automatizováno",
+      "split": "{auto} akcí automatizací · {human} lidmi",
+      "autoAdvanced": "Automatické postupy",
+      "autoRejected": "Automatická zamítnutí",
+      "holds": "Pozdržení vyvolaná → vyřešená",
+      "holdsValue": "{raised} → {resolved}",
+      "comms": "Doručená komunikace"
     }
   },
   "about": {

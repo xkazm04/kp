@@ -7,6 +7,7 @@ import { useFormatter, useTranslations } from "next-intl";
 import { useJsonFetch } from "@/app/_lib/useJsonFetch";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import type { MomentumWeek } from "@/app/_lib/analytics-momentum";
+import type { AutomationImpact } from "@/app/_lib/decision-attribution";
 import { buildUrl, clearedTabScopedParams } from "@/app/features/tabs";
 import { DecisionLog } from "./DecisionLog";
 
@@ -27,6 +28,7 @@ type Analytics = {
   byArchetype: { archetype: string; total: number; hired: number; advanceRatePct: number }[];
   windowDays: number | null;
   momentum: MomentumWeek[];
+  automation: AutomationImpact;
 };
 
 // ANA2 — the selectable windows. null = all time (the server default).
@@ -184,25 +186,28 @@ export function AnalyticsTab() {
           ) : null}
         </div>
 
-        <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
-          <h3 className="font-serif text-h2 text-ink">{t("byArchetype")}</h3>
-          <ul className="mt-3 space-y-3">
-            {data.byArchetype.map((a) => (
-              <li key={a.archetype}>
-                <div className="flex items-baseline justify-between text-base">
-                  <span className="font-medium text-ink">{enumLabel("archetype", a.archetype)}</span>
-                  <span className="text-steel">{t("totalHired", { total: a.total, hired: a.hired })}</span>
-                </div>
-                <div className="mt-1 h-2 overflow-hidden rounded-full bg-paper">
-                  <div className="h-full rounded-full bg-steel/40" style={{ width: `${a.advanceRatePct}%` }} />
-                </div>
-                <p className="mt-0.5 text-sm text-steel">{t("advancedPct", { pct: a.advanceRatePct })}</p>
-              </li>
-            ))}
-            {data.byArchetype.length === 0 ? (
-              <li className="text-base text-steel">{t("noArchetypeData")}</li>
-            ) : null}
-          </ul>
+        <div className="space-y-6">
+          <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
+            <h3 className="font-serif text-h2 text-ink">{t("byArchetype")}</h3>
+            <ul className="mt-3 space-y-3">
+              {data.byArchetype.map((a) => (
+                <li key={a.archetype}>
+                  <div className="flex items-baseline justify-between text-base">
+                    <span className="font-medium text-ink">{enumLabel("archetype", a.archetype)}</span>
+                    <span className="text-steel">{t("totalHired", { total: a.total, hired: a.hired })}</span>
+                  </div>
+                  <div className="mt-1 h-2 overflow-hidden rounded-full bg-paper">
+                    <div className="h-full rounded-full bg-steel/40" style={{ width: `${a.advanceRatePct}%` }} />
+                  </div>
+                  <p className="mt-0.5 text-sm text-steel">{t("advancedPct", { pct: a.advanceRatePct })}</p>
+                </li>
+              ))}
+              {data.byArchetype.length === 0 ? (
+                <li className="text-base text-steel">{t("noArchetypeData")}</li>
+              ) : null}
+            </ul>
+          </div>
+          <AutomationPanel impact={data.automation} />
         </div>
       </div>
 
@@ -260,6 +265,51 @@ export function AnalyticsTab() {
 
       <DecisionLog />
     </section>
+  );
+}
+
+// ANA3 — "how much is the automation actually doing": the auto/human split plus
+// the rollup rows, all folded through the SAME decision-attribution map the
+// DecisionLog badges use, over the page's selected window.
+function AutomationPanel({ impact }: { impact: AutomationImpact }) {
+  const t = useTranslations("analytics.automation");
+  const decided = impact.autoCount + impact.humanCount;
+  const pct = decided > 0 ? Math.round((impact.autoCount / decided) * 100) : null;
+  return (
+    <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
+      <h3 className="font-serif text-h2 text-ink">{t("title")}</h3>
+      {pct == null ? (
+        <p className="mt-3 text-base text-steel">{t("empty")}</p>
+      ) : (
+        <>
+          <p className="mt-2 font-serif text-display leading-none text-ink">{t("headline", { pct })}</p>
+          <p className="mt-1 text-sm text-steel">{t("split", { auto: impact.autoCount, human: impact.humanCount })}</p>
+          <div className="mt-2 flex h-2 overflow-hidden rounded-full bg-paper" aria-hidden>
+            <div className="h-full rounded-full bg-moss/60" style={{ width: `${pct}%` }} />
+          </div>
+          <ul className="mt-4 space-y-1.5 text-base">
+            <ImpactRow label={t("autoAdvanced")} value={impact.autoAdvanced} />
+            <ImpactRow label={t("autoRejected")} value={impact.autoRejected} />
+            <li className="flex items-baseline justify-between gap-2">
+              <span className="text-steel">{t("holds")}</span>
+              <span className="font-medium text-ink">
+                {t("holdsValue", { raised: impact.holdsRaised, resolved: impact.holdsResolved })}
+              </span>
+            </li>
+            <ImpactRow label={t("comms")} value={impact.commsDelivered} />
+          </ul>
+        </>
+      )}
+    </div>
+  );
+}
+
+function ImpactRow({ label, value }: { label: string; value: number }) {
+  return (
+    <li className="flex items-baseline justify-between gap-2">
+      <span className="text-steel">{label}</span>
+      <span className="font-medium text-ink">{value}</span>
+    </li>
   );
 }
 
