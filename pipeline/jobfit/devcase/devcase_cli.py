@@ -178,6 +178,10 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--candidates-json", type=Path)
     parser.add_argument("--top-n", type=int, default=8)
     parser.add_argument("--floor", type=int, default=45)
+    # W5-4 — a human reviewer's revision note from the approval gate; honored by
+    # design-artifacts so a flawed design can be regenerated WITH the feedback
+    # instead of re-running the whole lifecycle from intake.
+    parser.add_argument("--feedback", type=str, default=None)
     parser.add_argument("--no-llm", action="store_true")
     args = parser.parse_args(argv)
 
@@ -348,7 +352,7 @@ def main(argv: list[str] | None = None) -> int:
                 raise ValueError("design-artifacts requires --analysis-json")
             analysis = NeedAnalysis.model_validate(json.loads(args.analysis_json.read_text(encoding="utf-8")))
             role, role_src = _design.design_role(need, analysis, provider=provider)
-            case, case_src = _design.design_case(need, analysis, role, provider=provider)
+            case, case_src = _design.design_case(need, analysis, role, provider=provider, feedback=args.feedback)
             _emit(
                 {"role": role, "case": case},
                 {"role": role_src, "case": case_src},

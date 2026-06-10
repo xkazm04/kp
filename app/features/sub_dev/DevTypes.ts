@@ -97,6 +97,13 @@ export type Lifecycle = {
   caseId: string | null;
   postingId: string | null;
   createdAt: string;
+  updatedAt?: string | null;
+  // W5-4 — the designed artifacts the GET has always served but this type
+  // dropped, leaving the human gate blind: the reality-reflection that flagged
+  // the design, and the role/case under review.
+  analysis?: { statedVsRealGaps?: string[]; riskAreas?: string[]; confidence?: number } | null;
+  role?: RoleSpec | null;
+  case?: CaseScenario | null;
 };
 
 export type OutboxItem = { id: string; recipient: string | null; subject: string | null; kind: string | null; channel: string | null; status: OutboxStatus; createdAt: string };

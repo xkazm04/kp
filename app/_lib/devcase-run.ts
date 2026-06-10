@@ -92,7 +92,14 @@ export type DesignArtifactsResult = {
 };
 
 // D3 core: design a RoleSpec + a CaseScenario (covert tooling-probes) from the need + analysis.
-export async function runDesignArtifacts(need: DevNeed, analysis: Record<string, unknown>, signal?: AbortSignal): Promise<DesignArtifactsResult> {
+// `feedback` (W5-4) is the human reviewer's revision note from the approval gate — the
+// redesign honors it instead of forcing a full lifecycle re-run from intake.
+export async function runDesignArtifacts(
+  need: DevNeed,
+  analysis: Record<string, unknown>,
+  signal?: AbortSignal,
+  feedback?: string
+): Promise<DesignArtifactsResult> {
   const workdir = await createWorkdir();
   try {
     const needPath = path.join(workdir, "need.json");
@@ -108,6 +115,7 @@ export async function runDesignArtifacts(need: DevNeed, analysis: Record<string,
         needPath,
         "--analysis-json",
         analysisPath,
+        ...(feedback && feedback.trim() ? ["--feedback", feedback.trim()] : []),
       ],
       { signal },
     );

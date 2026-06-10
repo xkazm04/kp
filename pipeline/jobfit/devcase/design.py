@@ -184,11 +184,14 @@ def design_case(
     *,
     provider: Any | None = None,
     focus_probes: list[dict] | None = None,
+    feedback: str | None = None,
 ) -> tuple[dict, str]:
     """Design the work-sample. ``focus_probes`` (from
     :func:`soft_signals.panel_to_probe_briefs`) are CV-hypotheses to confirm —
     each becomes a TARGETED covert probe so the exercise verifies a specific
-    claim (e.g. an over-claimed skill), closing the CV -> probe loop (Rec B)."""
+    claim (e.g. an over-claimed skill), closing the CV -> probe loop (Rec B).
+    ``feedback`` (W5-4) is a human reviewer's revision note from the approval
+    gate — a redesign honors it instead of forcing a full re-run from intake."""
     real = analysis.real_stack or need.stack
     seniority = role.get("seniority") or need.seniority_target
     timebox = _timebox(seniority)
@@ -250,6 +253,13 @@ def design_case(
             )
             + "\n"
             if focus_probes
+            else ""
+        )
+        + (
+            "REVIEWER FEEDBACK — a human reviewed a previous design of this case at the approval gate and "
+            "asked for these changes; honor them in this redesign:\n"
+            f"{feedback.strip()}\n"
+            if feedback and feedback.strip()
             else ""
         )
         + 'Return JSON: { "title": str, "brief": str, '
