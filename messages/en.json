@@ -1035,6 +1035,8 @@
       "scoreCandidates": "Score saved candidates against this role",
       "title": "Candidates · fair-comparison lens",
       "notEligible": "{count} not eligible (KO-filtered)",
+      "notEligibleWhy": "{count, plural, one {Not eligible (#) — see why} other {Not eligible (#) — see why}}",
+      "nearMiss": "near miss",
       "earlyCareerNote": "Early-career candidates are shown as a separate pipeline and scored on potential — never ranked on one number against experienced candidates.",
       "experienced": "Experienced",
       "earlyCareerPipeline": "Early-career pipeline",

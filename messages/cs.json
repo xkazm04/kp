@@ -1035,6 +1035,8 @@
       "scoreCandidates": "Ohodnotit uložené kandidáty pro tuto roli",
       "title": "Kandidáti · optika spravedlivého porovnání",
       "notEligible": "{count} nevhodných (vyřazeno KO filtrem)",
+      "notEligibleWhy": "{count, plural, one {Nevhodný (#) — proč} few {Nevhodní (#) — proč} other {Nevhodní (#) — proč}}",
+      "nearMiss": "téměř prošel",
       "earlyCareerNote": "Junioři jsou zobrazeni jako samostatný pipeline a hodnoceni podle potenciálu — nikdy nejsou řazeni jedním číslem proti zkušeným kandidátům.",
       "experienced": "Zkušení",
       "earlyCareerPipeline": "Pipeline juniorů",
