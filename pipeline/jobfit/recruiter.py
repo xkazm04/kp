@@ -56,6 +56,12 @@ def rank_candidates_for_job(
                 "archetype": candidate.archetype,
                 "seniority": candidate.seniority,
                 "potentialScore": candidate.potential_score,
+                # SCOR3 — the WHY behind potentialScore (already on the
+                # MatchCandidate; no recompute). Lets the ranking explain an
+                # archetype-fair score instead of inviting overrides.
+                "learningSignals": candidate.learning_signals,
+                "transferableSkills": candidate.transferable_skills,
+                "domainDistance": candidate.domain_distance,
                 "koPassed": passed,
                 # KoReason objects carry a key + detail; the recruiter table shows
                 # the plain detail string (JobsTypes.CandRow.koReasons: string[]).

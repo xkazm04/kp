@@ -73,6 +73,10 @@ type RecruiterRow = {
   archetype: string;
   seniority: string;
   potentialScore?: number | null;
+  // SCOR3 — the why behind potentialScore (recruiter.py rows).
+  learningSignals?: string[] | null;
+  transferableSkills?: string[] | null;
+  domainDistance?: string | null;
   koPassed: boolean;
   koReasons: string[];
   assumptions: string[];
@@ -100,6 +104,11 @@ type PerCandidate = {
   matchedSkillStrength?: Record<string, number>;
   missingSkills?: string[];
   potentialScore?: number | null;
+  // SCOR3 — passthrough of the potential explanation, so the modal's pill can
+  // explain the score. Absent on evals persisted before the fields existed.
+  learningSignals?: string[] | null;
+  transferableSkills?: string[] | null;
+  domainDistance?: string | null;
   koPassed?: boolean;
   assumptions?: string[];
   salaryExpectation?: SalaryExpectation | null;
@@ -353,6 +362,9 @@ export async function runGroupEval(params: Record<string, unknown>, signal?: Abo
       matchedSkillStrength: result?.matchedSkillStrength,
       missingSkills: result?.missingSkills,
       potentialScore: row?.potentialScore ?? null,
+      learningSignals: row?.learningSignals ?? null,
+      transferableSkills: row?.transferableSkills ?? null,
+      domainDistance: row?.domainDistance ?? null,
       koPassed: row?.koPassed,
       assumptions: row?.assumptions ?? [],
       salaryExpectation: c.candidateId ? salaryExpectationFrom(resolved.get(c.candidateId)?.analysis ?? null) : null,

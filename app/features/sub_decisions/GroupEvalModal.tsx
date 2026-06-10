@@ -16,6 +16,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { Modal } from "@/app/_components/Modal";
+import { PotentialBadge } from "@/app/_components/PotentialBadge";
 import { ScoreBadge } from "@/app/_components/ScoreBadge";
 import { ConfidenceBandBadge, confidenceBandTitle, FitTierBadge } from "@/app/_components/Badge";
 import { ScoreBreakdown } from "@/app/features/sub_match/MatchShared";
@@ -69,6 +70,11 @@ export type EvalCandidate = {
   gaps: string[];
   interviewProbes?: string[];
   potentialScore?: number | null;
+  // SCOR3 — the why behind potentialScore. Absent on evals persisted before
+  // the fields existed (the pill then renders plain, unexpandable).
+  learningSignals?: string[] | null;
+  transferableSkills?: string[] | null;
+  domainDistance?: string | null;
   koPassed?: boolean;
   assumptions?: string[];
   // The candidate's own salary expectation (from their CV analysis). Absent for
@@ -515,15 +521,25 @@ function ConfidenceCell({ c }: { c: EvalCandidate }) {
 }
 
 function ProfileCell({ c }: { c: EvalCandidate }) {
-  const t = useTranslations("decisions.groupEval");
   const enumLabel = useEnumLabel();
   return (
     <div className="flex flex-wrap gap-1">
       <ArchetypeTag archetype={c.archetype} />
       {c.seniority ? <Pill>{enumLabel("seniority", c.seniority)}</Pill> : null}
-      {c.potentialScore != null ? <Pill>{t("potential", { n: Math.round(c.potentialScore * 100) })}</Pill> : null}
+      {c.potentialScore != null ? <PotentialBadge potential={potentialOf(c)} /> : null}
     </div>
   );
+}
+
+// SCOR3 — one place to assemble the explainable-potential payload off an eval
+// candidate, so the two pill sites can't drift.
+function potentialOf(c: EvalCandidate) {
+  return {
+    score: c.potentialScore ?? 0,
+    learningSignals: c.learningSignals,
+    transferableSkills: c.transferableSkills,
+    domainDistance: c.domainDistance,
+  };
 }
 
 function CoverageCell({ c, mustRows }: { c: EvalCandidate; mustRows: string[] }) {
@@ -869,7 +885,7 @@ function CandidateDetail({
           <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
             <ArchetypeTag archetype={c.archetype} />
             {c.seniority ? <Pill>{enumLabel("seniority", c.seniority)}</Pill> : null}
-            {c.potentialScore != null ? <Pill>{t("potential", { n: Math.round(c.potentialScore * 100) })}</Pill> : null}
+            {c.potentialScore != null ? <PotentialBadge potential={potentialOf(c)} /> : null}
             {c.koPassed === false ? <Pill tone="coral">{t("koFiltered")}</Pill> : null}
           </div>
         </div>

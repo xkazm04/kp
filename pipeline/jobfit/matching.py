@@ -737,6 +737,12 @@ def match(
             "archetype": candidate.archetype,
             "skills": len(candidate.skills),
             "potentialScore": candidate.potential_score,
+            # SCOR3 — the WHY behind potentialScore. These already feed the score
+            # math and the LLM reasoning prompt; returning them lets the UI
+            # explain the number instead of showing a bare percentage.
+            "learningSignals": candidate.learning_signals,
+            "transferableSkills": candidate.transferable_skills,
+            "domainDistance": candidate.domain_distance,
             "assumptions": candidate_assumptions(candidate),
             # MAT1: the weights actually used + the bounds the UI must respect.
             "weights": resolved,

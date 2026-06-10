@@ -1419,6 +1419,17 @@
       }
     }
   },
+  "potential": {
+    "badge": "potential {pct}",
+    "explainTitle": "Why this potential score",
+    "transferable": "Transferable meta-skills (professional grade)",
+    "bridge": "Switch bridge:",
+    "bridgeValues": {
+      "adjacent": "adjacent field — shorter bridge",
+      "moderate": "moderate distance",
+      "far": "far field — longer ramp"
+    }
+  },
   "analytics": {
     "loadFailed": "Couldn't load analytics.",
     "retry": "Retry",

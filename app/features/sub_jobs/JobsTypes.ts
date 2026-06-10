@@ -92,6 +92,11 @@ export type CandRow = {
   archetype: string;
   seniority: string;
   potentialScore?: number | null;
+  // SCOR3 — the why behind potentialScore (recruiter.py rows): learning
+  // signals, professional-grade transferable credits, switch-bridge grade.
+  learningSignals?: string[] | null;
+  transferableSkills?: string[] | null;
+  domainDistance?: string | null;
   koPassed: boolean;
   koReasons: string[];
   assumptions: string[];

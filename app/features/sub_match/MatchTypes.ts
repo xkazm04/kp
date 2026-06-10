@@ -93,6 +93,10 @@ export type MatchResponse = {
     archetype?: string;
     skills?: number;
     potentialScore?: number | null;
+    // SCOR3 — the why behind potentialScore (matching.py candidate block).
+    learningSignals?: string[] | null;
+    transferableSkills?: string[] | null;
+    domainDistance?: string | null;
     assumptions?: string[];
     // MAT1: the weight vector actually used + the archetype's allowed [min,max]
     // per dimension, so the UI seeds bounded sliders at the values in effect.

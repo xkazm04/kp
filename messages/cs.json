@@ -1419,6 +1419,17 @@
       }
     }
   },
+  "potential": {
+    "badge": "potenciál {pct}",
+    "explainTitle": "Z čeho potenciál vychází",
+    "transferable": "Přenositelné meta-dovednosti (profesní úroveň)",
+    "bridge": "Most mezi obory:",
+    "bridgeValues": {
+      "adjacent": "příbuzný obor — kratší most",
+      "moderate": "střední vzdálenost",
+      "far": "vzdálený obor — delší rozjezd"
+    }
+  },
   "analytics": {
     "loadFailed": "Analytiku se nepodařilo načíst.",
     "retry": "Zkusit znovu",

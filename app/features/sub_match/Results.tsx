@@ -9,6 +9,7 @@ import { MatchCard } from "./MatchCard";
 import { WeightsPanel } from "./WeightsPanel";
 import { JobCompare } from "./JobCompare";
 import { Download, Scale } from "lucide-react";
+import { PotentialBadge } from "@/app/_components/PotentialBadge";
 import { downloadFile, toCsv } from "@/app/_lib/export-utils";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import type { WeightVector } from "./MatchTypes";
@@ -152,6 +153,16 @@ export function Results({
         <Chip label={t("chipEvaluated")} value={meta.evaluated ?? 0} />
         <Chip label={t("chipKoFiltered")} value={meta.koFiltered ?? 0} tone="amber" />
         <Chip label={t("chipRanked")} value={meta.returned ?? matches.length} tone="green" />
+        {early && candidate.potentialScore != null ? (
+          <PotentialBadge
+            potential={{
+              score: candidate.potentialScore,
+              learningSignals: candidate.learningSignals,
+              transferableSkills: candidate.transferableSkills,
+              domainDistance: candidate.domainDistance,
+            }}
+          />
+        ) : null}
         {matches.length > 0 ? (
           <button
             type="button"

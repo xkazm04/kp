@@ -9,6 +9,7 @@ import { EmptyState, SkippedCandidatesNote } from "./JobsShared";
 import { useAddToPipeline } from "@/app/_lib/useAddToPipeline";
 import { useReachOut } from "@/app/_lib/useReachOut";
 import { ConfidenceBandBadge, confidenceBandTitle, FitTierBadge } from "@/app/_components/Badge";
+import { PotentialBadge } from "@/app/_components/PotentialBadge";
 import { ScoreBadge } from "@/app/_components/ScoreBadge";
 
 export function RecruiterCandidates({
@@ -245,7 +246,14 @@ function CandidateCard({
         <FitTierBadge tier={res.fitTier} score={res.total} />
         <span className="ml-auto flex items-center gap-1.5">
           {early && c.potentialScore != null ? (
-            <span className="text-sm text-steel">{t("potential", { score: Math.round(c.potentialScore * 100) })}</span>
+            <PotentialBadge
+              potential={{
+                score: c.potentialScore,
+                learningSignals: c.learningSignals,
+                transferableSkills: c.transferableSkills,
+                domainDistance: c.domainDistance,
+              }}
+            />
           ) : null}
           {reached ? (
             // Reaching out also filed them into the pipeline, so a reached candidate
