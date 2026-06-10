@@ -3,6 +3,7 @@ import { getTranslations } from "next-intl/server";
 import { getJob } from "@/app/_lib/db";
 import { getJobStatus, isJobOpenForApplications } from "@/app/_lib/job-ingest";
 import { buildApplyScript } from "@/app/_lib/apply";
+import { LanguageSwitcher } from "@/app/_components/LanguageSwitcher";
 import { ConversationalApply } from "./ConversationalApply";
 
 export const dynamic = "force-dynamic";
@@ -42,6 +43,12 @@ export default async function ApplyPage({ params }: { params: Promise<{ id: stri
     <main className="mx-auto max-w-xl px-4 py-12">
       {/* This server component is the single source of truth for the apply header
           (role title / company) AND the chat script passed to the client below. */}
+      {/* APP4 — the candidate is the one user who couldn't reach the recruiter
+          switcher; give the public apply page its own locale toggle (the cookie
+          action re-renders the prompts in the chosen language). */}
+      <div className="mb-4 flex justify-end">
+        <LanguageSwitcher />
+      </div>
       <p className="text-meta uppercase text-coral">{t("eyebrow")}</p>
       <h1 className="mt-1 font-serif text-display text-ink">{job.title}</h1>
       {job.company ? <p className="mt-1 text-body text-steel">{job.company}</p> : null}

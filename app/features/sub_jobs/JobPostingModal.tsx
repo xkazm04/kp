@@ -55,7 +55,12 @@ export function JobPostingModal({ job, onClose }: { job: Job; onClose: () => voi
     try {
       // Candidate-facing apply link — canonicalized through publicBaseUrl
       // (idea-e6c66bcd) so it carries the public host behind a proxy/localhost.
-      const url = publicBaseUrl(typeof window !== "undefined" ? window.location.origin : "") + `/apply/${job.id}`;
+      // APP4 — pin the link's language via the ?lang override the proxy honours,
+      // reusing the Posting-tab toggle: a recruiter posting to a Czech board
+      // shares a link that opens in Czech regardless of the candidate's browser.
+      const url =
+        publicBaseUrl(typeof window !== "undefined" ? window.location.origin : "") +
+        `/apply/${job.id}?lang=${postingLang}`;
       await navigator.clipboard.writeText(url);
       setApplyCopied(true);
       window.setTimeout(() => setApplyCopied(false), 1500);
