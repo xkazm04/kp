@@ -1,9 +1,12 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { GitBranch, Sparkles } from "lucide-react";
+import { GitBranch, Sparkles, UserSearch } from "lucide-react";
 import { useTasks, useTaskResult } from "@/app/features/tasks/TasksProvider";
+import { GithubAnalysisPanel } from "@/app/_components/GithubAnalysisPanel";
 import { assertScore, scoreTone, type ScoreTone } from "@/app/_lib/format";
+import { parseRepoRef } from "@/app/_lib/repo-snapshot";
+import { githubAnalysisSchema, type GithubAnalysis } from "@/app/_lib/schemas";
 import { EvalPanel } from "./EvalPanel";
 import type { EvalBundle, Submission } from "./DevTypes";
 
@@ -19,11 +22,69 @@ const CHIP_TONE: Record<ScoreTone, string> = {
   null: "bg-score-null text-white",
 };
 
-export function SubmissionRow({ submission, rank, isTop = false, onChanged }: { submission: Submission; rank: number | null; isTop?: boolean; onChanged: () => void }) {
+export function SubmissionRow({
+  submission,
+  rank,
+  isTop = false,
+  onChanged,
+  jdText,
+}: {
+  submission: Submission;
+  rank: number | null;
+  isTop?: boolean;
+  onChanged: () => void;
+  /** GH4 — role-spec text handed to the author's-GitHub assessment so its
+   *  job-fit signals read against the actual role being hired for. */
+  jdText?: string;
+}) {
   const { startTask } = useTasks();
   const [taskId, setTaskId] = useState<string | null>(null);
   const [promoted, setPromoted] = useState(false);
   const [promoting, setPromoting] = useState(false);
+  // GH4 — the submitter's broader public profile, one click from the repo in
+  // hand. parseRepoRef(repoRef).owner IS their username; the dev-case eval only
+  // ever reads the submission repo, so this joins the two halves (this-task
+  // performance + durable skill pattern) on the one surface holding both.
+  const [ghOpen, setGhOpen] = useState(false);
+  const [gh, setGh] = useState<{
+    status: "idle" | "loading" | "done" | "error";
+    analysis: GithubAnalysis | null;
+    error: string | null;
+  }>({ status: "idle", analysis: null, error: null });
+  const owner = submission.repoRef ? parseRepoRef(submission.repoRef)?.owner ?? null : null;
+
+  const assessAuthor = async () => {
+    if (!owner) return;
+    setGh({ status: "loading", analysis: null, error: null });
+    try {
+      const r = await fetch("/api/github-analysis", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ profile: owner, jobDescriptionText: jdText ?? "" }),
+      });
+      const payload = await r.json();
+      // The route returns 200 + {error} for soft failures (rate limits).
+      if (payload && typeof payload === "object" && typeof payload.error === "string") {
+        throw new Error(payload.error);
+      }
+      if (!r.ok) throw new Error("GitHub analysis failed.");
+      setGh({ status: "done", analysis: githubAnalysisSchema.parse(payload), error: null });
+    } catch (caught) {
+      setGh({
+        status: "error",
+        analysis: null,
+        error: caught instanceof Error ? caught.message : "GitHub analysis failed.",
+      });
+    }
+  };
+
+  const toggleAuthorGithub = () => {
+    const opening = !ghOpen;
+    setGhOpen(opening);
+    // Fetch on first open only — re-opens reuse the held result (and the
+    // route's TTL cache absorbs a genuine re-fetch after an error retry).
+    if (opening && gh.status === "idle") void assessAuthor();
+  };
   // Server truth OR the local just-clicked flag: an already-promoted submission — earlier
   // this session before a reload, or auto-promoted by the lifecycle pipeline — must not
   // re-expose the Promote button, since a second promote re-sends the invite from the outbox.
@@ -97,11 +158,27 @@ export function SubmissionRow({ submission, rank, isTop = false, onChanged }: { 
             {ts}<span className="opacity-70"> fit</span>
           </span>
         ) : null}
+        {owner ? (
+          <button
+            type="button"
+            onClick={toggleAuthorGithub}
+            aria-expanded={ghOpen}
+            title={`Assess @${owner}'s public GitHub profile against this role`}
+            className="focus-ring inline-flex h-6 shrink-0 items-center gap-1 rounded border border-stone-200 bg-white px-1.5 text-micro font-semibold text-steel hover:bg-paper hover:text-ink"
+          >
+            <UserSearch size={10} /> {ghOpen ? "Hide author" : "Author's GitHub"}
+          </button>
+        ) : null}
         <button type="button" onClick={evaluate} disabled={busy}
           className="focus-ring inline-flex h-6 shrink-0 items-center gap-1 rounded border border-stone-200 bg-white px-1.5 text-micro font-semibold text-coral hover:bg-coral/5 disabled:opacity-50">
           <Sparkles size={10} /> {busy ? "Evaluating…" : ev ? "Re-evaluate" : "Evaluate"}
         </button>
       </div>
+      {ghOpen ? (
+        <div className="mt-2">
+          <GithubAnalysisPanel status={gh.status} analysis={gh.analysis} error={gh.error} onRetry={assessAuthor} />
+        </div>
+      ) : null}
       {ev ? <EvalPanel ev={ev} onPromote={promote} promoted={isPromoted} promoting={promoting} /> : null}
     </li>
   );

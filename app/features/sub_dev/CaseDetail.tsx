@@ -36,6 +36,20 @@ export function CaseDetail({
 }) {
   const c = kase.case ?? {};
   const role = kase.role ?? null;
+  // GH4 — the role spec flattened to JD-ish text, so an author's-GitHub
+  // assessment launched from a submission reads against the role being hired
+  // for (jobFitSignals are JD-driven) instead of running JD-blind.
+  const roleJdText = role
+    ? [
+        role.title,
+        role.seniority,
+        ...(role.mustHaves ?? []),
+        ...(role.niceToHaves ?? []),
+        ...(role.responsibilities ?? []),
+      ]
+        .filter(Boolean)
+        .join("\n")
+    : "";
   const casePostings = postings.filter((p) => p.caseId === kase.id);
   const published = casePostings.length > 0;
   const hasScenario = Array.isArray(kase.scenario?.phases) && (kase.scenario?.phases?.length ?? 0) > 0;
@@ -161,7 +175,7 @@ export function CaseDetail({
                         const isTop = rank === 1;
                         return (
                           <Fragment key={s.id}>
-                            <SubmissionRow submission={s} rank={rank} isTop={isTop} onChanged={loadPostings} />
+                            <SubmissionRow submission={s} rank={rank} isTop={isTop} onChanged={loadPostings} jdText={roleJdText} />
                             {isTop && arr.length > 1 ? <li aria-hidden className="border-t border-dashed border-stone-200" /> : null}
                           </Fragment>
                         );
