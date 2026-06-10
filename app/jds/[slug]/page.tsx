@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Send } from "lucide-react";
+import { Send, UserPlus } from "lucide-react";
 import { ScoreBadge } from "@/app/_components/ScoreBadge";
 import { WorkspaceShell } from "@/app/features/WorkspaceNav";
-import { listAnalysesByJd, loadJd, type AnalysisSummary, type JdRow } from "@/app/_lib/db";
+import { getJob, listAnalysesByJd, loadJd, type AnalysisSummary, type JdRow } from "@/app/_lib/db";
+import { getJobStatus, isJobOpenForApplications } from "@/app/_lib/job-ingest";
 import { JdBody } from "./JdBody";
 
 export const dynamic = "force-dynamic";
@@ -42,6 +43,16 @@ export default async function JdDetailPage({
     analysesFailed = true;
   }
 
+  // W8-2 (JDL2) — the JD → apply bridge. The page is the public, shareable
+  // candidate-facing artifact, yet a candidate landing here had zero path to
+  // apply: the header offered only recruiter actions while the conversational
+  // apply flow already existed at /apply/jd-<slug> the moment the role was
+  // live. The CTA renders only when the linked job accepts applications (the
+  // same isJobOpenForApplications gate the apply surfaces enforce).
+  const jobId = `jd-${slug}`;
+  const linkedJob = getJob(jobId);
+  const applyOpen = linkedJob !== null && isJobOpenForApplications(getJobStatus(jobId));
+
   return (
     <WorkspaceShell active="library">
       <header className="flex flex-col gap-3 border-b border-stone-200 pb-5 lg:flex-row lg:items-end lg:justify-between">
@@ -56,6 +67,21 @@ export default async function JdDetailPage({
           </p>
         </div>
         <div className="flex flex-col items-stretch gap-2 sm:flex-row lg:items-end">
+          {applyOpen ? (
+            <Link
+              href={`/apply/${encodeURIComponent(jobId)}`}
+              className="focus-ring inline-flex h-10 items-center justify-center gap-2 rounded-md bg-coral px-4 text-sm font-semibold text-white hover:opacity-90"
+            >
+              <UserPlus size={15} /> Apply for this role
+            </Link>
+          ) : (
+            <span
+              className="inline-flex h-10 items-center justify-center rounded-md border border-dashed border-stone-300 px-3 text-sm text-steel"
+              title="Recruiter note: candidates can apply once the role is sourced into the Pipeline (Jobs tab → Source into Pipeline). Not shown as actionable to candidates until then."
+            >
+              Not accepting applications yet
+            </span>
+          )}
           <button
             type="button"
             disabled
