@@ -5,6 +5,7 @@ import Link from "next/link";
 import { AlertTriangle, Ban, Check, ChevronDown, ChevronRight, Clock, Loader2, RefreshCw, X } from "lucide-react";
 import { useTasks, type Task, type TaskStatus } from "./TasksProvider";
 import { SystemCard } from "./SystemCard";
+import { BackupCard } from "./BackupCard";
 import { useReducedMotion } from "@/app/_lib/useReducedMotion";
 import { useInfiniteScroll, type InfinitePage } from "@/app/_lib/useInfiniteScroll";
 import { formatRelativeTime } from "@/app/_lib/format";
@@ -233,8 +234,9 @@ export function TasksTab() {
         <TaskHistory key={`${kindFilter}|${statusFilter ?? ""}`} kind={kindFilter} status={statusFilter} text={text} />
       ) : null}
 
-      {/* DATA2: the System/ops panel — the tasks tab is the operator's home. */}
+      {/* DATA2 + DATA3: the operator panels — the tasks tab is their home. */}
       <SystemCard />
+      <BackupCard />
     </section>
   );
 }
