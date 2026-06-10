@@ -368,7 +368,7 @@ export function DevTab() {
         </div>
       ) : null}
 
-      {view === "outbox" ? <OutboxTable outbox={outbox} state={outboxState} /> : null}
+      {view === "outbox" ? <OutboxTable outbox={outbox} state={outboxState} onResent={loadOutbox} /> : null}
     </div>
   );
 }

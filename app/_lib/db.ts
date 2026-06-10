@@ -3079,10 +3079,8 @@ export function attachInterviewScorecard(id: string, scorecard: unknown): Interv
   return getInterviewSessionById(id);
 }
 
-export function listOutbox(limit = 50): OutboxEntry[] {
-  const db = ensureDb();
-  const rows = db.prepare(`SELECT * FROM dev_outbox ORDER BY created_at DESC LIMIT ?`).all(limit) as Array<Record<string, unknown>>;
-  return rows.map((r) => ({
+function rowToOutboxEntry(r: Record<string, unknown>): OutboxEntry {
+  return {
     id: r.id as string,
     recipient: (r.recipient as string) ?? null,
     subject: (r.subject as string) ?? null,
@@ -3094,7 +3092,48 @@ export function listOutbox(limit = 50): OutboxEntry[] {
     status: coerceOutboxStatus(r.status as string | null),
     ref: (r.ref as string) ?? null,
     createdAt: r.created_at as string,
-  }));
+  };
+}
+
+export function listOutbox(limit = 50): OutboxEntry[] {
+  const db = ensureDb();
+  const rows = db.prepare(`SELECT * FROM dev_outbox ORDER BY created_at DESC LIMIT ?`).all(limit) as Array<Record<string, unknown>>;
+  return rows.map(rowToOutboxEntry);
+}
+
+/** One outbox row by id — the resend route's read (W6-1). */
+export function getOutboxEntry(id: string): OutboxEntry | null {
+  const db = ensureDb();
+  const r = db.prepare(`SELECT * FROM dev_outbox WHERE id = ?`).get(id) as Record<string, unknown> | undefined;
+  return r ? rowToOutboxEntry(r) : null;
+}
+
+/** Filterable outbox read (W6-1/SIM1) — per-candidate ("what did this person
+ *  receive?"), per-status (dead-letter triage) and per-kind views for the Comms
+ *  Center and the drawer's Messages section. All filters optional. */
+export function listOutboxFiltered(opts: { ref?: string; status?: OutboxStatus; kind?: string; limit?: number }): OutboxEntry[] {
+  const db = ensureDb();
+  const where: string[] = [];
+  const vals: unknown[] = [];
+  if (opts.ref) {
+    where.push("ref = ?");
+    vals.push(opts.ref);
+  }
+  if (opts.status) {
+    where.push("status = ?");
+    vals.push(opts.status);
+  }
+  if (opts.kind) {
+    where.push("kind = ?");
+    vals.push(opts.kind);
+  }
+  vals.push(Math.min(Math.max(opts.limit ?? 100, 1), 500));
+  const rows = db
+    .prepare(
+      `SELECT * FROM dev_outbox ${where.length ? `WHERE ${where.join(" AND ")}` : ""} ORDER BY created_at DESC LIMIT ?`
+    )
+    .all(...vals) as Array<Record<string, unknown>>;
+  return rows.map(rowToOutboxEntry);
 }
 
 export function createPosting(input: {
