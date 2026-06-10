@@ -12,6 +12,7 @@ import { DB_PATH, ensureDbDir } from "./db-path";
 import { randomId, randomToken } from "./random-id";
 import { chunk, SQL_IN_CHUNK } from "./entries-param";
 import { pickBottleneck, type Bottleneck } from "./analytics-bottleneck";
+import { MOMENTUM_EVENT_KINDS, MOMENTUM_WEEKS, weeklyMomentum, type MomentumWeek } from "./analytics-momentum";
 import { coerceGithubEvidenceSummary, type GithubEvidenceSummary } from "./github-summary";
 import { recordPipelineOutcome } from "./dev-outcomes";
 import { recordAudit } from "./dev-control";
@@ -1750,15 +1751,34 @@ export type PipelineAnalytics = {
   // Distinct job count before the byJob cap, so the UI can show "top N of M".
   byJobTotal: number;
   byArchetype: { archetype: string; total: number; hired: number; advanceRatePct: number }[];
+  // ANA2 — the window actually applied (null = all time), echoed so the client
+  // renders the selector state from the server's answer, not its own request.
+  windowDays: number | null;
+  // ANA2 — weekly inflow/outcome trend from pipeline_events (see
+  // analytics-momentum.ts for the series mapping and bucket semantics).
+  momentum: MomentumWeek[];
 };
 
-export function pipelineAnalytics(): PipelineAnalytics {
+// ANA2 — `windowDays` scopes the snapshot metrics to the COHORT of entries
+// created in the last N days (entries with no created_at drop out of a windowed
+// view); omitted/null keeps the historical all-time behavior. Cohort-by-entry —
+// not event-replay — so every figure keeps its existing meaning, just over the
+// recent population.
+export function pipelineAnalytics(windowDays?: number | null): PipelineAnalytics {
   const db = ensureDb();
-  const rows = db
-    .prepare(
-      `SELECT job_title, archetype, stage, status, created_at, stage_changed_at FROM pipeline_entries`
-    )
-    .all() as {
+  const cutoffIso = windowDays ? new Date(Date.now() - windowDays * 86_400_000).toISOString() : null;
+  const rows = (
+    cutoffIso
+      ? db
+          .prepare(
+            `SELECT job_title, archetype, stage, status, created_at, stage_changed_at
+             FROM pipeline_entries WHERE created_at >= ?`
+          )
+          .all(cutoffIso)
+      : db
+          .prepare(`SELECT job_title, archetype, stage, status, created_at, stage_changed_at FROM pipeline_entries`)
+          .all()
+  ) as {
     job_title: string | null;
     archetype: string | null;
     stage: string;
@@ -1871,7 +1891,40 @@ export function pipelineAnalytics(): PipelineAnalytics {
     }))
     .sort((a, b) => b.total - a.total);
 
-  return { total, active, hired, rejected, declined, funnel, avgTimeToHireDays, avgAgeDays, bottleneck, byJob, byJobTotal, byArchetype };
+  // Momentum trend (ANA2): the windowed view shows ceil(window/7) weekly buckets
+  // so the bars span exactly the period the rest of the page describes; all-time
+  // shows the default trailing MOMENTUM_WEEKS. Events are fetched only for the
+  // span the buckets cover (created_at is indexed).
+  const momentumWeeks = windowDays ? Math.max(1, Math.ceil(windowDays / 7)) : MOMENTUM_WEEKS;
+  const momentumCutoff = new Date(Date.now() - momentumWeeks * 7 * 86_400_000).toISOString();
+  const momentumKindList = `(${MOMENTUM_EVENT_KINDS.map((k) => `'${k}'`).join(", ")})`; // compile-time literals
+  const momentumRows = db
+    .prepare(
+      `SELECT kind, to_stage, created_at FROM pipeline_events
+        WHERE created_at >= ? AND kind IN ${momentumKindList}`
+    )
+    .all(momentumCutoff) as { kind: string; to_stage: string | null; created_at: string }[];
+  const momentum = weeklyMomentum(
+    momentumRows.map((r) => ({ kind: r.kind, toStage: r.to_stage, createdAt: r.created_at })),
+    { weeks: momentumWeeks }
+  );
+
+  return {
+    total,
+    active,
+    hired,
+    rejected,
+    declined,
+    funnel,
+    avgTimeToHireDays,
+    avgAgeDays,
+    bottleneck,
+    byJob,
+    byJobTotal,
+    byArchetype,
+    windowDays: windowDays ?? null,
+    momentum,
+  };
 }
 
 // Prior pipeline outcomes per candidate — used by talent rediscovery to spot
