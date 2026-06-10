@@ -202,6 +202,12 @@
       "analysis": "CV analyses"
     }
   },
+  "shortcuts": {
+    "title": "Keyboard shortcuts",
+    "intro": "Press g then a key to jump to a tab.",
+    "palette": "Search / command palette",
+    "thisOverlay": "Show this overlay"
+  },
   "nav": {
     "skipToContent": "Skip to content",
     "ariaLabel": "Workspace",

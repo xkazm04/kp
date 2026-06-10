@@ -43,6 +43,13 @@ function isTopModal(token: symbol): boolean {
   return modalStack[modalStack.length - 1] === token;
 }
 
+/** SHELL4 — whether ANY dialog is currently open. The global keyboard
+ *  shortcuts consult this so a bare keypress can't switch tabs underneath an
+ *  open modal (whose own Escape/Tab handling stays authoritative). */
+export function isAnyModalOpen(): boolean {
+  return modalStack.length > 0;
+}
+
 export function Modal({
   title,
   subtitle,

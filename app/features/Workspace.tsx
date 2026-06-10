@@ -8,6 +8,7 @@ import { Skeleton } from "@/app/_components/Skeleton";
 import { ErrorBoundary } from "@/app/_components/ErrorBoundary";
 import { LanguageSwitcher } from "@/app/_components/LanguageSwitcher";
 import { CommandPalette } from "./CommandPalette";
+import { KeyboardShortcuts } from "./KeyboardShortcuts";
 import { RecentsNav } from "./RecentsNav";
 import { useAttention } from "./useAttention";
 import { TasksIndicator } from "./tasks/TasksIndicator";
@@ -113,6 +114,9 @@ export function Workspace() {
 
         {/* SHELL3: pick-up-where-I-left-off deep links. */}
         <RecentsNav />
+
+        {/* SHELL4: g-chord tab navigation + the "?" reference overlay. */}
+        <KeyboardShortcuts onSelectTab={selectTab} />
 
         <nav aria-label={t("ariaLabel")} className="space-y-5 px-3 pb-6">
           {NAV_GROUPS.map((group, gi) => (

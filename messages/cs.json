@@ -202,6 +202,12 @@
       "analysis": "Analýzy CV"
     }
   },
+  "shortcuts": {
+    "title": "Klávesové zkratky",
+    "intro": "Stiskněte g a poté klávesu pro přechod na záložku.",
+    "palette": "Hledání / paleta příkazů",
+    "thisOverlay": "Zobrazit tento přehled"
+  },
   "nav": {
     "skipToContent": "Přejít na obsah",
     "ariaLabel": "Pracovní plocha",
