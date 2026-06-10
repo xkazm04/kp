@@ -1916,6 +1916,23 @@ export type InterviewedCandidate = {
   observedSkills: string[];
 };
 
+/** Which of these entries carry an event of `kind` (W8-5 — e.g. the durable
+ *  outreach_sent markers backing the sourcing ranking's persisted state).
+ *  Chunked IN query under the SQLite variable limit. */
+export function entryIdsWithEvent(entryIds: string[], kind: string): Set<string> {
+  const out = new Set<string>();
+  if (entryIds.length === 0) return out;
+  const db = ensureDb();
+  for (const ids of chunk(entryIds, SQL_IN_CHUNK)) {
+    const placeholders = ids.map(() => "?").join(",");
+    const rows = db
+      .prepare(`SELECT DISTINCT entry_id FROM pipeline_events WHERE kind = ? AND entry_id IN (${placeholders})`)
+      .all(kind, ...ids) as { entry_id: string }[];
+    for (const r of rows) out.add(r.entry_id);
+  }
+  return out;
+}
+
 /** All pipeline entries filed under a job (PREP1 — the compare grid unions the
  *  voice-interviewed cohort with human-scorecard-only entries from here). */
 export function listEntriesForJob(jobId: string): PipelineEntry[] {

@@ -7,6 +7,7 @@ import { ARCHETYPE_BADGE, isEarlyCareer, provLabel } from "./JobsTypes";
 import type { CandRow, SkippedCandidate } from "./JobsTypes";
 import { EmptyState, SkippedCandidatesNote } from "./JobsShared";
 import { useAddToPipeline } from "@/app/_lib/useAddToPipeline";
+import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { useReachOut } from "@/app/_lib/useReachOut";
 import { ConfidenceBandBadge, confidenceBandTitle, FitTierBadge } from "@/app/_components/Badge";
 import { PotentialBadge } from "@/app/_components/PotentialBadge";
@@ -265,9 +266,14 @@ function CandidateCard({
   onReach: () => void;
 }) {
   const t = useTranslations("jobs.candidates");
+  const enumLabel = useEnumLabel();
   const res = c.result;
   const early = isEarlyCareer(c.archetype);
   const prov = res.matchedSkillProvenance ?? {};
+  // W8-5 — persisted state (server decoration) OR in-session optimism: a
+  // candidate reached/filed yesterday must not show fresh, active buttons.
+  const wasReached = reached || Boolean(c.outreachSent);
+  const persistedStage = c.inPipeline ?? null;
   return (
     <li className="rounded-md border border-stone-200 bg-white p-2">
       <div className="flex flex-wrap items-center gap-2">
@@ -292,7 +298,7 @@ function CandidateCard({
               }}
             />
           ) : null}
-          {reached ? (
+          {wasReached ? (
             // Reaching out also filed them into the pipeline, so a reached candidate
             // collapses to one badge — no redundant "+ pipeline" button.
             <span className="rounded bg-moss/10 px-1.5 py-0.5 text-sm font-semibold text-moss">{t("reachedOut")}</span>
@@ -311,21 +317,29 @@ function CandidateCard({
               >
                 {reaching ? t("reaching") : reachError ? t("retry") : t("reachOut")}
               </button>
-              <button
-                type="button"
-                onClick={onAdd}
-                disabled={added || adding}
-                title={error ?? undefined}
-                className={`focus-ring rounded px-1.5 py-0.5 text-sm font-semibold ${
-                  added
-                    ? "bg-moss/10 text-moss"
-                    : error
-                      ? "border border-red-300 bg-red-50 text-red-700 hover:bg-red-100 disabled:opacity-40"
-                      : "border border-stone-200 text-ink hover:bg-paper disabled:opacity-40"
-                }`}
-              >
-                {added ? t("inPipeline") : adding ? t("addingShort") : error ? t("retry") : t("addPipeline")}
-              </button>
+              {persistedStage && !added ? (
+                // Already filed for THIS job (a prior session) — show where they
+                // are instead of an add button the server would no-op anyway.
+                <span className="rounded bg-moss/10 px-1.5 py-0.5 text-sm font-semibold text-moss">
+                  {t("inPipelineStage", { stage: enumLabel("stage", persistedStage) })}
+                </span>
+              ) : (
+                <button
+                  type="button"
+                  onClick={onAdd}
+                  disabled={added || adding}
+                  title={error ?? undefined}
+                  className={`focus-ring rounded px-1.5 py-0.5 text-sm font-semibold ${
+                    added
+                      ? "bg-moss/10 text-moss"
+                      : error
+                        ? "border border-red-300 bg-red-50 text-red-700 hover:bg-red-100 disabled:opacity-40"
+                        : "border border-stone-200 text-ink hover:bg-paper disabled:opacity-40"
+                  }`}
+                >
+                  {added ? t("inPipeline") : adding ? t("addingShort") : error ? t("retry") : t("addPipeline")}
+                </button>
+              )}
             </>
           )}
         </span>

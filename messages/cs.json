@@ -1108,6 +1108,7 @@
       "retry": "↻ znovu",
       "reachOut": "Oslovit",
       "inPipeline": "✓ pipeline",
+      "inPipelineStage": "V náboru · {stage}",
       "addingShort": "…",
       "addPipeline": "+ pipeline",
       "couldntAdd": "Nepodařilo se přidat do pipeline — {error}",

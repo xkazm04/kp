@@ -101,6 +101,12 @@ export type CandRow = {
   koReasons: string[];
   assumptions: string[];
   result: CandResult;
+  // W8-5 (JOB2) — persisted sourcing state, decorated server-side: the stage
+  // of this candidate's active entry for THIS job (null = not filed), and
+  // whether a first-touch outreach was ever sent (the durable outreach_sent
+  // event). The in-session hooks layer optimistic state on top.
+  inPipeline?: string | null;
+  outreachSent?: boolean;
 };
 
 export const FAMILY_LABEL: Record<string, string> = {

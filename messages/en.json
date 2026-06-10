@@ -1108,6 +1108,7 @@
       "retry": "↻ retry",
       "reachOut": "Reach out",
       "inPipeline": "✓ pipeline",
+      "inPipelineStage": "In pipeline · {stage}",
       "addingShort": "…",
       "addPipeline": "+ pipeline",
       "couldntAdd": "Couldn't add to the pipeline — {error}",

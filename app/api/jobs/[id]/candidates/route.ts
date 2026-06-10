@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { writeFile } from "node:fs/promises";
 import path from "node:path";
-import { getJob } from "@/app/_lib/db";
+import { entryIdsWithEvent, getJob, listEntriesForJob } from "@/app/_lib/db";
 import { buildCandidatePool } from "@/app/_lib/candidate-pool";
 import {
   cleanupWorkdir,
@@ -54,7 +54,30 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
     // trailing non-JSON at shutdown (asyncio "Event loop is closed", leaked-
     // semaphore / ResourceWarning, atexit — common on Windows), and one such line
     // would turn a successful ranking into a JSON.parse throw / 500.
-    return NextResponse.json(parsePythonJson(stdout, stderr));
+    const payload = parsePythonJson<{ candidates?: Array<Record<string, unknown>> } & Record<string, unknown>>(
+      stdout,
+      stderr
+    );
+
+    // W8-5 (JOB2) — persist the sourcing state on the ranking. "Reach out" and
+    // "+ pipeline" state lived only in the hooks' in-memory Sets: reopen the
+    // role tomorrow and every candidate — including ones already filed or
+    // already sent a first-touch — showed fresh, active buttons. The durable
+    // truth was always server-side (entries keyed jobId+candidateId; the
+    // per-entry outreach_sent event); decorate each ranked row with it.
+    const jobEntries = listEntriesForJob(id).filter((e) => e.status === "active" && e.candidateId);
+    const entryByCandidate = new Map(jobEntries.map((e) => [e.candidateId as string, e]));
+    const reachedEntryIds = entryIdsWithEvent(
+      jobEntries.map((e) => e.id),
+      "outreach_sent"
+    );
+    for (const row of payload.candidates ?? []) {
+      const candidateId = typeof row.candidateId === "string" ? row.candidateId : null;
+      const entry = candidateId ? entryByCandidate.get(candidateId) : undefined;
+      row.inPipeline = entry?.stage ?? null;
+      row.outreachSent = entry ? reachedEntryIds.has(entry.id) : false;
+    }
+    return NextResponse.json(payload);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to rank candidates.";
     return NextResponse.json({ error: message }, { status: 500 });
