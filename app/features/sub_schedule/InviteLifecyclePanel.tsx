@@ -34,6 +34,10 @@ export function InviteLifecyclePanel() {
   const t = useTranslations("scheduleTab.lifecycle");
   const relativeTime = useRelativeTime();
   const [invites, setInvites] = useState<Invite[] | null>(null);
+  // "Now" captured when the data landed, so the upcoming/past split is a pure
+  // function of state during render (react-hooks/purity) — the agenda is as
+  // fresh as the fetch, which is the honest claim anyway.
+  const [loadedAt, setLoadedAt] = useState(0);
   const [failed, setFailed] = useState(false);
 
   useEffect(() => {
@@ -44,7 +48,9 @@ export function InviteLifecyclePanel() {
         return r.json();
       })
       .then((p) => {
-        if (alive) setInvites((p.invites as Invite[]) ?? []);
+        if (!alive) return;
+        setInvites((p.invites as Invite[]) ?? []);
+        setLoadedAt(Date.now());
       })
       .catch(() => {
         if (alive) setFailed(true);
@@ -62,10 +68,9 @@ export function InviteLifecyclePanel() {
   }
   if (invites.length === 0) return null;
 
-  const now = Date.now();
   const attention = invites.filter((i) => i.needsMoreSlots || i.needsReconcile);
   const upcoming = invites
-    .filter((i) => i.status === "confirmed" && i.slotAt && Date.parse(i.slotAt) >= now && !attention.includes(i))
+    .filter((i) => i.status === "confirmed" && i.slotAt && Date.parse(i.slotAt) >= loadedAt && !attention.includes(i))
     .sort((a, b) => Date.parse(a.slotAt as string) - Date.parse(b.slotAt as string));
   const awaiting = invites.filter((i) => i.status !== "confirmed" && !attention.includes(i));
 
