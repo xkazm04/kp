@@ -422,7 +422,11 @@ export function PipelineTab() {
         >
           {previewing ? t("previewingPass") : running ? t("runningPass") : t("runPass")}
         </button>
-        <SchedulerControl onRan={load} className="flex-1 min-w-[20rem]" />
+        <SchedulerControl
+          onRan={load}
+          className="flex-1 min-w-[20rem]"
+          labelFor={(entryId) => entries?.find((e) => e.id === entryId)?.candidateLabel}
+        />
       </div>
 
       {passSummary ? (

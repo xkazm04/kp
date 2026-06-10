@@ -484,6 +484,12 @@
       "summaryRejected": "{n} rejected",
       "summaryHeld": "{n} held",
       "summaryAlerts": "{n, plural, one {# alert} other {# alerts}}",
+      "summaryErrors": "{n, plural, one {# error} other {# errors}}",
+      "history": "History ({count})",
+      "historyTitle": "What each pass did, and why — per candidate",
+      "trigger": { "clock": "clock", "manual": "manual" },
+      "runEvaluated": "{n} evaluated",
+      "runNoActions": "No actions — every candidate held or unchanged.",
       "thisRun": "{label} this run"
     },
     "result": {

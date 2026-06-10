@@ -44,6 +44,13 @@ function db(): Database.Database {
     );
     CREATE INDEX IF NOT EXISTS idx_scheduler_runs_started ON scheduler_runs (started_at DESC);
   `);
+  // AUTO2 — per-run decision log (the per-entry action+reason rows the pass
+  // used to compute and discard). Additive migration for pre-existing DBs.
+  try {
+    d.exec(`ALTER TABLE scheduler_runs ADD COLUMN decisions_json TEXT`);
+  } catch {
+    /* column already exists */
+  }
   _db = d;
   return d;
 }
@@ -189,19 +196,23 @@ export function recordRun(input: {
   trigger?: string;
   status: "ok" | "error";
   summary?: unknown;
+  // AUTO2 — the pass's per-entry decision rows (action + reason), so "why is
+  // this candidate held / why was she rejected" survives past the one run.
+  decisions?: unknown;
   error?: string;
   startedAt: string;
 }): void {
   const d = db();
   const name = input.job ?? POLICY_JOB;
   d.prepare(
-    `INSERT INTO scheduler_runs (job, trigger, status, summary_json, error, started_at, finished_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`
+    `INSERT INTO scheduler_runs (job, trigger, status, summary_json, decisions_json, error, started_at, finished_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
   ).run(
     name,
     input.trigger ?? "clock",
     input.status,
     input.summary != null ? JSON.stringify(input.summary) : null,
+    input.decisions != null ? JSON.stringify(input.decisions) : null,
     input.error ?? null,
     input.startedAt,
     new Date().toISOString()
@@ -221,6 +232,7 @@ export type SchedulerRun = {
   trigger: string;
   status: string;
   summary: unknown;
+  decisions: unknown;
   error: string | null;
   startedAt: string;
   finishedAt: string | null;
@@ -231,18 +243,20 @@ export function listRuns(limit = 10, job = POLICY_JOB): SchedulerRun[] {
     .prepare(`SELECT * FROM scheduler_runs WHERE job = ? ORDER BY started_at DESC LIMIT ?`)
     .all(job, limit) as Record<string, unknown>[];
   return rows.map((r) => {
-    let summary: unknown = null;
-    try {
-      summary = r.summary_json ? JSON.parse(r.summary_json as string) : null;
-    } catch {
-      summary = null;
-    }
+    const parse = (raw: unknown): unknown => {
+      try {
+        return raw ? JSON.parse(raw as string) : null;
+      } catch {
+        return null;
+      }
+    };
     return {
       id: r.id as number,
       job: r.job as string,
       trigger: r.trigger as string,
       status: r.status as string,
-      summary,
+      summary: parse(r.summary_json),
+      decisions: parse(r.decisions_json),
       error: (r.error as string) ?? null,
       startedAt: r.started_at as string,
       finishedAt: (r.finished_at as string) ?? null,

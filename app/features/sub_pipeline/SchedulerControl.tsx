@@ -1,13 +1,26 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { AlertTriangle, ArrowUpRight, Clock, Loader2, Pause, XCircle } from "lucide-react";
+import { AlertTriangle, ArrowUpRight, Clock, History, Loader2, Pause, XCircle } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Badge, type BadgeTone } from "@/app/_components/Badge";
 import { useRelativeTime } from "./PipelineShared";
 
-type Summary = { advanced?: number; rejected?: number; held?: number; alerts?: number };
+type Summary = { advanced?: number; rejected?: number; held?: number; alerts?: number; errors?: number; evaluated?: number };
+// AUTO2 — the persisted per-run record the schedule GET has always returned
+// (and this component ignored): trigger/status/summary plus the decision rows
+// the pass used to compute and discard.
+type RunDecision = { entryId?: string; action?: string; reason?: string };
+type SchedulerRun = {
+  id: number;
+  trigger: string;
+  status: string;
+  summary: Summary | null;
+  decisions: RunDecision[] | null;
+  error: string | null;
+  startedAt: string;
+};
 type Schedule = {
   enabled: boolean;
   intervalMinutes: number;
@@ -37,6 +50,8 @@ const SUMMARY_COUNTS: { key: keyof Summary; tone: BadgeTone; icon: LucideIcon; l
   { key: "rejected", tone: "critical", icon: XCircle, labelKey: "summaryRejected" },
   { key: "held", tone: "neutral", icon: Pause, labelKey: "summaryHeld" },
   { key: "alerts", tone: "caution", icon: AlertTriangle, labelKey: "summaryAlerts" },
+  // AUTO2 — apply failures were tracked by the backend and invisible here.
+  { key: "errors", tone: "critical", icon: AlertTriangle, labelKey: "summaryErrors" },
 ];
 
 // Render the last-run summary as semantic badges (one per bucket), every count
@@ -66,7 +81,17 @@ function SummaryBadges({ summary }: { summary: Summary }) {
 
 // Direction #5 — control + status for the automation clock (the durable
 // scheduler that runs the Task-7 policy pass on a cadence). Disabled by default.
-export function SchedulerControl({ onRan, className = "" }: { onRan?: () => void; className?: string }) {
+export function SchedulerControl({
+  onRan,
+  className = "",
+  labelFor,
+}: {
+  onRan?: () => void;
+  className?: string;
+  /** AUTO2 — resolve a decision row's entryId to a candidate label (the board
+   *  already holds the entries); falls back to the raw id when absent. */
+  labelFor?: (entryId: string) => string | undefined;
+}) {
   const t = useTranslations("pipeline.scheduler");
   const relativeTime = useRelativeTime();
   // Turn a tick outcome into a short, legible chip: the real summary on success, a
@@ -86,6 +111,9 @@ export function SchedulerControl({ onRan, className = "" }: { onRan?: () => void
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<RunResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // AUTO2 — run history (already on every schedule GET; previously discarded).
+  const [runs, setRuns] = useState<SchedulerRun[]>([]);
+  const [historyOpen, setHistoryOpen] = useState(false);
   // Draft string for the interval field so the user can clear/retype freely — a
   // number-bound input can't hold an empty string. Parsed + clamped on blur.
   const [intervalDraft, setIntervalDraft] = useState("");
@@ -108,6 +136,7 @@ export function SchedulerControl({ onRan, className = "" }: { onRan?: () => void
       })
       .then((p) => {
         setSched(p.schedule as Schedule);
+        if (Array.isArray(p.runs)) setRuns(p.runs as SchedulerRun[]);
         setError(null);
       })
       .catch(() => setError(t("engineUnreachable")));
@@ -149,6 +178,7 @@ export function SchedulerControl({ onRan, className = "" }: { onRan?: () => void
       const p = await r.json();
       if (!r.ok) throw new Error(typeof p?.error === "string" ? p.error : `HTTP ${r.status}`);
       if (p.schedule) setSched(p.schedule as Schedule);
+      if (Array.isArray(p.runs)) setRuns(p.runs as SchedulerRun[]);
       setError(null);
       if (body.tick) {
         onRan?.();
@@ -197,7 +227,8 @@ export function SchedulerControl({ onRan, className = "" }: { onRan?: () => void
   const s = sched.lastSummary;
 
   return (
-    <div className={`flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-md border border-stone-200 bg-paper/60 px-3 py-2 text-sm text-steel ${className}`}>
+    <div className={className}>
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-md border border-stone-200 bg-paper/60 px-3 py-2 text-sm text-steel">
       <span className="flex items-center gap-1.5 font-medium text-ink">
         <Clock size={14} className="text-coral" /> {t("clock")}
       </span>
@@ -252,6 +283,17 @@ export function SchedulerControl({ onRan, className = "" }: { onRan?: () => void
         {busy ? <Loader2 size={14} className="animate-spin" /> : null}
         {busy ? t("running") : t("runNow")}
       </button>
+      {runs.length > 0 ? (
+        <button
+          type="button"
+          onClick={() => setHistoryOpen((o) => !o)}
+          aria-expanded={historyOpen}
+          className="focus-ring inline-flex items-center gap-1 rounded-md border border-stone-200 px-2 py-0.5 text-sm hover:bg-stone-50"
+          title={t("historyTitle")}
+        >
+          <History size={13} aria-hidden /> {t("history", { count: runs.length })}
+        </button>
+      ) : null}
       {result ? (
         <span
           role="status"
@@ -270,6 +312,72 @@ export function SchedulerControl({ onRan, className = "" }: { onRan?: () => void
           <AlertTriangle size={14} className="shrink-0" /> {error}
         </span>
       ) : null}
+    </div>
+
+    {/* AUTO2 — run history: what each pass did and WHY, per candidate. The
+        decision rows were computed by every pass and discarded; now they're
+        persisted with the run and answerable here days later. */}
+    {historyOpen && runs.length > 0 ? (
+      <div className="mt-1.5 rounded-md border border-stone-200 bg-white p-2 text-sm text-steel">
+        <ol className="space-y-1">
+          {runs.map((run) => {
+            const decisions = Array.isArray(run.decisions) ? run.decisions : [];
+            const acted = decisions.filter((d) => d.action && d.action !== "none");
+            return (
+              <li key={run.id} className="rounded border border-stone-100 bg-paper/40 px-2 py-1">
+                <details>
+                  <summary className="focus-ring flex cursor-pointer flex-wrap items-center gap-x-2 gap-y-1">
+                    <span className="font-medium text-ink">{relativeTime(run.startedAt)}</span>
+                    <span className="rounded-full bg-stone-100 px-1.5 py-0.5 text-xs font-semibold uppercase">
+                      {t.has(`trigger.${run.trigger}` as Parameters<typeof t>[0])
+                        ? t(`trigger.${run.trigger}` as Parameters<typeof t>[0])
+                        : run.trigger}
+                    </span>
+                    {run.status === "error" ? (
+                      <span className="inline-flex items-center gap-1 text-xs font-semibold text-coral">
+                        <XCircle size={12} aria-hidden /> {run.error ?? t("runFailed")}
+                      </span>
+                    ) : (
+                      <span className="inline-flex flex-wrap items-center gap-1">
+                        {run.summary ? <SummaryBadges summary={run.summary} /> : null}
+                        {run.summary?.evaluated != null ? (
+                          <span className="text-xs">{t("runEvaluated", { n: run.summary.evaluated })}</span>
+                        ) : null}
+                      </span>
+                    )}
+                  </summary>
+                  {acted.length > 0 ? (
+                    <ul className="mt-1 space-y-0.5 border-t border-stone-100 pt-1">
+                      {acted.map((d, i) => (
+                        <li key={`${d.entryId}-${i}`} className="text-xs">
+                          <span
+                            className={`mr-1 rounded px-1 py-0.5 font-semibold uppercase ${
+                              d.action === "reject"
+                                ? "bg-coral/10 text-coral"
+                                : d.action === "advance"
+                                  ? "bg-moss/10 text-moss"
+                                  : "bg-stone-100 text-steel"
+                            }`}
+                          >
+                            {d.action}
+                          </span>
+                          <span className="font-medium text-ink">
+                            {(d.entryId && labelFor?.(d.entryId)) ?? d.entryId ?? "—"}
+                          </span>{" "}
+                          <span className="text-steel">— {d.reason}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="mt-1 border-t border-stone-100 pt-1 text-xs">{t("runNoActions")}</p>
+                  )}
+                </details>
+              </li>
+            );
+          })}
+        </ol>
+      </div>
+    ) : null}
     </div>
   );
 }

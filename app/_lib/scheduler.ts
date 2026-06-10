@@ -29,8 +29,8 @@ export async function tickScheduler(opts?: { force?: boolean; trigger?: string }
 
   const startedAt = new Date().toISOString();
   try {
-    const { summary } = await runAutomationPass();
-    if (startsPass) recordRun({ status: "ok", summary, startedAt, trigger: opts?.trigger ?? "clock" });
+    const { summary, decisions } = await runAutomationPass();
+    if (startsPass) recordRun({ status: "ok", summary, decisions, startedAt, trigger: opts?.trigger ?? "clock" });
     return { ran: true, summary };
   } catch (e) {
     const error = e instanceof Error ? e.message : String(e);

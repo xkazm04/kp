@@ -484,6 +484,12 @@
       "summaryRejected": "{n} zamítnuto",
       "summaryHeld": "{n} pozdrženo",
       "summaryAlerts": "{n, plural, one {# upozornění} few {# upozornění} many {# upozornění} other {# upozornění}}",
+      "summaryErrors": "{n, plural, one {# chyba} few {# chyby} other {# chyb}}",
+      "history": "Historie ({count})",
+      "historyTitle": "Co každý průchod udělal a proč — po kandidátech",
+      "trigger": { "clock": "hodiny", "manual": "ručně" },
+      "runEvaluated": "{n} vyhodnoceno",
+      "runNoActions": "Žádné akce — všichni kandidáti pozdrženi nebo beze změny.",
       "thisRun": "{label} v tomto běhu"
     },
     "result": {
