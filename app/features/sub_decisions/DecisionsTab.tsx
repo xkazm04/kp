@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Check, SlidersHorizontal, Sparkles } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { buildUrl } from "@/app/features/tabs";
 import { useTasks, useTaskResult } from "@/app/features/tasks/TasksProvider";
 import { useLiveRefresh } from "@/app/features/live-refresh";
@@ -24,6 +24,7 @@ export function DecisionsTab() {
   const router = useRouter();
   const search = useSearchParams();
   const t = useTranslations("decisions");
+  const locale = useLocale(); // PREP2 — prep pack language
   const { startTask } = useTasks();
   // Filter the queue to one opened JD (deep-linkable via ?job=<id>).
   const [jobFilter, setJobFilter] = useState<string | null>(search.get("job"));
@@ -137,6 +138,7 @@ export function DecisionsTab() {
           entryId: e.id,
           candidateLabel: e.candidateLabel,
           jobTitle: e.jobTitle,
+          lang: locale,
         });
       }
     } catch {

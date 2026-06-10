@@ -71,8 +71,13 @@ export function studentPrepRunOfShow(
   rawQuestions: PrepQuestion[],
   rawFocusAreas: string[],
   candidateLabel: string | null,
-  jobTitle: string | null
+  jobTitle: string | null,
+  lang: string = "en"
 ): RunOfShow {
+  // PREP2 — the cross-cutting signals + scenario wrapper localize; the six-phase
+  // STUDENT_SCRIPT prose stays English (it is the fixed pedagogical script the
+  // voice agent — which already detects cs/en — delivers, not free prose).
+  const cs = lang === "cs";
   const focusAreas = (rawFocusAreas ?? []).slice(0, 5);
   const personalPhases = STUDENT_SCRIPT.filter((p) => !p.caseGrounded);
   const capacity = personalPhases.length * PREP_QUESTIONS_PER_PERSONAL_PHASE;
@@ -92,7 +97,7 @@ export function studentPrepRunOfShow(
       fromMin: cursor,
       toMin: cursor + mins,
       topic: p.phase,
-      goal: `${p.goal} Listen for: ${p.listenFor}`,
+      goal: `${p.goal} ${cs ? "Sledujte:" : "Listen for:"} ${p.listenFor}`,
       questions: [p.probe, ...(byPhase.get(p.phase) ?? [])],
     });
     cursor += mins;
@@ -104,18 +109,25 @@ export function studentPrepRunOfShow(
     cursor = STUDENT_SCRIPT_MIN;
   }
 
-  const signals: string[] = [
-    ...focusAreas,
-    "Hint offered in the coachability phase — uptake observed",
-    "Verbatim quotes captured for every rubric construct",
-    "CV hypotheses probed on the personal phases (anchor / stuck / calibration)",
-  ];
+  const signals: string[] = cs
+    ? [
+        ...focusAreas,
+        "Nápověda nabídnuta ve fázi koučovatelnosti — sledováno přijetí",
+        "Doslovné citace zachyceny pro každý prvek rubriky",
+        "Hypotézy z CV prozkoumány v osobních fázích (kotva / zaseknutí / kalibrace)",
+      ]
+    : [
+        ...focusAreas,
+        "Hint offered in the coachability phase — uptake observed",
+        "Verbatim quotes captured for every rubric construct",
+        "CV hypotheses probed on the personal phases (anchor / stuck / calibration)",
+      ];
 
-  const scenario =
-    `A ${cursor}-minute six-phase early-career screen${candidateLabel ? ` for ${candidateLabel}` : ""}${jobTitle ? ` (${jobTitle})` : ""}. ` +
-    `The agent leads; case-grounded phases stay on the role's shared material for comparability, ` +
-    `and the CV-derived probes ride the personal phases. ` +
-    `Validate ${focusAreas.slice(0, 3).join(", ") || "the candidate's strongest project"} against the rubric live.`;
+  const who = candidateLabel ? ` ${cs ? "pro" : "for"} ${candidateLabel}${jobTitle ? ` (${jobTitle})` : ""}` : jobTitle ? ` (${jobTitle})` : "";
+  const focus = focusAreas.slice(0, 3).join(", ") || (cs ? "nejsilnější projekt kandidáta" : "the candidate's strongest project");
+  const scenario = cs
+    ? `Šestifázový screening pro začínající talenty na ${cursor} minut${who}. Vede agent; fáze založené na případové studii zůstávají u sdíleného materiálu role kvůli porovnatelnosti a probe z CV jedou v osobních fázích. Ověřte ${focus} podle rubriky živě.`
+    : `A ${cursor}-minute six-phase early-career screen${who}. The agent leads; case-grounded phases stay on the role's shared material for comparability, and the CV-derived probes ride the personal phases. Validate ${focus} against the rubric live.`;
 
   return { scenario, durationMin: cursor, focusAreas, chronology, signals };
 }

@@ -77,7 +77,7 @@ function readRecommendation(result: Record<string, unknown>, task: string): stri
   return coerceInterviewRecommendation(raw);
 }
 
-export async function runAutomationTask(entryId: string, task: string, notes = "", signal?: AbortSignal): Promise<AutomationResult> {
+export async function runAutomationTask(entryId: string, task: string, notes = "", signal?: AbortSignal, lang?: string): Promise<AutomationResult> {
   if (!(task in AUTOMATION_VERSION)) throw new AutomationError(`unknown task: ${task}`, 404);
   const entry = getPipelineEntry(entryId);
   if (!entry) throw new AutomationError("entry not found", 404);
@@ -119,6 +119,8 @@ export async function runAutomationTask(entryId: string, task: string, notes = "
     stage: entry.stage,
     notes,
     corpusFingerprint: corpusJobs ? computeCorpusFingerprint(corpusJobs.map((j) => j.id)) : undefined,
+    // PREP2 — the prep narrative locale is a cache axis (other tasks ignore it).
+    lang: task === "prep" ? (lang === "cs" ? "cs" : "en") : undefined,
   });
 
   let payload = lookupPromptCache(cacheKey, version) as CliPayload | null;
@@ -145,6 +147,9 @@ export async function runAutomationTask(entryId: string, task: string, notes = "
         await writeFile(notesPath, notes, "utf-8");
         args.push("--notes-file", notesPath);
       }
+      // PREP2 — only `prep` consumes --lang (the CLI accepts it globally and the
+      // other commands ignore it); pass it so the prep narrative is localized.
+      if (task === "prep") args.push("--lang", lang === "cs" ? "cs" : "en");
 
       const { result } = spawnPython(args, { signal });
       const { stdout, stderr, exitCode } = await result;

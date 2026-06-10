@@ -50,6 +50,58 @@ const MAX_FOCUS_AREAS = 5;
 
 const clamp = (n: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, n));
 
+// PREP2 — the deterministic block topics/goals + signals + scenario are
+// interviewer-facing prose, so localize them from a small self-contained
+// bilingual table (the prep pack is a recruiter artifact; the LLM questions
+// localize via the prompt directive, these are the scaffolding). `lang`
+// defaults to "en", so the pure unit tests (no lang) are unchanged.
+type RosStrings = {
+  topicFallback: (n: number) => string;
+  introTopic: string;
+  introGoal: string;
+  defaultGoal: string;
+  openTopic: string;
+  openGoal: string;
+  wrapTopic: string;
+  wrapGoal: string;
+  signalDepth: string;
+  signalMustHaves: string;
+  signalQuestions: string;
+  scenario: (durationMin: number, who: string, focus: string) => string;
+};
+const ROS_STRINGS: Record<"en" | "cs", RosStrings> = {
+  en: {
+    topicFallback: (n) => `Topic ${n}`,
+    introTopic: "Intro & rapport",
+    introGoal: "Set the candidate at ease, confirm the role context and the plan for the session.",
+    defaultGoal: "Probe depth and concrete examples; listen for ownership and trade-offs.",
+    openTopic: "Open discussion & deep dive",
+    openGoal: "Use the remaining time to probe the strongest and weakest answers in more depth, or explore a must-have not yet covered.",
+    wrapTopic: "Candidate questions & wrap-up",
+    wrapGoal: "Leave space for the candidate's questions; explain next steps and timeline.",
+    signalDepth: "Probed the depth behind self-declared / project skills",
+    signalMustHaves: "Covered the missing must-haves",
+    signalQuestions: "Gave the candidate space to ask questions",
+    scenario: (durationMin, who, focus) =>
+      `A ${durationMin}-minute structured interview${who}. Validate strengths and probe ${focus}. Keep each topic timeboxed and use the checklist to track coverage live.`,
+  },
+  cs: {
+    topicFallback: (n) => `Téma ${n}`,
+    introTopic: "Úvod a navázání kontaktu",
+    introGoal: "Uvolněte kandidáta, potvrďte kontext role a plán schůzky.",
+    defaultGoal: "Zjišťujte hloubku a konkrétní příklady; sledujte vlastnictví a kompromisy.",
+    openTopic: "Otevřená diskuse a hlubší ponor",
+    openGoal: "Využijte zbývající čas k hlubšímu prozkoumání nejsilnějších a nejslabších odpovědí, nebo prozkoumejte dosud nepokrytý požadavek.",
+    wrapTopic: "Dotazy kandidáta a závěr",
+    wrapGoal: "Nechte prostor na dotazy kandidáta; vysvětlete další kroky a časový plán.",
+    signalDepth: "Ověřena hloubka za samodeklarovanými / projektovými dovednostmi",
+    signalMustHaves: "Pokryty chybějící povinné požadavky",
+    signalQuestions: "Dán kandidátovi prostor na dotazy",
+    scenario: (durationMin, who, focus) =>
+      `Strukturovaný pohovor na ${durationMin} minut${who}. Ověřte silné stránky a prozkoumejte ${focus}. Držte každé téma v časovém limitu a sledujte pokrytí pomocí seznamu.`,
+  },
+};
+
 /** Build the timed run-of-show + checklist from the CV-derived questions/focus
  *  areas. Pure and deterministic; the duration is guaranteed to land in
  *  [MIN_DURATION_MIN, MAX_DURATION_MIN] and to equal the last block's end. */
@@ -57,8 +109,10 @@ export function buildRunOfShow(
   rawQuestions: PrepQuestion[],
   rawFocusAreas: string[],
   candidateLabel: string | null,
-  jobTitle: string | null
+  jobTitle: string | null,
+  lang: string = "en"
 ): RunOfShow {
+  const s = ROS_STRINGS[lang === "cs" ? "cs" : "en"];
   const questions = (rawQuestions ?? []).slice(0, MAX_QUESTIONS);
   const focusAreas = (rawFocusAreas ?? []).slice(0, MAX_FOCUS_AREAS);
   const qMinutes = questions.length > RELAXED_QUESTION_LIMIT ? Q_MINUTES_TIGHT : Q_MINUTES_RELAXED;
@@ -70,13 +124,13 @@ export function buildRunOfShow(
     cursor += mins;
   };
 
-  push(INTRO_MIN, "Intro & rapport", "Set the candidate at ease, confirm the role context and the plan for the session.", []);
+  push(INTRO_MIN, s.introTopic, s.introGoal, []);
   questions.forEach((q, i) => {
-    const topic = q.competency || `Topic ${i + 1}`;
+    const topic = q.competency || s.topicFallback(i + 1);
     push(
       qMinutes,
       topic,
-      q.whatsGoodLooksLike || "Probe depth and concrete examples; listen for ownership and trade-offs.",
+      q.whatsGoodLooksLike || s.defaultGoal,
       q.question ? [q.question] : [],
       q.followUpIfAnswer || undefined
     );
@@ -91,14 +145,9 @@ export function buildRunOfShow(
   const target = clamp(withWrap, MIN_DURATION_MIN, MAX_DURATION_MIN);
   const deficit = target - withWrap;
   if (deficit > 0) {
-    push(
-      deficit,
-      "Open discussion & deep dive",
-      "Use the remaining time to probe the strongest and weakest answers in more depth, or explore a must-have not yet covered.",
-      []
-    );
+    push(deficit, s.openTopic, s.openGoal, []);
   }
-  push(WRAP_MIN, "Candidate questions & wrap-up", "Leave space for the candidate's questions; explain next steps and timeline.", []);
+  push(WRAP_MIN, s.wrapTopic, s.wrapGoal, []);
 
   // cursor now equals `target` (padding closed any deficit; the cap prevents an
   // overrun), so the clamp is a defensive no-op that keeps the contract explicit.
@@ -106,17 +155,11 @@ export function buildRunOfShow(
 
   // The chronology IS the run-of-show checklist (each block is checkable in the
   // modal), so these are only the cross-cutting signals the interviewer confirms.
-  const signals: string[] = [
-    ...focusAreas,
-    "Probed the depth behind self-declared / project skills",
-    "Covered the missing must-haves",
-    "Gave the candidate space to ask questions",
-  ];
+  const signals: string[] = [...focusAreas, s.signalDepth, s.signalMustHaves, s.signalQuestions];
 
-  const scenario =
-    `A ${durationMin}-minute structured interview${candidateLabel ? ` for ${candidateLabel}` : ""}${jobTitle ? ` (${jobTitle})` : ""}. ` +
-    `Validate strengths and probe ${focusAreas.slice(0, 3).join(", ") || "the key gaps"}. ` +
-    "Keep each topic timeboxed and use the checklist to track coverage live.";
+  const who = candidateLabel ? ` ${lang === "cs" ? "pro" : "for"} ${candidateLabel}${jobTitle ? ` (${jobTitle})` : ""}` : jobTitle ? ` (${jobTitle})` : "";
+  const focus = focusAreas.slice(0, 3).join(", ") || (lang === "cs" ? "klíčové mezery" : "the key gaps");
+  const scenario = s.scenario(durationMin, who, focus);
 
   return { scenario, durationMin, focusAreas, chronology, signals };
 }

@@ -22,6 +22,11 @@ export async function runInterviewPrep(params: Record<string, unknown>, signal?:
   const entryId = String(params.entryId ?? "");
   const candidateLabel = (params.candidateLabel as string) ?? null;
   const jobTitle = (params.jobTitle as string) ?? null;
+  // PREP2 — the recruiter's locale (passed in the task params; the detached task
+  // can't read the cookie). Localizes the LLM questions (--lang) AND the
+  // deterministic run-of-show/student-script scaffolding; persisted in the
+  // payload so the modal knows which language the pack is in.
+  const lang = params.lang === "cs" ? "cs" : "en";
 
   // The CV-derived recommended questions (LLM with deterministic fallback). The
   // `source` ("llm" | "deterministic") rides along in the payload so the modal can
@@ -29,16 +34,16 @@ export async function runInterviewPrep(params: Record<string, unknown>, signal?:
   // Forward the abort signal so a DELETE on a running interview_prep task actually stops the
   // (slow, LLM-bound) prep work + kills its Python child, instead of the cancel being a no-op
   // that leaves the work running and the slot held while the UI flips to "canceled".
-  const prep = await runAutomationTask(entryId, "prep", "", signal);
+  const prep = await runAutomationTask(entryId, "prep", "", signal, lang);
   const questions = (prep.result.questions as PrepQuestion[]) ?? [];
   const focusAreas = (prep.result.focusAreas as string[]) ?? [];
 
   const entry = getPipelineEntry(entryId);
   const plan = isEarlyCareer(entry?.archetype)
-    ? studentPrepRunOfShow(questions, focusAreas, candidateLabel, jobTitle)
-    : buildRunOfShow(questions, focusAreas, candidateLabel, jobTitle);
+    ? studentPrepRunOfShow(questions, focusAreas, candidateLabel, jobTitle, lang)
+    : buildRunOfShow(questions, focusAreas, candidateLabel, jobTitle, lang);
 
-  const payload: Record<string, unknown> = { ...plan, source: prep.source };
+  const payload: Record<string, unknown> = { ...plan, source: prep.source, lang };
   // Carry forward human-authored keys across a regeneration. The generated plan is
   // rebuilt from scratch and saveInterviewPrep is a full-payload upsert, so without
   // this a Regenerate would silently destroy the recruiter's hand-entered scorecard,

@@ -27,6 +27,10 @@ export type AutomationKeyInput = {
    *  rematch could route to a since-closed role — or miss a newly-opened one — for the
    *  full 168h TTL. Absent for every other task. */
   corpusFingerprint?: string;
+  /** PREP2 — only folded into the key for the `prep` task: the narrative locale,
+   *  so a cached English prep pack never serves a cs session (and vice versa).
+   *  Absent/undefined for every other task and for legacy callers. */
+  lang?: string;
 };
 
 // Stable fingerprint of the live job corpus for the rematch cache key: the SORTED
@@ -62,6 +66,7 @@ export function computeAutomationCacheKey(input: AutomationKeyInput): string {
       input.task === "rejection" ? input.stage : "",
       input.task === "scorecard" ? shortHash(input.notes) : "",
       input.task === "rematch" ? input.corpusFingerprint ?? "" : "",
+      input.task === "prep" ? input.lang ?? "en" : "",
     ].join("|")
   );
 }

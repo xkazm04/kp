@@ -363,7 +363,9 @@ def draft_rejection(candidate: MatchCandidate, job: Job, m, stage: str, *, provi
     return result, source
 
 
-def interview_prep(candidate: MatchCandidate, job: Job, m, *, provider: Any | None = None):
+def interview_prep(candidate: MatchCandidate, job: Job, m, *, lang: str = "en", provider: Any | None = None):
+    from .i18n import language_directive
+
     ctx = reasoning_context(candidate, job, m)
     early = candidate.archetype in _EARLY_CAREER
     prompt = (
@@ -375,7 +377,11 @@ def interview_prep(candidate: MatchCandidate, job: Job, m, *, provider: Any | No
             else "Probe depth and the missing must-haves.\n"
         )
         + 'Return JSON: { "questions": [ { "competency": str, "question": str, "whatsGoodLooksLike": str, '
-        '"followUpIfAnswer": str } ], "focusAreas": [str] }. 4-6 questions. JSON only.'
+        '"followUpIfAnswer": str } ], "focusAreas": [str] }. 4-6 questions. JSON only.\n'
+        # PREP2 — questions/whatsGoodLooksLike/followUp + focusAreas are the
+        # interviewer's free-form prep prose; generate them in the requested
+        # language (the deterministic fallback below stays English).
+        + language_directive(lang)
     )
 
     def deterministic() -> dict:

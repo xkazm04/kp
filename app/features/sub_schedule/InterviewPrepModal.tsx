@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AlertTriangle, Check, Clock, Copy, Loader2, ListChecks, NotebookPen, RefreshCw, Sparkles, UserRound } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { copyText } from "@/app/_lib/export-utils";
 import { HumanScorecardPanel } from "./HumanScorecardPanel";
 import type { Scorecard } from "@/app/_lib/interview-scorecard";
@@ -21,6 +21,7 @@ type Prep = { scenario: string; durationMin: number; focusAreas: string[]; chron
 
 export function InterviewPrepModal({ entry, onClose }: { entry: SchedEntry; onClose: () => void }) {
   const t = useTranslations("scheduleTab.prep");
+  const locale = useLocale(); // PREP2 — generate the prep pack in the recruiter's language
   const { startTask } = useTasks();
   // Load any saved artifact via the shared hook (handles non-OK status, an {error}
   // body, and unmount). A load FAILURE now surfaces as a distinct error+retry state
@@ -136,7 +137,7 @@ export function InterviewPrepModal({ entry, onClose }: { entry: SchedEntry; onCl
     setInterviewer("");
     dirtyRef.current = false;
     setHydrated(true);
-    const started = await startTask("interview_prep", { entryId: entry.id, candidateLabel: entry.candidateLabel, jobTitle: entry.jobTitle });
+    const started = await startTask("interview_prep", { entryId: entry.id, candidateLabel: entry.candidateLabel, jobTitle: entry.jobTitle, lang: locale });
     if (started) setTaskId(started.id);
   };
   const generating = taskId !== null;

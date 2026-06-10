@@ -82,8 +82,15 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--notes-file", type=Path)
     parser.add_argument("--entries-json", type=Path)
     parser.add_argument("--jobs", type=Path, default=None)
+    # PREP2 — output locale for the interview-prep narrative (en|cs). Ignored by
+    # the other commands (their candidate-facing text routes through the locale-
+    # aware comms layer); only `prep` reads it here.
+    parser.add_argument("--lang", type=str, default="en")
     parser.add_argument("--no-llm", action="store_true")
     args = parser.parse_args(argv)
+    from .i18n import normalize_lang
+
+    lang = normalize_lang(args.lang)
 
     try:
         if args.command == "policy-pass":
@@ -118,7 +125,7 @@ def main(argv: list[str] | None = None) -> int:
         elif args.command == "rejection":
             result, source = automation.draft_rejection(candidate, job, m, args.stage, provider=provider)
         elif args.command == "prep":
-            result, source = automation.interview_prep(candidate, job, m, provider=provider)
+            result, source = automation.interview_prep(candidate, job, m, lang=lang, provider=provider)
         elif args.command == "scorecard":
             notes = args.notes_file.read_text(encoding="utf-8") if args.notes_file else ""
             result, source = automation.interview_scorecard(candidate, job, notes, provider=provider)
