@@ -50,6 +50,10 @@ export function HistoryTab() {
   const [q, setQ] = useState("");
   const [roleFamily, setRoleFamily] = useState("");
   const [seniority, setSeniority] = useState("");
+  // RES3 follow-up (06-10 scan #3): the recorded disposition (RES5) is the
+  // strongest triage signal on the table but postdated the filter bar — make it
+  // filterable. "undecided" matches rows with no recorded decision.
+  const [disposition, setDisposition] = useState("");
 
   useEffect(() => {
     let cancelled = false;
@@ -79,14 +83,16 @@ export function HistoryTab() {
       (r) =>
         (!needle || r.candidate_label.toLowerCase().includes(needle) || r.slug.toLowerCase().includes(needle)) &&
         (!roleFamily || r.role_family === roleFamily) &&
-        (!seniority || r.seniority === seniority)
+        (!seniority || r.seniority === seniority) &&
+        (!disposition || (disposition === "undecided" ? r.disposition == null : r.disposition === disposition))
     );
-  }, [rows, q, roleFamily, seniority]);
-  const filtering = Boolean(q.trim() || roleFamily || seniority);
+  }, [rows, q, roleFamily, seniority, disposition]);
+  const filtering = Boolean(q.trim() || roleFamily || seniority || disposition);
   const clearAll = () => {
     setQ("");
     setRoleFamily("");
     setSeniority("");
+    setDisposition("");
   };
 
   return (
@@ -139,6 +145,18 @@ export function HistoryTab() {
                 {seniorities.map((s) => (
                   <option key={s} value={s}>{enumLabel("seniority", s)}</option>
                 ))}
+              </select>
+              <select
+                value={disposition}
+                onChange={(e) => setDisposition(e.target.value)}
+                aria-label={t("filterDisposition")}
+                className="focus-ring h-9 rounded-md border border-stone-200 px-2 text-base"
+              >
+                <option value="">{t("allDispositions")}</option>
+                {Object.keys(DISPOSITION_STYLE).map((d) => (
+                  <option key={d} value={d}>{dispLabel(d)}</option>
+                ))}
+                <option value="undecided">{t("dispositionUndecided")}</option>
               </select>
               {filtering ? (
                 <span className="text-sm text-steel" aria-live="polite">{t("showing", { shown: filtered.length, total: rows.length })}</span>
