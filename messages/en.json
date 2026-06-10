@@ -1604,6 +1604,15 @@
     "legendAdvanced": "Advanced",
     "legendRejected": "Rejected",
     "legendHired": "Hired",
+    "bySource": "Where candidates come from",
+    "source": {
+      "applied": "Inbound applications",
+      "matched": "Match sourcing",
+      "added": "Recruiter adds",
+      "other": "Other"
+    },
+    "sourceLine": "{total} in · {interview} reached interview · {hired} hired",
+    "noSourceData": "No origin data yet.",
     "byArchetype": "By archetype",
     "totalHired": "{total} · {hired} hired",
     "advancedPct": "{pct}% advanced past screening",

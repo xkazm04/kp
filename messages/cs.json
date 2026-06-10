@@ -1604,6 +1604,15 @@
     "legendAdvanced": "Posunutí",
     "legendRejected": "Zamítnutí",
     "legendHired": "Přijatí",
+    "bySource": "Odkud kandidáti přicházejí",
+    "source": {
+      "applied": "Příchozí přihlášky",
+      "matched": "Párování (sourcing)",
+      "added": "Ručně přidaní",
+      "other": "Ostatní"
+    },
+    "sourceLine": "{total} celkem · {interview} u pohovoru · {hired} přijato",
+    "noSourceData": "Zatím žádná data o původu.",
     "byArchetype": "Podle archetypu",
     "totalHired": "{total} · {hired} najato",
     "advancedPct": "{pct}% postoupilo za screening",

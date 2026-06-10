@@ -29,6 +29,7 @@ type Analytics = {
   windowDays: number | null;
   momentum: MomentumWeek[];
   automation: AutomationImpact;
+  bySource: { source: string; total: number; reachedInterview: number; hired: number; hireRatePct: number }[];
 };
 
 // ANA2 — the selectable windows. null = all time (the server default).
@@ -208,6 +209,7 @@ export function AnalyticsTab() {
             </ul>
           </div>
           <AutomationPanel impact={data.automation} />
+          <SourcePanel rows={data.bySource} />
         </div>
       </div>
 
@@ -310,6 +312,37 @@ function ImpactRow({ label, value }: { label: string; value: number }) {
       <span className="text-steel">{label}</span>
       <span className="font-medium text-ink">{value}</span>
     </li>
+  );
+}
+
+// ANA4 — channel ROI: entries grouped by how they ENTERED the pipeline (derived
+// server-side from each entry's earliest event kind), with the interview/hire
+// payoff per channel. Answers "does the apply link or recruiter sourcing
+// produce the candidates that actually get hired".
+function SourcePanel({ rows }: { rows: Analytics["bySource"] }) {
+  const t = useTranslations("analytics");
+  const sourceLabel = (s: string) => {
+    const key = `source.${s}` as Parameters<typeof t>[0];
+    return t.has(key) ? t(key) : s;
+  };
+  return (
+    <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
+      <h3 className="font-serif text-h2 text-ink">{t("bySource")}</h3>
+      <ul className="mt-3 space-y-3">
+        {rows.map((r) => (
+          <li key={r.source}>
+            <div className="flex items-baseline justify-between text-base">
+              <span className="font-medium text-ink">{sourceLabel(r.source)}</span>
+              <span className="font-medium text-moss">{r.hireRatePct}%</span>
+            </div>
+            <p className="mt-0.5 text-sm text-steel">
+              {t("sourceLine", { total: r.total, interview: r.reachedInterview, hired: r.hired })}
+            </p>
+          </li>
+        ))}
+        {rows.length === 0 ? <li className="text-base text-steel">{t("noSourceData")}</li> : null}
+      </ul>
+    </div>
   );
 }
 

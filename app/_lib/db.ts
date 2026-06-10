@@ -1771,6 +1771,11 @@ export type PipelineAnalytics = {
   // ANA3 — automation-vs-human rollup over the same window, folded through the
   // shared decision-attribution map the DecisionLog badges use.
   automation: AutomationImpact;
+  // ANA4 — channel effectiveness: entries grouped by ORIGIN, derived from each
+  // entry's earliest pipeline_events kind (applied = inbound apply, matched =
+  // match fan-out/sourcing, added = recruiter manual/intake). No migration —
+  // origin is derived, never stored.
+  bySource: { source: string; total: number; reachedInterview: number; hired: number; hireRatePct: number }[];
 };
 
 // ANA2 — `windowDays` scopes the snapshot metrics to the COHORT of entries
@@ -1956,6 +1961,53 @@ export function pipelineAnalytics(windowDays?: number | null): PipelineAnalytics
     resolved: holdRow.resolved ?? 0,
   });
 
+  // Source effectiveness (ANA4): each entry's FIRST event names how it entered
+  // the pipeline (MIN(id) — insertion order — as the earliest-event proxy).
+  // Same cohort window as the rest of the page. Entries with no events (legacy)
+  // simply don't join — they have no derivable origin.
+  const sourceRows = (
+    cutoffIso
+      ? db
+          .prepare(
+            `SELECT p.stage AS stage, fe.kind AS kind
+               FROM pipeline_entries p
+               JOIN (SELECT entry_id, kind FROM pipeline_events
+                      WHERE id IN (SELECT MIN(id) FROM pipeline_events WHERE entry_id IS NOT NULL GROUP BY entry_id)
+                    ) fe ON fe.entry_id = p.id
+              WHERE p.created_at >= ?`
+          )
+          .all(cutoffIso)
+      : db
+          .prepare(
+            `SELECT p.stage AS stage, fe.kind AS kind
+               FROM pipeline_entries p
+               JOIN (SELECT entry_id, kind FROM pipeline_events
+                      WHERE id IN (SELECT MIN(id) FROM pipeline_events WHERE entry_id IS NOT NULL GROUP BY entry_id)
+                    ) fe ON fe.entry_id = p.id`
+          )
+          .all()
+  ) as { stage: string; kind: string }[];
+  const originOf = (kind: string): string =>
+    kind === "applied" ? "applied" : kind === "matched" ? "matched" : kind === "added" || kind === "intake_degraded" ? "added" : "other";
+  const sourceMap = new Map<string, { total: number; reachedInterview: number; hired: number }>();
+  for (const r of sourceRows) {
+    const key = originOf(r.kind);
+    const m = sourceMap.get(key) ?? { total: 0, reachedInterview: 0, hired: 0 };
+    m.total += 1;
+    if (idxOf(r.stage) >= idxOf("Interview")) m.reachedInterview += 1;
+    if (r.stage === "Hired") m.hired += 1;
+    sourceMap.set(key, m);
+  }
+  const bySource = [...sourceMap.entries()]
+    .map(([source, m]) => ({
+      source,
+      total: m.total,
+      reachedInterview: m.reachedInterview,
+      hired: m.hired,
+      hireRatePct: m.total ? Math.round((m.hired / m.total) * 100) : 0,
+    }))
+    .sort((a, b) => b.total - a.total);
+
   return {
     total,
     active,
@@ -1972,6 +2024,7 @@ export function pipelineAnalytics(windowDays?: number | null): PipelineAnalytics
     windowDays: windowDays ?? null,
     momentum,
     automation,
+    bySource,
   };
 }
 
