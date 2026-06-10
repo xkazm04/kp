@@ -1584,6 +1584,14 @@
     "cellSelectTitle": "{action} {cand} → {pos}",
     "cellBlockedTitle": "{cand} → {pos}: {reason}",
     "blockedKo": "blokováno (KO)",
+    "blockedKoNamed": "blokováno (KO): {reasons}",
+    "ko": {
+      "language": "chybí požadovaný jazyk",
+      "seniority": "rozdíl v senioritě",
+      "early_career": "pozice není otevřená juniorům",
+      "education": "nesplněné minimální vzdělání",
+      "work_mode": "nevyhovující režim práce"
+    },
     "alreadyInPipe": "již v pipeline",
     "cellTitle": "{cand} → {pos}: {val}{place}",
     "inPipelineStage": " · v pipeline ({stage})",

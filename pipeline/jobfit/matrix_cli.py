@@ -89,9 +89,15 @@ def main(argv: list[str] | None = None) -> int:
                 continue
             row = []
             for job in jobs:
-                passed, _reasons = ko_filter(cand, job)
+                passed, reasons = ko_filter(cand, job)
                 if not passed:
-                    row.append({"score": None, "blocked": True})
+                    # Name the blockers (MAT2): the stable KoReason.key categories,
+                    # deduped in firing order, so the grid can say WHICH hard gate
+                    # tripped ("language" vs "seniority" demand opposite recruiter
+                    # actions) instead of one undifferentiated dash. Keys, not
+                    # details — the client localizes by key.
+                    ko_keys = list(dict.fromkeys(r.key for r in reasons))
+                    row.append({"score": None, "blocked": True, "koKeys": ko_keys})
                 else:
                     row.append({"score": score_job(cand, job).total, "blocked": False})
             # Same id fallback as the missing_candidates path above (idea-d4bd3d30):

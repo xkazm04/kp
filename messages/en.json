@@ -1584,6 +1584,14 @@
     "cellSelectTitle": "{action} {cand} → {pos}",
     "cellBlockedTitle": "{cand} → {pos}: {reason}",
     "blockedKo": "blocked (KO)",
+    "blockedKoNamed": "blocked (KO): {reasons}",
+    "ko": {
+      "language": "missing required language",
+      "seniority": "seniority gap",
+      "early_career": "role not open to early-career",
+      "education": "below minimum education",
+      "work_mode": "work-mode mismatch"
+    },
     "alreadyInPipe": "already in pipeline",
     "cellTitle": "{cand} → {pos}: {val}{place}",
     "inPipelineStage": " · in pipeline ({stage})",

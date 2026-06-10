@@ -7,7 +7,9 @@ import { cleanupWorkdir, createWorkdir, parsePythonJson, parseStderrError, spawn
 
 export const runtime = "nodejs";
 
-type Cell = { score: number | null; blocked: boolean };
+// koKeys: stable KoReason.key categories naming WHY a cell is blocked (MAT2);
+// present only on blocked cells, localized client-side by key.
+type Cell = { score: number | null; blocked: boolean; koKeys?: string[] };
 type MatrixOut = {
   candidates: { id: string; label: string; archetype: string | null }[];
   positions: { id: string; title: string; seniority: string; roleFamily: string; salaryBand: number[] }[];

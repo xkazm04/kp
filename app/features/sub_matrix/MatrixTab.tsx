@@ -56,6 +56,21 @@ const STAGE_INITIAL: Record<string, string> = {
 export function MatrixTab() {
   const t = useTranslations("matrix");
   const enumLabel = useEnumLabel();
+  // MAT2 — name the hard gate(s) behind a blocked cell. "Blocked: language"
+  // and "blocked: seniority" demand opposite recruiter actions (renegotiate vs
+  // skip); the bare dash hid that. Localized by the stable KoReason.key; cells
+  // from an older cached grid without koKeys fall back to the generic label.
+  const blockedLabel = (c: { koKeys?: string[] }) => {
+    const keys = c.koKeys ?? [];
+    if (keys.length === 0) return t("blockedKo");
+    const reasons = keys
+      .map((k) => {
+        const msgKey = `ko.${k}` as Parameters<typeof t>[0];
+        return t.has(msgKey) ? t(msgKey) : k;
+      })
+      .join(", ");
+    return t("blockedKoNamed", { reasons });
+  };
   const router = useRouter();
   const search = useSearchParams();
   // When arriving from a Pipeline position ("Rank candidates"), scope the matrix
@@ -534,13 +549,13 @@ export function MatrixTab() {
                                 selectMode
                                   ? selectable
                                     ? t("cellSelectTitle", { action: isSel ? t("deselect") : t("select"), cand: cand.label, pos: p.title })
-                                    : t("cellBlockedTitle", { cand: cand.label, pos: p.title, reason: c.blocked ? t("blockedKo") : ringed ? t("alreadyInPipe") : "" })
-                                  : t("cellTitle", { cand: cand.label, pos: p.title, val: c.blocked ? t("blockedKo") : c.score ?? 0, place: place ? t("inPipelineStage", { stage: enumLabel("stage", place.stage) }) : "" })
+                                    : t("cellBlockedTitle", { cand: cand.label, pos: p.title, reason: c.blocked ? blockedLabel(c) : ringed ? t("alreadyInPipe") : "" })
+                                  : t("cellTitle", { cand: cand.label, pos: p.title, val: c.blocked ? blockedLabel(c) : c.score ?? 0, place: place ? t("inPipelineStage", { stage: enumLabel("stage", place.stage) }) : "" })
                               }
                               aria-label={t("cellAria", {
                                 cand: cand.label,
                                 pos: p.title,
-                                val: c.blocked ? t("blocked") : t("matchVal", { score: c.score ?? 0 }),
+                                val: c.blocked ? blockedLabel(c) : t("matchVal", { score: c.score ?? 0 }),
                                 ring: ringed ? t("inPipelineSuffix") : "",
                                 sel: selectMode && selectable ? (isSel ? t("selectedSuffix") : t("selectableSuffix")) : "",
                               })}

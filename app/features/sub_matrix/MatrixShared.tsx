@@ -1,7 +1,9 @@
 import { useTranslations } from "next-intl";
 import { columnStats, STRONG_THRESHOLD, type ColumnStat } from "./matrix-stats";
 
-export type Cell = { score: number | null; blocked: boolean };
+// koKeys: stable KoReason.key categories naming WHY a cell is blocked (MAT2);
+// present only on blocked cells, localized by key via matrix.ko.* messages.
+export type Cell = { score: number | null; blocked: boolean; koKeys?: string[] };
 
 // Blocked/empty cells get a diagonal hatch so they read as "not applicable"
 // without relying on the grey fill alone (color-independent legibility).
