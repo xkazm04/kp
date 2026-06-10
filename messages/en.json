@@ -711,7 +711,19 @@
       "keptCount": "{count} kept",
       "wouldRejectHeading": "Would reject",
       "matchSuffix": "· match {score}",
-      "keptHeading": "Kept ({count})"
+      "keptHeading": "Kept ({count})",
+      "reasons": {
+        "autoRejectOff": "auto-reject off",
+        "earlyCareer": "early-career — never auto-rejected",
+        "unknownArchetype": "unknown archetype — shielded (fail-closed)",
+        "tieAtCutoff": "tie at cutoff — kept so equal scores aren't split",
+        "aboveCutoff": "above the bottom cutoff",
+        "atThreshold": "match at/above threshold",
+        "rejectWould": "Would auto-reject · bottom {pct}% of {n} → {count} (rank {rank}) and match {score} < {threshold} threshold.",
+        "rejectDid": "Auto-rejected · bottom {pct}% of {n} → {count} (rank {rank}) and match {score} < {threshold} threshold.",
+        "tieAdjustedNote": "(tie-adjusted from {from} so no equal score is split)",
+        "staleSkipped": "Skipped — stage changed mid-wave (was {wasStage}); left untouched."
+      }
     },
     "summary": {
       "reject": "Reject",

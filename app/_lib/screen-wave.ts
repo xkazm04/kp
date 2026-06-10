@@ -17,8 +17,49 @@ export type ScreenDecision = {
   archetype: string | null;
   matchScore: number;
   action: "reject" | "keep";
+  // The audit-trail rationale — byte-identical English, persisted on a committed
+  // run (the recorded audit event) and pinned by the unit tests. UNCHANGED.
   rationale: string;
+  // DEC4 — a structured, locale-renderable mirror of `rationale`: the modal
+  // renders `decisions.wave.reasons.<reasonCode>` interpolated with
+  // `reasonParams`, so a Czech recruiter reads a Czech rationale in the preview
+  // and the committed view while the persisted audit string stays English (zero
+  // audit risk). Falls back to `rationale` when a code is unmapped.
+  reasonCode: ScreenReasonCode;
+  reasonParams: Record<string, string | number>;
 };
+
+// The closed set of rationale shapes. Each maps to a `decisions.wave.reasons.*`
+// catalog key; params carry the interpolated numbers.
+export type ScreenReasonCode =
+  | "autoRejectOff"
+  | "earlyCareer"
+  | "unknownArchetype"
+  | "tieAtCutoff"
+  | "aboveCutoff"
+  | "atThreshold"
+  | "reject"
+  | "staleSkipped";
+
+// The structured mirror of keepReason: same branch order, returns the code +
+// interpolation params instead of the English string. Kept beside keepReason so
+// the two can't drift (the audit string and the localized one describe the same
+// decision).
+export function keepReasonStructured(
+  cfg: ScreeningRule,
+  protectedFromAutoReject: boolean,
+  knownArchetype: boolean,
+  inBottom: boolean,
+  tieSpared: boolean
+): { reasonCode: ScreenReasonCode; reasonParams: Record<string, string | number> } {
+  if (!cfg.autoRejectEnabled) return { reasonCode: "autoRejectOff", reasonParams: {} };
+  if (protectedFromAutoReject) {
+    return { reasonCode: knownArchetype ? "earlyCareer" : "unknownArchetype", reasonParams: {} };
+  }
+  if (tieSpared) return { reasonCode: "tieAtCutoff", reasonParams: {} };
+  if (!inBottom) return { reasonCode: "aboveCutoff", reasonParams: {} };
+  return { reasonCode: "atThreshold", reasonParams: {} };
+}
 
 // Why a candidate was KEPT (not auto-rejected). These strings are persisted to the
 // audit trail and shown to users, so they must stay byte-identical — a guarded pure
@@ -126,11 +167,22 @@ export async function runScreenWave(
       const tieNote = effectiveBottomCount < bottomCount ? ` (tie-adjusted from ${bottomCount} so no equal score is split)` : "";
       const verb = dryRun ? "Would auto-reject" : "Auto-rejected";
       const rationale = `${verb} · bottom ${cfg.rejectBottomPercent}% of ${n} → ${effectiveBottomCount}${tieNote} (rank ${rank + 1}) and match ${score} < ${cfg.maxMatchToReject} threshold.`;
+      // DEC4 — structured mirror for localized rendering; the modal picks the
+      // would/did phrasing from the run's dryRun flag and notes the tie adjustment.
+      const reasonParams: Record<string, string | number> = {
+        pct: cfg.rejectBottomPercent,
+        n,
+        count: effectiveBottomCount,
+        rank: rank + 1,
+        score,
+        threshold: cfg.maxMatchToReject,
+        tieAdjusted: effectiveBottomCount < bottomCount ? bottomCount : 0,
+      };
       // DEC2 preview: compute the verdict + rationale but commit NOTHING — no CAS
       // write, no audit event, no rejection email. The recruiter reviews this set,
       // then re-runs with dryRun:false to apply it.
       if (dryRun) {
-        decisions.push({ entryId: e.id, label: e.candidateLabel, archetype: e.archetype, matchScore: score, action: "reject", rationale });
+        decisions.push({ entryId: e.id, label: e.candidateLabel, archetype: e.archetype, matchScore: score, action: "reject", rationale, reasonCode: "reject", reasonParams });
         rejected += 1;
         continue;
       }
@@ -143,7 +195,7 @@ export async function runScreenWave(
       const updated = actOnPipelineEntry(e.id, "reject", undefined, { expectedStage: e.stage });
       if (!updated) {
         const skipped = `Skipped — stage changed mid-wave (was ${e.stage}); left untouched.`;
-        decisions.push({ entryId: e.id, label: e.candidateLabel, archetype: e.archetype, matchScore: score, action: "keep", rationale: skipped });
+        decisions.push({ entryId: e.id, label: e.candidateLabel, archetype: e.archetype, matchScore: score, action: "keep", rationale: skipped, reasonCode: "staleSkipped", reasonParams: { wasStage: e.stage } });
         continue;
       }
       recordAutomationEvent(e.id, "auto_rejected", rationale); // audit trail (shows in Analytics)
@@ -161,11 +213,12 @@ export async function runScreenWave(
         console.warn(`[screen-wave] rejection comms failed for ${e.candidateLabel} (${e.id}): ${msg}`);
         recordAutomationEvent(e.id, "rejection_comms_failed", `Auto-rejected, but the notification failed to queue — nudge manually. (${msg})`);
       }
-      decisions.push({ entryId: e.id, label: e.candidateLabel, archetype: e.archetype, matchScore: score, action: "reject", rationale });
+      decisions.push({ entryId: e.id, label: e.candidateLabel, archetype: e.archetype, matchScore: score, action: "reject", rationale, reasonCode: "reject", reasonParams });
       rejected += 1;
     } else {
       const reason = keepReason(cfg, protectedFromAutoReject, knownArchetype, inBottom, tieSpared);
-      decisions.push({ entryId: e.id, label: e.candidateLabel, archetype: e.archetype, matchScore: score, action: "keep", rationale: reason });
+      const structured = keepReasonStructured(cfg, protectedFromAutoReject, knownArchetype, inBottom, tieSpared);
+      decisions.push({ entryId: e.id, label: e.candidateLabel, archetype: e.archetype, matchScore: score, action: "keep", rationale: reason, ...structured });
     }
   }
   return { decisions, rejected, kept: decisions.length - rejected, cohort: n, config: cfg, commsFailures, dryRun };

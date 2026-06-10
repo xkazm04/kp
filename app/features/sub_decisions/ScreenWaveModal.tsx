@@ -6,8 +6,19 @@ import { useTranslations } from "next-intl";
 import { Modal } from "@/app/_components/Modal";
 import { SCREENING_DEFAULT } from "@/app/_lib/decision-config-schema";
 
-// One decision in the wave (mirrors ScreenDecision in screen-wave.ts).
-type Decision = { entryId: string; label: string; archetype: string | null; matchScore: number; action: "reject" | "keep"; rationale: string };
+// One decision in the wave (mirrors ScreenDecision in screen-wave.ts). DEC4 —
+// `reasonCode`/`reasonParams` are the locale-renderable mirror of the English
+// `rationale`; older shapes without them fall back to the raw string.
+type Decision = {
+  entryId: string;
+  label: string;
+  archetype: string | null;
+  matchScore: number;
+  action: "reject" | "keep";
+  rationale: string;
+  reasonCode?: string;
+  reasonParams?: Record<string, string | number>;
+};
 type WaveResult = { decisions: Decision[]; rejected: number; kept: number; cohort: number; commsFailures: number; dryRun: boolean };
 
 // Run the screening auto-reject wave for one role (DEC1) — but ALWAYS preview
@@ -102,6 +113,22 @@ export function ScreenWaveModal({
   const view = committed ?? preview;
   const rejects = view?.decisions.filter((d) => d.action === "reject") ?? [];
   const keeps = view?.decisions.filter((d) => d.action === "keep") ?? [];
+
+  // DEC4 — render the localized rationale from the structured reason code; the
+  // persisted English `rationale` is the fallback (older shapes / unmapped code).
+  // The reject code picks would/did phrasing from the run's dryRun flag and
+  // appends the tie-adjustment note when one applied.
+  const reasonText = (d: Decision): string => {
+    if (!d.reasonCode) return d.rationale;
+    const p = d.reasonParams ?? {};
+    if (d.reasonCode === "reject") {
+      const base = t(view?.dryRun ? "reasons.rejectWould" : "reasons.rejectDid", p as Record<string, string | number>);
+      const tie = Number(p.tieAdjusted) > 0 ? ` ${t("reasons.tieAdjustedNote", { from: Number(p.tieAdjusted) })}` : "";
+      return base + tie;
+    }
+    const key = `reasons.${d.reasonCode}` as Parameters<typeof t>[0];
+    return t.has(key) ? t(key, p as Record<string, string | number>) : d.rationale;
+  };
 
   return (
     <Modal
@@ -204,7 +231,7 @@ export function ScreenWaveModal({
                 {rejects.map((d) => (
                   <li key={d.entryId} className="rounded-md border border-coral/30 bg-coral/5 px-2.5 py-1.5 text-sm">
                     <span className="font-medium text-ink">{d.label}</span> <span className="nums text-steel">{t("matchSuffix", { score: d.matchScore })}</span>
-                    <span className="mt-0.5 block text-meta text-steel">{d.rationale}</span>
+                    <span className="mt-0.5 block text-meta text-steel">{reasonText(d)}</span>
                   </li>
                 ))}
               </ul>
@@ -220,7 +247,7 @@ export function ScreenWaveModal({
                     <span className="text-ink">
                       {d.label} <span className="nums text-steel">· {d.matchScore}</span>
                     </span>
-                    <span className="shrink-0 text-meta text-steel">{d.rationale}</span>
+                    <span className="shrink-0 text-meta text-steel">{reasonText(d)}</span>
                   </li>
                 ))}
               </ul>

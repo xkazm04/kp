@@ -711,7 +711,19 @@
       "keptCount": "{count} ponecháno",
       "wouldRejectHeading": "Zamítl by",
       "matchSuffix": "· shoda {score}",
-      "keptHeading": "Ponecháno ({count})"
+      "keptHeading": "Ponecháno ({count})",
+      "reasons": {
+        "autoRejectOff": "automatické zamítání vypnuto",
+        "earlyCareer": "začínající kariéra — nikdy automaticky nezamítnuto",
+        "unknownArchetype": "neznámý archetyp — chráněno (fail-closed)",
+        "tieAtCutoff": "shoda na hranici — ponecháno, aby se stejná skóre nerozdělila",
+        "aboveCutoff": "nad spodní hranicí",
+        "atThreshold": "shoda na/nad prahem",
+        "rejectWould": "Automaticky by zamítl · spodních {pct} % z {n} → {count} (pořadí {rank}) a shoda {score} < práh {threshold}.",
+        "rejectDid": "Automaticky zamítnuto · spodních {pct} % z {n} → {count} (pořadí {rank}) a shoda {score} < práh {threshold}.",
+        "tieAdjustedNote": "(upraveno kvůli shodě z {from}, aby se stejná skóre nerozdělila)",
+        "staleSkipped": "Přeskočeno — fáze se během vlny změnila (byla {wasStage}); ponecháno beze změny."
+      }
     },
     "summary": {
       "reject": "Zamítnout",
