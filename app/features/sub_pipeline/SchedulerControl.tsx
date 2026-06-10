@@ -5,6 +5,7 @@ import { AlertTriangle, ArrowUpRight, Clock, History, Loader2, Pause, XCircle } 
 import type { LucideIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Badge, type BadgeTone } from "@/app/_components/Badge";
+import { useEngineAvailability } from "@/app/features/useEngineAvailability";
 import { useRelativeTime } from "./PipelineShared";
 
 type Summary = { advanced?: number; rejected?: number; held?: number; alerts?: number; errors?: number; evaluated?: number };
@@ -94,6 +95,9 @@ export function SchedulerControl({
 }) {
   const t = useTranslations("pipeline.scheduler");
   const relativeTime = useRelativeTime();
+  // DATA4 — flag the silent-fallback mode (no Claude CLI on PATH) at the
+  // surface that triggers the automation.
+  const engines = useEngineAvailability();
   // Turn a tick outcome into a short, legible chip: the real summary on success, a
   // neutral no-op, or the error verbatim. The per-bucket parts come from
   // SUMMARY_COUNTS so the chip and the badges never drift. Local (not module) so
@@ -232,6 +236,18 @@ export function SchedulerControl({
       <span className="flex items-center gap-1.5 font-medium text-ink">
         <Clock size={14} className="text-coral" /> {t("clock")}
       </span>
+      {/* DATA4 — without the Claude CLI the pass still runs but every draft is
+          a deterministic fallback that LOOKS like AI output; say so where the
+          automation is controlled, not only in server logs. */}
+      {engines && !engines.claudeCli ? (
+        <span
+          role="status"
+          title={t("fallbackEngineTitle")}
+          className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-sm font-medium text-amber-700"
+        >
+          <AlertTriangle size={12} className="shrink-0" aria-hidden /> {t("fallbackEngine")}
+        </span>
+      ) : null}
       <button
         type="button"
         onClick={() => update({ enabled: !sched.enabled })}

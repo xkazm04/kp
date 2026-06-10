@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { ScanAnimationCompact } from "@/app/_components/ScanAnimation";
+import { useEngineAvailability } from "@/app/features/useEngineAvailability";
 import { AnalyzeColumn } from "./AnalyzeColumn";
 import { AnalyzeFileDropZone } from "./AnalyzeFileDropZone";
 import { AnalyzePasteRow } from "./AnalyzePasteRow";
@@ -19,6 +20,9 @@ import type { AnalyzeFormState } from "./useAnalyzeForm";
 
 export function AnalyzeForm({ state }: { state: AnalyzeFormState }) {
   const t = useTranslations("analyze");
+  // DATA4 — preflight the Gemini engine so a doomed run is a fixable one-liner
+  // BEFORE submit, not a cryptic task failure minutes later.
+  const engines = useEngineAvailability();
   const { refs, inputs, setters, handlers, flags, statuses, library, result } = state;
   const { setJobDescriptionFile, setJobDescriptionText, setCompanyFile, setCompanyText, setGithubProfile } = setters;
   const { setSelectedJdSlug } = library;
@@ -160,6 +164,12 @@ export function AnalyzeForm({ state }: { state: AnalyzeFormState }) {
           </AnalyzeColumn>
         </div>
       </div>
+
+      {engines && !engines.gemini ? (
+        <p role="status" className="mt-4 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-medium text-amber-700">
+          {t("geminiMissing")}
+        </p>
+      ) : null}
 
       <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div aria-live="polite" className="sm:flex-1">

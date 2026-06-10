@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSeedHealth, coreTableCounts, countActiveTasks } from "@/app/_lib/db";
+import { engineAvailability } from "@/app/_lib/engine-preflight";
 
 export const runtime = "nodejs";
 
@@ -39,6 +40,10 @@ export async function GET() {
       tables,
       queue,
       degradedReasons,
+      // DATA4 — informational, never a degradedReason: a missing Claude CLI is
+      // a designed fallback mode, and a missing Gemini key may be intentional
+      // in a demo sandbox; 503-ing on either would block deploys that mean it.
+      engines: engineAvailability(),
     },
     { status: ok ? 200 : 503 }
   );
