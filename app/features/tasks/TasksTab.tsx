@@ -57,11 +57,28 @@ function duration(start: string | null, end: string | null): string | null {
   return rem ? `${mins}m ${rem}s` : `${mins}m`;
 }
 
+// DATA6 — the status values the filter chips offer (terminal states only; the
+// In-progress group is narrowed by kind/text but not by these).
+const FILTER_STATUSES: TaskStatus[] = ["failed", "interrupted", "succeeded", "canceled"];
+
 export function TasksTab() {
   const { tasks, cancelTask, refresh, startError, clearStartError } = useTasks();
   const [showHistory, setShowHistory] = useState(false);
-  const active = tasks.filter(ACTIVE);
-  const done = tasks.filter((t) => !ACTIVE(t));
+  // DATA6 — client-side filter bar over the loaded window (the established
+  // PIPE2/RES3 pattern); kind/status also thread into the history endpoint.
+  const [textFilter, setTextFilter] = useState("");
+  const [kindFilter, setKindFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState<TaskStatus | null>(null);
+  const text = textFilter.trim().toLowerCase();
+  const matchesFilters = (t: Task) =>
+    (!kindFilter || t.kind === kindFilter) && (!text || (t.label ?? t.kind).toLowerCase().includes(text));
+  const active = tasks.filter(ACTIVE).filter(matchesFilters);
+  const done = tasks
+    .filter((t) => !ACTIVE(t))
+    .filter(matchesFilters)
+    .filter((t) => !statusFilter || t.status === statusFilter);
+  const kinds = [...new Set(tasks.map((t) => t.kind))].sort();
+  const filtering = Boolean(text) || Boolean(kindFilter) || statusFilter !== null;
 
   return (
     <section className="mx-auto max-w-5xl space-y-6">
@@ -102,13 +119,73 @@ export function TasksTab() {
         </div>
       ) : null}
 
+      {/* DATA6: narrow the (often dozen-kind) window — free text over labels,
+          a kind select, and terminal-status chips for the Done group. */}
+      {tasks.length > 0 || showHistory ? (
+        <div className="flex flex-wrap items-center gap-2">
+          <label htmlFor="tasks-search" className="sr-only">
+            Search tasks
+          </label>
+          <input
+            id="tasks-search"
+            type="search"
+            value={textFilter}
+            onChange={(e) => setTextFilter(e.target.value)}
+            placeholder="Search tasks…"
+            className="focus-ring h-9 min-w-[180px] flex-1 rounded-md border border-stone-200 px-3 text-base"
+          />
+          <select
+            value={kindFilter}
+            onChange={(e) => setKindFilter(e.target.value)}
+            aria-label="Filter by task kind"
+            className="focus-ring h-9 rounded-md border border-stone-200 bg-white px-2 text-sm text-ink"
+          >
+            <option value="">All kinds</option>
+            {kinds.map((k) => (
+              <option key={k} value={k}>
+                {k}
+              </option>
+            ))}
+          </select>
+          {FILTER_STATUSES.map((s) => (
+            <button
+              key={s}
+              type="button"
+              onClick={() => setStatusFilter((cur) => (cur === s ? null : s))}
+              aria-pressed={statusFilter === s}
+              className={`focus-ring rounded-full border px-3 py-1 text-sm font-semibold transition-colors ${
+                statusFilter === s ? "border-coral bg-coral/10 text-coral" : "border-stone-200 text-steel hover:border-coral/40"
+              }`}
+            >
+              {STATUS[s].label}
+            </button>
+          ))}
+          {filtering ? (
+            <button
+              type="button"
+              onClick={() => {
+                setTextFilter("");
+                setKindFilter("");
+                setStatusFilter(null);
+              }}
+              className="focus-ring inline-flex items-center gap-1 rounded-full border border-coral/40 bg-coral/5 px-2.5 py-0.5 text-sm font-semibold text-coral hover:bg-coral/10"
+            >
+              Clear
+            </button>
+          ) : null}
+        </div>
+      ) : null}
+
       {active.length === 0 && done.length === 0 ? (
         <div className="rounded-lg border border-stone-200 bg-paper p-8 text-center">
           <Clock size={20} className="mx-auto text-steel" />
-          <p className="mt-2 text-base font-medium text-ink">No recent background tasks</p>
+          <p className="mt-2 text-base font-medium text-ink">
+            {filtering ? "No tasks match these filters" : "No recent background tasks"}
+          </p>
           <p className="mx-auto mt-1 max-w-md text-sm text-steel">
-            Active and recently finished runs (last {RECENT_WINDOW_DAYS} days) appear here. Older runs are available
-            under “Show history” below.
+            {filtering
+              ? "Clear the filters above to see the full window."
+              : `Active and recently finished runs (last ${RECENT_WINDOW_DAYS} days) appear here. Older runs are available under “Show history” below.`}
           </p>
         </div>
       ) : (
@@ -149,7 +226,11 @@ export function TasksTab() {
         Show history (tasks older than {RECENT_WINDOW_DAYS} days)
       </label>
 
-      {showHistory ? <TaskHistory /> : null}
+      {/* The keyed remount restarts the (accumulating) infinite scroll whenever
+          a server-side filter changes — the engine pages from offset 0 again. */}
+      {showHistory ? (
+        <TaskHistory key={`${kindFilter}|${statusFilter ?? ""}`} kind={kindFilter} status={statusFilter} text={text} />
+      ) : null}
     </section>
   );
 }
@@ -157,10 +238,20 @@ export function TasksTab() {
 // On-demand history of finished tasks older than the recent window. Reuses the
 // shared infinite-scroll engine (same one behind the analytics audit log) to
 // page in 20 at a time, with each freshly loaded page cascading in unless the
-// user prefers reduced motion.
-function TaskHistory() {
+// user prefers reduced motion. kind/status narrow server-side (DATA6); the
+// free-text filter applies client-side over the loaded pages, same as the
+// live window.
+function TaskHistory({ kind, status, text }: { kind: string; status: TaskStatus | null; text: string }) {
   const reduced = useReducedMotion();
-  const buildUrl = useCallback((offset: number, limit: number) => `/api/tasks/history?offset=${offset}&limit=${limit}`, []);
+  const buildUrl = useCallback(
+    (offset: number, limit: number) => {
+      const params = new URLSearchParams({ offset: String(offset), limit: String(limit) });
+      if (kind) params.set("kind", kind);
+      if (status) params.set("status", status);
+      return `/api/tasks/history?${params.toString()}`;
+    },
+    [kind, status]
+  );
   const selectPage = useCallback((body: unknown): InfinitePage<Task> => {
     const b = body as { tasks: Task[]; total: number; hasMore: boolean; nextOffset: number };
     return { items: b.tasks, total: b.total, hasMore: b.hasMore, nextOffset: b.nextOffset };
@@ -191,9 +282,11 @@ function TaskHistory() {
         <p className="mt-3 text-base text-steel">No tasks older than {RECENT_WINDOW_DAYS} days.</p>
       ) : (
         <ul className="mt-3 divide-y divide-stone-100" aria-busy={phase === "more"}>
-          {items.map((t, i) => (
-            <DoneRow key={t.id} task={t} animateDelayMs={reduced ? null : (i % HISTORY_PAGE_SIZE) * 18} />
-          ))}
+          {items
+            .filter((t) => !text || (t.label ?? t.kind).toLowerCase().includes(text))
+            .map((t, i) => (
+              <DoneRow key={t.id} task={t} animateDelayMs={reduced ? null : (i % HISTORY_PAGE_SIZE) * 18} />
+            ))}
           {phase === "more" ? Array.from({ length: 3 }).map((_, i) => <HistorySkeletonRow key={`s${i}`} />) : null}
         </ul>
       )}

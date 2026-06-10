@@ -2695,29 +2695,50 @@ export function listRecentTasks(sinceIso: string, limit = 60): TaskRecord[] {
 // (potentially huge) trail is never loaded at once. The `< before` here and the
 // `>= since` above share one cutoff at the call site, so no task is dropped
 // between the two windows or shown in both.
-export function listTaskHistory(beforeIso: string, limit: number, offset: number): TaskRecord[] {
+// DATA6 — optional kind/status narrowing for the paged history. The clauses are
+// fixed strings chosen by presence (never interpolated values — both filters
+// bind as parameters), so the prepared-statement shape stays injection-safe.
+export type TaskHistoryFilter = { kind?: string; status?: string };
+
+function taskHistoryClauses(filter?: TaskHistoryFilter): { sql: string; params: Record<string, string> } {
+  let sql = "";
+  const params: Record<string, string> = {};
+  if (filter?.kind) {
+    sql += " AND kind = @kind";
+    params.kind = filter.kind;
+  }
+  if (filter?.status) {
+    sql += " AND status = @status";
+    params.status = filter.status;
+  }
+  return { sql, params };
+}
+
+export function listTaskHistory(beforeIso: string, limit: number, offset: number, filter?: TaskHistoryFilter): TaskRecord[] {
   const db = ensureDb();
+  const { sql, params } = taskHistoryClauses(filter);
   const rows = db
     .prepare(
       `SELECT ${TASK_LITE_COLUMNS} FROM tasks
        WHERE status NOT IN ('queued','running')
-         AND COALESCE(finished_at, created_at) < @before
+         AND COALESCE(finished_at, created_at) < @before${sql}
        ORDER BY COALESCE(finished_at, created_at) DESC, id DESC
        LIMIT @limit OFFSET @offset`
     )
-    .all({ before: beforeIso, limit, offset }) as TaskLiteRow[];
+    .all({ before: beforeIso, limit, offset, ...params }) as TaskLiteRow[];
   return rows.map(rowToTaskLite);
 }
 
-export function countTaskHistory(beforeIso: string): number {
+export function countTaskHistory(beforeIso: string, filter?: TaskHistoryFilter): number {
   const db = ensureDb();
+  const { sql, params } = taskHistoryClauses(filter);
   const row = db
     .prepare(
       `SELECT COUNT(*) AS n FROM tasks
        WHERE status NOT IN ('queued','running')
-         AND COALESCE(finished_at, created_at) < @before`
+         AND COALESCE(finished_at, created_at) < @before${sql}`
     )
-    .get({ before: beforeIso }) as { n: number };
+    .get({ before: beforeIso, ...params }) as { n: number };
   return row.n;
 }
 
