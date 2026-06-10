@@ -560,6 +560,7 @@
     "aiReview": {
       "tagOffer": "Balíček nabídky",
       "tagScorecard": "Hodnoticí karta z pohovoru",
+      "tagHumanScorecard": "Hodnoticí karta z pohovoru (člověk)",
       "tagScreening": "Prověření AI",
       "acceptSendOffer": "Odeslat nabídku",
       "acceptToOffer": "K nabídce",

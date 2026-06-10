@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getPipelineEntry, recordAutomationEvent, setApproval } from "@/app/_lib/db";
 import { saveHumanScorecard } from "@/app/_lib/interview-prep";
 import { coerceInterviewRecommendation, isInterviewRecommendation } from "@/app/_lib/interview-recommendation";
 import { RATING_MAX } from "@/app/_lib/format";
@@ -61,7 +62,32 @@ export async function POST(request: NextRequest) {
     if (!ok) {
       return NextResponse.json({ error: "No interview prep to attach a scorecard to — generate it first." }, { status: 404 });
     }
-    return NextResponse.json({ ok: true });
+
+    // DEC1 — close the loop PREP1 left open: this route saved the human verdict
+    // and returned, so a human-conducted interview never reached the Decisions
+    // queue (the only scorecard_review setters were both AI paths) — the entry
+    // stayed parked at the calendar approval and the Interview→Offer gate never
+    // opened. When the recruiter recorded an actual recommendation for an active
+    // Interview-stage entry whose gate is open (no approval, or still parked at
+    // calendar), set the same scorecard_review approval the AI path sets — the
+    // human Scorecard (source:"human") already parses as the shape AiReviewCard
+    // renders. An entry already holding an AI scorecard_review (or offer_review)
+    // is left alone: the human verdict shows beside it via getHumanScorecard.
+    let gated = false;
+    if (scorecard.recommendation) {
+      const pipelineEntry = getPipelineEntry(entry);
+      if (
+        pipelineEntry &&
+        pipelineEntry.status === "active" &&
+        pipelineEntry.stage === "Interview" &&
+        (pipelineEntry.approvalKind === null || pipelineEntry.approvalKind === "calendar")
+      ) {
+        setApproval(entry, "scorecard_review", JSON.stringify(scorecard));
+        recordAutomationEvent(entry, "interview_scorecard", `human: ${scorecard.recommendation}`);
+        gated = true;
+      }
+    }
+    return NextResponse.json({ ok: true, gated });
   } catch (error) {
     return safeJsonError(error, "api:interview-prep:scorecard", "INTERVIEW_PREP_FAILED");
   }

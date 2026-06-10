@@ -22,7 +22,10 @@ export function AiReviewCard({ entry, onAccept, onReject }: { entry: Entry; onAc
   const kind = entry.approvalKind;
   const isScorecard = kind === "scorecard_review";
   const isOffer = kind === "offer_review";
-  const tag = isOffer ? t("tagOffer") : isScorecard ? t("tagScorecard") : t("tagScreening");
+  // DEC1 — a human-conducted interview's scorecard reaches this queue too; the
+  // tag names the source so the reviewer knows whose judgment they're ratifying.
+  const isHumanScorecard = isScorecard && parsed?.source === "human";
+  const tag = isOffer ? t("tagOffer") : isHumanScorecard ? t("tagHumanScorecard") : isScorecard ? t("tagScorecard") : t("tagScreening");
   const acceptLabel = isOffer ? t("acceptSendOffer") : isScorecard ? t("acceptToOffer") : t("acceptAdvance");
 
   return (

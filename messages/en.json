@@ -560,6 +560,7 @@
     "aiReview": {
       "tagOffer": "Offer package",
       "tagScorecard": "Interview scorecard",
+      "tagHumanScorecard": "Human interview scorecard",
       "tagScreening": "AI screening",
       "acceptSendOffer": "Send offer",
       "acceptToOffer": "To offer",
