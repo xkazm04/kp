@@ -3,6 +3,7 @@ import { analysisSchema, type Analysis } from "@/app/_lib/schemas";
 import { computeCacheKey, lookupCachedAnalysis, storeCachedAnalysis } from "@/app/_lib/cache";
 import { buildComparison } from "@/app/_lib/comparison";
 import { reconcileScoreTotal } from "@/app/_lib/format";
+import { countSanityWarns } from "@/app/_lib/sanity-checks";
 import { saveAnalysis } from "@/app/_lib/db";
 import { logAnalyze, type AnalyzeLog } from "@/app/_lib/logger";
 import { cleanupWorkdir, parsePythonJson, parseStderrError, spawnPython } from "@/app/_lib/python-runner";
@@ -205,6 +206,7 @@ function persistAnalysis(candidateLabel: string, jdSlug: string | null, analysis
       roleFamily: analysis.candidate?.roleFamily ?? null,
       seniority: analysis.candidate?.currentSeniority ?? null,
       payload: analysis,
+      reviewFlags: countSanityWarns(analysis.sanityChecks ?? []),
     });
   } catch (error) {
     console.error("Failed to persist analysis", error);

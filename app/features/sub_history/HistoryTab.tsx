@@ -15,6 +15,9 @@ type AnalysisRow = {
   seniority: string | null;
   created_at: string;
   disposition?: string | null;
+  // SCOR2 — warn-shaped sanity-check count stamped at save time; NULL on rows
+  // saved before the column existed (no pill).
+  review_flags?: number | null;
 };
 
 // RES5 — the recruiter's recorded decision on a saved analysis, shown as a pill on
@@ -186,7 +189,17 @@ export function HistoryTab() {
                     <Td>{row.candidate_label}</Td>
                     <Td className="capitalize">{row.role_family ? enumLabel("family", row.role_family) : "—"}</Td>
                     <Td className="capitalize">{row.seniority ? enumLabel("seniority", row.seniority) : "—"}</Td>
-                    <Td>{row.score ?? "—"}</Td>
+                    <Td>
+                      {row.score ?? "—"}
+                      {row.review_flags ? (
+                        <span
+                          className="ml-1.5 inline-block rounded-full bg-amber-100 px-1.5 py-0.5 text-xs font-semibold text-amber-800"
+                          title={t("reviewFlags", { count: row.review_flags })}
+                        >
+                          ⚠ {row.review_flags}
+                        </span>
+                      ) : null}
+                    </Td>
                     <Td>
                       {row.disposition ? (
                         <span

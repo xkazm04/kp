@@ -7,6 +7,7 @@ import { hasRenderableComparison } from "@/app/_lib/comparison";
 import { reconcileScoreTotal } from "@/app/_lib/format";
 import { AddToPipelineButton, type PipelineRef } from "./AddToPipelineButton";
 import { ArchetypeBanner } from "./ArchetypeBanner";
+import { QualityStrip } from "./QualityStrip";
 import type { Analysis, GithubAnalysis } from "@/app/_lib/schemas";
 import { CompareIcon, ExtractionIcon, InterviewIcon, JobFitIcon, SalaryIcon } from "../icons";
 import { CompareTab } from "./compare/CompareTab";
@@ -122,6 +123,7 @@ export function ResultPanel({ analysis, github, pipelineRef }: ResultPanelProps)
         </div>
       ) : null}
       {analysis.v2Profile ? <ArchetypeBanner v2Profile={analysis.v2Profile} /> : null}
+      <QualityStrip checks={analysis.sanityChecks ?? []} />
       <div className="rounded-lg border border-stone-200 bg-white p-2 shadow-panel">
         <div role="tablist" aria-label="Result sections" onKeyDown={onTabKeyDown} className={`grid gap-1 sm:grid-cols-2 ${lgGridClass}`}>
           {tabs.map((tab) => {

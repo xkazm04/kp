@@ -1391,7 +1391,16 @@
     "colDecision": "Decision",
     "colJd": "JD",
     "colSaved": "Saved",
-    "disposition": { "advance": "advance", "hold": "hold", "pass": "pass" }
+    "disposition": { "advance": "advance", "hold": "hold", "pass": "pass" },
+    "reviewFlags": "{count, plural, one {# quality check flagged for review} other {# quality checks flagged for review}}"
+  },
+  "results": {
+    "quality": {
+      "title": "Needs review",
+      "flagged": "{count, plural, one {# review flag} other {# review flags}}",
+      "allPassed": "{count, plural, one {# quality check passed} other {All # quality checks passed}}",
+      "viewChecks": "{count, plural, one {View # check} other {View all # checks}}"
+    }
   },
   "analytics": {
     "loadFailed": "Couldn't load analytics.",

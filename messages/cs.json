@@ -1391,7 +1391,16 @@
     "colDecision": "Rozhodnutí",
     "colJd": "Pozice",
     "colSaved": "Uloženo",
-    "disposition": { "advance": "postoupit", "hold": "pozdržet", "pass": "zamítnout" }
+    "disposition": { "advance": "postoupit", "hold": "pozdržet", "pass": "zamítnout" },
+    "reviewFlags": "{count, plural, one {# kontrola kvality označena k posouzení} few {# kontroly kvality označeny k posouzení} other {# kontrol kvality označeno k posouzení}}"
+  },
+  "results": {
+    "quality": {
+      "title": "Vyžaduje kontrolu",
+      "flagged": "{count, plural, one {# upozornění} few {# upozornění} other {# upozornění}}",
+      "allPassed": "{count, plural, one {# kontrola kvality prošla} few {Všechny # kontroly kvality prošly} other {Všech # kontrol kvality prošlo}}",
+      "viewChecks": "{count, plural, one {Zobrazit # kontrolu} few {Zobrazit všechny # kontroly} other {Zobrazit všech # kontrol}}"
+    }
   },
   "analytics": {
     "loadFailed": "Analytiku se nepodařilo načíst.",

@@ -436,6 +436,10 @@ function ensureDb(): Database.Database {
     // Human disposition + reason on a saved analysis (RES5) — see the table CREATE.
     "ALTER TABLE analyses ADD COLUMN disposition TEXT",
     "ALTER TABLE analyses ADD COLUMN decision_note TEXT",
+    // Count of warn-shaped sanityChecks (countSanityWarns), stamped at save so
+    // the History list can flag degraded analyses without scanning payloads.
+    // NULL on rows saved before the column existed — renders as "no pill".
+    "ALTER TABLE analyses ADD COLUMN review_flags INTEGER",
   ]) {
     try {
       db.exec(sql);
@@ -555,6 +559,8 @@ export type AnalysisRow = {
   // optional because the narrower pool/JD SELECTs don't read them.
   disposition?: string | null;
   decision_note?: string | null;
+  // SCOR2 — warn-shaped sanity-check count, same optionality rationale.
+  review_flags?: number | null;
 };
 
 // The recruiter dispositions a saved analysis can carry (RES5). advance/hold/pass
@@ -633,6 +639,9 @@ export type SaveAnalysisInput = {
   roleFamily: string | null;
   seniority: string | null;
   payload: unknown;
+  // Warn-shaped sanity-check count (countSanityWarns). Denormalized so the
+  // History list can flag degraded analyses straight off the summary SELECT.
+  reviewFlags?: number | null;
 };
 
 export function saveAnalysis(input: SaveAnalysisInput): { slug: string; createdAt: string } {
@@ -641,8 +650,8 @@ export function saveAnalysis(input: SaveAnalysisInput): { slug: string; createdA
   const payloadJson = JSON.stringify(input.payload);
   const stmt = db.prepare(
     `INSERT INTO analyses
-      (slug, candidate_label, jd_slug, score, role_family, seniority, payload_json, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+      (slug, candidate_label, jd_slug, score, role_family, seniority, payload_json, created_at, review_flags)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
   );
   const slug = insertWithUniqueSlug((s) =>
     stmt.run(
@@ -653,7 +662,8 @@ export function saveAnalysis(input: SaveAnalysisInput): { slug: string; createdA
       input.roleFamily,
       input.seniority,
       payloadJson,
-      createdAt
+      createdAt,
+      input.reviewFlags ?? null
     )
   );
   return { slug, createdAt };
@@ -663,7 +673,7 @@ export function listAnalyses(limit = 100): AnalysisSummary[] {
   const db = ensureDb();
   const rows = db
     .prepare(
-      `SELECT slug, candidate_label, jd_slug, score, role_family, seniority, created_at, disposition, decision_note
+      `SELECT slug, candidate_label, jd_slug, score, role_family, seniority, created_at, disposition, decision_note, review_flags
        FROM analyses
        ORDER BY created_at DESC
        LIMIT ?`
