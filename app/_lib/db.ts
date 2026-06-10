@@ -1890,6 +1890,16 @@ export type InterviewedCandidate = {
   observedSkills: string[];
 };
 
+/** All pipeline entries filed under a job (PREP1 — the compare grid unions the
+ *  voice-interviewed cohort with human-scorecard-only entries from here). */
+export function listEntriesForJob(jobId: string): PipelineEntry[] {
+  const db = ensureDb();
+  const rows = db
+    .prepare(`SELECT * FROM pipeline_entries WHERE job_id = ? ORDER BY created_at ASC, id ASC`)
+    .all(jobId) as PipelineRow[];
+  return rows.map(rowToEntry);
+}
+
 export function interviewedForJob(jobId: string): InterviewedCandidate[] {
   const rows = ensureDb()
     .prepare(

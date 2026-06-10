@@ -1049,6 +1049,8 @@
       "observedLabel": "✓ observed: {skills}",
       "humanVerdict": "human: {rec}",
       "humanVerdictTitle": "A recruiter's human scorecard verdict",
+      "humanOnly": "human-led round",
+      "humanOnlyTitle": "Scored by a recruiter on the prep rubric — no AI voice interview ran, so the AI rating rows are intentionally blank",
       "evidenceHeading": "Evidence — verbatim quotes behind every rating",
       "humanScorecardHeading": "Human scorecard"
     },

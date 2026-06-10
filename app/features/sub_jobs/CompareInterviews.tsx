@@ -22,6 +22,10 @@ type Candidate = {
   // A recruiter's human scorecard for this candidate (PREP1), if one was filled —
   // shown beside the AI screen so a human-led round isn't invisible here.
   humanScorecard?: Scorecard | null;
+  // True for a candidate whose round was HUMAN-led (human scorecard, no voice
+  // session) — their blank AI ratings mean "not AI-interviewed", not "synthesis
+  // failed", and the chip below says so.
+  humanOnly?: boolean;
 };
 type RubricComp = { competency: string; description: string; anchors?: Record<string, string> };
 
@@ -100,6 +104,14 @@ function CohortTable({ rubric, candidates }: { rubric: RubricComp[]; candidates:
                       title={t("humanVerdictTitle")}
                     >
                       <ClipboardCheck size={11} /> {t("humanVerdict", { rec: enumLabel("recommendation", c.humanScorecard.recommendation) })}
+                    </span>
+                  ) : null}
+                  {c.humanOnly ? (
+                    <span
+                      className="inline-block rounded-full bg-stone-100 px-2 py-0.5 text-meta font-semibold uppercase text-steel"
+                      title={t("humanOnlyTitle")}
+                    >
+                      {t("humanOnly")}
                     </span>
                   ) : null}
                 </span>

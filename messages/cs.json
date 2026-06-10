@@ -1049,6 +1049,8 @@
       "observedLabel": "✓ pozorováno: {skills}",
       "humanVerdict": "člověk: {rec}",
       "humanVerdictTitle": "Verdikt z lidské hodnoticí karty náboráře",
+      "humanOnly": "lidské kolo",
+      "humanOnlyTitle": "Hodnoceno náborářem podle rubriky přípravy — AI hlasový pohovor neproběhl, řádky AI hodnocení jsou záměrně prázdné",
       "evidenceHeading": "Evidence — doslovné citace za každým hodnocením",
       "humanScorecardHeading": "Lidská hodnoticí karta"
     },
