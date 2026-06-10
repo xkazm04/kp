@@ -102,6 +102,33 @@ export function EvalPanel({ ev, onPromote, promoted, promoting = false }: { ev: 
         {(x.gaps ?? []).length ? <span> · gaps: {(x.gaps ?? []).join(", ")}</span> : null}
       </div>
 
+      {/* process trace (DEVP6) — persisted "so the decisions-log contract is checkable
+          later instead of taken on faith"; this strip is where it finally is. Keeping
+          the DECISIONS log is a mandated task of the case (coral when skipped); cadence
+          is a how-they-worked signal, deliberately framed neutrally, not as a verdict. */}
+      {ev.processTrace ? (
+        <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-micro">
+          <span
+            className={`rounded px-1.5 py-0.5 font-semibold uppercase ${
+              ev.processTrace.decisionsLogPresent ? "bg-moss/10 text-moss" : "bg-coral/15 text-coral"
+            }`}
+          >
+            DECISIONS log: {ev.processTrace.decisionsLogPresent ? "kept" : "missing"}
+          </span>
+          {ev.processTrace.cadence?.spanHours != null ? (
+            <span className="text-steel">
+              {ev.processTrace.commitCount ?? ev.commitCount ?? 0} commits over{" "}
+              {Math.round(ev.processTrace.cadence.spanHours * 10) / 10} h
+            </span>
+          ) : null}
+          {ev.processTrace.cadence?.bursty === true ? (
+            <span className="rounded bg-paper px-1.5 py-0.5 text-steel" title="Commits landed in one tight burst — how they worked, not a verdict">
+              single sitting
+            </span>
+          ) : null}
+        </div>
+      ) : null}
+
       {/* probe results (D5) — self-contained from denormalized kind/where, no case re-join */}
       {(t.probeOutcomes ?? []).length ? (
         <div className="mt-2 border-t border-stone-100 pt-2">

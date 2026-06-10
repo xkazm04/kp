@@ -132,7 +132,15 @@ export type Transfer = { transferScore?: number /* SCORE 0..100 */; transfers?: 
 // candidate-facing.
 export type FollowupQuestion = { id?: string; probeId?: string; decision?: string; question?: string; listenFor?: string; redFlag?: string };
 export type Followups = { questions?: FollowupQuestion[] };
-export type EvalBundle = { reflection?: Reflection; tooling?: Tooling; evaluation?: CaseEval; transfer?: Transfer; followups?: Followups; source?: SourceKind; perStepSources?: PerStepSources; commitCount?: number };
+// Deterministic process-trace telemetry persisted with every bundle (devcase-run.ts):
+// whether the mandated DECISIONS log was kept, and the commit cadence — a
+// how-they-worked signal beside the LLM's interpretation, NOT a verdict.
+export type ProcessTrace = {
+  commitCount?: number;
+  cadence?: { count?: number; spanHours?: number | null; bursty?: boolean | null } | null;
+  decisionsLogPresent?: boolean;
+};
+export type EvalBundle = { reflection?: Reflection; tooling?: Tooling; evaluation?: CaseEval; transfer?: Transfer; followups?: Followups; source?: SourceKind; perStepSources?: PerStepSources; commitCount?: number; processTrace?: ProcessTrace | null };
 
 // At or below this a confidence (self-rated OR propagated) is "low" — the reviewer is warned the
 // inference is thin/ungrounded, or a decision rests on such evidence. Mirrors LOW_CONFIDENCE in
