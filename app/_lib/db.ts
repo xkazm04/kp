@@ -3180,6 +3180,13 @@ export function getSubmission(id: string): DevSubmission | null {
   return r ? rowToSubmission(r) : null;
 }
 
+/** Flip a posting's status (W5-3: "closed" stops the apply page + inbound
+ *  webhook from collecting submissions nobody will process). */
+export function setPostingStatus(id: string, status: string): boolean {
+  const db = ensureDb();
+  return db.prepare(`UPDATE dev_postings SET status = ? WHERE id = ?`).run(status, id).changes > 0;
+}
+
 export function getPosting(id: string): Posting | null {
   const db = ensureDb();
   const r = db.prepare(`SELECT * FROM dev_postings WHERE id = ?`).get(id) as Record<string, unknown> | undefined;

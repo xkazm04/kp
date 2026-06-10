@@ -28,6 +28,15 @@ export async function POST(request: NextRequest) {
     const token = request.nextUrl.searchParams.get("token") || body.token;
     const posting = token ? getPostingByToken(token) : undefined;
     if (!posting) return NextResponse.json({ error: "a valid apply token is required." }, { status: 401 });
+    // W5-3 — a closed posting answers honestly instead of acknowledging a
+    // submission nobody will process ("queued, never ghosts" cuts both ways:
+    // a false ack IS a ghost with extra steps).
+    if (posting.status === "closed") {
+      return NextResponse.json(
+        { error: "This role's intake has closed and is no longer accepting submissions." },
+        { status: 410 }
+      );
+    }
     const postingId = posting.id;
     if (!body.candidate || !body.repoRef) {
       return NextResponse.json({ error: "candidate and repoRef are required." }, { status: 400 });

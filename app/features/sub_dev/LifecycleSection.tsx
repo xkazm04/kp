@@ -6,7 +6,18 @@ import { DevSection } from "./DevShared";
 import { LifecycleRow } from "./LifecycleRow";
 import type { Lifecycle } from "./DevTypes";
 
-export function LifecycleSection({ lifecycles, approveLifecycle, state }: { lifecycles: Lifecycle[]; approveLifecycle: (id: string) => void; state: LoadState }) {
+export function LifecycleSection({
+  lifecycles,
+  approveLifecycle,
+  state,
+  onChanged,
+}: {
+  lifecycles: Lifecycle[];
+  approveLifecycle: (id: string) => void;
+  state: LoadState;
+  /** W5-3 — refresh after a close-out flips a lifecycle to its terminal stage. */
+  onChanged?: () => void;
+}) {
   return (
     <DevSection icon={<Sparkles size={13} className="text-coral" />} title="Automated lifecycle" count={lifecycles.length} state={state} label="lifecycles">
       <p className="mt-1 text-micro text-steel">
@@ -15,7 +26,7 @@ export function LifecycleSection({ lifecycles, approveLifecycle, state }: { life
       </p>
       <div className="mt-3 space-y-2">
         {lifecycles.map((lc) => (
-          <LifecycleRow key={lc.id} lc={lc} onApprove={() => approveLifecycle(lc.id)} />
+          <LifecycleRow key={lc.id} lc={lc} onApprove={() => approveLifecycle(lc.id)} onChanged={onChanged} />
         ))}
       </div>
     </DevSection>
