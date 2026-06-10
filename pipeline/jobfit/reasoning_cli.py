@@ -28,7 +28,14 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--job-id", required=True)
     parser.add_argument("--jobs", type=Path, default=None)
     parser.add_argument("--no-llm", action="store_true", help="Force the deterministic template.")
+    # MAT1 — output locale for the verdict/strengths/gaps narrative (en|cs); the
+    # verdict's canonical code value stays English (coerced downstream). The
+    # deterministic fallback is English-only.
+    parser.add_argument("--lang", type=str, default="en", help="Narrative output locale (en, cs).")
     args = parser.parse_args(argv)
+    from .i18n import normalize_lang
+
+    lang = normalize_lang(args.lang)
 
     try:
         candidate = load_candidate_arg(args.profile_json, args.candidate_json)
@@ -40,7 +47,7 @@ def main(argv: list[str] | None = None) -> int:
         provider = None if args.no_llm else ClaudeCliProvider(timeout=120)
         if provider is not None and not provider.available():
             provider = None
-        reasoning, source = generate(candidate, job, m, provider=provider)
+        reasoning, source = generate(candidate, job, m, lang=lang, provider=provider)
     except Exception as exc:
         return emit_error(exc)
 

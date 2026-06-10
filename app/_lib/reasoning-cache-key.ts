@@ -47,8 +47,14 @@ export function reasoningCacheKey(input: {
   candidateKeyPart: string;
   jobId: string;
   jobPayload: unknown;
+  // MAT1 — the narrative locale is a fourth invalidation axis: without it, a
+  // cached English verdict would be served to a Czech session (and vice versa).
+  // Optional + defaulted to "en" so a legacy/no-lang caller keeps its key.
+  lang?: string;
 }): string {
   return createHash("sha256")
-    .update(`${input.promptVersion}|${input.candidateKeyPart}|${jobKeyPart(input.jobId, input.jobPayload)}`)
+    .update(
+      `${input.promptVersion}|${input.candidateKeyPart}|${jobKeyPart(input.jobId, input.jobPayload)}|${input.lang ?? "en"}`
+    )
     .digest("hex");
 }

@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ReasoningError, runReasoning, type ReasoningInput } from "@/app/_lib/reasoning-run";
+import { getServerLocale } from "@/i18n/server";
+import { isLocale } from "@/i18n/locales";
 
 export const runtime = "nodejs";
 
@@ -8,7 +10,10 @@ export const runtime = "nodejs";
 export async function POST(request: NextRequest) {
   try {
     const body = (await request.json()) as ReasoningInput;
-    const data = await runReasoning(body);
+    // MAT1 — default the narrative locale to the request's locale when the body
+    // didn't pin one (the task path passes the client's active locale directly).
+    const lang = isLocale(body.lang) ? body.lang : await getServerLocale();
+    const data = await runReasoning({ ...body, lang });
     return NextResponse.json(data);
   } catch (error) {
     if (error instanceof ReasoningError) return NextResponse.json({ error: error.message }, { status: error.status });

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { useTasks, useTaskResult } from "@/app/features/tasks/TasksProvider";
 import { ConfidenceBandBadge, confidenceBandTitle } from "@/app/_components/Badge";
 import type { MatchRef, MatchResult, Reasoning, ReasoningState } from "./MatchTypes";
@@ -40,6 +40,10 @@ export function MatchCard({
   onToggleSelect?: () => void;
 }) {
   const t = useTranslations("match");
+  // MAT1 — the recruiter's active locale is the language the "Explain fit"
+  // verdict/strengths/gaps narrative should come back in; ride it in the task
+  // params (the detached task can't read the cookie).
+  const locale = useLocale();
   const enumLabel = useEnumLabel();
   const { startTask } = useTasks();
   const [reasoning, setReasoning] = useState<ReasoningState | null>(null);
@@ -54,7 +58,7 @@ export function MatchCard({
   const explain = async () => {
     if (reasoning?.loading) return;
     setReasoning({ loading: true });
-    const started = await startTask("reasoning", { ...matchRef, jobId: m.jobId, label: m.title });
+    const started = await startTask("reasoning", { ...matchRef, jobId: m.jobId, label: m.title, lang: locale });
     if (!started) {
       setReasoning({ error: t("card.startFailed") });
       return;

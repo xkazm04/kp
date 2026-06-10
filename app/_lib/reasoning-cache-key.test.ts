@@ -45,6 +45,13 @@ test("each axis independently affects the key", () => {
   assert.notEqual(k0, reasoningCacheKey({ ...base, jobPayload: { ...base.jobPayload, title: "X" } }));
 });
 
+test("MAT1 — the locale is an independent axis (no cross-language cache bleed)", () => {
+  // An absent lang defaults to "en", so the legacy/no-lang caller is unchanged…
+  assert.equal(reasoningCacheKey({ ...base }), reasoningCacheKey({ ...base, lang: "en" }));
+  // …but a cs verdict keys differently, so it can never serve an en session.
+  assert.notEqual(reasoningCacheKey({ ...base, lang: "en" }), reasoningCacheKey({ ...base, lang: "cs" }));
+});
+
 test("an unresolvable job (null payload) degrades to an id-only key rather than blocking", () => {
   assert.equal(jobKeyPart("job-1", null), "job:job-1");
   assert.equal(jobKeyPart("job-1", undefined), "job:job-1");

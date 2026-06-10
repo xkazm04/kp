@@ -18,27 +18,40 @@ export class ReasoningError extends Error {
   }
 }
 
-export type ReasoningInput = MatchInputBody & { jobId?: string };
+// MAT1 — `lang` is the recruiter's locale for the verdict/strengths/gaps
+// narrative, captured at request scope (the detached task can't read the cookie)
+// and validated upstream. Defaults to "en".
+export type ReasoningInput = MatchInputBody & { jobId?: string; lang?: string };
 
 // Shared core for /api/match/reasoning AND the background-task runner.
 export async function runReasoning(body: ReasoningInput, signal?: AbortSignal): Promise<Record<string, unknown>> {
   if (!body.jobId) throw new ReasoningError("jobId is required.", 400);
+  const lang = body.lang === "cs" ? "cs" : "en";
   let workdir: string | null = null;
   try {
     workdir = await createWorkdir();
     const input = await writeMatchInput(body, workdir);
     if ("error" in input) throw new ReasoningError(input.error, input.status);
-    const args = ["-m", "pipeline.jobfit.reasoning_cli", ...input.inputArgs, "--job-id", String(body.jobId)];
+    const args = [
+      "-m",
+      "pipeline.jobfit.reasoning_cli",
+      ...input.inputArgs,
+      "--job-id",
+      String(body.jobId),
+      "--lang",
+      lang,
+    ];
 
     // Content-address the job (not just its id) so an in-place edit to the job's
     // requirements/title invalidates the cached verdict — symmetric with the
-    // profile content hash in input.keyPart. See reasoning-cache-key.ts for the
-    // full invalidation contract.
+    // profile content hash in input.keyPart. The locale is a fourth axis so a
+    // cached cs verdict never serves an en session. See reasoning-cache-key.ts.
     const hash = reasoningCacheKey({
       promptVersion: REASONING_PROMPT_VERSION,
       candidateKeyPart: input.keyPart,
       jobId: body.jobId,
       jobPayload: getJob(body.jobId),
+      lang,
     });
     const cached = lookupPromptCache(hash, REASONING_PROMPT_VERSION);
     if (cached) return { ...(cached as object), cached: true };
