@@ -26,6 +26,9 @@ export type ResultPanelGithub = {
 type ResultPanelProps = {
   analysis: Analysis;
   github?: ResultPanelGithub;
+  // GH5 — re-fire the deep-dive alone from the GitHub tab's error state.
+  // Provided by the live Analyze tab; absent on saved reports (no run to retry).
+  onGithubRetry?: () => void;
   // When the caller can identify the candidate AND the role this result was run
   // against, the report offers an "Add to pipeline" action so the recruiter can
   // act on a job-fit read without leaving for the Match tab. Omitted where the
@@ -35,7 +38,7 @@ type ResultPanelProps = {
 
 type ResultTab = "extraction" | "compare" | "jobFit" | "salary" | "interview" | "github";
 
-export function ResultPanel({ analysis, github, pipelineRef }: ResultPanelProps) {
+export function ResultPanel({ analysis, github, onGithubRetry, pipelineRef }: ResultPanelProps) {
   // A comparison only counts — for showing the Compare tab AND for defaulting
   // to it below — when it meets the minimum-variant contract. A stray 1-variant
   // payload no longer auto-opens an empty Compare tab; it falls through to
@@ -166,6 +169,7 @@ export function ResultPanel({ analysis, github, pipelineRef }: ResultPanelProps)
             analysis={github.analysis}
             error={github.error}
             warning={github.warning}
+            onRetry={onGithubRetry}
           />
         ) : null}
       </div>

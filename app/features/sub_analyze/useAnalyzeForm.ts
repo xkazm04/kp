@@ -327,6 +327,42 @@ export function useAnalyzeForm() {
   // workspace segmented control), so the poll loop + stage interval don't leak.
   useEffect(() => () => abortRef.current?.abort(), []);
 
+  // One GitHub deep-dive launch — used by submit AND by the panel's "Retry
+  // GitHub analysis" (GH5), so a transient rate-limit failure can be retried
+  // alone without re-running the whole CV pipeline. Mints a fresh run id
+  // (superseding any in-flight deep-dive) and clears the result state; the
+  // guarded callbacks ignore anything a superseded run still emits.
+  function launchGithubRun() {
+    if (!hasGithub) return;
+    const githubRunId = ++githubRunIdRef.current;
+    const isCurrentGithubRun = () => githubRunId === githubRunIdRef.current;
+    setGithubAnalysis(null);
+    setGithubError(null);
+    setGithubWarning(null);
+    void executeGithubAnalysis(githubProfile, { jobDescriptionText, jobDescriptionFile }, {
+      onLoading: () => {
+        if (isCurrentGithubRun()) setGithubStatus("loading");
+      },
+      onResult: (result) => {
+        if (!isCurrentGithubRun()) return; // a newer run superseded this one
+        setGithubAnalysis(result);
+        setGithubStatus("done");
+      },
+      onWarning: (message) => {
+        if (!isCurrentGithubRun()) return; // a newer run superseded this one
+        setGithubWarning(message);
+      },
+      onError: (message) => {
+        if (!isCurrentGithubRun()) return; // a newer run superseded this one
+        setGithubError(message);
+        // A hard failure replaces any JD-dropped warning — there's no result
+        // for the warning to qualify.
+        setGithubWarning(null);
+        setGithubStatus("error");
+      },
+    });
+  }
+
   async function submit() {
     // GH3 — a GitHub profile alone is a valid run: the deep-dive route needs
     // nothing but the handle (+ optional JD), so a recruiter holding just a
@@ -337,12 +373,11 @@ export function useAnalyzeForm() {
       setError(t("selectCvFirst"));
       return;
     }
-    // Supersede any GitHub run still in flight: only this submit's callbacks win.
-    // Resetting the status to "idle" here (and to "loading" below when we actually
-    // launch a run) also prevents a superseded run — whose guarded terminal
-    // callbacks we now ignore — from leaving the status stuck on "loading".
-    const githubRunId = ++githubRunIdRef.current;
-    const isCurrentGithubRun = () => githubRunId === githubRunIdRef.current;
+    // Supersede any GitHub run still in flight even when this submit launches
+    // none (hasGithub false): a stale run's guarded terminal callbacks must not
+    // land on the fresh form. Resetting the status to "idle" below also keeps a
+    // superseded run from leaving the status stuck on "loading".
+    githubRunIdRef.current += 1;
 
     setError(null);
     setAnalysis(null);
@@ -351,30 +386,7 @@ export function useAnalyzeForm() {
     setGithubWarning(null);
     setGithubStatus("idle");
 
-    if (hasGithub) {
-      void executeGithubAnalysis(githubProfile, { jobDescriptionText, jobDescriptionFile }, {
-        onLoading: () => {
-          if (isCurrentGithubRun()) setGithubStatus("loading");
-        },
-        onResult: (result) => {
-          if (!isCurrentGithubRun()) return; // a newer submit superseded this run
-          setGithubAnalysis(result);
-          setGithubStatus("done");
-        },
-        onWarning: (message) => {
-          if (!isCurrentGithubRun()) return; // a newer submit superseded this run
-          setGithubWarning(message);
-        },
-        onError: (message) => {
-          if (!isCurrentGithubRun()) return; // a newer submit superseded this run
-          setGithubError(message);
-          // A hard failure replaces any JD-dropped warning — there's no result
-          // for the warning to qualify.
-          setGithubWarning(null);
-          setGithubStatus("error");
-        },
-      });
-    }
+    if (hasGithub) launchGithubRun();
 
     // GitHub-only run: the deep-dive above is the whole job — no server task,
     // no main-analysis loading flags or stage strip.
@@ -442,6 +454,8 @@ export function useAnalyzeForm() {
       reset,
       submit,
       cancel,
+      // GH5 — re-fire the deep-dive alone from the panel's error state.
+      retryGithub: launchGithubRun,
     },
     // `githubLoading` lets the submit button block a resubmit while a GitHub run
     // is still in flight (it can outlive the main analysis), preventing a duplicate

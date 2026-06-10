@@ -60,6 +60,7 @@ export function AnalyzeTab() {
                   warning: result.githubWarning,
                 }
           }
+          onGithubRetry={handlers.retryGithub}
         />
       ) : result.githubStatus !== "idle" ? (
         // GH3 — GitHub-only run: no CV attached, so there's no main analysis or
@@ -69,6 +70,7 @@ export function AnalyzeTab() {
           analysis={result.githubAnalysis}
           error={result.githubError}
           warning={result.githubWarning}
+          onRetry={handlers.retryGithub}
         />
       ) : null}
     </div>

@@ -19,9 +19,13 @@ type GithubAnalysisPanelProps = {
   error: string | null;
   /** Non-fatal degradation note shown above the result (e.g. JD-blind run). */
   warning?: string | null;
+  /** GH5 — re-fire the deep-dive alone. Rate limits are this route's dominant
+   *  failure; without this the only recovery was re-running the whole CV
+   *  analysis. Omitted where no re-run is possible (e.g. a saved report). */
+  onRetry?: () => void;
 };
 
-export function GithubAnalysisPanel({ status, analysis, error, warning }: GithubAnalysisPanelProps) {
+export function GithubAnalysisPanel({ status, analysis, error, warning, onRetry }: GithubAnalysisPanelProps) {
   if (status === "idle") return null;
 
   return (
@@ -50,7 +54,20 @@ export function GithubAnalysisPanel({ status, analysis, error, warning }: Github
         </div>
       ) : null}
 
-      {status === "error" ? <p className="mt-4 rounded-md bg-red-50 p-3 text-base text-red-700">{error}</p> : null}
+      {status === "error" ? (
+        <div className="mt-4 rounded-md bg-red-50 p-3">
+          <p className="text-base text-red-700">{error}</p>
+          {onRetry ? (
+            <button
+              type="button"
+              onClick={onRetry}
+              className="focus-ring mt-2 inline-flex items-center gap-1.5 rounded-md border border-red-200 bg-white px-3 py-1.5 text-sm font-semibold text-red-700 hover:bg-red-100"
+            >
+              <GitBranch size={13} aria-hidden /> Retry GitHub analysis
+            </button>
+          ) : null}
+        </div>
+      ) : null}
 
       {warning ? (
         <p className="mt-4 rounded-md border border-amber-200 bg-amber-50/60 p-3 text-base text-amber-800" role="status">

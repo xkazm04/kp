@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { GoogleGenAI } from "@google/genai";
@@ -16,6 +17,23 @@ export const maxDuration = 60;
 
 const GEMINI_MODEL = "gemini-3-flash-preview";
 const DEEP_REVIEW_REPO_LIMIT = 3;
+
+// In-process TTL cache for the deep-dive (GH5), mirroring the matrix route's
+// content-hash cache (same accepted single-process caveat). Each run burns up
+// to ~31 GitHub REST calls + one Gemini call, and GitHub's anonymous 60/hr
+// rate limit is the route's dominant real-world failure — re-analyzing the
+// same candidate within the TTL serves the stored result (with its original
+// analyzedAt) instead of burning another budget. Errors are never cached, so
+// a rate-limited attempt can be retried immediately.
+const GITHUB_CACHE_TTL_MS = 15 * 60 * 1000;
+const GITHUB_CACHE_MAX = 20;
+const githubCache = new Map<string, { at: number; payload: unknown }>();
+
+// GitHub usernames are case-insensitive — fold the key so Octocat and octocat
+// share an entry. The JD is part of the key because jobFitSignals depend on it.
+function githubCacheKey(username: string, jobDescription: string): string {
+  return createHash("sha1").update(`${username.toLowerCase()}\n${jobDescription}`).digest("hex");
+}
 
 // --- Repo ranking & complexity heuristics ----------------------------------
 // These constants decide which of a candidate's repos surface as hiring
@@ -99,6 +117,15 @@ export async function POST(request: Request) {
 
   if (!username) {
     return NextResponse.json({ error: "Enter a GitHub username or profile URL." }, { status: 400 });
+  }
+
+  const cacheKey = githubCacheKey(username, jobDescription);
+  const hit = githubCache.get(cacheKey);
+  if (hit) {
+    if (Date.now() - hit.at < GITHUB_CACHE_TTL_MS) {
+      return NextResponse.json(hit.payload);
+    }
+    githubCache.delete(cacheKey);
   }
 
   try {
@@ -188,6 +215,12 @@ export async function POST(request: Request) {
     };
 
     const validated = githubAnalysisSchema.parse(payload);
+    githubCache.set(cacheKey, { at: Date.now(), payload: validated });
+    if (githubCache.size > GITHUB_CACHE_MAX) {
+      // Map iterates in insertion order — drop the oldest entry.
+      const oldest = githubCache.keys().next().value;
+      if (oldest) githubCache.delete(oldest);
+    }
     void logGithub({
       request_id: requestId,
       github_user: username,
