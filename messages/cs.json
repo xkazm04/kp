@@ -1,4 +1,8 @@
 {
+  "meta": {
+    "title": "KP – hodnocení vhodnosti a odhad mzdy",
+    "description": "Pipeline pro AI hodnocení seniority z CV a odhad mzdy pro český trh."
+  },
   "comms": {
     "team": "Náborový tým",
     "there": "dobrý den",

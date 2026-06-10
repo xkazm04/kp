@@ -1,4 +1,8 @@
 {
+  "meta": {
+    "title": "KP Job Fit & Salary Estimator",
+    "description": "AI-assisted CV seniority scoring and salary estimation pipeline for the Czech market."
+  },
   "comms": {
     "team": "The hiring team",
     "there": "there",
