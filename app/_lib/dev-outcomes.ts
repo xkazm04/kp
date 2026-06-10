@@ -114,6 +114,40 @@ export function recordOutcome(input: OutcomeInput): void {
     );
 }
 
+// W5-2 (DEVO2) — auto-feed the calibration loop from the pipeline's terminal
+// transitions. A promoted submission becomes a "ds-<submissionId>" pipeline
+// entry carrying its transferScore as matchScore; when that entry is rejected
+// or hired, the system already knows everything the manual control-room form
+// asked a human to re-type. The "ds-" prefix check mirrors
+// student-interview.submissionIdFromCandidateId — kept inline here because
+// importing it would pull student-interview's db.ts dependency into this
+// deliberately self-contained store (the prefix is minted in
+// devcase-run.promoteSubmission and is a stable contract).
+export function recordPipelineOutcome(
+  entry: { candidateId: string | null; candidateLabel: string | null; matchScore: number | null },
+  outcome: "hired" | "rejected"
+): boolean {
+  const cid = entry.candidateId;
+  if (!cid || !cid.startsWith("ds-")) return false;
+  const ref = cid.slice(3);
+  // Idempotent across re-transitions (a re-add later re-rejected must not
+  // double-count in the calibration bands).
+  const existing = db().prepare(`SELECT 1 FROM dev_outcomes WHERE ref = ? AND outcome = ? LIMIT 1`).get(ref, outcome);
+  if (existing) return false;
+  const predicted =
+    typeof entry.matchScore === "number" && entry.matchScore >= 0 && entry.matchScore <= 100
+      ? entry.matchScore
+      : undefined;
+  recordOutcome({
+    ref,
+    candidateRef: entry.candidateLabel ?? undefined,
+    predictedScore: predicted,
+    outcome,
+    note: `auto-recorded from pipeline ${outcome === "hired" ? "hire" : "rejection"}`,
+  });
+  return true;
+}
+
 export function listOutcomes(limit = 80): OutcomeRecord[] {
   const rows = db().prepare(`SELECT * FROM dev_outcomes ORDER BY id DESC LIMIT ?`).all(limit) as Array<Record<string, unknown>>;
   return rows.map((r) => ({

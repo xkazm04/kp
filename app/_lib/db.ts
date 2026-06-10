@@ -13,6 +13,8 @@ import { randomId, randomToken } from "./random-id";
 import { chunk, SQL_IN_CHUNK } from "./entries-param";
 import { pickBottleneck, type Bottleneck } from "./analytics-bottleneck";
 import { coerceGithubEvidenceSummary, type GithubEvidenceSummary } from "./github-summary";
+import { recordPipelineOutcome } from "./dev-outcomes";
+import { recordAudit } from "./dev-control";
 import type { DevNeed } from "./devcase-run";
 
 let _db: Database.Database | null = null;
@@ -3309,7 +3311,25 @@ export function actOnPipelineEntry(
   });
   // IMMEDIATE: take the write lock at BEGIN (not at first write), so the SELECT
   // above can never read a row another connection is about to change under us.
-  return tx.immediate();
+  const result = tx.immediate();
+  // W5-2 (DEVO2) — a rejected "ds-" (promoted-submission) entry auto-feeds the
+  // dev-case calibration loop with the ground truth the control room asked a
+  // human to re-type. AFTER the transaction (dev_outcomes lives on its own
+  // connection) and best-effort: calibration must never fail a reject.
+  if (action === "reject" && result && result.status === "rejected") {
+    try {
+      if (recordPipelineOutcome(result, "rejected")) {
+        recordAudit({
+          actor: "system",
+          action: "outcome_auto_recorded",
+          reason: `${result.candidateLabel}: rejected (predicted ${result.matchScore ?? "—"})`,
+        });
+      }
+    } catch (error) {
+      console.error("[pipeline:act] outcome auto-record failed", error);
+    }
+  }
+  return result;
 }
 
 /** Manually set a pipeline entry's stage — the recruiter override the AI-driven

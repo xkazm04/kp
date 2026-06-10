@@ -1,5 +1,7 @@
 import { actOnPipelineEntry, getJob, recordAutomationEvent } from "./db";
 import { dispatchOnboarding } from "./comms-dispatch";
+import { recordAudit } from "./dev-control";
+import { recordPipelineOutcome } from "./dev-outcomes";
 import { getOfferByToken, markEntryStatus, markOfferResponded } from "./offers-store";
 
 // Direction #4 — capture the candidate's offer response and run the terminal
@@ -45,6 +47,23 @@ export async function respondToOffer(token: string, response: "accept" | "declin
     if (offer.entryId) {
       recordAutomationEvent(offer.entryId, "offer_accepted", offer.jobTitle ?? "");
       const hired = actOnPipelineEntry(offer.entryId, "accept"); // Offer -> Hired (clears approval, logs `advanced`)
+      // W5-2 (DEVO2) — a hired "ds-" (promoted-submission) entry auto-feeds the
+      // dev-case calibration loop. Best-effort: calibration must never affect
+      // the candidate's accept. (The CAS winner above is the sole caller, so
+      // this can't double-fire; recordPipelineOutcome is also ref-idempotent.)
+      if (hired) {
+        try {
+          if (recordPipelineOutcome(hired, "hired")) {
+            recordAudit({
+              actor: "system",
+              action: "outcome_auto_recorded",
+              reason: `${hired.candidateLabel}: hired (predicted ${hired.matchScore ?? "—"})`,
+            });
+          }
+        } catch (err) {
+          console.error("[offer] outcome auto-record failed", err);
+        }
+      }
       // Onboarding hook — fires on the move to Hired. The accept already committed (offer
       // accepted + entry Hired), and a retry early-returns "accepted" — so a comms blip here
       // must NOT 500 (that masks the gap as success) or leave zero signal. Mirror the schedule
