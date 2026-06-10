@@ -182,8 +182,16 @@ def main(argv: list[str] | None = None) -> int:
     # design-artifacts so a flawed design can be regenerated WITH the feedback
     # instead of re-running the whole lifecycle from intake.
     parser.add_argument("--feedback", type=str, default=None)
+    # DEVP5 — candidate-facing artifact language (en|cs). Threaded to the case
+    # design, seed materialization and interview scenario so the brief/tasks,
+    # seed README/DECISIONS and spoken narration render in the candidate's
+    # language. normalize_lang guards a fat-fingered value to the default.
+    parser.add_argument("--lang", type=str, default="en")
     parser.add_argument("--no-llm", action="store_true")
     args = parser.parse_args(argv)
+    from ..i18n import normalize_lang
+
+    lang = normalize_lang(args.lang)
 
     try:
         # `source` is deterministic (pure matching) — no provider needed.
@@ -268,7 +276,7 @@ def main(argv: list[str] | None = None) -> int:
                 raise ValueError("interview-scenario requires --case-json and --role-json")
             case = CaseScenario.model_validate(json.loads(args.case_json.read_text(encoding="utf-8")))
             role = RoleSpec.model_validate(json.loads(args.role_json.read_text(encoding="utf-8")))
-            scenario, src = _scenario.scenario_from_case(case, role, provider=provider)
+            scenario, src = _scenario.scenario_from_case(case, role, lang=lang, provider=provider)
             _emit({"scenario": scenario}, {"scenario": src})
             return 0
 
@@ -282,7 +290,7 @@ def main(argv: list[str] | None = None) -> int:
                 raise ValueError("materialize-seed requires --case-json and --role-json")
             case = CaseScenario.model_validate(json.loads(args.case_json.read_text(encoding="utf-8")))
             role = RoleSpec.model_validate(json.loads(args.role_json.read_text(encoding="utf-8")))
-            seed, src = _seed.materialize_seed(case, role, provider=provider)
+            seed, src = _seed.materialize_seed(case, role, lang=lang, provider=provider)
             _emit({"seed": seed}, {"seed": src})
             return 0
 
@@ -352,7 +360,7 @@ def main(argv: list[str] | None = None) -> int:
                 raise ValueError("design-artifacts requires --analysis-json")
             analysis = NeedAnalysis.model_validate(json.loads(args.analysis_json.read_text(encoding="utf-8")))
             role, role_src = _design.design_role(need, analysis, provider=provider)
-            case, case_src = _design.design_case(need, analysis, role, provider=provider, feedback=args.feedback)
+            case, case_src = _design.design_case(need, analysis, role, provider=provider, feedback=args.feedback, lang=lang)
             _emit(
                 {"role": role, "case": case},
                 {"role": role_src, "case": case_src},

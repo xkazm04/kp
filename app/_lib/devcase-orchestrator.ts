@@ -91,7 +91,8 @@ export async function runLifecycle(id: string, progress?: Progress, signal?: Abo
       recordAudit({ lifecycleId: id, actor: "auto", action: "analyzed", reason: lc.title ?? undefined });
     } else if (lc.stage === "analyzed") {
       if (!lc.need) throw new Error("lifecycle has no need to design from");
-      const { role, case: kase } = await runDesignArtifacts(lc.need, lc.analysis ?? {}, signal);
+      // DEVP5 — render the candidate-facing case brief/tasks in the lifecycle's language.
+      const { role, case: kase } = await runDesignArtifacts(lc.need, lc.analysis ?? {}, signal, undefined, lc.lang);
       updateLifecycle(id, { stage: "designed", role, case: kase, detail: "role + assignment designed" });
       recordAudit({ lifecycleId: id, actor: "auto", action: "designed" });
     } else if (lc.stage === "designed") {
@@ -130,7 +131,8 @@ export async function runLifecycle(id: string, progress?: Progress, signal?: Abo
       try {
         const { scenario } = await runInterviewScenario(
           (devCase.case as Record<string, unknown>) ?? {},
-          lc.role ?? {}
+          lc.role ?? {},
+          lc.lang
         );
         saveDevCaseScenario(devCase.id, scenario);
         scenarioNote = "; interview scenario ready";
@@ -145,7 +147,7 @@ export async function runLifecycle(id: string, progress?: Progress, signal?: Abo
       // materialization failure must never block publishing; the case simply
       // ships with prose materials as before.
       try {
-        const { seed } = await runMaterializeSeed((devCase.case as Record<string, unknown>) ?? {}, lc.role ?? {});
+        const { seed } = await runMaterializeSeed((devCase.case as Record<string, unknown>) ?? {}, lc.role ?? {}, lc.lang);
         saveDevCaseSeed(devCase.id, seed);
         scenarioNote += "; seed materialized";
         recordAudit({ lifecycleId: id, actor: "auto", action: "seed_materialized", ref: devCase.id });

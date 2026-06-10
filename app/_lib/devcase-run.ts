@@ -98,7 +98,8 @@ export async function runDesignArtifacts(
   need: DevNeed,
   analysis: Record<string, unknown>,
   signal?: AbortSignal,
-  feedback?: string
+  feedback?: string,
+  lang?: string | null
 ): Promise<DesignArtifactsResult> {
   const workdir = await createWorkdir();
   try {
@@ -115,6 +116,9 @@ export async function runDesignArtifacts(
         needPath,
         "--analysis-json",
         analysisPath,
+        // DEVP5 — the case brief/tasks the candidate reads render in this language.
+        "--lang",
+        lang || "en",
         ...(feedback && feedback.trim() ? ["--feedback", feedback.trim()] : []),
       ],
       { signal },
@@ -139,7 +143,8 @@ export type InterviewScenarioResult = {
  *  ROLE and reused for every candidate, so interview ratings stay comparable. */
 export async function runInterviewScenario(
   kase: Record<string, unknown>,
-  role: Record<string, unknown>
+  role: Record<string, unknown>,
+  lang?: string | null
 ): Promise<InterviewScenarioResult> {
   const workdir = await createWorkdir();
   try {
@@ -155,6 +160,9 @@ export async function runInterviewScenario(
       casePath,
       "--role-json",
       rolePath,
+      // DEVP5 — the spoken interview narration is delivered in this language.
+      "--lang",
+      lang || "en",
     ]);
     const { stdout, stderr, exitCode } = await result;
     if (exitCode !== 0) throw new PipelineError(parseStderrError(stderr, exitCode));
@@ -177,7 +185,8 @@ export type SeedMaterializeResult = {
  *  against shared ground truth instead of GPT-gradeable prose. */
 export async function runMaterializeSeed(
   kase: Record<string, unknown>,
-  role: Record<string, unknown>
+  role: Record<string, unknown>,
+  lang?: string | null
 ): Promise<SeedMaterializeResult> {
   const workdir = await createWorkdir();
   try {
@@ -193,6 +202,9 @@ export async function runMaterializeSeed(
       casePath,
       "--role-json",
       rolePath,
+      // DEVP5 — the seed README + DECISIONS.md the candidate reads render here.
+      "--lang",
+      lang || "en",
     ]);
     const { stdout, stderr, exitCode } = await result;
     if (exitCode !== 0) throw new PipelineError(parseStderrError(stderr, exitCode));

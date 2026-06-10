@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createLifecycle, listLifecycles } from "@/app/_lib/db";
 import { startTask } from "@/app/_lib/tasks";
+import { getServerLocale } from "@/i18n/server";
+import { isLocale } from "@/i18n/locales";
 
 export const runtime = "nodejs";
 
@@ -15,9 +17,17 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
-    const body = (await request.json().catch(() => ({}))) as { need?: { title?: string } & Record<string, unknown>; auto?: boolean };
+    const body = (await request.json().catch(() => ({}))) as {
+      need?: { title?: string } & Record<string, unknown>;
+      auto?: boolean;
+      lang?: string;
+    };
     if (!body.need) return NextResponse.json({ error: "need is required." }, { status: 400 });
-    const lc = createLifecycle(body.need, body.auto !== false); // default fully-auto
+    // DEVP5 — the candidate-facing artifact language. Prefer an explicit body
+    // choice (validated), else the recruiter's active locale; persisted on the
+    // lifecycle and threaded to the dev-case CLIs by the orchestrator.
+    const lang = isLocale(body.lang) ? body.lang : await getServerLocale();
+    const lc = createLifecycle(body.need, body.auto !== false, lang); // default fully-auto
     const task = startTask("lifecycle", { lifecycleId: lc.id, title: lc.title });
     return NextResponse.json({ lifecycle: lc, task });
   } catch (error) {

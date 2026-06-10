@@ -173,12 +173,21 @@ def _coerce(payload: Any, case: CaseScenario, role: RoleSpec) -> dict:
     }
 
 
-def materialize_seed(case: CaseScenario, role: RoleSpec, *, provider: Any | None = None) -> tuple[dict, str]:
-    """Return (seed dict, source 'llm'|'deterministic'). Mirrors scenario_from_case."""
+def materialize_seed(
+    case: CaseScenario, role: RoleSpec, *, lang: str = "en", provider: Any | None = None
+) -> tuple[dict, str]:
+    """Return (seed dict, source 'llm'|'deterministic'). Mirrors scenario_from_case.
+
+    ``lang`` (DEVP5) is the candidate-facing language of the prose the seed
+    carries (the README + DECISIONS scaffolding the candidate reads); file
+    contents / code stay verbatim. The deterministic fallback is English-only."""
     if provider is None:
         return deterministic_seed(case, role), "deterministic"
     try:
-        payload = provider.complete_json(build_prompt(case, role), system=_SYSTEM)
+        from ..i18n import language_directive
+
+        prompt = f"{build_prompt(case, role)}\n\n{language_directive(lang)}"
+        payload = provider.complete_json(prompt, system=_SYSTEM)
         return _coerce(payload, case, role), "llm"
     except Exception:
         return deterministic_seed(case, role), "deterministic"

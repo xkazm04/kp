@@ -355,6 +355,7 @@ function ensureDb(): Database.Database {
       case_id TEXT,
       posting_id TEXT,
       detail TEXT,
+      lang TEXT,
       created_at TEXT NOT NULL,
       updated_at TEXT
     );
@@ -459,6 +460,10 @@ function ensureDb(): Database.Database {
     // JD archive (W8-4/JDL1): archived JDs drop out of listJds and the pickers,
     // but loadJd keeps serving them so existing analysis links never 404.
     "ALTER TABLE jds ADD COLUMN archived_at TEXT",
+    // DEVP5 — the candidate-facing language for this role's case artifacts
+    // (brief/tasks, seed README+DECISIONS, interview narration), captured at
+    // need intake. NULL ⇒ "en" when threaded to the dev-case CLIs.
+    "ALTER TABLE dev_lifecycle ADD COLUMN lang TEXT",
   ]) {
     try {
       db.exec(sql);
@@ -3034,6 +3039,8 @@ export type LifecycleRecord = {
   caseId: string | null;
   postingId: string | null;
   detail: string | null;
+  // DEVP5 — candidate-facing artifact language (en|cs), captured at intake.
+  lang: string | null;
   createdAt: string;
   updatedAt: string | null;
 };
@@ -3051,19 +3058,24 @@ function rowToLifecycle(r: Record<string, unknown>): LifecycleRecord {
     caseId: (r.case_id as string) ?? null,
     postingId: (r.posting_id as string) ?? null,
     detail: (r.detail as string) ?? null,
+    lang: (r.lang as string) ?? null,
     createdAt: r.created_at as string,
     updatedAt: (r.updated_at as string) ?? null,
   };
 }
 
-export function createLifecycle(need: { title?: string } & Record<string, unknown>, auto: boolean): LifecycleRecord {
+export function createLifecycle(
+  need: { title?: string } & Record<string, unknown>,
+  auto: boolean,
+  lang?: string | null
+): LifecycleRecord {
   const db = ensureDb();
   const now = new Date().toISOString();
   const id = randomId("lc");
   db.prepare(
-    `INSERT INTO dev_lifecycle (id, title, stage, auto, need_json, detail, created_at, updated_at)
-     VALUES (?, ?, 'intake', ?, ?, 'created', ?, ?)`
-  ).run(id, need.title ?? "Untitled role", auto ? 1 : 0, JSON.stringify(need), now, now);
+    `INSERT INTO dev_lifecycle (id, title, stage, auto, need_json, detail, lang, created_at, updated_at)
+     VALUES (?, ?, 'intake', ?, ?, 'created', ?, ?, ?)`
+  ).run(id, need.title ?? "Untitled role", auto ? 1 : 0, JSON.stringify(need), lang ?? null, now, now);
   return getLifecycle(id)!;
 }
 

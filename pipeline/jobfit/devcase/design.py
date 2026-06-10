@@ -185,6 +185,7 @@ def design_case(
     provider: Any | None = None,
     focus_probes: list[dict] | None = None,
     feedback: str | None = None,
+    lang: str = "en",
 ) -> tuple[dict, str]:
     """Design the work-sample. ``focus_probes`` (from
     :func:`soft_signals.panel_to_probe_briefs`) are CV-hypotheses to confirm —
@@ -270,6 +271,12 @@ def design_case(
         '"decisionSpace": [str] (the 2-3 defensible options this ambiguity admits, each a different trade-off) } ], '
         '"timeboxHours": number }. The "reveals" and "decisionSpace" notes are INTERNAL. JSON only.'
     )
+    # DEVP5 — the candidate reads the title/brief/tasks, so render that narrative
+    # in the requested language (code/enum values + proper nouns stay verbatim
+    # per the shared directive). The deterministic fallback below stays English.
+    from ..i18n import language_directive
+
+    prompt = f"{prompt}\n\n{language_directive(lang)}"
 
     def deterministic() -> dict:
         stack = ", ".join(real[:3]) or "the stack"

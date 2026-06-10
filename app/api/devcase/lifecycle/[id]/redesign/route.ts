@@ -32,7 +32,8 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
       return NextResponse.json({ error: "lifecycle is missing its need/analysis artifacts." }, { status: 409 });
     }
 
-    const designed = await runDesignArtifacts(lc.need as DevNeed, lc.analysis, undefined, feedback);
+    // DEVP5 — a redesign keeps the lifecycle's candidate-facing language.
+    const designed = await runDesignArtifacts(lc.need as DevNeed, lc.analysis, undefined, feedback, lc.lang);
     updateLifecycle(id, {
       role: designed.role,
       case: designed.case,
