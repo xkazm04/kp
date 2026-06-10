@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { MessagesSquare, Wrench, ShieldAlert, HelpCircle, Filter } from "lucide-react";
 import type { Analysis } from "@/app/_lib/schemas";
+import { SoftSignalsSection } from "./SoftSignalsSection";
 import {
   classifyBucket,
   groupBuckets,
@@ -66,13 +67,19 @@ function tileGridCols(count: number): string {
 export function InterviewTab({ analysis }: { analysis: Analysis }) {
   const [bucket, setBucket] = useState<FilterKey>("all");
 
+  // The soft-signal panel is deterministic (no JD/LLM needed), so it renders
+  // even when the LLM interview kit is absent — the kit placeholder card moves
+  // below it instead of early-returning past it.
   if (!analysis.interviewKit) {
     return (
-      <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
-        <h3 className="font-serif text-h3 text-ink">Mock Interview</h3>
-        <p className="mt-3 text-base leading-6 text-steel">
-          Attach a job description so we can generate questions tied to your specific evidence gaps and a STAR scaffold for each.
-        </p>
+      <div className="space-y-5">
+        <SoftSignalsSection panel={analysis.softSignals} />
+        <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
+          <h3 className="font-serif text-h3 text-ink">Mock Interview</h3>
+          <p className="mt-3 text-base leading-6 text-steel">
+            Attach a job description so we can generate questions tied to your specific evidence gaps and a STAR scaffold for each.
+          </p>
+        </div>
       </div>
     );
   }
@@ -87,6 +94,7 @@ export function InterviewTab({ analysis }: { analysis: Analysis }) {
 
   return (
     <div className="space-y-5">
+      <SoftSignalsSection panel={analysis.softSignals} />
       <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>

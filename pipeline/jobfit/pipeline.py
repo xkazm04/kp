@@ -240,9 +240,21 @@ def analyze_cv(
             )
             if routing is None:
                 v2_profile = None
+                soft_signals = None
             else:
-                v2_profile, archetype_checks = routing
+                v2_profile, archetype_checks, v2_obj = routing
                 sanity_checks.extend(archetype_checks)
+                # Antipattern / hidden-strength hypotheses with interview probes
+                # (soft_signals.py — built+tested but previously never called).
+                # Own _softly umbrella: a panel bug degrades to None + a skip
+                # note without taking the archetype add-on down with it.
+                from .soft_signals import build_soft_signal_panel
+
+                soft_signals = _softly(
+                    "Soft-signal panel",
+                    lambda: build_soft_signal_panel(v2_obj, job_fit),
+                    sanity_checks,
+                )
         _emit(progress, "insights", "done")
 
         return AnalysisResult(
@@ -260,6 +272,7 @@ def analyze_cv(
             evidence_trace=evidence_trace,
             interview_kit=interview_kit,
             keyword_coverage=keyword_coverage,
+            soft_signals=soft_signals,
             extraction_quality=extraction_quality,
             extraction_comparison=extraction_comparison,
             market_evidence=market_evidence,
@@ -470,7 +483,7 @@ def _v2_profile_from_payload(payload: dict[str, Any], profile: CandidateProfile)
 
 def _v2_profile_and_routing(
     payload: dict[str, Any], profile: CandidateProfile
-) -> tuple[dict[str, Any], list[str]]:
+) -> tuple[dict[str, Any], list[str], CandidateProfileV2]:
     """Build the archetype-routed v2 profile AND its routing sanity check together.
 
     Returned as one unit so the whole archetype add-on (detect + build + serialize
@@ -478,6 +491,9 @@ def _v2_profile_and_routing(
     it raises, the lot degrades to ``None`` plus the uniform skip note and the core
     analysis still ships. ``archetype_confidence``/``archetype_reasons`` are read
     off the built profile so the note can never disagree with what was routed.
+    The live ``v2`` object rides along (third element) for the soft-signal panel,
+    which is built under its OWN _softly umbrella so a panel bug can't take the
+    archetype add-on down with it.
     """
     v2 = _v2_profile_from_payload(payload, profile)
     checks = _archetype_sanity_checks(v2.archetype, v2.archetype_confidence, v2.archetype_reasons)
@@ -489,7 +505,7 @@ def _v2_profile_and_routing(
     # ignores the extra key when the completed profile is saved back through
     # profile_cli — so the gap list itself never persists.
     dump["completenessGaps"] = completeness_gaps(v2)
-    return dump, checks
+    return dump, checks, v2
 
 
 def _score_from_payload(raw: Any, repairs: list[str] | None = None) -> ScoreBreakdown:

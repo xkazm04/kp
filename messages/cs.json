@@ -1400,6 +1400,23 @@
       "flagged": "{count, plural, one {# upozornění} few {# upozornění} other {# upozornění}}",
       "allPassed": "{count, plural, one {# kontrola kvality prošla} few {Všechny # kontroly kvality prošly} other {Všech # kontrol kvality prošlo}}",
       "viewChecks": "{count, plural, one {Zobrazit # kontrolu} few {Zobrazit všechny # kontroly} other {Zobrazit všech # kontrol}}"
+    },
+    "softSignals": {
+      "title": "Ověřit na pohovoru",
+      "stance": "CV přináší hypotézy, ne verdikty — tyto signály směřují k ověření na pohovoru a v pracovní ukázce.",
+      "copyChecklist": "Kopírovat checklist",
+      "copied": "Zkopírováno",
+      "antipatterns": "{count, plural, one {# riziko k ověření} few {# rizika k ověření} other {# rizik k ověření}}",
+      "strengths": "{count, plural, one {# skrytá silná stránka} few {# skryté silné stránky} other {# skrytých silných stránek}}",
+      "confidence": "jistota {pct} %",
+      "needsConfirmation": "ověřit",
+      "probe": "Otázka:",
+      "sourceTitle": "Jak byl signál odvozen",
+      "sources": {
+        "cv-hypothesis": "hypotéza z CV",
+        "cv-structural": "struktura CV",
+        "behavioral": "pracovní ukázka"
+      }
     }
   },
   "analytics": {

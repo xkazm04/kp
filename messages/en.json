@@ -1400,6 +1400,23 @@
       "flagged": "{count, plural, one {# review flag} other {# review flags}}",
       "allPassed": "{count, plural, one {# quality check passed} other {All # quality checks passed}}",
       "viewChecks": "{count, plural, one {View # check} other {View all # checks}}"
+    },
+    "softSignals": {
+      "title": "Confirm in interview",
+      "stance": "A CV yields hypotheses, not verdicts — these signals route to the interview and work sample for confirmation.",
+      "copyChecklist": "Copy checklist",
+      "copied": "Copied",
+      "antipatterns": "{count, plural, one {# red flag to verify} other {# red flags to verify}}",
+      "strengths": "{count, plural, one {# hidden strength} other {# hidden strengths}}",
+      "confidence": "confidence {pct}%",
+      "needsConfirmation": "confirm",
+      "probe": "Probe:",
+      "sourceTitle": "How this signal was inferred",
+      "sources": {
+        "cv-hypothesis": "CV hypothesis",
+        "cv-structural": "CV structure",
+        "behavioral": "work sample"
+      }
     }
   },
   "analytics": {

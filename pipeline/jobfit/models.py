@@ -180,6 +180,51 @@ class AnalysisMetadata(_Base):
     deterministic_evidence: DeterministicEvidence | None = None
 
 
+# --- Soft-signal panel (SCOR1) -------------------------------------------------
+# The model classes live HERE (not in soft_signals.py, which defines the
+# detectors and re-exports these) so AnalysisResult can reference SoftSignalPanel
+# without the models.py -> soft_signals.py -> profile.py -> models.py cycle that
+# forced v2_profile to stay an untyped dict. Keeping them on the result as a real
+# model means codegen emits a typed zod schema for the panel for free.
+
+# Signal sources, in ascending order of trust.
+CV_HYPOTHESIS = "cv-hypothesis"    # an LLM/heuristic guess from document text
+CV_STRUCTURAL = "cv-structural"    # a structural fact about the evidence itself
+BEHAVIORAL = "behavioral"          # evidence from a work sample (devcase) — highest trust
+
+ANTIPATTERN = "antipattern"
+STRENGTH = "strength"
+
+
+class SoftSignal(_Base):
+    key: str
+    kind: str                       # ANTIPATTERN | STRENGTH
+    label: str
+    detail: str = ""
+    evidence: list[str] = Field(default_factory=list)
+    confidence: float = 0.5         # 0..1
+    source: str = CV_STRUCTURAL
+    needs_confirmation: bool = True
+    suggested_probe: str = ""       # an interview question / work-sample to confirm it
+    probe_kind: str | None = None   # devcase covert-probe kind, when one fits
+
+
+class SoftSignalPanel(_Base):
+    display_name: str | None = None
+    antipatterns: list[SoftSignal] = Field(default_factory=list)
+    strengths: list[SoftSignal] = Field(default_factory=list)
+    summary: str = ""
+
+    def to_interview_checklist(self) -> list[str]:
+        """Recruiter-facing 'what to confirm' list — the data the interview UI consumes."""
+        out: list[str] = []
+        for s in self.antipatterns + self.strengths:
+            if s.needs_confirmation and s.suggested_probe:
+                tag = "RED FLAG" if s.kind == ANTIPATTERN else "STRENGTH"
+                out.append(f"[{tag}] {s.label} — {s.suggested_probe}")
+        return out
+
+
 class AnalysisResult(_Base):
     candidate: CandidateProfile
     score: ScoreBreakdown
@@ -198,6 +243,9 @@ class AnalysisResult(_Base):
     evidence_trace: EvidenceTrace | None = None
     interview_kit: InterviewKit | None = None
     keyword_coverage: KeywordCoverage | None = None
+    # Antipattern / hidden-strength hypotheses with interview probes (SCOR1) —
+    # built by soft_signals.build_soft_signal_panel as a best-effort add-on.
+    soft_signals: SoftSignalPanel | None = None
     # Archetype-aware v2 profile (dict, to avoid a profile.py<->models.py import
     # cycle) — drives fair, archetype-routed matching for CV-uploaded candidates.
     v2_profile: dict[str, Any] | None = None

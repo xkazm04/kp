@@ -21,50 +21,24 @@ from __future__ import annotations
 
 import re
 
-from pydantic import Field
-
 from .archetype import CAREER_SWITCHER, STUDENT
-from .models import _Base
+
+# The model classes + source/kind constants live in models.py so AnalysisResult
+# can carry the panel without an import cycle (models -> soft_signals ->
+# profile -> models). Re-exported here so this module remains the panel's
+# public home for detectors AND types.
+from .models import (  # noqa: F401 — re-exports are this module's public API
+    ANTIPATTERN,
+    BEHAVIORAL,
+    CV_HYPOTHESIS,
+    CV_STRUCTURAL,
+    STRENGTH,
+    SoftSignal,
+    SoftSignalPanel,
+)
 from .profile import CandidateProfileV2
 from .transferable import map_transferable
 from .transform import compute_potential
-
-# Signal sources, in ascending order of trust.
-CV_HYPOTHESIS = "cv-hypothesis"    # an LLM/heuristic guess from document text
-CV_STRUCTURAL = "cv-structural"    # a structural fact about the evidence itself
-BEHAVIORAL = "behavioral"          # evidence from a work sample (devcase) — highest trust
-
-ANTIPATTERN = "antipattern"
-STRENGTH = "strength"
-
-
-class SoftSignal(_Base):
-    key: str
-    kind: str                       # ANTIPATTERN | STRENGTH
-    label: str
-    detail: str = ""
-    evidence: list[str] = Field(default_factory=list)
-    confidence: float = 0.5         # 0..1
-    source: str = CV_STRUCTURAL
-    needs_confirmation: bool = True
-    suggested_probe: str = ""       # an interview question / work-sample to confirm it
-    probe_kind: str | None = None   # devcase covert-probe kind, when one fits
-
-
-class SoftSignalPanel(_Base):
-    display_name: str | None = None
-    antipatterns: list[SoftSignal] = Field(default_factory=list)
-    strengths: list[SoftSignal] = Field(default_factory=list)
-    summary: str = ""
-
-    def to_interview_checklist(self) -> list[str]:
-        """Recruiter-facing 'what to confirm' list — the data the interview UI consumes."""
-        out: list[str] = []
-        for s in self.antipatterns + self.strengths:
-            if s.needs_confirmation and s.suggested_probe:
-                tag = "RED FLAG" if s.kind == ANTIPATTERN else "STRENGTH"
-                out.append(f"[{tag}] {s.label} — {s.suggested_probe}")
-        return out
 
 
 def _norm(text: str) -> str:

@@ -133,6 +133,34 @@ export const analysisResultSchema = z.object({
     missingTotal: z.number().nullish(),
     overUsedTotal: z.number().nullish()
   }).nullish(),
+  softSignals: z.object({
+    displayName: z.string().nullish(),
+    antipatterns: z.array(z.object({
+      key: z.string(),
+      kind: z.string(),
+      label: z.string(),
+      detail: z.string(),
+      evidence: z.array(z.string()),
+      confidence: z.number(),
+      source: z.string(),
+      needsConfirmation: z.boolean(),
+      suggestedProbe: z.string(),
+      probeKind: z.string().nullish()
+    })),
+    strengths: z.array(z.object({
+      key: z.string(),
+      kind: z.string(),
+      label: z.string(),
+      detail: z.string(),
+      evidence: z.array(z.string()),
+      confidence: z.number(),
+      source: z.string(),
+      needsConfirmation: z.boolean(),
+      suggestedProbe: z.string(),
+      probeKind: z.string().nullish()
+    })),
+    summary: z.string()
+  }).nullish(),
   v2Profile: z.record(z.string(), z.unknown()).nullish()
 });
 
