@@ -328,7 +328,8 @@
       "degradedSuffix": " · příjem selhal",
       "openProfileSuffix": " · otevřít analyzovaný profil",
       "aiActions": "Akce AI",
-      "aiActionsFor": "Akce AI pro {name}"
+      "aiActionsFor": "Akce AI pro {name}",
+      "selectCandidate": "Vybrat {name}"
     },
     "tokenLink": {
       "copy": "Kopírovat odkaz",
@@ -410,6 +411,16 @@
       "showingCount": "Zobrazeno {shown} z {total}",
       "clear": "Zrušit",
       "saveView": "Uložit pohled",
+      "select": "Vybrat",
+      "selectDone": "Hotovo",
+      "selectedCount": "{count} vybráno",
+      "selectAllVisible": "Vybrat všech {count} zobrazených",
+      "bulkClear": "Zrušit výběr",
+      "bulkMoveLabel": "Přesunout do",
+      "bulkApply": "Přesunout {count}",
+      "bulkMoving": "Přesouvám…",
+      "bulkMoved": "{count} přesunuto",
+      "bulkFailed": "{count} se nepodařilo přesunout — zůstávají vybráni, zkuste znovu",
       "agingSlas": "SLA stárnutí",
       "agingSlasTitle": "Nastavte, jak dlouho může kandidát zůstat v každé fázi, než se označí jako stárnoucí",
       "slaEditorTitle": "Dny do stárnutí, podle fáze",

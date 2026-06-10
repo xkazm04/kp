@@ -11,6 +11,7 @@ import { STAGE_HELP, STAGES, type Entry } from "./PipelineTypes";
 type Position = { id: string; title: string; family: string; count: number };
 
 const CELL_LIMIT = 6;
+const EMPTY_SELECTION: ReadonlySet<string> = new Set();
 
 // Board layout is DERIVED from the stage list so it can never drift out of sync
 // with STAGES. A hardcoded grid-cols repeat(7) + min-w-[2240px] previously painted
@@ -42,11 +43,17 @@ function StageCell({
   isStale,
   openProfile,
   openActions,
+  selectMode,
+  selectedIds,
+  onToggleSelect,
 }: {
   entries: Entry[];
   isStale: (e: Entry) => boolean;
   openProfile: (e: Entry) => void;
   openActions: (e: Entry) => void;
+  selectMode: boolean;
+  selectedIds: ReadonlySet<string>;
+  onToggleSelect: (e: Entry) => void;
 }) {
   const t = useTranslations("pipeline");
   const [expanded, setExpanded] = useState(false);
@@ -62,6 +69,9 @@ function StageCell({
           stale={isStale(e)}
           onOpen={() => openProfile(e)}
           onActions={() => openActions(e)}
+          selectMode={selectMode}
+          selected={selectedIds.has(e.id)}
+          onToggleSelect={() => onToggleSelect(e)}
         />
       ))}
       {overflow > 0 ? (
@@ -87,6 +97,9 @@ export function PipelineBoard({
   openProfile,
   openJob,
   openActions,
+  selectMode = false,
+  selectedIds,
+  onToggleSelect,
 }: {
   positions: Position[];
   entries: Entry[];
@@ -95,6 +108,10 @@ export function PipelineBoard({
   openProfile: (e: Entry) => void;
   openJob: (jobId: string) => void;
   openActions: (e: Entry) => void;
+  // PIPE1 — bulk select mode (owned by PipelineTab; the board just renders it).
+  selectMode?: boolean;
+  selectedIds?: ReadonlySet<string>;
+  onToggleSelect?: (e: Entry) => void;
 }) {
   const t = useTranslations("pipeline");
   const enumLabel = useEnumLabel();
@@ -222,6 +239,9 @@ export function PipelineBoard({
                       isStale={isStale}
                       openProfile={openProfile}
                       openActions={openActions}
+                      selectMode={selectMode}
+                      selectedIds={selectedIds ?? EMPTY_SELECTION}
+                      onToggleSelect={onToggleSelect ?? (() => undefined)}
                     />
                   );
                 })}

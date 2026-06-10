@@ -328,7 +328,8 @@
       "degradedSuffix": " · intake degraded",
       "openProfileSuffix": " · open analyzed profile",
       "aiActions": "AI actions",
-      "aiActionsFor": "AI actions for {name}"
+      "aiActionsFor": "AI actions for {name}",
+      "selectCandidate": "Select {name}"
     },
     "tokenLink": {
       "copy": "Copy link",
@@ -410,6 +411,16 @@
       "showingCount": "Showing {shown} of {total}",
       "clear": "Clear",
       "saveView": "Save view",
+      "select": "Select",
+      "selectDone": "Done selecting",
+      "selectedCount": "{count} selected",
+      "selectAllVisible": "Select all {count} shown",
+      "bulkClear": "Clear selection",
+      "bulkMoveLabel": "Move to",
+      "bulkApply": "Move {count}",
+      "bulkMoving": "Moving…",
+      "bulkMoved": "{count} moved",
+      "bulkFailed": "{count} couldn't move — still selected, retry",
       "agingSlas": "Aging SLAs",
       "agingSlasTitle": "Set how long a candidate may sit in each stage before it flags as aging",
       "slaEditorTitle": "Days before aging, per stage",

@@ -4,12 +4,14 @@ import {
   ArrowLeftRight,
   ArrowUpCircle,
   CalendarCheck,
+  CheckSquare,
   CircleDot,
   CirclePlus,
   Clock,
   Gauge,
   Repeat,
   Sparkles,
+  Square,
   UserPlus,
   Wrench,
   XCircle,
@@ -138,18 +140,27 @@ export function EventDot({ kind }: { kind: string }) {
 // A candidate in a position cell: full name + a prominent status dot (~2x the
 // old avatar corner dot). The name navigates to the analyzed profile; a hover
 // affordance opens the AI-actions drawer.
+// PIPE1: in select mode the row becomes a checkbox (role=checkbox on the name
+// button, glyph before the dot) and its navigation/actions are suppressed — the
+// MatrixTab selectMode interaction grammar.
 export function CandidateRow({
   entry,
   pending = false,
   stale = false,
   onOpen,
   onActions,
+  selectMode = false,
+  selected = false,
+  onToggleSelect,
 }: {
   entry: Entry;
   pending?: boolean;
   stale?: boolean;
   onOpen: () => void;
   onActions?: () => void;
+  selectMode?: boolean;
+  selected?: boolean;
+  onToggleSelect?: () => void;
 }) {
   const t = useTranslations("pipeline");
   const enumLabel = useEnumLabel();
@@ -177,8 +188,9 @@ export function CandidateRow({
         ? Clock
         : style.icon;
   const title = `${t("candidateRow.cardTitle", { name: entry.candidateLabel, archetype: archLabel })}${entry.matchScore != null ? t("candidateRow.matchSuffix", { score: entry.matchScore }) : ""}${days != null ? t("candidateRow.daysInStage", { days }) : ""}${degraded ? t("candidateRow.degradedSuffix") : ""}`;
+  const selecting = selectMode && onToggleSelect;
   return (
-    <div className="group flex items-center gap-1.5 rounded-md px-1 py-0.5 hover:bg-paper">
+    <div className={`group flex items-center gap-1.5 rounded-md px-1 py-0.5 hover:bg-paper ${selecting && selected ? "bg-coral/5" : ""}`}>
       <span
         role="img"
         aria-label={dotTitle}
@@ -189,18 +201,27 @@ export function CandidateRow({
       </span>
       <button
         type="button"
-        onClick={onOpen}
-        title={`${title}${t("candidateRow.openProfileSuffix")}`}
-        className="focus-ring min-w-0 flex-1 truncate text-left text-base font-medium text-ink hover:text-coral"
+        onClick={selecting ? onToggleSelect : onOpen}
+        role={selecting ? "checkbox" : undefined}
+        aria-checked={selecting ? selected : undefined}
+        title={selecting ? t("candidateRow.selectCandidate", { name: entry.candidateLabel }) : `${title}${t("candidateRow.openProfileSuffix")}`}
+        className="focus-ring flex min-w-0 flex-1 items-center gap-1.5 truncate text-left text-base font-medium text-ink hover:text-coral"
       >
-        {entry.candidateLabel}
+        {selecting ? (
+          selected ? (
+            <CheckSquare size={14} className="shrink-0 text-coral" aria-hidden />
+          ) : (
+            <Square size={14} className="shrink-0 text-steel" aria-hidden />
+          )
+        ) : null}
+        <span className="min-w-0 truncate">{entry.candidateLabel}</span>
       </button>
       {/* Right-aligned fit score in the shared score→color language (moss/amber/coral),
           so a lane can be triaged at a glance without hovering for the title tooltip. */}
       <span className="shrink-0">
         <ScoreBadge score={entry.matchScore} />
       </span>
-      {onActions ? (
+      {onActions && !selecting ? (
         <button
           type="button"
           onClick={onActions}

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { AlertTriangle, BookmarkPlus, Sparkles, Timer, X } from "lucide-react";
+import { AlertTriangle, BookmarkPlus, CheckSquare, Sparkles, Timer, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { buildUrl, clearedTabScopedParams } from "@/app/features/tabs";
 import { useTasks } from "@/app/features/tasks/TasksProvider";
@@ -124,6 +124,13 @@ export function PipelineTab() {
     const v = search.get("stage");
     return v && STAGES.includes(v) ? v : null;
   });
+  // PIPE1 — bulk select mode: the filters isolate a cohort ("7 aging"), select
+  // mode lets the recruiter act on it as a batch instead of N drawer trips.
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<ReadonlySet<string>>(new Set());
+  const [bulkStage, setBulkStage] = useState("");
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const [bulkResult, setBulkResult] = useState<{ moved: number; failed: number } | null>(null);
   // Saved board views (PIPE5): named {search + quick-filter} presets a recruiter
   // returns to, persisted in localStorage (single board, client-only — no schema).
   const [views, setViews] = useState<SavedView[]>([]);
@@ -317,6 +324,59 @@ export function PipelineTab() {
     setQuick(v.quick);
   };
   const deleteView = (id: string) => persistViews(views.filter((v) => v.id !== id));
+
+  // PIPE1 — bulk move. Sequential set_stage POSTs, each carrying its OWN
+  // expectedStage (the stage the board showed for THAT card) — a 409 means a
+  // concurrent actor moved that candidate, and the MatrixTab W11 grammar
+  // applies: the failure STAYS SELECTED for retry while successes deselect.
+  const toggleSelectMode = () => {
+    setSelectMode((v) => !v);
+    setSelectedIds(new Set());
+    setBulkResult(null);
+  };
+  const toggleSelected = (e: Entry) => {
+    setBulkResult(null);
+    setSelectedIds((cur) => {
+      const next = new Set(cur);
+      if (next.has(e.id)) next.delete(e.id);
+      else next.add(e.id);
+      return next;
+    });
+  };
+  const selectAllVisible = () => {
+    setBulkResult(null);
+    setSelectedIds(new Set(filteredEntries.map((e) => e.id)));
+  };
+  const bulkMove = async () => {
+    if (!bulkStage || selectedIds.size === 0 || bulkBusy) return;
+    setBulkBusy(true);
+    setBulkResult(null);
+    let moved = 0;
+    const failures = new Set<string>();
+    for (const id of selectedIds) {
+      const entry = (entries ?? []).find((x) => x.id === id);
+      if (!entry) continue; // vanished since selection — nothing left to move
+      if (entry.stage === bulkStage) {
+        moved += 1; // already at the target — done, deselect
+        continue;
+      }
+      try {
+        const r = await fetch(`/api/pipeline/${encodeURIComponent(id)}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "set_stage", toStage: bulkStage, expectedStage: entry.stage }),
+        });
+        if (r.ok) moved += 1;
+        else failures.add(id);
+      } catch {
+        failures.add(id);
+      }
+    }
+    setSelectedIds(failures);
+    setBulkResult({ moved, failed: failures.size });
+    setBulkBusy(false);
+    await load();
+  };
 
   // SHELL3 — opening a candidate/profile/job from the board is the canonical
   // "I'm working on this" moment; record it so the sidebar Recent group and the
@@ -599,12 +659,23 @@ export function PipelineTab() {
                 <BookmarkPlus size={13} /> {t("saveView")}
               </button>
             ) : null}
+            {/* PIPE1: flip the board's rows into checkboxes for batch actions. */}
+            <button
+              type="button"
+              onClick={toggleSelectMode}
+              aria-pressed={selectMode}
+              className={`focus-ring ml-auto inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-sm font-semibold ${
+                selectMode ? "border-coral bg-coral/10 text-coral" : "border-stone-200 bg-white text-steel hover:border-coral/40 hover:text-ink"
+              }`}
+            >
+              <CheckSquare size={13} /> {selectMode ? t("selectDone") : t("select")}
+            </button>
             {/* PIPE4: tune the per-stage aging thresholds for this board. */}
             <button
               type="button"
               onClick={() => setEditingSla((v) => !v)}
               aria-pressed={editingSla}
-              className={`focus-ring ml-auto inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-sm font-semibold ${
+              className={`focus-ring inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-sm font-semibold ${
                 editingSla ? "border-coral bg-coral/10 text-coral" : "border-stone-200 bg-white text-steel hover:border-coral/40 hover:text-ink"
               }`}
               title={t("agingSlasTitle")}
@@ -612,6 +683,63 @@ export function PipelineTab() {
               <Timer size={13} /> {t("agingSlas")}
             </button>
           </div>
+
+          {/* PIPE1: the batch action bar — pairs with the filters above (filter
+              to the cohort, select all shown, move them in one pass). */}
+          {selectMode ? (
+            <div className="flex flex-wrap items-center gap-2 rounded-md border border-coral/30 bg-coral/5 px-3 py-2">
+              <span className="text-sm font-semibold text-ink" aria-live="polite">
+                {t("selectedCount", { count: selectedIds.size })}
+              </span>
+              <button
+                type="button"
+                onClick={selectAllVisible}
+                className="focus-ring rounded-full border border-stone-200 bg-white px-2.5 py-0.5 text-sm font-semibold text-steel hover:border-coral/40 hover:text-ink"
+              >
+                {t("selectAllVisible", { count: filteredEntries.length })}
+              </button>
+              {selectedIds.size > 0 ? (
+                <button
+                  type="button"
+                  onClick={() => setSelectedIds(new Set())}
+                  className="focus-ring rounded-full border border-stone-200 bg-white px-2.5 py-0.5 text-sm font-semibold text-steel hover:border-coral/40 hover:text-ink"
+                >
+                  {t("bulkClear")}
+                </button>
+              ) : null}
+              <label className="ml-auto flex items-center gap-1.5 text-sm font-medium text-steel">
+                {t("bulkMoveLabel")}
+                <select
+                  value={bulkStage}
+                  onChange={(ev) => setBulkStage(ev.target.value)}
+                  className="focus-ring h-8 rounded-md border border-stone-200 bg-white px-2 text-sm text-ink"
+                >
+                  <option value="">—</option>
+                  {STAGES.map((s) => (
+                    <option key={s} value={s}>
+                      {enumLabel("stage", s)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <button
+                type="button"
+                onClick={() => void bulkMove()}
+                disabled={bulkBusy || !bulkStage || selectedIds.size === 0}
+                className="focus-ring rounded-md bg-coral px-3 py-1 text-sm font-semibold text-white hover:bg-coral/90 disabled:opacity-50"
+              >
+                {bulkBusy ? t("bulkMoving") : t("bulkApply", { count: selectedIds.size })}
+              </button>
+              {bulkResult ? (
+                <span role="status" className="text-sm">
+                  <span className="font-semibold text-moss">{t("bulkMoved", { count: bulkResult.moved })}</span>
+                  {bulkResult.failed > 0 ? (
+                    <span className="font-semibold text-coral"> · {t("bulkFailed", { count: bulkResult.failed })}</span>
+                  ) : null}
+                </span>
+              ) : null}
+            </div>
+          ) : null}
 
           {editingSla ? (
             <div className="flex flex-wrap items-end gap-3 rounded-md border border-stone-200 bg-paper px-3 py-2">
@@ -681,6 +809,9 @@ export function PipelineTab() {
                 openProfile={openProfile}
                 openJob={openJob}
                 openActions={openActions}
+                selectMode={selectMode}
+                selectedIds={selectedIds}
+                onToggleSelect={toggleSelected}
               />
             </div>
           )}
