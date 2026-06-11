@@ -27,10 +27,13 @@ export function ConversationalApply({ jobId, steps }: { jobId: string; steps: Ap
   // `duplicate` flags a repeat application (the candidate already applied to this
   // role): the submission is still "accepted" — their first application stands —
   // but we acknowledge it plainly rather than re-celebrating a fresh "You're in".
+  // `enriched` is the repeat that REBUILT their profile (e.g. a quick-apply lead
+  // following its enrichment link): that one celebrates — they did what we asked.
   const [done, setDone] = useState<{
     result: "accepted" | "declined";
     message: string;
     duplicate?: boolean;
+    enriched?: boolean;
   } | null>(null);
   const [submitting, setSubmitting] = useState(false);
   // A FAILED final submit — recoverable, rendered inline so the conversation and
@@ -111,7 +114,7 @@ export function ConversationalApply({ jobId, steps }: { jobId: string; steps: Ap
       });
       const d = await res.json();
       if (res.ok) {
-        setDone({ result: d.result, message: d.message, duplicate: Boolean(d.duplicate) });
+        setDone({ result: d.result, message: d.message, duplicate: Boolean(d.duplicate), enriched: Boolean(d.enriched) });
       } else {
         // The server rejected the submit. isRetryableApplyStatus decides whether a
         // re-POST of the same answers could succeed (5xx / transient) or is futile
@@ -255,12 +258,19 @@ export function ConversationalApply({ jobId, steps }: { jobId: string; steps: Ap
           </div>
         ))}
         {done ? (
-          // A fresh acceptance celebrates (moss); a repeat application and a
+          // A fresh acceptance celebrates (moss), and so does an enriching
+          // repeat (their profile just got completed); a plain repeat and a
           // decline both render neutrally — a repeat isn't a new win, and a
           // decline shouldn't read as one.
-          <div className={`rounded-lg border p-4 ${done.result === "accepted" && !done.duplicate ? "border-moss/40 bg-moss/5" : "border-stone-200 bg-paper"}`}>
-            <p className={`font-serif text-h3 ${done.result === "accepted" && !done.duplicate ? "text-moss" : "text-ink"}`}>
-              {done.result === "accepted" ? (done.duplicate ? t("alreadyApplied") : t("youreIn")) : t("thanksApplying")}
+          <div className={`rounded-lg border p-4 ${done.result === "accepted" && (!done.duplicate || done.enriched) ? "border-moss/40 bg-moss/5" : "border-stone-200 bg-paper"}`}>
+            <p className={`font-serif text-h3 ${done.result === "accepted" && (!done.duplicate || done.enriched) ? "text-moss" : "text-ink"}`}>
+              {done.result === "accepted"
+                ? done.enriched
+                  ? t("profileCompleted")
+                  : done.duplicate
+                    ? t("alreadyApplied")
+                    : t("youreIn")
+                : t("thanksApplying")}
             </p>
             <p className="mt-1 text-base text-steel">{done.message}</p>
           </div>

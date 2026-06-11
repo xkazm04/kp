@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { BarChart3, Check, Copy, FileText, History, Link2, Scale } from "lucide-react";
+import { BarChart3, Check, Copy, FileText, History, Link2, Megaphone, Scale, Zap } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { Modal } from "@/app/_components/Modal";
 import { Markdown } from "@/app/_components/Markdown";
@@ -12,6 +12,7 @@ import { isLocale } from "@/i18n/locales";
 import { RecruiterCandidates } from "./RecruiterCandidates";
 import { RediscoverPanel } from "./RediscoverPanel";
 import { CompareInterviews } from "./CompareInterviews";
+import { CampaignTab } from "./CampaignTab";
 import { jobToMarkdown, JOB_MARKDOWN_STRINGS, POSTING_LOCALES, type PostingLocale } from "./jobMarkdown";
 import type { Job } from "./JobsTypes";
 
@@ -21,9 +22,10 @@ export function JobPostingModal({ job, onClose }: { job: Job; onClose: () => voi
   const t = useTranslations("jobs.posting");
   const router = useRouter();
   const search = useSearchParams();
-  const [tab, setTab] = useState<"posting" | "candidates" | "rediscover" | "compare">("posting");
+  const [tab, setTab] = useState<"posting" | "candidates" | "rediscover" | "compare" | "campaign">("posting");
   const [copied, setCopied] = useState(false);
   const [applyCopied, setApplyCopied] = useState(false);
+  const [quickCopied, setQuickCopied] = useState(false);
   // W8-1 (JOB1) — retire the role from the surface that owns it. The lifecycle
   // had no terminal state: a filled role kept collecting applications forever.
   const [closing, setClosing] = useState(false);
@@ -64,6 +66,22 @@ export function JobPostingModal({ job, onClose }: { job: Job; onClose: () => voi
       await navigator.clipboard.writeText(url);
       setApplyCopied(true);
       window.setTimeout(() => setApplyCopied(false), 1500);
+    } catch {
+      /* clipboard blocked — no-op */
+    }
+  };
+
+  // E2 (Erika gap) — the ≤30s quick-apply lead form, the link meant for ad /
+  // social placements where the conversational chat is too long. Same
+  // publicBaseUrl + ?lang pinning as the apply link above.
+  const copyQuickApplyLink = async () => {
+    try {
+      const url =
+        publicBaseUrl(typeof window !== "undefined" ? window.location.origin : "") +
+        `/apply/${job.id}/quick?lang=${postingLang}`;
+      await navigator.clipboard.writeText(url);
+      setQuickCopied(true);
+      window.setTimeout(() => setQuickCopied(false), 1500);
     } catch {
       /* clipboard blocked — no-op */
     }
@@ -110,6 +128,13 @@ export function JobPostingModal({ job, onClose }: { job: Job; onClose: () => voi
           </button>
           <button
             type="button"
+            onClick={copyQuickApplyLink}
+            className="focus-ring inline-flex h-9 items-center gap-1 rounded-md border border-stone-200 px-3 text-sm font-semibold text-ink hover:border-coral/40"
+          >
+            {quickCopied ? <Check size={14} /> : <Zap size={14} />} {quickCopied ? t("copied") : t("quickApplyLink")}
+          </button>
+          <button
+            type="button"
             onClick={() => router.push(buildUrl({ tab: "matrix", job: job.id }, search.toString()))}
             className="focus-ring inline-flex h-9 items-center gap-1 rounded-md border border-stone-200 px-3 text-sm font-semibold text-ink hover:border-coral/40"
           >
@@ -128,6 +153,7 @@ export function JobPostingModal({ job, onClose }: { job: Job; onClose: () => voi
       <div role="tablist" aria-label={t("viewsAria")} className="mb-3 flex gap-1 border-b border-stone-200">
         {([
           ["posting", "tabPosting", FileText],
+          ["campaign", "tabCampaign", Megaphone],
           ["candidates", "tabCandidates", BarChart3],
           ["rediscover", "tabRediscover", History],
           ["compare", "tabCompare", Scale],
@@ -179,6 +205,8 @@ export function JobPostingModal({ job, onClose }: { job: Job; onClose: () => voi
               <Markdown content={markdown} />
             </article>
           </>
+        ) : tab === "campaign" ? (
+          <CampaignTab jobId={job.id} />
         ) : tab === "candidates" ? (
           <RecruiterCandidates jobId={job.id} jobTitle={job.title} roleFamily={job.roleFamily ?? null} autoLoad />
         ) : tab === "rediscover" ? (

@@ -1,0 +1,113 @@
+// Pins the JD specificity lint (Erika gap E7): which boilerplate phrases are
+// caught (EN + CS, inflected forms), what counts as a stated pay figure and
+// place of work, and the salaryAvailable suppression. The rule lists will grow;
+// these tests keep the boundary semantics from drifting while they do.
+//
+// Runner: Node's built-in test runner with type stripping — npm run test:unit
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import { findVaguePhrases, lintJd } from "./jd-lint.ts";
+
+// ---------------------------------------------------------------------------
+// findVaguePhrases — English boilerplate
+// ---------------------------------------------------------------------------
+
+test("catches the canonical English offenders", () => {
+  const text =
+    "We offer a competitive salary. Join our team in a dynamic environment — a fast-paced environment for a true rockstar.";
+  const phrases = findVaguePhrases(text).map((p) => p.toLowerCase());
+  assert.deepEqual(phrases, [
+    "competitive salary",
+    "join our team",
+    "dynamic environment",
+    "fast-paced environment",
+    "rockstar",
+  ]);
+});
+
+test("is case-insensitive and reports the phrase as written", () => {
+  assert.deepEqual(findVaguePhrases("COMPETITIVE Salary on offer"), ["COMPETITIVE Salary"]);
+});
+
+test("dedupes repeated phrases case-insensitively (first occurrence wins)", () => {
+  const phrases = findVaguePhrases("Dynamic team. We are a dynamic team.");
+  assert.deepEqual(phrases, ["Dynamic team"]);
+});
+
+// ---------------------------------------------------------------------------
+// findVaguePhrases — Czech boilerplate, inflected forms
+// ---------------------------------------------------------------------------
+
+test("catches Czech salary boilerplate across inflections", () => {
+  assert.deepEqual(findVaguePhrases("Nabízíme konkurenceschopný plat."), ["konkurenceschopný plat"]);
+  assert.deepEqual(findVaguePhrases("konkurenceschopné platové ohodnocení"), ["konkurenceschopné platové"]);
+  assert.deepEqual(findVaguePhrases("atraktivní finanční ohodnocení a benefity"), ["atraktivní finanční ohodnocení"]);
+  assert.deepEqual(findVaguePhrases("motivující ohodnocení"), ["motivující ohodnocení"]);
+});
+
+test("catches Czech culture boilerplate", () => {
+  const text = "Čeká tě mladý kolektiv, dynamické prostředí a rodinná atmosféra. Staňte se součástí!";
+  const phrases = findVaguePhrases(text);
+  assert.deepEqual(phrases, ["mladý kolektiv", "dynamické prostředí", "rodinná atmosféra", "Staňte se součástí"]);
+});
+
+test("leaves concrete, specific copy alone", () => {
+  const text = "Senior React developer in Brno, 65 000–95 000 Kč/month, hybrid (2 days in office). Stack: React 19, TypeScript, Node.";
+  assert.deepEqual(findVaguePhrases(text), []);
+});
+
+// ---------------------------------------------------------------------------
+// lintJd — missing concretes
+// ---------------------------------------------------------------------------
+
+const CLEAN_BODY = "Senior React developer. Brno, hybrid. 65 000–95 000 Kč/month. Stack: React, TypeScript.";
+
+test("a concrete JD lints clean", () => {
+  assert.deepEqual(lintJd({ body: CLEAN_BODY }), []);
+});
+
+test("flags a missing salary figure", () => {
+  const findings = lintJd({ body: "Senior React developer. Brno, hybrid. Stack: React." });
+  assert.deepEqual(findings, [{ kind: "missing", what: "salary" }]);
+});
+
+test("salaryAvailable suppresses the salary finding (the structured band will carry the figure)", () => {
+  const findings = lintJd({ body: "Senior React developer. Brno, hybrid. Stack: React.", salaryAvailable: true });
+  assert.deepEqual(findings, []);
+});
+
+test("recognizes pay written in several currency shapes", () => {
+  for (const body of [
+    "Pay: 65 000 Kč monthly. Brno office.",
+    "Salary 65,000 CZK. Brno office.",
+    "Salary €3,200. Remote.",
+    "Salary $120k. Remote.",
+    "Mzda 70 000 Kč. Praha.",
+  ]) {
+    assert.deepEqual(lintJd({ body }), [], `should accept: ${body}`);
+  }
+});
+
+test("flags a missing place of work", () => {
+  const findings = lintJd({ body: "Senior React developer. 65 000 Kč/month. Stack: React." });
+  assert.deepEqual(findings, [{ kind: "missing", what: "place" }]);
+});
+
+test("any work-mode signal counts as a place (remote IS a place for tech roles)", () => {
+  for (const place of ["fully remote", "hybridní režim", "on-site", "práce z domova", "v kanceláři v Olomouci"]) {
+    const findings = lintJd({ body: `Senior developer, ${place}. 65 000 Kč/month.` });
+    assert.deepEqual(findings, [], `should accept place signal: ${place}`);
+  }
+});
+
+test("a boilerplate-laden JD missing both concretes reports everything at once", () => {
+  const findings = lintJd({ body: "Join our team! We offer a competitive salary in a dynamic environment." });
+  assert.deepEqual(findings, [
+    { kind: "vague", phrase: "Join our team" },
+    { kind: "vague", phrase: "competitive salary" },
+    { kind: "vague", phrase: "dynamic environment" },
+    // "competitive salary" is NOT a salary — a figure is still missing.
+    { kind: "missing", what: "salary" },
+    { kind: "missing", what: "place" },
+  ]);
+});

@@ -120,6 +120,21 @@ export function isRetryableApplyStatus(status: number): boolean {
 }
 
 /**
+ * Knockout gate verdict shared by BOTH public intake surfaces (the conversational
+ * apply and the quick-apply lead form): given the KO step ids the job's own
+ * script expects, return the ids whose answer is missing OR not exactly `true`.
+ * The POST body is a public, untrusted trust boundary — an ABSENT key is a fail,
+ * not a pass, so a scripted POST can't skip work-authorization / mode / language
+ * eligibility by simply omitting the keys. An empty return means the gate passed.
+ */
+export function failedKoStepIds(
+  expectedKoIds: readonly string[],
+  answers: Record<string, unknown>
+): string[] {
+  return expectedKoIds.filter((koId) => answers[koId] !== true);
+}
+
+/**
  * Declarative visibility condition for an apply step: the step is shown only
  * when a previously-captured answer matches. `oneOf` shows the step iff the
  * referenced answer IS one of the values; `notOneOf` shows it iff the answer is

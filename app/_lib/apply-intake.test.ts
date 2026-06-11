@@ -14,6 +14,7 @@ import {
   DEFAULT_APPLY_LANGUAGES,
   normalizeApplicantName,
   applyDedupeKey,
+  failedKoStepIds,
   isRetryableApplyStatus,
   nextVisibleStepIndex,
   stepConditionMet,
@@ -370,4 +371,36 @@ test("input-rejection 4xx are NOT retryable — resending the same payload loops
 test("a 2xx is not classified as a retryable failure", () => {
   // Success is handled before classification ever runs; guard the boundary anyway.
   assert.equal(isRetryableApplyStatus(200), false);
+});
+
+// ---------------------------------------------------------------------------
+// failedKoStepIds — the shared knockout gate contract (conversational + quick
+// apply). The POST body is a public, untrusted trust boundary: a MISSING KO key
+// must fail exactly like an explicit "no", or a scripted POST could skip
+// eligibility by omitting keys. Pins the boundary for both intake surfaces.
+// ---------------------------------------------------------------------------
+
+test("all KO answers explicitly true ⇒ no failures (the only passing shape)", () => {
+  assert.deepEqual(failedKoStepIds(["ko_auth", "ko_mode"], { ko_auth: true, ko_mode: true }), []);
+});
+
+test("an explicit false fails that gate", () => {
+  assert.deepEqual(failedKoStepIds(["ko_auth", "ko_mode"], { ko_auth: true, ko_mode: false }), ["ko_mode"]);
+});
+
+test("an ABSENT key fails — omission is not a pass", () => {
+  assert.deepEqual(failedKoStepIds(["ko_auth", "ko_mode", "ko_lang"], { ko_auth: true }), ["ko_mode", "ko_lang"]);
+});
+
+test("truthy-but-not-true values fail — only boolean true passes the boundary", () => {
+  assert.deepEqual(failedKoStepIds(["ko_auth"], { ko_auth: "true" }), ["ko_auth"]);
+  assert.deepEqual(failedKoStepIds(["ko_auth"], { ko_auth: 1 }), ["ko_auth"]);
+});
+
+test("a job with no KO steps passes vacuously", () => {
+  assert.deepEqual(failedKoStepIds([], {}), []);
+});
+
+test("extra unexpected answer keys are ignored — only the job's own gates count", () => {
+  assert.deepEqual(failedKoStepIds(["ko_auth"], { ko_auth: true, ko_invented: false }), []);
 });

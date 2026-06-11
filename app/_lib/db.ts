@@ -182,6 +182,47 @@ function ensureDb(): Database.Database {
     CREATE INDEX IF NOT EXISTS idx_gemini_cache_expires
       ON gemini_cache (expires_at);
 
+    -- E3 (Erika gap) — inbound channel webhooks: one unguessable public token
+    -- per (channel, job) binding. The receiver at /api/channels/inbound/[token]
+    -- maps external lead payloads (ad forms, board integrations) into the same
+    -- lead intake as the quick-apply form. A revoked row keeps its history but
+    -- stops receiving (the receiver checks revoked_at).
+    CREATE TABLE IF NOT EXISTS channel_webhooks (
+      token TEXT PRIMARY KEY,
+      channel TEXT NOT NULL,
+      job_id TEXT NOT NULL,
+      lang TEXT,
+      created_at TEXT NOT NULL,
+      revoked_at TEXT,
+      received_count INTEGER NOT NULL DEFAULT 0,
+      last_received_at TEXT,
+      first_received_at TEXT
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_channel_webhooks_channel ON channel_webhooks (channel);
+
+    -- E5 (Erika gap) — recruiter-entered spend per inbound source channel (CZK),
+    -- the denominator for cost-per-applicant / cost-per-hire in analytics. One
+    -- row per channel id; deleting the row clears the figure.
+    CREATE TABLE IF NOT EXISTS channel_spend (
+      channel TEXT PRIMARY KEY,
+      amount_czk REAL NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
+    -- E1 (Erika gap) — sourcing campaign packs, one per (job, language).
+    -- Durable recruiter artifacts, deliberately NOT the prompt cache: a pack
+    -- must survive restarts and TTLs, and "Regenerate" must produce a fresh
+    -- pack rather than replay a cached one. POST /api/jobs/[id]/campaign upserts.
+    CREATE TABLE IF NOT EXISTS campaign_packs (
+      job_id TEXT NOT NULL,
+      lang TEXT NOT NULL,
+      payload_json TEXT NOT NULL,
+      source TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      PRIMARY KEY (job_id, lang)
+    );
+
     CREATE TABLE IF NOT EXISTS jobs (
       id TEXT PRIMARY KEY,
       title TEXT NOT NULL,
@@ -415,6 +456,18 @@ function ensureDb(): Database.Database {
     // Compact GitHub evidence summary captured at add-to-pipeline (GH2):
     // coerceGithubEvidenceSummary-shaped JSON, bounded at write AND read.
     "ALTER TABLE pipeline_entries ADD COLUMN github_json TEXT",
+    // E3 (Erika gap) — fine-grained inbound source attribution, the queryable
+    // axis funnel economics (E5) will group on: 'apply' (conversational),
+    // 'quick-apply', or a webhook channel id ('email'/'boards'). NULL on
+    // recruiter/Match-sourced and legacy rows — "no inbound channel recorded".
+    "ALTER TABLE pipeline_entries ADD COLUMN source_channel TEXT",
+    // E5 — campaign/creative attribution: utm_campaign/utm_content-style values
+    // captured at intake (webhook payload fields, quick-apply ?c=/&v= params).
+    // Powers the per-variant performance table + pause recommendations.
+    "ALTER TABLE pipeline_entries ADD COLUMN source_campaign TEXT",
+    "ALTER TABLE pipeline_entries ADD COLUMN source_variant TEXT",
+    // E5 — when a webhook received its FIRST lead (time-to-first-lead metric).
+    "ALTER TABLE channel_webhooks ADD COLUMN first_received_at TEXT",
   ]) {
     try {
       db.exec(sql);
@@ -1124,6 +1177,188 @@ export function listCorpusJobs(): JobRecord[] {
     .filter((j): j is JobRecord => j !== null);
 }
 
+// ---- Inbound channel webhooks (Erika gap E3) --------------------------------
+
+// The channel ids that accept inbound webhooks — exactly the two stub channels
+// the Channels tab shows as "not configured" until a webhook exists. The
+// registry-facing ids; a webhook's leads are attributed to this id on the entry.
+export const WEBHOOK_CHANNELS = ["email", "boards"] as const;
+export type WebhookChannelId = (typeof WEBHOOK_CHANNELS)[number];
+
+export function isWebhookChannel(value: string): value is WebhookChannelId {
+  return (WEBHOOK_CHANNELS as readonly string[]).includes(value);
+}
+
+export type ChannelWebhookRecord = {
+  token: string;
+  channel: WebhookChannelId;
+  jobId: string;
+  // Joined for display; null when the job row has vanished (the webhook then
+  // 404s at receive time anyway).
+  jobTitle: string | null;
+  lang: string | null;
+  createdAt: string;
+  receivedCount: number;
+  lastReceivedAt: string | null;
+  // E5 — the webhook's first lead (time-to-first-lead = this minus createdAt).
+  firstReceivedAt: string | null;
+};
+
+type ChannelWebhookRow = {
+  token: string;
+  channel: string;
+  job_id: string;
+  job_title: string | null;
+  lang: string | null;
+  created_at: string;
+  received_count: number;
+  last_received_at: string | null;
+  first_received_at: string | null;
+};
+
+function rowToWebhook(r: ChannelWebhookRow): ChannelWebhookRecord {
+  return {
+    token: r.token,
+    channel: r.channel as WebhookChannelId,
+    jobId: r.job_id,
+    jobTitle: r.job_title,
+    lang: r.lang,
+    createdAt: r.created_at,
+    receivedCount: r.received_count,
+    lastReceivedAt: r.last_received_at,
+    firstReceivedAt: r.first_received_at,
+  };
+}
+
+const WEBHOOK_SELECT = `
+  SELECT w.token, w.channel, w.job_id, j.title AS job_title, w.lang,
+         w.created_at, w.received_count, w.last_received_at, w.first_received_at
+  FROM channel_webhooks w LEFT JOIN jobs j ON j.id = w.job_id`;
+
+/** Mint a webhook binding. The token is the ONLY gate on this public,
+ *  side-effecting endpoint, so it comes from randomToken (CSPRNG), never randomId. */
+export function createChannelWebhook(input: { channel: WebhookChannelId; jobId: string; lang?: string | null }): ChannelWebhookRecord {
+  const db = ensureDb();
+  const token = randomToken("hook");
+  const now = new Date().toISOString();
+  db.prepare(
+    `INSERT INTO channel_webhooks (token, channel, job_id, lang, created_at) VALUES (?, ?, ?, ?, ?)`
+  ).run(token, input.channel, input.jobId, input.lang ?? null, now);
+  const row = db.prepare(`${WEBHOOK_SELECT} WHERE w.token = ?`).get(token) as ChannelWebhookRow;
+  return rowToWebhook(row);
+}
+
+/** Active (non-revoked) webhooks, newest first — the Channels tab's list AND
+ *  what flips a stub channel's badge to "Listening". */
+export function listChannelWebhooks(): ChannelWebhookRecord[] {
+  const db = ensureDb();
+  const rows = db
+    .prepare(`${WEBHOOK_SELECT} WHERE w.revoked_at IS NULL ORDER BY w.created_at DESC`)
+    .all() as ChannelWebhookRow[];
+  return rows.map(rowToWebhook);
+}
+
+/** The receive-time lookup: an unknown OR revoked token both resolve to null —
+ *  the receiver answers 404 either way, so a revoked token is indistinguishable
+ *  from one that never existed. */
+export function getActiveChannelWebhook(token: string): ChannelWebhookRecord | null {
+  const db = ensureDb();
+  const row = db
+    .prepare(`${WEBHOOK_SELECT} WHERE w.token = ? AND w.revoked_at IS NULL`)
+    .get(token) as ChannelWebhookRow | undefined;
+  return row ? rowToWebhook(row) : null;
+}
+
+/** Revoke (idempotent). The row is kept — its receipt history stays auditable. */
+export function revokeChannelWebhook(token: string): boolean {
+  const db = ensureDb();
+  const res = db
+    .prepare(`UPDATE channel_webhooks SET revoked_at = ? WHERE token = ? AND revoked_at IS NULL`)
+    .run(new Date().toISOString(), token);
+  return res.changes > 0;
+}
+
+/** Stamp one received payload (count + timestamps) — the tab's liveness signal.
+ *  first_received_at is FILL-ONLY: the first receipt sets it, later ones never
+ *  move it (it anchors the time-to-first-lead metric). */
+export function recordChannelWebhookReceipt(token: string): void {
+  const db = ensureDb();
+  const now = new Date().toISOString();
+  db.prepare(
+    `UPDATE channel_webhooks
+        SET received_count = received_count + 1,
+            last_received_at = ?,
+            first_received_at = COALESCE(first_received_at, ?)
+      WHERE token = ?`
+  ).run(now, now, token);
+}
+
+// ---- Channel spend (Erika gap E5) -------------------------------------------
+
+/** Recruiter-entered spend per source channel (CZK) — the denominator for
+ *  cost-per-applicant / cost-per-hire. amountCzk null/≤0 clears the figure. */
+export function setChannelSpend(channel: string, amountCzk: number | null): void {
+  const db = ensureDb();
+  if (amountCzk == null || !(amountCzk > 0)) {
+    db.prepare(`DELETE FROM channel_spend WHERE channel = ?`).run(channel);
+    return;
+  }
+  db.prepare(
+    `INSERT INTO channel_spend (channel, amount_czk, updated_at) VALUES (?, ?, ?)
+     ON CONFLICT(channel) DO UPDATE SET amount_czk = excluded.amount_czk, updated_at = excluded.updated_at`
+  ).run(channel, amountCzk, new Date().toISOString());
+}
+
+export function listChannelSpend(): Map<string, number> {
+  const db = ensureDb();
+  const rows = db.prepare(`SELECT channel, amount_czk FROM channel_spend`).all() as {
+    channel: string;
+    amount_czk: number;
+  }[];
+  return new Map(rows.map((r) => [r.channel, r.amount_czk]));
+}
+
+// ---- Campaign packs (Erika gap E1) -----------------------------------------
+
+// One stored pack per (job, language) — the durable artifact behind the job
+// posting modal's Campaign tab. `payload` is the campaign_cli pack verbatim
+// (variants + warning codes + applyUrl); `source` records llm vs deterministic
+// provenance so the UI can label a rule-based fallback honestly.
+export type CampaignPackRecord = {
+  jobId: string;
+  lang: string;
+  payload: unknown;
+  source: string;
+  createdAt: string;
+};
+
+export function saveCampaignPack(jobId: string, lang: string, payload: unknown, source: string): CampaignPackRecord {
+  const db = ensureDb();
+  const now = new Date().toISOString();
+  db.prepare(
+    `INSERT INTO campaign_packs (job_id, lang, payload_json, source, created_at)
+     VALUES (?, ?, ?, ?, ?)
+     ON CONFLICT(job_id, lang) DO UPDATE SET
+       payload_json = excluded.payload_json,
+       source = excluded.source,
+       created_at = excluded.created_at`
+  ).run(jobId, lang, JSON.stringify(payload), source, now);
+  return { jobId, lang, payload, source, createdAt: now };
+}
+
+export function getCampaignPack(jobId: string, lang: string): CampaignPackRecord | null {
+  const db = ensureDb();
+  const row = db
+    .prepare(`SELECT job_id, lang, payload_json, source, created_at FROM campaign_packs WHERE job_id = ? AND lang = ?`)
+    .get(jobId, lang) as
+    | { job_id: string; lang: string; payload_json: string; source: string; created_at: string }
+    | undefined;
+  if (!row) return null;
+  const payload = safeRowParse<unknown>(row.payload_json, "getCampaignPack");
+  if (payload === null) return null;
+  return { jobId: row.job_id, lang: row.lang, payload, source: row.source, createdAt: row.created_at };
+}
+
 export type JobStats = {
   total: number;
   entryEligible: number;
@@ -1351,6 +1586,14 @@ import {
   type FunnelStage,
   type ScreeningStage,
 } from "./pipeline-stages";
+// E5 — pure funnel-economics rules (median math, the 72h variant pause
+// heuristic); fed below by pipelineAnalytics with the windowed rows.
+import {
+  medianHours,
+  variantPauseRecommendations,
+  type VariantRecommendation,
+  type VariantStat,
+} from "./source-analytics";
 export { PIPELINE_STAGES, FUNNEL_STAGES, SCREENING_STAGES, hasAdvancedPastScreening, isScreeningStage, screenStageOutcome };
 export type { PipelineStage, FunnelStage, ScreeningStage };
 
@@ -1391,6 +1634,14 @@ export type PipelineEntry = {
   // Compact GitHub evidence summary captured at add-to-pipeline (GH2), else
   // null. Bounded by coerceGithubEvidenceSummary on both write and read.
   githubEvidence: GithubEvidenceSummary | null;
+  // E3 — inbound source attribution: 'apply' (conversational), 'quick-apply',
+  // or a webhook channel id ('email'/'boards'). NULL = recruiter/Match-sourced
+  // or predates attribution. The axis E5 funnel economics groups on.
+  sourceChannel: string | null;
+  // E5 — campaign/creative attribution (utm_campaign / utm_content-style),
+  // captured at intake. NULL when the source carried none.
+  sourceCampaign: string | null;
+  sourceVariant: string | null;
 };
 
 // Canonical shape of a /api/pipeline row. That endpoint returns listPipeline()
@@ -1702,6 +1953,9 @@ type PipelineRow = {
   contact: string | null;
   locale?: string | null;
   github_json?: string | null;
+  source_channel?: string | null;
+  source_campaign?: string | null;
+  source_variant?: string | null;
 };
 
 function rowToEntry(r: PipelineRow): PipelineEntry {
@@ -1728,6 +1982,9 @@ function rowToEntry(r: PipelineRow): PipelineEntry {
     contact: r.contact ?? null,
     locale: r.locale ?? null,
     githubEvidence: parseGithubEvidence(r.github_json, r.id),
+    sourceChannel: r.source_channel ?? null,
+    sourceCampaign: r.source_campaign ?? null,
+    sourceVariant: r.source_variant ?? null,
   };
 }
 
@@ -1805,6 +2062,28 @@ export type PipelineAnalytics = {
   // match fan-out/sourcing, added = recruiter manual/intake). No migration —
   // origin is derived, never stored.
   bySource: { source: string; total: number; reachedInterview: number; hired: number; hireRatePct: number }[];
+  // E5 — funnel economics over the STORED source_channel (E3 attribution):
+  // conversion per inbound channel, median hours from entry to first decision
+  // event, and recruiter-entered spend → cost per applicant / per hire.
+  byChannel: ChannelEconomics[];
+  // E5 — per-(job × campaign × variant) creative performance (capped top-N by
+  // volume; byVariantTotal is the true count) + the 72h pause recommendations.
+  byVariant: VariantStat[];
+  byVariantTotal: number;
+  variantRecommendations: VariantRecommendation[];
+};
+
+export type ChannelEconomics = {
+  channel: string;
+  total: number;
+  reachedInterview: number;
+  hired: number;
+  rejected: number;
+  hireRatePct: number;
+  medianHoursToDecision: number | null;
+  spendCzk: number | null;
+  costPerApplicantCzk: number | null;
+  costPerHireCzk: number | null;
 };
 
 // ANA2 — `windowDays` scopes the snapshot metrics to the COHORT of entries
@@ -1815,24 +2094,23 @@ export type PipelineAnalytics = {
 export function pipelineAnalytics(windowDays?: number | null): PipelineAnalytics {
   const db = ensureDb();
   const cutoffIso = windowDays ? new Date(Date.now() - windowDays * 86_400_000).toISOString() : null;
+  const ROW_COLUMNS =
+    "job_id, job_title, archetype, stage, status, created_at, stage_changed_at, source_channel, source_campaign, source_variant";
   const rows = (
     cutoffIso
-      ? db
-          .prepare(
-            `SELECT job_title, archetype, stage, status, created_at, stage_changed_at
-             FROM pipeline_entries WHERE created_at >= ?`
-          )
-          .all(cutoffIso)
-      : db
-          .prepare(`SELECT job_title, archetype, stage, status, created_at, stage_changed_at FROM pipeline_entries`)
-          .all()
+      ? db.prepare(`SELECT ${ROW_COLUMNS} FROM pipeline_entries WHERE created_at >= ?`).all(cutoffIso)
+      : db.prepare(`SELECT ${ROW_COLUMNS} FROM pipeline_entries`).all()
   ) as {
+    job_id: string | null;
     job_title: string | null;
     archetype: string | null;
     stage: string;
     status: string;
     created_at: string | null;
     stage_changed_at: string | null;
+    source_channel: string | null;
+    source_campaign: string | null;
+    source_variant: string | null;
   }[];
 
   // Index against FUNNEL_STAGES (= the 5 canonical stages, Accepted-first). The
@@ -2037,6 +2315,91 @@ export function pipelineAnalytics(windowDays?: number | null): PipelineAnalytics
     }))
     .sort((a, b) => b.total - a.total);
 
+  // E5 — channel economics over the STORED source_channel (E3). Same windowed
+  // cohort as the rest of the page; entries without attribution (recruiter/
+  // Match-sourced, legacy) simply don't appear — bySource above covers them.
+  const channelMap = new Map<string, { total: number; reachedInterview: number; hired: number; rejected: number }>();
+  for (const r of rows) {
+    if (!r.source_channel) continue;
+    const m = channelMap.get(r.source_channel) ?? { total: 0, reachedInterview: 0, hired: 0, rejected: 0 };
+    m.total += 1;
+    if (idxOf(r.stage) >= idxOf("Interview")) m.reachedInterview += 1;
+    if (r.stage === "Hired") m.hired += 1;
+    if (r.status === "rejected") m.rejected += 1;
+    channelMap.set(r.source_channel, m);
+  }
+  // Median time from entry creation to the FIRST decision event (advance or
+  // reject, human or policy) — the per-channel "how fast do we actually decide"
+  // figure. One grouped query; the median itself is pure (source-analytics).
+  const decisionRows = db
+    .prepare(
+      `SELECT p.source_channel AS channel, p.created_at AS created, MIN(e.created_at) AS decided
+         FROM pipeline_entries p
+         JOIN pipeline_events e
+           ON e.entry_id = p.id AND e.kind IN ('advanced', 'rejected', 'auto_rejected')
+        WHERE p.source_channel IS NOT NULL ${cutoffIso ? "AND p.created_at >= ?" : ""}
+        GROUP BY p.id`
+    )
+    .all(...(cutoffIso ? [cutoffIso] : [])) as { channel: string; created: string | null; decided: string }[];
+  const decisionMsByChannel = new Map<string, number[]>();
+  for (const r of decisionRows) {
+    if (!r.created) continue;
+    const delta = Date.parse(r.decided) - Date.parse(r.created);
+    if (!Number.isFinite(delta)) continue;
+    const list = decisionMsByChannel.get(r.channel);
+    if (list) list.push(delta);
+    else decisionMsByChannel.set(r.channel, [delta]);
+  }
+  const spendByChannel = listChannelSpend();
+  const byChannel: ChannelEconomics[] = [...channelMap.entries()]
+    .map(([channel, m]) => {
+      const spendCzk = spendByChannel.get(channel) ?? null;
+      return {
+        channel,
+        ...m,
+        hireRatePct: m.total ? Math.round((m.hired / m.total) * 100) : 0,
+        medianHoursToDecision: medianHours(decisionMsByChannel.get(channel) ?? []),
+        spendCzk,
+        // Cost figures only where the division is honest: spend entered AND a
+        // non-zero denominator (0 hires ⇒ no cost-per-hire, not infinity).
+        costPerApplicantCzk: spendCzk != null && m.total > 0 ? Math.round(spendCzk / m.total) : null,
+        costPerHireCzk: spendCzk != null && m.hired > 0 ? Math.round(spendCzk / m.hired) : null,
+      };
+    })
+    .sort((a, b) => b.total - a.total);
+
+  // E5 — creative-variant performance: entries carrying a source_variant,
+  // grouped per (job × campaign × variant). firstLeadAt anchors the 72h
+  // observation clock for the pause heuristic.
+  const variantMap = new Map<string, VariantStat>();
+  for (const r of rows) {
+    if (!r.source_variant) continue;
+    const key = `${r.job_id ?? ""}|${r.source_campaign ?? ""}|${r.source_variant}`;
+    const v =
+      variantMap.get(key) ??
+      ({
+        jobId: r.job_id,
+        jobTitle: r.job_title,
+        campaign: r.source_campaign,
+        variant: r.source_variant,
+        total: 0,
+        reachedInterview: 0,
+        hired: 0,
+        firstLeadAt: null,
+      } satisfies VariantStat);
+    v.total += 1;
+    if (idxOf(r.stage) >= idxOf("Interview")) v.reachedInterview += 1;
+    if (r.stage === "Hired") v.hired += 1;
+    if (r.created_at && (!v.firstLeadAt || r.created_at < v.firstLeadAt)) v.firstLeadAt = r.created_at;
+    variantMap.set(key, v);
+  }
+  const variantStats = [...variantMap.values()].sort((a, b) => b.total - a.total);
+  const BY_VARIANT_CAP = 24;
+  const byVariant = variantStats.slice(0, BY_VARIANT_CAP);
+  // Recommendations run over the FULL stat set, not the display cap — a starving
+  // variant is precisely the one a top-N-by-volume cut would hide.
+  const variantRecommendations = variantPauseRecommendations(variantStats, now);
+
   return {
     total,
     active,
@@ -2054,6 +2417,10 @@ export function pipelineAnalytics(windowDays?: number | null): PipelineAnalytics
     momentum,
     automation,
     bySource,
+    byChannel,
+    byVariant,
+    byVariantTotal: variantStats.length,
+    variantRecommendations,
   };
 }
 
@@ -2280,6 +2647,12 @@ export type CreatePipelineInput = {
   // Candidate contact (email/phone) from inbound apply; stored so downstream comms
   // are deliverable. Omitted by recruiter/Match adds (they carry no address).
   contact?: string | null;
+  // E3 — inbound source attribution ('apply' | 'quick-apply' | webhook channel id).
+  // Omitted by recruiter/Match adds.
+  sourceChannel?: string | null;
+  // E5 — campaign/creative attribution captured at intake (bounded by callers).
+  sourceCampaign?: string | null;
+  sourceVariant?: string | null;
   // Applicant's locale from inbound apply (SIM3); drives downstream comm
   // language. Omitted by recruiter/Match adds ⇒ NULL ⇒ "en" at dispatch.
   locale?: string | null;
@@ -2331,10 +2704,12 @@ export function createPipelineEntry(input: CreatePipelineInput): { entry: Pipeli
     `INSERT INTO pipeline_entries
        (id, candidate_id, candidate_label, archetype, role_family, job_id, job_title,
         stage, match_score, status, approval_kind, approval_detail, created_at, stage_changed_at, updated_at,
-        intake_degraded, intake_degraded_reason, contact, locale, github_json)
+        intake_degraded, intake_degraded_reason, contact, locale, github_json, source_channel,
+        source_campaign, source_variant)
      VALUES (@id, @candidate_id, @candidate_label, @archetype, @role_family, @job_id, @job_title,
         @stage, @match_score, 'active', NULL, '', @now, @now, @now,
-        @intake_degraded, @intake_degraded_reason, @contact, @locale, @github_json)`
+        @intake_degraded, @intake_degraded_reason, @contact, @locale, @github_json, @source_channel,
+        @source_campaign, @source_variant)`
   ).run({
     id,
     candidate_id: input.candidateId,
@@ -2351,6 +2726,9 @@ export function createPipelineEntry(input: CreatePipelineInput): { entry: Pipeli
     contact: input.contact ?? null,
     locale: input.locale ?? null,
     github_json: input.githubJson ?? null,
+    source_channel: input.sourceChannel ?? null,
+    source_campaign: input.sourceCampaign ?? null,
+    source_variant: input.sourceVariant ?? null,
   });
   recordEvent(db, {
     entryId: id,
@@ -2549,6 +2927,33 @@ export function recordAutomationEvent(entryId: string, kind: string, detail?: st
     kind,
     toStage: row?.stage ?? null,
     detail: detail ?? null,
+  });
+}
+
+// E2 (Erika gap) — auditable knockout discards. A KO-failed application creates
+// NO pipeline entry (deliberate: a mis-tapped eligibility toggle must not mint a
+// terminal row the candidate can never retry past), so without this the discard
+// vanished without a trace — the exact silent auto-discard the fairness story
+// forbids. Logged as an entry-less `ko_declined` pipeline event carrying the
+// applicant's display name, the role, and WHICH gates failed, so the decision log
+// and per-channel funnel analytics can count and inspect every discard. The
+// contact address is deliberately NOT recorded — no entry was created, so no
+// deliverable identity should be retained for a declined applicant.
+const KO_DECLINE_DETAIL_MAX = 200;
+export function recordKnockoutDecline(input: {
+  candidateLabel: string | null;
+  jobTitle: string | null;
+  channel: string;
+  failedKoIds: readonly string[];
+}): void {
+  const db = ensureDb();
+  const detail = `knockout declined via ${input.channel} — failed: ${input.failedKoIds.join(", ")}`;
+  recordEvent(db, {
+    entryId: null,
+    candidateLabel: (input.candidateLabel ?? "").trim() || null,
+    jobTitle: input.jobTitle,
+    kind: "ko_declined",
+    detail: detail.length > KO_DECLINE_DETAIL_MAX ? `${detail.slice(0, KO_DECLINE_DETAIL_MAX - 1)}…` : detail,
   });
 }
 

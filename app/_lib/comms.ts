@@ -1,5 +1,6 @@
-import { recordOutbox, type OutboxEntry } from "./db";
+import { getPipelineEntry, recordOutbox, type OutboxEntry } from "./db";
 import { COMMS_RELAY_RETRY, isRetryableHttpStatus, type OutboxStatus } from "./comms-status";
+import { buildCommEnvelope, type CommEnvelope } from "./comms-envelope";
 import { logComms } from "./logger";
 
 // Direction B — outbound communications. Pluggable channel, mirroring the deterministic-
@@ -44,23 +45,31 @@ class OutboxChannel implements CommsChannel {
 // 429 / 5xx) are retried with bounded exponential backoff; a non-retryable response, or
 // exhausting the retries, dead-letters the message (status `failed`) and raises a loud
 // alert — a dropped offer/rejection must never look as benign as a local `queued` row.
+//
+// E8 — the wire payload is the versioned kp.comm.v1 envelope (comms-envelope.ts,
+// documented in docs/OUTBOUND_EXPORT.md): the flat legacy fields verbatim, plus
+// candidate/job/stage context enriched from the pipeline entry the message
+// references — so a relay can map kp → any ATS without calling back.
 class WebhookChannel implements CommsChannel {
   readonly name = "webhook";
   constructor(private readonly url: string) {}
 
   async send(msg: OutboundMessage): Promise<OutboxEntry> {
-    const { status, attempts, detail } = await this.deliver(msg);
+    // `ref` is the pipeline entry id for every pipeline dispatcher; dev-case and
+    // slot refs simply miss and ship null context (the flat fields still deliver).
+    const envelope = buildCommEnvelope(msg, msg.ref ? getPipelineEntry(msg.ref) : null, new Date().toISOString());
+    const { status, attempts, detail } = await this.deliver(envelope);
     if (status === "failed") await this.alertDeadLetter(msg, attempts, detail);
     return recordOutbox({ recipient: msg.to, subject: msg.subject, body: msg.body, kind: msg.kind, channel: this.name, status, ref: msg.ref });
   }
 
   // Attempt delivery with bounded retry. Returns the terminal status plus how many
   // attempts ran and the last failure detail (for the dead-letter alert / audit).
-  private async deliver(msg: OutboundMessage): Promise<{ status: OutboxStatus; attempts: number; detail: string }> {
+  private async deliver(envelope: CommEnvelope): Promise<{ status: OutboxStatus; attempts: number; detail: string }> {
     let detail = "";
     for (let attempt = 1; attempt <= COMMS_RELAY_RETRY.maxAttempts; attempt++) {
       try {
-        const r = await fetch(this.url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(msg) });
+        const r = await fetch(this.url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(envelope) });
         if (r.ok) return { status: "sent", attempts: attempt, detail: "" };
         detail = `http ${r.status}`;
         // Permanent (caller/config) error — retrying changes nothing, dead-letter now.

@@ -29,6 +29,7 @@ const RENDERS: [string, Record<string, string | number>][] = [
   ["yourNewRole", {}],
   ["ack.subject", { role: "Backend Engineer" }],
   ["ack.body", { name: "Jane", role: "Backend Engineer", team: "The hiring team" }],
+  ["ack.bodyEnrich", { name: "Jane", role: "Backend Engineer", link: "https://x/apply/job-1?lang=en", team: "The hiring team" }],
   ["outreach.subjectFallback", { role: "Backend Engineer" }],
   ["rejection.subject", { role: "Backend Engineer" }],
   ["rejection.opening", { name: "Jane", role: "Backend Engineer" }],

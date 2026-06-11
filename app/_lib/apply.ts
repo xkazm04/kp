@@ -231,6 +231,17 @@ export function buildApplyScript(job: JobRecord, t: ApplyTranslator): ApplyStep[
   return steps;
 }
 
+/** This job's knockout steps (id + localized prompt), derived from its own apply
+ *  script so ko_mode/ko_lang stay conditional on workMode/languages. The single
+ *  source both public intake surfaces gate on: the conversational POST checks the
+ *  ids, the quick-apply lead form renders the prompts AND checks the ids — so the
+ *  two channels can never drift to different eligibility rules for one job. */
+export function applyKoSteps(job: JobRecord, t: ApplyTranslator): { id: string; prompt: string }[] {
+  return buildApplyScript(job, t)
+    .filter((s) => s.type === "ko")
+    .map((s) => ({ id: s.id, prompt: s.prompt }));
+}
+
 // Turn the captured answers into a CandidateProfileV2 intake draft (the same
 // shape /api/profile takes), so a passing applicant becomes a real, matchable
 // candidate rather than a label-only pipeline entry. Skills flow in as evidence

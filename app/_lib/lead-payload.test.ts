@@ -1,0 +1,145 @@
+// Pins the inbound-webhook lead mapping (Erika gap E3): which payload shapes
+// flatten, which key aliases resolve name/email (with diacritic folding), the
+// email value-scan fallback, and the provided-only KO verdict (explicit
+// negative = fail; absent or uninterpretable = ungated, never a silent
+// discard). This is the trust boundary for every third-party lead source.
+//
+// Runner: Node's built-in test runner with type stripping — npm run test:unit
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import { extractLead, flattenLeadFields } from "./lead-payload.ts";
+
+const KO = ["ko_auth", "ko_mode", "ko_lang"];
+
+// ---------------------------------------------------------------------------
+// flattenLeadFields — payload shapes
+// ---------------------------------------------------------------------------
+
+test("flattens top-level primitives with normalized keys", () => {
+  assert.deepEqual(flattenLeadFields({ "E-mail address": "j@x.cz", Age: 33, ok: true }), {
+    e_mail_address: "j@x.cz",
+    age: "33",
+    ok: "true",
+  });
+});
+
+test("flattens a `fields` wrapper object", () => {
+  assert.deepEqual(flattenLeadFields({ fields: { name: "Jana" } }), { name: "Jana" });
+});
+
+test("flattens Meta-style field_data, which overrides top-level keys", () => {
+  const out = flattenLeadFields({
+    name: "from-top-level",
+    field_data: [
+      { name: "full_name", values: ["Jana Nová"] },
+      { name: "name", values: ["from-field-data"] },
+    ],
+  });
+  assert.equal(out.full_name, "Jana Nová");
+  assert.equal(out.name, "from-field-data");
+});
+
+test("ignores non-object payloads and non-primitive values", () => {
+  assert.deepEqual(flattenLeadFields(null), {});
+  assert.deepEqual(flattenLeadFields([1, 2]), {});
+  assert.deepEqual(flattenLeadFields("nope"), {});
+  assert.deepEqual(flattenLeadFields({ nested: { deep: "x" } }), {});
+});
+
+// ---------------------------------------------------------------------------
+// extractLead — name & email mapping
+// ---------------------------------------------------------------------------
+
+test("maps a plain JSON form", () => {
+  const lead = extractLead({ name: "Jana Nová", email: "jana@example.cz" }, KO);
+  assert.equal(lead.name, "Jana Nová");
+  assert.equal(lead.email, "jana@example.cz");
+});
+
+test("maps Czech keys through diacritic folding", () => {
+  const lead = extractLead({ "Jméno": "Petr Dvořák", "E-mailová adresa": "petr@example.cz" }, []);
+  assert.equal(lead.name, "Petr Dvořák");
+  assert.equal(lead.email, "petr@example.cz");
+});
+
+test("composes first + last name when no full-name field exists", () => {
+  const lead = extractLead(
+    { field_data: [{ name: "first_name", values: ["Jana"] }, { name: "last_name", values: ["Nová"] }, { name: "email", values: ["j@x.cz"] }] },
+    []
+  );
+  assert.equal(lead.name, "Jana Nová");
+});
+
+test("falls back to scanning values for an email-shaped string", () => {
+  const lead = extractLead({ contact_info: "jana@example.cz", name: "Jana" }, []);
+  assert.equal(lead.email, "jana@example.cz");
+});
+
+test("a malformed value in an email-named field is not an address", () => {
+  const lead = extractLead({ email: "not-an-email" }, []);
+  assert.equal(lead.email, "");
+});
+
+test("yields empty name/email when nothing maps (caller decides the rejection)", () => {
+  const lead = extractLead({ favourite_colour: "blue" }, []);
+  assert.equal(lead.name, "");
+  assert.equal(lead.email, "");
+});
+
+// ---------------------------------------------------------------------------
+// extractLead — provided-only KO verdict
+// ---------------------------------------------------------------------------
+
+test("affirmative answers pass in both languages and form vocabularies", () => {
+  const lead = extractLead({ ko_auth: "yes", ko_mode: "ANO", ko_lang: true }, KO);
+  assert.deepEqual(lead.failedKoIds, []);
+  assert.deepEqual(lead.ungatedKoIds, []);
+});
+
+test("explicit negatives fail the gate", () => {
+  const lead = extractLead({ ko_auth: "no", ko_mode: "ne", ko_lang: false }, KO);
+  assert.deepEqual(lead.failedKoIds, ["ko_auth", "ko_mode", "ko_lang"]);
+});
+
+test("an absent KO field is ungated, NOT failed — third-party forms may not ask", () => {
+  const lead = extractLead({ name: "Jana", email: "j@x.cz" }, KO);
+  assert.deepEqual(lead.failedKoIds, []);
+  assert.deepEqual(lead.ungatedKoIds, KO);
+});
+
+test("an uninterpretable KO answer is ungated, not failed (mapping quirks must not discard)", () => {
+  const lead = extractLead({ ko_auth: "maybe later", ko_mode: "yes" }, KO);
+  assert.deepEqual(lead.failedKoIds, []);
+  assert.deepEqual(lead.ungatedKoIds, ["ko_auth", "ko_lang"]);
+});
+
+test("mixed verdict: one explicit no fails while the unasked rest stay ungated", () => {
+  const lead = extractLead({ ko_mode: "no", name: "J", email: "j@x.cz" }, KO);
+  assert.deepEqual(lead.failedKoIds, ["ko_mode"]);
+  assert.deepEqual(lead.ungatedKoIds, ["ko_auth", "ko_lang"]);
+});
+
+// ---------------------------------------------------------------------------
+// extractLead — E5 campaign/creative attribution
+// ---------------------------------------------------------------------------
+
+test("maps UTM attribution fields", () => {
+  const lead = extractLead({ utm_campaign: "spring-fe", utm_content: "v3", email: "j@x.cz" }, []);
+  assert.equal(lead.campaign, "spring-fe");
+  assert.equal(lead.variant, "v3");
+});
+
+test("maps ad-platform attribution names (campaign_name, ad_id)", () => {
+  const lead = extractLead(
+    { field_data: [{ name: "campaign_name", values: ["Spring FE"] }, { name: "ad_id", values: ["238471"] }] },
+    []
+  );
+  assert.equal(lead.campaign, "Spring FE");
+  assert.equal(lead.variant, "238471");
+});
+
+test("attribution is empty when the payload carries none", () => {
+  const lead = extractLead({ name: "J", email: "j@x.cz" }, []);
+  assert.equal(lead.campaign, "");
+  assert.equal(lead.variant, "");
+});

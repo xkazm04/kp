@@ -75,12 +75,26 @@ function greetName(entry: { candidateLabel?: string | null }, t: CommsTranslator
  *  comm. Brings applicants to comms parity: a candidate who closes the tab still
  *  has a record their application landed. Deterministic (works without an LLM) and
  *  goes through the shared sendComm Outbox channel — the audit row is useful even
- *  before a real address is captured, and deliverable once one is (APP2). */
-export async function dispatchApplicationReceived(entry: PipelineEntry): Promise<void> {
+ *  before a real address is captured, and deliverable once one is (APP2).
+ *
+ *  E2/E4 (Erika gap) — `opts.enrichLink`: a quick-apply lead lands as a thin,
+ *  non-matchable stub, so its ack carries the ABSOLUTE link to the full
+ *  conversational apply (resolved via publicBaseUrl by the caller — the candidate
+ *  opens it outside the app). Re-applying with the same address is the enrichment
+ *  path: the merge machinery rebuilds the profile onto the original entry. The
+ *  speed-to-lead point is that this invitation goes out the moment the lead lands,
+ *  not when a recruiter gets around to the stub. */
+export async function dispatchApplicationReceived(
+  entry: PipelineEntry,
+  opts?: { enrichLink?: string }
+): Promise<void> {
   const t = await commsTranslator(entry.locale);
   const role = entry.jobTitle ?? t("theRole");
+  const name = greetName(entry, t);
   const subject = t("ack.subject", { role });
-  const body = t("ack.body", { name: greetName(entry, t), role, team: t("team") });
+  const body = opts?.enrichLink
+    ? t("ack.bodyEnrich", { name, role, link: opts.enrichLink, team: t("team") })
+    : t("ack.body", { name, role, team: t("team") });
   await sendComm({ to: candidateRecipient(entry), subject, body, kind: "acknowledgement", ref: entry.id });
   recordAutomationEvent(entry.id, "acknowledgement_sent", role);
 }

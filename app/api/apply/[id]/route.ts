@@ -9,10 +9,12 @@ import {
   getJob,
   mergeReapplication,
   recordAutomationEvent,
+  recordKnockoutDecline,
   saveProfile,
   updateProfile,
 } from "@/app/_lib/db";
-import { applyDedupeKey, buildApplyProfileDraft, buildApplyScript, FALLBACK_ARCHETYPE } from "@/app/_lib/apply";
+import { applyDedupeKey, applyKoSteps, buildApplyProfileDraft, buildApplyScript, FALLBACK_ARCHETYPE } from "@/app/_lib/apply";
+import { failedKoStepIds } from "@/app/_lib/apply-intake";
 import { getJobStatus, isJobOpenForApplications } from "@/app/_lib/job-ingest";
 import { dispatchApplicationReceived } from "@/app/_lib/comms-dispatch";
 import type { ApplyAnswers } from "@/app/_lib/apply-intake";
@@ -155,12 +157,16 @@ export async function GET(_request: NextRequest, context: { params: Promise<{ id
 // W8-6 (APP1): `changes` lists what the merge folded onto the original entry
 // (contact backfill, profile rebuild); it lands in the event detail so the feed
 // shows WHAT a repeat contributed, not just that one happened.
-function acknowledgeReapply(entryId: string, message: string, changes: string[] = []): NextResponse {
+// E2 — `enriched` marks the repeat that REBUILT the profile (the quick-apply
+// lead following its enrichment link, or any degraded stub recovered). The
+// client celebrates it as a completed profile rather than shrugging "already
+// applied" at a candidate who just did exactly what we asked them to.
+function acknowledgeReapply(entryId: string, message: string, changes: string[] = [], enriched = false): NextResponse {
   const detail = changes.length
     ? `repeat application via conversational apply — ${changes.join("; ")}`
     : "repeat application via conversational apply";
   recordAutomationEvent(entryId, "re_applied", detail);
-  return NextResponse.json({ result: "accepted", duplicate: true, message });
+  return NextResponse.json({ result: "accepted", duplicate: true, enriched, message });
 }
 
 // POST → evaluate KO answers. Pass → create an Accepted pipeline entry; fail → a
@@ -206,15 +212,21 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
 
     // Knockout gate. Derive THIS job's KO steps from its own script (ko_mode/ko_lang are
     // conditional on workMode/languages) and require every expected KO answer to be present
-    // AND explicitly true. The POST body is the public, untrusted trust boundary — the old
-    // "decline only if a KO key is present and === false" treated an ABSENT key as a pass, so
-    // a scripted POST could skip work-authorization / mode / language eligibility by simply
-    // omitting the keys and still land an Accepted entry. Missing-or-not-true now declines.
-    const expectedKoIds = buildApplyScript(job, t)
-      .filter((s) => s.type === "ko")
-      .map((s) => s.id);
-    const passedKo = expectedKoIds.every((koId) => answers[koId] === true);
-    if (!passedKo) {
+    // AND explicitly true (failedKoStepIds — the shared, untrusted-boundary contract: an
+    // ABSENT key is a fail, so a scripted POST can't skip eligibility by omitting keys).
+    // E2 — the discard is AUDITED: an entry-less ko_declined event records who was turned
+    // away from which role and on which gate, so the auto-discard never happens silently.
+    const failedKo = failedKoStepIds(
+      applyKoSteps(job, t).map((s) => s.id),
+      answers
+    );
+    if (failedKo.length > 0) {
+      recordKnockoutDecline({
+        candidateLabel: String(answers.name ?? "").trim() || null,
+        jobTitle: job.title,
+        channel: "conversational apply",
+        failedKoIds: failedKo,
+      });
       return NextResponse.json({
         result: "declined",
         message: t("declinedMessage"),
@@ -286,6 +298,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       if (existing) {
         const changes: string[] = [];
         const updates: { contact?: string; candidateId?: string; archetype?: string | null } = {};
+        let profileRebuilt = false;
         if (email && !existing.contact) {
           updates.contact = email;
           changes.push("contact email captured");
@@ -310,6 +323,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
           if (rebuilt.ok) {
             updates.candidateId = rebuilt.id;
             updates.archetype = rebuilt.archetype;
+            profileRebuilt = true;
             changes.push(
               existing.intakeDegraded ? "degraded intake recovered (profile rebuilt)" : "profile rebuilt with CV"
             );
@@ -331,7 +345,12 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
             }
           }
         }
-        return acknowledgeReapply(existing.id, t("alreadyMessage"), changes);
+        return acknowledgeReapply(
+          existing.id,
+          profileRebuilt ? t("enrichedMessage") : t("alreadyMessage"),
+          changes,
+          profileRebuilt
+        );
       }
     }
 
@@ -374,6 +393,8 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       contact: email || null,
       // SIM3 — the applicant's language, so downstream comms speak it.
       locale: applicantLocale,
+      // E3 — inbound source attribution (the conversational careers-page flow).
+      sourceChannel: "apply",
     });
 
     // created:false here means the dedupeKey backstop caught a concurrent repeat

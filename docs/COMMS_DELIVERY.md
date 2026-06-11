@@ -19,7 +19,7 @@ a trace. This doc pins the three ambiguities the implementation now resolves.
 | Condition | Channel | What happens |
 |-----------|---------|--------------|
 | `COMMS_WEBHOOK_URL` **unset** | `OutboxChannel` (local) | Records the message in `dev_outbox` as `queued`. Nothing is delivered — the outbox **is** the destination. |
-| `COMMS_WEBHOOK_URL` **set** | `WebhookChannel` | `POST`s the message JSON to the relay; records `sent` or `failed`. |
+| `COMMS_WEBHOOK_URL` **set** | `WebhookChannel` | `POST`s the **`kp.comm.v1` envelope** (the message's flat fields plus candidate/job/stage context — the documented kp → ATS export schema, see `docs/OUTBOUND_EXPORT.md`) to the relay; records `sent` or `failed`. |
 
 Every message is recorded in `dev_outbox` either way, so the table doubles as the
 permanent audit log.
