@@ -20,6 +20,40 @@ npm run test
 
 Add information about your project architecture, key patterns, and conventions.
 
+## Design system — dual theme (read docs/DESIGN.md before building UI)
+
+The app ships **two themes from one codebase**: **Studio Light** (default —
+calm, editorial; for corporate clients) and **Spark Dark** (experimental —
+playful, sticker-sheet, derived from the /landing art direction; for creative
+users). `[data-theme="dark"]` on `<html>` re-skins everything through the CSS
+variables in `app/globals.css`; `ThemeToggle` in the sidebar flips it.
+
+When writing or changing components, always assume **both** themes:
+
+- **Never hardcode colors** (`bg-[#...]`, inline `style` colors, rgba shadows)
+  outside `app/landing/` — that directory is a fixed art direction and the only
+  exemption. Everything else resolves through tokens.
+- Use brand tokens first (`ink`, `paper`, `steel`, `coral`, `moss`,
+  `limewash`, `dial-*`, `score-*`), then the theme-remapped neutrals
+  (`white`, `stone-50..400`) and the mapped status shades (`red/amber/green/
+  blue` — only shades already listed in the `[data-theme="dark"]` block; add
+  the dark value when introducing a new one).
+- `text-white` means "surface-colored text on an accent background" — it
+  flips dark in dark mode by design.
+- Compose recurring surfaces from `app/_components/ui/recipes.ts` (PANEL,
+  CHIP, BTN_*, EYEBROW, FIELD…) instead of re-typing Tailwind class strings —
+  write once, apply multiple times. Behavioral primitives (Modal, Badge,
+  SegmentedControl, Skeleton) live in `app/_components/`.
+- The themes differ in **structure**, not just color (Spark Dark: drawn
+  outlines, sticker shadows, tilt, Bricolage display face, spring easing).
+  Express a theme difference at the cheapest layer that holds it: token →
+  `dark:` variant in a recipe (the `dark:` variant follows `data-theme`, not
+  the OS) → markup fork via `ThemeSplit` / a CSS-swapped component like
+  `SectionTitle` → behavioral fork via `useTheme()` (all in
+  `app/_components/ui/`). Never a JS fork where CSS suffices.
+- Verify new surfaces in both themes before finishing (toggle in the sidebar
+  footer).
+
 ## Important Conventions
 
 Document your coding standards, naming conventions, and best practices.

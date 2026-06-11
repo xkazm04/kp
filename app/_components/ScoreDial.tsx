@@ -125,8 +125,11 @@ export function ScoreDial({ score }: ScoreDialProps) {
         })}
       </svg>
       <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center px-4 text-center">
+        {/* Spark Dark: the readout speaks in the display face (font-serif
+            resolves to Bricolage there) — the dial becomes the landing's
+            score stamp writ large. */}
         <div
-          className="text-5xl font-semibold leading-none nums"
+          className="text-5xl font-semibold leading-none nums dark:font-serif dark:font-bold"
           style={{ color: readoutColor }}
         >
           {displayed}

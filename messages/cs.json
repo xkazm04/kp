@@ -96,6 +96,11 @@
     "en": "English",
     "cs": "Čeština"
   },
+  "theme": {
+    "select": "Vyberte vzhled",
+    "light": "Světlý vzhled",
+    "dark": "Tmavý vzhled"
+  },
   "common": {
     "loading": "Načítání…",
     "retry": "Zkusit znovu",

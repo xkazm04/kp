@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { attentionCounts, type AttentionCounts } from "@/app/_lib/attention";
+import { ThemeToggle } from "@/app/_components/ThemeToggle";
 import { RecentsNav } from "./RecentsNav";
 import { navItemClass, NAV_GROUPS, tabHref, type WorkspaceTabId } from "./tabs";
 
@@ -30,7 +31,7 @@ export async function WorkspaceNav({ active }: { active: WorkspaceTabId }) {
     <aside className="flex flex-col border-b border-stone-300 bg-paper md:sticky md:top-0 md:h-screen md:w-64 md:shrink-0 md:overflow-y-auto md:border-b-0 md:border-r">
       <Link href="/" className="focus-ring px-4 py-5">
         <div className="flex items-center gap-2.5">
-          <span className="grid h-9 w-9 place-items-center rounded-lg bg-ink font-serif text-base font-semibold text-white">{t("brandMark")}</span>
+          <span className="grid h-9 w-9 place-items-center rounded-lg bg-ink font-serif text-base font-semibold text-white dark:-rotate-3 dark:rounded-xl dark:shadow-sticker-sm">{t("brandMark")}</span>
           <div className="leading-tight">
             <p className="font-serif text-h3 text-ink">{t("brandName")}</p>
             <p className="text-sm uppercase tracking-[0.12em] text-steel">{t("tagline")}</p>
@@ -78,6 +79,11 @@ export async function WorkspaceNav({ active }: { active: WorkspaceTabId }) {
           </div>
         ))}
       </nav>
+      {/* Theme flip works on detail pages too — a client island like RecentsNav,
+          since the stored choice lives in localStorage. */}
+      <div className="mt-auto px-3 py-3">
+        <ThemeToggle />
+      </div>
     </aside>
   );
 }

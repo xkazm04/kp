@@ -1,13 +1,14 @@
 import { Clock, Headphones, ListChecks, Mic, Volume2 } from "lucide-react";
-import { getTranslations } from "next-intl/server";
+import { useTranslations } from "next-intl";
+import { META_LABEL, PANEL } from "@/app/_components/ui/recipes";
 import { durationChip } from "@/app/_lib/interview-duration.mjs";
 
-// Candidate-facing left rail for the interview portal. Rendered on the server
-// (no realtime SDK), so the agenda + readiness tips paint instantly while the
-// client-only voice bundle hydrates in the main column. Moving the run-of-show
-// here (it used to be a 260px column inside VoiceInterview) hands the live
-// transcript the full remaining width.
-export async function InterviewSidebar({
+// Candidate-facing left rail shared by the interview portal (server-rendered,
+// agenda + readiness tips paint instantly while the client-only voice bundle
+// hydrates) and the client-side simulator tab. Kept sync with useTranslations,
+// which next-intl resolves in both Server and Client Components — an async
+// getTranslations() version would crash when imported from a "use client" tree.
+export function InterviewSidebar({
   items,
   durationMin,
   className = "",
@@ -16,14 +17,14 @@ export async function InterviewSidebar({
   durationMin: number;
   className?: string;
 }) {
-  const t = await getTranslations("interview.sidebar");
+  const t = useTranslations("interview.sidebar");
   const hasAgenda = items.length > 0;
   return (
     <aside className={`space-y-4 ${className}`}>
       {hasAgenda ? (
-        <section className="rounded-lg border border-stone-200 bg-white p-4 shadow-panel">
+        <section className={`${PANEL} p-4`}>
           <div className="flex items-center justify-between gap-2">
-            <p className="flex items-center gap-1.5 text-meta uppercase text-steel">
+            <p className={`flex items-center gap-1.5 ${META_LABEL}`}>
               <ListChecks size={14} className="text-moss" /> {t("agendaTitle")}
             </p>
             <span className="inline-flex items-center gap-1 rounded-full bg-paper px-2 py-0.5 text-sm text-steel">
@@ -45,7 +46,7 @@ export async function InterviewSidebar({
       ) : null}
 
       <section className="rounded-lg border border-stone-200 bg-paper/60 p-4">
-        <p className="flex items-center gap-1.5 text-meta uppercase text-steel">
+        <p className={`flex items-center gap-1.5 ${META_LABEL}`}>
           <Headphones size={14} className="text-moss" /> {t("beforeTitle")}
         </p>
         <ul className="mt-3.5 space-y-3 text-base leading-6 text-ink">

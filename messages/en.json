@@ -96,6 +96,11 @@
     "en": "English",
     "cs": "Čeština"
   },
+  "theme": {
+    "select": "Select theme",
+    "light": "Light theme",
+    "dark": "Dark theme"
+  },
   "common": {
     "loading": "Loading…",
     "retry": "Try again",

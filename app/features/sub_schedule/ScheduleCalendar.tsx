@@ -108,8 +108,12 @@ export function ScheduleCalendar({
                                 aria-pressed={selected}
                                 title={tCal("chipTitle", { name: e.candidateLabel, archetype: enumLabel("archetype", e.archetype), job: e.jobTitle ? ` · ${e.jobTitle}` : "" })}
                                 aria-label={tCal("chipAria", { name: e.candidateLabel, archetype: enumLabel("archetype", e.archetype), job: e.jobTitle ? `, ${e.jobTitle}` : "" })}
-                                className={`focus-ring pointer-events-auto flex w-full items-center gap-1 rounded-md px-1.5 py-1 text-left text-sm font-medium text-white ${s.bg} ${
-                                  selected ? "ring-2 ring-coral ring-offset-1" : ""
+                                // Spark Dark: the selected chip is "peeled" — tilted with a
+                                // hard sticker shadow. Tailwind's rotate-* is the standalone
+                                // `rotate` property, so it composes with the framer glide's
+                                // inline transform instead of fighting it.
+                                className={`focus-ring pointer-events-auto flex w-full items-center gap-1 rounded-md px-1.5 py-1 text-left text-sm font-medium text-white transition-transform dark:hover:-rotate-1 ${s.bg} ${
+                                  selected ? "ring-2 ring-coral ring-offset-1 dark:-rotate-2 dark:shadow-sticker-xs" : ""
                                 }`}
                               >
                                 <span

@@ -3,7 +3,8 @@
 import { Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import type { Analysis } from "@/app/_lib/schemas";
 import { scoreTone, scoreToneColor } from "@/app/_lib/format";
-import { INK, STEEL } from "@/app/_lib/brand";
+import { DARK, INK, STEEL } from "@/app/_lib/brand";
+import { useTheme } from "@/app/_components/ui/useTheme";
 
 type FactorChartProps = {
   score: Analysis["score"];
@@ -19,7 +20,17 @@ function barColor(ratio: number): string {
   return scoreToneColor(scoreTone(ratio * 100));
 }
 
+// Recharts wants literal color strings for its chrome (grid, ticks, tooltip),
+// so the chart can't ride the CSS token seam like the bar fills do — it forks
+// on useTheme() instead (the behavioral-fork layer in docs/DESIGN.md). Values
+// mirror the light beiges / dark hairlines the rest of the UI resolves to.
+const CHROME = {
+  light: { grid: "#ded6c6", tick: STEEL, cursor: "#f0ebe1", tooltipBg: "#ffffff", tooltipText: INK },
+  dark: { grid: DARK.GRID, tick: DARK.STEEL, cursor: DARK.FILL, tooltipBg: DARK.SURFACE, tooltipText: DARK.INK },
+} as const;
+
 export function FactorChart({ score }: FactorChartProps) {
+  const chrome = CHROME[useTheme()];
   const data = [
     { factor: "Experience", value: score.experience, max: 25 },
     { factor: "Skills", value: score.skills, max: 30 },
@@ -37,12 +48,17 @@ export function FactorChart({ score }: FactorChartProps) {
     <div style={{ aspectRatio: "5 / 2", minHeight: 200 }} className="w-full nums">
       <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
         <BarChart data={data} margin={{ top: 8, right: 4, left: -24, bottom: 0 }}>
-          <CartesianGrid stroke="#ded6c6" vertical={false} />
-          <XAxis dataKey="factor" tick={{ fill: STEEL, fontSize: 12 }} tickLine={false} axisLine={false} />
-          <YAxis tick={{ fill: STEEL, fontSize: 12 }} tickLine={false} axisLine={false} />
+          <CartesianGrid stroke={chrome.grid} vertical={false} />
+          <XAxis dataKey="factor" tick={{ fill: chrome.tick, fontSize: 12 }} tickLine={false} axisLine={false} />
+          <YAxis tick={{ fill: chrome.tick, fontSize: 12 }} tickLine={false} axisLine={false} />
           <Tooltip
-            cursor={{ fill: "#f0ebe1" }}
-            contentStyle={{ border: "1px solid #ded6c6", borderRadius: 8, color: INK }}
+            cursor={{ fill: chrome.cursor }}
+            contentStyle={{
+              border: `1px solid ${chrome.grid}`,
+              borderRadius: 8,
+              color: chrome.tooltipText,
+              backgroundColor: chrome.tooltipBg
+            }}
             formatter={(value, _name, item) => [`${value}/${item.payload.max}`, "Points"]}
           />
           <Bar dataKey="value" radius={[6, 6, 0, 0]}>

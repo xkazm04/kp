@@ -561,7 +561,14 @@ export function MatrixTab() {
                               })}
                               aria-pressed={selectMode ? isSel : undefined}
                               className={`relative grid h-9 w-full place-items-center font-semibold transition-transform ${
-                                selectMode ? (selectable ? "cursor-pointer" : "cursor-default opacity-50") : "hover:scale-105"
+                                selectMode
+                                  ? selectable
+                                    ? "cursor-pointer"
+                                    : "cursor-default opacity-50"
+                                  : // Spark Dark: a browsed cell pops like a peeled sticker
+                                    // (tilt + hard shadow over its neighbors) instead of the
+                                    // light register's flat zoom.
+                                    "hover:scale-105 dark:hover:z-10 dark:hover:-rotate-2 dark:hover:scale-110 dark:hover:shadow-sticker-xs"
                               } ${cellClass(c)} ${
                                 isSel ? "ring-2 ring-inset ring-coral" : ringed ? "ring-2 ring-inset ring-ink/50" : ""
                               }`}

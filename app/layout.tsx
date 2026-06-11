@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Fraunces, Inter } from "next/font/google";
+import { Bricolage_Grotesque, Fraunces, Inter } from "next/font/google";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages, getTranslations } from "next-intl/server";
 import "./globals.css";
@@ -19,6 +19,15 @@ const fraunces = Fraunces({
   variable: "--font-fraunces",
   display: "swap",
   weight: ["400", "500", "600", "700"]
+});
+
+// Spark Dark's display face (the landing's Bricolage). In dark mode the
+// --font-serif token resolves to it (globals.css), so every `font-serif`
+// heading swaps register with the theme.
+const bricolage = Bricolage_Grotesque({
+  subsets: ["latin", "latin-ext"],
+  variable: "--font-bricolage",
+  display: "swap"
 });
 
 const SITE_TITLE = "KP Job Fit & Salary Estimator";
@@ -96,15 +105,29 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
+// Pre-hydration theme bootstrap (paired with ThemeToggle + the
+// [data-theme="dark"] seam in globals.css). Runs inline before first paint:
+// an explicit choice in localStorage wins, otherwise prefers-color-scheme
+// decides — so a dark-theme user never sees a light flash. Must stay a plain
+// string evaluated synchronously; a React effect would run after paint.
+// /landing is hard-exempt (docs/DESIGN.md): the marketing page is a fixed art
+// direction, and its product spotlights embed token-driven workspace UI that
+// must always render in the light register — so the attribute is never set
+// there, regardless of the visitor's stored choice or OS preference.
+const THEME_INIT = `(function(){try{if(location.pathname.indexOf("/landing")===0)return;var t=localStorage.getItem("kp-theme");if(t!=="dark"&&t!=="light")t=window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light";if(t==="dark")document.documentElement.dataset.theme="dark"}catch(e){}})()`;
+
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   // Locale + catalog are resolved per-request in i18n/request.ts (cookie/header).
   // `<html lang>` now tracks the active locale, and the provider hands the
   // catalog to every client component's useTranslations().
   const locale = await getLocale();
   const messages = await getMessages();
+  // suppressHydrationWarning: the theme script mutates <html data-theme> before
+  // React hydrates, so the server/client attribute mismatch is expected.
   return (
-    <html lang={locale} className={`${inter.variable} ${fraunces.variable}`}>
+    <html lang={locale} className={`${inter.variable} ${fraunces.variable} ${bricolage.variable}`} suppressHydrationWarning>
       <body className="font-sans">
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT }} />
         <NextIntlClientProvider locale={locale} messages={messages}>
           {children}
         </NextIntlClientProvider>

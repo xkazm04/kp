@@ -7,6 +7,7 @@ import { useTranslations } from "next-intl";
 import { Skeleton } from "@/app/_components/Skeleton";
 import { ErrorBoundary } from "@/app/_components/ErrorBoundary";
 import { LanguageSwitcher } from "@/app/_components/LanguageSwitcher";
+import { ThemeToggle } from "@/app/_components/ThemeToggle";
 import { CommandPalette } from "./CommandPalette";
 import { KeyboardShortcuts } from "./KeyboardShortcuts";
 import { RecentsNav } from "./RecentsNav";
@@ -96,7 +97,7 @@ export function Workspace() {
       <aside className="flex flex-col border-b border-stone-300 bg-paper md:sticky md:top-0 md:h-screen md:w-64 md:shrink-0 md:overflow-y-auto md:border-b-0 md:border-r">
         <div className="px-4 py-5">
           <div className="flex items-center gap-2.5">
-            <span className="grid h-9 w-9 place-items-center rounded-lg bg-ink font-serif text-base font-semibold text-white">
+            <span className="grid h-9 w-9 place-items-center rounded-lg bg-ink font-serif text-base font-semibold text-white dark:-rotate-3 dark:rounded-xl dark:shadow-sticker-sm">
               {t("brandMark")}
             </span>
             <div className="leading-tight">
@@ -160,8 +161,9 @@ export function Workspace() {
             </div>
           ))}
         </nav>
-        <div className="mt-auto px-3 py-3">
+        <div className="mt-auto flex items-center justify-between gap-2 px-3 py-3">
           <LanguageSwitcher />
+          <ThemeToggle />
         </div>
         <TasksIndicator active={active === "tasks"} onOpen={() => selectTab("tasks")} />
       </aside>

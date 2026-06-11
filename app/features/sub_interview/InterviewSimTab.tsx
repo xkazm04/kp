@@ -4,6 +4,8 @@ import { useState } from "react";
 import { Briefcase, FlaskConical, GraduationCap, Loader2, Play, RotateCcw } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { AiDisclosure } from "@/app/_components/AiDisclosure";
+import { BTN_PRIMARY, BTN_SECONDARY, EYEBROW, INTRO, PANEL, PANEL_SUNKEN } from "@/app/_components/ui/recipes";
+import { SectionTitle } from "@/app/_components/ui/SectionTitle";
 import { InterviewSidebar } from "@/app/_components/voice/InterviewSidebar";
 import { VoiceInterviewClient } from "@/app/_components/voice/VoiceInterviewClient";
 import { QUICK_SCREEN_MIN } from "@/app/_lib/interview-duration.mjs";
@@ -80,17 +82,20 @@ export function InterviewSimTab() {
   }
 
   return (
-    <section className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
+    <section className={`${PANEL} p-5`}>
       <header className="border-b border-stone-200 pb-4">
-        <p className="text-meta uppercase text-coral">{t("eyebrow")}</p>
-        <h2 className="mt-1 font-serif text-display text-ink">{t("title")}</h2>
-        <p className="mt-2 max-w-3xl text-body text-steel">{t("intro")}</p>
+        <p className={EYEBROW}>{t("eyebrow")}</p>
+        <SectionTitle className="mt-1">{t("title")}</SectionTitle>
+        <p className={`mt-2 max-w-3xl ${INTRO}`}>{t("intro")}</p>
       </header>
 
       <div className="mt-4 grid gap-2 sm:grid-cols-3" role="radiogroup" aria-label={t("modeAria")}>
-        {MODES.map((m) => {
+        {MODES.map((m, i) => {
           const active = m.id === mode;
           const Icon = m.icon;
+          // Spark Dark: unpicked mode cards rest a degree off-axis like the
+          // landing's feature stickers; choosing (or hovering) one rights it.
+          const tilt = active ? "" : i % 2 ? "dark:rotate-1 dark:hover:rotate-0" : "dark:-rotate-1 dark:hover:rotate-0";
           return (
             <button
               key={m.id}
@@ -98,8 +103,8 @@ export function InterviewSimTab() {
               role="radio"
               aria-checked={active}
               onClick={() => pick(m.id)}
-              className={`focus-ring rounded-lg border p-3 text-left transition-colors ${
-                active ? "border-coral/40 bg-coral/5" : "border-stone-200 bg-paper hover:border-stone-300"
+              className={`focus-ring rounded-lg border p-3 text-left transition-all dark:rounded-2xl ${tilt} ${
+                active ? "border-coral/40 bg-coral/5 dark:shadow-sticker-sm" : "border-stone-200 bg-paper hover:border-stone-300"
               }`}
             >
               <p className="flex items-center gap-1.5 font-medium text-ink">
@@ -128,12 +133,12 @@ export function InterviewSimTab() {
                 <button
                   type="button"
                   onClick={() => setSession(null)}
-                  className="focus-ring inline-flex h-8 items-center gap-1 rounded-md border border-stone-200 px-2.5 text-sm font-medium text-ink hover:border-coral/40"
+                  className={`${BTN_SECONDARY} h-8 px-2.5 text-sm`}
                 >
                   <RotateCcw size={13} /> {t("startOver")}
                 </button>
               </div>
-              <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
+              <div className={`${PANEL} p-5`}>
                 <VoiceInterviewClient
                   token={session.token}
                   candidateLabel={session.candidateLabel ?? undefined}
@@ -143,7 +148,7 @@ export function InterviewSimTab() {
               <AiDisclosure className="mt-5" />
             </>
           ) : (
-            <div className="rounded-lg border border-stone-200 bg-paper/40 p-5">
+            <div className={`${PANEL_SUNKEN} p-5`}>
               {studentish ? (
                 <>
                   {mode === "student-case" ? (
@@ -176,7 +181,7 @@ export function InterviewSimTab() {
                 type="button"
                 onClick={start}
                 disabled={busy}
-                className="focus-ring mt-4 inline-flex h-10 items-center gap-1.5 rounded-md bg-coral px-4 text-base font-semibold text-white hover:bg-coral/90 disabled:opacity-50"
+                className={`${BTN_PRIMARY} mt-4 h-10 px-4 text-base`}
               >
                 {busy ? <Loader2 size={15} className="animate-spin" /> : <Play size={15} />}
                 {busy ? t("creating") : t("startSim")}

@@ -24,3 +24,21 @@ export const STEEL = "#42606f";
 export const LIMEWASH = "#dce7d0";
 export const DIAL_STONE = "#8c8779";
 export const DIAL_AMBER = "#caa54c";
+
+/**
+ * Spark Dark mirror — the JS copies of the [data-theme="dark"] overrides in
+ * globals.css, for the same stylesheet-less surfaces as above. Components
+ * pick a side with useTheme() (app/_components/ui/useTheme.ts); see
+ * FactorChart for the pattern. Keep in lockstep with the dark block.
+ */
+export const DARK = {
+  INK: "#f4efe3",
+  PAPER: "#141b24",
+  STEEL: "#9db5c3",
+  /** Raised card surface (`bg-white` remap). */
+  SURFACE: "#1d2630",
+  /** Subtle fill (`stone-100` remap) — chart hover cursors. */
+  FILL: "#283442",
+  /** Hairline (`stone-200` remap) — chart grids, tooltip borders. */
+  GRID: "#364453",
+} as const;
