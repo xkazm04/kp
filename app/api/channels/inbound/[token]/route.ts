@@ -96,10 +96,17 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
       sourceVariant: lead.variant.slice(0, MAX_ATTRIBUTION_LENGTH) || null,
       channelLabel: `${webhook.channel} webhook`,
       failedKoIds: lead.failedKoIds,
+      // Provided-only verdict: record as PASSED only the gates the source form
+      // actually asked and answered affirmatively — ungated ids stay unrecorded,
+      // so the enrichment chat asks them instead of assuming.
+      passedKoIds: expectedKoIds.filter(
+        (id) => !lead.failedKoIds.includes(id) && !lead.ungatedKoIds.includes(id)
+      ),
       // The integrator's board shows "submitted"; only this comm tells the
       // candidate the eligibility outcome (the own form shows it live instead).
       notifyDecline: true,
       ungatedKoIds: lead.ungatedKoIds,
+      // lead-intake appends the entry's opaque lead token before the ack goes out.
       enrichLink: `${publicBaseUrl(new URL(request.url).origin)}/apply/${job.id}?lang=${locale}`,
     });
 

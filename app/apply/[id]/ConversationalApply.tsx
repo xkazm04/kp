@@ -11,7 +11,28 @@ import { useErrorMessage } from "@/app/_lib/use-error-message";
 
 type Msg = { who: "bot" | "me"; text: string };
 
-export function ConversationalApply({ jobId, steps }: { jobId: string; steps: ApplyStep[] }) {
+// Lead-enrichment prefill (the ?lead= hand-off, resolved server-side by
+// page.tsx): the chat opens already knowing the lead instead of greeting them
+// as a stranger. `answers` seeds the facts already on file (name/email + the KO
+// gates they explicitly passed — page.tsx trims those steps out of the script),
+// `greeting` is the localized "Welcome back, {name}" opener, and `leadToken`
+// rides the final POST so the merge targets the lead's own entry rather than
+// hinging on a re-typed email.
+export type ApplyPrefill = {
+  leadToken: string;
+  answers: Record<string, string | boolean>;
+  greeting: string | null;
+};
+
+export function ConversationalApply({
+  jobId,
+  steps,
+  prefill,
+}: {
+  jobId: string;
+  steps: ApplyStep[];
+  prefill?: ApplyPrefill | null;
+}) {
   const t = useTranslations("apply");
   const tCommon = useTranslations("common");
   const errMsg = useErrorMessage();
@@ -19,10 +40,16 @@ export function ConversationalApply({ jobId, steps }: { jobId: string; steps: Ap
   // Seeded from the server-built steps so the first prompt paints on hydration —
   // no initial fetch, no fatal load-error branch, no Loading… flash. The script
   // is fixed for the page's lifetime, so it's a prop rather than fetched state.
-  const [msgs, setMsgs] = useState<Msg[]>(() => [
-    { who: "bot", text: steps[0]?.prompt ?? t("letsBegin") },
-  ]);
-  const [answers, setAnswers] = useState<Record<string, unknown>>({});
+  // An enrichment visit opens with the welcome-back bubble before the first
+  // remaining question.
+  const initialMsgs = (): Msg[] => {
+    const first: Msg = { who: "bot", text: steps[0]?.prompt ?? t("letsBegin") };
+    return prefill?.greeting ? [{ who: "bot", text: prefill.greeting }, first] : [first];
+  };
+  const [msgs, setMsgs] = useState<Msg[]>(initialMsgs);
+  // Starts from the prefilled facts (empty for a first-time applicant) so the
+  // seeded keys ride every advance() merge into the final POST payload.
+  const [answers, setAnswers] = useState<Record<string, unknown>>(() => ({ ...(prefill?.answers ?? {}) }));
   const [input, setInput] = useState("");
   // `duplicate` flags a repeat application (the candidate already applied to this
   // role): the submission is still "accepted" — their first application stands —
@@ -110,7 +137,12 @@ export function ConversationalApply({ jobId, steps }: { jobId: string; steps: Ap
       const res = await fetch(`/api/apply/${jobId}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ answers: finalAnswers }),
+        // The lead token (when this is an enrichment visit) targets the merge at
+        // the lead's own entry server-side; the server re-validates it and falls
+        // back to email/name identity when it's absent or stale.
+        body: JSON.stringify(
+          prefill ? { answers: finalAnswers, lead: prefill.leadToken } : { answers: finalAnswers }
+        ),
       });
       const d = await res.json();
       if (res.ok) {
@@ -147,16 +179,18 @@ export function ConversationalApply({ jobId, steps }: { jobId: string; steps: Ap
   // failure — the server rejected the captured input, so resending it can't help.
   // Clearing answeredRef and the remembered final answers lets the candidate
   // re-walk every step and submit fresh, valid input, without the full page reload
-  // that would otherwise be their only escape from a rejected payload.
+  // that would otherwise be their only escape from a rejected payload. An
+  // enrichment visit restarts to its seeded state (the prefilled facts weren't
+  // typed here and aren't what the server rejected).
   const restartConversation = () => {
     if (submitting) return;
     answeredRef.current = new Set();
     finalAnswersRef.current = null;
     setSubmitError(null);
-    setAnswers({});
+    setAnswers({ ...(prefill?.answers ?? {}) });
     setInput("");
     setIdx(0);
-    setMsgs([{ who: "bot", text: steps[0]?.prompt ?? t("letsBegin") }]);
+    setMsgs(initialMsgs());
   };
 
   const advance = async (stepId: string, newAnswers: Record<string, unknown>, label: string) => {

@@ -466,6 +466,16 @@ function ensureDb(): Database.Database {
     // Powers the per-variant performance table + pause recommendations.
     "ALTER TABLE pipeline_entries ADD COLUMN source_campaign TEXT",
     "ALTER TABLE pipeline_entries ADD COLUMN source_variant TEXT",
+    // Lead enrichment hand-off — an opaque CSPRNG capability token minted on a
+    // lead entry (ensureLeadEnrichToken) and carried by the ack's "complete your
+    // profile" link, so the conversational apply opens knowing WHO is enriching
+    // and the merge targets this exact entry. NEVER the raw entry id: entry ids
+    // are internal IDOR handles (same doctrine as the schedule/offer tokens).
+    "ALTER TABLE pipeline_entries ADD COLUMN lead_token TEXT",
+    // The KO step ids the lead EXPLICITLY answered true at intake (JSON array),
+    // so the enrichment chat can skip exactly those gates — recorded pass-state,
+    // never derived. NULL = nothing verified (the chat asks every gate).
+    "ALTER TABLE pipeline_entries ADD COLUMN lead_passed_ko_json TEXT",
     // E5 — when a webhook received its FIRST lead (time-to-first-lead metric).
     "ALTER TABLE channel_webhooks ADD COLUMN first_received_at TEXT",
   ]) {
@@ -475,6 +485,10 @@ function ensureDb(): Database.Database {
       /* column already exists */
     }
   }
+  // The lead-token lookup runs once per tokened apply-page view and once per
+  // tokened apply POST — index it like the interview token. Created AFTER the
+  // ALTER loop above so a legacy DB already holds the column.
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_pipeline_lead_token ON pipeline_entries (lead_token)`);
   // Migration for dev_submissions evaluation + contact columns (Phase D6 / B),
   // plus the interview run-of-show column added when the voice screen grew a
   // candidate-facing agenda, and duration_min so the candidate portal shows the
@@ -1997,6 +2011,11 @@ type PipelineRow = {
   source_channel?: string | null;
   source_campaign?: string | null;
   source_variant?: string | null;
+  // Lead enrichment hand-off columns. Deliberately NOT mapped onto PipelineEntry:
+  // that type IS the /api/pipeline client view contract, and a capability token
+  // must never ride a list payload into the browser. Read via findEntryByLeadToken.
+  lead_token?: string | null;
+  lead_passed_ko_json?: string | null;
 };
 
 function rowToEntry(r: PipelineRow): PipelineEntry {
@@ -2886,6 +2905,80 @@ export function mergeReapplication(
   }
   const row = db.prepare(`SELECT * FROM pipeline_entries WHERE id = ?`).get(id) as PipelineRow | undefined;
   return row ? rowToEntry(row) : null;
+}
+
+// Lead enrichment hand-off — bound the recorded pass-state at write AND read so
+// a corrupt column can never balloon a payload or seed a fabricated gate.
+const LEAD_PASSED_KO_MAX_IDS = 12;
+
+// Mint (or return) the entry's opaque lead-enrichment token: the capability the
+// ack email's "complete your profile" link carries so the conversational apply
+// opens knowing WHO is enriching and the merge targets this exact entry — never
+// the raw entry id (an internal IDOR handle, per the schedule/offer-token
+// doctrine), so it comes from randomToken (CSPRNG), never randomId.
+//   - the token is FILL-ONLY (SQL-COALESCE-guarded): the link already emailed to
+//     the candidate must stay valid across repeat applications;
+//   - `passedKoIds` REFRESHES whenever provided — the caller just re-verified
+//     those gates, so the newest verdict is the truthful one.
+// Returns the canonical token, or null when the entry id is unknown.
+export function ensureLeadEnrichToken(entryId: string, passedKoIds?: readonly string[]): string | null {
+  const db = ensureDb();
+  const row = db.prepare(`SELECT lead_token FROM pipeline_entries WHERE id = ?`).get(entryId) as
+    | { lead_token: string | null }
+    | undefined;
+  if (!row) return null;
+  const passedJson = passedKoIds ? JSON.stringify(passedKoIds.slice(0, LEAD_PASSED_KO_MAX_IDS)) : null;
+  if (row.lead_token && !passedJson) return row.lead_token;
+  db.prepare(
+    `UPDATE pipeline_entries
+        SET lead_token = COALESCE(lead_token, ?),
+            lead_passed_ko_json = COALESCE(?, lead_passed_ko_json),
+            updated_at = ?
+      WHERE id = ?`
+  ).run(row.lead_token ?? randomToken("ld"), passedJson, new Date().toISOString(), entryId);
+  // Re-read so a concurrent mint race returns the COALESCE winner, not our loser.
+  const after = db.prepare(`SELECT lead_token FROM pipeline_entries WHERE id = ?`).get(entryId) as
+    | { lead_token: string | null }
+    | undefined;
+  return after?.lead_token ?? null;
+}
+
+export type LeadEnrichTarget = {
+  entry: PipelineEntry;
+  /** KO step ids the lead EXPLICITLY answered true at intake — recorded
+   *  pass-state, never derived. Empty when nothing was verified. */
+  passedKoIds: string[];
+};
+
+// Resolve a lead-enrichment token back to its entry (+ recorded KO pass-state).
+// The caller-facing contract is deliberately soft: unknown/blank tokens return
+// null and the apply surface degrades to the first-time flow — the emailed link
+// must never be worse than no token. Callers MUST still check entry.jobId
+// against the page's job before trusting the match.
+export function findEntryByLeadToken(token: string): LeadEnrichTarget | null {
+  const key = token.trim();
+  if (!key) return null;
+  const db = ensureDb();
+  const row = db.prepare(`SELECT * FROM pipeline_entries WHERE lead_token = ?`).get(key) as PipelineRow | undefined;
+  if (!row) return null;
+  return { entry: rowToEntry(row), passedKoIds: parseLeadPassedKo(row.lead_passed_ko_json, row.id) };
+}
+
+// Revive the recorded KO pass-state at the read boundary (same degrade-to-safe
+// discipline as parseGithubEvidence): corrupt or mis-shaped JSON yields [] — the
+// enrichment chat just asks every gate again — never a fabricated pass.
+function parseLeadPassedKo(json: string | null | undefined, entryId: string): string[] {
+  if (!json) return [];
+  try {
+    const parsed = JSON.parse(json);
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter((v): v is string => typeof v === "string" && v.length > 0 && v.length <= 64)
+      .slice(0, LEAD_PASSED_KO_MAX_IDS);
+  } catch (error) {
+    console.error(`[db] corrupt lead_passed_ko_json on pipeline entry "${entryId}"`, error);
+    return [];
+  }
 }
 
 // Recruiter resolution of a degraded-intake stub: once the profile has been

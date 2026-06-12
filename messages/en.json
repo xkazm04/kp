@@ -243,7 +243,8 @@
       "koAuthFallbackLocation": "the country for this role",
       "koModeLocation": "This role is {workMode} in {location}. Does that work for you?",
       "koMode": "This role is {workMode}. Does that work for you?",
-      "koLang": "The role works in {languages}. Are you comfortable with that?"
+      "koLang": "The role works in {languages}. Are you comfortable with that?",
+      "welcomeBack": "Welcome back, {name}! We already have your application — just a few more questions to complete your profile."
     }
   },
   "interview": {

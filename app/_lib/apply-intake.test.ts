@@ -18,6 +18,10 @@ import {
   isRetryableApplyStatus,
   nextVisibleStepIndex,
   stepConditionMet,
+  ANONYMOUS_APPLICANT_LABEL,
+  coerceLeadTokenParam,
+  seedLeadPrefillAnswers,
+  trimSeededSteps,
 } from "./apply-intake.ts";
 import type { JobRecord } from "./db.ts";
 
@@ -403,4 +407,100 @@ test("a job with no KO steps passes vacuously", () => {
 
 test("extra unexpected answer keys are ignored — only the job's own gates count", () => {
   assert.deepEqual(failedKoStepIds(["ko_auth"], { ko_auth: true, ko_invented: false }), []);
+});
+
+// ---------------------------------------------------------------------------
+// Lead enrichment hand-off — coerceLeadTokenParam / seedLeadPrefillAnswers /
+// trimSeededSteps. These pin the ?lead= prefill contract: the token shape gate
+// at the trust boundary (page searchParams AND POST body share it), what a
+// resolved lead seeds (and what it must NEVER seed), and which steps the seeded
+// answers remove from the chat. See app/apply/[id]/page.tsx and the apply POST.
+// ---------------------------------------------------------------------------
+
+test("coerceLeadTokenParam accepts a randomToken-shaped string (trimmed)", () => {
+  assert.equal(coerceLeadTokenParam("ld-Ab9_-cD3xYz12345"), "ld-Ab9_-cD3xYz12345");
+  assert.equal(coerceLeadTokenParam("  ld-Ab9_-cD3xYz12345  "), "ld-Ab9_-cD3xYz12345");
+});
+
+test("coerceLeadTokenParam rejects non-strings — the param is unknown-typed input", () => {
+  assert.equal(coerceLeadTokenParam(undefined), null);
+  assert.equal(coerceLeadTokenParam(null), null);
+  assert.equal(coerceLeadTokenParam(42), null);
+  // A repeated ?lead= arrives as an array from searchParams — ambiguous, reject.
+  assert.equal(coerceLeadTokenParam(["ld-Ab9_-cD3xYz12345"]), null);
+  assert.equal(coerceLeadTokenParam({ token: "x" }), null);
+});
+
+test("coerceLeadTokenParam rejects off-alphabet and unbounded shapes", () => {
+  assert.equal(coerceLeadTokenParam("ld-has space-inside"), null);
+  assert.equal(coerceLeadTokenParam("ld-quote'attempt"), null);
+  assert.equal(coerceLeadTokenParam("short"), null); // below the minimum length
+  assert.equal(coerceLeadTokenParam("x".repeat(81)), null); // above the cap
+  assert.equal(coerceLeadTokenParam(""), null);
+});
+
+const ENRICH_SCRIPT = [
+  { id: "name", type: "text" },
+  { id: "email", type: "text" },
+  { id: "skills", type: "text" },
+  { id: "ko_auth", type: "ko" },
+  { id: "ko_lang", type: "ko" },
+];
+
+test("seeds name and email from the lead entry", () => {
+  const answers = seedLeadPrefillAnswers(
+    { candidateLabel: "Jana Nová", contact: "jana@example.com", passedKoIds: [] },
+    ENRICH_SCRIPT
+  );
+  assert.deepEqual(answers, { name: "Jana Nová", email: "jana@example.com" });
+});
+
+test("never seeds the anonymous fallback label as a name", () => {
+  const answers = seedLeadPrefillAnswers(
+    { candidateLabel: ANONYMOUS_APPLICANT_LABEL, contact: "lead@example.com", passedKoIds: [] },
+    ENRICH_SCRIPT
+  );
+  assert.ok(!("name" in answers));
+  assert.equal(answers.email, "lead@example.com");
+});
+
+test("never seeds a non-email contact — the POST would 400 on input the candidate didn't type", () => {
+  const answers = seedLeadPrefillAnswers(
+    { candidateLabel: "Jana Nová", contact: "+420 777 123 456", passedKoIds: [] },
+    ENRICH_SCRIPT
+  );
+  assert.ok(!("email" in answers));
+});
+
+test("seeds true for exactly the RECORDED-passed KO gates the script still asks", () => {
+  const answers = seedLeadPrefillAnswers(
+    // ko_mode is recorded but the job no longer asks it; ko_lang is asked but
+    // was never recorded (e.g. the job gained it after the lead applied).
+    { candidateLabel: "Jana Nová", contact: "jana@example.com", passedKoIds: ["ko_auth", "ko_mode"] },
+    ENRICH_SCRIPT
+  );
+  assert.equal(answers.ko_auth, true);
+  assert.ok(!("ko_lang" in answers)); // unrecorded ⇒ asked again, never fabricated
+  assert.ok(!("ko_mode" in answers)); // not in the current script ⇒ nothing to seed
+});
+
+test("trimSeededSteps drops exactly the seeded steps, in order", () => {
+  const answers = seedLeadPrefillAnswers(
+    { candidateLabel: "Jana Nová", contact: "jana@example.com", passedKoIds: ["ko_auth"] },
+    ENRICH_SCRIPT
+  );
+  assert.deepEqual(
+    trimSeededSteps(ENRICH_SCRIPT, answers).map((s) => s.id),
+    ["skills", "ko_lang"]
+  );
+});
+
+test("trimSeededSteps with no seeded answers returns the full script", () => {
+  assert.deepEqual(trimSeededSteps(ENRICH_SCRIPT, {}).map((s) => s.id), [
+    "name",
+    "email",
+    "skills",
+    "ko_auth",
+    "ko_lang",
+  ]);
 });

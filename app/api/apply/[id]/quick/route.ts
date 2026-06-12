@@ -82,8 +82,11 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
 
     // ABSOLUTE link to the full conversational apply (the candidate opens it from
     // an email, outside the app), pinned to the language they applied in.
+    // lead-intake appends the entry's opaque lead token (&lead=…) before the ack
+    // goes out, so the link opens prefilled and merges back onto the lead's entry.
     const enrichLink = `${publicBaseUrl(new URL(request.url).origin)}/apply/${job.id}?lang=${applicantLocale}`;
 
+    const expectedKoIds = applyKoSteps(job, t).map((s) => s.id);
     const outcome = await intakeLead({
       job,
       name,
@@ -94,20 +97,28 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       sourceVariant: variant || null,
       channelLabel: "quick apply",
       // STRICT verdict: every expected KO answer must be present AND true.
-      failedKoIds: failedKoStepIds(
-        applyKoSteps(job, t).map((s) => s.id),
-        answers
-      ),
+      failedKoIds: failedKoStepIds(expectedKoIds, answers),
+      // …so an ACCEPT means every gate was explicitly answered true: record them
+      // all, and the enrichment chat skips exactly these (a gate the job gains
+      // later isn't in the record and gets asked).
+      passedKoIds: expectedKoIds,
       enrichLink,
     });
 
     if (outcome.result === "declined") {
       return NextResponse.json({ result: "declined", message: t("declinedMessage") });
     }
+    // `leadToken` lets the success screen's "complete your profile" CTA carry
+    // the same identity as the emailed link (see QuickApplyForm).
     if (outcome.duplicate) {
-      return NextResponse.json({ result: "accepted", duplicate: true, message: t("alreadyMessage") });
+      return NextResponse.json({
+        result: "accepted",
+        duplicate: true,
+        message: t("alreadyMessage"),
+        leadToken: outcome.leadToken,
+      });
     }
-    return NextResponse.json({ result: "accepted", message: t("quick.acceptedMessage") });
+    return NextResponse.json({ result: "accepted", message: t("quick.acceptedMessage"), leadToken: outcome.leadToken });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "apply failed" }, { status: 500 });
   }

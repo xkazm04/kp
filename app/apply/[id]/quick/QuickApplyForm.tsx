@@ -41,6 +41,10 @@ export function QuickApplyForm({
     result: "accepted" | "declined";
     message: string;
     duplicate?: boolean;
+    // The entry's opaque lead token (from the accept response) — carried on the
+    // enrichment CTA so the full apply opens knowing this lead, exactly like the
+    // link in the acknowledgement email.
+    leadToken?: string;
   } | null>(null);
 
   // Submit unlocks only when every field is answered — a lead with a missing
@@ -69,7 +73,12 @@ export function QuickApplyForm({
       const d = await res.json();
       if (res.ok) {
         setSubmitError(null);
-        setDone({ result: d.result, message: d.message, duplicate: Boolean(d.duplicate) });
+        setDone({
+          result: d.result,
+          message: d.message,
+          duplicate: Boolean(d.duplicate),
+          leadToken: typeof d.leadToken === "string" ? d.leadToken : undefined,
+        });
       } else {
         // The form retains every answer, so both failure classes recover the
         // same way (edit if needed, tap again); a transient one says so.
@@ -94,9 +103,11 @@ export function QuickApplyForm({
           {fresh ? (
             // The enrichment hand-off: same loop the acknowledgement email
             // offers, available right here while the candidate is still present.
+            // The ?lead= token opens the chat already knowing them — no
+            // re-typing name/email, no re-answering the gates they just passed.
             <div className="mt-4">
               <a
-                href={`/apply/${jobId}`}
+                href={`/apply/${jobId}${done.leadToken ? `?lead=${encodeURIComponent(done.leadToken)}` : ""}`}
                 className="focus-ring block rounded-md bg-ink px-4 py-3 text-center text-base font-semibold text-white hover:bg-steel"
               >
                 {t("quick.enrichCta")}

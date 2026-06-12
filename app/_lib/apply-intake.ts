@@ -172,6 +172,69 @@ export function nextVisibleStepIndex(
   return -1;
 }
 
+/** The display label a contact-less / nameless lead files under. Single-sourced
+ *  here so the prefill seeding below can recognize the sentinel and never greet
+ *  a candidate as "Applicant" (see seedLeadPrefillAnswers / lead-intake.ts). */
+export const ANONYMOUS_APPLICANT_LABEL = "Applicant";
+
+/**
+ * Shape-gate the public lead-enrichment capability token (`?lead=` on the apply
+ * page, `lead` in the apply POST body) BEFORE any DB lookup: a single plain
+ * string in the randomToken alphabet (prefix + base64url), length-bounded.
+ * Returns null for anything else — the caller degrades silently to the normal
+ * first-time flow, never an error page: the emailed link must never be WORSE
+ * than no token. Field-by-field coercion at the trust boundary, never a cast.
+ */
+export function coerceLeadTokenParam(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const token = value.trim();
+  return /^[A-Za-z0-9_-]{8,80}$/.test(token) ? token : null;
+}
+
+/**
+ * Seed the enrichment chat's answers from a token-resolved lead entry — the
+ * facts the lead already gave, and ONLY those:
+ *   - name: the entry's label, unless it's the {@link ANONYMOUS_APPLICANT_LABEL}
+ *     sentinel (a webhook lead that arrived nameless);
+ *   - email: the entry's contact, re-checked against the same shape gate the
+ *     POST enforces — a junk/non-email contact is never seeded, or the final
+ *     submit would 400 on input the candidate didn't type;
+ *   - KO gates: `true` for exactly the ids RECORDED as passed at intake that the
+ *     job's CURRENT script still asks. A gate the job gained since (or one a
+ *     third-party form never asked) stays in the chat — pass-state is read,
+ *     never derived, never fabricated.
+ * The seeded keys ride the final POST payload so the server's strict KO verdict
+ * and identity merge see the same answers a full walk-through would produce.
+ */
+export function seedLeadPrefillAnswers(
+  lead: { candidateLabel: string; contact: string | null; passedKoIds: readonly string[] },
+  steps: readonly { id: string; type: string }[]
+): Record<string, string | boolean> {
+  const answers: Record<string, string | boolean> = {};
+  const name = lead.candidateLabel.trim();
+  if (name && name !== ANONYMOUS_APPLICANT_LABEL) answers.name = name;
+  const email = (lead.contact ?? "").trim();
+  if (email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) answers.email = email;
+  for (const step of steps) {
+    if (step.type === "ko" && lead.passedKoIds.includes(step.id)) answers[step.id] = true;
+  }
+  return answers;
+}
+
+/**
+ * Drop the steps the prefill already answered, so the enrichment chat opens at
+ * the first NEW question instead of re-asking name/email/passed gates. Trimming
+ * the array (rather than leaning on `when` conditions) keeps the client's
+ * step-machine indexes dense; {@link nextVisibleStepIndex} still handles the
+ * archetype-lane skips among the steps that remain.
+ */
+export function trimSeededSteps<T extends { id: string }>(
+  steps: readonly T[],
+  answers: Record<string, unknown>
+): T[] {
+  return steps.filter((s) => !(s.id in answers));
+}
+
 /** The free-text answers captured by the conversational apply flow. The
  *  early-career lanes capture their own fields (project/thesis, education,
  *  aspirations for a student; prior field + direction for a switcher) instead of

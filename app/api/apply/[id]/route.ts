@@ -6,6 +6,7 @@ import path from "node:path";
 import {
   createPipelineEntry,
   findApplicationByApplicant,
+  findEntryByLeadToken,
   getJob,
   mergeReapplication,
   recordAutomationEvent,
@@ -14,7 +15,7 @@ import {
   updateProfile,
 } from "@/app/_lib/db";
 import { applyDedupeKey, applyKoSteps, buildApplyProfileDraft, buildApplyScript, FALLBACK_ARCHETYPE } from "@/app/_lib/apply";
-import { failedKoStepIds } from "@/app/_lib/apply-intake";
+import { ANONYMOUS_APPLICANT_LABEL, coerceLeadTokenParam, failedKoStepIds } from "@/app/_lib/apply-intake";
 import { getJobStatus, isJobOpenForApplications } from "@/app/_lib/job-ingest";
 import { dispatchApplicationReceived } from "@/app/_lib/comms-dispatch";
 import type { ApplyAnswers } from "@/app/_lib/apply-intake";
@@ -207,7 +208,12 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       return NextResponse.json({ error: "Application payload too large." }, { status: 413 });
     }
 
-    const body = (await request.json().catch(() => ({}))) as { answers?: Record<string, unknown> };
+    const body = (await request.json().catch(() => ({}))) as {
+      answers?: Record<string, unknown>;
+      // Lead-enrichment hand-off: the opaque token the apply page threaded
+      // through from the ?lead= link. Untrusted — shape-gated and resolved below.
+      lead?: unknown;
+    };
     const answers = body.answers ?? {};
 
     // Knockout gate. Derive THIS job's KO steps from its own script (ko_mode/ko_lang are
@@ -238,7 +244,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     // anonymous applicants must not be merged into one entry — so the dedup key
     // is derived from `providedName` (blank ⇒ no dedup).
     const providedName = String(answers.name ?? "").trim();
-    const name = providedName || "Applicant";
+    const name = providedName || ANONYMOUS_APPLICANT_LABEL;
     const email = String(answers.email ?? "").trim();
     const experience = String(answers.experience ?? "").trim();
     const skills = String(answers.skills ?? "").trim();
@@ -278,11 +284,23 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       return NextResponse.json({ error: "Please enter a valid email address." }, { status: 400 });
     }
 
+    // Lead-enrichment hand-off: a valid token resolves DIRECTLY to the lead's
+    // own entry, so the merge below targets it even when the typed email differs
+    // from the one on file — re-typing the EXACT same address is no longer what
+    // keeps one person on one pipeline row. Field-validated shape first
+    // (coerceLeadTokenParam — never a cast), then the entry must belong to THIS
+    // job; anything invalid/stale/mismatched degrades silently to the email/name
+    // identity fallback below, never an error.
+    const leadToken = coerceLeadTokenParam(body.lead);
+    const leadTarget = leadToken ? findEntryByLeadToken(leadToken) : null;
+    const leadEntry = leadTarget && leadTarget.entry.jobId === job.id ? leadTarget.entry : null;
+
     // Duplicate-application policy (primary check): if this named applicant has
     // already applied to this role, surface the repeat on the original entry and
-    // acknowledge it — don't create a second pipeline row. Dedup keys on the
-    // EMAIL when given (the stronger identity), else the name — so two same-named
-    // applicants with different addresses no longer merge.
+    // acknowledge it — don't create a second pipeline row. The lead token (when
+    // valid) IS the identity; otherwise dedup keys on the EMAIL when given (the
+    // stronger identity), else the name — so two same-named applicants with
+    // different addresses no longer merge.
     //
     // W8-6 (APP1) — merge, don't drop. Re-applying is the only self-service
     // "update my info" path an applicant has, so a detected repeat folds its
@@ -293,8 +311,8 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     //     profile — in place for a healthy original, a fresh save + re-point for
     //     the stub. A FAILED rebuild touches nothing: a junk repeat can never
     //     degrade a healthy entry, and a stub just stays a stub.
-    if (providedName || email) {
-      const existing = findApplicationByApplicant(job.id, providedName, email);
+    if (leadEntry || providedName || email) {
+      const existing = leadEntry ?? findApplicationByApplicant(job.id, providedName, email);
       if (existing) {
         const changes: string[] = [];
         const updates: { contact?: string; candidateId?: string; archetype?: string | null } = {};

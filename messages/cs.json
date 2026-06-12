@@ -243,7 +243,8 @@
       "koAuthFallbackLocation": "zemi pro tuto pozici",
       "koModeLocation": "Tato role je {workMode} v {location}. Vyhovuje vám to?",
       "koMode": "Tato role je {workMode}. Vyhovuje vám to?",
-      "koLang": "Tato role probíhá v jazyce {languages}. Je vám to příjemné?"
+      "koLang": "Tato role probíhá v jazyce {languages}. Je vám to příjemné?",
+      "welcomeBack": "Vítejte zpět, {name}! Vaši přihlášku už máme — zbývá jen pár otázek k doplnění profilu."
     }
   },
   "interview": {
