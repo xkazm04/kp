@@ -8,11 +8,14 @@ engine knows: skills the candidate was OBSERVED to demonstrate get ``observed``
 provenance (taxonomy weight 1.0, full match credit) and, for early-career
 candidates, narrow the confidence band in ``matching._confidence``.
 
-Honest by construction: observed credit is granted ONLY when the candidate cleared
-the competence bar (``transfer_score >= threshold``), and only for the role's
-must-have skills the transfer assessment actually says transferred. A weak
-performance adds NO observed skills (we observed them not clear the bar) — it never
-penalises, it simply doesn't fabricate evidence the candidate didn't earn.
+Honest by construction: observed credit is granted ONLY when the assessment itself
+is trustworthy (its propagated confidence sits above ``models.LOW_CONFIDENCE`` — a
+degraded/fallback evaluation is "a weak hint only", never the highest-trust signal),
+when the candidate cleared the competence bar (``transfer_score >= threshold``), and
+only for the role's must-have skills the transfer assessment actually says
+transferred — never one it lists under ``gaps``. A weak performance adds NO observed
+skills (we observed them not clear the bar) — it never penalises, it simply doesn't
+fabricate evidence the candidate didn't earn.
 """
 
 from __future__ import annotations
@@ -21,7 +24,7 @@ import json
 from pathlib import Path
 
 from . import registry
-from .devcase.models import CaseEvaluation, CaseScenario, RoleSpec, TransferAssessment
+from .devcase.models import LOW_CONFIDENCE, CaseEvaluation, CaseScenario, RoleSpec, TransferAssessment
 from .profile import CandidateProfileV2, Evidence, normalize_profile
 
 # Competence bar (0-100 transfer score) at/above which the live case grants observed
@@ -60,18 +63,80 @@ def _norm(s: str) -> str:
 
 
 def _credited_skills(role: RoleSpec, transfer: TransferAssessment) -> list[str]:
-    """The role's must-haves the assessment says transferred — or all must-haves when
-    it didn't enumerate any. Original casing preserved, order kept, de-duplicated."""
+    """The role's must-haves the assessment actually says transferred. Original
+    casing preserved, order kept, de-duplicated.
+
+    Two honesty rules, both anchored in the module contract ("only for the role's
+    must-have skills the transfer assessment actually says transferred"):
+      * a must-have the assessment lists under ``gaps`` is NEVER credited — the
+        assessor explicitly said it did not transfer (gaps win over a
+        contradictory ``transfers`` entry: credit must be earned, not inferred);
+      * when no must-have matches an enumerated transfer, NOTHING is credited.
+        The old ``matched or musts`` fallback inflated "we couldn't map the
+        transfers onto the role's skills" into "every skill was observed" —
+        always the case on the deterministic transfer path, whose ``transfers``
+        are dimension labels ("Strong framing"), never skills."""
     musts = [m for m in role.must_haves if m and m.strip()]
     if not musts:
         return []
     transfers = [_norm(t) for t in transfer.transfers if t and t.strip()]
+    gaps = [_norm(g) for g in transfer.gaps if g and g.strip()]
     matched = [m for m in musts if any(_norm(m) in t or t in _norm(m) for t in transfers)]
-    return matched or musts
+    return [m for m in matched if not any(_norm(m) in g or g in _norm(m) for g in gaps)]
 
 
 def _level(score: int) -> str:
     return "strong" if score >= 75 else "working" if score >= 55 else "foundational"
+
+
+# Machine-readable outcome reasons for the take-home minting gates — why credit was
+# granted or withheld, so a caller can report a withheld credit instead of showing
+# an indistinguishable silent no-op.
+MINTED = "minted"
+SKIP_LOW_CONFIDENCE = "low_confidence"
+SKIP_BELOW_BAR = "below_bar"
+SKIP_NO_TRANSFERRED_MUST_HAVES = "no_transferred_must_haves"
+
+
+def _mint(
+    role: RoleSpec,
+    case: CaseScenario,
+    evaluation: CaseEvaluation,
+    transfer: TransferAssessment,
+    *,
+    threshold: int,
+) -> tuple[Evidence | None, str]:
+    """The minting gates in trust order, with the machine-readable reason.
+
+    Confidence first: the transfer carries the PROPAGATED decision-confidence
+    (models.py "Confidence scale" — the MIN of the upstream signals), so at/below
+    ``LOW_CONFIDENCE`` the whole assessment is a thin/degraded hint and its score
+    proves nothing, however high. Mirrors the interview path's wide-confidence
+    kill in :func:`observed_from_interview` — the deeper-trust take-home path must
+    not be the less-guarded one."""
+    if transfer.confidence <= LOW_CONFIDENCE:
+        return None, SKIP_LOW_CONFIDENCE
+    if transfer.transfer_score < threshold:
+        return None, SKIP_BELOW_BAR
+    skills = _credited_skills(role, transfer)
+    if not skills:
+        return None, SKIP_NO_TRANSFERRED_MUST_HAVES
+    level = _level(transfer.transfer_score)
+    summary = (evaluation.summary or transfer.role_fit_rationale or "").strip()
+    text = f"Live case '{case.title or 'work sample'}': demonstrated {level} capability on {', '.join(skills)}."
+    if summary:
+        text = f"{text} {summary}"
+    evidence = Evidence(
+        kind=LIVE_CASE_EVIDENCE_KIND,
+        title=f"Live case: {case.title}" if case.title else "Live case",
+        text=text,
+        skills=skills,
+        provenance="observed",
+        # How sure we are the skills were demonstrated — scaled by the transfer score.
+        confidence=round(min(0.95, transfer.transfer_score / 100.0), 2),
+        recency="now",
+    )
+    return evidence, MINTED
 
 
 def observed_evidence(
@@ -83,27 +148,26 @@ def observed_evidence(
     threshold: int = OBSERVED_THRESHOLD,
 ) -> Evidence | None:
     """One ``observed``-provenance Evidence item for the skills the candidate
-    demonstrated in the live case — or ``None`` when they didn't clear the bar."""
-    if transfer.transfer_score < threshold:
-        return None
-    skills = _credited_skills(role, transfer)
-    if not skills:
-        return None
-    level = _level(transfer.transfer_score)
-    summary = (evaluation.summary or transfer.role_fit_rationale or "").strip()
-    text = f"Live case '{case.title or 'work sample'}': demonstrated {level} capability on {', '.join(skills)}."
-    if summary:
-        text = f"{text} {summary}"
-    return Evidence(
-        kind=LIVE_CASE_EVIDENCE_KIND,
-        title=f"Live case: {case.title}" if case.title else "Live case",
-        text=text,
-        skills=skills,
-        provenance="observed",
-        # How sure we are the skills were demonstrated — scaled by the transfer score.
-        confidence=round(min(0.95, transfer.transfer_score / 100.0), 2),
-        recency="now",
-    )
+    demonstrated in the live case — or ``None`` when they didn't earn it (see
+    :func:`_mint` for the gates: trustworthy confidence, competence bar, and
+    must-haves the assessment actually says transferred)."""
+    return _mint(role, case, evaluation, transfer, threshold=threshold)[0]
+
+
+class MintOutcome(tuple):
+    """``(updated profile, credited skills)`` exactly as before, plus a ``reason``
+    field naming why credit was granted (``MINTED``) or withheld (one of the
+    ``SKIP_*`` codes above). A plain 2-tuple subclass keeps the public contract
+    backward-compatible: existing ``profile, credited = apply_live_case(...)``
+    unpacking (devcase_cli observed-skills) works unchanged, while callers that
+    want the failure narrative read ``.reason``."""
+
+    reason: str
+
+    def __new__(cls, profile: CandidateProfileV2, credited: list[str], reason: str) -> "MintOutcome":
+        self = super().__new__(cls, (profile, credited))
+        self.reason = reason
+        return self
 
 
 def apply_live_case(
@@ -114,16 +178,17 @@ def apply_live_case(
     transfer: TransferAssessment,
     *,
     threshold: int = OBSERVED_THRESHOLD,
-) -> tuple[CandidateProfileV2, list[str]]:
+) -> MintOutcome:
     """Append the earned observed-case evidence to ``profile`` and re-normalize.
 
-    Returns ``(updated profile, credited skills)``; ``credited`` is empty when the
-    performance was below the bar, so a caller can honestly report "no observed
-    skills added" rather than implying a silent success."""
-    ev = observed_evidence(role, case, evaluation, transfer, threshold=threshold)
+    Returns ``(updated profile, credited skills)`` — a :class:`MintOutcome` whose
+    ``reason`` field says why credit was granted or withheld; ``credited`` is empty
+    when no credit was earned, so a caller can honestly report "no observed skills
+    added" (and why) rather than implying a silent success."""
+    ev, reason = _mint(role, case, evaluation, transfer, threshold=threshold)
     if ev is None:
         normalize_profile(profile)  # re-stamp completeness in place
-        return profile, []
+        return MintOutcome(profile, [], reason)
     profile.evidence.append(ev)
     _corroborate_routing(
         profile,
@@ -131,7 +196,7 @@ def apply_live_case(
         f"(transfer {transfer.transfer_score}/100) — early-career routing corroborated",
     )
     normalize_profile(profile)  # re-stamp completeness in place
-    return profile, list(ev.skills)
+    return MintOutcome(profile, list(ev.skills), reason)
 
 
 # --- Observed evidence from a CASE-GROUNDED interview -------------------------

@@ -1,12 +1,13 @@
 """The live-case -> observed-provenance loop: a passed work sample becomes an
 `observed` Evidence item that transform/matching credit at full trust and that
-narrows the early-career confidence band. A weak performance adds nothing.
+narrows the early-career confidence band. A weak performance adds nothing, and
+neither does a high score riding on degraded (low-confidence) evidence.
 """
 from __future__ import annotations
 
 import unittest
 
-from pipeline.jobfit.devcase.models import CaseEvaluation, CaseScenario, RoleSpec, TransferAssessment
+from pipeline.jobfit.devcase.models import LOW_CONFIDENCE, CaseEvaluation, CaseScenario, RoleSpec, TransferAssessment
 from pipeline.jobfit.jobs import normalize_job
 from pipeline.jobfit.live_case import (
     CASE_CONSTRUCTS,
@@ -50,7 +51,7 @@ class ObservedEvidenceTest(unittest.TestCase):
     def test_pass_emits_observed_evidence_for_transferred_must_haves(self):
         role = RoleSpec(title="Backend", role_family="software_engineering", seniority="junior",
                         must_haves=["Python", "SQL", "Docker"])
-        transfer = TransferAssessment(transfer_score=78, transfers=["Python", "SQL"])  # Docker did NOT transfer
+        transfer = TransferAssessment(transfer_score=78, transfers=["Python", "SQL"], confidence=0.8)  # Docker did NOT transfer
         ev = observed_evidence(role, CaseScenario(title="Mini API"), CaseEvaluation(summary="Handled it well."), transfer)
         self.assertIsNotNone(ev)
         self.assertEqual(ev.kind, "live_case")
@@ -61,7 +62,8 @@ class ObservedEvidenceTest(unittest.TestCase):
 
     def test_weak_performance_adds_nothing(self):
         role = RoleSpec(must_haves=["Python"], role_family="software_engineering", seniority="junior")
-        transfer = TransferAssessment(transfer_score=40, transfers=["Python"])
+        # Confidence is healthy on purpose — this pins the SCORE gate, not the confidence one.
+        transfer = TransferAssessment(transfer_score=40, transfers=["Python"], confidence=0.8)
         self.assertIsNone(observed_evidence(role, CaseScenario(), CaseEvaluation(), transfer))
         prof = _student()
         before = len(prof.evidence)
@@ -72,7 +74,7 @@ class ObservedEvidenceTest(unittest.TestCase):
     def test_loop_closes_observed_narrows_early_career_band(self):
         role = RoleSpec(title="Backend", role_family="software_engineering", seniority="junior",
                         must_haves=["Python", "SQL"])
-        transfer = TransferAssessment(transfer_score=82, transfers=["Python", "SQL"])
+        transfer = TransferAssessment(transfer_score=82, transfers=["Python", "SQL"], confidence=0.8)
 
         base = score_job(build_match_candidate(_student()), JOB)
 
@@ -88,6 +90,66 @@ class ObservedEvidenceTest(unittest.TestCase):
         observed_spread = scored.confidence.high - scored.confidence.low
         self.assertLess(observed_spread, base_spread)  # the live case de-risks the thin CV
         self.assertTrue(any("observed" in d.lower() for d in scored.confidence.drivers))
+
+
+class MintingHonestyGatesTest(unittest.TestCase):
+    """biz-ui-scan-2026-06-12 #2 — the take-home path's honesty gates: a degraded
+    (low-confidence) assessment never mints however high its score, a gap-listed
+    must-have is never credited, and transfers that match no must-have credit
+    NOTHING instead of everything."""
+
+    role = RoleSpec(title="Backend", role_family="software_engineering", seniority="junior",
+                    must_haves=["Python", "SQL", "Docker"])
+    case = CaseScenario(title="Mini API")
+
+    def test_low_confidence_assessment_never_mints(self):
+        # Propagated confidence 0.2 = the deterministic tooling fallback — models.py
+        # says "treat as a weak hint only"; a passing 68 on top of it proves nothing.
+        transfer = TransferAssessment(transfer_score=68, transfers=["Python", "SQL"], confidence=0.2)
+        self.assertIsNone(observed_evidence(self.role, self.case, CaseEvaluation(), transfer))
+        updated, credited = apply_live_case(_student(), self.role, self.case, CaseEvaluation(), transfer)
+        self.assertEqual(credited, [])
+        self.assertFalse(any(e.provenance == "observed" for e in updated.evidence))
+        self.assertEqual(updated.archetype_reasons, [])  # no routing lift either
+
+    def test_confidence_gate_uses_the_exported_threshold(self):
+        # LOW_CONFIDENCE is "at or below this ... thin" — exactly at it stays blocked.
+        transfer = TransferAssessment(transfer_score=80, transfers=["Python"], confidence=LOW_CONFIDENCE)
+        self.assertIsNone(observed_evidence(self.role, self.case, CaseEvaluation(), transfer))
+        transfer.confidence = LOW_CONFIDENCE + 0.01
+        self.assertIsNotNone(observed_evidence(self.role, self.case, CaseEvaluation(), transfer))
+
+    def test_gap_listed_must_have_is_never_credited(self):
+        # The assessor explicitly said Docker did NOT transfer; even with a
+        # contradictory transfers entry, gaps win — credit is earned, not inferred.
+        transfer = TransferAssessment(transfer_score=80, transfers=["Python", "Docker"],
+                                      gaps=["Docker"], confidence=0.8)
+        ev = observed_evidence(self.role, self.case, CaseEvaluation(), transfer)
+        self.assertIsNotNone(ev)
+        self.assertEqual(ev.skills, ["Python"])
+
+    def test_unmatched_transfers_credit_nothing_not_everything(self):
+        # The deterministic transfer path emits dimension labels, never skills —
+        # the old `matched or musts` fallback credited EVERY must-have here.
+        transfer = TransferAssessment(transfer_score=68, transfers=["Strong framing", "Strong judgment"],
+                                      confidence=0.8)
+        self.assertIsNone(observed_evidence(self.role, self.case, CaseEvaluation(), transfer))
+        updated, credited = apply_live_case(_student(), self.role, self.case, CaseEvaluation(), transfer)
+        self.assertEqual(credited, [])
+        self.assertFalse(any(e.provenance == "observed" for e in updated.evidence))
+
+    def test_outcome_reason_reports_why(self):
+        # The MintOutcome 2-tuple still unpacks as before; .reason adds the narrative.
+        eval_ = CaseEvaluation()
+        ok = TransferAssessment(transfer_score=80, transfers=["Python"], confidence=0.8)
+        self.assertEqual(apply_live_case(_student(), self.role, self.case, eval_, ok).reason, "minted")
+        low = TransferAssessment(transfer_score=80, transfers=["Python"], confidence=0.2)
+        self.assertEqual(apply_live_case(_student(), self.role, self.case, eval_, low).reason, "low_confidence")
+        weak = TransferAssessment(transfer_score=40, transfers=["Python"], confidence=0.8)
+        self.assertEqual(apply_live_case(_student(), self.role, self.case, eval_, weak).reason, "below_bar")
+        unmatched = TransferAssessment(transfer_score=80, transfers=["Strong framing"], confidence=0.8)
+        self.assertEqual(apply_live_case(_student(), self.role, self.case, eval_, unmatched).reason,
+                         "no_transferred_must_haves")
 
 
 def _case_scorecard(
@@ -174,7 +236,7 @@ class RoutingCorroborationTest(unittest.TestCase):
         return prof
 
     def test_minting_lifts_unsettled_confidence_and_records_why(self):
-        transfer = TransferAssessment(transfer_score=82, transfers=["Python", "SQL"])
+        transfer = TransferAssessment(transfer_score=82, transfers=["Python", "SQL"], confidence=0.8)
         enriched, credited = apply_live_case(self._unsettled_student(), self.role, self.case,
                                              CaseEvaluation(summary="Solid."), transfer)
         self.assertTrue(credited)
@@ -184,20 +246,20 @@ class RoutingCorroborationTest(unittest.TestCase):
     def test_lift_never_exceeds_the_ceiling(self):
         prof = self._unsettled_student()
         prof.archetype_confidence = 0.7
-        transfer = TransferAssessment(transfer_score=82, transfers=["Python", "SQL"])
+        transfer = TransferAssessment(transfer_score=82, transfers=["Python", "SQL"], confidence=0.8)
         enriched, _ = apply_live_case(prof, self.role, self.case, CaseEvaluation(), transfer)
         self.assertEqual(enriched.archetype_confidence, 0.75)
 
     def test_settled_confidence_is_left_alone(self):
         prof = self._unsettled_student()
         prof.archetype_confidence = 0.9  # a real self-declaration outranks corroboration
-        transfer = TransferAssessment(transfer_score=82, transfers=["Python", "SQL"])
+        transfer = TransferAssessment(transfer_score=82, transfers=["Python", "SQL"], confidence=0.8)
         enriched, _ = apply_live_case(prof, self.role, self.case, CaseEvaluation(), transfer)
         self.assertEqual(enriched.archetype_confidence, 0.9)
 
     def test_failed_case_touches_nothing(self):
         prof = self._unsettled_student()
-        transfer = TransferAssessment(transfer_score=40, transfers=["Python"])
+        transfer = TransferAssessment(transfer_score=40, transfers=["Python"], confidence=0.8)
         enriched, credited = apply_live_case(prof, self.role, self.case, CaseEvaluation(), transfer)
         self.assertEqual(credited, [])
         self.assertEqual(enriched.archetype_confidence, 0.5)
