@@ -108,6 +108,17 @@ class DeterministicPackTests(unittest.TestCase):
         self.assertNotIn("number", [v["hookType"] for v in pack["variants"]])
         self.assertIn(WARN_NO_SALARY, pack["warnings"])
 
+    def test_anchored_phantom_band_is_never_advertised_and_warns(self):
+        # The ad stated no pay, so normalize_job stamped the taxonomy anchor band
+        # and flagged it ("salary_band" phantom): the figure must never reach the
+        # copy, and no_salary must fire — same rule as the other phantom fields.
+        job = _job(defaulted_fields=["salary_band"])
+        pack, _ = draft_campaign_pack(job, lang="en", apply_url=URL)
+        self.assertNotIn("number", [v["hookType"] for v in pack["variants"]])
+        self.assertIn(WARN_NO_SALARY, pack["warnings"])
+        for v in pack["variants"]:
+            self.assertNotIn("65 000", v["adCopy"], "the anchor figure leaked into the copy")
+
     def test_pack_is_never_empty_even_with_no_facts(self):
         job = _job(
             salary_band=[],

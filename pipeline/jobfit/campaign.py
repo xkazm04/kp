@@ -10,9 +10,9 @@ Honesty contract (stricter than the marketing genre it imitates):
   team details, or testimonials — which is also why the "employee POV" hook type
   from the original playbook is intentionally absent: we cannot fabricate a
   testimonial. A "skills" (stack) hook replaces it for tech roles.
-- A field normalize_job stamped from DEFAULT_POLICY (``Job.defaulted_fields``)
+- A field normalize_job stamped with an assumed value (``Job.defaulted_fields``)
   is a PHANTOM the ad never stated — treated here as absent, so an assumed
-  "Praha" or "medior" is never advertised as fact.
+  "Praha", "medior", or market-anchor salary band is never advertised as fact.
 - Missing facts surface as stable warning CODES (``no_salary``, ``no_location``)
   the UI localizes — codes on the wire, copy in the catalogs.
 
@@ -74,7 +74,8 @@ _T: dict[str, dict[str, str]] = {
 
 
 def _salary_label(job: Job, lang: str) -> str | None:
-    """Human salary-band label from the job's stated band, or None when absent.
+    """Human salary-band label from the job's band, or None when absent.
+    Statedness is _job_facts's call — it drops the label for an anchored band.
 
     Czech-convention thousands separator (space) in both languages — the figures
     are CZK monthly bands either way."""
@@ -105,7 +106,9 @@ def _job_facts(job: Job, lang: str) -> dict[str, Any]:
         "location": stated(job.location, "location"),
         "workMode": stated(job.work_mode, "work_mode"),
         "languages": job.languages,
-        "salary": _salary_label(job, lang),
+        # Same stated-only rule as the fields above: an anchor band normalize_job
+        # stamped ("salary_band" phantom) is absent, so WARN_NO_SALARY fires.
+        "salary": None if "salary_band" in defaulted else _salary_label(job, lang),
         "topSkills": skills,
         "descriptionExcerpt": (job.description or "")[:600],
     }

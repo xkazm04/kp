@@ -13,6 +13,7 @@ const fmtSalary = (band?: number[]) =>
 export type JobMarkdownStrings = {
   level: (seniority: string) => string;
   salary: string;
+  salaryEstimate: string;
   aboutRole: string;
   whatBring: string;
   niceToHave: string;
@@ -35,6 +36,7 @@ export const JOB_MARKDOWN_STRINGS: Record<PostingLocale, JobMarkdownStrings> = {
   en: {
     level: (s) => `${s[0].toUpperCase()}${s.slice(1)} level`,
     salary: "Salary:",
+    salaryEstimate: "Salary (market estimate):",
     aboutRole: "About the role",
     whatBring: "What you'll bring",
     niceToHave: "Nice to have",
@@ -52,6 +54,7 @@ export const JOB_MARKDOWN_STRINGS: Record<PostingLocale, JobMarkdownStrings> = {
   cs: {
     level: (s) => `úroveň ${s}`,
     salary: "Mzda:",
+    salaryEstimate: "Mzda (tržní odhad):",
     aboutRole: "O pozici",
     whatBring: "Co byste měli mít",
     niceToHave: "Výhodou",
@@ -87,8 +90,11 @@ export function jobToMarkdown(job: Job, s: JobMarkdownStrings = JOB_MARKDOWN_STR
   ].filter(Boolean);
   if (metaBits.length) lines.push(`**${metaBits.join(" · ")}**`);
 
+  // A band normalize_job anchored from the taxonomy because the ad stated no pay
+  // ("salary_band" in defaultedFields) is a market ESTIMATE — labeled as such, so
+  // the published posting never presents it as the employer's stated salary.
   const salary = fmtSalary(job.salaryBand);
-  if (salary) lines.push(`**${s.salary}** ${salary}`);
+  if (salary) lines.push(`**${job.defaultedFields?.includes("salary_band") ? s.salaryEstimate : s.salary}** ${salary}`);
 
   if (job.description) {
     lines.push("");

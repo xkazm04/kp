@@ -1033,6 +1033,10 @@ export type JobRecord = {
   detectedSkills?: string[];
   salaryBand?: number[];
   entryProfile?: JobEntryProfileRecord | null;
+  // Provenance from normalize_job: fields filled with an assumed value (locale
+  // defaults, or the "salary_band" market-anchor band) rather than stated by the
+  // ad. Older payloads predate the field, hence optional.
+  defaultedFields?: string[];
   source?: string;
 };
 

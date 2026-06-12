@@ -47,7 +47,13 @@ export async function ingestStructuredJob(input: {
   // Clamp/swap a backwards or non-positive band rather than dropping it, so the
   // matchable Job's band never silently disagrees with the analysis it came from.
   const band = normalizeSalaryBand(input.salary?.suggestedMinimum, input.salary?.suggestedMaximum);
-  if (band) job.salaryBand = band;
+  if (band) {
+    job.salaryBand = band;
+    // The grounded band replaces the taxonomy anchor normalize_job stamped (and
+    // flagged as the "salary_band" phantom). It IS the band this JD advertises,
+    // so drop that provenance lest the posting/campaign treat real pay as assumed.
+    job.defaultedFields = (job.defaultedFields ?? []).filter((f) => f !== "salary_band");
+  }
 
   // Authored JDs start as a DRAFT — "Source into Pipeline" takes them live and
   // sources them into the pipeline.

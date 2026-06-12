@@ -10,7 +10,8 @@ Two entry points:
 
 - :func:`normalize_job` — *deterministic*. Takes an already-structured dict
   (e.g. an LLM-generated record from the seed corpus) and resolves taxonomy
-  terms, anchor salary band, and the entry profile. No LLM, reproducible.
+  terms, the salary band (stated pay when the record gives one; the anchor band
+  otherwise), and the entry profile. No LLM, reproducible.
 - :func:`ingest_raw_ad` — extracts structure from prose via an LLM provider
   (Gemini or ClaudeCliProvider), then runs :func:`normalize_job`.
 
@@ -26,6 +27,7 @@ from typing import Any, Protocol
 from pydantic import Field
 
 from .models import _Base
+from .salary_band import normalize_band
 from .taxonomy import (
     DEFAULT_FAMILY,
     ROLE_FAMILY_SET,
@@ -55,6 +57,11 @@ DEFAULT_POLICY: dict[str, str] = {
     "work_mode": "onsite",      # missing/off-taxonomy work mode — assume onsite
     "seniority": "medior",      # missing/off-taxonomy seniority — assume mid-level
 }
+# A fifth phantom lives OUTSIDE this table because its value is computed, not
+# constant: when an ad states no pay (no usable salary_min/salary_max),
+# ``normalize_job`` stamps the taxonomy market-anchor band and records
+# "salary_band" in ``defaulted_fields`` the same way, so an anchor band is never
+# read — or advertised — as pay the ad actually stated.
 
 # Surface signals (CZ + EN) that an ad welcomes early-career candidates.
 _ENTRY_SIGNALS = (
@@ -118,10 +125,12 @@ class Job(_Base):
     detected_skills: list[str] = Field(default_factory=list)
     salary_band: list[int] = Field(default_factory=list)
     entry_profile: JobEntryProfile | None = None
-    # Provenance: names of the fields normalize_job filled from DEFAULT_POLICY because
-    # the source record omitted or mis-stated them. Empty => every field was stated.
-    # Lets a phantom "Praha"/"medior" be told from a value the ad actually gave, so
-    # matching and market-stats never read assumed data as real. See DEFAULT_POLICY.
+    # Provenance: names of the fields normalize_job filled with an assumed value —
+    # the DEFAULT_POLICY locale defaults, plus "salary_band" when the taxonomy
+    # market-anchor band was stamped because the ad stated no pay. Empty => every
+    # field was stated. Lets a phantom "Praha"/"medior"/anchor band be told from a
+    # value the ad actually gave, so matching and market-stats never read assumed
+    # data as real. See DEFAULT_POLICY.
     defaulted_fields: list[str] = Field(default_factory=list)
     source: str = "synthetic"
 
@@ -321,8 +330,25 @@ def normalize_job(raw: dict[str, Any], *, job_id: str | None = None) -> Job:
     min_years = _opt_float(raw.get("min_years_experience"))
     employment_type = _str(raw.get("employment_type")) or None
 
-    band = role_band(role_family, seniority)
-    salary_band = list(band) if band else []
+    # Salary: a band the ad actually STATED (salary_min/salary_max) is honored,
+    # sanitized through the shared money invariant (swap/round) — never defaulted.
+    # Only when no usable stated band exists is the taxonomy market-anchor band
+    # stamped, recorded as the "salary_band" phantom so downstream surfaces never
+    # advertise the anchor as pay the ad gave.
+    salary_min = _opt_float(raw.get("salary_min"))
+    salary_max = _opt_float(raw.get("salary_max"))
+    stated_band = (
+        normalize_band(salary_min, salary_max)
+        if salary_min is not None and salary_max is not None
+        else None
+    )
+    if stated_band:
+        salary_band = list(stated_band)
+    else:
+        band = role_band(role_family, seniority)
+        salary_band = list(band) if band else []
+        if salary_band:
+            defaulted.append("salary_band")
 
     detected = [r.term_id or r.skill for r in requirements]
     seen: set[str] = set()
@@ -380,9 +406,12 @@ _EXTRACTION_PROMPT = """Extract this job posting into JSON with exactly these ke
   "languages": [str],
   "min_years_experience": number|null,
   "min_education": "phd|master|bachelor|university|none"|null,
+  "salary_min": number|null, "salary_max": number|null,
   "description": str,
   "requirements": [ { "skill": str, "kind": "must_have|nice_to_have", "hardness": "prerequisite|learnable" } ]
 }
+salary_min/salary_max: the gross monthly pay range in CZK the posting itself states;
+null when the ad states no pay — NEVER estimate one.
 For each requirement decide kind (must vs nice) and hardness: "prerequisite" if a
 candidate truly cannot do the job without it, "learnable" if it can reasonably be
 picked up on the job. Output JSON only.

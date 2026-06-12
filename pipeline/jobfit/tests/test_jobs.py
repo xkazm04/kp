@@ -53,8 +53,9 @@ class NormalizeTest(unittest.TestCase):
         job = normalize_job(raw)
         self.assertEqual(job.work_mode, "onsite")
         self.assertEqual(job.seniority, "medior")
-        # An off-taxonomy value never stated a valid token, so it is a phantom default.
-        self.assertEqual(job.defaulted_fields, ["work_mode", "seniority"])
+        # An off-taxonomy value never stated a valid token, so it is a phantom default
+        # (and SE_JUNIOR states no pay, so the anchor band is a phantom too).
+        self.assertEqual(job.defaulted_fields, ["work_mode", "seniority", "salary_band"])
 
     def test_string_requirements_default_kind_hardness(self) -> None:
         reqs = _requirements_from(["Python", "SQL"])
@@ -83,16 +84,21 @@ class DefaultedFieldsTest(unittest.TestCase):
     tell a stated "Praha"/"medior" from one normalize_job invented."""
 
     def test_fully_stated_record_has_no_defaults(self) -> None:
-        # SE_JUNIOR states company/location/work_mode/seniority explicitly.
-        self.assertEqual(normalize_job(SE_JUNIOR).defaulted_fields, [])
+        # SE_JUNIOR states company/location/work_mode/seniority explicitly; add the
+        # stated pay range so the salary anchor phantom doesn't fire either.
+        raw = {**SE_JUNIOR, "salary_min": 65000, "salary_max": 85000}
+        self.assertEqual(normalize_job(raw).defaulted_fields, [])
 
     def test_missing_fields_are_recorded_and_filled_from_policy(self) -> None:
         raw = {**SE_JUNIOR}
         for field in ("company", "location", "work_mode", "seniority"):
             raw.pop(field, None)
         job = normalize_job(raw)
-        # Reported in DEFAULT_POLICY order, and stamped with the policy values.
-        self.assertEqual(job.defaulted_fields, ["company", "location", "work_mode", "seniority"])
+        # Reported in DEFAULT_POLICY order, stamped with the policy values, plus the
+        # computed salary anchor phantom last (no pay stated).
+        self.assertEqual(
+            job.defaulted_fields, ["company", "location", "work_mode", "seniority", "salary_band"]
+        )
         self.assertEqual(job.company, DEFAULT_POLICY["company"])
         self.assertEqual(job.location, DEFAULT_POLICY["location"])
         self.assertEqual(job.work_mode, DEFAULT_POLICY["work_mode"])
@@ -115,11 +121,52 @@ class DefaultedFieldsTest(unittest.TestCase):
         self.assertNotIn("seniority", job.defaulted_fields)
 
     def test_defaulted_fields_survives_serialization_round_trip(self) -> None:
-        raw = {**SE_JUNIOR}
+        raw = {**SE_JUNIOR, "salary_min": 65000, "salary_max": 85000}
         raw.pop("company", None)
         dumped = normalize_job(raw).model_dump(by_alias=True)
         self.assertEqual(dumped["defaultedFields"], ["company"])
         self.assertEqual(Job.model_validate(dumped).defaulted_fields, ["company"])
+
+
+class SalaryProvenanceTest(unittest.TestCase):
+    """A pay range the ad actually STATED (salary_min/salary_max) is honored —
+    never replaced by the taxonomy anchor; an ad that stated none anchors AND
+    records the "salary_band" phantom, so a posting/campaign can never advertise
+    the market estimate as the employer's stated salary."""
+
+    def test_stated_band_is_honored_and_not_defaulted(self) -> None:
+        raw = {**SE_JUNIOR, "salary_min": 65000, "salary_max": 85000}
+        job = normalize_job(raw)
+        self.assertEqual(job.salary_band, [65000, 85000])
+        self.assertNotIn("salary_band", job.defaulted_fields)
+
+    def test_stated_band_rounds_to_the_shared_money_step(self) -> None:
+        # The shared salary_band invariant applies: never spuriously precise.
+        raw = {**SE_JUNIOR, "salary_min": 47300, "salary_max": 61800}
+        job = normalize_job(raw)
+        self.assertEqual(job.salary_band, [45000, 60000])
+        self.assertNotIn("salary_band", job.defaulted_fields)
+
+    def test_no_stated_salary_anchors_and_records_the_phantom(self) -> None:
+        # SE_JUNIOR states no pay → anchor band, flagged as a phantom default.
+        job = normalize_job(SE_JUNIOR)
+        self.assertEqual(job.salary_band, [45000, 70000])  # SE junior anchor band
+        self.assertIn("salary_band", job.defaulted_fields)
+
+    def test_garbage_stated_band_falls_back_to_the_anchor(self) -> None:
+        # Non-positive figures form no usable band → anchor + phantom provenance.
+        raw = {**SE_JUNIOR, "salary_min": -1, "salary_max": 0}
+        job = normalize_job(raw)
+        self.assertEqual(job.salary_band, [45000, 70000])
+        self.assertIn("salary_band", job.defaulted_fields)
+
+    def test_half_stated_band_falls_back_to_the_anchor(self) -> None:
+        # A lone figure ("od 65 000") is not a usable band — keep the anchor
+        # rather than fabricating a min==max range the ad never stated.
+        raw = {**SE_JUNIOR, "salary_min": 65000, "salary_max": None}
+        job = normalize_job(raw)
+        self.assertEqual(job.salary_band, [45000, 70000])
+        self.assertIn("salary_band", job.defaulted_fields)
 
 
 class EntryProfileTest(unittest.TestCase):
@@ -290,6 +337,16 @@ class IngestTest(unittest.TestCase):
     def test_ingest_empty_rejected(self) -> None:
         with self.assertRaises(ValueError):
             ingest_raw_ad("  ", provider=FakeProvider(SE_JUNIOR))
+
+    def test_ingest_asks_for_and_honors_stated_salary(self) -> None:
+        # The extraction prompt must carry the salary keys (or stated pay is
+        # discarded before normalize_job ever sees it), and a stated range must
+        # land on the Job unflagged.
+        provider = FakeProvider({**SE_JUNIOR, "salary_min": 65000, "salary_max": 85000})
+        job = ingest_raw_ad("Nabízíme 65 000–85 000 Kč/měsíc...", provider=provider)
+        self.assertIn('"salary_min"', provider.seen_prompt or "")
+        self.assertEqual(job.salary_band, [65000, 85000])
+        self.assertNotIn("salary_band", job.defaulted_fields)
 
 
 if __name__ == "__main__":
