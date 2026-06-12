@@ -18,6 +18,7 @@ type Decision = {
   rationale: string;
   reasonCode?: string;
   reasonParams?: Record<string, string | number>;
+  commsFailed?: boolean;
 };
 type WaveResult = { decisions: Decision[]; rejected: number; kept: number; cohort: number; commsFailures: number; dryRun: boolean };
 
@@ -130,6 +131,51 @@ export function ScreenWaveModal({
     return t.has(key) ? t(key, p as Record<string, string | number>) : d.rationale;
   };
 
+  // The decision lists render in BOTH branches: the commit can legitimately
+  // differ from the approved preview (CAS skips, per-candidate comms failures),
+  // and those deltas must be visible at the exact moment the action became
+  // irreversible — not only via the Analytics Decision Log. reasonText already
+  // picks did/would phrasing from the run's dryRun flag.
+  const rejectsSection =
+    rejects.length > 0 ? (
+      <section>
+        <p className="text-meta uppercase tracking-wide text-coral">
+          {committed ? t("rejectedHeading", { count: rejects.length }) : t("wouldRejectHeading")}
+        </p>
+        <ul className="mt-1.5 space-y-1">
+          {rejects.map((d) => (
+            <li key={d.entryId} className="rounded-md border border-coral/30 bg-coral/5 px-2.5 py-1.5 text-sm">
+              <span className="font-medium text-ink">{d.label}</span>{" "}
+              <span className="nums text-steel">{t("matchSuffix", { score: d.matchScore })}</span>
+              {d.commsFailed ? (
+                <span className="ml-1.5 inline-flex items-center gap-1 rounded-full bg-amber-50 px-1.5 py-0.5 text-meta font-semibold text-amber-700">
+                  <AlertTriangle size={10} aria-hidden /> {t("commsFailedBadge")}
+                </span>
+              ) : null}
+              <span className="mt-0.5 block text-meta text-steel">{reasonText(d)}</span>
+            </li>
+          ))}
+        </ul>
+      </section>
+    ) : null;
+
+  const keepsSection =
+    keeps.length > 0 ? (
+      <section>
+        <p className="text-meta uppercase tracking-wide text-steel">{t("keptHeading", { count: keeps.length })}</p>
+        <ul className="mt-1.5 space-y-1">
+          {keeps.map((d) => (
+            <li key={d.entryId} className="flex items-baseline justify-between gap-2 px-2.5 py-1 text-sm">
+              <span className="text-ink">
+                {d.label} <span className="nums text-steel">· {d.matchScore}</span>
+              </span>
+              <span className="shrink-0 text-meta text-steel">{reasonText(d)}</span>
+            </li>
+          ))}
+        </ul>
+      </section>
+    ) : null;
+
   return (
     <Modal
       title={t("title", { role: roleTitle })}
@@ -172,6 +218,8 @@ export function ScreenWaveModal({
               <span className="text-amber-700"> {t("commsFailures", { count: committed.commsFailures })}</span>
             ) : null}
           </p>
+          {rejectsSection}
+          {keepsSection}
         </div>
       ) : (
         <div className="space-y-4">
@@ -224,35 +272,8 @@ export function ScreenWaveModal({
             )}
           </p>
 
-          {rejects.length > 0 ? (
-            <section>
-              <p className="text-meta uppercase tracking-wide text-coral">{t("wouldRejectHeading")}</p>
-              <ul className="mt-1.5 space-y-1">
-                {rejects.map((d) => (
-                  <li key={d.entryId} className="rounded-md border border-coral/30 bg-coral/5 px-2.5 py-1.5 text-sm">
-                    <span className="font-medium text-ink">{d.label}</span> <span className="nums text-steel">{t("matchSuffix", { score: d.matchScore })}</span>
-                    <span className="mt-0.5 block text-meta text-steel">{reasonText(d)}</span>
-                  </li>
-                ))}
-              </ul>
-            </section>
-          ) : null}
-
-          {keeps.length > 0 ? (
-            <section>
-              <p className="text-meta uppercase tracking-wide text-steel">{t("keptHeading", { count: keeps.length })}</p>
-              <ul className="mt-1.5 space-y-1">
-                {keeps.map((d) => (
-                  <li key={d.entryId} className="flex items-baseline justify-between gap-2 px-2.5 py-1 text-sm">
-                    <span className="text-ink">
-                      {d.label} <span className="nums text-steel">· {d.matchScore}</span>
-                    </span>
-                    <span className="shrink-0 text-meta text-steel">{reasonText(d)}</span>
-                  </li>
-                ))}
-              </ul>
-            </section>
-          ) : null}
+          {rejectsSection}
+          {keepsSection}
         </div>
       )}
     </Modal>

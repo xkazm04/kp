@@ -27,6 +27,10 @@ export type ScreenDecision = {
   // audit risk). Falls back to `rationale` when a code is unmapped.
   reasonCode: ScreenReasonCode;
   reasonParams: Record<string, string | number>;
+  /** Set on a committed reject whose rejection email failed to queue — the
+   *  candidate is out of the funnel and needs a manual nudge (mirrors the
+   *  rejection_comms_failed audit event, but addressable per row in the UI). */
+  commsFailed?: boolean;
 };
 
 // The closed set of rationale shapes. Each maps to a `decisions.wave.reasons.*`
@@ -208,15 +212,19 @@ export async function runScreenWave(
       // half-applied with a bare 500 and no record of what had landed. Isolate
       // it per candidate: log it, surface it in the activity feed, count it for
       // the caller, and keep going.
+      let commsFailed = false;
       try {
         await dispatchRejection(updated, { automated: true }); // queued, never ghosts
       } catch (commsError) {
+        commsFailed = true;
         commsFailures += 1;
         const msg = commsError instanceof Error ? commsError.message : String(commsError);
         console.warn(`[screen-wave] rejection comms failed for ${e.candidateLabel} (${e.id}): ${msg}`);
         recordAutomationEvent(e.id, "rejection_comms_failed", `Auto-rejected, but the notification failed to queue — nudge manually. (${msg})`);
       }
-      decisions.push({ entryId: e.id, label: e.candidateLabel, archetype: e.archetype, matchScore: score, action: "reject", rationale, reasonCode: "reject", reasonParams });
+      // commsFailed rides the decision row so the committed view can badge WHO
+      // needs a manual nudge — the bare commsFailures count names nobody.
+      decisions.push({ entryId: e.id, label: e.candidateLabel, archetype: e.archetype, matchScore: score, action: "reject", rationale, reasonCode: "reject", reasonParams, ...(commsFailed ? { commsFailed } : {}) });
       rejected += 1;
     } else {
       const reason = keepReason(cfg, protectedFromAutoReject, knownArchetype, inBottom, tieSpared);

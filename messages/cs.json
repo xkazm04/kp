@@ -798,6 +798,8 @@
       "wouldReject": "Zamítl by <b>{rejected}</b> z {cohort}",
       "keptCount": "{count} ponecháno",
       "wouldRejectHeading": "Zamítl by",
+      "rejectedHeading": "{count, plural, one {Zamítnuto (#)} few {Zamítnuto (#)} other {Zamítnuto (#)}}",
+      "commsFailedBadge": "oznámení selhalo — kontaktujte ručně",
       "matchSuffix": "· shoda {score}",
       "keptHeading": "Ponecháno ({count})",
       "reasons": {

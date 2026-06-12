@@ -798,6 +798,8 @@
       "wouldReject": "Would reject <b>{rejected}</b> of {cohort}",
       "keptCount": "{count} kept",
       "wouldRejectHeading": "Would reject",
+      "rejectedHeading": "{count, plural, one {Rejected (#)} other {Rejected (#)}}",
+      "commsFailedBadge": "notification failed — nudge manually",
       "matchSuffix": "· match {score}",
       "keptHeading": "Kept ({count})",
       "reasons": {
