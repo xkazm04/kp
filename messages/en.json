@@ -1613,7 +1613,9 @@
       "intro": "Every candidate-facing message the pipeline sent — acknowledgements, outreach, interview invites, rejections, offers. Expand a row to read the full letter; failed sends can be re-delivered.",
       "empty": "No messages sent yet — they'll appear here as candidates move through the funnel.",
       "loadFailed": "Couldn't load communications.",
-      "loading": "Loading communications"
+      "loading": "Loading communications",
+      "recovered": "recovered",
+      "recoveredAt": "resent {time}"
     },
     "eyebrow": "Workspace",
     "title": "Channels & integrations",

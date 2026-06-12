@@ -1613,7 +1613,9 @@
       "intro": "Každá zpráva kandidátům, kterou pipeline odeslala — potvrzení, oslovení, pozvánky na pohovor, zamítnutí, nabídky. Rozbalením řádku zobrazíte celý dopis; neodeslané lze doručit znovu.",
       "empty": "Zatím žádné zprávy — objeví se zde, jak budou kandidáti procházet náborem.",
       "loadFailed": "Komunikaci se nepodařilo načíst.",
-      "loading": "Načítání komunikace"
+      "loading": "Načítání komunikace",
+      "recovered": "obnoveno",
+      "recoveredAt": "znovu odesláno {time}"
     },
     "eyebrow": "Pracovní prostor",
     "title": "Kanály a integrace",

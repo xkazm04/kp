@@ -5,6 +5,7 @@ import { AlertTriangle, MailOpen } from "lucide-react";
 import { useTranslations } from "next-intl";
 import type { OutboxStatus } from "@/app/_lib/comms-status";
 import { ResendButton } from "@/app/features/sub_dev/OutboxSection";
+import { useLiveRefresh } from "@/app/features/live-refresh";
 
 type Message = {
   id: string;
@@ -16,6 +17,10 @@ type Message = {
   status: OutboxStatus;
   ref: string | null;
   createdAt: string;
+  /** Server-derived: a NEWER same-(ref,kind) row reached sent/queued, so this
+   *  dead-letter is no longer actionable (the failed row stays as audit). */
+  recovered?: boolean;
+  recoveredAt?: string | null;
 };
 type RefInfo = { label: string; jobTitle: string | null };
 
@@ -55,6 +60,9 @@ export function CommsCenter() {
   useEffect(() => {
     load();
   }, [load]);
+  // Sim/automation comms and Dev-tab resends arrive without a remount — follow
+  // the rest of the tab (ChannelsTab) onto the shared data-changed channel.
+  useLiveRefresh(load);
 
   if (error) {
     return (
@@ -67,12 +75,16 @@ export function CommsCenter() {
     return <div role="status" aria-label={t("loading")} className="h-24 animate-pulse rounded-lg bg-stone-100" />;
   }
 
-  const failedCount = messages.filter((m) => m.status === "failed").length;
+  // A recovered dead-letter (successful resend exists) is audit, not an alarm:
+  // it leaves the count, the pin and the failed-only filter, so the badge again
+  // answers "is anything STILL broken?".
+  const isActionable = (m: Message) => m.status === "failed" && !m.recovered;
+  const failedCount = messages.filter(isActionable).length;
   // Dead letters first (they need action), then newest-first within each group.
   const sorted = [...messages].sort((a, b) =>
-    a.status === "failed" && b.status !== "failed" ? -1 : b.status === "failed" && a.status !== "failed" ? 1 : 0
+    isActionable(a) && !isActionable(b) ? -1 : isActionable(b) && !isActionable(a) ? 1 : 0
   );
-  const visible = failedOnly ? sorted.filter((m) => m.status === "failed") : sorted;
+  const visible = failedOnly ? sorted.filter(isActionable) : sorted;
 
   return (
     <div className="rounded-lg border border-stone-200 bg-white p-4 shadow-panel">
@@ -105,7 +117,7 @@ export function CommsCenter() {
           {visible.slice(0, 60).map((m) => {
             const who = m.ref ? refs[m.ref] : undefined;
             return (
-              <li key={m.id} className={`rounded-md border px-3 py-1.5 ${m.status === "failed" ? "border-red-200 bg-red-50/50" : "border-stone-100 bg-paper/40"}`}>
+              <li key={m.id} className={`rounded-md border px-3 py-1.5 ${isActionable(m) ? "border-red-200 bg-red-50/50" : "border-stone-100 bg-paper/40"}`}>
                 <details>
                   <summary className="focus-ring flex cursor-pointer flex-wrap items-center gap-x-2 gap-y-1 text-sm">
                     <span className="font-semibold text-ink">{who?.label ?? m.recipient ?? "—"}</span>
@@ -113,12 +125,26 @@ export function CommsCenter() {
                     <span className="rounded-full bg-stone-100 px-1.5 py-0.5 text-xs font-semibold uppercase text-steel">
                       {(m.kind ?? "").replace(/_/g, " ")}
                     </span>
-                    <span className={`rounded-full px-1.5 py-0.5 text-xs font-semibold uppercase ${STATUS_STYLE[m.status]}`}>
-                      {m.status === "queued" ? (m.channel ?? m.status) : m.status}
-                    </span>
+                    {m.status === "failed" && m.recovered ? (
+                      <span className="rounded-full bg-moss/10 px-1.5 py-0.5 text-xs font-semibold uppercase text-moss">
+                        {t("recovered")}
+                      </span>
+                    ) : (
+                      <span className={`rounded-full px-1.5 py-0.5 text-xs font-semibold uppercase ${STATUS_STYLE[m.status]}`}>
+                        {m.status === "queued" ? (m.channel ?? m.status) : m.status}
+                      </span>
+                    )}
                     <span className="ml-auto flex items-center gap-2">
                       <span className="text-xs text-steel">{new Date(m.createdAt).toLocaleString()}</span>
-                      {m.status === "failed" ? <ResendButton id={m.id} onResent={load} compact /> : null}
+                      {m.status === "failed" ? (
+                        m.recovered ? (
+                          <span className="text-xs text-moss">
+                            {t("recoveredAt", { time: m.recoveredAt ? new Date(m.recoveredAt).toLocaleString() : "—" })}
+                          </span>
+                        ) : (
+                          <ResendButton id={m.id} onResent={load} compact />
+                        )
+                      ) : null}
                     </span>
                   </summary>
                   <div className="mt-1.5 border-t border-stone-100 pt-1.5 text-sm">
