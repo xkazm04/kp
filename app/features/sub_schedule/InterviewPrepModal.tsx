@@ -56,8 +56,9 @@ export function InterviewPrepModal({ entry, onClose }: { entry: SchedEntry; onCl
   // disclosed below with a prompt to regenerate (idea-0864adb5).
   const fallback = prep ? isPrepFallback(prep.source) : false;
 
-  // Restore the interviewer's saved progress once, from the loaded artifact (never from a
-  // fresh generation — that has none). Derived DURING render — the React-recommended "adjust
+  // Restore the interviewer's saved progress once, from the loaded artifact (a completed
+  // generation seeds its own carried-forward copy in the task-completion block below).
+  // Derived DURING render — the React-recommended "adjust
   // state when an input changes" pattern (You Might Not Need an Effect) — rather than in an
   // effect, so it doesn't trip react-hooks/set-state-in-effect. The `hydrated` flag makes it
   // run exactly once the GET resolves; React applies these sets before the browser paints.
@@ -121,20 +122,30 @@ export function InterviewPrepModal({ entry, onClose }: { entry: SchedEntry; onCl
   // instead of an effect round-trip.
   const { status: genStatus, full: genFull } = useTaskResult(taskId);
   if (taskId && genStatus === "succeeded" && genFull) {
-    setGenerated((genFull.result as Prep) ?? null);
+    const result = (genFull.result as Prep) ?? null;
+    setGenerated(result);
     setTaskId(null);
+    // The task carries userProgress/interviewer forward across a regeneration
+    // (interview-prep-run.ts), so seed the editable state from the result — it IS
+    // the server's current copy. Leaving the cleared/old state here would let the
+    // next debounce PUT overwrite the carried-forward progress wholesale. dirtyRef
+    // stays false: this is hydration, not a user edit, and must not echo back.
+    const up = result?.userProgress;
+    setChecked(up?.checked ?? {});
+    setNotes(typeof up?.notes === "string" ? up.notes : "");
+    setInterviewer(typeof result?.interviewer === "string" ? result.interviewer : "");
+    dirtyRef.current = false;
   } else if (taskId && (genStatus === "failed" || genStatus === "canceled" || genStatus === "interrupted")) {
     setTaskId(null);
   }
 
   const generate = async () => {
-    // A regeneration replaces the plan (the task re-saves the artifact with no
-    // userProgress), so clear the interviewer's working state and suppress a
-    // stale save of it; `hydrated` stays true so the cleared state isn't
-    // re-hydrated from the now-stale GET.
-    setChecked({});
-    setNotes("");
-    setInterviewer("");
+    // A regeneration replaces the plan but PRESERVES the interviewer's working
+    // state: the task carries userProgress/interviewer/humanScorecard forward onto
+    // the rebuilt artifact (interview-prep-run.ts), and the completion block above
+    // re-seeds from the result. dirtyRef=false suppresses an echo-save of the
+    // untouched state; `hydrated` stays true so a late-resolving (now-stale) GET
+    // can't write over it mid-generation.
     dirtyRef.current = false;
     setHydrated(true);
     const started = await startTask("interview_prep", { entryId: entry.id, candidateLabel: entry.candidateLabel, jobTitle: entry.jobTitle, lang: locale });
@@ -405,8 +416,9 @@ export function InterviewPrepModal({ entry, onClose }: { entry: SchedEntry; onCl
 
           {/* Human scorecard (PREP1): fill the role's rubric live and save it
               against this candidate — the human counterpart to the AI voice-screen
-              scorecard. Hydrated from the saved artifact (not a fresh regenerate). */}
-          <HumanScorecardPanel entryId={entry.id} archetype={entry.archetype} initial={data?.prep?.payload?.humanScorecard} />
+              scorecard. Hydrated from the freshest payload: a regenerated result
+              carries the saved scorecard forward, so never read the stale GET. */}
+          <HumanScorecardPanel entryId={entry.id} archetype={entry.archetype} initial={prep.humanScorecard} />
         </div>
       )}
     </Modal>
