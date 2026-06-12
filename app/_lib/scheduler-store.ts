@@ -57,14 +57,28 @@ function db(): Database.Database {
   } catch {
     /* column already exists */
   }
+  // AUTO1 — autonomy level for the policy pass's one irreversible, candidate-
+  // visible action. NULL (pre-column rows and fresh installs) reads as
+  // "approve": the clock computes rejects but queues them on the Decisions
+  // gate; a recruiter opts INTO fully autonomous rejections, never out.
+  try {
+    d.exec(`ALTER TABLE scheduler ADD COLUMN reject_mode TEXT`);
+  } catch {
+    /* column already exists */
+  }
   _db = d;
   return d;
 }
+
+export type RejectMode = "auto" | "approve";
 
 export type Schedule = {
   name: string;
   enabled: boolean;
   intervalMinutes: number;
+  /** AUTO1 — "approve" (default): the pass queues rejects as rejection_review
+   *  approvals; "auto": rejects apply + email unattended (opt-in). */
+  rejectMode: RejectMode;
   lastRunAt: string | null;
   nextDueAt: string | null;
   lastSummary: unknown;
@@ -82,6 +96,7 @@ function rowToSchedule(r: Record<string, unknown>): Schedule {
     name: r.name as string,
     enabled: Boolean(r.enabled),
     intervalMinutes: r.interval_minutes as number,
+    rejectMode: r.reject_mode === "auto" ? "auto" : "approve",
     lastRunAt: (r.last_run_at as string) ?? null,
     nextDueAt: (r.next_due_at as string) ?? null,
     lastSummary,
@@ -132,6 +147,17 @@ export function setEnabled(name: string, enabled: boolean): Schedule {
     enabled ? 1 : 0,
     enabled ? now : null,
     now,
+    name
+  );
+  return getSchedule(name);
+}
+
+export function setRejectMode(name: string, mode: RejectMode): Schedule {
+  const d = db();
+  ensureSchedule(name);
+  d.prepare(`UPDATE scheduler SET reject_mode = ?, updated_at = ? WHERE name = ?`).run(
+    mode === "auto" ? "auto" : "approve",
+    new Date().toISOString(),
     name
   );
   return getSchedule(name);

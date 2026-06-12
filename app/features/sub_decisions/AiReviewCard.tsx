@@ -22,10 +22,22 @@ export function AiReviewCard({ entry, onAccept, onReject }: { entry: Entry; onAc
   const kind = entry.approvalKind;
   const isScorecard = kind === "scorecard_review";
   const isOffer = kind === "offer_review";
+  // AUTO1 — a supervised-clock reject queued for ratification. Same screening
+  // payload shape; the tag names what clicking Reject actually does (apply +
+  // email the rejection) so the reviewer knows this card IS the adverse action.
+  const isQueuedReject = kind === "rejection_review";
   // DEC1 — a human-conducted interview's scorecard reaches this queue too; the
   // tag names the source so the reviewer knows whose judgment they're ratifying.
   const isHumanScorecard = isScorecard && parsed?.source === "human";
-  const tag = isOffer ? t("tagOffer") : isHumanScorecard ? t("tagHumanScorecard") : isScorecard ? t("tagScorecard") : t("tagScreening");
+  const tag = isOffer
+    ? t("tagOffer")
+    : isQueuedReject
+      ? t("tagQueuedReject")
+      : isHumanScorecard
+        ? t("tagHumanScorecard")
+        : isScorecard
+          ? t("tagScorecard")
+          : t("tagScreening");
   const acceptLabel = isOffer ? t("acceptSendOffer") : isScorecard ? t("acceptToOffer") : t("acceptAdvance");
 
   return (

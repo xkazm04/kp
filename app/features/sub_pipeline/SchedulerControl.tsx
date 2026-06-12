@@ -26,6 +26,9 @@ type SchedulerRun = {
 type Schedule = {
   enabled: boolean;
   intervalMinutes: number;
+  // AUTO1 — "approve" queues clock rejects on the Decisions gate; "auto" is the
+  // opt-in fully autonomous posture.
+  rejectMode?: "auto" | "approve";
   lastRunAt: string | null;
   lastSummary: Summary | null;
 };
@@ -196,7 +199,7 @@ export function SchedulerControl({
     return () => clearTimeout(h);
   }, [result]);
 
-  const update = async (body: { enabled?: boolean; intervalMinutes?: number; tick?: boolean; remindersEnabled?: boolean }) => {
+  const update = async (body: { enabled?: boolean; intervalMinutes?: number; tick?: boolean; remindersEnabled?: boolean; rejectMode?: "auto" | "approve" }) => {
     if (inFlightRef.current) return; // a concurrent schedule op is already running
     inFlightRef.current = true;
     setBusy(true);
@@ -310,6 +313,21 @@ export function SchedulerControl({
           className="focus-ring w-14 rounded border border-stone-200 px-1 py-0.5 text-center nums"
         />
         {t("min")}
+      </label>
+      {/* AUTO1 — the autonomy rung for rejections: supervised (queue for a human
+          click on the Decisions gate) vs autonomous (apply + email unattended).
+          Advances/holds stay autonomous either way. */}
+      <label className="flex items-center gap-1" title={t("rejectModeTitle")}>
+        {t("rejectModeLabel")}
+        <select
+          value={sched.rejectMode ?? "approve"}
+          disabled={busy}
+          onChange={(e) => update({ rejectMode: e.target.value === "auto" ? "auto" : "approve" })}
+          className="focus-ring rounded border border-stone-200 bg-white px-1 py-0.5"
+        >
+          <option value="approve">{t("rejectModeApprove")}</option>
+          <option value="auto">{t("rejectModeAuto")}</option>
+        </select>
       </label>
       {sched.lastRunAt ? (
         <span className="inline-flex flex-wrap items-center gap-x-2 gap-y-1">

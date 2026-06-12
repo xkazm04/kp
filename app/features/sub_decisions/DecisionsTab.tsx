@@ -62,7 +62,11 @@ export function DecisionsTab() {
   const pending = (entries ?? []).filter((e) => e.approvalKind && e.status === "active");
   const keyDecisions = pending.filter((e) => e.approvalKind === "decision");
   const aiReviews = pending.filter(
-    (e) => e.approvalKind === "screening_review" || e.approvalKind === "scorecard_review" || e.approvalKind === "offer_review"
+    (e) =>
+      e.approvalKind === "screening_review" ||
+      e.approvalKind === "scorecard_review" ||
+      e.approvalKind === "rejection_review" ||
+      e.approvalKind === "offer_review"
   );
 
   // Distinct roles (opened JDs) with pending decisions, for the filter dropdown.

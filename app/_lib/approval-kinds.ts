@@ -10,6 +10,7 @@ export const APPROVAL_KINDS = [
   "decision",
   "screening_review",
   "scorecard_review",
+  "rejection_review",
   "offer_review",
   "calendar",
 ] as const;
@@ -43,6 +44,11 @@ export const APPROVAL_KIND_META: Record<ApprovalKind, ApprovalKindMeta> = {
     label: "Interview scorecard review",
     surfacedBy: "Decisions tab — AI recommendations / Schedule tab once a transcript exists",
     resolvedBy: "accept/reject via actOnPipelineEntry after the interview",
+  },
+  rejection_review: {
+    label: "Queued auto-reject (supervised clock)",
+    surfacedBy: "Decisions tab — AI recommendations; raised by the policy pass when reject_mode='approve' (AUTO1)",
+    resolvedBy: "reject ratifies (human route sends the rejection email); accept overrules and advances",
   },
   offer_review: {
     label: "Offer review",

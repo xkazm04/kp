@@ -6,9 +6,11 @@ import {
   hasEventToday,
   listActiveEntriesForAutomation,
   recordAutomationEvent,
+  setApproval,
   setEntryMatchScore,
   type AutomationEntry,
 } from "./db";
+import { getSchedule, POLICY_JOB } from "./scheduler-store";
 import { resolveCandidatePoolEntry } from "./candidate-pool";
 import { cleanupWorkdir, createWorkdir, parsePythonJson, parseStderrError, spawnPython } from "./python-runner";
 import { dispatchRejection } from "./comms-dispatch";
@@ -219,6 +221,13 @@ async function executeAutomationPass(dryRun: boolean): Promise<AutomationPassRes
       return { summary, decisions };
     }
 
+    // AUTO1 — the autonomy rung for the one irreversible, candidate-visible
+    // action. In "approve" (the default) the pass computes each reject but
+    // queues it on the Decisions gate instead of applying + emailing; only an
+    // explicit opt-in to "auto" makes rejections fully unattended. Advances,
+    // holds and alerts stay autonomous in both modes.
+    const rejectMode = getSchedule(POLICY_JOB).rejectMode;
+
     for (const d of decisions) {
       if (!d.entryId) continue;
       // One decision's apply failing (a comm throw from dispatchRejection, a
@@ -248,7 +257,26 @@ async function executeAutomationPass(dryRun: boolean): Promise<AutomationPassRes
         // emitted a reject for a protected/unscored/at-or-above-floor entry, REFUSE
         // it — downgrade to a hold + alert rather than silently auto-rejecting.
         const verdict = assertAutoRejectFair(byId.get(d.entryId));
-        if (verdict.allowed) {
+        if (verdict.allowed && rejectMode === "approve") {
+          // Supervised mode: queue the fairness-cleared reject for a human click.
+          // The payload uses the screening-review shape AiReviewCard already
+          // renders; evaluate_entry freezes entries with a pending approval, so
+          // the queued candidate can't be re-decided on the next tick. The
+          // recruiter's Reject resolves it through the human route (correct
+          // attribution + the rejection email still goes out there).
+          setApproval(
+            d.entryId,
+            "rejection_review",
+            JSON.stringify({
+              recommendation: "reject",
+              confidence: byId.get(d.entryId)?.matchScore ?? null,
+              rationale: d.reason,
+            })
+          );
+          d.outcome = "queued";
+          d.reason = `Queued for approval: ${d.reason}`;
+          summary.held += 1; // routed to the human Decisions gate, not actioned
+        } else if (verdict.allowed) {
           const rejected = actOnPipelineEntry(d.entryId, "reject", d.reason, { expectedStage: snapshotStage, actor: "system" }); // logs `auto_rejected`
           if (rejected) {
             // The DB transition is committed — count it BEFORE the comm hop, so a

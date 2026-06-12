@@ -669,6 +669,10 @@
       "trigger": { "clock": "hodiny", "manual": "ručně" },
       "runEvaluated": "{n} vyhodnoceno",
       "runNoActions": "Žádné akce — všichni kandidáti pozdrženi nebo beze změny.",
+      "rejectModeLabel": "Zamítnutí",
+      "rejectModeApprove": "pod dohledem — do fronty ke schválení",
+      "rejectModeAuto": "autonomně — provést a oznámit",
+      "rejectModeTitle": "Pod dohledem zařadí každé zamítnutí spočtené hodinami do fronty Rozhodnutí ke schválení člověkem; autonomně ho provede a odešle e-mail bez dohledu. Posuny a pozdržení zůstávají automatické v obou režimech.",
       "outcome": {
         "applied": "provedeno",
         "failed": "selhalo",
@@ -748,6 +752,7 @@
       "tagScorecard": "Hodnoticí karta z pohovoru",
       "tagHumanScorecard": "Hodnoticí karta z pohovoru (člověk)",
       "tagScreening": "Prověření AI",
+      "tagQueuedReject": "Zamítnutí ve frontě — potvrzením se kandidát dozví výsledek",
       "acceptSendOffer": "Odeslat nabídku",
       "acceptToOffer": "K nabídce",
       "acceptAdvance": "Postoupit",

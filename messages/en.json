@@ -669,6 +669,10 @@
       "trigger": { "clock": "clock", "manual": "manual" },
       "runEvaluated": "{n} evaluated",
       "runNoActions": "No actions — every candidate held or unchanged.",
+      "rejectModeLabel": "Rejections",
+      "rejectModeApprove": "supervised — queue for approval",
+      "rejectModeAuto": "autonomous — apply & notify",
+      "rejectModeTitle": "Supervised queues each clock-computed rejection on the Decisions gate for a human click; autonomous applies and emails it unattended. Advances and holds stay automatic either way.",
       "outcome": {
         "applied": "applied",
         "failed": "failed",
@@ -748,6 +752,7 @@
       "tagScorecard": "Interview scorecard",
       "tagHumanScorecard": "Human interview scorecard",
       "tagScreening": "AI screening",
+      "tagQueuedReject": "Queued auto-reject — rejecting notifies the candidate",
       "acceptSendOffer": "Send offer",
       "acceptToOffer": "To offer",
       "acceptAdvance": "Advance",

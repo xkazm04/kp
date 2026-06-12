@@ -7,6 +7,7 @@ import {
   listRuns,
   setEnabled,
   setIntervalMinutes,
+  setRejectMode,
 } from "@/app/_lib/scheduler-store";
 import { tickScheduler } from "@/app/_lib/scheduler";
 
@@ -37,12 +38,20 @@ export async function POST(request: NextRequest) {
       tick?: boolean;
       // AUTO6 — pause/resume candidate reminder sends (the job defaults ON).
       remindersEnabled?: boolean;
+      // AUTO1 — autonomy level for clock rejections (approve = queue for a human).
+      rejectMode?: string;
     };
     if (body.intervalMinutes !== undefined && !Number.isFinite(body.intervalMinutes)) {
       return NextResponse.json({ error: "intervalMinutes must be a finite number." }, { status: 400 });
     }
     if (typeof body.intervalMinutes === "number") setIntervalMinutes(POLICY_JOB, body.intervalMinutes);
     if (typeof body.enabled === "boolean") setEnabled(POLICY_JOB, body.enabled);
+    if (body.rejectMode !== undefined) {
+      if (body.rejectMode !== "auto" && body.rejectMode !== "approve") {
+        return NextResponse.json({ error: "rejectMode must be 'auto' or 'approve'." }, { status: 400 });
+      }
+      setRejectMode(POLICY_JOB, body.rejectMode);
+    }
     if (typeof body.remindersEnabled === "boolean") {
       ensureReminderJob(); // row exists with the right defaults before toggling
       setEnabled(REMINDERS_JOB, body.remindersEnabled);
