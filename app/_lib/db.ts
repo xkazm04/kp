@@ -2044,9 +2044,14 @@ export type PipelineAnalytics = {
   avgTimeToHireDays: number | null;
   avgAgeDays: number | null;
   bottleneck: Bottleneck | null;
-  byJob: { jobTitle: string; total: number; reachedInterview: number; hired: number; hireRatePct: number }[];
+  byJob: { jobTitle: string; total: number; reachedInterview: number; hired: number; hireRatePct: number; koDeclined: number }[];
   // Distinct job count before the byJob cap, so the UI can show "top N of M".
   byJobTotal: number;
+  // E2/ANA — applicants turned away at the eligibility (KO) gate BEFORE any
+  // pipeline entry existed. Counted from the entry-less ko_declined events the
+  // intake gate has always audited; without this the top-of-funnel loss was
+  // recorded but invisible everywhere.
+  koDeclined: number;
   byArchetype: { archetype: string; total: number; hired: number; advanceRatePct: number }[];
   // ANA2 — the window actually applied (null = all time), echoed so the client
   // renders the selector state from the server's answer, not its own request.
@@ -2181,6 +2186,23 @@ export function pipelineAnalytics(windowDays?: number | null): PipelineAnalytics
     if (r.stage === "Hired") m.hired += 1;
     jobMap.set(key, m);
   }
+  // KO discards are entry-less events (recordKnockoutDecline) — the windowed
+  // count is the funnel's invisible top-of-funnel loss. Grouped by job_title so
+  // the role table can answer "how many applicants did this role's ad turn away
+  // at eligibility?"; a role with KO discards but no entries still gets a row.
+  const koRows = (
+    cutoffIso
+      ? db
+          .prepare(`SELECT job_title, COUNT(*) AS n FROM pipeline_events WHERE kind='ko_declined' AND created_at >= ? GROUP BY job_title`)
+          .all(cutoffIso)
+      : db.prepare(`SELECT job_title, COUNT(*) AS n FROM pipeline_events WHERE kind='ko_declined' GROUP BY job_title`).all()
+  ) as { job_title: string | null; n: number }[];
+  const koByJob = new Map(koRows.map((r) => [r.job_title ?? "—", r.n]));
+  const koDeclined = koRows.reduce((s, r) => s + r.n, 0);
+  for (const jobTitle of koByJob.keys()) {
+    if (!jobMap.has(jobTitle)) jobMap.set(jobTitle, { total: 0, reachedInterview: 0, hired: 0 });
+  }
+
   // Cap the role table to the highest-volume jobs, but report the true distinct-job
   // count alongside it so the UI can say "top N of M" — a silently truncated table
   // would otherwise read as "these are all my roles" for larger orgs.
@@ -2193,8 +2215,9 @@ export function pipelineAnalytics(windowDays?: number | null): PipelineAnalytics
       reachedInterview: m.reachedInterview,
       hired: m.hired,
       hireRatePct: m.total ? Math.round((m.hired / m.total) * 100) : 0,
+      koDeclined: koByJob.get(jobTitle) ?? 0,
     }))
-    .sort((a, b) => b.total - a.total)
+    .sort((a, b) => b.total - a.total || b.koDeclined - a.koDeclined)
     .slice(0, BY_JOB_CAP);
 
   const archMap = new Map<string, { total: number; hired: number; advanced: number }>();
@@ -2412,6 +2435,7 @@ export function pipelineAnalytics(windowDays?: number | null): PipelineAnalytics
     bottleneck,
     byJob,
     byJobTotal,
+    koDeclined,
     byArchetype,
     windowDays: windowDays ?? null,
     momentum,

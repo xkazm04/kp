@@ -30,6 +30,7 @@ test("the kinds the writers produce are all mapped (the drift this module exists
     "acknowledgement_sent", "comm_resent", "offer_drafted", "offer_sent",
     "offer_accepted", "offer_declined", "onboarding_started", "onboarding_failed",
     "rematched", "rematched_from", "fairness_gate_unknown_archetype", "observed_minted",
+    "ko_declined",
   ];
   for (const kind of written) {
     assert.ok(DECISION_META[kind], `${kind} is written but unmapped — add it to DECISION_META`);

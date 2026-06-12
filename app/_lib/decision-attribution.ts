@@ -37,6 +37,9 @@ export const DECISION_META: Record<string, DecisionMeta> = {
   onboarding_started: { auto: false, tone: "text-moss" },
   // Completed coverage (previously UNKNOWN in the log, invisible to any rollup):
   auto_rejected: { auto: true, tone: "text-coral" },
+  // Entry-less KO-gate discards (recordKnockoutDecline) — without a mapping each
+  // one rendered an UNKNOWN badge, fell out of the kind filter and the rollup.
+  ko_declined: { auto: true, tone: "text-coral" },
   scored: { auto: true, tone: "text-steel" },
   acknowledgement_sent: { auto: true, tone: "text-steel" },
   interview_invite_sent: { auto: true, tone: "text-steel" },

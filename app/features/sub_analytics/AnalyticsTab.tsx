@@ -28,8 +28,9 @@ type Analytics = {
   avgTimeToHireDays: number | null;
   avgAgeDays: number | null;
   bottleneck: { stage: string; avgDaysInStage: number; entryCount: number } | null;
-  byJob: { jobTitle: string; total: number; reachedInterview: number; hired: number; hireRatePct: number }[];
+  byJob: { jobTitle: string; total: number; reachedInterview: number; hired: number; hireRatePct: number; koDeclined: number }[];
   byJobTotal: number;
+  koDeclined: number;
   byArchetype: { archetype: string; total: number; hired: number; advanceRatePct: number }[];
   windowDays: number | null;
   momentum: MomentumWeek[];
@@ -133,6 +134,12 @@ export function AnalyticsTab() {
             <h3 className="font-serif text-h2 text-ink">{t("funnel")}</h3>
             <p className="text-meta uppercase text-steel">{t("funnelLegend")}</p>
           </div>
+          {/* The loss BEFORE the funnel's first stage: KO-gate discards never
+              mint an entry, so without this line the ad that attracts mostly
+              ineligible applicants reads as a healthy low-volume channel. */}
+          {data.koDeclined > 0 ? (
+            <p className="mt-1 text-sm text-steel">{t("koDeclinedLine", { count: data.koDeclined })}</p>
+          ) : null}
           {data.total === 0 ? (
             <p className="mt-4 rounded-md bg-paper p-3 text-base text-steel">{t("funnelEmpty")}</p>
           ) : (
@@ -249,8 +256,8 @@ export function AnalyticsTab() {
                 downloadFile(
                   "kp-roles.csv",
                   toCsv([
-                    [t("colJob"), t("colInPipeline"), t("colReachedInterview"), t("colHired"), t("colHireRate")],
-                    ...data.byJob.map((j) => [j.jobTitle, j.total, j.reachedInterview, j.hired, `${j.hireRatePct}%`]),
+                    [t("colJob"), t("colKoDeclined"), t("colInPipeline"), t("colReachedInterview"), t("colHired"), t("colHireRate")],
+                    ...data.byJob.map((j) => [j.jobTitle, j.koDeclined, j.total, j.reachedInterview, j.hired, `${j.hireRatePct}%`]),
                   ]),
                   "text/csv"
                 )
@@ -266,6 +273,7 @@ export function AnalyticsTab() {
           <thead>
             <tr className="border-b border-stone-200 text-left text-meta uppercase text-steel">
               <th className="pb-2 font-semibold">{t("colJob")}</th>
+              <th className="pb-2 text-right font-semibold">{t("colKoDeclined")}</th>
               <th className="pb-2 text-right font-semibold">{t("colInPipeline")}</th>
               <th className="pb-2 text-right font-semibold">{t("colReachedInterview")}</th>
               <th className="pb-2 text-right font-semibold">{t("colHired")}</th>
@@ -286,6 +294,7 @@ export function AnalyticsTab() {
                     {j.jobTitle}
                   </Link>
                 </td>
+                <td className={`py-2 text-right ${j.koDeclined > 0 ? "text-coral" : "text-steel"}`}>{j.koDeclined}</td>
                 <td className="py-2 text-right text-steel">{j.total}</td>
                 <td className="py-2 text-right text-steel">{j.reachedInterview}</td>
                 <td className="py-2 text-right text-ink">{j.hired}</td>
@@ -294,7 +303,7 @@ export function AnalyticsTab() {
             ))}
             {data.byJob.length === 0 ? (
               <tr>
-                <td colSpan={5} className="py-3 text-steel">
+                <td colSpan={6} className="py-3 text-steel">
                   {t("noPipelineEntries")}
                 </td>
               </tr>
