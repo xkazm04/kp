@@ -55,6 +55,8 @@ const DevTab = dynamic(() => import("./sub_dev/DevTab").then((m) => ({ default: 
 const ProfileTab = dynamic(() => import("./sub_profile/ProfileTab").then((m) => ({ default: m.ProfileTab })), { loading });
 const InterviewSimTab = dynamic(() => import("./sub_interview/InterviewSimTab").then((m) => ({ default: m.InterviewSimTab })), { loading });
 const TasksTab = dynamic(() => import("./tasks/TasksTab").then((m) => ({ default: m.TasksTab })), { loading });
+const BillingTab = dynamic(() => import("./sub_billing/BillingTab").then((m) => ({ default: m.BillingTab })), { loading });
+const ModelsTab = dynamic(() => import("./sub_models/ModelsTab").then((m) => ({ default: m.ModelsTab })), { loading });
 
 export function Workspace() {
   const router = useRouter();
@@ -193,6 +195,8 @@ export function Workspace() {
               {navActive === "dev" ? <DevTab /> : null}
               {navActive === "about" ? <AboutTab /> : null}
               {navActive === "tasks" ? <TasksTab /> : null}
+              {navActive === "billing" ? <BillingTab /> : null}
+              {navActive === "models" ? <ModelsTab /> : null}
             </div>
           </ErrorBoundary>
         </div>

@@ -30,6 +30,8 @@ export const WORKSPACE_TAB_IDS = [
   // (TasksIndicator), not a deep-link target — so it's a valid tab id here but
   // intentionally absent from NAV_GROUPS below.
   "tasks",
+  "billing",
+  "models",
 ] as const;
 
 export type WorkspaceTabId = (typeof WORKSPACE_TAB_IDS)[number];
@@ -97,6 +99,16 @@ export const NAV_GROUPS: NavGroup[] = [
       { id: "analytics", label: "Analytics" },
       { id: "matrix", label: "Matrix" },
       { id: "about", label: "About" },
+    ],
+  },
+  {
+    // Workspace administration: subscription/usage (Billing) and the LLM
+    // provider routing + key store (Models).
+    label: "Settings",
+    key: "settings",
+    items: [
+      { id: "billing", label: "Billing" },
+      { id: "models", label: "Models" },
     ],
   },
 ];

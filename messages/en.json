@@ -338,13 +338,16 @@
       "dev": "Dev cases",
       "analytics": "Analytics",
       "matrix": "Matrix",
-      "about": "About"
+      "about": "About",
+      "billing": "Billing",
+      "models": "Models"
     },
     "groups": {
       "library": "Library",
       "tools": "Tools",
       "devExtension": "Dev extension",
-      "insights": "Insights"
+      "insights": "Insights",
+      "settings": "Settings"
     }
   },
   "enums": {
@@ -1160,7 +1163,10 @@
       "clearAll": "Clear all",
       "noRolesTitle": "No roles match these filters",
       "noRolesBody": "Try widening your search or clearing the filters.",
-      "clearAllFilters": "Clear all filters"
+      "clearAllFilters": "Clear all filters",
+      "noRolesEmptyTitle": "No roles yet",
+      "noRolesEmptyBody": "Roles start as job descriptions — write or generate one in the library, then ingest it as a job.",
+      "noRolesEmptyCta": "Open Job descriptions"
     },
     "table": {
       "caption": "Job corpus — normalized job postings filterable by role family, seniority, work mode, and entry-eligibility. Activate a row to expand its requirements and graduate lens.",
@@ -1635,6 +1641,7 @@
       "firstLeadMins": "first lead {mins} min after setup",
       "firstLeadHours": "first lead {hours} h after setup",
       "noJobs": "No roles available — ingest or publish a job first.",
+      "noJobsCta": "Create a job description",
       "createFailed": "Couldn't create the webhook.",
       "revokeFailed": "Couldn't revoke the webhook."
     },
@@ -1802,6 +1809,7 @@
     },
     "sourceLine": "{total} in · {interview} reached interview · {hired} hired",
     "noSourceData": "No origin data yet.",
+    "configureChannels": "Configure channels",
     "channels": {
       "title": "Channel economics",
       "intro": "Inbound channels with stored attribution (careers apply, quick apply, webhooks). Enter what you spent per channel to get cost per applicant and per hire.",
@@ -1914,6 +1922,7 @@
       "autoRejected": "Auto-rejections",
       "holds": "Holds raised → resolved",
       "holdsValue": "{raised} → {resolved}",
+      "reviewHolds": "Review pending holds in Decisions",
       "comms": "Comms delivered"
     }
   },
@@ -2085,5 +2094,158 @@
     "addVariant": "Add variant ({current}/{max})",
     "variantLimitReached": "Variant limit reached.",
     "selectCvFirst": "Select a CV or LinkedIn PDF export first."
+  },
+  "billing": {
+    "eyebrow": "Billing",
+    "title": "Plan & usage",
+    "intro": "Your subscription, what this period has used, and the plans you can move to.",
+    "loading": "Loading billing…",
+    "loadFailed": "Couldn't load billing — check the connection and try again.",
+    "retry": "Try again",
+    "notConfigured": "Billing isn't configured — running in local development mode. Purchases are disabled.",
+    "currentPlan": "Current plan",
+    "periodEnd": "Current period ends {date}",
+    "manage": "Manage subscription",
+    "manageOpening": "Opening…",
+    "noCustomerYet": "No billing customer yet — it's created with your first purchase.",
+    "portalFailed": "Couldn't open the billing portal.",
+    "status": {
+      "none": "No subscription",
+      "active": "Active",
+      "trialing": "Trial",
+      "past_due": "Past due",
+      "canceled": "Canceled"
+    },
+    "meters": {
+      "ai_candidates": "AI candidates",
+      "case_designs": "Case designs",
+      "interview_minutes": "Interview minutes"
+    },
+    "usage": {
+      "title": "Usage this period",
+      "intro": "Each meter resets with the billing period; pack credits top it up beyond the plan's allowance.",
+      "used": "{used} of {limit} used",
+      "usedUnlimited": "{used} used",
+      "unlimited": "Unlimited",
+      "depleted": "Quota exhausted",
+      "remaining": "{remaining} remaining",
+      "credits": "{credits, plural, one {+# pack credit} other {+# pack credits}}",
+      "empty": "No usage meters yet."
+    },
+    "plans": {
+      "title": "Plans",
+      "intro": "Upgrade or switch whenever you need more room — checkout opens the payment provider's secure page.",
+      "current": "Current plan",
+      "priceFree": "Free",
+      "approxUsd": "≈ {price}",
+      "perMonth": "per month",
+      "unlimited": "Unlimited",
+      "activeJobs": "Active jobs",
+      "cta": "Switch to this plan",
+      "redirecting": "Redirecting…",
+      "checkoutFailed": "Couldn't start checkout."
+    },
+    "pack": {
+      "title": "Interview minutes top-up",
+      "intro": "A one-off pack that adds credits on top of your plan's quota — available on every tier.",
+      "minutes": "{qty} minutes",
+      "buy": "Buy pack"
+    }
+  },
+  "models": {
+    "eyebrow": "Models",
+    "title": "Model routing & keys",
+    "intro": "Choose which provider and model serves each AI use case, and manage the API keys behind them.",
+    "loading": "Loading model settings…",
+    "loadFailed": "Couldn't load model settings — check the connection and try again.",
+    "retry": "Try again",
+    "routing": {
+      "title": "Routing",
+      "intro": "A pinned row overrides the built-in default for that use case; use cases without a pin run on the built-in default (Claude CLI in local development).",
+      "colUseCase": "Use case",
+      "colProvider": "Provider",
+      "colModel": "Model",
+      "colState": "State",
+      "colActions": "Actions",
+      "defaultRow": "Default for everything",
+      "defaultRowHint": "Every use case without its own pin inherits this row.",
+      "providerDefault": "Built-in default",
+      "providerAria": "Provider for {useCase}",
+      "modelPlaceholder": "provider default",
+      "modelAria": "Model for {useCase}",
+      "statePinned": "Pinned",
+      "stateDefault": "Default",
+      "save": "Save",
+      "saving": "Saving…",
+      "saveFailed": "Couldn't save the pin.",
+      "reset": "Reset",
+      "resetting": "Resetting…",
+      "resetTitle": "Remove the pin and revert to the built-in default",
+      "resetFailed": "Couldn't reset to the default.",
+      "test": "Test",
+      "testing": "Testing…",
+      "testOk": "OK — {provider} / {model} · {latency} ms",
+      "testOkNoLatency": "OK — {provider} / {model}",
+      "testFailed": "Test failed.",
+      "testUnavailable": "The test endpoint isn't available yet.",
+      "updated": "Updated {date}"
+    },
+    "useCases": {
+      "match_reasoning": "Match reasoning",
+      "automation": "Automation",
+      "campaign_pack": "Campaign pack",
+      "jd_ingest": "JD ingest",
+      "profile_draft": "Profile draft",
+      "group_compare": "Group compare",
+      "devcase_analyze": "Dev cases — analyze",
+      "devcase_role_design": "Dev cases — role design",
+      "devcase_case_design": "Dev cases — case design",
+      "devcase_reflect": "Dev cases — reflect",
+      "devcase_tooling": "Dev cases — tooling",
+      "devcase_evaluate": "Dev cases — evaluate",
+      "devcase_transfer": "Dev cases — transfer",
+      "devcase_judge": "Dev cases — judge",
+      "interview_scorecard": "Interview scorecard",
+      "github_analysis": "GitHub analysis",
+      "cv_analysis": "CV analysis",
+      "profile_extract": "Profile extraction"
+    },
+    "providers": {
+      "anthropic": "Anthropic",
+      "openai": "OpenAI",
+      "azure_openai": "Azure OpenAI",
+      "gemini": "Gemini",
+      "claude_cli": "Claude CLI"
+    },
+    "keys": {
+      "title": "API keys",
+      "intro": "Keys are stored encrypted and are never shown again after saving. BYOM keys take precedence over platform keys.",
+      "loading": "Loading keys…",
+      "loadFailed": "Couldn't load the keys — check the connection and try again.",
+      "retry": "Try again",
+      "empty": "No keys saved yet — the built-in default runs without one.",
+      "scopeByom": "BYOM (your key)",
+      "scopePlatform": "Platform",
+      "apiVersionValue": "API version {version}",
+      "updated": "Updated {date}",
+      "delete": "Delete key",
+      "deleteAria": "Delete the {provider} key ({scope})",
+      "deleteFailed": "Couldn't delete the key.",
+      "addTitle": "Add or replace a key",
+      "provider": "Provider",
+      "scope": "Scope",
+      "apiKey": "API key",
+      "apiKeyPlaceholder": "Paste the secret key",
+      "endpoint": "Endpoint",
+      "endpointPlaceholder": "https://your-resource.openai.azure.com",
+      "endpointRequired": "Azure OpenAI requires an endpoint.",
+      "apiVersion": "API version",
+      "apiVersionPlaceholder": "2024-06-01",
+      "save": "Save key",
+      "saving": "Saving…",
+      "saved": "Key saved.",
+      "saveFailed": "Couldn't save the key.",
+      "kpSecretHint": "Fix: set the KP_SECRET environment variable on the server, then save again."
+    }
   }
 }

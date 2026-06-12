@@ -338,13 +338,16 @@
       "dev": "Vývojové případy",
       "analytics": "Analytika",
       "matrix": "Matice",
-      "about": "O aplikaci"
+      "about": "O aplikaci",
+      "billing": "Fakturace",
+      "models": "Modely"
     },
     "groups": {
       "library": "Knihovna",
       "tools": "Nástroje",
       "devExtension": "Rozšíření pro vývoj",
-      "insights": "Přehledy"
+      "insights": "Přehledy",
+      "settings": "Nastavení"
     }
   },
   "enums": {
@@ -1160,7 +1163,10 @@
       "clearAll": "Vymazat vše",
       "noRolesTitle": "Žádné pozice neodpovídají těmto filtrům",
       "noRolesBody": "Zkuste rozšířit hledání nebo vymazat filtry.",
-      "clearAllFilters": "Vymazat všechny filtry"
+      "clearAllFilters": "Vymazat všechny filtry",
+      "noRolesEmptyTitle": "Zatím žádné pozice",
+      "noRolesEmptyBody": "Pozice vznikají z popisů práce — napište nebo vygenerujte popis v knihovně a pak ho načtěte jako pozici.",
+      "noRolesEmptyCta": "Otevřít popisy pozic"
     },
     "table": {
       "caption": "Korpus pozic — normalizované inzeráty filtrovatelné podle oboru, seniority, režimu práce a vhodnosti pro juniory. Aktivací řádku rozbalíte jeho požadavky a absolventskou optiku.",
@@ -1635,6 +1641,7 @@
       "firstLeadMins": "první lead {mins} min od zřízení",
       "firstLeadHours": "první lead {hours} h od zřízení",
       "noJobs": "Žádné dostupné pozice — nejprve načtěte nebo publikujte pozici.",
+      "noJobsCta": "Vytvořit popis pozice",
       "createFailed": "Webhook se nepodařilo vytvořit.",
       "revokeFailed": "Webhook se nepodařilo zrušit."
     },
@@ -1802,6 +1809,7 @@
     },
     "sourceLine": "{total} celkem · {interview} u pohovoru · {hired} přijato",
     "noSourceData": "Zatím žádná data o původu.",
+    "configureChannels": "Nastavit kanály",
     "channels": {
       "title": "Ekonomika kanálů",
       "intro": "Příchozí kanály s uloženou atribucí (kariérní přihláška, rychlá přihláška, webhooky). Zadejte útratu za kanál a získáte cenu za uchazeče a za přijetí.",
@@ -1914,6 +1922,7 @@
       "autoRejected": "Automatická zamítnutí",
       "holds": "Pozdržení vyvolaná → vyřešená",
       "holdsValue": "{raised} → {resolved}",
+      "reviewHolds": "Zkontrolovat čekající pozdržení v Rozhodnutích",
       "comms": "Doručená komunikace"
     }
   },
@@ -2085,5 +2094,158 @@
     "addVariant": "Přidat variantu ({current}/{max})",
     "variantLimitReached": "Dosažen limit variant.",
     "selectCvFirst": "Nejprve vyberte CV nebo PDF export z LinkedInu."
+  },
+  "billing": {
+    "eyebrow": "Fakturace",
+    "title": "Tarif a čerpání",
+    "intro": "Vaše předplatné, čerpání v aktuálním období a tarify, na které můžete přejít.",
+    "loading": "Načítání fakturace…",
+    "loadFailed": "Fakturaci se nepodařilo načíst — zkontrolujte připojení a zkuste to znovu.",
+    "retry": "Zkusit znovu",
+    "notConfigured": "Fakturace není nakonfigurována — aplikace běží v lokálním vývojovém režimu. Nákupy jsou vypnuté.",
+    "currentPlan": "Aktuální tarif",
+    "periodEnd": "Aktuální období končí {date}",
+    "manage": "Spravovat předplatné",
+    "manageOpening": "Otevírání…",
+    "noCustomerYet": "Zatím nemáte fakturační účet — vznikne při prvním nákupu.",
+    "portalFailed": "Fakturační portál se nepodařilo otevřít.",
+    "status": {
+      "none": "Bez předplatného",
+      "active": "Aktivní",
+      "trialing": "Zkušební období",
+      "past_due": "Po splatnosti",
+      "canceled": "Zrušeno"
+    },
+    "meters": {
+      "ai_candidates": "AI kandidáti",
+      "case_designs": "Návrhy případovek",
+      "interview_minutes": "Minuty pohovorů"
+    },
+    "usage": {
+      "title": "Čerpání v tomto období",
+      "intro": "Každý ukazatel se obnovuje s fakturačním obdobím; kredity z balíčků se přičítají nad rámec tarifu.",
+      "used": "Čerpáno {used} z {limit}",
+      "usedUnlimited": "Čerpáno {used}",
+      "unlimited": "Bez limitu",
+      "depleted": "Kvóta vyčerpána",
+      "remaining": "Zbývá {remaining}",
+      "credits": "{credits, plural, one {+# kredit z balíčku} few {+# kredity z balíčků} many {+# kreditu z balíčků} other {+# kreditů z balíčků}}",
+      "empty": "Zatím žádné ukazatele čerpání."
+    },
+    "plans": {
+      "title": "Tarify",
+      "intro": "Přejděte na vyšší nebo jiný tarif, kdykoli potřebujete víc prostoru — platba probíhá na zabezpečené stránce platebního poskytovatele.",
+      "current": "Aktuální tarif",
+      "priceFree": "Zdarma",
+      "approxUsd": "≈ {price}",
+      "perMonth": "měsíčně",
+      "unlimited": "Bez limitu",
+      "activeJobs": "Aktivní pozice",
+      "cta": "Přejít na tento tarif",
+      "redirecting": "Přesměrování…",
+      "checkoutFailed": "Platbu se nepodařilo zahájit."
+    },
+    "pack": {
+      "title": "Doplnění minut pohovorů",
+      "intro": "Jednorázový balíček, který přidá kredity nad rámec kvóty tarifu — dostupný v každém tarifu.",
+      "minutes": "{qty} minut",
+      "buy": "Koupit balíček"
+    }
+  },
+  "models": {
+    "eyebrow": "Modely",
+    "title": "Směrování modelů a klíče",
+    "intro": "Zvolte, který poskytovatel a model obsluhuje jednotlivé AI úlohy, a spravujte příslušné API klíče.",
+    "loading": "Načítání nastavení modelů…",
+    "loadFailed": "Nastavení modelů se nepodařilo načíst — zkontrolujte připojení a zkuste to znovu.",
+    "retry": "Zkusit znovu",
+    "routing": {
+      "title": "Směrování",
+      "intro": "Připnutý řádek přepíše vestavěné výchozí nastavení dané úlohy; úlohy bez připnutí běží na vestavěném výchozím modelu (lokálně Claude CLI).",
+      "colUseCase": "Úloha",
+      "colProvider": "Poskytovatel",
+      "colModel": "Model",
+      "colState": "Stav",
+      "colActions": "Akce",
+      "defaultRow": "Výchozí pro všechno",
+      "defaultRowHint": "Každá úloha bez vlastního připnutí dědí tento řádek.",
+      "providerDefault": "Vestavěné výchozí",
+      "providerAria": "Poskytovatel pro úlohu {useCase}",
+      "modelPlaceholder": "výchozí model poskytovatele",
+      "modelAria": "Model pro úlohu {useCase}",
+      "statePinned": "Připnuto",
+      "stateDefault": "Výchozí",
+      "save": "Uložit",
+      "saving": "Ukládání…",
+      "saveFailed": "Připnutí se nepodařilo uložit.",
+      "reset": "Obnovit",
+      "resetting": "Obnovování…",
+      "resetTitle": "Odebrat připnutí a vrátit se k vestavěnému výchozímu nastavení",
+      "resetFailed": "Výchozí nastavení se nepodařilo obnovit.",
+      "test": "Otestovat",
+      "testing": "Testování…",
+      "testOk": "OK — {provider} / {model} · {latency} ms",
+      "testOkNoLatency": "OK — {provider} / {model}",
+      "testFailed": "Test selhal.",
+      "testUnavailable": "Testovací endpoint zatím není k dispozici.",
+      "updated": "Aktualizováno {date}"
+    },
+    "useCases": {
+      "match_reasoning": "Zdůvodnění shody",
+      "automation": "Automatizace",
+      "campaign_pack": "Balíček kampaně",
+      "jd_ingest": "Načtení popisu pozice",
+      "profile_draft": "Návrh profilu",
+      "group_compare": "Skupinové porovnání",
+      "devcase_analyze": "Vývojové případy — analýza",
+      "devcase_role_design": "Vývojové případy — návrh role",
+      "devcase_case_design": "Vývojové případy — návrh zadání",
+      "devcase_reflect": "Vývojové případy — reflexe",
+      "devcase_tooling": "Vývojové případy — nástroje",
+      "devcase_evaluate": "Vývojové případy — hodnocení",
+      "devcase_transfer": "Vývojové případy — přenositelnost",
+      "devcase_judge": "Vývojové případy — posouzení",
+      "interview_scorecard": "Hodnoticí karta pohovoru",
+      "github_analysis": "Analýza GitHubu",
+      "cv_analysis": "Analýza CV",
+      "profile_extract": "Extrakce profilu"
+    },
+    "providers": {
+      "anthropic": "Anthropic",
+      "openai": "OpenAI",
+      "azure_openai": "Azure OpenAI",
+      "gemini": "Gemini",
+      "claude_cli": "Claude CLI"
+    },
+    "keys": {
+      "title": "API klíče",
+      "intro": "Klíče ukládáme šifrovaně a po uložení se už nikdy nezobrazí. BYOM klíče mají přednost před platformními.",
+      "loading": "Načítání klíčů…",
+      "loadFailed": "Klíče se nepodařilo načíst — zkontrolujte připojení a zkuste to znovu.",
+      "retry": "Zkusit znovu",
+      "empty": "Zatím žádné uložené klíče — vestavěné výchozí nastavení žádný nepotřebuje.",
+      "scopeByom": "BYOM (váš klíč)",
+      "scopePlatform": "Platforma",
+      "apiVersionValue": "Verze API {version}",
+      "updated": "Aktualizováno {date}",
+      "delete": "Smazat klíč",
+      "deleteAria": "Smazat klíč poskytovatele {provider} ({scope})",
+      "deleteFailed": "Klíč se nepodařilo smazat.",
+      "addTitle": "Přidat nebo nahradit klíč",
+      "provider": "Poskytovatel",
+      "scope": "Rozsah",
+      "apiKey": "API klíč",
+      "apiKeyPlaceholder": "Vložte tajný klíč",
+      "endpoint": "Endpoint",
+      "endpointPlaceholder": "https://vas-zdroj.openai.azure.com",
+      "endpointRequired": "Azure OpenAI vyžaduje endpoint.",
+      "apiVersion": "Verze API",
+      "apiVersionPlaceholder": "2024-06-01",
+      "save": "Uložit klíč",
+      "saving": "Ukládání…",
+      "saved": "Klíč uložen.",
+      "saveFailed": "Klíč se nepodařilo uložit.",
+      "kpSecretHint": "Řešení: nastavte na serveru proměnnou prostředí KP_SECRET a uložte klíč znovu."
+    }
   }
 }
