@@ -13,7 +13,11 @@
 export type DecisionMeta = { auto: boolean; tone: string };
 
 export const DECISION_META: Record<string, DecisionMeta> = {
-  advanced: { auto: true, tone: "text-moss" },
+  // The advance split mirrors rejected/auto_rejected: actOnPipelineEntry writes
+  // `advanced` for the human routes and `auto_advanced` when the caller passed
+  // actor "system" — a recruiter's gate click must never badge AUTO in the log.
+  advanced: { auto: false, tone: "text-moss" },
+  auto_advanced: { auto: true, tone: "text-moss" },
   screening_hold: { auto: true, tone: "text-ink" },
   interview_scorecard: { auto: true, tone: "text-steel" },
   interview_prep_generated: { auto: true, tone: "text-steel" },
@@ -105,7 +109,7 @@ export function summarizeAutomationImpact(
   return {
     autoCount,
     humanCount,
-    autoAdvanced: kindCounts["advanced"] ?? 0,
+    autoAdvanced: kindCounts["auto_advanced"] ?? 0,
     autoRejected: kindCounts["auto_rejected"] ?? 0,
     holdsRaised: holds.raised,
     holdsResolved: holds.resolved,

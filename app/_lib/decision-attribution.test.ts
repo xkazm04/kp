@@ -22,7 +22,7 @@ test("every comm-sent kind is a mapped kind (a delivery always has an attributio
 test("the kinds the writers produce are all mapped (the drift this module exists to stop)", () => {
   // recordAutomationEvent call sites + db.ts recordEvent writers, as of W9-3.
   const written = [
-    "matched", "added", "applied", "re_applied", "scored", "advanced", "moved",
+    "matched", "added", "applied", "re_applied", "scored", "advanced", "auto_advanced", "moved",
     "scheduled", "rejected", "auto_rejected", "intake_degraded", "intake_resolved",
     "screening_hold", "interview_scorecard", "interview_prep_generated",
     "interview_scheduled", "interview_invite_sent", "schedule_invite_sent", "interview_reminder_sent",
@@ -40,6 +40,7 @@ test("summarize folds counts through attribution and skips unknown kinds", () =>
   const impact = summarizeAutomationImpact(
     {
       advanced: 5,
+      auto_advanced: 7,
       auto_rejected: 3,
       outreach_sent: 4,
       comm_resent: 1,
@@ -48,10 +49,13 @@ test("summarize folds counts through attribution and skips unknown kinds", () =>
     },
     { raised: 6, resolved: 4 }
   );
-  // auto: advanced 5 + auto_rejected 3 + outreach_sent 4 = 12; human: rejected 2 + comm_resent 1 = 3.
-  assert.equal(impact.autoCount, 12);
-  assert.equal(impact.humanCount, 3);
-  assert.equal(impact.autoAdvanced, 5);
+  // The actor split: a recruiter's gate click (`advanced`) is HUMAN; only the
+  // policy/automation writers' `auto_advanced` credits the machine.
+  // auto: auto_advanced 7 + auto_rejected 3 + outreach_sent 4 = 14;
+  // human: advanced 5 + rejected 2 + comm_resent 1 = 8.
+  assert.equal(impact.autoCount, 14);
+  assert.equal(impact.humanCount, 8);
+  assert.equal(impact.autoAdvanced, 7);
   assert.equal(impact.autoRejected, 3);
   assert.equal(impact.commsDelivered, 5); // outreach 4 + resend 1
   assert.equal(impact.holdsRaised, 6);

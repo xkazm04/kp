@@ -62,6 +62,6 @@ test("defaults: MOMENTUM_WEEKS buckets, ISO-date labels", () => {
 test("the exported kind list covers exactly what the mapping reads", () => {
   assert.deepEqual(
     [...MOMENTUM_EVENT_KINDS].sort(),
-    ["added", "advanced", "auto_rejected", "intake_degraded", "rejected"]
+    ["added", "advanced", "auto_advanced", "auto_rejected", "intake_degraded", "rejected"]
   );
 });

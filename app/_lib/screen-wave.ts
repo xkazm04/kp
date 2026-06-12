@@ -192,13 +192,16 @@ export async function runScreenWave(
       // verdict to the snapshot stage makes a stale reject a NO-OP: no status
       // flip, no audit event claiming an action that didn't happen, and — the
       // part a candidate would have felt — no rejection email.
-      const updated = actOnPipelineEntry(e.id, "reject", undefined, { expectedStage: e.stage });
+      // actor "system" makes this the ONE auto_rejected write (rationale rides as
+      // the event detail). The old shape — a `rejected` event from the act PLUS a
+      // separate recordAutomationEvent("auto_rejected") — counted every wave
+      // reject once as HUMAN and once as AUTO, and twice in momentum's bars.
+      const updated = actOnPipelineEntry(e.id, "reject", rationale, { expectedStage: e.stage, actor: "system" });
       if (!updated) {
         const skipped = `Skipped — stage changed mid-wave (was ${e.stage}); left untouched.`;
         decisions.push({ entryId: e.id, label: e.candidateLabel, archetype: e.archetype, matchScore: score, action: "keep", rationale: skipped, reasonCode: "staleSkipped", reasonParams: { wasStage: e.stage } });
         continue;
       }
-      recordAutomationEvent(e.id, "auto_rejected", rationale); // audit trail (shows in Analytics)
       // A comms failure must not abort the wave (idea-961de357): the rejection
       // is already applied + audited, and the loop holds the REST of the cohort
       // — one transient SMTP error used to escape here, leaving the batch

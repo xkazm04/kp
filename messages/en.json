@@ -1904,6 +1904,7 @@
         "offer_declined": "Offer declined",
         "onboarding_started": "Onboarding started",
         "auto_rejected": "Auto-rejected (policy)",
+        "auto_advanced": "Auto-advanced (policy)",
         "scored": "Match score computed",
         "acknowledgement_sent": "Application acknowledgement sent",
         "interview_invite_sent": "Interview invite sent",

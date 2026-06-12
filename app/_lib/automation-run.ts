@@ -184,7 +184,7 @@ export async function runAutomationTask(entryId: string, task: string, notes = "
     // it meanwhile. A stale screen verdict must no-op instead of moving whatever stage
     // the entry is in NOW — mirrors the policy-pass hardening (automation-pass.ts).
     if (advance) {
-      const moved = actOnPipelineEntry(entry.id, "accept", undefined, { expectedStage: entry.stage });
+      const moved = actOnPipelineEntry(entry.id, "accept", undefined, { expectedStage: entry.stage, actor: "system" });
       if (!moved) {
         // Stage changed mid-hop — skip the move AND the dependent approval/event so
         // the screening_review can't land on a now-unexpected (or terminal) stage.

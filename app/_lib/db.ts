@@ -2251,7 +2251,7 @@ export function pipelineAnalytics(windowDays?: number | null): PipelineAnalytics
               SUM(EXISTS (
                 SELECT 1 FROM pipeline_events e2
                  WHERE e2.entry_id = h.entry_id
-                   AND e2.kind IN ('advanced', 'rejected', 'auto_rejected')
+                   AND e2.kind IN ('advanced', 'auto_advanced', 'rejected', 'auto_rejected')
                    AND e2.created_at > h.first_hold
               )) AS resolved
          FROM (
@@ -2336,7 +2336,7 @@ export function pipelineAnalytics(windowDays?: number | null): PipelineAnalytics
       `SELECT p.source_channel AS channel, p.created_at AS created, MIN(e.created_at) AS decided
          FROM pipeline_entries p
          JOIN pipeline_events e
-           ON e.entry_id = p.id AND e.kind IN ('advanced', 'rejected', 'auto_rejected')
+           ON e.entry_id = p.id AND e.kind IN ('advanced', 'auto_advanced', 'rejected', 'auto_rejected')
         WHERE p.source_channel IS NOT NULL ${cutoffIso ? "AND p.created_at >= ?" : ""}
         GROUP BY p.id`
     )
@@ -4121,7 +4121,13 @@ export function actOnPipelineEntry(
   id: string,
   action: PipelineAction,
   detail?: string,
-  opts?: { expectedStage?: string }
+  // `actor` drives audit attribution: a policy/automation caller passes "system"
+  // so the event kind records auto_advanced/auto_rejected; the human routes
+  // default to "human" and keep advanced/rejected. Before this split every
+  // advance — recruiter click included — landed as one kind the analytics
+  // attributed to automation, and policy rejects wrote BOTH rejected (human)
+  // and auto_rejected (auto), double-counting in momentum and the rollup.
+  opts?: { expectedStage?: string; actor?: "human" | "system" }
 ): PipelineEntry | null {
   const db = ensureDb();
   const tx = db.transaction((): PipelineEntry | null => {
@@ -4148,9 +4154,10 @@ export function actOnPipelineEntry(
   // advance/reject landed in the auditable log with a blank reason. Now the
   // optional reason rides the event. (approve_event keeps using detail as the slot.)
   const decisionNote = detail && detail.trim() ? detail.trim() : null;
+  const auto = opts?.actor === "system";
   if (action === "reject") {
     db.prepare(`UPDATE pipeline_entries SET status='rejected', approval_kind=NULL, updated_at=? WHERE id=?`).run(now, id);
-    recordEvent(db, { ...meta, kind: "rejected", toStage: row.stage, detail: decisionNote });
+    recordEvent(db, { ...meta, kind: auto ? "auto_rejected" : "rejected", toStage: row.stage, detail: decisionNote });
   } else if (action === "approve_event") {
     // A rejected/declined entry is terminal — a stale/reused schedule token must not
     // re-activate its approval or write a 'scheduled' event for a closed-out
@@ -4186,7 +4193,7 @@ export function actOnPipelineEntry(
     db.prepare(
       `UPDATE pipeline_entries SET stage=?, approval_kind='calendar', approval_detail=?, stage_changed_at=?, updated_at=? WHERE id=?`
     ).run(next, "Tue 14:00", now, now, id);
-    recordEvent(db, { ...meta, kind: "advanced", toStage: next, detail: decisionNote });
+    recordEvent(db, { ...meta, kind: auto ? "auto_advanced" : "advanced", toStage: next, detail: decisionNote });
   } else {
     // accept: advance one stage, clear any pending approval
     const idx = PIPELINE_STAGES.indexOf(row.stage as PipelineStage);
@@ -4195,7 +4202,7 @@ export function actOnPipelineEntry(
       db.prepare(
         `UPDATE pipeline_entries SET stage=?, approval_kind=NULL, approval_detail='', stage_changed_at=?, updated_at=? WHERE id=?`
       ).run(next, now, now, id);
-      recordEvent(db, { ...meta, kind: "advanced", toStage: next, detail: decisionNote });
+      recordEvent(db, { ...meta, kind: auto ? "auto_advanced" : "advanced", toStage: next, detail: decisionNote });
     } else {
       // Already at the terminal stage (Hired): clear the approval but don't bump
       // stage_changed_at — that timestamp anchors time-to-hire and must not move.

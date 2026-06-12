@@ -227,7 +227,7 @@ async function executeAutomationPass(dryRun: boolean): Promise<AutomationPassRes
       // stage the entry happens to be in NOW.
       const snapshotStage = byId.get(d.entryId)?.stage;
       if (d.action === "advance") {
-        const applied = actOnPipelineEntry(d.entryId, "accept", undefined, { expectedStage: snapshotStage }); // logs `advanced` + stamps stage_changed_at
+        const applied = actOnPipelineEntry(d.entryId, "accept", d.reason, { expectedStage: snapshotStage, actor: "system" }); // logs `auto_advanced` + stamps stage_changed_at
         if (applied) {
           summary.advanced += 1;
         } else {
@@ -241,7 +241,7 @@ async function executeAutomationPass(dryRun: boolean): Promise<AutomationPassRes
         // it — downgrade to a hold + alert rather than silently auto-rejecting.
         const verdict = assertAutoRejectFair(byId.get(d.entryId));
         if (verdict.allowed) {
-          const rejected = actOnPipelineEntry(d.entryId, "reject", undefined, { expectedStage: snapshotStage });
+          const rejected = actOnPipelineEntry(d.entryId, "reject", d.reason, { expectedStage: snapshotStage, actor: "system" }); // logs `auto_rejected`
           if (rejected) {
             // The DB transition is committed — count it BEFORE the comm hop, so a
             // notification failure can't make the run summary claim "0 rejected"

@@ -46,7 +46,9 @@ export async function respondToOffer(token: string, response: "accept" | "declin
     }
     if (offer.entryId) {
       recordAutomationEvent(offer.entryId, "offer_accepted", offer.jobTitle ?? "");
-      const hired = actOnPipelineEntry(offer.entryId, "accept"); // Offer -> Hired (clears approval, logs `advanced`)
+      // Offer -> Hired (clears approval). actor "system": the transition fires on
+      // the candidate's response, not a recruiter click — logs `auto_advanced`.
+      const hired = actOnPipelineEntry(offer.entryId, "accept", undefined, { actor: "system" });
       // W5-2 (DEVO2) — a hired "ds-" (promoted-submission) entry auto-feeds the
       // dev-case calibration loop. Best-effort: calibration must never affect
       // the candidate's accept. (The CAS winner above is the sole caller, so
