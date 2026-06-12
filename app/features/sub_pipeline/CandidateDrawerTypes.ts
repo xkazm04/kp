@@ -18,6 +18,7 @@ export type Entry = Pick<
   | "intakeDegradedReason"
   | "githubEvidence"
   | "githubHandle"
+  | "notes"
 >;
 
 export type TaskId = "screen" | "outreach" | "rejection" | "prep" | "scorecard" | "rematch" | "offer";

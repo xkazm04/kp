@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { AlertTriangle, ArrowLeftRight, Ban, Banknote, Calendar, ClipboardList, ExternalLink, GitBranch, History, Mail, Pencil, Phone, Shuffle, Sparkles, UserCheck, Wrench, X } from "lucide-react";
+import { AlertTriangle, ArrowLeftRight, Ban, Banknote, Calendar, ClipboardList, ExternalLink, GitBranch, History, Mail, NotebookPen, Pencil, Phone, Shuffle, Sparkles, UserCheck, Wrench, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { buildUrl } from "@/app/features/tabs";
 import { useTasks, useTaskResult } from "@/app/features/tasks/TasksProvider";
@@ -34,6 +34,10 @@ const ACTIONS: { id: TaskId; label: string; icon: typeof Mail; stages: string[] 
   { id: "rematch", label: "Explore alternatives", icon: Shuffle, stages: ["Screened", "Interview", "Offer"] },
 ];
 
+// Client-side cap for the persistent candidate note — mirrors MAX_NOTES_LENGTH
+// on /api/pipeline/[id] so the textarea can never assemble a note the route rejects.
+const NOTE_MAX = 4000;
+
 const REC_STYLE: Record<string, string> = {
   advance: "bg-moss/15 text-moss",
   hold: "bg-dial-amber/20 text-ink",
@@ -59,7 +63,10 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
   const [busy, setBusy] = useState<TaskId | null>(null);
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [result, setResult] = useState<Result | null>(null);
-  const [notes, setNotes] = useState("");
+  // Transient fuel for the scorecard task — pre-filled from the persisted
+  // per-candidate note (below) so the AI synthesis starts from the call facts
+  // already captured, not a blank box. Edits here stay local to the task run.
+  const [notes, setNotes] = useState(entry.notes ?? "");
   const [error, setError] = useState<string | null>(null);
 
   // Voice 1st-round screen and self-scheduling both mint a tokenized candidate link.
@@ -376,6 +383,62 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
     if (appliedResult) onChangedRef.current();
   }, [appliedResult]);
 
+  // Persistent per-candidate note: the call facts ("wants 80k, available August,
+  // hybrid") that used to die with the drawer live on the entry now. Hydrated
+  // from the entry at mount (the drawer remounts per candidate — keyed by id),
+  // then debounce-autosaved through the set_notes action — the PREP2
+  // prep-progress pattern. The dirty ref gates saves to genuine user edits so
+  // hydration doesn't echo back. Capped to the route's bound via maxLength.
+  const [candNote, setCandNote] = useState(entry.notes ?? "");
+  const [noteStatus, setNoteStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const noteDirtyRef = useRef(false);
+  useEffect(() => {
+    if (!noteDirtyRef.current) return;
+    const h = window.setTimeout(() => {
+      void fetch(`/api/pipeline/${encodeURIComponent(entry.id)}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "set_notes", notes: candNote }),
+      })
+        .then((r) => {
+          setNoteStatus(r.ok ? "saved" : "error");
+          // The entry now carries the note — refresh the board's copy so
+          // reopening this candidate hydrates the scratchpad, not a stale blank.
+          if (r.ok) onChangedRef.current();
+        })
+        .catch(() => setNoteStatus("error"));
+    }, 600);
+    return () => window.clearTimeout(h);
+  }, [candNote, entry.id]);
+
+  // Keep the freshest note in a ref so the unmount flush sends it.
+  const latestNoteRef = useRef(candNote);
+  useEffect(() => {
+    latestNoteRef.current = candNote;
+  }, [candNote]);
+
+  // Flush a pending edit on unmount (drawer close). The debounce effect's
+  // cleanup cancels an in-flight 600ms timer, so closing right after typing the
+  // last call fact — the common case — would otherwise drop it. keepalive lets
+  // the request survive the unmount/navigation.
+  useEffect(() => {
+    return () => {
+      if (!noteDirtyRef.current) return;
+      void fetch(`/api/pipeline/${encodeURIComponent(entry.id)}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "set_notes", notes: latestNoteRef.current }),
+        keepalive: true,
+      })
+        .then((r) => {
+          if (r.ok) onChangedRef.current();
+        })
+        .catch(() => {
+          /* note save is best-effort — the debounced write already ran for all but the last pause */
+        });
+    };
+  }, [entry.id]);
+
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
       <button type="button" aria-label={t("close")} onClick={onClose} className="absolute inset-0 bg-ink/20 backdrop-blur-[1px]" />
@@ -648,6 +711,36 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
               {moveErr ? <p role="alert" className="mt-1.5 text-sm text-red-700">{moveErr}</p> : null}
             </div>
           ) : null}
+
+          {/* Persistent candidate note: always visible, debounce-autosaved to the
+              entry (set_notes) with a quiet saving/saved hint — the durable home
+              for call facts the Interview-only scorecard box used to swallow. */}
+          <div>
+            <label htmlFor="candidate-note" className="flex items-center gap-1.5 text-meta uppercase tracking-wide text-steel">
+              <NotebookPen size={13} /> {t("candidateNotes")}
+              <span
+                aria-live="polite"
+                className={`ml-auto normal-case tracking-normal ${noteStatus === "error" ? "text-red-700" : noteStatus === "saved" ? "text-moss" : "text-steel"}`}
+              >
+                {noteStatus === "saving" ? t("candidateNotesSaving") : null}
+                {noteStatus === "saved" ? t("candidateNotesSaved") : null}
+                {noteStatus === "error" ? t("candidateNotesSaveFailed") : null}
+              </span>
+            </label>
+            <textarea
+              id="candidate-note"
+              value={candNote}
+              onChange={(e) => {
+                noteDirtyRef.current = true;
+                setNoteStatus("saving");
+                setCandNote(e.target.value);
+              }}
+              rows={3}
+              maxLength={NOTE_MAX}
+              placeholder={t("candidateNotesPlaceholder")}
+              className="focus-ring mt-1 w-full rounded-md border border-stone-200 bg-white p-2 text-sm text-ink"
+            />
+          </div>
 
           <div>
             <p className="flex items-center gap-1.5 text-meta uppercase tracking-wide text-coral">

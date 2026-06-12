@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { actOnPipelineEntry, clearIntakeDegraded, getPipelineEntry, PIPELINE_STAGES, setApproval, setEntryGithubEvidence, setPipelineEntryStage, type PipelineAction, type PipelineEntry } from "@/app/_lib/db";
+import { actOnPipelineEntry, clearIntakeDegraded, getPipelineEntry, PIPELINE_STAGES, setApproval, setEntryGithubEvidence, setEntryNotes, setPipelineEntryStage, type PipelineAction, type PipelineEntry } from "@/app/_lib/db";
 import { coerceGithubEvidenceSummary } from "@/app/_lib/github-summary";
 import { dispatchOffer, dispatchRejection } from "@/app/_lib/comms-dispatch";
 import { getOrCreateOpenOffer } from "@/app/_lib/offers-store";
@@ -9,6 +9,11 @@ import { publicBaseUrl } from "@/app/_lib/public-base-url";
 export const runtime = "nodejs";
 
 const ACTIONS: PipelineAction[] = ["accept", "reject", "approve_event"];
+
+// Upper bound for the persistent recruiter note (set_notes). Generous enough for
+// pasted call notes, tight enough that the column can't become a blob dump. The
+// drawer's textarea enforces the same cap client-side (maxLength).
+const MAX_NOTES_LENGTH = 4000;
 
 // Human gate for the offer: approving a drafted offer EXTENDS it to the candidate
 // with a secure accept/decline link, rather than bare-advancing to Hired. The
@@ -49,7 +54,7 @@ async function extendOffer(request: NextRequest, entry: PipelineEntry) {
 export async function POST(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params;
   try {
-    const body = (await request.json()) as { action?: string; detail?: string; expectedStage?: string; toStage?: string; github?: unknown };
+    const body = (await request.json()) as { action?: string; detail?: string; expectedStage?: string; toStage?: string; github?: unknown; notes?: unknown };
 
     // Manual recruiter stage override (set_stage): move a candidate backward, skip
     // a stage, or fix a miscategorization — the transitions accept/reject can't
@@ -94,6 +99,27 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
         return NextResponse.json({ error: "Invalid GitHub evidence payload." }, { status: 400 });
       }
       const updated = setEntryGithubEvidence(id, JSON.stringify(summary));
+      if (!updated) return NextResponse.json({ error: "Pipeline entry not found." }, { status: 404 });
+      return NextResponse.json({ entry: updated });
+    }
+
+    // Persistent per-candidate recruiter note: the drawer's always-visible
+    // scratchpad autosaves through here. Field-validated and bounded — free
+    // text, trimmed, capped at MAX_NOTES_LENGTH, stored as NULL when emptied so
+    // a cleared note reads as "no note" everywhere. Last write wins (a note is
+    // recruiter-owned prose, not AI-attached evidence — no fill-only guard).
+    if (body.action === "set_notes") {
+      if (typeof body.notes !== "string") {
+        return NextResponse.json({ error: `Field "notes" must be a string.` }, { status: 400 });
+      }
+      const trimmed = body.notes.trim();
+      if (trimmed.length > MAX_NOTES_LENGTH) {
+        return NextResponse.json(
+          { error: `Note is too long (${trimmed.length} characters; max ${MAX_NOTES_LENGTH}).` },
+          { status: 400 }
+        );
+      }
+      const updated = setEntryNotes(id, trimmed === "" ? null : trimmed);
       if (!updated) return NextResponse.json({ error: "Pipeline entry not found." }, { status: 404 });
       return NextResponse.json({ entry: updated });
     }

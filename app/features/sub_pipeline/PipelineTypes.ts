@@ -27,6 +27,9 @@ export type Entry = {
   // username). The drawer offers the on-demand deep-dive from it when no
   // evidence has been attached yet.
   githubHandle?: string | null;
+  // Persistent per-candidate recruiter note, autosaved from the drawer via the
+  // set_notes action (null/absent when none has been written yet).
+  notes?: string | null;
 };
 
 // Mirrors the PUBLIC event projection served by /api/pipeline/events

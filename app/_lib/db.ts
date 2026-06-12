@@ -481,6 +481,11 @@ function ensureDb(): Database.Database {
     // so the enrichment chat can skip exactly those gates — recorded pass-state,
     // never derived. NULL = nothing verified (the chat asks every gate).
     "ALTER TABLE pipeline_entries ADD COLUMN lead_passed_ko_json TEXT",
+    // Persistent per-candidate recruiter note: call facts ("wants 80k, available
+    // August, hybrid") autosaved from the drawer's always-visible scratchpad, so
+    // they survive closing it instead of living in spreadsheets. Free text,
+    // trimmed and length-bounded at the route (set_notes); NULL = no note.
+    "ALTER TABLE pipeline_entries ADD COLUMN notes TEXT",
     // E5 — when a webhook received its FIRST lead (time-to-first-lead metric).
     "ALTER TABLE channel_webhooks ADD COLUMN first_received_at TEXT",
   ]) {
@@ -1706,6 +1711,9 @@ export type PipelineEntry = {
   // captured at intake. NULL when the source carried none.
   sourceCampaign: string | null;
   sourceVariant: string | null;
+  // Persistent per-candidate recruiter note, autosaved from the drawer via the
+  // set_notes action (trimmed + bounded there). NULL when none has been written.
+  notes: string | null;
 };
 
 // Canonical shape of a /api/pipeline row. That endpoint returns listPipeline()
@@ -2021,6 +2029,8 @@ type PipelineRow = {
   source_channel?: string | null;
   source_campaign?: string | null;
   source_variant?: string | null;
+  // Persistent recruiter note (drawer autosave); absent on SELECTs that omit it.
+  notes?: string | null;
   // Lead enrichment hand-off columns. Deliberately NOT mapped onto PipelineEntry:
   // that type IS the /api/pipeline client view contract, and a capability token
   // must never ride a list payload into the browser. Read via findEntryByLeadToken.
@@ -2056,6 +2066,7 @@ function rowToEntry(r: PipelineRow): PipelineEntry {
     sourceChannel: r.source_channel ?? null,
     sourceCampaign: r.source_campaign ?? null,
     sourceVariant: r.source_variant ?? null,
+    notes: r.notes ?? null,
   };
 }
 
@@ -2089,10 +2100,11 @@ export function listPipeline(): PipelineEntry[] {
       // github_json / github_handle ride the board payload so the drawer can
       // render attached evidence and offer the on-demand deep-dive for an
       // inbound applicant who shared a handle at apply (both bounded at the
-      // rowToEntry read boundary).
+      // rowToEntry read boundary). notes rides it too — the drawer's persistent
+      // scratchpad hydrates from the entry it was opened with.
       `SELECT id, candidate_id, candidate_label, archetype, role_family, job_id, job_title,
               stage, match_score, status, approval_kind, approval_detail, created_at, stage_changed_at,
-              intake_degraded, intake_degraded_reason, github_json, github_handle
+              intake_degraded, intake_degraded_reason, github_json, github_handle, notes
        FROM pipeline_entries WHERE status NOT IN ${TERMINAL_STATUS_SQL_LIST}
        ORDER BY job_title, match_score DESC`
     )
@@ -3075,6 +3087,23 @@ export function setEntryGithubEvidence(id: string, githubJson: string): Pipeline
   return rowToEntry(updated);
 }
 
+// Persistent per-candidate recruiter note — the drawer's debounce-autosaved
+// scratchpad, so call facts ("wants 80k, available August, hybrid") survive
+// closing the drawer. OVERWRITE semantics (unlike the fill-only evidence
+// above): the note is recruiter-owned free text and the latest autosave is the
+// truth; null clears it. `notes` arrives trimmed and length-bounded by the
+// route (set_notes). No event — a per-pause autosave would spam the candidate's
+// history. Returns the fresh entry, or null for an unknown id.
+export function setEntryNotes(id: string, notes: string | null): PipelineEntry | null {
+  const db = ensureDb();
+  const res = db
+    .prepare(`UPDATE pipeline_entries SET notes = ?, updated_at = ? WHERE id = ?`)
+    .run(notes, new Date().toISOString(), id);
+  if (res.changes === 0) return null;
+  const updated = db.prepare(`SELECT * FROM pipeline_entries WHERE id = ?`).get(id) as PipelineRow;
+  return rowToEntry(updated);
+}
+
 // ---- Automation helpers (Phase 15) ----------------------------------------
 
 // SINGLE SOURCE for the "don't stomp a fresh screening decision" window. Task 7
@@ -3991,6 +4020,21 @@ export function isInterviewLinkExpired(session: { status: string; createdAt: str
   );
 }
 
+// How long an in_progress session counts as a LIVE call. updated_at is stamped
+// when /connect flips the session live (markInterviewStarted) and a voice
+// screen runs minutes, not hours — anything older is an abandoned zombie (a
+// connect that never reached /complete), safe to reissue over.
+export const LIVE_INTERVIEW_RECENCY_MIN = 30;
+
+/** Single live-call authority for an interview session — /create's reissue
+ *  guard reads this so "don't revoke an active conversation" can never drift
+ *  from the recency window above. */
+export function isInterviewSessionLive(session: { status: string; createdAt: string; updatedAt: string | null }): boolean {
+  if (session.status !== "in_progress") return false;
+  const touched = Date.parse(session.updatedAt ?? session.createdAt);
+  return Number.isFinite(touched) && touched > Date.now() - LIVE_INTERVIEW_RECENCY_MIN * 60_000;
+}
+
 /** Revoke one open interview session. Concurrency guard in the WHERE (repo
  *  convention): never touches completed (the transcript is evidence) and a
  *  re-revoke is a no-op. `failed` is revocable — reconnectable-by-design ends
@@ -4013,7 +4057,11 @@ export function revokeOpenInterviewSessions(entryId: string): number {
   return res.changes;
 }
 
-/** Latest interview session per entry (for the Schedule tab indicator). */
+/** Latest interview session per entry (for the Schedule tab indicator). A
+ *  session WITH a transcript outranks a newer empty one: a reissued link minted
+ *  while (or after) a call completed used to become the surfaced row, so
+ *  hasTranscript read false and a finished, scored interview turned invisible
+ *  on every recruiter surface (voice-interview-runtime #2). */
 export function interviewStatusByEntries(
   entryIds: string[]
 ): Record<string, { sessionId: string; status: string; hasTranscript: boolean; endedAt: string | null }> {
@@ -4021,7 +4069,8 @@ export function interviewStatusByEntries(
   const out: Record<string, { sessionId: string; status: string; hasTranscript: boolean; endedAt: string | null }> = {};
   // Chunk the IN query under the SQLite variable limit so a wide board never trips
   // SQLITE_MAX_VARIABLE_NUMBER (idea-191ccc0c). Chunks partition the ids, so the
-  // "first row per entry = latest" dedup below holds across chunk boundaries.
+  // "first row per entry = best (transcript first, then latest)" dedup below
+  // holds across chunk boundaries.
   for (const ids of chunk(entryIds, SQL_IN_CHUNK)) {
     const placeholders = ids.map(() => "?").join(",");
     const rows = ensureDb()
@@ -4030,21 +4079,37 @@ export function interviewStatusByEntries(
                 (s.transcript_json IS NOT NULL AND s.transcript_json != '[]') AS has_tr
          FROM interview_sessions s
          WHERE s.entry_id IN (${placeholders})
-         ORDER BY s.created_at DESC`
+         ORDER BY has_tr DESC, s.created_at DESC`
       )
       .all(...ids) as { id: string; entry_id: string; status: string; ended_at: string | null; has_tr: number }[];
     for (const r of rows) {
-      if (out[r.entry_id]) continue; // first = latest (DESC)
+      if (out[r.entry_id]) continue; // first = transcript-bearing if any, else latest
       out[r.entry_id] = { sessionId: r.id, status: r.status, hasTranscript: !!r.has_tr, endedAt: r.ended_at };
     }
   }
   return out;
 }
 
-/** Most-recent interview session for one entry (for the transcript modal). */
+/** Most-recent interview session for one entry (for the transcript modal) —
+ *  same transcript-first preference as interviewStatusByEntries, so the modal
+ *  can never disagree with the card indicator it was opened from. */
 export function latestInterviewByEntry(entryId: string): InterviewSession | null {
   const r = ensureDb()
-    .prepare(`SELECT * FROM interview_sessions WHERE entry_id = ? ORDER BY created_at DESC LIMIT 1`)
+    .prepare(
+      `SELECT * FROM interview_sessions WHERE entry_id = ?
+       ORDER BY (transcript_json IS NOT NULL AND transcript_json != '[]') DESC, created_at DESC LIMIT 1`
+    )
+    .get(entryId) as InterviewRow | undefined;
+  return r ? rowToInterview(r) : null;
+}
+
+/** The newest live-candidate (in_progress) session for an entry — /create's
+ *  reissue-guard read. Deliberately NOT latestInterviewByEntry: that read
+ *  prefers transcript-bearing sessions, which would hide an active call behind
+ *  an older completed one. */
+export function liveInterviewByEntry(entryId: string): InterviewSession | null {
+  const r = ensureDb()
+    .prepare(`SELECT * FROM interview_sessions WHERE entry_id = ? AND status = 'in_progress' ORDER BY created_at DESC LIMIT 1`)
     .get(entryId) as InterviewRow | undefined;
   return r ? rowToInterview(r) : null;
 }
