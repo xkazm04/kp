@@ -165,6 +165,10 @@ export const TAB_SCOPED_PARAM_KEYS = [
   "jdSeniority",
   "jdFamily",
   "jdNeed",
+  // The tasks tab's jd_build outcome link (?jdTask=<id>): JdBuilder rehydrates
+  // the finished build's result from it. Tab-scoped like the other jd* prefills
+  // — switching away must not replay the restore on a later sidebar return.
+  "jdTask",
   // Board filter deep-link params (ANA1): analytics charts link into the
   // pipeline board pre-filtered (?q= text, ?quick= chip, ?stage= funnel stage).
   // Tab-scoped like any selection — switching away must not let a stale filter

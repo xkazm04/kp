@@ -25,7 +25,7 @@ const INP = "focus-ring w-full rounded-md border border-stone-200 px-2.5 py-1.5 
 export function JdBuilder({ onSaved }: { onSaved: () => void }) {
   const t = useTranslations("library.builder");
   const enumLabel = useEnumLabel();
-  const { startTask } = useTasks();
+  const { startTask, fetchTask } = useTasks();
   // Deep-link / simulation prefill (jd* query params) — mirrors MatchTab's pattern.
   const sp = useSearchParams();
   const [title, setTitle] = useState(sp.get("jdTitle") ?? "");
@@ -54,7 +54,13 @@ export function JdBuilder({ onSaved }: { onSaved: () => void }) {
   const [resultDirty, setResultDirty] = useState(false);
   const [pendingTemplateId, setPendingTemplateId] = useState<string | null>(null);
 
-  const [taskId, setTaskId] = useState<string | null>(null);
+  // Tasks-tab outcome link (?jdTask=<id>) — rehydrate a finished jd_build whose
+  // result this builder lost when a tab switch unmounted it. Seeding it as the
+  // INITIAL taskId keeps the "generating" treatment up while the restore effect
+  // below fetches the full record (no flash of the empty state), and lets the
+  // useTaskResult bridge take over unchanged if the task is somehow still live.
+  const jdTaskParam = sp.get("jdTask");
+  const [taskId, setTaskId] = useState<string | null>(jdTaskParam);
   const [result, setResult] = useState<JdBuildResult | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -74,6 +80,40 @@ export function JdBuilder({ onSaved }: { onSaved: () => void }) {
   // as the "generating" signal — no flash of the empty state during the fetch.
   const { status: buildStatus, error: buildError, progressMsg: buildProgress, full: buildFull } = useTaskResult(taskId);
   const generating = Boolean(taskId);
+
+  // Consume the ?jdTask deep link: fetch the full record once (the polled list
+  // omits result/params — and a history-aged task never appears on it at all)
+  // and restore both the form inputs and the generated JD. Mount-only by design:
+  // the link is consumed once, and the tab switch clears jdTask anyway. An
+  // unknown/expired/foreign id degrades silently to the empty builder; the
+  // guarded clear leaves a build the user started in the meantime watched.
+  useEffect(() => {
+    if (!jdTaskParam) return;
+    let cancelled = false;
+    void fetchTask(jdTaskParam).then((found) => {
+      if (cancelled) return;
+      const task = found && found.kind === "jd_build" ? found : null;
+      if (task) {
+        // Seed the inputs from the run's persisted params — the same fields
+        // generate() sent, so the restored form matches what produced the JD.
+        const p = (task.params ?? {}) as Record<string, unknown>;
+        if (typeof p.title === "string") setTitle(p.title);
+        if (typeof p.company === "string") setCompany(p.company);
+        if (typeof p.seniority === "string") setSeniority(p.seniority);
+        if (typeof p.roleFamily === "string") setRoleFamily(p.roleFamily);
+        if (typeof p.needText === "string") setNeedText(p.needText);
+        if (typeof p.repoUrl === "string") setRepoUrl(p.repoUrl);
+        if (typeof p.lang === "string" && isLocale(p.lang)) setOutputLang(p.lang);
+      }
+      // Still running? Keep watching — the poll + render bridge finish the job.
+      if (task && (task.status === "queued" || task.status === "running")) return;
+      if (task && task.status === "succeeded" && task.result) setResult(task.result as JdBuildResult);
+      setTaskId((cur) => (cur === jdTaskParam ? null : cur));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // The AI build produces a structured RoleSpec + salary; if a template is
   // selected we render those fields THROUGH it (so the AI output adopts the

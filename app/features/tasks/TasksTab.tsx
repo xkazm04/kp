@@ -480,7 +480,12 @@ function outcomeLink(task: Task): { href: string; label: string } | null {
     }
     return null;
   }
-  if (task.kind === "jd_build") return { href: "/?tab=library", label: "Open the JD library" };
+  // The task id rides along (?jdTask=) so JdBuilder can rehydrate this build's
+  // generated JD — a bare /?tab=library landed on an empty builder, because the
+  // tab switch had unmounted the component that held the result.
+  if (task.kind === "jd_build") {
+    return { href: `/?tab=library&jdTask=${encodeURIComponent(task.id)}`, label: "Open the JD library" };
+  }
   // Entry-scoped kinds carry a label; ANA1's board ?q= filter isolates the
   // candidate (no per-entry deep link exists).
   const entryLabel = params["entryLabel"] ?? params["candidateLabel"];
