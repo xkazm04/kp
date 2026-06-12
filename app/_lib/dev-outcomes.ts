@@ -100,18 +100,55 @@ export type OutcomeRecord = {
 // Persist a single outcome. `input` is expected to already be validated against
 // `outcomeInputSchema` at the API boundary — that is where the canonical vocabulary and the
 // 1..5 / hired-only performance rule are enforced, keeping the calibration inputs honest.
-export function recordOutcome(input: OutcomeInput): void {
-  db()
-    .prepare(`INSERT INTO dev_outcomes (ref, candidate_ref, predicted_score, outcome, performance, note, recorded_at) VALUES (?, ?, ?, ?, ?, ?, ?)`)
-    .run(
-      input.ref ?? null,
-      input.candidateRef ?? null,
-      input.predictedScore ?? null,
+//
+// UPSERT, not blind INSERT (biz-scan 2026-06-12): calibrate() counts every decided row
+// individually, so a re-record of the same real-world fact — a remounted SubmissionRow
+// re-offering its buttons, or the control-room form re-typing a candidate the pipeline
+// already auto-recorded — used to land as a second row that double-counted in the bands
+// (at MIN RESOLVED = 4 a single duplicate can move suggestedFloor a whole tier). The row
+// this input is "about" is found by:
+//   • `ref` (the submission id, by contract) when present — one row per submission,
+//     the latest recorded reality wins;
+//   • otherwise the newest row with the same trimmed candidateRef AND outcome, so a
+//     refless "add a perf score to the alice hire" updates the existing hire instead of
+//     minting a second decided outcome. A different outcome for the same name is NOT a
+//     correction — it stays a fresh row (e.g. the same candidate across two postings).
+// Absent fields keep the existing row's values (an update never erases what it didn't say),
+// except performance, which only rides a "hired" outcome — flipping hired → rejected must
+// drop the stale score or the schema's cross-field rule would be violated at rest.
+export function recordOutcome(input: OutcomeInput): "inserted" | "updated" {
+  const d = db();
+  const candidate = input.candidateRef?.trim();
+  const existing = (
+    input.ref != null
+      ? d.prepare(`SELECT id, predicted_score, performance, note FROM dev_outcomes WHERE ref = ? ORDER BY id DESC LIMIT 1`).get(input.ref)
+      : candidate
+        ? d
+            .prepare(`SELECT id, predicted_score, performance, note FROM dev_outcomes WHERE TRIM(COALESCE(candidate_ref, '')) = ? AND outcome = ? ORDER BY id DESC LIMIT 1`)
+            .get(candidate, input.outcome)
+        : undefined
+  ) as { id: number; predicted_score: number | null; performance: number | null; note: string | null } | undefined;
+  if (existing) {
+    d.prepare(`UPDATE dev_outcomes SET predicted_score = ?, outcome = ?, performance = ?, note = ?, recorded_at = ? WHERE id = ?`).run(
+      input.predictedScore ?? existing.predicted_score,
       input.outcome,
-      input.performance ?? null,
-      input.note ?? null,
-      new Date().toISOString()
+      input.outcome === "hired" ? input.performance ?? existing.performance : null,
+      input.note ?? existing.note,
+      new Date().toISOString(),
+      existing.id
     );
+    return "updated";
+  }
+  d.prepare(`INSERT INTO dev_outcomes (ref, candidate_ref, predicted_score, outcome, performance, note, recorded_at) VALUES (?, ?, ?, ?, ?, ?, ?)`).run(
+    input.ref ?? null,
+    input.candidateRef ?? null,
+    input.predictedScore ?? null,
+    input.outcome,
+    input.performance ?? null,
+    input.note ?? null,
+    new Date().toISOString()
+  );
+  return "inserted";
 }
 
 // W5-2 (DEVO2) — auto-feed the calibration loop from the pipeline's terminal
@@ -162,6 +199,34 @@ export function listOutcomes(limit = 80): OutcomeRecord[] {
     note: (r.note as string) ?? null,
     recordedAt: r.recorded_at as string,
   }));
+}
+
+// The slice of an outcome row the postings GET joins onto each submission (the
+// submission id IS the `ref` by contract — SubmissionRow posts it, recordPipelineOutcome
+// derives it from the "ds-" candidate id). Without this join, `recorded` lived only in
+// component state: any remount re-offered the Hired/Rejected/Withdrawn buttons for a
+// submission whose outcome was already on file.
+export type OutcomeSummary = { outcome: Outcome; performance: number | null; recordedAt: string };
+
+// Latest recorded outcome per ref, for the given refs only. Upserts keep one row per
+// ref going forward, but rows written before that (or a legacy import) can repeat a
+// ref — scanning in id order and letting the map overwrite makes the newest row win
+// either way. Unknown refs are simply absent from the result.
+export function latestOutcomeByRefs(refs: string[]): Map<string, OutcomeSummary> {
+  const latest = new Map<string, OutcomeSummary>();
+  if (refs.length === 0) return latest;
+  const placeholders = refs.map(() => "?").join(", ");
+  const rows = db()
+    .prepare(`SELECT ref, outcome, performance, recorded_at FROM dev_outcomes WHERE ref IN (${placeholders}) ORDER BY id ASC`)
+    .all(...refs) as Array<Record<string, unknown>>;
+  for (const r of rows) {
+    latest.set(r.ref as string, {
+      outcome: r.outcome as Outcome,
+      performance: r.performance == null ? null : Number(r.performance),
+      recordedAt: r.recorded_at as string,
+    });
+  }
+  return latest;
 }
 
 // Fixed predicted-score buckets used to ask "do higher scores actually convert better?".

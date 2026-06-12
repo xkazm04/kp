@@ -97,9 +97,17 @@ export function SubmissionRow({
     busy: boolean;
     error: string | null;
   }>({ recorded: null, pickingPerf: false, busy: false, error: null });
+  // Server truth first: the postings GET joins each submission's latest recorded outcome
+  // from the dev-outcomes store (ref === submission.id), so a remount shows the pill
+  // instead of re-offering the buttons — a re-click used to persist a second row that
+  // calibrate() counted as another decided outcome. Local state stays the optimistic
+  // layer for the click that just landed; "pending" is undecided, so it keeps the buttons.
+  const serverRecorded =
+    submission.outcome && submission.outcome.outcome !== "pending" ? submission.outcome.outcome : null;
+  const recorded = outcome.recorded ?? serverRecorded;
 
   const recordSubmissionOutcome = async (kind: "hired" | "rejected" | "withdrawn", performance?: number) => {
-    if (outcome.busy || outcome.recorded) return;
+    if (outcome.busy || recorded) return;
     setOutcome((o) => ({ ...o, busy: true, error: null, pickingPerf: false }));
     try {
       const r = await fetch("/api/devcase/outcomes", {
@@ -244,13 +252,13 @@ export function SubmissionRow({
       {ev ? <EvalPanel ev={ev} onPromote={promote} promoted={isPromoted} promoting={promoting} /> : null}
       {isPromoted ? (
         <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-micro">
-          {outcome.recorded ? (
+          {recorded ? (
             <span
               className={`rounded-full px-2 py-0.5 font-semibold uppercase ${
-                outcome.recorded === "hired" ? "bg-moss/15 text-moss" : "bg-stone-100 text-steel"
+                recorded === "hired" ? "bg-moss/15 text-moss" : "bg-stone-100 text-steel"
               }`}
             >
-              outcome: {outcome.recorded} ✓
+              outcome: {recorded} ✓
             </span>
           ) : outcome.pickingPerf ? (
             <>

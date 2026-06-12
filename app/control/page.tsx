@@ -12,7 +12,7 @@ type LC = { id: string; title: string | null; stage: string; detail: string | nu
 type Gate = { id: string; title: string | null; detail: string | null };
 type Status = { autonomy: "on" | "paused"; lifecycles: LC[]; pendingGates: Gate[]; audit: Audit[] };
 
-type Outcome = { id: number; candidateRef: string | null; predictedScore: number | null; outcome: string; performance: number | null; recordedAt: string };
+type Outcome = { id: number; ref: string | null; candidateRef: string | null; predictedScore: number | null; outcome: string; performance: number | null; note: string | null; recordedAt: string };
 type CalBand = { label: string; lo: number; count: number; hireRate: number | null; meanPerformance: number | null };
 type Calibration = { resolved: number; bands: CalBand[]; predictive: boolean | null; currentFloor: number; suggestedFloor: number | null; rationale: string };
 type OutcomeData = { outcomes: Outcome[]; calibration: Calibration; activeFloor: number };
@@ -34,6 +34,8 @@ export default function ControlPage() {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [form, setForm] = useState({ candidate: "", score: "", outcome: "hired", perf: "4" });
+  // id of the recorded outcome currently picking a 1–5 performance score (one at a time).
+  const [perfFor, setPerfFor] = useState<number | null>(null);
 
   // The 3s poll keeps the last good status/outcomes visible when the API drops
   // and tracks per-loader failure + freshness, so a stale view is flagged rather
@@ -89,6 +91,38 @@ export default function ControlPage() {
       await loadOutcomes();
     } catch {
       setErr("Network error — outcome not recorded.");
+    } finally {
+      setBusy(false);
+    }
+  };
+  // Attach an on-the-job performance score to an EXISTING recorded hire (auto-recorded
+  // pipeline hires arrive without one). Posting the row's own ref/candidateRef makes the
+  // store's upsert update that row in place — re-typing a known candidate into the
+  // free-text form risked a duplicate decided row that calibrate() counted twice. The
+  // form below stays for genuinely off-pipeline outcomes.
+  const addPerformance = async (row: Outcome, perf: number) => {
+    setBusy(true);
+    setErr(null);
+    try {
+      const r = await fetch("/api/devcase/outcomes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ref: row.ref ?? undefined,
+          candidateRef: row.candidateRef ?? undefined,
+          outcome: "hired",
+          performance: perf,
+        }),
+      });
+      if (!r.ok) {
+        const p = (await r.json().catch(() => null)) as { error?: string } | null;
+        setErr(p?.error || `Failed to record performance (${r.status}).`);
+        return;
+      }
+      setPerfFor(null);
+      await loadOutcomes();
+    } catch {
+      setErr("Network error — performance not recorded.");
     } finally {
       setBusy(false);
     }
@@ -295,6 +329,73 @@ export default function ControlPage() {
                 </tbody>
               </table>
               <p className="mt-2 text-[11px] text-ink">{o.calibration.rationale}</p>
+            </div>
+          ) : null}
+
+          {/* Recorded outcomes — auto-recorded pipeline hires land here without a perf
+              score; "add perf" updates the existing row (store upsert) so a known
+              candidate never needs free-text re-entry that could double-count. */}
+          {o && o.outcomes.length > 0 ? (
+            <div className="mt-2 rounded-lg border border-stone-200 bg-white p-3 shadow-panel">
+              <h3 className="text-[9px] uppercase tracking-wide text-steel">Recorded outcomes · last {Math.min(o.outcomes.length, 12)}</h3>
+              <table className="mt-1 w-full text-[11px]">
+                <thead>
+                  <tr className="text-left text-[9px] uppercase text-steel">
+                    <th className="py-1">candidate</th>
+                    <th>score</th>
+                    <th>outcome</th>
+                    <th>perf</th>
+                    <th>recorded</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {o.outcomes.slice(0, 12).map((row) => (
+                    <tr key={row.id} className="border-t border-stone-100">
+                      <td className="py-1 font-semibold text-ink" title={row.note ?? undefined}>
+                        {row.candidateRef ?? row.ref ?? "—"}
+                        {row.note?.startsWith("auto-recorded") ? (
+                          <span className="ml-1.5 rounded-full bg-coral/15 px-1.5 py-0.5 text-[9px] font-semibold uppercase text-coral">auto</span>
+                        ) : null}
+                      </td>
+                      <td className="text-steel">{row.predictedScore ?? "—"}</td>
+                      <td className="text-ink">{row.outcome}</td>
+                      <td className="text-steel">
+                        {row.performance != null ? (
+                          row.performance
+                        ) : row.outcome === "hired" ? (
+                          perfFor === row.id ? (
+                            <span className="inline-flex items-center gap-1">
+                              {[1, 2, 3, 4, 5].map((p) => (
+                                <button
+                                  key={p}
+                                  type="button"
+                                  disabled={busy}
+                                  onClick={() => void addPerformance(row, p)}
+                                  className="focus-ring h-5 w-5 rounded border border-stone-200 bg-white text-[10px] font-semibold text-ink hover:border-moss/50 hover:bg-moss/5 disabled:opacity-50"
+                                >
+                                  {p}
+                                </button>
+                              ))}
+                            </span>
+                          ) : (
+                            <button
+                              type="button"
+                              disabled={busy}
+                              onClick={() => setPerfFor(row.id)}
+                              className="focus-ring rounded border border-stone-200 bg-white px-1.5 py-0.5 text-[10px] font-semibold text-steel hover:text-ink disabled:opacity-50"
+                            >
+                              add perf
+                            </button>
+                          )
+                        ) : (
+                          "—"
+                        )}
+                      </td>
+                      <td className="text-[10px] text-steel">{formatRelativeTime(row.recordedAt)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           ) : null}
         </section>
