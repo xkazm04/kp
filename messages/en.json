@@ -504,6 +504,7 @@
       "previewRejects": "{count, plural, one {Would reject # (sends a rejection email)} other {Would reject # (sends rejection emails)}}",
       "previewAdvances": "{count, plural, one {Would advance #} other {Would advance #}}",
       "previewHeld": "{count, plural, one {Held for review (#) — view reasons} other {Held for review (#) — view reasons}}",
+      "previewFairnessBlocked": "{count, plural, one {# would-be reject held by the fairness backstop} other {# would-be rejects held by the fairness backstop}}",
       "previewApply": "{count, plural, one {Apply # change & notify} other {Apply # changes & notify}}",
       "previewCancel": "Cancel",
       "previewNothing": "Nothing to apply — every candidate is held or unchanged.",
@@ -668,6 +669,13 @@
       "trigger": { "clock": "clock", "manual": "manual" },
       "runEvaluated": "{n} evaluated",
       "runNoActions": "No actions — every candidate held or unchanged.",
+      "outcome": {
+        "applied": "applied",
+        "failed": "failed",
+        "skipped": "skipped — stage changed",
+        "fairness_blocked": "fairness backstop",
+        "queued": "queued for approval"
+      },
       "thisRun": "{label} this run"
     },
     "result": {

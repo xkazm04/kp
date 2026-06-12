@@ -13,6 +13,7 @@ import { resolveCandidatePoolEntry } from "./candidate-pool";
 import { cleanupWorkdir, createWorkdir, parsePythonJson, parseStderrError, spawnPython } from "./python-runner";
 import { dispatchRejection } from "./comms-dispatch";
 import { assertAutoRejectFair } from "./automation-fairness";
+import type { DecisionOutcome } from "./decision-attribution";
 
 // Audit event kind logged when the TS fairness backstop refuses a Python reject
 // and downgrades it to a hold. A non-zero count here means an upstream regression
@@ -30,6 +31,10 @@ export type AutomationDecision = {
   toStage: string | null;
   alerts: string[];
   reason: string;
+  /** Apply-step outcome, set by executeAutomationPass and persisted with the
+   *  run. Rows persisted before the field existed derive it from the reason
+   *  prefix (deriveDecisionOutcome in decision-attribution.ts). */
+  outcome?: DecisionOutcome;
 };
 // `evaluated` = how many active entries the pass actually scanned. It distinguishes a
 // healthy idle pass (evaluated N, 0 actions) from a pass that saw NOTHING (evaluated 0 —
@@ -199,6 +204,7 @@ async function executeAutomationPass(dryRun: boolean): Promise<AutomationPassRes
             summary.rejected += 1;
           } else {
             d.action = "hold";
+            d.outcome = "fairness_blocked"; // the preview must show this louder than a routine hold
             d.reason = `Auto-reject would be refused by fairness backstop: ${verdict.reason}. Original policy decision: ${d.reason}`;
             d.alerts = (d.alerts ?? []).includes(FAIRNESS_BLOCKED_REJECT_ALERT)
               ? d.alerts
@@ -230,8 +236,10 @@ async function executeAutomationPass(dryRun: boolean): Promise<AutomationPassRes
         const applied = actOnPipelineEntry(d.entryId, "accept", d.reason, { expectedStage: snapshotStage, actor: "system" }); // logs `auto_advanced` + stamps stage_changed_at
         if (applied) {
           summary.advanced += 1;
+          d.outcome = "applied";
         } else {
           d.action = "none";
+          d.outcome = "skipped";
           d.reason = `Skipped: stage changed mid-pass. Original policy decision: ${d.reason}`;
         }
       } else if (d.action === "reject") {
@@ -247,6 +255,7 @@ async function executeAutomationPass(dryRun: boolean): Promise<AutomationPassRes
             // notification failure can't make the run summary claim "0 rejected"
             // for a pass that genuinely rejected someone.
             summary.rejected += 1;
+            d.outcome = "applied";
             // Mirror screen-wave (idea-961de357): a comms failure must leave a
             // per-entry marker, not just a bare error count — the candidate is out
             // of the funnel and only this event tells the recruiter to nudge
@@ -263,10 +272,12 @@ async function executeAutomationPass(dryRun: boolean): Promise<AutomationPassRes
             // Stale (stage changed mid-pass) — and crucially, NO rejection email
             // went out for a verdict the entry's current state never earned.
             d.action = "none";
+            d.outcome = "skipped";
             d.reason = `Skipped: stage changed mid-pass. Original policy decision: ${d.reason}`;
           }
         } else {
           d.action = "hold";
+          d.outcome = "fairness_blocked";
           d.reason = `Auto-reject refused by fairness backstop: ${verdict.reason}. Original policy decision: ${d.reason}`;
           // Surface it as an alert; the loop below records it (deduped per day) and
           // counts it, so the refusal shows up in the Activity feed for audit.
@@ -277,6 +288,7 @@ async function executeAutomationPass(dryRun: boolean): Promise<AutomationPassRes
         }
       } else if (d.action === "hold") {
         summary.held += 1;
+        d.outcome = "applied";
       }
       for (const alert of d.alerts ?? []) {
         if (!hasEventToday(d.entryId, alert)) {
@@ -290,6 +302,7 @@ async function executeAutomationPass(dryRun: boolean): Promise<AutomationPassRes
         // than aborting. The errors count surfaces the partial in the run summary.
         summary.errors += 1;
         const reason = applyError instanceof Error ? applyError.message : String(applyError);
+        d.outcome = "failed";
         d.reason = `Apply failed: ${reason}. Original policy decision: ${d.reason}`;
         console.error(`[automation-pass] decision apply failed for ${d.entryId}: ${reason}`);
       }

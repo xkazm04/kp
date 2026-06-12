@@ -6,13 +6,14 @@ import type { LucideIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Badge, type BadgeTone } from "@/app/_components/Badge";
 import { useEngineAvailability } from "@/app/features/useEngineAvailability";
+import { deriveDecisionOutcome, type DecisionOutcome } from "@/app/_lib/decision-attribution";
 import { useRelativeTime } from "./PipelineShared";
 
 type Summary = { advanced?: number; rejected?: number; held?: number; alerts?: number; errors?: number; evaluated?: number };
 // AUTO2 — the persisted per-run record the schedule GET has always returned
 // (and this component ignored): trigger/status/summary plus the decision rows
 // the pass used to compute and discard.
-type RunDecision = { entryId?: string; action?: string; reason?: string };
+type RunDecision = { entryId?: string; action?: string; reason?: string; outcome?: string };
 type SchedulerRun = {
   id: number;
   trigger: string;
@@ -37,6 +38,28 @@ const RESULT_TONE: Record<RunResult["tone"], string> = {
   neutral: "bg-stone-100 text-steel",
   error: "bg-coral/10 text-coral",
 };
+
+// Per-decision outcome chip — failed / CAS-skipped / fairness-refused / queued
+// states the action badge alone can't convey (a failed REJECT used to render
+// exactly like an applied one, and skips were dropped from the list entirely).
+const OUTCOME_STYLE: Record<DecisionOutcome, string> = {
+  applied: "",
+  failed: "bg-coral/10 text-coral",
+  skipped: "bg-stone-100 text-steel",
+  fairness_blocked: "bg-amber-50 text-amber-700",
+  queued: "bg-stone-100 text-steel",
+};
+
+function OutcomeChip({ outcome }: { outcome: DecisionOutcome }) {
+  const t = useTranslations("pipeline.scheduler");
+  return (
+    <span className={`mr-1 inline-flex items-center gap-0.5 rounded px-1 py-0.5 font-semibold uppercase ${OUTCOME_STYLE[outcome]}`}>
+      {outcome === "failed" ? <XCircle size={10} aria-hidden /> : null}
+      {outcome === "fairness_blocked" ? <AlertTriangle size={10} aria-hidden /> : null}
+      {t(`outcome.${outcome}` as Parameters<typeof t>[0])}
+    </span>
+  );
+}
 
 // The four buckets a policy pass moves entries into, tone-coded so the last-run
 // row reads at a glance — and so `held` (tracked by the backend, AutomationSummary)
@@ -345,7 +368,10 @@ export function SchedulerControl({
         <ol className="space-y-1">
           {runs.map((run) => {
             const decisions = Array.isArray(run.decisions) ? run.decisions : [];
-            const acted = decisions.filter((d) => d.action && d.action !== "none");
+            // "none" rows are CAS skips — near-misses the guard prevented. The
+            // audit history must show them, not drop them (the old filter made a
+            // prevented action indistinguishable from one that never existed).
+            const acted = decisions.filter((d) => d.action && (d.action !== "none" || deriveDecisionOutcome(d) === "skipped"));
             return (
               <li key={run.id} className="rounded border border-stone-100 bg-paper/40 px-2 py-1">
                 <details>
@@ -371,25 +397,34 @@ export function SchedulerControl({
                   </summary>
                   {acted.length > 0 ? (
                     <ul className="mt-1 space-y-0.5 border-t border-stone-100 pt-1">
-                      {acted.map((d, i) => (
-                        <li key={`${d.entryId}-${i}`} className="text-xs">
-                          <span
-                            className={`mr-1 rounded px-1 py-0.5 font-semibold uppercase ${
-                              d.action === "reject"
-                                ? "bg-coral/10 text-coral"
-                                : d.action === "advance"
-                                  ? "bg-moss/10 text-moss"
-                                  : "bg-stone-100 text-steel"
-                            }`}
-                          >
-                            {d.action}
-                          </span>
-                          <span className="font-medium text-ink">
-                            {(d.entryId && labelFor?.(d.entryId)) ?? d.entryId ?? "—"}
-                          </span>{" "}
-                          <span className="text-steel">— {d.reason}</span>
-                        </li>
-                      ))}
+                      {acted.map((d, i) => {
+                        const outcome = deriveDecisionOutcome(d);
+                        return (
+                          <li key={`${d.entryId}-${i}`} className="text-xs">
+                            {d.action !== "none" ? (
+                              <span
+                                className={`mr-1 rounded px-1 py-0.5 font-semibold uppercase ${
+                                  d.action === "reject"
+                                    ? "bg-coral/10 text-coral"
+                                    : d.action === "advance"
+                                      ? "bg-moss/10 text-moss"
+                                      : "bg-stone-100 text-steel"
+                                }`}
+                              >
+                                {d.action}
+                              </span>
+                            ) : null}
+                            {/* The outcome chip separates "landed" from failed /
+                                CAS-skipped / fairness-refused — the rows an
+                                auditor actually cares about. */}
+                            {outcome !== "applied" ? <OutcomeChip outcome={outcome} /> : null}
+                            <span className="font-medium text-ink">
+                              {(d.entryId && labelFor?.(d.entryId)) ?? d.entryId ?? "—"}
+                            </span>{" "}
+                            <span className="text-steel">— {d.reason}</span>
+                          </li>
+                        );
+                      })}
                     </ul>
                   ) : (
                     <p className="mt-1 border-t border-stone-100 pt-1 text-xs">{t("runNoActions")}</p>

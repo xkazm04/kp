@@ -1,11 +1,12 @@
 "use client";
 
-import { ArrowUpCircle, PauseCircle, XCircle } from "lucide-react";
+import { AlertTriangle, ArrowUpCircle, PauseCircle, XCircle } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Modal } from "@/app/_components/Modal";
+import { deriveDecisionOutcome } from "@/app/_lib/decision-attribution";
 import type { Entry } from "./PipelineTypes";
 
-type PreviewDecision = { entryId: string; action: string; toStage: string | null; reason: string };
+type PreviewDecision = { entryId: string; action: string; toStage: string | null; reason: string; outcome?: string };
 type Preview = {
   summary: { advanced: number; rejected: number; held: number; alerts: number; errors: number; evaluated: number };
   decisions: PreviewDecision[];
@@ -35,7 +36,12 @@ export function PassPreviewModal({
 
   const rejects = preview.decisions.filter((d) => d.action === "reject");
   const advances = preview.decisions.filter((d) => d.action === "advance");
-  const holds = preview.decisions.filter((d) => d.action === "hold");
+  // A fairness-backstop refusal is a WOULD-BE REJECT the guard intercepted —
+  // the regression signal this preview exists to surface. It must not hide
+  // among routine holds in a collapsed <details>.
+  const allHolds = preview.decisions.filter((d) => d.action === "hold");
+  const fairnessBlocked = allHolds.filter((d) => deriveDecisionOutcome(d) === "fairness_blocked");
+  const holds = allHolds.filter((d) => deriveDecisionOutcome(d) !== "fairness_blocked");
   const changes = rejects.length + advances.length;
 
   return (
@@ -91,6 +97,21 @@ export function PassPreviewModal({
             <ul className="mt-1.5 space-y-1">
               {advances.map((d) => (
                 <li key={d.entryId} className="rounded-md border border-moss/30 bg-moss/5 px-3 py-1.5 text-sm">
+                  <span className="font-semibold text-ink">{label(d.entryId)}</span>{" "}
+                  <span className="text-steel">— {d.reason}</span>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
+        {fairnessBlocked.length > 0 ? (
+          <section>
+            <p className="flex items-center gap-1.5 text-meta uppercase tracking-wide text-amber-700">
+              <AlertTriangle size={13} aria-hidden /> {t("previewFairnessBlocked", { count: fairnessBlocked.length })}
+            </p>
+            <ul className="mt-1.5 space-y-1">
+              {fairnessBlocked.map((d) => (
+                <li key={d.entryId} className="rounded-md border border-amber-200 bg-amber-50/60 px-3 py-1.5 text-sm">
                   <span className="font-semibold text-ink">{label(d.entryId)}</span>{" "}
                   <span className="text-steel">— {d.reason}</span>
                 </li>

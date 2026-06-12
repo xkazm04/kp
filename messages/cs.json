@@ -503,6 +503,7 @@
       "previewRejects": "{count, plural, one {Zamítl by # (odešle e-mail o zamítnutí)} few {Zamítl by # (odešle e-maily o zamítnutí)} other {Zamítl by # (odešle e-maily o zamítnutí)}}",
       "previewAdvances": "{count, plural, one {Posunul by #} few {Posunul by #} other {Posunul by #}}",
       "previewHeld": "{count, plural, one {Pozdrženo k posouzení (#) — zobrazit důvody} few {Pozdrženo k posouzení (#) — zobrazit důvody} other {Pozdrženo k posouzení (#) — zobrazit důvody}}",
+      "previewFairnessBlocked": "{count, plural, one {# zamítnutí zadrženo férovou pojistkou} few {# zamítnutí zadržena férovou pojistkou} other {# zamítnutí zadrženo férovou pojistkou}}",
       "previewApply": "{count, plural, one {Použít # změnu a upozornit} few {Použít # změny a upozornit} other {Použít # změn a upozornit}}",
       "previewCancel": "Zrušit",
       "previewNothing": "Není co použít — všichni kandidáti jsou pozdrženi nebo beze změny.",
@@ -668,6 +669,13 @@
       "trigger": { "clock": "hodiny", "manual": "ručně" },
       "runEvaluated": "{n} vyhodnoceno",
       "runNoActions": "Žádné akce — všichni kandidáti pozdrženi nebo beze změny.",
+      "outcome": {
+        "applied": "provedeno",
+        "failed": "selhalo",
+        "skipped": "přeskočeno — fáze se změnila",
+        "fairness_blocked": "férová pojistka",
+        "queued": "čeká na schválení"
+      },
       "thisRun": "{label} v tomto běhu"
     },
     "result": {

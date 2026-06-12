@@ -54,6 +54,27 @@ export const DECISION_META: Record<string, DecisionMeta> = {
   intake_resolved: { auto: false, tone: "text-moss" },
 };
 
+// Outcome state of one automation-pass decision (persisted in
+// scheduler_runs.decisions_json). Rows persisted before the field existed are
+// reconstructed from the reason prefixes executeAutomationPass has always
+// written — the run history must distinguish an action that LANDED from one
+// that failed, was CAS-skipped, or was refused by the fairness backstop.
+export type DecisionOutcome = "applied" | "failed" | "skipped" | "fairness_blocked" | "queued";
+
+const OUTCOMES: ReadonlySet<string> = new Set(["applied", "failed", "skipped", "fairness_blocked", "queued"]);
+
+export function deriveDecisionOutcome(d: { outcome?: string; reason?: string }): DecisionOutcome {
+  if (d.outcome && OUTCOMES.has(d.outcome)) return d.outcome as DecisionOutcome;
+  const reason = d.reason ?? "";
+  if (reason.startsWith("Apply failed:")) return "failed";
+  if (reason.startsWith("Skipped:")) return "skipped";
+  if (reason.startsWith("Auto-reject refused by fairness backstop") || reason.startsWith("Auto-reject would be refused by fairness backstop")) {
+    return "fairness_blocked";
+  }
+  if (reason.startsWith("Queued for approval")) return "queued";
+  return "applied";
+}
+
 // Three-state on purpose: in an auditable surface, defaulting an unrecognized
 // kind to AUTO would misattribute accountability to the machine. Unknown kinds
 // stay out of both badge labels and aggregate counts.
