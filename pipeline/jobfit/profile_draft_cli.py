@@ -206,6 +206,25 @@ def _extract(text: str, lang: str = "en") -> dict[str, Any]:
         f"- {language_directive(lang)}\n\n"
         f"Notes:\n{text.strip()}\n"
     )
+    # Multi-provider routing (docs/LLM_PROVIDER_LAYER.md): ONLY an explicit
+    # KP_LLM_CONFIG row for profile_draft re-routes this call — the
+    # unconfigured default stays the direct Gemini path below, byte-for-byte
+    # the pre-registry behavior (resolve_provider's fallback is the Claude
+    # CLI, which would silently change this Gemini-default use case).
+    from .llm.config import load_config
+
+    cfg = load_config()
+    entry = cfg.for_use_case("profile_draft") if cfg else None
+    if entry is not None:
+        from .llm import resolve_provider
+
+        provider = resolve_provider("profile_draft", timeout=120)
+        if provider.available():
+            payload = provider.complete_json(prompt, expected_keys=tuple(DRAFT_SCHEMA.keys()))
+            if not isinstance(payload, dict) or not payload:
+                raise RuntimeError("AI returned no structured draft. Try adding more detail to the notes.")
+            return payload
+
     answer = grounded_answer(
         prompt=prompt,
         response_mime_type="application/json",

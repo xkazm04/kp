@@ -24,7 +24,7 @@ import json
 import sys
 from pathlib import Path
 
-from .claude_cli import ClaudeCliProvider
+from .llm import resolve_provider
 from .group_compare import GROUP_COMPARE_PROMPT_VERSION, generate
 
 
@@ -44,7 +44,7 @@ def main(argv: list[str] | None = None) -> int:
         )
         if not isinstance(context, dict):
             raise ValueError("input must be a JSON object")
-        provider = None if args.no_llm else ClaudeCliProvider(timeout=120)
+        provider = None if args.no_llm else resolve_provider("group_compare", timeout=120)
         if provider is not None and not provider.available():
             provider = None
         comparison, source = generate(context, provider=provider)

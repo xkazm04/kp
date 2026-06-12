@@ -16,7 +16,7 @@ import json
 import sys
 from pathlib import Path
 
-from .claude_cli import ClaudeCliProvider
+from .llm import resolve_provider
 from .jobs import Job
 from .matching import MatchCandidate, load_corpus
 from .profile import CandidateProfileV2
@@ -88,7 +88,7 @@ def main(argv: list[str] | None = None) -> int:
         # must not break the primary ranking, so degrade to null.
         weights_provider = None
         if args.weights_llm:
-            weights_provider = ClaudeCliProvider(timeout=120)
+            weights_provider = resolve_provider("weight_proposal", timeout=120)
             if not weights_provider.available():
                 weights_provider = None
         try:

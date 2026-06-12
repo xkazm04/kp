@@ -8,9 +8,15 @@
 > admin API at `/api/llm/config` + `/api/llm/keys` (AES-256-GCM keys under
 > `KP_SECRET`). Also live (2026-06-11): LightTrack observability (see
 > Observability below) and the Phase 3 benchmark suite (see Benchmarks below).
-> Outstanding: Models admin UI tab, Phase 3 ports (devcase/*, campaign,
-> profile_draft, jd_ingest, cv_analysis fold-in, TS github-analysis wrapper),
-> Phase 4 ledger emission (the `insertLlmUsage` writer exists).
+> **Phase 3 text ports shipped (2026-06-12):** campaign_pack, jd_ingest,
+> group_compare, weight_proposal, devcase/* (per-command use cases via
+> `_USE_CASE_BY_COMMAND`), and profile_draft (config-gated — its unconfigured
+> default stays the direct Gemini path). `/api/llm/test` runs a canary through
+> the real resolution path for the Models admin tab. Outstanding: cv_analysis
+> fold-in (needs multimodal+grounding in the adapters — Gemini remains the
+> only capable provider, as capabilities.py encodes), the TS github-analysis
+> wrapper, Phase 4 ledger emission (the `insertLlmUsage` writer exists), and
+> a deliberate bench run to pick metered default models.
 
 ## Observability — LightTrack (`pipeline/jobfit/llm/monitor.py`)
 

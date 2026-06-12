@@ -34,7 +34,7 @@ def _last_json(stream: str) -> dict:
 
 class _AlwaysFailProvider:
     """A provider that is available but whose every LLM call raises — so every step falls
-    back to its deterministic template. Mocked in for ClaudeCliProvider to exercise the
+    back to its deterministic template. Mocked in for resolve_provider to exercise the
     real CLI fallback path without a Claude CLI."""
 
     def __init__(self, exc: Exception):
@@ -359,7 +359,7 @@ class TestDevcaseCliFallbackReason(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             need = self._need(d)
             # NOTE: no --no-llm — the CLI builds a (mocked) provider, whose call raises.
-            with mock.patch.object(devcase_cli, "ClaudeCliProvider", return_value=_AlwaysFailProvider(RuntimeError("provider is down"))):
+            with mock.patch.object(devcase_cli, "resolve_provider", return_value=_AlwaysFailProvider(RuntimeError("provider is down"))):
                 code, out, _err = _run(["analyze-need", "--need-json", need])
         self.assertEqual(code, 0)
         payload = _last_json(out)
@@ -379,7 +379,7 @@ class TestDevcaseCliFallbackReason(unittest.TestCase):
         ):
             with tempfile.TemporaryDirectory() as d:
                 need = self._need(d)
-                with mock.patch.object(devcase_cli, "ClaudeCliProvider", return_value=_AlwaysFailProvider(exc)):
+                with mock.patch.object(devcase_cli, "resolve_provider", return_value=_AlwaysFailProvider(exc)):
                     code, out, _err = _run(["analyze-need", "--need-json", need])
             self.assertEqual(code, 0)
             self.assertEqual(_last_json(out)["fallbackReason"]["analyze"], expected)
@@ -387,7 +387,7 @@ class TestDevcaseCliFallbackReason(unittest.TestCase):
     def test_reason_is_logged_at_warning(self):
         with tempfile.TemporaryDirectory() as d:
             need = self._need(d)
-            with mock.patch.object(devcase_cli, "ClaudeCliProvider", return_value=_AlwaysFailProvider(RuntimeError("xyz cause"))):
+            with mock.patch.object(devcase_cli, "resolve_provider", return_value=_AlwaysFailProvider(RuntimeError("xyz cause"))):
                 with self.assertLogs("pipeline.jobfit.devcase.analyze", level="WARNING") as cm:
                     _run(["analyze-need", "--need-json", need])
         self.assertTrue(any("fell back to deterministic" in m and "xyz cause" in m for m in cm.output))
@@ -400,7 +400,7 @@ class TestDevcaseCliFallbackReason(unittest.TestCase):
             case.write_text("{}", encoding="utf-8")
             role = Path(d) / "role.json"
             role.write_text(json.dumps({"title": "Backend", "seniority": "medior"}), encoding="utf-8")
-            with mock.patch.object(devcase_cli, "ClaudeCliProvider", return_value=_ReflectOnlyProvider()):
+            with mock.patch.object(devcase_cli, "resolve_provider", return_value=_ReflectOnlyProvider()):
                 code, out, _err = _run(
                     ["evaluate-submission", "--commits-json", str(commits), "--case-json", str(case), "--role-json", str(role)]
                 )

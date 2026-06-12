@@ -35,13 +35,26 @@ import json
 import sys
 from pathlib import Path
 
-from ..claude_cli import ClaudeCliProvider
+from ..llm import resolve_provider
 from . import analyze as _analyze
 from . import design as _design
 from . import evaluate as _evaluate
 from . import reflect as _reflect
 from .models import LOW_CONFIDENCE, DevNeed, NeedAnalysis, RepoSnapshot
 from .provenance import FALLBACK_REASON_KEY, combine_source
+
+# devcase_cli command → LLM-registry use case (capabilities.py catalog), so the
+# Models config can pin a provider/model per step. design-artifacts covers both
+# the role and case design steps with one provider (the case-design row, which
+# carries the quality-model default).
+_USE_CASE_BY_COMMAND = {
+    "analyze-need": "devcase_analyze",
+    "design-artifacts": "devcase_case_design",
+    "reflect-commits": "devcase_reflect",
+    "evaluate-submission": "devcase_evaluate",
+    "interview-scenario": "devcase_interview_scenario",
+    "materialize-seed": "devcase_seed",
+}
 
 # Stable, machine-readable error codes the UI branches on. INVALID_INPUT is a
 # user-correctable problem (missing/garbled --*-json arg, failed pydantic
@@ -263,7 +276,11 @@ def main(argv: list[str] | None = None) -> int:
             )
             return 0
 
-        provider = None if args.no_llm else ClaudeCliProvider(timeout=120)
+        # Per-command use case so the Models config can route (and the usage
+        # ledger attribute) each dev-case step independently. Commands that
+        # return before this line never construct a provider.
+        use_case = _USE_CASE_BY_COMMAND.get(args.command, "devcase_case_design")
+        provider = None if args.no_llm else resolve_provider(use_case, timeout=120)
         if provider is not None and not provider.available():
             provider = None
 
