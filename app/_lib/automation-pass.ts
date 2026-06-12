@@ -243,8 +243,22 @@ async function executeAutomationPass(dryRun: boolean): Promise<AutomationPassRes
         if (verdict.allowed) {
           const rejected = actOnPipelineEntry(d.entryId, "reject", undefined, { expectedStage: snapshotStage });
           if (rejected) {
-            await dispatchRejection(rejected, { automated: true }); // tell the candidate (queued by default)
+            // The DB transition is committed — count it BEFORE the comm hop, so a
+            // notification failure can't make the run summary claim "0 rejected"
+            // for a pass that genuinely rejected someone.
             summary.rejected += 1;
+            // Mirror screen-wave (idea-961de357): a comms failure must leave a
+            // per-entry marker, not just a bare error count — the candidate is out
+            // of the funnel and only this event tells the recruiter to nudge
+            // manually instead of silently ghosting.
+            try {
+              await dispatchRejection(rejected, { automated: true }); // tell the candidate (queued by default)
+            } catch (commsError) {
+              summary.errors += 1;
+              const msg = commsError instanceof Error ? commsError.message : String(commsError);
+              console.warn(`[automation-pass] rejection comms failed for ${d.entryId}: ${msg}`);
+              recordAutomationEvent(d.entryId, "rejection_comms_failed", `Auto-rejected, but the notification failed to queue — nudge manually. (${msg})`);
+            }
           } else {
             // Stale (stage changed mid-pass) — and crucially, NO rejection email
             // went out for a verdict the entry's current state never earned.
