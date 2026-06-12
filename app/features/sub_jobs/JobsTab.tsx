@@ -36,6 +36,8 @@ export function JobsTab() {
     setWorkMode,
     entryOnly,
     setEntryOnly,
+    openOnly,
+    setOpenOnly,
     q,
     setQ,
     anyFilter,
@@ -134,6 +136,16 @@ export function JobsTab() {
             className="h-4 w-4 accent-coral"
           />
           {t("entryOnly")}
+        </label>
+        {/* Lifecycle filter: hide drafts + closed roles (default off — the full catalog stays the baseline view). */}
+        <label className="flex items-center gap-2 rounded-md border border-stone-200 px-3 py-2 text-base text-ink">
+          <input
+            type="checkbox"
+            checked={openOnly}
+            onChange={(e) => setOpenOnly(e.target.checked)}
+            className="h-4 w-4 accent-coral"
+          />
+          {t("openOnly")}
         </label>
         <label htmlFor="jobs-search" className="sr-only">
           {t("searchLabel")}

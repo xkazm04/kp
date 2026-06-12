@@ -21,11 +21,14 @@ export async function GET(request: NextRequest) {
   try {
     const sp = request.nextUrl.searchParams;
     const entry = sp.get("entryEligible");
+    const open = sp.get("openOnly");
     const jobs = listJobs({
       roleFamily: sp.get("roleFamily") ?? undefined,
       seniority: sp.get("seniority") ?? undefined,
       workMode: sp.get("workMode") ?? undefined,
       entryEligible: entry === null ? undefined : entry === "true" || entry === "1",
+      // Opt-in: only roles open for applications (NULL/'published' status).
+      openOnly: open === "true" || open === "1" ? true : undefined,
       q: sp.get("q") ?? undefined,
       limit: parseLimit(sp.get("limit")),
     });

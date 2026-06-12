@@ -1185,6 +1185,7 @@
       "allModes": "All modes",
       "filterWorkMode": "Filter by work mode",
       "entryOnly": "Entry-eligible only",
+      "openOnly": "Open roles only",
       "searchLabel": "Search jobs by title or company",
       "searchPlaceholder": "Search title or company…",
       "showing": "Showing <b>{shown}</b> of <b>{total}</b> roles",
@@ -1207,7 +1208,9 @@
     "shared": {
       "skippedSummary": "{count, plural, one {# candidate couldn't be scored (malformed profile) — the rest ranked normally} other {# candidates couldn't be scored (malformed profile) — the rest ranked normally}}",
       "reqLearnable": "learnable",
-      "reqPrereq": "prereq"
+      "reqPrereq": "prereq",
+      "statusDraft": "Draft",
+      "statusClosed": "Closed"
     },
     "ingest": {
       "minChars": "Paste the full job ad — at least ~{min} characters.",
@@ -1244,6 +1247,10 @@
       "closing": "Closing…",
       "closedNow": "Role closed",
       "closeFailed": "Couldn't close the role.",
+      "cancel": "Cancel",
+      "subtitleDraft": "Draft — not live yet",
+      "subtitleClosed": "Closed — no longer accepting applications",
+      "linksClosedTitle": "This role is closed — its apply links no longer accept applications",
       "rankInMatrix": "Rank in matrix",
       "copyMarkdown": "Copy markdown",
       "postingLanguage": "Posting language",

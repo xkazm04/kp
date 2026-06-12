@@ -2,7 +2,7 @@ import { ChevronRight } from "lucide-react";
 import { formatPercent } from "@/app/_lib/format";
 import { formatBand } from "./JobsTypes";
 import type { Job } from "./JobsTypes";
-import { Td } from "./JobsShared";
+import { JobStatusBadge, Td } from "./JobsShared";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
 
 // A clickable corpus row: activating it opens the publish-format posting modal.
@@ -26,7 +26,11 @@ export function JobRow({ job, onOpen }: { job: Job; onOpen: () => void }) {
         <ChevronRight size={15} aria-hidden />
       </td>
       <Td>
-        <span className="font-medium text-ink">{job.title}</span>
+        <span className="flex items-center gap-2">
+          <span className="font-medium text-ink">{job.title}</span>
+          {/* Lifecycle at a glance: a draft/closed role no longer looks pixel-identical to a live one. */}
+          <JobStatusBadge status={job.status} />
+        </span>
         <span className="block text-sm text-steel">{job.company ?? "—"}</span>
       </Td>
       <Td>{job.location ?? "—"}</Td>

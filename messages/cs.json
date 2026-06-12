@@ -1185,6 +1185,7 @@
       "allModes": "Všechny režimy",
       "filterWorkMode": "Filtrovat podle režimu práce",
       "entryOnly": "Pouze vhodné pro juniory",
+      "openOnly": "Pouze otevřené pozice",
       "searchLabel": "Hledat pozice podle názvu nebo společnosti",
       "searchPlaceholder": "Hledat název nebo společnost…",
       "showing": "Zobrazeno <b>{shown}</b> z <b>{total}</b> pozic",
@@ -1207,7 +1208,9 @@
     "shared": {
       "skippedSummary": "{count, plural, one {# kandidáta se nepodařilo ohodnotit (poškozený profil) — ostatní byli seřazeni běžně} few {# kandidáty se nepodařilo ohodnotit (poškozený profil) — ostatní byli seřazeni běžně} many {# kandidáta se nepodařilo ohodnotit (poškozený profil) — ostatní byli seřazeni běžně} other {# kandidátů se nepodařilo ohodnotit (poškozený profil) — ostatní byli seřazeni běžně}}",
       "reqLearnable": "naučitelné",
-      "reqPrereq": "prerekvizita"
+      "reqPrereq": "prerekvizita",
+      "statusDraft": "Koncept",
+      "statusClosed": "Uzavřeno"
     },
     "ingest": {
       "minChars": "Vložte celý inzerát — alespoň ~{min} znaků.",
@@ -1244,6 +1247,10 @@
       "closing": "Uzavírání…",
       "closedNow": "Pozice uzavřena",
       "closeFailed": "Pozici se nepodařilo uzavřít.",
+      "cancel": "Zrušit",
+      "subtitleDraft": "Koncept — zatím není veřejný",
+      "subtitleClosed": "Uzavřeno — přihlášky se už nepřijímají",
+      "linksClosedTitle": "Pozice je uzavřená — odkazy pro přihlášení už přihlášky nepřijímají",
       "rankInMatrix": "Seřadit v matici",
       "copyMarkdown": "Kopírovat markdown",
       "postingLanguage": "Jazyk inzerátu",

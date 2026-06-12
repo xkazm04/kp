@@ -52,6 +52,11 @@ export type Job = {
   // Empty/absent => every field was stated by the ad. Lets a phantom "Praha"/"medior"
   // be told from a stated one. Older payloads predate the field, hence optional.
   defaultedFields?: string[];
+  // Lifecycle, decorated server-side from the jobs.status column (db.ts listJobs/
+  // getJob). NULL/'published' = open for applications; a 'draft' was never live and
+  // a 'closed' role's apply links serve 410 — the catalog and posting modal badge
+  // both, and the modal gates its link buttons on it.
+  status?: "draft" | "published" | "closed" | null;
 };
 // A candidate the recruiter ranker (recruiter_cli) couldn't score because its
 // profile failed CandidateProfileV2/MatchCandidate validation. Surfaced — never

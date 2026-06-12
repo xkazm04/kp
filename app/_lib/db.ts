@@ -1053,6 +1053,11 @@ export type JobRecord = {
   // ad. Older payloads predate the field, hence optional.
   defaultedFields?: string[];
   source?: string;
+  // Lifecycle decorated from the jobs.status COLUMN (not payload_json — the
+  // column is the authority setJobStatus writes). NULL = seeded/live corpus job;
+  // 'draft' is not publicly live, 'closed' no longer accepts applications
+  // (isJobOpenForApplications in job-ingest.ts is the one open-for-apply gate).
+  status?: "draft" | "published" | "closed" | null;
 };
 
 const SEED_JOBS_PATH = path.join(process.cwd(), "data", "seed_jobs", "jobs.normalized.json");
@@ -1102,6 +1107,10 @@ export type JobFilter = {
   seniority?: string;
   workMode?: string;
   entryEligible?: boolean;
+  // true = only roles candidates can apply to right now — same predicate as
+  // isJobOpenForApplications (NULL = seeded/live, 'published' = live); drafts
+  // and closed roles are held back.
+  openOnly?: boolean;
   q?: string;
   limit?: number;
 };
@@ -1126,6 +1135,10 @@ export function listJobs(filter: JobFilter = {}): JobRecord[] {
     where.push("is_entry_eligible = @entry");
     params.entry = filter.entryEligible ? 1 : 0;
   }
+  if (filter.openOnly) {
+    // Mirrors isJobOpenForApplications (job-ingest.ts): NULL = seeded/live.
+    where.push("(status IS NULL OR status = 'published')");
+  }
   if (filter.q) {
     where.push("(title LIKE @q OR company LIKE @q)");
     params.q = `%${filter.q}%`;
@@ -1139,21 +1152,30 @@ export function listJobs(filter: JobFilter = {}): JobRecord[] {
       : 300;
   const rows = db
     .prepare(
-      `SELECT payload_json FROM jobs ${clause}
+      `SELECT payload_json, status FROM jobs ${clause}
        ORDER BY is_entry_eligible DESC, graduate_friendliness DESC, id LIMIT @limit`
     )
-    .all(params) as { payload_json: string }[];
+    .all(params) as { payload_json: string; status: JobRecord["status"] }[];
+  // Decorate each parsed payload with the status COLUMN — payload_json predates
+  // the lifecycle and never carries it, so without this the UI can't tell a
+  // draft (dead apply link) or a closed role from a live opening.
   return rows
-    .map((r) => safeRowParse<JobRecord>(r.payload_json, "listJobs"))
+    .map((r): JobRecord | null => {
+      const parsed = safeRowParse<JobRecord>(r.payload_json, "listJobs");
+      return parsed ? { ...parsed, status: r.status ?? null } : null;
+    })
     .filter((j): j is JobRecord => j !== null);
 }
 
 export function getJob(id: string): JobRecord | null {
   const db = ensureDb();
-  const row = db.prepare(`SELECT payload_json FROM jobs WHERE id = ?`).get(id) as
-    | { payload_json: string }
+  const row = db.prepare(`SELECT payload_json, status FROM jobs WHERE id = ?`).get(id) as
+    | { payload_json: string; status: JobRecord["status"] }
     | undefined;
-  return row ? safeRowParse<JobRecord>(row.payload_json, "getJob", id) : null;
+  if (!row) return null;
+  const parsed = safeRowParse<JobRecord>(row.payload_json, "getJob", id);
+  // Same status decoration as listJobs — the column is the lifecycle authority.
+  return parsed ? { ...parsed, status: row.status ?? null } : null;
 }
 
 /** Batch getJob (idea-f946db9d): one IN-query — chunked under the SQLite

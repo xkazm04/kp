@@ -41,6 +41,25 @@ export function ReqChip({ req }: { req: JobRequirement }) {
   );
 }
 
+// Lifecycle chip for a catalog row or posting surface. Quiet by design: a live
+// role (NULL/'published' status) renders nothing — only the two states whose
+// apply links are dead get badged. Draft reuses DraftsPanel's badge recipe;
+// closed gets the existing quiet amber treatment so a retired role reads as
+// "no longer accepting" rather than an error.
+export function JobStatusBadge({ status }: { status?: string | null }) {
+  const t = useTranslations("jobs.shared");
+  if (status !== "draft" && status !== "closed") return null;
+  return (
+    <span
+      className={`inline-flex shrink-0 items-center rounded-full px-1.5 py-0.5 text-micro font-semibold uppercase ${
+        status === "draft" ? "bg-stone-200 text-steel" : "bg-amber-50 text-amber-800"
+      }`}
+    >
+      {status === "draft" ? t("statusDraft") : t("statusClosed")}
+    </span>
+  );
+}
+
 export function Chip({ label, value, tone = "neutral" }: { label: string; value: string | number; tone?: "neutral" | "green" }) {
   return (
     <span

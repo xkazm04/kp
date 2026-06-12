@@ -18,6 +18,10 @@ export function useJobsList() {
   const [seniority, setSeniority] = useState("");
   const [workMode, setWorkMode] = useState("");
   const [entryOnly, setEntryOnly] = useState(false);
+  // Open-for-applications only (NULL/'published' status) — hides drafts and
+  // closed roles. Default OFF: the corpus view keeps showing the full catalog
+  // unless the recruiter opts in, mirroring entryOnly.
+  const [openOnly, setOpenOnly] = useState(false);
   const [q, setQ] = useState("");
   // Bumped to force a re-fetch with the current filters unchanged — e.g. after a
   // new job is ingested into the catalog from the same screen.
@@ -30,6 +34,7 @@ export function useJobsList() {
     if (seniority) params.set("seniority", seniority);
     if (workMode) params.set("workMode", workMode);
     if (entryOnly) params.set("entryEligible", "true");
+    if (openOnly) params.set("openOnly", "true");
     if (q.trim()) params.set("q", q.trim());
     const handle = setTimeout(() => {
       setFetching(true);
@@ -56,14 +61,15 @@ export function useJobsList() {
       cancelled = true;
       clearTimeout(handle);
     };
-  }, [roleFamily, seniority, workMode, entryOnly, q, reloadKey]);
+  }, [roleFamily, seniority, workMode, entryOnly, openOnly, q, reloadKey]);
 
-  const anyFilter = Boolean(roleFamily || seniority || workMode || entryOnly || q.trim());
+  const anyFilter = Boolean(roleFamily || seniority || workMode || entryOnly || openOnly || q.trim());
   const clearAll = () => {
     setRoleFamily("");
     setSeniority("");
     setWorkMode("");
     setEntryOnly(false);
+    setOpenOnly(false);
     setQ("");
   };
 
@@ -80,6 +86,8 @@ export function useJobsList() {
     setWorkMode,
     entryOnly,
     setEntryOnly,
+    openOnly,
+    setOpenOnly,
     q,
     setQ,
     anyFilter,

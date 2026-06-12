@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { BarChart3, Check, Copy, FileText, History, Link2, Megaphone, Scale, Zap } from "lucide-react";
+import { BarChart3, Check, Copy, FileText, History, Link2, Megaphone, Scale, Users, Zap } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { Modal } from "@/app/_components/Modal";
 import { Markdown } from "@/app/_components/Markdown";
@@ -20,6 +20,9 @@ import type { Job } from "./JobsTypes";
 // action, plus the candidate ranking for the role in a second tab.
 export function JobPostingModal({ job, onClose }: { job: Job; onClose: () => void }) {
   const t = useTranslations("jobs.posting");
+  // The in-modal publish action reuses DraftsPanel's strings — same /publish
+  // call, same "Source into Pipeline" verb. See docs/JD_LIFECYCLE.md.
+  const td = useTranslations("jobs.drafts");
   const router = useRouter();
   const search = useSearchParams();
   const [tab, setTab] = useState<"posting" | "candidates" | "rediscover" | "compare" | "campaign">("posting");
@@ -28,12 +31,14 @@ export function JobPostingModal({ job, onClose }: { job: Job; onClose: () => voi
   const [quickCopied, setQuickCopied] = useState(false);
   // W8-1 (JOB1) — retire the role from the surface that owns it. The lifecycle
   // had no terminal state: a filled role kept collecting applications forever.
+  // The confirmation is the shared stacked Modal (confirm-over-detail), not
+  // window.confirm — the one dialog the theme system can't style.
+  const [confirmingClose, setConfirmingClose] = useState(false);
   const [closing, setClosing] = useState(false);
   const [closed, setClosed] = useState(false);
   const [closeError, setCloseError] = useState<string | null>(null);
   const closeRole = async () => {
     if (closing || closed) return;
-    if (typeof window !== "undefined" && !window.confirm(t("closeConfirm"))) return;
     setClosing(true);
     setCloseError(null);
     try {
@@ -44,6 +49,40 @@ export function JobPostingModal({ job, onClose }: { job: Job; onClose: () => voi
       setCloseError(t("closeFailed"));
     } finally {
       setClosing(false);
+    }
+  };
+
+  // Lifecycle state where the links are minted: a DRAFT's apply pages 404 and a
+  // CLOSED role's serve 410, so the footer must not hand out those links as if
+  // the role were live. Local closed/published flips layer the in-session
+  // transitions on top of the server-decorated job.status.
+  const [publishing, setPublishing] = useState(false);
+  const [published, setPublished] = useState(false);
+  const [publishNote, setPublishNote] = useState<{ text: string; tone: "ok" | "warn" } | null>(null);
+  const status = closed ? "closed" : published ? "published" : job.status ?? null;
+  const isDraft = status === "draft";
+  const isClosed = status === "closed";
+  // Same call DraftsPanel makes, surfaced where the draft actually opens: take
+  // the JD live and source matching candidates into the pipeline. tone "warn" =
+  // published but sourcing errored — not to be mistaken for a clean "sourced 0".
+  const publishRole = async () => {
+    if (publishing) return;
+    setPublishing(true);
+    setPublishNote(null);
+    try {
+      const r = await fetch(`/api/jobs/${encodeURIComponent(job.id)}/publish`, { method: "POST" });
+      const p = await r.json();
+      if (!r.ok) throw new Error(p.error ?? td("sourcingFailed"));
+      setPublished(true);
+      setPublishNote(
+        p.sourcingWarning
+          ? { text: td("publishedButFailed", { warning: p.sourcingWarning }), tone: "warn" }
+          : { text: td("sourced", { count: p.sourced ?? 0 }), tone: "ok" }
+      );
+    } catch (e) {
+      setPublishNote({ text: e instanceof Error ? e.message : td("sourcingFailed"), tone: "warn" });
+    } finally {
+      setPublishing(false);
     }
   };
   // JOB3 — the posting can be copied in a language different from the app
@@ -97,42 +136,76 @@ export function JobPostingModal({ job, onClose }: { job: Job; onClose: () => voi
     }
   };
 
+  // Status in the subtitle, where the role's identity reads: a draft or closed
+  // role no longer looks pixel-identical to a live one.
+  const statusSuffix = isDraft ? t("subtitleDraft") : isClosed ? t("subtitleClosed") : null;
   return (
     <Modal
       title={job.title}
-      subtitle={[job.company, job.location].filter(Boolean).join(" · ") || undefined}
+      subtitle={[job.company, job.location, statusSuffix].filter(Boolean).join(" · ") || undefined}
       onClose={onClose}
       size="4xl"
       footer={
         <>
           <button
             type="button"
-            onClick={closeRole}
-            disabled={closing || closed}
+            onClick={() => setConfirmingClose(true)}
+            disabled={closing || isClosed}
             title={t("closeTitle")}
             className="focus-ring mr-auto inline-flex h-9 items-center gap-1 rounded-md border border-stone-200 px-3 text-sm font-semibold text-steel hover:border-coral/40 hover:text-coral disabled:opacity-60"
           >
-            {closed ? t("closedNow") : closing ? t("closing") : t("closeRole")}
+            {isClosed ? t("closedNow") : closing ? t("closing") : t("closeRole")}
           </button>
           {closeError ? (
             <span role="alert" className="text-sm text-red-700">
               {closeError}
             </span>
           ) : null}
-          <button
-            type="button"
-            onClick={copyApplyLink}
-            className="focus-ring inline-flex h-9 items-center gap-1 rounded-md border border-stone-200 px-3 text-sm font-semibold text-ink hover:border-coral/40"
-          >
-            {applyCopied ? <Check size={14} /> : <Link2 size={14} />} {applyCopied ? t("copied") : t("applyLink")}
-          </button>
-          <button
-            type="button"
-            onClick={copyQuickApplyLink}
-            className="focus-ring inline-flex h-9 items-center gap-1 rounded-md border border-stone-200 px-3 text-sm font-semibold text-ink hover:border-coral/40"
-          >
-            {quickCopied ? <Check size={14} /> : <Zap size={14} />} {quickCopied ? t("copied") : t("quickApplyLink")}
-          </button>
+          {publishNote ? (
+            <span
+              aria-live="polite"
+              className={`min-w-0 truncate text-sm ${publishNote.tone === "warn" ? "text-amber-800" : "text-steel"}`}
+              title={publishNote.text}
+            >
+              {publishNote.text}
+            </span>
+          ) : null}
+          {isDraft ? (
+            // A draft's apply pages 404 — offering its links ships a campaign
+            // pointing at nothing. Offer the go-live action instead (DraftsPanel's
+            // /publish call); the links appear once the role is actually live.
+            <button
+              type="button"
+              onClick={publishRole}
+              disabled={publishing}
+              title={td("sourceTitle")}
+              className="focus-ring inline-flex h-9 items-center gap-1.5 rounded-md bg-coral px-3 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
+            >
+              <Users size={14} /> {publishing ? td("sourcing") : td("sourceIntoPipeline")}
+            </button>
+          ) : (
+            <>
+              {/* On a closed role the links stay visible but inert — they now serve 410. */}
+              <button
+                type="button"
+                onClick={copyApplyLink}
+                disabled={isClosed}
+                title={isClosed ? t("linksClosedTitle") : undefined}
+                className="focus-ring inline-flex h-9 items-center gap-1 rounded-md border border-stone-200 px-3 text-sm font-semibold text-ink hover:border-coral/40 disabled:opacity-60 disabled:hover:border-stone-200"
+              >
+                {applyCopied ? <Check size={14} /> : <Link2 size={14} />} {applyCopied ? t("copied") : t("applyLink")}
+              </button>
+              <button
+                type="button"
+                onClick={copyQuickApplyLink}
+                disabled={isClosed}
+                title={isClosed ? t("linksClosedTitle") : undefined}
+                className="focus-ring inline-flex h-9 items-center gap-1 rounded-md border border-stone-200 px-3 text-sm font-semibold text-ink hover:border-coral/40 disabled:opacity-60 disabled:hover:border-stone-200"
+              >
+                {quickCopied ? <Check size={14} /> : <Zap size={14} />} {quickCopied ? t("copied") : t("quickApplyLink")}
+              </button>
+            </>
+          )}
           <button
             type="button"
             onClick={() => router.push(buildUrl({ tab: "matrix", job: job.id }, search.toString()))}
@@ -215,6 +288,40 @@ export function JobPostingModal({ job, onClose }: { job: Job; onClose: () => voi
           <CompareInterviews jobId={job.id} />
         )}
       </div>
+
+      {/* Close confirmation — a themed confirm stacked over the detail modal
+          (the Modal stack handles Escape/Tab per-dialog), replacing the native
+          window.confirm the design tokens couldn't reach. */}
+      {confirmingClose ? (
+        <Modal
+          title={t("closeRole")}
+          onClose={() => setConfirmingClose(false)}
+          size="md"
+          footer={
+            <>
+              <button
+                type="button"
+                onClick={() => setConfirmingClose(false)}
+                className="focus-ring inline-flex h-9 items-center rounded-md border border-stone-200 bg-white px-3 text-sm font-semibold text-steel hover:text-ink"
+              >
+                {t("cancel")}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setConfirmingClose(false);
+                  void closeRole();
+                }}
+                className="focus-ring inline-flex h-9 items-center rounded-md bg-coral px-3 text-sm font-semibold text-white hover:opacity-90"
+              >
+                {t("closeRole")}
+              </button>
+            </>
+          }
+        >
+          <p className="text-base text-steel">{t("closeConfirm")}</p>
+        </Modal>
+      ) : null}
     </Modal>
   );
 }
