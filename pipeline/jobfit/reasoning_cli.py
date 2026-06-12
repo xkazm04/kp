@@ -3,7 +3,8 @@
     python -m pipeline.jobfit.reasoning_cli --candidate-json <path> --job-id <id>
 
 Loads the candidate + corpus, scores the named job, and produces a hiring
-rationale via ClaudeCliProvider (subscription) with a deterministic fallback.
+rationale via the configured LLM provider (KP_LLM_CONFIG; Claude CLI when
+unconfigured) with a deterministic fallback.
 Invoked by /api/match/reasoning; the route handles caching.
 """
 
@@ -14,7 +15,7 @@ import json
 from pathlib import Path
 
 from ._cli import configure_stdio, emit_error, load_candidate_arg
-from .claude_cli import ClaudeCliProvider
+from .llm import resolve_provider
 from .match_reasoning import REASONING_PROMPT_VERSION, generate
 from .matching import load_corpus, score_job
 
@@ -44,7 +45,7 @@ def main(argv: list[str] | None = None) -> int:
         if job is None:
             raise ValueError(f"job not found: {args.job_id}")
         m = score_job(candidate, job)
-        provider = None if args.no_llm else ClaudeCliProvider(timeout=120)
+        provider = None if args.no_llm else resolve_provider("match_reasoning", timeout=120)
         if provider is not None and not provider.available():
             provider = None
         reasoning, source = generate(candidate, job, m, lang=lang, provider=provider)

@@ -1,4 +1,5 @@
 import { getJob, lookupPromptCache, storePromptCache } from "./db";
+import { buildLlmConfigEnv } from "./llm-config";
 import { writeMatchInput, type MatchInputBody } from "./match-input";
 import { cleanupWorkdir, createWorkdir, parsePythonJson, parseStderrError, spawnPython } from "./python-runner";
 import { reasoningCacheKey } from "./reasoning-cache-key";
@@ -56,7 +57,7 @@ export async function runReasoning(body: ReasoningInput, signal?: AbortSignal): 
     const cached = lookupPromptCache(hash, REASONING_PROMPT_VERSION);
     if (cached) return { ...(cached as object), cached: true };
 
-    const { result } = spawnPython(args, { signal });
+    const { result } = spawnPython(args, { signal, env: buildLlmConfigEnv() });
     const { stdout, stderr, exitCode } = await result;
     if (exitCode !== 0) {
       const err = parseStderrError(stderr, exitCode);

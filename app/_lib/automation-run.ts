@@ -14,6 +14,7 @@ import {
   storePromptCache,
 } from "./db";
 import { cleanupWorkdir, createWorkdir, parsePythonJson, parseStderrError, spawnPython } from "./python-runner";
+import { buildLlmConfigEnv } from "./llm-config";
 import { computeAutomationCacheKey, computeCorpusFingerprint } from "./automation-cache-key";
 import { screenStageOutcome } from "./pipeline-stages";
 import { dispatchOutreach } from "./comms-dispatch";
@@ -25,7 +26,8 @@ import {
 } from "./interview-recommendation";
 
 // Shared core for the on-demand LLM HR tasks. Used directly by /api/automation/[task]
-// AND by the background-task runner (single + batch). Claude CLI only.
+// AND by the background-task runner (single + batch). The LLM engine is the
+// configured provider per KP_LLM_CONFIG (Claude CLI when unconfigured).
 export const AUTOMATION_VERSION: Record<string, string> = {
   screen: "screening-v1",
   outreach: "outreach-v1",
@@ -151,7 +153,7 @@ export async function runAutomationTask(entryId: string, task: string, notes = "
       // other commands ignore it); pass it so the prep narrative is localized.
       if (task === "prep") args.push("--lang", lang === "cs" ? "cs" : "en");
 
-      const { result } = spawnPython(args, { signal });
+      const { result } = spawnPython(args, { signal, env: buildLlmConfigEnv() });
       const { stdout, stderr, exitCode } = await result;
       if (exitCode !== 0) {
         const err = parseStderrError(stderr, exitCode);

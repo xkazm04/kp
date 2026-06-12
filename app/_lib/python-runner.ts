@@ -93,6 +93,9 @@ export type SpawnOptions = {
   // 'output exceeded N MB' error naming the CLI, instead of letting a runaway
   // child grow the buffer unbounded and OOM the whole process.
   maxBufferBytes?: number;
+  // Per-spawn env additions merged over process.env — e.g. KP_LLM_CONFIG from
+  // llm-config.ts so the Python LLM registry sees the configured routing.
+  env?: Record<string, string | undefined>;
 };
 
 const DEFAULT_TIMEOUT_MS = 600_000; // 10 min — a hang backstop, not a deadline.
@@ -128,7 +131,7 @@ export function spawnPython(
     // Force UTF-8 for the child's stdio + subprocess I/O so Czech diacritics
     // survive on Windows (whose default locale is cp1250). PYTHONUTF8=1 also
     // makes any nested subprocess.run(text=True) default to UTF-8.
-    env: { ...process.env, PYTHONUTF8: "1", PYTHONIOENCODING: "utf-8" },
+    env: { ...process.env, PYTHONUTF8: "1", PYTHONIOENCODING: "utf-8", ...(opts.env ?? {}) },
     windowsHide: true,
   });
   // Keep streams in Buffer mode so the streaming route can attach its own
