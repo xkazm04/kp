@@ -1,0 +1,53 @@
+# Biz+UI Scan — Analytics & Diagrams (2026-06-12)
+
+> Total: 5 (2H/2M/1L)
+
+## 1. Fix the auto/human attribution so the "automation handled X%" headline is true
+- **Lens**: business_visionary
+- **Severity**: High
+- **Category**: functionality
+- **File**: `app/_lib/decision-attribution.ts:16`
+- **Scenario**: The AutomationPanel headline ("automation handled X% of decisions", AnalyticsTab.tsx:317) and every DecisionLog badge are computed from event *kind* alone — but the kinds don't encode who acted. A recruiter who manually accepts a held candidate on the board sees their own decision badged **AUTO** in the audit log, and it inflates `autoCount` + `autoAdvanced`.
+- **Root cause**: Kind `advanced` is mapped `{ auto: true }` (decision-attribution.ts:16), yet it is written by `actOnPipelineEntry(id, "accept")` (db.ts:4189, 4198) whose callers include the **human** board/Decisions route (`app/api/pipeline/[id]/route.ts:123` — the same path that carries the DEC4 human decision note) as well as automation (automation-pass.ts:230, automation-run.ts:187, offer-finalize.ts:49). Symmetrically, `rejected` is mapped human (decision-attribution.ts:25) but policy passes write it too: screen-wave.ts:195 records `rejected` then ALSO `auto_rejected` at :201 — so one policy reject adds 1 to `humanCount` AND 1 to `autoCount` (decision-attribution.ts:97-101), and counts **twice** in the momentum "rejected" series (analytics-momentum.ts:25,56 counts both kinds, despite the file's "kept NON-OVERLAPPING" comment), and renders as two contradictory log rows (HUMAN "Rejected" + AUTO "Auto-rejected"). automation-pass.ts:244 rejects without `auto_rejected` at all, attributing the policy reject purely to a human.
+- **Impact**: The product's headline trust/sales number — "the AI handled X%, humans only touched what it held" — is structurally wrong in both directions, the momentum rejected bars overcount screening waves, and the auditable log misattributes accountability, which is exactly what its own three-state-UNKNOWN design (DecisionLog.tsx:40-53) was built to prevent.
+- **Fix sketch**: Thread the actor through the one writer: add `opts.actor?: "system" | "human"` to `actOnPipelineEntry` (the `expectedStage` opt already rides this signature — automation-pass/automation-run/screen-wave/offer-finalize pass `system`; the route defaults `human`). Record `auto_advanced` vs `advanced` (and suppress the redundant `rejected` when automated — `auto_rejected` already records it once, written inside the same code path instead of screen-wave's separate call). Update `DECISION_META` (`advanced` → human, `auto_advanced` → auto), `MOMENTUM_EVENT_KINDS` (swap nothing — `advanced`+`auto_advanced` both bucket as advanced/hired), `autoAdvanced` (decision-attribution.ts:106) to read the new kind, and the holds-resolved IN-list (db.ts:2254, 2339). Existing rows keep their old kinds — acceptable for a single-tenant tool, or backfill via the `rejection_sent` "policy auto-reject" detail.
+
+## 2. Count knockout discards in the funnel — the top-of-funnel loss is recorded but invisible
+- **Lens**: business_visionary
+- **Severity**: High
+- **Category**: feature
+- **File**: `app/_lib/db.ts:2943`
+- **Scenario**: Every KO-failed application is audited as an entry-less `ko_declined` event carrying who, which role, which channel and which gates failed (recordKnockoutDecline, written from app/api/apply/[id]/route.ts:224 and the quick-apply route) — the comment at db.ts:2937-2941 promises "the decision log and per-channel funnel analytics can count and inspect every discard". Nothing consumes it: a hiring manager asking "how many applicants did this role's ad turn away at eligibility?" gets no number anywhere.
+- **Root cause**: Zero consumers (grep `ko_declined` → only the writer + comments). `pipelineAnalytics()` aggregates only `pipeline_entries`/mapped kinds; the channel-economics "leads" denominator (db.ts:2321-2330) starts *after* the KO gate. Worse, `ko_declined` is missing from `DECISION_META` (decision-attribution.ts:15-50), so in the DecisionLog each discard renders an UNKNOWN badge with raw-kind text, fires the dev console warning (DecisionLog.tsx:49-51), can't be selected in the kind filter (options come from `Object.keys(DECISION_META)`, DecisionLog.tsx:177), and falls out of the auto/human counts.
+- **Impact**: The most actionable sourcing insight this data can give — "channel/ad X attracts mostly ineligible applicants" or "this role's KO gates reject 60% of inbound; targeting or gates need fixing" — is silently dropped, and a cost-per-applicant figure computed on post-KO leads overstates channel quality. The fairness story ("never a silent discard") is also only half-true while the log renders these rows as UNKNOWN.
+- **Fix sketch**: (1) Add `ko_declined: { auto: true, tone: "text-coral" }` to DECISION_META + a `kinds.ko_declined` catalog entry — instantly filterable, badged, counted. (2) In `pipelineAnalytics()` add a windowed `SELECT job_title, COUNT(*) FROM pipeline_events WHERE kind='ko_declined' GROUP BY job_title` and surface it as a "turned away at eligibility" line on the funnel card header and a column in the byRole table/CSV. (3) For per-channel KO rate, pass the structured channel into the event (a dedicated field on recordKnockoutDecline → `from_stage` slot or a prefix-stable detail parse — the writer already emits the fixed `"knockout declined via ${channel} — failed:"` shape).
+
+## 3. Theme the PlantUML renderer and diagrams legend for Spark Dark
+- **Lens**: ui_perfectionist
+- **Severity**: Medium
+- **Category**: ui
+- **File**: `app/_components/puml/PlantUml.tsx:23`
+- **Scenario**: With the new dual-theme system (529f7a0), a user in Spark Dark opens /diagrams (or the About tab's embedded diagrams, or SimExplainDrawer): the page chrome, panels and drawer all flip to the dark ink-blue register, but every diagram inside stays a Studio Light artifact — paper `#f7f5ef` node fills, ink `#17202a` text, steel `#42606f` edge labels sitting directly on the dark `bg-white` panel (`#1d2630`), where they read at roughly 2:1 contrast.
+- **Root cause**: The renderer's entire palette is hardcoded light-theme hex literals in module scope (`PlantUml.tsx:23-45` — ink/paper/moss/coral/steel/stone plus dbFill/cloudFill/noteFill/group strokes), drawn into SVG attributes that no CSS variable touches. The /diagrams Legend chips repeat the same hardcoded hexes inline (`app/diagrams/page.tsx:63-74`). The theme commit's own pattern for exactly this case already exists — the `DARK` literal mirror in `app/_lib/brand.ts` consumed via `useTheme()` (`app/_components/ui/useTheme.ts`), shipped for FactorChart — but the puml toolchain wasn't migrated.
+- **Impact**: The architecture viewer is the demo/About path — the surface used to present the product — and it's the most visually broken screen in dark mode: glaring light cards on dark panels, near-illegible connector labels, and a legend whose swatches no longer match what the featured funnel renders against.
+- **Fix sketch**: Mirror the FactorChart pattern: extract the palette object into a LIGHT/DARK pair (dark values from the globals.css `[data-theme="dark"]` ramp — paper `#141b24`, white `#1d2630`, ink `#f4efe3`, steel `#9db5c3`, moss `#84b27a`…), pick via `useTheme()` in the client `PlantUml` component and thread `C` through the shape helpers (they already take fill/stroke props). Replace the Legend's inline hexes with the same pair (or token classes `bg-moss/15 border-moss` like PipelineExplorer's STATUS_META, which already themes correctly).
+
+## 4. Export the whole filtered decision log, not just the rows scrolled into view
+- **Lens**: ui_perfectionist
+- **Severity**: Medium
+- **Category**: functionality
+- **File**: `app/features/sub_analytics/DecisionLog.tsx:122`
+- **Scenario**: A recruiter filters the log to "auto" to answer for last week's screening wave, clicks Export CSV, and gets a file of 20 rows — whatever the infinite scroll happened to have loaded — while the footer right next to it says "showing 20 of 1,240". Nothing on the button or in the file says it's truncated.
+- **Root cause**: `exportCsv` maps `items` (DecisionLog.tsx:122-137), the client-side accumulation of 20-row pages from `useInfiniteScroll`; the server already knows the filtered `total` and the API caps a page at `MAX_LIMIT = 50` (app/api/analytics/decisions/route.ts:9). The byRole CSV next door exports its complete dataset, so the two export buttons on the same tab have silently different semantics.
+- **Impact**: The one explicitly audit-positioned export ("isolate the rows you're answering for") produces incomplete evidence by default — the worst failure mode for an audit artifact, and a trust papercut the moment anyone compares the row count to the on-screen total.
+- **Fix sketch**: Server-side export: support `?format=csv` (or `?limit=all` clamped to a sane hard cap) on `/api/analytics/decisions`, reusing `resolveKindFilter` and streaming via the existing `toCsv` shape — the client button becomes a link/`fetch`+`downloadFile` of the filtered whole. Cheapest acceptable alternative: page through the endpoint in the click handler until `hasMore` is false before building the CSV, with the button label showing the real count ("Export 1,240 rows").
+
+## 5. Keep non-zero momentum bars visible — a 1-hire week currently renders ~2px
+- **Lens**: ui_perfectionist
+- **Severity**: Low
+- **Category**: ui
+- **File**: `app/features/sub_analytics/AnalyticsTab.tsx:652`
+- **Scenario**: In any realistic week the "added" series dwarfs "hired" (30 applications, 1 hire). All four series normalize against the single global max (AnalyticsTab.tsx:613), so the hired bar — the series the recruiter scans for — renders at ~3% of the 80px track: a 2px sliver that is effectively invisible and nearly impossible to hover for its `title` tooltip.
+- **Root cause**: `height: ${Math.round((w[s.key] / max) * 100)}%` with `max` taken across all series and weeks (AnalyticsTab.tsx:613, 652); there is no minimum render height for non-zero counts, and zero and one are visually indistinguishable at typical scales.
+- **Impact**: The momentum panel's most decision-relevant signal (did we hire this week? did rejections spike?) disappears exactly when inflow is healthy — the chart reads as "added went up" and nothing else.
+- **Fix sketch**: Floor non-zero bars at a perceivable height while keeping zero at zero — e.g. `style={{ height: count === 0 ? 0 : \`max(${pct}%, 4px)\` }}` (CSS `max()` keeps the linear scale honest above the floor). The per-week `aria-label` (AnalyticsTab.tsx:638-644) already carries exact numbers, so this is purely a visual floor, not a data change.

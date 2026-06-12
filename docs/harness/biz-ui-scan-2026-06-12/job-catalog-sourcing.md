@@ -1,0 +1,61 @@
+# Biz+UI Scan — Job Catalog, Ingestion & Sourcing (2026-06-12)
+
+> Total: 5 (2H/2M/1L)
+> Prior scans (2026-06-08, 2026-06-10) re-checked: all four 06-10 findings shipped (close lifecycle W8-1, persisted sourcing state W8-5, posting i18n JOB3, KO disclosure JOB4). ERIKA_GAP_BACKLOG read: E1–E5/E7/E8 shipped, E6/E9 deferred — nothing below re-proposes any of it. All findings here are net-new seams, mostly opened by the partial landing of W8-1 and E1.
+
+## 1. Stop advertising a fabricated salary — extract and honor the pay the ad actually states
+- **Lens**: business_visionary
+- **Severity**: High
+- **Category**: functionality
+- **File**: `pipeline/jobfit/jobs.py:324`
+- **Scenario**: A recruiter pastes an ad stating "65 000–85 000 Kč/měsíc". The ingested job's posting tab, catalog band column, and campaign pack all show a *different* number — and if the ad stated no salary at all, they confidently show one anyway. The Campaign tab's flagship "number" hook opens the Facebook ad with this figure.
+- **Root cause**: The LLM extraction prompt (`jobs.py:373-391`) has no salary key — stated pay is discarded at the door. `normalize_job` then stamps `salary_band = role_band(role_family, seniority)` (`jobs.py:324-325`), the taxonomy market-anchor band, and **never records it in `defaulted_fields`**. So E1's honesty contract has a hole: `campaign.py:_job_facts` (`campaign.py:90-111`) routes company/location/work_mode/seniority phantoms through `stated()` but takes salary straight from `_salary_label(job)` (`campaign.py:76-87`), and `WARN_NO_SALARY` (`campaign.py:43,118`) can never fire for any (family, seniority) with an anchor band — i.e. effectively never. The phantom also lands in the publish-ready posting (`app/features/sub_jobs/jobMarkdown.ts:90-91` "Mzda:/Salary:") and the catalog row (`JobRow.tsx:36`). The LLM prompt even instructs "If salary is null, do NOT invent one" (`campaign.py:147`) — but the system invented it upstream. (Contrast: the JD-builder path deliberately overrides with *grounded* market research, `app/api/jds/save/ingest-job.ts:40-50` — the prose-ingest path has no such provenance.)
+- **Impact**: Pay is the single most trust-critical fact in Czech blue/grey-collar sourcing (KP's own E7 lint bans "competitive salary" as a trust-killer). Advertising a number the employer never offered is worse than boilerplate: candidates apply on a false premise, the recruiter eats the retraction conversation, and the campaign/quick-apply funnel KP just built (E1–E5) measures conversion on a fabricated offer.
+- **Fix sketch**: (1) Add `"salary_min": number|null, "salary_max": number|null` to `_EXTRACTION_PROMPT`; (2) in `normalize_job`, prefer a stated band, fall back to the anchor band AND append `"salary_band"` to `defaulted_fields` (the existing provenance vocabulary — `JobsTypes.ts:54` already carries it to the client); (3) route campaign `facts["salary"]` through the same stated-only filter so the anchor phantom is never advertised and `no_salary` finally fires; (4) in `jobMarkdown.ts`, label an anchored band as a market estimate (strings table already per-locale) instead of bare "Salary:". Golden tests pin `normalize_job` — extend `test_jobs` with a stated-band case.
+
+## 2. Show a role's lifecycle state where its links are minted — and stop handing out dead apply links
+- **Lens**: ui_perfectionist
+- **Severity**: High
+- **Category**: ui
+- **File**: `app/features/sub_jobs/JobPostingModal.tsx:122`
+- **Scenario**: Paste an ad → it lands as a **draft** (`app/api/jobs/ingest/route.ts:31`) → JobsTab auto-opens its posting modal (`JobsTab.tsx:98-105`). The footer cheerfully offers "Apply link" and "Quick-apply link" (`JobPostingModal.tsx:122-135`) and the Campaign tab generates ad packs whose every CTA embeds the quick-apply URL — but a draft's apply pages return **404** (`app/apply/[id]/page.tsx:26`, `quick/page.tsx:42`). A recruiter who pastes those links into a job board or a Meta ad ships a campaign pointing at nothing. Same blindness after closing: the close tooltip promises "the role reads as filled" (`messages/en.json` jobs.posting.closeTitle), yet no surface ever reads as filled — the catalog row, stats chips, and reopened modal are pixel-identical for draft, open, and closed roles, and the link buttons stay active on a role whose link now serves "no longer accepting".
+- **Root cause**: Status never reaches the UI: `listJobs` selects `payload_json` only — the `status` column is never read (`app/_lib/db.ts:1121-1126`), the `Job` type has no `status` field (`app/features/sub_jobs/JobsTypes.ts:33-55`), `JobRow.tsx` renders no badge, `useJobsList.ts` has no open/closed filter, and `jobStats` counts drafts+closed in "total" (`db.ts:1370-1390`). The only status-aware UI is DraftsPanel (a separate list), and the modal has no publish action at all — so the auto-opened modal after ingest can't even take the role live. Bonus pattern break: the close action uses native `window.confirm` (`JobPostingModal.tsx:36`), the one dialog the Studio/Spark theme system can never style.
+- **Impact**: W8-1 shipped the *server* half of the lifecycle; without the client half the recruiter cannot answer "is this role live?" anywhere, and the most likely next click after ingest (copy link → post it) silently fails in public. Filled roles also keep collecting recruiter attention in the catalog.
+- **Fix sketch**: Decorate `listJobs`/`getJob` rows with the status column (one SELECT change + `status?: "draft"|"published"|"closed"|null` on `Job`); badge `JobRow` and the modal subtitle (reuse DraftsPanel's `draftBadge` chip recipe / `CHIP_QUIET`); in the modal footer, for drafts swap the two link buttons for a "Source into Pipeline" button reusing DraftsPanel's `/publish` call, for closed render the links disabled with the closed badge; add an "open only" default toggle next to `entryOnly` in `useJobsList`; replace `window.confirm` with the existing `Modal` confirm pattern. All token-conformant — no new visual vocabulary.
+
+## 3. Exclude closed roles from the rematch corpus — a retired role must stop competing for candidates
+- **Lens**: business_visionary
+- **Severity**: Medium
+- **Category**: functionality
+- **File**: `app/_lib/db.ts:1173`
+- **Scenario**: A recruiter closes a filled role (W8-1), then runs "rematch" on a rejected candidate elsewhere in the pipeline. The automation recommends moving the candidate into… the role that was just retired — and a click later they're sourced into a pipeline nobody will process, exactly the zombie flow the close feature was built to end.
+- **Root cause**: `listCorpusJobs` — documented as "the full live job corpus — every current opening rematch scores against" — holds back only drafts: `WHERE status IS NULL OR status != 'draft'` (`db.ts:1170-1178`), written before `closed` existed. `automation-run.ts:112-121` feeds this corpus to the rematch scorer and fingerprints its **ids** into the cache key — closing a job changes no id, so even the cache's self-invalidation ("a stale HIT self-invalidates the moment a role is added/removed") never triggers on close: previously cached rematch recommendations into the now-closed role keep serving as HITs.
+- **Impact**: Rematch is the product's "don't lose good people" actuator; pointing it at dead roles wastes the recruiter's trust in precisely the automation KP differentiates on, and the wasted candidate touch is invisible (the entry looks normal).
+- **Fix sketch**: One-line predicate change: `WHERE status IS NULL OR status NOT IN ('draft','closed')`. The id fingerprint then self-invalidates on close for free (the corpus id list shrinks), keeping the cache contract honest. Add a closed-job case beside the existing listCorpusJobs/rematch tests.
+
+## 4. Echo the offer facts on the apply landing pages — keep the scent from ad to form
+- **Lens**: business_visionary
+- **Severity**: Medium
+- **Category**: user_benefit
+- **File**: `app/apply/[id]/quick/page.tsx:61`
+- **Scenario**: A candidate taps a campaign ad whose hook was "65 000–85 000 Kč" / "Hledáme v Praze" (E1's number/location hooks) and lands on the quick-apply form — which shows only the job title, company, and "takes ~30 seconds" (`quick/page.tsx:61-64`). None of the facts that earned the tap (pay, place, work mode) are restated; the conversational apply page is equally bare (`app/apply/[id]/page.tsx:52-55`). The candidate must either trust their memory of the ad or bounce to verify.
+- **Root cause**: E2 shipped the form mechanics but the landing header was copied from the minimal conversational page; the structured fields needed (salaryBand, location, workMode, languages) are already on the `getJob` record both pages load — they're simply not rendered.
+- **Impact**: This is the highest-stakes conversion step of the new sourcing loop (E5 now *measures* its drop-off per variant). Ad→landing message match is the canonical lever for paid-social conversion, and KP's own campaign rules enforce specificity in the ad — then deliver a landing vaguer than the ad. Confirming pay/place also pre-qualifies: wrong-city candidates bounce before creating a lead the recruiter must triage.
+- **Fix sketch**: A server-rendered fact-chip strip under the title on both apply pages (reuse the `CHIP` recipe): salary band (`formatBand`-style, CZK/month), location · work mode, required languages — sourcing each chip only from non-phantom fields (skip anything in `defaulted_fields`, which `payload_json` already carries; pairs with finding 1 so a phantom band is never echoed). ~20 lines per page, no client JS, localized via existing `apply.*` catalog.
+
+## 5. Render the rediscovery overflow count the server already computes
+- **Lens**: ui_perfectionist
+- **Severity**: Low
+- **Category**: ui
+- **File**: `app/features/sub_jobs/RediscoverPanel.tsx:28`
+- **Scenario**: A role rediscovers 34 viable silver-medalists; the panel shows the top 20 with no hint anything was cut — the list reads as "this is everyone", so the recruiter never widens the net.
+- **Root cause**: The route caps at `REDISCOVER_LIMIT = 20` and returns `more` precisely so "the cap never reads as 'this is everyone'" (`app/api/jobs/[id]/rediscover/route.ts:18-21,111-121`), but the panel's response type — `{ rediscovered?, skipped? }` (`RediscoverPanel.tsx:28-32`) — never declares or renders it. The disclosure was built server-side and dropped on the client floor.
+- **Impact**: Honest-disclosure regression by omission: the same panel meticulously surfaces `skipped` malformed profiles, yet silently hides that eligible candidates were truncated — the exact failure mode the server comment guards against, on the surface whose promise is "we won't let strong past candidates fall through the cracks".
+- **Fix sketch**: Add `more?: number` to the `useJsonFetch` payload type and render a quiet footer line when `more > 0` ("…and {more} more above the bar"), `text-sm text-steel`, localized under `jobs.rediscover`. Three lines; no server change.
+
+---
+## Cross-checks performed
+- Prior 06-10 findings verified shipped in code (not just docs): close route (`app/api/jobs/[id]/close/route.ts`), `isJobOpenForApplications` gates on both apply pages + quick + inbound webhook; candidates-route decoration (`candidates/route.ts:68-79` → `CandidateCard` badges); `jobMarkdown` strings table + posting-language toggle; `NotEligibleSection` KO disclosure.
+- ERIKA backlog overlap: finding 1 is not E7 (that's the JD-builder lint; this is the ingest path's data fabrication); finding 4 is not E2/E4 (form + ack shipped; this is landing-page content); nothing touches E6/E9 deferrals or the not-adopted list.
+- Known-deferred list respected: no auth, no per-role decision rules, no slot rework, no URL-ingest re-flag (JOB2 is a known 06-08 finding regardless of ship state).
+- Files read: all 16 `sub_jobs/*` components/types, all 8 `/api/jobs*` routes, both apply pages + quick route, `job-ingest.ts`, `db.ts` (listJobs/getJob/listCorpusJobs/jobStats/webhook sections), `automation-run.ts` (rematch path), `jobs.py` (full), `campaign.py` (facts/warnings/prompt/deterministic path), `taxonomy.role_band`, `ingest-job.ts` (JD path), `recipes.ts` + `globals.css` (token conformance baseline), `messages/en.json` (jobs subtree).

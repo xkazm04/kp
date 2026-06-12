@@ -1,0 +1,61 @@
+# Biz+UI Scan — GitHub Code Analysis (2026-06-12)
+
+> Total: 5 (2H/3M/0L)
+
+## 1. Feed the persisted GitHub evidence into the AI screen/prep/scorecard automations
+- **Lens**: business_visionary
+- **Severity**: High
+- **Category**: user_benefit
+- **File**: `app/_lib/automation-run.ts:134`
+- **Scenario**: A recruiter clicks "Screen with AI" (or prep/scorecard) from the CandidateDrawer. The automation reads the entry (`automation-run.ts:82`) — the very row that carries `githubEvidence` (`app/_lib/db.ts:1984`) — yet the Python CLI receives only `profile.json` + `--job-id` + notes (`automation-run.ts:134-152`). A confident screen pass auto-advances the candidate (`automation-run.ts:176-197`) while the AI never saw that the deep-dive marked their headline JD skills as "unverified claims" (or corroborated them). `grep -ci github` on `interview-prep-run.ts`/`interview-prep.ts` = 0; `pipeline/jobfit/automation.py` has no GitHub input either.
+- **Root cause**: GH2 shipped the evidence to the *human* surface (drawer, `CandidateDrawer.tsx:442`) but the CLI arg assembly was never extended; the cache key (`computeAutomationCacheKey`, `automation-run.ts:114-125`) also has no GitHub axis, so even if the prompt read it, stale cache hits would mask updates.
+- **Impact**: This is the decisive-vs-decorative line for the repo-signal differentiator. The screening gate — the one automated decision that moves candidates — judges dev candidates purely on self-reported CV claims while the system already holds public corroboration on the same row. Recruiters trusting "Screen with AI" get verdicts that contradict the GitHub evidence panel two cards above it.
+- **Fix sketch**: In `runAutomationTask`, when `entry.githubEvidence` exists, write it to `workdir/github.json` and pass `--github-evidence` (mirrors the existing `--notes-file` pattern); add `githubJson` to `computeAutomationCacheKey` fields so evidence changes invalidate the cache; in `pipeline/jobfit/automation.py`, render a compact "Public repo evidence: evidenced X / unverified Y / hidden strengths Z" block into the screen + prep + scorecard prompts. Decisions review cards inherit it for free since they display the CLI result payload (`setApproval`, `automation-run.ts:195-200`).
+
+## 2. Let board candidates gain GitHub evidence — capture a handle at apply, run the deep-dive from the drawer
+- **Lens**: business_visionary
+- **Severity**: High
+- **Category**: feature
+- **File**: `app/_lib/apply-intake.ts:213`
+- **Scenario**: Every candidate who arrives through the candidate-facing token links — quick apply (name + email + knockouts only, `app/apply/[id]/quick/QuickApplyForm.tsx:117-143`) or conversational apply (which even has a CV-upload step, `app/apply/[id]/ConversationalApply.tsx:215`) — produces a pipeline entry whose `github_json` is forever NULL. `buildIntakeProfile` (`apply-intake.ts:213-285`) extracts skills, education, aspirations… but no GitHub handle (0 matches in the file), and the drawer offers no way to run the deep-dive later: the GH section renders only `{entry.githubEvidence ? …}` (`CandidateDrawer.tsx:442`) with no run affordance, and the only writer is the recruiter-side add-to-pipeline path (`useAddToPipeline.ts:26`, `db.ts:2680`).
+- **Root cause**: GH1–GH3 wired the Analyze-tab path end to end, but the highest-volume intake (apply links) and the decision surface (drawer) were never connected to `/api/github-analysis`, which needs nothing but a handle + optional JD.
+- **Impact**: For dev roles, the repo-signal differentiator only exists for candidates a recruiter manually re-analyzes in the Analyze tab — i.e., almost never for inbound applicants, exactly the population where unverified CV claims are most common. The board's "GitHub evidence" card becomes a feature most entries can structurally never show.
+- **Fix sketch**: (a) Add an optional "GitHub profile" step to the conversational apply script (same optional/skip pattern as the CV step) and persist the handle on the entry (e.g. alongside `contact`); (b) in the drawer, when a handle exists but `githubEvidence` is null, show a "Run GitHub deep-dive" button that POSTs `/api/github-analysis` with the entry's job JD, builds `buildGithubEvidenceSummary`, and saves it via a small `set_github` action on the existing `POST /api/pipeline/[id]` action plumbing (`resolve_intake`/`set_stage` precedent, `CandidateDrawer.tsx:247-255`). The route's TTL cache and 200+`{error}` soft-failure contract already fit this call site.
+
+## 3. Attach the author's GitHub assessment to the pipeline entry at dev-case promote
+- **Lens**: business_visionary
+- **Severity**: Medium
+- **Category**: feature
+- **File**: `app/api/devcase/promote/route.ts:16`
+- **Scenario**: A recruiter expands "Author's GitHub" on a submission row (GH4, `SubmissionRow.tsx:56-87`), reads the JD-aware assessment, then clicks Promote — and the freshly created pipeline entry carries no GitHub evidence: `promoteSubmission` builds the entry without `githubJson` (promote route posts only `submissionId`, `SubmissionRow.tsx:158-162`), and the assessment itself lives only in component state (`SubmissionRow.tsx:49-53`), evaporating on collapse/reload.
+- **Root cause**: GH4 (one-click author assessment) and GH2 (evidence-on-entry) shipped independently; the promote bridge — the one moment a dev-case submitter becomes a board candidate — never joins them, even though `parseRepoRef(sub.repoRef).owner` and the posting's JD text are both in hand server-side.
+- **Impact**: The dev-case funnel is the strongest-evidence path in the product (real repo + take-home eval), yet its promoted candidates arrive on the board with a *weaker* evidence card than CV-path candidates. The recruiter re-derives in the drawer what they already saw on the submission row.
+- **Fix sketch**: In the promote route (or `promoteSubmission`), best-effort server-side: derive owner via `parseRepoRef`, call the analysis logic with the posting JD (or accept the client's already-fetched `GithubAnalysis` in the POST body, validated by `githubAnalysisSchema.safeParse`), fold through `buildGithubEvidenceSummary` → `coerceGithubEvidenceSummary`, and pass `githubJson` to `createPipelineEntry` — same additive-only contract as `db.ts:2680`. Mirror the `mintObservedFromSubmission` "enrichment, never a gate" error handling already in the route.
+
+## 4. Give GithubAnalysisPanel a context-aware header and an embedded variant
+- **Lens**: ui_perfectionist
+- **Severity**: Medium
+- **Category**: ui
+- **File**: `app/_components/GithubAnalysisPanel.tsx:39`
+- **Scenario**: The panel now mounts in three contexts, but its chrome is hardcoded for one. On the saved history report (`app/history/[slug]/page.tsx:112`) and on a dev-case submission row (`SubmissionRow.tsx:216-220`) it still announces "Runs separately from the CV analysis so public repository evidence can be reviewed without blocking the main result" (`GithubAnalysisPanel.tsx:39-41`) — false in both places (nothing is running on history; there is no CV analysis in sub_dev). Worse, in sub_dev the full-width panel (own `shadow-panel` section + `xl:grid-cols-[380px_1fr]` two-pane body, `:32`/`:95`) expands inside a half-width posting card (`CaseDetail.tsx:156` `lg:grid-cols-2` → `:178`), crushing the 1fr column at xl and — in Spark Dark — nesting a 2px-outlined 16px-radius sticker inside another sticker (the `[data-theme="dark"] .shadow-panel` ride applies to both).
+- **Root cause**: The component was extracted from the Analyze result area and reused verbatim; it exposes no `variant`/`context` prop, so every mount inherits Analyze-tab copy and full-report geometry.
+- **Impact**: Misleading copy on two of three surfaces erodes trust in an evidence feature, and the sub_dev mount visibly breaks the design system's surface hierarchy (panel-in-panel, micro-text row chrome beside an h2 section) — the kind of inconsistency the dual-theme system was shipped to eliminate.
+- **Fix sketch**: Add a `context: "analyze" | "saved" | "author"` prop (default `"analyze"`): swap the subtitle per context ("Snapshot from the saved analysis" / "Public profile of the submission's author, read against this role"), and for `author` render a compact single-column body (stack the left rail blocks, drop the section `shadow-panel` in favor of `PANEL_SUNKEN` from `app/_components/ui/recipes.ts`) so the embedded mount respects card nesting in both themes.
+
+## 5. Show when GitHub evidence was gathered — and let a newer deep-dive replace a stale one
+- **Lens**: ui_perfectionist
+- **Severity**: Medium
+- **Category**: functionality
+- **File**: `app/_lib/db.ts:2680`
+- **Scenario**: A recruiter opens a candidate months after they were added. The drawer's GitHub card states only "From the GitHub deep-dive attached when this candidate was added" (`messages/en.json:576`) with no date; the full panel never renders `analyzedAt` either (it exists in the schema and is faithfully clamped into the summary — `github-summary.ts:26,54` — then displayed nowhere). And if the recruiter re-analyzes the candidate to refresh the picture, `createPipelineEntry` keeps the old evidence forever: the backfill runs only `if (input.githubJson && !existing.github_json)` (`db.ts:2680-2686`), so a re-add carrying a newer analysis is silently dropped.
+- **Root cause**: "Additive only, never an overwrite" (`db.ts:2661-2663`) was designed to protect against accidental clobbering but has no newer-wins escape hatch, and no surface ever consumed the `analyzedAt` field that was deliberately carried for this purpose.
+- **Impact**: Repo evidence is the one signal in the product that ages fast (candidates push new work; abandoned repos go stale), yet decision surfaces present it as timeless. A recruiter advancing or rejecting on a six-month-old snapshot has no cue it is one — quiet erosion of exactly the trust the evidence panel is meant to build.
+- **Fix sketch**: Render the timestamp where the evidence is judged: in the drawer card reuse `useRelativeTime` (already imported from `PipelineShared` at `CandidateDrawer.tsx:14`) — "analyzed 5 mo ago"; add an `analyzedAt` meta line to `GithubAnalysisPanel`'s profile block (matters most on the history mount). In `db.ts:2680`, compare `analyzedAt` inside the stored vs incoming summary (both pass `coerceGithubEvidenceSummary`) and overwrite when the incoming one is strictly newer — still additive (never null-out), now also fresh.
+
+---
+## Cross-checks performed
+- Prior reports read in full: `feature-scout-2026-06-10/github-code-analysis.md` (GH1–GH6) and `ui-bug-scan-2026-06-08/github-code-analysis.md`. Verified in current code: GH1 (persist + history render, `useAnalyzeForm.ts:281-330`, `history/[slug]/page.tsx:19-29,112`), GH2 (entry attach + drawer card, `github-summary.ts`, `CandidateDrawer.tsx:439-495`), GH3 (GitHub-only submit, `useAnalyzeForm.ts:372-399`), GH4 (author assessment, `SubmissionRow.tsx:48-87`), GH5 (TTL cache + retry, `route.ts:21-36,122-129`, panel `onRetry`), ui-scan #1 (parseRepoRef grammar, `repo-snapshot.ts:40-46`), #2 (`hasAnySignal` guard, `route.ts:555-569`), #3a (safeDate), #4 (Array.isArray guard) — all shipped, none re-flagged. ui-scan #3b (progressbar a11y) remains unfixed but is a KNOWN finding — not re-flagged.
+- Theme audit: every color class in `GithubAnalysisPanel.tsx`, drawer GH card, and `SubmissionRow.tsx` resolves through the `[data-theme="dark"]` token remaps in `globals.css` (white/stone/red/amber/moss/coral/limewash all mapped) — no token bypass to flag; recipe adoption is documented as opportunistic, so not flagged cosmetically. The panel-in-panel sticker nesting (finding 4) is the one real dark-register defect.
+- Confirmed automations blind to GitHub: `grep -i github` = 0 in `automation-run.ts`, `automation-pass.ts`, `interview-prep-run.ts`, `interview-prep.ts`, `screen-wave.ts`, `pipeline/jobfit/automation.py`.
+- Confirmed intake blind: 0 github matches in `apply-intake.ts`, both apply forms, and `app/api/devcase/promote/route.ts`; only `useAddToPipeline.ts` writes `githubJson`.
+- Deferral list respected: nothing here touches auth, languages, VOX2, PREP4, DEC5/6, SCH4, PIPE4, CV1, RES2/3, dev-case per-dimension provenance/late-arrival re-eval, or /api/pipeline/events detail mode.
