@@ -73,11 +73,17 @@
       "subjectFallback": "Offer — {role}",
       "responseFooter": "— — —\nTo accept or decline this offer, please use your secure link:\n{link}\n"
     },
+    "scheduleInvite": {
+      "subject": "Pick your interview time — {role}",
+      "length": " The interview takes about {minutes} minutes.",
+      "body": "Hi {name},\n\nGood news — we'd like to talk about {role}. Pick an interview time that suits you here:\n{link}\n\nThe same link lets you reschedule later if something comes up.{length}\n\nBest,\n{team}"
+    },
     "interviewConfirmation": {
       "subject": "Interview confirmed — {role}",
       "length": " Please set aside about {minutes} minutes for the call.",
       "short": "Hi {name},\n\nYour interview for {role} is booked for {slot} — that's coming up shortly, so treat this as your heads-up: everything you need is right here and we won't send a separate reminder given the short notice.{length}\n\nIf you need to change the time, just reply and we'll sort it out.\n\nSee you soon,\n{team}",
-      "normal": "Hi {name},\n\nYour interview for {role} is booked for {slot}.{length} We'll send a reminder before the call with everything you need.\n\nIf you need to change the time, just reply and we'll sort it out.\n\nSee you then,\n{team}"
+      "normal": "Hi {name},\n\nYour interview for {role} is booked for {slot}.{length} We'll send a reminder before the call with everything you need.\n\nIf you need to change the time, just reply and we'll sort it out.\n\nSee you then,\n{team}",
+      "linkFooter": "Need to change the time or add it to your calendar? Use your scheduling link:\n{link}"
     },
     "interviewReminder": {
       "subject": "Reminder — your interview {slot}",
@@ -599,6 +605,8 @@
       "createLink": "Create link",
       "inviteSent": "✓ Invite sent to the candidate — they can take the screen whenever they're ready.",
       "inviteNotSent": "Link created, but the invite couldn't be sent automatically — copy it above to share with the candidate.",
+      "schedInviteSent": "✓ Scheduling link sent to the candidate — they pick a time at their convenience.",
+      "schedInviteNotSent": "Link created, but it couldn't be sent automatically — copy it above to share with the candidate.",
       "notConfigured": "{vars} not set — the call won't connect until configured.",
       "selfScheduling": "Self-scheduling",
       "selfSchedulingHelp": "Send the candidate a link to pick their own interview slot — they get an instant confirmation and a reminder.",
@@ -1896,6 +1904,7 @@
         "scored": "Match score computed",
         "acknowledgement_sent": "Application acknowledgement sent",
         "interview_invite_sent": "Interview invite sent",
+        "schedule_invite_sent": "Scheduling link sent",
         "interview_reminder_sent": "Interview reminder sent",
         "comm_resent": "Message resent",
         "onboarding_failed": "Onboarding dispatch failed",

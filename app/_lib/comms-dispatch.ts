@@ -184,7 +184,7 @@ export async function dispatchOffer(
 export async function dispatchInterviewConfirmation(
   entry: PipelineEntry,
   slot: string,
-  opts?: { shortNotice?: boolean; durationMin?: number | null }
+  opts?: { shortNotice?: boolean; durationMin?: number | null; rescheduleLink?: string | null }
 ): Promise<void> {
   const t = await commsTranslator(entry.locale);
   const name = greetName(entry, t);
@@ -196,8 +196,35 @@ export async function dispatchInterviewConfirmation(
   const body = opts?.shortNotice
     ? t("interviewConfirmation.short", { name, role, slot, length, team: t("team") })
     : t("interviewConfirmation.normal", { name, role, slot, length, team: t("team") });
-  await sendComm({ to: candidateRecipient(entry), subject, body, kind: "interview_confirmation", ref: entry.id });
+  // The confirmation is the candidate's only durable artifact — once the tab
+  // closes, this footer link is the one way back to reschedule (SCH2) or grab
+  // the .ics. ABSOLUTE, resolved via publicBaseUrl by the caller.
+  const footer = opts?.rescheduleLink ? `\n\n${t("interviewConfirmation.linkFooter", { link: opts.rescheduleLink })}` : "";
+  await sendComm({ to: candidateRecipient(entry), subject, body: body + footer, kind: "interview_confirmation", ref: entry.id });
   recordAutomationEvent(entry.id, "interview_scheduled", slot);
+}
+
+/** Deliver the freshly-minted self-scheduling link TO the candidate. The voice
+ *  screen (interview_invite) and the offer both auto-dispatch their token links;
+ *  the scheduling link was the one candidate token that never shipped — the
+ *  recruiter had to paste it into a channel outside the app, with no Outbox row
+ *  to distinguish a delivered invite from a forgotten one. Takes the full entry
+ *  so the recipient contract sees `contact` (deliverable for inbound applicants).
+ *  `link` must be ABSOLUTE (resolved via publicBaseUrl by the caller). Records a
+ *  schedule_invite_sent event. */
+export async function dispatchScheduleInvite(
+  entry: PipelineEntry,
+  link: string,
+  opts?: { durationMin?: number | null }
+): Promise<void> {
+  const t = await commsTranslator(entry.locale);
+  const name = greetName(entry, t);
+  const role = entry.jobTitle ?? t("theRole");
+  const length = opts?.durationMin ? t("scheduleInvite.length", { minutes: opts.durationMin }) : "";
+  const subject = t("scheduleInvite.subject", { role });
+  const body = t("scheduleInvite.body", { name, role, link, length, team: t("team") });
+  await sendComm({ to: candidateRecipient(entry), subject, body, kind: "schedule_invite", ref: entry.id });
+  recordAutomationEvent(entry.id, "schedule_invite_sent", role);
 }
 
 /** Reminder fired by the scheduler heartbeat before a confirmed interview.

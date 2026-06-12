@@ -73,11 +73,17 @@
       "subjectFallback": "Nabídka — {role}",
       "responseFooter": "— — —\nNabídku přijměte nebo odmítněte prosím přes svůj zabezpečený odkaz:\n{link}\n"
     },
+    "scheduleInvite": {
+      "subject": "Vyberte si termín pohovoru — {role}",
+      "length": " Pohovor zabere přibližně {minutes} minut.",
+      "body": "Dobrý den {name},\n\nmáme dobrou zprávu — rádi bychom si promluvili o pozici {role}. Termín pohovoru si vyberte zde:\n{link}\n\nPřes stejný odkaz můžete termín později i změnit, kdyby do toho něco přišlo.{length}\n\nS pozdravem,\n{team}"
+    },
     "interviewConfirmation": {
       "subject": "Pohovor potvrzen — {role}",
       "length": " Vyhraďte si prosím na hovor přibližně {minutes} minut.",
       "short": "Dobrý den {name},\n\nváš pohovor na pozici {role} je domluven na {slot} — termín se blíží, berte tedy tuto zprávu jako upozornění: vše potřebné najdete zde a vzhledem ke krátkému předstihu už samostatnou připomínku neposíláme.{length}\n\nPokud potřebujete čas změnit, stačí odpovědět a domluvíme se.\n\nNa viděnou brzy,\n{team}",
-      "normal": "Dobrý den {name},\n\nváš pohovor na pozici {role} je domluven na {slot}.{length} Před hovorem vám pošleme připomínku se vším potřebným.\n\nPokud potřebujete čas změnit, stačí odpovědět a domluvíme se.\n\nTěšíme se,\n{team}"
+      "normal": "Dobrý den {name},\n\nváš pohovor na pozici {role} je domluven na {slot}.{length} Před hovorem vám pošleme připomínku se vším potřebným.\n\nPokud potřebujete čas změnit, stačí odpovědět a domluvíme se.\n\nTěšíme se,\n{team}",
+      "linkFooter": "Potřebujete termín změnit nebo si ho přidat do kalendáře? Použijte svůj odkaz:\n{link}"
     },
     "interviewReminder": {
       "subject": "Připomínka — váš pohovor {slot}",
@@ -599,6 +605,8 @@
       "createLink": "Vytvořit odkaz",
       "inviteSent": "✓ Pozvánka odeslána kandidátovi — screening může absolvovat, kdykoli bude připraven.",
       "inviteNotSent": "Odkaz vytvořen, ale pozvánku se nepodařilo odeslat automaticky — zkopírujte ji výše a sdílejte s kandidátem.",
+      "schedInviteSent": "✓ Odkaz na výběr termínu odeslán kandidátovi — čas si vybere, kdy se mu to hodí.",
+      "schedInviteNotSent": "Odkaz vytvořen, ale nepodařilo se ho odeslat automaticky — zkopírujte ho výše a sdílejte s kandidátem.",
       "notConfigured": "{vars} není nastaveno — hovor se nespojí, dokud to nenastavíte.",
       "selfScheduling": "Samoobslužné plánování",
       "selfSchedulingHelp": "Pošlete kandidátovi odkaz, kde si sám vybere termín pohovoru — dostane okamžité potvrzení a připomenutí.",
@@ -1896,6 +1904,7 @@
         "scored": "Skóre shody vypočteno",
         "acknowledgement_sent": "Potvrzení přihlášky odesláno",
         "interview_invite_sent": "Pozvánka na pohovor odeslána",
+        "schedule_invite_sent": "Odkaz na výběr termínu odeslán",
         "interview_reminder_sent": "Připomínka pohovoru odeslána",
         "comm_resent": "Zpráva odeslána znovu",
         "onboarding_failed": "Odeslání onboardingu selhalo",

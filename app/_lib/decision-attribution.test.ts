@@ -25,7 +25,7 @@ test("the kinds the writers produce are all mapped (the drift this module exists
     "matched", "added", "applied", "re_applied", "scored", "advanced", "moved",
     "scheduled", "rejected", "auto_rejected", "intake_degraded", "intake_resolved",
     "screening_hold", "interview_scorecard", "interview_prep_generated",
-    "interview_scheduled", "interview_invite_sent", "interview_reminder_sent",
+    "interview_scheduled", "interview_invite_sent", "schedule_invite_sent", "interview_reminder_sent",
     "outreach_sent", "rejection_sent", "rejection_comms_failed",
     "acknowledgement_sent", "comm_resent", "offer_drafted", "offer_sent",
     "offer_accepted", "offer_declined", "onboarding_started", "onboarding_failed",

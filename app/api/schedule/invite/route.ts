@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { getPipelineEntry } from "@/app/_lib/db";
 import { createScheduleInvite } from "@/app/_lib/schedule-store";
 import { plannedInterviewMinutes } from "@/app/_lib/interview-run";
+import { dispatchScheduleInvite } from "@/app/_lib/comms-dispatch";
+import { publicBaseUrl } from "@/app/_lib/public-base-url";
 import { jsonOk, safeJsonError } from "@/app/_lib/api-response";
 import { clientIpFrom, rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
 
@@ -32,7 +34,24 @@ export async function POST(request: NextRequest) {
       // tell the candidate how long to block.
       durationMin: plannedInterviewMinutes(entry),
     });
-    return jsonOk({ token: invite.token, url: `/schedule/${invite.token}` });
+
+    // Deliver the link TO the candidate — the voice screen and the offer both
+    // auto-dispatch their token links; without this the recruiter pastes it into
+    // a channel outside the app and no Outbox row distinguishes a delivered
+    // invite from a forgotten one. Best-effort: a comms failure must not fail
+    // link minting (the copy panel below stays the manual fallback).
+    let dispatched = false;
+    try {
+      const link = `${publicBaseUrl(new URL(request.url).origin)}/schedule/${invite.token}`;
+      await dispatchScheduleInvite(entry, link, { durationMin: invite.durationMin });
+      dispatched = true;
+    } catch (commErr) {
+      console.error(
+        `[schedule:invite] link ${invite.token} minted but invite delivery failed: ${commErr instanceof Error ? commErr.message : commErr}`
+      );
+    }
+
+    return jsonOk({ token: invite.token, url: `/schedule/${invite.token}`, dispatched });
   } catch (error) {
     return safeJsonError(error, "api:schedule:invite", "SCHEDULE_INVITE_FAILED");
   }

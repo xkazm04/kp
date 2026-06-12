@@ -15,6 +15,7 @@ import { offeredSlotFor, proposeSlots } from "@/app/_lib/schedule-slots";
 import { logScheduleNoSlots, logScheduleReconcile } from "@/app/_lib/logger";
 import { jsonOk, safeJsonError } from "@/app/_lib/api-response";
 import { isShortNoticeBooking } from "@/app/_lib/interview-reminder-policy";
+import { publicBaseUrl } from "@/app/_lib/public-base-url";
 import { clientIpFrom, rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
 
 export const runtime = "nodejs";
@@ -143,7 +144,13 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
         const bookedAtMs = booked.confirmedAt ? Date.parse(booked.confirmedAt) : NaN;
         const shortNotice =
           !Number.isNaN(slotAtMs) && !Number.isNaN(bookedAtMs) && isShortNoticeBooking(slotAtMs, bookedAtMs);
-        await dispatchInterviewConfirmation(entry, slot, { shortNotice, durationMin: booked.durationMin });
+        await dispatchInterviewConfirmation(entry, slot, {
+          shortNotice,
+          durationMin: booked.durationMin,
+          // The candidate's one durable way back to reschedule (SCH2) / .ics —
+          // the picker page is gone once the tab closes.
+          rescheduleLink: `${publicBaseUrl(new URL(request.url).origin)}/schedule/${token}`,
+        });
         return true;
       } catch (dispatchError) {
         const reason = dispatchError instanceof Error ? dispatchError.message : String(dispatchError);

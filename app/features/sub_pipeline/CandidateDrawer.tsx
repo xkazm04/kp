@@ -702,8 +702,13 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
               </button>
               {sched.err ? <p role="alert" className="mt-2 text-sm text-red-700">{sched.err}</p> : null}
               {sched.data ? (
-                <div className="mt-2">
+                <div className="mt-2 space-y-1.5">
                   <TokenLinkPanel link={sched} />
+                  {Boolean(sched.data.dispatched) ? (
+                    <p className="text-sm text-moss">{t("schedInviteSent")}</p>
+                  ) : (
+                    <p className="text-sm text-amber-700">{t("schedInviteNotSent")}</p>
+                  )}
                 </div>
               ) : null}
             </div>
