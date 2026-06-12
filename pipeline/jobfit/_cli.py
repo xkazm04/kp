@@ -7,6 +7,8 @@ behaviour and the JSON error contract the bridge presents to the app live in ONE
   - configure_stdio():   force UTF-8 on stdout/stderr (Czech diacritics survive Windows cp1250).
   - load_candidate_arg():load a MatchCandidate from a CandidateProfileV2 (--profile-json,
                          transformed) or a raw MatchCandidate (--candidate-json, else stdin).
+  - load_jobs_arg():     load the corpus (--jobs or the committed seed), augmented by the
+                         --jobs-json overrides (DB-ingested jobs; overrides win on id collision).
   - emit_error():        the `{error, status}` envelope on stderr + the process exit code.
 """
 
@@ -44,6 +46,25 @@ def load_candidate_arg(profile_json: Path | None, candidate_json: Path | None) -
         else json.loads(sys.stdin.read() or "{}")
     )
     return MatchCandidate.model_validate(raw)
+
+
+def load_jobs_arg(jobs: Path | None, jobs_json: Path | None) -> list[Any]:
+    """Corpus from ``--jobs`` (or the committed seed), augmented by any inline Job
+    overrides from ``--jobs-json`` (e.g. freshly DB-ingested jobs not yet in the
+    static corpus). Overrides win on id collision — the same augment matrix_cli
+    applies, shared here so match_cli (Match tab) and reasoning_cli (Explain fit)
+    resolve the SAME corpus the Fit Matrix scores instead of just the demo seed."""
+    from .jobs import Job
+    from .matching import load_corpus
+
+    corpus = load_corpus(jobs)
+    if jobs_json is None:
+        return corpus
+    by_id = {j.id: j for j in corpus}
+    for rec in json.loads(jobs_json.read_text(encoding="utf-8")):
+        job = Job.model_validate(rec)
+        by_id[job.id] = job
+    return list(by_id.values())
 
 
 def emit_error(exc: Exception, status: int = 500) -> int:

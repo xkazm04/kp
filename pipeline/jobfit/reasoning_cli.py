@@ -13,10 +13,10 @@ import argparse
 import json
 from pathlib import Path
 
-from ._cli import configure_stdio, emit_error, load_candidate_arg
+from ._cli import configure_stdio, emit_error, load_candidate_arg, load_jobs_arg
 from .claude_cli import ClaudeCliProvider
 from .match_reasoning import REASONING_PROMPT_VERSION, generate
-from .matching import load_corpus, score_job
+from .matching import score_job
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -27,6 +27,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--profile-json", type=Path, help="CandidateProfileV2 JSON — transformed first.")
     parser.add_argument("--job-id", required=True)
     parser.add_argument("--jobs", type=Path, default=None)
+    parser.add_argument(
+        "--jobs-json",
+        type=Path,
+        default=None,
+        help="JSON array of Job records used in addition to the corpus — lets a newly-ingested DB --job-id resolve instead of raising 'job not found'.",
+    )
     parser.add_argument("--no-llm", action="store_true", help="Force the deterministic template.")
     # MAT1 — output locale for the verdict/strengths/gaps narrative (en|cs); the
     # verdict's canonical code value stays English (coerced downstream). The
@@ -39,7 +45,10 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         candidate = load_candidate_arg(args.profile_json, args.candidate_json)
-        jobs = load_corpus(args.jobs)
+        # Corpus augmented by --jobs-json DB overrides (overrides win on id
+        # collision): without it Explain fit raised "job not found" for any
+        # recruiter-ingested job the Fit Matrix happily scored.
+        jobs = load_jobs_arg(args.jobs, args.jobs_json)
         job = next((j for j in jobs if j.id == args.job_id), None)
         if job is None:
             raise ValueError(f"job not found: {args.job_id}")

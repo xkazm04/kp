@@ -51,10 +51,17 @@ export function reasoningCacheKey(input: {
   // cached English verdict would be served to a Czech session (and vice versa).
   // Optional + defaulted to "en" so a legacy/no-lang caller keeps its key.
   lang?: string;
+  // The live corpus handed to reasoning_cli via --jobs-json is a fifth axis: it
+  // decides WHICH record --job-id resolves to (a DB override wins over the seed),
+  // so a cached verdict must not survive a corpus change. ids-only by contract —
+  // computeCorpusFingerprint (automation-cache-key.ts) — because the resolved
+  // job's CONTENT is already the jobPayload axis above. Optional + defaulted to
+  // "" so a legacy/no-corpus caller keeps its key.
+  corpusFingerprint?: string;
 }): string {
   return createHash("sha256")
     .update(
-      `${input.promptVersion}|${input.candidateKeyPart}|${jobKeyPart(input.jobId, input.jobPayload)}|${input.lang ?? "en"}`
+      `${input.promptVersion}|${input.candidateKeyPart}|${jobKeyPart(input.jobId, input.jobPayload)}|${input.lang ?? "en"}|${input.corpusFingerprint ?? ""}`
     )
     .digest("hex");
 }

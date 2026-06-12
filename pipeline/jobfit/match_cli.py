@@ -5,7 +5,8 @@ Invoked by the Next.js /api/match route (candidate written to a temp file):
     python -m pipeline.jobfit.match_cli --candidate-json <path> [--limit N]
 
 Reads the candidate from --candidate-json (or stdin) and the corpus from the
-committed seed (or --jobs). Output is a single JSON object (MatchResponse).
+committed seed (or --jobs), augmented by any --jobs-json DB overrides so
+recruiter-ingested jobs rank too. Output is a single JSON object (MatchResponse).
 """
 
 from __future__ import annotations
@@ -14,8 +15,8 @@ import argparse
 import json
 from pathlib import Path
 
-from ._cli import configure_stdio, emit_error, load_candidate_arg
-from .matching import load_corpus, match
+from ._cli import configure_stdio, emit_error, load_candidate_arg, load_jobs_arg
+from .matching import match
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -29,6 +30,12 @@ def main(argv: list[str] | None = None) -> int:
         help="CandidateProfileV2 JSON — transformed into a MatchCandidate (skills+provenance, potential).",
     )
     parser.add_argument("--jobs", type=Path, default=None, help="Override corpus path.")
+    parser.add_argument(
+        "--jobs-json",
+        type=Path,
+        default=None,
+        help="JSON array of Job records used in addition to the corpus — lets newly-ingested DB jobs (absent from the static corpus) be ranked.",
+    )
     parser.add_argument("--limit", type=int, default=50)
     parser.add_argument(
         "--weights",
@@ -41,7 +48,10 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         candidate = load_candidate_arg(args.profile_json, args.candidate_json)
-        jobs = load_corpus(args.jobs)
+        # Corpus augmented by --jobs-json DB overrides (overrides win on id
+        # collision): without it a recruiter-ingested/published job scored by the
+        # Fit Matrix never appeared in the Match ranking at any rank.
+        jobs = load_jobs_arg(args.jobs, args.jobs_json)
         # A malformed --weights must not abort the match — coerce a non-object to
         # None so it falls back to the archetype baseline (resolve_weights handles
         # clamping/renormalizing a valid partial vector).

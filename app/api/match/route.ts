@@ -1,4 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+import { writeFile } from "node:fs/promises";
+import path from "node:path";
+import { listCorpusJobs } from "@/app/_lib/db";
 import { writeMatchInput, type MatchInputBody } from "@/app/_lib/match-input";
 import {
   cleanupWorkdir,
@@ -36,6 +39,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: input.error }, { status: input.status });
     }
     const args = ["-m", "pipeline.jobfit.match_cli", ...input.inputArgs, "--limit", String(limit)];
+    // A recruiter-ingested/published job never reaches the static seed corpus the
+    // CLI reads, so it was scored by the Fit Matrix yet absent from the Match tab
+    // at any rank. Hand the live DB corpus over as --jobs-json overrides (DB wins
+    // on id collision) — mirrors /api/matrix's --jobs-json and rematch's
+    // live-corpus hand-off in automation-run.ts.
+    const corpusJobs = listCorpusJobs();
+    if (corpusJobs.length > 0) {
+      const jobsPath = path.join(workdir, "jobs.json");
+      await writeFile(jobsPath, JSON.stringify(corpusJobs), "utf-8");
+      args.push("--jobs-json", jobsPath);
+    }
     // Recruiter weight override (MAT1): forwarded as a JSON arg only when it's a
     // plain object of finite numbers. The Python scorer clamps it to the
     // archetype's bounds + renormalizes, so the client can't push an out-of-range

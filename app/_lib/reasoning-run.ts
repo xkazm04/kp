@@ -1,6 +1,9 @@
-import { getJob, lookupPromptCache, storePromptCache } from "./db";
+import { writeFile } from "node:fs/promises";
+import path from "node:path";
+import { getJob, listCorpusJobs, lookupPromptCache, storePromptCache } from "./db";
 import { writeMatchInput, type MatchInputBody } from "./match-input";
 import { cleanupWorkdir, createWorkdir, parsePythonJson, parseStderrError, spawnPython } from "./python-runner";
+import { computeCorpusFingerprint } from "./automation-cache-key";
 import { reasoningCacheKey } from "./reasoning-cache-key";
 import { isCacheableReasoning } from "./reasoning-cache-policy";
 
@@ -41,17 +44,31 @@ export async function runReasoning(body: ReasoningInput, signal?: AbortSignal): 
       "--lang",
       lang,
     ];
+    // Same live-corpus hand-off as /api/match: a recruiter-ingested --job-id must
+    // resolve here instead of raising "job not found" against the static seed.
+    // The CLI augments the seed with these records (DB wins on id collision).
+    const corpusJobs = listCorpusJobs();
+    if (corpusJobs.length > 0) {
+      const jobsPath = path.join(workdir, "jobs.json");
+      await writeFile(jobsPath, JSON.stringify(corpusJobs), "utf-8");
+      args.push("--jobs-json", jobsPath);
+    }
 
     // Content-address the job (not just its id) so an in-place edit to the job's
     // requirements/title invalidates the cached verdict — symmetric with the
     // profile content hash in input.keyPart. The locale is a fourth axis so a
-    // cached cs verdict never serves an en session. See reasoning-cache-key.ts.
+    // cached cs verdict never serves an en session. The corpus fingerprint is a
+    // fifth: the --jobs-json corpus decides WHICH record --job-id resolves to
+    // (DB override vs seed), so a verdict must not survive a corpus change —
+    // same self-invalidation contract as rematch's computeCorpusFingerprint.
+    // See reasoning-cache-key.ts.
     const hash = reasoningCacheKey({
       promptVersion: REASONING_PROMPT_VERSION,
       candidateKeyPart: input.keyPart,
       jobId: body.jobId,
       jobPayload: getJob(body.jobId),
       lang,
+      corpusFingerprint: computeCorpusFingerprint(corpusJobs.map((j) => j.id)),
     });
     const cached = lookupPromptCache(hash, REASONING_PROMPT_VERSION);
     if (cached) return { ...(cached as object), cached: true };

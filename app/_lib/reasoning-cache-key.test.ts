@@ -52,6 +52,19 @@ test("MAT1 — the locale is an independent axis (no cross-language cache bleed)
   assert.notEqual(reasoningCacheKey({ ...base, lang: "en" }), reasoningCacheKey({ ...base, lang: "cs" }));
 });
 
+test("the corpus fingerprint is an independent axis — a verdict can't survive a corpus change", () => {
+  // An absent fingerprint defaults to "", so the legacy/no-corpus caller is unchanged…
+  assert.equal(reasoningCacheKey({ ...base }), reasoningCacheKey({ ...base, corpusFingerprint: undefined }));
+  // …but a corpus-aware key differs from the legacy one, and corpus turnover
+  // (a job ingested/removed → new fingerprint) re-keys again, so a verdict
+  // computed against one job resolution never serves a different corpus state.
+  const legacy = reasoningCacheKey({ ...base });
+  const fpA = reasoningCacheKey({ ...base, corpusFingerprint: "fp-a" });
+  const fpB = reasoningCacheKey({ ...base, corpusFingerprint: "fp-b" });
+  assert.notEqual(legacy, fpA);
+  assert.notEqual(fpA, fpB);
+});
+
 test("an unresolvable job (null payload) degrades to an id-only key rather than blocking", () => {
   assert.equal(jobKeyPart("job-1", null), "job:job-1");
   assert.equal(jobKeyPart("job-1", undefined), "job:job-1");
