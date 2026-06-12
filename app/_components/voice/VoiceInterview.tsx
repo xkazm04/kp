@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ConversationProvider, useConversation } from "@elevenlabs/react";
 import { useLocale, useTranslations } from "next-intl";
-import { Mic, PhoneOff, Sparkles, User } from "lucide-react";
+import { CheckCircle2, Mic, PhoneOff, Sparkles, User } from "lucide-react";
 import { parseOaiTranscriptEvent } from "@/app/_lib/voice/openai";
 // Provider id, transcript turn, and availability map are single-sourced in the
 // voice adapter layer. Import from voice/types (not the package index, which
@@ -78,6 +78,11 @@ export function VoiceInterview(props: VoiceInterviewProps) {
 
 function VoiceInterviewInner({ token, candidateLabel, jobTitle, provider: pinnedProvider, lockSettings }: VoiceInterviewProps) {
   const t = useTranslations("interview.voice");
+  // The completed closing card reuses the SAME strings the portal page renders
+  // server-side for an already-completed link (app/interview/[token]/page.tsx),
+  // so the candidate sees one consistent ending whether they finish live or
+  // reload — they live one namespace up from this component's "interview.voice".
+  const tPortal = useTranslations("interview");
   const locale = useLocale();
   const [availability, setAvailability] = useState<VoiceAvailability | null>(null);
   // In locked (candidate) mode the provider is pinned to the session's stored value;
@@ -92,6 +97,12 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle, provider: pinned
     lockSettings ? (locale === "cs" ? "cs" : "en") : "auto"
   );
   const [phase, setPhase] = useState<Phase>("idle");
+  // HOW the call ended (set only in finalize, alongside phase → "ended").
+  // "completed" means the session is terminal server-side: re-offering "Start
+  // again" would just walk the candidate into a /connect 409, so the controls
+  // give way to a closing card. "failed" (zero-turn hang-up, error blip,
+  // never-live connect) keeps the retry button — the link is still usable.
+  const [endedAs, setEndedAs] = useState<"completed" | "failed" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [turns, setTurns] = useState<VoiceTurn[]>([]);
 
@@ -250,6 +261,7 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle, provider: pinned
       pendingCandidateRef.current = false;
       teardownOpenAi();
       setPhase("ended");
+      setEndedAs(status);
       const sid = sessionIdRef.current;
       const tok = sessionTokenRef.current ?? token ?? null;
       if (sid && tok) {
@@ -456,6 +468,7 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle, provider: pinned
       return;
     }
     setError(null);
+    setEndedAs(null);
     setTurns([]);
     turnsRef.current = [];
     asstBuf.current = "";
@@ -640,57 +653,75 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle, provider: pinned
       </div>
       )}
 
-      {/* Consent */}
-      <label
-        className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3.5 text-base text-ink transition-colors ${
-          consent ? "border-moss/40 bg-moss/5" : "border-stone-200 bg-paper/50"
-        } ${isBusy ? "cursor-default" : ""}`}
-      >
-        <input
-          type="checkbox"
-          checked={consent}
-          disabled={isBusy}
-          onChange={(e) => setConsent(e.target.checked)}
-          className="mt-0.5 h-4 w-4 shrink-0 rounded text-moss focus-ring"
-        />
-        <span className="leading-6">
-          {t.rich("consent", { b: (chunks) => <span className="font-medium">{chunks}</span> })}
-        </span>
-      </label>
-
-      {/* Controls */}
-      <div
-        className="flex flex-wrap items-center gap-3 rounded-lg border border-stone-200 bg-paper/50 px-4 py-3"
-        aria-busy={phase === "connecting"}
-      >
-        {!liveOrEnding ? (
-          <button
-            type="button"
-            onClick={start}
-            disabled={!consent || phase === "connecting" || !providerAvailable}
-            className="focus-ring inline-flex h-11 items-center justify-center gap-2 rounded-md bg-ink px-5 text-base font-semibold text-white transition-colors hover:bg-steel disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            <Mic size={18} />
-            {phase === "connecting" ? t("connecting") : phase === "ended" ? t("startAgain") : t("startCall")}
-          </button>
-        ) : (
-          <button
-            type="button"
-            onClick={end}
-            disabled={phase === "ending"}
-            className="focus-ring inline-flex h-11 items-center justify-center gap-2 rounded-md bg-coral px-5 text-base font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
-          >
-            <PhoneOff size={18} />
-            {phase === "ending" ? t("ending") : t("endCall")}
-          </button>
-        )}
-        <StatusPill phase={phase} speaking={conversation.isSpeaking} />
-        {!providerAvailable ? (
-          <span className="text-meta text-coral">
-            {t("keysNotConfigured", { provider: PROVIDER_LABEL[liveProvider] })}
+      {/* A COMPLETED ending swaps the consent + start controls for a closing
+          card: the session is terminal server-side, so "Start again" was a dead
+          button (/connect 409 → "already completed"). Failed endings — zero-turn
+          hang-up, error blip, the 30s connect timeout (phase "error", endedAs
+          null) — keep the retry controls so the still-live link stays usable.
+          The transcript stays mounted below as the candidate's record. */}
+      {phase === "ended" && endedAs === "completed" ? (
+        <div role="status" className="rounded-lg border border-moss/40 bg-moss/5 px-5 py-8 text-center">
+          <span className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-moss/15 text-moss">
+            <CheckCircle2 size={24} aria-hidden />
           </span>
-        ) : null}
-      </div>
+          <h2 className="mt-3 font-serif text-h2 text-ink">{tPortal("completedTitle")}</h2>
+          <p className="mx-auto mt-1.5 max-w-md text-base leading-6 text-steel">{tPortal("completedBody")}</p>
+        </div>
+      ) : (
+        <>
+          {/* Consent */}
+          <label
+            className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3.5 text-base text-ink transition-colors ${
+              consent ? "border-moss/40 bg-moss/5" : "border-stone-200 bg-paper/50"
+            } ${isBusy ? "cursor-default" : ""}`}
+          >
+            <input
+              type="checkbox"
+              checked={consent}
+              disabled={isBusy}
+              onChange={(e) => setConsent(e.target.checked)}
+              className="mt-0.5 h-4 w-4 shrink-0 rounded text-moss focus-ring"
+            />
+            <span className="leading-6">
+              {t.rich("consent", { b: (chunks) => <span className="font-medium">{chunks}</span> })}
+            </span>
+          </label>
+
+          {/* Controls */}
+          <div
+            className="flex flex-wrap items-center gap-3 rounded-lg border border-stone-200 bg-paper/50 px-4 py-3"
+            aria-busy={phase === "connecting"}
+          >
+            {!liveOrEnding ? (
+              <button
+                type="button"
+                onClick={start}
+                disabled={!consent || phase === "connecting" || !providerAvailable}
+                className="focus-ring inline-flex h-11 items-center justify-center gap-2 rounded-md bg-ink px-5 text-base font-semibold text-white transition-colors hover:bg-steel disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <Mic size={18} />
+                {phase === "connecting" ? t("connecting") : phase === "ended" ? t("startAgain") : t("startCall")}
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={end}
+                disabled={phase === "ending"}
+                className="focus-ring inline-flex h-11 items-center justify-center gap-2 rounded-md bg-coral px-5 text-base font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+              >
+                <PhoneOff size={18} />
+                {phase === "ending" ? t("ending") : t("endCall")}
+              </button>
+            )}
+            <StatusPill phase={phase} speaking={conversation.isSpeaking} />
+            {!providerAvailable ? (
+              <span className="text-meta text-coral">
+                {t("keysNotConfigured", { provider: PROVIDER_LABEL[liveProvider] })}
+              </span>
+            ) : null}
+          </div>
+        </>
+      )}
 
       {error ? (
         <p role="alert" className="rounded-md border border-coral/30 bg-coral/5 px-3 py-2 text-base text-coral">
