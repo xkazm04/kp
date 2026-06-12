@@ -1,7 +1,7 @@
 "use client";
 
 import { Fragment } from "react";
-import { ArrowLeft, ClipboardList, Lock, MicVocal, Send, Users } from "lucide-react";
+import { ArrowLeft, ClipboardList, FileWarning, Lock, MicVocal, Send, Users } from "lucide-react";
 import { Markdown } from "@/app/_components/Markdown";
 import { formatFraction, formatRelativeTime } from "@/app/_lib/format";
 import { ApplyTokenPill } from "./ApplyTokenPill";
@@ -53,6 +53,13 @@ export function CaseDetail({
   const casePostings = postings.filter((p) => p.caseId === kase.id);
   const published = casePostings.length > 0;
   const hasScenario = Array.isArray(kase.scenario?.phases) && (kase.scenario?.phases?.length ?? 0) > 0;
+  // Provenance persisted with each generated blob (devcase-orchestrator) — same visual
+  // language as the ProvenanceStrip: moss = real LLM output, amber = degraded/template.
+  // A non-"llm" source means the generation fell back: the scenario carries generic
+  // template probes, the seed is the prose-only skeleton. Records saved before
+  // provenance was persisted carry no `source` and keep the plain badges.
+  const scenarioDegraded = hasScenario && kase.scenario?.source != null && kase.scenario.source !== "llm";
+  const seedDegraded = kase.seed?.source != null && kase.seed.source !== "llm";
 
   return (
     <div className="space-y-4">
@@ -66,8 +73,25 @@ export function CaseDetail({
         </button>
         <span className="text-micro text-steel">created {formatRelativeTime(kase.createdAt) || "—"}</span>
         {hasScenario ? (
-          <span className="inline-flex items-center gap-1 rounded-full bg-moss/15 px-2 py-0.5 text-micro font-semibold uppercase text-moss">
-            <MicVocal size={11} /> interview scenario ready
+          scenarioDegraded ? (
+            <span
+              title="Scenario generation fell back to the deterministic template — probes are generic, not case-grounded. Re-run before interviewing on this case."
+              className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-micro font-semibold uppercase text-amber-700"
+            >
+              <MicVocal size={11} /> interview scenario: template probes
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1 rounded-full bg-moss/15 px-2 py-0.5 text-micro font-semibold uppercase text-moss">
+              <MicVocal size={11} /> interview scenario ready
+            </span>
+          )
+        ) : null}
+        {seedDegraded ? (
+          <span
+            title="Seed materialization fell back to the deterministic template — candidates receive a prose-only README + DECISIONS skeleton, not concrete starter files. Re-run before sending the take-home."
+            className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-micro font-semibold uppercase text-amber-700"
+          >
+            <FileWarning size={11} /> seed: skeleton only
           </span>
         ) : null}
         <div className="ml-auto flex gap-1.5">

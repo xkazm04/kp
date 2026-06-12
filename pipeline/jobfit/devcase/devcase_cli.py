@@ -277,7 +277,7 @@ def main(argv: list[str] | None = None) -> int:
             case = CaseScenario.model_validate(json.loads(args.case_json.read_text(encoding="utf-8")))
             role = RoleSpec.model_validate(json.loads(args.role_json.read_text(encoding="utf-8")))
             scenario, src = _scenario.scenario_from_case(case, role, lang=lang, provider=provider)
-            _emit({"scenario": scenario}, {"scenario": src})
+            _emit({"scenario": scenario}, {"scenario": src}, fallback_reasons=_fallback_reasons(scenario=scenario))
             return 0
 
         # Case -> materialized seed (real starter files; one per case, shared by
@@ -291,7 +291,7 @@ def main(argv: list[str] | None = None) -> int:
             case = CaseScenario.model_validate(json.loads(args.case_json.read_text(encoding="utf-8")))
             role = RoleSpec.model_validate(json.loads(args.role_json.read_text(encoding="utf-8")))
             seed, src = _seed.materialize_seed(case, role, lang=lang, provider=provider)
-            _emit({"seed": seed}, {"seed": src})
+            _emit({"seed": seed}, {"seed": src}, fallback_reasons=_fallback_reasons(seed=seed))
             return 0
 
         if args.command in ("reflect-commits", "evaluate-submission"):

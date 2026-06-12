@@ -17,10 +17,14 @@ every candidate — comparability is structural here too.
 from __future__ import annotations
 
 import json
+import logging
 import re
 from typing import Any
 
 from .models import CaseScenario, RoleSpec
+from .provenance import generate_with_fallback
+
+_LOG = logging.getLogger(__name__)
 
 SEED_PROMPT_VERSION = "seed-materializer-v1"
 
@@ -181,13 +185,19 @@ def materialize_seed(
     ``lang`` (DEVP5) is the candidate-facing language of the prose the seed
     carries (the README + DECISIONS scaffolding the candidate reads); file
     contents / code stay verbatim. The deterministic fallback is English-only."""
-    if provider is None:
-        return deterministic_seed(case, role), "deterministic"
-    try:
-        from ..i18n import language_directive
+    from ..i18n import language_directive
 
-        prompt = f"{build_prompt(case, role)}\n\n{language_directive(lang)}"
-        payload = provider.complete_json(prompt, system=_SYSTEM)
-        return _coerce(payload, case, role), "llm"
-    except Exception:
-        return deterministic_seed(case, role), "deterministic"
+    prompt = f"{build_prompt(case, role)}\n\n{language_directive(lang)}"
+    # Shared LLM-or-deterministic runner (provenance.generate_with_fallback): a bare
+    # ``except Exception`` here used to swallow the cause — no WARNING, no fallbackReason —
+    # so a candidate could receive the prose-only skeleton while the publish run still read
+    # as healthy. The runner logs the cause and stashes a one-line reason on the seed for
+    # devcase_cli to lift into the envelope, like every other generation step.
+    return generate_with_fallback(
+        provider,
+        prompt,
+        _SYSTEM,
+        lambda: deterministic_seed(case, role),
+        lambda payload: _coerce(payload, case, role),
+        _LOG,
+    )

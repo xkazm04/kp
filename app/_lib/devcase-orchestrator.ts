@@ -127,16 +127,32 @@ export async function runLifecycle(id: string, progress?: Progress, signal?: Abo
       // AI-interview scenario (one per role, reused for every candidate so
       // ratings stay comparable). Best-effort — a scenario failure must never
       // block publishing; early-career interviews fall back to the generic script.
+      // The CLI's `source` rides INSIDE the stored blob (the save helper persists
+      // opaque JSON) so the case detail can badge a template-only scenario; a
+      // degraded generation gets its OWN audit action — it used to record the same
+      // success row as a real LLM scenario, hiding that every candidate would face
+      // generic template probes.
       let scenarioNote = "";
       try {
-        const { scenario } = await runInterviewScenario(
+        const { scenario, source: scenarioSource, fallbackReason } = await runInterviewScenario(
           (devCase.case as Record<string, unknown>) ?? {},
           lc.role ?? {},
           lc.lang
         );
-        saveDevCaseScenario(devCase.id, scenario);
-        scenarioNote = "; interview scenario ready";
-        recordAudit({ lifecycleId: id, actor: "auto", action: "interview_scenario", ref: devCase.id });
+        saveDevCaseScenario(devCase.id, { ...scenario, source: scenarioSource });
+        if (scenarioSource === "llm") {
+          scenarioNote = "; interview scenario ready";
+          recordAudit({ lifecycleId: id, actor: "auto", action: "interview_scenario", ref: devCase.id });
+        } else {
+          scenarioNote = "; interview scenario degraded (template probes)";
+          recordAudit({
+            lifecycleId: id,
+            actor: "system",
+            action: "scenario_template_only",
+            reason: fallbackReason.scenario ?? "LLM unavailable — deterministic template",
+            ref: devCase.id,
+          });
+        }
       } catch {
         /* interviews fall back to the generic early-career script */
       }
@@ -145,12 +161,29 @@ export async function runLifecycle(id: string, progress?: Progress, signal?: Abo
       // starter file tree (one per case, shared by every candidate) — the
       // anti-essay-grading half of the take-home hardening. Best-effort: a
       // materialization failure must never block publishing; the case simply
-      // ships with prose materials as before.
+      // ships with prose materials as before. Same honesty contract as the
+      // scenario above: persist the provenance with the blob and audit a
+      // skeleton-only seed distinctly — never as "seed_materialized" SUCCESS.
       try {
-        const { seed } = await runMaterializeSeed((devCase.case as Record<string, unknown>) ?? {}, lc.role ?? {}, lc.lang);
-        saveDevCaseSeed(devCase.id, seed);
-        scenarioNote += "; seed materialized";
-        recordAudit({ lifecycleId: id, actor: "auto", action: "seed_materialized", ref: devCase.id });
+        const { seed, source: seedSource, fallbackReason } = await runMaterializeSeed(
+          (devCase.case as Record<string, unknown>) ?? {},
+          lc.role ?? {},
+          lc.lang
+        );
+        saveDevCaseSeed(devCase.id, { ...seed, source: seedSource });
+        if (seedSource === "llm") {
+          scenarioNote += "; seed materialized";
+          recordAudit({ lifecycleId: id, actor: "auto", action: "seed_materialized", ref: devCase.id });
+        } else {
+          scenarioNote += "; seed skeleton only (prose materials)";
+          recordAudit({
+            lifecycleId: id,
+            actor: "system",
+            action: "seed_skeleton_only",
+            reason: fallbackReason.seed ?? "LLM unavailable — deterministic template",
+            ref: devCase.id,
+          });
+        }
       } catch {
         /* the case ships with prose starting materials as before */
       }

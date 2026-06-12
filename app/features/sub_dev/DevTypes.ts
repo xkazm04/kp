@@ -65,7 +65,13 @@ export type ApprovedCase = { id: string; title: string | null; roleTitle: string
 export type DevCaseDetail = ApprovedCase & {
   role?: RoleSpec | null;
   case?: CaseScenario | null;
-  scenario?: { phases?: unknown[]; durationMin?: number } | null;
+  // `source` is the generation provenance the orchestrator persists INSIDE each blob
+  // ("llm" = case-grounded, "deterministic" = template fallback) so the detail header
+  // can badge a degraded state. Absent on records saved before provenance was persisted.
+  scenario?: { phases?: unknown[]; durationMin?: number; source?: SourceKind } | null;
+  // The materialized seed — a "deterministic" seed is the prose-only README + DECISIONS
+  // skeleton (seed_materializer.deterministic_seed), not concrete starter files.
+  seed?: { files?: unknown[]; note?: string; source?: SourceKind } | null;
   status?: string;
 };
 export type Submission = {
@@ -80,6 +86,11 @@ export type Submission = {
   status?: string;
   evaluation?: EvalBundle | null;
   transferScore?: number | null; // SCORE 0..100 (mirror of evaluation.transfer.transferScore)
+  /** Latest recorded outcome, joined by the postings GET from the dev-outcomes store
+   *  (submission.id is the `ref` by contract). Server truth for the outcome pill —
+   *  without it the "recorded" state lived only in SubmissionRow and any remount
+   *  re-offered the buttons, double-counting re-records in calibration. */
+  outcome?: { outcome: "hired" | "rejected" | "withdrawn" | "pending"; performance: number | null; recordedAt: string } | null;
 };
 export type Posting = {
   id: string;

@@ -310,7 +310,9 @@ class TestDevcaseCliObservedSkills(unittest.TestCase):
                 "seniority": "junior", "mustHaves": ["Python", "SQL"],
             }),
             "--evaluation-json", self._write(d, "eval.json", {"summary": "Handled it well."}),
-            "--transfer-json", self._write(d, "transfer.json", {"transferScore": transfer_score, "transfers": ["Python", "SQL"]}),
+            # Healthy propagated confidence on purpose — these tests pin the SCORE
+            # gate; the low-confidence kill is pinned in test_live_case.py.
+            "--transfer-json", self._write(d, "transfer.json", {"transferScore": transfer_score, "transfers": ["Python", "SQL"], "confidence": 0.8}),
             "--profile-json", self._write(d, "profile.json", {
                 "archetype": "student", "roleFamily": "software_engineering",
                 "skillClaims": [{"skill": "Python", "provenance": "coursework"}],
@@ -391,6 +393,61 @@ class TestDevcaseCliFallbackReason(unittest.TestCase):
                 with self.assertLogs("pipeline.jobfit.devcase.analyze", level="WARNING") as cm:
                     _run(["analyze-need", "--need-json", need])
         self.assertTrue(any("fell back to deterministic" in m and "xyz cause" in m for m in cm.output))
+
+    def _case_role(self, d: str) -> tuple[str, str]:
+        case = Path(d) / "case.json"
+        case.write_text(json.dumps({"title": "Mini API", "brief": "b", "tasks": ["t1"]}), encoding="utf-8")
+        role = Path(d) / "role.json"
+        role.write_text(json.dumps({"title": "Backend", "seniority": "medior"}), encoding="utf-8")
+        return str(case), str(role)
+
+    def test_materialize_seed_surfaces_reason(self):
+        # The seed was one of the LAST two steps with a bare `except Exception`: a timed-out
+        # provider shipped the prose-only skeleton while the run read as healthy. The cause
+        # must now ride in the envelope (and never inside the saved seed artifact).
+        with tempfile.TemporaryDirectory() as d:
+            case, role = self._case_role(d)
+            exc = TimeoutError("Claude CLI timed out after 120s")
+            with mock.patch.object(devcase_cli, "ClaudeCliProvider", return_value=_AlwaysFailProvider(exc)):
+                with self.assertLogs("pipeline.jobfit.devcase.seed_materializer", level="WARNING") as cm:
+                    code, out, _err = _run(["materialize-seed", "--case-json", case, "--role-json", role])
+        self.assertEqual(code, 0)
+        payload = _last_json(out)
+        self._assert_no_llm_shape(payload, step="seed")
+        self.assertEqual(payload["fallbackReason"], {"seed": "TimeoutError: Claude CLI timed out after 120s"})
+        self.assertTrue(any("fell back to deterministic" in m for m in cm.output))
+
+    def test_interview_scenario_surfaces_reason(self):
+        # Same hole for the interview scenario: template probes shipped as a healthy success.
+        with tempfile.TemporaryDirectory() as d:
+            case, role = self._case_role(d)
+            exc = ValueError("Claude did not return parseable JSON")
+            with mock.patch.object(devcase_cli, "ClaudeCliProvider", return_value=_AlwaysFailProvider(exc)):
+                with self.assertLogs("pipeline.jobfit.devcase.interview_scenario", level="WARNING") as cm:
+                    code, out, _err = _run(["interview-scenario", "--case-json", case, "--role-json", role])
+        self.assertEqual(code, 0)
+        payload = _last_json(out)
+        self._assert_no_llm_shape(payload, step="scenario")
+        self.assertEqual(payload["fallbackReason"], {"scenario": "ValueError: Claude did not return parseable JSON"})
+        self.assertTrue(any("fell back to deterministic" in m for m in cm.output))
+
+    def _assert_no_llm_shape(self, payload: dict, step: str) -> None:
+        """The failed single step fell back, and the saved artifact stays clean —
+        the reason is popped into the envelope, never persisted with the blob."""
+        self.assertEqual(payload["source"], "deterministic")
+        self.assertEqual(payload["perStepSources"], {step: "deterministic"})
+        self.assertNotIn("fallbackReason", payload["result"][step])
+
+    def test_seed_and_scenario_no_llm_carry_no_reason(self):
+        # --no-llm is a DELIBERATE deterministic run, not a failed LLM call — no reason block.
+        for command, step in (("materialize-seed", "seed"), ("interview-scenario", "scenario")):
+            with tempfile.TemporaryDirectory() as d:
+                case, role = self._case_role(d)
+                code, out, _err = _run([command, "--no-llm", "--case-json", case, "--role-json", role])
+            self.assertEqual(code, 0)
+            payload = _last_json(out)
+            self._assert_no_llm_shape(payload, step=step)
+            self.assertNotIn("fallbackReason", payload)
 
     def test_multi_step_keys_only_the_failed_steps(self):
         with tempfile.TemporaryDirectory() as d:

@@ -17,10 +17,14 @@ candidate, so comparability is structural rather than aspirational.
 from __future__ import annotations
 
 import json
+import logging
 from pathlib import Path
 from typing import Any
 
 from .models import CaseScenario, InterviewScenario, RoleSpec, ScenarioPhase
+from .provenance import generate_with_fallback
+
+_LOG = logging.getLogger(__name__)
 
 INTERVIEW_SCENARIO_PROMPT_VERSION = "interview-scenario-v1"
 
@@ -196,11 +200,17 @@ def scenario_from_case(
     fallback is English-only."""
     from ..i18n import language_directive
 
-    if provider is None:
-        return deterministic_scenario(case, role).model_dump(by_alias=True), "deterministic"
-    try:
-        prompt = f"{build_prompt(case, role)}\n\n{language_directive(lang)}"
-        payload = provider.complete_json(prompt, system=_SYSTEM)
-        return _coerce(payload, case, role).model_dump(by_alias=True), "llm"
-    except Exception:
-        return deterministic_scenario(case, role).model_dump(by_alias=True), "deterministic"
+    prompt = f"{build_prompt(case, role)}\n\n{language_directive(lang)}"
+    # Shared LLM-or-deterministic runner (provenance.generate_with_fallback): the bare
+    # ``except Exception`` here used to swallow the cause, so template probes shipped while
+    # the run still read as healthy. The model-returning closures dump to the by-alias dict
+    # so the runner can stash its one-line fallbackReason on the artifact for devcase_cli
+    # to lift into the envelope, like every other generation step.
+    return generate_with_fallback(
+        provider,
+        prompt,
+        _SYSTEM,
+        lambda: deterministic_scenario(case, role).model_dump(by_alias=True),
+        lambda payload: _coerce(payload, case, role).model_dump(by_alias=True),
+        _LOG,
+    )

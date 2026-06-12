@@ -137,6 +137,7 @@ export type InterviewScenarioResult = {
   scenario: Record<string, unknown>;
   source: string;
   perStepSources: Record<string, string>; // {scenario}
+  fallbackReason: Record<string, string>; // {scenario: "<ExceptionType>: <message>"} — only when the LLM call raised
 };
 
 /** Case → AI-interview scenario: instantiate the six-phase early-career script
@@ -167,8 +168,8 @@ export async function runInterviewScenario(
     ]);
     const { stdout, stderr, exitCode } = await result;
     if (exitCode !== 0) throw new PipelineError(parseStderrError(stderr, exitCode));
-    const payload = parsePythonJson<{ result: { scenario: Record<string, unknown> }; source: string; perStepSources?: Record<string, string> }>(stdout, stderr);
-    return { scenario: payload.result.scenario, source: payload.source, perStepSources: payload.perStepSources ?? {} };
+    const payload = parsePythonJson<{ result: { scenario: Record<string, unknown> }; source: string; perStepSources?: Record<string, string>; fallbackReason?: Record<string, string> }>(stdout, stderr);
+    return { scenario: payload.result.scenario, source: payload.source, perStepSources: payload.perStepSources ?? {}, fallbackReason: payload.fallbackReason ?? {} };
   } finally {
     await cleanupWorkdir(workdir);
   }
@@ -178,6 +179,7 @@ export type SeedMaterializeResult = {
   seed: Record<string, unknown>; // {files: [{path, contents}], note, promptVersion}
   source: string;
   perStepSources: Record<string, string>; // {seed}
+  fallbackReason: Record<string, string>; // {seed: "<ExceptionType>: <message>"} — only when the LLM call raised
 };
 
 /** Case -> materialized seed: turn the case's prose starting materials into a
@@ -209,8 +211,8 @@ export async function runMaterializeSeed(
     ]);
     const { stdout, stderr, exitCode } = await result;
     if (exitCode !== 0) throw new PipelineError(parseStderrError(stderr, exitCode));
-    const payload = parsePythonJson<{ result: { seed: Record<string, unknown> }; source: string; perStepSources?: Record<string, string> }>(stdout, stderr);
-    return { seed: payload.result.seed, source: payload.source, perStepSources: payload.perStepSources ?? {} };
+    const payload = parsePythonJson<{ result: { seed: Record<string, unknown> }; source: string; perStepSources?: Record<string, string>; fallbackReason?: Record<string, string> }>(stdout, stderr);
+    return { seed: payload.result.seed, source: payload.source, perStepSources: payload.perStepSources ?? {}, fallbackReason: payload.fallbackReason ?? {} };
   } finally {
     await cleanupWorkdir(workdir);
   }
