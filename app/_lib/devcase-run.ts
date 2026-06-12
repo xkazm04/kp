@@ -7,6 +7,7 @@ import {
   getPosting,
   getProfileRecord,
   getSubmission,
+  lifecycleByPosting,
   listMatrixProfiles,
   listProfileRecords,
   recordAutomationEvent,
@@ -577,6 +578,11 @@ export function promoteSubmission(submissionId: string): string | null {
   const transfer = bundle.transfer ?? {};
   const score = sub.transferScore ?? Number(transfer.transferScore ?? 0);
   const posting = sub.postingId ? getPosting(sub.postingId) : null;
+  // The case's candidate-facing language (DEVP5) rides the lifecycle — promote
+  // carries it onto the entry so post-promotion comms render in the candidate's
+  // language, and the captured contact so they're deliverable at all (without
+  // these, every interview/offer/rejection addressed a free-text name, in English).
+  const lifecycle = sub.postingId ? lifecycleByPosting(sub.postingId) : null;
 
   const { entry } = createPipelineEntry({
     candidateId: `ds-${sub.id}`,
@@ -587,6 +593,8 @@ export function promoteSubmission(submissionId: string): string | null {
     jobTitle: posting?.roleTitle ?? "Dev case",
     matchScore: score,
     stage: "Screened",
+    contact: sub.contact ?? null,
+    locale: lifecycle?.lang ?? null,
   });
   const recommendation = score >= 70 ? "advance" : "hold";
   setApproval(
