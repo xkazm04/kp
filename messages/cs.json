@@ -1057,6 +1057,10 @@
       "ingesting": "Zpracovávání…",
       "ingestRetry": "Zkusit znovu",
       "jobStatusChip": "pozice: {status}",
+      "candidatesToggle": "Kandidáti ({count})",
+      "candidatesLoading": "Načítání kandidátů…",
+      "candidatesLoadFailed": "Kandidáty se teď nepodařilo načíst.",
+      "candidatesEmpty": "Proti tomuto popisu pozice zatím nebyl analyzován žádný kandidát. Vygenerované pozice také přivádějí kandidáty do Pipeline.",
       "orPasteManually": "Nebo vložte popis pozice ručně"
     },
     "form": {

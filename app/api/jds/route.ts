@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { listJds, saveJd } from "@/app/_lib/db";
+import { countAnalysesByJd, listJds, saveJd } from "@/app/_lib/db";
 import { listJobStatuses } from "@/app/_lib/job-ingest";
 import { validateJdFields } from "@/app/_lib/jd-limits";
 import { safeJsonError } from "@/app/_lib/api-response";
@@ -13,7 +13,15 @@ export async function GET() {
     // library can show which JDs are matchable and offer "Ingest as job" on the
     // rest. null = no jd-<slug> job exists yet (analysis-only JD).
     const statuses = listJobStatuses();
-    const jds = rows.map((row) => ({ ...row, jobStatus: statuses[`jd-${row.slug}`] ?? null }));
+    // Privacy relocation (biz-ui scan 2026-06-12 #1) — each row's analyzed-
+    // candidate count (one GROUP BY for all rows) feeds the Library tab's
+    // "Candidates (N)" toggle, which replaced the public JD page's aside.
+    const counts = countAnalysesByJd();
+    const jds = rows.map((row) => ({
+      ...row,
+      jobStatus: statuses[`jd-${row.slug}`] ?? null,
+      analysisCount: counts[row.slug] ?? 0,
+    }));
     return NextResponse.json({ jds });
   } catch (error) {
     return safeJsonError(error, "api:jds", "JD_LIST_FAILED");

@@ -25,6 +25,7 @@ function read(rel: string): string {
 const ROUTES = [
   "./route.ts",
   "./[slug]/route.ts",
+  "./[slug]/analyses/route.ts",
   "./save/route.ts",
   "../templates/route.ts",
   "../templates/[id]/route.ts",
@@ -76,6 +77,7 @@ test("the stable-code catalogue covers every JD/template failure path", () => {
     "JD_LIST_FAILED",
     "JD_LOAD_FAILED",
     "JD_SAVE_FAILED",
+    "JD_ANALYSES_FAILED",
     "TEMPLATE_LIST_FAILED",
     "TEMPLATE_LOAD_FAILED",
     "TEMPLATE_CREATE_FAILED",

@@ -40,6 +40,8 @@ export const STORE_ERRORS = {
   JD_LIST_FAILED: "Could not load the JD library. Please try again.",
   JD_LOAD_FAILED: "Could not load the JD. Please try again.",
   JD_SAVE_FAILED: "Could not save the JD. Please try again.",
+  // Recruiter-side analyzed-candidates read (biz-ui scan 2026-06-12 #1).
+  JD_ANALYSES_FAILED: "Could not load candidates for this JD. Please try again.",
   TEMPLATE_LIST_FAILED: "Could not load templates. Please try again.",
   TEMPLATE_LOAD_FAILED: "Could not load the template. Please try again.",
   TEMPLATE_CREATE_FAILED: "Could not save the template. Please try again.",

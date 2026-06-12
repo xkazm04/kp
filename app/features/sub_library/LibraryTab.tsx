@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Briefcase, RotateCcw, Search } from "lucide-react";
+import { Briefcase, ChevronRight, RotateCcw, Search } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { ScoreBadge } from "@/app/_components/ScoreBadge";
 import { Skeleton } from "@/app/_components/Skeleton";
 import { JdBuilder } from "./JdBuilder";
 import { LibraryJdForm } from "./LibraryJdForm";
@@ -16,7 +17,107 @@ type JdRow = {
   // W8-3 (JDL3) — the linked jd-<slug> job's lifecycle status; null = no job
   // exists yet (an analysis-only pasted JD that can't be matched or applied to).
   jobStatus?: string | null;
+  // Privacy relocation (biz-ui scan 2026-06-12 #1) — analyzed-candidate count
+  // for this JD, computed once for all rows by GET /api/jds.
+  analysisCount?: number;
 };
+
+type JdAnalysisRow = {
+  slug: string;
+  candidate_label: string;
+  score: number | null;
+  role_family: string | null;
+  seniority: string | null;
+};
+
+// Privacy relocation (biz-ui scan 2026-06-12 #1) — the analyzed-candidates
+// list (names + scores) used to render on the public /jds/[slug] page, which
+// is deliberately candidate-facing (Apply CTA, shareable links). It now lives
+// here on the recruiter's library row: collapsed by default, lazy-loaded from
+// /api/jds/[slug]/analyses on first expand, keeping the same best-score-first
+// order and /history/[slug] deep links the JD page had.
+function CandidatesSection({ slug, count }: { slug: string; count: number }) {
+  const t = useTranslations("library.tab");
+  const [open, setOpen] = useState(false);
+  const [analyses, setAnalyses] = useState<JdAnalysisRow[] | null>(null);
+  const [failed, setFailed] = useState(false);
+
+  const loadAnalyses = useCallback(async () => {
+    setFailed(false);
+    setAnalyses(null);
+    try {
+      const response = await fetch(`/api/jds/${encodeURIComponent(slug)}/analyses`);
+      if (!response.ok) throw new Error();
+      const payload = await response.json();
+      setAnalyses((payload.analyses as JdAnalysisRow[]) ?? []);
+    } catch {
+      setFailed(true);
+    }
+  }, [slug]);
+
+  const toggle = () => {
+    const next = !open;
+    setOpen(next);
+    // A zero count needs no fetch — the empty state renders from the count alone.
+    if (next && analyses == null && !failed && count > 0) void loadAnalyses();
+  };
+
+  return (
+    <div className="mt-2">
+      <button
+        type="button"
+        onClick={toggle}
+        aria-expanded={open}
+        className="focus-ring inline-flex items-center gap-1 rounded-md border border-stone-200 bg-white px-2 py-0.5 text-sm font-semibold text-steel hover:bg-stone-50"
+      >
+        <ChevronRight size={12} aria-hidden className={`transition-transform ${open ? "rotate-90" : ""}`} />
+        {t("candidatesToggle", { count })}
+      </button>
+      {open ? (
+        failed ? (
+          <div className="mt-2 flex items-center gap-3 rounded-md border border-stone-200 bg-paper/40 px-3 py-2">
+            <p className="text-sm text-red-700">{t("candidatesLoadFailed")}</p>
+            <button
+              type="button"
+              onClick={() => void loadAnalyses()}
+              className="focus-ring inline-flex items-center gap-1 rounded-md border border-stone-300 bg-white px-2 py-0.5 text-sm font-semibold text-ink hover:bg-stone-50"
+            >
+              <RotateCcw size={12} aria-hidden />
+              {t("tryAgain")}
+            </button>
+          </div>
+        ) : count === 0 ? (
+          <p className="mt-2 rounded-md border border-stone-200 bg-paper/40 px-3 py-2 text-sm text-steel">
+            {t("candidatesEmpty")}
+          </p>
+        ) : analyses == null ? (
+          <p className="mt-2 rounded-md border border-stone-200 bg-paper/40 px-3 py-2 text-sm text-steel">
+            {t("candidatesLoading")}
+          </p>
+        ) : (
+          <ul className="mt-2 divide-y divide-stone-200 rounded-md border border-stone-200 bg-paper/40">
+            {analyses.map((row) => (
+              <li key={row.slug} className="px-3 py-2">
+                <div className="flex items-baseline justify-between gap-3">
+                  <Link
+                    href={`/history/${row.slug}`}
+                    className="text-sm font-semibold text-ink hover:text-coral hover:underline"
+                  >
+                    {row.candidate_label}
+                  </Link>
+                  <ScoreBadge score={row.score} />
+                </div>
+                <p className="mt-0.5 text-sm capitalize text-steel">
+                  {row.role_family ?? "—"} · {row.seniority ?? "—"}
+                </p>
+              </li>
+            ))}
+          </ul>
+        )
+      ) : null}
+    </div>
+  );
+}
 
 // W8-3 — make a pasted JD matchable: one click runs the existing hardened
 // ingest bridge (content-hash dedup, draft lifecycle) under the shared
@@ -187,6 +288,7 @@ export function LibraryTab() {
                           <IngestAsJobButton slug={row.slug} onDone={() => load()} />
                         )}
                       </p>
+                      <CandidatesSection slug={row.slug} count={row.analysisCount ?? 0} />
                     </li>
                   ))}
                 </ul>

@@ -1057,6 +1057,10 @@
       "ingesting": "Ingesting…",
       "ingestRetry": "Retry ingest",
       "jobStatusChip": "role: {status}",
+      "candidatesToggle": "Candidates ({count})",
+      "candidatesLoading": "Loading candidates…",
+      "candidatesLoadFailed": "Couldn't load candidates right now.",
+      "candidatesEmpty": "No candidates analyzed against this JD yet. Generated roles also source candidates into the Pipeline.",
       "orPasteManually": "Or paste a job description manually"
     },
     "form": {

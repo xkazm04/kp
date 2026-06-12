@@ -1,10 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Send, UserPlus } from "lucide-react";
-import { ScoreBadge } from "@/app/_components/ScoreBadge";
 import { WorkspaceShell } from "@/app/features/WorkspaceNav";
 import { RecordRecent } from "@/app/features/RecordRecent";
-import { getJob, listAnalysesByJd, loadJd, type AnalysisSummary, type JdRow } from "@/app/_lib/db";
+import { getJob, loadJd, type JdRow } from "@/app/_lib/db";
 import { getJobStatus, isJobOpenForApplications } from "@/app/_lib/job-ingest";
 import { JdActions } from "./JdActions";
 import { JdBody } from "./JdBody";
@@ -35,15 +34,12 @@ export default async function JdDetailPage({
   }
   if (!jd) notFound();
 
-  // The candidate sidebar is secondary: if its query fails, still render the JD body
-  // rather than letting one failed read take down the whole page.
-  let analyses: AnalysisSummary[] = [];
-  let analysesFailed = false;
-  try {
-    analyses = listAnalysesByJd(slug);
-  } catch {
-    analysesFailed = true;
-  }
+  // Privacy (biz-ui scan 2026-06-12 #1) — no analyzed-candidate data on this
+  // page. It is the public, candidate-facing artifact (Apply CTA below,
+  // shareable ?lang=cs links), so the former "Candidates" aside and header
+  // count exposed other applicants' names + scores to every candidate sent
+  // here. The same listAnalysesByJd list now lives on the recruiter-facing
+  // Library tab rows (sub_library/LibraryTab.tsx), lazy-loaded per JD.
 
   // W8-2 (JDL2) — the JD → apply bridge. The page is the public, shareable
   // candidate-facing artifact, yet a candidate landing here had zero path to
@@ -63,12 +59,7 @@ export default async function JdDetailPage({
         <div>
           <p className="text-meta uppercase text-coral">Job description · {slug}</p>
           <h1 className="mt-1 font-serif text-display text-ink">{jd.title}</h1>
-          <p className="mt-2 text-sm text-steel">
-            Saved {new Date(jd.created_at).toLocaleString()}
-            {analysesFailed
-              ? null
-              : ` · ${analyses.length} candidate${analyses.length === 1 ? "" : "s"} analyzed against this JD`}
-          </p>
+          <p className="mt-2 text-sm text-steel">Saved {new Date(jd.created_at).toLocaleString()}</p>
         </div>
         <div className="flex flex-col items-stretch gap-2 sm:flex-row lg:items-end">
           {applyOpen ? (
@@ -112,43 +103,8 @@ export default async function JdDetailPage({
 
       <JdActions slug={slug} title={jd.title} body={jd.body} archived={Boolean(jd.archived_at)} />
 
-      <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_380px]">
+      <div className="mt-6">
         <JdBody markdown={jd.body} />
-
-        <aside className="self-start rounded-lg border border-stone-200 bg-white shadow-panel">
-          <div className="flex items-center justify-between border-b border-stone-200 px-5 py-3">
-            <h2 className="font-serif text-h3 text-ink">Candidates</h2>
-            <span className="text-sm uppercase tracking-wide text-steel">by score</span>
-          </div>
-          {analysesFailed ? (
-            <p className="px-5 py-8 text-sm text-steel">
-              Couldn&apos;t load candidates right now. The job description is unaffected — refresh to retry.
-            </p>
-          ) : analyses.length === 0 ? (
-            <p className="px-5 py-8 text-sm text-steel">
-              No candidates analyzed against this JD yet. Generated roles also source candidates into the Pipeline.
-            </p>
-          ) : (
-            <ul className="divide-y divide-stone-200">
-              {analyses.map((row) => (
-                <li key={row.slug} className="px-5 py-3">
-                  <div className="flex items-baseline justify-between gap-3">
-                    <Link
-                      href={`/history/${row.slug}`}
-                      className="text-sm font-semibold text-ink hover:text-coral hover:underline"
-                    >
-                      {row.candidate_label}
-                    </Link>
-                    <ScoreBadge score={row.score} />
-                  </div>
-                  <p className="mt-1 text-sm capitalize text-steel">
-                    {row.role_family ?? "—"} · {row.seniority ?? "—"}
-                  </p>
-                </li>
-              ))}
-            </ul>
-          )}
-        </aside>
       </div>
     </WorkspaceShell>
   );

@@ -792,6 +792,21 @@ export function listAnalysesByJd(slug: string): AnalysisSummary[] {
     .all(slug) as AnalysisSummary[];
 }
 
+// Analyzed-candidate count per JD slug, one GROUP BY for the whole library —
+// the Library tab's per-row "Candidates (N)" toggle needs every count up front
+// without firing a per-row listAnalysesByJd N+1.
+export function countAnalysesByJd(): Record<string, number> {
+  const db = ensureDb();
+  const rows = db
+    .prepare(
+      `SELECT jd_slug, COUNT(*) AS n FROM analyses WHERE jd_slug IS NOT NULL GROUP BY jd_slug`
+    )
+    .all() as { jd_slug: string; n: number }[];
+  const counts: Record<string, number> = {};
+  for (const row of rows) counts[row.jd_slug] = row.n;
+  return counts;
+}
+
 // Like listAnalyses but folds payload_json into the one query, so callers that
 // need every payload (e.g. the candidate pool) don't fire an N+1 of loadAnalysis.
 export function listAnalysisRecords(limit = 100): { row: AnalysisRow; payload: unknown }[] {
