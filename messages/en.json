@@ -1751,6 +1751,7 @@
     "fieldName": "Your name",
     "fieldContact": "Email",
     "fieldContactPlaceholder": "So we can get back to you",
+    "fieldContactHint": "Required — this is the only way we can invite you to the next step.",
     "fieldRepo": "Solution repository URL",
     "fieldNotes": "Notes (optional)",
     "submit": "Submit solution",

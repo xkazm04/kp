@@ -73,6 +73,9 @@ export type Submission = {
   candidateRef: string | null;
   repoRef: string | null;
   notes: string | null;
+  /** Email/phone captured at apply — the API has always served it (rowToSubmission);
+   *  this type dropped it, so the workbench couldn't show how to reach a winner. */
+  contact?: string | null;
   receivedAt: string;
   status?: string;
   evaluation?: EvalBundle | null;

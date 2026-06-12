@@ -1751,6 +1751,7 @@
     "fieldName": "Vaše jméno",
     "fieldContact": "E-mail",
     "fieldContactPlaceholder": "Abychom se vám mohli ozvat",
+    "fieldContactHint": "Povinné — jedině tak vás můžeme pozvat k dalšímu kroku.",
     "fieldRepo": "URL repozitáře s řešením",
     "fieldNotes": "Poznámky (volitelné)",
     "submit": "Odeslat řešení",

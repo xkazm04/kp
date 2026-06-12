@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { GitBranch, Sparkles, UserSearch } from "lucide-react";
+import { AlertTriangle, GitBranch, Mail, Sparkles, UserSearch } from "lucide-react";
 import { useTasks, useTaskResult } from "@/app/features/tasks/TasksProvider";
 import { GithubAnalysisPanel } from "@/app/_components/GithubAnalysisPanel";
 import { assertScore, scoreTone, type ScoreTone } from "@/app/_lib/format";
@@ -212,6 +212,29 @@ export function SubmissionRow({
           className="focus-ring inline-flex h-6 shrink-0 items-center gap-1 rounded border border-stone-200 bg-white px-1.5 text-micro font-semibold text-coral hover:bg-coral/5 disabled:opacity-50">
           <Sparkles size={10} /> {busy ? "Evaluating…" : ev ? "Re-evaluate" : "Evaluate"}
         </button>
+      </div>
+      <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-micro text-steel">
+        {submission.contact ? (
+          submission.contact.includes("@") ? (
+            <a
+              href={`mailto:${submission.contact}`}
+              className="focus-ring inline-flex items-center gap-1 underline-offset-2 hover:text-ink hover:underline"
+            >
+              <Mail size={10} aria-hidden /> {submission.contact}
+            </a>
+          ) : (
+            <span className="inline-flex items-center gap-1">
+              <Mail size={10} aria-hidden /> {submission.contact}
+            </span>
+          )
+        ) : (
+          // Only the lenient webhook path can produce this now (the public form
+          // requires contact) — the recruiter must see the gap BEFORE promoting.
+          <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-1.5 py-0.5 font-semibold uppercase tracking-wide text-amber-700">
+            <AlertTriangle size={10} aria-hidden /> No contact — unreachable if promoted
+          </span>
+        )}
+        {submission.notes ? <span className="min-w-0 flex-1 truncate italic" title={submission.notes}>“{submission.notes}”</span> : null}
       </div>
       {ghOpen ? (
         <div className="mt-2">

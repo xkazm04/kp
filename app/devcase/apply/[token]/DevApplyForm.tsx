@@ -21,7 +21,13 @@ export function DevApplyForm({ token }: { token: string }) {
   const [notes, setNotes] = useState("");
   const [state, setState] = useState<SubmitState>({ kind: "idle" });
 
-  const canSubmit = name.trim().length > 0 && repoRef.trim().length > 0 && state.kind !== "sending" && state.kind !== "done";
+  // A submitter's ONLY identity is what this form captures — a missing address
+  // converts a winning evaluation into an unreachable candidate, so contact is
+  // required on the PUBLIC form (the webhook stays lenient for external ATS
+  // callers, which carry their own identity). Light shape check only.
+  const contactValid = /\S+@\S+\.\S+/.test(contact.trim());
+  const canSubmit =
+    name.trim().length > 0 && repoRef.trim().length > 0 && contactValid && state.kind !== "sending" && state.kind !== "done";
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -34,7 +40,7 @@ export function DevApplyForm({ token }: { token: string }) {
         body: JSON.stringify({
           candidate: name.trim(),
           repoRef: repoRef.trim(),
-          contact: contact.trim() || undefined,
+          contact: contact.trim(),
           notes: notes.trim() || undefined,
         }),
       });
@@ -68,13 +74,16 @@ export function DevApplyForm({ token }: { token: string }) {
           <input value={name} onChange={(e) => setName(e.target.value)} required className={inputClass} />
         </label>
         <label className="block text-sm font-medium text-ink">
-          {t("fieldContact")}
+          {t("fieldContact")} <span className="text-coral">*</span>
           <input
+            type="email"
             value={contact}
             onChange={(e) => setContact(e.target.value)}
+            required
             placeholder={t("fieldContactPlaceholder")}
             className={inputClass}
           />
+          <span className="mt-1 block text-xs font-normal text-steel">{t("fieldContactHint")}</span>
         </label>
       </div>
       <label className="block text-sm font-medium text-ink">
