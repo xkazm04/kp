@@ -28,6 +28,17 @@ const config = [
     }
   },
   {
+    // /landing — marketing prototypes for the Kandidate rebrand, intentionally
+    // English-only while the art direction is being chosen. Copy lives inline
+    // for design iteration speed; when a variant is promoted to the real
+    // public face, its strings move into messages/*.json and this carve-out
+    // shrinks accordingly.
+    files: ["app/landing/**/*.tsx"],
+    rules: {
+      "i18next/no-literal-string": "off"
+    }
+  },
+  {
     // Migrated, fully-localized surfaces graduate from warn to ERROR so a new
     // hardcoded string can't regress them. The plugin is declared once above
     // (this block only raises the level). Grown per area as each phase completes.
