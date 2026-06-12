@@ -83,6 +83,12 @@ export type ProfileCliOutput = {
   missing: string[];
 };
 
+// BASELINE archetype choices for the editor's routing control: the ids with
+// dedicated `choice.<id>` translation keys. The live segment list is built from
+// the /api/archetypes registry in ProfileEditor (so recruiter-created archetypes
+// are routable from the editor too); this list is the translated-label lookup for
+// the known ids and the fallback while the registry hasn't loaded. `label` is the
+// English source text mirrored by the catalogs, kept for reference only.
 export const ARCHETYPE_CHOICES = [
   { v: "auto", label: "Auto-detect" },
   { v: "bau", label: "Experienced" },

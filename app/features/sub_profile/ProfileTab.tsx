@@ -83,6 +83,7 @@ export function ProfileTab() {
         mode={editor.mode}
         editingId={editor.editingId}
         initialPayload={editor.initialPayload}
+        archetypes={archetypes}
         onSaved={() => setEditor(null)}
         onCancel={() => setEditor(null)}
       />

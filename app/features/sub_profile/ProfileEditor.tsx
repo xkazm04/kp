@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { ArrowLeft, Sparkles, Wand2 } from "lucide-react";
 import { useTranslations } from "next-intl";
-import type { SkillRow, EvidenceRow, BuildResult, ProfilePayload } from "./ProfileTypes";
+import type { SkillRow, EvidenceRow, BuildResult, ProfilePayload, ArchetypeDef } from "./ProfileTypes";
 import {
   ARCHETYPE_CHOICES,
   ROLE_FAMILIES,
@@ -23,12 +23,15 @@ export function ProfileEditor({
   mode,
   editingId,
   initialPayload,
+  archetypes,
   onSaved,
   onCancel,
 }: {
   mode: EditorMode;
   editingId: string | null;
   initialPayload: ProfilePayload | null;
+  /** Live archetype registry (ProfileTab's /api/archetypes fetch) — drives the routing segments. */
+  archetypes: ArchetypeDef[];
   onSaved: (savedId: string) => void;
   onCancel: () => void;
 }) {
@@ -71,6 +74,25 @@ export function ProfileEditor({
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
   const [aiNote, setAiNote] = useState<string | null>(null);
+
+  // Routing segments are REGISTRY-driven, not the static baseline list: every
+  // archetype surface (apply self-declare, matrix columns, the Python router)
+  // accepts any registry id, so a recruiter-created archetype must be selectable
+  // here too — otherwise opening a profile routed to one renders the control with
+  // nothing selected and one stray click loses the custom routing for good. The
+  // baseline ids keep their dedicated `choice.<id>` translations; a custom id
+  // degrades to the registry's own `label` (same pattern as archetypeApplyLabel
+  // in app/_lib/apply.ts). While the registry hasn't loaded (or its fetch failed)
+  // we fall back to the baseline list so the control never collapses to a lone
+  // "auto" segment.
+  const choiceLabel = (id: string) =>
+    ARCHETYPE_CHOICES.some((c) => c.v === id) ? t(`choice.${id}` as Parameters<typeof t>[0]) : null;
+  const archetypeOptions = [
+    { value: "auto", label: t("choice.auto") },
+    ...(archetypes.length
+      ? archetypes.map((a) => ({ value: a.id, label: choiceLabel(a.id) ?? a.label }))
+      : ARCHETYPE_CHOICES.filter((c) => c.v !== "auto").map((c) => ({ value: c.v, label: choiceLabel(c.v) ?? c.label }))),
+  ];
 
   const isStudentish = choice === "student" || choice === "auto" || choice === "career_switcher";
   // Years/seniority visibility for the chosen archetype. The render conditions below
@@ -278,7 +300,7 @@ export function ProfileEditor({
               label={t("candidateArchetype")}
               value={choice}
               onChange={setChoice}
-              options={ARCHETYPE_CHOICES.map((c) => ({ value: c.v, label: t(`choice.${c.v}` as Parameters<typeof t>[0]) }))}
+              options={archetypeOptions}
             />
             {isStudentish ? (
               <div className="mt-3 grid gap-2 sm:grid-cols-2">
