@@ -133,6 +133,27 @@ export async function dispatchRejection(entry: PipelineEntry, opts?: { automated
   recordAutomationEvent(entry.id, "rejection_sent", opts?.automated ? "policy auto-reject" : "manual reject");
 }
 
+/** Tell a KO-declined lead the outcome — entry-less by design. Channel leads are
+ *  declined BEFORE any pipeline entry exists (lead-intake's knockout gate), so the
+ *  one identity in hand is the inbound email; `ref` is omitted and the envelope
+ *  ships null context (comms-envelope handles a missing entry). The own quick-apply
+ *  form shows the decline live in the UI — this comm is for webhook surfaces whose
+ *  candidate saw "submitted" on a third-party board and would otherwise hear
+ *  nothing, ever. */
+export async function dispatchKnockoutDecline(input: {
+  email: string;
+  name?: string | null;
+  jobTitle?: string | null;
+  locale?: string | null;
+}): Promise<void> {
+  const t = await commsTranslator(input.locale);
+  const name = (input.name ?? "").trim() || t("there");
+  const role = input.jobTitle ?? t("theRole");
+  const subject = t("koDecline.subject", { role });
+  const body = t("koDecline.body", { name, role, team: t("team") });
+  await sendComm({ to: input.email, subject, body, kind: "ko_decline" });
+}
+
 /**
  * Deliver the (recruiter-approved) offer to the candidate with a token-gated
  * accept/decline link. The offer DECISION stays human — this fires only after a

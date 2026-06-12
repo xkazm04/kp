@@ -23,7 +23,7 @@ import {
   recordKnockoutDecline,
 } from "./db";
 import { applyDedupeKey, FALLBACK_ARCHETYPE } from "./apply";
-import { dispatchApplicationReceived } from "./comms-dispatch";
+import { dispatchApplicationReceived, dispatchKnockoutDecline } from "./comms-dispatch";
 import { randomId } from "./random-id";
 
 const STUB_REASON_MAX = 280;
@@ -49,6 +49,10 @@ export type LeadIntakeInput = {
   ungatedKoIds?: string[];
   /** ABSOLUTE link to the conversational apply (the enrichment path). */
   enrichLink: string;
+  /** Webhook surfaces pass true so a KO-declined lead is TOLD the outcome — their
+   *  only touchpoint said "submitted" on a third-party board. The own quick-apply
+   *  form keeps this false: it shows the decline live in the UI (no double message). */
+  notifyDecline?: boolean;
 };
 
 export type LeadIntakeOutcome =
@@ -68,6 +72,19 @@ export async function intakeLead(input: LeadIntakeInput): Promise<LeadIntakeOutc
       channel: input.channelLabel,
       failedKoIds: input.failedKoIds,
     });
+    // The adverse outcome is where the never-ghost promise matters most — and the
+    // email is in hand. Best-effort like the ack: a comms failure never changes
+    // the intake verdict, and the outbox row makes the decline auditable.
+    if (input.notifyDecline && email) {
+      try {
+        await dispatchKnockoutDecline({ email, name: name || null, jobTitle: job.title, locale: input.locale });
+      } catch (declineErr) {
+        console.error(
+          `[lead-intake] KO decline recorded but notification failed for ${email}:`,
+          declineErr instanceof Error ? declineErr.message : declineErr
+        );
+      }
+    }
     return { result: "declined" };
   }
 

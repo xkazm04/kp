@@ -36,6 +36,8 @@ const RENDERS: [string, Record<string, string | number>][] = [
   ["rejection.early", {}],
   ["rejection.standard", {}],
   ["rejection.closing", { team: "The hiring team" }],
+  ["koDecline.subject", { role: "Backend Engineer" }],
+  ["koDecline.body", { name: "Jane", role: "Backend Engineer", team: "The hiring team" }],
   ["offer.subjectFallback", { role: "Backend Engineer" }],
   ["offer.responseFooter", { link: "https://x/offer/abc" }],
   ["interviewConfirmation.subject", { role: "Backend Engineer" }],

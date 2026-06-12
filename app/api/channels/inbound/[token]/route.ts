@@ -96,6 +96,9 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
       sourceVariant: lead.variant.slice(0, MAX_ATTRIBUTION_LENGTH) || null,
       channelLabel: `${webhook.channel} webhook`,
       failedKoIds: lead.failedKoIds,
+      // The integrator's board shows "submitted"; only this comm tells the
+      // candidate the eligibility outcome (the own form shows it live instead).
+      notifyDecline: true,
       ungatedKoIds: lead.ungatedKoIds,
       enrichLink: `${publicBaseUrl(new URL(request.url).origin)}/apply/${job.id}?lang=${locale}`,
     });

@@ -65,6 +65,10 @@
       "standard": "The decision came down to fit against the specific needs of this role right now, not a judgement of your ability. We'd welcome a future application as our teams and openings evolve, and we'll keep your profile on file.\n\n",
       "closing": "Wishing you the very best,\n{team}"
     },
+    "koDecline": {
+      "subject": "Your application — {role}",
+      "body": "Hi {name},\n\nThank you for applying for {role}. One of the role's eligibility requirements isn't met at this time, so we're unable to take your application forward.\n\nRequirements can change as roles evolve — we'd be glad to see you apply again in the future.\n\nWishing you the very best,\n{team}"
+    },
     "offer": {
       "subjectFallback": "Offer — {role}",
       "responseFooter": "— — —\nTo accept or decline this offer, please use your secure link:\n{link}\n"

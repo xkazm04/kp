@@ -65,6 +65,10 @@
       "standard": "Rozhodnutí vycházelo z toho, jak profil odpovídá konkrétním potřebám této pozice právě teď, nikoli z posouzení vašich schopností. Budoucí přihlášku bychom uvítali, jak se naše týmy a pozice vyvíjejí, a váš profil si ponecháme.\n\n",
       "closing": "Přejeme vám vše dobré,\n{team}"
     },
+    "koDecline": {
+      "subject": "Vaše přihláška — {role}",
+      "body": "Dobrý den {name},\n\nděkujeme za přihlášku na pozici {role}. Jedna ze základních podmínek pozice aktuálně není splněna, proto nemůžeme vaši přihlášku posunout dál.\n\nPodmínky se mohou s vývojem pozic měnit — budeme rádi, když se v budoucnu přihlásíte znovu.\n\nPřejeme vám vše dobré,\n{team}"
+    },
     "offer": {
       "subjectFallback": "Nabídka — {role}",
       "responseFooter": "— — —\nNabídku přijměte nebo odmítněte prosím přes svůj zabezpečený odkaz:\n{link}\n"
