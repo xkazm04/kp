@@ -138,11 +138,16 @@ export function getInterviewPrep(entryId: string): InterviewPrep | null {
 
 /** Which of the given entry ids already have a prep artifact — `createdAt` plus the
  *  assigned `interviewer` (PREP5), so the schedule card shows who owns each round at
- *  a glance. The IN query is chunked under the SQLite variable limit so a wide board
- *  never trips SQLITE_MAX_VARIABLE_NUMBER (idea-191ccc0c). */
-export function listPreparedEntries(entryIds: string[]): Record<string, { createdAt: string; interviewer: string | null }> {
+ *  a glance, and whether a recruiter-filled `humanScorecard` is saved, so the
+ *  Schedule tab can keep a human-led round (no voice transcript) visible after its
+ *  verdict gates the entry (interview-prep-rubric #2). The IN query is chunked under
+ *  the SQLite variable limit so a wide board never trips SQLITE_MAX_VARIABLE_NUMBER
+ *  (idea-191ccc0c). */
+export function listPreparedEntries(
+  entryIds: string[]
+): Record<string, { createdAt: string; interviewer: string | null; hasHumanScorecard: boolean }> {
   if (entryIds.length === 0) return {};
-  const out: Record<string, { createdAt: string; interviewer: string | null }> = {};
+  const out: Record<string, { createdAt: string; interviewer: string | null; hasHumanScorecard: boolean }> = {};
   for (const ids of chunk(entryIds, SQL_IN_CHUNK)) {
     const placeholders = ids.map(() => "?").join(",");
     const rows = db()
@@ -150,13 +155,15 @@ export function listPreparedEntries(entryIds: string[]): Record<string, { create
       .all(...ids) as { entry_id: string; payload_json: string; created_at: string }[];
     for (const r of rows) {
       let interviewer: string | null = null;
+      let hasHumanScorecard = false;
       try {
-        const p = JSON.parse(r.payload_json) as { interviewer?: unknown };
+        const p = JSON.parse(r.payload_json) as { interviewer?: unknown; humanScorecard?: unknown };
         if (typeof p.interviewer === "string" && p.interviewer.trim()) interviewer = p.interviewer.trim();
+        hasHumanScorecard = Boolean(p.humanScorecard);
       } catch {
-        /* corrupt payload — no interviewer, createdAt still useful */
+        /* corrupt payload — no interviewer/scorecard flag, createdAt still useful */
       }
-      out[r.entry_id] = { createdAt: r.created_at, interviewer };
+      out[r.entry_id] = { createdAt: r.created_at, interviewer, hasHumanScorecard };
     }
   }
   return out;

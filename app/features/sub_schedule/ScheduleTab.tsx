@@ -56,8 +56,11 @@ export function ScheduleTab() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [prepEntry, setPrepEntry] = useState<SchedEntry | null>(null);
-  // entry id → { createdAt, interviewer } for entries with a prep artifact (PREP5).
-  const [prepared, setPrepared] = useState<Record<string, { createdAt: string; interviewer: string | null }>>({});
+  // entry id → { createdAt, interviewer, hasHumanScorecard } for entries with a
+  // prep artifact (PREP5; the scorecard flag keeps human-led rounds visible below).
+  const [prepared, setPrepared] = useState<
+    Record<string, { createdAt: string; interviewer: string | null; hasHumanScorecard: boolean }>
+  >({});
   const [interviews, setInterviews] = useState<Record<string, IvStatus>>({});
   const [creatingIv, setCreatingIv] = useState<string | null>(null);
   const [transcriptEntry, setTranscriptEntry] = useState<SchedEntry | null>(null);
@@ -94,9 +97,14 @@ export function ScheduleTab() {
   const pending = entries ?? [];
   const entryIds = pending.map((e) => e.id).join(",");
   const calendarEntries = pending.filter((e) => e.approvalKind === "calendar");
-  // Interviewed = moved past scheduling but has a saved voice transcript.
+  // Interviewed = moved past scheduling with either a saved voice transcript or a
+  // recruiter-filled human scorecard — a human-led round has no transcript, but its
+  // candidate must stay visible (and the prep modal reachable) after the verdict
+  // gates the entry to scorecard_review (interview-prep-rubric #2).
   const interviewedEntries = pending.filter(
-    (e) => e.approvalKind === "scorecard_review" && interviews[e.id]?.hasTranscript
+    (e) =>
+      e.approvalKind === "scorecard_review" &&
+      (interviews[e.id]?.hasTranscript || prepared[e.id]?.hasHumanScorecard)
   );
   // Which candidates already have a generated interview-prep artifact (toggles
   // the button label). Re-checked when the prep modal closes (a fresh generate).
@@ -139,6 +147,10 @@ export function ScheduleTab() {
         body: JSON.stringify({ entryId: e.id }),
       });
       const d = await r.json();
+      // 409 = the server's live-call guard refused a reissue (the 6s status poll
+      // can lag behind a just-started call) — explain it, localized, instead of
+      // the generic failure line.
+      if (r.status === 409) throw new Error(t("interviewLiveRefused"));
       if (!r.ok) throw new Error(d.error || t("startFailed"));
       window.open(d.url, "_blank", "noopener,noreferrer");
     } catch (err) {
@@ -271,6 +283,21 @@ export function ScheduleTab() {
                     >
                       <FileText size={14} /> {t("transcriptReady")}
                     </button>
+                  ) : iv?.status === "in_progress" ? (
+                    // A LIVE call is a status, not an action: the old enabled button
+                    // (label swap only) re-ran /create mid-call, revoking the candidate's
+                    // session and emailing a second invite (voice-interview-runtime #2).
+                    // Non-interactive live pill; /create's 409 guard backs it server-side.
+                    <span
+                      role="status"
+                      className="mt-1.5 inline-flex h-8 w-full items-center justify-center gap-1.5 rounded-md border border-coral/40 bg-coral/5 text-sm font-semibold text-coral"
+                    >
+                      <span className="relative flex h-2 w-2" aria-hidden>
+                        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-coral opacity-75" />
+                        <span className="relative inline-flex h-2 w-2 rounded-full bg-coral" />
+                      </span>
+                      {t("interviewLive")}
+                    </span>
                   ) : (
                     <button
                       type="button"
@@ -279,7 +306,7 @@ export function ScheduleTab() {
                       className="focus-ring mt-1.5 inline-flex h-8 w-full items-center justify-center gap-1.5 rounded-md border border-stone-200 text-sm font-semibold text-ink hover:border-coral/40 disabled:opacity-50"
                     >
                       <Phone size={14} className="text-coral" />
-                      {creatingIv === e.id ? t("opening") : iv?.status === "in_progress" ? t("interviewInProgress") : t("startInterview")}
+                      {creatingIv === e.id ? t("opening") : t("startInterview")}
                     </button>
                   )}
                   <div className="mt-1.5 flex gap-1.5">
@@ -330,22 +357,46 @@ export function ScheduleTab() {
                   {t("interviewed")} <span className="text-moss">· {interviewedEntries.length}</span>
                 </h3>
                 {interviewedEntries.map((e) => {
+                  // No voice transcript → the round was run by a recruiter (the saved
+                  // human scorecard is what admitted the card to this list).
+                  const humanLed = !interviews[e.id]?.hasTranscript;
                   return (
                     <div key={e.id} className="rounded-lg border border-stone-200 bg-white p-2.5 shadow-panel">
                       <div className="flex w-full items-start gap-2">
-                        <CandidateCardHeader entry={e} />
+                        <CandidateCardHeader
+                          entry={e}
+                          trailing={
+                            humanLed ? (
+                              <span className="rounded bg-paper px-1.5 py-0.5 text-meta font-semibold uppercase tracking-wide text-steel">
+                                {t("humanLedChip")}
+                              </span>
+                            ) : undefined
+                          }
+                        />
                       </div>
                       {prepared[e.id]?.interviewer ? (
                         <p className="mt-1.5 flex items-center gap-1 truncate text-meta text-steel" title={t("interviewerTitle", { name: prepared[e.id]!.interviewer! })}>
                           <UserRound size={11} className="shrink-0 text-coral" /> {prepared[e.id]!.interviewer}
                         </p>
                       ) : null}
+                      {humanLed ? null : (
+                        <button
+                          type="button"
+                          onClick={() => setTranscriptEntry(e)}
+                          className="focus-ring mt-2 inline-flex h-8 w-full items-center justify-center gap-1.5 rounded-md border border-moss/40 bg-moss/5 text-sm font-semibold text-moss hover:bg-moss/10"
+                        >
+                          <FileText size={14} /> {t("viewTranscriptScorecard")}
+                        </button>
+                      )}
+                      {/* The prep modal stays reachable after the round completes — it is
+                          the ONLY surface for the interviewer's notes and the human
+                          scorecard (interview-prep-rubric #2). */}
                       <button
                         type="button"
-                        onClick={() => setTranscriptEntry(e)}
-                        className="focus-ring mt-2 inline-flex h-8 w-full items-center justify-center gap-1.5 rounded-md border border-moss/40 bg-moss/5 text-sm font-semibold text-moss hover:bg-moss/10"
+                        onClick={() => setPrepEntry(e)}
+                        className={`focus-ring ${humanLed ? "mt-2" : "mt-1.5"} inline-flex h-8 w-full items-center justify-center gap-1.5 rounded-md border border-stone-200 text-sm font-semibold text-ink hover:border-coral/40`}
                       >
-                        <FileText size={14} /> {t("viewTranscriptScorecard")}
+                        <ClipboardList size={14} className="text-coral" /> {t("prepScorecard")}
                       </button>
                     </div>
                   );
@@ -356,7 +407,18 @@ export function ScheduleTab() {
         </div>
       )}
 
-      {prepEntry ? <InterviewPrepModal entry={prepEntry} onClose={() => setPrepEntry(null)} /> : null}
+      {prepEntry ? (
+        <InterviewPrepModal
+          entry={prepEntry}
+          onClose={() => {
+            setPrepEntry(null);
+            // A verdict saved inside the modal may have gated the entry to
+            // scorecard_review (DEC1) — reload so the card moves to "Interviewed"
+            // instead of lingering in the calendar list with stale actions.
+            load();
+          }}
+        />
+      ) : null}
       {transcriptEntry ? <InterviewTranscriptModal entry={transcriptEntry} onClose={() => setTranscriptEntry(null)} /> : null}
     </div>
   );

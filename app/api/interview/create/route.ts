@@ -1,5 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createInterviewSession, getPipelineEntry, revokeOpenInterviewSessions } from "@/app/_lib/db";
+import {
+  createInterviewSession,
+  getPipelineEntry,
+  isInterviewSessionLive,
+  liveInterviewByEntry,
+  revokeOpenInterviewSessions,
+} from "@/app/_lib/db";
 import { buildGroundedInterview } from "@/app/_lib/interview-run";
 import { dispatchInterviewInvite } from "@/app/_lib/comms-dispatch";
 import { safeJsonError } from "@/app/_lib/api-response";
@@ -28,6 +34,24 @@ export async function POST(request: NextRequest) {
     // defaulting to openai.
     const provider: VoiceProviderId =
       coerceProviderId(body.provider) ?? (avail.openai ? "openai" : avail.elevenlabs ? "elevenlabs" : "openai");
+
+    // A reissue must not torpedo a LIVE call (voice-interview-runtime #2): the
+    // revoke-first semantics below kill in_progress sessions too, so one click
+    // on a mid-call entry revoked the candidate's session and emailed them a
+    // second invite while they were still talking. Hold the line like
+    // /connect's guards: refuse while the entry has a recently-touched
+    // in_progress session. Stale zombies (a connect that never completed,
+    // older than the recency window) fall through and may be reissued;
+    // `force: true` is the explicit recruiter override.
+    if (body.force !== true) {
+      const live = liveInterviewByEntry(entryId);
+      if (live && isInterviewSessionLive(live)) {
+        return NextResponse.json(
+          { error: "An interview is in progress for this candidate — wait for the call to finish before issuing a new link." },
+          { status: 409 }
+        );
+      }
+    }
 
     // W6-4 (VOX1) — reissue semantics: a fresh link kills the prior ones.
     // Re-clicking "Create link" used to mint a SECOND live session (and email a

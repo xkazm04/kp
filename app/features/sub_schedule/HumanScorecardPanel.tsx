@@ -54,6 +54,10 @@ export function HumanScorecardPanel({
   const [summary, setSummary] = useState(initial?.summary ?? "");
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(Boolean(initial?.ratings?.length));
+  // The save's `gated: true` means the verdict just moved the entry to the
+  // scorecard_review gate (DEC1) — disclosed below so the candidate's hop to the
+  // Decisions queue isn't a silent disappearing act (interview-prep-rubric #2).
+  const [gated, setGated] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const setRating = (competency: string, rating: number) =>
@@ -78,6 +82,7 @@ export function HumanScorecardPanel({
       const d = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(d.error || t("saveFailedStatus", { status: res.status }));
       setSaved(true);
+      if (d.gated === true) setGated(true);
     } catch (e) {
       setError(e instanceof Error ? e.message : t("saveFailed"));
     } finally {
@@ -187,6 +192,11 @@ export function HumanScorecardPanel({
         {saved && !saving ? <span className="text-sm font-semibold text-moss">{t("saved")}</span> : null}
         {error ? <span className="text-sm text-coral">{error}</span> : null}
       </div>
+      {gated && !saving ? (
+        <p role="status" className="mt-2 flex items-center gap-1.5 text-sm font-semibold text-moss">
+          <Check size={14} aria-hidden /> {t("gatedMoved")}
+        </p>
+      ) : null}
     </section>
   );
 }
