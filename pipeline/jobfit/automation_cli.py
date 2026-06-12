@@ -9,6 +9,8 @@
     python -m pipeline.jobfit.automation_cli policy-pass --entries-json E      # Task 7, LLM-free
 
 Input candidate via --candidate-json (MatchCandidate) or --profile-json (CandidateProfileV2, transformed).
+Optional --github-evidence G (compact GithubEvidenceSummary JSON, GH7) enriches the screen/prep/scorecard
+prompts with a "Public repo evidence" block; the other commands ignore it.
 Output: one JSON object to stdout. On failure an {"error","status","code"} envelope goes to stderr with an
 HONEST status — 404/not_found for a missing job or entry, 400/invalid_input for bad arguments or validation,
 500/engine_error for an unexpected fault — plus a matching exit code (2 for 400, 1 otherwise), so the TS seam
@@ -80,6 +82,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--strengths-json", type=Path)
     parser.add_argument("--stage", default="Screened")
     parser.add_argument("--notes-file", type=Path)
+    # GH7 — compact GitHub evidence summary written by automation-run.ts
+    # (github.json). Read by screen/prep/scorecard; ignored elsewhere.
+    parser.add_argument("--github-evidence", type=Path)
     parser.add_argument("--entries-json", type=Path)
     parser.add_argument("--jobs", type=Path, default=None)
     # PREP2 — output locale for the interview-prep narrative (en|cs). Ignored by
@@ -105,6 +110,9 @@ def main(argv: list[str] | None = None) -> int:
 
         candidate = _load_candidate(args)
         jobs = load_corpus(args.jobs)
+        # GH7 — optional evidence summary. A malformed file raises
+        # json.JSONDecodeError (a ValueError) → the honest 400 below.
+        github = json.loads(args.github_evidence.read_text(encoding="utf-8")) if args.github_evidence else None
 
         if args.command == "rematch":
             result = automation.rematch_candidate(candidate, args.current_job_id, jobs, provider=provider)
@@ -118,17 +126,17 @@ def main(argv: list[str] | None = None) -> int:
         m = score_job(candidate, job)
 
         if args.command == "screen":
-            result, source = automation.screen_candidate(candidate, job, m, provider=provider)
+            result, source = automation.screen_candidate(candidate, job, m, provider=provider, github=github)
         elif args.command == "outreach":
             strengths = json.loads(args.strengths_json.read_text(encoding="utf-8")) if args.strengths_json else m.matched_skills
             result, source = automation.draft_outreach(candidate, job, strengths, provider=provider)
         elif args.command == "rejection":
             result, source = automation.draft_rejection(candidate, job, m, args.stage, provider=provider)
         elif args.command == "prep":
-            result, source = automation.interview_prep(candidate, job, m, lang=lang, provider=provider)
+            result, source = automation.interview_prep(candidate, job, m, lang=lang, provider=provider, github=github)
         elif args.command == "scorecard":
             notes = args.notes_file.read_text(encoding="utf-8") if args.notes_file else ""
-            result, source = automation.interview_scorecard(candidate, job, notes, provider=provider)
+            result, source = automation.interview_scorecard(candidate, job, notes, provider=provider, github=github)
         elif args.command == "offer":
             result, source = automation.draft_offer(candidate, job, m, provider=provider)
         else:  # pragma: no cover

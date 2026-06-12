@@ -90,6 +90,42 @@ test("THE FIX: rematch folds the corpus fingerprint into the key; other tasks ig
   );
 });
 
+test("THE FIX: github evidence splits the key for screen/prep/scorecard; other tasks ignore it", () => {
+  // GH7 — those three prompts render the entry's "Public repo evidence" block,
+  // so a refreshed deep-dive (or evidence appearing on a previously bare entry)
+  // must invalidate the 168h cache instead of a stale HIT serving a verdict the
+  // AI formed without it.
+  const evidence = JSON.stringify({ username: "ada-dev", confirmedSkills: ["python"] });
+  const refreshed = JSON.stringify({ username: "ada-dev", confirmedSkills: ["python", "rust"] });
+  const consumers: Array<[string, string]> = [
+    ["screen", "screening-v1"],
+    ["prep", "interview-prep-v1"],
+    ["scorecard", "scorecard-v3"],
+  ];
+  for (const [task, version] of consumers) {
+    const t = { ...base, task, version };
+    // Evidence appearing on a bare entry changes the key...
+    assert.notEqual(
+      computeAutomationCacheKey(t),
+      computeAutomationCacheKey({ ...t, githubEvidenceJson: evidence }),
+      task
+    );
+    // ...and a refreshed deep-dive changes it again.
+    assert.notEqual(
+      computeAutomationCacheKey({ ...t, githubEvidenceJson: evidence }),
+      computeAutomationCacheKey({ ...t, githubEvidenceJson: refreshed }),
+      task
+    );
+  }
+  // A task whose prompt never reads the evidence must not split on it (mirrors
+  // the stage/notes/corpus task-scoping above).
+  const outreach = { ...base, task: "outreach", version: "outreach-v1" };
+  assert.equal(
+    computeAutomationCacheKey(outreach),
+    computeAutomationCacheKey({ ...outreach, githubEvidenceJson: evidence })
+  );
+});
+
 test("computeCorpusFingerprint is order-independent and set-sensitive", () => {
   // The corpus query order must never split the key, but adding/removing an opening must.
   assert.equal(

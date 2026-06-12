@@ -199,6 +199,63 @@ class RecommendationContractTest(unittest.TestCase):
         self.assertEqual(result["recommendation"], "hold")
 
 
+class GithubEvidenceBlockTest(unittest.TestCase):
+    """GH7 — the persisted GitHub evidence reaches the screen/prep/scorecard
+    prompts as a compact "Public repo evidence" block; an absent summary leaves
+    every prompt byte-identical to its pre-GH7 bytes."""
+
+    GITHUB = {
+        "username": "ada-dev",
+        "profileUrl": "https://github.com/ada-dev",
+        "summary": "Solid Python services with real tests.",
+        "confirmedSkills": ["Python", "PostgreSQL"],
+        "unverifiedClaims": ["Kubernetes"],
+        "hiddenStrengths": ["CI tooling"],
+        "topRepositories": [{"name": "svc", "url": "https://github.com/ada-dev/svc"}],
+        "analyzedAt": "2026-06-01T00:00:00Z",
+    }
+
+    def test_block_renders_compact_evidence(self):
+        block = automation.github_evidence_block(self.GITHUB)
+        self.assertIn("Public repo evidence", block)
+        self.assertIn("ada-dev", block)
+        self.assertIn("Python, PostgreSQL", block)
+        self.assertIn("NOT verified by public repos: Kubernetes", block)
+        self.assertIn("Hidden strengths", block)
+
+    def test_block_empty_for_absent_or_malformed(self):
+        # Boundary: anything non-dict / username-less renders nothing — the
+        # prompt must never carry a half-formed evidence block.
+        for bad in (None, "x", 42, [], {}, {"username": "  "}):
+            self.assertEqual(automation.github_evidence_block(bad), "", repr(bad))
+
+    def test_screen_prep_scorecard_prompts_carry_the_block(self):
+        job = mkjob()
+        m = score_job(BAU, job)
+
+        cap = _CaptureProvider({"recommendation": "hold", "confidence": 50})
+        automation.screen_candidate(BAU, job, m, provider=cap, github=self.GITHUB)
+        self.assertIn("Public repo evidence", cap.prompt)
+        self.assertIn("Kubernetes", cap.prompt)
+
+        cap = _CaptureProvider({"questions": [], "focusAreas": []})
+        automation.interview_prep(BAU, job, m, provider=cap, github=self.GITHUB)
+        self.assertIn("Public repo evidence", cap.prompt)
+
+        cap = _CaptureProvider({"ratings": [], "summary": "s", "recommendation": "hold"})
+        automation.interview_scorecard(BAU, job, "notes", provider=cap, github=self.GITHUB)
+        self.assertIn("Public repo evidence", cap.prompt)
+
+    def test_prompts_unchanged_without_evidence(self):
+        # No evidence → no block: evidence-less entries keep the pre-GH7 prompt
+        # bytes (and thus comparable outputs).
+        job = mkjob()
+        m = score_job(BAU, job)
+        cap = _CaptureProvider({"recommendation": "hold", "confidence": 50})
+        automation.screen_candidate(BAU, job, m, provider=cap)
+        self.assertNotIn("Public repo evidence", cap.prompt)
+
+
 class DraftsTest(unittest.TestCase):
     def setUp(self):
         self.job = mkjob()

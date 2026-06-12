@@ -7,6 +7,14 @@ import { createHash } from "node:crypto";
 
 const shortHash = (s: string) => createHash("sha256").update(s).digest("hex").slice(0, 24);
 
+// GH7 — the tasks whose prompts render the entry's compact GitHub evidence
+// summary (the candidate-assessment prompts). outreach/rejection/offer draft
+// messages and rematch ranks the corpus — none of them read the evidence, so
+// it must not split their keys. Exported so automation-run.ts gates the
+// github.json hand-off on the SAME set that scopes the key: the cache axis and
+// the prompt input can never drift apart.
+export const GITHUB_EVIDENCE_TASKS: ReadonlySet<string> = new Set(["screen", "prep", "scorecard"]);
+
 export type AutomationKeyInput = {
   /** AUTOMATION_VERSION[task] — bumps retire prior cache entries. */
   version: string;
@@ -31,6 +39,13 @@ export type AutomationKeyInput = {
    *  so a cached English prep pack never serves a cs session (and vice versa).
    *  Absent/undefined for every other task and for legacy callers. */
   lang?: string;
+  /** GH7 — only folded into the key for the GITHUB_EVIDENCE_TASKS
+   *  (screen/prep/scorecard): EXACTLY the serialized evidence bytes handed to
+   *  Python as github.json, hashed. Those prompts now render the evidence, so a
+   *  refreshed deep-dive must invalidate the 168h cache — and evidence appearing
+   *  on a previously bare entry must too (the absent case keys as ""). Absent
+   *  for every other task and for evidence-less entries. */
+  githubEvidenceJson?: string;
 };
 
 // Stable fingerprint of the live job corpus for the rematch cache key: the SORTED
@@ -67,6 +82,9 @@ export function computeAutomationCacheKey(input: AutomationKeyInput): string {
       input.task === "scorecard" ? shortHash(input.notes) : "",
       input.task === "rematch" ? input.corpusFingerprint ?? "" : "",
       input.task === "prep" ? input.lang ?? "en" : "",
+      // GH7 — evidence axis for the prompts that render it; "" for a bare entry
+      // so attaching evidence later genuinely re-keys.
+      GITHUB_EVIDENCE_TASKS.has(input.task) && input.githubEvidenceJson ? shortHash(input.githubEvidenceJson) : "",
     ].join("|")
   );
 }

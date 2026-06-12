@@ -112,6 +112,40 @@ def _candidate_lang(candidate: MatchCandidate) -> str:
     return "Czech" if ("czech" in blob or "česk" in blob or "cesk" in blob) else "English"
 
 
+def github_evidence_block(github: Any | None) -> str:
+    """Render the entry's compact GitHub evidence summary (GH7) as a short
+    "Public repo evidence" prompt block for the screen/prep/scorecard tasks.
+
+    ``github`` is the TS-side GithubEvidenceSummary (app/_lib/github-summary.ts)
+    parsed from --github-evidence — already validated and clamped at the TS
+    boundary, so this only formats. Returns "" when absent or unusable, keeping
+    every prompt byte-identical to its pre-GH7 bytes for evidence-less entries."""
+    if not isinstance(github, dict):
+        return ""
+    username = str(github.get("username") or "").strip()
+    if not username:
+        return ""
+
+    def items(key: str) -> str:
+        return ", ".join(_str_list(github.get(key)))
+
+    analyzed = str(github.get("analyzedAt") or "").strip()
+    lines = [f"Public repo evidence (GitHub deep-dive of {username}" + (f", analyzed {analyzed}" if analyzed else "") + "):"]
+    summary = str(github.get("summary") or "").strip()
+    if summary:
+        lines.append(f"- Read: {summary}")
+    confirmed = items("confirmedSkills")
+    if confirmed:
+        lines.append(f"- Evidenced skills (public repo signals support these): {confirmed}")
+    unverified = items("unverifiedClaims")
+    if unverified:
+        lines.append(f"- CV claims NOT verified by public repos: {unverified}")
+    hidden = items("hiddenStrengths")
+    if hidden:
+        lines.append(f"- Hidden strengths (visible in repos, absent from the CV): {hidden}")
+    return "\n".join(lines) + "\n\n"
+
+
 # ============================================================================
 # Task 7 — Policy pass (pure deterministic, no LLM)
 # ============================================================================
@@ -202,7 +236,7 @@ def evaluate_entry(entry: dict[str, Any]) -> dict[str, Any]:
 # ============================================================================
 
 
-def screen_candidate(candidate: MatchCandidate, job: Job, m, *, provider: Any | None = None) -> tuple[dict, str]:
+def screen_candidate(candidate: MatchCandidate, job: Job, m, *, provider: Any | None = None, github: Any | None = None) -> tuple[dict, str]:
     ctx = reasoning_context(candidate, job, m)
     early = candidate.archetype in _EARLY_CAREER
     # PRE-LLM FAIRNESS GATE: a learnable-gap early-career candidate is never auto-rejected.
@@ -211,6 +245,9 @@ def screen_candidate(candidate: MatchCandidate, job: Job, m, *, provider: Any | 
     prompt = (
         "Screen this candidate for this role. Use ONLY these facts:\n"
         f"{json.dumps(ctx, ensure_ascii=False, indent=2)}\n\n"
+        # GH7 — the persisted deep-dive (corroborated vs unverified JD skills);
+        # "" when the entry carries none.
+        + github_evidence_block(github)
         + (
             "This is an EARLY-CAREER candidate — judge on potential, frame gaps as learnable, and never "
             "recommend a hard reject; prefer 'hold' for a human.\n"
@@ -363,7 +400,7 @@ def draft_rejection(candidate: MatchCandidate, job: Job, m, stage: str, *, provi
     return result, source
 
 
-def interview_prep(candidate: MatchCandidate, job: Job, m, *, lang: str = "en", provider: Any | None = None):
+def interview_prep(candidate: MatchCandidate, job: Job, m, *, lang: str = "en", provider: Any | None = None, github: Any | None = None):
     from .i18n import language_directive
 
     ctx = reasoning_context(candidate, job, m)
@@ -371,6 +408,8 @@ def interview_prep(candidate: MatchCandidate, job: Job, m, *, lang: str = "en", 
     prompt = (
         "Build an interview prep pack for the INTERVIEWER. Use ONLY these facts:\n"
         f"{json.dumps(ctx, ensure_ascii=False, indent=2)}\n\n"
+        # GH7 — repo evidence sharpens the probes (verify the unverified claims).
+        + github_evidence_block(github)
         + (
             "Early-career candidate: probe the depth behind self-declared / project-provenance skills and the gaps.\n"
             if early
@@ -487,7 +526,7 @@ def _scorecard_confidence(notes: str, ratings: list[dict], total: int) -> dict:
     return {"level": "moderate", "reason": "Partial evidence across the competencies."}
 
 
-def interview_scorecard(candidate: MatchCandidate, job: Job, notes: str, *, provider: Any | None = None):
+def interview_scorecard(candidate: MatchCandidate, job: Job, notes: str, *, provider: Any | None = None, github: Any | None = None):
     model = scoring_model_for_archetype(candidate.archetype)
     rubric = INTERVIEW_RUBRICS.get(model, INTERVIEW_RUBRICS["experienced"])
     anchors = ", ".join(f"{k}={v}" for k, v in RATING_ANCHORS.items())
@@ -508,7 +547,12 @@ def interview_scorecard(candidate: MatchCandidate, job: Job, notes: str, *, prov
     prompt = (
         f"Synthesize a structured interview scorecard for {candidate.label} (role: {job.title}) from these "
         f"interviewer notes / transcript:\n\"\"\"{notes[:4000]}\"\"\"\n\n"
-        "Rate the candidate on EACH of these fixed competencies (do NOT invent or omit any):\n"
+        # GH7 — repo evidence contextualizes the ratings (e.g. a thin transcript
+        # answer on a skill the repos already corroborate); "" when absent, so
+        # the evidence-less prompt stays byte-identical (same guarantee as the
+        # BARS-anchor fallback below).
+        + github_evidence_block(github)
+        + "Rate the candidate on EACH of these fixed competencies (do NOT invent or omit any):\n"
         f"{rubric_lines}\n"
         f"Rating scale: {anchors}.\n"
         "Ground every rating in the transcript: the evidence MUST be a short, near-verbatim quote of the "

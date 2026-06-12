@@ -14,7 +14,7 @@ import {
   storePromptCache,
 } from "./db";
 import { cleanupWorkdir, createWorkdir, parsePythonJson, parseStderrError, spawnPython } from "./python-runner";
-import { computeAutomationCacheKey, computeCorpusFingerprint } from "./automation-cache-key";
+import { computeAutomationCacheKey, computeCorpusFingerprint, GITHUB_EVIDENCE_TASKS } from "./automation-cache-key";
 import { screenStageOutcome } from "./pipeline-stages";
 import { dispatchOutreach } from "./comms-dispatch";
 import {
@@ -110,6 +110,14 @@ export async function runAutomationTask(entryId: string, task: string, notes = "
   // published openings, so without this rematch could never even see a newer better
   // fit (idea-e01935e9). Other tasks score a single job and skip the corpus entirely.
   const corpusJobs = task === "rematch" ? listCorpusJobs() : null;
+  // GH7 — serialize the entry's compact GitHub evidence ONCE for the tasks whose
+  // prompts consume it (GITHUB_EVIDENCE_TASKS = screen/prep/scorecard): the same
+  // bytes are written to github.json for Python below AND folded into the cache
+  // key, so a refreshed deep-dive — or evidence appearing on a previously bare
+  // entry — invalidates the 168h cache instead of a stale HIT serving a verdict
+  // the AI formed without it. Mirrors the profileJson serialize-once pattern.
+  const githubEvidenceJson =
+    GITHUB_EVIDENCE_TASKS.has(task) && entry.githubEvidence ? JSON.stringify(entry.githubEvidence) : null;
   const cacheKey = computeAutomationCacheKey({
     version,
     task,
@@ -121,6 +129,7 @@ export async function runAutomationTask(entryId: string, task: string, notes = "
     corpusFingerprint: corpusJobs ? computeCorpusFingerprint(corpusJobs.map((j) => j.id)) : undefined,
     // PREP2 — the prep narrative locale is a cache axis (other tasks ignore it).
     lang: task === "prep" ? (lang === "cs" ? "cs" : "en") : undefined,
+    githubEvidenceJson: githubEvidenceJson ?? undefined,
   });
 
   let payload = lookupPromptCache(cacheKey, version) as CliPayload | null;
@@ -150,6 +159,15 @@ export async function runAutomationTask(entryId: string, task: string, notes = "
       // PREP2 — only `prep` consumes --lang (the CLI accepts it globally and the
       // other commands ignore it); pass it so the prep narrative is localized.
       if (task === "prep") args.push("--lang", lang === "cs" ? "cs" : "en");
+      // GH7 — hand the persisted GitHub evidence to the screen/prep/scorecard
+      // prompts (mirrors the --notes-file pattern). Python renders it as a
+      // compact "Public repo evidence" block; null (bare entry or a task that
+      // never reads it) keeps the prompt byte-identical to pre-GH7.
+      if (githubEvidenceJson) {
+        const githubPath = path.join(workdir, "github.json");
+        await writeFile(githubPath, githubEvidenceJson, "utf-8");
+        args.push("--github-evidence", githubPath);
+      }
 
       const { result } = spawnPython(args, { signal });
       const { stdout, stderr, exitCode } = await result;

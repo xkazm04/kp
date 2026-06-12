@@ -129,6 +129,33 @@ class TestAutomationCliErrorStatus(unittest.TestCase):
         self.assertIn("result", payload)
         self.assertEqual(payload["source"], "deterministic")
 
+    def test_github_evidence_arg_is_accepted(self):
+        # GH7 — the optional evidence summary file rides into screen/prep/scorecard.
+        with _fixture() as (cand, jobs):
+            gh = jobs.parent / "github.json"
+            gh.write_text(json.dumps({"username": "ada-dev", "confirmedSkills": ["Python"]}), encoding="utf-8")
+            code, out, _err = _run(
+                ["screen", "--no-llm", "--candidate-json", str(cand), "--job-id", _JOB_ID,
+                 "--jobs", str(jobs), "--github-evidence", str(gh)]
+            )
+        self.assertEqual(code, 0)
+        self.assertIn("result", _last_json(out))
+
+    def test_malformed_github_evidence_is_400_invalid_input(self):
+        # GH7 — a corrupt github.json raises json.JSONDecodeError (a ValueError)
+        # and maps to the honest 400, not a 500.
+        with _fixture() as (cand, jobs):
+            gh = jobs.parent / "github.json"
+            gh.write_text("{not json", encoding="utf-8")
+            code, _out, err = _run(
+                ["screen", "--no-llm", "--candidate-json", str(cand), "--job-id", _JOB_ID,
+                 "--jobs", str(jobs), "--github-evidence", str(gh)]
+            )
+        self.assertEqual(code, 2)
+        payload = _last_json(err)
+        self.assertEqual(payload["status"], 400)
+        self.assertEqual(payload["code"], "invalid_input")
+
 
 if __name__ == "__main__":
     unittest.main()
