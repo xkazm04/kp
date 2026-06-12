@@ -23,6 +23,10 @@ export type Entry = {
   // GH2 — compact GitHub evidence attached at add-to-pipeline (null/absent on
   // entries added without a deep-dive). Rendered in the drawer.
   githubEvidence?: GithubEvidenceSummary | null;
+  // d95fed6d — which surface/channel filed this candidate ("match", "matrix",
+  // "analyze", "sourcing", "devcase", or a webhook channel id). Null on legacy
+  // and unattributed entries. Rendered as the drawer's origin chip.
+  sourceChannel?: string | null;
 };
 
 // Mirrors the PUBLIC event projection served by /api/pipeline/events

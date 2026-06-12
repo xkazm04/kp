@@ -34,7 +34,7 @@ export function RecruiterCandidates({
   // The jobId whose candidates are currently loaded — so auto-load fires once per job
   // (mount AND when the reused modal switches jobs), not just on first mount.
   const loadedJobRef = useRef<string | null>(null);
-  const { add, added, adding, error: cardError, announce } = useAddToPipeline(jobId, jobTitle);
+  const { add, added, adding, error: cardError, announce } = useAddToPipeline(jobId, jobTitle, "sourcing");
   const { reach, reached, reaching, error: reachError, announce: reachAnnounce } = useReachOut(jobId);
 
   const load = async () => {

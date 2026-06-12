@@ -40,6 +40,7 @@
     "model": "Model: {model}",
     "histEyebrow": "History · {slug}",
     "histSaved": "saved {date}",
+    "histOnBoard": "On the board: {job} · {stage}",
     "histScore": "score {score}",
     "histLoadFailed": "We couldn't load this analysis right now. Please try again in a moment.",
     "histSchemaOld": "This run was saved in an older schema and can't be rendered."
@@ -303,12 +304,15 @@
     "groups": {
       "recent": "Recent",
       "tabs": "Go to",
+      "actions": "Actions",
       "profile": "Candidates",
       "entry": "In pipeline",
       "job": "Roles",
       "jd": "Job descriptions",
       "analysis": "CV analyses"
-    }
+    },
+    "tourAction": "Watch the hiring story (guided tour)",
+    "tourSub": "Runs the live demo: JD → sourcing → screening → interview → offer → hired"
   },
   "shortcuts": {
     "title": "Keyboard shortcuts",
@@ -320,6 +324,7 @@
     "skipToContent": "Skip to content",
     "ariaLabel": "Workspace",
     "attentionBadge": "{count} need attention",
+    "attentionBadgeGo": "{count} need attention — view them",
     "recent": "Recent",
     "brandMark": "KP",
     "brandName": "studio",
@@ -467,7 +472,11 @@
       "rejected": "was rejected",
       "intake_degraded": "applied, but intake couldn't be auto-profiled",
       "intakeDegradedDetail": "applied, but intake couldn't be auto-profiled ({detail})",
-      "intake_resolved": "intake captured manually"
+      "intake_resolved": "intake captured manually",
+      "disposition_set": "analysis disposition recorded",
+      "dispositionSetDetail": "analysis disposition: {detail}",
+      "sim_attached": "practice interview attached",
+      "simAttachedDetail": "practice interview attached — {detail}"
     },
     "relTime": {
       "today": "today",
@@ -510,7 +519,11 @@
       "passEarlyCareer": "Early-career candidates are always held for a human.",
       "loadFailed": "Failed to load pipeline.",
       "loading": "Loading…",
-      "empty": "No candidates in the pipeline yet. Seed the candidate population and pipeline (see the data-population step), or build a profile and match it.",
+      "emptyTitle": "No candidates on the board yet",
+      "emptyBody": "Candidates arrive through your channels — the apply page, inbound webhooks, proactive sourcing — or you can add one by hand.",
+      "emptyCtaChannels": "Set up a channel",
+      "emptyCtaProfile": "Add a candidate manually",
+      "emptyCtaTour": "Watch the hiring story",
       "degradedBannerCount": "{count, plural, one {# application} other {# applications}}",
       "degradedBannerBody": "couldn't be auto-profiled and {count, plural, one {is} other {are}} a non-matchable stub — capture the profile manually so they re-enter matching.",
       "review": "Review →",
@@ -558,6 +571,18 @@
       "passFailedNetwork": "Automation pass failed — couldn't reach the server.",
       "saveViewPrompt": "Name this view"
     },
+    "today": {
+      "eyebrow": "Today",
+      "inbound": "{count, plural, =1 {1 new application} other {# new applications}}",
+      "scorecards": "{count, plural, =1 {1 scorecard ready to review} other {# scorecards ready to review}}",
+      "offerReviews": "{count, plural, =1 {1 drafted offer awaiting your approval} other {# drafted offers awaiting your approval}}",
+      "awaitingSlot": "{count, plural, =1 {1 interview waiting on a slot} other {# interviews waiting on a slot}}",
+      "offersOut": "{count, plural, =1 {1 offer with the candidate — awaiting their response} other {# offers with candidates — awaiting their responses}}",
+      "hired": "{count, plural, =1 {1 candidate hired this week} other {# candidates hired this week}}",
+      "showBoard": "Show on the board",
+      "openDecisions": "Open Decisions",
+      "openSchedule": "Open Schedule"
+    },
     "drawer": {
       "close": "Close",
       "match": "match",
@@ -583,6 +608,19 @@
       "linksRevoked": "{count, plural, =0 {No live links to revoke} one {# link revoked — it no longer works} other {# links revoked — they no longer work}}",
       "revokeFailed": "Couldn't revoke the links.",
       "history": "History",
+      "via": "via {channel}",
+      "timeline": {
+        "analysis": "CV analysis saved — score {score}",
+        "analysisNoScore": "CV analysis saved",
+        "openReport": "Open report",
+        "interviewCreated": "Voice interview link created",
+        "interviewCompleted": "Voice interview completed",
+        "inviteSent": "Scheduling invite sent",
+        "inviteConfirmed": "Slot confirmed",
+        "offerExtended": "Offer extended",
+        "offerAccepted": "Offer accepted",
+        "offerDeclined": "Offer declined"
+      },
       "moveStage": "Move stage",
       "moveStageHelp": "Manually correct this candidate's stage — send them back after a no-show, skip ahead, or fix a misfile.",
       "current": " (current)",
@@ -704,6 +742,11 @@
     "loading": "Loading…",
     "caughtUpTitle": "You're all caught up.",
     "caughtUpBody": "No decisions are waiting on you right now.",
+    "caughtUpCtaSchedule": "Confirm interview slots",
+    "caughtUpCtaPipeline": "Review the board",
+    "queuedBanner": "{count, plural, =1 {{name} is queued for an interview — pick a slot next.} other {# candidates are queued for interviews — pick their slots next.}}",
+    "queuedBannerCta": "Open Schedule",
+    "queuedDismiss": "Dismiss",
     "aiRecommendations": "AI recommendations",
     "keyDecisions": "Key decisions",
     "keyDecisionsHelp": "One row per role — advance or reject from a candidate's analysis summary.",
@@ -916,7 +959,8 @@
     "intro": "Every candidate awaiting an interview slot, on one shared week. Select a candidate, click a cell to move their proposed time, then confirm — or decline to send them back.",
     "loading": "Loading…",
     "emptyTitle": "No interviews to schedule.",
-    "emptyBody": "Candidates appear here once they reach the scheduling step.",
+    "emptyCta": "Review decisions",
+    "emptyBody": "Candidates queue up here when you accept a screening decision in Decisions.",
     "pendingInterviews": "Pending interviews",
     "interviewed": "Interviewed",
     "viewPrep": "View interview prep",
@@ -929,6 +973,7 @@
     "declineConfirm": "Decline {name}? This is a final rejection and can't be undone.",
     "declineAria": "Decline {name}",
     "viewTranscriptScorecard": "View transcript & scorecard",
+    "reviewScorecard": "Review scorecard in Decisions",
     "clickToMove": "Click a calendar cell to move <b>{name}</b>.",
     "selectCandidate": "Select a candidate to move their slot.",
     "loadFailed": "Failed to load.",
@@ -1030,6 +1075,9 @@
       "savedAt": "Saved {date}",
       "ingestAsJob": "Ingest as job",
       "ingestAsJobTitle": "Parse this JD into a matchable role — it can then be sourced, ranked, matched and applied to",
+      "ingestedBanner": "{slug} is now a job — ready for webhooks, sourcing and ranking.",
+      "ingestedBannerCta": "Open the posting",
+      "ingestedDismiss": "Dismiss",
       "ingesting": "Ingesting…",
       "ingestRetry": "Retry ingest",
       "jobStatusChip": "role: {status}",
@@ -1223,6 +1271,16 @@
       "copyMarkdown": "Copy markdown",
       "postingLanguage": "Posting language",
       "viewsAria": "Job views",
+      "lifecycle": {
+        "aria": "Role lifecycle",
+        "jd": "JD source",
+        "channels": "{count, plural, =0 {No channels listening} =1 {1 channel listening} other {# channels listening}}",
+        "funnel": "{count, plural, =0 {No candidates in the funnel} =1 {1 in the funnel} other {# in the funnel}}",
+        "decisions": "{count, plural, =1 {1 decision pending} other {# decisions pending}}",
+        "schedule": "{count, plural, =1 {1 slot to confirm} other {# slots to confirm}}",
+        "offers": "{count, plural, =1 {1 offer out} other {# offers out}}",
+        "hired": "{count, plural, =1 {1 hired} other {# hired}}"
+      },
       "tabPosting": "Posting",
       "tabCampaign": "Campaign",
       "tabCandidates": "Candidates",
@@ -1348,7 +1406,10 @@
       "runMatching": "Run matching",
       "matchFailedStatus": "Match failed ({status}).",
       "matchFailed": "Match failed.",
-      "emptyPrompt": "Pick a candidate and run matching to see ranked, KO-filtered, scored jobs."
+      "emptyPrompt": "Pick a candidate and run matching to see ranked, KO-filtered, scored jobs.",
+      "emptyChainBody": "Candidates come from saved profiles or persisted CV analyses.",
+      "emptyCtaProfile": "Create a profile",
+      "emptyCtaAnalyze": "Analyze a CV"
     },
     "dims": {
       "skills": "Skills",
@@ -1671,7 +1732,17 @@
     "studentFooter": "In the real flow this transcript is scored on the early-career BARS rubric and compared within the student cohort. The full script is documented in About → Early-career students.",
     "regularDesc": "The standard ungrounded quick screen: the agent asks a few short questions about recent experience with brief follow-ups, under {min} minutes. In the real flow the transcript is scored on the five experienced-hire axes.",
     "creating": "Creating session…",
-    "startSim": "Start simulation"
+    "startSim": "Start simulation",
+    "attach": {
+      "toggle": "Attach to a candidate's record",
+      "loading": "Loading candidates…",
+      "noCandidates": "No active candidates on the board yet.",
+      "selectAria": "Candidate to attach this practice session to",
+      "attach": "Attach",
+      "attaching": "Attaching…",
+      "done": "Attached — the practice session now shows in the candidate's history.",
+      "failed": "Couldn't attach the session."
+    }
   },
   "history": {
     "eyebrow": "Workspace",
@@ -1830,7 +1901,12 @@
         "apply": "Careers apply",
         "quick-apply": "Quick apply",
         "email": "Email intake",
-        "boards": "Boards & ads"
+        "boards": "Boards & ads",
+        "match": "Match run",
+        "matrix": "Fit matrix",
+        "analyze": "CV analysis",
+        "sourcing": "Proactive sourcing",
+        "devcase": "Dev case"
       },
       "variantsTitle": "Creative variants",
       "topByVolume": "top {shown} of {total}",
@@ -1931,6 +2007,8 @@
     "title": "What the platform does",
     "intro": "From the original CV-analysis acceptance criteria to the v2 matching platform and its HR automation. Pick a capability to read how it works, drawn as a live component diagram: <moss>moss</moss> is automated, <coral>coral</coral> is a deliberate human gate, and <dashed>dashed</dashed> arrows are optional or asynchronous steps.",
     "archLink": "See the full system architecture (v1 & v2)",
+    "tourLink": "Watch the hiring story (guided tour)",
+    "tourTitle": "Runs the live end-to-end demo across the real tabs — use the bar at the bottom to pause, step, or stop.",
     "capabilitiesNav": "Platform capabilities",
     "capability": "Capability",
     "students": {
@@ -1990,6 +2068,8 @@
     "exit": "Exit",
     "selectHint": "Each tick files that candidate into the position's pipeline (Screened). Blocked / already-in-pipeline cells can't be selected.",
     "addedAnnounce": "{count, plural, one {Added # candidate to the pipeline.} other {Added # candidates to the pipeline.}}",
+    "addedBannerCta": "See them on the board",
+    "addedDismiss": "Dismiss",
     "addedPartial": "Added {ok}; {failed} failed — still selected for retry.",
     "rankingFor": "Ranking for {title}",
     "showAll": "Show all positions",
@@ -2000,6 +2080,8 @@
     "staleTitle": "Position no longer open",
     "staleBody": "It was closed or filled after this link was shared, so its candidate ranking isn't available. Other positions are still ranked.",
     "emptyGrid": "No seeded candidates or open positions yet. Positions are the jobs that appear in the pipeline.",
+    "emptyGridCtaPipeline": "Open the pipeline",
+    "emptyGridCtaJobs": "Open jobs",
     "candidateHeader": "Candidate",
     "colTitle": "{title} · {seniority} — {action}",
     "colSortingClear": "sorting by this role; click to clear",

@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import type { AnalysisRow, MatchRef, MatchResponse, ProfileRow, WeightVector } from "./MatchTypes";
 import { Results } from "./Results";
+import { ChainEmptyState } from "@/app/_components/ChainEmptyState";
 import { SegmentedControl } from "@/app/_components/SegmentedControl";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
 
@@ -180,7 +181,14 @@ export function MatchTab() {
         ) : loading ? (
           <p className="rounded-md bg-paper p-4 text-base text-steel">{t("matching")}</p>
         ) : (
-          <p className="rounded-md bg-paper p-4 text-base text-steel">{t("emptyPrompt")}</p>
+          <ChainEmptyState
+            title={t("emptyPrompt")}
+            body={t("emptyChainBody")}
+            links={[
+              { tab: "profile", label: t("emptyCtaProfile") },
+              { tab: "analyze", label: t("emptyCtaAnalyze") },
+            ]}
+          />
         )}
       </div>
     </section>

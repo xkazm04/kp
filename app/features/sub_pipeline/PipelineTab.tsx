@@ -2,18 +2,21 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { AlertTriangle, BookmarkPlus, CheckSquare, Link2, Sparkles, Timer, X } from "lucide-react";
+import { AlertTriangle, BookmarkPlus, CheckSquare, Link2, Play, Sparkles, Timer, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { buildUrl, clearedTabScopedParams } from "@/app/features/tabs";
+import { useSimulation } from "@/app/features/simulation/SimulationProvider";
 import { useTasks } from "@/app/features/tasks/TasksProvider";
 import { useLiveRefresh } from "@/app/features/live-refresh";
 import { needsHumanDecision } from "@/app/_lib/approval-kinds";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
+import { ChainEmptyState } from "@/app/_components/ChainEmptyState";
 import { CandidateDrawer } from "./CandidateDrawer";
 import { PassPreviewModal } from "./PassPreviewModal";
 import { PipelineBoard } from "./PipelineBoard";
 import { SchedulerControl } from "./SchedulerControl";
 import { EventDot, useEventVerb, useRelativeTime } from "./PipelineShared";
+import { TodayRail } from "./TodayRail";
 import { recordRecent } from "@/app/features/recents";
 import { copyText } from "@/app/_lib/export-utils";
 import { daysSince, slaForStage, STAGE_SLA_DEFAULTS, STAGES, type Entry, type PipelineEvent } from "./PipelineTypes";
@@ -182,6 +185,8 @@ export function PipelineTab() {
     }
   };
   const { startTask, findActive, tasks } = useTasks();
+  // 5d2e0998 — the empty board offers the guided tour (simulation start).
+  const sim = useSimulation();
   const batch = findActive((t) => t.kind === "batch_screen");
   const lastBatchDone = useRef<string | null>(null);
 
@@ -338,6 +343,14 @@ export function PipelineTab() {
   const clearStageFilter = () => {
     setStageFilter(null);
     writeFiltersToUrl({ q: query, quick, stage: null });
+  };
+  // Today rail → board: focus on one stage, clearing the other filters so the
+  // board shows exactly the cohort the rail row counted.
+  const showStage = (stage: string) => {
+    setQuery("");
+    setQuick(null);
+    setStageFilter(stage);
+    writeFiltersToUrl({ q: "", quick: null, stage });
   };
   const clearFilters = () => {
     setQuery("");
@@ -578,6 +591,10 @@ export function PipelineTab() {
         />
       </div>
 
+      {/* 8f8f578d — candidate-driven work narrated with names + destinations,
+          on the landing surface (badges only carry counts). */}
+      {entries && entries.length > 0 ? <TodayRail entries={entries} onShowStage={showStage} /> : null}
+
       {passSummary ? (
         <div className="animate-fade-in rounded-md border border-moss/30 bg-moss/5 px-4 py-2 text-base text-ink">
           {t("passSummaryLead")} · <span className="font-semibold text-moss">{t("passAdvanced", { n: passSummary.advanced })}</span> ·{" "}
@@ -602,7 +619,27 @@ export function PipelineTab() {
       ) : entries == null ? (
         <p role="status" className="text-base text-steel">{t("loading")}</p>
       ) : entries.length === 0 ? (
-        <p className="rounded-lg border border-stone-200 bg-paper p-4 text-base text-steel">{t("empty")}</p>
+        <ChainEmptyState
+          title={t("emptyTitle")}
+          body={t("emptyBody")}
+          links={[
+            { tab: "channels", label: t("emptyCtaChannels") },
+            { tab: "profile", label: t("emptyCtaProfile") },
+          ]}
+          // 5d2e0998 — the empty board is the first-run moment: offer the
+          // guided tour (the simulation walks the whole hiring story live).
+          extraAction={
+            !sim.running ? (
+              <button
+                type="button"
+                onClick={sim.start}
+                className="focus-ring inline-flex items-center gap-1 text-sm font-semibold text-coral hover:underline"
+              >
+                <Play size={13} aria-hidden /> {t("emptyCtaTour")}
+              </button>
+            ) : undefined
+          }
+        />
       ) : (
         <>
           {degradedCount > 0 ? (

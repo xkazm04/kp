@@ -6,7 +6,7 @@ import { ReportActions } from "@/app/_components/results/ReportActions";
 import { DispositionEditor } from "@/app/_components/results/DispositionEditor";
 import { WorkspaceShell } from "@/app/features/WorkspaceNav";
 import { RecordRecent } from "@/app/features/RecordRecent";
-import { loadAnalysis } from "@/app/_lib/db";
+import { findActiveEntriesByCandidateLabel, loadAnalysis, type PipelineEntry } from "@/app/_lib/db";
 import { analysisSchema, githubAnalysisSchema } from "@/app/_lib/schemas";
 import type { ResultPanelGithub } from "@/app/_components/results/ResultPanel";
 
@@ -73,6 +73,21 @@ export default async function HistoryDetailPage({
   const v2Profile = parsed.data.v2Profile as { archetype?: unknown } | null | undefined;
   const detectedArchetype = typeof v2Profile?.archetype === "string" && v2Profile.archetype ? v2Profile.archetype : null;
 
+  // d95fed6d — the reverse leg of the disposition echo: if the analyzed
+  // candidate is live on the board, say where, and link into the board filtered
+  // to them. Best-effort: a store fault hides the chip, never breaks the report.
+  let onBoard: PipelineEntry[] = [];
+  try {
+    onBoard = findActiveEntriesByCandidateLabel(found.row.candidate_label);
+  } catch (error) {
+    console.error(`[history] board lookup failed for "${slug}"`, error);
+  }
+  const tEnums = await getTranslations("enums");
+  const stageLabel = (stage: string) => {
+    const key = `stage.${stage}` as Parameters<typeof tEnums>[0];
+    return tEnums.has(key) ? tEnums(key) : stage;
+  };
+
   return (
     <WorkspaceShell active="analyze">
       {/* SHELL3: visiting the saved report IS opening the entity — record it. */}
@@ -95,6 +110,17 @@ export default async function HistoryDetailPage({
               {" · "}
               <Link href={`/jds/${found.row.jd_slug}`} className="font-mono text-coral hover:underline">
                 JD {found.row.jd_slug}
+              </Link>
+            </>
+          ) : null}
+          {onBoard.length > 0 ? (
+            <>
+              {" · "}
+              <Link
+                href={`/?tab=pipeline&q=${encodeURIComponent(found.row.candidate_label)}`}
+                className="font-semibold text-coral hover:underline"
+              >
+                {t("histOnBoard", { job: onBoard[0].jobTitle ?? "—", stage: stageLabel(onBoard[0].stage) })}
               </Link>
             </>
           ) : null}

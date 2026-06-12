@@ -1,5 +1,10 @@
 import { NextResponse } from "next/server";
-import { loadAnalysis, setAnalysisDisposition, setAnalysisGithub } from "@/app/_lib/db";
+import {
+  loadAnalysis,
+  recordAnalysisDispositionEvents,
+  setAnalysisDisposition,
+  setAnalysisGithub,
+} from "@/app/_lib/db";
 import { githubAnalysisSchema } from "@/app/_lib/schemas";
 
 export const runtime = "nodejs";
@@ -80,6 +85,18 @@ export async function PATCH(request: Request, context: { params: Promise<{ slug:
     const note = typeof body.note === "string" ? body.note.slice(0, 2000) : "";
     const ok = setAnalysisDisposition(slug, disposition, note);
     if (!ok) return NextResponse.json({ error: "Analysis not found." }, { status: 404 });
+    // d95fed6d — echo the decision onto the candidate's pipeline record(s) so
+    // it shows in the drawer history instead of living only on the history
+    // page. Best-effort and clear-skipping: clearing a disposition isn't a
+    // decision worth narrating, and a failed echo must not fail the save.
+    if (disposition) {
+      try {
+        const saved = loadAnalysis(slug);
+        if (saved) recordAnalysisDispositionEvents(saved.row.candidate_label, disposition, note);
+      } catch (error) {
+        console.error(`[api:analyses] disposition echo failed for "${slug}"`, error);
+      }
+    }
     return NextResponse.json({ ok: true });
   } catch (error) {
     console.error(`[api:analyses] failed to update analysis "${slug}"`, error);

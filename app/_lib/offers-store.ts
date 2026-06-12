@@ -134,6 +134,15 @@ export function getOfferByToken(token: string): OfferRow | null {
   return r ? rowToOffer(r) : null;
 }
 
+/** Every offer ever extended to an entry, oldest first — the candidate
+ *  timeline's offer chapter (extended → accepted/declined per row). */
+export function listOffersForEntry(entryId: string): OfferRow[] {
+  const rows = db()
+    .prepare(`SELECT * FROM offers WHERE entry_id = ? ORDER BY created_at ASC`)
+    .all(entryId) as Record<string, unknown>[];
+  return rows.map(rowToOffer);
+}
+
 /** The most recent still-open offer for an entry (used to dedupe re-extends). */
 export function getOpenOfferForEntry(entryId: string): OfferRow | null {
   const r = db()

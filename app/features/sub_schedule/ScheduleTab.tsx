@@ -1,14 +1,17 @@
 "use client";
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { AnimatePresence, motion, type TargetAndTransition } from "framer-motion";
-import { Calendar, Check, ClipboardList, FileText, Phone, UserRound, X } from "lucide-react";
+import { ArrowRight, Calendar, Check, ClipboardList, FileText, Phone, UserRound, X } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { buildUrl, clearedTabScopedParams } from "@/app/features/tabs";
 import { ScheduleCalendar } from "./ScheduleCalendar";
 import { InviteLifecyclePanel } from "./InviteLifecyclePanel";
 import { InterviewPrepModal } from "./InterviewPrepModal";
 import { InterviewTranscriptModal } from "./InterviewTranscriptModal";
 import { DEFAULT_SLOT, styleFor, type SchedEntry } from "./ScheduleTypes";
+import { ChainEmptyState } from "@/app/_components/ChainEmptyState";
 import { ScoreBadge } from "@/app/_components/ScoreBadge";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { useReducedMotion } from "@/app/_lib/useReducedMotion";
@@ -43,6 +46,8 @@ function CandidateCardHeader({ entry, trailing }: { entry: SchedEntry; trailing?
 
 export function ScheduleTab() {
   const t = useTranslations("scheduleTab");
+  const router = useRouter();
+  const search = useSearchParams();
   const enumLabel = useEnumLabel();
   // Display a stored "Day HH:MM" slot with the localized day; the canonical value
   // (sent to the server, kept in `picks`) stays English.
@@ -206,11 +211,12 @@ export function ScheduleTab() {
       ) : entries == null ? (
         <p className="text-base text-steel">{t("loading")}</p>
       ) : calendarEntries.length === 0 && interviewedEntries.length === 0 ? (
-        <div className="rounded-lg border border-stone-200 bg-paper p-6 text-center">
-          <Calendar className="mx-auto text-moss" size={28} />
-          <p className="mt-2 text-base font-semibold text-ink">{t("emptyTitle")}</p>
-          <p className="text-sm text-steel">{t("emptyBody")}</p>
-        </div>
+        <ChainEmptyState
+          icon={Calendar}
+          title={t("emptyTitle")}
+          body={t("emptyBody")}
+          links={[{ tab: "decisions", label: t("emptyCta") }]}
+        />
       ) : (
         <div className="grid gap-5 lg:grid-cols-[1fr_300px]">
           <ScheduleCalendar
@@ -346,6 +352,20 @@ export function ScheduleTab() {
                         className="focus-ring mt-2 inline-flex h-8 w-full items-center justify-center gap-1.5 rounded-md border border-moss/40 bg-moss/5 text-sm font-semibold text-moss hover:bg-moss/10"
                       >
                         <FileText size={14} /> {t("viewTranscriptScorecard")}
+                      </button>
+                      {/* Reverse handoff (Schedule → Decisions): the finished
+                          interview's scorecard_review gate lives on Decisions —
+                          pull the recruiter there, scoped to this role. */}
+                      <button
+                        type="button"
+                        onClick={() =>
+                          router.push(
+                            buildUrl({ tab: "decisions", ...clearedTabScopedParams(), job: e.jobId }, search.toString())
+                          )
+                        }
+                        className="focus-ring mt-1.5 inline-flex h-8 w-full items-center justify-center gap-1.5 rounded-md border border-stone-200 text-sm font-semibold text-ink hover:border-coral/40"
+                      >
+                        {t("reviewScorecard")} <ArrowRight size={13} aria-hidden />
                       </button>
                     </div>
                   );

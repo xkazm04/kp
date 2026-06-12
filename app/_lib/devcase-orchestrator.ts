@@ -175,6 +175,8 @@ export async function runLifecycle(id: string, progress?: Progress, signal?: Abo
             jobTitle: roleTitle,
             matchScore: m.score,
             stage: "Accepted",
+            // d95fed6d — origin marker for case-sourced candidates.
+            sourceChannel: "devcase",
           });
           sourced += 1;
         }

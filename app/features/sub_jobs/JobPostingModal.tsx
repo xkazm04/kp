@@ -9,6 +9,7 @@ import { Markdown } from "@/app/_components/Markdown";
 import { publicBaseUrl } from "@/app/_lib/public-base-url";
 import { buildUrl } from "@/app/features/tabs";
 import { isLocale } from "@/i18n/locales";
+import { JobLifecycleStrip } from "./JobLifecycleStrip";
 import { RecruiterCandidates } from "./RecruiterCandidates";
 import { RediscoverPanel } from "./RediscoverPanel";
 import { CompareInterviews } from "./CompareInterviews";
@@ -150,6 +151,10 @@ export function JobPostingModal({ job, onClose }: { job: Job; onClose: () => voi
         </>
       }
     >
+      {/* c91ec8b1 — the role's lifecycle at a glance, each segment linking to
+          the tab that owns it (JD → channels → board → decisions → offers). */}
+      <JobLifecycleStrip jobId={job.id} jobTitle={job.title} />
+
       <div role="tablist" aria-label={t("viewsAria")} className="mb-3 flex gap-1 border-b border-stone-200">
         {([
           ["posting", "tabPosting", FileText],

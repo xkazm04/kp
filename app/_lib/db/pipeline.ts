@@ -440,6 +440,69 @@ export function createPipelineEntry(input: CreatePipelineInput): { entry: Pipeli
   return { entry: rowToEntry(row), created: true };
 }
 
+// d95fed6d — the label join between the analysis store and the board. Analyses
+// are keyed by candidate label (not entry id), so exact case-insensitive label
+// match is the honest link: fuzzier matching would invent history for
+// same-named strangers. Active entries only — closed candidates don't need
+// disposition echoes.
+export function findActiveEntriesByCandidateLabel(candidateLabel: string): PipelineEntry[] {
+  const key = candidateLabel.trim().toLowerCase();
+  if (!key) return [];
+  const db = ensureDb();
+  const rows = db
+    .prepare(`SELECT * FROM pipeline_entries WHERE status = 'active' AND LOWER(TRIM(candidate_label)) = ?`)
+    .all(key) as PipelineRow[];
+  return rows.map(rowToEntry);
+}
+
+// d95fed6d — note a practice (simulator) interview transcript on a candidate's
+// record. Recruiter-initiated and annotation-only by design: the sim's "demo
+// sessions move nothing in the pipeline" contract holds — this records an event
+// for the drawer history, it does NOT link the session or touch stage/approval.
+export function recordSimTranscriptAttached(entryId: string, detail: string | null): boolean {
+  const db = ensureDb();
+  const row = db.prepare(`SELECT * FROM pipeline_entries WHERE id = ?`).get(entryId) as PipelineRow | undefined;
+  if (!row) return false;
+  recordEvent(db, {
+    entryId: row.id,
+    candidateLabel: row.candidate_label,
+    jobTitle: row.job_title,
+    archetype: row.archetype,
+    kind: "sim_attached",
+    toStage: row.stage,
+    detail,
+  });
+  return true;
+}
+
+// d95fed6d — echo a recruiter's analysis disposition (RES5 advance/hold/pass,
+// recorded on /history/[slug]) onto the candidate's pipeline record. The
+// disposition used to live ONLY on the analysis row — invisible from the board
+// and the drawer. Returns how many entries were annotated (0 = no active entry
+// matches the analyzed label; the disposition still saves on the analysis).
+export function recordAnalysisDispositionEvents(
+  candidateLabel: string,
+  disposition: string,
+  note?: string | null
+): number {
+  const db = ensureDb();
+  const entries = findActiveEntriesByCandidateLabel(candidateLabel);
+  const trimmedNote = note?.trim();
+  const detail = trimmedNote ? `${disposition} — ${trimmedNote}` : disposition;
+  for (const e of entries) {
+    recordEvent(db, {
+      entryId: e.id,
+      candidateLabel: e.candidateLabel,
+      jobTitle: e.jobTitle,
+      archetype: e.archetype,
+      kind: "disposition_set",
+      toStage: e.stage,
+      detail,
+    });
+  }
+  return entries.length;
+}
+
 // Duplicate-application policy lookup for the conversational apply flow: returns
 // the EXISTING pipeline entry if this applicant has already applied to this role,
 // else null. The flow captures no contact field, so a repeat is identified by

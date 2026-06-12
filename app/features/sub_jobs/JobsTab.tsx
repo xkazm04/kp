@@ -1,9 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { SearchX, X } from "lucide-react";
+import { ArrowRight, SearchX, X } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { buildTabSwitchUrl } from "@/app/features/tabs";
 import { formatPercent } from "@/app/_lib/format";
 import {
   FAMILIES,
@@ -179,8 +181,8 @@ export function JobsTab() {
         ) : jobs.length === 0 ? (
           <EmptyState
             icon={SearchX}
-            title={t("noRolesTitle")}
-            body={t("noRolesBody")}
+            title={anyFilter ? t("noRolesTitle") : t("noRolesEmptyTitle")}
+            body={anyFilter ? t("noRolesBody") : t("noRolesEmptyBody")}
             action={
               anyFilter ? (
                 <button
@@ -190,7 +192,16 @@ export function JobsTab() {
                 >
                   <X size={14} aria-hidden /> {t("clearAllFilters")}
                 </button>
-              ) : undefined
+              ) : (
+                // Chain-aware empty state: an empty corpus points upstream to the
+                // step that produces jobs (the JD library), not at a filter reset.
+                <Link
+                  href={buildTabSwitchUrl("library", search.toString())}
+                  className="focus-ring inline-flex items-center gap-1.5 rounded-md border border-stone-300 bg-white px-3 py-1.5 text-base font-semibold text-ink hover:border-coral/40"
+                >
+                  {t("noRolesEmptyCta")} <ArrowRight size={14} aria-hidden />
+                </Link>
+              )
             }
           />
         ) : (

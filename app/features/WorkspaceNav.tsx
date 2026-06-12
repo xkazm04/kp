@@ -3,7 +3,7 @@ import { getTranslations } from "next-intl/server";
 import { attentionCounts, type AttentionCounts } from "@/app/_lib/attention";
 import { ThemeToggle } from "@/app/_components/ThemeToggle";
 import { RecentsNav } from "./RecentsNav";
-import { navItemClass, NAV_GROUPS, tabHref, type WorkspaceTabId } from "./tabs";
+import { buildUrl, clearedTabScopedParams, navItemClass, NAV_GROUPS, tabHref, type WorkspaceTabId } from "./tabs";
 
 // Link-based copy of the Workspace sidebar for server-rendered deep-link pages
 // (e.g. /jds/[slug], /history/[slug]) so they carry the same left nav + styling
@@ -55,24 +55,42 @@ export async function WorkspaceNav({ active }: { active: WorkspaceTabId }) {
               {group.items.map((item) => {
                 const isActive = item.id === active;
                 const badge = item.badgeKey && attention ? attention[item.badgeKey] : 0;
+                // Mirror of Workspace.tsx: a badge with declared badgeParams is a
+                // second link target landing on the counted slice. A detail page
+                // has no live query string, so compose from an empty search.
+                const badgeSliceHref =
+                  badge > 0 && item.badgeParams
+                    ? buildUrl({ tab: item.id, ...clearedTabScopedParams(), ...item.badgeParams }, "")
+                    : null;
                 return (
-                  <Link
-                    key={item.id}
-                    href={tabHref(item.id)}
-                    aria-current={isActive ? "page" : undefined}
-                    className={`focus-ring flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-base font-medium transition-colors ${navItemClass(isActive)}`}
-                  >
-                    <span className={`h-1.5 w-1.5 rounded-full ${isActive ? "bg-coral" : "bg-stone-300"}`} aria-hidden />
-                    <span className="min-w-0 flex-1 truncate">{navText(`tabs.${item.id}`, item.label)}</span>
-                    {badge > 0 ? (
-                      <span
-                        aria-label={t("attentionBadge", { count: badge })}
-                        className="shrink-0 rounded-full bg-coral/10 px-1.5 py-0.5 text-sm font-semibold leading-none text-coral"
+                  <div key={item.id} className={badgeSliceHref ? "relative" : "contents"}>
+                    <Link
+                      href={tabHref(item.id)}
+                      aria-current={isActive ? "page" : undefined}
+                      className={`focus-ring flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-base font-medium transition-colors ${navItemClass(isActive)} ${badgeSliceHref ? "pr-10" : ""}`}
+                    >
+                      <span className={`h-1.5 w-1.5 rounded-full ${isActive ? "bg-coral" : "bg-stone-300"}`} aria-hidden />
+                      <span className="min-w-0 flex-1 truncate">{navText(`tabs.${item.id}`, item.label)}</span>
+                      {badge > 0 && !badgeSliceHref ? (
+                        <span
+                          aria-label={t("attentionBadge", { count: badge })}
+                          className="shrink-0 rounded-full bg-coral/10 px-1.5 py-0.5 text-sm font-semibold leading-none text-coral"
+                        >
+                          {badge}
+                        </span>
+                      ) : null}
+                    </Link>
+                    {badgeSliceHref ? (
+                      <Link
+                        href={badgeSliceHref}
+                        title={t("attentionBadgeGo", { count: badge })}
+                        aria-label={t("attentionBadgeGo", { count: badge })}
+                        className="focus-ring absolute right-2.5 top-1/2 -translate-y-1/2 rounded-full bg-coral/10 px-1.5 py-0.5 text-sm font-semibold leading-none text-coral hover:bg-coral/20"
                       >
                         {badge}
-                      </span>
+                      </Link>
                     ) : null}
-                  </Link>
+                  </div>
                 );
               })}
             </div>

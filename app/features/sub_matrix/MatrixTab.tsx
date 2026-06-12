@@ -11,6 +11,8 @@ import { postPipelineAdd } from "@/app/_lib/useAddToPipeline";
 import { downloadFile, toCsv } from "@/app/_lib/export-utils";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { cellClass, ColumnStats, MatrixLegend, type Cell } from "./MatrixShared";
+import { ChainEmptyState } from "@/app/_components/ChainEmptyState";
+import { CompletionCta } from "@/app/_components/CompletionCta";
 import { STRONG_THRESHOLD } from "./matrix-stats";
 
 type Candidate = { id: string; label: string; archetype: string | null };
@@ -94,6 +96,9 @@ export function MatrixTab() {
   const [added, setAdded] = useState<Set<string>>(() => new Set());
   const [adding, setAdding] = useState(false);
   const [announce, setAnnounce] = useState("");
+  // Last bulk-add outcome — drives the visible completion band (the sr-only
+  // announce stays for screen readers; sighted users got nothing before).
+  const [lastAdd, setLastAdd] = useState<{ ok: number; failed: number } | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -235,6 +240,7 @@ export function MatrixTab() {
         continue;
       }
       const res = await postPipelineAdd(pos.id, pos.title, {
+        source: "matrix",
         candidateId: cand.id,
         candidateLabel: cand.label,
         archetype: cand.archetype,
@@ -254,6 +260,7 @@ export function MatrixTab() {
         ? t("addedAnnounce", { count: ok })
         : t("addedPartial", { ok, failed: failed.size })
     );
+    setLastAdd({ ok, failed: failed.size });
     setAdding(false);
   };
 
@@ -360,6 +367,21 @@ export function MatrixTab() {
       </header>
 
       <p role="status" aria-live="polite" className="sr-only">{announce}</p>
+
+      {/* Bulk-add used to complete with no visible trace — say what was filed
+          and link to the board where the new entries actually landed. */}
+      {lastAdd && lastAdd.ok > 0 ? (
+        <CompletionCta
+          message={
+            lastAdd.failed === 0
+              ? t("addedAnnounce", { count: lastAdd.ok })
+              : t("addedPartial", { ok: lastAdd.ok, failed: lastAdd.failed })
+          }
+          links={[{ label: t("addedBannerCta"), tab: "pipeline" }]}
+          onDismiss={() => setLastAdd(null)}
+          dismissLabel={t("addedDismiss")}
+        />
+      ) : null}
 
       {selectMode ? (
         <div className="flex flex-wrap items-center gap-2 rounded-md border border-coral/30 bg-coral/5 px-3 py-2">
@@ -470,7 +492,13 @@ export function MatrixTab() {
           </button>
         </div>
       ) : data.candidates.length === 0 || data.positions.length === 0 ? (
-        <p className="rounded-md bg-paper p-4 text-base text-steel">{t("emptyGrid")}</p>
+        <ChainEmptyState
+          title={t("emptyGrid")}
+          links={[
+            { tab: "pipeline", label: t("emptyGridCtaPipeline") },
+            { tab: "jobs", label: t("emptyGridCtaJobs") },
+          ]}
+        />
       ) : (
         <>
           <div className="overflow-auto rounded-lg border border-stone-200 bg-white shadow-panel" style={{ maxHeight: "70vh" }}>

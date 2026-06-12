@@ -3,6 +3,7 @@ export type SchedEntry = {
   candidateId: string | null;
   candidateLabel: string;
   archetype: string | null;
+  jobId: string | null;
   jobTitle: string | null;
   stage: string;
   matchScore: number | null;

@@ -39,12 +39,18 @@ export type WorkspaceTabId = (typeof WORKSPACE_TAB_IDS)[number];
 // SHELL2 — the attention-count buckets /api/attention serves. A nav item opts
 // into a badge by declaring which bucket it renders (`badgeKey` below); the
 // mapping is declarative here, never positional in the renderers.
-export type AttentionKey = "decisions" | "pipeline" | "schedule" | "jobs";
+export type AttentionKey = "decisions" | "pipeline" | "schedule" | "jobs" | "channels";
 
 export type WorkspaceTabDef = {
   id: WorkspaceTabId;
   label: string;
   badgeKey?: AttentionKey;
+  // When set, the badge itself becomes a second click target that opens the tab
+  // WITH these deep-link params — landing on the exact slice the count refers to
+  // (e.g. Pipeline's stale entries via ?quick=aging) instead of the bare tab.
+  // Only declare this when the counted cohort is NOT what the bare tab already
+  // shows on landing; Decisions/Schedule open on their queues anyway.
+  badgeParams?: Partial<Record<TabScopedParamKey, string>>;
 };
 
 // The Pipeline dashboard is the default landing surface.
@@ -61,8 +67,8 @@ export type NavGroup = { label?: string; key?: string; items: WorkspaceTabDef[] 
 export const NAV_GROUPS: NavGroup[] = [
   {
     items: [
-      { id: "pipeline", label: "Pipeline", badgeKey: "pipeline" },
-      { id: "channels", label: "Channels" },
+      { id: "pipeline", label: "Pipeline", badgeKey: "pipeline", badgeParams: { quick: "aging" } },
+      { id: "channels", label: "Channels", badgeKey: "channels" },
       { id: "decisions", label: "Decisions", badgeKey: "decisions" },
       { id: "schedule", label: "Schedule", badgeKey: "schedule" },
     ],

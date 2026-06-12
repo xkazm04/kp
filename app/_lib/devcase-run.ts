@@ -587,6 +587,8 @@ export function promoteSubmission(submissionId: string): string | null {
     jobTitle: posting?.roleTitle ?? "Dev case",
     matchScore: score,
     stage: "Screened",
+    // d95fed6d — origin marker: the drawer says "via dev case" and links back.
+    sourceChannel: "devcase",
   });
   const recommendation = score >= 70 ? "advance" : "hold";
   setApproval(

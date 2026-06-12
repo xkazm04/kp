@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Briefcase, RotateCcw, Search } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { CompletionCta } from "@/app/_components/CompletionCta";
 import { Skeleton } from "@/app/_components/Skeleton";
 import { JdBuilder } from "./JdBuilder";
 import { LibraryJdForm } from "./LibraryJdForm";
@@ -22,7 +23,7 @@ type JdRow = {
 // ingest bridge (content-hash dedup, draft lifecycle) under the shared
 // "jd-<slug>" identity, landing the JD in the same draft → Source-into-Pipeline
 // path as builder-authored roles.
-function IngestAsJobButton({ slug, onDone }: { slug: string; onDone: () => void }) {
+function IngestAsJobButton({ slug, onDone }: { slug: string; onDone: (jobId: string | null) => void }) {
   const t = useTranslations("library.tab");
   const [state, setState] = useState<"idle" | "busy" | "error">("idle");
   const ingest = async () => {
@@ -31,7 +32,10 @@ function IngestAsJobButton({ slug, onDone }: { slug: string; onDone: () => void 
     try {
       const r = await fetch(`/api/jds/${encodeURIComponent(slug)}/ingest-job`, { method: "POST" });
       if (!r.ok) throw new Error();
-      onDone();
+      // The route returns the (possibly pre-existing) job id — threaded up so
+      // the success band can deep-link straight to the new posting.
+      const payload = (await r.json().catch(() => null)) as { jobId?: string } | null;
+      onDone(typeof payload?.jobId === "string" ? payload.jobId : null);
     } catch {
       setState("error");
     }
@@ -55,6 +59,9 @@ export function LibraryTab() {
   const [rows, setRows] = useState<JdRow[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
+  // The most recent ingest-as-job result: drives the completion band below so
+  // the action lands somewhere visible (it used to succeed in total silence).
+  const [ingested, setIngested] = useState<{ slug: string; jobId: string | null } | null>(null);
 
   // Case-insensitive client-side filter over title/slug/preview so the list
   // stays usable once the library grows past a screenful.
@@ -114,6 +121,23 @@ export function LibraryTab() {
       <div className="mt-5">
         <JdBuilder onSaved={load} />
       </div>
+
+      {ingested ? (
+        <CompletionCta
+          className="mt-5"
+          message={t("ingestedBanner", { slug: ingested.slug })}
+          links={[
+            {
+              label: t("ingestedBannerCta"),
+              tab: "jobs",
+              // ?job= auto-opens the posting modal on the Jobs tab.
+              params: ingested.jobId ? { job: ingested.jobId } : undefined,
+            },
+          ]}
+          onDismiss={() => setIngested(null)}
+          dismissLabel={t("ingestedDismiss")}
+        />
+      ) : null}
 
       <div className="mt-5">
         <div className="rounded-lg border border-stone-200 bg-white">
@@ -184,7 +208,13 @@ export function LibraryTab() {
                             {t("jobStatusChip", { status: row.jobStatus })}
                           </span>
                         ) : (
-                          <IngestAsJobButton slug={row.slug} onDone={() => load()} />
+                          <IngestAsJobButton
+                            slug={row.slug}
+                            onDone={(jobId) => {
+                              setIngested({ slug: row.slug, jobId });
+                              void load();
+                            }}
+                          />
                         )}
                       </p>
                     </li>

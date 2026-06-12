@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl";
 import { Search } from "lucide-react";
 import { Modal } from "@/app/_components/Modal";
 import { recordRecent, useRecents } from "./recents";
+import { useSimulation } from "./simulation/SimulationProvider";
 import { buildTabSwitchUrl, buildUrl, clearedTabScopedParams, NAV_GROUPS, type WorkspaceTabId } from "./tabs";
 
 // SHELL1 — the global command palette: one Ctrl/Cmd+K surface that searches
@@ -20,7 +21,10 @@ type PaletteItem = {
   group: string;
   label: string;
   sub: string | null;
-  href: string;
+  // Navigation target — every item has exactly one of href/action.
+  href?: string;
+  // 5d2e0998 — non-navigation commands (the guided tour). Runs on pick.
+  action?: () => void;
   // Entity identity for SHELL3 recents — picking the item records it (re-picks
   // re-front via recordRecent's dedup). Absent on tab actions.
   recent?: { type: SearchHit["type"]; id: string };
@@ -144,6 +148,10 @@ export function CommandPalette() {
   };
 
   const recents = useRecents();
+  // 5d2e0998 — the guided tour as a palette command, so the simulation's
+  // chronological story stays reachable after first-run (it otherwise hides in
+  // the collapsed SimBar footer pill).
+  const sim = useSimulation();
 
   const items = useMemo<PaletteItem[]>(() => {
     const q = query.trim().toLowerCase();
@@ -170,6 +178,18 @@ export function CommandPalette() {
         out.push({ key: `tab-${def.id}`, group: "tabs", label, sub: null, href: buildTabSwitchUrl(def.id, search) });
       }
     }
+    // The tour command: offered at rest and under "tour"/"demo"-flavored
+    // queries; hidden while a run is live (SimBar owns pause/stop then).
+    const tourLabel = t("tourAction");
+    if (!sim.running && (!q || tourLabel.toLowerCase().includes(q) || "tour story demo prohlídka příběh".includes(q))) {
+      out.push({
+        key: "action-tour",
+        group: "actions",
+        label: tourLabel,
+        sub: t("tourSub"),
+        action: sim.start,
+      });
+    }
     for (const type of HIT_TYPE_ORDER) {
       for (const hit of hits.filter((h) => h.type === type)) {
         out.push({
@@ -184,7 +204,7 @@ export function CommandPalette() {
     }
     return out;
     // eslint-disable-next-line react-hooks/exhaustive-deps -- tabLabel is stable per locale; nav/t hooks re-render on locale change anyway
-  }, [query, hits, search, recents]);
+  }, [query, hits, search, recents, sim.running, sim.start]);
 
   // Clamp the highlight whenever the list shrinks under it.
   const active = Math.min(selected, Math.max(0, items.length - 1));
@@ -192,11 +212,12 @@ export function CommandPalette() {
   const go = (item: PaletteItem) => {
     // SHELL3: an entity pick is exactly the "I opened this" moment recents
     // exist to capture (tab actions aren't — they're navigation, not work).
-    if (item.recent) {
+    if (item.recent && item.href) {
       recordRecent({ type: item.recent.type, id: item.recent.id, label: item.label, href: item.href });
     }
     setOpen(false);
-    router.push(item.href);
+    if (item.action) item.action();
+    else if (item.href) router.push(item.href);
   };
 
   const onInputKey = (e: React.KeyboardEvent<HTMLInputElement>) => {

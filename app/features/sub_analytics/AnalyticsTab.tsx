@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Download, PauseCircle } from "lucide-react";
+import { ArrowRight, Download, PauseCircle } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { downloadFile, toCsv } from "@/app/_lib/export-utils";
 import { useJsonFetch } from "@/app/_lib/useJsonFetch";
@@ -218,8 +218,14 @@ export function AnalyticsTab() {
               ) : null}
             </ul>
           </div>
-          <AutomationPanel impact={data.automation} />
-          <SourcePanel rows={data.bySource} />
+          <AutomationPanel
+            impact={data.automation}
+            decisionsHref={buildUrl({ ...clearedTabScopedParams(), tab: "decisions" }, search.toString())}
+          />
+          <SourcePanel
+            rows={data.bySource}
+            channelsHref={buildUrl({ ...clearedTabScopedParams(), tab: "channels" }, search.toString())}
+          />
         </div>
       </div>
 
@@ -311,7 +317,7 @@ export function AnalyticsTab() {
 // ANA3 — "how much is the automation actually doing": the auto/human split plus
 // the rollup rows, all folded through the SAME decision-attribution map the
 // DecisionLog badges use, over the page's selected window.
-function AutomationPanel({ impact }: { impact: AutomationImpact }) {
+function AutomationPanel({ impact, decisionsHref }: { impact: AutomationImpact; decisionsHref: string }) {
   const t = useTranslations("analytics.automation");
   const decided = impact.autoCount + impact.humanCount;
   const pct = decided > 0 ? Math.round((impact.autoCount / decided) * 100) : null;
@@ -332,9 +338,15 @@ function AutomationPanel({ impact }: { impact: AutomationImpact }) {
             <ImpactRow label={t("autoRejected")} value={impact.autoRejected} />
             <li className="flex items-baseline justify-between gap-2">
               <span className="text-steel">{t("holds")}</span>
-              <span className="font-medium text-ink">
+              {/* Holds are acted on in the Decisions queue — the figure links to
+                  where the action happens, like the funnel bars do (ANA1). */}
+              <Link
+                href={decisionsHref}
+                title={t("reviewHolds")}
+                className="focus-ring rounded font-medium text-ink underline-offset-2 hover:text-coral hover:underline"
+              >
                 {t("holdsValue", { raised: impact.holdsRaised, resolved: impact.holdsResolved })}
-              </span>
+              </Link>
             </li>
             <ImpactRow label={t("comms")} value={impact.commsDelivered} />
           </ul>
@@ -357,7 +369,7 @@ function ImpactRow({ label, value }: { label: string; value: number }) {
 // server-side from each entry's earliest event kind), with the interview/hire
 // payoff per channel. Answers "does the apply link or recruiter sourcing
 // produce the candidates that actually get hired".
-function SourcePanel({ rows }: { rows: Analytics["bySource"] }) {
+function SourcePanel({ rows, channelsHref }: { rows: Analytics["bySource"]; channelsHref: string }) {
   const t = useTranslations("analytics");
   const sourceLabel = (s: string) => {
     const key = `source.${s}` as Parameters<typeof t>[0];
@@ -380,6 +392,14 @@ function SourcePanel({ rows }: { rows: Analytics["bySource"] }) {
         ))}
         {rows.length === 0 ? <li className="text-base text-steel">{t("noSourceData")}</li> : null}
       </ul>
+      {/* Channel economics are configured on the Channels tab — give the ROI
+          reading a destination instead of leaving it a dead report. */}
+      <Link
+        href={channelsHref}
+        className="focus-ring mt-4 inline-flex items-center gap-1 text-sm font-semibold text-coral hover:underline"
+      >
+        {t("configureChannels")} <ArrowRight size={13} aria-hidden />
+      </Link>
     </div>
   );
 }

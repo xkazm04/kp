@@ -24,6 +24,11 @@ export type PipelineAddInput = {
   // GH2 — compact GitHub evidence summary to attach to the entry (only the
   // report surface carries one; every other add surface omits it).
   github?: GithubEvidenceSummary | null;
+  // d95fed6d — which surface filed this candidate ("match", "matrix",
+  // "analyze", "sourcing"…). Persisted as the entry's source_channel so the
+  // drawer can answer "where did this person come from" and analytics can
+  // attribute outcomes. Omitted = unattributed (legacy behavior).
+  source?: string | null;
 };
 
 export type AddToPipeline = {
@@ -52,6 +57,7 @@ export function pipelineAddBody(jobId: string, jobTitle: string, c: PipelineAddI
     matchScore: c.matchScore ?? null,
     stage: "Screened" as const,
     ...(c.github ? { github: c.github } : {}),
+    ...(c.source ? { source: c.source } : {}),
   };
 }
 
@@ -78,7 +84,7 @@ export async function postPipelineAdd(
   }
 }
 
-export function useAddToPipeline(jobId: string, jobTitle: string): AddToPipeline {
+export function useAddToPipeline(jobId: string, jobTitle: string, source?: string | null): AddToPipeline {
   const [added, setAdded] = useState<Set<string>>(() => new Set());
   const [adding, setAdding] = useState<Set<string>>(() => new Set());
   const [failed, setFailed] = useState<Map<string, string>>(() => new Map());
@@ -96,7 +102,8 @@ export function useAddToPipeline(jobId: string, jobTitle: string): AddToPipeline
       n.delete(c.candidateId);
       return n;
     });
-    const result = await postPipelineAdd(jobId, jobTitle, c);
+    // The surface's source rides every add unless the caller set one per-candidate.
+    const result = await postPipelineAdd(jobId, jobTitle, { source, ...c });
     if (result.ok) {
       setAdded((s) => new Set(s).add(c.candidateId));
       setAnnounce(`${c.candidateLabel} added to the pipeline.`);

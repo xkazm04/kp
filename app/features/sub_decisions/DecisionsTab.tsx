@@ -4,7 +4,9 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Check, SlidersHorizontal, Sparkles } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
-import { buildUrl } from "@/app/features/tabs";
+import { buildTabSwitchUrl } from "@/app/features/tabs";
+import { ChainEmptyState } from "@/app/_components/ChainEmptyState";
+import { CompletionCta } from "@/app/_components/CompletionCta";
 import { useTasks, useTaskResult } from "@/app/features/tasks/TasksProvider";
 import { useLiveRefresh } from "@/app/features/live-refresh";
 import { AiReviewCard } from "./AiReviewCard";
@@ -32,6 +34,11 @@ export function DecisionsTab() {
   const [entries, setEntries] = useState<Entry[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [resolving, setResolving] = useState<Record<string, "accept" | "reject" | "approve_event">>({});
+  // Candidates whose screening was accepted THIS sitting — accepting silently
+  // queues them on Schedule (approvalKind flips to "calendar" server-side), so
+  // the banner below narrates the handoff and offers the jump. Session-local on
+  // purpose: it is a "what just happened" trail, not a persistent inbox.
+  const [queuedLabels, setQueuedLabels] = useState<string[]>([]);
 
   // Modal + group-eval state
   const [summaryEntry, setSummaryEntry] = useState<Entry | null>(null);
@@ -140,6 +147,7 @@ export function DecisionsTab() {
           jobTitle: e.jobTitle,
           lang: locale,
         });
+        setQueuedLabels((prev) => [...prev, e.candidateLabel]);
       }
     } catch {
       load();
@@ -214,7 +222,7 @@ export function DecisionsTab() {
               schedule: (chunks) => (
                 <button
                   type="button"
-                  onClick={() => router.push(buildUrl({ tab: "schedule" }, search.toString()))}
+                  onClick={() => router.push(buildTabSwitchUrl("schedule", search.toString()))}
                   className="focus-ring font-semibold text-coral hover:underline"
                 >
                   {chunks}
@@ -257,6 +265,18 @@ export function DecisionsTab() {
         </div>
       </header>
 
+      {/* Forward handoff (Decisions → Schedule): accepting a screening queues
+          the candidate for slot-picking on Schedule with no visible trace here —
+          this band says what happened and where the work continues. */}
+      {queuedLabels.length > 0 ? (
+        <CompletionCta
+          message={t("queuedBanner", { count: queuedLabels.length, name: queuedLabels[queuedLabels.length - 1] })}
+          links={[{ label: t("queuedBannerCta"), tab: "schedule" }]}
+          onDismiss={() => setQueuedLabels([])}
+          dismissLabel={t("queuedDismiss")}
+        />
+      ) : null}
+
       {error ? (
         <p role="alert" aria-live="assertive" className="rounded-md bg-red-50 p-3 text-base text-red-700">
           {error}
@@ -264,11 +284,17 @@ export function DecisionsTab() {
       ) : entries == null ? (
         <p className="text-base text-steel">{t("loading")}</p>
       ) : pending.length === 0 ? (
-        <div className="rounded-lg border border-stone-200 bg-paper p-6 text-center">
-          <Check className="mx-auto text-moss" size={28} />
-          <p className="mt-2 text-base font-semibold text-ink">{t("caughtUpTitle")}</p>
-          <p className="text-sm text-steel">{t("caughtUpBody")}</p>
-        </div>
+        // Caught-up is closure, not a dead-end: point at where the work
+        // continues (slots waiting on Schedule, the live board).
+        <ChainEmptyState
+          icon={Check}
+          title={t("caughtUpTitle")}
+          body={t("caughtUpBody")}
+          links={[
+            { tab: "schedule", label: t("caughtUpCtaSchedule") },
+            { tab: "pipeline", label: t("caughtUpCtaPipeline") },
+          ]}
+        />
       ) : (
         <div className="space-y-6">
           {visibleAiReviews.length > 0 ? (

@@ -40,6 +40,7 @@
     "model": "Model: {model}",
     "histEyebrow": "Historie · {slug}",
     "histSaved": "uloženo {date}",
+    "histOnBoard": "Na nástěnce: {job} · {stage}",
     "histScore": "skóre {score}",
     "histLoadFailed": "Tuto analýzu se teď nepodařilo načíst. Zkuste to prosím za chvíli.",
     "histSchemaOld": "Tento běh byl uložen ve starším schématu a nelze ho zobrazit."
@@ -303,12 +304,15 @@
     "groups": {
       "recent": "Nedávné",
       "tabs": "Přejít na",
+      "actions": "Akce",
       "profile": "Kandidáti",
       "entry": "V pipeline",
       "job": "Pozice",
       "jd": "Popisy pozic",
       "analysis": "Analýzy CV"
-    }
+    },
+    "tourAction": "Přehrát příběh náboru (prohlídka)",
+    "tourSub": "Spustí živé demo: popis → sourcing → screening → pohovor → nabídka → přijetí"
   },
   "shortcuts": {
     "title": "Klávesové zkratky",
@@ -320,6 +324,7 @@
     "skipToContent": "Přejít na obsah",
     "ariaLabel": "Pracovní plocha",
     "attentionBadge": "{count} vyžaduje pozornost",
+    "attentionBadgeGo": "{count} vyžaduje pozornost — zobrazit",
     "recent": "Nedávné",
     "brandMark": "KP",
     "brandName": "studio",
@@ -467,7 +472,11 @@
       "rejected": "byl/a zamítnut/a",
       "intake_degraded": "přihlásil/a se, ale příjem nešlo automaticky zpracovat",
       "intakeDegradedDetail": "přihlásil/a se, ale příjem nešlo automaticky zpracovat ({detail})",
-      "intake_resolved": "příjem zadán ručně"
+      "intake_resolved": "příjem zadán ručně",
+      "disposition_set": "rozhodnutí z analýzy zaznamenáno",
+      "dispositionSetDetail": "rozhodnutí z analýzy: {detail}",
+      "sim_attached": "cvičný pohovor připojen",
+      "simAttachedDetail": "cvičný pohovor připojen — {detail}"
     },
     "relTime": {
       "today": "dnes",
@@ -510,7 +519,11 @@
       "passEarlyCareer": "Kandidáti na začátku kariéry jsou vždy pozdrženi pro člověka.",
       "loadFailed": "Nábor se nepodařilo načíst.",
       "loading": "Načítání…",
-      "empty": "V náboru zatím nejsou žádní kandidáti. Naplňte populaci kandidátů a nábor (viz krok naplnění dat), nebo vytvořte profil a spárujte jej.",
+      "emptyTitle": "Na nástěnce zatím nejsou žádní kandidáti",
+      "emptyBody": "Kandidáti přicházejí přes vaše kanály — stránku s přihláškou, příchozí webhooky, proaktivní sourcing — nebo je můžete přidat ručně.",
+      "emptyCtaChannels": "Nastavit kanál",
+      "emptyCtaProfile": "Přidat kandidáta ručně",
+      "emptyCtaTour": "Přehrát příběh náboru",
       "degradedBannerCount": "{count, plural, one {# přihláška} few {# přihlášky} many {# přihlášek} other {# přihlášek}}",
       "degradedBannerBody": "se nepodařilo automaticky zpracovat a {count, plural, one {je nespárovatelný útržek} other {jsou nespárovatelné útržky}} — zadejte profil ručně, aby se vrátili do párování.",
       "review": "Posoudit →",
@@ -558,6 +571,18 @@
       "passFailedNetwork": "Automatický průchod selhal — nepodařilo se spojit se serverem.",
       "saveViewPrompt": "Pojmenujte tento pohled"
     },
+    "today": {
+      "eyebrow": "Dnes",
+      "inbound": "{count, plural, =1 {1 nová přihláška} few {# nové přihlášky} other {# nových přihlášek}}",
+      "scorecards": "{count, plural, =1 {1 hodnoticí karta k posouzení} few {# hodnoticí karty k posouzení} other {# hodnoticích karet k posouzení}}",
+      "offerReviews": "{count, plural, =1 {1 připravená nabídka čeká na vaše schválení} few {# připravené nabídky čekají na vaše schválení} other {# připravených nabídek čeká na vaše schválení}}",
+      "awaitingSlot": "{count, plural, =1 {1 pohovor čeká na termín} few {# pohovory čekají na termín} other {# pohovorů čeká na termín}}",
+      "offersOut": "{count, plural, =1 {1 nabídka u kandidáta — čeká se na odpověď} few {# nabídky u kandidátů — čeká se na odpovědi} other {# nabídek u kandidátů — čeká se na odpovědi}}",
+      "hired": "{count, plural, =1 {1 kandidát tento týden přijat} few {# kandidáti tento týden přijati} other {# kandidátů tento týden přijato}}",
+      "showBoard": "Zobrazit na nástěnce",
+      "openDecisions": "Otevřít Rozhodnutí",
+      "openSchedule": "Otevřít Plánování"
+    },
     "drawer": {
       "close": "Zavřít",
       "match": "shoda",
@@ -583,6 +608,19 @@
       "linksRevoked": "{count, plural, =0 {Žádné aktivní odkazy ke zneplatnění} one {# odkaz zneplatněn — už nefunguje} few {# odkazy zneplatněny — už nefungují} other {# odkazů zneplatněno — už nefungují}}",
       "revokeFailed": "Odkazy se nepodařilo zneplatnit.",
       "history": "Historie",
+      "via": "přes {channel}",
+      "timeline": {
+        "analysis": "Analýza CV uložena — skóre {score}",
+        "analysisNoScore": "Analýza CV uložena",
+        "openReport": "Otevřít report",
+        "interviewCreated": "Vytvořen odkaz na hlasový pohovor",
+        "interviewCompleted": "Hlasový pohovor dokončen",
+        "inviteSent": "Pozvánka k plánování odeslána",
+        "inviteConfirmed": "Termín potvrzen",
+        "offerExtended": "Nabídka odeslána",
+        "offerAccepted": "Nabídka přijata",
+        "offerDeclined": "Nabídka odmítnuta"
+      },
       "moveStage": "Změnit fázi",
       "moveStageHelp": "Ručně opravte fázi kandidáta — vraťte ho po neúčasti, přeskočte vpřed nebo opravte špatné zařazení.",
       "current": " (současná)",
@@ -704,6 +742,11 @@
     "loading": "Načítání…",
     "caughtUpTitle": "Máte vše vyřízené.",
     "caughtUpBody": "Právě teď na vás nečekají žádná rozhodnutí.",
+    "caughtUpCtaSchedule": "Potvrdit termíny pohovorů",
+    "caughtUpCtaPipeline": "Zkontrolovat nástěnku",
+    "queuedBanner": "{count, plural, =1 {{name} čeká ve frontě na pohovor — dalším krokem je vybrat termín.} few {# kandidáti čekají ve frontě na pohovory — dalším krokem je vybrat termíny.} other {# kandidátů čeká ve frontě na pohovory — dalším krokem je vybrat termíny.}}",
+    "queuedBannerCta": "Otevřít Plánování",
+    "queuedDismiss": "Skrýt",
     "aiRecommendations": "Doporučení AI",
     "keyDecisions": "Klíčová rozhodnutí",
     "keyDecisionsHelp": "Jeden řádek na roli — postupte nebo zamítněte ze souhrnu analýzy kandidáta.",
@@ -916,7 +959,8 @@
     "intro": "Každý kandidát čekající na termín pohovoru v jednom sdíleném týdnu. Vyberte kandidáta, kliknutím na buňku přesuňte jeho navržený čas a poté potvrďte — nebo odmítněte a pošlete ho zpět.",
     "loading": "Načítání…",
     "emptyTitle": "Žádné pohovory k naplánování.",
-    "emptyBody": "Kandidáti se zde objeví, jakmile dosáhnou kroku plánování.",
+    "emptyCta": "Zkontrolovat rozhodnutí",
+    "emptyBody": "Kandidáti se zde řadí, jakmile v Rozhodnutích přijmete rozhodnutí o screeningu.",
     "pendingInterviews": "Čekající pohovory",
     "interviewed": "Po pohovoru",
     "viewPrep": "Zobrazit přípravu na pohovor",
@@ -929,6 +973,7 @@
     "declineConfirm": "Odmítnout {name}? Jde o konečné zamítnutí, které nelze vrátit zpět.",
     "declineAria": "Odmítnout {name}",
     "viewTranscriptScorecard": "Zobrazit přepis a hodnoticí kartu",
+    "reviewScorecard": "Posoudit hodnoticí kartu v Rozhodnutích",
     "clickToMove": "Kliknutím na buňku kalendáře přesuňte <b>{name}</b>.",
     "selectCandidate": "Vyberte kandidáta pro přesun jeho termínu.",
     "loadFailed": "Načtení selhalo.",
@@ -1030,6 +1075,9 @@
       "savedAt": "Uloženo {date}",
       "ingestAsJob": "Vytvořit pozici",
       "ingestAsJobTitle": "Zpracovat tento popis na párovatelnou pozici — půjde pak obsazovat, řadit, párovat a hlásit se na ni",
+      "ingestedBanner": "{slug} je nyní pozice — připravená na webhooky, sourcing a řazení.",
+      "ingestedBannerCta": "Otevřít pozici",
+      "ingestedDismiss": "Skrýt",
       "ingesting": "Zpracovávání…",
       "ingestRetry": "Zkusit znovu",
       "jobStatusChip": "pozice: {status}",
@@ -1223,6 +1271,16 @@
       "copyMarkdown": "Kopírovat markdown",
       "postingLanguage": "Jazyk inzerátu",
       "viewsAria": "Zobrazení pozice",
+      "lifecycle": {
+        "aria": "Životní cyklus pozice",
+        "jd": "Zdrojový popis",
+        "channels": "{count, plural, =0 {Žádné naslouchající kanály} =1 {1 naslouchající kanál} few {# naslouchající kanály} other {# naslouchajících kanálů}}",
+        "funnel": "{count, plural, =0 {Žádní kandidáti ve funnelu} =1 {1 ve funnelu} few {# ve funnelu} other {# ve funnelu}}",
+        "decisions": "{count, plural, =1 {1 čekající rozhodnutí} few {# čekající rozhodnutí} other {# čekajících rozhodnutí}}",
+        "schedule": "{count, plural, =1 {1 termín k potvrzení} few {# termíny k potvrzení} other {# termínů k potvrzení}}",
+        "offers": "{count, plural, =1 {1 odeslaná nabídka} few {# odeslané nabídky} other {# odeslaných nabídek}}",
+        "hired": "{count, plural, =1 {1 přijat} few {# přijati} other {# přijato}}"
+      },
       "tabCampaign": "Kampaň",
       "tabPosting": "Inzerát",
       "tabCandidates": "Kandidáti",
@@ -1348,7 +1406,10 @@
       "runMatching": "Spustit párování",
       "matchFailedStatus": "Párování selhalo ({status}).",
       "matchFailed": "Párování selhalo.",
-      "emptyPrompt": "Vyberte kandidáta a spusťte párování, abyste viděli seřazené, KO-filtrované a ohodnocené pozice."
+      "emptyPrompt": "Vyberte kandidáta a spusťte párování, abyste viděli seřazené, KO-filtrované a ohodnocené pozice.",
+      "emptyChainBody": "Kandidáti pocházejí z uložených profilů nebo z uložených analýz CV.",
+      "emptyCtaProfile": "Vytvořit profil",
+      "emptyCtaAnalyze": "Analyzovat CV"
     },
     "dims": {
       "skills": "Dovednosti",
@@ -1671,7 +1732,17 @@
     "studentFooter": "Ve skutečném toku je tento přepis hodnocen podle BARS rubriky pro juniory a porovnáván v rámci studentské kohorty. Celý scénář je zdokumentován v O aplikaci → Junioři.",
     "regularDesc": "Standardní nepodložený rychlý screening: agent klade několik krátkých otázek na nedávnou zkušenost s krátkými doplňujícími otázkami, do {min} minut. Ve skutečném toku je přepis hodnocen podle pěti os pro zkušené uchazeče.",
     "creating": "Vytváření relace…",
-    "startSim": "Spustit simulaci"
+    "startSim": "Spustit simulaci",
+    "attach": {
+      "toggle": "Připojit k záznamu kandidáta",
+      "loading": "Načítání kandidátů…",
+      "noCandidates": "Na nástěnce zatím nejsou žádní aktivní kandidáti.",
+      "selectAria": "Kandidát, ke kterému se cvičná relace připojí",
+      "attach": "Připojit",
+      "attaching": "Připojuji…",
+      "done": "Připojeno — cvičná relace se nyní zobrazuje v historii kandidáta.",
+      "failed": "Relaci se nepodařilo připojit."
+    }
   },
   "history": {
     "eyebrow": "Pracovní prostor",
@@ -1830,7 +1901,12 @@
         "apply": "Kariérní přihláška",
         "quick-apply": "Rychlá přihláška",
         "email": "E-mailový příjem",
-        "boards": "Portály a reklamy"
+        "boards": "Portály a reklamy",
+        "match": "Párování",
+        "matrix": "Matice fitu",
+        "analyze": "Analýza CV",
+        "sourcing": "Proaktivní sourcing",
+        "devcase": "Vývojový případ"
       },
       "variantsTitle": "Kreativní varianty",
       "topByVolume": "top {shown} z {total}",
@@ -1931,6 +2007,8 @@
     "title": "Co platforma dělá",
     "intro": "Od původních akceptačních kritérií pro analýzu CV po párovací platformu v2 a její HR automatizaci. Vyberte schopnost a přečtěte si, jak funguje, vykresleno jako živý komponentový diagram: <moss>moss</moss> je automatizováno, <coral>coral</coral> je záměrná lidská brána a <dashed>přerušované</dashed> šipky jsou volitelné nebo asynchronní kroky.",
     "archLink": "Zobrazit úplnou architekturu systému (v1 a v2)",
+    "tourLink": "Přehrát příběh náboru (prohlídka)",
+    "tourTitle": "Spustí živé demo napříč skutečnými záložkami — lištou dole můžete pozastavit, krokovat nebo zastavit.",
     "capabilitiesNav": "Schopnosti platformy",
     "capability": "Schopnost",
     "students": {
@@ -1990,6 +2068,8 @@
     "exit": "Ukončit",
     "selectHint": "Každé zaškrtnutí zařadí kandidáta do pipeline pozice (Prověřeno). Blokované / již zařazené buňky nelze vybrat.",
     "addedAnnounce": "{count, plural, one {Do pipeline přidán # kandidát.} few {Do pipeline přidáni # kandidáti.} many {Do pipeline přidáno # kandidáta.} other {Do pipeline přidáno # kandidátů.}}",
+    "addedBannerCta": "Zobrazit na nástěnce",
+    "addedDismiss": "Skrýt",
     "addedPartial": "Přidáno {ok}; {failed} selhalo — stále vybráno pro opakování.",
     "rankingFor": "Žebříček pro {title}",
     "showAll": "Zobrazit všechny pozice",
@@ -2000,6 +2080,8 @@
     "staleTitle": "Pozice již není otevřená",
     "staleBody": "Byla uzavřena nebo obsazena poté, co byl tento odkaz sdílen, takže její žebříček kandidátů není k dispozici. Ostatní pozice jsou stále seřazeny.",
     "emptyGrid": "Zatím žádní nasazení kandidáti ani otevřené pozice. Pozice jsou nabídky, které se objevují v pipeline.",
+    "emptyGridCtaPipeline": "Otevřít nábor",
+    "emptyGridCtaJobs": "Otevřít pozice",
     "candidateHeader": "Kandidát",
     "colTitle": "{title} · {seniority} — {action}",
     "colSortingClear": "řazení podle této role; kliknutím zrušíte",

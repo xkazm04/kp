@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { GitBranch, Sparkles, UserSearch } from "lucide-react";
+import Link from "next/link";
+import { ArrowRight, GitBranch, Sparkles, UserSearch } from "lucide-react";
 import { useTasks, useTaskResult } from "@/app/features/tasks/TasksProvider";
 import { GithubAnalysisPanel } from "@/app/_components/GithubAnalysisPanel";
 import { assertScore, scoreTone, type ScoreTone } from "@/app/_lib/format";
@@ -221,6 +222,14 @@ export function SubmissionRow({
       {ev ? <EvalPanel ev={ev} onPromote={promote} promoted={isPromoted} promoting={promoting} /> : null}
       {isPromoted ? (
         <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-micro">
+          {/* Promote files a pipeline entry + a Decisions review card — link to
+              where the promoted candidate actually went instead of ending here. */}
+          <Link
+            href="/?tab=decisions"
+            className="focus-ring inline-flex items-center gap-1 font-semibold text-coral hover:underline"
+          >
+            Review in Decisions <ArrowRight size={11} aria-hidden />
+          </Link>
           {outcome.recorded ? (
             <span
               className={`rounded-full px-2 py-0.5 font-semibold uppercase ${

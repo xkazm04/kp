@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { animate, motion, useMotionValue, useTransform } from "framer-motion";
 import { ArrowRight, Check, Copy, Globe, Link2, Mail, Radio, Sparkles, Trash2, UserPlus } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { buildUrl, type WorkspaceTabId } from "@/app/features/tabs";
+import { buildTabSwitchUrl, buildUrl, type WorkspaceTabId } from "@/app/features/tabs";
 import { useLiveRefresh } from "@/app/features/live-refresh";
 import { Badge } from "@/app/_components/Badge";
 import { CommsCenter } from "./CommsCenter";
@@ -67,6 +67,8 @@ function WebhookConnect({
   onChanged: () => void;
 }) {
   const t = useTranslations("channels.webhooks");
+  const router = useRouter();
+  const search = useSearchParams();
   const [open, setOpen] = useState(false);
   // null = not fetched yet (lazy: the catalog is only needed once the panel opens).
   const [jobs, setJobs] = useState<{ id: string; title: string }[] | null>(null);
@@ -199,7 +201,18 @@ function WebhookConnect({
           ))}
 
           {jobs !== null && jobs.length === 0 ? (
-            <p className="text-sm text-steel">{t("noJobs")}</p>
+            // Chain-aware dead-end escape: a webhook needs a job, and jobs are
+            // born in the JD library — point there instead of dead-stopping.
+            <p className="text-sm text-steel">
+              {t("noJobs")}{" "}
+              <button
+                type="button"
+                onClick={() => router.push(buildTabSwitchUrl("library", search.toString()))}
+                className="focus-ring font-semibold text-coral hover:underline"
+              >
+                {t("noJobsCta")}
+              </button>
+            </p>
           ) : (
             <div className="flex flex-wrap items-center gap-2">
               <label className="sr-only" htmlFor={`hook-job-${channel}`}>

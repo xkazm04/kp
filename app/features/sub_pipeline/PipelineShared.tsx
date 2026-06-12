@@ -9,6 +9,7 @@ import {
   CirclePlus,
   Clock,
   Gauge,
+  Phone,
   Repeat,
   Sparkles,
   Square,
@@ -37,6 +38,11 @@ export const EVENT_KINDS = [
   "rejected",
   "intake_degraded",
   "intake_resolved",
+  // d95fed6d — a recruiter's analysis disposition (advance/hold/pass on the
+  // saved report) echoed onto the candidate's pipeline record.
+  "disposition_set",
+  // d95fed6d — a practice (simulator) interview noted on the record.
+  "sim_attached",
 ] as const;
 
 export type EventKind = (typeof EVENT_KINDS)[number];
@@ -67,6 +73,8 @@ export const EVENT_CATALOG: Record<EventKind, EventMeta> = {
   rejected: { Icon: XCircle, tone: "text-coral" },
   intake_degraded: { Icon: AlertTriangle, tone: "text-red-600" },
   intake_resolved: { Icon: Wrench, tone: "text-moss" },
+  disposition_set: { Icon: CheckSquare, tone: "text-steel" },
+  sim_attached: { Icon: Phone, tone: "text-steel" },
 };
 
 // One documented fallback for kinds outside the catalog. The feed (listPipelineEvents)
@@ -112,6 +120,10 @@ export function useEventVerb(): (ev: PipelineEvent) => string {
         return t("rejected");
       case "intake_resolved":
         return t("intake_resolved");
+      case "disposition_set":
+        return ev.detail ? t("dispositionSetDetail", { detail: ev.detail }) : t("disposition_set");
+      case "sim_attached":
+        return ev.detail ? t("simAttachedDetail", { detail: ev.detail }) : t("sim_attached");
     }
   };
 }

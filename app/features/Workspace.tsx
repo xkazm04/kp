@@ -21,7 +21,16 @@ import { SimExplainDrawer } from "./simulation/SimExplainDrawer";
 import { SimOfferFrame } from "./simulation/SimOfferFrame";
 import { SimGroupEval } from "./simulation/SimGroupEval";
 import { SimDecisionWave } from "./simulation/SimDecisionWave";
-import { buildTabSwitchUrl, DEFAULT_TAB, isWorkspaceTabId, navItemClass, NAV_GROUPS, type WorkspaceTabId } from "./tabs";
+import {
+  buildTabSwitchUrl,
+  buildUrl,
+  clearedTabScopedParams,
+  DEFAULT_TAB,
+  isWorkspaceTabId,
+  navItemClass,
+  NAV_GROUPS,
+  type WorkspaceTabId,
+} from "./tabs";
 
 export type { WorkspaceTabId } from "./tabs";
 
@@ -133,30 +142,51 @@ export function Workspace() {
                 {group.items.map((item) => {
                   const isActive = item.id === navActive;
                   // SHELL2: live queue-depth pill for items that declared a
-                  // badgeKey (Decisions / Pipeline / Schedule / Jobs).
+                  // badgeKey (Decisions / Pipeline / Schedule / Jobs / Channels).
                   const badge = item.badgeKey && attention ? attention[item.badgeKey] : 0;
+                  // Items with badgeParams get a second click target: the badge
+                  // opens the tab pre-filtered to the counted slice (declared in
+                  // tabs.ts). Rendered as a SIBLING of the row button — a button
+                  // may not nest interactive content — overlaid on the space the
+                  // row reserves via padding.
+                  const badgeSliceHref =
+                    badge > 0 && item.badgeParams
+                      ? buildUrl({ tab: item.id, ...clearedTabScopedParams(), ...item.badgeParams }, search)
+                      : null;
                   return (
-                    <button
-                      key={item.id}
-                      type="button"
-                      aria-current={isActive ? "page" : undefined}
-                      onClick={() => selectTab(item.id)}
-                      className={`focus-ring flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-base font-medium transition-colors ${navItemClass(isActive)}`}
-                    >
-                      <span
-                        className={`h-1.5 w-1.5 rounded-full ${isActive ? "bg-coral" : "bg-stone-300"}`}
-                        aria-hidden
-                      />
-                      <span className="min-w-0 flex-1 truncate text-left">{navText(`tabs.${item.id}`, item.label)}</span>
-                      {badge > 0 ? (
+                    <div key={item.id} className={badgeSliceHref ? "relative" : "contents"}>
+                      <button
+                        type="button"
+                        aria-current={isActive ? "page" : undefined}
+                        onClick={() => selectTab(item.id)}
+                        className={`focus-ring flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-base font-medium transition-colors ${navItemClass(isActive)} ${badgeSliceHref ? "pr-10" : ""}`}
+                      >
                         <span
-                          aria-label={t("attentionBadge", { count: badge })}
-                          className="shrink-0 rounded-full bg-coral/10 px-1.5 py-0.5 text-sm font-semibold leading-none text-coral"
+                          className={`h-1.5 w-1.5 rounded-full ${isActive ? "bg-coral" : "bg-stone-300"}`}
+                          aria-hidden
+                        />
+                        <span className="min-w-0 flex-1 truncate text-left">{navText(`tabs.${item.id}`, item.label)}</span>
+                        {badge > 0 && !badgeSliceHref ? (
+                          <span
+                            aria-label={t("attentionBadge", { count: badge })}
+                            className="shrink-0 rounded-full bg-coral/10 px-1.5 py-0.5 text-sm font-semibold leading-none text-coral"
+                          >
+                            {badge}
+                          </span>
+                        ) : null}
+                      </button>
+                      {badgeSliceHref ? (
+                        <button
+                          type="button"
+                          title={t("attentionBadgeGo", { count: badge })}
+                          aria-label={t("attentionBadgeGo", { count: badge })}
+                          onClick={() => router.replace(badgeSliceHref, { scroll: false })}
+                          className="focus-ring absolute right-2.5 top-1/2 -translate-y-1/2 rounded-full bg-coral/10 px-1.5 py-0.5 text-sm font-semibold leading-none text-coral hover:bg-coral/20"
                         >
                           {badge}
-                        </span>
+                        </button>
                       ) : null}
-                    </button>
+                    </div>
                   );
                 })}
               </div>
