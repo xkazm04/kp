@@ -1,0 +1,229 @@
+import { ensureDb, insertWithUniqueSlug, prunePromptCache, safeRowParse } from "./core";
+
+export type AnalysisRow = {
+  slug: string;
+  candidate_label: string;
+  jd_slug: string | null;
+  score: number | null;
+  role_family: string | null;
+  seniority: string | null;
+  payload_json: string;
+  created_at: string;
+  // RES5 — present on SELECTs that fetch them (loadAnalysis, listAnalyses);
+  // optional because the narrower pool/JD SELECTs don't read them.
+  disposition?: string | null;
+  decision_note?: string | null;
+  // SCOR2 — warn-shaped sanity-check count, same optionality rationale.
+  review_flags?: number | null;
+  // GH1 — attached GitHub deep-dive JSON, fetched only by loadAnalysis.
+  github_json?: string | null;
+};
+
+// The recruiter dispositions a saved analysis can carry (RES5). advance/hold/pass
+// mirror the language of the decision queue; "" clears the disposition.
+export const ANALYSIS_DISPOSITIONS = ["advance", "hold", "pass"] as const;
+export type AnalysisDisposition = (typeof ANALYSIS_DISPOSITIONS)[number];
+
+export type AnalysisSummary = Omit<AnalysisRow, "payload_json">;
+
+export type SaveAnalysisInput = {
+  candidateLabel: string;
+  jdSlug: string | null;
+  score: number | null;
+  roleFamily: string | null;
+  seniority: string | null;
+  payload: unknown;
+  // Warn-shaped sanity-check count (countSanityWarns). Denormalized so the
+  // History list can flag degraded analyses straight off the summary SELECT.
+  reviewFlags?: number | null;
+};
+
+export function saveAnalysis(input: SaveAnalysisInput): { slug: string; createdAt: string } {
+  const db = ensureDb();
+  const createdAt = new Date().toISOString();
+  const payloadJson = JSON.stringify(input.payload);
+  const stmt = db.prepare(
+    `INSERT INTO analyses
+      (slug, candidate_label, jd_slug, score, role_family, seniority, payload_json, created_at, review_flags)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  );
+  const slug = insertWithUniqueSlug((s) =>
+    stmt.run(
+      s,
+      input.candidateLabel,
+      input.jdSlug,
+      input.score,
+      input.roleFamily,
+      input.seniority,
+      payloadJson,
+      createdAt,
+      input.reviewFlags ?? null
+    )
+  );
+  return { slug, createdAt };
+}
+
+export function listAnalyses(limit = 100): AnalysisSummary[] {
+  const db = ensureDb();
+  const rows = db
+    .prepare(
+      `SELECT slug, candidate_label, jd_slug, score, role_family, seniority, created_at, disposition, decision_note, review_flags
+       FROM analyses
+       ORDER BY created_at DESC
+       LIMIT ?`
+    )
+    .all(limit) as AnalysisSummary[];
+  return rows;
+}
+
+/** Record (or clear) the human disposition + note on a saved analysis (RES5).
+ *  An empty/whitespace disposition clears both fields back to NULL. Returns false
+ *  for an unknown slug. The display/storage is the analysis row itself — no event
+ *  log, since an analysis isn't a pipeline entry. */
+export function setAnalysisDisposition(slug: string, disposition: string, note: string): boolean {
+  const db = ensureDb();
+  const clean = (ANALYSIS_DISPOSITIONS as readonly string[]).includes(disposition) ? disposition : null;
+  const noteVal = clean && note.trim() ? note.trim() : null;
+  const res = db
+    .prepare(`UPDATE analyses SET disposition = ?, decision_note = ? WHERE slug = ?`)
+    .run(clean, clean ? noteVal : null, slug);
+  return res.changes > 0;
+}
+
+// Every analysis tagged with a JD slug, ordered best-score-first. Uses the
+// idx_analyses_jd_slug index — no row cap and no in-memory filter, so the JD
+// page's candidate count stays correct even past 500 total analyses.
+export function listAnalysesByJd(slug: string): AnalysisSummary[] {
+  const db = ensureDb();
+  return db
+    .prepare(
+      `SELECT slug, candidate_label, jd_slug, score, role_family, seniority, created_at
+       FROM analyses
+       WHERE jd_slug = ?
+       ORDER BY score DESC, created_at DESC`
+    )
+    .all(slug) as AnalysisSummary[];
+}
+
+// Like listAnalyses but folds payload_json into the one query, so callers that
+// need every payload (e.g. the candidate pool) don't fire an N+1 of loadAnalysis.
+export function listAnalysisRecords(limit = 100): { row: AnalysisRow; payload: unknown }[] {
+  const db = ensureDb();
+  const rows = db
+    .prepare(
+      `SELECT slug, candidate_label, jd_slug, score, role_family, seniority, payload_json, created_at
+       FROM analyses ORDER BY created_at DESC LIMIT ?`
+    )
+    .all(limit) as AnalysisRow[];
+  const out: { row: AnalysisRow; payload: unknown }[] = [];
+  for (const row of rows) {
+    const payload = safeRowParse(row.payload_json, "listAnalysisRecords", row.slug);
+    if (payload == null) continue; // corrupt row already logged by safeRowParse; degrade to N-1
+    out.push({ row, payload });
+  }
+  return out;
+}
+
+/** Attach (or replace) the GitHub deep-dive payload on a saved analysis (GH1).
+ *  The caller (PATCH route) validates the shape; this stores the JSON string.
+ *  Returns false for an unknown slug. */
+export function setAnalysisGithub(slug: string, githubJson: string): boolean {
+  const db = ensureDb();
+  const res = db.prepare(`UPDATE analyses SET github_json = ? WHERE slug = ?`).run(githubJson, slug);
+  return res.changes > 0;
+}
+
+export function loadAnalysis(slug: string): { row: AnalysisRow; payload: unknown } | null {
+  const db = ensureDb();
+  const row = db
+    .prepare(
+      `SELECT slug, candidate_label, jd_slug, score, role_family, seniority, payload_json, created_at, disposition, decision_note, github_json
+       FROM analyses WHERE slug = ?`
+    )
+    .get(slug) as AnalysisRow | undefined;
+  if (!row) return null;
+  const payload = safeRowParse(row.payload_json, "loadAnalysis", slug);
+  if (payload == null) return null;
+  return { row, payload };
+}
+
+type CacheRow = {
+  hash: string;
+  payload_json: string;
+  prompt_version: string;
+  expires_at: string;
+};
+
+// Fraction of cache writes that also trigger an opportunistic prune. Combined
+// with the boot prune in ensureDb, this keeps the prompt cache bounded on a
+// long-running deployment without any scheduler dependency — every distinct
+// analyze input adds a row, so spreading the GC across writes amortizes it.
+const CACHE_PRUNE_PROBABILITY = 0.02;
+
+// Generic prompt cache (analyze, per-match reasoning, automation tasks). The
+// backing table is named `gemini_cache` for historical reasons — the real
+// provider is ClaudeCliProvider, not Gemini — kept as-is to avoid orphaning the
+// cached rows on existing deployments; the function names carry the accurate name.
+export function lookupPromptCache(hash: string, promptVersion: string): unknown | null {
+  const db = ensureDb();
+  const row = db
+    .prepare(
+      `SELECT hash, payload_json, prompt_version, expires_at
+       FROM gemini_cache WHERE hash = ?`
+    )
+    .get(hash) as CacheRow | undefined;
+  if (!row) return null;
+  if (row.prompt_version !== promptVersion) return null;
+  // Fail closed: a non-finite parsed expiry (corruption, a bad migration default,
+  // a manual edit) counts as already-expired, so a garbage timestamp self-heals into
+  // a harmless miss instead of being served as an indefinitely-stale cache HIT.
+  const expiresAt = Date.parse(row.expires_at);
+  if (!Number.isFinite(expiresAt) || expiresAt < Date.now()) return null;
+  // A corrupt cache payload logs (with the hash) and reads as a miss, same as a
+  // miss — never an error served as a 200.
+  return safeRowParse(row.payload_json, "lookupPromptCache", hash);
+}
+
+export function storePromptCache(
+  hash: string,
+  payload: unknown,
+  promptVersion: string,
+  ttlHours: number
+): void {
+  const db = ensureDb();
+  const now = new Date();
+  const expires = new Date(now.getTime() + ttlHours * 3600 * 1000);
+  db.prepare(
+    `INSERT INTO gemini_cache (hash, payload_json, prompt_version, created_at, expires_at)
+     VALUES (?, ?, ?, ?, ?)
+     ON CONFLICT(hash) DO UPDATE SET
+       payload_json = excluded.payload_json,
+       prompt_version = excluded.prompt_version,
+       created_at = excluded.created_at,
+       expires_at = excluded.expires_at`
+  ).run(hash, JSON.stringify(payload), promptVersion, now.toISOString(), expires.toISOString());
+  // Opportunistic GC on a small fraction of writes so expired rows are
+  // reclaimed during normal operation, not only at boot. Best-effort: a prune
+  // failure must never fail the write that just succeeded.
+  if (Math.random() < CACHE_PRUNE_PROBABILITY) {
+    try {
+      // Bound the opportunistic prune: it fires on a user-facing write path, so an
+      // unbounded DELETE over a large expired backlog would hold the write lock for
+      // seconds and stall (SQLITE_BUSY) concurrent storePromptCache/scheduler writes.
+      // The boot prune stays unbounded but runs off the hot path.
+      prunePromptCache(500);
+    } catch (error) {
+      console.error("[db] prompt-cache opportunistic prune failed", error);
+    }
+  }
+}
+
+// DATA2 — prompt-cache visibility for the ops panel: live row count plus the
+// expired backlog the bounded opportunistic prune hasn't reclaimed yet.
+export function promptCacheStats(): { rows: number; expiredBacklog: number } {
+  const db = ensureDb();
+  const now = new Date().toISOString();
+  const rows = (db.prepare(`SELECT COUNT(*) AS n FROM gemini_cache`).get() as { n: number }).n;
+  const expired = (db.prepare(`SELECT COUNT(*) AS n FROM gemini_cache WHERE expires_at < ?`).get(now) as { n: number }).n;
+  return { rows, expiredBacklog: expired };
+}

@@ -1,0 +1,512 @@
+import { coerceOutboxStatus, type OutboxStatus } from "../comms-status";
+import { randomId } from "../random-id";
+import type { DevNeed } from "../devcase-run";
+import { ensureDb, safeRowParse } from "./core";
+
+// ---- Dev extension — approved case scenarios (Phase D3) -------------------
+
+export type DevCaseRecord = {
+  id: string;
+  title: string | null;
+  roleTitle: string | null;
+  seniority: string | null;
+  need: unknown;
+  analysis: unknown;
+  role: unknown;
+  case: unknown;
+  // The role's AI-interview scenario generated from the approved case
+  // (devcase/interview_scenario.py) — null until the lifecycle generates it.
+  scenario: unknown;
+  // The case's materialized seed ({files: [{path, contents}], note}) — null
+  // until the lifecycle materializes it (devcase/seed_materializer.py).
+  seed: unknown;
+  status: string;
+  createdAt: string;
+};
+
+type DevCaseRow = {
+  id: string;
+  title: string | null;
+  role_title: string | null;
+  seniority: string | null;
+  need_json: string | null;
+  analysis_json: string | null;
+  role_json: string | null;
+  case_json: string | null;
+  scenario_json: string | null;
+  seed_json: string | null;
+  status: string;
+  created_at: string;
+};
+
+function rowToDevCase(r: DevCaseRow): DevCaseRecord {
+  return {
+    id: r.id,
+    title: r.title,
+    roleTitle: r.role_title,
+    seniority: r.seniority,
+    need: safeRowParse(r.need_json, "devCase.need", r.id),
+    analysis: safeRowParse(r.analysis_json, "devCase.analysis", r.id),
+    role: safeRowParse(r.role_json, "devCase.role", r.id),
+    case: safeRowParse(r.case_json, "devCase.case", r.id),
+    scenario: safeRowParse(r.scenario_json, "devCase.scenario", r.id),
+    seed: safeRowParse(r.seed_json, "devCase.seed", r.id),
+    status: r.status,
+    createdAt: r.created_at,
+  };
+}
+
+/** Persist the case-designed interview scenario on its dev case (one per role). */
+export function saveDevCaseScenario(id: string, scenario: unknown): void {
+  const db = ensureDb();
+  db.prepare(`UPDATE dev_cases SET scenario_json = ? WHERE id = ?`).run(JSON.stringify(scenario ?? null), id);
+}
+
+/** Persist the materialized seed (the concrete starter file tree) on its dev case. */
+export function saveDevCaseSeed(id: string, seed: unknown): void {
+  const db = ensureDb();
+  db.prepare(`UPDATE dev_cases SET seed_json = ? WHERE id = ?`).run(JSON.stringify(seed ?? null), id);
+}
+
+export function saveDevCase(input: {
+  need: unknown;
+  analysis: unknown;
+  role: { title?: string; seniority?: string } & Record<string, unknown>;
+  case: { title?: string } & Record<string, unknown>;
+}): { id: string; createdAt: string } {
+  const db = ensureDb();
+  const now = new Date().toISOString();
+  const id = randomId("dc");
+  db.prepare(
+    `INSERT INTO dev_cases (id, title, role_title, seniority, need_json, analysis_json, role_json, case_json, status, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'approved', ?)`
+  ).run(
+    id,
+    input.case.title ?? null,
+    input.role.title ?? null,
+    input.role.seniority ?? null,
+    JSON.stringify(input.need ?? null),
+    JSON.stringify(input.analysis ?? null),
+    JSON.stringify(input.role ?? null),
+    JSON.stringify(input.case ?? null),
+    now
+  );
+  return { id, createdAt: now };
+}
+
+export function listDevCases(limit = 50): DevCaseRecord[] {
+  const db = ensureDb();
+  const rows = db.prepare(`SELECT * FROM dev_cases ORDER BY created_at DESC LIMIT ?`).all(limit) as DevCaseRow[];
+  return rows.map(rowToDevCase);
+}
+
+export function getDevCase(id: string): DevCaseRecord | null {
+  const db = ensureDb();
+  const r = db.prepare(`SELECT * FROM dev_cases WHERE id = ?`).get(id) as DevCaseRow | undefined;
+  return r ? rowToDevCase(r) : null;
+}
+
+// ---- Dev extension — lifecycle orchestration state (Direction A) -----------
+
+// The orchestrator branches on these payload fields, so they carry real shapes
+// rather than `unknown` — a mismatch is then a compile error at the read site,
+// not a runtime `undefined`. Each keeps an index signature: the Python design
+// steps emit richer objects than the orchestrator reads, and those extra keys
+// must round-trip through saveDevCase / the UI untouched.
+//
+// Reality-reflection output the auto-approve gate scores (statedVsRealGaps + confidence).
+export type LifecycleAnalysis = { statedVsRealGaps?: string[]; confidence?: number } & Record<string, unknown>;
+// Designed RoleSpec — title/seniority drive sourcing labels + candidate comms.
+export type LifecycleRole = { title?: string; seniority?: string } & Record<string, unknown>;
+// Designed CaseScenario (covert probes, rubric, tasks) — opaque to the orchestrator.
+export type LifecycleCase = Record<string, unknown>;
+
+export type LifecycleRecord = {
+  id: string;
+  title: string | null;
+  stage: string;
+  auto: boolean;
+  // null only when the stored JSON is absent or corrupt (safeRowParse fell back).
+  need: DevNeed | null;
+  analysis: LifecycleAnalysis | null;
+  role: LifecycleRole | null;
+  case: LifecycleCase | null;
+  caseId: string | null;
+  postingId: string | null;
+  detail: string | null;
+  // DEVP5 — candidate-facing artifact language (en|cs), captured at intake.
+  lang: string | null;
+  createdAt: string;
+  updatedAt: string | null;
+};
+
+function rowToLifecycle(r: Record<string, unknown>): LifecycleRecord {
+  return {
+    id: r.id as string,
+    title: (r.title as string) ?? null,
+    stage: r.stage as string,
+    auto: Number(r.auto ?? 1) === 1,
+    need: safeRowParse<DevNeed>(r.need_json as string | null, "lifecycle.need", r.id as string),
+    analysis: safeRowParse<LifecycleAnalysis>(r.analysis_json as string | null, "lifecycle.analysis", r.id as string),
+    role: safeRowParse<LifecycleRole>(r.role_json as string | null, "lifecycle.role", r.id as string),
+    case: safeRowParse<LifecycleCase>(r.case_json as string | null, "lifecycle.case", r.id as string),
+    caseId: (r.case_id as string) ?? null,
+    postingId: (r.posting_id as string) ?? null,
+    detail: (r.detail as string) ?? null,
+    lang: (r.lang as string) ?? null,
+    createdAt: r.created_at as string,
+    updatedAt: (r.updated_at as string) ?? null,
+  };
+}
+
+export function createLifecycle(
+  need: { title?: string } & Record<string, unknown>,
+  auto: boolean,
+  lang?: string | null
+): LifecycleRecord {
+  const db = ensureDb();
+  const now = new Date().toISOString();
+  const id = randomId("lc");
+  db.prepare(
+    `INSERT INTO dev_lifecycle (id, title, stage, auto, need_json, detail, lang, created_at, updated_at)
+     VALUES (?, ?, 'intake', ?, ?, 'created', ?, ?, ?)`
+  ).run(id, need.title ?? "Untitled role", auto ? 1 : 0, JSON.stringify(need), lang ?? null, now, now);
+  return getLifecycle(id)!;
+}
+
+export function getLifecycle(id: string): LifecycleRecord | null {
+  const db = ensureDb();
+  const r = db.prepare(`SELECT * FROM dev_lifecycle WHERE id = ?`).get(id) as Record<string, unknown> | undefined;
+  return r ? rowToLifecycle(r) : null;
+}
+
+export function listLifecycles(limit = 50): LifecycleRecord[] {
+  const db = ensureDb();
+  const rows = db.prepare(`SELECT * FROM dev_lifecycle ORDER BY created_at DESC LIMIT ?`).all(limit) as Array<Record<string, unknown>>;
+  return rows.map(rowToLifecycle);
+}
+
+export function lifecycleByPosting(postingId: string): LifecycleRecord | null {
+  const db = ensureDb();
+  const r = db.prepare(`SELECT * FROM dev_lifecycle WHERE posting_id = ? LIMIT 1`).get(postingId) as Record<string, unknown> | undefined;
+  return r ? rowToLifecycle(r) : null;
+}
+
+/** Patch a lifecycle record (stage + any artifact columns) and stamp updated_at. */
+export function updateLifecycle(
+  id: string,
+  patch: { stage?: string; analysis?: unknown; role?: unknown; case?: unknown; caseId?: string; postingId?: string; detail?: string }
+): void {
+  const db = ensureDb();
+  const sets: string[] = ["updated_at = ?"];
+  const vals: unknown[] = [new Date().toISOString()];
+  const set = (column: string, value: unknown) => {
+    sets.push(`${column} = ?`);
+    vals.push(value);
+  };
+  if (patch.stage !== undefined) set("stage", patch.stage);
+  if (patch.analysis !== undefined) set("analysis_json", JSON.stringify(patch.analysis));
+  if (patch.role !== undefined) set("role_json", JSON.stringify(patch.role));
+  if (patch.case !== undefined) set("case_json", JSON.stringify(patch.case));
+  if (patch.caseId !== undefined) set("case_id", patch.caseId);
+  if (patch.postingId !== undefined) set("posting_id", patch.postingId);
+  if (patch.detail !== undefined) set("detail", patch.detail);
+  vals.push(id);
+  db.prepare(`UPDATE dev_lifecycle SET ${sets.join(", ")} WHERE id = ?`).run(...vals);
+}
+
+// The one approve transition: persist the designed artifacts as a dev case and
+// flip the lifecycle to "approved" in a SINGLE transaction. Both writes hit this
+// connection, so wrapping them means a concurrent writer (another lifecycle task,
+// an API handler) can never observe — nor a mid-sequence failure leave — a saved
+// case with its lifecycle still stuck pre-approval. Shared by the orchestrator's
+// auto-approve gate and the human-approve route; `detail` carries the path-specific
+// reason and the caller records the (separate-connection) audit row after this
+// returns. Returns the new case id.
+export function approveLifecycleCase(
+  id: string,
+  lc: Pick<LifecycleRecord, "need" | "analysis" | "role" | "case">,
+  detail: string
+): { caseId: string } {
+  const db = ensureDb();
+  const caseId = db.transaction(() => {
+    const saved = saveDevCase({
+      need: lc.need,
+      analysis: lc.analysis,
+      role: lc.role ?? {},
+      case: lc.case ?? {},
+    });
+    updateLifecycle(id, { stage: "approved", caseId: saved.id, detail });
+    return saved.id;
+  })();
+  return { caseId };
+}
+
+// ---- Dev extension — distribution: postings (OUT) + submissions (IN) (D4) -
+
+export type Posting = {
+  id: string;
+  caseId: string | null;
+  channel: string;
+  token: string | null;
+  roleTitle: string | null;
+  caseTitle: string | null;
+  status: string;
+  createdAt: string;
+  submissionCount?: number;
+};
+
+export type DevSubmission = {
+  id: string;
+  postingId: string | null;
+  candidateRef: string | null;
+  repoRef: string | null;
+  notes: string | null;
+  contact: string | null;
+  status: string;
+  evaluation: unknown;
+  transferScore: number | null;
+  receivedAt: string;
+};
+
+function rowToSubmission(r: Record<string, unknown>): DevSubmission {
+  return {
+    id: r.id as string,
+    postingId: (r.posting_id as string) ?? null,
+    candidateRef: (r.candidate_ref as string) ?? null,
+    repoRef: (r.repo_ref as string) ?? null,
+    notes: (r.notes as string) ?? null,
+    contact: (r.contact as string) ?? null,
+    status: r.status as string,
+    evaluation: safeRowParse(r.eval_json as string | null, "submission.eval", r.id as string),
+    transferScore: r.transfer_score == null ? null : Number(r.transfer_score),
+    receivedAt: r.received_at as string,
+  };
+}
+
+// ---- Dev extension — comms outbox (Direction B) ---------------------------
+
+export type OutboxEntry = {
+  id: string;
+  recipient: string | null;
+  subject: string | null;
+  body: string | null;
+  kind: string | null;
+  channel: string | null;
+  // Delivery status — the canonical three-state contract (see comms-status.ts).
+  status: OutboxStatus;
+  ref: string | null;
+  createdAt: string;
+};
+
+export function recordOutbox(input: {
+  recipient: string;
+  subject: string;
+  body: string;
+  kind: string;
+  channel: string;
+  status: OutboxStatus;
+  ref?: string | null;
+}): OutboxEntry {
+  const db = ensureDb();
+  const now = new Date().toISOString();
+  const id = randomId("out");
+  db.prepare(
+    `INSERT INTO dev_outbox (id, recipient, subject, body, kind, channel, status, ref, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  ).run(id, input.recipient, input.subject, input.body, input.kind, input.channel, input.status, input.ref ?? null, now);
+  return { id, ...input, ref: input.ref ?? null, createdAt: now };
+}
+
+function rowToOutboxEntry(r: Record<string, unknown>): OutboxEntry {
+  return {
+    id: r.id as string,
+    recipient: (r.recipient as string) ?? null,
+    subject: (r.subject as string) ?? null,
+    body: (r.body as string) ?? null,
+    kind: (r.kind as string) ?? null,
+    channel: (r.channel as string) ?? null,
+    // Normalize so legacy rows (e.g. "failed:500") and any stray value map to the
+    // canonical enum — callers/UI can rely on exactly the three documented states.
+    status: coerceOutboxStatus(r.status as string | null),
+    ref: (r.ref as string) ?? null,
+    createdAt: r.created_at as string,
+  };
+}
+
+export function listOutbox(limit = 50): OutboxEntry[] {
+  const db = ensureDb();
+  const rows = db.prepare(`SELECT * FROM dev_outbox ORDER BY created_at DESC LIMIT ?`).all(limit) as Array<Record<string, unknown>>;
+  return rows.map(rowToOutboxEntry);
+}
+
+/** One outbox row by id — the resend route's read (W6-1). */
+export function getOutboxEntry(id: string): OutboxEntry | null {
+  const db = ensureDb();
+  const r = db.prepare(`SELECT * FROM dev_outbox WHERE id = ?`).get(id) as Record<string, unknown> | undefined;
+  return r ? rowToOutboxEntry(r) : null;
+}
+
+/** Filterable outbox read (W6-1/SIM1) — per-candidate ("what did this person
+ *  receive?"), per-status (dead-letter triage) and per-kind views for the Comms
+ *  Center and the drawer's Messages section. All filters optional. */
+export function listOutboxFiltered(opts: { ref?: string; status?: OutboxStatus; kind?: string; limit?: number }): OutboxEntry[] {
+  const db = ensureDb();
+  const where: string[] = [];
+  const vals: unknown[] = [];
+  if (opts.ref) {
+    where.push("ref = ?");
+    vals.push(opts.ref);
+  }
+  if (opts.status) {
+    where.push("status = ?");
+    vals.push(opts.status);
+  }
+  if (opts.kind) {
+    where.push("kind = ?");
+    vals.push(opts.kind);
+  }
+  vals.push(Math.min(Math.max(opts.limit ?? 100, 1), 500));
+  const rows = db
+    .prepare(
+      `SELECT * FROM dev_outbox ${where.length ? `WHERE ${where.join(" AND ")}` : ""} ORDER BY created_at DESC LIMIT ?`
+    )
+    .all(...vals) as Array<Record<string, unknown>>;
+  return rows.map(rowToOutboxEntry);
+}
+
+export function createPosting(input: {
+  caseId: string;
+  channel: string;
+  token: string;
+  roleTitle: string | null;
+  caseTitle: string | null;
+}): Posting {
+  const db = ensureDb();
+  const now = new Date().toISOString();
+  const id = randomId("pst");
+  db.prepare(
+    `INSERT INTO dev_postings (id, case_id, channel, token, role_title, case_title, status, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, 'open', ?)`
+  ).run(id, input.caseId, input.channel, input.token, input.roleTitle, input.caseTitle, now);
+  return { id, caseId: input.caseId, channel: input.channel, token: input.token, roleTitle: input.roleTitle, caseTitle: input.caseTitle, status: "open", createdAt: now };
+}
+
+export function listPostings(): Posting[] {
+  const db = ensureDb();
+  const rows = db
+    .prepare(
+      `SELECT p.*, (SELECT COUNT(*) FROM dev_submissions s WHERE s.posting_id = p.id) AS submission_count
+       FROM dev_postings p ORDER BY p.created_at DESC`
+    )
+    .all() as Array<Record<string, unknown>>;
+  return rows.map((r) => ({
+    id: r.id as string,
+    caseId: (r.case_id as string) ?? null,
+    channel: r.channel as string,
+    token: (r.token as string) ?? null,
+    roleTitle: (r.role_title as string) ?? null,
+    caseTitle: (r.case_title as string) ?? null,
+    status: r.status as string,
+    createdAt: r.created_at as string,
+    submissionCount: Number(r.submission_count ?? 0),
+  }));
+}
+
+export function getPostingByToken(token: string): Posting | null {
+  const db = ensureDb();
+  const r = db.prepare(`SELECT * FROM dev_postings WHERE token = ?`).get(token) as Record<string, unknown> | undefined;
+  if (!r) return null;
+  return {
+    id: r.id as string,
+    caseId: (r.case_id as string) ?? null,
+    channel: r.channel as string,
+    token: (r.token as string) ?? null,
+    roleTitle: (r.role_title as string) ?? null,
+    caseTitle: (r.case_title as string) ?? null,
+    status: r.status as string,
+    createdAt: r.created_at as string,
+  };
+}
+
+// Atomic, idempotent on (posting, candidate, repo): the UNIQUE index +
+// ON CONFLICT DO NOTHING make a concurrent double-submit impossible at the DB
+// level (no read-then-write race). `created` is false when the row already
+// existed; the canonical row is always re-selected and returned.
+export function createSubmission(input: {
+  postingId: string;
+  candidateRef: string;
+  repoRef: string;
+  notes?: string;
+  contact?: string;
+}): { submission: DevSubmission; created: boolean } {
+  const db = ensureDb();
+  const now = new Date().toISOString();
+  const id = randomId("sub");
+  const info = db
+    .prepare(
+      `INSERT INTO dev_submissions (id, posting_id, candidate_ref, repo_ref, notes, contact, status, received_at)
+       VALUES (?, ?, ?, ?, ?, ?, 'received', ?)
+       ON CONFLICT DO NOTHING`
+    )
+    .run(id, input.postingId, input.candidateRef, input.repoRef, input.notes ?? null, input.contact ?? null, now);
+  const created = Number(info.changes) > 0;
+  // Re-select the canonical row: ours if just created, otherwise the row that
+  // won the race / was inserted earlier.
+  const row = db
+    .prepare(
+      `SELECT * FROM dev_submissions
+       WHERE posting_id = ? AND candidate_ref = ? AND repo_ref = ?
+       ORDER BY received_at ASC LIMIT 1`
+    )
+    .get(input.postingId, input.candidateRef, input.repoRef) as Record<string, unknown>;
+  return { submission: rowToSubmission(row), created };
+}
+
+export function listSubmissions(postingId?: string): DevSubmission[] {
+  const db = ensureDb();
+  const rows = (
+    postingId
+      ? db.prepare(`SELECT * FROM dev_submissions WHERE posting_id = ? ORDER BY received_at DESC`).all(postingId)
+      : db.prepare(`SELECT * FROM dev_submissions ORDER BY received_at DESC`).all()
+  ) as Array<Record<string, unknown>>;
+  return rows.map(rowToSubmission);
+}
+
+export function getSubmission(id: string): DevSubmission | null {
+  const db = ensureDb();
+  const r = db.prepare(`SELECT * FROM dev_submissions WHERE id = ?`).get(id) as Record<string, unknown> | undefined;
+  return r ? rowToSubmission(r) : null;
+}
+
+/** Flip a posting's status (W5-3: "closed" stops the apply page + inbound
+ *  webhook from collecting submissions nobody will process). */
+export function setPostingStatus(id: string, status: string): boolean {
+  const db = ensureDb();
+  return db.prepare(`UPDATE dev_postings SET status = ? WHERE id = ?`).run(status, id).changes > 0;
+}
+
+export function getPosting(id: string): Posting | null {
+  const db = ensureDb();
+  const r = db.prepare(`SELECT * FROM dev_postings WHERE id = ?`).get(id) as Record<string, unknown> | undefined;
+  if (!r) return null;
+  return {
+    id: r.id as string,
+    caseId: (r.case_id as string) ?? null,
+    channel: r.channel as string,
+    token: (r.token as string) ?? null,
+    roleTitle: (r.role_title as string) ?? null,
+    caseTitle: (r.case_title as string) ?? null,
+    status: r.status as string,
+    createdAt: r.created_at as string,
+  };
+}
+
+export function saveSubmissionEvaluation(id: string, evaluation: unknown, transferScore: number): void {
+  const db = ensureDb();
+  db.prepare(`UPDATE dev_submissions SET eval_json = ?, transfer_score = ?, status = 'evaluated' WHERE id = ?`).run(
+    JSON.stringify(evaluation ?? null),
+    transferScore,
+    id
+  );
+}
