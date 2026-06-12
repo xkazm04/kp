@@ -14,6 +14,7 @@ import {
   storePromptCache,
 } from "./db";
 import { cleanupWorkdir, createWorkdir, parsePythonJson, parseStderrError, spawnPython } from "./python-runner";
+import { meterAllows } from "./billing/enforce";
 import { buildLlmConfigEnv } from "./llm-config";
 import { computeAutomationCacheKey, computeCorpusFingerprint } from "./automation-cache-key";
 import { screenStageOutcome } from "./pipeline-stages";
@@ -134,6 +135,10 @@ export async function runAutomationTask(entryId: string, task: string, notes = "
       await writeFile(profilePath, profileJson, "utf-8");
 
       const args = ["-m", "pipeline.jobfit.automation_cli", task, "--profile-json", profilePath];
+      // Billing degrade: past the AI-candidates allowance, automation drafting
+      // runs the deterministic templates (--no-llm) instead of blocking the
+      // pipeline. Part of the analyze-debited candidate bundle — no extra debit.
+      if (!meterAllows("ai_candidates")) args.push("--no-llm");
       if (task === "rematch") {
         args.push("--current-job-id", entry.jobId ?? "");
         // Score the SAME live corpus we fingerprinted into the cache key (not Python's

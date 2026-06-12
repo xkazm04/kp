@@ -47,10 +47,15 @@ the client, never inferred from a checkout redirect.
 - **Degrade, not block:** call sites ask `meterAllowance(meter)` before
   spending and switch to their deterministic fallbacks when exhausted — the
   same paths that run when an LLM provider is down. Reads never hard-fail.
-- `recordMeterUsage(meter, qty)` is the debit; wire it where the meters map to
-  product actions: `ai_candidates` at the analyze/match-reasoning boundary,
-  `case_designs` at devcase design, `interview_minutes` at interview completion
-  (`interview_sessions.duration_min`). ← this wiring is the next milestone.
+- **Enforcement is wired (2026-06-12, enforce.ts):** hard 402 gates (code
+  `quota_exceeded`) where new metered work is created — `/api/analyze`
+  (debits 1 `ai_candidates`), `/api/devcase/lifecycle` + `…/redesign` (debit
+  `case_designs`), `/api/interview/create` (gate only; the debit is wall-time
+  minutes at `/api/interview/complete`, completed calls only, clamped to 2×
+  the booked length), and `/api/jobs/[id]/publish` (the active-jobs cap;
+  seeded corpus jobs don't count). Degrade paths: reasoning-run and
+  automation-run append `--no-llm` past the allowance — deterministic
+  templates, never cached, upgrade when allowance returns.
 
 ## Idempotency (two layers)
 

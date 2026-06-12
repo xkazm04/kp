@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+import { activeJobsGate } from "@/app/_lib/billing";
 import { createPipelineEntry, getJob } from "@/app/_lib/db";
-import { getJobStatus, setJobStatus } from "@/app/_lib/job-ingest";
+import { countPublishedJobs, getJobStatus, setJobStatus } from "@/app/_lib/job-ingest";
 import { runSourceForRole } from "@/app/_lib/devcase-run";
 import { splitRequirements } from "@/app/features/sub_jobs/JobsTypes";
 
@@ -21,6 +22,12 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     if (!job) return NextResponse.json({ error: "Job not found." }, { status: 404 });
 
     const already = getJobStatus(id) === "published";
+    // Billing hard gate: the free plan allows 1 concurrently-active authored
+    // job. Re-publishing an already-live job is always allowed (idempotent).
+    if (!already) {
+      const quota = activeJobsGate(countPublishedJobs());
+      if (quota) return NextResponse.json(quota, { status: 402 });
+    }
     setJobStatus(id, "published");
 
     let sourced = 0;

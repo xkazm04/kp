@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { recordMeterUsage } from "@/app/_lib/billing";
 import {
   attachInterviewScorecard,
   completeInterviewSession,
@@ -128,6 +129,20 @@ export async function POST(request: NextRequest) {
         session: persisted,
         scorecard: persisted?.scorecard ?? null,
       });
+    }
+
+    // Billing debit (docs/BILLING.md): interview minutes are metered on the
+    // completion whose write APPLIED (the row-level guard above also makes the
+    // debit idempotent across duplicate POSTs) and only for real "completed"
+    // calls — a dropped/failed call doesn't bill. Minutes = wall time from
+    // consent-gated start, clamped to [1, 2× the booked length] so a clock
+    // anomaly can't drain the meter; no start timestamp falls back to the
+    // booked duration.
+    if (status === "completed") {
+      const bookedMin = session.durationMin ?? 8;
+      const startedMs = session.startedAt ? Date.parse(session.startedAt) : NaN;
+      const elapsedMin = Number.isFinite(startedMs) ? Math.ceil((Date.now() - startedMs) / 60_000) : bookedMin;
+      recordMeterUsage("interview_minutes", Math.min(Math.max(elapsedMin, 1), bookedMin * 2));
     }
 
     // Synthesize the scorecard for candidate-mode sessions (best-effort: the

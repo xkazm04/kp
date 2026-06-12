@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getServerLocale } from "@/i18n/server";
 import { isLocale } from "@/i18n/locales";
+import { meterGate, recordMeterUsage } from "@/app/_lib/billing";
 import type { AnalyzeParams } from "@/app/_lib/analyze-run";
 import { dedupeCvVariants } from "@/app/_lib/cv-variant";
 import { newRequestId } from "@/app/_lib/logger";
@@ -19,6 +20,13 @@ export const maxDuration = 60;
 // returning { task }. The client polls /api/tasks/[id] (and the global Tasks
 // indicator tracks it) — so the analysis survives navigation + page refresh.
 export async function POST(request: Request) {
+  // Billing hard gate: a CV analysis is the unit behind the "AI candidates"
+  // meter (one person fully worked — variants of the same person count once).
+  // Debited below at task start; a failed run burns the unit (v1 — refunds are
+  // a later nicety, not a contract).
+  const quota = meterGate("ai_candidates");
+  if (quota) return NextResponse.json(quota, { status: 402 });
+
   const form = await request.formData();
   const grounding = form.get("grounding") === "true";
   const jobDescriptionFile = form.get("jobDescription");
@@ -103,6 +111,7 @@ export async function POST(request: Request) {
     lang,
   };
 
+  recordMeterUsage("ai_candidates");
   const task = startTask("analyze", params as unknown as Record<string, unknown>);
   return NextResponse.json({ task });
 }

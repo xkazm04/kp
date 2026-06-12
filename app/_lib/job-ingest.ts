@@ -130,6 +130,13 @@ export function getJobStatus(jobId: string): string | null {
   return r?.status ?? null;
 }
 
+/** Authored jobs currently live — the count the billing active-jobs cap reads.
+ *  Seeded corpus jobs carry NULL status and deliberately don't count. */
+export function countPublishedJobs(): number {
+  const r = db().prepare(`SELECT COUNT(*) AS n FROM jobs WHERE status = 'published'`).get() as { n: number };
+  return r.n;
+}
+
 /** Map of jobId → status for jobs that carry one (the authored JDs). Seeded
  *  corpus jobs have NULL status and are treated as already live. */
 export function listJobStatuses(): Record<string, string> {

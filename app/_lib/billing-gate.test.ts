@@ -52,6 +52,7 @@ const { getBillingState, upsertBillingState, creditBalance, billingUsageFor } = 
 const { billingOverview, entitledPlan, meterAllowance, recordMeterUsage } = await import(
   "./billing/entitlements.ts"
 );
+const { activeJobsGate, meterGate } = await import("./billing/enforce.ts");
 const { ingestBillingWebhook } = await import("./billing/sync.ts");
 const { currentPeriod } = await import("./billing/plans.ts");
 
@@ -179,4 +180,25 @@ test("canceled stays entitled until period end, then falls to free", () => {
   });
   assert.equal(entitledPlan(getBillingState(), new Date("2026-06-15T00:00:00Z")).id, "starter");
   assert.equal(entitledPlan(getBillingState(), new Date("2026-07-02T00:00:00Z")).id, "free");
+});
+
+test("meterGate verdicts: exhausted allowance blocks, credits keep a meter open", () => {
+  upsertBillingState({ plan: "free", status: "none", provider: "polar" });
+  // ai_candidates: 5/5 used earlier in this file → hard gate fires.
+  const verdict = meterGate("ai_candidates");
+  assert.equal(verdict?.code, "quota_exceeded");
+  assert.equal(verdict?.meter, "ai_candidates");
+  assert.equal(verdict?.plan, "free");
+  // interview_minutes: free includes 0, but the pack balance keeps it open.
+  assert.equal(meterGate("interview_minutes"), null);
+});
+
+test("activeJobsGate caps free at 1 published job; paid plans are uncapped", () => {
+  upsertBillingState({ plan: "free", status: "none", provider: "polar" });
+  assert.equal(activeJobsGate(0), null);
+  const verdict = activeJobsGate(1);
+  assert.equal(verdict?.code, "quota_exceeded");
+  assert.equal(verdict?.meter, "active_jobs");
+  upsertBillingState({ plan: "growth", status: "active", provider: "polar" });
+  assert.equal(activeJobsGate(25), null);
 });
