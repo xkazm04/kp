@@ -456,6 +456,11 @@ function ensureDb(): Database.Database {
     // Compact GitHub evidence summary captured at add-to-pipeline (GH2):
     // coerceGithubEvidenceSummary-shaped JSON, bounded at write AND read.
     "ALTER TABLE pipeline_entries ADD COLUMN github_json TEXT",
+    // Self-reported GitHub handle captured at inbound apply (normalized bare
+    // username — see coerceGithubHandle in apply-intake.ts), the hook the
+    // drawer's on-demand deep-dive runs from. NULL when the applicant skipped
+    // the step (and on recruiter/Match adds, which attach full evidence instead).
+    "ALTER TABLE pipeline_entries ADD COLUMN github_handle TEXT",
     // E3 (Erika gap) — fine-grained inbound source attribution, the queryable
     // axis funnel economics (E5) will group on: 'apply' (conversational),
     // 'quick-apply', or a webhook channel id ('email'/'boards'). NULL on
@@ -1689,6 +1694,10 @@ export type PipelineEntry = {
   // Compact GitHub evidence summary captured at add-to-pipeline (GH2), else
   // null. Bounded by coerceGithubEvidenceSummary on both write and read.
   githubEvidence: GithubEvidenceSummary | null;
+  // Self-reported GitHub handle captured at inbound apply (normalized bare
+  // username), else null. Lets the drawer offer the on-demand deep-dive when
+  // no evidence has been attached yet.
+  githubHandle: string | null;
   // E3 — inbound source attribution: 'apply' (conversational), 'quick-apply',
   // or a webhook channel id ('email'/'boards'). NULL = recruiter/Match-sourced
   // or predates attribution. The axis E5 funnel economics groups on.
@@ -2008,6 +2017,7 @@ type PipelineRow = {
   contact: string | null;
   locale?: string | null;
   github_json?: string | null;
+  github_handle?: string | null;
   source_channel?: string | null;
   source_campaign?: string | null;
   source_variant?: string | null;
@@ -2042,6 +2052,7 @@ function rowToEntry(r: PipelineRow): PipelineEntry {
     contact: r.contact ?? null,
     locale: r.locale ?? null,
     githubEvidence: parseGithubEvidence(r.github_json, r.id),
+    githubHandle: r.github_handle ?? null,
     sourceChannel: r.source_channel ?? null,
     sourceCampaign: r.source_campaign ?? null,
     sourceVariant: r.source_variant ?? null,
@@ -2075,9 +2086,13 @@ export function listPipeline(): PipelineEntry[] {
       // Exclude BOTH terminal states (recruiter `rejected` and candidate
       // `declined`) from the active pipeline view — this used to be a bare
       // `status != 'rejected'`, which leaked declined entries back into the board.
+      // github_json / github_handle ride the board payload so the drawer can
+      // render attached evidence and offer the on-demand deep-dive for an
+      // inbound applicant who shared a handle at apply (both bounded at the
+      // rowToEntry read boundary).
       `SELECT id, candidate_id, candidate_label, archetype, role_family, job_id, job_title,
               stage, match_score, status, approval_kind, approval_detail, created_at, stage_changed_at,
-              intake_degraded, intake_degraded_reason
+              intake_degraded, intake_degraded_reason, github_json, github_handle
        FROM pipeline_entries WHERE status NOT IN ${TERMINAL_STATUS_SQL_LIST}
        ORDER BY job_title, match_score DESC`
     )
@@ -2745,6 +2760,10 @@ export type CreatePipelineInput = {
   // an existing entry only when the column is still empty (evidence is additive;
   // a re-add must never silently overwrite earlier evidence).
   githubJson?: string | null;
+  // Self-reported GitHub handle from inbound apply (already normalized by the
+  // coerceGithubHandle trust-boundary gate). Backfilled onto an existing entry
+  // only when the column is still empty — same FILL-ONLY discipline as githubJson.
+  githubHandle?: string | null;
 };
 
 // Idempotent: a (candidate, job) pair maps to one entry, so re-adding from Match
@@ -2764,6 +2783,15 @@ export function createPipelineEntry(input: CreatePipelineInput): { entry: Pipeli
     if (input.githubJson && !existing.github_json) {
       db.prepare(`UPDATE pipeline_entries SET github_json=?, updated_at=? WHERE id=?`).run(
         input.githubJson,
+        new Date().toISOString(),
+        id
+      );
+    }
+    // Same additive discipline for the self-reported handle: a repeat that
+    // brings one fills an entry that has none, never overwrites one on file.
+    if (input.githubHandle && !existing.github_handle) {
+      db.prepare(`UPDATE pipeline_entries SET github_handle=?, updated_at=? WHERE id=?`).run(
+        input.githubHandle,
         new Date().toISOString(),
         id
       );
@@ -2788,11 +2816,11 @@ export function createPipelineEntry(input: CreatePipelineInput): { entry: Pipeli
     `INSERT INTO pipeline_entries
        (id, candidate_id, candidate_label, archetype, role_family, job_id, job_title,
         stage, match_score, status, approval_kind, approval_detail, created_at, stage_changed_at, updated_at,
-        intake_degraded, intake_degraded_reason, contact, locale, github_json, source_channel,
+        intake_degraded, intake_degraded_reason, contact, locale, github_json, github_handle, source_channel,
         source_campaign, source_variant)
      VALUES (@id, @candidate_id, @candidate_label, @archetype, @role_family, @job_id, @job_title,
         @stage, @match_score, 'active', NULL, '', @now, @now, @now,
-        @intake_degraded, @intake_degraded_reason, @contact, @locale, @github_json, @source_channel,
+        @intake_degraded, @intake_degraded_reason, @contact, @locale, @github_json, @github_handle, @source_channel,
         @source_campaign, @source_variant)`
   ).run({
     id,
@@ -2810,6 +2838,7 @@ export function createPipelineEntry(input: CreatePipelineInput): { entry: Pipeli
     contact: input.contact ?? null,
     locale: input.locale ?? null,
     github_json: input.githubJson ?? null,
+    github_handle: input.githubHandle ?? null,
     source_channel: input.sourceChannel ?? null,
     source_campaign: input.sourceCampaign ?? null,
     source_variant: input.sourceVariant ?? null,
@@ -2877,7 +2906,9 @@ export function findApplicationByApplicant(jobId: string, name: string, email?: 
 //   - contact is BACKFILL-ONLY (SQL-guarded, same FILL-ONLY discipline as
 //     setEntryMatchScore): an entry that already has an address keeps it — a
 //     repeat with a different address never reaches here anyway (it's a new
-//     applicant per findApplicationByApplicant).
+//     applicant per findApplicationByApplicant). The GitHub handle follows the
+//     same fill-only rule — a repeat (or a lead's enrichment walk) that shares
+//     one fills a handle-less entry and never overwrites one on file.
 //   - candidateId re-points the entry at a rebuilt profile and clears the
 //     intake-degraded flag (the rebuild succeeding IS the recovery); archetype
 //     refreshes alongside when the rebuild produced one.
@@ -2886,7 +2917,7 @@ export function findApplicationByApplicant(jobId: string, name: string, email?: 
 // entry, or null when the id is unknown.
 export function mergeReapplication(
   id: string,
-  updates: { contact?: string | null; candidateId?: string | null; archetype?: string | null }
+  updates: { contact?: string | null; candidateId?: string | null; archetype?: string | null; githubHandle?: string | null }
 ): PipelineEntry | null {
   const db = ensureDb();
   const now = new Date().toISOString();
@@ -2894,6 +2925,11 @@ export function mergeReapplication(
     db.prepare(
       `UPDATE pipeline_entries SET contact = ?, updated_at = ? WHERE id = ? AND (contact IS NULL OR contact = '')`
     ).run(updates.contact, now, id);
+  }
+  if (updates.githubHandle) {
+    db.prepare(
+      `UPDATE pipeline_entries SET github_handle = ?, updated_at = ? WHERE id = ? AND (github_handle IS NULL OR github_handle = '')`
+    ).run(updates.githubHandle, now, id);
   }
   if (updates.candidateId) {
     db.prepare(
@@ -3002,6 +3038,39 @@ export function clearIntakeDegraded(id: string): PipelineEntry | null {
     toStage: row.stage,
     detail: "intake captured manually",
   });
+  const updated = db.prepare(`SELECT * FROM pipeline_entries WHERE id = ?`).get(id) as PipelineRow;
+  return rowToEntry(updated);
+}
+
+// Attach a GitHub deep-dive summary to an entry AFTER creation — the drawer's
+// on-demand run for an inbound applicant who shared a handle at apply (the
+// add-to-pipeline POST is the only other writer). FILL-ONLY, same additive
+// discipline as the createPipelineEntry backfill: evidence already attached is
+// never silently overwritten, so a concurrent double-run keeps the first
+// result. `githubJson` is the JSON of an ALREADY-COERCED GithubEvidenceSummary
+// (the route validates via coerceGithubEvidenceSummary before stringifying);
+// an event is logged on a real attach so the candidate's history shows where
+// the evidence came from. Returns the fresh entry, or null for an unknown id.
+export function setEntryGithubEvidence(id: string, githubJson: string): PipelineEntry | null {
+  const db = ensureDb();
+  const row = db.prepare(`SELECT * FROM pipeline_entries WHERE id = ?`).get(id) as PipelineRow | undefined;
+  if (!row) return null;
+  const res = db
+    .prepare(
+      `UPDATE pipeline_entries SET github_json = ?, updated_at = ? WHERE id = ? AND (github_json IS NULL OR github_json = '')`
+    )
+    .run(githubJson, new Date().toISOString(), id);
+  if (res.changes > 0) {
+    recordEvent(db, {
+      entryId: id,
+      candidateLabel: row.candidate_label,
+      jobTitle: row.job_title,
+      archetype: row.archetype,
+      kind: "github_evidence_attached",
+      toStage: row.stage,
+      detail: "GitHub deep-dive run from the drawer",
+    });
+  }
   const updated = db.prepare(`SELECT * FROM pipeline_entries WHERE id = ?`).get(id) as PipelineRow;
   return rowToEntry(updated);
 }

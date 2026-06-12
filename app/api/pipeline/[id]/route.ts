@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { actOnPipelineEntry, clearIntakeDegraded, getPipelineEntry, PIPELINE_STAGES, setApproval, setPipelineEntryStage, type PipelineAction, type PipelineEntry } from "@/app/_lib/db";
+import { actOnPipelineEntry, clearIntakeDegraded, getPipelineEntry, PIPELINE_STAGES, setApproval, setEntryGithubEvidence, setPipelineEntryStage, type PipelineAction, type PipelineEntry } from "@/app/_lib/db";
+import { coerceGithubEvidenceSummary } from "@/app/_lib/github-summary";
 import { dispatchOffer, dispatchRejection } from "@/app/_lib/comms-dispatch";
 import { getOrCreateOpenOffer } from "@/app/_lib/offers-store";
 import { safeJsonError } from "@/app/_lib/api-response";
@@ -48,7 +49,7 @@ async function extendOffer(request: NextRequest, entry: PipelineEntry) {
 export async function POST(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params;
   try {
-    const body = (await request.json()) as { action?: string; detail?: string; expectedStage?: string; toStage?: string };
+    const body = (await request.json()) as { action?: string; detail?: string; expectedStage?: string; toStage?: string; github?: unknown };
 
     // Manual recruiter stage override (set_stage): move a candidate backward, skip
     // a stage, or fix a miscategorization — the transitions accept/reject can't
@@ -79,6 +80,22 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
         );
       }
       return NextResponse.json({ entry: moved });
+    }
+
+    // Attach a GitHub deep-dive summary to this entry — the drawer's on-demand
+    // run for an inbound applicant who shared a handle at apply. Validated by
+    // the shared coercer at the boundary (same contract as the add-to-pipeline
+    // POST: the only producer is our own client, so a shape mismatch is drift,
+    // not input) and FILL-ONLY in the db layer, so evidence already attached is
+    // never silently overwritten.
+    if (body.action === "set_github") {
+      const summary = coerceGithubEvidenceSummary(body.github);
+      if (!summary) {
+        return NextResponse.json({ error: "Invalid GitHub evidence payload." }, { status: 400 });
+      }
+      const updated = setEntryGithubEvidence(id, JSON.stringify(summary));
+      if (!updated) return NextResponse.json({ error: "Pipeline entry not found." }, { status: 404 });
+      return NextResponse.json({ entry: updated });
     }
 
     // Resolving a degraded-intake stub: the recruiter has manually captured the

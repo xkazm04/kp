@@ -6,7 +6,7 @@ import { AiDisclosure } from "@/app/_components/AiDisclosure";
 import type { ApplyStep } from "@/app/_lib/apply";
 // Imported straight from the registry-free intake module (not the apply.ts
 // barrel) so the candidate-facing bundle doesn't pull in the archetype registry.
-import { isRetryableApplyStatus, nextVisibleStepIndex } from "@/app/_lib/apply-intake";
+import { coerceGithubHandle, isRetryableApplyStatus, nextVisibleStepIndex } from "@/app/_lib/apply-intake";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
 
 type Msg = { who: "bot" | "me"; text: string };
@@ -227,6 +227,15 @@ export function ConversationalApply({
       setStepError(t("invalidEmail"));
       return;
     }
+    // Validate the GitHub handle at its own step (same shape gate the server
+    // persists through). The server never rejects on it — a junk handle is
+    // silently DROPPED there — so this inline check is the only place a typo'd
+    // handle gets caught; the Skip control stays the escape hatch for "I don't
+    // have one".
+    if (step.id === "github" && !coerceGithubHandle(v)) {
+      setStepError(t("invalidGithub"));
+      return;
+    }
     setStepError(null);
     advance(step.id, { ...answers, [step.id]: v }, v);
     setInput("");
@@ -266,9 +275,16 @@ export function ConversationalApply({
       setUploading(false);
     }
   };
-  const skipFile = () => {
+  // Skip the current OPTIONAL step (the file step, or an `optional` text step
+  // like the GitHub handle): answers "" — which the server reads as "not given"
+  // — and moves on.
+  const skipStep = () => {
     if (busy || uploading) return;
     const step = steps[idx];
+    // Drop any half-typed input and its inline validation error — skipping IS
+    // the recovery path for a handle the candidate can't get past the gate.
+    setInput("");
+    setStepError(null);
     advance(step.id, { ...answers, [step.id]: "" }, t("skippedFile"));
   };
 
@@ -399,7 +415,7 @@ export function ConversationalApply({
                 <button
                   type="button"
                   disabled={busy || uploading}
-                  onClick={skipFile}
+                  onClick={skipStep}
                   className="focus-ring rounded-md px-3 py-2 text-base font-semibold text-steel hover:text-ink disabled:opacity-50"
                 >
                   {t("skip")}
@@ -434,6 +450,18 @@ export function ConversationalApply({
               >
                 {t("send")}
               </button>
+              {cur.optional ? (
+                // Same skip affordance as the file step — an optional text step
+                // (the GitHub handle) must never gate the application.
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={skipStep}
+                  className="focus-ring rounded-md px-3 py-2 text-base font-semibold text-steel hover:text-ink disabled:opacity-50"
+                >
+                  {t("skip")}
+                </button>
+              ) : null}
             </form>
           )}
           {stepError ? <p role="alert" className="mt-1.5 text-sm text-coral">{stepError}</p> : null}

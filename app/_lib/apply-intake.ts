@@ -192,6 +192,31 @@ export function coerceLeadTokenParam(value: unknown): string | null {
 }
 
 /**
+ * Shape-gate the optional GitHub handle captured by the conversational apply's
+ * "GitHub profile" step BEFORE it is persisted on the pipeline entry: accepts
+ * either a bare username (a leading `@` tolerated) or a github.com profile URL
+ * (protocol and `www.` optional, trailing path/query ignored) and returns the
+ * NORMALIZED bare username — the one canonical form the deep-dive route and the
+ * drawer's profile link both consume. Mirrors the username rules
+ * /api/github-analysis enforces (1–39 chars of [A-Za-z0-9-], no leading or
+ * trailing hyphen), so a handle that passes here is one the deep-dive can run.
+ * Returns null for anything else — the step is optional evidence, so junk
+ * degrades to "no handle" rather than blocking the application. Field-by-field
+ * coercion at the trust boundary, never a cast.
+ */
+export function coerceGithubHandle(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim().replace(/\/+$/, "");
+  if (!trimmed) return null;
+  const urlMatch = /^(?:https?:\/\/)?(?:www\.)?github\.com\/([^/?#]+)(?:[/?#].*)?$/i.exec(trimmed);
+  const candidate = (urlMatch ? urlMatch[1] : trimmed).replace(/^@/, "");
+  if (!/^[A-Za-z0-9-]{1,39}$/.test(candidate) || candidate.startsWith("-") || candidate.endsWith("-")) {
+    return null;
+  }
+  return candidate;
+}
+
+/**
  * Seed the enrichment chat's answers from a token-resolved lead entry — the
  * facts the lead already gave, and ONLY those:
  *   - name: the entry's label, unless it's the {@link ANONYMOUS_APPLICANT_LABEL}

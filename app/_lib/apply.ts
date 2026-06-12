@@ -26,7 +26,9 @@ export {
 } from "./apply-intake";
 
 export type ApplyStep =
-  | { id: string; type: "text"; prompt: string; placeholder?: string; when?: StepCondition }
+  // An `optional` text step renders a Skip control beside the input (the same
+  // skip pattern as the file step below); skipping answers "" and moves on.
+  | { id: string; type: "text"; prompt: string; placeholder?: string; optional?: boolean; when?: StepCondition }
   // An optional document upload (the CV step): the client extracts its text via
   // /api/extract-text and stores that as the step's answer, or the candidate skips.
   | { id: string; type: "file"; prompt: string; placeholder?: string; when?: StepCondition }
@@ -195,6 +197,19 @@ export function buildApplyScript(job: JobRecord, t: ApplyTranslator): ApplyStep[
       placeholder: t("script.skillsPlaceholder"),
     }
   );
+
+  // Optional GitHub profile — captured so an inbound applicant can carry the
+  // same repo-signal evidence a recruiter-side add gets: the handle is shape-
+  // gated to a bare username (coerceGithubHandle) and persisted on the entry
+  // alongside `contact`, and the recruiter runs the deep-dive on demand from
+  // the candidate drawer. Skippable, like the CV step — never a gate.
+  steps.push({
+    id: "github",
+    type: "text",
+    optional: true,
+    prompt: t("script.githubPrompt"),
+    placeholder: t("script.githubPlaceholder"),
+  });
 
   // Optional CV upload — folded in as high-weight evidence so a polished résumé
   // turns a thin typed stub into a fully matchable candidate. Skippable: the flow

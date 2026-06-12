@@ -23,6 +23,10 @@ export type Entry = {
   // GH2 — compact GitHub evidence attached at add-to-pipeline (null/absent on
   // entries added without a deep-dive). Rendered in the drawer.
   githubEvidence?: GithubEvidenceSummary | null;
+  // Self-reported GitHub handle captured at inbound apply (normalized bare
+  // username). The drawer offers the on-demand deep-dive from it when no
+  // evidence has been attached yet.
+  githubHandle?: string | null;
 };
 
 // Mirrors the PUBLIC event projection served by /api/pipeline/events

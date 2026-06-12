@@ -15,7 +15,7 @@ import {
   updateProfile,
 } from "@/app/_lib/db";
 import { applyDedupeKey, applyKoSteps, buildApplyProfileDraft, buildApplyScript, FALLBACK_ARCHETYPE } from "@/app/_lib/apply";
-import { ANONYMOUS_APPLICANT_LABEL, coerceLeadTokenParam, failedKoStepIds } from "@/app/_lib/apply-intake";
+import { ANONYMOUS_APPLICANT_LABEL, coerceGithubHandle, coerceLeadTokenParam, failedKoStepIds } from "@/app/_lib/apply-intake";
 import { getJobStatus, isJobOpenForApplications } from "@/app/_lib/job-ingest";
 import { dispatchApplicationReceived } from "@/app/_lib/comms-dispatch";
 import type { ApplyAnswers } from "@/app/_lib/apply-intake";
@@ -261,6 +261,12 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     // an over-long extract — it's evidence, not an exact field, and the most
     // relevant content sits at the top of a CV.
     const cvText = String(answers.cv ?? "").trim().slice(0, MAX_CV_TEXT_LENGTH);
+    // Optional GitHub handle (the `github` step) — shape-gated to a normalized
+    // bare username at the trust boundary (the client validates the same gate
+    // inline, so a null here is a scripted POST, not a candidate's typo). Junk
+    // degrades to null: the handle is optional evidence, never a reason to
+    // reject the application.
+    const githubHandle = coerceGithubHandle(answers.github);
 
     // Per-field caps — fail closed BEFORE the dedup query, profile build, intake.json
     // write, or Python spawn. Reject (don't truncate) so the applicant fixes the input.
@@ -315,11 +321,18 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       const existing = leadEntry ?? findApplicationByApplicant(job.id, providedName, email);
       if (existing) {
         const changes: string[] = [];
-        const updates: { contact?: string; candidateId?: string; archetype?: string | null } = {};
+        const updates: { contact?: string; candidateId?: string; archetype?: string | null; githubHandle?: string } = {};
         let profileRebuilt = false;
         if (email && !existing.contact) {
           updates.contact = email;
           changes.push("contact email captured");
+        }
+        // A repeat (notably a lead's enrichment walk — the github step is new
+        // to them) that shares a handle backfills a handle-less entry; one
+        // already on file is kept (fill-only, see mergeReapplication).
+        if (githubHandle && !existing.githubHandle) {
+          updates.githubHandle = githubHandle;
+          changes.push("GitHub handle captured");
         }
         if (cvText || existing.intakeDegraded) {
           const rebuilt = await buildApplicantProfile(
@@ -409,6 +422,8 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       // The deliverable recipient for every downstream comm; null when the
       // applicant left it blank (the entry still files, comms just dead-letter).
       contact: email || null,
+      // Self-reported GitHub handle — the drawer's on-demand deep-dive hook.
+      githubHandle,
       // SIM3 — the applicant's language, so downstream comms speak it.
       locale: applicantLocale,
       // E3 — inbound source attribution (the conversational careers-page flow).

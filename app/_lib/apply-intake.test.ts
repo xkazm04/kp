@@ -19,6 +19,7 @@ import {
   nextVisibleStepIndex,
   stepConditionMet,
   ANONYMOUS_APPLICANT_LABEL,
+  coerceGithubHandle,
   coerceLeadTokenParam,
   seedLeadPrefillAnswers,
   trimSeededSteps,
@@ -437,6 +438,63 @@ test("coerceLeadTokenParam rejects off-alphabet and unbounded shapes", () => {
   assert.equal(coerceLeadTokenParam("short"), null); // below the minimum length
   assert.equal(coerceLeadTokenParam("x".repeat(81)), null); // above the cap
   assert.equal(coerceLeadTokenParam(""), null);
+});
+
+// ---------------------------------------------------------------------------
+// coerceGithubHandle — the optional GitHub-profile step's trust-boundary gate.
+// Pins the accepted shapes (bare username, @username, github.com profile URL)
+// and the normalization to the bare username the deep-dive route and the
+// drawer's profile link consume. Junk degrades to null — the handle is
+// optional evidence, never a reason to reject the application.
+// ---------------------------------------------------------------------------
+
+test("coerceGithubHandle accepts a bare username (trimmed, case preserved)", () => {
+  assert.equal(coerceGithubHandle("octocat"), "octocat");
+  assert.equal(coerceGithubHandle("  Octocat  "), "Octocat");
+});
+
+test("coerceGithubHandle strips a leading @", () => {
+  assert.equal(coerceGithubHandle("@octocat"), "octocat");
+});
+
+test("coerceGithubHandle normalizes github.com profile URLs in their common spellings", () => {
+  assert.equal(coerceGithubHandle("https://github.com/octocat"), "octocat");
+  assert.equal(coerceGithubHandle("http://www.github.com/octocat"), "octocat");
+  assert.equal(coerceGithubHandle("github.com/octocat"), "octocat");
+  assert.equal(coerceGithubHandle("https://github.com/octocat/"), "octocat");
+});
+
+test("coerceGithubHandle takes the username from a deeper URL (repo page, query tab)", () => {
+  assert.equal(coerceGithubHandle("https://github.com/octocat/Hello-World"), "octocat");
+  assert.equal(coerceGithubHandle("https://github.com/octocat?tab=repositories"), "octocat");
+});
+
+test("coerceGithubHandle rejects non-strings — the answer is unknown-typed input", () => {
+  assert.equal(coerceGithubHandle(undefined), null);
+  assert.equal(coerceGithubHandle(null), null);
+  assert.equal(coerceGithubHandle(42), null);
+  assert.equal(coerceGithubHandle(["octocat"]), null);
+  assert.equal(coerceGithubHandle({ profile: "octocat" }), null);
+});
+
+test("coerceGithubHandle rejects off-alphabet, unbounded, and hyphen-edge shapes", () => {
+  // GitHub usernames are [A-Za-z0-9-], 1–39 chars, no leading/trailing hyphen.
+  assert.equal(coerceGithubHandle("octo cat"), null);
+  assert.equal(coerceGithubHandle("octo_cat"), null);
+  assert.equal(coerceGithubHandle("octo.cat"), null);
+  assert.equal(coerceGithubHandle("x".repeat(40)), null);
+  assert.equal(coerceGithubHandle("-octocat"), null);
+  assert.equal(coerceGithubHandle("octocat-"), null);
+  assert.equal(coerceGithubHandle(""), null);
+  assert.equal(coerceGithubHandle("   "), null);
+});
+
+test("coerceGithubHandle rejects non-github hosts and a bare github.com", () => {
+  // A profile URL only counts on github.com; any other host falls through to
+  // the username charset check and fails on the dots/slashes.
+  assert.equal(coerceGithubHandle("https://gitlab.com/octocat"), null);
+  assert.equal(coerceGithubHandle("github.com"), null);
+  assert.equal(coerceGithubHandle("https://github.com/"), null);
 });
 
 const ENRICH_SCRIPT = [

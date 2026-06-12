@@ -16,6 +16,8 @@ import { PIPELINE_STAGES, SCREENING_STAGES } from "@/app/_lib/pipeline-stages";
 import { RUBRIC_ANCHOR_LINE } from "@/app/_lib/interview-rubric";
 import { RATING_MAX } from "@/app/_lib/format";
 import type { Scorecard, ScorecardRating } from "@/app/_lib/interview-scorecard";
+import { buildGithubEvidenceSummary, type GithubEvidenceSummary } from "@/app/_lib/github-summary";
+import { githubAnalysisSchema } from "@/app/_lib/schemas";
 import { initials } from "@/app/_lib/initials";
 
 const ACTIONS: { id: TaskId; label: string; icon: typeof Mail; stages: string[] | "all"; note?: string }[] = [
@@ -284,6 +286,55 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
     }
   };
 
+  // On-demand GitHub deep-dive for an inbound applicant who shared a handle at
+  // apply but has no evidence attached yet (the recruiter-side add is the only
+  // other writer). Runs the same /api/github-analysis the report surface uses
+  // (the route returns 200 + {error} for soft failures like rate limits),
+  // compacts the result via the single shape authority, and persists it through
+  // the entry's set_github action so the next board load carries it.
+  const [ghBusy, setGhBusy] = useState(false);
+  const [ghErr, setGhErr] = useState<string | null>(null);
+  const [ghRun, setGhRun] = useState<GithubEvidenceSummary | null>(null);
+  // The drawer's view of the evidence: what the entry carried, else what this
+  // session's run just attached (the entry prop is frozen until the board reloads).
+  const github = entry.githubEvidence ?? ghRun;
+  const runGithubDeepDive = async () => {
+    if (!entry.githubHandle || ghBusy) return;
+    setGhBusy(true);
+    setGhErr(null);
+    try {
+      const res = await fetch("/api/github-analysis", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        // No cheap JD-text source exists here (the board payload carries no
+        // description) — pass empty string, the same contract SubmissionRow's
+        // assessAuthor uses; jobFitSignals then honestly report "no JD provided".
+        body: JSON.stringify({ profile: entry.githubHandle, jobDescriptionText: "" }),
+      });
+      const payload = await res.json();
+      // The route returns 200 + {error} for soft failures (rate limits) — that
+      // message names the actual cause, so surface it verbatim.
+      if (payload && typeof payload === "object" && typeof payload.error === "string") {
+        throw new Error(payload.error);
+      }
+      const parsed = githubAnalysisSchema.safeParse(payload);
+      if (!res.ok || !parsed.success) throw new Error(t("githubRunFailed"));
+      const summary = buildGithubEvidenceSummary(parsed.data);
+      const save = await fetch(`/api/pipeline/${encodeURIComponent(entry.id)}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "set_github", github: summary }),
+      });
+      if (!save.ok) throw new Error(t("githubRunFailed"));
+      setGhRun(summary);
+      onChanged(); // the entry now carries evidence — reload the board behind the drawer
+    } catch (caught) {
+      setGhErr(caught instanceof Error && caught.message ? caught.message : t("githubRunFailed"));
+    } finally {
+      setGhBusy(false);
+    }
+  };
+
   // Both link panels share one gate: an active candidate in a screening/interview stage.
   const showLinks = entry.status === "active" && ["Screened", "Interview"].includes(entry.stage);
 
@@ -436,48 +487,48 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
             </div>
           ) : null}
 
-          {/* GH2 — GitHub evidence attached at add-to-pipeline: corroborated vs
-              claimed skills beside the interview outcomes, at the surface where
-              advance/reject actually happens. */}
-          {entry.githubEvidence ? (
+          {/* GH2 — GitHub evidence attached at add-to-pipeline (or just run from
+              this drawer): corroborated vs claimed skills beside the interview
+              outcomes, at the surface where advance/reject actually happens. */}
+          {github ? (
             <div className="rounded-md border border-stone-200 bg-white p-3">
               <div className="flex items-center justify-between gap-2">
                 <p className="flex items-center gap-1.5 text-meta uppercase tracking-wide text-steel">
                   <GitBranch size={13} /> {t("githubEvidence")}
                 </p>
                 <a
-                  href={entry.githubEvidence.profileUrl}
+                  href={github.profileUrl}
                   target="_blank"
                   rel="noreferrer"
                   className="focus-ring font-mono text-sm text-coral hover:underline"
                 >
-                  @{entry.githubEvidence.username}
+                  @{github.username}
                 </a>
               </div>
-              {entry.githubEvidence.summary ? (
-                <p className="mt-1 text-sm text-ink">{entry.githubEvidence.summary}</p>
+              {github.summary ? (
+                <p className="mt-1 text-sm text-ink">{github.summary}</p>
               ) : null}
-              {entry.githubEvidence.confirmedSkills.length ? (
+              {github.confirmedSkills.length ? (
                 <p className="mt-1.5 text-sm text-ink">
                   <span className="font-semibold text-moss">{t("githubEvidenced")}</span>{" "}
-                  {entry.githubEvidence.confirmedSkills.join(", ")}
+                  {github.confirmedSkills.join(", ")}
                 </p>
               ) : null}
-              {entry.githubEvidence.unverifiedClaims.length ? (
+              {github.unverifiedClaims.length ? (
                 <p className="mt-1 text-sm text-ink">
                   <span className="font-semibold text-amber-700">{t("githubUnverified")}</span>{" "}
-                  {entry.githubEvidence.unverifiedClaims.join(", ")}
+                  {github.unverifiedClaims.join(", ")}
                 </p>
               ) : null}
-              {entry.githubEvidence.hiddenStrengths.length ? (
+              {github.hiddenStrengths.length ? (
                 <p className="mt-1 text-sm text-ink">
                   <span className="font-semibold text-steel">{t("githubHidden")}</span>{" "}
-                  {entry.githubEvidence.hiddenStrengths.join(", ")}
+                  {github.hiddenStrengths.join(", ")}
                 </p>
               ) : null}
-              {entry.githubEvidence.topRepositories.length ? (
+              {github.topRepositories.length ? (
                 <p className="mt-1.5 flex flex-wrap gap-2">
-                  {entry.githubEvidence.topRepositories.map((r) => (
+                  {github.topRepositories.map((r) => (
                     <a
                       key={r.url}
                       href={r.url}
@@ -491,6 +542,36 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
                 </p>
               ) : null}
               <p className="mt-1.5 text-meta text-steel">{t("githubEvidenceNote")}</p>
+            </div>
+          ) : null}
+
+          {/* Inbound applicants share only a handle at apply — offer the deep-dive
+              on demand here; a successful run renders as the evidence card above. */}
+          {!github && entry.githubHandle ? (
+            <div className="rounded-md border border-stone-200 bg-white p-3">
+              <div className="flex items-center justify-between gap-2">
+                <p className="flex items-center gap-1.5 text-meta uppercase tracking-wide text-steel">
+                  <GitBranch size={13} /> {t("githubEvidence")}
+                </p>
+                <a
+                  href={`https://github.com/${entry.githubHandle}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="focus-ring font-mono text-sm text-coral hover:underline"
+                >
+                  @{entry.githubHandle}
+                </a>
+              </div>
+              <p className="mt-1 text-sm text-steel">{t("githubRunHelp")}</p>
+              <button
+                type="button"
+                onClick={runGithubDeepDive}
+                disabled={ghBusy}
+                className="focus-ring mt-2 inline-flex items-center gap-1.5 rounded-md border border-stone-200 bg-white px-2.5 py-1.5 text-sm font-semibold text-ink hover:border-coral/40 disabled:opacity-50"
+              >
+                <GitBranch size={13} className="text-coral" /> {ghBusy ? t("githubRunning") : t("githubRun")}
+              </button>
+              {ghErr ? <p role="alert" className="mt-1.5 text-sm text-red-700">{ghErr}</p> : null}
             </div>
           ) : null}
 
