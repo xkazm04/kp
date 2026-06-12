@@ -11,6 +11,10 @@ export function useAnalyzeJdLibrary(setJobDescriptionText: (value: string) => vo
   // it lands runs the analysis JD-blind while still tagging it with the slug. Callers OR this
   // into the submit gate so a pick-then-immediately-Analyze can't run without the JD.
   const [jdLoading, setJdLoading] = useState(false);
+  // True when the last pick's body fetch failed (404 from a stale list, network
+  // error, or a bodyless payload). The slug is cleared on failure so the run can't
+  // be tagged with a JD it never saw; this flag lets the picker say why.
+  const [jdLoadFailed, setJdLoadFailed] = useState(false);
   // Monotonic pick counter: ignore a slow saved-JD body fetch that resolves after
   // a newer pick, so the textarea can't end up holding JD A's body while the slug
   // records JD B (the run would then silently use the wrong JD). One counter shared
@@ -40,24 +44,36 @@ export function useAnalyzeJdLibrary(setJobDescriptionText: (value: string) => vo
   const pickJd = useCallback(
     (slug: string) => {
       setSelectedJdSlug(slug);
+      setJdLoadFailed(false);
       const seq = ++jdPickSeqRef.current;
       setJdLoading(true);
+      // A failed body fetch must DETACH the pick, not just skip the textarea write:
+      // the slug rides along in the submit, so keeping it recorded would persist a
+      // JD-blind run as a role-specific match (analyze-run logs jd_present:false
+      // with jd_slug set). Clear the slug and flag the failure for the picker.
+      const fail = () => {
+        if (seq !== jdPickSeqRef.current) return; // a newer pick owns the slug now
+        setSelectedJdSlug(null);
+        setJdLoadFailed(true);
+      };
       fetch(`/api/jds/${encodeURIComponent(slug)}`)
         .then((response) => (response.ok ? response.json() : null))
         .then((full) => {
-          if (!full) return;
           // Drop a stale response: a slower earlier pick must not last-write-win
           // over a newer one (textarea/slug would then disagree).
           if (seq !== jdPickSeqRef.current) return;
           // The slug endpoint can return a non-{body:string} shape (an { error },
           // a renamed field, a partial record); setting a non-string into the
           // controlled textarea white-screens the whole tab (e.g. from a shareable
-          // ?jd= URL). Guard the write.
-          if (typeof full.body === "string") setJobDescriptionText(full.body);
+          // ?jd= URL). Guard the write — and treat it as a failed load (the run
+          // would otherwise proceed JD-blind), same as a 404/network error.
+          if (full && typeof full.body === "string") {
+            setJobDescriptionText(full.body);
+          } else {
+            fail();
+          }
         })
-        .catch(() => {
-          /* leave the textarea as-is; the selection is still recorded */
-        })
+        .catch(fail)
         .finally(() => {
           // Only the current pick owns the flag — a superseded pick's resolution must not
           // clear a newer pick's loading state.
@@ -79,5 +95,20 @@ export function useAnalyzeJdLibrary(setJobDescriptionText: (value: string) => vo
     return () => window.clearTimeout(t);
   }, [pickJd]);
 
-  return { jdLibrary, selectedJdSlug, setSelectedJdSlug, pickJd, jdLoading };
+  // External slug writes (detach, paste-over, file attach) are corrective actions —
+  // they also dismiss a lingering load-failure message, so callers don't need to
+  // know the flag exists.
+  const setSelectedJdSlugExternal = useCallback((slug: string | null) => {
+    setJdLoadFailed(false);
+    setSelectedJdSlug(slug);
+  }, []);
+
+  return {
+    jdLibrary,
+    selectedJdSlug,
+    setSelectedJdSlug: setSelectedJdSlugExternal,
+    pickJd,
+    jdLoading,
+    jdLoadFailed,
+  };
 }

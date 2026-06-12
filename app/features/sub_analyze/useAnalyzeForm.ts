@@ -69,7 +69,7 @@ export function useAnalyzeForm() {
   const [isCompleting, setIsCompleting] = useState(false);
   const [stageState, setStageState] = useState<StageState>(initialStageState);
 
-  const { jdLibrary, selectedJdSlug, setSelectedJdSlug, pickJd, jdLoading } =
+  const { jdLibrary, selectedJdSlug, setSelectedJdSlug, pickJd, jdLoading, jdLoadFailed } =
     useAnalyzeJdLibrary(setJobDescriptionText);
 
   const hasJobDescription = Boolean(jobDescriptionFile || jobDescriptionText.trim());
@@ -379,6 +379,14 @@ export function useAnalyzeForm() {
       setError(t("selectCvFirst"));
       return;
     }
+    // Belt-and-suspenders for the saved-JD pick: a recorded slug with no JD body
+    // means the body fetch failed (the hook normally detaches the slug on failure,
+    // but a regression here would persist a JD-blind score tagged as a
+    // role-specific match). Block instead of posting.
+    if (selectedJdSlug && !hasJobDescription) {
+      setError(t("jdLoadFailed"));
+      return;
+    }
     // Supersede any GitHub run still in flight even when this submit launches
     // none (hasGithub false): a stale run's guarded terminal callbacks must not
     // land on the fresh form. Resetting the status to "idle" below also keeps a
@@ -471,7 +479,7 @@ export function useAnalyzeForm() {
     // full fan-out (idea-8367f051).
     flags: { hasJobDescription, hasCompany, hasGithub, isLoading, isCompleting, githubLoading: githubStatus === "loading", jdLoading },
     statuses: { cvStatus, jobStatus, companyStatus, githubStatusLabel },
-    library: { jdLibrary, selectedJdSlug, setSelectedJdSlug, pickJd },
+    library: { jdLibrary, selectedJdSlug, setSelectedJdSlug, pickJd, jdLoadFailed },
     result: { analysis, githubAnalysis, githubStatus, githubError, githubWarning, error, stageState },
   };
 }

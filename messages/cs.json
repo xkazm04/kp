@@ -2071,6 +2071,7 @@
     "noJds": "Žádné uložené popisy pozic. <link>Uložte jeden</link> pro opakované použití.",
     "fromLibrary": "Z knihovny",
     "loadingJd": "Načítání popisu pozice…",
+    "jdLoadFailed": "Tento popis pozice se nepodařilo načíst — vyberte jej znovu, nebo jej vložte.",
     "detach": "Odpojit",
     "pickJd": "Vyberte uložený popis pozice…",
     "jdOption": "{title} ({slug})",

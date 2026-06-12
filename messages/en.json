@@ -2071,6 +2071,7 @@
     "noJds": "No JDs saved. <link>Save one</link> for reuse.",
     "fromLibrary": "From library",
     "loadingJd": "Loading JD…",
+    "jdLoadFailed": "Couldn't load this JD — pick again or paste it.",
     "detach": "Detach",
     "pickJd": "Pick a saved JD…",
     "jdOption": "{title} ({slug})",

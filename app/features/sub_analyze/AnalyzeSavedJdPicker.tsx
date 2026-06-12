@@ -8,12 +8,16 @@ export function AnalyzeSavedJdPicker({
   jds,
   selectedSlug,
   loading = false,
+  loadFailed = false,
   onPick,
   onClear,
 }: {
   jds: JdSummary[];
   selectedSlug: string | null;
   loading?: boolean;
+  // The last pick's body fetch failed (stale list after a delete/rename, network
+  // error) — the hook detached the slug; tell the recruiter why the pick vanished.
+  loadFailed?: boolean;
   onPick: (jd: JdSummary) => void;
   onClear: () => void;
 }) {
@@ -50,6 +54,8 @@ export function AnalyzeSavedJdPicker({
           >
             {t("detach")}
           </button>
+        ) : loadFailed ? (
+          <span role="alert" className="text-right text-sm font-medium text-coral">{t("jdLoadFailed")}</span>
         ) : null}
       </div>
       <select
