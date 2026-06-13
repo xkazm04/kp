@@ -134,7 +134,11 @@ export function PipelineTab() {
   const [selectedIds, setSelectedIds] = useState<ReadonlySet<string>>(new Set());
   const [bulkStage, setBulkStage] = useState("");
   const [bulkBusy, setBulkBusy] = useState(false);
-  const [bulkResult, setBulkResult] = useState<{ moved: number; failed: number } | null>(null);
+  // `verb` selects the result label so the same status line reads correctly for a
+  // stage move vs. a bulk accept/reject (bdc7fc01).
+  const [bulkResult, setBulkResult] = useState<{ ok: number; failed: number; verb: "moved" | "accepted" | "rejected" } | null>(null);
+  // Two-step confirm for bulk reject (it emails N candidates — irreversible).
+  const [confirmingBulkReject, setConfirmingBulkReject] = useState(false);
   // Saved board views (PIPE5): named {search + quick-filter} presets a recruiter
   // returns to, persisted in localStorage (single board, client-only — no schema).
   const [views, setViews] = useState<SavedView[]>([]);
@@ -309,6 +313,25 @@ export function PipelineTab() {
       }
     });
   }, [entries, q, quick, stageFilter, slaOverrides]);
+
+  // bdc7fc01 — the awaiting-decision subset of the current selection (the only
+  // entries bulk accept/reject can act on), plus a per-approval-kind breakdown so
+  // a mixed selection (screening vs offer vs scorecard) is obvious before acting.
+  const selectedAwaiting = useMemo(
+    () =>
+      [...selectedIds]
+        .map((id) => (entries ?? []).find((x) => x.id === id))
+        .filter((e): e is Entry => !!e && needsHumanDecision(e.approvalKind) && e.status === "active"),
+    [selectedIds, entries]
+  );
+  const awaitingKinds = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const e of selectedAwaiting) {
+      const k = e.approvalKind ?? "decision";
+      m.set(k, (m.get(k) ?? 0) + 1);
+    }
+    return [...m.entries()];
+  }, [selectedAwaiting]);
   const boardPositions = useMemo(() => groupPositions(filteredEntries), [filteredEntries]);
   const filtering = Boolean(q) || quick !== null || stageFilter !== null;
 
@@ -391,9 +414,11 @@ export function PipelineTab() {
     setSelectMode((v) => !v);
     setSelectedIds(new Set());
     setBulkResult(null);
+    setConfirmingBulkReject(false);
   };
   const toggleSelected = (e: Entry) => {
     setBulkResult(null);
+    setConfirmingBulkReject(false);
     setSelectedIds((cur) => {
       const next = new Set(cur);
       if (next.has(e.id)) next.delete(e.id);
@@ -403,6 +428,7 @@ export function PipelineTab() {
   };
   const selectAllVisible = () => {
     setBulkResult(null);
+    setConfirmingBulkReject(false);
     setSelectedIds(new Set(filteredEntries.map((e) => e.id)));
   };
   const bulkMove = async () => {
@@ -431,7 +457,43 @@ export function PipelineTab() {
       }
     }
     setSelectedIds(failures);
-    setBulkResult({ moved, failed: failures.size });
+    setBulkResult({ ok: moved, failed: failures.size, verb: "moved" });
+    setBulkBusy(false);
+    await load();
+  };
+
+  // bdc7fc01 — bulk accept/reject the AWAITING cohort in the selection. Acts only
+  // on selected entries that need a human decision (others have nothing to decide
+  // and are left selected, untouched). Each carries its OWN expectedStage so a
+  // concurrent move is a 409 that STAYS SELECTED for retry — same grammar as
+  // bulkMove. A bulk reject emails everyone, so it's confirm-gated in the UI.
+  const bulkDecide = async (action: "accept" | "reject") => {
+    const awaiting = [...selectedIds]
+      .map((id) => (entries ?? []).find((x) => x.id === id))
+      .filter((e): e is Entry => !!e && needsHumanDecision(e.approvalKind) && e.status === "active");
+    if (awaiting.length === 0 || bulkBusy) return;
+    setBulkBusy(true);
+    setBulkResult(null);
+    setConfirmingBulkReject(false);
+    let ok = 0;
+    const failed = new Set<string>();
+    for (const e of awaiting) {
+      try {
+        const r = await fetch(`/api/pipeline/${encodeURIComponent(e.id)}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action, expectedStage: e.stage }),
+        });
+        if (r.ok) ok += 1;
+        else failed.add(e.id);
+      } catch {
+        failed.add(e.id);
+      }
+    }
+    // Successes deselect; failures + any selected non-awaiting entries stay selected.
+    const untouched = [...selectedIds].filter((id) => !awaiting.some((e) => e.id === id));
+    setSelectedIds(new Set([...failed, ...untouched]));
+    setBulkResult({ ok, failed: failed.size, verb: action === "accept" ? "accepted" : "rejected" });
     setBulkBusy(false);
     await load();
   };
@@ -808,7 +870,10 @@ export function PipelineTab() {
               {selectedIds.size > 0 ? (
                 <button
                   type="button"
-                  onClick={() => setSelectedIds(new Set())}
+                  onClick={() => {
+                    setSelectedIds(new Set());
+                    setConfirmingBulkReject(false);
+                  }}
                   className="focus-ring rounded-full border border-stone-200 bg-white px-2.5 py-0.5 text-sm font-semibold text-steel hover:border-coral/40 hover:text-ink"
                 >
                   {t("bulkClear")}
@@ -839,11 +904,72 @@ export function PipelineTab() {
               </button>
               {bulkResult ? (
                 <span role="status" className="text-sm">
-                  <span className="font-semibold text-moss">{t("bulkMoved", { count: bulkResult.moved })}</span>
+                  <span className="font-semibold text-moss">
+                    {t(
+                      bulkResult.verb === "moved" ? "bulkMoved" : bulkResult.verb === "accepted" ? "bulkAccepted" : "bulkRejected",
+                      { count: bulkResult.ok }
+                    )}
+                  </span>
                   {bulkResult.failed > 0 ? (
                     <span className="font-semibold text-coral"> · {t("bulkFailed", { count: bulkResult.failed })}</span>
                   ) : null}
                 </span>
+              ) : null}
+              {/* bdc7fc01 — accept/reject the awaiting cohort in one pass. Only the
+                  selected entries that need a human decision are actionable; the
+                  per-kind breakdown makes a mixed selection obvious before acting. */}
+              {selectedAwaiting.length > 0 ? (
+                <div className="flex w-full flex-wrap items-center gap-2 border-t border-coral/20 pt-2">
+                  <span className="text-sm text-steel">
+                    {t("bulkAwaiting", { count: selectedAwaiting.length })}
+                    {awaitingKinds.length > 0 ? (
+                      <span className="text-stone-400">
+                        {" · "}
+                        {awaitingKinds.map(([k, n]) => `${n} ${enumLabel("approvalKind", k)}`).join(" · ")}
+                      </span>
+                    ) : null}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => void bulkDecide("accept")}
+                    disabled={bulkBusy}
+                    className="focus-ring ml-auto rounded-md bg-moss px-3 py-1 text-sm font-semibold text-white hover:bg-moss/90 disabled:opacity-50"
+                  >
+                    {t("bulkAccept", { count: selectedAwaiting.length })}
+                  </button>
+                  {confirmingBulkReject ? (
+                    <>
+                      <span className="text-sm font-semibold text-coral">
+                        {t("bulkRejectConfirm", { count: selectedAwaiting.length })}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => void bulkDecide("reject")}
+                        disabled={bulkBusy}
+                        className="focus-ring rounded-md bg-coral px-3 py-1 text-sm font-semibold text-white hover:bg-coral/90 disabled:opacity-50"
+                      >
+                        {bulkBusy ? t("bulkMoving") : t("bulkRejectConfirmYes")}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setConfirmingBulkReject(false)}
+                        disabled={bulkBusy}
+                        className="focus-ring rounded-md px-2 py-1 text-sm font-semibold text-steel hover:text-ink disabled:opacity-50"
+                      >
+                        {t("bulkRejectCancel")}
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setConfirmingBulkReject(true)}
+                      disabled={bulkBusy}
+                      className="focus-ring rounded-md border border-coral/40 bg-white px-3 py-1 text-sm font-semibold text-coral hover:bg-coral/5 disabled:opacity-50"
+                    >
+                      {t("bulkReject", { count: selectedAwaiting.length })}
+                    </button>
+                  )}
+                </div>
               ) : null}
             </div>
           ) : null}
