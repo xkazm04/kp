@@ -2,10 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { CalendarClock, CalendarPlus, Check } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { buildIcs, downloadFile } from "@/app/_lib/export-utils";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { useSlotLabel } from "@/app/_lib/use-slot-label";
+import { resolveTimeZone, timeZoneShortLabel } from "@/app/_lib/timezone";
 
 type Invite = {
   candidateLabel?: string | null;
@@ -20,11 +21,18 @@ type Slot = { value: string; label: string };
 export function SchedulePicker({ token }: { token: string }) {
   const t = useTranslations("schedule");
   const tCommon = useTranslations("common");
+  const locale = useLocale();
   const errMsg = useErrorMessage();
   // SCH4 — display the slot in the candidate's locale from the ISO time the API
   // returns; the server-minted English label stays the fallback (and the stored
   // canonical value for the recruiter feed + emails).
   const slotLabel = useSlotLabel();
+  // idea-b51106df — the slots render in the candidate's BROWSER-local zone, but
+  // a shifted "16:00" reads as ambiguous without naming the zone. Derive a short
+  // zone label (e.g. "GMT+2") from any concrete instant on the page so the note
+  // can say "All times in your timezone (GMT+2)". Empty string degrades the note
+  // out (e.g. a runtime that can't resolve a zone), never showing "()".
+  const tzLabel = (iso: string | null | undefined): string => timeZoneShortLabel(iso, locale);
   const [invite, setInvite] = useState<Invite | null>(null);
   const [slots, setSlots] = useState<Slot[]>([]);
   // Server-authoritative "the whole horizon is booked" signal (idea-5df8e10f) —
@@ -74,7 +82,7 @@ export function SchedulePicker({ token }: { token: string }) {
       const res = await fetch(`/api/schedule/${token}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ slot: s.label, slotAt: s.value, reschedule: isReschedule }),
+        body: JSON.stringify({ slot: s.label, slotAt: s.value, reschedule: isReschedule, tz: resolveTimeZone() }),
       });
       const d = await res.json();
       if (res.ok) {
@@ -167,6 +175,9 @@ export function SchedulePicker({ token }: { token: string }) {
           {invite.durationMin ? t("planFor", { min: invite.durationMin }) : ""}
           {confirmationSent ? t("confirmationSent") : t("confirmationUnsent")}
         </p>
+        {tzLabel(invite.slotAt) ? (
+          <p className="mt-1 text-meta text-steel">{t("timezoneNote", { zone: tzLabel(invite.slotAt) })}</p>
+        ) : null}
         <div className="mt-3 flex flex-wrap gap-2">
           {invite.slotAt ? (
             <button
@@ -243,7 +254,11 @@ export function SchedulePicker({ token }: { token: string }) {
           <p className="mt-2 text-base text-steel">{t("nothingToDo")}</p>
         </div>
       ) : (
-        <ul className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+        <>
+        {tzLabel(slots[0]?.value) ? (
+          <p className="mt-3 text-meta text-steel">{t("timezoneNote", { zone: tzLabel(slots[0]?.value) })}</p>
+        ) : null}
+        <ul className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
           {slots.map((s) => (
             <li key={s.value}>
               <button
@@ -257,6 +272,7 @@ export function SchedulePicker({ token }: { token: string }) {
             </li>
           ))}
         </ul>
+        </>
       )}
     </div>
   );

@@ -12,6 +12,7 @@ import {
   type ScheduleInvite,
 } from "@/app/_lib/schedule-store";
 import { offeredSlotFor, proposeSlots } from "@/app/_lib/schedule-slots";
+import { isValidTimeZone } from "@/app/_lib/timezone";
 import { logScheduleNoSlots, logScheduleReconcile } from "@/app/_lib/logger";
 import { jsonOk, safeJsonError } from "@/app/_lib/api-response";
 import { isShortNoticeBooking } from "@/app/_lib/interview-reminder-policy";
@@ -81,7 +82,12 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
     if (!rateLimit(`sched:${clientIpFrom(request.headers)}:${token}`, { limit: 10, windowMs: 60_000 })) {
       return NextResponse.json({ error: RATE_LIMITED_ERROR }, { status: 429 });
     }
-    const body = (await request.json().catch(() => ({}))) as { slot?: string; slotAt?: string; reschedule?: boolean };
+    const body = (await request.json().catch(() => ({}))) as { slot?: string; slotAt?: string; reschedule?: boolean; tz?: string };
+    // The candidate's IANA timezone (idea-b51106df), captured so the recruiter
+    // agenda can show a cross-border booking in the candidate's real local time.
+    // Validated against the runtime's zone table — a spoofed/unknown value is
+    // dropped to null rather than stored, so it can never make Intl throw later.
+    const candidateTz = isValidTimeZone(body.tz) ? body.tz : null;
     const invite = getScheduleInviteByToken(token);
     if (!invite) return NextResponse.json({ error: "not found" }, { status: 404 });
 
@@ -157,7 +163,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
     // authority as confirm (rescheduleScheduleInvite's transaction), bounded by
     // MAX_RESCHEDULES, and the old slot is freed back into the pool.
     if (invite.status === "confirmed") {
-      const moved = rescheduleScheduleInvite(token, slot, offered.value);
+      const moved = rescheduleScheduleInvite(token, slot, offered.value, candidateTz);
       if (!moved.ok) {
         if (moved.reason === "taken") {
           return NextResponse.json(
@@ -178,7 +184,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
     }
 
     // FIRST CONFIRM — a pending invite booking its slot.
-    const result = confirmScheduleInvite(token, slot, offered.value);
+    const result = confirmScheduleInvite(token, slot, offered.value, candidateTz);
     if (!result.ok) {
       if (result.reason === "taken") {
         // Another candidate confirmed this exact time between page load and submit.

@@ -167,7 +167,8 @@
     "roleMinutes": "· ~{min} min",
     "allTakenTitle": "All current times are taken",
     "allTakenBody": "Every interview slot in the next few weeks is already booked. We've let the hiring team know you still need a time — they'll open more and email you a fresh scheduling link.",
-    "nothingToDo": "Nothing to do right now — you can close this page."
+    "nothingToDo": "Nothing to do right now — you can close this page.",
+    "timezoneNote": "All times shown in your timezone ({zone})."
   },
   "apply": {
     "eyebrow": "Apply",

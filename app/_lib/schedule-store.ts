@@ -58,6 +58,11 @@ function db(): Database.Database {
       -- Capped (MAX_RESCHEDULES) so the "change time" affordance can't be used to
       -- churn the recruiter's calendar indefinitely.
       reschedule_count INTEGER NOT NULL DEFAULT 0,
+      -- The candidate's IANA timezone (e.g. "Europe/Prague"), captured at confirm
+      -- (idea-b51106df). The slot_at instant is canonical; this records WHERE the
+      -- candidate is so the recruiter agenda can show a cross-border booking's real
+      -- local time. NULL until the candidate confirms from a browser that resolves it.
+      candidate_tz TEXT,
       created_at TEXT NOT NULL,
       confirmed_at TEXT
     );
@@ -80,6 +85,7 @@ function db(): Database.Database {
     "more_slots_flagged_at TEXT",
     "duration_min INTEGER",
     "reschedule_count INTEGER NOT NULL DEFAULT 0",
+    "candidate_tz TEXT",
   ]) {
     try {
       d.exec(`ALTER TABLE schedule_invites ADD COLUMN ${col}`);
@@ -109,6 +115,7 @@ export type ScheduleInvite = {
   moreSlotsFlaggedAt: string | null; // ISO time the zero-slots stall was first flagged
   durationMin: number | null; // planned interview length (e.g. 22 for the student script)
   rescheduleCount: number; // self-reschedules made on this confirmed booking (cap: MAX_RESCHEDULES)
+  candidateTz: string | null; // idea-b51106df — candidate's IANA timezone captured at confirm; null until they book
   locale: string | null; // SIM3 — the linked entry's applicant locale, when joined (dueReminders); null otherwise
   createdAt: string;
   confirmedAt: string | null;
@@ -133,6 +140,7 @@ function rowTo(r: Record<string, unknown>): ScheduleInvite {
     moreSlotsFlaggedAt: (r.more_slots_flagged_at as string) ?? null,
     durationMin: r.duration_min == null ? null : Number(r.duration_min),
     rescheduleCount: Number(r.reschedule_count ?? 0),
+    candidateTz: (r.candidate_tz as string) ?? null,
     // Only the dueReminders join selects entry_locale; every other read leaves it null.
     locale: (r.entry_locale as string) ?? null,
     createdAt: r.created_at as string,
@@ -195,7 +203,7 @@ export type ConfirmResult =
  *  single uninterrupted transaction — two concurrent confirms can't both claim
  *  the same slot_at, which is what `bookedSlots()`/`proposeSlots()` only guard at
  *  read time. Collision identity is the ISO `slot_at`, not the display label. */
-export function confirmScheduleInvite(token: string, slot: string, slotAt?: string | null): ConfirmResult {
+export function confirmScheduleInvite(token: string, slot: string, slotAt?: string | null, candidateTz?: string | null): ConfirmResult {
   const d = db();
   const tx = d.transaction((): ConfirmResult => {
     const current = d.prepare(`SELECT * FROM schedule_invites WHERE token = ?`).get(token) as Record<string, unknown> | undefined;
@@ -211,13 +219,16 @@ export function confirmScheduleInvite(token: string, slot: string, slotAt?: stri
     // Confirming clears any prior zero-slots flag: a candidate who once hit a
     // fully-booked horizon (needs_more_slots) is no longer stalled once they
     // book, so the flag stays honest as "currently stalled", not "ever stalled".
+    // COALESCE keeps any previously-captured zone when this confirm doesn't carry
+    // one (e.g. a browser that couldn't resolve it), rather than nulling it out.
     const updated = d
       .prepare(
         `UPDATE schedule_invites
-            SET status = 'confirmed', slot = ?, slot_at = ?, confirmed_at = ?, needs_more_slots = 0, more_slots_flagged_at = NULL
+            SET status = 'confirmed', slot = ?, slot_at = ?, confirmed_at = ?, candidate_tz = COALESCE(?, candidate_tz),
+                needs_more_slots = 0, more_slots_flagged_at = NULL
           WHERE token = ? RETURNING *`
       )
-      .get(slot, slotAt ?? null, new Date().toISOString(), token) as Record<string, unknown>;
+      .get(slot, slotAt ?? null, new Date().toISOString(), candidateTz ?? null, token) as Record<string, unknown>;
     return { ok: true, invite: rowTo(updated) };
   });
   return tx();
@@ -241,7 +252,7 @@ export type RescheduleResult =
  *  now and RESETS the reminder cycle (reminder_sent_at / attempts cleared) so the
  *  reminder fires for the NEW time, not the abandoned one. Bounded by MAX_RESCHEDULES.
  *  Only a confirmed invite is reschedulable — a pending one books via confirm. */
-export function rescheduleScheduleInvite(token: string, slot: string, slotAt: string): RescheduleResult {
+export function rescheduleScheduleInvite(token: string, slot: string, slotAt: string, candidateTz?: string | null): RescheduleResult {
   const d = db();
   const tx = d.transaction((): RescheduleResult => {
     const current = d.prepare(`SELECT * FROM schedule_invites WHERE token = ?`).get(token) as Record<string, unknown> | undefined;
@@ -262,11 +273,12 @@ export function rescheduleScheduleInvite(token: string, slot: string, slotAt: st
       .prepare(
         `UPDATE schedule_invites
             SET slot = ?, slot_at = ?, confirmed_at = ?, reschedule_count = reschedule_count + 1,
+                candidate_tz = COALESCE(?, candidate_tz),
                 reminder_sent_at = NULL, reminder_attempts = 0, reminder_last_attempt_at = NULL,
                 needs_more_slots = 0, more_slots_flagged_at = NULL
           WHERE token = ? RETURNING *`
       )
-      .get(slot, slotAt, new Date().toISOString(), token) as Record<string, unknown>;
+      .get(slot, slotAt, new Date().toISOString(), candidateTz ?? null, token) as Record<string, unknown>;
     return { ok: true, invite: rowTo(updated) };
   });
   return tx();

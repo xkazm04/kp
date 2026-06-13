@@ -19,6 +19,7 @@ type Invite = {
   needsMoreSlots: boolean;
   durationMin: number | null;
   rescheduleCount: number;
+  candidateTz: string | null;
   createdAt: string;
   confirmedAt: string | null;
 };
@@ -115,6 +116,9 @@ export function InviteLifecyclePanel() {
                 <span className="font-semibold text-ink nums">{slotLine(i)}</span>
                 <span className="text-ink">{i.candidateLabel ?? "—"}</span>
                 {i.jobTitle ? <span className="text-steel">· {i.jobTitle}</span> : null}
+                {/* idea-b51106df — the candidate's own timezone, so the recruiter
+                    reads slotLine() (their local time) knowing where the candidate is. */}
+                {i.candidateTz ? <span className="text-xs text-steel" title={i.candidateTz}>· {i.candidateTz}</span> : null}
                 {i.rescheduleCount > 0 ? (
                   <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-xs font-semibold text-amber-800">
                     {t("rescheduled", { count: i.rescheduleCount })}

@@ -167,7 +167,8 @@
     "roleMinutes": "· ~{min} min",
     "allTakenTitle": "Všechny aktuální termíny jsou obsazené",
     "allTakenBody": "Všechny termíny pohovorů v nejbližších týdnech jsou již rezervované. Dali jsme náborovému týmu vědět, že stále potřebujete termín — otevřou další a pošlou vám e-mailem nový odkaz pro plánování.",
-    "nothingToDo": "Teď není potřeba nic dělat — tuto stránku můžete zavřít."
+    "nothingToDo": "Teď není potřeba nic dělat — tuto stránku můžete zavřít.",
+    "timezoneNote": "Všechny časy jsou ve vašem časovém pásmu ({zone})."
   },
   "apply": {
     "eyebrow": "Přihláška",
