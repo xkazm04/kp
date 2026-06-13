@@ -39,6 +39,7 @@ if (process.env.NODE_ENV !== "production") {
 // title-only <p>) so keyboard/touch users can reveal the hidden candidates,
 // which then render as the same navigable CandidateRows.
 function StageCell({
+  stage,
   entries,
   isStale,
   openProfile,
@@ -46,7 +47,13 @@ function StageCell({
   selectMode,
   selectedIds,
   onToggleSelect,
+  dragEnabled,
+  isDragging,
+  onDragStartEntry,
+  onDragEndEntry,
+  onDropToStage,
 }: {
+  stage: string;
   entries: Entry[];
   isStale: (e: Entry) => boolean;
   openProfile: (e: Entry) => void;
@@ -54,13 +61,46 @@ function StageCell({
   selectMode: boolean;
   selectedIds: ReadonlySet<string>;
   onToggleSelect: (e: Entry) => void;
+  // cea12908 — drag-and-drop: this cell is a drop target for a candidate dragged
+  // from another stage column. dragEnabled is off in select mode.
+  dragEnabled: boolean;
+  isDragging: boolean;
+  onDragStartEntry: (e: Entry) => void;
+  onDragEndEntry: () => void;
+  onDropToStage: (stage: string) => void;
 }) {
   const t = useTranslations("pipeline");
   const [expanded, setExpanded] = useState(false);
+  // Highlight the column the candidate would land in while a drag hovers it.
+  const [dropActive, setDropActive] = useState(false);
   const overflow = entries.length - CELL_LIMIT;
   const visible = expanded ? entries : entries.slice(0, CELL_LIMIT);
+  // A drop zone must preventDefault on dragover or the browser rejects the drop.
+  const dropProps = dragEnabled
+    ? {
+        onDragOver: (ev: React.DragEvent) => {
+          ev.preventDefault();
+          ev.dataTransfer.dropEffect = "move" as const;
+          if (!dropActive) setDropActive(true);
+        },
+        onDragLeave: (ev: React.DragEvent) => {
+          // Ignore leaves into child nodes — only clear when truly leaving the cell.
+          if (!ev.currentTarget.contains(ev.relatedTarget as Node | null)) setDropActive(false);
+        },
+        onDrop: (ev: React.DragEvent) => {
+          ev.preventDefault();
+          setDropActive(false);
+          onDropToStage(stage);
+        },
+      }
+    : {};
   return (
-    <div className="space-y-0.5 border-r border-stone-200 px-1.5 py-2 last:border-0">
+    <div
+      {...dropProps}
+      className={`space-y-0.5 border-r border-stone-200 px-1.5 py-2 last:border-0 ${
+        isDragging ? "transition-colors" : ""
+      } ${dropActive ? "bg-coral/5 ring-1 ring-inset ring-coral/40" : ""}`}
+    >
       {visible.map((e) => (
         <CandidateRow
           key={e.id}
@@ -72,6 +112,9 @@ function StageCell({
           selectMode={selectMode}
           selected={selectedIds.has(e.id)}
           onToggleSelect={() => onToggleSelect(e)}
+          draggable={dragEnabled}
+          onDragStart={() => onDragStartEntry(e)}
+          onDragEnd={onDragEndEntry}
         />
       ))}
       {overflow > 0 ? (
@@ -100,6 +143,7 @@ export function PipelineBoard({
   selectMode = false,
   selectedIds,
   onToggleSelect,
+  onMove,
 }: {
   positions: Position[];
   entries: Entry[];
@@ -112,9 +156,16 @@ export function PipelineBoard({
   selectMode?: boolean;
   selectedIds?: ReadonlySet<string>;
   onToggleSelect?: (e: Entry) => void;
+  // cea12908 — when provided (and not in select mode), candidates can be dragged
+  // between stage columns; the board calls this with the dragged entry + target stage.
+  onMove?: (entry: Entry, toStage: string) => void;
 }) {
   const t = useTranslations("pipeline");
   const enumLabel = useEnumLabel();
+  // The candidate currently being dragged (pointer DnD). Lifted here so any cell's
+  // drop can resolve the source row regardless of which column started the drag.
+  const [dragging, setDragging] = useState<Entry | null>(null);
+  const dragEnabled = !!onMove && !selectMode;
   // Stage help tooltip: catalog `stageHelp.<stage>`, falling back to the English
   // STAGE_HELP source (then the raw stage) for any unmapped stage.
   const stageHelp = (s: string): string => {
@@ -150,6 +201,7 @@ export function PipelineBoard({
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h3 className="text-meta uppercase tracking-wide text-steel">{t("board.positions")}</h3>
         <div className="flex items-center gap-2">
+          {dragEnabled ? <span className="hidden text-sm text-steel md:inline">{t("board.dragHint")}</span> : null}
           <span className="hidden text-sm text-steel sm:inline">{t("board.scrollHint")}</span>
           <div className="flex items-center gap-1">
             <button
@@ -235,6 +287,7 @@ export function PipelineBoard({
                   return (
                     <StageCell
                       key={`${stage}:${cellEntries.map((e) => e.id).join(",")}`}
+                      stage={stage}
                       entries={cellEntries}
                       isStale={isStale}
                       openProfile={openProfile}
@@ -242,6 +295,16 @@ export function PipelineBoard({
                       selectMode={selectMode}
                       selectedIds={selectedIds ?? EMPTY_SELECTION}
                       onToggleSelect={onToggleSelect ?? (() => undefined)}
+                      dragEnabled={dragEnabled}
+                      isDragging={!!dragging}
+                      onDragStartEntry={setDragging}
+                      onDragEndEntry={() => setDragging(null)}
+                      onDropToStage={(toStage) => {
+                        // Resolve the dragged entry from board state; only move on a
+                        // real cross-column drop. A same-stage drop is a no-op.
+                        if (dragging && dragging.stage !== toStage) onMove?.(dragging, toStage);
+                        setDragging(null);
+                      }}
                     />
                   );
                 })}

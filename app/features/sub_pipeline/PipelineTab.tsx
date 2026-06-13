@@ -436,6 +436,31 @@ export function PipelineTab() {
     await load();
   };
 
+  // cea12908 — drag a candidate to a new stage column. Optimistic: reflect the
+  // move immediately, then POST set_stage with the card's PRIOR stage as
+  // expectedStage (the same CAS guard the bulk move + AI actions use). On any
+  // failure roll back; load() always reconciles the board with the server (a 409
+  // means a concurrent actor moved them in the gap).
+  const moveEntry = async (entry: Entry, toStage: string) => {
+    if (entry.stage === toStage) return;
+    const prevStage = entry.stage;
+    const restage = (id: string, stage: string) =>
+      setEntries((cur) => (cur ? cur.map((e) => (e.id === id ? { ...e, stage } : e)) : cur));
+    restage(entry.id, toStage);
+    try {
+      const r = await fetch(`/api/pipeline/${encodeURIComponent(entry.id)}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "set_stage", toStage, expectedStage: prevStage }),
+      });
+      if (!r.ok) restage(entry.id, prevStage);
+    } catch {
+      restage(entry.id, prevStage);
+    } finally {
+      await load();
+    }
+  };
+
   // SHELL3 — opening a candidate/profile/job from the board is the canonical
   // "I'm working on this" moment; record it so the sidebar Recent group and the
   // palette's resting state can resume it after the shell wipes the selection.
@@ -905,6 +930,7 @@ export function PipelineTab() {
                 selectMode={selectMode}
                 selectedIds={selectedIds}
                 onToggleSelect={toggleSelected}
+                onMove={moveEntry}
               />
             </div>
           )}

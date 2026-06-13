@@ -460,6 +460,7 @@
       "rankCandidates": "Seřadit kandidáty →",
       "openJd": "Otevřít popis pozice",
       "scrollHint": "Kliknutím na záhlaví fáze ji vycentrujete · posouváním se pohybujete napříč náborem",
+      "dragHint": "Přetažením kandidáta jej přesunete mezi fázemi",
       "scrollLeft": "Posunout o jednu fázi vlevo",
       "scrollRight": "Posunout o jednu fázi vpravo",
       "boardAria": "Nástěnka náboru, posouvejte vodorovně",

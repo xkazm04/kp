@@ -164,6 +164,9 @@ export function CandidateRow({
   selectMode = false,
   selected = false,
   onToggleSelect,
+  draggable = false,
+  onDragStart,
+  onDragEnd,
 }: {
   entry: Entry;
   pending?: boolean;
@@ -173,6 +176,12 @@ export function CandidateRow({
   selectMode?: boolean;
   selected?: boolean;
   onToggleSelect?: () => void;
+  // cea12908 — pointer drag-and-drop of a candidate between stage columns. Off by
+  // default; the board enables it when not in select mode. The keyboard path stays
+  // the row's open/select button + the bulk-move bar (drag is pointer-only).
+  draggable?: boolean;
+  onDragStart?: () => void;
+  onDragEnd?: () => void;
 }) {
   const t = useTranslations("pipeline");
   const enumLabel = useEnumLabel();
@@ -201,8 +210,25 @@ export function CandidateRow({
         : style.icon;
   const title = `${t("candidateRow.cardTitle", { name: entry.candidateLabel, archetype: archLabel })}${entry.matchScore != null ? t("candidateRow.matchSuffix", { score: entry.matchScore }) : ""}${days != null ? t("candidateRow.daysInStage", { days }) : ""}${degraded ? t("candidateRow.degradedSuffix") : ""}`;
   const selecting = selectMode && onToggleSelect;
+  // Drag only outside select mode (in select mode the row is a checkbox).
+  const dragOn = draggable && !selecting;
   return (
-    <div className={`group flex items-center gap-1.5 rounded-md px-1 py-0.5 hover:bg-paper ${selecting && selected ? "bg-coral/5" : ""}`}>
+    <div
+      draggable={dragOn || undefined}
+      onDragStart={
+        dragOn
+          ? (ev) => {
+              // A payload makes the drag valid across the cell drop targets; the
+              // board reads the dragged entry from its own state, not this string.
+              ev.dataTransfer.setData("text/plain", entry.id);
+              ev.dataTransfer.effectAllowed = "move";
+              onDragStart?.();
+            }
+          : undefined
+      }
+      onDragEnd={dragOn ? () => onDragEnd?.() : undefined}
+      className={`group flex items-center gap-1.5 rounded-md px-1 py-0.5 hover:bg-paper ${selecting && selected ? "bg-coral/5" : ""} ${dragOn ? "cursor-grab active:cursor-grabbing" : ""}`}
+    >
       <span
         role="img"
         aria-label={dotTitle}

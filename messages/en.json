@@ -460,6 +460,7 @@
       "rankCandidates": "Rank candidates →",
       "openJd": "Open the job description",
       "scrollHint": "Click a stage header to centre it · scroll to move across the pipeline",
+      "dragHint": "Drag a candidate to move them between stages",
       "scrollLeft": "Scroll one stage left",
       "scrollRight": "Scroll one stage right",
       "boardAria": "Pipeline board, scroll horizontally",
