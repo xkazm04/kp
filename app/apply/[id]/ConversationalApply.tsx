@@ -11,6 +11,13 @@ import { useErrorMessage } from "@/app/_lib/use-error-message";
 
 type Msg = { who: "bot" | "me"; text: string };
 
+// Where in-progress answers are stashed (idea-939d96e9) so a refresh / lost
+// signal / return-later resumes mid-chat instead of restarting. Keyed by jobId
+// because a candidate may be partway through more than one role's application.
+const draftKey = (jobId: string) => `kp:apply-draft:${jobId}`;
+
+type ApplyDraft = { idx: number; answers: Record<string, unknown>; msgs: Msg[]; answeredIds: string[] };
+
 export function ConversationalApply({ jobId, steps }: { jobId: string; steps: ApplyStep[] }) {
   const t = useTranslations("apply");
   const tCommon = useTranslations("common");
@@ -58,6 +65,12 @@ export function ConversationalApply({ jobId, steps }: { jobId: string; steps: Ap
   // Per-step validation error (currently the email step), shown inline so a typo is fixed
   // in place rather than rejected only at the final submit — which forces a full restart.
   const [stepError, setStepError] = useState<string | null>(null);
+  // True once an in-progress draft has been restored from a prior visit
+  // (idea-939d96e9) — surfaces a "we picked up where you left off" banner with a
+  // start-fresh escape. `hydratedRef` gates the persist effect so it can't write
+  // the empty initial state over a saved draft before the restore effect runs.
+  const [resumed, setResumed] = useState(false);
+  const hydratedRef = useRef(false);
   const endRef = useRef<HTMLDivElement | null>(null);
   // Step ids already answered — the synchronous guard that makes advance()
   // idempotent even when two events fire within the same render frame.
@@ -78,6 +91,54 @@ export function ConversationalApply({ jobId, steps }: { jobId: string; steps: Ap
       if (stepTimer.current !== null) window.clearTimeout(stepTimer.current);
     };
   }, []);
+
+  // Restore an in-progress draft once, on mount (idea-939d96e9). Client-only
+  // (localStorage), so it runs in an effect — not the initial state — to keep
+  // hydration matching the server's empty render. Guarded against corrupt/stale
+  // drafts and never restores a completed flow. `hydratedRef` then unlocks persist.
+  useEffect(() => {
+    hydratedRef.current = true;
+    try {
+      const raw = window.localStorage.getItem(draftKey(jobId));
+      if (!raw) return;
+      const d = JSON.parse(raw) as ApplyDraft;
+      if (!d || typeof d.idx !== "number" || d.idx < 0 || d.idx >= steps.length) return;
+      if (!d.answers || typeof d.answers !== "object" || !Array.isArray(d.msgs) || d.msgs.length === 0) return;
+      if (Object.keys(d.answers).length === 0) return;
+      answeredRef.current = new Set(Array.isArray(d.answeredIds) ? d.answeredIds : []);
+      /* eslint-disable react-hooks/set-state-in-effect -- one-time hydration from localStorage (SSR-safe) */
+      setAnswers(d.answers);
+      setMsgs(d.msgs);
+      setIdx(d.idx);
+      setResumed(true);
+      /* eslint-enable react-hooks/set-state-in-effect */
+    } catch {
+      /* corrupt draft — ignore and start fresh */
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only restore
+  }, []);
+
+  // Persist the draft as the conversation progresses, and clear it the moment the
+  // application completes. Gated on hydration so it can't write the empty initial
+  // state over a saved draft before the restore effect above has run.
+  useEffect(() => {
+    if (!hydratedRef.current) return;
+    if (done) {
+      try {
+        window.localStorage.removeItem(draftKey(jobId));
+      } catch {
+        /* best-effort */
+      }
+      return;
+    }
+    if (Object.keys(answers).length === 0) return; // nothing worth saving yet
+    try {
+      const draft: ApplyDraft = { idx, answers, msgs, answeredIds: [...answeredRef.current] };
+      window.localStorage.setItem(draftKey(jobId), JSON.stringify(draft));
+    } catch {
+      /* quota / unavailable — best-effort */
+    }
+  }, [idx, answers, msgs, done, jobId]);
 
   // Move focus to the first control of a newly-rendered step so keyboard / screen-reader
   // users don't have to tab from the top of the page on every ko / choice / file step (only
@@ -152,12 +213,23 @@ export function ConversationalApply({ jobId, steps }: { jobId: string; steps: Ap
     if (submitting) return;
     answeredRef.current = new Set();
     finalAnswersRef.current = null;
+    try {
+      window.localStorage.removeItem(draftKey(jobId));
+    } catch {
+      /* best-effort */
+    }
+    setResumed(false);
     setSubmitError(null);
     setAnswers({});
     setInput("");
     setIdx(0);
     setMsgs([{ who: "bot", text: steps[0]?.prompt ?? t("letsBegin") }]);
   };
+
+  // Discard a restored draft and begin again from the first question
+  // (idea-939d96e9) — the escape hatch on the "we picked up where you left off"
+  // banner for a candidate who would rather start over.
+  const startFresh = () => restartConversation();
 
   const advance = async (stepId: string, newAnswers: Record<string, unknown>, label: string) => {
     if (busy || answeredRef.current.has(stepId)) return;
@@ -242,6 +314,20 @@ export function ConversationalApply({ jobId, steps }: { jobId: string; steps: Ap
 
   return (
     <div>
+      {/* idea-939d96e9 — a restored in-progress application: tell the candidate we
+          resumed and give a one-tap way to start over. */}
+      {resumed && !done ? (
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-md border border-stone-200 bg-paper p-2.5">
+          <span className="text-base text-steel">{t("resumedNote")}</span>
+          <button
+            type="button"
+            onClick={startFresh}
+            className="focus-ring rounded-md px-2 py-1 text-base font-semibold text-steel hover:text-ink"
+          >
+            {t("startFresh")}
+          </button>
+        </div>
+      ) : null}
       {/* role="log" + aria-live so each new bot prompt (and the final outcome) is announced
           to screen readers — the conversation previously advanced visual-only, leaving SR
           users with silence after each answer on this public candidate flow. */}

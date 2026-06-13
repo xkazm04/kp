@@ -193,6 +193,8 @@
     "skip": "Skip",
     "sending": "Sending…",
     "startOver": "Start over",
+    "resumedNote": "Welcome back — we picked up where you left off.",
+    "startFresh": "Start fresh",
     "skippedFile": "Skipped — I'll go with what I typed.",
     "attachedFile": "Attached {name}",
     "invalidEmail": "That doesn't look like a valid email — please check and try again.",

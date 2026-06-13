@@ -193,6 +193,8 @@
     "skip": "Přeskočit",
     "sending": "Odesílám…",
     "startOver": "Začít znovu",
+    "resumedNote": "Vítejte zpět — navázali jsme tam, kde jste skončili.",
+    "startFresh": "Začít znovu od začátku",
     "skippedFile": "Přeskočeno — použiji to, co jsem napsal/a.",
     "attachedFile": "Připojeno: {name}",
     "invalidEmail": "Tohle nevypadá jako platný e-mail — zkontrolujte to prosím a zkuste to znovu.",
