@@ -77,7 +77,57 @@ export function loadJd(slug: string): JdRow | null {
  *  history keyed on jd_slug). Caller validates via validateJdFields. */
 export function updateJd(slug: string, input: { title: string; body: string }): boolean {
   const db = ensureDb();
-  return db.prepare(`UPDATE jds SET title = ?, body = ? WHERE slug = ?`).run(input.title, input.body, slug).changes > 0;
+  // Snapshot the PRE-edit version into jd_revisions first (idea-6a18e0fc), in one
+  // transaction with the overwrite, so an edit is always recoverable.
+  const tx = db.transaction((): boolean => {
+    const current = db.prepare(`SELECT title, body FROM jds WHERE slug = ?`).get(slug) as
+      | { title: string; body: string }
+      | undefined;
+    if (!current) return false;
+    db.prepare(`INSERT INTO jd_revisions (slug, title, body, created_at) VALUES (?, ?, ?, ?)`).run(
+      slug,
+      current.title,
+      current.body,
+      new Date().toISOString()
+    );
+    return db.prepare(`UPDATE jds SET title = ?, body = ? WHERE slug = ?`).run(input.title, input.body, slug).changes > 0;
+  });
+  return tx();
+}
+
+export type JdRevision = { id: number; slug: string; title: string; body: string; created_at: string };
+
+/** Edit history for a JD, newest first (idea-6a18e0fc). Each row is a PRE-edit
+ *  snapshot taken when updateJd/revertJd overwrote the live JD. */
+export function listJdRevisions(slug: string, limit = 30): JdRevision[] {
+  return ensureDb()
+    .prepare(`SELECT id, slug, title, body, created_at FROM jd_revisions WHERE slug = ? ORDER BY id DESC LIMIT ?`)
+    .all(slug, Math.min(Math.max(limit, 1), 100)) as JdRevision[];
+}
+
+/** Restore a JD to a prior revision (idea-6a18e0fc). Snapshots the CURRENT version
+ *  first (a revert is itself an edit, so it's undoable too), then overwrites.
+ *  Returns the restored {title, body}, or null if the revision/JD is missing. */
+export function revertJd(slug: string, revisionId: number): { title: string; body: string } | null {
+  const db = ensureDb();
+  const tx = db.transaction((): { title: string; body: string } | null => {
+    const rev = db.prepare(`SELECT title, body FROM jd_revisions WHERE id = ? AND slug = ?`).get(revisionId, slug) as
+      | { title: string; body: string }
+      | undefined;
+    const current = db.prepare(`SELECT title, body FROM jds WHERE slug = ?`).get(slug) as
+      | { title: string; body: string }
+      | undefined;
+    if (!rev || !current) return null;
+    db.prepare(`INSERT INTO jd_revisions (slug, title, body, created_at) VALUES (?, ?, ?, ?)`).run(
+      slug,
+      current.title,
+      current.body,
+      new Date().toISOString()
+    );
+    db.prepare(`UPDATE jds SET title = ?, body = ? WHERE slug = ?`).run(rev.title, rev.body, slug);
+    return { title: rev.title, body: rev.body };
+  });
+  return tx();
 }
 
 /** Archive / unarchive a JD (W8-4). Archived JDs leave listJds and the

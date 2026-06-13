@@ -265,9 +265,13 @@ export function JdBuilderResult({
               <li key={i}>
                 {f.kind === "vague"
                   ? t("lintVague", { phrase: f.phrase })
-                  : f.what === "salary"
-                    ? t("lintMissingSalary")
-                    : t("lintMissingPlace")}
+                  : f.kind === "exclusionary"
+                    ? t("lintExclusionary", { phrase: f.phrase })
+                    : f.kind === "manyMustHaves"
+                      ? t("lintManyMustHaves", { count: f.count })
+                      : f.what === "salary"
+                        ? t("lintMissingSalary")
+                        : t("lintMissingPlace")}
               </li>
             ))}
           </ul>

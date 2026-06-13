@@ -138,6 +138,19 @@ export function ensureDb(): Database.Database {
     CREATE INDEX IF NOT EXISTS idx_jds_created_at
       ON jds (created_at DESC);
 
+    -- JD edit history (idea-6a18e0fc): a snapshot of the PRE-edit (title, body)
+    -- written on each updateJd, so an edit is diff-able and revertable. The
+    -- destructive in-place PATCH used to make a typo unrecoverable.
+    CREATE TABLE IF NOT EXISTS jd_revisions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      slug TEXT NOT NULL,
+      title TEXT NOT NULL,
+      body TEXT NOT NULL,
+      created_at TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_jd_revisions_slug
+      ON jd_revisions (slug, id DESC);
+
     -- Generic prompt cache (see lookup/store/prunePromptCache). Name is legacy:
     -- the real provider is ClaudeCliProvider, kept to preserve existing rows.
     CREATE TABLE IF NOT EXISTS gemini_cache (

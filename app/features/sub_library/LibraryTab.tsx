@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Briefcase, RotateCcw, Search } from "lucide-react";
+import { Briefcase, Copy, RotateCcw, Search } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { CompletionCta } from "@/app/_components/CompletionCta";
 import { Skeleton } from "@/app/_components/Skeleton";
@@ -50,6 +50,44 @@ function IngestAsJobButton({ slug, onDone }: { slug: string; onDone: (jobId: str
     >
       <Briefcase size={12} aria-hidden />
       {state === "busy" ? t("ingesting") : state === "error" ? t("ingestRetry") : t("ingestAsJob")}
+    </button>
+  );
+}
+
+// 7159056b — clone a saved JD as a starting point: most roles are variations of
+// prior ones, so fetch the full body and save a "(copy)" draft the recruiter then
+// tweaks (and its jd-<slug> Job is ingested by the shared save path). One click,
+// no blank builder.
+function DuplicateJdButton({ slug, title, onDone }: { slug: string; title: string; onDone: () => void }) {
+  const t = useTranslations("library.tab");
+  const [state, setState] = useState<"idle" | "busy" | "error">("idle");
+  const duplicate = async () => {
+    if (state === "busy") return;
+    setState("busy");
+    try {
+      const src = (await fetch(`/api/jds/${encodeURIComponent(slug)}`).then((r) => r.json())) as { body?: string } | null;
+      if (!src?.body) throw new Error();
+      const r = await fetch("/api/jds/save", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: t("copyTitle", { title }), body: src.body }),
+      });
+      if (!r.ok) throw new Error();
+      onDone();
+    } catch {
+      setState("error");
+    }
+  };
+  return (
+    <button
+      type="button"
+      onClick={duplicate}
+      disabled={state === "busy"}
+      title={t("duplicateTitle")}
+      className="focus-ring inline-flex items-center gap-1 rounded-md border border-stone-200 bg-white px-2 py-0.5 text-sm font-semibold text-steel hover:border-coral/40 hover:text-ink disabled:opacity-50"
+    >
+      <Copy size={12} aria-hidden />
+      {state === "busy" ? t("duplicating") : state === "error" ? t("duplicateRetry") : t("duplicate")}
     </button>
   );
 }
@@ -216,6 +254,7 @@ export function LibraryTab() {
                             }}
                           />
                         )}
+                        <DuplicateJdButton slug={row.slug} title={row.title} onDone={() => void load()} />
                       </p>
                     </li>
                   ))}
