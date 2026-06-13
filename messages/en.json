@@ -2238,6 +2238,8 @@
     "githubHelper": "Public profile — we read pinned repos.",
     "geminiMissing": "No Gemini API key is configured — the analysis will fail. Set GEMINI_API_KEY (or GOOGLE_API_KEY) and restart the server.",
     "reportLanguage": "Report language",
+    "blind": "Blind screening",
+    "blindTitle": "Redact identity (name, contact, photo, gendered terms, age) from the CV before scoring; the name is re-attached only in the result, and the trust ledger records what was redacted.",
     "attachCv": "Attach a CV to enable Analyze.",
     "githubOnlyReady": "GitHub-only deep-dive ready — attach a CV for the full analysis.",
     "ready": "Ready — Gemini takes 15–25 seconds.",

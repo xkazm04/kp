@@ -26,6 +26,8 @@ export type AnalysisInputs = {
   // locale; the route prefers it over the cookie so a recruiter can produce an
   // English report for an international panel without flipping the whole app.
   reportLang?: string;
+  // b8d711c4 — blind screening: redact identity from the CV before scoring.
+  blind?: boolean;
 };
 
 export type AnalysisCallbacks = {
@@ -48,9 +50,9 @@ export async function executeAnalysis(
   callbacks: AnalysisCallbacks,
   signal?: AbortSignal
 ): Promise<void> {
-  const { cvFiles, jobDescriptionFile, jobDescriptionText, companyFile, companyText, selectedJdSlug, reportLang } = inputs;
+  const { cvFiles, jobDescriptionFile, jobDescriptionText, companyFile, companyText, selectedJdSlug, reportLang, blind } = inputs;
   try {
-    const taskId = await submitAnalysis(cvFiles, jobDescriptionFile, jobDescriptionText, companyFile, companyText, selectedJdSlug, reportLang);
+    const taskId = await submitAnalysis(cvFiles, jobDescriptionFile, jobDescriptionText, companyFile, companyText, selectedJdSlug, reportLang, blind);
     callbacks.onTaskStarted?.(taskId);
     const parsed = await watchAnalysis(taskId, callbacks.onProgress, signal);
     callbacks.onFinalize();

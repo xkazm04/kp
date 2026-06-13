@@ -35,6 +35,11 @@ def main() -> int:
         help="Output locale for LLM-generated narrative (e.g. en, cs). "
         "Code values, skills, and proper nouns stay verbatim regardless.",
     )
+    parser.add_argument(
+        "--blind",
+        action="store_true",
+        help="Blind screening: redact identity (name/contact/photo/gendered terms/age) from the CV before scoring; re-attach the name only in the result.",
+    )
     parser.add_argument("--pretty", action="store_true")
     parser.add_argument(
         "--stream",
@@ -58,6 +63,7 @@ def main() -> int:
             company_text=args.company_text,
             lang=args.lang,
             progress=progress,
+            blind=args.blind,
         )
     except ValueError as exc:
         if args.stream:

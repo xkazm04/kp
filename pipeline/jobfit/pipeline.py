@@ -9,6 +9,7 @@ from typing import Any, Callable, TypeVar
 from .ats import evaluate_keyword_coverage
 from .extractors import clean_text, extract_text
 from .gemini import GEMINI_MODEL, analyze_profile_with_gemini
+from .redact import redact_pii
 from .insights import (
     apply_company_salary_context,
     build_company_context,
@@ -91,6 +92,7 @@ def analyze_cv(
     use_grounding: bool = False,
     lang: str = "en",
     progress: ProgressCallback | None = None,
+    blind: bool = False,
 ) -> AnalysisResult:
     request_id = new_request_id()
     started = time.monotonic()
@@ -109,6 +111,15 @@ def analyze_cv(
         _emit(progress, "extract", "active")
         with StageTimer(timings, "extract"):
             pypdf_text, evidence = _extract_pre_pass(path, company_text, repairs)
+        # Blind screening (idea-b8d711c4): redact identity from the extracted text
+        # and feed THAT to the model instead of the file, so name/contact/photo
+        # never reach scoring. The deterministic name is held for re-attachment.
+        redaction = redact_pii(pypdf_text) if blind else None
+        if redaction is not None:
+            note = "Blind screening active — identity redacted before scoring"
+            if redaction.categories:
+                note += f" ({', '.join(redaction.categories)})"
+            repairs.append(note + ".")
         _emit(progress, "extract", "done")
 
         _emit(progress, "gemini", "active")
@@ -121,6 +132,7 @@ def analyze_cv(
                 evidence=evidence.model_dump(by_alias=True, exclude_none=True),
                 lang=lang,
                 request_id=request_id,
+                blind_text=redaction.text if redaction is not None else None,
             )
         _emit(progress, "gemini", "done")
 
@@ -136,6 +148,11 @@ def analyze_cv(
             if len(raw_text) < 120:
                 repairs.append("Profile text was short — assessment may be less reliable (manual review)")
             profile = _profile_from_payload(profile_payload, raw_text)
+            # Re-attach the real name (idea-b8d711c4): the blind LLM pass returned a
+            # null/redacted name by instruction, so restore the deterministically
+            # detected one for the recruiter-facing result.
+            if redaction is not None:
+                profile.name = redaction.detected_name
         _emit(progress, "profile", "done")
 
         _emit(progress, "scoring", "active")

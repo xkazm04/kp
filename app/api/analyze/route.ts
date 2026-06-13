@@ -97,6 +97,8 @@ export async function POST(request: Request) {
   // same CV in the other language is cache-correct.
   const reportLang = form.get("reportLang");
   const lang = isLocale(reportLang) ? reportLang : await getServerLocale();
+  // Blind screening (idea-b8d711c4): redact identity from the CV before scoring.
+  const blind = form.get("blind") === "true";
 
   const params: AnalyzeParams = {
     baseDir,
@@ -109,6 +111,7 @@ export async function POST(request: Request) {
     jdSlug,
     requestId: newRequestId(),
     lang,
+    blind,
   };
 
   recordMeterUsage("ai_candidates");

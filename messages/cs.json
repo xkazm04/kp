@@ -2238,6 +2238,8 @@
     "githubHelper": "Veřejný profil — čteme připnuté repozitáře.",
     "geminiMissing": "Není nastaven Gemini API klíč — analýza selže. Nastavte GEMINI_API_KEY (nebo GOOGLE_API_KEY) a restartujte server.",
     "reportLanguage": "Jazyk reportu",
+    "blind": "Anonymní screening",
+    "blindTitle": "Před hodnocením odstranit z CV identitu (jméno, kontakt, fotka, rodově zabarvené výrazy, věk); jméno se znovu připojí až do výsledku a kontrolní záznam uvede, co bylo odstraněno.",
     "attachCv": "Připojte CV pro spuštění analýzy.",
     "githubOnlyReady": "Hloubková analýza GitHubu připravena — pro plnou analýzu přiložte CV.",
     "ready": "Připraveno — Gemini trvá 15–25 sekund.",

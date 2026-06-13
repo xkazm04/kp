@@ -13,10 +13,12 @@ export async function submitAnalysis(
   companyFile: File | null,
   companyText: string,
   jdSlug: string | null,
-  reportLang?: string
+  reportLang?: string,
+  blind?: boolean
 ): Promise<string> {
   const form = new FormData();
   form.append("grounding", "true");
+  if (blind) form.append("blind", "true");
   if (cvFiles.length === 1) form.append("cv", cvFiles[0]);
   else for (const file of cvFiles) form.append("cvs", file);
   if (jobDescriptionFile) form.append("jobDescription", jobDescriptionFile);

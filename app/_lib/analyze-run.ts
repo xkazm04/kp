@@ -26,6 +26,10 @@ export type AnalyzeParams = {
   // read the cookie itself) and forwarded to the Python CLI via --lang. Part of
   // the cache key so localized results don't collide. Defaults to "en".
   lang?: string;
+  // Blind screening (idea-b8d711c4): redact identity from the CV before scoring.
+  // Forwarded to the CLI as --blind; part of the cache key so a blind and a
+  // non-blind run of the same CV don't collide.
+  blind?: boolean;
 };
 
 export class AnalyzeError extends Error {
@@ -41,6 +45,7 @@ type ProgressFn = (done: number, total: number, msg?: string) => void;
 function cliArgs(cvPath: string, p: AnalyzeParams): string[] {
   const args = ["-m", "pipeline.jobfit.cli", cvPath];
   if (p.grounding) args.push("--grounding");
+  if (p.blind) args.push("--blind");
   args.push("--lang", p.lang || "en");
   if (p.jobDescriptionPath) args.push("--job-description-path", p.jobDescriptionPath);
   else if (p.jobDescriptionText?.trim()) args.push("--job-description-text", p.jobDescriptionText.trim());
@@ -92,6 +97,7 @@ export async function runAnalyze(p: AnalyzeParams, onProgress?: ProgressFn, sign
           companyFileBytes: coFileBytes,
           grounding: p.grounding,
           lang: p.lang || "en",
+          blind: p.blind,
         });
 
         const cached = lookupCachedAnalysis(cacheKey);
