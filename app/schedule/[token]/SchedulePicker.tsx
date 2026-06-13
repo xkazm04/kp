@@ -15,6 +15,7 @@ type Invite = {
   slot?: string | null;
   slotAt?: string | null;
   durationMin?: number | null;
+  attendanceStatus?: string | null;
 };
 type Slot = { value: string; label: string };
 
@@ -49,6 +50,10 @@ export function SchedulePicker({ token }: { token: string }) {
   // False when the server booked the slot but the confirmation email failed to
   // send — the success card then softens its promise instead of lying.
   const [confirmationSent, setConfirmationSent] = useState(true);
+  // RSVP on the confirmed booking (idea-87af39c5): which action is mid-flight, and
+  // a transient notice after a cancel returns the candidate to the slot picker.
+  const [rsvpPending, setRsvpPending] = useState<"confirm" | "cancel" | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -142,6 +147,49 @@ export function SchedulePicker({ token }: { token: string }) {
     downloadFile("interview.ics", ics, "text/calendar");
   };
 
+  // RSVP on the confirmed booking (idea-87af39c5). "I'll be there" stamps an
+  // attendance signal the recruiter sees; "I can't make it" frees the slot and
+  // drops the candidate back to the picker to choose a new time.
+  const rsvp = async (action: "confirm" | "cancel") => {
+    setRsvpPending(action);
+    setError(null);
+    setNotice(null);
+    try {
+      const res = await fetch(`/api/schedule/${token}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ rsvp: action }),
+      });
+      const d = await res.json();
+      if (!res.ok) {
+        setError(errMsg(d, t("confirmFailed")));
+        return;
+      }
+      if (action === "confirm") {
+        if (d.invite) setInvite(d.invite);
+        return;
+      }
+      // Cancelled — the booking is released and the invite is pending again. Return
+      // to the slot grid (confirmed → null) and refresh the offerable times.
+      setConfirmed(null);
+      setRescheduling(false);
+      if (d.invite) setInvite(d.invite);
+      setNotice(t("rsvpCancelledNote"));
+      const nd = await fetch(`/api/schedule/${token}`)
+        .then((r) => r.json())
+        .catch(() => null);
+      if (nd && !nd.error) {
+        setSlots(nd.slots ?? []);
+        setNoSlots(Boolean(nd.noSlots));
+        setCanReschedule(Boolean(nd.canReschedule));
+      }
+    } catch {
+      setError(t("confirmFailed"));
+    } finally {
+      setRsvpPending(null);
+    }
+  };
+
   if (error)
     return (
       <p role="alert" className="rounded-md border border-stone-200 bg-paper p-4 text-base text-coral">
@@ -201,12 +249,46 @@ export function SchedulePicker({ token }: { token: string }) {
             </button>
           ) : null}
         </div>
+        {/* RSVP (idea-87af39c5): turn the one-way booking into a two-way confirm so
+            the recruiter gets an early no-show signal and a freed slot. */}
+        <div className="mt-3 border-t border-moss/20 pt-3">
+          {invite.attendanceStatus === "confirmed" ? (
+            <p className="flex items-center gap-1.5 text-base font-medium text-moss">
+              <Check size={15} aria-hidden /> {t("attendanceConfirmed")}
+            </p>
+          ) : (
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-base text-steel">{t("rsvpPrompt")}</span>
+              <button
+                type="button"
+                disabled={rsvpPending !== null}
+                onClick={() => rsvp("confirm")}
+                className="focus-ring inline-flex items-center gap-1.5 rounded-md bg-moss px-3 py-1.5 text-base font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+              >
+                <Check size={15} aria-hidden /> {rsvpPending === "confirm" ? t("booking") : t("rsvpConfirm")}
+              </button>
+              <button
+                type="button"
+                disabled={rsvpPending !== null}
+                onClick={() => rsvp("cancel")}
+                className="focus-ring inline-flex items-center gap-1.5 rounded-md border border-stone-300 bg-white px-3 py-1.5 text-base font-semibold text-steel transition-colors hover:border-coral/50 disabled:opacity-50"
+              >
+                {rsvpPending === "cancel" ? t("booking") : t("rsvpCancel")}
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     );
   }
 
   return (
     <div>
+      {notice ? (
+        <p role="status" className="mb-3 rounded-md border border-amber-200 bg-amber-50 p-3 text-base text-amber-800">
+          {notice}
+        </p>
+      ) : null}
       {rescheduling ? (
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <p className="text-base text-steel">

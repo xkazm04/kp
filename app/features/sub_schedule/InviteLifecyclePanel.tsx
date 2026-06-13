@@ -20,6 +20,7 @@ type Invite = {
   durationMin: number | null;
   rescheduleCount: number;
   candidateTz: string | null;
+  attendanceStatus: string | null;
   createdAt: string;
   confirmedAt: string | null;
 };
@@ -124,6 +125,12 @@ export function InviteLifecyclePanel() {
                     {t("rescheduled", { count: i.rescheduleCount })}
                   </span>
                 ) : null}
+                {/* idea-87af39c5 — the candidate's RSVP, an early no-show signal. */}
+                {i.attendanceStatus === "confirmed" ? (
+                  <span className="rounded-full bg-moss/15 px-1.5 py-0.5 text-xs font-semibold text-moss">
+                    {t("attendanceConfirmed")}
+                  </span>
+                ) : null}
                 <span className="ml-auto text-xs text-steel">
                   {i.reminderSentAt ? t("reminderSent") : t("reminderPending")}
                 </span>
@@ -143,6 +150,13 @@ export function InviteLifecyclePanel() {
               <li key={i.id} className="flex flex-wrap items-baseline gap-x-2 rounded-md border border-stone-100 bg-paper/40 px-3 py-1.5 text-sm">
                 <span className="font-semibold text-ink">{i.candidateLabel ?? "—"}</span>
                 {i.jobTitle ? <span className="text-steel">· {i.jobTitle}</span> : null}
+                {/* idea-87af39c5 — a candidate who cancelled attendance is back here
+                    awaiting a new time; flag it so the recruiter can follow up. */}
+                {i.attendanceStatus === "cancelled" ? (
+                  <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-xs font-semibold text-amber-800">
+                    {t("attendanceCancelled")}
+                  </span>
+                ) : null}
                 <span className="ml-auto text-xs text-steel">{t("sentAgo", { time: relativeTime(i.createdAt) })}</span>
               </li>
             ))}

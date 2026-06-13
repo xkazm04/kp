@@ -172,7 +172,12 @@
     "allTakenTitle": "All current times are taken",
     "allTakenBody": "Every interview slot in the next few weeks is already booked. We've let the hiring team know you still need a time — they'll open more and email you a fresh scheduling link.",
     "nothingToDo": "Nothing to do right now — you can close this page.",
-    "timezoneNote": "All times shown in your timezone ({zone})."
+    "timezoneNote": "All times shown in your timezone ({zone}).",
+    "rsvpPrompt": "Can you still make it?",
+    "rsvpConfirm": "I'll be there",
+    "rsvpCancel": "I can't make it",
+    "attendanceConfirmed": "Attendance confirmed — thanks!",
+    "rsvpCancelledNote": "Your time has been released. Pick a new one below and we'll let the team know."
   },
   "apply": {
     "eyebrow": "Apply",
@@ -957,7 +962,9 @@
       "reminderSent": "reminder sent",
       "reminderPending": "reminder pending",
       "awaiting": "{count, plural, one {Awaiting booking (#)} other {Awaiting booking (#)}}",
-      "sentAgo": "sent {time}"
+      "sentAgo": "sent {time}",
+      "attendanceConfirmed": "attending",
+      "attendanceCancelled": "cancelled"
     },
     "eyebrow": "Decisions · Schedule",
     "title": "Interview calendar",

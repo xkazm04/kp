@@ -63,6 +63,12 @@ function db(): Database.Database {
       -- candidate is so the recruiter agenda can show a cross-border booking's real
       -- local time. NULL until the candidate confirms from a browser that resolves it.
       candidate_tz TEXT,
+      -- RSVP on a confirmed booking (idea-87af39c5): 'confirmed' when the candidate
+      -- taps "I'll be there" (recruiter gets an early attendance signal), 'cancelled'
+      -- when they tap "I can't make it" (the slot is freed and the invite returns to
+      -- pending so they can re-book). NULL = no RSVP yet. attendance_at stamps when.
+      attendance_status TEXT,
+      attendance_at TEXT,
       created_at TEXT NOT NULL,
       confirmed_at TEXT
     );
@@ -86,6 +92,8 @@ function db(): Database.Database {
     "duration_min INTEGER",
     "reschedule_count INTEGER NOT NULL DEFAULT 0",
     "candidate_tz TEXT",
+    "attendance_status TEXT",
+    "attendance_at TEXT",
   ]) {
     try {
       d.exec(`ALTER TABLE schedule_invites ADD COLUMN ${col}`);
@@ -116,6 +124,8 @@ export type ScheduleInvite = {
   durationMin: number | null; // planned interview length (e.g. 22 for the student script)
   rescheduleCount: number; // self-reschedules made on this confirmed booking (cap: MAX_RESCHEDULES)
   candidateTz: string | null; // idea-b51106df — candidate's IANA timezone captured at confirm; null until they book
+  attendanceStatus: string | null; // idea-87af39c5 — RSVP on the booking: 'confirmed' | 'cancelled' | null
+  attendanceAt: string | null; // ISO time the RSVP was recorded
   locale: string | null; // SIM3 — the linked entry's applicant locale, when joined (dueReminders); null otherwise
   createdAt: string;
   confirmedAt: string | null;
@@ -141,6 +151,8 @@ function rowTo(r: Record<string, unknown>): ScheduleInvite {
     durationMin: r.duration_min == null ? null : Number(r.duration_min),
     rescheduleCount: Number(r.reschedule_count ?? 0),
     candidateTz: (r.candidate_tz as string) ?? null,
+    attendanceStatus: (r.attendance_status as string) ?? null,
+    attendanceAt: (r.attendance_at as string) ?? null,
     // Only the dueReminders join selects entry_locale; every other read leaves it null.
     locale: (r.entry_locale as string) ?? null,
     createdAt: r.created_at as string,
@@ -225,6 +237,7 @@ export function confirmScheduleInvite(token: string, slot: string, slotAt?: stri
       .prepare(
         `UPDATE schedule_invites
             SET status = 'confirmed', slot = ?, slot_at = ?, confirmed_at = ?, candidate_tz = COALESCE(?, candidate_tz),
+                attendance_status = NULL, attendance_at = NULL,
                 needs_more_slots = 0, more_slots_flagged_at = NULL
           WHERE token = ? RETURNING *`
       )
@@ -274,6 +287,7 @@ export function rescheduleScheduleInvite(token: string, slot: string, slotAt: st
         `UPDATE schedule_invites
             SET slot = ?, slot_at = ?, confirmed_at = ?, reschedule_count = reschedule_count + 1,
                 candidate_tz = COALESCE(?, candidate_tz),
+                attendance_status = NULL, attendance_at = NULL,
                 reminder_sent_at = NULL, reminder_attempts = 0, reminder_last_attempt_at = NULL,
                 needs_more_slots = 0, more_slots_flagged_at = NULL
           WHERE token = ? RETURNING *`
@@ -282,6 +296,40 @@ export function rescheduleScheduleInvite(token: string, slot: string, slotAt: st
     return { ok: true, invite: rowTo(updated) };
   });
   return tx();
+}
+
+/** RSVP "I'll be there" on a confirmed booking (idea-87af39c5) — records an early
+ *  attendance signal the recruiter agenda surfaces, so a no-show isn't first learned
+ *  when it happens. Only a still-confirmed invite is affected (the WHERE guard), so a
+ *  stale tab on a pending/rebooked invite is a no-op. Returns the updated row or null. */
+export function confirmAttendance(token: string): ScheduleInvite | null {
+  const updated = db()
+    .prepare(
+      `UPDATE schedule_invites SET attendance_status = 'confirmed', attendance_at = ?
+        WHERE token = ? AND status = 'confirmed' RETURNING *`
+    )
+    .get(new Date().toISOString(), token) as Record<string, unknown> | undefined;
+  return updated ? rowTo(updated) : null;
+}
+
+/** RSVP "I can't make it" on a confirmed booking (idea-87af39c5): free the slot
+ *  (clear slot_at so it drops out of bookedSlots) and return the invite to 'pending'
+ *  so the candidate can pick a new time, while recording the cancellation for the
+ *  recruiter (attendance_status = 'cancelled'). Resets the reminder cycle — no
+ *  reminder for an abandoned slot. Only a confirmed invite cancels; returns the
+ *  updated (now-pending) row or null. The linked pipeline entry is intentionally
+ *  left at its stage: a cancelled time means "find another", not "reject". */
+export function cancelAttendance(token: string): ScheduleInvite | null {
+  const updated = db()
+    .prepare(
+      `UPDATE schedule_invites
+          SET status = 'pending', slot = NULL, slot_at = NULL, confirmed_at = NULL,
+              attendance_status = 'cancelled', attendance_at = ?,
+              reminder_sent_at = NULL, reminder_attempts = 0, reminder_last_attempt_at = NULL
+        WHERE token = ? AND status = 'confirmed' RETURNING *`
+    )
+    .get(new Date().toISOString(), token) as Record<string, unknown> | undefined;
+  return updated ? rowTo(updated) : null;
 }
 
 /** Flag an invite as needing manual reconciliation: the candidate's slot was

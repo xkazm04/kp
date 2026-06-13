@@ -43,6 +43,8 @@ const {
   confirmScheduleInvite,
   rescheduleScheduleInvite,
   getScheduleInviteByToken,
+  confirmAttendance,
+  cancelAttendance,
   bookedSlots,
   MAX_RESCHEDULES,
 } = await import("./schedule-store.ts");
@@ -136,4 +138,41 @@ test("resets the reminder cycle so the reminder fires for the new time", () => {
     assert.equal(r.invite.reminderSentAt, null, "reminder_sent_at cleared so the new slot re-arms");
     assert.equal(r.invite.reminderAttempts, 0, "attempt counter reset for the new slot");
   }
+});
+
+// --- RSVP attendance (idea-87af39c5) -----------------------------------------
+
+test("confirmAttendance stamps attendance on a confirmed invite only", () => {
+  const token = makeConfirmed("2031-01-05T10:00:00.000Z");
+  const updated = confirmAttendance(token);
+  assert.ok(updated, "confirm should return the row");
+  assert.equal(updated?.attendanceStatus, "confirmed");
+  assert.ok(updated?.attendanceAt, "attendance_at stamped");
+  assert.equal(updated?.status, "confirmed", "the booking stays confirmed");
+});
+
+test("confirmAttendance is a no-op on a pending invite", () => {
+  const inv = createScheduleInvite({ entryId: "e-pending-rsvp", candidateLabel: "P", jobTitle: "R" });
+  assert.equal(confirmAttendance(inv.token), null, "pending invite has no confirmed booking to RSVP");
+});
+
+test("cancelAttendance frees the slot, re-opens the invite, and records the cancel", () => {
+  const slotAt = "2031-02-09T14:00:00.000Z";
+  const token = makeConfirmed(slotAt);
+  assert.ok(bookedSlots().includes(slotAt), "slot is booked before cancel");
+  const updated = cancelAttendance(token);
+  assert.ok(updated, "cancel should return the row");
+  assert.equal(updated?.status, "pending", "invite returns to pending so the candidate can re-book");
+  assert.equal(updated?.slotAt, null, "slot_at cleared");
+  assert.equal(updated?.attendanceStatus, "cancelled");
+  assert.equal(updated?.reminderAttempts, 0, "reminder cycle reset");
+  assert.ok(!bookedSlots().includes(slotAt), "the freed slot is no longer booked");
+});
+
+test("re-confirming after a cancel clears the stale cancelled RSVP", () => {
+  const token = makeConfirmed("2031-03-03T10:00:00.000Z");
+  cancelAttendance(token);
+  const r = confirmScheduleInvite(token, "Re", "2031-03-10T10:00:00.000Z");
+  assert.ok(r.ok);
+  if (r.ok) assert.equal(r.invite.attendanceStatus, null, "a fresh booking starts with no RSVP");
 });
