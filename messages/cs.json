@@ -1357,9 +1357,35 @@
       },
       "tabCampaign": "Kampaň",
       "tabPosting": "Inzerát",
+      "tabCoach": "Kouč",
       "tabCandidates": "Kandidáti",
       "tabRediscover": "Znovuobjevení",
       "tabCompare": "Porovnání"
+    },
+    "coach": {
+      "loadFailed": "Roli se nepodařilo vyhodnotit.",
+      "retry": "Zkusit znovu",
+      "grading": "Vyhodnocuji roli proti vašemu fondu kandidátů…",
+      "emptyPoolTitle": "Zatím není proti komu roli vyhodnotit",
+      "emptyPoolBody": "Přidejte nebo importujte kandidáty a kouč ještě před publikací odhadne, kolik z nich projde branami této role.",
+      "verdict": {
+        "unfillable": "<b>Takto neobsaditelné</b> — branami projde {eligible} z {pool} kandidátů, ale nikdo neskóruje dost na užší výběr. Než začnete oslovovat, uvolněte níže uvedené požadavky.",
+        "thin": "<b>Slabý nábor</b> — do užšího výběru pro {jobTitle} by se dostali jen <b>{qualified}</b> z {pool} kandidátů. Před publikací stojí za to nějaký požadavek uvolnit.",
+        "healthy": "<b>{qualified} připraveno do užšího výběru</b> z {pool} — {jobTitle} by se měla obsadit. Můžete publikovat."
+      },
+      "stat": {
+        "pool": "Ve fondu",
+        "eligible": "Projde branami",
+        "qualified": "Do výběru"
+      },
+      "loosenHeading": "Uvolněte a rozšiřte nábor",
+      "gateLanguage": "Požadavek na <b>{value}</b> vyřazuje <b>{n}</b> jinak vhodných {n, plural, one {kandidáta} few {kandidáty} other {kandidátů}} — udělejte z něj výhodu.",
+      "gateEducation": "Minimální vzdělání <b>{value}</b> vyřazuje <b>{n}</b> {n, plural, one {kandidáta} few {kandidáty} other {kandidátů}} — zrušte je a rozšiřte fond.",
+      "mustHave": "<b>{missing}</b> vhodným {missing, plural, one {kandidátovi chybí} few {kandidátům chybí} other {kandidátům chybí}} <b>{skill}</b> — přesuňte mezi výhody.",
+      "salaryBelow": "Mzda <b>{job}</b> je pod tržním pásmem <b>{market}</b> pro tuto roli — zvyšte ji, abyste byli konkurenceschopní.",
+      "salaryOk": "Mzda odpovídá tržnímu pásmu <b>{market}</b> pro tuto roli.",
+      "salaryUnset": "(pásmo neuvedeno)",
+      "footnote": "Odhady znovu spouští živý skórovací engine kp proti vašim uloženým kandidátům — odpovídají tomu, co by ukázala publikace."
     },
     "campaign": {
       "intro": "Reklamní texty do feedu a scénáře 15sekundových videí pro tuto roli — formule čtyř dob (háček · nabídka · důkaz · výzva), postavená výhradně na uvedených faktech. Každá výzva odkazuje na 30sekundovou rychlou přihlášku.",

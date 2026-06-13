@@ -1356,10 +1356,36 @@
         "hired": "{count, plural, =1 {1 hired} other {# hired}}"
       },
       "tabPosting": "Posting",
+      "tabCoach": "Coach",
       "tabCampaign": "Campaign",
       "tabCandidates": "Candidates",
       "tabRediscover": "Rediscover",
       "tabCompare": "Compare"
+    },
+    "coach": {
+      "loadFailed": "Couldn't grade this role.",
+      "retry": "Retry",
+      "grading": "Grading this role against your candidate pool…",
+      "emptyPoolTitle": "No candidates to grade against yet",
+      "emptyPoolBody": "Add or import candidates and the coach will project how many would clear this role's gates before you publish.",
+      "verdict": {
+        "unfillable": "<b>Unfillable as written</b> — {eligible} of {pool} candidates clear the gates, but none score well enough to shortlist. Loosen the requirements below before you source.",
+        "thin": "<b>Thin pipeline</b> — only <b>{qualified}</b> of {pool} candidates would shortlist for {jobTitle}. Worth loosening a requirement before you publish.",
+        "healthy": "<b>{qualified} ready to shortlist</b> out of {pool} — {jobTitle} should fill. Publish with confidence."
+      },
+      "stat": {
+        "pool": "In pool",
+        "eligible": "Clear gates",
+        "qualified": "Shortlist-ready"
+      },
+      "loosenHeading": "Loosen to widen the pipeline",
+      "gateLanguage": "Requiring <b>{value}</b> drops <b>{n}</b> otherwise-eligible {n, plural, one {candidate} other {candidates}} — make it nice-to-have.",
+      "gateEducation": "The <b>{value}</b> education floor drops <b>{n}</b> {n, plural, one {candidate} other {candidates}} — drop it to widen the pool.",
+      "mustHave": "<b>{missing}</b> eligible {missing, plural, one {candidate lacks} other {candidates lack}} <b>{skill}</b> — demote it to nice-to-have.",
+      "salaryBelow": "Salary <b>{job}</b> sits below the market band <b>{market}</b> for this role — raise it to compete.",
+      "salaryOk": "Salary is in line with the market band <b>{market}</b> for this role.",
+      "salaryUnset": "(no band set)",
+      "footnote": "Projections re-run kp's live scoring engine against your saved candidates — they match what publishing would surface."
     },
     "campaign": {
       "intro": "Feed-ready ad copy and 15-second video scripts for this role — the 4-beat formula (hook · offer · proof · CTA), grounded only in the job's stated facts. Every CTA links the 30-second quick-apply form.",
