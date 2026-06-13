@@ -2,9 +2,10 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { buildUrl } from "@/app/features/tabs";
-import { Check, Download, ListChecks, X } from "lucide-react";
+import { Check, Download, ExternalLink, ListChecks, Sparkles, X } from "lucide-react";
+import type { Reasoning } from "@/app/features/sub_match/MatchTypes";
 import { normalizeArchetype } from "@/app/_lib/archetypes";
 import { isTerminalEntryStatus } from "@/app/_lib/pipeline-status";
 import { postPipelineAdd } from "@/app/_lib/useAddToPipeline";
@@ -55,9 +56,19 @@ const STAGE_INITIAL: Record<string, string> = {
   Hired: "H",
 };
 
+type ReasonState = { loading?: boolean; error?: string; data?: Reasoning; source?: string; cached?: boolean };
+type Popover = { candId: string; posId: string; cand: Candidate; pos: Position; cell: Cell; rect: { top: number; left: number } };
+
 export function MatrixTab() {
   const t = useTranslations("matrix");
+  const locale = useLocale();
   const enumLabel = useEnumLabel();
+  // deec915c — on-demand "why this score" popover. A cell click opens a card that
+  // lazily fetches /api/match/reasoning for the (candidate, job) pair (the matrix
+  // candidate id IS a profileId, which writeMatchInput resolves) and shows the
+  // cached verdict/strengths/gaps/probes inline — no tab switch to read the score.
+  const [popover, setPopover] = useState<Popover | null>(null);
+  const [reasoning, setReasoning] = useState<Record<string, ReasonState>>({});
   // MAT2 — name the hard gate(s) behind a blocked cell. "Blocked: language"
   // and "blocked: seniority" demand opposite recruiter actions (renegotiate vs
   // skip); the bare dash hid that. Localized by the stable KoReason.key; cells
@@ -117,6 +128,16 @@ export function MatrixTab() {
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Esc closes the reasoning popover (deec915c).
+  useEffect(() => {
+    if (!popover) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setPopover(null);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [popover]);
 
   const families = useMemo(() => {
     if (!data) return [];
@@ -200,6 +221,39 @@ export function MatrixTab() {
   }, [data, cols]);
 
   const open = (candId: string, posId: string) => router.push(buildUrl({ tab: "match", profile: candId, job: posId }, search.toString()));
+
+  // deec915c — lazily fetch (and cache) the reasoning for a (candidate, job) pair.
+  const fetchReasoning = (candId: string, posId: string) => {
+    const key = `${candId}|${posId}`;
+    setReasoning((cur) => {
+      if (cur[key]?.data || cur[key]?.loading) return cur; // already loaded / in flight
+      void fetch("/api/match/reasoning", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ profileId: candId, jobId: posId, lang: locale }),
+      })
+        .then(async (r) => {
+          const p = await r.json().catch(() => ({}));
+          if (!r.ok) throw new Error(p.error || t("reasoningFailed"));
+          return p as { reasoning?: Reasoning; source?: string; cached?: boolean };
+        })
+        .then((p) => setReasoning((s) => ({ ...s, [key]: { data: p.reasoning, source: p.source, cached: p.cached } })))
+        .catch((e) => setReasoning((s) => ({ ...s, [key]: { error: e instanceof Error ? e.message : t("reasoningFailed") } })));
+      return { ...cur, [key]: { loading: true } };
+    });
+  };
+
+  // Open the popover anchored under the clicked cell (viewport-fixed from its rect),
+  // and kick off the reasoning fetch for a scored cell. A blocked cell shows its KO
+  // reason instead — there's no fit rationale to fetch.
+  const openCell = (cand: Candidate, pos: Position, cell: Cell, ev: React.MouseEvent<HTMLButtonElement>) => {
+    const r = ev.currentTarget.getBoundingClientRect();
+    const W = 320;
+    const left = Math.min(Math.max(8, r.left), (typeof window !== "undefined" ? window.innerWidth : 1024) - W - 8);
+    const top = Math.min(r.bottom + 6, (typeof window !== "undefined" ? window.innerHeight : 768) - 340);
+    setPopover({ candId: cand.id, posId: pos.id, cand, pos, cell, rect: { top, left } });
+    if (!cell.blocked) fetchReasoning(cand.id, pos.id);
+  };
 
   const cellKey = (candId: string, posId: string) => `${candId}|${posId}`;
   const toggleCell = (candId: string, posId: string) =>
@@ -571,7 +625,7 @@ export function MatrixTab() {
                           <td key={p.id} className="border-b border-l border-stone-50 p-0">
                             <button
                               type="button"
-                              onClick={() => (selectMode ? selectable && toggleCell(cand.id, p.id) : open(cand.id, p.id))}
+                              onClick={(ev) => (selectMode ? selectable && toggleCell(cand.id, p.id) : openCell(cand, p, c, ev))}
                               disabled={selectMode && !selectable}
                               title={
                                 selectMode
@@ -623,6 +677,103 @@ export function MatrixTab() {
           <MatrixLegend />
         </>
       )}
+
+      {/* deec915c — the on-demand reasoning popover. Anchored under the clicked
+          cell (viewport-fixed); a full-screen catcher closes it on outside click. */}
+      {popover ? (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setPopover(null)} aria-hidden />
+          <div
+            role="dialog"
+            aria-label={t("popoverAria", { cand: popover.cand.label, pos: popover.pos.title })}
+            className="fixed z-50 max-h-[60vh] w-80 overflow-y-auto rounded-lg border border-stone-200 bg-white p-3 text-sm shadow-panel"
+            style={{ top: popover.rect.top, left: popover.rect.left }}
+          >
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <p className="flex items-center gap-1 truncate font-semibold text-ink">
+                  <Sparkles size={13} className="shrink-0 text-coral" /> {popover.cand.label}
+                </p>
+                <p className="truncate text-steel">
+                  {popover.pos.title}
+                  {!popover.cell.blocked && popover.cell.score != null ? ` · ${t("matchVal", { score: popover.cell.score })}` : ""}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPopover(null)}
+                aria-label={t("closePopover")}
+                className="focus-ring shrink-0 rounded p-0.5 text-steel hover:text-ink"
+              >
+                <X size={14} />
+              </button>
+            </div>
+
+            <div className="mt-2">
+              {popover.cell.blocked ? (
+                <p className="text-amber-800">{blockedLabel(popover.cell)}</p>
+              ) : (
+                (() => {
+                  const st = reasoning[`${popover.candId}|${popover.posId}`];
+                  if (!st || st.loading) return <p className="text-steel">{t("reasoningLoading")}</p>;
+                  if (st.error) return <p className="text-red-700">{st.error}</p>;
+                  const d = st.data;
+                  if (!d) return <p className="text-steel">{t("noReasoning")}</p>;
+                  return (
+                    <div className="space-y-2">
+                      {d.verdict ? <p className="text-ink">{d.verdict}</p> : null}
+                      {d.strengths?.length ? (
+                        <div>
+                          <p className="text-meta font-semibold uppercase text-moss">{t("strengths")}</p>
+                          <ul className="list-disc pl-4 text-steel">
+                            {d.strengths.slice(0, 4).map((s, i) => (
+                              <li key={i}>{s}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      ) : null}
+                      {d.gaps?.length ? (
+                        <div>
+                          <p className="text-meta font-semibold uppercase text-coral">{t("gaps")}</p>
+                          <ul className="list-disc pl-4 text-steel">
+                            {d.gaps.slice(0, 4).map((s, i) => (
+                              <li key={i}>{s}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      ) : null}
+                      {d.interviewProbes?.length ? (
+                        <div>
+                          <p className="text-meta font-semibold uppercase text-steel">{t("probes")}</p>
+                          <ul className="list-disc pl-4 text-steel">
+                            {d.interviewProbes.slice(0, 3).map((s, i) => (
+                              <li key={i}>{s}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      ) : null}
+                      {st.source && st.source !== "llm" ? (
+                        <p className="text-meta text-stone-400">{t("reasoningDeterministic")}</p>
+                      ) : null}
+                    </div>
+                  );
+                })()
+              )}
+            </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                open(popover.candId, popover.posId);
+                setPopover(null);
+              }}
+              className="focus-ring mt-3 inline-flex items-center gap-1 font-semibold text-coral hover:underline"
+            >
+              {t("viewFullMatch")} <ExternalLink size={12} />
+            </button>
+          </div>
+        </>
+      ) : null}
     </section>
   );
 }
