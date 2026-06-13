@@ -16,6 +16,8 @@
     "copyLink": "Zkopírovat odkaz na report",
     "linkCopied": "Odkaz zkopírován",
     "print": "Tisk / Uložit jako PDF",
+    "provenance": "Doložení (provenance)",
+    "provenanceTitle": "Stáhnout záznam s doložením: každá složka skóre vedle důkazu z CV, který ji vytvořil",
     "addToPipeline": "Přidat do pipeline",
     "adding": "Přidávám…",
     "added": "Přidáno do pipeline",

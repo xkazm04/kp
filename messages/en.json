@@ -16,6 +16,8 @@
     "copyLink": "Copy report link",
     "linkCopied": "Link copied",
     "print": "Print / Save as PDF",
+    "provenance": "Provenance dossier",
+    "provenanceTitle": "Download an evidence-linked record: every score component beside the CV evidence that produced it",
     "addToPipeline": "Add to pipeline",
     "adding": "Adding…",
     "added": "Added to pipeline",

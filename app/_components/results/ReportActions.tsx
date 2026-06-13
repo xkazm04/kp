@@ -1,9 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { Check, Link2, Printer } from "lucide-react";
+import { Check, FileText, Link2, Printer } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { copyText } from "@/app/_lib/export-utils";
+import { copyText, downloadFile } from "@/app/_lib/export-utils";
+import { buildProvenanceDossier } from "@/app/_lib/provenance-dossier";
+import type { AnalysisResult } from "@/app/_lib/schemas.generated";
 
 // Share/export affordances for a saved candidate report (Theme C, RES1). The
 // report previously had no way to leave the app — a recruiter handing it to a
@@ -11,7 +13,18 @@ import { copyText } from "@/app/_lib/export-utils";
 // history detail page, whose /history/<slug> URL is stable + persisted, so
 // "Copy report link" yields a link that reopens this exact report. `print:hidden`
 // keeps the buttons themselves out of the printed/PDF output.
-export function ReportActions() {
+export function ReportActions({
+  analysis,
+  candidateLabel,
+  savedAt,
+}: {
+  // idea-0832ec48 — when present, offer an exportable provenance dossier (every
+  // score component beside its CV evidence). Optional so the component stays usable
+  // wherever only copy-link/print make sense.
+  analysis?: AnalysisResult;
+  candidateLabel?: string | null;
+  savedAt?: string | null;
+} = {}) {
   const t = useTranslations("report");
   const [copied, setCopied] = useState(false);
 
@@ -19,6 +32,12 @@ export function ReportActions() {
     const ok = await copyText(typeof window !== "undefined" ? window.location.href : "");
     setCopied(ok);
     if (ok) window.setTimeout(() => setCopied(false), 2000);
+  };
+
+  const exportDossier = () => {
+    if (!analysis) return;
+    const name = (candidateLabel || analysis.candidate?.name || "candidate").replace(/[^\w-]+/g, "_").slice(0, 50);
+    downloadFile(`provenance-${name}.md`, buildProvenanceDossier(analysis, { candidateLabel, savedAt }), "text/markdown");
   };
 
   return (
@@ -38,6 +57,16 @@ export function ReportActions() {
       >
         <Printer size={15} className="text-steel" /> {t("print")}
       </button>
+      {analysis ? (
+        <button
+          type="button"
+          onClick={exportDossier}
+          title={t("provenanceTitle")}
+          className="focus-ring inline-flex h-9 items-center gap-1.5 rounded-md border border-stone-200 bg-white px-3 text-base font-semibold text-ink hover:border-coral/40"
+        >
+          <FileText size={15} className="text-steel" /> {t("provenance")}
+        </button>
+      ) : null}
     </div>
   );
 }

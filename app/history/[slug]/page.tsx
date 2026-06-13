@@ -100,7 +100,13 @@ export default async function HistoryDetailPage({
       <header className="flex flex-col gap-3 border-b border-stone-200 pb-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <p className="text-meta uppercase text-coral">{t("histEyebrow", { slug })}</p>
-          <ReportActions />
+          {/* idea-0832ec48 — pass the parsed analysis so the report can export an
+              evidence-linked provenance dossier alongside copy-link / print. */}
+          <ReportActions
+            analysis={parsed.data}
+            candidateLabel={found.row.candidate_label}
+            savedAt={new Date(found.row.created_at).toLocaleDateString()}
+          />
         </div>
         <h1 className="font-serif text-display text-ink">{found.row.candidate_label}</h1>
         <p className="text-sm text-steel">
