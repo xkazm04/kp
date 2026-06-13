@@ -319,6 +319,76 @@ export function listEntriesForJob(jobId: string): PipelineEntry[] {
   return rows.map(rowToEntry);
 }
 
+// --- Human re-review of auto-rejections (idea-e43fa801) ----------------------
+//
+// The screening wave auto-rejects the bottom cohort and the rejection is
+// terminal — no undo path, and the candidate already got a (queued) rejection
+// email. A recruiter who spots a borderline case (just under the threshold, a
+// comms failure, a stale skip) needs a safety valve to put them back. These two
+// functions back the "Reconsider" queue + one-click reinstate.
+
+export type ReconsiderItem = { entry: PipelineEntry; rejectedAt: string | null };
+
+/** The auto-rejected cohort still in a rejected state, newest rejection first.
+ *  Only entries carrying an `auto_rejected` event surface here — a manual human
+ *  reject is a deliberate decision, not a queue item. GROUP BY e.id dedups an
+ *  entry that was auto-rejected more than once; MAX(created_at) is its latest. */
+export function listReconsiderQueue(limit = 50): ReconsiderItem[] {
+  const db = ensureDb();
+  const rows = db
+    .prepare(
+      `SELECT e.id, e.candidate_id, e.candidate_label, e.archetype, e.role_family, e.job_id, e.job_title,
+              e.stage, e.match_score, e.status, e.approval_kind, e.approval_detail, e.created_at, e.stage_changed_at,
+              e.intake_degraded, e.intake_degraded_reason,
+              MAX(ev.created_at) AS rejected_at
+         FROM pipeline_entries e
+         JOIN pipeline_events ev ON ev.entry_id = e.id AND ev.kind = 'auto_rejected'
+        WHERE e.status = 'rejected'
+        GROUP BY e.id
+        ORDER BY rejected_at DESC
+        LIMIT ?`
+    )
+    .all(Math.min(Math.max(limit, 1), 200)) as (PipelineRow & { rejected_at: string | null })[];
+  return rows.map((r) => ({ entry: rowToEntry(r), rejectedAt: r.rejected_at ?? null }));
+}
+
+/** Reverse an auto-rejection: put the entry back to active at Screened for a
+ *  fresh look, clearing any approval and recording a `reinstated` reversal event
+ *  for the audit trail. Guarded to entries that are actually `rejected` (never a
+ *  candidate-side `declined`/`rematched`), so a double-click or stale view is a
+ *  no-op. Returns the reinstated entry, or null if it wasn't reinstatable. NB: the
+ *  candidate already received a rejection note — re-notifying them is a deliberate
+ *  recruiter follow-up, not auto-sent here. */
+export function reinstatePipelineEntry(id: string): PipelineEntry | null {
+  const db = ensureDb();
+  const tx = db.transaction((): PipelineEntry | null => {
+    const row = db.prepare(`SELECT * FROM pipeline_entries WHERE id = ?`).get(id) as PipelineRow | undefined;
+    if (!row || row.status !== "rejected") return null;
+    const now = new Date().toISOString();
+    const res = db
+      .prepare(
+        `UPDATE pipeline_entries
+            SET status='active', stage='Screened', approval_kind=NULL, approval_detail='',
+                stage_changed_at=?, updated_at=?
+          WHERE id=? AND status='rejected'`
+      )
+      .run(now, now, id);
+    if (res.changes === 0) return null; // lost a race to another writer
+    recordEvent(db, {
+      entryId: id,
+      candidateLabel: row.candidate_label,
+      jobTitle: row.job_title,
+      archetype: row.archetype,
+      kind: "reinstated",
+      fromStage: row.stage,
+      toStage: "Screened",
+      detail: "Auto-rejection reversed for re-review.",
+    });
+    return getPipelineEntry(id);
+  });
+  return tx();
+}
+
 export type CreatePipelineInput = {
   candidateId: string;
   candidateLabel: string;

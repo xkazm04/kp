@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { actOnPipelineEntry, clearIntakeDegraded, getPipelineEntry, PIPELINE_STAGES, setApproval, setPipelineEntryStage, type PipelineAction, type PipelineEntry } from "@/app/_lib/db";
+import { actOnPipelineEntry, clearIntakeDegraded, getPipelineEntry, PIPELINE_STAGES, reinstatePipelineEntry, setApproval, setPipelineEntryStage, type PipelineAction, type PipelineEntry } from "@/app/_lib/db";
 import { dispatchOffer, dispatchRejection } from "@/app/_lib/comms-dispatch";
 import { getOrCreateOpenOffer } from "@/app/_lib/offers-store";
 import { safeJsonError } from "@/app/_lib/api-response";
@@ -79,6 +79,20 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
         );
       }
       return NextResponse.json({ entry: moved });
+    }
+
+    // Reinstate an auto-rejected candidate for re-review (idea-e43fa801): put them
+    // back to active at Screened, audited. Guarded server-side to a still-rejected
+    // entry, so a double-click / stale "Reconsider" view 409s instead of churning.
+    if (body.action === "reinstate") {
+      const restored = reinstatePipelineEntry(id);
+      if (!restored) {
+        return NextResponse.json(
+          { error: "Couldn't reinstate — this candidate isn't in a rejected state (already reinstated, or closed differently)." },
+          { status: 409 }
+        );
+      }
+      return NextResponse.json({ entry: restored });
     }
 
     // Resolving a degraded-intake stub: the recruiter has manually captured the
