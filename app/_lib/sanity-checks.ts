@@ -33,3 +33,18 @@ export function splitSanityChecks(checks: string[]): { warns: string[]; oks: str
 export function countSanityWarns(checks: string[]): number {
   return checks.reduce((n, check) => (isSanityWarn(check) ? n + 1 : n), 0);
 }
+
+// CV authenticity trust band (idea-cae71d45). The Python pre-screen folds
+// `Authenticity: …` findings into the trust ledger (sanityChecks); risky ones
+// carry the warn marker. The band is derived from how many warned: 0 → high
+// trust, 1 → medium, 2+ → low. Mirrors pipeline/jobfit/authenticity.authenticity_band.
+export const AUTHENTICITY_PREFIX = "Authenticity";
+
+/** The trust band for an analysis, or null when the payload carries no
+ *  authenticity check (an older analysis run before this screen existed). */
+export function authenticityBand(checks: string[]): "high" | "medium" | "low" | null {
+  const auth = checks.filter((c) => c.startsWith(AUTHENTICITY_PREFIX));
+  if (auth.length === 0) return null;
+  const warns = auth.filter(isSanityWarn).length;
+  return warns === 0 ? "high" : warns === 1 ? "medium" : "low";
+}

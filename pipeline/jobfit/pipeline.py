@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any, Callable, TypeVar
 
 from .ats import evaluate_keyword_coverage
+from .authenticity import authenticity_checks
 from .extractors import clean_text, extract_text
 from .gemini import GEMINI_MODEL, analyze_profile_with_gemini
 from .redact import redact_pii
@@ -230,6 +231,15 @@ def analyze_cv(
 
             # Built last so helper-degrade notes collected above are included.
             sanity_checks = _sanity_checks(raw_text, score, salary) + repairs
+            # CV authenticity screen (idea-cae71d45): fold deterministic
+            # fabrication / AI-padding signals into the trust ledger so they count
+            # toward review_flags and the UI can derive a trust band. A SCREEN —
+            # every finding says "verify" — never an auto-reject.
+            sanity_checks += authenticity_checks(
+                raw_text,
+                skills_count=len(profile.skills),
+                years_experience=int(profile.years_experience) if profile.years_experience else None,
+            )
 
             parsing_notes = _string_list(profile_payload.get("parsing_notes"))
             if market_evidence is not None and market_evidence.summary:

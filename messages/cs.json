@@ -1851,7 +1851,11 @@
       "title": "Vyžaduje kontrolu",
       "flagged": "{count, plural, one {# upozornění} few {# upozornění} other {# upozornění}}",
       "allPassed": "{count, plural, one {# kontrola kvality prošla} few {Všechny # kontroly kvality prošly} other {Všech # kontrol kvality prošlo}}",
-      "viewChecks": "{count, plural, one {Zobrazit # kontrolu} few {Zobrazit všechny # kontroly} other {Zobrazit všech # kontrol}}"
+      "viewChecks": "{count, plural, one {Zobrazit # kontrolu} few {Zobrazit všechny # kontroly} other {Zobrazit všech # kontrol}}",
+      "trustTitle": "Kontrola pravosti CV — deterministická detekce životopisů generovaných AI / přikrášlených. Viz řádky Authenticity níže; vždy ověřte při pohovoru.",
+      "trustHigh": "Pravost: vysoká",
+      "trustMedium": "Pravost: střední",
+      "trustLow": "Pravost: nízká"
     },
     "softSignals": {
       "title": "Ověřit na pohovoru",

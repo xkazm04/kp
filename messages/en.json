@@ -1851,7 +1851,11 @@
       "title": "Needs review",
       "flagged": "{count, plural, one {# review flag} other {# review flags}}",
       "allPassed": "{count, plural, one {# quality check passed} other {All # quality checks passed}}",
-      "viewChecks": "{count, plural, one {View # check} other {View all # checks}}"
+      "viewChecks": "{count, plural, one {View # check} other {View all # checks}}",
+      "trustTitle": "CV authenticity screen — a deterministic check for AI-generated / embellished résumés. See the Authenticity lines below; always verify in interview.",
+      "trustHigh": "Authenticity: high",
+      "trustMedium": "Authenticity: medium",
+      "trustLow": "Authenticity: low"
     },
     "softSignals": {
       "title": "Confirm in interview",
