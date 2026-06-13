@@ -139,7 +139,11 @@
     "declinedTitle": "Response recorded",
     "declinedBody": "Thank you for letting us know. We wish you all the best.",
     "loadFailed": "Could not load this offer.",
-    "respondFailed": "Could not record your response."
+    "respondFailed": "Could not record your response.",
+    "deadline": "Please respond by {date}.",
+    "deadlineHours": "{hours, plural, one {# hour} other {# hours}} left.",
+    "expiredTitle": "This offer has expired",
+    "expiredBody": "The deadline to respond has passed. If you're still interested, please contact the hiring team."
   },
   "schedule": {
     "eyebrow": "Interview scheduling",

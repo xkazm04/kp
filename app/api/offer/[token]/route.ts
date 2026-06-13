@@ -29,7 +29,9 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
       return NextResponse.json({ error: "Response must be 'accept' or 'decline'." }, { status: 400 });
     }
     const result = await respondToOffer(token, response);
-    if (!result.ok) return NextResponse.json({ error: result.error }, { status: 404 });
+    // 410 Gone for a lapsed offer (idea-29361408) — distinct from 404 not-found so
+    // the page can show a definite "expired" state, not a generic error.
+    if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.expired ? 410 : 404 });
     return jsonOk(result);
   } catch (error) {
     return safeJsonError(error, "api:offer:respond", "OFFER_RESPOND_FAILED");

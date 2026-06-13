@@ -139,7 +139,11 @@
     "declinedTitle": "Odpověď zaznamenána",
     "declinedBody": "Děkujeme, že jste nám dali vědět. Přejeme vám vše nejlepší.",
     "loadFailed": "Tuto nabídku se nepodařilo načíst.",
-    "respondFailed": "Vaši odpověď se nepodařilo zaznamenat."
+    "respondFailed": "Vaši odpověď se nepodařilo zaznamenat.",
+    "deadline": "Odpovězte prosím do {date}.",
+    "deadlineHours": "{hours, plural, one {zbývá # hodina} few {zbývají # hodiny} other {zbývá # hodin}}.",
+    "expiredTitle": "Platnost této nabídky vypršela",
+    "expiredBody": "Lhůta pro odpověď uplynula. Pokud máte stále zájem, kontaktujte prosím náborový tým."
   },
   "schedule": {
     "eyebrow": "Plánování pohovoru",

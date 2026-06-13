@@ -3,6 +3,7 @@ import { DB_PATH, ensureDbDir } from "./db-path";
 import { randomId, randomToken } from "./random-id";
 import { TERMINAL_ENTRY_STATUSES, type PipelineEntryStatus } from "./pipeline-status";
 import { PIPELINE_STAGES } from "./pipeline-stages";
+import { isOfferExpired, OFFER_TTL_MS } from "./offer-policy";
 
 // Direction #4 — offer extension + candidate response capture. Isolated-connection
 // store (same pattern as job-ingest.ts): opens its OWN better-sqlite3 handle on
@@ -35,10 +36,20 @@ function db(): Database.Database {
       payload_json TEXT,
       status TEXT NOT NULL DEFAULT 'extended',
       created_at TEXT NOT NULL,
-      responded_at TEXT
+      responded_at TEXT,
+      -- Deadline after which an un-answered offer lapses to status 'expired'
+      -- (idea-29361408). NULL on legacy rows minted before this column → those
+      -- never expire (fail-open, see offer-policy.isOfferExpired).
+      expires_at TEXT
     );
     CREATE INDEX IF NOT EXISTS idx_offers_entry ON offers (entry_id);
   `);
+  // Migration for stores created before the expiry column existed.
+  try {
+    d.exec(`ALTER TABLE offers ADD COLUMN expires_at TEXT`);
+  } catch {
+    /* column already exists */
+  }
   // At most ONE open offer per entry, enforced by the database itself
   // (idea-00987b3c): the route's read-then-create dedupe is a TOCTOU two
   // near-simultaneous approvals both pass. Partial unique index = the backstop
@@ -65,9 +76,10 @@ export type OfferRow = {
   currency: string | null;
   salary: number | null;
   payload: unknown;
-  status: string; // extended | accepted | declined
+  status: string; // extended | accepted | declined | expired
   createdAt: string;
   respondedAt: string | null;
+  expiresAt: string | null; // deadline; null = never expires (legacy row)
 };
 
 function rowToOffer(r: Record<string, unknown>): OfferRow {
@@ -90,6 +102,7 @@ function rowToOffer(r: Record<string, unknown>): OfferRow {
     status: r.status as string,
     createdAt: r.created_at as string,
     respondedAt: (r.responded_at as string) ?? null,
+    expiresAt: (r.expires_at as string) ?? null,
   };
 }
 
@@ -104,15 +117,18 @@ export function createOffer(input: {
   payload: unknown;
 }): OfferRow {
   const d = db();
-  const now = new Date().toISOString();
+  const nowMs = Date.now();
+  const now = new Date(nowMs).toISOString();
+  // Stamp the deadline at mint time (idea-29361408) so the offer lapses on its own.
+  const expiresAt = new Date(nowMs + OFFER_TTL_MS).toISOString();
   const id = randomId("off");
   const token = randomToken("tk");
   // RETURNING * hands the freshly-inserted row back in the same statement, so we
   // don't issue a second SELECT to read what we just wrote.
   const row = d
     .prepare(
-      `INSERT INTO offers (id, token, entry_id, candidate_label, job_id, job_title, currency, salary, payload_json, status, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'extended', ?) RETURNING *`
+      `INSERT INTO offers (id, token, entry_id, candidate_label, job_id, job_title, currency, salary, payload_json, status, created_at, expires_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'extended', ?, ?) RETURNING *`
     )
     .get(
       id,
@@ -124,7 +140,8 @@ export function createOffer(input: {
       input.currency,
       input.salary,
       JSON.stringify(input.payload ?? null),
-      now
+      now,
+      expiresAt
     ) as Record<string, unknown>;
   return rowToOffer(row);
 }
@@ -132,6 +149,32 @@ export function createOffer(input: {
 export function getOfferByToken(token: string): OfferRow | null {
   const r = db().prepare(`SELECT * FROM offers WHERE token = ?`).get(token) as Record<string, unknown> | undefined;
   return r ? rowToOffer(r) : null;
+}
+
+/** Lazily lapse a single offer if it's past its deadline (idea-29361408), then
+ *  return the current row. Lets the candidate read/respond paths see a freshly
+ *  'expired' status the moment the deadline passes, even if the heartbeat sweep
+ *  hasn't run yet. The CAS (`status = 'extended'`) means only the still-open row
+ *  flips — an already accepted/declined offer is never touched. */
+export function expireOfferIfDue(token: string, nowMs: number = Date.now()): OfferRow | null {
+  const offer = getOfferByToken(token);
+  if (!offer) return null;
+  if (offer.status !== "extended" || !isOfferExpired(offer.expiresAt, nowMs)) return offer;
+  const updated = db()
+    .prepare(`UPDATE offers SET status = 'expired' WHERE token = ? AND status = 'extended' RETURNING *`)
+    .get(token) as Record<string, unknown> | undefined;
+  return updated ? rowToOffer(updated) : getOfferByToken(token);
+}
+
+/** Sweep every still-open offer past its deadline to terminal 'expired' (the
+ *  reminder heartbeat calls this). ISO strings compare lexicographically in the
+ *  same order as time, so the `<=` is a correct deadline test in SQL. Rows with a
+ *  NULL deadline (legacy) are excluded — they never expire. Returns how many lapsed. */
+export function lapseExpiredOffers(nowMs: number = Date.now()): number {
+  const res = db()
+    .prepare(`UPDATE offers SET status = 'expired' WHERE status = 'extended' AND expires_at IS NOT NULL AND expires_at <= ?`)
+    .run(new Date(nowMs).toISOString());
+  return res.changes;
 }
 
 /** Every offer ever extended to an entry, oldest first — the candidate
