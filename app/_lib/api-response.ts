@@ -73,6 +73,9 @@ export const STORE_ERRORS = {
   // Sidebar attention badges (SHELL2) — same store class.
   ATTENTION_FAILED: "Could not load attention counts. Please try again.",
   OFFER_RESPOND_FAILED: "Could not record your response. Please try again.",
+  // Candidate application-status lookup (idea-e76a6fb2) — public token route over
+  // the application-status store.
+  STATUS_LOOKUP_FAILED: "Could not load your application status. Please try again.",
 } as const;
 
 export type StoreErrorCode = keyof typeof STORE_ERRORS;

@@ -41,6 +41,7 @@ export function ConversationalApply({ jobId, steps }: { jobId: string; steps: Ap
     message: string;
     duplicate?: boolean;
     enriched?: boolean;
+    statusToken?: string | null;
   } | null>(null);
   const [submitting, setSubmitting] = useState(false);
   // A FAILED final submit — recoverable, rendered inline so the conversation and
@@ -175,7 +176,13 @@ export function ConversationalApply({ jobId, steps }: { jobId: string; steps: Ap
       });
       const d = await res.json();
       if (res.ok) {
-        setDone({ result: d.result, message: d.message, duplicate: Boolean(d.duplicate), enriched: Boolean(d.enriched) });
+        setDone({
+          result: d.result,
+          message: d.message,
+          duplicate: Boolean(d.duplicate),
+          enriched: Boolean(d.enriched),
+          statusToken: d.statusToken ?? null,
+        });
       } else {
         // The server rejected the submit. isRetryableApplyStatus decides whether a
         // re-POST of the same answers could succeed (5xx / transient) or is futile
@@ -359,6 +366,16 @@ export function ConversationalApply({ jobId, steps }: { jobId: string; steps: Ap
                 : t("thanksApplying")}
             </p>
             <p className="mt-1 text-base text-steel">{done.message}</p>
+            {/* idea-e76a6fb2 — a tokenized link so the applicant can track their
+                status instead of going dark after applying. */}
+            {done.result === "accepted" && done.statusToken ? (
+              <a
+                href={`/status/${done.statusToken}`}
+                className="focus-ring mt-3 inline-flex items-center gap-1.5 rounded-md border border-stone-300 bg-white px-3 py-1.5 text-base font-semibold text-ink hover:border-coral/50"
+              >
+                {t("trackStatus")}
+              </a>
+            ) : null}
           </div>
         ) : null}
         <div ref={endRef} />

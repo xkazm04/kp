@@ -179,6 +179,31 @@
     "attendanceConfirmed": "Účast potvrzena — děkujeme!",
     "rsvpCancelledNote": "Váš termín byl uvolněn. Vyberte si níže nový a dáme týmu vědět."
   },
+  "status": {
+    "eyebrow": "Stav přihlášky",
+    "loadFailed": "Tuto přihlášku se nepodařilo najít. Zkontrolujte odkaz nebo kontaktujte náborový tým.",
+    "forRole": "Vaše přihláška na pozici {role}",
+    "forRoleGeneric": "Vaše přihláška",
+    "updated": "Naposledy aktualizováno {date}",
+    "steps": {
+      "received": "Přijato",
+      "under_review": "V posuzování",
+      "interview": "Pohovor",
+      "offer": "Nabídka",
+      "hired": "Přijat/a"
+    },
+    "now": {
+      "received": "Vaši přihlášku jsme přijali — čeká ve frontě na posouzení.",
+      "under_review": "Náborář/ka právě posuzuje váš profil.",
+      "interview": "Jste ve fázi pohovoru — sledujte e-mail kvůli termínu.",
+      "offer": "Je tu nabídka. Podrobnosti najdete v e-mailu.",
+      "hired": "Jste přijat/a — vítejte na palubě! 🎉"
+    },
+    "notSelectedTitle": "Tentokrát jste nebyl/a vybrán/a",
+    "notSelectedBody": "Děkujeme za vaši přihlášku. Tým se rozhodl pokračovat s jinými kandidáty na tuto roli. Budeme rádi za vaši přihlášku na budoucí pozice.",
+    "withdrawnTitle": "Přihláška uzavřena",
+    "withdrawnBody": "Tato přihláška je uzavřena. Pokud to není správně, kontaktujte prosím náborový tým."
+  },
   "apply": {
     "eyebrow": "Přihláška",
     "roleClosed": "Tato pozice už byla obsazena a nepřijímá další přihlášky. Děkujeme za váš zájem!",
@@ -206,6 +231,7 @@
     "alreadyMessage": "Děkujeme za váš zájem! Vypadá to, že jste se na tuto roli již přihlásili — vaše dřívější přihláška je v našem procesu a náborář/ka se vám ozve. Zaznamenali jsme váš obnovený zájem.",
     "profileCompleted": "Profil doplněn 🎉",
     "enrichedMessage": "Děkujeme! Vaše dřívější přihláška právě získala na síle — váš úplný profil máme uložený a náborář/ka ho brzy posoudí.",
+    "trackStatus": "Sledovat stav přihlášky",
     "quick": {
       "subtitle": "Tři rychlé otázky — do 30 sekund, bez životopisu.",
       "nameLabel": "Vaše jméno",

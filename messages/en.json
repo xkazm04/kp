@@ -179,6 +179,31 @@
     "attendanceConfirmed": "Attendance confirmed — thanks!",
     "rsvpCancelledNote": "Your time has been released. Pick a new one below and we'll let the team know."
   },
+  "status": {
+    "eyebrow": "Application status",
+    "loadFailed": "We couldn't find that application. Check your link, or contact the hiring team.",
+    "forRole": "Your application for {role}",
+    "forRoleGeneric": "Your application",
+    "updated": "Last updated {date}",
+    "steps": {
+      "received": "Received",
+      "under_review": "Under review",
+      "interview": "Interview",
+      "offer": "Offer",
+      "hired": "Hired"
+    },
+    "now": {
+      "received": "We've received your application — it's in the queue for review.",
+      "under_review": "A recruiter is reviewing your profile.",
+      "interview": "You're at the interview stage — watch your email for scheduling.",
+      "offer": "An offer is on the table. Check your email for the details.",
+      "hired": "You're hired — welcome aboard! 🎉"
+    },
+    "notSelectedTitle": "Not selected this time",
+    "notSelectedBody": "Thank you for applying. The team has decided to move forward with other candidates for this role. We'd welcome a future application as our openings evolve.",
+    "withdrawnTitle": "Application closed",
+    "withdrawnBody": "This application is closed. If that's not right, please contact the hiring team."
+  },
   "apply": {
     "eyebrow": "Apply",
     "roleClosed": "This role has been filled and is no longer accepting applications. Thank you for your interest!",
@@ -206,6 +231,7 @@
     "alreadyMessage": "Thanks for your enthusiasm! It looks like you've already applied to this role — your earlier application is in our pipeline and a recruiter will be in touch. We've noted your renewed interest.",
     "profileCompleted": "Profile completed 🎉",
     "enrichedMessage": "Thanks! Your earlier application just got stronger — your full profile is now on file and a recruiter will review it shortly.",
+    "trackStatus": "Track your application status",
     "quick": {
       "subtitle": "Three quick questions — under 30 seconds, no CV needed.",
       "nameLabel": "Your name",

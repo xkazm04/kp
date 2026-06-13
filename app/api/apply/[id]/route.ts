@@ -21,6 +21,19 @@ import type { ApplyAnswers } from "@/app/_lib/apply-intake";
 import { cleanupWorkdir, createWorkdir, parsePythonJson, spawnPython } from "@/app/_lib/python-runner";
 import { validateProfileCliResult } from "@/app/_lib/apply-profile-result";
 import { randomId } from "@/app/_lib/random-id";
+import { getOrCreateStatusLink } from "@/app/_lib/application-status-store";
+
+// Mint (or reuse) the candidate's status-link token for an entry (idea-e76a6fb2),
+// best-effort: the application already succeeded, so a status-link failure must
+// never turn it into an error — the candidate just doesn't get the tracking link.
+function safeStatusLink(entryId: string): string | null {
+  try {
+    return getOrCreateStatusLink(entryId);
+  } catch (err) {
+    console.error(`[apply] could not mint status link for entry ${entryId}:`, err instanceof Error ? err.message : err);
+    return null;
+  }
+}
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -166,7 +179,9 @@ function acknowledgeReapply(entryId: string, message: string, changes: string[] 
     ? `repeat application via conversational apply — ${changes.join("; ")}`
     : "repeat application via conversational apply";
   recordAutomationEvent(entryId, "re_applied", detail);
-  return NextResponse.json({ result: "accepted", duplicate: true, enriched, message });
+  // The repeat reuses the ORIGINAL entry, so it returns the SAME status link
+  // (getOrCreateStatusLink is keyed on entry_id) — a returning candidate can track.
+  return NextResponse.json({ result: "accepted", duplicate: true, enriched, message, statusToken: safeStatusLink(entryId) });
 }
 
 // POST → evaluate KO answers. Pass → create an Accepted pipeline entry; fail → a
@@ -429,6 +444,9 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     return NextResponse.json({
       result: "accepted",
       message: t("acceptedMessage"),
+      // A tokenized link so the applicant can track their status (idea-e76a6fb2)
+      // instead of going dark after applying.
+      statusToken: safeStatusLink(entry.id),
     });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "apply failed" }, { status: 500 });
