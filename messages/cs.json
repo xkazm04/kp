@@ -1434,6 +1434,21 @@
       "couldntAdd": "Nepodařilo se přidat — {error}",
       "couldntReach": "Nepodařilo se oslovit — {error}"
     },
+    "rediscoveryFeed": {
+      "title": "Stříbrní medailisté",
+      "intro": "Silní dřívější kandidáti, kteří se stali vhodnými pro nově publikovanou roli — zobrazeno automaticky, aby nikdo nepropadl sítem.",
+      "empty": "Žádní stříbrní medailisté právě teď — obnovte po přidání kandidátů nebo publikaci role.",
+      "refresh": "Obnovit",
+      "sweeping": "Kontrola…",
+      "swept": "Zkontrolováno {jobs} publikovaných {jobs, plural, one {role} few {rolí} other {rolí}} — {found} {found, plural, one {nová shoda} few {nové shody} other {nových shod}}.",
+      "noPublished": "Zatím nejsou žádné publikované role ke kontrole.",
+      "sweepFailed": "Kontrolu stříbrných medailistů se nepodařilo provést.",
+      "clears": "<b>{label}</b> splňuje laťku pro <b>{role}</b>",
+      "addToPipeline": "Přidat do pipeline",
+      "adding": "Přidávání…",
+      "added": "Přidáno",
+      "dismiss": "Zavřít"
+    },
     "compare": {
       "loadFailed": "Pohovory se nepodařilo načíst.",
       "loading": "Načítání pohovorů…",

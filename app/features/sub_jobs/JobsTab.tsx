@@ -19,6 +19,7 @@ import { JobsTableFrame, JobsTableSkeleton } from "./JobsTable";
 import { JobRow } from "./JobRow";
 import { JobPostingModal } from "./JobPostingModal";
 import { DraftsPanel } from "./DraftsPanel";
+import { RediscoveryFeed } from "./RediscoveryFeed";
 import { IngestAdPanel } from "./IngestAdPanel";
 import { useJobsList } from "./useJobsList";
 
@@ -96,6 +97,8 @@ export function JobsTab() {
       ) : null}
 
       <DraftsPanel />
+
+      <RediscoveryFeed />
 
       <IngestAdPanel
         onIngested={(result) => {

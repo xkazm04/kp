@@ -76,6 +76,8 @@ export const STORE_ERRORS = {
   // Candidate application-status lookup (idea-e76a6fb2) — public token route over
   // the application-status store.
   STATUS_LOOKUP_FAILED: "Could not load your application status. Please try again.",
+  // Standing silver-medalist feed (idea-fdb45cd0) over the rediscovery-alert store.
+  REDISCOVERY_ALERTS_FAILED: "Could not load rediscovery alerts. Please try again.",
 } as const;
 
 export type StoreErrorCode = keyof typeof STORE_ERRORS;

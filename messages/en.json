@@ -1434,6 +1434,21 @@
       "couldntAdd": "Couldn't add — {error}",
       "couldntReach": "Couldn't reach out — {error}"
     },
+    "rediscoveryFeed": {
+      "title": "Silver medalists",
+      "intro": "Strong past candidates who became a fit for a newly-published role — surfaced automatically so none fall through the cracks.",
+      "empty": "No silver medalists right now — refresh after adding candidates or publishing a role.",
+      "refresh": "Refresh",
+      "sweeping": "Checking…",
+      "swept": "Checked {jobs} published {jobs, plural, one {role} other {roles}} — {found} new {found, plural, one {match} other {matches}}.",
+      "noPublished": "No published roles to check against yet.",
+      "sweepFailed": "Couldn't check for silver medalists.",
+      "clears": "<b>{label}</b> clears the bar for <b>{role}</b>",
+      "addToPipeline": "Add to pipeline",
+      "adding": "Adding…",
+      "added": "Added",
+      "dismiss": "Dismiss"
+    },
     "compare": {
       "loadFailed": "Couldn't load interviews.",
       "loading": "Loading interviews…",
