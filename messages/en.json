@@ -232,6 +232,7 @@
     "profileCompleted": "Profile completed 🎉",
     "enrichedMessage": "Thanks! Your earlier application just got stronger — your full profile is now on file and a recruiter will review it shortly.",
     "trackStatus": "Track your application status",
+    "prefilledHint": "Filled in from your CV — please check it's right.",
     "quick": {
       "subtitle": "Three quick questions — under 30 seconds, no CV needed.",
       "nameLabel": "Your name",
@@ -266,7 +267,7 @@
       "experiencePlaceholder": "e.g. 3 years building Node.js APIs…",
       "skillsPrompt": "Which skills should we highlight for this role? (comma-separated)",
       "skillsPlaceholder": "e.g. React, Node.js, SQL",
-      "cvPrompt": "Last thing — want to attach your CV? We'll read it in to round out your profile (PDF, DOCX, or TXT). Totally optional; skip it and we'll go with what you've told us.",
+      "cvPrompt": "Got a CV handy? Attach it (PDF, DOCX, or TXT) and we'll pre-fill the basics so you type less — or skip and we'll just have a quick chat.",
       "cvPlaceholder": "Attach your CV (optional)",
       "koAuth": "Are you legally authorized to work in {location}?",
       "koAuthFallbackLocation": "the country for this role",

@@ -232,6 +232,7 @@
     "profileCompleted": "Profil doplněn 🎉",
     "enrichedMessage": "Děkujeme! Vaše dřívější přihláška právě získala na síle — váš úplný profil máme uložený a náborář/ka ho brzy posoudí.",
     "trackStatus": "Sledovat stav přihlášky",
+    "prefilledHint": "Předvyplněno z vašeho životopisu — zkontrolujte prosím správnost.",
     "quick": {
       "subtitle": "Tři rychlé otázky — do 30 sekund, bez životopisu.",
       "nameLabel": "Vaše jméno",
@@ -266,7 +267,7 @@
       "experiencePlaceholder": "např. 3 roky budování Node.js API…",
       "skillsPrompt": "Které dovednosti máme pro tuto roli vyzdvihnout? (oddělené čárkami)",
       "skillsPlaceholder": "např. React, Node.js, SQL",
-      "cvPrompt": "Poslední věc — chcete připojit svůj životopis? Načteme ho, abychom doplnili váš profil (PDF, DOCX nebo TXT). Zcela dobrovolné; přeskočte a vyjdeme z toho, co jste nám řekli.",
+      "cvPrompt": "Máte po ruce životopis? Připojte ho (PDF, DOCX nebo TXT) a předvyplníme základní údaje, ať toho míň píšete — nebo přeskočte a jen si krátce popovídáme.",
       "cvPlaceholder": "Připojit životopis (volitelné)",
       "koAuth": "Máte legální oprávnění pracovat v {location}?",
       "koAuthFallbackLocation": "zemi pro tuto pozici",

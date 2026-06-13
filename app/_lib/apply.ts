@@ -99,6 +99,15 @@ function archetypeApplyLabel(t: ApplyTranslator, id: string, fallback: string): 
 // `prompt`/`placeholder`/label text is localized.
 export function buildApplyScript(job: JobRecord, t: ApplyTranslator): ApplyStep[] {
   const steps: ApplyStep[] = [
+    // CV-first (idea-cddec0bf): offered up front, optional/skippable, so an
+    // uploaded résumé can pre-fill the identity steps the candidate would
+    // otherwise type. Folded in as high-weight evidence either way.
+    {
+      id: "cv",
+      type: "file",
+      prompt: t("script.cvPrompt"),
+      placeholder: t("script.cvPlaceholder"),
+    },
     {
       id: "name",
       type: "text",
@@ -196,15 +205,9 @@ export function buildApplyScript(job: JobRecord, t: ApplyTranslator): ApplyStep[
     }
   );
 
-  // Optional CV upload — folded in as high-weight evidence so a polished résumé
-  // turns a thin typed stub into a fully matchable candidate. Skippable: the flow
-  // never blocks on a file, and the typed answers above already build a profile.
-  steps.push({
-    id: "cv",
-    type: "file",
-    prompt: t("script.cvPrompt"),
-    placeholder: t("script.cvPlaceholder"),
-  });
+  // (The optional CV upload now leads the script — see the CV-first step above —
+  // so an uploaded résumé can pre-fill the identity steps; it's still folded in as
+  // high-weight evidence and remains fully skippable.)
 
   steps.push({
     id: "ko_auth",

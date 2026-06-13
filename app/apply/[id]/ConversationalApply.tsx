@@ -7,6 +7,7 @@ import type { ApplyStep } from "@/app/_lib/apply";
 // Imported straight from the registry-free intake module (not the apply.ts
 // barrel) so the candidate-facing bundle doesn't pull in the archetype registry.
 import { isRetryableApplyStatus, nextVisibleStepIndex } from "@/app/_lib/apply-intake";
+import { cvAutofill } from "@/app/_lib/cv-autofill";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
 
 type Msg = { who: "bot" | "me"; text: string };
@@ -66,6 +67,10 @@ export function ConversationalApply({ jobId, steps }: { jobId: string; steps: Ap
   // Per-step validation error (currently the email step), shown inline so a typo is fixed
   // in place rather than rejected only at the final submit — which forces a full restart.
   const [stepError, setStepError] = useState<string | null>(null);
+  // CV-first autofill (idea-cddec0bf): editable defaults parsed from an uploaded
+  // CV, keyed by step id (name/email). Seeded into the text input when the flow
+  // reaches that step, so the candidate confirms rather than retypes.
+  const [prefill, setPrefill] = useState<Record<string, string>>({});
   // True once an in-progress draft has been restored from a prior visit
   // (idea-939d96e9) — surfaces a "we picked up where you left off" banner with a
   // start-fresh escape. `hydratedRef` gates the persist effect so it can't write
@@ -151,6 +156,21 @@ export function ConversationalApply({ jobId, steps }: { jobId: string; steps: Ap
     if (!step || step.type === "text") return;
     stepControlsRef.current?.querySelector<HTMLElement>("button:not([disabled])")?.focus();
   }, [idx, transitioning, done, submitError, steps]);
+
+  // Seed a CV-parsed value into the text input on arrival at its step
+  // (idea-cddec0bf), only when the candidate hasn't already answered it and the
+  // box is empty — so it's an editable default, never an overwrite of their typing.
+  useEffect(() => {
+    if (done || submitError || transitioning) return;
+    const step = steps[idx];
+    if (!step || step.type !== "text" || answeredRef.current.has(step.id)) return;
+    const pf = prefill[step.id];
+    if (pf && input.trim() === "") {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- seed an editable CV-parsed default
+      setInput(pf);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally not on `input`: seed once per step, don't re-seed after the candidate clears it
+  }, [idx, transitioning, done, submitError, prefill, steps]);
 
   // The controls are locked while a POST is in flight or while we're mid-hop
   // between steps. advance() is the single entry point and answers each step
@@ -303,6 +323,10 @@ export function ConversationalApply({ jobId, steps }: { jobId: string; steps: Ap
       if (!res.ok || !d || typeof d.text !== "string" || !d.text.trim()) {
         throw new Error("extract-text failed");
       }
+      // Pre-fill the identity steps from the CV so the candidate confirms rather
+      // than retypes (idea-cddec0bf). Editable defaults only; never auto-submitted.
+      const auto = cvAutofill(d.text);
+      if (Object.keys(auto).length > 0) setPrefill((p) => ({ ...p, ...auto }));
       const step = steps[idx];
       advance(step.id, { ...answers, [step.id]: d.text }, t("attachedFile", { name: file.name }));
     } catch {
@@ -505,6 +529,11 @@ export function ConversationalApply({ jobId, steps }: { jobId: string; steps: Ap
               </button>
             </form>
           )}
+          {/* idea-cddec0bf — flag a value pre-filled from the CV so the candidate
+              knows to check it rather than assuming they typed it. */}
+          {cur && cur.type === "text" && prefill[cur.id] && !stepError ? (
+            <p className="mt-1.5 text-sm text-steel">{t("prefilledHint")}</p>
+          ) : null}
           {stepError ? <p role="alert" className="mt-1.5 text-sm text-coral">{stepError}</p> : null}
         </div>
       ) : null}
