@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Users } from "lucide-react";
+import { Scale, Users } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { ARCHETYPE_BADGE, isEarlyCareer, provLabel } from "./JobsTypes";
-import type { CandRow, SkippedCandidate } from "./JobsTypes";
+import type { CandRow, FairnessMatrix, SkippedCandidate } from "./JobsTypes";
 import { EmptyState, SkippedCandidatesNote } from "./JobsShared";
+import { downloadFile, toCsv } from "@/app/_lib/export-utils";
 import { useAddToPipeline } from "@/app/_lib/useAddToPipeline";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { useReachOut } from "@/app/_lib/useReachOut";
@@ -28,9 +29,13 @@ export function RecruiterCandidates({
   const [data, setData] = useState<{
     candidates: CandRow[];
     skipped?: SkippedCandidate[];
+    fairness?: FairnessMatrix | null;
   } | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // e1e4e0ea — when on, rank by the robust cross-scheme mean instead of each
+  // candidate's own-weight score, and surface the own-vs-robust delta.
+  const [fairRank, setFairRank] = useState(false);
   // The jobId whose candidates are currently loaded — so auto-load fires once per job
   // (mount AND when the reused modal switches jobs), not just on first mount.
   const loadedJobRef = useRef<string | null>(null);
@@ -103,23 +108,79 @@ export function RecruiterCandidates({
   const notEligible = notEligibleRows.length;
   const skipped = data.skipped ?? [];
 
+  // e1e4e0ea — index the cross-scheme fairness matrix by candidateId so each card
+  // can show its robust mean + own-vs-robust delta, and the columns can re-rank by
+  // robustness. Guarded: needs aligned candidateIds and ≥2 candidates to matter.
+  const fairness = data.fairness ?? null;
+  const fairById = new Map<string, { own: number; mean: number; delta: number }>();
+  if (fairness?.candidateIds && fairness.candidateIds.length === fairness.mean.length) {
+    fairness.candidateIds.forEach((cid, i) => {
+      const own = fairness.own[i] ?? 0;
+      const mean = fairness.mean[i] ?? 0;
+      fairById.set(cid, { own, mean, delta: mean - own });
+    });
+  }
+  const hasFairness = fairById.size >= 2;
+  const fairActive = fairRank && hasFairness;
+  // Fair Rank on → order each column by the robust mean (desc); else keep the
+  // engine's eligible-then-own-score order.
+  const orderRows = (rows: CandRow[]): CandRow[] =>
+    fairActive
+      ? [...rows].sort(
+          (a, b) =>
+            (fairById.get(b.candidateId)?.mean ?? b.result.total) - (fairById.get(a.candidateId)?.mean ?? a.result.total)
+        )
+      : rows;
+
+  // Export the auditable matrix: per-scheme scores (matrix[i] = candidate i under
+  // every candidate's weights) plus own / robust / delta. Reuses the shared CSV toolkit.
+  const exportFairness = () => {
+    if (!fairness) return;
+    const header = ["Candidate", "Own", "Robust (mean)", "Delta", ...fairness.labels.map((l) => `under ${l}`)];
+    const rows = fairness.labels.map((label, i) => [
+      label,
+      fairness.own[i] ?? "",
+      fairness.mean[i] ?? "",
+      (fairness.mean[i] ?? 0) - (fairness.own[i] ?? 0),
+      ...(fairness.matrix[i] ?? []),
+    ]);
+    const name = `fair-rank-${(jobTitle || "role").replace(/\s+/g, "-")}.csv`;
+    downloadFile(name, toCsv([header, ...rows]), "text/csv");
+  };
+
   return (
     <div className="rounded-md border border-stone-200 p-3">
       <p role="status" aria-live="polite" className="sr-only">
         {[announce, reachAnnounce].filter(Boolean).join(" ")}
       </p>
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-sm font-semibold uppercase tracking-wide text-coral">
           {t("title")}
         </p>
-        <span className="text-sm text-steel">{t("notEligible", { count: notEligible })}</span>
+        <div className="flex items-center gap-2">
+          {hasFairness ? (
+            <button
+              type="button"
+              onClick={() => setFairRank((v) => !v)}
+              aria-pressed={fairRank}
+              title={t("fairRankTitle")}
+              className={`focus-ring inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-sm font-semibold ${
+                fairActive ? "border-coral bg-coral/10 text-coral" : "border-stone-200 bg-white text-steel hover:border-coral/40 hover:text-ink"
+              }`}
+            >
+              <Scale size={13} /> {t("fairRank")}
+            </button>
+          ) : null}
+          <span className="text-sm text-steel">{t("notEligible", { count: notEligible })}</span>
+        </div>
       </div>
       <p className="mt-1 text-sm text-steel">{t("earlyCareerNote")}</p>
+      {fairActive ? <p className="mt-1 text-sm text-steel">{t("fairRankNote")}</p> : null}
       <SkippedCandidatesNote skipped={skipped} />
       <div className="mt-3 grid gap-4 lg:grid-cols-2">
         <CandidateColumn
           title={t("experienced")}
-          rows={experienced}
+          rows={orderRows(experienced)}
           added={added}
           adding={adding}
           error={cardError}
@@ -128,10 +189,11 @@ export function RecruiterCandidates({
           reaching={reaching}
           reachError={reachError}
           onReach={reachOut}
+          fair={fairActive ? (id) => fairById.get(id) : undefined}
         />
         <CandidateColumn
           title={t("earlyCareerPipeline")}
-          rows={earlyCareer}
+          rows={orderRows(earlyCareer)}
           highlight
           added={added}
           adding={adding}
@@ -141,8 +203,12 @@ export function RecruiterCandidates({
           reaching={reaching}
           reachError={reachError}
           onReach={reachOut}
+          fair={fairActive ? (id) => fairById.get(id) : undefined}
         />
       </div>
+      {hasFairness ? (
+        <FairnessAuditPanel fairness={fairness!} fairById={fairById} onExport={exportFairness} />
+      ) : null}
       <NotEligibleSection rows={notEligibleRows} />
     </div>
   );
@@ -183,6 +249,72 @@ function NotEligibleSection({ rows }: { rows: CandRow[] }) {
   );
 }
 
+// e1e4e0ea — the auditable cross-scheme view: every candidate's own vs robust
+// (mean-across-all-schemes) score + delta, sorted by robustness, with a CSV export
+// of the full per-scheme matrix. The bias-defensible artifact a compliance review asks for.
+function FairnessAuditPanel({
+  fairness,
+  fairById,
+  onExport,
+}: {
+  fairness: FairnessMatrix;
+  fairById: Map<string, { own: number; mean: number; delta: number }>;
+  onExport: () => void;
+}) {
+  const t = useTranslations("jobs.candidates");
+  const ids = fairness.candidateIds ?? fairness.labels.map((_, i) => String(i));
+  const rows = ids
+    .map((cid, i) => ({
+      label: fairness.labels[i] ?? cid,
+      ...(fairById.get(cid) ?? {
+        own: fairness.own[i] ?? 0,
+        mean: fairness.mean[i] ?? 0,
+        delta: (fairness.mean[i] ?? 0) - (fairness.own[i] ?? 0),
+      }),
+    }))
+    .sort((a, b) => b.mean - a.mean);
+  return (
+    <details className="mt-3 rounded-md border border-stone-200 bg-paper/40 px-3 py-2">
+      <summary className="focus-ring flex cursor-pointer items-center gap-1.5 text-sm font-semibold text-steel hover:text-ink">
+        <Scale size={13} className="text-coral" /> {t("fairnessAudit")}
+      </summary>
+      <p className="mt-2 text-sm text-steel">{t("fairnessAuditHelp")}</p>
+      <div className="mt-2 overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="text-left text-steel">
+              <th className="py-1 pr-3 font-semibold">{t("auditCandidate")}</th>
+              <th className="py-1 pr-3 font-semibold">{t("auditOwn")}</th>
+              <th className="py-1 pr-3 font-semibold">{t("auditRobust")}</th>
+              <th className="py-1 font-semibold">{t("auditDelta")}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => (
+              <tr key={r.label} className="border-t border-stone-100">
+                <td className="py-1 pr-3 text-ink">{r.label}</td>
+                <td className="nums py-1 pr-3 text-steel">{r.own}</td>
+                <td className="nums py-1 pr-3 font-semibold text-ink">{r.mean}</td>
+                <td className={`nums py-1 font-semibold ${r.delta >= 0 ? "text-moss" : "text-amber-700"}`}>
+                  {r.delta >= 0 ? "+" : ""}
+                  {r.delta}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <button
+        type="button"
+        onClick={onExport}
+        className="focus-ring mt-2 rounded-md border border-stone-300 bg-white px-2.5 py-1 text-sm font-semibold text-ink hover:border-coral/50"
+      >
+        {t("fairnessAuditExport")}
+      </button>
+    </details>
+  );
+}
+
 function CandidateColumn({
   title,
   rows,
@@ -195,6 +327,7 @@ function CandidateColumn({
   reaching,
   reachError,
   onReach,
+  fair,
 }: {
   title: string;
   rows: CandRow[];
@@ -207,6 +340,8 @@ function CandidateColumn({
   reaching: (id: string) => boolean;
   reachError: (id: string) => string | null;
   onReach: (c: CandRow) => void;
+  // e1e4e0ea — robust-mean lookup when Fair Rank is active; undefined otherwise.
+  fair?: (id: string) => { own: number; mean: number; delta: number } | undefined;
 }) {
   const t = useTranslations("jobs.candidates");
   return (
@@ -236,6 +371,7 @@ function CandidateColumn({
               reaching={reaching(c.candidateId)}
               reachError={reachError(c.candidateId)}
               onReach={() => onReach(c)}
+              fair={fair?.(c.candidateId)}
             />
           ))}
         </ol>
@@ -254,6 +390,7 @@ function CandidateCard({
   reaching,
   reachError,
   onReach,
+  fair,
 }: {
   c: CandRow;
   added: boolean;
@@ -264,6 +401,8 @@ function CandidateCard({
   reaching: boolean;
   reachError: string | null;
   onReach: () => void;
+  // e1e4e0ea — robust mean + own-vs-robust delta, present only in Fair Rank mode.
+  fair?: { own: number; mean: number; delta: number };
 }) {
   const t = useTranslations("jobs.candidates");
   const enumLabel = useEnumLabel();
@@ -278,6 +417,17 @@ function CandidateCard({
     <li className="rounded-md border border-stone-200 bg-white p-2">
       <div className="flex flex-wrap items-center gap-2">
         <ScoreBadge score={res.total} />
+        {fair ? (
+          // e1e4e0ea — the robust (cross-scheme mean) score + delta vs the
+          // candidate's own-weight score. Positive Δ = strong under everyone's
+          // yardsticks; negative = flattered by their own weights.
+          <span
+            title={t("robustTitle", { own: fair.own })}
+            className={`nums rounded px-1.5 py-0.5 text-sm font-semibold ${fair.delta >= 0 ? "bg-moss/10 text-moss" : "bg-amber-100 text-amber-800"}`}
+          >
+            {t("robustBadge", { mean: fair.mean, delta: `${fair.delta >= 0 ? "+" : ""}${fair.delta}` })}
+          </span>
+        ) : null}
         <span className="nums text-sm text-steel" title={confidenceBandTitle(res.confidence.drivers)}>
           {res.confidence.low}–{res.confidence.high}
         </span>

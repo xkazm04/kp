@@ -59,6 +59,22 @@ export type Job = {
 // results, on both the candidates and rediscovery surfaces.
 export type SkippedCandidate = { id: string; label: string; reason: string };
 
+// e1e4e0ea — the cross-scheme fairness matrix from recruiter.fairness_check: each
+// candidate scored under EVERY candidate's bounded weight scheme and ranked by the
+// robust MEAN, not their own-weight score (so a candidate strong under all
+// yardsticks beats one merely flattered by their own). Index-aligned across
+// labels / candidateIds / own / mean; matrix[i][j] = candidate i under candidate
+// j's scheme. Always present (deterministic propose_weights) when ≥1 candidate.
+export type FairnessMatrix = {
+  labels: string[];
+  candidateIds?: string[];
+  matrix: number[][];
+  own: number[];
+  mean: number[];
+  ranking?: string[];
+  weightSource?: string;
+};
+
 export type Stats = {
   total: number;
   entryEligible: number;
