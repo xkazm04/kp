@@ -1310,7 +1310,16 @@
       "parsing": "Zpracování inzerátu…",
       "addToCatalog": "Přidat do katalogu",
       "cancel": "Zrušit",
-      "parsingNote": "Zpracování spouští Claude CLI lokálně — může chvíli trvat."
+      "parsingNote": "Zpracování spouští Claude CLI lokálně — může chvíli trvat.",
+      "bulkToggle": "Více inzerátů",
+      "bulkHint": "oddělte každý inzerát řádkem ---",
+      "bulkPlaceholder": "Vložte několik inzerátů, každý oddělený řádkem pomlček (---)…",
+      "importAll": "Importovat vše ({count})",
+      "importing": "Importuji {done}/{total}…",
+      "bulkDone": "{added} přidáno · {exists} již v katalogu · {failed} selhalo",
+      "resAdded": "přidáno",
+      "resExists": "v katalogu",
+      "resFailed": "nepodařilo se"
     },
     "drafts": {
       "heading": "Koncepty čekající na vyhledávání",

@@ -1310,7 +1310,16 @@
       "parsing": "Parsing the ad…",
       "addToCatalog": "Add to catalog",
       "cancel": "Cancel",
-      "parsingNote": "Parsing runs the Claude CLI locally — it can take a moment."
+      "parsingNote": "Parsing runs the Claude CLI locally — it can take a moment.",
+      "bulkToggle": "Multiple ads",
+      "bulkHint": "separate each ad with a line of ---",
+      "bulkPlaceholder": "Paste several job ads, each separated by a line of dashes (---)…",
+      "importAll": "Import all ({count})",
+      "importing": "Importing {done}/{total}…",
+      "bulkDone": "{added} added · {exists} already in catalog · {failed} failed",
+      "resAdded": "added",
+      "resExists": "in catalog",
+      "resFailed": "couldn't parse"
     },
     "drafts": {
       "heading": "Drafts awaiting sourcing",
