@@ -9,6 +9,7 @@ import { downloadFile, toCsv } from "@/app/_lib/export-utils";
 import { useJsonFetch } from "@/app/_lib/useJsonFetch";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import type { MomentumWeek } from "@/app/_lib/analytics-momentum";
+import { forecastHires } from "@/app/_lib/analytics-forecast";
 import type { Delta, PeriodDeltas } from "@/app/_lib/analytics-deltas";
 import type { AutomationImpact } from "@/app/_lib/decision-attribution";
 // `import type` only — erased at compile time, no server code in the bundle.
@@ -248,6 +249,9 @@ export function AnalyticsTab() {
         </div>
 
         <div className="space-y-6">
+          {/* 094b5870 — forward projection from the same velocity/conversion/TTH. */}
+          <ForecastPanel funnel={data.funnel} momentum={data.momentum} avgTimeToHireDays={data.avgTimeToHireDays} />
+
           <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
             <h3 className="font-serif text-h2 text-ink">{t("byArchetype")}</h3>
             <ul className="mt-3 space-y-3">
@@ -664,6 +668,55 @@ function SpendInput({
         failed ? "border-coral text-coral" : "border-stone-200 text-ink"
       }`}
     />
+  );
+}
+
+// 094b5870 — forward hire projection, computed client-side from the same payload
+// the rest of the page renders (pure forecastHires — no extra fetch). Shows the
+// expected hires already in flight, an inflow projection over a few horizons, and
+// the average time-to-hire as the realization lag. Below the signal floor (no
+// hires observed yet) it says so rather than projecting a misleading zero.
+function ForecastPanel({
+  funnel,
+  momentum,
+  avgTimeToHireDays,
+}: {
+  funnel: Funnel[];
+  momentum: MomentumWeek[];
+  avgTimeToHireDays: number | null;
+}) {
+  const t = useTranslations("analytics.forecast");
+  const f = forecastHires({
+    weeklyAdded: momentum.map((w) => w.added),
+    funnel: funnel.map((r) => ({ stage: r.stage, reached: r.reached, current: r.current })),
+    avgTimeToHireDays,
+  });
+  return (
+    <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
+      <h3 className="font-serif text-h2 text-ink">{t("title")}</h3>
+      {!f.hasSignal ? (
+        <p className="mt-3 rounded-md bg-paper p-3 text-base text-steel">{t("noSignal")}</p>
+      ) : (
+        <>
+          <p className="mt-1 text-sm text-steel">
+            {t("basis", { velocity: f.weeklyVelocity, conv: f.overallConversionPct ?? 0 })}
+          </p>
+          <dl className="mt-3 space-y-2">
+            <div className="flex items-baseline justify-between">
+              <dt className="text-base text-ink">{t("inFlight")}</dt>
+              <dd className="font-serif text-h2 leading-none text-moss">{f.inFlightExpectedHires}</dd>
+            </div>
+            {f.projected.map((p) => (
+              <div key={p.weeks} className="flex items-baseline justify-between border-t border-stone-100 pt-2">
+                <dt className="text-base text-steel">{t("horizon", { weeks: p.weeks })}</dt>
+                <dd className="text-base font-semibold text-ink">{t("plusHires", { hires: p.hires })}</dd>
+              </div>
+            ))}
+          </dl>
+          {f.etaDays != null ? <p className="mt-3 text-meta text-steel">{t("eta", { days: f.etaDays })}</p> : null}
+        </>
+      )}
+    </div>
   );
 }
 

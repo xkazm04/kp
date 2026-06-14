@@ -2025,6 +2025,15 @@
       "daysSuffix": "dní",
       "saveFailed": "Nepodařilo se uložit — zadejte číslo (nebo vymažte pro odstranění)."
     },
+    "forecast": {
+      "title": "Prognóza přijetí",
+      "noSignal": "Zatím nedostatek dat — jakmile začnou proudit kandidáti a dojde alespoň k jednomu přijetí, objeví se zde prognóza přijetí.",
+      "basis": "Na základě {velocity} nových/týden a celkové konverze {conv} %.",
+      "inFlight": "Očekáváno z probíhajících",
+      "horizon": "Příštích {weeks} týdnů",
+      "plusHires": "+{hires}",
+      "eta": "Průměrná doba do přijetí: {days} dní."
+    },
     "channels": {
       "title": "Ekonomika kanálů",
       "intro": "Příchozí kanály s uloženou atribucí (kariérní přihláška, rychlá přihláška, webhooky). Zadejte útratu za kanál a získáte cenu za uchazeče a za přijetí.",

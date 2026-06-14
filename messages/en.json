@@ -2025,6 +2025,15 @@
       "daysSuffix": "days",
       "saveFailed": "Couldn't save — enter a number (or clear to remove)."
     },
+    "forecast": {
+      "title": "Hire forecast",
+      "noSignal": "Not enough signal yet — once candidates are flowing and at least one hire has landed, projected hires appear here.",
+      "basis": "Based on {velocity} new/week and a {conv}% overall conversion.",
+      "inFlight": "Expected from in-flight",
+      "horizon": "Next {weeks} weeks",
+      "plusHires": "+{hires}",
+      "eta": "Average time to hire: {days} days."
+    },
     "channels": {
       "title": "Channel economics",
       "intro": "Inbound channels with stored attribution (careers apply, quick apply, webhooks). Enter what you spent per channel to get cost per applicant and per hire.",
