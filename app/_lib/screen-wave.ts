@@ -1,6 +1,6 @@
 import { actOnPipelineEntry, listPipeline, recordAutomationEvent } from "./db";
 import { getDecisionConfig, type ScreeningRule } from "./decision-config-store";
-import { sealDecisionRecord } from "./decision-record-store";
+import { sealDecisionSafe } from "./decision-record-store";
 import { DecisionConfigError, screenBottomCount, tieSafeBottomCount, validateScreeningOverride } from "./decision-config-schema";
 import { dispatchRejection } from "./comms-dispatch";
 import { isFairnessProtected, isKnownArchetype } from "./archetypes";
@@ -202,23 +202,17 @@ export async function runScreenWave(
       recordAutomationEvent(e.id, "auto_rejected", rationale); // audit trail (shows in Analytics)
       // Decision System of Record (moonshot D): seal a tamper-evident, replayable
       // record of this auto-rejection — the inputs it saw, the policy version, the
-      // actor, the rationale — alongside the audit event. Best-effort: a seal
-      // failure must NEVER abort the wave (same per-candidate isolation posture as
-      // the comms failure below); the audit event already landed.
-      try {
-        sealDecisionRecord({
-          kind: "auto_rejected",
-          actor: "auto:screen-wave",
-          policyVersion: `screen-wave/bottom${cfg.rejectBottomPercent}/maxMatch${cfg.maxMatchToReject}`,
-          candidateRef: e.id,
-          rationale,
-          reasonCode: "reject",
-          inputs: reasonParams, // the decisive numbers: pct, n, count, rank, score, threshold, tieAdjusted
-        });
-      } catch (sealError) {
-        const msg = sealError instanceof Error ? sealError.message : String(sealError);
-        console.warn(`[screen-wave] decision-record seal failed for ${e.id}: ${msg}`);
-      }
+      // actor, the rationale — alongside the audit event. Best-effort (sealDecisionSafe
+      // never throws): a seal failure must NEVER abort the wave.
+      sealDecisionSafe({
+        kind: "auto_rejected",
+        actor: "auto:screen-wave",
+        policyVersion: `screen-wave/bottom${cfg.rejectBottomPercent}/maxMatch${cfg.maxMatchToReject}`,
+        candidateRef: e.id,
+        rationale,
+        reasonCode: "reject",
+        inputs: reasonParams, // the decisive numbers: pct, n, count, rank, score, threshold, tieAdjusted
+      });
       // A comms failure must not abort the wave (idea-961de357): the rejection
       // is already applied + audited, and the loop holds the REST of the cohort
       // — one transient SMTP error used to escape here, leaving the batch

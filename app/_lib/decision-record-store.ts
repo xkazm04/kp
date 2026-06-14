@@ -145,6 +145,19 @@ export function sealDecisionRecord(input: DecisionRecordInput): DecisionRecord {
   return tx();
 }
 
+/** Best-effort seal: never throws. Sealing a decision record is an audit side
+ *  effect that must NEVER abort or fail the decision it records (a hire, a
+ *  scorecard, an offer). Logs + returns null on failure (e.g. KP-less env, DB
+ *  lock). Use this at every decision call site instead of a hand-rolled try/catch. */
+export function sealDecisionSafe(input: DecisionRecordInput): DecisionRecord | null {
+  try {
+    return sealDecisionRecord(input);
+  } catch (error) {
+    console.warn(`[decision-record] seal failed for kind="${input.kind}" ref="${input.candidateRef}":`, error);
+    return null;
+  }
+}
+
 export function listDecisionRecords(opts?: { candidateRef?: string; limit?: number }): DecisionRecord[] {
   const d = db();
   const limit = Math.min(Math.max(Math.trunc(opts?.limit ?? 200), 1), 1000);
