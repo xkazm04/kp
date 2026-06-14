@@ -20,7 +20,7 @@ import { TodayRail } from "./TodayRail";
 import { recordRecent } from "@/app/features/recents";
 import { postPipelineAction } from "@/app/_lib/useAddToPipeline";
 import { copyText } from "@/app/_lib/export-utils";
-import { daysSince, slaForStage, STAGE_SLA_DEFAULTS, STAGES, type Entry, type PipelineEvent, type Position } from "./PipelineTypes";
+import { daysSince, entryLaneKey, slaForStage, STAGE_SLA_DEFAULTS, STAGES, type Entry, type PipelineEvent, type Position } from "./PipelineTypes";
 
 // Compact header stat: label over value, optionally clickable. Replaces the old
 // full-width Kpi card grid — the same numbers now live as a tight cluster in the
@@ -61,7 +61,7 @@ function StatChip({
 function groupPositions(entries: Entry[]): Position[] {
   const map = new Map<string, Position>();
   for (const e of entries) {
-    const key = e.jobId ?? e.jobTitle ?? "?";
+    const key = entryLaneKey(e);
     if (!map.has(key)) map.set(key, { id: key, title: e.jobTitle ?? "—", family: e.roleFamily ?? "", count: 0 });
     map.get(key)!.count += 1;
   }

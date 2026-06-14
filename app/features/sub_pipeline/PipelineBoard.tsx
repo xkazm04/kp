@@ -6,7 +6,7 @@ import { useTranslations } from "next-intl";
 import { needsHumanDecision } from "@/app/_lib/approval-kinds";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { CandidateRow, Legend } from "./PipelineShared";
-import { STAGE_HELP, STAGES, type Entry, type Position } from "./PipelineTypes";
+import { entryLaneKey, STAGE_HELP, STAGES, type Entry, type Position } from "./PipelineTypes";
 
 const CELL_LIMIT = 6;
 const EMPTY_SELECTION: ReadonlySet<string> = new Set();
@@ -245,11 +245,11 @@ export function PipelineBoard({
             ))}
           </div>
           {positions.map((pos) => {
-            // Match the position-key derivation exactly (PipelineTab uses a 3-way
-            // `?? "?"` fallback). The 2-way fallback here disagreed precisely when
-            // both job fields are null, counting the entry under "?" but placing it
-            // in no lane.
-            const lane = entries.filter((e) => (e.jobId ?? e.jobTitle ?? "?") === pos.id);
+            // Keyed by the shared entryLaneKey so lane membership here is provably
+            // the same derivation as the lane COUNT in PipelineTab.groupPositions —
+            // a 2-way vs 3-way fallback mismatch once counted an entry under "?" but
+            // placed it in no lane.
+            const lane = entries.filter((e) => entryLaneKey(e) === pos.id);
             return (
               <div key={pos.id} className="grid border-b border-stone-200 last:border-0" style={BOARD_GRID}>
                 <div className="sticky left-0 z-10 border-r border-stone-200 bg-white px-3 py-3">

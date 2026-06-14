@@ -35,6 +35,15 @@ export type Entry = {
 // a private copy that could silently drift.
 export type Position = { id: string; title: string; family: string; count: number };
 
+// THE position/lane key for an entry: job id, else job title, else "?". The board's
+// lane COUNT (groupPositions) and lane MEMBERSHIP (PipelineBoard's filter) must
+// compute this identically — a 2-way vs 3-way fallback mismatch once counted an
+// entry under "?" but placed it in no lane (bug-hunt-2026-06-07). One function so
+// the count and the rendered lanes are provably keyed the same way.
+export function entryLaneKey(e: Pick<Entry, "jobId" | "jobTitle">): string {
+  return e.jobId ?? e.jobTitle ?? "?";
+}
+
 // Mirrors the PUBLIC event projection served by /api/pipeline/events
 // (pipeline-events-public.ts): candidateLabel is initials only, and the
 // internal entryId/archetype never reach the client (idea-4c41d103).
