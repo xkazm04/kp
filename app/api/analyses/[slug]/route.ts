@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import {
   loadAnalysis,
+  parseStoredGithubAnalysis,
   recordAnalysisDispositionEvents,
   setAnalysisDisposition,
   setAnalysisGithub,
@@ -33,23 +34,13 @@ export async function GET(_request: Request, context: { params: Promise<{ slug: 
       analysis: found.payload,
       // GH1 — the attached GitHub deep-dive, when one was persisted. Parsed
       // defensively: a corrupt column yields null, never a 500.
-      githubAnalysis: parseGithub(found.row.github_json, slug),
+      githubAnalysis: parseStoredGithubAnalysis(found.row.github_json, slug),
     });
   } catch (error) {
     // Log the full error server-side; return a generic, stable message so the
     // SQLite path and engine internals never reach the client.
     console.error(`[api:analyses] failed to load analysis "${slug}"`, error);
     return NextResponse.json({ error: "Failed to load analysis." }, { status: 500 });
-  }
-}
-
-function parseGithub(githubJson: string | null | undefined, slug: string): unknown {
-  if (!githubJson) return null;
-  try {
-    return JSON.parse(githubJson);
-  } catch (error) {
-    console.error(`[api:analyses] corrupt github_json on "${slug}"`, error);
-    return null;
   }
 }
 

@@ -1,4 +1,5 @@
 import { ensureDb, insertWithUniqueSlug, prunePromptCache, safeRowParse } from "./core";
+import { githubAnalysisSchema, type GithubAnalysis } from "../schemas";
 
 export type AnalysisRow = {
   slug: string;
@@ -145,6 +146,26 @@ export function loadAnalysis(slug: string): { row: AnalysisRow; payload: unknown
   const payload = safeRowParse(row.payload_json, "loadAnalysis", slug);
   if (payload == null) return null;
   return { row, payload };
+}
+
+// GH1 — defensively revive the persisted GitHub deep-dive from the analyses
+// `github_json` column. Both the API read route and the saved-report history page
+// re-implemented this guard (parse → schema-validate → log → degrade to nothing on
+// any corruption). Single-sourced here so the "a corrupt column must never crash,
+// just drop the GitHub tab" contract lives in one place. Returns null for an
+// absent/corrupt/older-schema payload, never throws.
+export function parseStoredGithubAnalysis(
+  githubJson: string | null | undefined,
+  slug: string
+): GithubAnalysis | null {
+  if (!githubJson) return null;
+  try {
+    const parsed = githubAnalysisSchema.safeParse(JSON.parse(githubJson));
+    return parsed.success ? parsed.data : null;
+  } catch (error) {
+    console.error(`[db:analyses] corrupt github_json on "${slug}"`, error);
+    return null;
+  }
 }
 
 type CacheRow = {

@@ -6,26 +6,21 @@ import { ReportActions } from "@/app/_components/results/ReportActions";
 import { DispositionEditor } from "@/app/_components/results/DispositionEditor";
 import { WorkspaceShell } from "@/app/features/WorkspaceNav";
 import { RecordRecent } from "@/app/features/RecordRecent";
-import { findActiveEntriesByCandidateLabel, loadAnalysis, type PipelineEntry } from "@/app/_lib/db";
-import { analysisSchema, githubAnalysisSchema } from "@/app/_lib/schemas";
+import { findActiveEntriesByCandidateLabel, loadAnalysis, parseStoredGithubAnalysis, type PipelineEntry } from "@/app/_lib/db";
+import { analysisSchema } from "@/app/_lib/schemas";
 import type { ResultPanelGithub } from "@/app/_components/results/ResultPanel";
 
 export const dynamic = "force-dynamic";
 
 // GH1 — revive the persisted GitHub deep-dive for the saved report. Defensive
-// end to end: a corrupt column or a payload from an older schema renders the
-// report WITHOUT the GitHub tab (exactly the pre-persistence behavior), never
-// a crash.
+// end to end (parse + schema-validate + log via the shared
+// parseStoredGithubAnalysis): a corrupt column or a payload from an older schema
+// renders the report WITHOUT the GitHub tab (exactly the pre-persistence
+// behavior), never a crash. Wrap the non-null result into the panel shape.
 function parseGithub(githubJson: string | null | undefined, slug: string): ResultPanelGithub | undefined {
-  if (!githubJson) return undefined;
-  try {
-    const parsed = githubAnalysisSchema.safeParse(JSON.parse(githubJson));
-    if (!parsed.success) return undefined;
-    return { status: "done", analysis: parsed.data, error: null, warning: null };
-  } catch (error) {
-    console.error(`[history] corrupt github_json on "${slug}"`, error);
-    return undefined;
-  }
+  const analysis = parseStoredGithubAnalysis(githubJson, slug);
+  if (!analysis) return undefined;
+  return { status: "done", analysis, error: null, warning: null };
 }
 
 export default async function HistoryDetailPage({
