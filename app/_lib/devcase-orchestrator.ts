@@ -35,6 +35,13 @@ export const DEV_POLICY = {
   promoteTopN: 3, // promote at most this many per posting
 };
 
+// THE promote-floor resolution: a human's outcome-driven calibration (dev_control)
+// when set, else the DEV_POLICY default. getPromoteFloor returns null when unset
+// by design, so the fallback is load-bearing and co-located with the default here.
+// Shared by the orchestrator's ranked stage and the outcomes route so the floor the
+// pipeline promotes against can never diverge from the one the calibration UI shows.
+export const activePromoteFloor = (): number => getPromoteFloor() ?? DEV_POLICY.promoteFloor;
+
 function gateApproval(analysis: LifecycleAnalysis | null): { pass: boolean; reason: string } {
   const conf = analysis?.confidence ?? 0;
   if (conf < DEV_POLICY.autoApproveMinConfidence) {
@@ -238,7 +245,7 @@ export async function runLifecycle(id: string, progress?: Progress, signal?: Abo
     } else if (lc.stage === "ranked") {
       // Floor is calibration-adjustable (Direction E): a human applies an outcome-driven
       // suggestion via dev_control; we fall back to the DEV_POLICY default when unset.
-      const floor = getPromoteFloor() ?? DEV_POLICY.promoteFloor;
+      const floor = activePromoteFloor();
       const ranked = (lc.postingId ? listSubmissions(lc.postingId) : [])
         .filter((s) => (s.transferScore ?? 0) >= floor)
         .sort((a, b) => (b.transferScore ?? 0) - (a.transferScore ?? 0))

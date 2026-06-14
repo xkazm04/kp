@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { DEV_POLICY } from "@/app/_lib/devcase-orchestrator";
-import { getPromoteFloor, recordAudit, setPromoteFloor } from "@/app/_lib/dev-control";
+import { activePromoteFloor } from "@/app/_lib/devcase-orchestrator";
+import { recordAudit, setPromoteFloor } from "@/app/_lib/dev-control";
 import { calibrate, listOutcomes, outcomeInputSchema, recordOutcome } from "@/app/_lib/dev-outcomes";
 
 export const runtime = "nodejs";
 
-const activeFloor = () => getPromoteFloor() ?? DEV_POLICY.promoteFloor;
+const activeFloor = activePromoteFloor;
 
 // Direction E — the outcome loop: record what happened + read the calibration.
 export async function GET() {
