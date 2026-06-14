@@ -6,6 +6,7 @@ import { Markdown } from "@/app/_components/Markdown";
 import { formatFraction, formatRelativeTime } from "@/app/_lib/format";
 import { ApplyTokenPill } from "./ApplyTokenPill";
 import { CohortProbePanel } from "./CohortProbePanel";
+import { CompareSubmissions } from "./CompareSubmissions";
 import { caseToMarkdown } from "./DevHelpers";
 import { MiniList } from "./DevShared";
 import { SubmissionForm } from "./SubmissionForm";
@@ -151,6 +152,9 @@ export function CaseDetail({
 
         <CohortProbePanel probes={c.coverProbes ?? []} submissions={caseSubmissions} />
       </section>
+
+      {/* b268f5e5 — read who leads on each rubric axis across the case's cohort. */}
+      <CompareSubmissions rubricDims={c.rubricDimensions ?? []} submissions={caseSubmissions} />
 
       {/* distribution + intake for THIS case */}
       {casePostings.length > 0 ? (
