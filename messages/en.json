@@ -2034,6 +2034,21 @@
       "plusHires": "+{hires}",
       "eta": "Average time to hire: {days} days."
     },
+    "roi": {
+      "title": "ROI — what the automation saved",
+      "empty": "No automated actions in this period yet.",
+      "headline": "≈ {hours} recruiter-hours · ≈ {czk} CZK",
+      "basis": "{actions} automated actions, at {rate} CZK/hour.",
+      "actionRow": "{label} ×{count}",
+      "minsSaved": "{mins} min",
+      "rateLabel": "Recruiter rate",
+      "rateSuffix": "CZK/h",
+      "export": "Export CSV",
+      "csvKind": "Action",
+      "csvCount": "Count",
+      "csvMinsEach": "Mins each",
+      "csvMinsTotal": "Mins total"
+    },
     "channels": {
       "title": "Channel economics",
       "intro": "Inbound channels with stored attribution (careers apply, quick apply, webhooks). Enter what you spent per channel to get cost per applicant and per hire.",

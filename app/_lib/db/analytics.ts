@@ -1,6 +1,7 @@
 import { pickBottleneck, type Bottleneck } from "../analytics-bottleneck";
 import { MOMENTUM_EVENT_KINDS, MOMENTUM_WEEKS, weeklyMomentum, type MomentumWeek } from "../analytics-momentum";
 import { summarizeAutomationImpact, type AutomationImpact } from "../decision-attribution";
+import { automationRoi, type AutomationRoi } from "../automation-roi";
 import { FUNNEL_STAGES, hasAdvancedPastScreening, type FunnelStage } from "../pipeline-stages";
 import { ensureDb } from "./core";
 import { listChannelSpend } from "./channels";
@@ -46,6 +47,9 @@ export type PipelineAnalytics = {
   // ANA3 — automation-vs-human rollup over the same window, folded through the
   // shared decision-attribution map the DecisionLog badges use.
   automation: AutomationImpact;
+  // b39992b1 — counterfactual ROI: the recruiter-hours + CZK the automated event
+  // trail saved over the window, at the org's (or default) hourly rate.
+  automationRoi: AutomationRoi;
   // ANA4 — channel effectiveness: entries grouped by ORIGIN, derived from each
   // entry's earliest pipeline_events kind (applied = inbound apply, matched =
   // match fan-out/sourcing, added = recruiter manual/intake). No migration —
@@ -69,6 +73,12 @@ export type PipelineAnalytics = {
 // 82c2b8e8 — the reserved analytics_targets row whose value is a time-to-hire
 // goal in DAYS (every other row is a funnel stage name → conversion %% target).
 export const TIME_TO_HIRE_TARGET_KEY = "time_to_hire";
+
+// b39992b1 — the reserved analytics_targets row holding the org's recruiter hourly
+// cost (CZK) for the automation ROI figure. Not a "goal" — but it rides the same
+// key/value table + save route, so it lives alongside the goal keys and is
+// filtered out of the conversion-goal map.
+export const RECRUITER_HOURLY_TARGET_KEY = "recruiter_hourly_czk";
 
 export type ChannelEconomics = {
   channel: string;
@@ -434,6 +444,9 @@ export function pipelineAnalytics(
     byVariantTotal: variantStats.length,
     variantRecommendations,
     targets: analyticsTargets(),
+    // b39992b1 — value of the automation over this window, at the stored (or
+    // default) recruiter hourly rate, from the same kindCounts the rollup uses.
+    automationRoi: automationRoi(kindCounts, listAnalyticsTargets().get(RECRUITER_HOURLY_TARGET_KEY)),
   };
 }
 
@@ -471,7 +484,10 @@ function analyticsTargets(): { conversion: Record<string, number>; timeToHireDay
   const timeToHireDays = all.get(TIME_TO_HIRE_TARGET_KEY) ?? null;
   const conversion: Record<string, number> = {};
   for (const [metric, value] of all) {
-    if (metric !== TIME_TO_HIRE_TARGET_KEY) conversion[metric] = value;
+    // Only funnel-stage rows are conversion goals — exclude the reserved keys.
+    if (metric !== TIME_TO_HIRE_TARGET_KEY && metric !== RECRUITER_HOURLY_TARGET_KEY) {
+      conversion[metric] = value;
+    }
   }
   return { conversion, timeToHireDays };
 }

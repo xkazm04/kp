@@ -2034,6 +2034,21 @@
       "plusHires": "+{hires}",
       "eta": "Průměrná doba do přijetí: {days} dní."
     },
+    "roi": {
+      "title": "Návratnost — co automatizace ušetřila",
+      "empty": "V tomto období zatím žádné automatizované akce.",
+      "headline": "≈ {hours} hodin náboráře · ≈ {czk} Kč",
+      "basis": "{actions} automatizovaných akcí, při {rate} Kč/hodinu.",
+      "actionRow": "{label} ×{count}",
+      "minsSaved": "{mins} min",
+      "rateLabel": "Sazba náboráře",
+      "rateSuffix": "Kč/h",
+      "export": "Exportovat CSV",
+      "csvKind": "Akce",
+      "csvCount": "Počet",
+      "csvMinsEach": "Min za kus",
+      "csvMinsTotal": "Min celkem"
+    },
     "channels": {
       "title": "Ekonomika kanálů",
       "intro": "Příchozí kanály s uloženou atribucí (kariérní přihláška, rychlá přihláška, webhooky). Zadejte útratu za kanál a získáte cenu za uchazeče a za přijetí.",

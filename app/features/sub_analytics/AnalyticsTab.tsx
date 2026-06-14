@@ -12,6 +12,7 @@ import type { MomentumWeek } from "@/app/_lib/analytics-momentum";
 import { forecastHires } from "@/app/_lib/analytics-forecast";
 import type { Delta, PeriodDeltas } from "@/app/_lib/analytics-deltas";
 import type { AutomationImpact } from "@/app/_lib/decision-attribution";
+import type { AutomationRoi } from "@/app/_lib/automation-roi";
 // `import type` only — erased at compile time, no server code in the bundle.
 import type { ChannelEconomics } from "@/app/_lib/db";
 import type { VariantRecommendation, VariantStat } from "@/app/_lib/source-analytics";
@@ -36,6 +37,8 @@ type Analytics = {
   windowDays: number | null;
   momentum: MomentumWeek[];
   automation: AutomationImpact;
+  // b39992b1 — recruiter-hours + CZK the automation saved over the window.
+  automationRoi: AutomationRoi;
   bySource: { source: string; total: number; reachedInterview: number; hired: number; hireRatePct: number }[];
   // E5 — funnel economics over stored source attribution.
   byChannel: ChannelEconomics[];
@@ -274,6 +277,8 @@ export function AnalyticsTab() {
           </div>
           <AutomationPanel
             impact={data.automation}
+            roi={data.automationRoi}
+            onSaved={reload}
             decisionsHref={buildUrl({ ...clearedTabScopedParams(), tab: "decisions" }, search.toString())}
           />
           <SourcePanel
@@ -371,7 +376,17 @@ export function AnalyticsTab() {
 // ANA3 — "how much is the automation actually doing": the auto/human split plus
 // the rollup rows, all folded through the SAME decision-attribution map the
 // DecisionLog badges use, over the page's selected window.
-function AutomationPanel({ impact, decisionsHref }: { impact: AutomationImpact; decisionsHref: string }) {
+function AutomationPanel({
+  impact,
+  roi,
+  onSaved,
+  decisionsHref,
+}: {
+  impact: AutomationImpact;
+  roi: AutomationRoi;
+  onSaved: () => void;
+  decisionsHref: string;
+}) {
   const t = useTranslations("analytics.automation");
   const decided = impact.autoCount + impact.humanCount;
   const pct = decided > 0 ? Math.round((impact.autoCount / decided) * 100) : null;
@@ -404,6 +419,66 @@ function AutomationPanel({ impact, decisionsHref }: { impact: AutomationImpact; 
             </li>
             <ImpactRow label={t("comms")} value={impact.commsDelivered} />
           </ul>
+          {/* b39992b1 — what that automation was WORTH, in recruiter-hours + CZK. */}
+          <RoiLedger roi={roi} onSaved={onSaved} />
+        </>
+      )}
+    </div>
+  );
+}
+
+// b39992b1 — the counterfactual savings the automated trail bought, grounded in
+// the same per-kind event counts the rollup uses, at the org's (override-able)
+// hourly rate. Exportable like the decision log.
+function RoiLedger({ roi, onSaved }: { roi: AutomationRoi; onSaved: () => void }) {
+  const t = useTranslations("analytics.roi");
+  const tLog = useTranslations("analytics.log");
+  const kindLabel = (kind: string) => tLog(`kinds.${kind}` as Parameters<typeof tLog>[0]);
+  const exportCsv = () => {
+    downloadFile(
+      "kp-automation-roi.csv",
+      toCsv([
+        [t("csvKind"), t("csvCount"), t("csvMinsEach"), t("csvMinsTotal")],
+        ...roi.actions.map((a) => [kindLabel(a.kind), a.count, a.minutesEach, a.minutesTotal]),
+      ]),
+      "text/csv"
+    );
+  };
+  return (
+    <div className="mt-4 border-t border-stone-200 pt-3">
+      <h4 className="text-meta uppercase tracking-wide text-steel">{t("title")}</h4>
+      {roi.totalActions === 0 ? (
+        <p className="mt-1 text-sm text-steel">{t("empty")}</p>
+      ) : (
+        <>
+          <p className="mt-1 font-serif text-h2 leading-tight text-moss">
+            {t("headline", { hours: roi.hoursSaved, czk: roi.czkSaved.toLocaleString("cs-CZ") })}
+          </p>
+          <p className="mt-0.5 text-sm text-steel">{t("basis", { actions: roi.totalActions, rate: roi.hourlyRateCzk })}</p>
+          <ul className="mt-2 space-y-1 text-sm">
+            {roi.actions.slice(0, 5).map((a) => (
+              <li key={a.kind} className="flex items-baseline justify-between gap-2">
+                <span className="truncate text-steel">{t("actionRow", { label: kindLabel(a.kind), count: a.count })}</span>
+                <span className="shrink-0 font-medium text-ink">{t("minsSaved", { mins: a.minutesTotal })}</span>
+              </li>
+            ))}
+          </ul>
+          <div className="mt-3 flex flex-wrap items-center gap-3">
+            <TargetInput
+              metric={RECRUITER_HOURLY_KEY}
+              label={t("rateLabel")}
+              value={roi.hourlyRateCzk}
+              suffix={t("rateSuffix")}
+              onSaved={onSaved}
+            />
+            <button
+              type="button"
+              onClick={exportCsv}
+              className="focus-ring inline-flex h-8 items-center gap-1.5 rounded-md border border-stone-200 px-2.5 text-sm font-semibold text-ink hover:border-coral/40"
+            >
+              <Download size={13} /> {t("export")}
+            </button>
+          </div>
         </>
       )}
     </div>
@@ -720,9 +795,11 @@ function ForecastPanel({
   );
 }
 
-// 82c2b8e8 — mirrors the server's TIME_TO_HIRE_TARGET_KEY. Declared locally so
-// the client doesn't import the db barrel (better-sqlite3) for one string.
+// 82c2b8e8 / b39992b1 — mirror the server's reserved analytics_targets keys.
+// Declared locally so the client doesn't import the db barrel (better-sqlite3)
+// for two strings.
 const TIME_TO_HIRE_KEY = "time_to_hire";
+const RECRUITER_HOURLY_KEY = "recruiter_hourly_czk";
 
 // 82c2b8e8 — collapsible goal editor. Per-stage conversion % goals + one
 // time-to-hire goal (days), persisted via /api/analytics/targets. The funnel
