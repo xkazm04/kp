@@ -52,6 +52,28 @@ export type BillingOverview = {
   meters: MeterOverview[];
 };
 
+/** THE single encoding of the "included monthly allowance first, then prepaid
+ *  credits" precedence rule, shared by the read path (meterOverview's remaining)
+ *  and the write path (recordMeterUsage's debit split) so the displayed remaining
+ *  can never diverge from what the debit actually spends. `fromIncluded`/
+ *  `fromCredits` are what spending `qty` would draw from each bucket; `remainingAfter`
+ *  is what would be left (included remainder + the full credit balance). Credits are
+ *  clamped to >=0 only when computing what to DEBIT (a negative ledger never funds a
+ *  spend), matching the original write-path math; `remainingAfter` keeps the raw
+ *  credit balance, matching the original read-path math. */
+export function splitSpend(
+  limit: number,
+  used: number,
+  credits: number,
+  qty: number
+): { fromIncluded: number; fromCredits: number; remainingAfter: number } {
+  const includedLeft = Math.max(0, limit - used);
+  const fromIncluded = Math.min(qty, includedLeft);
+  const fromCredits = Math.min(Math.max(0, qty - includedLeft), Math.max(0, credits));
+  const remainingAfter = Math.max(0, includedLeft - fromIncluded) + (credits - fromCredits);
+  return { fromIncluded, fromCredits, remainingAfter };
+}
+
 export function meterOverview(meter: Meter, plan: PlanDef, now: Date = new Date()): MeterOverview {
   const limit = plan.limits[meter];
   const used = billingUsageFor(meter, currentPeriod(now));
@@ -61,7 +83,7 @@ export function meterOverview(meter: Meter, plan: PlanDef, now: Date = new Date(
     limit,
     used,
     credits,
-    remaining: limit === null ? null : Math.max(0, limit - used) + credits,
+    remaining: limit === null ? null : splitSpend(limit, used, credits, 0).remainingAfter,
   };
 }
 
@@ -100,8 +122,7 @@ export function recordMeterUsage(meter: Meter, qty: number = 1, now: Date = new 
   const period = currentPeriod(now);
   if (limit !== null) {
     const used = billingUsageFor(meter, period);
-    const includedLeft = Math.max(0, limit - used);
-    const fromCredits = Math.min(Math.max(0, qty - includedLeft), Math.max(0, creditBalance(meter)));
+    const { fromCredits } = splitSpend(limit, used, creditBalance(meter), qty);
     if (fromCredits > 0) {
       grantBillingCredits({ meter, delta: -fromCredits, reason: "consumed" });
     }
