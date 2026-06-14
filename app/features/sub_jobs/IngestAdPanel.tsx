@@ -3,14 +3,10 @@
 import { useEffect, useRef, useState } from "react";
 import { Check, ClipboardPaste, Plus, X } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { splitJobAds } from "@/app/_lib/split-ads";
+import { MIN_AD_CHARS, splitJobAds } from "@/app/_lib/split-ads";
 
 type RowStatus = "added" | "exists" | "failed";
 const firstLine = (ad: string) => (ad.split(/\r?\n/)[0] ?? "").slice(0, 60).trim() || "—";
-
-// The ingest route's own floor — pasted text shorter than this isn't a job ad.
-// Mirrored client-side so an obviously-empty paste is rejected before the spawn.
-const MIN_AD_CHARS = 30;
 
 type IngestResult = { jobId: string; created: boolean; title: string };
 

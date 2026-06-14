@@ -5,9 +5,10 @@
 // trailing blank doesn't become an empty parse. Pure so the split contract is
 // unit-testable and the panel can preview the count before importing.
 
-// The ingest route's floor — shorter than this isn't a real ad (mirrors the
-// MIN_AD_CHARS in IngestAdPanel / the route's 30-char guard).
-const MIN_AD_CHARS = 30;
+// The ingest floor — shorter than this isn't a real ad. Single source of truth
+// for the client panel guard, this splitter, and the ingest route's server guard,
+// which must agree or a chunk one keeps gets rejected by the other.
+export const MIN_AD_CHARS = 30;
 
 // A separator line: 3+ of -, —, _, =, or * on their own line (optional surrounding
 // whitespace). Multiline so it matches per line within the paste.
