@@ -7,6 +7,7 @@ import { dedupeCvVariants } from "@/app/_lib/cv-variant";
 import { newRequestId } from "@/app/_lib/logger";
 import { createWorkdir, persistFile } from "@/app/_lib/python-runner";
 import { startTask } from "@/app/_lib/tasks";
+import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import {
   MAX_CV_VARIANTS,
   validateOptionalUploadServer,
@@ -100,6 +101,9 @@ export async function POST(request: Request) {
   // Blind screening (idea-b8d711c4): redact identity from the CV before scoring.
   const blind = form.get("blind") === "true";
 
+  // Tenant (P2): capture the workspace HERE (request scope) so the background task
+  // stamps the saved analysis with it — the task can't read the cookie itself.
+  const workspace = await currentWorkspace();
   const params: AnalyzeParams = {
     baseDir,
     grounding,
@@ -112,6 +116,7 @@ export async function POST(request: Request) {
     requestId: newRequestId(),
     lang,
     blind,
+    workspace,
   };
 
   recordMeterUsage("ai_candidates");

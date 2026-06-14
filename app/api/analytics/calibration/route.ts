@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { calibrationPairs } from "@/app/_lib/db";
 import { computeCalibration } from "@/app/_lib/calibration";
+import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { jsonError } from "@/app/_lib/api-response";
 
 export const runtime = "nodejs";
@@ -14,7 +15,7 @@ export const dynamic = "force-dynamic";
 export async function GET(request: Request) {
   try {
     const roleFamily = new URL(request.url).searchParams.get("roleFamily");
-    let pairs = calibrationPairs();
+    let pairs = calibrationPairs(await currentWorkspace());
     if (roleFamily) {
       pairs = pairs.filter((p) => p.roleFamily === roleFamily);
     }

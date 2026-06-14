@@ -7,6 +7,7 @@ import { DispositionEditor } from "@/app/_components/results/DispositionEditor";
 import { WorkspaceShell } from "@/app/features/WorkspaceNav";
 import { RecordRecent } from "@/app/features/RecordRecent";
 import { findActiveEntriesByCandidateLabel, loadAnalysis, parseStoredGithubAnalysis, type PipelineEntry } from "@/app/_lib/db";
+import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { analysisSchema } from "@/app/_lib/schemas";
 import type { ResultPanelGithub } from "@/app/_components/results/ResultPanel";
 
@@ -33,7 +34,7 @@ export default async function HistoryDetailPage({
 
   let found: ReturnType<typeof loadAnalysis>;
   try {
-    found = loadAnalysis(slug);
+    found = loadAnalysis(slug, await currentWorkspace());
   } catch (error) {
     // Log the full error server-side; render a styled panel instead of letting
     // a transient DB lock / IO error (SQLITE_BUSY, disk, seed failure) crash the

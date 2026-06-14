@@ -30,6 +30,10 @@ export type AnalyzeParams = {
   // Forwarded to the CLI as --blind; part of the cache key so a blind and a
   // non-blind run of the same CV don't collide.
   blind?: boolean;
+  // Tenant (P2): the workspace this analysis belongs to. Captured at request time
+  // (the task runs outside request scope, so it can't read the cookie) and stamped
+  // on the saved analysis. Absent ⇒ saveAnalysis defaults to the single workspace.
+  workspace?: string;
 };
 
 export class AnalyzeError extends Error {
@@ -168,7 +172,7 @@ export async function runAnalyze(p: AnalyzeParams, onProgress?: ProgressFn, sign
 
     if (analyses.length === 1) {
       const single = analyses[0];
-      const persisted = persistAnalysis(single.label, p.jdSlug ?? null, single.analysis);
+      const persisted = persistAnalysis(single.label, p.jdSlug ?? null, single.analysis, p.workspace);
       void logAnalyze({
         ...baseAnalyzeLog(p, startedAt),
         candidate_label: single.label,
@@ -183,7 +187,7 @@ export async function runAnalyze(p: AnalyzeParams, onProgress?: ProgressFn, sign
     const comparison = buildComparison(analyses);
     const winner = analyses.find((a) => a.label === comparison.bestLabel) ?? analyses[0];
     const merged = { ...winner.analysis, comparison };
-    const persisted = persistAnalysis(`${winner.label} (best of ${analyses.length})`, p.jdSlug ?? null, merged);
+    const persisted = persistAnalysis(`${winner.label} (best of ${analyses.length})`, p.jdSlug ?? null, merged, p.workspace);
     void logAnalyze({
       ...baseAnalyzeLog(p, startedAt),
       candidate_label: `${winner.label} (best of ${analyses.length})`,
@@ -198,7 +202,7 @@ export async function runAnalyze(p: AnalyzeParams, onProgress?: ProgressFn, sign
   }
 }
 
-function persistAnalysis(candidateLabel: string, jdSlug: string | null, analysis: Analysis) {
+function persistAnalysis(candidateLabel: string, jdSlug: string | null, analysis: Analysis, workspaceId?: string) {
   try {
     return saveAnalysis({
       candidateLabel,
@@ -213,7 +217,7 @@ function persistAnalysis(candidateLabel: string, jdSlug: string | null, analysis
       seniority: analysis.candidate?.currentSeniority ?? null,
       payload: analysis,
       reviewFlags: countSanityWarns(analysis.sanityChecks ?? []),
-    });
+    }, workspaceId);
   } catch (error) {
     console.error("Failed to persist analysis", error);
     return null;

@@ -5,6 +5,7 @@ import { ScoreBadge } from "@/app/_components/ScoreBadge";
 import { WorkspaceShell } from "@/app/features/WorkspaceNav";
 import { RecordRecent } from "@/app/features/RecordRecent";
 import { getJob, listAnalysesByJd, loadJd, type AnalysisSummary, type JdRow } from "@/app/_lib/db";
+import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { getJobStatus, isJobOpenForApplications } from "@/app/_lib/job-ingest";
 import { jdJobId } from "@/app/_lib/jd-limits";
 import { JdActions } from "./JdActions";
@@ -41,7 +42,7 @@ export default async function JdDetailPage({
   let analyses: AnalysisSummary[] = [];
   let analysesFailed = false;
   try {
-    analyses = listAnalysesByJd(slug);
+    analyses = listAnalysesByJd(slug, await currentWorkspace());
   } catch {
     analysesFailed = true;
   }
