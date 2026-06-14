@@ -6,7 +6,9 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 // edge-verify.ts using the IDENTICAL format/secret). `workspace` is the tenancy
 // seam — a single default today; real multi-tenancy will mint per-tenant sessions.
 
-export const SESSION_COOKIE = "__Host-kp_session";
+// Cookie name is single-sourced in the edge-safe module (so middleware can use it
+// without dragging node:crypto into the Edge bundle); re-exported here for handlers.
+export { SESSION_COOKIE } from "./edge-verify.ts";
 // Matches billing's single-workspace id (`const WORKSPACE = "workspace"`).
 export const DEFAULT_WORKSPACE = "workspace";
 export const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 7; // 7 days

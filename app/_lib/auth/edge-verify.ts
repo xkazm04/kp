@@ -3,6 +3,10 @@
 // cookie signed there (node) verifies here (edge): token = `<bodyB64url>.<hmacB64url>`,
 // hmac = HMAC-SHA256(KP_SECRET, body).
 
+// The session cookie name lives here (the edge-safe module) so middleware can
+// import it without pulling node:crypto in via session.ts. session.ts re-exports it.
+export const SESSION_COOKIE = "__Host-kp_session";
+
 export type EdgeSession = { workspace: string; exp: number };
 
 function b64urlToBytes(s: string): Uint8Array {
