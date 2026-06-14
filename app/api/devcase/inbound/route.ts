@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getPostingByToken, lifecycleByPosting } from "@/app/_lib/db";
+import { getPostingByToken } from "@/app/_lib/db";
 import { intakeSubmission } from "@/app/_lib/distribution";
-import { startTask } from "@/app/_lib/tasks";
+import { resumeCollectingLifecycle } from "@/app/_lib/tasks";
 
 export const runtime = "nodejs";
 
@@ -50,10 +50,7 @@ export async function POST(request: NextRequest) {
       notes: body.notes,
     });
 
-    if (isNew) {
-      const lc = lifecycleByPosting(postingId);
-      if (lc && lc.stage === "collecting") startTask("lifecycle", { lifecycleId: lc.id, title: lc.title });
-    }
+    if (isNew) resumeCollectingLifecycle(postingId);
 
     return NextResponse.json({ ok: true, submissionId: submission.id, duplicate: !isNew, acknowledged: true });
   } catch (error) {
