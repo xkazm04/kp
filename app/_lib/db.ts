@@ -2,6 +2,7 @@
 // This stays a FILE (not a directory index) so both `from "./db"` and the
 // extension-suffixed `from "./db.ts"` imports keep resolving unchanged.
 export * from "./db/core";
+export * from "./db/workspaces";
 export * from "./db/analyses";
 export * from "./db/jobs";
 export * from "./db/profiles";

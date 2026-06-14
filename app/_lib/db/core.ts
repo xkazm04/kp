@@ -103,6 +103,14 @@ export function ensureDb(): Database.Database {
   // SQLITE_BUSY.
   const db = openStore();
   db.exec(`
+    -- Tenant root (P2): one row per workspace. A single default workspace today
+    -- (id 'workspace', matching billing's id) — the seam multi-tenancy fills.
+    CREATE TABLE IF NOT EXISTS workspaces (
+      id TEXT PRIMARY KEY,
+      name TEXT,
+      created_at TEXT NOT NULL
+    );
+
     CREATE TABLE IF NOT EXISTS analyses (
       slug TEXT PRIMARY KEY,
       candidate_label TEXT NOT NULL,
@@ -646,6 +654,9 @@ export function ensureDb(): Database.Database {
   } catch {
     /* pre-existing active duplicates prevent the unique index; skip */
   }
+  // Tenant foundation (P2): ensure the single default workspace row exists ('workspace'
+  // matches DEFAULT_WORKSPACE in auth/session.ts and billing's id).
+  db.prepare(`INSERT OR IGNORE INTO workspaces (id, name, created_at) VALUES (?, ?, ?)`).run("workspace", "Default workspace", new Date().toISOString());
   seedExampleJd(db);
   seedJobs(db);
   seedCandidates(db);
