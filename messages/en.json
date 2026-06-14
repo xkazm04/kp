@@ -2040,6 +2040,16 @@
       "brierHint": "0 = perfect, lower is better.",
       "samples": "{n} decided candidates"
     },
+    "decisionRecords": {
+      "title": "Decision records (sealed)",
+      "blurb": "Every auto-rejection is sealed into a tamper-evident hash chain — the inputs it saw, the policy version, the rationale. Export a candidate's record for a right-to-explanation request.",
+      "loading": "Loading…",
+      "error": "Couldn't load decision records.",
+      "empty": "No sealed decisions yet — run a screening wave and auto-rejections will be sealed here.",
+      "verified": "Tamper-evident — {count} sealed records, chain verified.",
+      "broken": "Chain integrity broken at record #{seq} — a sealed record was altered or removed.",
+      "export": "Export dossier (JSON)"
+    },
     "forecast": {
       "title": "Hire forecast",
       "noSignal": "Not enough signal yet — once candidates are flowing and at least one hire has landed, projected hires appear here.",

@@ -2040,6 +2040,16 @@
       "brierHint": "0 = dokonalé, nižší je lepší.",
       "samples": "{n} rozhodnutých kandidátů"
     },
+    "decisionRecords": {
+      "title": "Záznamy rozhodnutí (zapečetěné)",
+      "blurb": "Každé automatické zamítnutí je zapečetěno do nezfalšovatelného hash řetězce — vstupy, které vidělo, verze politiky, odůvodnění. Na žádost o vysvětlení exportujte záznam kandidáta.",
+      "loading": "Načítání…",
+      "error": "Záznamy rozhodnutí se nepodařilo načíst.",
+      "empty": "Zatím žádná zapečetěná rozhodnutí — spusťte screeningovou vlnu a automatická zamítnutí se zde zapečetí.",
+      "verified": "Nezfalšovatelné — {count} zapečetěných záznamů, řetězec ověřen.",
+      "broken": "Narušena integrita řetězce u záznamu #{seq} — zapečetěný záznam byl změněn nebo odstraněn.",
+      "export": "Exportovat dosier (JSON)"
+    },
     "forecast": {
       "title": "Prognóza přijetí",
       "noSignal": "Zatím nedostatek dat — jakmile začnou proudit kandidáti a dojde alespoň k jednomu přijetí, objeví se zde prognóza přijetí.",
