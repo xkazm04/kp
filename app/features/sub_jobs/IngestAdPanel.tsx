@@ -36,6 +36,28 @@ export function IngestAdPanel({ onIngested }: { onIngested?: (result: IngestResu
   // fetch + its Claude CLI child outlive a result nobody will read.
   useEffect(() => () => abortRef.current?.abort(), []);
 
+  // The single hardened POST /api/jobs/ingest call both the single-ad and the bulk
+  // paths run (bulk is just this in a loop over the split ads). Shares the fetch +
+  // response decode; the abort signal is threaded through so a teardown SIGKILLs the
+  // child. Returns a discriminated result — never throws — so each caller maps it to
+  // its own UI (an inline note vs. a per-row status).
+  const ingestOne = async (
+    text: string,
+    signal: AbortSignal
+  ): Promise<{ ok: true; result: IngestResult } | { ok: false; error: string }> => {
+    const res = await fetch("/api/jobs/ingest", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ adText: text }),
+      signal,
+    });
+    const data = (await res.json()) as { jobId?: string; created?: boolean; title?: string; error?: string };
+    if (!res.ok || !data.jobId) {
+      return { ok: false, error: data.error ?? t("ingestFailedStatus", { status: res.status }) };
+    }
+    return { ok: true, result: { jobId: data.jobId, created: Boolean(data.created), title: data.title ?? t("defaultTitle") } };
+  };
+
   const submit = async () => {
     const text = adText.trim();
     if (text.length < MIN_AD_CHARS) {
@@ -48,15 +70,9 @@ export function IngestAdPanel({ onIngested }: { onIngested?: (result: IngestResu
     const controller = new AbortController();
     abortRef.current = controller;
     try {
-      const res = await fetch("/api/jobs/ingest", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ adText: text }),
-        signal: controller.signal,
-      });
-      const data = (await res.json()) as { jobId?: string; created?: boolean; title?: string; error?: string };
-      if (!res.ok || !data.jobId) throw new Error(data.error ?? t("ingestFailedStatus", { status: res.status }));
-      const result: IngestResult = { jobId: data.jobId, created: Boolean(data.created), title: data.title ?? t("defaultTitle") };
+      const outcome = await ingestOne(text, controller.signal);
+      if (!outcome.ok) throw new Error(outcome.error);
+      const { result } = outcome;
       setNote(
         result.created
           ? t("added", { title: result.title })
@@ -94,18 +110,13 @@ export function IngestAdPanel({ onIngested }: { onIngested?: (result: IngestResu
       for (let i = 0; i < ads.length; i += 1) {
         setProgress({ done: i, total: ads.length });
         try {
-          const res = await fetch("/api/jobs/ingest", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ adText: ads[i] }),
-            signal: controller.signal,
-          });
-          const data = (await res.json()) as { jobId?: string; created?: boolean; title?: string; error?: string };
-          if (!res.ok || !data.jobId) {
+          const outcome = await ingestOne(ads[i], controller.signal);
+          if (!outcome.ok) {
             out.push({ title: firstLine(ads[i]), status: "failed" });
           } else {
-            out.push({ title: data.title ?? t("defaultTitle"), status: data.created ? "added" : "exists" });
-            if (data.created) onIngested?.({ jobId: data.jobId, created: true, title: data.title ?? t("defaultTitle") });
+            const { result } = outcome;
+            out.push({ title: result.title, status: result.created ? "added" : "exists" });
+            if (result.created) onIngested?.(result);
           }
         } catch (caught) {
           if (controller.signal.aborted) return; // intentional teardown
