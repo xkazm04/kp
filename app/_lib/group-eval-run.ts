@@ -10,7 +10,7 @@ import { poolEntryFromAnalysis, type CandidatePoolEntry } from "./candidate-pool
 import { cleanupWorkdir, createWorkdir, parsePythonJson, parseStderrError, spawnPython } from "./python-runner";
 import { rankPoolForJob } from "./recruiter-run";
 import { computeDifferentiators } from "./group-eval-differentiators";
-import type { MatchResultView, ScoreDimension, Confidence } from "@/app/features/sub_match/MatchTypes";
+import type { MatchResultView, ScoreDimension, Confidence, Reasoning as CanonicalReasoning } from "@/app/features/sub_match/MatchTypes";
 import type { Comparison, Fairness, FairnessScheme } from "@/app/features/sub_decisions/group-eval/types";
 
 // Cap on how many candidates one comparative evaluation covers. The strongest
@@ -28,7 +28,11 @@ const GROUP_EVAL_CAP = 6;
 // can re-open it without re-running.
 
 export type GroupEvalCandidate = { entryId: string; candidateId: string | null; label: string; matchScore: number | null };
-type Reasoning = { verdict?: string; strengths?: string[]; gaps?: string[]; interviewProbes?: string[] };
+// The all-optional adapter for runReasoning's loosely-typed output, parsed before
+// the per-field defaulting below. Single-sourced as Partial<> of the canonical
+// MatchTypes.Reasoning so its field set provably tracks that type (minus
+// optionality) instead of being a hand-copied union that can silently drift.
+type Reasoning = Partial<CanonicalReasoning>;
 // Comparison / FairnessScheme / Fairness are the persisted group-eval wire
 // contract — single-sourced from the client modal's group-eval/types.ts (imported
 // above) so the server producer and the client consumer can never drift.
