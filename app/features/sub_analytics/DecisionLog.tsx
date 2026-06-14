@@ -8,7 +8,7 @@ import { useInfiniteScroll, type InfinitePage } from "@/app/_lib/useInfiniteScro
 import { formatRelativeTime } from "@/app/_lib/format";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { toCsv, downloadFile } from "@/app/_lib/export-utils";
-import { DECISION_META } from "@/app/_lib/decision-attribution";
+import { DECISION_META, kindLabel } from "@/app/_lib/decision-attribution";
 
 type Decision = {
   id: number;
@@ -120,14 +120,12 @@ function DecisionLogList({
   // ANA5 — export the rows the recruiter has isolated (the loaded, filtered
   // set), via the shared toolkit. Localized labels — the file mirrors the log.
   const exportCsv = () => {
-    const kindLabel = (k: string) =>
-      k in DECISION_META ? t(`kinds.${k}` as Parameters<typeof t>[0]) : k.replace(/_/g, " ");
     const rows: (string | number | null)[][] = [
       [t("csvTime"), t("csvAttribution"), t("csvKind"), t("csvCandidate"), t("csvRole"), t("csvDetail")],
       ...items.map((d) => [
         d.createdAt,
         t(`attribution.${decisionMeta(d.kind).attribution}` as Parameters<typeof t>[0]),
-        kindLabel(d.kind),
+        kindLabel(t, d.kind),
         d.candidateLabel,
         d.jobTitle,
         d.detail,
@@ -203,7 +201,7 @@ function DecisionLogList({
           {items.map((d, i) => {
             const m = decisionMeta(d.kind);
             const badgeCls = ATTRIBUTION_BADGE[m.attribution];
-            const label = m.known ? t(`kinds.${d.kind}` as Parameters<typeof t>[0]) : d.kind.replace(/_/g, " ");
+            const label = kindLabel(t, d.kind);
             // Cascade rows within each freshly loaded page; CSS animations only
             // fire when a node mounts, so already-present rows never re-animate.
             const animate = !reduced;

@@ -57,6 +57,23 @@ export function decisionAttribution(kind: string): "auto" | "human" | "unknown" 
   return meta ? (meta.auto ? "auto" : "human") : "unknown";
 }
 
+// Minimal structural shape of a next-intl `analytics.log`-namespace translator
+// (the value from `useTranslations("analytics.log")`). Generic over the next-intl
+// `Translator` (whose call signature only accepts its own message keys, not a
+// bare string) so this pure module stays free of a next-intl import; the loose
+// `key: string` is cast to the translator's key type internally.
+type KindTranslator = { (key: never): string };
+
+// ONE "decision kind -> human label" resolver, shared by the DecisionLog rows /
+// CSV / filter and the RoiLedger CSV (ANA). A kind present in DECISION_META reads
+// its `kinds.<kind>` catalog entry; an unmapped kind degrades to the de-snaked raw
+// value (instead of rendering the raw catalog KEY or throwing). Callers pass their
+// own `analytics.log` translator instance so the namespace is resolved once.
+export function kindLabel<T extends KindTranslator>(t: T, kind: string): string {
+  if (kind in DECISION_META) return t(`kinds.${kind}` as Parameters<T>[0]);
+  return kind.replace(/_/g, " ");
+}
+
 // The dispatched-communication kinds — what the rollup reports as "comms
 // delivered". comm_resent counts too: a resend is a delivery (human-initiated,
 // so it still lands in humanCount above).

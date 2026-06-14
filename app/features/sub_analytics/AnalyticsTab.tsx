@@ -11,7 +11,7 @@ import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import type { MomentumWeek } from "@/app/_lib/analytics-momentum";
 import { forecastHires } from "@/app/_lib/analytics-forecast";
 import type { Delta, PeriodDeltas } from "@/app/_lib/analytics-deltas";
-import type { AutomationImpact } from "@/app/_lib/decision-attribution";
+import { kindLabel, type AutomationImpact } from "@/app/_lib/decision-attribution";
 import type { AutomationRoi } from "@/app/_lib/automation-roi";
 // `import type` only — erased at compile time, no server code in the bundle.
 import type { ChannelEconomics } from "@/app/_lib/db";
@@ -433,13 +433,12 @@ function AutomationPanel({
 function RoiLedger({ roi, onSaved }: { roi: AutomationRoi; onSaved: () => void }) {
   const t = useTranslations("analytics.roi");
   const tLog = useTranslations("analytics.log");
-  const kindLabel = (kind: string) => tLog(`kinds.${kind}` as Parameters<typeof tLog>[0]);
   const exportCsv = () => {
     downloadFile(
       "kp-automation-roi.csv",
       toCsv([
         [t("csvKind"), t("csvCount"), t("csvMinsEach"), t("csvMinsTotal")],
-        ...roi.actions.map((a) => [kindLabel(a.kind), a.count, a.minutesEach, a.minutesTotal]),
+        ...roi.actions.map((a) => [kindLabel(tLog, a.kind), a.count, a.minutesEach, a.minutesTotal]),
       ]),
       "text/csv"
     );
@@ -458,7 +457,7 @@ function RoiLedger({ roi, onSaved }: { roi: AutomationRoi; onSaved: () => void }
           <ul className="mt-2 space-y-1 text-sm">
             {roi.actions.slice(0, 5).map((a) => (
               <li key={a.kind} className="flex items-baseline justify-between gap-2">
-                <span className="truncate text-steel">{t("actionRow", { label: kindLabel(a.kind), count: a.count })}</span>
+                <span className="truncate text-steel">{t("actionRow", { label: kindLabel(tLog, a.kind), count: a.count })}</span>
                 <span className="shrink-0 font-medium text-ink">{t("minsSaved", { mins: a.minutesTotal })}</span>
               </li>
             ))}
