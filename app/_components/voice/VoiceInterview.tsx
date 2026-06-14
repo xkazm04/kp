@@ -262,6 +262,18 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle, provider: pinned
     [teardownOpenAi, clearConnectTimer, pushTurn, persistTranscript, token, t]
   );
 
+  // The completed-vs-failed verdict, read from the live refs at call time. Every
+  // end path (EL onDisconnect, the EL fallback timer, the OpenAI inline branch)
+  // asks the same single question, so building it here keeps the three sites from
+  // classifying the same call differently. The provider branching (WHEN finalize
+  // fires) stays at the call sites.
+  const currentFinalStatus = () =>
+    interviewFinalStatus({
+      errored: erroredRef.current,
+      reachedLive: reachedLiveRef.current,
+      turnCount: turnsRef.current.length,
+    });
+
   const conversation = useConversation({
     onConnect: () => {
       // A late onConnect after the 30s connect timeout (which latched finalizedRef
@@ -286,13 +298,7 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle, provider: pinned
       // "failed" so /api/interview/complete skips scoring (and never sets the
       // Interview→Offer approval) and the candidate can retry the link.
       if (providerRef.current !== "elevenlabs") return;
-      void finalize(
-        interviewFinalStatus({
-          errored: erroredRef.current,
-          reachedLive: reachedLiveRef.current,
-          turnCount: turnsRef.current.length,
-        })
-      );
+      void finalize(currentFinalStatus());
     },
     onError: (message: string) => {
       clearConnectTimer();
@@ -543,13 +549,7 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle, provider: pinned
       }
       window.setTimeout(() => {
         if (!finalizedRef.current) {
-          void finalize(
-            interviewFinalStatus({
-              errored: erroredRef.current,
-              reachedLive: reachedLiveRef.current,
-              turnCount: turnsRef.current.length,
-            })
-          );
+          void finalize(currentFinalStatus());
         }
       }, EL_DISCONNECT_GRACE_MS);
       return;
@@ -559,13 +559,7 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle, provider: pinned
     // failure, mistaken early End) previously locked the session terminal-completed, so the
     // candidate was permanently shut out of their own link; interviewFinalStatus returns
     // "failed" for turnCount 0, keeping it reconnectable just like the EL path.
-    await finalize(
-      interviewFinalStatus({
-        errored: erroredRef.current,
-        reachedLive: reachedLiveRef.current,
-        turnCount: turnsRef.current.length,
-      })
-    );
+    await finalize(currentFinalStatus());
   }
 
   const isBusy = phase === "connecting" || phase === "live" || phase === "ending";
