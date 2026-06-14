@@ -1933,6 +1933,15 @@
     }
   },
   "devApply": {
+    "workSurface": {
+      "heading": "Work the case here",
+      "intro": "Edit the starter files below. Your process — what you open, what you edit, and what you note in DECISIONS.md — is recorded so we grade the judgment we watch, not just the final code. You may use any tools, including AI. We never record keystrokes or your screen.",
+      "submit": "Submit work",
+      "submitting": "Submitting…",
+      "submittedTitle": "Submitted",
+      "submitted": "Thank you — your work and the process behind it were captured. The team will review it.",
+      "error": "Couldn't submit — try again, or use the repository-link option below."
+    },
     "eyebrow": "Take-home assignment",
     "fallbackTitle": "Developer assignment",
     "subtitle": "Read the brief, grab the starter files, and submit a link to your solution repository when you're done.",

@@ -1933,6 +1933,15 @@
     }
   },
   "devApply": {
+    "workSurface": {
+      "heading": "Pracujte na zadání zde",
+      "intro": "Upravte výchozí soubory níže. Váš postup — co otevřete, co upravíte a co zaznamenáte do DECISIONS.md — zaznamenáváme, abychom hodnotili úsudek, který sledujeme, ne jen výsledný kód. Můžete použít jakékoli nástroje včetně AI. Nikdy nezaznamenáváme stisky kláves ani vaši obrazovku.",
+      "submit": "Odeslat práci",
+      "submitting": "Odesílání…",
+      "submittedTitle": "Odesláno",
+      "submitted": "Děkujeme — vaše práce i postup za ní byly zaznamenány. Tým si je prohlédne.",
+      "error": "Odeslání se nezdařilo — zkuste to znovu nebo použijte níže možnost odkazu na repozitář."
+    },
     "eyebrow": "Domácí úkol",
     "fallbackTitle": "Vývojářské zadání",
     "subtitle": "Přečtěte si zadání, stáhněte si startovní soubory a po dokončení odešlete odkaz na repozitář s řešením.",
