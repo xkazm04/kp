@@ -42,7 +42,7 @@ from . import design as _design
 from . import evaluate as _evaluate
 from . import reflect as _reflect
 from .models import LOW_CONFIDENCE, DevNeed, NeedAnalysis, RepoSnapshot
-from .provenance import FALLBACK_REASON_KEY, combine_source
+from .provenance import collect_fallback_reasons, combine_source
 
 # devcase_cli command → LLM-registry use case (capabilities.py catalog), so the
 # Models config can pin a provider/model per step. design-artifacts covers both
@@ -111,13 +111,9 @@ def _fallback_reasons(**named: object) -> dict[str, str]:
     provider-unavailable run records none — so the map (and the envelope key) is empty/omitted
     in the common case. ``named`` keys MUST match the ``per_step`` keys so the two line up.
     """
-    out: dict[str, str] = {}
-    for step, art in named.items():
-        if isinstance(art, dict):
-            reason = art.pop(FALLBACK_REASON_KEY, None)
-            if reason:
-                out[step] = str(reason)
-    return out
+    # pop=True: lift the reason OFF the artifact so it rides in the envelope, not
+    # the model round-trip (shared with both eval harnesses via provenance).
+    return collect_fallback_reasons(named.items(), pop=True)
 
 
 def _emit(
