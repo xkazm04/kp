@@ -12,7 +12,7 @@
 
 // The shared comma/semicolon list splitter (pure, dependency-free). These are
 // single-line answers, so no newline splitting — the default behavior here.
-import { splitList } from "./split-list";
+import { splitList } from "./split-list.ts";
 
 export type CompletenessGap = { check: string; label: string };
 
