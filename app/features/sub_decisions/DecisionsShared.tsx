@@ -1,4 +1,3 @@
-import { ChevronRight } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Badge, interviewRecommendationToken } from "@/app/_components/Badge";
 import { ScoreBadge } from "@/app/_components/ScoreBadge";
@@ -9,19 +8,6 @@ import { initials } from "@/app/_lib/initials";
 
 export function Empty({ children }: { children: React.ReactNode }) {
   return <p className="rounded-md border border-dashed border-stone-200 p-3 text-sm text-steel">{children}</p>;
-}
-
-export function NextStage({ stage }: { stage: string }) {
-  const enumLabel = useEnumLabel();
-  const idx = STAGES.indexOf(stage);
-  const next = STAGES[Math.min(idx + 1, STAGES.length - 1)];
-  return (
-    <span className="inline-flex items-center gap-1 text-sm text-steel">
-      <span className="rounded bg-stone-100 px-1.5 py-0.5">{enumLabel("stage", stage)}</span>
-      <ChevronRight size={12} />
-      <span className="rounded bg-moss/10 px-1.5 py-0.5 font-semibold text-moss">{enumLabel("stage", next)}</span>
-    </span>
-  );
 }
 
 export function CandidateHead({ entry }: { entry: Entry }) {
