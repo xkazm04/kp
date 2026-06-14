@@ -91,16 +91,6 @@ export function daysSince(iso: string | null): number | null {
   return Math.floor((Date.now() - t) / 86_400_000);
 }
 
-export function relativeTime(iso: string): string {
-  const d = daysSince(iso);
-  if (d == null) return "";
-  if (d <= 0) return "today";
-  if (d === 1) return "yesterday";
-  if (d < 7) return `${d}d ago`;
-  if (d < 30) return `${Math.floor(d / 7)}w ago`;
-  return `${Math.floor(d / 30)}mo ago`;
-}
-
 // ONE catalog of archetype presentation — label, fill (bg), focus ring, and glyph.
 // Every archetype-styled surface (candidate row, drawer, legend, analytics) reads
 // from this single source so a label/color/icon tweak lands in exactly one place
