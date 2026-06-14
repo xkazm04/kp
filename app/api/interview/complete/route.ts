@@ -7,6 +7,8 @@ import {
   type VoiceTurn,
 } from "@/app/_lib/db";
 import { runInterviewScorecard } from "@/app/_lib/interview-run";
+import { sealDecisionSafe } from "@/app/_lib/decision-record-store";
+import { AUTOMATION_VERSION } from "@/app/_lib/automation-run";
 import { capTranscriptTurns, clampTurn } from "@/app/_lib/interview-transcript";
 import { safeJsonError } from "@/app/_lib/api-response";
 import { CONSENT_NOT_RECORDED_ERROR, isPersistConsentSatisfied } from "@/app/_lib/interview-consent";
@@ -160,7 +162,21 @@ export async function POST(request: NextRequest) {
       } catch {
         /* transcript is already persisted — scoring is best-effort */
       }
-      if (scorecard) updated = attachInterviewScorecard(sessionId, scorecard) ?? updated;
+      if (scorecard) {
+        updated = attachInterviewScorecard(sessionId, scorecard) ?? updated;
+        // Decision SoR (moonshot D backfill): seal the AI scorecard verdict with
+        // its model/prompt version as the actor. Best-effort — never blocks complete.
+        const rec = typeof scorecard.recommendation === "string" ? scorecard.recommendation : "(none)";
+        sealDecisionSafe({
+          kind: "ai_scorecard",
+          actor: `auto:${AUTOMATION_VERSION.scorecard}`,
+          policyVersion: AUTOMATION_VERSION.scorecard,
+          candidateRef: session.entryId,
+          rationale: `AI interview scorecard — recommendation: ${rec}.`,
+          reasonCode: "scorecard",
+          inputs: { recommendation: rec },
+        });
+      }
     }
 
     return NextResponse.json({ ok: true, session: updated, scorecard });
