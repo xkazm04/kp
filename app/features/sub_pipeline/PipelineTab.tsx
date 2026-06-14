@@ -19,7 +19,7 @@ import { EventDot, useEventVerb, useRelativeTime } from "./PipelineShared";
 import { TodayRail } from "./TodayRail";
 import { recordRecent } from "@/app/features/recents";
 import { copyText } from "@/app/_lib/export-utils";
-import { daysSince, slaForStage, STAGE_SLA_DEFAULTS, STAGES, type Entry, type PipelineEvent } from "./PipelineTypes";
+import { daysSince, slaForStage, STAGE_SLA_DEFAULTS, STAGES, type Entry, type PipelineEvent, type Position } from "./PipelineTypes";
 
 // Compact header stat: label over value, optionally clickable. Replaces the old
 // full-width Kpi card grid — the same numbers now live as a tight cluster in the
@@ -52,8 +52,6 @@ function StatChip({
     <div className={cls}>{inner}</div>
   );
 }
-
-type Position = { id: string; title: string; family: string; count: number };
 
 // Group entries into position lanes (job id ?? title ?? "?"), sorted by title.
 // Pulled out of the component so it can run over BOTH the full board (the

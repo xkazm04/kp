@@ -6,9 +6,7 @@ import { useTranslations } from "next-intl";
 import { needsHumanDecision } from "@/app/_lib/approval-kinds";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { CandidateRow, Legend } from "./PipelineShared";
-import { STAGE_HELP, STAGES, type Entry } from "./PipelineTypes";
-
-type Position = { id: string; title: string; family: string; count: number };
+import { STAGE_HELP, STAGES, type Entry, type Position } from "./PipelineTypes";
 
 const CELL_LIMIT = 6;
 const EMPTY_SELECTION: ReadonlySet<string> = new Set();

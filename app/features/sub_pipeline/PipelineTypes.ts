@@ -29,6 +29,12 @@ export type Entry = {
   sourceChannel?: string | null;
 };
 
+// One job "lane" on the pipeline board: PipelineTab builds Position[] (via
+// groupPositions) and passes it straight to <PipelineBoard positions={...} />, so
+// the producer and the consumer share this ONE declaration instead of each keeping
+// a private copy that could silently drift.
+export type Position = { id: string; title: string; family: string; count: number };
+
 // Mirrors the PUBLIC event projection served by /api/pipeline/events
 // (pipeline-events-public.ts): candidateLabel is initials only, and the
 // internal entryId/archetype never reach the client (idea-4c41d103).
