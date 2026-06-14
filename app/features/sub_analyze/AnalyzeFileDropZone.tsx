@@ -1,12 +1,12 @@
 "use client";
 
-import { useState } from "react";
 import { FileText, UploadCloud, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { ACCEPT_EXTENSIONS, MAX_FILE_HINT } from "@/app/_lib/upload-constraints";
 import { formatFileSize } from "./AnalyzeApi";
 import { ownedDropZoneProps } from "./dropRouting";
 import { useFileAccept } from "./useFileAccept";
+import { useDropZoneHighlight } from "./useDropZoneHighlight";
 
 export function AnalyzeFileDropZone({
   inputId,
@@ -24,11 +24,11 @@ export function AnalyzeFileDropZone({
   hint?: string;
 }) {
   const t = useTranslations("analyze");
-  const [isOver, setIsOver] = useState(false);
   // The shared intake gate: every File below is handed to `accept(file, commit)`
   // so a bad drop/select (wrong type or >8 MB) surfaces inline instead of only
   // failing after the upload POST. No path here calls onFileChange directly.
   const { error, accept } = useFileAccept();
+  const { isOver, dragProps } = useDropZoneHighlight((file) => accept(file, onFileChange));
 
   const errorRow = error ? (
     <p className="mt-1 text-sm text-coral" role="alert">{error}</p>
@@ -86,24 +86,7 @@ export function AnalyzeFileDropZone({
       <label
         htmlFor={inputId}
         {...ownedDropZoneProps}
-        onDragEnter={(event) => {
-          event.preventDefault();
-          setIsOver(true);
-        }}
-        onDragOver={(event) => {
-          event.preventDefault();
-          setIsOver(true);
-        }}
-        onDragLeave={(event) => {
-          event.preventDefault();
-          setIsOver(false);
-        }}
-        onDrop={(event) => {
-          event.preventDefault();
-          setIsOver(false);
-          const dropped = event.dataTransfer.files?.[0];
-          if (dropped) accept(dropped, onFileChange);
-        }}
+        {...dragProps}
         className={`flex min-h-20 cursor-pointer flex-col items-center justify-center rounded-lg border border-dashed px-3 text-center transition-colors ${
           isOver
             ? "border-solid border-coral bg-coral/5"
