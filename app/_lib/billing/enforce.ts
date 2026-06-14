@@ -17,7 +17,7 @@
 // operator-readable fallback.
 
 import { getBillingState } from "../db";
-import { entitledPlan, meterAllowance } from "./entitlements";
+import { entitledPlan, meterAllowance, meterOverview } from "./entitlements";
 import type { Meter } from "./plans";
 
 export const QUOTA_CODE = "quota_exceeded" as const;
@@ -37,9 +37,12 @@ const METER_LABELS: Record<Meter, string> = {
 
 /** Null = proceed; a verdict = respond 402 with it. */
 export function meterGate(meter: Meter, now: Date = new Date()): QuotaVerdict | null {
-  const allowance = meterAllowance(meter, now);
-  if (allowance.allowed) return null;
+  // Resolve the entitled plan ONCE: the allowance check and the verdict's plan
+  // label both read it, and a single billing_state read also can't observe two
+  // different rows under a concurrent webhook write.
   const plan = entitledPlan(getBillingState(), now);
+  const remaining = meterOverview(meter, plan, now).remaining;
+  if (remaining === null || remaining > 0) return null;
   return {
     error: `This month's ${METER_LABELS[meter]} on the ${plan.name} plan is used up — upgrade or top up in Billing.`,
     code: QUOTA_CODE,
