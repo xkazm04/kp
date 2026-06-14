@@ -25,7 +25,11 @@ export function LiveWorkSurface({ token, seedFiles, note }: { token: string; see
   const startingRef = useRef(false);
   const pendingRef = useRef<ProcessEvent[]>([]);
   const filesRef = useRef(files);
-  filesRef.current = files;
+  useEffect(() => {
+    // Keep the ref current for the flush callback without re-creating the interval
+    // on every keystroke. Synced in an effect (not during render) per react-hooks/refs.
+    filesRef.current = files;
+  }, [files]);
   const editTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Lazily mint the session on first interaction — never orphan a session for a
