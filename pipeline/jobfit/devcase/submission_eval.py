@@ -40,6 +40,7 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from typing import Any
 
+from .._cli import configure_stdio
 from ..claude_cli import ClaudeCliProvider
 from .evaluate import evaluate_submission, score_transfer
 from .llm_judge import run_judge
@@ -453,8 +454,7 @@ def _report_md(rows: list[Row], sig: dict, qual: dict | None) -> str:
 
 
 def main(argv: list[str] | None = None) -> int:
-    if hasattr(sys.stdout, "reconfigure"):
-        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    configure_stdio(errors="replace")
     p = argparse.ArgumentParser(description="Submission evaluation eval (Dev pipeline, eval half).")
     p.add_argument("--count", type=int, default=48)
     p.add_argument("--domain", default="it", help="it | marketing | finance | sales | design | mixed")

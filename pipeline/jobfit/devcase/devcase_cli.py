@@ -35,6 +35,7 @@ import json
 import sys
 from pathlib import Path
 
+from .._cli import configure_stdio
 from ..llm import resolve_provider
 from . import analyze as _analyze
 from . import design as _design
@@ -166,9 +167,7 @@ def _emit(
 
 
 def main(argv: list[str] | None = None) -> int:
-    if hasattr(sys.stdout, "reconfigure"):
-        sys.stdout.reconfigure(encoding="utf-8")
-        sys.stderr.reconfigure(encoding="utf-8")
+    configure_stdio()
 
     parser = argparse.ArgumentParser(description="Dev-extension tasks (Claude CLI only).")
     parser.add_argument("command", choices=["analyze-need", "design-artifacts", "reflect-commits", "evaluate-submission", "source", "interview-scenario", "observed-interview", "observed-skills", "materialize-seed"])
