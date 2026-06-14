@@ -10,6 +10,10 @@
 // Registry-free and side-effect-free so it is directly unit-testable; see
 // completeness-followup.test.ts.
 
+// The shared comma/semicolon list splitter (pure, dependency-free). These are
+// single-line answers, so no newline splitting — the default behavior here.
+import { splitList } from "./split-list";
+
 export type CompletenessGap = { check: string; label: string };
 
 export type GapFieldSpec = {
@@ -67,12 +71,6 @@ export const GAP_FIELDS: Record<string, GapFieldSpec> = {
     multiline: true,
   },
 };
-
-const splitList = (text: string): string[] =>
-  text
-    .split(/[,;]/)
-    .map((s) => s.trim())
-    .filter(Boolean);
 
 /**
  * Fold the answered gap fields into a copy of the analyzed v2Profile payload.

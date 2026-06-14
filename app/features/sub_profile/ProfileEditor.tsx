@@ -16,6 +16,7 @@ import { ResultPanel } from "./ProfileResultPanel";
 import { hydrate, SKILL_FALLBACK, EVIDENCE_FALLBACK, archetypeFieldVisibility, archetypeScopedProfileFields } from "./ProfileForm";
 import { SegmentedControl } from "@/app/_components/SegmentedControl";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
+import { splitList } from "@/app/_lib/split-list";
 
 export type EditorMode = "create" | "edit" | "duplicate";
 
@@ -131,11 +132,9 @@ export function ProfileEditor({
     }
   };
 
-  const splitList = (s: string) =>
-    s
-      .split(/[,\n;]+/)
-      .map((x) => x.trim())
-      .filter(Boolean);
+  // Editor inputs include multiline textareas (languages/skills/aspirations), so
+  // newline splitting is on; the shared helper owns the comma/semicolon parsing.
+  const splitField = (s: string) => splitList(s, { newlines: true });
 
   // persist=false → dry-run preview (always POST, never writes). persist=true →
   // POST a new row (create/duplicate) or PUT the edited row.
@@ -148,10 +147,10 @@ export function ProfileEditor({
         roleFamily,
         educationLevel,
         educationDetail,
-        languages: splitList(languages),
+        languages: splitField(languages),
         location: location || undefined,
         availability: availability || undefined,
-        aspirations: splitList(aspirations),
+        aspirations: splitField(aspirations),
         skillClaims: skills
           .filter((s) => s.skill.trim())
           .map((s) => ({ skill: s.skill.trim(), level: s.level, provenance: s.provenance })),
@@ -161,7 +160,7 @@ export function ProfileEditor({
             kind: e.kind,
             title: e.title.trim(),
             text: e.text.trim(),
-            skills: splitList(e.skills),
+            skills: splitField(e.skills),
             link: e.link.trim() || undefined,
           })),
       };
