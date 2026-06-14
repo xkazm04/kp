@@ -126,15 +126,15 @@ export function EvalPanel({ ev, onPromote, promoted, promoting = false }: { ev: 
             or RECONSTRUCTED from a git log? Observed > inferred. */}
         <span
           title={
-            ev.perStepSources?.tooling === "observed"
+            String(ev.perStepSources?.tooling) === "observed"
               ? "Tooling watched live in the in-product work surface."
               : "Tooling reconstructed from the submitted git log."
           }
           className={`rounded px-1.5 py-0.5 font-semibold uppercase ${
-            ev.perStepSources?.tooling === "observed" ? "bg-moss/10 text-moss" : "bg-stone-100 text-steel"
+            String(ev.perStepSources?.tooling) === "observed" ? "bg-moss/10 text-moss" : "bg-stone-100 text-steel"
           }`}
         >
-          {ev.perStepSources?.tooling === "observed" ? "observed" : "inferred"}
+          {String(ev.perStepSources?.tooling) === "observed" ? "observed" : "inferred"}
         </span>
       </div>
 

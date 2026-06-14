@@ -440,7 +440,7 @@ export async function runEvaluateSubmission(submissionId: string, signal?: Abort
   // commits stay empty (the commit-derived reflection degrades gracefully — the
   // candidate produced no commit history by design). A normal repoRef keeps the
   // existing fetch-and-infer path unchanged.
-  let signals: RepoSnapshot | null = null;
+  let signals: Awaited<ReturnType<typeof fetchRepoSignals>> = null;
   let events: { t: number; kind: string; path?: string | null }[] | null = null;
   if (sub.repoRef.startsWith("session:")) {
     events = getDevSessionEvents(sub.repoRef.slice("session:".length));
