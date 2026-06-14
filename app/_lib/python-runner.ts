@@ -6,15 +6,6 @@ import { positiveNumericEnv } from "./env";
 
 const PYTHON_CMD = process.env.PYTHON_CMD ?? (process.platform === "win32" ? "python" : "python3");
 
-export type AnalyzeOptions = {
-  grounding: boolean;
-  cvFile: File;
-  jobDescriptionFile?: File | null;
-  jobDescriptionText?: string | null;
-  companyFile?: File | null;
-  companyText?: string | null;
-};
-
 export type PythonError = {
   message: string;
   status: number;
@@ -52,26 +43,6 @@ export async function persistFile(workdir: string, file: File, baseName: string)
   const buffer = Buffer.from(await file.arrayBuffer());
   await writeFile(target, buffer);
   return target;
-}
-
-export function buildCliArgs(options: AnalyzeOptions, paths: {
-  cvPath: string;
-  jobDescriptionPath?: string;
-  companyPath?: string;
-}): string[] {
-  const args = ["-m", "pipeline.jobfit.cli", paths.cvPath];
-  if (options.grounding) args.push("--grounding");
-  if (paths.jobDescriptionPath) {
-    args.push("--job-description-path", paths.jobDescriptionPath);
-  } else if (options.jobDescriptionText && options.jobDescriptionText.trim()) {
-    args.push("--job-description-text", options.jobDescriptionText.trim());
-  }
-  if (paths.companyPath) {
-    args.push("--company-path", paths.companyPath);
-  } else if (options.companyText && options.companyText.trim()) {
-    args.push("--company-text", options.companyText.trim());
-  }
-  return args;
 }
 
 export type SpawnResult = {
