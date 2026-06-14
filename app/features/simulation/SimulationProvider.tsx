@@ -3,6 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { buildUrl, clearedTabScopedParams } from "@/app/features/tabs";
+import { jdJobId } from "@/app/_lib/jd-limits";
 import { notifyDataChanged } from "@/app/features/live-refresh";
 import type { GroupEvalPayload } from "@/app/features/sub_decisions/GroupEvalModal";
 import { SIM_COMPANY, SIM_JD_MARKDOWN, SIM_ROLE, SIM_SALARY, SIM_SCREEN_POLICY, SIM_TITLE, type SimPhaseId } from "./constants";
@@ -372,7 +373,7 @@ export function SimulationProvider({ children }: { children: React.ReactNode }) 
             headers: JSON_HEADERS,
             body: JSON.stringify({ title: SIM_TITLE, body: SIM_JD_MARKDOWN, role: SIM_ROLE, salary: SIM_SALARY, company: SIM_COMPANY }),
           }).then((r) => r.json());
-          jobId = save.jobId ?? `jd-${save.slug}`;
+          jobId = save.jobId ?? jdJobId(save.slug);
           log(`Saved as draft · ${jobId}`);
           notifyDataChanged(); // the Jobs tab picks up the new draft
           await beat(900);

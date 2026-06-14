@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { loadJd, saveJd } from "@/app/_lib/db";
-import { validateJdFields } from "@/app/_lib/jd-limits";
+import { jdJobId, validateJdFields } from "@/app/_lib/jd-limits";
 import { safeJsonError } from "@/app/_lib/api-response";
 import { ingestStructuredJob } from "./ingest-job";
 
@@ -62,7 +62,7 @@ export async function POST(request: NextRequest) {
       /* job ingestion is best-effort — never block the JD save */
     }
 
-    return NextResponse.json({ slug, jobId: `jd-${slug}`, status: "draft", jobIngested });
+    return NextResponse.json({ slug, jobId: jdJobId(slug), status: "draft", jobIngested });
   } catch (error) {
     return safeJsonError(error, "api:jds/save", "JD_SAVE_FAILED");
   }

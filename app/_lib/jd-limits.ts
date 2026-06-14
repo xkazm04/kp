@@ -1,3 +1,11 @@
+// The load-bearing JD<->Job identity contract: a saved JD with slug `<slug>` maps
+// to the matchable Job row id `jd-<slug>` (getJob, the /apply/<id> CTA, the
+// analyses sidebar, the status lookup and the re-ingest path all line up on this).
+// Single-sourced here so the prefix (or any future encoding) lives in one place
+// instead of being hand-interpolated at every call site. Documented in
+// docs/JD_LIFECYCLE.md.
+export const jdJobId = (slug: string): string => `jd-${slug}`;
+
 // Length caps for saved JDs, enforced on both the client (LibraryJdForm) and
 // the server (POST /api/jds) so the form and the write trust boundary always
 // agree. Bounding length at the write boundary stops unbounded storage growth

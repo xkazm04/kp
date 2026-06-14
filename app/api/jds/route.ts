@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { listJds, saveJd } from "@/app/_lib/db";
 import { listJobStatuses } from "@/app/_lib/job-ingest";
-import { validateJdFields } from "@/app/_lib/jd-limits";
+import { jdJobId, validateJdFields } from "@/app/_lib/jd-limits";
 import { safeJsonError } from "@/app/_lib/api-response";
 
 export const runtime = "nodejs";
@@ -13,7 +13,7 @@ export async function GET() {
     // library can show which JDs are matchable and offer "Ingest as job" on the
     // rest. null = no jd-<slug> job exists yet (analysis-only JD).
     const statuses = listJobStatuses();
-    const jds = rows.map((row) => ({ ...row, jobStatus: statuses[`jd-${row.slug}`] ?? null }));
+    const jds = rows.map((row) => ({ ...row, jobStatus: statuses[jdJobId(row.slug)] ?? null }));
     return NextResponse.json({ jds });
   } catch (error) {
     return safeJsonError(error, "api:jds", "JD_LIST_FAILED");

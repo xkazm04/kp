@@ -6,7 +6,7 @@ import { AlertTriangle, Check, ExternalLink, Loader2, Lock, RefreshCw, Save, Use
 import { useTranslations } from "next-intl";
 import { Markdown } from "@/app/_components/Markdown";
 import { buildUrl } from "@/app/features/tabs";
-import { JD_BODY_MAX_LENGTH } from "@/app/_lib/jd-limits";
+import { JD_BODY_MAX_LENGTH, jdJobId } from "@/app/_lib/jd-limits";
 import { formatSalaryRange } from "@/app/_lib/format";
 import { normalizeMarketSalary, type MarketSalary } from "@/app/_lib/salary-band";
 import { dedupeBy } from "@/app/_lib/dedupe";
@@ -149,7 +149,7 @@ export function JdBuilderResult({
       });
       const p = await r.json();
       if (!r.ok) throw new Error(p.error ?? t("saveFailed"));
-      setSaved({ slug: p.slug, jobId: p.jobId ?? `jd-${p.slug}`, jobIngested: Boolean(p.jobIngested) });
+      setSaved({ slug: p.slug, jobId: p.jobId ?? jdJobId(p.slug), jobIngested: Boolean(p.jobIngested) });
       onSaved();
     } catch (e) {
       setError(e instanceof Error ? e.message : t("saveFailed"));
@@ -176,7 +176,7 @@ export function JdBuilderResult({
       const p = await r.json();
       if (!r.ok) throw new Error(p.error ?? t("retryFailed"));
       if (!p.jobIngested) throw new Error(t("ingestFailedAgain"));
-      setSaved({ slug: p.slug, jobId: p.jobId ?? `jd-${p.slug}`, jobIngested: true });
+      setSaved({ slug: p.slug, jobId: p.jobId ?? jdJobId(p.slug), jobIngested: true });
     } catch (e) {
       setError(e instanceof Error ? e.message : t("retryFailed"));
     } finally {

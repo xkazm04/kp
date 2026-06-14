@@ -6,6 +6,7 @@ import { WorkspaceShell } from "@/app/features/WorkspaceNav";
 import { RecordRecent } from "@/app/features/RecordRecent";
 import { getJob, listAnalysesByJd, loadJd, type AnalysisSummary, type JdRow } from "@/app/_lib/db";
 import { getJobStatus, isJobOpenForApplications } from "@/app/_lib/job-ingest";
+import { jdJobId } from "@/app/_lib/jd-limits";
 import { JdActions } from "./JdActions";
 import { JdBody } from "./JdBody";
 
@@ -51,7 +52,7 @@ export default async function JdDetailPage({
   // apply flow already existed at /apply/jd-<slug> the moment the role was
   // live. The CTA renders only when the linked job accepts applications (the
   // same isJobOpenForApplications gate the apply surfaces enforce).
-  const jobId = `jd-${slug}`;
+  const jobId = jdJobId(slug);
   const linkedJob = getJob(jobId);
   const applyOpen = linkedJob !== null && isJobOpenForApplications(getJobStatus(jobId));
 

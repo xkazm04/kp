@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getJob, listJdRevisions, loadJd, revertJd } from "@/app/_lib/db";
 import { ingestJobAd } from "@/app/_lib/job-ingest";
+import { jdJobId } from "@/app/_lib/jd-limits";
 import { safeJsonError } from "@/app/_lib/api-response";
 
 export const runtime = "nodejs";
@@ -34,7 +35,7 @@ export async function POST(request: Request, context: { params: Promise<{ slug: 
     // Keep the linked jd-<slug> job in step with the reverted wording — best-effort,
     // mirroring the PATCH edit path (insertJob preserves lifecycle status on upsert).
     let jobResynced = false;
-    const jobId = `jd-${slug}`;
+    const jobId = jdJobId(slug);
     if (getJob(jobId)) {
       try {
         await ingestJobAd(restored.body, jobId);

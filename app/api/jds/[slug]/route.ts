@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getJob, loadJd, setJdArchived, updateJd } from "@/app/_lib/db";
 import { ingestJobAd } from "@/app/_lib/job-ingest";
-import { validateJdFields } from "@/app/_lib/jd-limits";
+import { jdJobId, validateJdFields } from "@/app/_lib/jd-limits";
 import { safeJsonError } from "@/app/_lib/api-response";
 
 export const runtime = "nodejs";
@@ -57,7 +57,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ slug:
     // deliberately preserving lifecycle status, so an edit can't demote a
     // live role; a re-ingest failure leaves the JD edit committed.
     let jobResynced = false;
-    const jobId = `jd-${slug}`;
+    const jobId = jdJobId(slug);
     if (getJob(jobId)) {
       try {
         await ingestJobAd(fields.body, jobId);
