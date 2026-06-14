@@ -137,16 +137,23 @@ export function JdBuilderResult({
     document.getElementById(`jdview-tab-${VIEWS[next]}`)?.focus();
   };
 
+  // The shared POST /api/jds/save call: same body for the initial save and the
+  // in-place re-ingest retry, differing only by whether a slug is sent (present =
+  // re-ingest the existing draft, absent = create a new one). Each caller keeps its
+  // own response parsing / error message / state transition.
+  const postSave = (slug?: string) =>
+    fetch("/api/jds/save", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...(slug ? { slug } : {}), title, body: markdown, role: result.role, salary: result.salary, company }),
+    });
+
   // Save = create a DRAFT JD (no sourcing yet).
   const save = async () => {
     setSaving(true);
     setError(null);
     try {
-      const r = await fetch("/api/jds/save", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title, body: markdown, role: result.role, salary: result.salary, company }),
-      });
+      const r = await postSave();
       const p = await r.json();
       if (!r.ok) throw new Error(p.error ?? t("saveFailed"));
       setSaved({ slug: p.slug, jobId: p.jobId ?? jdJobId(p.slug), jobIngested: Boolean(p.jobIngested) });
@@ -168,11 +175,7 @@ export function JdBuilderResult({
     setRetrying(true);
     setError(null);
     try {
-      const r = await fetch("/api/jds/save", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ slug: saved.slug, title, body: markdown, role: result.role, salary: result.salary, company }),
-      });
+      const r = await postSave(saved.slug);
       const p = await r.json();
       if (!r.ok) throw new Error(p.error ?? t("retryFailed"));
       if (!p.jobIngested) throw new Error(t("ingestFailedAgain"));
