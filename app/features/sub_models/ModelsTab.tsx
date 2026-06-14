@@ -89,8 +89,9 @@ function RoutingRow({
     }
   };
 
-  // Canary call through the real registry. The route ships in parallel with
-  // this UI — a 404 reads as "not available yet", inline, never a crash.
+  // Canary call through the real registry; the verdict is the payload and
+  // errors render inline. The 404 guard below is defensive only (the route is
+  // live and returns a 200 verdict / 400 / 500 — it does not 404 in practice).
   const test = async () => {
     if (busy) return;
     setBusy("test");
