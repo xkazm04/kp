@@ -75,14 +75,20 @@ export function saveProviderKey(input: ProviderKeyInput): void {
   });
 }
 
-/** Masked listing for the admin surface — the secret never leaves the server. */
-export function listProviderKeyMeta(): Array<{
+// Masked provider-key metadata returned to the admin UI — the secret never leaves
+// the server. Named + exported so KeysPanel imports this ONE shape instead of
+// hand-copying it (the producer/consumer pair would otherwise silently drift when
+// a field like a future Azure `region` is added).
+export type ProviderKeyMeta = {
   provider: string;
   scope: string;
   endpoint?: string;
   apiVersion?: string;
   updatedAt: string;
-}> {
+};
+
+/** Masked listing for the admin surface — the secret never leaves the server. */
+export function listProviderKeyMeta(): ProviderKeyMeta[] {
   return listProviderKeys().map((row) => ({
     provider: row.provider,
     scope: row.scope,

@@ -7,6 +7,7 @@ import { Badge } from "@/app/_components/Badge";
 import { Skeleton } from "@/app/_components/Skeleton";
 import { BTN_PRIMARY, BTN_SECONDARY, FIELD, META_LABEL, PANEL, PANEL_SUNKEN } from "@/app/_components/ui/recipes";
 import { labelize } from "@/app/_lib/format";
+import type { ProviderKeyMeta } from "@/app/_lib/llm-config";
 import { useProviderName } from "./provider-names";
 
 // Provider key store panel. Secrets are write-only by contract: the GET surface
@@ -15,8 +16,7 @@ import { useProviderName } from "./provider-names";
 // (keys are encrypted at rest); that 400's message IS the operator fix, so it
 // is surfaced verbatim alongside the catalog hint.
 
-type KeyMeta = { provider: string; scope: string; endpoint?: string; apiVersion?: string; updatedAt: string };
-type KeysPayload = { keys: KeyMeta[]; providers: string[] };
+type KeysPayload = { keys: ProviderKeyMeta[]; providers: string[] };
 
 export function KeysPanel() {
   const t = useTranslations("models.keys");
@@ -84,7 +84,7 @@ export function KeysPanel() {
           ...(apiVersion.trim() ? { apiVersion: apiVersion.trim() } : {}),
         }),
       });
-      const p = (await r.json().catch(() => ({}))) as { keys?: KeyMeta[]; error?: string };
+      const p = (await r.json().catch(() => ({}))) as { keys?: ProviderKeyMeta[]; error?: string };
       if (!r.ok || !p.keys) throw new Error(p.error || t("saveFailed"));
       setData((d) => (d ? { ...d, keys: p.keys! } : d));
       setApiKey("");
@@ -108,7 +108,7 @@ export function KeysPanel() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ provider: keyProvider, scope: keyScope }),
       });
-      const p = (await r.json().catch(() => ({}))) as { keys?: KeyMeta[]; error?: string };
+      const p = (await r.json().catch(() => ({}))) as { keys?: ProviderKeyMeta[]; error?: string };
       if (!r.ok || !p.keys) throw new Error(p.error || t("deleteFailed"));
       setData((d) => (d ? { ...d, keys: p.keys! } : d));
     } catch (e) {
