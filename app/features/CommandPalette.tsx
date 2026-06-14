@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Search } from "lucide-react";
 import { Modal } from "@/app/_components/Modal";
+import { KBD } from "@/app/_components/ui/recipes";
 import { recordRecent, useRecents } from "./recents";
 import { useSimulation } from "./simulation/SimulationProvider";
 import { buildTabSwitchUrl, buildUrl, clearedTabScopedParams, navLabel, NAV_GROUPS, type WorkspaceTabId } from "./tabs";
@@ -240,7 +241,7 @@ export function CommandPalette() {
       >
         <Search size={14} aria-hidden />
         <span className="flex-1 truncate">{t("trigger")}</span>
-        <kbd suppressHydrationWarning className="rounded border border-stone-200 bg-paper px-1.5 py-0.5 text-[11px] font-semibold text-steel">
+        <kbd suppressHydrationWarning className={`${KBD} text-[11px]`}>
           {kbdHint}
         </kbd>
       </button>

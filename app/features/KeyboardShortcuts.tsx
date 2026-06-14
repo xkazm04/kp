@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Modal, isAnyModalOpen } from "@/app/_components/Modal";
+import { KBD } from "@/app/_components/ui/recipes";
 import { navLabel, NAV_GROUPS, type WorkspaceTabId } from "./tabs";
 
 // SHELL4 — global keyboard navigation: `g` then a mnemonic key jumps to a tab
@@ -98,20 +99,20 @@ export function KeyboardShortcuts({ onSelectTab }: { onSelectTab: (id: Workspace
       <ul className="space-y-1.5">
         <li className="flex items-center justify-between gap-3 border-b border-stone-100 pb-2 text-base">
           <span className="text-ink">{t("palette")}</span>
-          <kbd className="rounded border border-stone-200 bg-paper px-1.5 py-0.5 text-sm font-semibold text-steel">Ctrl K</kbd>
+          <kbd className={`${KBD} text-sm`}>Ctrl K</kbd>
         </li>
         {CHORDS.map((c) => (
           <li key={c.id} className="flex items-center justify-between gap-3 text-base">
             <span className="text-ink">{tabLabel(c.id, c.fallbackLabel)}</span>
             <span className="flex items-center gap-1">
-              <kbd className="rounded border border-stone-200 bg-paper px-1.5 py-0.5 text-sm font-semibold text-steel">g</kbd>
-              <kbd className="rounded border border-stone-200 bg-paper px-1.5 py-0.5 text-sm font-semibold text-steel">{c.key}</kbd>
+              <kbd className={`${KBD} text-sm`}>g</kbd>
+              <kbd className={`${KBD} text-sm`}>{c.key}</kbd>
             </span>
           </li>
         ))}
         <li className="flex items-center justify-between gap-3 border-t border-stone-100 pt-2 text-base">
           <span className="text-ink">{t("thisOverlay")}</span>
-          <kbd className="rounded border border-stone-200 bg-paper px-1.5 py-0.5 text-sm font-semibold text-steel">?</kbd>
+          <kbd className={`${KBD} text-sm`}>?</kbd>
         </li>
       </ul>
     </Modal>

@@ -71,3 +71,7 @@ export const TOGGLE_GROUP = "inline-flex items-center gap-0.5 rounded-md border 
  *  bg-ink active pill. Sizing/padding stays at the call site. */
 export const toggleBtn = (isActive: boolean): string =>
   isActive ? "bg-ink text-white" : "text-steel hover:bg-stone-100";
+
+/** Keycap chip (`<kbd>`) — command palette + keyboard-shortcuts overlay.
+ *  Pair with a type size at the call site (`${KBD} text-sm` / `text-[11px]`). */
+export const KBD = "rounded border border-stone-200 bg-paper px-1.5 py-0.5 font-semibold text-steel";
