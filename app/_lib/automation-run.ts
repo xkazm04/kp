@@ -14,7 +14,7 @@ import {
   storePromptCache,
 } from "./db";
 import { cleanupWorkdir, createWorkdir, parsePythonJson, parseStderrError, spawnPython } from "./python-runner";
-import { meterAllows } from "./billing/enforce";
+import { meterAllows } from "./billing";
 import { buildLlmConfigEnv } from "./llm-config";
 import { computeAutomationCacheKey, computeCorpusFingerprint } from "./automation-cache-key";
 import { screenStageOutcome } from "./pipeline-stages";

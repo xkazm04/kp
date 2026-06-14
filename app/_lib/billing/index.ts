@@ -3,6 +3,7 @@
 // and gateway.ts only; polar.ts is an implementation detail behind
 // polarGatewayFromEnv().
 
+export { BillingConfigError } from "./gateway";
 export type { BillingEvent, BillingGateway, Checkout, CheckoutRequest, ProductMap } from "./gateway";
 export {
   billingOverview,

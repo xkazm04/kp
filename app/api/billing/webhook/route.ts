@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { ingestBillingWebhook, polarGatewayFromEnv } from "@/app/_lib/billing";
-import { BillingConfigError } from "@/app/_lib/billing/gateway";
+import { BillingConfigError, ingestBillingWebhook, polarGatewayFromEnv } from "@/app/_lib/billing";
 import { WebhookVerificationError } from "@/app/_lib/billing/webhook-verify";
 
 export const runtime = "nodejs";
