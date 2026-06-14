@@ -253,11 +253,6 @@ export function ConversationalApply({ jobId, steps }: { jobId: string; steps: Ap
     setMsgs([{ who: "bot", text: steps[0]?.prompt ?? t("letsBegin") }]);
   };
 
-  // Discard a restored draft and begin again from the first question
-  // (idea-939d96e9) — the escape hatch on the "we picked up where you left off"
-  // banner for a candidate who would rather start over.
-  const startFresh = () => restartConversation();
-
   const advance = async (stepId: string, newAnswers: Record<string, unknown>, label: string) => {
     if (busy || answeredRef.current.has(stepId)) return;
     answeredRef.current.add(stepId);
@@ -352,7 +347,9 @@ export function ConversationalApply({ jobId, steps }: { jobId: string; steps: Ap
           <span className="text-base text-steel">{t("resumedNote")}</span>
           <button
             type="button"
-            onClick={startFresh}
+            // Discard the restored draft and begin again from the first question
+            // (idea-939d96e9) — the escape hatch for a candidate who'd rather start over.
+            onClick={restartConversation}
             className="focus-ring rounded-md px-2 py-1 text-base font-semibold text-steel hover:text-ink"
           >
             {t("startFresh")}
