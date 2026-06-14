@@ -64,6 +64,13 @@ type Progress = (done: number, total: number, msg?: string) => void;
 
 const STAGES = ["intake", "analyzed", "designed", "awaiting_approval", "approved", "published", "collecting", "ranked", "promoted", "closed"];
 
+// The stages where a lifecycle sits at the human review gate (a designed case
+// waiting for approve / redesign). Co-located with STAGES so adding a third
+// reviewable stage updates this domain set in one place — the approve and
+// redesign routes both gate on it, so they can't desync.
+const REVIEW_GATE_STAGES = new Set(["awaiting_approval", "designed"]);
+export const isAtReviewGate = (stage: string): boolean => REVIEW_GATE_STAGES.has(stage);
+
 // Safety bound on the drive loop below. Every iteration either returns or advances the
 // lifecycle one position forward through STAGES — the walk is monotonic and acyclic (no
 // stage transition ever moves backward), so a healthy run reaches a return within at most
