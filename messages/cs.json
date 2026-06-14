@@ -1932,6 +1932,21 @@
       }
     }
   },
+  "skillProfile": {
+    "eyebrow": "Ověřený doklad",
+    "title": "Profil trvalých dovedností",
+    "subtitle": "Podepsaná, přenositelná míra trvalých inženýrských schopností — získaná z hodnoceného pracovního vzorku, ne z životopisu.",
+    "verified": "Ověřeno kp",
+    "revoked": "Tento doklad byl zrušen",
+    "tampered": "Neplatný podpis — nedůvěřujte",
+    "transferLabel": "Skóre trvalých dovedností",
+    "confidenceLabel": "Spolehlivost",
+    "issuedLabel": "Vydáno",
+    "axesLabel": "Osy schopností",
+    "methodology": "Hodnoceno podle trvalých schopností (formulace problému, zběhlost v nástrojích, úsudek, architektura, přenos) z pracovního vzorku s povoleným AI.",
+    "methodologyLink": "Jak se to měří",
+    "version": "Standard {version}"
+  },
   "devApply": {
     "workSurface": {
       "heading": "Pracujte na zadání zde",

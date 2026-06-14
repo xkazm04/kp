@@ -1932,6 +1932,21 @@
       }
     }
   },
+  "skillProfile": {
+    "eyebrow": "Verified credential",
+    "title": "Durable Skill Profile",
+    "subtitle": "A signed, portable measure of durable engineering capability — earned from a graded work sample, not a résumé.",
+    "verified": "Verified by kp",
+    "revoked": "This credential has been revoked",
+    "tampered": "Signature invalid — do not trust",
+    "transferLabel": "Durable skill score",
+    "confidenceLabel": "Confidence",
+    "issuedLabel": "Issued",
+    "axesLabel": "Capability axes",
+    "methodology": "Scored on durable capabilities (problem framing, tooling fluency, judgment, architecture, transfer) from an AI-allowed work sample.",
+    "methodologyLink": "How this is measured",
+    "version": "Standard {version}"
+  },
   "devApply": {
     "workSurface": {
       "heading": "Work the case here",
