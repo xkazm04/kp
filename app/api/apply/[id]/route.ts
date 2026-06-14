@@ -145,23 +145,6 @@ async function buildApplicantProfile(
   }
 }
 
-// GET → the conversational apply script for a job (capture + KO questions).
-// The apply PAGE no longer hits this route on load: page.tsx server-builds the
-// same script (buildApplyScript) from its own getJob and passes it to the client
-// as a prop, sparing a round-trip and a duplicate getJob per page view. This
-// route is retained for any standalone use of the script.
-// SINGLE SOURCE OF TRUTH: page.tsx owns the apply header (role title / company),
-// rendered from its own server-side getJob. This endpoint deliberately returns
-// ONLY `steps` — no `job` payload — so there is no second, divergent read of the
-// same record for a caller to (mis)use.
-export async function GET(_request: NextRequest, context: { params: Promise<{ id: string }> }) {
-  const { id } = await context.params;
-  const job = getJob(id);
-  if (!job) return NextResponse.json({ error: "Role not found." }, { status: 404 });
-  const t = await getTranslations("apply");
-  return NextResponse.json({ steps: buildApplyScript(job, t) });
-}
-
 // Record the renewed interest on the applicant's ORIGINAL entry and return the
 // "already applied" acknowledgment. Shared by BOTH dedup paths — the primary
 // name-based check and the dedupeKey backstop race — so the event name and
