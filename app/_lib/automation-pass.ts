@@ -13,13 +13,38 @@ import { resolveCandidatePoolEntry } from "./candidate-pool";
 import { cleanupWorkdir, createWorkdir, parsePythonJson, parseStderrError, PipelineError, spawnPython } from "./python-runner";
 import { rankPoolForJob } from "./recruiter-run";
 import { dispatchRejection } from "./comms-dispatch";
-import { assertAutoRejectFair } from "./automation-fairness";
+import { assertAutoRejectFair, type AutoRejectVerdict } from "./automation-fairness";
 
 // Audit event kind logged when the TS fairness backstop refuses a Python reject
 // and downgrades it to a hold. A non-zero count here means an upstream regression
 // tried to auto-reject an entry the fairness invariant protects — see
 // automation-fairness.ts (assertAutoRejectFair).
 export const FAIRNESS_BLOCKED_REJECT_ALERT = "fairness_gate_blocked_reject";
+
+// THE single encoding of the fairness-backstop downgrade, shared by the dry-run
+// preview loop and the commit loop so the preview provably shows the SAME verdict
+// the commit enforces (the spec-pinned "preview must match commit" guarantee —
+// docs/AUTOMATION_SPEC.md §risks). On an allowed verdict it does nothing and
+// returns false; on a refused verdict it downgrades the decision to a hold,
+// rewrites the reason, appends the dedup alert, bumps `summary.held`, and returns
+// true. `preview` selects only the "would be refused" vs "refused" wording so a
+// dry run reads as a forecast while the commit reads as an applied refusal —
+// every other byte is identical across the two callers.
+function applyFairnessVerdict(
+  d: AutomationDecision,
+  verdict: AutoRejectVerdict,
+  summary: AutomationSummary,
+  preview: boolean
+): boolean {
+  if (verdict.allowed) return false;
+  d.action = "hold";
+  d.reason = `Auto-reject ${preview ? "would be refused" : "refused"} by fairness backstop: ${verdict.reason}. Original policy decision: ${d.reason}`;
+  d.alerts = (d.alerts ?? []).includes(FAIRNESS_BLOCKED_REJECT_ALERT)
+    ? d.alerts
+    : [...(d.alerts ?? []), FAIRNESS_BLOCKED_REJECT_ALERT];
+  summary.held += 1;
+  return true;
+}
 
 // Task 7 — deterministic policy pass over all active entries. LLM-free. Extracted
 // from the route so it has ONE home shared by /api/automation/run (the button +
@@ -188,15 +213,8 @@ async function executeAutomationPass(dryRun: boolean): Promise<AutomationPassRes
           summary.advanced += 1;
         } else if (d.action === "reject") {
           const verdict = assertAutoRejectFair(byId.get(d.entryId));
-          if (verdict.allowed) {
+          if (!applyFairnessVerdict(d, verdict, summary, true)) {
             summary.rejected += 1;
-          } else {
-            d.action = "hold";
-            d.reason = `Auto-reject would be refused by fairness backstop: ${verdict.reason}. Original policy decision: ${d.reason}`;
-            d.alerts = (d.alerts ?? []).includes(FAIRNESS_BLOCKED_REJECT_ALERT)
-              ? d.alerts
-              : [...(d.alerts ?? []), FAIRNESS_BLOCKED_REJECT_ALERT];
-            summary.held += 1;
           }
         } else if (d.action === "hold") {
           summary.held += 1;
@@ -233,7 +251,10 @@ async function executeAutomationPass(dryRun: boolean): Promise<AutomationPassRes
         // emitted a reject for a protected/unscored/at-or-above-floor entry, REFUSE
         // it — downgrade to a hold + alert rather than silently auto-rejecting.
         const verdict = assertAutoRejectFair(byId.get(d.entryId));
-        if (verdict.allowed) {
+        // Refused → downgraded to a hold + dedup alert (counted/recorded by the
+        // alert loop below, so the refusal shows up in the Activity feed for
+        // audit), routed to the human Decisions gate rather than actioned.
+        if (!applyFairnessVerdict(d, verdict, summary, false)) {
           const rejected = actOnPipelineEntry(d.entryId, "reject", undefined, { expectedStage: snapshotStage });
           if (rejected) {
             await dispatchRejection(rejected, { automated: true }); // tell the candidate (queued by default)
@@ -244,15 +265,6 @@ async function executeAutomationPass(dryRun: boolean): Promise<AutomationPassRes
             d.action = "none";
             d.reason = `Skipped: stage changed mid-pass. Original policy decision: ${d.reason}`;
           }
-        } else {
-          d.action = "hold";
-          d.reason = `Auto-reject refused by fairness backstop: ${verdict.reason}. Original policy decision: ${d.reason}`;
-          // Surface it as an alert; the loop below records it (deduped per day) and
-          // counts it, so the refusal shows up in the Activity feed for audit.
-          d.alerts = (d.alerts ?? []).includes(FAIRNESS_BLOCKED_REJECT_ALERT)
-            ? d.alerts
-            : [...(d.alerts ?? []), FAIRNESS_BLOCKED_REJECT_ALERT];
-          summary.held += 1; // routed to the human Decisions gate, not actioned
         }
       } else if (d.action === "hold") {
         summary.held += 1;
