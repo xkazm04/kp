@@ -1932,6 +1932,15 @@
       }
     }
   },
+  "login": {
+    "eyebrow": "kp",
+    "title": "Přihlášení operátora",
+    "subtitle": "Tento pracovní prostor je chráněný. Pokračujte zadáním hesla operátora.",
+    "passwordLabel": "Heslo",
+    "submit": "Přihlásit se",
+    "submitting": "Přihlašování…",
+    "error": "Nesprávné heslo — zkuste to znovu."
+  },
   "skillProfile": {
     "eyebrow": "Ověřený doklad",
     "title": "Profil trvalých dovedností",

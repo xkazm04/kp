@@ -1932,6 +1932,15 @@
       }
     }
   },
+  "login": {
+    "eyebrow": "kp",
+    "title": "Operator sign-in",
+    "subtitle": "This workspace is protected. Enter the operator password to continue.",
+    "passwordLabel": "Password",
+    "submit": "Sign in",
+    "submitting": "Signing in…",
+    "error": "Incorrect password — try again."
+  },
   "skillProfile": {
     "eyebrow": "Verified credential",
     "title": "Durable Skill Profile",
