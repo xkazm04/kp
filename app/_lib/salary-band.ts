@@ -1,4 +1,4 @@
-import { APP_CURRENCY } from "./format.ts";
+import { APP_CURRENCY, formatSalaryRange } from "./format.ts";
 
 // Salary-band validation shared by the JD authoring form (JdTemplates) and the
 // write trust boundary (ingest-job), so the advertised JD band and the
@@ -95,6 +95,20 @@ export type MarketSalary = {
   confidence: string;
   summary: string;
 };
+
+/**
+ * The grounded market band rendered into a JD's salary line — the SINGLE
+ * derivation shared by the AI-default body (`composeMarkdown`, server) and the
+ * template-filled body (`JdBuilder`, client) so the two paths can't advertise the
+ * same role's salary differently (same band, currency, and monthly period).
+ * Returns "" for an unavailable band, so the AI path omits the line and the
+ * template slot renders blank.
+ */
+export function marketSalaryLabel(s: MarketSalary): string {
+  return s.available
+    ? formatSalaryRange(s.suggestedMinimum, s.suggestedMaximum, { currency: s.currency, period: "month" })
+    : "";
+}
 
 function coerceString(value: unknown, fallback: string): string {
   // Return the TRIMMED value — the gate already requires non-blank, but the old code

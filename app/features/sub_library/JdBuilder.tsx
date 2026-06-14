@@ -9,8 +9,7 @@ import { useTasks, useTaskResult } from "@/app/features/tasks/TasksProvider";
 import { JdBuilderResult, type JdBuildResult } from "./JdBuilderResult";
 import { JdTemplateManager } from "./JdTemplateManager";
 import { fetchTemplates, renderTemplate, type Template } from "./render-template";
-import { formatSalaryRange } from "@/app/_lib/format";
-import { normalizeMarketSalary } from "@/app/_lib/salary-band";
+import { marketSalaryLabel, normalizeMarketSalary } from "@/app/_lib/salary-band";
 import { validateJdBuildInput } from "@/app/_lib/jd-limits";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
 
@@ -91,10 +90,7 @@ export function JdBuilder({ onSaved }: { onSaved: () => void }) {
     // bogus "0–N" range (or "undefined") from a partial CLI band into the
     // rendered JD body — an unavailable band yields an empty label, so the
     // template's salary slot simply renders blank.
-    const s = normalizeMarketSalary(result.salary);
-    const salaryLabel = s.available
-      ? formatSalaryRange(s.suggestedMinimum, s.suggestedMaximum, { currency: s.currency, period: "month" })
-      : "";
+    const salaryLabel = marketSalaryLabel(normalizeMarketSalary(result.salary));
     const markdown = renderTemplate(tpl.body, {
       title: title.trim(),
       company: company.trim(),

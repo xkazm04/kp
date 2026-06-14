@@ -2,9 +2,8 @@ import path from "node:path";
 import { writeFile } from "node:fs/promises";
 import { cleanupWorkdir, createWorkdir, parsePythonJson, parseStderrError, spawnPython } from "./python-runner";
 import { runDesignArtifacts, runNeedAnalysis, type DevNeed } from "./devcase-run";
-import { formatSalaryRange } from "./format";
 import { validateJdBuildInput } from "./jd-limits";
-import { normalizeMarketSalary, type MarketSalary } from "./salary-band";
+import { marketSalaryLabel, normalizeMarketSalary, type MarketSalary } from "./salary-band";
 
 // The AI job-description builder: a free-text need (+ optional GitHub repo for
 // dev roles) → our devcase need→design machinery → a structured RoleSpec, then
@@ -132,7 +131,8 @@ function composeMarkdown(
   // "Salary: 0 CZK" or "salary unavailable" to candidates; omission is the
   // graceful degradation here. (The builder card surfaces the unavailability to
   // the recruiter; see JdBuilderResult.)
-  if (s.available) lines.push(`**${str.salary}** ${formatSalaryRange(s.suggestedMinimum, s.suggestedMaximum, { currency: s.currency, period: "month" })}`);
+  const salaryLabel = marketSalaryLabel(s);
+  if (salaryLabel) lines.push(`**${str.salary}** ${salaryLabel}`);
 
   lines.push("", `## ${str.aboutRole}`);
   // The summary is generated in `lang` by market_salary_cli; the hiring sentence
