@@ -45,15 +45,13 @@ function isAbort(signal: AbortSignal | undefined, caught: unknown): boolean {
   return Boolean(signal?.aborted) || (caught as { name?: string } | null)?.name === "AbortError";
 }
 
-export async function executeAnalysis(
-  inputs: AnalysisInputs,
-  callbacks: AnalysisCallbacks,
-  signal?: AbortSignal
-): Promise<void> {
-  const { cvFiles, jobDescriptionFile, jobDescriptionText, companyFile, companyText, selectedJdSlug, reportLang, blind } = inputs;
+// The shared resolve/error tail both the fresh run and the resume path run once a
+// task id is in hand: watch the task to completion, finalize, then hand the result
+// to the caller after the brief 320ms settle. An intentional abort is swallowed
+// here; any other failure surfaces the error. The AbortSignal is threaded straight
+// through to watchAnalysis and the isAbort check — do not weaken it.
+async function settleAnalysis(taskId: string, callbacks: AnalysisCallbacks, signal?: AbortSignal): Promise<void> {
   try {
-    const taskId = await submitAnalysis(cvFiles, jobDescriptionFile, jobDescriptionText, companyFile, companyText, selectedJdSlug, reportLang, blind);
-    callbacks.onTaskStarted?.(taskId);
     const parsed = await watchAnalysis(taskId, callbacks.onProgress, signal);
     callbacks.onFinalize();
     window.setTimeout(() => callbacks.onResult(parsed), 320);
@@ -63,17 +61,28 @@ export async function executeAnalysis(
   }
 }
 
-// Re-attach to an analyze task already running on the server (e.g. after a page
-// refresh) and resolve it like a fresh run.
-export async function resumeAnalysis(taskId: string, callbacks: AnalysisCallbacks, signal?: AbortSignal): Promise<void> {
+export async function executeAnalysis(
+  inputs: AnalysisInputs,
+  callbacks: AnalysisCallbacks,
+  signal?: AbortSignal
+): Promise<void> {
+  const { cvFiles, jobDescriptionFile, jobDescriptionText, companyFile, companyText, selectedJdSlug, reportLang, blind } = inputs;
+  let taskId: string;
   try {
-    const parsed = await watchAnalysis(taskId, callbacks.onProgress, signal);
-    callbacks.onFinalize();
-    window.setTimeout(() => callbacks.onResult(parsed), 320);
+    taskId = await submitAnalysis(cvFiles, jobDescriptionFile, jobDescriptionText, companyFile, companyText, selectedJdSlug, reportLang, blind);
+    callbacks.onTaskStarted?.(taskId);
   } catch (caught) {
     if (isAbort(signal, caught)) return;
     callbacks.onError(caught instanceof Error ? caught.message : "Analysis failed.");
+    return;
   }
+  await settleAnalysis(taskId, callbacks, signal);
+}
+
+// Re-attach to an analyze task already running on the server (e.g. after a page
+// refresh) and resolve it like a fresh run.
+export async function resumeAnalysis(taskId: string, callbacks: AnalysisCallbacks, signal?: AbortSignal): Promise<void> {
+  await settleAnalysis(taskId, callbacks, signal);
 }
 
 export function finalizeStages(prev: StageState): StageState {
