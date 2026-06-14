@@ -667,18 +667,31 @@ function ChannelEconomicsPanel({
 // E5 — inline spend editor: saves on blur/Enter, clears when emptied. The value
 // re-syncs from the server after a save (the analytics reload), so the cost
 // columns and the input always agree.
-function SpendInput({
-  channel,
-  channelLabel,
+// One save-on-blur numeric input: holds the draft, re-seeds when the server
+// `value` changes (the in-render prop-resync pattern), validates (blank → null;
+// rejects non-finite/negative), short-circuits an unchanged value, and delegates
+// the actual persistence to `onSave`. Each caller owns its own endpoint/body and
+// supplies its label/suffix chrome around this. Extracted from the near-identical
+// SpendInput/TargetInput (only endpoint/body + minor styling differed).
+function InlineNumberSave({
   value,
-  onSaved,
+  onSave,
+  width,
+  inputType = "text",
+  inputClassName,
+  ariaLabel,
+  id,
+  failedTitle,
 }: {
-  channel: string;
-  channelLabel: string;
   value: number | null;
-  onSaved: () => void;
+  onSave: (value: number | null) => Promise<void>;
+  width: string;
+  inputType?: "text" | "number";
+  inputClassName?: string;
+  ariaLabel?: string;
+  id?: string;
+  failedTitle: string;
 }) {
-  const t = useTranslations("analytics.channels");
   const [draft, setDraft] = useState(value != null ? String(value) : "");
   const [saving, setSaving] = useState(false);
   const [failed, setFailed] = useState(false);
@@ -692,22 +705,16 @@ function SpendInput({
 
   const save = async () => {
     const trimmed = draft.trim();
-    const amount = trimmed === "" ? null : Number(trimmed);
-    if (amount !== null && (!Number.isFinite(amount) || amount < 0)) {
+    const v = trimmed === "" ? null : Number(trimmed);
+    if (v !== null && (!Number.isFinite(v) || v < 0)) {
       setFailed(true);
       return;
     }
-    if (amount === value) return; // unchanged — no request
+    if (v === value) return; // unchanged — no request
     setSaving(true);
     setFailed(false);
     try {
-      const r = await fetch("/api/analytics/spend", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ channel, amountCzk: amount }),
-      });
-      if (!r.ok) throw new Error();
-      onSaved();
+      await onSave(v);
     } catch {
       setFailed(true);
     } finally {
@@ -717,6 +724,8 @@ function SpendInput({
 
   return (
     <input
+      id={id}
+      type={inputType}
       inputMode="numeric"
       value={draft}
       onChange={(e) => {
@@ -728,13 +737,45 @@ function SpendInput({
         if (e.key === "Enter") (e.target as HTMLInputElement).blur();
       }}
       disabled={saving}
-      aria-label={t("spendAria", { channel: channelLabel })}
-      title={failed ? t("spendSaveFailed") : undefined}
+      aria-label={ariaLabel}
+      title={failed ? failedTitle : undefined}
       aria-invalid={failed ? true : undefined}
       placeholder="—"
-      className={`focus-ring h-8 w-24 rounded-md border px-2 text-right text-sm disabled:opacity-50 ${
+      className={`focus-ring h-8 ${width} rounded-md border px-2 text-right disabled:opacity-50 ${inputClassName ?? ""} ${
         failed ? "border-coral text-coral" : "border-stone-200 text-ink"
       }`}
+    />
+  );
+}
+
+function SpendInput({
+  channel,
+  channelLabel,
+  value,
+  onSaved,
+}: {
+  channel: string;
+  channelLabel: string;
+  value: number | null;
+  onSaved: () => void;
+}) {
+  const t = useTranslations("analytics.channels");
+  return (
+    <InlineNumberSave
+      value={value}
+      width="w-24"
+      inputClassName="text-sm"
+      ariaLabel={t("spendAria", { channel: channelLabel })}
+      failedTitle={t("spendSaveFailed")}
+      onSave={async (amount) => {
+        const r = await fetch("/api/analytics/spend", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ channel, amountCzk: amount }),
+        });
+        if (!r.ok) throw new Error();
+        onSaved();
+      }}
     />
   );
 }
@@ -862,67 +903,26 @@ function TargetInput({
   onSaved: () => void;
 }) {
   const t = useTranslations("analytics.goals");
-  const [draft, setDraft] = useState(value != null ? String(value) : "");
-  const [saving, setSaving] = useState(false);
-  const [failed, setFailed] = useState(false);
-  // Re-seed when the server value changes (post-save reload) — the in-render
-  // "adjust state when a prop changes" pattern used across the codebase.
-  const [seeded, setSeeded] = useState(value);
-  if (value !== seeded) {
-    setSeeded(value);
-    setDraft(value != null ? String(value) : "");
-  }
-
-  const save = async () => {
-    const trimmed = draft.trim();
-    const v = trimmed === "" ? null : Number(trimmed);
-    if (v !== null && (!Number.isFinite(v) || v < 0)) {
-      setFailed(true);
-      return;
-    }
-    if (v === value) return; // unchanged — no request
-    setSaving(true);
-    setFailed(false);
-    try {
-      const r = await fetch("/api/analytics/targets", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ metric, value: v }),
-      });
-      if (!r.ok) throw new Error();
-      onSaved();
-    } catch {
-      setFailed(true);
-    } finally {
-      setSaving(false);
-    }
-  };
-
   return (
     <div className="flex items-center gap-2 text-sm">
       <label htmlFor={`goal-${metric}`} className="w-28 shrink-0 text-steel">
         {label}
       </label>
-      <input
+      <InlineNumberSave
         id={`goal-${metric}`}
-        type="number"
-        inputMode="numeric"
-        value={draft}
-        onChange={(e) => {
-          setDraft(e.target.value);
-          if (failed) setFailed(false);
+        value={value}
+        width="w-20"
+        inputType="number"
+        failedTitle={t("saveFailed")}
+        onSave={async (v) => {
+          const r = await fetch("/api/analytics/targets", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ metric, value: v }),
+          });
+          if (!r.ok) throw new Error();
+          onSaved();
         }}
-        onBlur={save}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") (e.target as HTMLInputElement).blur();
-        }}
-        disabled={saving}
-        title={failed ? t("saveFailed") : undefined}
-        aria-invalid={failed ? true : undefined}
-        placeholder="—"
-        className={`focus-ring h-8 w-20 rounded-md border px-2 text-right disabled:opacity-50 ${
-          failed ? "border-coral text-coral" : "border-stone-200 text-ink"
-        }`}
       />
       <span className="text-meta text-steel">{suffix}</span>
     </div>
