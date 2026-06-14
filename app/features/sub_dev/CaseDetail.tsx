@@ -3,14 +3,14 @@
 import { Fragment } from "react";
 import { ArrowLeft, ClipboardList, Lock, MicVocal, Send, Users } from "lucide-react";
 import { Markdown } from "@/app/_components/Markdown";
-import { formatFraction, formatRelativeTime } from "@/app/_lib/format";
+import { formatRelativeTime } from "@/app/_lib/format";
 import { ApplyTokenPill } from "./ApplyTokenPill";
 import { CohortProbePanel } from "./CohortProbePanel";
 import { CompareSubmissions } from "./CompareSubmissions";
 import { InterviewKit } from "./InterviewKit";
 import { ProbeStrengthBanner } from "./ProbeStrengthBanner";
 import { caseToMarkdown } from "./DevHelpers";
-import { MiniList } from "./DevShared";
+import { MiniList, ProbeRow, RubricChip } from "./DevShared";
 import { SubmissionForm } from "./SubmissionForm";
 import { SubmissionRow } from "./SubmissionRow";
 import type { DevCaseDetail, Posting } from "./DevTypes";
@@ -125,21 +125,7 @@ export function CaseDetail({
           <ul className="mt-2 space-y-2">
             {(c.coverProbes ?? []).map((p, i) => (
               <li key={p.id ?? i} className="rounded-md border border-amber-200/70 bg-white/70 p-2.5">
-                <p className="text-micro text-ink">
-                  <span className="rounded bg-amber-100 px-1 py-0.5 text-micro font-semibold uppercase text-amber-700">
-                    {(p.kind ?? "probe").replace(/_/g, " ")}
-                  </span>{" "}
-                  <span className="text-steel">@ {p.where}</span> — {p.reveals}
-                </p>
-                {(p.decisionSpace ?? []).length ? (
-                  <ul className="mt-1.5 space-y-0.5 border-l-2 border-amber-200 pl-2">
-                    {(p.decisionSpace ?? []).map((opt, j) => (
-                      <li key={j} className="text-micro text-steel">
-                        <span className="font-semibold text-amber-700">{String.fromCharCode(65 + j)}.</span> {opt}
-                      </li>
-                    ))}
-                  </ul>
-                ) : null}
+                <ProbeRow probe={p} tone="amber" showDecisionSpace />
               </li>
             ))}
           </ul>
@@ -153,9 +139,7 @@ export function CaseDetail({
         {(c.rubricDimensions ?? []).length ? (
           <div className="mt-3 flex flex-wrap gap-1.5">
             {(c.rubricDimensions ?? []).map((d) => (
-              <span key={d.name} title={d.description} className="rounded-full bg-white px-2 py-0.5 text-micro text-ink ring-1 ring-amber-200/70">
-                {d.label ?? d.name} <span className="text-steel">{formatFraction(d.weight ?? 0, { label: "rubric weight" })}</span>
-              </span>
+              <RubricChip key={d.name} dim={d} tone="amber" />
             ))}
           </div>
         ) : null}

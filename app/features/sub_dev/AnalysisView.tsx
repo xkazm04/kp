@@ -3,7 +3,7 @@
 import { Boxes, Check, ClipboardList, GitBranch, Loader2, Lock, ShieldCheck } from "lucide-react";
 import { formatFraction } from "@/app/_lib/format";
 import { ProvenanceStrip } from "./ProvenanceStrip";
-import { MiniList } from "./DevShared";
+import { MiniList, ProbeRow, RubricChip } from "./DevShared";
 import { COMPLEXITY } from "./DevTypes";
 import type { Design, NeedAnalysis, RepoSnapshot, Result } from "./DevTypes";
 import type { Task } from "@/app/features/tasks/TasksProvider";
@@ -167,8 +167,7 @@ export function AnalysisView({
                     <ul className="mt-1 space-y-1">
                       {(design.case?.coverProbes ?? []).map((p, i) => (
                         <li key={i} className="text-micro text-ink">
-                          <span className="rounded bg-amber-100 px-1 py-0.5 text-micro font-semibold uppercase text-amber-700">{p.kind}</span>{" "}
-                          <span className="text-steel">@ {p.where}</span> — {p.reveals}
+                          <ProbeRow probe={p} tone="amber" />
                         </li>
                       ))}
                     </ul>
@@ -178,9 +177,7 @@ export function AnalysisView({
                 {(design.case?.rubricDimensions ?? []).length ? (
                   <div className="mt-2 flex flex-wrap gap-1.5">
                     {(design.case?.rubricDimensions ?? []).map((d) => (
-                      <span key={d.name} className="rounded-full bg-paper px-2 py-0.5 text-micro text-ink">
-                        {d.label ?? d.name} <span className="text-steel">{formatFraction(d.weight ?? 0, { label: "rubric weight" })}</span>
-                      </span>
+                      <RubricChip key={d.name} dim={d} tone="paper" />
                     ))}
                   </div>
                 ) : null}

@@ -4,9 +4,10 @@ import { useState } from "react";
 import { AlarmClock, Archive, Eye, Lock, RefreshCw, ShieldCheck } from "lucide-react";
 import { Markdown } from "@/app/_components/Markdown";
 import { caseToMarkdown } from "./DevHelpers";
+import { ProbeRow } from "./DevShared";
 import { ProbeStrengthBanner } from "./ProbeStrengthBanner";
 import { lifecycleStall } from "@/app/_lib/devcase-sla";
-import { LIFECYCLE_STEPS, STAGE_LABEL } from "./DevTypes";
+import { LIFECYCLE_STEPS, LIVE_STAGES, STAGE_LABEL } from "./DevTypes";
 import type { CaseScenario, Lifecycle } from "./DevTypes";
 
 export function LifecycleRow({
@@ -284,9 +285,7 @@ function ReviewPanel({ lc, onApprove, onChanged }: { lc: Lifecycle; onApprove: (
               <ul className="mt-1 space-y-1 text-micro text-ink">
                 {probes.map((p, i) => (
                   <li key={p.id ?? i}>
-                    <span className="rounded bg-stone-100 px-1 py-0.5 font-semibold uppercase text-steel">{(p.kind ?? "probe").replace(/_/g, " ")}</span>{" "}
-                    {p.where ? <span className="text-steel">{p.where} — </span> : null}
-                    {p.reveals}
+                    <ProbeRow probe={p} tone="stone" />
                   </li>
                 ))}
               </ul>
