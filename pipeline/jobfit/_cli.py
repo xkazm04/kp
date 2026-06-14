@@ -18,12 +18,16 @@ from pathlib import Path
 from typing import Any
 
 
-def configure_stdio() -> None:
+def configure_stdio(errors: str = "strict") -> None:
     """Force UTF-8 on stdout/stderr so non-ASCII (e.g. Czech diacritics) survives the
-    Windows default code page. No-op where the streams can't be reconfigured."""
+    Windows default code page. No-op where the streams can't be reconfigured.
+
+    ``errors`` selects the codec error policy (``"strict"`` by default; pass
+    ``"replace"`` for harnesses that prefer a substitution char over a crash on an
+    un-encodable byte). Both streams are always reconfigured together."""
     if hasattr(sys.stdout, "reconfigure"):
-        sys.stdout.reconfigure(encoding="utf-8")
-        sys.stderr.reconfigure(encoding="utf-8")
+        sys.stdout.reconfigure(encoding="utf-8", errors=errors)
+        sys.stderr.reconfigure(encoding="utf-8", errors=errors)
 
 
 def load_candidate_arg(profile_json: Path | None, candidate_json: Path | None) -> Any:

@@ -16,6 +16,7 @@ import json
 import sys
 from pathlib import Path
 
+from ._cli import configure_stdio
 from .gemini import GroundedAnswer, grounded_answer, load_local_env
 from .taxonomy import role_band
 
@@ -75,9 +76,7 @@ def _coerce(payload: dict, role_family: str, seniority: str, lang: str = "en") -
 
 
 def main(argv: list[str] | None = None) -> int:
-    if hasattr(sys.stdout, "reconfigure"):
-        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
-        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    configure_stdio(errors="replace")
 
     parser = argparse.ArgumentParser(description="Grounded market-salary estimate for a role.")
     parser.add_argument("--input-json", type=Path, help="Role JSON. Reads stdin if omitted.")

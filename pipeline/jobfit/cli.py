@@ -5,6 +5,7 @@ import json
 import sys
 from pathlib import Path
 
+from ._cli import configure_stdio
 from .service import analyze
 
 
@@ -18,9 +19,7 @@ def _emit_event(event: dict) -> None:
 
 
 def main() -> int:
-    if hasattr(sys.stdout, "reconfigure"):
-        sys.stdout.reconfigure(encoding="utf-8")
-        sys.stderr.reconfigure(encoding="utf-8")
+    configure_stdio()
 
     parser = argparse.ArgumentParser(description="Analyze a CV and estimate job fit salary.")
     parser.add_argument("cv_path", type=Path, nargs="?")
