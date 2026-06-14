@@ -11,6 +11,7 @@ export * from "./db/channels";
 export * from "./db/campaign";
 export * from "./db/interviews";
 export * from "./db/devcase";
+export * from "./db/skill-profiles";
 export * from "./db/llm";
 export * from "./db/analytics";
 export * from "./db/billing";

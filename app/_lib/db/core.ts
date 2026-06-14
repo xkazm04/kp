@@ -383,6 +383,21 @@ export function ensureDb(): Database.Database {
       PRIMARY KEY (session_id, seq)
     );
 
+    -- Durable Skill Profile (moonshot A): a signed, candidate-owned credential
+    -- minted from an evaluated dev-case submission. profile_json is the exact
+    -- signed artifact; signature is HMAC(KP_SECRET) over its canonical form.
+    CREATE TABLE IF NOT EXISTS skill_profiles (
+      token TEXT PRIMARY KEY,
+      submission_id TEXT,
+      candidate_ref TEXT,
+      case_id TEXT,
+      profile_json TEXT NOT NULL,
+      signature TEXT NOT NULL,
+      version TEXT NOT NULL,
+      issued_at TEXT NOT NULL,
+      revoked_at TEXT
+    );
+
     CREATE TABLE IF NOT EXISTS dev_outbox (
       id TEXT PRIMARY KEY,
       recipient TEXT,
@@ -399,6 +414,7 @@ export function ensureDb(): Database.Database {
 
     CREATE INDEX IF NOT EXISTS idx_dev_postings_created ON dev_postings (created_at DESC);
     CREATE INDEX IF NOT EXISTS idx_dev_submissions_posting ON dev_submissions (posting_id);
+    CREATE INDEX IF NOT EXISTS idx_skill_profiles_submission ON skill_profiles (submission_id);
 
     CREATE TABLE IF NOT EXISTS dev_lifecycle (
       id TEXT PRIMARY KEY,
