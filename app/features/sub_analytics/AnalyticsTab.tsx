@@ -18,6 +18,7 @@ import type { ChannelEconomics } from "@/app/_lib/db";
 import type { VariantRecommendation, VariantStat } from "@/app/_lib/source-analytics";
 import { buildUrl, clearedTabScopedParams } from "@/app/features/tabs";
 import { DecisionLog } from "./DecisionLog";
+import { CalibrationPanel } from "./CalibrationPanel";
 
 type Funnel = { stage: string; reached: number; current: number; conversionPct: number | null };
 type Analytics = {
@@ -289,6 +290,8 @@ export function AnalyticsTab() {
       </div>
 
       <MomentumPanel weeks={data.momentum} />
+
+      <CalibrationPanel />
 
       <ChannelEconomicsPanel
         rows={data.byChannel}

@@ -2025,6 +2025,21 @@
       "daysSuffix": "days",
       "saveFailed": "Couldn't save — enter a number (or clear to remove)."
     },
+    "calibration": {
+      "title": "How accurate are we?",
+      "blurb": "Whether a fit score actually predicts the recruiter's decision. Each dot is a score band — where it sits versus the dashed line is how calibrated we are.",
+      "loading": "Measuring…",
+      "error": "Couldn't load calibration right now.",
+      "uncalibratedTitle": "Not yet calibrated",
+      "uncalibratedBody": "Calibration needs at least {min} decided candidates (advanced or passed). So far: {n}.",
+      "axisPredicted": "Predicted",
+      "axisObserved": "Observed advance rate",
+      "perfect": "Perfect calibration",
+      "dotLegend": "Measured (per score band)",
+      "brier": "Brier score",
+      "brierHint": "0 = perfect, lower is better.",
+      "samples": "{n} decided candidates"
+    },
     "forecast": {
       "title": "Hire forecast",
       "noSignal": "Not enough signal yet — once candidates are flowing and at least one hire has landed, projected hires appear here.",

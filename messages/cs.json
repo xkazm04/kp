@@ -2025,6 +2025,21 @@
       "daysSuffix": "dní",
       "saveFailed": "Nepodařilo se uložit — zadejte číslo (nebo vymažte pro odstranění)."
     },
+    "calibration": {
+      "title": "Jak jsme přesní?",
+      "blurb": "Zda skóre shody skutečně předpovídá rozhodnutí náboráře. Každý bod je pásmo skóre — jeho poloha vůči přerušované čáře ukazuje, jak jsme kalibrovaní.",
+      "loading": "Měření…",
+      "error": "Kalibraci se teď nepodařilo načíst.",
+      "uncalibratedTitle": "Zatím nekalibrováno",
+      "uncalibratedBody": "Kalibrace potřebuje alespoň {min} rozhodnutých kandidátů (postoupili nebo zamítnuti). Zatím: {n}.",
+      "axisPredicted": "Předpovězeno",
+      "axisObserved": "Skutečná míra postupu",
+      "perfect": "Dokonalá kalibrace",
+      "dotLegend": "Naměřeno (podle pásma skóre)",
+      "brier": "Brierovo skóre",
+      "brierHint": "0 = dokonalé, nižší je lepší.",
+      "samples": "{n} rozhodnutých kandidátů"
+    },
     "forecast": {
       "title": "Prognóza přijetí",
       "noSignal": "Zatím nedostatek dat — jakmile začnou proudit kandidáti a dojde alespoň k jednomu přijetí, objeví se zde prognóza přijetí.",
