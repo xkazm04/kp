@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { AlertTriangle, CalendarClock, Hourglass } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { useSlotLabel } from "@/app/_lib/use-slot-label";
 import { useRelativeTime } from "@/app/features/sub_pipeline/PipelineShared";
 // The full invite wire row is single-sourced from the store (GET /api/schedule
 // returns listScheduleInvites() unprojected). Type-only import, so schedule-store's
@@ -20,6 +21,10 @@ import type { ScheduleInvite } from "@/app/_lib/schedule-store";
 export function InviteLifecyclePanel() {
   const t = useTranslations("scheduleTab.lifecycle");
   const relativeTime = useRelativeTime();
+  // SCH4 — render the booked slot in the recruiter's active locale via the
+  // canonical hook (the picker already uses it), instead of a raw locale-less
+  // toLocaleString() that also rendered "Invalid Date" on an unparsable slotAt.
+  const slotLabel = useSlotLabel();
   const [invites, setInvites] = useState<ScheduleInvite[] | null>(null);
   // "Now" captured when the data landed, so the upcoming/past split is a pure
   // function of state during render (react-hooks/purity) — the agenda is as
@@ -65,7 +70,7 @@ export function InviteLifecyclePanel() {
 
   const slotLine = (i: ScheduleInvite) =>
     i.slotAt
-      ? `${new Date(i.slotAt).toLocaleString()}${i.durationMin ? ` · ${i.durationMin} min` : ""}`
+      ? `${slotLabel(i.slotAt, i.slot)}${i.durationMin ? ` · ${i.durationMin} min` : ""}`
       : (i.slot ?? "—");
 
   return (
