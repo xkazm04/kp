@@ -15,6 +15,12 @@
 /** Hard cap on accepted entry ids per batch request (anti-amplification trim). */
 export const MAX_ENTRIES_BATCH = 500;
 
+/** Max length of a single `entry=<id>` param accepted by the interview-prep
+ *  write routes (PUT progress, POST scorecard) — a pipeline-entry id, never long.
+ *  Shared so the bound can't drift between the two routes that persist onto the
+ *  same prep artifact. */
+export const MAX_ENTRY_ID_LEN = 120;
+
 /** Chunk size for `IN (…)` queries — kept well below the 999-variable floor of
  *  older SQLite builds so a batched read never trips SQLITE_MAX_VARIABLE_NUMBER. */
 export const SQL_IN_CHUNK = 400;

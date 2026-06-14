@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getInterviewPrep, listPreparedEntries, saveInterviewPrepProgress } from "@/app/_lib/interview-prep";
 import { safeJsonError } from "@/app/_lib/api-response";
-import { parseEntriesParam } from "@/app/_lib/entries-param";
+import { MAX_ENTRY_ID_LEN, parseEntriesParam } from "@/app/_lib/entries-param";
 
 export const runtime = "nodejs";
 
@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     const entry = request.nextUrl.searchParams.get("entry");
-    if (!entry || !entry.trim() || entry.length > 120) {
+    if (!entry || !entry.trim() || entry.length > MAX_ENTRY_ID_LEN) {
       return NextResponse.json({ error: "entry is required" }, { status: 400 });
     }
     const body = (await request.json().catch(() => ({}))) as { checked?: unknown; notes?: unknown; interviewer?: unknown };

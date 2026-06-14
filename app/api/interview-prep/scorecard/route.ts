@@ -3,6 +3,7 @@ import { getPipelineEntry, recordAutomationEvent, setApproval } from "@/app/_lib
 import { saveHumanScorecard } from "@/app/_lib/interview-prep";
 import { coerceInterviewRecommendation, isInterviewRecommendation } from "@/app/_lib/interview-recommendation";
 import { RATING_MAX } from "@/app/_lib/format";
+import { MAX_ENTRY_ID_LEN } from "@/app/_lib/entries-param";
 import { safeJsonError } from "@/app/_lib/api-response";
 import type { Scorecard, ScorecardRating } from "@/app/_lib/interview-scorecard";
 
@@ -23,7 +24,7 @@ const MAX_SUMMARY = 4_000;
 export async function POST(request: NextRequest) {
   try {
     const entry = request.nextUrl.searchParams.get("entry");
-    if (!entry || !entry.trim() || entry.length > 120) {
+    if (!entry || !entry.trim() || entry.length > MAX_ENTRY_ID_LEN) {
       return NextResponse.json({ error: "entry is required" }, { status: 400 });
     }
     const body = (await request.json().catch(() => ({}))) as {
