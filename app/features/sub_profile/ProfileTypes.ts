@@ -40,15 +40,6 @@ export type EvidenceRow = { kind: string; title: string; text: string; skills: s
 // renamed Python-side can't silently drift from this client-side view.
 export type BuildResult = ProfileCliOutput & { saved?: { id: string } | null };
 
-export type ProfileRow = {
-  id: string;
-  label: string;
-  archetype: string | null;
-  role_family: string | null;
-  completeness: number | null;
-  created_at?: string;
-};
-
 // The normalized profile payload (profile_cli output, by_alias camelCase) as it
 // is persisted in `profiles.payload_json`. Used to hydrate the editor on
 // edit/duplicate and to read fields back without re-deriving them.
