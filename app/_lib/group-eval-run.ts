@@ -8,6 +8,7 @@ import { APP_CURRENCY } from "./format";
 import { isSameCurrency } from "./salary-band";
 import { poolEntryFromAnalysis, type CandidatePoolEntry } from "./candidate-pool";
 import { cleanupWorkdir, createWorkdir, parsePythonJson, parseStderrError, spawnPython } from "./python-runner";
+import { rankPoolForJob } from "./recruiter-run";
 import { computeDifferentiators } from "./group-eval-differentiators";
 import type { MatchResultView, ScoreDimension, Confidence } from "@/app/features/sub_match/MatchTypes";
 import type { Comparison, Fairness, FairnessScheme } from "@/app/features/sub_decisions/group-eval/types";
@@ -154,32 +155,20 @@ async function rankCandidates(
 ): Promise<{ rows: Map<string, RecruiterRow>; fairness: Fairness | null }> {
   if (pool.length === 0) return { rows: new Map(), fairness: null };
 
-  let workdir: string | null = null;
-  try {
-    workdir = await createWorkdir();
-    const inputPath = path.join(workdir, "recruiter.json");
-    await writeFile(inputPath, JSON.stringify({ jobId: job.id, candidates: pool }), "utf-8");
-    const jobPath = path.join(workdir, "job.json");
-    await writeFile(jobPath, JSON.stringify(job), "utf-8");
-
-    // --weights-llm + --embeddings: the group eval is the deep read, so it opts
-    // into BOTH enrichments — the LLM weight proposer for the fairness matrix and
-    // the embedding bridge for the personal/motivation dimension. Each fails open
-    // to its deterministic twin (no key/provider → unchanged scores), and the
-    // cheap candidate-list endpoint omits both and stays fully deterministic.
-    const { result } = spawnPython(["-m", "pipeline.jobfit.recruiter_cli", "--input-json", inputPath, "--job-json", jobPath, "--weights-llm", "--embeddings"], { signal });
-    const { stdout, stderr, exitCode } = await result;
-    if (exitCode !== 0) {
-      const err = parseStderrError(stderr, exitCode);
-      throw new Error(err.message);
-    }
-    const parsed = parsePythonJson<{ candidates?: RecruiterRow[]; fairness?: Fairness | null }>(stdout, stderr);
-    const map = new Map<string, RecruiterRow>();
-    for (const row of parsed.candidates ?? []) map.set(row.candidateId, row);
-    return { rows: map, fairness: parsed.fairness ?? null };
-  } finally {
-    if (workdir) await cleanupWorkdir(workdir);
-  }
+  // --weights-llm + --embeddings: the group eval is the deep read, so it opts
+  // into BOTH enrichments — the LLM weight proposer for the fairness matrix and
+  // the embedding bridge for the personal/motivation dimension. Each fails open
+  // to its deterministic twin (no key/provider → unchanged scores), and the
+  // cheap candidate-list endpoint omits both and stays fully deterministic.
+  const parsed = await rankPoolForJob<{ candidates?: RecruiterRow[]; fairness?: Fairness | null }>(
+    job.id,
+    pool,
+    job,
+    { signal, weightsLlm: true, embeddings: true },
+  );
+  const map = new Map<string, RecruiterRow>();
+  for (const row of parsed.candidates ?? []) map.set(row.candidateId, row);
+  return { rows: map, fairness: parsed.fairness ?? null };
 }
 
 // AI "compare all" narrative across the ranked field (ONE Python process), with a

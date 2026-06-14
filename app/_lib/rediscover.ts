@@ -1,9 +1,7 @@
-import { writeFile } from "node:fs/promises";
-import path from "node:path";
 import { candidateOutcomes, getJob, type CandidateOutcome } from "./db";
 import { buildCandidatePool } from "./candidate-pool";
 import { listJobStatuses } from "./job-ingest";
-import { cleanupWorkdir, createWorkdir, parsePythonJson, parseStderrError, spawnPython } from "./python-runner";
+import { rankPoolForJob } from "./recruiter-run";
 import { recordRediscoveryAlerts } from "./rediscovery-alert-store";
 
 // The pure relevance filter lives in an import-free sibling so it's testable under
@@ -61,63 +59,43 @@ export async function rediscoverForJob(
   const pool = buildCandidatePool();
   if (pool.length === 0) return { rediscovered: [], skipped: [], more: 0 };
 
-  let workdir: string | null = null;
-  try {
-    workdir = await createWorkdir();
-    const inputPath = path.join(workdir, "recruiter.json");
-    await writeFile(inputPath, JSON.stringify({ jobId: job.id, candidates: pool }), "utf-8");
-    const jobPath = path.join(workdir, "job.json");
-    await writeFile(jobPath, JSON.stringify(job), "utf-8");
+  const ranked = await rankPoolForJob<{
+    candidates: {
+      candidateId: string;
+      label: string;
+      archetype?: string;
+      koPassed: boolean;
+      result?: { total?: number };
+    }[];
+    skipped?: { id: string; label: string; reason: string }[];
+  }>(job.id, pool, job, { signal: opts.signal });
+  const outcomes = candidateOutcomes();
 
-    const { result } = spawnPython(
-      ["-m", "pipeline.jobfit.recruiter_cli", "--input-json", inputPath, "--job-json", jobPath],
-      { signal: opts.signal },
-    );
-    const { stdout, stderr, exitCode } = await result;
-    if (exitCode !== 0) {
-      const err = parseStderrError(stderr, exitCode);
-      throw new Error(err.message);
-    }
-    const ranked = parsePythonJson<{
-      candidates: {
-        candidateId: string;
-        label: string;
-        archetype?: string;
-        koPassed: boolean;
-        result?: { total?: number };
-      }[];
-      skipped?: { id: string; label: string; reason: string }[];
-    }>(stdout, stderr);
-    const outcomes = candidateOutcomes();
+  const rediscovered = ranked.candidates
+    .filter((row) => row.koPassed && Math.round(row.result?.total ?? 0) >= SCORE_FLOOR)
+    .map((row): Rediscovered | null => {
+      const hist = outcomes.get(row.candidateId) ?? [];
+      // Already in THIS role's pipeline → not a rediscovery.
+      if (hist.some((h) => h.jobId === job.id && h.status === "active")) return null;
+      const prior = pickPrior(hist, job.id);
+      if (!prior) return null;
+      return {
+        candidateId: row.candidateId,
+        label: row.label,
+        archetype: row.archetype ?? "bau",
+        score: Math.round(row.result?.total ?? 0),
+        prior,
+      };
+    })
+    .filter((r): r is Rediscovered => r !== null)
+    .sort((a, b) => b.score - a.score);
 
-    const rediscovered = ranked.candidates
-      .filter((row) => row.koPassed && Math.round(row.result?.total ?? 0) >= SCORE_FLOOR)
-      .map((row): Rediscovered | null => {
-        const hist = outcomes.get(row.candidateId) ?? [];
-        // Already in THIS role's pipeline → not a rediscovery.
-        if (hist.some((h) => h.jobId === job.id && h.status === "active")) return null;
-        const prior = pickPrior(hist, job.id);
-        if (!prior) return null;
-        return {
-          candidateId: row.candidateId,
-          label: row.label,
-          archetype: row.archetype ?? "bau",
-          score: Math.round(row.result?.total ?? 0),
-          prior,
-        };
-      })
-      .filter((r): r is Rediscovered => r !== null)
-      .sort((a, b) => b.score - a.score);
-
-    const shown = rediscovered.slice(0, REDISCOVER_LIMIT);
-    return {
-      rediscovered: shown,
-      skipped: ranked.skipped ?? [],
-      more: Math.max(0, rediscovered.length - shown.length),
-    };
-  } finally {
-    if (workdir) await cleanupWorkdir(workdir);
-  }
+  const shown = rediscovered.slice(0, REDISCOVER_LIMIT);
+  return {
+    rediscovered: shown,
+    skipped: ranked.skipped ?? [],
+    more: Math.max(0, rediscovered.length - shown.length),
+  };
 }
 
 /** Rank a job and persist its silver medalists as standing alerts. Best-effort:

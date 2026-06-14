@@ -10,7 +10,8 @@ import {
   type AutomationEntry,
 } from "./db";
 import { resolveCandidatePoolEntry } from "./candidate-pool";
-import { cleanupWorkdir, createWorkdir, parsePythonJson, parseStderrError, spawnPython } from "./python-runner";
+import { cleanupWorkdir, createWorkdir, parsePythonJson, parseStderrError, PipelineError, spawnPython } from "./python-runner";
+import { rankPoolForJob } from "./recruiter-run";
 import { dispatchRejection } from "./comms-dispatch";
 import { assertAutoRejectFair } from "./automation-fairness";
 
@@ -101,32 +102,22 @@ async function scoreUnscoredEntries(entries: AutomationEntry[], dryRun: boolean)
   }
 
   for (const [jobId, group] of byJob) {
-    let workdir: string | null = null;
     try {
       const candidates = group
         .map((e) => resolveCandidatePoolEntry(e.candidateId as string, e.candidateLabel))
         .filter((c): c is NonNullable<typeof c> => c !== null);
       if (candidates.length === 0) continue;
 
-      workdir = await createWorkdir();
-      const inputPath = path.join(workdir, "recruiter.json");
-      await writeFile(inputPath, JSON.stringify({ jobId, candidates }), "utf-8");
-      const args = ["-m", "pipeline.jobfit.recruiter_cli", "--input-json", inputPath];
       // Pass the DB job directly when it exists, so ingested (non-corpus) jobs
-      // score too — same contract as the candidates route.
+      // score too — same contract as the candidates route. A CLI failure throws a
+      // PipelineError, caught below so the bad job is skipped and the sweep
+      // continues (the entry stays held exactly as before).
       const job = getJob(jobId);
-      if (job) {
-        const jobPath = path.join(workdir, "job.json");
-        await writeFile(jobPath, JSON.stringify(job), "utf-8");
-        args.push("--job-json", jobPath);
-      }
-      const { result } = spawnPython(args);
-      const { stdout, stderr, exitCode } = await result;
-      if (exitCode !== 0) {
-        console.error(`[automation-pass] auto-score failed for job ${jobId}: ${parseStderrError(stderr, exitCode).message}`);
-        continue;
-      }
-      const payload = parsePythonJson<{ candidates?: { candidateId?: string; result?: { total?: number } }[] }>(stdout, stderr);
+      const payload = await rankPoolForJob<{ candidates?: { candidateId?: string; result?: { total?: number } }[] }>(
+        jobId,
+        candidates,
+        job,
+      );
       const scoreById = new Map<string, number>();
       for (const row of payload.candidates ?? []) {
         const total = row.result?.total;
@@ -150,9 +141,11 @@ async function scoreUnscoredEntries(entries: AutomationEntry[], dryRun: boolean)
         }
       }
     } catch (error) {
-      console.error(`[automation-pass] auto-score sweep failed for job ${jobId}`, error);
-    } finally {
-      if (workdir) await cleanupWorkdir(workdir);
+      if (error instanceof PipelineError) {
+        console.error(`[automation-pass] auto-score failed for job ${jobId}: ${error.message}`);
+      } else {
+        console.error(`[automation-pass] auto-score sweep failed for job ${jobId}`, error);
+      }
     }
   }
 }
