@@ -618,6 +618,8 @@ export function ensureDb(): Database.Database {
     // Tenant scope (P2): the workspace a saved analysis belongs to. NULL on legacy
     // rows ⇒ backfilled to the default workspace below. The first scoped table.
     "ALTER TABLE analyses ADD COLUMN workspace_id TEXT",
+    // Tenant scope (P2): the profiles domain (2nd scoped table). Same backfill below.
+    "ALTER TABLE profiles ADD COLUMN workspace_id TEXT",
     // JD archive (W8-4/JDL1): archived JDs drop out of listJds and the pickers,
     // but loadJd keeps serving them so existing analysis links never 404.
     "ALTER TABLE jds ADD COLUMN archived_at TEXT",
@@ -662,6 +664,7 @@ export function ensureDb(): Database.Database {
   db.prepare(`INSERT OR IGNORE INTO workspaces (id, name, created_at) VALUES (?, ?, ?)`).run("workspace", "Default workspace", new Date().toISOString());
   try {
     db.exec(`CREATE INDEX IF NOT EXISTS idx_analyses_workspace ON analyses (workspace_id)`);
+    db.exec(`CREATE INDEX IF NOT EXISTS idx_profiles_workspace ON profiles (workspace_id)`);
   } catch {
     /* index already exists */
   }
@@ -676,6 +679,7 @@ export function ensureDb(): Database.Database {
   // rows AND freshly-seeded ones) to the default workspace. After all seeders so
   // it's order-independent — a seeded row that didn't stamp the column is caught.
   db.prepare(`UPDATE analyses SET workspace_id = ? WHERE workspace_id IS NULL`).run("workspace");
+  db.prepare(`UPDATE profiles SET workspace_id = ? WHERE workspace_id IS NULL`).run("workspace");
   _db = db;
   // Reclaim expired (and, once their TTL lapses, superseded-PROMPT_VERSION)
   // cache rows on boot. lookupPromptCache only SKIPS expired rows — it never
