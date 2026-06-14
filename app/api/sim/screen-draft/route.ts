@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getPipelineEntry, setApproval } from "@/app/_lib/db";
+import { jsonError } from "@/app/_lib/api-response";
 
 export const runtime = "nodejs";
 
@@ -23,6 +24,6 @@ export async function POST(request: NextRequest) {
     setApproval(entryId, "screening_review", JSON.stringify(draft));
     return NextResponse.json({ ok: true, draft });
   } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Screen draft failed." }, { status: 500 });
+    return jsonError(error, "Screen draft failed.");
   }
 }
