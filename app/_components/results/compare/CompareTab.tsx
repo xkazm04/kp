@@ -4,19 +4,22 @@ import { ArrowDownRight, ArrowUpRight, Crown, Minus } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import type { Analysis } from "@/app/_lib/schemas";
 import { hasRenderableComparison, primaryScore } from "@/app/_lib/comparison";
-import { reconcileScoreTotal } from "@/app/_lib/format";
+import { reconcileScoreTotal, SCORE_COMPONENT_KEYS, SCORE_COMPONENT_LABELS } from "@/app/_lib/format";
 import { BulletList } from "../shared";
 
 type ComparisonPayload = NonNullable<Analysis["comparison"]>;
 type ComparisonVariant = ComparisonPayload["variants"][number];
 
+// The local "Overall" row reads the component sum (see reconcileScoreTotal below);
+// the five component rows are derived from the canonical score taxonomy in
+// format.ts (Title-cased here for the column header) so they stay in lockstep
+// with the dial, the breakdown, and the driver-insight prose.
 const COMPONENT_ROWS: Array<{ key: keyof ComparisonVariant["score"]; label: string }> = [
   { key: "total", label: "Overall" },
-  { key: "experience", label: "Experience" },
-  { key: "skills", label: "Skills" },
-  { key: "roleSeniority", label: "Role seniority" },
-  { key: "education", label: "Education" },
-  { key: "traits", label: "Traits" }
+  ...SCORE_COMPONENT_KEYS.map((key) => ({
+    key,
+    label: SCORE_COMPONENT_LABELS[key].charAt(0).toUpperCase() + SCORE_COMPONENT_LABELS[key].slice(1)
+  }))
 ];
 
 export function CompareTab({ analysis }: { analysis: Analysis }) {

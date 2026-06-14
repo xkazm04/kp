@@ -400,6 +400,21 @@ export const SCORE_COMPONENT_KEYS: readonly ScoreComponentKey[] = [
 ];
 
 /**
+ * The human label for each score component, in the lowercase "word form" used in
+ * prose (e.g. driver-insight sentences). Co-located with SCORE_COMPONENT_KEYS so
+ * the taxonomy and its labels share ONE source — the compare grid (which
+ * Title-cases these for column headers) and the comparison driver insights both
+ * read from here, so a rename/reorder lands in one place rather than three.
+ */
+export const SCORE_COMPONENT_LABELS: Record<ScoreComponentKey, string> = {
+  experience: "experience",
+  skills: "skills",
+  roleSeniority: "role seniority",
+  education: "education",
+  traits: "traits",
+};
+
+/**
  * A score's five components — the shape the analysis `score` and the compare
  * grid's per-variant `score` both satisfy (each carries these keys as numbers).
  */
