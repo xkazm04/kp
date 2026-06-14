@@ -2,6 +2,11 @@ import { ensureDb } from "./core";
 
 // Tenant root (P2). The single default workspace exists today (seeded in ensureDb);
 // real multi-tenancy will add creation + per-user mapping. Shared connection.
+// The single default workspace today (matches the seed + auth/session.DEFAULT_WORKSPACE
+// + billing's id). Scoped stores default their optional workspaceId to this, so
+// they stay behavior-preserving until real multi-tenancy assigns other workspaces.
+export const DEFAULT_WORKSPACE_ID = "workspace";
+
 export type Workspace = { id: string; name: string | null; createdAt: string };
 
 function rowToWorkspace(r: Record<string, unknown>): Workspace {

@@ -1,4 +1,5 @@
 import { ensureDb, insertWithUniqueSlug, prunePromptCache, safeRowParse } from "./core";
+import { DEFAULT_WORKSPACE_ID } from "./workspaces";
 import { githubAnalysisSchema, type GithubAnalysis } from "../schemas";
 
 export type AnalysisRow = {
@@ -39,14 +40,17 @@ export type SaveAnalysisInput = {
   reviewFlags?: number | null;
 };
 
-export function saveAnalysis(input: SaveAnalysisInput): { slug: string; createdAt: string } {
+// Tenant scope (P2): `workspaceId` defaults to the single workspace, so existing
+// callers stay correct unchanged; the analyze task + primary request reads pass the
+// real workspace. Stamps/filters every row by it.
+export function saveAnalysis(input: SaveAnalysisInput, workspaceId: string = DEFAULT_WORKSPACE_ID): { slug: string; createdAt: string } {
   const db = ensureDb();
   const createdAt = new Date().toISOString();
   const payloadJson = JSON.stringify(input.payload);
   const stmt = db.prepare(
     `INSERT INTO analyses
-      (slug, candidate_label, jd_slug, score, role_family, seniority, payload_json, created_at, review_flags)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      (slug, candidate_label, jd_slug, score, role_family, seniority, payload_json, created_at, review_flags, workspace_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   );
   const slug = insertWithUniqueSlug((s) =>
     stmt.run(
@@ -58,22 +62,24 @@ export function saveAnalysis(input: SaveAnalysisInput): { slug: string; createdA
       input.seniority,
       payloadJson,
       createdAt,
-      input.reviewFlags ?? null
+      input.reviewFlags ?? null,
+      workspaceId
     )
   );
   return { slug, createdAt };
 }
 
-export function listAnalyses(limit = 100): AnalysisSummary[] {
+export function listAnalyses(limit = 100, workspaceId: string = DEFAULT_WORKSPACE_ID): AnalysisSummary[] {
   const db = ensureDb();
   const rows = db
     .prepare(
       `SELECT slug, candidate_label, jd_slug, score, role_family, seniority, created_at, disposition, decision_note, review_flags
        FROM analyses
+       WHERE workspace_id = ?
        ORDER BY created_at DESC
        LIMIT ?`
     )
-    .all(limit) as AnalysisSummary[];
+    .all(workspaceId, limit) as AnalysisSummary[];
   return rows;
 }
 
@@ -81,13 +87,13 @@ export function listAnalyses(limit = 100): AnalysisSummary[] {
  *  An empty/whitespace disposition clears both fields back to NULL. Returns false
  *  for an unknown slug. The display/storage is the analysis row itself — no event
  *  log, since an analysis isn't a pipeline entry. */
-export function setAnalysisDisposition(slug: string, disposition: string, note: string): boolean {
+export function setAnalysisDisposition(slug: string, disposition: string, note: string, workspaceId: string = DEFAULT_WORKSPACE_ID): boolean {
   const db = ensureDb();
   const clean = (ANALYSIS_DISPOSITIONS as readonly string[]).includes(disposition) ? disposition : null;
   const noteVal = clean && note.trim() ? note.trim() : null;
   const res = db
-    .prepare(`UPDATE analyses SET disposition = ?, decision_note = ? WHERE slug = ?`)
-    .run(clean, clean ? noteVal : null, slug);
+    .prepare(`UPDATE analyses SET disposition = ?, decision_note = ? WHERE slug = ? AND workspace_id = ?`)
+    .run(clean, clean ? noteVal : null, slug, workspaceId);
   return res.changes > 0;
 }
 
@@ -99,15 +105,15 @@ export function setAnalysisDisposition(slug: string, disposition: string, note: 
 // so the measured calibration isn't polluted by undecided rows. Read-only.
 export type CalibrationPair = { score: number; outcome: 0 | 1; roleFamily: string | null };
 
-export function calibrationPairs(): CalibrationPair[] {
+export function calibrationPairs(workspaceId: string = DEFAULT_WORKSPACE_ID): CalibrationPair[] {
   const db = ensureDb();
   const rows = db
     .prepare(
       `SELECT score, disposition, role_family
        FROM analyses
-       WHERE score IS NOT NULL AND disposition IN ('advance', 'pass')`
+       WHERE score IS NOT NULL AND disposition IN ('advance', 'pass') AND workspace_id = ?`
     )
-    .all() as { score: number; disposition: string; role_family: string | null }[];
+    .all(workspaceId) as { score: number; disposition: string; role_family: string | null }[];
   return rows
     // Defensive: a NULL filter is in SQL, but guard a non-finite score (bad
     // migration / manual edit) so it never reaches the math as NaN.
@@ -122,28 +128,28 @@ export function calibrationPairs(): CalibrationPair[] {
 // Every analysis tagged with a JD slug, ordered best-score-first. Uses the
 // idx_analyses_jd_slug index — no row cap and no in-memory filter, so the JD
 // page's candidate count stays correct even past 500 total analyses.
-export function listAnalysesByJd(slug: string): AnalysisSummary[] {
+export function listAnalysesByJd(slug: string, workspaceId: string = DEFAULT_WORKSPACE_ID): AnalysisSummary[] {
   const db = ensureDb();
   return db
     .prepare(
       `SELECT slug, candidate_label, jd_slug, score, role_family, seniority, created_at
        FROM analyses
-       WHERE jd_slug = ?
+       WHERE jd_slug = ? AND workspace_id = ?
        ORDER BY score DESC, created_at DESC`
     )
-    .all(slug) as AnalysisSummary[];
+    .all(slug, workspaceId) as AnalysisSummary[];
 }
 
 // Like listAnalyses but folds payload_json into the one query, so callers that
 // need every payload (e.g. the candidate pool) don't fire an N+1 of loadAnalysis.
-export function listAnalysisRecords(limit = 100): { row: AnalysisRow; payload: unknown }[] {
+export function listAnalysisRecords(limit = 100, workspaceId: string = DEFAULT_WORKSPACE_ID): { row: AnalysisRow; payload: unknown }[] {
   const db = ensureDb();
   const rows = db
     .prepare(
       `SELECT slug, candidate_label, jd_slug, score, role_family, seniority, payload_json, created_at
-       FROM analyses ORDER BY created_at DESC LIMIT ?`
+       FROM analyses WHERE workspace_id = ? ORDER BY created_at DESC LIMIT ?`
     )
-    .all(limit) as AnalysisRow[];
+    .all(workspaceId, limit) as AnalysisRow[];
   const out: { row: AnalysisRow; payload: unknown }[] = [];
   for (const row of rows) {
     const payload = safeRowParse(row.payload_json, "listAnalysisRecords", row.slug);
@@ -156,20 +162,20 @@ export function listAnalysisRecords(limit = 100): { row: AnalysisRow; payload: u
 /** Attach (or replace) the GitHub deep-dive payload on a saved analysis (GH1).
  *  The caller (PATCH route) validates the shape; this stores the JSON string.
  *  Returns false for an unknown slug. */
-export function setAnalysisGithub(slug: string, githubJson: string): boolean {
+export function setAnalysisGithub(slug: string, githubJson: string, workspaceId: string = DEFAULT_WORKSPACE_ID): boolean {
   const db = ensureDb();
-  const res = db.prepare(`UPDATE analyses SET github_json = ? WHERE slug = ?`).run(githubJson, slug);
+  const res = db.prepare(`UPDATE analyses SET github_json = ? WHERE slug = ? AND workspace_id = ?`).run(githubJson, slug, workspaceId);
   return res.changes > 0;
 }
 
-export function loadAnalysis(slug: string): { row: AnalysisRow; payload: unknown } | null {
+export function loadAnalysis(slug: string, workspaceId: string = DEFAULT_WORKSPACE_ID): { row: AnalysisRow; payload: unknown } | null {
   const db = ensureDb();
   const row = db
     .prepare(
       `SELECT slug, candidate_label, jd_slug, score, role_family, seniority, payload_json, created_at, disposition, decision_note, github_json
-       FROM analyses WHERE slug = ?`
+       FROM analyses WHERE slug = ? AND workspace_id = ?`
     )
-    .get(slug) as AnalysisRow | undefined;
+    .get(slug, workspaceId) as AnalysisRow | undefined;
   if (!row) return null;
   const payload = safeRowParse(row.payload_json, "loadAnalysis", slug);
   if (payload == null) return null;
