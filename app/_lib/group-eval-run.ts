@@ -9,7 +9,8 @@ import { isSameCurrency } from "./salary-band";
 import { poolEntryFromAnalysis, type CandidatePoolEntry } from "./candidate-pool";
 import { cleanupWorkdir, createWorkdir, parsePythonJson, parseStderrError, spawnPython } from "./python-runner";
 import { computeDifferentiators } from "./group-eval-differentiators";
-import type { MatchResultView } from "@/app/features/sub_match/MatchTypes";
+import type { MatchResultView, ScoreDimension, Confidence } from "@/app/features/sub_match/MatchTypes";
+import type { Comparison, Fairness, FairnessScheme } from "@/app/features/sub_decisions/group-eval/types";
 
 // Cap on how many candidates one comparative evaluation covers. The strongest
 // are selected by fit BEFORE the cap (see below), and the modal surfaces
@@ -27,34 +28,10 @@ const GROUP_EVAL_CAP = 6;
 
 export type GroupEvalCandidate = { entryId: string; candidateId: string | null; label: string; matchScore: number | null };
 type Reasoning = { verdict?: string; strengths?: string[]; gaps?: string[]; interviewProbes?: string[] };
-// Structured, bold-formatted head-to-head narrative (group_compare_cli). Bold
-// spans are marked with **double asterisks** for the UI to render as <strong>.
-type Comparison = { headline: string; keyPoints: string[]; recommendation?: string };
-
-// Cross-scheme fairness matrix (recruiter.fairness_check): each candidate carries
-// a bounded dynamic weight vector, and every candidate is re-scored under EVERY
-// scheme so a pool with different weightings ranks honestly (by the mean) instead
-// of on one scalar from incomparable yardsticks. labels/candidateIds/schemes/own/
-// mean are aligned by index; weightNotes is keyed by candidateId.
-type FairnessScheme = { skills: number; career: number; personal: number };
-type Fairness = {
-  labels: string[];
-  candidateIds: string[];
-  schemes: FairnessScheme[];
-  matrix: number[][];
-  own: number[];
-  mean: number[];
-  ranking: string[];
-  weightNotes: Record<string, string[]>;
-  // Whether the per-candidate weights were proposed by the LLM ("llm") or the
-  // deterministic relevance rule ("deterministic").
-  weightSource?: string;
-};
-
-// One row of the weight-aware breakdown (matching.build_score_breakdown), all on
-// a single 0-100 scale — mirrors app/features/sub_match/MatchTypes.ScoreDimension.
-type ScoreDimension = { key: string; label: string; percent: number; weight: number; contribution: number };
-type Confidence = { low: number; high: number; level: string; drivers: string[] };
+// Comparison / FairnessScheme / Fairness are the persisted group-eval wire
+// contract — single-sourced from the client modal's group-eval/types.ts (imported
+// above) so the server producer and the client consumer can never drift.
+// ScoreDimension / Confidence are single-sourced from MatchTypes (imported above).
 // A candidate's own salary expectation, lifted from their saved CV analysis
 // (analysis.salary). Best-effort: absent for v2 profiles / candidates with no
 // analysis, in which case the modal just shows the role band for them.
