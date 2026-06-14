@@ -1,15 +1,6 @@
 import { insertJob, jobContentHash, normalizeJob } from "@/app/_lib/job-ingest";
 import { normalizeSalaryBand } from "@/app/_lib/salary-band";
-
-type RoleSpec = {
-  title?: string;
-  seniority?: string;
-  roleFamily?: string;
-  mustHaves?: string[];
-  niceToHaves?: string[];
-  responsibilities?: string[];
-  languages?: string[];
-};
+import type { RoleSpec } from "@/app/_lib/jd-build-run";
 
 // Turn a generated JD's role into a structured, matchable Job: build a record
 // from the RoleSpec, normalize it deterministically (salary band, requirements,

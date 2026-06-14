@@ -103,7 +103,10 @@ export async function runMarketSalary(input: {
   }
 }
 
-type RoleSpec = {
+// The structured role this builder produces and ingest-job.ts consumes — exported
+// so the producer→consumer pair share ONE declaration (was hand-copied verbatim in
+// both). NOTE: DevTypes.RoleSpec is a deliberately different shape; not unified here.
+export type RoleSpec = {
   title?: string;
   seniority?: string;
   roleFamily?: string;
