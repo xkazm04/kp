@@ -1,7 +1,7 @@
 import { useTranslations } from "next-intl";
 import { CheckCircle2, CircleDot, Minus, XCircle } from "lucide-react";
 import { PotentialBadge } from "@/app/_components/PotentialBadge";
-import { ConfidenceBandBadge, confidenceBandTitle, FitTierBadge } from "@/app/_components/Badge";
+import { ConfidenceBandBadge, ConfidenceRange, FitTierBadge } from "@/app/_components/Badge";
 import { provLabel } from "@/app/features/sub_match/MatchTypes";
 import { formatSalaryRange, scoreTone, scoreToneColor } from "@/app/_lib/format";
 import { isSameCurrency, normalizeCurrency, salaryBandPosition } from "@/app/_lib/salary-band";
@@ -29,9 +29,7 @@ export function ConfidenceCell({ c }: { c: EvalCandidate }) {
   if (!c.confidence) return <Dash />;
   return (
     <div className="flex flex-wrap items-center gap-1.5">
-      <span className="nums text-sm text-steel" title={confidenceBandTitle(c.confidence.drivers)}>
-        {c.confidence.low}–{c.confidence.high}
-      </span>
+      <ConfidenceRange low={c.confidence.low} high={c.confidence.high} drivers={c.confidence.drivers} className="nums text-sm text-steel" />
       <ConfidenceBandBadge level={c.confidence.level} drivers={c.confidence.drivers} />
     </div>
   );

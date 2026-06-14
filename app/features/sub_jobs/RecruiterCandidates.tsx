@@ -10,7 +10,7 @@ import { downloadFile, toCsv } from "@/app/_lib/export-utils";
 import { useAddToPipeline } from "@/app/_lib/useAddToPipeline";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { useReachOut } from "@/app/_lib/useReachOut";
-import { ConfidenceBandBadge, confidenceBandTitle, FitTierBadge } from "@/app/_components/Badge";
+import { ConfidenceBandBadge, ConfidenceRange, FitTierBadge } from "@/app/_components/Badge";
 import { PotentialBadge } from "@/app/_components/PotentialBadge";
 import { ScoreBadge } from "@/app/_components/ScoreBadge";
 
@@ -428,9 +428,7 @@ function CandidateCard({
             {t("robustBadge", { mean: fair.mean, delta: `${fair.delta >= 0 ? "+" : ""}${fair.delta}` })}
           </span>
         ) : null}
-        <span className="nums text-sm text-steel" title={confidenceBandTitle(res.confidence.drivers)}>
-          {res.confidence.low}–{res.confidence.high}
-        </span>
+        <ConfidenceRange low={res.confidence.low} high={res.confidence.high} drivers={res.confidence.drivers} className="nums text-sm text-steel" />
         <ConfidenceBandBadge level={res.confidence.level} drivers={res.confidence.drivers} />
         <span className="font-medium text-ink">{c.label}</span>
         <span className="rounded-full bg-ink/90 px-1.5 py-0.5 text-sm font-semibold text-white">

@@ -2,7 +2,7 @@
 
 import { X } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { ConfidenceBandBadge, confidenceBandTitle, FitTierBadge } from "@/app/_components/Badge";
+import { ConfidenceBandBadge, ConfidenceRange, FitTierBadge } from "@/app/_components/Badge";
 import { scoreTone, scoreToneColor } from "@/app/_lib/format";
 import { formatBandCompact, type MatchResult } from "./MatchTypes";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
@@ -75,7 +75,7 @@ export function JobCompare({ matches, onClose }: { matches: MatchResult[]; onClo
               {matches.map((m) => (
                 <td key={m.jobId} className="p-2">
                   <span className="inline-flex items-center gap-1.5">
-                    <span className="nums text-steel" title={confidenceBandTitle(m.confidence.drivers)}>{m.confidence.low}–{m.confidence.high}</span>
+                    <ConfidenceRange low={m.confidence.low} high={m.confidence.high} drivers={m.confidence.drivers} className="nums text-steel" />
                     <ConfidenceBandBadge level={m.confidence.level} drivers={m.confidence.drivers} />
                   </span>
                 </td>
