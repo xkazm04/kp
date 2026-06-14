@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { ArrowRight, GitBranch, Sparkles, UserSearch } from "lucide-react";
+import { ArrowRight, GitBranch, MessageSquare, Sparkles, UserSearch } from "lucide-react";
 import { useTasks, useTaskResult } from "@/app/features/tasks/TasksProvider";
 import { GithubAnalysisPanel } from "@/app/_components/GithubAnalysisPanel";
 import { assertScore, scoreTone, type ScoreTone } from "@/app/_lib/format";
@@ -156,6 +156,25 @@ export function SubmissionRow({
     const t = await startTask("evaluate_submission", { submissionId: submission.id, candidateRef: submission.candidateRef });
     if (t) setTaskId(t.id);
   };
+  // d142462d — queue a kind, non-adverse feedback brief for a candidate who won't
+  // be promoted, so the take-home doesn't end in silence. Lands in the outbox as a
+  // queued row the recruiter sends; the adverse decision stays human-gated.
+  const [feedback, setFeedback] = useState<"idle" | "queuing" | "queued" | "error">("idle");
+  const queueFeedback = async () => {
+    if (feedback === "queuing" || feedback === "queued") return;
+    setFeedback("queuing");
+    try {
+      const r = await fetch("/api/devcase/feedback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ submissionId: submission.id }),
+      });
+      setFeedback(r.ok ? "queued" : "error");
+    } catch {
+      setFeedback("error");
+    }
+  };
+
   const promote = async () => {
     if (promoting || isPromoted) return; // in-flight + already-promoted double-promote guard
     setPromoting(true);
@@ -222,6 +241,26 @@ export function SubmissionRow({
           className="focus-ring inline-flex h-6 shrink-0 items-center gap-1 rounded border border-stone-200 bg-white px-1.5 text-micro font-semibold text-coral hover:bg-coral/5 disabled:opacity-50">
           <Sparkles size={10} /> {busy ? "Evaluating…" : ev ? "Re-evaluate" : "Evaluate"}
         </button>
+        {/* d142462d — evaluated but not promoted: offer a kind feedback brief so
+            the candidate isn't ghosted. Queued to the outbox for the recruiter. */}
+        {ev && !isPromoted ? (
+          <button
+            type="button"
+            onClick={queueFeedback}
+            disabled={feedback === "queuing" || feedback === "queued"}
+            title="Queue a kind strengths/growth note to the outbox (you send it; the adverse decision stays yours)"
+            className="focus-ring inline-flex h-6 shrink-0 items-center gap-1 rounded border border-stone-200 bg-white px-1.5 text-micro font-semibold text-steel hover:bg-paper hover:text-ink disabled:opacity-50"
+          >
+            <MessageSquare size={10} />{" "}
+            {feedback === "queued"
+              ? "Feedback queued"
+              : feedback === "queuing"
+                ? "Queuing…"
+                : feedback === "error"
+                  ? "Retry feedback"
+                  : "Send feedback"}
+          </button>
+        ) : null}
       </div>
       {ghOpen ? (
         <div className="mt-2">
