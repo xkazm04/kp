@@ -7,7 +7,7 @@ import { ArrowRight, Download, PauseCircle, Target } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { downloadFile, toCsv } from "@/app/_lib/export-utils";
 import { useJsonFetch } from "@/app/_lib/useJsonFetch";
-import { useEnumLabel } from "@/app/_lib/use-enum-label";
+import { useEnumLabel, labelOr } from "@/app/_lib/use-enum-label";
 import type { MomentumWeek } from "@/app/_lib/analytics-momentum";
 import { forecastHires } from "@/app/_lib/analytics-forecast";
 import type { Delta, PeriodDeltas } from "@/app/_lib/analytics-deltas";
@@ -499,10 +499,7 @@ function ImpactRow({ label, value }: { label: string; value: number }) {
 // produce the candidates that actually get hired".
 function SourcePanel({ rows, channelsHref }: { rows: Analytics["bySource"]; channelsHref: string }) {
   const t = useTranslations("analytics");
-  const sourceLabel = (s: string) => {
-    const key = `source.${s}` as Parameters<typeof t>[0];
-    return t.has(key) ? t(key) : s;
-  };
+  const sourceLabel = (s: string) => labelOr(t, `source.${s}`, s);
   return (
     <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
       <h3 className="font-serif text-h2 text-ink">{t("bySource")}</h3>
@@ -551,10 +548,7 @@ function ChannelEconomicsPanel({
 }) {
   const t = useTranslations("analytics.channels");
   const format = useFormatter();
-  const channelName = (channel: string) => {
-    const key = `names.${channel}` as Parameters<typeof t>[0];
-    return t.has(key) ? t(key) : channel;
-  };
+  const channelName = (channel: string) => labelOr(t, `names.${channel}`, channel);
   const czk = (n: number) => format.number(n);
 
   return (
