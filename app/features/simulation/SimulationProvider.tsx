@@ -8,13 +8,17 @@ import type { GroupEvalPayload } from "@/app/features/sub_decisions/GroupEvalMod
 import { SIM_COMPANY, SIM_JD_MARKDOWN, SIM_ROLE, SIM_SALARY, SIM_SCREEN_POLICY, SIM_TITLE, type SimPhaseId } from "./constants";
 import { STAGES as PIPELINE_STAGES } from "@/app/features/sub_pipeline/PipelineTypes";
 import type { PipelineEntryView } from "@/app/_lib/db";
+import type { ScreenDecision } from "@/app/_lib/screen-wave";
 
 // `error` is the explicit unavailable/timed-out state: set when the evaluation
 // can't be produced in time, so the reused modal shows an honest message instead
 // of a blank "no evaluation yet" comparison during the climactic Offer step.
 type GroupEval = { roleTitle: string; payload: GroupEvalPayload | null; loading: boolean; error: string | null };
-type WaveDecision = { entryId: string; label: string; archetype: string | null; matchScore: number; action: "reject" | "keep"; rationale: string };
-type ScreenWave = { decisions: WaveDecision[]; rejected: number; kept: number; cohort: number };
+// Single-sourced from the canonical ScreenDecision (screen-wave.ts) — the wire
+// shape /api/decisions/screen-wave returns. The old local copy dropped DEC4's
+// reasonCode/reasonParams (the locale-renderable rationale mirror); importing the
+// source carries them through so SimDecisionWave can localize like the real modal.
+type ScreenWave = { decisions: ScreenDecision[]; rejected: number; kept: number; cohort: number };
 
 type Spotlight = { selector: string | null; title: string; caption: string };
 type LogLine = { at: number; text: string };
