@@ -6,6 +6,8 @@ import { useLocale, useTranslations } from "next-intl";
 import { copyText } from "@/app/_lib/export-utils";
 import { HumanScorecardPanel } from "./HumanScorecardPanel";
 import type { Scorecard } from "@/app/_lib/interview-scorecard";
+import type { RunOfShow } from "@/app/_lib/run-of-show";
+import type { InterviewPrepProgress } from "@/app/_lib/interview-prep";
 import { Modal } from "@/app/_components/Modal";
 import { Meter } from "@/app/_components/Meter";
 import { PrepSourceBadge, isPrepFallback } from "@/app/_components/Badge";
@@ -13,11 +15,18 @@ import { useTasks, useTaskResult } from "@/app/features/tasks/TasksProvider";
 import { useJsonFetch } from "@/app/_lib/useJsonFetch";
 import type { SchedEntry } from "./ScheduleTypes";
 
-type Block = { fromMin: number; toMin: number; topic: string; goal: string; questions: string[]; followUp?: string };
-// userProgress (PREP2) rides inside the persisted artifact payload — the
-// interviewer's ticked items + notes, restored on reopen.
-type UserProgress = { checked?: Record<string, boolean>; notes?: string };
-type Prep = { scenario: string; durationMin: number; focusAreas: string[]; chronology: Block[]; signals: string[]; source?: string; userProgress?: UserProgress; humanScorecard?: Scorecard; interviewer?: string };
+// The persisted prep artifact payload: the generated run-of-show (single-sourced
+// from RunOfShow — scenario/durationMin/focusAreas/chronology/signals) plus the
+// human-input seams. `userProgress` (PREP2) rides inside the payload as the
+// interviewer's ticked items + notes; it is exactly InterviewPrepProgress minus
+// the top-level `interviewer` (which saveInterviewPrepProgress splits out), so it
+// is single-sourced from the server type rather than re-declared and left to drift.
+type Prep = RunOfShow & {
+  source?: string;
+  userProgress?: Omit<InterviewPrepProgress, "interviewer">;
+  humanScorecard?: Scorecard;
+  interviewer?: string;
+};
 
 export function InterviewPrepModal({ entry, onClose }: { entry: SchedEntry; onClose: () => void }) {
   const t = useTranslations("scheduleTab.prep");
