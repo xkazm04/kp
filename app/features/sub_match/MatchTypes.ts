@@ -150,3 +150,12 @@ export function provLabel(p: string): { key: ProvenanceKey; tone: string } {
   if (p === "certification") return { key: "certification", tone: "bg-blue-50 text-blue-700" };
   return { key: "academic", tone: "bg-amber-50 text-amber-800" };
 }
+
+/** Compact "k CZK" salary band for the match surfaces, e.g. `"45–60k CZK"`, or
+ *  `"—"` when there isn't a [min, max] pair. The match cards deliberately use this
+ *  abbreviated form (vs. the app-wide grouped `formatSalaryRange`), so this is the
+ *  one place MatchCard and JobCompare share it instead of re-deriving the math. */
+export function formatBandCompact(band?: number[]): string {
+  if (!band || band.length !== 2) return "—";
+  return `${Math.round(band[0] / 1000)}–${Math.round(band[1] / 1000)}k CZK`;
+}

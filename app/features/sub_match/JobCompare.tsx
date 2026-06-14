@@ -4,7 +4,7 @@ import { X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { ConfidenceBandBadge, confidenceBandTitle, FitTierBadge } from "@/app/_components/Badge";
 import { scoreTone, scoreToneColor } from "@/app/_lib/format";
-import { type MatchResult } from "./MatchTypes";
+import { formatBandCompact, type MatchResult } from "./MatchTypes";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
 
 // Compare-jobs-for-one-candidate (MAT5): the role-for-candidate mirror of the
@@ -12,7 +12,6 @@ import { useEnumLabel } from "@/app/_lib/use-enum-label";
 // table — roles as columns, attributes as rows — so "which of these roles fits
 // best, and why" reads down a column instead of eyeballing stacked cards. All data
 // is already on each MatchResult; no fetch.
-const fmtBand = (b?: number[]) => (b && b.length === 2 ? `${Math.round(b[0] / 1000)}–${Math.round(b[1] / 1000)}k` : "—");
 
 export function JobCompare({ matches, onClose }: { matches: MatchResult[]; onClose: () => void }) {
   const t = useTranslations("match.jobCompare");
@@ -137,7 +136,7 @@ export function JobCompare({ matches, onClose }: { matches: MatchResult[]; onClo
             <tr className="border-t border-stone-100">
               <th scope="row" className="sticky left-0 bg-white p-2 text-left text-steel">{t("salaryBand")}</th>
               {matches.map((m) => (
-                <td key={m.jobId} className="p-2 nums text-ink">{fmtBand(m.salaryBand)} {m.salaryBand && m.salaryBand.length === 2 ? "CZK" : ""}</td>
+                <td key={m.jobId} className="p-2 nums text-ink">{formatBandCompact(m.salaryBand)}</td>
               ))}
             </tr>
           </tbody>
