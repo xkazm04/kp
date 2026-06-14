@@ -20,7 +20,7 @@ import logging
 from statistics import median
 from typing import Any
 
-from .provenance import generate_with_fallback
+from .provenance import generate_with_fallback, str_list as _str_list
 
 COMMIT_REFLECTION_PROMPT_VERSION = "commit-reflection-v2"
 TOOLING_SIGNAL_PROMPT_VERSION = "tooling-signal-v2"
@@ -50,12 +50,6 @@ def _generate(provider: Any | None, prompt: str, deterministic, coerce) -> tuple
     # Shared LLM-or-deterministic runner: on an LLM failure it logs the cause at WARNING
     # and stashes a one-line fallbackReason on the artifact (see provenance.generate_with_fallback).
     return generate_with_fallback(provider, prompt, _SYSTEM, deterministic, coerce, _LOG)
-
-
-def _str_list(value: Any) -> list[str]:
-    if not isinstance(value, list):
-        return []
-    return [str(x).strip() for x in value if str(x).strip()]
 
 
 def _clamp01(value: Any, default: float) -> float:

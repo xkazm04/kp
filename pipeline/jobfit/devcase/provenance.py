@@ -39,6 +39,18 @@ FALLBACK_REASON_KEY = "fallbackReason"
 _MAX_REASON_CHARS = 300
 
 
+def str_list(value: Any) -> list[str]:
+    """Coerce arbitrary model output into a clean ``list[str]``.
+
+    Drops non-list input and any blank entries, stringifying + stripping the rest.
+    Shared by every devcase artifact ``coerce()`` (analyze/design/evaluate/reflect)
+    so the four steps clean LLM lists identically and can't drift.
+    """
+    if not isinstance(value, list):
+        return []
+    return [str(x).strip() for x in value if str(x).strip()]
+
+
 def combine_source(*srcs: str) -> str:
     """Collapse per-step sources into one tri-state verdict.
 

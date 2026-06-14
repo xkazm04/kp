@@ -15,7 +15,7 @@ import threading
 from typing import Any
 
 from .models import RUBRIC_DIMENSIONS, DevNeed, NeedAnalysis
-from .provenance import generate_with_fallback
+from .provenance import generate_with_fallback, str_list as _str_list
 
 _LOG = logging.getLogger(__name__)
 
@@ -90,12 +90,6 @@ def _generate(provider: Any | None, prompt: str, deterministic, coerce) -> tuple
     # Shared LLM-or-deterministic runner: on an LLM failure it logs the cause at WARNING
     # and stashes a one-line fallbackReason on the artifact (see provenance.generate_with_fallback).
     return generate_with_fallback(provider, prompt, _SYSTEM, deterministic, coerce, _LOG)
-
-
-def _str_list(value: Any) -> list[str]:
-    if not isinstance(value, list):
-        return []
-    return [str(x).strip() for x in value if str(x).strip()]
 
 
 def _human(role_family: str) -> str:
