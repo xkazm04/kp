@@ -342,7 +342,7 @@ export function DevTab() {
               onOpen={setSelectedCaseId}
               onDefine={() => setView("define")}
             />
-            <LifecycleSection lifecycles={lifecycles} approveLifecycle={approveLifecycle} state={lifecyclesState} onChanged={loadLifecycles} />
+            <LifecycleSection lifecycles={lifecycles} postings={postings ?? []} approveLifecycle={approveLifecycle} state={lifecyclesState} onChanged={loadLifecycles} />
           </>
         )
       ) : null}

@@ -1,14 +1,26 @@
 "use client";
 
 import { useState } from "react";
-import { Archive, Eye, Lock, RefreshCw, ShieldCheck } from "lucide-react";
+import { AlarmClock, Archive, Eye, Lock, RefreshCw, ShieldCheck } from "lucide-react";
 import { Markdown } from "@/app/_components/Markdown";
 import { caseToMarkdown } from "./DevHelpers";
 import { ProbeStrengthBanner } from "./ProbeStrengthBanner";
+import { lifecycleStall } from "@/app/_lib/devcase-sla";
 import { LIFECYCLE_STEPS, STAGE_LABEL } from "./DevTypes";
 import type { CaseScenario, Lifecycle } from "./DevTypes";
 
-export function LifecycleRow({ lc, onApprove, onChanged }: { lc: Lifecycle; onApprove: () => void; onChanged?: () => void }) {
+export function LifecycleRow({
+  lc,
+  submissionCount = 0,
+  onApprove,
+  onChanged,
+}: {
+  lc: Lifecycle;
+  // d8a0c4cf — submissions across this lifecycle's postings, for the stall check.
+  submissionCount?: number;
+  onApprove: () => void;
+  onChanged?: () => void;
+}) {
   const mapped = lc.stage === "awaiting_approval" ? "designed" : lc.stage === "published" ? "collecting" : lc.stage;
   const idx = LIFECYCLE_STEPS.indexOf(mapped);
   const awaiting = lc.stage === "awaiting_approval";
@@ -21,6 +33,29 @@ export function LifecycleRow({ lc, onApprove, onChanged }: { lc: Lifecycle; onAp
   const [closing, setClosing] = useState(false);
   const [closeError, setCloseError] = useState<string | null>(null);
   const [reviewOpen, setReviewOpen] = useState(false);
+  // d8a0c4cf — flag a lifecycle that's been open and empty past the SLA (client
+  // read of the pure rule; no cron). A stalled row offers a one-click re-source.
+  // `now` is snapshotted once at mount (Date.now() is impure in render).
+  const [nowMs] = useState(() => Date.now());
+  const stall = lifecycleStall(
+    { stage: lc.stage, updatedAt: lc.updatedAt, createdAt: lc.createdAt, submissionCount },
+    nowMs
+  );
+  const [sourcing, setSourcing] = useState(false);
+  const reSource = async () => {
+    if (sourcing || !lc.caseId) return;
+    setSourcing(true);
+    try {
+      const r = await fetch("/api/devcase/source", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ caseId: lc.caseId }),
+      });
+      if (r.ok) onChanged?.();
+    } finally {
+      setSourcing(false);
+    }
+  };
   const closeCase = async () => {
     if (closing) return;
     if (typeof window !== "undefined" && !window.confirm("Close this case? Non-promoted submitters get a wrap-up note and the apply link stops accepting submissions.")) return;
@@ -53,6 +88,25 @@ export function LifecycleRow({ lc, onApprove, onChanged }: { lc: Lifecycle; onAp
         >
           {STAGE_LABEL[lc.stage] ?? lc.stage}
         </span>
+        {stall.stalled ? (
+          <span
+            title={`Open and empty for ${stall.ageDays} days — re-source the candidate pool or close the case.`}
+            className="inline-flex shrink-0 items-center gap-1 rounded-full bg-coral/15 px-2 py-0.5 text-micro font-semibold uppercase text-coral"
+          >
+            <AlarmClock size={11} aria-hidden /> stalled {stall.ageDays}d
+          </span>
+        ) : null}
+        {stall.stalled && lc.caseId ? (
+          <button
+            type="button"
+            onClick={reSource}
+            disabled={sourcing}
+            title="Rank the existing candidate DB against this role and seed the pipeline again"
+            className="focus-ring inline-flex h-7 shrink-0 items-center gap-1 rounded-md border border-coral/40 bg-white px-2.5 text-micro font-semibold text-coral hover:bg-coral/5 disabled:opacity-50"
+          >
+            <RefreshCw size={12} /> {sourcing ? "Re-sourcing…" : "Re-source"}
+          </button>
+        ) : null}
         {awaiting ? (
           // W5-4 — the gate's primary action is REVIEW, not a blind sign-off:
           // the designed role/case/analysis were always persisted and served,
