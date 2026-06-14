@@ -615,6 +615,9 @@ export function ensureDb(): Database.Database {
     // after save via PATCH /api/analyses/[slug] once the client holds both the
     // saved slug and a done GitHub result. NULL = no deep-dive ran for this row.
     "ALTER TABLE analyses ADD COLUMN github_json TEXT",
+    // Tenant scope (P2): the workspace a saved analysis belongs to. NULL on legacy
+    // rows ⇒ backfilled to the default workspace below. The first scoped table.
+    "ALTER TABLE analyses ADD COLUMN workspace_id TEXT",
     // JD archive (W8-4/JDL1): archived JDs drop out of listJds and the pickers,
     // but loadJd keeps serving them so existing analysis links never 404.
     "ALTER TABLE jds ADD COLUMN archived_at TEXT",
@@ -657,6 +660,11 @@ export function ensureDb(): Database.Database {
   // Tenant foundation (P2): ensure the single default workspace row exists ('workspace'
   // matches DEFAULT_WORKSPACE in auth/session.ts and billing's id).
   db.prepare(`INSERT OR IGNORE INTO workspaces (id, name, created_at) VALUES (?, ?, ?)`).run("workspace", "Default workspace", new Date().toISOString());
+  try {
+    db.exec(`CREATE INDEX IF NOT EXISTS idx_analyses_workspace ON analyses (workspace_id)`);
+  } catch {
+    /* index already exists */
+  }
   seedExampleJd(db);
   seedJobs(db);
   seedCandidates(db);
@@ -664,6 +672,10 @@ export function ensureDb(): Database.Database {
   seedPipeline(db);
   migratePipelineStages(db); // remap any legacy 7-stage rows to the 5-stage model
   backfillDeclinedStatus(db); // split candidate declines out of overloaded `rejected`
+  // Tenant scope (P2): backfill ANY analyses row missing a workspace_id (legacy
+  // rows AND freshly-seeded ones) to the default workspace. After all seeders so
+  // it's order-independent — a seeded row that didn't stamp the column is caught.
+  db.prepare(`UPDATE analyses SET workspace_id = ? WHERE workspace_id IS NULL`).run("workspace");
   _db = db;
   // Reclaim expired (and, once their TTL lapses, superseded-PROMPT_VERSION)
   // cache rows on boot. lookupPromptCache only SKIPS expired rows — it never
