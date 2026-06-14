@@ -1999,6 +1999,8 @@
     "deltaDays": "{sign}{n} d",
     "deltaFlat": "•",
     "deltaTitle": "oproti předchozímu období stejné délky",
+    "goalPct": "cíl {pct} %",
+    "goalDays": "cíl {n} d",
     "momentum": "Týdenní trend",
     "momentumEmpty": "V tomto období zatím žádná aktivita v pipeline.",
     "momentumWeekAria": "Týden od {date}: {added} nových, {advanced} posunutých, {rejected} zamítnutých, {hired} přijatých",
@@ -2016,6 +2018,13 @@
     "sourceLine": "{total} celkem · {interview} u pohovoru · {hired} přijato",
     "noSourceData": "Zatím žádná data o původu.",
     "configureChannels": "Nastavit kanály",
+    "goals": {
+      "title": "Cíle konverze a doby do přijetí",
+      "intro": "Nastavte cíle konverze pro jednotlivé fáze a cílovou dobu do přijetí. Trychtýř označí fáze pod cílem; ponecháte-li prázdné, použije se výchozí práh 50 %.",
+      "timeToHire": "Doba do přijetí",
+      "daysSuffix": "dní",
+      "saveFailed": "Nepodařilo se uložit — zadejte číslo (nebo vymažte pro odstranění)."
+    },
     "channels": {
       "title": "Ekonomika kanálů",
       "intro": "Příchozí kanály s uloženou atribucí (kariérní přihláška, rychlá přihláška, webhooky). Zadejte útratu za kanál a získáte cenu za uchazeče a za přijetí.",

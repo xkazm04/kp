@@ -192,6 +192,16 @@ export function ensureDb(): Database.Database {
       updated_at TEXT NOT NULL
     );
 
+    -- 82c2b8e8 — recruiter-set analytics goals: one row per metric. The metric
+    -- key is a funnel stage name (conversion %% target for that stage) or the
+    -- reserved 'time_to_hire' (target in days). Goal lines on the funnel + the
+    -- goal-aware miss flagging read from here; deleting the row clears the goal.
+    CREATE TABLE IF NOT EXISTS analytics_targets (
+      metric TEXT PRIMARY KEY,
+      target_value REAL NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
     -- E1 (Erika gap) — sourcing campaign packs, one per (job, language).
     -- Durable recruiter artifacts, deliberately NOT the prompt cache: a pack
     -- must survive restarts and TTLs, and "Regenerate" must produce a fresh

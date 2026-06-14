@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { ArrowRight, Download, PauseCircle } from "lucide-react";
+import { ArrowRight, Download, PauseCircle, Target } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { downloadFile, toCsv } from "@/app/_lib/export-utils";
 import { useJsonFetch } from "@/app/_lib/useJsonFetch";
@@ -44,6 +44,8 @@ type Analytics = {
   // ce8e3c9e — vs-previous-period diffs for the comparable scalars; null in the
   // all-time view (no "previous period" to compare against).
   deltas: PeriodDeltas | null;
+  // 82c2b8e8 — recruiter-set goals: per-stage conversion %% targets + a TTH goal.
+  targets: { conversion: Record<string, number>; timeToHireDays: number | null };
 };
 
 // ANA2 — the selectable windows. null = all time (the server default).
@@ -144,6 +146,15 @@ export function AnalyticsTab() {
             delta={data.deltas?.avgTimeToHireDays}
             unit="days"
             lowerIsBetter
+            goalChip={
+              data.targets.timeToHireDays != null
+                ? {
+                    text: t("goalDays", { n: data.targets.timeToHireDays }),
+                    // Missed when we have an average and it exceeds the day goal.
+                    missed: data.avgTimeToHireDays != null && data.avgTimeToHireDays > data.targets.timeToHireDays,
+                  }
+                : undefined
+            }
           />
           {/* Age is an as-of-now figure — no prior-window analogue, so no delta. */}
           <Stat label={t("statAge")} value={data.avgAgeDays ?? "—"} sub={data.avgAgeDays != null ? t("daysActive") : undefined} />
@@ -191,10 +202,17 @@ export function AnalyticsTab() {
                 </div>
                 <span className="flex w-20 shrink-0 flex-col items-end text-sm">
                   {f.conversionPct != null ? (
-                    <span className={f.conversionPct < 50 ? "text-coral" : "text-moss"}>{f.conversionPct}%</span>
+                    // 82c2b8e8 — miss the configurable goal (default 50% when unset)
+                    // → coral. The goal replaces the old hardcoded 50% threshold.
+                    <span className={f.conversionPct < (data.targets.conversion[f.stage] ?? 50) ? "text-coral" : "text-moss"}>
+                      {f.conversionPct}%
+                    </span>
                   ) : (
                     <span className="text-steel">—</span>
                   )}
+                  {data.targets.conversion[f.stage] != null ? (
+                    <span className="text-meta text-steel">{t("goalPct", { pct: data.targets.conversion[f.stage] })}</span>
+                  ) : null}
                   {/* ce8e3c9e — conversion vs the previous equal-length window. */}
                   {convDeltaByStage.get(f.stage) ? <DeltaChip delta={convDeltaByStage.get(f.stage)!} unit="pts" /> : null}
                 </span>
@@ -220,6 +238,13 @@ export function AnalyticsTab() {
               </Link>
             </p>
           ) : null}
+          {/* 82c2b8e8 — set the goal lines the funnel + time-to-hire flag against. */}
+          <GoalsEditor
+            stages={data.funnel.map((f) => f.stage)}
+            conversion={data.targets.conversion}
+            timeToHireDays={data.targets.timeToHireDays}
+            onSaved={reload}
+          />
         </div>
 
         <div className="space-y-6">
@@ -642,6 +667,145 @@ function SpendInput({
   );
 }
 
+// 82c2b8e8 — mirrors the server's TIME_TO_HIRE_TARGET_KEY. Declared locally so
+// the client doesn't import the db barrel (better-sqlite3) for one string.
+const TIME_TO_HIRE_KEY = "time_to_hire";
+
+// 82c2b8e8 — collapsible goal editor. Per-stage conversion % goals + one
+// time-to-hire goal (days), persisted via /api/analytics/targets. The funnel
+// colors a stage coral when it misses its goal; the time-to-hire stat shows a
+// met/missed pill. Skips the first funnel stage (no inbound conversion ratio).
+function GoalsEditor({
+  stages,
+  conversion,
+  timeToHireDays,
+  onSaved,
+}: {
+  stages: string[];
+  conversion: Record<string, number>;
+  timeToHireDays: number | null;
+  onSaved: () => void;
+}) {
+  const t = useTranslations("analytics.goals");
+  const enumLabel = useEnumLabel();
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="mt-4 border-t border-stone-200 pt-3">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        className="focus-ring flex items-center gap-1.5 rounded text-sm font-semibold text-steel hover:text-ink"
+      >
+        <Target size={14} /> {t("title")}
+      </button>
+      {open ? (
+        <div className="mt-2 space-y-1.5">
+          <p className="text-meta text-steel">{t("intro")}</p>
+          {stages.slice(1).map((stage) => (
+            <TargetInput
+              key={stage}
+              metric={stage}
+              label={enumLabel("stage", stage)}
+              value={conversion[stage] ?? null}
+              suffix="%"
+              onSaved={onSaved}
+            />
+          ))}
+          <TargetInput
+            metric={TIME_TO_HIRE_KEY}
+            label={t("timeToHire")}
+            value={timeToHireDays}
+            suffix={t("daysSuffix")}
+            onSaved={onSaved}
+          />
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function TargetInput({
+  metric,
+  label,
+  value,
+  suffix,
+  onSaved,
+}: {
+  metric: string;
+  label: string;
+  value: number | null;
+  suffix: string;
+  onSaved: () => void;
+}) {
+  const t = useTranslations("analytics.goals");
+  const [draft, setDraft] = useState(value != null ? String(value) : "");
+  const [saving, setSaving] = useState(false);
+  const [failed, setFailed] = useState(false);
+  // Re-seed when the server value changes (post-save reload) — the in-render
+  // "adjust state when a prop changes" pattern used across the codebase.
+  const [seeded, setSeeded] = useState(value);
+  if (value !== seeded) {
+    setSeeded(value);
+    setDraft(value != null ? String(value) : "");
+  }
+
+  const save = async () => {
+    const trimmed = draft.trim();
+    const v = trimmed === "" ? null : Number(trimmed);
+    if (v !== null && (!Number.isFinite(v) || v < 0)) {
+      setFailed(true);
+      return;
+    }
+    if (v === value) return; // unchanged — no request
+    setSaving(true);
+    setFailed(false);
+    try {
+      const r = await fetch("/api/analytics/targets", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ metric, value: v }),
+      });
+      if (!r.ok) throw new Error();
+      onSaved();
+    } catch {
+      setFailed(true);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="flex items-center gap-2 text-sm">
+      <label htmlFor={`goal-${metric}`} className="w-28 shrink-0 text-steel">
+        {label}
+      </label>
+      <input
+        id={`goal-${metric}`}
+        type="number"
+        inputMode="numeric"
+        value={draft}
+        onChange={(e) => {
+          setDraft(e.target.value);
+          if (failed) setFailed(false);
+        }}
+        onBlur={save}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+        }}
+        disabled={saving}
+        title={failed ? t("saveFailed") : undefined}
+        aria-invalid={failed ? true : undefined}
+        placeholder="—"
+        className={`focus-ring h-8 w-20 rounded-md border px-2 text-right disabled:opacity-50 ${
+          failed ? "border-coral text-coral" : "border-stone-200 text-ink"
+        }`}
+      />
+      <span className="text-meta text-steel">{suffix}</span>
+    </div>
+  );
+}
+
 // ANA2 — the weekly trend: grouped mini-bars per rolling week (newest right),
 // one bar per series. Heights normalize against the single largest weekly count
 // so weeks compare honestly across the whole span.
@@ -714,6 +878,7 @@ function Stat({
   delta,
   lowerIsBetter,
   unit,
+  goalChip,
 }: {
   label: string;
   value: string | number;
@@ -722,6 +887,8 @@ function Stat({
   // For time-to-hire a smaller number is the win, so a negative delta is good.
   lowerIsBetter?: boolean;
   unit?: "pts" | "days";
+  // 82c2b8e8 — a "goal Nd" pill, coral when the figure misses the goal.
+  goalChip?: { text: string; missed: boolean };
 }) {
   return (
     <div className="bg-white px-4 py-2.5">
@@ -729,6 +896,11 @@ function Stat({
       <div className="mt-0.5 flex items-baseline gap-1.5">
         <p className="font-serif text-h2 leading-none text-ink">{value}</p>
         {delta ? <DeltaChip delta={delta} lowerIsBetter={lowerIsBetter} unit={unit} /> : null}
+        {goalChip ? (
+          <span className={`rounded px-1 py-0.5 text-meta font-semibold ${goalChip.missed ? "bg-coral/10 text-coral" : "bg-moss/10 text-moss"}`}>
+            {goalChip.text}
+          </span>
+        ) : null}
       </div>
       {sub ? <p className="mt-0.5 text-sm text-steel">{sub}</p> : null}
     </div>

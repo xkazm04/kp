@@ -60,7 +60,15 @@ export type PipelineAnalytics = {
   byVariant: VariantStat[];
   byVariantTotal: number;
   variantRecommendations: VariantRecommendation[];
+  // 82c2b8e8 — recruiter-set goals: per-stage conversion %% targets (keyed by
+  // stage name) + a single time-to-hire target in days. Goal lines on the funnel
+  // and the goal-aware miss flagging read from here; empty when nothing is set.
+  targets: { conversion: Record<string, number>; timeToHireDays: number | null };
 };
+
+// 82c2b8e8 — the reserved analytics_targets row whose value is a time-to-hire
+// goal in DAYS (every other row is a funnel stage name → conversion %% target).
+export const TIME_TO_HIRE_TARGET_KEY = "time_to_hire";
 
 export type ChannelEconomics = {
   channel: string;
@@ -425,7 +433,47 @@ export function pipelineAnalytics(
     byVariant,
     byVariantTotal: variantStats.length,
     variantRecommendations,
+    targets: analyticsTargets(),
   };
+}
+
+// 82c2b8e8 — recruiter-set analytics goals (small key/value table, mirroring the
+// channel_spend persistence pattern). The time-to-hire goal lives under the
+// reserved TIME_TO_HIRE_TARGET_KEY; every other row is a funnel stage name →
+// conversion %% goal.
+
+/** Set (positive value) or clear (null / non-positive) one analytics goal. */
+export function setAnalyticsTarget(metric: string, value: number | null): void {
+  const db = ensureDb();
+  if (value == null || !(value > 0)) {
+    db.prepare(`DELETE FROM analytics_targets WHERE metric = ?`).run(metric);
+    return;
+  }
+  db.prepare(
+    `INSERT INTO analytics_targets (metric, target_value, updated_at) VALUES (?, ?, ?)
+     ON CONFLICT(metric) DO UPDATE SET target_value = excluded.target_value, updated_at = excluded.updated_at`
+  ).run(metric, value, new Date().toISOString());
+}
+
+/** All set goals as a metric → value map (stage names + the TTH key). */
+export function listAnalyticsTargets(): Map<string, number> {
+  const rows = ensureDb().prepare(`SELECT metric, target_value FROM analytics_targets`).all() as {
+    metric: string;
+    target_value: number;
+  }[];
+  return new Map(rows.map((r) => [r.metric, r.target_value]));
+}
+
+/** Split the flat goal map into the funnel-conversion targets and the lone
+ *  time-to-hire target the analytics payload exposes. */
+function analyticsTargets(): { conversion: Record<string, number>; timeToHireDays: number | null } {
+  const all = listAnalyticsTargets();
+  const timeToHireDays = all.get(TIME_TO_HIRE_TARGET_KEY) ?? null;
+  const conversion: Record<string, number> = {};
+  for (const [metric, value] of all) {
+    if (metric !== TIME_TO_HIRE_TARGET_KEY) conversion[metric] = value;
+  }
+  return { conversion, timeToHireDays };
 }
 
 // ---- Cross-entity search (SHELL1, the command palette) ---------------------

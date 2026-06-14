@@ -1999,6 +1999,8 @@
     "deltaDays": "{sign}{n} d",
     "deltaFlat": "•",
     "deltaTitle": "vs the previous period of the same length",
+    "goalPct": "goal {pct}%",
+    "goalDays": "goal {n} d",
     "momentum": "Weekly momentum",
     "momentumEmpty": "No pipeline activity in this period yet.",
     "momentumWeekAria": "Week of {date}: {added} new, {advanced} advanced, {rejected} rejected, {hired} hired",
@@ -2016,6 +2018,13 @@
     "sourceLine": "{total} in · {interview} reached interview · {hired} hired",
     "noSourceData": "No origin data yet.",
     "configureChannels": "Configure channels",
+    "goals": {
+      "title": "Conversion & time-to-hire goals",
+      "intro": "Set per-stage conversion goals and a time-to-hire target. The funnel flags stages below goal; leave blank to use the default 50% threshold.",
+      "timeToHire": "Time to hire",
+      "daysSuffix": "days",
+      "saveFailed": "Couldn't save — enter a number (or clear to remove)."
+    },
     "channels": {
       "title": "Channel economics",
       "intro": "Inbound channels with stored attribution (careers apply, quick apply, webhooks). Enter what you spent per channel to get cost per applicant and per hire.",
