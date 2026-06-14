@@ -64,6 +64,13 @@ export function CaseDetail({
   const topSubmission = caseSubmissions
     .filter((s) => s.evaluation?.followups?.questions?.length)
     .sort((a, b) => (b.transferScore ?? -1) - (a.transferScore ?? -1))[0];
+  // 99288c0e — one cross-channel leaderboard: every submission across all of this
+  // case's postings, ranked by transfer fit and tagged with its channel, so the
+  // true #1 for the assignment is visible regardless of which channel they applied
+  // through. The per-posting cards keep only the apply link + intake form.
+  const shortlist = casePostings
+    .flatMap((p) => (p.submissions ?? []).map((s) => ({ s, channel: p.channel })))
+    .sort((a, b) => (b.s.transferScore ?? -1) - (a.s.transferScore ?? -1));
   const hasScenario = Array.isArray(kase.scenario?.phases) && (kase.scenario?.phases?.length ?? 0) > 0;
 
   return (
@@ -169,11 +176,34 @@ export function CaseDetail({
       {/* 8d4f38b9 — the winning candidate's interview kit, ready to copy/export. */}
       {topSubmission ? <InterviewKit caseTitle={kase.title ?? c.title ?? ""} top={topSubmission} /> : null}
 
-      {/* distribution + intake for THIS case */}
+      {/* 99288c0e — the case-wide shortlist: all candidates, every channel, one ranking. */}
+      {shortlist.length > 0 ? (
+        <section>
+          <h3 className="flex items-center gap-1.5 text-meta uppercase tracking-wide text-steel">
+            <ClipboardList size={13} className="text-coral" /> Shortlist — all channels
+            <span className="text-coral">· {shortlist.length}</span>
+          </h3>
+          <ul className="mt-2 space-y-1.5">
+            {shortlist.map(({ s, channel }, i, arr) => {
+              const rank = s.transferScore != null ? i + 1 : null;
+              const isTop = rank === 1;
+              return (
+                <Fragment key={s.id}>
+                  <SubmissionRow submission={s} rank={rank} isTop={isTop} channel={channel} onChanged={loadPostings} jdText={roleJdText} />
+                  {isTop && arr.length > 1 ? <li aria-hidden className="border-t border-dashed border-stone-200" /> : null}
+                </Fragment>
+              );
+            })}
+          </ul>
+        </section>
+      ) : null}
+
+      {/* distribution + intake for THIS case — postings are the apply channels;
+          the candidates they collect are ranked together in the shortlist above. */}
       {casePostings.length > 0 ? (
         <section>
           <h3 className="flex items-center gap-1.5 text-meta uppercase tracking-wide text-steel">
-            <ClipboardList size={13} className="text-coral" /> Postings &amp; submissions
+            <ClipboardList size={13} className="text-coral" /> Apply channels
             <span className="text-coral">· {casePostings.length}</span>
           </h3>
           <div className="mt-2 grid gap-3 lg:grid-cols-2">
@@ -188,24 +218,6 @@ export function CaseDetail({
                   <span className="shrink-0 text-micro uppercase tracking-wide text-steel">Apply link</span>
                   <ApplyTokenPill token={p.token} />
                 </div>
-
-                {(p.submissions ?? []).length > 0 ? (
-                  <ul className="mt-2 space-y-1.5 border-t border-stone-100 pt-2">
-                    {[...(p.submissions ?? [])]
-                      .sort((a, b) => (b.transferScore ?? -1) - (a.transferScore ?? -1))
-                      .map((s, i, arr) => {
-                        const rank = s.transferScore != null ? i + 1 : null;
-                        const isTop = rank === 1;
-                        return (
-                          <Fragment key={s.id}>
-                            <SubmissionRow submission={s} rank={rank} isTop={isTop} onChanged={loadPostings} jdText={roleJdText} />
-                            {isTop && arr.length > 1 ? <li aria-hidden className="border-t border-dashed border-stone-200" /> : null}
-                          </Fragment>
-                        );
-                      })}
-                  </ul>
-                ) : null}
-
                 <SubmissionForm postingId={p.id} onDone={loadPostings} />
               </div>
             ))}

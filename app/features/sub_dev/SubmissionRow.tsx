@@ -29,6 +29,7 @@ export function SubmissionRow({
   isTop = false,
   onChanged,
   jdText,
+  channel,
 }: {
   submission: Submission;
   rank: number | null;
@@ -37,6 +38,9 @@ export function SubmissionRow({
   /** GH4 — role-spec text handed to the author's-GitHub assessment so its
    *  job-fit signals read against the actual role being hired for. */
   jdText?: string;
+  /** 99288c0e — the posting channel this submission arrived through, shown when
+   *  the row sits in the case-wide cross-channel shortlist (omitted per-posting). */
+  channel?: string;
 }) {
   const { startTask } = useTasks();
   const [taskId, setTaskId] = useState<string | null>(null);
@@ -185,6 +189,11 @@ export function SubmissionRow({
         {isTop ? (
           <span className="shrink-0 rounded-full bg-moss/15 px-1.5 py-0.5 text-micro font-semibold uppercase tracking-wide text-moss">
             Top match
+          </span>
+        ) : null}
+        {channel ? (
+          <span className="shrink-0 rounded-full bg-paper px-1.5 py-0.5 text-micro font-semibold uppercase tracking-wide text-steel">
+            {channel}
           </span>
         ) : null}
         <GitBranch size={11} className="shrink-0 text-steel" />
