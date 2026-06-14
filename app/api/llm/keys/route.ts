@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { deleteProviderKey } from "@/app/_lib/db";
-import { isLlmProvider, listProviderKeyMeta, LLM_PROVIDERS, saveProviderKey } from "@/app/_lib/llm-config";
+import { isKeyableProvider, isLlmProvider, KEYABLE_PROVIDERS, listProviderKeyMeta, saveProviderKey } from "@/app/_lib/llm-config";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -15,7 +15,7 @@ function isScope(value: unknown): value is "byom" | "platform" {
 }
 
 export async function GET() {
-  return NextResponse.json({ keys: listProviderKeyMeta(), providers: LLM_PROVIDERS });
+  return NextResponse.json({ keys: listProviderKeyMeta(), providers: KEYABLE_PROVIDERS });
 }
 
 export async function PUT(request: NextRequest) {
@@ -27,9 +27,9 @@ export async function PUT(request: NextRequest) {
     apiVersion?: unknown;
   } | null;
   if (!body) return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
-  if (!isLlmProvider(body.provider) || body.provider === "claude_cli") {
+  if (!isKeyableProvider(body.provider)) {
     return NextResponse.json(
-      { error: "Unknown provider.", providers: LLM_PROVIDERS.filter((p) => p !== "claude_cli") },
+      { error: "Unknown provider.", providers: KEYABLE_PROVIDERS },
       { status: 400 }
     );
   }

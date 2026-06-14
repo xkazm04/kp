@@ -50,9 +50,9 @@ export function KeysPanel() {
       .then((p) => {
         const payload = p as KeysPayload;
         setData(payload);
-        // claude_cli runs without a key, so the form never offers it (the PUT
-        // rejects it anyway).
-        setProvider((cur) => cur || payload.providers.filter((x) => x !== "claude_cli")[0] || "");
+        // The GET surface already excludes keyless providers (claude_cli), so
+        // the first offered provider is just the head of the list.
+        setProvider((cur) => cur || payload.providers[0] || "");
       })
       .catch(() => setLoadFailed(true));
   }, []);
@@ -118,7 +118,7 @@ export function KeysPanel() {
     }
   };
 
-  const formProviders = data ? data.providers.filter((p) => p !== "claude_cli") : [];
+  const formProviders = data ? data.providers : [];
   const isAzure = provider === "azure_openai";
 
   return (

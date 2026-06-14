@@ -48,6 +48,16 @@ export function isLlmProvider(value: unknown): value is LlmProvider {
   return typeof value === "string" && (LLM_PROVIDERS as readonly string[]).includes(value);
 }
 
+// Providers that take a stored key. claude_cli runs keyless (local default), so
+// it is never offered in the keys form and the PUT rejects it. Single source for
+// that "keyable provider" rule — the route and the admin UI both derive from here
+// instead of hand-coding `!== "claude_cli"`.
+export const KEYABLE_PROVIDERS = LLM_PROVIDERS.filter((p) => p !== "claude_cli");
+
+export function isKeyableProvider(value: unknown): value is LlmProvider {
+  return isLlmProvider(value) && value !== "claude_cli";
+}
+
 export function isLlmUseCase(value: unknown): value is LlmUseCase {
   return typeof value === "string" && (LLM_USE_CASES as readonly string[]).includes(value);
 }
