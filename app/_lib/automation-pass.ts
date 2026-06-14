@@ -30,6 +30,16 @@ export const FAIRNESS_BLOCKED_REJECT_ALERT = "fairness_gate_blocked_reject";
 // true. `preview` selects only the "would be refused" vs "refused" wording so a
 // dry run reads as a forecast while the commit reads as an applied refusal —
 // every other byte is identical across the two callers.
+// Optimistic-CAS stale handling, shared by the advance and reject apply branches:
+// when actOnPipelineEntry refuses because the snapshot stage no longer holds (a
+// recruiter or concurrent pass moved the entry during the Python hop), turn the
+// decision into a no-op and record WHY, instead of acting on whatever stage the
+// entry is in now. The single encoding so both stale branches skip identically.
+function markStaleSkip(d: AutomationDecision): void {
+  d.action = "none";
+  d.reason = `Skipped: stage changed mid-pass. Original policy decision: ${d.reason}`;
+}
+
 function applyFairnessVerdict(
   d: AutomationDecision,
   verdict: AutoRejectVerdict,
@@ -242,8 +252,7 @@ async function executeAutomationPass(dryRun: boolean): Promise<AutomationPassRes
         if (applied) {
           summary.advanced += 1;
         } else {
-          d.action = "none";
-          d.reason = `Skipped: stage changed mid-pass. Original policy decision: ${d.reason}`;
+          markStaleSkip(d);
         }
       } else if (d.action === "reject") {
         // Defense in depth: re-assert the fairness invariant before applying a
@@ -262,8 +271,7 @@ async function executeAutomationPass(dryRun: boolean): Promise<AutomationPassRes
           } else {
             // Stale (stage changed mid-pass) — and crucially, NO rejection email
             // went out for a verdict the entry's current state never earned.
-            d.action = "none";
-            d.reason = `Skipped: stage changed mid-pass. Original policy decision: ${d.reason}`;
+            markStaleSkip(d);
           }
         }
       } else if (d.action === "hold") {
