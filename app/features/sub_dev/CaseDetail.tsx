@@ -5,6 +5,7 @@ import { ArrowLeft, ClipboardList, Lock, MicVocal, Send, Users } from "lucide-re
 import { Markdown } from "@/app/_components/Markdown";
 import { formatFraction, formatRelativeTime } from "@/app/_lib/format";
 import { ApplyTokenPill } from "./ApplyTokenPill";
+import { CohortProbePanel } from "./CohortProbePanel";
 import { caseToMarkdown } from "./DevHelpers";
 import { MiniList } from "./DevShared";
 import { SubmissionForm } from "./SubmissionForm";
@@ -52,6 +53,9 @@ export function CaseDetail({
     : "";
   const casePostings = postings.filter((p) => p.caseId === kase.id);
   const published = casePostings.length > 0;
+  // fec3e23a — every submission across this case's postings, for the cohort
+  // probe-miss roll-up in the internal section.
+  const caseSubmissions = casePostings.flatMap((p) => p.submissions ?? []);
   const hasScenario = Array.isArray(kase.scenario?.phases) && (kase.scenario?.phases?.length ?? 0) > 0;
 
   return (
@@ -144,6 +148,8 @@ export function CaseDetail({
             <MiniList title="Role responsibilities" items={role.responsibilities ?? []} />
           </div>
         ) : null}
+
+        <CohortProbePanel probes={c.coverProbes ?? []} submissions={caseSubmissions} />
       </section>
 
       {/* distribution + intake for THIS case */}
