@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Modal, isAnyModalOpen } from "@/app/_components/Modal";
-import { NAV_GROUPS, type WorkspaceTabId } from "./tabs";
+import { navLabel, NAV_GROUPS, type WorkspaceTabId } from "./tabs";
 
 // SHELL4 — global keyboard navigation: `g` then a mnemonic key jumps to a tab
 // (g p → Pipeline, g d → Decisions, …), `?` opens this reference overlay. With
@@ -92,10 +92,7 @@ export function KeyboardShortcuts({ onSelectTab }: { onSelectTab: (id: Workspace
   }, []);
 
   if (!open) return null;
-  const tabLabel = (id: WorkspaceTabId, fallback: string) => {
-    const key = `tabs.${id}` as Parameters<typeof nav>[0];
-    return nav.has(key) ? nav(key) : fallback;
-  };
+  const tabLabel = (id: WorkspaceTabId, fallback: string) => navLabel(nav, `tabs.${id}`, fallback);
   return (
     <Modal title={t("title")} subtitle={t("intro")} onClose={() => setOpen(false)} size="lg">
       <ul className="space-y-1.5">

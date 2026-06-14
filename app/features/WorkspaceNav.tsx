@@ -3,7 +3,7 @@ import { getTranslations } from "next-intl/server";
 import { attentionCounts, type AttentionCounts } from "@/app/_lib/attention";
 import { ThemeToggle } from "@/app/_components/ThemeToggle";
 import { RecentsNav } from "./RecentsNav";
-import { buildUrl, clearedTabScopedParams, navItemClass, NAV_GROUPS, tabHref, type WorkspaceTabId } from "./tabs";
+import { buildUrl, clearedTabScopedParams, navItemClass, navLabel, NAV_GROUPS, tabHref, type WorkspaceTabId } from "./tabs";
 
 // Link-based copy of the Workspace sidebar for server-rendered deep-link pages
 // (e.g. /jds/[slug], /history/[slug]) so they carry the same left nav + styling
@@ -21,12 +21,9 @@ export async function WorkspaceNav({ active }: { active: WorkspaceTabId }) {
   } catch (error) {
     console.error("[WorkspaceNav] attention counts unavailable", error);
   }
-  // Mirror of Workspace.tsx navText: translate by nav key, fall back to the
-  // English label in tabs.ts so the two sidebars read identically.
-  const navText = (key: string, fallback: string): string => {
-    const k = key as Parameters<typeof t>[0];
-    return t.has(k) ? t(k) : fallback;
-  };
+  // Same has-fallback contract as Workspace.tsx (shared navLabel helper in
+  // tabs.ts) so the two sidebars read identically.
+  const navText = (key: string, fallback: string): string => navLabel(t, key, fallback);
   return (
     <aside className="flex flex-col border-b border-stone-300 bg-paper md:sticky md:top-0 md:h-screen md:w-64 md:shrink-0 md:overflow-y-auto md:border-b-0 md:border-r">
       <Link href="/" className="focus-ring px-4 py-5">

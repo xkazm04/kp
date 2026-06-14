@@ -7,7 +7,7 @@ import { Search } from "lucide-react";
 import { Modal } from "@/app/_components/Modal";
 import { recordRecent, useRecents } from "./recents";
 import { useSimulation } from "./simulation/SimulationProvider";
-import { buildTabSwitchUrl, buildUrl, clearedTabScopedParams, NAV_GROUPS, type WorkspaceTabId } from "./tabs";
+import { buildTabSwitchUrl, buildUrl, clearedTabScopedParams, navLabel, NAV_GROUPS, type WorkspaceTabId } from "./tabs";
 
 // SHELL1 — the global command palette: one Ctrl/Cmd+K surface that searches
 // candidates, pipeline entries, jobs, saved JDs and analyses (via /api/search)
@@ -141,11 +141,9 @@ export function CommandPalette() {
     };
   }, [open, query, t]);
 
-  // Localized tab label with the same has-fallback contract Workspace uses.
-  const tabLabel = (id: WorkspaceTabId, fallback: string): string => {
-    const key = `tabs.${id}` as Parameters<typeof nav>[0];
-    return nav.has(key) ? nav(key) : fallback;
-  };
+  // Localized tab label with the same has-fallback contract Workspace uses
+  // (shared navLabel helper in tabs.ts).
+  const tabLabel = (id: WorkspaceTabId, fallback: string): string => navLabel(nav, `tabs.${id}`, fallback);
 
   const recents = useRecents();
   // 5d2e0998 — the guided tour as a palette command, so the simulation's

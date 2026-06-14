@@ -28,6 +28,7 @@ import {
   DEFAULT_TAB,
   isWorkspaceTabId,
   navItemClass,
+  navLabel,
   NAV_GROUPS,
   type WorkspaceTabId,
 } from "./tabs";
@@ -73,10 +74,7 @@ export function Workspace() {
   const t = useTranslations("nav");
   // Translate a nav key (tabs.<id> / groups.<key>) through the catalog, falling
   // back to the English label baked into tabs.ts for any not-yet-translated entry.
-  const navText = (key: string, fallback: string): string => {
-    const k = key as Parameters<typeof t>[0];
-    return t.has(k) ? t(k) : fallback;
-  };
+  const navText = (key: string, fallback: string): string => navLabel(t, key, fallback);
   const search = params.toString();
   const tabParam = params.get("tab");
   // SHELL2 — live "what needs my attention" counts behind the nav badges.
