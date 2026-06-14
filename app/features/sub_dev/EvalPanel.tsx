@@ -71,6 +71,27 @@ export function EvalPanel({ ev, onPromote, promoted, promoting = false }: { ev: 
             conf {formatFraction(e.confidence, { label: "confidence" })}
           </span>
         ) : null}
+        {/* ce28da40 — process-authenticity: genuine incremental work vs likely
+            paste-from-LLM, from the git trace + reflection. Suspect holds the
+            submission for the live ownership-verifying interview. */}
+        {ev.authenticity ? (
+          <span
+            title={
+              ev.authenticity.reasons.length
+                ? `Process authenticity ${ev.authenticity.score}/100 — ${ev.authenticity.reasons.join(" ")}`
+                : `Process authenticity ${ev.authenticity.score}/100 — genuine incremental work.`
+            }
+            className={`rounded px-1 py-0.5 text-micro font-semibold uppercase ${
+              ev.authenticity.band === "suspect"
+                ? "bg-coral/15 text-coral"
+                : ev.authenticity.band === "mixed"
+                  ? "bg-amber-100 text-amber-700"
+                  : "bg-moss/15 text-moss"
+            }`}
+          >
+            authenticity {ev.authenticity.score}
+          </span>
+        ) : null}
       </div>
       <div className="space-y-1">
         {breakdown.map((d, i) => (

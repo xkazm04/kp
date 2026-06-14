@@ -147,7 +147,12 @@ export type ProcessTrace = {
   cadence?: { count?: number; spanHours?: number | null; bursty?: boolean | null } | null;
   decisionsLogPresent?: boolean;
 };
-export type EvalBundle = { reflection?: Reflection; tooling?: Tooling; evaluation?: CaseEval; transfer?: Transfer; followups?: Followups; source?: SourceKind; perStepSources?: PerStepSources; commitCount?: number; processTrace?: ProcessTrace | null };
+// ce28da40 — process-authenticity verdict derived from the trace + reflection
+// (app/_lib/devcase-authenticity.ts): is this genuine incremental work or a likely
+// paste-from-LLM? `band` "suspect" holds the submission for the ownership-verifying
+// interview rather than auto-advancing on transfer score. Absent on older bundles.
+export type Authenticity = { score: number /* SCORE 0..100 */; band: "authentic" | "mixed" | "suspect"; reasons: string[] };
+export type EvalBundle = { reflection?: Reflection; tooling?: Tooling; evaluation?: CaseEval; transfer?: Transfer; followups?: Followups; authenticity?: Authenticity | null; source?: SourceKind; perStepSources?: PerStepSources; commitCount?: number; processTrace?: ProcessTrace | null };
 
 // At or below this a confidence (self-rated OR propagated) is "low" — the reviewer is warned the
 // inference is thin/ungrounded, or a decision rests on such evidence. Mirrors LOW_CONFIDENCE in

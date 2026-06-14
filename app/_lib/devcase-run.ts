@@ -16,6 +16,7 @@ import {
   type DevSubmission,
 } from "./db";
 import { MAX_CODEBASES } from "./devcase-constraints";
+import { scoreAuthenticity, type Authenticity } from "./devcase-authenticity";
 import { cleanupWorkdir, createWorkdir, parsePythonJson, parseStderrError, PipelineError, spawnPython } from "./python-runner";
 import { buildRepoSnapshot, fetchRepoSignals, type RepoSnapshot } from "./repo-snapshot";
 import { isEarlyCareer } from "./archetypes";
@@ -426,6 +427,10 @@ export type SubmissionEvaluation = {
     cadence: { count: number; spanHours: number | null; bursty: boolean | null } | null;
     decisionsLogPresent: boolean;
   };
+  // ce28da40 — process-authenticity (is this genuine incremental work or a
+  // paste-from-LLM?), derived from the processTrace + reflection. Persisted so the
+  // promote gate and the studio can read it without recomputing.
+  authenticity: Authenticity;
   source: string;
   perStepSources: Record<string, string>; // {reflect, tooling, evaluate, transfer, followups}
   fallbackReason: Record<string, string>; // {step: "<ExceptionType>: <message>"} for steps whose LLM call raised
@@ -489,18 +494,30 @@ export async function runEvaluateSubmission(submissionId: string, signal?: Abort
       perStepSources?: Record<string, string>;
       fallbackReason?: Record<string, string>;
     }>(stdout, stderr);
+    // Raw process signals, not interpretation: did they actually keep the forced
+    // DECISIONS log (case-design v4's authorship contract), how many commits, what
+    // cadence. Persisted so the decisions-log contract is checkable later instead
+    // of taken on faith from the narrative.
+    const processTrace = {
+      commitCount: commits.length,
+      cadence: signals?.cadence ?? null,
+      decisionsLogPresent: (signals?.topLevel ?? []).some((f) => /decision/i.test(f.name)),
+    };
+    // ce28da40 — fold the trace + reflection into one authenticity verdict.
+    const reflection = (payload.result.reflection ?? {}) as { readBeforeWrite?: number; iterationPattern?: string };
+    const authenticity = scoreAuthenticity({
+      commitCount: processTrace.commitCount,
+      bursty: processTrace.cadence?.bursty ?? null,
+      spanHours: processTrace.cadence?.spanHours ?? null,
+      decisionsLogPresent: processTrace.decisionsLogPresent,
+      readBeforeWrite: reflection.readBeforeWrite ?? null,
+      iterationPattern: reflection.iterationPattern ?? null,
+    });
     const out = {
       ...payload.result,
       followups: payload.result.followups ?? {},
-      // Raw process signals, not interpretation: did they actually keep the
-      // forced DECISIONS log (case-design v4's authorship contract), how many
-      // commits, what cadence. Persisted so the decisions-log contract is
-      // checkable later instead of taken on faith from the narrative.
-      processTrace: {
-        commitCount: commits.length,
-        cadence: signals?.cadence ?? null,
-        decisionsLogPresent: (signals?.topLevel ?? []).some((f) => /decision/i.test(f.name)),
-      },
+      processTrace,
+      authenticity,
       source: payload.source,
       perStepSources: payload.perStepSources ?? {},
       fallbackReason: payload.fallbackReason ?? {},
@@ -572,11 +589,20 @@ export async function runSourceForRole(
 export function promoteSubmission(submissionId: string): string | null {
   const sub = getSubmission(submissionId);
   if (!sub || !sub.evaluation) return null;
-  const bundle = sub.evaluation as { evaluation?: Record<string, unknown>; transfer?: Record<string, unknown> };
+  const bundle = sub.evaluation as {
+    evaluation?: Record<string, unknown>;
+    transfer?: Record<string, unknown>;
+    authenticity?: { band?: string; score?: number };
+  };
   const evaluation = bundle.evaluation ?? {};
   const transfer = bundle.transfer ?? {};
   const score = sub.transferScore ?? Number(transfer.transferScore ?? 0);
   const posting = sub.postingId ? getPosting(sub.postingId) : null;
+  // ce28da40 — a suspect-authenticity submission may be a paste-from-LLM, so it's
+  // never auto-advanced on transfer score alone: it's held for the live interview
+  // that verifies ownership of the decisions (the minted followups), with the
+  // authenticity concern surfaced to the reviewer.
+  const suspectAuth = bundle.authenticity?.band === "suspect";
 
   const { entry } = createPipelineEntry({
     candidateId: `ds-${sub.id}`,
@@ -590,7 +616,15 @@ export function promoteSubmission(submissionId: string): string | null {
     // d95fed6d — origin marker: the drawer says "via dev case" and links back.
     sourceChannel: "devcase",
   });
-  const recommendation = score >= 70 ? "advance" : "hold";
+  // Suspect authenticity overrides a strong score down to "hold" — verify
+  // authorship live before advancing.
+  const recommendation = score >= 70 && !suspectAuth ? "advance" : "hold";
+  const redFlags = [...((evaluation.concerns as string[]) ?? [])];
+  if (suspectAuth) {
+    redFlags.unshift(
+      `Process-authenticity is suspect (${bundle.authenticity?.score ?? 0}/100) — verify the candidate authored this before advancing.`
+    );
+  }
   setApproval(
     entry.id,
     "screening_review",
@@ -599,7 +633,7 @@ export function promoteSubmission(submissionId: string): string | null {
       confidence: score,
       rationale: `${String(evaluation.summary ?? "")} ${String(transfer.roleFitRationale ?? "")}`.trim() || "Dev-case evaluation.",
       strengths: (evaluation.strengths as string[]) ?? [],
-      redFlags: (evaluation.concerns as string[]) ?? [],
+      redFlags,
     })
   );
   recordAutomationEvent(entry.id, "screening_hold", "promoted from dev case");
