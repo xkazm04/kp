@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { AlertTriangle, ClipboardCheck, Loader2, Quote, RefreshCw } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { rubricLabel } from "@/app/_lib/interview-rubric";
@@ -9,7 +9,7 @@ import { InterviewRecommendationBadge } from "@/app/_components/Badge";
 import { Meter } from "@/app/_components/Meter";
 import { RATING_MAX, ratingToPercent, ratingTone } from "@/app/_lib/format";
 import { useJsonFetch } from "@/app/_lib/useJsonFetch";
-import type { Scorecard } from "@/app/_lib/interview-scorecard";
+import type { Scorecard, ScorecardRating } from "@/app/_lib/interview-scorecard";
 import type { VoiceTurn } from "@/app/_lib/voice/types";
 import type { SchedEntry } from "./ScheduleTypes";
 
@@ -67,6 +67,43 @@ function findEvidenceTurn(evidence: string, turns: VoiceTurn[]): number {
   return bestScore >= 0.5 ? best : -1; // require a majority of distinctive words to overlap
 }
 
+// One rubric rating row — the competency label, the N/RATING_MAX (or "not
+// assessed") value, the guarded meter, and the evidence quote — shared by the AI
+// scorecard and HumanScorecardSection (they render the row identically). The
+// evidence rendering is the only divergence, so it's an optional slot: the human
+// card omits it (plain `<p>` default); the AI block passes a clickable
+// jump-to-transcript renderer.
+function ScorecardRatingRow({
+  r,
+  t,
+  locale,
+  renderEvidence,
+}: {
+  r: ScorecardRating;
+  t: ReturnType<typeof useTranslations<"scheduleTab.transcript">>;
+  locale: string;
+  renderEvidence?: (evidence: string) => ReactNode;
+}) {
+  const rating = cleanRating(r.rating);
+  const label = rubricLabel(r.competency, locale);
+  return (
+    <li className="text-sm text-ink">
+      <div className="flex items-baseline justify-between gap-2">
+        <span className="font-semibold">{label}</span>
+        <span className="shrink-0 nums text-steel">{rating != null ? `${rating}/${RATING_MAX}` : t("notAssessed")}</span>
+      </div>
+      {rating != null ? (
+        <Meter value={ratingToPercent(rating)} tone={ratingTone(rating)} className="mt-1" aria-label={t("ratingAria", { competency: label, rating, max: RATING_MAX })} />
+      ) : null}
+      {r.evidence
+        ? renderEvidence
+          ? renderEvidence(r.evidence)
+          : <p className="mt-1 text-meta text-steel">{r.evidence}</p>
+        : null}
+    </li>
+  );
+}
+
 // A recruiter's human scorecard (PREP1), styled to read as the human counterpart
 // to the AI one — same rubric layout (rating meters + evidence), coral-tinted so
 // the two are never confused. Used both alongside an AI screen and on its own.
@@ -84,21 +121,9 @@ function HumanScorecardSection({ sc }: { sc: Scorecard }) {
       {sc.summary ? <p className="mt-1.5 text-base text-ink">{sc.summary}</p> : null}
       {sc.ratings && sc.ratings.length ? (
         <ul className="mt-2.5 space-y-2.5">
-          {sc.ratings.map((r, i) => {
-            const rating = cleanRating(r.rating);
-            return (
-              <li key={i} className="text-sm text-ink">
-                <div className="flex items-baseline justify-between gap-2">
-                  <span className="font-semibold">{rubricLabel(r.competency, locale)}</span>
-                  <span className="shrink-0 nums text-steel">{rating != null ? `${rating}/${RATING_MAX}` : t("notAssessed")}</span>
-                </div>
-                {rating != null ? (
-                  <Meter value={ratingToPercent(rating)} tone={ratingTone(rating)} className="mt-1" aria-label={t("ratingAria", { competency: rubricLabel(r.competency, locale), rating, max: RATING_MAX })} />
-                ) : null}
-                {r.evidence ? <p className="mt-1 text-meta text-steel">{r.evidence}</p> : null}
-              </li>
-            );
-          })}
+          {sc.ratings.map((r, i) => (
+            <ScorecardRatingRow key={i} r={r} t={t} locale={locale} />
+          ))}
         </ul>
       ) : null}
       <p className="mt-2 text-meta text-steel">{t("humanScorecardNote")}</p>
@@ -188,42 +213,31 @@ export function InterviewTranscriptModal({ entry, onClose }: { entry: SchedEntry
               {sc.summary ? <p className="mt-1.5 text-base text-ink">{sc.summary}</p> : null}
               {sc.ratings && sc.ratings.length ? (
                 <ul className="mt-2.5 space-y-2.5">
-                  {sc.ratings.map((r, i) => {
-                    const rating = cleanRating(r.rating);
-                    return (
-                      <li key={i} className="text-sm text-ink">
-                        <div className="flex items-baseline justify-between gap-2">
-                          <span className="font-semibold">{rubricLabel(r.competency, locale)}</span>
-                          <span className="shrink-0 nums text-steel">{rating != null ? `${rating}/${RATING_MAX}` : t("notAssessed")}</span>
-                        </div>
-                        {rating != null ? (
-                          <Meter
-                            value={ratingToPercent(rating)}
-                            tone={ratingTone(rating)}
-                            className="mt-1"
-                            aria-label={t("ratingAria", { competency: rubricLabel(r.competency, locale), rating, max: RATING_MAX })}
-                          />
-                        ) : null}
-                        {r.evidence ? (
-                          evidenceTurns[i] >= 0 ? (
-                            // Clickable: jump to the transcript turn this quote came
-                            // from — "verify the AI in one click" at the Offer gate.
-                            <button
-                              type="button"
-                              onClick={() => jumpToTurn(evidenceTurns[i])}
-                              className="focus-ring mt-1 inline-flex items-start gap-1 rounded text-left text-meta text-steel hover:text-coral"
-                              title={t("jumpToMoment")}
-                            >
-                              <Quote size={11} className="mt-0.5 shrink-0 text-coral/70" aria-hidden />
-                              <span className="underline decoration-dotted underline-offset-2">{r.evidence}</span>
-                            </button>
-                          ) : (
-                            <p className="mt-1 text-meta text-steel">{r.evidence}</p>
-                          )
-                        ) : null}
-                      </li>
-                    );
-                  })}
+                  {sc.ratings.map((r, i) => (
+                    <ScorecardRatingRow
+                      key={i}
+                      r={r}
+                      t={t}
+                      locale={locale}
+                      renderEvidence={(evidence) =>
+                        evidenceTurns[i] >= 0 ? (
+                          // Clickable: jump to the transcript turn this quote came
+                          // from — "verify the AI in one click" at the Offer gate.
+                          <button
+                            type="button"
+                            onClick={() => jumpToTurn(evidenceTurns[i])}
+                            className="focus-ring mt-1 inline-flex items-start gap-1 rounded text-left text-meta text-steel hover:text-coral"
+                            title={t("jumpToMoment")}
+                          >
+                            <Quote size={11} className="mt-0.5 shrink-0 text-coral/70" aria-hidden />
+                            <span className="underline decoration-dotted underline-offset-2">{evidence}</span>
+                          </button>
+                        ) : (
+                          <p className="mt-1 text-meta text-steel">{evidence}</p>
+                        )
+                      }
+                    />
+                  ))}
                 </ul>
               ) : null}
               <p className="mt-2 text-meta text-steel">{t("feedsReview")}</p>
