@@ -96,34 +96,3 @@ export function deleteProviderKey(provider: string, scope: string): boolean {
   return db.prepare(`DELETE FROM provider_keys WHERE provider = ? AND scope = ?`).run(provider, scope).changes > 0;
 }
 
-/** Metering ledger row (one LLM envelope). Emission wires up in Phase 4;
- *  the writer exists now so the schema and the pricing meters share a shape. */
-export function insertLlmUsage(input: {
-  useCase: string;
-  provider: string;
-  model?: string | null;
-  inputTokens?: number | null;
-  outputTokens?: number | null;
-  cachedTokens?: number | null;
-  costUsd?: number | null;
-  source: "llm" | "deterministic";
-  requestId?: string | null;
-}): void {
-  const db = ensureDb();
-  db.prepare(
-    `INSERT INTO llm_usage (ts, use_case, provider, model, input_tokens, output_tokens, cached_tokens, cost_usd, source, request_id)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-  ).run(
-    new Date().toISOString(),
-    input.useCase,
-    input.provider,
-    input.model ?? null,
-    input.inputTokens ?? null,
-    input.outputTokens ?? null,
-    input.cachedTokens ?? null,
-    input.costUsd ?? null,
-    input.source,
-    input.requestId ?? null
-  );
-}
-

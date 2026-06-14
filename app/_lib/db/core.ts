@@ -429,8 +429,7 @@ export function ensureDb(): Database.Database {
     -- provider+model per use case (explicit rows only — absence means the
     -- built-in default, i.e. Claude CLI locally); provider_keys holds
     -- UI-entered keys encrypted with KP_SECRET (env keys keep working without
-    -- a row); llm_usage is the metering ledger the pricing meters will read
-    -- (emission lands in Phase 4).
+    -- a row).
     CREATE TABLE IF NOT EXISTS llm_config (
       use_case TEXT PRIMARY KEY,
       provider TEXT NOT NULL,
@@ -447,23 +446,6 @@ export function ensureDb(): Database.Database {
       updated_at TEXT NOT NULL,
       PRIMARY KEY (provider, scope)
     );
-
-    CREATE TABLE IF NOT EXISTS llm_usage (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      ts TEXT NOT NULL,
-      use_case TEXT NOT NULL,
-      provider TEXT NOT NULL,
-      model TEXT,
-      input_tokens INTEGER,
-      output_tokens INTEGER,
-      cached_tokens INTEGER,
-      cost_usd REAL,
-      source TEXT NOT NULL,
-      request_id TEXT
-    );
-
-    CREATE INDEX IF NOT EXISTS idx_llm_usage_ts ON llm_usage (ts);
-    CREATE INDEX IF NOT EXISTS idx_llm_usage_use_case ON llm_usage (use_case);
 
     -- Payment gate (docs/BILLING.md). Single-workspace model mirrors the rest
     -- of the app: billing_state is a one-row subscription snapshot synced from
