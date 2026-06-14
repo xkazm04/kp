@@ -1,6 +1,7 @@
 import unittest
 
 from pipeline.jobfit.devcase.process_events import derive_signals, tooling_from_events
+from pipeline.jobfit.devcase.reflect import assess_tooling
 
 
 class TestProcessEvents(unittest.TestCase):
@@ -44,6 +45,14 @@ class TestProcessEvents(unittest.TestCase):
         # heavy editing must never fabricate an over-reliance flag
         evs = [{"t": i, "kind": "edit", "path": f"f{i}.ts"} for i in range(20)]
         self.assertEqual(tooling_from_events(evs)["overRelianceFlags"], [])
+
+    def test_assess_tooling_prefers_observed_events(self):
+        # The observed branch returns BEFORE any provider/LLM logic — no network.
+        evs = [{"t": 1, "kind": "open", "path": "a.ts"}, {"t": 2, "kind": "edit", "path": "a.ts"}]
+        tool, src = assess_tooling({}, [], [], events=evs)
+        self.assertEqual(src, "observed")
+        self.assertEqual(tool["confidence"], 0.8)
+        self.assertEqual(tool["overRelianceFlags"], [])
 
     def test_malformed_events_do_not_crash(self):
         evs = [None, 42, {"kind": "edit"}, {"kind": "open", "path": None}, {"t": "x", "kind": "edit", "path": "a"}]

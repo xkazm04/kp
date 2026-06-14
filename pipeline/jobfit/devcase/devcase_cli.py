@@ -177,6 +177,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--commits-json", type=Path)
     parser.add_argument("--probes-json", type=Path)
     parser.add_argument("--repo-json", type=Path)
+    parser.add_argument("--events-json", type=Path)  # observed process events (Live Work Surface)
     parser.add_argument("--case-json", type=Path)
     parser.add_argument("--role-json", type=Path)
     parser.add_argument("--scorecard-json", type=Path)
@@ -321,8 +322,12 @@ def main(argv: list[str] | None = None) -> int:
                 else []
             )
             repo = _require_object(json.loads(args.repo_json.read_text(encoding="utf-8")), "--repo-json") if args.repo_json else None
+            # Live Work Surface (moonshot E): observed process events, present when the
+            # candidate worked the case in-product. Present → assess_tooling uses the
+            # observed path; absent → the existing commit-metadata inference.
+            events = _require_list_of_dicts(json.loads(args.events_json.read_text(encoding="utf-8")), "--events-json") if args.events_json else None
             reflection, rsrc = _reflect.reflect_commits(commits, repo, provider=provider)
-            tooling, tsrc = _reflect.assess_tooling(reflection, commits, probes, repo, provider=provider)
+            tooling, tsrc = _reflect.assess_tooling(reflection, commits, probes, repo, events=events, provider=provider)
             if args.command == "reflect-commits":
                 _emit(
                     {"reflection": reflection, "tooling": tooling},

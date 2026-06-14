@@ -185,7 +185,15 @@ def reflect_commits(commits: list[dict], repo: dict | None = None, *, provider: 
 # --- assess_tooling ---------------------------------------------------------
 
 
-def assess_tooling(reflection: dict, commits: list[dict], cover_probes: list[dict], repo: dict | None = None, *, provider: Any | None = None) -> tuple[dict, str]:
+def assess_tooling(reflection: dict, commits: list[dict], cover_probes: list[dict], repo: dict | None = None, *, events: list[dict] | None = None, provider: Any | None = None) -> tuple[dict, str]:
+    # Live Work Surface (moonshot E): when the candidate worked in the in-product
+    # surface, PREFER the observed event stream — deterministic ground truth, higher
+    # confidence (0.8) — over the inferred commit-metadata path below (≤0.7). The
+    # observed path never infers over-reliance from process (same fairness invariant).
+    if events:
+        from .process_events import tooling_from_events
+
+        return tooling_from_events(events, cover_probes), "observed"
     ctx = _context(commits, repo)
     probes = [
         {"id": str(p.get("id") or f"p{i + 1}"), "kind": p.get("kind"), "where": p.get("where"), "reveals": p.get("reveals")}
