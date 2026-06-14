@@ -4,26 +4,11 @@ import { useEffect, useState } from "react";
 import { AlertTriangle, CalendarClock, Hourglass } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useRelativeTime } from "@/app/features/sub_pipeline/PipelineShared";
-
-type Invite = {
-  id: string;
-  entryId: string | null;
-  candidateLabel: string | null;
-  jobTitle: string | null;
-  status: string;
-  slot: string | null;
-  slotAt: string | null;
-  reminderSentAt: string | null;
-  needsReconcile: boolean;
-  reconcileReason: string | null;
-  needsMoreSlots: boolean;
-  durationMin: number | null;
-  rescheduleCount: number;
-  candidateTz: string | null;
-  attendanceStatus: string | null;
-  createdAt: string;
-  confirmedAt: string | null;
-};
+// The full invite wire row is single-sourced from the store (GET /api/schedule
+// returns listScheduleInvites() unprojected). Type-only import, so schedule-store's
+// better-sqlite3 runtime is NOT pulled into this client bundle. Replaces a lossy
+// hand-copied 17-field mirror that already lagged the source.
+import type { ScheduleInvite } from "@/app/_lib/schedule-store";
 
 // W6-3 (SCH1) — the invite lifecycle, finally visible. Once a self-scheduling
 // link was minted its whole life was invisible: no agenda of confirmed
@@ -35,7 +20,7 @@ type Invite = {
 export function InviteLifecyclePanel() {
   const t = useTranslations("scheduleTab.lifecycle");
   const relativeTime = useRelativeTime();
-  const [invites, setInvites] = useState<Invite[] | null>(null);
+  const [invites, setInvites] = useState<ScheduleInvite[] | null>(null);
   // "Now" captured when the data landed, so the upcoming/past split is a pure
   // function of state during render (react-hooks/purity) — the agenda is as
   // fresh as the fetch, which is the honest claim anyway.
@@ -51,7 +36,7 @@ export function InviteLifecyclePanel() {
       })
       .then((p) => {
         if (!alive) return;
-        setInvites((p.invites as Invite[]) ?? []);
+        setInvites((p.invites as ScheduleInvite[]) ?? []);
         setLoadedAt(Date.now());
       })
       .catch(() => {
@@ -78,7 +63,7 @@ export function InviteLifecyclePanel() {
 
   if (attention.length === 0 && upcoming.length === 0 && awaiting.length === 0) return null;
 
-  const slotLine = (i: Invite) =>
+  const slotLine = (i: ScheduleInvite) =>
     i.slotAt
       ? `${new Date(i.slotAt).toLocaleString()}${i.durationMin ? ` · ${i.durationMin} min` : ""}`
       : (i.slot ?? "—");
