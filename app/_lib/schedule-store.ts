@@ -1,5 +1,5 @@
 import Database from "better-sqlite3";
-import { DB_PATH, ensureDbDir } from "./db-path";
+import { openStore } from "./db-path";
 import { randomId, randomToken } from "./random-id";
 import { isReminderDue, reminderRetryDelayMs, REMINDER_LEAD_MS, REMINDER_MAX_ATTEMPTS } from "./interview-reminder-policy";
 import { isEntryReminderEligible } from "./pipeline-status";
@@ -12,14 +12,11 @@ import { isEntryReminderEligible } from "./pipeline-status";
 let _db: Database.Database | null = null;
 function db(): Database.Database {
   if (_db) return _db;
-  ensureDbDir();
-  const d = new Database(DB_PATH);
-  d.pragma("journal_mode = WAL");
-  // The reminder heartbeat's claimReminderAttempt() write fires every ~60s on this
-  // connection while candidate confirms and recruiter db.ts writes hit the same
-  // kp.sqlite file; busy_timeout makes a concurrent writer wait briefly rather
-  // than instantly throwing SQLITE_BUSY (mirrors db.ts).
-  d.pragma("busy_timeout = 5000");
+  // Isolated connection on the shared kp.sqlite file (WAL + busy_timeout=5000):
+  // the reminder heartbeat's claimReminderAttempt() write fires every ~60s here
+  // while candidate confirms and recruiter db.ts writes hit the same file, so a
+  // concurrent writer waits briefly rather than instantly throwing SQLITE_BUSY.
+  const d = openStore();
   d.exec(`
     CREATE TABLE IF NOT EXISTS schedule_invites (
       id TEXT PRIMARY KEY,

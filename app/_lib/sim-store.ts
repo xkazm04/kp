@@ -1,5 +1,5 @@
 import Database from "better-sqlite3";
-import { DB_PATH, ensureDbDir } from "./db-path";
+import { openStore } from "./db-path";
 import { SIM_MARKER } from "@/app/features/simulation/constants";
 
 // Pipeline simulation — reset helper. Isolated connection (job-ingest/offers
@@ -25,14 +25,12 @@ function isNoSuchTable(err: unknown): boolean {
 let _db: Database.Database | null = null;
 function db(): Database.Database {
   if (_db) return _db;
-  ensureDbDir();
-  const d = new Database(DB_PATH);
-  d.pragma("journal_mode = WAL");
-  // resetSim runs a multi-statement DELETE transaction on the shared kp.sqlite while
-  // db.ts / offers-store may be mid-write; without this a concurrent writer makes the
-  // transaction throw SQLITE_BUSY instantly — 500ing the reset and leaving sim rows
-  // behind (a dirty next run). Wait briefly instead of crashing (mirrors offers-store).
-  d.pragma("busy_timeout = 5000");
+  // Isolated connection on the shared kp.sqlite file (WAL + busy_timeout=5000):
+  // resetSim runs a multi-statement DELETE transaction while db.ts / offers-store
+  // may be mid-write; without the wait a concurrent writer makes the transaction
+  // throw SQLITE_BUSY instantly — 500ing the reset and leaving sim rows behind (a
+  // dirty next run). Wait briefly instead of crashing (mirrors offers-store).
+  const d = openStore();
   _db = d;
   return d;
 }

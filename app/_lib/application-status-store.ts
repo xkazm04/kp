@@ -1,5 +1,5 @@
 import Database from "better-sqlite3";
-import { DB_PATH, ensureDbDir } from "./db-path";
+import { openStore } from "./db-path";
 import { randomToken } from "./random-id";
 
 // Candidate application-status links (idea-e76a6fb2). Isolated-connection store
@@ -13,12 +13,10 @@ import { randomToken } from "./random-id";
 let _db: Database.Database | null = null;
 function db(): Database.Database {
   if (_db) return _db;
-  ensureDbDir();
-  const d = new Database(DB_PATH);
-  d.pragma("journal_mode = WAL");
-  // Mints interleave with the apply POST's other writers on the same kp.sqlite
-  // file — wait briefly rather than throwing SQLITE_BUSY (mirrors the sibling stores).
-  d.pragma("busy_timeout = 5000");
+  // Isolated connection on the shared kp.sqlite file (WAL + busy_timeout=5000):
+  // mints interleave with the apply POST's other writers on the same file — wait
+  // briefly rather than throwing SQLITE_BUSY (mirrors the sibling stores).
+  const d = openStore();
   d.exec(`
     CREATE TABLE IF NOT EXISTS application_status_links (
       token TEXT PRIMARY KEY,

@@ -1,6 +1,6 @@
 import { existsSync } from "node:fs";
 import Database from "better-sqlite3";
-import { DB_PATH, ensureDbDir } from "./db-path";
+import { DB_PATH, openStore } from "./db-path";
 
 // DATA3 — the dump/load cores from scripts/db-dump.mjs + db-load.mjs, extracted
 // so the workspace export/import API can call them in-process. The .mjs scripts
@@ -122,11 +122,10 @@ export type ImportPlan = {
 };
 
 function openForLoad(): Database.Database {
-  ensureDbDir();
-  const db = new Database(DB_PATH);
-  db.pragma("journal_mode = WAL");
-  db.pragma("busy_timeout = 5000");
-  return db;
+  // The import target uses the canonical isolated-store open (WAL + busy_timeout):
+  // it writes the loaded workspace on its own connection, sharing the kp.sqlite
+  // file with the rest of the app.
+  return openStore();
 }
 
 export function planImport(payload: DumpPayload): ImportPlan {

@@ -2,7 +2,7 @@ import path from "node:path";
 import { readFileSync, existsSync } from "node:fs";
 import Database from "better-sqlite3";
 import type { ApprovalKind } from "../approval-kinds";
-import { DB_PATH, ensureDbDir } from "../db-path";
+import { openStore } from "../db-path";
 import type { GithubEvidenceSummary } from "../github-summary";
 import type { PipelineStage } from "../pipeline-stages";
 
@@ -96,14 +96,12 @@ export function safeRowParse<T>(json: string | null | undefined, ctx: string, id
 
 export function ensureDb(): Database.Database {
   if (_db) return _db;
-  ensureDbDir();
-  const db = new Database(DB_PATH);
-  db.pragma("journal_mode = WAL");
-  // The scheduler writes scheduler/scheduler_runs on its own connection to the
-  // same kp.sqlite file while the policy pass writes pipeline_entries/events here.
-  // A busy_timeout makes a concurrent writer wait briefly rather than instantly
-  // throwing SQLITE_BUSY.
-  db.pragma("busy_timeout = 5000");
+  // Canonical isolated-store open (WAL + busy_timeout=5000): the scheduler writes
+  // scheduler/scheduler_runs on its own connection to the same kp.sqlite file
+  // while the policy pass writes pipeline_entries/events here — the busy_timeout
+  // makes a concurrent writer wait briefly rather than instantly throwing
+  // SQLITE_BUSY.
+  const db = openStore();
   db.exec(`
     CREATE TABLE IF NOT EXISTS analyses (
       slug TEXT PRIMARY KEY,

@@ -1,5 +1,5 @@
 import Database from "better-sqlite3";
-import { DB_PATH, ensureDbDir } from "./db-path";
+import { openStore } from "./db-path";
 import { randomId } from "./random-id";
 
 // Standing silver-medalist alerts (idea-fdb45cd0). Isolated-connection store
@@ -17,12 +17,10 @@ import { randomId } from "./random-id";
 let _db: Database.Database | null = null;
 function db(): Database.Database {
   if (_db) return _db;
-  ensureDbDir();
-  const d = new Database(DB_PATH);
-  d.pragma("journal_mode = WAL");
-  // The publish/sweep writers interleave with the rest of the app on the same
-  // kp.sqlite file — wait briefly rather than throwing SQLITE_BUSY (sibling stores).
-  d.pragma("busy_timeout = 5000");
+  // Isolated connection on the shared kp.sqlite file (WAL + busy_timeout=5000):
+  // the publish/sweep writers interleave with the rest of the app on the same
+  // file — wait briefly rather than throwing SQLITE_BUSY (sibling stores).
+  const d = openStore();
   d.exec(`
     CREATE TABLE IF NOT EXISTS rediscovery_alerts (
       id TEXT PRIMARY KEY,

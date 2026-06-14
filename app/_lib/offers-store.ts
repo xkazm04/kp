@@ -1,5 +1,5 @@
 import Database from "better-sqlite3";
-import { DB_PATH, ensureDbDir } from "./db-path";
+import { openStore } from "./db-path";
 import { randomId, randomToken } from "./random-id";
 import { TERMINAL_ENTRY_STATUSES, type PipelineEntryStatus } from "./pipeline-status";
 import { PIPELINE_STAGES } from "./pipeline-stages";
@@ -15,14 +15,12 @@ import { isOfferExpired, OFFER_TTL_MS } from "./offer-policy";
 let _db: Database.Database | null = null;
 function db(): Database.Database {
   if (_db) return _db;
-  ensureDbDir();
-  const d = new Database(DB_PATH);
-  d.pragma("journal_mode = WAL");
+  // Isolated connection on the shared kp.sqlite file (WAL + busy_timeout=5000):
   // respondToOffer interleaves writes across this connection (markOfferResponded/
-  // markEntryStatus) and db.ts's (actOnPipelineEntry) on the same kp.sqlite file.
-  // Without this, a concurrent writer makes those writes throw SQLITE_BUSY instantly
-  // — 500ing a valid accept/decline mid-transition. Wait briefly instead of crashing.
-  d.pragma("busy_timeout = 5000");
+  // markEntryStatus) and db.ts's (actOnPipelineEntry). Without the wait, a
+  // concurrent writer makes those writes throw SQLITE_BUSY instantly — 500ing a
+  // valid accept/decline mid-transition. Wait briefly instead of crashing.
+  const d = openStore();
   d.exec(`
     CREATE TABLE IF NOT EXISTS offers (
       id TEXT PRIMARY KEY,

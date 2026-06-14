@@ -1,5 +1,5 @@
 import Database from "better-sqlite3";
-import { DB_PATH, ensureDbDir } from "./db-path";
+import { openStore } from "./db-path";
 
 // Direction D — oversight & audit, kept in a self-contained connection (its own tables) so
 // the autonomous pipeline has an immutable decision log + a kill switch, independent of the
@@ -7,15 +7,12 @@ import { DB_PATH, ensureDbDir } from "./db-path";
 let _db: Database.Database | null = null;
 function db(): Database.Database {
   if (_db) return _db;
-  ensureDbDir();
-  const d = new Database(DB_PATH);
-  d.pragma("journal_mode = WAL");
-  // This is a second connection to the same kp.sqlite file (db.ts + dev-outcomes
-  // each open their own). WAL allows many readers but only one writer, so when a
-  // lifecycle task and an API handler write at once the loser would instantly
-  // throw SQLITE_BUSY (default busy_timeout 0) — silently dropping an audit row.
-  // Make a concurrent writer wait briefly instead.
-  d.pragma("busy_timeout = 5000");
+  // A second connection to the same kp.sqlite file (db.ts + dev-outcomes each open
+  // their own) with the canonical isolated-store pragmas (WAL + busy_timeout=5000):
+  // when a lifecycle task and an API handler write at once the loser would
+  // instantly throw SQLITE_BUSY (default busy_timeout 0) — silently dropping an
+  // audit row. The busy_timeout makes a concurrent writer wait briefly instead.
+  const d = openStore();
   d.exec(`
     CREATE TABLE IF NOT EXISTS dev_audit (
       id INTEGER PRIMARY KEY AUTOINCREMENT,

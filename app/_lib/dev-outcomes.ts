@@ -1,5 +1,5 @@
 import Database from "better-sqlite3";
-import { DB_PATH, ensureDbDir } from "./db-path";
+import { openStore } from "./db-path";
 import { z } from "zod";
 
 // Direction E — the outcome loop. Record what actually happened to promoted candidates
@@ -62,13 +62,11 @@ export type OutcomeInput = z.infer<typeof outcomeInputSchema>;
 let _db: Database.Database | null = null;
 function db(): Database.Database {
   if (_db) return _db;
-  ensureDbDir();
-  const d = new Database(DB_PATH);
-  d.pragma("journal_mode = WAL");
-  // Own connection to the shared kp.sqlite file (db.ts + dev-control open theirs).
-  // WAL serializes writers, so without a busy_timeout a recordOutcome racing a
+  // Own connection to the shared kp.sqlite file (db.ts + dev-control open theirs)
+  // with the canonical isolated-store pragmas (WAL + busy_timeout=5000): WAL
+  // serializes writers, so without the busy_timeout a recordOutcome racing a
   // lifecycle/API write would instantly throw SQLITE_BUSY; wait briefly instead.
-  d.pragma("busy_timeout = 5000");
+  const d = openStore();
   d.exec(`
     CREATE TABLE IF NOT EXISTS dev_outcomes (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
