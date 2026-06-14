@@ -23,6 +23,31 @@ import { buildRepoSnapshot, fetchRepoSignals, type RepoSnapshot } from "./repo-s
 import { isEarlyCareer } from "./archetypes";
 import { devCaseIdFromJobId } from "./student-interview";
 
+// The devcase CLI envelope every run* function below shares: make a temp workdir,
+// write the per-call JSON arg files into it + build the argv, spawn
+// `python -m pipeline.jobfit.devcase.devcase_cli <verb> …`, fail on a non-zero
+// exit (mapping stderr → PipelineError), parse the single JSON line, then always
+// clean the workdir up. `build` receives the workdir, writes whatever arg files
+// it needs, and returns the FULL argv (verb + flags + the paths it just wrote) —
+// so each call keeps its exact subcommand/flags/input. `signal` is forwarded to
+// spawnPython uniformly (the kp SIGKILL-on-abort convention); pass ctx.signal
+// where a caller can be cancelled.
+async function runDevcaseCli<T>(
+  build: (workdir: string) => string[] | Promise<string[]>,
+  signal?: AbortSignal,
+): Promise<T> {
+  const workdir = await createWorkdir();
+  try {
+    const args = await build(workdir);
+    const { result } = spawnPython(["-m", "pipeline.jobfit.devcase.devcase_cli", ...args], { signal });
+    const { stdout, stderr, exitCode } = await result;
+    if (exitCode !== 0) throw new PipelineError(parseStderrError(stderr, exitCode));
+    return parsePythonJson<T>(stdout, stderr);
+  } finally {
+    await cleanupWorkdir(workdir);
+  }
+}
+
 export type DevNeed = {
   id?: string;
   title?: string;
@@ -65,24 +90,21 @@ export async function runNeedAnalysis(need: DevNeed, signal?: AbortSignal): Prom
     (s): s is RepoSnapshot => s !== null,
   );
 
-  const workdir = await createWorkdir();
-  try {
-    const needPath = path.join(workdir, "need.json");
-    await writeFile(needPath, JSON.stringify(need), "utf-8");
-    const args = ["-m", "pipeline.jobfit.devcase.devcase_cli", "analyze-need", "--need-json", needPath];
-    if (snapshots.length > 0) {
-      const snapPath = path.join(workdir, "snapshots.json");
-      await writeFile(snapPath, JSON.stringify(snapshots), "utf-8");
-      args.push("--snapshots-json", snapPath);
-    }
-    const { result } = spawnPython(args, { signal });
-    const { stdout, stderr, exitCode } = await result;
-    if (exitCode !== 0) throw new PipelineError(parseStderrError(stderr, exitCode));
-    const payload = parsePythonJson<{ result: Record<string, unknown>; source: string; perStepSources?: Record<string, string>; fallbackReason?: Record<string, string> }>(stdout, stderr);
-    return { analysis: payload.result, snapshot: snapshots[0] ?? null, snapshots, source: payload.source, perStepSources: payload.perStepSources ?? {}, fallbackReason: payload.fallbackReason ?? {} };
-  } finally {
-    await cleanupWorkdir(workdir);
-  }
+  const payload = await runDevcaseCli<{ result: Record<string, unknown>; source: string; perStepSources?: Record<string, string>; fallbackReason?: Record<string, string> }>(
+    async (workdir) => {
+      const needPath = path.join(workdir, "need.json");
+      await writeFile(needPath, JSON.stringify(need), "utf-8");
+      const args = ["analyze-need", "--need-json", needPath];
+      if (snapshots.length > 0) {
+        const snapPath = path.join(workdir, "snapshots.json");
+        await writeFile(snapPath, JSON.stringify(snapshots), "utf-8");
+        args.push("--snapshots-json", snapPath);
+      }
+      return args;
+    },
+    signal,
+  );
+  return { analysis: payload.result, snapshot: snapshots[0] ?? null, snapshots, source: payload.source, perStepSources: payload.perStepSources ?? {}, fallbackReason: payload.fallbackReason ?? {} };
 }
 
 export type DesignArtifactsResult = {
@@ -103,16 +125,13 @@ export async function runDesignArtifacts(
   feedback?: string,
   lang?: string | null
 ): Promise<DesignArtifactsResult> {
-  const workdir = await createWorkdir();
-  try {
-    const needPath = path.join(workdir, "need.json");
-    const analysisPath = path.join(workdir, "analysis.json");
-    await writeFile(needPath, JSON.stringify(need), "utf-8");
-    await writeFile(analysisPath, JSON.stringify(analysis), "utf-8");
-    const { result } = spawnPython(
-      [
-        "-m",
-        "pipeline.jobfit.devcase.devcase_cli",
+  const payload = await runDevcaseCli<{ result: { role: Record<string, unknown>; case: Record<string, unknown> }; source: string; perStepSources?: Record<string, string>; fallbackReason?: Record<string, string> }>(
+    async (workdir) => {
+      const needPath = path.join(workdir, "need.json");
+      const analysisPath = path.join(workdir, "analysis.json");
+      await writeFile(needPath, JSON.stringify(need), "utf-8");
+      await writeFile(analysisPath, JSON.stringify(analysis), "utf-8");
+      return [
         "design-artifacts",
         "--need-json",
         needPath,
@@ -122,16 +141,11 @@ export async function runDesignArtifacts(
         "--lang",
         lang || "en",
         ...(feedback && feedback.trim() ? ["--feedback", feedback.trim()] : []),
-      ],
-      { signal },
-    );
-    const { stdout, stderr, exitCode } = await result;
-    if (exitCode !== 0) throw new PipelineError(parseStderrError(stderr, exitCode));
-    const payload = parsePythonJson<{ result: { role: Record<string, unknown>; case: Record<string, unknown> }; source: string; perStepSources?: Record<string, string>; fallbackReason?: Record<string, string> }>(stdout, stderr);
-    return { role: payload.result.role, case: payload.result.case, source: payload.source, perStepSources: payload.perStepSources ?? {}, fallbackReason: payload.fallbackReason ?? {} };
-  } finally {
-    await cleanupWorkdir(workdir);
-  }
+      ];
+    },
+    signal,
+  );
+  return { role: payload.result.role, case: payload.result.case, source: payload.source, perStepSources: payload.perStepSources ?? {}, fallbackReason: payload.fallbackReason ?? {} };
 }
 
 export type InterviewScenarioResult = {
@@ -148,31 +162,25 @@ export async function runInterviewScenario(
   role: Record<string, unknown>,
   lang?: string | null
 ): Promise<InterviewScenarioResult> {
-  const workdir = await createWorkdir();
-  try {
-    const casePath = path.join(workdir, "case.json");
-    const rolePath = path.join(workdir, "role.json");
-    await writeFile(casePath, JSON.stringify(kase), "utf-8");
-    await writeFile(rolePath, JSON.stringify(role), "utf-8");
-    const { result } = spawnPython([
-      "-m",
-      "pipeline.jobfit.devcase.devcase_cli",
-      "interview-scenario",
-      "--case-json",
-      casePath,
-      "--role-json",
-      rolePath,
-      // DEVP5 — the spoken interview narration is delivered in this language.
-      "--lang",
-      lang || "en",
-    ]);
-    const { stdout, stderr, exitCode } = await result;
-    if (exitCode !== 0) throw new PipelineError(parseStderrError(stderr, exitCode));
-    const payload = parsePythonJson<{ result: { scenario: Record<string, unknown> }; source: string; perStepSources?: Record<string, string> }>(stdout, stderr);
-    return { scenario: payload.result.scenario, source: payload.source, perStepSources: payload.perStepSources ?? {} };
-  } finally {
-    await cleanupWorkdir(workdir);
-  }
+  const payload = await runDevcaseCli<{ result: { scenario: Record<string, unknown> }; source: string; perStepSources?: Record<string, string> }>(
+    async (workdir) => {
+      const casePath = path.join(workdir, "case.json");
+      const rolePath = path.join(workdir, "role.json");
+      await writeFile(casePath, JSON.stringify(kase), "utf-8");
+      await writeFile(rolePath, JSON.stringify(role), "utf-8");
+      return [
+        "interview-scenario",
+        "--case-json",
+        casePath,
+        "--role-json",
+        rolePath,
+        // DEVP5 — the spoken interview narration is delivered in this language.
+        "--lang",
+        lang || "en",
+      ];
+    },
+  );
+  return { scenario: payload.result.scenario, source: payload.source, perStepSources: payload.perStepSources ?? {} };
 }
 
 export type SeedMaterializeResult = {
@@ -190,31 +198,25 @@ export async function runMaterializeSeed(
   role: Record<string, unknown>,
   lang?: string | null
 ): Promise<SeedMaterializeResult> {
-  const workdir = await createWorkdir();
-  try {
-    const casePath = path.join(workdir, "case.json");
-    const rolePath = path.join(workdir, "role.json");
-    await writeFile(casePath, JSON.stringify(kase), "utf-8");
-    await writeFile(rolePath, JSON.stringify(role), "utf-8");
-    const { result } = spawnPython([
-      "-m",
-      "pipeline.jobfit.devcase.devcase_cli",
-      "materialize-seed",
-      "--case-json",
-      casePath,
-      "--role-json",
-      rolePath,
-      // DEVP5 — the seed README + DECISIONS.md the candidate reads render here.
-      "--lang",
-      lang || "en",
-    ]);
-    const { stdout, stderr, exitCode } = await result;
-    if (exitCode !== 0) throw new PipelineError(parseStderrError(stderr, exitCode));
-    const payload = parsePythonJson<{ result: { seed: Record<string, unknown> }; source: string; perStepSources?: Record<string, string> }>(stdout, stderr);
-    return { seed: payload.result.seed, source: payload.source, perStepSources: payload.perStepSources ?? {} };
-  } finally {
-    await cleanupWorkdir(workdir);
-  }
+  const payload = await runDevcaseCli<{ result: { seed: Record<string, unknown> }; source: string; perStepSources?: Record<string, string> }>(
+    async (workdir) => {
+      const casePath = path.join(workdir, "case.json");
+      const rolePath = path.join(workdir, "role.json");
+      await writeFile(casePath, JSON.stringify(kase), "utf-8");
+      await writeFile(rolePath, JSON.stringify(role), "utf-8");
+      return [
+        "materialize-seed",
+        "--case-json",
+        casePath,
+        "--role-json",
+        rolePath,
+        // DEVP5 — the seed README + DECISIONS.md the candidate reads render here.
+        "--lang",
+        lang || "en",
+      ];
+    },
+  );
+  return { seed: payload.result.seed, source: payload.source, perStepSources: payload.perStepSources ?? {} };
 }
 
 export type ObservedMintResult = { credited: string[]; applied: boolean };
@@ -242,50 +244,41 @@ export async function mintObservedFromCaseInterview(
   const rec = getProfileRecord(entry.candidateId);
   if (!rec) return { credited: [], applied: false };
 
-  const workdir = await createWorkdir();
-  try {
-    const casePath = path.join(workdir, "case.json");
-    const rolePath = path.join(workdir, "role.json");
-    const scorecardPath = path.join(workdir, "scorecard.json");
-    const profilePath = path.join(workdir, "profile.json");
-    await writeFile(casePath, JSON.stringify(devCase.case), "utf-8");
-    await writeFile(rolePath, JSON.stringify(devCase.role), "utf-8");
-    await writeFile(scorecardPath, JSON.stringify(scorecard), "utf-8");
-    await writeFile(profilePath, JSON.stringify(rec.payload), "utf-8");
-    const { result } = spawnPython([
-      "-m",
-      "pipeline.jobfit.devcase.devcase_cli",
-      "observed-interview",
-      "--case-json",
-      casePath,
-      "--role-json",
-      rolePath,
-      "--scorecard-json",
-      scorecardPath,
-      "--profile-json",
-      profilePath,
-    ]);
-    const { stdout, stderr, exitCode } = await result;
-    if (exitCode !== 0) throw new PipelineError(parseStderrError(stderr, exitCode));
-    const payload = parsePythonJson<{ result: { creditedSkills?: string[]; profile?: Record<string, unknown> } }>(
-      stdout,
-      stderr
-    );
-    const credited = payload.result.creditedSkills ?? [];
-    const profile = payload.result.profile;
-    if (credited.length === 0 || !profile) return { credited: [], applied: false };
-    updateProfile(rec.row.id, {
-      label: (profile.displayName as string) || rec.row.label,
-      archetype: (profile.archetype as string) ?? rec.row.archetype,
-      roleFamily: (profile.roleFamily as string) ?? rec.row.role_family,
-      completeness: typeof profile.completeness === "number" ? profile.completeness : rec.row.completeness,
-      payload: profile,
-    });
-    recordAutomationEvent(entryId, "observed_minted", credited.join(", "));
-    return { credited, applied: true };
-  } finally {
-    await cleanupWorkdir(workdir);
-  }
+  const payload = await runDevcaseCli<{ result: { creditedSkills?: string[]; profile?: Record<string, unknown> } }>(
+    async (workdir) => {
+      const casePath = path.join(workdir, "case.json");
+      const rolePath = path.join(workdir, "role.json");
+      const scorecardPath = path.join(workdir, "scorecard.json");
+      const profilePath = path.join(workdir, "profile.json");
+      await writeFile(casePath, JSON.stringify(devCase.case), "utf-8");
+      await writeFile(rolePath, JSON.stringify(devCase.role), "utf-8");
+      await writeFile(scorecardPath, JSON.stringify(scorecard), "utf-8");
+      await writeFile(profilePath, JSON.stringify(rec.payload), "utf-8");
+      return [
+        "observed-interview",
+        "--case-json",
+        casePath,
+        "--role-json",
+        rolePath,
+        "--scorecard-json",
+        scorecardPath,
+        "--profile-json",
+        profilePath,
+      ];
+    },
+  );
+  const credited = payload.result.creditedSkills ?? [];
+  const profile = payload.result.profile;
+  if (credited.length === 0 || !profile) return { credited: [], applied: false };
+  updateProfile(rec.row.id, {
+    label: (profile.displayName as string) || rec.row.label,
+    archetype: (profile.archetype as string) ?? rec.row.archetype,
+    roleFamily: (profile.roleFamily as string) ?? rec.row.role_family,
+    completeness: typeof profile.completeness === "number" ? profile.completeness : rec.row.completeness,
+    payload: profile,
+  });
+  recordAutomationEvent(entryId, "observed_minted", credited.join(", "));
+  return { credited, applied: true };
 }
 
 /** A submission carries only a free-text candidateRef — resolve it to a saved
@@ -325,49 +318,40 @@ export async function mintObservedFromSubmission(
   const rec = profileForSubmission(sub);
   if (!rec) return { credited: [], applied: false };
 
-  const workdir = await createWorkdir();
-  try {
-    const write = async (name: string, data: unknown) => {
-      const fp = path.join(workdir, name);
-      await writeFile(fp, JSON.stringify(data), "utf-8");
-      return fp;
-    };
-    const { result } = spawnPython([
-      "-m",
-      "pipeline.jobfit.devcase.devcase_cli",
-      "observed-skills",
-      "--case-json",
-      await write("case.json", devCase.case),
-      "--role-json",
-      await write("role.json", devCase.role),
-      "--evaluation-json",
-      await write("evaluation.json", bundle.evaluation),
-      "--transfer-json",
-      await write("transfer.json", bundle.transfer),
-      "--profile-json",
-      await write("profile.json", rec.payload),
-    ]);
-    const { stdout, stderr, exitCode } = await result;
-    if (exitCode !== 0) throw new PipelineError(parseStderrError(stderr, exitCode));
-    const payload = parsePythonJson<{ result: { creditedSkills?: string[]; profile?: Record<string, unknown> } }>(
-      stdout,
-      stderr
-    );
-    const credited = payload.result.creditedSkills ?? [];
-    const profile = payload.result.profile;
-    if (credited.length === 0 || !profile) return { credited: [], applied: false };
-    updateProfile(rec.row.id, {
-      label: (profile.displayName as string) || rec.row.label,
-      archetype: (profile.archetype as string) ?? rec.row.archetype,
-      roleFamily: (profile.roleFamily as string) ?? rec.row.role_family,
-      completeness: typeof profile.completeness === "number" ? profile.completeness : rec.row.completeness,
-      payload: profile,
-    });
-    if (entryId) recordAutomationEvent(entryId, "observed_minted", credited.join(", "));
-    return { credited, applied: true };
-  } finally {
-    await cleanupWorkdir(workdir);
-  }
+  const payload = await runDevcaseCli<{ result: { creditedSkills?: string[]; profile?: Record<string, unknown> } }>(
+    async (workdir) => {
+      const write = async (name: string, data: unknown) => {
+        const fp = path.join(workdir, name);
+        await writeFile(fp, JSON.stringify(data), "utf-8");
+        return fp;
+      };
+      return [
+        "observed-skills",
+        "--case-json",
+        await write("case.json", devCase.case),
+        "--role-json",
+        await write("role.json", devCase.role),
+        "--evaluation-json",
+        await write("evaluation.json", bundle.evaluation),
+        "--transfer-json",
+        await write("transfer.json", bundle.transfer),
+        "--profile-json",
+        await write("profile.json", rec.payload),
+      ];
+    },
+  );
+  const credited = payload.result.creditedSkills ?? [];
+  const profile = payload.result.profile;
+  if (credited.length === 0 || !profile) return { credited: [], applied: false };
+  updateProfile(rec.row.id, {
+    label: (profile.displayName as string) || rec.row.label,
+    archetype: (profile.archetype as string) ?? rec.row.archetype,
+    roleFamily: (profile.roleFamily as string) ?? rec.row.role_family,
+    completeness: typeof profile.completeness === "number" ? profile.completeness : rec.row.completeness,
+    payload: profile,
+  });
+  if (entryId) recordAutomationEvent(entryId, "observed_minted", credited.join(", "));
+  return { credited, applied: true };
 }
 
 export type CommitReflectionResult = {
@@ -388,26 +372,23 @@ export async function runCommitReflection(repoRef: string, caseId?: string, sign
   const devCase = caseId ? getDevCase(caseId) : null;
   const probes = ((devCase?.case as { coverProbes?: unknown[] } | null)?.coverProbes ?? []) as unknown[];
 
-  const workdir = await createWorkdir();
-  try {
-    const commitsPath = path.join(workdir, "commits.json");
-    const probesPath = path.join(workdir, "probes.json");
-    await writeFile(commitsPath, JSON.stringify(commits), "utf-8");
-    await writeFile(probesPath, JSON.stringify(probes), "utf-8");
-    const args = ["-m", "pipeline.jobfit.devcase.devcase_cli", "reflect-commits", "--commits-json", commitsPath, "--probes-json", probesPath];
-    if (repo) {
-      const repoPath = path.join(workdir, "repo.json");
-      await writeFile(repoPath, JSON.stringify(repo), "utf-8");
-      args.push("--repo-json", repoPath);
-    }
-    const { result } = spawnPython(args, { signal });
-    const { stdout, stderr, exitCode } = await result;
-    if (exitCode !== 0) throw new PipelineError(parseStderrError(stderr, exitCode));
-    const payload = parsePythonJson<{ result: { reflection: Record<string, unknown>; tooling: Record<string, unknown> }; source: string; perStepSources?: Record<string, string>; fallbackReason?: Record<string, string> }>(stdout, stderr);
-    return { reflection: payload.result.reflection, tooling: payload.result.tooling, source: payload.source, perStepSources: payload.perStepSources ?? {}, fallbackReason: payload.fallbackReason ?? {}, commitCount: commits.length };
-  } finally {
-    await cleanupWorkdir(workdir);
-  }
+  const payload = await runDevcaseCli<{ result: { reflection: Record<string, unknown>; tooling: Record<string, unknown> }; source: string; perStepSources?: Record<string, string>; fallbackReason?: Record<string, string> }>(
+    async (workdir) => {
+      const commitsPath = path.join(workdir, "commits.json");
+      const probesPath = path.join(workdir, "probes.json");
+      await writeFile(commitsPath, JSON.stringify(commits), "utf-8");
+      await writeFile(probesPath, JSON.stringify(probes), "utf-8");
+      const args = ["reflect-commits", "--commits-json", commitsPath, "--probes-json", probesPath];
+      if (repo) {
+        const repoPath = path.join(workdir, "repo.json");
+        await writeFile(repoPath, JSON.stringify(repo), "utf-8");
+        args.push("--repo-json", repoPath);
+      }
+      return args;
+    },
+    signal,
+  );
+  return { reflection: payload.result.reflection, tooling: payload.result.tooling, source: payload.source, perStepSources: payload.perStepSources ?? {}, fallbackReason: payload.fallbackReason ?? {}, commitCount: commits.length };
 }
 
 export type SubmissionEvaluation = {
@@ -457,92 +438,86 @@ export async function runEvaluateSubmission(submissionId: string, signal?: Abort
   const commits = signals?.commits ?? [];
   const repo = signals ? { cadence: signals.cadence, topLevel: signals.topLevel } : null;
 
-  const workdir = await createWorkdir();
-  try {
-    const write = async (name: string, data: unknown) => {
-      const fp = path.join(workdir, name);
-      await writeFile(fp, JSON.stringify(data), "utf-8");
-      return fp;
+  const payload = await runDevcaseCli<{
+    result: {
+      reflection: Record<string, unknown>;
+      tooling: Record<string, unknown>;
+      evaluation: Record<string, unknown>;
+      transfer: Record<string, unknown>;
+      followups?: Record<string, unknown>;
     };
-    const commitsPath = await write("commits.json", commits);
-    const probesPath = await write("probes.json", probes);
-    const casePath = await write("case.json", caseObj);
-    const rolePath = await write("role.json", roleObj);
-
-    const args = [
-      "-m",
-      "pipeline.jobfit.devcase.devcase_cli",
-      "evaluate-submission",
-      "--commits-json",
-      commitsPath,
-      "--probes-json",
-      probesPath,
-      "--case-json",
-      casePath,
-      "--role-json",
-      rolePath,
-    ];
-    if (repo) args.push("--repo-json", await write("repo.json", repo));
-
-    const { result } = spawnPython(args, { signal });
-    const { stdout, stderr, exitCode } = await result;
-    if (exitCode !== 0) throw new PipelineError(parseStderrError(stderr, exitCode));
-    const payload = parsePythonJson<{
-      result: {
-        reflection: Record<string, unknown>;
-        tooling: Record<string, unknown>;
-        evaluation: Record<string, unknown>;
-        transfer: Record<string, unknown>;
-        followups?: Record<string, unknown>;
+    source: string;
+    perStepSources?: Record<string, string>;
+    fallbackReason?: Record<string, string>;
+  }>(
+    async (workdir) => {
+      const write = async (name: string, data: unknown) => {
+        const fp = path.join(workdir, name);
+        await writeFile(fp, JSON.stringify(data), "utf-8");
+        return fp;
       };
-      source: string;
-      perStepSources?: Record<string, string>;
-      fallbackReason?: Record<string, string>;
-    }>(stdout, stderr);
-    // Raw process signals, not interpretation: did they actually keep the forced
-    // DECISIONS log (case-design v4's authorship contract), how many commits, what
-    // cadence. Persisted so the decisions-log contract is checkable later instead
-    // of taken on faith from the narrative.
-    const processTrace = {
-      commitCount: commits.length,
-      cadence: signals?.cadence ?? null,
-      decisionsLogPresent: (signals?.topLevel ?? []).some((f) => /decision/i.test(f.name)),
-    };
-    // ce28da40 — fold the trace + reflection into one authenticity verdict.
-    const reflection = (payload.result.reflection ?? {}) as { readBeforeWrite?: number; iterationPattern?: string };
-    const authenticity = scoreAuthenticity({
-      commitCount: processTrace.commitCount,
-      bursty: processTrace.cadence?.bursty ?? null,
-      spanHours: processTrace.cadence?.spanHours ?? null,
-      decisionsLogPresent: processTrace.decisionsLogPresent,
-      readBeforeWrite: reflection.readBeforeWrite ?? null,
-      iterationPattern: reflection.iterationPattern ?? null,
-    });
-    // c364a44d — anchor the evaluation into the shared seed: which planted seam
-    // files did the submission actually touch? Grounded, mechanically comparable
-    // engagement evidence beside the LLM's probe read.
-    const seedFiles = ((devCase?.seed as { files?: { path?: string }[] } | null)?.files) ?? [];
-    const seedDiff =
-      seedFiles.length > 0 && (signals?.changedPaths?.length ?? 0) > 0
-        ? seedDiffEvidence(seedFiles, signals!.changedPaths)
-        : null;
-    const out = {
-      ...payload.result,
-      followups: payload.result.followups ?? {},
-      processTrace,
-      authenticity,
-      seedDiff,
-      source: payload.source,
-      perStepSources: payload.perStepSources ?? {},
-      fallbackReason: payload.fallbackReason ?? {},
-      commitCount: commits.length,
-    };
-    const transferScore = Number((payload.result.transfer as { transferScore?: number } | null | undefined ?? {}).transferScore ?? 0);
-    saveSubmissionEvaluation(submissionId, out, transferScore);
-    return out;
-  } finally {
-    await cleanupWorkdir(workdir);
-  }
+      const commitsPath = await write("commits.json", commits);
+      const probesPath = await write("probes.json", probes);
+      const casePath = await write("case.json", caseObj);
+      const rolePath = await write("role.json", roleObj);
+
+      const args = [
+        "evaluate-submission",
+        "--commits-json",
+        commitsPath,
+        "--probes-json",
+        probesPath,
+        "--case-json",
+        casePath,
+        "--role-json",
+        rolePath,
+      ];
+      if (repo) args.push("--repo-json", await write("repo.json", repo));
+      return args;
+    },
+    signal,
+  );
+  // Raw process signals, not interpretation: did they actually keep the forced
+  // DECISIONS log (case-design v4's authorship contract), how many commits, what
+  // cadence. Persisted so the decisions-log contract is checkable later instead
+  // of taken on faith from the narrative.
+  const processTrace = {
+    commitCount: commits.length,
+    cadence: signals?.cadence ?? null,
+    decisionsLogPresent: (signals?.topLevel ?? []).some((f) => /decision/i.test(f.name)),
+  };
+  // ce28da40 — fold the trace + reflection into one authenticity verdict.
+  const reflection = (payload.result.reflection ?? {}) as { readBeforeWrite?: number; iterationPattern?: string };
+  const authenticity = scoreAuthenticity({
+    commitCount: processTrace.commitCount,
+    bursty: processTrace.cadence?.bursty ?? null,
+    spanHours: processTrace.cadence?.spanHours ?? null,
+    decisionsLogPresent: processTrace.decisionsLogPresent,
+    readBeforeWrite: reflection.readBeforeWrite ?? null,
+    iterationPattern: reflection.iterationPattern ?? null,
+  });
+  // c364a44d — anchor the evaluation into the shared seed: which planted seam
+  // files did the submission actually touch? Grounded, mechanically comparable
+  // engagement evidence beside the LLM's probe read.
+  const seedFiles = ((devCase?.seed as { files?: { path?: string }[] } | null)?.files) ?? [];
+  const seedDiff =
+    seedFiles.length > 0 && (signals?.changedPaths?.length ?? 0) > 0
+      ? seedDiffEvidence(seedFiles, signals!.changedPaths)
+      : null;
+  const out = {
+    ...payload.result,
+    followups: payload.result.followups ?? {},
+    processTrace,
+    authenticity,
+    seedDiff,
+    source: payload.source,
+    perStepSources: payload.perStepSources ?? {},
+    fallbackReason: payload.fallbackReason ?? {},
+    commitCount: commits.length,
+  };
+  const transferScore = Number((payload.result.transfer as { transferScore?: number } | null | undefined ?? {}).transferScore ?? 0);
+  saveSubmissionEvaluation(submissionId, out, transferScore);
+  return out;
 }
 
 export type Sourced = { candidateId: string; label: string; archetype: string | null; score: number; matchedSkills: string[] };
@@ -565,16 +540,13 @@ export async function runSourceForRole(
 ): Promise<SourceOutcome> {
   const profiles = listMatrixProfiles();
   if (profiles.length === 0) return { candidates: [], skipped: 0, skippedReasons: [] };
-  const workdir = await createWorkdir();
-  try {
-    const rolePath = path.join(workdir, "role.json");
-    const candsPath = path.join(workdir, "cands.json");
-    await writeFile(rolePath, JSON.stringify(role), "utf-8");
-    await writeFile(candsPath, JSON.stringify(profiles), "utf-8");
-    const { result } = spawnPython(
-      [
-        "-m",
-        "pipeline.jobfit.devcase.devcase_cli",
+  const payload = await runDevcaseCli<{ result: SourceOutcome }>(
+    async (workdir) => {
+      const rolePath = path.join(workdir, "role.json");
+      const candsPath = path.join(workdir, "cands.json");
+      await writeFile(rolePath, JSON.stringify(role), "utf-8");
+      await writeFile(candsPath, JSON.stringify(profiles), "utf-8");
+      return [
         "source",
         "--role-json",
         rolePath,
@@ -584,17 +556,12 @@ export async function runSourceForRole(
         String(topN),
         "--floor",
         String(floor),
-      ],
-      { signal },
-    );
-    const { stdout, stderr, exitCode } = await result;
-    if (exitCode !== 0) throw new PipelineError(parseStderrError(stderr, exitCode));
-    const payload = parsePythonJson<{ result: SourceOutcome }>(stdout, stderr);
-    const r = payload.result;
-    return { candidates: r?.candidates ?? [], skipped: r?.skipped ?? 0, skippedReasons: r?.skippedReasons ?? [] };
-  } finally {
-    await cleanupWorkdir(workdir);
-  }
+      ];
+    },
+    signal,
+  );
+  const r = payload.result;
+  return { candidates: r?.candidates ?? [], skipped: r?.skipped ?? 0, skippedReasons: r?.skippedReasons ?? [] };
 }
 
 // Bridge an evaluated submission into the pipeline + a Decisions screening_review card.
