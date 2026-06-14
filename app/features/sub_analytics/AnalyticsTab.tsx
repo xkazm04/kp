@@ -9,6 +9,7 @@ import { downloadFile, toCsv } from "@/app/_lib/export-utils";
 import { useJsonFetch } from "@/app/_lib/useJsonFetch";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import type { MomentumWeek } from "@/app/_lib/analytics-momentum";
+import type { Delta, PeriodDeltas } from "@/app/_lib/analytics-deltas";
 import type { AutomationImpact } from "@/app/_lib/decision-attribution";
 // `import type` only — erased at compile time, no server code in the bundle.
 import type { ChannelEconomics } from "@/app/_lib/db";
@@ -40,6 +41,9 @@ type Analytics = {
   byVariant: VariantStat[];
   byVariantTotal: number;
   variantRecommendations: VariantRecommendation[];
+  // ce8e3c9e — vs-previous-period diffs for the comparable scalars; null in the
+  // all-time view (no "previous period" to compare against).
+  deltas: PeriodDeltas | null;
 };
 
 // ANA2 — the selectable windows. null = all time (the server default).
@@ -80,6 +84,8 @@ export function AnalyticsTab() {
   if (!data) return <p className="text-base text-steel">{t("loading")}</p>;
 
   const maxReached = Math.max(1, ...data.funnel.map((f) => f.reached));
+  // ce8e3c9e — index the per-stage conversion deltas by stage for the funnel render.
+  const convDeltaByStage = new Map((data.deltas?.funnel ?? []).map((f) => [f.stage, f.conversionPct]));
 
   return (
     <section className="space-y-6">
@@ -110,7 +116,12 @@ export function AnalyticsTab() {
         {/* Compact key-stat cluster pinned to the top-right; hairline dividers
             keep four figures in the space one full-size card used to take. */}
         <div className="grid shrink-0 grid-cols-2 gap-px overflow-hidden rounded-lg border border-stone-200 bg-stone-200 shadow-panel lg:w-[22rem]">
-          <Stat label={t("statCandidates")} value={data.total} sub={t("activeSub", { count: data.active })} />
+          <Stat
+            label={t("statCandidates")}
+            value={data.total}
+            sub={t("activeSub", { count: data.active })}
+            delta={data.deltas?.total}
+          />
           <Stat
             label={t("statHired")}
             value={data.hired}
@@ -121,8 +132,20 @@ export function AnalyticsTab() {
                 .filter(Boolean)
                 .join(" · ") || undefined
             }
+            // The headline movement is hire RATE (delta shown as pts) — an absolute
+            // hire count rises with volume; the rate is the quality signal.
+            delta={data.deltas?.hireRatePct}
+            unit="pts"
           />
-          <Stat label={t("statTimeToHire")} value={data.avgTimeToHireDays ?? "—"} sub={data.avgTimeToHireDays != null ? t("daysAvg") : t("noHires")} />
+          <Stat
+            label={t("statTimeToHire")}
+            value={data.avgTimeToHireDays ?? "—"}
+            sub={data.avgTimeToHireDays != null ? t("daysAvg") : t("noHires")}
+            delta={data.deltas?.avgTimeToHireDays}
+            unit="days"
+            lowerIsBetter
+          />
+          {/* Age is an as-of-now figure — no prior-window analogue, so no delta. */}
           <Stat label={t("statAge")} value={data.avgAgeDays ?? "—"} sub={data.avgAgeDays != null ? t("daysActive") : undefined} />
         </div>
       </header>
@@ -166,12 +189,14 @@ export function AnalyticsTab() {
                     {f.current > 0 ? <span className="text-steel">{t("hereNow", { count: f.current })}</span> : null}
                   </div>
                 </div>
-                <span className="w-16 shrink-0 text-right text-sm">
+                <span className="flex w-20 shrink-0 flex-col items-end text-sm">
                   {f.conversionPct != null ? (
                     <span className={f.conversionPct < 50 ? "text-coral" : "text-moss"}>{f.conversionPct}%</span>
                   ) : (
                     <span className="text-steel">—</span>
                   )}
+                  {/* ce8e3c9e — conversion vs the previous equal-length window. */}
+                  {convDeltaByStage.get(f.stage) ? <DeltaChip delta={convDeltaByStage.get(f.stage)!} unit="pts" /> : null}
                 </span>
                 </Link>
               </li>
@@ -682,12 +707,58 @@ function MomentumPanel({ weeks }: { weeks: MomentumWeek[] }) {
   );
 }
 
-function Stat({ label, value, sub }: { label: string; value: string | number; sub?: string }) {
+function Stat({
+  label,
+  value,
+  sub,
+  delta,
+  lowerIsBetter,
+  unit,
+}: {
+  label: string;
+  value: string | number;
+  sub?: string;
+  delta?: Delta;
+  // For time-to-hire a smaller number is the win, so a negative delta is good.
+  lowerIsBetter?: boolean;
+  unit?: "pts" | "days";
+}) {
   return (
     <div className="bg-white px-4 py-2.5">
       <p className="text-meta uppercase text-steel">{label}</p>
-      <p className="mt-0.5 font-serif text-h2 leading-none text-ink">{value}</p>
+      <div className="mt-0.5 flex items-baseline gap-1.5">
+        <p className="font-serif text-h2 leading-none text-ink">{value}</p>
+        {delta ? <DeltaChip delta={delta} lowerIsBetter={lowerIsBetter} unit={unit} /> : null}
+      </div>
       {sub ? <p className="mt-0.5 text-sm text-steel">{sub}</p> : null}
     </div>
+  );
+}
+
+// ce8e3c9e — a compact "+4 pts" / "−3 d" vs-previous chip. Green/coral keys off
+// whether the change is an IMPROVEMENT (direction-aware: for time-to-hire, down
+// is good), so the color reads as good/bad, not up/down. A null delta (no prior
+// baseline, e.g. an empty previous window) renders nothing.
+function DeltaChip({ delta, lowerIsBetter, unit }: { delta: Delta; lowerIsBetter?: boolean; unit?: "pts" | "days" }) {
+  const t = useTranslations("analytics");
+  if (delta.delta == null || delta.delta === 0) {
+    return delta.delta === 0 ? <span className="text-meta text-steel">{t("deltaFlat")}</span> : null;
+  }
+  const improved = lowerIsBetter ? delta.delta < 0 : delta.delta > 0;
+  const sign = delta.delta > 0 ? "+" : "−";
+  const magnitude = Math.abs(delta.delta);
+  const text =
+    unit === "pts"
+      ? t("deltaPts", { sign, n: magnitude })
+      : unit === "days"
+        ? t("deltaDays", { sign, n: magnitude })
+        : `${sign}${magnitude}`;
+  return (
+    <span
+      className={`rounded px-1 py-0.5 text-meta font-semibold ${improved ? "bg-moss/10 text-moss" : "bg-coral/10 text-coral"}`}
+      title={t("deltaTitle")}
+    >
+      {text}
+    </span>
   );
 }

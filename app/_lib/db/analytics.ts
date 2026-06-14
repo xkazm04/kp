@@ -80,14 +80,29 @@ export type ChannelEconomics = {
 // view); omitted/null keeps the historical all-time behavior. Cohort-by-entry —
 // not event-replay — so every figure keeps its existing meaning, just over the
 // recent population.
-export function pipelineAnalytics(windowDays?: number | null): PipelineAnalytics {
+export function pipelineAnalytics(
+  windowDays?: number | null,
+  // ce8e3c9e — `endMs` upper-bounds the cohort so the period-over-period diff can
+  // request the PRIOR window: pipelineAnalytics(N, { endMs: Date.now() - N*DAY })
+  // yields the cohort created in [endMs - N*DAY, endMs). Omitted = the live
+  // window ending now (byte-identical to the historical single-arg behavior). The
+  // upper bound only scopes the cohort SELECT — as-of-now figures (age, momentum)
+  // stay real-time and are not diffed (see analytics-deltas.ts).
+  opts?: { endMs?: number }
+): PipelineAnalytics {
   const db = ensureDb();
-  const cutoffIso = windowDays ? new Date(Date.now() - windowDays * 86_400_000).toISOString() : null;
+  const endMs = opts?.endMs ?? Date.now();
+  const cutoffIso = windowDays ? new Date(endMs - windowDays * 86_400_000).toISOString() : null;
+  const upperIso = opts?.endMs != null && windowDays ? new Date(endMs).toISOString() : null;
   const ROW_COLUMNS =
     "job_id, job_title, archetype, stage, status, created_at, stage_changed_at, source_channel, source_campaign, source_variant";
   const rows = (
     cutoffIso
-      ? db.prepare(`SELECT ${ROW_COLUMNS} FROM pipeline_entries WHERE created_at >= ?`).all(cutoffIso)
+      ? upperIso
+        ? db
+            .prepare(`SELECT ${ROW_COLUMNS} FROM pipeline_entries WHERE created_at >= ? AND created_at < ?`)
+            .all(cutoffIso, upperIso)
+        : db.prepare(`SELECT ${ROW_COLUMNS} FROM pipeline_entries WHERE created_at >= ?`).all(cutoffIso)
       : db.prepare(`SELECT ${ROW_COLUMNS} FROM pipeline_entries`).all()
   ) as {
     job_id: string | null;
