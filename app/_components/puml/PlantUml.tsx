@@ -5,7 +5,7 @@ import { Maximize2, ZoomIn, ZoomOut } from "lucide-react";
 import { Modal } from "@/app/_components/Modal";
 import { parsePuml } from "./parse";
 import { layoutDiagram, type Box, type PositionedDiagram, type PositionedEdge } from "./layout";
-import { DIAGRAM_PAD, FONT_FAMILY, LINE_H } from "./constants";
+import { DIAGRAM_PAD, DIAGRAM_STATUS_TOKENS, FONT_FAMILY, LINE_H } from "./constants";
 
 // SVG renderer for our PlantUML component-diagram subset. Layout coordinates
 // come from ELK; every shape, colour, and stroke here is ours, drawn from the
@@ -147,9 +147,12 @@ function Note({ box, fill, fold, stroke }: { box: Box; fill: string; fold: strin
 function componentStyle(stereotype?: string): { fill: string; stroke: string; text: string; dash?: boolean } {
   const s = (stereotype ?? "").toLowerCase();
   if (!s) return { fill: C.white, stroke: C.stone, text: C.ink };
-  if (/gate|human|review|approval|manual/.test(s)) return { fill: "#fbece8", stroke: C.coral, text: C.ink };
-  if (/todo|planned|gap|missing|future|build/.test(s)) return { fill: "#f4f2ec", stroke: C.dialStone, text: "#6b6557", dash: true };
-  return { fill: "#e9f1e2", stroke: "#5d7a57", text: C.ink }; // auto / v2 / new / focus
+  if (/gate|human|review|approval|manual/.test(s))
+    return { fill: DIAGRAM_STATUS_TOKENS.gate.fill, stroke: DIAGRAM_STATUS_TOKENS.gate.stroke, text: C.ink };
+  if (/todo|planned|gap|missing|future|build/.test(s))
+    return { fill: DIAGRAM_STATUS_TOKENS.gap.fill, stroke: DIAGRAM_STATUS_TOKENS.gap.stroke, text: "#6b6557", dash: true };
+  // auto / v2 / new / focus
+  return { fill: DIAGRAM_STATUS_TOKENS.live.fill, stroke: DIAGRAM_STATUS_TOKENS.live.stroke, text: C.ink };
 }
 
 type NodeClick = (node: { id: string; label: string }) => void;
