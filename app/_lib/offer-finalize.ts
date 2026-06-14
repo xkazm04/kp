@@ -2,7 +2,7 @@ import { actOnPipelineEntry, getJob, recordAutomationEvent } from "./db";
 import { dispatchOnboarding } from "./comms-dispatch";
 import { recordAudit } from "./dev-control";
 import { recordPipelineOutcome } from "./dev-outcomes";
-import { expireOfferIfDue, getOfferByToken, markEntryStatus, markOfferResponded } from "./offers-store";
+import { expireOfferIfDue, getOfferByToken, markEntryStatus, markOfferResponded, type OfferRow } from "./offers-store";
 
 // Direction #4 — capture the candidate's offer response and run the terminal
 // transitions. The offer DECISION was the recruiter's (extend); here we record
@@ -42,16 +42,19 @@ export async function respondToOffer(token: string, response: "accept" | "declin
   // result was ignored and BOTH callers ran the terminal side effects — double
   // onboarding dispatch, phantom Hired transitions, duplicate automation events.
   // Now the loser reports the recorded outcome and touches nothing.
+  //
+  // The CAS-loser path is identical for both responses: report the AUTHORITATIVE
+  // recorded status, re-reading the offer if markOfferResponded couldn't return it,
+  // so a null offer never defaults an accepter to "declined".
+  const reportLoser = (claimedOffer: OfferRow | null): OfferResponseResult => {
+    const recorded = claimedOffer ?? getOfferByToken(token);
+    const status = recorded?.status === "accepted" ? "accepted" : "declined";
+    return { ok: true, status, alreadyResponded: true, jobTitle: offer.jobTitle, candidateLabel: offer.candidateLabel };
+  };
+
   if (response === "accept") {
     const { offer: claimedOffer, claimed } = markOfferResponded(token, "accepted");
-    if (!claimed) {
-      // The CAS lost — someone else recorded the response first. Report the
-      // AUTHORITATIVE recorded status, re-reading the offer if markOfferResponded
-      // couldn't return it, so a null offer never defaults an accepter to "declined".
-      const recorded = claimedOffer ?? getOfferByToken(token);
-      const status = recorded?.status === "accepted" ? "accepted" : "declined";
-      return { ok: true, status, alreadyResponded: true, jobTitle: offer.jobTitle, candidateLabel: offer.candidateLabel };
-    }
+    if (!claimed) return reportLoser(claimedOffer);
     if (offer.entryId) {
       recordAutomationEvent(offer.entryId, "offer_accepted", offer.jobTitle ?? "");
       const hired = actOnPipelineEntry(offer.entryId, "accept"); // Offer -> Hired (clears approval, logs `advanced`)
@@ -98,11 +101,7 @@ export async function respondToOffer(token: string, response: "accept" | "declin
 
   // decline
   const { offer: claimedOffer, claimed } = markOfferResponded(token, "declined");
-  if (!claimed) {
-    const recorded = claimedOffer ?? getOfferByToken(token);
-    const status = recorded?.status === "accepted" ? "accepted" : "declined";
-    return { ok: true, status, alreadyResponded: true, jobTitle: offer.jobTitle, candidateLabel: offer.candidateLabel };
-  }
+  if (!claimed) return reportLoser(claimedOffer);
   if (offer.entryId) {
     // Terminal `declined` — the candidate turned us down. Distinct from the
     // recruiter's `rejected` so funnel/re-engagement reporting can tell a
