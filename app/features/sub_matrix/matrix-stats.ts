@@ -3,10 +3,25 @@
 // Turns "find the green cell" into a portfolio read — is a role deep-benched or a
 // one-lucky-hit?
 
-// "Strong" fit boundary — the moss threshold cellClass uses (s >= 72). The five
-// histogram bands mirror the legend so the strip reads consistently with the grid.
-export const STRONG_THRESHOLD = 72;
-const BAND_EDGES = [45, 60, 72, 85] as const; // 5 buckets: <45, 45–59, 60–71, 72–84, 85+
+// Single source of truth for the diverging score scale (45/60/72/85 edges). The
+// grid cell color (cellClass), the histogram fill (BAND_FILL), the legend rows,
+// and the histogram bucket edges are all derived from this one ordered table, so
+// re-banding the heatmap is a one-place edit and the legend can never claim an
+// edge the grid doesn't actually use. Ordered low → high; `min` is the inclusive
+// floor of each band. `label` is the legend string. `cellClass`/`fill` are the
+// Tailwind classes for the grid cell and the histogram bar respectively.
+export const MATRIX_BANDS = [
+  { min: 0, label: "<45", cellClass: "bg-coral/15 text-coral", fill: "bg-coral/40" },
+  { min: 45, label: "45–59", cellClass: "bg-amber-100 text-amber-700", fill: "bg-amber-300" },
+  { min: 60, label: "60–71", cellClass: "bg-moss/20 text-moss", fill: "bg-moss/40" },
+  { min: 72, label: "72–84", cellClass: "bg-moss/40 text-ink", fill: "bg-moss/60" },
+  { min: 85, label: "85+", cellClass: "bg-moss/70 text-white", fill: "bg-moss/80" },
+] as const;
+
+// "Strong" fit boundary — the moss threshold cellClass uses (band index 3's floor).
+export const STRONG_THRESHOLD = MATRIX_BANDS[3].min; // 72
+// Histogram bucket edges = every band floor except the first (0): 45, 60, 72, 85.
+const BAND_EDGES = MATRIX_BANDS.slice(1).map((b) => b.min); // 5 buckets: <45, 45–59, 60–71, 72–84, 85+
 
 export type ColumnStat = {
   count: number; // scored (non-blocked) cells in the column
