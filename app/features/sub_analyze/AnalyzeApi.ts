@@ -63,6 +63,15 @@ export async function watchAnalysis(
   // legitimately long analysis is never abandoned. A 404 is terminal on its own.
   const MAX_CONSECUTIVE_ERRORS = 10; // ~15s of solid failure at the 1.5s cadence
   let consecutiveErrors = 0;
+  // Count one soft (non-terminal) poll failure and bail past the threshold. The
+  // three soft-failure branches below (thrown fetch, non-OK response, missing task
+  // body) all funnel through here so the threshold and the user-facing message stay
+  // single-sourced.
+  const softFail = () => {
+    if ((consecutiveErrors += 1) >= MAX_CONSECUTIVE_ERRORS) {
+      throw new Error("Lost track of the analysis — please retry.");
+    }
+  };
   const aborted = () => signal?.aborted ?? false;
 
   try {
@@ -75,26 +84,20 @@ export async function watchAnalysis(
         r = await fetch(`/api/tasks/${taskId}`, { signal });
       } catch (err) {
         if (aborted()) throw err; // intentional cancel — surfaced as AbortError
-        if ((consecutiveErrors += 1) >= MAX_CONSECUTIVE_ERRORS) {
-          throw new Error("Lost track of the analysis — please retry.");
-        }
+        softFail();
         continue;
       }
       // 404 = the task is gone (reaped / lost to a restart); it will never reach a
       // terminal success, so stop now rather than poll a vanished task forever.
       if (r.status === 404) throw new Error("The analysis is no longer available — please retry.");
       if (!r.ok) {
-        if ((consecutiveErrors += 1) >= MAX_CONSECUTIVE_ERRORS) {
-          throw new Error("Lost track of the analysis — please retry.");
-        }
+        softFail();
         continue;
       }
       const body = await r.json().catch(() => null);
       const task = body?.task;
       if (!task) {
-        if ((consecutiveErrors += 1) >= MAX_CONSECUTIVE_ERRORS) {
-          throw new Error("Lost track of the analysis — please retry.");
-        }
+        softFail();
         continue;
       }
       consecutiveErrors = 0;
