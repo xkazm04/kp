@@ -3,6 +3,7 @@
 import { Check, CircleDot, Info, MessageCircleQuestion, Send, X, type LucideIcon } from "lucide-react";
 import { assertScore, formatFraction } from "@/app/_lib/format";
 import { describeSource } from "./DevHelpers";
+import { FollowupQuestionItem } from "./DevShared";
 import { ProvenanceStrip } from "./ProvenanceStrip";
 import { ScoreBar } from "./ScoreBar";
 import { LOW_CONFIDENCE } from "./DevTypes";
@@ -203,14 +204,7 @@ export function EvalPanel({ ev, onPromote, promoted, promoting = false }: { ev: 
           <ol className="mt-1 list-decimal space-y-1.5 pl-4">
             {(ev.followups?.questions ?? []).map((q, i) => (
               <li key={q.id ?? i} className="text-micro text-ink">
-                {q.decision ? <span className="text-steel">[{q.decision}] </span> : null}
-                {q.question}
-                {q.listenFor ? (
-                  <span className="block text-micro text-steel">Listen for: {q.listenFor}</span>
-                ) : null}
-                {q.redFlag ? (
-                  <span className="block text-micro text-coral/80">Red flag: {q.redFlag}</span>
-                ) : null}
+                <FollowupQuestionItem q={q} index={i} showDecision />
               </li>
             ))}
           </ol>

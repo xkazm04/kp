@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { LoadStatus } from "@/app/_components/LoadStatus";
 import { formatFraction } from "@/app/_lib/format";
 import type { LoadState } from "@/app/_lib/useLoader";
-import type { CoverProbe, RubricDim } from "./DevTypes";
+import type { CoverProbe, FollowupQuestion, RubricDim } from "./DevTypes";
 
 // Shared shell for the Dev studio's list sections (lifecycle, approved cases,
 // postings, outbox). Owns the empty-vs-failed guard — an empty+healthy section
@@ -118,5 +118,43 @@ export function RubricChip({ dim, tone = "paper" }: { dim: RubricDim; tone?: "pa
     <span className={cls} title={tone === "amber" ? dim.description : undefined}>
       {dim.label ?? dim.name} <span className="text-steel">{formatFraction(dim.weight ?? 0, { label: "rubric weight" })}</span>
     </span>
+  );
+}
+
+// One interview follow-up question with its interviewer-internal "Listen for" /
+// "Red flag" notes — shared by EvalPanel's `<ol>` and InterviewKit's `<ol>`.
+// `showDecision` adds EvalPanel's `[decision]` prefix. listenFor/redFlag are
+// must-never-be-candidate-facing notes, so both surfaces render them identically.
+export function FollowupQuestionItem({
+  q,
+  index,
+  showDecision = false,
+}: {
+  q: FollowupQuestion;
+  index: number;
+  showDecision?: boolean;
+}) {
+  // EvalPanel renders the question inline (with an optional `[decision]` prefix)
+  // and its notes as `block` spans inside one `<li>`; InterviewKit renders a
+  // numbered `<p>` then `<p>` notes inside a card `<li>`. Branch on `showDecision`
+  // so each surface keeps its exact markup.
+  if (showDecision) {
+    return (
+      <>
+        {q.decision ? <span className="text-steel">[{q.decision}] </span> : null}
+        {q.question}
+        {q.listenFor ? <span className="block text-micro text-steel">Listen for: {q.listenFor}</span> : null}
+        {q.redFlag ? <span className="block text-micro text-coral/80">Red flag: {q.redFlag}</span> : null}
+      </>
+    );
+  }
+  return (
+    <>
+      <p className="font-medium text-ink">
+        {index + 1}. {q.question}
+      </p>
+      {q.listenFor ? <p className="mt-0.5 text-steel">Listen for: {q.listenFor}</p> : null}
+      {q.redFlag ? <p className="mt-0.5 text-coral/80">Red flag: {q.redFlag}</p> : null}
+    </>
   );
 }

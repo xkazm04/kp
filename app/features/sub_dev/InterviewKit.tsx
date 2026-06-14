@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Check, Copy, Download, MicVocal } from "lucide-react";
 import { downloadFile } from "@/app/_lib/export-utils";
 import { interviewKitMarkdown } from "@/app/_lib/devcase-interview-kit";
+import { FollowupQuestionItem } from "./DevShared";
 import type { Submission } from "./DevTypes";
 
 // 8d4f38b9 — auto-generated interview kit from the winning submission. The
@@ -71,11 +72,7 @@ export function InterviewKit({ caseTitle, top }: { caseTitle: string; top: Submi
           .filter((q) => (q.question ?? "").trim())
           .map((q, i) => (
             <li key={q.id ?? i} className="rounded-md border border-stone-200 bg-white p-2.5 text-micro">
-              <p className="font-medium text-ink">
-                {i + 1}. {q.question}
-              </p>
-              {q.listenFor ? <p className="mt-0.5 text-steel">Listen for: {q.listenFor}</p> : null}
-              {q.redFlag ? <p className="mt-0.5 text-coral/80">Red flag: {q.redFlag}</p> : null}
+              <FollowupQuestionItem q={q} index={i} />
             </li>
           ))}
       </ol>
