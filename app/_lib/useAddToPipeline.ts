@@ -84,6 +84,25 @@ export async function postPipelineAdd(
   }
 }
 
+// The mutating action POST against a single entry (`/api/pipeline/[id]`), factored
+// out so the transport wiring (the encoded id, method, headers, JSON body) the four
+// move/decide call sites kept hand-rolling lives in one place. Each caller passes its
+// OWN body — crucially its per-caller `expectedStage` CAS value, which is intentional
+// and stays at the call site — and keeps its own distinct success/error handling
+// (some read `data.error`, the bulk loops only check `r.ok`), so this returns the raw
+// Response rather than a parsed result.
+export type PipelineActionBody =
+  | { action: "set_stage"; toStage: string; expectedStage: string }
+  | { action: "accept" | "reject"; expectedStage: string };
+
+export function postPipelineAction(id: string, body: PipelineActionBody): Promise<Response> {
+  return fetch(`/api/pipeline/${encodeURIComponent(id)}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
 export function useAddToPipeline(jobId: string, jobTitle: string, source?: string | null): AddToPipeline {
   const [added, setAdded] = useState<Set<string>>(() => new Set());
   const [adding, setAdding] = useState<Set<string>>(() => new Set());

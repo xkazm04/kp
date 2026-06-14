@@ -18,6 +18,7 @@ import { SchedulerControl } from "./SchedulerControl";
 import { EventDot, useEventVerb, useRelativeTime } from "./PipelineShared";
 import { TodayRail } from "./TodayRail";
 import { recordRecent } from "@/app/features/recents";
+import { postPipelineAction } from "@/app/_lib/useAddToPipeline";
 import { copyText } from "@/app/_lib/export-utils";
 import { daysSince, slaForStage, STAGE_SLA_DEFAULTS, STAGES, type Entry, type PipelineEvent, type Position } from "./PipelineTypes";
 
@@ -443,11 +444,7 @@ export function PipelineTab() {
         continue;
       }
       try {
-        const r = await fetch(`/api/pipeline/${encodeURIComponent(id)}`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action: "set_stage", toStage: bulkStage, expectedStage: entry.stage }),
-        });
+        const r = await postPipelineAction(id, { action: "set_stage", toStage: bulkStage, expectedStage: entry.stage });
         if (r.ok) moved += 1;
         else failures.add(id);
       } catch {
@@ -477,11 +474,7 @@ export function PipelineTab() {
     const failed = new Set<string>();
     for (const e of awaiting) {
       try {
-        const r = await fetch(`/api/pipeline/${encodeURIComponent(e.id)}`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action, expectedStage: e.stage }),
-        });
+        const r = await postPipelineAction(e.id, { action, expectedStage: e.stage });
         if (r.ok) ok += 1;
         else failed.add(e.id);
       } catch {
@@ -508,11 +501,7 @@ export function PipelineTab() {
       setEntries((cur) => (cur ? cur.map((e) => (e.id === id ? { ...e, stage } : e)) : cur));
     restage(entry.id, toStage);
     try {
-      const r = await fetch(`/api/pipeline/${encodeURIComponent(entry.id)}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "set_stage", toStage, expectedStage: prevStage }),
-      });
+      const r = await postPipelineAction(entry.id, { action: "set_stage", toStage, expectedStage: prevStage });
       if (!r.ok) restage(entry.id, prevStage);
     } catch {
       restage(entry.id, prevStage);

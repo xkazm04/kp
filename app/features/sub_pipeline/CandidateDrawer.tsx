@@ -19,6 +19,7 @@ import { RUBRIC_ANCHOR_LINE } from "@/app/_lib/interview-rubric";
 import { RATING_MAX } from "@/app/_lib/format";
 import type { Scorecard, ScorecardRating } from "@/app/_lib/interview-scorecard";
 import { initials } from "@/app/_lib/initials";
+import { postPipelineAction } from "@/app/_lib/useAddToPipeline";
 
 const ACTIONS: { id: TaskId; label: string; icon: typeof Mail; stages: string[] | "all"; note?: string }[] = [
   // Screening is the triage gate for both pre-interview stages (SCREENING_STAGES):
@@ -302,11 +303,7 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
     setMovingStage(true);
     setMoveErr(null);
     try {
-      const res = await fetch(`/api/pipeline/${encodeURIComponent(entry.id)}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "set_stage", toStage, expectedStage: entry.stage }),
-      });
+      const res = await postPipelineAction(entry.id, { action: "set_stage", toStage, expectedStage: entry.stage });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || `Move failed (${res.status})`);
       onChanged();
