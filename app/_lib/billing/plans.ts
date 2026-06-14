@@ -87,10 +87,6 @@ export function isPlanId(value: unknown): value is PlanId {
   return typeof value === "string" && (PLAN_IDS as readonly string[]).includes(value);
 }
 
-export function isMeter(value: unknown): value is Meter {
-  return typeof value === "string" && (METERS as readonly string[]).includes(value);
-}
-
 export function isPackId(value: unknown): value is PackId {
   return typeof value === "string" && value in PACKS;
 }

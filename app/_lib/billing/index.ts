@@ -16,7 +16,6 @@ export {
 export { activeJobsGate, meterAllows, meterGate, QUOTA_CODE, type QuotaVerdict } from "./enforce";
 export {
   currentPeriod,
-  isMeter,
   isPackId,
   isPlanId,
   METERS,
