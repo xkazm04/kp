@@ -79,21 +79,30 @@ export function InterviewPrepModal({ entry, onClose }: { entry: SchedEntry; onCl
     if (typeof payload?.interviewer === "string") setInterviewer(payload.interviewer);
   }
 
+  // The single progress-PUT both the debounced save and the unmount flush issue.
+  // keepalive is opt-in (only the unmount flush needs the request to survive the
+  // navigation); the .catch keeps it best-effort — a blip shouldn't interrupt the
+  // interview.
+  const putProgress = (p: InterviewPrepProgress, keepalive = false) =>
+    void fetch(`/api/interview-prep?entry=${encodeURIComponent(entry.id)}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(p),
+      keepalive,
+    }).catch(() => {
+      /* progress save is best-effort */
+    });
+
   // Debounce-persist checklist + notes edits to the artifact. Only fires after a
   // genuine user edit (dirtyRef), so hydration doesn't echo back, and only when a
   // prep exists to attach to.
   useEffect(() => {
     if (!dirtyRef.current || !prep) return;
     const h = window.setTimeout(() => {
-      void fetch(`/api/interview-prep?entry=${encodeURIComponent(entry.id)}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ checked, notes, interviewer }),
-      }).catch(() => {
-        /* progress save is best-effort — a blip shouldn't interrupt the interview */
-      });
+      putProgress({ checked, notes, interviewer });
     }, 600);
     return () => window.clearTimeout(h);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [checked, notes, interviewer, prep, entry.id]);
 
   // Keep the freshest editable values in a ref so the unmount flush sends them.
@@ -109,15 +118,7 @@ export function InterviewPrepModal({ entry, onClose }: { entry: SchedEntry; onCl
   useEffect(() => {
     return () => {
       if (!dirtyRef.current || !prep) return;
-      const { checked, notes, interviewer } = latestProgressRef.current;
-      void fetch(`/api/interview-prep?entry=${encodeURIComponent(entry.id)}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ checked, notes, interviewer }),
-        keepalive: true,
-      }).catch(() => {
-        /* best-effort flush */
-      });
+      putProgress(latestProgressRef.current, true);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [prep, entry.id]);
