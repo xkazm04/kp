@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Archive, Eye, Lock, RefreshCw, ShieldCheck } from "lucide-react";
 import { Markdown } from "@/app/_components/Markdown";
 import { caseToMarkdown } from "./DevHelpers";
+import { ProbeStrengthBanner } from "./ProbeStrengthBanner";
 import { LIFECYCLE_STEPS, STAGE_LABEL } from "./DevTypes";
 import type { CaseScenario, Lifecycle } from "./DevTypes";
 
@@ -236,6 +237,8 @@ function ReviewPanel({ lc, onApprove, onChanged }: { lc: Lifecycle; onApprove: (
                 ))}
               </ul>
               <p className="mt-1 text-micro text-steel">Probes and rubric are engine-owned — to change them, regenerate with a note.</p>
+              {/* bb4f5494 — certify the probes discriminate BEFORE approving. */}
+              <ProbeStrengthBanner probes={probes} />
             </div>
           ) : null}
         </div>

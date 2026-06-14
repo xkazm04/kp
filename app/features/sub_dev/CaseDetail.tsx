@@ -8,6 +8,7 @@ import { ApplyTokenPill } from "./ApplyTokenPill";
 import { CohortProbePanel } from "./CohortProbePanel";
 import { CompareSubmissions } from "./CompareSubmissions";
 import { InterviewKit } from "./InterviewKit";
+import { ProbeStrengthBanner } from "./ProbeStrengthBanner";
 import { caseToMarkdown } from "./DevHelpers";
 import { MiniList } from "./DevShared";
 import { SubmissionForm } from "./SubmissionForm";
@@ -138,6 +139,9 @@ export function CaseDetail({
         ) : (
           <p className="mt-2 text-micro text-steel">No covert probes recorded on this case.</p>
         )}
+
+        {/* bb4f5494 — does this case actually discriminate? */}
+        <ProbeStrengthBanner probes={c.coverProbes ?? []} />
 
         {(c.rubricDimensions ?? []).length ? (
           <div className="mt-3 flex flex-wrap gap-1.5">
