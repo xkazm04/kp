@@ -1,4 +1,5 @@
 import { ensureDb } from "./core";
+import { randomId } from "../random-id";
 
 // Tenant root (P2). The single default workspace exists today (seeded in ensureDb);
 // real multi-tenancy will add creation + per-user mapping. Shared connection.
@@ -22,4 +23,13 @@ export function getWorkspace(id: string): Workspace | null {
   const db = ensureDb();
   const r = db.prepare(`SELECT * FROM workspaces WHERE id = ?`).get(id) as Record<string, unknown> | undefined;
   return r ? rowToWorkspace(r) : null;
+}
+
+export function createWorkspace(name: string): Workspace {
+  const db = ensureDb();
+  const id = randomId("ws");
+  const cleanName = name.trim().slice(0, 80) || "Untitled workspace";
+  const createdAt = new Date().toISOString();
+  db.prepare(`INSERT INTO workspaces (id, name, created_at) VALUES (?, ?, ?)`).run(id, cleanName, createdAt);
+  return { id, name: cleanName, createdAt };
 }
