@@ -1932,6 +1932,20 @@
       }
     }
   },
+  "workspaceAdmin": {
+    "title": "Pracovní prostory",
+    "intro": "Vytvářejte a přepínejte mezi izolovanými pracovními prostory — každý je samostatným tenantem vašich dat kp.",
+    "scopeNote": "Upozornění: zatím je podle pracovního prostoru izolována pouze sekce Analýzy. Ostatní data (pozice, pipeline, pohovory atd.) jsou napříč prostory sdílená, dokud nebude dokončeno rozsahování po tabulkách — nový prostor tedy zobrazí prázdné Analýzy, ale vše ostatní stejné.",
+    "loading": "Načítání…",
+    "loadError": "Pracovní prostory se nepodařilo načíst.",
+    "current": "Aktuální",
+    "switch": "Přepnout",
+    "create": "Vytvořit",
+    "createPlaceholder": "Název nového prostoru",
+    "authRequired": "Přepínání vyžaduje přihlášení operátora (nastavte KP_OPERATOR_PASSWORD).",
+    "switchFailed": "Přepnutí se nezdařilo — zkuste to znovu.",
+    "createFailed": "Pracovní prostor se nepodařilo vytvořit."
+  },
   "login": {
     "eyebrow": "kp",
     "title": "Přihlášení operátora",

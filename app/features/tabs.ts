@@ -32,6 +32,7 @@ export const WORKSPACE_TAB_IDS = [
   "tasks",
   "billing",
   "models",
+  "workspace",
 ] as const;
 
 export type WorkspaceTabId = (typeof WORKSPACE_TAB_IDS)[number];
@@ -137,6 +138,7 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       { id: "billing", label: "Billing" },
       { id: "models", label: "Models" },
+      { id: "workspace", label: "Workspace" },
     ],
   },
 ];

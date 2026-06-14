@@ -1932,6 +1932,20 @@
       }
     }
   },
+  "workspaceAdmin": {
+    "title": "Workspaces",
+    "intro": "Create and switch between isolated workspaces — each is a separate tenant of your kp data.",
+    "scopeNote": "Heads up: only Analyses is workspace-isolated so far. Other data (jobs, pipeline, interviews, etc.) is still shared across workspaces until per-table scoping is complete — so a new workspace shows empty Analyses but the same everything-else.",
+    "loading": "Loading…",
+    "loadError": "Couldn't load workspaces.",
+    "current": "Current",
+    "switch": "Switch",
+    "create": "Create",
+    "createPlaceholder": "New workspace name",
+    "authRequired": "Switching requires operator sign-in (set KP_OPERATOR_PASSWORD).",
+    "switchFailed": "Couldn't switch — try again.",
+    "createFailed": "Couldn't create the workspace."
+  },
   "login": {
     "eyebrow": "kp",
     "title": "Operator sign-in",

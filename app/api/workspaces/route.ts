@@ -1,15 +1,16 @@
 import { NextResponse } from "next/server";
 import { createWorkspace, listWorkspaces } from "@/app/_lib/db";
+import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { jsonError } from "@/app/_lib/api-response";
 
 export const runtime = "nodejs";
 
 // Workspace CRUD (P2). Recruiter-gated (the proxy allow-list excludes it). GET
-// lists workspaces; POST creates one. Switching the active workspace is a separate
-// session action (/api/auth/switch-workspace).
+// lists workspaces + the session's active one; POST creates one. Switching the
+// active workspace is a separate session action (/api/auth/switch-workspace).
 export async function GET() {
   try {
-    return NextResponse.json({ workspaces: listWorkspaces() });
+    return NextResponse.json({ workspaces: listWorkspaces(), current: await currentWorkspace() });
   } catch (error) {
     return jsonError(error, "Failed to list workspaces.");
   }
