@@ -38,8 +38,12 @@ export const AUTOMATION_VERSION: Record<string, string> = {
   rematch: "rematch-v1",
   offer: "offer-v1",
 };
+// Event kind for the generic "drafted" tasks — ONLY those that fall through to the
+// catch-all branch below (currently rejection + prep). screen/scorecard/offer/
+// rematch/outreach each have their own branch and record their own event, so they
+// must NOT be listed here (an outreach entry was dead: outreach records
+// "outreach_sent" via dispatchOutreach, never "outreach_drafted").
 const DRAFT_EVENT: Record<string, string> = {
-  outreach: "outreach_drafted",
   rejection: "rejection_drafted",
   prep: "interview_prep_generated",
 };
