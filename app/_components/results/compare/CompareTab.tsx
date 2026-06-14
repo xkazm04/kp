@@ -3,7 +3,7 @@
 import { ArrowDownRight, ArrowUpRight, Crown, Minus } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import type { Analysis } from "@/app/_lib/schemas";
-import { hasRenderableComparison } from "@/app/_lib/comparison";
+import { hasRenderableComparison, primaryScore } from "@/app/_lib/comparison";
 import { reconcileScoreTotal } from "@/app/_lib/format";
 import { BulletList } from "../shared";
 
@@ -62,12 +62,12 @@ export function CompareTab({ analysis }: { analysis: Analysis }) {
 
   // Resolve the winner by INDEX via max primary score, not by `findIndex(label === bestLabel)`.
   // Variant labels aren't unique (two CV variants can share a filename / "CV"), so a label
-  // match returns the FIRST same-named column and could crown the wrong one. Max primary
-  // score with strict `>` keeps the earliest on a tie — matching buildComparison's stable sort.
-  const primary = (v: (typeof comparison.variants)[number]) => (v.jobFitScore != null ? v.jobFitScore : v.score.total);
+  // match returns the FIRST same-named column and could crown the wrong one. primaryScore is
+  // the SAME rule buildComparison ranks by (imported, not re-derived); strict `>` keeps the
+  // earliest on a tie — matching its stable sort.
   let winnerIndex = 0;
   for (let i = 1; i < comparison.variants.length; i++) {
-    if (primary(comparison.variants[i]) > primary(comparison.variants[winnerIndex])) winnerIndex = i;
+    if (primaryScore(comparison.variants[i]) > primaryScore(comparison.variants[winnerIndex])) winnerIndex = i;
   }
   const baseline = comparison.variants[0];
 

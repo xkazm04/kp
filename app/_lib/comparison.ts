@@ -82,7 +82,11 @@ export function buildComparison(inputs: ComparisonInput[]): ComparisonPayload {
   };
 }
 
-function primaryScore(variant: ComparisonVariant): number {
+// The single "which score ranks this variant" rule: the job-fit score when present,
+// else the component total. Exported so CompareTab's winner-by-index highlight uses
+// the exact same order buildComparison ranks by — the two can't crown different
+// columns.
+export function primaryScore(variant: ComparisonVariant): number {
   if (variant.jobFitScore != null) {
     return variant.jobFitScore;
   }
