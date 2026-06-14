@@ -62,7 +62,7 @@ export function isLlmUseCase(value: unknown): value is LlmUseCase {
   return typeof value === "string" && (LLM_USE_CASES as readonly string[]).includes(value);
 }
 
-export const KP_LLM_CONFIG_ENV = "KP_LLM_CONFIG";
+const KP_LLM_CONFIG_ENV = "KP_LLM_CONFIG";
 
 export type ProviderKeyInput = {
   provider: LlmProvider;
