@@ -7,6 +7,7 @@ import { formatFraction, formatRelativeTime } from "@/app/_lib/format";
 import { ApplyTokenPill } from "./ApplyTokenPill";
 import { CohortProbePanel } from "./CohortProbePanel";
 import { CompareSubmissions } from "./CompareSubmissions";
+import { InterviewKit } from "./InterviewKit";
 import { caseToMarkdown } from "./DevHelpers";
 import { MiniList } from "./DevShared";
 import { SubmissionForm } from "./SubmissionForm";
@@ -57,6 +58,11 @@ export function CaseDetail({
   // fec3e23a — every submission across this case's postings, for the cohort
   // probe-miss roll-up in the internal section.
   const caseSubmissions = casePostings.flatMap((p) => p.submissions ?? []);
+  // 8d4f38b9 — the winning submission (highest transfer fit among those evaluated)
+  // for its auto-generated interview kit.
+  const topSubmission = caseSubmissions
+    .filter((s) => s.evaluation?.followups?.questions?.length)
+    .sort((a, b) => (b.transferScore ?? -1) - (a.transferScore ?? -1))[0];
   const hasScenario = Array.isArray(kase.scenario?.phases) && (kase.scenario?.phases?.length ?? 0) > 0;
 
   return (
@@ -155,6 +161,9 @@ export function CaseDetail({
 
       {/* b268f5e5 — read who leads on each rubric axis across the case's cohort. */}
       <CompareSubmissions rubricDims={c.rubricDimensions ?? []} submissions={caseSubmissions} />
+
+      {/* 8d4f38b9 — the winning candidate's interview kit, ready to copy/export. */}
+      {topSubmission ? <InterviewKit caseTitle={kase.title ?? c.title ?? ""} top={topSubmission} /> : null}
 
       {/* distribution + intake for THIS case */}
       {casePostings.length > 0 ? (
