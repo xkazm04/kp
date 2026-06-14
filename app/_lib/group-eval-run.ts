@@ -10,6 +10,7 @@ import { poolEntryFromAnalysis, type CandidatePoolEntry } from "./candidate-pool
 import { cleanupWorkdir, createWorkdir, parsePythonJson, parseStderrError, spawnPython } from "./python-runner";
 import { rankPoolForJob } from "./recruiter-run";
 import { computeDifferentiators } from "./group-eval-differentiators";
+import { sealDecisionSafe } from "./decision-record-store";
 import type { MatchResultView, ScoreDimension, Confidence, Reasoning as CanonicalReasoning } from "@/app/features/sub_match/MatchTypes";
 import type { Comparison, Fairness, FairnessScheme } from "@/app/features/sub_decisions/group-eval/types";
 
@@ -373,6 +374,22 @@ export async function runGroupEval(params: Record<string, unknown>, signal?: Abo
         differentiators.length ? `Unique strengths: ${differentiators.join(", ")}. ` : ""
       }${risks.length ? `${risks.length} watch-out(s) flagged below.` : "No blocking risks flagged."}`
     : `No candidates to evaluate for ${roleTitle}.`;
+
+  // Decision SoR (moonshot D backfill): seal the AI's recommended lead — the
+  // group-eval recommendation a recruiter acts on, with the eval source as the
+  // policy version. Best-effort; this is the real (non-sim) eval path — the sim has
+  // its own client-side runGroupEval. Skipped when there's no candidate.
+  if (top) {
+    sealDecisionSafe({
+      kind: "group_eval_lead",
+      actor: "auto:group-eval",
+      policyVersion: source,
+      candidateRef: top.entryId,
+      rationale: deterministicSummary,
+      reasonCode: "lead",
+      inputs: { score: top.score, candidates: candidates.length, roleTitle },
+    });
+  }
 
   const payload: Record<string, unknown> = {
     roleTitle,
