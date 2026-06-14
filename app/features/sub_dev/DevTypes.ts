@@ -152,7 +152,12 @@ export type ProcessTrace = {
 // paste-from-LLM? `band` "suspect" holds the submission for the ownership-verifying
 // interview rather than auto-advancing on transfer score. Absent on older bundles.
 export type Authenticity = { score: number /* SCORE 0..100 */; band: "authentic" | "mixed" | "suspect"; reasons: string[] };
-export type EvalBundle = { reflection?: Reflection; tooling?: Tooling; evaluation?: CaseEval; transfer?: Transfer; followups?: Followups; authenticity?: Authenticity | null; source?: SourceKind; perStepSources?: PerStepSources; commitCount?: number; processTrace?: ProcessTrace | null };
+// c364a44d — seed-anchored engagement: which planted seam files the submission
+// touched (app/_lib/devcase-seed-diff.ts). Grounded, mechanically comparable
+// evidence beside the LLM probe read. Absent on bundles saved before it / cases
+// with no materialized seed.
+export type SeedDiff = { files: { path: string; touched: boolean }[]; touched: number; total: number; untouched: string[] };
+export type EvalBundle = { reflection?: Reflection; tooling?: Tooling; evaluation?: CaseEval; transfer?: Transfer; followups?: Followups; authenticity?: Authenticity | null; seedDiff?: SeedDiff | null; source?: SourceKind; perStepSources?: PerStepSources; commitCount?: number; processTrace?: ProcessTrace | null };
 
 // At or below this a confidence (self-rated OR propagated) is "low" — the reviewer is warned the
 // inference is thin/ungrounded, or a decision rests on such evidence. Mirrors LOW_CONFIDENCE in

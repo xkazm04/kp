@@ -17,6 +17,7 @@ import {
 } from "./db";
 import { MAX_CODEBASES } from "./devcase-constraints";
 import { scoreAuthenticity, type Authenticity } from "./devcase-authenticity";
+import { seedDiffEvidence, type SeedDiff } from "./devcase-seed-diff";
 import { cleanupWorkdir, createWorkdir, parsePythonJson, parseStderrError, PipelineError, spawnPython } from "./python-runner";
 import { buildRepoSnapshot, fetchRepoSignals, type RepoSnapshot } from "./repo-snapshot";
 import { isEarlyCareer } from "./archetypes";
@@ -431,6 +432,10 @@ export type SubmissionEvaluation = {
   // paste-from-LLM?), derived from the processTrace + reflection. Persisted so the
   // promote gate and the studio can read it without recomputing.
   authenticity: Authenticity;
+  // c364a44d — which planted seed files the submission touched (grounded
+  // engagement evidence). null when the case has no materialized seed or the repo
+  // gave no changed paths.
+  seedDiff: SeedDiff | null;
   source: string;
   perStepSources: Record<string, string>; // {reflect, tooling, evaluate, transfer, followups}
   fallbackReason: Record<string, string>; // {step: "<ExceptionType>: <message>"} for steps whose LLM call raised
@@ -513,11 +518,20 @@ export async function runEvaluateSubmission(submissionId: string, signal?: Abort
       readBeforeWrite: reflection.readBeforeWrite ?? null,
       iterationPattern: reflection.iterationPattern ?? null,
     });
+    // c364a44d — anchor the evaluation into the shared seed: which planted seam
+    // files did the submission actually touch? Grounded, mechanically comparable
+    // engagement evidence beside the LLM's probe read.
+    const seedFiles = ((devCase?.seed as { files?: { path?: string }[] } | null)?.files) ?? [];
+    const seedDiff =
+      seedFiles.length > 0 && (signals?.changedPaths?.length ?? 0) > 0
+        ? seedDiffEvidence(seedFiles, signals!.changedPaths)
+        : null;
     const out = {
       ...payload.result,
       followups: payload.result.followups ?? {},
       processTrace,
       authenticity,
+      seedDiff,
       source: payload.source,
       perStepSources: payload.perStepSources ?? {},
       fallbackReason: payload.fallbackReason ?? {},

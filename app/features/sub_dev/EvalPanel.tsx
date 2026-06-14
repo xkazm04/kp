@@ -150,6 +150,26 @@ export function EvalPanel({ ev, onPromote, promoted, promoting = false }: { ev: 
         </div>
       ) : null}
 
+      {/* c364a44d — seed engagement: which planted seam files the submission
+          actually touched. Grounded, mechanically-comparable evidence (every
+          candidate starts from the same seed) beside the LLM's probe read — an
+          untouched seam file is a seam they never opened. */}
+      {ev.seedDiff && ev.seedDiff.total > 0 ? (
+        <div className="mt-1.5 text-micro">
+          <span
+            className={`rounded px-1.5 py-0.5 font-semibold uppercase ${
+              ev.seedDiff.touched === 0 ? "bg-coral/15 text-coral" : "bg-paper text-steel"
+            }`}
+            title="Files from the shared starter seed the submission modified — the seed plants each probe's seam, so an untouched file is a seam they never engaged."
+          >
+            Seed engagement: {ev.seedDiff.touched}/{ev.seedDiff.total} planted files touched
+          </span>
+          {ev.seedDiff.untouched.length > 0 ? (
+            <span className="ml-1.5 text-steel">untouched: {ev.seedDiff.untouched.join(", ")}</span>
+          ) : null}
+        </div>
+      ) : null}
+
       {/* probe results (D5) — self-contained from denormalized kind/where, no case re-join */}
       {(t.probeOutcomes ?? []).length ? (
         <div className="mt-2 border-t border-stone-100 pt-2">

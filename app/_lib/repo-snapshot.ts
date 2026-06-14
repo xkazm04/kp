@@ -1,6 +1,10 @@
 // Pulls grounded reality from a GitHub repo for the Dev extension (Phase D2).
 // Mirrors the fetch layer used by /api/github-analysis. Unauthenticated works at a
 // low rate; GITHUB_TOKEN (same env var as the analyzer) raises the limit.
+//
+// Deliberately self-contained (no sibling imports) so its colocated node --test
+// keeps resolving — the seed-diff's unionChangedPaths is mirrored inline below
+// rather than imported (a one-loop union; devcase-seed-diff owns the tested copy).
 
 export type RepoSnapshot = {
   ref: string;
@@ -133,6 +137,11 @@ export type RepoSignals = {
   // is `null` when there are too few dated commits (< 2) to judge.
   cadence: { count: number; spanHours: number | null; bursty: boolean | null };
   topLevel: { name: string; type: string }[];
+  // c364a44d — the distinct files the submission changed across the inspected
+  // commits (union of the commit-detail `files[].filename` we already fetch for
+  // change sizes). Feeds the seed-anchored diff: which planted seam files did the
+  // candidate actually touch. Bounded by statsDepth, like the change-size stats.
+  changedPaths: string[];
 };
 
 // "Bursty" = the history landed in one short working sitting. The rule is named and
@@ -179,7 +188,13 @@ export async function fetchRepoSignals(ref: string, max = 60, statsDepth = 12): 
   // Change-size shape for the most recent commits (one extra call each → capped).
   const depth = Math.min(statsDepth, list.length);
   const stats = await Promise.all(
-    list.slice(0, depth).map((c) => gh<{ stats?: { additions?: number; deletions?: number }; files?: unknown[] }>(`${GH}/repos/${full}/commits/${c.sha}`))
+    list
+      .slice(0, depth)
+      .map((c) =>
+        gh<{ stats?: { additions?: number; deletions?: number }; files?: { filename?: string }[] }>(
+          `${GH}/repos/${full}/commits/${c.sha}`
+        )
+      )
   );
   stats.forEach((s, i) => {
     if (s?.stats) {
@@ -188,8 +203,18 @@ export async function fetchRepoSignals(ref: string, max = 60, statsDepth = 12): 
       commits[i].files = Array.isArray(s.files) ? s.files.length : undefined;
     }
   });
+  // The set of files changed across the inspected commits (for the seed diff).
+  // Inline union (mirrors devcase-seed-diff.unionChangedPaths) to keep this module
+  // import-free for its colocated test.
+  const changedSet = new Set<string>();
+  for (const s of stats) {
+    for (const f of Array.isArray(s?.files) ? s!.files! : []) {
+      if (f?.filename) changedSet.add(f.filename.trim().replace(/\\/g, "/").replace(/^\.\//, ""));
+    }
+  }
+  const changedPaths = [...changedSet];
 
   const topLevel = (contents ?? []).map((e) => ({ name: e.name, type: e.type })).slice(0, 60);
 
-  return { ref, commits, cadence: summarizeCadence(commits), topLevel };
+  return { ref, commits, cadence: summarizeCadence(commits), topLevel, changedPaths };
 }
