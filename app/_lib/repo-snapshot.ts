@@ -60,6 +60,14 @@ async function gh<T>(url: string): Promise<T | null> {
   }
 }
 
+// The commit "subject" = the first line of a commit message, length-clamped. The
+// snapshot path and the signals path tune `max` differently (100 vs 140), but the
+// extraction itself was hand-copied; single-source it. Module-local on purpose —
+// this file stays import-free for its colocated node --test.
+function firstLine(message: string | undefined, max: number): string {
+  return (message ?? "").split("\n")[0].slice(0, max);
+}
+
 export async function buildRepoSnapshot(ref: string): Promise<RepoSnapshot | null> {
   const parsed = parseRepoRef(ref);
   if (!parsed) return null;
@@ -86,7 +94,7 @@ export async function buildRepoSnapshot(ref: string): Promise<RepoSnapshot | nul
 
   const recentCommitSummaries = (commits ?? [])
     .slice(0, 20)
-    .map((c) => (c.commit?.message ?? "").split("\n")[0].slice(0, 100))
+    .map((c) => firstLine(c.commit?.message, 100))
     .filter(Boolean);
   const topDirs = (contents ?? []).filter((c) => c.type === "dir").map((c) => c.name).slice(0, 20);
   const loc = Math.round(total / 40); // bytes → rough LOC estimate
@@ -105,6 +113,16 @@ export async function buildRepoSnapshot(ref: string): Promise<RepoSnapshot | nul
 }
 
 export type CommitEntry = { sha: string; message: string; date: string; additions?: number; deletions?: number; files?: number };
+
+// One commits-API row → a base CommitEntry (7-char sha, subject, author date).
+// Single-sources the slice constants the signals path otherwise hand-rolls.
+function toCommitEntry(c: { sha?: string; commit?: { message?: string; author?: { date?: string } } }): CommitEntry {
+  return {
+    sha: (c.sha ?? "").slice(0, 7),
+    message: firstLine(c.commit?.message, 140),
+    date: c.commit?.author?.date ?? "",
+  };
+}
 
 // Durable repo SIGNALS — facts whose meaning does not change as tooling trends churn:
 // commit change-sizes + cadence, and the top-level tree (names only). We deliberately do
@@ -162,11 +180,7 @@ export async function fetchRepoSignals(ref: string, max = 60, statsDepth = 12): 
   ]);
   if (!list) return null;
 
-  const commits: CommitEntry[] = list.map((c) => ({
-    sha: (c.sha ?? "").slice(0, 7),
-    message: (c.commit?.message ?? "").split("\n")[0].slice(0, 140),
-    date: c.commit?.author?.date ?? "",
-  }));
+  const commits: CommitEntry[] = list.map(toCommitEntry);
 
   // Change-size shape for the most recent commits (one extra call each → capped).
   const depth = Math.min(statsDepth, list.length);
