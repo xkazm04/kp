@@ -1,5 +1,12 @@
 import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
+// ArchetypeChecklistItem is a leaf type with no node:fs dependency, so it is
+// single-sourced from the client-safe ProfileTypes (a type-only import, erased at
+// compile time — it does not pull this server module into the client bundle). The
+// full ArchetypeDef stays declared separately on each side: the client/server
+// split is intentional (this module imports node:fs) and the weight/dimension
+// maps differ (Record<Slot,...> here vs the literal object client-side).
+import type { ArchetypeChecklistItem } from "@/app/features/sub_profile/ProfileTypes";
 
 // Server-side read/write for the shared archetype registry (pipeline/jobfit/
 // archetypes.json) — the SAME file the Python pipeline reads per spawn, so an
@@ -12,7 +19,6 @@ export type Slot = "skills" | "career" | "personal";
 export const SLOTS: Slot[] = ["skills", "career", "personal"];
 export const SCORING_MODELS = ["experienced", "early_career"] as const;
 
-export type ArchetypeChecklistItem = { check: string; weight: number; label: string };
 export type ArchetypeDef = {
   id: string;
   label: string;
