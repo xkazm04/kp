@@ -30,7 +30,7 @@ export function LifecycleRow({
   // beyond): wraps up non-promoted submitters with a courteous comm, closes the
   // postings (apply page + webhook answer honestly) and flips the lifecycle to
   // its terminal stage instead of parking at `promoted` forever.
-  const closable = ["published", "collecting", "ranked", "promoted"].includes(lc.stage);
+  const closable = (LIVE_STAGES as readonly string[]).includes(lc.stage);
   const [closing, setClosing] = useState(false);
   const [closeError, setCloseError] = useState<string | null>(null);
   const [reviewOpen, setReviewOpen] = useState(false);

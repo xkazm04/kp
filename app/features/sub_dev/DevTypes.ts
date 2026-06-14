@@ -165,6 +165,12 @@ export type EvalBundle = { reflection?: Reflection; tooling?: Tooling; evaluatio
 export const LOW_CONFIDENCE = 0.4;
 
 export const LIFECYCLE_STEPS = ["intake", "analyzed", "designed", "approved", "collecting", "ranked", "promoted"];
+// Post-publication "live" stages: the case is accepting/ranking candidates (or
+// has promoted one) rather than sitting pre-publication or at the approval gate.
+// Gates the "Close case" action (LifecycleRow) and the moss "live" stage tint
+// (CasesTable) — one source so a stage can't read "live" in one place but not
+// be closable in the other.
+export const LIVE_STAGES = ["published", "collecting", "ranked", "promoted"] as const;
 export const STAGE_LABEL: Record<string, string> = {
   intake: "intake",
   analyzed: "analyzed",
