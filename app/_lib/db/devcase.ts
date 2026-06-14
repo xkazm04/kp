@@ -479,6 +479,115 @@ export function getSubmission(id: string): DevSubmission | null {
   return r ? rowToSubmission(r) : null;
 }
 
+// ---- Live Work Surface (moonshot E) — in-product work sessions ------------
+// Events are typed locally (not imported from the features layer) so the db
+// stays a leaf; the API route coerces the wire JSON into this shape.
+export type DevSessionEvent = { t: number; kind: string; path?: string | null };
+export type DevSessionFile = { path: string; contents: string };
+export type DevSession = {
+  id: string;
+  token: string | null;
+  candidateRef: string | null;
+  files: DevSessionFile[];
+  status: string;
+  submissionId: string | null;
+  createdAt: string;
+  updatedAt: string;
+  submittedAt: string | null;
+};
+
+function rowToSession(r: Record<string, unknown>): DevSession {
+  return {
+    id: r.id as string,
+    token: (r.token as string) ?? null,
+    candidateRef: (r.candidate_ref as string) ?? null,
+    files: (safeRowParse(r.files_json as string | null, "devSession.files", r.id as string) as DevSessionFile[]) ?? [],
+    status: r.status as string,
+    submissionId: (r.submission_id as string) ?? null,
+    createdAt: r.created_at as string,
+    updatedAt: r.updated_at as string,
+    submittedAt: (r.submitted_at as string) ?? null,
+  };
+}
+
+export function startDevSession(input: { token?: string | null; candidateRef?: string | null }): DevSession {
+  const db = ensureDb();
+  const now = new Date().toISOString();
+  const id = randomId("dsess");
+  db.prepare(
+    `INSERT INTO dev_sessions (id, token, candidate_ref, files_json, status, created_at, updated_at)
+     VALUES (?, ?, ?, '[]', 'active', ?, ?)`
+  ).run(id, input.token ?? null, input.candidateRef ?? null, now, now);
+  return getDevSession(id)!;
+}
+
+export function getDevSession(id: string): DevSession | null {
+  const db = ensureDb();
+  const r = db.prepare(`SELECT * FROM dev_sessions WHERE id = ?`).get(id) as Record<string, unknown> | undefined;
+  return r ? rowToSession(r) : null;
+}
+
+export function getDevSessionEvents(id: string): DevSessionEvent[] {
+  const db = ensureDb();
+  const rows = db
+    .prepare(`SELECT t, kind, path FROM dev_session_events WHERE session_id = ? ORDER BY seq ASC`)
+    .all(id) as Array<Record<string, unknown>>;
+  return rows.map((r) => ({ t: Number(r.t), kind: r.kind as string, path: (r.path as string) ?? null }));
+}
+
+/** Save the (editable) seed tree. No-op once the session is submitted. */
+export function saveDevSessionFiles(id: string, files: DevSessionFile[]): boolean {
+  const db = ensureDb();
+  const now = new Date().toISOString();
+  return (
+    db
+      .prepare(`UPDATE dev_sessions SET files_json = ?, updated_at = ? WHERE id = ? AND status = 'active'`)
+      .run(JSON.stringify(files ?? []), now, id).changes > 0
+  );
+}
+
+/** Append observed events to the session's append-only log. One transaction so
+ *  the per-session seq can't collide under concurrent flushes. Returns the new
+ *  high-water seq. No-op once submitted. */
+export function appendDevSessionEvents(id: string, events: DevSessionEvent[]): number {
+  const db = ensureDb();
+  if (!events?.length) return 0;
+  const now = new Date().toISOString();
+  const tx = db.transaction((): number => {
+    const active = db.prepare(`SELECT status FROM dev_sessions WHERE id = ?`).get(id) as { status: string } | undefined;
+    if (!active || active.status !== "active") return 0;
+    const max = db.prepare(`SELECT COALESCE(MAX(seq), 0) AS m FROM dev_session_events WHERE session_id = ?`).get(id) as { m: number };
+    let seq = Number(max.m);
+    const stmt = db.prepare(`INSERT INTO dev_session_events (session_id, seq, t, kind, path, created_at) VALUES (?, ?, ?, ?, ?, ?)`);
+    for (const e of events) {
+      seq += 1;
+      stmt.run(id, seq, Number.isFinite(e.t) ? e.t : null, String(e.kind), e.path ?? null, now);
+    }
+    db.prepare(`UPDATE dev_sessions SET updated_at = ? WHERE id = ?`).run(now, id);
+    return seq;
+  });
+  return tx();
+}
+
+/** Finalize a session: mark it submitted and create a linked dev_submissions row
+ *  (repo_ref = "session:<id>") so the existing eval machinery can pick it up and
+ *  load the observed events. Idempotent — returns the existing submission if the
+ *  session was already submitted. */
+export function submitDevSession(id: string, postingId: string): DevSubmission | null {
+  const db = ensureDb();
+  const session = getDevSession(id);
+  if (!session) return null;
+  if (session.submissionId) return getSubmission(session.submissionId);
+  const { submission } = createSubmission({
+    postingId,
+    candidateRef: session.candidateRef ?? "live-session",
+    repoRef: `session:${id}`,
+  });
+  const now = new Date().toISOString();
+  db.prepare(`UPDATE dev_sessions SET status = 'submitted', submission_id = ?, submitted_at = ? WHERE id = ?`).run(submission.id, now, id);
+  return submission;
+}
+
 /** Flip a posting's status (W5-3: "closed" stops the apply page + inbound
  *  webhook from collecting submissions nobody will process). */
 export function setPostingStatus(id: string, status: string): boolean {

@@ -357,6 +357,32 @@ export function ensureDb(): Database.Database {
       received_at TEXT NOT NULL
     );
 
+    -- Live Work Surface (moonshot E): an in-product dev-case work session and its
+    -- append-only observed process-event log. files_json holds the candidate's
+    -- (editable) seed tree; submission_id links to the dev_submissions row created
+    -- on submit (repo_ref = "session:<id>") so the eval can load the observed events.
+    CREATE TABLE IF NOT EXISTS dev_sessions (
+      id TEXT PRIMARY KEY,
+      token TEXT,
+      candidate_ref TEXT,
+      files_json TEXT,
+      status TEXT NOT NULL DEFAULT 'active',
+      submission_id TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      submitted_at TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS dev_session_events (
+      session_id TEXT NOT NULL,
+      seq INTEGER NOT NULL,
+      t INTEGER,
+      kind TEXT NOT NULL,
+      path TEXT,
+      created_at TEXT NOT NULL,
+      PRIMARY KEY (session_id, seq)
+    );
+
     CREATE TABLE IF NOT EXISTS dev_outbox (
       id TEXT PRIMARY KEY,
       recipient TEXT,
