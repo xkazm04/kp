@@ -4,6 +4,7 @@ import {
   createPipelineEntry,
   getDevCase,
   getPipelineEntry,
+  getDevSessionEvents,
   getPosting,
   getProfileRecord,
   getSubmission,
@@ -434,7 +435,18 @@ export async function runEvaluateSubmission(submissionId: string, signal?: Abort
   const caseObj = (devCase?.case as Record<string, unknown>) ?? {};
   const roleObj = (devCase?.role as Record<string, unknown>) ?? {};
   const probes = (caseObj.coverProbes as unknown[]) ?? [];
-  const signals = await fetchRepoSignals(sub.repoRef);
+  // Live Work Surface (moonshot E): a "session:<id>" repoRef is an in-product work
+  // session — there is no git log. Use the OBSERVED event stream for tooling;
+  // commits stay empty (the commit-derived reflection degrades gracefully — the
+  // candidate produced no commit history by design). A normal repoRef keeps the
+  // existing fetch-and-infer path unchanged.
+  let signals: RepoSnapshot | null = null;
+  let events: { t: number; kind: string; path?: string | null }[] | null = null;
+  if (sub.repoRef.startsWith("session:")) {
+    events = getDevSessionEvents(sub.repoRef.slice("session:".length));
+  } else {
+    signals = await fetchRepoSignals(sub.repoRef);
+  }
   const commits = signals?.commits ?? [];
   const repo = signals ? { cadence: signals.cadence, topLevel: signals.topLevel } : null;
 
@@ -473,6 +485,7 @@ export async function runEvaluateSubmission(submissionId: string, signal?: Abort
         rolePath,
       ];
       if (repo) args.push("--repo-json", await write("repo.json", repo));
+      if (events) args.push("--events-json", await write("events.json", events));
       return args;
     },
     signal,

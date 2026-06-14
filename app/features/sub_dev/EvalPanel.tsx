@@ -121,7 +121,21 @@ export function EvalPanel({ ev, onPromote, promoted, promoting = false }: { ev: 
         <span className="rounded bg-paper px-1.5 py-0.5 uppercase">{r.iterationPattern}</span>{" "}
         read-before-write <b className="text-ink">{formatFraction(r.readBeforeWrite ?? 0, { label: "readBeforeWrite" })}</b>{" "}
         · fluency <b className="text-ink">{formatFraction(t.fluency ?? 0, { label: "fluency" })}</b>
-        {(x.gaps ?? []).length ? <span> · gaps: {(x.gaps ?? []).join(", ")}</span> : null}
+        {(x.gaps ?? []).length ? <span> · gaps: {(x.gaps ?? []).join(", ")}</span> : null}{" "}
+        {/* Live Work Surface (moonshot E): was tooling WATCHED (in-product session)
+            or RECONSTRUCTED from a git log? Observed > inferred. */}
+        <span
+          title={
+            ev.perStepSources?.tooling === "observed"
+              ? "Tooling watched live in the in-product work surface."
+              : "Tooling reconstructed from the submitted git log."
+          }
+          className={`rounded px-1.5 py-0.5 font-semibold uppercase ${
+            ev.perStepSources?.tooling === "observed" ? "bg-moss/10 text-moss" : "bg-stone-100 text-steel"
+          }`}
+        >
+          {ev.perStepSources?.tooling === "observed" ? "observed" : "inferred"}
+        </span>
       </div>
 
       {/* process trace (DEVP6) — persisted "so the decisions-log contract is checkable
