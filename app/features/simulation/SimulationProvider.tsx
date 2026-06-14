@@ -177,6 +177,23 @@ export function SimulationProvider({ children }: { children: React.ReactNode }) 
     return (p.entries as PipelineEntryView[]) ?? [];
   }, []);
 
+  // The sim walk repeatedly re-fetches the whole board and selects the cohort for
+  // the role under demo. Co-locate that selection so the jobId scope and the stage
+  // strings live in one place: `entriesFor` is the job-scoped (optionally
+  // stage-scoped) cohort; `topScreened` is the highest-matchScore Screened entry
+  // (the candidate the walk follows).
+  const entriesFor = useCallback(
+    async (jobId: string, stage?: string): Promise<PipelineEntryView[]> =>
+      (await getEntries()).filter((e) => e.jobId === jobId && (stage === undefined || e.stage === stage)),
+    [getEntries]
+  );
+
+  const topScreened = useCallback(
+    async (jobId: string): Promise<PipelineEntryView | undefined> =>
+      (await entriesFor(jobId, "Screened")).sort((a, b) => (b.matchScore ?? 0) - (a.matchScore ?? 0))[0],
+    [entriesFor]
+  );
+
   // Poll a DOM predicate until satisfied (element appears / iframe ready).
   const waitDom = useCallback(async <T,>(probe: () => T | null, timeout = 9000): Promise<T | null> => {
     const deadline = Date.now() + timeout;
@@ -258,8 +275,7 @@ export function SimulationProvider({ children }: { children: React.ReactNode }) 
   // surfaces the comparison modal.
   const runGroupEval = useCallback(
     async (jobId: string, roleTitle: string) => {
-      const candidates = (await getEntries())
-        .filter((e) => e.jobId === jobId)
+      const candidates = (await entriesFor(jobId))
         .map((e) => ({ entryId: e.id, candidateId: e.candidateId, label: e.candidateLabel, matchScore: e.matchScore }));
       patch({ groupEval: { roleTitle, payload: null, loading: true, error: null } });
       try {
@@ -301,7 +317,7 @@ export function SimulationProvider({ children }: { children: React.ReactNode }) 
         });
       }
     },
-    [getEntries, log, patch]
+    [entriesFor, log, patch]
   );
 
   // ---- The walk --------------------------------------------------------------
@@ -393,7 +409,7 @@ export function SimulationProvider({ children }: { children: React.ReactNode }) 
           const deadline = Date.now() + 12_000;
           while (Date.now() < deadline) {
             if (ctrl.current.stop) throw new SimStop();
-            sourced = (await getEntries()).filter((e) => e.jobId === jobId && e.stage === "Accepted").length;
+            sourced = (await entriesFor(jobId, "Accepted")).length;
             if (sourced > 0) break;
             await sleep(400);
           }
@@ -417,7 +433,7 @@ export function SimulationProvider({ children }: { children: React.ReactNode }) 
           await beat(1400);
 
           // Match all intake (Accepted) → Screened (first-wave evaluation: match + AI screen).
-          const intake = (await getEntries()).filter((e) => e.jobId === jobId && e.stage === "Accepted");
+          const intake = await entriesFor(jobId, "Accepted");
           // Best-effort cohort advance: this is the ONE site that deliberately opts
           // out of advanceTo's throw-on-failure policy — a stray un-advanceable stub
           // shouldn't abort the whole demo. Log each straggler and continue; the
@@ -430,9 +446,7 @@ export function SimulationProvider({ children }: { children: React.ReactNode }) 
               log(`⚠︎ ${e.candidateLabel} stuck before Screened — skipping (${err instanceof Error ? err.message : "advance failed"})`);
             }
           }
-          const top = (await getEntries())
-            .filter((e) => e.jobId === jobId && e.stage === "Screened")
-            .sort((a, b) => (b.matchScore ?? 0) - (a.matchScore ?? 0))[0];
+          const top = await topScreened(jobId);
           if (!top) throw new Error("No Screened candidate to walk (intake returned none).");
           targetId = top.id;
           targetLabel = top.candidateLabel;
@@ -601,7 +615,7 @@ export function SimulationProvider({ children }: { children: React.ReactNode }) 
       patch({ running: false, error: msg, status: `Failed: ${msg}`, ...CLEAR_OVERLAYS });
       log(`Error: ${msg}`);
     }
-  }, [advance, advanceTo, beat, clickEl, getEntries, log, nav, patch, runGroupEval, step, waitDom, waitEntry]);
+  }, [advance, advanceTo, beat, clickEl, entriesFor, topScreened, log, nav, patch, runGroupEval, step, waitDom, waitEntry]);
 
   const start = useCallback(() => {
     ctrl.current = { stop: false, paused: false, wake: null };
