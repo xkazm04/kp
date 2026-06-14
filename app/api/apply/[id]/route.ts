@@ -14,7 +14,7 @@ import {
   updateProfile,
 } from "@/app/_lib/db";
 import { applyDedupeKey, applyKoSteps, buildApplyProfileDraft, buildApplyScript, FALLBACK_ARCHETYPE } from "@/app/_lib/apply";
-import { failedKoStepIds } from "@/app/_lib/apply-intake";
+import { APPLY_EMAIL_RE, failedKoStepIds } from "@/app/_lib/apply-intake";
 import { getJobStatus, isJobOpenForApplications } from "@/app/_lib/job-ingest";
 import { dispatchApplicationReceived } from "@/app/_lib/comms-dispatch";
 import type { ApplyAnswers } from "@/app/_lib/apply-intake";
@@ -272,7 +272,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     if (email.length > MAX_EMAIL_LENGTH) {
       return NextResponse.json({ error: "Your email is too long." }, { status: 400 });
     }
-    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    if (email && !APPLY_EMAIL_RE.test(email)) {
       return NextResponse.json({ error: "Please enter a valid email address." }, { status: 400 });
     }
 

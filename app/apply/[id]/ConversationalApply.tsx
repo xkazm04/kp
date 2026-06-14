@@ -6,7 +6,7 @@ import { AiDisclosure } from "@/app/_components/AiDisclosure";
 import type { ApplyStep } from "@/app/_lib/apply";
 // Imported straight from the registry-free intake module (not the apply.ts
 // barrel) so the candidate-facing bundle doesn't pull in the archetype registry.
-import { isRetryableApplyStatus, nextVisibleStepIndex } from "@/app/_lib/apply-intake";
+import { APPLY_EMAIL_RE, isRetryableApplyStatus, nextVisibleStepIndex } from "@/app/_lib/apply-intake";
 import { cvAutofill } from "@/app/_lib/cv-autofill";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
 
@@ -288,7 +288,7 @@ export function ConversationalApply({ jobId, steps }: { jobId: string; steps: Ap
     // Validate the email at its own step (same regex the server uses). The server allows a
     // blank email but rejects a malformed one only at the FINAL submit — a non-retryable 400
     // that forces "Start over" and wipes every answer. Catching it here fixes a typo in place.
-    if (step.id === "email" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) {
+    if (step.id === "email" && !APPLY_EMAIL_RE.test(v)) {
       setStepError(t("invalidEmail"));
       return;
     }

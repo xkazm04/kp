@@ -3,7 +3,7 @@ import { getTranslations } from "next-intl/server";
 import { getServerLocale } from "@/i18n/server";
 import { getJob } from "@/app/_lib/db";
 import { applyKoSteps } from "@/app/_lib/apply";
-import { failedKoStepIds } from "@/app/_lib/apply-intake";
+import { APPLY_EMAIL_RE, failedKoStepIds } from "@/app/_lib/apply-intake";
 import { getJobStatus, isJobOpenForApplications } from "@/app/_lib/job-ingest";
 import { intakeLead } from "@/app/_lib/lead-intake";
 import { publicBaseUrl } from "@/app/_lib/public-base-url";
@@ -76,7 +76,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     if (name.length > MAX_NAME_LENGTH) {
       return NextResponse.json({ error: "Your name is too long." }, { status: 400 });
     }
-    if (!email || email.length > MAX_EMAIL_LENGTH || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    if (!email || email.length > MAX_EMAIL_LENGTH || !APPLY_EMAIL_RE.test(email)) {
       return NextResponse.json({ error: "Please enter a valid email address." }, { status: 400 });
     }
 
