@@ -58,6 +58,26 @@ export function SubmissionRow({
   }>({ status: "idle", analysis: null, error: null });
   const owner = submission.repoRef ? parseRepoRef(submission.repoRef)?.owner ?? null : null;
 
+  // Durable Skill Profile (moonshot A): mint a signed, candidate-owned credential
+  // from this graded submission. The button is recruiter-facing (dev studio);
+  // the returned token links to the public, shareable score-card.
+  const [dsp, setDsp] = useState<{ status: "idle" | "issuing" | "done" | "error"; token: string | null }>({ status: "idle", token: null });
+  const issueProfile = async () => {
+    setDsp({ status: "issuing", token: null });
+    try {
+      const r = await fetch("/api/devcase/skill-profile", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ submissionId: submission.id }),
+      });
+      const data = (await r.json()) as { token?: string };
+      if (!r.ok || !data.token) throw new Error("issue failed");
+      setDsp({ status: "done", token: data.token });
+    } catch {
+      setDsp({ status: "error", token: null });
+    }
+  };
+
   const assessAuthor = async () => {
     if (!owner) return;
     setGh({ status: "loading", analysis: null, error: null });
@@ -268,6 +288,30 @@ export function SubmissionRow({
         </div>
       ) : null}
       {ev ? <EvalPanel ev={ev} onPromote={promote} promoted={isPromoted} promoting={promoting} /> : null}
+      {ev ? (
+        <div className="mt-2 flex flex-wrap items-center gap-2 text-micro">
+          <button
+            type="button"
+            onClick={issueProfile}
+            disabled={dsp.status === "issuing"}
+            className="rounded border border-stone-300 px-2 py-1 text-ink hover:bg-stone-50 disabled:opacity-60"
+          >
+            {dsp.status === "issuing"
+              ? "Issuing…"
+              : dsp.status === "done"
+                ? "Re-issue Durable Skill Profile"
+                : "Issue Durable Skill Profile"}
+          </button>
+          {dsp.status === "done" && dsp.token ? (
+            <a href={`/skill/${dsp.token}`} target="_blank" rel="noreferrer" className="text-ink underline">
+              View / share credential ↗
+            </a>
+          ) : null}
+          {dsp.status === "error" ? (
+            <span className="text-coral">Couldn&apos;t issue — needs an evaluated submission + KP_SECRET.</span>
+          ) : null}
+        </div>
+      ) : null}
       {isPromoted ? (
         <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-micro">
           {/* Promote files a pipeline entry + a Decisions review card — link to
