@@ -121,8 +121,22 @@ def _extract_docx(path: Path) -> str:
     return clean_text("\n".join(paragraphs))
 
 
+# Single source for the letter-spaced-run phenomenon (pypdf emitting
+# ``K n o w l e d g e`` — runs of single Unicode letters separated by single
+# spaces). ``[^\W\d_]`` is the Unicode-letter class shared by both consumers; the
+# REPAIR pass (collapse_letter_spacing) and the COUNT pass (count_letter_spacing,
+# used by pipeline.compare_extraction_quality) intentionally differ only in their
+# run threshold ({2,} repairs aggressively, {3,} counts conservatively) and
+# boundary style — kept explicit here rather than re-derived in pipeline.py.
+_LETTER = r"[^\W\d_]"
+
 _LETTER_SPACED_RUN = re.compile(
-    r"(?<![^\W\d_])(?:[^\W\d_]\s){2,}[^\W\d_](?![^\W\d_])",
+    rf"(?<!{_LETTER})(?:{_LETTER}\s){{2,}}{_LETTER}(?!{_LETTER})",
+    flags=re.UNICODE,
+)
+
+_LETTER_SPACED_COUNT = re.compile(
+    rf"\b(?:{_LETTER}\s){{3,}}{_LETTER}\b",
     flags=re.UNICODE,
 )
 
@@ -139,6 +153,15 @@ def collapse_letter_spacing(text: str) -> str:
     to avoid over-merging legitimate ``word - word`` separators.
     """
     return _LETTER_SPACED_RUN.sub(lambda match: match.group(0).replace(" ", ""), text)
+
+
+def count_letter_spacing(text: str) -> int:
+    """Count letter-spaced runs (the {3,} extraction-quality signal).
+
+    Conservative twin of :func:`collapse_letter_spacing`'s repair pattern, shared
+    so both views of "letter-spaced" derive from one ``_LETTER`` class in one file
+    (see ``pipeline.compare_extraction_quality``)."""
+    return sum(1 for _ in _LETTER_SPACED_COUNT.finditer(text))
 
 
 def _extract_pdf(path: Path) -> str:

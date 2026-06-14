@@ -8,7 +8,7 @@ from typing import Any, Callable, TypeVar
 
 from .ats import evaluate_keyword_coverage
 from .authenticity import authenticity_checks
-from .extractors import clean_text, extract_text
+from .extractors import clean_text, count_letter_spacing, extract_text
 from .gemini import GEMINI_MODEL, analyze_profile_with_gemini
 from .redact import redact_pii
 from .insights import (
@@ -349,7 +349,9 @@ def compare_extraction_quality(
 
 
 def _letter_spacing_hits(text: str) -> int:
-    return sum(1 for _ in re.finditer(r"\b(?:[^\W\d_]\s){3,}[^\W\d_]\b", text, flags=re.UNICODE))
+    # Single-sourced in extractors.py (one _LETTER class for both the repair and
+    # this count) so the quality metric and the repair can't drift.
+    return count_letter_spacing(text)
 
 
 def _profile_from_payload(payload: dict[str, Any], raw_text: str) -> CandidateProfile:
