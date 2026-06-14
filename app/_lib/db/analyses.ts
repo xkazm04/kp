@@ -91,6 +91,34 @@ export function setAnalysisDisposition(slug: string, disposition: string, note: 
   return res.changes > 0;
 }
 
+// Calibration Engine (moonshot A/C, foundational primitive P1) — the first
+// (prediction, outcome) dataset, computed entirely from existing columns. The
+// PREDICTION is the saved 0-100 fit `score`; the OUTCOME is the recruiter
+// `disposition` collapsed to a binary label (advance = 1, pass = 0). `hold` and
+// an absent disposition are AMBIGUOUS by design — excluded, not scored as either,
+// so the measured calibration isn't polluted by undecided rows. Read-only.
+export type CalibrationPair = { score: number; outcome: 0 | 1; roleFamily: string | null };
+
+export function calibrationPairs(): CalibrationPair[] {
+  const db = ensureDb();
+  const rows = db
+    .prepare(
+      `SELECT score, disposition, role_family
+       FROM analyses
+       WHERE score IS NOT NULL AND disposition IN ('advance', 'pass')`
+    )
+    .all() as { score: number; disposition: string; role_family: string | null }[];
+  return rows
+    // Defensive: a NULL filter is in SQL, but guard a non-finite score (bad
+    // migration / manual edit) so it never reaches the math as NaN.
+    .filter((r) => Number.isFinite(r.score))
+    .map((r) => ({
+      score: r.score,
+      outcome: r.disposition === "advance" ? 1 : 0,
+      roleFamily: r.role_family,
+    }));
+}
+
 // Every analysis tagged with a JD slug, ordered best-score-first. Uses the
 // idx_analyses_jd_slug index — no row cap and no in-memory filter, so the JD
 // page's candidate count stays correct even past 500 total analyses.
