@@ -8,6 +8,13 @@ export type JdSummary = { slug: string; title: string; preview: string; created_
 // need.jdText, the primary statement of the need.
 export type SelectedJd = { slug: string; title: string; body: string };
 
+// Live Work Surface (moonshot E) — one observed process event emitted by the
+// in-product work surface. Free-form JSON (NOT a codegen'd model): persisted to
+// dev_session_events and fed to the Python engine's tooling_from_events(). `t` is a
+// client timestamp (ms); `path` is the seed file the event concerns.
+export type ProcessEventKind = "open" | "edit" | "decision_log" | "submit";
+export type ProcessEvent = { t: number; kind: ProcessEventKind; path?: string };
+
 // The numeric-range contract for the scoring UI
 // ----------------------------------------------
 // Every numeric field below is one of two domains, annotated inline and enforced
