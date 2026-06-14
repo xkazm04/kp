@@ -17,6 +17,7 @@ import {
   spawnPython,
 } from "@/app/_lib/python-runner";
 import type { ProfileCliOutput } from "@/app/features/sub_profile/ProfileTypes";
+import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 
 export const runtime = "nodejs";
 
@@ -86,13 +87,14 @@ export async function GET(request: NextRequest) {
     // ?id=<candidateId> → a single profile (label/archetype/completeness + payload),
     // used by the Decisions analysis-summary modal and the Profile editor (edit /
     // duplicate hydration). No id → the full list.
+    const ws = await currentWorkspace();
     const id = request.nextUrl.searchParams.get("id");
     if (id) {
-      const rec = getProfileRecord(id);
+      const rec = getProfileRecord(id, ws);
       if (!rec) return NextResponse.json({ error: "Profile not found." }, { status: 404 });
       return NextResponse.json({ profile: { ...rec.row, payload: rec.payload } });
     }
-    return NextResponse.json({ profiles: listProfiles(200) });
+    return NextResponse.json({ profiles: listProfiles(200, ws) });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to list profiles.";
     return NextResponse.json({ error: message }, { status: 500 });
@@ -120,7 +122,7 @@ export async function POST(request: NextRequest) {
     if (body.persist === false) {
       return NextResponse.json({ ...data, saved: null });
     }
-    const saved = saveProfile(persistFieldsFrom(data));
+    const saved = saveProfile(persistFieldsFrom(data), await currentWorkspace());
     return NextResponse.json({ ...data, saved });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Profile build failed.";
@@ -138,7 +140,8 @@ export async function PUT(request: NextRequest) {
     if (!body.id) {
       return NextResponse.json({ error: "Profile id is required." }, { status: 400 });
     }
-    if (!getProfileRecord(body.id)) {
+    const ws = await currentWorkspace();
+    if (!getProfileRecord(body.id, ws)) {
       return NextResponse.json({ error: "Profile not found." }, { status: 404 });
     }
 
@@ -151,7 +154,7 @@ export async function PUT(request: NextRequest) {
     }
     const { data } = outcome;
 
-    const ok = updateProfile(body.id, persistFieldsFrom(data));
+    const ok = updateProfile(body.id, persistFieldsFrom(data), ws);
     if (!ok) {
       return NextResponse.json({ error: "Profile not found." }, { status: 404 });
     }
@@ -168,7 +171,7 @@ export async function DELETE(request: NextRequest) {
     if (!id) {
       return NextResponse.json({ error: "Profile id is required." }, { status: 400 });
     }
-    const ok = deleteProfile(id);
+    const ok = deleteProfile(id, await currentWorkspace());
     if (!ok) {
       return NextResponse.json({ error: "Profile not found." }, { status: 404 });
     }

@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import { writeFile } from "node:fs/promises";
 import path from "node:path";
 import { getJobsByIds, listMatrixProfiles, listOpenPositions, pipelinePlacements } from "@/app/_lib/db";
+import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { cleanupWorkdir, createWorkdir, parsePythonJson, parseStderrError, spawnPython } from "@/app/_lib/python-runner";
 
 export const runtime = "nodejs";
@@ -38,7 +39,7 @@ let matrixCache: { key: string; matrix: MatrixOut } | null = null;
 export async function GET() {
   let workdir: string | null = null;
   try {
-    const profiles = listMatrixProfiles();
+    const profiles = listMatrixProfiles(200, await currentWorkspace());
     const positions = listOpenPositions();
     if (profiles.length === 0 || positions.length === 0) {
       return NextResponse.json({ candidates: [], positions: [], cells: [], missing: [], missingCandidates: [], placements: {} });
