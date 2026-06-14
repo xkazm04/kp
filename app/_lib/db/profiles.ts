@@ -1,4 +1,5 @@
 import { ensureDb, insertWithUniqueSlug, safeRowParse } from "./core";
+import { DEFAULT_WORKSPACE_ID } from "./workspaces";
 
 // ---- Candidate profiles (v2 archetype-aware intake) -----------------------
 
@@ -19,40 +20,43 @@ export type SaveProfileInput = {
   payload: unknown;
 };
 
-export function saveProfile(input: SaveProfileInput): { id: string; createdAt: string } {
+// Tenant scope (P2): `workspaceId` defaults to the single workspace (behavior-
+// preserving; existing/candidate/task callers stay correct). INSERT stamps it;
+// SELECT/UPDATE/DELETE filter by it.
+export function saveProfile(input: SaveProfileInput, workspaceId: string = DEFAULT_WORKSPACE_ID): { id: string; createdAt: string } {
   const db = ensureDb();
   const createdAt = new Date().toISOString();
   const payloadJson = JSON.stringify(input.payload);
   const stmt = db.prepare(
-    `INSERT INTO profiles (id, label, archetype, role_family, completeness, payload_json, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`
+    `INSERT INTO profiles (id, label, archetype, role_family, completeness, payload_json, created_at, workspace_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
   );
   const id = insertWithUniqueSlug((s) =>
-    stmt.run(s, input.label, input.archetype, input.roleFamily, input.completeness, payloadJson, createdAt)
+    stmt.run(s, input.label, input.archetype, input.roleFamily, input.completeness, payloadJson, createdAt, workspaceId)
   );
   return { id, createdAt };
 }
 
-export function listProfiles(limit = 100): ProfileRow[] {
+export function listProfiles(limit = 100, workspaceId: string = DEFAULT_WORKSPACE_ID): ProfileRow[] {
   const db = ensureDb();
   return db
     .prepare(
       `SELECT id, label, archetype, role_family, completeness, created_at
-       FROM profiles ORDER BY created_at DESC LIMIT ?`
+       FROM profiles WHERE workspace_id = ? ORDER BY created_at DESC LIMIT ?`
     )
-    .all(limit) as ProfileRow[];
+    .all(workspaceId, limit) as ProfileRow[];
 }
 
 // Like listProfiles but folds payload_json into the one query, so callers that
 // need every payload (e.g. the candidate pool) don't fire an N+1 of getProfileRecord.
-export function listProfileRecords(limit = 100): { row: ProfileRow; payload: unknown }[] {
+export function listProfileRecords(limit = 100, workspaceId: string = DEFAULT_WORKSPACE_ID): { row: ProfileRow; payload: unknown }[] {
   const db = ensureDb();
   const rows = db
     .prepare(
       `SELECT id, label, archetype, role_family, completeness, payload_json, created_at
-       FROM profiles ORDER BY created_at DESC LIMIT ?`
+       FROM profiles WHERE workspace_id = ? ORDER BY created_at DESC LIMIT ?`
     )
-    .all(limit) as (ProfileRow & { payload_json: string })[];
+    .all(workspaceId, limit) as (ProfileRow & { payload_json: string })[];
   const out: { row: ProfileRow; payload: unknown }[] = [];
   for (const r of rows) {
     const { payload_json, ...rest } = r;
@@ -63,14 +67,14 @@ export function listProfileRecords(limit = 100): { row: ProfileRow; payload: unk
   return out;
 }
 
-export function getProfileRecord(id: string): { row: ProfileRow; payload: unknown } | null {
+export function getProfileRecord(id: string, workspaceId: string = DEFAULT_WORKSPACE_ID): { row: ProfileRow; payload: unknown } | null {
   const db = ensureDb();
   const row = db
     .prepare(
       `SELECT id, label, archetype, role_family, completeness, payload_json, created_at
-       FROM profiles WHERE id = ?`
+       FROM profiles WHERE id = ? AND workspace_id = ?`
     )
-    .get(id) as (ProfileRow & { payload_json: string }) | undefined;
+    .get(id, workspaceId) as (ProfileRow & { payload_json: string }) | undefined;
   if (!row) return null;
   const { payload_json, ...rest } = row;
   const payload = safeRowParse(payload_json, "getProfileRecord", rest.id);
@@ -81,23 +85,23 @@ export function getProfileRecord(id: string): { row: ProfileRow; payload: unknow
 // Overwrite an existing profile in place (created_at is preserved so the roster
 // keeps its order; the payload is the freshly re-routed/re-scored profile from
 // profile_cli). Returns false when no row matched the id.
-export function updateProfile(id: string, input: SaveProfileInput): boolean {
+export function updateProfile(id: string, input: SaveProfileInput, workspaceId: string = DEFAULT_WORKSPACE_ID): boolean {
   const db = ensureDb();
   const info = db
     .prepare(
       `UPDATE profiles SET label = ?, archetype = ?, role_family = ?, completeness = ?, payload_json = ?
-       WHERE id = ?`
+       WHERE id = ? AND workspace_id = ?`
     )
-    .run(input.label, input.archetype, input.roleFamily, input.completeness, JSON.stringify(input.payload), id);
+    .run(input.label, input.archetype, input.roleFamily, input.completeness, JSON.stringify(input.payload), id, workspaceId);
   return Number(info.changes) > 0;
 }
 
 // Returns false when no row matched the id. Pipeline entries reference a profile
 // by candidateId but hold their own denormalized label/archetype, so a delete
 // here does not cascade — an already-converted candidate stays in the pipeline.
-export function deleteProfile(id: string): boolean {
+export function deleteProfile(id: string, workspaceId: string = DEFAULT_WORKSPACE_ID): boolean {
   const db = ensureDb();
-  const info = db.prepare(`DELETE FROM profiles WHERE id = ?`).run(id);
+  const info = db.prepare(`DELETE FROM profiles WHERE id = ? AND workspace_id = ?`).run(id, workspaceId);
   return Number(info.changes) > 0;
 }
 
@@ -105,11 +109,11 @@ export function deleteProfile(id: string): boolean {
 
 export type MatrixProfile = { id: string; label: string; archetype: string | null; payload: unknown };
 
-export function listMatrixProfiles(limit = 200): MatrixProfile[] {
+export function listMatrixProfiles(limit = 200, workspaceId: string = DEFAULT_WORKSPACE_ID): MatrixProfile[] {
   const db = ensureDb();
   const rows = db
-    .prepare(`SELECT id, label, archetype, payload_json FROM profiles ORDER BY created_at ASC LIMIT ?`)
-    .all(limit) as { id: string; label: string; archetype: string | null; payload_json: string }[];
+    .prepare(`SELECT id, label, archetype, payload_json FROM profiles WHERE workspace_id = ? ORDER BY created_at ASC LIMIT ?`)
+    .all(workspaceId, limit) as { id: string; label: string; archetype: string | null; payload_json: string }[];
   return rows
     .map((r): MatrixProfile | null => {
       const payload = safeRowParse(r.payload_json, "listMatrixProfiles", r.id);
