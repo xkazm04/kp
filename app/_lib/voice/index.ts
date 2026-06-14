@@ -2,6 +2,7 @@ import { ElevenLabsVoiceAdapter } from "./elevenlabs.ts";
 import { OpenAiVoiceAdapter } from "./openai.ts";
 import { QUICK_SCREEN_MIN } from "../interview-duration.mjs";
 import { PERSONA_GENDER_GRAMMAR, PERSONA_LANGUAGE_DETECT } from "../student-interview";
+import { coerceProviderId } from "./types.ts";
 import type { VoiceAdapter, VoiceAvailability, VoiceProviderId } from "./types.ts";
 
 export type { VoiceConnect, VoiceProviderId, VoiceAvailability, VoiceTurn, VoiceAdapter } from "./types.ts";
@@ -18,6 +19,17 @@ export function getVoiceAdapter(id: VoiceProviderId): VoiceAdapter {
 
 export function voiceAvailability(): VoiceAvailability {
   return { openai: adapters.openai.available(), elevenlabs: adapters.elevenlabs.available() };
+}
+
+/** The house default-provider policy: honor an explicitly requested provider,
+ *  otherwise prefer a configured one (OpenAI first), defaulting to openai. Shared
+ *  by the create + simulate routes so a recruiter-created link and a simulator
+ *  link can't default to different providers (the preference order lived twice). */
+export function pickDefaultProvider(
+  requested: unknown,
+  avail: VoiceAvailability = voiceAvailability(),
+): VoiceProviderId {
+  return coerceProviderId(requested) ?? (avail.openai ? "openai" : avail.elevenlabs ? "elevenlabs" : "openai");
 }
 
 /** A neutral first-round interviewer brief. For OpenAI it's the session prompt;

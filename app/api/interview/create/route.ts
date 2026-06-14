@@ -5,7 +5,7 @@ import { buildGroundedInterview } from "@/app/_lib/interview-run";
 import { dispatchInterviewInvite } from "@/app/_lib/comms-dispatch";
 import { safeJsonError } from "@/app/_lib/api-response";
 import { publicBaseUrl } from "@/app/_lib/public-base-url";
-import { coerceLanguage, coerceProviderId, voiceAvailability, type VoiceProviderId } from "@/app/_lib/voice";
+import { coerceLanguage, pickDefaultProvider, voiceAvailability, type VoiceProviderId } from "@/app/_lib/voice";
 
 export const runtime = "nodejs";
 
@@ -30,10 +30,7 @@ export async function POST(request: NextRequest) {
     }
 
     const avail = voiceAvailability();
-    // Honor an explicitly requested provider; otherwise prefer a configured one,
-    // defaulting to openai.
-    const provider: VoiceProviderId =
-      coerceProviderId(body.provider) ?? (avail.openai ? "openai" : avail.elevenlabs ? "elevenlabs" : "openai");
+    const provider: VoiceProviderId = pickDefaultProvider(body.provider, avail);
 
     // W6-4 (VOX1) — reissue semantics: a fresh link kills the prior ones.
     // Re-clicking "Create link" used to mint a SECOND live session (and email a
