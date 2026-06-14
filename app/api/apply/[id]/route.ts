@@ -276,6 +276,23 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       return NextResponse.json({ error: "Please enter a valid email address." }, { status: 400 });
     }
 
+    // The captured intake answers, assembled once from the parsed locals so the
+    // re-apply rebuild and the first-apply build are guaranteed to feed
+    // buildApplicantProfile the identical answer set (they differ only in whether
+    // a target profile id is passed).
+    const intakeAnswers: ApplyAnswers = {
+      name,
+      experience,
+      skills,
+      archetype,
+      studentProject,
+      studentEducation,
+      studentAspirations,
+      switchPrior,
+      switchAspirations,
+      cvText,
+    };
+
     // Duplicate-application policy (primary check): if this named applicant has
     // already applied to this role, surface the repeat on the original entry and
     // acknowledge it — don't create a second pipeline row. Dedup keys on the
@@ -302,22 +319,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
           changes.push("contact email captured");
         }
         if (cvText || existing.intakeDegraded) {
-          const rebuilt = await buildApplicantProfile(
-            job,
-            {
-              name,
-              experience,
-              skills,
-              archetype,
-              studentProject,
-              studentEducation,
-              studentAspirations,
-              switchPrior,
-              switchAspirations,
-              cvText,
-            },
-            existing.candidateId
-          );
+          const rebuilt = await buildApplicantProfile(job, intakeAnswers, existing.candidateId);
           if (rebuilt.ok) {
             updates.candidateId = rebuilt.id;
             updates.archetype = rebuilt.archetype;
@@ -355,18 +357,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     // Build a real, matchable V2 candidate from the answers; on failure fall back
     // to a label-only id AND flag the entry intake-degraded so the recruiter sees
     // a stub that needs manual profile capture (rather than a silent demotion).
-    const built = await buildApplicantProfile(job, {
-      name,
-      experience,
-      skills,
-      archetype,
-      studentProject,
-      studentEducation,
-      studentAspirations,
-      switchPrior,
-      switchAspirations,
-      cvText,
-    });
+    const built = await buildApplicantProfile(job, intakeAnswers);
     const candidateId = built.ok ? built.id : randomId("apply");
 
     const { entry, created } = createPipelineEntry({
