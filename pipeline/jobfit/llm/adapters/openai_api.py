@@ -2,30 +2,17 @@
 
 from __future__ import annotations
 
-import os
 from typing import Any
 
-from ..base import LLMResult, TextProvider, load_local_env
+# load_local_env imported so the base's _load_env dispatch (and the tests that
+# patch it on this module) resolve it here; _resolved_key/available live in base.
+from ..base import LLMResult, TextProvider, load_local_env  # noqa: F401
 
 
 class OpenAIProvider(TextProvider):
     name = "openai"
-    _env_key = "OPENAI_API_KEY"
-
-    def _resolved_key(self) -> str | None:
-        if self.api_key:
-            return self.api_key
-        load_local_env()
-        return os.getenv(self._env_key) or None
-
-    def available(self) -> bool:
-        if not self._resolved_key():
-            return False
-        try:
-            import openai  # noqa: F401
-        except ImportError:
-            return False
-        return True
+    _env_keys = ("OPENAI_API_KEY",)
+    _sdk_module = "openai"
 
     def _make_client(self, timeout: int) -> Any:
         import openai

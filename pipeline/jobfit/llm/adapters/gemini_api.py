@@ -8,29 +8,17 @@ identical across both paths.
 
 from __future__ import annotations
 
-import os
 from typing import Any
 
-from ..base import LLMResult, TextProvider, load_local_env
+# load_local_env imported so the base's _load_env dispatch (and the tests that
+# patch it on this module) resolve it here; _resolved_key/available live in base.
+from ..base import LLMResult, TextProvider, load_local_env  # noqa: F401
 
 
 class GeminiProvider(TextProvider):
     name = "gemini"
-
-    def _resolved_key(self) -> str | None:
-        if self.api_key:
-            return self.api_key
-        load_local_env()
-        return os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY") or None
-
-    def available(self) -> bool:
-        if not self._resolved_key():
-            return False
-        try:
-            from google import genai  # noqa: F401
-        except ImportError:
-            return False
-        return True
+    _env_keys = ("GEMINI_API_KEY", "GOOGLE_API_KEY")
+    _sdk_module = "google.genai"
 
     def _make_client(self, timeout: int) -> Any:
         from google import genai

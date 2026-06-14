@@ -7,29 +7,17 @@ every result for the metering ledger.
 
 from __future__ import annotations
 
-import os
 from typing import Any
 
-from ..base import LLMResult, TextProvider, load_local_env, price_usd
+# load_local_env imported so the base's _load_env dispatch (and the tests that
+# patch it on this module) resolve it here; _resolved_key/available live in base.
+from ..base import LLMResult, TextProvider, load_local_env, price_usd  # noqa: F401
 
 
 class AnthropicProvider(TextProvider):
     name = "anthropic"
-
-    def _resolved_key(self) -> str | None:
-        if self.api_key:
-            return self.api_key
-        load_local_env()
-        return os.getenv("ANTHROPIC_API_KEY") or None
-
-    def available(self) -> bool:
-        if not self._resolved_key():
-            return False
-        try:
-            import anthropic  # noqa: F401
-        except ImportError:
-            return False
-        return True
+    _env_keys = ("ANTHROPIC_API_KEY",)
+    _sdk_module = "anthropic"
 
     def _make_client(self, timeout: int) -> Any:
         import anthropic

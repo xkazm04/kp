@@ -16,7 +16,9 @@ _DEFAULT_API_VERSION = "2024-10-21"
 
 class AzureOpenAIProvider(OpenAIProvider):
     name = "azure_openai"
-    _env_key = "AZURE_OPENAI_API_KEY"
+    # Endpoint + key override stays bespoke (see available()/_make_client below);
+    # only the env-key list differs from the OpenAI base.
+    _env_keys = ("AZURE_OPENAI_API_KEY",)
 
     def __init__(
         self,

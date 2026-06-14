@@ -13,7 +13,9 @@ Shared here, once, instead of per adapter: bounded retry on transient errors
 from __future__ import annotations
 
 import dataclasses
+import os
 import random
+import sys
 import time
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
@@ -113,13 +115,24 @@ def is_transient_error(exc: Exception) -> bool:
 
 
 class TextProvider:
-    """Base adapter: subclasses implement ``available()`` and ``_call()``.
+    """Base adapter: subclasses implement ``_call()`` (and a couple of class hooks).
 
     ``_call`` performs exactly one provider request and returns an
     :class:`LLMResult`; retries, timing, JSON guarding, and batching live here.
+
+    Key/SDK availability is also shared: a subclass declares the env var(s) its
+    key can come from in ``_env_keys`` and the SDK module to probe in
+    ``_sdk_module``; the base ``_resolved_key()`` / ``available()`` then do the
+    same "resolve key → import SDK" dance for every direct adapter, so a new
+    provider just sets those two attrs. (Azure overrides ``available()`` to AND
+    its endpoint check on top — see ``adapters/azure_openai.py``.)
     """
 
     name = "base"
+    # Env vars an unset api_key falls back to, first-set-wins (empty = no env key).
+    _env_keys: tuple[str, ...] = ()
+    # SDK module the base ``available()``/``_import_sdk()`` probes for presence.
+    _sdk_module: str | None = None
 
     def __init__(
         self,
@@ -140,11 +153,43 @@ class TextProvider:
 
     # -- to implement ---------------------------------------------------------
 
-    def available(self) -> bool:
-        raise NotImplementedError
-
     def _call(self, prompt: str, *, system: str | None, timeout: int) -> LLMResult:
         raise NotImplementedError
+
+    # -- key / SDK availability (shared across the direct adapters) -----------
+
+    def _load_env(self) -> None:
+        """Best-effort .env load, dispatched through the adapter's OWN module so a
+        per-adapter ``load_local_env`` monkeypatch (tests) still intercepts it."""
+        mod = sys.modules.get(type(self).__module__)
+        loader = getattr(mod, "load_local_env", load_local_env)
+        loader()
+
+    def _resolved_key(self) -> str | None:
+        if self.api_key:
+            return self.api_key
+        self._load_env()
+        for env_key in self._env_keys:
+            value = os.getenv(env_key)
+            if value:
+                return value
+        return None
+
+    def _import_sdk(self) -> bool:
+        """True if the provider SDK is importable. Override for a non-trivial
+        import target; the default imports ``_sdk_module`` by name."""
+        if not self._sdk_module:
+            return True
+        try:
+            __import__(self._sdk_module)
+        except ImportError:
+            return False
+        return True
+
+    def available(self) -> bool:
+        if not self._resolved_key():
+            return False
+        return self._import_sdk()
 
     # -- shared surface (ClaudeCliProvider-compatible) ------------------------
 
