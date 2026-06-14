@@ -33,9 +33,6 @@ export type ApplyStep =
   | { id: string; type: "ko"; prompt: string; when?: StepCondition }
   | { id: string; type: "choice"; prompt: string; options: { value: string; label: string }[]; when?: StepCondition };
 
-/** The KO step ids — a "no" on any of these declines the application. */
-export const KO_STEP_IDS = ["ko_auth", "ko_mode", "ko_lang"] as const;
-
 // Candidate-facing archetype self-declaration, sourced from the shared registry
 // (only archetypes with an `applyLabel` are offered). A real self-declaration
 // lifts archetype detection from heuristic-only (~0.4) to declared (0.9), so an
