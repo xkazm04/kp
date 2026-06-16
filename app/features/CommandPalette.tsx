@@ -5,8 +5,10 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Search } from "lucide-react";
 import { Modal } from "@/app/_components/Modal";
+import { KBD } from "@/app/_components/ui/recipes";
 import { recordRecent, useRecents } from "./recents";
-import { buildTabSwitchUrl, buildUrl, clearedTabScopedParams, NAV_GROUPS, type WorkspaceTabId } from "./tabs";
+import { useSimulation } from "./simulation/SimulationProvider";
+import { buildTabSwitchUrl, buildUrl, clearedTabScopedParams, navLabel, NAV_GROUPS, type WorkspaceTabId } from "./tabs";
 
 // SHELL1 — the global command palette: one Ctrl/Cmd+K surface that searches
 // candidates, pipeline entries, jobs, saved JDs and analyses (via /api/search)
@@ -20,7 +22,10 @@ type PaletteItem = {
   group: string;
   label: string;
   sub: string | null;
-  href: string;
+  // Navigation target — every item has exactly one of href/action.
+  href?: string;
+  // 5d2e0998 — non-navigation commands (the guided tour). Runs on pick.
+  action?: () => void;
   // Entity identity for SHELL3 recents — picking the item records it (re-picks
   // re-front via recordRecent's dedup). Absent on tab actions.
   recent?: { type: SearchHit["type"]; id: string };
@@ -137,13 +142,15 @@ export function CommandPalette() {
     };
   }, [open, query, t]);
 
-  // Localized tab label with the same has-fallback contract Workspace uses.
-  const tabLabel = (id: WorkspaceTabId, fallback: string): string => {
-    const key = `tabs.${id}` as Parameters<typeof nav>[0];
-    return nav.has(key) ? nav(key) : fallback;
-  };
+  // Localized tab label with the same has-fallback contract Workspace uses
+  // (shared navLabel helper in tabs.ts).
+  const tabLabel = (id: WorkspaceTabId, fallback: string): string => navLabel(nav, `tabs.${id}`, fallback);
 
   const recents = useRecents();
+  // 5d2e0998 — the guided tour as a palette command, so the simulation's
+  // chronological story stays reachable after first-run (it otherwise hides in
+  // the collapsed SimBar footer pill).
+  const sim = useSimulation();
 
   const items = useMemo<PaletteItem[]>(() => {
     const q = query.trim().toLowerCase();
@@ -170,6 +177,18 @@ export function CommandPalette() {
         out.push({ key: `tab-${def.id}`, group: "tabs", label, sub: null, href: buildTabSwitchUrl(def.id, search) });
       }
     }
+    // The tour command: offered at rest and under "tour"/"demo"-flavored
+    // queries; hidden while a run is live (SimBar owns pause/stop then).
+    const tourLabel = t("tourAction");
+    if (!sim.running && (!q || tourLabel.toLowerCase().includes(q) || "tour story demo prohlídka příběh".includes(q))) {
+      out.push({
+        key: "action-tour",
+        group: "actions",
+        label: tourLabel,
+        sub: t("tourSub"),
+        action: sim.start,
+      });
+    }
     for (const type of HIT_TYPE_ORDER) {
       for (const hit of hits.filter((h) => h.type === type)) {
         out.push({
@@ -184,7 +203,7 @@ export function CommandPalette() {
     }
     return out;
     // eslint-disable-next-line react-hooks/exhaustive-deps -- tabLabel is stable per locale; nav/t hooks re-render on locale change anyway
-  }, [query, hits, search, recents]);
+  }, [query, hits, search, recents, sim.running, sim.start]);
 
   // Clamp the highlight whenever the list shrinks under it.
   const active = Math.min(selected, Math.max(0, items.length - 1));
@@ -192,11 +211,12 @@ export function CommandPalette() {
   const go = (item: PaletteItem) => {
     // SHELL3: an entity pick is exactly the "I opened this" moment recents
     // exist to capture (tab actions aren't — they're navigation, not work).
-    if (item.recent) {
+    if (item.recent && item.href) {
       recordRecent({ type: item.recent.type, id: item.recent.id, label: item.label, href: item.href });
     }
     setOpen(false);
-    router.push(item.href);
+    if (item.action) item.action();
+    else if (item.href) router.push(item.href);
   };
 
   const onInputKey = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -221,7 +241,7 @@ export function CommandPalette() {
       >
         <Search size={14} aria-hidden />
         <span className="flex-1 truncate">{t("trigger")}</span>
-        <kbd suppressHydrationWarning className="rounded border border-stone-200 bg-paper px-1.5 py-0.5 text-[11px] font-semibold text-steel">
+        <kbd suppressHydrationWarning className={`${KBD} text-[11px]`}>
           {kbdHint}
         </kbd>
       </button>

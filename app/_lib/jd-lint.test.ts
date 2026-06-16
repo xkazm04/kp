@@ -111,3 +111,36 @@ test("a boilerplate-laden JD missing both concretes reports everything at once",
     { kind: "missing", what: "place" },
   ]);
 });
+
+// --- inclusive-language extension (7469c05f) ---------------------------------
+
+test("flags exclusionary / coded language (gendered, masculine-coded, ageist)", () => {
+  const body =
+    "We want a young, aggressive rockstar. He/she will join our salesman team. " +
+    "Prague, remote. 80 000 Kč.";
+  const findings = lintJd({ body });
+  const exclusionary = findings.filter((f) => f.kind === "exclusionary").map((f) => (f as { phrase: string }).phrase.toLowerCase());
+  assert.ok(exclusionary.includes("young"), "ageist 'young' flagged");
+  assert.ok(exclusionary.includes("aggressive"), "masculine-coded 'aggressive' flagged");
+  assert.ok(exclusionary.includes("he/she"), "gendered 'he/she' flagged");
+  assert.ok(exclusionary.includes("salesman"), "gendered 'salesman' flagged");
+  // rockstar stays under `vague` (not duplicated as exclusionary).
+  assert.ok(findings.some((f) => f.kind === "vague"));
+});
+
+test("flags an over-long must-have list", () => {
+  const body =
+    "Prague remote 80000 Kc. Required: A. must have B. must have C. required D. " +
+    "must have E. required F. must have G. required H. must have I.";
+  const findings = lintJd({ body, salaryAvailable: true });
+  const many = findings.find((f) => f.kind === "manyMustHaves") as { count: number } | undefined;
+  assert.ok(many, "long must-have list flagged");
+  assert.ok((many?.count ?? 0) > 8);
+});
+
+test("an inclusive, concrete JD has no exclusionary findings", () => {
+  const body = "Backend engineer in Prague (hybrid). 90 000–110 000 Kč. You will own our payments service.";
+  const findings = lintJd({ body });
+  assert.equal(findings.filter((f) => f.kind === "exclusionary").length, 0);
+  assert.equal(findings.filter((f) => f.kind === "manyMustHaves").length, 0);
+});

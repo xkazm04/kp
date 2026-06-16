@@ -11,7 +11,7 @@ import logging
 from typing import Any
 
 from .models import DevNeed, RepoSnapshot
-from .provenance import generate_with_fallback
+from .provenance import generate_with_fallback, str_list as _str_list
 
 ANALYZE_NEED_PROMPT_VERSION = "need-analysis-v2"  # v2: JD-first intake + multi-codebase reflection
 
@@ -28,12 +28,6 @@ def _generate(provider: Any | None, prompt: str, deterministic, coerce) -> tuple
     # Shared LLM-or-deterministic runner: on an LLM failure it logs the cause at WARNING
     # and stashes a one-line fallbackReason on the artifact (see provenance.generate_with_fallback).
     return generate_with_fallback(provider, prompt, _SYSTEM, deterministic, coerce, _LOG)
-
-
-def _str_list(value: Any) -> list[str]:
-    if not isinstance(value, list):
-        return []
-    return [str(x).strip() for x in value if str(x).strip()]
 
 
 # Cap the JD body forwarded to the prompt — enough for any real JD, bounded so a

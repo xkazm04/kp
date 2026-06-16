@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { countAnalysesByJd, listJds, saveJd } from "@/app/_lib/db";
 import { listJobStatuses } from "@/app/_lib/job-ingest";
-import { validateJdFields } from "@/app/_lib/jd-limits";
+import { jdJobId, validateJdFields } from "@/app/_lib/jd-limits";
 import { safeJsonError } from "@/app/_lib/api-response";
 
 export const runtime = "nodejs";
@@ -19,7 +19,7 @@ export async function GET() {
     const counts = countAnalysesByJd();
     const jds = rows.map((row) => ({
       ...row,
-      jobStatus: statuses[`jd-${row.slug}`] ?? null,
+      jobStatus: statuses[jdJobId(row.slug)] ?? null,
       analysisCount: counts[row.slug] ?? 0,
     }));
     return NextResponse.json({ jds });

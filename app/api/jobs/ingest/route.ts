@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ingestJobAd, insertJob, jobContentHash } from "@/app/_lib/job-ingest";
+import { MIN_AD_CHARS } from "@/app/_lib/split-ads";
 
 export const runtime = "nodejs";
 // The parser this route spawns builds ClaudeCliProvider(timeout=120) for the LLM
@@ -16,8 +17,8 @@ export async function POST(request: NextRequest) {
   try {
     const body = (await request.json()) as { adText?: string; jobId?: string };
     const adText = (body.adText ?? "").trim();
-    if (adText.length < 30) {
-      return NextResponse.json({ error: "Provide the full job ad text (at least ~30 chars)." }, { status: 400 });
+    if (adText.length < MIN_AD_CHARS) {
+      return NextResponse.json({ error: `Provide the full job ad text (at least ~${MIN_AD_CHARS} chars).` }, { status: 400 });
     }
 
     // Thread the request's AbortSignal so abandoning the ingest (navigating away

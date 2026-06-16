@@ -5,7 +5,8 @@ import { getDevCase, getPostingByToken } from "@/app/_lib/db";
 import { caseToMarkdown } from "@/app/features/sub_dev/DevHelpers";
 import type { CaseScenario, RoleSpec } from "@/app/features/sub_dev/DevTypes";
 import { DevApplyForm } from "./DevApplyForm";
-import { SeedFiles, type SeedFile } from "./SeedFiles";
+import { type SeedFile } from "./SeedFiles";
+import { LiveWorkSurface } from "./LiveWorkSurface";
 
 export const dynamic = "force-dynamic";
 
@@ -75,7 +76,7 @@ export default async function DevCaseApplyPage({ params }: { params: Promise<{ t
         </p>
       )}
 
-      {seedFiles.length > 0 ? <SeedFiles files={seedFiles} note={seedNote} /> : null}
+      {seedFiles.length > 0 ? <LiveWorkSurface token={token} seedFiles={seedFiles} note={seedNote} /> : null}
 
       <section className="mt-6 rounded-lg border border-stone-200 bg-paper/40 p-4">
         <h2 className="font-serif text-h3 text-ink">{t("submitHeading")}</h2>

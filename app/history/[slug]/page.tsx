@@ -6,26 +6,22 @@ import { ReportActions } from "@/app/_components/results/ReportActions";
 import { DispositionEditor } from "@/app/_components/results/DispositionEditor";
 import { WorkspaceShell } from "@/app/features/WorkspaceNav";
 import { RecordRecent } from "@/app/features/RecordRecent";
-import { loadAnalysis } from "@/app/_lib/db";
-import { analysisSchema, githubAnalysisSchema } from "@/app/_lib/schemas";
+import { findActiveEntriesByCandidateLabel, loadAnalysis, parseStoredGithubAnalysis, type PipelineEntry } from "@/app/_lib/db";
+import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { analysisSchema } from "@/app/_lib/schemas";
 import type { ResultPanelGithub } from "@/app/_components/results/ResultPanel";
 
 export const dynamic = "force-dynamic";
 
 // GH1 — revive the persisted GitHub deep-dive for the saved report. Defensive
-// end to end: a corrupt column or a payload from an older schema renders the
-// report WITHOUT the GitHub tab (exactly the pre-persistence behavior), never
-// a crash.
+// end to end (parse + schema-validate + log via the shared
+// parseStoredGithubAnalysis): a corrupt column or a payload from an older schema
+// renders the report WITHOUT the GitHub tab (exactly the pre-persistence
+// behavior), never a crash. Wrap the non-null result into the panel shape.
 function parseGithub(githubJson: string | null | undefined, slug: string): ResultPanelGithub | undefined {
-  if (!githubJson) return undefined;
-  try {
-    const parsed = githubAnalysisSchema.safeParse(JSON.parse(githubJson));
-    if (!parsed.success) return undefined;
-    return { status: "done", analysis: parsed.data, error: null, warning: null };
-  } catch (error) {
-    console.error(`[history] corrupt github_json on "${slug}"`, error);
-    return undefined;
-  }
+  const analysis = parseStoredGithubAnalysis(githubJson, slug);
+  if (!analysis) return undefined;
+  return { status: "done", analysis, error: null, warning: null };
 }
 
 export default async function HistoryDetailPage({
@@ -38,7 +34,7 @@ export default async function HistoryDetailPage({
 
   let found: ReturnType<typeof loadAnalysis>;
   try {
-    found = loadAnalysis(slug);
+    found = loadAnalysis(slug, await currentWorkspace());
   } catch (error) {
     // Log the full error server-side; render a styled panel instead of letting
     // a transient DB lock / IO error (SQLITE_BUSY, disk, seed failure) crash the
@@ -73,6 +69,21 @@ export default async function HistoryDetailPage({
   const v2Profile = parsed.data.v2Profile as { archetype?: unknown } | null | undefined;
   const detectedArchetype = typeof v2Profile?.archetype === "string" && v2Profile.archetype ? v2Profile.archetype : null;
 
+  // d95fed6d — the reverse leg of the disposition echo: if the analyzed
+  // candidate is live on the board, say where, and link into the board filtered
+  // to them. Best-effort: a store fault hides the chip, never breaks the report.
+  let onBoard: PipelineEntry[] = [];
+  try {
+    onBoard = findActiveEntriesByCandidateLabel(found.row.candidate_label);
+  } catch (error) {
+    console.error(`[history] board lookup failed for "${slug}"`, error);
+  }
+  const tEnums = await getTranslations("enums");
+  const stageLabel = (stage: string) => {
+    const key = `stage.${stage}` as Parameters<typeof tEnums>[0];
+    return tEnums.has(key) ? tEnums(key) : stage;
+  };
+
   return (
     <WorkspaceShell active="analyze">
       {/* SHELL3: visiting the saved report IS opening the entity — record it. */}
@@ -85,7 +96,13 @@ export default async function HistoryDetailPage({
       <header className="flex flex-col gap-3 border-b border-stone-200 pb-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <p className="text-meta uppercase text-coral">{t("histEyebrow", { slug })}</p>
-          <ReportActions />
+          {/* idea-0832ec48 — pass the parsed analysis so the report can export an
+              evidence-linked provenance dossier alongside copy-link / print. */}
+          <ReportActions
+            analysis={parsed.data}
+            candidateLabel={found.row.candidate_label}
+            savedAt={new Date(found.row.created_at).toLocaleDateString()}
+          />
         </div>
         <h1 className="font-serif text-display text-ink">{found.row.candidate_label}</h1>
         <p className="text-sm text-steel">
@@ -95,6 +112,17 @@ export default async function HistoryDetailPage({
               {" · "}
               <Link href={`/jds/${found.row.jd_slug}`} className="font-mono text-coral hover:underline">
                 JD {found.row.jd_slug}
+              </Link>
+            </>
+          ) : null}
+          {onBoard.length > 0 ? (
+            <>
+              {" · "}
+              <Link
+                href={`/?tab=pipeline&q=${encodeURIComponent(found.row.candidate_label)}`}
+                className="font-semibold text-coral hover:underline"
+              >
+                {t("histOnBoard", { job: onBoard[0].jobTitle ?? "—", stage: stageLabel(onBoard[0].stage) })}
               </Link>
             </>
           ) : null}

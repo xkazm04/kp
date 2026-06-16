@@ -233,6 +233,29 @@ export function ConfidenceBandBadge({
   );
 }
 
+/** The titled `low–high` confidence-range text — the numeric band whose native
+ *  tooltip re-reads the same drivers as ConfidenceBandBadge. Shared by every match
+ *  surface so the band rendering (and its drivers tooltip) lives in one place
+ *  instead of being hand-rolled beside each badge. `className` carries the
+ *  per-surface text styling (e.g. text-sm vs nums). */
+export function ConfidenceRange({
+  low,
+  high,
+  drivers = [],
+  className,
+}: {
+  low: number;
+  high: number;
+  drivers?: string[];
+  className?: string;
+}) {
+  return (
+    <span className={className} title={confidenceBandTitle(drivers)}>
+      {low}–{high}
+    </span>
+  );
+}
+
 export function ProvenanceBadge({ value, className }: { value: string; className?: string }) {
   return <Badge {...provenanceToken(value)} className={className} />;
 }

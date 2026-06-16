@@ -2,9 +2,11 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Check, SlidersHorizontal, Sparkles } from "lucide-react";
+import { Check, RotateCcw, SlidersHorizontal, Sparkles } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
-import { buildUrl } from "@/app/features/tabs";
+import { buildTabSwitchUrl } from "@/app/features/tabs";
+import { ChainEmptyState } from "@/app/_components/ChainEmptyState";
+import { CompletionCta } from "@/app/_components/CompletionCta";
 import { useTasks, useTaskResult } from "@/app/features/tasks/TasksProvider";
 import { useLiveRefresh } from "@/app/features/live-refresh";
 import { AiReviewCard } from "./AiReviewCard";
@@ -17,6 +19,16 @@ import { RoleDecisionRow } from "./RoleDecisionRow";
 import type { Entry } from "./DecisionsTypes";
 
 type Group = { roleKey: string; roleTitle: string; jobId: string | null; entries: Entry[] };
+
+// idea-e43fa801 — an auto-rejected candidate a recruiter can put back for review.
+type ReconsiderRow = {
+  id: string;
+  candidateLabel: string;
+  jobTitle: string | null;
+  archetype: string | null;
+  matchScore: number | null;
+  rejectedAt: string | null;
+};
 
 const roleKeyOf = (e: Entry) => e.jobId ?? e.jobTitle ?? "unassigned";
 
@@ -32,6 +44,11 @@ export function DecisionsTab() {
   const [entries, setEntries] = useState<Entry[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [resolving, setResolving] = useState<Record<string, "accept" | "reject" | "approve_event">>({});
+  // Candidates whose screening was accepted THIS sitting — accepting silently
+  // queues them on Schedule (approvalKind flips to "calendar" server-side), so
+  // the banner below narrates the handoff and offers the jump. Session-local on
+  // purpose: it is a "what just happened" trail, not a persistent inbox.
+  const [queuedLabels, setQueuedLabels] = useState<string[]>([]);
 
   // Modal + group-eval state
   const [summaryEntry, setSummaryEntry] = useState<Entry | null>(null);
@@ -46,6 +63,11 @@ export function DecisionsTab() {
   const [evalError, setEvalError] = useState<string | null>(null);
   const [evaluated, setEvaluated] = useState<Record<string, string>>({});
 
+  // idea-e43fa801 — the reconsider (auto-rejected) queue, loaded alongside the
+  // pending queue and refreshed on the same signals.
+  const [reconsider, setReconsider] = useState<ReconsiderRow[]>([]);
+  const [reinstating, setReinstating] = useState<ReadonlySet<string>>(new Set());
+
   const load = () =>
     fetch("/api/pipeline")
       .then((r) => r.json())
@@ -54,10 +76,41 @@ export function DecisionsTab() {
         setEntries((p.entries as Entry[]) ?? []);
       })
       .catch((e) => setError(e instanceof Error ? e.message : t("loadFailed")));
+  const loadReconsider = () =>
+    fetch("/api/decisions/reconsider")
+      .then((r) => r.json())
+      .then((p) => setReconsider((p.items as ReconsiderRow[]) ?? []))
+      .catch(() => undefined);
   useEffect(() => {
     load();
+    loadReconsider();
   }, []);
-  useLiveRefresh(load); // live-update the queue when the simulation acts
+  useLiveRefresh(() => {
+    load();
+    loadReconsider();
+  }); // live-update both queues when the simulation / automation acts
+
+  const reinstate = async (item: ReconsiderRow) => {
+    setReinstating((s) => new Set(s).add(item.id));
+    try {
+      const r = await fetch(`/api/pipeline/${item.id}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "reinstate" }),
+      });
+      if (r.ok) {
+        setReconsider((cur) => cur.filter((x) => x.id !== item.id));
+        load(); // the candidate is back in the active pipeline at Screened
+      }
+    } finally {
+      setReinstating((s) => {
+        const n = new Set(s);
+        n.delete(item.id);
+        return n;
+      });
+    }
+  };
+  const fmtDate = (iso: string) => new Intl.DateTimeFormat(locale, { dateStyle: "medium" }).format(new Date(iso));
 
   const pending = (entries ?? []).filter((e) => e.approvalKind && e.status === "active");
   const keyDecisions = pending.filter((e) => e.approvalKind === "decision");
@@ -144,6 +197,7 @@ export function DecisionsTab() {
           jobTitle: e.jobTitle,
           lang: locale,
         });
+        setQueuedLabels((prev) => [...prev, e.candidateLabel]);
       }
     } catch {
       load();
@@ -218,7 +272,7 @@ export function DecisionsTab() {
               schedule: (chunks) => (
                 <button
                   type="button"
-                  onClick={() => router.push(buildUrl({ tab: "schedule" }, search.toString()))}
+                  onClick={() => router.push(buildTabSwitchUrl("schedule", search.toString()))}
                   className="focus-ring font-semibold text-coral hover:underline"
                 >
                   {chunks}
@@ -261,6 +315,18 @@ export function DecisionsTab() {
         </div>
       </header>
 
+      {/* Forward handoff (Decisions → Schedule): accepting a screening queues
+          the candidate for slot-picking on Schedule with no visible trace here —
+          this band says what happened and where the work continues. */}
+      {queuedLabels.length > 0 ? (
+        <CompletionCta
+          message={t("queuedBanner", { count: queuedLabels.length, name: queuedLabels[queuedLabels.length - 1] })}
+          links={[{ label: t("queuedBannerCta"), tab: "schedule" }]}
+          onDismiss={() => setQueuedLabels([])}
+          dismissLabel={t("queuedDismiss")}
+        />
+      ) : null}
+
       {error ? (
         <p role="alert" aria-live="assertive" className="rounded-md bg-red-50 p-3 text-base text-red-700">
           {error}
@@ -268,11 +334,17 @@ export function DecisionsTab() {
       ) : entries == null ? (
         <p className="text-base text-steel">{t("loading")}</p>
       ) : pending.length === 0 ? (
-        <div className="rounded-lg border border-stone-200 bg-paper p-6 text-center">
-          <Check className="mx-auto text-moss" size={28} />
-          <p className="mt-2 text-base font-semibold text-ink">{t("caughtUpTitle")}</p>
-          <p className="text-sm text-steel">{t("caughtUpBody")}</p>
-        </div>
+        // Caught-up is closure, not a dead-end: point at where the work
+        // continues (slots waiting on Schedule, the live board).
+        <ChainEmptyState
+          icon={Check}
+          title={t("caughtUpTitle")}
+          body={t("caughtUpBody")}
+          links={[
+            { tab: "schedule", label: t("caughtUpCtaSchedule") },
+            { tab: "pipeline", label: t("caughtUpCtaPipeline") },
+          ]}
+        />
       ) : (
         <div className="space-y-6">
           {visibleAiReviews.length > 0 ? (
@@ -313,6 +385,45 @@ export function DecisionsTab() {
           </section>
         </div>
       )}
+
+      {/* idea-e43fa801 — the safety valve over irreversible auto-rejection. Always
+          available (even when caught up), collapsed by default so it doesn't
+          compete with the live decision queue. */}
+      {reconsider.length > 0 ? (
+        <details className="rounded-lg border border-stone-200 bg-paper/40">
+          <summary className="focus-ring flex cursor-pointer items-center gap-1.5 px-4 py-2.5 text-meta uppercase tracking-wide text-steel">
+            <RotateCcw size={13} className="text-coral" /> {t("reconsiderTitle", { count: reconsider.length })}
+          </summary>
+          <div className="space-y-2 px-4 pb-3">
+            <p className="text-sm text-steel">{t("reconsiderHelp")}</p>
+            <ul className="space-y-1.5">
+              {reconsider.map((item) => (
+                <li
+                  key={item.id}
+                  className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-md border border-stone-100 bg-white px-3 py-2 text-sm"
+                >
+                  <span className="font-semibold text-ink">{item.candidateLabel}</span>
+                  {item.jobTitle ? <span className="text-steel">· {item.jobTitle}</span> : null}
+                  {item.matchScore != null ? (
+                    <span className="text-stone-400">· {t("reconsiderMatch", { score: item.matchScore })}</span>
+                  ) : null}
+                  {item.rejectedAt ? (
+                    <span className="text-stone-400">· {t("reconsiderRejected", { date: fmtDate(item.rejectedAt) })}</span>
+                  ) : null}
+                  <button
+                    type="button"
+                    onClick={() => void reinstate(item)}
+                    disabled={reinstating.has(item.id)}
+                    className="focus-ring ml-auto rounded-md border border-coral/40 bg-white px-2.5 py-1 text-sm font-semibold text-coral hover:bg-coral/5 disabled:opacity-50"
+                  >
+                    {reinstating.has(item.id) ? t("reinstating") : t("reinstate")}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </details>
+      ) : null}
 
       {summaryEntry ? (
         <AnalysisSummaryModal

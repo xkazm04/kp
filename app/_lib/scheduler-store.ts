@@ -1,5 +1,5 @@
 import Database from "better-sqlite3";
-import { DB_PATH, ensureDbDir } from "./db-path";
+import { openStore } from "./db-path";
 
 // Direction #5 — durable scheduler state for the automation clock. Isolated
 // connection (job-ingest.ts / offers-store.ts pattern) so we don't touch the
@@ -19,15 +19,13 @@ const REMINDERS_INTERVAL_MIN = 1;
 let _db: Database.Database | null = null;
 function db(): Database.Database {
   if (_db) return _db;
-  ensureDbDir();
-  const d = new Database(DB_PATH);
-  d.pragma("journal_mode = WAL");
-  // The policy pass writes pipeline_entries/pipeline_events on db.ts's separate
-  // connection to the same kp.sqlite file while we write scheduler/scheduler_runs.
-  // Without this, claimDueRun()/recordRun() throw SQLITE_BUSY the moment the pass
-  // is mid-write — and since claimDueRun already advanced next_due_at, the window
-  // is silently skipped. Wait briefly instead of crashing.
-  d.pragma("busy_timeout = 5000");
+  // Isolated connection on the shared kp.sqlite file (WAL + busy_timeout=5000):
+  // the policy pass writes pipeline_entries/pipeline_events on db.ts's separate
+  // connection while we write scheduler/scheduler_runs. Without the wait,
+  // claimDueRun()/recordRun() throw SQLITE_BUSY the moment the pass is mid-write —
+  // and since claimDueRun already advanced next_due_at, the window is silently
+  // skipped. Wait briefly instead of crashing.
+  const d = openStore();
   d.exec(`
     CREATE TABLE IF NOT EXISTS scheduler (
       name TEXT PRIMARY KEY,

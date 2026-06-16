@@ -3,18 +3,23 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Download, PauseCircle } from "lucide-react";
+import { ArrowRight, Download, PauseCircle, Target } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { downloadFile, toCsv } from "@/app/_lib/export-utils";
 import { useJsonFetch } from "@/app/_lib/useJsonFetch";
-import { useEnumLabel } from "@/app/_lib/use-enum-label";
+import { useEnumLabel, labelOr } from "@/app/_lib/use-enum-label";
 import type { MomentumWeek } from "@/app/_lib/analytics-momentum";
-import type { AutomationImpact } from "@/app/_lib/decision-attribution";
+import { forecastHires } from "@/app/_lib/analytics-forecast";
+import type { Delta, PeriodDeltas } from "@/app/_lib/analytics-deltas";
+import { kindLabel, type AutomationImpact } from "@/app/_lib/decision-attribution";
+import type { AutomationRoi } from "@/app/_lib/automation-roi";
 // `import type` only — erased at compile time, no server code in the bundle.
 import type { ChannelEconomics } from "@/app/_lib/db";
 import type { VariantRecommendation, VariantStat } from "@/app/_lib/source-analytics";
 import { buildUrl, clearedTabScopedParams } from "@/app/features/tabs";
 import { DecisionLog } from "./DecisionLog";
+import { CalibrationPanel } from "./CalibrationPanel";
+import { DecisionRecordsPanel } from "./DecisionRecordsPanel";
 
 type Funnel = { stage: string; reached: number; current: number; conversionPct: number | null };
 type Analytics = {
@@ -35,12 +40,19 @@ type Analytics = {
   windowDays: number | null;
   momentum: MomentumWeek[];
   automation: AutomationImpact;
+  // b39992b1 — recruiter-hours + CZK the automation saved over the window.
+  automationRoi: AutomationRoi;
   bySource: { source: string; total: number; reachedInterview: number; hired: number; hireRatePct: number }[];
   // E5 — funnel economics over stored source attribution.
   byChannel: ChannelEconomics[];
   byVariant: VariantStat[];
   byVariantTotal: number;
   variantRecommendations: VariantRecommendation[];
+  // ce8e3c9e — vs-previous-period diffs for the comparable scalars; null in the
+  // all-time view (no "previous period" to compare against).
+  deltas: PeriodDeltas | null;
+  // 82c2b8e8 — recruiter-set goals: per-stage conversion %% targets + a TTH goal.
+  targets: { conversion: Record<string, number>; timeToHireDays: number | null };
 };
 
 // ANA2 — the selectable windows. null = all time (the server default).
@@ -81,6 +93,8 @@ export function AnalyticsTab() {
   if (!data) return <p className="text-base text-steel">{t("loading")}</p>;
 
   const maxReached = Math.max(1, ...data.funnel.map((f) => f.reached));
+  // ce8e3c9e — index the per-stage conversion deltas by stage for the funnel render.
+  const convDeltaByStage = new Map((data.deltas?.funnel ?? []).map((f) => [f.stage, f.conversionPct]));
 
   return (
     <section className="space-y-6">
@@ -111,7 +125,12 @@ export function AnalyticsTab() {
         {/* Compact key-stat cluster pinned to the top-right; hairline dividers
             keep four figures in the space one full-size card used to take. */}
         <div className="grid shrink-0 grid-cols-2 gap-px overflow-hidden rounded-lg border border-stone-200 bg-stone-200 shadow-panel lg:w-[22rem]">
-          <Stat label={t("statCandidates")} value={data.total} sub={t("activeSub", { count: data.active })} />
+          <Stat
+            label={t("statCandidates")}
+            value={data.total}
+            sub={t("activeSub", { count: data.active })}
+            delta={data.deltas?.total}
+          />
           <Stat
             label={t("statHired")}
             value={data.hired}
@@ -122,8 +141,29 @@ export function AnalyticsTab() {
                 .filter(Boolean)
                 .join(" · ") || undefined
             }
+            // The headline movement is hire RATE (delta shown as pts) — an absolute
+            // hire count rises with volume; the rate is the quality signal.
+            delta={data.deltas?.hireRatePct}
+            unit="pts"
           />
-          <Stat label={t("statTimeToHire")} value={data.avgTimeToHireDays ?? "—"} sub={data.avgTimeToHireDays != null ? t("daysAvg") : t("noHires")} />
+          <Stat
+            label={t("statTimeToHire")}
+            value={data.avgTimeToHireDays ?? "—"}
+            sub={data.avgTimeToHireDays != null ? t("daysAvg") : t("noHires")}
+            delta={data.deltas?.avgTimeToHireDays}
+            unit="days"
+            lowerIsBetter
+            goalChip={
+              data.targets.timeToHireDays != null
+                ? {
+                    text: t("goalDays", { n: data.targets.timeToHireDays }),
+                    // Missed when we have an average and it exceeds the day goal.
+                    missed: data.avgTimeToHireDays != null && data.avgTimeToHireDays > data.targets.timeToHireDays,
+                  }
+                : undefined
+            }
+          />
+          {/* Age is an as-of-now figure — no prior-window analogue, so no delta. */}
           <Stat label={t("statAge")} value={data.avgAgeDays ?? "—"} sub={data.avgAgeDays != null ? t("daysActive") : undefined} />
         </div>
       </header>
@@ -173,12 +213,21 @@ export function AnalyticsTab() {
                     {f.current > 0 ? <span className="text-steel">{t("hereNow", { count: f.current })}</span> : null}
                   </div>
                 </div>
-                <span className="w-16 shrink-0 text-right text-sm">
+                <span className="flex w-20 shrink-0 flex-col items-end text-sm">
                   {f.conversionPct != null ? (
-                    <span className={f.conversionPct < 50 ? "text-coral" : "text-moss"}>{f.conversionPct}%</span>
+                    // 82c2b8e8 — miss the configurable goal (default 50% when unset)
+                    // → coral. The goal replaces the old hardcoded 50% threshold.
+                    <span className={f.conversionPct < (data.targets.conversion[f.stage] ?? 50) ? "text-coral" : "text-moss"}>
+                      {f.conversionPct}%
+                    </span>
                   ) : (
                     <span className="text-steel">—</span>
                   )}
+                  {data.targets.conversion[f.stage] != null ? (
+                    <span className="text-meta text-steel">{t("goalPct", { pct: data.targets.conversion[f.stage] })}</span>
+                  ) : null}
+                  {/* ce8e3c9e — conversion vs the previous equal-length window. */}
+                  {convDeltaByStage.get(f.stage) ? <DeltaChip delta={convDeltaByStage.get(f.stage)!} unit="pts" /> : null}
                 </span>
                 </Link>
               </li>
@@ -202,9 +251,19 @@ export function AnalyticsTab() {
               </Link>
             </p>
           ) : null}
+          {/* 82c2b8e8 — set the goal lines the funnel + time-to-hire flag against. */}
+          <GoalsEditor
+            stages={data.funnel.map((f) => f.stage)}
+            conversion={data.targets.conversion}
+            timeToHireDays={data.targets.timeToHireDays}
+            onSaved={reload}
+          />
         </div>
 
         <div className="space-y-6">
+          {/* 094b5870 — forward projection from the same velocity/conversion/TTH. */}
+          <ForecastPanel funnel={data.funnel} momentum={data.momentum} avgTimeToHireDays={data.avgTimeToHireDays} />
+
           <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
             <h3 className="font-serif text-h2 text-ink">{t("byArchetype")}</h3>
             <ul className="mt-3 space-y-3">
@@ -225,12 +284,24 @@ export function AnalyticsTab() {
               ) : null}
             </ul>
           </div>
-          <AutomationPanel impact={data.automation} />
-          <SourcePanel rows={data.bySource} />
+          <AutomationPanel
+            impact={data.automation}
+            roi={data.automationRoi}
+            onSaved={reload}
+            decisionsHref={buildUrl({ ...clearedTabScopedParams(), tab: "decisions" }, search.toString())}
+          />
+          <SourcePanel
+            rows={data.bySource}
+            channelsHref={buildUrl({ ...clearedTabScopedParams(), tab: "channels" }, search.toString())}
+          />
         </div>
       </div>
 
       <MomentumPanel weeks={data.momentum} />
+
+      <CalibrationPanel />
+
+      <DecisionRecordsPanel />
 
       <ChannelEconomicsPanel
         rows={data.byChannel}
@@ -320,7 +391,17 @@ export function AnalyticsTab() {
 // ANA3 — "how much is the automation actually doing": the auto/human split plus
 // the rollup rows, all folded through the SAME decision-attribution map the
 // DecisionLog badges use, over the page's selected window.
-function AutomationPanel({ impact }: { impact: AutomationImpact }) {
+function AutomationPanel({
+  impact,
+  roi,
+  onSaved,
+  decisionsHref,
+}: {
+  impact: AutomationImpact;
+  roi: AutomationRoi;
+  onSaved: () => void;
+  decisionsHref: string;
+}) {
   const t = useTranslations("analytics.automation");
   const decided = impact.autoCount + impact.humanCount;
   const pct = decided > 0 ? Math.round((impact.autoCount / decided) * 100) : null;
@@ -341,12 +422,77 @@ function AutomationPanel({ impact }: { impact: AutomationImpact }) {
             <ImpactRow label={t("autoRejected")} value={impact.autoRejected} />
             <li className="flex items-baseline justify-between gap-2">
               <span className="text-steel">{t("holds")}</span>
-              <span className="font-medium text-ink">
+              {/* Holds are acted on in the Decisions queue — the figure links to
+                  where the action happens, like the funnel bars do (ANA1). */}
+              <Link
+                href={decisionsHref}
+                title={t("reviewHolds")}
+                className="focus-ring rounded font-medium text-ink underline-offset-2 hover:text-coral hover:underline"
+              >
                 {t("holdsValue", { raised: impact.holdsRaised, resolved: impact.holdsResolved })}
-              </span>
+              </Link>
             </li>
             <ImpactRow label={t("comms")} value={impact.commsDelivered} />
           </ul>
+          {/* b39992b1 — what that automation was WORTH, in recruiter-hours + CZK. */}
+          <RoiLedger roi={roi} onSaved={onSaved} />
+        </>
+      )}
+    </div>
+  );
+}
+
+// b39992b1 — the counterfactual savings the automated trail bought, grounded in
+// the same per-kind event counts the rollup uses, at the org's (override-able)
+// hourly rate. Exportable like the decision log.
+function RoiLedger({ roi, onSaved }: { roi: AutomationRoi; onSaved: () => void }) {
+  const t = useTranslations("analytics.roi");
+  const tLog = useTranslations("analytics.log");
+  const exportCsv = () => {
+    downloadFile(
+      "kp-automation-roi.csv",
+      toCsv([
+        [t("csvKind"), t("csvCount"), t("csvMinsEach"), t("csvMinsTotal")],
+        ...roi.actions.map((a) => [kindLabel(tLog, a.kind), a.count, a.minutesEach, a.minutesTotal]),
+      ]),
+      "text/csv"
+    );
+  };
+  return (
+    <div className="mt-4 border-t border-stone-200 pt-3">
+      <h4 className="text-meta uppercase tracking-wide text-steel">{t("title")}</h4>
+      {roi.totalActions === 0 ? (
+        <p className="mt-1 text-sm text-steel">{t("empty")}</p>
+      ) : (
+        <>
+          <p className="mt-1 font-serif text-h2 leading-tight text-moss">
+            {t("headline", { hours: roi.hoursSaved, czk: roi.czkSaved.toLocaleString("cs-CZ") })}
+          </p>
+          <p className="mt-0.5 text-sm text-steel">{t("basis", { actions: roi.totalActions, rate: roi.hourlyRateCzk })}</p>
+          <ul className="mt-2 space-y-1 text-sm">
+            {roi.actions.slice(0, 5).map((a) => (
+              <li key={a.kind} className="flex items-baseline justify-between gap-2">
+                <span className="truncate text-steel">{t("actionRow", { label: kindLabel(tLog, a.kind), count: a.count })}</span>
+                <span className="shrink-0 font-medium text-ink">{t("minsSaved", { mins: a.minutesTotal })}</span>
+              </li>
+            ))}
+          </ul>
+          <div className="mt-3 flex flex-wrap items-center gap-3">
+            <TargetInput
+              metric={RECRUITER_HOURLY_KEY}
+              label={t("rateLabel")}
+              value={roi.hourlyRateCzk}
+              suffix={t("rateSuffix")}
+              onSaved={onSaved}
+            />
+            <button
+              type="button"
+              onClick={exportCsv}
+              className="focus-ring inline-flex h-8 items-center gap-1.5 rounded-md border border-stone-200 px-2.5 text-sm font-semibold text-ink hover:border-coral/40"
+            >
+              <Download size={13} /> {t("export")}
+            </button>
+          </div>
         </>
       )}
     </div>
@@ -366,12 +512,9 @@ function ImpactRow({ label, value }: { label: string; value: number }) {
 // server-side from each entry's earliest event kind), with the interview/hire
 // payoff per channel. Answers "does the apply link or recruiter sourcing
 // produce the candidates that actually get hired".
-function SourcePanel({ rows }: { rows: Analytics["bySource"] }) {
+function SourcePanel({ rows, channelsHref }: { rows: Analytics["bySource"]; channelsHref: string }) {
   const t = useTranslations("analytics");
-  const sourceLabel = (s: string) => {
-    const key = `source.${s}` as Parameters<typeof t>[0];
-    return t.has(key) ? t(key) : s;
-  };
+  const sourceLabel = (s: string) => labelOr(t, `source.${s}`, s);
   return (
     <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
       <h3 className="font-serif text-h2 text-ink">{t("bySource")}</h3>
@@ -389,6 +532,14 @@ function SourcePanel({ rows }: { rows: Analytics["bySource"] }) {
         ))}
         {rows.length === 0 ? <li className="text-base text-steel">{t("noSourceData")}</li> : null}
       </ul>
+      {/* Channel economics are configured on the Channels tab — give the ROI
+          reading a destination instead of leaving it a dead report. */}
+      <Link
+        href={channelsHref}
+        className="focus-ring mt-4 inline-flex items-center gap-1 text-sm font-semibold text-coral hover:underline"
+      >
+        {t("configureChannels")} <ArrowRight size={13} aria-hidden />
+      </Link>
     </div>
   );
 }
@@ -412,10 +563,7 @@ function ChannelEconomicsPanel({
 }) {
   const t = useTranslations("analytics.channels");
   const format = useFormatter();
-  const channelName = (channel: string) => {
-    const key = `names.${channel}` as Parameters<typeof t>[0];
-    return t.has(key) ? t(key) : channel;
-  };
+  const channelName = (channel: string) => labelOr(t, `names.${channel}`, channel);
   const czk = (n: number) => format.number(n);
 
   return (
@@ -534,18 +682,31 @@ function ChannelEconomicsPanel({
 // E5 — inline spend editor: saves on blur/Enter, clears when emptied. The value
 // re-syncs from the server after a save (the analytics reload), so the cost
 // columns and the input always agree.
-function SpendInput({
-  channel,
-  channelLabel,
+// One save-on-blur numeric input: holds the draft, re-seeds when the server
+// `value` changes (the in-render prop-resync pattern), validates (blank → null;
+// rejects non-finite/negative), short-circuits an unchanged value, and delegates
+// the actual persistence to `onSave`. Each caller owns its own endpoint/body and
+// supplies its label/suffix chrome around this. Extracted from the near-identical
+// SpendInput/TargetInput (only endpoint/body + minor styling differed).
+function InlineNumberSave({
   value,
-  onSaved,
+  onSave,
+  width,
+  inputType = "text",
+  inputClassName,
+  ariaLabel,
+  id,
+  failedTitle,
 }: {
-  channel: string;
-  channelLabel: string;
   value: number | null;
-  onSaved: () => void;
+  onSave: (value: number | null) => Promise<void>;
+  width: string;
+  inputType?: "text" | "number";
+  inputClassName?: string;
+  ariaLabel?: string;
+  id?: string;
+  failedTitle: string;
 }) {
-  const t = useTranslations("analytics.channels");
   const [draft, setDraft] = useState(value != null ? String(value) : "");
   const [saving, setSaving] = useState(false);
   const [failed, setFailed] = useState(false);
@@ -559,22 +720,16 @@ function SpendInput({
 
   const save = async () => {
     const trimmed = draft.trim();
-    const amount = trimmed === "" ? null : Number(trimmed);
-    if (amount !== null && (!Number.isFinite(amount) || amount < 0)) {
+    const v = trimmed === "" ? null : Number(trimmed);
+    if (v !== null && (!Number.isFinite(v) || v < 0)) {
       setFailed(true);
       return;
     }
-    if (amount === value) return; // unchanged — no request
+    if (v === value) return; // unchanged — no request
     setSaving(true);
     setFailed(false);
     try {
-      const r = await fetch("/api/analytics/spend", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ channel, amountCzk: amount }),
-      });
-      if (!r.ok) throw new Error();
-      onSaved();
+      await onSave(v);
     } catch {
       setFailed(true);
     } finally {
@@ -584,6 +739,8 @@ function SpendInput({
 
   return (
     <input
+      id={id}
+      type={inputType}
       inputMode="numeric"
       value={draft}
       onChange={(e) => {
@@ -595,14 +752,195 @@ function SpendInput({
         if (e.key === "Enter") (e.target as HTMLInputElement).blur();
       }}
       disabled={saving}
-      aria-label={t("spendAria", { channel: channelLabel })}
-      title={failed ? t("spendSaveFailed") : undefined}
+      aria-label={ariaLabel}
+      title={failed ? failedTitle : undefined}
       aria-invalid={failed ? true : undefined}
       placeholder="—"
-      className={`focus-ring h-8 w-24 rounded-md border px-2 text-right text-sm disabled:opacity-50 ${
+      className={`focus-ring h-8 ${width} rounded-md border px-2 text-right disabled:opacity-50 ${inputClassName ?? ""} ${
         failed ? "border-coral text-coral" : "border-stone-200 text-ink"
       }`}
     />
+  );
+}
+
+function SpendInput({
+  channel,
+  channelLabel,
+  value,
+  onSaved,
+}: {
+  channel: string;
+  channelLabel: string;
+  value: number | null;
+  onSaved: () => void;
+}) {
+  const t = useTranslations("analytics.channels");
+  return (
+    <InlineNumberSave
+      value={value}
+      width="w-24"
+      inputClassName="text-sm"
+      ariaLabel={t("spendAria", { channel: channelLabel })}
+      failedTitle={t("spendSaveFailed")}
+      onSave={async (amount) => {
+        const r = await fetch("/api/analytics/spend", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ channel, amountCzk: amount }),
+        });
+        if (!r.ok) throw new Error();
+        onSaved();
+      }}
+    />
+  );
+}
+
+// 094b5870 — forward hire projection, computed client-side from the same payload
+// the rest of the page renders (pure forecastHires — no extra fetch). Shows the
+// expected hires already in flight, an inflow projection over a few horizons, and
+// the average time-to-hire as the realization lag. Below the signal floor (no
+// hires observed yet) it says so rather than projecting a misleading zero.
+function ForecastPanel({
+  funnel,
+  momentum,
+  avgTimeToHireDays,
+}: {
+  funnel: Funnel[];
+  momentum: MomentumWeek[];
+  avgTimeToHireDays: number | null;
+}) {
+  const t = useTranslations("analytics.forecast");
+  const f = forecastHires({
+    weeklyAdded: momentum.map((w) => w.added),
+    funnel: funnel.map((r) => ({ stage: r.stage, reached: r.reached, current: r.current })),
+    avgTimeToHireDays,
+  });
+  return (
+    <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
+      <h3 className="font-serif text-h2 text-ink">{t("title")}</h3>
+      {!f.hasSignal ? (
+        <p className="mt-3 rounded-md bg-paper p-3 text-base text-steel">{t("noSignal")}</p>
+      ) : (
+        <>
+          <p className="mt-1 text-sm text-steel">
+            {t("basis", { velocity: f.weeklyVelocity, conv: f.overallConversionPct ?? 0 })}
+          </p>
+          <dl className="mt-3 space-y-2">
+            <div className="flex items-baseline justify-between">
+              <dt className="text-base text-ink">{t("inFlight")}</dt>
+              <dd className="font-serif text-h2 leading-none text-moss">{f.inFlightExpectedHires}</dd>
+            </div>
+            {f.projected.map((p) => (
+              <div key={p.weeks} className="flex items-baseline justify-between border-t border-stone-100 pt-2">
+                <dt className="text-base text-steel">{t("horizon", { weeks: p.weeks })}</dt>
+                <dd className="text-base font-semibold text-ink">{t("plusHires", { hires: p.hires })}</dd>
+              </div>
+            ))}
+          </dl>
+          {f.etaDays != null ? <p className="mt-3 text-meta text-steel">{t("eta", { days: f.etaDays })}</p> : null}
+        </>
+      )}
+    </div>
+  );
+}
+
+// 82c2b8e8 / b39992b1 — mirror the server's reserved analytics_targets keys.
+// Declared locally so the client doesn't import the db barrel (better-sqlite3)
+// for two strings.
+const TIME_TO_HIRE_KEY = "time_to_hire";
+const RECRUITER_HOURLY_KEY = "recruiter_hourly_czk";
+
+// 82c2b8e8 — collapsible goal editor. Per-stage conversion % goals + one
+// time-to-hire goal (days), persisted via /api/analytics/targets. The funnel
+// colors a stage coral when it misses its goal; the time-to-hire stat shows a
+// met/missed pill. Skips the first funnel stage (no inbound conversion ratio).
+function GoalsEditor({
+  stages,
+  conversion,
+  timeToHireDays,
+  onSaved,
+}: {
+  stages: string[];
+  conversion: Record<string, number>;
+  timeToHireDays: number | null;
+  onSaved: () => void;
+}) {
+  const t = useTranslations("analytics.goals");
+  const enumLabel = useEnumLabel();
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="mt-4 border-t border-stone-200 pt-3">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        className="focus-ring flex items-center gap-1.5 rounded text-sm font-semibold text-steel hover:text-ink"
+      >
+        <Target size={14} /> {t("title")}
+      </button>
+      {open ? (
+        <div className="mt-2 space-y-1.5">
+          <p className="text-meta text-steel">{t("intro")}</p>
+          {stages.slice(1).map((stage) => (
+            <TargetInput
+              key={stage}
+              metric={stage}
+              label={enumLabel("stage", stage)}
+              value={conversion[stage] ?? null}
+              suffix="%"
+              onSaved={onSaved}
+            />
+          ))}
+          <TargetInput
+            metric={TIME_TO_HIRE_KEY}
+            label={t("timeToHire")}
+            value={timeToHireDays}
+            suffix={t("daysSuffix")}
+            onSaved={onSaved}
+          />
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function TargetInput({
+  metric,
+  label,
+  value,
+  suffix,
+  onSaved,
+}: {
+  metric: string;
+  label: string;
+  value: number | null;
+  suffix: string;
+  onSaved: () => void;
+}) {
+  const t = useTranslations("analytics.goals");
+  return (
+    <div className="flex items-center gap-2 text-sm">
+      <label htmlFor={`goal-${metric}`} className="w-28 shrink-0 text-steel">
+        {label}
+      </label>
+      <InlineNumberSave
+        id={`goal-${metric}`}
+        value={value}
+        width="w-20"
+        inputType="number"
+        failedTitle={t("saveFailed")}
+        onSave={async (v) => {
+          const r = await fetch("/api/analytics/targets", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ metric, value: v }),
+          });
+          if (!r.ok) throw new Error();
+          onSaved();
+        }}
+      />
+      <span className="text-meta text-steel">{suffix}</span>
+    </div>
   );
 }
 
@@ -671,12 +1009,66 @@ function MomentumPanel({ weeks }: { weeks: MomentumWeek[] }) {
   );
 }
 
-function Stat({ label, value, sub }: { label: string; value: string | number; sub?: string }) {
+function Stat({
+  label,
+  value,
+  sub,
+  delta,
+  lowerIsBetter,
+  unit,
+  goalChip,
+}: {
+  label: string;
+  value: string | number;
+  sub?: string;
+  delta?: Delta;
+  // For time-to-hire a smaller number is the win, so a negative delta is good.
+  lowerIsBetter?: boolean;
+  unit?: "pts" | "days";
+  // 82c2b8e8 — a "goal Nd" pill, coral when the figure misses the goal.
+  goalChip?: { text: string; missed: boolean };
+}) {
   return (
     <div className="bg-white px-4 py-2.5">
       <p className="text-meta uppercase text-steel">{label}</p>
-      <p className="mt-0.5 font-serif text-h2 leading-none text-ink">{value}</p>
+      <div className="mt-0.5 flex items-baseline gap-1.5">
+        <p className="font-serif text-h2 leading-none text-ink">{value}</p>
+        {delta ? <DeltaChip delta={delta} lowerIsBetter={lowerIsBetter} unit={unit} /> : null}
+        {goalChip ? (
+          <span className={`rounded px-1 py-0.5 text-meta font-semibold ${goalChip.missed ? "bg-coral/10 text-coral" : "bg-moss/10 text-moss"}`}>
+            {goalChip.text}
+          </span>
+        ) : null}
+      </div>
       {sub ? <p className="mt-0.5 text-sm text-steel">{sub}</p> : null}
     </div>
+  );
+}
+
+// ce8e3c9e — a compact "+4 pts" / "−3 d" vs-previous chip. Green/coral keys off
+// whether the change is an IMPROVEMENT (direction-aware: for time-to-hire, down
+// is good), so the color reads as good/bad, not up/down. A null delta (no prior
+// baseline, e.g. an empty previous window) renders nothing.
+function DeltaChip({ delta, lowerIsBetter, unit }: { delta: Delta; lowerIsBetter?: boolean; unit?: "pts" | "days" }) {
+  const t = useTranslations("analytics");
+  if (delta.delta == null || delta.delta === 0) {
+    return delta.delta === 0 ? <span className="text-meta text-steel">{t("deltaFlat")}</span> : null;
+  }
+  const improved = lowerIsBetter ? delta.delta < 0 : delta.delta > 0;
+  const sign = delta.delta > 0 ? "+" : "−";
+  const magnitude = Math.abs(delta.delta);
+  const text =
+    unit === "pts"
+      ? t("deltaPts", { sign, n: magnitude })
+      : unit === "days"
+        ? t("deltaDays", { sign, n: magnitude })
+        : `${sign}${magnitude}`;
+  return (
+    <span
+      className={`rounded px-1 py-0.5 text-meta font-semibold ${improved ? "bg-moss/10 text-moss" : "bg-coral/10 text-coral"}`}
+      title={t("deltaTitle")}
+    >
+      {text}
+    </span>
   );
 }

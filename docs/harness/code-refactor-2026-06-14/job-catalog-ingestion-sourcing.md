@@ -1,0 +1,33 @@
+> Total: 4 findings (Crit/High/Med/Low: 0/1/2/1)
+
+## 1. `recruiter_cli` ranking-spawn boilerplate duplicated across 4 call sites
+- **Severity**: High
+- **Category**: duplication
+- **File**: `app/api/jobs/[id]/candidates/route.ts:33-60` and `app/_lib/rediscover.ts:64-90` (+ `app/_lib/automation-pass.ts:103-129`, `app/_lib/group-eval-run.ts:180-202`)
+- **Evidence**: All four sites run the identical sequence: `createWorkdir()` → `writeFile(workdir/"recruiter.json", JSON.stringify({ jobId, candidates }))` → conditionally `writeFile(workdir/"job.json", JSON.stringify(job))` → `spawnPython(["-m","pipeline.jobfit.recruiter_cli","--input-json",inputPath,"--job-json",jobPath, ...flags], { signal })` → `if (exitCode !== 0) parseStderrError(...)` → `parsePythonJson<...>(stdout, stderr)` → `finally { cleanupWorkdir(workdir) }`. The only real variation is the CLI flags (`group-eval-run` adds `--weights-llm --embeddings`; `automation-pass` omits `--job-json` when the job is absent) and how each maps `payload.candidates` afterward. Certainty: `grep -rn "recruiter.json"` over the repo returns EXACTLY these 4 files; `grep -rn "pipeline.jobfit.recruiter_cli"` over `app/` returns the same 4 (the rest are docs/tests/comments). No shared runner exists today — each file re-imports `createWorkdir/cleanupWorkdir/spawnPython/parsePythonJson/parseStderrError` from `python-runner` and re-hand-rolls the dance. Two of the four (`candidates/route.ts`, `rediscover.ts`) are in this context.
+- **Impact**: ~25 duplicated lines × 4. Bug-prone: the candidates route already drifted (it omits the `??` skipped-array default that `rediscover.ts` carries), and a fix to abort/temp-file/JSON-parse handling must be applied four times. This is the exact "duplicated ranking logic" the catalog warns about.
+- **Fix sketch**: Add `rankPoolForJob(job, pool, { signal, weightsLlm?, embeddings? })` to `app/_lib/candidate-pool.ts` (or a new `recruiter-run.ts` sibling) returning the parsed `{ candidates, fairness?, skipped? }`. It owns workdir/spawn/parse/cleanup and accepts a nullable `job` (omitting `--job-json` like `automation-pass`). Update all four callers to call it and keep only their result-mapping (the candidates route's pipeline-state decoration; rediscover's `pickPrior` filter; group-eval's `Map` build; automation-pass's score map). Pure-mapping stays at each site; the I/O is single-sourced.
+
+## 2. `IngestAdPanel` re-implements the ingest fetch/parse in both `submit` and `submitBulk`
+- **Severity**: Medium
+- **Category**: duplication
+- **File**: `app/features/sub_jobs/IngestAdPanel.tsx:43-78` (`submit`) and `:84-132` (`submitBulk`)
+- **Evidence**: Both functions POST to `/api/jobs/ingest` with the same body shape (`{ adText }`), the same `signal`, and the same response decode (`const data = (await res.json()) as { jobId?; created?; title?; error? }; if (!res.ok || !data.jobId) <fail>`). `submitBulk` is essentially `submit` run in a loop with a per-row status instead of a note. The single-ad path could be expressed as the bulk path over a one-element array — the comment at `:80` even says bulk "imports each pasted ad through the SAME hardened single-ingest route." Certainty: this is intra-file; both bodies are visible above and call the same one endpoint.
+- **Impact**: Two copies of the request/decode contract drift independently (e.g. a future header or retry must be added twice); ~15 duplicated lines.
+- **Fix sketch**: Extract a local `async function ingestOne(text: string, signal: AbortSignal): Promise<{ jobId: string; created: boolean; title: string } | { error: string }>` holding the fetch + decode. `submit` calls it once and maps to the note; `submitBulk` calls it per ad and maps to the row-status table. No behavior change (both already serialize on one AbortController).
+
+## 3. `MIN_AD_CHARS = 30` (the ad-ingest floor) is defined in three places
+- **Severity**: Medium
+- **Category**: duplication
+- **File**: `app/_lib/split-ads.ts:10`, `app/features/sub_jobs/IngestAdPanel.tsx:13`, and `app/api/jobs/ingest/route.ts:19` (`adText.length < 30`, hard-coded literal)
+- **Evidence**: `grep -rn "MIN_AD_CHARS"` shows the constant declared twice (split-ads.ts, IngestAdPanel.tsx) with a third, *un-named* copy as the literal `30` in the ingest route's guard (`if (adText.length < 30)`), plus a comment in `split-ads.ts:9` explicitly noting it "mirrors the MIN_AD_CHARS in IngestAdPanel / the route's 30-char guard" — i.e. the duplication is known and load-bearing (the client floor, the splitter floor, and the server floor must agree or a chunk the splitter keeps gets rejected by the route, or vice versa).
+- **Impact**: Changing the floor requires editing three spots in lockstep; the route's bare literal is the easiest to miss. Low bug-risk today but a latent divergence.
+- **Fix sketch**: Export `MIN_AD_CHARS` from `app/_lib/split-ads.ts` (already import-free and the natural home), import it in `IngestAdPanel.tsx` (drop its local copy; the i18n `minChars` message arg already reads the constant), and reference it in `app/api/jobs/ingest/route.ts` in place of the literal `30` (server route can import the pure module). One source of truth for the floor.
+
+## 4. `Rediscovered` row type hand-redeclared in the panel instead of imported
+- **Severity**: Low
+- **Category**: duplication
+- **File**: `app/features/sub_jobs/RediscoverPanel.tsx:12-18` vs the canonical `app/_lib/rediscover.ts:29-35`
+- **Evidence**: `rediscover.ts` exports `type Rediscovered = { candidateId; label; archetype; score; prior }` and `type PriorOutcome = { kind: "rejected"|"closed"|"elsewhere"; label }`. `RediscoverPanel.tsx:12` redeclares a byte-identical local `Rediscovered` (including the inlined `prior: { kind: "rejected"|"closed"|"elsewhere"; label }`). The panel already imports `SkippedCandidate` from `JobsTypes`, so it has a precedent for importing shared types. Certainty: both definitions are in this context and shown above; they are structurally identical and describe the same `/api/jobs/[id]/rediscover` wire row.
+- **Impact**: A change to the rediscovery row shape (e.g. adding a field server-side) silently bypasses the panel's local type — the panel would compile against a stale contract. Cosmetic now, latent type-drift later.
+- **Fix sketch**: In `RediscoverPanel.tsx`, replace the local `type Rediscovered`/`prior` literal with `import type { Rediscovered } from "@/app/_lib/rediscover"`. Note: `rediscover.ts` pulls in `better-sqlite3` at runtime, so import the *type* only (`import type`) to avoid bundling server deps into the client component — TS erases type-only imports, so this is safe.

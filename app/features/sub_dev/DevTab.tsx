@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useLoader } from "@/app/_lib/useLoader";
 import { useTasks, useTaskResult } from "@/app/features/tasks/TasksProvider";
 import { NeedForm } from "./NeedForm";
@@ -129,13 +129,32 @@ export function DevTab() {
   const removeRepo = (index: number) =>
     setRepoUrls((urls) => (urls.length > 1 ? urls.filter((_, i) => i !== index) : [""]));
 
-  // Reload orchestration state as background tasks progress (lifecycle/evaluate update it).
   const lifecycleActive = tasks.some((t) => t.kind === "lifecycle" && (t.status === "running" || t.status === "queued"));
+  // 56a20eb2 — reload ONLY the lists the just-finished task kind actually touched,
+  // and only when a task transitions to terminal — not the whole studio on every
+  // poll tick. Previously the [tasks] effect re-fetched cases + postings +
+  // lifecycles + outbox on every array change, so a long cohort evaluation
+  // reflowed the entire tab on each row's progress. A ref of already-handled task
+  // ids makes each completion fire its scoped reload exactly once.
+  const reloadedTasks = useRef<Set<string>>(new Set());
   useEffect(() => {
-    loadLifecycles();
-    loadPostings();
-    loadCases();
-    loadOutbox();
+    const done = tasks.filter(
+      (t) => (t.status === "succeeded" || t.status === "failed") && !reloadedTasks.current.has(t.id)
+    );
+    if (done.length === 0) return;
+    const kinds = new Set(done.map((t) => t.kind));
+    done.forEach((t) => reloadedTasks.current.add(t.id));
+    // evaluate persists the score onto its submission → only the postings list.
+    if (kinds.has("evaluate_submission")) loadPostings();
+    // a lifecycle step can analyze/design/approve/publish/comm → its own lists.
+    if (kinds.has("lifecycle")) {
+      loadLifecycles();
+      loadCases();
+      loadPostings();
+      loadOutbox();
+    }
+    // need-analysis updates the lifecycle it belongs to.
+    if (kinds.has("need_analysis")) loadLifecycles();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tasks]);
 
@@ -323,7 +342,7 @@ export function DevTab() {
               onOpen={setSelectedCaseId}
               onDefine={() => setView("define")}
             />
-            <LifecycleSection lifecycles={lifecycles} approveLifecycle={approveLifecycle} state={lifecyclesState} onChanged={loadLifecycles} />
+            <LifecycleSection lifecycles={lifecycles} postings={postings ?? []} approveLifecycle={approveLifecycle} state={lifecyclesState} onChanged={loadLifecycles} />
           </>
         )
       ) : null}

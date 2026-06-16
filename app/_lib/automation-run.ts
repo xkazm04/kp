@@ -14,6 +14,8 @@ import {
   storePromptCache,
 } from "./db";
 import { cleanupWorkdir, createWorkdir, parsePythonJson, parseStderrError, spawnPython } from "./python-runner";
+import { meterAllows } from "./billing";
+import { buildLlmConfigEnv } from "./llm-config";
 import { computeAutomationCacheKey, computeCorpusFingerprint, GITHUB_EVIDENCE_TASKS } from "./automation-cache-key";
 import { screenStageOutcome } from "./pipeline-stages";
 import { dispatchOutreach } from "./comms-dispatch";
@@ -25,7 +27,8 @@ import {
 } from "./interview-recommendation";
 
 // Shared core for the on-demand LLM HR tasks. Used directly by /api/automation/[task]
-// AND by the background-task runner (single + batch). Claude CLI only.
+// AND by the background-task runner (single + batch). The LLM engine is the
+// configured provider per KP_LLM_CONFIG (Claude CLI when unconfigured).
 export const AUTOMATION_VERSION: Record<string, string> = {
   screen: "screening-v1",
   outreach: "outreach-v1",
@@ -35,8 +38,12 @@ export const AUTOMATION_VERSION: Record<string, string> = {
   rematch: "rematch-v1",
   offer: "offer-v1",
 };
+// Event kind for the generic "drafted" tasks — ONLY those that fall through to the
+// catch-all branch below (currently rejection + prep). screen/scorecard/offer/
+// rematch/outreach each have their own branch and record their own event, so they
+// must NOT be listed here (an outreach entry was dead: outreach records
+// "outreach_sent" via dispatchOutreach, never "outreach_drafted").
 const DRAFT_EVENT: Record<string, string> = {
-  outreach: "outreach_drafted",
   rejection: "rejection_drafted",
   prep: "interview_prep_generated",
 };
@@ -141,6 +148,10 @@ export async function runAutomationTask(entryId: string, task: string, notes = "
       await writeFile(profilePath, profileJson, "utf-8");
 
       const args = ["-m", "pipeline.jobfit.automation_cli", task, "--profile-json", profilePath];
+      // Billing degrade: past the AI-candidates allowance, automation drafting
+      // runs the deterministic templates (--no-llm) instead of blocking the
+      // pipeline. Part of the analyze-debited candidate bundle — no extra debit.
+      if (!meterAllows("ai_candidates")) args.push("--no-llm");
       if (task === "rematch") {
         args.push("--current-job-id", entry.jobId ?? "");
         // Score the SAME live corpus we fingerprinted into the cache key (not Python's
@@ -169,7 +180,7 @@ export async function runAutomationTask(entryId: string, task: string, notes = "
         args.push("--github-evidence", githubPath);
       }
 
-      const { result } = spawnPython(args, { signal });
+      const { result } = spawnPython(args, { signal, env: buildLlmConfigEnv() });
       const { stdout, stderr, exitCode } = await result;
       if (exitCode !== 0) {
         const err = parseStderrError(stderr, exitCode);

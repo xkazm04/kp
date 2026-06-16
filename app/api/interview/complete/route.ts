@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { recordMeterUsage } from "@/app/_lib/billing";
 import {
   attachInterviewScorecard,
   completeInterviewSession,
@@ -6,6 +7,8 @@ import {
   type VoiceTurn,
 } from "@/app/_lib/db";
 import { runInterviewScorecard } from "@/app/_lib/interview-run";
+import { sealDecisionSafe } from "@/app/_lib/decision-record-store";
+import { AUTOMATION_VERSION } from "@/app/_lib/automation-run";
 import { capTranscriptTurns, clampTurn } from "@/app/_lib/interview-transcript";
 import { safeJsonError } from "@/app/_lib/api-response";
 import { CONSENT_NOT_RECORDED_ERROR, isPersistConsentSatisfied } from "@/app/_lib/interview-consent";
@@ -130,6 +133,20 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    // Billing debit (docs/BILLING.md): interview minutes are metered on the
+    // completion whose write APPLIED (the row-level guard above also makes the
+    // debit idempotent across duplicate POSTs) and only for real "completed"
+    // calls — a dropped/failed call doesn't bill. Minutes = wall time from
+    // consent-gated start, clamped to [1, 2× the booked length] so a clock
+    // anomaly can't drain the meter; no start timestamp falls back to the
+    // booked duration.
+    if (status === "completed") {
+      const bookedMin = session.durationMin ?? 8;
+      const startedMs = session.startedAt ? Date.parse(session.startedAt) : NaN;
+      const elapsedMin = Number.isFinite(startedMs) ? Math.ceil((Date.now() - startedMs) / 60_000) : bookedMin;
+      recordMeterUsage("interview_minutes", Math.min(Math.max(elapsedMin, 1), bookedMin * 2));
+    }
+
     // Synthesize the scorecard for candidate-mode sessions (best-effort: the
     // transcript is already safe above if scoring fails). Gating on "completed"
     // is load-bearing: a call that dropped abnormally (provider/network error or
@@ -145,7 +162,21 @@ export async function POST(request: NextRequest) {
       } catch {
         /* transcript is already persisted — scoring is best-effort */
       }
-      if (scorecard) updated = attachInterviewScorecard(sessionId, scorecard) ?? updated;
+      if (scorecard) {
+        updated = attachInterviewScorecard(sessionId, scorecard) ?? updated;
+        // Decision SoR (moonshot D backfill): seal the AI scorecard verdict with
+        // its model/prompt version as the actor. Best-effort — never blocks complete.
+        const rec = typeof scorecard.recommendation === "string" ? scorecard.recommendation : "(none)";
+        sealDecisionSafe({
+          kind: "ai_scorecard",
+          actor: `auto:${AUTOMATION_VERSION.scorecard}`,
+          policyVersion: AUTOMATION_VERSION.scorecard,
+          candidateRef: session.entryId,
+          rationale: `AI interview scorecard — recommendation: ${rec}.`,
+          reasonCode: "scorecard",
+          inputs: { recommendation: rec },
+        });
+      }
     }
 
     return NextResponse.json({ ok: true, session: updated, scorecard });

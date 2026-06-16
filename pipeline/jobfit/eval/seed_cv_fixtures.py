@@ -34,6 +34,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from .._cli import configure_stdio
 from ..claude_cli import ClaudeCliProvider
 from ..gemini import load_local_env
 from ..service import analyze
@@ -422,9 +423,7 @@ def run(count: int, *, persist: bool, refresh: bool, skip_existing: bool = False
 
 
 def main(argv: list[str] | None = None) -> int:
-    if hasattr(sys.stdout, "reconfigure"):
-        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
-        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    configure_stdio(errors="replace")
     p = argparse.ArgumentParser(description="Render seeded candidate CVs, analyze, score, and persist.")
     g = p.add_mutually_exclusive_group()
     g.add_argument("--pilot", action="store_true", help="8 spanning candidates (default).")

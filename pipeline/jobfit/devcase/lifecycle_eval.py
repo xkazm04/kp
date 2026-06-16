@@ -25,11 +25,12 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from typing import Any
 
+from .._cli import configure_stdio
 from ..claude_cli import ClaudeCliProvider
 from .analyze import analyze_need
 from .design import design_case, design_role
 from .models import RUBRIC_DIMENSIONS, NeedAnalysis
-from .provenance import FALLBACK_REASON_KEY, combine_source
+from .provenance import collect_fallback_reasons, combine_source
 from .scenarios import DOMAINS, Scenario, generate_mixed, generate_scenarios
 
 PROBE_KINDS = {"ambiguity", "legacy_trap", "verification_trap", "underspecified"}
@@ -127,11 +128,7 @@ def run_one(scn: Scenario, provider: Any | None) -> Row:
     # Capture WHY any step fell back (provenance stashes FALLBACK_REASON_KEY on the
     # artifact ONLY when the LLM RAISED) so an all-error-fallback run can't read as a
     # healthy deterministic one — see submission_eval.run_one for the full rationale.
-    fallback_reasons = {
-        step: art[FALLBACK_REASON_KEY]
-        for step, art in (("analyze", a), ("role", r), ("case", c))
-        if isinstance(art, dict) and art.get(FALLBACK_REASON_KEY)
-    }
+    fallback_reasons = collect_fallback_reasons((("analyze", a), ("role", r), ("case", c)))
     issues = _check_analysis(a, scn) + _check_role(r, scn) + _check_case(c, scn)
     return Row(id=scn.id, label=scn.label, planted=scn.planted, source=src, issues=issues, analysis=a, role=r, case=c, fallback_reasons=fallback_reasons)
 
@@ -213,8 +210,7 @@ def _report_md(rows: list[Row], sig: dict, qual: dict | None) -> str:
 
 
 def main(argv: list[str] | None = None) -> int:
-    if hasattr(sys.stdout, "reconfigure"):
-        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    configure_stdio(errors="replace")
     p = argparse.ArgumentParser(description="Lifecycle scenario eval for the Dev pipeline.")
     p.add_argument("--count", type=int, default=100)
     p.add_argument("--no-llm", action="store_true")

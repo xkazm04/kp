@@ -32,6 +32,7 @@ from dataclasses import dataclass, field
 from typing import Any, Callable
 
 from .. import automation, registry
+from .._cli import configure_stdio
 from ..claude_cli import ClaudeCliError, ClaudeCliProvider
 from ..jobs import normalize_job
 from ..matching import MatchCandidate, score_job
@@ -391,8 +392,7 @@ def _format_md(rows: list[Row], agg: dict[str, Any], *, color: bool = False) -> 
 
 
 def main(argv: list[str] | None = None) -> int:
-    if hasattr(sys.stdout, "reconfigure"):
-        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    configure_stdio(errors="replace")
 
     parser = argparse.ArgumentParser(description="Quality-gate the LLM HR-automation tasks.")
     parser.add_argument("--no-llm", action="store_true", help="Deterministic fallbacks only (fast, CI).")

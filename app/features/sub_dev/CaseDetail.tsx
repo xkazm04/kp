@@ -3,10 +3,14 @@
 import { Fragment } from "react";
 import { ArrowLeft, ClipboardList, FileWarning, Lock, MicVocal, Send, Users } from "lucide-react";
 import { Markdown } from "@/app/_components/Markdown";
-import { formatFraction, formatRelativeTime } from "@/app/_lib/format";
+import { formatRelativeTime } from "@/app/_lib/format";
 import { ApplyTokenPill } from "./ApplyTokenPill";
+import { CohortProbePanel } from "./CohortProbePanel";
+import { CompareSubmissions } from "./CompareSubmissions";
+import { InterviewKit } from "./InterviewKit";
+import { ProbeStrengthBanner } from "./ProbeStrengthBanner";
 import { caseToMarkdown } from "./DevHelpers";
-import { MiniList } from "./DevShared";
+import { MiniList, ProbeRow, RubricChip } from "./DevShared";
 import { SubmissionForm } from "./SubmissionForm";
 import { SubmissionRow } from "./SubmissionRow";
 import type { DevCaseDetail, Posting } from "./DevTypes";
@@ -52,6 +56,21 @@ export function CaseDetail({
     : "";
   const casePostings = postings.filter((p) => p.caseId === kase.id);
   const published = casePostings.length > 0;
+  // fec3e23a — every submission across this case's postings, for the cohort
+  // probe-miss roll-up in the internal section.
+  const caseSubmissions = casePostings.flatMap((p) => p.submissions ?? []);
+  // 8d4f38b9 — the winning submission (highest transfer fit among those evaluated)
+  // for its auto-generated interview kit.
+  const topSubmission = caseSubmissions
+    .filter((s) => s.evaluation?.followups?.questions?.length)
+    .sort((a, b) => (b.transferScore ?? -1) - (a.transferScore ?? -1))[0];
+  // 99288c0e — one cross-channel leaderboard: every submission across all of this
+  // case's postings, ranked by transfer fit and tagged with its channel, so the
+  // true #1 for the assignment is visible regardless of which channel they applied
+  // through. The per-posting cards keep only the apply link + intake form.
+  const shortlist = casePostings
+    .flatMap((p) => (p.submissions ?? []).map((s) => ({ s, channel: p.channel })))
+    .sort((a, b) => (b.s.transferScore ?? -1) - (a.s.transferScore ?? -1));
   const hasScenario = Array.isArray(kase.scenario?.phases) && (kase.scenario?.phases?.length ?? 0) > 0;
   // Provenance persisted with each generated blob (devcase-orchestrator) — same visual
   // language as the ProvenanceStrip: moss = real LLM output, amber = degraded/template.
@@ -130,21 +149,7 @@ export function CaseDetail({
           <ul className="mt-2 space-y-2">
             {(c.coverProbes ?? []).map((p, i) => (
               <li key={p.id ?? i} className="rounded-md border border-amber-200/70 bg-white/70 p-2.5">
-                <p className="text-micro text-ink">
-                  <span className="rounded bg-amber-100 px-1 py-0.5 text-micro font-semibold uppercase text-amber-700">
-                    {(p.kind ?? "probe").replace(/_/g, " ")}
-                  </span>{" "}
-                  <span className="text-steel">@ {p.where}</span> — {p.reveals}
-                </p>
-                {(p.decisionSpace ?? []).length ? (
-                  <ul className="mt-1.5 space-y-0.5 border-l-2 border-amber-200 pl-2">
-                    {(p.decisionSpace ?? []).map((opt, j) => (
-                      <li key={j} className="text-micro text-steel">
-                        <span className="font-semibold text-amber-700">{String.fromCharCode(65 + j)}.</span> {opt}
-                      </li>
-                    ))}
-                  </ul>
-                ) : null}
+                <ProbeRow probe={p} tone="amber" showDecisionSpace />
               </li>
             ))}
           </ul>
@@ -152,12 +157,13 @@ export function CaseDetail({
           <p className="mt-2 text-micro text-steel">No covert probes recorded on this case.</p>
         )}
 
+        {/* bb4f5494 — does this case actually discriminate? */}
+        <ProbeStrengthBanner probes={c.coverProbes ?? []} />
+
         {(c.rubricDimensions ?? []).length ? (
           <div className="mt-3 flex flex-wrap gap-1.5">
             {(c.rubricDimensions ?? []).map((d) => (
-              <span key={d.name} title={d.description} className="rounded-full bg-white px-2 py-0.5 text-micro text-ink ring-1 ring-amber-200/70">
-                {d.label ?? d.name} <span className="text-steel">{formatFraction(d.weight ?? 0, { label: "rubric weight" })}</span>
-              </span>
+              <RubricChip key={d.name} dim={d} tone="amber" />
             ))}
           </div>
         ) : null}
@@ -168,13 +174,44 @@ export function CaseDetail({
             <MiniList title="Role responsibilities" items={role.responsibilities ?? []} />
           </div>
         ) : null}
+
+        <CohortProbePanel probes={c.coverProbes ?? []} submissions={caseSubmissions} />
       </section>
 
-      {/* distribution + intake for THIS case */}
+      {/* b268f5e5 — read who leads on each rubric axis across the case's cohort. */}
+      <CompareSubmissions rubricDims={c.rubricDimensions ?? []} submissions={caseSubmissions} />
+
+      {/* 8d4f38b9 — the winning candidate's interview kit, ready to copy/export. */}
+      {topSubmission ? <InterviewKit caseTitle={kase.title ?? c.title ?? ""} top={topSubmission} /> : null}
+
+      {/* 99288c0e — the case-wide shortlist: all candidates, every channel, one ranking. */}
+      {shortlist.length > 0 ? (
+        <section>
+          <h3 className="flex items-center gap-1.5 text-meta uppercase tracking-wide text-steel">
+            <ClipboardList size={13} className="text-coral" /> Shortlist — all channels
+            <span className="text-coral">· {shortlist.length}</span>
+          </h3>
+          <ul className="mt-2 space-y-1.5">
+            {shortlist.map(({ s, channel }, i, arr) => {
+              const rank = s.transferScore != null ? i + 1 : null;
+              const isTop = rank === 1;
+              return (
+                <Fragment key={s.id}>
+                  <SubmissionRow submission={s} rank={rank} isTop={isTop} channel={channel} onChanged={loadPostings} jdText={roleJdText} />
+                  {isTop && arr.length > 1 ? <li aria-hidden className="border-t border-dashed border-stone-200" /> : null}
+                </Fragment>
+              );
+            })}
+          </ul>
+        </section>
+      ) : null}
+
+      {/* distribution + intake for THIS case — postings are the apply channels;
+          the candidates they collect are ranked together in the shortlist above. */}
       {casePostings.length > 0 ? (
         <section>
           <h3 className="flex items-center gap-1.5 text-meta uppercase tracking-wide text-steel">
-            <ClipboardList size={13} className="text-coral" /> Postings &amp; submissions
+            <ClipboardList size={13} className="text-coral" /> Apply channels
             <span className="text-coral">· {casePostings.length}</span>
           </h3>
           <div className="mt-2 grid gap-3 lg:grid-cols-2">
@@ -189,24 +226,6 @@ export function CaseDetail({
                   <span className="shrink-0 text-micro uppercase tracking-wide text-steel">Apply link</span>
                   <ApplyTokenPill token={p.token} />
                 </div>
-
-                {(p.submissions ?? []).length > 0 ? (
-                  <ul className="mt-2 space-y-1.5 border-t border-stone-100 pt-2">
-                    {[...(p.submissions ?? [])]
-                      .sort((a, b) => (b.transferScore ?? -1) - (a.transferScore ?? -1))
-                      .map((s, i, arr) => {
-                        const rank = s.transferScore != null ? i + 1 : null;
-                        const isTop = rank === 1;
-                        return (
-                          <Fragment key={s.id}>
-                            <SubmissionRow submission={s} rank={rank} isTop={isTop} onChanged={loadPostings} jdText={roleJdText} />
-                            {isTop && arr.length > 1 ? <li aria-hidden className="border-t border-dashed border-stone-200" /> : null}
-                          </Fragment>
-                        );
-                      })}
-                  </ul>
-                ) : null}
-
                 <SubmissionForm postingId={p.id} onDone={loadPostings} />
               </div>
             ))}

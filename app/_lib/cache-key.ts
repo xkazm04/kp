@@ -35,6 +35,11 @@ export type CacheKeyInput = {
   // Output locale the narrative was generated in ("en" | "cs"). Part of the key
   // so localized results don't collide — see the v5 note above.
   lang: string;
+  // Blind screening (idea-b8d711c4): a blind run scores a redacted CV, so its
+  // result must NOT be served for a normal run (or vice-versa). Folded in only
+  // when true — a normal run hashes exactly as before, so the existing cache stays
+  // valid; a blind run gets a distinct key.
+  blind?: boolean;
 };
 
 export function computeCacheKey(input: CacheKeyInput): string {
@@ -67,5 +72,8 @@ export function computeCacheKey(input: CacheKeyInput): string {
   field(input.companyText.trim());
   field(input.companyFileBytes ?? Buffer.alloc(0));
   field(input.cvBytes);
+  // Appended LAST and only when set, so a normal run's key is byte-identical to
+  // the pre-blind contract (no cache wipe) while a blind run is distinct.
+  if (input.blind) field("blind");
   return h.digest("hex");
 }

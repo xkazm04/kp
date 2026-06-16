@@ -1,5 +1,5 @@
 import { useTranslations } from "next-intl";
-import { columnStats, STRONG_THRESHOLD, type ColumnStat } from "./matrix-stats";
+import { columnStats, MATRIX_BANDS, STRONG_THRESHOLD, type ColumnStat } from "./matrix-stats";
 
 // koKeys: stable KoReason.key categories naming WHY a cell is blocked (MAT2);
 // present only on blocked cells, localized by key via matrix.ko.* messages.
@@ -10,20 +10,20 @@ export type Cell = { score: number | null; blocked: boolean; koKeys?: string[] }
 export const BLOCKED_CELL =
   "bg-stone-100 text-stone-400 [background-image:repeating-linear-gradient(45deg,#d6d3d1_0px,#d6d3d1_1px,transparent_1px,transparent_5px)]";
 
-// diverging score scale: poor -> coral, fair -> amber, good/strong -> moss
+// diverging score scale: poor -> coral, fair -> amber, good/strong -> moss.
+// Bands single-sourced in MATRIX_BANDS (matrix-stats.ts) — pick the highest band
+// whose inclusive floor the score clears.
 export function cellClass(c: Cell): string {
   if (c.blocked || c.score == null) return BLOCKED_CELL;
   const s = c.score;
-  if (s < 45) return "bg-coral/15 text-coral";
-  if (s < 60) return "bg-amber-100 text-amber-700";
-  if (s < 72) return "bg-moss/20 text-moss";
-  if (s < 85) return "bg-moss/40 text-ink";
-  return "bg-moss/70 text-white";
+  let cls: string = MATRIX_BANDS[0].cellClass;
+  for (const b of MATRIX_BANDS) if (s >= b.min) cls = b.cellClass;
+  return cls;
 }
 
 // Per-band fill for the mini-histogram, mirroring cellClass's diverging scale so
-// the strip reads consistently with the grid below it.
-const BAND_FILL = ["bg-coral/40", "bg-amber-300", "bg-moss/40", "bg-moss/60", "bg-moss/80"] as const;
+// the strip reads consistently with the grid below it. Same band order as columnStats' buckets.
+const BAND_FILL = MATRIX_BANDS.map((b) => b.fill);
 
 // MAT2 — a compact distribution strip under a position header: a 5-bar histogram
 // of the column's non-blocked scores (bands match the legend) plus best / median /
@@ -65,12 +65,8 @@ export function MatrixLegend() {
     <div className="flex flex-wrap items-center gap-3 text-sm text-steel">
       <span className="font-semibold uppercase tracking-wide">{t("legendMatch")}</span>
       {[
-        ["bg-coral/15 text-coral", "<45"],
-        ["bg-amber-100 text-amber-700", "45–59"],
-        ["bg-moss/20 text-moss", "60–71"],
-        ["bg-moss/40 text-ink", "72–84"],
-        ["bg-moss/70 text-white", "85+"],
-        [BLOCKED_CELL, "blocked"],
+        ...MATRIX_BANDS.map((b) => [b.cellClass, b.label] as const),
+        [BLOCKED_CELL, "blocked"] as const,
       ].map(([cls, label]) => (
         <span key={label} className="inline-flex items-center gap-1">
           <span className={`grid h-5 w-6 place-items-center rounded ${cls} text-sm font-semibold`}>{label === "blocked" ? "–" : ""}</span>

@@ -1,0 +1,55 @@
+"use client";
+
+import { useRouter, useSearchParams } from "next/navigation";
+import { ArrowRight, type LucideIcon } from "lucide-react";
+import { PANEL_SUNKEN } from "./ui/recipes";
+import { buildTabSwitchUrl, type WorkspaceTabId } from "@/app/features/tabs";
+
+// Chain-aware empty state: an empty tab explains WHERE its data comes from and
+// links to the upstream step instead of dead-ending ("no candidates" → set up a
+// channel; "nothing to schedule" → accept a screening in Decisions). The hiring
+// chain it teaches: JD (library) → job (jobs) → channel (channels) → candidates
+// (pipeline) → decisions → schedule → offer/hired. Each call site declares its
+// own upstream link(s) — the copy lives in that tab's catalog namespace, the
+// navigation always goes through buildTabSwitchUrl so the destination opens
+// clean. Client-only: meant for tab bodies inside the Workspace SPA.
+export function ChainEmptyState({
+  icon: Icon,
+  title,
+  body,
+  links,
+  extraAction,
+}: {
+  icon?: LucideIcon;
+  title: string;
+  body?: string;
+  links: { tab: WorkspaceTabId; label: string }[];
+  // Non-navigation affordance rendered alongside the links (e.g. the Pipeline
+  // empty state's "watch the hiring story" tour trigger).
+  extraAction?: React.ReactNode;
+}) {
+  const router = useRouter();
+  const search = useSearchParams();
+  return (
+    <div className={`${PANEL_SUNKEN} p-6 text-center`}>
+      {Icon ? <Icon className="mx-auto text-moss" size={28} aria-hidden /> : null}
+      <p className={`text-base font-semibold text-ink ${Icon ? "mt-2" : ""}`}>{title}</p>
+      {body ? <p className="mx-auto mt-1 max-w-lg text-sm text-steel">{body}</p> : null}
+      {links.length > 0 || extraAction ? (
+        <div className="mt-3 flex flex-wrap items-center justify-center gap-x-4 gap-y-1.5">
+          {links.map((link) => (
+            <button
+              key={link.tab}
+              type="button"
+              onClick={() => router.push(buildTabSwitchUrl(link.tab, search.toString()))}
+              className="focus-ring inline-flex items-center gap-1 text-sm font-semibold text-coral hover:underline"
+            >
+              {link.label} <ArrowRight size={13} aria-hidden />
+            </button>
+          ))}
+          {extraAction ?? null}
+        </div>
+      ) : null}
+    </div>
+  );
+}

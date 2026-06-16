@@ -6,6 +6,8 @@ import { useLocale, useTranslations } from "next-intl";
 import { copyText } from "@/app/_lib/export-utils";
 import { HumanScorecardPanel } from "./HumanScorecardPanel";
 import type { Scorecard } from "@/app/_lib/interview-scorecard";
+import type { RunOfShow } from "@/app/_lib/run-of-show";
+import type { InterviewPrepProgress } from "@/app/_lib/interview-prep";
 import { Modal } from "@/app/_components/Modal";
 import { Meter } from "@/app/_components/Meter";
 import { PrepSourceBadge, isPrepFallback } from "@/app/_components/Badge";
@@ -13,11 +15,18 @@ import { useTasks, useTaskResult } from "@/app/features/tasks/TasksProvider";
 import { useJsonFetch } from "@/app/_lib/useJsonFetch";
 import type { SchedEntry } from "./ScheduleTypes";
 
-type Block = { fromMin: number; toMin: number; topic: string; goal: string; questions: string[]; followUp?: string };
-// userProgress (PREP2) rides inside the persisted artifact payload — the
-// interviewer's ticked items + notes, restored on reopen.
-type UserProgress = { checked?: Record<string, boolean>; notes?: string };
-type Prep = { scenario: string; durationMin: number; focusAreas: string[]; chronology: Block[]; signals: string[]; source?: string; userProgress?: UserProgress; humanScorecard?: Scorecard; interviewer?: string };
+// The persisted prep artifact payload: the generated run-of-show (single-sourced
+// from RunOfShow — scenario/durationMin/focusAreas/chronology/signals) plus the
+// human-input seams. `userProgress` (PREP2) rides inside the payload as the
+// interviewer's ticked items + notes; it is exactly InterviewPrepProgress minus
+// the top-level `interviewer` (which saveInterviewPrepProgress splits out), so it
+// is single-sourced from the server type rather than re-declared and left to drift.
+type Prep = RunOfShow & {
+  source?: string;
+  userProgress?: Omit<InterviewPrepProgress, "interviewer">;
+  humanScorecard?: Scorecard;
+  interviewer?: string;
+};
 
 export function InterviewPrepModal({ entry, onClose }: { entry: SchedEntry; onClose: () => void }) {
   const t = useTranslations("scheduleTab.prep");
@@ -71,21 +80,30 @@ export function InterviewPrepModal({ entry, onClose }: { entry: SchedEntry; onCl
     if (typeof payload?.interviewer === "string") setInterviewer(payload.interviewer);
   }
 
+  // The single progress-PUT both the debounced save and the unmount flush issue.
+  // keepalive is opt-in (only the unmount flush needs the request to survive the
+  // navigation); the .catch keeps it best-effort — a blip shouldn't interrupt the
+  // interview.
+  const putProgress = (p: InterviewPrepProgress, keepalive = false) =>
+    void fetch(`/api/interview-prep?entry=${encodeURIComponent(entry.id)}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(p),
+      keepalive,
+    }).catch(() => {
+      /* progress save is best-effort */
+    });
+
   // Debounce-persist checklist + notes edits to the artifact. Only fires after a
   // genuine user edit (dirtyRef), so hydration doesn't echo back, and only when a
   // prep exists to attach to.
   useEffect(() => {
     if (!dirtyRef.current || !prep) return;
     const h = window.setTimeout(() => {
-      void fetch(`/api/interview-prep?entry=${encodeURIComponent(entry.id)}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ checked, notes, interviewer }),
-      }).catch(() => {
-        /* progress save is best-effort — a blip shouldn't interrupt the interview */
-      });
+      putProgress({ checked, notes, interviewer });
     }, 600);
     return () => window.clearTimeout(h);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [checked, notes, interviewer, prep, entry.id]);
 
   // Keep the freshest editable values in a ref so the unmount flush sends them.
@@ -101,15 +119,7 @@ export function InterviewPrepModal({ entry, onClose }: { entry: SchedEntry; onCl
   useEffect(() => {
     return () => {
       if (!dirtyRef.current || !prep) return;
-      const { checked, notes, interviewer } = latestProgressRef.current;
-      void fetch(`/api/interview-prep?entry=${encodeURIComponent(entry.id)}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ checked, notes, interviewer }),
-        keepalive: true,
-      }).catch(() => {
-        /* best-effort flush */
-      });
+      putProgress(latestProgressRef.current, true);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [prep, entry.id]);
@@ -134,6 +144,7 @@ export function InterviewPrepModal({ entry, onClose }: { entry: SchedEntry; onCl
     setChecked(up?.checked ?? {});
     setNotes(typeof up?.notes === "string" ? up.notes : "");
     setInterviewer(typeof result?.interviewer === "string" ? result.interviewer : "");
+    // eslint-disable-next-line react-hooks/refs -- guarded once-per-task hydration; the dirty flag must clear atomically with the state seed above (this is the render-phase completion pattern documented above, not an effect round-trip)
     dirtyRef.current = false;
   } else if (taskId && (genStatus === "failed" || genStatus === "canceled" || genStatus === "interrupted")) {
     setTaskId(null);

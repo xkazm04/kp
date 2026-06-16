@@ -19,6 +19,7 @@ export type Entry = Pick<
   | "githubEvidence"
   | "githubHandle"
   | "notes"
+  | "sourceChannel"
 >;
 
 export type TaskId = "screen" | "outreach" | "rejection" | "prep" | "scorecard" | "rematch" | "offer";

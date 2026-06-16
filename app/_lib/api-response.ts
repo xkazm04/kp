@@ -60,6 +60,8 @@ export const STORE_ERRORS = {
   PIPELINE_CREATE_FAILED: "Could not add to the pipeline. Please try again.",
   PIPELINE_ACTION_FAILED: "Could not apply that action. Please try again.",
   PIPELINE_EVENTS_FAILED: "Could not load recent activity. Please try again.",
+  // Candidate-timeline join for the drawer (c6524f2f).
+  PIPELINE_TIMELINE_FAILED: "Could not load the candidate timeline. Please try again.",
   // Sourcing "reach out" (idea JOB3): sits on createPipelineEntry + the outreach
   // automation subprocess (Claude CLI), whose thrown errors embed internal detail.
   OUTREACH_FAILED: "Could not reach out to that candidate. Please try again.",
@@ -73,6 +75,11 @@ export const STORE_ERRORS = {
   // Sidebar attention badges (SHELL2) — same store class.
   ATTENTION_FAILED: "Could not load attention counts. Please try again.",
   OFFER_RESPOND_FAILED: "Could not record your response. Please try again.",
+  // Candidate application-status lookup (idea-e76a6fb2) — public token route over
+  // the application-status store.
+  STATUS_LOOKUP_FAILED: "Could not load your application status. Please try again.",
+  // Standing silver-medalist feed (idea-fdb45cd0) over the rediscovery-alert store.
+  REDISCOVERY_ALERTS_FAILED: "Could not load rediscovery alerts. Please try again.",
 } as const;
 
 export type StoreErrorCode = keyof typeof STORE_ERRORS;

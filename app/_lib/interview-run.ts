@@ -9,6 +9,8 @@ import { isEarlyCareer } from "./archetypes";
 import {
   caseGroundedInterviewerInstructions,
   devCaseIdFromJobId,
+  PERSONA_GENDER_GRAMMAR,
+  PERSONA_LANGUAGE_DETECT,
   scenarioRunOfShow,
   STUDENT_SCRIPT,
   STUDENT_SCRIPT_MIN,
@@ -55,8 +57,8 @@ function composeBrief(
     .join("  ");
   return [
     `You are a warm, professional first-round screening interviewer at ${company} for the ${roleLine} role.`,
-    "You are male — when you speak Czech, use masculine grammatical forms for yourself (e.g. „rád bych“, „zeptal bych se“, „řekl jsem“).",
-    "Detect whether the candidate speaks Czech or English and respond in that language; follow them if they switch.",
+    PERSONA_GENDER_GRAMMAR,
+    PERSONA_LANGUAGE_DETECT,
     `Begin by briefly introducing yourself as an AI assistant, ${company}, and the ${title} position in two or three sentences, and mention that the call is transcribed for a human recruiter.`,
     `Then lead the conversation through this run of show (about ${durationMin} minutes total), keeping each topic roughly time-boxed. Ask the listed questions naturally, one at a time, with short follow-ups, and adapt to the candidate's answers:`,
     runOfShow,
@@ -109,8 +111,8 @@ function composeDebriefBrief(
     .join("  ");
   return [
     `You are a warm, professional interviewer at ${company} for the ${roleLine} role.${name}`,
-    "You are male — when you speak Czech, use masculine grammatical forms for yourself (e.g. „rád bych“, „zeptal bych se“, „řekl jsem“).",
-    "Detect whether the candidate speaks Czech or English and respond in that language; follow them if they switch.",
+    PERSONA_GENDER_GRAMMAR,
+    PERSONA_LANGUAGE_DETECT,
     "Begin by briefly introducing yourself as an AI assistant in two sentences, mention the call is transcribed for a human recruiter, and say this conversation is about the take-home assignment they submitted — you'd like to understand how they approached it.",
     "Using AI tools to build the submission is expected and NEVER penalised — what matters is whether they own the decisions in it. Never imply suspicion or that authorship is being verified; every question is genuine curiosity about their reasoning.",
     `Open by letting them walk you through their approach in their own words for a couple of minutes, then work through these questions (about ${durationMin} minutes total), one at a time, adapting natural follow-ups to their answers — push gently for the WHY, the alternative they rejected, and what would make them decide differently:`,

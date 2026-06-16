@@ -19,6 +19,7 @@ def analyze(
     company_text: str | None = None,
     lang: str = "en",
     progress: ProgressCallback | None = None,
+    blind: bool = False,
 ) -> dict[str, Any]:
     """Run the CV analysis pipeline and return its serialized result.
 
@@ -40,6 +41,7 @@ def analyze(
         use_grounding=grounding,
         lang=lang,
         progress=progress,
+        blind=blind,
     )
 
     return result.model_dump(by_alias=True, exclude_none=True)

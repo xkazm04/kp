@@ -39,6 +39,7 @@ export function AddToPipelineButton({
     setState("adding");
     setError(null);
     const result = await postPipelineAdd(pipelineRef.jobId, pipelineRef.jobTitle, {
+      source: "analyze",
       ...pipelineRef,
       github: github ? buildGithubEvidenceSummary(github) : pipelineRef.github,
     });

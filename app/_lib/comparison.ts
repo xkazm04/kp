@@ -1,4 +1,9 @@
 import { MIN_COMPARISON_VARIANTS, type Analysis } from "./schemas.ts";
+import {
+  SCORE_COMPONENT_KEYS,
+  SCORE_COMPONENT_LABELS,
+  type ScoreComponentKey
+} from "./format.ts";
 
 type ComparisonInput = { label: string; analysis: Analysis };
 
@@ -6,16 +11,12 @@ type ComparisonVariant = NonNullable<Analysis["comparison"]>["variants"][number]
 
 type ComparisonPayload = NonNullable<Analysis["comparison"]>;
 
-const COMPONENT_KEYS = ["experience", "skills", "roleSeniority", "education", "traits"] as const;
-type ComponentKey = (typeof COMPONENT_KEYS)[number];
+// Derived from the canonical score taxonomy in format.ts so the driver-insight
+// component list and its prose labels can never drift from the dial/breakdown.
+const COMPONENT_KEYS = SCORE_COMPONENT_KEYS;
+type ComponentKey = ScoreComponentKey;
 
-const COMPONENT_LABELS: Record<ComponentKey, string> = {
-  experience: "experience",
-  skills: "skills",
-  roleSeniority: "role seniority",
-  education: "education",
-  traits: "traits"
-};
+const COMPONENT_LABELS: Record<ComponentKey, string> = SCORE_COMPONENT_LABELS;
 
 /**
  * True when an analysis carries a comparison that meets the minimum-variant
@@ -82,7 +83,11 @@ export function buildComparison(inputs: ComparisonInput[]): ComparisonPayload {
   };
 }
 
-function primaryScore(variant: ComparisonVariant): number {
+// The single "which score ranks this variant" rule: the job-fit score when present,
+// else the component total. Exported so CompareTab's winner-by-index highlight uses
+// the exact same order buildComparison ranks by — the two can't crown different
+// columns.
+export function primaryScore(variant: ComparisonVariant): number {
   if (variant.jobFitScore != null) {
     return variant.jobFitScore;
   }

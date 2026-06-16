@@ -3,18 +3,23 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { buildUrl, clearedTabScopedParams } from "@/app/features/tabs";
+import { jdJobId } from "@/app/_lib/jd-limits";
 import { notifyDataChanged } from "@/app/features/live-refresh";
 import type { GroupEvalPayload } from "@/app/features/sub_decisions/GroupEvalModal";
 import { SIM_COMPANY, SIM_JD_MARKDOWN, SIM_ROLE, SIM_SALARY, SIM_SCREEN_POLICY, SIM_TITLE, type SimPhaseId } from "./constants";
 import { STAGES as PIPELINE_STAGES } from "@/app/features/sub_pipeline/PipelineTypes";
 import type { PipelineEntryView } from "@/app/_lib/db";
+import type { ScreenDecision } from "@/app/_lib/screen-wave";
 
 // `error` is the explicit unavailable/timed-out state: set when the evaluation
 // can't be produced in time, so the reused modal shows an honest message instead
 // of a blank "no evaluation yet" comparison during the climactic Offer step.
 type GroupEval = { roleTitle: string; payload: GroupEvalPayload | null; loading: boolean; error: string | null };
-type WaveDecision = { entryId: string; label: string; archetype: string | null; matchScore: number; action: "reject" | "keep"; rationale: string };
-type ScreenWave = { decisions: WaveDecision[]; rejected: number; kept: number; cohort: number };
+// Single-sourced from the canonical ScreenDecision (screen-wave.ts) — the wire
+// shape /api/decisions/screen-wave returns. The old local copy dropped DEC4's
+// reasonCode/reasonParams (the locale-renderable rationale mirror); importing the
+// source carries them through so SimDecisionWave can localize like the real modal.
+type ScreenWave = { decisions: ScreenDecision[]; rejected: number; kept: number; cohort: number };
 
 type Spotlight = { selector: string | null; title: string; caption: string };
 type LogLine = { at: number; text: string };
@@ -172,6 +177,23 @@ export function SimulationProvider({ children }: { children: React.ReactNode }) 
     return (p.entries as PipelineEntryView[]) ?? [];
   }, []);
 
+  // The sim walk repeatedly re-fetches the whole board and selects the cohort for
+  // the role under demo. Co-locate that selection so the jobId scope and the stage
+  // strings live in one place: `entriesFor` is the job-scoped (optionally
+  // stage-scoped) cohort; `topScreened` is the highest-matchScore Screened entry
+  // (the candidate the walk follows).
+  const entriesFor = useCallback(
+    async (jobId: string, stage?: string): Promise<PipelineEntryView[]> =>
+      (await getEntries()).filter((e) => e.jobId === jobId && (stage === undefined || e.stage === stage)),
+    [getEntries]
+  );
+
+  const topScreened = useCallback(
+    async (jobId: string): Promise<PipelineEntryView | undefined> =>
+      (await entriesFor(jobId, "Screened")).sort((a, b) => (b.matchScore ?? 0) - (a.matchScore ?? 0))[0],
+    [entriesFor]
+  );
+
   // Poll a DOM predicate until satisfied (element appears / iframe ready).
   const waitDom = useCallback(async <T,>(probe: () => T | null, timeout = 9000): Promise<T | null> => {
     const deadline = Date.now() + timeout;
@@ -253,8 +275,7 @@ export function SimulationProvider({ children }: { children: React.ReactNode }) 
   // surfaces the comparison modal.
   const runGroupEval = useCallback(
     async (jobId: string, roleTitle: string) => {
-      const candidates = (await getEntries())
-        .filter((e) => e.jobId === jobId)
+      const candidates = (await entriesFor(jobId))
         .map((e) => ({ entryId: e.id, candidateId: e.candidateId, label: e.candidateLabel, matchScore: e.matchScore }));
       patch({ groupEval: { roleTitle, payload: null, loading: true, error: null } });
       try {
@@ -296,7 +317,7 @@ export function SimulationProvider({ children }: { children: React.ReactNode }) 
         });
       }
     },
-    [getEntries, log, patch]
+    [entriesFor, log, patch]
   );
 
   // ---- The walk --------------------------------------------------------------
@@ -368,7 +389,7 @@ export function SimulationProvider({ children }: { children: React.ReactNode }) 
             headers: JSON_HEADERS,
             body: JSON.stringify({ title: SIM_TITLE, body: SIM_JD_MARKDOWN, role: SIM_ROLE, salary: SIM_SALARY, company: SIM_COMPANY }),
           }).then((r) => r.json());
-          jobId = save.jobId ?? `jd-${save.slug}`;
+          jobId = save.jobId ?? jdJobId(save.slug);
           log(`Saved as draft · ${jobId}`);
           notifyDataChanged(); // the Jobs tab picks up the new draft
           await beat(900);
@@ -388,7 +409,7 @@ export function SimulationProvider({ children }: { children: React.ReactNode }) 
           const deadline = Date.now() + 12_000;
           while (Date.now() < deadline) {
             if (ctrl.current.stop) throw new SimStop();
-            sourced = (await getEntries()).filter((e) => e.jobId === jobId && e.stage === "Accepted").length;
+            sourced = (await entriesFor(jobId, "Accepted")).length;
             if (sourced > 0) break;
             await sleep(400);
           }
@@ -412,7 +433,7 @@ export function SimulationProvider({ children }: { children: React.ReactNode }) 
           await beat(1400);
 
           // Match all intake (Accepted) → Screened (first-wave evaluation: match + AI screen).
-          const intake = (await getEntries()).filter((e) => e.jobId === jobId && e.stage === "Accepted");
+          const intake = await entriesFor(jobId, "Accepted");
           // Best-effort cohort advance: this is the ONE site that deliberately opts
           // out of advanceTo's throw-on-failure policy — a stray un-advanceable stub
           // shouldn't abort the whole demo. Log each straggler and continue; the
@@ -425,9 +446,7 @@ export function SimulationProvider({ children }: { children: React.ReactNode }) 
               log(`⚠︎ ${e.candidateLabel} stuck before Screened — skipping (${err instanceof Error ? err.message : "advance failed"})`);
             }
           }
-          const top = (await getEntries())
-            .filter((e) => e.jobId === jobId && e.stage === "Screened")
-            .sort((a, b) => (b.matchScore ?? 0) - (a.matchScore ?? 0))[0];
+          const top = await topScreened(jobId);
           if (!top) throw new Error("No Screened candidate to walk (intake returned none).");
           targetId = top.id;
           targetLabel = top.candidateLabel;
@@ -596,7 +615,7 @@ export function SimulationProvider({ children }: { children: React.ReactNode }) 
       patch({ running: false, error: msg, status: `Failed: ${msg}`, ...CLEAR_OVERLAYS });
       log(`Error: ${msg}`);
     }
-  }, [advance, advanceTo, beat, clickEl, getEntries, log, nav, patch, runGroupEval, step, waitDom, waitEntry]);
+  }, [advance, advanceTo, beat, clickEl, entriesFor, topScreened, log, nav, patch, runGroupEval, step, waitDom, waitEntry]);
 
   const start = useCallback(() => {
     ctrl.current = { stop: false, paused: false, wake: null };

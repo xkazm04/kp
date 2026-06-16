@@ -2,17 +2,19 @@
 
 import { useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { BarChart3, Check, Copy, FileText, History, Link2, Megaphone, Scale, Users, Zap } from "lucide-react";
+import { BarChart3, Check, Copy, FileText, Gauge, History, Link2, Megaphone, Scale, Users, Zap } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { Modal } from "@/app/_components/Modal";
 import { Markdown } from "@/app/_components/Markdown";
 import { publicBaseUrl } from "@/app/_lib/public-base-url";
 import { buildUrl } from "@/app/features/tabs";
 import { isLocale } from "@/i18n/locales";
+import { JobLifecycleStrip } from "./JobLifecycleStrip";
 import { RecruiterCandidates } from "./RecruiterCandidates";
 import { RediscoverPanel } from "./RediscoverPanel";
 import { CompareInterviews } from "./CompareInterviews";
 import { CampaignTab } from "./CampaignTab";
+import { CoachPanel } from "./CoachPanel";
 import { jobToMarkdown, JOB_MARKDOWN_STRINGS, POSTING_LOCALES, type PostingLocale } from "./jobMarkdown";
 import type { Job } from "./JobsTypes";
 
@@ -25,7 +27,7 @@ export function JobPostingModal({ job, onClose }: { job: Job; onClose: () => voi
   const td = useTranslations("jobs.drafts");
   const router = useRouter();
   const search = useSearchParams();
-  const [tab, setTab] = useState<"posting" | "candidates" | "rediscover" | "compare" | "campaign">("posting");
+  const [tab, setTab] = useState<"posting" | "coach" | "candidates" | "rediscover" | "compare" | "campaign">("posting");
   const [copied, setCopied] = useState(false);
   const [applyCopied, setApplyCopied] = useState(false);
   const [quickCopied, setQuickCopied] = useState(false);
@@ -223,9 +225,14 @@ export function JobPostingModal({ job, onClose }: { job: Job; onClose: () => voi
         </>
       }
     >
+      {/* c91ec8b1 — the role's lifecycle at a glance, each segment linking to
+          the tab that owns it (JD → channels → board → decisions → offers). */}
+      <JobLifecycleStrip jobId={job.id} jobTitle={job.title} />
+
       <div role="tablist" aria-label={t("viewsAria")} className="mb-3 flex gap-1 border-b border-stone-200">
         {([
           ["posting", "tabPosting", FileText],
+          ["coach", "tabCoach", Gauge],
           ["campaign", "tabCampaign", Megaphone],
           ["candidates", "tabCandidates", BarChart3],
           ["rediscover", "tabRediscover", History],
@@ -278,6 +285,8 @@ export function JobPostingModal({ job, onClose }: { job: Job; onClose: () => voi
               <Markdown content={markdown} />
             </article>
           </>
+        ) : tab === "coach" ? (
+          <CoachPanel jobId={job.id} jobTitle={job.title} />
         ) : tab === "campaign" ? (
           <CampaignTab jobId={job.id} />
         ) : tab === "candidates" ? (

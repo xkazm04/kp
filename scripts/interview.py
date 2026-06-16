@@ -8,7 +8,7 @@ Examples
 --------
     python scripts/interview.py path/to/cv.pdf --jd path/to/jd.txt
     python scripts/interview.py path/to/cv.pdf --jd-text "Senior Python role"
-    python scripts/interview.py path/to/cv.pdf --bucket experience
+    python scripts/interview.py path/to/cv.pdf --bucket behavioral
 """
 
 from __future__ import annotations
@@ -38,7 +38,7 @@ from _common import (
 def main() -> int:
     parser = argparse.ArgumentParser(description="Print the interview question pack and STAR scaffolds derived from gaps.")
     add_common_args(parser)
-    parser.add_argument("--bucket", help="Only print questions for this bucket (e.g. experience, skills, leadership).")
+    parser.add_argument("--bucket", help="Only print questions for this bucket (behavioral, technical, red-flag-defense).")
     parser.add_argument(
         "--no-star",
         action="store_true",

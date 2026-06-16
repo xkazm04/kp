@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { splitSanityChecks, countSanityWarns, isSanityWarn } from "./sanity-checks.ts";
+import { splitSanityChecks, countSanityWarns, isSanityWarn, authenticityBand } from "./sanity-checks.ts";
 
 // One representative string per engine emitter (pipeline.py), so a renamed or
 // new warn shape that the classifier misses shows up as a test to update —
@@ -47,4 +47,17 @@ test("countSanityWarns matches the split", () => {
   assert.equal(countSanityWarns(mixed), ENGINE_WARNS.length);
   assert.equal(countSanityWarns(ENGINE_OKS), 0);
   assert.equal(countSanityWarns([]), 0);
+});
+
+test("authenticityBand: null without an authenticity check, else by warn count (idea-cae71d45)", () => {
+  assert.equal(authenticityBand(["Salary range order OK"]), null); // older payload, no screen
+  assert.equal(authenticityBand(["Authenticity checks passed — language reads specific and concrete."]), "high");
+  assert.equal(authenticityBand(["Authenticity: heavy generic/buzzword phrasing — verify (manual review)."]), "medium");
+  assert.equal(
+    authenticityBand([
+      "Authenticity: heavy generic/buzzword phrasing — verify (manual review).",
+      "Authenticity: stated experience exceeds a plausible career span (manual review).",
+    ]),
+    "low"
+  );
 });

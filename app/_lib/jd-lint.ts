@@ -12,7 +12,11 @@
 
 export type JdLintFinding =
   | { kind: "vague"; phrase: string }
-  | { kind: "missing"; what: "salary" | "place" };
+  | { kind: "missing"; what: "salary" | "place" }
+  // 7469c05f — inclusive-language: a phrase that narrows the applicant pool
+  // (gendered/coded, ageist, masculine-coded), or an over-long must-have list.
+  | { kind: "exclusionary"; phrase: string }
+  | { kind: "manyMustHaves"; count: number };
 
 // Vague-phrase patterns. Each match is reported with the text as written, so
 // the recruiter sees exactly what to replace. `giu`: global (collect all),
@@ -37,6 +41,27 @@ const VAGUE_PATTERNS: RegExp[] = [
   /staň\p{L}*\s+se\s+součástí/giu,
 ];
 
+// Inclusive-language patterns (7469c05f) — phrases shown to shrink or skew the
+// applicant pool: gendered/coded terms, masculine-coded adjectives, and ageist
+// language. (rockstar/ninja/guru already flag under `vague`, so they're not
+// repeated here.) EN + CS, same giu folding + \p{L} inflection tolerance.
+const EXCLUSIONARY_PATTERNS: RegExp[] = [
+  // Gendered / coded
+  /\b(?:he\/she|s\/he|\(s\)he|he\s+or\s+she)\b/giu,
+  /\b(?:guys|manpower|man-?hours?|chairman|salesman|foreman|workmanlike)\b/giu,
+  // Masculine-coded adjectives (research-backed: deter women applicants)
+  /\b(?:aggressive|dominant|fearless|assertive|ruthless|hard-?charging)\b/giu,
+  // Ageist
+  /\b(?:young|youthful|digital\s+native|recent\s+grad(?:uate)?s?|fresh\s+graduate|fresh\s+out\s+of)\b/giu,
+  // Czech: ageist / gendered
+  /\bmlad\p{L}*\s+(?:člověk\p{L}*|uchazeč\p{L}*|nadšenec\p{L}*)/giu,
+];
+
+// "must"/"required"/"musí"/"nutné" markers — a long list of them deters
+// under-represented applicants who self-select out unless they meet 100%.
+const MUST_HAVE_RE = /\b(?:must(?:\s+have)?|required|musí|nutn\p{L}*|povinn\p{L}*)\b/giu;
+const MANY_MUST_HAVES = 8;
+
 // A stated pay figure: digits followed by a currency token ("65 000 Kč",
 // "65,000 CZK", "3 200 EUR"), or a currency symbol followed by digits ("€3,200",
 // "$120k"). Includes NBSP/narrow-NBSP — common thousands separators in cs text.
@@ -52,9 +77,9 @@ const PLACE_RE =
  *  recruiter reads the findings against their own text top-to-bottom), first
  *  occurrence per phrase (case-insensitively deduped so "Dynamic team" and
  *  "dynamic team" report once). */
-export function findVaguePhrases(text: string): string[] {
+function collectPhrases(text: string, patterns: RegExp[]): string[] {
   const hits: { index: number; phrase: string }[] = [];
-  for (const pattern of VAGUE_PATTERNS) {
+  for (const pattern of patterns) {
     for (const match of text.matchAll(pattern)) {
       hits.push({ index: match.index ?? 0, phrase: match[0].replace(/\s+/g, " ").trim() });
     }
@@ -72,6 +97,16 @@ export function findVaguePhrases(text: string): string[] {
   return phrases;
 }
 
+export function findVaguePhrases(text: string): string[] {
+  return collectPhrases(text, VAGUE_PATTERNS);
+}
+
+/** Non-inclusive phrases (gendered/coded, masculine-coded, ageist), in document
+ *  order, first occurrence per phrase. (7469c05f) */
+export function findExclusionaryPhrases(text: string): string[] {
+  return collectPhrases(text, EXCLUSIONARY_PATTERNS);
+}
+
 /**
  * Lint a JD body for the two specificity classes that decide conversion:
  * boilerplate phrases to replace, and missing concretes (pay, place).
@@ -85,5 +120,9 @@ export function lintJd(input: { body: string; salaryAvailable?: boolean }): JdLi
   const findings: JdLintFinding[] = findVaguePhrases(body).map((phrase) => ({ kind: "vague", phrase }));
   if (!input.salaryAvailable && !MONEY_RE.test(body)) findings.push({ kind: "missing", what: "salary" });
   if (!PLACE_RE.test(body)) findings.push({ kind: "missing", what: "place" });
+  // 7469c05f — inclusivity: coded/exclusionary phrases + an over-long must-have list.
+  for (const phrase of findExclusionaryPhrases(body)) findings.push({ kind: "exclusionary", phrase });
+  const mustHaves = (body.match(MUST_HAVE_RE) ?? []).length;
+  if (mustHaves > MANY_MUST_HAVES) findings.push({ kind: "manyMustHaves", count: mustHaves });
   return findings;
 }

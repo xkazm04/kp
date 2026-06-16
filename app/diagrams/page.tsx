@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { PlantUml } from "@/app/_components/puml/PlantUml";
+import { DIAGRAM_STATUS_TOKENS } from "@/app/_components/puml/constants";
 import { WorkspaceShell } from "@/app/features/WorkspaceNav";
 import { PipelineExplorer } from "./PipelineExplorer";
 
@@ -60,17 +61,23 @@ function Legend() {
   return (
     <ul className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-meta text-steel">
       <li className="flex items-center gap-2">
-        <span className="inline-block h-3.5 w-5 rounded border" style={{ background: "#e9f1e2", borderColor: "#5d7a57" }} />
+        <span
+          className="inline-block h-3.5 w-5 rounded border"
+          style={{ background: DIAGRAM_STATUS_TOKENS.live.fill, borderColor: DIAGRAM_STATUS_TOKENS.live.stroke }}
+        />
         live / automated
       </li>
       <li className="flex items-center gap-2">
-        <span className="inline-block h-3.5 w-5 rounded border" style={{ background: "#fbece8", borderColor: "#d65a4a" }} />
+        <span
+          className="inline-block h-3.5 w-5 rounded border"
+          style={{ background: DIAGRAM_STATUS_TOKENS.gate.fill, borderColor: DIAGRAM_STATUS_TOKENS.gate.stroke }}
+        />
         human gate (kept by design)
       </li>
       <li className="flex items-center gap-2">
         <span
           className="inline-block h-3.5 w-5 rounded border border-dashed"
-          style={{ background: "#f4f2ec", borderColor: "#8c8779" }}
+          style={{ background: DIAGRAM_STATUS_TOKENS.gap.fill, borderColor: DIAGRAM_STATUS_TOKENS.gap.stroke }}
         />
         remaining gap (shown inside a step)
       </li>

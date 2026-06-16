@@ -3,6 +3,7 @@
 import { Check, CircleDot, Info, MessageCircleQuestion, Send, X, type LucideIcon } from "lucide-react";
 import { assertScore, formatFraction } from "@/app/_lib/format";
 import { describeSource } from "./DevHelpers";
+import { FollowupQuestionItem } from "./DevShared";
 import { ProvenanceStrip } from "./ProvenanceStrip";
 import { ScoreBar } from "./ScoreBar";
 import { LOW_CONFIDENCE } from "./DevTypes";
@@ -71,6 +72,27 @@ export function EvalPanel({ ev, onPromote, promoted, promoting = false }: { ev: 
             conf {formatFraction(e.confidence, { label: "confidence" })}
           </span>
         ) : null}
+        {/* ce28da40 — process-authenticity: genuine incremental work vs likely
+            paste-from-LLM, from the git trace + reflection. Suspect holds the
+            submission for the live ownership-verifying interview. */}
+        {ev.authenticity ? (
+          <span
+            title={
+              ev.authenticity.reasons.length
+                ? `Process authenticity ${ev.authenticity.score}/100 — ${ev.authenticity.reasons.join(" ")}`
+                : `Process authenticity ${ev.authenticity.score}/100 — genuine incremental work.`
+            }
+            className={`rounded px-1 py-0.5 text-micro font-semibold uppercase ${
+              ev.authenticity.band === "suspect"
+                ? "bg-coral/15 text-coral"
+                : ev.authenticity.band === "mixed"
+                  ? "bg-amber-100 text-amber-700"
+                  : "bg-moss/15 text-moss"
+            }`}
+          >
+            authenticity {ev.authenticity.score}
+          </span>
+        ) : null}
       </div>
       <div className="space-y-1">
         {breakdown.map((d, i) => (
@@ -99,7 +121,21 @@ export function EvalPanel({ ev, onPromote, promoted, promoting = false }: { ev: 
         <span className="rounded bg-paper px-1.5 py-0.5 uppercase">{r.iterationPattern}</span>{" "}
         read-before-write <b className="text-ink">{formatFraction(r.readBeforeWrite ?? 0, { label: "readBeforeWrite" })}</b>{" "}
         · fluency <b className="text-ink">{formatFraction(t.fluency ?? 0, { label: "fluency" })}</b>
-        {(x.gaps ?? []).length ? <span> · gaps: {(x.gaps ?? []).join(", ")}</span> : null}
+        {(x.gaps ?? []).length ? <span> · gaps: {(x.gaps ?? []).join(", ")}</span> : null}{" "}
+        {/* Live Work Surface (moonshot E): was tooling WATCHED (in-product session)
+            or RECONSTRUCTED from a git log? Observed > inferred. */}
+        <span
+          title={
+            String(ev.perStepSources?.tooling) === "observed"
+              ? "Tooling watched live in the in-product work surface."
+              : "Tooling reconstructed from the submitted git log."
+          }
+          className={`rounded px-1.5 py-0.5 font-semibold uppercase ${
+            String(ev.perStepSources?.tooling) === "observed" ? "bg-moss/10 text-moss" : "bg-stone-100 text-steel"
+          }`}
+        >
+          {String(ev.perStepSources?.tooling) === "observed" ? "observed" : "inferred"}
+        </span>
       </div>
 
       {/* process trace (DEVP6) — persisted "so the decisions-log contract is checkable
@@ -125,6 +161,26 @@ export function EvalPanel({ ev, onPromote, promoted, promoting = false }: { ev: 
             <span className="rounded bg-paper px-1.5 py-0.5 text-steel" title="Commits landed in one tight burst — how they worked, not a verdict">
               single sitting
             </span>
+          ) : null}
+        </div>
+      ) : null}
+
+      {/* c364a44d — seed engagement: which planted seam files the submission
+          actually touched. Grounded, mechanically-comparable evidence (every
+          candidate starts from the same seed) beside the LLM's probe read — an
+          untouched seam file is a seam they never opened. */}
+      {ev.seedDiff && ev.seedDiff.total > 0 ? (
+        <div className="mt-1.5 text-micro">
+          <span
+            className={`rounded px-1.5 py-0.5 font-semibold uppercase ${
+              ev.seedDiff.touched === 0 ? "bg-coral/15 text-coral" : "bg-paper text-steel"
+            }`}
+            title="Files from the shared starter seed the submission modified — the seed plants each probe's seam, so an untouched file is a seam they never engaged."
+          >
+            Seed engagement: {ev.seedDiff.touched}/{ev.seedDiff.total} planted files touched
+          </span>
+          {ev.seedDiff.untouched.length > 0 ? (
+            <span className="ml-1.5 text-steel">untouched: {ev.seedDiff.untouched.join(", ")}</span>
           ) : null}
         </div>
       ) : null}
@@ -162,14 +218,7 @@ export function EvalPanel({ ev, onPromote, promoted, promoting = false }: { ev: 
           <ol className="mt-1 list-decimal space-y-1.5 pl-4">
             {(ev.followups?.questions ?? []).map((q, i) => (
               <li key={q.id ?? i} className="text-micro text-ink">
-                {q.decision ? <span className="text-steel">[{q.decision}] </span> : null}
-                {q.question}
-                {q.listenFor ? (
-                  <span className="block text-micro text-steel">Listen for: {q.listenFor}</span>
-                ) : null}
-                {q.redFlag ? (
-                  <span className="block text-micro text-coral/80">Red flag: {q.redFlag}</span>
-                ) : null}
+                <FollowupQuestionItem q={q} index={i} showDecision />
               </li>
             ))}
           </ol>

@@ -8,6 +8,13 @@ export type JdSummary = { slug: string; title: string; preview: string; created_
 // need.jdText, the primary statement of the need.
 export type SelectedJd = { slug: string; title: string; body: string };
 
+// Live Work Surface (moonshot E) — one observed process event emitted by the
+// in-product work surface. Free-form JSON (NOT a codegen'd model): persisted to
+// dev_session_events and fed to the Python engine's tooling_from_events(). `t` is a
+// client timestamp (ms); `path` is the seed file the event concerns.
+export type ProcessEventKind = "open" | "edit" | "decision_log" | "submit";
+export type ProcessEvent = { t: number; kind: ProcessEventKind; path?: string };
+
 // The numeric-range contract for the scoring UI
 // ----------------------------------------------
 // Every numeric field below is one of two domains, annotated inline and enforced
@@ -161,7 +168,17 @@ export type ProcessTrace = {
   cadence?: { count?: number; spanHours?: number | null; bursty?: boolean | null } | null;
   decisionsLogPresent?: boolean;
 };
-export type EvalBundle = { reflection?: Reflection; tooling?: Tooling; evaluation?: CaseEval; transfer?: Transfer; followups?: Followups; source?: SourceKind; perStepSources?: PerStepSources; commitCount?: number; processTrace?: ProcessTrace | null };
+// ce28da40 — process-authenticity verdict derived from the trace + reflection
+// (app/_lib/devcase-authenticity.ts): is this genuine incremental work or a likely
+// paste-from-LLM? `band` "suspect" holds the submission for the ownership-verifying
+// interview rather than auto-advancing on transfer score. Absent on older bundles.
+export type Authenticity = { score: number /* SCORE 0..100 */; band: "authentic" | "mixed" | "suspect"; reasons: string[] };
+// c364a44d — seed-anchored engagement: which planted seam files the submission
+// touched (app/_lib/devcase-seed-diff.ts). Grounded, mechanically comparable
+// evidence beside the LLM probe read. Absent on bundles saved before it / cases
+// with no materialized seed.
+export type SeedDiff = { files: { path: string; touched: boolean }[]; touched: number; total: number; untouched: string[] };
+export type EvalBundle = { reflection?: Reflection; tooling?: Tooling; evaluation?: CaseEval; transfer?: Transfer; followups?: Followups; authenticity?: Authenticity | null; seedDiff?: SeedDiff | null; source?: SourceKind; perStepSources?: PerStepSources; commitCount?: number; processTrace?: ProcessTrace | null };
 
 // At or below this a confidence (self-rated OR propagated) is "low" — the reviewer is warned the
 // inference is thin/ungrounded, or a decision rests on such evidence. Mirrors LOW_CONFIDENCE in
@@ -169,6 +186,12 @@ export type EvalBundle = { reflection?: Reflection; tooling?: Tooling; evaluatio
 export const LOW_CONFIDENCE = 0.4;
 
 export const LIFECYCLE_STEPS = ["intake", "analyzed", "designed", "approved", "collecting", "ranked", "promoted"];
+// Post-publication "live" stages: the case is accepting/ranking candidates (or
+// has promoted one) rather than sitting pre-publication or at the approval gate.
+// Gates the "Close case" action (LifecycleRow) and the moss "live" stage tint
+// (CasesTable) — one source so a stage can't read "live" in one place but not
+// be closable in the other.
+export const LIVE_STAGES = ["published", "collecting", "ranked", "promoted"] as const;
 export const STAGE_LABEL: Record<string, string> = {
   intake: "intake",
   analyzed: "analyzed",

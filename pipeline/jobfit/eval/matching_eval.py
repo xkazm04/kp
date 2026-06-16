@@ -29,6 +29,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from .._cli import configure_stdio
 from ..archetype import detect_archetype
 from ..matching import _DEFAULT_CORPUS, load_corpus, match
 from ..profile import CandidateProfileV2, Evidence, SkillClaim
@@ -364,8 +365,7 @@ def _empty_corpus_message(corpus: Path) -> str:
 
 
 def main(argv: list[str] | None = None) -> int:
-    if hasattr(sys.stdout, "reconfigure"):
-        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    configure_stdio(errors="replace")
 
     parser = argparse.ArgumentParser(description="Deterministic v2 matching + fairness eval.")
     parser.add_argument("--json", action="store_true")

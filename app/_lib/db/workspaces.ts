@@ -1,0 +1,35 @@
+import { ensureDb } from "./core";
+import { randomId } from "../random-id";
+
+// Tenant root (P2). The single default workspace exists today (seeded in ensureDb);
+// real multi-tenancy will add creation + per-user mapping. Shared connection.
+// The single default workspace today (matches the seed + auth/session.DEFAULT_WORKSPACE
+// + billing's id). Scoped stores default their optional workspaceId to this, so
+// they stay behavior-preserving until real multi-tenancy assigns other workspaces.
+export const DEFAULT_WORKSPACE_ID = "workspace";
+
+export type Workspace = { id: string; name: string | null; createdAt: string };
+
+function rowToWorkspace(r: Record<string, unknown>): Workspace {
+  return { id: r.id as string, name: (r.name as string) ?? null, createdAt: r.created_at as string };
+}
+
+export function listWorkspaces(): Workspace[] {
+  const db = ensureDb();
+  return (db.prepare(`SELECT * FROM workspaces ORDER BY created_at ASC`).all() as Record<string, unknown>[]).map(rowToWorkspace);
+}
+
+export function getWorkspace(id: string): Workspace | null {
+  const db = ensureDb();
+  const r = db.prepare(`SELECT * FROM workspaces WHERE id = ?`).get(id) as Record<string, unknown> | undefined;
+  return r ? rowToWorkspace(r) : null;
+}
+
+export function createWorkspace(name: string): Workspace {
+  const db = ensureDb();
+  const id = randomId("ws");
+  const cleanName = name.trim().slice(0, 80) || "Untitled workspace";
+  const createdAt = new Date().toISOString();
+  db.prepare(`INSERT INTO workspaces (id, name, created_at) VALUES (?, ?, ?)`).run(id, cleanName, createdAt);
+  return { id, name: cleanName, createdAt };
+}

@@ -22,7 +22,7 @@ import sys
 from pathlib import Path
 
 from . import campaign
-from .claude_cli import ClaudeCliProvider
+from .llm import resolve_provider
 from .jobs import Job
 
 ERR_INVALID_INPUT = "invalid_input"
@@ -51,7 +51,7 @@ def main(argv: list[str] | None = None) -> int:
         raw.setdefault("location", "")
         job = Job.model_validate(raw)
 
-        provider = None if args.no_llm else ClaudeCliProvider(timeout=120)
+        provider = None if args.no_llm else resolve_provider("campaign_pack", timeout=120)
         if provider is not None and not provider.available():
             provider = None
 

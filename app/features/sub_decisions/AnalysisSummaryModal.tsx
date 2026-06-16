@@ -5,7 +5,7 @@ import { Check, Loader2, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Modal } from "@/app/_components/Modal";
 import { ScoreBadge } from "@/app/_components/ScoreBadge";
-import { ConfidenceBandBadge, confidenceBandTitle, FitTierBadge } from "@/app/_components/Badge";
+import { ConfidenceBandBadge, ConfidenceRange, FitTierBadge } from "@/app/_components/Badge";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { ScoreBreakdown } from "@/app/features/sub_match/MatchShared";
 import { provLabel, type MatchResultView } from "@/app/features/sub_match/MatchTypes";
@@ -124,9 +124,7 @@ export function AnalysisSummaryModal({
         <FitTierBadge tier={match?.fitTier} score={match?.total ?? entry.matchScore ?? undefined} />
         {match?.confidence ? (
           <span className="inline-flex items-center gap-1.5">
-            <span className="nums text-sm text-steel" title={confidenceBandTitle(match.confidence.drivers)}>
-              {match.confidence.low}–{match.confidence.high}
-            </span>
+            <ConfidenceRange low={match.confidence.low} high={match.confidence.high} drivers={match.confidence.drivers} className="nums text-sm text-steel" />
             <ConfidenceBandBadge level={match.confidence.level} drivers={match.confidence.drivers} />
           </span>
         ) : null}

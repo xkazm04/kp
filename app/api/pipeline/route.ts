@@ -25,6 +25,7 @@ export async function POST(request: NextRequest) {
       matchScore?: number | null;
       stage?: string;
       github?: unknown;
+      source?: unknown;
     };
     if (!body.candidateId || !body.jobId) {
       return NextResponse.json({ error: "candidateId and jobId are required." }, { status: 400 });
@@ -51,6 +52,12 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+    // d95fed6d — optional provenance: which surface filed this candidate.
+    // Bounded + shape-checked at the boundary (a slug-like token, not prose);
+    // an out-of-shape value is dropped, not 400'd — provenance is an annotation,
+    // never worth failing the add over.
+    const source =
+      typeof body.source === "string" && /^[a-z0-9_-]{1,40}$/.test(body.source) ? body.source : null;
     const result = createPipelineEntry({
       candidateId: body.candidateId,
       candidateLabel: body.candidateLabel || body.candidateId,
@@ -61,6 +68,7 @@ export async function POST(request: NextRequest) {
       matchScore: body.matchScore ?? null,
       stage: body.stage,
       githubJson,
+      sourceChannel: source,
     });
     return NextResponse.json(result);
   } catch (error) {

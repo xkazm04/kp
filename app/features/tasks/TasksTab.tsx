@@ -486,6 +486,18 @@ function outcomeLink(task: Task): { href: string; label: string } | null {
   if (task.kind === "jd_build") {
     return { href: `/?tab=library&jdTask=${encodeURIComponent(task.id)}`, label: "Open the JD library" };
   }
+  // Decision-shaped runs land their output in the Decisions queue: a group eval
+  // saves per-role (the ?job= filter isolates it), a batch screen raises
+  // holds/reviews there.
+  if (task.kind === "group_eval") {
+    const jobId = params["jobId"] ?? params["roleKey"];
+    return typeof jobId === "string" && jobId
+      ? { href: `/?tab=decisions&job=${encodeURIComponent(jobId)}`, label: "Open the role's decisions" }
+      : { href: "/?tab=decisions", label: "Open Decisions" };
+  }
+  if (task.kind === "batch_screen") return { href: "/?tab=decisions", label: "Review outcomes in Decisions" };
+  // Prep artifacts are opened from the Schedule tab's candidate cards.
+  if (task.kind === "interview_prep") return { href: "/?tab=schedule", label: "Open Schedule" };
   // Entry-scoped kinds carry a label; ANA1's board ?q= filter isolates the
   // candidate (no per-entry deep link exists).
   const entryLabel = params["entryLabel"] ?? params["candidateLabel"];

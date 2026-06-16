@@ -27,7 +27,7 @@ export function AnalyzeForm({ state }: { state: AnalyzeFormState }) {
   // BEFORE submit, not a cryptic task failure minutes later.
   const engines = useEngineAvailability();
   const { refs, inputs, setters, handlers, flags, statuses, library, result } = state;
-  const { setJobDescriptionFile, setJobDescriptionText, setCompanyFile, setCompanyText, setGithubProfile, setReportLang } = setters;
+  const { setJobDescriptionFile, setJobDescriptionText, setCompanyFile, setCompanyText, setGithubProfile, setReportLang, setBlind } = setters;
   const { setSelectedJdSlug } = library;
 
   return (
@@ -220,6 +220,18 @@ export function AnalyzeForm({ state }: { state: AnalyzeFormState }) {
               <option key={l} value={l}>{l}</option>
             ))}
           </select>
+        </label>
+        {/* b8d711c4 — blind screening: redact identity (name/contact/photo/gendered
+            terms/age) from the CV before scoring; the name is re-attached only in
+            the result, and the trust ledger notes what was redacted. */}
+        <label className="flex shrink-0 items-center gap-1.5 text-sm font-medium text-steel" title={t("blindTitle")}>
+          <input
+            type="checkbox"
+            checked={inputs.blind ?? false}
+            onChange={(e) => setBlind(e.target.checked)}
+            className="focus-ring h-4 w-4 rounded border-stone-300 text-coral"
+          />
+          {t("blind")}
         </label>
       </div>
     </section>

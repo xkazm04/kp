@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { pipelineAnalytics } from "@/app/_lib/db";
+import { periodDeltas } from "@/app/_lib/analytics-deltas";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -27,7 +28,14 @@ export async function GET(request: Request) {
   // opaque, body-less crash.
   try {
     const { searchParams } = new URL(request.url);
-    return NextResponse.json(pipelineAnalytics(parseWindowDays(searchParams.get("days"))));
+    const windowDays = parseWindowDays(searchParams.get("days"));
+    const current = pipelineAnalytics(windowDays);
+    // ce8e3c9e — only a windowed view has a well-defined "previous period". For
+    // all-time (no window) there's nothing to compare against, so deltas are null.
+    const deltas = windowDays
+      ? periodDeltas(current, pipelineAnalytics(windowDays, { endMs: Date.now() - windowDays * 86_400_000 }))
+      : null;
+    return NextResponse.json({ ...current, deltas });
   } catch (error) {
     console.error("[api/analytics] failed to build pipeline analytics", error);
     const message = error instanceof Error ? error.message : "Failed to build analytics.";

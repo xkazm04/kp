@@ -19,7 +19,6 @@ export type Entry = {
   approvalDetail: string | null;
 };
 
-export type Reasoning = { verdict: string; strengths: string[]; gaps: string[]; interviewProbes: string[] };
 // `recommendation` is the canonical advance|hold|reject verdict — see
 // app/_lib/interview-recommendation.ts. The stored approval_detail JSON always
 // holds a coerced member (the Python coerce guarantees it), so the union is sound.
@@ -33,6 +32,3 @@ export const ARCHETYPE = {
   career_switcher: { label: "Switcher", bg: "bg-moss" },
 } as const;
 export const styleFor = (a: string | null) => ARCHETYPE[(a as keyof typeof ARCHETYPE) ?? "bau"] ?? ARCHETYPE.bau;
-
-export const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri"];
-export const TIMES = ["09:00", "10:30", "11:00", "14:00", "15:30"];

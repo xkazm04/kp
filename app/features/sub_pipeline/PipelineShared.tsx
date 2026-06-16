@@ -9,6 +9,7 @@ import {
   CirclePlus,
   Clock,
   Gauge,
+  Phone,
   Repeat,
   Sparkles,
   Square,
@@ -37,6 +38,11 @@ export const EVENT_KINDS = [
   "rejected",
   "intake_degraded",
   "intake_resolved",
+  // d95fed6d — a recruiter's analysis disposition (advance/hold/pass on the
+  // saved report) echoed onto the candidate's pipeline record.
+  "disposition_set",
+  // d95fed6d — a practice (simulator) interview noted on the record.
+  "sim_attached",
 ] as const;
 
 export type EventKind = (typeof EVENT_KINDS)[number];
@@ -67,6 +73,8 @@ export const EVENT_CATALOG: Record<EventKind, EventMeta> = {
   rejected: { Icon: XCircle, tone: "text-coral" },
   intake_degraded: { Icon: AlertTriangle, tone: "text-red-600" },
   intake_resolved: { Icon: Wrench, tone: "text-moss" },
+  disposition_set: { Icon: CheckSquare, tone: "text-steel" },
+  sim_attached: { Icon: Phone, tone: "text-steel" },
 };
 
 // One documented fallback for kinds outside the catalog. The feed (listPipelineEvents)
@@ -112,6 +120,10 @@ export function useEventVerb(): (ev: PipelineEvent) => string {
         return t("rejected");
       case "intake_resolved":
         return t("intake_resolved");
+      case "disposition_set":
+        return ev.detail ? t("dispositionSetDetail", { detail: ev.detail }) : t("disposition_set");
+      case "sim_attached":
+        return ev.detail ? t("simAttachedDetail", { detail: ev.detail }) : t("sim_attached");
     }
   };
 }
@@ -152,6 +164,9 @@ export function CandidateRow({
   selectMode = false,
   selected = false,
   onToggleSelect,
+  draggable = false,
+  onDragStart,
+  onDragEnd,
 }: {
   entry: Entry;
   pending?: boolean;
@@ -161,6 +176,12 @@ export function CandidateRow({
   selectMode?: boolean;
   selected?: boolean;
   onToggleSelect?: () => void;
+  // cea12908 — pointer drag-and-drop of a candidate between stage columns. Off by
+  // default; the board enables it when not in select mode. The keyboard path stays
+  // the row's open/select button + the bulk-move bar (drag is pointer-only).
+  draggable?: boolean;
+  onDragStart?: () => void;
+  onDragEnd?: () => void;
 }) {
   const t = useTranslations("pipeline");
   const enumLabel = useEnumLabel();
@@ -189,8 +210,25 @@ export function CandidateRow({
         : style.icon;
   const title = `${t("candidateRow.cardTitle", { name: entry.candidateLabel, archetype: archLabel })}${entry.matchScore != null ? t("candidateRow.matchSuffix", { score: entry.matchScore }) : ""}${days != null ? t("candidateRow.daysInStage", { days }) : ""}${degraded ? t("candidateRow.degradedSuffix") : ""}`;
   const selecting = selectMode && onToggleSelect;
+  // Drag only outside select mode (in select mode the row is a checkbox).
+  const dragOn = draggable && !selecting;
   return (
-    <div className={`group flex items-center gap-1.5 rounded-md px-1 py-0.5 hover:bg-paper ${selecting && selected ? "bg-coral/5" : ""}`}>
+    <div
+      draggable={dragOn || undefined}
+      onDragStart={
+        dragOn
+          ? (ev) => {
+              // A payload makes the drag valid across the cell drop targets; the
+              // board reads the dragged entry from its own state, not this string.
+              ev.dataTransfer.setData("text/plain", entry.id);
+              ev.dataTransfer.effectAllowed = "move";
+              onDragStart?.();
+            }
+          : undefined
+      }
+      onDragEnd={dragOn ? () => onDragEnd?.() : undefined}
+      className={`group flex items-center gap-1.5 rounded-md px-1 py-0.5 hover:bg-paper ${selecting && selected ? "bg-coral/5" : ""} ${dragOn ? "cursor-grab active:cursor-grabbing" : ""}`}
+    >
       <span
         role="img"
         aria-label={dotTitle}

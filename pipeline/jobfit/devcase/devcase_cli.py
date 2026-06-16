@@ -35,13 +35,27 @@ import json
 import sys
 from pathlib import Path
 
-from ..claude_cli import ClaudeCliProvider
+from .._cli import configure_stdio
+from ..llm import resolve_provider
 from . import analyze as _analyze
 from . import design as _design
 from . import evaluate as _evaluate
 from . import reflect as _reflect
 from .models import LOW_CONFIDENCE, DevNeed, NeedAnalysis, RepoSnapshot
-from .provenance import FALLBACK_REASON_KEY, combine_source
+from .provenance import collect_fallback_reasons, combine_source
+
+# devcase_cli command → LLM-registry use case (capabilities.py catalog), so the
+# Models config can pin a provider/model per step. design-artifacts covers both
+# the role and case design steps with one provider (the case-design row, which
+# carries the quality-model default).
+_USE_CASE_BY_COMMAND = {
+    "analyze-need": "devcase_analyze",
+    "design-artifacts": "devcase_case_design",
+    "reflect-commits": "devcase_reflect",
+    "evaluate-submission": "devcase_evaluate",
+    "interview-scenario": "devcase_interview_scenario",
+    "materialize-seed": "devcase_seed",
+}
 
 # Stable, machine-readable error codes the UI branches on. INVALID_INPUT is a
 # user-correctable problem (missing/garbled --*-json arg, failed pydantic
@@ -97,13 +111,9 @@ def _fallback_reasons(**named: object) -> dict[str, str]:
     provider-unavailable run records none — so the map (and the envelope key) is empty/omitted
     in the common case. ``named`` keys MUST match the ``per_step`` keys so the two line up.
     """
-    out: dict[str, str] = {}
-    for step, art in named.items():
-        if isinstance(art, dict):
-            reason = art.pop(FALLBACK_REASON_KEY, None)
-            if reason:
-                out[step] = str(reason)
-    return out
+    # pop=True: lift the reason OFF the artifact so it rides in the envelope, not
+    # the model round-trip (shared with both eval harnesses via provenance).
+    return collect_fallback_reasons(named.items(), pop=True)
 
 
 def _emit(
@@ -153,9 +163,7 @@ def _emit(
 
 
 def main(argv: list[str] | None = None) -> int:
-    if hasattr(sys.stdout, "reconfigure"):
-        sys.stdout.reconfigure(encoding="utf-8")
-        sys.stderr.reconfigure(encoding="utf-8")
+    configure_stdio()
 
     parser = argparse.ArgumentParser(description="Dev-extension tasks (Claude CLI only).")
     parser.add_argument("command", choices=["analyze-need", "design-artifacts", "reflect-commits", "evaluate-submission", "source", "interview-scenario", "observed-interview", "observed-skills", "materialize-seed"])
@@ -169,6 +177,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--commits-json", type=Path)
     parser.add_argument("--probes-json", type=Path)
     parser.add_argument("--repo-json", type=Path)
+    parser.add_argument("--events-json", type=Path)  # observed process events (Live Work Surface)
     parser.add_argument("--case-json", type=Path)
     parser.add_argument("--role-json", type=Path)
     parser.add_argument("--scorecard-json", type=Path)
@@ -263,7 +272,11 @@ def main(argv: list[str] | None = None) -> int:
             )
             return 0
 
-        provider = None if args.no_llm else ClaudeCliProvider(timeout=120)
+        # Per-command use case so the Models config can route (and the usage
+        # ledger attribute) each dev-case step independently. Commands that
+        # return before this line never construct a provider.
+        use_case = _USE_CASE_BY_COMMAND.get(args.command, "devcase_case_design")
+        provider = None if args.no_llm else resolve_provider(use_case, timeout=120)
         if provider is not None and not provider.available():
             provider = None
 
@@ -309,8 +322,12 @@ def main(argv: list[str] | None = None) -> int:
                 else []
             )
             repo = _require_object(json.loads(args.repo_json.read_text(encoding="utf-8")), "--repo-json") if args.repo_json else None
+            # Live Work Surface (moonshot E): observed process events, present when the
+            # candidate worked the case in-product. Present → assess_tooling uses the
+            # observed path; absent → the existing commit-metadata inference.
+            events = _require_list_of_dicts(json.loads(args.events_json.read_text(encoding="utf-8")), "--events-json") if args.events_json else None
             reflection, rsrc = _reflect.reflect_commits(commits, repo, provider=provider)
-            tooling, tsrc = _reflect.assess_tooling(reflection, commits, probes, repo, provider=provider)
+            tooling, tsrc = _reflect.assess_tooling(reflection, commits, probes, repo, events=events, provider=provider)
             if args.command == "reflect-commits":
                 _emit(
                     {"reflection": reflection, "tooling": tooling},

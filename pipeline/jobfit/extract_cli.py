@@ -5,13 +5,12 @@ import json
 import sys
 from pathlib import Path
 
+from ._cli import configure_stdio
 from .extractors import extract_text
 
 
 def main() -> int:
-    if hasattr(sys.stdout, "reconfigure"):
-        sys.stdout.reconfigure(encoding="utf-8")
-        sys.stderr.reconfigure(encoding="utf-8")
+    configure_stdio()
 
     parser = argparse.ArgumentParser(
         description="Extract plain text from a CV/JD document (PDF, DOCX, TXT, MD)."

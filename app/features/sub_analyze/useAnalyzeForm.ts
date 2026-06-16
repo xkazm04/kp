@@ -58,6 +58,8 @@ export function useAnalyzeForm() {
   const [companyText, setCompanyText] = useState("");
   const [githubProfile, setGithubProfile] = useState("");
   const [reportLang, setReportLang] = useState<string>(isLocale(appLocale) ? appLocale : "en");
+  // b8d711c4 — blind screening: redact identity from the CV before scoring (opt-in).
+  const [blind, setBlind] = useState(false);
 
   const [analysis, setAnalysis] = useState<Analysis | null>(null);
   const [githubAnalysis, setGithubAnalysis] = useState<GithubAnalysis | null>(null);
@@ -423,6 +425,7 @@ export function useAnalyzeForm() {
         companyText,
         selectedJdSlug,
         reportLang,
+        blind,
       },
       buildCallbacks(analysisRunId),
       controller.signal
@@ -453,6 +456,7 @@ export function useAnalyzeForm() {
       companyText,
       githubProfile,
       reportLang,
+      blind,
     },
     setters: {
       setJobDescriptionFile,
@@ -461,6 +465,7 @@ export function useAnalyzeForm() {
       setCompanyText,
       setGithubProfile,
       setReportLang,
+      setBlind,
     },
     handlers: {
       addCvFile,

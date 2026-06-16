@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getJob, getPipelineEntry, setApproval } from "@/app/_lib/db";
+import { jsonError } from "@/app/_lib/api-response";
+import { normalizeSalaryBand } from "@/app/_lib/salary-band";
 
 export const runtime = "nodejs";
 
@@ -14,12 +16,10 @@ export async function POST(request: NextRequest) {
     if (!entry) return NextResponse.json({ error: "Pipeline entry not found." }, { status: 404 });
 
     const band = (entry.jobId ? getJob(entry.jobId)?.salaryBand : null) ?? [];
-    // Order the bounds so a partial/typo'd band (e.g. [300000]) can't yield min > max;
-    // recompute the midpoint AFTER ordering so it always sits within [min, max].
-    const lo = band[0] ?? 120000;
-    const hi = band[1] ?? 165000;
-    const min = Math.min(lo, hi);
-    const max = Math.max(lo, hi);
+    // Sanitize the stored band through the shared helper: it swaps a backwards
+    // range and rejects a partial/non-finite/non-positive band, so we fall back to
+    // the demo defaults instead of advertising garbage. Midpoint sits within [min, max].
+    const [min, max] = normalizeSalaryBand(band[0], band[1]) ?? [120000, 165000];
     const recommended = Math.round((min + max) / 2);
     const draft = {
       subject: `Offer: ${entry.jobTitle ?? "a role"}`,
@@ -33,6 +33,6 @@ export async function POST(request: NextRequest) {
     setApproval(entryId, "offer_review", JSON.stringify(draft));
     return NextResponse.json({ ok: true, draft });
   } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Offer draft failed." }, { status: 500 });
+    return jsonError(error, "Offer draft failed.");
   }
 }

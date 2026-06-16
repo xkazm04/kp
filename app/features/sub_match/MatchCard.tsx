@@ -5,7 +5,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { useTasks, useTaskResult } from "@/app/features/tasks/TasksProvider";
 import { ConfidenceBandBadge, confidenceBandTitle } from "@/app/_components/Badge";
 import type { MatchRef, MatchResult, Reasoning, ReasoningState } from "./MatchTypes";
-import { isEarlyCareer, provLabel } from "./MatchTypes";
+import { formatBandCompact, isEarlyCareer, provLabel } from "./MatchTypes";
 import { Bar, ReasoningPanel, ScoreBreakdown } from "./MatchShared";
 import { FitTierBadge } from "@/app/_components/Badge";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
@@ -144,10 +144,7 @@ export function MatchCard({
               workMode: m.workMode ? enumLabel("workMode", m.workMode) : "—",
               family: m.roleFamily ? enumLabel("family", m.roleFamily) : "—",
               seniority: m.seniority ?? "—",
-              salary:
-                m.salaryBand && m.salaryBand.length === 2
-                  ? `${Math.round(m.salaryBand[0] / 1000)}–${Math.round(m.salaryBand[1] / 1000)}k CZK`
-                  : "—",
+              salary: formatBandCompact(m.salaryBand),
               b: (chunks) => <span className="font-medium text-ink">{chunks}</span>,
             })}
           </p>

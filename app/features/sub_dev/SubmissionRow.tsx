@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { AlertTriangle, GitBranch, Mail, Sparkles, UserSearch } from "lucide-react";
+import Link from "next/link";
+import { AlertTriangle, ArrowRight, GitBranch, Mail, MessageSquare, Sparkles, UserSearch } from "lucide-react";
 import { useTasks, useTaskResult } from "@/app/features/tasks/TasksProvider";
 import { GithubAnalysisPanel } from "@/app/_components/GithubAnalysisPanel";
 import { assertScore, scoreTone, type ScoreTone } from "@/app/_lib/format";
@@ -28,6 +29,7 @@ export function SubmissionRow({
   isTop = false,
   onChanged,
   jdText,
+  channel,
 }: {
   submission: Submission;
   rank: number | null;
@@ -36,6 +38,9 @@ export function SubmissionRow({
   /** GH4 — role-spec text handed to the author's-GitHub assessment so its
    *  job-fit signals read against the actual role being hired for. */
   jdText?: string;
+  /** 99288c0e — the posting channel this submission arrived through, shown when
+   *  the row sits in the case-wide cross-channel shortlist (omitted per-posting). */
+  channel?: string;
 }) {
   const { startTask } = useTasks();
   const [taskId, setTaskId] = useState<string | null>(null);
@@ -52,6 +57,26 @@ export function SubmissionRow({
     error: string | null;
   }>({ status: "idle", analysis: null, error: null });
   const owner = submission.repoRef ? parseRepoRef(submission.repoRef)?.owner ?? null : null;
+
+  // Durable Skill Profile (moonshot A): mint a signed, candidate-owned credential
+  // from this graded submission. The button is recruiter-facing (dev studio);
+  // the returned token links to the public, shareable score-card.
+  const [dsp, setDsp] = useState<{ status: "idle" | "issuing" | "done" | "error"; token: string | null }>({ status: "idle", token: null });
+  const issueProfile = async () => {
+    setDsp({ status: "issuing", token: null });
+    try {
+      const r = await fetch("/api/devcase/skill-profile", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ submissionId: submission.id }),
+      });
+      const data = (await r.json()) as { token?: string };
+      if (!r.ok || !data.token) throw new Error("issue failed");
+      setDsp({ status: "done", token: data.token });
+    } catch {
+      setDsp({ status: "error", token: null });
+    }
+  };
 
   const assessAuthor = async () => {
     if (!owner) return;
@@ -159,6 +184,25 @@ export function SubmissionRow({
     const t = await startTask("evaluate_submission", { submissionId: submission.id, candidateRef: submission.candidateRef });
     if (t) setTaskId(t.id);
   };
+  // d142462d — queue a kind, non-adverse feedback brief for a candidate who won't
+  // be promoted, so the take-home doesn't end in silence. Lands in the outbox as a
+  // queued row the recruiter sends; the adverse decision stays human-gated.
+  const [feedback, setFeedback] = useState<"idle" | "queuing" | "queued" | "error">("idle");
+  const queueFeedback = async () => {
+    if (feedback === "queuing" || feedback === "queued") return;
+    setFeedback("queuing");
+    try {
+      const r = await fetch("/api/devcase/feedback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ submissionId: submission.id }),
+      });
+      setFeedback(r.ok ? "queued" : "error");
+    } catch {
+      setFeedback("error");
+    }
+  };
+
   const promote = async () => {
     if (promoting || isPromoted) return; // in-flight + already-promoted double-promote guard
     setPromoting(true);
@@ -194,6 +238,11 @@ export function SubmissionRow({
             Top match
           </span>
         ) : null}
+        {channel ? (
+          <span className="shrink-0 rounded-full bg-paper px-1.5 py-0.5 text-micro font-semibold uppercase tracking-wide text-steel">
+            {channel}
+          </span>
+        ) : null}
         <GitBranch size={11} className="shrink-0 text-steel" />
         <span className="font-semibold text-ink">{submission.candidateRef}</span>
         <span className="min-w-0 flex-1 truncate text-steel">{submission.repoRef}</span>
@@ -220,6 +269,26 @@ export function SubmissionRow({
           className="focus-ring inline-flex h-6 shrink-0 items-center gap-1 rounded border border-stone-200 bg-white px-1.5 text-micro font-semibold text-coral hover:bg-coral/5 disabled:opacity-50">
           <Sparkles size={10} /> {busy ? "Evaluating…" : ev ? "Re-evaluate" : "Evaluate"}
         </button>
+        {/* d142462d — evaluated but not promoted: offer a kind feedback brief so
+            the candidate isn't ghosted. Queued to the outbox for the recruiter. */}
+        {ev && !isPromoted ? (
+          <button
+            type="button"
+            onClick={queueFeedback}
+            disabled={feedback === "queuing" || feedback === "queued"}
+            title="Queue a kind strengths/growth note to the outbox (you send it; the adverse decision stays yours)"
+            className="focus-ring inline-flex h-6 shrink-0 items-center gap-1 rounded border border-stone-200 bg-white px-1.5 text-micro font-semibold text-steel hover:bg-paper hover:text-ink disabled:opacity-50"
+          >
+            <MessageSquare size={10} />{" "}
+            {feedback === "queued"
+              ? "Feedback queued"
+              : feedback === "queuing"
+                ? "Queuing…"
+                : feedback === "error"
+                  ? "Retry feedback"
+                  : "Send feedback"}
+          </button>
+        ) : null}
       </div>
       <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-micro text-steel">
         {submission.contact ? (
@@ -250,8 +319,40 @@ export function SubmissionRow({
         </div>
       ) : null}
       {ev ? <EvalPanel ev={ev} onPromote={promote} promoted={isPromoted} promoting={promoting} /> : null}
+      {ev ? (
+        <div className="mt-2 flex flex-wrap items-center gap-2 text-micro">
+          <button
+            type="button"
+            onClick={issueProfile}
+            disabled={dsp.status === "issuing"}
+            className="rounded border border-stone-300 px-2 py-1 text-ink hover:bg-stone-50 disabled:opacity-60"
+          >
+            {dsp.status === "issuing"
+              ? "Issuing…"
+              : dsp.status === "done"
+                ? "Re-issue Durable Skill Profile"
+                : "Issue Durable Skill Profile"}
+          </button>
+          {dsp.status === "done" && dsp.token ? (
+            <a href={`/skill/${dsp.token}`} target="_blank" rel="noreferrer" className="text-ink underline">
+              View / share credential ↗
+            </a>
+          ) : null}
+          {dsp.status === "error" ? (
+            <span className="text-coral">Couldn&apos;t issue — needs an evaluated submission + KP_SECRET.</span>
+          ) : null}
+        </div>
+      ) : null}
       {isPromoted ? (
         <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-micro">
+          {/* Promote files a pipeline entry + a Decisions review card — link to
+              where the promoted candidate actually went instead of ending here. */}
+          <Link
+            href="/?tab=decisions"
+            className="focus-ring inline-flex items-center gap-1 font-semibold text-coral hover:underline"
+          >
+            Review in Decisions <ArrowRight size={11} aria-hidden />
+          </Link>
           {recorded ? (
             <span
               className={`rounded-full px-2 py-0.5 font-semibold uppercase ${

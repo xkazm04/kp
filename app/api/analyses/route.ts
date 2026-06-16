@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
 import { listAnalyses } from "@/app/_lib/db";
+import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 
 export const runtime = "nodejs";
 
 export async function GET() {
   try {
-    const rows = listAnalyses(200);
+    const rows = listAnalyses(200, await currentWorkspace());
     return NextResponse.json({ analyses: rows });
   } catch (error) {
     // Log the full error server-side; return a generic, stable message so the

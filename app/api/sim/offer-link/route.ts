@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getOpenOfferForEntry } from "@/app/_lib/offers-store";
+import { jsonError } from "@/app/_lib/api-response";
 
 export const runtime = "nodejs";
 
@@ -15,9 +16,6 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     // Match the four sibling sim routes' try/catch: without it a DB throw becomes an opaque
     // non-JSON 500 that crashes the offer step's .json() instead of surfacing a clean error.
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Failed to read offer link." },
-      { status: 500 }
-    );
+    return jsonError(error, "Failed to read offer link.");
   }
 }

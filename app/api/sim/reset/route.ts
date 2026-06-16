@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { resetSim } from "@/app/_lib/sim-store";
+import { jsonError } from "@/app/_lib/api-response";
 
 export const runtime = "nodejs";
 
@@ -8,6 +9,6 @@ export async function POST() {
   try {
     return NextResponse.json({ ok: true, cleared: resetSim() });
   } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Reset failed." }, { status: 500 });
+    return jsonError(error, "Reset failed.");
   }
 }

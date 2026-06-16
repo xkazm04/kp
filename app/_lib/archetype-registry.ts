@@ -1,5 +1,12 @@
 import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
+// ArchetypeChecklistItem is a leaf type with no node:fs dependency, so it is
+// single-sourced from the client-safe ProfileTypes (a type-only import, erased at
+// compile time — it does not pull this server module into the client bundle). The
+// full ArchetypeDef stays declared separately on each side: the client/server
+// split is intentional (this module imports node:fs) and the weight/dimension
+// maps differ (Record<Slot,...> here vs the literal object client-side).
+import type { ArchetypeChecklistItem } from "@/app/features/sub_profile/ProfileTypes";
 
 // Server-side read/write for the shared archetype registry (pipeline/jobfit/
 // archetypes.json) — the SAME file the Python pipeline reads per spawn, so an
@@ -8,11 +15,13 @@ import path from "node:path";
 // that copy refreshes on a dev rebuild, but the Profile management UI reads
 // through THESE live endpoints so edits are always visible there at once.
 
-export type Slot = "skills" | "career" | "personal";
-export const SLOTS: Slot[] = ["skills", "career", "personal"];
-export const SCORING_MODELS = ["experienced", "early_career"] as const;
+// Module-internal: no external importer (the two archetype routes use only
+// create/list/updateArchetype). validateArchetype stays exported as the tested
+// peer of Python's test_registry.py contract.
+type Slot = "skills" | "career" | "personal";
+const SLOTS: Slot[] = ["skills", "career", "personal"];
+const SCORING_MODELS = ["experienced", "early_career"] as const;
 
-export type ArchetypeChecklistItem = { check: string; weight: number; label: string };
 export type ArchetypeDef = {
   id: string;
   label: string;
@@ -36,7 +45,7 @@ type Registry = {
 // The fields a recruiter may edit through the UI. id is immutable (it keys
 // scoring/fairness/detection); checklist + detection rules stay code-adjacent and
 // are not edited here (a new check id would have no predicate behind it).
-export const EDITABLE_FIELDS = [
+const EDITABLE_FIELDS = [
   "label",
   "badge",
   "applyLabel",
@@ -50,7 +59,7 @@ function registryPath(): string {
   return path.join(process.cwd(), "pipeline", "jobfit", "archetypes.json");
 }
 
-export async function readRegistry(): Promise<Registry> {
+async function readRegistry(): Promise<Registry> {
   const raw = await readFile(registryPath(), "utf-8");
   return JSON.parse(raw) as Registry;
 }

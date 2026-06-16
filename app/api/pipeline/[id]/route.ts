@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { actOnPipelineEntry, clearIntakeDegraded, getPipelineEntry, PIPELINE_STAGES, setApproval, setEntryGithubEvidence, setEntryNotes, setPipelineEntryStage, type PipelineAction, type PipelineEntry } from "@/app/_lib/db";
+import { actOnPipelineEntry, clearIntakeDegraded, getPipelineEntry, PIPELINE_STAGES, reinstatePipelineEntry, setApproval, setEntryGithubEvidence, setEntryNotes, setPipelineEntryStage, type PipelineAction, type PipelineEntry } from "@/app/_lib/db";
 import { coerceGithubEvidenceSummary } from "@/app/_lib/github-summary";
 import { dispatchOffer, dispatchRejection } from "@/app/_lib/comms-dispatch";
 import { getOrCreateOpenOffer } from "@/app/_lib/offers-store";
+import { sealDecisionSafe } from "@/app/_lib/decision-record-store";
 import { safeJsonError } from "@/app/_lib/api-response";
 import { publicBaseUrl } from "@/app/_lib/public-base-url";
 
@@ -30,7 +31,7 @@ async function extendOffer(request: NextRequest, entry: PipelineEntry) {
   // (idea-00987b3c): the old `getOpenOfferForEntry() ?? createOffer()` was a
   // TOCTOU that a double-clicked approval defeated, minting two live offer
   // links. A re-extend re-sends the SAME link — never a second one.
-  const { offer } = getOrCreateOpenOffer({
+  const { offer, created } = getOrCreateOpenOffer({
     entryId: entry.id,
     candidateLabel: entry.candidateLabel,
     jobId: entry.jobId,
@@ -39,6 +40,21 @@ async function extendOffer(request: NextRequest, entry: PipelineEntry) {
     salary: Number(draft.recommended) || null,
     payload: draft,
   });
+
+  // Decision SoR (moonshot D backfill): seal the recruiter's offer-terms decision —
+  // only on a genuinely NEW offer (created), not an idempotent re-extend of the same
+  // link. Best-effort; never blocks the offer dispatch.
+  if (created) {
+    sealDecisionSafe({
+      kind: "offer_terms",
+      actor: "human:recruiter",
+      policyVersion: "offer",
+      candidateRef: entry.id,
+      rationale: `Offer extended: ${offer.salary ?? "—"} ${offer.currency ?? ""} for ${entry.jobTitle ?? "role"}.`,
+      reasonCode: "offer",
+      inputs: { salary: offer.salary, currency: offer.currency, jobTitle: entry.jobTitle },
+    });
+  }
 
   // Canonical candidate-link origin (idea-e6c66bcd): the same resolver the client
   // uses, so this server-minted offer link can't diverge from the voice/scheduling
@@ -122,6 +138,20 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       const updated = setEntryNotes(id, trimmed === "" ? null : trimmed);
       if (!updated) return NextResponse.json({ error: "Pipeline entry not found." }, { status: 404 });
       return NextResponse.json({ entry: updated });
+    }
+
+    // Reinstate an auto-rejected candidate for re-review (idea-e43fa801): put them
+    // back to active at Screened, audited. Guarded server-side to a still-rejected
+    // entry, so a double-click / stale "Reconsider" view 409s instead of churning.
+    if (body.action === "reinstate") {
+      const restored = reinstatePipelineEntry(id);
+      if (!restored) {
+        return NextResponse.json(
+          { error: "Couldn't reinstate — this candidate isn't in a rejected state (already reinstated, or closed differently)." },
+          { status: 409 }
+        );
+      }
+      return NextResponse.json({ entry: restored });
     }
 
     // Resolving a degraded-intake stub: the recruiter has manually captured the

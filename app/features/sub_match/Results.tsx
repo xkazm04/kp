@@ -72,6 +72,7 @@ export function Results({
           jobTitle: m.title,
           matchScore: m.total,
           stage: "Screened",
+          source: "match",
         }),
       });
       if (r.ok) {

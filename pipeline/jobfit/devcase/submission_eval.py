@@ -40,11 +40,12 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from typing import Any
 
+from .._cli import configure_stdio
 from ..claude_cli import ClaudeCliProvider
 from .evaluate import evaluate_submission, score_transfer
 from .llm_judge import run_judge
 from .models import RUBRIC_DIMENSIONS
-from .provenance import FALLBACK_REASON_KEY, SOURCE_DETERMINISTIC, combine_source
+from .provenance import SOURCE_DETERMINISTIC, collect_fallback_reasons, combine_source
 from .reflect import assess_tooling, reflect_commits
 from .submission_scenarios import SubScenario, generate_submissions
 
@@ -218,11 +219,9 @@ def run_one(scn: SubScenario, provider: Any | None) -> Row:
     # carries it). Without this the harness can't tell an intentional deterministic
     # run from one where the provider was down/garbage — so an all-error-fallback run
     # reads as a healthy 100%-reliable green (the deterministic templates pass _check).
-    fallback_reasons = {
-        step: art[FALLBACK_REASON_KEY]
-        for step, art in (("reflect", refl), ("tooling", tool), ("evaluate", ev), ("transfer", tr))
-        if isinstance(art, dict) and art.get(FALLBACK_REASON_KEY)
-    }
+    fallback_reasons = collect_fallback_reasons(
+        (("reflect", refl), ("tooling", tool), ("evaluate", ev), ("transfer", tr))
+    )
     issues = _check(refl, tool, ev, tr, scn)
     return Row(id=scn.id, label=scn.label, planted=scn.planted, source=src, issues=issues, reflection=refl, tooling=tool, evaluation=ev, transfer=tr, fallback_reasons=fallback_reasons)
 
@@ -453,8 +452,7 @@ def _report_md(rows: list[Row], sig: dict, qual: dict | None) -> str:
 
 
 def main(argv: list[str] | None = None) -> int:
-    if hasattr(sys.stdout, "reconfigure"):
-        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    configure_stdio(errors="replace")
     p = argparse.ArgumentParser(description="Submission evaluation eval (Dev pipeline, eval half).")
     p.add_argument("--count", type=int, default=48)
     p.add_argument("--domain", default="it", help="it | marketing | finance | sales | design | mixed")

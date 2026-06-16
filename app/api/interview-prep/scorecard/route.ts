@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getPipelineEntry, recordAutomationEvent, setApproval } from "@/app/_lib/db";
 import { saveHumanScorecard } from "@/app/_lib/interview-prep";
+import { sealDecisionSafe } from "@/app/_lib/decision-record-store";
 import { coerceInterviewRecommendation, isInterviewRecommendation } from "@/app/_lib/interview-recommendation";
 import { RATING_MAX } from "@/app/_lib/format";
+import { MAX_ENTRY_ID_LEN } from "@/app/_lib/entries-param";
 import { safeJsonError } from "@/app/_lib/api-response";
 import type { Scorecard, ScorecardRating } from "@/app/_lib/interview-scorecard";
 
@@ -23,7 +25,7 @@ const MAX_SUMMARY = 4_000;
 export async function POST(request: NextRequest) {
   try {
     const entry = request.nextUrl.searchParams.get("entry");
-    if (!entry || !entry.trim() || entry.length > 120) {
+    if (!entry || !entry.trim() || entry.length > MAX_ENTRY_ID_LEN) {
       return NextResponse.json({ error: "entry is required" }, { status: 400 });
     }
     const body = (await request.json().catch(() => ({}))) as {
@@ -62,6 +64,19 @@ export async function POST(request: NextRequest) {
     if (!ok) {
       return NextResponse.json({ error: "No interview prep to attach a scorecard to — generate it first." }, { status: 404 });
     }
+
+    // Decision SoR (moonshot D backfill): seal the human scorecard verdict —
+    // a human actor's recorded judgment. Best-effort; never blocks the save.
+    const rec = scorecard.recommendation ?? "(none)";
+    sealDecisionSafe({
+      kind: "human_scorecard",
+      actor: "human:recruiter",
+      policyVersion: "human",
+      candidateRef: entry,
+      rationale: `Human interview scorecard — recommendation: ${rec}.`,
+      reasonCode: "scorecard",
+      inputs: { recommendation: rec, ratings: ratings.length },
+    });
 
     // DEC1 — close the loop PREP1 left open: this route saved the human verdict
     // and returned, so a human-conducted interview never reached the Decisions

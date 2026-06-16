@@ -37,6 +37,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from .._cli import configure_stdio
 from ..gemini import load_local_env
 from ..service import analyze
 from ._style import _ANSI, _make_styler, should_color  # noqa: F401  (_ANSI re-exported for back-compat)
@@ -547,9 +548,7 @@ def _failure_detail(report: Report, s) -> list[str]:
 
 
 def main(argv: list[str] | None = None) -> int:
-    if hasattr(sys.stdout, "reconfigure"):
-        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
-        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    configure_stdio(errors="replace")
 
     parser = argparse.ArgumentParser(description="Run the jobfit eval harness against the golden fixtures.")
     parser.add_argument("--filter", help="Only run fixtures whose name contains this substring.")

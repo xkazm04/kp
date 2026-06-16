@@ -1,6 +1,8 @@
 import { writeFile } from "node:fs/promises";
 import path from "node:path";
+import { meterAllows } from "./billing";
 import { getJob, listCorpusJobs, lookupPromptCache, storePromptCache } from "./db";
+import { buildLlmConfigEnv } from "./llm-config";
 import { writeMatchInput, type MatchInputBody } from "./match-input";
 import { cleanupWorkdir, createWorkdir, parsePythonJson, parseStderrError, spawnPython } from "./python-runner";
 import { computeCorpusFingerprint } from "./automation-cache-key";
@@ -53,6 +55,12 @@ export async function runReasoning(body: ReasoningInput, signal?: AbortSignal): 
       await writeFile(jobsPath, JSON.stringify(corpusJobs), "utf-8");
       args.push("--jobs-json", jobsPath);
     }
+    // Billing degrade (docs/BILLING.md): past the AI-candidates allowance the
+    // rationale falls back to the deterministic template via --no-llm — the
+    // same path a provider outage takes — and stays uncached (source !=
+    // "llm"), so it upgrades the moment allowance returns. No extra debit:
+    // reasoning is part of the analyze-debited candidate bundle.
+    if (!meterAllows("ai_candidates")) args.push("--no-llm");
 
     // Content-address the job (not just its id) so an in-place edit to the job's
     // requirements/title invalidates the cached verdict — symmetric with the
@@ -73,7 +81,7 @@ export async function runReasoning(body: ReasoningInput, signal?: AbortSignal): 
     const cached = lookupPromptCache(hash, REASONING_PROMPT_VERSION);
     if (cached) return { ...(cached as object), cached: true };
 
-    const { result } = spawnPython(args, { signal });
+    const { result } = spawnPython(args, { signal, env: buildLlmConfigEnv() });
     const { stdout, stderr, exitCode } = await result;
     if (exitCode !== 0) {
       const err = parseStderrError(stderr, exitCode);

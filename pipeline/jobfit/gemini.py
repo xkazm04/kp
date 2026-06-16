@@ -354,6 +354,7 @@ def analyze_profile_with_gemini(
     evidence: dict[str, Any] | None = None,
     lang: str = "en",
     request_id: str | None = None,
+    blind_text: str | None = None,
 ) -> tuple[dict[str, Any], list[str], dict[str, int]]:
     """Single Gemini call returning a structured analysis payload.
 
@@ -391,9 +392,21 @@ def analyze_profile_with_gemini(
         else "- No job description was supplied: return job_fit as null.\n"
     )
 
+    # Blind screening (idea-b8d711c4): when a redacted CV TEXT is supplied, the
+    # model reads that instead of the uploaded file, so identity (name, contact,
+    # photo) never reaches it and the assessment is produced blind.
+    blind = bool(blind_text and blind_text.strip())
+    source_line = (
+        "Analyze the CV text provided at the END of this prompt. The candidate's identity "
+        "(name, contact details, photo) has been REDACTED to placeholders like [NAME]/[EMAIL]/[REDACTED]; "
+        "do NOT infer or guess any redacted identity, and set profile.name to null. "
+        "Return ONE strict JSON object that matches this shape exactly:\n\n"
+        if blind
+        else "Analyze the attached CV/profile document and return ONE strict JSON object that matches this shape exactly:\n\n"
+    )
     prompt = (
         "You are a precise HR tech analyst for the Czech Republic technology market.\n"
-        "Analyze the attached CV/profile document and return ONE strict JSON object that matches this shape exactly:\n\n"
+        f"{source_line}"
         f"{schema_text}\n\n"
         "Deterministic findings from a pre-pass over the raw extracted text and the supplied company text:\n"
         f"{evidence_text}\n\n"
@@ -413,15 +426,18 @@ def analyze_profile_with_gemini(
         "\n"
         f"Job description:\n{job_block or 'No job description supplied.'}\n\n"
         f"Company context:\n{company_block or 'No company context supplied.'}\n"
+        + (f"\nCV text (identity redacted):\n{blind_text}\n" if blind else "")
     )
 
     from .logger import write_prompt_artifact
 
     if request_id:
         write_prompt_artifact(request_id, "prompt.txt", prompt)
+    # Blind mode sends the redacted text only (no file bytes) so the model can't see
+    # the original name/photo; otherwise upload the document for full fidelity.
     answer = grounded_answer(
         prompt=prompt,
-        parts=[types.Part.from_bytes(data=path.read_bytes(), mime_type=_mime_type(path))],
+        parts=[] if blind else [types.Part.from_bytes(data=path.read_bytes(), mime_type=_mime_type(path))],
         response_mime_type="application/json",
         use_grounding=use_grounding,
         temperature=0.1,

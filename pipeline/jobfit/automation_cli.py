@@ -25,7 +25,7 @@ import sys
 from pathlib import Path
 
 from . import automation
-from .claude_cli import ClaudeCliProvider
+from .llm import resolve_provider
 from .matching import MatchCandidate, load_corpus, score_job
 
 # --- Honest error taxonomy --------------------------------------------------
@@ -104,7 +104,7 @@ def main(argv: list[str] | None = None) -> int:
             print(json.dumps({"decisions": decisions}, ensure_ascii=False))
             return 0
 
-        provider = None if args.no_llm else ClaudeCliProvider(timeout=120)
+        provider = None if args.no_llm else resolve_provider("automation", timeout=120)
         if provider is not None and not provider.available():
             provider = None
 

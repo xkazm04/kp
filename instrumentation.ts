@@ -69,6 +69,16 @@ export async function register(): Promise<void> {
     } catch (e) {
       console.error("[clock] reminder job bookkeeping failed:", e);
     }
+    // Lapse expired offers (idea-29361408) — independent, best-effort, idempotent.
+    // The candidate read/respond paths also lazily lapse on access; this sweep is
+    // what flips an un-opened offer to 'expired' on the recruiter board on time.
+    try {
+      const { lapseExpiredOffers } = await import("./app/_lib/offers-store");
+      const lapsed = lapseExpiredOffers();
+      if (lapsed) console.log("[clock] offers lapsed (expired):", lapsed);
+    } catch (e) {
+      console.error("[clock] offer lapse sweep failed:", e);
+    }
   };
 
   // Self-rescheduling chain instead of setInterval: arm the NEXT tick only AFTER the

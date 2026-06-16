@@ -78,6 +78,17 @@ export function normalizeContact(contact: string | null | undefined): string {
   return (contact ?? "").trim().toLowerCase();
 }
 
+/**
+ * The single email-shape check shared by every apply intake surface — both client
+ * forms (conversational + quick) and both server routes. The client checks exist
+ * specifically to MIRROR the server's, so a divergence is a real correctness bug
+ * (the client accepts what the server rejects → a 400 that wipes the conversation).
+ * Hoisted here, in the registry-free module both client bundles already import, so
+ * the four copies can't drift. (lead-payload.ts keeps its own EMAIL_RE — different
+ * module/contract.)
+ */
+export const APPLY_EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 export function applyDedupeKey(name: string, email?: string | null): string {
   // Prefer the email (idea: dedup-by-email) — two same-named applicants with
   // different addresses are different people and must get DISTINCT keys, which a

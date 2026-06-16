@@ -3,6 +3,8 @@ import { actOnPipelineEntry, getPipelineEntry } from "@/app/_lib/db";
 import { dispatchInterviewConfirmation } from "@/app/_lib/comms-dispatch";
 import {
   bookedSlots,
+  cancelAttendance,
+  confirmAttendance,
   confirmScheduleInvite,
   flagScheduleInviteNeedsMoreSlots,
   getScheduleInviteByToken,
@@ -12,6 +14,7 @@ import {
   type ScheduleInvite,
 } from "@/app/_lib/schedule-store";
 import { offeredSlotFor, proposeSlots } from "@/app/_lib/schedule-slots";
+import { isValidTimeZone } from "@/app/_lib/timezone";
 import { logScheduleNoSlots, logScheduleReconcile } from "@/app/_lib/logger";
 import { jsonOk, safeJsonError } from "@/app/_lib/api-response";
 import { isShortNoticeBooking } from "@/app/_lib/interview-reminder-policy";
@@ -38,6 +41,10 @@ function publicInviteView(invite: ScheduleInvite) {
     // internal handle (unlike entryId/reconcileReason, which stay off the wire).
     slotAt: invite.slotAt,
     durationMin: invite.durationMin,
+    // The candidate's RSVP on their booking (idea-87af39c5), so the booked card
+    // can show "Attendance confirmed" vs the confirm/cancel actions. Not an
+    // internal handle — safe on the public wire.
+    attendanceStatus: invite.attendanceStatus,
   };
 }
 
@@ -82,9 +89,40 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
     if (!rateLimit(`sched:${clientIpFrom(request.headers)}:${token}`, { limit: 10, windowMs: 60_000 })) {
       return NextResponse.json({ error: RATE_LIMITED_ERROR }, { status: 429 });
     }
-    const body = (await request.json().catch(() => ({}))) as { slot?: string; slotAt?: string; reschedule?: boolean };
+    const body = (await request.json().catch(() => ({}))) as {
+      slot?: string;
+      slotAt?: string;
+      reschedule?: boolean;
+      tz?: string;
+      rsvp?: "confirm" | "cancel";
+    };
+    // The candidate's IANA timezone (idea-b51106df), captured so the recruiter
+    // agenda can show a cross-border booking in the candidate's real local time.
+    // Validated against the runtime's zone table — a spoofed/unknown value is
+    // dropped to null rather than stored, so it can never make Intl throw later.
+    const candidateTz = isValidTimeZone(body.tz) ? body.tz : null;
     const invite = getScheduleInviteByToken(token);
     if (!invite) return NextResponse.json({ error: "not found" }, { status: 404 });
+
+    // RSVP (idea-87af39c5): a confirmed candidate confirms attendance or cancels,
+    // reusing this token. Handled BEFORE the idempotent re-confirm echo so it isn't
+    // swallowed. A cancel frees the slot and re-opens the invite for re-booking; the
+    // entry-active guard (below, shared) also applies — a rejected/declined candidate
+    // can't RSVP.
+    if (body.rsvp === "confirm" || body.rsvp === "cancel") {
+      if (invite.status !== "confirmed") {
+        return NextResponse.json({ error: "There's no confirmed time to update yet." }, { status: 409 });
+      }
+      if (invite.entryId) {
+        const linkedEntry = getPipelineEntry(invite.entryId);
+        if (linkedEntry && linkedEntry.status !== "active") {
+          return NextResponse.json({ error: "This interview is no longer available." }, { status: 409 });
+        }
+      }
+      const updated = body.rsvp === "confirm" ? confirmAttendance(token) : cancelAttendance(token);
+      if (!updated) return NextResponse.json({ error: "not found" }, { status: 404 });
+      return jsonOk({ ok: true, invite: publicInviteView(updated), rsvp: body.rsvp });
+    }
 
     // A confirmed invite hit again WITHOUT a reschedule intent is an idempotent
     // re-confirm (double-submit / stale tab) — just echo the booking. A reschedule
@@ -164,7 +202,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
     // authority as confirm (rescheduleScheduleInvite's transaction), bounded by
     // MAX_RESCHEDULES, and the old slot is freed back into the pool.
     if (invite.status === "confirmed") {
-      const moved = rescheduleScheduleInvite(token, slot, offered.value);
+      const moved = rescheduleScheduleInvite(token, slot, offered.value, candidateTz);
       if (!moved.ok) {
         if (moved.reason === "taken") {
           return NextResponse.json(
@@ -185,7 +223,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
     }
 
     // FIRST CONFIRM — a pending invite booking its slot.
-    const result = confirmScheduleInvite(token, slot, offered.value);
+    const result = confirmScheduleInvite(token, slot, offered.value, candidateTz);
     if (!result.ok) {
       if (result.reason === "taken") {
         // Another candidate confirmed this exact time between page load and submit.

@@ -8,8 +8,11 @@ import { APP_CURRENCY } from "./format";
 import { isSameCurrency } from "./salary-band";
 import { poolEntryFromAnalysis, type CandidatePoolEntry } from "./candidate-pool";
 import { cleanupWorkdir, createWorkdir, parsePythonJson, parseStderrError, spawnPython } from "./python-runner";
+import { rankPoolForJob } from "./recruiter-run";
 import { computeDifferentiators } from "./group-eval-differentiators";
-import type { MatchResultView } from "@/app/features/sub_match/MatchTypes";
+import { sealDecisionSafe } from "./decision-record-store";
+import type { MatchResultView, ScoreDimension, Confidence, Reasoning as CanonicalReasoning } from "@/app/features/sub_match/MatchTypes";
+import type { Comparison, Fairness, FairnessScheme } from "@/app/features/sub_decisions/group-eval/types";
 
 // Cap on how many candidates one comparative evaluation covers. The strongest
 // are selected by fit BEFORE the cap (see below), and the modal surfaces
@@ -26,35 +29,15 @@ const GROUP_EVAL_CAP = 6;
 // can re-open it without re-running.
 
 export type GroupEvalCandidate = { entryId: string; candidateId: string | null; label: string; matchScore: number | null };
-type Reasoning = { verdict?: string; strengths?: string[]; gaps?: string[]; interviewProbes?: string[] };
-// Structured, bold-formatted head-to-head narrative (group_compare_cli). Bold
-// spans are marked with **double asterisks** for the UI to render as <strong>.
-type Comparison = { headline: string; keyPoints: string[]; recommendation?: string };
-
-// Cross-scheme fairness matrix (recruiter.fairness_check): each candidate carries
-// a bounded dynamic weight vector, and every candidate is re-scored under EVERY
-// scheme so a pool with different weightings ranks honestly (by the mean) instead
-// of on one scalar from incomparable yardsticks. labels/candidateIds/schemes/own/
-// mean are aligned by index; weightNotes is keyed by candidateId.
-type FairnessScheme = { skills: number; career: number; personal: number };
-type Fairness = {
-  labels: string[];
-  candidateIds: string[];
-  schemes: FairnessScheme[];
-  matrix: number[][];
-  own: number[];
-  mean: number[];
-  ranking: string[];
-  weightNotes: Record<string, string[]>;
-  // Whether the per-candidate weights were proposed by the LLM ("llm") or the
-  // deterministic relevance rule ("deterministic").
-  weightSource?: string;
-};
-
-// One row of the weight-aware breakdown (matching.build_score_breakdown), all on
-// a single 0-100 scale — mirrors app/features/sub_match/MatchTypes.ScoreDimension.
-type ScoreDimension = { key: string; label: string; percent: number; weight: number; contribution: number };
-type Confidence = { low: number; high: number; level: string; drivers: string[] };
+// The all-optional adapter for runReasoning's loosely-typed output, parsed before
+// the per-field defaulting below. Single-sourced as Partial<> of the canonical
+// MatchTypes.Reasoning so its field set provably tracks that type (minus
+// optionality) instead of being a hand-copied union that can silently drift.
+type Reasoning = Partial<CanonicalReasoning>;
+// Comparison / FairnessScheme / Fairness are the persisted group-eval wire
+// contract — single-sourced from the client modal's group-eval/types.ts (imported
+// above) so the server producer and the client consumer can never drift.
+// ScoreDimension / Confidence are single-sourced from MatchTypes (imported above).
 // A candidate's own salary expectation, lifted from their saved CV analysis
 // (analysis.salary). Best-effort: absent for v2 profiles / candidates with no
 // analysis, in which case the modal just shows the role band for them.
@@ -177,32 +160,20 @@ async function rankCandidates(
 ): Promise<{ rows: Map<string, RecruiterRow>; fairness: Fairness | null }> {
   if (pool.length === 0) return { rows: new Map(), fairness: null };
 
-  let workdir: string | null = null;
-  try {
-    workdir = await createWorkdir();
-    const inputPath = path.join(workdir, "recruiter.json");
-    await writeFile(inputPath, JSON.stringify({ jobId: job.id, candidates: pool }), "utf-8");
-    const jobPath = path.join(workdir, "job.json");
-    await writeFile(jobPath, JSON.stringify(job), "utf-8");
-
-    // --weights-llm + --embeddings: the group eval is the deep read, so it opts
-    // into BOTH enrichments — the LLM weight proposer for the fairness matrix and
-    // the embedding bridge for the personal/motivation dimension. Each fails open
-    // to its deterministic twin (no key/provider → unchanged scores), and the
-    // cheap candidate-list endpoint omits both and stays fully deterministic.
-    const { result } = spawnPython(["-m", "pipeline.jobfit.recruiter_cli", "--input-json", inputPath, "--job-json", jobPath, "--weights-llm", "--embeddings"], { signal });
-    const { stdout, stderr, exitCode } = await result;
-    if (exitCode !== 0) {
-      const err = parseStderrError(stderr, exitCode);
-      throw new Error(err.message);
-    }
-    const parsed = parsePythonJson<{ candidates?: RecruiterRow[]; fairness?: Fairness | null }>(stdout, stderr);
-    const map = new Map<string, RecruiterRow>();
-    for (const row of parsed.candidates ?? []) map.set(row.candidateId, row);
-    return { rows: map, fairness: parsed.fairness ?? null };
-  } finally {
-    if (workdir) await cleanupWorkdir(workdir);
-  }
+  // --weights-llm + --embeddings: the group eval is the deep read, so it opts
+  // into BOTH enrichments — the LLM weight proposer for the fairness matrix and
+  // the embedding bridge for the personal/motivation dimension. Each fails open
+  // to its deterministic twin (no key/provider → unchanged scores), and the
+  // cheap candidate-list endpoint omits both and stays fully deterministic.
+  const parsed = await rankPoolForJob<{ candidates?: RecruiterRow[]; fairness?: Fairness | null }>(
+    job.id,
+    pool,
+    job,
+    { signal, weightsLlm: true, embeddings: true },
+  );
+  const map = new Map<string, RecruiterRow>();
+  for (const row of parsed.candidates ?? []) map.set(row.candidateId, row);
+  return { rows: map, fairness: parsed.fairness ?? null };
 }
 
 // AI "compare all" narrative across the ranked field (ONE Python process), with a
@@ -403,6 +374,22 @@ export async function runGroupEval(params: Record<string, unknown>, signal?: Abo
         differentiators.length ? `Unique strengths: ${differentiators.join(", ")}. ` : ""
       }${risks.length ? `${risks.length} watch-out(s) flagged below.` : "No blocking risks flagged."}`
     : `No candidates to evaluate for ${roleTitle}.`;
+
+  // Decision SoR (moonshot D backfill): seal the AI's recommended lead — the
+  // group-eval recommendation a recruiter acts on, with the eval source as the
+  // policy version. Best-effort; this is the real (non-sim) eval path — the sim has
+  // its own client-side runGroupEval. Skipped when there's no candidate.
+  if (top) {
+    sealDecisionSafe({
+      kind: "group_eval_lead",
+      actor: "auto:group-eval",
+      policyVersion: source,
+      candidateRef: top.entryId,
+      rationale: deterministicSummary,
+      reasonCode: "lead",
+      inputs: { score: top.score, candidates: candidates.length, roleTitle },
+    });
+  }
 
   const payload: Record<string, unknown> = {
     roleTitle,

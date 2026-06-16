@@ -8,6 +8,7 @@ import { formatFileSize } from "./AnalyzeApi";
 import { ownedDropZoneProps } from "./dropRouting";
 import { useFileAccept } from "./useFileAccept";
 import { useGlobalFileDrag } from "./useGlobalFileDrag";
+import { useDropZoneHighlight } from "./useDropZoneHighlight";
 
 export function AnalyzeProfileInput({
   files,
@@ -23,7 +24,6 @@ export function AnalyzeProfileInput({
   maxVariants: number;
 }) {
   const t = useTranslations("analyze");
-  const [isOverDropzone, setIsOverDropzone] = useState(false);
   const [isLoadingSample, setIsLoadingSample] = useState(false);
 
   // The shared intake gate: add (incl. the sample + drop-anywhere paths) and
@@ -42,6 +42,8 @@ export function AnalyzeProfileInput({
     accept(file, onAdd);
   };
   const replaceFile = (index: number, file: File) => accept(file, (next) => onReplace(index, next));
+  // Drag-highlight state for the empty CV zone (shared with the JD/company zone).
+  const { isOver: isOverDropzone, dragProps } = useDropZoneHighlight(addFile);
 
   const isWindowDragging = useGlobalFileDrag(addFile);
 
@@ -97,24 +99,7 @@ export function AnalyzeProfileInput({
         <label
           htmlFor="profile-file-0"
           {...ownedDropZoneProps}
-          onDragEnter={(event) => {
-            event.preventDefault();
-            setIsOverDropzone(true);
-          }}
-          onDragOver={(event) => {
-            event.preventDefault();
-            setIsOverDropzone(true);
-          }}
-          onDragLeave={(event) => {
-            event.preventDefault();
-            setIsOverDropzone(false);
-          }}
-          onDrop={(event) => {
-            event.preventDefault();
-            setIsOverDropzone(false);
-            const file = event.dataTransfer.files?.[0];
-            if (file) addFile(file);
-          }}
+          {...dragProps}
           className={`flex min-h-20 cursor-pointer flex-col items-center justify-center rounded-lg border px-3 text-center transition-colors ${
             isActive
               ? "border-solid border-coral bg-coral/5"

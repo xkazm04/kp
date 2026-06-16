@@ -30,19 +30,50 @@ export const WORKSPACE_TAB_IDS = [
   // (TasksIndicator), not a deep-link target — so it's a valid tab id here but
   // intentionally absent from NAV_GROUPS below.
   "tasks",
+  "billing",
+  "models",
+  "workspace",
 ] as const;
 
 export type WorkspaceTabId = (typeof WORKSPACE_TAB_IDS)[number];
 
+// Minimal structural shape of a next-intl `nav`-namespace translator — the value
+// returned by both `useTranslations("nav")` (client) and `await
+// getTranslations("nav")` (server). Typed generically over the next-intl
+// `Translator` (whose call signature only accepts its own NamespacedMessageKeys,
+// not a bare string) so this catalog module stays free of a next-intl import and
+// works on either side of the boundary; the loose `key: string` is cast to the
+// translator's key type internally, as the inline copies did.
+type NavTranslator = { (key: never): string; has: (key: never) => boolean };
+
+// Translate a nav catalog key (`tabs.<id>` / `groups.<key>`) through the `nav`
+// namespace, falling back to the English label baked into this module for any
+// not-yet-translated entry. The has-fallback contract was previously copy-pasted
+// inline in both sidebars, the command palette and the shortcuts overlay; this is
+// the single owner so a tweak (key prefix, missing-label handling) lands once.
+// Mirrors the `useEnumLabel` precedent in app/_lib/use-enum-label.ts. Callers pass
+// the translator instance (the hook return or the awaited server translator)
+// rather than this calling the hook, so it works in server components too.
+export function navLabel<T extends NavTranslator>(t: T, key: string, fallback: string): string {
+  const k = key as Parameters<T>[0];
+  return t.has(k) ? t(k) : fallback;
+}
+
 // SHELL2 — the attention-count buckets /api/attention serves. A nav item opts
 // into a badge by declaring which bucket it renders (`badgeKey` below); the
 // mapping is declarative here, never positional in the renderers.
-export type AttentionKey = "decisions" | "pipeline" | "schedule" | "jobs";
+export type AttentionKey = "decisions" | "pipeline" | "schedule" | "jobs" | "channels";
 
 export type WorkspaceTabDef = {
   id: WorkspaceTabId;
   label: string;
   badgeKey?: AttentionKey;
+  // When set, the badge itself becomes a second click target that opens the tab
+  // WITH these deep-link params — landing on the exact slice the count refers to
+  // (e.g. Pipeline's stale entries via ?quick=aging) instead of the bare tab.
+  // Only declare this when the counted cohort is NOT what the bare tab already
+  // shows on landing; Decisions/Schedule open on their queues anyway.
+  badgeParams?: Partial<Record<TabScopedParamKey, string>>;
 };
 
 // The Pipeline dashboard is the default landing surface.
@@ -59,8 +90,8 @@ export type NavGroup = { label?: string; key?: string; items: WorkspaceTabDef[] 
 export const NAV_GROUPS: NavGroup[] = [
   {
     items: [
-      { id: "pipeline", label: "Pipeline", badgeKey: "pipeline" },
-      { id: "channels", label: "Channels" },
+      { id: "pipeline", label: "Pipeline", badgeKey: "pipeline", badgeParams: { quick: "aging" } },
+      { id: "channels", label: "Channels", badgeKey: "channels" },
       { id: "decisions", label: "Decisions", badgeKey: "decisions" },
       { id: "schedule", label: "Schedule", badgeKey: "schedule" },
     ],
@@ -97,6 +128,17 @@ export const NAV_GROUPS: NavGroup[] = [
       { id: "analytics", label: "Analytics" },
       { id: "matrix", label: "Matrix" },
       { id: "about", label: "About" },
+    ],
+  },
+  {
+    // Workspace administration: subscription/usage (Billing) and the LLM
+    // provider routing + key store (Models).
+    label: "Settings",
+    key: "settings",
+    items: [
+      { id: "billing", label: "Billing" },
+      { id: "models", label: "Models" },
+      { id: "workspace", label: "Workspace" },
     ],
   },
 ];

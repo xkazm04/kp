@@ -8,14 +8,9 @@ import { useReachOut } from "@/app/_lib/useReachOut";
 import { ScoreBadge } from "@/app/_components/ScoreBadge";
 import { EmptyState, SkippedCandidatesNote } from "./JobsShared";
 import type { SkippedCandidate } from "./JobsTypes";
-
-type Rediscovered = {
-  candidateId: string;
-  label: string;
-  archetype: string;
-  score: number;
-  prior: { kind: "rejected" | "closed" | "elsewhere"; label: string };
-};
+// Type-only import of the canonical wire row — erased at compile time, so it does
+// NOT pull rediscover.ts's better-sqlite3 runtime into this client bundle.
+import type { Rediscovered } from "@/app/_lib/rediscover";
 
 const PRIOR_STYLE: Record<string, string> = {
   rejected: "bg-coral/10 text-coral",
@@ -31,7 +26,7 @@ export function RediscoverPanel({ jobId, jobTitle }: { jobId: string; jobTitle: 
   );
   const data = body ? body.rediscovered ?? [] : null;
   const skipped = body?.skipped ?? [];
-  const { add, added, adding, error: addError, announce } = useAddToPipeline(jobId, jobTitle);
+  const { add, added, adding, error: addError, announce } = useAddToPipeline(jobId, jobTitle, "sourcing");
   const { reach, reached, reaching, error: reachError, announce: reachAnnounce } = useReachOut(jobId);
 
   if (error) return <p className="text-base text-coral">{error}</p>;

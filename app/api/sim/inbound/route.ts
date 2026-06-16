@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createPipelineEntry, getJob, listMatrixProfiles, listPipeline } from "@/app/_lib/db";
+import { jsonError } from "@/app/_lib/api-response";
 import { SIM_SCREEN_POLICY } from "@/app/features/simulation/constants";
 
 export const runtime = "nodejs";
@@ -35,6 +36,6 @@ export async function POST(request: NextRequest) {
     });
     return NextResponse.json({ ok: true, label: applicant.label, score, entryId: entry.id });
   } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Inbound failed." }, { status: 500 });
+    return jsonError(error, "Inbound failed.");
   }
 }

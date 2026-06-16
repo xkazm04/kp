@@ -21,7 +21,17 @@ import { SimExplainDrawer } from "./simulation/SimExplainDrawer";
 import { SimOfferFrame } from "./simulation/SimOfferFrame";
 import { SimGroupEval } from "./simulation/SimGroupEval";
 import { SimDecisionWave } from "./simulation/SimDecisionWave";
-import { buildTabSwitchUrl, DEFAULT_TAB, isWorkspaceTabId, navItemClass, NAV_GROUPS, type WorkspaceTabId } from "./tabs";
+import {
+  buildTabSwitchUrl,
+  buildUrl,
+  clearedTabScopedParams,
+  DEFAULT_TAB,
+  isWorkspaceTabId,
+  navItemClass,
+  navLabel,
+  NAV_GROUPS,
+  type WorkspaceTabId,
+} from "./tabs";
 
 export type { WorkspaceTabId } from "./tabs";
 
@@ -55,6 +65,9 @@ const DevTab = dynamic(() => import("./sub_dev/DevTab").then((m) => ({ default: 
 const ProfileTab = dynamic(() => import("./sub_profile/ProfileTab").then((m) => ({ default: m.ProfileTab })), { loading });
 const InterviewSimTab = dynamic(() => import("./sub_interview/InterviewSimTab").then((m) => ({ default: m.InterviewSimTab })), { loading });
 const TasksTab = dynamic(() => import("./tasks/TasksTab").then((m) => ({ default: m.TasksTab })), { loading });
+const BillingTab = dynamic(() => import("./sub_billing/BillingTab").then((m) => ({ default: m.BillingTab })), { loading });
+const ModelsTab = dynamic(() => import("./sub_models/ModelsTab").then((m) => ({ default: m.ModelsTab })), { loading });
+const WorkspaceTab = dynamic(() => import("./sub_workspace/WorkspaceTab").then((m) => ({ default: m.WorkspaceTab })), { loading });
 
 export function Workspace() {
   const router = useRouter();
@@ -62,10 +75,7 @@ export function Workspace() {
   const t = useTranslations("nav");
   // Translate a nav key (tabs.<id> / groups.<key>) through the catalog, falling
   // back to the English label baked into tabs.ts for any not-yet-translated entry.
-  const navText = (key: string, fallback: string): string => {
-    const k = key as Parameters<typeof t>[0];
-    return t.has(k) ? t(k) : fallback;
-  };
+  const navText = (key: string, fallback: string): string => navLabel(t, key, fallback);
   const search = params.toString();
   const tabParam = params.get("tab");
   // SHELL2 — live "what needs my attention" counts behind the nav badges.
@@ -131,30 +141,51 @@ export function Workspace() {
                 {group.items.map((item) => {
                   const isActive = item.id === navActive;
                   // SHELL2: live queue-depth pill for items that declared a
-                  // badgeKey (Decisions / Pipeline / Schedule / Jobs).
+                  // badgeKey (Decisions / Pipeline / Schedule / Jobs / Channels).
                   const badge = item.badgeKey && attention ? attention[item.badgeKey] : 0;
+                  // Items with badgeParams get a second click target: the badge
+                  // opens the tab pre-filtered to the counted slice (declared in
+                  // tabs.ts). Rendered as a SIBLING of the row button — a button
+                  // may not nest interactive content — overlaid on the space the
+                  // row reserves via padding.
+                  const badgeSliceHref =
+                    badge > 0 && item.badgeParams
+                      ? buildUrl({ tab: item.id, ...clearedTabScopedParams(), ...item.badgeParams }, search)
+                      : null;
                   return (
-                    <button
-                      key={item.id}
-                      type="button"
-                      aria-current={isActive ? "page" : undefined}
-                      onClick={() => selectTab(item.id)}
-                      className={`focus-ring flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-base font-medium transition-colors ${navItemClass(isActive)}`}
-                    >
-                      <span
-                        className={`h-1.5 w-1.5 rounded-full ${isActive ? "bg-coral" : "bg-stone-300"}`}
-                        aria-hidden
-                      />
-                      <span className="min-w-0 flex-1 truncate text-left">{navText(`tabs.${item.id}`, item.label)}</span>
-                      {badge > 0 ? (
+                    <div key={item.id} className={badgeSliceHref ? "relative" : "contents"}>
+                      <button
+                        type="button"
+                        aria-current={isActive ? "page" : undefined}
+                        onClick={() => selectTab(item.id)}
+                        className={`focus-ring flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-base font-medium transition-colors ${navItemClass(isActive)} ${badgeSliceHref ? "pr-10" : ""}`}
+                      >
                         <span
-                          aria-label={t("attentionBadge", { count: badge })}
-                          className="shrink-0 rounded-full bg-coral/10 px-1.5 py-0.5 text-sm font-semibold leading-none text-coral"
+                          className={`h-1.5 w-1.5 rounded-full ${isActive ? "bg-coral" : "bg-stone-300"}`}
+                          aria-hidden
+                        />
+                        <span className="min-w-0 flex-1 truncate text-left">{navText(`tabs.${item.id}`, item.label)}</span>
+                        {badge > 0 && !badgeSliceHref ? (
+                          <span
+                            aria-label={t("attentionBadge", { count: badge })}
+                            className="shrink-0 rounded-full bg-coral/10 px-1.5 py-0.5 text-sm font-semibold leading-none text-coral"
+                          >
+                            {badge}
+                          </span>
+                        ) : null}
+                      </button>
+                      {badgeSliceHref ? (
+                        <button
+                          type="button"
+                          title={t("attentionBadgeGo", { count: badge })}
+                          aria-label={t("attentionBadgeGo", { count: badge })}
+                          onClick={() => router.replace(badgeSliceHref, { scroll: false })}
+                          className="focus-ring absolute right-2.5 top-1/2 -translate-y-1/2 rounded-full bg-coral/10 px-1.5 py-0.5 text-sm font-semibold leading-none text-coral hover:bg-coral/20"
                         >
                           {badge}
-                        </span>
+                        </button>
                       ) : null}
-                    </button>
+                    </div>
                   );
                 })}
               </div>
@@ -193,6 +224,9 @@ export function Workspace() {
               {navActive === "dev" ? <DevTab /> : null}
               {navActive === "about" ? <AboutTab /> : null}
               {navActive === "tasks" ? <TasksTab /> : null}
+              {navActive === "billing" ? <BillingTab /> : null}
+              {navActive === "models" ? <ModelsTab /> : null}
+              {navActive === "workspace" ? <WorkspaceTab /> : null}
             </div>
           </ErrorBoundary>
         </div>

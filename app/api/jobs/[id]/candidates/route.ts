@@ -1,21 +1,13 @@
 import { NextResponse } from "next/server";
-import { writeFile } from "node:fs/promises";
-import path from "node:path";
 import { entryIdsWithEvent, getJob, listEntriesForJob } from "@/app/_lib/db";
 import { buildCandidatePool } from "@/app/_lib/candidate-pool";
-import {
-  cleanupWorkdir,
-  createWorkdir,
-  parsePythonJson,
-  parseStderrError,
-  spawnPython,
-} from "@/app/_lib/python-runner";
+import { rankPoolForJob } from "@/app/_lib/recruiter-run";
+import { PipelineError } from "@/app/_lib/python-runner";
 
 export const runtime = "nodejs";
 
 export async function GET(request: Request, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params;
-  let workdir: string | null = null;
   try {
     const job = getJob(id);
     if (!job) {
@@ -30,33 +22,16 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
       return NextResponse.json({ job: null, candidates: [], note: "No saved candidates yet." });
     }
 
-    workdir = await createWorkdir();
-    const inputPath = path.join(workdir, "recruiter.json");
-    await writeFile(inputPath, JSON.stringify({ jobId: id, candidates: entries }), "utf-8");
-    // Pass the DB job directly so newly-ingested jobs (not in the static corpus) rank too.
-    const jobPath = path.join(workdir, "job.json");
-    await writeFile(jobPath, JSON.stringify(job), "utf-8");
-
-    // Thread the request's AbortSignal so abandoning this scan (clicking to the
-    // next role, closing the modal) promptly SIGKILLs the recruiter_cli child
-    // instead of letting it run to the 600s backstop and pile up orphaned
+    // Pass the DB job directly so newly-ingested jobs (not in the static corpus)
+    // rank too. Thread the request's AbortSignal so abandoning this scan (clicking
+    // to the next role, closing the modal) promptly SIGKILLs the recruiter_cli
+    // child instead of letting it run to the 600s backstop and pile up orphaned
     // ranking processes that contend for CPU.
-    const { result } = spawnPython(
-      ["-m", "pipeline.jobfit.recruiter_cli", "--input-json", inputPath, "--job-json", jobPath],
+    const payload = await rankPoolForJob<{ candidates?: Array<Record<string, unknown>> } & Record<string, unknown>>(
+      id,
+      entries,
+      job,
       { signal: request.signal },
-    );
-    const { stdout, stderr, exitCode } = await result;
-    if (exitCode !== 0) {
-      const err = parseStderrError(stderr, exitCode);
-      return NextResponse.json({ error: err.message }, { status: err.status });
-    }
-    // parsePythonJson, not raw JSON.parse: the interpreter routinely prints
-    // trailing non-JSON at shutdown (asyncio "Event loop is closed", leaked-
-    // semaphore / ResourceWarning, atexit — common on Windows), and one such line
-    // would turn a successful ranking into a JSON.parse throw / 500.
-    const payload = parsePythonJson<{ candidates?: Array<Record<string, unknown>> } & Record<string, unknown>>(
-      stdout,
-      stderr
     );
 
     // W8-5 (JOB2) — persist the sourcing state on the ranking. "Reach out" and
@@ -79,9 +54,13 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
     }
     return NextResponse.json(payload);
   } catch (error) {
+    // A recruiter_cli failure surfaces as a PipelineError carrying the CLI's
+    // status/code (e.g. a 400 invalid_input), so a user-fixable failure stays a
+    // 400 instead of collapsing to 500 — preserving the prior inline behavior.
+    if (error instanceof PipelineError) {
+      return NextResponse.json({ error: error.message }, { status: error.status });
+    }
     const message = error instanceof Error ? error.message : "Failed to rank candidates.";
     return NextResponse.json({ error: message }, { status: 500 });
-  } finally {
-    if (workdir) await cleanupWorkdir(workdir);
   }
 }

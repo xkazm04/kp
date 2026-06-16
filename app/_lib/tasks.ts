@@ -4,6 +4,7 @@ import {
   getActiveTaskByDedupe,
   getTask,
   interruptStaleTasks,
+  lifecycleByPosting,
   listQueuedTaskIds,
   listActiveEntriesForAutomation,
   markTaskRunning,
@@ -190,6 +191,18 @@ export function startTask(kind: string, params: Record<string, unknown>): TaskRe
   queue.push(id);
   pump();
   return rec;
+}
+
+// Submission-intake event trigger, shared by the authenticated /submit route and
+// the public /inbound webhook: if an automated lifecycle is collecting for this
+// posting, resume it (evaluate the new submission -> rank -> promote). startTask
+// dedups, so concurrent arrivals coalesce into one run. The single encoding so the
+// resume condition can't drift between the two intake paths.
+export function resumeCollectingLifecycle(postingId: string): void {
+  const lc = lifecycleByPosting(postingId);
+  if (lc && lc.stage === "collecting") {
+    startTask("lifecycle", { lifecycleId: lc.id, title: lc.title });
+  }
 }
 
 export function cancelTask(id: string): boolean {

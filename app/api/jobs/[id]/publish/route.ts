@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
+import { activeJobsGate } from "@/app/_lib/billing";
 import { createPipelineEntry, getJob } from "@/app/_lib/db";
-import { getJobStatus, setJobStatus } from "@/app/_lib/job-ingest";
+import { countPublishedJobs, getJobStatus, setJobStatus } from "@/app/_lib/job-ingest";
 import { runSourceForRole } from "@/app/_lib/devcase-run";
+import { raiseRediscoveryAlertsForJob } from "@/app/_lib/rediscover";
 import { splitRequirements } from "@/app/features/sub_jobs/JobsTypes";
 
 export const runtime = "nodejs";
@@ -21,6 +23,12 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     if (!job) return NextResponse.json({ error: "Job not found." }, { status: 404 });
 
     const already = getJobStatus(id) === "published";
+    // Billing hard gate: the free plan allows 1 concurrently-active authored
+    // job. Re-publishing an already-live job is always allowed (idempotent).
+    if (!already) {
+      const quota = activeJobsGate(countPublishedJobs());
+      if (quota) return NextResponse.json(quota, { status: 402 });
+    }
     setJobStatus(id, "published");
 
     let sourced = 0;
@@ -72,11 +80,22 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       }
     }
 
+    // fdb45cd0 — the moment a role goes live, raise standing rediscovery alerts:
+    // rank the pool against it and persist "a candidate you rejected from Role X
+    // clears the bar for this new role" hits to the dismissable feed. Best-effort
+    // (raiseRediscoveryAlertsForJob swallows its own failures) and only on the
+    // genuine go-live, not idempotent re-publishes. The just-sourced candidates
+    // are excluded by rediscoverForJob (they're now active in this role).
+    let silverMedalists = 0;
+    if (!already) {
+      silverMedalists = await raiseRediscoveryAlertsForJob(id, { signal: request.signal });
+    }
+
     // `skipped` = candidates whose payload failed to parse (not low matches), so an empty
     // pipeline after publish can be told apart from a pool that failed to load.
     // `sourcingWarning` (non-null) = the sourcing step errored; the UI shows it instead of
     // a misleading "sourced 0" success.
-    return NextResponse.json({ ok: true, status: "published", sourced, skipped, sourcingWarning, alreadyPublished: already });
+    return NextResponse.json({ ok: true, status: "published", sourced, skipped, sourcingWarning, silverMedalists, alreadyPublished: already });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Sourcing failed." }, { status: 500 });
   }

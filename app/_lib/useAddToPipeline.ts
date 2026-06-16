@@ -24,6 +24,11 @@ export type PipelineAddInput = {
   // GH2 — compact GitHub evidence summary to attach to the entry (only the
   // report surface carries one; every other add surface omits it).
   github?: GithubEvidenceSummary | null;
+  // d95fed6d — which surface filed this candidate ("match", "matrix",
+  // "analyze", "sourcing"…). Persisted as the entry's source_channel so the
+  // drawer can answer "where did this person come from" and analytics can
+  // attribute outcomes. Omitted = unattributed (legacy behavior).
+  source?: string | null;
 };
 
 export type AddToPipeline = {
@@ -52,6 +57,7 @@ export function pipelineAddBody(jobId: string, jobTitle: string, c: PipelineAddI
     matchScore: c.matchScore ?? null,
     stage: "Screened" as const,
     ...(c.github ? { github: c.github } : {}),
+    ...(c.source ? { source: c.source } : {}),
   };
 }
 
@@ -78,7 +84,26 @@ export async function postPipelineAdd(
   }
 }
 
-export function useAddToPipeline(jobId: string, jobTitle: string): AddToPipeline {
+// The mutating action POST against a single entry (`/api/pipeline/[id]`), factored
+// out so the transport wiring (the encoded id, method, headers, JSON body) the four
+// move/decide call sites kept hand-rolling lives in one place. Each caller passes its
+// OWN body — crucially its per-caller `expectedStage` CAS value, which is intentional
+// and stays at the call site — and keeps its own distinct success/error handling
+// (some read `data.error`, the bulk loops only check `r.ok`), so this returns the raw
+// Response rather than a parsed result.
+export type PipelineActionBody =
+  | { action: "set_stage"; toStage: string; expectedStage: string }
+  | { action: "accept" | "reject"; expectedStage: string };
+
+export function postPipelineAction(id: string, body: PipelineActionBody): Promise<Response> {
+  return fetch(`/api/pipeline/${encodeURIComponent(id)}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
+export function useAddToPipeline(jobId: string, jobTitle: string, source?: string | null): AddToPipeline {
   const [added, setAdded] = useState<Set<string>>(() => new Set());
   const [adding, setAdding] = useState<Set<string>>(() => new Set());
   const [failed, setFailed] = useState<Map<string, string>>(() => new Map());
@@ -96,7 +121,8 @@ export function useAddToPipeline(jobId: string, jobTitle: string): AddToPipeline
       n.delete(c.candidateId);
       return n;
     });
-    const result = await postPipelineAdd(jobId, jobTitle, c);
+    // The surface's source rides every add unless the caller set one per-candidate.
+    const result = await postPipelineAdd(jobId, jobTitle, { source, ...c });
     if (result.ok) {
       setAdded((s) => new Set(s).add(c.candidateId));
       setAnnounce(`${c.candidateLabel} added to the pipeline.`);

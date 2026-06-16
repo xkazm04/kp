@@ -1,5 +1,5 @@
 import Database from "better-sqlite3";
-import { DB_PATH, ensureDbDir } from "./db-path";
+import { openStore } from "./db-path";
 import { chunk, SQL_IN_CHUNK } from "./entries-param";
 import type { Scorecard } from "./interview-scorecard";
 
@@ -12,13 +12,10 @@ import type { Scorecard } from "./interview-scorecard";
 let _db: Database.Database | null = null;
 function db(): Database.Database {
   if (_db) return _db;
-  ensureDbDir();
-  const d = new Database(DB_PATH);
-  d.pragma("journal_mode = WAL");
-  // Shares the kp.sqlite file with db.ts and the reminder heartbeat; busy_timeout
-  // makes a concurrent writer wait briefly rather than instantly throwing
-  // SQLITE_BUSY (mirrors db.ts).
-  d.pragma("busy_timeout = 5000");
+  // Isolated connection on the shared kp.sqlite file (WAL + busy_timeout=5000):
+  // shares kp.sqlite with db.ts and the reminder heartbeat, so a concurrent writer
+  // waits briefly rather than instantly throwing SQLITE_BUSY (mirrors db.ts).
+  const d = openStore();
   d.exec(`
     CREATE TABLE IF NOT EXISTS interview_preps (
       entry_id TEXT PRIMARY KEY,

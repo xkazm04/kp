@@ -4,6 +4,7 @@ import { Moon, Sun } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { setTheme } from "@/app/_lib/theme";
 import { useTheme } from "@/app/_components/ui/useTheme";
+import { TOGGLE_GROUP, toggleBtn } from "@/app/_components/ui/recipes";
 
 // Compact theme toggle for the studio sidebar, styled to sit beside the
 // LanguageSwitcher. Flips data-theme on <html> — the token override seam in
@@ -23,7 +24,7 @@ export function ThemeToggle() {
   ] as const;
 
   return (
-    <div role="group" aria-label={t("select")} className="inline-flex items-center gap-0.5 rounded-md border border-stone-200 p-0.5">
+    <div role="group" aria-label={t("select")} className={TOGGLE_GROUP}>
       {options.map(({ id, icon: Icon, label }) => {
         const isActive = id === theme;
         return (
@@ -33,9 +34,7 @@ export function ThemeToggle() {
             onClick={() => setTheme(id)}
             aria-pressed={isActive}
             title={label}
-            className={`focus-ring rounded p-1.5 transition-colors ${
-              isActive ? "bg-ink text-white" : "text-steel hover:bg-stone-100"
-            }`}
+            className={`focus-ring rounded p-1.5 transition-colors ${toggleBtn(isActive)}`}
           >
             <Icon size={14} aria-hidden />
             <span className="sr-only">{label}</span>

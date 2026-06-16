@@ -26,6 +26,10 @@ export type AttentionCounts = {
   schedule: number;
   // Ingested roles still sitting unpublished as drafts → Jobs.
   jobs: number;
+  // Fresh inbound: active entries still at the "Accepted" entry stage →
+  // Channels. Same cohort ChannelsTab counts as "received in Accepted", so the
+  // nav signals new arrivals without the recruiter camping on the tab.
+  channels: number;
 };
 
 export function attentionCounts(): AttentionCounts {
@@ -37,5 +41,6 @@ export function attentionCounts(): AttentionCounts {
   ).length;
   const schedule = dueReminders().length;
   const jobs = Object.values(listJobStatuses()).filter((s) => s === "draft").length;
-  return { decisions, pipeline: stale, schedule, jobs };
+  const channels = entries.filter((e) => e.status === "active" && e.stage === "Accepted").length;
+  return { decisions, pipeline: stale, schedule, jobs, channels };
 }

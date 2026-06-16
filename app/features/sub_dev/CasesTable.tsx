@@ -4,14 +4,14 @@ import { ChevronRight, ClipboardList } from "lucide-react";
 import { LoadStatus } from "@/app/_components/LoadStatus";
 import { formatRelativeTime } from "@/app/_lib/format";
 import type { LoadState } from "@/app/_lib/useLoader";
-import { STAGE_LABEL } from "./DevTypes";
+import { LIVE_STAGES, STAGE_LABEL } from "./DevTypes";
 import type { DevCaseDetail, Lifecycle, Posting } from "./DevTypes";
 
 // Stage chip tint: production states (collecting onwards) read "live", the
 // pre-publication states read neutral, the approval gate reads attention.
 function stageChip(stage: string): string {
   if (stage === "awaiting_approval") return "bg-amber-100 text-amber-700";
-  if (["published", "collecting", "ranked", "promoted"].includes(stage)) return "bg-moss/15 text-moss";
+  if ((LIVE_STAGES as readonly string[]).includes(stage)) return "bg-moss/15 text-moss";
   return "bg-paper text-steel";
 }
 

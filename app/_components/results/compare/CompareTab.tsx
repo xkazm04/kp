@@ -3,20 +3,23 @@
 import { ArrowDownRight, ArrowUpRight, Crown, Minus } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import type { Analysis } from "@/app/_lib/schemas";
-import { hasRenderableComparison } from "@/app/_lib/comparison";
-import { reconcileScoreTotal } from "@/app/_lib/format";
+import { hasRenderableComparison, primaryScore } from "@/app/_lib/comparison";
+import { reconcileScoreTotal, SCORE_COMPONENT_KEYS, SCORE_COMPONENT_LABELS } from "@/app/_lib/format";
 import { BulletList } from "../shared";
 
 type ComparisonPayload = NonNullable<Analysis["comparison"]>;
 type ComparisonVariant = ComparisonPayload["variants"][number];
 
+// The local "Overall" row reads the component sum (see reconcileScoreTotal below);
+// the five component rows are derived from the canonical score taxonomy in
+// format.ts (Title-cased here for the column header) so they stay in lockstep
+// with the dial, the breakdown, and the driver-insight prose.
 const COMPONENT_ROWS: Array<{ key: keyof ComparisonVariant["score"]; label: string }> = [
   { key: "total", label: "Overall" },
-  { key: "experience", label: "Experience" },
-  { key: "skills", label: "Skills" },
-  { key: "roleSeniority", label: "Role seniority" },
-  { key: "education", label: "Education" },
-  { key: "traits", label: "Traits" }
+  ...SCORE_COMPONENT_KEYS.map((key) => ({
+    key,
+    label: SCORE_COMPONENT_LABELS[key].charAt(0).toUpperCase() + SCORE_COMPONENT_LABELS[key].slice(1)
+  }))
 ];
 
 export function CompareTab({ analysis }: { analysis: Analysis }) {
@@ -62,12 +65,12 @@ export function CompareTab({ analysis }: { analysis: Analysis }) {
 
   // Resolve the winner by INDEX via max primary score, not by `findIndex(label === bestLabel)`.
   // Variant labels aren't unique (two CV variants can share a filename / "CV"), so a label
-  // match returns the FIRST same-named column and could crown the wrong one. Max primary
-  // score with strict `>` keeps the earliest on a tie — matching buildComparison's stable sort.
-  const primary = (v: (typeof comparison.variants)[number]) => (v.jobFitScore != null ? v.jobFitScore : v.score.total);
+  // match returns the FIRST same-named column and could crown the wrong one. primaryScore is
+  // the SAME rule buildComparison ranks by (imported, not re-derived); strict `>` keeps the
+  // earliest on a tie — matching its stable sort.
   let winnerIndex = 0;
   for (let i = 1; i < comparison.variants.length; i++) {
-    if (primary(comparison.variants[i]) > primary(comparison.variants[winnerIndex])) winnerIndex = i;
+    if (primaryScore(comparison.variants[i]) > primaryScore(comparison.variants[winnerIndex])) winnerIndex = i;
   }
   const baseline = comparison.variants[0];
 

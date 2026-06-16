@@ -5,6 +5,7 @@ import json
 import sys
 from pathlib import Path
 
+from ._cli import configure_stdio
 from .service import analyze
 
 
@@ -18,9 +19,7 @@ def _emit_event(event: dict) -> None:
 
 
 def main() -> int:
-    if hasattr(sys.stdout, "reconfigure"):
-        sys.stdout.reconfigure(encoding="utf-8")
-        sys.stderr.reconfigure(encoding="utf-8")
+    configure_stdio()
 
     parser = argparse.ArgumentParser(description="Analyze a CV and estimate job fit salary.")
     parser.add_argument("cv_path", type=Path, nargs="?")
@@ -34,6 +33,11 @@ def main() -> int:
         default="en",
         help="Output locale for LLM-generated narrative (e.g. en, cs). "
         "Code values, skills, and proper nouns stay verbatim regardless.",
+    )
+    parser.add_argument(
+        "--blind",
+        action="store_true",
+        help="Blind screening: redact identity (name/contact/photo/gendered terms/age) from the CV before scoring; re-attach the name only in the result.",
     )
     parser.add_argument("--pretty", action="store_true")
     parser.add_argument(
@@ -58,6 +62,7 @@ def main() -> int:
             company_text=args.company_text,
             lang=args.lang,
             progress=progress,
+            blind=args.blind,
         )
     except ValueError as exc:
         if args.stream:

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getJob, loadJd } from "@/app/_lib/db";
 import { ingestJobAd } from "@/app/_lib/job-ingest";
+import { jdJobId } from "@/app/_lib/jd-limits";
 import { safeJsonError } from "@/app/_lib/api-response";
 
 export const runtime = "nodejs";
@@ -20,7 +21,7 @@ export async function POST(_request: Request, context: { params: Promise<{ slug:
     const jd = loadJd(slug);
     if (!jd) return NextResponse.json({ error: "JD not found." }, { status: 404 });
 
-    const jobId = `jd-${slug}`;
+    const jobId = jdJobId(slug);
     if (getJob(jobId)) {
       return NextResponse.json({ ok: true, jobId, already: true });
     }

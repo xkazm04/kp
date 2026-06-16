@@ -7,15 +7,17 @@ import { useLocale, useTranslations } from "next-intl";
 import { AiDisclosure } from "@/app/_components/AiDisclosure";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { initials } from "@/app/_lib/initials";
+import { offerHoursRemaining } from "@/app/_lib/offer-policy";
 
 type OfferView = {
   token: string;
-  status: "extended" | "accepted" | "declined";
+  status: "extended" | "accepted" | "declined" | "expired";
   jobTitle: string | null;
   candidateLabel: string | null;
   currency: string | null;
   salary: number | null;
   company: string | null;
+  expiresAt: string | null;
 };
 
 // Public, token-gated offer page. The candidate accepts or declines here; accept
@@ -35,7 +37,7 @@ export default function OfferPage() {
   const [responseError, setResponseError] = useState<string | null>(null);
   // Which response is mid-flight, so we can spin the pressed button and mute the other.
   const [pending, setPending] = useState<"accept" | "decline" | null>(null);
-  const [result, setResult] = useState<"accepted" | "declined" | null>(null);
+  const [result, setResult] = useState<"accepted" | "declined" | "expired" | null>(null);
   // Decline is terminal + irreversible (offer-finalize markEntryStatus 'declined'), so it
   // routes through a deliberate inline confirm step before the POST fires — a single
   // misclick must not permanently close the offer.
@@ -55,7 +57,8 @@ export default function OfferPage() {
       .then((p) => {
         if (p.error) throw new Error(p.error);
         setOffer(p.offer as OfferView);
-        if (p.offer?.status === "accepted" || p.offer?.status === "declined") setResult(p.offer.status);
+        if (p.offer?.status === "accepted" || p.offer?.status === "declined" || p.offer?.status === "expired")
+          setResult(p.offer.status);
       })
       .catch(() => setLoadError(t("loadFailed")));
   }, [token, t]);
@@ -71,6 +74,12 @@ export default function OfferPage() {
       });
       const p = await r.json();
       if (!r.ok) {
+        // 410 → the offer lapsed past its deadline (idea-29361408): swap to the
+        // definite expired card rather than an inline retry error.
+        if (r.status === 410) {
+          setResult("expired");
+          return;
+        }
         // Prefer the server's stable error `code` (localized via the errors
         // catalog); fall back to the page's own localized respond-failed message.
         setResponseError(errMsg(p, t("respondFailed")));
@@ -141,11 +150,32 @@ export default function OfferPage() {
                 <p className="text-base font-semibold text-ink">{t("declinedTitle")}</p>
                 <p className="mt-1 text-sm text-steel">{t("declinedBody")}</p>
               </div>
+            ) : result === "expired" ? (
+              // The offer lapsed past its deadline (idea-29361408) — a definite
+              // dead-end state, not an error the candidate can retry past.
+              <div className="mt-6 rounded-lg bg-stone-100 p-4 text-center">
+                <p className="text-base font-semibold text-ink">{t("expiredTitle")}</p>
+                <p className="mt-1 text-sm text-steel">{t("expiredBody")}</p>
+              </div>
             ) : (
               <>
                 <p className="mt-5 text-sm text-steel">
                   {offer.company ? t("prompt", { company: offer.company }) : t("promptGeneric")}
                 </p>
+                {/* Deadline countdown (idea-29361408): the offer's lever to force a
+                    timely decision. Turns coral inside the final 48h. */}
+                {(() => {
+                  const hrs = offerHoursRemaining(offer.expiresAt);
+                  if (hrs === null || !offer.expiresAt) return null;
+                  const date = new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeStyle: "short" }).format(
+                    new Date(offer.expiresAt)
+                  );
+                  return (
+                    <p className={`mt-2 text-sm font-medium ${hrs <= 48 ? "text-coral" : "text-steel"}`}>
+                      {t("deadline", { date })} {t("deadlineHours", { hours: hrs })}
+                    </p>
+                  );
+                })()}
                 {/* POST failure: inline + retryable. The card and buttons below stay put. */}
                 {responseError ? (
                   <p

@@ -6,7 +6,7 @@ import { AlertTriangle, Check, ExternalLink, Loader2, Lock, RefreshCw, Save, Use
 import { useTranslations } from "next-intl";
 import { Markdown } from "@/app/_components/Markdown";
 import { buildUrl } from "@/app/features/tabs";
-import { JD_BODY_MAX_LENGTH } from "@/app/_lib/jd-limits";
+import { JD_BODY_MAX_LENGTH, jdJobId } from "@/app/_lib/jd-limits";
 import { formatSalaryRange } from "@/app/_lib/format";
 import { normalizeMarketSalary, type MarketSalary } from "@/app/_lib/salary-band";
 import { dedupeBy } from "@/app/_lib/dedupe";
@@ -137,19 +137,26 @@ export function JdBuilderResult({
     document.getElementById(`jdview-tab-${VIEWS[next]}`)?.focus();
   };
 
+  // The shared POST /api/jds/save call: same body for the initial save and the
+  // in-place re-ingest retry, differing only by whether a slug is sent (present =
+  // re-ingest the existing draft, absent = create a new one). Each caller keeps its
+  // own response parsing / error message / state transition.
+  const postSave = (slug?: string) =>
+    fetch("/api/jds/save", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...(slug ? { slug } : {}), title, body: markdown, role: result.role, salary: result.salary, company }),
+    });
+
   // Save = create a DRAFT JD (no sourcing yet).
   const save = async () => {
     setSaving(true);
     setError(null);
     try {
-      const r = await fetch("/api/jds/save", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title, body: markdown, role: result.role, salary: result.salary, company }),
-      });
+      const r = await postSave();
       const p = await r.json();
       if (!r.ok) throw new Error(p.error ?? t("saveFailed"));
-      setSaved({ slug: p.slug, jobId: p.jobId ?? `jd-${p.slug}`, jobIngested: Boolean(p.jobIngested) });
+      setSaved({ slug: p.slug, jobId: p.jobId ?? jdJobId(p.slug), jobIngested: Boolean(p.jobIngested) });
       onSaved();
     } catch (e) {
       setError(e instanceof Error ? e.message : t("saveFailed"));
@@ -168,15 +175,11 @@ export function JdBuilderResult({
     setRetrying(true);
     setError(null);
     try {
-      const r = await fetch("/api/jds/save", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ slug: saved.slug, title, body: markdown, role: result.role, salary: result.salary, company }),
-      });
+      const r = await postSave(saved.slug);
       const p = await r.json();
       if (!r.ok) throw new Error(p.error ?? t("retryFailed"));
       if (!p.jobIngested) throw new Error(t("ingestFailedAgain"));
-      setSaved({ slug: p.slug, jobId: p.jobId ?? `jd-${p.slug}`, jobIngested: true });
+      setSaved({ slug: p.slug, jobId: p.jobId ?? jdJobId(p.slug), jobIngested: true });
     } catch (e) {
       setError(e instanceof Error ? e.message : t("retryFailed"));
     } finally {
@@ -265,9 +268,13 @@ export function JdBuilderResult({
               <li key={i}>
                 {f.kind === "vague"
                   ? t("lintVague", { phrase: f.phrase })
-                  : f.what === "salary"
-                    ? t("lintMissingSalary")
-                    : t("lintMissingPlace")}
+                  : f.kind === "exclusionary"
+                    ? t("lintExclusionary", { phrase: f.phrase })
+                    : f.kind === "manyMustHaves"
+                      ? t("lintManyMustHaves", { count: f.count })
+                      : f.what === "salary"
+                        ? t("lintMissingSalary")
+                        : t("lintMissingPlace")}
               </li>
             ))}
           </ul>

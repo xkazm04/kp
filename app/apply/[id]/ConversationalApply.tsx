@@ -6,7 +6,8 @@ import { AiDisclosure } from "@/app/_components/AiDisclosure";
 import type { ApplyStep } from "@/app/_lib/apply";
 // Imported straight from the registry-free intake module (not the apply.ts
 // barrel) so the candidate-facing bundle doesn't pull in the archetype registry.
-import { coerceGithubHandle, isRetryableApplyStatus, nextVisibleStepIndex } from "@/app/_lib/apply-intake";
+import { APPLY_EMAIL_RE, coerceGithubHandle, isRetryableApplyStatus, nextVisibleStepIndex } from "@/app/_lib/apply-intake";
+import { cvAutofill } from "@/app/_lib/cv-autofill";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
 
 type Msg = { who: "bot" | "me"; text: string };
@@ -24,6 +25,13 @@ export type ApplyPrefill = {
   greeting: string | null;
 };
 
+// Where in-progress answers are stashed (idea-939d96e9) so a refresh / lost
+// signal / return-later resumes mid-chat instead of restarting. Keyed by jobId
+// because a candidate may be partway through more than one role's application.
+const draftKey = (jobId: string) => `kp:apply-draft:${jobId}`;
+
+type ApplyDraft = { idx: number; answers: Record<string, unknown>; msgs: Msg[]; answeredIds: string[] };
+
 export function ConversationalApply({
   jobId,
   steps,
@@ -33,6 +41,7 @@ export function ConversationalApply({
   steps: ApplyStep[];
   prefill?: ApplyPrefill | null;
 }) {
+
   const t = useTranslations("apply");
   const tCommon = useTranslations("common");
   const errMsg = useErrorMessage();
@@ -61,6 +70,7 @@ export function ConversationalApply({
     message: string;
     duplicate?: boolean;
     enriched?: boolean;
+    statusToken?: string | null;
   } | null>(null);
   const [submitting, setSubmitting] = useState(false);
   // A FAILED final submit — recoverable, rendered inline so the conversation and
@@ -85,6 +95,16 @@ export function ConversationalApply({
   // Per-step validation error (currently the email step), shown inline so a typo is fixed
   // in place rather than rejected only at the final submit — which forces a full restart.
   const [stepError, setStepError] = useState<string | null>(null);
+  // CV-first autofill (idea-cddec0bf): editable defaults parsed from an uploaded
+  // CV, keyed by step id (name/email). Seeded into the text input when the flow
+  // reaches that step, so the candidate confirms rather than retypes.
+  const [cvDefaults, setCvDefaults] = useState<Record<string, string>>({});
+  // True once an in-progress draft has been restored from a prior visit
+  // (idea-939d96e9) — surfaces a "we picked up where you left off" banner with a
+  // start-fresh escape. `hydratedRef` gates the persist effect so it can't write
+  // the empty initial state over a saved draft before the restore effect runs.
+  const [resumed, setResumed] = useState(false);
+  const hydratedRef = useRef(false);
   const endRef = useRef<HTMLDivElement | null>(null);
   // Step ids already answered — the synchronous guard that makes advance()
   // idempotent even when two events fire within the same render frame.
@@ -106,6 +126,54 @@ export function ConversationalApply({
     };
   }, []);
 
+  // Restore an in-progress draft once, on mount (idea-939d96e9). Client-only
+  // (localStorage), so it runs in an effect — not the initial state — to keep
+  // hydration matching the server's empty render. Guarded against corrupt/stale
+  // drafts and never restores a completed flow. `hydratedRef` then unlocks persist.
+  useEffect(() => {
+    hydratedRef.current = true;
+    try {
+      const raw = window.localStorage.getItem(draftKey(jobId));
+      if (!raw) return;
+      const d = JSON.parse(raw) as ApplyDraft;
+      if (!d || typeof d.idx !== "number" || d.idx < 0 || d.idx >= steps.length) return;
+      if (!d.answers || typeof d.answers !== "object" || !Array.isArray(d.msgs) || d.msgs.length === 0) return;
+      if (Object.keys(d.answers).length === 0) return;
+      answeredRef.current = new Set(Array.isArray(d.answeredIds) ? d.answeredIds : []);
+      /* eslint-disable react-hooks/set-state-in-effect -- one-time hydration from localStorage (SSR-safe) */
+      setAnswers(d.answers);
+      setMsgs(d.msgs);
+      setIdx(d.idx);
+      setResumed(true);
+      /* eslint-enable react-hooks/set-state-in-effect */
+    } catch {
+      /* corrupt draft — ignore and start fresh */
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only restore
+  }, []);
+
+  // Persist the draft as the conversation progresses, and clear it the moment the
+  // application completes. Gated on hydration so it can't write the empty initial
+  // state over a saved draft before the restore effect above has run.
+  useEffect(() => {
+    if (!hydratedRef.current) return;
+    if (done) {
+      try {
+        window.localStorage.removeItem(draftKey(jobId));
+      } catch {
+        /* best-effort */
+      }
+      return;
+    }
+    if (Object.keys(answers).length === 0) return; // nothing worth saving yet
+    try {
+      const draft: ApplyDraft = { idx, answers, msgs, answeredIds: [...answeredRef.current] };
+      window.localStorage.setItem(draftKey(jobId), JSON.stringify(draft));
+    } catch {
+      /* quota / unavailable — best-effort */
+    }
+  }, [idx, answers, msgs, done, jobId]);
+
   // Move focus to the first control of a newly-rendered step so keyboard / screen-reader
   // users don't have to tab from the top of the page on every ko / choice / file step (only
   // the free-text input previously autoFocused). Runs once the step settles (not transitioning)
@@ -116,6 +184,21 @@ export function ConversationalApply({
     if (!step || step.type === "text") return;
     stepControlsRef.current?.querySelector<HTMLElement>("button:not([disabled])")?.focus();
   }, [idx, transitioning, done, submitError, steps]);
+
+  // Seed a CV-parsed value into the text input on arrival at its step
+  // (idea-cddec0bf), only when the candidate hasn't already answered it and the
+  // box is empty — so it's an editable default, never an overwrite of their typing.
+  useEffect(() => {
+    if (done || submitError || transitioning) return;
+    const step = steps[idx];
+    if (!step || step.type !== "text" || answeredRef.current.has(step.id)) return;
+    const pf = cvDefaults[step.id];
+    if (pf && input.trim() === "") {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- seed an editable CV-parsed default
+      setInput(pf);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally not on `input`: seed once per step, don't re-seed after the candidate clears it
+  }, [idx, transitioning, done, submitError, cvDefaults, steps]);
 
   // The controls are locked while a POST is in flight or while we're mid-hop
   // between steps. advance() is the single entry point and answers each step
@@ -146,7 +229,13 @@ export function ConversationalApply({
       });
       const d = await res.json();
       if (res.ok) {
-        setDone({ result: d.result, message: d.message, duplicate: Boolean(d.duplicate), enriched: Boolean(d.enriched) });
+        setDone({
+          result: d.result,
+          message: d.message,
+          duplicate: Boolean(d.duplicate),
+          enriched: Boolean(d.enriched),
+          statusToken: d.statusToken ?? null,
+        });
       } else {
         // The server rejected the submit. isRetryableApplyStatus decides whether a
         // re-POST of the same answers could succeed (5xx / transient) or is futile
@@ -186,6 +275,12 @@ export function ConversationalApply({
     if (submitting) return;
     answeredRef.current = new Set();
     finalAnswersRef.current = null;
+    try {
+      window.localStorage.removeItem(draftKey(jobId));
+    } catch {
+      /* best-effort */
+    }
+    setResumed(false);
     setSubmitError(null);
     setAnswers({ ...(prefill?.answers ?? {}) });
     setInput("");
@@ -223,7 +318,7 @@ export function ConversationalApply({
     // Validate the email at its own step (same regex the server uses). The server allows a
     // blank email but rejects a malformed one only at the FINAL submit — a non-retryable 400
     // that forces "Start over" and wipes every answer. Catching it here fixes a typo in place.
-    if (step.id === "email" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) {
+    if (step.id === "email" && !APPLY_EMAIL_RE.test(v)) {
       setStepError(t("invalidEmail"));
       return;
     }
@@ -267,6 +362,10 @@ export function ConversationalApply({
       if (!res.ok || !d || typeof d.text !== "string" || !d.text.trim()) {
         throw new Error("extract-text failed");
       }
+      // Pre-fill the identity steps from the CV so the candidate confirms rather
+      // than retypes (idea-cddec0bf). Editable defaults only; never auto-submitted.
+      const auto = cvAutofill(d.text);
+      if (Object.keys(auto).length > 0) setCvDefaults((p) => ({ ...p, ...auto }));
       const step = steps[idx];
       advance(step.id, { ...answers, [step.id]: d.text }, t("attachedFile", { name: file.name }));
     } catch {
@@ -292,6 +391,22 @@ export function ConversationalApply({
 
   return (
     <div>
+      {/* idea-939d96e9 — a restored in-progress application: tell the candidate we
+          resumed and give a one-tap way to start over. */}
+      {resumed && !done ? (
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-md border border-stone-200 bg-paper p-2.5">
+          <span className="text-base text-steel">{t("resumedNote")}</span>
+          <button
+            type="button"
+            // Discard the restored draft and begin again from the first question
+            // (idea-939d96e9) — the escape hatch for a candidate who'd rather start over.
+            onClick={restartConversation}
+            className="focus-ring rounded-md px-2 py-1 text-base font-semibold text-steel hover:text-ink"
+          >
+            {t("startFresh")}
+          </button>
+        </div>
+      ) : null}
       {/* role="log" + aria-live so each new bot prompt (and the final outcome) is announced
           to screen readers — the conversation previously advanced visual-only, leaving SR
           users with silence after each answer on this public candidate flow. */}
@@ -323,6 +438,16 @@ export function ConversationalApply({
                 : t("thanksApplying")}
             </p>
             <p className="mt-1 text-base text-steel">{done.message}</p>
+            {/* idea-e76a6fb2 — a tokenized link so the applicant can track their
+                status instead of going dark after applying. */}
+            {done.result === "accepted" && done.statusToken ? (
+              <a
+                href={`/status/${done.statusToken}`}
+                className="focus-ring mt-3 inline-flex items-center gap-1.5 rounded-md border border-stone-300 bg-white px-3 py-1.5 text-base font-semibold text-ink hover:border-coral/50"
+              >
+                {t("trackStatus")}
+              </a>
+            ) : null}
           </div>
         ) : null}
         <div ref={endRef} />
@@ -464,6 +589,11 @@ export function ConversationalApply({
               ) : null}
             </form>
           )}
+          {/* idea-cddec0bf — flag a value pre-filled from the CV so the candidate
+              knows to check it rather than assuming they typed it. */}
+          {cur && cur.type === "text" && cvDefaults[cur.id] && !stepError ? (
+            <p className="mt-1.5 text-sm text-steel">{t("prefilledHint")}</p>
+          ) : null}
           {stepError ? <p role="alert" className="mt-1.5 text-sm text-coral">{stepError}</p> : null}
         </div>
       ) : null}

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { meterGate } from "@/app/_lib/billing";
 import {
   createInterviewSession,
   getPipelineEntry,
@@ -10,7 +11,7 @@ import { buildGroundedInterview } from "@/app/_lib/interview-run";
 import { dispatchInterviewInvite } from "@/app/_lib/comms-dispatch";
 import { safeJsonError } from "@/app/_lib/api-response";
 import { publicBaseUrl } from "@/app/_lib/public-base-url";
-import { coerceLanguage, coerceProviderId, voiceAvailability, type VoiceProviderId } from "@/app/_lib/voice";
+import { coerceLanguage, pickDefaultProvider, voiceAvailability, type VoiceProviderId } from "@/app/_lib/voice";
 
 export const runtime = "nodejs";
 
@@ -19,6 +20,11 @@ export const runtime = "nodejs";
 // to hand to the candidate. After the call, /complete runs the scorecard.
 export async function POST(request: NextRequest) {
   try {
+    // Billing hard gate: voice minutes are the one meter with real per-unit
+    // cost. No allowance → no new candidate links (existing live links keep
+    // working; minutes are debited at /complete). Top-up packs reopen this.
+    const quota = meterGate("interview_minutes");
+    if (quota) return NextResponse.json(quota, { status: 402 });
     // Validate at the trust boundary instead of casting request.json() to a
     // typed shape (idea-c7df6b55): entryId must be a plausibly-sized string and
     // language must look like a language tag — anything else is rejected or
@@ -30,10 +36,7 @@ export async function POST(request: NextRequest) {
     }
 
     const avail = voiceAvailability();
-    // Honor an explicitly requested provider; otherwise prefer a configured one,
-    // defaulting to openai.
-    const provider: VoiceProviderId =
-      coerceProviderId(body.provider) ?? (avail.openai ? "openai" : avail.elevenlabs ? "elevenlabs" : "openai");
+    const provider: VoiceProviderId = pickDefaultProvider(body.provider, avail);
 
     // A reissue must not torpedo a LIVE call (voice-interview-runtime #2): the
     // revoke-first semantics below kill in_progress sessions too, so one click

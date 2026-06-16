@@ -30,7 +30,26 @@ export type Entry = {
   // Persistent per-candidate recruiter note, autosaved from the drawer via the
   // set_notes action (null/absent when none has been written yet).
   notes?: string | null;
+  // d95fed6d — which surface/channel filed this candidate ("match", "matrix",
+  // "analyze", "sourcing", "devcase", or a webhook channel id). Null on legacy
+  // and unattributed entries. Rendered as the drawer's origin chip.
+  sourceChannel?: string | null;
 };
+
+// One job "lane" on the pipeline board: PipelineTab builds Position[] (via
+// groupPositions) and passes it straight to <PipelineBoard positions={...} />, so
+// the producer and the consumer share this ONE declaration instead of each keeping
+// a private copy that could silently drift.
+export type Position = { id: string; title: string; family: string; count: number };
+
+// THE position/lane key for an entry: job id, else job title, else "?". The board's
+// lane COUNT (groupPositions) and lane MEMBERSHIP (PipelineBoard's filter) must
+// compute this identically — a 2-way vs 3-way fallback mismatch once counted an
+// entry under "?" but placed it in no lane (bug-hunt-2026-06-07). One function so
+// the count and the rendered lanes are provably keyed the same way.
+export function entryLaneKey(e: Pick<Entry, "jobId" | "jobTitle">): string {
+  return e.jobId ?? e.jobTitle ?? "?";
+}
 
 // Mirrors the PUBLIC event projection served by /api/pipeline/events
 // (pipeline-events-public.ts): candidateLabel is initials only, and the
@@ -92,16 +111,6 @@ export function daysSince(iso: string | null): number | null {
   const t = Date.parse(iso);
   if (!Number.isFinite(t)) return null;
   return Math.floor((Date.now() - t) / 86_400_000);
-}
-
-export function relativeTime(iso: string): string {
-  const d = daysSince(iso);
-  if (d == null) return "";
-  if (d <= 0) return "today";
-  if (d === 1) return "yesterday";
-  if (d < 7) return `${d}d ago`;
-  if (d < 30) return `${Math.floor(d / 7)}w ago`;
-  return `${Math.floor(d / 30)}mo ago`;
 }
 
 // ONE catalog of archetype presentation — label, fill (bg), focus ring, and glyph.

@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 import { AiDisclosure } from "@/app/_components/AiDisclosure";
 // Registry-free intake module (not the apply.ts barrel), keeping the candidate
 // bundle lean — same import discipline as ConversationalApply.
-import { isRetryableApplyStatus } from "@/app/_lib/apply-intake";
+import { APPLY_EMAIL_RE, isRetryableApplyStatus } from "@/app/_lib/apply-intake";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
 
 type KoStep = { id: string; prompt: string };
@@ -58,7 +58,7 @@ export function QuickApplyForm({
     if (!ready) return;
     // Same regex the server enforces — catch the typo here so the candidate
     // fixes it in place instead of bouncing off a 400.
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+    if (!APPLY_EMAIL_RE.test(email.trim())) {
       setEmailError(t("invalidEmail"));
       return;
     }

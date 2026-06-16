@@ -2,7 +2,7 @@ import { actOnPipelineEntry, getJob, recordAutomationEvent } from "./db";
 import { dispatchOnboarding } from "./comms-dispatch";
 import { recordAudit } from "./dev-control";
 import { recordPipelineOutcome } from "./dev-outcomes";
-import { getOfferByToken, markEntryStatus, markOfferResponded } from "./offers-store";
+import { expireOfferIfDue, getOfferByToken, markEntryStatus, markOfferResponded, type OfferRow } from "./offers-store";
 
 // Direction #4 — capture the candidate's offer response and run the terminal
 // transitions. The offer DECISION was the recruiter's (extend); here we record
@@ -11,11 +11,19 @@ import { getOfferByToken, markEntryStatus, markOfferResponded } from "./offers-s
 
 export type OfferResponseResult =
   | { ok: true; status: "accepted" | "declined"; alreadyResponded: boolean; jobTitle: string | null; candidateLabel: string | null }
-  | { ok: false; error: string };
+  | { ok: false; error: string; expired?: boolean };
 
 export async function respondToOffer(token: string, response: "accept" | "decline"): Promise<OfferResponseResult> {
-  const offer = getOfferByToken(token);
+  // Lapse first (idea-29361408): an offer past its deadline must not be acceptable
+  // even if the candidate is holding a stale tab — the deadline is the lever.
+  const offer = expireOfferIfDue(token);
   if (!offer) return { ok: false, error: "Offer not found." };
+
+  // Past its deadline — the link is dead. Reported distinctly so the route can
+  // 410 and the page can show an "expired" state instead of mislabeling it declined.
+  if (offer.status === "expired") {
+    return { ok: false, error: "This offer has expired.", expired: true };
+  }
 
   // Already answered — idempotent (candidate refreshed, or recruiter + candidate both clicked).
   if (offer.status !== "extended") {
@@ -34,16 +42,19 @@ export async function respondToOffer(token: string, response: "accept" | "declin
   // result was ignored and BOTH callers ran the terminal side effects — double
   // onboarding dispatch, phantom Hired transitions, duplicate automation events.
   // Now the loser reports the recorded outcome and touches nothing.
+  //
+  // The CAS-loser path is identical for both responses: report the AUTHORITATIVE
+  // recorded status, re-reading the offer if markOfferResponded couldn't return it,
+  // so a null offer never defaults an accepter to "declined".
+  const reportLoser = (claimedOffer: OfferRow | null): OfferResponseResult => {
+    const recorded = claimedOffer ?? getOfferByToken(token);
+    const status = recorded?.status === "accepted" ? "accepted" : "declined";
+    return { ok: true, status, alreadyResponded: true, jobTitle: offer.jobTitle, candidateLabel: offer.candidateLabel };
+  };
+
   if (response === "accept") {
     const { offer: claimedOffer, claimed } = markOfferResponded(token, "accepted");
-    if (!claimed) {
-      // The CAS lost — someone else recorded the response first. Report the
-      // AUTHORITATIVE recorded status, re-reading the offer if markOfferResponded
-      // couldn't return it, so a null offer never defaults an accepter to "declined".
-      const recorded = claimedOffer ?? getOfferByToken(token);
-      const status = recorded?.status === "accepted" ? "accepted" : "declined";
-      return { ok: true, status, alreadyResponded: true, jobTitle: offer.jobTitle, candidateLabel: offer.candidateLabel };
-    }
+    if (!claimed) return reportLoser(claimedOffer);
     if (offer.entryId) {
       recordAutomationEvent(offer.entryId, "offer_accepted", offer.jobTitle ?? "");
       // Offer -> Hired (clears approval). actor "system": the transition fires on
@@ -92,11 +103,7 @@ export async function respondToOffer(token: string, response: "accept" | "declin
 
   // decline
   const { offer: claimedOffer, claimed } = markOfferResponded(token, "declined");
-  if (!claimed) {
-    const recorded = claimedOffer ?? getOfferByToken(token);
-    const status = recorded?.status === "accepted" ? "accepted" : "declined";
-    return { ok: true, status, alreadyResponded: true, jobTitle: offer.jobTitle, candidateLabel: offer.candidateLabel };
-  }
+  if (!claimed) return reportLoser(claimedOffer);
   if (offer.entryId) {
     // Terminal `declined` — the candidate turned us down. Distinct from the
     // recruiter's `rejected` so funnel/re-engagement reporting can tell a
@@ -113,9 +120,11 @@ export async function respondToOffer(token: string, response: "accept" | "declin
   return { ok: true, status: "declined", alreadyResponded: false, jobTitle: offer.jobTitle, candidateLabel: offer.candidateLabel };
 }
 
-/** Read an offer for the candidate-facing page (no mutation). */
+/** Read an offer for the candidate-facing page. Lapses it first if the deadline
+ *  has passed (idea-29361408), so the page renders 'expired' the moment it's due
+ *  rather than waiting on the heartbeat sweep. */
 export function offerView(token: string) {
-  const offer = getOfferByToken(token);
+  const offer = expireOfferIfDue(token);
   if (!offer) return null;
   // The hiring company lives on the job record (not the pipeline entry), so resolve
   // it from there — this is what lets the public offer page show who it's from.
@@ -129,5 +138,6 @@ export function offerView(token: string) {
     currency: offer.currency,
     salary: offer.salary,
     company,
+    expiresAt: offer.expiresAt,
   };
 }

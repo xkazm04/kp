@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
+import { meterGate, recordMeterUsage } from "@/app/_lib/billing";
 import { getLifecycle, updateLifecycle } from "@/app/_lib/db";
 import { runDesignArtifacts } from "@/app/_lib/devcase-run";
+import { isAtReviewGate } from "@/app/_lib/devcase-orchestrator";
 import { recordAudit } from "@/app/_lib/dev-control";
 import type { DevNeed } from "@/app/_lib/devcase-run";
 
@@ -25,12 +27,16 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
 
     const lc = getLifecycle(id);
     if (!lc) return NextResponse.json({ error: "lifecycle not found" }, { status: 404 });
-    if (lc.stage !== "awaiting_approval" && lc.stage !== "designed") {
+    if (!isAtReviewGate(lc.stage)) {
       return NextResponse.json({ error: `lifecycle is at '${lc.stage}', not awaiting review.` }, { status: 409 });
     }
     if (!lc.need || !lc.analysis) {
       return NextResponse.json({ error: "lifecycle is missing its need/analysis artifacts." }, { status: 409 });
     }
+    // Billing: a redesign is a fresh design generation — gate + debit like one.
+    const quota = meterGate("case_designs");
+    if (quota) return NextResponse.json(quota, { status: 402 });
+    recordMeterUsage("case_designs");
 
     // DEVP5 — a redesign keeps the lifecycle's candidate-facing language.
     const designed = await runDesignArtifacts(lc.need as DevNeed, lc.analysis, undefined, feedback, lc.lang);

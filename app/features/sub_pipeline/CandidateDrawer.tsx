@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { AlertTriangle, ArrowLeftRight, Ban, Banknote, Calendar, ClipboardList, ExternalLink, GitBranch, History, Mail, NotebookPen, Pencil, Phone, Shuffle, Sparkles, UserCheck, Wrench, X } from "lucide-react";
+import { AlertTriangle, ArrowLeftRight, Ban, Banknote, Calendar, ClipboardList, ExternalLink, FileText, GitBranch, History, Mail, NotebookPen, Pencil, Phone, Shuffle, Sparkles, UserCheck, Wrench, X } from "lucide-react";
 import { useTranslations } from "next-intl";
+import type { CandidateTimelineItem } from "@/app/_lib/candidate-timeline";
 import { buildUrl } from "@/app/features/tabs";
 import { useTasks, useTaskResult } from "@/app/features/tasks/TasksProvider";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
@@ -19,6 +21,7 @@ import type { Scorecard, ScorecardRating } from "@/app/_lib/interview-scorecard"
 import { buildGithubEvidenceSummary, type GithubEvidenceSummary } from "@/app/_lib/github-summary";
 import { githubAnalysisSchema } from "@/app/_lib/schemas";
 import { initials } from "@/app/_lib/initials";
+import { postPipelineAction } from "@/app/_lib/useAddToPipeline";
 
 const ACTIONS: { id: TaskId; label: string; icon: typeof Mail; stages: string[] | "all"; note?: string }[] = [
   // Screening is the triage gate for both pre-interview stages (SCREENING_STAGES):
@@ -56,6 +59,13 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
   const search = useSearchParams();
   const t = useTranslations("pipeline.drawer");
   const tActions = useTranslations("pipeline.actions");
+  // d95fed6d — origin-chip labels reuse the channel-name catalog Analytics
+  // already maintains, falling back to the raw id for unmapped values.
+  const tChannels = useTranslations("analytics.channels");
+  const channelName = (channel: string) => {
+    const key = `names.${channel}` as Parameters<typeof tChannels>[0];
+    return tChannels.has(key) ? tChannels(key) : channel;
+  };
   const enumLabel = useEnumLabel();
   const eventVerb = useEventVerb();
   const relativeTime = useRelativeTime();
@@ -97,6 +107,10 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
   // screened → advanced → scheduled → moved → … — so a recruiter opening a
   // candidate sees the story of how they got here, not just the latest state.
   const [history, setHistory] = useState<PipelineEvent[] | null>(null);
+  // c6524f2f — the rest of the candidate's story: analyses, interview, invites,
+  // offer, joined server-side and merged chronologically into the history below.
+  // Comms are excluded here — the drawer has a richer dedicated section above.
+  const [extraTimeline, setExtraTimeline] = useState<CandidateTimelineItem[]>([]);
 
   // Modal focus management: trap Tab within the dialog, close on Escape, and
   // restore focus to the trigger on unmount (WCAG dialog requirements).
@@ -202,7 +216,6 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
     return () => {
       alive = false;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [entry.id]);
 
   // Load this candidate's event timeline (PIPE3). Best-effort: a failed/empty load
@@ -217,10 +230,31 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
       .catch(() => {
         if (alive) setHistory([]);
       });
+    fetch(`/api/pipeline/${encodeURIComponent(entry.id)}/timeline`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (alive && d) {
+          setExtraTimeline(((d.items as CandidateTimelineItem[]) ?? []).filter((i) => i.kind !== "comm"));
+        }
+      })
+      .catch(() => undefined);
     return () => {
       alive = false;
     };
   }, [entry.id]);
+
+  // The unified story: pipeline events + the cross-store chapters, time-ordered.
+  const mergedHistory = useMemo(() => {
+    type Row =
+      | { at: string; key: string; type: "event"; ev: PipelineEvent }
+      | { at: string; key: string; type: "extra"; item: CandidateTimelineItem };
+    const rows: Row[] = [
+      ...(history ?? []).map((ev) => ({ at: ev.createdAt, key: `ev-${ev.id}`, type: "event" as const, ev })),
+      ...extraTimeline.map((item, i) => ({ at: item.at, key: `tl-${i}`, type: "extra" as const, item })),
+    ];
+    rows.sort((a, b) => a.at.localeCompare(b.at));
+    return rows;
+  }, [history, extraTimeline]);
 
   const a = styleFor(entry.archetype);
   const monogram = initials(entry.candidateLabel);
@@ -278,11 +312,7 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
     setMovingStage(true);
     setMoveErr(null);
     try {
-      const res = await fetch(`/api/pipeline/${encodeURIComponent(entry.id)}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "set_stage", toStage, expectedStage: entry.stage }),
-      });
+      const res = await postPipelineAction(entry.id, { action: "set_stage", toStage, expectedStage: entry.stage });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || `Move failed (${res.status})`);
       onChanged();
@@ -455,6 +485,8 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
             <p id="drawer-title" className="truncate font-serif text-lg text-ink">{entry.candidateLabel}</p>
             <p className="truncate text-sm text-steel">
               {enumLabel("archetype", entry.archetype)} · {entry.jobTitle} · <span className="text-ink">{enumLabel("stage", entry.stage)}</span>
+              {/* d95fed6d — provenance: which surface/channel filed this person. */}
+              {entry.sourceChannel ? <> · {t("via", { channel: channelName(entry.sourceChannel) })}</> : null}
             </p>
           </div>
           {entry.matchScore != null ? (
@@ -669,21 +701,28 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
             </div>
           ) : null}
 
-          {history && history.length > 0 ? (
+          {mergedHistory.length > 0 ? (
             <div>
               <p className="flex items-center gap-1.5 text-meta uppercase tracking-wide text-steel">
                 <History size={13} /> {t("history")}
               </p>
               <ol className="mt-2 space-y-1.5">
-                {history.map((ev) => (
-                  <li key={ev.id} className="flex items-start gap-2 text-sm">
-                    <span className="mt-0.5">
-                      <EventDot kind={ev.kind} />
-                    </span>
-                    <span className="min-w-0 flex-1 text-ink">{eventVerb(ev)}</span>
-                    <span className="shrink-0 text-meta text-steel">{relativeTime(ev.createdAt)}</span>
-                  </li>
-                ))}
+                {mergedHistory.map((row) =>
+                  row.type === "event" ? (
+                    <li key={row.key} className="flex items-start gap-2 text-sm">
+                      <span className="mt-0.5">
+                        <EventDot kind={row.ev.kind} />
+                      </span>
+                      <span className="min-w-0 flex-1 text-ink">{eventVerb(row.ev)}</span>
+                      <span className="shrink-0 text-meta text-steel">{relativeTime(row.ev.createdAt)}</span>
+                    </li>
+                  ) : (
+                    <li key={row.key} className="flex items-start gap-2 text-sm">
+                      <TimelineItemRow item={row.item} />
+                      <span className="shrink-0 text-meta text-steel">{relativeTime(row.item.at)}</span>
+                    </li>
+                  )
+                )}
               </ol>
             </div>
           ) : null}
@@ -915,5 +954,54 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
         </div>
       </aside>
     </div>
+  );
+}
+
+// c6524f2f — one row of the cross-store timeline chapters (analysis /
+// interview / invite / offer), merged into the history list above. An analysis
+// row deep-links to its saved report and carries the recruiter's disposition.
+function TimelineItemRow({ item }: { item: CandidateTimelineItem }) {
+  const t = useTranslations("pipeline.drawer.timeline");
+  const tDisposition = useTranslations("history.disposition");
+  const Icon =
+    item.kind === "analysis" ? FileText : item.kind === "interview" ? Phone : item.kind === "invite" ? Calendar : Banknote;
+  const label = (() => {
+    switch (item.kind) {
+      case "analysis":
+        return item.score != null ? t("analysis", { score: item.score }) : t("analysisNoScore");
+      case "interview":
+        return item.status === "completed" ? t("interviewCompleted") : t("interviewCreated");
+      case "invite":
+        return item.status === "confirmed" ? `${t("inviteConfirmed")}${item.slot ? ` — ${item.slot}` : ""}` : t("inviteSent");
+      case "offer":
+        return item.status === "accepted" ? t("offerAccepted") : item.status === "declined" ? t("offerDeclined") : t("offerExtended");
+      default:
+        return item.kind;
+    }
+  })();
+  const disposition =
+    item.kind === "analysis" && item.disposition && ["advance", "hold", "pass"].includes(item.disposition)
+      ? tDisposition(item.disposition as "advance" | "hold" | "pass")
+      : null;
+  return (
+    <>
+      <Icon size={13} className="mt-0.5 shrink-0 text-steel" aria-hidden />
+      <span className="min-w-0 flex-1 text-ink">
+        {label}
+        {disposition ? (
+          <span className="ml-1.5 rounded-full bg-stone-100 px-1.5 py-0.5 text-meta font-semibold uppercase text-steel">
+            {disposition}
+          </span>
+        ) : null}
+        {item.kind === "analysis" && item.slug ? (
+          <Link
+            href={`/history/${encodeURIComponent(item.slug)}`}
+            className="focus-ring ml-1.5 font-semibold text-coral hover:underline"
+          >
+            {t("openReport")}
+          </Link>
+        ) : null}
+      </span>
+    </>
   );
 }

@@ -12,9 +12,10 @@ import {
 } from "./db";
 import { getSchedule, POLICY_JOB } from "./scheduler-store";
 import { resolveCandidatePoolEntry } from "./candidate-pool";
-import { cleanupWorkdir, createWorkdir, parsePythonJson, parseStderrError, spawnPython } from "./python-runner";
+import { cleanupWorkdir, createWorkdir, parsePythonJson, parseStderrError, PipelineError, spawnPython } from "./python-runner";
+import { rankPoolForJob } from "./recruiter-run";
 import { dispatchRejection } from "./comms-dispatch";
-import { assertAutoRejectFair } from "./automation-fairness";
+import { assertAutoRejectFair, type AutoRejectVerdict } from "./automation-fairness";
 import type { DecisionOutcome } from "./decision-attribution";
 
 // Audit event kind logged when the TS fairness backstop refuses a Python reject
@@ -22,6 +23,43 @@ import type { DecisionOutcome } from "./decision-attribution";
 // tried to auto-reject an entry the fairness invariant protects — see
 // automation-fairness.ts (assertAutoRejectFair).
 export const FAIRNESS_BLOCKED_REJECT_ALERT = "fairness_gate_blocked_reject";
+
+// THE single encoding of the fairness-backstop downgrade, shared by the dry-run
+// preview loop and the commit loop so the preview provably shows the SAME verdict
+// the commit enforces (the spec-pinned "preview must match commit" guarantee —
+// docs/AUTOMATION_SPEC.md §risks). On an allowed verdict it does nothing and
+// returns false; on a refused verdict it downgrades the decision to a hold,
+// rewrites the reason, appends the dedup alert, bumps `summary.held`, and returns
+// true. `preview` selects only the "would be refused" vs "refused" wording so a
+// dry run reads as a forecast while the commit reads as an applied refusal —
+// every other byte is identical across the two callers.
+// Optimistic-CAS stale handling, shared by the advance and reject apply branches:
+// when actOnPipelineEntry refuses because the snapshot stage no longer holds (a
+// recruiter or concurrent pass moved the entry during the Python hop), turn the
+// decision into a no-op and record WHY, instead of acting on whatever stage the
+// entry is in now. The single encoding so both stale branches skip identically.
+function markStaleSkip(d: AutomationDecision): void {
+  d.action = "none";
+  d.outcome = "skipped";
+  d.reason = `Skipped: stage changed mid-pass. Original policy decision: ${d.reason}`;
+}
+
+function applyFairnessVerdict(
+  d: AutomationDecision,
+  verdict: AutoRejectVerdict,
+  summary: AutomationSummary,
+  preview: boolean
+): boolean {
+  if (verdict.allowed) return false;
+  d.action = "hold";
+  d.outcome = "fairness_blocked";
+  d.reason = `Auto-reject ${preview ? "would be refused" : "refused"} by fairness backstop: ${verdict.reason}. Original policy decision: ${d.reason}`;
+  d.alerts = (d.alerts ?? []).includes(FAIRNESS_BLOCKED_REJECT_ALERT)
+    ? d.alerts
+    : [...(d.alerts ?? []), FAIRNESS_BLOCKED_REJECT_ALERT];
+  summary.held += 1;
+  return true;
+}
 
 // Task 7 — deterministic policy pass over all active entries. LLM-free. Extracted
 // from the route so it has ONE home shared by /api/automation/run (the button +
@@ -108,32 +146,22 @@ async function scoreUnscoredEntries(entries: AutomationEntry[], dryRun: boolean)
   }
 
   for (const [jobId, group] of byJob) {
-    let workdir: string | null = null;
     try {
       const candidates = group
         .map((e) => resolveCandidatePoolEntry(e.candidateId as string, e.candidateLabel))
         .filter((c): c is NonNullable<typeof c> => c !== null);
       if (candidates.length === 0) continue;
 
-      workdir = await createWorkdir();
-      const inputPath = path.join(workdir, "recruiter.json");
-      await writeFile(inputPath, JSON.stringify({ jobId, candidates }), "utf-8");
-      const args = ["-m", "pipeline.jobfit.recruiter_cli", "--input-json", inputPath];
       // Pass the DB job directly when it exists, so ingested (non-corpus) jobs
-      // score too — same contract as the candidates route.
+      // score too — same contract as the candidates route. A CLI failure throws a
+      // PipelineError, caught below so the bad job is skipped and the sweep
+      // continues (the entry stays held exactly as before).
       const job = getJob(jobId);
-      if (job) {
-        const jobPath = path.join(workdir, "job.json");
-        await writeFile(jobPath, JSON.stringify(job), "utf-8");
-        args.push("--job-json", jobPath);
-      }
-      const { result } = spawnPython(args);
-      const { stdout, stderr, exitCode } = await result;
-      if (exitCode !== 0) {
-        console.error(`[automation-pass] auto-score failed for job ${jobId}: ${parseStderrError(stderr, exitCode).message}`);
-        continue;
-      }
-      const payload = parsePythonJson<{ candidates?: { candidateId?: string; result?: { total?: number } }[] }>(stdout, stderr);
+      const payload = await rankPoolForJob<{ candidates?: { candidateId?: string; result?: { total?: number } }[] }>(
+        jobId,
+        candidates,
+        job,
+      );
       const scoreById = new Map<string, number>();
       for (const row of payload.candidates ?? []) {
         const total = row.result?.total;
@@ -157,9 +185,11 @@ async function scoreUnscoredEntries(entries: AutomationEntry[], dryRun: boolean)
         }
       }
     } catch (error) {
-      console.error(`[automation-pass] auto-score sweep failed for job ${jobId}`, error);
-    } finally {
-      if (workdir) await cleanupWorkdir(workdir);
+      if (error instanceof PipelineError) {
+        console.error(`[automation-pass] auto-score failed for job ${jobId}: ${error.message}`);
+      } else {
+        console.error(`[automation-pass] auto-score sweep failed for job ${jobId}`, error);
+      }
     }
   }
 }
@@ -202,16 +232,8 @@ async function executeAutomationPass(dryRun: boolean): Promise<AutomationPassRes
           summary.advanced += 1;
         } else if (d.action === "reject") {
           const verdict = assertAutoRejectFair(byId.get(d.entryId));
-          if (verdict.allowed) {
+          if (!applyFairnessVerdict(d, verdict, summary, true)) {
             summary.rejected += 1;
-          } else {
-            d.action = "hold";
-            d.outcome = "fairness_blocked"; // the preview must show this louder than a routine hold
-            d.reason = `Auto-reject would be refused by fairness backstop: ${verdict.reason}. Original policy decision: ${d.reason}`;
-            d.alerts = (d.alerts ?? []).includes(FAIRNESS_BLOCKED_REJECT_ALERT)
-              ? d.alerts
-              : [...(d.alerts ?? []), FAIRNESS_BLOCKED_REJECT_ALERT];
-            summary.held += 1;
           }
         } else if (d.action === "hold") {
           summary.held += 1;
@@ -247,9 +269,7 @@ async function executeAutomationPass(dryRun: boolean): Promise<AutomationPassRes
           summary.advanced += 1;
           d.outcome = "applied";
         } else {
-          d.action = "none";
-          d.outcome = "skipped";
-          d.reason = `Skipped: stage changed mid-pass. Original policy decision: ${d.reason}`;
+          markStaleSkip(d);
         }
       } else if (d.action === "reject") {
         // Defense in depth: re-assert the fairness invariant before applying a
@@ -257,7 +277,15 @@ async function executeAutomationPass(dryRun: boolean): Promise<AutomationPassRes
         // emitted a reject for a protected/unscored/at-or-above-floor entry, REFUSE
         // it — downgrade to a hold + alert rather than silently auto-rejecting.
         const verdict = assertAutoRejectFair(byId.get(d.entryId));
-        if (verdict.allowed && rejectMode === "approve") {
+        // Refused → the shared helper downgrades to a hold + dedup alert (sets
+        // outcome=fairness_blocked, bumps summary.held, appends the alert recorded
+        // by the loop below), routed to the human Decisions gate rather than
+        // actioned. Otherwise, in supervised "approve" mode (the default) the
+        // fairness-cleared reject is QUEUED for a human click instead of applied;
+        // only "auto" mode applies + emails it unattended.
+        if (applyFairnessVerdict(d, verdict, summary, false)) {
+          // refused — the helper already downgraded this decision to a hold.
+        } else if (rejectMode === "approve") {
           // Supervised mode: queue the fairness-cleared reject for a human click.
           // The payload uses the screening-review shape AiReviewCard already
           // renders; evaluate_entry freezes entries with a pending approval, so
@@ -276,7 +304,7 @@ async function executeAutomationPass(dryRun: boolean): Promise<AutomationPassRes
           d.outcome = "queued";
           d.reason = `Queued for approval: ${d.reason}`;
           summary.held += 1; // routed to the human Decisions gate, not actioned
-        } else if (verdict.allowed) {
+        } else {
           const rejected = actOnPipelineEntry(d.entryId, "reject", d.reason, { expectedStage: snapshotStage, actor: "system" }); // logs `auto_rejected`
           if (rejected) {
             // The DB transition is committed — count it BEFORE the comm hop, so a
@@ -299,20 +327,8 @@ async function executeAutomationPass(dryRun: boolean): Promise<AutomationPassRes
           } else {
             // Stale (stage changed mid-pass) — and crucially, NO rejection email
             // went out for a verdict the entry's current state never earned.
-            d.action = "none";
-            d.outcome = "skipped";
-            d.reason = `Skipped: stage changed mid-pass. Original policy decision: ${d.reason}`;
+            markStaleSkip(d);
           }
-        } else {
-          d.action = "hold";
-          d.outcome = "fairness_blocked";
-          d.reason = `Auto-reject refused by fairness backstop: ${verdict.reason}. Original policy decision: ${d.reason}`;
-          // Surface it as an alert; the loop below records it (deduped per day) and
-          // counts it, so the refusal shows up in the Activity feed for audit.
-          d.alerts = (d.alerts ?? []).includes(FAIRNESS_BLOCKED_REJECT_ALERT)
-            ? d.alerts
-            : [...(d.alerts ?? []), FAIRNESS_BLOCKED_REJECT_ALERT];
-          summary.held += 1; // routed to the human Decisions gate, not actioned
         }
       } else if (d.action === "hold") {
         summary.held += 1;

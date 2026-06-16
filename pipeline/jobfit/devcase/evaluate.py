@@ -13,7 +13,7 @@ import logging
 from typing import Any
 
 from .models import RUBRIC_DIMENSIONS
-from .provenance import generate_with_fallback
+from .provenance import generate_with_fallback, str_list as _str_list
 
 CASE_EVAL_PROMPT_VERSION = "case-eval-v1"
 TRANSFER_PROMPT_VERSION = "transfer-v1"
@@ -45,12 +45,6 @@ def _generate(provider: Any | None, prompt: str, deterministic, coerce) -> tuple
     # Shared LLM-or-deterministic runner: on an LLM failure it logs the cause at WARNING
     # and stashes a one-line fallbackReason on the artifact (see provenance.generate_with_fallback).
     return generate_with_fallback(provider, prompt, _SYSTEM, deterministic, coerce, _LOG)
-
-
-def _str_list(value: Any) -> list[str]:
-    if not isinstance(value, list):
-        return []
-    return [str(x).strip() for x in value if str(x).strip()]
 
 
 def _pct(x: float) -> int:

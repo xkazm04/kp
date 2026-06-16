@@ -134,11 +134,24 @@ export function studentPrepRunOfShow(
 
 // ---- Shared persona contract -------------------------------------------------
 
+// The two compliance-relevant persona lines that are byte-identical across EVERY
+// runtime brief builder (this module's two briefs + interview-run's composeBrief/
+// composeDebriefBrief + voice/index's defaultInterviewerInstructions): the agent's
+// gender→Czech-grammar instruction and the Czech/English language-detection rule.
+// Exported as the single source so a wording change (or a future neutral/female
+// variant) lands once instead of being hand-applied in five places. The other
+// persona lines (AI disclosure phrasing, role intro, closing verb) legitimately
+// differ per builder and are intentionally NOT shared here.
+export const PERSONA_GENDER_GRAMMAR =
+  "You are male — when you speak Czech, use masculine grammatical forms for yourself (e.g. „rád bych“, „zeptal bych se“, „řekl jsem“).";
+export const PERSONA_LANGUAGE_DETECT =
+  "Detect whether the candidate speaks Czech or English and respond in that language; follow them if they switch.";
+
 function personaLines(company: string, role: string, name: string): string[] {
   return [
     `You are a warm, professional first-round interviewer at ${company} for ${role}, speaking with an EARLY-CAREER candidate — a student with little or no formal work history.${name}`,
-    "You are male — when you speak Czech, use masculine grammatical forms for yourself (e.g. „rád bych“, „zeptal bych se“, „řekl jsem“).",
-    "Detect whether the candidate speaks Czech or English and respond in that language; follow them if they switch.",
+    PERSONA_GENDER_GRAMMAR,
+    PERSONA_LANGUAGE_DETECT,
     "Begin by briefly introducing yourself as an AI assistant and the purpose of the conversation in two sentences, and mention that the call is transcribed for a human recruiter.",
   ];
 }

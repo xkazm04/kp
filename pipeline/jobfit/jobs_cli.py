@@ -41,11 +41,11 @@ def main(argv: list[str] | None = None) -> int:
             text = args.ad_file.read_text(encoding="utf-8") if args.ad_file else sys.stdin.read()
             if not text.strip():
                 raise ValueError("ingest requires non-empty ad text")
-            from .claude_cli import ClaudeCliError, ClaudeCliProvider
+            from .llm import resolve_provider
 
-            provider = ClaudeCliProvider(timeout=120)
+            provider = resolve_provider("jd_ingest", timeout=120)
             if not provider.available():
-                raise ClaudeCliError("Claude CLI not available for ad ingestion")
+                raise RuntimeError("No LLM provider available for ad ingestion (configure one in Models, or install the Claude CLI).")
             job = ingest_raw_ad(text, provider=provider, job_id=args.job_id)
             source = "llm"
     except Exception as exc:  # noqa: BLE001 — clean error envelope on stderr

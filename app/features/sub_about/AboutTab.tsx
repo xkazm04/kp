@@ -2,15 +2,20 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Play } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Markdown } from "../../_components/Markdown";
+import { useSimulation } from "@/app/features/simulation/SimulationProvider";
 import { allCoverageItems, coverageGroups, GROUP_EARLY, type CoverageItem } from "./AboutCoverageData";
 import { StudentsAbout } from "./StudentsAbout";
 
 export function AboutTab() {
   const t = useTranslations("about");
   const [selected, setSelected] = useState<CoverageItem>(allCoverageItems[0]);
+  // 5d2e0998 — the guided tour's persistent home: About explains the product,
+  // the simulation SHOWS it (Design → Source → Screen → Interview → Offer →
+  // Hired, live, across the real tabs).
+  const sim = useSimulation();
 
   return (
     <section className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
@@ -24,12 +29,24 @@ export function AboutTab() {
             dashed: (chunks) => <span className="font-medium text-steel">{chunks}</span>,
           })}
         </p>
-        <Link
-          href="/diagrams"
-          className="focus-ring mt-3 inline-flex items-center gap-1.5 text-base font-medium text-coral hover:underline"
-        >
-          {t("archLink")} <ArrowRight size={15} />
-        </Link>
+        <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-1.5">
+          <Link
+            href="/diagrams"
+            className="focus-ring inline-flex items-center gap-1.5 text-base font-medium text-coral hover:underline"
+          >
+            {t("archLink")} <ArrowRight size={15} />
+          </Link>
+          {!sim.running ? (
+            <button
+              type="button"
+              onClick={sim.start}
+              title={t("tourTitle")}
+              className="focus-ring inline-flex items-center gap-1.5 text-base font-medium text-coral hover:underline"
+            >
+              <Play size={15} aria-hidden /> {t("tourLink")}
+            </button>
+          ) : null}
+        </div>
       </header>
 
       <div className="mt-5 grid gap-5 lg:grid-cols-[280px_minmax(0,1fr)]">

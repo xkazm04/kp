@@ -20,7 +20,7 @@ returning garbage; with it an operator/UI can tell those apart.
 from __future__ import annotations
 
 import logging
-from typing import Any, Callable
+from typing import Any, Callable, Iterable
 
 # The three provenance states a (multi-)step run can collapse to.
 SOURCE_LLM = "llm"
@@ -37,6 +37,41 @@ FALLBACK_REASON_KEY = "fallbackReason"
 # Cap the captured message so a verbose provider error body (e.g. an echoed prompt or a
 # 300-char unparsed-JSON snippet) can't bloat the envelope or a log line.
 _MAX_REASON_CHARS = 300
+
+
+def str_list(value: Any) -> list[str]:
+    """Coerce arbitrary model output into a clean ``list[str]``.
+
+    Drops non-list input and any blank entries, stringifying + stripping the rest.
+    Shared by every devcase artifact ``coerce()`` (analyze/design/evaluate/reflect)
+    so the four steps clean LLM lists identically and can't drift.
+    """
+    if not isinstance(value, list):
+        return []
+    return [str(x).strip() for x in value if str(x).strip()]
+
+
+def collect_fallback_reasons(
+    pairs: Iterable[tuple[str, Any]], *, pop: bool = False
+) -> dict[str, str]:
+    """Lift per-step fallback reasons off a list of ``(step, artifact)`` pairs.
+
+    One definition of the fallback-reason contract — the key name, the dict-guard,
+    and the skip-when-empty rule — shared by ``devcase_cli`` and both eval harnesses
+    so a change to how a degraded step is recorded can't drift between them. Pass
+    ``pop=True`` (the CLI) to REMOVE the key from the artifact so it rides in the
+    envelope instead of the model round-trip; the default reads it non-destructively
+    (the harnesses, which keep the artifacts intact). Steps whose LLM call never
+    raised carry no reason and are omitted.
+    """
+    out: dict[str, str] = {}
+    for step, art in pairs:
+        if not isinstance(art, dict):
+            continue
+        reason = art.pop(FALLBACK_REASON_KEY, None) if pop else art.get(FALLBACK_REASON_KEY)
+        if reason:
+            out[step] = str(reason)
+    return out
 
 
 def combine_source(*srcs: str) -> str:

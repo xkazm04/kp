@@ -15,13 +15,26 @@ import {
   updateProfile,
 } from "@/app/_lib/db";
 import { applyDedupeKey, applyKoSteps, buildApplyProfileDraft, buildApplyScript, FALLBACK_ARCHETYPE } from "@/app/_lib/apply";
-import { ANONYMOUS_APPLICANT_LABEL, coerceGithubHandle, coerceLeadTokenParam, failedKoStepIds } from "@/app/_lib/apply-intake";
+import { ANONYMOUS_APPLICANT_LABEL, APPLY_EMAIL_RE, coerceGithubHandle, coerceLeadTokenParam, failedKoStepIds } from "@/app/_lib/apply-intake";
 import { getJobStatus, isJobOpenForApplications } from "@/app/_lib/job-ingest";
 import { dispatchApplicationReceived } from "@/app/_lib/comms-dispatch";
 import type { ApplyAnswers } from "@/app/_lib/apply-intake";
 import { cleanupWorkdir, createWorkdir, parsePythonJson, spawnPython } from "@/app/_lib/python-runner";
 import { validateProfileCliResult } from "@/app/_lib/apply-profile-result";
 import { randomId } from "@/app/_lib/random-id";
+import { getOrCreateStatusLink } from "@/app/_lib/application-status-store";
+
+// Mint (or reuse) the candidate's status-link token for an entry (idea-e76a6fb2),
+// best-effort: the application already succeeded, so a status-link failure must
+// never turn it into an error — the candidate just doesn't get the tracking link.
+function safeStatusLink(entryId: string): string | null {
+  try {
+    return getOrCreateStatusLink(entryId);
+  } catch (err) {
+    console.error(`[apply] could not mint status link for entry ${entryId}:`, err instanceof Error ? err.message : err);
+    return null;
+  }
+}
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -133,23 +146,6 @@ async function buildApplicantProfile(
   }
 }
 
-// GET → the conversational apply script for a job (capture + KO questions).
-// The apply PAGE no longer hits this route on load: page.tsx server-builds the
-// same script (buildApplyScript) from its own getJob and passes it to the client
-// as a prop, sparing a round-trip and a duplicate getJob per page view. This
-// route is retained for any standalone use of the script.
-// SINGLE SOURCE OF TRUTH: page.tsx owns the apply header (role title / company),
-// rendered from its own server-side getJob. This endpoint deliberately returns
-// ONLY `steps` — no `job` payload — so there is no second, divergent read of the
-// same record for a caller to (mis)use.
-export async function GET(_request: NextRequest, context: { params: Promise<{ id: string }> }) {
-  const { id } = await context.params;
-  const job = getJob(id);
-  if (!job) return NextResponse.json({ error: "Role not found." }, { status: 404 });
-  const t = await getTranslations("apply");
-  return NextResponse.json({ steps: buildApplyScript(job, t) });
-}
-
 // Record the renewed interest on the applicant's ORIGINAL entry and return the
 // "already applied" acknowledgment. Shared by BOTH dedup paths — the primary
 // name-based check and the dedupeKey backstop race — so the event name and
@@ -167,7 +163,9 @@ function acknowledgeReapply(entryId: string, message: string, changes: string[] 
     ? `repeat application via conversational apply — ${changes.join("; ")}`
     : "repeat application via conversational apply";
   recordAutomationEvent(entryId, "re_applied", detail);
-  return NextResponse.json({ result: "accepted", duplicate: true, enriched, message });
+  // The repeat reuses the ORIGINAL entry, so it returns the SAME status link
+  // (getOrCreateStatusLink is keyed on entry_id) — a returning candidate can track.
+  return NextResponse.json({ result: "accepted", duplicate: true, enriched, message, statusToken: safeStatusLink(entryId) });
 }
 
 // POST → evaluate KO answers. Pass → create an Accepted pipeline entry; fail → a
@@ -286,7 +284,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     if (email.length > MAX_EMAIL_LENGTH) {
       return NextResponse.json({ error: "Your email is too long." }, { status: 400 });
     }
-    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    if (email && !APPLY_EMAIL_RE.test(email)) {
       return NextResponse.json({ error: "Please enter a valid email address." }, { status: 400 });
     }
 
@@ -300,6 +298,23 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     const leadToken = coerceLeadTokenParam(body.lead);
     const leadTarget = leadToken ? findEntryByLeadToken(leadToken) : null;
     const leadEntry = leadTarget && leadTarget.entry.jobId === job.id ? leadTarget.entry : null;
+
+    // The captured intake answers, assembled once from the parsed locals so the
+    // re-apply rebuild and the first-apply build are guaranteed to feed
+    // buildApplicantProfile the identical answer set (they differ only in whether
+    // a target profile id is passed).
+    const intakeAnswers: ApplyAnswers = {
+      name,
+      experience,
+      skills,
+      archetype,
+      studentProject,
+      studentEducation,
+      studentAspirations,
+      switchPrior,
+      switchAspirations,
+      cvText,
+    };
 
     // Duplicate-application policy (primary check): if this named applicant has
     // already applied to this role, surface the repeat on the original entry and
@@ -335,22 +350,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
           changes.push("GitHub handle captured");
         }
         if (cvText || existing.intakeDegraded) {
-          const rebuilt = await buildApplicantProfile(
-            job,
-            {
-              name,
-              experience,
-              skills,
-              archetype,
-              studentProject,
-              studentEducation,
-              studentAspirations,
-              switchPrior,
-              switchAspirations,
-              cvText,
-            },
-            existing.candidateId
-          );
+          const rebuilt = await buildApplicantProfile(job, intakeAnswers, existing.candidateId);
           if (rebuilt.ok) {
             updates.candidateId = rebuilt.id;
             updates.archetype = rebuilt.archetype;
@@ -388,18 +388,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     // Build a real, matchable V2 candidate from the answers; on failure fall back
     // to a label-only id AND flag the entry intake-degraded so the recruiter sees
     // a stub that needs manual profile capture (rather than a silent demotion).
-    const built = await buildApplicantProfile(job, {
-      name,
-      experience,
-      skills,
-      archetype,
-      studentProject,
-      studentEducation,
-      studentAspirations,
-      switchPrior,
-      switchAspirations,
-      cvText,
-    });
+    const built = await buildApplicantProfile(job, intakeAnswers);
     const candidateId = built.ok ? built.id : randomId("apply");
 
     const { entry, created } = createPipelineEntry({
@@ -462,6 +451,9 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     return NextResponse.json({
       result: "accepted",
       message: t("acceptedMessage"),
+      // A tokenized link so the applicant can track their status (idea-e76a6fb2)
+      // instead of going dark after applying.
+      statusToken: safeStatusLink(entry.id),
     });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "apply failed" }, { status: 500 });

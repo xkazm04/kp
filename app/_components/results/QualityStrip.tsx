@@ -1,9 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { AlertTriangle, Check, ChevronDown, ChevronRight } from "lucide-react";
+import { AlertTriangle, Check, ChevronDown, ChevronRight, ShieldCheck } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { splitSanityChecks } from "@/app/_lib/sanity-checks";
+import { authenticityBand, splitSanityChecks } from "@/app/_lib/sanity-checks";
 
 // The engine's per-analysis trust ledger (`sanityChecks`), surfaced (SCOR2).
 // The pipeline states every repair, degradation and self-contradiction it
@@ -18,6 +18,9 @@ export function QualityStrip({ checks }: { checks: string[] }) {
   const t = useTranslations("results.quality");
   const [open, setOpen] = useState(false);
   const { warns, oks } = splitSanityChecks(checks);
+  // idea-cae71d45 — the CV-authenticity trust band, derived from the
+  // `Authenticity:` findings the engine folded into the trust ledger.
+  const band = authenticityBand(checks);
   if (checks.length === 0) return null;
 
   const toggle = (
@@ -39,6 +42,7 @@ export function QualityStrip({ checks }: { checks: string[] }) {
         <div className="flex flex-wrap items-center gap-2">
           <Check size={14} className="text-moss" aria-hidden />
           <span>{t("allPassed", { count: checks.length })}</span>
+          {band ? <TrustBand band={band} /> : null}
           <span className="ml-auto">{toggle}</span>
         </div>
         {open ? <CheckList items={oks} tone="ok" /> : null}
@@ -54,11 +58,25 @@ export function QualityStrip({ checks }: { checks: string[] }) {
         <span className="rounded-full bg-amber-600 px-2.5 py-0.5 text-sm font-semibold text-white">
           {t("flagged", { count: warns.length })}
         </span>
+        {band ? <TrustBand band={band} /> : null}
         <span className="ml-auto">{toggle}</span>
       </div>
       <CheckList items={warns} tone="warn" />
       {open && oks.length > 0 ? <CheckList items={oks} tone="ok" /> : null}
     </div>
+  );
+}
+
+// idea-cae71d45 — the authenticity trust band chip. High = green, medium = amber,
+// low = coral; the title points the recruiter at the Authenticity lines below.
+function TrustBand({ band }: { band: "high" | "medium" | "low" }) {
+  const t = useTranslations("results.quality");
+  const tone = band === "high" ? "bg-moss/10 text-moss" : band === "medium" ? "bg-amber-100 text-amber-800" : "bg-coral/10 text-coral";
+  const label = band === "high" ? t("trustHigh") : band === "medium" ? t("trustMedium") : t("trustLow");
+  return (
+    <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-sm font-semibold ${tone}`} title={t("trustTitle")}>
+      <ShieldCheck size={12} aria-hidden /> {label}
+    </span>
   );
 }
 

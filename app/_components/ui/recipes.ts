@@ -59,3 +59,19 @@ export const BTN_SECONDARY =
 
 /** Text input / textarea / select base. */
 export const FIELD = "rounded-md border border-stone-200 bg-white px-3 py-1.5 text-base text-ink";
+
+/** Segmented aria-pressed toggle group wrapper (ThemeToggle / LanguageSwitcher
+ *  sidebar footer toggles). The bordered pill rail; pair with role="group". Note
+ *  these use button-group (aria-pressed) semantics — distinct from the shared
+ *  SegmentedControl's radiogroup/roving-tabindex contract — so only the class
+ *  strings are shared, not the component. */
+export const TOGGLE_GROUP = "inline-flex items-center gap-0.5 rounded-md border border-stone-200 p-0.5";
+
+/** Active/inactive treatment for a button inside a TOGGLE_GROUP — the app's
+ *  bg-ink active pill. Sizing/padding stays at the call site. */
+export const toggleBtn = (isActive: boolean): string =>
+  isActive ? "bg-ink text-white" : "text-steel hover:bg-stone-100";
+
+/** Keycap chip (`<kbd>`) — command palette + keyboard-shortcuts overlay.
+ *  Pair with a type size at the call site (`${KBD} text-sm` / `text-[11px]`). */
+export const KBD = "rounded border border-stone-200 bg-paper px-1.5 py-0.5 font-semibold text-steel";

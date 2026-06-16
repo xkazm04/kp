@@ -1,6 +1,8 @@
 import { ElevenLabsVoiceAdapter } from "./elevenlabs.ts";
 import { OpenAiVoiceAdapter } from "./openai.ts";
 import { QUICK_SCREEN_MIN } from "../interview-duration.mjs";
+import { PERSONA_GENDER_GRAMMAR, PERSONA_LANGUAGE_DETECT } from "../student-interview";
+import { coerceProviderId } from "./types.ts";
 import type { VoiceAdapter, VoiceAvailability, VoiceProviderId } from "./types.ts";
 
 export type { VoiceConnect, VoiceProviderId, VoiceAvailability, VoiceTurn, VoiceAdapter } from "./types.ts";
@@ -19,14 +21,25 @@ export function voiceAvailability(): VoiceAvailability {
   return { openai: adapters.openai.available(), elevenlabs: adapters.elevenlabs.available() };
 }
 
+/** The house default-provider policy: honor an explicitly requested provider,
+ *  otherwise prefer a configured one (OpenAI first), defaulting to openai. Shared
+ *  by the create + simulate routes so a recruiter-created link and a simulator
+ *  link can't default to different providers (the preference order lived twice). */
+export function pickDefaultProvider(
+  requested: unknown,
+  avail: VoiceAvailability = voiceAvailability(),
+): VoiceProviderId {
+  return coerceProviderId(requested) ?? (avail.openai ? "openai" : avail.elevenlabs ? "elevenlabs" : "openai");
+}
+
 /** A neutral first-round interviewer brief. For OpenAI it's the session prompt;
  *  for ElevenLabs the dashboard agent holds the prompt, so this is advisory. */
 export function defaultInterviewerInstructions(opts?: { role?: string | null }): string {
   const role = opts?.role || "an AI / engineering role";
   return [
     `You are a warm, professional first-round screening interviewer for ${role}.`,
-    "You are male — when you speak Czech, use masculine grammatical forms for yourself (e.g. „rád bych“, „zeptal bych se“, „řekl jsem“).",
-    "Detect whether the candidate speaks Czech or English and respond in that language; follow them if they switch.",
+    PERSONA_GENDER_GRAMMAR,
+    PERSONA_LANGUAGE_DETECT,
     "Open with one sentence stating you are an AI assistant running a short first-round screen and that the call is transcribed.",
     "Ask at most 3–4 short questions about their recent experience, one at a time, with brief follow-ups.",
     `Do not give feedback, scores, or any hiring decision. Keep the whole call under ${QUICK_SCREEN_MIN} minutes,`,
