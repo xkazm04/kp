@@ -14,6 +14,7 @@ import { ChainEmptyState } from "@/app/_components/ChainEmptyState";
 import { CandidateDrawer } from "./CandidateDrawer";
 import { PassPreviewModal } from "./PassPreviewModal";
 import { PipelineBoard } from "./PipelineBoard";
+import { CommandBar } from "./CommandBar";
 import { SchedulerControl } from "./SchedulerControl";
 import { EventDot, useEventVerb, useRelativeTime } from "./PipelineShared";
 import { TodayRail } from "./TodayRail";
@@ -636,6 +637,9 @@ export function PipelineTab() {
           </div>
         ) : null}
       </header>
+
+      {/* NL command bar (#7): type an action over the board; preview-then-confirm. */}
+      <CommandBar onExecuted={load} />
 
       {/* One action row: the manual triggers sit alongside the Automation clock. */}
       <div className="flex flex-wrap items-center gap-3">

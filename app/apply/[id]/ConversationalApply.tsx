@@ -598,7 +598,7 @@ export function ConversationalApply({
         </div>
       ) : null}
 
-      <AiDisclosure className="mt-6" />
+      <AiDisclosure className="mt-6" showDataConsent />
     </div>
   );
 }

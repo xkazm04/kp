@@ -53,6 +53,7 @@
     "theRole": "the role",
     "aRole": "a role",
     "yourNewRole": "your new role",
+    "dataFooter": "— — —\nYour data: review what we hold about you, or request its erasure, anytime:\n{link}",
     "ack": {
       "subject": "We received your application — {role}",
       "body": "Hi {name},\n\nThanks for applying for {role} — we've received your application and a recruiter will review it shortly. We'll be in touch about the next steps.\n\nBest,\n{team}",
@@ -122,7 +123,8 @@
   },
   "aiDisclosure": {
     "title": "How this works",
-    "body": "We use AI to assist screening and interviews — assessing your <highlight>skills, experience, and fit</highlight> for the role. A human reviews and makes every advance, offer, and rejection decision; nothing adverse is decided automatically. You can ask for a human review at any point."
+    "body": "We use AI to assist screening and interviews — assessing your <highlight>skills, experience, and fit</highlight> for the role. A human reviews and makes every advance, offer, and rejection decision; nothing adverse is decided automatically. You can ask for a human review at any point.",
+    "dataConsent": "By submitting, you agree we may process your personal data for this role for up to 12 months. You can review or request erasure of your data anytime via the link in our emails."
   },
   "errors": {
     "generic": "Something went wrong. Please try again.",
@@ -190,6 +192,30 @@
     "rsvpCancel": "I can't make it",
     "attendanceConfirmed": "Attendance confirmed — thanks!",
     "rsvpCancelledNote": "Your time has been released. Pick a new one below and we'll let the team know."
+  },
+  "data": {
+    "eyebrow": "Your data",
+    "loadFailed": "This link has expired or is no longer valid.",
+    "eraseFailed": "Could not complete the erasure right now. Please try again.",
+    "forRole": "Your application for {role}",
+    "forRoleGeneric": "Your application",
+    "heldTitle": "What we hold about you",
+    "held": {
+      "cv": "Your CV and the details parsed from it",
+      "contact": "Your contact details (email)",
+      "answers": "The answers you gave when applying",
+      "interview": "Any interview records and notes",
+      "scores": "Our assessment scores for this role"
+    },
+    "appliedOn": "You applied on {date}.",
+    "eraseTitle": "Erase my personal data",
+    "eraseExplainer": "We'll permanently remove your name, contact details, CV and interview records. We keep a de-identified record of the assessment (no personal data) so we can be fair and consistent — it can no longer identify you.",
+    "eraseCta": "Erase my data",
+    "eraseConfirm": "Yes, erase it",
+    "erasing": "Erasing…",
+    "cancel": "Cancel",
+    "erasedTitle": "Your data has been erased",
+    "erasedBody": "We've removed your personal data. Thank you — there's nothing more you need to do."
   },
   "status": {
     "eyebrow": "Application status",
@@ -389,6 +415,7 @@
       "channels": "Channels",
       "decisions": "Decisions",
       "schedule": "Schedule",
+      "onboarding": "Onboarding",
       "jobs": "Jobs",
       "library": "Job descriptions",
       "profile": "Profile",
@@ -540,6 +567,18 @@
       "daysAgo": "{d}d ago",
       "weeksAgo": "{w}w ago",
       "monthsAgo": "{mo}mo ago"
+    },
+    "command": {
+      "placeholder": "Type a command… e.g. reject everyone below 60%",
+      "run": "Run",
+      "examples": "Try: \"reject everyone below 60% on backend\", \"advance the top 3\", \"run the policy pass\".",
+      "affects": "{count, plural, =0 {No candidates match} =1 {1 candidate} other {# candidates}}",
+      "confirm": "Confirm",
+      "running": "Running…",
+      "cancel": "Cancel",
+      "doneCount": "Done — {count, plural, =1 {1 candidate} other {# candidates}} actioned.",
+      "doneSummary": "Policy pass done — {advanced} advanced, {rejected} rejected, {held} held.",
+      "dismiss": "Dismiss"
     },
     "tab": {
       "eyebrow": "Pipeline",
@@ -699,6 +738,32 @@
       "working": "Working…",
       "candidateNotes": "Candidate notes",
       "candidateNotesPlaceholder": "Notes that stay with this candidate — \"wants 80k, available August, prefers hybrid\". Saved automatically.",
+      "consent": {
+        "title": "Data & consent",
+        "loading": "Loading consent…",
+        "loadFailed": "Couldn't load consent details.",
+        "via": "via {source}",
+        "noneNote": "No data-processing consent on file (recruiter-sourced or pre-consent entry).",
+        "granted": "Granted",
+        "expires": "Expires",
+        "anonymized": "Anonymized",
+        "status": {
+          "active": "Consent active",
+          "expiring": "Expiring soon",
+          "expired": "Consent expired",
+          "anonymized": "Anonymized",
+          "none": "No consent"
+        },
+        "event": {
+          "granted": "Consent granted",
+          "renewed": "Consent renewed",
+          "expiring_notified": "Expiry reminder sent",
+          "expired": "Consent expired",
+          "anonymized": "Anonymized (consent lapsed)",
+          "erasure_requested": "Erasure requested",
+          "erased": "Data erased (candidate request)"
+        }
+      },
       "candidateNotesSaving": "Saving…",
       "candidateNotesSaved": "Saved",
       "candidateNotesSaveFailed": "Couldn't save the note.",
@@ -1546,6 +1611,9 @@
       "fairRank": "Fair Rank",
       "fairRankTitle": "Rank by the robust cross-scheme mean instead of each candidate's own-weight score",
       "fairRankNote": "Ranked by the robust mean — each candidate scored under every candidate's weighting, so a candidate strong under all yardsticks beats one merely flattered by their own.",
+      "poolFit": "Pool fit ({count})",
+      "poolFitTitle": "Show only strong matches from your existing pool who aren't in this role's pipeline yet",
+      "poolFitNote": "Showing strong matches already in your candidate pool who haven't been sourced into this role — add the ones worth pursuing.",
       "robustBadge": "robust {mean} ({delta})",
       "robustTitle": "Own-weight score {own}",
       "fairnessAudit": "Fairness audit",
@@ -2096,6 +2164,8 @@
     "hereNow": "· {count} here now",
     "bottleneck": "<b>Bottleneck:</b> the <m>{count}</m> active candidates in <m>{stage}</m> have waited <m>{days} days</m> on average.",
     "viewCandidates": "View candidates →",
+    "stageDwellTitle": "Time in each stage",
+    "stageDwellRow": "avg {days}d · {count} waiting",
     "viewInBoard": "Open these candidates on the pipeline board",
     "windowLabel": "Time window",
     "windowAll": "All time",
@@ -2303,6 +2373,38 @@
       "holdsValue": "{raised} → {resolved}",
       "reviewHolds": "Review pending holds in Decisions",
       "comms": "Comms delivered"
+    }
+  },
+  "onboarding": {
+    "eyebrow": "Hand-off",
+    "title": "Onboarding",
+    "intro": "Run a repeatable checklist for every new hire, collect their pre-boarding details, and track document signatures — picking up where the offer leaves off.",
+    "loading": "Loading…",
+    "readyTitle": "Ready to onboard",
+    "readyEmpty": "No hired candidates waiting. Mark a candidate Hired in the pipeline to start their onboarding.",
+    "aCandidate": "Candidate",
+    "startCta": "Start onboarding",
+    "runsTitle": "In progress",
+    "runsEmpty": "No onboarding runs yet.",
+    "complete": "Complete",
+    "progress": "{done}/{total} done",
+    "back": "Back to onboarding",
+    "checklist": "Checklist",
+    "questionnaire": "Pre-boarding questionnaire",
+    "questionnaireNote": "Details the new hire shares before day one — saved to their record.",
+    "signatures": "Documents to sign",
+    "signSeamNote": "Demo signing — connect an eIDAS provider (e.g. Signicat, DocuSign) to make these legally binding.",
+    "signed": "Signed",
+    "markSigned": "Mark signed",
+    "docPlaceholder": "Document name (e.g. Employment contract)",
+    "requestSign": "Request signature",
+    "field": {
+      "preferredName": "Preferred name",
+      "tshirtSize": "T-shirt size",
+      "dietaryNeeds": "Dietary needs",
+      "equipmentPrefs": "Equipment preferences",
+      "emergencyContact": "Emergency contact",
+      "startDateConfirm": "Confirmed start date"
     }
   },
   "about": {

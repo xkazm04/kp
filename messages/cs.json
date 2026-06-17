@@ -53,6 +53,7 @@
     "theRole": "danou pozici",
     "aRole": "pozice",
     "yourNewRole": "vaši novou roli",
+    "dataFooter": "— — —\nVaše údaje: kdykoli si zkontrolujte, co o vás evidujeme, nebo požádejte o jejich výmaz:\n{link}",
     "ack": {
       "subject": "Přijali jsme vaši přihlášku — {role}",
       "body": "Dobrý den {name},\n\nděkujeme za přihlášku na pozici {role} — vaši přihlášku jsme obdrželi a náborář ji brzy posoudí. Ozveme se vám ohledně dalších kroků.\n\nS pozdravem,\n{team}",
@@ -122,7 +123,8 @@
   },
   "aiDisclosure": {
     "title": "Jak to funguje",
-    "body": "K asistenci při screeningu a pohovorech používáme umělou inteligenci — posuzujeme vaše <highlight>dovednosti, zkušenosti a vhodnost</highlight> pro danou roli. Každé rozhodnutí o postupu, nabídce či zamítnutí přezkoumává a činí člověk; nic nepříznivého se nerozhoduje automaticky. Kdykoli můžete požádat o přezkoumání člověkem."
+    "body": "K asistenci při screeningu a pohovorech používáme umělou inteligenci — posuzujeme vaše <highlight>dovednosti, zkušenosti a vhodnost</highlight> pro danou roli. Každé rozhodnutí o postupu, nabídce či zamítnutí přezkoumává a činí člověk; nic nepříznivého se nerozhoduje automaticky. Kdykoli můžete požádat o přezkoumání člověkem.",
+    "dataConsent": "Odesláním souhlasíte, že můžeme zpracovávat vaše osobní údaje pro tuto pozici po dobu až 12 měsíců. Své údaje můžete kdykoli zkontrolovat nebo požádat o jejich výmaz přes odkaz v našich e-mailech."
   },
   "errors": {
     "generic": "Něco se pokazilo. Zkuste to prosím znovu.",
@@ -190,6 +192,30 @@
     "rsvpCancel": "Nemohu se zúčastnit",
     "attendanceConfirmed": "Účast potvrzena — děkujeme!",
     "rsvpCancelledNote": "Váš termín byl uvolněn. Vyberte si níže nový a dáme týmu vědět."
+  },
+  "data": {
+    "eyebrow": "Vaše údaje",
+    "loadFailed": "Tento odkaz vypršel nebo už není platný.",
+    "eraseFailed": "Výmaz se teď nepodařilo dokončit. Zkuste to prosím znovu.",
+    "forRole": "Vaše přihláška na pozici {role}",
+    "forRoleGeneric": "Vaše přihláška",
+    "heldTitle": "Co o vás evidujeme",
+    "held": {
+      "cv": "Váš životopis a údaje z něj získané",
+      "contact": "Vaše kontaktní údaje (e-mail)",
+      "answers": "Odpovědi, které jste uvedli při přihlášení",
+      "interview": "Případné záznamy a poznámky z pohovoru",
+      "scores": "Naše hodnoticí skóre pro tuto pozici"
+    },
+    "appliedOn": "Přihlásili jste se {date}.",
+    "eraseTitle": "Vymazat mé osobní údaje",
+    "eraseExplainer": "Trvale odstraníme vaše jméno, kontaktní údaje, životopis a záznamy z pohovoru. Ponecháme si pouze anonymizovaný záznam o hodnocení (bez osobních údajů), abychom byli féroví a konzistentní — vás už nijak neidentifikuje.",
+    "eraseCta": "Vymazat mé údaje",
+    "eraseConfirm": "Ano, vymazat",
+    "erasing": "Mažu…",
+    "cancel": "Zrušit",
+    "erasedTitle": "Vaše údaje byly vymazány",
+    "erasedBody": "Vaše osobní údaje jsme odstranili. Děkujeme — nic dalšího nemusíte dělat."
   },
   "status": {
     "eyebrow": "Stav přihlášky",
@@ -389,6 +415,7 @@
       "channels": "Kanály",
       "decisions": "Rozhodnutí",
       "schedule": "Plánování",
+      "onboarding": "Onboarding",
       "jobs": "Pozice",
       "library": "Popisy pozic",
       "profile": "Profil",
@@ -540,6 +567,18 @@
       "daysAgo": "před {d} d",
       "weeksAgo": "před {w} týd",
       "monthsAgo": "před {mo} měs"
+    },
+    "command": {
+      "placeholder": "Napište příkaz… např. zamítni všechny pod 60 %",
+      "run": "Spustit",
+      "examples": "Zkuste: „zamítni všechny pod 60 % na backend“, „posuň první 3“, „spusť policy pass“.",
+      "affects": "{count, plural, =0 {Žádní kandidáti} =1 {1 kandidát} few {# kandidáti} other {# kandidátů}}",
+      "confirm": "Potvrdit",
+      "running": "Spouštím…",
+      "cancel": "Zrušit",
+      "doneCount": "Hotovo — zpracováno {count, plural, =1 {1 kandidát} few {# kandidáti} other {# kandidátů}}.",
+      "doneSummary": "Policy pass dokončen — {advanced} posunuto, {rejected} zamítnuto, {held} pozdrženo.",
+      "dismiss": "Zavřít"
     },
     "tab": {
       "eyebrow": "Nábor",
@@ -699,6 +738,32 @@
       "working": "Pracuji…",
       "candidateNotes": "Poznámky ke kandidátovi",
       "candidateNotesPlaceholder": "Poznámky, které u kandidáta zůstanou — „chce 80 tisíc, k dispozici od srpna, preferuje hybrid“. Ukládá se automaticky.",
+      "consent": {
+        "title": "Údaje a souhlas",
+        "loading": "Načítám souhlas…",
+        "loadFailed": "Údaje o souhlasu se nepodařilo načíst.",
+        "via": "přes {source}",
+        "noneNote": "Žádný souhlas se zpracováním údajů (záznam od náboráře nebo bez souhlasu).",
+        "granted": "Udělen",
+        "expires": "Vyprší",
+        "anonymized": "Anonymizováno",
+        "status": {
+          "active": "Souhlas platný",
+          "expiring": "Brzy vyprší",
+          "expired": "Souhlas vypršel",
+          "anonymized": "Anonymizováno",
+          "none": "Bez souhlasu"
+        },
+        "event": {
+          "granted": "Souhlas udělen",
+          "renewed": "Souhlas obnoven",
+          "expiring_notified": "Odeslána připomínka vypršení",
+          "expired": "Souhlas vypršel",
+          "anonymized": "Anonymizováno (souhlas vypršel)",
+          "erasure_requested": "Vyžádán výmaz",
+          "erased": "Údaje vymazány (žádost kandidáta)"
+        }
+      },
       "candidateNotesSaving": "Ukládám…",
       "candidateNotesSaved": "Uloženo",
       "candidateNotesSaveFailed": "Poznámku se nepodařilo uložit.",
@@ -1546,6 +1611,9 @@
       "fairRank": "Spravedlivé pořadí",
       "fairRankTitle": "Seřadit podle robustního průměru napříč schématy místo skóre podle vlastních vah kandidáta",
       "fairRankNote": "Seřazeno podle robustního průměru — každý kandidát ohodnocen podle vah všech kandidátů, takže kandidát silný podle všech měřítek překoná toho, komu lichotí jen jeho vlastní váhy.",
+      "poolFit": "Vhodní z databáze ({count})",
+      "poolFitTitle": "Zobrazit jen silné shody z vaší stávající databáze, které ještě nejsou v pipeline této role",
+      "poolFitNote": "Zobrazují se silné shody, které už máte v databázi kandidátů, ale dosud nebyly zařazeny do této role — přidejte ty, o které stojí za to usilovat.",
       "robustBadge": "robustní {mean} ({delta})",
       "robustTitle": "Skóre podle vlastních vah {own}",
       "fairnessAudit": "Audit spravedlnosti",
@@ -2096,6 +2164,8 @@
     "hereNow": "· {count} zde nyní",
     "bottleneck": "<b>Úzké hrdlo:</b> <m>{count}</m> aktivních kandidátů ve fázi <m>{stage}</m> čekalo v průměru <m>{days} dní</m>.",
     "viewCandidates": "Zobrazit kandidáty →",
+    "stageDwellTitle": "Čas v jednotlivých fázích",
+    "stageDwellRow": "průměr {days} d · {count} čeká",
     "viewInBoard": "Otevřít tyto kandidáty na pipeline nástěnce",
     "windowLabel": "Časové okno",
     "windowAll": "Za celou dobu",
@@ -2303,6 +2373,38 @@
       "holdsValue": "{raised} → {resolved}",
       "reviewHolds": "Zkontrolovat čekající pozdržení v Rozhodnutích",
       "comms": "Doručená komunikace"
+    }
+  },
+  "onboarding": {
+    "eyebrow": "Předání",
+    "title": "Onboarding",
+    "intro": "Spusťte pro každého nového kolegu opakovatelný checklist, shromážděte jeho údaje před nástupem a sledujte podpisy dokumentů — navazuje tam, kde končí nabídka.",
+    "loading": "Načítám…",
+    "readyTitle": "Připraveni k onboardingu",
+    "readyEmpty": "Žádní přijatí kandidáti nečekají. Označte kandidáta v pipeline jako Přijatý a spusťte jeho onboarding.",
+    "aCandidate": "Kandidát",
+    "startCta": "Spustit onboarding",
+    "runsTitle": "Probíhá",
+    "runsEmpty": "Zatím žádné onboardingy.",
+    "complete": "Hotovo",
+    "progress": "{done}/{total} hotovo",
+    "back": "Zpět na onboarding",
+    "checklist": "Checklist",
+    "questionnaire": "Dotazník před nástupem",
+    "questionnaireNote": "Údaje, které nový kolega sdílí před prvním dnem — uloží se do jeho záznamu.",
+    "signatures": "Dokumenty k podpisu",
+    "signSeamNote": "Ukázkové podepisování — připojte poskytovatele eIDAS (např. Signicat, DocuSign) pro právní závaznost.",
+    "signed": "Podepsáno",
+    "markSigned": "Označit jako podepsané",
+    "docPlaceholder": "Název dokumentu (např. Pracovní smlouva)",
+    "requestSign": "Vyžádat podpis",
+    "field": {
+      "preferredName": "Preferované jméno",
+      "tshirtSize": "Velikost trička",
+      "dietaryNeeds": "Stravovací požadavky",
+      "equipmentPrefs": "Preference vybavení",
+      "emergencyContact": "Nouzový kontakt",
+      "startDateConfirm": "Potvrzené datum nástupu"
     }
   },
   "about": {

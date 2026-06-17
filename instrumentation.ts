@@ -79,6 +79,17 @@ export async function register(): Promise<void> {
     } catch (e) {
       console.error("[clock] offer lapse sweep failed:", e);
     }
+    // GDPR consent-expiry sweep (consent.ts) — independent, best-effort, idempotent.
+    // Anonymizes candidates whose data-processing consent has lapsed (PII scrubbed,
+    // scores/notes/stage retained for re-engagement). The candidate erasure path
+    // also anonymizes on demand; this sweep is what honors a silent expiry on time.
+    try {
+      const { anonymizeExpiredConsents } = await import("./app/_lib/db");
+      const anonymized = anonymizeExpiredConsents();
+      if (anonymized) console.log("[clock] consents expired → anonymized:", anonymized);
+    } catch (e) {
+      console.error("[clock] consent anonymization sweep failed:", e);
+    }
   };
 
   // Self-rescheduling chain instead of setInterval: arm the NEXT tick only AFTER the

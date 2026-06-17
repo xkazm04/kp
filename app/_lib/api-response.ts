@@ -80,6 +80,15 @@ export const STORE_ERRORS = {
   STATUS_LOOKUP_FAILED: "Could not load your application status. Please try again.",
   // Standing silver-medalist feed (idea-fdb45cd0) over the rediscovery-alert store.
   REDISCOVERY_ALERTS_FAILED: "Could not load rediscovery alerts. Please try again.",
+  // GDPR self-service data/erasure (public token route over the pipeline entry).
+  DATA_LOOKUP_FAILED: "Could not load your data right now. Please try again.",
+  DATA_ERASE_FAILED: "Could not complete the erasure right now. Please try again.",
+  // Recruiter-facing consent snapshot + audit trail (drawer Data & consent panel).
+  CONSENT_LOOKUP_FAILED: "Could not load consent details. Please try again.",
+  // Onboarding hand-off (#6) — runs / templates / checklist / e-sign seam.
+  ONBOARDING_FAILED: "Could not complete the onboarding action. Please try again.",
+  // NL pipeline command bar (#7) — parse + preview/execute.
+  COMMAND_FAILED: "Could not run that command. Please try again.",
 } as const;
 
 export type StoreErrorCode = keyof typeof STORE_ERRORS;

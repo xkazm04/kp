@@ -591,6 +591,20 @@ export function ensureDb(): Database.Database {
     // they survive closing it instead of living in spreadsheets. Free text,
     // trimmed and length-bounded at the route (set_notes); NULL = no note.
     "ALTER TABLE pipeline_entries ADD COLUMN notes TEXT",
+    // GDPR data-processing consent lifecycle (consent.ts). given_at = when the
+    // candidate agreed at apply; expires_at = given_at + CONSENT_TTL_DAYS (the
+    // anonymization sweep reads it); source = apply|quick-apply|recruiter|webhook
+    // id; anonymized_at stamped when the row was scrubbed-but-retained (PII gone,
+    // scores/notes/stage kept for re-engagement). All NULL on legacy/recruiter rows.
+    "ALTER TABLE pipeline_entries ADD COLUMN consent_given_at TEXT",
+    "ALTER TABLE pipeline_entries ADD COLUMN consent_expires_at TEXT",
+    "ALTER TABLE pipeline_entries ADD COLUMN consent_source TEXT",
+    "ALTER TABLE pipeline_entries ADD COLUMN anonymized_at TEXT",
+    // Self-service erasure capability token (right to erasure): minted on demand
+    // (ensureErasureToken), carried by the "manage your data" footer in every
+    // candidate email and resolved at the public /data/[token] page. Opaque CSPRNG
+    // like lead_token — NEVER the raw entry id.
+    "ALTER TABLE pipeline_entries ADD COLUMN erasure_token TEXT",
     // E5 — when a webhook received its FIRST lead (time-to-first-lead metric).
     "ALTER TABLE channel_webhooks ADD COLUMN first_received_at TEXT",
   ]) {
@@ -604,6 +618,25 @@ export function ensureDb(): Database.Database {
   // tokened apply POST — index it like the interview token. Created AFTER the
   // ALTER loop above so a legacy DB already holds the column.
   db.exec(`CREATE INDEX IF NOT EXISTS idx_pipeline_lead_token ON pipeline_entries (lead_token)`);
+  // Same single-row public lookup for the self-service erasure token.
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_pipeline_erasure_token ON pipeline_entries (erasure_token)`);
+  // The anonymization sweep scans for due consents — index the expiry so it stays
+  // a range probe rather than a full table scan as the board grows.
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_pipeline_consent_expiry ON pipeline_entries (consent_expires_at)`);
+  // GDPR consent audit trail (append-only): one row per transition so a tenant can
+  // evidence WHEN consent was granted/renewed/expired and WHEN PII was scrubbed or
+  // erased. kind ∈ granted|renewed|expiring_notified|expired|anonymized|
+  // erasure_requested|erased. Idempotent CREATE (no migration), like jd_revisions.
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS consent_events (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      entry_id TEXT NOT NULL,
+      kind TEXT NOT NULL,
+      detail TEXT,
+      created_at TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_consent_events_entry ON consent_events (entry_id, id DESC);
+  `);
   // Migration for dev_submissions evaluation + contact columns (Phase D6 / B),
   // plus the interview run-of-show column added when the voice screen grew a
   // candidate-facing agenda, and duration_min so the candidate portal shows the
@@ -1049,6 +1082,13 @@ export type PipelineEntry = {
   // Persistent per-candidate recruiter note, autosaved from the drawer via the
   // set_notes action (trimmed + bounded there). NULL when none has been written.
   notes: string | null;
+  // GDPR data-processing consent lifecycle (consent.ts) — recruiter-visible so the
+  // drawer can show status/expiry. The erasure capability token is deliberately
+  // NOT surfaced here (read server-side from the row), same doctrine as lead_token.
+  consentGivenAt: string | null;
+  consentExpiresAt: string | null;
+  consentSource: string | null;
+  anonymizedAt: string | null;
 };
 
 export function recordEvent(

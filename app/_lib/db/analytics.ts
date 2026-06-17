@@ -34,6 +34,11 @@ export type PipelineAnalytics = {
   avgTimeToHireDays: number | null;
   avgAgeDays: number | null;
   bottleneck: Bottleneck | null;
+  // Per-stage average dwell time across ALL active stages (Sloneek "time spent in
+  // each hiring stage"), ordered Accepted-first. `bottleneck` surfaces only the
+  // single worst stage; this is the full breakdown the same perStageDays feeds.
+  // Excludes terminal Hired (no dwell) and stages with no active entries.
+  stageDwell: { stage: string; avgDays: number; count: number }[];
   byJob: { jobTitle: string; total: number; reachedInterview: number; hired: number; hireRatePct: number; koDeclined: number }[];
   // Distinct job count before the byJob cap, so the UI can show "top N of M".
   byJobTotal: number;
@@ -198,6 +203,13 @@ export function pipelineAnalytics(
   // before its average wait counts as a systemic bottleneck, so a lone stale
   // entry can't masquerade as a trend in the amber banner (idea-bdaf9b2c).
   const bottleneck = pickBottleneck(perStageDays);
+  // Full per-stage dwell breakdown (the table beside the single-worst bottleneck
+  // banner), ordered canonically and skipping stages with no active entries.
+  const stageDwell = FUNNEL_STAGES.flatMap((stage) => {
+    const arr = perStageDays[stage];
+    if (!arr || arr.length === 0) return [];
+    return [{ stage, avgDays: Math.round(arr.reduce((a, b) => a + b, 0) / arr.length), count: arr.length }];
+  });
 
   const jobMap = new Map<string, { total: number; reachedInterview: number; hired: number }>();
   for (const r of rows) {
@@ -454,6 +466,7 @@ export function pipelineAnalytics(
     avgTimeToHireDays,
     avgAgeDays,
     bottleneck,
+    stageDwell,
     byJob,
     byJobTotal,
     koDeclined,

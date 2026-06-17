@@ -1,5 +1,6 @@
 import { ensureDb, insertWithUniqueSlug, safeRowParse } from "./core";
 import { DEFAULT_WORKSPACE_ID } from "./workspaces";
+import { maskCandidateName, scrubPiiFromPayload } from "../consent";
 
 // ---- Candidate profiles (v2 archetype-aware intake) -----------------------
 
@@ -94,6 +95,31 @@ export function updateProfile(id: string, input: SaveProfileInput, workspaceId: 
     )
     .run(input.label, input.archetype, input.roleFamily, input.completeness, JSON.stringify(input.payload), id, workspaceId);
   return Number(info.changes) > 0;
+}
+
+// GDPR anonymization of a profile (consent expiry / erasure): mask the label and
+// deep-scrub directly-identifying PII out of the stored CV payload (name, raw CV
+// text, contact, evidence quotes) while KEEPING the scoring signal (skills, score,
+// seniority) so a retained, de-identified record can still be ranked. NOT a delete
+// — the profile row survives anonymized. Workspace-agnostic by design: the caller
+// (anonymizeEntry) resolves the row by id across the default tenant. Returns false
+// when no row matched. Idempotent (re-running over a scrubbed payload is a no-op).
+export function anonymizeProfile(id: string, workspaceId: string = DEFAULT_WORKSPACE_ID): boolean {
+  // Compose the existing tenant-scoped primitives (never raw profiles SQL — the
+  // profiles-tenancy guard requires every statement to carry workspace_id).
+  const rec = getProfileRecord(id, workspaceId);
+  if (!rec) return false;
+  return updateProfile(
+    id,
+    {
+      label: maskCandidateName(rec.row.label),
+      archetype: rec.row.archetype,
+      roleFamily: rec.row.role_family,
+      completeness: rec.row.completeness ?? 0,
+      payload: scrubPiiFromPayload(rec.payload),
+    },
+    workspaceId
+  );
 }
 
 // Returns false when no row matched the id. Pipeline entries reference a profile

@@ -12,6 +12,7 @@ export const WORKSPACE_TAB_IDS = [
   "channels",
   "decisions",
   "schedule",
+  "onboarding",
   "interview",
   "profile",
   "match",
@@ -94,6 +95,7 @@ export const NAV_GROUPS: NavGroup[] = [
       { id: "channels", label: "Channels", badgeKey: "channels" },
       { id: "decisions", label: "Decisions", badgeKey: "decisions" },
       { id: "schedule", label: "Schedule", badgeKey: "schedule" },
+      { id: "onboarding", label: "Onboarding" },
     ],
   },
   {

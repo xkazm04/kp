@@ -10,6 +10,7 @@ import {
   getJob,
   mergeReapplication,
   recordAutomationEvent,
+  recordEntryConsent,
   recordKnockoutDecline,
   saveProfile,
   updateProfile,
@@ -376,6 +377,13 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
             }
           }
         }
+        // Re-applying re-consents: refresh the data-processing consent + expiry
+        // (best-effort — a consent-record failure must never block the apply ack).
+        try {
+          recordEntryConsent(existing.id, "apply");
+        } catch (consentErr) {
+          console.error(`[apply] consent refresh failed for entry ${existing.id}:`, consentErr);
+        }
         return acknowledgeReapply(
           existing.id,
           profileRebuilt ? t("enrichedMessage") : t("alreadyMessage"),
@@ -418,6 +426,16 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       // E3 — inbound source attribution (the conversational careers-page flow).
       sourceChannel: "apply",
     });
+
+    // GDPR: stamp data-processing consent + a 12-month expiry on the inbound entry
+    // (the candidate agreed at submit, with the retention statement shown via
+    // AiDisclosure). The expiry drives the anonymization sweep. Best-effort — never
+    // block a successful application on the consent bookkeeping.
+    try {
+      recordEntryConsent(entry.id, "apply");
+    } catch (consentErr) {
+      console.error(`[apply] consent record failed for entry ${entry.id}:`, consentErr);
+    }
 
     // created:false here means the dedupeKey backstop caught a concurrent repeat
     // submission — surface it as a re-apply rather than logging a second
