@@ -2148,6 +2148,8 @@
     "hereNow": "· {count} zde nyní",
     "bottleneck": "<b>Úzké hrdlo:</b> <m>{count}</m> aktivních kandidátů ve fázi <m>{stage}</m> čekalo v průměru <m>{days} dní</m>.",
     "viewCandidates": "Zobrazit kandidáty →",
+    "stageDwellTitle": "Čas v jednotlivých fázích",
+    "stageDwellRow": "průměr {days} d · {count} čeká",
     "viewInBoard": "Otevřít tyto kandidáty na pipeline nástěnce",
     "windowLabel": "Časové okno",
     "windowAll": "Za celou dobu",

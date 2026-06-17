@@ -33,6 +33,7 @@ type Analytics = {
   avgTimeToHireDays: number | null;
   avgAgeDays: number | null;
   bottleneck: { stage: string; avgDaysInStage: number; entryCount: number } | null;
+  stageDwell: { stage: string; avgDays: number; count: number }[];
   byJob: { jobTitle: string; total: number; reachedInterview: number; hired: number; hireRatePct: number; koDeclined: number }[];
   byJobTotal: number;
   koDeclined: number;
@@ -250,6 +251,24 @@ export function AnalyticsTab() {
                 {t("viewCandidates")}
               </Link>
             </p>
+          ) : null}
+          {/* Full per-stage dwell (the bottleneck banner shows only the worst one).
+              Surfaces the perStageDays the bottleneck already computes — Sloneek
+              "time spent in each hiring stage per position". */}
+          {data.stageDwell.length > 0 ? (
+            <div className="mt-4">
+              <p className="text-meta uppercase tracking-wide text-steel">{t("stageDwellTitle")}</p>
+              <ul className="mt-1.5 space-y-1" role="list">
+                {data.stageDwell.map((s) => (
+                  <li key={s.stage} className="flex items-baseline justify-between gap-2 text-base">
+                    <Link href={boardHref({ stage: s.stage })} className="focus-ring rounded text-ink hover:text-coral">
+                      {enumLabel("stage", s.stage)}
+                    </Link>
+                    <span className="text-steel">{t("stageDwellRow", { days: s.avgDays, count: s.count })}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
           ) : null}
           {/* 82c2b8e8 — set the goal lines the funnel + time-to-hire flag against. */}
           <GoalsEditor

@@ -2148,6 +2148,8 @@
     "hereNow": "· {count} here now",
     "bottleneck": "<b>Bottleneck:</b> the <m>{count}</m> active candidates in <m>{stage}</m> have waited <m>{days} days</m> on average.",
     "viewCandidates": "View candidates →",
+    "stageDwellTitle": "Time in each stage",
+    "stageDwellRow": "avg {days}d · {count} waiting",
     "viewInBoard": "Open these candidates on the pipeline board",
     "windowLabel": "Time window",
     "windowAll": "All time",
