@@ -113,5 +113,5 @@ utterance to one of kp's **existing** actions.
 ---
 
 ## Status
-- [x] 1 consent · [ ] 2 erasure · [ ] 3 consent-audit · [ ] 4 analytics-stage-dwell
+- [x] 1 consent · [x] 2 erasure · [ ] 3 consent-audit · [ ] 4 analytics-stage-dwell
 - [ ] 5 pool-fit · [ ] 6 onboarding · [ ] 7 command-bar

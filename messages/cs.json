@@ -53,6 +53,7 @@
     "theRole": "danou pozici",
     "aRole": "pozice",
     "yourNewRole": "vaši novou roli",
+    "dataFooter": "— — —\nVaše údaje: kdykoli si zkontrolujte, co o vás evidujeme, nebo požádejte o jejich výmaz:\n{link}",
     "ack": {
       "subject": "Přijali jsme vaši přihlášku — {role}",
       "body": "Dobrý den {name},\n\nděkujeme za přihlášku na pozici {role} — vaši přihlášku jsme obdrželi a náborář ji brzy posoudí. Ozveme se vám ohledně dalších kroků.\n\nS pozdravem,\n{team}",
@@ -191,6 +192,30 @@
     "rsvpCancel": "Nemohu se zúčastnit",
     "attendanceConfirmed": "Účast potvrzena — děkujeme!",
     "rsvpCancelledNote": "Váš termín byl uvolněn. Vyberte si níže nový a dáme týmu vědět."
+  },
+  "data": {
+    "eyebrow": "Vaše údaje",
+    "loadFailed": "Tento odkaz vypršel nebo už není platný.",
+    "eraseFailed": "Výmaz se teď nepodařilo dokončit. Zkuste to prosím znovu.",
+    "forRole": "Vaše přihláška na pozici {role}",
+    "forRoleGeneric": "Vaše přihláška",
+    "heldTitle": "Co o vás evidujeme",
+    "held": {
+      "cv": "Váš životopis a údaje z něj získané",
+      "contact": "Vaše kontaktní údaje (e-mail)",
+      "answers": "Odpovědi, které jste uvedli při přihlášení",
+      "interview": "Případné záznamy a poznámky z pohovoru",
+      "scores": "Naše hodnoticí skóre pro tuto pozici"
+    },
+    "appliedOn": "Přihlásili jste se {date}.",
+    "eraseTitle": "Vymazat mé osobní údaje",
+    "eraseExplainer": "Trvale odstraníme vaše jméno, kontaktní údaje, životopis a záznamy z pohovoru. Ponecháme si pouze anonymizovaný záznam o hodnocení (bez osobních údajů), abychom byli féroví a konzistentní — vás už nijak neidentifikuje.",
+    "eraseCta": "Vymazat mé údaje",
+    "eraseConfirm": "Ano, vymazat",
+    "erasing": "Mažu…",
+    "cancel": "Zrušit",
+    "erasedTitle": "Vaše údaje byly vymazány",
+    "erasedBody": "Vaše osobní údaje jsme odstranili. Děkujeme — nic dalšího nemusíte dělat."
   },
   "status": {
     "eyebrow": "Stav přihlášky",

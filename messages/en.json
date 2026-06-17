@@ -53,6 +53,7 @@
     "theRole": "the role",
     "aRole": "a role",
     "yourNewRole": "your new role",
+    "dataFooter": "— — —\nYour data: review what we hold about you, or request its erasure, anytime:\n{link}",
     "ack": {
       "subject": "We received your application — {role}",
       "body": "Hi {name},\n\nThanks for applying for {role} — we've received your application and a recruiter will review it shortly. We'll be in touch about the next steps.\n\nBest,\n{team}",
@@ -191,6 +192,30 @@
     "rsvpCancel": "I can't make it",
     "attendanceConfirmed": "Attendance confirmed — thanks!",
     "rsvpCancelledNote": "Your time has been released. Pick a new one below and we'll let the team know."
+  },
+  "data": {
+    "eyebrow": "Your data",
+    "loadFailed": "This link has expired or is no longer valid.",
+    "eraseFailed": "Could not complete the erasure right now. Please try again.",
+    "forRole": "Your application for {role}",
+    "forRoleGeneric": "Your application",
+    "heldTitle": "What we hold about you",
+    "held": {
+      "cv": "Your CV and the details parsed from it",
+      "contact": "Your contact details (email)",
+      "answers": "The answers you gave when applying",
+      "interview": "Any interview records and notes",
+      "scores": "Our assessment scores for this role"
+    },
+    "appliedOn": "You applied on {date}.",
+    "eraseTitle": "Erase my personal data",
+    "eraseExplainer": "We'll permanently remove your name, contact details, CV and interview records. We keep a de-identified record of the assessment (no personal data) so we can be fair and consistent — it can no longer identify you.",
+    "eraseCta": "Erase my data",
+    "eraseConfirm": "Yes, erase it",
+    "erasing": "Erasing…",
+    "cancel": "Cancel",
+    "erasedTitle": "Your data has been erased",
+    "erasedBody": "We've removed your personal data. Thank you — there's nothing more you need to do."
   },
   "status": {
     "eyebrow": "Application status",
