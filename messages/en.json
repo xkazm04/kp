@@ -725,6 +725,32 @@
       "working": "Working…",
       "candidateNotes": "Candidate notes",
       "candidateNotesPlaceholder": "Notes that stay with this candidate — \"wants 80k, available August, prefers hybrid\". Saved automatically.",
+      "consent": {
+        "title": "Data & consent",
+        "loading": "Loading consent…",
+        "loadFailed": "Couldn't load consent details.",
+        "via": "via {source}",
+        "noneNote": "No data-processing consent on file (recruiter-sourced or pre-consent entry).",
+        "granted": "Granted",
+        "expires": "Expires",
+        "anonymized": "Anonymized",
+        "status": {
+          "active": "Consent active",
+          "expiring": "Expiring soon",
+          "expired": "Consent expired",
+          "anonymized": "Anonymized",
+          "none": "No consent"
+        },
+        "event": {
+          "granted": "Consent granted",
+          "renewed": "Consent renewed",
+          "expiring_notified": "Expiry reminder sent",
+          "expired": "Consent expired",
+          "anonymized": "Anonymized (consent lapsed)",
+          "erasure_requested": "Erasure requested",
+          "erased": "Data erased (candidate request)"
+        }
+      },
       "candidateNotesSaving": "Saving…",
       "candidateNotesSaved": "Saved",
       "candidateNotesSaveFailed": "Couldn't save the note.",

@@ -83,6 +83,8 @@ export const STORE_ERRORS = {
   // GDPR self-service data/erasure (public token route over the pipeline entry).
   DATA_LOOKUP_FAILED: "Could not load your data right now. Please try again.",
   DATA_ERASE_FAILED: "Could not complete the erasure right now. Please try again.",
+  // Recruiter-facing consent snapshot + audit trail (drawer Data & consent panel).
+  CONSENT_LOOKUP_FAILED: "Could not load consent details. Please try again.",
 } as const;
 
 export type StoreErrorCode = keyof typeof STORE_ERRORS;

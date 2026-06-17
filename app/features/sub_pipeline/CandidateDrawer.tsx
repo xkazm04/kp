@@ -10,6 +10,7 @@ import { buildUrl } from "@/app/features/tabs";
 import { useTasks, useTaskResult } from "@/app/features/tasks/TasksProvider";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { ResultView } from "./CandidateResultView";
+import { ConsentPanel } from "./ConsentPanel";
 import { useTokenLink, TokenLinkPanel } from "./TokenLink";
 import { type Entry, type Result, type TaskId } from "./CandidateDrawerTypes";
 import { styleFor, type PipelineEvent } from "./PipelineTypes";
@@ -780,6 +781,8 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
               className="focus-ring mt-1 w-full rounded-md border border-stone-200 bg-white p-2 text-sm text-ink"
             />
           </div>
+
+          <ConsentPanel key={entry.id} entryId={entry.id} />
 
           <div>
             <p className="flex items-center gap-1.5 text-meta uppercase tracking-wide text-coral">

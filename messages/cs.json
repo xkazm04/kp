@@ -725,6 +725,32 @@
       "working": "Pracuji…",
       "candidateNotes": "Poznámky ke kandidátovi",
       "candidateNotesPlaceholder": "Poznámky, které u kandidáta zůstanou — „chce 80 tisíc, k dispozici od srpna, preferuje hybrid“. Ukládá se automaticky.",
+      "consent": {
+        "title": "Údaje a souhlas",
+        "loading": "Načítám souhlas…",
+        "loadFailed": "Údaje o souhlasu se nepodařilo načíst.",
+        "via": "přes {source}",
+        "noneNote": "Žádný souhlas se zpracováním údajů (záznam od náboráře nebo bez souhlasu).",
+        "granted": "Udělen",
+        "expires": "Vyprší",
+        "anonymized": "Anonymizováno",
+        "status": {
+          "active": "Souhlas platný",
+          "expiring": "Brzy vyprší",
+          "expired": "Souhlas vypršel",
+          "anonymized": "Anonymizováno",
+          "none": "Bez souhlasu"
+        },
+        "event": {
+          "granted": "Souhlas udělen",
+          "renewed": "Souhlas obnoven",
+          "expiring_notified": "Odeslána připomínka vypršení",
+          "expired": "Souhlas vypršel",
+          "anonymized": "Anonymizováno (souhlas vypršel)",
+          "erasure_requested": "Vyžádán výmaz",
+          "erased": "Údaje vymazány (žádost kandidáta)"
+        }
+      },
       "candidateNotesSaving": "Ukládám…",
       "candidateNotesSaved": "Uloženo",
       "candidateNotesSaveFailed": "Poznámku se nepodařilo uložit.",
