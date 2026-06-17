@@ -57,8 +57,19 @@ def _client() -> Any:
     return client
 
 
-def _tags(provider: str) -> list[str]:
+# LightTrack's `operation` is a fixed 4-variant enum (chat|completion|embedding|
+# other) — an arbitrary string silently deserializes to "other". So the kp
+# use_case CANNOT ride on `operation`; it goes on a `use_case:<name>` tag, the
+# queryable custom axis (cost_summary groups by provider+model; per-use-case
+# slicing is tag-filtered). Every kp call through this seam is a structured
+# JSON completion, so operation is uniformly "chat".
+_OPERATION = "chat"
+
+
+def _tags(provider: str, use_case: str | None) -> list[str]:
     tags = ["llm-layer"]
+    if use_case:
+        tags.append(f"use_case:{use_case}")
     if provider == "claude_cli":
         tags.append("engine:claude_cli")
     return tags
@@ -87,9 +98,9 @@ def emit_result(
             input_tokens=int(u.get("input_tokens", 0) or 0),
             output_tokens=int(u.get("output_tokens", 0) or 0),
             cached_input=int(cached) if cached is not None else None,
-            operation=use_case,
+            operation=_OPERATION,
             latency_ms=duration_ms,
-            tags=_tags(provider),
+            tags=_tags(provider, use_case),
             metadata={"cost_usd": cost_usd} if cost_usd is not None else None,
         )
     except Exception:
@@ -111,10 +122,10 @@ def emit_error(
         client.track(
             _TRACK_PROVIDER.get(provider, provider),
             model,
-            operation=use_case,
+            operation=_OPERATION,
             latency_ms=duration_ms,
             error=str(error)[:500],
-            tags=_tags(provider),
+            tags=_tags(provider, use_case),
         )
     except Exception:
         pass

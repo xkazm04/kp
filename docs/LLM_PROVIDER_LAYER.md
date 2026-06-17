@@ -26,17 +26,36 @@ developed together toward prod). The seam:
 
 - Every `TextProvider.complete()` (all metered adapters) and the registry's
   `MonitoredClaudeCli` emit one event per logical call: provider, model,
-  tokens (incl. cached), latency, the **use case as `operation`**, errors, and
-  our computed `cost_usd` as metadata (LightTrack prices server-side from its
-  own price book — the two should agree).
-- **Local dev setup, once:** `pip install ../LightTrack/clients/python`, run
-  the LightTrack container/binary, set `LIGHTTRACK_URL` (+`LIGHTTRACK_KEY` /
-  `LIGHTTRACK_PROJECT` when auth is enforced) in `.env.local`.
+  tokens (incl. cached), latency, errors, and our computed `cost_usd` as
+  metadata (LightTrack prices server-side from its own price book — the two
+  travel side by side as a cross-check, e.g. `cost_usd: 0.0039` vs
+  `metadata.cost_usd: 0.0099`).
+- **The use case rides on a `use_case:<name>` tag, NOT `operation`.**
+  LightTrack's `operation` is a fixed 4-variant enum (`chat`/`completion`/
+  `embedding`/`other`) — an arbitrary string silently deserializes to `other`,
+  which would collapse every kp call. So `operation` is uniformly `"chat"` and
+  the use case is a tag (`cost_summary` groups by provider+model; per-use-case
+  slicing is tag-filtered). The Claude CLI engine additionally carries
+  `engine:claude_cli` (it reports as provider `anthropic` — it *is* Anthropic
+  spend — so subscription vs metered stays separable).
 - Activation is double-gated (SDK importable AND `LIGHTTRACK_URL` set);
   emission is fire-and-forget on a daemon thread and exception-swallowed — an
   observability outage can never fail an LLM call.
-- The Claude CLI engine reports as `anthropic` (it is Anthropic spend) tagged
-  `engine:claude_cli`, so subscription vs metered traffic stays separable.
+
+### Local-dev wiring (resolved 2026-06-17; prod deferred until the product grows)
+
+1. **Once:** `pip install -e ../LightTrack/clients/python` (editable — kp and
+   LightTrack are co-developed, so client edits reflect immediately).
+2. **Each session:** start the server — `pwsh scripts/lighttrack-dev.ps1` —
+   which runs `lighttrack-api` from `../LightTrack` in **dev auth mode** (no API
+   key), SQLite store, `127.0.0.1:8787`, foreground in its own terminal.
+3. Set in kp's `.env` (already in `.env.example`): `LIGHTTRACK_URL=http://127.0.0.1:8787`
+   and `LIGHTTRACK_PROJECT=kp`. Dev mode needs no key; the literal `kp` project
+   string is used directly (events have no FK to a registered project, so the
+   project list is optional — registering would assign a random id and split
+   the rollup).
+4. Inspect: `GET /v1/events?project=kp`, `GET /v1/costs?project=kp`, or the
+   `lt` CLI / MCP server in the LightTrack repo.
 
 ## Benchmarks — picking default models (`pipeline/jobfit/llm/bench/`)
 

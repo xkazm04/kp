@@ -50,6 +50,11 @@ class _Ctx:
         test.addCleanup(monitor.reset)
         monitor.reset()
         test.enterContext(mock.patch.dict(sys.modules, {"lighttrack": _stub_module(cls)}))
+        # Hermetic: monitor._client() calls base.load_local_env(), which would
+        # otherwise read the developer's real .env and re-introduce a popped
+        # LIGHTTRACK_URL (breaking the disabled-path test). Stub it to a no-op so
+        # the test owns the environment outright.
+        test.enterContext(mock.patch("pipeline.jobfit.llm.base.load_local_env", lambda: None))
         test.enterContext(mock.patch.dict(os.environ, {}, clear=False))
         os.environ.pop("LIGHTTRACK_URL", None)
         if url:
@@ -89,7 +94,7 @@ def _result() -> LLMResult:
 
 
 class AdapterEmissionTest(unittest.TestCase):
-    def test_success_emits_one_event_with_operation_and_usage(self) -> None:
+    def test_success_emits_one_event_with_usage_and_use_case_tag(self) -> None:
         ctx = _Ctx(self)
         provider = StubProvider([_result()], use_case="match_reasoning")
         provider.complete("hi")
@@ -97,7 +102,10 @@ class AdapterEmissionTest(unittest.TestCase):
         ev = ctx.events[0]
         self.assertEqual(ev["provider"], "anthropic")
         self.assertEqual(ev["model"], "claude-haiku-4-5")
-        self.assertEqual(ev["operation"], "match_reasoning")
+        # operation is a fixed LightTrack enum — use_case rides on a tag instead,
+        # so it survives (an arbitrary operation deserializes to "other").
+        self.assertEqual(ev["operation"], "chat")
+        self.assertIn("use_case:match_reasoning", ev["tags"])
         self.assertEqual(ev["input_tokens"], 50)
         self.assertEqual(ev["output_tokens"], 10)
         self.assertEqual(ev["cached_input"], 5)
@@ -154,7 +162,8 @@ class MonitoredCliTest(unittest.TestCase):
         ev = ctx.events[0]
         self.assertEqual(ev["provider"], "anthropic")
         self.assertIn("engine:claude_cli", ev["tags"])
-        self.assertEqual(ev["operation"], "match_reasoning")
+        self.assertIn("use_case:match_reasoning", ev["tags"])
+        self.assertEqual(ev["operation"], "chat")
         self.assertEqual(ev["input_tokens"], 200)
         self.assertEqual(ev["cached_input"], 30)
         self.assertEqual(ev["metadata"], {"cost_usd": 0.012})
