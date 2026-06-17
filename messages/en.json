@@ -122,7 +122,8 @@
   },
   "aiDisclosure": {
     "title": "How this works",
-    "body": "We use AI to assist screening and interviews — assessing your <highlight>skills, experience, and fit</highlight> for the role. A human reviews and makes every advance, offer, and rejection decision; nothing adverse is decided automatically. You can ask for a human review at any point."
+    "body": "We use AI to assist screening and interviews — assessing your <highlight>skills, experience, and fit</highlight> for the role. A human reviews and makes every advance, offer, and rejection decision; nothing adverse is decided automatically. You can ask for a human review at any point.",
+    "dataConsent": "By submitting, you agree we may process your personal data for this role for up to 12 months. You can review or request erasure of your data anytime via the link in our emails."
   },
   "errors": {
     "generic": "Something went wrong. Please try again.",

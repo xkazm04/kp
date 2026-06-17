@@ -116,7 +116,7 @@ export function QuickApplyForm({
             </div>
           ) : null}
         </div>
-        <AiDisclosure className="mt-6" />
+        <AiDisclosure className="mt-6" showDataConsent />
       </div>
     );
   }

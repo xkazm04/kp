@@ -122,7 +122,8 @@
   },
   "aiDisclosure": {
     "title": "Jak to funguje",
-    "body": "K asistenci při screeningu a pohovorech používáme umělou inteligenci — posuzujeme vaše <highlight>dovednosti, zkušenosti a vhodnost</highlight> pro danou roli. Každé rozhodnutí o postupu, nabídce či zamítnutí přezkoumává a činí člověk; nic nepříznivého se nerozhoduje automaticky. Kdykoli můžete požádat o přezkoumání člověkem."
+    "body": "K asistenci při screeningu a pohovorech používáme umělou inteligenci — posuzujeme vaše <highlight>dovednosti, zkušenosti a vhodnost</highlight> pro danou roli. Každé rozhodnutí o postupu, nabídce či zamítnutí přezkoumává a činí člověk; nic nepříznivého se nerozhoduje automaticky. Kdykoli můžete požádat o přezkoumání člověkem.",
+    "dataConsent": "Odesláním souhlasíte, že můžeme zpracovávat vaše osobní údaje pro tuto pozici po dobu až 12 měsíců. Své údaje můžete kdykoli zkontrolovat nebo požádat o jejich výmaz přes odkaz v našich e-mailech."
   },
   "errors": {
     "generic": "Něco se pokazilo. Zkuste to prosím znovu.",

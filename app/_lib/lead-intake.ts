@@ -22,8 +22,20 @@ import {
   findApplicationByApplicant,
   mergeReapplication,
   recordAutomationEvent,
+  recordEntryConsent,
   recordKnockoutDecline,
 } from "./db";
+
+// GDPR: a lead is a reachable candidate whose data we're storing for enrichment —
+// record data-processing consent + a 12-month expiry at intake, best-effort (the
+// consent bookkeeping must never undo a filed lead). Source is the inbound channel.
+function recordLeadConsent(entryId: string, source: string): void {
+  try {
+    recordEntryConsent(entryId, source);
+  } catch (err) {
+    console.error(`[lead-intake] consent record failed for entry ${entryId}:`, err);
+  }
+}
 import { applyDedupeKey, FALLBACK_ARCHETYPE } from "./apply";
 import { ANONYMOUS_APPLICANT_LABEL } from "./apply-intake";
 import { dispatchApplicationReceived, dispatchKnockoutDecline } from "./comms-dispatch";
@@ -134,6 +146,7 @@ export async function intakeLead(input: LeadIntakeInput): Promise<LeadIntakeOutc
   const existing = findApplicationByApplicant(job.id, name, email);
   if (existing) {
     const leadToken = ensureLeadEnrichToken(existing.id, input.passedKoIds);
+    recordLeadConsent(existing.id, input.sourceChannel);
     const changes: string[] = [];
     if (!existing.contact) {
       const merged = mergeReapplication(existing.id, { contact: email });
@@ -182,6 +195,7 @@ export async function intakeLead(input: LeadIntakeInput): Promise<LeadIntakeOutc
   // The dedupeKey backstop caught a concurrent repeat — surface it as one.
   if (!created) {
     const leadToken = ensureLeadEnrichToken(entry.id, input.passedKoIds);
+    recordLeadConsent(entry.id, input.sourceChannel);
     recordAutomationEvent(entry.id, "re_applied", `repeat application via ${input.channelLabel}`);
     return { result: "accepted", duplicate: true, entryId: entry.id, leadToken };
   }
@@ -192,6 +206,7 @@ export async function intakeLead(input: LeadIntakeInput): Promise<LeadIntakeOutc
   // opens prefilled AND merges back onto this exact entry — no longer hinging on
   // the candidate re-typing the identical email address.
   const leadToken = ensureLeadEnrichToken(entry.id, input.passedKoIds);
+  recordLeadConsent(entry.id, input.sourceChannel);
   await ack(entry, withLeadToken(input.enrichLink, leadToken));
   return { result: "accepted", duplicate: false, entryId: entry.id, leadToken };
 }

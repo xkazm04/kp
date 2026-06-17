@@ -1,8 +1,11 @@
+import type Database from "better-sqlite3";
 import type { ApprovalKind } from "../approval-kinds";
 import { isTerminalEntryStatus, TERMINAL_ENTRY_STATUSES } from "../pipeline-status";
 import { normalizeApplicantName, normalizeContact } from "../apply-intake";
 import { chunk, SQL_IN_CHUNK } from "../entries-param";
 import { randomToken } from "../random-id";
+import { CONSENT_TTL_DAYS, consentExpiresAt, maskCandidateName } from "../consent";
+import { anonymizeProfile } from "./profiles";
 import { coerceGithubEvidenceSummary, type GithubEvidenceSummary } from "../github-summary";
 import { recordPipelineOutcome } from "../dev-outcomes";
 import { recordAudit } from "../dev-control";
@@ -215,6 +218,13 @@ type PipelineRow = {
   // must never ride a list payload into the browser. Read via findEntryByLeadToken.
   lead_token?: string | null;
   lead_passed_ko_json?: string | null;
+  // GDPR consent lifecycle (consent.ts). The 4 dated fields map onto PipelineEntry;
+  // erasure_token does NOT (capability token, internal-only, like lead_token).
+  consent_given_at?: string | null;
+  consent_expires_at?: string | null;
+  consent_source?: string | null;
+  anonymized_at?: string | null;
+  erasure_token?: string | null;
 };
 
 function rowToEntry(r: PipelineRow): PipelineEntry {
@@ -246,6 +256,10 @@ function rowToEntry(r: PipelineRow): PipelineEntry {
     sourceCampaign: r.source_campaign ?? null,
     sourceVariant: r.source_variant ?? null,
     notes: r.notes ?? null,
+    consentGivenAt: r.consent_given_at ?? null,
+    consentExpiresAt: r.consent_expires_at ?? null,
+    consentSource: r.consent_source ?? null,
+    anonymizedAt: r.anonymized_at ?? null,
   };
 }
 
@@ -837,6 +851,161 @@ export function setEntryNotes(id: string, notes: string | null): PipelineEntry |
   if (res.changes === 0) return null;
   const updated = db.prepare(`SELECT * FROM pipeline_entries WHERE id = ?`).get(id) as PipelineRow;
   return rowToEntry(updated);
+}
+
+// ---- GDPR consent lifecycle (consent.ts) ----------------------------------
+// Capture data-processing consent at apply, sweep it on expiry, and anonymize
+// the candidate while RETAINING the non-identifying scoring artifacts so talent
+// rediscovery can re-surface a re-consenting candidate (Recruitis pattern, see
+// docs/GDPR_AND_HIRING_EXTENSIONS.md — read the DPO note before enabling in prod).
+
+export type ConsentEventKind =
+  | "granted"
+  | "renewed"
+  | "expiring_notified"
+  | "expired"
+  | "anonymized"
+  | "erasure_requested"
+  | "erased";
+
+/** Append one row to the consent audit trail. Internal helper (takes the open
+ *  db/transaction handle) so a transition + its audit row commit atomically. */
+function logConsentEvent(db: Database.Database, entryId: string, kind: ConsentEventKind, detail?: string): void {
+  db.prepare(`INSERT INTO consent_events (entry_id, kind, detail, created_at) VALUES (?, ?, ?, ?)`).run(
+    entryId,
+    kind,
+    detail ?? null,
+    new Date().toISOString()
+  );
+}
+
+export type ConsentEvent = { id: number; kind: string; detail: string | null; createdAt: string };
+
+/** The audit trail for one entry, newest-first (drawer "Data & consent" panel). */
+export function listConsentEvents(entryId: string): ConsentEvent[] {
+  return ensureDb()
+    .prepare(`SELECT id, kind, detail, created_at FROM consent_events WHERE entry_id = ? ORDER BY id DESC`)
+    .all(entryId)
+    .map((r) => {
+      const row = r as { id: number; kind: string; detail: string | null; created_at: string };
+      return { id: row.id, kind: row.kind, detail: row.detail, createdAt: row.created_at };
+    });
+}
+
+/** Record (or refresh, on re-apply) an entry's data-processing consent: stamps
+ *  given_at = now, expires_at = now + ttl, source, and audits it. A re-apply
+ *  RENEWS (the candidate re-agreed), so given_at moves forward — that's the
+ *  truthful latest grant. Returns the fresh entry, or null for an unknown id. */
+export function recordEntryConsent(
+  entryId: string,
+  source: string,
+  ttlDays: number = CONSENT_TTL_DAYS
+): PipelineEntry | null {
+  const db = ensureDb();
+  const now = new Date();
+  const tx = db.transaction((): PipelineEntry | null => {
+    const existing = db.prepare(`SELECT consent_given_at FROM pipeline_entries WHERE id = ?`).get(entryId) as
+      | { consent_given_at: string | null }
+      | undefined;
+    if (!existing) return null;
+    db.prepare(
+      `UPDATE pipeline_entries SET consent_given_at = ?, consent_expires_at = ?, consent_source = ?, updated_at = ? WHERE id = ?`
+    ).run(now.toISOString(), consentExpiresAt(now.getTime(), ttlDays), source, now.toISOString(), entryId);
+    logConsentEvent(db, entryId, existing.consent_given_at ? "renewed" : "granted", `via ${source}`);
+    const row = db.prepare(`SELECT * FROM pipeline_entries WHERE id = ?`).get(entryId) as PipelineRow;
+    return rowToEntry(row);
+  });
+  return tx();
+}
+
+/** Mint (or return) the entry's opaque self-service erasure token — the
+ *  capability the "manage your data" email footer carries to the public
+ *  /data/[token] page. FILL-ONLY (COALESCE-guarded) so the link already emailed
+ *  stays valid; CSPRNG (randomToken), never the raw entry id. Null for unknown id. */
+export function ensureErasureToken(entryId: string): string | null {
+  const db = ensureDb();
+  const row = db.prepare(`SELECT erasure_token FROM pipeline_entries WHERE id = ?`).get(entryId) as
+    | { erasure_token: string | null }
+    | undefined;
+  if (!row) return null;
+  if (row.erasure_token) return row.erasure_token;
+  db.prepare(
+    `UPDATE pipeline_entries SET erasure_token = COALESCE(erasure_token, ?), updated_at = ? WHERE id = ?`
+  ).run(randomToken("er"), new Date().toISOString(), entryId);
+  const after = db.prepare(`SELECT erasure_token FROM pipeline_entries WHERE id = ?`).get(entryId) as
+    | { erasure_token: string | null }
+    | undefined;
+  return after?.erasure_token ?? null;
+}
+
+/** Resolve an erasure token to its entry (public /data/[token] page). Soft
+ *  contract: blank/unknown tokens return null (the page shows "link expired"),
+ *  never throws. */
+export function findEntryByErasureToken(token: string): PipelineEntry | null {
+  const key = token.trim();
+  if (!key) return null;
+  const row = ensureDb().prepare(`SELECT * FROM pipeline_entries WHERE erasure_token = ?`).get(key) as
+    | PipelineRow
+    | undefined;
+  return row ? rowToEntry(row) : null;
+}
+
+/** Anonymize one entry in place: mask the candidate label to "First L.", null the
+ *  directly-identifying columns (contact, github handle/evidence), mask the label
+ *  snapshot on every audit event, and deep-scrub the linked profile's CV payload —
+ *  while KEEPING match_score, stage, recruiter notes, events and interview record.
+ *  Stamps anonymized_at and audits it. Idempotent (a second run is a no-op via the
+ *  anonymized_at guard). `reason` distinguishes the consent-expiry sweep from a
+ *  candidate erasure request in the audit trail. Returns the entry, or null. */
+export function anonymizeEntry(entryId: string, reason: "expiry" | "erasure" = "expiry"): PipelineEntry | null {
+  const db = ensureDb();
+  const tx = db.transaction((): PipelineEntry | null => {
+    const row = db.prepare(`SELECT * FROM pipeline_entries WHERE id = ?`).get(entryId) as PipelineRow | undefined;
+    if (!row) return null;
+    if (row.anonymized_at) return rowToEntry(row); // already scrubbed — no-op
+    const now = new Date().toISOString();
+    const masked = maskCandidateName(row.candidate_label);
+    db.prepare(
+      `UPDATE pipeline_entries
+          SET candidate_label = ?, contact = NULL, github_handle = NULL, github_json = NULL,
+              erasure_token = NULL, anonymized_at = ?, updated_at = ?
+        WHERE id = ?`
+    ).run(masked, now, now, entryId);
+    // The label is snapshotted onto every audit event — mask those too so the
+    // activity feed can't reconstruct the name after the row is scrubbed.
+    db.prepare(`UPDATE pipeline_events SET candidate_label = ? WHERE entry_id = ?`).run(masked, entryId);
+    // Scrub the linked CV profile (PII out, scores kept). Best-effort: a missing
+    // profile (recruiter stub) just means there was no CV blob to scrub.
+    if (row.candidate_id) anonymizeProfile(row.candidate_id);
+    logConsentEvent(db, entryId, reason === "erasure" ? "erased" : "anonymized", `reason: ${reason}`);
+    const updated = db.prepare(`SELECT * FROM pipeline_entries WHERE id = ?`).get(entryId) as PipelineRow;
+    return rowToEntry(updated);
+  });
+  return tx();
+}
+
+/** Sweep: anonymize every entry whose consent has lapsed (expires_at in the past)
+ *  and isn't already scrubbed. Runs from the instrumentation heartbeat. Best-
+ *  effort per row so one failure never stalls the sweep; returns the count
+ *  anonymized. Terminal-status rows are NOT exempt — an expired consent on a
+ *  rejected candidate must still be honored. */
+export function anonymizeExpiredConsents(nowIso: string = new Date().toISOString()): number {
+  const db = ensureDb();
+  const due = db
+    .prepare(
+      `SELECT id FROM pipeline_entries
+        WHERE consent_expires_at IS NOT NULL AND consent_expires_at <= ? AND anonymized_at IS NULL`
+    )
+    .all(nowIso) as { id: string }[];
+  let count = 0;
+  for (const { id } of due) {
+    try {
+      if (anonymizeEntry(id, "expiry")) count += 1;
+    } catch (error) {
+      console.error(`[consent] anonymize sweep failed for entry ${id}`, error);
+    }
+  }
+  return count;
 }
 
 // ---- Automation helpers (Phase 15) ----------------------------------------
