@@ -114,4 +114,10 @@ utterance to one of kp's **existing** actions.
 
 ## Status
 - [x] 1 consent · [x] 2 erasure · [x] 3 consent-audit · [x] 4 analytics-stage-dwell (4a; 4b per-role channel deferred)
-- [x] 5 pool-fit · [x] 6 onboarding · [ ] 7 command-bar
+- [x] 5 pool-fit · [x] 6 onboarding · [x] 7 command-bar
+
+**All 7 shipped.** Gates green throughout (tsc 0 · eslint 0 · unit 935 · build ✓ ·
+i18n parity 2415 keys, en/cs). Deferred/seam notes: #4b per-(job×channel) channel
+cross-tab; #6 real eIDAS provider wiring (markSigned seam); #7 LLM fallback for
+free-form phrasing (deterministic parser ships). DPO sign-off on #1 score-retention
+remains a pre-prod gate.

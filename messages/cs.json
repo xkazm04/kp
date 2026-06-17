@@ -568,6 +568,18 @@
       "weeksAgo": "před {w} týd",
       "monthsAgo": "před {mo} měs"
     },
+    "command": {
+      "placeholder": "Napište příkaz… např. zamítni všechny pod 60 %",
+      "run": "Spustit",
+      "examples": "Zkuste: „zamítni všechny pod 60 % na backend“, „posuň první 3“, „spusť policy pass“.",
+      "affects": "{count, plural, =0 {Žádní kandidáti} =1 {1 kandidát} few {# kandidáti} other {# kandidátů}}",
+      "confirm": "Potvrdit",
+      "running": "Spouštím…",
+      "cancel": "Zrušit",
+      "doneCount": "Hotovo — zpracováno {count, plural, =1 {1 kandidát} few {# kandidáti} other {# kandidátů}}.",
+      "doneSummary": "Policy pass dokončen — {advanced} posunuto, {rejected} zamítnuto, {held} pozdrženo.",
+      "dismiss": "Zavřít"
+    },
     "tab": {
       "eyebrow": "Nábor",
       "title": "Náborový proces",

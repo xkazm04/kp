@@ -568,6 +568,18 @@
       "weeksAgo": "{w}w ago",
       "monthsAgo": "{mo}mo ago"
     },
+    "command": {
+      "placeholder": "Type a command… e.g. reject everyone below 60%",
+      "run": "Run",
+      "examples": "Try: \"reject everyone below 60% on backend\", \"advance the top 3\", \"run the policy pass\".",
+      "affects": "{count, plural, =0 {No candidates match} =1 {1 candidate} other {# candidates}}",
+      "confirm": "Confirm",
+      "running": "Running…",
+      "cancel": "Cancel",
+      "doneCount": "Done — {count, plural, =1 {1 candidate} other {# candidates}} actioned.",
+      "doneSummary": "Policy pass done — {advanced} advanced, {rejected} rejected, {held} held.",
+      "dismiss": "Dismiss"
+    },
     "tab": {
       "eyebrow": "Pipeline",
       "title": "Hiring pipeline",
