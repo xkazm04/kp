@@ -85,6 +85,8 @@ export const STORE_ERRORS = {
   DATA_ERASE_FAILED: "Could not complete the erasure right now. Please try again.",
   // Recruiter-facing consent snapshot + audit trail (drawer Data & consent panel).
   CONSENT_LOOKUP_FAILED: "Could not load consent details. Please try again.",
+  // Onboarding hand-off (#6) — runs / templates / checklist / e-sign seam.
+  ONBOARDING_FAILED: "Could not complete the onboarding action. Please try again.",
 } as const;
 
 export type StoreErrorCode = keyof typeof STORE_ERRORS;

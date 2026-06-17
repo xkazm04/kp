@@ -114,4 +114,4 @@ utterance to one of kp's **existing** actions.
 
 ## Status
 - [x] 1 consent · [x] 2 erasure · [x] 3 consent-audit · [x] 4 analytics-stage-dwell (4a; 4b per-role channel deferred)
-- [x] 5 pool-fit · [ ] 6 onboarding · [ ] 7 command-bar
+- [x] 5 pool-fit · [x] 6 onboarding · [ ] 7 command-bar

@@ -54,6 +54,7 @@ const AboutTab = dynamic(() => import("./sub_about/AboutTab").then((m) => ({ def
 const AnalyzeWorkspace = dynamic(() => import("./sub_analyze/AnalyzeWorkspace").then((m) => ({ default: m.AnalyzeWorkspace })), { loading });
 const DecisionsTab = dynamic(() => import("./sub_decisions/DecisionsTab").then((m) => ({ default: m.DecisionsTab })), { loading });
 const ScheduleTab = dynamic(() => import("./sub_schedule/ScheduleTab").then((m) => ({ default: m.ScheduleTab })), { loading });
+const OnboardingTab = dynamic(() => import("./sub_onboarding/OnboardingTab").then((m) => ({ default: m.OnboardingTab })), { loading });
 const JobsTab = dynamic(() => import("./sub_jobs/JobsTab").then((m) => ({ default: m.JobsTab })), { loading });
 const LibraryTab = dynamic(() => import("./sub_library/LibraryTab").then((m) => ({ default: m.LibraryTab })), { loading });
 const MatchTab = dynamic(() => import("./sub_match/MatchTab").then((m) => ({ default: m.MatchTab })), { loading });
@@ -211,6 +212,7 @@ export function Workspace() {
               {navActive === "channels" ? <ChannelsTab /> : null}
               {navActive === "decisions" ? <DecisionsTab /> : null}
               {navActive === "schedule" ? <ScheduleTab /> : null}
+              {navActive === "onboarding" ? <OnboardingTab /> : null}
               {navActive === "profile" ? <ProfileTab /> : null}
               {navActive === "match" ? <MatchTab /> : null}
               {navActive === "interview" ? <InterviewSimTab /> : null}

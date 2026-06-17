@@ -415,6 +415,7 @@
       "channels": "Channels",
       "decisions": "Decisions",
       "schedule": "Schedule",
+      "onboarding": "Onboarding",
       "jobs": "Jobs",
       "library": "Job descriptions",
       "profile": "Profile",
@@ -2360,6 +2361,38 @@
       "holdsValue": "{raised} → {resolved}",
       "reviewHolds": "Review pending holds in Decisions",
       "comms": "Comms delivered"
+    }
+  },
+  "onboarding": {
+    "eyebrow": "Hand-off",
+    "title": "Onboarding",
+    "intro": "Run a repeatable checklist for every new hire, collect their pre-boarding details, and track document signatures — picking up where the offer leaves off.",
+    "loading": "Loading…",
+    "readyTitle": "Ready to onboard",
+    "readyEmpty": "No hired candidates waiting. Mark a candidate Hired in the pipeline to start their onboarding.",
+    "aCandidate": "Candidate",
+    "startCta": "Start onboarding",
+    "runsTitle": "In progress",
+    "runsEmpty": "No onboarding runs yet.",
+    "complete": "Complete",
+    "progress": "{done}/{total} done",
+    "back": "Back to onboarding",
+    "checklist": "Checklist",
+    "questionnaire": "Pre-boarding questionnaire",
+    "questionnaireNote": "Details the new hire shares before day one — saved to their record.",
+    "signatures": "Documents to sign",
+    "signSeamNote": "Demo signing — connect an eIDAS provider (e.g. Signicat, DocuSign) to make these legally binding.",
+    "signed": "Signed",
+    "markSigned": "Mark signed",
+    "docPlaceholder": "Document name (e.g. Employment contract)",
+    "requestSign": "Request signature",
+    "field": {
+      "preferredName": "Preferred name",
+      "tshirtSize": "T-shirt size",
+      "dietaryNeeds": "Dietary needs",
+      "equipmentPrefs": "Equipment preferences",
+      "emergencyContact": "Emergency contact",
+      "startDateConfirm": "Confirmed start date"
     }
   },
   "about": {
