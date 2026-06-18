@@ -56,3 +56,46 @@ export function safeHttpLinks(raws: readonly string[]): SafeLink[] {
   }
   return out;
 }
+
+/** True for a host that is a bare IP literal (IPv4 dotted-quad or IPv6 — the URL
+ *  parser leaves IPv6 hostnames bracketed and always containing `:`). A provider
+ *  endpoint is always a DNS name, so a literal IP is rejected outright (no need
+ *  to range-check: that closes 169.254.169.254 metadata, 127.x loopback and every
+ *  RFC-1918 LAN in one rule). */
+function isIpLiteralHost(host: string): boolean {
+  if (host.includes(":")) return true; // IPv6 literal (bracketed) — never a DNS name
+  return /^\d{1,3}(\.\d{1,3}){3}$/.test(host);
+}
+
+/**
+ * SSRF-grade check for an operator-supplied service endpoint that the SERVER will
+ * call with a bearer key (e.g. an Azure OpenAI resource URL). Unlike
+ * `safeHttpUrl` (render-time, permissive about host), this URL is fetched
+ * server-side, so a bad value is a classic SSRF + key-exfiltration pivot: an
+ * attacker who can store the endpoint can point it at cloud metadata
+ * (169.254.169.254), a loopback/LAN service, or their own host to capture the
+ * key. We require `https:` and a public DNS host — never a bare IP, loopback,
+ * link-local, or an internal/`.local`/`.internal` name. Returns the
+ * parse-normalized href on success; THROWS an `Error` with an operator-facing
+ * message on rejection so the caller can surface it as a 400 at store time.
+ */
+export function assertPublicHttpsEndpoint(raw: string, label = "endpoint"): string {
+  let url: URL;
+  try {
+    url = new URL(raw);
+  } catch {
+    throw new Error(`Invalid ${label}: not a URL.`);
+  }
+  if (url.protocol !== "https:") {
+    throw new Error(`Invalid ${label}: must use https://.`);
+  }
+  const host = url.hostname.toLowerCase();
+  if (!host) throw new Error(`Invalid ${label}: missing host.`);
+  if (isIpLiteralHost(host)) {
+    throw new Error(`Invalid ${label}: a bare IP address is not allowed — use the provider hostname.`);
+  }
+  if (host === "localhost" || host.endsWith(".localhost") || host.endsWith(".local") || host.endsWith(".internal")) {
+    throw new Error(`Invalid ${label}: internal/loopback hosts are not allowed.`);
+  }
+  return url.href;
+}

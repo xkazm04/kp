@@ -11,6 +11,7 @@
 
 import { listLlmConfig, listProviderKeys, upsertProviderKey, type LlmConfigRow } from "./db";
 import { decryptProviderSecret, encryptProviderSecret } from "./llm-secret";
+import { assertPublicHttpsEndpoint } from "./safe-url";
 
 // Keep in sync with PROVIDER_CAPABILITIES / USE_CASE_REQUIREMENTS in
 // pipeline/jobfit/llm/capabilities.py — Python is authoritative; these lists
@@ -73,9 +74,37 @@ export type ProviderKeyInput = {
   apiVersion?: string;
 };
 
+// Azure resource endpoints live under this suffix; an operator can extend the
+// allowlist with exact hosts via KP_LLM_ENDPOINT_ALLOWLIST (comma-separated) for
+// sovereign/gov clouds or a gateway. Empty by default — no escape hatch needed
+// for the common case.
+const AZURE_ENDPOINT_SUFFIX = ".openai.azure.com";
+
+function endpointHostAllowlist(): string[] {
+  return (process.env.KP_LLM_ENDPOINT_ALLOWLIST ?? "")
+    .split(",")
+    .map((h) => h.trim().toLowerCase())
+    .filter(Boolean);
+}
+
 export function saveProviderKey(input: ProviderKeyInput): void {
   const meta: Record<string, unknown> = {};
-  if (input.endpoint) meta.endpoint = input.endpoint;
+  if (input.endpoint) {
+    // SSRF guard: this endpoint is later handed to the provider SDK *with the
+    // decrypted key*, so validate the host before it ever reaches the DB — reject
+    // non-https, bare IPs (169.254.169.254 metadata, loopback, LAN) and internal
+    // hosts. For Azure, additionally constrain to *.openai.azure.com (or the
+    // configured allowlist) so a key can't be redirected to an attacker host.
+    assertPublicHttpsEndpoint(input.endpoint, `${input.provider} endpoint`);
+    if (input.provider === "azure_openai") {
+      const host = new URL(input.endpoint).hostname.toLowerCase();
+      const allowed = host.endsWith(AZURE_ENDPOINT_SUFFIX) || endpointHostAllowlist().includes(host);
+      if (!allowed) {
+        throw new Error(`Azure endpoint must be a *.openai.azure.com resource (got ${host}).`);
+      }
+    }
+    meta.endpoint = input.endpoint;
+  }
   if (input.apiVersion) meta.apiVersion = input.apiVersion;
   upsertProviderKey({
     provider: input.provider,
