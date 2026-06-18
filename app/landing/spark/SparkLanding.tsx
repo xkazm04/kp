@@ -228,7 +228,7 @@ export default function SparkLanding() {
             Pricing
           </a>
           <a
-            href="#cta"
+            href="/login"
             className="rounded-lg border-[3px] border-[#17202a] bg-[#caa54c] px-4 py-2 shadow-[3px_3px_0_#17202a] transition-all hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[2px_2px_0_#17202a]"
           >
             Get early access
@@ -305,7 +305,7 @@ export default function SparkLanding() {
             transition={{ delay: 0.32 }}
             className="mt-8 flex flex-wrap items-center gap-4"
           >
-            <a href="#cta" className={`${BTN} bg-[#d65a4a] text-white`}>
+            <a href="/login" className={`${BTN} bg-[#d65a4a] text-white`}>
               Start screening free
               <ArrowRight className="h-5 w-5" />
             </a>
@@ -585,7 +585,7 @@ export default function SparkLanding() {
             Let KandiDate dig them out. Free while we’re in early access.
           </p>
           <motion.a
-            href="#"
+            href="/login"
             whileHover={{ scale: 1.04, rotate: -1 }}
             whileTap={{ scale: 0.97 }}
             className={`${BTN} relative mt-8 bg-[#fdf8ee]`}

@@ -164,7 +164,7 @@ export default function PricingSection() {
                 ))}
               </ul>
 
-              <a href="#cta" className={`${BTN} mt-6 w-full justify-center ${tier.btnClass}`}>
+              <a href="/login" className={`${BTN} mt-6 w-full justify-center ${tier.btnClass}`}>
                 {tier.cta}
                 <ArrowRight className="h-5 w-5" />
               </a>
