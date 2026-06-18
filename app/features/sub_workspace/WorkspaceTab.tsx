@@ -7,10 +7,11 @@ import { useJsonFetch } from "@/app/_lib/useJsonFetch";
 import type { Workspace } from "@/app/_lib/db";
 
 // Workspace administration (P2). Lists workspaces, creates one, and switches the
-// active session workspace. Honest about scope: only Analyses isolates by
-// workspace today — surfaced as a banner so switching to a fresh workspace
-// (empty Analyses, shared everything-else) reads as expected, not broken.
-type Payload = { workspaces: Workspace[]; current: string };
+// active session workspace. Tenancy is single-tenant-locked until per-workspace
+// data isolation lands (workspace-lock.ts): when `multiWorkspace` is false the
+// create form and switch buttons are hidden and the banner explains why, so the
+// UI no longer offers an action that would expose another tenant's data.
+type Payload = { workspaces: Workspace[]; current: string; multiWorkspace: boolean };
 
 export function WorkspaceTab() {
   const t = useTranslations("workspaceAdmin");
@@ -18,6 +19,9 @@ export function WorkspaceTab() {
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
+  // Default to locked until the payload says otherwise, so the create/switch UI is
+  // never shown speculatively while loading.
+  const locked = !data?.multiWorkspace;
 
   async function switchTo(id: string) {
     setBusy(true);
@@ -68,7 +72,7 @@ export function WorkspaceTab() {
 
       <div className="mt-4 flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
         <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
-        <span>{t("scopeNote")}</span>
+        <span>{locked ? t("lockedNote") : t("scopeNote")}</span>
       </div>
 
       {error ? (
@@ -90,7 +94,7 @@ export function WorkspaceTab() {
                     <Check className="h-4 w-4" aria-hidden />
                     {t("current")}
                   </span>
-                ) : (
+                ) : locked ? null : (
                   <button
                     type="button"
                     onClick={() => switchTo(w.id)}
@@ -106,22 +110,24 @@ export function WorkspaceTab() {
         </ul>
       )}
 
-      <form onSubmit={create} className="mt-4 flex items-center gap-2">
-        <input
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder={t("createPlaceholder")}
-          className="flex-1 rounded-md border border-stone-300 px-3 py-2 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-stone-400"
-        />
-        <button
-          type="submit"
-          disabled={busy || !name.trim()}
-          className="inline-flex items-center gap-1.5 rounded-md bg-stone-900 px-4 py-2 text-sm font-medium text-white hover:bg-stone-800 disabled:opacity-60"
-        >
-          <Plus className="h-4 w-4" aria-hidden />
-          {t("create")}
-        </button>
-      </form>
+      {locked ? null : (
+        <form onSubmit={create} className="mt-4 flex items-center gap-2">
+          <input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder={t("createPlaceholder")}
+            className="flex-1 rounded-md border border-stone-300 px-3 py-2 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-stone-400"
+          />
+          <button
+            type="submit"
+            disabled={busy || !name.trim()}
+            className="inline-flex items-center gap-1.5 rounded-md bg-stone-900 px-4 py-2 text-sm font-medium text-white hover:bg-stone-800 disabled:opacity-60"
+          >
+            <Plus className="h-4 w-4" aria-hidden />
+            {t("create")}
+          </button>
+        </form>
+      )}
       {msg ? <p className="mt-2 text-sm text-coral">{msg}</p> : null}
     </section>
   );

@@ -2059,8 +2059,9 @@
   },
   "workspaceAdmin": {
     "title": "Workspaces",
-    "intro": "Create and switch between isolated workspaces — each is a separate tenant of your kp data.",
+    "intro": "Workspaces will let you isolate kp data into separate tenants. Per-workspace isolation is still being built, so the app currently runs as a single workspace.",
     "scopeNote": "Heads up: only Analyses is workspace-isolated so far. Other data (jobs, pipeline, interviews, etc.) is still shared across workspaces until per-table scoping is complete — so a new workspace shows empty Analyses but the same everything-else.",
+    "lockedNote": "Workspaces are locked to a single tenant until per-workspace data isolation is complete — most data (candidates, pipeline, billing, interviews) isn't scoped yet, so creating or switching workspaces would expose it across tenants. Creation and switching are disabled until then.",
     "loading": "Loading…",
     "loadError": "Couldn't load workspaces.",
     "current": "Current",
