@@ -3,7 +3,7 @@
 
 import { ensureDb, getBillingState, grantBillingCredits, insertBillingEvent, upsertBillingState } from "../db";
 import type { BillingGateway } from "./gateway";
-import { reduceBillingEvent, type BillingAction } from "./reduce";
+import { reduceBillingEvent, subscriptionWriteIsStale, type BillingAction } from "./reduce";
 
 export type IngestResult = {
   eventId: string;
@@ -15,7 +15,17 @@ export type IngestResult = {
 
 export function applyBillingAction(action: BillingAction, provider: string): string | undefined {
   switch (action.kind) {
-    case "set_subscription":
+    case "set_subscription": {
+      // Out-of-order guard: Polar does NOT guarantee ordered delivery, so a stale
+      // subscription.updated (e.g. an older past_due snapshot) can land AFTER the
+      // newer active renewal and blindly overwrite a current customer to a worse
+      // state. For the SAME subscription, refuse a write whose periodStart is older
+      // than what's already stored (a missing/unparseable period or a different
+      // subscription id — a genuine re-subscribe — still applies).
+      const prior = getBillingState();
+      if (subscriptionWriteIsStale(prior?.providerSubscriptionId ?? null, prior?.currentPeriodStart ?? null, action.subscriptionId, action.periodStart)) {
+        return `stale subscription event ignored (period ${action.periodStart ?? "?"} not newer than stored)`;
+      }
       upsertBillingState({
         plan: action.plan,
         status: action.status,
@@ -26,6 +36,7 @@ export function applyBillingAction(action: BillingAction, provider: string): str
         currentPeriodEnd: action.periodEnd,
       });
       return `plan=${action.plan} status=${action.status}`;
+    }
     case "clear_subscription": {
       // Keep the customer id — the portal (and any win-back checkout) still
       // needs to address the same MoR customer after the plan lapses.
@@ -51,6 +62,17 @@ export function applyBillingAction(action: BillingAction, provider: string): str
       return granted ? `+${action.qty} ${action.meter}` : `duplicate grant ${action.providerRef} skipped`;
     }
     case "ignore":
+      if (action.unmapped) {
+        // A money event whose product id isn't configured → the subscriber is never
+        // entitled, silently. Almost always POLAR_PRODUCT_* env drift (a recreated
+        // product, sandbox ids in prod). Surface LOUDLY so an operator notices rather
+        // than learning of it from a customer complaint. Still returns 2xx — a config
+        // error won't fix on retry, so don't trap the provider in a redelivery loop;
+        // the reason is persisted on billing_events for audit.
+        console.error(
+          `[billing:webhook] UNMAPPED PRODUCT on a money event — subscriber NOT entitled: ${action.reason}. Check POLAR_PRODUCT_* env against the Polar dashboard.`
+        );
+      }
       return action.reason;
   }
 }

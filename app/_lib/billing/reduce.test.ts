@@ -29,7 +29,7 @@ registerHooks({
 });
 
 const { mapPolarEvent } = await import("./polar.ts");
-const { reduceBillingEvent } = await import("./reduce.ts");
+const { reduceBillingEvent, subscriptionWriteIsStale } = await import("./reduce.ts");
 import type { ProductMap } from "./gateway.ts";
 
 const PRODUCTS: ProductMap = {
@@ -131,4 +131,34 @@ test("mapPolarEvent reads nested product/customer objects as fallbacks", () => {
   const action = reduceBillingEvent(event, PRODUCTS);
   assert.equal(action.kind, "set_subscription");
   assert.equal((action as { plan: string }).plan, "growth");
+});
+
+test("an unmapped subscription product is flagged unmapped (loud signal, not benign)", () => {
+  // POLAR_PRODUCT_* env drift: a real paying subscription whose product id isn't
+  // configured must NOT be silently ignored — the apply step logs it loudly.
+  const event = subscriptionEvent("active", "prod_not_configured");
+  const action = reduceBillingEvent(event, PRODUCTS);
+  assert.equal(action.kind, "ignore");
+  assert.equal((action as { unmapped?: boolean }).unmapped, true);
+});
+
+test("a mapped subscription is NOT flagged unmapped", () => {
+  const action = reduceBillingEvent(subscriptionEvent("active", "prod_starter"), PRODUCTS);
+  assert.equal(action.kind, "set_subscription");
+});
+
+test("subscriptionWriteIsStale: same subscription with an older period is stale", () => {
+  const T2 = "2026-06-10T00:00:00.000Z";
+  const T1 = "2026-05-10T00:00:00.000Z";
+  // Same subscription, older incoming period -> stale (would regress).
+  assert.equal(subscriptionWriteIsStale("sub_1", T2, "sub_1", T1), true);
+  // Newer incoming period -> not stale.
+  assert.equal(subscriptionWriteIsStale("sub_1", T1, "sub_1", T2), false);
+  // Equal period -> apply (status may change within the period).
+  assert.equal(subscriptionWriteIsStale("sub_1", T2, "sub_1", T2), false);
+  // Different subscription (re-subscribe) -> always apply.
+  assert.equal(subscriptionWriteIsStale("sub_1", T2, "sub_2", T1), false);
+  // Missing anchors / no prior -> apply.
+  assert.equal(subscriptionWriteIsStale(null, null, "sub_1", T1), false);
+  assert.equal(subscriptionWriteIsStale("sub_1", T2, "sub_1", null), false);
 });
