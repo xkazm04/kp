@@ -1,4 +1,4 @@
-import { readFile, writeFile } from "node:fs/promises";
+import { readFile, writeFile, rename } from "node:fs/promises";
 import path from "node:path";
 // ArchetypeChecklistItem is a leaf type with no node:fs dependency, so it is
 // single-sourced from the client-safe ProfileTypes (a type-only import, erased at
@@ -65,9 +65,32 @@ async function readRegistry(): Promise<Registry> {
 }
 
 async function writeRegistry(reg: Registry): Promise<void> {
-  // Trailing newline + 2-space indent to match the hand-authored file so the
-  // diff stays minimal when this is committed.
-  await writeFile(registryPath(), `${JSON.stringify(reg, null, 2)}\n`, "utf-8");
+  // ATOMIC write: the Python pipeline reads archetypes.json on EVERY intake/ranking
+  // spawn, concurrently with a recruiter's save here. A plain writeFile is not atomic,
+  // so a reader could catch a half-written (torn/truncated) file and 500 the live run
+  // on a JSON parse failure. Write a sibling temp file, then rename() it over the
+  // target — rename is atomic within a filesystem, so a reader always sees either the
+  // complete old file or the complete new one, never a partial. Trailing newline +
+  // 2-space indent match the hand-authored file so the committed diff stays minimal.
+  const target = registryPath();
+  const tmp = `${target}.tmp-${process.pid}`;
+  await writeFile(tmp, `${JSON.stringify(reg, null, 2)}\n`, "utf-8");
+  await rename(tmp, target);
+}
+
+// Serialize read-modify-write cycles so two near-simultaneous saves (two browser
+// tabs / a save racing an intake) can't each read the pre-other snapshot and clobber
+// the first edit — a silent lost update to scoring weights / the compliance-critical
+// fairness flag. A process-level promise chain: each write waits for the prior to
+// settle, so within this process the read→mutate→write runs without interleaving.
+let _writeChain: Promise<unknown> = Promise.resolve();
+function serializeWrite<T>(fn: () => Promise<T>): Promise<T> {
+  const next = _writeChain.then(fn, fn);
+  _writeChain = next.then(
+    () => undefined,
+    () => undefined
+  );
+  return next;
 }
 
 // Validate the compliance- and scoring-critical invariants the Python contract
@@ -113,15 +136,17 @@ export async function updateArchetype(
   id: string,
   patch: Record<string, unknown>
 ): Promise<{ archetype: ArchetypeDef } | { error: string }> {
-  const reg = await readRegistry();
-  const idx = reg.archetypes.findIndex((a) => a.id === id);
-  if (idx === -1) return { error: "Archetype not found." };
-  const merged = { ...reg.archetypes[idx], ...pickEditable(patch) };
-  const err = validateArchetype(merged);
-  if (err) return { error: err };
-  reg.archetypes[idx] = merged;
-  await writeRegistry(reg);
-  return { archetype: merged };
+  return serializeWrite(async () => {
+    const reg = await readRegistry();
+    const idx = reg.archetypes.findIndex((a) => a.id === id);
+    if (idx === -1) return { error: "Archetype not found." };
+    const merged = { ...reg.archetypes[idx], ...pickEditable(patch) };
+    const err = validateArchetype(merged);
+    if (err) return { error: err };
+    reg.archetypes[idx] = merged;
+    await writeRegistry(reg);
+    return { archetype: merged };
+  });
 }
 
 // Create a new archetype. It is selectable/assignable immediately; without
@@ -135,25 +160,27 @@ export async function createArchetype(
   if (!/^[a-z][a-z0-9_]*$/.test(id)) {
     return { error: "Id must be lowercase letters, digits, or underscores and start with a letter." };
   }
-  const reg = await readRegistry();
-  if (reg.archetypes.some((a) => a.id === id)) return { error: `An archetype with id '${id}' already exists.` };
+  return serializeWrite(async () => {
+    const reg = await readRegistry();
+    if (reg.archetypes.some((a) => a.id === id)) return { error: `An archetype with id '${id}' already exists.` };
 
-  const def: ArchetypeDef = {
-    id,
-    label: String(body.label ?? "").trim(),
-    badge: String(body.badge ?? body.label ?? "").trim() || id,
-    pythonLabel: String(body.label ?? "").trim(),
-    applyLabel: body.applyLabel ? String(body.applyLabel).trim() : undefined,
-    fairnessProtected: Boolean(body.fairnessProtected),
-    scoringModel: String(body.scoringModel ?? "experienced"),
-    weights: (body.weights as Record<Slot, number>) ?? { skills: 0.5, career: 0.35, personal: 0.15 },
-    dimensionLabels:
-      (body.dimensionLabels as Record<Slot, string>) ?? { skills: "Skills", career: "Career", personal: "Personal" },
-    checklist: [],
-  };
-  const err = validateArchetype(def);
-  if (err) return { error: err };
-  reg.archetypes.push(def);
-  await writeRegistry(reg);
-  return { archetype: def };
+    const def: ArchetypeDef = {
+      id,
+      label: String(body.label ?? "").trim(),
+      badge: String(body.badge ?? body.label ?? "").trim() || id,
+      pythonLabel: String(body.label ?? "").trim(),
+      applyLabel: body.applyLabel ? String(body.applyLabel).trim() : undefined,
+      fairnessProtected: Boolean(body.fairnessProtected),
+      scoringModel: String(body.scoringModel ?? "experienced"),
+      weights: (body.weights as Record<Slot, number>) ?? { skills: 0.5, career: 0.35, personal: 0.15 },
+      dimensionLabels:
+        (body.dimensionLabels as Record<Slot, string>) ?? { skills: "Skills", career: "Career", personal: "Personal" },
+      checklist: [],
+    };
+    const err = validateArchetype(def);
+    if (err) return { error: err };
+    reg.archetypes.push(def);
+    await writeRegistry(reg);
+    return { archetype: def };
+  });
 }
