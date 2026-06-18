@@ -98,11 +98,12 @@ export function BackupCard() {
     <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
       <div className="flex items-baseline justify-between gap-3">
         <h3 className="font-serif text-h2 text-ink">Backup &amp; restore</h3>
-        <span className="text-meta uppercase text-steel">portable workspace</span>
+        <span className="text-meta uppercase text-steel">full database</span>
       </div>
       <p className="mt-2 text-sm text-steel">
-        One JSON file carries the whole workspace (prompt cache and task runner state excluded). Take a backup before a
-        risky bulk action; restore moves a workspace between machines.
+        One JSON file carries the entire kp database — all data across every workspace (prompt cache and task runner
+        state excluded), not a single workspace&apos;s slice. Take a backup before a risky bulk action; restore moves the
+        whole database between machines. Per-workspace export/restore will come with workspace data isolation.
       </p>
 
       <div className="mt-3 flex flex-wrap items-center gap-2">

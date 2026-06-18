@@ -4,15 +4,21 @@ import { dumpWorkspace } from "@/app/_lib/db-portability";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-// DATA3 — download the whole workspace as one portable kp-db-dump JSON file
+// DATA3 — download the ENTIRE kp database as one portable kp-db-dump JSON file
 // (the db-dump.mjs format; db-load.mjs and the import endpoint both restore
 // it). Skips gemini_cache + tasks by default, same as the script's documented
 // suggestion.
 //
-// SECURITY NOTE: this exports the FULL PII workspace (candidates, contacts,
-// transcripts). Like every recruiter API in the app it currently ships with no
-// auth layer — it must ride the same app-wide auth decision tracked as the
-// rejected-idea follow-up ccb4d851.
+// SCOPE NOTE (tri-scan #2): this is a WHOLE-DATABASE dump, NOT a per-workspace
+// export — dumpWorkspace() reads every table regardless of the caller's workspace.
+// That is safe today only because the app is single-tenant-locked (workspace-lock.ts);
+// before KP_MULTI_WORKSPACE is enabled, this endpoint MUST be reworked to filter by
+// workspace_id (and the import to restore into one workspace) or it becomes a
+// cross-tenant exfiltration channel.
+//
+// SECURITY NOTE: this exports FULL PII (candidates, contacts, transcripts). Like
+// every recruiter API it relies on the proxy auth gate (active when
+// KP_OPERATOR_PASSWORD is set); see auth-sessions-tenancy.md #3 for fail-open-by-default.
 export async function GET() {
   try {
     const payload = dumpWorkspace();
