@@ -56,29 +56,39 @@ export function dumpWorkspace(skip: ReadonlySet<string> = new Set(DEFAULT_EXPORT
   }
   const db = new Database(DB_PATH, { readonly: true, fileMustExist: true });
   try {
-    const tables = db
-      .prepare("SELECT name, sql FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name")
-      .all() as { name: string; sql: string }[];
-    const indexStmt = db.prepare(
-      "SELECT sql FROM sqlite_master WHERE type = 'index' AND tbl_name = ? AND sql IS NOT NULL ORDER BY name"
-    );
-    const dumped: DumpTable[] = [];
-    for (const t of tables) {
-      if (skip.has(t.name) || !SAFE_IDENT.test(t.name)) continue;
-      const columns = (db.prepare(`SELECT name FROM pragma_table_info('${t.name}')`).all() as { name: string }[]).map(
-        (c) => c.name
+    // Read EVERY table inside ONE transaction so the dump is a CONSISTENT snapshot.
+    // Without it, a write by the app's live connection landing between reading table
+    // A and table B produces a referentially TORN backup (e.g. a pipeline_event whose
+    // entry didn't exist yet when its table was read) — and the export still reports
+    // success. In WAL mode the read transaction sees an isolated point-in-time view
+    // for its whole duration, so cross-table references stay coherent.
+    const collect = db.transaction((): DumpTable[] => {
+      const tables = db
+        .prepare("SELECT name, sql FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name")
+        .all() as { name: string; sql: string }[];
+      const indexStmt = db.prepare(
+        "SELECT sql FROM sqlite_master WHERE type = 'index' AND tbl_name = ? AND sql IS NOT NULL ORDER BY name"
       );
-      const rows = (db.prepare(`SELECT * FROM "${t.name}"`).raw(true).all() as unknown[][]).map((row) =>
-        row.map(encodeCell)
-      );
-      dumped.push({
-        name: t.name,
-        ddl: t.sql,
-        indexes: (indexStmt.all(t.name) as { sql: string }[]).map((i) => i.sql),
-        columns,
-        rows,
-      });
-    }
+      const dumped: DumpTable[] = [];
+      for (const t of tables) {
+        if (skip.has(t.name) || !SAFE_IDENT.test(t.name)) continue;
+        const columns = (db.prepare(`SELECT name FROM pragma_table_info('${t.name}')`).all() as { name: string }[]).map(
+          (c) => c.name
+        );
+        const rows = (db.prepare(`SELECT * FROM "${t.name}"`).raw(true).all() as unknown[][]).map((row) =>
+          row.map(encodeCell)
+        );
+        dumped.push({
+          name: t.name,
+          ddl: t.sql,
+          indexes: (indexStmt.all(t.name) as { sql: string }[]).map((i) => i.sql),
+          columns,
+          rows,
+        });
+      }
+      return dumped;
+    });
+    const dumped = collect();
     return {
       format: DUMP_FORMAT,
       version: DUMP_VERSION,
