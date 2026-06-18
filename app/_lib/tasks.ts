@@ -14,6 +14,7 @@ import {
 import { runAutomationTask } from "./automation-run";
 import { runReasoning } from "./reasoning-run";
 import { runAnalyze, type AnalyzeParams } from "./analyze-run";
+import { refundMeterUsage } from "./billing/entitlements";
 import { runCommitReflection, runDesignArtifacts, runEvaluateSubmission, runNeedAnalysis, type DevNeed } from "./devcase-run";
 import { runLifecycle } from "./devcase-orchestrator";
 import { runGroupEval } from "./group-eval-run";
@@ -91,7 +92,26 @@ const HANDLERS: Record<string, Spec> = {
     label: () => "AI-screen all matched candidates",
   },
   analyze: {
-    run: (ctx) => runAnalyze(ctx.params as unknown as AnalyzeParams, ctx.progress, ctx.signal),
+    run: async (ctx) => {
+      try {
+        return await runAnalyze(ctx.params as unknown as AnalyzeParams, ctx.progress, ctx.signal);
+      } catch (err) {
+        // Revenue integrity: the AI-candidate unit was debited at task START (the
+        // /api/analyze route), so a terminal failure means the recruiter paid for a
+        // result they never got. Credit the unit back — idempotent on the task id, so
+        // it can't double-refund. Best-effort: a refund failure must never mask the
+        // original error (which still fails the task).
+        try {
+          refundMeterUsage("ai_candidates", ctx.taskId);
+        } catch (refundErr) {
+          console.error(
+            `[tasks] analyze unit refund failed for ${ctx.taskId}:`,
+            refundErr instanceof Error ? refundErr.message : refundErr
+          );
+        }
+        throw err;
+      }
+    },
     label: (p) => {
       const variants = (p.variants as { label: string }[]) ?? [];
       return `Analyze · ${variants[0]?.label ?? "CV"}${variants.length > 1 ? ` +${variants.length - 1}` : ""}`;

@@ -150,3 +150,15 @@ export function recordMeterUsage(meter: Meter, qty: number = 1, now: Date = new 
     incrementBillingUsage(meter, period, qty);
   })();
 }
+
+/** Idempotent credit-back of a debited unit for a run that FAILED terminally. The
+ *  debit happens at task START (e.g. /api/analyze), so a crash / spawn failure /
+ *  LLM hard-fail means the customer paid for a result they never received. Keyed to
+ *  the task id (billing_credits.provider_ref is UNIQUE → ON CONFLICT DO NOTHING), so
+ *  a re-run or webhook-style redelivery can't double-refund. Restores the SPENDABLE
+ *  balance the debit consumed: the usage counter stays (the attempt happened) and a
+ *  +qty credit nets `remaining` back to its pre-debit value. */
+export function refundMeterUsage(meter: Meter, taskId: string, qty: number = 1): void {
+  if (qty <= 0 || !taskId) return;
+  grantBillingCredits({ meter, delta: qty, reason: `refund: ${meter} run failed`, providerRef: `refund:${taskId}` });
+}

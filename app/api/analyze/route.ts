@@ -23,8 +23,10 @@ export const maxDuration = 60;
 export async function POST(request: Request) {
   // Billing hard gate: a CV analysis is the unit behind the "AI candidates"
   // meter (one person fully worked — variants of the same person count once).
-  // Debited below at task start; a failed run burns the unit (v1 — refunds are
-  // a later nicety, not a contract).
+  // Debited below at task start; a TERMINAL task failure idempotently REFUNDS the
+  // unit (tasks.ts analyze handler → refundMeterUsage, keyed to the task id), so a
+  // crash / spawn failure / LLM hard-fail doesn't charge for a result the recruiter
+  // never received.
   const quota = meterGate("ai_candidates");
   if (quota) return NextResponse.json(quota, { status: 402 });
 
