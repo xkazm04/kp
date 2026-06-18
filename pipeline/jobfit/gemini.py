@@ -395,7 +395,22 @@ def analyze_profile_with_gemini(
     # Blind screening (idea-b8d711c4): when a redacted CV TEXT is supplied, the
     # model reads that instead of the uploaded file, so identity (name, contact,
     # photo) never reaches it and the assessment is produced blind.
+    #
+    # `blind_text is None` means blind was OFF (upload the file for full fidelity).
+    # A NON-None but empty/blank value means blind was REQUESTED but the CV couldn't
+    # be text-extracted (encrypted/scanned/unsupported PDF) — falling back to the file
+    # upload here would send the original name/contact/photo to the model and defeat
+    # blind mode entirely. FAIL CLOSED rather than leak: the previous code collapsed
+    # both cases to `blind = False` and silently uploaded the file.
+    blind_requested = blind_text is not None
     blind = bool(blind_text and blind_text.strip())
+    if blind_requested and not blind:
+        raise RuntimeError(
+            "Blind screening was requested but no identity-redacted text could be "
+            "extracted from this CV (likely an encrypted, scanned, or unsupported "
+            "PDF). Refusing to upload the original file, which would expose the "
+            "candidate's identity. Disable blind screening for this CV to proceed."
+        )
     source_line = (
         "Analyze the CV text provided at the END of this prompt. The candidate's identity "
         "(name, contact details, photo) has been REDACTED to placeholders like [NAME]/[EMAIL]/[REDACTED]; "

@@ -117,10 +117,22 @@ def analyze_cv(
         # never reach scoring. The deterministic name is held for re-attachment.
         redaction = redact_pii(pypdf_text) if blind else None
         if redaction is not None:
-            note = "Blind screening active — identity redacted before scoring"
-            if redaction.categories:
-                note += f" ({', '.join(redaction.categories)})"
-            repairs.append(note + ".")
+            # Only claim "identity redacted" when there is actually redacted text to
+            # feed the model. If extraction yielded nothing (encrypted/scanned PDF),
+            # redaction.text is empty — emitting the redacted note would be a LIE, and
+            # the gemini call below now fails closed rather than uploading the original
+            # (identity-bearing) file. Surface the honest degraded state instead.
+            if (redaction.text or "").strip():
+                note = "Blind screening active — identity redacted before scoring"
+                if redaction.categories:
+                    note += f" ({', '.join(redaction.categories)})"
+                repairs.append(note + ".")
+            else:
+                repairs.append(
+                    "Blind screening could not run: no extractable text to redact "
+                    "(encrypted/scanned/unsupported PDF). Analysis halted to avoid "
+                    "sending the original file to the model."
+                )
         _emit(progress, "extract", "done")
 
         _emit(progress, "gemini", "active")
