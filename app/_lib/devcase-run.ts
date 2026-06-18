@@ -497,10 +497,20 @@ export async function runEvaluateSubmission(submissionId: string, signal?: Abort
   // DECISIONS log (case-design v4's authorship contract), how many commits, what
   // cadence. Persisted so the decisions-log contract is checkable later instead
   // of taken on faith from the narrative.
+  // Moonshot E — a live-session submission has no git history, so derive its trace
+  // from the OBSERVED event stream instead of the (null) git signals: the DECISIONS
+  // log is present if any decision_log event fired or a DECISIONS-named file was
+  // touched. Previously decisionsLogPresent read only signals.topLevel (always empty
+  // for a session) → it always read false and, with commitCount 0, the authenticity
+  // score docked the watched submission to "mixed". `observed` waives the
+  // no-commit-history penalty downstream.
+  const observed = events !== null;
   const processTrace = {
     commitCount: commits.length,
     cadence: signals?.cadence ?? null,
-    decisionsLogPresent: (signals?.topLevel ?? []).some((f) => /decision/i.test(f.name)),
+    decisionsLogPresent: observed
+      ? events!.some((e) => e.kind === "decision_log" || (e.path != null && /decision/i.test(e.path)))
+      : (signals?.topLevel ?? []).some((f) => /decision/i.test(f.name)),
   };
   // ce28da40 — fold the trace + reflection into one authenticity verdict.
   const reflection = (payload.result.reflection ?? {}) as { readBeforeWrite?: number; iterationPattern?: string };
@@ -511,6 +521,7 @@ export async function runEvaluateSubmission(submissionId: string, signal?: Abort
     decisionsLogPresent: processTrace.decisionsLogPresent,
     readBeforeWrite: reflection.readBeforeWrite ?? null,
     iterationPattern: reflection.iterationPattern ?? null,
+    observed,
   });
   // c364a44d — anchor the evaluation into the shared seed: which planted seam
   // files did the submission actually touch? Grounded, mechanically comparable
