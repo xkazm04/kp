@@ -219,6 +219,11 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--domain", default="it", help="it | marketing | finance | sales | design | mixed")
     p.add_argument("--workers", type=int, default=4)
     p.add_argument("--json", action="store_true")
+    p.add_argument(
+        "--strict",
+        action="store_true",
+        help="exit non-zero if reliability < 100%% OR any row error-fell-back from the LLM path (a degraded provider masquerading as a clean deterministic run). Mirrors submission_eval --strict, so the DESIGN half of the dev pipeline can also fail CI on a degraded provider instead of always exiting 0.",
+    )
     args = p.parse_args(argv)
 
     if args.domain != "mixed" and args.domain not in DOMAINS:
@@ -279,6 +284,22 @@ def main(argv: list[str] | None = None) -> int:
         )
     else:
         print(_report_md(rows, sig, qual))
+
+    if args.strict:
+        reasons = []
+        if sig["reliability"] < 1.0:
+            reasons.append(f"reliability {sig['reliability']:.0%} < 100%")
+        # The dangerous false-green: a run whose LLM path ERROR-fell-back to the
+        # deterministic templates still reports healthy reliability, yet the LLM under
+        # test never actually ran — a degraded provider certifying a prompt/model.
+        if sig["error_fallbacks"]:
+            reasons.append(
+                f"{sig['error_fallbacks']} row(s) error-fell-back from the LLM path "
+                "(degraded provider, not a clean --no-llm run)"
+            )
+        if reasons:
+            sys.stderr.write("lifecycle_eval --strict failed: " + "; ".join(reasons) + "\n")
+            return 1
     return 0
 
 
