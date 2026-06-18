@@ -7,6 +7,7 @@ import { intakeLead } from "@/app/_lib/lead-intake";
 import { extractLead } from "@/app/_lib/lead-payload";
 import { publicBaseUrl } from "@/app/_lib/public-base-url";
 import { clientIpFrom, rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
+import { claimWebhookIdempotency, releaseWebhookIdempotency, webhookIdempotencyKey } from "@/app/_lib/webhook-idempotency";
 import { DEFAULT_LOCALE, isLocale, type Locale } from "@/i18n/locales";
 
 export const runtime = "nodejs";
@@ -39,6 +40,8 @@ const MAX_ATTRIBUTION_LENGTH = 120;
 const RATE_LIMIT = { limit: 60, windowMs: 60_000 };
 
 export async function POST(request: NextRequest, context: { params: Promise<{ token: string }> }) {
+  // Released in the catch if processing fails, so a genuine retry can re-run.
+  let claimedIdemKey: string | null = null;
   try {
     const { token } = await context.params;
     if (!rateLimit(`inbound:${token}:${clientIpFrom(request.headers)}`, RATE_LIMIT)) {
@@ -59,10 +62,33 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
     if (contentLength > MAX_INBOUND_BODY_BYTES) {
       return NextResponse.json({ error: "Payload too large." }, { status: 413 });
     }
-    const payload = (await request.json().catch(() => null)) as unknown;
+    // Read the raw body once so we can both parse it and derive a body-hash
+    // idempotency key (when the source sends no explicit Idempotency-Key header).
+    const rawBody = await request.text();
+    let payload: unknown;
+    try {
+      payload = JSON.parse(rawBody);
+    } catch {
+      return NextResponse.json({ error: "Body must be JSON." }, { status: 400 });
+    }
     if (payload === null) {
       return NextResponse.json({ error: "Body must be JSON." }, { status: 400 });
     }
+
+    // Request-level idempotency: a provider retry or double-fire of the SAME
+    // delivery must not record a second receipt (which inflates the Channels
+    // liveness signal), pile up another `re_applied`, or re-dispatch the
+    // acknowledgement. Claim before the first side effect; a held key short-circuits
+    // to an idempotent 200. (intakeLead dedupes the entry by email; this dedupes the
+    // request.) Released in the catch below if anything throws, so a real retry runs.
+    const idemKey = `inbound:${token}:${webhookIdempotencyKey(
+      rawBody,
+      request.headers.get("idempotency-key") ?? request.headers.get("x-idempotency-key"),
+    )}`;
+    if (!claimWebhookIdempotency(idemKey)) {
+      return NextResponse.json({ result: "duplicate_ignored", duplicate: true }, { status: 200 });
+    }
+    claimedIdemKey = idemKey;
 
     // Every received payload counts as a receipt — accepted or not — so the
     // Channels tab's liveness signal reflects what the integration actually sends.
@@ -115,6 +141,9 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
     }
     return NextResponse.json({ result: "accepted", duplicate: outcome.duplicate, entryId: outcome.entryId });
   } catch (error) {
+    // Processing failed → the provider will retry; release the claim so the retry
+    // isn't wrongly treated as a duplicate of work that never completed.
+    if (claimedIdemKey) releaseWebhookIdempotency(claimedIdemKey);
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Lead intake failed." },
       { status: 500 }
