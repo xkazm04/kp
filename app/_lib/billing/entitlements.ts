@@ -14,6 +14,7 @@
 import {
   billingUsageFor,
   creditBalance,
+  ensureDb,
   getBillingState,
   grantBillingCredits,
   incrementBillingUsage,
@@ -114,18 +115,38 @@ export function meterAllowance(meter: Meter, now: Date = new Date()): Allowance 
 /** Debit `qty` units: the month's included allowance first, then prepaid
  *  credits (one negative ledger row per overflow unit, so the balance is live
  *  and survives month boundaries). Records usage even past empty — the
- *  counters stay honest for analytics; enforcement is meterAllowance's job. */
+ *  counters stay honest for analytics; enforcement is meterAllowance's job.
+ *
+ *  Atomic + CAS: the balance read, the split, the credit decrement and the usage
+ *  increment run in ONE transaction, and the credit debit is clamped to the LIVE
+ *  balance read inside that transaction — so a debit can never grant more negative
+ *  credits than exist (the ledger never over-draws below zero) and a failure can't
+ *  leave a half-applied debit (credits decremented but usage not incremented).
+ *
+ *  RESIDUAL (not closed here): the gate→debit window. A route calls meterAllowance()
+ *  early and recordMeterUsage() later, with awaits between; two requests can both
+ *  pass the gate at the last included unit and each do full (non-degraded) work —
+ *  one extra unit of full-quality work, not a corrupted ledger. Closing that needs
+ *  a reserve-then-confirm gate across the 4 call sites (analyze / interview-complete
+ *  / the two devcase routes) + the failed-run refund (billing-engine #4); tracked
+ *  as a follow-up. better-sqlite3 is synchronous, so the ledger itself is safe. */
 export function recordMeterUsage(meter: Meter, qty: number = 1, now: Date = new Date()): void {
   if (qty <= 0) return;
   const plan = entitledPlan(getBillingState(), now);
   const limit = plan.limits[meter];
   const period = currentPeriod(now);
-  if (limit !== null) {
-    const used = billingUsageFor(meter, period);
-    const { fromCredits } = splitSpend(limit, used, creditBalance(meter), qty);
-    if (fromCredits > 0) {
-      grantBillingCredits({ meter, delta: -fromCredits, reason: "consumed" });
+  const db = ensureDb();
+  db.transaction(() => {
+    if (limit !== null) {
+      const used = billingUsageFor(meter, period);
+      const balance = creditBalance(meter);
+      const { fromCredits } = splitSpend(limit, used, balance, qty);
+      // CAS: never debit more credits than exist at write time.
+      const debit = Math.min(fromCredits, Math.max(0, balance));
+      if (debit > 0) {
+        grantBillingCredits({ meter, delta: -debit, reason: "consumed" });
+      }
     }
-  }
-  incrementBillingUsage(meter, period, qty);
+    incrementBillingUsage(meter, period, qty);
+  })();
 }
