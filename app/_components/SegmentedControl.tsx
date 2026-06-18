@@ -67,7 +67,19 @@ export function SegmentedControl<T extends string>({
     refs.current[idx]?.focus();
   };
 
+  const DIRECTIONAL = new Set(["ArrowRight", "ArrowDown", "ArrowLeft", "ArrowUp", "Home", "End"]);
+
   const onKeyDown = (event: KeyboardEvent<HTMLButtonElement>, index: number) => {
+    // No current selection (an off-taxonomy `value` — a dev error): the fallback tab
+    // stop is option 0 but nothing is aria-checked. A relative move(index±1) from here
+    // would SKIP option 0 and silently commit option 1, announced as a change the user
+    // didn't intend. So the first directional key explicitly selects option 0; once a
+    // value matches, hasSelection is true and movement below is normal radiogroup APG.
+    if (!hasSelection && DIRECTIONAL.has(event.key)) {
+      event.preventDefault();
+      move(0);
+      return;
+    }
     switch (event.key) {
       case "ArrowRight":
       case "ArrowDown":
