@@ -72,7 +72,13 @@ function useCountUp(target: number, durationMs: number) {
 }
 
 export function ScoreDial({ score }: ScoreDialProps) {
-  const clamped = clampPercent(score);
+  // clampPercent deliberately passes NaN through (callers guard separately). A
+  // non-finite score (a garbled pipeline total, a parseFloat of an absent field, a
+  // divide-by-zero average) otherwise fell through bandIndex to "Excellent" AND
+  // rendered the literal "NaN" — actively misleading on the hero verdict, upgrading a
+  // junk score to the top band. Treat non-finite as 0 (the "Early"/null floor,
+  // consistent with scoreTone's null tier) so a bad payload reads as a floor score.
+  const clamped = Number.isFinite(score) ? clampPercent(score) : 0;
   const displayed = useCountUp(clamped, TOTAL_MS);
   const activeIndex = bandIndex(clamped);
   const activeBand = BANDS[activeIndex];
