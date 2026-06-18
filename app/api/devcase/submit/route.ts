@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getPostingByToken } from "@/app/_lib/db";
-import { intakeSubmission } from "@/app/_lib/distribution";
+import { intakeSubmission, PostingClosedError } from "@/app/_lib/distribution";
 import { resumeCollectingLifecycle } from "@/app/_lib/tasks";
 
 export const runtime = "nodejs";
@@ -35,6 +35,9 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ ok: true, submission });
   } catch (error) {
+    if (error instanceof PostingClosedError) {
+      return NextResponse.json({ error: error.message }, { status: 410 });
+    }
     return NextResponse.json({ error: error instanceof Error ? error.message : "Submit failed." }, { status: 500 });
   }
 }

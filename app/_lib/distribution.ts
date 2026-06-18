@@ -63,6 +63,15 @@ export function receiveSubmission(input: { postingId: string; candidateRef: stri
 // and auto-acknowledges the candidate over the active comms channel (non-adverse, safe to
 // automate). Returns the submission + whether it was newly created (so the caller can decide
 // to fire the lifecycle only for genuinely new arrivals).
+// Thrown when a submission targets a closed posting. Routes map it to 410 so a
+// candidate learns the intake closed instead of getting a false acknowledgement.
+export class PostingClosedError extends Error {
+  constructor() {
+    super("This role's intake has closed and is no longer accepting submissions.");
+    this.name = "PostingClosedError";
+  }
+}
+
 export async function intakeSubmission(input: {
   postingId: string;
   candidateRef: string;
@@ -70,13 +79,21 @@ export async function intakeSubmission(input: {
   notes?: string;
   contact?: string;
 }): Promise<{ submission: DevSubmission; isNew: boolean }> {
+  // Closed-posting guard in the SHARED core, not just the public inbound route:
+  // the internal /api/devcase/submit route bypassed inbound's status check and
+  // silently re-ghosted candidates the close-out exists to protect. Gating here
+  // covers every caller (and any future one). Loaded once and reused for the ack.
+  const posting = getPosting(input.postingId);
+  if (!posting) throw new Error("Posting not found.");
+  if (posting.status === "closed") throw new PostingClosedError();
+
   // Atomic dedup at the DB layer (UNIQUE index + ON CONFLICT DO NOTHING) — no
   // read-then-write TOCTOU window, so concurrent double-submits coalesce to one
   // row and only the genuine first arrival is treated as new.
   const { submission, created } = createSubmission(input);
   if (!created) return { submission, isNew: false };
 
-  const role = getPosting(input.postingId)?.roleTitle ?? "the role";
+  const role = posting.roleTitle ?? "the role";
   await sendComm({
     to: input.contact || input.candidateRef,
     subject: `We received your submission — ${role}`,
