@@ -1,7 +1,7 @@
 // Webhook ingestion: verify → idempotency gate → reduce (pure) → apply (DB).
 // The single write path for money state; nothing else mutates billing_state.
 
-import { getBillingState, grantBillingCredits, insertBillingEvent, upsertBillingState } from "../db";
+import { ensureDb, getBillingState, grantBillingCredits, insertBillingEvent, upsertBillingState } from "../db";
 import type { BillingGateway } from "./gateway";
 import { reduceBillingEvent, type BillingAction } from "./reduce";
 
@@ -62,12 +62,26 @@ export function ingestBillingWebhook(
   rawBody: string,
   headers: Record<string, string | null>
 ): IngestResult {
+  // Verify OUTSIDE the transaction: it touches no DB and a bad signature must 400
+  // before we open a write.
   const event = gateway.verifyWebhook(rawBody, headers);
-  const fresh = insertBillingEvent(event.id, event.type, rawBody);
-  if (!fresh) {
-    return { eventId: event.id, type: event.type, action: "ignore", duplicate: true, detail: "redelivery" };
-  }
   const action = reduceBillingEvent(event, gateway.productMap());
-  const detail = applyBillingAction(action, gateway.provider);
-  return { eventId: event.id, type: event.type, action: action.kind, duplicate: false, detail };
+
+  // Idempotency gate + apply in ONE transaction. Previously insertBillingEvent
+  // committed the dedupe row before applyBillingAction ran, so a transient apply
+  // failure (SQLITE_BUSY, transient I/O) returned 500 → the provider's redelivery
+  // hit the dedupe row → skipped the apply forever: the customer paid but the plan
+  // never upgraded / credits never landed. Now the dedupe row only persists if the
+  // apply commits — a throw rolls the whole tx back (including the insert), so the
+  // retry reprocesses cleanly. (Every accessor uses the one ensureDb() singleton,
+  // so these statements share the transaction.)
+  const db = ensureDb();
+  return db.transaction((): IngestResult => {
+    const fresh = insertBillingEvent(event.id, event.type, rawBody);
+    if (!fresh) {
+      return { eventId: event.id, type: event.type, action: "ignore", duplicate: true, detail: "redelivery" };
+    }
+    const detail = applyBillingAction(action, gateway.provider);
+    return { eventId: event.id, type: event.type, action: action.kind, duplicate: false, detail };
+  })();
 }
