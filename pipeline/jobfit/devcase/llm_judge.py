@@ -44,4 +44,15 @@ def run_judge(
         except Exception:
             continue
         if isinstance(payload, dict):
-            parse_fn(item, payload)
+            # The contract is "malformed payloads are silently skipped" — but the
+            # guard above only covered res.json(), NOT parse_fn. A dict of the wrong
+            # SHAPE (e.g. {"score": null} or {"score": "good"}) makes a caller's
+            # parse_fn raise — int(None)/int("good") — and, since this loop is
+            # synchronous, that exception aborted the ENTIRE judge pass: every
+            # not-yet-shaped row lost its verdict and the eval crashed. Guard the
+            # shape step too, so one off-spec payload skips just its own row and the
+            # rest are still judged.
+            try:
+                parse_fn(item, payload)
+            except Exception:
+                continue
