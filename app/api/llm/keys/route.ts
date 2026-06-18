@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { deleteProviderKey } from "@/app/_lib/db";
 import { isKeyableProvider, isLlmProvider, KEYABLE_PROVIDERS, listProviderKeyMeta, saveProviderKey } from "@/app/_lib/llm-config";
+import { requireOperator } from "@/app/_lib/auth/require-operator";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -15,10 +16,14 @@ function isScope(value: unknown): value is "byom" | "platform" {
 }
 
 export async function GET() {
+  const denied = await requireOperator();
+  if (denied) return denied;
   return NextResponse.json({ keys: listProviderKeyMeta(), providers: KEYABLE_PROVIDERS });
 }
 
 export async function PUT(request: NextRequest) {
+  const denied = await requireOperator();
+  if (denied) return denied;
   const body = (await request.json().catch(() => null)) as {
     provider?: unknown;
     scope?: unknown;
@@ -59,6 +64,8 @@ export async function PUT(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
+  const denied = await requireOperator();
+  if (denied) return denied;
   const body = (await request.json().catch(() => null)) as { provider?: unknown; scope?: unknown } | null;
   if (!body || !isLlmProvider(body.provider)) {
     return NextResponse.json({ error: "Unknown provider." }, { status: 400 });
