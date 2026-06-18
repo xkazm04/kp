@@ -53,6 +53,26 @@ class RedactPiiTest(unittest.TestCase):
         self.assertIsNone(r.detected_name)
         self.assertEqual(r.text, plain)
 
+    def test_english_preposition_on_is_not_redacted(self) -> None:
+        # Czech "on" (he) used to be in the pronoun list, so \bon\b shredded every
+        # English "on" — corrupting the blind-scored text. It must survive verbatim.
+        text = "Deployed on AWS and focused on reliability."
+        r = redact_pii(text)
+        self.assertEqual(r.text, text)
+        self.assertEqual(r.categories, [])
+
+    def test_name_followed_by_inline_title_is_detected(self) -> None:
+        # The header isn't a clean 2-4-word line — the name is followed by a role on
+        # the same line. The leading segment before the separator must still be masked.
+        cv = "Jan Novák — Senior Backend Engineer\nhi@example.com\nBuilt scalable systems.\n"
+        r = redact_pii(cv)
+        self.assertEqual(r.detected_name, "Jan Novák")
+        self.assertIn("[NAME]", r.text)
+        self.assertNotIn("Jan", r.text)
+        self.assertNotIn("Novák", r.text)
+        # The title shares the line but isn't part of the name segment — it stays.
+        self.assertIn("Senior Backend Engineer", r.text)
+
 
 if __name__ == "__main__":
     unittest.main()

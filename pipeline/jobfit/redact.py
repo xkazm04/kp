@@ -24,8 +24,12 @@ _URL = re.compile(r"\b(?:https?://|www\.)\S+|\b(?:linkedin\.com|github\.com|gitl
 # A run of digits with phone-ish separators (>= ~9 digits), not glued to a word.
 _PHONE = re.compile(r"(?<!\w)\+?\d[\d\s().\-]{7,}\d(?!\w)")
 # Gender-coded pronouns / honorifics, EN + CS, whole word, case-insensitive.
+# NOTE: Czech "on" (he) is deliberately EXCLUDED — it collides with the ubiquitous
+# English preposition "on", so \bon\b would redact every "on" in an English CV,
+# shredding the blind-scored text (a far bigger harm than missing the rare Czech
+# pronoun). Czech "ona" (she) has no common English whole-word collision and stays.
 _PRONOUN = re.compile(
-    r"\b(he|she|him|her|hers|his|mr|mrs|ms|miss|on|ona|jeho|jeji|její|pan|pani|paní|slecna|slečna)\b",
+    r"\b(he|she|him|her|hers|his|mr|mrs|ms|miss|ona|jeho|jeji|její|pan|pani|paní|slecna|slečna)\b",
     re.IGNORECASE,
 )
 # Explicit age / birth markers (EN + CS).
@@ -38,23 +42,37 @@ _AGE = re.compile(
 # A title-cased name token (incl. common diacritics); a CV header name line is 2-4 of these.
 _NAME_TOKEN = re.compile(r"^[A-ZÁ-Ž][A-Za-zÀ-ž'\-]+$")
 _TITLE_WORDS = {"curriculum", "vitae", "cv", "résumé", "resume", "profile", "contact", "životopis"}
+# Separators that delimit a name from a same-line job title ("Jane Doe | CTO",
+# "Jan Novák — Senior Engineer"). The spaced hyphen " - " is included but a glued
+# hyphen is not, so a hyphenated name ("Anne-Marie") is never split.
+_NAME_SEPARATOR = re.compile(r"\s*[|•·–—,/]\s*|\s+-\s+")
 
 
 def _guess_name_line(text: str) -> str | None:
-    """The first top-of-document line that reads like a 2-4 word personal name
-    (no digits, no email, not a 'Curriculum Vitae'-style header). Best-effort —
-    None when nothing qualifies."""
+    """The first top-of-document fragment that reads like a 2-4 word personal name
+    (no digits, no email, not a 'Curriculum Vitae'-style header). Tries the whole
+    line AND the leading segment before a name/title separator, so a name followed by
+    a role on the same line ("Jane Doe — Senior Engineer") still yields "Jane Doe".
+    Best-effort — None when nothing qualifies."""
     for raw in text.splitlines()[:8]:
         line = raw.strip()
-        if not line or len(line) > 40 or "@" in line or any(ch.isdigit() for ch in line):
+        if not line:
             continue
-        tokens = line.split()
-        if not (2 <= len(tokens) <= 4):
-            continue
-        if any(t.lower() in _TITLE_WORDS for t in tokens):
-            continue
-        if all(_NAME_TOKEN.match(t) for t in tokens):
-            return line
+        # Full line first; then the part before the first name/title separator.
+        candidates = [line]
+        head = _NAME_SEPARATOR.split(line, 1)[0].strip()
+        if head and head != line:
+            candidates.append(head)
+        for cand in candidates:
+            if len(cand) > 40 or "@" in cand or any(ch.isdigit() for ch in cand):
+                continue
+            tokens = cand.split()
+            if not (2 <= len(tokens) <= 4):
+                continue
+            if any(t.lower() in _TITLE_WORDS for t in tokens):
+                continue
+            if all(_NAME_TOKEN.match(t) for t in tokens):
+                return cand
     return None
 
 
