@@ -21,16 +21,28 @@ export function ensureDbDir(): void {
 /** Open a fresh better-sqlite3 connection on DB_PATH with the canonical isolated-
  *  store pragmas: WAL (so this second connection safely shares the file with
  *  db.ts and every sibling store) + busy_timeout=5000 (so a concurrent writer
- *  waits briefly instead of instantly throwing SQLITE_BUSY). This open+pragma
- *  wrapper was copy-pasted verbatim into ~12 isolated-connection stores; resolve
- *  it once here, beside DB_PATH/ensureDbDir. Callers keep their own memoization
- *  and run their own CREATE/migration DDL on the returned handle. Stores that
- *  intentionally use a DIFFERENT pragma set (e.g. WAL-only, or a readonly export
- *  handle) deliberately do NOT use this. */
+ *  waits briefly instead of instantly throwing SQLITE_BUSY) + foreign_keys=ON.
+ *
+ *  SQLite defaults foreign_keys=OFF PER CONNECTION, and it was never enabled here,
+ *  so referential integrity was unenforced everywhere (a child row could point at a
+ *  vanished parent, and a bad id could be inserted freely). Enabling it is the
+ *  correct, standard default and the prerequisite for ANY FK to be enforced — note
+ *  the schema does not yet declare REFERENCES clauses, so this is a no-op behavioral
+ *  change today, but it means the moment a relation is declared (or migrated in) it
+ *  is enforced rather than silently ignored. Declaring REFERENCES across the existing
+ *  tables is a separate per-table migration (SQLite can't ALTER ADD CONSTRAINT); the
+ *  GDPR path anonymizes-in-place rather than deleting, so it doesn't strand orphans
+ *  today regardless. ensureDb() (the main app connection) opens through here too; the
+ *  dump/load export handles deliberately manage their own pragmas and are unaffected.
+ *
+ *  This open+pragma wrapper was copy-pasted verbatim into ~12 isolated-connection
+ *  stores; resolve it once here, beside DB_PATH/ensureDbDir. Callers keep their own
+ *  memoization and run their own CREATE/migration DDL on the returned handle. */
 export function openStore(): Database.Database {
   ensureDbDir();
   const d = new Database(DB_PATH);
   d.pragma("journal_mode = WAL");
   d.pragma("busy_timeout = 5000");
+  d.pragma("foreign_keys = ON");
   return d;
 }
