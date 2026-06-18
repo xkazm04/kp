@@ -11,8 +11,8 @@ job corpus, then scores the pipeline on:
 
 …and runs explicit FAIRNESS probes (the brief's "Rizika a trade-offy"):
 
-  - pedigree_neutrality     — swapping a university NAME barely moves the score;
-                              demonstrated skills move it far more
+  - pedigree_field_excluded — the university NAME is dropped before matching, so it
+                              can never be scored (demonstrated skills are what move it)
   - socioeconomic_inclusion — lacking an internship doesn't eliminate a candidate
   - language_neutrality     — Czech / diacritic skill surfaces resolve like English
   - potential_monotonicity  — richer evidence never scores below thinner evidence
@@ -184,17 +184,32 @@ class Probe:
 
 
 def _probe_pedigree(jobs: list[Any]) -> Probe:
-    """Swapping the university NAME (field words kept) must barely move the score."""
+    """The university NAME must never reach the matcher. build_match_candidate
+    intentionally drops ``education_detail`` (keeping only ``education_level``), so
+    a prestige signal structurally cannot influence the score.
+
+    The previous probe swapped the name and checked a small top-score DELTA — but
+    because the field is dropped before matching, that delta was ALWAYS 0 and the
+    probe passed even if a regression leaked pedigree into scoring (green theater).
+    This asserts the real invariant: a distinctive token from the university name is
+    absent from the BUILT match candidate, so it can never be scored. The score
+    delta is kept as a secondary, now-meaningful check."""
+    sentinel = "Zzelitepedigreezz"
     base = _student_frontend()
-    base.education_detail = "Computer Science, Charles University"
+    base.education_detail = f"Computer Science, {sentinel} University"
+    leaked = sentinel.casefold() in repr(build_match_candidate(base)).casefold()
     other = _student_frontend()
     other.education_detail = "Computer Science, Local Community College"
     t1 = match(build_match_candidate(base), jobs, limit=5).matches
     t2 = match(build_match_candidate(other), jobs, limit=5).matches
-    s1 = t1[0].total if t1 else 0
-    s2 = t2[0].total if t2 else 0
-    delta = abs(s1 - s2)
-    return Probe("pedigree_neutrality", delta <= 3, f"top-score delta {delta} (<=3) between prestigious vs lesser-known uni")
+    delta = abs((t1[0].total if t1 else 0) - (t2[0].total if t2 else 0))
+    passed = (not leaked) and delta <= 3
+    detail = (
+        f"university name excluded from the match input; top-score delta {delta} (<=3)"
+        if passed
+        else f"PEDIGREE LEAK: name-in-match-input={leaked}, top-score delta {delta}"
+    )
+    return Probe("pedigree_field_excluded", passed, detail)
 
 
 def _probe_socioeconomic(jobs: list[Any]) -> Probe:
