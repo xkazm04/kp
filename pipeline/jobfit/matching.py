@@ -339,9 +339,13 @@ def score_personal(candidate: MatchCandidate, job: Job, *, embedder: Any | None 
     Blends language coverage with the overlap of the candidate's traits/skills
     against the role description. The overlap TERM has two implementations:
 
-    * default — whole-word keyword overlap (never substrings, tokens of <=3
-      chars skipped — a bare ``t in desc`` made C/R/Go/AI match almost every ad).
-      Deterministic and offline: the reproducible baseline.
+    * default — whole-word keyword overlap (never substrings). The old length
+      guard that skipped <=3-char tokens was a blunt fix for substring false
+      positives (a bare ``t in desc`` made C/R/Go/AI match almost any ad); now
+      that ``_term_in_words`` matches on word boundaries it is redundant AND
+      discriminatory — it silently dropped legitimately short skill names
+      (Go, R, C, C++, SQL, AI, k8s), the exact tokens a focused ad is built
+      around. Deterministic and offline: the reproducible baseline.
     * ``embedder`` passed (the opt-in embedding bridge, recruiter_cli
       ``--embeddings``) — embedding cosine between the candidate's own words and
       the ad, so paraphrases finally meet without sharing a token. Fail-open:
@@ -355,8 +359,16 @@ def score_personal(candidate: MatchCandidate, job: Job, *, embedder: Any | None 
         overlap = semantic_overlap(" ".join(candidate.traits + candidate.skills), job.description or "", embedder)
     if overlap is None:
         desc_words = _description_words(job.description or "")
-        tokens = [t for t in (candidate.traits + candidate.skills) if len(t) > 3]
+        # Keep every non-empty token: _term_in_words is word-boundary based, so a
+        # short skill like "Go"/"C"/"SQL" only matches a STANDALONE word in the ad,
+        # never a substring. Dropping the old len>3 guard restores credit for whole
+        # skill families with short canonical names.
+        tokens = [t for t in (candidate.traits + candidate.skills) if t]
         hits = sum(1 for t in tokens if _term_in_words(t, desc_words))
+        # NOTE: the /5.0 saturation constant (5+ overlapping skills => full credit)
+        # is a known coarse heuristic flagged alongside this fix; it is left as-is
+        # here to avoid broadly shifting scores the sanity suite pins, and tracked
+        # as a separate tuning item (denominator tied to the ad's keyword surface).
         overlap = min(1.0, hits / 5.0)
     return round(0.5 * lang_cov + 0.5 * overlap, 4)
 

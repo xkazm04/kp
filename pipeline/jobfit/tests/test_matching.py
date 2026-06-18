@@ -165,9 +165,11 @@ class ScoreBreakdownTest(unittest.TestCase):
 
 
 class ScorePersonalOverlapTest(unittest.TestCase):
-    """Description overlap is counted on whole, length-guarded words — not raw
-    substrings — so short, ubiquitous tokens stop inflating personal fit
-    (idea-c574596a-fix-substring-false-positives)."""
+    """Description overlap is counted on whole WORDS (word boundaries), never raw
+    substrings — so a short token only scores when it appears as a standalone word
+    in the ad, not buried inside a longer one (idea-c574596a-fix-substring-false-
+    positives). The old len>3 guard that also dropped legitimately short skill names
+    is gone; word-boundary matching does the work now."""
 
     @staticmethod
     def _personal(skills: list[str], description: str) -> float:
@@ -179,8 +181,16 @@ class ScorePersonalOverlapTest(unittest.TestCase):
 
     def test_short_tokens_do_not_match_as_substrings(self) -> None:
         # "go" in "good", "ai" in "training", "c" in "category" were all bogus
-        # substring hits; length-guarded to nothing now -> pure 0.5 * lang_cov.
+        # substring hits. Word-boundary matching (not the removed length guard)
+        # rejects them now: none is a standalone word -> pure 0.5 * lang_cov.
         self.assertEqual(self._personal(["Go", "AI", "C"], "Good engineers training for any category."), 0.5)
+
+    def test_short_skill_matches_as_a_whole_word(self) -> None:
+        # Regression for the fairness fix: short skill names (Go, SQL) used to be
+        # dropped by a len>3 guard, so they never scored even against an ad built
+        # around them. Now they match on word boundaries -> 2 of 5 overlap ->
+        # 0.5 * 1.0 + 0.5 * (2/5) = 0.7.
+        self.assertEqual(self._personal(["Go", "SQL", "Rust"], "Backend in Go and SQL."), 0.7)
 
     def test_substring_inside_a_longer_word_is_not_a_hit(self) -> None:
         # "Rust" (len 4, survives the guard) must not match the "rust" in "trust".
