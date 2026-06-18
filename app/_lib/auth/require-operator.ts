@@ -15,15 +15,23 @@ import { verifySession } from "./session";
 //   - set + valid session cookie → allow
 //   - set + missing/invalid/expired → 401
 //
+// Boolean form of the same rule — for SERVER COMPONENTS that conditionally render
+// recruiter-only controls (e.g. the Edit/Archive/Revert actions on the public JD
+// page must not show to a candidate). Open mode → true (trusted local operator);
+// set + valid session → true; otherwise false.
+export async function isOperator(): Promise<boolean> {
+  if (!process.env.KP_OPERATOR_PASSWORD) return true;
+  try {
+    const jar = await cookies();
+    return verifySession(jar.get(SESSION_COOKIE)?.value) !== null;
+  } catch {
+    return false;
+  }
+}
+
 // Returns a 401 NextResponse for the handler to return, or null to proceed:
 //   const denied = await requireOperator(); if (denied) return denied;
 export async function requireOperator(): Promise<NextResponse | null> {
-  if (!process.env.KP_OPERATOR_PASSWORD) return null;
-  try {
-    const jar = await cookies();
-    if (verifySession(jar.get(SESSION_COOKIE)?.value)) return null;
-  } catch {
-    // cookies() only resolves in request scope; anything else cannot be an operator.
-  }
+  if (await isOperator()) return null;
   return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 }

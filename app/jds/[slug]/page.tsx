@@ -6,6 +6,7 @@ import { RecordRecent } from "@/app/features/RecordRecent";
 import { getJob, loadJd, type JdRow } from "@/app/_lib/db";
 import { getJobStatus, isJobOpenForApplications } from "@/app/_lib/job-ingest";
 import { jdJobId } from "@/app/_lib/jd-limits";
+import { isOperator } from "@/app/_lib/auth/require-operator";
 import { JdActions } from "./JdActions";
 import { JdBody } from "./JdBody";
 
@@ -51,6 +52,12 @@ export default async function JdDetailPage({
   const jobId = jdJobId(slug);
   const linkedJob = getJob(jobId);
   const applyOpen = linkedJob !== null && isJobOpenForApplications(getJobStatus(jobId));
+
+  // This page is public + shareable, so the Edit / Archive / Revert controls must
+  // not render for a candidate visiting via the share link. Only an operator sees
+  // them (open mode = trusted local; otherwise a valid session). The backing
+  // PATCH/revisions routes enforce the same gate server-side.
+  const canManage = await isOperator();
 
   return (
     <WorkspaceShell active="library">
@@ -102,7 +109,9 @@ export default async function JdDetailPage({
         </p>
       ) : null}
 
-      <JdActions slug={slug} title={jd.title} body={jd.body} archived={Boolean(jd.archived_at)} />
+      {canManage ? (
+        <JdActions slug={slug} title={jd.title} body={jd.body} archived={Boolean(jd.archived_at)} />
+      ) : null}
 
       <div className="mt-6">
         <JdBody markdown={jd.body} />

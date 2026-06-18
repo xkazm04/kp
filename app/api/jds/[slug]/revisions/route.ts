@@ -3,6 +3,7 @@ import { getJob, listJdRevisions, loadJd, revertJd } from "@/app/_lib/db";
 import { ingestJobAd } from "@/app/_lib/job-ingest";
 import { jdJobId } from "@/app/_lib/jd-limits";
 import { safeJsonError } from "@/app/_lib/api-response";
+import { requireOperator } from "@/app/_lib/auth/require-operator";
 
 export const runtime = "nodejs";
 // A revert re-ingests the linked job — one LLM parse, best-effort.
@@ -22,6 +23,10 @@ export async function GET(_request: Request, context: { params: Promise<{ slug: 
 }
 
 export async function POST(request: Request, context: { params: Promise<{ slug: string }> }) {
+  // Revert mutates the live JD; it is exposed on the public page, so gate it
+  // recruiter-only server-side. GET (history listing) above stays public.
+  const denied = await requireOperator();
+  if (denied) return denied;
   const { slug } = await context.params;
   try {
     const body = (await request.json().catch(() => ({}))) as { revisionId?: unknown };

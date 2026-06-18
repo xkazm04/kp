@@ -3,6 +3,7 @@ import { getJob, loadJd, setJdArchived, updateJd } from "@/app/_lib/db";
 import { ingestJobAd } from "@/app/_lib/job-ingest";
 import { jdJobId, validateJdFields } from "@/app/_lib/jd-limits";
 import { safeJsonError } from "@/app/_lib/api-response";
+import { requireOperator } from "@/app/_lib/auth/require-operator";
 
 export const runtime = "nodejs";
 // The best-effort re-ingest on a body edit is one LLM parse.
@@ -30,6 +31,10 @@ export async function GET(_request: Request, context: { params: Promise<{ slug: 
 //   { archived: bool }   — archive/unarchive (archived JDs leave listJds and
 //                          the pickers; the public page renders with a banner).
 export async function PATCH(request: Request, context: { params: Promise<{ slug: string }> }) {
+  // The JD detail page is public/shareable, so edit + archive must be recruiter-only
+  // at the handler — not just hidden in the UI. GET above stays public.
+  const denied = await requireOperator();
+  if (denied) return denied;
   const { slug } = await context.params;
   try {
     const existing = loadJd(slug);
