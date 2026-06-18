@@ -2600,6 +2600,8 @@
     "eyebrow": "Fakturace",
     "title": "Tarif a čerpání",
     "intro": "Vaše předplatné, čerpání v aktuálním období a tarify, na které můžete přejít.",
+    "checkoutConfirming": "Platba přijata — potvrzujeme váš nový tarif…",
+    "checkoutDone": "Hotovo. Váš tarif je nyní {plan}.",
     "loading": "Načítání fakturace…",
     "loadFailed": "Fakturaci se nepodařilo načíst — zkontrolujte připojení a zkuste to znovu.",
     "retry": "Zkusit znovu",

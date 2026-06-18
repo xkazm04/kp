@@ -32,7 +32,10 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const successUrl = `${publicBaseUrl(new URL(request.url).origin)}/?billing=success`;
+    // Land back ON the Billing tab so the recruiter sees their plan; the
+    // `billing=success` flag tells BillingTab to confirm + poll for the settled
+    // entitlement (the webhook lands the plan a moment later).
+    const successUrl = `${publicBaseUrl(new URL(request.url).origin)}/?tab=billing&billing=success`;
     const checkout = await gateway.createCheckout(req, { successUrl });
     return NextResponse.json(checkout);
   } catch (error) {
