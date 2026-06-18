@@ -38,3 +38,17 @@ test("missing token / secret fail closed", async () => {
   assert.equal(await verifySessionEdge(undefined, SECRET), null);
   assert.equal(await verifySessionEdge("a.b", undefined), null);
 });
+
+test("a session below the current epoch is revoked at the edge (kill-switch)", async () => {
+  const now = 2_000_000;
+  const prev = process.env.KP_SESSION_EPOCH;
+  try {
+    delete process.env.KP_SESSION_EPOCH; // token minted at epoch 0
+    const tok = signSession(undefined, now);
+    assert.ok(await verifySessionEdge(tok, SECRET, now, 0)); // valid while epoch 0
+    assert.equal(await verifySessionEdge(tok, SECRET, now, 1), null); // bumped → dead
+  } finally {
+    if (prev === undefined) delete process.env.KP_SESSION_EPOCH;
+    else process.env.KP_SESSION_EPOCH = prev;
+  }
+});

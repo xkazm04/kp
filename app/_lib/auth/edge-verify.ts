@@ -27,7 +27,8 @@ function bytesToB64url(buf: ArrayBuffer): string {
 export async function verifySessionEdge(
   token: string | undefined | null,
   secret: string | undefined,
-  now: number = Date.now()
+  now: number = Date.now(),
+  minEpoch: number = 0
 ): Promise<EdgeSession | null> {
   if (!token || !secret) return null;
   const dot = token.lastIndexOf(".");
@@ -44,9 +45,12 @@ export async function verifySessionEdge(
     let diff = 0;
     for (let i = 0; i < expected.length; i++) diff |= expected.charCodeAt(i) ^ sig.charCodeAt(i);
     if (diff !== 0) return null;
-    const payload = JSON.parse(new TextDecoder().decode(b64urlToBytes(body))) as { workspace?: unknown; exp?: unknown };
+    const payload = JSON.parse(new TextDecoder().decode(b64urlToBytes(body))) as { workspace?: unknown; exp?: unknown; epoch?: unknown };
     if (typeof payload.exp !== "number" || payload.exp < now) return null;
     if (typeof payload.workspace !== "string" || !payload.workspace) return null;
+    // Global kill-switch: a session minted before the current KP_SESSION_EPOCH is dead
+    // (a missing epoch is treated as 0 — backward-compatible with pre-epoch tokens).
+    if ((typeof payload.epoch === "number" ? payload.epoch : 0) < minEpoch) return null;
     return { workspace: payload.workspace, exp: payload.exp };
   } catch {
     return null;
