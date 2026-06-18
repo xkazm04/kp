@@ -25,6 +25,24 @@ test("coerce rejects non-objects and missing identity", () => {
   assert.equal(coerceGithubEvidenceSummary({ username: "  ", profileUrl: "x" }), null);
 });
 
+test("coerce drops dangerous-scheme URLs (stored-XSS guard)", () => {
+  // profileUrl and repo url render as <a href> in the recruiter drawer — a
+  // javascript:/data: payload must be neutralized to an inert empty href, while a
+  // genuine github URL alongside it survives.
+  const r = coerceGithubEvidenceSummary({
+    ...VALID,
+    profileUrl: "javascript:fetch('/api/steal')",
+    topRepositories: [
+      { name: "evil", url: "javascript:alert(document.cookie)" },
+      { name: "ok", url: "https://github.com/octocat/ok" },
+    ],
+  });
+  assert.equal(r?.profileUrl, "");
+  assert.equal(r?.topRepositories[0].url, ""); // unsafe dropped, name preserved
+  assert.equal(r?.topRepositories[0].name, "evil");
+  assert.equal(r?.topRepositories[1].url, "https://github.com/octocat/ok"); // safe kept
+});
+
 test("coerce clamps oversized fields and drops non-string list entries", () => {
   const result = coerceGithubEvidenceSummary({
     ...VALID,
