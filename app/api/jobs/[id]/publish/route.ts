@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { activeJobsGate } from "@/app/_lib/billing";
-import { createPipelineEntry, getJob } from "@/app/_lib/db";
+import { createPipelineEntry, ensureDb, getJob } from "@/app/_lib/db";
 import { countPublishedJobs, getJobStatus, setJobStatus } from "@/app/_lib/job-ingest";
 import { runSourceForRole } from "@/app/_lib/devcase-run";
 import { raiseRediscoveryAlertsForJob } from "@/app/_lib/rediscover";
@@ -22,14 +22,22 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     const job = getJob(id);
     if (!job) return NextResponse.json({ error: "Job not found." }, { status: 404 });
 
-    const already = getJobStatus(id) === "published";
-    // Billing hard gate: the free plan allows 1 concurrently-active authored
-    // job. Re-publishing an already-live job is always allowed (idempotent).
-    if (!already) {
+    // Billing hard gate: the free plan allows 1 concurrently-active authored job.
+    // Re-publishing an already-live job is always allowed (idempotent). The count
+    // check and the status flip run in ONE db.transaction so two concurrent
+    // publishes can't both read count=0 and both go live, bypassing the cap. (No
+    // await sits between the count and the flip and better-sqlite3 is synchronous,
+    // so this is atomic today too; the transaction enforces the invariant if an
+    // await is ever introduced into this critical section.)
+    const gate = ensureDb().transaction((): { already: boolean; quota: ReturnType<typeof activeJobsGate> } => {
+      const wasPublished = getJobStatus(id) === "published";
+      if (wasPublished) return { already: true, quota: null };
       const quota = activeJobsGate(countPublishedJobs());
-      if (quota) return NextResponse.json(quota, { status: 402 });
-    }
-    setJobStatus(id, "published");
+      if (!quota) setJobStatus(id, "published");
+      return { already: false, quota };
+    })();
+    if (gate.quota) return NextResponse.json(gate.quota, { status: 402 });
+    const already = gate.already;
 
     let sourced = 0;
     let skipped = 0;
