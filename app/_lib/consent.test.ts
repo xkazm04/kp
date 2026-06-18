@@ -5,12 +5,32 @@ import {
   consentExpiresAt,
   consentStatus,
   maskCandidateName,
+  outreachSuppressionReason,
   scrubPiiFromPayload,
   type ConsentSnapshot,
 } from "./consent.ts";
 
 const DAY = 86_400_000;
 const NOW = Date.parse("2026-06-17T00:00:00.000Z");
+
+test("outreach suppression: anonymized and expired-consent candidates are not contactable", () => {
+  // The compliance gate the outreach/rediscovery path consults before sending.
+  const anon: ConsentSnapshot = { givenAt: "x", expiresAt: new Date(NOW + 200 * DAY).toISOString(), anonymizedAt: "y" };
+  assert.equal(outreachSuppressionReason(anon, NOW), "anonymized");
+  const expired: ConsentSnapshot = { givenAt: "x", expiresAt: new Date(NOW - DAY).toISOString(), anonymizedAt: null };
+  assert.equal(outreachSuppressionReason(expired, NOW), "consent_expired");
+});
+
+test("outreach suppression: active / expiring / none / open-ended candidates ARE contactable", () => {
+  const active: ConsentSnapshot = { givenAt: "x", expiresAt: new Date(NOW + 200 * DAY).toISOString(), anonymizedAt: null };
+  assert.equal(outreachSuppressionReason(active, NOW), null);
+  const expiring: ConsentSnapshot = { givenAt: "x", expiresAt: new Date(NOW + 10 * DAY).toISOString(), anonymizedAt: null };
+  assert.equal(outreachSuppressionReason(expiring, NOW), null); // still valid, just near expiry
+  const none: ConsentSnapshot = { givenAt: null, expiresAt: null, anonymizedAt: null };
+  assert.equal(outreachSuppressionReason(none, NOW), null); // recruiter-sourced, never applied
+  const openEnded: ConsentSnapshot = { givenAt: "x", expiresAt: null, anonymizedAt: null };
+  assert.equal(outreachSuppressionReason(openEnded, NOW), null);
+});
 
 test("consentExpiresAt defaults to a 365-day window", () => {
   const given = Date.parse("2026-01-01T00:00:00.000Z");

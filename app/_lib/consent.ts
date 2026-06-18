@@ -41,6 +41,22 @@ export function consentStatus(snap: ConsentSnapshot, nowMs: number): ConsentStat
   return "active";
 }
 
+/** Why a candidate may NOT receive unsolicited OUTREACH — the suppression gate the
+ *  outreach/rediscovery path must consult before sending (CAN-SPAM/GDPR). Rediscovery
+ *  re-contacts previously-rejected people, so an ANONYMIZED candidate (PII scrubbed,
+ *  terminal) or one whose processing consent has EXPIRED must be suppressed. `none`
+ *  (recruiter-sourced, never applied), `active`, and `expiring` (still valid) are
+ *  contactable. Returns the reason, or null when the candidate may be contacted. */
+export function outreachSuppressionReason(
+  snap: ConsentSnapshot,
+  nowMs: number = Date.now(),
+): "anonymized" | "consent_expired" | null {
+  const status = consentStatus(snap, nowMs);
+  if (status === "anonymized") return "anonymized";
+  if (status === "expired") return "consent_expired";
+  return null;
+}
+
 // Header tokens that are CV-section words, not names — so a CV whose first line
 // is "Curriculum Vitae" never masks to "Curriculum V." (mirrors cv-autofill's
 // stoplist discipline). Kept tiny and lowercase.

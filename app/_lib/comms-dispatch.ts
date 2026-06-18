@@ -2,6 +2,7 @@ import { createTranslator } from "next-intl";
 import { sendComm } from "./comms";
 import { ensureErasureToken, recordAutomationEvent, type PipelineEntry } from "./db";
 import { isEarlyCareer } from "./archetypes";
+import { outreachSuppressionReason } from "./consent";
 import { publicBaseUrl } from "./public-base-url";
 import { DEFAULT_LOCALE, isLocale } from "@/i18n/locales";
 
@@ -141,19 +142,42 @@ export async function dispatchApplicationReceived(
   recordAutomationEvent(entry.id, "acknowledgement_sent", role);
 }
 
+/** Outcome of an outreach dispatch: delivered, or SUPPRESSED for a consent reason
+ *  (so the caller/UI shows "cannot contact" rather than a false "reached out"). */
+export type OutreachResult = { sent: true } | { sent: false; reason: "anonymized" | "consent_expired" };
+
 /** Dispatch an outreach message — the LLM/deterministic draft just generated.
  *  The body is the model's; only the fallback subject (used when the draft has
- *  none) localizes. */
+ *  none) localizes.
+ *
+ *  COMPLIANCE GATE (CAN-SPAM/GDPR): outreach — especially via rediscovery, which
+ *  re-contacts previously-REJECTED candidates — must never send to a candidate whose
+ *  processing consent has EXPIRED or who has been ANONYMIZED. Consult the consent
+ *  state BEFORE sending; on suppression, return the reason and record NOTHING (no
+ *  outreach_sent marker), so a later re-consent can still be contacted. The consent
+ *  system governed retention/anonymization but was never consulted on the outbound
+ *  path — this closes that gap. */
 export async function dispatchOutreach(
   entry: PipelineEntry,
   draft: { subject?: unknown; body?: unknown }
-): Promise<void> {
+): Promise<OutreachResult> {
+  const suppress = outreachSuppressionReason({
+    givenAt: entry.consentGivenAt,
+    expiresAt: entry.consentExpiresAt,
+    anonymizedAt: entry.anonymizedAt,
+  });
+  if (suppress) {
+    // Audit the refusal so the absence of a send is visible, not silent.
+    recordAutomationEvent(entry.id, "outreach_suppressed", suppress);
+    return { sent: false, reason: suppress };
+  }
   const t = await commsTranslator(entry.locale);
   const role = entry.jobTitle ?? t("aRole");
   const subject = String(draft.subject ?? t("outreach.subjectFallback", { role })).trim();
   const body = String(draft.body ?? "").trim();
   await sendCandidateComm(entry, t, { subject, body, kind: "outreach" });
   recordAutomationEvent(entry.id, "outreach_sent", entry.jobTitle ?? "");
+  return { sent: true };
 }
 
 /**
