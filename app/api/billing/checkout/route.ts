@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isPackId, isPlanId, polarGatewayFromEnv, type CheckoutRequest } from "@/app/_lib/billing";
 import { publicBaseUrl } from "@/app/_lib/public-base-url";
+import { requireOperator } from "@/app/_lib/auth/require-operator";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -10,6 +11,10 @@ export const dynamic = "force-dynamic";
 // redirects; entitlement lands later via the webhook (never from the client).
 
 export async function POST(request: NextRequest) {
+  // Defense in depth (matches proxy.ts; no-op in open dev mode): only an operator
+  // starts a checkout, so an unauth caller can't spin up checkout sessions at will.
+  const denied = await requireOperator();
+  if (denied) return denied;
   const gateway = polarGatewayFromEnv();
   if (!gateway) {
     return NextResponse.json(
