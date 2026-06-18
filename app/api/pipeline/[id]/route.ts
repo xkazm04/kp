@@ -85,6 +85,17 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
           { status: 400 }
         );
       }
+      // Hired is terminal and OUTCOME-bearing: it must be reached only when the
+      // candidate ACCEPTS an offer (/api/offer/[token]), which records the offer, the
+      // acceptance, and fires onboarding. A manual stage override straight to Hired
+      // would bypass all of that — a "hire" with no offer record. Route the recruiter
+      // through the offer flow (move to Offer → extend offer → candidate accepts).
+      if (toStage === "Hired") {
+        return NextResponse.json(
+          { error: "Hired is set when the candidate accepts an offer, not by a manual move. Move them to Offer and extend an offer." },
+          { status: 422 }
+        );
+      }
       const expected = typeof body.expectedStage === "string" ? body.expectedStage : undefined;
       const moved = setPipelineEntryStage(id, toStage, expected ? { expectedStage: expected } : undefined);
       if (!moved) {
@@ -151,6 +162,20 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
           { status: 409 }
         );
       }
+      // Seal the REVERSAL into the tamper-evident decision chain too. The auto-reject
+      // is sealed by screen-wave; recording only a pipeline event for the reinstate
+      // left the chain showing a rejection with no record it was overturned — an
+      // incomplete audit trail. Best-effort (sealDecisionSafe never throws): a seal
+      // failure must not fail the reinstate the recruiter already committed.
+      sealDecisionSafe({
+        kind: "reinstated",
+        actor: "human:recruiter",
+        policyVersion: "manual",
+        candidateRef: id,
+        rationale: "Auto-rejection reversed for re-review.",
+        reasonCode: "reinstate",
+        inputs: { previousStatus: "rejected", restoredStage: "Screened" },
+      });
       return NextResponse.json({ entry: restored });
     }
 
