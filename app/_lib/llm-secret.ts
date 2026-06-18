@@ -7,11 +7,32 @@
 
 import crypto from "node:crypto";
 
+// One-time loud warning for a weak KP_SECRET. The same secret keys BOTH the at-rest
+// provider-key encryption (here) and the session HMAC (session.ts), so a short/
+// low-entropy value weakens the whole security posture. NOT a hard reject: refusing
+// would brick an existing deployment whose stored keys were encrypted under the
+// current secret (they'd become undecryptable) and would lock the operator out of
+// sessions. We only nag in production — a dev .env.local secret may legitimately be
+// short — and only once, to avoid log spam on a hot path.
+const MIN_SECRET_LEN = 24;
+let _weakSecretWarned = false;
+function warnIfWeakSecret(secret: string): void {
+  if (_weakSecretWarned || process.env.NODE_ENV !== "production") return;
+  if (secret.trim().length < MIN_SECRET_LEN) {
+    _weakSecretWarned = true;
+    console.warn(
+      `[security] KP_SECRET is shorter than ${MIN_SECRET_LEN} characters — weak for HMAC + at-rest ` +
+        "encryption. Use a long random secret (e.g. `openssl rand -base64 32`)."
+    );
+  }
+}
+
 function masterKey(): Buffer {
   const secret = process.env.KP_SECRET;
   if (!secret || !secret.trim()) {
     throw new Error("KP_SECRET is not set — set it in .env.local to store provider keys encrypted at rest.");
   }
+  warnIfWeakSecret(secret);
   return crypto.createHash("sha256").update(secret).digest();
 }
 
