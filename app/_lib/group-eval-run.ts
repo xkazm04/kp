@@ -342,8 +342,22 @@ export async function runGroupEval(params: Record<string, unknown>, signal?: Abo
     });
   }
 
-  candidates.sort((a, b) => b.score - a.score);
+  candidates.sort((a, b) => {
+    // A knockout-failed candidate (fails the role's must-haves) must never outrank
+    // one who passed (or wasn't gated) — crowning them "recommended lead" and
+    // sealing it into the decision record is wrong. koPassed is undefined when the
+    // role has no job/ranker (ungated): treat that as not-failed. Within each group,
+    // higher fit wins.
+    const aFailed = a.koPassed === false;
+    const bFailed = b.koPassed === false;
+    if (aFailed !== bFailed) return aFailed ? 1 : -1;
+    return b.score - a.score;
+  });
   const top = candidates[0] ?? null;
+  // The recommended LEAD must pass knockout. With the ko-aware sort above, top is
+  // the best ko-passing candidate when one exists; if the whole field failed KO,
+  // there is no lead to crown or seal (top.koPassed === false).
+  const lead = top && top.koPassed !== false ? top : null;
 
   // Canonical role requirements (must-have first): the role's declared
   // requirements, so the skills matrix is ordered and complete even for a skill no
@@ -354,7 +368,10 @@ export async function runGroupEval(params: Record<string, unknown>, signal?: Abo
   // Differentiators: the lead's *role-relevant* edge — requirement skills the lead
   // matched that every rival missed (NOT raw self-declared claims, which could be
   // off-topic). See computeDifferentiators for the full definition and rationale.
-  const differentiators = computeDifferentiators(top, candidates.slice(1), requirements);
+  // Anchored on the ko-passing lead (none when the whole field failed KO).
+  const differentiators = lead
+    ? computeDifferentiators(lead, candidates.filter((c) => c.entryId !== lead.entryId), requirements)
+    : [];
 
   const risks: string[] = [];
   for (const c of candidates) {
@@ -369,25 +386,28 @@ export async function runGroupEval(params: Record<string, unknown>, signal?: Abo
   // AI head-to-head narrative (best-effort; deterministic one-liner is the fallback).
   const compare = candidates.length ? await runGroupCompare(roleTitle, candidates, job?.salaryBand ?? [], signal) : null;
 
-  const deterministicSummary = top
-    ? `${candidates.length} candidate(s) for ${roleTitle}. Recommended lead: ${top.label} (fit ${top.score}). ${
+  const deterministicSummary = lead
+    ? `${candidates.length} candidate(s) for ${roleTitle}. Recommended lead: ${lead.label} (fit ${lead.score}). ${
         differentiators.length ? `Unique strengths: ${differentiators.join(", ")}. ` : ""
       }${risks.length ? `${risks.length} watch-out(s) flagged below.` : "No blocking risks flagged."}`
-    : `No candidates to evaluate for ${roleTitle}.`;
+    : top
+      ? `${candidates.length} candidate(s) for ${roleTitle}, but none pass the role's must-haves (knockout) — no recommended lead. Review the field below.`
+      : `No candidates to evaluate for ${roleTitle}.`;
 
   // Decision SoR (moonshot D backfill): seal the AI's recommended lead — the
   // group-eval recommendation a recruiter acts on, with the eval source as the
   // policy version. Best-effort; this is the real (non-sim) eval path — the sim has
-  // its own client-side runGroupEval. Skipped when there's no candidate.
-  if (top) {
+  // its own client-side runGroupEval. Only sealed when there IS a ko-passing lead —
+  // a knockout-failed field must not seal a "lead" into the decision record.
+  if (lead) {
     sealDecisionSafe({
       kind: "group_eval_lead",
       actor: "auto:group-eval",
       policyVersion: source,
-      candidateRef: top.entryId,
+      candidateRef: lead.entryId,
       rationale: deterministicSummary,
       reasonCode: "lead",
-      inputs: { score: top.score, candidates: candidates.length, roleTitle },
+      inputs: { score: lead.score, candidates: candidates.length, roleTitle },
     });
   }
 
@@ -404,7 +424,7 @@ export async function runGroupEval(params: Record<string, unknown>, signal?: Abo
     // Every candidate label considered at eval time (pre-cap) — the modal diffs
     // this against the role's current pending entries to warn about pool drift.
     evaluatedLabels: allCandidates.map((c) => c.label),
-    topPick: top ? { label: top.label, score: top.score, why: top.verdict || `Highest fit (${top.score}) in this role.` } : null,
+    topPick: lead ? { label: lead.label, score: lead.score, why: lead.verdict || `Highest fit (${lead.score}) in this role.` } : null,
     recommendedOrder: candidates.map((c) => c.label),
     candidates,
     differentiators,
