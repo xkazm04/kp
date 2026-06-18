@@ -3,7 +3,7 @@ import { getTranslations } from "next-intl/server";
 import { getServerLocale } from "@/i18n/server";
 import { getJob } from "@/app/_lib/db";
 import { applyKoSteps } from "@/app/_lib/apply";
-import { APPLY_EMAIL_RE, failedKoStepIds } from "@/app/_lib/apply-intake";
+import { APPLY_EMAIL_RE, failedKoStepIds, isHoneypotFilled } from "@/app/_lib/apply-intake";
 import { getJobStatus, isJobOpenForApplications } from "@/app/_lib/job-ingest";
 import { intakeLead } from "@/app/_lib/lead-intake";
 import { publicBaseUrl } from "@/app/_lib/public-base-url";
@@ -70,7 +70,15 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       answers?: Record<string, unknown>;
       campaign?: unknown;
       variant?: unknown;
+      company_url?: unknown;
     };
+    // Anti-bot honeypot: a hidden `company_url` field no human fills. A bot that
+    // auto-fills every input trips it — drop the submission silently (no lead, no
+    // email) and return the normal decline copy, so the bot can't distinguish the
+    // honeypot from an ordinary KO rejection and learn to evade it.
+    if (isHoneypotFilled(body)) {
+      return NextResponse.json({ result: "declined", message: t("declinedMessage") });
+    }
     const answers = body.answers ?? {};
     const name = String(answers.name ?? "").trim();
     const email = String(answers.email ?? "").trim();

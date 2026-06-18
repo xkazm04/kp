@@ -47,6 +47,13 @@ export function QuickApplyForm({
     leadToken?: string;
   } | null>(null);
 
+  // Honeypot: a field a real applicant never sees (off-screen + aria-hidden +
+  // tabIndex -1 + autocomplete off), but a form-filling bot populates. When it comes
+  // back non-empty the server silently drops the submission. Deliberately NOT
+  // type="hidden" (bots routinely skip those) — a real input pulled out of the visual
+  // and accessibility trees, so humans and screen readers never encounter it.
+  const [companyUrl, setCompanyUrl] = useState("");
+
   // Submit unlocks only when every field is answered — a lead with a missing
   // KO answer would just be declined server-side (missing ⇒ fail), which reads
   // as a rejection the candidate never earned.
@@ -68,7 +75,7 @@ export function QuickApplyForm({
       const res = await fetch(`/api/apply/${jobId}/quick`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ answers: { name: name.trim(), email: email.trim(), ...ko }, campaign, variant }),
+        body: JSON.stringify({ answers: { name: name.trim(), email: email.trim(), ...ko }, campaign, variant, company_url: companyUrl }),
       });
       const d = await res.json();
       if (res.ok) {
@@ -123,6 +130,20 @@ export function QuickApplyForm({
 
   return (
     <form onSubmit={submit}>
+      {/* Honeypot — must stay empty. Off-screen + removed from the a11y + tab order so
+          only an indiscriminate form-filling bot reaches it. */}
+      <div aria-hidden="true" style={{ position: "absolute", left: "-9999px", width: 1, height: 1, overflow: "hidden" }}>
+        <label htmlFor="qa-company-url">Company URL (leave this field empty)</label>
+        <input
+          id="qa-company-url"
+          type="text"
+          name="company_url"
+          tabIndex={-1}
+          autoComplete="off"
+          value={companyUrl}
+          onChange={(e) => setCompanyUrl(e.target.value)}
+        />
+      </div>
       <div className="space-y-4">
         <div>
           <label htmlFor="qa-name" className="text-sm font-semibold text-ink">
