@@ -1190,6 +1190,17 @@ export function actOnPipelineEntry(
     );
     return null;
   }
+  // An accept must never RESURRECT a terminal candidate (rejected/declined/rematched)
+  // by advancing their stage: a stale/duplicate offer link, a reused schedule link, or
+  // a decision on a since-closed entry would otherwise flip them to Hired — and fire
+  // onboarding — while their status stays terminal. reject is idempotent and
+  // approve_event has its own terminal guard above; this closes the accept path.
+  // (Hired keeps status 'active', so a legitimate re-accept of a Hired entry still
+  // reaches the "already at terminal stage" no-op below.)
+  if (action === "accept" && isTerminalEntryStatus(row.status)) {
+    console.warn(`[pipeline:act] skipped accept for terminal entry ${id} (status '${row.status}').`);
+    return null;
+  }
   const now = new Date().toISOString();
   const meta = {
     entryId: id,

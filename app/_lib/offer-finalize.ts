@@ -56,10 +56,20 @@ export async function respondToOffer(token: string, response: "accept" | "declin
     const { offer: claimedOffer, claimed } = markOfferResponded(token, "accepted");
     if (!claimed) return reportLoser(claimedOffer);
     if (offer.entryId) {
-      recordAutomationEvent(offer.entryId, "offer_accepted", offer.jobTitle ?? "");
       // Offer -> Hired (clears approval). actor "system": the transition fires on
       // the candidate's response, not a recruiter click — logs `auto_advanced`.
+      // actOnPipelineEntry now refuses to advance a TERMINAL entry, so a stale
+      // offer link accepted after the candidate was rejected/closed elsewhere
+      // returns null instead of resurrecting them to Hired + firing onboarding.
       const hired = actOnPipelineEntry(offer.entryId, "accept", undefined, { actor: "system" });
+      // Only stamp the accept on the timeline when it actually advanced (mirrors the
+      // decline path's conditional event), so a closed entry can't grow a phantom
+      // offer_accepted; record the conflict instead so a recruiter can see it.
+      if (hired) {
+        recordAutomationEvent(offer.entryId, "offer_accepted", offer.jobTitle ?? "");
+      } else {
+        recordAutomationEvent(offer.entryId, "offer_accept_blocked", "accepted on a closed entry — not advanced to Hired");
+      }
       // W5-2 (DEVO2) — a hired "ds-" (promoted-submission) entry auto-feeds the
       // dev-case calibration loop. Best-effort: calibration must never affect
       // the candidate's accept. (The CAS winner above is the sole caller, so
