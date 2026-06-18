@@ -70,11 +70,6 @@ function db(): Database.Database {
       confirmed_at TEXT
     );
     CREATE INDEX IF NOT EXISTS idx_sched_entry ON schedule_invites (entry_id);
-    -- Partial index matching the heartbeat's due-reminder query exactly, so the
-    -- every-60s sweep is an index range over only un-reminded confirmed invites
-    -- rather than a full table scan.
-    CREATE INDEX IF NOT EXISTS idx_sched_due ON schedule_invites (slot_at)
-      WHERE status = 'confirmed' AND reminder_sent_at IS NULL;
   `);
   // Migrations for stores created before the reminder columns existed.
   for (const col of [
@@ -98,6 +93,20 @@ function db(): Database.Database {
       /* column already exists */
     }
   }
+  // Partial index matching the heartbeat's due-reminder query exactly, so the
+  // every-60s sweep is an index range over only un-reminded confirmed invites
+  // rather than a full table scan. CREATED AFTER the migration loop on purpose:
+  // it references slot_at, a *migrated* column on stores that predate it. In the
+  // original order (this index lived inside the CREATE-TABLE exec, before the
+  // migrations) any DB whose schedule_invites was created before slot_at existed
+  // threw `no such column: slot_at` on every db() init — CREATE TABLE IF NOT
+  // EXISTS is a no-op on the old table, so the column wasn't there yet when the
+  // index referenced it. That aborted the whole store setup and broke the
+  // reminder sweep on a 60s loop. (fix 2026-06-18)
+  d.exec(`
+    CREATE INDEX IF NOT EXISTS idx_sched_due ON schedule_invites (slot_at)
+      WHERE status = 'confirmed' AND reminder_sent_at IS NULL;
+  `);
   _db = d;
   return d;
 }
