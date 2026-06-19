@@ -2263,6 +2263,7 @@
       "colSpend": "Spend (CZK)",
       "colCpa": "CZK / applicant",
       "colCph": "CZK / hire",
+      "cpaWindowedNote": "Cost-per figures show in the All-time view only — spend is entered as a lifetime total, not per period.",
       "hoursShort": "{hours} h",
       "spendAria": "Spend for {channel} in CZK",
       "spendSaveFailed": "Couldn't save — enter a number (or clear to remove).",

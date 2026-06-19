@@ -328,6 +328,7 @@ export function AnalyticsTab() {
         variantTotal={data.byVariantTotal}
         recommendations={data.variantRecommendations}
         onSpendSaved={reload}
+        windowed={data.windowDays != null}
       />
 
       <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
@@ -573,12 +574,16 @@ function ChannelEconomicsPanel({
   variantTotal,
   recommendations,
   onSpendSaved,
+  windowed,
 }: {
   rows: ChannelEconomics[];
   variants: VariantStat[];
   variantTotal: number;
   recommendations: VariantRecommendation[];
   onSpendSaved: () => void;
+  // True when a time window is selected: spend is a lifetime total, so cost-per
+  // figures are suppressed (server returns null) and this note explains the "—".
+  windowed: boolean;
 }) {
   const t = useTranslations("analytics.channels");
   const format = useFormatter();
@@ -632,6 +637,8 @@ function ChannelEconomicsPanel({
           </table>
         </div>
       )}
+
+      {windowed && rows.length > 0 ? <p className="mt-2 text-sm text-steel">{t("cpaWindowedNote")}</p> : null}
 
       {recommendations.length > 0 ? (
         <div className="mt-4 rounded-md border border-dial-amber/40 bg-dial-amber/10 px-3 py-2.5">

@@ -416,10 +416,15 @@ export function pipelineAnalytics(
         hireRatePct: m.total ? Math.round((m.hired / m.total) * 100) : 0,
         medianHoursToDecision: medianHours(decisionMsByChannel.get(channel) ?? []),
         spendCzk,
-        // Cost figures only where the division is honest: spend entered AND a
-        // non-zero denominator (0 hires ⇒ no cost-per-hire, not infinity).
-        costPerApplicantCzk: spendCzk != null && m.total > 0 ? Math.round(spendCzk / m.total) : null,
-        costPerHireCzk: spendCzk != null && m.hired > 0 ? Math.round(spendCzk / m.hired) : null,
+        // Cost figures only where the division is HONEST: spend entered, a non-zero
+        // denominator (0 hires ⇒ no cost-per-hire, not infinity), AND an all-time
+        // cohort. spend is a single LIFETIME figure per channel (listChannelSpend has
+        // no window), so dividing it by a WINDOWED applicant/hire count mixed a
+        // lifetime numerator with a short-window denominator — inflating CPA/CPH by
+        // ~(lifetime / window), worst for the most mature accounts. In a windowed view
+        // the ratio is null (UI renders "—") until spend is stored per-period.
+        costPerApplicantCzk: !cutoffIso && spendCzk != null && m.total > 0 ? Math.round(spendCzk / m.total) : null,
+        costPerHireCzk: !cutoffIso && spendCzk != null && m.hired > 0 ? Math.round(spendCzk / m.hired) : null,
       };
     })
     .sort((a, b) => b.total - a.total);

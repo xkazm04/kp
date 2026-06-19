@@ -2263,6 +2263,7 @@
       "colSpend": "Útrata (Kč)",
       "colCpa": "Kč / uchazeč",
       "colCph": "Kč / přijetí",
+      "cpaWindowedNote": "Náklady na uchazeče/přijetí se zobrazují jen v zobrazení Za celou dobu — útrata se zadává jako celoživotní součet, ne za období.",
       "hoursShort": "{hours} h",
       "spendAria": "Útrata za kanál {channel} v Kč",
       "spendSaveFailed": "Uložení se nepodařilo — zadejte číslo (nebo smažte pro odebrání).",
