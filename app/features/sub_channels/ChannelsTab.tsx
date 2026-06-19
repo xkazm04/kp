@@ -99,8 +99,10 @@ function WebhookConnect({
   // E5 — the playbook's "time to first apply": how long after setup this
   // webhook landed its first lead. Null until one lands (or on clock skew).
   const firstLeadLabel = (h: ChannelWebhookRecord): string | null => {
-    if (!h.firstReceivedAt) return null;
-    const ms = Date.parse(h.firstReceivedAt) - Date.parse(h.createdAt);
+    // The first ACCEPTED lead (a real candidate filed), not the first raw POST — so
+    // time-to-first-lead isn't reset to ~0 by an early probe / health-check ping.
+    if (!h.firstAcceptedAt) return null;
+    const ms = Date.parse(h.firstAcceptedAt) - Date.parse(h.createdAt);
     if (!Number.isFinite(ms) || ms < 0) return null;
     const mins = Math.round(ms / 60_000);
     return mins < 120 ? t("firstLeadMins", { mins }) : t("firstLeadHours", { hours: Math.round(ms / 3_600_000) });
@@ -174,6 +176,7 @@ function WebhookConnect({
                 </span>
                 <span className="text-steel">
                   {h.receivedCount > 0 ? t("received", { count: h.receivedCount }) : t("neverReceived")}
+                  {h.acceptedCount > 0 ? <> · {t("leads", { count: h.acceptedCount })}</> : null}
                   {firstLeadLabel(h) ? <> · {firstLeadLabel(h)}</> : null}
                 </span>
                 <span className="ml-auto flex items-center gap-1">

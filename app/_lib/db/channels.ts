@@ -22,10 +22,15 @@ export type ChannelWebhookRecord = {
   jobTitle: string | null;
   lang: string | null;
   createdAt: string;
+  // Raw POSTs received — the connection LIVENESS signal (includes probes / pings /
+  // malformed bodies, so NOT a lead count).
   receivedCount: number;
   lastReceivedAt: string | null;
-  // E5 — the webhook's first lead (time-to-first-lead = this minus createdAt).
   firstReceivedAt: string | null;
+  // E5 — ACCEPTED leads only (intake actually filed a candidate). This is the real
+  // lead count; firstAcceptedAt anchors time-to-first-lead (= this minus createdAt).
+  acceptedCount: number;
+  firstAcceptedAt: string | null;
 };
 
 type ChannelWebhookRow = {
@@ -38,6 +43,8 @@ type ChannelWebhookRow = {
   received_count: number;
   last_received_at: string | null;
   first_received_at: string | null;
+  accepted_count: number;
+  first_accepted_at: string | null;
 };
 
 function rowToWebhook(r: ChannelWebhookRow): ChannelWebhookRecord {
@@ -51,12 +58,15 @@ function rowToWebhook(r: ChannelWebhookRow): ChannelWebhookRecord {
     receivedCount: r.received_count,
     lastReceivedAt: r.last_received_at,
     firstReceivedAt: r.first_received_at,
+    acceptedCount: r.accepted_count ?? 0,
+    firstAcceptedAt: r.first_accepted_at,
   };
 }
 
 const WEBHOOK_SELECT = `
   SELECT w.token, w.channel, w.job_id, j.title AS job_title, w.lang,
-         w.created_at, w.received_count, w.last_received_at, w.first_received_at
+         w.created_at, w.received_count, w.last_received_at, w.first_received_at,
+         w.accepted_count, w.first_accepted_at
   FROM channel_webhooks w LEFT JOIN jobs j ON j.id = w.job_id`;
 
 /** Mint a webhook binding. The token is the ONLY gate on this public,
@@ -102,9 +112,9 @@ export function revokeChannelWebhook(token: string): boolean {
   return res.changes > 0;
 }
 
-/** Stamp one received payload (count + timestamps) — the tab's liveness signal.
- *  first_received_at is FILL-ONLY: the first receipt sets it, later ones never
- *  move it (it anchors the time-to-first-lead metric). */
+/** Stamp one RECEIVED payload (count + timestamps) — the tab's connection LIVENESS
+ *  signal, stamped for ANY POST (a probe, a malformed body, a closed-role hit). Not a
+ *  lead count: use recordChannelWebhookAccepted for that. */
 export function recordChannelWebhookReceipt(token: string): void {
   const db = ensureDb();
   const now = new Date().toISOString();
@@ -115,6 +125,20 @@ export function recordChannelWebhookReceipt(token: string): void {
             first_received_at = COALESCE(first_received_at, ?)
       WHERE token = ?`
   ).run(now, now, token);
+}
+
+/** Stamp one ACCEPTED lead — called ONLY when intake actually files a candidate (not
+ *  on a probe / no-email / closed-role / KO-decline). This is the honest lead count;
+ *  first_accepted_at is FILL-ONLY and anchors the true time-to-first-lead. */
+export function recordChannelWebhookAccepted(token: string): void {
+  const db = ensureDb();
+  const now = new Date().toISOString();
+  db.prepare(
+    `UPDATE channel_webhooks
+        SET accepted_count = accepted_count + 1,
+            first_accepted_at = COALESCE(first_accepted_at, ?)
+      WHERE token = ?`
+  ).run(now, token);
 }
 
 // ---- Channel spend (Erika gap E5) -------------------------------------------

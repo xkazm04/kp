@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getTranslations } from "next-intl/server";
-import { getActiveChannelWebhook, getJob, recordChannelWebhookReceipt } from "@/app/_lib/db";
+import { getActiveChannelWebhook, getJob, recordChannelWebhookAccepted, recordChannelWebhookReceipt } from "@/app/_lib/db";
 import { applyKoSteps } from "@/app/_lib/apply";
 import { getJobStatus, isJobOpenForApplications } from "@/app/_lib/job-ingest";
 import { intakeLead } from "@/app/_lib/lead-intake";
@@ -148,6 +148,10 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
     if (outcome.result === "declined") {
       return NextResponse.json({ result: "declined", code: "knockout_failed", failed: lead.failedKoIds });
     }
+    // Stamp an ACCEPTED lead only for a genuinely NEW candidate — not a probe (already
+    // 422'd above), a KO-decline, or a duplicate re-apply — so the Channels "leads"
+    // metric and time-to-first-lead count real candidates, not raw POSTs.
+    if (!outcome.duplicate) recordChannelWebhookAccepted(token);
     return NextResponse.json({ result: "accepted", duplicate: outcome.duplicate, entryId: outcome.entryId });
   } catch (error) {
     // Processing failed → the provider will retry; release the claim so the retry

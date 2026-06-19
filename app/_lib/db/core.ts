@@ -625,6 +625,12 @@ export function ensureDb(): Database.Database {
     // real session workspace (so a future multi-tenant enable scopes immediately).
     "ALTER TABLE pipeline_entries ADD COLUMN workspace_id TEXT NOT NULL DEFAULT 'workspace'",
     "ALTER TABLE channel_webhooks ADD COLUMN first_received_at TEXT",
+    // E5 metric honesty: `received_count`/`first_received_at` stamp EVERY POST (probes,
+    // health-checks, malformed integrations), so they overstate real leads. Track
+    // ACCEPTED leads separately — incremented only when intake actually files a lead —
+    // so "leads received" and time-to-first-lead reflect candidates, not pings.
+    "ALTER TABLE channel_webhooks ADD COLUMN accepted_count INTEGER NOT NULL DEFAULT 0",
+    "ALTER TABLE channel_webhooks ADD COLUMN first_accepted_at TEXT",
   ]) {
     migrateExec(sql);
   }
