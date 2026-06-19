@@ -1920,7 +1920,11 @@
       "loadFailed": "Couldn't load communications.",
       "loading": "Loading communications",
       "recovered": "recovered",
-      "recoveredAt": "resent {time}"
+      "recoveredAt": "resent {time}",
+      "searchPlaceholder": "Search candidate, recipient, or subject",
+      "kindAll": "All kinds",
+      "showing": "Showing {shown} of {total}",
+      "showMore": "Show more"
     },
     "eyebrow": "Workspace",
     "title": "Channels & integrations",

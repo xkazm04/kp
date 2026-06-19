@@ -1920,7 +1920,11 @@
       "loadFailed": "Komunikaci se nepodařilo načíst.",
       "loading": "Načítání komunikace",
       "recovered": "obnoveno",
-      "recoveredAt": "znovu odesláno {time}"
+      "recoveredAt": "znovu odesláno {time}",
+      "searchPlaceholder": "Hledat kandidáta, příjemce nebo předmět",
+      "kindAll": "Všechny typy",
+      "showing": "Zobrazeno {shown} z {total}",
+      "showMore": "Zobrazit více"
     },
     "eyebrow": "Pracovní prostor",
     "title": "Kanály a integrace",
