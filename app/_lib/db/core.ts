@@ -759,6 +759,12 @@ export function ensureDb(): Database.Database {
   // it's order-independent — a seeded row that didn't stamp the column is caught.
   db.prepare(`UPDATE analyses SET workspace_id = ? WHERE workspace_id IS NULL`).run("workspace");
   db.prepare(`UPDATE profiles SET workspace_id = ? WHERE workspace_id IS NULL`).run("workspace");
+  // Null-contract heal: `approval_detail` is nullable and "no detail" is NULL (its
+  // sibling approval_kind clears to NULL), but earlier clear/insert paths wrote '',
+  // so a "cleared" detail read back as "" on some rows and NULL on others. Now that
+  // every writer uses NULL, fold the legacy empty strings to NULL so consumers see
+  // one canonical "no detail". Idempotent (a no-op once healed; new rows never write '').
+  db.prepare(`UPDATE pipeline_entries SET approval_detail = NULL WHERE approval_detail = ''`).run();
   _db = db;
   // Reclaim expired (and, once their TTL lapses, superseded-PROMPT_VERSION)
   // cache rows on boot. lookupPromptCache only SKIPS expired rows — it never

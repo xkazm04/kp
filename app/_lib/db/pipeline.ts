@@ -398,7 +398,7 @@ export function reinstatePipelineEntry(id: string): PipelineEntry | null {
     const res = db
       .prepare(
         `UPDATE pipeline_entries
-            SET status='active', stage='Screened', approval_kind=NULL, approval_detail='',
+            SET status='active', stage='Screened', approval_kind=NULL, approval_detail=NULL,
                 stage_changed_at=?, updated_at=?
           WHERE id=? AND status='rejected'`
       )
@@ -521,7 +521,7 @@ export function createPipelineEntry(input: CreatePipelineInput): { entry: Pipeli
         intake_degraded, intake_degraded_reason, contact, locale, github_json, github_handle, source_channel,
         source_campaign, source_variant, workspace_id)
      VALUES (@id, @candidate_id, @candidate_label, @archetype, @role_family, @job_id, @job_title,
-        @stage, @match_score, 'active', NULL, '', @now, @now, @now,
+        @stage, @match_score, 'active', NULL, NULL, @now, @now, @now,
         @intake_degraded, @intake_degraded_reason, @contact, @locale, @github_json, @github_handle, @source_channel,
         @source_campaign, @source_variant, @workspace_id)`
   ).run({
@@ -1245,13 +1245,13 @@ export function actOnPipelineEntry(
     const toStage = curIdx > interviewIdx ? row.stage : "Interview";
     if (toStage !== row.stage) {
       db.prepare(
-        `UPDATE pipeline_entries SET stage=?, approval_kind=NULL, approval_detail='', stage_changed_at=?, updated_at=? WHERE id=?`
+        `UPDATE pipeline_entries SET stage=?, approval_kind=NULL, approval_detail=NULL, stage_changed_at=?, updated_at=? WHERE id=?`
       ).run(toStage, now, now, id);
     } else {
       // Reschedule / already past Interview: clear the approval but leave
       // stage_changed_at untouched so time-in-stage and time-to-hire stay honest.
       db.prepare(
-        `UPDATE pipeline_entries SET approval_kind=NULL, approval_detail='', updated_at=? WHERE id=?`
+        `UPDATE pipeline_entries SET approval_kind=NULL, approval_detail=NULL, updated_at=? WHERE id=?`
       ).run(now, id);
     }
     recordEvent(db, { ...meta, kind: "scheduled", toStage, detail: slot });
@@ -1271,14 +1271,14 @@ export function actOnPipelineEntry(
     const next = PIPELINE_STAGES[Math.min(idx + 1, PIPELINE_STAGES.length - 1)];
     if (next !== row.stage) {
       db.prepare(
-        `UPDATE pipeline_entries SET stage=?, approval_kind=NULL, approval_detail='', stage_changed_at=?, updated_at=? WHERE id=?`
+        `UPDATE pipeline_entries SET stage=?, approval_kind=NULL, approval_detail=NULL, stage_changed_at=?, updated_at=? WHERE id=?`
       ).run(next, now, now, id);
       recordEvent(db, { ...meta, kind: auto ? "auto_advanced" : "advanced", toStage: next, detail: decisionNote });
     } else {
       // Already at the terminal stage (Hired): clear the approval but don't bump
       // stage_changed_at — that timestamp anchors time-to-hire and must not move.
       db.prepare(
-        `UPDATE pipeline_entries SET approval_kind=NULL, approval_detail='', updated_at=? WHERE id=?`
+        `UPDATE pipeline_entries SET approval_kind=NULL, approval_detail=NULL, updated_at=? WHERE id=?`
       ).run(now, id);
     }
   }
@@ -1350,7 +1350,7 @@ export function setPipelineEntryStage(
     if (row.stage === toStage) return rowToEntry(row); // no-op: already there
     const now = new Date().toISOString();
     db.prepare(
-      `UPDATE pipeline_entries SET stage=?, approval_kind=NULL, approval_detail='', stage_changed_at=?, updated_at=? WHERE id=?`
+      `UPDATE pipeline_entries SET stage=?, approval_kind=NULL, approval_detail=NULL, stage_changed_at=?, updated_at=? WHERE id=?`
     ).run(toStage, now, now, id);
     recordEvent(db, {
       entryId: id,
@@ -1426,7 +1426,7 @@ export function rematchSourceEntry(
     }
     const now = new Date().toISOString();
     db.prepare(
-      `UPDATE pipeline_entries SET status='rematched', approval_kind=NULL, approval_detail='', updated_at=? WHERE id=?`
+      `UPDATE pipeline_entries SET status='rematched', approval_kind=NULL, approval_detail=NULL, updated_at=? WHERE id=?`
     ).run(now, sourceId);
     recordEvent(db, { ...meta, kind: "rematched", toStage: row.stage, detail: linkDetail });
     return { closed: true, outcome: "closed" };
