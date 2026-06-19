@@ -188,6 +188,10 @@
       "length": " Počítejte přibližně s {minutes} minutami.",
       "body": "Dobrý den {name},\n\njen krátká připomínka, že váš pohovor na pozici {role} se blíží, a to {slot}.{length} Těšíme se na rozhovor s vámi — na viděnou!\n\n{team}"
     },
+    "offerReminder": {
+      "subject": "Připomínka — vaše nabídka na pozici {role} stále platí",
+      "body": "Dobrý den {name},\n\njen krátká připomínka, že vaše nabídka na pozici {role} stále platí a čeká na vaše rozhodnutí. Pokud ji chcete přijmout, dejte nám prosím vědět do {deadline}.\n\nDetaily si prohlédněte a odpovězte zde:\n{link}\n\nPokud máte před rozhodnutím jakékoli dotazy, stačí odpovědět — rádi pomůžeme.\n\n{team}"
+    },
     "interviewInvite": {
       "subject": "Vaše AI první kolo — {role}",
       "length": " Trvá přibližně {minutes} minut.",

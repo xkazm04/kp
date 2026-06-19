@@ -188,6 +188,10 @@
       "length": " Plan for about {minutes} minutes.",
       "body": "Hi {name},\n\nA quick reminder that your interview for {role} is coming up at {slot}.{length} We're looking forward to speaking with you — see you then!\n\n{team}"
     },
+    "offerReminder": {
+      "subject": "Reminder — your offer for {role} is still open",
+      "body": "Hi {name},\n\nA quick reminder that your offer for {role} is still open and waiting for your decision. To keep it, please let us know by {deadline}.\n\nReview the details and respond here:\n{link}\n\nIf you have any questions before deciding, just reply — we're happy to help.\n\n{team}"
+    },
     "interviewInvite": {
       "subject": "Your AI first-round screen — {role}",
       "length": " It takes about {minutes} minutes.",

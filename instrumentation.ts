@@ -79,6 +79,17 @@ export async function register(): Promise<void> {
     } catch (e) {
       console.error("[clock] offer lapse sweep failed:", e);
     }
+    // Proactive offer-expiry reminders (idea-29361408 follow-up) — the heads-up sent at
+    // T-48h before the lapse above, so a candidate who forgot doesn't lose a live offer
+    // to silence. Independent, best-effort, at-most-once (the sweep CAS-claims
+    // reminded_at before dispatch, so a re-tick can't double-send a candidate-facing nudge).
+    try {
+      const { sendDueOfferReminders } = await import("./app/_lib/offer-reminders");
+      const reminded = await sendDueOfferReminders();
+      if (reminded) console.log("[clock] offer reminders sent:", reminded);
+    } catch (e) {
+      console.error("[clock] offer reminder sweep failed:", e);
+    }
     // GDPR consent-expiry sweep (consent.ts) — independent, best-effort, idempotent.
     // Anonymizes candidates whose data-processing consent has lapsed (PII scrubbed,
     // scores/notes/stage retained for re-engagement). The candidate erasure path

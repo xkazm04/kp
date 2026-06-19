@@ -3,7 +3,7 @@ import { openStore } from "./db-path";
 import { randomId, randomToken } from "./random-id";
 import { TERMINAL_ENTRY_STATUSES, type PipelineEntryStatus } from "./pipeline-status";
 import { PIPELINE_STAGES } from "./pipeline-stages";
-import { isOfferExpired, OFFER_TTL_MS } from "./offer-policy";
+import { isOfferExpired, OFFER_REMINDER_LEAD_MS, OFFER_TTL_MS } from "./offer-policy";
 
 // Direction #4 — offer extension + candidate response capture. Isolated-connection
 // store (same pattern as job-ingest.ts): opens its OWN better-sqlite3 handle on
@@ -45,6 +45,14 @@ function db(): Database.Database {
   // Migration for stores created before the expiry column existed.
   try {
     d.exec(`ALTER TABLE offers ADD COLUMN expires_at TEXT`);
+  } catch {
+    /* column already exists */
+  }
+  // Migration for the T-48h reminder dedup column (idea-29361408 follow-up): the
+  // timestamp a single pre-deadline reminder was sent, NULL until then. The
+  // reminder sweep CAS-claims on `reminded_at IS NULL` so it sends at most once.
+  try {
+    d.exec(`ALTER TABLE offers ADD COLUMN reminded_at TEXT`);
   } catch {
     /* column already exists */
   }
@@ -173,6 +181,41 @@ export function lapseExpiredOffers(nowMs: number = Date.now()): number {
     .prepare(`UPDATE offers SET status = 'expired' WHERE status = 'extended' AND expires_at IS NOT NULL AND expires_at <= ?`)
     .run(new Date(nowMs).toISOString());
   return res.changes;
+}
+
+/** Still-open offers that have entered the T-48h reminder window and haven't been
+ *  reminded yet: deadline in the FUTURE (`> now`, so not already lapsable) but within
+ *  `leadMs`. NULL-deadline (legacy, never-expires) rows are excluded — nothing to nudge
+ *  toward. ISO strings compare lexicographically in time order, so the bounds are
+ *  correct in SQL. The heartbeat reminder sweep reads this. */
+export function dueOfferReminders(
+  nowMs: number = Date.now(),
+  leadMs: number = OFFER_REMINDER_LEAD_MS
+): OfferRow[] {
+  const nowIso = new Date(nowMs).toISOString();
+  const cutoffIso = new Date(nowMs + leadMs).toISOString();
+  const rows = db()
+    .prepare(
+      `SELECT * FROM offers
+       WHERE status = 'extended' AND reminded_at IS NULL
+         AND expires_at IS NOT NULL AND expires_at > ? AND expires_at <= ?
+       ORDER BY expires_at ASC`
+    )
+    .all(nowIso, cutoffIso) as Record<string, unknown>[];
+  return rows.map(rowToOffer);
+}
+
+/** CAS-claim the reminder for an offer: stamp `reminded_at` only if it's still an
+ *  un-reminded open offer. Returns true for the ONE caller whose write flipped it —
+ *  the sweep claims BEFORE dispatch, so a re-tick (or a second process) can't send the
+ *  candidate a duplicate nudge. At-most-once by design: a dispatch failure after the
+ *  claim is logged, not retried (the deadline still lapses the offer and the candidate
+ *  can act any time before then — a missed nudge is benign; a duplicate is not). */
+export function markOfferReminded(token: string, whenIso: string = new Date().toISOString()): boolean {
+  const res = db()
+    .prepare(`UPDATE offers SET reminded_at = ? WHERE token = ? AND reminded_at IS NULL AND status = 'extended'`)
+    .run(whenIso, token);
+  return res.changes > 0;
 }
 
 /** Every offer ever extended to an entry, oldest first — the candidate

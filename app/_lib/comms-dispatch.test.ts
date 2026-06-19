@@ -51,6 +51,8 @@ const RENDERS: [string, Record<string, string | number>][] = [
   ["interviewReminder.subject", { slot: "Mon 10:00" }],
   ["interviewReminder.length", { minutes: 22 }],
   ["interviewReminder.body", { name: "Jane", role: "Backend Engineer", slot: "Mon 10:00", length: " (22m)", team: "The hiring team" }],
+  ["offerReminder.subject", { role: "Backend Engineer" }],
+  ["offerReminder.body", { name: "Jane", role: "Backend Engineer", deadline: "Jun 21, 5:00 PM", link: "https://x/offer/abc", team: "The hiring team" }],
   ["interviewInvite.subject", { role: "Backend Engineer" }],
   ["interviewInvite.length", { minutes: 22 }],
   ["interviewInvite.body", { name: "Jane", role: "Backend Engineer", link: "https://x/i/abc", length: " (22m)", team: "The hiring team" }],

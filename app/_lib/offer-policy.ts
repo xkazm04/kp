@@ -8,6 +8,12 @@
 /** How long an extended offer stays open before it lapses to `expired`. */
 export const OFFER_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 
+/** Lead time before the deadline at which a single reminder nudge fires (T-48h).
+ *  The proactive half of the expiry policy: the deadline lapses an offer silently;
+ *  this is the one heads-up sent before that, so a candidate who simply forgot
+ *  doesn't lose a live offer to silence. */
+export const OFFER_REMINDER_LEAD_MS = 48 * 60 * 60 * 1000; // 48 hours
+
 /** The expiry instant (ms) for an offer created at `createdAtMs`. */
 export function offerExpiresAtMs(createdAtMs: number): number {
   return createdAtMs + OFFER_TTL_MS;
@@ -21,6 +27,21 @@ export function isOfferExpired(expiresAtIso: string | null | undefined, nowMs: n
   const ms = Date.parse(expiresAtIso);
   if (Number.isNaN(ms)) return false;
   return nowMs >= ms;
+}
+
+/** Whether a still-open offer has entered the reminder window: its deadline is in
+ *  the FUTURE but within `leadMs`. A missing/invalid deadline never reminds — it never
+ *  lapses, so there's nothing to nudge toward. Pure (no DB / no clock) like the rest of
+ *  this module, so the heartbeat's reminder policy is unit-testable. */
+export function isOfferReminderDue(
+  expiresAtIso: string | null | undefined,
+  nowMs: number = Date.now(),
+  leadMs: number = OFFER_REMINDER_LEAD_MS
+): boolean {
+  if (!expiresAtIso) return false;
+  const ms = Date.parse(expiresAtIso);
+  if (Number.isNaN(ms)) return false;
+  return ms > nowMs && ms <= nowMs + leadMs;
 }
 
 /** Whole-hours remaining until expiry (>= 0), or null when there's no valid

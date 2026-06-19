@@ -359,3 +359,37 @@ export async function dispatchOnboarding(entry: PipelineEntry): Promise<void> {
   await sendCandidateComm(entry, t, { subject, body, kind: "onboarding" });
   recordAutomationEvent(entry.id, "onboarding_started", role);
 }
+
+/** Format an offer's ISO deadline for the candidate's locale, or "" if absent/invalid
+ *  (offers in the reminder window always carry one; the guard keeps the body clean). */
+function formatOfferDeadline(iso: string | null, locale: string | null | undefined): string {
+  if (!iso) return "";
+  const ms = Date.parse(iso);
+  if (Number.isNaN(ms)) return "";
+  const loc = isLocale(locale) ? locale : DEFAULT_LOCALE;
+  return new Intl.DateTimeFormat(loc, { dateStyle: "medium", timeStyle: "short" }).format(new Date(ms));
+}
+
+/** The proactive expiry nudge (idea-29361408 follow-up): a single heads-up fired by
+ *  the heartbeat as an open offer nears its T-48h deadline, so a candidate who simply
+ *  forgot doesn't lose a live offer to silence. `link` is the candidate's existing
+ *  offer page (ABSOLUTE, resolved via publicBaseUrl by the caller).
+ *
+ *  Delivery boundary mirrors dispatchInterviewReminder: a throw means the message did
+ *  NOT go out. (The sweep already CAS-claimed reminded_at, so a throw here is logged,
+ *  not retried — at-most-once.) The post-send audit write is swallowed so a transient
+ *  DB blip after the message left can't masquerade as a delivery failure. */
+export async function dispatchOfferReminder(entry: PipelineEntry, link: string, deadlineIso: string | null): Promise<void> {
+  const t = await commsTranslator(entry.locale);
+  const name = greetName(entry, t);
+  const role = entry.jobTitle ?? t("theRole");
+  const deadline = formatOfferDeadline(deadlineIso, entry.locale);
+  const subject = t("offerReminder.subject", { role });
+  const body = t("offerReminder.body", { name, role, deadline, link, team: t("team") });
+  await sendCandidateComm(entry, t, { subject, body, kind: "offer_reminder", ref: entry.id ?? link });
+  try {
+    recordAutomationEvent(entry.id, "offer_reminder_sent", role);
+  } catch (e) {
+    console.error(`[offer-reminder] delivered but audit-log write failed for entry ${entry.id}: ${e instanceof Error ? e.message : e}`);
+  }
+}
