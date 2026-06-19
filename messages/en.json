@@ -1541,7 +1541,9 @@
       "sourceIntoPipeline": "Source into Pipeline",
       "sourcingFailed": "Sourcing failed.",
       "publishedButFailed": "Published, but sourcing failed: {warning}",
-      "sourced": "{count, plural, one {Sourced # candidate into the Pipeline.} other {Sourced # candidates into the Pipeline.}}"
+      "sourced": "{count, plural, one {Sourced # candidate into the Pipeline.} other {Sourced # candidates into the Pipeline.}}",
+      "quotaNote": "You've reached your plan's active-job limit. Upgrade or close a role to publish another.",
+      "goToBilling": "Upgrade in Billing"
     },
     "posting": {
       "copied": "Copied",
@@ -1552,6 +1554,8 @@
       "closeConfirm": "Close this role? The public apply link will stop accepting applications.",
       "closing": "Closing…",
       "closedNow": "Role closed",
+      "reopenRole": "Reopen role",
+      "reopenTitle": "Bring this role back live — re-sources the pipeline and re-checks your active-jobs plan limit",
       "closeFailed": "Couldn't close the role.",
       "cancel": "Cancel",
       "subtitleDraft": "Draft — not live yet",

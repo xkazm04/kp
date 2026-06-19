@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Users } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useLiveRefresh } from "@/app/features/live-refresh";
+import { buildUrl } from "@/app/features/tabs";
 
 // Phase 1: authored-JD drafts awaiting sourcing. "Source into Pipeline" marks
 // a draft live and pulls matching candidates in (the API route is /publish;
@@ -14,11 +16,15 @@ import { useLiveRefresh } from "@/app/features/live-refresh";
 // so JobsTab just drops it in. Renders nothing when there are no drafts.
 export function DraftsPanel() {
   const t = useTranslations("jobs.drafts");
+  const router = useRouter();
+  const search = useSearchParams();
+  const goToBilling = () => router.push(buildUrl({ tab: "billing" }, search.toString()));
   const [drafts, setDrafts] = useState<{ id: string; title: string; company: string | null }[]>([]);
   const [sourcingId, setSourcingId] = useState<string | null>(null);
   // tone "warn" = publish succeeded but sourcing errored (or the call failed) — styled
   // distinctly so a broken pipeline isn't mistaken for a clean "sourced 0" result.
-  const [draftNote, setDraftNote] = useState<{ text: string; tone: "ok" | "warn" } | null>(null);
+  // tone "quota" = hit the plan's active-job cap (402); an upgrade prompt, not a warning.
+  const [draftNote, setDraftNote] = useState<{ text: string; tone: "ok" | "warn" | "quota" } | null>(null);
   const loadDrafts = () =>
     fetch("/api/jobs/status").then((r) => r.json()).then((p) => setDrafts(p.drafts ?? [])).catch(() => undefined);
   useEffect(() => {
@@ -31,7 +37,14 @@ export function DraftsPanel() {
     try {
       const r = await fetch(`/api/jobs/${id}/publish`, { method: "POST" });
       const p = await r.json();
-      if (!r.ok) throw new Error(p.error ?? t("sourcingFailed"));
+      if (!r.ok) {
+        // Plan's active-job cap (402): distinct upgrade prompt, not a sourcing-failed warn.
+        if (p.code === "quota_exceeded") {
+          setDraftNote({ text: t("quotaNote"), tone: "quota" });
+          return;
+        }
+        throw new Error(p.error ?? t("sourcingFailed"));
+      }
       if (p.sourcingWarning) {
         // Live, but sourcing broke — show why instead of a misleading "sourced 0".
         setDraftNote({ text: t("publishedButFailed", { warning: p.sourcingWarning }), tone: "warn" });
@@ -76,16 +89,32 @@ export function DraftsPanel() {
         ))}
       </ul>
       {draftNote ? (
-        <p
-          aria-live="polite"
-          className={
-            draftNote.tone === "warn"
-              ? "mt-2 rounded-md border border-amber-200 bg-amber-50/60 px-2.5 py-1.5 text-sm text-amber-800"
-              : "mt-2 text-sm text-steel"
-          }
-        >
-          {draftNote.text}
-        </p>
+        draftNote.tone === "quota" ? (
+          <div
+            aria-live="polite"
+            className="mt-2 flex flex-wrap items-center gap-2 rounded-md border border-coral/40 bg-coral/5 px-2.5 py-1.5 text-sm text-coral"
+          >
+            <span>{draftNote.text}</span>
+            <button
+              type="button"
+              onClick={goToBilling}
+              className="focus-ring rounded-md border border-coral/40 bg-white px-2 py-0.5 font-semibold text-coral hover:bg-coral/10"
+            >
+              {t("goToBilling")}
+            </button>
+          </div>
+        ) : (
+          <p
+            aria-live="polite"
+            className={
+              draftNote.tone === "warn"
+                ? "mt-2 rounded-md border border-amber-200 bg-amber-50/60 px-2.5 py-1.5 text-sm text-amber-800"
+                : "mt-2 text-sm text-steel"
+            }
+          >
+            {draftNote.text}
+          </p>
+        )
       ) : null}
     </div>
   );

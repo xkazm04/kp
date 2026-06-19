@@ -60,7 +60,10 @@ export function JobPostingModal({ job, onClose }: { job: Job; onClose: () => voi
   // transitions on top of the server-decorated job.status.
   const [publishing, setPublishing] = useState(false);
   const [published, setPublished] = useState(false);
-  const [publishNote, setPublishNote] = useState<{ text: string; tone: "ok" | "warn" } | null>(null);
+  // tone "quota" = hit the plan's active-job cap (402 quota_exceeded): a monetization
+  // moment, rendered as an upgrade path, NOT the amber "sourcing broke" warning.
+  const [publishNote, setPublishNote] = useState<{ text: string; tone: "ok" | "warn" | "quota" } | null>(null);
+  const goToBilling = () => router.push(buildUrl({ tab: "billing" }, search.toString()));
   const status = closed ? "closed" : published ? "published" : job.status ?? null;
   const isDraft = status === "draft";
   const isClosed = status === "closed";
@@ -74,7 +77,18 @@ export function JobPostingModal({ job, onClose }: { job: Job; onClose: () => voi
     try {
       const r = await fetch(`/api/jobs/${encodeURIComponent(job.id)}/publish`, { method: "POST" });
       const p = await r.json();
-      if (!r.ok) throw new Error(p.error ?? td("sourcingFailed"));
+      if (!r.ok) {
+        // The plan's active-job cap (402): the highest-intent upsell moment — show a
+        // distinct quota state with a Billing link, not a generic sourcing-failed warn.
+        if (p.code === "quota_exceeded") {
+          setPublishNote({ text: td("quotaNote"), tone: "quota" });
+          return;
+        }
+        throw new Error(p.error ?? td("sourcingFailed"));
+      }
+      // Re-publish doubles as Reopen for a closed role; clear the local closed flag so
+      // the footer/links flip back to live (the cap is re-checked above on reopen).
+      setClosed(false);
       setPublished(true);
       setPublishNote(
         p.sourcingWarning
@@ -149,28 +163,56 @@ export function JobPostingModal({ job, onClose }: { job: Job; onClose: () => voi
       size="4xl"
       footer={
         <>
-          <button
-            type="button"
-            onClick={() => setConfirmingClose(true)}
-            disabled={closing || isClosed}
-            title={t("closeTitle")}
-            className="focus-ring mr-auto inline-flex h-9 items-center gap-1 rounded-md border border-stone-200 px-3 text-sm font-semibold text-steel hover:border-coral/40 hover:text-coral disabled:opacity-60"
-          >
-            {isClosed ? t("closedNow") : closing ? t("closing") : t("closeRole")}
-          </button>
+          {isClosed ? (
+            // JOB #3 — close was a one-way trap (the only recovery was editing the DB).
+            // Reopen re-publishes (idempotent + quota-gated, so the active-jobs cap is
+            // re-checked) and clears the closed badge on success.
+            <button
+              type="button"
+              onClick={publishRole}
+              disabled={publishing}
+              title={t("reopenTitle")}
+              className="focus-ring mr-auto inline-flex h-9 items-center gap-1 rounded-md border border-coral/40 px-3 text-sm font-semibold text-coral hover:bg-coral/5 disabled:opacity-60"
+            >
+              {publishing ? td("sourcing") : t("reopenRole")}
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setConfirmingClose(true)}
+              disabled={closing}
+              title={t("closeTitle")}
+              className="focus-ring mr-auto inline-flex h-9 items-center gap-1 rounded-md border border-stone-200 px-3 text-sm font-semibold text-steel hover:border-coral/40 hover:text-coral disabled:opacity-60"
+            >
+              {closing ? t("closing") : t("closeRole")}
+            </button>
+          )}
           {closeError ? (
             <span role="alert" className="text-sm text-red-700">
               {closeError}
             </span>
           ) : null}
           {publishNote ? (
-            <span
-              aria-live="polite"
-              className={`min-w-0 truncate text-sm ${publishNote.tone === "warn" ? "text-amber-800" : "text-steel"}`}
-              title={publishNote.text}
-            >
-              {publishNote.text}
-            </span>
+            publishNote.tone === "quota" ? (
+              <span aria-live="polite" className="inline-flex min-w-0 items-center gap-2 text-sm text-coral">
+                <span className="truncate">{publishNote.text}</span>
+                <button
+                  type="button"
+                  onClick={goToBilling}
+                  className="focus-ring shrink-0 rounded-md border border-coral/40 px-2 py-0.5 font-semibold text-coral hover:bg-coral/5"
+                >
+                  {td("goToBilling")}
+                </button>
+              </span>
+            ) : (
+              <span
+                aria-live="polite"
+                className={`min-w-0 truncate text-sm ${publishNote.tone === "warn" ? "text-amber-800" : "text-steel"}`}
+                title={publishNote.text}
+              >
+                {publishNote.text}
+              </span>
+            )
           ) : null}
           {isDraft ? (
             // A draft's apply pages 404 — offering its links ships a campaign

@@ -1541,7 +1541,9 @@
       "sourceIntoPipeline": "Nasadit do Pipeline",
       "sourcingFailed": "Vyhledávání kandidátů selhalo.",
       "publishedButFailed": "Publikováno, ale vyhledávání selhalo: {warning}",
-      "sourced": "{count, plural, one {Do Pipeline přiveden # kandidát.} few {Do Pipeline přivedeni # kandidáti.} many {Do Pipeline přivedeno # kandidáta.} other {Do Pipeline přivedeno # kandidátů.}}"
+      "sourced": "{count, plural, one {Do Pipeline přiveden # kandidát.} few {Do Pipeline přivedeni # kandidáti.} many {Do Pipeline přivedeno # kandidáta.} other {Do Pipeline přivedeno # kandidátů.}}",
+      "quotaNote": "Dosáhli jste limitu aktivních pozic ve svém tarifu. Upgradujte nebo uzavřete pozici, abyste mohli publikovat další.",
+      "goToBilling": "Upgradovat ve Fakturaci"
     },
     "posting": {
       "copied": "Zkopírováno",
@@ -1552,6 +1554,8 @@
       "closeConfirm": "Uzavřít tuto pozici? Veřejný odkaz pro přihlášení přestane přijímat přihlášky.",
       "closing": "Uzavírání…",
       "closedNow": "Pozice uzavřena",
+      "reopenRole": "Znovu otevřít pozici",
+      "reopenTitle": "Znovu zveřejnit pozici — opět vyhledá kandidáty a překontroluje limit aktivních pozic ve vašem tarifu",
       "closeFailed": "Pozici se nepodařilo uzavřít.",
       "cancel": "Zrušit",
       "subtitleDraft": "Koncept — zatím není veřejný",
