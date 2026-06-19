@@ -23,6 +23,7 @@ export function LiveWorkSurface({ token, seedFiles, note }: { token: string; see
 
   const sessionIdRef = useRef<string | null>(null);
   const startingRef = useRef(false);
+  const submittingRef = useRef(false);
   const pendingRef = useRef<ProcessEvent[]>([]);
   const filesRef = useRef(files);
   useEffect(() => {
@@ -108,16 +109,26 @@ export function LiveWorkSurface({ token, seedFiles, note }: { token: string; see
   }
 
   async function submit() {
+    // Synchronous in-flight guard: setStatus is async, so a fast double Enter/click
+    // could dispatch two POSTs before the button visibly disables. The ref flips
+    // immediately, so a second call is a no-op until this one settles; reset in the
+    // finally so an error is retryable (on success the submit button is gone anyway).
+    if (submittingRef.current) return;
+    submittingRef.current = true;
     setStatus("submitting");
     record("submit", activePath);
-    await flush({ submit: true });
-    const sid = sessionIdRef.current;
-    if (!sid) {
-      setStatus("error");
-      return;
+    try {
+      await flush({ submit: true });
+      const sid = sessionIdRef.current;
+      if (!sid) {
+        setStatus("error");
+        return;
+      }
+      const r = await fetch(`/api/devcase/session/${sid}/submit`, { method: "POST" }).catch(() => null);
+      setStatus(r && r.ok ? "submitted" : "error");
+    } finally {
+      submittingRef.current = false;
     }
-    const r = await fetch(`/api/devcase/session/${sid}/submit`, { method: "POST" }).catch(() => null);
-    setStatus(r && r.ok ? "submitted" : "error");
   }
 
   const active = files.find((f) => f.path === activePath) ?? files[0];
