@@ -2003,6 +2003,7 @@
     "intro": "Každý úspěšný běh se automaticky ukládá se stabilním slugem. Otevřením znovu načtete úplný výsledek nebo slug sdílíte s týmem.",
     "loadFailedStatus": "Načtení selhalo ({status}).",
     "loadFailed": "Načtení selhalo.",
+    "retry": "Zkusit znovu",
     "loading": "Načítání…",
     "emptyNoRuns": "Zatím žádné uložené běhy. Spusťte jeden v záložce <b>Analýza</b>; objeví se zde.",
     "searchLabel": "Hledat kandidáta nebo slug",

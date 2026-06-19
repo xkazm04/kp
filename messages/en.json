@@ -2003,6 +2003,7 @@
     "intro": "Every successful run is auto-persisted with a stable slug. Open one to reload the full result or share the slug with the team.",
     "loadFailedStatus": "Load failed ({status}).",
     "loadFailed": "Load failed.",
+    "retry": "Try again",
     "loading": "Loading…",
     "emptyNoRuns": "No saved runs yet. Run one from the <b>Analyze</b> tab; it will appear here.",
     "searchLabel": "Search candidate or slug",
