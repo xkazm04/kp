@@ -4,17 +4,40 @@ import Database from "better-sqlite3";
 
 // Single source of truth for the SQLite file location. db.ts and every
 // isolated-connection store (offers-store, schedule-store, scheduler-store, …)
-// open THIS path. The same `process.env.KP_DB_PATH ?? path.join(process.cwd(),
-// "data", "kp.sqlite")` expression was previously copy-pasted into a dozen
+// open THIS path. The same expression was previously copy-pasted into a dozen
 // modules, so an env-var rename or a relocation had to be repeated in every one —
 // miss a copy and that module silently opens a different file. Resolve it once.
 // (pipeline/jobfit/seed_interview_calendar.py recomputes the same default in
 // Python; keep the two defaults in sync.)
-export const DB_PATH = process.env.KP_DB_PATH ?? path.join(process.cwd(), "data", "kp.sqlite");
+//
+// PORTABILITY: the default is <cwd>/data/kp.sqlite. process.cwd() is the directory the
+// Node process was LAUNCHED from — the project root for `next dev` / `next start`, but
+// a PM2/systemd unit, a cron-launched route, or a standalone build can run from a
+// DIFFERENT cwd and silently open another (empty) kp.sqlite while the real one sits
+// elsewhere — the classic "why is my data gone after deploy?" trap. A module-location
+// anchor (import.meta.dirname) is NOT reliable under Next's server bundling, so the
+// robust mechanism is the explicit KP_DB_PATH override: set it to an ABSOLUTE path in
+// every deploy and cron unit. We resolve to absolute here (a relative KP_DB_PATH is
+// itself cwd-relative) and warn once in production when the override is unset.
+export const DB_PATH = process.env.KP_DB_PATH
+  ? path.resolve(process.env.KP_DB_PATH)
+  : path.resolve(process.cwd(), "data", "kp.sqlite");
+
+let _warnedDefaultDbPath = false;
+function warnIfDefaultDbPath(): void {
+  if (_warnedDefaultDbPath || process.env.KP_DB_PATH || process.env.NODE_ENV !== "production") return;
+  _warnedDefaultDbPath = true;
+  console.warn(
+    `[db] KP_DB_PATH is not set — using ${DB_PATH} (derived from the launch directory). ` +
+      "A launch from a different working directory (PM2 / systemd / cron / standalone build) " +
+      "will open a DIFFERENT, empty database. Set KP_DB_PATH to an absolute path in every deploy/cron unit."
+  );
+}
 
 /** Ensure the directory holding the SQLite file exists before a connection opens
  *  it (the stores call this in their lazy initializer, mirroring db.ts). */
 export function ensureDbDir(): void {
+  warnIfDefaultDbPath();
   mkdirSync(path.dirname(DB_PATH), { recursive: true });
 }
 
