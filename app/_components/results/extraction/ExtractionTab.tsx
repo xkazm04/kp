@@ -30,13 +30,19 @@ export function ExtractionTab({ analysis }: { analysis: Analysis }) {
         {analysis.extractionQuality ? (
           <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
             <h3 className="font-serif text-h3 text-ink">{t("panel.extractionQuality")}</h3>
-            <div className="mt-3 grid gap-3 text-base sm:grid-cols-2">
-              <Metric label="pypdf skills" value={analysis.extractionQuality.pypdfSkills} />
-              <Metric label="Gemini skills" value={analysis.extractionQuality.geminiSkills} />
-              <Metric label="pypdf spacing artifacts" value={analysis.extractionQuality.pypdfLetterSpacingHits} />
-              <Metric label="Gemini spacing artifacts" value={analysis.extractionQuality.geminiLetterSpacingHits} />
-            </div>
+            <p className="mt-1 text-sm leading-5 text-steel">{t("panel.extractionQualityCaption")}</p>
             <p className="mt-3 text-base leading-6 text-ink">{analysis.extractionQuality.recommendation}</p>
+            {/* Raw per-parser counts are engine diagnostics, not a recruiter signal —
+                relabeled to outcome language and tucked behind a disclosure. */}
+            <details className="mt-3">
+              <summary className="focus-ring cursor-pointer text-sm font-medium text-steel">{t("panel.parserDetails")}</summary>
+              <div className="mt-3 grid gap-3 text-base sm:grid-cols-2">
+                <Metric label={t("panel.pqSkillsFast")} value={analysis.extractionQuality.pypdfSkills} />
+                <Metric label={t("panel.pqSkillsAi")} value={analysis.extractionQuality.geminiSkills} />
+                <Metric label={t("panel.pqArtifactsFast")} value={analysis.extractionQuality.pypdfLetterSpacingHits} />
+                <Metric label={t("panel.pqArtifactsAi")} value={analysis.extractionQuality.geminiLetterSpacingHits} />
+              </div>
+            </details>
           </div>
         ) : null}
 
@@ -47,10 +53,14 @@ export function ExtractionTab({ analysis }: { analysis: Analysis }) {
         {analysis.extractionComparison ? (
           <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
             <h3 className="font-serif text-h3 text-ink">{t("panel.extractorComparison")}</h3>
-            <div className="mt-4 grid gap-4 lg:grid-cols-2">
-              <TextPreview title="pypdf extraction" text={analysis.extractionComparison.pypdfText} />
-              <TextPreview title="Gemini extraction" text={analysis.extractionComparison.geminiText} />
-            </div>
+            {/* The two raw extracted-text dumps are a diagnostic — collapsed by default. */}
+            <details className="mt-3">
+              <summary className="focus-ring cursor-pointer text-sm font-medium text-steel">{t("panel.showExtractedText")}</summary>
+              <div className="mt-4 grid gap-4 lg:grid-cols-2">
+                <TextPreview title={t("panel.parserFast")} text={analysis.extractionComparison.pypdfText} />
+                <TextPreview title={t("panel.parserAi")} text={analysis.extractionComparison.geminiText} />
+              </div>
+            </details>
           </div>
         ) : null}
 
