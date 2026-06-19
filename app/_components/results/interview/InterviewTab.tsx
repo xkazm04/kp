@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { MessagesSquare, Wrench, ShieldAlert, HelpCircle, Filter } from "lucide-react";
 import type { Analysis } from "@/app/_lib/schemas";
 import { SoftSignalsSection } from "./SoftSignalsSection";
@@ -16,7 +17,8 @@ import {
 type InterviewQuestion = NonNullable<Analysis["interviewKit"]>["questions"][number];
 
 type BucketMeta = {
-  label: string;
+  // i18n key (localized at render); the English literal lives in messages.report.panel.
+  labelKey: string;
   tone: string;
   chip: string;
   icon: React.ComponentType<{ className?: string }>;
@@ -24,19 +26,19 @@ type BucketMeta = {
 
 const BUCKET_META: Record<KnownBucket, BucketMeta> = {
   behavioral: {
-    label: "Behavioral",
+    labelKey: "panel.bucketBehavioral",
     tone: "border-moss/40 bg-moss/10 text-moss",
     chip: "bg-moss text-white",
     icon: MessagesSquare
   },
   technical: {
-    label: "Technical",
+    labelKey: "panel.bucketTechnical",
     tone: "border-steel/40 bg-paper text-steel",
     chip: "bg-steel text-white",
     icon: Wrench
   },
   "red-flag-defense": {
-    label: "Red-flag defense",
+    labelKey: "panel.bucketRedFlag",
     tone: "border-coral/40 bg-coral/10 text-coral",
     chip: "bg-coral text-white",
     icon: ShieldAlert
@@ -45,7 +47,7 @@ const BUCKET_META: Record<KnownBucket, BucketMeta> = {
 
 // Catch-all styling for buckets the LLM emitted outside the known vocabulary.
 const OTHER_META: BucketMeta = {
-  label: "Other",
+  labelKey: "panel.bucketOther",
   tone: "border-stone-200 bg-paper text-steel",
   chip: "bg-ink text-white",
   icon: HelpCircle
@@ -65,6 +67,8 @@ function tileGridCols(count: number): string {
 }
 
 export function InterviewTab({ analysis }: { analysis: Analysis }) {
+  const t = useTranslations("report");
+  const bucketLabel = (group: GroupKey) => t(metaFor(group).labelKey as Parameters<typeof t>[0]);
   const [bucket, setBucket] = useState<FilterKey>("all");
 
   // The soft-signal panel is deterministic (no JD/LLM needed), so it renders
@@ -75,10 +79,8 @@ export function InterviewTab({ analysis }: { analysis: Analysis }) {
       <div className="space-y-5">
         <SoftSignalsSection panel={analysis.softSignals} />
         <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
-          <h3 className="font-serif text-h3 text-ink">Mock Interview</h3>
-          <p className="mt-3 text-base leading-6 text-steel">
-            Attach a job description so we can generate questions tied to your specific evidence gaps and a STAR scaffold for each.
-          </p>
+          <h3 className="font-serif text-h3 text-ink">{t("panel.mockInterview")}</h3>
+          <p className="mt-3 text-base leading-6 text-steel">{t("panel.mockPlaceholder")}</p>
         </div>
       </div>
     );
@@ -100,12 +102,10 @@ export function InterviewTab({ analysis }: { analysis: Analysis }) {
           <div>
             <div className="flex items-center gap-2">
               <MessagesSquare className="h-5 w-5 text-coral" aria-hidden />
-              <h3 className="font-serif text-h3 text-ink">Mock Interview</h3>
+              <h3 className="font-serif text-h3 text-ink">{t("panel.mockInterview")}</h3>
             </div>
             <p className="mt-2 text-base leading-6 text-ink">{summary}</p>
-            <p className="mt-1 text-sm leading-5 text-steel">
-              Every question is tied to a specific evidence gap from this job description, with a STAR scaffold drawn from your profile.
-            </p>
+            <p className="mt-1 text-sm leading-5 text-steel">{t("panel.mockSubhead")}</p>
           </div>
           <div className={`grid gap-2 text-center sm:gap-3 ${tileGridCols(groups.length)}`}>
             {groups.map((group) => {
@@ -113,7 +113,7 @@ export function InterviewTab({ analysis }: { analysis: Analysis }) {
               return (
                 <div key={group.key} className={`rounded-md border px-3 py-2 text-sm font-medium ${meta.tone}`}>
                   <div className="text-lg font-semibold">{group.count}</div>
-                  <div className="mt-0.5 leading-tight">{meta.label}</div>
+                  <div className="mt-0.5 leading-tight">{bucketLabel(group.key)}</div>
                 </div>
               );
             })}
@@ -123,14 +123,14 @@ export function InterviewTab({ analysis }: { analysis: Analysis }) {
         <div className="mt-4 flex flex-wrap items-center gap-2">
           <span className="inline-flex items-center gap-1 text-sm font-medium uppercase tracking-wide text-steel">
             <Filter className="h-3.5 w-3.5" aria-hidden />
-            Filter
+            {t("panel.filter")}
           </span>
-          <FilterButton active={bucket === "all"} label={`All (${questions.length})`} onClick={() => setBucket("all")} />
+          <FilterButton active={bucket === "all"} label={`${t("panel.filterAll")} (${questions.length})`} onClick={() => setBucket("all")} />
           {groups.map((group) => (
             <FilterButton
               key={group.key}
               active={bucket === group.key}
-              label={`${metaFor(group.key).label} (${group.count})`}
+              label={`${bucketLabel(group.key)} (${group.count})`}
               onClick={() => setBucket(group.key)}
             />
           ))}
@@ -147,14 +147,16 @@ export function InterviewTab({ analysis }: { analysis: Analysis }) {
 }
 
 function QuestionCard({ question, index }: { question: InterviewQuestion; index: number }) {
+  const t = useTranslations("report");
   const group = classifyBucket(question.bucket);
   const meta = metaFor(group);
   const Icon = meta.icon;
   const tone = meta.tone;
   const chip = meta.chip;
+  const metaLabel = t(meta.labelKey as Parameters<typeof t>[0]);
   // For off-taxonomy buckets show the raw value the model emitted (so the user
   // sees what it actually was), falling back to the generic "Other" label.
-  const label = group === OTHER_BUCKET ? question.bucket || meta.label : meta.label;
+  const label = group === OTHER_BUCKET ? question.bucket || metaLabel : metaLabel;
 
   return (
     <article className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
@@ -169,13 +171,13 @@ function QuestionCard({ question, index }: { question: InterviewQuestion; index:
       </div>
       <p className="mt-3 text-base font-semibold leading-6 text-ink">{question.question}</p>
       <div className={`mt-3 rounded-md border px-3 py-2 text-sm leading-5 ${tone}`}>
-        <span className="font-semibold uppercase tracking-wide">Tied to:</span> {question.evidenceGap}
+        <span className="font-semibold uppercase tracking-wide">{t("panel.tiedTo")}</span> {question.evidenceGap}
       </div>
       <dl className="mt-4 space-y-3">
-        <ScaffoldRow label="S" title="Situation" body={question.starScaffold.situation} />
-        <ScaffoldRow label="T" title="Task" body={question.starScaffold.task} />
-        <ScaffoldRow label="A" title="Action" body={question.starScaffold.action} />
-        <ScaffoldRow label="R" title="Result" body={question.starScaffold.result} />
+        <ScaffoldRow label="S" title={t("panel.starSituation")} body={question.starScaffold.situation} />
+        <ScaffoldRow label="T" title={t("panel.starTask")} body={question.starScaffold.task} />
+        <ScaffoldRow label="A" title={t("panel.starAction")} body={question.starScaffold.action} />
+        <ScaffoldRow label="R" title={t("panel.starResult")} body={question.starScaffold.result} />
       </dl>
     </article>
   );

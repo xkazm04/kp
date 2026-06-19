@@ -2,6 +2,7 @@
 
 import { ChevronDown, ChevronUp, X } from "lucide-react";
 import { useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
 import { dedupe } from "@/app/_lib/dedupe";
 
 const MUST_HAVE_LIMIT = 3;
@@ -9,10 +10,11 @@ const NICE_TO_HAVE_LIMIT = 5;
 
 type Tier = "must" | "nice" | "bonus";
 
-const TIER_LABELS: Record<Tier, string> = {
-  must: "Must have",
-  nice: "Nice to have",
-  bonus: "Bonus",
+// Tier label keys (localized at render); the English literals moved to messages.report.panel.
+const TIER_LABEL_KEY: Record<Tier, string> = {
+  must: "panel.tierMust",
+  nice: "panel.tierNice",
+  bonus: "panel.tierBonus",
 };
 
 const TIER_BADGE_PALETTES: Record<Tier, string> = {
@@ -26,20 +28,6 @@ const TIER_CHIP_PALETTES: Record<Tier, string> = {
   nice: "bg-stone-100 text-ink",
   bonus: "bg-paper text-steel border border-stone-200",
 };
-
-function coachingFor(tier: Tier, count: number): string {
-  if (tier === "must") {
-    return count === 1
-      ? "This one is likely a deal-breaker — address it in your CV summary or top bullet today."
-      : `${count} of these can be addressed in your CV summary or top bullets today.`;
-  }
-  if (tier === "nice") {
-    return count === 1
-      ? "Folding this into your skills line or a project bullet strengthens the match."
-      : "Naming even one or two of these in your skills line strengthens the match.";
-  }
-  return "Preferred rather than required — only worth flagging if you genuinely have them.";
-}
 
 function splitIntoTiers(skills: string[]): Record<Tier, string[]> {
   return {
@@ -61,18 +49,31 @@ function MissingChip({ label, tier }: { label: string; tier: Tier }) {
 }
 
 function TierBlock({ tier, skills }: { tier: Tier; skills: string[] }) {
+  const t = useTranslations("report");
   if (!skills.length) return null;
+  const count = skills.length;
+  // Coaching line per tier (count-aware), localized.
+  const coaching =
+    tier === "must"
+      ? count === 1
+        ? t("panel.coachMustOne")
+        : t("panel.coachMustMany", { count })
+      : tier === "nice"
+        ? count === 1
+          ? t("panel.coachNiceOne")
+          : t("panel.coachNiceMany")
+        : t("panel.coachBonus");
   return (
     <div className="space-y-1.5">
       <div className="flex items-center gap-2">
         <span
           className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-meta font-medium ${TIER_BADGE_PALETTES[tier]}`}
         >
-          {TIER_LABELS[tier]}
+          {t(TIER_LABEL_KEY[tier] as Parameters<typeof t>[0])}
           <span className="opacity-60">·{skills.length}</span>
         </span>
       </div>
-      <p className="text-sm leading-5 text-steel">{coachingFor(tier, skills.length)}</p>
+      <p className="text-sm leading-5 text-steel">{coaching}</p>
       <div className="flex flex-wrap gap-1.5 pt-0.5">
         {skills.map((skill, i) => (
           <MissingChip key={`${skill}-${i}`} label={skill} tier={tier} />
@@ -83,6 +84,7 @@ function TierBlock({ tier, skills }: { tier: Tier; skills: string[] }) {
 }
 
 export function MissingSkillsTiers({ skills }: { skills: string[] }) {
+  const t = useTranslations("report");
   const [expanded, setExpanded] = useState(false);
   // De-dupe before tiering so a skill repeated in the model output can't appear
   // in two tiers (or twice in one) and can't collide as a chip key.
@@ -91,20 +93,16 @@ export function MissingSkillsTiers({ skills }: { skills: string[] }) {
 
   return (
     <div className="rounded-md bg-paper p-3">
-      <h4 className="text-meta uppercase text-steel">Missing Skills</h4>
+      <h4 className="text-meta uppercase text-steel">{t("panel.missingSkills")}</h4>
 
       {skills.length === 0 ? (
-        <p className="mt-2 text-sm leading-5 text-steel">
-          Your CV already covers the keywords this job description calls out.
-        </p>
+        <p className="mt-2 text-sm leading-5 text-steel">{t("panel.missingSkillsCovered")}</p>
       ) : (
         <div className="mt-3 space-y-3">
           {tiers.must.length > 0 ? (
             <TierBlock tier="must" skills={tiers.must} />
           ) : (
-            <p className="text-sm leading-5 text-moss">
-              No deal-breaker gaps detected — the rest below are softer asks.
-            </p>
+            <p className="text-sm leading-5 text-moss">{t("panel.noDealBreakers")}</p>
           )}
 
           {collapsedCount > 0 ? (
@@ -124,12 +122,12 @@ export function MissingSkillsTiers({ skills }: { skills: string[] }) {
                 {expanded ? (
                   <>
                     <ChevronUp className="h-3 w-3" aria-hidden />
-                    Hide softer gaps
+                    {t("panel.hideSofterGaps")}
                   </>
                 ) : (
                   <>
                     <ChevronDown className="h-3 w-3" aria-hidden />
-                    Show {collapsedCount} more {collapsedCount === 1 ? "gap" : "gaps"}
+                    {t("panel.showMoreGaps", { count: collapsedCount })}
                   </>
                 )}
               </button>

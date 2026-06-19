@@ -1,6 +1,7 @@
 "use client";
 
 import { AlertTriangle, BriefcaseBusiness } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { Meter } from "@/app/_components/Meter";
 import { ScoreDial } from "@/app/_components/ScoreDial";
 import type { Analysis } from "@/app/_lib/schemas";
@@ -11,11 +12,12 @@ import { SkillChips } from "./SkillChips";
 type KeywordCoverage = NonNullable<Analysis["keywordCoverage"]>;
 
 export function JobFitTab({ analysis }: { analysis: Analysis }) {
+  const t = useTranslations("report");
   if (!analysis.jobFit) {
     return (
       <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
-        <h3 className="font-serif text-h3 text-ink">Job Fit</h3>
-        <p className="mt-3 text-base leading-6 text-steel">Attach a job description to produce role-fit scoring, missing skills, and role-specific proof points.</p>
+        <h3 className="font-serif text-h3 text-ink">{t("panel.jobFit")}</h3>
+        <p className="mt-3 text-base leading-6 text-steel">{t("panel.jobFitPlaceholder")}</p>
       </div>
     );
   }
@@ -28,7 +30,7 @@ export function JobFitTab({ analysis }: { analysis: Analysis }) {
             <div>
               <div className="flex items-center gap-2">
                 <BriefcaseBusiness className="h-5 w-5 text-coral" aria-hidden />
-                <h3 className="font-serif text-h3 text-ink">Job Fit</h3>
+                <h3 className="font-serif text-h3 text-ink">{t("panel.jobFit")}</h3>
               </div>
               <p className="mt-3 text-base leading-6 text-ink">{analysis.jobFit.summary}</p>
             </div>
@@ -53,23 +55,23 @@ export function JobFitTab({ analysis }: { analysis: Analysis }) {
 
         <div className="grid gap-5 lg:grid-cols-2">
           <ListBlock
-            title="Interview Talking Points"
+            title={t("panel.talkingPoints")}
             items={analysis.jobFit.interviewTalkingPoints}
-            emptyHeadline="No talking points generated"
-            emptyHint="Add concrete outcomes and metrics to your CV to seed interview stories."
+            emptyHeadline={t("panel.talkingPointsEmpty")}
+            emptyHint={t("panel.talkingPointsHint")}
           />
           <ListBlock
-            title="Must-Prove Evidence"
+            title={t("panel.mustProve")}
             items={analysis.jobFit.mustProveEvidence}
-            emptyHeadline="No proof points required"
-            emptyHint="Your CV already evidences the core demands of this role."
+            emptyHeadline={t("panel.mustProveEmpty")}
+            emptyHint={t("panel.mustProveHint")}
           />
         </div>
       </div>
 
       <div className="space-y-5">
         <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
-          <h3 className="font-serif text-h3 text-ink">Alignment</h3>
+          <h3 className="font-serif text-h3 text-ink">{t("panel.alignment")}</h3>
           <div className="mt-4 space-y-3 text-base leading-6 text-ink">
             <p>{analysis.jobFit.seniorityAlignment}</p>
             <p>{analysis.jobFit.roleAlignment}</p>
@@ -78,16 +80,16 @@ export function JobFitTab({ analysis }: { analysis: Analysis }) {
           <div className="mt-4 rounded-md bg-limewash p-3 text-base leading-6 text-ink">{analysis.jobFit.negotiationAngle}</div>
         </div>
         <ListBlock
-          title="Recruiter Risk Flags"
+          title={t("panel.riskFlags")}
           items={analysis.jobFit.recruiterRiskFlags}
-          emptyHeadline="No risk flags raised"
-          emptyHint="A recruiter would not stumble over anything obvious in this CV."
+          emptyHeadline={t("panel.riskFlagsEmpty")}
+          emptyHint={t("panel.riskFlagsHint")}
         />
         <ListBlock
-          title="CV Rewrite Suggestions"
+          title={t("panel.cvRewrites")}
           items={analysis.jobFit.cvRewriteSuggestions}
-          emptyHeadline="No rewrites suggested"
-          emptyHint="Your CV reads cleanly against this job description."
+          emptyHeadline={t("panel.cvRewritesEmpty")}
+          emptyHint={t("panel.cvRewritesHint")}
         />
       </div>
     </div>
@@ -95,6 +97,7 @@ export function JobFitTab({ analysis }: { analysis: Analysis }) {
 }
 
 function KeywordCoverageBlock({ coverage }: { coverage: KeywordCoverage }) {
+  const t = useTranslations("report");
   // LLM keyword lists routinely repeat a token; de-dupe so a keyword renders
   // once and its value can never collide as a React key.
   const hits = dedupeBy(coverage.hits, (hit) => hit.keyword);
@@ -112,7 +115,7 @@ function KeywordCoverageBlock({ coverage }: { coverage: KeywordCoverage }) {
   return (
     <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
       <div className="flex items-center justify-between gap-3">
-        <h3 className="font-serif text-h3 text-ink">Keyword Coverage</h3>
+        <h3 className="font-serif text-h3 text-ink">{t("panel.keywordCoverage")}</h3>
         <span className="text-base font-semibold text-ink nums">
           {coverage.coveragePercent}%
         </span>
@@ -131,17 +134,13 @@ function KeywordCoverageBlock({ coverage }: { coverage: KeywordCoverage }) {
           <MoreIndicator count={hitsHidden} />
         </>
       ) : (
-        <p className="mt-4 text-base leading-6 text-steel">
-          No role keywords were extracted from the job description.
-        </p>
+        <p className="mt-4 text-base leading-6 text-steel">{t("panel.noKeywords")}</p>
       )}
 
       {missing.length ? (
         <div className="mt-5">
-          <p className="text-base font-semibold text-ink">Missing role keywords</p>
-          <p className="mt-1 text-sm leading-5 text-steel">
-            Add these explicitly to the CV — most ATS resume parsers require literal matches.
-          </p>
+          <p className="text-base font-semibold text-ink">{t("panel.keywordsMissing")}</p>
+          <p className="mt-1 text-sm leading-5 text-steel">{t("panel.keywordsMissingHint")}</p>
           <ul className="mt-2 flex flex-wrap gap-2">
             {missing.map((keyword, i) => (
               <li
@@ -160,11 +159,9 @@ function KeywordCoverageBlock({ coverage }: { coverage: KeywordCoverage }) {
         <div className="mt-5 rounded-md bg-paper p-3">
           <div className="flex items-center gap-2">
             <AlertTriangle className="h-4 w-4 text-coral" aria-hidden />
-            <p className="text-base font-semibold text-ink">Possible keyword stuffing</p>
+            <p className="text-base font-semibold text-ink">{t("panel.keywordStuffing")}</p>
           </div>
-          <p className="mt-1 text-sm leading-5 text-steel">
-            These appear far more often in the CV than in the JD; recruiters may flag this:
-          </p>
+          <p className="mt-1 text-sm leading-5 text-steel">{t("panel.keywordStuffingHint")}</p>
           <ul className="mt-2 flex flex-wrap gap-2">
             {overUsed.map((keyword, i) => (
               <li
@@ -192,32 +189,32 @@ function hiddenByCap(total: number | null | undefined, shown: number): number {
 
 // Renders a quiet "+N more" note so a capped list reads as capped, not complete.
 function MoreIndicator({ count }: { count: number }) {
+  const t = useTranslations("report");
   if (count <= 0) return null;
-  return (
-    <p className="mt-2 text-sm text-steel">
-      +{count} more not shown
-    </p>
-  );
+  return <p className="mt-2 text-sm text-steel">{t("panel.moreHidden", { count })}</p>;
 }
 
-// Chip color + label both derive from the single server-computed `status`
-// enum so the legend, count, and swatch can never drift apart.
-const KEYWORD_STATUS: Record<
-  KeywordCoverage["hits"][number]["status"],
-  { cls: string; label: string }
-> = {
-  matched: { cls: "border-moss/40 bg-moss/10 text-ink", label: "matched" },
-  missing: { cls: "border-coral/40 bg-red-50 text-ink", label: "missing" },
-  over_used: { cls: "border-dial-amber/50 bg-dial-amber/10 text-ink", label: "over-used" },
+// Chip color is keyed off the single server-computed `status` enum (so the legend,
+// count, and swatch can never drift); the human label is looked up by the same enum
+// from the localized catalog at render.
+const KEYWORD_STATUS_CLS: Record<KeywordCoverage["hits"][number]["status"], string> = {
+  matched: "border-moss/40 bg-moss/10 text-ink",
+  missing: "border-coral/40 bg-red-50 text-ink",
+  over_used: "border-dial-amber/50 bg-dial-amber/10 text-ink",
+};
+const KEYWORD_STATUS_KEY: Record<KeywordCoverage["hits"][number]["status"], string> = {
+  matched: "panel.kwMatched",
+  missing: "panel.kwMissing",
+  over_used: "panel.kwOverUsed",
 };
 
 function KeywordRow({ hit }: { hit: KeywordCoverage["hits"][number] }) {
-  const { cls, label } = KEYWORD_STATUS[hit.status];
+  const t = useTranslations("report");
   return (
-    <div className={`flex items-center justify-between gap-3 rounded-md border px-3 py-2 text-base ${cls}`}>
+    <div className={`flex items-center justify-between gap-3 rounded-md border px-3 py-2 text-base ${KEYWORD_STATUS_CLS[hit.status]}`}>
       <span className="truncate font-medium">{hit.keyword}</span>
       <span className="shrink-0 text-sm font-semibold uppercase tracking-wide text-steel">
-        JD {hit.inJd} · CV {hit.inCv} · {label}
+        JD {hit.inJd} · CV {hit.inCv} · {t(KEYWORD_STATUS_KEY[hit.status] as Parameters<typeof t>[0])}
       </span>
     </div>
   );

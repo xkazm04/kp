@@ -2,6 +2,7 @@
 
 import { Check } from "lucide-react";
 import { useId, useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
 import { dedupe } from "@/app/_lib/dedupe";
 import { MissingSkillsTiers } from "./MissingSkillsTiers";
 
@@ -86,6 +87,7 @@ function MatchingChip({
 }
 
 function MatchingSkillsColumn({ skills, evidence }: { skills: string[]; evidence?: string[] }) {
+  const t = useTranslations("report");
   const baseId = useId();
   const chips = useMemo(
     () =>
@@ -98,7 +100,7 @@ function MatchingSkillsColumn({ skills, evidence }: { skills: string[]; evidence
   return (
     <div className="rounded-md bg-paper p-3">
       <div className="flex items-center justify-between gap-2">
-        <h4 className="text-meta uppercase text-steel">Matching Skills</h4>
+        <h4 className="text-meta uppercase text-steel">{t("panel.matchingSkills")}</h4>
       </div>
       {chips.length ? (
         <div className="mt-2 flex flex-wrap gap-1.5">
@@ -112,9 +114,7 @@ function MatchingSkillsColumn({ skills, evidence }: { skills: string[]; evidence
           ))}
         </div>
       ) : (
-        <p className="mt-2 text-sm leading-5 text-steel">
-          Sharpen the skills section of your CV so we can pair it with the job description.
-        </p>
+        <p className="mt-2 text-sm leading-5 text-steel">{t("panel.matchingSkillsEmpty")}</p>
       )}
     </div>
   );

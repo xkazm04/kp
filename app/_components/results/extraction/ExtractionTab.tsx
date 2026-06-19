@@ -1,6 +1,7 @@
 "use client";
 
 import { AlertTriangle, BadgeCheck, BrainCircuit } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { FactorChart } from "@/app/_components/FactorChart";
 import { ScoreDial } from "@/app/_components/ScoreDial";
 import { labelize, reconcileScoreTotal } from "@/app/_lib/format";
@@ -8,13 +9,14 @@ import type { Analysis } from "@/app/_lib/schemas";
 import { EnginePanel, InlineList, ListBlock, Metric } from "../shared";
 
 export function ExtractionTab({ analysis }: { analysis: Analysis }) {
+  const t = useTranslations("report");
   return (
     <div className="grid gap-5 xl:grid-cols-[380px_1fr]">
       <div className="space-y-5">
         <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <p className="text-base font-medium text-steel">{analysis.candidate.name ?? "Candidate"}</p>
+              <p className="text-base font-medium text-steel">{analysis.candidate.name ?? t("panel.candidate")}</p>
               <h2 className="mt-1 text-2xl font-semibold text-ink">{labelize(analysis.candidate.currentSeniority)}</h2>
               <p className="mt-1 text-base text-steel">{labelize(analysis.candidate.roleFamily)}</p>
             </div>
@@ -27,7 +29,7 @@ export function ExtractionTab({ analysis }: { analysis: Analysis }) {
 
         {analysis.extractionQuality ? (
           <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
-            <h3 className="font-serif text-h3 text-ink">Extraction Quality</h3>
+            <h3 className="font-serif text-h3 text-ink">{t("panel.extractionQuality")}</h3>
             <div className="mt-3 grid gap-3 text-base sm:grid-cols-2">
               <Metric label="pypdf skills" value={analysis.extractionQuality.pypdfSkills} />
               <Metric label="Gemini skills" value={analysis.extractionQuality.geminiSkills} />
@@ -44,7 +46,7 @@ export function ExtractionTab({ analysis }: { analysis: Analysis }) {
       <div className="space-y-5">
         {analysis.extractionComparison ? (
           <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
-            <h3 className="font-serif text-h3 text-ink">Extractor Comparison</h3>
+            <h3 className="font-serif text-h3 text-ink">{t("panel.extractorComparison")}</h3>
             <div className="mt-4 grid gap-4 lg:grid-cols-2">
               <TextPreview title="pypdf extraction" text={analysis.extractionComparison.pypdfText} />
               <TextPreview title="Gemini extraction" text={analysis.extractionComparison.geminiText} />
@@ -55,7 +57,7 @@ export function ExtractionTab({ analysis }: { analysis: Analysis }) {
         <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
           <div className="flex items-center gap-2">
             <BrainCircuit className="h-5 w-5 text-coral" aria-hidden />
-            <h3 className="font-serif text-h3 text-ink">Score Breakdown</h3>
+            <h3 className="font-serif text-h3 text-ink">{t("panel.scoreBreakdown")}</h3>
           </div>
           <FactorChart score={analysis.score} />
         </div>
@@ -63,50 +65,50 @@ export function ExtractionTab({ analysis }: { analysis: Analysis }) {
         <div className="grid gap-5 lg:grid-cols-2">
           <ListBlock
             icon={<BadgeCheck className="h-5 w-5 text-moss" />}
-            title="Strengths"
+            title={t("panel.strengths")}
             items={analysis.strengths}
-            emptyHeadline="No strengths surfaced"
-            emptyHint="Add quantified outcomes and signature projects so we can flag what stands out."
+            emptyHeadline={t("panel.strengthsEmpty")}
+            emptyHint={t("panel.strengthsHint")}
           />
           <ListBlock
             icon={<AlertTriangle className="h-5 w-5 text-coral" />}
-            title="Gaps"
+            title={t("panel.gaps")}
             items={analysis.gaps}
-            emptyHeadline="No gaps detected"
-            emptyHint="Nothing obviously missing - attach a job description for role-specific gap analysis."
+            emptyHeadline={t("panel.gapsEmpty")}
+            emptyHint={t("panel.gapsHint")}
           />
         </div>
 
         {analysis.evidenceTrace ? (
           <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
-            <h3 className="font-serif text-h3 text-ink">Evidence Trace</h3>
+            <h3 className="font-serif text-h3 text-ink">{t("panel.evidenceTrace")}</h3>
             <div className="mt-4 grid gap-4 lg:grid-cols-2">
               <InlineList
-                title="Experience Evidence"
+                title={t("panel.experienceEvidence")}
                 items={analysis.evidenceTrace.experience}
-                emptyHint="Add roles with dates and outcomes so we can cite your experience."
+                emptyHint={t("panel.experienceEvidenceHint")}
               />
               <InlineList
-                title="Skill Evidence"
+                title={t("panel.skillEvidence")}
                 items={analysis.evidenceTrace.skills}
-                emptyHint="List concrete tools and methods you have shipped with to surface skill evidence."
+                emptyHint={t("panel.skillEvidenceHint")}
               />
               <InlineList
-                title="Seniority Evidence"
+                title={t("panel.seniorityEvidence")}
                 items={analysis.evidenceTrace.seniority}
-                emptyHint="Mention scope, team size, or ownership signals to anchor your seniority."
+                emptyHint={t("panel.seniorityEvidenceHint")}
               />
               <InlineList
-                title="Education Evidence"
+                title={t("panel.educationEvidence")}
                 items={analysis.evidenceTrace.education}
-                emptyHint="Add degrees, programs, or certifications to populate education evidence."
+                emptyHint={t("panel.educationEvidenceHint")}
               />
             </div>
           </div>
         ) : null}
 
         <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
-          <h3 className="font-serif text-h3 text-ink">LLM Explanation</h3>
+          <h3 className="font-serif text-h3 text-ink">{t("panel.llmExplanation")}</h3>
           <p className="mt-3 text-base leading-6 text-ink">{analysis.explanation}</p>
         </div>
       </div>
