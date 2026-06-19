@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getServerLocale } from "@/i18n/server";
 import { isLocale } from "@/i18n/locales";
-import { meterGate, recordMeterUsage } from "@/app/_lib/billing";
+import { meterGate } from "@/app/_lib/billing";
 import type { AnalyzeParams } from "@/app/_lib/analyze-run";
 import { dedupeCvVariants } from "@/app/_lib/cv-variant";
 import { newRequestId } from "@/app/_lib/logger";
@@ -21,12 +21,11 @@ export const maxDuration = 60;
 // returning { task }. The client polls /api/tasks/[id] (and the global Tasks
 // indicator tracks it) — so the analysis survives navigation + page refresh.
 export async function POST(request: Request) {
-  // Billing hard gate: a CV analysis is the unit behind the "AI candidates"
-  // meter (one person fully worked — variants of the same person count once).
-  // Debited below at task start; a TERMINAL task failure idempotently REFUNDS the
-  // unit (tasks.ts analyze handler → refundMeterUsage, keyed to the task id), so a
-  // crash / spawn failure / LLM hard-fail doesn't charge for a result the recruiter
-  // never received.
+  // Billing hard GATE only: a CV analysis is the unit behind the "AI candidates"
+  // meter (one person fully worked — variants of the same person count once). The
+  // unit is DEBITED later, inside runAnalyze, only when a non-cached analysis is
+  // actually delivered — so a failed, canceled, or duplicate/cached run never charges
+  // for work that wasn't done. This gate just refuses a submit when nothing remains.
   const quota = meterGate("ai_candidates");
   if (quota) return NextResponse.json(quota, { status: 402 });
 
@@ -121,7 +120,7 @@ export async function POST(request: Request) {
     workspace,
   };
 
-  recordMeterUsage("ai_candidates");
+  // No debit here — runAnalyze charges the unit only on a delivered, non-cached result.
   const task = startTask("analyze", params as unknown as Record<string, unknown>);
   return NextResponse.json({ task });
 }

@@ -5,6 +5,7 @@ import { buildComparison } from "@/app/_lib/comparison";
 import { reconcileScoreTotal } from "@/app/_lib/format";
 import { countSanityWarns } from "@/app/_lib/sanity-checks";
 import { saveAnalysis } from "@/app/_lib/db";
+import { recordMeterUsage } from "@/app/_lib/billing";
 import { logAnalyze, type AnalyzeLog } from "@/app/_lib/logger";
 import { cleanupWorkdir, parsePythonJson, parseStderrError, spawnPython } from "@/app/_lib/python-runner";
 
@@ -169,6 +170,14 @@ export async function runAnalyze(p: AnalyzeParams, onProgress?: ProgressFn, sign
       .filter((r): r is { label: string; ok: true; analysis: Analysis; cached: boolean } => r.ok)
       .map((r) => ({ label: r.label, analysis: r.analysis }));
     const allCached = results.every((r) => r.ok && r.cached);
+
+    // Bill ONE AI-candidate unit only for a DELIVERED, non-cached analysis (variants of
+    // the same person count once). A failure or cancel threw above and never reaches
+    // here; a fully-cached re-run (a duplicate / re-analyze of the same CV) did no new
+    // work — so the meter counts analyses actually PERFORMED, not submits. Moved here
+    // from the /api/analyze route, which debited unconditionally at queue time and
+    // over-charged on every failed, canceled, or duplicate run.
+    if (!allCached) recordMeterUsage("ai_candidates");
 
     if (analyses.length === 1) {
       const single = analyses[0];
