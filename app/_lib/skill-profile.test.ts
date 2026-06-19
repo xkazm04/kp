@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { buildDurableSkillProfile, signProfile, verifyProfile, DSP_VERSION } from "./skill-profile.ts";
+import { buildDurableSkillProfile, isSubstantiveSkillProfile, signProfile, verifyProfile, DSP_VERSION } from "./skill-profile.ts";
 
 // Sign/verify need KP_SECRET (the operator master secret), same as llm-secret.test.
 process.env.KP_SECRET = process.env.KP_SECRET || "test-master-secret";
@@ -33,6 +33,14 @@ test("build clamps out-of-range / non-finite values", () => {
   assert.ok(!("b" in dsp.axes)); // non-finite dropped
   assert.equal(dsp.transferScore, 100);
   assert.equal(dsp.confidence, 1);
+});
+
+test("isSubstantiveSkillProfile gates empty (validly-signable but content-free) profiles", () => {
+  // axes={} + transferScore 0 = the bug: a signable but empty credential.
+  assert.equal(isSubstantiveSkillProfile({ axes: {}, transferScore: 0 }), false);
+  assert.equal(isSubstantiveSkillProfile({ axes: {}, transferScore: 42 }), true); // score alone
+  assert.equal(isSubstantiveSkillProfile({ axes: { reasoning: 0 }, transferScore: 0 }), true); // an assessed axis (scored 0) counts
+  assert.equal(isSubstantiveSkillProfile(sampleDsp()), true);
 });
 
 test("sign is deterministic and verify accepts a matching signature", () => {

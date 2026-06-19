@@ -2088,6 +2088,8 @@
     "verified": "Verified by kp",
     "revoked": "This credential has been revoked",
     "tampered": "Signature invalid — do not trust",
+    "incomplete": "Issued without a scored summary",
+    "summaryUnavailable": "This credential was issued without a scored skill summary, so there is no score or capability breakdown to show.",
     "transferLabel": "Durable skill score",
     "confidenceLabel": "Confidence",
     "issuedLabel": "Issued",

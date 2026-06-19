@@ -20,6 +20,9 @@ export async function GET(_request: Request, { params }: { params: Promise<{ tok
       found: true,
       valid: v.valid,
       revoked: v.revoked,
+      // The signature attests integrity, not substance — a consumer should require
+      // valid AND substantive before showing a trusted verdict (no green over a 0).
+      substantive: v.substantive,
       summary: {
         version: v.profile.version,
         transferScore: Math.round(v.profile.transferScore),

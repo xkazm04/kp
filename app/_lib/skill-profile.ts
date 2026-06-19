@@ -60,6 +60,16 @@ export function buildDurableSkillProfile(input: {
   };
 }
 
+/** Whether a built profile carries actual graded SUBSTANCE — at least one capability
+ *  axis OR a non-zero transfer score. The HMAC attests INTEGRITY (untampered), not
+ *  substance: an evaluation bundle with no dimension scores yields axes={} + score 0,
+ *  a validly-SIGNED but EMPTY credential. Callers must not mint or present such a
+ *  profile as a confident "verified" attestation (a green shield over a score of 0,
+ *  no axes). Pure + testable (skill-profile.test.ts). */
+export function isSubstantiveSkillProfile(dsp: { axes: Record<string, number>; transferScore: number }): boolean {
+  return Object.keys(dsp.axes).length > 0 || dsp.transferScore > 0;
+}
+
 function signingKey(): string {
   const secret = process.env.KP_SECRET;
   if (!secret) {

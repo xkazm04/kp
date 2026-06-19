@@ -2088,6 +2088,8 @@
     "verified": "Ověřeno kp",
     "revoked": "Tento doklad byl zrušen",
     "tampered": "Neplatný podpis — nedůvěřujte",
+    "incomplete": "Vydáno bez bodového souhrnu",
+    "summaryUnavailable": "Tento doklad byl vydán bez bodového souhrnu dovedností, takže není k dispozici žádné skóre ani rozpis schopností.",
     "transferLabel": "Skóre trvalých dovedností",
     "confidenceLabel": "Spolehlivost",
     "issuedLabel": "Vydáno",
