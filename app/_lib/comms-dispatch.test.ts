@@ -58,6 +58,7 @@ const RENDERS: [string, Record<string, string | number>][] = [
   ["interviewInvite.body", { name: "Jane", role: "Backend Engineer", link: "https://x/i/abc", length: " (22m)", team: "The hiring team" }],
   ["onboarding.subject", { role: "Backend Engineer" }],
   ["onboarding.body", { name: "Jane", role: "Backend Engineer", team: "The hiring team" }],
+  ["onboarding.linkFooter", { link: "https://x/onboarding/abc" }],
 ];
 
 for (const locale of ["en", "cs"] as const) {

@@ -351,11 +351,18 @@ export async function dispatchInterviewInvite(
  * welcome + the practical next step. Kept deterministic; a real onboarding
  * system would subscribe to the `onboarding_started` event downstream.
  */
-export async function dispatchOnboarding(entry: PipelineEntry): Promise<void> {
+export async function dispatchOnboarding(entry: PipelineEntry, onboardingToken?: string | null): Promise<void> {
   const t = await commsTranslator(entry.locale);
   const role = entry.jobTitle ?? t("yourNewRole");
   const subject = t("onboarding.subject", { role });
-  const body = t("onboarding.body", { name: greetName(entry, t), role, team: t("team") });
+  // The accepted offer's token doubles as the candidate's onboarding link (offers #5):
+  // accept now lands on a concrete next-step page, not just a "People will be in touch"
+  // promise. ABSOLUTE via publicBaseUrl (the env override when there's no request origin);
+  // omitted for a manual hire with no offer token, which keeps the welcome copy as-is.
+  const footer = onboardingToken
+    ? `\n\n${t("onboarding.linkFooter", { link: `${publicBaseUrl()}/onboarding/${onboardingToken}` })}`
+    : "";
+  const body = t("onboarding.body", { name: greetName(entry, t), role, team: t("team") }) + footer;
   await sendCandidateComm(entry, t, { subject, body, kind: "onboarding" });
   recordAutomationEvent(entry.id, "onboarding_started", role);
 }

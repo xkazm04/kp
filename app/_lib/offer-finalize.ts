@@ -3,6 +3,7 @@ import { dispatchOnboarding } from "./comms-dispatch";
 import { recordAudit } from "./dev-control";
 import { recordPipelineOutcome } from "./dev-outcomes";
 import { expireOfferIfDue, getOfferByToken, markEntryStatus, markOfferResponded, type OfferRow } from "./offers-store";
+import { startRun } from "./onboarding-store";
 
 // Direction #4 — capture the candidate's offer response and run the terminal
 // transitions. The offer DECISION was the recruiter's (extend); here we record
@@ -93,8 +94,20 @@ export async function respondToOffer(token: string, response: "accept" | "declin
       // confirm flow: catch the dispatch failure, record a durable operator-visible reconcile
       // event so onboarding can be re-triggered, and still return ok.
       if (hired) {
+        // Start the onboarding run on the hire (idempotent — one run per entry) so the
+        // candidate's onboarding link has a run to fill AND the hire immediately appears
+        // in the recruiter's onboarding hand-off tab. Best-effort: a failure here must not
+        // break the accept (the dispatch below still links the candidate to onboarding,
+        // and the page lazily ensures a run if this missed).
         try {
-          await dispatchOnboarding(hired);
+          startRun({ entryId: hired.id, candidateLabel: hired.candidateLabel, jobTitle: hired.jobTitle });
+        } catch (e) {
+          console.error(`[offer] onboarding run start failed for entry ${offer.entryId}:`, e);
+        }
+        try {
+          // The accepted offer's token doubles as the onboarding link (offers #5), so the
+          // welcome comm lands the candidate on a concrete next-step page, not a promise.
+          await dispatchOnboarding(hired, offer.token);
         } catch (err) {
           recordAutomationEvent(
             offer.entryId,
@@ -151,3 +164,4 @@ export function offerView(token: string) {
     expiresAt: offer.expiresAt,
   };
 }
+

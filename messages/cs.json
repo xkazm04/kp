@@ -199,7 +199,8 @@
     },
     "onboarding": {
       "subject": "Vítejte v týmu — {role}",
-      "body": "Dobrý den {name},\n\nmáme velkou radost, že se k nám připojujete jako {role}! Vítejte v týmu.\n\nVáš nástup nyní začíná. Náš personální tým se vám brzy ozve s datem nástupu, dokumenty, vybavením a plánem prvního týdne, abyste se mohli rychle zapojit.\n\nMoc se na spolupráci těšíme.\n\nSrdečně,\n{team}"
+      "body": "Dobrý den {name},\n\nmáme velkou radost, že se k nám připojujete jako {role}! Vítejte v týmu.\n\nVáš nástup nyní začíná. Náš personální tým se vám brzy ozve s datem nástupu, dokumenty, vybavením a plánem prvního týdne, abyste se mohli rychle zapojit.\n\nMoc se na spolupráci těšíme.\n\nSrdečně,\n{team}",
+      "linkFooter": "Věnujte prosím chvíli sdílení několika údajů před nástupem, ať pro vás můžeme vše připravit:\n{link}"
     }
   },
   "language": {
@@ -2489,6 +2490,29 @@
       "reviewHolds": "Zkontrolovat čekající pozdržení v Rozhodnutích",
       "comms": "Doručená komunikace"
     }
+  },
+  "candidateOnboarding": {
+    "eyebrow": "Nástup",
+    "welcome": "Vítejte v týmu!",
+    "welcomeName": "Vítejte v týmu, {name}!",
+    "roleAt": "{role} ve společnosti {company}",
+    "roleGeneric": "Vaše nová pozice",
+    "intro": "Vaše nabídka je přijata — gratulujeme! Než nastoupíte, jeden rychlý krok: sdílejte několik údajů, ať pro vás můžeme vše připravit.",
+    "fieldPreferredName": "Preferované jméno",
+    "fieldTshirtSize": "Velikost trička",
+    "fieldDietaryNeeds": "Stravovací požadavky",
+    "fieldEquipmentPrefs": "Preference vybavení",
+    "fieldEmergencyContact": "Nouzový kontakt",
+    "fieldStartDateConfirm": "Potvrďte datum nástupu",
+    "submit": "Odeslat údaje",
+    "submitting": "Odesílání…",
+    "submitFailed": "Údaje se nepodařilo uložit. Zkuste to prosím znovu.",
+    "savedTitle": "Děkujeme — vše je hotovo",
+    "savedBody": "Vaše údaje jsme uložili a předali týmu. Brzy se vám ozvou s datem nástupu a plánem prvního dne.",
+    "editAgain": "Upravit údaje",
+    "loadFailed": "Nepodařilo se načíst váš nástup.",
+    "invalidLink": "Tento odkaz na nástup není platný",
+    "invalidLinkBody": "Odkaz může být chybně zadaný nebo již není aktivní. Pokud jste přijali nabídku, kontaktujte náborový tým."
   },
   "onboarding": {
     "eyebrow": "Předání",

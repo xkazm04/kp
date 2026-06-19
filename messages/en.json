@@ -199,7 +199,8 @@
     },
     "onboarding": {
       "subject": "Welcome aboard — {role}",
-      "body": "Hi {name},\n\nWe're delighted you're joining us as {role}! Welcome to the team.\n\nYour onboarding is now underway. Our People team will reach out shortly with your start date, paperwork, equipment, and a first-week plan so you can hit the ground running.\n\nWe can't wait to work with you.\n\nWarmly,\n{team}"
+      "body": "Hi {name},\n\nWe're delighted you're joining us as {role}! Welcome to the team.\n\nYour onboarding is now underway. Our People team will reach out shortly with your start date, paperwork, equipment, and a first-week plan so you can hit the ground running.\n\nWe can't wait to work with you.\n\nWarmly,\n{team}",
+      "linkFooter": "Take a moment to share a few pre-boarding details so we can have everything ready for you:\n{link}"
     }
   },
   "language": {
@@ -2489,6 +2490,29 @@
       "reviewHolds": "Review pending holds in Decisions",
       "comms": "Comms delivered"
     }
+  },
+  "candidateOnboarding": {
+    "eyebrow": "Onboarding",
+    "welcome": "Welcome aboard!",
+    "welcomeName": "Welcome aboard, {name}!",
+    "roleAt": "{role} at {company}",
+    "roleGeneric": "Your new role",
+    "intro": "Your offer is accepted — congratulations! One quick step before day one: share a few pre-boarding details so we can have everything ready for you.",
+    "fieldPreferredName": "Preferred name",
+    "fieldTshirtSize": "T-shirt size",
+    "fieldDietaryNeeds": "Dietary needs",
+    "fieldEquipmentPrefs": "Equipment preferences",
+    "fieldEmergencyContact": "Emergency contact",
+    "fieldStartDateConfirm": "Confirm your start date",
+    "submit": "Send my details",
+    "submitting": "Sending…",
+    "submitFailed": "Could not save your details. Please try again.",
+    "savedTitle": "Thanks — you're all set",
+    "savedBody": "We've saved your details and shared them with the team. They'll be in touch with your start date and first-day plan.",
+    "editAgain": "Update my details",
+    "loadFailed": "Could not load your onboarding.",
+    "invalidLink": "This onboarding link isn't valid",
+    "invalidLinkBody": "The link may be mistyped or no longer active. If you've accepted an offer, contact the hiring team."
   },
   "onboarding": {
     "eyebrow": "Hand-off",
