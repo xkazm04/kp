@@ -7,6 +7,7 @@ import { intakeLead } from "@/app/_lib/lead-intake";
 import { extractLead } from "@/app/_lib/lead-payload";
 import { publicBaseUrl } from "@/app/_lib/public-base-url";
 import { clientIpFrom, rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
+import { readTextWithLimit } from "@/app/_lib/request-body";
 import { claimWebhookIdempotency, releaseWebhookIdempotency, webhookIdempotencyKey } from "@/app/_lib/webhook-idempotency";
 import { DEFAULT_LOCALE, isLocale, type Locale } from "@/i18n/locales";
 
@@ -58,13 +59,21 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
       return NextResponse.json({ error: "This role is closed to applications.", code: "role_closed" }, { status: 410 });
     }
 
-    const contentLength = Number(request.headers.get("content-length") ?? 0);
-    if (contentLength > MAX_INBOUND_BODY_BYTES) {
+    // content-length is ADVISORY (a caller can omit it via chunked transfer or lie),
+    // so it's only a cheap fast-reject for an honest oversized body. The REAL cap is
+    // enforced below on bytes actually read off the wire — request.text() would have
+    // buffered an unbounded body into memory regardless of the header.
+    const declaredLength = Number(request.headers.get("content-length") ?? 0);
+    if (declaredLength > MAX_INBOUND_BODY_BYTES) {
       return NextResponse.json({ error: "Payload too large." }, { status: 413 });
     }
-    // Read the raw body once so we can both parse it and derive a body-hash
-    // idempotency key (when the source sends no explicit Idempotency-Key header).
-    const rawBody = await request.text();
+    // Read the raw body once (through a counting reader that aborts past the budget) so
+    // we can both parse it and derive a body-hash idempotency key (when the source
+    // sends no explicit Idempotency-Key header).
+    const rawBody = await readTextWithLimit(request, MAX_INBOUND_BODY_BYTES);
+    if (rawBody === null) {
+      return NextResponse.json({ error: "Payload too large." }, { status: 413 });
+    }
     let payload: unknown;
     try {
       payload = JSON.parse(rawBody);
