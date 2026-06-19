@@ -462,6 +462,10 @@ export type CreatePipelineInput = {
   // coerceGithubHandle trust-boundary gate). Backfilled onto an existing entry
   // only when the column is still empty — same FILL-ONLY discipline as githubJson.
   githubHandle?: string | null;
+  // Tenant (P2) the entry belongs to. Defaults to the single default workspace; the
+  // analysis→board chip + disposition echo scope on it. Recruiter/Match/inbound adds
+  // omit it today (single-tenant); a multi-tenant enable threads currentWorkspace() here.
+  workspaceId?: string;
 };
 
 // Idempotent: a (candidate, job) pair maps to one entry, so re-adding from Match
@@ -515,11 +519,11 @@ export function createPipelineEntry(input: CreatePipelineInput): { entry: Pipeli
        (id, candidate_id, candidate_label, archetype, role_family, job_id, job_title,
         stage, match_score, status, approval_kind, approval_detail, created_at, stage_changed_at, updated_at,
         intake_degraded, intake_degraded_reason, contact, locale, github_json, github_handle, source_channel,
-        source_campaign, source_variant)
+        source_campaign, source_variant, workspace_id)
      VALUES (@id, @candidate_id, @candidate_label, @archetype, @role_family, @job_id, @job_title,
         @stage, @match_score, 'active', NULL, '', @now, @now, @now,
         @intake_degraded, @intake_degraded_reason, @contact, @locale, @github_json, @github_handle, @source_channel,
-        @source_campaign, @source_variant)`
+        @source_campaign, @source_variant, @workspace_id)`
   ).run({
     id,
     candidate_id: input.candidateId,
@@ -540,6 +544,7 @@ export function createPipelineEntry(input: CreatePipelineInput): { entry: Pipeli
     source_channel: input.sourceChannel ?? null,
     source_campaign: input.sourceCampaign ?? null,
     source_variant: input.sourceVariant ?? null,
+    workspace_id: input.workspaceId ?? "workspace",
   });
   recordEvent(db, {
     entryId: id,
@@ -558,14 +563,17 @@ export function createPipelineEntry(input: CreatePipelineInput): { entry: Pipeli
 // are keyed by candidate label (not entry id), so exact case-insensitive label
 // match is the honest link: fuzzier matching would invent history for
 // same-named strangers. Active entries only — closed candidates don't need
-// disposition echoes.
-export function findActiveEntriesByCandidateLabel(candidateLabel: string): PipelineEntry[] {
+// disposition echoes. SCOPED to `workspaceId` (P2): the analysis row is already
+// workspace-scoped, so the board it links to / writes onto must be too — without
+// this, two tenants with a same-named candidate cross-link (chip leaks the other
+// tenant's job/stage; the disposition echo writes onto a stranger's entry).
+export function findActiveEntriesByCandidateLabel(candidateLabel: string, workspaceId: string): PipelineEntry[] {
   const key = candidateLabel.trim().toLowerCase();
   if (!key) return [];
   const db = ensureDb();
   const rows = db
-    .prepare(`SELECT * FROM pipeline_entries WHERE status = 'active' AND LOWER(TRIM(candidate_label)) = ?`)
-    .all(key) as PipelineRow[];
+    .prepare(`SELECT * FROM pipeline_entries WHERE workspace_id = ? AND status = 'active' AND LOWER(TRIM(candidate_label)) = ?`)
+    .all(workspaceId, key) as PipelineRow[];
   return rows.map(rowToEntry);
 }
 
@@ -597,10 +605,11 @@ export function recordSimTranscriptAttached(entryId: string, detail: string | nu
 export function recordAnalysisDispositionEvents(
   candidateLabel: string,
   disposition: string,
+  workspaceId: string,
   note?: string | null
 ): number {
   const db = ensureDb();
-  const entries = findActiveEntriesByCandidateLabel(candidateLabel);
+  const entries = findActiveEntriesByCandidateLabel(candidateLabel, workspaceId);
   const trimmedNote = note?.trim();
   const detail = trimmedNote ? `${disposition} — ${trimmedNote}` : disposition;
   for (const e of entries) {

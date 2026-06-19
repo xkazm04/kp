@@ -618,6 +618,12 @@ export function ensureDb(): Database.Database {
     // like lead_token — NEVER the raw entry id.
     "ALTER TABLE pipeline_entries ADD COLUMN erasure_token TEXT",
     // E5 — when a webhook received its FIRST lead (time-to-first-lead metric).
+    // Tenant scope (P2) for the BOARD: pipeline_entries had NO workspace column (only
+    // analyses/profiles did), so the analysis→board chip + disposition echo matched
+    // candidates by label ACROSS tenants. DEFAULT 'workspace' backfills existing rows
+    // and keeps every insert single-tenant-correct until createPipelineEntry stamps the
+    // real session workspace (so a future multi-tenant enable scopes immediately).
+    "ALTER TABLE pipeline_entries ADD COLUMN workspace_id TEXT NOT NULL DEFAULT 'workspace'",
     "ALTER TABLE channel_webhooks ADD COLUMN first_received_at TEXT",
   ]) {
     migrateExec(sql);
@@ -626,6 +632,8 @@ export function ensureDb(): Database.Database {
   // tokened apply POST — index it like the interview token. Created AFTER the
   // ALTER loop above so a legacy DB already holds the column.
   db.exec(`CREATE INDEX IF NOT EXISTS idx_pipeline_lead_token ON pipeline_entries (lead_token)`);
+  // Tenant scope: the board chip / disposition echo filter pipeline_entries by workspace.
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_pipeline_workspace ON pipeline_entries (workspace_id)`);
   // Same single-row public lookup for the self-service erasure token.
   db.exec(`CREATE INDEX IF NOT EXISTS idx_pipeline_erasure_token ON pipeline_entries (erasure_token)`);
   // The anonymization sweep scans for due consents — index the expiry so it stays
