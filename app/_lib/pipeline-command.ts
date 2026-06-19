@@ -62,9 +62,12 @@ export function parseCommand(input: string): ParsedCommand {
 export function describeCommand(cmd: ParsedCommand): string {
   switch (cmd.kind) {
     case "reject_below":
+      // "and notify" is load-bearing copy, not flourish: the execute path now
+      // queues a rejection comm per candidate (UAT M3), so the preview must tell
+      // the operator these candidates will be contacted, not silently dropped.
       return cmd.jobQuery
-        ? `Reject active candidates scoring below ${cmd.threshold}% on roles matching "${cmd.jobQuery}".`
-        : `Reject active candidates scoring below ${cmd.threshold}%.`;
+        ? `Reject and notify active candidates scoring below ${cmd.threshold}% on roles matching "${cmd.jobQuery}".`
+        : `Reject and notify active candidates scoring below ${cmd.threshold}%.`;
     case "advance_top":
       return `Advance the top ${cmd.count} active candidate${cmd.count === 1 ? "" : "s"} by match score.`;
     case "run_policy":

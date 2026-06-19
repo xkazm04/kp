@@ -6,7 +6,7 @@ import time
 from pathlib import Path
 from typing import Any, Callable, TypeVar
 
-from .ats import evaluate_keyword_coverage
+from .ats import evaluate_keyword_coverage, verify_skills_in_cv
 from .authenticity import authenticity_checks
 from .extractors import clean_text, count_letter_spacing, extract_text
 from .gemini import GEMINI_MODEL, analyze_profile_with_gemini
@@ -186,6 +186,25 @@ def analyze_cv(
             if job_description_text
             else None
         )
+
+        # Trust gate (UAT M1): the LLM's matching_skills are narrated, not
+        # verified, so the model can claim a skill the CV never mentions — and a
+        # single hallucinated match is the recruiter's hard trust line. Verify the
+        # list against the real CV text here, at the source, so a withheld skill
+        # can never reach the job-fit chips, the keyword-coverage panel, or the
+        # interview kit. The withheld set is surfaced as a review note, not
+        # silently dropped.
+        if job_fit is not None and job_fit.matching_skills:
+            verified_skills, withheld_skills = verify_skills_in_cv(
+                job_fit.matching_skills, raw_text
+            )
+            if withheld_skills:
+                job_fit.matching_skills = verified_skills
+                withheld_list = ", ".join(withheld_skills)
+                repairs.append(
+                    f"Withheld {len(withheld_skills)} AI-suggested matching skill(s) "
+                    f"not found in the CV (shown only when verifiable): {withheld_list}."
+                )
 
         market_evidence = _market_evidence_from_payload(payload.get("market_evidence"), sources)
 

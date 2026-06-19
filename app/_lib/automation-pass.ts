@@ -10,11 +10,9 @@ import {
   setEntryMatchScore,
   type AutomationEntry,
 } from "./db";
-import { getSchedule, POLICY_JOB } from "./scheduler-store";
 import { resolveCandidatePoolEntry } from "./candidate-pool";
 import { cleanupWorkdir, createWorkdir, parsePythonJson, parseStderrError, PipelineError, spawnPython } from "./python-runner";
 import { rankPoolForJob } from "./recruiter-run";
-import { dispatchRejection } from "./comms-dispatch";
 import { assertAutoRejectFair, type AutoRejectVerdict } from "./automation-fairness";
 import type { DecisionOutcome } from "./decision-attribution";
 
@@ -243,13 +241,12 @@ async function executeAutomationPass(dryRun: boolean): Promise<AutomationPassRes
       return { summary, decisions };
     }
 
-    // AUTO1 — the autonomy rung for the one irreversible, candidate-visible
-    // action. In "approve" (the default) the pass computes each reject but
-    // queues it on the Decisions gate instead of applying + emailing; only an
-    // explicit opt-in to "auto" makes rejections fully unattended. Advances,
-    // holds and alerts stay autonomous in both modes.
-    const rejectMode = getSchedule(POLICY_JOB).rejectMode;
-
+    // AUTO1 RETIRED (UAT M6 / GDPR Art. 22): a rejection is the one irreversible,
+    // candidate-visible ADVERSE action, so the pass NEVER applies it unattended —
+    // every fairness-cleared reject is queued for a human on the Decisions gate.
+    // Advances, holds and alerts stay autonomous. This keeps the candidate
+    // disclosure ("nothing adverse is decided automatically") true for EVERY
+    // candidate, unconditionally; the former opt-in `auto` reject mode is gone.
     for (const d of decisions) {
       if (!d.entryId) continue;
       // One decision's apply failing (a comm throw from dispatchRejection, a
@@ -285,13 +282,14 @@ async function executeAutomationPass(dryRun: boolean): Promise<AutomationPassRes
         // only "auto" mode applies + emails it unattended.
         if (applyFairnessVerdict(d, verdict, summary, false)) {
           // refused — the helper already downgraded this decision to a hold.
-        } else if (rejectMode === "approve") {
-          // Supervised mode: queue the fairness-cleared reject for a human click.
-          // The payload uses the screening-review shape AiReviewCard already
-          // renders; evaluate_entry freezes entries with a pending approval, so
-          // the queued candidate can't be re-decided on the next tick. The
-          // recruiter's Reject resolves it through the human route (correct
-          // attribution + the rejection email still goes out there).
+        } else {
+          // Mandatory human-in-the-loop: QUEUE the fairness-cleared reject for a
+          // human click instead of applying it. The payload uses the screening-
+          // review shape AiReviewCard already renders; evaluate_entry freezes
+          // entries with a pending approval, so the queued candidate can't be
+          // re-decided on the next tick. The recruiter's Reject resolves it through
+          // the human route — which sends the rejection email AND seals the
+          // tamper-evident record, so nothing is lost by not applying it here.
           setApproval(
             d.entryId,
             "rejection_review",
@@ -304,31 +302,6 @@ async function executeAutomationPass(dryRun: boolean): Promise<AutomationPassRes
           d.outcome = "queued";
           d.reason = `Queued for approval: ${d.reason}`;
           summary.held += 1; // routed to the human Decisions gate, not actioned
-        } else {
-          const rejected = actOnPipelineEntry(d.entryId, "reject", d.reason, { expectedStage: snapshotStage, actor: "system" }); // logs `auto_rejected`
-          if (rejected) {
-            // The DB transition is committed — count it BEFORE the comm hop, so a
-            // notification failure can't make the run summary claim "0 rejected"
-            // for a pass that genuinely rejected someone.
-            summary.rejected += 1;
-            d.outcome = "applied";
-            // Mirror screen-wave (idea-961de357): a comms failure must leave a
-            // per-entry marker, not just a bare error count — the candidate is out
-            // of the funnel and only this event tells the recruiter to nudge
-            // manually instead of silently ghosting.
-            try {
-              await dispatchRejection(rejected, { automated: true }); // tell the candidate (queued by default)
-            } catch (commsError) {
-              summary.errors += 1;
-              const msg = commsError instanceof Error ? commsError.message : String(commsError);
-              console.warn(`[automation-pass] rejection comms failed for ${d.entryId}: ${msg}`);
-              recordAutomationEvent(d.entryId, "rejection_comms_failed", `Auto-rejected, but the notification failed to queue — nudge manually. (${msg})`);
-            }
-          } else {
-            // Stale (stage changed mid-pass) — and crucially, NO rejection email
-            // went out for a verdict the entry's current state never earned.
-            markStaleSkip(d);
-          }
         }
       } else if (d.action === "hold") {
         summary.held += 1;

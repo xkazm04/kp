@@ -4,7 +4,7 @@ import re
 import unicodedata
 
 from .models import KeywordCoverage, KeywordHit, KeywordStatus
-from .taxonomy import skill_keyword_pool
+from .taxonomy import detected_skills, resolve_term, skill_keyword_pool
 
 
 # --- Display caps -----------------------------------------------------------
@@ -76,6 +76,69 @@ def evaluate_keyword_coverage(
         missing_total=len(missing),
         over_used_total=len(over_used),
     )
+
+
+# --- Matching-skill verification (trust gate) -------------------------------
+# The LLM's ``matching_skills`` list is NARRATED, not verified — nothing stops it
+# claiming a skill the candidate's CV never mentions. A single such hallucinated
+# match is the recruiter's hard trust line (it means the model read sample data,
+# not the real CV), so the pipeline gates the list against the actual CV text
+# BEFORE it reaches any surface: the job-fit chips, this keyword-coverage panel,
+# and the interview kit all consume the verified list.
+
+
+def _skill_in_text(cv_norm: str, skill_norm: str) -> bool:
+    """Whole-token literal presence of a skill in already-normalized CV text.
+
+    Internal whitespace matches any run (``\\s+``) so a line-wrapped or
+    double-spaced "machine learning" still matches; boundaries are non-word so a
+    short or special-charactered skill ("R", "Go", "C++", ".NET") matches exactly
+    and never inside an unrelated word.
+    """
+    parts = [re.escape(part) for part in skill_norm.split() if part]
+    if not parts:
+        return False
+    body = r"\s+".join(parts)
+    return re.search(rf"(?<!\w){body}(?!\w)", cv_norm, flags=re.UNICODE) is not None
+
+
+def verify_skills_in_cv(
+    matching_skills: list[str], candidate_text: str
+) -> tuple[list[str], list[str]]:
+    """Split LLM-claimed matching skills into ``(verified, withheld)`` vs the CV.
+
+    A skill is *verified* when EITHER:
+
+    * its canonical taxonomy term is also detected in the CV text — alias-aware,
+      so a claimed "JavaScript" is confirmed by a CV that only writes "JS", and
+      "Kubernetes" by a CV that says "k8s"; OR
+    * (for a skill the taxonomy does not model) it appears literally in the CV —
+      accent/case-insensitive, whitespace-flexible, on word boundaries.
+
+    Anything else is *withheld*: it cannot be confirmed in the CV, so it must
+    never be shown as a confirmed match. Input order and casing are preserved in
+    both lists; duplicates (by normalized form) collapse to their first occurrence.
+    """
+    cv_norm = _normalize(candidate_text or "")
+    # Canonical taxonomy terms the CV actually evidences (alias-aware). A high cap
+    # so verification sees every detected skill, not the prompt-sized default.
+    detected_terms = {
+        resolve_term(form) for form in detected_skills(candidate_text or "", limit=1000)
+    }
+    detected_terms.discard(None)
+
+    verified: list[str] = []
+    withheld: list[str] = []
+    seen: set[str] = set()
+    for skill in matching_skills:
+        key = _normalize(skill)
+        if not key or key in seen:
+            continue
+        seen.add(key)
+        term = resolve_term(skill)
+        confirmed = (term is not None and term in detected_terms) or _skill_in_text(cv_norm, key)
+        (verified if confirmed else withheld).append(skill)
+    return verified, withheld
 
 
 def _keyword_status(matched: bool, in_jd: int, in_cv: int) -> KeywordStatus:

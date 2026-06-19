@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { actOnPipelineEntry, listPipeline, type PipelineEntry } from "@/app/_lib/db";
+import { actOnPipelineEntry, listPipeline, recordAutomationEvent, type PipelineEntry } from "@/app/_lib/db";
 import { runAutomationPass } from "@/app/_lib/automation-pass";
+import { dispatchRejection } from "@/app/_lib/comms-dispatch";
 import { describeCommand, isMutating, parseCommand, type ParsedCommand } from "@/app/_lib/pipeline-command";
 import { safeJsonError } from "@/app/_lib/api-response";
 
@@ -72,10 +73,31 @@ export async function POST(request: NextRequest) {
 
     const targets = affected(cmd);
     let count = 0;
+    let commsFailed = 0;
     for (const e of targets) {
       try {
         if (cmd.kind === "reject_below") {
-          if (actOnPipelineEntry(e.id, "reject", `Command bar: below ${cmd.threshold}%`, { expectedStage: e.stage, actor: "human" })) count += 1;
+          const updated = actOnPipelineEntry(e.id, "reject", `Command bar: below ${cmd.threshold}%`, { expectedStage: e.stage, actor: "human" });
+          if (updated) {
+            count += 1;
+            // A bulk reject must NEVER ghost the candidate (UAT M3): the command bar
+            // used to flip status + audit only, while the screen-wave notified — so
+            // the FASTEST reject surface was the one that went silent. Mirror the
+            // wave: queue the rejection comm with per-candidate isolation so one
+            // comms blip neither aborts the batch nor hides who wasn't told.
+            try {
+              await dispatchRejection(updated);
+            } catch (commsError) {
+              commsFailed += 1;
+              const msg = commsError instanceof Error ? commsError.message : String(commsError);
+              console.warn(`[pipeline:command] rejection comms failed for ${e.id}: ${msg}`);
+              recordAutomationEvent(
+                e.id,
+                "rejection_comms_failed",
+                `Rejected via command bar, but the notification failed to queue — nudge manually. (${msg})`
+              );
+            }
+          }
         } else if (cmd.kind === "advance_top") {
           if (actOnPipelineEntry(e.id, "accept", "Command bar: advance top", { expectedStage: e.stage, actor: "human" })) count += 1;
         }
@@ -83,7 +105,7 @@ export async function POST(request: NextRequest) {
         console.error(`[pipeline:command] action failed for ${e.id}`, err);
       }
     }
-    return NextResponse.json({ kind: cmd.kind, executed: true, description, count });
+    return NextResponse.json({ kind: cmd.kind, executed: true, description, count, ...(commsFailed ? { commsFailed } : {}) });
   } catch (error) {
     return safeJsonError(error, "api:pipeline:command", "COMMAND_FAILED");
   }

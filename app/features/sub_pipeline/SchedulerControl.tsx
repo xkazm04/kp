@@ -314,21 +314,14 @@ export function SchedulerControl({
         />
         {t("min")}
       </label>
-      {/* AUTO1 — the autonomy rung for rejections: supervised (queue for a human
-          click on the Decisions gate) vs autonomous (apply + email unattended).
-          Advances/holds stay autonomous either way. */}
-      <label className="flex items-center gap-1" title={t("rejectModeTitle")}>
+      {/* AUTO1 retired (UAT M6 / GDPR Art. 22): a clock-computed rejection is always
+          QUEUED for a human click on the Decisions gate — never applied unattended —
+          so the candidate disclosure ("nothing adverse is decided automatically")
+          holds. It's now a stated fact, not an operator-selectable mode. */}
+      <span className="flex items-center gap-1" title={t("rejectModeTitle")}>
         {t("rejectModeLabel")}
-        <select
-          value={sched.rejectMode ?? "approve"}
-          disabled={busy}
-          onChange={(e) => update({ rejectMode: e.target.value === "auto" ? "auto" : "approve" })}
-          className="focus-ring rounded border border-stone-200 bg-white px-1 py-0.5"
-        >
-          <option value="approve">{t("rejectModeApprove")}</option>
-          <option value="auto">{t("rejectModeAuto")}</option>
-        </select>
-      </label>
+        <span className="font-medium text-ink">{t("rejectModeApprove")}</span>
+      </span>
       {sched.lastRunAt ? (
         <span className="inline-flex flex-wrap items-center gap-x-2 gap-y-1">
           <span>{t("lastAutoRun", { time: relativeTime(sched.lastRunAt) })}</span>

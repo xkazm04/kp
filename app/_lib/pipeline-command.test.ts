@@ -45,6 +45,8 @@ test("isMutating flags the action intents only", () => {
 });
 
 test("describeCommand reads as an action sentence", () => {
-  assert.match(describeCommand(parseCommand("reject below 60%")), /Reject active candidates scoring below 60%/);
+  // "and notify" is asserted on purpose: the reject command now queues a
+  // candidate comm, so the preview copy must promise notification (UAT M3).
+  assert.match(describeCommand(parseCommand("reject below 60%")), /Reject and notify active candidates scoring below 60%/);
   assert.match(describeCommand(parseCommand("advance top 1")), /Advance the top 1 active candidate\b/);
 });

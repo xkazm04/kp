@@ -47,10 +47,10 @@ export async function POST(request: NextRequest) {
     if (typeof body.intervalMinutes === "number") setIntervalMinutes(POLICY_JOB, body.intervalMinutes);
     if (typeof body.enabled === "boolean") setEnabled(POLICY_JOB, body.enabled);
     if (body.rejectMode !== undefined) {
-      if (body.rejectMode !== "auto" && body.rejectMode !== "approve") {
-        return NextResponse.json({ error: "rejectMode must be 'auto' or 'approve'." }, { status: 400 });
-      }
-      setRejectMode(POLICY_JOB, body.rejectMode);
+      // AUTO1 retired (UAT M6 / GDPR Art. 22): "auto" (unattended reject) no longer
+      // exists — rejections are always queued for a human. Accept the field for
+      // back-compat but never store "auto"; coerce any value to "approve".
+      setRejectMode(POLICY_JOB, "approve");
     }
     if (typeof body.remindersEnabled === "boolean") {
       ensureReminderJob(); // row exists with the right defaults before toggling
