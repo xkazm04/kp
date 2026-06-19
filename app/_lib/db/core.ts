@@ -538,13 +538,25 @@ export function ensureDb(): Database.Database {
 
     CREATE INDEX IF NOT EXISTS idx_billing_credits_meter ON billing_credits (meter);
   `);
+  // Run a DDL migration, swallowing ONLY the benign "already applied" error (re-running
+  // ADD COLUMN / CREATE on a DB that already has the column). Any OTHER failure —
+  // corruption, I/O, lock contention under the documented multi-connection scheduler
+  // load — must NOT silently boot a structurally-broken DB: a bare `catch {}` here was
+  // the exact "why is everything empty" hunt the seed-health code exists to prevent,
+  // reintroduced one layer down. Surface the unexpected ones loudly and re-throw.
+  const migrateExec = (sql: string) => {
+    try {
+      db.exec(sql);
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      if (/duplicate column name/i.test(msg) || /already exists/i.test(msg)) return;
+      console.error(`[db:migrate] unexpected failure running: ${sql}\n  ${msg}`);
+      throw error;
+    }
+  };
   // Migration for DBs created before the observability columns existed.
   for (const col of ["created_at", "stage_changed_at"]) {
-    try {
-      db.exec(`ALTER TABLE pipeline_entries ADD COLUMN ${col} TEXT`);
-    } catch {
-      /* column already exists */
-    }
+    migrateExec(`ALTER TABLE pipeline_entries ADD COLUMN ${col} TEXT`);
   }
   // Migration for DBs created before the intake-degradation flag existed. The
   // boolean column is NOT NULL DEFAULT 0 so legacy rows read as "not degraded".
@@ -608,11 +620,7 @@ export function ensureDb(): Database.Database {
     // E5 — when a webhook received its FIRST lead (time-to-first-lead metric).
     "ALTER TABLE channel_webhooks ADD COLUMN first_received_at TEXT",
   ]) {
-    try {
-      db.exec(sql);
-    } catch {
-      /* column already exists */
-    }
+    migrateExec(sql);
   }
   // The lead-token lookup runs once per tokened apply-page view and once per
   // tokened apply POST — index it like the interview token. Created AFTER the
