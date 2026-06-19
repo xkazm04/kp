@@ -247,6 +247,8 @@
     "declinedTitle": "Odpověď zaznamenána",
     "declinedBody": "Děkujeme, že jste nám dali vědět. Přejeme vám vše nejlepší.",
     "loadFailed": "Tuto nabídku se nepodařilo načíst.",
+    "invalidLink": "Tento odkaz na nabídku není platný",
+    "invalidLinkBody": "Odkaz může být chybně zadaný nebo již není aktivní. Zkontrolujte odkaz z e-mailu, nebo kontaktujte náborový tým.",
     "respondFailed": "Vaši odpověď se nepodařilo zaznamenat.",
     "deadline": "Odpovězte prosím do {date}.",
     "deadlineHours": "{hours, plural, one {zbývá # hodina} few {zbývají # hodiny} other {zbývá # hodin}}.",

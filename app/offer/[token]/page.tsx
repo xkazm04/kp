@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
@@ -34,6 +34,10 @@ export default function OfferPage() {
   // so it replaces the whole card; a POST response failure surfaces as an inline banner that
   // PRESERVES the card + re-enables the buttons, so a transient blip on accept/decline isn't a dead end.
   const [loadError, setLoadError] = useState<string | null>(null);
+  // A 404 (mistyped / revoked / non-existent token) is a DEAD link, not a transient
+  // blip — surfaced as its own "invalid link, contact the team" card rather than the
+  // generic retryable loadFailed.
+  const [notFound, setNotFound] = useState(false);
   const [responseError, setResponseError] = useState<string | null>(null);
   // Which response is mid-flight, so we can spin the pressed button and mute the other.
   const [pending, setPending] = useState<"accept" | "decline" | null>(null);
@@ -50,18 +54,51 @@ export default function OfferPage() {
     if (confirmingDecline) goBackRef.current?.focus();
   }, [confirmingDecline]);
 
-  useEffect(() => {
+  const load = useCallback(async () => {
     if (!token) return;
-    fetch(`/api/offer/${token}`)
-      .then((r) => r.json())
-      .then((p) => {
-        if (p.error) throw new Error(p.error);
-        setOffer(p.offer as OfferView);
-        if (p.offer?.status === "accepted" || p.offer?.status === "declined" || p.offer?.status === "expired")
-          setResult(p.offer.status);
-      })
-      .catch(() => setLoadError(t("loadFailed")));
+    setLoadError(null);
+    setNotFound(false);
+    try {
+      const r = await fetch(`/api/offer/${token}`);
+      const p = await r.json().catch(() => ({}));
+      if (r.status === 404) {
+        setNotFound(true);
+        return;
+      }
+      if (!r.ok || p.error) {
+        setLoadError(t("loadFailed"));
+        return;
+      }
+      setOffer(p.offer as OfferView);
+      const s = p.offer?.status;
+      if (s === "accepted" || s === "declined" || s === "expired") setResult(s);
+    } catch {
+      setLoadError(t("loadFailed"));
+    }
   }, [token, t]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  // After an ambiguous POST (the request may have landed before the connection
+  // dropped), re-read the AUTHORITATIVE status: if the server already recorded the
+  // response, flip the card to it and clear the inline error — so a candidate on a
+  // flaky phone isn't left unsure whether their accept/decline registered.
+  const reconcile = useCallback(async () => {
+    if (!token) return;
+    try {
+      const r = await fetch(`/api/offer/${token}`);
+      const p = await r.json().catch(() => ({}));
+      const s = p?.offer?.status;
+      if (r.ok && (s === "accepted" || s === "declined" || s === "expired")) {
+        setResult(s);
+        setResponseError(null);
+      }
+    } catch {
+      /* leave the responseError so the candidate can retry */
+    }
+  }, [token]);
 
   const respond = async (response: "accept" | "decline") => {
     setPending(response);
@@ -83,11 +120,13 @@ export default function OfferPage() {
         // Prefer the server's stable error `code` (localized via the errors
         // catalog); fall back to the page's own localized respond-failed message.
         setResponseError(errMsg(p, t("respondFailed")));
+        void reconcile();
         return;
       }
       setResult(p.status as "accepted" | "declined");
     } catch {
       setResponseError(t("respondFailed"));
+      void reconcile();
     } finally {
       setPending(null);
     }
@@ -99,8 +138,22 @@ export default function OfferPage() {
         {/* Brand accent — a premium letterhead strip so the offer reads as official. */}
         <div className="h-1.5 bg-gradient-to-r from-steel via-steel to-coral" aria-hidden="true" />
         <div className="p-7">
-        {loadError ? (
-          <p className="rounded-md bg-red-50 p-3 text-sm text-red-700">{loadError}</p>
+        {notFound ? (
+          <div className="rounded-lg bg-stone-100 p-4 text-center">
+            <p className="text-base font-semibold text-ink">{t("invalidLink")}</p>
+            <p className="mt-1 text-sm text-steel">{t("invalidLinkBody")}</p>
+          </div>
+        ) : loadError ? (
+          <div className="rounded-md bg-red-50 p-3 text-sm text-red-700">
+            <p>{loadError}</p>
+            <button
+              type="button"
+              onClick={() => void load()}
+              className="focus-ring mt-2 rounded-md border border-red-200 bg-white px-3 py-1 text-sm font-semibold text-red-700 hover:bg-red-100"
+            >
+              {tCommon("retry")}
+            </button>
+          </div>
         ) : !offer ? (
           <p className="text-center text-sm text-steel">{tCommon("loading")}</p>
         ) : (

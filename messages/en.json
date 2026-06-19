@@ -247,6 +247,8 @@
     "declinedTitle": "Response recorded",
     "declinedBody": "Thank you for letting us know. We wish you all the best.",
     "loadFailed": "Could not load this offer.",
+    "invalidLink": "This offer link isn't valid",
+    "invalidLinkBody": "The link may be mistyped or no longer active. Check the link from your email, or contact the hiring team.",
     "respondFailed": "Could not record your response.",
     "deadline": "Please respond by {date}.",
     "deadlineHours": "{hours, plural, one {# hour} other {# hours}} left.",
