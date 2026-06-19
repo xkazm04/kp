@@ -72,25 +72,39 @@ export function loadJd(slug: string): JdRow | null {
   return row ?? null;
 }
 
+// Optimistic-concurrency result for the JD write paths. `conflict` means the stored
+// body changed since the editor loaded it (a second tab / another recruiter), so the
+// write was refused rather than blind-overwriting their edit.
+export type JdWriteResult = { ok: true } | { ok: false; reason: "not_found" | "conflict" };
+
 /** Edit a saved JD in place (W8-4/JDL1 — the library was fully append-only, so
  *  every revision forked a permanent near-duplicate and orphaned the analysis
- *  history keyed on jd_slug). Caller validates via validateJdFields. */
-export function updateJd(slug: string, input: { title: string; body: string }): boolean {
+ *  history keyed on jd_slug). Caller validates via validateJdFields.
+ *
+ *  `baseBody` is the body the editor loaded: content-CAS optimistic concurrency. A
+ *  blind UPDATE was last-write-wins — two recruiters (or a stale tab) editing the same
+ *  JD silently clobbered each other, and the recorded snapshot was the INTERMEDIATE
+ *  state, so the lost edit wasn't even reconstructable. Now the read+compare+write run
+ *  in ONE synchronous transaction, so a stale base is detected (conflict) and the
+ *  caller can prompt "this JD changed — reload". Omit baseBody to force the write. */
+export function updateJd(slug: string, input: { title: string; body: string }, baseBody?: string): JdWriteResult {
   const db = ensureDb();
   // Snapshot the PRE-edit version into jd_revisions first (idea-6a18e0fc), in one
   // transaction with the overwrite, so an edit is always recoverable.
-  const tx = db.transaction((): boolean => {
+  const tx = db.transaction((): JdWriteResult => {
     const current = db.prepare(`SELECT title, body FROM jds WHERE slug = ?`).get(slug) as
       | { title: string; body: string }
       | undefined;
-    if (!current) return false;
+    if (!current) return { ok: false, reason: "not_found" };
+    if (baseBody !== undefined && current.body !== baseBody) return { ok: false, reason: "conflict" };
     db.prepare(`INSERT INTO jd_revisions (slug, title, body, created_at) VALUES (?, ?, ?, ?)`).run(
       slug,
       current.title,
       current.body,
       new Date().toISOString()
     );
-    return db.prepare(`UPDATE jds SET title = ?, body = ? WHERE slug = ?`).run(input.title, input.body, slug).changes > 0;
+    db.prepare(`UPDATE jds SET title = ?, body = ? WHERE slug = ?`).run(input.title, input.body, slug);
+    return { ok: true };
   });
   return tx();
 }
@@ -105,19 +119,26 @@ export function listJdRevisions(slug: string, limit = 30): JdRevision[] {
     .all(slug, Math.min(Math.max(limit, 1), 100)) as JdRevision[];
 }
 
+export type JdRevertResult =
+  | { ok: true; title: string; body: string }
+  | { ok: false; reason: "not_found" | "conflict" };
+
 /** Restore a JD to a prior revision (idea-6a18e0fc). Snapshots the CURRENT version
- *  first (a revert is itself an edit, so it's undoable too), then overwrites.
- *  Returns the restored {title, body}, or null if the revision/JD is missing. */
-export function revertJd(slug: string, revisionId: number): { title: string; body: string } | null {
+ *  first (a revert is itself an edit, so it's undoable too), then overwrites. Same
+ *  content-CAS as updateJd: `baseBody` is what the page showed when "Revert" was
+ *  clicked — if the live body changed since, the revert is refused (conflict) so it
+ *  can't silently bury an edit made in the gap. Returns the restored {title, body}. */
+export function revertJd(slug: string, revisionId: number, baseBody?: string): JdRevertResult {
   const db = ensureDb();
-  const tx = db.transaction((): { title: string; body: string } | null => {
+  const tx = db.transaction((): JdRevertResult => {
     const rev = db.prepare(`SELECT title, body FROM jd_revisions WHERE id = ? AND slug = ?`).get(revisionId, slug) as
       | { title: string; body: string }
       | undefined;
     const current = db.prepare(`SELECT title, body FROM jds WHERE slug = ?`).get(slug) as
       | { title: string; body: string }
       | undefined;
-    if (!rev || !current) return null;
+    if (!rev || !current) return { ok: false, reason: "not_found" };
+    if (baseBody !== undefined && current.body !== baseBody) return { ok: false, reason: "conflict" };
     db.prepare(`INSERT INTO jd_revisions (slug, title, body, created_at) VALUES (?, ?, ?, ?)`).run(
       slug,
       current.title,
@@ -125,7 +146,7 @@ export function revertJd(slug: string, revisionId: number): { title: string; bod
       new Date().toISOString()
     );
     db.prepare(`UPDATE jds SET title = ?, body = ? WHERE slug = ?`).run(rev.title, rev.body, slug);
-    return { title: rev.title, body: rev.body };
+    return { ok: true, title: rev.title, body: rev.body };
   });
   return tx();
 }

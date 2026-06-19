@@ -55,7 +55,8 @@ export function JdActions({ slug, title, body, archived }: { slug: string; title
       const r = await fetch(`/api/jds/${encodeURIComponent(slug)}/revisions`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ revisionId: id }),
+        // Send the body the page loaded so a revert can't bury an edit made meanwhile.
+        body: JSON.stringify({ revisionId: id, baseBody: body }),
       });
       const p = (await r.json().catch(() => null)) as { error?: string } | null;
       if (!r.ok) throw new Error(p?.error ?? "Revert failed.");
@@ -188,7 +189,7 @@ export function JdActions({ slug, title, body, archived }: { slug: string; title
           <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={() => patch({ title: draftTitle, body: draftBody }, "save")}
+              onClick={() => patch({ title: draftTitle, body: draftBody, baseBody: body }, "save")}
               disabled={busy !== null}
               className="focus-ring inline-flex items-center gap-1.5 rounded-md bg-ink px-3 py-1.5 text-sm font-semibold text-white hover:bg-steel disabled:opacity-50"
             >

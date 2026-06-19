@@ -29,13 +29,25 @@ export async function POST(request: Request, context: { params: Promise<{ slug: 
   if (denied) return denied;
   const { slug } = await context.params;
   try {
-    const body = (await request.json().catch(() => ({}))) as { revisionId?: unknown };
+    const body = (await request.json().catch(() => ({}))) as { revisionId?: unknown; baseBody?: unknown };
     const revisionId = typeof body.revisionId === "number" ? body.revisionId : NaN;
     if (!Number.isFinite(revisionId)) {
       return NextResponse.json({ error: "revisionId is required." }, { status: 400 });
     }
-    const restored = revertJd(slug, revisionId);
-    if (!restored) return NextResponse.json({ error: "Revision or JD not found." }, { status: 404 });
+    // Content-CAS (same as the PATCH edit): refuse to revert over a body that changed
+    // since the history view was opened, rather than burying that edit.
+    const baseBody = typeof body.baseBody === "string" ? body.baseBody : undefined;
+    const result = revertJd(slug, revisionId, baseBody);
+    if (!result.ok) {
+      if (result.reason === "conflict") {
+        return NextResponse.json(
+          { error: "This JD changed since you opened the history — reload, then revert again.", code: "conflict" },
+          { status: 409 }
+        );
+      }
+      return NextResponse.json({ error: "Revision or JD not found." }, { status: 404 });
+    }
+    const restored = { title: result.title, body: result.body };
 
     // Keep the linked jd-<slug> job in step with the reverted wording — best-effort,
     // mirroring the PATCH edit path (insertJob preserves lifecycle status on upsert).

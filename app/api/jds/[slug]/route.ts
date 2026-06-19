@@ -44,6 +44,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ slug:
       title?: unknown;
       body?: unknown;
       archived?: unknown;
+      baseBody?: unknown;
     };
 
     if (typeof body.archived === "boolean") {
@@ -55,7 +56,19 @@ export async function PATCH(request: Request, context: { params: Promise<{ slug:
     if (!fields.ok) {
       return NextResponse.json({ error: fields.error }, { status: 400 });
     }
-    updateJd(slug, { title: fields.title, body: fields.body });
+    // Content-CAS: the editor sends the body it loaded; a stale base means another
+    // writer changed the JD in the gap, so we 409 instead of clobbering their edit.
+    const baseBody = typeof body.baseBody === "string" ? body.baseBody : undefined;
+    const result = updateJd(slug, { title: fields.title, body: fields.body }, baseBody);
+    if (!result.ok) {
+      if (result.reason === "conflict") {
+        return NextResponse.json(
+          { error: "This JD changed since you opened it — reload to see the latest, then re-apply your edit.", code: "conflict" },
+          { status: 409 }
+        );
+      }
+      return NextResponse.json({ error: "JD not found." }, { status: 404 });
+    }
 
     // Keep the linked jd-<slug> job in step with the edited wording —
     // best-effort: insertJob's explicit-jobId upsert updates fields while
