@@ -16,8 +16,8 @@ import {
   isEntryReminderEligible,
 } from "./pipeline-status.ts";
 
-test("the canonical status list is exactly the four documented states", () => {
-  assert.deepEqual([...PIPELINE_ENTRY_STATUSES].sort(), ["active", "declined", "rejected", "rematched"]);
+test("the canonical status list is exactly the five documented states", () => {
+  assert.deepEqual([...PIPELINE_ENTRY_STATUSES].sort(), ["active", "declined", "rejected", "rematched", "role_closed"]);
 });
 
 test("declined is a first-class status, distinct from rejected", () => {
@@ -28,12 +28,15 @@ test("declined is a first-class status, distinct from rejected", () => {
 });
 
 test("all terminal states are terminal — and active is not", () => {
-  assert.deepEqual([...TERMINAL_ENTRY_STATUSES].sort(), ["declined", "rejected", "rematched"]);
+  assert.deepEqual([...TERMINAL_ENTRY_STATUSES].sort(), ["declined", "rejected", "rematched", "role_closed"]);
   assert.equal(isTerminalEntryStatus("rejected"), true);
   assert.equal(isTerminalEntryStatus("declined"), true);
   // rematched is the redirect close (idea-9ad8a777): terminal for this role so the
   // candidate drops out of the active board + automation, distinct from reject/decline.
   assert.equal(isTerminalEntryStatus("rematched"), true);
+  // role_closed is the role-filled/closed cascade (JOB2): terminal, distinct from a
+  // company merit-reject so reject-rate stays honest.
+  assert.equal(isTerminalEntryStatus("role_closed"), true);
   assert.equal(isTerminalEntryStatus("active"), false);
 });
 
@@ -49,6 +52,7 @@ test("isPipelineEntryStatus guards membership (null/typo are not statuses)", () 
   assert.equal(isPipelineEntryStatus("rejected"), true);
   assert.equal(isPipelineEntryStatus("declined"), true);
   assert.equal(isPipelineEntryStatus("rematched"), true);
+  assert.equal(isPipelineEntryStatus("role_closed"), true);
   assert.equal(isPipelineEntryStatus("withdrawn"), false);
   assert.equal(isPipelineEntryStatus(null), false);
   assert.equal(isPipelineEntryStatus(undefined), false);

@@ -305,6 +305,42 @@ export function listPipeline(): PipelineEntry[] {
   return rows.map(rowToEntry);
 }
 
+/** JOB2 — when a recruiter closes a role, withdraw its still-IN-FLIGHT candidates so a
+ *  filled role stops being chased and stops inflating the active funnel. Marks every
+ *  `active`, non-Hired entry for the job `role_closed` (a DISTINCT terminal status — they
+ *  cleared the bar but lost the role to timing, NOT a merit reject, so reject-rate stays
+ *  honest and they resurface as rediscovery silver medalists), records a `role_closed`
+ *  event per entry for the timeline, and returns how many were withdrawn. The Hired entry
+ *  (the candidate the role was filled with) keeps status 'active' and is left untouched.
+ *  Atomic: the select + per-row update + event all run in one synchronous transaction. */
+export function closeEntriesByJobId(jobId: string): number {
+  const db = ensureDb();
+  const now = new Date().toISOString();
+  const tx = db.transaction((): number => {
+    const rows = db
+      .prepare(
+        `SELECT id, candidate_label, job_title, archetype, stage
+           FROM pipeline_entries WHERE job_id = ? AND status = 'active' AND stage != 'Hired'`
+      )
+      .all(jobId) as { id: string; candidate_label: string; job_title: string | null; archetype: string; stage: string }[];
+    for (const r of rows) {
+      db.prepare(`UPDATE pipeline_entries SET status='role_closed', approval_kind=NULL, updated_at=? WHERE id=?`).run(now, r.id);
+      recordEvent(db, {
+        entryId: r.id,
+        candidateLabel: r.candidate_label,
+        jobTitle: r.job_title,
+        archetype: r.archetype,
+        kind: "role_closed",
+        fromStage: r.stage,
+        toStage: r.stage,
+        detail: "Role closed — candidate withdrawn from the pipeline.",
+      });
+    }
+    return rows.length;
+  });
+  return tx();
+}
+
 // Prior pipeline outcomes per candidate — used by talent rediscovery to spot
 // "silver medalists" (rejected/closed elsewhere) who fit a different role.
 export type CandidateOutcome = { jobId: string | null; jobTitle: string | null; stage: string; status: string };

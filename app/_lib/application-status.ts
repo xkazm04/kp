@@ -30,11 +30,13 @@ const STAGE_TO_STATUS: Record<string, CandidateStatus> = {
 };
 
 /** Project an entry's (status, stage) into the candidate-facing status:
- *  a company-side close (`rejected`/`rematched`) → not_selected; a candidate-side
- *  decline (`declined`) → withdrawn; otherwise map the live stage (Hired with
- *  status='active' is the win). Unknown stage falls back to received — never throws. */
+ *  a company-side close (`rejected`/`rematched`/`role_closed`) → not_selected; a
+ *  candidate-side decline (`declined`) → withdrawn; otherwise map the live stage (Hired
+ *  with status='active' is the win). `role_closed` (the role was filled/closed) reads as
+ *  not_selected to the candidate — the role is no longer open to them, which is honest
+ *  without implying a merit rejection. Unknown stage falls back to received — never throws. */
 export function candidateStatusFor(entryStatus: string, stage: string): CandidateStatus {
-  if (entryStatus === "rejected" || entryStatus === "rematched") return "not_selected";
+  if (entryStatus === "rejected" || entryStatus === "rematched" || entryStatus === "role_closed") return "not_selected";
   if (entryStatus === "declined") return "withdrawn";
   return STAGE_TO_STATUS[stage] ?? "received";
 }

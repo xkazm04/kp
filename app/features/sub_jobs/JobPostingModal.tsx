@@ -38,6 +38,9 @@ export function JobPostingModal({ job, onClose }: { job: Job; onClose: () => voi
   const [confirmingClose, setConfirmingClose] = useState(false);
   const [closing, setClosing] = useState(false);
   const [closed, setClosed] = useState(false);
+  // How many in-flight candidates the close withdrew (JOB2) — shown so the recruiter
+  // knows the pipeline was reconciled, not silently abandoned. null until a close runs.
+  const [closedCount, setClosedCount] = useState<number | null>(null);
   const [closeError, setCloseError] = useState<string | null>(null);
   const closeRole = async () => {
     if (closing || closed) return;
@@ -45,8 +48,10 @@ export function JobPostingModal({ job, onClose }: { job: Job; onClose: () => voi
     setCloseError(null);
     try {
       const r = await fetch(`/api/jobs/${encodeURIComponent(job.id)}/close`, { method: "POST" });
+      const p = (await r.json().catch(() => null)) as { withdrawn?: number } | null;
       if (!r.ok) throw new Error();
       setClosed(true);
+      setClosedCount(typeof p?.withdrawn === "number" ? p.withdrawn : null);
     } catch {
       setCloseError(t("closeFailed"));
     } finally {
@@ -89,6 +94,7 @@ export function JobPostingModal({ job, onClose }: { job: Job; onClose: () => voi
       // Re-publish doubles as Reopen for a closed role; clear the local closed flag so
       // the footer/links flip back to live (the cap is re-checked above on reopen).
       setClosed(false);
+      setClosedCount(null);
       setPublished(true);
       setPublishNote(
         p.sourcingWarning
@@ -190,6 +196,11 @@ export function JobPostingModal({ job, onClose }: { job: Job; onClose: () => voi
           {closeError ? (
             <span role="alert" className="text-sm text-red-700">
               {closeError}
+            </span>
+          ) : null}
+          {closed && closedCount !== null && closedCount > 0 ? (
+            <span aria-live="polite" className="text-sm text-steel">
+              {t("withdrewCount", { count: closedCount })}
             </span>
           ) : null}
           {publishNote ? (
