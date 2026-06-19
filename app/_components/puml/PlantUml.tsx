@@ -4,7 +4,7 @@ import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { Maximize2, ZoomIn, ZoomOut } from "lucide-react";
 import { Modal } from "@/app/_components/Modal";
 import { parsePuml } from "./parse";
-import { layoutDiagram, type Box, type PositionedDiagram, type PositionedEdge } from "./layout";
+import { isDiagramTooLarge, layoutDiagram, type Box, type PositionedDiagram, type PositionedEdge } from "./layout";
 import { DIAGRAM_PAD, DIAGRAM_STATUS_TOKENS, FONT_FAMILY, LINE_H } from "./constants";
 
 // SVG renderer for our PlantUML component-diagram subset. Layout coordinates
@@ -381,6 +381,9 @@ export function PlantUml({
   // stale layout never shows after `source` changes (no setState in the effect
   // body, which avoids cascading renders).
   const isEmpty = !diagram || (diagram.roots.length === 0 && diagram.edges.length === 0);
+  // Derived (pure), like isEmpty: an oversized/adversarial source would freeze the tab
+  // if handed to ELK, so we detect it during render and skip layout entirely.
+  const tooLarge = !!diagram && isDiagramTooLarge(diagram);
   const [result, setResult] = useState<{
     key: unknown;
     layout: PositionedDiagram | null;
@@ -388,7 +391,7 @@ export function PlantUml({
   }>({ key: null, layout: null, failed: false });
 
   useEffect(() => {
-    if (isEmpty || !diagram) return;
+    if (isEmpty || tooLarge || !diagram) return; // tooLarge: never call ELK (would freeze)
     let cancelled = false;
     layoutDiagram(diagram)
       .then((res) => {
@@ -405,11 +408,21 @@ export function PlantUml({
     return () => {
       cancelled = true;
     };
-  }, [diagram, isEmpty]);
+  }, [diagram, isEmpty, tooLarge]);
 
   const ready = result.key === diagram;
   const layout = ready ? result.layout : null;
   const failed = isEmpty || (ready && result.failed);
+
+  // Oversized/adversarial diagram: layout was skipped (it would freeze the tab), so
+  // degrade gracefully with a message instead of an endless skeleton.
+  if (tooLarge) {
+    return (
+      <div role="alert" className={`rounded-lg border border-stone-200 bg-paper p-4 text-sm text-steel ${className}`}>
+        This diagram is too large to render here.
+      </div>
+    );
+  }
 
   // A real layout FAILURE shows a friendly message (not a wall of raw PlantUML source,
   // which read as a broken render to the user). An empty-but-parseable diagram keeps the

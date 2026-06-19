@@ -113,6 +113,29 @@ function buildParentMap(diagram: PumlDiagram): Map<string, string> {
   return parent;
 }
 
+// Above these, ELK's layered layout (super-linear in nodes×edges, run synchronously
+// on the main thread) would pin the tab — so the renderer bails to a "too large"
+// message BEFORE calling layoutDiagram, converting a hard freeze into a graceful
+// degrade. Generous enough for every committed architecture diagram; the guard is
+// against an oversized paste or a pathological fan-out edge block.
+export const MAX_DIAGRAM_NODES = 150;
+export const MAX_DIAGRAM_EDGES = 300;
+
+function countNodes(els: PumlElement[]): number {
+  let n = 0;
+  for (const el of els) {
+    n += 1;
+    if (el.type === "container") n += countNodes(el.children);
+  }
+  return n;
+}
+
+/** True when a diagram is big enough that synchronous ELK layout would freeze the tab.
+ *  Pure + cheap (a tree walk + length read) — checked BEFORE layoutDiagram. */
+export function isDiagramTooLarge(diagram: PumlDiagram): boolean {
+  return countNodes(diagram.roots) > MAX_DIAGRAM_NODES || diagram.edges.length > MAX_DIAGRAM_EDGES;
+}
+
 export async function layoutDiagram(diagram: PumlDiagram): Promise<PositionedDiagram> {
   const { default: ELK } = await import("elkjs/lib/elk.bundled.js");
   const elk = new ELK();
