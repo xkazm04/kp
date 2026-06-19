@@ -1,5 +1,5 @@
 import Database from "better-sqlite3";
-import { DB_PATH, ensureDbDir } from "./db-path";
+import { openStore } from "./db-path";
 import { decisionContentHash } from "./decision-hash";
 
 // Decision System of Record (moonshot D) — a tamper-evident hash chain of
@@ -52,9 +52,7 @@ type DecisionRow = {
 let _db: Database.Database | null = null;
 function db(): Database.Database {
   if (_db) return _db;
-  ensureDbDir();
-  const d = new Database(DB_PATH);
-  d.pragma("journal_mode = WAL");
+  const d = openStore();
   d.exec(`
     CREATE TABLE IF NOT EXISTS decision_records (
       seq INTEGER PRIMARY KEY AUTOINCREMENT,

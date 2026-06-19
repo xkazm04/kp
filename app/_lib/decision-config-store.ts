@@ -1,5 +1,5 @@
 import Database from "better-sqlite3";
-import { DB_PATH, ensureDbDir } from "./db-path";
+import { openStore } from "./db-path";
 import { DecisionConfigError, SCREENING_DEFAULT, validateDecisionConfig } from "./decision-config-schema";
 
 // Phase 3 — data-driven decision rules per pipeline phase, replacing the
@@ -21,9 +21,7 @@ const DEFAULTS: Record<string, unknown> = {
 let _db: Database.Database | null = null;
 function db(): Database.Database {
   if (_db) return _db;
-  ensureDbDir();
-  const d = new Database(DB_PATH);
-  d.pragma("journal_mode = WAL");
+  const d = openStore();
   d.exec(`
     CREATE TABLE IF NOT EXISTS decision_config (
       phase TEXT PRIMARY KEY,

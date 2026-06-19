@@ -42,6 +42,12 @@ export function openStore(): Database.Database {
   ensureDbDir();
   const d = new Database(DB_PATH);
   d.pragma("journal_mode = WAL");
+  // Pin durability EXPLICITLY rather than inheriting an ambiguous compile/file default.
+  // NORMAL is the SQLite-recommended setting for WAL: no corruption ever, and durable
+  // across an APPLICATION crash (a kill / dev hot-restart leaves the -wal intact); only
+  // an OS crash / power loss between commit and checkpoint can drop the last few
+  // transactions. The boot wal_checkpoint(TRUNCATE) (db/core.ts) bounds -wal growth.
+  d.pragma("synchronous = NORMAL");
   d.pragma("busy_timeout = 5000");
   d.pragma("foreign_keys = ON");
   return d;

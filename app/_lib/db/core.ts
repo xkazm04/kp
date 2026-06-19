@@ -778,6 +778,18 @@ export function ensureDb(): Database.Database {
   } catch (error) {
     console.error("[db] prompt-cache boot prune failed", error);
   }
+  // Checkpoint + TRUNCATE the WAL on boot. Under synchronous=NORMAL the -wal/-shm
+  // sidecars accumulate committed pages until a checkpoint folds them back into the
+  // main db file; nothing forced one, so they grew unbounded for the life of the
+  // deployment. TRUNCATE both checkpoints AND shrinks the -wal back to zero. Every
+  // store opens the same kp.sqlite file, so this one call bounds the shared WAL.
+  // Best-effort — a checkpoint failure (e.g. a concurrent reader holding it open)
+  // must never wedge boot.
+  try {
+    db.pragma("wal_checkpoint(TRUNCATE)");
+  } catch (error) {
+    console.error("[db] boot WAL checkpoint failed", error);
+  }
   return db;
 }
 
