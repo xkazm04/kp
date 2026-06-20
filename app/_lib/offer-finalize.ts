@@ -1,4 +1,5 @@
 import { actOnPipelineEntry, getJob, recordAutomationEvent } from "./db";
+import { dispatchAtsEvent } from "./ats-egress";
 import { dispatchOnboarding } from "./comms-dispatch";
 import { recordAudit } from "./dev-control";
 import { recordPipelineOutcome } from "./dev-outcomes";
@@ -119,6 +120,12 @@ export async function respondToOffer(token: string, response: "accept" | "declin
             err instanceof Error ? err.message : err
           );
         }
+        // P1-5 — mirror the hire into any configured ATS/HRIS webhook so the
+        // system of record gets the outcome without re-keying (Marcus #12).
+        // Fire-and-forget + self-contained best-effort: a no-op unless a webhook
+        // and the candidate.hired event are configured, and it can never break the
+        // accept (dispatchAtsEvent swallows its own errors).
+        void dispatchAtsEvent("candidate.hired", hired.id);
       }
     }
     return { ok: true, status: "accepted", alreadyResponded: false, jobTitle: offer.jobTitle, candidateLabel: offer.candidateLabel };

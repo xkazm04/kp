@@ -6,6 +6,7 @@ import { AlertTriangle, Ban, Check, ChevronDown, ChevronRight, Clock, Loader2, R
 import { useTasks, type Task, type TaskStatus } from "./TasksProvider";
 import { SystemCard } from "./SystemCard";
 import { BackupCard } from "./BackupCard";
+import { IntegrationsCard } from "./IntegrationsCard";
 import { useReducedMotion } from "@/app/_lib/useReducedMotion";
 import { useInfiniteScroll, type InfinitePage } from "@/app/_lib/useInfiniteScroll";
 import { formatRelativeTime } from "@/app/_lib/format";
@@ -234,9 +235,10 @@ export function TasksTab() {
         <TaskHistory key={`${kindFilter}|${statusFilter ?? ""}`} kind={kindFilter} status={statusFilter} text={text} />
       ) : null}
 
-      {/* DATA2 + DATA3: the operator panels — the tasks tab is their home. */}
+      {/* DATA2 + DATA3 + P1-5: the operator panels — the tasks tab is their home. */}
       <SystemCard />
       <BackupCard />
+      <IntegrationsCard />
     </section>
   );
 }
