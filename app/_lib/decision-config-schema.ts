@@ -8,6 +8,8 @@
 // screen-wave.ts reads the rounding policy from here, so the contract has ONE
 // source of truth.
 
+import { DEFAULT_REGIME_ID, REGIME_IDS, type RegimeId } from "./compliance-regimes.ts";
+
 // Screening auto-reject: drop the bottom `rejectBottomPercent` of a role's
 // matched candidates that are ALSO below `maxMatchToReject` match — never
 // early-career. Off by default (opt-in), like the automation clock.
@@ -23,16 +25,29 @@ export const SCREENING_DEFAULT: ScreeningRule = {
   maxMatchToReject: 45,
 };
 
+// P1-1 — the active compliance JURISDICTION (workspace setting). Drives the
+// candidate AI-disclosure framing + the recruiter compliance posture. Defaults to
+// "eu", which reproduces the app's pre-P1-1 GDPR framing exactly.
+export type ComplianceRule = {
+  jurisdiction: RegimeId;
+};
+
+export const COMPLIANCE_DEFAULT: ComplianceRule = {
+  jurisdiction: DEFAULT_REGIME_ID,
+};
+
 // The phases that have a known, validated config schema today. A write to any
 // other phase is rejected at the boundary rather than persisted into a row that
 // `getAllDecisionConfigs` would never read back anyway.
-export const KNOWN_DECISION_PHASES = ["screening"] as const;
+export const KNOWN_DECISION_PHASES = ["screening", "compliance"] as const;
 export type DecisionPhase = (typeof KNOWN_DECISION_PHASES)[number];
 
 const SCREENING_KEYS = ["autoRejectEnabled", "rejectBottomPercent", "maxMatchToReject"] as const;
+const COMPLIANCE_KEYS = ["jurisdiction"] as const;
 
 export type DecisionConfigResult =
-  | { ok: true; phase: DecisionPhase; config: ScreeningRule }
+  | { ok: true; phase: "screening"; config: ScreeningRule }
+  | { ok: true; phase: "compliance"; config: ComplianceRule }
   | { ok: false; error: string };
 
 export type ScreeningOverrideResult =
@@ -77,8 +92,21 @@ export function validateDecisionConfig(phase: unknown, rawConfig: unknown): Deci
   if (typeof rawConfig !== "object" || rawConfig === null || Array.isArray(rawConfig)) {
     return { ok: false, error: "config must be a plain object." };
   }
-  // "screening" is the only known phase today; KNOWN_DECISION_PHASES gates entry.
+  // KNOWN_DECISION_PHASES gated entry above; dispatch to the per-phase validator.
+  if (phase === "compliance") return validateComplianceRule(rawConfig as Record<string, unknown>);
   return validateScreeningRule(rawConfig as Record<string, unknown>);
+}
+
+function validateComplianceRule(raw: Record<string, unknown>): DecisionConfigResult {
+  const stray = Object.keys(raw).filter((k) => !(COMPLIANCE_KEYS as readonly string[]).includes(k));
+  if (stray.length > 0) {
+    return { ok: false, error: `Unknown compliance rule field(s): ${stray.join(", ")}.` };
+  }
+  const j = raw.jurisdiction;
+  if (typeof j !== "string" || !(REGIME_IDS as readonly string[]).includes(j)) {
+    return { ok: false, error: `jurisdiction must be one of: ${REGIME_IDS.join(", ")}.` };
+  }
+  return { ok: true, phase: "compliance", config: { jurisdiction: j as RegimeId } };
 }
 
 function validateScreeningRule(raw: Record<string, unknown>): DecisionConfigResult {

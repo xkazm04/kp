@@ -1,6 +1,13 @@
 import Database from "better-sqlite3";
 import { openStore } from "./db-path";
-import { DecisionConfigError, SCREENING_DEFAULT, validateDecisionConfig } from "./decision-config-schema";
+import {
+  COMPLIANCE_DEFAULT,
+  type ComplianceRule,
+  DecisionConfigError,
+  SCREENING_DEFAULT,
+  validateDecisionConfig,
+} from "./decision-config-schema";
+import { normalizeRegimeId, type RegimeId } from "./compliance-regimes";
 
 // Phase 3 — data-driven decision rules per pipeline phase, replacing the
 // hard-coded Python POLICY for the configurable bits. Isolated connection
@@ -16,6 +23,7 @@ export type { ScreeningRule } from "./decision-config-schema";
 
 const DEFAULTS: Record<string, unknown> = {
   screening: SCREENING_DEFAULT,
+  compliance: COMPLIANCE_DEFAULT,
 };
 
 let _db: Database.Database | null = null;
@@ -64,4 +72,11 @@ export function getAllDecisionConfigs(): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   for (const phase of Object.keys(DEFAULTS)) out[phase] = getDecisionConfig(phase);
   return out;
+}
+
+/** P1-1 — the workspace's active compliance jurisdiction, normalized (a stale or
+ *  hand-edited config can never surface an unknown regime). Server-only; the
+ *  candidate disclosure reads it through the public GET /api/compliance. */
+export function getActiveRegimeId(): RegimeId {
+  return normalizeRegimeId(getDecisionConfig<ComplianceRule>("compliance").jurisdiction);
 }

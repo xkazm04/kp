@@ -5,6 +5,7 @@ import { Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Modal } from "@/app/_components/Modal";
 import { SCREENING_DEFAULT as FALLBACK, type ScreeningRule } from "@/app/_lib/decision-config-schema";
+import { ComplianceSection } from "./ComplianceSection";
 
 // Type + default come from the pure decision-config-schema module — the same
 // source the API validates writes against — so the client clamps and the server
@@ -129,6 +130,10 @@ export function DecisionRulesModal({ onClose }: { onClose: () => void }) {
             <span className="font-semibold text-moss">{t("fairnessLabel")}</span>{" "}
             {t.rich("fairnessBody", { b: (chunks) => <strong>{chunks}</strong> })}
           </p>
+
+          {/* P1-1 — jurisdiction-aware compliance posture + the four-fifths
+              adverse-impact primitive (its own config phase, saved independently). */}
+          <ComplianceSection />
         </div>
       )}
     </Modal>

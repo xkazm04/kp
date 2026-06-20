@@ -33,13 +33,25 @@ test("the shipped default validates (the validator is idempotent on good input)"
   assert.deepEqual(result.config, SCREENING_DEFAULT);
 });
 
+test("compliance phase: accepts a known jurisdiction, rejects unknown / stray", () => {
+  const ok = validateDecisionConfig("compliance", { jurisdiction: "us" });
+  assert.ok(ok.ok && ok.phase === "compliance");
+  assert.deepEqual(ok.config, { jurisdiction: "us" });
+
+  const bad = validateDecisionConfig("compliance", { jurisdiction: "atlantis" });
+  assert.equal(bad.ok, false);
+
+  const stray = validateDecisionConfig("compliance", { jurisdiction: "eu", extra: 1 });
+  assert.equal(stray.ok, false);
+});
+
 test("clamps out-of-range but coercible numbers to 0–100 instead of rejecting", () => {
   const high = validateDecisionConfig("screening", { ...validRule(), rejectBottomPercent: 9999 });
-  assert.ok(high.ok);
+  assert.ok(high.ok && high.phase === "screening");
   assert.equal(high.config.rejectBottomPercent, 100, "9999% clamps to 100");
 
   const low = validateDecisionConfig("screening", { ...validRule(), maxMatchToReject: -5 });
-  assert.ok(low.ok);
+  assert.ok(low.ok && low.phase === "screening");
   assert.equal(low.config.maxMatchToReject, 0, "a negative threshold clamps to 0");
 });
 
