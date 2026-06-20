@@ -91,6 +91,44 @@ class TestInterviewRubrics(unittest.TestCase):
         self.assertEqual(automation.rubric_for_archetype(None), automation.INTERVIEW_RUBRICS["experienced"])
         self.assertEqual(automation.rubric_for_archetype("nonsense"), automation.INTERVIEW_RUBRICS["experienced"])
 
+    # ---- P2-3: industry axes appended by role-family --------------------------
+
+    _KNOWN_FAMILIES = {
+        "software_engineering", "data_ai", "product_project", "healthcare_clinical",
+        "life_sciences_research", "skilled_trades", "operations_logistics", "frontline_service",
+        "sales_marketing", "finance_accounting", "legal_compliance", "hr_people",
+        "education_academic", "creative_design", "customer_support", "general_professional",
+    }
+
+    def test_automation_reads_industry_axes_from_json(self) -> None:
+        self.assertEqual(automation.INDUSTRY_AXES, self.data.get("industryAxes", {}))
+
+    def test_industry_axes_are_description_only_and_known_families(self) -> None:
+        self.assertTrue(automation.INDUSTRY_AXES, "expected at least one industry mapped")
+        for family, axes in automation.INDUSTRY_AXES.items():
+            self.assertIn(family, self._KNOWN_FAMILIES, f"industry family '{family}' is not a known role-family slug")
+            for a in axes:
+                self.assertTrue(a.get("competency") and a.get("description"), f"{family}: axis needs competency + description")
+                self.assertNotIn("anchors", a, f"industry axis '{a.get('competency')}' should be description-only")
+
+    def test_industry_axes_for_resolves_and_defaults_empty(self) -> None:
+        family = next(iter(automation.INDUSTRY_AXES))
+        self.assertEqual(automation.industry_axes_for(family), automation.INDUSTRY_AXES[family])
+        self.assertEqual(automation.industry_axes_for("no_such_family"), [])
+        self.assertEqual(automation.industry_axes_for(""), [])
+        self.assertEqual(automation.industry_axes_for(None), [])
+
+    def test_rubric_for_candidate_appends_industry_axes_after_base(self) -> None:
+        family = "healthcare_clinical"
+        base = automation.rubric_for_archetype("bau")
+        axes = automation.industry_axes_for(family)
+        self.assertTrue(axes, "expected clinical axes in the fixture")
+        full = automation.rubric_for_candidate("bau", family)
+        self.assertEqual(full, [*base, *axes])
+        # No family → exactly the base rubric (additive, backward-compatible).
+        self.assertEqual(automation.rubric_for_candidate("bau", None), base)
+        self.assertEqual(automation.rubric_for_candidate("bau", ""), base)
+
 
 if __name__ == "__main__":
     unittest.main()

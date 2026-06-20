@@ -82,5 +82,43 @@
         }
       }
     ]
+  },
+  "industryAxes": {
+    "healthcare_clinical": [
+      {
+        "competency": "Clinical judgment & patient safety",
+        "description": "Sound clinical reasoning, scope-of-practice awareness, and a patient-safety-first instinct under pressure."
+      }
+    ],
+    "skilled_trades": [
+      {
+        "competency": "Safety & hands-on competence",
+        "description": "Demonstrated hands-on skill and an uncompromising approach to jobsite safety, codes, and correct procedure."
+      }
+    ],
+    "life_sciences_research": [
+      {
+        "competency": "Scientific rigor",
+        "description": "Experimental rigor, data integrity, and honest reasoning about evidence, limitations, and reproducibility."
+      }
+    ],
+    "creative_design": [
+      {
+        "competency": "Craft & portfolio depth",
+        "description": "Depth and originality of craft evidenced by real work — the portfolio, not just stated skills."
+      }
+    ],
+    "operations_logistics": [
+      {
+        "competency": "Operational execution",
+        "description": "Reliable execution at scale: throughput, prioritization, and steady judgment when volume or exceptions spike."
+      }
+    ],
+    "frontline_service": [
+      {
+        "competency": "Service orientation & reliability",
+        "description": "Customer-first attitude, composure under pressure, and dependable attendance and follow-through."
+      }
+    ]
   }
 }

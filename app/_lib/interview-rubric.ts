@@ -30,16 +30,36 @@ export const RATING_ANCHORS: Record<number, string> = Object.fromEntries(
 /** All rubrics, keyed by scoringModel ("experienced" | "early_career"). */
 export const INTERVIEW_RUBRICS = rubricData.rubrics as unknown as Record<string, RubricCompetency[]>;
 
+/** P2-3 — industry-relevant EXTRA axes, keyed by role-family. APPENDED to the
+ *  base (scoringModel) rubric so a nurse is also scored on clinical judgment, a
+ *  tradesperson on safety, a scientist on rigor — instead of every workforce
+ *  getting the same generic axes. Description-only (no BARS), like the experienced
+ *  rubric. An unmapped family contributes nothing, so this is purely additive and
+ *  backward-compatible. Mirrors automation.INDUSTRY_AXES (same JSON). */
+export const INDUSTRY_AXES = (rubricData as { industryAxes?: Record<string, RubricCompetency[]> }).industryAxes ?? {};
+
+/** The extra industry axes for a role-family (empty for an unknown/blank family). */
+export function industryAxesFor(roleFamily: string | null | undefined): RubricCompetency[] {
+  return INDUSTRY_AXES[(roleFamily ?? "").trim()] ?? [];
+}
+
 /** Backwards-compatible: the historical flat rubric IS the experienced one. The
  *  recruiter compare grid (api/interview/compare) renders this default. */
 export const INTERVIEW_RUBRIC: RubricCompetency[] = INTERVIEW_RUBRICS.experienced;
 
-/** The rubric for a candidate's archetype — early-career archetypes get the
- *  potential / mental-model BARS rubric, everyone else the experienced one.
- *  Mirrors automation.rubric_for_archetype; both resolve the early-career split
- *  from the shared archetypes.json, so selection can never desync from scoring. */
-export function rubricForArchetype(archetype: string | null | undefined): RubricCompetency[] {
-  return isEarlyCareer(archetype) ? INTERVIEW_RUBRICS.early_career : INTERVIEW_RUBRICS.experienced;
+/** The rubric for a candidate — early-career archetypes get the potential /
+ *  mental-model BARS rubric, everyone else the experienced one — PLUS any
+ *  industry axes for their role-family (P2-3), appended. Mirrors
+ *  automation.rubric_for_candidate; both resolve the early-career split from the
+ *  shared archetypes.json and the industry axes from the shared rubric JSON, so
+ *  selection can never desync from scoring. `roleFamily` is optional: omit it and
+ *  the result is exactly the pre-P2-3 base rubric. */
+export function rubricForArchetype(
+  archetype: string | null | undefined,
+  roleFamily?: string | null
+): RubricCompetency[] {
+  const base = isEarlyCareer(archetype) ? INTERVIEW_RUBRICS.early_career : INTERVIEW_RUBRICS.experienced;
+  return [...base, ...industryAxesFor(roleFamily)];
 }
 
 export const RUBRIC_ANCHOR_LINE = Object.entries(RATING_ANCHORS)
@@ -128,6 +148,31 @@ export const RUBRIC_CS: Record<string, RubricCsEntry> = {
       "4": "Vysvětlí složité myšlenky jednoduše a ověří porozumění.",
       "5": "Přizpůsobí vysvětlení posluchači a konstruktivně otevře nesouhlas.",
     },
+  },
+  // industry axes (P2-3) — description-only, like the experienced rubric
+  "Clinical judgment & patient safety": {
+    label: "Klinický úsudek a bezpečnost pacienta",
+    description: "Spolehlivé klinické uvažování, znalost rozsahu kompetencí a instinkt klást bezpečnost pacienta na první místo pod tlakem.",
+  },
+  "Safety & hands-on competence": {
+    label: "Bezpečnost a praktická zdatnost",
+    description: "Prokázaná praktická dovednost a nekompromisní přístup k bezpečnosti na pracovišti, normám a správným postupům.",
+  },
+  "Scientific rigor": {
+    label: "Vědecká přísnost",
+    description: "Experimentální přísnost, integrita dat a poctivé uvažování o důkazech, omezeních a reprodukovatelnosti.",
+  },
+  "Craft & portfolio depth": {
+    label: "Řemeslo a hloubka portfolia",
+    description: "Hloubka a originalita řemesla doložená skutečnou prací — portfoliem, ne jen deklarovanými dovednostmi.",
+  },
+  "Operational execution": {
+    label: "Provozní realizace",
+    description: "Spolehlivá realizace ve velkém: průchodnost, stanovení priorit a klidný úsudek, když naroste objem nebo výjimky.",
+  },
+  "Service orientation & reliability": {
+    label: "Orientace na službu a spolehlivost",
+    description: "Přístup orientovaný na zákazníka, klid pod tlakem a spolehlivá docházka a dotahování věcí.",
   },
 };
 

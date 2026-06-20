@@ -490,6 +490,10 @@ RATING_ANCHORS = {int(k): v for k, v in _RUBRIC_DATA["ratingAnchors"].items()}
 INTERVIEW_RUBRICS: dict[str, list[dict]] = _RUBRIC_DATA["rubrics"]
 # Backwards-compatible alias: the historical flat rubric IS the experienced one.
 INTERVIEW_RUBRIC = INTERVIEW_RUBRICS["experienced"]
+# P2-3 — industry-relevant EXTRA axes keyed by role-family, APPENDED to the base
+# rubric so a nurse is scored on clinical judgment, a tradesperson on safety, etc.
+# Mirrors the TS INDUSTRY_AXES (same JSON). Additive: an unmapped family adds none.
+INDUSTRY_AXES: dict[str, list[dict]] = _RUBRIC_DATA.get("industryAxes", {})
 
 
 def scoring_model_for_archetype(archetype: str | None) -> str:
@@ -500,11 +504,24 @@ def scoring_model_for_archetype(archetype: str | None) -> str:
 
 
 def rubric_for_archetype(archetype: str | None) -> list[dict]:
-    """The scorecard rubric for a candidate's archetype. Early-career archetypes
-    get the potential / mental-model BARS rubric; everyone else the experienced
-    rubric. Mirrors the TS `rubricForArchetype`; both resolve the split from the
-    shared archetypes.json."""
+    """The base scorecard rubric for a candidate's archetype. Early-career
+    archetypes get the potential / mental-model BARS rubric; everyone else the
+    experienced rubric. Mirrors the TS `rubricForArchetype` base; both resolve the
+    split from the shared archetypes.json."""
     return INTERVIEW_RUBRICS.get(scoring_model_for_archetype(archetype), INTERVIEW_RUBRICS["experienced"])
+
+
+def industry_axes_for(role_family: str | None) -> list[dict]:
+    """The industry EXTRA axes for a role-family (empty for an unknown/blank one).
+    Mirrors the TS `industryAxesFor`; both read the shared rubric JSON."""
+    return INDUSTRY_AXES.get((role_family or "").strip(), [])
+
+
+def rubric_for_candidate(archetype: str | None, role_family: str | None) -> list[dict]:
+    """The full rubric scored for a candidate: the base (scoringModel) rubric PLUS
+    any industry axes for their role-family (P2-3), appended. Mirrors the TS
+    `rubricForArchetype(archetype, roleFamily)`."""
+    return [*rubric_for_archetype(archetype), *industry_axes_for(role_family)]
 
 
 def _scorecard_confidence(notes: str, ratings: list[dict], total: int) -> dict:
@@ -527,8 +544,14 @@ def _scorecard_confidence(notes: str, ratings: list[dict], total: int) -> dict:
 
 
 def interview_scorecard(candidate: MatchCandidate, job: Job, notes: str, *, provider: Any | None = None, github: Any | None = None):
+    # `model` is the base scoring model (experienced / early_career) — still the
+    # value reported as result["scoringModel"] and used by the compare grid for
+    # grouping. The scored rubric is that base PLUS any industry axes for the
+    # candidate's role-family (P2-3): a nurse is also scored on clinical judgment,
+    # a tradesperson on safety. Additive — an unmapped family leaves the prompt
+    # exactly as it was pre-P2-3.
     model = scoring_model_for_archetype(candidate.archetype)
-    rubric = INTERVIEW_RUBRICS.get(model, INTERVIEW_RUBRICS["experienced"])
+    rubric = rubric_for_candidate(candidate.archetype, candidate.role_family)
     anchors = ", ".join(f"{k}={v}" for k, v in RATING_ANCHORS.items())
 
     def _rubric_line(competency: dict) -> str:
