@@ -64,6 +64,15 @@ export const candIdentity = (c: EvalCandidate): string => c.entryId ?? c.label;
 export type GroupEvalPayload = {
   roleTitle?: string;
   source?: string;
+  // Governance (P1-3): "committee" / "eligibility_list" make the AI advisory (no
+  // auto-sealed lead). `governanceNote` is the human guidance; `advisory` flags that
+  // the topPick is a suggestion, not a decision; `eligibilityList` is the ordinal
+  // ranked list (eligibility_list mode). Absent on evals saved before P1-3 (→
+  // default "recommendation" behaviour at the render site).
+  governanceMode?: "recommendation" | "committee" | "eligibility_list";
+  governanceNote?: string | null;
+  advisory?: boolean;
+  eligibilityList?: { rank: number; entryId: string; label: string; score: number }[] | null;
   topPick?: { label: string; score: number; why: string } | null;
   recommendedOrder?: string[];
   candidates?: EvalCandidate[];

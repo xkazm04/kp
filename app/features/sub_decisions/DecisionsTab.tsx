@@ -55,6 +55,9 @@ export function DecisionsTab() {
   // The role whose screening wave (DEC1/DEC2) is open — jobId + title for the modal.
   const [waveRole, setWaveRole] = useState<{ jobId: string; title: string } | null>(null);
   const [evalRole, setEvalRole] = useState<{ roleKey: string; roleTitle: string } | null>(null);
+  // Governance mode for the next group evaluation (P1-3). "recommendation" keeps the
+  // AI-picks-a-lead default; "committee" / "eligibility_list" make the AI advisory.
+  const [evalMode, setEvalMode] = useState<"recommendation" | "committee" | "eligibility_list">("recommendation");
   const [evalData, setEvalData] = useState<GroupEvalPayload | null>(null);
   const [evalCreatedAt, setEvalCreatedAt] = useState<string | null>(null);
   const [evalTaskId, setEvalTaskId] = useState<string | null>(null);
@@ -232,7 +235,7 @@ export function DecisionsTab() {
       return;
     }
     const candidates = g.entries.map((e) => ({ entryId: e.id, candidateId: e.candidateId, label: e.candidateLabel, matchScore: e.matchScore }));
-    const started = await startTask("group_eval", { roleKey: g.roleKey, roleTitle: g.roleTitle, jobId: g.jobId, candidates });
+    const started = await startTask("group_eval", { roleKey: g.roleKey, roleTitle: g.roleTitle, jobId: g.jobId, candidates, governanceMode: evalMode });
     if (started) setEvalTaskId(started.id);
   };
 
@@ -297,6 +300,16 @@ export function DecisionsTab() {
               ))}
             </select>
           ) : null}
+          <select
+            value={evalMode}
+            onChange={(e) => setEvalMode(e.target.value as typeof evalMode)}
+            className="focus-ring rounded-md border border-stone-200 bg-white px-2.5 py-1 text-sm text-ink"
+            title={t("govModeTitle")}
+          >
+            <option value="recommendation">{t("govRecommendation")}</option>
+            <option value="committee">{t("govCommittee")}</option>
+            <option value="eligibility_list">{t("govEligibility")}</option>
+          </select>
           <span className="rounded-md border border-stone-200 bg-paper px-2.5 py-1 text-sm text-steel">
             {t("pending", {
               count: activeFilter
