@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { AlertTriangle, BookmarkPlus, CheckSquare, Link2, Play, Sparkles, Timer, X } from "lucide-react";
+import { AlertTriangle, BookmarkPlus, CalendarClock, CheckSquare, Link2, Play, Sparkles, Timer, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { buildUrl, clearedTabScopedParams } from "@/app/features/tabs";
 import { useSimulation } from "@/app/features/simulation/SimulationProvider";
@@ -137,7 +137,7 @@ export function PipelineTab() {
   const [bulkBusy, setBulkBusy] = useState(false);
   // `verb` selects the result label so the same status line reads correctly for a
   // stage move vs. a bulk accept/reject (bdc7fc01).
-  const [bulkResult, setBulkResult] = useState<{ ok: number; failed: number; verb: "moved" | "accepted" | "rejected" } | null>(null);
+  const [bulkResult, setBulkResult] = useState<{ ok: number; failed: number; verb: "moved" | "accepted" | "rejected" | "invited" } | null>(null);
   // Two-step confirm for bulk reject (it emails N candidates — irreversible).
   const [confirmingBulkReject, setConfirmingBulkReject] = useState(false);
   // Saved board views (PIPE5): named {search + quick-filter} presets a recruiter
@@ -333,6 +333,16 @@ export function PipelineTab() {
     }
     return [...m.entries()];
   }, [selectedAwaiting]);
+  // P2-2 — the selected entries eligible for a bulk scheduling invite: any ACTIVE
+  // candidate (never a terminal hired/rejected/declined one). The bulk-invite
+  // endpoint re-checks status, so this is a UI gate, not the trust boundary.
+  const selectedActive = useMemo(
+    () =>
+      [...selectedIds]
+        .map((id) => (entries ?? []).find((x) => x.id === id))
+        .filter((e): e is Entry => !!e && e.status === "active"),
+    [selectedIds, entries]
+  );
   const boardPositions = useMemo(() => groupPositions(filteredEntries), [filteredEntries]);
   const filtering = Boolean(q) || quick !== null || stageFilter !== null;
 
@@ -487,6 +497,39 @@ export function PipelineTab() {
     const untouched = [...selectedIds].filter((id) => !awaiting.some((e) => e.id === id));
     setSelectedIds(new Set([...failed, ...untouched]));
     setBulkResult({ ok, failed: failed.size, verb: action === "accept" ? "accepted" : "rejected" });
+    setBulkBusy(false);
+    await load();
+  };
+
+  // P2-2 — send self-scheduling links to the selected ACTIVE cohort in one action
+  // (the back half of the funnel was per-candidate-only). ONE round trip to the
+  // bulk endpoint, which isolates each entry; successes deselect, failures + any
+  // terminal selected entries stay selected for retry — same grammar as bulkDecide.
+  const bulkInvite = async () => {
+    if (selectedActive.length === 0 || bulkBusy) return;
+    setBulkBusy(true);
+    setBulkResult(null);
+    setConfirmingBulkReject(false);
+    let ok = 0;
+    const failed = new Set<string>();
+    try {
+      const r = await fetch("/api/schedule/invite/bulk", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ entryIds: selectedActive.map((e) => e.id) }),
+      });
+      const d = (await r.json().catch(() => null)) as { results?: { entryId: string; ok: boolean }[] } | null;
+      if (r.ok && d?.results) {
+        for (const res of d.results) (res.ok ? (ok += 1) : failed.add(res.entryId));
+      } else {
+        for (const e of selectedActive) failed.add(e.id);
+      }
+    } catch {
+      for (const e of selectedActive) failed.add(e.id);
+    }
+    const untouched = [...selectedIds].filter((id) => !selectedActive.some((e) => e.id === id));
+    setSelectedIds(new Set([...failed, ...untouched]));
+    setBulkResult({ ok, failed: failed.size, verb: "invited" });
     setBulkBusy(false);
     await load();
   };
@@ -892,11 +935,28 @@ export function PipelineTab() {
               >
                 {bulkBusy ? t("bulkMoving") : t("bulkApply", { count: selectedIds.size })}
               </button>
+              {/* P2-2 — send self-scheduling links to the selected active cohort. */}
+              {selectedActive.length > 0 ? (
+                <button
+                  type="button"
+                  onClick={() => void bulkInvite()}
+                  disabled={bulkBusy}
+                  className="focus-ring inline-flex items-center gap-1.5 rounded-md border border-stone-200 bg-white px-3 py-1 text-sm font-semibold text-ink hover:border-coral/40 disabled:opacity-50"
+                >
+                  <CalendarClock size={13} aria-hidden /> {t("bulkInvite", { count: selectedActive.length })}
+                </button>
+              ) : null}
               {bulkResult ? (
                 <span role="status" className="text-sm">
                   <span className="font-semibold text-moss">
                     {t(
-                      bulkResult.verb === "moved" ? "bulkMoved" : bulkResult.verb === "accepted" ? "bulkAccepted" : "bulkRejected",
+                      bulkResult.verb === "moved"
+                        ? "bulkMoved"
+                        : bulkResult.verb === "accepted"
+                          ? "bulkAccepted"
+                          : bulkResult.verb === "invited"
+                            ? "bulkInvited"
+                            : "bulkRejected",
                       { count: bulkResult.ok }
                     )}
                   </span>

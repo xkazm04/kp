@@ -67,6 +67,7 @@ export const STORE_ERRORS = {
   OUTREACH_FAILED: "Could not reach out to that candidate. Please try again.",
   // Scheduling & offer public token routes (converted alongside, same class).
   SCHEDULE_INVITE_FAILED: "Could not create the scheduling link. Please try again.",
+  SCHEDULE_INVITE_BULK_FAILED: "Could not send the scheduling links. Please try again.",
   SCHEDULE_CONFIRM_FAILED: "Could not confirm that slot. Please try again.",
   // Recruiter invite-lifecycle read (W6-3).
   SCHEDULE_LOOKUP_FAILED: "Could not load the scheduling overview. Please try again.",
