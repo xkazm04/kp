@@ -495,6 +495,30 @@ export function ensureDb(): Database.Database {
       PRIMARY KEY (provider, scope)
     );
 
+    -- LLM metering ledger (T0.1): one row per metered LLM envelope, the durable
+    -- spend/usage record the pricing meters and the Models usage panel read.
+    -- Restored after the 2026-06-14 refactor deleted it as an unwired stub; it is
+    -- now WIRED — Python's monitor.emit_result writes a sidecar NDJSON line per
+    -- call and spawnPython ingests it here (see db/llm.ts ingestLlmUsageLog).
+    -- model is nullable (the Claude CLI default reports no pinned model);
+    -- source is 'llm' (only real LLM calls reach the monitor seam).
+    CREATE TABLE IF NOT EXISTS llm_usage (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      ts TEXT NOT NULL,
+      use_case TEXT NOT NULL,
+      provider TEXT NOT NULL,
+      model TEXT,
+      input_tokens INTEGER,
+      output_tokens INTEGER,
+      cached_tokens INTEGER,
+      cost_usd REAL,
+      source TEXT NOT NULL,
+      request_id TEXT
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_llm_usage_ts ON llm_usage (ts);
+    CREATE INDEX IF NOT EXISTS idx_llm_usage_use_case ON llm_usage (use_case, provider);
+
     -- Payment gate (docs/BILLING.md). Single-workspace model mirrors the rest
     -- of the app: billing_state is a one-row subscription snapshot synced from
     -- provider webhooks (never trusted from the client); billing_events is the

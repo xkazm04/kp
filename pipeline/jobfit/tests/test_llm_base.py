@@ -89,10 +89,24 @@ class CompleteJsonTest(unittest.TestCase):
             fake.complete_json("x", expected_keys=["verdict"]), {"verdict": "ok"}
         )
 
+    def test_self_repair_reprompt_recovers(self) -> None:
+        # First response is unparseable; the one corrective re-prompt returns valid
+        # JSON → complete_json recovers instead of dropping to a deterministic
+        # fallback. Exactly two model calls (T0.3).
+        fake = FakeProvider(
+            [_result("Sure, here you go: not actually json"), _result('{"verdict": "ok"}')]
+        )
+        self.assertEqual(fake.complete_json("x"), {"verdict": "ok"})
+        self.assertEqual(len(fake.calls), 2)
+        self.assertIn("could not be parsed as JSON", fake.calls[1]["prompt"])
+
     def test_junk_raises_llm_error(self) -> None:
-        fake = FakeProvider([_result("no json here at all")])
+        # Both the initial response AND the repair re-prompt return junk → raise,
+        # after exactly two attempts (no infinite repair loop).
+        fake = FakeProvider([_result("no json here at all"), _result("still no json")])
         with self.assertRaises(LLMError):
             fake.complete_json("x")
+        self.assertEqual(len(fake.calls), 2)
 
 
 class MapTest(unittest.TestCase):
@@ -132,7 +146,35 @@ class PriceTest(unittest.TestCase):
         self.assertAlmostEqual(price_usd("claude-haiku-4-5", 100, 20), 0.0002)
 
     def test_unknown_model_is_none(self) -> None:
-        self.assertIsNone(price_usd("gpt-5-mini", 100, 20))
+        self.assertIsNone(price_usd("some-model-we-never-route-to", 100, 20))
+
+    def test_non_anthropic_defaults_are_priced(self) -> None:
+        # T0.2: the openai + gemini default models must carry a price so their
+        # traffic doesn't escape cost accounting with cost_usd=None.
+        self.assertIsNotNone(price_usd("gpt-5-mini", 1000, 1000))
+        self.assertIsNotNone(price_usd("gemini-3-flash-preview", 1000, 1000))
+
+    def test_dated_variant_inherits_family_price(self) -> None:
+        # Prefix match: a dated/suffixed model id inherits its family's price.
+        self.assertEqual(
+            price_usd("claude-haiku-4-5-20251001", 100, 20),
+            price_usd("claude-haiku-4-5", 100, 20),
+        )
+
+    def test_every_routed_default_model_is_priced(self) -> None:
+        # The regression guard the _plumbing finding asked for: every model the
+        # registry can route to by default must resolve a price (Azure deployments
+        # and the CLI's own default are customer-/engine-named → intentionally None).
+        from pipeline.jobfit.llm.capabilities import (
+            DEFAULT_MODELS,
+            USE_CASE_MODEL_OVERRIDES,
+        )
+
+        routed = {m for m in DEFAULT_MODELS.values() if m} | set(
+            USE_CASE_MODEL_OVERRIDES.values()
+        )
+        unpriced = sorted(m for m in routed if price_usd(m, 1, 1) is None)
+        self.assertEqual(unpriced, [], f"unpriced routed models: {unpriced}")
 
 
 class AnthropicAdapterTest(unittest.TestCase):
@@ -216,6 +258,23 @@ class OpenAIAdapterTest(unittest.TestCase):
         self.assertEqual(created["messages"][0], {"role": "system", "content": "terse"})
         self.assertEqual(created["messages"][1]["role"], "user")
 
+    def test_call_stamps_cost_for_priced_model(self) -> None:
+        # T0.2: the OpenAI adapter (and Azure, which inherits this _call) now
+        # stamps cost_usd from MTOK_PRICES instead of leaving it None.
+        provider = OpenAIProvider(model="gpt-5-mini", api_key="k")
+        fake_resp = SimpleNamespace(
+            id="c",
+            choices=[SimpleNamespace(message=SimpleNamespace(content="{}"), finish_reason="stop")],
+            usage=SimpleNamespace(prompt_tokens=1000, completion_tokens=1000, prompt_tokens_details=None),
+        )
+        fake_client = SimpleNamespace(
+            chat=SimpleNamespace(completions=SimpleNamespace(create=lambda **kw: fake_resp))
+        )
+        with mock.patch.object(OpenAIProvider, "_make_client", return_value=fake_client):
+            out = provider.complete("hi")
+        # 1000 in × $0.25/MTok + 1000 out × $2.00/MTok
+        self.assertAlmostEqual(out.cost_usd, 0.00225)
+
     def test_available_false_without_key(self) -> None:
         provider = OpenAIProvider(model="gpt-5-mini")
         with mock.patch.dict(os.environ, {}, clear=False), mock.patch(
@@ -223,6 +282,30 @@ class OpenAIAdapterTest(unittest.TestCase):
         ):
             os.environ.pop("OPENAI_API_KEY", None)
             self.assertFalse(provider.available())
+
+
+class GeminiAdapterTest(unittest.TestCase):
+    def test_call_stamps_cost_for_priced_model(self) -> None:
+        # T0.2: the Gemini text adapter now stamps cost_usd too. Skipped where the
+        # SDK isn't installed (types.GenerateContentConfig is built inside _call).
+        try:
+            import google.genai  # noqa: F401
+        except ImportError:
+            self.skipTest("google-genai SDK not installed")
+        from pipeline.jobfit.llm.adapters.gemini_api import GeminiProvider
+
+        provider = GeminiProvider(model="gemini-3-flash-preview", api_key="k")
+        fake_resp = SimpleNamespace(text="{}")
+        fake_client = SimpleNamespace(
+            models=SimpleNamespace(generate_content=lambda **kw: fake_resp)
+        )
+        with mock.patch.object(GeminiProvider, "_make_client", return_value=fake_client), mock.patch(
+            "pipeline.jobfit.gemini._usage_metadata",
+            return_value={"prompt_tokens": 1000, "candidate_tokens": 1000, "cached_tokens": 0},
+        ):
+            out = provider.complete("hi")
+        # 1000 in × $0.30/MTok + 1000 out × $2.50/MTok
+        self.assertAlmostEqual(out.cost_usd, 0.0028)
 
 
 class AzureAdapterTest(unittest.TestCase):

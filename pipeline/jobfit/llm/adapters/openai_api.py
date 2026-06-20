@@ -6,7 +6,7 @@ from typing import Any
 
 # load_local_env imported so the base's _load_env dispatch (and the tests that
 # patch it on this module) resolve it here; _resolved_key/available live in base.
-from ..base import LLMResult, TextProvider, load_local_env  # noqa: F401
+from ..base import LLMResult, TextProvider, load_local_env, price_usd  # noqa: F401
 
 
 class OpenAIProvider(TextProvider):
@@ -57,4 +57,8 @@ class OpenAIProvider(TextProvider):
                 "output_tokens": output_tokens,
                 "cached_tokens": cached,
             },
+            # Stamp cost when the model is priced (base.MTOK_PRICES). Azure
+            # subclasses this _call but its deployment-name models don't prefix-
+            # match, so they stay cost_usd=None by design (priced server-side).
+            cost_usd=price_usd(self.model, input_tokens, output_tokens),
         )

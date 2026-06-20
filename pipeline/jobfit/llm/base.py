@@ -36,10 +36,27 @@ _MAX_ATTEMPTS = 3
 # USD per million tokens (input, output) for models whose list price we know.
 # Used to stamp cost_usd on results; unknown models carry cost_usd=None and are
 # still metered by token counts in the ledger.
+#
+# Coverage contract: EVERY model the registry can route to by default —
+# capabilities.DEFAULT_MODELS ∪ USE_CASE_MODEL_OVERRIDES — must prefix-match a row
+# here, or that provider's traffic silently escapes cost accounting (cost_usd=None).
+# test_llm_pricing.py asserts this. Prefix match means a dated/suffixed variant
+# (e.g. "claude-haiku-4-5-20251001") inherits its family's price.
+#
+# NOTE on the non-Anthropic rows: these are LOCAL ESTIMATES (flash/mini tier list
+# prices), not contractual rates — verify against each provider's price book before
+# billing on them. LightTrack prices server-side from its own price book and is the
+# source of truth; our cost_usd is the cross-check it compares against (monitor.py).
+# Azure deployments are customer-named (no public prefix) so they intentionally stay
+# unpriced here and fall back to LightTrack's per-deployment pricing.
 MTOK_PRICES: dict[str, tuple[float, float]] = {
     "claude-haiku-4-5": (1.00, 5.00),
     "claude-sonnet-4-6": (3.00, 15.00),
     "claude-opus-4-8": (5.00, 25.00),
+    # estimates — confirm against the provider price books (see note above)
+    "gemini-3-flash-preview": (0.30, 2.50),
+    "gemini-2.5-flash": (0.30, 2.50),
+    "gpt-5-mini": (0.25, 2.00),
 }
 
 
@@ -270,9 +287,28 @@ class TextProvider:
         result = self.complete(guarded, system=system, timeout=timeout)
         try:
             return _extract_json(result.text, expected_keys=expected_keys)
+        except ValueError:
+            pass  # fall through to one corrective re-prompt before giving up
+
+        # Self-repair: one corrective re-prompt that feeds the unparseable output
+        # back and asks for the JSON value alone. A single formatting slip (stray
+        # prose, a markdown fence, a trailing comma) would otherwise discard an
+        # already-paid completion and silently drop the call site to its
+        # deterministic fallback. Bounded to exactly ONE extra call; it goes
+        # through complete() so it is retried/metered like any other request.
+        repair = (
+            "Your previous response could not be parsed as JSON. Return the SAME "
+            "answer as a single valid JSON value ONLY — no markdown fences, no "
+            "commentary, no leading or trailing text.\n\n"
+            f"Previous response:\n{result.text[:4000]}"
+        )
+        repaired = self.complete(repair, system=system, timeout=timeout)
+        try:
+            return _extract_json(repaired.text, expected_keys=expected_keys)
         except ValueError as exc:
             raise LLMError(
-                f"{self.name} did not return parseable JSON: {result.text[:300]!r}",
+                f"{self.name} did not return parseable JSON after a repair "
+                f"re-prompt: {repaired.text[:300]!r}",
                 provider=self.name,
             ) from exc
 
