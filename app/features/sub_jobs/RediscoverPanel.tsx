@@ -64,13 +64,20 @@ export function RediscoverPanel({ jobId, jobTitle }: { jobId: string; jobTitle: 
           const reachErr = reachError(c.candidateId);
           const input = { candidateId: c.candidateId, candidateLabel: c.label, archetype: c.archetype, matchScore: c.score };
           return (
-            <li key={c.candidateId} className="flex items-center gap-3 rounded-md border border-stone-200 bg-white px-3 py-2">
+            <li key={c.candidateId} className="flex items-start gap-3 rounded-md border border-stone-200 bg-white px-3 py-2">
               <span className="shrink-0"><ScoreBadge score={c.score} /></span>
               <div className="min-w-0 flex-1">
                 <p className="truncate text-base font-medium text-ink">{c.label}</p>
                 <span className={`mt-0.5 inline-block rounded-full px-2 py-0.5 text-meta ${PRIOR_STYLE[c.prior.kind]}`}>
                   {c.prior.label}
                 </span>
+                {/* Why-now (UAT M5): the forward-looking rationale Jana needs — what
+                    changed + why this role now — not just the backward chip + score.
+                    Grounded in the real prior outcome, the deterministic fit, and the
+                    open role; localized (unlike the legacy English prior.label). */}
+                <p className="mt-1 text-sm leading-snug text-steel">
+                  {t(`whyNow.${c.prior.kind}`, { jobTitle, score: c.score })}
+                </p>
               </div>
               {reached(c.candidateId) ? (
                 // Reaching out also pipelines them, so a reached candidate is a

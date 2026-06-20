@@ -1,192 +1,2765 @@
 {
   "version": 3,
   "_doc": "Single declarative taxonomy graph. Each term carries surface forms (incl. Czech variants), categories, role-family votes, and signal tags. All keyword scans across profiling/insights/ats/gemini query this graph. Surface forms are matched after NFC normalization + casefold; both literal and word-compact forms are checked. v3 adds optional `parents`: ids of broader/superset skills (a child is a specialization, e.g. swiftui -> swift, fastapi -> python). The matching engine (taxonomy.py::skill_match_score) uses these edges so a foundational/adjacent skill counts as a partial match instead of a miss. Parent ids must be existing term ids. Sources are listed at the bottom of README.md.",
+  "role_families": {
+    "software_engineering": "Software development & engineering — developers, SWEs, DevOps/SRE, QA automation, mobile/web/backend/frontend.",
+    "data_ai": "Data, analytics & AI/ML — data engineers/scientists, ML engineers, analysts, BI.",
+    "product_project": "Product & project/program management — PMs, product owners, project/program managers, scrum masters, business analysts.",
+    "healthcare_clinical": "Healthcare & clinical care — nurses, physicians, allied health, care workers (licensure/credentialing common).",
+    "life_sciences_research": "Science & research — scientists, researchers, lab/R&D, pharma/biotech, technical research.",
+    "skilled_trades": "Skilled trades & craft — electricians, welders, machinists, mechanics, construction trades, field technicians (certs/licenses common).",
+    "operations_logistics": "Operations, logistics & production — warehouse, supply chain, drivers/fleet, dispatch, manufacturing production/assembly, plant ops.",
+    "frontline_service": "Frontline & service — retail, hospitality, food service, front desk, hourly customer-facing roles.",
+    "sales_marketing": "Sales & marketing — sales reps, account managers, business development, marketing, brand, growth.",
+    "finance_accounting": "Finance & accounting — accountants, controllers, auditors, financial/credit analysts, actuaries, underwriters, banking roles.",
+    "legal_compliance": "Legal, risk & compliance — lawyers, paralegals, compliance/risk officers, regulatory affairs.",
+    "hr_people": "HR & people — recruiters, talent acquisition, HR business partners, people operations, L&D.",
+    "education_academic": "Education & academia — teachers, professors, lecturers, instructors, faculty, academic staff.",
+    "creative_design": "Creative & design — graphic/UX/UI designers, copywriters, content/editorial, producers, photographers, creative direction.",
+    "customer_support": "Customer support & success — support agents, customer service, help desk, customer success.",
+    "general_professional": "General professional / other — office, administrative, coordination, consulting, and any white-collar role not covered by a more specific family. The default fallback."
+  },
   "terms": [
-    { "id": "python", "match": ["python"], "categories": ["skill", "programming_language"], "role_family_votes": {"software_engineering": 1.0} },
-    { "id": "typescript", "match": ["typescript"], "categories": ["skill", "programming_language"], "role_family_votes": {"software_engineering": 1.0} },
-    { "id": "javascript", "match": ["javascript"], "categories": ["skill", "programming_language"], "role_family_votes": {"software_engineering": 1.0} },
-    { "id": "java", "match": ["java"], "categories": ["skill", "programming_language"], "role_family_votes": {"software_engineering": 1.0} },
-    { "id": "csharp", "match": [".net", "c#", "asp.net", "dotnet"], "categories": ["skill", "programming_language"], "role_family_votes": {"software_engineering": 1.0} },
-    { "id": "go", "match": ["golang", " go "], "categories": ["skill", "programming_language"], "role_family_votes": {"software_engineering": 1.0} },
-    { "id": "rust", "match": ["rust"], "categories": ["skill", "programming_language"], "role_family_votes": {"software_engineering": 1.0} },
-    { "id": "kotlin", "match": ["kotlin"], "categories": ["skill", "programming_language"], "role_family_votes": {"software_engineering": 1.0} },
-    { "id": "swift", "match": ["swift"], "categories": ["skill", "programming_language"], "role_family_votes": {"software_engineering": 1.0} },
-
-    { "id": "react", "match": ["react", "reactjs", "react.js"], "categories": ["skill", "framework"], "role_family_votes": {"software_engineering": 1.0} },
-    { "id": "next_js", "match": ["next.js", "nextjs"], "categories": ["skill", "framework"], "role_family_votes": {"software_engineering": 1.0}, "parents": ["react"] },
-    { "id": "vue", "match": ["vue", "vue.js", "nuxt"], "categories": ["skill", "framework"], "role_family_votes": {"software_engineering": 1.0} },
-    { "id": "angular", "match": ["angular"], "categories": ["skill", "framework"], "role_family_votes": {"software_engineering": 1.0} },
-    { "id": "svelte", "match": ["svelte", "sveltekit"], "categories": ["skill", "framework"], "role_family_votes": {"software_engineering": 1.0} },
-    { "id": "node_js", "match": ["node.js", "nodejs", "node "], "categories": ["skill", "framework"], "role_family_votes": {"software_engineering": 1.0} },
-    { "id": "nest_js", "match": ["nest.js", "nestjs"], "categories": ["skill", "framework"], "role_family_votes": {"software_engineering": 1.0}, "parents": ["node_js"] },
-    { "id": "express", "match": ["express.js", "expressjs"], "categories": ["skill", "framework"], "role_family_votes": {"software_engineering": 1.0}, "parents": ["node_js"] },
-    { "id": "fastapi", "match": ["fastapi"], "categories": ["skill", "framework"], "role_family_votes": {"software_engineering": 1.0}, "parents": ["python"] },
-    { "id": "django", "match": ["django"], "categories": ["skill", "framework"], "role_family_votes": {"software_engineering": 1.0}, "parents": ["python"] },
-    { "id": "flask", "match": ["flask"], "categories": ["skill", "framework"], "role_family_votes": {"software_engineering": 1.0}, "parents": ["python"] },
-    { "id": "spring", "match": ["spring boot", "spring framework", "spring "], "categories": ["skill", "framework"], "role_family_votes": {"software_engineering": 1.0}, "parents": ["java"] },
-    { "id": "graphql", "match": ["graphql"], "categories": ["skill"], "role_family_votes": {"software_engineering": 1.0} },
-    { "id": "rest_api", "match": ["rest api", "restful"], "categories": ["skill"], "role_family_votes": {"software_engineering": 1.0} },
-
-    { "id": "frontend", "match": ["frontend", "front-end"], "categories": ["skill"], "role_family_votes": {"software_engineering": 1.0} },
-    { "id": "backend", "match": ["backend", "back-end"], "categories": ["skill"], "role_family_votes": {"software_engineering": 1.0} },
-    { "id": "fullstack", "match": ["fullstack", "full-stack"], "categories": ["skill"], "role_family_votes": {"software_engineering": 1.0} },
-    { "id": "developer", "match": ["developer", "vývojář", "programátor"], "categories": ["skill"], "role_family_votes": {"software_engineering": 0.6, "product_project": -10.0} },
-    { "id": "engineer", "match": ["engineer", "softwarový inženýr"], "categories": ["skill"], "role_family_votes": {"software_engineering": 0.6} },
-    { "id": "architect", "match": ["architect", "architekt"], "categories": ["skill"], "role_family_votes": {"software_engineering": 0.7} },
-    { "id": "vyvoj", "match": ["vývoj", "webový vývojář"], "categories": ["skill"], "role_family_votes": {"software_engineering": 0.7} },
-
-    { "id": "sql", "match": ["sql"], "categories": ["skill"], "role_family_votes": {"software_engineering": 1.0} },
-    { "id": "postgresql", "match": ["postgresql", "postgres"], "categories": ["skill"], "role_family_votes": {"software_engineering": 0.7, "data_ai": 0.3} },
-    { "id": "mysql", "match": ["mysql"], "categories": ["skill"], "role_family_votes": {"software_engineering": 0.7, "data_ai": 0.3} },
-    { "id": "mongodb", "match": ["mongodb", "mongo"], "categories": ["skill"], "role_family_votes": {"software_engineering": 0.7, "data_ai": 0.3} },
-    { "id": "redis", "match": ["redis"], "categories": ["skill"], "role_family_votes": {"software_engineering": 1.0} },
-    { "id": "oracle_db", "match": ["oracle database", "oracle e-business", "oracle ebs"], "categories": ["skill"], "role_family_votes": {"software_engineering": 0.7, "data_ai": 0.3} },
-
-    { "id": "docker", "match": ["docker"], "categories": ["skill", "devops"], "role_family_votes": {"software_engineering": 1.0}, "salary_signal": "devops" },
-    { "id": "kubernetes", "match": ["kubernetes", "k8s"], "categories": ["skill", "cloud", "devops"], "role_family_votes": {"software_engineering": 0.7, "data_ai": 0.3}, "salary_signal": "cloud" },
-    { "id": "helm", "match": ["helm"], "categories": ["skill", "devops"], "role_family_votes": {"software_engineering": 1.0}, "salary_signal": "devops", "parents": ["kubernetes"] },
-    { "id": "terraform", "match": ["terraform"], "categories": ["skill", "cloud", "devops"], "role_family_votes": {"software_engineering": 1.0}, "salary_signal": "cloud" },
-    { "id": "ansible", "match": ["ansible"], "categories": ["skill", "devops"], "role_family_votes": {"software_engineering": 1.0}, "salary_signal": "devops" },
-    { "id": "gitops", "match": ["gitops", "argocd", "argo cd", "flux cd"], "categories": ["skill", "devops"], "role_family_votes": {"software_engineering": 1.0}, "salary_signal": "devops", "parents": ["kubernetes"] },
-    { "id": "ci_cd", "match": ["ci/cd", "ci / cd"], "categories": ["skill", "testing", "devops"], "role_family_votes": {"software_engineering": 0.5}, "salary_signal": "devops" },
-    { "id": "devops", "match": ["devops", "site reliability", "sre"], "categories": ["skill", "devops"], "role_family_votes": {"software_engineering": 1.0}, "salary_signal": "devops" },
-    { "id": "linux", "match": ["linux", "unix"], "categories": ["skill", "devops"], "role_family_votes": {"software_engineering": 1.0} },
-    { "id": "prometheus", "match": ["prometheus"], "categories": ["skill", "devops"], "role_family_votes": {"software_engineering": 0.7, "data_ai": 0.3} },
-    { "id": "grafana", "match": ["grafana"], "categories": ["skill", "devops"], "role_family_votes": {"software_engineering": 0.7, "data_ai": 0.3} },
-    { "id": "spravce_it", "match": ["správce it", "správce sítě", "síťový administrátor", "systémový administrátor", "administrátor"], "categories": ["skill", "devops"], "role_family_votes": {"software_engineering": 0.7} },
-
-    { "id": "aws", "match": ["aws", "amazon web services"], "categories": ["skill", "cloud"], "role_family_votes": {"software_engineering": 0.6, "data_ai": 0.4}, "salary_signal": "cloud" },
-    { "id": "azure", "match": ["azure", "microsoft azure"], "categories": ["skill", "cloud"], "role_family_votes": {"software_engineering": 0.6, "data_ai": 0.4}, "salary_signal": "cloud" },
-    { "id": "gcp", "match": ["gcp", "google cloud"], "categories": ["skill", "cloud"], "role_family_votes": {"software_engineering": 0.6, "data_ai": 0.4}, "salary_signal": "cloud" },
-    { "id": "cloud_engineer", "match": ["cloud engineer", "cloud architect", "cloudový inženýr"], "categories": ["skill", "cloud"], "role_family_votes": {"software_engineering": 1.0}, "salary_signal": "cloud" },
-
-    { "id": "cybersecurity", "match": ["cybersecurity", "cyber security", "kybernetická bezpečnost", "kyberbezpečnost", "bezpečnost"], "categories": ["skill", "security"], "role_family_votes": {"software_engineering": 0.5}, "salary_signal": "security" },
-    { "id": "pentest", "match": ["penetration testing", "pentest", "pen test", "ethical hacking", "etický hacker"], "categories": ["skill", "security"], "role_family_votes": {"software_engineering": 1.0}, "salary_signal": "security" },
-    { "id": "siem", "match": ["siem", "splunk", "elastic security", "qradar"], "categories": ["skill", "security"], "role_family_votes": {"software_engineering": 1.0}, "salary_signal": "security" },
-    { "id": "iam", "match": ["iam", "identity and access management"], "categories": ["skill", "security"], "role_family_votes": {"software_engineering": 1.0}, "salary_signal": "security" },
-    { "id": "appsec", "match": ["appsec", "application security"], "categories": ["skill", "security"], "role_family_votes": {"software_engineering": 1.0}, "salary_signal": "security" },
-    { "id": "incident_response", "match": ["incident response", "soc analyst", "bezpečnostní analytik"], "categories": ["skill", "security"], "role_family_votes": {"software_engineering": 1.0}, "salary_signal": "security" },
-    { "id": "nis2", "match": ["nis2", "nis 2"], "categories": ["skill", "security", "compliance"], "role_family_votes": {"software_engineering": 0.5, "product_project": 0.5}, "salary_signal": "regulated_industry" },
-    { "id": "dora", "match": ["dora regulation", "dora compliance"], "categories": ["skill", "security", "compliance"], "role_family_votes": {"software_engineering": 0.5, "product_project": 0.5}, "salary_signal": "regulated_industry" },
-    { "id": "iso_27001", "match": ["iso 27001", "iso/iec 27001"], "categories": ["skill", "security", "compliance"], "role_family_votes": {"software_engineering": 0.5, "product_project": 0.5}, "salary_signal": "regulated_industry" },
-    { "id": "soc2", "match": ["soc 2", "soc2"], "categories": ["skill", "security", "compliance"], "role_family_votes": {"software_engineering": 0.5, "product_project": 0.5}, "salary_signal": "regulated_industry" },
-    { "id": "gdpr", "match": ["gdpr"], "categories": ["skill", "compliance"], "role_family_votes": {"software_engineering": 0.3, "product_project": 0.7}, "salary_signal": "regulated_industry" },
-
-    { "id": "qa", "match": ["qa", "quality assurance", "testování", "tester", "manuální tester"], "categories": ["skill", "testing"], "role_family_votes": {"software_engineering": 1.0} },
-    { "id": "test_automation", "match": ["test automation", "automated testing", "automatizace testů", "automatický tester"], "categories": ["skill", "testing"], "role_family_votes": {"software_engineering": 1.0}, "parents": ["qa"] },
-    { "id": "selenium", "match": ["selenium"], "categories": ["skill", "testing"], "role_family_votes": {"software_engineering": 1.0}, "parents": ["test_automation"] },
-    { "id": "cypress", "match": ["cypress"], "categories": ["skill", "testing"], "role_family_votes": {"software_engineering": 1.0}, "parents": ["test_automation"] },
-    { "id": "playwright", "match": ["playwright"], "categories": ["skill", "testing"], "role_family_votes": {"software_engineering": 1.0}, "parents": ["test_automation"] },
-    { "id": "appium", "match": ["appium"], "categories": ["skill", "testing"], "role_family_votes": {"software_engineering": 1.0}, "parents": ["test_automation"] },
-    { "id": "junit", "match": ["junit"], "categories": ["skill", "testing"], "role_family_votes": {"software_engineering": 1.0}, "parents": ["test_automation"] },
-    { "id": "testing", "match": ["testing"], "categories": ["skill", "testing"] },
-    { "id": "pytest", "match": ["pytest"], "categories": ["skill", "testing"], "parents": ["test_automation"] },
-
-    { "id": "android", "match": ["android"], "categories": ["skill", "mobile"], "role_family_votes": {"software_engineering": 1.0} },
-    { "id": "ios", "match": ["ios"], "categories": ["skill", "mobile"], "role_family_votes": {"software_engineering": 1.0} },
-    { "id": "flutter", "match": ["flutter"], "categories": ["skill", "mobile"], "role_family_votes": {"software_engineering": 1.0} },
-    { "id": "react_native", "match": ["react native"], "categories": ["skill", "mobile"], "role_family_votes": {"software_engineering": 1.0}, "parents": ["react"] },
-    { "id": "jetpack_compose", "match": ["jetpack compose"], "categories": ["skill", "mobile"], "role_family_votes": {"software_engineering": 1.0}, "parents": ["kotlin"] },
-    { "id": "swiftui", "match": ["swiftui"], "categories": ["skill", "mobile"], "role_family_votes": {"software_engineering": 1.0}, "parents": ["swift"] },
-
-    { "id": "machine_learning", "match": ["machine learning", "strojové učení"], "categories": ["skill"], "role_family_votes": {"data_ai": 1.5}, "salary_signal": "ai" },
-    { "id": "ml", "match": ["ml"], "categories": ["skill"], "role_family_votes": {"data_ai": 1.5}, "salary_signal": "ai" },
-    { "id": "ai", "match": ["ai"], "categories": ["skill"], "role_family_votes": {"data_ai": 1.5}, "salary_signal": "ai" },
-    { "id": "llm", "match": ["llm"], "categories": ["skill"], "role_family_votes": {"data_ai": 1.5}, "salary_signal": "ai" },
-    { "id": "rag", "match": ["rag"], "categories": ["skill"], "role_family_votes": {"data_ai": 1.0}, "salary_signal": "ai", "parents": ["llm"] },
-    { "id": "nlp", "match": ["nlp"], "categories": ["skill"], "role_family_votes": {"data_ai": 1.0}, "salary_signal": "ai" },
-    { "id": "langchain", "match": ["langchain"], "categories": ["skill"], "role_family_votes": {"data_ai": 1.0}, "salary_signal": "ai", "parents": ["llm"] },
-    { "id": "openai", "match": ["openai"], "categories": ["skill"], "role_family_votes": {"data_ai": 0.8}, "salary_signal": "ai", "parents": ["llm"] },
-    { "id": "analytics", "match": ["analytics"], "categories": ["skill"], "role_family_votes": {"data_ai": 1.0} },
-    { "id": "pandas", "match": ["pandas"], "categories": ["skill"], "role_family_votes": {"data_ai": 1.0}, "parents": ["python"] },
-
-    { "id": "data_engineer", "match": ["data engineer", "datový inženýr"], "categories": ["skill"], "role_family_votes": {"data_ai": 2.0} },
-    { "id": "data_scientist", "match": ["data scientist", "datový vědec"], "categories": ["skill"], "role_family_votes": {"data_ai": 3.0} },
-    { "id": "data_analyst", "match": ["data analyst", "datový analytik", "analytik dat"], "categories": ["skill"], "role_family_votes": {"data_ai": 1.5} },
-    { "id": "scientist", "match": ["scientist"], "categories": ["skill"], "role_family_votes": {"data_ai": 0.8} },
-    { "id": "model", "match": ["model"], "categories": ["skill"], "role_family_votes": {"data_ai": 0.5} },
-    { "id": "etl", "match": ["etl", "elt"], "categories": ["skill"], "role_family_votes": {"data_ai": 0.7} },
-    { "id": "snowflake", "match": ["snowflake"], "categories": ["skill"], "role_family_votes": {"data_ai": 1.0} },
-    { "id": "databricks", "match": ["databricks"], "categories": ["skill"], "role_family_votes": {"data_ai": 1.0} },
-    { "id": "airflow", "match": ["airflow"], "categories": ["skill"], "role_family_votes": {"data_ai": 1.0} },
-    { "id": "dbt", "match": ["dbt"], "categories": ["skill"], "role_family_votes": {"data_ai": 1.0} },
-    { "id": "spark", "match": ["spark", "pyspark"], "categories": ["skill"], "role_family_votes": {"data_ai": 1.0} },
-    { "id": "kafka", "match": ["kafka"], "categories": ["skill"], "role_family_votes": {"data_ai": 0.6, "software_engineering": 0.4} },
-    { "id": "bigquery", "match": ["bigquery"], "categories": ["skill"], "role_family_votes": {"data_ai": 1.0} },
-    { "id": "redshift", "match": ["redshift"], "categories": ["skill"], "role_family_votes": {"data_ai": 1.0} },
-    { "id": "synapse", "match": ["synapse"], "categories": ["skill"], "role_family_votes": {"data_ai": 1.0} },
-    { "id": "power_bi", "match": ["power bi", "powerbi"], "categories": ["skill"], "role_family_votes": {"data_ai": 1.0}, "parents": ["analytics"] },
-    { "id": "tableau", "match": ["tableau"], "categories": ["skill"], "role_family_votes": {"data_ai": 1.0}, "parents": ["analytics"] },
-    { "id": "looker", "match": ["looker"], "categories": ["skill"], "role_family_votes": {"data_ai": 1.0}, "parents": ["analytics"] },
-
-    { "id": "sap", "match": ["sap abap", "sap fi", "sap mm", "sap hana", "sap "], "categories": ["skill"], "role_family_votes": {"software_engineering": 0.5, "product_project": 0.5}, "salary_signal": "regulated_industry" },
-    { "id": "salesforce", "match": ["salesforce"], "categories": ["skill"], "role_family_votes": {"software_engineering": 0.5, "product_project": 0.5} },
-    { "id": "servicenow", "match": ["servicenow"], "categories": ["skill"], "role_family_votes": {"software_engineering": 0.5, "product_project": 0.5} },
-    { "id": "dynamics_365", "match": ["dynamics 365", "ms dynamics"], "categories": ["skill"], "role_family_votes": {"software_engineering": 0.5, "product_project": 0.5} },
-    { "id": "itil", "match": ["itil", "itil v4", "itilv4"], "categories": ["skill"], "role_family_votes": {"product_project": 1.0} },
-
-    { "id": "product", "match": ["product"], "categories": ["skill"], "role_family_votes": {"product_project": 1.5} },
-    { "id": "product_owner", "match": ["product owner", "produktový vlastník"], "categories": ["skill"], "role_family_votes": {"product_project": 2.0} },
-    { "id": "product_manager", "match": ["product manager", "produktový manažer"], "categories": ["skill"], "role_family_votes": {"product_project": 2.0} },
-    { "id": "project_manager", "match": ["project manager", "projektový manažer", "projektový koordinátor"], "categories": ["skill"], "role_family_votes": {"product_project": 2.0} },
-    { "id": "business_analyst", "match": ["business analyst", "byznys analytik"], "categories": ["skill"], "role_family_votes": {"product_project": 0.7, "data_ai": 0.3} },
-    { "id": "scrum", "match": ["scrum", "scrum master"], "categories": ["skill"], "role_family_votes": {"product_project": 1.5} },
-    { "id": "kanban", "match": ["kanban"], "categories": ["skill"], "role_family_votes": {"product_project": 1.0} },
-    { "id": "safe_agile", "match": ["safe", "scaled agile"], "categories": ["skill"], "role_family_votes": {"product_project": 1.0} },
-    { "id": "pmp", "match": ["pmp", "prince2"], "categories": ["skill"], "role_family_votes": {"product_project": 1.5} },
-    { "id": "jira", "match": ["jira", "confluence"], "categories": ["skill"], "role_family_votes": {"product_project": 0.7} },
-    { "id": "leadership", "match": ["leadership", "vedení"], "categories": ["skill", "trait"], "role_family_votes": {"product_project": 1.0}, "salary_signal": "leadership" },
-    { "id": "rizeni_projektu", "match": ["řízení projektu"], "categories": ["skill"], "role_family_votes": {"product_project": 1.5} },
-    { "id": "delivery", "match": ["delivery"], "categories": ["skill"], "role_family_votes": {"product_project": 1.0} },
-    { "id": "stakeholder", "match": ["stakeholder"], "categories": ["skill"], "role_family_votes": {"product_project": 1.0} },
-    { "id": "manager", "match": ["manager"], "categories": ["skill"], "role_family_votes": {"product_project": 0.8} },
-    { "id": "mentoring", "match": ["mentoring", "mentorování"], "categories": ["skill", "trait"], "salary_signal": "leadership" },
-    { "id": "konzultant", "match": ["konzultant", "consultant"], "categories": ["skill"], "role_family_votes": {"product_project": 0.5, "software_engineering": 0.5} },
-    { "id": "tech_support", "match": ["technická podpora", "technical support", "technický specialista"], "categories": ["skill"], "role_family_votes": {"software_engineering": 0.5, "product_project": 0.5} },
-
-    { "id": "english", "match": ["english", "anglicky", "angličtina", "c1", "c2"], "categories": ["language"], "salary_signal": "english" },
-    { "id": "german", "match": ["german", "deutsch", "německy", "němčina"], "categories": ["language"], "salary_signal": "german" },
-
-    { "id": "company_enterprise", "match": ["enterprise", "corporate", "bank", "banking", "pojišť", "insurance", "large company", "global", "fortune 500", "multinational", "shared service"], "categories": ["company_type"], "company_type": "enterprise/corporate" },
-    { "id": "company_scaleup", "match": ["scaleup", "scale-up", "series a", "series b", "series c", "growth stage"], "categories": ["company_type"], "company_type": "scaleup" },
-    { "id": "company_startup", "match": ["startup", "early stage", "seed", "pre-seed", "garage", "founder-led"], "categories": ["company_type"], "company_type": "startup" },
-    { "id": "company_agency", "match": ["agency", "consultancy", "consulting", "vendor", "software house", "big four", "big 4"], "categories": ["company_type"], "company_type": "agency/consultancy" },
-    { "id": "company_public_sector", "match": ["government", "public sector", "state", "ministerstvo", "úřad", "veřejná správa"], "categories": ["company_type"], "company_type": "public sector" },
-    { "id": "company_remote", "match": ["fully remote", "remote-first", "remote first", "remote only", "distributed team", "work from anywhere"], "categories": ["company_modifier"], "company_modifier": "remote" },
-    { "id": "company_equity", "match": ["equity", "options", "rsu", "stock options"], "categories": ["company_modifier"], "company_modifier": "equity" },
-    { "id": "company_regulated", "match": ["regulated", "fintech", "healthtech", "pharmaceutical", "pharma", "medtech", "banking regulation"], "categories": ["company_modifier"], "company_modifier": "regulated", "salary_signal": "regulated_industry" },
-
-    { "id": "edu_phd", "match": ["phd", "ph.d.", "ph.d", "doctorate", "doktor", "drsc.", "rndr.", "judr.", "mudr.", "mvdr.", "mddr.", "pharmdr."], "categories": ["education"], "education_level": "phd" },
-    { "id": "edu_master", "match": ["master", "msc", "ing.", "ing. arch.", "mgr.", "mga.", "magistr", "inženýr", "mba"], "categories": ["education"], "education_level": "master" },
-    { "id": "edu_bachelor", "match": ["bachelor", "bsc", "bc.", "bca.", "bakalář"], "categories": ["education"], "education_level": "bachelor" },
-    { "id": "edu_dis", "match": ["dis.", "diplomovaný specialista"], "categories": ["education"], "education_level": "bachelor" },
-    { "id": "edu_university", "match": ["university", "college", "vysoká", "vysoka", "vysoká škola", "vyšší odborná"], "categories": ["education"], "education_level": "university" },
-
-    { "id": "sen_lead", "match": ["principal", "staff engineer", "engineering manager", "tech lead", "team lead", "týmový lídr", "vedoucí týmu", "manažer týmu", "manažer vývoje", "vp engineering", "head of engineering"], "categories": ["seniority"], "seniority_level": "lead" },
-    { "id": "sen_senior", "match": ["senior", "zkušený", "expert", "specialista"], "categories": ["seniority"], "seniority_level": "senior" },
-    { "id": "sen_medior", "match": ["medior", "mid-level", "mid level", "middle", "mid-senior", "samostatný", "samostatně"], "categories": ["seniority"], "seniority_level": "medior" },
-    { "id": "sen_junior", "match": ["junior", "junior developer", "nováček", "začátečník", "trainee", "praktikant", "stážista", "intern", "student", "studentka", "absolvent", "čerstvý absolvent", "graduate"], "categories": ["seniority"], "seniority_level": "junior" }
+    {
+      "id": "python",
+      "match": [
+        "python"
+      ],
+      "categories": [
+        "skill",
+        "programming_language"
+      ],
+      "role_family_votes": {
+        "software_engineering": 1
+      }
+    },
+    {
+      "id": "typescript",
+      "match": [
+        "typescript"
+      ],
+      "categories": [
+        "skill",
+        "programming_language"
+      ],
+      "role_family_votes": {
+        "software_engineering": 1
+      }
+    },
+    {
+      "id": "javascript",
+      "match": [
+        "javascript"
+      ],
+      "categories": [
+        "skill",
+        "programming_language"
+      ],
+      "role_family_votes": {
+        "software_engineering": 1
+      }
+    },
+    {
+      "id": "java",
+      "match": [
+        "java"
+      ],
+      "categories": [
+        "skill",
+        "programming_language"
+      ],
+      "role_family_votes": {
+        "software_engineering": 1
+      }
+    },
+    {
+      "id": "csharp",
+      "match": [
+        ".net",
+        "c#",
+        "asp.net",
+        "dotnet"
+      ],
+      "categories": [
+        "skill",
+        "programming_language"
+      ],
+      "role_family_votes": {
+        "software_engineering": 1
+      }
+    },
+    {
+      "id": "go",
+      "match": [
+        "golang",
+        " go "
+      ],
+      "categories": [
+        "skill",
+        "programming_language"
+      ],
+      "role_family_votes": {
+        "software_engineering": 1
+      }
+    },
+    {
+      "id": "rust",
+      "match": [
+        "rust"
+      ],
+      "categories": [
+        "skill",
+        "programming_language"
+      ],
+      "role_family_votes": {
+        "software_engineering": 1
+      }
+    },
+    {
+      "id": "kotlin",
+      "match": [
+        "kotlin"
+      ],
+      "categories": [
+        "skill",
+        "programming_language"
+      ],
+      "role_family_votes": {
+        "software_engineering": 1
+      }
+    },
+    {
+      "id": "swift",
+      "match": [
+        "swift"
+      ],
+      "categories": [
+        "skill",
+        "programming_language"
+      ],
+      "role_family_votes": {
+        "software_engineering": 1
+      }
+    },
+    {
+      "id": "react",
+      "match": [
+        "react",
+        "reactjs",
+        "react.js"
+      ],
+      "categories": [
+        "skill",
+        "framework"
+      ],
+      "role_family_votes": {
+        "software_engineering": 1
+      }
+    },
+    {
+      "id": "next_js",
+      "match": [
+        "next.js",
+        "nextjs"
+      ],
+      "categories": [
+        "skill",
+        "framework"
+      ],
+      "role_family_votes": {
+        "software_engineering": 1
+      },
+      "parents": [
+        "react"
+      ]
+    },
+    {
+      "id": "vue",
+      "match": [
+        "vue",
+        "vue.js",
+        "nuxt"
+      ],
+      "categories": [
+        "skill",
+        "framework"
+      ],
+      "role_family_votes": {
+        "software_engineering": 1
+      }
+    },
+    {
+      "id": "angular",
+      "match": [
+        "angular"
+      ],
+      "categories": [
+        "skill",
+        "framework"
+      ],
+      "role_family_votes": {
+        "software_engineering": 1
+      }
+    },
+    {
+      "id": "svelte",
+      "match": [
+        "svelte",
+        "sveltekit"
+      ],
+      "categories": [
+        "skill",
+        "framework"
+      ],
+      "role_family_votes": {
+        "software_engineering": 1
+      }
+    },
+    {
+      "id": "node_js",
+      "match": [
+        "node.js",
+        "nodejs",
+        "node "
+      ],
+      "categories": [
+        "skill",
+        "framework"
+      ],
+      "role_family_votes": {
+        "software_engineering": 1
+      }
+    },
+    {
+      "id": "nest_js",
+      "match": [
+        "nest.js",
+        "nestjs"
+      ],
+      "categories": [
+        "skill",
+        "framework"
+      ],
+      "role_family_votes": {
+        "software_engineering": 1
+      },
+      "parents": [
+        "node_js"
+      ]
+    },
+    {
+      "id": "express",
+      "match": [
+        "express.js",
+        "expressjs"
+      ],
+      "categories": [
+        "skill",
+        "framework"
+      ],
+      "role_family_votes": {
+        "software_engineering": 1
+      },
+      "parents": [
+        "node_js"
+      ]
+    },
+    {
+      "id": "fastapi",
+      "match": [
+        "fastapi"
+      ],
+      "categories": [
+        "skill",
+        "framework"
+      ],
+      "role_family_votes": {
+        "software_engineering": 1
+      },
+      "parents": [
+        "python"
+      ]
+    },
+    {
+      "id": "django",
+      "match": [
+        "django"
+      ],
+      "categories": [
+        "skill",
+        "framework"
+      ],
+      "role_family_votes": {
+        "software_engineering": 1
+      },
+      "parents": [
+        "python"
+      ]
+    },
+    {
+      "id": "flask",
+      "match": [
+        "flask"
+      ],
+      "categories": [
+        "skill",
+        "framework"
+      ],
+      "role_family_votes": {
+        "software_engineering": 1
+      },
+      "parents": [
+        "python"
+      ]
+    },
+    {
+      "id": "spring",
+      "match": [
+        "spring boot",
+        "spring framework",
+        "spring "
+      ],
+      "categories": [
+        "skill",
+        "framework"
+      ],
+      "role_family_votes": {
+        "software_engineering": 1
+      },
+      "parents": [
+        "java"
+      ]
+    },
+    {
+      "id": "graphql",
+      "match": [
+        "graphql"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "software_engineering": 1
+      }
+    },
+    {
+      "id": "rest_api",
+      "match": [
+        "rest api",
+        "restful"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "software_engineering": 1
+      }
+    },
+    {
+      "id": "frontend",
+      "match": [
+        "frontend",
+        "front-end"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "software_engineering": 1
+      }
+    },
+    {
+      "id": "backend",
+      "match": [
+        "backend",
+        "back-end"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "software_engineering": 1
+      }
+    },
+    {
+      "id": "fullstack",
+      "match": [
+        "fullstack",
+        "full-stack"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "software_engineering": 1
+      }
+    },
+    {
+      "id": "developer",
+      "match": [
+        "developer",
+        "vývojář",
+        "programátor"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "software_engineering": 0.6,
+        "product_project": -10
+      }
+    },
+    {
+      "id": "engineer",
+      "match": [
+        "engineer",
+        "softwarový inženýr"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "software_engineering": 0.6
+      }
+    },
+    {
+      "id": "architect",
+      "match": [
+        "architect",
+        "architekt"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "software_engineering": 0.7
+      }
+    },
+    {
+      "id": "vyvoj",
+      "match": [
+        "vývoj",
+        "webový vývojář"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "software_engineering": 0.7
+      }
+    },
+    {
+      "id": "sql",
+      "match": [
+        "sql"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "software_engineering": 1
+      }
+    },
+    {
+      "id": "postgresql",
+      "match": [
+        "postgresql",
+        "postgres"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "software_engineering": 0.7,
+        "data_ai": 0.3
+      }
+    },
+    {
+      "id": "mysql",
+      "match": [
+        "mysql"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "software_engineering": 0.7,
+        "data_ai": 0.3
+      }
+    },
+    {
+      "id": "mongodb",
+      "match": [
+        "mongodb",
+        "mongo"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "software_engineering": 0.7,
+        "data_ai": 0.3
+      }
+    },
+    {
+      "id": "redis",
+      "match": [
+        "redis"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "software_engineering": 1
+      }
+    },
+    {
+      "id": "oracle_db",
+      "match": [
+        "oracle database",
+        "oracle e-business",
+        "oracle ebs"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "software_engineering": 0.7,
+        "data_ai": 0.3
+      }
+    },
+    {
+      "id": "docker",
+      "match": [
+        "docker"
+      ],
+      "categories": [
+        "skill",
+        "devops"
+      ],
+      "role_family_votes": {
+        "software_engineering": 1
+      },
+      "salary_signal": "devops"
+    },
+    {
+      "id": "kubernetes",
+      "match": [
+        "kubernetes",
+        "k8s"
+      ],
+      "categories": [
+        "skill",
+        "cloud",
+        "devops"
+      ],
+      "role_family_votes": {
+        "software_engineering": 0.7,
+        "data_ai": 0.3
+      },
+      "salary_signal": "cloud"
+    },
+    {
+      "id": "helm",
+      "match": [
+        "helm"
+      ],
+      "categories": [
+        "skill",
+        "devops"
+      ],
+      "role_family_votes": {
+        "software_engineering": 1
+      },
+      "salary_signal": "devops",
+      "parents": [
+        "kubernetes"
+      ]
+    },
+    {
+      "id": "terraform",
+      "match": [
+        "terraform"
+      ],
+      "categories": [
+        "skill",
+        "cloud",
+        "devops"
+      ],
+      "role_family_votes": {
+        "software_engineering": 1
+      },
+      "salary_signal": "cloud"
+    },
+    {
+      "id": "ansible",
+      "match": [
+        "ansible"
+      ],
+      "categories": [
+        "skill",
+        "devops"
+      ],
+      "role_family_votes": {
+        "software_engineering": 1
+      },
+      "salary_signal": "devops"
+    },
+    {
+      "id": "gitops",
+      "match": [
+        "gitops",
+        "argocd",
+        "argo cd",
+        "flux cd"
+      ],
+      "categories": [
+        "skill",
+        "devops"
+      ],
+      "role_family_votes": {
+        "software_engineering": 1
+      },
+      "salary_signal": "devops",
+      "parents": [
+        "kubernetes"
+      ]
+    },
+    {
+      "id": "ci_cd",
+      "match": [
+        "ci/cd",
+        "ci / cd"
+      ],
+      "categories": [
+        "skill",
+        "testing",
+        "devops"
+      ],
+      "role_family_votes": {
+        "software_engineering": 0.5
+      },
+      "salary_signal": "devops"
+    },
+    {
+      "id": "devops",
+      "match": [
+        "devops",
+        "site reliability",
+        "sre"
+      ],
+      "categories": [
+        "skill",
+        "devops"
+      ],
+      "role_family_votes": {
+        "software_engineering": 1
+      },
+      "salary_signal": "devops"
+    },
+    {
+      "id": "linux",
+      "match": [
+        "linux",
+        "unix"
+      ],
+      "categories": [
+        "skill",
+        "devops"
+      ],
+      "role_family_votes": {
+        "software_engineering": 1
+      }
+    },
+    {
+      "id": "prometheus",
+      "match": [
+        "prometheus"
+      ],
+      "categories": [
+        "skill",
+        "devops"
+      ],
+      "role_family_votes": {
+        "software_engineering": 0.7,
+        "data_ai": 0.3
+      }
+    },
+    {
+      "id": "grafana",
+      "match": [
+        "grafana"
+      ],
+      "categories": [
+        "skill",
+        "devops"
+      ],
+      "role_family_votes": {
+        "software_engineering": 0.7,
+        "data_ai": 0.3
+      }
+    },
+    {
+      "id": "spravce_it",
+      "match": [
+        "správce it",
+        "správce sítě",
+        "síťový administrátor",
+        "systémový administrátor",
+        "administrátor"
+      ],
+      "categories": [
+        "skill",
+        "devops"
+      ],
+      "role_family_votes": {
+        "software_engineering": 0.7
+      }
+    },
+    {
+      "id": "aws",
+      "match": [
+        "aws",
+        "amazon web services"
+      ],
+      "categories": [
+        "skill",
+        "cloud"
+      ],
+      "role_family_votes": {
+        "software_engineering": 0.6,
+        "data_ai": 0.4
+      },
+      "salary_signal": "cloud"
+    },
+    {
+      "id": "azure",
+      "match": [
+        "azure",
+        "microsoft azure"
+      ],
+      "categories": [
+        "skill",
+        "cloud"
+      ],
+      "role_family_votes": {
+        "software_engineering": 0.6,
+        "data_ai": 0.4
+      },
+      "salary_signal": "cloud"
+    },
+    {
+      "id": "gcp",
+      "match": [
+        "gcp",
+        "google cloud"
+      ],
+      "categories": [
+        "skill",
+        "cloud"
+      ],
+      "role_family_votes": {
+        "software_engineering": 0.6,
+        "data_ai": 0.4
+      },
+      "salary_signal": "cloud"
+    },
+    {
+      "id": "cloud_engineer",
+      "match": [
+        "cloud engineer",
+        "cloud architect",
+        "cloudový inženýr"
+      ],
+      "categories": [
+        "skill",
+        "cloud"
+      ],
+      "role_family_votes": {
+        "software_engineering": 1
+      },
+      "salary_signal": "cloud"
+    },
+    {
+      "id": "cybersecurity",
+      "match": [
+        "cybersecurity",
+        "cyber security",
+        "kybernetická bezpečnost",
+        "kyberbezpečnost",
+        "bezpečnost"
+      ],
+      "categories": [
+        "skill",
+        "security"
+      ],
+      "role_family_votes": {
+        "software_engineering": 0.5
+      },
+      "salary_signal": "security"
+    },
+    {
+      "id": "pentest",
+      "match": [
+        "penetration testing",
+        "pentest",
+        "pen test",
+        "ethical hacking",
+        "etický hacker"
+      ],
+      "categories": [
+        "skill",
+        "security"
+      ],
+      "role_family_votes": {
+        "software_engineering": 1
+      },
+      "salary_signal": "security"
+    },
+    {
+      "id": "siem",
+      "match": [
+        "siem",
+        "splunk",
+        "elastic security",
+        "qradar"
+      ],
+      "categories": [
+        "skill",
+        "security"
+      ],
+      "role_family_votes": {
+        "software_engineering": 1
+      },
+      "salary_signal": "security"
+    },
+    {
+      "id": "iam",
+      "match": [
+        "iam",
+        "identity and access management"
+      ],
+      "categories": [
+        "skill",
+        "security"
+      ],
+      "role_family_votes": {
+        "software_engineering": 1
+      },
+      "salary_signal": "security"
+    },
+    {
+      "id": "appsec",
+      "match": [
+        "appsec",
+        "application security"
+      ],
+      "categories": [
+        "skill",
+        "security"
+      ],
+      "role_family_votes": {
+        "software_engineering": 1
+      },
+      "salary_signal": "security"
+    },
+    {
+      "id": "incident_response",
+      "match": [
+        "incident response",
+        "soc analyst",
+        "bezpečnostní analytik"
+      ],
+      "categories": [
+        "skill",
+        "security"
+      ],
+      "role_family_votes": {
+        "software_engineering": 1
+      },
+      "salary_signal": "security"
+    },
+    {
+      "id": "nis2",
+      "match": [
+        "nis2",
+        "nis 2"
+      ],
+      "categories": [
+        "skill",
+        "security",
+        "compliance"
+      ],
+      "role_family_votes": {
+        "software_engineering": 0.5,
+        "product_project": 0.5
+      },
+      "salary_signal": "regulated_industry"
+    },
+    {
+      "id": "dora",
+      "match": [
+        "dora regulation",
+        "dora compliance"
+      ],
+      "categories": [
+        "skill",
+        "security",
+        "compliance"
+      ],
+      "role_family_votes": {
+        "software_engineering": 0.5,
+        "product_project": 0.5
+      },
+      "salary_signal": "regulated_industry"
+    },
+    {
+      "id": "iso_27001",
+      "match": [
+        "iso 27001",
+        "iso/iec 27001"
+      ],
+      "categories": [
+        "skill",
+        "security",
+        "compliance"
+      ],
+      "role_family_votes": {
+        "software_engineering": 0.5,
+        "product_project": 0.5
+      },
+      "salary_signal": "regulated_industry"
+    },
+    {
+      "id": "soc2",
+      "match": [
+        "soc 2",
+        "soc2"
+      ],
+      "categories": [
+        "skill",
+        "security",
+        "compliance"
+      ],
+      "role_family_votes": {
+        "software_engineering": 0.5,
+        "product_project": 0.5
+      },
+      "salary_signal": "regulated_industry"
+    },
+    {
+      "id": "gdpr",
+      "match": [
+        "gdpr"
+      ],
+      "categories": [
+        "skill",
+        "compliance"
+      ],
+      "role_family_votes": {
+        "software_engineering": 0.3,
+        "product_project": 0.7
+      },
+      "salary_signal": "regulated_industry"
+    },
+    {
+      "id": "qa",
+      "match": [
+        "qa",
+        "quality assurance",
+        "testování",
+        "tester",
+        "manuální tester"
+      ],
+      "categories": [
+        "skill",
+        "testing"
+      ],
+      "role_family_votes": {
+        "software_engineering": 1
+      }
+    },
+    {
+      "id": "test_automation",
+      "match": [
+        "test automation",
+        "automated testing",
+        "automatizace testů",
+        "automatický tester"
+      ],
+      "categories": [
+        "skill",
+        "testing"
+      ],
+      "role_family_votes": {
+        "software_engineering": 1
+      },
+      "parents": [
+        "qa"
+      ]
+    },
+    {
+      "id": "selenium",
+      "match": [
+        "selenium"
+      ],
+      "categories": [
+        "skill",
+        "testing"
+      ],
+      "role_family_votes": {
+        "software_engineering": 1
+      },
+      "parents": [
+        "test_automation"
+      ]
+    },
+    {
+      "id": "cypress",
+      "match": [
+        "cypress"
+      ],
+      "categories": [
+        "skill",
+        "testing"
+      ],
+      "role_family_votes": {
+        "software_engineering": 1
+      },
+      "parents": [
+        "test_automation"
+      ]
+    },
+    {
+      "id": "playwright",
+      "match": [
+        "playwright"
+      ],
+      "categories": [
+        "skill",
+        "testing"
+      ],
+      "role_family_votes": {
+        "software_engineering": 1
+      },
+      "parents": [
+        "test_automation"
+      ]
+    },
+    {
+      "id": "appium",
+      "match": [
+        "appium"
+      ],
+      "categories": [
+        "skill",
+        "testing"
+      ],
+      "role_family_votes": {
+        "software_engineering": 1
+      },
+      "parents": [
+        "test_automation"
+      ]
+    },
+    {
+      "id": "junit",
+      "match": [
+        "junit"
+      ],
+      "categories": [
+        "skill",
+        "testing"
+      ],
+      "role_family_votes": {
+        "software_engineering": 1
+      },
+      "parents": [
+        "test_automation"
+      ]
+    },
+    {
+      "id": "testing",
+      "match": [
+        "testing"
+      ],
+      "categories": [
+        "skill",
+        "testing"
+      ]
+    },
+    {
+      "id": "pytest",
+      "match": [
+        "pytest"
+      ],
+      "categories": [
+        "skill",
+        "testing"
+      ],
+      "parents": [
+        "test_automation"
+      ]
+    },
+    {
+      "id": "android",
+      "match": [
+        "android"
+      ],
+      "categories": [
+        "skill",
+        "mobile"
+      ],
+      "role_family_votes": {
+        "software_engineering": 1
+      }
+    },
+    {
+      "id": "ios",
+      "match": [
+        "ios"
+      ],
+      "categories": [
+        "skill",
+        "mobile"
+      ],
+      "role_family_votes": {
+        "software_engineering": 1
+      }
+    },
+    {
+      "id": "flutter",
+      "match": [
+        "flutter"
+      ],
+      "categories": [
+        "skill",
+        "mobile"
+      ],
+      "role_family_votes": {
+        "software_engineering": 1
+      }
+    },
+    {
+      "id": "react_native",
+      "match": [
+        "react native"
+      ],
+      "categories": [
+        "skill",
+        "mobile"
+      ],
+      "role_family_votes": {
+        "software_engineering": 1
+      },
+      "parents": [
+        "react"
+      ]
+    },
+    {
+      "id": "jetpack_compose",
+      "match": [
+        "jetpack compose"
+      ],
+      "categories": [
+        "skill",
+        "mobile"
+      ],
+      "role_family_votes": {
+        "software_engineering": 1
+      },
+      "parents": [
+        "kotlin"
+      ]
+    },
+    {
+      "id": "swiftui",
+      "match": [
+        "swiftui"
+      ],
+      "categories": [
+        "skill",
+        "mobile"
+      ],
+      "role_family_votes": {
+        "software_engineering": 1
+      },
+      "parents": [
+        "swift"
+      ]
+    },
+    {
+      "id": "machine_learning",
+      "match": [
+        "machine learning",
+        "strojové učení"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "data_ai": 1.5
+      },
+      "salary_signal": "ai"
+    },
+    {
+      "id": "ml",
+      "match": [
+        "ml"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "data_ai": 1.5
+      },
+      "salary_signal": "ai"
+    },
+    {
+      "id": "ai",
+      "match": [
+        "ai"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "data_ai": 1.5
+      },
+      "salary_signal": "ai"
+    },
+    {
+      "id": "llm",
+      "match": [
+        "llm"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "data_ai": 1.5
+      },
+      "salary_signal": "ai"
+    },
+    {
+      "id": "rag",
+      "match": [
+        "rag"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "data_ai": 1
+      },
+      "salary_signal": "ai",
+      "parents": [
+        "llm"
+      ]
+    },
+    {
+      "id": "nlp",
+      "match": [
+        "nlp"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "data_ai": 1
+      },
+      "salary_signal": "ai"
+    },
+    {
+      "id": "langchain",
+      "match": [
+        "langchain"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "data_ai": 1
+      },
+      "salary_signal": "ai",
+      "parents": [
+        "llm"
+      ]
+    },
+    {
+      "id": "openai",
+      "match": [
+        "openai"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "data_ai": 0.8
+      },
+      "salary_signal": "ai",
+      "parents": [
+        "llm"
+      ]
+    },
+    {
+      "id": "analytics",
+      "match": [
+        "analytics"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "data_ai": 1
+      }
+    },
+    {
+      "id": "pandas",
+      "match": [
+        "pandas"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "data_ai": 1
+      },
+      "parents": [
+        "python"
+      ]
+    },
+    {
+      "id": "data_engineer",
+      "match": [
+        "data engineer",
+        "datový inženýr"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "data_ai": 2
+      }
+    },
+    {
+      "id": "data_scientist",
+      "match": [
+        "data scientist",
+        "datový vědec"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "data_ai": 3
+      }
+    },
+    {
+      "id": "data_analyst",
+      "match": [
+        "data analyst",
+        "datový analytik",
+        "analytik dat"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "data_ai": 1.5
+      }
+    },
+    {
+      "id": "scientist",
+      "match": [
+        "scientist"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "data_ai": 0.8
+      }
+    },
+    {
+      "id": "model",
+      "match": [
+        "model"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "data_ai": 0.5
+      }
+    },
+    {
+      "id": "etl",
+      "match": [
+        "etl",
+        "elt"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "data_ai": 0.7
+      }
+    },
+    {
+      "id": "snowflake",
+      "match": [
+        "snowflake"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "data_ai": 1
+      }
+    },
+    {
+      "id": "databricks",
+      "match": [
+        "databricks"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "data_ai": 1
+      }
+    },
+    {
+      "id": "airflow",
+      "match": [
+        "airflow"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "data_ai": 1
+      }
+    },
+    {
+      "id": "dbt",
+      "match": [
+        "dbt"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "data_ai": 1
+      }
+    },
+    {
+      "id": "spark",
+      "match": [
+        "spark",
+        "pyspark"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "data_ai": 1
+      }
+    },
+    {
+      "id": "kafka",
+      "match": [
+        "kafka"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "data_ai": 0.6,
+        "software_engineering": 0.4
+      }
+    },
+    {
+      "id": "bigquery",
+      "match": [
+        "bigquery"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "data_ai": 1
+      }
+    },
+    {
+      "id": "redshift",
+      "match": [
+        "redshift"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "data_ai": 1
+      }
+    },
+    {
+      "id": "synapse",
+      "match": [
+        "synapse"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "data_ai": 1
+      }
+    },
+    {
+      "id": "power_bi",
+      "match": [
+        "power bi",
+        "powerbi"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "data_ai": 1
+      },
+      "parents": [
+        "analytics"
+      ]
+    },
+    {
+      "id": "tableau",
+      "match": [
+        "tableau"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "data_ai": 1
+      },
+      "parents": [
+        "analytics"
+      ]
+    },
+    {
+      "id": "looker",
+      "match": [
+        "looker"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "data_ai": 1
+      },
+      "parents": [
+        "analytics"
+      ]
+    },
+    {
+      "id": "sap",
+      "match": [
+        "sap abap",
+        "sap fi",
+        "sap mm",
+        "sap hana",
+        "sap "
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "software_engineering": 0.5,
+        "product_project": 0.5
+      },
+      "salary_signal": "regulated_industry"
+    },
+    {
+      "id": "salesforce",
+      "match": [
+        "salesforce"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "software_engineering": 0.5,
+        "product_project": 0.5
+      }
+    },
+    {
+      "id": "servicenow",
+      "match": [
+        "servicenow"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "software_engineering": 0.5,
+        "product_project": 0.5
+      }
+    },
+    {
+      "id": "dynamics_365",
+      "match": [
+        "dynamics 365",
+        "ms dynamics"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "software_engineering": 0.5,
+        "product_project": 0.5
+      }
+    },
+    {
+      "id": "itil",
+      "match": [
+        "itil",
+        "itil v4",
+        "itilv4"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "product_project": 1
+      }
+    },
+    {
+      "id": "product",
+      "match": [
+        "product"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "product_project": 1.5
+      }
+    },
+    {
+      "id": "product_owner",
+      "match": [
+        "product owner",
+        "produktový vlastník"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "product_project": 2
+      }
+    },
+    {
+      "id": "product_manager",
+      "match": [
+        "product manager",
+        "produktový manažer"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "product_project": 2
+      }
+    },
+    {
+      "id": "project_manager",
+      "match": [
+        "project manager",
+        "projektový manažer",
+        "projektový koordinátor"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "product_project": 2
+      }
+    },
+    {
+      "id": "business_analyst",
+      "match": [
+        "business analyst",
+        "byznys analytik"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "product_project": 0.7,
+        "data_ai": 0.3
+      }
+    },
+    {
+      "id": "scrum",
+      "match": [
+        "scrum",
+        "scrum master"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "product_project": 1.5
+      }
+    },
+    {
+      "id": "kanban",
+      "match": [
+        "kanban"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "product_project": 1
+      }
+    },
+    {
+      "id": "safe_agile",
+      "match": [
+        "safe",
+        "scaled agile"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "product_project": 1
+      }
+    },
+    {
+      "id": "pmp",
+      "match": [
+        "pmp",
+        "prince2"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "product_project": 1.5
+      }
+    },
+    {
+      "id": "jira",
+      "match": [
+        "jira",
+        "confluence"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "product_project": 0.7
+      }
+    },
+    {
+      "id": "leadership",
+      "match": [
+        "leadership",
+        "vedení"
+      ],
+      "categories": [
+        "skill",
+        "trait"
+      ],
+      "role_family_votes": {
+        "product_project": 1
+      },
+      "salary_signal": "leadership"
+    },
+    {
+      "id": "rizeni_projektu",
+      "match": [
+        "řízení projektu"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "product_project": 1.5
+      }
+    },
+    {
+      "id": "delivery",
+      "match": [
+        "delivery"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "product_project": 1
+      }
+    },
+    {
+      "id": "stakeholder",
+      "match": [
+        "stakeholder"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "product_project": 1
+      }
+    },
+    {
+      "id": "manager",
+      "match": [
+        "manager"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "product_project": 0.8
+      }
+    },
+    {
+      "id": "mentoring",
+      "match": [
+        "mentoring",
+        "mentorování"
+      ],
+      "categories": [
+        "skill",
+        "trait"
+      ],
+      "salary_signal": "leadership"
+    },
+    {
+      "id": "konzultant",
+      "match": [
+        "konzultant",
+        "consultant"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "product_project": 0.5,
+        "software_engineering": 0.5
+      }
+    },
+    {
+      "id": "tech_support",
+      "match": [
+        "technická podpora",
+        "technical support",
+        "technický specialista"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "software_engineering": 0.5,
+        "product_project": 0.5
+      }
+    },
+    {
+      "id": "english",
+      "match": [
+        "english",
+        "anglicky",
+        "angličtina",
+        "c1",
+        "c2"
+      ],
+      "categories": [
+        "language"
+      ],
+      "salary_signal": "english"
+    },
+    {
+      "id": "german",
+      "match": [
+        "german",
+        "deutsch",
+        "německy",
+        "němčina"
+      ],
+      "categories": [
+        "language"
+      ],
+      "salary_signal": "german"
+    },
+    {
+      "id": "company_enterprise",
+      "match": [
+        "enterprise",
+        "corporate",
+        "bank",
+        "banking",
+        "pojišť",
+        "insurance",
+        "large company",
+        "global",
+        "fortune 500",
+        "multinational",
+        "shared service"
+      ],
+      "categories": [
+        "company_type"
+      ],
+      "company_type": "enterprise/corporate"
+    },
+    {
+      "id": "company_scaleup",
+      "match": [
+        "scaleup",
+        "scale-up",
+        "series a",
+        "series b",
+        "series c",
+        "growth stage"
+      ],
+      "categories": [
+        "company_type"
+      ],
+      "company_type": "scaleup"
+    },
+    {
+      "id": "company_startup",
+      "match": [
+        "startup",
+        "early stage",
+        "seed",
+        "pre-seed",
+        "garage",
+        "founder-led"
+      ],
+      "categories": [
+        "company_type"
+      ],
+      "company_type": "startup"
+    },
+    {
+      "id": "company_agency",
+      "match": [
+        "agency",
+        "consultancy",
+        "consulting",
+        "vendor",
+        "software house",
+        "big four",
+        "big 4"
+      ],
+      "categories": [
+        "company_type"
+      ],
+      "company_type": "agency/consultancy"
+    },
+    {
+      "id": "company_public_sector",
+      "match": [
+        "government",
+        "public sector",
+        "state",
+        "ministerstvo",
+        "úřad",
+        "veřejná správa"
+      ],
+      "categories": [
+        "company_type"
+      ],
+      "company_type": "public sector"
+    },
+    {
+      "id": "company_remote",
+      "match": [
+        "fully remote",
+        "remote-first",
+        "remote first",
+        "remote only",
+        "distributed team",
+        "work from anywhere"
+      ],
+      "categories": [
+        "company_modifier"
+      ],
+      "company_modifier": "remote"
+    },
+    {
+      "id": "company_equity",
+      "match": [
+        "equity",
+        "options",
+        "rsu",
+        "stock options"
+      ],
+      "categories": [
+        "company_modifier"
+      ],
+      "company_modifier": "equity"
+    },
+    {
+      "id": "company_regulated",
+      "match": [
+        "regulated",
+        "fintech",
+        "healthtech",
+        "pharmaceutical",
+        "pharma",
+        "medtech",
+        "banking regulation"
+      ],
+      "categories": [
+        "company_modifier"
+      ],
+      "company_modifier": "regulated",
+      "salary_signal": "regulated_industry"
+    },
+    {
+      "id": "edu_phd",
+      "match": [
+        "phd",
+        "ph.d.",
+        "ph.d",
+        "doctorate",
+        "doktor",
+        "drsc.",
+        "rndr.",
+        "judr.",
+        "mudr.",
+        "mvdr.",
+        "mddr.",
+        "pharmdr."
+      ],
+      "categories": [
+        "education"
+      ],
+      "education_level": "phd"
+    },
+    {
+      "id": "edu_master",
+      "match": [
+        "master",
+        "msc",
+        "ing.",
+        "ing. arch.",
+        "mgr.",
+        "mga.",
+        "magistr",
+        "inženýr",
+        "mba"
+      ],
+      "categories": [
+        "education"
+      ],
+      "education_level": "master"
+    },
+    {
+      "id": "edu_bachelor",
+      "match": [
+        "bachelor",
+        "bsc",
+        "bc.",
+        "bca.",
+        "bakalář"
+      ],
+      "categories": [
+        "education"
+      ],
+      "education_level": "bachelor"
+    },
+    {
+      "id": "edu_dis",
+      "match": [
+        "dis.",
+        "diplomovaný specialista"
+      ],
+      "categories": [
+        "education"
+      ],
+      "education_level": "bachelor"
+    },
+    {
+      "id": "edu_university",
+      "match": [
+        "university",
+        "college",
+        "vysoká",
+        "vysoka",
+        "vysoká škola",
+        "vyšší odborná"
+      ],
+      "categories": [
+        "education"
+      ],
+      "education_level": "university"
+    },
+    {
+      "id": "sen_lead",
+      "match": [
+        "principal",
+        "staff engineer",
+        "engineering manager",
+        "tech lead",
+        "team lead",
+        "týmový lídr",
+        "vedoucí týmu",
+        "manažer týmu",
+        "manažer vývoje",
+        "vp engineering",
+        "head of engineering"
+      ],
+      "categories": [
+        "seniority"
+      ],
+      "seniority_level": "lead"
+    },
+    {
+      "id": "sen_senior",
+      "match": [
+        "senior",
+        "zkušený",
+        "expert",
+        "specialista"
+      ],
+      "categories": [
+        "seniority"
+      ],
+      "seniority_level": "senior"
+    },
+    {
+      "id": "sen_medior",
+      "match": [
+        "medior",
+        "mid-level",
+        "mid level",
+        "middle",
+        "mid-senior",
+        "samostatný",
+        "samostatně"
+      ],
+      "categories": [
+        "seniority"
+      ],
+      "seniority_level": "medior"
+    },
+    {
+      "id": "sen_junior",
+      "match": [
+        "junior",
+        "junior developer",
+        "nováček",
+        "začátečník",
+        "trainee",
+        "praktikant",
+        "stážista",
+        "intern",
+        "student",
+        "studentka",
+        "absolvent",
+        "čerstvý absolvent",
+        "graduate"
+      ],
+      "categories": [
+        "seniority"
+      ],
+      "seniority_level": "junior"
+    },
+    {
+      "id": "role_nurse",
+      "match": [
+        "registered nurse",
+        "staff nurse",
+        "icu nurse",
+        "nurse practitioner",
+        "zdravotní sestra",
+        "zdravotní sestřička"
+      ],
+      "categories": [
+        "role_title"
+      ],
+      "role_family_votes": {
+        "healthcare_clinical": 4
+      }
+    },
+    {
+      "id": "role_physician",
+      "match": [
+        "physician",
+        "general practitioner",
+        "surgeon",
+        "clinician",
+        "medical doctor",
+        "lékař",
+        "lékařka"
+      ],
+      "categories": [
+        "role_title"
+      ],
+      "role_family_votes": {
+        "healthcare_clinical": 4
+      }
+    },
+    {
+      "id": "role_allied_health",
+      "match": [
+        "paramedic",
+        "physiotherapist",
+        "physical therapist",
+        "radiographer",
+        "pharmacist",
+        "care assistant",
+        "healthcare assistant",
+        "nursing assistant",
+        "fyzioterapeut",
+        "ošetřovatel"
+      ],
+      "categories": [
+        "role_title"
+      ],
+      "role_family_votes": {
+        "healthcare_clinical": 3
+      }
+    },
+    {
+      "id": "role_scientist",
+      "match": [
+        "research scientist",
+        "principal scientist",
+        "postdoctoral",
+        "postdoc",
+        "laboratory technician",
+        "lab technician",
+        "biologist",
+        "chemist",
+        "vědecký pracovník"
+      ],
+      "categories": [
+        "role_title"
+      ],
+      "role_family_votes": {
+        "life_sciences_research": 4
+      }
+    },
+    {
+      "id": "role_electrician",
+      "match": [
+        "electrician",
+        "elektrikář",
+        "elektromontér"
+      ],
+      "categories": [
+        "role_title"
+      ],
+      "role_family_votes": {
+        "skilled_trades": 4
+      }
+    },
+    {
+      "id": "role_trades_craft",
+      "match": [
+        "welder",
+        "machinist",
+        "cnc operator",
+        "cnc machinist",
+        "mechanic",
+        "plumber",
+        "carpenter",
+        "hvac technician",
+        "svářeč",
+        "zámečník",
+        "obráběč",
+        "instalatér",
+        "truhlář"
+      ],
+      "categories": [
+        "role_title"
+      ],
+      "role_family_votes": {
+        "skilled_trades": 4
+      }
+    },
+    {
+      "id": "role_construction",
+      "match": [
+        "construction worker",
+        "site supervisor",
+        "site foreman",
+        "superintendent",
+        "stavbyvedoucí",
+        "stavební dělník"
+      ],
+      "categories": [
+        "role_title"
+      ],
+      "role_family_votes": {
+        "skilled_trades": 3,
+        "operations_logistics": 1
+      }
+    },
+    {
+      "id": "role_production_operator",
+      "match": [
+        "production operator",
+        "machine operator",
+        "line operator",
+        "assembler",
+        "výrobní operátor",
+        "operátor výroby",
+        "montážní dělník"
+      ],
+      "categories": [
+        "role_title"
+      ],
+      "role_family_votes": {
+        "operations_logistics": 4
+      }
+    },
+    {
+      "id": "role_warehouse",
+      "match": [
+        "warehouse worker",
+        "warehouse operative",
+        "forklift operator",
+        "order picker",
+        "skladník",
+        "vozíkář",
+        "skladový operátor"
+      ],
+      "categories": [
+        "role_title"
+      ],
+      "role_family_votes": {
+        "operations_logistics": 4
+      }
+    },
+    {
+      "id": "role_logistics",
+      "match": [
+        "logistics coordinator",
+        "supply chain",
+        "dispatcher",
+        "fleet manager",
+        "truck driver",
+        "delivery driver",
+        "courier",
+        "řidič nákladního",
+        "logistik",
+        "dispečer"
+      ],
+      "categories": [
+        "role_title"
+      ],
+      "role_family_votes": {
+        "operations_logistics": 4
+      }
+    },
+    {
+      "id": "role_retail_frontline",
+      "match": [
+        "cashier",
+        "sales assistant",
+        "store associate",
+        "retail associate",
+        "shop assistant",
+        "store manager",
+        "prodavač",
+        "pokladní",
+        "prodavačka"
+      ],
+      "categories": [
+        "role_title"
+      ],
+      "role_family_votes": {
+        "frontline_service": 4
+      }
+    },
+    {
+      "id": "role_food_service",
+      "match": [
+        "waiter",
+        "waitress",
+        "barista",
+        "bartender",
+        "line cook",
+        "sous chef",
+        "chef de partie",
+        "kuchař",
+        "číšník",
+        "servírka"
+      ],
+      "categories": [
+        "role_title"
+      ],
+      "role_family_votes": {
+        "frontline_service": 4
+      }
+    },
+    {
+      "id": "role_hospitality_frontdesk",
+      "match": [
+        "front desk agent",
+        "receptionist",
+        "concierge",
+        "housekeeping",
+        "guest service",
+        "hotel front office",
+        "recepční",
+        "pokojská"
+      ],
+      "categories": [
+        "role_title"
+      ],
+      "role_family_votes": {
+        "frontline_service": 4
+      }
+    },
+    {
+      "id": "role_sales",
+      "match": [
+        "sales representative",
+        "account manager",
+        "account executive",
+        "business development",
+        "sales manager",
+        "sales director",
+        "obchodní zástupce",
+        "key account manager"
+      ],
+      "categories": [
+        "role_title"
+      ],
+      "role_family_votes": {
+        "sales_marketing": 4
+      }
+    },
+    {
+      "id": "role_marketing",
+      "match": [
+        "marketing manager",
+        "brand manager",
+        "seo specialist",
+        "social media manager",
+        "growth marketer",
+        "content marketing",
+        "performance marketing",
+        "marketingový specialista"
+      ],
+      "categories": [
+        "role_title"
+      ],
+      "role_family_votes": {
+        "sales_marketing": 4
+      }
+    },
+    {
+      "id": "role_accountant",
+      "match": [
+        "accountant",
+        "bookkeeper",
+        "financial controller",
+        "auditor",
+        "tax advisor",
+        "účetní",
+        "hlavní účetní",
+        "mzdová účetní"
+      ],
+      "categories": [
+        "role_title"
+      ],
+      "role_family_votes": {
+        "finance_accounting": 4
+      }
+    },
+    {
+      "id": "role_finance_analyst",
+      "match": [
+        "financial analyst",
+        "actuary",
+        "underwriter",
+        "credit analyst",
+        "treasury analyst",
+        "investment analyst",
+        "finanční analytik"
+      ],
+      "categories": [
+        "role_title"
+      ],
+      "role_family_votes": {
+        "finance_accounting": 4
+      }
+    },
+    {
+      "id": "role_banker",
+      "match": [
+        "relationship manager",
+        "loan officer",
+        "bank teller",
+        "branch banker",
+        "personal banker",
+        "pobočkový bankéř"
+      ],
+      "categories": [
+        "role_title"
+      ],
+      "role_family_votes": {
+        "finance_accounting": 3,
+        "frontline_service": 1
+      }
+    },
+    {
+      "id": "role_legal",
+      "match": [
+        "lawyer",
+        "attorney",
+        "solicitor",
+        "paralegal",
+        "legal counsel",
+        "právník",
+        "advokát",
+        "koncipient"
+      ],
+      "categories": [
+        "role_title"
+      ],
+      "role_family_votes": {
+        "legal_compliance": 4
+      }
+    },
+    {
+      "id": "role_compliance",
+      "match": [
+        "compliance officer",
+        "risk manager",
+        "aml analyst",
+        "regulatory affairs",
+        "data protection officer",
+        "compliance specialist"
+      ],
+      "categories": [
+        "role_title"
+      ],
+      "role_family_votes": {
+        "legal_compliance": 4
+      }
+    },
+    {
+      "id": "role_hr",
+      "match": [
+        "recruiter",
+        "talent acquisition",
+        "hr manager",
+        "hr business partner",
+        "people operations",
+        "hr generalist",
+        "personalista",
+        "náborář"
+      ],
+      "categories": [
+        "role_title"
+      ],
+      "role_family_votes": {
+        "hr_people": 4
+      }
+    },
+    {
+      "id": "role_educator",
+      "match": [
+        "teacher",
+        "professor",
+        "lecturer",
+        "instructor",
+        "faculty member",
+        "educator",
+        "učitel",
+        "vyučující",
+        "pedagog",
+        "docent"
+      ],
+      "categories": [
+        "role_title"
+      ],
+      "role_family_votes": {
+        "education_academic": 4
+      }
+    },
+    {
+      "id": "role_designer",
+      "match": [
+        "graphic designer",
+        "ux designer",
+        "ui designer",
+        "product designer",
+        "art director",
+        "creative director",
+        "illustrator",
+        "grafik"
+      ],
+      "categories": [
+        "role_title"
+      ],
+      "role_family_votes": {
+        "creative_design": 3,
+        "product_project": 1
+      }
+    },
+    {
+      "id": "role_content_creative",
+      "match": [
+        "copywriter",
+        "content writer",
+        "journalist",
+        "video producer",
+        "videographer",
+        "photographer",
+        "social media creator",
+        "textař"
+      ],
+      "categories": [
+        "role_title"
+      ],
+      "role_family_votes": {
+        "creative_design": 4
+      }
+    },
+    {
+      "id": "role_support",
+      "match": [
+        "customer support",
+        "support agent",
+        "customer service representative",
+        "help desk",
+        "service desk",
+        "call center agent",
+        "customer success manager",
+        "technical support",
+        "zákaznická podpora"
+      ],
+      "categories": [
+        "role_title"
+      ],
+      "role_family_votes": {
+        "customer_support": 4
+      }
+    },
+    {
+      "id": "role_admin",
+      "match": [
+        "administrative assistant",
+        "office manager",
+        "executive assistant",
+        "personal assistant",
+        "office coordinator",
+        "data entry clerk",
+        "administrativní pracovník",
+        "office administrator"
+      ],
+      "categories": [
+        "role_title"
+      ],
+      "role_family_votes": {
+        "general_professional": 3
+      }
+    },
+    {
+      "id": "role_consultant",
+      "match": [
+        "management consultant",
+        "strategy consultant",
+        "business consultant",
+        "konzultant"
+      ],
+      "categories": [
+        "role_title"
+      ],
+      "role_family_votes": {
+        "general_professional": 3
+      }
+    },
+    {
+      "id": "role_operations_mgr",
+      "match": [
+        "operations manager",
+        "branch manager",
+        "facility manager",
+        "provozní manažer",
+        "vedoucí provozu"
+      ],
+      "categories": [
+        "role_title"
+      ],
+      "role_family_votes": {
+        "operations_logistics": 2,
+        "general_professional": 2
+      }
+    }
   ],
   "company_adjustments": {
-    "enterprise/corporate": { "factor": 1.11, "rationale": "Multinational R&D centres in Prague pay 30–40% above local mid-market on guaranteed comp; bonuses/equity add another 20–30%. Source: Kitalent Prague ICT analysis." },
-    "scaleup": { "factor": 1.03, "rationale": "Scaleups (Productboard, Rohlik, Keboola tier) sit between startups and multinationals: above startups for proven delivery, below corporate on cash, with upside tied to growth." },
-    "startup": { "factor": 0.90, "rationale": "Early-stage CZ startups compress cash salary and lean on equity/upside. Graduate entry at startups is materially below large-company entry. Source: expats.cz salary surveys." },
-    "agency/consultancy": { "factor": 1.00, "rationale": "Mixed signal: Big-4/MBB consultants reach corporate-mid levels (Accenture Prague 83–91k); local consultancies (Deloitte CZ junior 44–58k) sit below in-house corporate IT. Net is roughly market-neutral." },
-    "public sector": { "factor": 0.80, "rationale": "Czech public-sector IT capped by státní tarify (state pay tables); 80% of public-admin earn 29.8–65.0k vs 80% of IT earning 45–126k. Public sector also retained the abolished guaranteed-wage system in Jan 2025, widening the gap. Sources: platy.cz, expats.cz." }
+    "enterprise/corporate": {
+      "factor": 1.11,
+      "rationale": "Multinational R&D centres in Prague pay 30–40% above local mid-market on guaranteed comp; bonuses/equity add another 20–30%. Source: Kitalent Prague ICT analysis."
+    },
+    "scaleup": {
+      "factor": 1.03,
+      "rationale": "Scaleups (Productboard, Rohlik, Keboola tier) sit between startups and multinationals: above startups for proven delivery, below corporate on cash, with upside tied to growth."
+    },
+    "startup": {
+      "factor": 0.9,
+      "rationale": "Early-stage CZ startups compress cash salary and lean on equity/upside. Graduate entry at startups is materially below large-company entry. Source: expats.cz salary surveys."
+    },
+    "agency/consultancy": {
+      "factor": 1,
+      "rationale": "Mixed signal: Big-4/MBB consultants reach corporate-mid levels (Accenture Prague 83–91k); local consultancies (Deloitte CZ junior 44–58k) sit below in-house corporate IT. Net is roughly market-neutral."
+    },
+    "public sector": {
+      "factor": 0.8,
+      "rationale": "Czech public-sector IT capped by státní tarify (state pay tables); 80% of public-admin earn 29.8–65.0k vs 80% of IT earning 45–126k. Public sector also retained the abolished guaranteed-wage system in Jan 2025, widening the gap. Sources: platy.cz, expats.cz."
+    }
   },
   "company_modifier_effects": {
-    "remote": { "factor_delta": 0.03, "rationale": "International or fully-remote hiring opens access to higher cash bands than local-only postings." },
-    "equity": { "factor_delta": 0.0, "rationale": "Equity/options should be evaluated separately from cash compensation; no cash-band adjustment." },
-    "regulated": { "factor_delta": 0.04, "rationale": "Czech banking, fintech, pharma and healthtech roles trade at premium vs unregulated tech, reinforced by NIS2 (Nov 2025) and DORA (Jan 2025) compliance workload." }
+    "remote": {
+      "factor_delta": 0.03,
+      "rationale": "International or fully-remote hiring opens access to higher cash bands than local-only postings."
+    },
+    "equity": {
+      "factor_delta": 0,
+      "rationale": "Equity/options should be evaluated separately from cash compensation; no cash-band adjustment."
+    },
+    "regulated": {
+      "factor_delta": 0.04,
+      "rationale": "Czech banking, fintech, pharma and healthtech roles trade at premium vs unregulated tech, reinforced by NIS2 (Nov 2025) and DORA (Jan 2025) compliance workload."
+    }
   },
   "salary_signals": {
-    "english": { "rationale": "English proficiency is a baseline requirement at multinational R&D centres in Prague; effectively an entry-floor signal at senior level." },
-    "leadership": { "rationale": "Leadership/mentoring evidence is the steepest non-skill premium in the data; Prague senior managers reach 167k+ CZK and VP Engineering at multinationals 220–350k+ CZK." },
-    "cloud": { "rationale": "Cloud (AWS/Azure/GCP/IaC) is repeatedly cited as the top skills-gap by Czech CIOs; named premia attached to certifications. Source: Kitalent, Nucamp 2025." },
-    "ai": { "rationale": "AI/LLM skills carry a 15–25% premium in the local market and are projected at 10–12% annual salary inflation through 2026 vs 6–8% for general ICT." },
-    "security": { "rationale": "Czech New Cybersecurity Act (Nov 2025, NIS2 transposition) and DORA (Jan 2025) widened a pre-existing 10k+ specialist shortage; movers report 25–35% premia." },
-    "devops": { "rationale": "DevOps Engineer 62k–155k CZK on platy.cz — among the highest IT-role bands. 29% of CZ IT teams hired a DevOps engineer in the last cycle; cloud/IaC is table stakes." },
-    "german": { "rationale": "German is the second-most-cited language in CZ shared-service centres after English (Škoda/VW, Siemens, Erste, ČSOB nearshoring); modest cash premium, weighted at roughly half of English." },
-    "regulated_industry": { "rationale": "Banking/fintech/pharma roles in CZ pay above general tech average (~74k IT industry vs 100k+ at mid-level in regulated sectors); compliance experience compounds with NIS2/DORA/MiCA workload in 2025–2026." }
+    "english": {
+      "rationale": "English proficiency is a baseline requirement at multinational R&D centres in Prague; effectively an entry-floor signal at senior level."
+    },
+    "leadership": {
+      "rationale": "Leadership/mentoring evidence is the steepest non-skill premium in the data; Prague senior managers reach 167k+ CZK and VP Engineering at multinationals 220–350k+ CZK."
+    },
+    "cloud": {
+      "rationale": "Cloud (AWS/Azure/GCP/IaC) is repeatedly cited as the top skills-gap by Czech CIOs; named premia attached to certifications. Source: Kitalent, Nucamp 2025."
+    },
+    "ai": {
+      "rationale": "AI/LLM skills carry a 15–25% premium in the local market and are projected at 10–12% annual salary inflation through 2026 vs 6–8% for general ICT."
+    },
+    "security": {
+      "rationale": "Czech New Cybersecurity Act (Nov 2025, NIS2 transposition) and DORA (Jan 2025) widened a pre-existing 10k+ specialist shortage; movers report 25–35% premia."
+    },
+    "devops": {
+      "rationale": "DevOps Engineer 62k–155k CZK on platy.cz — among the highest IT-role bands. 29% of CZ IT teams hired a DevOps engineer in the last cycle; cloud/IaC is table stakes."
+    },
+    "german": {
+      "rationale": "German is the second-most-cited language in CZ shared-service centres after English (Škoda/VW, Siemens, Erste, ČSOB nearshoring); modest cash premium, weighted at roughly half of English."
+    },
+    "regulated_industry": {
+      "rationale": "Banking/fintech/pharma roles in CZ pay above general tech average (~74k IT industry vs 100k+ at mid-level in regulated sectors); compliance experience compounds with NIS2/DORA/MiCA workload in 2025–2026."
+    }
   }
 }

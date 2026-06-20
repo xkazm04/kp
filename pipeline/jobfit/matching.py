@@ -105,6 +105,12 @@ class MatchCandidate(_Base):
     # preferences (optional KO inputs)
     preferred_work_modes: list[str] = Field(default_factory=list)
     label: str = "Candidate"
+    # Compact CV-derived context for the reasoning layer (Layer C) so the rationale
+    # can cite a concrete, candidate-specific fact instead of generic boilerplate.
+    # Populated by transform.build_match_candidate from the profile's evidence;
+    # empty for inline tag-only candidates (the /api/match path).
+    experience_highlights: list[str] = Field(default_factory=list)
+    work_links: list[str] = Field(default_factory=list)
 
     @field_validator("potential_score")
     @classmethod

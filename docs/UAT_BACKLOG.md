@@ -37,16 +37,16 @@ sealed.* This is also the substance PKG-A advertises, so it makes B2 honest.
 ### PKG-C · "Defensible AI output" — grounded reasoning everywhere ★★ high (partly shipped)
 **Why:** the differentiator vs keyword ATS tools — no AI surface should narrate an
 unverifiable claim. M1 shipped; finish the theme.
-**Items:** **M1 ✅** skill-chip gate · **M5** rediscovery why-now · *residual:* confirm the eval summary + interview kit don't reintroduce withheld skills · *L2:* adversarial verify on a real Gemini analysis.
-**Effort:** ~M (M5) + S (residual).
+**Items:** **M1 ✅** skill-chip gate · **M5 ✅** rediscovery why-now · *residual ✅* — interview kit confirmed grounded (sources `candidate.skills` + the M1-cleaned `matching_skills`); the free-text eval summary is left to L2 adversarial verify (a prose skill-gate would be brittle, and the M1 withhold-note already flags it) · *L2:* adversarial verify on a real Gemini analysis (deferred — needs a key + browser).
+**Status: COMPLETE** (bar the deferred L2 check).
 
 ### PKG-D · "Dev hiring that respects seniors" — the dev extension ★ medium
 **Why:** narrow to the dev-hiring extension, but real senior drop-off + a missing AI disclosure.
 **Items:** **M8** senior timebox ≤~2h · **M9** single submit path + AI-use disclosure.
 **Effort:** ~2–3 days.
 
-### PKG-E · "Polish tail" ★ low
-Bilingual audit rationale (`screen-wave.ts:22-23`) · fairness "weights converged" framing (`FairnessPanel.tsx:20-27`) · remaining minors per `findings.json`.
+### PKG-E · "Polish tail" ★ low — ✅ named items done (2026-06-19)
+Bilingual audit rationale ✅ · fairness "weights converged" framing ✅ · *remaining un-named minors per `findings.json` left as an open low-value catch-all.*
 
 **Recommended overall path (value × dependency):** open PKG-A's **B1** and PKG-B's **M2** first (independent, one a quick win), land **M6** before **B2**, finish A, then C/D, E last.
 
@@ -58,16 +58,16 @@ Bilingual audit rationale (`screen-wave.ts:22-23`) · fairness "weights converge
 |---|----|------|-----------|--------|----------|--------|
 | 1 | M1 | **Gate "matched" skill chips to a real CV↔JD match** (kill hallucinated matches) | V1 core-promise | M | Petra (blocker), Eva, buyer's "defensible" claim | ✅ Done (2026-06-19) |
 | 2 | B1 | **Public door for the keyless guided simulation** | V1 adoption | M | Helena (whole buyer funnel) | ✅ Done (2026-06-19) |
-| 3 | B2 | **Public EU AI-Act / GDPR / human-in-the-loop story** | V1 adoption | S–M | Helena (bank dealbreaker) | ☐ Todo |
+| 3 | B2 | **Public EU AI-Act / GDPR / human-in-the-loop story** | V1 adoption | S–M | Helena (bank dealbreaker) | ✅ Done (2026-06-19) |
 | 4 | M2 | **Inline onboarding next-step on offer-accept** (quick win) | V2 brand/trust | S | Tereza, Tomáš, candidate brand | ✅ Done (2026-06-19) |
 | 5 | M6 | **Seal every solely-automated reject + make the AI disclosure truthful** | V2 legal | M | Lucie (GDPR Art. 22) | ✅ Done (2026-06-19) |
 | 6 | M3 | **Bulk-reject must notify** (no silent ghosting) | V2 brand/legal | S–M | Marek, Tereza, Lucie | ✅ Done (2026-06-19) |
 | 7 | M4 | **Outreach needs a draft/preview before it sends under the bank's name** | V2 brand/trust | M | Jana, Marek | ☐ Todo |
-| 8 | M7 | **Measured ROI vs the ~23h baseline + one leadership readout** | V3 value-prop | M–L | Kateřina, buyer ROI story | ☐ Todo |
-| 9 | M5 | **Why-now rationale on each rediscovered candidate** | V3 value-prop | M | Jana | ☐ Todo |
-| 10 | M9 | **One dev-case submit path + an AI-use disclosure on the eval surface** | V3 dev-ext/legal | S–M | Sam, Eva, Lucie | ☐ Todo |
-| 11 | M8 | **Bound the senior dev-case scope short (≤~2h) / adaptive timebox** | V4 dev-ext | S | Sam | ☐ Todo |
-| 12 | M10 | **Quantified, sourced ROI math + an Enterprise pricing tier** | V4 buyer polish | S–M | Helena | ☐ Todo |
+| 8 | M7 | **Measured ROI vs the ~23h baseline + one leadership readout** | V3 value-prop | M–L | Kateřina, buyer ROI story | ✅ Done (2026-06-19) |
+| 9 | M5 | **Why-now rationale on each rediscovered candidate** | V3 value-prop | M | Jana | ✅ Done (2026-06-19) |
+| 10 | M9 | **One dev-case submit path + an AI-use disclosure on the eval surface** | V3 dev-ext/legal | S–M | Sam, Eva, Lucie | ✅ Done (2026-06-19) |
+| 11 | M8 | **Bound the senior dev-case scope short (≤~2h) / adaptive timebox** | V4 dev-ext | S | Sam | ✅ Done (2026-06-19) |
+| 12 | M10 | **Quantified, sourced ROI math + an Enterprise pricing tier** | V4 buyer polish | S–M | Helena | ✅ Done (2026-06-19) |
 
 *Minor cleanups (V4 tail) tracked at the bottom.*
 
@@ -95,6 +95,7 @@ Bilingual audit rationale (`screen-wave.ts:22-23`) · fairness "weights converge
 - **Evidence:** `messages/en.json:287` (oversight framing, authed only); strengths to cite: G2, G3, G4, G6, G9.
 - **Fix:** a public "Responsible AI / Compliance" section (landing or `/about`) stating high-risk-AI posture, human-in-the-loop, GDPR Art. 22 stance, and linking the audit-trail/consent capabilities.
 - **Acceptance:** Helena can answer "is this AI-Act/GDPR-defensible?" from public pages without logging in.
+- **✅ Done (2026-06-19):** added a "Responsible AI" section to the spark landing (`SparkLanding.tsx`, before Pricing) — four sticker-card pillars (Human in the loop · EU AI Act ready · GDPR & Article 22 · Provable-not-promised audit/calibration), a subtitle, and a scope-honest footnote ("a working demonstration… not a legal certification"). Copy in `landing.trust.*` (cs+en, parity 2690 keys); reuses imported icons; matches the art direction. The human-in-the-loop claim is now **true** thanks to M6. Validated: typecheck + eslint + i18n green; `/` returns 200. **Reachability note:** the landing renders at `/` (the `/landing*` routes redirect there) and is shown to any visitor in the open/demo deployment; a password-gated prod sign-in-gates `/` (pre-existing decision — same gating B1 noted), where a cold prospect would reach the story via the shared demo link. **L2-deferred:** browser-verify the section renders + reads well in both locales (it's client-rendered post-hydration, so curl can't see it).
 
 ### 4 · M2 — Inline onboarding next-step on offer-accept  ·  V2 · S  ·  ⚡ recommended first quick win
 **Why here / quick win:** Tiny effort, candidate-facing, and it closes a gap a recent commit *claimed* to fix. The accepted state renders only a "we'll be in touch" body; the onboarding step exists **at the same token** (and is emailed) but is never surfaced inline — exactly Tereza's #1 "ghosting" peeve, corroborated by Tomáš. Verified still open at `app/offer/[token]/page.tsx:194-200`.
@@ -128,30 +129,35 @@ Bilingual audit rationale (`screen-wave.ts:22-23`) · fairness "weights converge
 - **Evidence:** `app/_lib/automation-roi.ts:14-29,55-74`.
 - **Fix:** compute measured time-saved against a baseline (per-role or configurable) and add one combined leadership ROI readout (automation savings + cost-per-hire + time-to-fill) with export.
 - **Acceptance:** Kateřina can show leadership a single, sourced "time/cost saved vs baseline" number.
+- **✅ Done (2026-06-19):** `automation-roi.ts` now measures saved labor against a **stated manual baseline** (`MANUAL_HOURS_PER_HIRE = 42`, research-anchored 40–51h/hire) — `automationRoi(kindCounts, rate, hires)` returns `hoursSavedPerHire`, `czkSavedPerHire`, `manualBaselineHoursPerHire`, and `pctOfManualBaseline` (capped at full replacement, null without hires so it's never a divide-by-zero lie). `analytics.ts` passes `hired` and adds a **blended overall `costPerHireCzk`** (Σ channel spend ÷ hires, all-time only). The `RoiLedger` headline now carries a baseline line ("≈X h/hire — Y% of the ~42 h a hire takes by hand") plus a **single leadership readout** combining *time-saved vs baseline · cost-per-hire · time-to-hire*, and the CSV export leads with that summary. Copy in `analytics.roi.*` (cs+en, parity 2706). Validated: **972/972 unit tests** (+4 precise baseline tests), typecheck, eslint, i18n green. **Deferred:** live `/api/analytics` field check (the dev server was down during validation) — the ROI math is a pure, fully-tested function so risk is low.
 
 ### 9 · M5 — Why-now on rediscovered candidates  ·  V3 · M
 **Why here:** Rediscovery is a real differentiator, but silver-medalists surface as score+name+backward-looking `prior` with no *why-now* — Jana's #1 peeve, baked into the data model.
 - **Evidence:** `app/_lib/rediscover.ts:27`; `app/features/sub_jobs/RediscoverPanel.tsx:67`; `messages/cs.json:1909`.
 - **Fix:** add a why-now rationale per rediscovered candidate (what changed / why this role now), grounded like the match reasoning.
 - **Acceptance:** each rediscovered card answers "why am I seeing this person for this role, now?"
+- **✅ Done (2026-06-19):** each rediscovery card now carries a forward-looking **why-now** line under the name + (legacy) prior chip — grounded in the *real* data already on the client: the prior-outcome kind, the deterministic fit score, and the open role. Three localized variants by `prior.kind` (rejected → "role-fit mismatch then, not a capability gap; worth a look now this seat's open"; closed → "proven, available candidate"; elsewhere → "already in motion, a redeploy worth weighing"). Pure panel + i18n change (`RediscoverPanel.tsx` + `jobs.rediscover.whyNow.*`, cs+en, parity 2720) — no lib/Python touch, and *localized* unlike the legacy hardcoded `prior.label`. Validated: typecheck + eslint + i18n green. **Future enhancement:** naming the specific matched-skill drivers would need the deterministic match breakdown surfaced from the Python ranker (today only `total` is threaded).
 
 ### 10 · M9 — Dev-case: one submit path + AI disclosure  ·  V3 · S–M
 **Why here:** Two contradictory submit paths (in-product editor vs a *required* repo-URL form) confuse the candidate, and there's **no AI-use disclosure** on the one surface where AI actually evaluates them (the apply chat has one; the dev case doesn't) — a consistency + compliance gap. Scoped to the dev extension, so below the cross-cutting items.
 - **Evidence:** `app/features/sub_dev/DevApplyForm.tsx:30,89-98` vs `app/devcase/apply/[token]/page.tsx:79-85`; no disclosure at `page.tsx:58-87`.
 - **Fix:** pick one submit path; mount the AI-use disclosure on the dev-case surface.
 - **Acceptance:** one obvious way to submit; the candidate is told AI evaluates their work before they start.
+- **✅ Done (2026-06-19):** the dev-case page now renders **exactly one submit path** — a *workspace* case submits through the `LiveWorkSurface` (grades the observed process), a case with *no workspace* through the repo-link `DevApplyForm` — never both. To keep the live path reachable (it was anonymous), the surface now captures **name + contact**, threaded through `/api/devcase/session/[id]/submit` → `submitDevSession(…, identity)` → `createSubmission` (candidateRef + contact). And **`<AiDisclosure showDataConsent>`** now sits on the page (the surface where AI evaluates the candidate), matching the apply/offer surfaces. Reused existing `devApply` i18n keys (no parity change). Validated: typecheck + eslint + i18n + 972 unit tests green.
 
 ### 11 · M8 — Bound the senior dev-case scope short  ·  V4 · S
 **Why here:** A senior is timeboxed at 6h and told so — the half-day take-home that drives the 40–60% senior drop-off Sam embodies. Narrow (dev extension) but a cheap fix with real candidate-pool impact.
 - **Evidence:** `pipeline/jobfit/devcase/design.py:26,235-237`; `app/features/sub_dev/DevHelpers.ts:46-48`.
 - **Fix:** bound senior case scope to ≤~2h (or make the timebox adaptive); add a scope-cap guard alongside `MAX_CODEBASES`.
 - **Acceptance:** a senior brief reads as a focused ≤2h exercise, not a half-day take-home.
+- **✅ Done (2026-06-19):** `pipeline/jobfit/devcase/design.py` — the seniority ladder is recompressed to **≤2h** (`{junior:1.0, medior:1.5, senior:2.0, lead:2.0}`, default 1.5; senior was 6.0, lead 8.0) and a hard **`_MAX_TIMEBOX_HOURS = 2.0`** clamps the LLM's own `timeboxHours` echo (floored at 0.5h). Seniority now scales *depth/ambiguity* (per the prompt), not hours — the half-day take-home that drives 40–60% senior drop-off is gone. The candidate-facing `~Nh timebox` render (`DevHelpers.ts`) reads from this bounded source. Validated: 6 devcase Python tests + typecheck green.
 
 ### 12 · M10 — Sourced ROI math + Enterprise pricing  ·  V4 · S–M
 **Why here:** Buyer polish — no quantified/sourced ROI on the public pages and SMB-only pricing with no Enterprise/contact tier for an org-scale bank. Lands after the substantive compliance/ROI work it depends on.
 - **Evidence:** marketing + billing surfaces (see `helena-buyer--L1.md`).
 - **Fix:** publish ROI math with sources; add an Enterprise/contact-sales tier.
 - **Acceptance:** Helena sees credible numbers and a path to buy at org scale.
+- **✅ Done (2026-06-19):** added an **Enterprise band** below the four metered tiers in `PricingSection.tsx` — a contact-sales tier (SSO / roles & audit / dedicated env / onboarding, "priced to your volume", "Talk to sales" CTA) **paired with the sourced ROI math** that justifies it: three cited stats (60–70% less screening time · ~23 h manual screening/hire · 40–51 h total/hire) with a source footnote pointing to the live Analytics→ROI (the M7 work). Copy in `landing.pricing.enterprise.*` (cs+en, parity 2717; flat keys for robust parity). Validated: typecheck + eslint + i18n green. **L2-deferred:** browser-verify the band renders in both locales (client-rendered landing, like B2).
 
 ---
 
@@ -170,8 +176,9 @@ When touching these areas, preserve (evidence in `report.md` "What passed"):
 - **G10** The keyless real-click simulation engine.
 
 ## V4 minor tail (batch later)
-- Persist screen-wave audit rationale bilingually (cs regulators read the raw export) — `screen-wave.ts:22-23`.
-- Fairness matrix "weights converged" framing so an auditor reads a *passed* check, not an absent one — `FairnessPanel.tsx:20-27`.
+- ✅ **Done (2026-06-19)** — Bilingual decision-record rationale: the sealed `rationale` stays byte-stable English (in the hash), but the **records panel + export now render a localized rationale** from the structured `reasonCode` + `inputs` each record already carries (same mirror the screen-wave modal uses; falls back to English for unmapped codes). Export adds `rationaleLocalized` *alongside* the untouched `rationale`, so chain verification is unaffected. `DecisionRecordsPanel.tsx`.
+- ✅ **Done (2026-06-19)** — Fairness "weights converged" framing: `fairnessUniform` copy (cs+en) reframed from "everyone used standard weights" to **"Fairness check passed — re-scoring under each other's weighting leaves the order unchanged, so the ranking is robust"** — reads as a *passed* check, not an absent one. `FairnessPanel.tsx`.
+- *Remaining: the long tail of un-named minor/polish findings in `findings.json` — low value, batch opportunistically.*
 - Remaining minors per `findings.json` (group by surface when batching).
 
 ## L2 prerequisites (independent of the above — needed before live confirmation)

@@ -4,6 +4,7 @@ import { Markdown } from "@/app/_components/Markdown";
 import { getDevCase, getPostingByToken } from "@/app/_lib/db";
 import { caseToMarkdown } from "@/app/features/sub_dev/DevHelpers";
 import type { CaseScenario, RoleSpec } from "@/app/features/sub_dev/DevTypes";
+import { AiDisclosure } from "@/app/_components/AiDisclosure";
 import { DevApplyForm } from "./DevApplyForm";
 import { type SeedFile } from "./SeedFiles";
 import { LiveWorkSurface } from "./LiveWorkSurface";
@@ -66,6 +67,11 @@ export default async function DevCaseApplyPage({ params }: { params: Promise<{ t
       ) : null}
       <p className="mt-2 text-body text-steel">{t("subtitle")}</p>
 
+      {/* AI-use disclosure (UAT M9): this is the surface where AI evaluates the
+          candidate, so it carries the same transparency note as the apply/offer
+          surfaces — with the data-consent line, since submitting here IS consent. */}
+      <AiDisclosure showDataConsent className="mt-4" />
+
       {markdown ? (
         <section className="mt-6 rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
           <Markdown content={markdown} />
@@ -76,13 +82,18 @@ export default async function DevCaseApplyPage({ params }: { params: Promise<{ t
         </p>
       )}
 
-      {seedFiles.length > 0 ? <LiveWorkSurface token={token} seedFiles={seedFiles} note={seedNote} /> : null}
-
-      <section className="mt-6 rounded-lg border border-stone-200 bg-paper/40 p-4">
-        <h2 className="font-serif text-h3 text-ink">{t("submitHeading")}</h2>
-        <p className="mt-1 text-sm text-steel">{t("submitHint")}</p>
-        <DevApplyForm token={token} />
-      </section>
+      {/* ONE submit path (UAT M9): a workspace case submits through the live
+          surface (it grades the observed process and now carries identity); a case
+          with no workspace submits through the repo-link form. Never both at once. */}
+      {seedFiles.length > 0 ? (
+        <LiveWorkSurface token={token} seedFiles={seedFiles} note={seedNote} />
+      ) : (
+        <section className="mt-6 rounded-lg border border-stone-200 bg-paper/40 p-4">
+          <h2 className="font-serif text-h3 text-ink">{t("submitHeading")}</h2>
+          <p className="mt-1 text-sm text-steel">{t("submitHint")}</p>
+          <DevApplyForm token={token} />
+        </section>
+      )}
     </main>
   );
 }

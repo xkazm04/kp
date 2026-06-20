@@ -3,7 +3,7 @@ from __future__ import annotations
 import unittest
 
 from pipeline.jobfit.jobs import normalize_job
-from pipeline.jobfit.match_reasoning import deterministic_reasoning, generate, reasoning_context
+from pipeline.jobfit.match_reasoning import _system_for, deterministic_reasoning, generate, reasoning_context
 from pipeline.jobfit.matching import MatchCandidate, score_job
 
 CAND = MatchCandidate(
@@ -77,6 +77,47 @@ class LlmPathTest(unittest.TestCase):
 
         _r, source = generate(CAND, JOB, score_job(CAND, JOB), provider=Boom())
         self.assertEqual(source, "deterministic")
+
+
+class PersonaTest(unittest.TestCase):
+    def test_persona_is_industry_and_market_aware_not_czech_tech(self) -> None:
+        # The software job (no location -> default Praha) must not carry the old
+        # hardcoded "Czech tech market" tech-recruiter persona, and should name the
+        # role family + market it was given.
+        sw = _system_for(JOB)
+        self.assertNotIn("Czech tech market", sw)
+        self.assertNotIn("technical recruiter", sw.lower())
+        self.assertIn("Software", sw)
+        self.assertIn("Praha", sw)  # market from job.location default
+
+        # A non-tech role gets a non-tech lens + its own market.
+        hjob = normalize_job(
+            {
+                "title": "ICU Nurse",
+                "seniority": "senior",
+                "role_family": "healthcare_clinical",
+                "location": "Boston",
+                "description": "ICU",
+                "requirements": [{"skill": "ICU", "kind": "must_have"}],
+            }
+        )
+        hs = _system_for(hjob)
+        self.assertIn("Healthcare", hs)
+        self.assertIn("Boston", hs)
+
+    def test_reasoning_context_carries_real_cv_highlights(self) -> None:
+        cand = MatchCandidate(
+            skills=["ICU"],
+            seniority="senior",
+            role_family="healthcare_clinical",
+            summary="8 years as an ICU nurse",
+            experience_highlights=["Staff Nurse III — ventilator & CRRT care"],
+            work_links=["https://example.org/portfolio"],
+        )
+        ctx = reasoning_context(cand, JOB, score_job(cand, JOB))
+        self.assertEqual(ctx["candidate"]["summary"], "8 years as an ICU nurse")
+        self.assertIn("Staff Nurse III — ventilator & CRRT care", ctx["candidate"]["experienceHighlights"])
+        self.assertIn("https://example.org/portfolio", ctx["candidate"]["workLinks"])
 
 
 if __name__ == "__main__":

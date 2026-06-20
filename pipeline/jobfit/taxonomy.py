@@ -81,6 +81,39 @@ DEFAULT_FAMILY: str = _BENCHMARKS.get("default_family") or ROLE_FAMILIES[0]
 
 RoleFamily = Enum("RoleFamily", {family.upper(): family for family in ROLE_FAMILIES})
 
+# Role-family vocabulary descriptions (data/taxonomy.json::role_families). The
+# taxonomy owns the *meaning* of each family; salary_benchmarks.json provides its
+# bands. The analysis prompt lists these so the model picks an industry-appropriate
+# family instead of collapsing every CV to a technology family (idea P0-1). Every
+# benchmark family MUST be described here, or classification has no human anchor.
+ROLE_FAMILY_DESCRIPTIONS: dict[str, str] = {
+    str(fam): str(desc) for fam, desc in (_TAXONOMY.get("role_families") or {}).items()
+}
+_undescribed_families = [f for f in ROLE_FAMILIES if f not in ROLE_FAMILY_DESCRIPTIONS]
+if _undescribed_families:
+    raise RuntimeError(
+        f"{_BENCHMARKS_PATH} role families missing a description in "
+        f"{_TAXONOMY_PATH}::role_families: {_undescribed_families}. "
+        "Add a one-line description for each so the analysis prompt can present it."
+    )
+
+
+def role_family_catalog() -> list[tuple[str, str]]:
+    """``(family_id, description)`` for every known role family, benchmark order first.
+
+    Fed to the analysis prompt so the model chooses an industry-appropriate family
+    rather than defaulting a non-technology candidate to a technology family.
+    """
+    seen: set[str] = set()
+    catalog: list[tuple[str, str]] = []
+    for fam in ROLE_FAMILIES:
+        catalog.append((fam, ROLE_FAMILY_DESCRIPTIONS.get(fam, "")))
+        seen.add(fam)
+    for fam, desc in ROLE_FAMILY_DESCRIPTIONS.items():
+        if fam not in seen:
+            catalog.append((fam, desc))
+    return catalog
+
 COMPANY_ADJUSTMENTS: dict[str, dict[str, Any]] = dict(_TAXONOMY.get("company_adjustments", {}))
 COMPANY_MODIFIER_EFFECTS: dict[str, dict[str, Any]] = dict(_TAXONOMY.get("company_modifier_effects", {}))
 SALARY_SIGNAL_RATIONALE: dict[str, str] = {
@@ -108,7 +141,12 @@ def _text_contains(text: str, compact_text: str, surface: str) -> bool:
     if normalized in text:
         return True
     compact_form = _compact(normalized)
-    return bool(compact_form) and compact_form in compact_text
+    # Only fall back to spaceless/compact matching for forms of length >= 3. A 1-2
+    # char compact form (e.g. "c#" -> "c", "c++" -> "c", "go") is a substring of
+    # countless unrelated words and would match almost any text — which silently
+    # voted software_engineering on every CV via the "c#" term. Such short skills
+    # still match precisely through the literal branch above.
+    return len(compact_form) >= 3 and compact_form in compact_text
 
 
 def _term_in_text(term: dict[str, Any], text: str, compact_text: str) -> bool:
@@ -329,8 +367,13 @@ def detected_signals(text: str) -> list[str]:
 
 def classify_role_family(skills: list[str], text: str, recent_text: str = "") -> str:
     skill_set = {_normalize(skill) for skill in skills}
-    compact_text = _compact(text)
-    compact_recent = _compact(recent_text) if recent_text else ""
+    # Normalize the text up front (case/diacritic-fold) the same way detected_skills
+    # does — _text_contains only folds the surface form, so a raw mixed-case CV would
+    # otherwise miss "Registered Nurse"/"Account Manager" on the literal branch.
+    text_n = _normalize(text)
+    compact_text = _compact(text_n)
+    recent_n = _normalize(recent_text) if recent_text else ""
+    compact_recent = _compact(recent_n) if recent_n else ""
 
     scores: dict[str, float] = {family: 0.0 for family in ROLE_FAMILIES}
     for term in _TERMS:
@@ -339,9 +382,9 @@ def classify_role_family(skills: list[str], text: str, recent_text: str = "") ->
             continue
         forms = _term_match_strings(term)
         in_skills = any(form in skill_set for form in forms)
-        in_text = any(_text_contains(text, compact_text, form) for form in term["match"])
-        in_recent = bool(recent_text) and any(
-            _text_contains(recent_text, compact_recent, form) for form in term["match"]
+        in_text = any(_text_contains(text_n, compact_text, form) for form in term["match"])
+        in_recent = bool(recent_n) and any(
+            _text_contains(recent_n, compact_recent, form) for form in term["match"]
         )
         for family, weight in votes.items():
             if family not in ROLE_FAMILY_SET:

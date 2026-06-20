@@ -1,6 +1,14 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { coerceTasks, onboardingProgress, type OnboardingTask } from "./onboarding.ts";
+import {
+  coerceQuestionnaire,
+  coerceTasks,
+  DEFAULT_QUESTIONNAIRE,
+  ENTRY_QUESTIONNAIRE_FIELDS,
+  ONBOARDING_PRESETS,
+  onboardingProgress,
+  type OnboardingTask,
+} from "./onboarding.ts";
 
 test("coerceTasks trims, drops blanks, de-dups ids, caps length", () => {
   const tasks = coerceTasks([
@@ -51,4 +59,42 @@ test("onboardingProgress is complete only when every task is done", () => {
   assert.equal(onboardingProgress(tasks, [{ taskId: "a", done: true, doneAt: "x" }]).complete, true);
   // empty template never reads as complete, and never divides by zero
   assert.deepEqual(onboardingProgress([], []), { done: 0, total: 0, pct: 0, complete: false });
+});
+
+// --- P1-4: editable questionnaire + industry presets ---
+
+test("coerceQuestionnaire derives keys, de-dups, drops blanks, tolerates junk", () => {
+  const q = coerceQuestionnaire([
+    { key: "preferredName", label: "Preferred name" },
+    { label: "License number" }, // key derived → licenseNumber
+    { label: "License number" }, // dup label → key re-keyed unique
+    { label: "" }, // dropped
+    "nope", // dropped
+  ]);
+  assert.equal(q.length, 3);
+  assert.equal(q[0].key, "preferredName");
+  assert.equal(q[1].key, "licenseNumber");
+  assert.notEqual(q[2].key, q[1].key); // unique
+  assert.equal(new Set(q.map((f) => f.key)).size, q.length);
+  assert.deepEqual(coerceQuestionnaire(null), []);
+});
+
+test("ENTRY_QUESTIONNAIRE_FIELDS mirrors the default questionnaire keys", () => {
+  assert.deepEqual(ENTRY_QUESTIONNAIRE_FIELDS, DEFAULT_QUESTIONNAIRE.map((f) => f.key));
+});
+
+test("every onboarding preset is well-formed and non-tech-inclusive", () => {
+  const ids = new Set(ONBOARDING_PRESETS.map((p) => p.id));
+  // The cohort's gaps are represented (not just generic-office).
+  for (const id of ["general", "healthcare_clinical", "skilled_trades", "tech_startup", "frontline_service"]) {
+    assert.ok(ids.has(id), `missing preset ${id}`);
+  }
+  for (const p of ONBOARDING_PRESETS) {
+    assert.ok(p.name && p.industry, `${p.id} needs a name + industry`);
+    // tasks survive the same coercion the store applies, and there's at least one.
+    assert.ok(coerceTasks(p.tasks).length >= 1, `${p.id} needs >=1 task`);
+    const q = coerceQuestionnaire(p.questionnaire);
+    assert.equal(q.length, p.questionnaire.length, `${p.id} questionnaire must be coercion-clean`);
+    assert.equal(new Set(q.map((f) => f.key)).size, q.length, `${p.id} questionnaire keys must be unique`);
+  }
 });

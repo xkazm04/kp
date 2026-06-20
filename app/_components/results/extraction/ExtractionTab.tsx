@@ -6,10 +6,20 @@ import { FactorChart } from "@/app/_components/FactorChart";
 import { ScoreDial } from "@/app/_components/ScoreDial";
 import { labelize, reconcileScoreTotal } from "@/app/_lib/format";
 import type { Analysis } from "@/app/_lib/schemas";
+import { dedupeBy } from "@/app/_lib/dedupe";
+import { safeHttpLinks } from "@/app/_lib/safe-url";
 import { EnginePanel, InlineList, ListBlock, Metric } from "../shared";
 
 export function ExtractionTab({ analysis }: { analysis: Analysis }) {
   const t = useTranslations("report");
+  const candidate = analysis.candidate;
+  // These fields are nullish in the schema (absent on pre-P0-4 analyses), so default
+  // each to [] before use. Candidate-supplied links are untrusted at this render
+  // boundary — vet to http(s) only and dedupe (same gate SalaryTab's links use).
+  const credentials = candidate.credentials ?? [];
+  const publications = candidate.publications ?? [];
+  const candidateLinks = dedupeBy(safeHttpLinks(candidate.links ?? []), (link) => link.href);
+  const hasCredEvidence = credentials.length > 0 || publications.length > 0 || candidateLinks.length > 0;
   return (
     <div className="grid gap-5 xl:grid-cols-[380px_1fr]">
       <div className="space-y-5">
@@ -26,6 +36,61 @@ export function ExtractionTab({ analysis }: { analysis: Analysis }) {
             <ScoreDial score={reconcileScoreTotal(analysis.score)} />
           </div>
         </div>
+
+        {hasCredEvidence ? (
+          <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
+            <div className="flex items-center gap-2">
+              <BadgeCheck className="h-5 w-5 text-moss" aria-hidden />
+              <h3 className="font-serif text-h3 text-ink">{t("panel.credentialsWork")}</h3>
+            </div>
+            {credentials.length > 0 ? (
+              <div className="mt-4">
+                <p className="text-meta uppercase tracking-wide text-steel">{t("panel.credentials")}</p>
+                <ul className="mt-2 space-y-1.5 text-base leading-6 text-ink">
+                  {credentials.map((c, i) => (
+                    <li key={i} className="flex items-start gap-2">
+                      <BadgeCheck className="mt-0.5 h-4 w-4 shrink-0 text-moss" aria-hidden />
+                      <span>
+                        <span className="font-medium">{c.name}</span>
+                        {c.issuer ? ` · ${c.issuer}` : ""}
+                        {c.identifier ? ` · ${c.identifier}` : ""}
+                        {c.expiry ? ` · ${c.expiry}` : ""}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+            {publications.length > 0 ? (
+              <div className="mt-4">
+                <p className="text-meta uppercase tracking-wide text-steel">{t("panel.publications")}</p>
+                <ul className="mt-2 space-y-1.5 text-base leading-6 text-ink">
+                  {publications.map((p, i) => (
+                    <li key={i}>
+                      <span className="font-medium">{p.title}</span>
+                      {p.venue ? ` · ${p.venue}` : ""}
+                      {p.year ? ` · ${p.year}` : ""}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+            {candidateLinks.length > 0 ? (
+              <div className="mt-4">
+                <p className="text-meta uppercase tracking-wide text-steel">{t("panel.links")}</p>
+                <ul className="mt-2 space-y-1.5 text-base leading-6">
+                  {candidateLinks.map((link) => (
+                    <li key={link.href}>
+                      <a className="text-steel underline" href={link.href} target="_blank" rel="noreferrer">
+                        {link.hostname}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
 
         {analysis.extractionQuality ? (
           <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">

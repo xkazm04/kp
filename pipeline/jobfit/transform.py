@@ -152,6 +152,27 @@ def build_match_candidate(profile: CandidateProfileV2) -> MatchCandidate:
 
     potential, signals = compute_potential(profile) if is_early else (None, [])
 
+    # Compact, recent-first CV highlights + de-duped work links, so Layer C reasoning
+    # can ground its rationale in concrete candidate facts (and a portfolio/repo for
+    # creative/eng roles) rather than the structured tags alone.
+    highlights: list[str] = []
+    for ev in sorted(profile.evidence, key=lambda e: (e.recency or ""), reverse=True):
+        title = (ev.title or "").strip()
+        text = (ev.text or "").strip()
+        if not title and not text:
+            continue
+        line = f"{title} — {text}" if title and text else (title or text)
+        highlights.append(line[:200])
+        if len(highlights) >= 6:
+            break
+    seen_links: set[str] = set()
+    work_links: list[str] = []
+    for ev in profile.evidence:
+        link = (ev.link or "").strip()
+        if link and link not in seen_links:
+            seen_links.add(link)
+            work_links.append(link)
+
     return MatchCandidate(
         skills=skills,
         skill_provenance=skill_provenance,
@@ -168,4 +189,6 @@ def build_match_candidate(profile: CandidateProfileV2) -> MatchCandidate:
         transferable_skills=transferable,
         domain_distance=distance,
         label=profile.display_name or "Candidate",
+        experience_highlights=highlights,
+        work_links=work_links[:6],
     )

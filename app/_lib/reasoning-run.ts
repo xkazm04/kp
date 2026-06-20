@@ -12,7 +12,7 @@ import { isCacheableReasoning } from "./reasoning-cache-policy";
 // Must match pipeline/jobfit/match_reasoning.py::REASONING_PROMPT_VERSION — a
 // drift here leaves the reasoning cache silently stale. The pairing is enforced
 // by pipeline/jobfit/tests/test_prompt_version_sync.py (CI fails on divergence).
-const REASONING_PROMPT_VERSION = "match-reasoning-v1";
+const REASONING_PROMPT_VERSION = "match-reasoning-v2";
 const CACHE_TTL_HOURS = 168;
 
 export class ReasoningError extends Error {

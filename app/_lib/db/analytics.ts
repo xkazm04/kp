@@ -32,6 +32,10 @@ export type PipelineAnalytics = {
   declined: number;
   funnel: { stage: string; reached: number; current: number; conversionPct: number | null }[];
   avgTimeToHireDays: number | null;
+  // UAT M7 — blended overall cost per hire (Σ recruiter-entered channel spend ÷
+  // hires), all-time only (windowed = null, mirroring the per-channel rule); the
+  // single cost figure for the leadership readout.
+  costPerHireCzk: number | null;
   avgAgeDays: number | null;
   bottleneck: Bottleneck | null;
   // Per-stage average dwell time across ALL active stages (Sloneek "time spent in
@@ -461,6 +465,13 @@ export function pipelineAnalytics(
   // variant is precisely the one a top-N-by-volume cut would hide.
   const variantRecommendations = variantPauseRecommendations(variantStats, now);
 
+  // UAT M7 — blended overall cost-per-hire for the leadership readout: total
+  // recruiter-entered channel spend ÷ hires. Same honesty as the per-channel
+  // figure — all-time only (spend is lifetime, not windowed) and only when there's
+  // spend AND a hire to divide by; otherwise null ("—").
+  const totalSpendCzk = [...spendByChannel.values()].reduce((sum, v) => sum + (v ?? 0), 0);
+  const costPerHireCzk = !cutoffIso && totalSpendCzk > 0 && hired > 0 ? Math.round(totalSpendCzk / hired) : null;
+
   return {
     total,
     active,
@@ -485,9 +496,11 @@ export function pipelineAnalytics(
     byVariantTotal: variantStats.length,
     variantRecommendations,
     targets: analyticsTargets(),
+    costPerHireCzk,
     // b39992b1 — value of the automation over this window, at the stored (or
     // default) recruiter hourly rate, from the same kindCounts the rollup uses.
-    automationRoi: automationRoi(kindCounts, listAnalyticsTargets().get(RECRUITER_HOURLY_TARGET_KEY)),
+    // `hired` anchors the per-hire baseline framing (UAT M7).
+    automationRoi: automationRoi(kindCounts, listAnalyticsTargets().get(RECRUITER_HOURLY_TARGET_KEY), hired),
   };
 }
 

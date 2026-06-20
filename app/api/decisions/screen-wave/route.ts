@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { runScreenWave } from "@/app/_lib/screen-wave";
+import { runScreenWave, ScreenWaveApprovalError } from "@/app/_lib/screen-wave";
 import { DecisionConfigError, validateScreeningOverride } from "@/app/_lib/decision-config-schema";
 
 export const runtime = "nodejs";
@@ -10,7 +10,13 @@ export const maxDuration = 60;
 // config.
 export async function POST(request: NextRequest) {
   try {
-    const body = (await request.json()) as { jobId?: string; override?: unknown; dryRun?: unknown };
+    const body = (await request.json()) as {
+      jobId?: string;
+      override?: unknown;
+      dryRun?: unknown;
+      approvalToken?: unknown;
+      approvedBy?: unknown;
+    };
     if (!body.jobId) return NextResponse.json({ error: "jobId is required." }, { status: 400 });
     // Validate the optional per-run override at the trust boundary: auto-reject is
     // irreversible (status change + queued candidate email), so a malformed or
@@ -22,9 +28,31 @@ export async function POST(request: NextRequest) {
     // mutation/comms. Default false (commit), so an old client without the flag
     // behaves exactly as before; only an explicit `true` previews.
     const dryRun = body.dryRun === true;
-    const result = await runScreenWave(body.jobId, checked.override, { dryRun });
+    // Human-approval gate (Art. 22): a commit must carry the approval token the
+    // recruiter reviewed in the preview. Missing/stale → runScreenWave throws
+    // ScreenWaveApprovalError (→ 409 below). A dry run needs no approval.
+    // Only build an approval when a token is actually supplied — so a commit with no
+    // token at all gets the "approval required" message, while a present-but-stale
+    // token gets the "set changed, re-preview" message. Both are refused (409).
+    const approvalToken = typeof body.approvalToken === "string" ? body.approvalToken.trim() : "";
+    const approval =
+      dryRun || !approvalToken
+        ? undefined
+        : {
+            token: approvalToken,
+            approvedBy:
+              typeof body.approvedBy === "string" && body.approvedBy.trim()
+                ? body.approvedBy.trim()
+                : "operator (in-app approval)",
+          };
+    const result = await runScreenWave(body.jobId, checked.override, { dryRun, approval });
     return NextResponse.json(result);
   } catch (error) {
+    // No human approval (or a token that no longer matches the live set) → 409 so
+    // the client re-previews and re-approves the current set before committing.
+    if (error instanceof ScreenWaveApprovalError) {
+      return NextResponse.json({ error: error.message }, { status: 409 });
+    }
     // runScreenWave's backstop throws DecisionConfigError on a bad override —
     // surface it as a 400 too, so a schema violation is never reported as a 500.
     if (error instanceof DecisionConfigError) {

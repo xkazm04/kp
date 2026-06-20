@@ -1,9 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Check, ChevronRight, FileSignature, ListChecks, UserPlus } from "lucide-react";
+import { Check, ChevronRight, FileSignature, ListChecks, Plus, Trash2, UserPlus } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { ENTRY_QUESTIONNAIRE_FIELDS, type OnboardingTask, type OnboardingTaskState } from "@/app/_lib/onboarding";
+import { ONBOARDING_PRESETS, type OnboardingTask, type OnboardingTaskState, type QuestionnaireField } from "@/app/_lib/onboarding";
 
 type HiredCandidate = { entryId: string; candidateLabel: string | null; jobTitle: string | null; runId: string | null };
 type RunSummary = {
@@ -14,9 +14,11 @@ type RunSummary = {
   progress: { done: number; total: number; pct: number; complete: boolean };
 };
 type Signature = { id: string; document: string; status: string; signer: string | null; signedAt: string | null };
+type Template = { id: string; name: string; tasks: OnboardingTask[]; questionnaire: QuestionnaireField[] };
 type RunDetail = {
   run: { id: string; candidateLabel: string | null; jobTitle: string | null; status: string };
   tasks: OnboardingTask[];
+  questionnaire: QuestionnaireField[];
   states: OnboardingTaskState[];
   intake: Record<string, string> | null;
   signatures: Signature[];
@@ -27,16 +29,25 @@ export function OnboardingTab() {
   const t = useTranslations("onboarding");
   const [hired, setHired] = useState<HiredCandidate[]>([]);
   const [runs, setRuns] = useState<RunSummary[]>([]);
+  const [templates, setTemplates] = useState<Template[]>([]);
+  const [templateId, setTemplateId] = useState<string>("");
+  const [newOpen, setNewOpen] = useState(false);
   const [selected, setSelected] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const reload = useCallback(async () => {
-    const r = await fetch("/api/onboarding");
-    const p = await r.json();
+  const applyData = useCallback((p: { hired?: HiredCandidate[]; runs?: RunSummary[]; templates?: Template[] }) => {
     setHired(p.hired ?? []);
     setRuns(p.runs ?? []);
+    const tpls = p.templates ?? [];
+    setTemplates(tpls);
+    setTemplateId((cur) => cur || tpls[0]?.id || "");
     setLoading(false);
   }, []);
+
+  const reload = useCallback(async () => {
+    const r = await fetch("/api/onboarding");
+    applyData(await r.json());
+  }, [applyData]);
 
   // Mount load inlined as an async IIFE (setState lands after the await — the
   // allowed effect shape); `reload` covers the handler re-fetches.
@@ -46,20 +57,18 @@ export function OnboardingTab() {
       const r = await fetch("/api/onboarding");
       const p = await r.json();
       if (!live) return;
-      setHired(p.hired ?? []);
-      setRuns(p.runs ?? []);
-      setLoading(false);
+      applyData(p);
     })();
     return () => {
       live = false;
     };
-  }, []);
+  }, [applyData]);
 
   const start = async (entryId: string) => {
     const r = await fetch("/api/onboarding", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ entryId }),
+      body: JSON.stringify({ entryId, templateId: templateId || undefined }),
     });
     const p = await r.json();
     await reload();
@@ -84,6 +93,22 @@ export function OnboardingTab() {
         <>
           <section className="mt-6">
             <p className="text-meta uppercase tracking-wide text-steel">{t("readyTitle")}</p>
+            {toOnboard.length > 0 && templates.length > 0 ? (
+              <label className="mt-2 flex flex-wrap items-center gap-2 text-sm text-steel">
+                {t("withTemplate")}
+                <select
+                  value={templateId}
+                  onChange={(e) => setTemplateId(e.target.value)}
+                  className="focus-ring rounded-md border border-stone-200 bg-white px-2 py-1 text-sm text-ink"
+                >
+                  {templates.map((tpl) => (
+                    <option key={tpl.id} value={tpl.id}>
+                      {tpl.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : null}
             {toOnboard.length === 0 ? (
               <p className="mt-2 rounded-md border border-dashed border-stone-300 p-3 text-sm text-steel">{t("readyEmpty")}</p>
             ) : (
@@ -143,8 +168,182 @@ export function OnboardingTab() {
               </ul>
             )}
           </section>
+
+          <section className="mt-8">
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-meta uppercase tracking-wide text-steel">{t("templatesTitle")}</p>
+              {!newOpen ? (
+                <button
+                  type="button"
+                  onClick={() => setNewOpen(true)}
+                  className="focus-ring inline-flex h-8 items-center gap-1.5 rounded-md border border-stone-200 px-2.5 text-sm font-semibold text-coral hover:bg-coral/5"
+                >
+                  <Plus size={14} /> {t("newTemplate")}
+                </button>
+              ) : null}
+            </div>
+            <p className="mt-1 text-sm text-steel">{t("templatesNote")}</p>
+            {newOpen ? (
+              <TemplateManager
+                onCancel={() => setNewOpen(false)}
+                onSaved={async (id) => {
+                  setNewOpen(false);
+                  await reload();
+                  setTemplateId(id);
+                }}
+              />
+            ) : null}
+            <ul className="mt-3 space-y-2" role="list">
+              {templates.map((tpl) => (
+                <li key={tpl.id} className="rounded-md border border-stone-200 bg-white p-3">
+                  <p className="font-semibold text-ink">{tpl.name}</p>
+                  <p className="text-meta text-steel">{t("templateMeta", { tasks: tpl.tasks.length, questions: tpl.questionnaire.length })}</p>
+                </li>
+              ))}
+            </ul>
+          </section>
         </>
       )}
+    </div>
+  );
+}
+
+// Editable add/remove text-row list, shared by the template editor's tasks +
+// questionnaire (module-level so typing doesn't remount the inputs / lose focus).
+function EditableRows({
+  items,
+  onChange,
+  placeholder,
+  addLabel,
+}: {
+  items: string[];
+  onChange: (next: string[]) => void;
+  placeholder: string;
+  addLabel: string;
+}) {
+  return (
+    <div className="mt-1.5 space-y-1.5">
+      {items.map((val, i) => (
+        <div key={i} className="flex items-center gap-1.5">
+          <input
+            type="text"
+            value={val}
+            placeholder={placeholder}
+            onChange={(e) => onChange(items.map((v, j) => (j === i ? e.target.value : v)))}
+            className="focus-ring h-8 flex-1 rounded-md border border-stone-200 bg-white px-2 text-sm text-ink"
+          />
+          <button
+            type="button"
+            aria-label="remove"
+            onClick={() => onChange(items.filter((_, j) => j !== i))}
+            className="focus-ring rounded-md p-1 text-steel hover:text-coral"
+          >
+            <Trash2 size={14} />
+          </button>
+        </div>
+      ))}
+      <button type="button" onClick={() => onChange([...items, ""])} className="focus-ring inline-flex items-center gap-1 text-sm font-semibold text-coral hover:underline">
+        <Plus size={12} /> {addLabel}
+      </button>
+    </div>
+  );
+}
+
+// Create an onboarding template from an industry preset, then edit its tasks +
+// pre-boarding questionnaire (P1-4 — the questionnaire is editable data, no longer a
+// frozen const). Sends label-only rows; the store derives ids/keys + bounds them.
+function TemplateManager({ onCancel, onSaved }: { onCancel: () => void; onSaved: (id: string) => void }) {
+  const t = useTranslations("onboarding");
+  const [name, setName] = useState("");
+  const [tasks, setTasks] = useState<string[]>([""]);
+  const [questions, setQuestions] = useState<string[]>([""]);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const applyPreset = (id: string) => {
+    const preset = ONBOARDING_PRESETS.find((p) => p.id === id);
+    if (!preset) return;
+    setName(preset.name);
+    setTasks(preset.tasks.map((x) => x.label));
+    setQuestions(preset.questionnaire.map((x) => x.label));
+  };
+
+  const save = async () => {
+    const cleanTasks = tasks.map((l) => l.trim()).filter(Boolean);
+    if (!name.trim()) return setError(t("nameRequired"));
+    if (cleanTasks.length === 0) return setError(t("needTask"));
+    setSaving(true);
+    setError(null);
+    try {
+      const r = await fetch("/api/onboarding", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "create_template",
+          name: name.trim(),
+          tasks: cleanTasks.map((label) => ({ label })),
+          questionnaire: questions.map((l) => l.trim()).filter(Boolean).map((label) => ({ label })),
+        }),
+      });
+      const p = await r.json();
+      if (!r.ok) throw new Error(p.error || t("saveFailed"));
+      onSaved(p.template.id);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : t("saveFailed"));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="mt-3 rounded-md border border-coral/30 bg-coral/5 p-3">
+      <label className="block text-sm font-semibold text-steel">
+        {t("fromPreset")}
+        <select
+          defaultValue=""
+          onChange={(e) => applyPreset(e.target.value)}
+          className="focus-ring ml-2 rounded-md border border-stone-200 bg-white px-2 py-1 text-sm font-normal text-ink"
+        >
+          <option value="" disabled>
+            {t("choosePreset")}
+          </option>
+          {ONBOARDING_PRESETS.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.name} — {p.industry}
+            </option>
+          ))}
+        </select>
+      </label>
+
+      <input
+        type="text"
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        placeholder={t("templateNamePlaceholder")}
+        className="focus-ring mt-3 h-9 w-full rounded-md border border-stone-200 bg-white px-2.5 text-sm font-semibold text-ink"
+      />
+
+      <p className="mt-3 text-meta uppercase tracking-wide text-steel">{t("tasksLabel")}</p>
+      <EditableRows items={tasks} onChange={setTasks} placeholder={t("taskPlaceholder")} addLabel={t("addTask")} />
+
+      <p className="mt-3 text-meta uppercase tracking-wide text-steel">{t("questionsLabel")}</p>
+      <EditableRows items={questions} onChange={setQuestions} placeholder={t("questionPlaceholder")} addLabel={t("addQuestion")} />
+
+      {error ? <p role="alert" className="mt-2 text-sm text-red-700">{error}</p> : null}
+
+      <div className="mt-3 flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => void save()}
+          disabled={saving}
+          className="focus-ring inline-flex h-9 items-center rounded-md bg-ink px-3 text-sm font-semibold text-white hover:bg-steel disabled:opacity-50"
+        >
+          {saving ? t("saving") : t("saveTemplate")}
+        </button>
+        <button type="button" onClick={onCancel} className="focus-ring inline-flex h-9 items-center rounded-md border border-stone-200 px-3 text-sm font-semibold text-steel hover:bg-stone-50">
+          {t("cancel")}
+        </button>
+      </div>
     </div>
   );
 }
@@ -232,13 +431,13 @@ function RunDetailView({ runId, onBack }: { runId: string; onBack: () => void })
         <p className="text-meta uppercase tracking-wide text-steel">{t("questionnaire")}</p>
         <p className="mt-1 text-sm text-steel">{t("questionnaireNote")}</p>
         <div className="mt-3 grid gap-3 sm:grid-cols-2">
-          {ENTRY_QUESTIONNAIRE_FIELDS.map((field) => (
-            <label key={field} className="block">
-              <span className="text-meta text-steel">{fieldLabels[field]}</span>
+          {detail.questionnaire.map((field) => (
+            <label key={field.key} className="block">
+              <span className="text-meta text-steel">{fieldLabels[field.key] ?? field.label}</span>
               <input
                 type="text"
-                value={answers[field] ?? ""}
-                onChange={(e) => setAnswers((a) => ({ ...a, [field]: e.target.value }))}
+                value={answers[field.key] ?? ""}
+                onChange={(e) => setAnswers((a) => ({ ...a, [field.key]: e.target.value }))}
                 onBlur={() => void patch({ action: "intake", answers })}
                 className="focus-ring mt-1 w-full rounded-md border border-stone-200 bg-white p-2 text-sm text-ink"
               />

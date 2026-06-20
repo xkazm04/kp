@@ -70,6 +70,27 @@ class TaxonomyContractTest(unittest.TestCase):
         # The import-time tuple must equal the data file (guards a stale build).
         self.assertEqual(list(taxonomy.ROLE_FAMILIES), [r["family"] for r in self.benchmarks["roles"]])
 
+    def test_every_benchmark_family_has_a_description(self) -> None:
+        # The taxonomy owns the role-family vocabulary's meaning; every comp family
+        # must carry a one-line description the analysis prompt can present, or a
+        # non-tech candidate has no industry-appropriate family to be classified into.
+        role_families = self.taxonomy.get("role_families")
+        self.assertIsInstance(role_families, dict, "taxonomy.json: 'role_families' must be an object")
+        self.assertGreater(len(role_families), 0, "taxonomy.json: 'role_families' must be non-empty")
+        for role in self.benchmarks["roles"]:
+            fam = role["family"]
+            self.assertIn(fam, role_families, f"role family {fam!r} has no description in taxonomy.json::role_families")
+            self.assertTrue(str(role_families[fam]).strip(), f"role family {fam!r} has an empty description")
+
+    def test_taxonomy_covers_non_tech_industries(self) -> None:
+        # P0-1: the role-family vocabulary must reach beyond the original 3 IT families
+        # so non-tech workforces are representable, not collapsed to software_engineering.
+        for fam in ("healthcare_clinical", "skilled_trades", "frontline_service",
+                    "finance_accounting", "general_professional"):
+            self.assertIn(fam, taxonomy.ROLE_FAMILY_SET, f"missing expected role family {fam!r}")
+        self.assertEqual(taxonomy.DEFAULT_FAMILY, "general_professional",
+                         "default family should be the neutral fallback, not a tech family")
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -34,6 +34,7 @@ export async function POST(request: NextRequest) {
       templateId?: string;
       name?: string;
       tasks?: unknown;
+      questionnaire?: unknown;
     };
 
     if (body.action === "create_template") {
@@ -44,7 +45,9 @@ export async function POST(request: NextRequest) {
       if (tasks.length === 0) {
         return NextResponse.json({ error: "A template needs at least one task." }, { status: 400 });
       }
-      return NextResponse.json({ template: createTemplate(body.name, tasks) });
+      // Per-template questionnaire (P1-4) — coerced in the store; an absent field
+      // list defaults there, an explicit (incl. empty) one is honoured.
+      return NextResponse.json({ template: createTemplate(body.name, tasks, body.questionnaire) });
     }
 
     // Default action: start a run. Pull label/title from the Hired entry so the run

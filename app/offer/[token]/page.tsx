@@ -197,6 +197,16 @@ export default function OfferPage() {
                 <p className="mt-1 text-sm text-steel">
                   {offer.company ? t("acceptedBodyCompany", { company: offer.company }) : t("acceptedBodyGeneric")}
                 </p>
+                {/* The accepted offer's token doubles as the onboarding link
+                    (offer-finalize.ts) — surface it INLINE so accept lands on a
+                    concrete next step on the page, not only via the welcome email. */}
+                <a
+                  href={`/onboarding/${offer.token}`}
+                  data-sim-click="offer-onboarding-cta"
+                  className="focus-ring mt-3 inline-flex h-11 items-center justify-center gap-2 rounded-md bg-moss px-5 text-base font-semibold text-white transition-opacity hover:opacity-90"
+                >
+                  {t("onboardingCta")}
+                </a>
               </div>
             ) : result === "declined" ? (
               <div className="mt-6 rounded-lg bg-stone-100 p-4 text-center">

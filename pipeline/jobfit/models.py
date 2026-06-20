@@ -13,6 +13,26 @@ class _Base(BaseModel):
     )
 
 
+class Credential(_Base):
+    """A professional license or certification — often the legal gate on a hire
+    (RN/medical license, Series 7, OSHA card, board cert, bar admission). First-class
+    so it can be surfaced, verified, and gated on, not lost in free-text (P0-4)."""
+    name: str
+    issuer: str = ""
+    identifier: str = ""  # license/cert number, NPI, Series, PIN, …
+    expiry: str = ""      # expiry / issue date if stated
+    kind: str = "certification"  # license | certification
+
+
+class Publication(_Base):
+    """A publication or patent — the primary signal for scientific/research hires
+    that otherwise has nowhere to live (P0-4)."""
+    title: str
+    venue: str = ""  # journal / conference / patent office
+    year: str = ""
+    kind: str = "publication"  # publication | patent
+
+
 class CandidateProfile(_Base):
     name: str | None
     raw_text: str
@@ -24,6 +44,13 @@ class CandidateProfile(_Base):
     languages: list[str]
     traits: list[str]
     evidence: list[str] = Field(default_factory=list)
+    # First-class non-prose signals that often decide the hire (P0-4): licenses/certs,
+    # publications/patents, and portfolio/repo/profile links. Nullable so analyses
+    # cached BEFORE these fields existed still validate on read (codegen → .nullish());
+    # the pipeline always populates them (to [] when none), so fresh analyses carry them.
+    credentials: list[Credential] | None = None
+    publications: list[Publication] | None = None
+    links: list[str] | None = None
 
 
 class ScoreBreakdown(_Base):
@@ -57,6 +84,10 @@ class SalaryEstimate(_Base):
     midpoint: int
     confidence: str
     rationale: list[str]
+    # Pay beyond base in the candidate's market — equity/options, bonus, commission,
+    # tips, allowances, total-comp — or null/"" for base-only. Nullable so analyses
+    # cached BEFORE this field existed still validate on read (codegen → .nullish()).
+    structure_note: str | None = None
 
 
 class MarketEvidence(_Base):

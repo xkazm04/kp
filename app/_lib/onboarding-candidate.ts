@@ -1,5 +1,4 @@
 import { getJob, recordAutomationEvent } from "./db";
-import { ENTRY_QUESTIONNAIRE_FIELDS } from "./onboarding";
 import { getRunDetail, runForEntry, saveIntake, startRun } from "./onboarding-store";
 import { getOfferByToken } from "./offers-store";
 
@@ -37,7 +36,9 @@ export function candidateOnboardingView(token: string) {
     role: offer.jobTitle,
     candidateLabel: offer.candidateLabel,
     company: job?.company ?? null,
-    fields: ENTRY_QUESTIONNAIRE_FIELDS,
+    // The questionnaire is now per-template (P1-4): the candidate sees exactly the
+    // fields this hire's onboarding template defines, with their authored labels.
+    fields: detail?.questionnaire ?? [],
     answers: detail?.intake ?? {},
     submitted: Boolean(detail?.intake),
     progressPct: detail?.progress.pct ?? 0,
@@ -52,10 +53,12 @@ export function submitCandidateIntake(token: string, answers: Record<string, unk
   const resolved = runForToken(token);
   if (!resolved) return { ok: false };
   const { offer, run } = resolved;
+  // Keep only this template's questionnaire keys (trust boundary; saveIntake also
+  // bounds each value). The allowed set is the run's own template, not a global const.
+  const allowed = new Set((getRunDetail(run.id)?.questionnaire ?? []).map((f) => f.key));
   const clean: Record<string, string> = {};
-  for (const field of ENTRY_QUESTIONNAIRE_FIELDS) {
-    const v = answers[field];
-    if (typeof v === "string" && v.trim()) clean[field] = v;
+  for (const [k, v] of Object.entries(answers)) {
+    if (allowed.has(k) && typeof v === "string" && v.trim()) clean[k] = v;
   }
   saveIntake(run.id, clean);
   if (offer.entryId) {

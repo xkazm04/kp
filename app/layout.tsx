@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Bricolage_Grotesque, Fraunces, Inter } from "next/font/google";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages, getTranslations } from "next-intl/server";
+import { DevInspector } from "./_dev-inspector/DevInspector";
 import "./globals.css";
 
 // SHELL5 — `latin-ext` carries the Czech diacritics (ě š č ř ž ů, all over
@@ -110,11 +111,20 @@ export async function generateMetadata(): Promise<Metadata> {
 // an explicit choice in localStorage wins, otherwise prefers-color-scheme
 // decides — so a dark-theme user never sees a light flash. Must stay a plain
 // string evaluated synchronously; a React effect would run after paint.
-// /landing is hard-exempt (docs/DESIGN.md): the marketing page is a fixed art
-// direction, and its product spotlights embed token-driven workspace UI that
-// must always render in the light register — so the attribute is never set
-// there, regardless of the visitor's stored choice or OS preference.
-const THEME_INIT = `(function(){try{if(location.pathname.indexOf("/landing")===0)return;var t=localStorage.getItem("kp-theme");if(t!=="dark"&&t!=="light")t=window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light";if(t==="dark")document.documentElement.dataset.theme="dark"}catch(e){}})()`;
+// The marketing surfaces are hard-exempt (docs/DESIGN.md): a fixed Spark art
+// direction in literal hexes that must always render in the light register, so
+// the dark attribute is never set there regardless of the visitor's stored
+// choice or OS preference. Those surfaces are the public /about page (always)
+// and the home landing at '/', which in development is served to signed-out
+// visitors via the localStorage dev gate (app/_lib/auth/devAuth.ts) — so '/' is
+// treated as landing until the kp_dev_authed flag is set. (/landing now just
+// redirects to '/', so it no longer renders and needs no exemption.) Keep the
+// kp_dev_authed key in lockstep with devAuth.ts.
+const THEME_SKIP_DARK =
+  process.env.NODE_ENV !== "production"
+    ? `var p=location.pathname;if(p.indexOf("/about")===0||(p==="/"&&localStorage.getItem("kp_dev_authed")!=="1"))return;`
+    : `if(location.pathname.indexOf("/about")===0)return;`;
+const THEME_INIT = `(function(){try{${THEME_SKIP_DARK}var t=localStorage.getItem("kp-theme");if(t!=="dark"&&t!=="light")t=window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light";if(t==="dark")document.documentElement.dataset.theme="dark"}catch(e){}})()`;
 
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   // Locale + catalog are resolved per-request in i18n/request.ts (cookie/header).
@@ -131,6 +141,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
         <NextIntlClientProvider locale={locale} messages={messages}>
           {children}
         </NextIntlClientProvider>
+        {process.env.NODE_ENV === "development" && <DevInspector />}
       </body>
     </html>
   );

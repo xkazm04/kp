@@ -80,6 +80,13 @@ export type WorkspaceTabDef = {
 // The Pipeline dashboard is the default landing surface.
 export const DEFAULT_TAB: WorkspaceTabId = "pipeline";
 
+// The About tab is a dev-only architecture deep-dive (component diagrams,
+// internal file paths). In production it's hidden from the nav — and, because
+// the command palette and keyboard shortcuts both derive from NAV_GROUPS, from
+// those too — and a direct ?tab=about falls back to the default (see Workspace).
+// The user-facing concept introduction lives on the public /about page instead.
+export const ABOUT_TAB_IN_NAV = process.env.NODE_ENV !== "production";
+
 // Grouped structure for the studio left sidebar. A flat tab list, if ever needed
 // (e.g. a deep-link breadcrumb), should be derived from NAV_GROUPS.flatMap(g => g.items)
 // rather than maintained as a fourth parallel declaration.
@@ -129,7 +136,7 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       { id: "analytics", label: "Analytics" },
       { id: "matrix", label: "Matrix" },
-      { id: "about", label: "About" },
+      ...(ABOUT_TAB_IN_NAV ? [{ id: "about", label: "About" } as WorkspaceTabDef] : []),
     ],
   },
   {

@@ -78,6 +78,10 @@
       "llmExplanation": "Why this score",
       "salaryEstimate": "Salary Estimate",
       "perMonth": "per month",
+      "credentialsWork": "Credentials & work",
+      "credentials": "Licenses & certifications",
+      "publications": "Publications & patents",
+      "links": "Portfolio & links",
       "growthTarget": "+30% growth target: {amount} CZK / month",
       "companyCompContext": "Company Compensation Context",
       "salaryRationale": "Salary Rationale",
@@ -209,6 +213,277 @@
     "en": "English",
     "cs": "Čeština"
   },
+  "landing": {
+    "nav": {
+      "how": "How it works",
+      "features": "Features",
+      "pricing": "Pricing",
+      "about": "About",
+      "signIn": "Sign in"
+    },
+    "hero": {
+      "badge": "AI for hiring that keeps humans in charge",
+      "title": "Hiring that<br></br>actually <emph>moves</emph>.",
+      "subtitle": "KandiDate reads every CV, runs the first interview out loud, books the calendar and lines up decisions for you to approve. The pile disappears. The judgment stays yours.",
+      "ctaPrimary": "Start screening free",
+      "ctaSecondary": "Hear it interview",
+      "ctaDemo": "Watch the live demo",
+      "pileHint": "try it — hover the pile ↓",
+      "scoreCardAria": "Score the CV of {name}",
+      "mascotAlt": "Kandi, the KandiDate mascot, cheering under an approved CV",
+      "mascotNote": "meet Kandi — your new teammate"
+    },
+    "pile": {
+      "jana": { "role": "React Developer", "verdict": "strong fit" },
+      "petr": { "role": "Data Analyst", "verdict": "worth a call" },
+      "alex": { "role": "PM, no portfolio", "verdict": "kind pass" }
+    },
+    "marquee": [
+      "CV scoring in seconds",
+      "AI voice interviews",
+      "self-scheduling links",
+      "five channels, one pipeline",
+      "salary radar",
+      "human-approved decisions",
+      "Czech + English",
+      "offer portals"
+    ],
+    "steps": {
+      "heading": "From pile to shortlist<br></br>in <emph>three moves</emph>",
+      "drop": {
+        "title": "Drop the pile",
+        "body": "Every CV gets read — really read. KandiDate scores fit against your job description with an evidence-backed rubric, not keyword bingo. Strengths, gaps and a salary estimate included."
+      },
+      "talk": {
+        "title": "Let it talk",
+        "body": "Promising candidates get a friendly AI voice interview within hours, not weeks. Real questions built from their CV, live transcript, structured scorecard at the end."
+      },
+      "call": {
+        "title": "You make the call",
+        "body": "Nothing ships without you. Every screen, shortlist and offer waits at a human gate with the reasoning attached. Approve, override, or send it back."
+      }
+    },
+    "features": {
+      "heading": "The whole funnel,<br></br>one happy place",
+      "hint": "hover any card for a live peek — it all ships today, no asterisks",
+      "peekInside": "peek inside",
+      "score": {
+        "title": "Job-fit scoring",
+        "body": "0–100 fit score per CV with the evidence to back it up. Multiple CV versions? Compare them side by side."
+      },
+      "voice": {
+        "title": "Voice screening",
+        "body": "An AI interviewer that asks about their actual experience — in Czech or English — and writes the scorecard for you."
+      },
+      "schedule": {
+        "title": "Self-scheduling",
+        "body": "Candidates pick their own slot from a link. No reply-all calendar tennis, no ghosted timezones."
+      },
+      "inbox": {
+        "title": "One inbox, five doors",
+        "body": "Apply portal, email, job boards, sourcing and manual adds all land in one pipeline at the same starting line."
+      },
+      "salary": {
+        "title": "Salary radar",
+        "body": "Market-grounded salary bands for the Czech market, adjusted to company type — so your offer lands the first time."
+      },
+      "gates": {
+        "title": "Gates & receipts",
+        "body": "A full audit trail and a kill switch. AI recommends, humans decide, and every decision keeps its receipt."
+      }
+    },
+    "voice": {
+      "heading": "It doesn’t just read CVs.<br></br>It <emph>talks</emph> to people.",
+      "body": "First-round screens happen the same day someone applies — a warm, structured voice interview built from their actual CV. Candidates get heard. You get a transcript and a scorecard instead of a calendar full of thirty-minute maybes.",
+      "bullets": [
+        "Czech and English, their choice",
+        "Questions grounded in their experience",
+        "Live transcript, structured scorecard"
+      ],
+      "cardTitle": "First-round screen",
+      "cardMeta": "live · 4 min 12 s",
+      "transcript": [
+        "You shipped a React app for a school project — what broke first when real users hit it?",
+        "Honestly? The state management. I rewrote it twice before I understood why…",
+        "Love it. Walk me through the second rewrite."
+      ]
+    },
+    "trust": {
+      "heading": "Powerful AI.<br></br><emph>A human signs every call.</emph>",
+      "subtitle": "Built for regulated hiring under the EU AI Act and GDPR: the machine does the reading, but a qualified person makes every decision that touches a candidate.",
+      "human": {
+        "title": "Human in the loop",
+        "body": "No candidate is advanced, offered or rejected by the machine alone. Every adverse decision is reviewed and made by a person — by design, not by a setting."
+      },
+      "oversight": {
+        "title": "EU AI Act ready",
+        "body": "Screening and ranking are treated as high-risk AI: meaningful human oversight, reasoning you can read, and a record of every automated step."
+      },
+      "gdpr": {
+        "title": "GDPR & Article 22",
+        "body": "Candidates consent before any AI reads their data, can ask for human review, and can see or erase their data anytime. No solely-automated significant decisions."
+      },
+      "audit": {
+        "title": "Provable, not promised",
+        "body": "Every AI decision is sealed into a tamper-evident, exportable audit trail, and confidence is measured against real outcomes — calibrated, never just asserted."
+      },
+      "footnote": "A working demonstration: this reflects the product's design and controls, not a legal certification."
+    },
+    "pricing": {
+      "heading": "Tiny prices.<br></br><emph>Zero token math.</emph>",
+      "headingNote": "open to everyone — these are the launch prices you’ll lock in",
+      "tiers": {
+        "free": {
+          "name": "Free",
+          "tagline": "Kick the tires on a real opening.",
+          "price": "0 Kč",
+          "cadence": "forever",
+          "usd": "no card, no clock",
+          "cta": "Start free",
+          "features": [
+            "1 active job",
+            "5 AI candidates a month",
+            "1 dev case design",
+            "Unlimited matching, pipeline & scheduling"
+          ]
+        },
+        "starter": {
+          "name": "Starter",
+          "tagline": "A hiring desk that never sleeps.",
+          "price": "490 Kč",
+          "cadence": "/ month",
+          "usd": "≈ $21 a month",
+          "cta": "Pick Starter",
+          "features": [
+            "100 AI candidates a month",
+            "5 dev case designs",
+            "30 AI interview minutes",
+            "Unlimited jobs & campaign packs"
+          ]
+        },
+        "growth": {
+          "name": "Growth",
+          "tagline": "For pipelines with traffic.",
+          "price": "1 190 Kč",
+          "cadence": "/ month",
+          "usd": "≈ $50 a month",
+          "cta": "Pick Growth",
+          "features": [
+            "400 AI candidates a month",
+            "20 dev case designs",
+            "120 AI interview minutes",
+            "Everything in Starter, just bigger"
+          ]
+        },
+        "byom": {
+          "name": "BYOM",
+          "tagline": "Your model keys, our machinery.",
+          "price": "120 Kč",
+          "cadence": "/ month",
+          "usd": "≈ $5 a month",
+          "cta": "Bring your keys",
+          "badge": "bring your keys",
+          "features": [
+            "Plug in Gemini, OpenAI, Azure or Anthropic keys",
+            "Your ElevenLabs key runs the interviews",
+            "Unlimited AI — your providers bill you",
+            "We charge for the machinery only"
+          ]
+        }
+      },
+      "footnote1": "“AI candidate” = one person fully worked — CV scored, matched, reasoned about, outreach drafted",
+      "footnote2": "out of minutes? 100-minute interview packs · 790 Kč — any tier, even BYOM",
+      "enterprise": {
+        "eyebrow": "At org scale",
+        "heading": "Hiring across the whole org?",
+        "blurb": "Past the metered plans: SSO, roles & an audit trail, a dedicated environment and onboarding for your TA team — priced to your hiring volume. The ROI compounds with every requisition.",
+        "cta": "Talk to sales",
+        "stat1Value": "60–70%",
+        "stat1Label": "less recruiter time on screening",
+        "stat2Value": "~23 h",
+        "stat2Label": "manual screening per hire today",
+        "stat3Value": "40–51 h",
+        "stat3Label": "total recruiter hours per hire, by hand",
+        "source": "Sources: 2025 industry recruiting-time studies (SHRM time-to-fill; recruiter time-per-hire analyses). Your own measured savings show live in Analytics → ROI."
+      }
+    },
+    "cta": {
+      "heading": "Your next great hire<br></br>is buried in that pile.",
+      "body": "Let KandiDate dig them out. Free to get started — no waitlist.",
+      "button": "Get started",
+      "note": "no credit card, no robots in charge"
+    },
+    "footer": {
+      "tagline": "AI for hiring, humans for decisions"
+    },
+    "previews": {
+      "close": "Close preview",
+      "score": { "note": "evidence attached, always" },
+      "voice": { "note": "yes, it speaks Czech too" },
+      "schedule": { "note": "no calendar tennis" },
+      "inbox": { "note": "five doors, one starting line" },
+      "salary": { "note": "offers that land first time" },
+      "gates": { "note": "every call gets a human signature" }
+    }
+  },
+  "aboutPage": {
+    "nav": {
+      "home": "Home",
+      "signIn": "Sign in"
+    },
+    "hero": {
+      "badge": "the hiring pipeline, end to end",
+      "title": "Walk one hire down<br></br>the <emph>whole pipeline</emph>.",
+      "subtitle": "Scroll, and the path draws itself — from a blank role to a signed hire. Seven steps, one continuous line, a human on every gate."
+    },
+    "steps": {
+      "design": {
+        "eyebrow": "Step 01 · Design",
+        "title": "Describe the role. Get the rubric.",
+        "body": "A short brief becomes a structured, company-branded job description — must-haves, nice-to-haves and a Czech-market salary band — plus the scoring rubric everything downstream is measured against."
+      },
+      "source": {
+        "eyebrow": "Step 02 · Source",
+        "title": "One role, a ranked shortlist",
+        "body": "The role pulls matching candidates from your talent pool and ranks them with hard knock-out gates and archetype-aware scoring — deterministic and explainable, never keyword bingo."
+      },
+      "intake": {
+        "eyebrow": "Step 03 · Intake",
+        "title": "Five doors, one pipeline",
+        "body": "Apply portal, email, job boards, sourcing and manual adds all land in the same pipeline at the same starting line — no channel gets a shortcut, and nothing slips through the cracks."
+      },
+      "screen": {
+        "eyebrow": "Step 04 · Screen",
+        "title": "Every CV, read for real",
+        "body": "Each candidate is scored 0–100 against the role with the evidence traced. A fairness gate runs first; strong, obvious matches advance themselves and everything else is held for a human."
+      },
+      "interview": {
+        "eyebrow": "Step 05 · Interview",
+        "title": "Then it talks to people",
+        "body": "Promising candidates get a warm AI voice interview the same day — questions grounded in their CV, a live transcript, and a structured scorecard waiting for your call."
+      },
+      "offer": {
+        "eyebrow": "Step 06 · Offer",
+        "title": "AI drafts it. A human signs it.",
+        "body": "The offer figure is deterministic — role band × fit, no LLM in the number. The letter drafts itself, a person extends it, and the candidate accepts or declines through a secure link."
+      },
+      "hired": {
+        "eyebrow": "Step 07 · Hired",
+        "title": "Hired — onboarding already moving",
+        "body": "Accept flips the candidate to Hired and fires the onboarding hand-off: a pre-boarding questionnaire and checklist, so day one is already in motion before the celebration ends."
+      }
+    },
+    "closing": {
+      "tag": "that’s the whole line",
+      "title": "From a blank role<br></br>to a <emph>signed hire</emph>.",
+      "body": "AI does the reading at every step. A human signs every decision.",
+      "button": "Start free"
+    },
+    "footer": {
+      "tagline": "AI for hiring, humans for decisions",
+      "home": "Back to home"
+    }
+  },
   "theme": {
     "select": "Select theme",
     "light": "Light theme",
@@ -249,6 +524,7 @@
     "acceptedTitle": "🎉 Offer accepted",
     "acceptedBodyCompany": "Welcome to {company}! Our People team will be in touch shortly with your onboarding details.",
     "acceptedBodyGeneric": "Wonderful — welcome aboard! Our People team will be in touch shortly with your onboarding details.",
+    "onboardingCta": "Start your onboarding",
     "declinedTitle": "Response recorded",
     "declinedBody": "Thank you for letting us know. We wish you all the best.",
     "loadFailed": "Could not load this offer.",
@@ -508,9 +784,10 @@
     "attentionBadge": "{count} need attention",
     "attentionBadgeGo": "{count} need attention — view them",
     "recent": "Recent",
-    "brandMark": "KP",
-    "brandName": "studio",
+    "brandMark": "K",
+    "brandName": "KandiDate",
     "tagline": "talent matching",
+    "signOut": "Sign out",
     "tabs": {
       "pipeline": "Pipeline",
       "channels": "Channels",
@@ -576,10 +853,28 @@
       "Thu": "Thu",
       "Fri": "Fri"
     },
+    "period": {
+      "hour": "per hour",
+      "month": "per month",
+      "year": "per year"
+    },
     "family": {
       "software_engineering": "Software",
       "data_ai": "Data / AI",
-      "product_project": "Product / Project"
+      "product_project": "Product / Project",
+      "healthcare_clinical": "Healthcare / Clinical",
+      "life_sciences_research": "Science / Research",
+      "skilled_trades": "Skilled Trades",
+      "operations_logistics": "Operations / Logistics",
+      "frontline_service": "Frontline / Service",
+      "sales_marketing": "Sales / Marketing",
+      "finance_accounting": "Finance / Accounting",
+      "legal_compliance": "Legal / Compliance",
+      "hr_people": "HR / People",
+      "education_academic": "Education / Academic",
+      "creative_design": "Creative / Design",
+      "customer_support": "Customer Support",
+      "general_professional": "General / Professional"
     },
     "workMode": {
       "remote": "Remote",
@@ -942,7 +1237,7 @@
       "rejectModeLabel": "Rejections",
       "rejectModeApprove": "supervised — queue for approval",
       "rejectModeAuto": "autonomous — apply & notify",
-      "rejectModeTitle": "Supervised queues each clock-computed rejection on the Decisions gate for a human click; autonomous applies and emails it unattended. Advances and holds stay automatic either way.",
+      "rejectModeTitle": "Every clock-computed rejection is queued on the Decisions gate for a human click — never applied unattended (advances and holds stay automatic). A human reviews and makes every adverse decision.",
       "outcome": {
         "applied": "applied",
         "failed": "failed",
@@ -1075,6 +1370,7 @@
       "shieldNote": "Early-career & unrecognized archetypes are always shielded from auto-rejection.",
       "previewFailed": "Preview failed.",
       "waveFailed": "Wave failed.",
+      "setChangedRepreview": "The candidate set changed since you previewed it — review the refreshed set and approve again.",
       "computingPreview": "Computing preview…",
       "wouldReject": "Would reject <b>{rejected}</b> of {cohort}",
       "keptCount": "{count} kept",
@@ -1184,7 +1480,7 @@
       "advancedAria": "advanced",
       "rejectedAria": "rejected",
       "fairnessCheck": "Fairness check",
-      "fairnessUniform": "Every candidate used the standard weighting for their archetype — the ranking above already compares like-for-like.",
+      "fairnessUniform": "Fairness check passed — re-scoring every candidate under each other's archetype weighting leaves the order unchanged, so the ranking is robust, not weighting-dependent.",
       "aiTunedWeights": "AI-tuned weights",
       "ruleBasedWeights": "Rule-based weights",
       "fairnessExplain": "Some candidates carry a bounded, evidence-driven weighting — demonstrated skill is weighted higher when backed by high-trust evidence. Each candidate is re-scored under <em>every</em> candidate's weighting; the robust order is the average across all schemes, so a candidate strong under everyone's weights is robustly strong.",
@@ -1658,7 +1954,12 @@
       "adding": "Adding…",
       "addToPipeline": "Add to pipeline",
       "couldntAdd": "Couldn't add — {error}",
-      "couldntReach": "Couldn't reach out — {error}"
+      "couldntReach": "Couldn't reach out — {error}",
+      "whyNow": {
+        "rejected": "Passed for a different role — but clears {jobTitle}'s bar at {score}%. Looks like a role-fit mismatch then, not a capability gap; worth a fresh look now this seat is open.",
+        "closed": "Reached the finish line on a role that closed under them — a proven, available candidate at a {score}% fit for {jobTitle}.",
+        "elsewhere": "Already in motion on another role; also a {score}% fit for {jobTitle} — a redeploy worth weighing."
+      }
     },
     "rediscoveryFeed": {
       "title": "Silver medalists",
@@ -2362,7 +2663,23 @@
       "csvKind": "Action",
       "csvCount": "Count",
       "csvMinsEach": "Mins each",
-      "csvMinsTotal": "Mins total"
+      "csvMinsTotal": "Mins total",
+      "perHire": "≈ {hours} h saved per hire — about {pct}% of the ~{baseline} h a hire takes by hand.",
+      "perHirePending": "Per-hire baseline pending — no hires in this window yet.",
+      "rdTimeSaved": "Recruiter time saved",
+      "rdPerHireSub": "≈ {hours} h/hire",
+      "rdNoHires": "no hires yet",
+      "rdCostPerHire": "Cost per hire",
+      "rdAllTime": "all-time",
+      "rdTimeToHire": "Time to hire",
+      "rdMedian": "median",
+      "czkValue": "{n} CZK",
+      "daysValue": "{n} d",
+      "csvMetric": "Metric",
+      "csvValue": "Value",
+      "csvHoursPerHire": "Hours saved per hire",
+      "csvHoursTotal": "Hours saved (window)",
+      "csvCzkTotal": "CZK saved (window)"
     },
     "channels": {
       "title": "Channel economics",
@@ -2537,6 +2854,26 @@
     "markSigned": "Mark signed",
     "docPlaceholder": "Document name (e.g. Employment contract)",
     "requestSign": "Request signature",
+    "withTemplate": "Template",
+    "templatesTitle": "Onboarding templates",
+    "templatesNote": "Create an industry template — a checklist plus a pre-boarding questionnaire — then onboard hires with it.",
+    "newTemplate": "New template",
+    "templateMeta": "{tasks} tasks · {questions} questions",
+    "fromPreset": "Start from a preset",
+    "choosePreset": "Choose an industry…",
+    "templateNamePlaceholder": "Template name",
+    "tasksLabel": "Checklist tasks",
+    "taskPlaceholder": "e.g. Verify professional license",
+    "addTask": "Add task",
+    "questionsLabel": "Pre-boarding questions",
+    "questionPlaceholder": "e.g. License / registration number",
+    "addQuestion": "Add question",
+    "saveTemplate": "Save template",
+    "saving": "Saving…",
+    "cancel": "Cancel",
+    "nameRequired": "Give the template a name.",
+    "needTask": "Add at least one checklist task.",
+    "saveFailed": "Could not save the template.",
     "field": {
       "preferredName": "Preferred name",
       "tshirtSize": "T-shirt size",

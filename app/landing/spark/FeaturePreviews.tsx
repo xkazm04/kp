@@ -2,6 +2,7 @@
 
 import type { ComponentType } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { useTranslations } from "next-intl";
 import {
   Check,
   FileSearch,
@@ -402,19 +403,21 @@ function GatesPreview() {
 
 /* ── Registry + spotlight modal ─────────────────────────────────── */
 type PreviewDef = {
-  title: string;
-  note: string;
   icon: ComponentType<{ className?: string; style?: React.CSSProperties }>;
   Body: ComponentType;
 };
 
+// Title + note now come from the `landing` i18n namespace (features.<key>.title
+// and previews.<key>.note); the registry only wires each key to its icon and
+// animated body. (The body internals are illustrative product mockups — and the
+// voice demo is deliberately Czech — so they stay as authored.)
 export const PREVIEWS: Record<PreviewKey, PreviewDef> = {
-  score: { title: "Job-fit scoring", note: "evidence attached, always", icon: FileSearch, Body: ScorePreview },
-  voice: { title: "Voice screening", note: "yes, it speaks Czech too", icon: Mic, Body: VoicePreview },
-  schedule: { title: "Self-scheduling", note: "no calendar tennis", icon: Check, Body: SchedulePreview },
-  inbox: { title: "One inbox, five doors", note: "five doors, one starting line", icon: Inbox, Body: InboxPreview },
-  salary: { title: "Salary radar", note: "offers that land first time", icon: Gauge, Body: SalaryPreview },
-  gates: { title: "Gates & receipts", note: "every call gets a human signature", icon: ShieldCheck, Body: GatesPreview }
+  score: { icon: FileSearch, Body: ScorePreview },
+  voice: { icon: Mic, Body: VoicePreview },
+  schedule: { icon: Check, Body: SchedulePreview },
+  inbox: { icon: Inbox, Body: InboxPreview },
+  salary: { icon: Gauge, Body: SalaryPreview },
+  gates: { icon: ShieldCheck, Body: GatesPreview }
 };
 
 export function FeatureSpotlight({
@@ -427,6 +430,7 @@ export function FeatureSpotlight({
   onClose: () => void;
 }) {
   const reduceMotion = useReducedMotion();
+  const t = useTranslations("landing");
   const def = preview ? PREVIEWS[preview] : null;
   return (
     <AnimatePresence>
@@ -450,7 +454,7 @@ export function FeatureSpotlight({
             transition={{ type: "spring", bounce: 0.42, duration: 0.55 }}
             role="dialog"
             aria-modal={pinned}
-            aria-label={def.title}
+            aria-label={t(`features.${preview}.title`)}
             className={`relative w-full max-w-xl rounded-2xl border-[3px] border-[#17202a] p-6 shadow-[10px_10px_0_#17202a] sm:p-7`}
             style={{ background: CREAM }}
           >
@@ -459,13 +463,13 @@ export function FeatureSpotlight({
                 <span className="grid h-10 w-10 place-items-center rounded-xl border-[3px] border-[#17202a] bg-white shadow-[3px_3px_0_#17202a]">
                   <def.icon className="h-5 w-5" style={{ color: CORAL }} />
                 </span>
-                <h3 className={`${DISPLAY} text-xl font-bold`}>{def.title}</h3>
+                <h3 className={`${DISPLAY} text-xl font-bold`}>{t(`features.${preview}.title`)}</h3>
               </div>
               {pinned && (
                 <button
                   type="button"
                   onClick={onClose}
-                  aria-label="Close preview"
+                  aria-label={t("previews.close")}
                   className="grid h-9 w-9 place-items-center rounded-full border-[3px] border-[#17202a] bg-white shadow-[2px_2px_0_#17202a] transition-all hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[1px_1px_0_#17202a]"
                 >
                   <X className="h-4 w-4" />
@@ -477,7 +481,7 @@ export function FeatureSpotlight({
               <def.Body />
             </div>
             <p className={`${HAND} mt-5 rotate-1 text-right text-base`} style={{ color: STEEL }}>
-              {def.note}
+              {t(`previews.${preview}.note`)}
             </p>
           </motion.div>
         </motion.div>

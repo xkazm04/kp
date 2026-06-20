@@ -78,6 +78,10 @@
       "llmExplanation": "Proč toto skóre",
       "salaryEstimate": "Odhad mzdy",
       "perMonth": "měsíčně",
+      "credentialsWork": "Kvalifikace a práce",
+      "credentials": "Licence a certifikace",
+      "publications": "Publikace a patenty",
+      "links": "Portfolio a odkazy",
       "growthTarget": "Cíl růstu +30 %: {amount} Kč / měsíc",
       "companyCompContext": "Kontext odměňování firmy",
       "salaryRationale": "Zdůvodnění mzdy",
@@ -209,6 +213,277 @@
     "en": "English",
     "cs": "Čeština"
   },
+  "landing": {
+    "nav": {
+      "how": "Jak to funguje",
+      "features": "Funkce",
+      "pricing": "Ceník",
+      "about": "O nás",
+      "signIn": "Přihlásit se"
+    },
+    "hero": {
+      "badge": "AI pro nábor, kde rozhodují lidé",
+      "title": "Nábor, který<br></br>konečně <emph>funguje</emph>.",
+      "subtitle": "KandiDate přečte každé CV, vede první pohovor naživo, zarezervuje termín a připraví rozhodnutí, která jen schválíte. Hromada zmizí. Úsudek zůstává na vás.",
+      "ctaPrimary": "Začít zdarma",
+      "ctaSecondary": "Poslechnout si pohovor",
+      "ctaDemo": "Spustit živé demo",
+      "pileHint": "vyzkoušejte to — najeďte na hromadu ↓",
+      "scoreCardAria": "Ohodnotit CV: {name}",
+      "mascotAlt": "Kandi, maskot KandiDate, jásá pod schváleným CV",
+      "mascotNote": "seznamte se s Kandi — vaším novým parťákem"
+    },
+    "pile": {
+      "jana": { "role": "React Developer", "verdict": "skvělá shoda" },
+      "petr": { "role": "Datový analytik", "verdict": "stojí za hovor" },
+      "alex": { "role": "PM, bez portfolia", "verdict": "laskavé odmítnutí" }
+    },
+    "marquee": [
+      "hodnocení CV během vteřin",
+      "AI hlasové pohovory",
+      "odkazy pro samoobslužné termíny",
+      "pět kanálů, jeden tok kandidátů",
+      "platový radar",
+      "rozhodnutí schválená člověkem",
+      "česky i anglicky",
+      "portály nabídek"
+    ],
+    "steps": {
+      "heading": "Od hromady k užšímu výběru<br></br>ve <emph>třech krocích</emph>",
+      "drop": {
+        "title": "Vysypte hromadu",
+        "body": "Každé CV se opravdu přečte. KandiDate hodnotí vhodnost vůči vašemu zadání podle rubriky podložené důkazy, ne podle hádání klíčových slov. Včetně silných stránek, mezer a odhadu mzdy."
+      },
+      "talk": {
+        "title": "Nechte ho mluvit",
+        "body": "Slibní kandidáti dostanou přátelský AI hlasový pohovor během hodin, ne týdnů. Skutečné otázky postavené na jejich CV, živý přepis a strukturovaný scorecard na konci."
+      },
+      "call": {
+        "title": "Rozhodnutí je na vás",
+        "body": "Nic neodejde bez vás. Každý screening, užší výběr i nabídka čeká u lidské brány s připojeným zdůvodněním. Schvalte, přepište, nebo vraťte zpět."
+      }
+    },
+    "features": {
+      "heading": "Celý trychtýř,<br></br>jedno šťastné místo",
+      "hint": "najeďte na kartu a nahlédněte naživo — všechno je hotové už dnes, bez hvězdiček",
+      "peekInside": "nahlédnout dovnitř",
+      "score": {
+        "title": "Hodnocení vhodnosti",
+        "body": "Skóre vhodnosti 0–100 pro každé CV i s důkazy, které ho podloží. Více verzí CV? Porovnejte je vedle sebe."
+      },
+      "voice": {
+        "title": "Hlasový screening",
+        "body": "AI tazatel, který se ptá na jejich skutečnou zkušenost — česky nebo anglicky — a scorecard vám napíše sám."
+      },
+      "schedule": {
+        "title": "Samoobslužné termíny",
+        "body": "Kandidáti si vyberou vlastní termín z odkazu. Žádné reply-all kalendářové ping-pongy, žádná ztracená časová pásma."
+      },
+      "inbox": {
+        "title": "Jedna schránka, pět dveří",
+        "body": "Portál pro uchazeče, e-mail, job boardy, sourcing i ruční přidání — vše dorazí do jednoho toku na stejnou startovní čáru."
+      },
+      "salary": {
+        "title": "Platový radar",
+        "body": "Mzdová rozpětí ukotvená v českém trhu, upravená podle typu firmy — aby vaše nabídka sedla napoprvé."
+      },
+      "gates": {
+        "title": "Brány a stvrzenky",
+        "body": "Úplná auditní stopa a nouzová brzda. AI doporučuje, lidé rozhodují a každé rozhodnutí si nechá svou stvrzenku."
+      }
+    },
+    "voice": {
+      "heading": "Nečte jen CV.<br></br><emph>Mluví</emph> s lidmi.",
+      "body": "První kola probíhají ještě v den, kdy se někdo přihlásí — vřelý, strukturovaný hlasový pohovor postavený na jejich skutečném CV. Kandidáti dostanou prostor. Vy dostanete přepis a scorecard místo kalendáře plného třicetiminutových „možná“.",
+      "bullets": [
+        "Česky i anglicky, podle jejich volby",
+        "Otázky vycházející z jejich zkušeností",
+        "Živý přepis, strukturovaný scorecard"
+      ],
+      "cardTitle": "První kolo pohovoru",
+      "cardMeta": "naživo · 4 min 12 s",
+      "transcript": [
+        "Nasadili jste Reactovou aplikaci pro školní projekt — co se rozbilo jako první, když přišli skuteční uživatelé?",
+        "Upřímně? Správa stavu. Přepsal jsem ji dvakrát, než jsem pochopil proč…",
+        "Paráda. Proveďte mě tím druhým přepisem."
+      ]
+    },
+    "trust": {
+      "heading": "Silná AI.<br></br><emph>Každé rozhodnutí podepíše člověk.</emph>",
+      "subtitle": "Stavěno pro regulovaný nábor podle EU AI Act a GDPR: čtení obstará stroj, ale každé rozhodnutí, které se dotkne kandidáta, činí kvalifikovaný člověk.",
+      "human": {
+        "title": "Člověk v řídicí smyčce",
+        "body": "Žádného kandidáta neposune, nenabídne ani nezamítne stroj sám. Každé nepříznivé rozhodnutí přezkoumává a činí člověk — z principu, ne podle nastavení."
+      },
+      "oversight": {
+        "title": "Připraveno na EU AI Act",
+        "body": "Screening a řazení považujeme za vysoce rizikovou AI: smysluplný lidský dohled, zdůvodnění, které si přečtete, a záznam o každém automatizovaném kroku."
+      },
+      "gdpr": {
+        "title": "GDPR a článek 22",
+        "body": "Kandidáti souhlasí dříve, než jejich data přečte AI, mohou požádat o přezkoumání člověkem a kdykoli si data zobrazit nebo nechat vymazat. Žádná čistě automatizovaná zásadní rozhodnutí."
+      },
+      "audit": {
+        "title": "Prokazatelné, ne slíbené",
+        "body": "Každé rozhodnutí AI je zapečetěno do auditní stopy odolné proti manipulaci a důvěru měříme proti skutečným výsledkům — kalibrovaně, ne jen tvrzením."
+      },
+      "footnote": "Funkční ukázka: odráží návrh a kontrolní mechanismy produktu, nikoli právní certifikaci."
+    },
+    "pricing": {
+      "heading": "Drobné ceny.<br></br><emph>Nulová matematika tokenů.</emph>",
+      "headingNote": "otevřené všem — tohle jsou startovní ceny, které si zamknete",
+      "tiers": {
+        "free": {
+          "name": "Zdarma",
+          "tagline": "Vyzkoušejte to na skutečné pozici.",
+          "price": "0 Kč",
+          "cadence": "navždy",
+          "usd": "bez karty, bez stopek",
+          "cta": "Začít zdarma",
+          "features": [
+            "1 aktivní pozice",
+            "5 AI kandidátů měsíčně",
+            "1 návrh dev casu",
+            "Neomezené párování, pipeline a plánování"
+          ]
+        },
+        "starter": {
+          "name": "Starter",
+          "tagline": "Náborový stůl, který nikdy nespí.",
+          "price": "490 Kč",
+          "cadence": "/ měsíc",
+          "usd": "≈ 21 $ měsíčně",
+          "cta": "Vybrat Starter",
+          "features": [
+            "100 AI kandidátů měsíčně",
+            "5 návrhů dev casů",
+            "30 minut AI pohovorů",
+            "Neomezené pozice a kampaňové balíčky"
+          ]
+        },
+        "growth": {
+          "name": "Growth",
+          "tagline": "Pro pipeline s provozem.",
+          "price": "1 190 Kč",
+          "cadence": "/ měsíc",
+          "usd": "≈ 50 $ měsíčně",
+          "cta": "Vybrat Growth",
+          "features": [
+            "400 AI kandidátů měsíčně",
+            "20 návrhů dev casů",
+            "120 minut AI pohovorů",
+            "Vše ze Starteru, jen větší"
+          ]
+        },
+        "byom": {
+          "name": "BYOM",
+          "tagline": "Vaše klíče k modelům, naše mašinerie.",
+          "price": "120 Kč",
+          "cadence": "/ měsíc",
+          "usd": "≈ 5 $ měsíčně",
+          "cta": "Přinést vlastní klíče",
+          "badge": "přineste si klíče",
+          "features": [
+            "Zapojte klíče Gemini, OpenAI, Azure nebo Anthropic",
+            "Pohovory běží na vašem klíči ElevenLabs",
+            "Neomezená AI — fakturují vám vaši poskytovatelé",
+            "Účtujeme jen za mašinerii"
+          ]
+        }
+      },
+      "footnote1": "„AI kandidát“ = jeden člověk plně zpracovaný — CV ohodnoceno, spárováno, zdůvodněno, oslovení připraveno",
+      "footnote2": "došly minuty? Balíčky 100 minut pohovorů · 790 Kč — k jakémukoli tarifu, i BYOM",
+      "enterprise": {
+        "eyebrow": "Pro celou firmu",
+        "heading": "Nabíráte napříč celou organizací?",
+        "blurb": "Nad rámec metrovaných plánů: SSO, role a auditní stopa, vyhrazené prostředí a onboarding pro váš náborový tým — cena podle objemu náboru. Návratnost roste s každou pozicí.",
+        "cta": "Spojit se s obchodem",
+        "stat1Value": "60–70 %",
+        "stat1Label": "méně času náboráře na screeningu",
+        "stat2Value": "~23 h",
+        "stat2Label": "ručního screeningu na nábor dnes",
+        "stat3Value": "40–51 h",
+        "stat3Label": "celkem hodin náboráře na nábor, ručně",
+        "source": "Zdroje: oborové studie času náboru 2025 (SHRM time-to-fill; analýzy času na nábor). Vaše naměřené úspory vidíte živě v Analytika → Návratnost."
+      }
+    },
+    "cta": {
+      "heading": "Vaše příští skvělá posila<br></br>leží zahrabaná v té hromadě.",
+      "body": "Nechte KandiDate, ať ji vyhrabe. Začněte zdarma — bez čekací listiny.",
+      "button": "Začít",
+      "note": "bez platební karty, bez robotů u kormidla"
+    },
+    "footer": {
+      "tagline": "AI pro nábor, lidé pro rozhodnutí"
+    },
+    "previews": {
+      "close": "Zavřít náhled",
+      "score": { "note": "důkazy vždy přiloženy" },
+      "voice": { "note": "ano, mluví i česky" },
+      "schedule": { "note": "žádný kalendářový ping-pong" },
+      "inbox": { "note": "pět dveří, jedna startovní čára" },
+      "salary": { "note": "nabídky, co sednou napoprvé" },
+      "gates": { "note": "každé rozhodnutí s lidským podpisem" }
+    }
+  },
+  "aboutPage": {
+    "nav": {
+      "home": "Domů",
+      "signIn": "Přihlásit se"
+    },
+    "hero": {
+      "badge": "nábor od začátku do konce",
+      "title": "Proveďte jednu posilu<br></br>celým <emph>náborem</emph>.",
+      "subtitle": "Scrollujte a cesta se kreslí sama — od prázdné role k podepsanému nástupu. Sedm kroků, jedna souvislá linka, u každé brány člověk."
+    },
+    "steps": {
+      "design": {
+        "eyebrow": "Krok 01 · Návrh",
+        "title": "Popište roli. Získáte rubriku.",
+        "body": "Z krátkého zadání vznikne strukturovaný, firemně laděný popis pozice — must-have, nice-to-have a mzdové rozpětí pro český trh — plus hodnoticí rubrika, vůči které se měří vše ostatní."
+      },
+      "source": {
+        "eyebrow": "Krok 02 · Sourcing",
+        "title": "Jedna role, seřazený užší výběr",
+        "body": "Role vytáhne odpovídající kandidáty z vašeho talent poolu a seřadí je tvrdými vyřazovacími branami a hodnocením podle archetypu — deterministicky a vysvětlitelně, nikdy podle klíčových slov."
+      },
+      "intake": {
+        "eyebrow": "Krok 03 · Příjem",
+        "title": "Pět dveří, jeden pipeline",
+        "body": "Portál pro uchazeče, e-mail, job boardy, sourcing i ruční přidání — vše dorazí do stejného pipeline na stejnou startovní čáru. Žádný kanál nemá zkratku a nic nepropadne sítem."
+      },
+      "screen": {
+        "eyebrow": "Krok 04 · Screening",
+        "title": "Každé CV opravdu přečtené",
+        "body": "Každý kandidát je ohodnocen 0–100 vůči roli s vystopovanými důkazy. Nejdřív proběhne férová brána; silné, jednoznačné shody se posunou samy a vše ostatní počká na člověka."
+      },
+      "interview": {
+        "eyebrow": "Krok 05 · Pohovor",
+        "title": "Pak si promluví s lidmi",
+        "body": "Slibní kandidáti dostanou vřelý AI hlasový pohovor ještě týž den — otázky vycházejí z jejich CV, živý přepis a strukturovaný scorecard čeká na vaše rozhodnutí."
+      },
+      "offer": {
+        "eyebrow": "Krok 06 · Nabídka",
+        "title": "AI ji připraví. Člověk ji podepíše.",
+        "body": "Částka nabídky je deterministická — pásmo role × vhodnost, žádná AI v čísle. Dopis se připraví sám, člověk nabídku podá a kandidát přijme nebo odmítne přes zabezpečený odkaz."
+      },
+      "hired": {
+        "eyebrow": "Krok 07 · Přijat",
+        "title": "Přijat — onboarding už běží",
+        "body": "Přijetí překlopí kandidáta na „Přijat“ a spustí onboarding: pre-boarding dotazník a checklist, takže první den je v pohybu ještě dřív, než opadne oslava."
+      }
+    },
+    "closing": {
+      "tag": "to je celá linka",
+      "title": "Od prázdné role<br></br>k <emph>podepsanému nástupu</emph>.",
+      "body": "AI čte v každém kroku. Každé rozhodnutí podepisuje člověk.",
+      "button": "Začít zdarma"
+    },
+    "footer": {
+      "tagline": "AI pro nábor, lidé pro rozhodnutí",
+      "home": "Zpět domů"
+    }
+  },
   "theme": {
     "select": "Vyberte vzhled",
     "light": "Světlý vzhled",
@@ -249,6 +524,7 @@
     "acceptedTitle": "🎉 Nabídka přijata",
     "acceptedBodyCompany": "Vítejte ve společnosti {company}! Náš personální tým se vám brzy ozve s podrobnostmi k nástupu.",
     "acceptedBodyGeneric": "Skvělé — vítejte na palubě! Náš personální tým se vám brzy ozve s podrobnostmi k nástupu.",
+    "onboardingCta": "Zahájit nástup",
     "declinedTitle": "Odpověď zaznamenána",
     "declinedBody": "Děkujeme, že jste nám dali vědět. Přejeme vám vše nejlepší.",
     "loadFailed": "Tuto nabídku se nepodařilo načíst.",
@@ -508,9 +784,10 @@
     "attentionBadge": "{count} vyžaduje pozornost",
     "attentionBadgeGo": "{count} vyžaduje pozornost — zobrazit",
     "recent": "Nedávné",
-    "brandMark": "KP",
-    "brandName": "studio",
+    "brandMark": "K",
+    "brandName": "KandiDate",
     "tagline": "párování talentů",
+    "signOut": "Odhlásit se",
     "tabs": {
       "pipeline": "Nábor",
       "channels": "Kanály",
@@ -576,10 +853,28 @@
       "Thu": "Čt",
       "Fri": "Pá"
     },
+    "period": {
+      "hour": "za hodinu",
+      "month": "měsíčně",
+      "year": "ročně"
+    },
     "family": {
       "software_engineering": "Software",
       "data_ai": "Data / AI",
-      "product_project": "Produkt / projekt"
+      "product_project": "Produkt / projekt",
+      "healthcare_clinical": "Zdravotnictví / klinické",
+      "life_sciences_research": "Věda / výzkum",
+      "skilled_trades": "Řemesla / technické profese",
+      "operations_logistics": "Provoz / logistika",
+      "frontline_service": "Služby v první linii",
+      "sales_marketing": "Obchod / marketing",
+      "finance_accounting": "Finance / účetnictví",
+      "legal_compliance": "Právo / compliance",
+      "hr_people": "HR / lidské zdroje",
+      "education_academic": "Vzdělávání / akademická sféra",
+      "creative_design": "Kreativa / design",
+      "customer_support": "Zákaznická podpora",
+      "general_professional": "Obecná / odborná profese"
     },
     "workMode": {
       "remote": "Na dálku",
@@ -942,7 +1237,7 @@
       "rejectModeLabel": "Zamítnutí",
       "rejectModeApprove": "pod dohledem — do fronty ke schválení",
       "rejectModeAuto": "autonomně — provést a oznámit",
-      "rejectModeTitle": "Pod dohledem zařadí každé zamítnutí spočtené hodinami do fronty Rozhodnutí ke schválení člověkem; autonomně ho provede a odešle e-mail bez dohledu. Posuny a pozdržení zůstávají automatické v obou režimech.",
+      "rejectModeTitle": "Každé zamítnutí spočtené hodinami se zařadí do fronty Rozhodnutí ke schválení člověkem — nikdy se neprovede bez dohledu (posuny a pozdržení zůstávají automatické). Každé nepříznivé rozhodnutí přezkoumává a činí člověk.",
       "outcome": {
         "applied": "provedeno",
         "failed": "selhalo",
@@ -1075,6 +1370,7 @@
       "shieldNote": "Začátečníci a nerozpoznané archetypy jsou vždy chráněni před automatickým zamítnutím.",
       "previewFailed": "Náhled selhal.",
       "waveFailed": "Vlna selhala.",
+      "setChangedRepreview": "Sada kandidátů se od náhledu změnila — zkontrolujte aktualizovanou sadu a znovu ji schvalte.",
       "computingPreview": "Počítám náhled…",
       "wouldReject": "Zamítl by <b>{rejected}</b> z {cohort}",
       "keptCount": "{count} ponecháno",
@@ -1184,7 +1480,7 @@
       "advancedAria": "postoupil/a",
       "rejectedAria": "zamítnut/a",
       "fairnessCheck": "Kontrola spravedlnosti",
-      "fairnessUniform": "Každý kandidát použil standardní váhy pro svůj archetyp — pořadí výše už porovnává srovnatelné se srovnatelným.",
+      "fairnessUniform": "Kontrola spravedlnosti prošla — přepočet každého kandidáta podle vah ostatních archetypů pořadí nemění, takže ranking je robustní a nezávislý na zvolených vahách.",
       "aiTunedWeights": "Váhy laděné AI",
       "ruleBasedWeights": "Váhy podle pravidel",
       "fairnessExplain": "Někteří kandidáti nesou omezené váhy řízené důkazy — prokázaná dovednost má vyšší váhu, je-li podložena vysoce důvěryhodným důkazem. Každý kandidát je přepočítán pod vahami <em>každého</em> kandidáta; robustní pořadí je průměr přes všechna schémata, takže kandidát silný pod vahami všech je robustně silný.",
@@ -1658,7 +1954,12 @@
       "adding": "Přidávání…",
       "addToPipeline": "Přidat do pipeline",
       "couldntAdd": "Nepodařilo se přidat — {error}",
-      "couldntReach": "Nepodařilo se oslovit — {error}"
+      "couldntReach": "Nepodařilo se oslovit — {error}",
+      "whyNow": {
+        "rejected": "Odmítnut na jinou roli — ale splňuje laťku pro {jobTitle} na {score} %. Spíš tehdejší nesoulad role než nedostatek schopností; teď, když je místo volné, stojí za nový pohled.",
+        "closed": "Došel až do finále na roli, která se pod ním uzavřela — prověřený, dostupný kandidát s {score}% shodou pro {jobTitle}.",
+        "elsewhere": "Už je v procesu na jiné roli; zároveň {score}% shoda pro {jobTitle} — stojí za zvážení přesun."
+      }
     },
     "rediscoveryFeed": {
       "title": "Stříbrní medailisté",
@@ -2362,7 +2663,23 @@
       "csvKind": "Akce",
       "csvCount": "Počet",
       "csvMinsEach": "Min za kus",
-      "csvMinsTotal": "Min celkem"
+      "csvMinsTotal": "Min celkem",
+      "perHire": "≈ {hours} h ušetřeno na nábor — zhruba {pct} % z ~{baseline} h, které nábor zabere ručně.",
+      "perHirePending": "Základna na nábor čeká — v tomto období zatím žádné nábory.",
+      "rdTimeSaved": "Ušetřený čas náboráře",
+      "rdPerHireSub": "≈ {hours} h/nábor",
+      "rdNoHires": "zatím žádné nábory",
+      "rdCostPerHire": "Náklad na nábor",
+      "rdAllTime": "za celou dobu",
+      "rdTimeToHire": "Doba do náboru",
+      "rdMedian": "medián",
+      "czkValue": "{n} Kč",
+      "daysValue": "{n} d",
+      "csvMetric": "Metrika",
+      "csvValue": "Hodnota",
+      "csvHoursPerHire": "Hodiny ušetřené na nábor",
+      "csvHoursTotal": "Ušetřené hodiny (období)",
+      "csvCzkTotal": "Ušetřené Kč (období)"
     },
     "channels": {
       "title": "Ekonomika kanálů",
@@ -2537,6 +2854,26 @@
     "markSigned": "Označit jako podepsané",
     "docPlaceholder": "Název dokumentu (např. Pracovní smlouva)",
     "requestSign": "Vyžádat podpis",
+    "withTemplate": "Šablona",
+    "templatesTitle": "Šablony onboardingu",
+    "templatesNote": "Vytvořte oborovou šablonu — checklist a přednástupní dotazník — a podle ní onboardujte nové kolegy.",
+    "newTemplate": "Nová šablona",
+    "templateMeta": "{tasks} úkolů · {questions} otázek",
+    "fromPreset": "Začít z předlohy",
+    "choosePreset": "Vyberte obor…",
+    "templateNamePlaceholder": "Název šablony",
+    "tasksLabel": "Úkoly checklistu",
+    "taskPlaceholder": "např. Ověřit profesní licenci",
+    "addTask": "Přidat úkol",
+    "questionsLabel": "Přednástupní otázky",
+    "questionPlaceholder": "např. Číslo licence / registrace",
+    "addQuestion": "Přidat otázku",
+    "saveTemplate": "Uložit šablonu",
+    "saving": "Ukládání…",
+    "cancel": "Zrušit",
+    "nameRequired": "Zadejte název šablony.",
+    "needTask": "Přidejte alespoň jeden úkol.",
+    "saveFailed": "Šablonu se nepodařilo uložit.",
     "field": {
       "preferredName": "Preferované jméno",
       "tshirtSize": "Velikost trička",

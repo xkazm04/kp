@@ -465,14 +465,23 @@ export function SimulationProvider({ children }: { children: React.ReactNode }) 
         title: "Screening · automated wave",
         caption: "The first automated decision: score the matched candidates, auto-reject the weakest below threshold (each with a rationale), and pass the rest.",
         action: async () => {
+          // Preview first to get the approval token, then commit the reviewed set
+          // (the Art. 22 human-approval gate) — the demo mirrors the recruiter's
+          // review→approve flow rather than a solely-automated commit.
+          // Override thresholds are single-sourced in SIM_SCREEN_POLICY
+          // (constants.ts), coupled to its inboundScoreFloor by an invariant (the
+          // scripted applicant must outscore the reject ceiling, or it gets
+          // auto-rejected mid-demo). constants.test.ts pins that invariant.
+          const screenWaveBody = { jobId, override: SIM_SCREEN_POLICY.screenWaveOverride };
+          const wavePreview = await fetch("/api/decisions/screen-wave", {
+            method: "POST",
+            headers: JSON_HEADERS,
+            body: JSON.stringify({ ...screenWaveBody, dryRun: true }),
+          }).then((r) => r.json());
           const wave = await fetch("/api/decisions/screen-wave", {
             method: "POST",
             headers: JSON_HEADERS,
-            // Override thresholds are single-sourced in SIM_SCREEN_POLICY
-            // (constants.ts), coupled to its inboundScoreFloor by an invariant (the
-            // scripted applicant must outscore the reject ceiling, or it gets
-            // auto-rejected mid-demo). constants.test.ts pins that invariant.
-            body: JSON.stringify({ jobId, override: SIM_SCREEN_POLICY.screenWaveOverride }),
+            body: JSON.stringify({ ...screenWaveBody, approvalToken: wavePreview.approvalToken, approvedBy: "Guided demo (auto-approved)" }),
           }).then((r) => r.json());
           patch({ screenWave: { decisions: wave.decisions ?? [], rejected: wave.rejected ?? 0, kept: wave.kept ?? 0, cohort: wave.cohort ?? 0 } });
           notifyDataChanged();
@@ -673,6 +682,21 @@ export function SimulationProvider({ children }: { children: React.ReactNode }) 
   // while paused). The walk continues; if it still needs the frame it falls back
   // to its API path (e.g. accepting the offer server-side).
   const closeFrame = useCallback(() => patch({ frame: null }), [patch]);
+
+  // Public guided-demo entry (B1): a prospect arrives at '/?sim=auto' from the
+  // marketing "Try the live demo" CTA (via /api/demo, which set the isolated demo
+  // session). Auto-start the run ONCE so they see it play without hunting for a
+  // control — and in PLAY mode (not the step default) for a hands-off first
+  // impression; the SimBar still lets them pause/step. The ref guards against a
+  // re-fire (StrictMode double-invoke, or the param persisting across nav).
+  const autoStarted = useRef(false);
+  useEffect(() => {
+    if (autoStarted.current || searchParams.get("sim") !== "auto") return;
+    autoStarted.current = true;
+    stepRef.current = false;
+    setState((s) => ({ ...s, stepMode: false }));
+    start();
+  }, [searchParams, start]);
 
   const value = useMemo<SimCtx>(
     () => ({ ...state, start, pause, resume, stop, reset, toggleStep, next, openExplain, closeExplain, closeGroupEval, closeScreenWave, closeFrame }),

@@ -573,7 +573,11 @@ export function appendDevSessionEvents(id: string, events: DevSessionEvent[]): n
  *  (repo_ref = "session:<id>") so the existing eval machinery can pick it up and
  *  load the observed events. Idempotent — returns the existing submission if the
  *  session was already submitted. */
-export function submitDevSession(id: string, postingId: string): DevSubmission | null {
+export function submitDevSession(
+  id: string,
+  postingId: string,
+  identity?: { candidate?: string | null; contact?: string | null }
+): DevSubmission | null {
   const db = ensureDb();
   // ONE transaction over read-check-create-link: previously these were three
   // statements with no atomicity, so a crash between createSubmission and the
@@ -588,7 +592,12 @@ export function submitDevSession(id: string, postingId: string): DevSubmission |
     if (session.submissionId) return getSubmission(session.submissionId);
     const { submission } = createSubmission({
       postingId,
-      candidateRef: session.candidateRef ?? "live-session",
+      // UAT M9 — the live-work surface is the single submit path when a case has a
+      // workspace, so it must carry identity (else a winning evaluation is an
+      // unreachable candidate). Prefer the submit-time name, then the session's,
+      // then the anonymous fallback.
+      candidateRef: identity?.candidate?.trim() || session.candidateRef || "live-session",
+      contact: identity?.contact?.trim() || undefined,
       repoRef: `session:${id}`,
     });
     const now = new Date().toISOString();

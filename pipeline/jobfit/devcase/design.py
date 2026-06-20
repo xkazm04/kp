@@ -22,12 +22,19 @@ _LOG = logging.getLogger(__name__)
 ROLE_DESIGN_PROMPT_VERSION = "role-design-v3"  # v3: JD-first intake — full JD body anchors the role
 CASE_DESIGN_PROMPT_VERSION = "case-design-v4"  # v4: ambiguity as the instrument — probes carry a decisionSpace, the case forces a visible decision log
 
-# Seniority-scaled timebox (the lifecycle eval flagged junior/lead cases looking alike).
-_TIMEBOX = {"junior": 3.0, "medior": 4.0, "senior": 6.0, "lead": 8.0}
+# Hard cap on case length (UAT M8). The case's instrument is AMBIGUITY + a visible
+# decision log, NOT volume — the candidate's code is assumed 100% LLM-generated — so
+# a focused "real work, ≤2h" exercise is the goal at every level. A half-day
+# take-home drives a 40–60% drop-off among strong seniors, the exact pool this case
+# is for. Seniority scales DEPTH / ambiguity (see the prompt), not hours.
+_MAX_TIMEBOX_HOURS = 2.0
+
+# Seniority-scaled timebox, every value bounded by _MAX_TIMEBOX_HOURS.
+_TIMEBOX = {"junior": 1.0, "medior": 1.5, "senior": 2.0, "lead": 2.0}
 
 
 def _timebox(seniority: str) -> float:
-    return _TIMEBOX.get((seniority or "medior").lower(), 4.0)
+    return _TIMEBOX.get((seniority or "medior").lower(), 1.5)
 
 
 _CORPUS_CACHE: list | None = None
@@ -369,6 +376,10 @@ def design_case(
             tb = float(payload.get("timeboxHours"))
         except (TypeError, ValueError):
             tb = timebox
+        # Clamp the model's own estimate to the cap (UAT M8): left alone the LLM
+        # routinely echoes a longer take-home back, and this number is shown to the
+        # candidate. Floor at 0.5h so a degenerate 0 can't render "~0h".
+        tb = min(max(tb, 0.5), _MAX_TIMEBOX_HOURS)
         return {
             "title": str(payload.get("title") or det["title"]),
             "brief": str(payload.get("brief") or det["brief"]),

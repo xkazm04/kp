@@ -15,7 +15,21 @@ export const analysisResultSchema = z.object({
     educationLevel: z.string(),
     languages: z.array(z.string()),
     traits: z.array(z.string()),
-    evidence: z.array(z.string())
+    evidence: z.array(z.string()),
+    credentials: z.array(z.object({
+      name: z.string(),
+      issuer: z.string(),
+      identifier: z.string(),
+      expiry: z.string(),
+      kind: z.string()
+    })).nullish(),
+    publications: z.array(z.object({
+      title: z.string(),
+      venue: z.string(),
+      year: z.string(),
+      kind: z.string()
+    })).nullish(),
+    links: z.array(z.string()).nullish()
   }),
   score: z.object({
     total: z.number(),
@@ -32,7 +46,8 @@ export const analysisResultSchema = z.object({
     maximum: z.number(),
     midpoint: z.number(),
     confidence: z.string(),
-    rationale: z.array(z.string())
+    rationale: z.array(z.string()),
+    structureNote: z.string().nullish()
   }),
   strengths: z.array(z.string()),
   gaps: z.array(z.string()),

@@ -20,7 +20,7 @@ type Decision = {
   reasonParams?: Record<string, string | number>;
   commsFailed?: boolean;
 };
-type WaveResult = { decisions: Decision[]; rejected: number; kept: number; cohort: number; commsFailures: number; dryRun: boolean };
+type WaveResult = { decisions: Decision[]; rejected: number; kept: number; cohort: number; commsFailures: number; dryRun: boolean; approvalToken?: string };
 
 // Run the screening auto-reject wave for one role (DEC1) — but ALWAYS preview
 // first (DEC2). The wave is irreversible (flips statuses + queues rejection
@@ -49,6 +49,10 @@ export function ScreenWaveModal({
   const [error, setError] = useState<string | null>(null);
   const [committing, setCommitting] = useState(false);
   const [committed, setCommitted] = useState<WaveResult | null>(null);
+  // Bumped to force a fresh preview (and a fresh approval token) after a 409 — the
+  // cohort changed since the displayed preview, so the recruiter must review the
+  // current set before approving it.
+  const [refreshNonce, setRefreshNonce] = useState(0);
 
   const override = () => ({ autoRejectEnabled: enabled, rejectBottomPercent: bottomPercent, maxMatchToReject: maxMatch });
 
@@ -89,7 +93,7 @@ export function ScreenWaveModal({
       alive = false;
       window.clearTimeout(h);
     };
-  }, [enabled, bottomPercent, maxMatch, jobId, committed, t]);
+  }, [enabled, bottomPercent, maxMatch, jobId, committed, refreshNonce, t]);
 
   const commit = async () => {
     setCommitting(true);
@@ -98,9 +102,18 @@ export function ScreenWaveModal({
       const r = await fetch("/api/decisions/screen-wave", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ jobId, override: override(), dryRun: false }),
+        // Echo the approval token from the previewed set the recruiter is looking at —
+        // the server commits only if it still matches the live set (the Art. 22 gate).
+        body: JSON.stringify({ jobId, override: override(), dryRun: false, approvalToken: preview?.approvalToken }),
       });
       const d = await r.json();
+      // 409 = the set changed since the preview. Re-preview the current set so the
+      // recruiter reviews and approves THIS set, rather than rubber-stamping a stale one.
+      if (r.status === 409) {
+        setError(d.error || t("setChangedRepreview"));
+        setRefreshNonce((nonce) => nonce + 1);
+        return;
+      }
       if (!r.ok) throw new Error(d.error || `Wave failed (${r.status}).`);
       setCommitted(d as WaveResult);
       onCommitted(); // live-refresh the queue so rejected rows drop out

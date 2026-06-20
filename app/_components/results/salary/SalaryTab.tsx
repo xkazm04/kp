@@ -4,6 +4,7 @@ import { CircleDollarSign } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { formatCzk, formatSalaryRange, labelize } from "@/app/_lib/format";
 import type { Analysis } from "@/app/_lib/schemas";
+import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { ConfidenceBadge } from "@/app/_components/Badge";
 import { dedupeBy } from "@/app/_lib/dedupe";
 import { safeHttpLinks } from "@/app/_lib/safe-url";
@@ -12,6 +13,8 @@ import { SalaryGauge } from "./SalaryGauge";
 
 export function SalaryTab({ analysis }: { analysis: Analysis }) {
   const t = useTranslations("report");
+  const enumLabel = useEnumLabel();
+  const { currency, period } = analysis.salary;
   const targetSalary = Math.round((analysis.salary.midpoint * 1.3) / 5000) * 5000;
   // marketEvidence.sources are model-supplied (CV/JD text -> LLM), so they are
   // untrusted at this render boundary: vet to http(s) only, drop the rest, and
@@ -35,12 +38,16 @@ export function SalaryTab({ analysis }: { analysis: Analysis }) {
               midpoint={analysis.salary.midpoint}
               confidence={analysis.salary.confidence}
               target={targetSalary}
+              currency={currency}
             />
           </div>
           <div className="mt-1 text-base nums text-ink">
-            {formatSalaryRange(analysis.salary.minimum, analysis.salary.maximum)}
+            {formatSalaryRange(analysis.salary.minimum, analysis.salary.maximum, { currency })}
           </div>
-          <p className="mt-1 flex items-center gap-1.5 text-base text-steel">{t("panel.perMonth")} · <ConfidenceBadge value={analysis.salary.confidence} /></p>
+          <p className="mt-1 flex items-center gap-1.5 text-base text-steel">{enumLabel("period", period)} · <ConfidenceBadge value={analysis.salary.confidence} /></p>
+          {analysis.salary.structureNote ? (
+            <p className="mt-2 text-sm leading-5 text-steel">+ {analysis.salary.structureNote}</p>
+          ) : null}
           <div className="mt-4 rounded-md bg-limewash p-3 text-base font-medium text-ink">
             {t("panel.growthTarget", { amount: formatCzk(targetSalary) })}
           </div>
@@ -84,7 +91,7 @@ export function SalaryTab({ analysis }: { analysis: Analysis }) {
               <ConfidenceBadge value={analysis.marketEvidence.confidence} />
               {analysis.marketEvidence.suggestedMinimum && analysis.marketEvidence.suggestedMaximum
                 ? t("panel.groundedRange", {
-                    range: formatSalaryRange(analysis.marketEvidence.suggestedMinimum, analysis.marketEvidence.suggestedMaximum),
+                    range: formatSalaryRange(analysis.marketEvidence.suggestedMinimum, analysis.marketEvidence.suggestedMaximum, { currency }),
                   })
                 : ""}
             </p>

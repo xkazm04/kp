@@ -22,11 +22,13 @@ from .models import (
     AnalysisMetadata,
     AnalysisResult,
     CandidateProfile,
+    Credential,
     DeterministicEvidence,
     ExtractionComparison,
     ExtractionQuality,
     JobFitResult,
     MarketEvidence,
+    Publication,
     SalaryEstimate,
     ScoreBreakdown,
 )
@@ -385,6 +387,49 @@ def _letter_spacing_hits(text: str) -> int:
     return count_letter_spacing(text)
 
 
+def _credentials_from_payload(raw: Any) -> list[Credential]:
+    """Coerce the LLM's credential entries into Credential models, skipping nameless
+    rows. Tolerant of missing optional fields so a partial extraction still surfaces."""
+    if not isinstance(raw, list):
+        return []
+    out: list[Credential] = []
+    for item in raw:
+        if not isinstance(item, dict):
+            continue
+        name = str(item.get("name") or "").strip()
+        if not name:
+            continue
+        kind = str(item.get("kind") or "certification").strip().lower()
+        out.append(Credential(
+            name=name,
+            issuer=str(item.get("issuer") or "").strip(),
+            identifier=str(item.get("identifier") or "").strip(),
+            expiry=str(item.get("expiry") or "").strip(),
+            kind=kind if kind in {"license", "certification"} else "certification",
+        ))
+    return out
+
+
+def _publications_from_payload(raw: Any) -> list[Publication]:
+    if not isinstance(raw, list):
+        return []
+    out: list[Publication] = []
+    for item in raw:
+        if not isinstance(item, dict):
+            continue
+        title = str(item.get("title") or "").strip()
+        if not title:
+            continue
+        kind = str(item.get("kind") or "publication").strip().lower()
+        out.append(Publication(
+            title=title,
+            venue=str(item.get("venue") or "").strip(),
+            year=str(item.get("year") or "").strip(),
+            kind=kind if kind in {"publication", "patent"} else "publication",
+        ))
+    return out
+
+
 def _profile_from_payload(payload: dict[str, Any], raw_text: str) -> CandidateProfile:
     """Build a CandidateProfile directly from the LLM payload.
 
@@ -424,6 +469,9 @@ def _profile_from_payload(payload: dict[str, Any], raw_text: str) -> CandidatePr
         languages=_string_list(payload.get("languages")),
         traits=_string_list(payload.get("traits")),
         evidence=_string_list(payload.get("evidence")),
+        credentials=_credentials_from_payload(payload.get("credentials")),
+        publications=_publications_from_payload(payload.get("publications")),
+        links=_string_list(payload.get("links")),
     )
 
 
@@ -630,6 +678,7 @@ def _salary_from_payload(raw: Any, repairs: list[str] | None = None) -> SalaryEs
         midpoint=midpoint,
         confidence=str(raw.get("confidence") or "medium"),
         rationale=_string_list(raw.get("rationale")),
+        structure_note=str(raw.get("structure_note") or ""),
     )
 
 
@@ -662,8 +711,10 @@ def _market_evidence_from_payload(raw: Any, sources: list[str]) -> MarketEvidenc
         return None
     return MarketEvidence(
         summary=summary or "Grounded market context was returned.",
-        suggested_minimum=_optional_int(raw.get("suggested_minimum_czk")),
-        suggested_maximum=_optional_int(raw.get("suggested_maximum_czk")),
+        # Currency-neutral field names; fall back to the legacy *_czk keys so
+        # analyses cached before the multi-currency change still read.
+        suggested_minimum=_optional_int(raw.get("suggested_minimum", raw.get("suggested_minimum_czk"))),
+        suggested_maximum=_optional_int(raw.get("suggested_maximum", raw.get("suggested_maximum_czk"))),
         confidence=str(raw.get("confidence") or "medium"),
         sources=sources,
         notes=_string_list(raw.get("notes")),
@@ -681,7 +732,7 @@ def _explanation_fallback(
     candidate = profile.name or "Candidate"
     return (
         f"{candidate} was assessed as {profile.current_seniority} in {profile.role_family}. "
-        f"Score {score.total}/100; salary estimate {salary.minimum:,}-{salary.maximum:,} {salary.currency}/month "
+        f"Score {score.total}/100; salary estimate {salary.minimum:,}-{salary.maximum:,} {salary.currency}/{salary.period} "
         f"({salary.confidence} confidence). Strengths: {'; '.join(strengths) or 'n/a'}. "
         f"Gaps: {'; '.join(gaps) or 'no critical gaps detected'}. "
         f"Next steps: {'; '.join(recommendations) or 'tighten the CV against the target role'}."
@@ -1023,8 +1074,12 @@ def _salary_sanity_checks(salary: SalaryEstimate) -> list[str]:
     if salary.minimum <= 0 and salary.maximum <= 0:
         return ["No salary estimate produced"]
     order_ok = 0 < salary.minimum <= salary.midpoint <= salary.maximum
-    plausible = salary.maximum <= SALARY_PLAUSIBILITY_CEILING
-    return [
-        "Salary range order OK" if order_ok else "Salary range is inconsistent",
-        "Salary range seems plausible" if plausible else "Salary range needs manual review",
-    ]
+    checks = ["Salary range order OK" if order_ok else "Salary range is inconsistent"]
+    # The magnitude ceiling is a CZK/month guard (it catches a yearly figure
+    # mistaken for monthly or a stray extra zero). It is meaningless for other
+    # currencies/periods — a US $180k/yr or an Indian ₹25 LPA legitimately sits far
+    # above a CZK/month ceiling — so only apply it when the estimate is CZK/month.
+    if salary.currency.upper() == "CZK" and salary.period == "month":
+        plausible = salary.maximum <= SALARY_PLAUSIBILITY_CEILING
+        checks.append("Salary range seems plausible" if plausible else "Salary range needs manual review")
+    return checks

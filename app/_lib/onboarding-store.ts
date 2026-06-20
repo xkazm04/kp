@@ -2,12 +2,15 @@ import Database from "better-sqlite3";
 import { openStore } from "./db-path";
 import { randomId } from "./random-id";
 import {
+  coerceQuestionnaire,
   coerceTasks,
   DEFAULT_ONBOARDING_TASKS,
+  DEFAULT_QUESTIONNAIRE,
   onboardingProgress,
   type OnboardingProgress,
   type OnboardingTask,
   type OnboardingTaskState,
+  type QuestionnaireField,
 } from "./onboarding";
 
 // Onboarding hand-off store (#6) — isolated connection on the shared kp.sqlite,
@@ -25,6 +28,7 @@ function db(): Database.Database {
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
       tasks_json TEXT NOT NULL,
+      questionnaire_json TEXT,
       created_at TEXT NOT NULL
     );
     CREATE TABLE IF NOT EXISTS onboarding_runs (
@@ -60,11 +64,18 @@ function db(): Database.Database {
     );
     CREATE INDEX IF NOT EXISTS idx_onboarding_sig_run ON onboarding_signatures (run_id);
   `);
+  // Migration (P1-4): add the per-template questionnaire column to template tables
+  // created before the questionnaire became editable data. Pre-existing rows read
+  // back as the default questionnaire (parseQuestionnaire's null fallback).
+  const cols = d.prepare(`PRAGMA table_info(onboarding_templates)`).all() as { name: string }[];
+  if (!cols.some((c) => c.name === "questionnaire_json")) {
+    d.exec(`ALTER TABLE onboarding_templates ADD COLUMN questionnaire_json TEXT`);
+  }
   _db = d;
   return d;
 }
 
-export type OnboardingTemplate = { id: string; name: string; tasks: OnboardingTask[] };
+export type OnboardingTemplate = { id: string; name: string; tasks: OnboardingTask[]; questionnaire: QuestionnaireField[] };
 export type OnboardingRun = {
   id: string;
   entryId: string | null;
@@ -87,6 +98,7 @@ export type OnboardingSignature = {
 export type OnboardingRunDetail = {
   run: OnboardingRun;
   tasks: OnboardingTask[];
+  questionnaire: QuestionnaireField[];
   states: OnboardingTaskState[];
   intake: Record<string, string> | null;
   signatures: OnboardingSignature[];
@@ -101,6 +113,18 @@ function parseTasks(json: string): OnboardingTask[] {
   }
 }
 
+/** Parse a template's questionnaire. A NULL column is a pre-P1-4 template — it falls
+ *  back to the default questionnaire so it still presents a usable form. A stored
+ *  "[]" is an intentional empty questionnaire and is honoured. */
+function parseQuestionnaire(json: string | null | undefined): QuestionnaireField[] {
+  if (json == null) return [...DEFAULT_QUESTIONNAIRE];
+  try {
+    return coerceQuestionnaire(JSON.parse(json));
+  } catch {
+    return [...DEFAULT_QUESTIONNAIRE];
+  }
+}
+
 /** Seed the single default template on first use so a fresh tenant has a runnable
  *  checklist (idempotent — only seeds when the table is empty). Returns its id. */
 export function ensureDefaultTemplate(): string {
@@ -110,10 +134,11 @@ export function ensureDefaultTemplate(): string {
     | undefined;
   if (existing) return existing.id;
   const id = randomId("obt");
-  d.prepare(`INSERT INTO onboarding_templates (id, name, tasks_json, created_at) VALUES (?, ?, ?, ?)`).run(
+  d.prepare(`INSERT INTO onboarding_templates (id, name, tasks_json, questionnaire_json, created_at) VALUES (?, ?, ?, ?, ?)`).run(
     id,
     "Standard onboarding",
     JSON.stringify(DEFAULT_ONBOARDING_TASKS),
+    JSON.stringify(DEFAULT_QUESTIONNAIRE),
     new Date().toISOString()
   );
   return id;
@@ -121,20 +146,25 @@ export function ensureDefaultTemplate(): string {
 
 export function listTemplates(): OnboardingTemplate[] {
   ensureDefaultTemplate();
-  return (db().prepare(`SELECT id, name, tasks_json FROM onboarding_templates ORDER BY created_at ASC`).all() as {
+  return (db().prepare(`SELECT id, name, tasks_json, questionnaire_json FROM onboarding_templates ORDER BY created_at ASC`).all() as {
     id: string;
     name: string;
     tasks_json: string;
-  }[]).map((r) => ({ id: r.id, name: r.name, tasks: parseTasks(r.tasks_json) }));
+    questionnaire_json: string | null;
+  }[]).map((r) => ({ id: r.id, name: r.name, tasks: parseTasks(r.tasks_json), questionnaire: parseQuestionnaire(r.questionnaire_json) }));
 }
 
-export function createTemplate(name: string, tasks: unknown): OnboardingTemplate {
+export function createTemplate(name: string, tasks: unknown, questionnaire?: unknown): OnboardingTemplate {
   const id = randomId("obt");
   const clean = coerceTasks(tasks);
+  // undefined questionnaire (legacy caller) → default; an explicit value (incl. [])
+  // is the recruiter's choice and is honoured.
+  const cleanQ = questionnaire === undefined ? [...DEFAULT_QUESTIONNAIRE] : coerceQuestionnaire(questionnaire);
+  const cleanName = name.trim().slice(0, 120) || "Untitled";
   db()
-    .prepare(`INSERT INTO onboarding_templates (id, name, tasks_json, created_at) VALUES (?, ?, ?, ?)`)
-    .run(id, name.trim().slice(0, 120) || "Untitled", JSON.stringify(clean), new Date().toISOString());
-  return { id, name, tasks: clean };
+    .prepare(`INSERT INTO onboarding_templates (id, name, tasks_json, questionnaire_json, created_at) VALUES (?, ?, ?, ?, ?)`)
+    .run(id, cleanName, JSON.stringify(clean), JSON.stringify(cleanQ), new Date().toISOString());
+  return { id, name: cleanName, tasks: clean, questionnaire: cleanQ };
 }
 
 function rowToRun(r: Record<string, unknown>): OnboardingRun {
@@ -195,6 +225,13 @@ function templateTasks(templateId: string): OnboardingTask[] {
   return row ? parseTasks(row.tasks_json) : [];
 }
 
+function templateQuestionnaire(templateId: string): QuestionnaireField[] {
+  const row = db().prepare(`SELECT questionnaire_json FROM onboarding_templates WHERE id = ?`).get(templateId) as
+    | { questionnaire_json: string | null }
+    | undefined;
+  return row ? parseQuestionnaire(row.questionnaire_json) : [...DEFAULT_QUESTIONNAIRE];
+}
+
 /** Every run with its completion rollup — the onboarding tab's list. */
 export function listRuns(): (OnboardingRun & { progress: OnboardingProgress })[] {
   const d = db();
@@ -210,6 +247,7 @@ export function getRunDetail(runId: string): OnboardingRunDetail | null {
   if (!row) return null;
   const run = rowToRun(row);
   const tasks = templateTasks(run.templateId);
+  const questionnaire = templateQuestionnaire(run.templateId);
   const states = taskStates(run.id);
   const intakeRow = d.prepare(`SELECT answers_json FROM onboarding_intake WHERE run_id = ?`).get(runId) as
     | { answers_json: string }
@@ -233,7 +271,7 @@ export function getRunDetail(runId: string): OnboardingRunDetail | null {
       signedAt: (s.signed_at as string) ?? null,
     })
   );
-  return { run, tasks, states, intake, signatures, progress: onboardingProgress(tasks, states) };
+  return { run, tasks, questionnaire, states, intake, signatures, progress: onboardingProgress(tasks, states) };
 }
 
 /** Toggle a checklist task; auto-completes the run when the last one is checked

@@ -117,11 +117,6 @@ export type MatchRef = { profileId?: string; analysisSlug?: string };
 export type Reasoning = { verdict: string; strengths: string[]; gaps: string[]; interviewProbes: string[] };
 export type ReasoningState = { loading?: boolean; error?: string; source?: string; cached?: boolean; data?: Reasoning };
 
-export const FAMILY_LABEL: Record<string, string> = {
-  software_engineering: "Software",
-  data_ai: "Data / AI",
-  product_project: "Product / Project",
-};
 // Archetype labels + the early-career fairness predicate live in one canonical
 // module (app/_lib/archetypes) so the protected set is never hand-copied.
 export { ARCHETYPE_LABEL, isEarlyCareer } from "@/app/_lib/archetypes";

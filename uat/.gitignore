@@ -1,0 +1,4 @@
+# L2 browser artifacts are large + regenerable — keep journals/findings/reports,
+# drop the screenshots and raw aria/text dumps.
+runs/*/shots/
+runs/_adhoc/

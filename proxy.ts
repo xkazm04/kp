@@ -18,6 +18,7 @@ const PUBLIC_PAGES = ["/login", "/about", "/landing", "/apply/", "/offer/", "/sc
 const PUBLIC_API_PREFIXES = ["/api/auth/", "/api/apply/", "/api/offer/", "/api/status/", "/api/skill-profile/", "/api/devcase/session", "/api/channels/"];
 const PUBLIC_API_EXACT = new Set([
   "/api/health",
+  "/api/demo", // public entry: mints an isolated "demo"-workspace session for the guided sim
   "/api/extract-text",
   "/api/billing/webhook", // Polar posts here; the rest of /api/billing is recruiter
   "/api/devcase/inbound", // candidate apply webhook; the rest of /api/devcase is recruiter

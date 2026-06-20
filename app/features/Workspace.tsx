@@ -8,6 +8,8 @@ import { Skeleton } from "@/app/_components/Skeleton";
 import { ErrorBoundary } from "@/app/_components/ErrorBoundary";
 import { LanguageSwitcher } from "@/app/_components/LanguageSwitcher";
 import { ThemeToggle } from "@/app/_components/ThemeToggle";
+import { SignOutButton } from "@/app/_components/auth/SignOutButton";
+import KandidateMark from "@/app/landing/_components/KandidateMark";
 import { CommandPalette } from "./CommandPalette";
 import { KeyboardShortcuts } from "./KeyboardShortcuts";
 import { RecentsNav } from "./RecentsNav";
@@ -22,6 +24,7 @@ import { SimOfferFrame } from "./simulation/SimOfferFrame";
 import { SimGroupEval } from "./simulation/SimGroupEval";
 import { SimDecisionWave } from "./simulation/SimDecisionWave";
 import {
+  ABOUT_TAB_IN_NAV,
   buildTabSwitchUrl,
   buildUrl,
   clearedTabScopedParams,
@@ -81,7 +84,10 @@ export function Workspace() {
   const tabParam = params.get("tab");
   // SHELL2 — live "what needs my attention" counts behind the nav badges.
   const attention = useAttention();
-  const active: WorkspaceTabId = isWorkspaceTabId(tabParam) ? tabParam : DEFAULT_TAB;
+  const requested: WorkspaceTabId = isWorkspaceTabId(tabParam) ? tabParam : DEFAULT_TAB;
+  // About is a dev-only deep-dive (ABOUT_TAB_IN_NAV); in production a direct
+  // ?tab=about falls back to the default so the view can't be reached.
+  const active: WorkspaceTabId = requested === "about" && !ABOUT_TAB_IN_NAV ? DEFAULT_TAB : requested;
   // History is consolidated into Analyze; ?tab=history opens Analyze in history mode.
   const navActive: WorkspaceTabId = active === "history" ? "analyze" : active;
 
@@ -108,9 +114,7 @@ export function Workspace() {
       <aside className="flex flex-col border-b border-stone-300 bg-paper md:sticky md:top-0 md:h-screen md:w-64 md:shrink-0 md:overflow-y-auto md:border-b-0 md:border-r">
         <div className="px-4 py-5">
           <div className="flex items-center gap-2.5">
-            <span className="grid h-9 w-9 place-items-center rounded-lg bg-ink font-serif text-base font-semibold text-white dark:-rotate-3 dark:rounded-xl dark:shadow-sticker-sm">
-              {t("brandMark")}
-            </span>
+            <KandidateMark className="h-9 w-9 shrink-0 text-ink [--k-accent:var(--color-coral)] [--k-fg:var(--color-paper)] dark:-rotate-3" />
             <div className="leading-tight">
               <p className="font-serif text-h3 text-ink">{t("brandName")}</p>
               <p className="text-sm uppercase tracking-[0.12em] text-steel">{t("tagline")}</p>
@@ -197,15 +201,19 @@ export function Workspace() {
           <LanguageSwitcher />
           <ThemeToggle />
         </div>
+        {/* Last item in the menu: drop the dev session and return to the landing. */}
+        <div className="border-t border-stone-200 px-3 py-2">
+          <SignOutButton />
+        </div>
         <TasksIndicator active={active === "tasks"} onOpen={() => selectTab("tasks")} />
       </aside>
 
-      <main id="main" tabIndex={-1} className="min-w-0 flex-1 bg-white focus:outline-none">
+      <main id="main" tabIndex={-1} className="min-w-0 flex-1 bg-paper focus:outline-none">
         {/* pb-24 keeps content clear of the fixed simulation bar. The boundary
             contains a single tab's render crash to this panel (sidebar + sim bar
             survive) and clears itself when resetKey/navActive changes on a tab
             switch. The inner key replays the fade-in entrance on each switch. */}
-        <div className="mx-auto max-w-[108rem] px-3 py-6 pb-24 sm:px-4 lg:px-6">
+        <div className="mx-auto max-w-[108rem] px-4 py-8 pb-24 sm:px-6 lg:px-8">
           <ErrorBoundary resetKey={navActive} label="This tab">
             <div key={navActive} className="animate-tab-in">
               {navActive === "pipeline" ? <PipelineTab /> : null}

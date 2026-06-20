@@ -21,6 +21,9 @@ tmp
 uploads
 dev-server*.log
 pipeline-sidecar*.log
+# dev-inspector source-location log (scratch, regenerated each dev run)
+.inspect-dev.log
+*.inspect-dev.log
 
 # Local tooling
 .claude/logs

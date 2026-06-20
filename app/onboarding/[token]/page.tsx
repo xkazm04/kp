@@ -9,7 +9,7 @@ type OnboardingView = {
   role: string | null;
   candidateLabel: string | null;
   company: string | null;
-  fields: string[];
+  fields: { key: string; label: string }[];
   answers: Record<string, string>;
   submitted: boolean;
   progressPct: number;
@@ -49,7 +49,7 @@ export default function OnboardingPage() {
     setLoadError(null);
     setNotFound(false);
     try {
-      const r = await fetch(`/api/onboarding/${token}`);
+      const r = await fetch(`/api/onboarding/candidate/${token}`);
       const p = await r.json().catch(() => ({}));
       if (r.status === 404) {
         setNotFound(true);
@@ -76,7 +76,7 @@ export default function OnboardingPage() {
     setSubmitting(true);
     setSubmitError(null);
     try {
-      const r = await fetch(`/api/onboarding/${token}`, {
+      const r = await fetch(`/api/onboarding/candidate/${token}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ answers }),
@@ -90,7 +90,9 @@ export default function OnboardingPage() {
     }
   };
 
-  const fieldLabel = (field: string) => t(FIELD_LABEL[field] as Parameters<typeof t>[0]);
+  // Known default keys stay localized; a custom/preset field renders its authored label.
+  const fieldLabel = (field: { key: string; label: string }) =>
+    FIELD_LABEL[field.key] ? t(FIELD_LABEL[field.key] as Parameters<typeof t>[0]) : field.label;
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-paper p-6">
@@ -145,20 +147,18 @@ export default function OnboardingPage() {
                 <>
                   <p className="mt-4 text-base leading-6 text-ink">{t("intro")}</p>
                   <div className="mt-5 space-y-3">
-                    {view.fields
-                      .filter((f) => FIELD_LABEL[f])
-                      .map((field) => (
-                        <label key={field} className="block text-sm font-semibold text-steel">
-                          {fieldLabel(field)}
-                          <input
-                            type={field === "startDateConfirm" ? "date" : "text"}
-                            value={answers[field] ?? ""}
-                            onChange={(e) => setAnswers((a) => ({ ...a, [field]: e.target.value }))}
-                            maxLength={500}
-                            className="focus-ring mt-1 h-10 w-full rounded-md border border-stone-300 bg-white px-3 text-base text-ink"
-                          />
-                        </label>
-                      ))}
+                    {view.fields.map((field) => (
+                      <label key={field.key} className="block text-sm font-semibold text-steel">
+                        {fieldLabel(field)}
+                        <input
+                          type={field.key === "startDateConfirm" ? "date" : "text"}
+                          value={answers[field.key] ?? ""}
+                          onChange={(e) => setAnswers((a) => ({ ...a, [field.key]: e.target.value }))}
+                          maxLength={500}
+                          className="focus-ring mt-1 h-10 w-full rounded-md border border-stone-300 bg-white px-3 text-base text-ink"
+                        />
+                      </label>
+                    ))}
                   </div>
                   {submitError ? (
                     <p role="alert" className="mt-3 text-sm text-red-700">
