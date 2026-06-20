@@ -36,7 +36,11 @@ async function extendOffer(request: NextRequest, entry: PipelineEntry) {
     candidateLabel: entry.candidateLabel,
     jobId: entry.jobId,
     jobTitle: entry.jobTitle,
-    currency: typeof draft.currency === "string" ? draft.currency : "CZK",
+    // P2-1 — store the offer draft's OWN currency (it flows from the candidate's
+    // multi-currency analysis since P0-2); do NOT fabricate "CZK" when the draft
+    // carried none. A null currency renders unit-less on the offer page rather
+    // than mislabeling a non-Czech offer.
+    currency: typeof draft.currency === "string" ? draft.currency : null,
     salary: Number(draft.recommended) || null,
     payload: draft,
   });

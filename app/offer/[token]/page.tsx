@@ -186,7 +186,11 @@ export default function OfferPage() {
               <div className="mt-4 rounded-lg border border-stone-200 bg-paper/60 p-4">
                 <p className="text-meta uppercase tracking-wide text-steel">{t("compensation")}</p>
                 <p className="mt-0.5 font-serif text-3xl text-ink">
-                  {offer.salary.toLocaleString(locale)} <span className="text-lg text-steel">{offer.currency ?? "CZK"}</span>
+                  {/* P2-1 — show the offer's OWN stored currency; never fabricate CZK
+                      for a non-Czech offer. When the currency is genuinely unknown,
+                      omit the unit rather than asserting a wrong one. */}
+                  {offer.salary.toLocaleString(locale)}
+                  {offer.currency ? <span className="text-lg text-steel"> {offer.currency}</span> : null}
                 </p>
               </div>
             ) : null}
