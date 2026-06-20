@@ -1,0 +1,496 @@
+{
+ "contexts": [
+  {
+   "f": "auth-sessions-workspace-tenancy.md",
+   "name": "Auth, Sessions & Workspace Tenancy",
+   "lens": "Bug",
+   "c": 2,
+   "h": 2,
+   "m": 2,
+   "l": 1,
+   "total": 7
+  },
+  {
+   "f": "app-shell-navigation.md",
+   "name": "App Shell & Navigation",
+   "lens": "UI",
+   "c": 1,
+   "h": 2,
+   "m": 3,
+   "l": 1,
+   "total": 7
+  },
+  {
+   "f": "candidate-onboarding-hand-off.md",
+   "name": "Candidate Onboarding Hand-off",
+   "lens": "UI",
+   "c": 1,
+   "h": 2,
+   "m": 3,
+   "l": 1,
+   "total": 7
+  },
+  {
+   "f": "cv-extraction-pipeline-services.md",
+   "name": "CV Extraction & Pipeline Services",
+   "lens": "Bug",
+   "c": 1,
+   "h": 3,
+   "m": 2,
+   "l": 1,
+   "total": 7
+  },
+  {
+   "f": "data-store-persistence.md",
+   "name": "Data Store & Persistence",
+   "lens": "Bug",
+   "c": 1,
+   "h": 2,
+   "m": 2,
+   "l": 2,
+   "total": 7
+  },
+  {
+   "f": "guided-pipeline-simulation.md",
+   "name": "Guided Pipeline Simulation",
+   "lens": "UI",
+   "c": 1,
+   "h": 3,
+   "m": 2,
+   "l": 1,
+   "total": 7
+  },
+  {
+   "f": "hiring-automation-scheduler.md",
+   "name": "Hiring Automation & Scheduler",
+   "lens": "Bug",
+   "c": 1,
+   "h": 2,
+   "m": 2,
+   "l": 2,
+   "total": 7
+  },
+  {
+   "f": "matching-transformation-engine.md",
+   "name": "Matching & Transformation Engine",
+   "lens": "Bug",
+   "c": 1,
+   "h": 2,
+   "m": 2,
+   "l": 2,
+   "total": 7
+  },
+  {
+   "f": "privacy-consent-provenance.md",
+   "name": "Privacy, Consent & Provenance",
+   "lens": "Bug",
+   "c": 1,
+   "h": 2,
+   "m": 3,
+   "l": 1,
+   "total": 7
+  },
+  {
+   "f": "analysis-result-panels.md",
+   "name": "Analysis Result Panels",
+   "lens": "UI",
+   "c": 0,
+   "h": 3,
+   "m": 3,
+   "l": 1,
+   "total": 7
+  },
+  {
+   "f": "analytics-calibration-dashboards.md",
+   "name": "Analytics & Calibration Dashboards",
+   "lens": "UI",
+   "c": 0,
+   "h": 3,
+   "m": 3,
+   "l": 1,
+   "total": 7
+  },
+  {
+   "f": "application-intake-apply-flows.md",
+   "name": "Application Intake & Apply Flows",
+   "lens": "UI",
+   "c": 0,
+   "h": 2,
+   "m": 4,
+   "l": 1,
+   "total": 7
+  },
+  {
+   "f": "architecture-diagrams.md",
+   "name": "Architecture Diagrams",
+   "lens": "UI",
+   "c": 0,
+   "h": 3,
+   "m": 3,
+   "l": 1,
+   "total": 7
+  },
+  {
+   "f": "billing-engine-webhooks.md",
+   "name": "Billing Engine & Webhooks",
+   "lens": "Bug",
+   "c": 0,
+   "h": 2,
+   "m": 3,
+   "l": 2,
+   "total": 7
+  },
+  {
+   "f": "candidate-profile-job-matching.md",
+   "name": "Candidate Profile & Job Matching",
+   "lens": "UI",
+   "c": 0,
+   "h": 3,
+   "m": 3,
+   "l": 1,
+   "total": 7
+  },
+  {
+   "f": "communications-inbound-channels.md",
+   "name": "Communications & Inbound Channels",
+   "lens": "Bug",
+   "c": 0,
+   "h": 3,
+   "m": 3,
+   "l": 1,
+   "total": 7
+  },
+  {
+   "f": "cv-analysis-workspace.md",
+   "name": "CV Analysis Workspace",
+   "lens": "UI",
+   "c": 0,
+   "h": 3,
+   "m": 3,
+   "l": 1,
+   "total": 7
+  },
+  {
+   "f": "dev-case-authoring-publishing.md",
+   "name": "Dev Case Authoring & Publishing",
+   "lens": "UI",
+   "c": 0,
+   "h": 2,
+   "m": 3,
+   "l": 2,
+   "total": 7
+  },
+  {
+   "f": "dev-case-pipeline-python.md",
+   "name": "Dev Case Pipeline (Python)",
+   "lens": "Bug",
+   "c": 0,
+   "h": 3,
+   "m": 3,
+   "l": 1,
+   "total": 7
+  },
+  {
+   "f": "dev-lifecycle-cohort-outcomes.md",
+   "name": "Dev Lifecycle, Cohort & Outcomes",
+   "lens": "UI",
+   "c": 0,
+   "h": 3,
+   "m": 3,
+   "l": 1,
+   "total": 7
+  },
+  {
+   "f": "dev-submissions-live-work-surface.md",
+   "name": "Dev Submissions & Live Work Surface",
+   "lens": "UI",
+   "c": 0,
+   "h": 1,
+   "m": 4,
+   "l": 2,
+   "total": 7
+  },
+  {
+   "f": "evaluation-fairness-seed-data.md",
+   "name": "Evaluation, Fairness & Seed Data",
+   "lens": "Bug",
+   "c": 0,
+   "h": 2,
+   "m": 4,
+   "l": 1,
+   "total": 7
+  },
+  {
+   "f": "github-evidence-cv-utilities.md",
+   "name": "GitHub Evidence & CV Utilities",
+   "lens": "Bug",
+   "c": 0,
+   "h": 3,
+   "m": 2,
+   "l": 2,
+   "total": 7
+  },
+  {
+   "f": "group-evaluation-fairness.md",
+   "name": "Group Evaluation & Fairness",
+   "lens": "UI",
+   "c": 0,
+   "h": 3,
+   "m": 3,
+   "l": 1,
+   "total": 7
+  },
+  {
+   "f": "interview-scheduling-prep-rubric.md",
+   "name": "Interview Scheduling, Prep & Rubric",
+   "lens": "UI",
+   "c": 0,
+   "h": 2,
+   "m": 3,
+   "l": 2,
+   "total": 7
+  },
+  {
+   "f": "interview-simulation-comparison.md",
+   "name": "Interview Simulation & Comparison",
+   "lens": "UI",
+   "c": 0,
+   "h": 2,
+   "m": 3,
+   "l": 2,
+   "total": 7
+  },
+  {
+   "f": "jd-authoring-library-templates.md",
+   "name": "JD Authoring Library & Templates",
+   "lens": "UI",
+   "c": 0,
+   "h": 2,
+   "m": 4,
+   "l": 1,
+   "total": 7
+  },
+  {
+   "f": "job-postings-lifecycle.md",
+   "name": "Job Postings & Lifecycle",
+   "lens": "UI",
+   "c": 0,
+   "h": 3,
+   "m": 3,
+   "l": 1,
+   "total": 7
+  },
+  {
+   "f": "landing-marketing.md",
+   "name": "Landing & Marketing",
+   "lens": "UI",
+   "c": 0,
+   "h": 3,
+   "m": 3,
+   "l": 1,
+   "total": 7
+  },
+  {
+   "f": "llm-provider-layer-python.md",
+   "name": "LLM Provider Layer (Python)",
+   "lens": "Bug",
+   "c": 0,
+   "h": 4,
+   "m": 2,
+   "l": 1,
+   "total": 7
+  },
+  {
+   "f": "model-api-key-management.md",
+   "name": "Model & API Key Management",
+   "lens": "Bug",
+   "c": 0,
+   "h": 3,
+   "m": 2,
+   "l": 2,
+   "total": 7
+  },
+  {
+   "f": "offers-onboarding.md",
+   "name": "Offers & Onboarding",
+   "lens": "UI",
+   "c": 0,
+   "h": 2,
+   "m": 3,
+   "l": 2,
+   "total": 7
+  },
+  {
+   "f": "pipeline-board-candidate-drawer.md",
+   "name": "Pipeline Board & Candidate Drawer",
+   "lens": "UI",
+   "c": 0,
+   "h": 3,
+   "m": 3,
+   "l": 1,
+   "total": 7
+  },
+  {
+   "f": "pipeline-clis-script-bridges.md",
+   "name": "Pipeline CLIs & Script Bridges",
+   "lens": "Bug",
+   "c": 0,
+   "h": 2,
+   "m": 3,
+   "l": 2,
+   "total": 7
+  },
+  {
+   "f": "plans-checkout-billing-ui.md",
+   "name": "Plans, Checkout & Billing UI",
+   "lens": "UI",
+   "c": 0,
+   "h": 2,
+   "m": 3,
+   "l": 2,
+   "total": 7
+  },
+  {
+   "f": "screening-decisions-records.md",
+   "name": "Screening Decisions & Records",
+   "lens": "UI",
+   "c": 0,
+   "h": 2,
+   "m": 3,
+   "l": 2,
+   "total": 7
+  },
+  {
+   "f": "shared-ui-design-system.md",
+   "name": "Shared UI & Design System",
+   "lens": "UI",
+   "c": 0,
+   "h": 3,
+   "m": 3,
+   "l": 1,
+   "total": 7
+  },
+  {
+   "f": "shared-utility-libraries.md",
+   "name": "Shared Utility Libraries",
+   "lens": "Bug",
+   "c": 0,
+   "h": 2,
+   "m": 4,
+   "l": 1,
+   "total": 7
+  },
+  {
+   "f": "skill-matrix-coverage.md",
+   "name": "Skill Matrix & Coverage",
+   "lens": "UI",
+   "c": 0,
+   "h": 2,
+   "m": 4,
+   "l": 1,
+   "total": 7
+  },
+  {
+   "f": "sourcing-campaigns-rediscovery.md",
+   "name": "Sourcing, Campaigns & Rediscovery",
+   "lens": "UI",
+   "c": 0,
+   "h": 3,
+   "m": 3,
+   "l": 1,
+   "total": 7
+  },
+  {
+   "f": "tasks-system-operations.md",
+   "name": "Tasks & System Operations",
+   "lens": "UI",
+   "c": 0,
+   "h": 3,
+   "m": 3,
+   "l": 1,
+   "total": 7
+  },
+  {
+   "f": "voice-interview.md",
+   "name": "Voice Interview",
+   "lens": "UI",
+   "c": 0,
+   "h": 3,
+   "m": 3,
+   "l": 1,
+   "total": 7
+  },
+  {
+   "f": "pipeline-test-suite-python.md",
+   "name": "Pipeline Test Suite (Python)",
+   "lens": "Bug",
+   "c": 0,
+   "h": 2,
+   "m": 3,
+   "l": 1,
+   "total": 6
+  }
+ ],
+ "criticals": [
+  {
+   "name": "App Shell & Navigation",
+   "title": "Mobile sidebar dumps the entire 6-group nav above content with no disclosure",
+   "file": "`app/features/Workspace.tsx:107` (and `:114`, the `<aside>`), mirrored in `app/features/WorkspaceNav.tsx:30`",
+   "impact": "On mobile the user must scroll past a full screen-height of navigation chrome before reaching ANY tab content on every page load. The default Pipeline board is effectively below the fold. This is the highest-leverage surface in the app (every page), so the defect multiplies across the product and makes the studio close to unusable on a handset."
+  },
+  {
+   "name": "Auth, Sessions & Workspace Tenancy",
+   "title": "Anonymous `/api/demo` session reaches the unscoped recruiter surface — cross-tenant PII read",
+   "file": "`app/api/demo/route.ts:31` (mints session), `app/api/pipeline/route.ts:8` + `app/_lib/db/pipeline.ts:286` (`listPipeline()` ignores workspace), `app/_lib/workspace-lock.ts:1-13` (only `analyses`+`profiles` scoped)",
+   "impact": "Full read of all candidate PII by any unauthenticated visitor whenever auth is enabled (the supposedly \"safe\" gated deploy). The demo \"isolation\" is illusory for every unscoped table."
+  },
+  {
+   "name": "Auth, Sessions & Workspace Tenancy",
+   "title": "`/api/workspace/export` dumps the ENTIRE database to any session-holder (incl. demo)",
+   "file": "`app/api/workspace/export/route.ts:22`, `app/_lib/db-portability.ts:53` (`dumpWorkspace()` reads every table)",
+   "impact": "One-request full-PII exfiltration. The single most damaging endpoint in the context: it bypasses even the partial `analyses`/`profiles` scoping by reading raw tables."
+  },
+  {
+   "name": "Candidate Onboarding Hand-off",
+   "title": "Recruiter `patch()` writes an error envelope into `detail`, blanking/crashing the run view",
+   "file": "`app/features/sub_onboarding/OnboardingTab.tsx:374-381` (and the consumers at `:401`, `:407`, `:410`, `:434`, `:455`)",
+   "impact": "`detail` becomes an object with no `run`/`tasks`/`questionnaire`/`progress`. The next render reads `detail.run.candidateLabel` and `detail.tasks.map(...)` → `TypeError`, taking down the whole tab with an unrecoverable blank/error boundary. The user gets no message, no retry, and (worse) believes their checklist toggle was saved when it was rejected."
+  },
+  {
+   "name": "CV Extraction & Pipeline Services",
+   "title": "Letter-spacing collapse regex runs on every PDF/DOCX with no run-count cap — pathological-input CPU blowup",
+   "file": "`pipeline/jobfit/extractors.py:131-184`, `73-80` (`clean_text` → `re.sub(r\"[ \\t]+\", \" \", …)`)",
+   "impact": "An attacker who can upload a CV (this engine backs the public apply/extract-text flows per the manifest) can exhaust a worker's CPU with one file — a denial-of-service against the analysis pipeline. No auth gate exists at this layer; the gate is upstream in the Next.js routes."
+  },
+  {
+   "name": "Data Store & Persistence",
+   "title": "`ensureDb()` first-boot initializer is not guarded against concurrent re-entry — duplicate seeding / migration races",
+   "file": "`app/_lib/db/core.ts:97` (assignment of `_db` at `:792`, after the entire CREATE/ALTER/seed/backfill block)",
+   "impact": "Redundant full reseed on every cold module reload; under multi-connection contention the boot ALTER/seed statements can throw SQLITE_BUSY (5s timeout) and, in the second ALTER loop, be silently swallowed (see finding #2), booting a structurally-incomplete schema. Wasted multi-second boots and a real \"why did a column not get added\" class of bug."
+  },
+  {
+   "name": "Guided Pipeline Simulation",
+   "title": "Offer/schedule frame blocks the whole page while running, with no visible way out",
+   "file": "`app/features/simulation/SimOfferFrame.tsx:44-49`",
+   "impact": "For the marketing auto-run (the highest-intent, first-impression path), a prospect who wants to interact is stuck behind an inert dim layer for several seconds with no discoverable exit; screen-reader/keyboard users get no focus moved into the dialog and no `role=\"dialog\"`/`aria-modal` on the frame container at all."
+  },
+  {
+   "name": "Hiring Automation & Scheduler",
+   "title": "Every automation API route is unauthenticated and unauthorized — anyone can spend LLM budget, email candidates, and arm the autonomous clock",
+   "file": "`app/api/automation/[task]/route.ts:8`, `app/api/automation/run/route.ts:12`, `app/api/automation/schedule/route.ts:33` (no `middleware.ts` exists for the app)",
+   "impact": "Unbounded LLM/billing spend, candidate-facing emails sent on demand, the autonomous policy clock can be enabled and its cadence dropped to 1 minute, and the whole pipeline can be advanced — all without credentials. If this is ever exposed beyond localhost, it is a full data-mutation + cost-amplification surface."
+  },
+  {
+   "name": "Matching & Transformation Engine",
+   "title": "Archetype weight vectors are trusted to sum to 1.0 but never validated — a bad edit silently rescales every score",
+   "file": "`pipeline/jobfit/matching.py:608` (consumer), `pipeline/jobfit/registry.py:66-67` (`weights_map`), `pipeline/jobfit/archetypes.json:12,28,45` (source)",
+   "impact": "Every match score, fit-tier band, confidence band, matrix cell and winnability count for that archetype silently shifts (e.g. weights summing to 0.9 deflate every total by ~10%, pushing \"promising\" candidates below the 55 cutoff and dropping them from shortlists). No error, no warning — the corruption is invisible because each individual score still looks plausible (0-100). `total` clamps to [0,100] so an over-1.0 sum just saturates the dial. Tests pin specific golden scores but won't catch a *new* archetype's bad weights."
+  },
+  {
+   "name": "Privacy, Consent & Provenance",
+   "title": "Erasure/anonymization leaves saved analyses fully un-scrubbed (PII survives \"erasure\")",
+   "file": "`app/_lib/db/pipeline.ts:1005` (`anonymizeEntry`), `app/_lib/db/analyses.ts:46` (`saveAnalysis`), `docs/GDPR_AND_HIRING_EXTENSIONS.md:33`",
+   "impact": "After a GDPR Art. 17 erasure, the candidate's full CV text, name, email, and phone remain readable in the History tab and via `/api/analyses/[slug]`. This is a direct right-to-erasure violation and a reportable data-retention breach — the exact failure this whole context exists to prevent."
+  }
+ ]
+}
