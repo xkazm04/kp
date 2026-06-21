@@ -201,7 +201,7 @@ export default function OfferPage() {
               <p className="mt-1 text-sm text-steel">{t("preparedFor", { name: offer.candidateLabel })}</p>
             ) : null}
 
-            {offer.salary ? (
+            {offer.salary != null ? (
               <div className="mt-4 rounded-lg border border-stone-200 bg-paper/60 p-4">
                 <p className="text-meta uppercase tracking-wide text-steel">{t("compensation")}</p>
                 <p className="mt-0.5 font-serif text-3xl text-ink">
