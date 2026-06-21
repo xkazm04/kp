@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import { createHash } from "node:crypto";
 import { writeFile } from "node:fs/promises";
 import path from "node:path";
@@ -36,7 +36,7 @@ type MatrixOut = {
 let matrixCache: { key: string; matrix: MatrixOut } | null = null;
 
 // Candidate x open-position fit heatmap. Scores are deterministic (no LLM).
-export async function GET() {
+export async function GET(request: NextRequest) {
   let workdir: string | null = null;
   try {
     const profiles = listMatrixProfiles(200, await currentWorkspace());
@@ -85,16 +85,21 @@ export async function GET() {
     const jobsPath = path.join(workdir, "jobs.json");
     await writeFile(jobsPath, jobsJson, "utf-8");
 
-    const { result } = spawnPython([
-      "-m",
-      "pipeline.jobfit.matrix_cli",
-      "--profiles-json",
-      profilesPath,
-      "--job-ids",
-      jobIds,
-      "--jobs-json",
-      jobsPath,
-    ]);
+    const { result } = spawnPython(
+      [
+        "-m",
+        "pipeline.jobfit.matrix_cli",
+        "--profiles-json",
+        profilesPath,
+        "--job-ids",
+        jobIds,
+        "--jobs-json",
+        jobsPath,
+      ],
+      // Abandoned request SIGKILLs the child + reaches finally→cleanupWorkdir instead
+      // of orphaning it to the 600s backstop and leaking the temp dir.
+      { signal: request.signal }
+    );
     const { stdout, stderr, exitCode } = await result;
     if (exitCode !== 0) {
       const err = parseStderrError(stderr, exitCode);

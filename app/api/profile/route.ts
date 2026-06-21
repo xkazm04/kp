@@ -43,7 +43,8 @@ function validateProfileBody(body: { profile?: unknown; signals?: unknown }): st
 // same way — an edit must never persist a stale archetype/completeness.
 async function routeAndScore(
   profile: Record<string, unknown>,
-  signals: Record<string, unknown>
+  signals: Record<string, unknown>,
+  abortSignal?: AbortSignal
 ): Promise<RouteOutcome> {
   let workdir: string | null = null;
   try {
@@ -51,7 +52,9 @@ async function routeAndScore(
     const inputPath = path.join(workdir, "intake.json");
     await writeFile(inputPath, JSON.stringify({ profile, signals }), "utf-8");
 
-    const { result } = spawnPython(["-m", "pipeline.jobfit.profile_cli", "--input-json", inputPath]);
+    // Forward the caller's abort signal so an abandoned request SIGKILLs the child +
+    // reaches finally→cleanupWorkdir instead of orphaning it + leaking the temp dir.
+    const { result } = spawnPython(["-m", "pipeline.jobfit.profile_cli", "--input-json", inputPath], { signal: abortSignal });
     const { stdout, stderr, exitCode } = await result;
     if (exitCode !== 0) {
       const err = parseStderrError(stderr, exitCode);
@@ -112,7 +115,7 @@ export async function POST(request: NextRequest) {
     const invalid = validateProfileBody(body);
     if (invalid) return NextResponse.json({ error: invalid }, { status: 400 });
 
-    const outcome = await routeAndScore(body.profile ?? {}, body.signals ?? {});
+    const outcome = await routeAndScore(body.profile ?? {}, body.signals ?? {}, request.signal);
     if ("error" in outcome) {
       return NextResponse.json({ error: outcome.error.message }, { status: outcome.error.status });
     }
@@ -148,7 +151,7 @@ export async function PUT(request: NextRequest) {
     const invalid = validateProfileBody(body);
     if (invalid) return NextResponse.json({ error: invalid }, { status: 400 });
 
-    const outcome = await routeAndScore(body.profile ?? {}, body.signals ?? {});
+    const outcome = await routeAndScore(body.profile ?? {}, body.signals ?? {}, request.signal);
     if ("error" in outcome) {
       return NextResponse.json({ error: outcome.error.message }, { status: outcome.error.status });
     }
