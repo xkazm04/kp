@@ -6,7 +6,13 @@ import { openStore } from "../db-path";
 import type { GithubEvidenceSummary } from "../github-summary";
 import type { PipelineStage } from "../pipeline-stages";
 
-let _db: Database.Database | null = null;
+// Memoized on globalThis (not just module scope): Next dev HMR re-evaluates this
+// module with a fresh module-local binding, which would re-run the ENTIRE
+// CREATE/ALTER/seed/backfill initializer below against a kp.sqlite file the
+// surviving connections are mid-writing (duplicate seeding + migration races, with
+// the ALTER loop's bare catch{} swallowing real failures). Caching the connection
+// on globalThis makes ensureDb() initialize exactly once per process across reloads.
+const _dbHolder = globalThis as typeof globalThis & { __kpDb?: Database.Database };
 
 // ---- Seed health (boot diagnostics) ---------------------------------------
 // A corrupt or absent seed file used to leave a table silently empty while
@@ -95,7 +101,7 @@ export function safeRowParse<T>(json: string | null | undefined, ctx: string, id
 }
 
 export function ensureDb(): Database.Database {
-  if (_db) return _db;
+  if (_dbHolder.__kpDb) return _dbHolder.__kpDb;
   // Canonical isolated-store open (WAL + busy_timeout=5000): the scheduler writes
   // scheduler/scheduler_runs on its own connection to the same kp.sqlite file
   // while the policy pass writes pipeline_entries/events here — the busy_timeout
@@ -789,11 +795,11 @@ export function ensureDb(): Database.Database {
   // every writer uses NULL, fold the legacy empty strings to NULL so consumers see
   // one canonical "no detail". Idempotent (a no-op once healed; new rows never write '').
   db.prepare(`UPDATE pipeline_entries SET approval_detail = NULL WHERE approval_detail = ''`).run();
-  _db = db;
+  _dbHolder.__kpDb = db;
   // Reclaim expired (and, once their TTL lapses, superseded-PROMPT_VERSION)
   // cache rows on boot. lookupPromptCache only SKIPS expired rows — it never
   // deletes them — so without this the prompt cache table and its WAL grow
-  // unbounded for the life of the deployment. _db is assigned first so the
+  // unbounded for the life of the deployment. __kpDb is assigned first so the
   // ensureDb() inside prunePromptCache() short-circuits instead of re-entering
   // this initializer. A prune failure must never wedge boot.
   try {
