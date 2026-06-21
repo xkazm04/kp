@@ -84,6 +84,25 @@ export function DispositionEditor({
     return () => window.clearTimeout(id);
   }, [note, disposition, save]);
 
+  // The debounce above clears its timeout on unmount, which would CANCEL a still-pending
+  // save (e.g. type a reason, then immediately close the report). Flush the latest value
+  // on real unmount with a keepalive PATCH so the in-flight note survives navigation.
+  const latest = useRef({ disposition, note });
+  latest.current = { disposition, note };
+  useEffect(() => {
+    return () => {
+      const { disposition: d, note: n } = latest.current;
+      if (d && n !== lastSavedNote.current) {
+        void fetch(`/api/analyses/${encodeURIComponent(slug)}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ disposition: d, note: n }),
+          keepalive: true,
+        });
+      }
+    };
+  }, [slug]);
+
   return (
     <div className="rounded-lg border border-stone-200 bg-paper p-3 print:hidden">
       <div className="flex flex-wrap items-center gap-2">
