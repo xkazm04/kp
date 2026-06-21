@@ -45,21 +45,33 @@ function AttachToCandidate({ token }: { token: string }) {
   const [entries, setEntries] = useState<{ id: string; candidateLabel: string; jobTitle: string | null }[] | null>(null);
   const [sel, setSel] = useState("");
   const [state, setState] = useState<"idle" | "busy" | "done" | "error">("idle");
+  // A failed fetch must NOT read as "no candidates" (the prior `.catch(setEntries([]))`).
+  const [loadError, setLoadError] = useState(false);
+
+  const loadEntries = () => {
+    setLoadError(false);
+    setEntries(null); // back to the loading state for a retry
+    fetch("/api/pipeline")
+      .then(async (r) => {
+        if (!r.ok) throw new Error("pipeline fetch failed");
+        return r.json();
+      })
+      .then((p) => {
+        const list = ((p.entries ?? []) as { id: string; candidateLabel: string; jobTitle: string | null; status: string }[])
+          .filter((e) => e.status === "active")
+          .map((e) => ({ id: e.id, candidateLabel: e.candidateLabel, jobTitle: e.jobTitle }));
+        setEntries(list);
+        setSel((cur) => cur || list[0]?.id || "");
+      })
+      .catch(() => {
+        setLoadError(true);
+        setEntries([]); // leave the loading state; loadError drives the error UI
+      });
+  };
 
   const toggle = () => {
     setOpen((o) => !o);
-    if (entries === null) {
-      fetch("/api/pipeline")
-        .then((r) => r.json())
-        .then((p) => {
-          const list = ((p.entries ?? []) as { id: string; candidateLabel: string; jobTitle: string | null; status: string }[])
-            .filter((e) => e.status === "active")
-            .map((e) => ({ id: e.id, candidateLabel: e.candidateLabel, jobTitle: e.jobTitle }));
-          setEntries(list);
-          setSel((cur) => cur || list[0]?.id || "");
-        })
-        .catch(() => setEntries([]));
-    }
+    if (entries === null && !loadError) loadEntries();
   };
 
   const attach = async () => {
@@ -89,7 +101,14 @@ function AttachToCandidate({ token }: { token: string }) {
           </button>
           {open ? (
             <div className="mt-2 flex flex-wrap items-center gap-2">
-              {entries === null ? (
+              {loadError ? (
+                <p className="text-sm text-coral" role="alert">
+                  {t("loadFailed")}{" "}
+                  <button type="button" onClick={loadEntries} className="focus-ring font-semibold underline">
+                    {t("retry")}
+                  </button>
+                </p>
+              ) : entries === null ? (
                 <p className="text-sm text-steel">{t("loading")}</p>
               ) : entries.length === 0 ? (
                 <p className="text-sm text-steel">{t("noCandidates")}</p>

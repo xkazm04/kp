@@ -31,6 +31,9 @@ export function JobPostingModal({ job, onClose }: { job: Job; onClose: () => voi
   const [copied, setCopied] = useState(false);
   const [applyCopied, setApplyCopied] = useState(false);
   const [quickCopied, setQuickCopied] = useState(false);
+  // A clipboard write can be blocked (permissions / insecure context) — surface that
+  // instead of the prior silent catch, so the recruiter doesn't ship an empty link.
+  const [copyError, setCopyError] = useState(false);
   // W8-1 (JOB1) — retire the role from the surface that owns it. The lifecycle
   // had no terminal state: a filled role kept collecting applications forever.
   // The confirmation is the shared stacked Modal (confirm-over-detail), not
@@ -125,10 +128,11 @@ export function JobPostingModal({ job, onClose }: { job: Job; onClose: () => voi
         publicBaseUrl(typeof window !== "undefined" ? window.location.origin : "") +
         `/apply/${job.id}?lang=${postingLang}`;
       await navigator.clipboard.writeText(url);
+      setCopyError(false);
       setApplyCopied(true);
       window.setTimeout(() => setApplyCopied(false), 1500);
     } catch {
-      /* clipboard blocked — no-op */
+      setCopyError(true);
     }
   };
 
@@ -141,20 +145,22 @@ export function JobPostingModal({ job, onClose }: { job: Job; onClose: () => voi
         publicBaseUrl(typeof window !== "undefined" ? window.location.origin : "") +
         `/apply/${job.id}/quick?lang=${postingLang}`;
       await navigator.clipboard.writeText(url);
+      setCopyError(false);
       setQuickCopied(true);
       window.setTimeout(() => setQuickCopied(false), 1500);
     } catch {
-      /* clipboard blocked — no-op */
+      setCopyError(true);
     }
   };
 
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(markdown);
+      setCopyError(false);
       setCopied(true);
       window.setTimeout(() => setCopied(false), 1500);
     } catch {
-      /* clipboard blocked — no-op */
+      setCopyError(true);
     }
   };
 
@@ -275,6 +281,11 @@ export function JobPostingModal({ job, onClose }: { job: Job; onClose: () => voi
           >
             {copied ? <Check size={14} /> : <Copy size={14} />} {copied ? t("copied") : t("copyMarkdown")}
           </button>
+          {copyError ? (
+            <p role="alert" className="basis-full text-sm text-coral">
+              {t("copyFailed")}
+            </p>
+          ) : null}
         </>
       }
     >

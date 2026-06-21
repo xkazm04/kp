@@ -142,16 +142,24 @@ function IngestAsJobButton({ slug, onDone }: { slug: string; onDone: (jobId: str
     }
   };
   return (
-    <button
-      type="button"
-      onClick={ingest}
-      disabled={state === "busy"}
-      title={t("ingestAsJobTitle")}
-      className="focus-ring inline-flex items-center gap-1 rounded-md border border-stone-200 bg-white px-2 py-0.5 text-sm font-semibold text-coral hover:bg-coral/5 disabled:opacity-50"
-    >
-      <Briefcase size={12} aria-hidden />
-      {state === "busy" ? t("ingesting") : state === "error" ? t("ingestRetry") : t("ingestAsJob")}
-    </button>
+    <span className="inline-flex items-center gap-1.5">
+      <button
+        type="button"
+        onClick={ingest}
+        disabled={state === "busy"}
+        title={t("ingestAsJobTitle")}
+        className="focus-ring inline-flex items-center gap-1 rounded-md border border-stone-200 bg-white px-2 py-0.5 text-sm font-semibold text-coral hover:bg-coral/5 disabled:opacity-50"
+      >
+        <Briefcase size={12} aria-hidden />
+        {state === "busy" ? t("ingesting") : state === "error" ? t("ingestRetry") : t("ingestAsJob")}
+      </button>
+      {/* Announce the failure (was silent: only the button label changed, invisible to SR). */}
+      {state === "error" ? (
+        <span role="alert" className="text-meta text-coral">
+          {t("ingestFailed")}
+        </span>
+      ) : null}
+    </span>
   );
 }
 
@@ -180,16 +188,23 @@ function DuplicateJdButton({ slug, title, onDone }: { slug: string; title: strin
     }
   };
   return (
-    <button
-      type="button"
-      onClick={duplicate}
-      disabled={state === "busy"}
-      title={t("duplicateTitle")}
-      className="focus-ring inline-flex items-center gap-1 rounded-md border border-stone-200 bg-white px-2 py-0.5 text-sm font-semibold text-steel hover:border-coral/40 hover:text-ink disabled:opacity-50"
-    >
-      <Copy size={12} aria-hidden />
-      {state === "busy" ? t("duplicating") : state === "error" ? t("duplicateRetry") : t("duplicate")}
-    </button>
+    <span className="inline-flex items-center gap-1.5">
+      <button
+        type="button"
+        onClick={duplicate}
+        disabled={state === "busy"}
+        title={t("duplicateTitle")}
+        className="focus-ring inline-flex items-center gap-1 rounded-md border border-stone-200 bg-white px-2 py-0.5 text-sm font-semibold text-steel hover:border-coral/40 hover:text-ink disabled:opacity-50"
+      >
+        <Copy size={12} aria-hidden />
+        {state === "busy" ? t("duplicating") : state === "error" ? t("duplicateRetry") : t("duplicate")}
+      </button>
+      {state === "error" ? (
+        <span role="alert" className="text-meta text-coral">
+          {t("duplicateFailed")}
+        </span>
+      ) : null}
+    </span>
   );
 }
 

@@ -138,6 +138,8 @@ export function PipelineTab() {
   // `verb` selects the result label so the same status line reads correctly for a
   // stage move vs. a bulk accept/reject (bdc7fc01).
   const [bulkResult, setBulkResult] = useState<{ ok: number; failed: number; verb: "moved" | "accepted" | "rejected" | "invited" } | null>(null);
+  // Transient feedback when a drag-to-move fails (optimistic move rolled back).
+  const [moveError, setMoveError] = useState<string | null>(null);
   // Two-step confirm for bulk reject (it emails N candidates — irreversible).
   const [confirmingBulkReject, setConfirmingBulkReject] = useState(false);
   // Saved board views (PIPE5): named {search + quick-filter} presets a recruiter
@@ -545,11 +547,18 @@ export function PipelineTab() {
     const restage = (id: string, stage: string) =>
       setEntries((cur) => (cur ? cur.map((e) => (e.id === id ? { ...e, stage } : e)) : cur));
     restage(entry.id, toStage);
+    setMoveError(null);
     try {
       const r = await postPipelineAction(entry.id, { action: "set_stage", toStage, expectedStage: prevStage });
-      if (!r.ok) restage(entry.id, prevStage);
+      // On any failure roll back AND tell the recruiter — a silent revert read as "the
+      // drag didn't take" with no reason (a 409 means a concurrent actor moved them).
+      if (!r.ok) {
+        restage(entry.id, prevStage);
+        setMoveError(t("moveFailed"));
+      }
     } catch {
       restage(entry.id, prevStage);
+      setMoveError(t("moveFailed"));
     } finally {
       await load();
     }
@@ -734,6 +743,15 @@ export function PipelineTab() {
           onCommit={runPass}
           onClose={() => setPreview(null)}
         />
+      ) : null}
+
+      {moveError ? (
+        <p role="alert" className="flex items-center justify-between gap-3 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
+          <span>{moveError}</span>
+          <button type="button" onClick={() => setMoveError(null)} className="focus-ring shrink-0 font-semibold hover:underline">
+            ✕
+          </button>
+        </p>
       ) : null}
 
       {error ? (

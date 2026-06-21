@@ -988,6 +988,7 @@
       "statInterview": "Interview",
       "statAging": "Aging",
       "statNeedsIntake": "Needs intake",
+      "moveFailed": "Couldn't move the candidate — the board has been refreshed.",
       "statAwaitingYou": "Awaiting you",
       "batchScreening": "Screening {done}/{total}…",
       "batchScreenAll": "AI-screen all matched",
@@ -1701,9 +1702,11 @@
       "ingestedDismiss": "Dismiss",
       "ingesting": "Ingesting…",
       "ingestRetry": "Retry ingest",
+      "ingestFailed": "Couldn't add to jobs.",
       "duplicate": "Duplicate",
       "duplicating": "Duplicating…",
       "duplicateRetry": "Retry duplicate",
+      "duplicateFailed": "Couldn't duplicate the JD.",
       "duplicateTitle": "Save a copy of this JD as a new draft to fork and tweak",
       "copyTitle": "{title} (copy)",
       "jobStatusChip": "role: {status}",
@@ -1922,6 +1925,7 @@
       "linksClosedTitle": "This role is closed — its apply links no longer accept applications",
       "rankInMatrix": "Rank in matrix",
       "copyMarkdown": "Copy markdown",
+      "copyFailed": "Couldn't copy to the clipboard — select and copy the link manually.",
       "postingLanguage": "Posting language",
       "viewsAria": "Job views",
       "lifecycle": {
@@ -2462,7 +2466,9 @@
       "attach": "Attach",
       "attaching": "Attaching…",
       "done": "Attached — the practice session now shows in the candidate's history.",
-      "failed": "Couldn't attach the session."
+      "failed": "Couldn't attach the session.",
+      "loadFailed": "Couldn't load candidates.",
+      "retry": "Retry"
     }
   },
   "history": {

@@ -988,6 +988,7 @@
       "statInterview": "Pohovor",
       "statAging": "Stárnoucí",
       "statNeedsIntake": "Vyžaduje zadání",
+      "moveFailed": "Kandidáta se nepodařilo přesunout — tabule byla obnovena.",
       "statAwaitingYou": "Čeká na vás",
       "batchScreening": "Prověřuji {done}/{total}…",
       "batchScreenAll": "Prověřit AI všechny spárované",
@@ -1701,9 +1702,11 @@
       "ingestedDismiss": "Skrýt",
       "ingesting": "Zpracovávání…",
       "ingestRetry": "Zkusit znovu",
+      "ingestFailed": "Nepodařilo se přidat do pozic.",
       "duplicate": "Duplikovat",
       "duplicating": "Duplikuji…",
       "duplicateRetry": "Zkusit duplikovat znovu",
+      "duplicateFailed": "JD se nepodařilo duplikovat.",
       "duplicateTitle": "Uložit kopii tohoto JD jako nový koncept k úpravě",
       "copyTitle": "{title} (kopie)",
       "jobStatusChip": "pozice: {status}",
@@ -1922,6 +1925,7 @@
       "linksClosedTitle": "Pozice je uzavřená — odkazy pro přihlášení už přihlášky nepřijímají",
       "rankInMatrix": "Seřadit v matici",
       "copyMarkdown": "Kopírovat markdown",
+      "copyFailed": "Nepodařilo se zkopírovat do schránky — vyberte a zkopírujte odkaz ručně.",
       "postingLanguage": "Jazyk inzerátu",
       "viewsAria": "Zobrazení pozice",
       "lifecycle": {
@@ -2462,7 +2466,9 @@
       "attach": "Připojit",
       "attaching": "Připojuji…",
       "done": "Připojeno — cvičná relace se nyní zobrazuje v historii kandidáta.",
-      "failed": "Relaci se nepodařilo připojit."
+      "failed": "Relaci se nepodařilo připojit.",
+      "loadFailed": "Kandidáty se nepodařilo načíst.",
+      "retry": "Zkusit znovu"
     }
   },
   "history": {
