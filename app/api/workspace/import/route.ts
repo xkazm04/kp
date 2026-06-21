@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { coerceDumpPayload, loadWorkspace, planImport } from "@/app/_lib/db-portability";
+import { requireOperator } from "@/app/_lib/auth/require-operator";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -22,6 +23,11 @@ export const dynamic = "force-dynamic";
 // strictly an operator action, behind the proxy auth gate (active when
 // KP_OPERATOR_PASSWORD is set); see auth-sessions-tenancy.md #3.
 export async function POST(request: NextRequest) {
+  // Defense-in-depth beyond the proxy session gate: restoring executes the dump's
+  // DDL and replaces data wholesale (DROP TABLE per table), so it must be
+  // operator-only. requireOperator() also rejects the anonymous demo session.
+  const denied = await requireOperator();
+  if (denied) return denied;
   try {
     const body = (await request.json().catch(() => null)) as {
       dump?: unknown;

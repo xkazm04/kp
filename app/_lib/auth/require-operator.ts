@@ -1,7 +1,7 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { SESSION_COOKIE } from "./edge-verify";
-import { verifySession } from "./session";
+import { currentWorkspaceId, DEMO_WORKSPACE, verifySession } from "./session";
 
 // Handler-level operator gate — DEFENSE IN DEPTH for the most sensitive admin
 // routes (provider-key writes, model-routing changes, the token-spending canary).
@@ -23,7 +23,15 @@ export async function isOperator(): Promise<boolean> {
   if (!process.env.KP_OPERATOR_PASSWORD) return true;
   try {
     const jar = await cookies();
-    return verifySession(jar.get(SESSION_COOKIE)?.value) !== null;
+    const session = verifySession(jar.get(SESSION_COOKIE)?.value);
+    if (session === null) return false;
+    // A public demo session (an anonymous, isolated "demo"-workspace cookie minted
+    // by /api/demo) is a valid signature but is NOT an operator. The proxy gate
+    // accepts any valid session, so without this an anonymous visitor's demo cookie
+    // would satisfy operator-gated routes — e.g. the whole-DB export/import
+    // exfiltration channel. Reject it here so those routes stay operator-only.
+    if (currentWorkspaceId(session) === DEMO_WORKSPACE) return false;
+    return true;
   } catch {
     return false;
   }

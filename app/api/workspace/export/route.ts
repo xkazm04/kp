@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { dumpWorkspace } from "@/app/_lib/db-portability";
+import { requireOperator } from "@/app/_lib/auth/require-operator";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -20,6 +21,12 @@ export const dynamic = "force-dynamic";
 // every recruiter API it relies on the proxy auth gate (active when
 // KP_OPERATOR_PASSWORD is set); see auth-sessions-tenancy.md #3 for fail-open-by-default.
 export async function GET() {
+  // Defense-in-depth beyond the proxy session gate: this streams FULL PII for every
+  // table, so it must be operator-only. requireOperator() also rejects the anonymous
+  // demo session (which the proxy would otherwise accept) — closing the one-request
+  // cross-tenant exfiltration channel.
+  const denied = await requireOperator();
+  if (denied) return denied;
   try {
     const payload = dumpWorkspace();
     const stamp = payload.createdAt.replace(/[:.]/g, "-");

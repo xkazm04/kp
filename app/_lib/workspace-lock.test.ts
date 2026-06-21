@@ -4,7 +4,7 @@
 //   npm run test:unit
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { multiWorkspaceEnabled, canSwitchWorkspace } from "./workspace-lock.ts";
+import { multiWorkspaceEnabled, canSwitchWorkspace, demoSessionAllowed } from "./workspace-lock.ts";
 
 const DEFAULT = "workspace";
 
@@ -30,4 +30,21 @@ test("unlocked: any workspace can be switched to", () => {
   const env = { KP_MULTI_WORKSPACE: "1" };
   assert.equal(canSwitchWorkspace("ws_other", DEFAULT, env), true);
   assert.equal(canSwitchWorkspace(DEFAULT, DEFAULT, env), true);
+});
+
+// The public demo mints an anonymous recruiter session that can read the real
+// tenant's PII via the still-unscoped tables — so on a gated deploy it is OPT-IN.
+test("demo session is OFF by default and for junk values", () => {
+  assert.equal(demoSessionAllowed({}), false);
+  assert.equal(demoSessionAllowed({ KP_DEMO_ENABLED: "" }), false);
+  assert.equal(demoSessionAllowed({ KP_DEMO_ENABLED: "no" }), false);
+  assert.equal(demoSessionAllowed({ KP_DEMO_ENABLED: "0" }), false);
+});
+
+test("demo session turns ON for explicit opt-in or when scoping is enabled", () => {
+  for (const v of ["1", "true", "TRUE", "yes", "on"]) {
+    assert.equal(demoSessionAllowed({ KP_DEMO_ENABLED: v }), true, v);
+  }
+  // Multi-workspace scoping makes the demo workspace genuinely isolated → allowed.
+  assert.equal(demoSessionAllowed({ KP_MULTI_WORKSPACE: "1" }), true);
 });

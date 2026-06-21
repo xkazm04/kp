@@ -11,6 +11,11 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 export { SESSION_COOKIE } from "./edge-verify.ts";
 // Matches billing's single-workspace id (`const WORKSPACE = "workspace"`).
 export const DEFAULT_WORKSPACE = "workspace";
+// The isolated workspace minted by the public guided-demo entry (`/api/demo`). A
+// demo session is a valid signature but is NOT an operator: it must never satisfy
+// an operator-gated route (key writes, billing, whole-DB export/import). Single-
+// sourced here so the demo route and the operator gate agree on the id.
+export const DEMO_WORKSPACE = "demo";
 export const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 7; // 7 days
 
 export type SessionPayload = { workspace: string; iat: number; exp: number; epoch?: number };

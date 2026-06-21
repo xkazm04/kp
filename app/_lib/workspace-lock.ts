@@ -28,3 +28,16 @@ export function multiWorkspaceEnabled(env: EnvLike = process.env): boolean {
 export function canSwitchWorkspace(targetId: string, defaultId: string, env: EnvLike = process.env): boolean {
   return multiWorkspaceEnabled(env) || targetId === defaultId;
 }
+
+/** Whether the public guided demo (`/api/demo`) may mint an anonymous, recruiter-
+ *  authorized "demo"-workspace session on a GATED deploy. That session reads the
+ *  real tenant's PII through the ~28 still-unscoped tables (the same half-built
+ *  tenancy as above), so it is OPT-IN: enable only on a deploy that holds no real
+ *  candidate data, or once every table is workspace-scoped. When multi-workspace
+ *  is enabled the demo workspace is genuinely isolated, so it is allowed too.
+ *  Default (unset) is the safe lock: no anonymous session is minted. */
+export function demoSessionAllowed(env: EnvLike = process.env): boolean {
+  const v = (env.KP_DEMO_ENABLED ?? "").trim().toLowerCase();
+  if (v === "1" || v === "true" || v === "yes" || v === "on") return true;
+  return multiWorkspaceEnabled(env);
+}
