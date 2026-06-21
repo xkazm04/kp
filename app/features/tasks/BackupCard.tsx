@@ -21,11 +21,16 @@ export function BackupCard() {
   const [plan, setPlan] = useState<Plan | null>(null);
   const [dump, setDump] = useState<unknown>(null);
   const [done, setDone] = useState<string | null>(null);
+  // Destructive whole-database restore needs an explicit typed confirmation, not just
+  // a one-click button under a passive warning.
+  const [confirmText, setConfirmText] = useState("");
+  const CONFIRM_WORD = "REPLACE";
 
   const reset = () => {
     setPlan(null);
     setDump(null);
     setError(null);
+    setConfirmText("");
   };
 
   const exportWorkspace = async () => {
@@ -149,10 +154,24 @@ export function BackupCard() {
             Restore plan · {plan.tables.length} tables, {plan.tables.reduce((n, t) => n + t.rows, 0)} rows
           </p>
           {plan.populated.length > 0 ? (
-            <p className="flex items-start gap-1.5 rounded-md border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-sm text-amber-700">
-              <AlertTriangle size={13} className="mt-0.5 shrink-0" aria-hidden />
-              These live tables already hold data and will be REPLACED by the file: {plan.populated.join(", ")}.
-            </p>
+            <>
+              <p className="flex items-start gap-1.5 rounded-md border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-sm text-amber-700">
+                <AlertTriangle size={13} className="mt-0.5 shrink-0" aria-hidden />
+                These live tables already hold data and will be REPLACED by the file: {plan.populated.join(", ")}.
+              </p>
+              <label className="block text-sm text-steel">
+                This overwrites the entire live database. Type <span className="font-mono font-semibold text-ink">{CONFIRM_WORD}</span> to confirm:
+                <input
+                  type="text"
+                  value={confirmText}
+                  onChange={(e) => setConfirmText(e.target.value)}
+                  disabled={busy}
+                  aria-label={`Type ${CONFIRM_WORD} to confirm the destructive restore`}
+                  className="focus-ring mt-1 block w-40 rounded-md border border-stone-300 bg-white px-2 py-1 font-mono text-sm text-ink disabled:opacity-60"
+                  placeholder={CONFIRM_WORD}
+                />
+              </label>
+            </>
           ) : (
             <p className="text-sm text-steel">No live table holds data — the restore is non-destructive.</p>
           )}
@@ -170,7 +189,7 @@ export function BackupCard() {
             <button
               type="button"
               onClick={() => void applyRestore()}
-              disabled={busy}
+              disabled={busy || (plan.populated.length > 0 && confirmText.trim().toUpperCase() !== CONFIRM_WORD)}
               className={`focus-ring rounded-md px-3 py-1.5 text-sm font-semibold text-white disabled:opacity-60 ${
                 plan.populated.length > 0 ? "bg-coral hover:bg-coral/90" : "bg-ink hover:bg-steel"
               }`}
