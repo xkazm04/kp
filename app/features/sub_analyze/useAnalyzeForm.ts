@@ -79,25 +79,25 @@ export function useAnalyzeForm() {
   const hasGithub = Boolean(githubProfile.trim());
 
   const cvStatus = useMemo<ColumnStatus>(() => {
-    if (cvFiles.length === 0) return { tone: "required", label: "Required" };
+    if (cvFiles.length === 0) return { tone: "required", label: t("required") };
     if (cvFiles.length === 1) return { tone: "attached", label: cvFiles[0].name };
-    return { tone: "attached", label: `${cvFiles.length} variants` };
-  }, [cvFiles]);
+    return { tone: "attached", label: t("cvVariants", { count: cvFiles.length }) };
+  }, [cvFiles, t]);
 
   const jobStatus: ColumnStatus = hasJobDescription
     ? {
         tone: "attached",
-        label: jobDescriptionFile?.name ?? `${jobDescriptionText.trim().length} chars`,
+        label: jobDescriptionFile?.name ?? t("charsCount", { count: jobDescriptionText.trim().length }),
       }
-    : { tone: "optional", label: "Optional" };
+    : { tone: "optional", label: t("optional") };
 
   const companyStatus: ColumnStatus = hasCompany
-    ? { tone: "attached", label: companyFile?.name ?? `${companyText.trim().length} chars` }
-    : { tone: "optional", label: "Optional" };
+    ? { tone: "attached", label: companyFile?.name ?? t("charsCount", { count: companyText.trim().length }) }
+    : { tone: "optional", label: t("optional") };
 
   const githubStatusLabel: ColumnStatus = hasGithub
     ? { tone: "attached", label: githubProfile.trim() }
-    : { tone: "optional", label: "Optional" };
+    : { tone: "optional", label: t("optional") };
 
   // Mirror cvFiles into a ref so the serialized intake below sees pending appends across
   // its async hash await. Synced in an effect (post-commit) to avoid mutating a ref during
