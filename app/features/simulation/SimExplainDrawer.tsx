@@ -20,8 +20,10 @@ export function SimExplainDrawer() {
   const source = PHASE_DIAGRAM[current];
 
   return (
+    // A complementary info panel, NOT a modal: it deliberately doesn't trap focus or
+    // block the page (the walkthrough plays alongside it). role="dialog" wrongly promised
+    // modal focus management; the labeled <aside> (complementary landmark) is the honest role.
     <aside
-      role="dialog"
       aria-label="Simulation explainer"
       className="animate-slide-in motion-reduce:animate-none fixed bottom-[calc(var(--sim-bar-h)_+_8px)] right-3 top-3 z-[var(--z-sim-drawer)] flex w-[min(92vw,28rem)] flex-col overflow-hidden rounded-xl border border-stone-200 bg-paper shadow-2xl"
     >

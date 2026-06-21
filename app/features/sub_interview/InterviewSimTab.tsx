@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Briefcase, FlaskConical, GraduationCap, Link2, Loader2, Play, RotateCcw } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { AiDisclosure } from "@/app/_components/AiDisclosure";
@@ -165,6 +165,20 @@ export function InterviewSimTab() {
     setError(null);
   }
 
+  // Roving-tabindex keyboard support for the mode radiogroup (the cards already carry
+  // role="radio"/aria-checked but were Tab-only): arrow keys move + select the next mode.
+  const modeCardRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  function onModeKeyDown(e: React.KeyboardEvent) {
+    const idx = MODES.findIndex((m) => m.id === mode);
+    let next = idx;
+    if (e.key === "ArrowRight" || e.key === "ArrowDown") next = (idx + 1) % MODES.length;
+    else if (e.key === "ArrowLeft" || e.key === "ArrowUp") next = (idx - 1 + MODES.length) % MODES.length;
+    else return;
+    e.preventDefault();
+    pick(MODES[next].id);
+    modeCardRefs.current[next]?.focus();
+  }
+
   async function start() {
     setBusy(true);
     setError(null);
@@ -197,7 +211,7 @@ export function InterviewSimTab() {
         <p className={`mt-2 max-w-3xl ${INTRO}`}>{t("intro")}</p>
       </header>
 
-      <div className="mt-4 grid gap-2 sm:grid-cols-3" role="radiogroup" aria-label={t("modeAria")}>
+      <div className="mt-4 grid gap-2 sm:grid-cols-3" role="radiogroup" aria-label={t("modeAria")} onKeyDown={onModeKeyDown}>
         {MODES.map((m, i) => {
           const active = m.id === mode;
           const Icon = m.icon;
@@ -207,9 +221,13 @@ export function InterviewSimTab() {
           return (
             <button
               key={m.id}
+              ref={(el) => {
+                modeCardRefs.current[i] = el;
+              }}
               type="button"
               role="radio"
               aria-checked={active}
+              tabIndex={active ? 0 : -1}
               onClick={() => pick(m.id)}
               className={`focus-ring rounded-lg border p-3 text-left transition-all dark:rounded-2xl ${tilt} ${
                 active ? "border-coral/40 bg-coral/5 dark:shadow-sticker-sm" : "border-stone-200 bg-paper hover:border-stone-300"
