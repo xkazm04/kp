@@ -84,25 +84,6 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
       return NextResponse.json({ error: "Body must be JSON." }, { status: 400 });
     }
 
-    // Request-level idempotency: a provider retry or double-fire of the SAME
-    // delivery must not record a second receipt (which inflates the Channels
-    // liveness signal), pile up another `re_applied`, or re-dispatch the
-    // acknowledgement. Claim before the first side effect; a held key short-circuits
-    // to an idempotent 200. (intakeLead dedupes the entry by email; this dedupes the
-    // request.) Released in the catch below if anything throws, so a real retry runs.
-    const idemKey = `inbound:${token}:${webhookIdempotencyKey(
-      rawBody,
-      request.headers.get("idempotency-key") ?? request.headers.get("x-idempotency-key"),
-    )}`;
-    if (!claimWebhookIdempotency(idemKey)) {
-      return NextResponse.json({ result: "duplicate_ignored", duplicate: true }, { status: 200 });
-    }
-    claimedIdemKey = idemKey;
-
-    // Every received payload counts as a receipt — accepted or not — so the
-    // Channels tab's liveness signal reflects what the integration actually sends.
-    recordChannelWebhookReceipt(token);
-
     // The webhook's pinned candidate language drives KO-step derivation (ids
     // only — prompts are unused here), the entry locale, and the ack language.
     const storedLang = webhook.lang ?? "";
@@ -113,12 +94,31 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
     const lead = extractLead(payload, expectedKoIds);
     if (!lead.email || lead.email.length > MAX_EMAIL_LENGTH) {
       // An unreachable lead defeats the channel's purpose (no enrichment loop,
-      // undeliverable comms) — tell the integrator instead of filing junk.
+      // undeliverable comms). This is a DETERMINISTIC rejection, returned BEFORE the
+      // idempotency claim — so a byte-identical retry re-validates and gets the same
+      // actionable 422 (the field-mapping diagnostic) instead of a misleading
+      // "duplicate_ignored" 200 that would tell the integrator the lead was handled.
       return NextResponse.json(
         { error: "No email field could be mapped from the payload.", code: "missing_email" },
         { status: 422 }
       );
     }
+
+    // Request-level idempotency: a provider retry or double-fire of the SAME valid
+    // delivery must not record a second receipt (inflating the Channels liveness
+    // signal), pile up another `re_applied`, or re-dispatch the acknowledgement. Claimed
+    // ONLY now that the role is open + the payload is valid, so the claim brackets exactly
+    // the real side-effects window (intakeLead + the receipt + the accepted stamp). A held
+    // key short-circuits to an idempotent 200 (intakeLead also dedupes the entry by email);
+    // released in the catch if intakeLead throws, so a genuine retry re-runs.
+    const idemKey = `inbound:${token}:${webhookIdempotencyKey(
+      rawBody,
+      request.headers.get("idempotency-key") ?? request.headers.get("x-idempotency-key"),
+    )}`;
+    if (!claimWebhookIdempotency(idemKey)) {
+      return NextResponse.json({ result: "duplicate_ignored", duplicate: true }, { status: 200 });
+    }
+    claimedIdemKey = idemKey;
 
     const outcome = await intakeLead({
       job,
@@ -144,6 +144,13 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
       // lead-intake appends the entry's opaque lead token before the ack goes out.
       enrichLink: `${publicBaseUrl(new URL(request.url).origin)}/apply/${job.id}?lang=${locale}`,
     });
+
+    // Record the receipt only AFTER intake reaches a terminal outcome (accepted OR
+    // declined), never before: a thrown intake (transient SQLite contention, a translator
+    // import error, …) records no receipt and releases the claim, so the provider's retry
+    // re-runs intake WITHOUT inflating received_count on every failed attempt. A true
+    // duplicate never reaches here (the held claim 200s above), so it's counted once.
+    recordChannelWebhookReceipt(token);
 
     if (outcome.result === "declined") {
       return NextResponse.json({ result: "declined", code: "knockout_failed", failed: lead.failedKoIds });
