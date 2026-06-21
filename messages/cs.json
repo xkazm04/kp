@@ -781,6 +781,8 @@
   },
   "nav": {
     "skipToContent": "Přejít na obsah",
+    "openMenu": "Otevřít navigační nabídku",
+    "closeMenu": "Zavřít navigační nabídku",
     "ariaLabel": "Pracovní plocha",
     "attentionBadge": "{count} vyžaduje pozornost",
     "attentionBadgeGo": "{count} vyžaduje pozornost — zobrazit",

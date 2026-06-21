@@ -781,6 +781,8 @@
   },
   "nav": {
     "skipToContent": "Skip to content",
+    "openMenu": "Open navigation menu",
+    "closeMenu": "Close navigation menu",
     "ariaLabel": "Workspace",
     "attentionBadge": "{count} need attention",
     "attentionBadgeGo": "{count} need attention — view them",

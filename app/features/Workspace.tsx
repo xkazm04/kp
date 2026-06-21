@@ -1,8 +1,9 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { useCallback } from "react";
+import { useCallback, useEffect, useState } from "react";
 import dynamic from "next/dynamic";
+import { Menu, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Skeleton } from "@/app/_components/Skeleton";
 import { ErrorBoundary } from "@/app/_components/ErrorBoundary";
@@ -84,6 +85,10 @@ export function Workspace() {
   const tabParam = params.get("tab");
   // SHELL2 — live "what needs my attention" counts behind the nav badges.
   const attention = useAttention();
+  // Below `md` the sidebar is an off-canvas drawer (a permanent rail at md+). Without
+  // this, the full ~16-item nav stacked above content and pushed every page below the
+  // fold on a phone — the studio was close to unusable on a handset.
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const requested: WorkspaceTabId = isWorkspaceTabId(tabParam) ? tabParam : DEFAULT_TAB;
   // About is a dev-only deep-dive (ABOUT_TAB_IN_NAV); in production a direct
   // ?tab=about falls back to the default so the view can't be reached.
@@ -96,10 +101,21 @@ export function Workspace() {
   // never inherits the prior tab's selection.
   const selectTab = useCallback(
     (id: WorkspaceTabId): void => {
+      setMobileNavOpen(false); // a tab pick on mobile closes the drawer
       router.replace(buildTabSwitchUrl(id, search), { scroll: false });
     },
     [router, search]
   );
+
+  // Close the mobile drawer on Escape (desktop rail is unaffected — it's never "open").
+  useEffect(() => {
+    if (!mobileNavOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMobileNavOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [mobileNavOpen]);
 
   return (
     <TasksProvider>
@@ -111,7 +127,40 @@ export function Workspace() {
       >
         {t("skipToContent")}
       </a>
-      <aside className="flex flex-col border-b border-stone-300 bg-paper md:sticky md:top-0 md:h-screen md:w-64 md:shrink-0 md:overflow-y-auto md:border-b-0 md:border-r">
+
+      {/* Mobile top bar (brand + hamburger) — hidden at md+ where the rail is permanent. */}
+      <div className="flex items-center justify-between border-b border-stone-300 bg-paper px-4 py-3 md:hidden">
+        <div className="flex items-center gap-2">
+          <KandidateMark className="h-7 w-7 shrink-0 text-ink [--k-accent:var(--color-coral)] [--k-fg:var(--color-paper)]" />
+          <p className="font-serif text-h3 text-ink">{t("brandName")}</p>
+        </div>
+        <button
+          type="button"
+          onClick={() => setMobileNavOpen((v) => !v)}
+          aria-expanded={mobileNavOpen}
+          aria-controls="workspace-nav"
+          aria-label={mobileNavOpen ? t("closeMenu") : t("openMenu")}
+          className="focus-ring inline-flex h-10 w-10 items-center justify-center rounded-md border border-stone-300 text-ink"
+        >
+          {mobileNavOpen ? <X size={20} aria-hidden /> : <Menu size={20} aria-hidden />}
+        </button>
+      </div>
+
+      {/* Scrim behind the open drawer (mobile only) — click to dismiss. */}
+      {mobileNavOpen ? (
+        <div
+          className="fixed inset-0 z-40 bg-ink/40 md:hidden"
+          aria-hidden
+          onClick={() => setMobileNavOpen(false)}
+        />
+      ) : null}
+
+      <aside
+        id="workspace-nav"
+        className={`flex flex-col bg-paper fixed inset-y-0 left-0 z-50 w-72 max-w-[85vw] overflow-y-auto border-r border-stone-300 shadow-xl transition-transform duration-200 ${
+          mobileNavOpen ? "translate-x-0" : "-translate-x-full"
+        } md:z-auto md:w-64 md:max-w-none md:shrink-0 md:translate-x-0 md:overflow-y-auto md:border-r md:shadow-none md:transition-none md:sticky md:top-0 md:h-screen`}
+      >
         <div className="px-4 py-5">
           <div className="flex items-center gap-2.5">
             <KandidateMark className="h-9 w-9 shrink-0 text-ink [--k-accent:var(--color-coral)] [--k-fg:var(--color-paper)] dark:-rotate-3" />
