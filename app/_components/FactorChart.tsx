@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import type { Analysis } from "@/app/_lib/schemas";
 import { scoreTone, scoreToneColor } from "@/app/_lib/format";
@@ -31,12 +32,14 @@ const CHROME = {
 
 export function FactorChart({ score }: FactorChartProps) {
   const chrome = CHROME[useTheme()];
+  const t = useTranslations("report");
+  // Stable `id` keys the Cells (locale-independent); `factor` is the localized axis label.
   const data = [
-    { factor: "Experience", value: score.experience, max: 25 },
-    { factor: "Skills", value: score.skills, max: 30 },
-    { factor: "Role", value: score.roleSeniority, max: 23 },
-    { factor: "Education", value: score.education, max: 12 },
-    { factor: "Traits", value: score.traits, max: 10 }
+    { id: "experience", factor: t("factorExperience"), value: score.experience, max: 25 },
+    { id: "skills", factor: t("factorSkills"), value: score.skills, max: 30 },
+    { id: "role", factor: t("factorRole"), value: score.roleSeniority, max: 23 },
+    { id: "education", factor: t("factorEducation"), value: score.education, max: 12 },
+    { id: "traits", factor: t("factorTraits"), value: score.traits, max: 10 },
   ];
 
   // Recharts logs a "width(-1) / height(-1)" warning on the first render pass
@@ -59,11 +62,11 @@ export function FactorChart({ score }: FactorChartProps) {
               color: chrome.tooltipText,
               backgroundColor: chrome.tooltipBg
             }}
-            formatter={(value, _name, item) => [`${value}/${item.payload.max}`, "Points"]}
+            formatter={(value, _name, item) => [`${value}/${item.payload.max}`, t("factorPoints")]}
           />
           <Bar dataKey="value" radius={[6, 6, 0, 0]}>
             {data.map((d) => (
-              <Cell key={d.factor} fill={barColor(d.value / d.max)} />
+              <Cell key={d.id} fill={barColor(d.value / d.max)} />
             ))}
           </Bar>
         </BarChart>

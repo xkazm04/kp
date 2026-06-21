@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { Check, Loader2 } from "lucide-react";
 
 export type StageId =
@@ -23,32 +24,24 @@ export const STAGE_ORDER: StageId[] = [
   "insights"
 ];
 
-const STAGE_LABEL: Record<StageId, { title: string; subtitle: string }> = {
-  extract: {
-    title: "Extracting CV text",
-    subtitle: "Parsing PDF / DOCX content and repairing diacritics."
-  },
-  gemini: {
-    title: "Calling Gemini",
-    subtitle: "The model is reading the profile, this is the longest step."
-  },
-  profile: {
-    title: "Building profile signals",
-    subtitle: "Mapping years, role family, skills, languages, traits."
-  },
-  scoring: {
-    title: "Scoring candidate",
-    subtitle: "Combining experience, skills, seniority, education, traits."
-  },
-  salary: {
-    title: "Estimating salary",
-    subtitle: "Blending Czech tech benchmarks with company context."
-  },
-  insights: {
-    title: "Generating insights",
-    subtitle: "Job-fit, ATS check, interview kit, application strategy."
-  }
-};
+// Literal-key maps (next-intl rejects template-literal keys, so we can't build
+// `stages.${id}Title` inline) → the catalog lives under analyze.stages.*.
+const STAGE_TITLE_KEY = {
+  extract: "stages.extractTitle",
+  gemini: "stages.geminiTitle",
+  profile: "stages.profileTitle",
+  scoring: "stages.scoringTitle",
+  salary: "stages.salaryTitle",
+  insights: "stages.insightsTitle",
+} as const;
+const STAGE_SUB_KEY = {
+  extract: "stages.extractSub",
+  gemini: "stages.geminiSub",
+  profile: "stages.profileSub",
+  scoring: "stages.scoringSub",
+  salary: "stages.salarySub",
+  insights: "stages.insightsSub",
+} as const;
 
 export function initialStageState(): StageState {
   return {
@@ -90,6 +83,7 @@ export function AnalysisProgress({
   variantCount?: number;
   onCancel?: () => void;
 }) {
+  const t = useTranslations("analyze");
   const completedCount = STAGE_ORDER.filter((id) => stages[id] === "done").length;
   const totalCount = STAGE_ORDER.length;
   const percent = complete
@@ -102,7 +96,7 @@ export function AnalysisProgress({
 
   return (
     <div
-      aria-label="Analysis progress"
+      aria-label={t("progressAria")}
       role="status"
       aria-live="polite"
       className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel"
@@ -110,26 +104,26 @@ export function AnalysisProgress({
       <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="text-meta uppercase text-coral">
-            {complete ? "Compiling result" : "Live pipeline"}
+            {complete ? t("compilingResult") : t("livePipeline")}
           </p>
           <h2 className="mt-1 font-serif text-h2 text-ink">
             {complete
-              ? "Almost there — packaging your report"
+              ? t("almostThere")
               : headlineStage
-                ? STAGE_LABEL[headlineStage].title
-                : "Starting analysis"}
+                ? t(STAGE_TITLE_KEY[headlineStage])
+                : t("startingAnalysis")}
           </h2>
           <p className="mt-1 text-base text-steel">
             {variantCount && variantCount > 1
-              ? `Comparing ${variantCount} CV variants in parallel.`
+              ? t("comparingVariants", { count: variantCount })
               : fileName
-                ? `Working on ${fileName}.`
-                : "Working on your profile."}
+                ? t("workingOnFile", { fileName })
+                : t("workingOnProfile")}
           </p>
         </div>
         <div className="flex flex-col items-start gap-2 sm:items-end">
           <div className="flex flex-col items-start sm:items-end">
-            <span className="text-meta uppercase tracking-wide text-steel">Progress</span>
+            <span className="text-meta uppercase tracking-wide text-steel">{t("progressLabel")}</span>
             <span className="font-serif text-h2 text-ink">{percent}%</span>
           </div>
           {onCancel && !complete && (
@@ -138,7 +132,7 @@ export function AnalysisProgress({
               onClick={onCancel}
               className="rounded-md border border-stone-300 px-2.5 py-1 text-sm font-medium text-steel transition-colors hover:border-coral hover:text-coral focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral"
             >
-              Cancel scan
+              {t("cancelScan")}
             </button>
           )}
         </div>
@@ -165,7 +159,7 @@ export function AnalysisProgress({
 }
 
 function StageRow({ id, status }: { id: StageId; status: StageStatus }) {
-  const label = STAGE_LABEL[id];
+  const t = useTranslations("analyze");
   return (
     <li
       className={`flex items-start gap-3 rounded-md border p-3 transition-colors ${
@@ -183,9 +177,9 @@ function StageRow({ id, status }: { id: StageId; status: StageStatus }) {
             status === "pending" ? "text-steel" : "text-ink"
           }`}
         >
-          {label.title}
+          {t(STAGE_TITLE_KEY[id])}
         </p>
-        <p className="mt-0.5 text-sm leading-5 text-steel">{label.subtitle}</p>
+        <p className="mt-0.5 text-sm leading-5 text-steel">{t(STAGE_SUB_KEY[id])}</p>
       </div>
     </li>
   );

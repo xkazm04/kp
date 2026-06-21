@@ -1,29 +1,33 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { ArrowDownRight, ArrowUpRight, Crown, Minus } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import type { Analysis } from "@/app/_lib/schemas";
 import { hasRenderableComparison, primaryScore } from "@/app/_lib/comparison";
-import { reconcileScoreTotal, SCORE_COMPONENT_KEYS, SCORE_COMPONENT_LABELS } from "@/app/_lib/format";
+import { reconcileScoreTotal, SCORE_COMPONENT_KEYS } from "@/app/_lib/format";
 import { BulletList } from "../shared";
 
 type ComparisonPayload = NonNullable<Analysis["comparison"]>;
 type ComparisonVariant = ComparisonPayload["variants"][number];
 
-// The local "Overall" row reads the component sum (see reconcileScoreTotal below);
-// the five component rows are derived from the canonical score taxonomy in
-// format.ts (Title-cased here for the column header) so they stay in lockstep
-// with the dial, the breakdown, and the driver-insight prose.
-const COMPONENT_ROWS: Array<{ key: keyof ComparisonVariant["score"]; label: string }> = [
-  { key: "total", label: "Overall" },
-  ...SCORE_COMPONENT_KEYS.map((key) => ({
-    key,
-    label: SCORE_COMPONENT_LABELS[key].charAt(0).toUpperCase() + SCORE_COMPONENT_LABELS[key].slice(1)
-  }))
-];
+// The "Overall" row reads the component sum (reconcileScoreTotal); the five component
+// rows map to the canonical score taxonomy. Labels resolve through the shared report
+// catalog (literal keys — next-intl rejects template keys) so the table stays in
+// lockstep with the dial/breakdown AND localizes with the rest of the report.
+const COMPONENT_ROW_KEYS = ["total", ...SCORE_COMPONENT_KEYS] as const;
+const COMPONENT_LABEL_KEY = {
+  total: "compare.overall",
+  experience: "factorExperience",
+  skills: "factorSkills",
+  roleSeniority: "factorRole",
+  education: "factorEducation",
+  traits: "factorTraits",
+} as const;
 
 export function CompareTab({ analysis }: { analysis: Analysis }) {
   const comparison = analysis.comparison;
+  const t = useTranslations("report");
   const scrollRef = useRef<HTMLDivElement>(null);
   const [canScrollRight, setCanScrollRight] = useState(false);
 
@@ -54,11 +58,8 @@ export function CompareTab({ analysis }: { analysis: Analysis }) {
   if (!hasRenderableComparison(comparison)) {
     return (
       <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
-        <h3 className="font-serif text-h3 text-ink">CV Variants</h3>
-        <p className="mt-3 text-base leading-6 text-steel">
-          Upload 2-3 CV variants to score each against the same job in one run, see the score delta per component, and
-          get a merged best variant recommendation.
-        </p>
+        <h3 className="font-serif text-h3 text-ink">{t("compare.emptyTitle")}</h3>
+        <p className="mt-3 text-base leading-6 text-steel">{t("compare.emptyBody")}</p>
       </div>
     );
   }
@@ -79,18 +80,13 @@ export function CompareTab({ analysis }: { analysis: Analysis }) {
       <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h3 className="font-serif text-h3 text-ink">CV Variant Comparison</h3>
+            <h3 className="font-serif text-h3 text-ink">{t("compare.title")}</h3>
             <p className="mt-1 text-base leading-6 text-steel">
-              {comparison.variants.length} variants scored against the same job. Winner highlighted with{" "}
-              <Crown className="inline h-3.5 w-3.5 text-coral" aria-hidden />. Each ▲/▼ delta is measured against{" "}
-              <span className="font-medium text-ink" title={baseline.label}>
-                {baseline.label}
-              </span>{" "}
-              — the first variant you uploaded (the &ldquo;baseline&rdquo; column), not the winner.
+              {t("compare.subtitle", { count: comparison.variants.length, baseline: baseline.label })}
             </p>
           </div>
           <div className="rounded-md bg-limewash px-3 py-2 text-base text-ink">
-            Recommended: <span className="font-semibold">{comparison.bestLabel}</span>
+            {t("compare.recommended")} <span className="font-semibold">{comparison.bestLabel}</span>
           </div>
         </div>
 
@@ -100,7 +96,7 @@ export function CompareTab({ analysis }: { analysis: Analysis }) {
               <thead>
                 <tr>
                   <th className="sticky left-0 z-10 w-44 bg-white px-3 py-2 text-left text-sm font-semibold uppercase tracking-wide text-steel">
-                    Component
+                    {t("compare.componentHeader")}
                   </th>
                   {comparison.variants.map((variant, index) => (
                     <th
@@ -120,39 +116,39 @@ export function CompareTab({ analysis }: { analysis: Analysis }) {
                 </tr>
               </thead>
               <tbody>
-                {COMPONENT_ROWS.map((row) => (
+                {COMPONENT_ROW_KEYS.map((key) => (
                   <DeltaRow
-                    key={row.key}
-                    label={row.label}
+                    key={key}
+                    label={t(COMPONENT_LABEL_KEY[key])}
                     variants={comparison.variants}
                     // The Overall row reads the component sum, not the raw
                     // pipeline total, so it always equals the component rows
                     // beneath it (the score-breakdown invariant; see
                     // reconcileScoreTotal).
-                    extract={(v) => (row.key === "total" ? reconcileScoreTotal(v.score) : v.score[row.key])}
+                    extract={(v) => (key === "total" ? reconcileScoreTotal(v.score) : v.score[key])}
                     winnerIndex={winnerIndex}
                   />
                 ))}
                 <DeltaRow
-                  label="Job-fit score"
+                  label={t("compare.metricJobFit")}
                   variants={comparison.variants}
                   extract={(v) => v.jobFitScore}
                   winnerIndex={winnerIndex}
                 />
                 <DeltaRow
-                  label="Keyword coverage %"
+                  label={t("compare.metricKeyword")}
                   variants={comparison.variants}
                   extract={(v) => v.keywordCoveragePercent}
                   winnerIndex={winnerIndex}
                 />
                 <DeltaRow
-                  label="Skills indexed"
+                  label={t("compare.metricSkills")}
                   variants={comparison.variants}
                   extract={(v) => v.skillsCount}
                   winnerIndex={winnerIndex}
                 />
                 <DeltaRow
-                  label="Years experience"
+                  label={t("compare.metricYears")}
                   variants={comparison.variants}
                   extract={(v) => v.yearsExperience}
                   winnerIndex={winnerIndex}
@@ -170,23 +166,23 @@ export function CompareTab({ analysis }: { analysis: Analysis }) {
 
       <div className="grid gap-5 lg:grid-cols-2">
         <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
-          <h3 className="font-serif text-h3 text-ink">Score Delta Drivers</h3>
+          <h3 className="font-serif text-h3 text-ink">{t("compare.driversTitle")}</h3>
           <BulletList
             items={comparison.driverInsights}
             listClassName="mt-3 space-y-2 text-base leading-6 text-ink"
             itemClassName="rounded-md bg-paper p-3"
-            empty={<p className="mt-3 text-base leading-6 text-steel">Variants score identically — no drivers to highlight.</p>}
+            empty={<p className="mt-3 text-base leading-6 text-steel">{t("compare.driversEmpty")}</p>}
           />
         </div>
 
         <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
-          <h3 className="font-serif text-h3 text-ink">Merged Best Variant</h3>
+          <h3 className="font-serif text-h3 text-ink">{t("compare.mergedTitle")}</h3>
           <p className="mt-3 text-base leading-6 text-ink">{comparison.mergedRecommendation.summary}</p>
           <ul className="mt-3 space-y-2 text-base leading-6 text-ink">
             {comparison.mergedRecommendation.sectionPicks.map((pick) => (
               <li key={pick.section} className="rounded-md bg-paper p-3">
                 <span className="font-semibold text-ink">{pick.section}</span>{" "}
-                <span className="text-steel">— from</span>{" "}
+                <span className="text-steel">{t("compare.fromLabel")}</span>{" "}
                 <span className="font-medium text-coral">{pick.sourceLabel}</span>
                 <p className="mt-1 text-sm text-steel">{pick.reason}</p>
               </li>
@@ -197,28 +193,28 @@ export function CompareTab({ analysis }: { analysis: Analysis }) {
 
       <div className="grid gap-5 lg:grid-cols-2">
         <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
-          <h3 className="font-serif text-h3 text-ink">Suggested Headline & Skills</h3>
+          <h3 className="font-serif text-h3 text-ink">{t("compare.headlineSkillsTitle")}</h3>
           {comparison.mergedRecommendation.headline ? (
             <div className="mt-3 rounded-md bg-paper p-3">
-              <p className="text-sm font-semibold uppercase tracking-wide text-steel">Headline</p>
+              <p className="text-sm font-semibold uppercase tracking-wide text-steel">{t("compare.headlineLabel")}</p>
               <p className="mt-1 text-base leading-6 text-ink">{comparison.mergedRecommendation.headline}</p>
             </div>
           ) : null}
           {comparison.mergedRecommendation.skillsLine ? (
             <div className="mt-3 rounded-md bg-paper p-3">
-              <p className="text-sm font-semibold uppercase tracking-wide text-steel">Skills line</p>
+              <p className="text-sm font-semibold uppercase tracking-wide text-steel">{t("compare.skillsLineLabel")}</p>
               <p className="mt-1 text-base leading-6 text-ink">{comparison.mergedRecommendation.skillsLine}</p>
             </div>
           ) : null}
         </div>
 
         <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
-          <h3 className="font-serif text-h3 text-ink">Top Bullets (merged)</h3>
+          <h3 className="font-serif text-h3 text-ink">{t("compare.bulletsTitle")}</h3>
           <BulletList
             items={comparison.mergedRecommendation.bullets}
             listClassName="mt-3 space-y-2 text-base leading-6 text-ink"
             itemClassName="rounded-md bg-paper p-3"
-            empty={<p className="mt-3 text-base leading-6 text-steel">No rewrite bullets surfaced from any variant.</p>}
+            empty={<p className="mt-3 text-base leading-6 text-steel">{t("compare.bulletsEmpty")}</p>}
           />
         </div>
       </div>
@@ -245,6 +241,7 @@ function DeltaRow({
   winnerIndex: number;
   format?: (value: number) => string;
 }) {
+  const t = useTranslations("report");
   const values = variants.map(extract);
   if (!values.some((v) => v != null)) return null;
   const baseline = values[0];
@@ -264,7 +261,7 @@ function DeltaRow({
               <div className="flex items-center gap-2">
                 <span className="font-semibold nums text-ink">{format(value)}</span>
                 {index === 0 ? (
-                  <span className="text-sm text-steel" title="First uploaded variant — every other column's delta is measured against this one.">baseline</span>
+                  <span className="text-sm text-steel" title={t("compare.baselineTitle")}>{t("compare.baselineTag")}</span>
                 ) : delta != null ? (
                   <DeltaPill delta={delta} />
                 ) : null}
