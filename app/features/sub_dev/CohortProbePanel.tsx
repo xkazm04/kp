@@ -11,12 +11,13 @@ import type { CoverProbe, Submission } from "./DevTypes";
 // hidden — not a run of weak candidates. Internal reviewer material (it names the
 // probes), so it lives inside the locked section.
 
-// Miss rate → heat. A probe most of the cohort detects is healthy (moss); one
-// most of them miss is the miscalibration flag (coral).
-function heatClass(rate: number): string {
-  if (rate >= 0.75) return "bg-coral/20 text-coral";
-  if (rate >= 0.4) return "bg-amber-100 text-amber-700";
-  return "bg-moss/15 text-moss";
+// Miss rate → heat band. A probe most of the cohort detects is healthy (moss); one
+// most of them miss is the miscalibration flag (coral). The `word` is the non-color
+// cue (WCAG 1.4.1) so severity reads for low-vision / colorblind reviewers too.
+function heatBand(rate: number): { cls: string; word: string } {
+  if (rate >= 0.75) return { cls: "bg-coral/20 text-coral", word: "high" };
+  if (rate >= 0.4) return { cls: "bg-amber-100 text-amber-700", word: "some" };
+  return { cls: "bg-moss/15 text-moss", word: "low" };
 }
 
 export function CohortProbePanel({ probes, submissions }: { probes: CoverProbe[]; submissions: Submission[] }) {
@@ -47,9 +48,17 @@ export function CohortProbePanel({ probes, submissions }: { probes: CoverProbe[]
               <span className="shrink-0 text-steel">not yet scored</span>
             ) : (
               <>
-                <span className={`shrink-0 rounded px-1.5 py-0.5 font-semibold ${heatClass(c.missRate)}`}>
-                  {Math.round(c.missRate * 100)}% missed
-                </span>
+                {(() => {
+                  const band = heatBand(c.missRate);
+                  return (
+                    <span
+                      className={`shrink-0 rounded px-1.5 py-0.5 font-semibold ${band.cls}`}
+                      aria-label={`${Math.round(c.missRate * 100)} percent missed, ${band.word} miss rate`}
+                    >
+                      {Math.round(c.missRate * 100)}% missed · {band.word}
+                    </span>
+                  );
+                })()}
                 <span className="shrink-0 text-steel" title="Detected but mishandled, or missed">
                   {Math.round((c.weakRate ?? 0) * 100)}% weak
                 </span>

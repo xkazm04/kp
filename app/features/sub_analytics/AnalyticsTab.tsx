@@ -1063,18 +1063,21 @@ function MomentumPanel({ weeks }: { weeks: MomentumWeek[] }) {
       ) : (
         <ol className="mt-4 flex items-end gap-2">
           {weeks.map((w) => (
-            <li
-              key={w.weekStart}
-              className="flex min-w-0 flex-1 flex-col items-center gap-1"
-              aria-label={t("momentumWeekAria", {
-                date: weekLabel(w.weekStart),
-                added: w.added,
-                advanced: w.advanced,
-                rejected: w.rejected,
-                hired: w.hired,
-              })}
-            >
-              <div aria-hidden className="flex h-20 w-full items-end justify-center gap-0.5 rounded-md bg-paper px-1 pt-1">
+            <li key={w.weekStart} className="flex min-w-0 flex-1 flex-col items-center gap-1">
+              {/* role="img" + aria-label is the reliable text equivalent: a bare
+                  <li aria-label> isn't announced across SRs. The role makes the bar
+                  group's decorative children presentational automatically. */}
+              <div
+                role="img"
+                aria-label={t("momentumWeekAria", {
+                  date: weekLabel(w.weekStart),
+                  added: w.added,
+                  advanced: w.advanced,
+                  rejected: w.rejected,
+                  hired: w.hired,
+                })}
+                className="flex h-20 w-full items-end justify-center gap-0.5 rounded-md bg-paper px-1 pt-1"
+              >
                 {MOMENTUM_SERIES.map((s) => (
                   <div
                     key={s.key}
