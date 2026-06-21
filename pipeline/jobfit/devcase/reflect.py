@@ -16,6 +16,7 @@ tooling, not which tools were used.
 from __future__ import annotations
 
 import logging
+import math
 from statistics import median
 from typing import Any
 
@@ -56,9 +57,14 @@ def _generate(provider: Any | None, prompt: str, deterministic, coerce) -> tuple
 
 def _clamp01(value: Any, default: float) -> float:
     try:
-        return max(0.0, min(1.0, float(value)))
+        v = float(value)
     except (TypeError, ValueError):
         return default
+    # NaN/inf (e.g. an LLM that emitted `NaN` in its JSON) is a valid float but slips
+    # past min/max — `min(1.0, nan)` returns 1.0 — silently maxing the score. Reject it.
+    if not math.isfinite(v):
+        return default
+    return max(0.0, min(1.0, v))
 
 
 def _messages(commits: list[dict]) -> list[str]:

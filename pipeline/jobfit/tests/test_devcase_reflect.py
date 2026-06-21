@@ -5,9 +5,28 @@ import unittest
 from pipeline.jobfit.devcase.reflect import (
     COMMIT_REFLECTION_PROMPT_VERSION,
     TOOLING_SIGNAL_PROMPT_VERSION,
+    _clamp01,
     assess_tooling,
     reflect_commits,
 )
+
+
+class TestClamp01(unittest.TestCase):
+    # bug-ui-scan 2026-06-20: a NaN/inf from malformed LLM JSON slipped past min/max
+    # (`min(1.0, nan)` returns 1.0), silently maxing confidence/fluency. Must use the default.
+    def test_nan_and_inf_fall_back_to_default(self):
+        self.assertEqual(_clamp01(float("nan"), 0.3), 0.3)
+        self.assertEqual(_clamp01(float("inf"), 0.3), 0.3)
+        self.assertEqual(_clamp01(float("-inf"), 0.3), 0.3)
+
+    def test_non_numeric_falls_back_to_default(self):
+        self.assertEqual(_clamp01("x", 0.25), 0.25)
+        self.assertEqual(_clamp01(None, 0.25), 0.25)
+
+    def test_finite_values_clamp_to_unit_range(self):
+        self.assertEqual(_clamp01(0.7, 0.3), 0.7)
+        self.assertEqual(_clamp01(2.0, 0.3), 1.0)
+        self.assertEqual(_clamp01(-1.0, 0.3), 0.0)
 
 
 class TestReflect(unittest.TestCase):

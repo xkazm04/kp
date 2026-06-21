@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import json
 import logging
+import math
 import threading
 from typing import Any
 
@@ -374,6 +375,8 @@ def design_case(
             )
         try:
             tb = float(payload.get("timeboxHours"))
+            if not math.isfinite(tb):  # NaN would survive the min/max clamp → "~nanh"
+                raise ValueError("non-finite timeboxHours")
         except (TypeError, ValueError):
             tb = timebox
         # Clamp the model's own estimate to the cap (UAT M8): left alone the LLM
