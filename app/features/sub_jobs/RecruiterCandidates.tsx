@@ -518,7 +518,7 @@ function CandidateCard({
         </span>
       </div>
       {error && !added ? (
-        <p className="mt-1 text-sm text-red-700">{t("couldntAdd", { error })}</p>
+        <p role="alert" className="mt-1 text-sm text-red-700">{t("couldntAdd", { error })}</p>
       ) : null}
       {reachError && !reached ? (
         <p className="mt-1 text-sm text-red-700">{t("couldntReach", { error: reachError })}</p>
