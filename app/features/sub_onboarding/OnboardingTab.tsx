@@ -353,6 +353,7 @@ function RunDetailView({ runId, onBack }: { runId: string; onBack: () => void })
   const [detail, setDetail] = useState<RunDetail | null>(null);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [doc, setDoc] = useState("");
+  const [error, setError] = useState<string | null>(null);
 
   // Load the run detail on mount / when the selected run changes — inline IIFE so
   // setState lands after the await (the allowed effect shape). patch() refreshes
@@ -361,10 +362,18 @@ function RunDetailView({ runId, onBack }: { runId: string; onBack: () => void })
     let live = true;
     (async () => {
       const r = await fetch(`/api/onboarding/${encodeURIComponent(runId)}`);
-      const p = (await r.json()) as RunDetail;
       if (!live) return;
+      // A non-OK response is an { error, code } envelope, not a RunDetail — storing it
+      // as `detail` blanked/crashed the whole tab (detail.run / detail.tasks.map). Keep
+      // detail null and surface the failure instead.
+      if (!r.ok) {
+        setError(t("saveFailed"));
+        return;
+      }
+      const p = (await r.json()) as RunDetail;
       setDetail(p);
       setAnswers(p.intake ?? {});
+      setError(null);
     })();
     return () => {
       live = false;
@@ -377,10 +386,23 @@ function RunDetailView({ runId, onBack }: { runId: string; onBack: () => void })
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     });
+    // Never overwrite the loaded detail with a non-OK { error } envelope — that
+    // crashed the tab on the next render. Keep the current state and flag the failure.
+    if (!r.ok) {
+      setError(t("saveFailed"));
+      return;
+    }
     setDetail((await r.json()) as RunDetail);
+    setError(null);
   };
 
-  if (!detail) return <p className="mx-auto max-w-3xl text-base text-steel">{t("loading")}</p>;
+  if (!detail) {
+    return error ? (
+      <p className="mx-auto max-w-3xl text-base text-coral" role="alert">{error}</p>
+    ) : (
+      <p className="mx-auto max-w-3xl text-base text-steel">{t("loading")}</p>
+    );
+  }
 
   const doneIds = new Set(detail.states.filter((s) => s.done).map((s) => s.taskId));
   // next-intl rejects template-literal keys → resolve field labels via a literal map.
@@ -400,6 +422,12 @@ function RunDetailView({ runId, onBack }: { runId: string; onBack: () => void })
       </button>
       <h1 className="mt-2 font-serif text-h1 text-ink">{detail.run.candidateLabel ?? t("aCandidate")}</h1>
       {detail.run.jobTitle ? <p className="mt-0.5 text-base text-steel">{detail.run.jobTitle}</p> : null}
+
+      {error ? (
+        <p className="mt-3 rounded-md bg-coral/10 px-3 py-2 text-sm font-medium text-coral" role="alert">
+          {error}
+        </p>
+      ) : null}
 
       {/* Checklist */}
       <section className="mt-6 rounded-md border border-stone-200 bg-white p-4">
