@@ -7,6 +7,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { buildTabSwitchUrl } from "@/app/features/tabs";
 import { ChainEmptyState } from "@/app/_components/ChainEmptyState";
 import { CompletionCta } from "@/app/_components/CompletionCta";
+import { Skeleton } from "@/app/_components/Skeleton";
 import { useTasks, useTaskResult } from "@/app/features/tasks/TasksProvider";
 import { useLiveRefresh } from "@/app/features/live-refresh";
 import { AiReviewCard } from "./AiReviewCard";
@@ -345,7 +346,14 @@ export function DecisionsTab() {
           {error}
         </p>
       ) : entries == null ? (
-        <p className="text-base text-steel">{t("loading")}</p>
+        <div aria-busy="true" aria-label={t("loading")} className="space-y-3">
+          <Skeleton className="h-4 w-40" />
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <Skeleton key={i} className="h-40 w-full rounded-lg" />
+            ))}
+          </div>
+        </div>
       ) : pending.length === 0 ? (
         // Caught-up is closure, not a dead-end: point at where the work
         // continues (slots waiting on Schedule, the live board).

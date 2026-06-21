@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { AiDisclosure } from "@/app/_components/AiDisclosure";
+import { Skeleton } from "@/app/_components/Skeleton";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { initials } from "@/app/_lib/initials";
 import { offerHoursRemaining } from "@/app/_lib/offer-policy";
@@ -155,7 +156,25 @@ export default function OfferPage() {
             </button>
           </div>
         ) : !offer ? (
-          <p className="text-center text-sm text-steel">{tCommon("loading")}</p>
+          // Skeleton mirrors the loaded offer's shape so the high-stakes first paint
+          // reserves its height instead of a bare line that visibly reflows (CLS).
+          <div className="space-y-4" aria-busy="true" aria-label={tCommon("loading")}>
+            <div className="flex items-center gap-3">
+              <Skeleton className="h-11 w-11 rounded-lg" />
+              <div className="flex-1 space-y-2">
+                <Skeleton className="h-4 w-2/3" />
+                <Skeleton className="h-3 w-1/3" />
+              </div>
+            </div>
+            <Skeleton className="h-6 w-1/2" />
+            <Skeleton className="h-20 w-full rounded-lg" />
+            <Skeleton className="h-3 w-5/6" />
+            <Skeleton className="h-3 w-3/4" />
+            <div className="flex gap-2 pt-2">
+              <Skeleton className="h-10 flex-1 rounded-md" />
+              <Skeleton className="h-10 flex-1 rounded-md" />
+            </div>
+          </div>
         ) : (
           <>
             {offer.company ? (

@@ -6,7 +6,7 @@ import { useJsonFetch } from "@/app/_lib/useJsonFetch";
 import { useAddToPipeline } from "@/app/_lib/useAddToPipeline";
 import { useReachOut } from "@/app/_lib/useReachOut";
 import { ScoreBadge } from "@/app/_components/ScoreBadge";
-import { EmptyState, SkippedCandidatesNote } from "./JobsShared";
+import { EmptyState, SkippedCandidatesNote, SkelBar } from "./JobsShared";
 import type { SkippedCandidate } from "./JobsTypes";
 // Type-only import of the canonical wire row — erased at compile time, so it does
 // NOT pull rediscover.ts's better-sqlite3 runtime into this client bundle.
@@ -30,7 +30,15 @@ export function RediscoverPanel({ jobId, jobTitle }: { jobId: string; jobTitle: 
   const { reach, reached, reaching, error: reachError, announce: reachAnnounce } = useReachOut(jobId);
 
   if (error) return <p className="text-base text-coral">{error}</p>;
-  if (!data) return <p className="text-base text-steel">{t("scanning")}</p>;
+  if (!data)
+    return (
+      <div className="space-y-2" aria-busy="true">
+        <p className="text-sm text-steel">{t("scanning")}</p>
+        {Array.from({ length: 3 }).map((_, i) => (
+          <SkelBar key={i} className="h-16 w-full" />
+        ))}
+      </div>
+    );
   // The skipped note rides above the results regardless of whether any candidate
   // resurfaced — a malformed profile may be exactly why the list looks empty.
   if (data.length === 0) {
