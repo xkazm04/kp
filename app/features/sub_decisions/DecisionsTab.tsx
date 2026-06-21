@@ -292,6 +292,7 @@ export function DecisionsTab() {
               onChange={(e) => setJobFilter(e.target.value || null)}
               className="focus-ring rounded-md border border-stone-200 bg-white px-2.5 py-1 text-sm text-ink"
               title={t("filterTitle")}
+              aria-label={t("filterTitle")}
             >
               <option value="">{t("allRoles", { count: pending.length })}</option>
               {jobOptions.map((o) => (
@@ -306,6 +307,7 @@ export function DecisionsTab() {
             onChange={(e) => setEvalMode(e.target.value as typeof evalMode)}
             className="focus-ring rounded-md border border-stone-200 bg-white px-2.5 py-1 text-sm text-ink"
             title={t("govModeTitle")}
+            aria-label={t("govModeTitle")}
           >
             <option value="recommendation">{t("govRecommendation")}</option>
             <option value="committee">{t("govCommittee")}</option>

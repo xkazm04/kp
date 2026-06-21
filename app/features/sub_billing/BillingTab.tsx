@@ -61,7 +61,9 @@ function MeterRow({ meter, name }: { meter: MeterOverview; name: string }) {
           </span>
         )}
       </div>
-      {limit === null ? null : (
+      {limit === null || limit <= 0 ? null : (
+        // A 0-allowance meter (free/BYOM tier) must NOT render a progressbar — aria-valuemax
+        // must exceed valuemin, so max=0 is invalid. The "0 / 0" text above still conveys it.
         <div
           role="progressbar"
           aria-valuemin={0}
