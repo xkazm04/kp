@@ -737,11 +737,11 @@ export function ensureDb(): Database.Database {
     // need intake. NULL ⇒ "en" when threaded to the dev-case CLIs.
     "ALTER TABLE dev_lifecycle ADD COLUMN lang TEXT",
   ]) {
-    try {
-      db.exec(sql);
-    } catch {
-      /* column already exists */
-    }
+    // Use the same loud-fail migrator as the loop above: a bare `catch {}` here
+    // swallowed real failures (corruption, I/O, lock contention) and booted a
+    // structurally-broken DB — the exact "why is everything empty" trap migrateExec
+    // was written to prevent. It tolerates only the benign "already applied" error.
+    migrateExec(sql);
   }
   // Atomic dedup: a (posting, candidate, repo) triple is unique, so two
   // concurrent submits can't both INSERT (double-click / webhook retry storm).
