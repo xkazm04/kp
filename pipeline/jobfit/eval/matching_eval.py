@@ -203,11 +203,15 @@ def _probe_pedigree(jobs: list[Any]) -> Probe:
     t1 = match(build_match_candidate(base), jobs, limit=5).matches
     t2 = match(build_match_candidate(other), jobs, limit=5).matches
     delta = abs((t1[0].total if t1 else 0) - (t2[0].total if t2 else 0))
-    passed = (not leaked) and delta <= 3
+    # The two candidates differ ONLY in education_detail, which build_match_candidate
+    # drops — so the only honest delta is EXACTLY 0. The previous `delta <= 3` tolerance
+    # silently absorbed a real pedigree advantage of up to 3 points (enough to reorder a
+    # top-5): green theater. Any non-zero delta means the name moved the score = the bug.
+    passed = (not leaked) and delta == 0
     detail = (
-        f"university name excluded from the match input; top-score delta {delta} (<=3)"
+        f"university name excluded from the match input; top-score delta {delta} (==0)"
         if passed
-        else f"PEDIGREE LEAK: name-in-match-input={leaked}, top-score delta {delta}"
+        else f"PEDIGREE LEAK: name-in-match-input={leaked}, top-score delta {delta} (expected 0)"
     )
     return Probe("pedigree_field_excluded", passed, detail)
 
@@ -258,17 +262,25 @@ class Report:
             return {}
         arche = sum(s.archetype_ok for s in self.scenarios) / n
         entry_vals = [s.entry_precision for s in self.scenarios if s.entry_precision is not None]
-        entry = sum(entry_vals) / len(entry_vals) if entry_vals else 1.0
         rel = sum(s.role_relevance_at5 for s in self.scenarios) / n
-        return {
+        out: dict[str, float] = {
             "archetype_accuracy": round(arche, 3),
-            "entry_precision": round(entry, 3),
             "role_relevance_at5": round(rel, 3),
         }
+        # Report entry_precision ONLY when an early-career scenario actually measured it.
+        # Substituting 1.0 for "not measured" folded a coverage gap into a vacuous accuracy
+        # PASS (the exact "all-None defaults to 1.0" trap the per-scenario fix guards against,
+        # re-introduced at the aggregate level). passes() then fails on the missing axis.
+        if entry_vals:
+            out["entry_precision"] = round(sum(entry_vals) / len(entry_vals), 3)
+        return out
 
     def passes(self) -> bool:
         agg = self.aggregate()
-        metrics_ok = all(agg.get(k, 0.0) >= v for k, v in THRESHOLDS.items())
+        # A gated metric must be PRESENT (actually measured) AND meet its threshold. A
+        # missing one — e.g. no early-career scenarios exercised entry_precision — is a
+        # FAIL, never a silent pass on an unmeasured fairness invariant.
+        metrics_ok = all(k in agg and agg[k] >= v for k, v in THRESHOLDS.items())
         return metrics_ok and all(p.passed for p in self.probes)
 
 
