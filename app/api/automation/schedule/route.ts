@@ -10,6 +10,7 @@ import {
   setRejectMode,
 } from "@/app/_lib/scheduler-store";
 import { tickScheduler } from "@/app/_lib/scheduler";
+import { requireOperator } from "@/app/_lib/auth/require-operator";
 
 export const runtime = "nodejs";
 
@@ -27,10 +28,16 @@ function schedulePayload() {
 // Control surface for the automation clock: read status + recent runs, toggle it
 // on/off, set the cadence, or force an immediate tick.
 export async function GET() {
+  // Operator-only: exposes the automation clock state + recent run history.
+  const denied = await requireOperator();
+  if (denied) return denied;
   return NextResponse.json(schedulePayload());
 }
 
 export async function POST(request: NextRequest) {
+  // Operator-only: toggling the clock / forcing a tick arms autonomous outreach.
+  const denied = await requireOperator();
+  if (denied) return denied;
   try {
     const body = (await request.json()) as {
       enabled?: boolean;
