@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { automationRoi, DEFAULT_RECRUITER_HOURLY_CZK } from "./automation-roi.ts";
+import { automationRoi, DEFAULT_RECRUITER_HOURLY_CZK, MANUAL_HOURS_PER_HIRE } from "./automation-roi.ts";
 
 test("aggregates minutes/hours/CZK from the per-kind estimates", () => {
   // 10 scored (8 min) + 5 outreach (6 min) + 2 prep (25 min) = 80+30+50 = 160 min
@@ -39,4 +39,36 @@ test("an empty trail is all zeros", () => {
   assert.equal(roi.minutesSaved, 0);
   assert.equal(roi.hoursSaved, 0);
   assert.equal(roi.czkSaved, 0);
+});
+
+test("measures saved labor against the manual per-hire baseline (UAT M7)", () => {
+  // 100 scored (8) + 50 matched (5) = 800 + 250 = 1050 min = 17.5 h, over 5 hires.
+  const roi = automationRoi({ scored: 100, matched: 50 }, 600, 5);
+  assert.equal(roi.hires, 5);
+  assert.equal(roi.hoursSavedPerHire, 3.5); // 17.5 / 5
+  assert.equal(roi.czkSavedPerHire, 2100); // 3.5 h × 600
+  assert.equal(roi.manualBaselineHoursPerHire, MANUAL_HOURS_PER_HIRE);
+  assert.equal(roi.pctOfManualBaseline, 8); // 3.5 / 42 = 8.33% → 8
+});
+
+test("per-hire figures are null without hires (no divide-by-zero lie)", () => {
+  const roi = automationRoi({ scored: 100 }, 600);
+  assert.equal(roi.hires, 0);
+  assert.equal(roi.hoursSavedPerHire, null);
+  assert.equal(roi.czkSavedPerHire, null);
+  assert.equal(roi.pctOfManualBaseline, null);
+});
+
+test("pctOfManualBaseline caps at 100 — can't offset more than full", () => {
+  // 1 hire, heavy automation: 1000 scored × 8 = 8000 min = 133 h vs the 42 h baseline.
+  const roi = automationRoi({ scored: 1000 }, 600, 1);
+  assert.equal(roi.pctOfManualBaseline, 100);
+});
+
+test("a custom baseline overrides the default", () => {
+  // 24 prep × 25 = 600 min = 10 h over 1 hire, against a 20 h baseline → 50%.
+  const roi = automationRoi({ interview_prep_generated: 24 }, 600, 1, 20);
+  assert.equal(roi.manualBaselineHoursPerHire, 20);
+  assert.equal(roi.hoursSavedPerHire, 10);
+  assert.equal(roi.pctOfManualBaseline, 50);
 });

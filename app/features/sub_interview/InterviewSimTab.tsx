@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Briefcase, FlaskConical, GraduationCap, Link2, Loader2, Play, RotateCcw } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { AiDisclosure } from "@/app/_components/AiDisclosure";
@@ -45,21 +45,33 @@ function AttachToCandidate({ token }: { token: string }) {
   const [entries, setEntries] = useState<{ id: string; candidateLabel: string; jobTitle: string | null }[] | null>(null);
   const [sel, setSel] = useState("");
   const [state, setState] = useState<"idle" | "busy" | "done" | "error">("idle");
+  // A failed fetch must NOT read as "no candidates" (the prior `.catch(setEntries([]))`).
+  const [loadError, setLoadError] = useState(false);
+
+  const loadEntries = () => {
+    setLoadError(false);
+    setEntries(null); // back to the loading state for a retry
+    fetch("/api/pipeline")
+      .then(async (r) => {
+        if (!r.ok) throw new Error("pipeline fetch failed");
+        return r.json();
+      })
+      .then((p) => {
+        const list = ((p.entries ?? []) as { id: string; candidateLabel: string; jobTitle: string | null; status: string }[])
+          .filter((e) => e.status === "active")
+          .map((e) => ({ id: e.id, candidateLabel: e.candidateLabel, jobTitle: e.jobTitle }));
+        setEntries(list);
+        setSel((cur) => cur || list[0]?.id || "");
+      })
+      .catch(() => {
+        setLoadError(true);
+        setEntries([]); // leave the loading state; loadError drives the error UI
+      });
+  };
 
   const toggle = () => {
     setOpen((o) => !o);
-    if (entries === null) {
-      fetch("/api/pipeline")
-        .then((r) => r.json())
-        .then((p) => {
-          const list = ((p.entries ?? []) as { id: string; candidateLabel: string; jobTitle: string | null; status: string }[])
-            .filter((e) => e.status === "active")
-            .map((e) => ({ id: e.id, candidateLabel: e.candidateLabel, jobTitle: e.jobTitle }));
-          setEntries(list);
-          setSel((cur) => cur || list[0]?.id || "");
-        })
-        .catch(() => setEntries([]));
-    }
+    if (entries === null && !loadError) loadEntries();
   };
 
   const attach = async () => {
@@ -89,7 +101,14 @@ function AttachToCandidate({ token }: { token: string }) {
           </button>
           {open ? (
             <div className="mt-2 flex flex-wrap items-center gap-2">
-              {entries === null ? (
+              {loadError ? (
+                <p className="text-sm text-coral" role="alert">
+                  {t("loadFailed")}{" "}
+                  <button type="button" onClick={loadEntries} className="focus-ring font-semibold underline">
+                    {t("retry")}
+                  </button>
+                </p>
+              ) : entries === null ? (
                 <p className="text-sm text-steel">{t("loading")}</p>
               ) : entries.length === 0 ? (
                 <p className="text-sm text-steel">{t("noCandidates")}</p>
@@ -146,6 +165,20 @@ export function InterviewSimTab() {
     setError(null);
   }
 
+  // Roving-tabindex keyboard support for the mode radiogroup (the cards already carry
+  // role="radio"/aria-checked but were Tab-only): arrow keys move + select the next mode.
+  const modeCardRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  function onModeKeyDown(e: React.KeyboardEvent) {
+    const idx = MODES.findIndex((m) => m.id === mode);
+    let next = idx;
+    if (e.key === "ArrowRight" || e.key === "ArrowDown") next = (idx + 1) % MODES.length;
+    else if (e.key === "ArrowLeft" || e.key === "ArrowUp") next = (idx - 1 + MODES.length) % MODES.length;
+    else return;
+    e.preventDefault();
+    pick(MODES[next].id);
+    modeCardRefs.current[next]?.focus();
+  }
+
   async function start() {
     setBusy(true);
     setError(null);
@@ -178,7 +211,7 @@ export function InterviewSimTab() {
         <p className={`mt-2 max-w-3xl ${INTRO}`}>{t("intro")}</p>
       </header>
 
-      <div className="mt-4 grid gap-2 sm:grid-cols-3" role="radiogroup" aria-label={t("modeAria")}>
+      <div className="mt-4 grid gap-2 sm:grid-cols-3" role="radiogroup" aria-label={t("modeAria")} onKeyDown={onModeKeyDown}>
         {MODES.map((m, i) => {
           const active = m.id === mode;
           const Icon = m.icon;
@@ -188,9 +221,13 @@ export function InterviewSimTab() {
           return (
             <button
               key={m.id}
+              ref={(el) => {
+                modeCardRefs.current[i] = el;
+              }}
               type="button"
               role="radio"
               aria-checked={active}
+              tabIndex={active ? 0 : -1}
               onClick={() => pick(m.id)}
               className={`focus-ring rounded-lg border p-3 text-left transition-all dark:rounded-2xl ${tilt} ${
                 active ? "border-coral/40 bg-coral/5 dark:shadow-sticker-sm" : "border-stone-200 bg-paper hover:border-stone-300"

@@ -573,19 +573,38 @@ export function appendDevSessionEvents(id: string, events: DevSessionEvent[]): n
  *  (repo_ref = "session:<id>") so the existing eval machinery can pick it up and
  *  load the observed events. Idempotent — returns the existing submission if the
  *  session was already submitted. */
-export function submitDevSession(id: string, postingId: string): DevSubmission | null {
+export function submitDevSession(
+  id: string,
+  postingId: string,
+  identity?: { candidate?: string | null; contact?: string | null }
+): DevSubmission | null {
   const db = ensureDb();
-  const session = getDevSession(id);
-  if (!session) return null;
-  if (session.submissionId) return getSubmission(session.submissionId);
-  const { submission } = createSubmission({
-    postingId,
-    candidateRef: session.candidateRef ?? "live-session",
-    repoRef: `session:${id}`,
+  // ONE transaction over read-check-create-link: previously these were three
+  // statements with no atomicity, so a crash between createSubmission and the
+  // submission_id UPDATE left the session permanently 'active' with an orphan
+  // submission and no link — a retry then minted a SECOND submission. Re-checking
+  // submissionId INSIDE the tx also lets a concurrent finalize win cleanly (better-
+  // sqlite3 serializes transactions on the connection, so the loser sees the link
+  // already set and returns that submission instead of creating another).
+  const tx = db.transaction((): DevSubmission | null => {
+    const session = getDevSession(id);
+    if (!session) return null;
+    if (session.submissionId) return getSubmission(session.submissionId);
+    const { submission } = createSubmission({
+      postingId,
+      // UAT M9 — the live-work surface is the single submit path when a case has a
+      // workspace, so it must carry identity (else a winning evaluation is an
+      // unreachable candidate). Prefer the submit-time name, then the session's,
+      // then the anonymous fallback.
+      candidateRef: identity?.candidate?.trim() || session.candidateRef || "live-session",
+      contact: identity?.contact?.trim() || undefined,
+      repoRef: `session:${id}`,
+    });
+    const now = new Date().toISOString();
+    db.prepare(`UPDATE dev_sessions SET status = 'submitted', submission_id = ?, submitted_at = ? WHERE id = ?`).run(submission.id, now, id);
+    return submission;
   });
-  const now = new Date().toISOString();
-  db.prepare(`UPDATE dev_sessions SET status = 'submitted', submission_id = ?, submitted_at = ? WHERE id = ?`).run(submission.id, now, id);
-  return submission;
+  return tx();
 }
 
 /** Flip a posting's status (W5-3: "closed" stops the apply page + inbound

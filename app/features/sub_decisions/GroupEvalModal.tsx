@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { AlertTriangle, Loader2, RefreshCw } from "lucide-react";
+import { AlertTriangle, Loader2, RefreshCw, Scale } from "lucide-react";
 import { Modal } from "@/app/_components/Modal";
 import { AiVerdict } from "./group-eval/AiVerdict";
 import { ComparisonTable } from "./group-eval/ComparisonTable";
@@ -50,7 +50,7 @@ export function GroupEvalModal({
    *  candidate IDENTITY (candIdentity: entry id, label fallback), resolved back to the live
    *  pipeline entry by id in DecisionsTab so a duplicate display name can't act on the wrong
    *  person. Omitted (read-only) for the simulation, which has no live decision queue. */
-  onDecide?: (identity: string, action: "accept" | "reject") => void;
+  onDecide?: (identity: string, action: "accept" | "reject") => boolean;
 }) {
   const t = useTranslations("decisions.groupEval");
   const { ranAt, decided, decide, drift, candidates, enriched, skillRows, mustRows, aiBacked } = useGroupEval({
@@ -99,7 +99,30 @@ export function GroupEvalModal({
       ) : (
         <div className="space-y-5">
           <Notices drift={drift} ranAt={ranAt} evaluation={evaluation} />
+          {/* Governance (P1-3): in committee / eligibility-list mode the AI is advisory —
+              a banner makes clear it didn't pick or seal a hire. */}
+          {evaluation.governanceNote ? (
+            <div className="flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 p-3 text-base text-amber-900">
+              <Scale size={18} className="mt-0.5 shrink-0" aria-hidden />
+              <span>{evaluation.governanceNote}</span>
+            </div>
+          ) : null}
           <AiVerdict comparison={evaluation.comparison} fallback={evaluation.summary} aiBacked={aiBacked} />
+          {evaluation.eligibilityList?.length ? (
+            <section className="rounded-xl border border-stone-200 bg-white p-4">
+              <p className="text-sm font-semibold uppercase tracking-wide text-steel">{t("eligibilityList")}</p>
+              <ol className="mt-2 space-y-1">
+                {evaluation.eligibilityList.map((c) => (
+                  <li key={c.entryId} className="flex items-center gap-2 text-base text-ink">
+                    <span className="nums w-6 shrink-0 text-steel">{c.rank}.</span>
+                    <span className="font-medium">{c.label}</span>
+                    <span className="nums text-steel">· {c.score}</span>
+                  </li>
+                ))}
+              </ol>
+              <p className="mt-2 text-meta text-steel">{t("eligibilityNote")}</p>
+            </section>
+          ) : null}
 
           {enriched ? (
             <>

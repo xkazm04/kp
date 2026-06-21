@@ -94,7 +94,10 @@ function rowToSchedule(r: Record<string, unknown>): Schedule {
     name: r.name as string,
     enabled: Boolean(r.enabled),
     intervalMinutes: r.interval_minutes as number,
-    rejectMode: r.reject_mode === "auto" ? "auto" : "approve",
+    // AUTO1 retired (UAT M6 / GDPR Art. 22): rejections are always human-reviewed,
+    // so the store never reports "auto" — a legacy "auto" column value is coerced to
+    // "approve" and the automation pass queues every reject for a human click.
+    rejectMode: "approve",
     lastRunAt: (r.last_run_at as string) ?? null,
     nextDueAt: (r.next_due_at as string) ?? null,
     lastSummary,

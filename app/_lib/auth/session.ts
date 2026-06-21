@@ -11,9 +11,14 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 export { SESSION_COOKIE } from "./edge-verify.ts";
 // Matches billing's single-workspace id (`const WORKSPACE = "workspace"`).
 export const DEFAULT_WORKSPACE = "workspace";
+// The isolated workspace minted by the public guided-demo entry (`/api/demo`). A
+// demo session is a valid signature but is NOT an operator: it must never satisfy
+// an operator-gated route (key writes, billing, whole-DB export/import). Single-
+// sourced here so the demo route and the operator gate agree on the id.
+export const DEMO_WORKSPACE = "demo";
 export const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 7; // 7 days
 
-export type SessionPayload = { workspace: string; iat: number; exp: number };
+export type SessionPayload = { workspace: string; iat: number; exp: number; epoch?: number };
 
 function key(): string {
   const s = process.env.KP_SECRET;
@@ -25,8 +30,19 @@ function hmac(data: string): string {
   return createHmac("sha256", key()).update(data).digest("base64url");
 }
 
+/** A global session-invalidation epoch from KP_SESSION_EPOCH (default 0). A session
+ *  is valid only while its epoch >= the current one, so BUMPING the env var revokes
+ *  every issued session at once — a kill-switch that does NOT require rotating
+ *  KP_SECRET (which also encrypts stored provider keys). The edge gate (proxy.ts /
+ *  edge-verify.ts) enforces the same check. Per-session logout-revocation still needs
+ *  a server-side store (deferred). */
+export function sessionEpoch(): number {
+  const n = Number.parseInt(process.env.KP_SESSION_EPOCH ?? "", 10);
+  return Number.isFinite(n) && n > 0 ? n : 0;
+}
+
 export function signSession(workspace: string = DEFAULT_WORKSPACE, now: number = Date.now()): string {
-  const payload: SessionPayload = { workspace, iat: now, exp: now + SESSION_TTL_MS };
+  const payload: SessionPayload = { workspace, iat: now, exp: now + SESSION_TTL_MS, epoch: sessionEpoch() };
   const body = Buffer.from(JSON.stringify(payload), "utf8").toString("base64url");
   return `${body}.${hmac(body)}`;
 }
@@ -52,6 +68,9 @@ export function verifySession(token: string | undefined | null, now: number = Da
     const payload = JSON.parse(Buffer.from(body, "base64url").toString("utf8")) as SessionPayload;
     if (typeof payload.exp !== "number" || payload.exp < now) return null;
     if (typeof payload.workspace !== "string" || !payload.workspace) return null;
+    // Global kill-switch: reject a session minted before the current epoch (a missing
+    // epoch counts as 0 — backward-compatible with pre-epoch tokens).
+    if ((payload.epoch ?? 0) < sessionEpoch()) return null;
     return payload;
   } catch {
     return null;

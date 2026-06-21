@@ -30,6 +30,10 @@ const STATUS_STYLE: Record<OutboxStatus, string> = {
   failed: "bg-red-50 text-red-700",
 };
 
+// Initial page; "Show more" reveals another PAGE_SIZE. The list used to hard-slice 60
+// with no "showing X of N" and no way to reach older rows — they vanished silently.
+const PAGE_SIZE = 60;
+
 // W6-2 (SIM1) — the recruiter-facing Comms Center. Every candidate-facing
 // message (acknowledgement, outreach, rejection, interview invite/confirmation/
 // reminder, offer, onboarding) was recorded with an entry ref but visible only
@@ -43,6 +47,9 @@ export function CommsCenter() {
   const [refs, setRefs] = useState<Record<string, RefInfo>>({});
   const [error, setError] = useState(false);
   const [failedOnly, setFailedOnly] = useState(false);
+  const [query, setQuery] = useState("");
+  const [kindFilter, setKindFilter] = useState("");
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
 
   const load = useCallback(() => {
     fetch("/api/comms")
@@ -80,11 +87,26 @@ export function CommsCenter() {
   // answers "is anything STILL broken?".
   const isActionable = (m: Message) => m.status === "failed" && !m.recovered;
   const failedCount = messages.filter(isActionable).length;
+  // The kinds actually present — drives the filter dropdown.
+  const kinds = [...new Set(messages.map((m) => m.kind).filter((k): k is string => Boolean(k)))].sort();
+  const needle = query.trim().toLowerCase();
+  const matchesQuery = (m: Message) => {
+    if (!needle) return true;
+    const who = m.ref ? refs[m.ref] : undefined;
+    return (
+      (who?.label ?? "").toLowerCase().includes(needle) ||
+      (m.recipient ?? "").toLowerCase().includes(needle) ||
+      (m.subject ?? "").toLowerCase().includes(needle)
+    );
+  };
   // Dead letters first (they need action), then newest-first within each group.
   const sorted = [...messages].sort((a, b) =>
     isActionable(a) && !isActionable(b) ? -1 : isActionable(b) && !isActionable(a) ? 1 : 0
   );
-  const visible = failedOnly ? sorted.filter(isActionable) : sorted;
+  const filtered = sorted.filter(
+    (m) => (!failedOnly || isActionable(m)) && (!kindFilter || m.kind === kindFilter) && matchesQuery(m)
+  );
+  const shown = filtered.slice(0, visibleCount);
 
   return (
     <div className="rounded-lg border border-stone-200 bg-white p-4 shadow-panel">
@@ -108,13 +130,37 @@ export function CommsCenter() {
       </div>
       <p className="mt-1 text-sm text-steel">{t("intro")}</p>
 
-      {visible.length === 0 ? (
+      <div className="mt-2 flex flex-wrap items-center gap-2">
+        <input
+          type="search"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder={t("searchPlaceholder")}
+          aria-label={t("searchPlaceholder")}
+          className="focus-ring min-w-[12rem] flex-1 rounded-md border border-stone-200 px-2.5 py-1 text-sm"
+        />
+        <select
+          value={kindFilter}
+          onChange={(e) => setKindFilter(e.target.value)}
+          aria-label={t("kindAll")}
+          className="focus-ring rounded-md border border-stone-200 px-2 py-1 text-sm text-ink"
+        >
+          <option value="">{t("kindAll")}</option>
+          {kinds.map((k) => (
+            <option key={k} value={k}>
+              {k.replace(/_/g, " ")}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {filtered.length === 0 ? (
         <p className="mt-3 rounded-md border border-dashed border-stone-300 bg-paper/50 p-4 text-sm text-steel">
           {t("empty")}
         </p>
       ) : (
         <ul className="mt-3 space-y-1.5">
-          {visible.slice(0, 60).map((m) => {
+          {shown.map((m) => {
             const who = m.ref ? refs[m.ref] : undefined;
             return (
               <li key={m.id} className={`rounded-md border px-3 py-1.5 ${isActionable(m) ? "border-red-200 bg-red-50/50" : "border-stone-100 bg-paper/40"}`}>
@@ -157,6 +203,18 @@ export function CommsCenter() {
           })}
         </ul>
       )}
+      {filtered.length > shown.length ? (
+        <div className="mt-2 flex items-center gap-2 text-sm text-steel">
+          <span>{t("showing", { shown: shown.length, total: filtered.length })}</span>
+          <button
+            type="button"
+            onClick={() => setVisibleCount((c) => c + PAGE_SIZE)}
+            className="focus-ring rounded-md border border-stone-200 px-2 py-0.5 font-semibold text-ink hover:bg-stone-50"
+          >
+            {t("showMore")}
+          </button>
+        </div>
+      ) : null}
     </div>
   );
 }

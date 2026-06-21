@@ -10,7 +10,8 @@
 // or a corrupt column can never put an unbounded blob on the board payload.
 //
 // Pure + dependency-free on purpose (the schemas import is type-only, which
-// the strip-only node --test runner erases) so it stays unit-testable.
+// the strip-only node --test runner erases) so it stays unit-testable — hence the
+// URL scheme guard below is inlined rather than imported from safe-url.
 import type { GithubAnalysis } from "./schemas";
 
 export type GithubEvidenceSummary = {
@@ -33,6 +34,23 @@ const MAX_SUMMARY_CHARS = 600;
 
 const clampStr = (value: string, max: number) => (value.length > max ? value.slice(0, max - 1) + "…" : value);
 
+// profileUrl and each repo url are rendered as `<a href={...}>` in the recruiter
+// drawer, so an attacker-supplied `javascript:`/`data:` value would be stored XSS
+// in the recruiter console. Length-clamping is NOT sanitization — the scheme must be
+// vetted. Drop anything that isn't a well-formed http(s) URL to an empty string (a
+// blank href is inert). Mirrors safe-url.ts's safeHttpUrl guard, inlined to keep this
+// module dependency-free (loadable by the strip-only test runner).
+const _HTTP_SCHEMES = new Set(["http:", "https:"]);
+const safeLinkUrl = (value: unknown): string => {
+  if (typeof value !== "string") return "";
+  try {
+    const u = new URL(value);
+    return _HTTP_SCHEMES.has(u.protocol) ? u.href : "";
+  } catch {
+    return ""; // relative/scheme-less/malformed
+  }
+};
+
 function clampList(values: string[], max = MAX_LIST_ITEMS): string[] {
   return values.filter((v) => typeof v === "string" && v.trim().length > 0).slice(0, max).map((v) => clampStr(v, MAX_ITEM_CHARS));
 }
@@ -41,7 +59,7 @@ export function buildGithubEvidenceSummary(a: GithubAnalysis): GithubEvidenceSum
   const review = a.codeReview;
   return {
     username: clampStr(a.username, MAX_ITEM_CHARS),
-    profileUrl: clampStr(a.profileUrl, MAX_ITEM_CHARS),
+    profileUrl: clampStr(safeLinkUrl(a.profileUrl), MAX_ITEM_CHARS),
     // Prefer the deep review's read; fall back to the metrics summary.
     summary: clampStr((review?.summary || a.summary || "").trim(), MAX_SUMMARY_CHARS),
     confirmedSkills: clampList(review?.confirmedSkills ?? []),
@@ -49,7 +67,7 @@ export function buildGithubEvidenceSummary(a: GithubAnalysis): GithubEvidenceSum
     hiddenStrengths: clampList(review?.hiddenStrengths ?? []),
     topRepositories: a.topRepositories.slice(0, MAX_REPOS).map((r) => ({
       name: clampStr(r.name, MAX_ITEM_CHARS),
-      url: clampStr(r.url, MAX_ITEM_CHARS),
+      url: clampStr(safeLinkUrl(r.url), MAX_ITEM_CHARS),
     })),
     analyzedAt: clampStr(a.analyzedAt, MAX_ITEM_CHARS),
   };
@@ -74,11 +92,11 @@ export function coerceGithubEvidenceSummary(raw: unknown): GithubEvidenceSummary
           return typeof rec.name === "string" && typeof rec.url === "string";
         })
         .slice(0, MAX_REPOS)
-        .map((r) => ({ name: clampStr(r.name, MAX_ITEM_CHARS), url: clampStr(r.url, MAX_ITEM_CHARS) }))
+        .map((r) => ({ name: clampStr(r.name, MAX_ITEM_CHARS), url: clampStr(safeLinkUrl(r.url), MAX_ITEM_CHARS) }))
     : [];
   return {
     username: clampStr(o.username.trim(), MAX_ITEM_CHARS),
-    profileUrl: clampStr(o.profileUrl, MAX_ITEM_CHARS),
+    profileUrl: clampStr(safeLinkUrl(o.profileUrl), MAX_ITEM_CHARS),
     summary: typeof o.summary === "string" ? clampStr(o.summary, MAX_SUMMARY_CHARS) : "",
     confirmedSkills: strList(o.confirmedSkills),
     unverifiedClaims: strList(o.unverifiedClaims),

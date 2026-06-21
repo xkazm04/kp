@@ -3,6 +3,7 @@ import { randomId } from "../random-id";
 import { getPosting, getSubmission } from "./devcase";
 import {
   buildDurableSkillProfile,
+  isSubstantiveSkillProfile,
   signProfile,
   verifyProfile,
   DSP_VERSION,
@@ -26,6 +27,11 @@ export type SkillProfileVerdict = {
   found: boolean;
   valid: boolean; // signature recomputes AND not revoked
   revoked: boolean;
+  // The signature attests INTEGRITY, not substance: a validly-signed profile can still
+  // be empty (no axes, transfer score 0). `substantive` separates "real attestation"
+  // from "validly-signed but says nothing", so the card doesn't show a green shield
+  // over a 0. False when there's no profile.
+  substantive: boolean;
   profile: DurableSkillProfile | null;
 };
 
@@ -85,6 +91,11 @@ export function issueSkillProfile(submissionId: string): IssueResult {
     issuedAt,
     eval: (sub.evaluation ?? {}) as EvalForProfile,
   });
+  // Earned-not-given AND substantive: an "evaluated" submission whose bundle carries
+  // no dimension scores and a 0 transfer score builds to an EMPTY profile (axes={},
+  // score 0). Signing it would issue a green "verified" credential that attests
+  // nothing — refuse, like a non-evaluated submission.
+  if (!isSubstantiveSkillProfile(profile)) return { ok: false, reason: "not_evaluated" };
   const signature = signProfile(profile);
   const token = randomId("dsp");
   db.prepare(
@@ -105,10 +116,13 @@ export function getSkillProfileByToken(token: string): IssuedSkillProfile | null
  *  lookup (the FICO-style trust model). */
 export function verifySkillProfileToken(token: string): SkillProfileVerdict {
   const issued = getSkillProfileByToken(token);
-  if (!issued) return { found: false, valid: false, revoked: false, profile: null };
+  if (!issued) return { found: false, valid: false, revoked: false, substantive: false, profile: null };
   const revoked = issued.revokedAt != null;
   const signatureOk = verifyProfile(issued.profile, issued.signature);
-  return { found: true, valid: signatureOk && !revoked, revoked, profile: issued.profile };
+  // A pre-fix profile may already be empty; report substance so the page/API can show
+  // a muted state instead of a confident green verdict over no content.
+  const substantive = isSubstantiveSkillProfile(issued.profile);
+  return { found: true, valid: signatureOk && !revoked, revoked, substantive, profile: issued.profile };
 }
 
 export function revokeSkillProfile(token: string): boolean {

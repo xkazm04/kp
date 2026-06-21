@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { formatRelativeTime } from "@/app/_lib/format";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
@@ -55,25 +55,29 @@ export function HistoryTab() {
   // filterable. "undecided" matches rows with no recorded decision.
   const [disposition, setDisposition] = useState("");
 
-  useEffect(() => {
-    let cancelled = false;
-    fetch("/api/analyses")
-      .then(async (response) => {
-        if (!response.ok) throw new Error(t("loadFailedStatus", { status: response.status }));
-        return response.json();
-      })
-      .then((payload) => {
-        if (cancelled) return;
-        setRows((payload.analyses as AnalysisRow[]) ?? []);
-      })
-      .catch((caught) => {
-        if (cancelled) return;
-        setError(caught instanceof Error ? caught.message : t("loadFailed"));
-      });
-    return () => {
-      cancelled = true;
-    };
+  // Extracted so the error panel's "Try again" can re-run it IN PLACE — a transient
+  // SQLITE_BUSY / 500 on tab-open (or a workspace switch) otherwise dead-ended at a red
+  // panel with no recovery but a full page reload. A generation ref means only the
+  // latest request's result is applied, so rapid retries / a locale switch mid-load
+  // can't write a stale rows/error.
+  const reqGen = useRef(0);
+  const reload = useCallback(async () => {
+    const gen = ++reqGen.current;
+    setError(null);
+    setRows(null);
+    try {
+      const response = await fetch("/api/analyses");
+      if (!response.ok) throw new Error(t("loadFailedStatus", { status: response.status }));
+      const payload = await response.json();
+      if (reqGen.current === gen) setRows((payload.analyses as AnalysisRow[]) ?? []);
+    } catch (caught) {
+      if (reqGen.current === gen) setError(caught instanceof Error ? caught.message : t("loadFailed"));
+    }
   }, [t]);
+
+  useEffect(() => {
+    void reload();
+  }, [reload]);
 
   const families = useMemo(() => distinct((rows ?? []).map((r) => r.role_family)), [rows]);
   const seniorities = useMemo(() => distinct((rows ?? []).map((r) => r.seniority)), [rows]);
@@ -105,7 +109,16 @@ export function HistoryTab() {
 
       <div className="mt-5">
         {error ? (
-          <p className="rounded-md bg-red-50 p-3 text-base text-red-700">{error}</p>
+          <div className="rounded-md bg-red-50 p-3 text-base text-red-700">
+            <p>{error}</p>
+            <button
+              type="button"
+              onClick={() => void reload()}
+              className="focus-ring mt-2 rounded-md border border-red-200 bg-white px-3 py-1 text-sm font-semibold text-red-700 hover:bg-red-100"
+            >
+              {t("retry")}
+            </button>
+          </div>
         ) : rows == null ? (
           <p className="text-base text-steel">{t("loading")}</p>
         ) : rows.length === 0 ? (

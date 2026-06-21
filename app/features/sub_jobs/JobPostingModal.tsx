@@ -31,6 +31,9 @@ export function JobPostingModal({ job, onClose }: { job: Job; onClose: () => voi
   const [copied, setCopied] = useState(false);
   const [applyCopied, setApplyCopied] = useState(false);
   const [quickCopied, setQuickCopied] = useState(false);
+  // A clipboard write can be blocked (permissions / insecure context) — surface that
+  // instead of the prior silent catch, so the recruiter doesn't ship an empty link.
+  const [copyError, setCopyError] = useState(false);
   // W8-1 (JOB1) — retire the role from the surface that owns it. The lifecycle
   // had no terminal state: a filled role kept collecting applications forever.
   // The confirmation is the shared stacked Modal (confirm-over-detail), not
@@ -38,6 +41,9 @@ export function JobPostingModal({ job, onClose }: { job: Job; onClose: () => voi
   const [confirmingClose, setConfirmingClose] = useState(false);
   const [closing, setClosing] = useState(false);
   const [closed, setClosed] = useState(false);
+  // How many in-flight candidates the close withdrew (JOB2) — shown so the recruiter
+  // knows the pipeline was reconciled, not silently abandoned. null until a close runs.
+  const [closedCount, setClosedCount] = useState<number | null>(null);
   const [closeError, setCloseError] = useState<string | null>(null);
   const closeRole = async () => {
     if (closing || closed) return;
@@ -45,8 +51,10 @@ export function JobPostingModal({ job, onClose }: { job: Job; onClose: () => voi
     setCloseError(null);
     try {
       const r = await fetch(`/api/jobs/${encodeURIComponent(job.id)}/close`, { method: "POST" });
+      const p = (await r.json().catch(() => null)) as { withdrawn?: number } | null;
       if (!r.ok) throw new Error();
       setClosed(true);
+      setClosedCount(typeof p?.withdrawn === "number" ? p.withdrawn : null);
     } catch {
       setCloseError(t("closeFailed"));
     } finally {
@@ -60,7 +68,10 @@ export function JobPostingModal({ job, onClose }: { job: Job; onClose: () => voi
   // transitions on top of the server-decorated job.status.
   const [publishing, setPublishing] = useState(false);
   const [published, setPublished] = useState(false);
-  const [publishNote, setPublishNote] = useState<{ text: string; tone: "ok" | "warn" } | null>(null);
+  // tone "quota" = hit the plan's active-job cap (402 quota_exceeded): a monetization
+  // moment, rendered as an upgrade path, NOT the amber "sourcing broke" warning.
+  const [publishNote, setPublishNote] = useState<{ text: string; tone: "ok" | "warn" | "quota" } | null>(null);
+  const goToBilling = () => router.push(buildUrl({ tab: "billing" }, search.toString()));
   const status = closed ? "closed" : published ? "published" : job.status ?? null;
   const isDraft = status === "draft";
   const isClosed = status === "closed";
@@ -74,7 +85,19 @@ export function JobPostingModal({ job, onClose }: { job: Job; onClose: () => voi
     try {
       const r = await fetch(`/api/jobs/${encodeURIComponent(job.id)}/publish`, { method: "POST" });
       const p = await r.json();
-      if (!r.ok) throw new Error(p.error ?? td("sourcingFailed"));
+      if (!r.ok) {
+        // The plan's active-job cap (402): the highest-intent upsell moment — show a
+        // distinct quota state with a Billing link, not a generic sourcing-failed warn.
+        if (p.code === "quota_exceeded") {
+          setPublishNote({ text: td("quotaNote"), tone: "quota" });
+          return;
+        }
+        throw new Error(p.error ?? td("sourcingFailed"));
+      }
+      // Re-publish doubles as Reopen for a closed role; clear the local closed flag so
+      // the footer/links flip back to live (the cap is re-checked above on reopen).
+      setClosed(false);
+      setClosedCount(null);
       setPublished(true);
       setPublishNote(
         p.sourcingWarning
@@ -105,10 +128,11 @@ export function JobPostingModal({ job, onClose }: { job: Job; onClose: () => voi
         publicBaseUrl(typeof window !== "undefined" ? window.location.origin : "") +
         `/apply/${job.id}?lang=${postingLang}`;
       await navigator.clipboard.writeText(url);
+      setCopyError(false);
       setApplyCopied(true);
       window.setTimeout(() => setApplyCopied(false), 1500);
     } catch {
-      /* clipboard blocked — no-op */
+      setCopyError(true);
     }
   };
 
@@ -121,20 +145,22 @@ export function JobPostingModal({ job, onClose }: { job: Job; onClose: () => voi
         publicBaseUrl(typeof window !== "undefined" ? window.location.origin : "") +
         `/apply/${job.id}/quick?lang=${postingLang}`;
       await navigator.clipboard.writeText(url);
+      setCopyError(false);
       setQuickCopied(true);
       window.setTimeout(() => setQuickCopied(false), 1500);
     } catch {
-      /* clipboard blocked — no-op */
+      setCopyError(true);
     }
   };
 
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(markdown);
+      setCopyError(false);
       setCopied(true);
       window.setTimeout(() => setCopied(false), 1500);
     } catch {
-      /* clipboard blocked — no-op */
+      setCopyError(true);
     }
   };
 
@@ -149,28 +175,61 @@ export function JobPostingModal({ job, onClose }: { job: Job; onClose: () => voi
       size="4xl"
       footer={
         <>
-          <button
-            type="button"
-            onClick={() => setConfirmingClose(true)}
-            disabled={closing || isClosed}
-            title={t("closeTitle")}
-            className="focus-ring mr-auto inline-flex h-9 items-center gap-1 rounded-md border border-stone-200 px-3 text-sm font-semibold text-steel hover:border-coral/40 hover:text-coral disabled:opacity-60"
-          >
-            {isClosed ? t("closedNow") : closing ? t("closing") : t("closeRole")}
-          </button>
+          {isClosed ? (
+            // JOB #3 — close was a one-way trap (the only recovery was editing the DB).
+            // Reopen re-publishes (idempotent + quota-gated, so the active-jobs cap is
+            // re-checked) and clears the closed badge on success.
+            <button
+              type="button"
+              onClick={publishRole}
+              disabled={publishing}
+              title={t("reopenTitle")}
+              className="focus-ring mr-auto inline-flex h-9 items-center gap-1 rounded-md border border-coral/40 px-3 text-sm font-semibold text-coral hover:bg-coral/5 disabled:opacity-60"
+            >
+              {publishing ? td("sourcing") : t("reopenRole")}
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setConfirmingClose(true)}
+              disabled={closing}
+              title={t("closeTitle")}
+              className="focus-ring mr-auto inline-flex h-9 items-center gap-1 rounded-md border border-stone-200 px-3 text-sm font-semibold text-steel hover:border-coral/40 hover:text-coral disabled:opacity-60"
+            >
+              {closing ? t("closing") : t("closeRole")}
+            </button>
+          )}
           {closeError ? (
             <span role="alert" className="text-sm text-red-700">
               {closeError}
             </span>
           ) : null}
-          {publishNote ? (
-            <span
-              aria-live="polite"
-              className={`min-w-0 truncate text-sm ${publishNote.tone === "warn" ? "text-amber-800" : "text-steel"}`}
-              title={publishNote.text}
-            >
-              {publishNote.text}
+          {closed && closedCount !== null && closedCount > 0 ? (
+            <span aria-live="polite" className="text-sm text-steel">
+              {t("withdrewCount", { count: closedCount })}
             </span>
+          ) : null}
+          {publishNote ? (
+            publishNote.tone === "quota" ? (
+              <span aria-live="polite" className="inline-flex min-w-0 items-center gap-2 text-sm text-coral">
+                <span className="truncate">{publishNote.text}</span>
+                <button
+                  type="button"
+                  onClick={goToBilling}
+                  className="focus-ring shrink-0 rounded-md border border-coral/40 px-2 py-0.5 font-semibold text-coral hover:bg-coral/5"
+                >
+                  {td("goToBilling")}
+                </button>
+              </span>
+            ) : (
+              <span
+                aria-live="polite"
+                className={`min-w-0 truncate text-sm ${publishNote.tone === "warn" ? "text-amber-800" : "text-steel"}`}
+                title={publishNote.text}
+              >
+                {publishNote.text}
+              </span>
+            )
           ) : null}
           {isDraft ? (
             // A draft's apply pages 404 — offering its links ships a campaign
@@ -222,6 +281,11 @@ export function JobPostingModal({ job, onClose }: { job: Job; onClose: () => voi
           >
             {copied ? <Check size={14} /> : <Copy size={14} />} {copied ? t("copied") : t("copyMarkdown")}
           </button>
+          {copyError ? (
+            <p role="alert" className="basis-full text-sm text-coral">
+              {t("copyFailed")}
+            </p>
+          ) : null}
         </>
       }
     >

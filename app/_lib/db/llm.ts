@@ -1,3 +1,5 @@
+import { readFileSync, rmSync } from "node:fs";
+import { parseLedgerLine, type LlmUsageInput } from "../llm-usage-ledger";
 import { ensureDb, safeRowParse } from "./core";
 
 // ---- Multi-provider LLM layer (docs/LLM_PROVIDER_LAYER.md) -----------------
@@ -94,5 +96,112 @@ export function upsertProviderKey(input: {
 export function deleteProviderKey(provider: string, scope: string): boolean {
   const db = ensureDb();
   return db.prepare(`DELETE FROM provider_keys WHERE provider = ? AND scope = ?`).run(provider, scope).changes > 0;
+}
+
+// ---- Metering ledger (T0.1) ------------------------------------------------
+// One row per metered LLM envelope — the durable spend/usage record the pricing
+// meters and the Models usage panel bill/aggregate against. Restored + WIRED
+// after the 2026-06-14 refactor deleted it as an unwired stub. The TS side owns
+// the DB (Python stays DB-free): Python's monitor.emit_result appends one NDJSON
+// line per call to a per-spawn sidecar file, and spawnPython calls
+// ingestLlmUsageLog() to fold those lines in here after the child exits.
+
+export type { LlmUsageInput };
+
+export function insertLlmUsage(input: LlmUsageInput): void {
+  const db = ensureDb();
+  db.prepare(
+    `INSERT INTO llm_usage (ts, use_case, provider, model, input_tokens, output_tokens, cached_tokens, cost_usd, source, request_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  ).run(
+    new Date().toISOString(),
+    input.useCase,
+    input.provider,
+    input.model ?? null,
+    input.inputTokens ?? null,
+    input.outputTokens ?? null,
+    input.cachedTokens ?? null,
+    input.costUsd ?? null,
+    input.source,
+    input.requestId ?? null
+  );
+}
+
+/**
+ * Fold a per-spawn LLM-usage sidecar file (NDJSON, written by Python's
+ * monitor.emit_result) into the llm_usage table, then delete the file. Each line
+ * is one metered call. Returns the number of rows ingested. Fully defensive: a
+ * missing/empty file is a no-op (the spawned CLI made no LLM call), a corrupt or
+ * incomplete line is dropped by parseLedgerLine (not fatal), and the whole
+ * operation is wrapped by the caller so ledger I/O can never break a spawn — the
+ * ledger is telemetry, off the critical path.
+ */
+export function ingestLlmUsageLog(logPath: string): number {
+  let raw: string;
+  try {
+    raw = readFileSync(logPath, "utf-8");
+  } catch {
+    return 0; // file never created → no LLM calls in this spawn
+  }
+  const rows = raw.split(/\r?\n/).map(parseLedgerLine).filter((r): r is LlmUsageInput => r !== null);
+  if (rows.length > 0) {
+    const db = ensureDb();
+    db.transaction((batch: LlmUsageInput[]) => {
+      for (const row of batch) insertLlmUsage(row);
+    })(rows);
+  }
+  try {
+    rmSync(logPath, { force: true });
+  } catch {
+    /* best-effort cleanup */
+  }
+  return rows.length;
+}
+
+export type LlmUsageAggregateRow = {
+  day: string;
+  useCase: string;
+  provider: string;
+  model: string | null;
+  calls: number;
+  inputTokens: number;
+  outputTokens: number;
+  cachedTokens: number;
+  costUsd: number;
+};
+
+/**
+ * Per (day × use_case × provider × model) rollup of the ledger — the shape the
+ * Models usage panel and the pricing meters read. `sinceDays` bounds the scan to
+ * recent rows (default 30). Costs sum only the rows that carry a cost_usd.
+ */
+export function aggregateLlmUsage(sinceDays = 30): LlmUsageAggregateRow[] {
+  const db = ensureDb();
+  const since = new Date(Date.now() - sinceDays * 86_400_000).toISOString();
+  const rows = db
+    .prepare(
+      `SELECT substr(ts, 1, 10) AS day, use_case, provider, model,
+              COUNT(*) AS calls,
+              COALESCE(SUM(input_tokens), 0) AS input_tokens,
+              COALESCE(SUM(output_tokens), 0) AS output_tokens,
+              COALESCE(SUM(cached_tokens), 0) AS cached_tokens,
+              COALESCE(SUM(cost_usd), 0) AS cost_usd
+         FROM llm_usage
+        WHERE ts >= ?
+        GROUP BY day, use_case, provider, model
+        ORDER BY day DESC, cost_usd DESC`
+    )
+    .all(since) as Array<Record<string, unknown>>;
+  return rows.map((r) => ({
+    day: r.day as string,
+    useCase: r.use_case as string,
+    provider: r.provider as string,
+    model: (r.model as string) ?? null,
+    calls: Number(r.calls ?? 0),
+    inputTokens: Number(r.input_tokens ?? 0),
+    outputTokens: Number(r.output_tokens ?? 0),
+    cachedTokens: Number(r.cached_tokens ?? 0),
+    costUsd: Number(r.cost_usd ?? 0),
+  }));
 }
 

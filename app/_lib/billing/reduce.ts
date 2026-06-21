@@ -20,7 +20,10 @@ export type BillingAction =
     }
   | { kind: "clear_subscription"; customerId: string | null }
   | { kind: "grant_credits"; meter: Meter; qty: number; providerRef: string; reason: string }
-  | { kind: "ignore"; reason: string };
+  // `unmapped` marks an ignore that is NOT benign: a money event (a paying
+  // subscription) whose product id isn't in the configured map, so the subscriber
+  // is silently never entitled. The apply step logs these loudly (config drift).
+  | { kind: "ignore"; reason: string; unmapped?: boolean };
 
 // Provider statuses that mean "the subscription is gone, drop to free".
 const ENDED_STATUSES = new Set(["revoked", "ended", "incomplete_expired", "expired"]);
@@ -33,6 +36,26 @@ const STATUS_MAP: Record<string, SubscriptionStatus> = {
   cancelled: "canceled",
 };
 
+/** Out-of-order guard for the apply step (sync.ts): true when an incoming
+ *  subscription write would REGRESS an already-stored, SAME-subscription state to an
+ *  OLDER period — a stale/reordered Polar delivery that must not overwrite a current
+ *  customer. A different subscription id (a genuine re-subscribe) or a missing/
+ *  unparseable period anchor is NOT stale (apply it); equal periods apply too (the
+ *  status may legitimately change within a period). Pure so it's unit-testable. */
+export function subscriptionWriteIsStale(
+  storedSubscriptionId: string | null,
+  storedPeriodStart: string | null,
+  incomingSubscriptionId: string | null,
+  incomingPeriodStart: string | null
+): boolean {
+  if (!incomingSubscriptionId || storedSubscriptionId !== incomingSubscriptionId) return false;
+  if (!incomingPeriodStart || !storedPeriodStart) return false;
+  const incoming = Date.parse(incomingPeriodStart);
+  const stored = Date.parse(storedPeriodStart);
+  if (!Number.isFinite(incoming) || !Number.isFinite(stored)) return false;
+  return incoming < stored;
+}
+
 export function reduceBillingEvent(event: BillingEvent, products: ProductMap): BillingAction {
   if (event.kind === "subscription") {
     const status = (event.status ?? "").toLowerCase();
@@ -41,7 +64,10 @@ export function reduceBillingEvent(event: BillingEvent, products: ProductMap): B
     }
     const mapped = event.productId ? products[event.productId] : undefined;
     if (!mapped || mapped.kind !== "plan") {
-      return { kind: "ignore", reason: `subscription event for unmapped product ${event.productId ?? "?"}` };
+      // A real subscription event whose product id isn't a configured plan — almost
+      // always POLAR_PRODUCT_* env drift. Mark it `unmapped` so apply surfaces it
+      // loudly instead of treating a paid-but-dark subscription as a benign no-op.
+      return { kind: "ignore", reason: `subscription event for unmapped product ${event.productId ?? "?"}`, unmapped: true };
     }
     const normalized = STATUS_MAP[status];
     if (!normalized) {

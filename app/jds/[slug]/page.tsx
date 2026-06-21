@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Send, UserPlus } from "lucide-react";
@@ -6,10 +7,49 @@ import { RecordRecent } from "@/app/features/RecordRecent";
 import { getJob, loadJd, type JdRow } from "@/app/_lib/db";
 import { getJobStatus, isJobOpenForApplications } from "@/app/_lib/job-ingest";
 import { jdJobId } from "@/app/_lib/jd-limits";
+import { isOperator } from "@/app/_lib/auth/require-operator";
 import { JdActions } from "./JdActions";
 import { JdBody } from "./JdBody";
 
 export const dynamic = "force-dynamic";
+
+// First ~155 chars of the JD body, markdown stripped, for the share/search snippet.
+function metaDescription(markdown: string): string {
+  const text = markdown
+    .replace(/```[\s\S]*?```/g, " ") // fenced code
+    .replace(/!\[[^\]]*\]\([^)]*\)/g, " ") // images
+    .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1") // links → label
+    .replace(/[#>*_`~]/g, "") // inline md punctuation
+    .replace(/^\s*[-+]\s+/gm, "") // list bullets
+    .replace(/\s+/g, " ")
+    .trim();
+  return text.length > 155 ? `${text.slice(0, 152).trimEnd()}…` : text;
+}
+
+// SEO / share metadata for the flagship public JD page — without this a shared link
+// (the documented "shareable ?lang=cs links" use case) unfurled as a bare URL with the
+// app-default title and was invisible to search. Archived roles return noindex so a
+// filled role stops drawing candidate traffic (JDL #4). Pure read; not-found is handled
+// by the page's own notFound() below.
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
+  const { slug } = await params;
+  let jd: JdRow | null = null;
+  try {
+    jd = loadJd(slug);
+  } catch {
+    jd = null;
+  }
+  if (!jd) return {};
+  const description = metaDescription(jd.body);
+  return {
+    title: jd.title,
+    description,
+    openGraph: { title: jd.title, description, type: "website" },
+    twitter: { card: "summary", title: jd.title, description },
+    // A retired role shouldn't keep ranking / drawing applicants; keep links followable.
+    ...(jd.archived_at ? { robots: { index: false, follow: true } } : {}),
+  };
+}
 
 export default async function JdDetailPage({
   params,
@@ -51,6 +91,12 @@ export default async function JdDetailPage({
   const jobId = jdJobId(slug);
   const linkedJob = getJob(jobId);
   const applyOpen = linkedJob !== null && isJobOpenForApplications(getJobStatus(jobId));
+
+  // This page is public + shareable, so the Edit / Archive / Revert controls must
+  // not render for a candidate visiting via the share link. Only an operator sees
+  // them (open mode = trusted local; otherwise a valid session). The backing
+  // PATCH/revisions routes enforce the same gate server-side.
+  const canManage = await isOperator();
 
   return (
     <WorkspaceShell active="library">
@@ -102,7 +148,9 @@ export default async function JdDetailPage({
         </p>
       ) : null}
 
-      <JdActions slug={slug} title={jd.title} body={jd.body} archived={Boolean(jd.archived_at)} />
+      {canManage ? (
+        <JdActions slug={slug} title={jd.title} body={jd.body} archived={Boolean(jd.archived_at)} />
+      ) : null}
 
       <div className="mt-6">
         <JdBody markdown={jd.body} />

@@ -10,6 +10,7 @@ import {
   setRejectMode,
 } from "@/app/_lib/scheduler-store";
 import { tickScheduler } from "@/app/_lib/scheduler";
+import { requireOperator } from "@/app/_lib/auth/require-operator";
 
 export const runtime = "nodejs";
 
@@ -27,10 +28,16 @@ function schedulePayload() {
 // Control surface for the automation clock: read status + recent runs, toggle it
 // on/off, set the cadence, or force an immediate tick.
 export async function GET() {
+  // Operator-only: exposes the automation clock state + recent run history.
+  const denied = await requireOperator();
+  if (denied) return denied;
   return NextResponse.json(schedulePayload());
 }
 
 export async function POST(request: NextRequest) {
+  // Operator-only: toggling the clock / forcing a tick arms autonomous outreach.
+  const denied = await requireOperator();
+  if (denied) return denied;
   try {
     const body = (await request.json()) as {
       enabled?: boolean;
@@ -47,10 +54,10 @@ export async function POST(request: NextRequest) {
     if (typeof body.intervalMinutes === "number") setIntervalMinutes(POLICY_JOB, body.intervalMinutes);
     if (typeof body.enabled === "boolean") setEnabled(POLICY_JOB, body.enabled);
     if (body.rejectMode !== undefined) {
-      if (body.rejectMode !== "auto" && body.rejectMode !== "approve") {
-        return NextResponse.json({ error: "rejectMode must be 'auto' or 'approve'." }, { status: 400 });
-      }
-      setRejectMode(POLICY_JOB, body.rejectMode);
+      // AUTO1 retired (UAT M6 / GDPR Art. 22): "auto" (unattended reject) no longer
+      // exists — rejections are always queued for a human. Accept the field for
+      // back-compat but never store "auto"; coerce any value to "approve".
+      setRejectMode(POLICY_JOB, "approve");
     }
     if (typeof body.remindersEnabled === "boolean") {
       ensureReminderJob(); // row exists with the right defaults before toggling

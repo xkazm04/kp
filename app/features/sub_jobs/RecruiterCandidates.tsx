@@ -36,6 +36,10 @@ export function RecruiterCandidates({
   // e1e4e0ea — when on, rank by the robust cross-scheme mean instead of each
   // candidate's own-weight score, and surface the own-vs-robust delta.
   const [fairRank, setFairRank] = useState(false);
+  // Pool Fit (internal-mobility analog): filter the ranked pool to strong matches
+  // who AREN'T in the pipeline yet — the actionable "who should I source for this
+  // role" subset, distinct from silver-medalist alerts (candidate-across-roles).
+  const [poolFitOnly, setPoolFitOnly] = useState(false);
   // The jobId whose candidates are currently loaded — so auto-load fires once per job
   // (mount AND when the reused modal switches jobs), not just on first mount.
   const loadedJobRef = useRef<string | null>(null);
@@ -102,8 +106,15 @@ export function RecruiterCandidates({
   }
 
   const eligible = data.candidates.filter((c) => c.koPassed);
-  const earlyCareer = eligible.filter((c) => isEarlyCareer(c.archetype));
-  const experienced = eligible.filter((c) => !isEarlyCareer(c.archetype));
+  // A "pool fit" = eligible, promising (≥ the rediscover SCORE_FLOOR), and NOT yet
+  // in this role's pipeline — the strong matches sitting unused in the pool.
+  const POOL_FIT_FLOOR = 55;
+  const isPoolFit = (c: CandRow) => !c.inPipeline && c.result.total >= POOL_FIT_FLOOR;
+  const poolFitCount = eligible.filter(isPoolFit).length;
+  // When the filter is on, both columns narrow to the pool-fit subset.
+  const shown = poolFitOnly ? eligible.filter(isPoolFit) : eligible;
+  const earlyCareer = shown.filter((c) => isEarlyCareer(c.archetype));
+  const experienced = shown.filter((c) => !isEarlyCareer(c.archetype));
   const notEligibleRows = data.candidates.filter((c) => !c.koPassed);
   const notEligible = notEligibleRows.length;
   const skipped = data.skipped ?? [];
@@ -158,6 +169,19 @@ export function RecruiterCandidates({
           {t("title")}
         </p>
         <div className="flex items-center gap-2">
+          {poolFitCount > 0 ? (
+            <button
+              type="button"
+              onClick={() => setPoolFitOnly((v) => !v)}
+              aria-pressed={poolFitOnly}
+              title={t("poolFitTitle")}
+              className={`focus-ring inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-sm font-semibold ${
+                poolFitOnly ? "border-coral bg-coral/10 text-coral" : "border-stone-200 bg-white text-steel hover:border-coral/40 hover:text-ink"
+              }`}
+            >
+              <Users size={13} /> {t("poolFit", { count: poolFitCount })}
+            </button>
+          ) : null}
           {hasFairness ? (
             <button
               type="button"
@@ -175,6 +199,7 @@ export function RecruiterCandidates({
         </div>
       </div>
       <p className="mt-1 text-sm text-steel">{t("earlyCareerNote")}</p>
+      {poolFitOnly ? <p className="mt-1 text-sm text-steel">{t("poolFitNote")}</p> : null}
       {fairActive ? <p className="mt-1 text-sm text-steel">{t("fairRankNote")}</p> : null}
       <SkippedCandidatesNote skipped={skipped} />
       <div className="mt-3 grid gap-4 lg:grid-cols-2">
@@ -493,7 +518,7 @@ function CandidateCard({
         </span>
       </div>
       {error && !added ? (
-        <p className="mt-1 text-sm text-red-700">{t("couldntAdd", { error })}</p>
+        <p role="alert" className="mt-1 text-sm text-red-700">{t("couldntAdd", { error })}</p>
       ) : null}
       {reachError && !reached ? (
         <p className="mt-1 text-sm text-red-700">{t("couldntReach", { error: reachError })}</p>

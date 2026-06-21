@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { signSession, verifySession, currentWorkspaceId, DEFAULT_WORKSPACE, SESSION_TTL_MS } from "./session.ts";
+import { signSession, verifySession, currentWorkspaceId, DEFAULT_WORKSPACE, SESSION_TTL_MS, sessionEpoch } from "./session.ts";
 
 process.env.KP_SECRET = process.env.KP_SECRET || "test-master-secret";
 
@@ -53,4 +53,36 @@ test("garbage / empty tokens fail closed", () => {
 test("currentWorkspaceId falls back to the default for a null session", () => {
   assert.equal(currentWorkspaceId(null), DEFAULT_WORKSPACE);
   assert.equal(currentWorkspaceId({ workspace: "w2", iat: 0, exp: 0 }), "w2");
+});
+
+test("bumping KP_SESSION_EPOCH revokes a session minted at a lower epoch", () => {
+  const now = 1_000_000;
+  const prev = process.env.KP_SESSION_EPOCH;
+  try {
+    delete process.env.KP_SESSION_EPOCH; // epoch 0
+    assert.equal(sessionEpoch(), 0);
+    const tok = signSession(undefined, now);
+    assert.ok(verifySession(tok, now)); // valid while the epoch is unchanged
+
+    process.env.KP_SESSION_EPOCH = "1"; // operator pulls the kill-switch
+    assert.equal(sessionEpoch(), 1);
+    assert.equal(verifySession(tok, now), null); // the old session is now dead
+    assert.ok(verifySession(signSession(undefined, now), now)); // a fresh one (epoch 1) is fine
+  } finally {
+    if (prev === undefined) delete process.env.KP_SESSION_EPOCH;
+    else process.env.KP_SESSION_EPOCH = prev;
+  }
+});
+
+test("a non-positive / garbage KP_SESSION_EPOCH is treated as 0", () => {
+  const prev = process.env.KP_SESSION_EPOCH;
+  try {
+    for (const v of ["0", "-3", "nan", ""]) {
+      process.env.KP_SESSION_EPOCH = v;
+      assert.equal(sessionEpoch(), 0);
+    }
+  } finally {
+    if (prev === undefined) delete process.env.KP_SESSION_EPOCH;
+    else process.env.KP_SESSION_EPOCH = prev;
+  }
 });

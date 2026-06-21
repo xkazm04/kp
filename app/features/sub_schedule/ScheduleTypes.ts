@@ -3,6 +3,8 @@ export type SchedEntry = {
   candidateId: string | null;
   candidateLabel: string;
   archetype: string | null;
+  // P2-3 — drives the appended industry rubric axes in the human scorecard.
+  roleFamily: string | null;
   jobId: string | null;
   jobTitle: string | null;
   stage: string;

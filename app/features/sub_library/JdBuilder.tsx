@@ -12,10 +12,11 @@ import { fetchTemplates, renderTemplate, type Template } from "./render-template
 import { marketSalaryLabel, normalizeMarketSalary } from "@/app/_lib/salary-band";
 import { validateJdBuildInput } from "@/app/_lib/jd-limits";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
+import { ROLE_FAMILY_SLUGS } from "@/app/_lib/role-families";
 
 const SENIORITIES = ["junior", "medior", "senior", "lead"];
 // Role-family slugs (canonical; the display label comes from the enums catalog).
-const FAMILIES = ["software_engineering", "data_ai", "product_project"];
+const FAMILIES = ROLE_FAMILY_SLUGS;
 const INP = "focus-ring w-full rounded-md border border-stone-200 px-2.5 py-1.5 text-sm";
 
 // AI job-description builder: free-text need (+ optional public GitHub repo for

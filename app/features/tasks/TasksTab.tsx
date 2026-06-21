@@ -6,6 +6,7 @@ import { AlertTriangle, Ban, Check, ChevronDown, ChevronRight, Clock, Loader2, R
 import { useTasks, type Task, type TaskStatus } from "./TasksProvider";
 import { SystemCard } from "./SystemCard";
 import { BackupCard } from "./BackupCard";
+import { IntegrationsCard } from "./IntegrationsCard";
 import { useReducedMotion } from "@/app/_lib/useReducedMotion";
 import { useInfiniteScroll, type InfinitePage } from "@/app/_lib/useInfiniteScroll";
 import { formatRelativeTime } from "@/app/_lib/format";
@@ -234,9 +235,10 @@ export function TasksTab() {
         <TaskHistory key={`${kindFilter}|${statusFilter ?? ""}`} kind={kindFilter} status={statusFilter} text={text} />
       ) : null}
 
-      {/* DATA2 + DATA3: the operator panels — the tasks tab is their home. */}
+      {/* DATA2 + DATA3 + P1-5: the operator panels — the tasks tab is their home. */}
       <SystemCard />
       <BackupCard />
+      <IntegrationsCard />
     </section>
   );
 }
@@ -344,6 +346,11 @@ function Group({ title, count, children }: { title: string; count: number; child
 
 function ActiveCard({ task, onCancel }: { task: Task; onCancel: () => void }) {
   const meta = STATUS[task.status];
+  // Cancel is destructive (kills a running job) and was a single unguarded click with
+  // no feedback. Require an inline confirm, then show a pending state until the card
+  // drops off on the next refresh.
+  const [confirming, setConfirming] = useState(false);
+  const [canceling, setCanceling] = useState(false);
   return (
     <li className="rounded-md border border-stone-200 bg-paper/50 p-3">
       <div className="flex items-center gap-2">
@@ -352,14 +359,40 @@ function ActiveCard({ task, onCancel }: { task: Task; onCancel: () => void }) {
           {meta.label}
         </span>
         <span className="min-w-0 flex-1 truncate text-base font-medium text-ink">{task.label ?? task.kind}</span>
-        <button
-          type="button"
-          onClick={onCancel}
-          title="Cancel task"
-          className="focus-ring shrink-0 rounded p-1 text-steel hover:bg-stone-100 hover:text-coral"
-        >
-          <X size={14} />
-        </button>
+        {canceling ? (
+          <span className="shrink-0 text-meta text-steel">Canceling…</span>
+        ) : confirming ? (
+          <span className="flex shrink-0 items-center gap-1">
+            <button
+              type="button"
+              onClick={() => {
+                setConfirming(false);
+                setCanceling(true);
+                onCancel();
+              }}
+              className="focus-ring rounded border border-coral/40 px-1.5 py-0.5 text-meta font-semibold text-coral hover:bg-coral/5"
+            >
+              Cancel task
+            </button>
+            <button
+              type="button"
+              onClick={() => setConfirming(false)}
+              className="focus-ring rounded border border-stone-200 px-1.5 py-0.5 text-meta font-semibold text-steel hover:bg-stone-100"
+            >
+              Keep
+            </button>
+          </span>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setConfirming(true)}
+            title="Cancel task"
+            aria-label="Cancel task"
+            className="focus-ring shrink-0 rounded p-1 text-steel hover:bg-stone-100 hover:text-coral"
+          >
+            <X size={14} />
+          </button>
+        )}
       </div>
       <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-stone-200">
         <div className="h-full rounded-full bg-coral transition-all duration-500" style={{ width: `${Math.max(6, pct(task))}%` }} />

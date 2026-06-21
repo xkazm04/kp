@@ -78,6 +78,24 @@ npm run dev
 
 Open `http://localhost:3000`. The workspace lands on the **Pipeline** board. `python` must be on the `PATH` of whatever process runs `next dev` / `next start` (override with `PYTHON_CMD`). The SQLite workspace at `data/kp.sqlite` is created and seeded (example JD, jobs, candidate profiles, pipeline entries) on first run.
 
+### DevInspector — click a component, copy its source path
+
+A dev-only overlay for grabbing a component's `app/.../File.tsx:line` and pasting it
+straight into an AI coding CLI (Claude Code, etc.). Off by default; never present in
+production builds.
+
+```bash
+npm run dev:inspect   # dev server with source-location stamping on
+```
+
+In the app, press **`;`** (enters keyboard mode) then **`i`** (Inspect) to arm it. Hover
+highlights the element under the cursor and pins a `File.tsx:line` chip; **right-click** copies
+the call-site path, **Alt+right-click** copies the innermost element, click a HUD row to copy
+any enclosing file, and **Esc** exits. A plain `npm run dev` works too, but the HUD will say
+source mapping is OFF until you relaunch with `npm run dev:inspect`. A gated Turbopack loader
+(`scripts/dev-inspector/`) stamps host JSX with `data-loc` only when `DEV_INSPECT=1`; the overlay
+(`app/_dev-inspector/`) reads it at runtime. Both are absent from production.
+
 ### Workspace data — seeding, dump & restore
 
 Everything the app persists lives in **one SQLite file**: `data/kp.sqlite` (override with `KP_DB_PATH`). All ~26 tables — pipeline entries/events, profiles, jobs, analyses, interview sessions & preps, dev cases/postings/submissions/lifecycle, offers, schedule invites, scheduler state, group evals, JD templates, decision config, audit — share that file; `db.ts` and each isolated store create their tables lazily and run their own ALTER-if-missing migrations on boot.

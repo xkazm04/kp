@@ -22,11 +22,43 @@ function fmtTime(iso: string): string {
 
 export function DecisionRecordsPanel() {
   const t = useTranslations("analytics.decisionRecords");
+  const tReasons = useTranslations("decisions.wave");
   const { data, error } = useJsonFetch<Payload>("/api/decisions/records");
+
+  // Localized rationale (UAT E): the sealed `rationale` is byte-stable English (it's
+  // hashed — never touch it), but a Czech auditor shouldn't have to read English.
+  // Re-render it from the structured reasonCode + inputs the record ALSO carries —
+  // the same mirror the screen-wave modal uses — falling back to the English
+  // rationale for unmapped codes (older shapes, non-wave kinds). A sealed record is
+  // always committed, so reject uses the "did" phrasing.
+  const localizedRationale = (r: DecisionRecord): string => {
+    if (!r.reasonCode) return r.rationale;
+    let params: Record<string, string | number> = {};
+    try {
+      const inputs = (JSON.parse(r.payloadJson) as { inputs?: unknown })?.inputs;
+      if (inputs && typeof inputs === "object" && inputs !== null) params = inputs as Record<string, string | number>;
+    } catch {
+      return r.rationale;
+    }
+    if (r.reasonCode === "reject") {
+      if (!tReasons.has("reasons.rejectDid")) return r.rationale;
+      const tie = Number(params.tieAdjusted) > 0 ? ` ${tReasons("reasons.tieAdjustedNote", { from: Number(params.tieAdjusted) })}` : "";
+      return tReasons("reasons.rejectDid", params) + tie;
+    }
+    const key = `reasons.${r.reasonCode}` as Parameters<typeof tReasons>[0];
+    return tReasons.has(key) ? tReasons(key, params) : r.rationale;
+  };
 
   function exportDossier() {
     if (!data) return;
-    downloadFile("decision-records.json", JSON.stringify(data, null, 2), "application/json");
+    // Add a localized rationale ALONGSIDE the byte-stable English one (UAT E). The
+    // sealed `rationale` is untouched (it stays in the hash → verification is
+    // unaffected); `rationaleLocalized` is a convenience view for a non-English reader.
+    const dossier = {
+      ...data,
+      records: data.records.map((r) => ({ ...r, rationaleLocalized: localizedRationale(r) })),
+    };
+    downloadFile("decision-records.json", JSON.stringify(dossier, null, 2), "application/json");
   }
 
   return (
@@ -81,7 +113,7 @@ export function DecisionRecordsPanel() {
                     <span className="font-medium text-ink">{r.kind.replace(/_/g, " ")}</span>
                     <span className="shrink-0 font-mono text-xs text-stone-400">{r.actor}</span>
                   </div>
-                  <p className="mt-0.5 text-stone-600">{r.rationale}</p>
+                  <p className="mt-0.5 text-stone-600">{localizedRationale(r)}</p>
                   <div className="mt-1 flex items-center gap-3 text-xs text-stone-400">
                     <span className="font-mono">#{r.seq}</span>
                     <span className="font-mono">{r.candidateRef}</span>

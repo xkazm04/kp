@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { AlertTriangle, BookmarkPlus, CheckSquare, Link2, Play, Sparkles, Timer, X } from "lucide-react";
+import { AlertTriangle, BookmarkPlus, CalendarClock, CheckSquare, Link2, Play, Sparkles, Timer, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { buildUrl, clearedTabScopedParams } from "@/app/features/tabs";
 import { useSimulation } from "@/app/features/simulation/SimulationProvider";
@@ -11,9 +11,11 @@ import { useLiveRefresh } from "@/app/features/live-refresh";
 import { needsHumanDecision } from "@/app/_lib/approval-kinds";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { ChainEmptyState } from "@/app/_components/ChainEmptyState";
+import { CHIP_TOGGLE, EYEBROW, INTRO, PAGE_HEADER, SECTION, STAT, STAT_LABEL, STAT_VALUE, TITLE_DISPLAY } from "@/app/_components/ui/recipes";
 import { CandidateDrawer } from "./CandidateDrawer";
 import { PassPreviewModal } from "./PassPreviewModal";
 import { PipelineBoard } from "./PipelineBoard";
+import { CommandBar } from "./CommandBar";
 import { SchedulerControl } from "./SchedulerControl";
 import { EventDot, useEventVerb, useRelativeTime } from "./PipelineShared";
 import { TodayRail } from "./TodayRail";
@@ -38,11 +40,11 @@ function StatChip({
 }) {
   const valueColor =
     tone === "coral" ? "text-coral" : tone === "amber" ? "text-amber-700" : tone === "red" ? "text-red-700" : "text-ink";
-  const cls = "flex min-w-[5rem] flex-col items-center gap-0.5 rounded-md border border-stone-200 bg-white px-2.5 py-1.5 shadow-panel";
+  const cls = `${STAT} min-w-[5rem] items-center px-3 py-2`;
   const inner = (
     <>
-      <span className="text-micro uppercase tracking-wide text-steel">{label}</span>
-      <span className={`font-serif text-xl leading-none ${valueColor}`}>{value}</span>
+      <span className={`${STAT_LABEL} text-center`}>{label}</span>
+      <span className={`${STAT_VALUE} ${valueColor}`}>{value}</span>
     </>
   );
   return onClick ? (
@@ -135,7 +137,9 @@ export function PipelineTab() {
   const [bulkBusy, setBulkBusy] = useState(false);
   // `verb` selects the result label so the same status line reads correctly for a
   // stage move vs. a bulk accept/reject (bdc7fc01).
-  const [bulkResult, setBulkResult] = useState<{ ok: number; failed: number; verb: "moved" | "accepted" | "rejected" } | null>(null);
+  const [bulkResult, setBulkResult] = useState<{ ok: number; failed: number; verb: "moved" | "accepted" | "rejected" | "invited" } | null>(null);
+  // Transient feedback when a drag-to-move fails (optimistic move rolled back).
+  const [moveError, setMoveError] = useState<string | null>(null);
   // Two-step confirm for bulk reject (it emails N candidates — irreversible).
   const [confirmingBulkReject, setConfirmingBulkReject] = useState(false);
   // Saved board views (PIPE5): named {search + quick-filter} presets a recruiter
@@ -331,6 +335,16 @@ export function PipelineTab() {
     }
     return [...m.entries()];
   }, [selectedAwaiting]);
+  // P2-2 — the selected entries eligible for a bulk scheduling invite: any ACTIVE
+  // candidate (never a terminal hired/rejected/declined one). The bulk-invite
+  // endpoint re-checks status, so this is a UI gate, not the trust boundary.
+  const selectedActive = useMemo(
+    () =>
+      [...selectedIds]
+        .map((id) => (entries ?? []).find((x) => x.id === id))
+        .filter((e): e is Entry => !!e && e.status === "active"),
+    [selectedIds, entries]
+  );
   const boardPositions = useMemo(() => groupPositions(filteredEntries), [filteredEntries]);
   const filtering = Boolean(q) || quick !== null || stageFilter !== null;
 
@@ -489,6 +503,39 @@ export function PipelineTab() {
     await load();
   };
 
+  // P2-2 — send self-scheduling links to the selected ACTIVE cohort in one action
+  // (the back half of the funnel was per-candidate-only). ONE round trip to the
+  // bulk endpoint, which isolates each entry; successes deselect, failures + any
+  // terminal selected entries stay selected for retry — same grammar as bulkDecide.
+  const bulkInvite = async () => {
+    if (selectedActive.length === 0 || bulkBusy) return;
+    setBulkBusy(true);
+    setBulkResult(null);
+    setConfirmingBulkReject(false);
+    let ok = 0;
+    const failed = new Set<string>();
+    try {
+      const r = await fetch("/api/schedule/invite/bulk", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ entryIds: selectedActive.map((e) => e.id) }),
+      });
+      const d = (await r.json().catch(() => null)) as { results?: { entryId: string; ok: boolean }[] } | null;
+      if (r.ok && d?.results) {
+        for (const res of d.results) (res.ok ? (ok += 1) : failed.add(res.entryId));
+      } else {
+        for (const e of selectedActive) failed.add(e.id);
+      }
+    } catch {
+      for (const e of selectedActive) failed.add(e.id);
+    }
+    const untouched = [...selectedIds].filter((id) => !selectedActive.some((e) => e.id === id));
+    setSelectedIds(new Set([...failed, ...untouched]));
+    setBulkResult({ ok, failed: failed.size, verb: "invited" });
+    setBulkBusy(false);
+    await load();
+  };
+
   // cea12908 — drag a candidate to a new stage column. Optimistic: reflect the
   // move immediately, then POST set_stage with the card's PRIOR stage as
   // expectedStage (the same CAS guard the bulk move + AI actions use). On any
@@ -500,11 +547,18 @@ export function PipelineTab() {
     const restage = (id: string, stage: string) =>
       setEntries((cur) => (cur ? cur.map((e) => (e.id === id ? { ...e, stage } : e)) : cur));
     restage(entry.id, toStage);
+    setMoveError(null);
     try {
       const r = await postPipelineAction(entry.id, { action: "set_stage", toStage, expectedStage: prevStage });
-      if (!r.ok) restage(entry.id, prevStage);
+      // On any failure roll back AND tell the recruiter — a silent revert read as "the
+      // drag didn't take" with no reason (a 409 means a concurrent actor moved them).
+      if (!r.ok) {
+        restage(entry.id, prevStage);
+        setMoveError(t("moveFailed"));
+      }
     } catch {
       restage(entry.id, prevStage);
+      setMoveError(t("moveFailed"));
     } finally {
       await load();
     }
@@ -601,12 +655,12 @@ export function PipelineTab() {
   };
 
   return (
-    <div className="stagger-children space-y-6" aria-busy={entries == null}>
-      <header className="flex flex-wrap items-start justify-between gap-4">
+    <div className={`stagger-children ${SECTION}`} aria-busy={entries == null}>
+      <header className={PAGE_HEADER}>
         <div>
-          <p className="text-meta uppercase text-coral">{t("eyebrow")}</p>
-          <h2 className="mt-1 font-serif text-display text-ink">{t("title")}</h2>
-          <p className="mt-1 max-w-2xl text-body text-steel">{t("intro")}</p>
+          <p className={EYEBROW}>{t("eyebrow")}</p>
+          <h2 className={`mt-1 ${TITLE_DISPLAY}`}>{t("title")}</h2>
+          <p className={`mt-2 max-w-2xl ${INTRO}`}>{t("intro")}</p>
         </div>
         {entries && entries.length > 0 ? (
           <div className="flex flex-wrap items-stretch gap-1.5">
@@ -637,13 +691,16 @@ export function PipelineTab() {
         ) : null}
       </header>
 
+      {/* NL command bar (#7): type an action over the board; preview-then-confirm. */}
+      <CommandBar onExecuted={load} />
+
       {/* One action row: the manual triggers sit alongside the Automation clock. */}
       <div className="flex flex-wrap items-center gap-3">
         <button
           type="button"
           onClick={() => startTask("batch_screen")}
           disabled={!!batch}
-          className="focus-ring inline-flex h-9 items-center gap-1.5 rounded-md border border-coral/40 bg-coral/5 px-3 text-base font-semibold text-coral hover:bg-coral/10 disabled:opacity-60"
+          className="focus-ring inline-flex h-9 items-center gap-1.5 rounded-md border border-coral bg-coral/10 px-3 text-base font-semibold text-coral transition-colors hover:bg-coral/15 disabled:opacity-60"
           title={t("batchTitle")}
         >
           <Sparkles size={14} />
@@ -686,6 +743,15 @@ export function PipelineTab() {
           onCommit={runPass}
           onClose={() => setPreview(null)}
         />
+      ) : null}
+
+      {moveError ? (
+        <p role="alert" className="flex items-center justify-between gap-3 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
+          <span>{moveError}</span>
+          <button type="button" onClick={() => setMoveError(null)} className="focus-ring shrink-0 font-semibold hover:underline">
+            ✕
+          </button>
+        </p>
       ) : null}
 
       {error ? (
@@ -770,9 +836,7 @@ export function PipelineTab() {
                 type="button"
                 onClick={() => toggleQuick(f)}
                 aria-pressed={quick === f}
-                className={`focus-ring rounded-full border px-3 py-1 text-sm font-semibold transition-colors ${
-                  quick === f ? "border-coral bg-coral/10 text-coral" : "border-stone-200 text-steel hover:border-coral/40"
-                }`}
+                className={CHIP_TOGGLE(quick === f)}
               >
                 {label}
               </button>
@@ -785,7 +849,7 @@ export function PipelineTab() {
                 onClick={clearStageFilter}
                 aria-pressed={true}
                 title={t("filterStageClear")}
-                className="focus-ring rounded-full border border-coral bg-coral/10 px-3 py-1 text-sm font-semibold text-coral"
+                className={CHIP_TOGGLE(true)}
               >
                 {t("filterStage", { stage: enumLabel("stage", stageFilter) })} ×
               </button>
@@ -889,11 +953,28 @@ export function PipelineTab() {
               >
                 {bulkBusy ? t("bulkMoving") : t("bulkApply", { count: selectedIds.size })}
               </button>
+              {/* P2-2 — send self-scheduling links to the selected active cohort. */}
+              {selectedActive.length > 0 ? (
+                <button
+                  type="button"
+                  onClick={() => void bulkInvite()}
+                  disabled={bulkBusy}
+                  className="focus-ring inline-flex items-center gap-1.5 rounded-md border border-stone-200 bg-white px-3 py-1 text-sm font-semibold text-ink hover:border-coral/40 disabled:opacity-50"
+                >
+                  <CalendarClock size={13} aria-hidden /> {t("bulkInvite", { count: selectedActive.length })}
+                </button>
+              ) : null}
               {bulkResult ? (
                 <span role="status" className="text-sm">
                   <span className="font-semibold text-moss">
                     {t(
-                      bulkResult.verb === "moved" ? "bulkMoved" : bulkResult.verb === "accepted" ? "bulkAccepted" : "bulkRejected",
+                      bulkResult.verb === "moved"
+                        ? "bulkMoved"
+                        : bulkResult.verb === "accepted"
+                          ? "bulkAccepted"
+                          : bulkResult.verb === "invited"
+                            ? "bulkInvited"
+                            : "bulkRejected",
                       { count: bulkResult.ok }
                     )}
                   </span>

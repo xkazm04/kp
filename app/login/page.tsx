@@ -51,10 +51,16 @@ export default function LoginPage() {
               setPassword(e.target.value);
               if (status === "error") setStatus("idle");
             }}
+            aria-invalid={status === "error"}
+            aria-describedby={status === "error" ? "login-error" : undefined}
             className="mt-1 w-full rounded-md border border-stone-300 px-3 py-2 text-ink focus:outline-none focus:ring-2 focus:ring-stone-400"
           />
         </label>
-        {status === "error" ? <p className="text-sm text-coral">{t("error")}</p> : null}
+        {status === "error" ? (
+          <p id="login-error" role="alert" className="text-sm text-coral">
+            {t("error")}
+          </p>
+        ) : null}
         <button
           type="submit"
           disabled={status === "submitting" || !password}

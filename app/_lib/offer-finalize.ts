@@ -1,8 +1,10 @@
 import { actOnPipelineEntry, getJob, recordAutomationEvent } from "./db";
+import { dispatchAtsEvent } from "./ats-egress";
 import { dispatchOnboarding } from "./comms-dispatch";
 import { recordAudit } from "./dev-control";
 import { recordPipelineOutcome } from "./dev-outcomes";
 import { expireOfferIfDue, getOfferByToken, markEntryStatus, markOfferResponded, type OfferRow } from "./offers-store";
+import { startRun } from "./onboarding-store";
 
 // Direction #4 — capture the candidate's offer response and run the terminal
 // transitions. The offer DECISION was the recruiter's (extend); here we record
@@ -56,10 +58,20 @@ export async function respondToOffer(token: string, response: "accept" | "declin
     const { offer: claimedOffer, claimed } = markOfferResponded(token, "accepted");
     if (!claimed) return reportLoser(claimedOffer);
     if (offer.entryId) {
-      recordAutomationEvent(offer.entryId, "offer_accepted", offer.jobTitle ?? "");
       // Offer -> Hired (clears approval). actor "system": the transition fires on
       // the candidate's response, not a recruiter click — logs `auto_advanced`.
+      // actOnPipelineEntry now refuses to advance a TERMINAL entry, so a stale
+      // offer link accepted after the candidate was rejected/closed elsewhere
+      // returns null instead of resurrecting them to Hired + firing onboarding.
       const hired = actOnPipelineEntry(offer.entryId, "accept", undefined, { actor: "system" });
+      // Only stamp the accept on the timeline when it actually advanced (mirrors the
+      // decline path's conditional event), so a closed entry can't grow a phantom
+      // offer_accepted; record the conflict instead so a recruiter can see it.
+      if (hired) {
+        recordAutomationEvent(offer.entryId, "offer_accepted", offer.jobTitle ?? "");
+      } else {
+        recordAutomationEvent(offer.entryId, "offer_accept_blocked", "accepted on a closed entry — not advanced to Hired");
+      }
       // W5-2 (DEVO2) — a hired "ds-" (promoted-submission) entry auto-feeds the
       // dev-case calibration loop. Best-effort: calibration must never affect
       // the candidate's accept. (The CAS winner above is the sole caller, so
@@ -83,8 +95,20 @@ export async function respondToOffer(token: string, response: "accept" | "declin
       // confirm flow: catch the dispatch failure, record a durable operator-visible reconcile
       // event so onboarding can be re-triggered, and still return ok.
       if (hired) {
+        // Start the onboarding run on the hire (idempotent — one run per entry) so the
+        // candidate's onboarding link has a run to fill AND the hire immediately appears
+        // in the recruiter's onboarding hand-off tab. Best-effort: a failure here must not
+        // break the accept (the dispatch below still links the candidate to onboarding,
+        // and the page lazily ensures a run if this missed).
         try {
-          await dispatchOnboarding(hired);
+          startRun({ entryId: hired.id, candidateLabel: hired.candidateLabel, jobTitle: hired.jobTitle });
+        } catch (e) {
+          console.error(`[offer] onboarding run start failed for entry ${offer.entryId}:`, e);
+        }
+        try {
+          // The accepted offer's token doubles as the onboarding link (offers #5), so the
+          // welcome comm lands the candidate on a concrete next-step page, not a promise.
+          await dispatchOnboarding(hired, offer.token);
         } catch (err) {
           recordAutomationEvent(
             offer.entryId,
@@ -96,6 +120,12 @@ export async function respondToOffer(token: string, response: "accept" | "declin
             err instanceof Error ? err.message : err
           );
         }
+        // P1-5 — mirror the hire into any configured ATS/HRIS webhook so the
+        // system of record gets the outcome without re-keying (Marcus #12).
+        // Fire-and-forget + self-contained best-effort: a no-op unless a webhook
+        // and the candidate.hired event are configured, and it can never break the
+        // accept (dispatchAtsEvent swallows its own errors).
+        void dispatchAtsEvent("candidate.hired", hired.id);
       }
     }
     return { ok: true, status: "accepted", alreadyResponded: false, jobTitle: offer.jobTitle, candidateLabel: offer.candidateLabel };
@@ -141,3 +171,4 @@ export function offerView(token: string) {
     expiresAt: offer.expiresAt,
   };
 }
+

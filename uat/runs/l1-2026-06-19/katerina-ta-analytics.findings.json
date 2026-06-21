@@ -1,0 +1,192 @@
+[
+  {
+    "id": "kat-ac-01",
+    "journey": "analytics-calibration",
+    "character": "katerina-ta-analytics",
+    "cert_level": "L1",
+    "type": "quality-gap",
+    "severity": "major",
+    "dimension": "time-saved",
+    "title": "Time/cost saved is a counterfactual ESTIMATE, never measured against her manual baseline or the 60-70% screening cut",
+    "expected": "A MEASURED time/cost saving against the manual baseline she defends upward (~23h screening/hire, ~13h sourcing/role; 60-70% screening-time cut), in hours and CZK leadership accepts.",
+    "got": "The ROI ledger headline (analytics.roi.headline) is Sum(count x flat MINUTES_SAVED_PER_KIND) / 60 x rate (default 600 CZK/h). Per-action minutes are hand-set and override-able (honest), grounded in the real event trail, but there is NO computation of a percentage cut against any baseline. Nothing surfaces 'X% of screening time eliminated'.",
+    "evidence": [
+      "app/_lib/automation-roi.ts:14-29",
+      "app/_lib/automation-roi.ts:34",
+      "app/_lib/automation-roi.ts:55-74",
+      "app/features/sub_analytics/AnalyticsTab.tsx:468-519"
+    ],
+    "code_check": "confirmed-absent",
+    "verdict": "confirmed",
+    "l2_priority": "With seeded automation events, confirm the live ROI figure renders, then confirm there is still no baseline-relative screening-cut metric; judge whether the CZK/hours figure is defensible to leadership without it.",
+    "suggested_acceptance": "Surface a measured screening-time reduction vs a stated manual baseline (e.g. 'screening time cut N% vs ~23h/hire'), with the baseline editable and shown, so the 60-70% promise is verifiable, not an assumption."
+  },
+  {
+    "id": "kat-ac-02",
+    "journey": "analytics-calibration",
+    "character": "katerina-ta-analytics",
+    "cert_level": "L1",
+    "type": "missing-feature",
+    "severity": "major",
+    "dimension": "senior-quality",
+    "title": "No single leadership-ready ROI readout tying automation savings -> cost-per-hire -> time-to-fill into one defensible export",
+    "expected": "One consolidated, exportable 'the AI paid for itself' readout she'd put her name on: automation savings, cost-per-hire, and time-to-fill movement combined into a board-ready figure.",
+    "got": "The pieces are scattered across separate panels: automation %/ROI hours-CZK in one panel, cost-per-hire several panels lower in the channel-economics table, calibration in another panel, time-to-hire in the top-right stat cluster. CSV exports are per-panel (roles, ROI ledger, decision dossier) but there is no single combined ROI/payback view.",
+    "evidence": [
+      "app/features/sub_analytics/AnalyticsTab.tsx:306-311",
+      "app/features/sub_analytics/AnalyticsTab.tsx:325-332",
+      "app/features/sub_analytics/AnalyticsTab.tsx:150-166",
+      "app/features/sub_analytics/AnalyticsTab.tsx:321"
+    ],
+    "code_check": "confirmed-absent",
+    "verdict": "confirmed",
+    "l2_priority": "Confirm live there is no consolidated ROI/payback view or single combined export; assess whether a senior would assemble the slide from these scattered panels or reject it as below her own spreadsheet.",
+    "suggested_acceptance": "Add one ROI/payback panel (and CSV/print export) that combines automation savings, cost-per-hire, and time-to-fill delta into a single leadership-ready readout."
+  },
+  {
+    "id": "kat-ac-03",
+    "journey": "analytics-calibration",
+    "character": "katerina-ta-analytics",
+    "cert_level": "L1",
+    "type": "confusion",
+    "severity": "minor",
+    "dimension": "clarity",
+    "title": "Decision-records copy still says 'only auto-rejections' though six decision kinds now seal",
+    "expected": "Copy that reflects the records actually captured, so the audit trail doesn't read as thinner than it is.",
+    "got": "The route comment and the cs panel blurb both scope to auto-rejections ('today: the auto-rejections' / 'Kazde automaticke zamitnuti je zapeceteno'), but sealDecisionSafe now writes auto_rejected, offer_terms, reinstated, ai_scorecard, human_scorecard and group_eval_lead. The copy under-sells the feature.",
+    "evidence": [
+      "app/api/decisions/records/route.ts:11",
+      "messages/cs.json analytics.decisionRecords.blurb",
+      "app/_lib/screen-wave.ts:215",
+      "app/api/pipeline/[id]/route.ts:48",
+      "app/api/interview/complete/route.ts:170"
+    ],
+    "code_check": "present-but-missed",
+    "verdict": "confirmed",
+    "l2_priority": "Confirm live that the records panel shows non-auto_rejected kinds (e.g. offer_terms) yet the blurb still names only rejections.",
+    "suggested_acceptance": "Update the records route comment and the cs/en blurb to describe all sealed decision kinds, not only auto-rejections."
+  },
+  {
+    "id": "kat-ac-04",
+    "journey": "analytics-calibration",
+    "character": "katerina-ta-analytics",
+    "cert_level": "L1",
+    "type": "strength",
+    "severity": "polish",
+    "dimension": "trust",
+    "title": "Calibration is genuinely MEASURED with an honest under-data gate",
+    "expected": "Confidence scores presented with a calibration basis (predicted vs actual outcome), not as bare fact.",
+    "got": "computeCalibration bins real (score, disposition-outcome) pairs into a reliability curve + Brier score, gated at MIN_CALIBRATION_OUTCOMES=20; below the gate the panel refuses a curve and states how many more outcomes are needed. Ambiguous 'hold'/undecided rows are excluded. ?roleFamily filters per family. Exactly the calibration view her senior bar demands; defuses her #1 pet peeve.",
+    "evidence": [
+      "app/_lib/calibration.ts:15",
+      "app/_lib/calibration.ts:62-99",
+      "app/_lib/db/analyses.ts:103-126",
+      "app/api/analytics/calibration/route.ts:17-22",
+      "app/features/sub_analytics/CalibrationPanel.tsx:94-102"
+    ],
+    "code_check": "by-design",
+    "verdict": "confirmed",
+    "l2_priority": "With seeded outcomes, assert the curve renders from real pairs and the 'calibrated since N' gate is honest (under-data -> says so, no fake curve).",
+    "suggested_acceptance": "Protect this: never replace the measured calibration + honest gate with a vanity 'accuracy %'."
+  },
+  {
+    "id": "kat-ac-05",
+    "journey": "analytics-calibration",
+    "character": "katerina-ta-analytics",
+    "cert_level": "L1",
+    "type": "strength",
+    "severity": "polish",
+    "dimension": "missing",
+    "title": "Cost-per-hire has real per-hire attribution with honest nulling",
+    "expected": "Spend shown with per-hire attribution, not a lump total.",
+    "got": "costPerHireCzk = spendCzk / hired and costPerApplicantCzk = spendCzk / total, computed per inbound channel, nulled when no spend / zero hires (no infinity) / windowed cohort vs lifetime spend. This is true per-hire attribution, not a budget total.",
+    "evidence": [
+      "app/_lib/db/analytics.ts:412-428"
+    ],
+    "code_check": "by-design",
+    "verdict": "confirmed",
+    "l2_priority": "Confirm per-hire spend resolves to attributed hires live and the CSV export matches the on-screen figures.",
+    "suggested_acceptance": "Keep the honest nulling; do not paper over zero-hire/windowed cases with a misleading number."
+  },
+  {
+    "id": "kat-ac-06",
+    "journey": "analytics-calibration",
+    "character": "katerina-ta-analytics",
+    "cert_level": "L1",
+    "type": "strength",
+    "severity": "polish",
+    "dimension": "missing",
+    "title": "Tamper-evident decision records + auto/human-attributed decision log on the analytics surface",
+    "expected": "Decision logs (what/by whom/cost) accessible from the analytics surface.",
+    "got": "DecisionLog (paginated, exportable, auto/human-attributed) and DecisionRecordsPanel (hash-chained, verify badge, dossier export) are siblings on the Analytics tab. Records capture actor, policyVersion, rationale and the decisive inputs.",
+    "evidence": [
+      "app/features/sub_analytics/AnalyticsTab.tsx:323",
+      "app/features/sub_analytics/AnalyticsTab.tsx:406",
+      "app/_lib/decision-record-store.ts:79-90"
+    ],
+    "code_check": "by-design",
+    "verdict": "confirmed",
+    "l2_priority": "Confirm a real sealed entry with basis + actor renders and the verify badge is green.",
+    "suggested_acceptance": "Keep the records accessible directly from Analytics; don't bury the audit trail behind a separate tab."
+  },
+  {
+    "id": "kat-js-01",
+    "journey": "jd-to-shortlist",
+    "character": "katerina-ta-analytics",
+    "cert_level": "L1",
+    "type": "strength",
+    "severity": "polish",
+    "dimension": "trust",
+    "title": "Match score basis is legible (per-dimension breakdown + banded confidence) and ties to the calibration panel",
+    "expected": "The score's basis is legible (per-dimension breakdown), not a number she can't calibrate against outcomes.",
+    "got": "Each MatchCard renders a per-dimension ScoreBreakdown plus a confidence band with named drivers, not a bare number; the aggregate reliability of those scores is the calibration panel on Analytics.",
+    "evidence": [
+      "app/features/sub_match/MatchCard.tsx:87-90",
+      "app/features/sub_match/MatchCard.tsx:152-171"
+    ],
+    "code_check": "by-design",
+    "verdict": "confirmed",
+    "l2_priority": "Confirm the breakdown + band render live and read clearly to a non-recruiter analytics owner.",
+    "suggested_acceptance": "Keep the per-dimension breakdown and banded (not point) confidence."
+  },
+  {
+    "id": "kat-js-02",
+    "journey": "jd-to-shortlist",
+    "character": "katerina-ta-analytics",
+    "cert_level": "L1",
+    "type": "strength",
+    "severity": "polish",
+    "dimension": "trust",
+    "title": "AI-vs-rule-based reasoning provenance is disclosed in the UI (degrade seam is honest)",
+    "expected": "A deterministic-template fallback (past allowance or missing key) disclosed as 'template, not AI-reasoned'.",
+    "got": "runReasoning pushes --no-llm past the ai_candidates allowance, and the UI labels the result source === 'llm' ? 'LLM' : 'pravidlove' with an optional cached suffix. A template verdict is never laundered as AI.",
+    "evidence": [
+      "app/_lib/reasoning-run.ts:63",
+      "app/features/sub_match/MatchShared.tsx:74"
+    ],
+    "code_check": "by-design",
+    "verdict": "confirmed",
+    "l2_priority": "Confirm the rule-based label actually shows on a keyless/over-allowance run.",
+    "suggested_acceptance": "Keep the explicit LLM-vs-rule-based provenance badge on every reasoning verdict."
+  },
+  {
+    "id": "kat-js-03",
+    "journey": "jd-to-shortlist",
+    "character": "katerina-ta-analytics",
+    "cert_level": "L1",
+    "type": "missing-feature",
+    "severity": "minor",
+    "dimension": "clarity",
+    "title": "No link from a candidate's confidence band to the aggregate calibration of that score",
+    "expected": "From an individual pick's confidence band, a way to see 'here's how calibrated a 90 actually is' (the calibration panel).",
+    "got": "The per-candidate score basis lives on the Match card; the aggregate calibration of those scores lives on the Analytics tab, with no cross-link closing the loop between an individual pick and the proven reliability of the score behind it.",
+    "evidence": [
+      "app/features/sub_match/MatchCard.tsx:87-90",
+      "app/features/sub_analytics/CalibrationPanel.tsx:77-129"
+    ],
+    "code_check": "confirmed-absent",
+    "verdict": "confirmed",
+    "l2_priority": "Low priority; confirm there is no navigation between a match confidence band and the calibration panel.",
+    "suggested_acceptance": "Optionally link a candidate's confidence band to the calibration view filtered to that role family."
+  }
+]

@@ -104,11 +104,14 @@ export function JobsTab() {
 
       <IngestAdPanel
         onIngested={(result) => {
-          // Refetch the corpus; the render-phase open above latches onto the new
-          // (or existing, on a dedup hit) job id once it lands in the list.
+          // Single-ad path: refetch the corpus; the render-phase open above latches
+          // onto the new (or existing, on a dedup hit) job id once it lands in the list.
           setPendingOpenId(result.jobId);
           reload();
         }}
+        // Bulk path: one refetch after the whole import, and NO auto-open — the per-row
+        // results table already reports each outcome (JOB #4).
+        onBulkComplete={() => reload()}
       />
 
       <div className="mt-4 flex flex-wrap items-center gap-2">

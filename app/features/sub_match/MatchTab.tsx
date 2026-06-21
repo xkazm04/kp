@@ -15,6 +15,7 @@ export function MatchTab() {
   const [source, setSource] = useState<"profile" | "analysis">("profile");
   const [profiles, setProfiles] = useState<ProfileRow[]>([]);
   const [analyses, setAnalyses] = useState<AnalysisRow[]>([]);
+  const [optionsLoaded, setOptionsLoaded] = useState(false);
   const [selProfile, setSelProfile] = useState("");
   const [selAnalysis, setSelAnalysis] = useState("");
 
@@ -28,23 +29,34 @@ export function MatchTab() {
   const [autoRan, setAutoRan] = useState(false);
 
   useEffect(() => {
-    fetch("/api/profile")
-      .then((r) => r.json())
-      .then((p) => {
-        const rows = (p.profiles as ProfileRow[]) ?? [];
-        setProfiles(rows);
-        if (rows.length) setSelProfile(rows[0].id);
-        else setSource("analysis");
-      })
-      .catch(() => undefined);
-    fetch("/api/analyses")
-      .then((r) => r.json())
-      .then((p) => {
-        const rows = (p.analyses as AnalysisRow[]) ?? [];
-        setAnalyses(rows);
-        if (rows.length) setSelAnalysis(rows[0].slug);
-      })
-      .catch(() => undefined);
+    let alive = true;
+    // Track when BOTH option fetches have settled so the candidate <select> can show a
+    // loading placeholder instead of "No saved profiles/analyses" (which conflated the
+    // in-flight fetch with a genuinely empty account).
+    Promise.allSettled([
+      fetch("/api/profile")
+        .then((r) => r.json())
+        .then((p) => {
+          if (!alive) return;
+          const rows = (p.profiles as ProfileRow[]) ?? [];
+          setProfiles(rows);
+          if (rows.length) setSelProfile(rows[0].id);
+          else setSource("analysis");
+        }),
+      fetch("/api/analyses")
+        .then((r) => r.json())
+        .then((p) => {
+          if (!alive) return;
+          const rows = (p.analyses as AnalysisRow[]) ?? [];
+          setAnalyses(rows);
+          if (rows.length) setSelAnalysis(rows[0].slug);
+        }),
+    ]).finally(() => {
+      if (alive) setOptionsLoaded(true);
+    });
+    return () => {
+      alive = false;
+    };
   }, []);
 
   // `weights` (MAT1) is the recruiter's optional override for a re-rank; omitted on
@@ -123,9 +135,13 @@ export function MatchTab() {
             <select
               value={selProfile}
               onChange={(e) => setSelProfile(e.target.value)}
-              className="focus-ring h-10 min-w-[280px] rounded-md border border-stone-200 bg-white px-2 text-base text-ink"
+              disabled={!optionsLoaded}
+              aria-busy={!optionsLoaded}
+              className="focus-ring h-10 min-w-[280px] rounded-md border border-stone-200 bg-white px-2 text-base text-ink disabled:opacity-60"
             >
-              {profiles.length === 0 ? (
+              {!optionsLoaded ? (
+                <option value="">{t("loadingOptions")}</option>
+              ) : profiles.length === 0 ? (
                 <option value="">{t("noProfiles")}</option>
               ) : (
                 profiles.map((p) => (
@@ -143,9 +159,13 @@ export function MatchTab() {
             <select
               value={selAnalysis}
               onChange={(e) => setSelAnalysis(e.target.value)}
-              className="focus-ring h-10 min-w-[280px] rounded-md border border-stone-200 bg-white px-2 text-base text-ink"
+              disabled={!optionsLoaded}
+              aria-busy={!optionsLoaded}
+              className="focus-ring h-10 min-w-[280px] rounded-md border border-stone-200 bg-white px-2 text-base text-ink disabled:opacity-60"
             >
-              {analyses.length === 0 ? (
+              {!optionsLoaded ? (
+                <option value="">{t("loadingOptions")}</option>
+              ) : analyses.length === 0 ? (
                 <option value="">{t("noAnalyses")}</option>
               ) : (
                 analyses.map((a) => (

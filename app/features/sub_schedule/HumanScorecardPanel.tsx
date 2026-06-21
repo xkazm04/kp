@@ -25,10 +25,14 @@ const REC_STYLE: Record<InterviewRecommendation, string> = {
 export function HumanScorecardPanel({
   entryId,
   archetype,
+  roleFamily,
   initial,
 }: {
   entryId: string;
   archetype: string | null | undefined;
+  // P2-3 — drives the appended industry axes (clinical / trades / scientific …);
+  // omit and the panel shows exactly the pre-P2-3 base rubric.
+  roleFamily?: string | null;
   initial?: Scorecard | null;
 }) {
   const t = useTranslations("scheduleTab.scorecard");
@@ -37,7 +41,7 @@ export function HumanScorecardPanel({
   // PREP3 — render the rubric in the recruiter's language; the canonical English
   // `competency` stays the POSTed scorecard key (ratings/evidence are keyed by
   // it below), so localizing display can't corrupt the scoring contract.
-  const rubric = localizedRubric(rubricForArchetype(archetype), locale);
+  const rubric = localizedRubric(rubricForArchetype(archetype, roleFamily), locale);
   const ratingAnchors = localizedRatingAnchors(locale);
   const seed = (): { ratings: Record<string, number>; evidence: Record<string, string> } => {
     const ratings: Record<string, number> = {};

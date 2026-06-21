@@ -49,5 +49,42 @@ class AnalyzePromptLocaleTest(unittest.TestCase):
         self.assertIn("current_seniority", prompt)
 
 
+class BlindModeFailsClosedTest(unittest.TestCase):
+    """Blind screening must never fall back to uploading the ORIGINAL file when the
+    redacted text is empty (an encrypted/scanned/unsupported PDF) — that would send
+    name/contact/photo to the model while the audit claims 'identity redacted'."""
+
+    def _run(self, blind_text: str) -> dict:
+        called: dict = {"grounded": False, "parts": None}
+
+        def fake_grounded(**kwargs: object) -> G.GroundedAnswer:
+            called["grounded"] = True
+            called["parts"] = kwargs.get("parts")
+            return G.GroundedAnswer(text="{}", payload={"profile": {"raw_text": "x"}})
+
+        fd, name = tempfile.mkstemp(suffix=".txt")
+        os.write(fd, b"Some CV text")
+        os.close(fd)
+        tmp = Path(name)
+        try:
+            with mock.patch.object(G, "grounded_answer", fake_grounded):
+                G.analyze_profile_with_gemini(tmp, blind_text=blind_text)
+        finally:
+            tmp.unlink()
+        return called
+
+    def test_empty_redacted_text_fails_closed_without_uploading_the_file(self) -> None:
+        # The raise happens before the file is ever read/uploaded.
+        with self.assertRaises(RuntimeError):
+            self._run("")
+        with self.assertRaises(RuntimeError):
+            self._run("   \n  ")  # whitespace-only is equally empty
+
+    def test_blind_with_text_sends_no_file_bytes(self) -> None:
+        called = self._run("Redacted CV text for [NAME].")
+        self.assertTrue(called["grounded"])
+        self.assertEqual(called["parts"], [])  # text-only; the original file is NOT uploaded
+
+
 if __name__ == "__main__":
     unittest.main()

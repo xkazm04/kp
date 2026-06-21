@@ -1,54 +1,23 @@
 "use client";
 
-import { useEffect, useId, useRef } from "react";
+import { useId, useRef } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
+import { useDialogA11y } from "./useDialogA11y";
+
+// SHELL4 — re-exported here for back-compat: callers historically import
+// isAnyModalOpen from Modal. The implementation (and the shared stack it reads) now
+// lives in useDialogA11y, so drawers that use the hook count toward it too.
+export { isAnyModalOpen } from "./useDialogA11y";
 
 // A centered, focus-trapped dialog: backdrop-click + Escape close, Tab cycles
 // within, focus restores to the trigger on unmount. Rendered through a portal to
 // document.body so it always covers the whole viewport — escaping any ancestor
 // that establishes a containing block for `fixed` (e.g. the tab wrapper's
 // transform-based fade-in animation), which otherwise pinned it to tab content.
+// The focus-trap / scroll-lock / Escape-stack machinery is the shared useDialogA11y
+// hook, so the side drawers share the exact same implementation + stack.
 const SIZE: Record<string, string> = { md: "max-w-md", lg: "max-w-lg", xl: "max-w-xl", "2xl": "max-w-2xl", "3xl": "max-w-3xl", "4xl": "max-w-4xl", full: "max-w-[1600px]" };
-
-// Ref-counted body-scroll lock shared across all mounted modals. The page behind
-// a portalled dialog must not scroll (visible bleed on touch/mobile, and the
-// modal itself can scroll off-screen). Stacked dialogs (e.g. a confirm over a
-// detail modal) share ONE lock via this counter: only the first mount hides body
-// overflow — saving whatever was there — and only the last unmount restores it,
-// so closing the top dialog never prematurely unlocks scroll behind the one
-// still open.
-let scrollLockCount = 0;
-let prevBodyOverflow = "";
-function lockBodyScroll(): void {
-  if (scrollLockCount === 0) {
-    prevBodyOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-  }
-  scrollLockCount += 1;
-}
-function unlockBodyScroll(): void {
-  scrollLockCount = Math.max(0, scrollLockCount - 1);
-  if (scrollLockCount === 0) document.body.style.overflow = prevBodyOverflow;
-}
-
-// Mount-order stack of open dialogs. The key handler now lives on `document`
-// (so Escape works even when focus sits on the dialog container or <body>),
-// which means every open modal's listener fires for one keypress. Gating on
-// "am I the top of the stack?" keeps Escape closing only the frontmost dialog
-// and Tab trapping only within it — the behavior the old node-bound listener
-// got for free from event bubbling through the focused element.
-const modalStack: symbol[] = [];
-function isTopModal(token: symbol): boolean {
-  return modalStack[modalStack.length - 1] === token;
-}
-
-/** SHELL4 — whether ANY dialog is currently open. The global keyboard
- *  shortcuts consult this so a bare keypress can't switch tabs underneath an
- *  open modal (whose own Escape/Tab handling stays authoritative). */
-export function isAnyModalOpen(): boolean {
-  return modalStack.length > 0;
-}
 
 export function Modal({
   title,
@@ -70,77 +39,8 @@ export function Modal({
   // aria-labelledby resolves to the FIRST match in the DOM, so a hardcoded id
   // made a confirm-over-detail stack announce the wrong dialog's title.
   const titleId = useId();
-  const onCloseRef = useRef(onClose);
-  useEffect(() => {
-    onCloseRef.current = onClose;
-  });
-  // Lock background scroll while this modal is mounted (ref-counted for stacks).
-  useEffect(() => {
-    lockBodyScroll();
-    return () => unlockBodyScroll();
-  }, []);
-  useEffect(() => {
-    const node = ref.current;
-    const prev = document.activeElement as HTMLElement | null;
-    const token = Symbol("modal");
-    modalStack.push(token);
-    const focusables = () =>
-      node
-        ? Array.from(node.querySelectorAll<HTMLElement>('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])')).filter(
-            // Exclude aria-disabled controls too, not just `disabled`: an aria-disabled
-            // button is still tabbable, so counting it as a trap boundary let Tab land the
-            // first/last focus on a control the user can't actually act on.
-            (el) => !el.hasAttribute("disabled") && el.getAttribute("aria-disabled") !== "true"
-          )
-        : [];
-    // Contract: focus always lands inside the dialog so Escape/Tab have an
-    // anchor. Prefer the first focusable child; for content-only modals with
-    // none, fall back to the dialog container (focusable via tabIndex={-1}) so
-    // focus never stays on <body>.
-    (focusables()[0] ?? node)?.focus();
-    // Listen on document, not the dialog node: a keydown handler bound to the
-    // node only fires while focus is inside it, so a content-only modal (focus
-    // sitting on the container or escaped to <body>) could never be closed with
-    // Escape. document-level listening makes Escape-closes-always hold. Gate on
-    // being the top of the modal stack so stacked dialogs each handle their own
-    // keys instead of all closing at once.
-    const onKey = (e: KeyboardEvent) => {
-      if (!isTopModal(token)) return;
-      if (e.key === "Escape") {
-        e.preventDefault();
-        onCloseRef.current();
-        return;
-      }
-      if (e.key !== "Tab" || !node) return;
-      const items = focusables();
-      // No focusable children: keep focus pinned to the dialog container so Tab
-      // can't escape to the page behind the modal.
-      if (!items.length) {
-        e.preventDefault();
-        node.focus();
-        return;
-      }
-      const first = items[0];
-      const last = items[items.length - 1];
-      const active = document.activeElement;
-      // active === node covers the container-focused fallback above, plus any
-      // moment focus has drifted off the trapped children.
-      if (e.shiftKey && (active === first || active === node)) {
-        e.preventDefault();
-        last.focus();
-      } else if (!e.shiftKey && (active === last || active === node)) {
-        e.preventDefault();
-        first.focus();
-      }
-    };
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("keydown", onKey);
-      const i = modalStack.indexOf(token);
-      if (i !== -1) modalStack.splice(i, 1);
-      prev?.focus?.();
-    };
-  }, []);
+  // Focus-trap + scroll-lock + Escape (top-of-stack gated) + focus restore.
+  useDialogA11y(ref, onClose, { trap: true, lockScroll: true });
 
   // The full-page variant fills the viewport (a near-fullscreen workspace for
   // dense comparisons) rather than sizing to its content like the dialogs.

@@ -23,8 +23,20 @@ import {
   coerceLeadTokenParam,
   seedLeadPrefillAnswers,
   trimSeededSteps,
+  isHoneypotFilled,
 } from "./apply-intake.ts";
 import type { JobRecord } from "./db.ts";
+
+test("isHoneypotFilled: a populated company_url trips it; empty / absent / non-string does not", () => {
+  assert.equal(isHoneypotFilled({ company_url: "http://spam.example" }), true);
+  assert.equal(isHoneypotFilled({ company_url: "   x  " }), true);
+  assert.equal(isHoneypotFilled({ company_url: "" }), false);
+  assert.equal(isHoneypotFilled({ company_url: "   " }), false); // whitespace-only = empty
+  assert.equal(isHoneypotFilled({ company_url: 123 }), false); // non-string ignored
+  assert.equal(isHoneypotFilled({}), false); // absent (a real human submit)
+  assert.equal(isHoneypotFilled(null), false);
+  assert.equal(isHoneypotFilled("not an object"), false);
+});
 
 // ---------------------------------------------------------------------------
 // parseYearsExperience — what it CAPTURES

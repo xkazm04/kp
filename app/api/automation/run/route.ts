@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { AutomationPassError, isPassInFlight, runAutomationPass } from "@/app/_lib/automation-pass";
 import { recordRun } from "@/app/_lib/scheduler-store";
+import { requireOperator } from "@/app/_lib/auth/require-operator";
 
 export const runtime = "nodejs";
 
@@ -10,6 +11,11 @@ export const runtime = "nodejs";
 // AUTO3: `{"dryRun": true}` previews the identical decisions without applying,
 // dispatching, or writing anything — the look-before-commit gate.
 export async function POST(request: Request) {
+  // Defense-in-depth beyond the proxy gate: a pass spends LLM budget, dispatches
+  // candidate outreach, and mutates the pipeline board — strictly an operator action
+  // (mirrors the requireOperator guard on the other Python-spawning routes).
+  const denied = await requireOperator();
+  if (denied) return denied;
   const body = (await request.json().catch(() => ({}))) as { dryRun?: unknown };
   const dryRun = body.dryRun === true;
   // AUTO2 — a committed run from this route (the board's "Run pass" button /

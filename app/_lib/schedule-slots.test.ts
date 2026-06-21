@@ -11,25 +11,40 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { offeredSlotFor, proposeSlots, SLOT_HORIZON_DAYS } from "./schedule-slots.ts";
 
-// Fixed local reference: Monday 2026-06-08 12:00 local time.
-const NOW = new Date(2026, 5, 8, 12, 0, 0, 0).getTime();
-const local = (d: number, h: number, m = 0) => new Date(2026, 5, d, h, m, 0, 0).toISOString();
+// Fixed reference in UTC so the offered-zone math is deterministic regardless of the
+// test runner's own TZ. Monday 2026-06-08 12:00 UTC; offered zone pinned to UTC.
+const NOW = Date.UTC(2026, 5, 8, 12, 0, 0, 0);
+const TZ = "UTC";
+const utc = (d: number, h: number, m = 0) => new Date(Date.UTC(2026, 5, d, h, m, 0, 0)).toISOString();
 
 test("a slot the server would offer validates and gets the canonical server-minted label", () => {
-  const tue10 = offeredSlotFor(local(9, 10), NOW); // Tue 9 Jun · 10:00
+  const tue10 = offeredSlotFor(utc(9, 10), NOW, TZ); // Tue 9 Jun · 10:00
   assert.ok(tue10, "expected Tuesday 10:00 to validate");
   assert.equal(tue10!.label, "Tue 9 Jun · 10:00");
-  assert.equal(tue10!.value, local(9, 10));
-  assert.ok(offeredSlotFor(local(10, 14), NOW), "expected Wednesday 14:00 to validate");
+  assert.equal(tue10!.value, utc(9, 10));
+  assert.ok(offeredSlotFor(utc(10, 14), NOW, TZ), "expected Wednesday 14:00 to validate");
 });
 
 test("past, weekend, out-of-window, and off-grid times are refused", () => {
-  assert.equal(offeredSlotFor(local(8, 10), NOW), null, "this morning (past) must be refused");
-  assert.equal(offeredSlotFor(local(13, 10), NOW), null, "Saturday must be refused");
-  assert.equal(offeredSlotFor(local(14, 10), NOW), null, "Sunday must be refused");
-  assert.equal(offeredSlotFor(new Date(2026, 6, 14, 10, 0, 0, 0).toISOString(), NOW), null, "beyond the proposal window must be refused");
-  assert.equal(offeredSlotFor(local(9, 10, 30), NOW), null, "10:30 is not an offered time");
-  assert.equal(offeredSlotFor(local(9, 9), NOW), null, "09:00 is not an offered time");
+  assert.equal(offeredSlotFor(utc(8, 10), NOW, TZ), null, "this morning (past) must be refused");
+  assert.equal(offeredSlotFor(utc(13, 10), NOW, TZ), null, "Saturday must be refused");
+  assert.equal(offeredSlotFor(utc(14, 10), NOW, TZ), null, "Sunday must be refused");
+  assert.equal(offeredSlotFor(new Date(Date.UTC(2026, 6, 14, 10, 0, 0, 0)).toISOString(), NOW, TZ), null, "beyond the proposal window must be refused");
+  assert.equal(offeredSlotFor(utc(9, 10, 30), NOW, TZ), null, "10:30 is not an offered time");
+  assert.equal(offeredSlotFor(utc(9, 9), NOW, TZ), null, "09:00 is not an offered time");
+});
+
+test("offered hours are anchored to the interview zone, not the server/UTC clock", () => {
+  // 10:00 in Europe/Prague in June (CEST = UTC+2) is 08:00 UTC. The SAME absolute
+  // instant must validate as an offered slot when the interview zone is Prague, with
+  // a Prague-wall-clock label — regardless of where the candidate or server sits.
+  const tenPrague = new Date(Date.UTC(2026, 5, 9, 8, 0, 0, 0)).toISOString(); // 08:00Z = 10:00 Prague
+  const v = offeredSlotFor(tenPrague, NOW, "Europe/Prague");
+  assert.ok(v, "10:00 Prague (08:00Z) should validate as an offered slot");
+  assert.equal(v!.label, "Tue 9 Jun · 10:00");
+  // The same instant is 08:00 in UTC — NOT an offered hour there — proving the offered
+  // grid follows the interview zone, not a fixed server/UTC wall clock.
+  assert.equal(offeredSlotFor(tenPrague, NOW, "UTC"), null, "08:00 is not an offered slot in UTC");
 });
 
 test("garbage and injection payloads are refused, never echoed into a label", () => {

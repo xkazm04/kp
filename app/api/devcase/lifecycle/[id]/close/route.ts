@@ -30,6 +30,7 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
     // Deduped by recipient so two submissions from one person get one note.
     const seen = new Set<string>();
     let notified = 0;
+    let notifyFailures = 0;
     for (const posting of postings) {
       const role = posting.roleTitle ?? posting.caseTitle ?? "the role";
       for (const submission of listSubmissions(posting.id)) {
@@ -37,26 +38,44 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
         const to = submission.contact || submission.candidateRef;
         if (!to || seen.has(to)) continue;
         seen.add(to);
-        await sendComm({
-          to,
-          subject: `Update on your submission — ${role}`,
-          body: `Hi ${submission.candidateRef ?? "there"},\n\nThank you for the time you put into the assignment for ${role}. The intake for this role has now closed, and we won't be moving forward with your submission. We'd be glad to see you apply for a future role.\n\nBest,\nThe hiring team`,
-          kind: "rejection",
-          ref: submission.id,
-        });
-        notified += 1;
+        // ISOLATE each send: a relay/network failure on ONE wrap-up note must NOT
+        // abort the close. The old loop let a single throw leave the lifecycle
+        // half-closed — some postings flipped, stage never set, no audit — and a
+        // re-run re-notified everyone already messaged (the dedup Set is per-request).
+        // sendComm's durable Outbox records the attempt, so a failed note is
+        // recoverable via Resend; here we just count it and carry on.
+        try {
+          await sendComm({
+            to,
+            subject: `Update on your submission — ${role}`,
+            body: `Hi ${submission.candidateRef ?? "there"},\n\nThank you for the time you put into the assignment for ${role}. The intake for this role has now closed, and we won't be moving forward with your submission. We'd be glad to see you apply for a future role.\n\nBest,\nThe hiring team`,
+            kind: "rejection",
+            ref: submission.id,
+          });
+          notified += 1;
+        } catch (commError) {
+          notifyFailures += 1;
+          console.error(
+            `[lifecycle:close] wrap-up note failed for "${to}" (${submission.id}):`,
+            commError instanceof Error ? commError.message : commError
+          );
+        }
       }
       setPostingStatus(posting.id, "closed");
     }
 
-    updateLifecycle(id, { stage: "closed", detail: `closed by a human — ${notified} candidate(s) notified` });
+    // Always reached now (sends no longer throw out of the loop): flip the stage and
+    // write the audit so the close is atomic-in-effect and a re-run short-circuits on
+    // the `stage === "closed"` guard above rather than re-notifying.
+    const failNote = notifyFailures ? `, ${notifyFailures} note(s) failed (recoverable via Resend)` : "";
+    updateLifecycle(id, { stage: "closed", detail: `closed by a human — ${notified} candidate(s) notified${failNote}` });
     recordAudit({
       lifecycleId: id,
       actor: "human",
       action: "closed",
-      reason: `${postings.length} posting(s) closed; ${notified} non-promoted candidate(s) notified`,
+      reason: `${postings.length} posting(s) closed; ${notified} non-promoted candidate(s) notified${failNote}`,
     });
-    return NextResponse.json({ ok: true, notified, postingsClosed: postings.length });
+    return NextResponse.json({ ok: true, notified, notifyFailures, postingsClosed: postings.length });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Close failed." }, { status: 500 });
   }

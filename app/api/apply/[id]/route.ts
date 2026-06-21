@@ -10,6 +10,7 @@ import {
   getJob,
   mergeReapplication,
   recordAutomationEvent,
+  recordEntryConsent,
   recordKnockoutDecline,
   saveProfile,
   updateProfile,
@@ -23,6 +24,7 @@ import { cleanupWorkdir, createWorkdir, parsePythonJson, spawnPython } from "@/a
 import { validateProfileCliResult } from "@/app/_lib/apply-profile-result";
 import { randomId } from "@/app/_lib/random-id";
 import { getOrCreateStatusLink } from "@/app/_lib/application-status-store";
+import { clientIpFrom, rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
 
 // Mint (or reuse) the candidate's status-link token for an entry (idea-e76a6fb2),
 // best-effort: the application already succeeded, so a status-link failure must
@@ -52,6 +54,14 @@ const MAX_TEXT_LENGTH = 8 * 1024; // 8 KB per free-text answer (experience, skil
 const MAX_ARCHETYPE_LENGTH = 64; // a registry id, never long
 const MAX_EMAIL_LENGTH = 254; // RFC 5321 max address length
 const MAX_CV_TEXT_LENGTH = 64 * 1024; // extracted CV text — bounded, head-sampled if longer
+
+// Abuse containment for this PUBLIC, unauthenticated, side-effecting endpoint:
+// each accepted POST spawns a Python profile build, writes a temp file, and can
+// dispatch a candidate email. The body/field caps above stop one fat request;
+// this stops a flood of small ones. Per (job, client) fixed window — generous
+// for a human filling the conversational form, hostile to a script. Mirrors the
+// inbound-channel route. (clientIpFrom's XFF caveat is documented in rate-limit.ts.)
+const APPLY_RATE_LIMIT = { limit: 20, windowMs: 60_000 };
 
 // Outcome of normalizing an application into a matchable profile. On failure we
 // carry a short, bounded `reason` (not just null) so the caller can persist it
@@ -181,6 +191,10 @@ function acknowledgeReapply(entryId: string, message: string, changes: string[] 
 export async function POST(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await context.params;
+    // Throttle BEFORE any DB read or Python spawn so a flood is rejected cheaply.
+    if (!rateLimit(`apply:${id}:${clientIpFrom(request.headers)}`, APPLY_RATE_LIMIT)) {
+      return NextResponse.json({ error: RATE_LIMITED_ERROR }, { status: 429 });
+    }
     const job = getJob(id);
     if (!job) return NextResponse.json({ error: "Role not found." }, { status: 404 });
 
@@ -376,6 +390,13 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
             }
           }
         }
+        // Re-applying re-consents: refresh the data-processing consent + expiry
+        // (best-effort — a consent-record failure must never block the apply ack).
+        try {
+          recordEntryConsent(existing.id, "apply");
+        } catch (consentErr) {
+          console.error(`[apply] consent refresh failed for entry ${existing.id}:`, consentErr);
+        }
         return acknowledgeReapply(
           existing.id,
           profileRebuilt ? t("enrichedMessage") : t("alreadyMessage"),
@@ -418,6 +439,16 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       // E3 — inbound source attribution (the conversational careers-page flow).
       sourceChannel: "apply",
     });
+
+    // GDPR: stamp data-processing consent + a 12-month expiry on the inbound entry
+    // (the candidate agreed at submit, with the retention statement shown via
+    // AiDisclosure). The expiry drives the anonymization sweep. Best-effort — never
+    // block a successful application on the consent bookkeeping.
+    try {
+      recordEntryConsent(entry.id, "apply");
+    } catch (consentErr) {
+      console.error(`[apply] consent record failed for entry ${entry.id}:`, consentErr);
+    }
 
     // created:false here means the dedupeKey backstop caught a concurrent repeat
     // submission — surface it as a re-apply rather than logging a second

@@ -85,7 +85,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ slug:
     if (disposition) {
       try {
         const saved = loadAnalysis(slug, ws);
-        if (saved) recordAnalysisDispositionEvents(saved.row.candidate_label, disposition, note);
+        if (saved) recordAnalysisDispositionEvents(saved.row.candidate_label, disposition, ws, note);
       } catch (error) {
         console.error(`[api:analyses] disposition echo failed for "${slug}"`, error);
       }

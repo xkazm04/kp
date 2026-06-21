@@ -141,6 +141,15 @@ _LETTER_SPACED_COUNT = re.compile(
 )
 
 
+# DoS bound (bug-ui-scan 2026-06-20 critical): the letter-spacing repair is an O(n)
+# pass with a Python callback per match, so running it on a multi-megabyte adversarial
+# buffer (e.g. "a a a a …" x 2 MB, the exact pathology it "repairs", at extreme length)
+# can pin a worker's CPU — a DoS on the public extract/apply path. A real CV's extracted
+# text is well under ~100 KB, so cap the repaired window and the number of collapses.
+MAX_REPAIR_CHARS = 200_000
+MAX_LETTER_SPACED_SUBS = 50_000
+
+
 def collapse_letter_spacing(text: str) -> str:
     """Repair letter-spaced PDF text where each character is separated by a space.
 
@@ -151,8 +160,17 @@ def collapse_letter_spacing(text: str) -> str:
     Compound terms like ``K n o w l e d g e - b a s e s`` become
     ``Knowledge - bases``; the surrounding spaces are intentionally preserved
     to avoid over-merging legitimate ``word - word`` separators.
+
+    Bounded against adversarial input: only the leading ``MAX_REPAIR_CHARS`` are
+    repaired (a CV longer than that is already pathological) and at most
+    ``MAX_LETTER_SPACED_SUBS`` runs are collapsed, so a crafted multi-MB buffer
+    can't exhaust CPU. The unrepaired tail passes through verbatim.
     """
-    return _LETTER_SPACED_RUN.sub(lambda match: match.group(0).replace(" ", ""), text)
+    collapse = lambda match: match.group(0).replace(" ", "")  # noqa: E731
+    if len(text) <= MAX_REPAIR_CHARS:
+        return _LETTER_SPACED_RUN.sub(collapse, text, count=MAX_LETTER_SPACED_SUBS)
+    head = _LETTER_SPACED_RUN.sub(collapse, text[:MAX_REPAIR_CHARS], count=MAX_LETTER_SPACED_SUBS)
+    return head + text[MAX_REPAIR_CHARS:]
 
 
 def count_letter_spacing(text: str) -> int:

@@ -9,7 +9,7 @@
 //   npm run test:unit
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { safeHttpUrl, safeHttpLinks } from "./safe-url.ts";
+import { safeHttpUrl, safeHttpLinks, assertPublicHttpsEndpoint } from "./safe-url.ts";
 
 test("http(s) URLs pass and expose href + bare hostname", () => {
   assert.deepEqual(safeHttpUrl("https://www.glassdoor.com/Salaries"), {
@@ -67,4 +67,35 @@ test("safeHttpLinks keeps the good ones in order and drops the rest", () => {
 
 test("safeHttpLinks on an all-bad list yields an empty array", () => {
   assert.deepEqual(safeHttpLinks(["javascript:alert(1)", "", "data:x"]), []);
+});
+
+// assertPublicHttpsEndpoint guards a server-fetched provider endpoint (e.g. Azure
+// OpenAI). It is stricter than safeHttpUrl because the server will call it WITH a
+// bearer key — the SSRF + key-exfil pivots (metadata IP, loopback, LAN, attacker
+// host over http) must all be rejected at store time.
+test("assertPublicHttpsEndpoint accepts a public https host", () => {
+  assert.equal(
+    assertPublicHttpsEndpoint("https://my-resource.openai.azure.com"),
+    "https://my-resource.openai.azure.com/",
+  );
+});
+
+test("assertPublicHttpsEndpoint rejects non-https and bad URLs", () => {
+  assert.throws(() => assertPublicHttpsEndpoint("http://my-resource.openai.azure.com"), /https/);
+  assert.throws(() => assertPublicHttpsEndpoint("not a url"), /not a URL/);
+  assert.throws(() => assertPublicHttpsEndpoint("ftp://example.com"), /https/);
+});
+
+test("assertPublicHttpsEndpoint rejects the SSRF pivots: metadata IP, loopback, LAN, IPv6", () => {
+  assert.throws(() => assertPublicHttpsEndpoint("https://169.254.169.254/latest/meta-data"), /IP address/);
+  assert.throws(() => assertPublicHttpsEndpoint("https://127.0.0.1"), /IP address/);
+  assert.throws(() => assertPublicHttpsEndpoint("https://10.0.0.5"), /IP address/);
+  assert.throws(() => assertPublicHttpsEndpoint("https://192.168.1.1"), /IP address/);
+  assert.throws(() => assertPublicHttpsEndpoint("https://[::1]/"), /IP address/);
+});
+
+test("assertPublicHttpsEndpoint rejects internal/loopback hostnames", () => {
+  assert.throws(() => assertPublicHttpsEndpoint("https://localhost"), /internal\/loopback/);
+  assert.throws(() => assertPublicHttpsEndpoint("https://db.internal"), /internal\/loopback/);
+  assert.throws(() => assertPublicHttpsEndpoint("https://printer.local"), /internal\/loopback/);
 });

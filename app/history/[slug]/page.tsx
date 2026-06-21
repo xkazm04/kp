@@ -32,9 +32,12 @@ export default async function HistoryDetailPage({
   const { slug } = await params;
   const t = await getTranslations("report"); // RES2 — the report frame is bilingual
 
+  // Capture the tenant once: it scopes BOTH the analysis load and the board-chip
+  // lookup below, so the chip can only resolve to entries in the SAME workspace.
+  const ws = await currentWorkspace();
   let found: ReturnType<typeof loadAnalysis>;
   try {
-    found = loadAnalysis(slug, await currentWorkspace());
+    found = loadAnalysis(slug, ws);
   } catch (error) {
     // Log the full error server-side; render a styled panel instead of letting
     // a transient DB lock / IO error (SQLITE_BUSY, disk, seed failure) crash the
@@ -74,7 +77,7 @@ export default async function HistoryDetailPage({
   // to them. Best-effort: a store fault hides the chip, never breaks the report.
   let onBoard: PipelineEntry[] = [];
   try {
-    onBoard = findActiveEntriesByCandidateLabel(found.row.candidate_label);
+    onBoard = findActiveEntriesByCandidateLabel(found.row.candidate_label, ws);
   } catch (error) {
     console.error(`[history] board lookup failed for "${slug}"`, error);
   }

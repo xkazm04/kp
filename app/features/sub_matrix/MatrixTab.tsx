@@ -13,6 +13,7 @@ import { downloadFile, toCsv } from "@/app/_lib/export-utils";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { cellClass, ColumnStats, MatrixLegend, type Cell } from "./MatrixShared";
 import { ChainEmptyState } from "@/app/_components/ChainEmptyState";
+import { Skeleton } from "@/app/_components/Skeleton";
 import { CompletionCta } from "@/app/_components/CompletionCta";
 import { STRONG_THRESHOLD } from "./matrix-stats";
 
@@ -532,7 +533,14 @@ export function MatrixTab() {
       {error ? (
         <p className="rounded-md bg-red-50 p-3 text-base text-red-700">{error}</p>
       ) : !data ? (
-        <p className="text-base text-steel">{t("computing")}</p>
+        <div aria-busy="true" aria-label={t("computing")} className="space-y-2">
+          <Skeleton className="h-8 w-56" />
+          <div className="space-y-1.5 rounded-lg border border-stone-200 bg-white p-2 shadow-panel">
+            {Array.from({ length: 7 }).map((_, i) => (
+              <Skeleton key={i} className="h-9 w-full" />
+            ))}
+          </div>
+        </div>
       ) : staleJob ? (
         <div className="rounded-lg border border-stone-200 bg-paper p-8 text-center shadow-panel">
           <p className="font-serif text-xl text-ink">{t("staleTitle")}</p>
@@ -553,6 +561,24 @@ export function MatrixTab() {
             { tab: "jobs", label: t("emptyGridCtaJobs") },
           ]}
         />
+      ) : rows.length === 0 || cols.length === 0 ? (
+        // The dataset has candidates/positions, but the min-fit floor or family filter
+        // hid them all — show a recoverable empty state instead of sticky headers over
+        // a blank tbody (which read as a broken grid).
+        <div className="rounded-lg border border-stone-200 bg-paper p-8 text-center shadow-panel">
+          <p className="font-serif text-xl text-ink">{t("filteredEmptyTitle")}</p>
+          <p className="mx-auto mt-2 max-w-md text-base text-steel">{t("filteredEmptyBody")}</p>
+          <button
+            type="button"
+            onClick={() => {
+              setMinFit(0);
+              setFamily("all");
+            }}
+            className="focus-ring mt-5 rounded-full bg-ink px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-ink/90"
+          >
+            {t("clearFilters")}
+          </button>
+        </div>
       ) : (
         <>
           <div className="overflow-auto rounded-lg border border-stone-200 bg-white shadow-panel" style={{ maxHeight: "70vh" }}>

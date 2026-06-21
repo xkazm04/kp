@@ -5,11 +5,13 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AlertTriangle, ArrowLeftRight, Ban, Banknote, Calendar, ClipboardList, ExternalLink, FileText, GitBranch, History, Mail, NotebookPen, Pencil, Phone, Shuffle, Sparkles, UserCheck, Wrench, X } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { useDialogA11y } from "@/app/_components/useDialogA11y";
 import type { CandidateTimelineItem } from "@/app/_lib/candidate-timeline";
 import { buildUrl } from "@/app/features/tabs";
 import { useTasks, useTaskResult } from "@/app/features/tasks/TasksProvider";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { ResultView } from "./CandidateResultView";
+import { ConsentPanel } from "./ConsentPanel";
 import { useTokenLink, TokenLinkPanel } from "./TokenLink";
 import { type Entry, type Result, type TaskId } from "./CandidateDrawerTypes";
 import { styleFor, type PipelineEvent } from "./PipelineTypes";
@@ -112,53 +114,12 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
   // Comms are excluded here — the drawer has a richer dedicated section above.
   const [extraTimeline, setExtraTimeline] = useState<CandidateTimelineItem[]>([]);
 
-  // Modal focus management: trap Tab within the dialog, close on Escape, and
-  // restore focus to the trigger on unmount (WCAG dialog requirements).
+  // WCAG dialog behavior via the shared hook (replacing a hand-rolled, node-bound
+  // version whose Escape only fired while focus was inside the drawer and which didn't
+  // join the modal stack): focus-in, Tab-trap, Escape (top-of-stack gated), scroll-lock,
+  // and focus restore. aria-modal="true" + the dimming backdrop below make this modal.
   const dialogRef = useRef<HTMLElement | null>(null);
-  // Latest-callback ref, updated in a commit-phase effect (never during render —
-  // render must stay pure) so the long-lived keydown listener sees the current
-  // onClose without re-binding.
-  const onCloseRef = useRef(onClose);
-  useEffect(() => {
-    onCloseRef.current = onClose;
-  });
-  useEffect(() => {
-    const node = dialogRef.current;
-    const previouslyFocused = document.activeElement as HTMLElement | null;
-    const focusables = () =>
-      node
-        ? Array.from(
-            node.querySelectorAll<HTMLElement>(
-              'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-            )
-          ).filter((el) => !el.hasAttribute("disabled"))
-        : [];
-    focusables()[0]?.focus();
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        event.preventDefault();
-        onCloseRef.current();
-        return;
-      }
-      if (event.key !== "Tab") return;
-      const items = focusables();
-      if (items.length === 0) return;
-      const first = items[0];
-      const last = items[items.length - 1];
-      if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault();
-        last.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault();
-        first.focus();
-      }
-    };
-    node?.addEventListener("keydown", onKeyDown);
-    return () => {
-      node?.removeEventListener("keydown", onKeyDown);
-      previouslyFocused?.focus?.();
-    };
-  }, []);
+  useDialogA11y(dialogRef, onClose, { trap: true, lockScroll: true });
 
   useEffect(() => {
     let alive = true;
@@ -780,6 +741,8 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
               className="focus-ring mt-1 w-full rounded-md border border-stone-200 bg-white p-2 text-sm text-ink"
             />
           </div>
+
+          <ConsentPanel key={entry.id} entryId={entry.id} />
 
           <div>
             <p className="flex items-center gap-1.5 text-meta uppercase tracking-wide text-coral">

@@ -92,7 +92,11 @@ export function renderTemplate(body: string, data: TemplateData): string {
     company: data.company?.trim() || "Company",
     seniority: data.seniority?.trim() || "",
     salary: data.salary?.trim() || "",
-    about: data.about?.trim() || `${data.company?.trim() || "We"} build technology trusted by millions — join a team that ships and owns what it builds.`,
+    // No canned company blurb: the build supplies no real `about`, and emitting the
+    // same "trusted by millions…" sentence into EVERY JD was identical filler the lint
+    // itself flags as vague. Empty here renders nothing — and the section-collapse below
+    // drops the now-empty "## About us" header so it isn't an awkward empty section.
+    about: data.about?.trim() || "",
     responsibilities: bullets(data.responsibilities),
     mustHaves: bullets(data.mustHaves),
     niceToHaves: bullets(data.niceToHaves),
@@ -107,9 +111,16 @@ export function renderTemplate(body: string, data: TemplateData): string {
       return map[key] === "" ? EMPTY_MARK : map[key];
     });
 
-  // Collapse a separator adjacent to an empty marker (either side), then drop
-  // any lone markers that had no separator beside them.
+  // Section collapse: a markdown header whose entire body was an empty placeholder
+  // (e.g. an unfilled `{{about}}` alone under "## About us") is dropped header-and-all,
+  // so the section vanishes cleanly rather than leaving a dangling empty heading. Only
+  // a header immediately followed by a lone marker line matches — inline empties on the
+  // `**company** · seniority · salary` line aren't ATX headers, so they're untouched
+  // and still handled by the separator collapse below.
+  // Then collapse a separator adjacent to an empty marker (either side), and finally
+  // drop any lone markers that had no separator beside them.
   return substituted
+    .replace(/(^|\n)#{1,6} [^\n]*\n(?=\n|$)/g, "$1")
     .replaceAll(`${TEMPLATE_SEPARATOR}${EMPTY_MARK}`, "")
     .replaceAll(`${EMPTY_MARK}${TEMPLATE_SEPARATOR}`, "")
     .replaceAll(EMPTY_MARK, "");

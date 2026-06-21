@@ -40,16 +40,22 @@ export function RediscoveryFeed() {
 
   useEffect(() => {
     let alive = true;
+    // Actually wire the abort: the long pool-sweep fetch now carries the controller's
+    // signal, so navigating away mid-load cancels the in-flight request instead of
+    // the ref's abort() being a no-op against a fetch that never received the signal.
+    const controller = new AbortController();
+    abortRef.current = controller;
     // Inlined (not a called helper) so the lint rule can see the setState lands in
     // an async callback AFTER the await — the allowed shape (cf. useJsonFetch).
     (async () => {
       try {
-        const r = await fetch("/api/rediscovery/alerts");
+        const r = await fetch("/api/rediscovery/alerts", { signal: controller.signal });
         const body = (await r.json().catch(() => null)) as { alerts?: Alert[] } | null;
         if (!alive) return;
         setAlerts(r.ok && body?.alerts ? body.alerts : []);
       } catch {
-        if (alive) setAlerts([]);
+        // An abort (unmount) is expected — only surface a genuine load failure.
+        if (alive && !controller.signal.aborted) setAlerts([]);
       }
     })();
     return () => {

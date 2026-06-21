@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { AiDisclosure } from "@/app/_components/AiDisclosure";
+import { Skeleton } from "@/app/_components/Skeleton";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { initials } from "@/app/_lib/initials";
 import { offerHoursRemaining } from "@/app/_lib/offer-policy";
@@ -34,6 +35,10 @@ export default function OfferPage() {
   // so it replaces the whole card; a POST response failure surfaces as an inline banner that
   // PRESERVES the card + re-enables the buttons, so a transient blip on accept/decline isn't a dead end.
   const [loadError, setLoadError] = useState<string | null>(null);
+  // A 404 (mistyped / revoked / non-existent token) is a DEAD link, not a transient
+  // blip — surfaced as its own "invalid link, contact the team" card rather than the
+  // generic retryable loadFailed.
+  const [notFound, setNotFound] = useState(false);
   const [responseError, setResponseError] = useState<string | null>(null);
   // Which response is mid-flight, so we can spin the pressed button and mute the other.
   const [pending, setPending] = useState<"accept" | "decline" | null>(null);
@@ -50,18 +55,51 @@ export default function OfferPage() {
     if (confirmingDecline) goBackRef.current?.focus();
   }, [confirmingDecline]);
 
-  useEffect(() => {
+  const load = useCallback(async () => {
     if (!token) return;
-    fetch(`/api/offer/${token}`)
-      .then((r) => r.json())
-      .then((p) => {
-        if (p.error) throw new Error(p.error);
-        setOffer(p.offer as OfferView);
-        if (p.offer?.status === "accepted" || p.offer?.status === "declined" || p.offer?.status === "expired")
-          setResult(p.offer.status);
-      })
-      .catch(() => setLoadError(t("loadFailed")));
+    setLoadError(null);
+    setNotFound(false);
+    try {
+      const r = await fetch(`/api/offer/${token}`);
+      const p = await r.json().catch(() => ({}));
+      if (r.status === 404) {
+        setNotFound(true);
+        return;
+      }
+      if (!r.ok || p.error) {
+        setLoadError(t("loadFailed"));
+        return;
+      }
+      setOffer(p.offer as OfferView);
+      const s = p.offer?.status;
+      if (s === "accepted" || s === "declined" || s === "expired") setResult(s);
+    } catch {
+      setLoadError(t("loadFailed"));
+    }
   }, [token, t]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  // After an ambiguous POST (the request may have landed before the connection
+  // dropped), re-read the AUTHORITATIVE status: if the server already recorded the
+  // response, flip the card to it and clear the inline error — so a candidate on a
+  // flaky phone isn't left unsure whether their accept/decline registered.
+  const reconcile = useCallback(async () => {
+    if (!token) return;
+    try {
+      const r = await fetch(`/api/offer/${token}`);
+      const p = await r.json().catch(() => ({}));
+      const s = p?.offer?.status;
+      if (r.ok && (s === "accepted" || s === "declined" || s === "expired")) {
+        setResult(s);
+        setResponseError(null);
+      }
+    } catch {
+      /* leave the responseError so the candidate can retry */
+    }
+  }, [token]);
 
   const respond = async (response: "accept" | "decline") => {
     setPending(response);
@@ -83,11 +121,13 @@ export default function OfferPage() {
         // Prefer the server's stable error `code` (localized via the errors
         // catalog); fall back to the page's own localized respond-failed message.
         setResponseError(errMsg(p, t("respondFailed")));
+        void reconcile();
         return;
       }
       setResult(p.status as "accepted" | "declined");
     } catch {
       setResponseError(t("respondFailed"));
+      void reconcile();
     } finally {
       setPending(null);
     }
@@ -99,10 +139,42 @@ export default function OfferPage() {
         {/* Brand accent — a premium letterhead strip so the offer reads as official. */}
         <div className="h-1.5 bg-gradient-to-r from-steel via-steel to-coral" aria-hidden="true" />
         <div className="p-7">
-        {loadError ? (
-          <p className="rounded-md bg-red-50 p-3 text-sm text-red-700">{loadError}</p>
+        {notFound ? (
+          <div className="rounded-lg bg-stone-100 p-4 text-center">
+            <p className="text-base font-semibold text-ink">{t("invalidLink")}</p>
+            <p className="mt-1 text-sm text-steel">{t("invalidLinkBody")}</p>
+          </div>
+        ) : loadError ? (
+          <div className="rounded-md bg-red-50 p-3 text-sm text-red-700">
+            <p>{loadError}</p>
+            <button
+              type="button"
+              onClick={() => void load()}
+              className="focus-ring mt-2 rounded-md border border-red-200 bg-white px-3 py-1 text-sm font-semibold text-red-700 hover:bg-red-100"
+            >
+              {tCommon("retry")}
+            </button>
+          </div>
         ) : !offer ? (
-          <p className="text-center text-sm text-steel">{tCommon("loading")}</p>
+          // Skeleton mirrors the loaded offer's shape so the high-stakes first paint
+          // reserves its height instead of a bare line that visibly reflows (CLS).
+          <div className="space-y-4" aria-busy="true" aria-label={tCommon("loading")}>
+            <div className="flex items-center gap-3">
+              <Skeleton className="h-11 w-11 rounded-lg" />
+              <div className="flex-1 space-y-2">
+                <Skeleton className="h-4 w-2/3" />
+                <Skeleton className="h-3 w-1/3" />
+              </div>
+            </div>
+            <Skeleton className="h-6 w-1/2" />
+            <Skeleton className="h-20 w-full rounded-lg" />
+            <Skeleton className="h-3 w-5/6" />
+            <Skeleton className="h-3 w-3/4" />
+            <div className="flex gap-2 pt-2">
+              <Skeleton className="h-10 flex-1 rounded-md" />
+              <Skeleton className="h-10 flex-1 rounded-md" />
+            </div>
+          </div>
         ) : (
           <>
             {offer.company ? (
@@ -129,11 +201,15 @@ export default function OfferPage() {
               <p className="mt-1 text-sm text-steel">{t("preparedFor", { name: offer.candidateLabel })}</p>
             ) : null}
 
-            {offer.salary ? (
+            {offer.salary != null ? (
               <div className="mt-4 rounded-lg border border-stone-200 bg-paper/60 p-4">
                 <p className="text-meta uppercase tracking-wide text-steel">{t("compensation")}</p>
                 <p className="mt-0.5 font-serif text-3xl text-ink">
-                  {offer.salary.toLocaleString(locale)} <span className="text-lg text-steel">{offer.currency ?? "CZK"}</span>
+                  {/* P2-1 — show the offer's OWN stored currency; never fabricate CZK
+                      for a non-Czech offer. When the currency is genuinely unknown,
+                      omit the unit rather than asserting a wrong one. */}
+                  {offer.salary.toLocaleString(locale)}
+                  {offer.currency ? <span className="text-lg text-steel"> {offer.currency}</span> : null}
                 </p>
               </div>
             ) : null}
@@ -144,6 +220,16 @@ export default function OfferPage() {
                 <p className="mt-1 text-sm text-steel">
                   {offer.company ? t("acceptedBodyCompany", { company: offer.company }) : t("acceptedBodyGeneric")}
                 </p>
+                {/* The accepted offer's token doubles as the onboarding link
+                    (offer-finalize.ts) — surface it INLINE so accept lands on a
+                    concrete next step on the page, not only via the welcome email. */}
+                <a
+                  href={`/onboarding/${offer.token}`}
+                  data-sim-click="offer-onboarding-cta"
+                  className="focus-ring mt-3 inline-flex h-11 items-center justify-center gap-2 rounded-md bg-moss px-5 text-base font-semibold text-white transition-opacity hover:opacity-90"
+                >
+                  {t("onboardingCta")}
+                </a>
               </div>
             ) : result === "declined" ? (
               <div className="mt-6 rounded-lg bg-stone-100 p-4 text-center">

@@ -18,6 +18,19 @@ import type { JobRecord } from "./db";
 export const DEFAULT_APPLY_LANGUAGES = ["Czech", "English"] as const;
 
 /**
+ * Anti-bot honeypot. `company_url` is a hidden form field a real applicant never sees
+ * or fills; a bot that auto-fills every input trips it. Returns true when the field is
+ * a non-empty string, so the caller can silently DROP the submission (file no lead,
+ * send no email). The KO gate filters ineligible HUMANS, not bots; this complements —
+ * does not replace — the rate limit. Pure + tested (apply-intake.test.ts).
+ */
+export function isHoneypotFilled(body: unknown): boolean {
+  if (!body || typeof body !== "object") return false;
+  const v = (body as Record<string, unknown>).company_url;
+  return typeof v === "string" && v.trim() !== "";
+}
+
+/**
  * Pull a years-of-experience count out of the candidate's free-text experience
  * answer. This is a deliberately small bilingual heuristic, not an NLP parser;
  * the contract below is pinned by `apply-intake.test.ts` so it stays predictable

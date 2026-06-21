@@ -8,8 +8,10 @@ never-breaks-the-host guarantee.
 
 from __future__ import annotations
 
+import json
 import os
 import sys
+import tempfile
 import types
 import unittest
 from unittest import mock
@@ -176,6 +178,67 @@ class MonitoredCliTest(unittest.TestCase):
                 provider.complete("hi")
         self.assertEqual(len(ctx.events), 1)
         self.assertIn("cli exploded", ctx.events[0]["error"])
+
+
+class LedgerSidecarTest(unittest.TestCase):
+    """T0.1: the durable usage ledger. emit_result appends one NDJSON line per
+    metered call to KP_LLM_USAGE_LOG, INDEPENDENT of LightTrack — the headline
+    fix is that spend persists even when observability is OFF (the default)."""
+
+    def test_ledger_line_written_even_with_lighttrack_off(self) -> None:
+        monitor.reset()
+        self.addCleanup(monitor.reset)
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "usage.ndjson")
+            with mock.patch.dict(os.environ, {"KP_LLM_USAGE_LOG": path}, clear=False):
+                os.environ.pop("LIGHTTRACK_URL", None)  # observability OFF
+                StubProvider([_result()], use_case="match_reasoning").complete("hi")
+            with open(path, encoding="utf-8") as fh:
+                lines = [l for l in fh.read().splitlines() if l.strip()]
+            self.assertEqual(len(lines), 1)
+            row = json.loads(lines[0])
+            self.assertEqual(row["use_case"], "match_reasoning")
+            self.assertEqual(row["provider"], "anthropic")
+            self.assertEqual(row["model"], "claude-haiku-4-5")
+            self.assertEqual(row["input_tokens"], 50)
+            self.assertEqual(row["output_tokens"], 10)
+            self.assertEqual(row["cached_tokens"], 5)
+            self.assertEqual(row["cost_usd"], 0.0001)
+            self.assertEqual(row["source"], "llm")
+
+    def test_no_ledger_file_when_env_unset(self) -> None:
+        monitor.reset()
+        self.addCleanup(monitor.reset)
+        with mock.patch.dict(os.environ, {}, clear=False):
+            os.environ.pop("KP_LLM_USAGE_LOG", None)
+            os.environ.pop("LIGHTTRACK_URL", None)
+            # Must not raise and must not create any file.
+            StubProvider([_result()]).complete("hi")
+
+    def test_monitored_cli_also_writes_ledger(self) -> None:
+        monitor.reset()
+        self.addCleanup(monitor.reset)
+        cli_result = ClaudeResult(
+            text="ok",
+            cost_usd=0.012,
+            duration_ms=900,
+            usage={"input_tokens": 200, "output_tokens": 40, "cache_read_input_tokens": 30},
+        )
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "usage.ndjson")
+            with mock.patch.dict(os.environ, {"KP_LLM_USAGE_LOG": path}, clear=False):
+                os.environ.pop("LIGHTTRACK_URL", None)
+                provider = monitor.MonitoredClaudeCli(timeout=120, use_case="automation")
+                with mock.patch.object(ClaudeCliProvider, "complete", return_value=cli_result):
+                    provider.complete("hi")
+            with open(path, encoding="utf-8") as fh:
+                rows = [json.loads(l) for l in fh.read().splitlines() if l.strip()]
+            self.assertEqual(len(rows), 1)
+            # The ledger records the real engine (claude_cli), keeping subscription
+            # vs metered spend distinguishable — unlike LightTrack's anthropic alias.
+            self.assertEqual(rows[0]["provider"], "claude_cli")
+            self.assertEqual(rows[0]["cost_usd"], 0.012)
+            self.assertEqual(rows[0]["cached_tokens"], 30)
 
 
 if __name__ == "__main__":

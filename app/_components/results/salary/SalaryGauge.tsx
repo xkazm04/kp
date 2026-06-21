@@ -13,6 +13,9 @@ interface SalaryGaugeProps {
   // The +30% growth target, rounded once by the caller. Passed in so the dashed marker and
   // the aria-label use the SAME figure the card text shows, instead of a third unrounded one.
   target?: number;
+  // Currency code for the aria-label (the bar + tick labels are number-only). The
+  // analysis is no longer CZK-only, so the screen-reader figure must name the real one.
+  currency?: string;
 }
 
 const CONFIDENCE_OPACITY: Record<string, number> = {
@@ -21,7 +24,7 @@ const CONFIDENCE_OPACITY: Record<string, number> = {
   high: 1
 };
 
-export function SalaryGauge({ minimum, maximum, midpoint, confidence, target: targetProp }: SalaryGaugeProps) {
+export function SalaryGauge({ minimum, maximum, midpoint, confidence, target: targetProp, currency = "CZK" }: SalaryGaugeProps) {
   const target = targetProp ?? midpoint * 1.3;
   const gaugeMin = minimum * 0.9;
   const gaugeMax = Math.max(maximum, target) * 1.08;
@@ -66,7 +69,7 @@ export function SalaryGauge({ minimum, maximum, midpoint, confidence, target: ta
       <div
         ref={barRef}
         role="img"
-        aria-label={`Salary range ${formatCzk(minimum)} to ${formatCzk(maximum)} CZK, midpoint ${formatCzk(midpoint)}, +30% target ${formatCzk(target)}`}
+        aria-label={`Salary range ${formatCzk(minimum)} to ${formatCzk(maximum)} ${currency}, midpoint ${formatCzk(midpoint)}, +30% target ${formatCzk(target)}`}
         className={`relative h-3 w-full rounded-full bg-stone-200 ${degenerate ? "cursor-default" : "cursor-crosshair"}`}
         onMouseMove={handleMove}
         onMouseLeave={() => setHover(null)}

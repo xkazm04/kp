@@ -8,8 +8,13 @@ export const runtime = "nodejs";
 // Annotation-only: records a `sim_attached` event on the entry so the practice
 // run shows in the drawer history; it does NOT link the session to the entry or
 // move anything (the sim's no-pipeline-side-effects contract holds — this is an
-// explicit recruiter action, not a sim effect). Only test-mode sessions qualify:
-// real candidate sessions are already entry-linked by /api/interview/create.
+// explicit recruiter action, not a sim effect).
+//
+// A practice run qualifies by having NO linked pipeline entry — real candidate
+// sessions are entry-linked by /api/interview/create. The old guard required
+// `mode === "test"`, but /api/interview/simulate mints sim sessions as mode
+// "candidate" (entryId null) so providers receive the scripted brief — so this
+// route 404'd on EVERY simulate-created session and the whole feature was dead.
 export async function POST(request: NextRequest) {
   try {
     const body = (await request.json().catch(() => ({}))) as { token?: unknown; entryId?: unknown };
@@ -19,7 +24,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "token and entryId are required." }, { status: 400 });
     }
     const session = getInterviewSessionByToken(token);
-    if (!session || session.mode !== "test") {
+    // Accept a practice run (no linked entry); reject a real, entry-linked candidate
+    // session — it's already on a candidate's record and isn't a sim to annotate.
+    if (!session || session.entryId) {
       return NextResponse.json({ error: "Simulation session not found." }, { status: 404 });
     }
     const detail = [session.jobTitle, session.endedAt ? "completed" : session.status].filter(Boolean).join(" · ") || null;

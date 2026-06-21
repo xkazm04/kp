@@ -67,6 +67,8 @@ const {
   RATING_ANCHORS,
   INTERVIEW_RUBRIC,
   INTERVIEW_RUBRICS,
+  INDUSTRY_AXES,
+  industryAxesFor,
   RUBRIC_ANCHOR_LINE,
   rubricForArchetype,
   RUBRIC_CS,
@@ -74,6 +76,14 @@ const {
   localizedRubric,
   rubricLabel,
 } = await import("@/app/_lib/interview-rubric.ts");
+
+// All competency objects across base rubrics AND industry axes — the canonical
+// set the CS overlay + scoring contract are pinned against (P2-3).
+const ALL_COMPETENCIES: { competency: string; anchors?: Record<string, string> }[] = [
+  ...INTERVIEW_RUBRICS.experienced,
+  ...INTERVIEW_RUBRICS.early_career,
+  ...Object.values(INDUSTRY_AXES as Record<string, { competency: string }[]>).flat(),
+];
 
 // ---------------------------------------------------------------------------
 // The TS exports ARE the JSON (no hand-written literal, no mis-coercion).
@@ -171,20 +181,58 @@ test("rubricForArchetype selects early_career for early-career archetypes, exper
     .filter((a) => a.scoringModel === "early_career")
     .map((a) => a.id);
   assert.ok(earlyIds.length > 0, "expected at least one early-career archetype in the registry");
+  // With no role-family the result is EXACTLY the base rubric (deepEqual: the fn
+  // returns a fresh array, so compare contents, not reference).
   for (const id of earlyIds) {
-    assert.equal(
+    assert.deepEqual(
       rubricForArchetype(id),
       INTERVIEW_RUBRICS.early_career,
       `early-career archetype '${id}' should select the early_career rubric`
     );
   }
   // Case / whitespace insensitive (mirrors normalizeArchetype).
-  assert.equal(rubricForArchetype(` ${earlyIds[0].toUpperCase()} `), INTERVIEW_RUBRICS.early_career);
+  assert.deepEqual(rubricForArchetype(` ${earlyIds[0].toUpperCase()} `), INTERVIEW_RUBRICS.early_career);
   // Non-early, unknown, and null/undefined all fall back to experienced.
-  assert.equal(rubricForArchetype("bau"), INTERVIEW_RUBRICS.experienced);
-  assert.equal(rubricForArchetype("nonsense"), INTERVIEW_RUBRICS.experienced);
-  assert.equal(rubricForArchetype(null), INTERVIEW_RUBRICS.experienced);
-  assert.equal(rubricForArchetype(undefined), INTERVIEW_RUBRICS.experienced);
+  assert.deepEqual(rubricForArchetype("bau"), INTERVIEW_RUBRICS.experienced);
+  assert.deepEqual(rubricForArchetype("nonsense"), INTERVIEW_RUBRICS.experienced);
+  assert.deepEqual(rubricForArchetype(null), INTERVIEW_RUBRICS.experienced);
+  assert.deepEqual(rubricForArchetype(undefined), INTERVIEW_RUBRICS.experienced);
+});
+
+// ---------------------------------------------------------------------------
+// P2-3 — industry axes append to the base rubric by role-family.
+// ---------------------------------------------------------------------------
+
+test("industry axes are description-only (no BARS) and keyed by known role-family slugs", () => {
+  const KNOWN_FAMILIES = new Set([
+    "software_engineering", "data_ai", "product_project", "healthcare_clinical",
+    "life_sciences_research", "skilled_trades", "operations_logistics", "frontline_service",
+    "sales_marketing", "finance_accounting", "legal_compliance", "hr_people",
+    "education_academic", "creative_design", "customer_support", "general_professional",
+  ]);
+  const entries = Object.entries(INDUSTRY_AXES as Record<string, { competency: string; description: string; anchors?: unknown }[]>);
+  assert.ok(entries.length > 0, "expected at least one industry mapped");
+  for (const [family, axes] of entries) {
+    assert.ok(KNOWN_FAMILIES.has(family), `industry axis family "${family}" is not a known role-family slug`);
+    for (const a of axes) {
+      assert.ok(a.competency && a.description, `axis in "${family}" needs competency + description`);
+      assert.equal(a.anchors, undefined, `industry axis "${a.competency}" should be description-only`);
+    }
+  }
+});
+
+test("rubricForArchetype appends the role-family's industry axes after the base", () => {
+  const base = rubricForArchetype("bau");
+  const clinicalAxes = industryAxesFor("healthcare_clinical");
+  assert.ok(clinicalAxes.length > 0, "expected clinical axes in the fixture");
+  const withFamily = rubricForArchetype("bau", "healthcare_clinical");
+  assert.equal(withFamily.length, base.length + clinicalAxes.length);
+  assert.deepEqual(withFamily.slice(0, base.length), base);
+  assert.deepEqual(withFamily.slice(base.length), clinicalAxes);
+  // An unknown / blank family adds nothing.
+  assert.deepEqual(rubricForArchetype("bau", "no_such_family"), base);
+  assert.deepEqual(rubricForArchetype("bau", ""), base);
+  assert.deepEqual(industryAxesFor(null), []);
 });
 
 // ---------------------------------------------------------------------------
@@ -207,16 +255,14 @@ test("RUBRIC_ANCHOR_LINE is derived from RATING_ANCHORS", () => {
 // ---------------------------------------------------------------------------
 
 test("every RUBRIC_CS key maps to a canonical competency (no orphaned overlay)", () => {
-  const canonical = new Set(
-    [...INTERVIEW_RUBRICS.experienced, ...INTERVIEW_RUBRICS.early_career].map((c: { competency: string }) => c.competency)
-  );
+  const canonical = new Set(ALL_COMPETENCIES.map((c) => c.competency));
   for (const key of Object.keys(RUBRIC_CS)) {
     assert.ok(canonical.has(key), `RUBRIC_CS key "${key}" is not a canonical competency`);
   }
 });
 
 test("every canonical competency has a cs overlay (no English leaking through cs)", () => {
-  const all = [...INTERVIEW_RUBRICS.experienced, ...INTERVIEW_RUBRICS.early_career];
+  const all = ALL_COMPETENCIES;
   for (const c of all) {
     assert.ok(RUBRIC_CS[c.competency], `competency "${c.competency}" has no Czech overlay`);
     // Early-career competencies carry BARS anchors — their overlay must too.

@@ -8,7 +8,33 @@ from __future__ import annotations
 
 import unittest
 
-from pipeline.jobfit.eval.matching_eval import THRESHOLDS, run
+from pipeline.jobfit.eval.matching_eval import THRESHOLDS, Report, ScenarioResult, run
+
+
+class GateHonestyTest(unittest.TestCase):
+    """The gate must not pass vacuously on an UNMEASURED fairness axis (bug-ui-scan
+    2026-06-20): entry_precision used to default to 1.0 when no early-career scenario
+    measured it, turning a coverage gap into an accuracy PASS."""
+
+    def _scenario(self, entry: float | None) -> ScenarioResult:
+        return ScenarioResult(
+            name="x", detected_archetype="bau", archetype_ok=True,
+            entry_precision=entry, role_relevance_at5=1.0, top_total=5,
+        )
+
+    def test_unmeasured_entry_precision_is_omitted_not_1(self) -> None:
+        # Only non-early-career scenarios → entry_precision was never measured.
+        report = Report(scenarios=[self._scenario(None)], probes=[])
+        self.assertNotIn("entry_precision", report.aggregate())  # never substitute 1.0
+
+    def test_unmeasured_gated_metric_fails(self) -> None:
+        # entry_precision is gated (THRESHOLDS) but unmeasured → must FAIL, not pass.
+        report = Report(scenarios=[self._scenario(None)], probes=[])
+        self.assertFalse(report.passes())
+
+    def test_measured_entry_precision_is_reported(self) -> None:
+        report = Report(scenarios=[self._scenario(1.0)], probes=[])
+        self.assertEqual(report.aggregate().get("entry_precision"), 1.0)
 
 
 class MatchingEvalTest(unittest.TestCase):

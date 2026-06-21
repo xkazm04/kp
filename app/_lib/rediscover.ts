@@ -42,7 +42,11 @@ function pickPrior(hist: CandidateOutcome[], jobId: string): PriorOutcome | null
   const role = (o: CandidateOutcome) => o.jobTitle ?? "another role";
   const rejected = hist.find((h) => h.status === "rejected");
   if (rejected) return { kind: "rejected", label: `Rejected · ${role(rejected)}` };
-  const closed = hist.find((h) => h.status === "closed" || h.status === "declined");
+  // `role_closed` (the role was filled/closed under them, JOB2) and `declined` both make
+  // strong re-engagement targets — they cleared the bar, so resurface them as "closed"
+  // silver medalists. (Pre-JOB2 this read `status === "closed"`, a value the taxonomy
+  // never produced, so role-closed candidates were silently never rediscovered.)
+  const closed = hist.find((h) => h.status === "role_closed" || h.status === "declined");
   if (closed) return { kind: "closed", label: `Closed · ${role(closed)}` };
   const elsewhere = hist.find((h) => h.jobId !== jobId && (h.status === "active" || h.stage === "Hired"));
   if (elsewhere) return { kind: "elsewhere", label: `${elsewhere.stage} · ${role(elsewhere)}` };

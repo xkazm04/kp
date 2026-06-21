@@ -6,7 +6,13 @@ import { openStore } from "../db-path";
 import type { GithubEvidenceSummary } from "../github-summary";
 import type { PipelineStage } from "../pipeline-stages";
 
-let _db: Database.Database | null = null;
+// Memoized on globalThis (not just module scope): Next dev HMR re-evaluates this
+// module with a fresh module-local binding, which would re-run the ENTIRE
+// CREATE/ALTER/seed/backfill initializer below against a kp.sqlite file the
+// surviving connections are mid-writing (duplicate seeding + migration races, with
+// the ALTER loop's bare catch{} swallowing real failures). Caching the connection
+// on globalThis makes ensureDb() initialize exactly once per process across reloads.
+const _dbHolder = globalThis as typeof globalThis & { __kpDb?: Database.Database };
 
 // ---- Seed health (boot diagnostics) ---------------------------------------
 // A corrupt or absent seed file used to leave a table silently empty while
@@ -95,7 +101,7 @@ export function safeRowParse<T>(json: string | null | undefined, ctx: string, id
 }
 
 export function ensureDb(): Database.Database {
-  if (_db) return _db;
+  if (_dbHolder.__kpDb) return _dbHolder.__kpDb;
   // Canonical isolated-store open (WAL + busy_timeout=5000): the scheduler writes
   // scheduler/scheduler_runs on its own connection to the same kp.sqlite file
   // while the policy pass writes pipeline_entries/events here — the busy_timeout
@@ -495,6 +501,30 @@ export function ensureDb(): Database.Database {
       PRIMARY KEY (provider, scope)
     );
 
+    -- LLM metering ledger (T0.1): one row per metered LLM envelope, the durable
+    -- spend/usage record the pricing meters and the Models usage panel read.
+    -- Restored after the 2026-06-14 refactor deleted it as an unwired stub; it is
+    -- now WIRED — Python's monitor.emit_result writes a sidecar NDJSON line per
+    -- call and spawnPython ingests it here (see db/llm.ts ingestLlmUsageLog).
+    -- model is nullable (the Claude CLI default reports no pinned model);
+    -- source is 'llm' (only real LLM calls reach the monitor seam).
+    CREATE TABLE IF NOT EXISTS llm_usage (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      ts TEXT NOT NULL,
+      use_case TEXT NOT NULL,
+      provider TEXT NOT NULL,
+      model TEXT,
+      input_tokens INTEGER,
+      output_tokens INTEGER,
+      cached_tokens INTEGER,
+      cost_usd REAL,
+      source TEXT NOT NULL,
+      request_id TEXT
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_llm_usage_ts ON llm_usage (ts);
+    CREATE INDEX IF NOT EXISTS idx_llm_usage_use_case ON llm_usage (use_case, provider);
+
     -- Payment gate (docs/BILLING.md). Single-workspace model mirrors the rest
     -- of the app: billing_state is a one-row subscription snapshot synced from
     -- provider webhooks (never trusted from the client); billing_events is the
@@ -538,13 +568,25 @@ export function ensureDb(): Database.Database {
 
     CREATE INDEX IF NOT EXISTS idx_billing_credits_meter ON billing_credits (meter);
   `);
+  // Run a DDL migration, swallowing ONLY the benign "already applied" error (re-running
+  // ADD COLUMN / CREATE on a DB that already has the column). Any OTHER failure —
+  // corruption, I/O, lock contention under the documented multi-connection scheduler
+  // load — must NOT silently boot a structurally-broken DB: a bare `catch {}` here was
+  // the exact "why is everything empty" hunt the seed-health code exists to prevent,
+  // reintroduced one layer down. Surface the unexpected ones loudly and re-throw.
+  const migrateExec = (sql: string) => {
+    try {
+      db.exec(sql);
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      if (/duplicate column name/i.test(msg) || /already exists/i.test(msg)) return;
+      console.error(`[db:migrate] unexpected failure running: ${sql}\n  ${msg}`);
+      throw error;
+    }
+  };
   // Migration for DBs created before the observability columns existed.
   for (const col of ["created_at", "stage_changed_at"]) {
-    try {
-      db.exec(`ALTER TABLE pipeline_entries ADD COLUMN ${col} TEXT`);
-    } catch {
-      /* column already exists */
-    }
+    migrateExec(`ALTER TABLE pipeline_entries ADD COLUMN ${col} TEXT`);
   }
   // Migration for DBs created before the intake-degradation flag existed. The
   // boolean column is NOT NULL DEFAULT 0 so legacy rows read as "not degraded".
@@ -591,19 +633,62 @@ export function ensureDb(): Database.Database {
     // they survive closing it instead of living in spreadsheets. Free text,
     // trimmed and length-bounded at the route (set_notes); NULL = no note.
     "ALTER TABLE pipeline_entries ADD COLUMN notes TEXT",
+    // GDPR data-processing consent lifecycle (consent.ts). given_at = when the
+    // candidate agreed at apply; expires_at = given_at + CONSENT_TTL_DAYS (the
+    // anonymization sweep reads it); source = apply|quick-apply|recruiter|webhook
+    // id; anonymized_at stamped when the row was scrubbed-but-retained (PII gone,
+    // scores/notes/stage kept for re-engagement). All NULL on legacy/recruiter rows.
+    "ALTER TABLE pipeline_entries ADD COLUMN consent_given_at TEXT",
+    "ALTER TABLE pipeline_entries ADD COLUMN consent_expires_at TEXT",
+    "ALTER TABLE pipeline_entries ADD COLUMN consent_source TEXT",
+    "ALTER TABLE pipeline_entries ADD COLUMN anonymized_at TEXT",
+    // Self-service erasure capability token (right to erasure): minted on demand
+    // (ensureErasureToken), carried by the "manage your data" footer in every
+    // candidate email and resolved at the public /data/[token] page. Opaque CSPRNG
+    // like lead_token — NEVER the raw entry id.
+    "ALTER TABLE pipeline_entries ADD COLUMN erasure_token TEXT",
     // E5 — when a webhook received its FIRST lead (time-to-first-lead metric).
+    // Tenant scope (P2) for the BOARD: pipeline_entries had NO workspace column (only
+    // analyses/profiles did), so the analysis→board chip + disposition echo matched
+    // candidates by label ACROSS tenants. DEFAULT 'workspace' backfills existing rows
+    // and keeps every insert single-tenant-correct until createPipelineEntry stamps the
+    // real session workspace (so a future multi-tenant enable scopes immediately).
+    "ALTER TABLE pipeline_entries ADD COLUMN workspace_id TEXT NOT NULL DEFAULT 'workspace'",
     "ALTER TABLE channel_webhooks ADD COLUMN first_received_at TEXT",
+    // E5 metric honesty: `received_count`/`first_received_at` stamp EVERY POST (probes,
+    // health-checks, malformed integrations), so they overstate real leads. Track
+    // ACCEPTED leads separately — incremented only when intake actually files a lead —
+    // so "leads received" and time-to-first-lead reflect candidates, not pings.
+    "ALTER TABLE channel_webhooks ADD COLUMN accepted_count INTEGER NOT NULL DEFAULT 0",
+    "ALTER TABLE channel_webhooks ADD COLUMN first_accepted_at TEXT",
   ]) {
-    try {
-      db.exec(sql);
-    } catch {
-      /* column already exists */
-    }
+    migrateExec(sql);
   }
   // The lead-token lookup runs once per tokened apply-page view and once per
   // tokened apply POST — index it like the interview token. Created AFTER the
   // ALTER loop above so a legacy DB already holds the column.
   db.exec(`CREATE INDEX IF NOT EXISTS idx_pipeline_lead_token ON pipeline_entries (lead_token)`);
+  // Tenant scope: the board chip / disposition echo filter pipeline_entries by workspace.
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_pipeline_workspace ON pipeline_entries (workspace_id)`);
+  // Same single-row public lookup for the self-service erasure token.
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_pipeline_erasure_token ON pipeline_entries (erasure_token)`);
+  // The anonymization sweep scans for due consents — index the expiry so it stays
+  // a range probe rather than a full table scan as the board grows.
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_pipeline_consent_expiry ON pipeline_entries (consent_expires_at)`);
+  // GDPR consent audit trail (append-only): one row per transition so a tenant can
+  // evidence WHEN consent was granted/renewed/expired and WHEN PII was scrubbed or
+  // erased. kind ∈ granted|renewed|expiring_notified|expired|anonymized|
+  // erasure_requested|erased. Idempotent CREATE (no migration), like jd_revisions.
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS consent_events (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      entry_id TEXT NOT NULL,
+      kind TEXT NOT NULL,
+      detail TEXT,
+      created_at TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_consent_events_entry ON consent_events (entry_id, id DESC);
+  `);
   // Migration for dev_submissions evaluation + contact columns (Phase D6 / B),
   // plus the interview run-of-show column added when the voice screen grew a
   // candidate-facing agenda, and duration_min so the candidate portal shows the
@@ -652,11 +737,11 @@ export function ensureDb(): Database.Database {
     // need intake. NULL ⇒ "en" when threaded to the dev-case CLIs.
     "ALTER TABLE dev_lifecycle ADD COLUMN lang TEXT",
   ]) {
-    try {
-      db.exec(sql);
-    } catch {
-      /* column already exists */
-    }
+    // Use the same loud-fail migrator as the loop above: a bare `catch {}` here
+    // swallowed real failures (corruption, I/O, lock contention) and booted a
+    // structurally-broken DB — the exact "why is everything empty" trap migrateExec
+    // was written to prevent. It tolerates only the benign "already applied" error.
+    migrateExec(sql);
   }
   // Atomic dedup: a (posting, candidate, repo) triple is unique, so two
   // concurrent submits can't both INSERT (double-click / webhook retry storm).
@@ -704,11 +789,17 @@ export function ensureDb(): Database.Database {
   // it's order-independent — a seeded row that didn't stamp the column is caught.
   db.prepare(`UPDATE analyses SET workspace_id = ? WHERE workspace_id IS NULL`).run("workspace");
   db.prepare(`UPDATE profiles SET workspace_id = ? WHERE workspace_id IS NULL`).run("workspace");
-  _db = db;
+  // Null-contract heal: `approval_detail` is nullable and "no detail" is NULL (its
+  // sibling approval_kind clears to NULL), but earlier clear/insert paths wrote '',
+  // so a "cleared" detail read back as "" on some rows and NULL on others. Now that
+  // every writer uses NULL, fold the legacy empty strings to NULL so consumers see
+  // one canonical "no detail". Idempotent (a no-op once healed; new rows never write '').
+  db.prepare(`UPDATE pipeline_entries SET approval_detail = NULL WHERE approval_detail = ''`).run();
+  _dbHolder.__kpDb = db;
   // Reclaim expired (and, once their TTL lapses, superseded-PROMPT_VERSION)
   // cache rows on boot. lookupPromptCache only SKIPS expired rows — it never
   // deletes them — so without this the prompt cache table and its WAL grow
-  // unbounded for the life of the deployment. _db is assigned first so the
+  // unbounded for the life of the deployment. __kpDb is assigned first so the
   // ensureDb() inside prunePromptCache() short-circuits instead of re-entering
   // this initializer. A prune failure must never wedge boot.
   try {
@@ -716,6 +807,18 @@ export function ensureDb(): Database.Database {
     if (pruned > 0) console.log(`[db] pruned ${pruned} expired prompt-cache row(s) on boot`);
   } catch (error) {
     console.error("[db] prompt-cache boot prune failed", error);
+  }
+  // Checkpoint + TRUNCATE the WAL on boot. Under synchronous=NORMAL the -wal/-shm
+  // sidecars accumulate committed pages until a checkpoint folds them back into the
+  // main db file; nothing forced one, so they grew unbounded for the life of the
+  // deployment. TRUNCATE both checkpoints AND shrinks the -wal back to zero. Every
+  // store opens the same kp.sqlite file, so this one call bounds the shared WAL.
+  // Best-effort — a checkpoint failure (e.g. a concurrent reader holding it open)
+  // must never wedge boot.
+  try {
+    db.pragma("wal_checkpoint(TRUNCATE)");
+  } catch (error) {
+    console.error("[db] boot WAL checkpoint failed", error);
   }
   return db;
 }
@@ -1049,6 +1152,13 @@ export type PipelineEntry = {
   // Persistent per-candidate recruiter note, autosaved from the drawer via the
   // set_notes action (trimmed + bounded there). NULL when none has been written.
   notes: string | null;
+  // GDPR data-processing consent lifecycle (consent.ts) — recruiter-visible so the
+  // drawer can show status/expiry. The erasure capability token is deliberately
+  // NOT surfaced here (read server-side from the row), same doctrine as lead_token.
+  consentGivenAt: string | null;
+  consentExpiresAt: string | null;
+  consentSource: string | null;
+  anonymizedAt: string | null;
 };
 
 export function recordEvent(

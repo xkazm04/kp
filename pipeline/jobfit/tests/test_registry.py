@@ -57,6 +57,27 @@ class RegistryShapeTest(unittest.TestCase):
             self.assertEqual(set(a["weights"]), set(_SLOTS), f"{a['id']} weights need exactly {_SLOTS}")
             self.assertAlmostEqual(sum(a["weights"].values()), 1.0, places=6, msg=f"{a['id']} weights must sum to 1.0")
 
+    # The data test above pins the COMMITTED archetypes; these pin the RUNTIME guard
+    # (registry._validate_archetype_weights) that now fails fast at import, so a future
+    # hand-edited archetype with a bad weight vector can never quietly mis-scale scores.
+    def test_runtime_guard_rejects_bad_weight_sum(self) -> None:
+        with self.assertRaises(RuntimeError):
+            registry._validate_archetype_weights(
+                [{"id": "typo", "weights": {"skills": 0.5, "career": 0.3, "personal": 0.1}}]  # sums to 0.9
+            )
+
+    def test_runtime_guard_rejects_wrong_weight_keys(self) -> None:
+        with self.assertRaises(RuntimeError):
+            registry._validate_archetype_weights(
+                [{"id": "badkeys", "weights": {"skills": 0.5, "career": 0.5}}]  # missing 'personal'
+            )
+
+    def test_runtime_guard_accepts_valid_weights(self) -> None:
+        # A clean vector summing to 1.0 with exactly the three slots must not raise.
+        registry._validate_archetype_weights(
+            [{"id": "ok", "weights": {"skills": 0.5, "career": 0.35, "personal": 0.15}}]
+        )
+
     def test_dimension_labels_cover_every_slot(self) -> None:
         for a in self.archetypes:
             self.assertEqual(set(a["dimensionLabels"]), set(_SLOTS), f"{a['id']} dimensionLabels need {_SLOTS}")

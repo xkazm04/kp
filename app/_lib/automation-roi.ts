@@ -33,6 +33,13 @@ export const MINUTES_SAVED_PER_KIND: Record<string, number> = {
 // figure stays defensible.
 export const DEFAULT_RECRUITER_HOURLY_CZK = 600;
 
+// Manual recruiter labor ONE hire takes end-to-end, by hand — the baseline the
+// saved hours are measured against, so the number reads as a REDUCTION a leader
+// can size, not a bare figure (UAT M7). Research anchor: ~40–51 h total per hire
+// (≈23 h of it screening, ~13 h sourcing); 42 is the defensible mid-point.
+// Stated + override-able (pass `manualBaselineHoursPerHire`), never a hidden hex.
+export const MANUAL_HOURS_PER_HIRE = 42;
+
 export type RoiAction = {
   kind: string;
   count: number;
@@ -47,14 +54,25 @@ export type AutomationRoi = {
   hoursSaved: number; // 1 decimal
   hourlyRateCzk: number;
   czkSaved: number;
+  // Baseline-relative framing (UAT M7) — null until there are hires to amortise
+  // the saved labor over, so the per-hire figures are never a divide-by-zero lie.
+  hires: number;
+  hoursSavedPerHire: number | null; // 1 decimal
+  czkSavedPerHire: number | null;
+  manualBaselineHoursPerHire: number; // the stated manual anchor (echoed for the UI)
+  pctOfManualBaseline: number | null; // 0–100: share of the manual per-hire effort offset
 };
 
 /** Aggregate the time/cost an automated event trail saved. `kindCounts` is the
  *  same GROUP-BY-kind map the auto/human rollup consumes; only kinds present in
- *  MINUTES_SAVED_PER_KIND with a positive count contribute. */
+ *  MINUTES_SAVED_PER_KIND with a positive count contribute. `hires` (the hires in
+ *  the same window) anchors the saved labor against the manual per-hire baseline
+ *  so the figure reads as a measured reduction, not a bare counterfactual. */
 export function automationRoi(
   kindCounts: Record<string, number>,
-  hourlyRateCzk?: number | null
+  hourlyRateCzk?: number | null,
+  hires?: number | null,
+  manualBaselineHoursPerHire: number = MANUAL_HOURS_PER_HIRE
 ): AutomationRoi {
   const rate = hourlyRateCzk != null && hourlyRateCzk > 0 ? hourlyRateCzk : DEFAULT_RECRUITER_HOURLY_CZK;
   const actions: RoiAction[] = [];
@@ -71,5 +89,31 @@ export function automationRoi(
   actions.sort((a, b) => b.minutesTotal - a.minutesTotal);
   const hoursSaved = Math.round((minutesSaved / 60) * 10) / 10;
   const czkSaved = Math.round((minutesSaved / 60) * rate);
-  return { actions, totalActions, minutesSaved, hoursSaved, hourlyRateCzk: rate, czkSaved };
+
+  // Per-hire only when there's a hire to divide by; otherwise null (honest gap,
+  // mirroring cost-per-hire) instead of inflating a tiny denominator.
+  const hireCount = hires != null && hires > 0 ? hires : 0;
+  const rawHoursPerHire = hireCount > 0 ? minutesSaved / 60 / hireCount : null;
+  const hoursSavedPerHire = rawHoursPerHire != null ? Math.round(rawHoursPerHire * 10) / 10 : null;
+  const czkSavedPerHire = rawHoursPerHire != null ? Math.round(rawHoursPerHire * rate) : null;
+  // Capped at 100: you can't offset MORE than the full manual effort — extra
+  // saved labor (work on candidates who weren't hired) just means full replacement.
+  const pctOfManualBaseline =
+    rawHoursPerHire != null && manualBaselineHoursPerHire > 0
+      ? Math.min(100, Math.round((rawHoursPerHire / manualBaselineHoursPerHire) * 100))
+      : null;
+
+  return {
+    actions,
+    totalActions,
+    minutesSaved,
+    hoursSaved,
+    hourlyRateCzk: rate,
+    czkSaved,
+    hires: hireCount,
+    hoursSavedPerHire,
+    czkSavedPerHire,
+    manualBaselineHoursPerHire,
+    pctOfManualBaseline,
+  };
 }

@@ -9,12 +9,16 @@ const ONE_YEAR_SECONDS = 60 * 60 * 24 * 365;
 // an explicit allow-list of public-by-design surfaces (candidate token
 // pages/APIs, external webhooks, auth, marketing, health). A forgotten recruiter
 // route stays gated (safe); a forgotten public route sends a candidate to /login
-// (visible + fixable) — never a PII leak. OPT-IN: with KP_OPERATOR_PASSWORD unset
-// the app runs open (no regression); prod sets it to enforce + close ccb4d851.
+// (visible + fixable) — never a PII leak. KP_OPERATOR_PASSWORD set ⇒ enforce
+// sessions. UNSET: open passthrough in development (no regression for local dev),
+// but FAIL CLOSED in production — a prod deploy that forgot the password must not
+// serve the whole recruiter surface to the public; set KP_ALLOW_OPEN=1 to opt back
+// into open prod deliberately.
 const PUBLIC_PAGES = ["/login", "/about", "/landing", "/apply/", "/offer/", "/schedule/", "/interview/", "/status/", "/skill/", "/devcase/apply/"];
 const PUBLIC_API_PREFIXES = ["/api/auth/", "/api/apply/", "/api/offer/", "/api/status/", "/api/skill-profile/", "/api/devcase/session", "/api/channels/"];
 const PUBLIC_API_EXACT = new Set([
   "/api/health",
+  "/api/demo", // public entry: mints an isolated "demo"-workspace session for the guided sim
   "/api/extract-text",
   "/api/billing/webhook", // Polar posts here; the rest of /api/billing is recruiter
   "/api/devcase/inbound", // candidate apply webhook; the rest of /api/devcase is recruiter
@@ -31,13 +35,42 @@ function isPublic(p: string): boolean {
   return false;
 }
 
+// A global session-kill epoch (KP_SESSION_EPOCH): bumping it invalidates every
+// issued session at once, WITHOUT rotating KP_SECRET (which also encrypts stored
+// provider keys). Read inline — the proxy is edge-safe and can't import session.ts
+// (node:crypto). Default 0 ⇒ nothing invalidated.
+function sessionEpochFromEnv(): number {
+  const n = Number.parseInt(process.env.KP_SESSION_EPOCH ?? "", 10);
+  return Number.isFinite(n) && n > 0 ? n : 0;
+}
+
 export async function proxy(req: NextRequest): Promise<NextResponse> {
   // 1) Auth gate first — an unauthenticated request must never reach a recruiter
-  //    surface (not even to set a locale cookie). Opt-in via KP_OPERATOR_PASSWORD.
-  if (process.env.KP_OPERATOR_PASSWORD) {
+  //    surface (not even to set a locale cookie). Password set ⇒ enforce sessions;
+  //    unset ⇒ open in dev, but FAIL CLOSED in prod (unless KP_ALLOW_OPEN=1).
+  const hasPassword = Boolean(process.env.KP_OPERATOR_PASSWORD);
+  const failClosed = !hasPassword && process.env.NODE_ENV === "production" && process.env.KP_ALLOW_OPEN !== "1";
+  if (hasPassword || failClosed) {
     const { pathname } = req.nextUrl;
     if (!isPublic(pathname)) {
-      const session = await verifySessionEdge(req.cookies.get(SESSION_COOKIE)?.value, process.env.KP_SECRET);
+      if (failClosed) {
+        // Misconfigured production: no operator password. Refuse rather than serve
+        // the recruiter surface to the public (set KP_OPERATOR_PASSWORD, or
+        // KP_ALLOW_OPEN=1 to run open on purpose).
+        if (pathname.startsWith("/api/")) {
+          return NextResponse.json({ error: "Server not configured (KP_OPERATOR_PASSWORD)." }, { status: 503 });
+        }
+        const url = req.nextUrl.clone();
+        url.pathname = "/login";
+        url.searchParams.set("next", pathname);
+        return NextResponse.redirect(url);
+      }
+      const session = await verifySessionEdge(
+        req.cookies.get(SESSION_COOKIE)?.value,
+        process.env.KP_SECRET,
+        Date.now(),
+        sessionEpochFromEnv()
+      );
       if (!session) {
         if (pathname.startsWith("/api/")) {
           return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

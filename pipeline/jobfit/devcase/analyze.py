@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import logging
+import math
 from typing import Any
 
 from .models import DevNeed, RepoSnapshot
@@ -128,7 +129,10 @@ def analyze_need(
         if tc not in ("low", "medium", "high"):
             tc = det["trueComplexity"]
         try:
-            conf = max(0.0, min(1.0, float(payload.get("confidence"))))
+            conf = float(payload.get("confidence"))
+            if not math.isfinite(conf):  # NaN/inf slips past min/max → use the baseline
+                raise ValueError("non-finite confidence")
+            conf = max(0.0, min(1.0, conf))
         except (TypeError, ValueError):
             conf = det["confidence"]
         return {

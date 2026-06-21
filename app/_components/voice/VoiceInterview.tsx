@@ -97,6 +97,10 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle, provider: pinned
     lockSettings ? (locale === "cs" ? "cs" : "en") : "auto"
   );
   const [phase, setPhase] = useState<Phase>("idle");
+  // True only while the OS/browser microphone-permission prompt is open — drives an
+  // actionable "grant the mic" hint so the candidate knows the wait is on THEM, not a
+  // frozen "Connecting…".
+  const [awaitingMic, setAwaitingMic] = useState(false);
   // HOW the call ended (set only in finalize, alongside phase → "ended").
   // "completed" means the session is terminal server-side: re-offering "Start
   // again" would just walk the candidate into a /connect 409, so the controls
@@ -407,7 +411,15 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle, provider: pinned
     pc.ontrack = (e) => {
       if (audioRef.current) audioRef.current.srcObject = e.streams[0];
     };
-    const mic = await navigator.mediaDevices.getUserMedia({ audio: true });
+    setAwaitingMic(true);
+    let mic: MediaStream;
+    try {
+      mic = await navigator.mediaDevices.getUserMedia({ audio: true });
+    } finally {
+      // Clear the hint whether the prompt was allowed, denied, or the call torn down —
+      // it's only meaningful while the prompt is actually open.
+      setAwaitingMic(false);
+    }
     // The permission prompt can sit open for seconds; if the connect timeout or an
     // unmount tore down (or replaced) this connection meanwhile, stop the freshly
     // acquired tracks rather than leaving the microphone hot on a dead call.
@@ -684,7 +696,9 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle, provider: pinned
           {/* Controls */}
           <div
             className="flex flex-wrap items-center gap-3 rounded-lg border border-stone-200 bg-paper/50 px-4 py-3"
-            aria-busy={phase === "connecting"}
+            // Busy for the whole connecting→live→ending span (not just connecting), so
+            // the wrap-up phase is also announced as busy.
+            aria-busy={isBusy}
           >
             {!liveOrEnding ? (
               <button
@@ -758,7 +772,7 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle, provider: pinned
                 {/* Phase-aware: the idle "Press Start" copy contradicted the live phases
                     (it showed even while Connecting/Live/Ending with no turns yet). */}
                 {phase === "connecting" ? (
-                  <p className="text-base text-ink">{t("connecting")}</p>
+                  <p className="text-base text-ink">{awaitingMic ? t("awaitingMic") : t("connecting")}</p>
                 ) : phase === "live" ? (
                   <p className="text-base text-ink">{t("listeningFirst")}</p>
                 ) : phase === "ending" ? (
@@ -819,16 +833,16 @@ function TranscriptTurn({ role, text }: { role: "candidate" | "interviewer"; tex
 
 function StatusPill({ phase, speaking }: { phase: Phase; speaking: boolean }) {
   const t = useTranslations("interview.voice");
-  // role="status" → implicit aria-live="polite" so phase/speaking changes are
-  // announced to screen readers without stealing focus.
+  // The LIVE pill is NOT a live region: its speaking↔listening label toggles on every
+  // turn, and announcing each toggle spammed the SR output that the transcript log
+  // (role="log") already carries. It stays a VISUAL cue only; the phase pill below keeps
+  // role="status" because its transitions (connecting/ending/ended/error) are low-frequency
+  // and aren't in the transcript.
   // Live gets a motion treatment: bouncing equalizer bars while the AI speaks,
   // a single breathing pulse while the candidate's mic is open.
   if (phase === "live") {
     return (
-      <span
-        role="status"
-        className="inline-flex items-center gap-2 rounded-full bg-moss/15 px-3 py-1 text-meta text-moss"
-      >
+      <span className="inline-flex items-center gap-2 rounded-full bg-moss/15 px-3 py-1 text-meta text-moss">
         {speaking ? (
           <span className="flex h-3.5 items-end gap-[3px]" aria-hidden>
             <span className="voice-eq-bar h-full w-[3px] rounded-full bg-moss" style={{ animationDelay: "0ms" }} />

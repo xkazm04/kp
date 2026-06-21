@@ -1,5 +1,5 @@
 import Database from "better-sqlite3";
-import { DB_PATH, ensureDbDir } from "./db-path";
+import { openStore } from "./db-path";
 import { randomId } from "./random-id";
 import { DEFAULT_TEMPLATE_BODY } from "@/app/features/sub_library/render-template";
 
@@ -12,9 +12,7 @@ export type JdTemplate = { id: string; name: string; body: string; isDefault: bo
 let _db: Database.Database | null = null;
 function db(): Database.Database {
   if (_db) return _db;
-  ensureDbDir();
-  const d = new Database(DB_PATH);
-  d.pragma("journal_mode = WAL");
+  const d = openStore();
   d.exec(`
     CREATE TABLE IF NOT EXISTS jd_templates (
       id TEXT PRIMARY KEY,

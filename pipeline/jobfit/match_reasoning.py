@@ -16,13 +16,29 @@ from . import registry
 from .i18n import language_directive
 from .jobs import Job
 from .matching import MatchCandidate, MatchResult, fit_tier_for
+from .taxonomy import ROLE_FAMILY_DESCRIPTIONS
 
-REASONING_PROMPT_VERSION = "match-reasoning-v1"
+REASONING_PROMPT_VERSION = "match-reasoning-v2"
 
-_SYSTEM = (
-    "You are a precise technical recruiter for the Czech tech market. Give honest, "
-    "specific hiring reasoning grounded only in the supplied facts. Write in the requested language."
-)
+
+def _system_for(job: Job) -> str:
+    """Industry/market-aware recruiter persona for the reasoning call.
+
+    Replaces a hardcoded "Czech tech market" persona that biased every rationale
+    (a nurse, tradesperson or consultant was reasoned about as if by a Czech tech
+    recruiter). The lens is derived from the job's role family (the P0-1 catalog)
+    and its market/location, and it demands a concrete, candidate-specific detail
+    rather than generic boilerplate.
+    """
+    family_desc = ROLE_FAMILY_DESCRIPTIONS.get(job.role_family, "")
+    family_label = family_desc.split(" — ")[0] if family_desc else job.role_family.replace("_", " ")
+    market = f" in the {job.location} market" if (job.location or "").strip() else ""
+    return (
+        f"You are a precise recruiter assessing a candidate for a {job.seniority} {family_label} role{market}. "
+        "Give honest, specific hiring reasoning grounded ONLY in the supplied facts and the candidate's CV "
+        "highlights. Cite at least one concrete, candidate-specific detail rather than generic statements that "
+        "would fit anyone. Match your lens to the role's industry and seniority. Write in the requested language."
+    )
 
 
 # Single-sourced from the shared registry (archetypes.json) — the same set matching.py
@@ -40,6 +56,11 @@ def reasoning_context(candidate: MatchCandidate, job: Job, m: MatchResult) -> di
         "yearsExperience": candidate.years_experience,
         "education": candidate.education_level,
         "skills": candidate.skills[:25],
+        # Real CV content (not just tags) so the rationale can name a concrete,
+        # candidate-specific fact and weigh a portfolio/repo, not generic boilerplate.
+        "summary": candidate.summary,
+        "experienceHighlights": candidate.experience_highlights[:5],
+        "workLinks": candidate.work_links[:5],
     }
     if candidate.archetype in _EARLY_CAREER:
         cand["potentialScore"] = candidate.potential_score
@@ -108,7 +129,9 @@ def build_prompt(context: dict[str, Any]) -> str:
         '  "strengths": [str] (2-4, concrete),\n'
         '  "gaps": [str] (1-4; if a required skill is missing, say so),\n'
         '  "interviewProbes": [str] (2-3 questions to validate fit / probe gaps) }\n'
-        "Be specific and honest. JSON only."
+        "Be specific and honest: cite at least one concrete detail from the candidate's "
+        "experienceHighlights/summary (and their workLinks where relevant) — never generic "
+        "boilerplate that would fit any candidate. JSON only."
     )
 
 
@@ -270,7 +293,7 @@ def generate(
         return deterministic_reasoning(context), "deterministic"
     try:
         prompt = f"{build_prompt(context)}\n\n{language_directive(lang)}"
-        payload = provider.complete_json(prompt, system=_SYSTEM)
+        payload = provider.complete_json(prompt, system=_system_for(job))
         return _coerce(payload, context), "llm"
     except Exception:
         return deterministic_reasoning(context), "deterministic"

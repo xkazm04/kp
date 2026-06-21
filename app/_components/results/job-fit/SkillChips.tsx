@@ -2,6 +2,7 @@
 
 import { Check } from "lucide-react";
 import { useId, useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
 import { dedupe } from "@/app/_lib/dedupe";
 import { MissingSkillsTiers } from "./MissingSkillsTiers";
 
@@ -19,13 +20,26 @@ function escapeRegExp(value: string): string {
 // match inside unrelated words and "Java" doesn't claim "JavaScript" evidence.
 // Boundaries are non-alphanumeric so special-charactered skills (C++, C#, .NET,
 // Node.js) still match. Both sides are lowercased before testing.
+//
+// Internal whitespace in a multi-word skill matches ANY whitespace RUN (\s+), so
+// "React Native" / "machine learning" still match evidence that double-spaces or
+// line-wraps the phrase — the old single-literal-space pattern required an exact
+// contiguous string and so showed no tooltip for genuinely-evidenced phrases.
 function findEvidence(skill: string, evidence: string[] | undefined): string | null {
   if (!evidence?.length) return null;
   const needle = skill.trim().toLowerCase();
   if (!needle) return null;
-  const pattern = new RegExp(`(?:^|[^a-z0-9])${escapeRegExp(needle)}(?:$|[^a-z0-9])`);
-  const hit = evidence.find((snippet) => pattern.test(snippet.toLowerCase()));
-  return hit ?? null;
+  const body = needle.split(/\s+/).map(escapeRegExp).join("\\s+");
+  const pattern = new RegExp(`(?:^|[^a-z0-9])${body}(?:$|[^a-z0-9])`);
+  // Prefer the LONGEST matching snippet — it carries the most surrounding context
+  // for the tooltip, rather than whichever happened to be listed first.
+  let best: string | null = null;
+  for (const snippet of evidence) {
+    if (pattern.test(snippet.toLowerCase()) && (best === null || snippet.length > best.length)) {
+      best = snippet;
+    }
+  }
+  return best;
 }
 
 function MatchingChip({
@@ -73,6 +87,7 @@ function MatchingChip({
 }
 
 function MatchingSkillsColumn({ skills, evidence }: { skills: string[]; evidence?: string[] }) {
+  const t = useTranslations("report");
   const baseId = useId();
   const chips = useMemo(
     () =>
@@ -85,7 +100,7 @@ function MatchingSkillsColumn({ skills, evidence }: { skills: string[]; evidence
   return (
     <div className="rounded-md bg-paper p-3">
       <div className="flex items-center justify-between gap-2">
-        <h4 className="text-meta uppercase text-steel">Matching Skills</h4>
+        <h4 className="text-meta uppercase text-steel">{t("panel.matchingSkills")}</h4>
       </div>
       {chips.length ? (
         <div className="mt-2 flex flex-wrap gap-1.5">
@@ -99,9 +114,7 @@ function MatchingSkillsColumn({ skills, evidence }: { skills: string[]; evidence
           ))}
         </div>
       ) : (
-        <p className="mt-2 text-sm leading-5 text-steel">
-          Sharpen the skills section of your CV so we can pair it with the job description.
-        </p>
+        <p className="mt-2 text-sm leading-5 text-steel">{t("panel.matchingSkillsEmpty")}</p>
       )}
     </div>
   );

@@ -3,10 +3,11 @@ import { getTranslations } from "next-intl/server";
 import { getServerLocale } from "@/i18n/server";
 import { getJob } from "@/app/_lib/db";
 import { applyKoSteps } from "@/app/_lib/apply";
-import { APPLY_EMAIL_RE, failedKoStepIds } from "@/app/_lib/apply-intake";
+import { APPLY_EMAIL_RE, failedKoStepIds, isHoneypotFilled } from "@/app/_lib/apply-intake";
 import { getJobStatus, isJobOpenForApplications } from "@/app/_lib/job-ingest";
 import { intakeLead } from "@/app/_lib/lead-intake";
 import { publicBaseUrl } from "@/app/_lib/public-base-url";
+import { clientIpFrom, rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -30,12 +31,22 @@ const MAX_NAME_LENGTH = 200;
 const MAX_EMAIL_LENGTH = 254; // RFC 5321 max address length
 const MAX_ATTRIBUTION_LENGTH = 120; // E5 campaign/variant params from the ad link
 
+// Abuse containment for this PUBLIC, side-effecting endpoint (each accept files a
+// lead + fires an acknowledgement email). Per (job, client) fixed window; a touch
+// higher than the conversational route since the lead form is lighter. Mirrors the
+// inbound-channel route.
+const QUICK_APPLY_RATE_LIMIT = { limit: 30, windowMs: 60_000 };
+
 // POST → evaluate the lead form. KO pass → an Accepted, intake-degraded lead
 // entry + instant ack with the enrichment link; KO fail → a polite decline,
 // audited as an entry-less ko_declined event (never a silent discard).
 export async function POST(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await context.params;
+    // Throttle BEFORE any DB read so a flood is rejected cheaply.
+    if (!rateLimit(`apply-quick:${id}:${clientIpFrom(request.headers)}`, QUICK_APPLY_RATE_LIMIT)) {
+      return NextResponse.json({ error: RATE_LIMITED_ERROR }, { status: 429 });
+    }
     const job = getJob(id);
     if (!job) return NextResponse.json({ error: "Role not found." }, { status: 404 });
 
@@ -59,7 +70,15 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       answers?: Record<string, unknown>;
       campaign?: unknown;
       variant?: unknown;
+      company_url?: unknown;
     };
+    // Anti-bot honeypot: a hidden `company_url` field no human fills. A bot that
+    // auto-fills every input trips it — drop the submission silently (no lead, no
+    // email) and return the normal decline copy, so the bot can't distinguish the
+    // honeypot from an ordinary KO rejection and learn to evade it.
+    if (isHoneypotFilled(body)) {
+      return NextResponse.json({ result: "declined", message: t("declinedMessage") });
+    }
     const answers = body.answers ?? {};
     const name = String(answers.name ?? "").trim();
     const email = String(answers.email ?? "").trim();

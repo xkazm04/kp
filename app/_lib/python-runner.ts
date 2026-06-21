@@ -1,8 +1,23 @@
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
+import { randomUUID } from "node:crypto";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { positiveNumericEnv } from "./env";
+
+// Fold a finished spawn's LLM-usage sidecar (NDJSON written by Python's
+// monitor.emit_result) into the llm_usage ledger, then delete it. Lazy dynamic
+// import so the generic process runner doesn't eagerly pull in the DB layer, and
+// fully swallowed — the metering ledger is telemetry and must never affect the
+// spawn it rides on. A spawn with no LLM call leaves no file (a harmless no-op).
+async function ingestUsageLog(logPath: string): Promise<void> {
+  try {
+    const { ingestLlmUsageLog } = await import("./db/llm");
+    ingestLlmUsageLog(logPath);
+  } catch {
+    /* ledger off the critical path */
+  }
+}
 
 const PYTHON_CMD = process.env.PYTHON_CMD ?? (process.platform === "win32" ? "python" : "python3");
 
@@ -95,6 +110,12 @@ export function spawnPython(
   child: ChildProcessWithoutNullStreams;
   result: Promise<SpawnResult>;
 } {
+  // Per-spawn LLM-usage ledger sidecar: Python's monitor appends one NDJSON line
+  // per metered call to this path; we fold it into llm_usage once the child
+  // settles (below). Unique per spawn so there are no cross-process append races
+  // and each file is ingested exactly once. Set for EVERY spawn — a non-LLM CLI
+  // simply never creates it. opts.env can override it if a caller needs to.
+  const usageLogPath = path.join(os.tmpdir(), `kp-llm-usage-${process.pid}-${randomUUID()}.ndjson`);
   const child = spawn(PYTHON_CMD, args, {
     // cwd defaults to the parent's process.cwd() (the project root, where the
     // `pipeline` package is importable for `python -m`); passing it explicitly is
@@ -102,7 +123,13 @@ export function spawnPython(
     // Force UTF-8 for the child's stdio + subprocess I/O so Czech diacritics
     // survive on Windows (whose default locale is cp1250). PYTHONUTF8=1 also
     // makes any nested subprocess.run(text=True) default to UTF-8.
-    env: { ...process.env, PYTHONUTF8: "1", PYTHONIOENCODING: "utf-8", ...(opts.env ?? {}) },
+    env: {
+      ...process.env,
+      PYTHONUTF8: "1",
+      PYTHONIOENCODING: "utf-8",
+      KP_LLM_USAGE_LOG: usageLogPath,
+      ...(opts.env ?? {}),
+    },
     windowsHide: true,
   });
   // Keep streams in Buffer mode so the streaming route can attach its own
@@ -177,6 +204,11 @@ export function spawnPython(
       });
     });
   });
+  // Ingest the usage sidecar once the child has settled (close, error, timeout,
+  // or abort — all kill the child, so no further lines are written). Detached
+  // from `result` so it neither delays nor alters what the caller awaits, and its
+  // own rejection is swallowed.
+  void result.finally(() => ingestUsageLog(usageLogPath)).catch(() => {});
   return { child, result };
 }
 

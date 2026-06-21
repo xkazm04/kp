@@ -283,8 +283,15 @@ export async function runAutomationTask(entryId: string, task: string, notes = "
     } else {
       outreachInFlight.add(entry.id);
       try {
-        await dispatchOutreach(entry, result);
-        applied = "sent";
+        const outcome = await dispatchOutreach(entry, result);
+        // A consent-suppressed outreach records no outreach_sent marker, so the UI
+        // surfaces "cannot contact — consent expired/anonymized" and a re-consent can
+        // still be reached later.
+        applied = outcome.sent
+          ? "sent"
+          : outcome.reason === "anonymized"
+            ? "suppressed_anonymized"
+            : "suppressed_consent_expired";
       } finally {
         // Release on completion AND on failure: dispatchOutreach records the durable marker
         // only on a successful send, so clearing the in-flight slot lets a failed send retry.

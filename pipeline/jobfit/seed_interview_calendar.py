@@ -32,7 +32,13 @@ def main(argv: list[str] | None = None) -> int:
 
     parser = argparse.ArgumentParser(description="Backfill interview-calendar entries for the demo.")
     parser.add_argument("--count", type=int, default=5, help="target number of candidates on the calendar")
-    parser.add_argument("--db", default=os.environ.get("KP_DB_PATH") or os.path.join("data", "kp.sqlite"))
+    # Mirror app/_lib/db-path.ts: KP_DB_PATH wins (set it to an absolute path in deploy/
+    # cron units), else <cwd>/data/kp.sqlite. Resolve to ABSOLUTE so a different launch
+    # cwd can't silently point the Node and Python halves at two different files; the
+    # os.path.exists check below then fails loudly on a real mismatch instead of seeding.
+    parser.add_argument(
+        "--db", default=os.path.abspath(os.environ.get("KP_DB_PATH") or os.path.join("data", "kp.sqlite"))
+    )
     args = parser.parse_args(argv)
 
     if not os.path.exists(args.db):

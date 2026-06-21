@@ -5,6 +5,36 @@
   },
   "report": {
     "sections": "Result sections",
+    "factorExperience": "Experience",
+    "factorSkills": "Skills",
+    "factorRole": "Role",
+    "factorEducation": "Education",
+    "factorTraits": "Traits",
+    "factorPoints": "Points",
+    "compare": {
+      "emptyTitle": "CV Variants",
+      "emptyBody": "Upload 2-3 CV variants to score each against the same job in one run, see the score delta per component, and get a merged best variant recommendation.",
+      "title": "CV Variant Comparison",
+      "subtitle": "{count} variants scored against the same job; the winner is crowned. Each ▲/▼ delta is measured against {baseline} — the first variant you uploaded, not the winner.",
+      "recommended": "Recommended:",
+      "componentHeader": "Component",
+      "overall": "Overall",
+      "metricJobFit": "Job-fit score",
+      "metricKeyword": "Keyword coverage %",
+      "metricSkills": "Skills indexed",
+      "metricYears": "Years experience",
+      "driversTitle": "Score Delta Drivers",
+      "driversEmpty": "Variants score identically — no drivers to highlight.",
+      "mergedTitle": "Merged Best Variant",
+      "fromLabel": "— from",
+      "headlineSkillsTitle": "Suggested Headline & Skills",
+      "headlineLabel": "Headline",
+      "skillsLineLabel": "Skills line",
+      "bulletsTitle": "Top Bullets (merged)",
+      "bulletsEmpty": "No rewrite bullets surfaced from any variant.",
+      "baselineTag": "baseline",
+      "baselineTitle": "First uploaded variant — every other column's delta is measured against this one."
+    },
     "tabs": {
       "extraction": "Extraction",
       "compare": "Compare",
@@ -45,7 +75,105 @@
     "histOnBoard": "On the board: {job} · {stage}",
     "histScore": "score {score}",
     "histLoadFailed": "We couldn't load this analysis right now. Please try again in a moment.",
-    "histSchemaOld": "This run was saved in an older schema and can't be rendered."
+    "histSchemaOld": "This run was saved in an older schema and can't be rendered.",
+    "panel": {
+      "candidate": "Candidate",
+      "extractionQuality": "Extraction Quality",
+      "extractionQualityCaption": "How reliably your CV's text was read. The AI parser is the fallback when the fast one struggles with a CV's formatting.",
+      "pqSkillsFast": "Skills found · fast parser",
+      "pqSkillsAi": "Skills found · AI parser",
+      "pqArtifactsFast": "Formatting artifacts · fast parser",
+      "pqArtifactsAi": "Formatting artifacts · AI parser",
+      "parserDetails": "Parser details",
+      "extractorComparison": "Extractor Comparison",
+      "parserFast": "Fast parser",
+      "parserAi": "AI parser",
+      "showExtractedText": "Show extracted text",
+      "scoreBreakdown": "Score Breakdown",
+      "strengths": "Strengths",
+      "strengthsEmpty": "No strengths surfaced",
+      "strengthsHint": "Add quantified outcomes and signature projects so we can flag what stands out.",
+      "gaps": "Gaps",
+      "gapsEmpty": "No gaps detected",
+      "gapsHint": "Nothing obviously missing — attach a job description for role-specific gap analysis.",
+      "evidenceTrace": "Evidence Trace",
+      "experienceEvidence": "Experience Evidence",
+      "experienceEvidenceHint": "Add roles with dates and outcomes so we can cite your experience.",
+      "skillEvidence": "Skill Evidence",
+      "skillEvidenceHint": "List concrete tools and methods you have shipped with to surface skill evidence.",
+      "seniorityEvidence": "Seniority Evidence",
+      "seniorityEvidenceHint": "Mention scope, team size, or ownership signals to anchor your seniority.",
+      "educationEvidence": "Education Evidence",
+      "educationEvidenceHint": "Add degrees, programs, or certifications to populate education evidence.",
+      "llmExplanation": "Why this score",
+      "salaryEstimate": "Salary Estimate",
+      "perMonth": "per month",
+      "credentialsWork": "Credentials & work",
+      "credentials": "Licenses & certifications",
+      "publications": "Publications & patents",
+      "links": "Portfolio & links",
+      "growthTarget": "+30% growth target: {amount} CZK / month",
+      "companyCompContext": "Company Compensation Context",
+      "salaryRationale": "Salary Rationale",
+      "salaryEvidence": "Salary Evidence",
+      "salaryEvidenceHint": "Mention current band, levelling, or comparable offers in your CV to ground the salary read.",
+      "groundedMarketEvidence": "Grounded Market Evidence",
+      "groundedRange": "grounded range: {range}",
+      "jobFit": "Job Fit",
+      "jobFitPlaceholder": "Attach a job description to produce role-fit scoring, missing skills, and role-specific proof points.",
+      "talkingPoints": "Interview Talking Points",
+      "talkingPointsEmpty": "No talking points generated",
+      "talkingPointsHint": "Add concrete outcomes and metrics to your CV to seed interview stories.",
+      "mustProve": "Must-Prove Evidence",
+      "mustProveEmpty": "No proof points required",
+      "mustProveHint": "Your CV already evidences the core demands of this role.",
+      "alignment": "Alignment",
+      "riskFlags": "Recruiter Risk Flags",
+      "riskFlagsEmpty": "No risk flags raised",
+      "riskFlagsHint": "A recruiter would not stumble over anything obvious in this CV.",
+      "cvRewrites": "CV Rewrite Suggestions",
+      "cvRewritesEmpty": "No rewrites suggested",
+      "cvRewritesHint": "Your CV reads cleanly against this job description.",
+      "keywordCoverage": "Keyword Coverage",
+      "noKeywords": "No role keywords were extracted from the job description.",
+      "keywordsMissing": "Missing role keywords",
+      "keywordsMissingHint": "Add these explicitly to the CV — most ATS resume parsers require literal matches.",
+      "keywordStuffing": "Possible keyword stuffing",
+      "keywordStuffingHint": "These appear far more often in the CV than in the JD; recruiters may flag this:",
+      "moreHidden": "+{count} more not shown",
+      "kwMatched": "matched",
+      "kwMissing": "missing",
+      "kwOverUsed": "over-used",
+      "matchingSkills": "Matching Skills",
+      "matchingSkillsEmpty": "Sharpen the skills section of your CV so we can pair it with the job description.",
+      "missingSkills": "Missing Skills",
+      "missingSkillsCovered": "Your CV already covers the keywords this job description calls out.",
+      "noDealBreakers": "No deal-breaker gaps detected — the rest below are softer asks.",
+      "tierMust": "Must have",
+      "tierNice": "Nice to have",
+      "tierBonus": "Bonus",
+      "coachMustOne": "This one is likely a deal-breaker — address it in your CV summary or top bullet today.",
+      "coachMustMany": "{count} of these can be addressed in your CV summary or top bullets today.",
+      "coachNiceOne": "Folding this into your skills line or a project bullet strengthens the match.",
+      "coachNiceMany": "Naming even one or two of these in your skills line strengthens the match.",
+      "coachBonus": "Preferred rather than required — only worth flagging if you genuinely have them.",
+      "hideSofterGaps": "Hide softer gaps",
+      "showMoreGaps": "{count, plural, one {Show # more gap} other {Show # more gaps}}",
+      "mockInterview": "Mock Interview",
+      "mockPlaceholder": "Attach a job description so we can generate questions tied to your specific evidence gaps and a STAR scaffold for each.",
+      "mockSubhead": "Every question is tied to a specific evidence gap from this job description, with a STAR scaffold drawn from your profile.",
+      "filter": "Filter",
+      "filterAll": "All",
+      "bucketBehavioral": "Behavioral",
+      "bucketTechnical": "Technical",
+      "bucketRedFlag": "Red-flag defense",
+      "bucketOther": "Other",
+      "tiedTo": "Tied to:",
+      "starSituation": "Situation",
+      "starTask": "Task",
+      "starAction": "Action",
+      "starResult": "Result"
+    }
   },
   "comms": {
     "team": "The hiring team",
@@ -53,6 +181,7 @@
     "theRole": "the role",
     "aRole": "a role",
     "yourNewRole": "your new role",
+    "dataFooter": "— — —\nYour data: review what we hold about you, or request its erasure, anytime:\n{link}",
     "ack": {
       "subject": "We received your application — {role}",
       "body": "Hi {name},\n\nThanks for applying for {role} — we've received your application and a recruiter will review it shortly. We'll be in touch about the next steps.\n\nBest,\n{team}",
@@ -93,6 +222,10 @@
       "length": " Plan for about {minutes} minutes.",
       "body": "Hi {name},\n\nA quick reminder that your interview for {role} is coming up at {slot}.{length} We're looking forward to speaking with you — see you then!\n\n{team}"
     },
+    "offerReminder": {
+      "subject": "Reminder — your offer for {role} is still open",
+      "body": "Hi {name},\n\nA quick reminder that your offer for {role} is still open and waiting for your decision. To keep it, please let us know by {deadline}.\n\nReview the details and respond here:\n{link}\n\nIf you have any questions before deciding, just reply — we're happy to help.\n\n{team}"
+    },
     "interviewInvite": {
       "subject": "Your AI first-round screen — {role}",
       "length": " It takes about {minutes} minutes.",
@@ -100,7 +233,8 @@
     },
     "onboarding": {
       "subject": "Welcome aboard — {role}",
-      "body": "Hi {name},\n\nWe're delighted you're joining us as {role}! Welcome to the team.\n\nYour onboarding is now underway. Our People team will reach out shortly with your start date, paperwork, equipment, and a first-week plan so you can hit the ground running.\n\nWe can't wait to work with you.\n\nWarmly,\n{team}"
+      "body": "Hi {name},\n\nWe're delighted you're joining us as {role}! Welcome to the team.\n\nYour onboarding is now underway. Our People team will reach out shortly with your start date, paperwork, equipment, and a first-week plan so you can hit the ground running.\n\nWe can't wait to work with you.\n\nWarmly,\n{team}",
+      "linkFooter": "Take a moment to share a few pre-boarding details so we can have everything ready for you:\n{link}"
     }
   },
   "language": {
@@ -108,6 +242,277 @@
     "select": "Select language",
     "en": "English",
     "cs": "Čeština"
+  },
+  "landing": {
+    "nav": {
+      "how": "How it works",
+      "features": "Features",
+      "pricing": "Pricing",
+      "about": "About",
+      "signIn": "Sign in"
+    },
+    "hero": {
+      "badge": "AI for hiring that keeps humans in charge",
+      "title": "Hiring that<br></br>actually <emph>moves</emph>.",
+      "subtitle": "KandiDate reads every CV, runs the first interview out loud, books the calendar and lines up decisions for you to approve. The pile disappears. The judgment stays yours.",
+      "ctaPrimary": "Start screening free",
+      "ctaSecondary": "Hear it interview",
+      "ctaDemo": "Watch the live demo",
+      "pileHint": "try it — hover the pile ↓",
+      "scoreCardAria": "Score the CV of {name}",
+      "mascotAlt": "Kandi, the KandiDate mascot, cheering under an approved CV",
+      "mascotNote": "meet Kandi — your new teammate"
+    },
+    "pile": {
+      "jana": { "role": "React Developer", "verdict": "strong fit" },
+      "petr": { "role": "Data Analyst", "verdict": "worth a call" },
+      "alex": { "role": "PM, no portfolio", "verdict": "kind pass" }
+    },
+    "marquee": [
+      "CV scoring in seconds",
+      "AI voice interviews",
+      "self-scheduling links",
+      "five channels, one pipeline",
+      "salary radar",
+      "human-approved decisions",
+      "Czech + English",
+      "offer portals"
+    ],
+    "steps": {
+      "heading": "From pile to shortlist<br></br>in <emph>three moves</emph>",
+      "drop": {
+        "title": "Drop the pile",
+        "body": "Every CV gets read — really read. KandiDate scores fit against your job description with an evidence-backed rubric, not keyword bingo. Strengths, gaps and a salary estimate included."
+      },
+      "talk": {
+        "title": "Let it talk",
+        "body": "Promising candidates get a friendly AI voice interview within hours, not weeks. Real questions built from their CV, live transcript, structured scorecard at the end."
+      },
+      "call": {
+        "title": "You make the call",
+        "body": "Nothing ships without you. Every screen, shortlist and offer waits at a human gate with the reasoning attached. Approve, override, or send it back."
+      }
+    },
+    "features": {
+      "heading": "The whole funnel,<br></br>one happy place",
+      "hint": "hover any card for a live peek — it all ships today, no asterisks",
+      "peekInside": "peek inside",
+      "score": {
+        "title": "Job-fit scoring",
+        "body": "0–100 fit score per CV with the evidence to back it up. Multiple CV versions? Compare them side by side."
+      },
+      "voice": {
+        "title": "Voice screening",
+        "body": "An AI interviewer that asks about their actual experience — in Czech or English — and writes the scorecard for you."
+      },
+      "schedule": {
+        "title": "Self-scheduling",
+        "body": "Candidates pick their own slot from a link. No reply-all calendar tennis, no ghosted timezones."
+      },
+      "inbox": {
+        "title": "One inbox, five doors",
+        "body": "Apply portal, email, job boards, sourcing and manual adds all land in one pipeline at the same starting line."
+      },
+      "salary": {
+        "title": "Salary radar",
+        "body": "Market-grounded salary bands for the Czech market, adjusted to company type — so your offer lands the first time."
+      },
+      "gates": {
+        "title": "Gates & receipts",
+        "body": "A full audit trail and a kill switch. AI recommends, humans decide, and every decision keeps its receipt."
+      }
+    },
+    "voice": {
+      "heading": "It doesn’t just read CVs.<br></br>It <emph>talks</emph> to people.",
+      "body": "First-round screens happen the same day someone applies — a warm, structured voice interview built from their actual CV. Candidates get heard. You get a transcript and a scorecard instead of a calendar full of thirty-minute maybes.",
+      "bullets": [
+        "Czech and English, their choice",
+        "Questions grounded in their experience",
+        "Live transcript, structured scorecard"
+      ],
+      "cardTitle": "First-round screen",
+      "cardMeta": "live · 4 min 12 s",
+      "transcript": [
+        "You shipped a React app for a school project — what broke first when real users hit it?",
+        "Honestly? The state management. I rewrote it twice before I understood why…",
+        "Love it. Walk me through the second rewrite."
+      ]
+    },
+    "trust": {
+      "heading": "Powerful AI.<br></br><emph>A human signs every call.</emph>",
+      "subtitle": "Built for regulated hiring under the EU AI Act and GDPR: the machine does the reading, but a qualified person makes every decision that touches a candidate.",
+      "human": {
+        "title": "Human in the loop",
+        "body": "No candidate is advanced, offered or rejected by the machine alone. Every adverse decision is reviewed and made by a person — by design, not by a setting."
+      },
+      "oversight": {
+        "title": "EU AI Act ready",
+        "body": "Screening and ranking are treated as high-risk AI: meaningful human oversight, reasoning you can read, and a record of every automated step."
+      },
+      "gdpr": {
+        "title": "GDPR & Article 22",
+        "body": "Candidates consent before any AI reads their data, can ask for human review, and can see or erase their data anytime. No solely-automated significant decisions."
+      },
+      "audit": {
+        "title": "Provable, not promised",
+        "body": "Every AI decision is sealed into a tamper-evident, exportable audit trail, and confidence is measured against real outcomes — calibrated, never just asserted."
+      },
+      "footnote": "A working demonstration: this reflects the product's design and controls, not a legal certification."
+    },
+    "pricing": {
+      "heading": "Tiny prices.<br></br><emph>Zero token math.</emph>",
+      "headingNote": "open to everyone — these are the launch prices you’ll lock in",
+      "tiers": {
+        "free": {
+          "name": "Free",
+          "tagline": "Kick the tires on a real opening.",
+          "price": "0 Kč",
+          "cadence": "forever",
+          "usd": "no card, no clock",
+          "cta": "Start free",
+          "features": [
+            "1 active job",
+            "5 AI candidates a month",
+            "1 dev case design",
+            "Unlimited matching, pipeline & scheduling"
+          ]
+        },
+        "starter": {
+          "name": "Starter",
+          "tagline": "A hiring desk that never sleeps.",
+          "price": "490 Kč",
+          "cadence": "/ month",
+          "usd": "≈ $21 a month",
+          "cta": "Pick Starter",
+          "features": [
+            "100 AI candidates a month",
+            "5 dev case designs",
+            "30 AI interview minutes",
+            "Unlimited jobs & campaign packs"
+          ]
+        },
+        "growth": {
+          "name": "Growth",
+          "tagline": "For pipelines with traffic.",
+          "price": "1 190 Kč",
+          "cadence": "/ month",
+          "usd": "≈ $50 a month",
+          "cta": "Pick Growth",
+          "features": [
+            "400 AI candidates a month",
+            "20 dev case designs",
+            "120 AI interview minutes",
+            "Everything in Starter, just bigger"
+          ]
+        },
+        "byom": {
+          "name": "BYOM",
+          "tagline": "Your model keys, our machinery.",
+          "price": "120 Kč",
+          "cadence": "/ month",
+          "usd": "≈ $5 a month",
+          "cta": "Bring your keys",
+          "badge": "bring your keys",
+          "features": [
+            "Plug in Gemini, OpenAI, Azure or Anthropic keys",
+            "Your ElevenLabs key runs the interviews",
+            "Unlimited AI — your providers bill you",
+            "We charge for the machinery only"
+          ]
+        }
+      },
+      "footnote1": "“AI candidate” = one person fully worked — CV scored, matched, reasoned about, outreach drafted",
+      "footnote2": "out of minutes? 100-minute interview packs · 790 Kč — any tier, even BYOM",
+      "enterprise": {
+        "eyebrow": "At org scale",
+        "heading": "Hiring across the whole org?",
+        "blurb": "Past the metered plans: SSO, roles & an audit trail, a dedicated environment and onboarding for your TA team — priced to your hiring volume. The ROI compounds with every requisition.",
+        "cta": "Talk to sales",
+        "stat1Value": "60–70%",
+        "stat1Label": "less recruiter time on screening",
+        "stat2Value": "~23 h",
+        "stat2Label": "manual screening per hire today",
+        "stat3Value": "40–51 h",
+        "stat3Label": "total recruiter hours per hire, by hand",
+        "source": "Sources: 2025 industry recruiting-time studies (SHRM time-to-fill; recruiter time-per-hire analyses). Your own measured savings show live in Analytics → ROI."
+      }
+    },
+    "cta": {
+      "heading": "Your next great hire<br></br>is buried in that pile.",
+      "body": "Let KandiDate dig them out. Free to get started — no waitlist.",
+      "button": "Get started",
+      "note": "no credit card, no robots in charge"
+    },
+    "footer": {
+      "tagline": "AI for hiring, humans for decisions"
+    },
+    "previews": {
+      "close": "Close preview",
+      "score": { "note": "evidence attached, always" },
+      "voice": { "note": "yes, it speaks Czech too" },
+      "schedule": { "note": "no calendar tennis" },
+      "inbox": { "note": "five doors, one starting line" },
+      "salary": { "note": "offers that land first time" },
+      "gates": { "note": "every call gets a human signature" }
+    }
+  },
+  "aboutPage": {
+    "nav": {
+      "home": "Home",
+      "signIn": "Sign in"
+    },
+    "hero": {
+      "badge": "the hiring pipeline, end to end",
+      "title": "Walk one hire down<br></br>the <emph>whole pipeline</emph>.",
+      "subtitle": "Scroll, and the path draws itself — from a blank role to a signed hire. Seven steps, one continuous line, a human on every gate."
+    },
+    "steps": {
+      "design": {
+        "eyebrow": "Step 01 · Design",
+        "title": "Describe the role. Get the rubric.",
+        "body": "A short brief becomes a structured, company-branded job description — must-haves, nice-to-haves and a Czech-market salary band — plus the scoring rubric everything downstream is measured against."
+      },
+      "source": {
+        "eyebrow": "Step 02 · Source",
+        "title": "One role, a ranked shortlist",
+        "body": "The role pulls matching candidates from your talent pool and ranks them with hard knock-out gates and archetype-aware scoring — deterministic and explainable, never keyword bingo."
+      },
+      "intake": {
+        "eyebrow": "Step 03 · Intake",
+        "title": "Five doors, one pipeline",
+        "body": "Apply portal, email, job boards, sourcing and manual adds all land in the same pipeline at the same starting line — no channel gets a shortcut, and nothing slips through the cracks."
+      },
+      "screen": {
+        "eyebrow": "Step 04 · Screen",
+        "title": "Every CV, read for real",
+        "body": "Each candidate is scored 0–100 against the role with the evidence traced. A fairness gate runs first; strong, obvious matches advance themselves and everything else is held for a human."
+      },
+      "interview": {
+        "eyebrow": "Step 05 · Interview",
+        "title": "Then it talks to people",
+        "body": "Promising candidates get a warm AI voice interview the same day — questions grounded in their CV, a live transcript, and a structured scorecard waiting for your call."
+      },
+      "offer": {
+        "eyebrow": "Step 06 · Offer",
+        "title": "AI drafts it. A human signs it.",
+        "body": "The offer figure is deterministic — role band × fit, no LLM in the number. The letter drafts itself, a person extends it, and the candidate accepts or declines through a secure link."
+      },
+      "hired": {
+        "eyebrow": "Step 07 · Hired",
+        "title": "Hired — onboarding already moving",
+        "body": "Accept flips the candidate to Hired and fires the onboarding hand-off: a pre-boarding questionnaire and checklist, so day one is already in motion before the celebration ends."
+      }
+    },
+    "closing": {
+      "tag": "that’s the whole line",
+      "title": "From a blank role<br></br>to a <emph>signed hire</emph>.",
+      "body": "AI does the reading at every step. A human signs every decision.",
+      "button": "Start free"
+    },
+    "footer": {
+      "tagline": "AI for hiring, humans for decisions",
+      "home": "Back to home"
+    }
   },
   "theme": {
     "select": "Select theme",
@@ -122,7 +527,9 @@
   },
   "aiDisclosure": {
     "title": "How this works",
-    "body": "We use AI to assist screening and interviews — assessing your <highlight>skills, experience, and fit</highlight> for the role. A human reviews and makes every advance, offer, and rejection decision; nothing adverse is decided automatically. You can ask for a human review at any point."
+    "body": "We use AI to assist screening and interviews — assessing your <highlight>skills, experience, and fit</highlight> for the role. A human reviews and makes every advance, offer, and rejection decision; nothing adverse is decided automatically. You can ask for a human review at any point.",
+    "dataConsent": "By submitting, you agree we may process your personal data for this role for up to 12 months. You can review or request erasure of your data anytime via the link in our emails.",
+    "regimeNote": "Assessed under {framework}; your personal data is processed under {dataLaw}."
   },
   "errors": {
     "generic": "Something went wrong. Please try again.",
@@ -148,9 +555,12 @@
     "acceptedTitle": "🎉 Offer accepted",
     "acceptedBodyCompany": "Welcome to {company}! Our People team will be in touch shortly with your onboarding details.",
     "acceptedBodyGeneric": "Wonderful — welcome aboard! Our People team will be in touch shortly with your onboarding details.",
+    "onboardingCta": "Start your onboarding",
     "declinedTitle": "Response recorded",
     "declinedBody": "Thank you for letting us know. We wish you all the best.",
     "loadFailed": "Could not load this offer.",
+    "invalidLink": "This offer link isn't valid",
+    "invalidLinkBody": "The link may be mistyped or no longer active. Check the link from your email, or contact the hiring team.",
     "respondFailed": "Could not record your response.",
     "deadline": "Please respond by {date}.",
     "deadlineHours": "{hours, plural, one {# hour} other {# hours}} left.",
@@ -190,6 +600,30 @@
     "rsvpCancel": "I can't make it",
     "attendanceConfirmed": "Attendance confirmed — thanks!",
     "rsvpCancelledNote": "Your time has been released. Pick a new one below and we'll let the team know."
+  },
+  "data": {
+    "eyebrow": "Your data",
+    "loadFailed": "This link has expired or is no longer valid.",
+    "eraseFailed": "Could not complete the erasure right now. Please try again.",
+    "forRole": "Your application for {role}",
+    "forRoleGeneric": "Your application",
+    "heldTitle": "What we hold about you",
+    "held": {
+      "cv": "Your CV and the details parsed from it",
+      "contact": "Your contact details (email)",
+      "answers": "The answers you gave when applying",
+      "interview": "Any interview records and notes",
+      "scores": "Our assessment scores for this role"
+    },
+    "appliedOn": "You applied on {date}.",
+    "eraseTitle": "Erase my personal data",
+    "eraseExplainer": "We'll permanently remove your name, contact details, CV and interview records. We keep a de-identified record of the assessment (no personal data) so we can be fair and consistent — it can no longer identify you.",
+    "eraseCta": "Erase my data",
+    "eraseConfirm": "Yes, erase it",
+    "erasing": "Erasing…",
+    "cancel": "Cancel",
+    "erasedTitle": "Your data has been erased",
+    "erasedBody": "We've removed your personal data. Thank you — there's nothing more you need to do."
   },
   "status": {
     "eyebrow": "Application status",
@@ -321,6 +755,7 @@
       "keysNotConfigured": "{provider} keys not configured",
       "consent": "I understand this is an <b>AI-conducted</b> first-round screen and that the conversation is <b>transcribed</b> for a human recruiter to review. No audio is stored.",
       "connecting": "Connecting…",
+      "awaitingMic": "Allow microphone access in your browser's prompt to start the call.",
       "startAgain": "Start again",
       "startCall": "Start the call",
       "ending": "Ending…",
@@ -377,18 +812,22 @@
   },
   "nav": {
     "skipToContent": "Skip to content",
+    "openMenu": "Open navigation menu",
+    "closeMenu": "Close navigation menu",
     "ariaLabel": "Workspace",
     "attentionBadge": "{count} need attention",
     "attentionBadgeGo": "{count} need attention — view them",
     "recent": "Recent",
-    "brandMark": "KP",
-    "brandName": "studio",
+    "brandMark": "K",
+    "brandName": "KandiDate",
     "tagline": "talent matching",
+    "signOut": "Sign out",
     "tabs": {
       "pipeline": "Pipeline",
       "channels": "Channels",
       "decisions": "Decisions",
       "schedule": "Schedule",
+      "onboarding": "Onboarding",
       "jobs": "Jobs",
       "library": "Job descriptions",
       "profile": "Profile",
@@ -448,10 +887,28 @@
       "Thu": "Thu",
       "Fri": "Fri"
     },
+    "period": {
+      "hour": "per hour",
+      "month": "per month",
+      "year": "per year"
+    },
     "family": {
       "software_engineering": "Software",
       "data_ai": "Data / AI",
-      "product_project": "Product / Project"
+      "product_project": "Product / Project",
+      "healthcare_clinical": "Healthcare / Clinical",
+      "life_sciences_research": "Science / Research",
+      "skilled_trades": "Skilled Trades",
+      "operations_logistics": "Operations / Logistics",
+      "frontline_service": "Frontline / Service",
+      "sales_marketing": "Sales / Marketing",
+      "finance_accounting": "Finance / Accounting",
+      "legal_compliance": "Legal / Compliance",
+      "hr_people": "HR / People",
+      "education_academic": "Education / Academic",
+      "creative_design": "Creative / Design",
+      "customer_support": "Customer Support",
+      "general_professional": "General / Professional"
     },
     "workMode": {
       "remote": "Remote",
@@ -541,6 +998,18 @@
       "weeksAgo": "{w}w ago",
       "monthsAgo": "{mo}mo ago"
     },
+    "command": {
+      "placeholder": "Type a command… e.g. reject everyone below 60%",
+      "run": "Run",
+      "examples": "Try: \"reject everyone below 60% on backend\", \"advance the top 3\", \"run the policy pass\".",
+      "affects": "{count, plural, =0 {No candidates match} =1 {1 candidate} other {# candidates}}",
+      "confirm": "Confirm",
+      "running": "Running…",
+      "cancel": "Cancel",
+      "doneCount": "Done — {count, plural, =1 {1 candidate} other {# candidates}} actioned.",
+      "doneSummary": "Policy pass done — {advanced} advanced, {rejected} rejected, {held} held.",
+      "dismiss": "Dismiss"
+    },
     "tab": {
       "eyebrow": "Pipeline",
       "title": "Hiring pipeline",
@@ -550,6 +1019,7 @@
       "statInterview": "Interview",
       "statAging": "Aging",
       "statNeedsIntake": "Needs intake",
+      "moveFailed": "Couldn't move the candidate — the board has been refreshed.",
       "statAwaitingYou": "Awaiting you",
       "batchScreening": "Screening {done}/{total}…",
       "batchScreenAll": "AI-screen all matched",
@@ -619,6 +1089,8 @@
       "bulkRejectCancel": "Cancel",
       "bulkAccepted": "{count} accepted",
       "bulkRejected": "{count} rejected",
+      "bulkInvite": "Send scheduling links ({count})",
+      "bulkInvited": "{count} invited to schedule",
       "agingSlas": "Aging SLAs",
       "agingSlasTitle": "Set how long a candidate may sit in each stage before it flags as aging",
       "slaEditorTitle": "Days before aging, per stage",
@@ -699,6 +1171,32 @@
       "working": "Working…",
       "candidateNotes": "Candidate notes",
       "candidateNotesPlaceholder": "Notes that stay with this candidate — \"wants 80k, available August, prefers hybrid\". Saved automatically.",
+      "consent": {
+        "title": "Data & consent",
+        "loading": "Loading consent…",
+        "loadFailed": "Couldn't load consent details.",
+        "via": "via {source}",
+        "noneNote": "No data-processing consent on file (recruiter-sourced or pre-consent entry).",
+        "granted": "Granted",
+        "expires": "Expires",
+        "anonymized": "Anonymized",
+        "status": {
+          "active": "Consent active",
+          "expiring": "Expiring soon",
+          "expired": "Consent expired",
+          "anonymized": "Anonymized",
+          "none": "No consent"
+        },
+        "event": {
+          "granted": "Consent granted",
+          "renewed": "Consent renewed",
+          "expiring_notified": "Expiry reminder sent",
+          "expired": "Consent expired",
+          "anonymized": "Anonymized (consent lapsed)",
+          "erasure_requested": "Erasure requested",
+          "erased": "Data erased (candidate request)"
+        }
+      },
       "candidateNotesSaving": "Saving…",
       "candidateNotesSaved": "Saved",
       "candidateNotesSaveFailed": "Couldn't save the note.",
@@ -776,7 +1274,7 @@
       "rejectModeLabel": "Rejections",
       "rejectModeApprove": "supervised — queue for approval",
       "rejectModeAuto": "autonomous — apply & notify",
-      "rejectModeTitle": "Supervised queues each clock-computed rejection on the Decisions gate for a human click; autonomous applies and emails it unattended. Advances and holds stay automatic either way.",
+      "rejectModeTitle": "Every clock-computed rejection is queued on the Decisions gate for a human click — never applied unattended (advances and holds stay automatic). A human reviews and makes every adverse decision.",
       "outcome": {
         "applied": "applied",
         "failed": "failed",
@@ -822,6 +1320,10 @@
     "title": "Your decision queue",
     "intro": "The human-in-the-loop step, grouped by role. Click a candidate for their analysis summary, or run a group evaluation to compare a role's candidates. Interview slots live in <schedule>Schedule</schedule>.",
     "filterTitle": "Filter decisions to one opened JD",
+    "govModeTitle": "Group-evaluation governance: how the AI comparison is used",
+    "govRecommendation": "AI recommendation",
+    "govCommittee": "Committee (advisory)",
+    "govEligibility": "Eligibility list",
     "allRoles": "All roles ({count})",
     "pending": "{count} pending",
     "rulesButton": "Rules",
@@ -892,6 +1394,52 @@
       "fairnessLabel": "Fairness:",
       "fairnessBody": "early-career candidates (student / career-switcher) are <b>never</b> auto-rejected — that gate is enforced in code."
     },
+    "compliance": {
+      "title": "Compliance & fairness",
+      "subtitle": "Set your jurisdiction so candidate disclosures cite the right framework. The platform is honest about what it does and doesn't enforce.",
+      "jurisdictionLabel": "Compliance jurisdiction",
+      "saved": "Saved.",
+      "saveFailed": "Save failed.",
+      "jur": {
+        "eu": "European Union (GDPR / EU AI Act)",
+        "uk": "United Kingdom (UK GDPR / Equality Act)",
+        "us": "United States (EEOC / state privacy)",
+        "sg": "Singapore (PDPA / TAFEP)",
+        "in": "India (DPDP Act)",
+        "ae": "United Arab Emirates (PDPL / MoHRE)",
+        "global": "Global / multiple jurisdictions"
+      },
+      "regimeDataLaw": "Data protection",
+      "regimeOversight": "Human oversight",
+      "regimeAntiDiscrimination": "Equal opportunity",
+      "regimeAdverseStandard": "Adverse-impact standard",
+      "regimeAdverseNone": "No single codified ratio",
+      "standardFallback": "four-fifths analysis",
+      "postureCoveredTitle": "What the platform enforces",
+      "postureCeilingTitle": "What it does not do",
+      "covered1": "A human reviews and makes every advance, offer, and rejection — nothing adverse is solely automated ({oversight}).",
+      "covered2": "Every decision is sealed to a tamper-evident audit record.",
+      "covered3": "Candidates see an AI-use disclosure and can request human review anytime.",
+      "covered4": "Early-career and unclassified candidates are shielded from automated rejection (fail-closed).",
+      "covered5": "Personal data is processed under {dataLaw} with a 12-month retention window and self-service erasure.",
+      "ceiling1": "Statutory protected-class adverse-impact monitoring ({standard}) is not run automatically — it needs aggregate demographic data this platform deliberately does not collect.",
+      "ceiling2": "The automated-rejection fairness gate is an archetype shield (career stage), not a protected-class test.",
+      "aiCheckTitle": "Four-fifths adverse-impact check",
+      "aiCheckIntro": "Run the 80% rule on aggregate counts your organization already holds (e.g. from a separate EEO survey).",
+      "aiCheckPlaceholder": "Group, selected, total — one per line\nWomen, 40, 100\nMen, 80, 100",
+      "aiCheckPrivacy": "Computed in your browser from the counts you enter. Nothing is sent or stored — the platform holds no demographic data.",
+      "aiCheckHint": "Enter at least two groups to compute selection-rate ratios.",
+      "colGroup": "Group",
+      "colRate": "Selection rate",
+      "colRatio": "Impact ratio",
+      "colStatus": "Status",
+      "statusReference": "reference",
+      "statusAdverse": "adverse impact",
+      "statusOk": "ok",
+      "statusNa": "n/a",
+      "anyAdverse": "Potential adverse impact — at least one group is below the 80% threshold.",
+      "noAdverse": "No group falls below the 80% four-fifths threshold."
+    },
     "wave": {
       "title": "Screening wave · {role}",
       "committedSubtitle": "Committed",
@@ -909,6 +1457,7 @@
       "shieldNote": "Early-career & unrecognized archetypes are always shielded from auto-rejection.",
       "previewFailed": "Preview failed.",
       "waveFailed": "Wave failed.",
+      "setChangedRepreview": "The candidate set changed since you previewed it — review the refreshed set and approve again.",
       "computingPreview": "Computing preview…",
       "wouldReject": "Would reject <b>{rejected}</b> of {cohort}",
       "keptCount": "{count} kept",
@@ -965,6 +1514,8 @@
       "capped": "Showing top {cap} of {total} candidates, ranked by fit.",
       "aiComparison": "AI comparison",
       "aiBacked": "AI",
+      "eligibilityList": "Eligibility list (ordinal, by fit)",
+      "eligibilityNote": "Ordinal ranking only — apply statutory preferences (e.g. veterans') before certifying. Nothing here is auto-sealed.",
       "ruleBased": "rule-based",
       "lead": "Lead",
       "ko": "KO",
@@ -1018,7 +1569,7 @@
       "advancedAria": "advanced",
       "rejectedAria": "rejected",
       "fairnessCheck": "Fairness check",
-      "fairnessUniform": "Every candidate used the standard weighting for their archetype — the ranking above already compares like-for-like.",
+      "fairnessUniform": "Fairness check passed — re-scoring every candidate under each other's archetype weighting leaves the order unchanged, so the ranking is robust, not weighting-dependent.",
       "aiTunedWeights": "AI-tuned weights",
       "ruleBasedWeights": "Rule-based weights",
       "fairnessExplain": "Some candidates carry a bounded, evidence-driven weighting — demonstrated skill is weighted higher when backed by high-trust evidence. Each candidate is re-scored under <em>every</em> candidate's weighting; the robust order is the average across all schemes, so a candidate strong under everyone's weights is robustly strong.",
@@ -1082,6 +1633,8 @@
     "interviewerTitle": "Interviewer: {name}",
     "calendar": {
       "assignAria": "Assign selected candidate to {slot}",
+      "calendarAria": "Interview week calendar — days across, times down",
+      "timeColumn": "Time",
       "chipTitle": "{name} · {archetype}{job}",
       "chipAria": "{name}, {archetype}{job}"
     },
@@ -1182,9 +1735,11 @@
       "ingestedDismiss": "Dismiss",
       "ingesting": "Ingesting…",
       "ingestRetry": "Retry ingest",
+      "ingestFailed": "Couldn't add to jobs.",
       "duplicate": "Duplicate",
       "duplicating": "Duplicating…",
       "duplicateRetry": "Retry duplicate",
+      "duplicateFailed": "Couldn't duplicate the JD.",
       "duplicateTitle": "Save a copy of this JD as a new draft to fork and tweak",
       "copyTitle": "{title} (copy)",
       "jobStatusChip": "role: {status}",
@@ -1380,7 +1935,9 @@
       "sourceIntoPipeline": "Source into Pipeline",
       "sourcingFailed": "Sourcing failed.",
       "publishedButFailed": "Published, but sourcing failed: {warning}",
-      "sourced": "{count, plural, one {Sourced # candidate into the Pipeline.} other {Sourced # candidates into the Pipeline.}}"
+      "sourced": "{count, plural, one {Sourced # candidate into the Pipeline.} other {Sourced # candidates into the Pipeline.}}",
+      "quotaNote": "You've reached your plan's active-job limit. Upgrade or close a role to publish another.",
+      "goToBilling": "Upgrade in Billing"
     },
     "posting": {
       "copied": "Copied",
@@ -1388,9 +1945,12 @@
       "quickApplyLink": "Quick-apply link",
       "closeRole": "Close role",
       "closeTitle": "Retire this role — the apply link stops accepting and the role reads as filled",
-      "closeConfirm": "Close this role? The public apply link will stop accepting applications.",
+      "closeConfirm": "Close this role? The public apply link will stop accepting applications, and any candidates still in this role's pipeline will be withdrawn.",
       "closing": "Closing…",
       "closedNow": "Role closed",
+      "withdrewCount": "{count, plural, one {Withdrew # candidate from the pipeline.} other {Withdrew # candidates from the pipeline.}}",
+      "reopenRole": "Reopen role",
+      "reopenTitle": "Bring this role back live — re-sources the pipeline and re-checks your active-jobs plan limit",
       "closeFailed": "Couldn't close the role.",
       "cancel": "Cancel",
       "subtitleDraft": "Draft — not live yet",
@@ -1398,6 +1958,7 @@
       "linksClosedTitle": "This role is closed — its apply links no longer accept applications",
       "rankInMatrix": "Rank in matrix",
       "copyMarkdown": "Copy markdown",
+      "copyFailed": "Couldn't copy to the clipboard — select and copy the link manually.",
       "postingLanguage": "Posting language",
       "viewsAria": "Job views",
       "lifecycle": {
@@ -1487,7 +2048,12 @@
       "adding": "Adding…",
       "addToPipeline": "Add to pipeline",
       "couldntAdd": "Couldn't add — {error}",
-      "couldntReach": "Couldn't reach out — {error}"
+      "couldntReach": "Couldn't reach out — {error}",
+      "whyNow": {
+        "rejected": "Passed for a different role — but clears {jobTitle}'s bar at {score}%. Looks like a role-fit mismatch then, not a capability gap; worth a fresh look now this seat is open.",
+        "closed": "Reached the finish line on a role that closed under them — a proven, available candidate at a {score}% fit for {jobTitle}.",
+        "elsewhere": "Already in motion on another role; also a {score}% fit for {jobTitle} — a redeploy worth weighing."
+      }
     },
     "rediscoveryFeed": {
       "title": "Silver medalists",
@@ -1546,6 +2112,9 @@
       "fairRank": "Fair Rank",
       "fairRankTitle": "Rank by the robust cross-scheme mean instead of each candidate's own-weight score",
       "fairRankNote": "Ranked by the robust mean — each candidate scored under every candidate's weighting, so a candidate strong under all yardsticks beats one merely flattered by their own.",
+      "poolFit": "Pool fit ({count})",
+      "poolFitTitle": "Show only strong matches from your existing pool who aren't in this role's pipeline yet",
+      "poolFitNote": "Showing strong matches already in your candidate pool who haven't been sourced into this role — add the ones worth pursuing.",
       "robustBadge": "robust {mean} ({delta})",
       "robustTitle": "Own-weight score {own}",
       "fairnessAudit": "Fairness audit",
@@ -1582,6 +2151,7 @@
       "candidate": "Candidate",
       "noProfiles": "No saved profiles — build one in Profile",
       "noAnalyses": "No saved analyses — run one in Analyze",
+      "loadingOptions": "Loading…",
       "profileOption": "{label} · {archetype} · {completeness}%",
       "analysisOption": "{label} · {family} / {seniority}",
       "matching": "Matching…",
@@ -1852,7 +2422,11 @@
       "loadFailed": "Couldn't load communications.",
       "loading": "Loading communications",
       "recovered": "recovered",
-      "recoveredAt": "resent {time}"
+      "recoveredAt": "resent {time}",
+      "searchPlaceholder": "Search candidate, recipient, or subject",
+      "kindAll": "All kinds",
+      "showing": "Showing {shown} of {total}",
+      "showMore": "Show more"
     },
     "eyebrow": "Workspace",
     "title": "Channels & integrations",
@@ -1881,8 +2455,9 @@
       "copyUrl": "Copy URL",
       "copied": "Copied",
       "revoke": "Revoke webhook",
-      "received": "{count, plural, one {# lead received} other {# leads received}}",
-      "neverReceived": "no leads yet",
+      "received": "{count, plural, one {# received} other {# received}}",
+      "leads": "{count, plural, one {# lead} other {# leads}}",
+      "neverReceived": "nothing received yet",
       "firstLeadMins": "first lead {mins} min after setup",
       "firstLeadHours": "first lead {hours} h after setup",
       "noJobs": "No roles available — ingest or publish a job first.",
@@ -1925,7 +2500,9 @@
       "attach": "Attach",
       "attaching": "Attaching…",
       "done": "Attached — the practice session now shows in the candidate's history.",
-      "failed": "Couldn't attach the session."
+      "failed": "Couldn't attach the session.",
+      "loadFailed": "Couldn't load candidates.",
+      "retry": "Retry"
     }
   },
   "history": {
@@ -1934,6 +2511,7 @@
     "intro": "Every successful run is auto-persisted with a stable slug. Open one to reload the full result or share the slug with the team.",
     "loadFailedStatus": "Load failed ({status}).",
     "loadFailed": "Load failed.",
+    "retry": "Try again",
     "loading": "Loading…",
     "emptyNoRuns": "No saved runs yet. Run one from the <b>Analyze</b> tab; it will appear here.",
     "searchLabel": "Search candidate or slug",
@@ -1991,8 +2569,9 @@
   },
   "workspaceAdmin": {
     "title": "Workspaces",
-    "intro": "Create and switch between isolated workspaces — each is a separate tenant of your kp data.",
+    "intro": "Workspaces will let you isolate kp data into separate tenants. Per-workspace isolation is still being built, so the app currently runs as a single workspace.",
     "scopeNote": "Heads up: only Analyses is workspace-isolated so far. Other data (jobs, pipeline, interviews, etc.) is still shared across workspaces until per-table scoping is complete — so a new workspace shows empty Analyses but the same everything-else.",
+    "lockedNote": "Workspaces are locked to a single tenant until per-workspace data isolation is complete — most data (candidates, pipeline, billing, interviews) isn't scoped yet, so creating or switching workspaces would expose it across tenants. Creation and switching are disabled until then.",
     "loading": "Loading…",
     "loadError": "Couldn't load workspaces.",
     "current": "Current",
@@ -2019,6 +2598,8 @@
     "verified": "Verified by kp",
     "revoked": "This credential has been revoked",
     "tampered": "Signature invalid — do not trust",
+    "incomplete": "Issued without a scored summary",
+    "summaryUnavailable": "This credential was issued without a scored skill summary, so there is no score or capability breakdown to show.",
     "transferLabel": "Durable skill score",
     "confidenceLabel": "Confidence",
     "issuedLabel": "Issued",
@@ -2096,6 +2677,8 @@
     "hereNow": "· {count} here now",
     "bottleneck": "<b>Bottleneck:</b> the <m>{count}</m> active candidates in <m>{stage}</m> have waited <m>{days} days</m> on average.",
     "viewCandidates": "View candidates →",
+    "stageDwellTitle": "Time in each stage",
+    "stageDwellRow": "avg {days}d · {count} waiting",
     "viewInBoard": "Open these candidates on the pipeline board",
     "windowLabel": "Time window",
     "windowAll": "All time",
@@ -2177,7 +2760,23 @@
       "csvKind": "Action",
       "csvCount": "Count",
       "csvMinsEach": "Mins each",
-      "csvMinsTotal": "Mins total"
+      "csvMinsTotal": "Mins total",
+      "perHire": "≈ {hours} h saved per hire — about {pct}% of the ~{baseline} h a hire takes by hand.",
+      "perHirePending": "Per-hire baseline pending — no hires in this window yet.",
+      "rdTimeSaved": "Recruiter time saved",
+      "rdPerHireSub": "≈ {hours} h/hire",
+      "rdNoHires": "no hires yet",
+      "rdCostPerHire": "Cost per hire",
+      "rdAllTime": "all-time",
+      "rdTimeToHire": "Time to hire",
+      "rdMedian": "median",
+      "czkValue": "{n} CZK",
+      "daysValue": "{n} d",
+      "csvMetric": "Metric",
+      "csvValue": "Value",
+      "csvHoursPerHire": "Hours saved per hire",
+      "csvHoursTotal": "Hours saved (window)",
+      "csvCzkTotal": "CZK saved (window)"
     },
     "channels": {
       "title": "Channel economics",
@@ -2192,6 +2791,7 @@
       "colSpend": "Spend (CZK)",
       "colCpa": "CZK / applicant",
       "colCph": "CZK / hire",
+      "cpaWindowedNote": "Cost-per figures show in the All-time view only — spend is entered as a lifetime total, not per period.",
       "hoursShort": "{hours} h",
       "spendAria": "Spend for {channel} in CZK",
       "spendSaveFailed": "Couldn't save — enter a number (or clear to remove).",
@@ -2305,6 +2905,81 @@
       "comms": "Comms delivered"
     }
   },
+  "candidateOnboarding": {
+    "eyebrow": "Onboarding",
+    "welcome": "Welcome aboard!",
+    "welcomeName": "Welcome aboard, {name}!",
+    "roleAt": "{role} at {company}",
+    "roleGeneric": "Your new role",
+    "intro": "Your offer is accepted — congratulations! One quick step before day one: share a few pre-boarding details so we can have everything ready for you.",
+    "fieldPreferredName": "Preferred name",
+    "fieldTshirtSize": "T-shirt size",
+    "fieldDietaryNeeds": "Dietary needs",
+    "fieldEquipmentPrefs": "Equipment preferences",
+    "fieldEmergencyContact": "Emergency contact",
+    "fieldStartDateConfirm": "Confirm your start date",
+    "submit": "Send my details",
+    "submitting": "Sending…",
+    "submitFailed": "Could not save your details. Please try again.",
+    "savedTitle": "Thanks — you're all set",
+    "savedBody": "We've saved your details and shared them with the team. They'll be in touch with your start date and first-day plan.",
+    "editAgain": "Update my details",
+    "loadFailed": "Could not load your onboarding.",
+    "invalidLink": "This onboarding link isn't valid",
+    "invalidLinkBody": "The link may be mistyped or no longer active. If you've accepted an offer, contact the hiring team."
+  },
+  "onboarding": {
+    "eyebrow": "Hand-off",
+    "title": "Onboarding",
+    "intro": "Run a repeatable checklist for every new hire, collect their pre-boarding details, and track document signatures — picking up where the offer leaves off.",
+    "loading": "Loading…",
+    "readyTitle": "Ready to onboard",
+    "readyEmpty": "No hired candidates waiting. Mark a candidate Hired in the pipeline to start their onboarding.",
+    "aCandidate": "Candidate",
+    "startCta": "Start onboarding",
+    "runsTitle": "In progress",
+    "runsEmpty": "No onboarding runs yet.",
+    "complete": "Complete",
+    "progress": "{done}/{total} done",
+    "back": "Back to onboarding",
+    "checklist": "Checklist",
+    "questionnaire": "Pre-boarding questionnaire",
+    "questionnaireNote": "Details the new hire shares before day one — saved to their record.",
+    "signatures": "Documents to sign",
+    "signSeamNote": "Demo signing — connect an eIDAS provider (e.g. Signicat, DocuSign) to make these legally binding.",
+    "signed": "Signed",
+    "markSigned": "Mark signed",
+    "docPlaceholder": "Document name (e.g. Employment contract)",
+    "requestSign": "Request signature",
+    "withTemplate": "Template",
+    "templatesTitle": "Onboarding templates",
+    "templatesNote": "Create an industry template — a checklist plus a pre-boarding questionnaire — then onboard hires with it.",
+    "newTemplate": "New template",
+    "templateMeta": "{tasks} tasks · {questions} questions",
+    "fromPreset": "Start from a preset",
+    "choosePreset": "Choose an industry…",
+    "templateNamePlaceholder": "Template name",
+    "tasksLabel": "Checklist tasks",
+    "taskPlaceholder": "e.g. Verify professional license",
+    "addTask": "Add task",
+    "questionsLabel": "Pre-boarding questions",
+    "questionPlaceholder": "e.g. License / registration number",
+    "addQuestion": "Add question",
+    "saveTemplate": "Save template",
+    "saving": "Saving…",
+    "cancel": "Cancel",
+    "nameRequired": "Give the template a name.",
+    "needTask": "Add at least one checklist task.",
+    "saveFailed": "Could not save the template.",
+    "field": {
+      "preferredName": "Preferred name",
+      "tshirtSize": "T-shirt size",
+      "dietaryNeeds": "Dietary needs",
+      "equipmentPrefs": "Equipment preferences",
+      "emergencyContact": "Emergency contact",
+      "startDateConfirm": "Confirmed start date"
+    }
+  },
   "about": {
     "eyebrow": "About",
     "title": "What the platform does",
@@ -2385,6 +3060,9 @@
     "emptyGrid": "No seeded candidates or open positions yet. Positions are the jobs that appear in the pipeline.",
     "emptyGridCtaPipeline": "Open the pipeline",
     "emptyGridCtaJobs": "Open jobs",
+    "filteredEmptyTitle": "No candidates match the current filters",
+    "filteredEmptyBody": "Your minimum-fit floor or role-family filter is hiding everyone. Lower the floor or clear the family to see the grid.",
+    "clearFilters": "Clear filters",
     "candidateHeader": "Candidate",
     "colTitle": "{title} · {seniority} — {action}",
     "colSortingClear": "sorting by this role; click to clear",
@@ -2465,6 +3143,30 @@
     "colJob": "Job description",
     "colCompany": "Company overview",
     "colGithub": "GitHub profile",
+    "progressAria": "Analysis progress",
+    "livePipeline": "Live pipeline",
+    "compilingResult": "Compiling result",
+    "startingAnalysis": "Starting analysis",
+    "almostThere": "Almost there — packaging your report",
+    "comparingVariants": "Comparing {count} CV variants in parallel.",
+    "workingOnFile": "Working on {fileName}.",
+    "workingOnProfile": "Working on your profile.",
+    "progressLabel": "Progress",
+    "cancelScan": "Cancel scan",
+    "stages": {
+      "extractTitle": "Extracting CV text",
+      "extractSub": "Parsing PDF / DOCX content and repairing diacritics.",
+      "geminiTitle": "Calling Gemini",
+      "geminiSub": "The model is reading the profile, this is the longest step.",
+      "profileTitle": "Building profile signals",
+      "profileSub": "Mapping years, role family, skills, languages, traits.",
+      "scoringTitle": "Scoring candidate",
+      "scoringSub": "Combining experience, skills, seniority, education, traits.",
+      "salaryTitle": "Estimating salary",
+      "salarySub": "Blending Czech tech benchmarks with company context.",
+      "insightsTitle": "Generating insights",
+      "insightsSub": "Job-fit, ATS check, interview kit, application strategy."
+    },
     "jobTextAria": "Job description text",
     "companyTextAria": "Company overview text",
     "githubAria": "GitHub profile",
@@ -2497,6 +3199,8 @@
     "eyebrow": "Billing",
     "title": "Plan & usage",
     "intro": "Your subscription, what this period has used, and the plans you can move to.",
+    "checkoutConfirming": "Payment received — confirming your new plan…",
+    "checkoutDone": "You're all set. Your plan is now {plan}.",
     "loading": "Loading billing…",
     "loadFailed": "Couldn't load billing — check the connection and try again.",
     "retry": "Try again",

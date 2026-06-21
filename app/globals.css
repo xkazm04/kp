@@ -4,13 +4,24 @@
 
 @theme {
   --color-ink: #17202a;
-  --color-paper: #f7f5ef;
+  /* Option C — the marketing's warm cream as the app canvas, so white panels
+     pop on it like the landing's sticker cards. Dark overrides to deep ink. */
+  --color-paper: #fdf8ee;
   --color-moss: #526b4f;
   --color-coral: #d65a4a;
   --color-steel: #42606f;
   --color-limewash: #dce7d0;
   --color-dial-stone: #8c8779;
   --color-dial-amber: #caa54c;
+
+  /* Warm neutral ramp (Option C) — borders, fills and dividers tuned warm so
+     they sit with the cream canvas and read as drawn lines, kept near stock
+     lightness so contrast/density don't change. Text greys (stone-400+) stay
+     stock; the [data-theme="dark"] block owns the dark ramp. */
+  --color-stone-50: #f7f2e9;
+  --color-stone-100: #f1ebdd;
+  --color-stone-200: #e6ddcc;
+  --color-stone-300: #d6cbb4;
 
   /*
    * Score→tone scale — the single source of truth for the rank colors the eye
@@ -25,12 +36,21 @@
   --color-score-weak: var(--color-coral);
   --color-score-null: var(--color-steel);
 
-  --shadow-panel: 0 18px 50px rgba(23, 32, 42, 0.10);
+  /* Two-layer soft elevation — a tight contact shadow plus a closer ambient, so
+     Studio Light panels read crafted and grounded instead of floating in a 50px
+     blur. (The dark block overrides this to the hard Spark offset.) */
+  --shadow-panel: 0 1px 2px rgba(23, 32, 42, 0.05), 0 10px 28px -10px rgba(23, 32, 42, 0.13);
 
   /* Sticker shadows — the Spark register's small hard offsets (buttons, marks,
      chips). Subtle in light; the dark block overrides them to full strength. */
   --shadow-sticker-sm: 3px 3px 0 rgba(23, 32, 42, 0.14);
   --shadow-sticker-xs: 2px 2px 0 rgba(23, 32, 42, 0.14);
+
+  /* "Pop" — a confident offset for ACCENT / chrome surfaces only (PANEL_ACCENT,
+     stat cards, verdict banners). Editorial-restrained in light (low opacity);
+     the dark block lifts it to the full Spark offset. Data panels stay on the
+     calm --shadow-panel above so the board/table register keeps its composure. */
+  --shadow-pop: 4px 4px 0 rgba(23, 32, 42, 0.13);
 
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --font-serif: var(--font-fraunces), ui-serif, Georgia, "Times New Roman", serif;
@@ -156,6 +176,7 @@ body {
   --shadow-panel: 5px 5px 0 rgba(9, 13, 19, 0.85);
   --shadow-sticker-sm: 3px 3px 0 rgba(9, 13, 19, 0.85);
   --shadow-sticker-xs: 2px 2px 0 rgba(9, 13, 19, 0.85);
+  --shadow-pop: 5px 5px 0 rgba(9, 13, 19, 0.85);
 
   /* Display face flips with the register: Fraunces' serif calm belongs to
      Studio Light; Spark Dark titles get Bricolage's grotesque punch (the

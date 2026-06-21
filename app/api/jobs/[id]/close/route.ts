@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getJob } from "@/app/_lib/db";
+import { closeEntriesByJobId, getJob } from "@/app/_lib/db";
 import { getJobStatus, setJobStatus } from "@/app/_lib/job-ingest";
 
 export const runtime = "nodejs";
@@ -14,8 +14,20 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
     const job = getJob(id);
     if (!job) return NextResponse.json({ error: "Job not found." }, { status: 404 });
     const already = getJobStatus(id) === "closed";
-    if (!already) setJobStatus(id, "closed");
-    return NextResponse.json({ ok: true, status: "closed", alreadyClosed: already });
+    let withdrawn = 0;
+    if (!already) {
+      setJobStatus(id, "closed");
+      // JOB2 — withdraw the role's still-in-flight candidates (mark them role_closed) so
+      // a filled role isn't chased and doesn't inflate the active funnel. The Hired
+      // candidate is left active. Best-effort: the close already committed, so a
+      // withdrawal failure is logged, not surfaced as a failed close.
+      try {
+        withdrawn = closeEntriesByJobId(id);
+      } catch (e) {
+        console.error(`[api:jobs/close] job ${id} closed but withdrawing its entries failed:`, e);
+      }
+    }
+    return NextResponse.json({ ok: true, status: "closed", alreadyClosed: already, withdrawn });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Close failed." }, { status: 500 });
   }

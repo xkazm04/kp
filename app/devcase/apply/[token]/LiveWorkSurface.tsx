@@ -21,8 +21,19 @@ export function LiveWorkSurface({ token, seedFiles, note }: { token: string; see
   const [activePath, setActivePath] = useState<string>(seedFiles[0]?.path ?? "");
   const [status, setStatus] = useState<"idle" | "submitting" | "submitted" | "error">("idle");
 
+  // Identity (UAT M9): the live-work surface is the SOLE submit path for workspace
+  // cases now, so it collects who to reach — a winning evaluation with no address
+  // is an unreachable candidate. Labels reuse the repo-form's `devApply` keys.
+  const tApply = useTranslations("devApply");
+  const [name, setName] = useState("");
+  const [contact, setContact] = useState("");
+  const contactValid = /\S+@\S+\.\S+/.test(contact.trim());
+  const canSubmit = name.trim().length > 0 && contactValid && status !== "submitting";
+  const inputClass = "focus-ring mt-1 h-10 w-full rounded-md border border-stone-300 bg-white px-3 text-base text-ink";
+
   const sessionIdRef = useRef<string | null>(null);
   const startingRef = useRef(false);
+  const submittingRef = useRef(false);
   const pendingRef = useRef<ProcessEvent[]>([]);
   const filesRef = useRef(files);
   useEffect(() => {
@@ -108,16 +119,30 @@ export function LiveWorkSurface({ token, seedFiles, note }: { token: string; see
   }
 
   async function submit() {
+    // Synchronous in-flight guard: setStatus is async, so a fast double Enter/click
+    // could dispatch two POSTs before the button visibly disables. The ref flips
+    // immediately, so a second call is a no-op until this one settles; reset in the
+    // finally so an error is retryable (on success the submit button is gone anyway).
+    if (submittingRef.current || !canSubmit) return;
+    submittingRef.current = true;
     setStatus("submitting");
     record("submit", activePath);
-    await flush({ submit: true });
-    const sid = sessionIdRef.current;
-    if (!sid) {
-      setStatus("error");
-      return;
+    try {
+      await flush({ submit: true });
+      const sid = sessionIdRef.current;
+      if (!sid) {
+        setStatus("error");
+        return;
+      }
+      const r = await fetch(`/api/devcase/session/${sid}/submit`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ candidate: name.trim(), contact: contact.trim() }),
+      }).catch(() => null);
+      setStatus(r && r.ok ? "submitted" : "error");
+    } finally {
+      submittingRef.current = false;
     }
-    const r = await fetch(`/api/devcase/session/${sid}/submit`, { method: "POST" }).catch(() => null);
-    setStatus(r && r.ok ? "submitted" : "error");
   }
 
   const active = files.find((f) => f.path === activePath) ?? files[0];
@@ -163,12 +188,29 @@ export function LiveWorkSurface({ token, seedFiles, note }: { token: string; see
         />
       </div>
 
+      <div className="mt-4 grid gap-3 sm:grid-cols-2">
+        <label className="block text-sm font-medium text-ink">
+          {tApply("fieldName")} <span className="text-coral">*</span>
+          <input value={name} onChange={(e) => setName(e.target.value)} className={inputClass} />
+        </label>
+        <label className="block text-sm font-medium text-ink">
+          {tApply("fieldContact")} <span className="text-coral">*</span>
+          <input
+            type="email"
+            value={contact}
+            onChange={(e) => setContact(e.target.value)}
+            placeholder={tApply("fieldContactPlaceholder")}
+            className={inputClass}
+          />
+          <span className="mt-1 block text-xs font-normal text-steel">{tApply("fieldContactHint")}</span>
+        </label>
+      </div>
       <div className="mt-4 flex items-center gap-3">
         <button
           type="button"
           onClick={submit}
-          disabled={status === "submitting"}
-          className="rounded-md bg-stone-900 px-4 py-2 text-sm font-medium text-white hover:bg-stone-800 disabled:opacity-60"
+          disabled={!canSubmit}
+          className="rounded-md bg-stone-900 px-4 py-2 text-sm font-medium text-white hover:bg-stone-800 disabled:cursor-not-allowed disabled:opacity-60"
         >
           {status === "submitting" ? t("submitting") : t("submit")}
         </button>

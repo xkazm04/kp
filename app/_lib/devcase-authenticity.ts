@@ -23,6 +23,10 @@ export type AuthenticityInput = {
   // From the reflection (may be absent on older bundles / deterministic fallback).
   readBeforeWrite?: number | null; // 0..1
   iterationPattern?: string | null; // exploratory|linear|big-bang|test-driven|unclear
+  // True when the work was done in the in-product Live Work Surface — every edit
+  // was WATCHED, so there is no git history BY DESIGN. The strongest authorship
+  // proof the product has must not be penalized for lacking commits it can't have.
+  observed?: boolean;
 };
 
 export type Authenticity = {
@@ -43,13 +47,17 @@ export function scoreAuthenticity(input: AuthenticityInput): Authenticity {
   // A single bulk commit is the strongest paste-from-LLM tell. commitCount === 0
   // means we couldn't read a git history at all (not necessarily a paste), so we
   // don't apply the single-commit penalty — but the missing cadence still costs.
-  if (input.commitCount === 1) {
+  // EXCEPT for an OBSERVED live-session submission: it has no git history by design
+  // (the work was watched edit-by-edit), so the missing-commit penalty is waived —
+  // penalizing watched work for lacking commits would defeat the whole point of the
+  // Live Work Surface (it scored the cleanest submissions as half-suspect).
+  if (input.commitCount === 1 && !input.observed) {
     score -= 40;
     reasons.push("Single bulk commit — no incremental history.");
   } else if (input.commitCount >= 2 && input.commitCount <= 3) {
     score -= 12;
     reasons.push("Very few commits — thin development trail.");
-  } else if (input.commitCount === 0) {
+  } else if (input.commitCount === 0 && !input.observed) {
     score -= 15;
     reasons.push("No readable commit history.");
   }

@@ -62,7 +62,10 @@ export async function POST(request: NextRequest) {
       if (Object.keys(w).length > 0) args.push("--weights", JSON.stringify(w));
     }
 
-    const { result } = spawnPython(args);
+    // Forward the request's abort signal so an abandoned request SIGKILLs the child
+    // (and reaches the finally → cleanupWorkdir) instead of orphaning it to the 600s
+    // backstop and leaking the temp dir — the leak extract-text already guards against.
+    const { result } = spawnPython(args, { signal: request.signal });
     const { stdout, stderr, exitCode } = await result;
     if (exitCode !== 0) {
       const err = parseStderrError(stderr, exitCode);

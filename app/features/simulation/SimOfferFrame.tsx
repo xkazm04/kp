@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { X } from "lucide-react";
 import { useSimulation } from "./SimulationProvider";
 
@@ -10,11 +10,12 @@ import { useSimulation } from "./SimulationProvider";
 //
 // Responsive: the frame caps at 520px but shrinks on short viewports so it never
 // clips under the sim bar. A shimmer skeleton stands in until the iframe's load
-// event fires, so a slow candidate page never reads as a blank box. Escape always
-// dismisses; clicking the backdrop dismisses too, but only while paused so a stray
-// click mid-step doesn't tear down the flow.
+// event fires, so a slow candidate page never reads as a blank box. It is a real
+// modal (role="dialog"/aria-modal, focus moved in on open) and is always dismissable
+// — Escape, the visible Close button, or a backdrop click — so a viewer is never
+// trapped behind the dim layer; closing just continues the demo via the API path.
 export function SimOfferFrame() {
-  const { frame, paused, closeFrame } = useSimulation();
+  const { frame, closeFrame } = useSimulation();
   const [loaded, setLoaded] = useState(false);
   const url = frame?.url ?? null;
 
@@ -37,14 +38,32 @@ export function SimOfferFrame() {
     return () => window.removeEventListener("keydown", onKey);
   }, [frame, closeFrame]);
 
+  // Modal focus management: move focus to Close when the dialog opens (so keyboard /
+  // screen-reader users land INSIDE the dialog rather than on app controls hidden
+  // behind the dim backdrop) and restore it to the prior element on close.
+  const open = Boolean(frame);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const previouslyFocused = document.activeElement as HTMLElement | null;
+    closeButtonRef.current?.focus();
+    return () => previouslyFocused?.focus?.();
+  }, [open]);
+
   if (!frame) return null;
 
   return (
     <div
       className="fixed inset-x-0 top-0 bottom-[calc(var(--sim-bar-h)_+_8px)] z-[var(--z-sim-frame)] flex items-center justify-center bg-ink/45 p-6"
-      onClick={paused ? closeFrame : undefined}
+      // Backdrop dismiss works whether or not the run is paused — the demo continues
+      // via the API path, so a viewer who wants out is never trapped behind the dim
+      // layer (previously only the tiny X / Escape dismissed while playing).
+      onClick={closeFrame}
     >
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={frame.title}
         className="w-full max-w-md overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
@@ -54,13 +73,14 @@ export function SimOfferFrame() {
           </span>
           <span className="min-w-0 flex-1 truncate text-steel">{frame.url}</span>
           <button
+            ref={closeButtonRef}
             type="button"
             onClick={closeFrame}
-            aria-label="Close candidate page"
             title="Close (Esc)"
-            className="focus-ring -mr-1 shrink-0 rounded-md p-1 text-steel hover:bg-stone-100 hover:text-ink"
+            className="focus-ring -mr-1 inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-1 text-meta font-semibold text-steel hover:bg-stone-100 hover:text-ink"
           >
-            <X size={16} />
+            <X size={16} aria-hidden />
+            <span>Close</span>
           </button>
         </div>
         <div className="relative h-[min(520px,68vh)] w-full bg-paper">

@@ -245,3 +245,22 @@ test("update: present fields are capped to the same limits as create", () => {
   assert.equal(validateTemplateUpdate({ body: "b".repeat(TEMPLATE_BODY_MAX_LENGTH + 1) }).ok, false);
   assert.equal(validateTemplateUpdate({ name: "a".repeat(TEMPLATE_NAME_MAX_LENGTH) }).ok, true);
 });
+
+test("an empty {{about}} drops its whole section - no canned filler, no empty heading", () => {
+  const body = `# {{title}}
+## About us
+{{about}}
+
+## The role
+{{responsibilities}}`;
+  const out = renderTemplate(body, { title: "Engineer", responsibilities: ["Ship things"] });
+  assert.ok(!out.includes("About us"), "empty About section should collapse header-and-all");
+  assert.ok(!out.includes("trusted by millions"), "no canned company filler");
+  assert.ok(out.includes("The role") && out.includes("Ship things"));
+});
+
+test("a provided {{about}} renders under its heading", () => {
+  const out = renderTemplate(`## About us
+{{about}}`, { about: "We are Acme." });
+  assert.ok(out.includes("About us") && out.includes("We are Acme."));
+});

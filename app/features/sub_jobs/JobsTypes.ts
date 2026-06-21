@@ -130,12 +130,8 @@ export type CandRow = {
   outreachSent?: boolean;
 };
 
-export const FAMILY_LABEL: Record<string, string> = {
-  software_engineering: "Software",
-  data_ai: "Data / AI",
-  product_project: "Product / Project",
-};
-export const FAMILIES = ["software_engineering", "data_ai", "product_project"];
+// Role-family slugs come from the single canonical module (labels via enums.family).
+export { ROLE_FAMILY_SLUGS as FAMILIES } from "@/app/_lib/role-families";
 export const SENIORITIES = ["junior", "medior", "senior", "lead"];
 export const MODES = ["remote", "hybrid", "onsite"];
 

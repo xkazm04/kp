@@ -36,7 +36,11 @@ async function extendOffer(request: NextRequest, entry: PipelineEntry) {
     candidateLabel: entry.candidateLabel,
     jobId: entry.jobId,
     jobTitle: entry.jobTitle,
-    currency: typeof draft.currency === "string" ? draft.currency : "CZK",
+    // P2-1 — store the offer draft's OWN currency (it flows from the candidate's
+    // multi-currency analysis since P0-2); do NOT fabricate "CZK" when the draft
+    // carried none. A null currency renders unit-less on the offer page rather
+    // than mislabeling a non-Czech offer.
+    currency: typeof draft.currency === "string" ? draft.currency : null,
     salary: Number(draft.recommended) || null,
     payload: draft,
   });
@@ -83,6 +87,17 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
         return NextResponse.json(
           { error: `Unknown stage "${toStage}". Expected one of: ${PIPELINE_STAGES.join(", ")}.` },
           { status: 400 }
+        );
+      }
+      // Hired is terminal and OUTCOME-bearing: it must be reached only when the
+      // candidate ACCEPTS an offer (/api/offer/[token]), which records the offer, the
+      // acceptance, and fires onboarding. A manual stage override straight to Hired
+      // would bypass all of that — a "hire" with no offer record. Route the recruiter
+      // through the offer flow (move to Offer → extend offer → candidate accepts).
+      if (toStage === "Hired") {
+        return NextResponse.json(
+          { error: "Hired is set when the candidate accepts an offer, not by a manual move. Move them to Offer and extend an offer." },
+          { status: 422 }
         );
       }
       const expected = typeof body.expectedStage === "string" ? body.expectedStage : undefined;
@@ -151,6 +166,20 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
           { status: 409 }
         );
       }
+      // Seal the REVERSAL into the tamper-evident decision chain too. The auto-reject
+      // is sealed by screen-wave; recording only a pipeline event for the reinstate
+      // left the chain showing a rejection with no record it was overturned — an
+      // incomplete audit trail. Best-effort (sealDecisionSafe never throws): a seal
+      // failure must not fail the reinstate the recruiter already committed.
+      sealDecisionSafe({
+        kind: "reinstated",
+        actor: "human:recruiter",
+        policyVersion: "manual",
+        candidateRef: id,
+        rationale: "Auto-rejection reversed for re-review.",
+        reasonCode: "reinstate",
+        inputs: { previousStatus: "rejected", restoredStage: "Screened" },
+      });
       return NextResponse.json({ entry: restored });
     }
 

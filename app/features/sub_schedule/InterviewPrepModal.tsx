@@ -429,7 +429,7 @@ export function InterviewPrepModal({ entry, onClose }: { entry: SchedEntry; onCl
               against this candidate — the human counterpart to the AI voice-screen
               scorecard. Hydrated from the freshest payload: a regenerated result
               carries the saved scorecard forward, so never read the stale GET. */}
-          <HumanScorecardPanel entryId={entry.id} archetype={entry.archetype} initial={prep.humanScorecard} />
+          <HumanScorecardPanel entryId={entry.id} archetype={entry.archetype} roleFamily={entry.roleFamily} initial={prep.humanScorecard} />
         </div>
       )}
     </Modal>

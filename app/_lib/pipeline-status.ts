@@ -24,19 +24,28 @@
 //               twice — but neither a company reject nor a candidate decline, so the
 //               two reporting counts above stay honest and the funnel never
 //               double-counts one person as two ACTIVE applications (idea-9ad8a777).
+//   role_closed — the ROLE was closed/filled out from under a still-active candidate
+//               (JOB2): closing a job withdraws its remaining in-flight entries so a
+//               recruiter doesn't keep chasing candidates for a role no one can fill,
+//               and dashboards stop counting them as live funnel. Terminal, but —
+//               crucially, like rematched — NOT a company merit-reject and NOT a
+//               candidate decline: these people cleared the bar and lost the role to
+//               timing, so keeping them a DISTINCT status (rather than overloading
+//               `rejected`) keeps reject-rate honest and marks them as prime
+//               re-engagement / rediscovery targets if a similar role opens.
 //
 // Kept import-free (mirrors comms-status.ts) so BOTH the Node unit runner can load
 // it directly AND client components (e.g. MatrixTab) can import it without pulling
 // better-sqlite3 in transitively via db.ts.
 
-export const PIPELINE_ENTRY_STATUSES = ["active", "rejected", "declined", "rematched"] as const;
+export const PIPELINE_ENTRY_STATUSES = ["active", "rejected", "declined", "rematched", "role_closed"] as const;
 
 export type PipelineEntryStatus = (typeof PIPELINE_ENTRY_STATUSES)[number];
 
 // The closed-out states. An entry in any of them is terminal — it drops out of the
 // active pipeline (listPipeline), is excluded from automation, and is eligible to
 // be re-surfaced as 'active' if a recruiter re-adds the candidate.
-export const TERMINAL_ENTRY_STATUSES = ["rejected", "declined", "rematched"] as const;
+export const TERMINAL_ENTRY_STATUSES = ["rejected", "declined", "rematched", "role_closed"] as const;
 
 export type TerminalEntryStatus = (typeof TERMINAL_ENTRY_STATUSES)[number];
 
@@ -51,7 +60,7 @@ export function isPipelineEntryStatus(value: string | null | undefined): value i
  *  — that literal silently excludes the equally-terminal 'declined'/'rematched',
  *  which is the bug this taxonomy exists to prevent. */
 export function isTerminalEntryStatus(status: string | null | undefined): boolean {
-  return status === "rejected" || status === "declined" || status === "rematched";
+  return status === "rejected" || status === "declined" || status === "rematched" || status === "role_closed";
 }
 
 /** Whether a confirmed interview invite linked to this pipeline entry should still

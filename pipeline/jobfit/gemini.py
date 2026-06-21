@@ -19,7 +19,7 @@ from google import genai
 from google.genai import types
 
 from .i18n import language_name
-from .taxonomy import ROLE_FAMILIES
+from .taxonomy import ROLE_FAMILIES, role_family_catalog
 
 
 GEMINI_MODEL = "gemini-3-flash-preview"
@@ -66,6 +66,27 @@ ANALYSIS_RESPONSE_SCHEMA = {
                 "recency": "YYYY-MM or null",
             }
         ],
+        # First-class non-prose signals that often DECIDE the hire (P0-4): licenses/
+        # certifications (with issuer/id/expiry), publications/patents, and
+        # portfolio/repo/profile URLs. Capture even if mentioned only briefly.
+        "credentials": [
+            {
+                "name": "license/cert name, e.g. 'Registered Nurse license', 'CCRN', 'Series 7', 'OSHA 30', 'CPA', 'PE'",
+                "issuer": "issuing body (state board / AACN / FINRA / …) or ''",
+                "identifier": "license/cert number or id, or ''",
+                "expiry": "expiry or issue date if stated, or ''",
+                "kind": "one of: license | certification",
+            }
+        ],
+        "publications": [
+            {
+                "title": "publication or patent title",
+                "venue": "journal / conference / patent office, or ''",
+                "year": "year, or ''",
+                "kind": "one of: publication | patent",
+            }
+        ],
+        "links": ["portfolio / repository / personal-site / professional-profile URLs (Behance, GitHub, Vimeo, LinkedIn, ORCID, …)"],
     },
     "score": {
         "total": "integer 0-100",
@@ -76,18 +97,19 @@ ANALYSIS_RESPONSE_SCHEMA = {
         "traits": "integer 0-10",
     },
     "salary": {
-        "currency": "CZK",
-        "period": "month",
-        "minimum": "integer monthly gross",
-        "maximum": "integer monthly gross",
-        "midpoint": "integer monthly gross",
+        "currency": "ISO currency code for the candidate's/role's OWN market (e.g. USD, EUR, GBP, CZK, INR, SGD, AED) inferred from the JD location, candidate location and company — do NOT convert to CZK",
+        "period": "one of: hour | month | year — the natural pay period for that market/role (US salaried=year, hourly=hour, CZ=month, India=year)",
+        "minimum": "integer gross in the stated currency and period",
+        "maximum": "integer gross in the stated currency and period",
+        "midpoint": "integer gross in the stated currency and period",
         "confidence": "one of: low | medium | high | grounded",
+        "structure_note": "pay beyond base — equity/options, bonus, commission, tips, allowances, total-comp — or '' if base-only",
         "rationale": ["..."],
     },
     "market_evidence": {
-        "summary": "current Czech tech market context for this profile",
-        "suggested_minimum_czk": "integer or null",
-        "suggested_maximum_czk": "integer or null",
+        "summary": "current market context for this profile's role and region (the candidate's own market, not assumed Czech)",
+        "suggested_minimum": "integer in salary.currency/period, or null",
+        "suggested_maximum": "integer in salary.currency/period, or null",
         "confidence": "one of: low | medium | high",
         "notes": ["..."],
     },
@@ -395,7 +417,22 @@ def analyze_profile_with_gemini(
     # Blind screening (idea-b8d711c4): when a redacted CV TEXT is supplied, the
     # model reads that instead of the uploaded file, so identity (name, contact,
     # photo) never reaches it and the assessment is produced blind.
+    #
+    # `blind_text is None` means blind was OFF (upload the file for full fidelity).
+    # A NON-None but empty/blank value means blind was REQUESTED but the CV couldn't
+    # be text-extracted (encrypted/scanned/unsupported PDF) — falling back to the file
+    # upload here would send the original name/contact/photo to the model and defeat
+    # blind mode entirely. FAIL CLOSED rather than leak: the previous code collapsed
+    # both cases to `blind = False` and silently uploaded the file.
+    blind_requested = blind_text is not None
     blind = bool(blind_text and blind_text.strip())
+    if blind_requested and not blind:
+        raise RuntimeError(
+            "Blind screening was requested but no identity-redacted text could be "
+            "extracted from this CV (likely an encrypted, scanned, or unsupported "
+            "PDF). Refusing to upload the original file, which would expose the "
+            "candidate's identity. Disable blind screening for this CV to proceed."
+        )
     source_line = (
         "Analyze the CV text provided at the END of this prompt. The candidate's identity "
         "(name, contact details, photo) has been REDACTED to placeholders like [NAME]/[EMAIL]/[REDACTED]; "
@@ -404,10 +441,18 @@ def analyze_profile_with_gemini(
         if blind
         else "Analyze the attached CV/profile document and return ONE strict JSON object that matches this shape exactly:\n\n"
     )
+    families_block = "\n".join(
+        f"  - {fam}: {desc}" for fam, desc in role_family_catalog()
+    )
     prompt = (
-        "You are a precise HR tech analyst for the Czech Republic technology market.\n"
+        "You are a precise HR analyst evaluating a candidate for a specific role.\n"
         f"{source_line}"
         f"{schema_text}\n\n"
+        "Role families — choose the SINGLE best fit for the candidate's actual occupation. "
+        "Do NOT default a non-technology candidate (a nurse, tradesperson, teacher, "
+        "salesperson, accountant, scientist, etc.) to a technology family; if nothing fits, "
+        "use general_professional:\n"
+        f"{families_block}\n\n"
         "Deterministic findings from a pre-pass over the raw extracted text and the supplied company text:\n"
         f"{evidence_text}\n\n"
         "Rules:\n"
@@ -415,12 +460,16 @@ def analyze_profile_with_gemini(
         "- The CV may be in any language (often Czech or English). Preserve the document's original language and its diacritics in profile.raw_text and reconstruct letter-spaced PDF words. Skill names, technology names, and proper nouns stay verbatim everywhere.\n"
         f"- Every other freeform field (strengths, gaps, recommendations, explanation, summary, salary.rationale, all job_fit text fields, market_evidence.summary/notes) MUST be written in {output_language} regardless of the CV's language. Translate the source content into clean, natural {output_language} in those fields.\n"
         "- Keep every enumerated/code value exactly as the schema specifies and DO NOT translate it: current_seniority (junior|medior|senior|lead), role_family, education_level, salary.confidence, skill_claims.level/provenance, experiences.kind. These are matched downstream by exact value.\n"
-        "- Salary numbers are monthly gross CZK based on the current Prague/Czech tech market.\n"
-        "- Use the deterministic anchor_band as the primary anchor for your salary range. Adjust within roughly ±20% only if the document supplies stronger evidence (rare specialism, exceptional seniority signal, executive scope). Cite the anchor in salary.rationale.\n"
-        "- Your role_family must be one of the families above. Prefer detected_role_family unless the CV's recent roles point clearly elsewhere; explain disagreement in evidence.\n"
+        "- Salary: estimate in the candidate's/role's OWN market and currency. Infer the market from the JD location, the candidate's location, and the company; use that market's natural currency (ISO code) and period (hour|month|year). Do NOT convert to CZK. State currency and period explicitly and name the market in salary.rationale. If the market is genuinely undeterminable, fall back to the Czech market (CZK/month) and say so.\n"
+        "- The deterministic anchor_band is a CZECH-MARKET CZK/MONTH reference. Use it as your primary anchor ONLY if this candidate's market is the Czech Republic (then adjust within roughly ±20% for stronger evidence and cite it). For any other market, ignore the anchor and estimate from market knowledge, noting the basis in salary.rationale.\n"
+        "- Capture total comp, not just base: if the role/candidate involves equity/options, bonus, commission, tips, or allowances, record it in salary.structure_note (and reflect it in the rationale) rather than reducing the package to a base figure.\n"
+        "- Your role_family must be exactly one of the role-family ids listed above, matching the candidate's real occupation. Prefer detected_role_family unless the CV's recent roles point clearly elsewhere; explain disagreement in evidence.\n"
         "- Treat detected_signals as inputs you should weigh, not facts you must echo. They reflect the deterministic taxonomy match — refine or correct based on the CV.\n"
         "- score sub-totals must respect the listed maxima and roughly sum to total.\n"
         "- Do not invent facts that are not supported by the document or grounded sources.\n"
+        "- Capture professional licenses/certifications into credentials (with issuer/identifier/expiry where stated), publications/patents into publications, and portfolio/repo/profile URLs into links. These often decide the hire — extract them even if mentioned only briefly; never invent an identifier.\n"
+        "- CREDENTIAL GATE: when a job description is supplied and it requires a specific license/certification (an RN/medical licence, Series 7/63, a trade/OSHA card, board certification, bar admission, PE, CPA, …) and the candidate's credentials do NOT include it, treat it as a BLOCKING gap — surface it in job_fit.recruiter_risk_flags and gaps, and do not rate them a strong fit on skills alone. A required-but-expired credential is the same risk.\n"
+        "- Weigh a portfolio (creative roles) and publications/patents (research/scientific roles) as PRIMARY evidence where the role depends on them, not as an afterthought.\n"
         f"{grounding_line}"
         f"{job_fit_rule}"
         "\n"

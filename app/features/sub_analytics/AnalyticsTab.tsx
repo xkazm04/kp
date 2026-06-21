@@ -31,8 +31,11 @@ type Analytics = {
   declined: number;
   funnel: Funnel[];
   avgTimeToHireDays: number | null;
+  // UAT M7 — blended overall cost per hire (Σ channel spend ÷ hires), all-time only.
+  costPerHireCzk: number | null;
   avgAgeDays: number | null;
   bottleneck: { stage: string; avgDaysInStage: number; entryCount: number } | null;
+  stageDwell: { stage: string; avgDays: number; count: number }[];
   byJob: { jobTitle: string; total: number; reachedInterview: number; hired: number; hireRatePct: number; koDeclined: number }[];
   byJobTotal: number;
   koDeclined: number;
@@ -251,6 +254,24 @@ export function AnalyticsTab() {
               </Link>
             </p>
           ) : null}
+          {/* Full per-stage dwell (the bottleneck banner shows only the worst one).
+              Surfaces the perStageDays the bottleneck already computes — Sloneek
+              "time spent in each hiring stage per position". */}
+          {data.stageDwell.length > 0 ? (
+            <div className="mt-4">
+              <p className="text-meta uppercase tracking-wide text-steel">{t("stageDwellTitle")}</p>
+              <ul className="mt-1.5 space-y-1" role="list">
+                {data.stageDwell.map((s) => (
+                  <li key={s.stage} className="flex items-baseline justify-between gap-2 text-base">
+                    <Link href={boardHref({ stage: s.stage })} className="focus-ring rounded text-ink hover:text-coral">
+                      {enumLabel("stage", s.stage)}
+                    </Link>
+                    <span className="text-steel">{t("stageDwellRow", { days: s.avgDays, count: s.count })}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
           {/* 82c2b8e8 — set the goal lines the funnel + time-to-hire flag against. */}
           <GoalsEditor
             stages={data.funnel.map((f) => f.stage)}
@@ -287,6 +308,8 @@ export function AnalyticsTab() {
           <AutomationPanel
             impact={data.automation}
             roi={data.automationRoi}
+            costPerHireCzk={data.costPerHireCzk}
+            timeToHireDays={data.avgTimeToHireDays}
             onSaved={reload}
             decisionsHref={buildUrl({ ...clearedTabScopedParams(), tab: "decisions" }, search.toString())}
           />
@@ -309,6 +332,7 @@ export function AnalyticsTab() {
         variantTotal={data.byVariantTotal}
         recommendations={data.variantRecommendations}
         onSpendSaved={reload}
+        windowed={data.windowDays != null}
       />
 
       <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
@@ -394,11 +418,15 @@ export function AnalyticsTab() {
 function AutomationPanel({
   impact,
   roi,
+  costPerHireCzk,
+  timeToHireDays,
   onSaved,
   decisionsHref,
 }: {
   impact: AutomationImpact;
   roi: AutomationRoi;
+  costPerHireCzk: number | null;
+  timeToHireDays: number | null;
   onSaved: () => void;
   decisionsHref: string;
 }) {
@@ -435,7 +463,7 @@ function AutomationPanel({
             <ImpactRow label={t("comms")} value={impact.commsDelivered} />
           </ul>
           {/* b39992b1 — what that automation was WORTH, in recruiter-hours + CZK. */}
-          <RoiLedger roi={roi} onSaved={onSaved} />
+          <RoiLedger roi={roi} costPerHireCzk={costPerHireCzk} timeToHireDays={timeToHireDays} onSaved={onSaved} />
         </>
       )}
     </div>
@@ -445,13 +473,33 @@ function AutomationPanel({
 // b39992b1 — the counterfactual savings the automated trail bought, grounded in
 // the same per-kind event counts the rollup uses, at the org's (override-able)
 // hourly rate. Exportable like the decision log.
-function RoiLedger({ roi, onSaved }: { roi: AutomationRoi; onSaved: () => void }) {
+function RoiLedger({
+  roi,
+  costPerHireCzk,
+  timeToHireDays,
+  onSaved,
+}: {
+  roi: AutomationRoi;
+  costPerHireCzk: number | null;
+  timeToHireDays: number | null;
+  onSaved: () => void;
+}) {
   const t = useTranslations("analytics.roi");
   const tLog = useTranslations("analytics.log");
   const exportCsv = () => {
     downloadFile(
       "kp-automation-roi.csv",
       toCsv([
+        // Leadership readout first (UAT M7) — the three figures a TA lead defends
+        // upward — then the per-kind ledger they roll up from.
+        [t("csvMetric"), t("csvValue")],
+        [t("rdTimeSaved"), roi.pctOfManualBaseline != null ? `${roi.pctOfManualBaseline}%` : "—"],
+        [t("csvHoursPerHire"), roi.hoursSavedPerHire ?? "—"],
+        [t("rdCostPerHire"), costPerHireCzk ?? "—"],
+        [t("rdTimeToHire"), timeToHireDays ?? "—"],
+        [t("csvHoursTotal"), roi.hoursSaved],
+        [t("csvCzkTotal"), roi.czkSaved],
+        [],
         [t("csvKind"), t("csvCount"), t("csvMinsEach"), t("csvMinsTotal")],
         ...roi.actions.map((a) => [kindLabel(tLog, a.kind), a.count, a.minutesEach, a.minutesTotal]),
       ]),
@@ -468,8 +516,38 @@ function RoiLedger({ roi, onSaved }: { roi: AutomationRoi; onSaved: () => void }
           <p className="mt-1 font-serif text-h2 leading-tight text-moss">
             {t("headline", { hours: roi.hoursSaved, czk: roi.czkSaved.toLocaleString("cs-CZ") })}
           </p>
+          {/* Measured against the manual baseline (UAT M7): a reduction a leader can
+              size, not a bare hour count. Honest "pending" until there's a hire. */}
+          {roi.hoursSavedPerHire != null ? (
+            <p className="mt-0.5 text-sm font-medium text-moss">
+              {t("perHire", { hours: roi.hoursSavedPerHire, pct: roi.pctOfManualBaseline ?? 0, baseline: roi.manualBaselineHoursPerHire })}
+            </p>
+          ) : (
+            <p className="mt-0.5 text-sm text-steel">{t("perHirePending")}</p>
+          )}
           <p className="mt-0.5 text-sm text-steel">{t("basis", { actions: roi.totalActions, rate: roi.hourlyRateCzk })}</p>
-          <ul className="mt-2 space-y-1 text-sm">
+
+          {/* Leadership readout (UAT M7): savings-vs-baseline + cost-per-hire +
+              time-to-hire — the three scattered numbers, in one defensible place. */}
+          <dl className="mt-3 grid grid-cols-3 gap-3 rounded-md bg-paper p-3">
+            <div>
+              <dt className="text-meta uppercase tracking-wide text-steel">{t("rdTimeSaved")}</dt>
+              <dd className="mt-0.5 font-serif text-h3 text-ink">{roi.pctOfManualBaseline != null ? `${roi.pctOfManualBaseline}%` : "—"}</dd>
+              <dd className="text-xs text-steel">{roi.hoursSavedPerHire != null ? t("rdPerHireSub", { hours: roi.hoursSavedPerHire }) : t("rdNoHires")}</dd>
+            </div>
+            <div>
+              <dt className="text-meta uppercase tracking-wide text-steel">{t("rdCostPerHire")}</dt>
+              <dd className="mt-0.5 font-serif text-h3 text-ink">{costPerHireCzk != null ? t("czkValue", { n: costPerHireCzk.toLocaleString("cs-CZ") }) : "—"}</dd>
+              <dd className="text-xs text-steel">{t("rdAllTime")}</dd>
+            </div>
+            <div>
+              <dt className="text-meta uppercase tracking-wide text-steel">{t("rdTimeToHire")}</dt>
+              <dd className="mt-0.5 font-serif text-h3 text-ink">{timeToHireDays != null ? t("daysValue", { n: timeToHireDays }) : "—"}</dd>
+              <dd className="text-xs text-steel">{t("rdMedian")}</dd>
+            </div>
+          </dl>
+
+          <ul className="mt-3 space-y-1 text-sm">
             {roi.actions.slice(0, 5).map((a) => (
               <li key={a.kind} className="flex items-baseline justify-between gap-2">
                 <span className="truncate text-steel">{t("actionRow", { label: kindLabel(tLog, a.kind), count: a.count })}</span>
@@ -554,12 +632,16 @@ function ChannelEconomicsPanel({
   variantTotal,
   recommendations,
   onSpendSaved,
+  windowed,
 }: {
   rows: ChannelEconomics[];
   variants: VariantStat[];
   variantTotal: number;
   recommendations: VariantRecommendation[];
   onSpendSaved: () => void;
+  // True when a time window is selected: spend is a lifetime total, so cost-per
+  // figures are suppressed (server returns null) and this note explains the "—".
+  windowed: boolean;
 }) {
   const t = useTranslations("analytics.channels");
   const format = useFormatter();
@@ -613,6 +695,8 @@ function ChannelEconomicsPanel({
           </table>
         </div>
       )}
+
+      {windowed && rows.length > 0 ? <p className="mt-2 text-sm text-steel">{t("cpaWindowedNote")}</p> : null}
 
       {recommendations.length > 0 ? (
         <div className="mt-4 rounded-md border border-dial-amber/40 bg-dial-amber/10 px-3 py-2.5">
@@ -979,18 +1063,21 @@ function MomentumPanel({ weeks }: { weeks: MomentumWeek[] }) {
       ) : (
         <ol className="mt-4 flex items-end gap-2">
           {weeks.map((w) => (
-            <li
-              key={w.weekStart}
-              className="flex min-w-0 flex-1 flex-col items-center gap-1"
-              aria-label={t("momentumWeekAria", {
-                date: weekLabel(w.weekStart),
-                added: w.added,
-                advanced: w.advanced,
-                rejected: w.rejected,
-                hired: w.hired,
-              })}
-            >
-              <div aria-hidden className="flex h-20 w-full items-end justify-center gap-0.5 rounded-md bg-paper px-1 pt-1">
+            <li key={w.weekStart} className="flex min-w-0 flex-1 flex-col items-center gap-1">
+              {/* role="img" + aria-label is the reliable text equivalent: a bare
+                  <li aria-label> isn't announced across SRs. The role makes the bar
+                  group's decorative children presentational automatically. */}
+              <div
+                role="img"
+                aria-label={t("momentumWeekAria", {
+                  date: weekLabel(w.weekStart),
+                  added: w.added,
+                  advanced: w.advanced,
+                  rejected: w.rejected,
+                  hired: w.hired,
+                })}
+                className="flex h-20 w-full items-end justify-center gap-0.5 rounded-md bg-paper px-1 pt-1"
+              >
                 {MOMENTUM_SERIES.map((s) => (
                   <div
                     key={s.key}

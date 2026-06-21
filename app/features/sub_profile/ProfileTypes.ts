@@ -1,3 +1,5 @@
+import { ROLE_FAMILY_SLUGS, ROLE_FAMILY_LABELS } from "@/app/_lib/role-families";
+
 // `_id` is a stable CLIENT-ONLY key for React list rendering (idea-row-identity): it is
 // never persisted — ProfileEditor.build() maps each row to the payload field-by-field, so
 // _id can't leak into profiles.payload_json. Keying on it (not the array index) keeps focus,
@@ -86,11 +88,9 @@ export const ARCHETYPE_CHOICES = [
   { v: "student", label: "Student / early-career" },
   { v: "career_switcher", label: "Career-switcher" },
 ];
-export const ROLE_FAMILIES = [
-  { v: "software_engineering", label: "Software" },
-  { v: "data_ai", label: "Data / AI" },
-  { v: "product_project", label: "Product / Project" },
-];
+// Labels are overridden by enums.family at the render site (ProfileEditor); the
+// label here is the non-i18n fallback. Slugs come from the canonical module.
+export const ROLE_FAMILIES = ROLE_FAMILY_SLUGS.map((v) => ({ v, label: ROLE_FAMILY_LABELS[v] }));
 export const EDU_LEVELS = ["unknown", "university", "bachelor", "master", "phd"];
 export const SENIORITIES = ["junior", "medior", "senior", "lead"];
 // EVIDENCE_KINDS / SKILL_LEVELS / PROVENANCE are GENERATED from the Python

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { coerceDumpPayload, loadWorkspace, planImport } from "@/app/_lib/db-portability";
+import { requireOperator } from "@/app/_lib/auth/require-operator";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -11,11 +12,22 @@ export const dynamic = "force-dynamic";
 // keeps db-load.mjs's all-or-nothing transaction and refuse-to-clobber
 // semantics (a populated table is never touched without `replace`).
 //
-// SECURITY NOTE: restoring executes the dump's DDL and replaces workspace
-// data wholesale — strictly an operator action. Like every recruiter API it
-// currently ships with no auth layer; it must ride the same app-wide auth
-// decision tracked as the rejected-idea follow-up ccb4d851.
+// SCOPE NOTE (tri-scan #2): this restores the WHOLE DATABASE, not one workspace —
+// loadWorkspace drops+recreates+reloads every table in the dump. Safe today only
+// under the single-tenant lock (workspace-lock.ts); before KP_MULTI_WORKSPACE is
+// enabled it MUST be reworked to restore into the active workspace's rows only
+// (per-table delete-by-workspace + insert, never DROP TABLE), or one tenant's
+// import clobbers all the others.
+//
+// SECURITY NOTE: restoring executes the dump's DDL and replaces data wholesale —
+// strictly an operator action, behind the proxy auth gate (active when
+// KP_OPERATOR_PASSWORD is set); see auth-sessions-tenancy.md #3.
 export async function POST(request: NextRequest) {
+  // Defense-in-depth beyond the proxy session gate: restoring executes the dump's
+  // DDL and replaces data wholesale (DROP TABLE per table), so it must be
+  // operator-only. requireOperator() also rejects the anonymous demo session.
+  const denied = await requireOperator();
+  if (denied) return denied;
   try {
     const body = (await request.json().catch(() => null)) as {
       dump?: unknown;

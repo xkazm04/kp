@@ -7,6 +7,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { buildTabSwitchUrl } from "@/app/features/tabs";
 import { ChainEmptyState } from "@/app/_components/ChainEmptyState";
 import { CompletionCta } from "@/app/_components/CompletionCta";
+import { Skeleton } from "@/app/_components/Skeleton";
 import { useTasks, useTaskResult } from "@/app/features/tasks/TasksProvider";
 import { useLiveRefresh } from "@/app/features/live-refresh";
 import { AiReviewCard } from "./AiReviewCard";
@@ -55,6 +56,9 @@ export function DecisionsTab() {
   // The role whose screening wave (DEC1/DEC2) is open — jobId + title for the modal.
   const [waveRole, setWaveRole] = useState<{ jobId: string; title: string } | null>(null);
   const [evalRole, setEvalRole] = useState<{ roleKey: string; roleTitle: string } | null>(null);
+  // Governance mode for the next group evaluation (P1-3). "recommendation" keeps the
+  // AI-picks-a-lead default; "committee" / "eligibility_list" make the AI advisory.
+  const [evalMode, setEvalMode] = useState<"recommendation" | "committee" | "eligibility_list">("recommendation");
   const [evalData, setEvalData] = useState<GroupEvalPayload | null>(null);
   const [evalCreatedAt, setEvalCreatedAt] = useState<string | null>(null);
   const [evalTaskId, setEvalTaskId] = useState<string | null>(null);
@@ -232,7 +236,7 @@ export function DecisionsTab() {
       return;
     }
     const candidates = g.entries.map((e) => ({ entryId: e.id, candidateId: e.candidateId, label: e.candidateLabel, matchScore: e.matchScore }));
-    const started = await startTask("group_eval", { roleKey: g.roleKey, roleTitle: g.roleTitle, jobId: g.jobId, candidates });
+    const started = await startTask("group_eval", { roleKey: g.roleKey, roleTitle: g.roleTitle, jobId: g.jobId, candidates, governanceMode: evalMode });
     if (started) setEvalTaskId(started.id);
   };
 
@@ -288,6 +292,7 @@ export function DecisionsTab() {
               onChange={(e) => setJobFilter(e.target.value || null)}
               className="focus-ring rounded-md border border-stone-200 bg-white px-2.5 py-1 text-sm text-ink"
               title={t("filterTitle")}
+              aria-label={t("filterTitle")}
             >
               <option value="">{t("allRoles", { count: pending.length })}</option>
               {jobOptions.map((o) => (
@@ -297,6 +302,17 @@ export function DecisionsTab() {
               ))}
             </select>
           ) : null}
+          <select
+            value={evalMode}
+            onChange={(e) => setEvalMode(e.target.value as typeof evalMode)}
+            className="focus-ring rounded-md border border-stone-200 bg-white px-2.5 py-1 text-sm text-ink"
+            title={t("govModeTitle")}
+            aria-label={t("govModeTitle")}
+          >
+            <option value="recommendation">{t("govRecommendation")}</option>
+            <option value="committee">{t("govCommittee")}</option>
+            <option value="eligibility_list">{t("govEligibility")}</option>
+          </select>
           <span className="rounded-md border border-stone-200 bg-paper px-2.5 py-1 text-sm text-steel">
             {t("pending", {
               count: activeFilter
@@ -332,7 +348,14 @@ export function DecisionsTab() {
           {error}
         </p>
       ) : entries == null ? (
-        <p className="text-base text-steel">{t("loading")}</p>
+        <div aria-busy="true" aria-label={t("loading")} className="space-y-3">
+          <Skeleton className="h-4 w-40" />
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <Skeleton key={i} className="h-40 w-full rounded-lg" />
+            ))}
+          </div>
+        </div>
       ) : pending.length === 0 ? (
         // Caught-up is closure, not a dead-end: point at where the work
         // continues (slots waiting on Schedule, the live board).
@@ -461,7 +484,11 @@ export function DecisionsTab() {
             const e =
               evalGroup?.entries.find((x) => x.id === identity) ??
               evalGroup?.entries.find((x) => x.candidateLabel === identity);
-            if (e) void act(e, action);
+            // Report back whether we found a live entry: a candidate who already left
+            // the pool returns false so the modal won't show a fake "Advanced/Rejected".
+            if (!e) return false;
+            void act(e, action);
+            return true;
           }}
         />
       ) : null}

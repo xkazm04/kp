@@ -80,6 +80,13 @@ export const isAtReviewGate = (stage: string): boolean => REVIEW_GATE_STAGES.has
 // handled stage ran without advancing — a bug — which the loop tail surfaces loudly.
 const MAX_LIFECYCLE_STEPS = STAGES.length;
 
+// Bound on the collecting handler's drain-with-recheck inner loop (see below). Each
+// pass evaluates every not-yet-attempted submission, so a pass only repeats when a
+// genuinely-new submission arrived mid-evaluation; this caps a pathological flood
+// within one step rather than letting it spin. Generous — real postings see far
+// fewer late waves than this.
+const MAX_COLLECT_PASSES = 50;
+
 // Drive a lifecycle from its current stage as far as policy + readiness allow, stopping at a
 // human gate (awaiting_approval), at collecting (no submissions yet), or at promoted (done).
 export async function runLifecycle(id: string, progress?: Progress, signal?: AbortSignal): Promise<{ stage: string; detail: string }> {
@@ -254,32 +261,50 @@ export async function runLifecycle(id: string, progress?: Progress, signal?: Abo
         ref: postingId,
       });
     } else if (lc.stage === "collecting") {
-      const subs = lc.postingId ? listSubmissions(lc.postingId) : [];
-      if (subs.length === 0) return { stage: "collecting", detail: "awaiting submissions" };
-      const todo = subs.filter((s) => !s.evaluation);
-      let done = 0;
+      // Drain-with-recheck: evaluate the current batch, then RE-READ for submissions
+      // that arrived DURING the (seconds-long) evaluation. Such an arrival had its
+      // resumeCollectingLifecycle COALESCED into this still-running task (the dedupe
+      // key lifecycle:<id> is stable), so advancing to "ranked" on the original
+      // snapshot would strand it un-evaluated and unranked — a silent ghost (the worst
+      // failure a hiring tool can have, and its probability scales with eval duration).
+      // Loop until no NOT-YET-ATTEMPTED submission remains; `attempted` excludes this
+      // run's failures so a permanently-failing eval can't pin the lifecycle here, and
+      // MAX_COLLECT_PASSES bounds a continuous flood within this single step (so the
+      // outer step budget is untouched).
+      const attempted = new Set<string>();
+      let evaluated = 0;
       let failed = 0;
-      for (const s of todo) {
-        try {
-          await runEvaluateSubmission(s.id);
-        } catch (err) {
-          // Keep going; a failed eval shouldn't block the batch — but record it so a crash is
-          // distinguishable from a legitimately unscored submission, and count it for the detail.
-          failed += 1;
-          recordAudit({
-            lifecycleId: id,
-            actor: "system",
-            action: "eval_failed",
-            reason: err instanceof Error ? err.message : String(err),
-            ref: s.id,
-          });
+      let sawAny = false;
+      for (let pass = 0; pass < MAX_COLLECT_PASSES; pass += 1) {
+        const subs = lc.postingId ? listSubmissions(lc.postingId) : [];
+        if (subs.length > 0) sawAny = true;
+        const todo = subs.filter((s) => !s.evaluation && !attempted.has(s.id));
+        if (todo.length === 0) break;
+        for (const s of todo) {
+          attempted.add(s.id);
+          try {
+            await runEvaluateSubmission(s.id);
+            evaluated += 1;
+          } catch (err) {
+            // Keep going; a failed eval shouldn't block the batch — but record it so a crash is
+            // distinguishable from a legitimately unscored submission, and count it for the detail.
+            failed += 1;
+            recordAudit({
+              lifecycleId: id,
+              actor: "system",
+              action: "eval_failed",
+              reason: err instanceof Error ? err.message : String(err),
+              ref: s.id,
+            });
+          }
+          progress?.(STAGES.indexOf("collecting"), STAGES.length, `evaluating ${evaluated + failed}`);
         }
-        progress?.(STAGES.indexOf("collecting"), STAGES.length, `evaluating ${++done}/${todo.length}`);
       }
+      // Nothing has ever been submitted — stay in collecting rather than advancing to
+      // an empty ranking (preserves the prior "awaiting submissions" behavior).
+      if (!sawAny) return { stage: "collecting", detail: "awaiting submissions" };
       const evalDetail =
-        failed > 0
-          ? `evaluated ${todo.length - failed}, ${failed} failed (of ${subs.length} submission(s))`
-          : `evaluated ${subs.length} submission(s)`;
+        failed > 0 ? `evaluated ${evaluated}, ${failed} failed` : `evaluated ${evaluated} submission(s)`;
       updateLifecycle(id, { stage: "ranked", detail: evalDetail });
       recordAudit({ lifecycleId: id, actor: "auto", action: "evaluated", reason: evalDetail });
     } else if (lc.stage === "ranked") {

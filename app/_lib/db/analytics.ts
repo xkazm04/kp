@@ -32,8 +32,17 @@ export type PipelineAnalytics = {
   declined: number;
   funnel: { stage: string; reached: number; current: number; conversionPct: number | null }[];
   avgTimeToHireDays: number | null;
+  // UAT M7 — blended overall cost per hire (Σ recruiter-entered channel spend ÷
+  // hires), all-time only (windowed = null, mirroring the per-channel rule); the
+  // single cost figure for the leadership readout.
+  costPerHireCzk: number | null;
   avgAgeDays: number | null;
   bottleneck: Bottleneck | null;
+  // Per-stage average dwell time across ALL active stages (Sloneek "time spent in
+  // each hiring stage"), ordered Accepted-first. `bottleneck` surfaces only the
+  // single worst stage; this is the full breakdown the same perStageDays feeds.
+  // Excludes terminal Hired (no dwell) and stages with no active entries.
+  stageDwell: { stage: string; avgDays: number; count: number }[];
   byJob: { jobTitle: string; total: number; reachedInterview: number; hired: number; hireRatePct: number; koDeclined: number }[];
   // Distinct job count before the byJob cap, so the UI can show "top N of M".
   byJobTotal: number;
@@ -198,6 +207,13 @@ export function pipelineAnalytics(
   // before its average wait counts as a systemic bottleneck, so a lone stale
   // entry can't masquerade as a trend in the amber banner (idea-bdaf9b2c).
   const bottleneck = pickBottleneck(perStageDays);
+  // Full per-stage dwell breakdown (the table beside the single-worst bottleneck
+  // banner), ordered canonically and skipping stages with no active entries.
+  const stageDwell = FUNNEL_STAGES.flatMap((stage) => {
+    const arr = perStageDays[stage];
+    if (!arr || arr.length === 0) return [];
+    return [{ stage, avgDays: Math.round(arr.reduce((a, b) => a + b, 0) / arr.length), count: arr.length }];
+  });
 
   const jobMap = new Map<string, { total: number; reachedInterview: number; hired: number }>();
   for (const r of rows) {
@@ -404,10 +420,15 @@ export function pipelineAnalytics(
         hireRatePct: m.total ? Math.round((m.hired / m.total) * 100) : 0,
         medianHoursToDecision: medianHours(decisionMsByChannel.get(channel) ?? []),
         spendCzk,
-        // Cost figures only where the division is honest: spend entered AND a
-        // non-zero denominator (0 hires ⇒ no cost-per-hire, not infinity).
-        costPerApplicantCzk: spendCzk != null && m.total > 0 ? Math.round(spendCzk / m.total) : null,
-        costPerHireCzk: spendCzk != null && m.hired > 0 ? Math.round(spendCzk / m.hired) : null,
+        // Cost figures only where the division is HONEST: spend entered, a non-zero
+        // denominator (0 hires ⇒ no cost-per-hire, not infinity), AND an all-time
+        // cohort. spend is a single LIFETIME figure per channel (listChannelSpend has
+        // no window), so dividing it by a WINDOWED applicant/hire count mixed a
+        // lifetime numerator with a short-window denominator — inflating CPA/CPH by
+        // ~(lifetime / window), worst for the most mature accounts. In a windowed view
+        // the ratio is null (UI renders "—") until spend is stored per-period.
+        costPerApplicantCzk: !cutoffIso && spendCzk != null && m.total > 0 ? Math.round(spendCzk / m.total) : null,
+        costPerHireCzk: !cutoffIso && spendCzk != null && m.hired > 0 ? Math.round(spendCzk / m.hired) : null,
       };
     })
     .sort((a, b) => b.total - a.total);
@@ -444,6 +465,13 @@ export function pipelineAnalytics(
   // variant is precisely the one a top-N-by-volume cut would hide.
   const variantRecommendations = variantPauseRecommendations(variantStats, now);
 
+  // UAT M7 — blended overall cost-per-hire for the leadership readout: total
+  // recruiter-entered channel spend ÷ hires. Same honesty as the per-channel
+  // figure — all-time only (spend is lifetime, not windowed) and only when there's
+  // spend AND a hire to divide by; otherwise null ("—").
+  const totalSpendCzk = [...spendByChannel.values()].reduce((sum, v) => sum + (v ?? 0), 0);
+  const costPerHireCzk = !cutoffIso && totalSpendCzk > 0 && hired > 0 ? Math.round(totalSpendCzk / hired) : null;
+
   return {
     total,
     active,
@@ -454,6 +482,7 @@ export function pipelineAnalytics(
     avgTimeToHireDays,
     avgAgeDays,
     bottleneck,
+    stageDwell,
     byJob,
     byJobTotal,
     koDeclined,
@@ -467,9 +496,11 @@ export function pipelineAnalytics(
     byVariantTotal: variantStats.length,
     variantRecommendations,
     targets: analyticsTargets(),
+    costPerHireCzk,
     // b39992b1 — value of the automation over this window, at the stored (or
     // default) recruiter hourly rate, from the same kindCounts the rollup uses.
-    automationRoi: automationRoi(kindCounts, listAnalyticsTargets().get(RECRUITER_HOURLY_TARGET_KEY)),
+    // `hired` anchors the per-hire baseline framing (UAT M7).
+    automationRoi: automationRoi(kindCounts, listAnalyticsTargets().get(RECRUITER_HOURLY_TARGET_KEY), hired),
   };
 }
 

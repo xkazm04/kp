@@ -1,7 +1,9 @@
 import { createTranslator } from "next-intl";
 import { sendComm } from "./comms";
-import { recordAutomationEvent, type PipelineEntry } from "./db";
+import { ensureErasureToken, recordAutomationEvent, type PipelineEntry } from "./db";
 import { isEarlyCareer } from "./archetypes";
+import { outreachSuppressionReason } from "./consent";
+import { publicBaseUrl } from "./public-base-url";
 import { DEFAULT_LOCALE, isLocale } from "@/i18n/locales";
 
 // Direction #3 — real comms delivery for the hiring pipeline. Routes recruiter
@@ -69,6 +71,47 @@ function greetName(entry: { candidateLabel?: string | null }, t: CommsTranslator
   return (entry.candidateLabel ?? "").trim() || t("there");
 }
 
+// GDPR self-service footer appended to every candidate-facing comm: a localized
+// "review or erase your data" line carrying the entry's opaque erasure token
+// (minted fill-only here) → the public /data/[token] page. Skipped for an
+// already-anonymized entry (nothing left to manage) or one we can't mint a token
+// for. publicBaseUrl() resolves the configured public origin (these run detached,
+// with no request origin — same as the offer-lapse / reminder links).
+// The minimal candidate shape the footer + recipient resolution need — looser than
+// PipelineEntry so the lighter interview reminder/invite callers (which may carry
+// no entry id) can use the same wrapper.
+type CandidateCommTarget = {
+  id?: string | null;
+  candidateLabel?: string | null;
+  candidateId?: string | null;
+  contact?: string | null;
+  anonymizedAt?: string | null;
+};
+
+function dataFooter(entry: CandidateCommTarget, t: CommsTranslator): string {
+  if (entry.anonymizedAt || !entry.id) return ""; // already scrubbed, or no entry to manage
+  const token = ensureErasureToken(entry.id);
+  if (!token) return "";
+  return "\n\n" + t("dataFooter", { link: `${publicBaseUrl()}/data/${encodeURIComponent(token)}` });
+}
+
+// Candidate-facing send: identical to sendComm but auto-appends the GDPR data
+// footer and defaults `to`/`ref` from the entry, so every applicant comm carries
+// the self-service erasure link without each dispatcher re-deriving it.
+async function sendCandidateComm(
+  entry: CandidateCommTarget,
+  t: CommsTranslator,
+  msg: { subject: string; body: string; kind: string; ref?: string }
+): Promise<void> {
+  await sendComm({
+    to: candidateRecipient(entry),
+    subject: msg.subject,
+    body: msg.body + dataFooter(entry, t),
+    kind: msg.kind,
+    ref: msg.ref ?? entry.id ?? undefined,
+  });
+}
+
 /** Acknowledge a freshly-received inbound application. Inbound applicants got only
  *  an ephemeral in-page "You're in 🎉" bubble — no durable acknowledgement, even
  *  though dev-case submissions auto-ack and every other pipeline event fires a
@@ -95,23 +138,46 @@ export async function dispatchApplicationReceived(
   const body = opts?.enrichLink
     ? t("ack.bodyEnrich", { name, role, link: opts.enrichLink, team: t("team") })
     : t("ack.body", { name, role, team: t("team") });
-  await sendComm({ to: candidateRecipient(entry), subject, body, kind: "acknowledgement", ref: entry.id });
+  await sendCandidateComm(entry, t, { subject, body, kind: "acknowledgement" });
   recordAutomationEvent(entry.id, "acknowledgement_sent", role);
 }
 
+/** Outcome of an outreach dispatch: delivered, or SUPPRESSED for a consent reason
+ *  (so the caller/UI shows "cannot contact" rather than a false "reached out"). */
+export type OutreachResult = { sent: true } | { sent: false; reason: "anonymized" | "consent_expired" };
+
 /** Dispatch an outreach message — the LLM/deterministic draft just generated.
  *  The body is the model's; only the fallback subject (used when the draft has
- *  none) localizes. */
+ *  none) localizes.
+ *
+ *  COMPLIANCE GATE (CAN-SPAM/GDPR): outreach — especially via rediscovery, which
+ *  re-contacts previously-REJECTED candidates — must never send to a candidate whose
+ *  processing consent has EXPIRED or who has been ANONYMIZED. Consult the consent
+ *  state BEFORE sending; on suppression, return the reason and record NOTHING (no
+ *  outreach_sent marker), so a later re-consent can still be contacted. The consent
+ *  system governed retention/anonymization but was never consulted on the outbound
+ *  path — this closes that gap. */
 export async function dispatchOutreach(
   entry: PipelineEntry,
   draft: { subject?: unknown; body?: unknown }
-): Promise<void> {
+): Promise<OutreachResult> {
+  const suppress = outreachSuppressionReason({
+    givenAt: entry.consentGivenAt,
+    expiresAt: entry.consentExpiresAt,
+    anonymizedAt: entry.anonymizedAt,
+  });
+  if (suppress) {
+    // Audit the refusal so the absence of a send is visible, not silent.
+    recordAutomationEvent(entry.id, "outreach_suppressed", suppress);
+    return { sent: false, reason: suppress };
+  }
   const t = await commsTranslator(entry.locale);
   const role = entry.jobTitle ?? t("aRole");
   const subject = String(draft.subject ?? t("outreach.subjectFallback", { role })).trim();
   const body = String(draft.body ?? "").trim();
-  await sendComm({ to: candidateRecipient(entry), subject, body, kind: "outreach", ref: entry.id });
+  await sendCandidateComm(entry, t, { subject, body, kind: "outreach" });
   recordAutomationEvent(entry.id, "outreach_sent", entry.jobTitle ?? "");
+  return { sent: true };
 }
 
 /**
@@ -129,7 +195,7 @@ export async function dispatchRejection(entry: PipelineEntry, opts?: { automated
   const subject = t("rejection.subject", { role });
   const body = t("rejection.opening", { name, role }) + middle + t("rejection.closing", { team: t("team") });
 
-  await sendComm({ to: candidateRecipient(entry), subject, body, kind: "rejection", ref: entry.id });
+  await sendCandidateComm(entry, t, { subject, body, kind: "rejection" });
   recordAutomationEvent(entry.id, "rejection_sent", opts?.automated ? "policy auto-reject" : "manual reject");
 }
 
@@ -170,7 +236,7 @@ export async function dispatchOffer(
   const subject = String(draft.subject ?? t("offer.subjectFallback", { role: entry.jobTitle ?? t("aRole") })).trim();
   const letter = String(draft.body ?? "").trim();
   const body = `${letter}\n\n` + t("offer.responseFooter", { link: responseLink });
-  await sendComm({ to: candidateRecipient(entry), subject, body, kind: "offer", ref: entry.id });
+  await sendCandidateComm(entry, t, { subject, body, kind: "offer" });
   recordAutomationEvent(entry.id, "offer_sent", entry.jobTitle ?? "");
 }
 
@@ -200,7 +266,7 @@ export async function dispatchInterviewConfirmation(
   // closes, this footer link is the one way back to reschedule (SCH2) or grab
   // the .ics. ABSOLUTE, resolved via publicBaseUrl by the caller.
   const footer = opts?.rescheduleLink ? `\n\n${t("interviewConfirmation.linkFooter", { link: opts.rescheduleLink })}` : "";
-  await sendComm({ to: candidateRecipient(entry), subject, body: body + footer, kind: "interview_confirmation", ref: entry.id });
+  await sendCandidateComm(entry, t, { subject, body: body + footer, kind: "interview_confirmation" });
   recordAutomationEvent(entry.id, "interview_scheduled", slot);
 }
 
@@ -223,7 +289,7 @@ export async function dispatchScheduleInvite(
   const length = opts?.durationMin ? t("scheduleInvite.length", { minutes: opts.durationMin }) : "";
   const subject = t("scheduleInvite.subject", { role });
   const body = t("scheduleInvite.body", { name, role, link, length, team: t("team") });
-  await sendComm({ to: candidateRecipient(entry), subject, body, kind: "schedule_invite", ref: entry.id });
+  await sendCandidateComm(entry, t, { subject, body, kind: "schedule_invite" });
   recordAutomationEvent(entry.id, "schedule_invite_sent", role);
 }
 
@@ -247,7 +313,7 @@ export async function dispatchInterviewReminder(
   const length = opts?.durationMin ? t("interviewReminder.length", { minutes: opts.durationMin }) : "";
   const subject = t("interviewReminder.subject", { slot });
   const body = t("interviewReminder.body", { name, role, slot, length, team: t("team") });
-  await sendComm({ to: candidateRecipient(entry), subject, body, kind: "interview_reminder", ref: entry.id ?? slot });
+  await sendCandidateComm(entry, t, { subject, body, kind: "interview_reminder", ref: entry.id ?? slot });
   // Post-send: the reminder is delivered. Do not let an audit-log failure re-throw —
   // that would look like a delivery failure and trigger a duplicate send.
   try {
@@ -276,7 +342,7 @@ export async function dispatchInterviewInvite(
   const length = opts?.durationMin ? t("interviewInvite.length", { minutes: opts.durationMin }) : "";
   const subject = t("interviewInvite.subject", { role });
   const body = t("interviewInvite.body", { name, role, link, length, team: t("team") });
-  await sendComm({ to: candidateRecipient(entry), subject, body, kind: "interview_invite", ref: entry.id ?? link });
+  await sendCandidateComm(entry, t, { subject, body, kind: "interview_invite", ref: entry.id ?? link });
   if (entry.id) recordAutomationEvent(entry.id, "interview_invite_sent", role);
 }
 
@@ -285,11 +351,52 @@ export async function dispatchInterviewInvite(
  * welcome + the practical next step. Kept deterministic; a real onboarding
  * system would subscribe to the `onboarding_started` event downstream.
  */
-export async function dispatchOnboarding(entry: PipelineEntry): Promise<void> {
+export async function dispatchOnboarding(entry: PipelineEntry, onboardingToken?: string | null): Promise<void> {
   const t = await commsTranslator(entry.locale);
   const role = entry.jobTitle ?? t("yourNewRole");
   const subject = t("onboarding.subject", { role });
-  const body = t("onboarding.body", { name: greetName(entry, t), role, team: t("team") });
-  await sendComm({ to: candidateRecipient(entry), subject, body, kind: "onboarding", ref: entry.id });
+  // The accepted offer's token doubles as the candidate's onboarding link (offers #5):
+  // accept now lands on a concrete next-step page, not just a "People will be in touch"
+  // promise. ABSOLUTE via publicBaseUrl (the env override when there's no request origin);
+  // omitted for a manual hire with no offer token, which keeps the welcome copy as-is.
+  const footer = onboardingToken
+    ? `\n\n${t("onboarding.linkFooter", { link: `${publicBaseUrl()}/onboarding/${onboardingToken}` })}`
+    : "";
+  const body = t("onboarding.body", { name: greetName(entry, t), role, team: t("team") }) + footer;
+  await sendCandidateComm(entry, t, { subject, body, kind: "onboarding" });
   recordAutomationEvent(entry.id, "onboarding_started", role);
+}
+
+/** Format an offer's ISO deadline for the candidate's locale, or "" if absent/invalid
+ *  (offers in the reminder window always carry one; the guard keeps the body clean). */
+function formatOfferDeadline(iso: string | null, locale: string | null | undefined): string {
+  if (!iso) return "";
+  const ms = Date.parse(iso);
+  if (Number.isNaN(ms)) return "";
+  const loc = isLocale(locale) ? locale : DEFAULT_LOCALE;
+  return new Intl.DateTimeFormat(loc, { dateStyle: "medium", timeStyle: "short" }).format(new Date(ms));
+}
+
+/** The proactive expiry nudge (idea-29361408 follow-up): a single heads-up fired by
+ *  the heartbeat as an open offer nears its T-48h deadline, so a candidate who simply
+ *  forgot doesn't lose a live offer to silence. `link` is the candidate's existing
+ *  offer page (ABSOLUTE, resolved via publicBaseUrl by the caller).
+ *
+ *  Delivery boundary mirrors dispatchInterviewReminder: a throw means the message did
+ *  NOT go out. (The sweep already CAS-claimed reminded_at, so a throw here is logged,
+ *  not retried — at-most-once.) The post-send audit write is swallowed so a transient
+ *  DB blip after the message left can't masquerade as a delivery failure. */
+export async function dispatchOfferReminder(entry: PipelineEntry, link: string, deadlineIso: string | null): Promise<void> {
+  const t = await commsTranslator(entry.locale);
+  const name = greetName(entry, t);
+  const role = entry.jobTitle ?? t("theRole");
+  const deadline = formatOfferDeadline(deadlineIso, entry.locale);
+  const subject = t("offerReminder.subject", { role });
+  const body = t("offerReminder.body", { name, role, deadline, link, team: t("team") });
+  await sendCandidateComm(entry, t, { subject, body, kind: "offer_reminder", ref: entry.id ?? link });
+  try {
+    recordAutomationEvent(entry.id, "offer_reminder_sent", role);
+  } catch (e) {
+    console.error(`[offer-reminder] delivered but audit-log write failed for entry ${entry.id}: ${e instanceof Error ? e.message : e}`);
+  }
 }

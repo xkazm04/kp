@@ -58,6 +58,17 @@ export function DevTab() {
   const [approvedId, setApprovedId] = useState<string | null>(null);
   const [sourcedCounts, setSourcedCounts] = useState<Record<string, number>>({});
   const [sourcing, setSourcing] = useState<string | null>(null);
+  // In-flight publish guard: `published` only becomes true after the postings reload,
+  // so without this the Publish button stays clickable mid-request and a double-click
+  // mints duplicate postings + apply tokens.
+  const [publishingCase, setPublishingCase] = useState<string | null>(null);
+  // In-flight guard for "Run automated lifecycle": lifecycleActive only flips true once
+  // the task appears in the tasks poll, so without this a double-click in the gap fires
+  // two lifecycle runs.
+  const [runningLifecycle, setRunningLifecycle] = useState(false);
+  // The write actions below previously swallowed every error, so a failed publish /
+  // approve / source / lifecycle-run looked identical to a click that did nothing.
+  const [actionError, setActionError] = useState<string | null>(null);
 
   // Each loader tracks its own failure + last-updated so an outage renders an
   // explicit banner/stale pill instead of looking identical to an empty pipeline.
@@ -184,39 +195,85 @@ export function DevTab() {
     jdText: jd?.body ?? "",
   });
 
+  // Shared error surfacing for the write actions: surface a failed/non-OK POST as a
+  // banner instead of silently no-op'ing. Returns true on success so callers can chain.
+  const runAction = async (
+    label: string,
+    fetcher: () => Promise<Response>,
+    onOk?: (body: unknown) => void
+  ): Promise<boolean> => {
+    setActionError(null);
+    try {
+      const r = await fetcher();
+      const body = await r.json().catch(() => null);
+      if (!r.ok) {
+        const msg = body && typeof body === "object" && "error" in body ? String((body as { error: unknown }).error) : null;
+        setActionError(msg ?? `${label} failed. Please try again.`);
+        return false;
+      }
+      onOk?.(body);
+      return true;
+    } catch {
+      setActionError(`${label} failed — the request could not be completed.`);
+      return false;
+    }
+  };
+
   const runLifecycle = async () => {
-    await fetch("/api/devcase/lifecycle", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ need: buildNeed(), auto: true }),
-    });
-    loadLifecycles();
+    if (runningLifecycle) return; // single-flight: no double-launch in the pre-poll gap
+    setRunningLifecycle(true);
+    try {
+      const ok = await runAction("Run lifecycle", () =>
+        fetch("/api/devcase/lifecycle", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ need: buildNeed(), auto: true }),
+        })
+      );
+      if (ok) loadLifecycles();
+    } finally {
+      setRunningLifecycle(false);
+    }
   };
 
   const approveLifecycle = async (id: string) => {
-    await fetch(`/api/devcase/lifecycle/${id}/approve`, { method: "POST" });
-    loadLifecycles();
+    const ok = await runAction("Approve", () => fetch(`/api/devcase/lifecycle/${id}/approve`, { method: "POST" }));
+    if (ok) loadLifecycles();
   };
 
   const publish = async (caseId: string) => {
-    await fetch("/api/devcase/publish", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ caseId }),
-    });
-    loadPostings();
+    if (publishingCase) return; // single-flight: a double-click can't mint duplicate postings
+    setPublishingCase(caseId);
+    try {
+      const ok = await runAction("Publish", () =>
+        fetch("/api/devcase/publish", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ caseId }),
+        })
+      );
+      if (ok) loadPostings();
+    } finally {
+      setPublishingCase(null);
+    }
   };
 
   const source = async (caseId: string) => {
     setSourcing(caseId);
     try {
-      const r = await fetch("/api/devcase/source", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ caseId }),
-      });
-      const p = await r.json();
-      if (r.ok) setSourcedCounts((s) => ({ ...s, [caseId]: p.added }));
+      await runAction(
+        "Source candidates",
+        () =>
+          fetch("/api/devcase/source", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ caseId }),
+          }),
+        (body) => {
+          const added = body && typeof body === "object" && "added" in body ? Number((body as { added: unknown }).added) : 0;
+          setSourcedCounts((s) => ({ ...s, [caseId]: added }));
+        }
+      );
     } finally {
       setSourcing(null);
     }
@@ -293,6 +350,18 @@ export function DevTab() {
         <p className="mt-1 max-w-2xl text-body text-steel">{heading.blurb}</p>
       </header>
 
+      {actionError ? (
+        <div
+          role="alert"
+          className="flex items-start justify-between gap-3 rounded-md border border-coral/30 bg-coral/10 px-3 py-2 text-sm text-coral"
+        >
+          <span>{actionError}</span>
+          <button type="button" onClick={() => setActionError(null)} className="focus-ring shrink-0 font-semibold hover:underline">
+            Dismiss
+          </button>
+        </div>
+      ) : null}
+
       {/* sub-tab switcher */}
       <div role="tablist" aria-label="Dev studio sections" className="inline-flex rounded-lg border border-stone-200 bg-paper p-0.5">
         {DEV_VIEWS.map((t) => {
@@ -327,6 +396,7 @@ export function DevTab() {
             postings={postings}
             onBack={() => setSelectedCaseId(null)}
             publish={publish}
+            publishing={publishingCase === selectedCase.id}
             source={source}
             sourcing={sourcing}
             sourcedCounts={sourcedCounts}
@@ -362,7 +432,7 @@ export function DevTab() {
             seniority={seniority}
             setSeniority={setSeniority}
             runLifecycle={runLifecycle}
-            lifecycleActive={lifecycleActive}
+            lifecycleActive={lifecycleActive || runningLifecycle}
             submit={submit}
             running={running}
             needTasks={needTasks}

@@ -1,0 +1,137 @@
+[
+  {
+    "id": "helena-L1-001",
+    "journey": "guided-simulation",
+    "character": "helena-buyer",
+    "cert_level": "L1",
+    "type": "broken-flow",
+    "severity": "blocker",
+    "dimension": "completion",
+    "title": "The keyless guided simulation is NOT reachable from any public surface — it lives only inside the authed workspace",
+    "expected": "As a cold prospect with no auth/keys, Helena reaches the guided JD->Hired simulation from the public marketing surface (the journey's premise: 'the one rich surface Helena reaches without auth/keys').",
+    "got": "SimBar / SimulationProvider are mounted ONLY inside <Workspace> (app/features/Workspace.tsx:106,249-251). Workspace renders only via HomeGate's `dashboard` slot (app/page.tsx:13-19), which is gated by useDevAuth (app/_components/auth/HomeGate.tsx:23-25). A signed-out visitor lands on <SparkHome /> (the `landing` slot) — which has no SimBar. In dev she would have to set localStorage kp_dev_authed=1 (app/_lib/auth/devAuth.ts:16,25-33); in prod DEV_GATE=false so HomeGate always mounts the dashboard, but the dashboard is then behind real cookie auth (/login). Either way there is NO public, no-login entry to the sim. A grep of app/landing and app/about for any 'simulation'/'try demo' link returns nothing — the only CTAs are 'Sign in' / 'Start free' -> /login (app/landing/spark/AboutCurve.tsx:91,108-114,160-167).",
+    "evidence": [
+      "app/features/Workspace.tsx:19-22 (sim imports)",
+      "app/features/Workspace.tsx:106 (<SimulationProvider> wraps the authed shell)",
+      "app/features/Workspace.tsx:244-251 (<SimSpotlight/> <SimExplainDrawer/> <SimBar/>)",
+      "app/page.tsx:13-19 (sim is in the `dashboard` slot, not `landing`)",
+      "app/_components/auth/HomeGate.tsx:23-25 (signed-out -> landing, no sim)",
+      "app/_lib/auth/devAuth.ts:22-33 (dev gate is localStorage kp_dev_authed)",
+      "app/landing/spark/AboutCurve.tsx:91,108-114,160-167 (only CTA is sign-in/login)"
+    ],
+    "code_check": "confirmed-absent",
+    "verdict": "confirmed",
+    "resolution": "Expose the simulation on a public, keyless route (e.g. /demo or a 'Watch it run' CTA on /about and /landing) that mounts SimulationProvider+SimBar without the dev gate, OR move the sim behind a public-but-isolated shell. Today the buyer's single biggest reachability strength is, in fact, unreachable to the buyer.",
+    "l2_priority": "Live-confirm whether a signed-out prospect can reach and complete the sim at all without flipping kp_dev_authed / logging in. If the only path is the dev gate, this is a hard blocker for the buyer journey.",
+    "scope_note": "The sim CODE runs keyless (no API key required — see helena-L1-002), so the gap is purely reachability/exposure, not the engine."
+  },
+  {
+    "id": "helena-L1-002",
+    "journey": "guided-simulation",
+    "character": "helena-buyer",
+    "cert_level": "L1",
+    "type": "trust",
+    "severity": "minor",
+    "dimension": "trust",
+    "title": "STRENGTH — once reached, the sim is genuinely keyless and drives REAL surfaces with real clicks (not a scripted video), isolated by a (SIM) marker",
+    "expected": "The demo proves the pipeline is real, runs without an API key, and leaves no tenant residue.",
+    "got": "The walk performs actual native clicks on the app's own controls (clickEl -> el.click() bubbles to the real React handler, SimulationProvider.tsx:230-245) and traverses real API routes: /api/jds/save, /api/jobs/[id]/publish, /api/sim/inbound, /api/decisions/screen-wave, /api/schedule/invite, /api/sim/offer-link, and opens the candidate's real /offer/[token] iframe to click Accept (SimulationProvider.tsx:578-605). No step requires an LLM/voice key — group-eval and screen-wave degrade to deterministic ranking keyless (runGroupEval SimulationProvider.tsx:276-321; SIM_SCREEN_POLICY thresholds, constants.ts). All artifacts carry the '(SIM)' title marker (constants.ts:7-8) and resetSim deletes only those rows (app/_lib/sim-store.ts:15,38-67), so it does not mutate real seeded candidates — the 'no data leak' concern is addressed by-design. Climax ends on a real conversion CTA ('Get started — do it with your roles' -> /login, SimBar.tsx:52), not a dead 'Run again'.",
+    "evidence": [
+      "app/features/simulation/SimulationProvider.tsx:230-245 (real native click engine)",
+      "app/features/simulation/SimulationProvider.tsx:578-605 (opens real /offer/[token], clicks Accept)",
+      "app/features/simulation/SimulationProvider.tsx:276-321 (keyless deterministic group-eval, 25s timeout w/ honest failure)",
+      "app/_lib/sim-store.ts:38-67 (reset scoped to the (SIM) marker only)",
+      "app/features/simulation/constants.ts:7-8 (SIM_MARKER / SIM_TITLE)",
+      "app/features/simulation/SimBar.tsx:46-58 (climax conversion CTA)"
+    ],
+    "code_check": "by-design",
+    "verdict": "confirmed",
+    "l2_priority": "Confirm live that the full JD->Hired run completes keyless without stalling, and that the offer step truly opens /offer/[token] and clicks Accept in-frame (the belief test).",
+    "scope_note": "Draft text (screen-draft/offer-draft) is static/keyless by design -> scope_note, not a senior-quality finding."
+  },
+  {
+    "id": "helena-L1-003",
+    "journey": "evaluate-and-buy",
+    "character": "helena-buyer",
+    "cert_level": "L1",
+    "type": "missing-feature",
+    "severity": "blocker",
+    "dimension": "missing",
+    "title": "No regulatory compliance story (EU AI Act / GDPR Art. 22 / candidate disclosure / data retention) anywhere on the public surface",
+    "expected": "A bank under the EU AI Act needs a concrete compliance story she can hand to Legal: high-risk-AI handling, GDPR Art. 22 automated-decision rights, candidate disclosure, data-retention. The journey's DoD calls for 'a compliance story (human oversight, disclosure, GDPR retention) I could defend to Legal.'",
+    "got": "The public copy has a strong human-in-the-loop FRAMING — 'A human on every gate' (aboutPage.hero.subtitle), 'AI does the reading at every step. A human signs every decision' (aboutPage.closing.body), 'A full audit trail and a kill switch ... every decision keeps its receipt' (landing.features.gates.body, en.json:287), 'the offer figure is deterministic — no LLM in the number' (aboutPage.steps.offer). But a grep of messages/en.json for gdpr|ai act|article 22|high-risk|disclosure|retention finds them ONLY in authed in-app namespaces Helena cannot reach (aiDisclosure en.json:459; fairnessAudit en.json:1962; decisions audit en.json:2661). NONE of GDPR / EU AI Act / Art. 22 / candidate-disclosure / retention appears on the public landing or /about. The oversight story is there; the REGULATORY story Legal needs is absent from her reachable surface.",
+    "evidence": [
+      "messages/en.json:287 (landing.features.gates.body — audit/kill-switch, public, GOOD but not regulatory)",
+      "app/landing/spark/FeaturePreviews.tsx:351-401 (GatesPreview renders the 'human gate' on the public landing)",
+      "messages/en.json (aboutPage.hero.subtitle / closing.body — oversight framing, no regulation named)",
+      "messages/en.json:459 (aiDisclosure — exists, but authed-only)",
+      "messages/en.json:1962-1968 (fairnessAudit — authed-only)"
+    ],
+    "code_check": "confirmed-absent",
+    "verdict": "confirmed",
+    "resolution": "Add a public compliance/trust section (on /about or a /trust page) naming EU AI Act high-risk handling, GDPR Art. 22 + candidate disclosure + retention, and link the in-app audit trail / fairness audit / AI disclosure as evidence. The machinery exists internally — surface it where the buyer can read it.",
+    "l2_priority": "Confirm live there is no public compliance/trust page reachable from the marketing nav; verify no contradicting 'fully automated decision' language anywhere public."
+  },
+  {
+    "id": "helena-L1-004",
+    "journey": "evaluate-and-buy",
+    "character": "helena-buyer",
+    "cert_level": "L1",
+    "type": "quality-gap",
+    "severity": "major",
+    "dimension": "time-saved",
+    "title": "Zero quantified, sourced ROI math on the public surface — the 60-70% screening cut / time-to-fill numbers are nowhere she can reach",
+    "expected": "ROI math shown and sourced — the 60-70% screening-time cut and/or time-to-fill 44->25 days, quantified, in numbers she can take to a board.",
+    "got": "The marketing leans on credibility adjectives — 'CV scoring in seconds' (landing.marquee), 'within hours, not weeks' (landing.steps.talk), 'deterministic and explainable, never keyword bingo' (aboutPage.steps.source) — which are differentiation-positive but carry NO number. No '60-70% screening reduction', no time-to-fill figure, no ROI calculator anywhere on /landing, /about, or pricing. The calibration proof (/api/analytics/calibration) is authed-only and unreachable; the journey itself notes the marketing must point to the keyless sim as the 'see it work' proof — but per helena-L1-001 the sim is also unreachable to her. So she has neither a stated number nor a working demo to verify one.",
+    "evidence": [
+      "messages/en.json (landing.marquee, landing.steps.talk, aboutPage.steps.source — qualitative claims, no figures)",
+      "no ROI/screening-cut/time-to-fill string anywhere in messages/en.json public namespaces (grep)",
+      "uat/journeys/evaluate-and-buy.md:35-37 (ROI proof was meant to be the keyless sim — blocked by helena-L1-001)"
+    ],
+    "code_check": "confirmed-absent",
+    "verdict": "confirmed",
+    "resolution": "Add a sourced ROI hook (e.g. '~23 hrs screening/hire -> 60-70% cut', citing the benchmark) on /about or pricing, and once helena-L1-001 is fixed, link the keyless sim as the 'verify it yourself' proof.",
+    "l2_priority": "Confirm no ROI figure/calculator surfaces live on any public page."
+  },
+  {
+    "id": "helena-L1-005",
+    "journey": "evaluate-and-buy",
+    "character": "helena-buyer",
+    "cert_level": "L1",
+    "type": "quality-gap",
+    "severity": "major",
+    "dimension": "trust",
+    "title": "Pricing is SMB self-serve (490-1190 Kc/mo) with no Enterprise / Contact-sales tier — it does not map to an Erste/CS-scale buyer",
+    "expected": "Pricing present and maps to value, reachable from marketing, with logic an enterprise bank buyer can defend.",
+    "got": "Pricing is well-built for SMB: four sticker tiers (Free / Starter 490 Kc / Growth 1190 Kc / BYOM), 'Zero token math', a defined 'AI candidate' unit, and a metered minutes pack — internally coherent and reachable (PricingSection.tsx + BillingTab.tsx). But the top tier is Growth at 1190 Kc/mo (~$50) with '400 AI candidates a month'; there is NO Enterprise / volume / seat / SSO / Contact-sales tier. For a bank hiring at Erste/CS scale this pricing reads as a tool for a small team, not a platform she can size for her org or take to procurement. Every tier CTA goes to /login (PricingSection.tsx:93), not to a sales/enterprise path. Locally configured:false is honest unbilled dev (BillingTab.tsx:308-313) — a by-design scope_note, not the finding here.",
+    "evidence": [
+      "app/landing/spark/PricingSection.tsx:15-20,93 (four tiers, all CTA -> /login, no enterprise)",
+      "messages/en.json (landing.pricing.tiers — top tier Growth 1190 Kc / 400 candidates)",
+      "app/features/sub_billing/BillingTab.tsx:308-313 (configured:false honest dev — scope_note)"
+    ],
+    "code_check": "confirmed-absent",
+    "verdict": "confirmed",
+    "resolution": "Add an Enterprise / Contact-sales tier with volume/seat/SSO/DPA logic for org-scale buyers; route its CTA to a sales contact, not /login.",
+    "l2_priority": "Confirm live the pricing nav exposes no enterprise/contact-sales path; verify checkout URL is server-issued (correctness strength)."
+  },
+  {
+    "id": "helena-L1-006",
+    "journey": "evaluate-and-buy",
+    "character": "helena-buyer",
+    "cert_level": "L1",
+    "type": "trust",
+    "severity": "minor",
+    "dimension": "trust",
+    "title": "STRENGTH — the value-prop is reasoned/grounded, not 'AI-powered' fluff: evidence-traced scoring, deterministic offer band, fairness gate, human signature",
+    "expected": "kp's edge is reasoned, grounded, defensible matching (vs Eightfold/SeekOut/HireEZ/Beamery), stated not implied.",
+    "got": "The public copy consistently frames the mechanism, not the buzzword: '0-100 fit score ... with the evidence to back it up' (landing.features.score), 'deterministic and explainable, never keyword bingo' (aboutPage.steps.source), 'A fairness gate runs first' (aboutPage.steps.screen), 'The offer figure is deterministic — role band x fit, no LLM in the number' (aboutPage.steps.offer), 'every call gets a human signature' (landing.previews.gates.note). The GatesPreview even renders a signed receipt '14:02 — shortlist approved, signed M. Horakova' (FeaturePreviews.tsx:397-399). This is a credibility strength a skeptical buyer who has seen Eightfold/SeekOut would register — the differentiation reads as reasoned/defensible, not slogan. Caveat: it is asserted in copy, not yet verifiable by her because the sim (the proof) is unreachable (helena-L1-001).",
+    "evidence": [
+      "messages/en.json (landing.features.score / aboutPage.steps.source / .screen / .offer)",
+      "app/landing/spark/FeaturePreviews.tsx:44-104 (ScorePreview — factor breakdown + evidence)",
+      "app/landing/spark/FeaturePreviews.tsx:351-401 (GatesPreview — human gate + signed receipt)"
+    ],
+    "code_check": "by-design",
+    "verdict": "confirmed",
+    "l2_priority": "Confirm the reasoned-matching claim is verifiable live via the sim/score surfaces (depends on helena-L1-001 fix)."
+  }
+]

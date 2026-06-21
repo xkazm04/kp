@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useRef, useState } from "react";
 import { X } from "lucide-react";
 import { PlantUml } from "@/app/_components/puml/PlantUml";
+import { useDialogA11y } from "@/app/_components/useDialogA11y";
 import { STEP_DETAILS, type StepDetail, type StepStatus } from "./pipelineSteps";
 
 const STATUS_META: Record<StepStatus, { label: string; cls: string }> = {
@@ -51,13 +52,10 @@ export function PipelineExplorer({ source }: { source: string }) {
 }
 
 function StepDrawer({ detail, onClose }: { detail: StepDetail; onClose: () => void }) {
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  // Deliberately NON-modal (the funnel on the left stays clickable), so focus-in +
+  // restore + Escape only — never trap Tab or lock page scroll.
+  const ref = useRef<HTMLElement | null>(null);
+  useDialogA11y(ref, onClose, { trap: false, lockScroll: false });
 
   const s = STATUS_META[detail.status];
   return (
@@ -65,10 +63,12 @@ function StepDrawer({ detail, onClose }: { detail: StepDetail; onClose: () => vo
     // clickable; the panel re-enables pointer events for itself.
     <div className="pointer-events-none fixed inset-0 z-50 flex justify-end">
       <aside
+        ref={ref}
+        tabIndex={-1}
         role="dialog"
         aria-modal="false"
         aria-label={detail.title}
-        className="animate-drawer-in pointer-events-auto relative flex h-full w-full flex-col overflow-y-auto border-l border-stone-200 bg-paper shadow-2xl lg:w-1/2"
+        className="animate-drawer-in pointer-events-auto relative flex h-full w-full flex-col overflow-y-auto border-l border-stone-200 bg-paper shadow-2xl focus:outline-none lg:w-1/2"
       >
         <header className="sticky top-0 z-10 flex items-start gap-3 border-b border-stone-200 bg-paper/95 px-6 py-4 backdrop-blur">
           <div className="min-w-0 flex-1">

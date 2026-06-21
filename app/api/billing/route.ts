@@ -10,9 +10,18 @@ export const dynamic = "force-dynamic";
 // is wired (Polar env present) or the workspace is running unbilled local-dev.
 
 export async function GET() {
-  return NextResponse.json({
-    ...billingOverview(),
-    configured: polarGatewayFromEnv() !== null,
-    catalog: { plans: PLANS, packs: PACKS },
-  });
+  try {
+    return NextResponse.json({
+      ...billingOverview(),
+      configured: polarGatewayFromEnv() !== null,
+      catalog: { plans: PLANS, packs: PACKS },
+    });
+  } catch (error) {
+    // billingOverview runs several synchronous SQLite reads; a locked/transient DB
+    // would otherwise return an unframed 500 (leaking internals) and the Billing tab
+    // shows a dead-end. Mirror the analyses route: log server-side, return a stable
+    // framed error.
+    console.error("[api/billing] overview failed", error);
+    return NextResponse.json({ error: "Failed to load billing." }, { status: 500 });
+  }
 }

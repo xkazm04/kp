@@ -17,7 +17,17 @@ type IngestResult = { jobId: string; created: boolean; title: string };
 // AbortController so navigating away mid-parse SIGKILLs the child (the route
 // honors request.signal). On a content-hash hit the route returns created:false,
 // surfaced as "already in the catalog" rather than a phantom second add.
-export function IngestAdPanel({ onIngested }: { onIngested?: (result: IngestResult) => void }) {
+// onIngested fires for the SINGLE-ad path (latch the just-added job open). Bulk uses
+// onBulkComplete instead — fired ONCE after the loop — so a 10-ad import doesn't trigger
+// 10 corpus refetches mid-run and doesn't hijack the screen with a modal for the last
+// created row while the user is still reading the per-row results table.
+export function IngestAdPanel({
+  onIngested,
+  onBulkComplete,
+}: {
+  onIngested?: (result: IngestResult) => void;
+  onBulkComplete?: () => void;
+}) {
   const t = useTranslations("jobs.ingest");
   const [open, setOpen] = useState(false);
   const [adText, setAdText] = useState("");
@@ -116,7 +126,6 @@ export function IngestAdPanel({ onIngested }: { onIngested?: (result: IngestResu
           } else {
             const { result } = outcome;
             out.push({ title: result.title, status: result.created ? "added" : "exists" });
-            if (result.created) onIngested?.(result);
           }
         } catch (caught) {
           if (controller.signal.aborted) return; // intentional teardown
@@ -129,6 +138,9 @@ export function IngestAdPanel({ onIngested }: { onIngested?: (result: IngestResu
       const failed = out.filter((r) => r.status === "failed").length;
       setNote(t("bulkDone", { added, exists, failed }));
       setAdText("");
+      // One coalesced refresh after the whole run (only if something new landed) — no
+      // per-row reload storm, and no auto-open modal over the results table.
+      if (added > 0) onBulkComplete?.();
     } finally {
       if (!controller.signal.aborted) {
         setBusy(false);

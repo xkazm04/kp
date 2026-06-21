@@ -21,14 +21,25 @@ export default async function SkillProfilePage({ params }: { params: Promise<{ t
   const axes = Object.entries(p.axes);
   const confidencePct = Math.round((p.confidence ?? 0) * 100);
   const issued = p.issuedAt.slice(0, 10);
-  const state: "verified" | "revoked" | "tampered" = verdict.revoked ? "revoked" : verdict.valid ? "verified" : "tampered";
+  // A validly-signed but SUBSTANTIVELY EMPTY credential (no axes, transfer score 0) is
+  // NOT a confident "verified" verdict — it's an "incomplete" attestation, shown muted
+  // so a third party never reads a green shield over a 0.
+  const state: "verified" | "revoked" | "tampered" | "incomplete" = verdict.revoked
+    ? "revoked"
+    : !verdict.valid
+      ? "tampered"
+      : !verdict.substantive
+        ? "incomplete"
+        : "verified";
 
   const badge =
     state === "verified"
       ? { Icon: ShieldCheck, cls: "border-emerald-200 bg-emerald-50 text-emerald-800", label: t("verified") }
       : state === "revoked"
         ? { Icon: ShieldX, cls: "border-stone-300 bg-stone-100 text-steel", label: t("revoked") }
-        : { Icon: ShieldAlert, cls: "border-red-200 bg-red-50 text-red-800", label: t("tampered") };
+        : state === "incomplete"
+          ? { Icon: ShieldAlert, cls: "border-stone-300 bg-stone-100 text-steel", label: t("incomplete") }
+          : { Icon: ShieldAlert, cls: "border-red-200 bg-red-50 text-red-800", label: t("tampered") };
 
   return (
     <main className="mx-auto max-w-xl px-4 py-12">
@@ -41,6 +52,7 @@ export default async function SkillProfilePage({ params }: { params: Promise<{ t
         {badge.label}
       </div>
 
+      {verdict.substantive ? (
       <section className="mt-6 rounded-lg border border-stone-200 bg-white p-6 shadow-panel">
         <div className="flex items-end justify-between gap-4">
           <div>
@@ -76,6 +88,11 @@ export default async function SkillProfilePage({ params }: { params: Promise<{ t
           </div>
         ) : null}
       </section>
+      ) : (
+        <section className="mt-6 rounded-lg border border-stone-200 bg-paper p-6 text-sm text-steel">
+          {t("summaryUnavailable")}
+        </section>
+      )}
 
       <p className="mt-4 text-xs text-stone-400">
         {t("methodology")}{" "}

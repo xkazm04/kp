@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { deleteLlmConfig, listLlmConfig, upsertLlmConfig } from "@/app/_lib/db";
 import { isLlmProvider, isLlmUseCase, LLM_PROVIDERS, LLM_USE_CASES } from "@/app/_lib/llm-config";
+import { requireOperator } from "@/app/_lib/auth/require-operator";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -12,6 +13,8 @@ export const dynamic = "force-dynamic";
 // fails the next LLM call loudly instead of silently degrading.
 
 export async function GET() {
+  const denied = await requireOperator();
+  if (denied) return denied;
   return NextResponse.json({
     rows: listLlmConfig(),
     providers: LLM_PROVIDERS,
@@ -20,6 +23,8 @@ export async function GET() {
 }
 
 export async function PUT(request: NextRequest) {
+  const denied = await requireOperator();
+  if (denied) return denied;
   const body = (await request.json().catch(() => null)) as {
     useCase?: unknown;
     provider?: unknown;
@@ -43,6 +48,8 @@ export async function PUT(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
+  const denied = await requireOperator();
+  if (denied) return denied;
   const body = (await request.json().catch(() => null)) as { useCase?: unknown } | null;
   if (!body || !isLlmUseCase(body.useCase)) {
     return NextResponse.json({ error: "Unknown useCase.", useCases: LLM_USE_CASES }, { status: 400 });

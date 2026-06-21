@@ -31,8 +31,14 @@ const githubCache = new Map<string, { at: number; payload: unknown }>();
 
 // GitHub usernames are case-insensitive — fold the key so Octocat and octocat
 // share an entry. The JD is part of the key because jobFitSignals depend on it.
+// The JD is NORMALIZED (case/whitespace folded, length-capped) for the key ONLY —
+// the analysis still runs against the raw JD. Without this, a trivial JD variation
+// (file-extracted vs typed, an extra space, padding) produced a fresh key and turned
+// each miss into ~31 GitHub calls + a paid Gemini call: a cheap cost-amplifier.
+const GITHUB_CACHE_JD_KEY_MAX = 4000;
 function githubCacheKey(username: string, jobDescription: string): string {
-  return createHash("sha1").update(`${username.toLowerCase()}\n${jobDescription}`).digest("hex");
+  const normJd = jobDescription.toLowerCase().replace(/\s+/g, " ").trim().slice(0, GITHUB_CACHE_JD_KEY_MAX);
+  return createHash("sha1").update(`${username.toLowerCase()}\n${normJd}`).digest("hex");
 }
 
 // --- Repo ranking & complexity heuristics ----------------------------------

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { BookOpen, Check, ChevronDown, ChevronRight, ChevronUp, Footprints, Pause, Play, RotateCcw, Square, Workflow } from "lucide-react";
+import { BookOpen, Check, ChevronDown, ChevronRight, ChevronUp, Footprints, Pause, Play, RotateCcw, Sparkles, Square, Workflow } from "lucide-react";
 import { buildUrl } from "@/app/features/tabs";
 import { SIM_PHASES } from "./constants";
 import { useSimulation } from "./SimulationProvider";
@@ -44,9 +44,23 @@ export function SimBar() {
   const ghost = "border border-stone-200 text-steel hover:bg-stone-50";
 
   const primary = !sim.running ? (
-    <button type="button" onClick={sim.start} className={`${ctrlBtn} bg-ink text-white hover:opacity-90`}>
-      <Play size={14} /> {sim.done ? "Run again" : "Start simulation"}
-    </button>
+    sim.done ? (
+      // Climax — the prospect just watched a candidate walk JD→Hired. This is the
+      // peak-intent moment, so the terminal state leads with a real conversion CTA
+      // into the app (the demo used to dead-end on "Run again", leaking that intent).
+      <div className="flex flex-wrap items-center gap-2">
+        <a href="/login" className={`${ctrlBtn} bg-coral text-white hover:opacity-90`}>
+          <Sparkles size={14} /> Get started — do it with your roles
+        </a>
+        <button type="button" onClick={sim.start} className={`${ctrlBtn} ${ghost}`}>
+          <Play size={14} /> Run again
+        </button>
+      </div>
+    ) : (
+      <button type="button" onClick={sim.start} className={`${ctrlBtn} bg-ink text-white hover:opacity-90`}>
+        <Play size={14} /> Start simulation
+      </button>
+    )
   ) : sim.awaitingNext ? (
     <button type="button" onClick={sim.next} className={`${ctrlBtn} bg-coral text-white hover:opacity-90`}>
       Next <ChevronRight size={14} />

@@ -26,12 +26,18 @@ function ReliabilityDiagram({ result, labels }: { result: CalibrationResult; lab
   const filled = result.bins.filter((b) => b.count > 0);
   const maxCount = filled.reduce((m, b) => Math.max(m, b.count), 1);
   return (
-    <svg
-      viewBox={`0 0 ${SIZE} ${SIZE}`}
-      className="h-60 w-60 text-ink"
-      role="img"
-      aria-label={`${labels.x} / ${labels.y}`}
-    >
+    <>
+      {/* The SVG is a pure visual encoding (the dots ARE the signal but have no text
+          equivalent) — mark it decorative and expose the bins as a visually-hidden list
+          so the calibration is actually readable by screen readers (WCAG 1.1.1). */}
+      <ul className="sr-only">
+        {filled.map((b, i) => (
+          <li key={i}>
+            {labels.x} {b.predicted.toFixed(2)}, {labels.y} {b.observed.toFixed(2)} (n={b.count})
+          </li>
+        ))}
+      </ul>
+      <svg viewBox={`0 0 ${SIZE} ${SIZE}`} className="h-60 w-60 text-ink" aria-hidden="true">
       {/* plot frame */}
       <rect x={PAD} y={PAD} width={PLOT} height={PLOT} fill="none" stroke="#e7e5e4" strokeWidth={1} />
       {/* 0 / .5 / 1 gridlines */}
@@ -70,7 +76,8 @@ function ReliabilityDiagram({ result, labels }: { result: CalibrationResult; lab
           {g}
         </text>
       ))}
-    </svg>
+      </svg>
+    </>
   );
 }
 

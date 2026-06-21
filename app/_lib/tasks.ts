@@ -91,6 +91,9 @@ const HANDLERS: Record<string, Spec> = {
     label: () => "AI-screen all matched candidates",
   },
   analyze: {
+    // The AI-candidate unit is debited INSIDE runAnalyze, only on a delivered non-cached
+    // result — so a failed / canceled / duplicate run never charges. No upfront-debit +
+    // refund dance is needed here (this supersedes that earlier approach).
     run: (ctx) => runAnalyze(ctx.params as unknown as AnalyzeParams, ctx.progress, ctx.signal),
     label: (p) => {
       const variants = (p.variants as { label: string }[]) ?? [];

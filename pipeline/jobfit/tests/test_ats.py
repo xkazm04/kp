@@ -26,6 +26,7 @@ from pipeline.jobfit.ats import (
     MAX_MISSING_KEYWORDS,
     _keyword_status,
     evaluate_keyword_coverage,
+    verify_skills_in_cv,
 )
 from pipeline.jobfit.extractors import clean_text
 from pipeline.jobfit.profiling import build_profile
@@ -172,6 +173,54 @@ class DisplayCapTest(unittest.TestCase):
         )
         self.assertEqual(len(coverage.missing), MAX_MISSING_KEYWORDS)
         self.assertEqual(coverage.missing_total, len(missing))
+
+
+class MatchingSkillVerificationTest(unittest.TestCase):
+    """The trust gate (UAT M1): an LLM "matching" skill is kept only when it is
+    actually verifiable in the CV — literally or via a taxonomy alias — so a
+    hallucinated match never reaches the recruiter as a confirmed skill."""
+
+    def test_hallucinated_skill_is_withheld(self) -> None:
+        # The CV proves Python only; an LLM that also claims Kubernetes (the JD's
+        # demand) is hallucinating against this candidate — Kubernetes is withheld,
+        # Python kept. This is the recruiter's blocker line.
+        verified, withheld = verify_skills_in_cv(["Python", "Kubernetes"], _CV)
+        self.assertIn("Python", verified)
+        self.assertIn("Kubernetes", withheld)
+        self.assertNotIn("Kubernetes", verified)
+
+    def test_taxonomy_alias_counts_as_verified(self) -> None:
+        # CV writes the alias "k8s"; a claimed canonical "Kubernetes" is real and
+        # must be kept — alias-aware verification, not a naive string match.
+        verified, withheld = verify_skills_in_cv(
+            ["Kubernetes"], "Ran production clusters on k8s for three years."
+        )
+        self.assertEqual(verified, ["Kubernetes"])
+        self.assertEqual(withheld, [])
+
+    def test_untaxonomized_skill_falls_back_to_literal_cv_presence(self) -> None:
+        # A niche tool the taxonomy does not model is verified iff it is literally
+        # in the CV; an unrelated one the CV never names is withheld.
+        cv = "Built reporting on top of FrobozzDB in the data team."
+        verified, withheld = verify_skills_in_cv(["FrobozzDB", "Snowflake"], cv)
+        self.assertEqual(verified, ["FrobozzDB"])
+        self.assertEqual(withheld, ["Snowflake"])
+
+    def test_untaxonomized_multiword_matches_across_whitespace(self) -> None:
+        # A line-wrapped / double-spaced phrase still verifies via the flexible
+        # whitespace boundary match.
+        cv = "We built the Frobozz\n  Engine in-house."
+        verified, withheld = verify_skills_in_cv(["Frobozz Engine"], cv)
+        self.assertEqual(verified, ["Frobozz Engine"])
+        self.assertEqual(withheld, [])
+
+    def test_order_preserved_and_duplicates_collapsed(self) -> None:
+        verified, withheld = verify_skills_in_cv(["Python", "python", "Kubernetes"], _CV)
+        self.assertEqual(verified, ["Python"])  # dup collapsed, first casing kept
+        self.assertEqual(withheld, ["Kubernetes"])
+
+    def test_empty_input_is_safe(self) -> None:
+        self.assertEqual(verify_skills_in_cv([], _CV), ([], []))
 
 
 if __name__ == "__main__":

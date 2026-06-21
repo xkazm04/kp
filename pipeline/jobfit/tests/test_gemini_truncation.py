@@ -149,5 +149,30 @@ class GroundedAnswerTruncationTest(unittest.TestCase):
         self.assertEqual(answer.payload, {"fallback": True})
 
 
+class GroundedAnswerMalformedCompleteTest(unittest.TestCase):
+    """The gap the truncation tests don't cover: a COMPLETE (finish=STOP) response
+    that is valid JSON but NOT the analysis shape, or not JSON at all. The model can
+    legitimately finish cleanly yet return a refusal object or prose."""
+
+    def test_complete_but_wrong_shape_json_parses_without_truncation(self) -> None:
+        # Valid JSON, finished cleanly, but the model returned an OTHER object (a
+        # refusal) instead of the schema. The gemini layer is shape-agnostic — the
+        # downstream analysisSchema validates the shape — so it must NOT crash and must
+        # NOT mis-flag a clean finish as truncated; it hands the payload up to be rejected.
+        payload = {"error": "I cannot analyze this document."}
+        answer = _answer_for(json.dumps(payload), types.FinishReason.STOP)
+        self.assertFalse(answer.truncated)
+        self.assertEqual(answer.payload, payload)
+
+    def test_complete_non_json_prose_raises_a_clear_non_truncation_error(self) -> None:
+        # The model finished cleanly but returned PROSE (a refusal), not JSON. This must
+        # raise a clear error that is NOT mislabeled as a truncation/max-tokens problem.
+        with self.assertRaises(RuntimeError) as ctx:
+            _answer_for("I'm sorry, but I can't help with that request.", types.FinishReason.STOP)
+        msg = str(ctx.exception).lower()
+        self.assertNotIn("truncated", msg)
+        self.assertNotIn("max_output_tokens", msg)
+
+
 if __name__ == "__main__":
     unittest.main()

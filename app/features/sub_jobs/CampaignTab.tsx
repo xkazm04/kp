@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { AlertTriangle, Check, Copy, Loader2, Sparkles } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { isLocale, LOCALES, type Locale } from "@/i18n/locales";
+import { SkelBar } from "./JobsShared";
 
 // E1 (Erika gap) — the Campaign tab of the job posting modal: feed-ready ad-copy
 // variants + 15-second video scripts per candidate language, every CTA pointing
@@ -186,9 +187,16 @@ export function CampaignTab({ jobId }: { jobId: string }) {
       ) : null}
 
       {loading ? (
-        <p className="mt-4 flex items-center gap-2 text-sm text-steel">
-          <Loader2 size={14} className="animate-spin" /> …
-        </p>
+        // Multi-second LLM call: reserve the variant cards' shape with skeletons
+        // (and announce busy) instead of a bare spinner+ellipsis on one line.
+        <div className="mt-4 space-y-2" aria-busy="true">
+          <p className="flex items-center gap-2 text-sm text-steel">
+            <Loader2 size={14} className="animate-spin" aria-hidden /> {t("generating")}
+          </p>
+          {Array.from({ length: 3 }).map((_, i) => (
+            <SkelBar key={i} className="h-20 w-full" />
+          ))}
+        </div>
       ) : !variants.length ? (
         <p className="mt-4 rounded-lg border border-dashed border-stone-300 bg-paper/40 p-4 text-sm text-steel">
           {t("empty")}

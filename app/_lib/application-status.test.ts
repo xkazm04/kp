@@ -18,6 +18,9 @@ test("candidateStatusFor maps each live stage", () => {
 test("candidateStatusFor maps terminal statuses regardless of stage", () => {
   assert.equal(candidateStatusFor("rejected", "Screened"), "not_selected");
   assert.equal(candidateStatusFor("rematched", "Interview"), "not_selected");
+  // role_closed (the role was filled/closed) reads as not_selected, not withdrawn —
+  // the candidate didn't pull out; the role is simply no longer open to them (JOB2).
+  assert.equal(candidateStatusFor("role_closed", "Interview"), "not_selected");
   assert.equal(candidateStatusFor("declined", "Offer"), "withdrawn");
 });
 

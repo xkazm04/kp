@@ -3,6 +3,7 @@ import { getJob, loadJd, setJdArchived, updateJd } from "@/app/_lib/db";
 import { ingestJobAd } from "@/app/_lib/job-ingest";
 import { jdJobId, validateJdFields } from "@/app/_lib/jd-limits";
 import { safeJsonError } from "@/app/_lib/api-response";
+import { requireOperator } from "@/app/_lib/auth/require-operator";
 
 export const runtime = "nodejs";
 // The best-effort re-ingest on a body edit is one LLM parse.
@@ -30,6 +31,10 @@ export async function GET(_request: Request, context: { params: Promise<{ slug: 
 //   { archived: bool }   — archive/unarchive (archived JDs leave listJds and
 //                          the pickers; the public page renders with a banner).
 export async function PATCH(request: Request, context: { params: Promise<{ slug: string }> }) {
+  // The JD detail page is public/shareable, so edit + archive must be recruiter-only
+  // at the handler — not just hidden in the UI. GET above stays public.
+  const denied = await requireOperator();
+  if (denied) return denied;
   const { slug } = await context.params;
   try {
     const existing = loadJd(slug);
@@ -39,6 +44,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ slug:
       title?: unknown;
       body?: unknown;
       archived?: unknown;
+      baseBody?: unknown;
     };
 
     if (typeof body.archived === "boolean") {
@@ -50,7 +56,19 @@ export async function PATCH(request: Request, context: { params: Promise<{ slug:
     if (!fields.ok) {
       return NextResponse.json({ error: fields.error }, { status: 400 });
     }
-    updateJd(slug, { title: fields.title, body: fields.body });
+    // Content-CAS: the editor sends the body it loaded; a stale base means another
+    // writer changed the JD in the gap, so we 409 instead of clobbering their edit.
+    const baseBody = typeof body.baseBody === "string" ? body.baseBody : undefined;
+    const result = updateJd(slug, { title: fields.title, body: fields.body }, baseBody);
+    if (!result.ok) {
+      if (result.reason === "conflict") {
+        return NextResponse.json(
+          { error: "This JD changed since you opened it — reload to see the latest, then re-apply your edit.", code: "conflict" },
+          { status: 409 }
+        );
+      }
+      return NextResponse.json({ error: "JD not found." }, { status: 404 });
+    }
 
     // Keep the linked jd-<slug> job in step with the edited wording —
     // best-effort: insertJob's explicit-jobId upsert updates fields while

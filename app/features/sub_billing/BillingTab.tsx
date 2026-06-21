@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { AlertTriangle, ExternalLink, Info, Timer } from "lucide-react";
+import { AlertTriangle, CheckCircle2, ExternalLink, Info, Timer } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { Badge, type BadgeTone } from "@/app/_components/Badge";
 import { Skeleton } from "@/app/_components/Skeleton";
@@ -61,7 +61,9 @@ function MeterRow({ meter, name }: { meter: MeterOverview; name: string }) {
           </span>
         )}
       </div>
-      {limit === null ? null : (
+      {limit === null || limit <= 0 ? null : (
+        // A 0-allowance meter (free/BYOM tier) must NOT render a progressbar — aria-valuemax
+        // must exceed valuemin, so max=0 is invalid. The "0 / 0" text above still conveys it.
         <div
           role="progressbar"
           aria-valuemin={0}
@@ -170,6 +172,9 @@ export function BillingTab() {
   // `hint` renders calm (steel) — the portal's 404 means "no billing customer
   // yet", a normal pre-first-purchase state, not a failure.
   const [portalNote, setPortalNote] = useState<{ text: string; hint: boolean } | null>(null);
+  // Post-checkout return state: "confirming" while we poll for the webhook to land
+  // the new plan, then "done". Null when this wasn't a checkout return.
+  const [checkout, setCheckout] = useState<"confirming" | "done" | null>(null);
 
   // State updates only happen in the async callbacks (never synchronously in
   // the effect body); the retry button clears the failure flag in its event
@@ -185,6 +190,26 @@ export function BillingTab() {
   }, []);
   useEffect(() => {
     load();
+  }, [load]);
+
+  // Post-checkout return: the provider redirected to /?tab=billing&billing=success.
+  // The old code generated that URL but consumed it nowhere, so a paid recruiter saw
+  // their OLD plan with no confirmation. Show a "confirming…" banner and re-poll the
+  // overview (the entitlement lands via the webhook a beat after redirect), then mark
+  // done and strip the flag so a refresh doesn't re-trigger. Runs once on mount.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const url = new URL(window.location.href);
+    if (url.searchParams.get("billing") !== "success") return;
+    setCheckout("confirming");
+    const timers = [
+      setTimeout(load, 2000),
+      setTimeout(load, 5000),
+      setTimeout(() => setCheckout("done"), 5500),
+    ];
+    url.searchParams.delete("billing");
+    window.history.replaceState(null, "", url.toString());
+    return () => timers.forEach(clearTimeout);
   }, [load]);
 
   // Catalog-key helpers with the app-wide has() fallback so an unknown enum
@@ -242,6 +267,19 @@ export function BillingTab() {
         <SectionTitle className="mt-1">{t("title")}</SectionTitle>
         <p className={`mt-2 max-w-2xl ${INTRO}`}>{t("intro")}</p>
       </header>
+
+      {checkout ? (
+        <div
+          role="status"
+          aria-live="polite"
+          className={`${PANEL} flex items-center gap-2.5 border-moss/40 bg-moss/5 p-4`}
+        >
+          <CheckCircle2 size={18} className="shrink-0 text-moss" aria-hidden />
+          <p className="text-base font-medium text-moss">
+            {checkout === "confirming" ? t("checkoutConfirming") : t("checkoutDone", { plan: data?.plan.name ?? "" })}
+          </p>
+        </div>
+      ) : null}
 
       {loadFailed ? (
         <div className={`${PANEL_SUNKEN} flex flex-wrap items-center gap-3 p-4`}>

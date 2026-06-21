@@ -26,6 +26,36 @@ _BY_ID: dict[str, dict[str, Any]] = {a["id"]: a for a in _ARCHETYPES}
 _DETECTION: dict[str, Any] = _DATA["detection"]
 _COMMON_CHECKLIST: list[dict[str, Any]] = _DATA["commonChecklist"]
 
+# The headline score is a weighted average `100 * (w.skills*skills + w.career*career
+# + w.personal*personal)` — it is only an *average* when the weights sum to 1.0. The
+# archetypes.json comment states "must sum to 1.0" but nothing enforced it, so a
+# one-digit typo in a hand-edited archetype (e.g. summing to 0.9) silently rescaled
+# every score/tier/shortlist for that archetype with no error — each value still looked
+# plausible in [0,100]. Fail fast at import (same pattern taxonomy.py uses for malformed
+# data) so a bad weight vector can never ship a quietly-miscalibrated scorer.
+_REQUIRED_WEIGHT_KEYS = frozenset({"skills", "career", "personal"})
+
+
+def _validate_archetype_weights(archetypes: list[dict[str, Any]]) -> None:
+    for a in archetypes:
+        weights = a.get("weights", {})
+        keys = frozenset(weights.keys())
+        if keys != _REQUIRED_WEIGHT_KEYS:
+            raise RuntimeError(
+                f"archetype '{a.get('id', '?')}' weights must have exactly keys "
+                f"{sorted(_REQUIRED_WEIGHT_KEYS)}, got {sorted(keys)}"
+            )
+        total = sum(float(v) for v in weights.values())
+        if abs(total - 1.0) > 1e-6:
+            raise RuntimeError(
+                f"archetype '{a.get('id', '?')}' weights must sum to 1.0, got {total:.6g} "
+                f"({weights}) — the headline score is a weighted average and silently "
+                f"rescales otherwise"
+            )
+
+
+_validate_archetype_weights(_ARCHETYPES)
+
 
 # ---- Accessors -------------------------------------------------------------
 

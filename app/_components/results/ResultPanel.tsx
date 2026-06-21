@@ -146,7 +146,7 @@ export function ResultPanel({ analysis, github, onGithubRetry, pipelineRef }: Re
                 role="tab"
                 id={`tab-${tab.id}`}
                 aria-selected={selected}
-                aria-controls={`panel-${tab.id}`}
+                aria-controls="result-tabpanel"
                 tabIndex={selected ? 0 : -1}
                 onClick={() => setActiveTab(tab.id)}
                 className={`focus-ring inline-flex h-10 items-center justify-center gap-2 rounded-md px-3 text-base font-semibold ${
@@ -161,7 +161,7 @@ export function ResultPanel({ analysis, github, onGithubRetry, pipelineRef }: Re
         </div>
       </div>
 
-      <div role="tabpanel" id={`panel-${activeTab}`} aria-labelledby={`tab-${activeTab}`} tabIndex={0} className="focus-ring rounded-md">
+      <div role="tabpanel" id="result-tabpanel" aria-labelledby={`tab-${activeTab}`} tabIndex={0} className="focus-ring rounded-md">
         {activeTab === "extraction" ? <ExtractionTab analysis={analysis} /> : null}
         {activeTab === "compare" ? <CompareTab analysis={analysis} /> : null}
         {activeTab === "jobFit" ? <JobFitTab analysis={analysis} /> : null}
