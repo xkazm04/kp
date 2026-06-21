@@ -58,6 +58,14 @@ export function DevTab() {
   const [approvedId, setApprovedId] = useState<string | null>(null);
   const [sourcedCounts, setSourcedCounts] = useState<Record<string, number>>({});
   const [sourcing, setSourcing] = useState<string | null>(null);
+  // In-flight publish guard: `published` only becomes true after the postings reload,
+  // so without this the Publish button stays clickable mid-request and a double-click
+  // mints duplicate postings + apply tokens.
+  const [publishingCase, setPublishingCase] = useState<string | null>(null);
+  // In-flight guard for "Run automated lifecycle": lifecycleActive only flips true once
+  // the task appears in the tasks poll, so without this a double-click in the gap fires
+  // two lifecycle runs.
+  const [runningLifecycle, setRunningLifecycle] = useState(false);
   // The write actions below previously swallowed every error, so a failed publish /
   // approve / source / lifecycle-run looked identical to a click that did nothing.
   const [actionError, setActionError] = useState<string | null>(null);
@@ -212,14 +220,20 @@ export function DevTab() {
   };
 
   const runLifecycle = async () => {
-    const ok = await runAction("Run lifecycle", () =>
-      fetch("/api/devcase/lifecycle", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ need: buildNeed(), auto: true }),
-      })
-    );
-    if (ok) loadLifecycles();
+    if (runningLifecycle) return; // single-flight: no double-launch in the pre-poll gap
+    setRunningLifecycle(true);
+    try {
+      const ok = await runAction("Run lifecycle", () =>
+        fetch("/api/devcase/lifecycle", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ need: buildNeed(), auto: true }),
+        })
+      );
+      if (ok) loadLifecycles();
+    } finally {
+      setRunningLifecycle(false);
+    }
   };
 
   const approveLifecycle = async (id: string) => {
@@ -228,14 +242,20 @@ export function DevTab() {
   };
 
   const publish = async (caseId: string) => {
-    const ok = await runAction("Publish", () =>
-      fetch("/api/devcase/publish", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ caseId }),
-      })
-    );
-    if (ok) loadPostings();
+    if (publishingCase) return; // single-flight: a double-click can't mint duplicate postings
+    setPublishingCase(caseId);
+    try {
+      const ok = await runAction("Publish", () =>
+        fetch("/api/devcase/publish", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ caseId }),
+        })
+      );
+      if (ok) loadPostings();
+    } finally {
+      setPublishingCase(null);
+    }
   };
 
   const source = async (caseId: string) => {
@@ -376,6 +396,7 @@ export function DevTab() {
             postings={postings}
             onBack={() => setSelectedCaseId(null)}
             publish={publish}
+            publishing={publishingCase === selectedCase.id}
             source={source}
             sourcing={sourcing}
             sourcedCounts={sourcedCounts}
@@ -411,7 +432,7 @@ export function DevTab() {
             seniority={seniority}
             setSeniority={setSeniority}
             runLifecycle={runLifecycle}
-            lifecycleActive={lifecycleActive}
+            lifecycleActive={lifecycleActive || runningLifecycle}
             submit={submit}
             running={running}
             needTasks={needTasks}

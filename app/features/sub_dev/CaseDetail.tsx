@@ -24,6 +24,7 @@ export function CaseDetail({
   postings,
   onBack,
   publish,
+  publishing,
   source,
   sourcing,
   sourcedCounts,
@@ -33,6 +34,7 @@ export function CaseDetail({
   postings: Posting[];
   onBack: () => void;
   publish: (caseId: string) => void;
+  publishing?: boolean;
   source: (caseId: string) => void;
   sourcing: string | null;
   sourcedCounts: Record<string, number>;
@@ -117,10 +119,10 @@ export function CaseDetail({
           <button
             type="button"
             onClick={() => publish(kase.id)}
-            disabled={published}
+            disabled={published || publishing}
             className="focus-ring inline-flex h-8 items-center gap-1.5 rounded-md border border-stone-200 bg-white px-2.5 text-micro font-semibold text-ink hover:border-coral/40 disabled:opacity-50"
           >
-            <Send size={12} /> {published ? "Published" : "Publish"}
+            <Send size={12} /> {published ? "Published" : publishing ? "Publishing…" : "Publish"}
           </button>
           <button
             type="button"
