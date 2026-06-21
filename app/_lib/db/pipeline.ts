@@ -4,7 +4,7 @@ import { isTerminalEntryStatus, TERMINAL_ENTRY_STATUSES } from "../pipeline-stat
 import { normalizeApplicantName, normalizeContact } from "../apply-intake";
 import { chunk, SQL_IN_CHUNK } from "../entries-param";
 import { randomToken } from "../random-id";
-import { CONSENT_TTL_DAYS, consentExpiresAt, maskCandidateName } from "../consent";
+import { CONSENT_TTL_DAYS, consentExpiresAt, maskCandidateName, scrubPiiFromPayload } from "../consent";
 import { anonymizeProfile } from "./profiles";
 import { coerceGithubEvidenceSummary, type GithubEvidenceSummary } from "../github-summary";
 import { recordPipelineOutcome } from "../dev-outcomes";
@@ -1022,6 +1022,34 @@ export function anonymizeEntry(entryId: string, reason: "expiry" | "erasure" = "
     // Scrub the linked CV profile (PII out, scores kept). Best-effort: a missing
     // profile (recruiter stub) just means there was no CV blob to scrub.
     if (row.candidate_id) anonymizeProfile(row.candidate_id);
+    // GDPR Art. 17: the saved `analyses` rows hold the FULL CV payload (rawText,
+    // name, email, phone, verbatim evidence) + a github_json dossier. They have no
+    // FK back to the entry, so match on the original candidate_label — the same key
+    // the candidate pool/JD pages use to link analyses to a person — and scrub each
+    // payload (PII out, recruitment signal kept) + mask the stored label. Without
+    // this, an erasure left the candidate's whole CV readable in History and via
+    // /api/analyses/[slug]. Runs inside this transaction (same db connection), so a
+    // failure rolls the whole erasure back rather than half-scrubbing. Label-blind
+    // to workspace on purpose: over-scrubbing on erasure is the safe direction.
+    const linkedAnalyses = db
+      .prepare(`SELECT slug, payload_json FROM analyses WHERE candidate_label = ?`)
+      .all(row.candidate_label) as { slug: string; payload_json: string }[];
+    if (linkedAnalyses.length > 0) {
+      const scrubAnalysis = db.prepare(
+        `UPDATE analyses SET candidate_label = ?, payload_json = ?, github_json = NULL WHERE slug = ?`
+      );
+      for (const a of linkedAnalyses) {
+        let scrubbedPayload: string;
+        try {
+          scrubbedPayload = JSON.stringify(scrubPiiFromPayload(JSON.parse(a.payload_json)));
+        } catch {
+          // A corrupt payload can't be selectively scrubbed — drop it wholesale to
+          // an empty object rather than leave un-scrubbed PII or abort the erasure.
+          scrubbedPayload = "{}";
+        }
+        scrubAnalysis.run(masked, scrubbedPayload, a.slug);
+      }
+    }
     logConsentEvent(db, entryId, reason === "erasure" ? "erased" : "anonymized", `reason: ${reason}`);
     const updated = db.prepare(`SELECT * FROM pipeline_entries WHERE id = ?`).get(entryId) as PipelineRow;
     return rowToEntry(updated);
