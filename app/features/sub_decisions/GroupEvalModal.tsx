@@ -50,7 +50,7 @@ export function GroupEvalModal({
    *  candidate IDENTITY (candIdentity: entry id, label fallback), resolved back to the live
    *  pipeline entry by id in DecisionsTab so a duplicate display name can't act on the wrong
    *  person. Omitted (read-only) for the simulation, which has no live decision queue. */
-  onDecide?: (identity: string, action: "accept" | "reject") => void;
+  onDecide?: (identity: string, action: "accept" | "reject") => boolean;
 }) {
   const t = useTranslations("decisions.groupEval");
   const { ranAt, decided, decide, drift, candidates, enriched, skillRows, mustRows, aiBacked } = useGroupEval({

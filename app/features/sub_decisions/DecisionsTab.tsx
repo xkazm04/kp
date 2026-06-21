@@ -474,7 +474,11 @@ export function DecisionsTab() {
             const e =
               evalGroup?.entries.find((x) => x.id === identity) ??
               evalGroup?.entries.find((x) => x.candidateLabel === identity);
-            if (e) void act(e, action);
+            // Report back whether we found a live entry: a candidate who already left
+            // the pool returns false so the modal won't show a fake "Advanced/Rejected".
+            if (!e) return false;
+            void act(e, action);
+            return true;
           }}
         />
       ) : null}

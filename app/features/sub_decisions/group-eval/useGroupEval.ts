@@ -14,7 +14,10 @@ export function useGroupEval({
   evaluation: GroupEvalPayload | null;
   createdAt?: string | null;
   poolDrift?: number;
-  onDecide?: (identity: string, action: "accept" | "reject") => void;
+  // Returns whether the decision actually landed on a live pipeline entry — a
+  // candidate who already left the pool can't be resolved, and the button must NOT
+  // then show a fake success pill.
+  onDecide?: (identity: string, action: "accept" | "reject") => boolean;
 }) {
   const ranAt = ranWhen(createdAt);
   // Candidates decided here this session, so their buttons flip to a result pill
@@ -25,8 +28,13 @@ export function useGroupEval({
     onDecide &&
     ((label: string, action: "accept" | "reject") => {
       if (decided[label]) return; // already acted this session
-      setDecided((d) => ({ ...d, [label]: action }));
-      onDecide(label, action);
+      // Only flip to the recorded-outcome pill if the action actually applied. If the
+      // candidate has left the live pool, onDecide no-ops and returns false — leave
+      // the buttons live (and un-decided) instead of claiming a success that never
+      // happened, which also kept blocking a retry.
+      if (onDecide(label, action)) {
+        setDecided((d) => ({ ...d, [label]: action }));
+      }
     });
   const drift = poolDrift ?? 0;
   const candidates = evaluation?.candidates ?? [];
