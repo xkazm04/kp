@@ -16,6 +16,7 @@ The scorer is archetype-aware via :func:`weights_for`; BAU is wired now,
 from __future__ import annotations
 
 import json
+import math
 import re
 from functools import lru_cache
 from pathlib import Path
@@ -594,6 +595,11 @@ def score_job(
     if candidate.archetype in _EARLY_CAREER:
         # career slot carries POTENTIAL (readiness); personal carries motivation/domain fit.
         career = candidate.potential_score if candidate.potential_score is not None else score_career(candidate, job)
+        # potential_score is validated to [0,1] only at the Pydantic boundary; a candidate
+        # built outside it (model_construct / direct field set) could overflow the career
+        # bar (and a NaN would slip past the headline min/max). Clamp defensively here so
+        # every dimension is in-contract before it reaches the weighted total + breakdown.
+        career = max(0.0, min(1.0, career)) if math.isfinite(career) else 0.0
         personal = score_motivation(candidate, job, embedder=embedder)
     else:
         career = score_career(candidate, job)
