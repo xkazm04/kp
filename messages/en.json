@@ -725,6 +725,7 @@
       "keysNotConfigured": "{provider} keys not configured",
       "consent": "I understand this is an <b>AI-conducted</b> first-round screen and that the conversation is <b>transcribed</b> for a human recruiter to review. No audio is stored.",
       "connecting": "Connecting…",
+      "awaitingMic": "Allow microphone access in your browser's prompt to start the call.",
       "startAgain": "Start again",
       "startCall": "Start the call",
       "ending": "Ending…",
@@ -1602,6 +1603,8 @@
     "interviewerTitle": "Interviewer: {name}",
     "calendar": {
       "assignAria": "Assign selected candidate to {slot}",
+      "calendarAria": "Interview week calendar — days across, times down",
+      "timeColumn": "Time",
       "chipTitle": "{name} · {archetype}{job}",
       "chipAria": "{name}, {archetype}{job}"
     },

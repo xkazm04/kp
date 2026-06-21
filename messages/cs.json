@@ -725,6 +725,7 @@
       "keysNotConfigured": "{provider} — klíče nejsou nastaveny",
       "consent": "Beru na vědomí, že jde o screening prvního kola <b>vedený AI</b> a že konverzace je <b>přepisována</b> k přezkoumání člověkem. Žádný zvuk se neukládá.",
       "connecting": "Připojování…",
+      "awaitingMic": "Povolte přístup k mikrofonu ve výzvě prohlížeče a spusťte hovor.",
       "startAgain": "Začít znovu",
       "startCall": "Spustit hovor",
       "ending": "Ukončování…",
@@ -1602,6 +1603,8 @@
     "interviewerTitle": "Tazatel: {name}",
     "calendar": {
       "assignAria": "Přiřadit vybraného kandidáta na {slot}",
+      "calendarAria": "Týdenní kalendář pohovorů — dny vodorovně, časy svisle",
+      "timeColumn": "Čas",
       "chipTitle": "{name} · {archetype}{job}",
       "chipAria": "{name}, {archetype}{job}"
     },

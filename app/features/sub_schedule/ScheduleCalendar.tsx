@@ -60,21 +60,28 @@ export function ScheduleCalendar({
       <div
         ref={scrollerRef}
         onScroll={measure}
-        className="overflow-x-auto rounded-lg border border-stone-200 bg-white shadow-panel"
+        // tabIndex makes the horizontally-scrolling region keyboard-focusable so it can
+        // be scrolled without a mouse.
+        tabIndex={0}
+        className="focus-ring overflow-x-auto rounded-lg border border-stone-200 bg-white shadow-panel"
       >
         <LayoutGroup>
-          <div className="min-w-[760px]">
-            <div className="grid grid-cols-[64px_repeat(5,1fr)] border-b border-stone-200 bg-paper text-center text-meta uppercase text-steel">
-              <div className="py-2" />
+          {/* role="table" + row/columnheader/rowheader/cell give SR the day×time spatial
+              structure the CSS grid only conveyed visually — without a <table> rewrite. */}
+          <div className="min-w-[760px]" role="table" aria-label={tCal("calendarAria")}>
+            <div role="row" className="grid grid-cols-[64px_repeat(5,1fr)] border-b border-stone-200 bg-paper text-center text-meta uppercase text-steel">
+              <div role="columnheader" className="py-2">
+                <span className="sr-only">{tCal("timeColumn")}</span>
+              </div>
               {DAYS.map((d) => (
-                <div key={d} className="py-2 font-semibold">
+                <div key={d} role="columnheader" className="py-2 font-semibold">
                   {enumLabel("day", d)}
                 </div>
               ))}
             </div>
             {TIMES.map((t) => (
-              <div key={t} className="grid grid-cols-[64px_repeat(5,1fr)] border-t border-stone-100">
-                <div className="px-2 py-3 text-sm text-steel">{t}</div>
+              <div key={t} role="row" className="grid grid-cols-[64px_repeat(5,1fr)] border-t border-stone-100">
+                <div role="rowheader" className="px-2 py-3 text-sm text-steel">{t}</div>
                 {DAYS.map((d) => {
                   const slot = `${d} ${t}`;
                   const here = inSlot(slot);
@@ -83,7 +90,7 @@ export function ScheduleCalendar({
                     // real buttons (no interactive-in-interactive nesting). A full-cell
                     // slot picker sits behind the chips; clicks on empty space fall
                     // through to it, while clicks on a chip select that candidate.
-                    <div key={d} className="relative min-h-14 border-l border-stone-100">
+                    <div key={d} role="cell" className="relative min-h-14 border-l border-stone-100">
                       <button
                         type="button"
                         onClick={() => onPickSlot(slot)}
