@@ -1,0 +1,6 @@
+# Transient Lens-2/Lens-3 capture dirs (live generations, bench payloads).
+# The notes (call-sites/, characters/, models/, sessions/) ARE committed — they
+# are the durable memory. Only large/regenerable captures are ignored.
+captures/
+*.tmp
+tmp/
