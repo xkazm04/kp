@@ -5,6 +5,7 @@ import { GoogleGenAI } from "@google/genai";
 import { logGithub, newRequestId } from "@/app/_lib/logger";
 import { codeReviewSchema, githubAnalysisSchema } from "@/app/_lib/schemas";
 import { ACTIVE_WINDOW_MONTHS, RECENT_WINDOW_MONTHS, isWithinMonths } from "@/app/_lib/repo-activity";
+import { parseGithubUsername } from "@/app/_lib/github-handle";
 import {
   COMMITS_PER_REPO,
   FILES_PER_REPO,
@@ -252,17 +253,6 @@ export async function POST(request: Request) {
     // status code and renders it inside the GithubAnalysisPanel error state.
     return NextResponse.json({ error: message });
   }
-}
-
-function parseGithubUsername(input: string) {
-  if (!input) return null;
-  const trimmed = input.trim().replace(/\/+$/, "");
-  const urlMatch = trimmed.match(/^https?:\/\/(?:www\.)?github\.com\/([^/?#]+)(?:[/?#].*)?$/i);
-  const candidate = urlMatch ? urlMatch[1] : trimmed.replace(/^@/, "");
-  if (!/^[A-Za-z0-9-]{1,39}$/.test(candidate) || candidate.startsWith("-") || candidate.endsWith("-")) {
-    return null;
-  }
-  return candidate;
 }
 
 async function githubFetch<T>(url: string): Promise<T> {
