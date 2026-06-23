@@ -101,7 +101,6 @@ class LLMResult:
     text: str
     provider: str
     model: str
-    raw: dict[str, Any] = field(default_factory=dict)
     usage: dict[str, Any] = field(default_factory=dict)
     cost_usd: float | None = None
     duration_ms: int = 0
