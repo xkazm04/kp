@@ -335,9 +335,8 @@ def run_seed_main(
     return 0
 
 
-def main(argv: list[str] | None = None) -> int:
-    return run_seed_main(build_specs, spec_to_prompt, default_count=150, argv=argv)
-
-
-if __name__ == "__main__":
-    raise SystemExit(main())
+# No module-level `main` / `__main__` entry point: the product ships only the ČS
+# corpus (seed_jobs_csas.py owns the runnable `main`). Running this module directly
+# used to regenerate a GENERIC corpus that silently overwrote data/seed_jobs/*.json
+# — that footgun is removed. The build_specs/spec_to_prompt/_SYSTEM above remain the
+# generic DEFAULT profile for generate()/_gen_one when no company override is passed.
