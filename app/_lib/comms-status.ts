@@ -28,12 +28,6 @@ export const OUTBOX_STATUSES = ["queued", "sent", "failed"] as const;
 
 export type OutboxStatus = (typeof OUTBOX_STATUSES)[number];
 
-// `failed` is the only non-success terminal state. Helper so readers (UI/alerts)
-// don't string-compare the literal.
-export function isDeadLettered(status: OutboxStatus): boolean {
-  return status === "failed";
-}
-
 // Normalize a raw DB/string value to a canonical status. Pre-contract rows stored
 // the HTTP code inline (e.g. "failed:500"); any such value — and any other
 // unrecognized string — collapses to `failed`. Defaulting the unknown case to a

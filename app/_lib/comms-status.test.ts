@@ -12,7 +12,6 @@ import assert from "node:assert/strict";
 import {
   OUTBOX_STATUSES,
   coerceOutboxStatus,
-  isDeadLettered,
   isRetryableHttpStatus,
   COMMS_RELAY_RETRY,
 } from "./comms-status.ts";
@@ -45,11 +44,6 @@ test("coerceOutboxStatus collapses legacy/unknown values to failed", () => {
   assert.equal(coerceOutboxStatus(undefined), "failed");
 });
 
-test("isDeadLettered is true only for failed", () => {
-  assert.equal(isDeadLettered("failed"), true);
-  assert.equal(isDeadLettered("queued"), false);
-  assert.equal(isDeadLettered("sent"), false);
-});
 
 test("transient HTTP statuses are retryable", () => {
   for (const s of [408, 425, 429, 500, 502, 503, 504]) {
