@@ -65,10 +65,7 @@ test("automation: required entryId+task, optional notes flag appended only after
   assert.equal(buildDedupeKey("automation", { entryId: "e1" }), null, "missing task fails");
 });
 
-test("commit_reflection / jd_build keep required identity but allow empty optional discriminators", () => {
-  assert.equal(buildDedupeKey("commit_reflection", { repoRef: "r1" }), "commit_reflection:r1:");
-  assert.equal(buildDedupeKey("commit_reflection", { repoRef: "r1", caseId: "c1" }), "commit_reflection:r1:c1");
-  assert.equal(buildDedupeKey("commit_reflection", {}), null);
+test("jd_build keeps required identity but allows empty optional discriminators", () => {
   assert.equal(buildDedupeKey("jd_build", { title: "Eng" }), "jd_build:Eng:0:");
   assert.equal(buildDedupeKey("jd_build", { title: "Eng", needText: "hello", repoUrl: "u" }), "jd_build:Eng:5:u");
   assert.equal(buildDedupeKey("jd_build", {}), null);

@@ -14,7 +14,7 @@ import {
 import { runAutomationTask } from "./automation-run";
 import { runReasoning } from "./reasoning-run";
 import { runAnalyze, type AnalyzeParams } from "./analyze-run";
-import { runCommitReflection, runDesignArtifacts, runEvaluateSubmission, runNeedAnalysis, type DevNeed } from "./devcase-run";
+import { runDesignArtifacts, runEvaluateSubmission, runNeedAnalysis, type DevNeed } from "./devcase-run";
 import { runLifecycle } from "./devcase-orchestrator";
 import { runGroupEval } from "./group-eval-run";
 import { runJdBuild } from "./jd-build-run";
@@ -107,10 +107,6 @@ const HANDLERS: Record<string, Spec> = {
   design_artifacts: {
     run: (ctx) => runDesignArtifacts(ctx.params.need as DevNeed, (ctx.params.analysis as Record<string, unknown>) ?? {}, ctx.signal),
     label: (p) => `Design artifacts · ${(p.need as { title?: string })?.title || "untitled"}`,
-  },
-  commit_reflection: {
-    run: (ctx) => runCommitReflection(String(ctx.params.repoRef), ctx.params.caseId ? String(ctx.params.caseId) : undefined, ctx.signal),
-    label: (p) => `Commit reflection · ${p.candidateRef ?? p.repoRef ?? ""}`,
   },
   evaluate_submission: {
     run: (ctx) => runEvaluateSubmission(String(ctx.params.submissionId), ctx.signal),

@@ -358,43 +358,6 @@ export async function mintObservedFromSubmission(
   return { credited, applied: true };
 }
 
-export type CommitReflectionResult = {
-  reflection: Record<string, unknown>;
-  tooling: Record<string, unknown>;
-  source: string;
-  perStepSources: Record<string, string>; // {reflect, tooling}
-  fallbackReason: Record<string, string>; // {step: "<ExceptionType>: <message>"} for steps whose LLM call raised
-  commitCount: number;
-};
-
-// D5 core: pull the submission repo's git trace, then reflect ("where they mentally
-// went") + assess tooling against the case's covert probes.
-export async function runCommitReflection(repoRef: string, caseId?: string, signal?: AbortSignal): Promise<CommitReflectionResult> {
-  const signals = await fetchRepoSignals(repoRef);
-  const commits = signals?.commits ?? [];
-  const repo = signals ? { cadence: signals.cadence, topLevel: signals.topLevel } : null;
-  const devCase = caseId ? getDevCase(caseId) : null;
-  const probes = ((devCase?.case as { coverProbes?: unknown[] } | null)?.coverProbes ?? []) as unknown[];
-
-  const payload = await runDevcaseCli<{ result: { reflection: Record<string, unknown>; tooling: Record<string, unknown> }; source: string; perStepSources?: Record<string, string>; fallbackReason?: Record<string, string> }>(
-    async (workdir) => {
-      const commitsPath = path.join(workdir, "commits.json");
-      const probesPath = path.join(workdir, "probes.json");
-      await writeFile(commitsPath, JSON.stringify(commits), "utf-8");
-      await writeFile(probesPath, JSON.stringify(probes), "utf-8");
-      const args = ["reflect-commits", "--commits-json", commitsPath, "--probes-json", probesPath];
-      if (repo) {
-        const repoPath = path.join(workdir, "repo.json");
-        await writeFile(repoPath, JSON.stringify(repo), "utf-8");
-        args.push("--repo-json", repoPath);
-      }
-      return args;
-    },
-    signal,
-  );
-  return { reflection: payload.result.reflection, tooling: payload.result.tooling, source: payload.source, perStepSources: payload.perStepSources ?? {}, fallbackReason: payload.fallbackReason ?? {}, commitCount: commits.length };
-}
-
 export type SubmissionEvaluation = {
   reflection: Record<string, unknown>;
   tooling: Record<string, unknown>;
