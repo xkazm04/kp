@@ -54,11 +54,6 @@ export function getAdapter(channel = "local"): DistributionAdapter {
   return ADAPTERS[channel] ?? ADAPTERS.local;
 }
 
-/** Record an incoming submission (the IN side of the local stub / a webhook target). */
-export function receiveSubmission(input: { postingId: string; candidateRef: string; repoRef: string; notes?: string }): DevSubmission {
-  return createSubmission(input).submission;
-}
-
 // Intake one submission (form OR inbound webhook): idempotent on (posting, candidate, repo),
 // and auto-acknowledges the candidate over the active comms channel (non-adverse, safe to
 // automate). Returns the submission + whether it was newly created (so the caller can decide
