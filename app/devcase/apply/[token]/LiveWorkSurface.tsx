@@ -2,8 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
-import type { SeedFile } from "./SeedFiles";
-import type { ProcessEvent } from "@/app/features/sub_dev/DevTypes";
+import type { ProcessEvent, SeedFile } from "@/app/features/sub_dev/DevTypes";
 
 // Live Work Surface (moonshot E) — an in-product editor over the materialized seed.
 // As the candidate works, it records OBSERVED process events (which files they

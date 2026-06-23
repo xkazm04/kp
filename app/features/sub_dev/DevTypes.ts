@@ -15,6 +15,10 @@ export type SelectedJd = { slug: string; title: string; body: string };
 export type ProcessEventKind = "open" | "edit" | "decision_log" | "submit";
 export type ProcessEvent = { t: number; kind: ProcessEventKind; path?: string };
 
+// One file of the materialized starter tree handed to the candidate work surface
+// (seed_materializer.py output). `path` is repo-relative; `contents` is the text.
+export type SeedFile = { path: string; contents: string };
+
 // The numeric-range contract for the scoring UI
 // ----------------------------------------------
 // Every numeric field below is one of two domains, annotated inline and enforced
