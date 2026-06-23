@@ -2318,7 +2318,6 @@
     "editor": {
       "back": "Back to profiles",
       "headingEdit": "Edit candidate profile",
-      "headingDuplicate": "Duplicate candidate profile",
       "headingCreate": "Build a candidate profile",
       "intro": "A guided intake that works for students and career-switchers, not just experienced hires. We route the archetype, collect the signals a thin CV omits (projects, thesis, coursework, aspirations), tag each piece of evidence with its <b>provenance</b>, and score completeness so you know what to add next.",
       "saveChanges": "Save changes",
@@ -2623,9 +2622,6 @@
     "subtitle": "Read the brief, grab the starter files, and submit a link to your solution repository when you're done.",
     "closed": "This role's intake has closed and is no longer accepting submissions. Thank you for your interest.",
     "briefUnavailable": "The assignment brief isn't available right now — please check back shortly or contact the recruiter who shared this link.",
-    "seedHeading": "{count, plural, one {Starter file} other {Starter files (#)}}",
-    "seedDownloadAll": "Download all",
-    "seedDownloadOne": "Download this file",
     "submitHeading": "Submit your solution",
     "submitHint": "Push your work to a public repository and share the link below. You'll get a confirmation right away.",
     "fieldName": "Your name",
