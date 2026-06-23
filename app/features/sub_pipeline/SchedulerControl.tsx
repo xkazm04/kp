@@ -26,9 +26,6 @@ type SchedulerRun = {
 type Schedule = {
   enabled: boolean;
   intervalMinutes: number;
-  // AUTO1 — "approve" queues clock rejects on the Decisions gate; "auto" is the
-  // opt-in fully autonomous posture.
-  rejectMode?: "auto" | "approve";
   lastRunAt: string | null;
   lastSummary: Summary | null;
 };
@@ -199,7 +196,7 @@ export function SchedulerControl({
     return () => clearTimeout(h);
   }, [result]);
 
-  const update = async (body: { enabled?: boolean; intervalMinutes?: number; tick?: boolean; remindersEnabled?: boolean; rejectMode?: "auto" | "approve" }) => {
+  const update = async (body: { enabled?: boolean; intervalMinutes?: number; tick?: boolean; remindersEnabled?: boolean }) => {
     if (inFlightRef.current) return; // a concurrent schedule op is already running
     inFlightRef.current = true;
     setBusy(true);
