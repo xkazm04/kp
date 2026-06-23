@@ -10,6 +10,10 @@ import { parseOaiTranscriptEvent } from "@/app/_lib/voice/openai";
 // pulls the server-only adapters into the bundle); these are type-only, so the
 // import is erased at compile time.
 import type { VoiceAvailability, VoiceProviderId, VoiceTurn } from "@/app/_lib/voice/types";
+// Default + fallback provider order, single-sourced in voice/types (browser-safe
+// pure data) so the picker can't default to a different provider than the server's
+// pickDefaultProvider — they previously kept inverted copies.
+import { VOICE_PROVIDER_ORDER as PROVIDER_ORDER, DEFAULT_VOICE_PROVIDER as DEFAULT_PROVIDER } from "@/app/_lib/voice/types";
 // Browser-safe pure helper (no server deps), so the "what counts as completed"
 // decision is single-sourced and unit-tested rather than inline in a callback.
 import { interviewFinalStatus } from "@/app/_lib/voice/finalize-status";
@@ -40,11 +44,6 @@ export type VoiceInterviewProps = {
   provider?: VoiceProviderId;
   lockSettings?: boolean;
 };
-
-// ElevenLabs is the preferred default; the picker falls back to whatever is
-// actually configured once availability resolves (see the effect below).
-const DEFAULT_PROVIDER: VoiceProviderId = "elevenlabs";
-const PROVIDER_ORDER: VoiceProviderId[] = ["elevenlabs", "openai"];
 
 // How long finalize() waits for a candidate utterance whose transcription is
 // still in flight when the call ends (idea-b70b8bd7). Whisper turnaround for a
