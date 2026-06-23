@@ -1,6 +1,5 @@
 import {
   approveLifecycleCase,
-  createPipelineEntry,
   getDevCase,
   getLifecycle,
   listSubmissions,
@@ -18,6 +17,7 @@ import {
   runMaterializeSeed,
   runNeedAnalysis,
   runSourceForRole,
+  seedPipelineFromMatches,
 } from "./devcase-run";
 import { getAdapter } from "./distribution";
 import { sendComm } from "./comms";
@@ -218,22 +218,7 @@ export async function runLifecycle(id: string, progress?: Progress, signal?: Abo
         const roleTitle = lc.role?.title ?? lc.title ?? "Dev case";
         const outcome = await runSourceForRole(lc.role ?? {});
         skipped = outcome.skipped;
-        for (const m of outcome.candidates) {
-          if (!m.candidateId) continue;
-          createPipelineEntry({
-            candidateId: m.candidateId,
-            candidateLabel: m.label,
-            archetype: m.archetype,
-            roleFamily: "software_engineering",
-            jobId: `dc-${lc.caseId}`,
-            jobTitle: roleTitle,
-            matchScore: m.score,
-            stage: "Accepted",
-            // d95fed6d — origin marker for case-sourced candidates.
-            sourceChannel: "devcase",
-          });
-          sourced += 1;
-        }
+        sourced = seedPipelineFromMatches(outcome.candidates, { caseId: lc.caseId, roleTitle }).added;
       } catch (err) {
         // Sourcing is best-effort — never block publishing — but record the failure so a real
         // crash (e.g. the matching bridge threw) is distinguishable from a legitimately empty

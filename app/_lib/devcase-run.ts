@@ -591,6 +591,38 @@ export async function runSourceForRole(
   return { candidates: r?.candidates ?? [], skipped: r?.skipped ?? 0, skippedReasons: r?.skippedReasons ?? [] };
 }
 
+// Seed the pipeline from a sourcing run's ranked matches — the SINGLE owner of the
+// "case-sourced candidate → Accepted pipeline entry" write contract, INCLUDING the
+// `sourceChannel: "devcase"` origin marker (d95fed6d). Used by both the lifecycle
+// orchestrator's publish step and the manual /api/devcase/source route, so a
+// candidate gets the same origin tag regardless of which path sourced them — the
+// route previously omitted the marker, so "Source DB" candidates silently lost
+// their "via dev case" attribution in the pipeline drawer. Skips matches without a
+// candidateId; returns the number of pipeline entries created.
+export function seedPipelineFromMatches(
+  matches: readonly Sourced[],
+  opts: { caseId: string | null; roleTitle: string },
+): { added: number } {
+  let added = 0;
+  for (const m of matches) {
+    if (!m.candidateId) continue;
+    createPipelineEntry({
+      candidateId: m.candidateId,
+      candidateLabel: m.label,
+      archetype: m.archetype,
+      roleFamily: "software_engineering",
+      jobId: `dc-${opts.caseId}`,
+      jobTitle: opts.roleTitle,
+      matchScore: m.score,
+      stage: "Accepted",
+      // d95fed6d — origin marker for case-sourced candidates.
+      sourceChannel: "devcase",
+    });
+    added += 1;
+  }
+  return { added };
+}
+
 // Bridge an evaluated submission into the pipeline + a Decisions screening_review card.
 // Shared by /api/devcase/promote and the lifecycle orchestrator. Returns the entry id, or
 // null if the submission isn't evaluated yet.
