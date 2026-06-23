@@ -139,14 +139,10 @@ export const MODES = ["remote", "hybrid", "onsite"];
 // module (app/_lib/archetypes) so the protected set is never hand-copied.
 export { ARCHETYPE_BADGE, isEarlyCareer } from "@/app/_lib/archetypes";
 
-export function provLabel(p: string): { text: string; tone: string } {
-  if (p === "professional") return { text: "prod", tone: "bg-stone-200 text-ink" };
-  if (p === "internship") return { text: "intern", tone: "bg-blue-50 text-blue-700" };
-  if (p === "self_declared") return { text: "self", tone: "bg-stone-100 text-steel" };
-  if (p === "open_source") return { text: "OSS", tone: "bg-blue-50 text-blue-700" };
-  if (p === "certification") return { text: "cert", tone: "bg-blue-50 text-blue-700" };
-  return { text: "academic", tone: "bg-amber-50 text-amber-800" }; // thesis/project/coursework
-}
+// provLabel moved to sub_match/MatchTypes (the canonical provenance→badge mapping,
+// which includes the highest-trust `observed` bucket and resolves its display text
+// via useEnumLabel). RecruiterCandidates — the only consumer of the old fork here —
+// now imports it from there.
 
 export function formatBand(band?: number[]): string {
   if (!band || band.length < 2) return "—";
