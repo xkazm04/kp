@@ -76,6 +76,12 @@ test("erasure scrubs PII from the candidate's saved analyses (matched by label)"
       candidate: { name: "Jane Doe", email: "jane@example.com", phone: "+420123456789" },
       rawText: "Jane Doe — full CV body with home address and everything.",
       evidence: ["Jane led the payments rewrite", "contactable at jane@example.com"],
+      // Verbatim CV quotes the provenance dossier re-exports — must NOT survive erasure.
+      evidenceTrace: {
+        experience: ["Senior Engineer at Acme Corp 2019-2023, owned billing"],
+        skills: ["Jane shipped the Python settlement service"],
+        salary: ["currently on 1,200,000 CZK at Acme"],
+      },
       score: 82, // non-PII recruitment signal must survive
     },
   });
@@ -96,6 +102,15 @@ test("erasure scrubs PII from the candidate's saved analyses (matched by label)"
   assert.doesNotMatch(flat, /\+420123456789/, "phone scrubbed");
   assert.doesNotMatch(flat, /full CV body/i, "rawText scrubbed");
   assert.deepEqual((after!.payload as { evidence: unknown[] }).evidence, [], "evidence emptied");
+  // GDPR Art.17: verbatim CV quotes under evidenceTrace.* must not survive either.
+  assert.doesNotMatch(flat, /Acme Corp/i, "evidenceTrace.experience quotes scrubbed");
+  assert.doesNotMatch(flat, /settlement service/i, "evidenceTrace.skills quotes scrubbed");
+  assert.doesNotMatch(flat, /1,200,000/, "evidenceTrace.salary quotes scrubbed");
+  assert.deepEqual(
+    (after!.payload as { evidenceTrace: Record<string, unknown[]> }).evidenceTrace.experience,
+    [],
+    "evidenceTrace.experience emptied",
+  );
   // Non-identifying recruitment signal is retained for rediscovery.
   assert.equal((after!.payload as { score: number }).score, 82, "score retained");
   // The stored label is masked, not the full name.
