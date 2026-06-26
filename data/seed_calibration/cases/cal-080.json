@@ -1,0 +1,191 @@
+{
+  "job": {
+    "id": "cal-080",
+    "title": "Civil Rights Investigator 1 - Columbus",
+    "company": "State of Ohio Jobs",
+    "role_family": "hr",
+    "seniority": "medior",
+    "source": "hf:jacob-hugging-face/job-descriptions"
+  },
+  "analysis": {
+    "realStack": [
+      "Ohio Revised Code Chapter 4112 (state anti-discrimination statute) — the governing legal framework for jurisdiction and basis determination",
+      "Charge affidavits and intake interview forms",
+      "Case files / case forms and a case-tracking system for status, updates, and production reporting",
+      "Reports of findings and preliminary case write-ups for supervisor review",
+      "Legal/process documents: subpoenas, deposition materials, document authentication, conciliation agreements, consent orders, settlement agreements",
+      "Personal computer / video display terminal for data entry, retrieval, and report generation",
+      "Standard office equipment (photocopier, facsimile)",
+      "Investigative and evidence-gathering methods; structured interviewing technique",
+      "Federal funding/work-sharing reporting (OCRC operates as a FEPA dual-filing with the EEOC), which drives the 'contractual obligation' production targets",
+      "Research methods for gathering and cross-checking documentary and testimonial evidence",
+      "Knowledge of state and federal anti-discrimination law (employment, public accommodation, credit) and protected bases (race, color, religion, sex, national origin, disability, age, ancestry)"
+    ],
+    "coreResponsibilities": [
+      "Conduct intake with charging parties (by letter, phone, or in person), prepare charge affidavits and intake forms, determine jurisdiction under Ch. 4112, and define the basis of alleged discrimination",
+      "Investigate single-issue and moderately difficult discrimination charges (explicitly excluding housing and sexual-harassment matters) across employment, public accommodation, credit, unions, and higher-education respondents",
+      "Gather evidence: counsel complainants, interview respondents and witnesses, run on-site and fact-finding conferences, and collect testimony, records, and documentation",
+      "Handle depositions, prepare and serve subpoenas, obtain documents from both parties, and verify/cross-check submitted documentation as authentic",
+      "Analyze case material and data and prepare preliminary findings/reports of findings for supervisor submission",
+      "Maintain a satisfactory production level to meet agency obligations tied to federal funding sources",
+      "Assist in drafting conciliation agreements, consent orders, and settlement agreements",
+      "Perform follow-up and clerical duties, respond to public inquiries, prepare reconsideration reports, assist in training new investigators, and help establish unit investigative procedures"
+    ],
+    "statedVsRealGaps": [
+      "The qualifications text is degraded — every months-of-training/experience figure is blanked out ('mos trg or mos exp'), so the actual experience bar cannot be read from the JD; calibrating exact seniority is guesswork",
+      "Classed as 'individual contributor / Investigator 1,' yet duties include training new investigators and helping establish unit procedures — that is quasi-lead scope sitting on an entry/early-career rung",
+      "The need is tagged roleFamily 'hr' and seniorityTarget 'medior,' but the real work is public-sector civil-rights enforcement: legal-procedural judgment (jurisdiction, evidence, subpoenas, depositions) closer to a paralegal/compliance investigator than to generalist HR",
+      "'Operation of personal computer' is listed as a skill, but in practice it is basic data entry and report generation — the genuine difficulty is legal/evidentiary and interpersonal, not technical",
+      "A production quota explicitly tied to federal funding sits in tension with the investigative thoroughness the role nominally requires; the caseload-vs-quality pressure is real but understated in the duties list",
+      "Compensation, exact work hours, and unposting date are blank/stripped, so total-rewards and posting-recency context is missing"
+    ],
+    "trueComplexity": "medium",
+    "riskAreas": [
+      "Jurisdictional misclassification at intake — getting basis or coverage under Ch. 4112 wrong propagates errors through the whole case and can wrongly dismiss or advance a charge",
+      "Evidentiary integrity and due process — improper subpoena/deposition handling or failure to authenticate documents creates legal exposure for the Commission and the parties",
+      "Neutrality and bias — the investigator must stay impartial between charging party and respondent while handling emotionally charged discrimination allegations",
+      "Production-vs-quality tension created by federal-funding contractual targets, risking rushed or thin investigations",
+      "Confidentiality of complaint data and sensitive personal information about complainants, witnesses, and respondents",
+      "Secondary/vicarious stress from sustained exposure to discrimination and conflict narratives",
+      "Calibration risk for the hire itself: the garbled qualification thresholds make it hard to confirm a candidate meets the (unknown) minimum training/experience floor"
+    ],
+    "reflection": "This is a real, well-specified public-sector role, not a software job, so the absence of a codebase is expected and not a defect — the 'stack' here is statute (Ohio Revised Code Ch. 4112), case files, legal-process documents, and structured investigative method, with a PC used only for data entry and reporting. Judged in its own terms the work is genuinely medium-complexity: it demands legal-procedural judgment (jurisdiction calls, evidence authentication, subpoenas, depositions) and skilled, sensitive interviewing, but it is deliberately scoped to single-issue and moderately difficult charges and explicitly excludes the hardest categories (housing and sexual harassment), which caps it below a senior/lead investigator. The largest divergence between the stated need and the evidence is framing: it is filed as a medior HR role, yet the duties read as entry-level civil-rights enforcement with paralegal-grade legal content and even quasi-lead tasks (training peers, shaping procedures) bolted onto an 'Investigator 1' line. The biggest practical caveat is data quality — the JD's training/experience thresholds, hours, and compensation have been stripped to blanks, so any precise seniority or eligibility calibration against this posting is uncertain.",
+    "confidence": 0.58,
+    "promptVersion": "need-analysis-v3"
+  },
+  "role": {
+    "title": "Civil Rights Investigator 1 - Columbus",
+    "seniority": "medior",
+    "roleFamily": "hr",
+    "mustHaves": [
+      "Working knowledge of state and federal anti-discrimination law — specifically Ohio Revised Code Chapter 4112 — sufficient to determine jurisdiction and define the basis of a charge (race, color, religion, sex, national origin, disability, age, ancestry) across employment, public accommodation, and credit",
+      "Demonstrated investigation methods and techniques: gathering, authenticating, and cross-checking documentary and testimonial evidence relative to a charge",
+      "Structured interviewing and fact-finding skill — counseling charging parties, interviewing respondents and witnesses, and running on-site or fact-finding conferences",
+      "Strong human/public-relations ability for dealing with the general public, complainants, respondents, attorneys, and witnesses, often under emotionally charged circumstances",
+      "Clear written analysis: ability to evaluate case material and prepare preliminary findings and reports of findings for supervisor review",
+      "Completion of associate-program coursework or undergraduate core coursework in human resources, business administration, public administration, liberal arts, or a related field — or equivalent experience",
+      "Basic personal-computer / VDT proficiency to enter and retrieve case information and generate reports and correspondence",
+      "Ability to manage a caseload and sustain a satisfactory production level against agency targets tied to federal funding obligations"
+    ],
+    "niceToHaves": [
+      "Prior experience in a FEPA/EEOC dual-filing or work-sharing enforcement environment",
+      "Paralegal, compliance, or regulatory-investigation background and comfort with legal-process documents (subpoenas, depositions, document authentication)",
+      "Experience assisting with conciliation agreements, consent orders, and settlement agreements",
+      "Experience training new investigators or helping establish unit investigative procedures",
+      "Familiarity with public-sector administrative process and case-tracking systems"
+    ],
+    "responsibilities": [
+      "Conduct intake with charging parties by letter, telephone, or in person; prepare charge affidavits and intake interview forms; evaluate forms to establish jurisdiction under Chapter 4112 and define the basis of alleged discrimination",
+      "Investigate single-issue and moderately difficult discrimination charges — excluding housing and sexual-harassment matters — involving employers, unions, public accommodations, credit agencies, and higher-education institutions",
+      "Gather evidence: counsel complainants, interview respondents and witnesses, conduct on-site and fact-finding conferences, and collect testimony, records, and documentation",
+      "Handle depositions, prepare and serve subpoenas, obtain documents from charging parties and respondents, and verify and cross-check submitted documentation as authentic",
+      "Analyze all case material and data and prepare preliminary case information and reports of findings for submission to a supervisor",
+      "Maintain a satisfactory production level to meet contractual obligations established by the agency and its federal funding sources",
+      "Assist in preparing conciliation agreements, consent orders, and settlement agreements",
+      "Perform follow-up and clerical tasks, respond to public inquiries, prepare reconsideration reports, assist in training new investigators, and help establish unit investigative procedures"
+    ],
+    "languages": [
+      "English"
+    ],
+    "promptVersion": "role-design-v3"
+  },
+  "case": {
+    "title": "OCRC Charge Intake & Preliminary Investigation — Age/Disability Discharge (Buckeye Logistics)",
+    "brief": "You are stepping in as a Civil Rights Investigator 1 at the Ohio Civil Rights Commission (OCRC) Columbus office. A new employment-discrimination charge has just cleared intake and landed on your desk as a thin, partly-incomplete case file. Your job in the next ~1.5 hours is to do exactly what an investigator does at the front of a single-issue, moderately difficult charge: confirm the Commission's jurisdiction under Ohio Revised Code Chapter 4112, define the basis of the alleged discrimination, lay out how you would gather and test the evidence, and draft a preliminary report of findings for your supervisor — while staying strictly neutral between the charging party and the respondent. This is a real working file, not a quiz: it has gaps, an emotionally charged affidavit, a respondent who has submitted documents, and production pressure (the unit owes its federal work-sharing partner a steady caseload). Use whatever tools and AI assistance you normally would — we are not testing typing or recall, we are testing the judgment calls you make when the file does not tell you what to do. Whenever the file is silent or ambiguous, make a defensible call and record it in your DECISIONS log rather than waiting. The provided materials fit this role directly; work the case as given. Deliverables are short written work products a supervisor could read in a few minutes — depth over volume.",
+    "repoSeed": "A synthetic OCRC case folder, 'Charge No. COL-EMP-2025-0417 / Bell v. Buckeye Logistics LLC', containing: (1) intake_affidavit_Bell.pdf — a sworn charge affidavit from Marcus Bell, 54, a warehouse lead in Columbus, alleging he was discharged on 2024-08-15 because of his age and 'replaced by a kid, 29.' The affidavit also mentions, in passing, that he had returned from a back injury six weeks earlier with a doctor's 20-lb lifting restriction his supervisor 'kept forgetting about.' (2) intake_interview_form.docx — the structured intake form, partially completed: the 'basis' field is checked 'AGE' only; the 'respondent employee count' field is left blank; the 'date of harm' and 'date charge filed (2025-06-30)' fields are both populated. (3) ORC_4112_excerpts.pdf — relevant excerpts of Chapter 4112: definitions of 'employer' and protected bases (race, color, religion, sex, military status, national origin, disability, age, ancestry), the unlawful-discriminatory-practice provisions, and the charge-filing limitations provision (printed without a clear effective-date annotation). (4) respondent_position_statement.pdf — Buckeye Logistics's letter asserting Bell was discharged for a documented safety violation and a pattern of declining performance, 'not his age.' (5) respondent_exhibit_A_PIP.pdf — a Performance Improvement Plan the respondent says was issued to Bell and dated 2024-05-10, but it cites the company's '2025 Safety & Attendance Policy v3' and Bell's acknowledgement signature line is blank. (6) respondent_exhibit_B_roster.xlsx — a partial personnel roster (names, hire dates, ages, the replacement hire). (7) unit_production_memo.txt — a one-paragraph reminder that the unit must maintain its monthly closure quota under its FEPA work-sharing contract with the EEOC. (8) case_tracking_fields.txt — the status/disposition codes the case-tracking system expects.",
+    "tasks": [
+      "Jurisdiction & basis determination: Using the ORC Chapter 4112 excerpts, assess whether OCRC has jurisdiction over this charge — coverage of the respondent as an 'employer,' timeliness of the 2025-06-30 filing relative to the 2024-08-15 date of harm, and whether the alleged conduct falls within a protected basis. Then define the basis(es) of discrimination you would code on the charge, and explain any place where the intake form's coding should change. State each conclusion plus the specific provision and the fact it rests on; where a fact you need is missing from the file, say so explicitly rather than assuming it.",
+      "Investigative plan & evidence assessment: Outline how you would investigate this single-issue charge to a preliminary finding — the interviews you would conduct (charging party, respondent representatives, witnesses), the documents and records you would request or subpoena, and what each is meant to prove or disprove. Separately, review the two respondent exhibits already in the file and assess whether you can rely on them as submitted; flag any document you would not accept at face value, say exactly what about it gives you pause, and state what you would do to verify or authenticate it.",
+      "Preliminary report of findings (for supervisor review): Write a concise, neutral preliminary case analysis: a one-line summary of the allegation, the respondent's stated position, the current evidentiary picture (what is established vs. still open), and your preliminary recommendation — advance to full investigation, recommend a no-probable-cause path, or hold pending specific additional evidence — with the reasoning. Keep it readable in under five minutes and free of any language that prejudges either party.",
+      "DECISIONS log: Keep a short running log (normal investigator practice) of every judgment call you made where the file was open or ambiguous — what you chose, the alternative you rejected and why, and the one question you would put to your supervisor or the parties to resolve it. This is the trail your supervisor and a later reviewer will read alongside the case."
+    ],
+    "coverProbes": [
+      {
+        "id": "basis-definition",
+        "kind": "ambiguity",
+        "where": "intake_affidavit_Bell.pdf (the back-injury / lifting-restriction passage) vs. intake_interview_form.docx where 'basis' is checked AGE only",
+        "reveals": "A naive submission accepts the intake form's single 'AGE' coding and never reckons with the disability/failure-to-accommodate facts sitting in the affidavit; a strong one notices the narrative supports a possible second basis and makes a deliberate, defensible coding decision, recognizing that mis-defining the basis at intake propagates through the entire case.",
+        "decisionSpace": [
+          "Keep it single-issue AGE as filed, treating the back-injury detail as context only, to honor the charging party's framing and the unit's single-issue scope — but note the disability angle for possible amendment",
+          "Re-code as AGE + DISABILITY (including failure-to-accommodate), broadening the investigation to fully protect the charging party's rights at the cost of a heavier, slower case",
+          "Hold the coding and go back to the charging party to clarify intent before deciding, trading a small intake delay for getting the basis right the first time"
+        ]
+      },
+      {
+        "id": "filing-timeliness",
+        "kind": "legacy_trap",
+        "where": "intake_interview_form.docx dates (harm 2024-08-15, filed 2025-06-30, ~10.5 months apart) checked against ORC_4112_excerpts.pdf, which is printed without a clear effective-date annotation",
+        "reveals": "A one-shot answer drawing on stale knowledge applies the old six-month charge-filing limit and wrongly dismisses the charge as untimely; a careful investigator recognizes the limitations period changed (to two years for ORC 4112 employment charges) and either applies the current period or verifies which statutory version governs before acting — and flags that the excerpt lacks an effective date.",
+        "decisionSpace": [
+          "Apply the current two-year limitations period, conclude the charge is timely, and document the governing version relied on — fastest path, correct only if the current statute applies",
+          "Flag the timeliness question as unresolved and verify the applicable statutory version and exact dates with the supervisor before investing investigation hours — slower but protects against a dispositive error",
+          "Proceed with the investigation while preserving an explicit timeliness note in the file so a defense or dismissal on limitations can still be raised later — keeps production moving but defers the determination"
+        ]
+      },
+      {
+        "id": "document-authentication",
+        "kind": "verification_trap",
+        "where": "respondent_exhibit_A_PIP.pdf — dated 2024-05-10 yet cites the '2025 Safety & Attendance Policy v3' and carries a blank acknowledgement signature line",
+        "reveals": "A shallow pass treats the PIP as a respondent-supplied document that satisfies the 'respondent provided supporting documentation' box and credits it as evidence of a legitimate non-discriminatory reason; a real investigator catches the internal date impossibility (a May 2024 document citing a 2025 policy) and the unsigned acknowledgement, withholds reliance, and moves to authenticate or impeach it.",
+        "decisionSpace": [
+          "Mark the PIP as not authenticated and exclude it from the evidentiary weight until verified — protects evidentiary integrity, but the respondent may cure the defect later",
+          "Accept the PIP provisionally but pursue authentication aggressively (custodian, metadata, the v3 policy's actual issue date, the charging party's account of whether he ever saw it) — keeps the case moving while testing the document",
+          "Use the inconsistency itself as an investigative lead into possible post-hoc documentation of the discharge, treating it as evidence bearing on pretext rather than merely a flawed exhibit — higher-yield but requires staying neutral and not over-reading one document"
+        ]
+      },
+      {
+        "id": "employer-coverage",
+        "kind": "underspecified",
+        "where": "intake_interview_form.docx 'respondent employee count' field left blank, read against the ORC 4112 'employer' definition and the partial respondent_exhibit_B_roster.xlsx",
+        "reveals": "A naive submission silently assumes the respondent is a covered employer (or ignores coverage entirely); a strong one notices the count is missing, knows coverage under the Chapter 4112 'employer' definition is a jurisdictional prerequisite, and either resolves it from available evidence or names it as a gap to close before the case advances — without padding the file with assumptions presented as facts.",
+        "decisionSpace": [
+          "Treat coverage as presumptively met for a logistics company of this apparent size and proceed, flagging the blank count as a quick confirmation item — fastest, risks an unverified jurisdictional fact",
+          "Infer the count from the partial roster and any public records, documenting the inference and its limits — uses available evidence but the roster is incomplete",
+          "Hold coverage as an open jurisdictional question and request the employee count from the respondent before committing investigation resources — most defensible, costs intake time and a touch of production throughput"
+        ]
+      }
+    ],
+    "timeboxHours": 1.5,
+    "rubricDimensions": [
+      {
+        "name": "framing",
+        "label": "Problem framing",
+        "weight": 0.2,
+        "description": "Turns an ambiguous need into a sound plan."
+      },
+      {
+        "name": "tooling",
+        "label": "Tooling fluency",
+        "weight": 0.25,
+        "description": "Drives AI and other tools well; iterates and verifies."
+      },
+      {
+        "name": "judgment",
+        "label": "Judgment",
+        "weight": 0.25,
+        "description": "Catches AI/tooling mistakes; validates; pushes back."
+      },
+      {
+        "name": "architecture",
+        "label": "Architecture",
+        "weight": 0.15,
+        "description": "Structure and trade-offs that fit the real materials and constraints."
+      },
+      {
+        "name": "transfer",
+        "label": "Transfer",
+        "weight": 0.15,
+        "description": "Capability transfers to THIS role's tools and responsibilities."
+      }
+    ],
+    "promptVersion": "case-design-v5"
+  },
+  "source": "llm",
+  "issues": [],
+  "fallbackReason": {},
+  "promptVersions": {
+    "analyze": "need-analysis-v3",
+    "role": "role-design-v3",
+    "case": "case-design-v5"
+  }
+}

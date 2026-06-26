@@ -69,6 +69,11 @@ export function candidateTimeline(entryId: string): CandidateTimelineItem[] | nu
   for (const offer of listOffersForEntry(entryId)) {
     items.push({ at: offer.createdAt, kind: "offer", status: "extended" });
     if (offer.respondedAt) items.push({ at: offer.respondedAt, kind: "offer", status: offer.status });
+    // An expired offer has no respondedAt (the candidate never acted) — surface the
+    // lapse at its deadline so it doesn't render as "extended" forever.
+    else if (offer.status === "expired" && offer.expiresAt) {
+      items.push({ at: offer.expiresAt, kind: "offer", status: "expired" });
+    }
   }
 
   for (const comm of listOutboxFiltered({ ref: entryId, limit: COMMS_LIMIT })) {

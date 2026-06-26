@@ -52,10 +52,6 @@ class AnthropicProvider(TextProvider):
             text=text,
             provider=self.name,
             model=self.model,
-            raw={
-                "id": getattr(resp, "id", None),
-                "stop_reason": getattr(resp, "stop_reason", None),
-            },
             usage={
                 "input_tokens": input_tokens,
                 "output_tokens": output_tokens,

@@ -1,0 +1,183 @@
+{
+  "job": {
+    "id": "cal-035",
+    "title": "Inventory Clerk",
+    "company": "Target Stores",
+    "role_family": "operations",
+    "seniority": "medior",
+    "source": "hf:jacob-hugging-face/job-descriptions"
+  },
+  "analysis": {
+    "realStack": [
+      "Handheld RF/barcode scanners (e.g., Zebra/myDevice-class units) for receiving, counts, and location lookups",
+      "Perpetual inventory / stockroom management system (on-hand counts, backroom location/aisle mapping, cycle counts)",
+      "Replenishment & in-stock system (pull/fill workflows, out-of-stock alerts)",
+      "Planograms (POG) and presentation/merchandising standards documents",
+      "Pricing and promotional/clearance signing tools and label/sign printers",
+      "Ship-from-store / pick-pack-ship fulfillment app and packing stations",
+      "Receiving/freight processing tools (truck/pallet unload, sort, stage)",
+      "Material-handling equipment (pallet jacks, U-boats/flatbeds, ladders) and required PPE/safety procedures"
+    ],
+    "coreResponsibilities": [
+      "Process inbound freight: unload trucks, sort, and stage product to the floor or backroom",
+      "Stock and replenish the sales floor to keep general-merchandise areas in-stock and accurate",
+      "Maintain inventory accuracy via counts/audits and disciplined backroom locationing",
+      "Execute price changes and set promotional/clearance signing across GM areas",
+      "Set and maintain product presentation to planogram and brand standards",
+      "Own pick, pack, and ship fulfillment for online/guest orders (ship-from-store)",
+      "Handle outbound/transfer and reverse-logistics processing as needed"
+    ],
+    "statedVsRealGaps": [
+      "The JD's 'experts' and 'general merchandise sales team leads' branding is Target's team naming, not a people-management or true sales role — the actual work is back-of-house and floor stocking plus fulfillment, with minimal direct selling",
+      "seniorityTarget 'medior' overstates the posting: it advertises full/part-time, immediate start, and benefits as the hook, which signals a broadly accessible hourly entry-to-mid role rather than a seasoned specialist",
+      "Real, decisive requirements are omitted: physical demands (repeated lifting), early-morning/overnight truck-unload shifts, standing throughput, and equipment use — none are stated but all gate fit",
+      "No role-specific KPIs (in-stock %, inventory accuracy, units/hour, fulfillment SLA) are given; the posting is a generic aggregator listing padded with SEO 'associated topics' tags, so responsibilities are inferred from standard Target GM/fulfillment operations"
+    ],
+    "trueComplexity": "low",
+    "riskAreas": [
+      "Inventory accuracy and shrink exposure if cycle counts and backroom locationing are not executed with discipline",
+      "Physical strain and safety/injury risk from lifting and equipment, a primary driver of turnover in this role",
+      "Pricing/signing errors creating compliance and guest-trust issues",
+      "Peak-season volume straining fulfillment SLAs and replenishment throughput against available staffing",
+      "Expectation mismatch between the 'expert/lead' framing and actual hourly pay/scope, plus the benefits-first pitch, both hinting that retention is the known challenge"
+    ],
+    "reflection": "This is a non-software retail operations role, so the absence of a codebase is expected and not a defect. Reflected against the real body of work — freight, a stockroom, scanners, planograms, signing, and a pack-and-ship station — the need is coherent and the responsibilities map cleanly onto standard Target general-merchandise and ship-from-store operations. The honest divergence is between language and labor: the JD dresses an accessible hourly stocking-and-fulfillment job in 'expert' and 'sales team lead' branding and tags it medior, while the evidence points to a physically demanding, process-driven, low-technical-complexity position whose real success factors are reliability, accuracy, throughput, and safety. Because the posting is a thin, SEO-padded aggregator listing with no KPIs, shift detail, or physical-requirement language, the specifics here are inferred from how this role actually runs rather than stated, which is the main limit on confidence.",
+    "confidence": 0.6,
+    "promptVersion": "need-analysis-v3"
+  },
+  "role": {
+    "title": "Inventory Clerk",
+    "seniority": "junior",
+    "roleFamily": "operations",
+    "mustHaves": [
+      "Operate handheld RF/barcode scanners for receiving, cycle counts, and backroom location lookups",
+      "Process inbound freight at throughput: unload trucks/pallets, sort, and stage product to the floor or backroom",
+      "Stock and replenish general-merchandise areas to keep them in-stock, accurately priced, and signed",
+      "Maintain inventory accuracy through disciplined cycle counts, audits, and backroom locationing in a perpetual-inventory system",
+      "Execute price changes and set promotional/clearance signing accurately across GM areas",
+      "Perform pick, pack, and ship (ship-from-store) fulfillment for guest/online orders",
+      "Physical readiness for the work: repeated lifting/carrying, prolonged standing and walking, and availability for early-morning/overnight truck-unload shifts",
+      "Safe operation of material-handling equipment (pallet jacks, U-boats/flatbeds, ladders) with consistent PPE and safety-procedure compliance"
+    ],
+    "niceToHaves": [
+      "Prior retail, big-box stockroom, or warehouse/distribution experience",
+      "Familiarity with planograms (POG) and merchandising presentation standards",
+      "Hands-on experience with a WMS, perpetual-inventory, or replenishment/in-stock system",
+      "Forklift or powered material-handling equipment certification",
+      "Comfort working to productivity and quality metrics (units/hour, in-stock %, inventory accuracy, fulfillment SLA)",
+      "Strong numeracy and attention to detail for counts, pricing, and labeling accuracy"
+    ],
+    "responsibilities": [
+      "Process inbound freight: unload trucks, sort, and stage product to the sales floor or backroom",
+      "Stock and replenish general-merchandise areas to keep them in-stock and inventory-accurate",
+      "Maintain inventory accuracy via counts/audits and disciplined backroom locationing",
+      "Execute price changes and set promotional/clearance signing across all GM areas",
+      "Set and maintain product presentation to planogram and brand standards",
+      "Own pick, pack, and ship fulfillment for online/guest orders (ship-from-store)",
+      "Handle outbound transfers and reverse-logistics processing as needed"
+    ],
+    "languages": [
+      "English"
+    ],
+    "promptVersion": "role-design-v3"
+  },
+  "case": {
+    "title": "Inventory Clerk — GM shift packet: count, receive, price, present",
+    "brief": "You're picking up a mid-week day shift as an Inventory Clerk in the General Merchandise (GM) area of a big-box store. This is a desk simulation — we are not asking you to physically unload a truck; we're probing the judgment behind the work. You've been handed a 'shift packet' of exports and floor docs (see repoSeed): a perpetual-inventory on-hand export, a morning physical count sheet, the inbound truck manifest, out-of-stock alerts, the promo/clearance calendar, two pricing/signing batches, a snapshot of what signs are currently posted, the backroom location map, the seasonal endcap planogram, and safety notes. Work the packet the way you'd work the floor. It is intentionally imperfect — some numbers, signs, locations, and capacities won't line up, exactly as they don't on a real shift. Where the packet is silent or self-contradictory, make the call you'd make to keep the section in-stock, accurate, priced right, and shipping on time — and write the call down. Timebox: 1 hour, hard cap; go for depth over coverage — if you run short, leave a row explicitly unfinished rather than guessing. Keep a short DECISIONS log as you go (normal shift hand-off practice): for every judgment call where the packet didn't tell you what to do, one line on what you did, the option you passed on, and the one question you'd ask your team lead. We'll talk through your decisions afterward.",
+    "repoSeed": "A 'shift packet' of plain files representing one GM section's morning state:\n- on_hand_report.csv — perpetual-inventory export: ~15 rows (SKU/DPCI, description, system on-hand, unit-of-measure, primary backroom location).\n- physical_count_sheet.csv — this morning's counted quantities for the same section (one row deliberately combines two pegged variants; one row shows a negative/phantom on-hand carried from the system).\n- truck_manifest.csv — inbound freight: ~8 pallets (pallet ID, category, dept, qty, temp class [ambient/cold], flags like 'PROMO SET', 'SFS backstock', 'OOS replen').\n- oos_alerts.csv — out-of-stock / low-stock replenishment alerts from the in-stock system, with velocity tier.\n- promo_calendar.md — promo and clearance set/end dates (one promo has already ended; its item now appears in clearance).\n- price_change_batch.csv — scheduled price changes (one contradicts the planogram label).\n- clearance_markdowns.csv — clearance markdowns to post.\n- active_signs.md — signs currently posted on the floor (includes a stale promo sign for the ended promo).\n- backroom_location_map.md — stockroom aisle/location mapping (one location was merged/re-set but still referenced by the export).\n- pog_endcap.md — seasonal endcap planogram with facing/slot counts and presentation standards (fewer slots than the freight brings).\n- safety_notes.md — pallet jack / U-boat / ladder + PPE and safe-lift reminders.",
+    "tasks": [
+      "Inventory accuracy — reconcile the cycle count. Compare on_hand_report.csv against physical_count_sheet.csv for the section. For each SKU give one disposition: OK, RECOUNT, RESEARCH (check transit / backroom / another location), or ADJUST. Call out anything you'd escalate rather than touch. State the self-adjust threshold you're assuming, since the packet doesn't define your adjustment authority.",
+      "Receiving — write the unload / sort / stage sequence. Using truck_manifest.csv together with oos_alerts.csv and promo_calendar.md, list the order in which you'd break down and stage the pallets, and where each goes (sales floor, a specific backroom location from backroom_location_map.md, SFS staging, or hold). State the priority rule you sequenced by.",
+      "Pricing & signing — reconcile the batch before you print. Cross-check price_change_batch.csv and clearance_markdowns.csv against active_signs.md (what's posted now) and promo_calendar.md. For each item decide PRINT, PULL (remove a posted sign), HOLD/ESCALATE, or NO-CHANGE, and flag any conflict (e.g., a posted sign that contradicts the planogram label, or a sign for an ended promo).",
+      "Presentation + hand-off. Set the seasonal endcap to pog_endcap.md; where the freight you received exceeds the planogram's facings/slots, decide what to do with the overflow and why. Then finalize your DECISIONS log so the next shift can pick up cleanly — one line per open call: what you chose, the alternative you rejected, the question you'd ask the lead."
+    ],
+    "coverProbes": [
+      {
+        "id": "stage-priority",
+        "kind": "ambiguity",
+        "where": "Task 2 — truck_manifest.csv vs oos_alerts.csv + promo_calendar.md. The brief never ranks the competing pressures: cold/temp-class freight on the truck, OOS high-velocity replenishment, a promo set that goes live tomorrow at open, and SFS backstock needed for today's orders.",
+        "reveals": "A strong candidate names the priority rule they sequenced by and flags it as a question for the lead; a naive one silently picks one ordering and treats it as the only answer.",
+        "decisionSpace": [
+          "Temp-class/cold freight first to avoid spoilage and safety risk, then replenishment — protects product, may delay the promo set.",
+          "OOS high-velocity replenishment first to recover in-stock and today's sales — best for revenue now, risks the promo not being set by open.",
+          "Promo set first to hit the go-live deadline — guarantees the campaign, but leaves floor holes and perishables waiting."
+        ]
+      },
+      {
+        "id": "stale-sign-conflict",
+        "kind": "legacy_trap",
+        "where": "Task 3 — active_signs.md still shows a promo sign for an item whose promo ended per promo_calendar.md and which now appears in clearance_markdowns.csv; price_change_batch.csv also lists a price that contradicts the label in pog_endcap.md.",
+        "reveals": "A strong candidate reads what's already posted and the calendar before printing, catches the double-sign / price contradiction, and pulls the stale sign; a naive one just prints the new batch and leaves conflicting signs up.",
+        "decisionSpace": [
+          "Pull the expired promo sign, post the clearance markdown, and correct the label to match — cleanest floor, most steps.",
+          "Hold the contradicting price and escalate to pricing/lead before posting — safest for compliance and guest trust, slows the markdown.",
+          "Post the clearance now and flag the contradiction for next-cycle research — fastest, leaves a known error live briefly."
+        ]
+      },
+      {
+        "id": "equal-but-wrong-count",
+        "kind": "verification_trap",
+        "where": "Task 1 — on_hand_report.csv vs physical_count_sheet.csv. One SKU's system on-hand equals the counted total, but the count combined two pegged variants (and a case-vs-each UOM mismatch), so the row looks correct while location/variant accuracy is wrong; a separate row carries a negative/phantom on-hand.",
+        "reveals": "A strong candidate checks at the variant/UOM/location level instead of trusting the equal total, so they catch the equal-but-wrong row and the phantom; a one-shot 'flag where the numbers differ' pass marks it OK.",
+        "decisionSpace": [
+          "Recount by individual variant/location to split the combined number — most accurate, costs the most time.",
+          "Accept the total but open a RESEARCH item for the UOM/variant split — keeps throughput, defers the fix.",
+          "Adjust to the physical total and move on — fastest, buries the location-level error and the shrink signal."
+        ]
+      },
+      {
+        "id": "pog-overflow",
+        "kind": "underspecified",
+        "where": "Task 4 — pog_endcap.md vs the freight in truck_manifest.csv: the manifest brings more units (and an extra SKU) than the planogram has facings/slots, and the packet doesn't say what to do with the overflow.",
+        "reveals": "A strong candidate states how they handled overflow and why and flags it; a naive one either over-stuffs the endcap off-standard or silently backstocks everything without noting it.",
+        "decisionSpace": [
+          "Backstock the overflow to a labeled backroom location and replenish as it sells — keeps the POG to standard, adds a pull later.",
+          "Flex the extra into an open adjacent facing and note the deviation — maximizes on-floor stock, departs from the POG.",
+          "Hold the extra SKU and escalate for a POG/space update — keeps standards clean, risks idle backstock."
+        ]
+      }
+    ],
+    "timeboxHours": 1.0,
+    "rubricDimensions": [
+      {
+        "name": "framing",
+        "label": "Problem framing",
+        "weight": 0.2,
+        "description": "Turns an ambiguous need into a sound plan."
+      },
+      {
+        "name": "tooling",
+        "label": "Tooling fluency",
+        "weight": 0.25,
+        "description": "Drives AI and other tools well; iterates and verifies."
+      },
+      {
+        "name": "judgment",
+        "label": "Judgment",
+        "weight": 0.25,
+        "description": "Catches AI/tooling mistakes; validates; pushes back."
+      },
+      {
+        "name": "architecture",
+        "label": "Architecture",
+        "weight": 0.15,
+        "description": "Structure and trade-offs that fit the real materials and constraints."
+      },
+      {
+        "name": "transfer",
+        "label": "Transfer",
+        "weight": 0.15,
+        "description": "Capability transfers to THIS role's tools and responsibilities."
+      }
+    ],
+    "promptVersion": "case-design-v5"
+  },
+  "source": "llm",
+  "issues": [],
+  "fallbackReason": {},
+  "promptVersions": {
+    "analyze": "need-analysis-v3",
+    "role": "role-design-v3",
+    "case": "case-design-v5"
+  }
+}

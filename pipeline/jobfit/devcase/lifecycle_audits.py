@@ -72,12 +72,18 @@ def quality_summary(rows: list[Row]) -> dict[str, Any]:
 # --- role-fit: a low-noise BINARY metric on mismatch/incoherent scenarios ----
 
 
-def audit_role_fit(scenarios: list[Scenario], provider: ClaudeCliProvider, workers: int = 4) -> dict[str, Any]:
-    """On role-vs-context MISMATCH/INCOHERENT scenarios, a BINARY judge asks whether the case's
-    tasks match the ROLE's function or drift to the context's domain — far more sensitive than
-    absolute 1-5 scoring (which is swamped by judge variance)."""
-    subset = [s for s in scenarios if s.planted.get("mismatch") or s.planted.get("incoherent")]
-    rows = run(subset, provider, workers=workers)
+def role_fit_verdicts(rows: list[Row], provider: ClaudeCliProvider, workers: int = 4) -> list[dict[str, Any]]:
+    """Binary "do the case's TASKS match the role's function, or drift to the context's
+    domain?" judgments for already-run rows.
+
+    The low-noise industry-lock metric, factored out of :func:`audit_role_fit` so two
+    callers share ONE judge prompt + shaping: ``audit_role_fit`` runs it on the planted
+    mismatch/incoherent subset (synthetic eval), and the real-JD calibration harness
+    (``calibrate.py``) runs it on EVERY row — a real office JD has no planted flags, but
+    "does an HR/legal/ops case stay in the HR/legal/ops domain?" is exactly the question
+    that surfaces the bank/tech industry-lock. Returns one verdict per row, in row order;
+    an unjudged row (error / parse failure) keeps ``matchesRole=None`` so a caller can
+    tell None ("couldn't judge") from False ("drifted")."""
 
     def _prompt(r: Row) -> str:
         role, case = r.role, r.case
@@ -102,6 +108,16 @@ def audit_role_fit(scenarios: list[Scenario], provider: ClaudeCliProvider, worke
     for r in rows:
         ok, note = shaped.get(id(r), (None, ""))
         verdicts.append({"id": r.id, "label": r.label, "matchesRole": ok, "note": note})
+    return verdicts
+
+
+def audit_role_fit(scenarios: list[Scenario], provider: ClaudeCliProvider, workers: int = 4) -> dict[str, Any]:
+    """On role-vs-context MISMATCH/INCOHERENT scenarios, a BINARY judge asks whether the case's
+    tasks match the ROLE's function or drift to the context's domain — far more sensitive than
+    absolute 1-5 scoring (which is swamped by judge variance)."""
+    subset = [s for s in scenarios if s.planted.get("mismatch") or s.planted.get("incoherent")]
+    rows = run(subset, provider, workers=workers)
+    verdicts = role_fit_verdicts(rows, provider, workers=workers)
     judged = [v for v in verdicts if v["matchesRole"] is not None]
     rate = sum(1 for v in judged if v["matchesRole"]) / len(judged) if judged else None
     return {"subset": len(subset), "judged": len(judged), "role_fit_rate": round(rate, 3) if rate is not None else None, "verdicts": verdicts}

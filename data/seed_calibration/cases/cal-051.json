@@ -1,0 +1,187 @@
+{
+  "job": {
+    "id": "cal-051",
+    "title": "Administrative Assistant to Global Real Estate Institutional...",
+    "company": "Solomon Page",
+    "role_family": "administration",
+    "seniority": "medior",
+    "source": "hf:jacob-hugging-face/job-descriptions"
+  },
+  "analysis": {
+    "realStack": [
+      "MS Office Suite — Outlook (heavy calendar + email), Word (correspondence), Excel, PowerPoint (investor/roadshow decks)",
+      "Calendar/scheduling tooling for complex, ever-changing multi-executive diaries across time zones",
+      "Video/conference-call platforms (Zoom / Teams / Webex) for external and internal meetings",
+      "Corporate travel booking (TMC/agent or self-serve portal) for domestic + international itineraries",
+      "Expense management system (e.g., Concur or equivalent) for report prep, processing and submission",
+      "Investor-meeting and roadshow logistics: scheduling, materials assembly, itinerary/binder coordination",
+      "Likely investor-relations / CRM and document-sharing systems within an institutional real-estate client-solutions team",
+      "Professional written correspondence and editing on behalf of senior executives"
+    ],
+    "coreResponsibilities": [
+      "Provide high-level executive administrative support to one Managing Director and one Principal simultaneously",
+      "Own and defend a busy, constantly shifting calendar; schedule extensive external/internal meetings, conference and video calls",
+      "Coordinate domestic and international travel with detailed, reliable itineraries",
+      "Prepare, process and submit expense reports accurately and on time",
+      "Draft, type and edit emails and correspondence in the executives' voice",
+      "Support investor-meeting and roadshow preparation for two very client-facing principals",
+      "Absorb ad hoc projects and act as a dependable point of coordination for a high-revenue team"
+    ],
+    "statedVsRealGaps": [
+      "Quantitative bars are blank in the posting (the 'minimum ___ years', salary band and working hours are all redacted), so the true experience/seniority bar and overtime expectations are unstated — 'high-level executive' phrasing implies ~5+ years but it is not pinned down",
+      "'Investor meetings and roadshows a huge plus' undersells reality: the JD also says BOTH executives are 'very client-facing' on a team that is a 'huge revenue-driver', so investor/roadshow fluency is effectively core, not a bonus",
+      "The single most load-bearing real requirement is buried in an aside — one exec 'needs to be reined in' — which reframes the polite line 'ability to manage different personalities' as the actual day-to-day challenge: managing a demanding principal with tact and firmness",
+      "Buzzword competencies ('dynamic go-getter… enthusiastic, driven, proactive… extremely intuitive') are personality signaling, not testable skills; the operative, screenable traits are judgment, discretion, calendar/travel reliability and composure under pressure",
+      "'Paid overtime' plus 'fast-paced' and 'ever-changing calendar' quietly signals long/unpredictable hours — a material condition the candidate-facing framing soft-pedals as opportunity"
+    ],
+    "trueComplexity": "medium",
+    "riskAreas": [
+      "Supporting two principals at once with competing, last-minute priorities — classic dual-principal overload and loyalty-splitting",
+      "The 'needs to be reined in' executive: success hinges on stakeholder/relationship management and the confidence to push back diplomatically, which is hard to screen for and a common failure point",
+      "Burnout / retention risk from implied overtime and a permanently shifting calendar on a high-pressure revenue team",
+      "Confidentiality and accuracy around institutional investor information, roadshow logistics and travel — small errors are highly visible to clients",
+      "Anonymized JD (firm name, years, salary, hours all withheld) makes leveling and expectation-setting ambiguous, raising mis-hire and offer-mismatch risk",
+      "Hidden single point of failure: one EA covering two client-facing seniors means no coverage redundancy during absence"
+    ],
+    "reflection": "This is a genuine, reasonably detailed JD for a senior executive assistant in an institutional real-estate client-solutions group at a large investment firm — a non-software role, so the 'body of work' is documents, calendars, travel, expenses and investor-event logistics rather than code, and there is correctly no tech stack to assess. Reflected against its own evidence, the role's true difficulty is not tooling (standard MS Office, Concur-style expenses, travel and video-conf platforms any seasoned EA already knows) but human judgment: orchestrating two demanding, very client-facing principals, defending an ever-changing calendar, and — per the candid aside — diplomatically 'reining in' one of them. The posting's redacted years/salary/hours fields and its go-getter buzzwords obscure the real bar, which is poise, discretion and reliability under sustained pressure on a team that visibly drives revenue. Investor-meeting/roadshow experience is framed as a 'plus' but, given both executives are client-facing, is closer to a core expectation. Overall trueComplexity is medium: operationally demanding and consequential, but well within the scope of an experienced financial-services EA — the hiring risk lies in personality fit and overtime tolerance, not skills.",
+    "confidence": 0.76,
+    "promptVersion": "need-analysis-v3"
+  },
+  "role": {
+    "title": "Executive Administrative Assistant",
+    "seniority": "medior",
+    "roleFamily": "administration",
+    "mustHaves": [
+      "Several years of high-level executive administrative support experience, ideally in financial services or real estate",
+      "Strong MS Office Suite proficiency — Outlook (heavy calendar + email), Word, Excel and PowerPoint",
+      "Proven ownership of a busy, constantly shifting calendar: scheduling extensive external/internal meetings, conference and video calls across time zones for more than one principal at once",
+      "Coordination of domestic and international travel with accurate, reliable, detailed itineraries",
+      "Accurate, on-time preparation, processing and submission of expense reports",
+      "Drafting, typing and editing professional emails and correspondence in an executive's voice",
+      "Tact and firmness in managing different, demanding personalities — including reining in a high-maintenance executive while keeping the relationship strong",
+      "Sound judgment and discretion handling confidential information and competing priorities",
+      "Composure, initiative and reliable prioritization in a fast-paced, high-stakes environment",
+      "Polished, professional verbal and written communication with executives and clients at all levels"
+    ],
+    "niceToHaves": [
+      "Hands-on experience supporting investor meetings and roadshows (effectively core for this very client-facing, revenue-driving team)",
+      "Bachelor's degree",
+      "Familiarity with corporate travel booking via a TMC/agent or self-serve portal",
+      "Experience with an expense-management system such as Concur or equivalent",
+      "Exposure to investor-relations / CRM and document-sharing systems within an institutional or real-estate context",
+      "Comfort with longer or unpredictable hours and paid overtime when deals and roadshows demand it"
+    ],
+    "responsibilities": [
+      "Provide high-level executive administrative support to one Managing Director and one Principal simultaneously",
+      "Own and defend a busy, ever-changing calendar; schedule and organize extensive external/internal meetings, conference and video calls and appointments",
+      "Coordinate domestic and international travel arrangements and detailed itineraries",
+      "Prepare, process and submit expense reports accurately and on time",
+      "Draft, type and edit emails and correspondence on behalf of the executives",
+      "Assist with investor-meeting and roadshow preparation for two very client-facing principals",
+      "Absorb ad hoc projects and act as a dependable coordination point for a high-revenue team"
+    ],
+    "languages": [
+      "English"
+    ],
+    "promptVersion": "role-design-v3"
+  },
+  "case": {
+    "title": "A Monday at the desk: de-conflict the week, fix the roadshow, hold the line with an LP",
+    "brief": "You're stepping in as the Executive Administrative Assistant for two client-facing leaders on an institutional real-estate client-solutions team: Alex Rourke (Managing Director) and Dana Whitfield (Principal). It's Monday morning of the week of the 15th, and you've inherited the desk from the outgoing EA, Priya, who left you a short handover note. The firm name, exact working hours, and seniority band are withheld here on purpose — the same way they were in the job ad — so where that missing context actually changes a decision, say so rather than guessing silently.\n\nNothing in this exercise rewards typing speed or polished prose — assume any email or table could be drafted for you in seconds. What we're actually looking at is judgment under competing demands: which meeting you protect and which you bump, what you catch before it reaches an investor, and how you push back on a principal without bruising the relationship. The materials are deliberately a little incomplete and a little contradictory, because real desks are. Read before you act, and keep a running record of the calls you make.\n\nThis is scoped to about 90 minutes. Don't try to do everything to a polish — go deep on the three tasks, keep the decisions log honest, and leave a clear trail of what you'd confirm with Alex, Dana, or the team before any of it went live. Expense processing is part of this role but is intentionally out of scope for today.",
+    "repoSeed": "An 'EA support packet' folder, as you'd actually inherit it on day one:\n- calendars_week.xlsx — two tabs, one per executive (Alex Rourke / MD, Dana Whitfield / Principal), showing existing commitments for the week of the 15th. Time zones are noted inconsistently across entries (some slots labeled ET, some CET, some unlabeled), and there are at least two genuine collisions, including a Thursday 2:00pm slot where both executives have a meeting marked 'critical' and both have asked you to staff it.\n- desk_notes.md — Priya's handover notes: a short, slightly disorganized list of standing rules and preferences (e.g., buffers before investor calls, immovable early-morning blocks that display as 'free', a principal's hard preference about a meeting format). Some of these contradict what the calendar appears to allow.\n- inbox_export.txt — six recent messages: an LP (Meridian Pension) asking to move their Thursday call; a one-line note from Alex saying 'rein in my Thursday'; a vague request from Dana ('set up the usual for the Frankfurt leg'); a flight-change alert; and two routine internal asks.\n- roadshow_itinerary_DRAFT.docx — a draft New York → London → Frankfurt investor-roadshow itinerary with flight times, a connection, and an investor breakfast. The summary line claims everything connects; the underlying times do not all work once zones are made explicit.\n- principal_reply_DRAFT.docx — a reply Dana has drafted to Meridian Pension that is accurate but blunt enough to strain the relationship.",
+    "tasks": [
+      "De-conflict the week. Working from calendars_week.xlsx together with desk_notes.md, produce a proposed clean schedule for both Alex and Dana for the week of the 15th: resolve every double-booking, settle the Thursday 2:00pm clash where both expect you, and reconcile the time-zone-labeled and unlabeled entries so nothing secretly overlaps. Deliver a simple per-executive table plus a short cover note to both executives stating what you moved, why, and exactly what you need them to confirm.",
+      "Audit and correct roadshow_itinerary_DRAFT.docx for the New York → London → Frankfurt investor trip. Make every time zone explicit, fix any leg, connection, or claim that doesn't actually hold up, and add one contingency line for the single riskiest point of the trip. Deliver a corrected itinerary clean enough to hand to a driver and to an LP without further edits.",
+      "Handle the Meridian Pension correspondence. (a) Draft the reply rescheduling their Thursday call, plus the short internal note proposing the new slot to whichever executive it affects. (b) Edit Dana's principal_reply_DRAFT.docx into a version you'd be comfortable sending out under her name to the same LP — and, given Alex's 'rein in my Thursday' note, add the one line you'd send Alex about it.",
+      "Keep a running DECISIONS.md as you go. For every call where the materials were silent or contradicted each other, capture three things in a bullet: what you chose, the option you rejected and why, and the one question you'd put to Alex, Dana, or the team before this went live. Bullets are fine — this is just how the desk runs, not a test."
+    ],
+    "coverProbes": [
+      {
+        "id": "thursday-dual-principal-clash",
+        "kind": "ambiguity",
+        "where": "Task 1 — the Thursday 2:00pm slot in calendars_week.xlsx where both Alex and Dana have a meeting marked 'critical' and both have asked you to staff it; the brief never says whose takes priority.",
+        "reveals": "A naive response silently picks one (usually defaulting to the MD's title) and presents it as settled, hiding a loyalty-split it had no authority to resolve. A strong EA surfaces the conflict explicitly, proposes a defensible default with a reason, and routes the actual choice back to the principals rather than absorbing it invisibly.",
+        "decisionSpace": [
+          "Default to the MD by seniority: hold Alex's meeting, propose moving Dana's, and say so plainly — fast and clear, but risks alienating the Principal and the EA overstepping.",
+          "Escalate before acting: flag the clash to both with two concrete options and let them deconflict — safest for the relationship, but slower and leans on the executives' time.",
+          "Triage on stakes, not title: protect whichever is the external/revenue-critical client commitment and arrange coverage or a delegate for the other — best judgment if you can read the stakes, but assumes information the brief withholds."
+        ]
+      },
+      {
+        "id": "predecessor-standing-rules",
+        "kind": "legacy_trap",
+        "where": "Task 1 — the standing rules in desk_notes.md (immovable early-morning block that displays as 'free'; a principal's hard format preference; a required buffer) that contradict what calendars_week.xlsx appears to allow.",
+        "reveals": "A one-shot scheduler that only reads the calendar will happily book over the 'free'-looking block and ignore the format/buffer rules, producing a schedule that looks valid but breaks the desk's actual conventions. Reading the handover first — and reconciling it against the calendar — is the tell of someone who checks context before generating.",
+        "decisionSpace": [
+          "Treat the desk notes as binding and schedule strictly around them — respects hard-won context, but may over-honor a rule that's stale or was personal to Priya.",
+          "Treat the notes as defaults but explicitly confirm the load-bearing ones with the executive before relying on them — safest, at the cost of an extra confirmation loop.",
+          "Override a note where the calendar clearly contradicts it and flag the discrepancy — decisive, but risks discarding a real constraint that simply wasn't on the calendar."
+        ]
+      },
+      {
+        "id": "itinerary-timezone-connection",
+        "kind": "verification_trap",
+        "where": "Task 2 — roadshow_itinerary_DRAFT.docx, where the Frankfurt leg's flight times (listed without zone labels) and the investor breakfast don't actually connect once converted, even though the summary line asserts the trip 'arrives in time.'",
+        "reveals": "Naive generation passes the shallow check — the itinerary looks complete and the summary says it works — but a flight that lands after the breakfast it's meant to make survives unless the candidate converts zones and compares arrival against the next commitment. Catching it shows the verification instinct; restating the draft's own summary shows its absence.",
+        "decisionSpace": [
+          "Rebook to an earlier flight (or move the breakfast) so the times genuinely work, and label all zones — most robust, but changes plans the principals may have set deliberately.",
+          "Keep the booking but flag it as not-connecting with a contingency (car transfer, virtual join, later start) and escalate the real fix — transparent and fast, but leaves a known risk live.",
+          "Confirm the actual local times with the TMC/airline before changing anything, in case the draft's unlabeled times are themselves wrong — most accurate, but adds a step under time pressure."
+        ]
+      },
+      {
+        "id": "rein-in-and-blunt-reply",
+        "kind": "underspecified",
+        "where": "Task 3 — Alex's one-line 'rein in my Thursday' note plus Dana's accurate-but-blunt principal_reply_DRAFT.docx to Meridian Pension; how far to push back and what actually goes out is left open.",
+        "reveals": "A naive response either rubber-stamps Dana's blunt draft (avoids conflict, risks the LP relationship) or quietly rewrites and sends it (overstepping, ventriloquizing a principal). A strong EA softens the LP-facing message while preserving its substance, makes the edit visible to Dana rather than covert, and converts Alex's vague instruction into a concrete, confirmable proposal.",
+        "decisionSpace": [
+          "Send a softened version back to Dana for a quick OK before it goes to the LP — protects both the relationship and the principal's voice, at the cost of a round-trip.",
+          "Edit and send to the LP directly under standing authority, then notify Dana — fast and decisive, but assumes a level of delegated trust the brief doesn't confirm.",
+          "Hold the reply and ask Dana one sharp clarifying question about intent first — most faithful to her voice, but slowest and may read as not handling it."
+        ]
+      }
+    ],
+    "timeboxHours": 1.5,
+    "rubricDimensions": [
+      {
+        "name": "framing",
+        "label": "Problem framing",
+        "weight": 0.2,
+        "description": "Turns an ambiguous need into a sound plan."
+      },
+      {
+        "name": "tooling",
+        "label": "Tooling fluency",
+        "weight": 0.25,
+        "description": "Drives AI and other tools well; iterates and verifies."
+      },
+      {
+        "name": "judgment",
+        "label": "Judgment",
+        "weight": 0.25,
+        "description": "Catches AI/tooling mistakes; validates; pushes back."
+      },
+      {
+        "name": "architecture",
+        "label": "Architecture",
+        "weight": 0.15,
+        "description": "Structure and trade-offs that fit the real materials and constraints."
+      },
+      {
+        "name": "transfer",
+        "label": "Transfer",
+        "weight": 0.15,
+        "description": "Capability transfers to THIS role's tools and responsibilities."
+      }
+    ],
+    "promptVersion": "case-design-v5"
+  },
+  "source": "llm",
+  "issues": [],
+  "fallbackReason": {},
+  "promptVersions": {
+    "analyze": "need-analysis-v3",
+    "role": "role-design-v3",
+    "case": "case-design-v5"
+  }
+}

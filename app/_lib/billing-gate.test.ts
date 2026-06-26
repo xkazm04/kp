@@ -48,7 +48,7 @@ registerHooks({
 const TMP = path.join(os.tmpdir(), `kp-billing-gate-test-${process.pid}.sqlite`);
 process.env.KP_DB_PATH = TMP;
 
-const { getBillingState, upsertBillingState, creditBalance, billingUsageFor } = await import("./db.ts");
+const { getBillingState, upsertBillingState, creditBalance, billingUsageFor, recordBillingAlert, listBillingAlerts } = await import("./db.ts");
 const { billingOverview, entitledPlan, meterAllowance, recordMeterUsage } = await import(
   "./billing/entitlements.ts"
 );
@@ -182,6 +182,16 @@ test("canceled stays entitled until period end, then falls to free", () => {
   assert.equal(entitledPlan(getBillingState(), new Date("2026-07-02T00:00:00Z")).id, "free");
 });
 
+test("canceled with an unparseable period end keeps the plan (don't cut a paying customer on a data gap)", () => {
+  // A malformed/missing currentPeriodEnd on a cancel must NOT silently drop the
+  // customer to free immediately — a genuinely-lapsed sub arrives as revoked instead.
+  upsertBillingState({ plan: "growth", status: "canceled", provider: "polar", currentPeriodEnd: "not-a-date" });
+  assert.equal(entitledPlan(getBillingState(), new Date("2026-06-15T00:00:00Z")).id, "growth");
+  // But a PARSEABLE past end still lapses to free (the grace genuinely expired).
+  upsertBillingState({ plan: "growth", status: "canceled", provider: "polar", currentPeriodEnd: "2026-01-01T00:00:00Z" });
+  assert.equal(entitledPlan(getBillingState(), new Date("2026-06-15T00:00:00Z")).id, "free");
+});
+
 test("meterGate verdicts: exhausted allowance blocks, credits keep a meter open", () => {
   upsertBillingState({ plan: "free", status: "none", provider: "polar" });
   // ai_candidates: 5/5 used earlier in this file → hard gate fires.
@@ -191,6 +201,30 @@ test("meterGate verdicts: exhausted allowance blocks, credits keep a meter open"
   assert.equal(verdict?.plan, "free");
   // interview_minutes: free includes 0, but the pack balance keeps it open.
   assert.equal(meterGate("interview_minutes"), null);
+});
+
+test("meterGate minUnits requires the whole action to fit, not just any remaining", () => {
+  upsertBillingState({ plan: "free", status: "none", provider: "polar" });
+  // The meter is open for a single unit (a sliver of pack balance)...
+  assert.equal(meterGate("interview_minutes", { minUnits: 1 }), null);
+  // ...but a booked action needing more than the balance must 402, so one leftover
+  // minute can't unlock a full interview.
+  assert.equal(meterGate("interview_minutes", { minUnits: 1_000_000 })?.code, "quota_exceeded");
+});
+
+test("billing alerts: a paid-but-unmapped event is recorded as a queryable worklist row", () => {
+  const before = listBillingAlerts().length;
+  const inserted = recordBillingAlert({ kind: "unmapped_product", detail: "subscription event for unmapped product prod_x" });
+  assert.equal(inserted, true);
+  const open = listBillingAlerts();
+  assert.equal(open.length, before + 1);
+  assert.equal(open[0].kind, "unmapped_product");
+  assert.ok(open[0].detail.includes("prod_x"));
+  // A redelivery with the same providerRef doesn't pile up a duplicate OPEN alert.
+  recordBillingAlert({ kind: "unmapped_product", detail: "again", providerRef: "ref_1" });
+  const n = listBillingAlerts().length;
+  assert.equal(recordBillingAlert({ kind: "unmapped_product", detail: "again", providerRef: "ref_1" }), false);
+  assert.equal(listBillingAlerts().length, n);
 });
 
 test("activeJobsGate caps free at 1 published job; paid plans are uncapped", () => {

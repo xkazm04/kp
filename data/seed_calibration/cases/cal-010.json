@@ -1,0 +1,188 @@
+{
+  "job": {
+    "id": "cal-010",
+    "title": "Account Delivery Manager",
+    "company": "Microsoft Corporation",
+    "role_family": "project_management",
+    "seniority": "senior",
+    "source": "hf:jacob-hugging-face/job-descriptions"
+  },
+  "analysis": {
+    "realStack": [
+      "Microsoft Dynamics 365 / MSX (Microsoft Sales Experience) for account, opportunity and delivery tracking",
+      "Azure consumption telemetry and cloud usage dashboards (ACR/consumption reporting, likely surfaced via Power BI)",
+      "Microsoft Industry Solutions Delivery — the professional-services consulting portfolio and offering catalog (Azure, Data & AI, Dynamics, Modern Work, Security)",
+      "Statements of Work (SOWs), delivery contracts/MSAs and the commercial paperwork behind multimillion-dollar engagements",
+      "Account plans, comprehensive delivery plans and multi-horizon portfolio plans (the role's core working documents)",
+      "Portfolio/program governance run through project managers — steering committees, status cadences, escalation paths",
+      "Executive stakeholder relationships (CIO/CTO/IT directors/LOB leaders) as the primary 'material' the role acts on",
+      "US State & Local Government and Education public-sector context — government-cloud/compliance posture (e.g., GCC) implied though not stated"
+    ],
+    "coreResponsibilities": [
+      "Own and expand strategic, C-level relationships (CIO, CTO, IT directors, LOB leaders) for tier-1, large/complex public-sector accounts",
+      "Build, own and continuously communicate a comprehensive multi-horizon delivery plan to customer executives on a regular cadence",
+      "Drive the 'case for change' — advance customer IT maturity and productive, expanding use of Microsoft products",
+      "Orchestrate a matrixed set of internal Microsoft technical, sales and delivery teams and set clear accountabilities to drive customer outcomes",
+      "Manage a large consulting-delivery portfolio (~$X million, redacted) delivered THROUGH project managers across a complex range of offerings",
+      "Drive cloud/Azure consumption — identify consumption gaps and blockers and unblock customers to realize purchased value",
+      "Partner with sales on long-term strategic account plans, deal closure/negotiation and sustainable account growth",
+      "Lead steering committees and ensure delivery across the full lifecycle (envisioning → solution development → delivery planning → consumption/usage) and own escalations"
+    ],
+    "statedVsRealGaps": [
+      "Title vs JD: the need says 'Account Delivery Manager' but the JD is for an 'Account Delivery Executive (ADE)' — a higher-altitude, account-aligned leadership role, not a delivery-manager IC.",
+      "Seniority understated: 'senior' is too low for what the JD describes — tier-1 strategic accounts, multimillion-dollar portfolios, coaching others, negotiating deals and chairing exec steering committees read as principal/director/executive level.",
+      "roleFamily too narrow: classified 'project_management', but the ADE explicitly does NOT do hands-on PM — they deliver through project managers. The true profile is account/engagement and portfolio leadership with revenue + consumption accountability, straddling sales and professional services.",
+      "Structured fields empty: stack[] and responsibilities[] were not extracted — all signal had to be recovered from the free-text JD, which is itself punctuation-stripped, with key numbers ('tier _', '$_ million') redacted and the text truncated mid-sentence ('implements or i').",
+      "Substance vs boilerplate: a large share of the JD is Microsoft competency-model and culture language (growth mindset, 'reach/freedom/inspiration'); the concrete scope (portfolio size, account count, # of PMs, public-sector compliance requirements) is missing or redacted.",
+      "No codebase supplied — correct and expected for this role; its real body of work is documents, the consulting portfolio, the CRM and consumption telemetry, not source code."
+    ],
+    "trueComplexity": "high",
+    "riskAreas": [
+      "Mis-leveling: sourcing/comp calibrated to 'senior manager' will under-target a role that is effectively an executive engagement leader, risking failed offers or under-qualified hires.",
+      "Family misclassification: routing this through a 'project_management' funnel will surface delivery PMs rather than the account-aligned services/consumption leaders the JD actually requires.",
+      "Sales/delivery seam: revenue, consumption and delivery accountability are blended — ambiguity over who owns the consumption/quota target vs the sales team is a real on-the-job and assessment risk.",
+      "Redacted/truncated specifics (portfolio $ size, account tier, headcount managed, public-sector clearance/compliance) make true scope and must-have screens hard to set precisely.",
+      "US public-sector (SLG&E) context implies government-cloud and compliance constraints that are unstated but materially shape the candidate profile.",
+      "Grounding limited to a single garbled JD with no portfolio/CRM artifacts to corroborate — claims about real scope rest on inference from boilerplate."
+    ],
+    "reflection": "This is a real, executive-level Microsoft delivery-leadership role mislabeled in the need as a 'senior Account Delivery Manager' in the project_management family. The JD's own language is unambiguous: it describes an Account Delivery Executive (ADE) for State & Local Government and Education — a quota- and consumption-accountable engagement leader who owns C-suite relationships and a multimillion-dollar consulting portfolio delivered THROUGH project managers, sitting squarely on the seam between sales and professional services. There is no codebase and none is expected; the role's true 'body of work' is account and delivery plans, the Industry Solutions consulting portfolio, the CRM/MSX and Azure consumption telemetry, and steering-committee governance — judged in those terms the complexity is genuinely high (matrixed orchestration, executive stakeholder management, revenue/consumption ownership, large portfolio). The substantive divergences from the stated need are three: level (executive, not senior-manager), family (account/portfolio delivery leadership, not hands-on PM), and grounding — the structured stack/responsibilities fields are empty and the supplied JD is punctuation-stripped, redacted ('tier _', '$_ million') and truncated mid-sentence, with a heavy layer of culture boilerplate over comparatively little concrete scope. The analysis is reliable on the SHAPE of the role but limited on its exact SCALE.",
+    "confidence": 0.6,
+    "promptVersion": "need-analysis-v3"
+  },
+  "role": {
+    "title": "Account Delivery Executive (ADE)",
+    "seniority": "lead",
+    "roleFamily": "delivery_management",
+    "mustHaves": [
+      "Proven track record owning and expanding strategic C-level relationships (CIO, CTO, IT directors, LOB leaders) within tier-1, large and complex enterprise or public-sector accounts",
+      "Experience leading large, multimillion-dollar professional-services and consulting delivery portfolios delivered THROUGH project managers across a broad offering range — orchestrating delivery, not performing hands-on PM",
+      "Ability to build, own and continuously communicate a comprehensive multi-horizon delivery and account plan to customer executives on a regular cadence",
+      "Demonstrated digital-transformation advisory: driving the 'case for change', advancing customer IT maturity and expanding productive use of an enterprise cloud platform",
+      "Strong matrix leadership — orchestrating cross-functional sales, technical and delivery teams across organizations and geographies with clear accountabilities for customer outcomes",
+      "Accountability for cloud consumption and value realization — identifying and unblocking adoption gaps so customers realize purchased value (Azure or a comparable hyperscaler)",
+      "Commercial fluency with SOWs, delivery contracts and MSAs, deal closure and negotiation, and sustainable account growth in partnership with sales",
+      "Executive governance leadership — chairing steering committees, running status cadences and owning escalation management end to end",
+      "Working knowledge of the Microsoft cloud and Industry Solutions portfolio (Azure, Data & AI, Dynamics 365, Modern Work, Security) or an equivalent enterprise cloud and services portfolio"
+    ],
+    "niceToHaves": [
+      "US State & Local Government and Education (SLED) public-sector delivery experience and government-cloud compliance familiarity (e.g., GCC)",
+      "Hands-on fluency with MSX / Dynamics 365 for account and delivery tracking and with Power BI / consumption-telemetry dashboards",
+      "Prior delivery-leadership background at Microsoft, a Big-4, or a major systems integrator",
+      "Industry and vertical depth relevant to government and education customers",
+      "Formal program and portfolio governance credentials (e.g., PgMP) to better lead the project managers who execute delivery"
+    ],
+    "responsibilities": [
+      "Own and expand strategic, C-level relationships (CIO, CTO, IT directors, LOB leaders) for tier-1, large and complex public-sector accounts, and seek new opportunities beyond the current delivery contract",
+      "Build, own and continuously communicate a comprehensive multi-horizon delivery plan to customer executives on a regular cadence",
+      "Drive the 'case for change' — advance customer IT maturity and the productive, expanding use of Microsoft products to make the business more effective",
+      "Orchestrate a matrixed set of internal Microsoft technical, sales and delivery teams, setting clear accountabilities to drive customer outcomes",
+      "Manage a large consulting-delivery portfolio across a complex range of offerings, delivered through project managers rather than hands-on PM",
+      "Drive cloud and Azure consumption — identify consumption gaps and blockers and unblock customers to realize purchased value",
+      "Partner with sales on long-term strategic account plans, deal closure and negotiation, and sustainable account growth",
+      "Lead steering committees and ensure delivery across the full lifecycle (envisioning → solution development → delivery planning → consumption/usage) and own escalations"
+    ],
+    "languages": [
+      "English"
+    ],
+    "promptVersion": "role-design-v3"
+  },
+  "case": {
+    "title": "Recovering a Tier-1 Public-Sector Account: Delivery Plan, Consumption Position & Executive Steering Prep for CDHS",
+    "brief": "You are the newly assigned Account Delivery Executive (ADE) for the Commonwealth Department of Human Services (CDHS) — a tier-1 US State & Local Government account inside Microsoft Industry Solutions Delivery. The prior ADE has rotated off mid-cycle. You inherit a multi-project consulting-delivery portfolio, an Azure commitment that is running under-consumed, a renewal SOW expiring in ~60 days, and a CIO relationship that has visibly cooled after a missed go-live. The account operates under public-sector constraints (government-cloud / GCC posture is implied but never spelled out in the handover materials). Your job is the ADE's actual work — not hands-on project management: read the inherited materials, form a point of view, and produce the executive-facing plans and steering prep that re-establish control and a credible case for change. This case fits the materials directly; you are acting on a real account dossier, not a synthetic substitute. The materials are deliberately incomplete and partly stale — that is normal for an inherited account. Where the handover is silent or self-contradictory, your judgment and the choices you record are the point. Hard cap: 2 hours. Depth over coverage — a tight, well-reasoned account position beats a long generic plan. Treat every dollar figure, RAG status, and exec note in the dossier as a claim to be checked against the underlying data, not a fact to be copied forward.",
+    "repoSeed": "An inherited CDHS account dossier (the ADE's working materials), as a small folder of documents and data exports:\n\n1. `README_handover.md` — one-page orientation: CDHS is a tier-1 SLG&E account; ADE mandate (own C-level relationships, build/communicate a multi-horizon delivery plan, drive Azure consumption to realize purchased value, orchestrate the matrixed Microsoft team through PMs, partner with sales on growth, own escalations). Notes the renewal SOW expires in ~60 days and that government-cloud/compliance posture 'applies but isn't documented here.'\n\n2. `account_plan_FY25.md` — the prior ADE's account plan: executive map (CIO Maria Alvarez — recently gone quiet; CTO Devon Pratt; three LOB leaders across Eligibility, Child Welfare, and Public Health); Azure commitment of $6.0M ACR/year; 5 active Industry Solutions Delivery projects; a thin 'white space' section listing Data & AI and Security as growth themes.\n\n3. `MSX_opportunities_export.csv` — open opportunities and delivery engagements: stage, $ value, close/expiry dates, owner (some rows owned by Sales, some by Delivery). Includes the expiring renewal SOW and two stale, unworked opportunities.\n\n4. `ACR_consumption_FY25.csv` — monthly Azure Consumed Revenue vs the $6.0M commitment, by workload. Headline shortfall of ~$2.1M under commitment. Line items reveal the gap is NOT homogeneous: ~$600k is a legacy VM estate that was decommissioned (will not return), ~$400k is already covered by a 1-year reservation purchased last quarter (counted as 'gap' but pre-paid), and ~$1.1M is genuinely unstarted workloads (a data platform and an AI/Copilot pilot) that have not begun consuming.\n\n5. `SOW_summaries.md` — the 5 SOWs: budget, % budget burned, milestone completion %, and last-reported status. Project 'Atlas' (data-platform modernization) is reported green but shows 70% budget burned against 30% milestones, with the consumption-bearing workload not yet stood up.\n\n6. `Q2_steering_deck_notes.md` — last quarter's executive steering committee RAG statuses and the prior ADE's narrative (Atlas = green; a Security project = amber; others green).\n\n7. `CIO_email_thread.md` — a short thread in which CIO Alvarez questions delivered value and ROI after a missed Eligibility go-live and references 'looking at what else is out there.'\n\n8. `escalation_log.md` — open escalations: a resourcing conflict between two projects, and a blocked GCC environment provisioning request stalling the AI/Copilot pilot.",
+    "tasks": [
+      "Build a multi-horizon delivery plan for CDHS (Now: next 90 days / Next: ~6 months / Later: ~12 months) grounded in the dossier. For each horizon, name the specific projects, consumption moves, and relationship actions you are committing to and why — sequenced and prioritized, not an undifferentiated list. Tie at least the Now horizon to the expiring renewal SOW and the cooled CIO relationship.",
+      "Produce a consumption / value-realization position against the $6.0M Azure commitment. Before sizing any recovery, decompose the ~$2.1M headline shortfall in `ACR_consumption_FY25.csv` into what is actually recoverable versus what is not, and state the real number you would commit to. Then identify the top blockers to realizing that recoverable value (referencing `escalation_log.md`), and name who — ADE, project manager, sales, or the customer — owns unblocking each, including a clear position on who owns the consumption number itself.",
+      "Prepare the executive steering committee / QBR pack as a one-page narrative: a re-baselined portfolio health view (re-rate the project RAG statuses in `Q2_steering_deck_notes.md` against the underlying SOW burn and consumption data, not the prior labels), the single most important escalation you will surface with a recommended decision, and a sharp 'case for change' that advances CDHS's IT maturity within its public-sector constraints. Include how you would set accountabilities across the matrixed Microsoft technical/sales/delivery team to deliver it.",
+      "Keep a short DECISIONS log (normal handover practice for an inherited account): for every call you made where the dossier was open, ambiguous, or contradictory, record in one or two lines — what you decided, the alternative you rejected and why, and the one question you would have put to the account team or the customer to confirm it. Cover at minimum the consumption-ownership split, the Atlas status call, the shortfall-sizing call, and the case-for-change framing."
+    ],
+    "coverProbes": [
+      {
+        "id": "consumption-ownership-seam",
+        "kind": "ambiguity",
+        "where": "Task 2 — sizing and owning the Azure commitment against the sales/delivery seam; `MSX_opportunities_export.csv` shows some rows owned by Sales and some by Delivery, and the README states the ADE 'drives consumption' while partnering with sales on growth.",
+        "reveals": "A strong candidate names the sales/delivery seam explicitly and proposes an ownership model (RACI / target split) rather than silently grabbing a sales-owned quota or quietly disclaiming the number. A naive candidate either commits the ADE to the full ACR target as if it were a personal quota (over-promising on something delivery only partly controls) or ignores consumption ownership entirely and treats it as 'sales' problem.',",
+        "decisionSpace": [
+          "ADE owns consumption realization end-to-end through delivery levers (unblocking, workload stand-up, adoption) while sales owns net-new commitment — an explicit split with leading indicators the ADE reports.",
+          "Co-own a single ACR target with sales under a shared RACI and a joint account plan, accepting blurred accountability in exchange for one aligned number.",
+          "Treat ACR as sales-owned; the ADE is accountable only for removing delivery blockers and reporting consumption leading indicators, avoiding commitment to a number delivery can't fully move."
+        ]
+      },
+      {
+        "id": "atlas-green-status",
+        "kind": "legacy_trap",
+        "where": "Task 3 — re-baselining the RAG statuses in `Q2_steering_deck_notes.md`; project 'Atlas' is reported green but `SOW_summaries.md` shows 70% budget burned at 30% milestones with the consumption workload not started.",
+        "reveals": "A strong candidate cross-checks the inherited 'green' against SOW burn + milestone + consumption data, catches the contradiction, and re-rates with evidence. A naive candidate carries the prior green status forward into the exec deck because it was the last reported state, missing that the account's biggest delivery risk is hiding behind a stale label.",
+        "decisionSpace": [
+          "Re-rate Atlas to amber/red with the burn-vs-milestone evidence and bring a specific recovery ask to the steering committee — maximizes credibility, risks alarming the exec early in the relationship.",
+          "Hold Atlas green at the executive level to avoid spooking a cooled CIO, but flag it red internally and trigger a delivery review — protects the relationship short-term, risks being caught managing optics.",
+          "Escalate Atlas immediately as red and call a formal delivery review before the QBR — fastest path to control, spends political capital and signals instability on a freshly inherited account."
+        ]
+      },
+      {
+        "id": "phantom-consumption-gap",
+        "kind": "verification_trap",
+        "where": "Task 2 — the ~$2.1M headline shortfall in `ACR_consumption_FY25.csv`, which decomposes into ~$600k decommissioned (non-returning), ~$400k already covered by a purchased reservation, and ~$1.1M genuinely unstarted.",
+        "reveals": "A strong candidate decomposes the gap and commits to roughly the ~$1.1M of real, recoverable consumption, excluding the decommissioned estate and the pre-paid reservation. A naive one-shot reading sizes a recovery plan to the full ~$2.1M headline number and builds a plan chasing ~$1M of revenue that structurally isn't there — a plan that passes a shallow 'did you address the gap?' check but is materially wrong and would blow up at the next true-up.",
+        "decisionSpace": [
+          "Net out the non-recoverable portions and commit to the ~$1.1M real recoverable, presenting the decomposition as the honest baseline — accurate, but a smaller headline number to defend internally.",
+          "Treat the telemetry as untrustworthy first: flag the decommissioned/reservation line items as a data-quality issue and get consumption reporting corrected before committing any recovery number — rigorous, but slower and may read as not having a position.",
+          "Present the full ~$2.1M headline for transparency but annotate the recoverable-vs-structural split, letting the exec see both numbers — transparent, but risks anchoring stakeholders on a recovery figure that can't be hit."
+        ]
+      },
+      {
+        "id": "case-for-change-compliance",
+        "kind": "underspecified",
+        "where": "Tasks 1 and 3 — the 'case for change' / maturity move, where the SLG&E government-cloud (GCC) and compliance posture is implied in `README_handover.md` and the blocked GCC provisioning in `escalation_log.md` but never specified.",
+        "reveals": "A strong candidate surfaces the unstated public-sector compliance constraint, makes it explicit, and shapes a defensible maturity move and executive target around it (and connects it to the blocked GCC provisioning). A naive candidate proposes a generic commercial-cloud modernization or AI rollout that ignores the government-cloud and compliance reality and would be dead on arrival in a public-sector account.",
+        "decisionSpace": [
+          "Anchor the case for change on a compliance/security maturity step (GCC posture, Zero Trust) — lowest public-sector risk, directly unblocks the stalled environment, but a less expansive growth story.",
+          "Anchor on a Data & AI / Copilot productivity move with an explicit compliance guardrail and GCC dependency called out — higher upside and ties to the unstarted consumption, but contingent on resolving the public-sector constraints first.",
+          "Anchor on consumption/cost optimization (FinOps, reservation rationalization) as the safest exec narrative to rebuild trust after the missed go-live — easiest to defend with a cooled CIO, but the least ambitious case for advancing maturity."
+        ]
+      }
+    ],
+    "timeboxHours": 2.0,
+    "rubricDimensions": [
+      {
+        "name": "framing",
+        "label": "Problem framing",
+        "weight": 0.2,
+        "description": "Turns an ambiguous need into a sound plan."
+      },
+      {
+        "name": "tooling",
+        "label": "Tooling fluency",
+        "weight": 0.25,
+        "description": "Drives AI and other tools well; iterates and verifies."
+      },
+      {
+        "name": "judgment",
+        "label": "Judgment",
+        "weight": 0.25,
+        "description": "Catches AI/tooling mistakes; validates; pushes back."
+      },
+      {
+        "name": "architecture",
+        "label": "Architecture",
+        "weight": 0.15,
+        "description": "Structure and trade-offs that fit the real materials and constraints."
+      },
+      {
+        "name": "transfer",
+        "label": "Transfer",
+        "weight": 0.15,
+        "description": "Capability transfers to THIS role's tools and responsibilities."
+      }
+    ],
+    "promptVersion": "case-design-v5"
+  },
+  "source": "llm",
+  "issues": [],
+  "fallbackReason": {},
+  "promptVersions": {
+    "analyze": "need-analysis-v3",
+    "role": "role-design-v3",
+    "case": "case-design-v5"
+  }
+}

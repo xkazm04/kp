@@ -1,0 +1,190 @@
+{
+  "job": {
+    "id": "cal-017",
+    "title": "Senior graphic designer",
+    "company": "TDC",
+    "role_family": "design",
+    "seniority": "senior",
+    "source": "hf:jacob-hugging-face/job-descriptions"
+  },
+  "analysis": {
+    "realStack": [
+      "Adobe Creative Suite as the core toolset — InDesign (layout/print), Illustrator (vector/brand marks), Photoshop (image compositing)",
+      "Adobe XD and Figma for web/UX comps (listed as 'a plus' but realistically central given the web/ecommerce scope)",
+      "Magento as the ecommerce platform the digital/product work feeds into",
+      "Brand guidelines / visual identity system for sonneman — 'a way of light' (the actual body of work this role acts on: a lighting-product brand)",
+      "Multi-channel deliverables — digital, social, print, and ecommerce assets for products and brand",
+      "Video as a required medium (implies motion/edit tools — After Effects/Premiere — though the JD never names them)",
+      "3D / environment & architectural-space visualization (the '_ visualization' line is almost certainly '3D visualization' with the digit dropped) — implies rendering tooling (KeyShot/V-Ray/Cinema 4D/3ds Max) that the JD does not name",
+      "Social media platforms (content sized/art-directed per channel)",
+      "UX/UI principles for web",
+      "Trend inputs from design, architecture, interior design, technology and the arts"
+    ],
+    "coreResponsibilities": [
+      "Produce fully integrated creative across digital, social, print and ecommerce for sonneman products and the master brand",
+      "Own brand consistency — deliver high-quality content aligned with the brand vision and the design director's creative direction",
+      "Visualize environments (architectural/interior spaces) and give accurate art direction and feedback on them",
+      "Lead junior creative staff and manage/brief outsourced creative teams as needed",
+      "Collaborate inside a cross-functional team and run work through every step of the creative process",
+      "Stay ahead of trends across design, architecture, interior design, technology and the arts"
+    ],
+    "statedVsRealGaps": [
+      "Title says 'senior graphic designer' but the responsibilities — leading juniors, managing outsourced teams, giving art direction and feedback, owning brand consistency — describe an art director / design lead. The title undersells the actual scope and risks mis-targeting (and under-pricing) the role.",
+      "The experience bar is unreadable — 'at least [ ] years' has the number dropped — so the seniority requirement can't be anchored from the JD as supplied.",
+      "Figma, XD and Magento are framed as 'a plus,' yet web + ecommerce are named as core deliverables; in practice these are closer to required than optional for the real work.",
+      "'Understanding of [3D] visualization and architectural spaces' is stated, but no 3D/rendering tool is named anywhere — there's a real gap between the visualization expectation and the explicitly listed 2D Adobe toolset.",
+      "Video is a required medium but no motion/editing software is named, so the actual production capability expected is ambiguous.",
+      "Logistics text is garbled ('larchmont ny hybrid week onsite'), leaving the onsite cadence unclear.",
+      "No portfolio/brand assets were supplied, so this reflects the *stated* need against domain knowledge — not against the candidate's or company's actual delivered work, which the JD explicitly asks to evaluate via portfolio."
+    ],
+    "trueComplexity": "high",
+    "riskAreas": [
+      "Scope/title mismatch: recruiting a 'designer' for an art-director-level remit (leadership + outsourced-team management + brand ownership) can draw under-qualified applicants or repel the right senior creatives who screen on title.",
+      "Unverifiable seniority bar — the missing years figure means the experience screen has to be reconstructed, inviting inconsistent shortlisting.",
+      "2D-vs-3D skill split: strong Adobe 2D candidates may lack the architectural/3D visualization the role implies, and no rendering tool is named to filter on.",
+      "Ecommerce-critical skills (Figma/Magento) are labeled optional, so screening may de-prioritize exactly the capabilities the digital/ecommerce deliverables depend on.",
+      "Hard US-work-permit gate plus hybrid-onsite (Larchmont, NY) narrows the pool to local/authorized candidates.",
+      "Brand-consistency single point of failure: a lean reporting line (one design director, this lead, plus juniors/outsourcers) means an underperforming hire directly threatens brand quality across all channels.",
+      "Evaluation is portfolio-dependent by the JD's own terms; without portfolio review the fit decision is unknowable, and none was provided here."
+    ],
+    "reflection": "The JD is detailed enough to ground a real analysis. The genuine role is a senior creative generalist bordering on art director for an in-house lighting brand (sonneman — 'a way of light'): it owns the full creative process and pushes integrated work across print, digital, social, ecommerce and video, while also requiring environment/3D visualization and people leadership over juniors and outside vendors. That breadth — many media + brand stewardship + leadership + spatial/3D viz for a product whose entire value is how light reads in a space — is what makes the true complexity high, even though it's a single in-house brand. The main divergence between the stated need and the evidence is leveling: the 'senior graphic designer' title and the 'a plus' framing of Figma/XD/Magento undersell the leadership and the web/ecommerce/3D demands the body of work actually imposes. Several gaps are artifacts of a degraded source (the dropped years figure, the missing '3D,' the garbled onsite cadence) rather than the employer's intent, but they still leave the bar fuzzier than a senior hire warrants. Note the honest limit: no portfolio or brand assets were supplied, so this reflects the stated need against domain knowledge — not against delivered work, which the JD itself says is the real test.",
+    "confidence": 0.6,
+    "promptVersion": "need-analysis-v3"
+  },
+  "role": {
+    "title": "Senior Graphic Designer",
+    "seniority": "senior",
+    "roleFamily": "design",
+    "mustHaves": [
+      "Expert command of Adobe Creative Suite — InDesign for layout and print, Illustrator for vector work and brand marks, Photoshop for image compositing and retouching",
+      "Proven senior-level experience designing both product and brand work within architecture, interior design, design consultancy, advertising agency, or in-house creative environments",
+      "Ability to develop and execute fully integrated creative across digital, social, print, and ecommerce in a single consistent system",
+      "Strong brand stewardship: deliver high-quality content reliably aligned with the brand vision and the design director's overall creative direction",
+      "Art-direction capability — visualize architectural and interior environments and provide accurate, actionable direction and feedback",
+      "Experience leading and mentoring junior creative staff and briefing/managing outsourced creative teams to a quality bar",
+      "Excellent design sensibility paired with strong written and verbal communication inside a cross-functional team",
+      "Command of the full creative process end to end, from concept and exploration through production-ready, on-brand delivery",
+      "Demonstrated range across media — social, web, print, and video — shown through a portfolio of shipped work"
+    ],
+    "niceToHaves": [
+      "Figma and Adobe XD for web and UX/UI comps (effectively core given the web and ecommerce scope, though listed as a plus)",
+      "Familiarity with the Magento ecommerce platform that digital and product assets feed into",
+      "Working knowledge of UX/UI principles for web",
+      "3D and environment visualization for architectural spaces (e.g. KeyShot, V-Ray, Cinema 4D, 3ds Max), to back the stated visualization expectation",
+      "Motion and video production (After Effects, Premiere) to support the required video medium",
+      "Fluency with major social media platforms and channel-specific art direction",
+      "Active pulse on trends across design, architecture, interior design, technology, and the arts"
+    ],
+    "responsibilities": [
+      "Produce fully integrated creative across digital, social, print, and ecommerce for the company's products and master brand",
+      "Own brand consistency, delivering high-quality content aligned with the brand vision and the design director's creative direction",
+      "Visualize architectural and interior environments and give accurate art direction and feedback on them",
+      "Lead and mentor junior creative staff and manage/brief outsourced creative teams as needed",
+      "Collaborate within a cross-functional team and drive work through every step of the creative process",
+      "Stay ahead of trends across design, architecture, interior design, technology, and the arts and bring them into the work"
+    ],
+    "languages": [
+      "English"
+    ],
+    "promptVersion": "role-design-v3"
+  },
+  "case": {
+    "title": "sonneman — 'A Way of Light': art-direct the Suspenders launch across channels",
+    "brief": "You are the senior designer acting as art director for sonneman — 'A Way of Light', an architectural and decorative lighting brand. A new extension to the Suspenders modular LED system ships in eight weeks, and the design director has handed you a thin brief plus a starter kit (in `launch-kit/`) and asked you to set the creative direction, art-direct the hero visual, and steer the outsourced 3D/visualization vendor. This is concept-level, not production-final: rough comps, marker sketches, layout roughs, or AI-assisted mockups are all equally acceptable — we are reading your judgment, your brand stewardship, and how you direct environments and other people, not your rendering speed or pixel polish. The brief in `launch-kit/brief/launch-brief_from-design-director.md` is deliberately thin in places; where it is silent, make a defensible call and record it rather than waiting. Work to roughly 2 hours and stop — depth on a few decisions beats coverage of every channel. The provided materials are a genuine fit for this role, so act on them directly as a lighting brand's creative lead would.",
+    "repoSeed": "A handed-over `launch-kit/` folder containing: (1) `brand/sonneman_brand_guidelines_v3.pdf` — the visual identity system: the 'A Way of Light' wordmark and logo lockups with clear-space rules, the type system (a neutral sans for UI/body plus a display face for headlines), the color system (warm-neutral base + a single restrained brand accent), the photography-and-light tone, and the layout grid; (2) `product/Suspenders-pendant_3000K_satin-black.png` — the new fixture's hero render export, and `product/Suspenders-pendant_spec-sheet.pdf` — the cut-sheet with overall dimensions, lumen output, beam angle/distribution, CCT (3000K) and CRI, and the named finish ('satin black'); (3) `interior-viz/lobby-scene_v2_render.jpg` — a polished interior environment render delivered by the outsourced 3D studio that places the fixture in a hospitality lobby, for you to art-direct; (4) `current-store/PDP_current_screenshot.png` and `current-store/category-banner_current.png` — live screenshots from the Magento storefront; (5) `social/IG_post_recent.png` and `social/IG_story_recent.png` — two recently published social assets; (6) `brief/launch-brief_from-design-director.md` — the short, intentionally underspecified launch brief; (7) `decisions/DECISIONS-template.md` — an empty decisions log to fill in.",
+    "tasks": [
+      "Direction POV (about one page). Read `brand/sonneman_brand_guidelines_v3.pdf` and study the live work in `current-store/` and `social/`, then write the single organizing creative idea for the Suspenders launch and an explicit KEEP / BREAK list versus how the brand expresses itself today. Call out anything in the currently-published assets that reads as off-system or drifted from the guidelines, and say what you'd do about it.",
+      "Hero key visual. Produce ONE hero concept for the launch — a comp, layout rough, or AI-assisted mockup plus a short written annotation. State up front the primary audience and the lead channel and format you are designing for, and why you chose them. Then show how (or consciously decide whether) the hero adapts to the other required surfaces: a Magento PDP/category banner, social, and email.",
+      "Environment art direction. Review `interior-viz/lobby-scene_v2_render.jpg` against `product/Suspenders-pendant_spec-sheet.pdf` and write precise, vendor-ready art direction for the outsourced 3D studio: what is working, what is wrong, and the exact corrections to send back. Be specific enough that the studio could action your notes without a meeting.",
+      "DECISIONS log + downstream brief. Fill in `decisions/DECISIONS-template.md` — for each open call you made, capture what you chose, the alternative you rejected, and the one thing you would have asked the design director or product team. Then write the 4–6 line brief you would hand a junior designer or the outsourced studio to produce the channel adaptations from your hero."
+    ],
+    "coverProbes": [
+      {
+        "id": "audience-channel-unstated",
+        "kind": "underspecified",
+        "where": "Task 2, against the silent audience/channel in `brief/launch-brief_from-design-director.md`",
+        "reveals": "A good senior names the primary audience and lead surface as an explicit, defensible hypothesis and designs to it — accepting that the trade/specifier story and the design-consumer story want different heroes. A naive response defaults to a generic 1:1 social tile, serves no one in particular, and never states who it is for.",
+        "decisionSpace": [
+          "Lead trade/specifier (B2B): a spec-forward architectural environment hero that foregrounds light quality and distribution, driving to a Magento 'request spec / quote' path — wins credibility with architects, slower consumer pull.",
+          "Lead design-consumer (DTC): an editorial lifestyle hero that sells the object and the room feeling, driving to PDP add-to-cart — faster conversion, weaker technical authority.",
+          "Lead brand-master umbrella: an abstract light-as-subject hero (the 'A Way of Light' idea) that sits above the product — strongest brand equity, weakest direct-launch conversion."
+        ]
+      },
+      {
+        "id": "published-asset-drift",
+        "kind": "legacy_trap",
+        "where": "Task 1, the gap between `brand/sonneman_brand_guidelines_v3.pdf` and the live `social/IG_post_recent.png` / `current-store/PDP_current_screenshot.png`",
+        "reveals": "A good senior treats the published assets as evidence to audit, notices they have drifted from the guidelines (an off-system accent, a mis-spaced lockup, a warmer product tone than the 3000K spec), and refuses to propagate the error. A naive response treats the most recent live asset as ground truth and faithfully copies the drift forward as if it were the brand.",
+        "decisionSpace": [
+          "Treat the guidelines PDF as canonical: correct the drift in the new work and flag the live assets for cleanup — protects the system, but overrides what's already shipped.",
+          "Treat the live/most-recent expression as a de-facto evolution of the brand and codify it deliberately — respects momentum, but risks blessing a mistake.",
+          "Escalate it as an open question to the design director before committing either way — safest for a single-point-of-failure brand, but slower and pushes the decision up."
+        ]
+      },
+      {
+        "id": "render-vs-spec-mismatch",
+        "kind": "verification_trap",
+        "where": "Task 3, `interior-viz/lobby-scene_v2_render.jpg` cross-checked against `product/Suspenders-pendant_spec-sheet.pdf`",
+        "reveals": "The render is polished and passes a glance, but it contradicts the cut-sheet — the light reads as a warm wide wash and oversized when the spec calls for a narrower 3000K distribution at the stated dimensions, and the finish reflections imply something other than 'satin black'. A good senior verifies the render against the spec and catches the photometric/scale/finish mismatch; a naive response approves it with only cosmetic, taste-level notes.",
+        "decisionSpace": [
+          "Return to the vendor with specific corrections (beam/distribution, CCT, fixture scale, finish) before any use — most accurate, costs a revision cycle and time.",
+          "Accept the image as a stylized 'mood' asset and re-label its use so it never stands in as a spec-accurate hero — fast, but risks misrepresenting the product where accuracy matters.",
+          "Approve the composition and lighting mood but commission a corrected technical variant for spec-sensitive placements (PDP, trade) — pragmatic split, adds production overhead."
+        ]
+      },
+      {
+        "id": "ecommerce-adaptation-scope",
+        "kind": "ambiguity",
+        "where": "Task 2 and Task 4, where the brief asks for 'the launch creative' but is silent on Magento crops, the email surface, and the implied video deliverable",
+        "reveals": "A good senior scopes the deliverable set explicitly and either designs a crop-safe master that resolves cleanly into named derivatives or consciously de-scopes with a rationale and a follow-up brief. A naive response hands over a single fixed-aspect image with no adaptation logic, leaving every other surface to chance.",
+        "decisionSpace": [
+          "Design once, adapt many: a crop-safe master plus named derivatives (social, PDP/category banner, email) and a short adaptation rule set — most transferable, least finished on any one surface in 2h.",
+          "Go deep on one channel fully and stub the rest as an explicit follow-up brief — highest polish where it counts, leaves real gaps to flag.",
+          "Deliver a flexible art-direction system (grid + type + light-treatment rules) rather than finished comps — best for handing to juniors/outsourcers, trades show-piece polish for direction."
+        ]
+      }
+    ],
+    "timeboxHours": 2.0,
+    "rubricDimensions": [
+      {
+        "name": "framing",
+        "label": "Problem framing",
+        "weight": 0.2,
+        "description": "Turns an ambiguous need into a sound plan."
+      },
+      {
+        "name": "tooling",
+        "label": "Tooling fluency",
+        "weight": 0.25,
+        "description": "Drives AI and other tools well; iterates and verifies."
+      },
+      {
+        "name": "judgment",
+        "label": "Judgment",
+        "weight": 0.25,
+        "description": "Catches AI/tooling mistakes; validates; pushes back."
+      },
+      {
+        "name": "architecture",
+        "label": "Architecture",
+        "weight": 0.15,
+        "description": "Structure and trade-offs that fit the real materials and constraints."
+      },
+      {
+        "name": "transfer",
+        "label": "Transfer",
+        "weight": 0.15,
+        "description": "Capability transfers to THIS role's tools and responsibilities."
+      }
+    ],
+    "promptVersion": "case-design-v5"
+  },
+  "source": "llm",
+  "issues": [],
+  "fallbackReason": {},
+  "promptVersions": {
+    "analyze": "need-analysis-v3",
+    "role": "role-design-v3",
+    "case": "case-design-v5"
+  }
+}

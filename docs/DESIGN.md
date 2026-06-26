@@ -281,3 +281,25 @@ override block).
    header) into components once their recipe form stabilizes.
 6. Consider Shantell Sans for dark-register hand-written annotations (the
    landing's margin notes) — needs a lazy-load story before app-wide use.
+
+## Public landing (status: BUILT, NOT LAUNCHED)
+
+The marketing landing (`app/landing/spark/SparkHome` — hero, pricing tiers, trust
+story, voice teaser, the `/api/demo` CTA, en/cs i18n) is fully built but is
+**intentionally not served in production**. `/` is gated by `HomeGate` between the
+landing and the dashboard, but the gate is **dev-only**
+(`app/_lib/auth/devAuth.ts`: `DEV_GATE = NODE_ENV !== "production"`), so in prod `/`
+always mounts the dashboard and `/landing` redirects to `/` — there is no production
+URL that serves the landing. Only the team sees it (via the dev gate).
+
+This is deliberate, not a bug: the landing is **not launch-ready** —
+- pricing / "Talk to sales" CTAs dead-end at the operator password box (no
+  signup/checkout/contact route),
+- `/` inherits off-brand "Salary Estimator" SEO/OG metadata and there's no
+  sitemap/robots,
+- there is no first-party social proof.
+
+**To launch:** gate `/` on the real auth cookie (`isOperator`) instead of the
+dev-only localStorage flag so signed-out prod visitors get `SparkLanding` and
+signed-in operators get the dashboard — AND first close the CTA / SEO / social-proof
+items above (see the 2026-06-25 ambiguity+business scan, `landing-marketing.md`).

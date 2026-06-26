@@ -19,7 +19,12 @@ export const DEV_AUTH_KEY = "kp_dev_authed";
  * (which only fires in *other* tabs). */
 const DEV_AUTH_EVENT = "kp:dev-auth";
 
-/** The gate only exists in development; production renders the dashboard. */
+/** The landing/dashboard gate is DEV-ONLY: in production this is false, so
+ *  isDevAuthed() returns true and `/` always mounts the dashboard. CONSEQUENCE
+ *  (intentional, documented in docs/DESIGN.md "Public landing"): the built public
+ *  landing (SparkHome) is NOT served to prod visitors — top-of-funnel is dark on
+ *  purpose until the landing is launch-ready (CTAs wired, SEO, social proof). To
+ *  launch, gate `/` on the real auth cookie (isOperator), not this dev-only flag. */
 export const DEV_GATE = process.env.NODE_ENV !== "production";
 
 export function isDevAuthed(): boolean {

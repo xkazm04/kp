@@ -1,0 +1,182 @@
+{
+  "job": {
+    "id": "cal-006",
+    "title": "Admin/Clerical Recruiter",
+    "company": "Knowledge Services",
+    "role_family": "hr",
+    "seniority": "medior",
+    "source": "hf:jacob-hugging-face/job-descriptions"
+  },
+  "analysis": {
+    "realStack": [
+      "Applicant Tracking System (ATS) — primary documentation and candidate-management system of record",
+      "LinkedIn Recruiter (dedicated seat) for passive sourcing and outreach",
+      "Indeed and other job boards for active postings and resume search",
+      "Vendor Management System (VMS) technologies for client/MSP requisition intake and candidate submission (named as a plus)",
+      "Sourcing platforms / resume databases supplied as 'industry-leading technology'",
+      "Social networking and open-internet research for passive talent identification",
+      "Email, phone, and scheduling tools for candidate screening, follow-up, and onboarding monitoring",
+      "Compliance/process documentation for contract and customer-policy adherence (government MSP context)"
+    ],
+    "coreResponsibilities": [
+      "Analyze candidate information to determine fit against open requisitions (administrative/healthcare/medical talent)",
+      "Source and screen candidates through active and passive channels — postings, social, job boards, internet research",
+      "Submit qualified candidates and manage them through the full-cycle recruitment process, documenting everything in the ATS",
+      "Own candidate experience end-to-end: overcome objections, negotiate pay rates, close candidates, and monitor onboarding",
+      "Follow organizational and customer processes/policies to maintain contract compliance and customer satisfaction (government managed-services environment)",
+      "Build and maintain a network/relationships to keep a warm pipeline; hit production/earnings targets under an uncapped-commission model"
+    ],
+    "statedVsRealGaps": [
+      "No codebase or technical stack exists for this role and none is expected — this is a non-software, full-desk staffing role; absence of code is normal, not a deficiency",
+      "JD is recruiter-focused but the company is the 'nation's largest government managed services provider,' so the real environment adds MSP/VMS and government-contract compliance weight that the responsibility bullets only gesture at ('contract compliance')",
+      "VMS experience is listed as 'a plus,' yet for a government-MSP staffing desk it is likely closer to a core daily tool than the JD implies — a probable understatement of the real requirement",
+      "'Administrative' and 'healthcare/medical' recruiting are framed interchangeably, but they are distinct talent markets (clerical/admin vs. credentialed clinical); the JD does not clarify which dominates the actual req mix",
+      "Strong compensation/benefits and culture detail vs. thin specificity on production metrics, req volume, redeployment rates, or clinical-credentialing duties — the 'what success looks like' is sales-toned rather than operationally defined",
+      "Trailing internal codes (isdko/isdmp/isddf/isdlt/indcorp) are job-board routing/source tags, not requirements — no analytical signal"
+    ],
+    "trueComplexity": "medium",
+    "riskAreas": [
+      "Compliance exposure: government managed-services contracts carry strict candidate-eligibility, documentation, and audit requirements — gaps here are higher-stakes than in commercial staffing",
+      "Healthcare-credentialing nuance: if reqs skew clinical, licensure/certification verification and compliance screening are real responsibilities the JD barely names",
+      "Burnout/turnover risk inherent to full-desk, uncapped-commission, fast-paced staffing roles — fit depends on resilience and self-management more than the JD foregrounds",
+      "Tool-fluency assumption: success leans on disciplined ATS hygiene and VMS workflow accuracy; a candidate strong on sourcing but weak on systems documentation could underperform on compliance",
+      "Ambiguous market focus (admin vs. medical) could lead to a mis-hire if the actual req book differs from a candidate's prior niche"
+    ],
+    "reflection": "This is a grounded, non-software hiring need: a full-cycle (full-desk) staffing recruiter for administrative and healthcare/medical contract roles at a government-focused MSP. The JD is rich enough to extract responsibilities and the role's real 'stack' — an ATS as system of record, LinkedIn Recruiter and Indeed for sourcing, job boards, and VMS technologies for client/req management — so the analysis is well-founded; there is correctly no code to reflect against. The work is medium complexity in its own terms: not algorithmically hard, but it combines sourcing craft, sales/closing skill (negotiating rates, overcoming objections under uncapped commission), disciplined systems documentation, and government-contract compliance — a genuine multi-competency desk. The main divergence between stated need and real evidence is weighting: the JD soft-pedals VMS and compliance ('a plus,' 'follow processes') even though the government-MSP context makes both closer to core, and it blends 'administrative' and 'healthcare/medical' recruiting without clarifying the actual requisition mix or any clinical-credentialing duties. A strong hire needs proven staffing-systems discipline and compliance reliability, not just sourcing volume.",
+    "confidence": 0.82,
+    "promptVersion": "need-analysis-v3"
+  },
+  "role": {
+    "title": "Administrative/Healthcare Recruiter",
+    "seniority": "medior",
+    "roleFamily": "hr",
+    "mustHaves": [
+      "Prior administrative, healthcare/medical, or similar full-cycle recruiting and sourcing experience",
+      "Hands-on use of an ATS as the system of record — documenting candidates and managing them through the full recruitment process",
+      "Proficiency sourcing on LinkedIn Recruiter, Indeed, and other job boards plus social and open-internet research for passive talent",
+      "Candidate-screening judgment: analyze candidate information to determine match against open requisitions",
+      "Closing skills end-to-end — overcoming objections, negotiating pay rates, closing candidates, and monitoring onboarding",
+      "Strong, professional written and verbal communication with disciplined follow-up",
+      "Ability to stay organized and efficient in a high-volume, fast-paced desk while self-managing toward production targets",
+      "Adherence to organizational and customer processes/policies to maintain contract compliance and customer satisfaction"
+    ],
+    "niceToHaves": [
+      "Experience submitting candidates and interacting with clients through VMS technologies (especially in a government MSP / managed-services context)",
+      "Familiarity with credentialed clinical/medical talent markets and associated screening or credentialing steps",
+      "Track record producing under an uncapped-commission or quota-carrying model",
+      "Networking and community/relationship-building reach that sustains a warm pipeline",
+      "Comfort negotiating bill/pay rates and handling redeployment of contract workers"
+    ],
+    "responsibilities": [
+      "Analyze candidate information to determine match between candidates and open administrative/healthcare/medical requisitions",
+      "Source and screen talent through active and passive channels — postings, social networking, job boards, and internet research",
+      "Submit qualified candidates and manage them through the full recruitment lifecycle, documenting all activity in the ATS",
+      "Deliver a positive candidate experience: overcome objections, negotiate rates, close candidates, and monitor onboarding",
+      "Follow organization and customer processes and policies to ensure contract compliance and customer satisfaction",
+      "Build and maintain networks and client/candidate relationships, contributing to a positive team environment while hitting production and earnings targets"
+    ],
+    "languages": [
+      "English"
+    ],
+    "promptVersion": "role-design-v3"
+  },
+  "case": {
+    "title": "Patient Access Recruiter Desk: Screen, Submit, and Close a Government MSP Requisition",
+    "brief": "You are a medior recruiter on a full-desk Patient Access team staffing a government healthcare client through a Managed Services Provider (Acuity VMS). The provided systems — your ATS, LinkedIn Recruiter, Indeed, the VMS, the rate card, and the compliance checklist — are exactly your working materials, so this exercise runs directly on them. Working from the snapshot in the starting materials, screen the slate against `REQ-4471`, decide who to advance, build the submission and its documentation trail, and plan how you would close and onboard your lead candidate — all inside the client's compliance gate and rate constraints. The order is deliberately as messy as a real intake: read the requisition and the ATS history before you source or write anything, and where the brief leaves a call to you, make it and keep moving. Timebox is 1.5 hours — prioritize sound judgment and clean documentation over volume; an incomplete-but-defensible desk beats a fast-but-non-compliant one. Throughout, keep a short DECISIONS log (Task 4) the way you would write a handoff note for your account manager.",
+    "repoSeed": "A working snapshot of your Patient Access desk, supplied as five items. (1) `REQ-4471_Administrative-Coordinator_PatientAccess.pdf` — an open order routed through the Acuity VMS for a government client (a VA medical center in Ohio). The title and summary read 'administrative,' but the duties list patient scheduling, EMR/EHR data entry, insurance pre-authorization support, and 'HIPAA training required'; the qualifications say 'CMAA certification or equivalent healthcare front-office experience preferred,' and the eligibility note says 'must clear federal background screening prior to start.' (2) `Acuity-VMS_submission-template.xlsx` + `client-rate-card.pdf` — the required submission fields (candidate, availability, pay rate, credential status, eligibility/right-to-work, screening status) plus a max bill rate of $34/hr, a 22% MSP markup cap, a 48-hour submission SLA, and a 3-submissions-per-req limit. (3) `candidate-slate/` — five candidates as resumes plus LinkedIn Recruiter profile snippets: A. 'Maria Okafor' (strongest front-office match, lists 'CMAA — certified 2022,' Ohio); B. 'Devon Pierce' (excellent on paper); C. 'Sara Lin' (six years corporate admin, zero healthcare exposure); D. 'James Whitfield' (solid medical front-office, states a pay expectation of $30/hr take-home); E. 'Priya Anand' (passive LinkedIn profile, not yet contacted). (4) `ats-activity-export.csv` — your ATS record history: Devon Pierce already carries an open status 'Submitted–Client Review' to this same VA client, dated 21 days ago, owned by another recruiter ('R. Cole'); Maria Okafor's record shows a note 'CMAA lapsed — verify' with a credential renewal date of 12/2023. (5) `compliance-checklist_gov-MSP.md` — the government-MSP gate: credential currency verified at source, worksite-state eligibility confirmed, federal background screening initiated, and no duplicate/ownership conflicts before any submission.",
+    "tasks": [
+      "Screen and disposition the slate. Review all five candidates in `candidate-slate/` against `REQ-4471` and `compliance-checklist_gov-MSP.md`, and assign each a disposition of advance, hold, or reject with a 2–3 line rationale tied to specific requisition must-haves and compliance gates. Resolve the order's admin-vs-clinical scope ambiguity explicitly — state which way you read it and why — because it changes who qualifies.",
+      "Build the submission package and ATS trail. For the one or two candidates you advance, complete the `Acuity-VMS_submission-template.xlsx` fields and write the exact ATS activity notes you would log. Call out, per candidate, any credential, eligibility, ownership, or screening gap that must clear before the submission is compliant, and state how you would resolve it within the 48-hour SLA.",
+      "Plan the close and onboarding for your lead candidate. Draft a short screening-call plan (the 4–6 questions that actually de-risk this req), a response to the pay-rate gap against `client-rate-card.pdf` (max bill $34/hr, 22% markup cap), and a first-two-weeks onboarding-monitoring checklist. Be explicit about what you can offer, what you cannot, and where you would involve your account team.",
+      "Keep a DECISIONS log. In a short running list, capture every call you made where the materials were open or conflicting: what you chose, the alternative you rejected, and the one question you would put to the hiring manager, the MSP, or your account team. Treat it as the handoff note your manager would read, not a test artifact."
+    ],
+    "coverProbes": [
+      {
+        "id": "scope-admin-vs-clinical",
+        "kind": "ambiguity",
+        "where": "`REQ-4471` title and summary read 'administrative,' but the duties (patient scheduling, EMR data entry, pre-authorization) and 'CMAA preferred' point clinical-adjacent; whether Sara Lin (pure admin) outranks the healthcare-experienced candidates hinges entirely on this read.",
+        "reveals": "A good recruiter names the scope ambiguity, commits to an interpretation, and flags it as the first question for the hiring manager before sourcing to a profile; a naive one-shot silently picks one reading and ranks the whole slate on it, mis-sizing the pool and risking a mis-hire.",
+        "decisionSpace": [
+          "Read it as true administrative: advance generalist admins like Sara Lin quickly, widen the pool, and hit the SLA — but risk submitting candidates the clinical-adjacent duties will wash out.",
+          "Read it as clinical-adjacent: prioritize healthcare front-office experience and CMAA, and treat HIPAA/credentialing as must-haves — compliant and on-target, but a narrower, slower slate.",
+          "Hedge: submit a healthcare-leaning lead now while sending a scope-clarifying question to the client and keeping a generalist as backup — protects both production and accuracy at the cost of a split, less-focused submission."
+        ]
+      },
+      {
+        "id": "lapsed-credential-verification",
+        "kind": "verification_trap",
+        "where": "Maria Okafor presents as the strongest match and lists 'CMAA — certified 2022,' but `ats-activity-export.csv` carries 'CMAA lapsed — verify' with a renewal date of 12/2023, and the compliance checklist requires credential currency verified at source before submission.",
+        "reveals": "A careful recruiter cross-checks the resume claim against the ATS note and the compliance gate and catches that the top-on-paper candidate is not submittable as-is; a naive pass ranks her #1 on skills and submits a lapsed credential to a government client.",
+        "decisionSpace": [
+          "Hold pending source verification or renewal: compliance-safe and protects the client relationship, but may slip the 48-hour SLA or lose the candidate.",
+          "Advance with a documented caveat and verification in flight: keeps the strongest candidate moving, but risks logging a non-compliant submission to a government MSP if it isn't cleared in time.",
+          "Demote her to backup and lead with a fully-compliant second candidate: safest for the client, but submits a lower headline match and may underwhelm the hiring manager."
+        ]
+      },
+      {
+        "id": "ats-ownership-conflict",
+        "kind": "legacy_trap",
+        "where": "Devon Pierce looks excellent on paper, but `ats-activity-export.csv` shows an open 'Submitted–Client Review' to this same VA client 21 days ago, owned by recruiter R. Cole — re-sourcing or re-submitting him creates a duplicate-submission and ownership conflict.",
+        "reveals": "Reading the ATS history first reveals Pierce is already in play and not yours to submit; a recruiter who generates fresh outreach and a new submission from the resume alone trips a channel-ownership and duplicate-submission violation a government MSP audits for.",
+        "decisionSpace": [
+          "Honor the existing status and ownership, skip him, and note it: clean and process-correct, but loses a strong candidate from your slate.",
+          "Escalate the ownership/duplicate question to your manager or the MSP for a ruling before acting: fully defensible, but costs time against the SLA.",
+          "Re-engage on the theory the 21-day submission is stale: could recover the candidate, but risks a recruiter conflict and a compliance flag if the prior submission is still live."
+        ]
+      },
+      {
+        "id": "rate-gap-objection",
+        "kind": "underspecified",
+        "where": "James Whitfield states a $30/hr take-home expectation while `client-rate-card.pdf` caps bill at $34/hr with a 22% MSP markup, leaving almost no room; the req gives no guidance on flexing rate or margin.",
+        "reveals": "A strong recruiter does the markup math, sees the gap, and brings a defensible close strategy plus a specific question for the account team; a naive response either promises the candidate's number without checking feasibility or lowballs with no plan, risking a fallen-through placement or a blown margin.",
+        "decisionSpace": [
+          "Hold to the rate card and sell non-comp value (stability, the federal client, schedule): protects margin, but risks losing Whitfield to a higher bidder.",
+          "Negotiate toward a midpoint and check markup/margin feasibility with the account team before committing: balanced, but adds a dependency and a delay.",
+          "Flag the rate card as uncompetitive for the local market and push back to the MSP/client: advocates correctly for fill-ability, but is slower and can strain the client relationship if overused."
+        ]
+      }
+    ],
+    "timeboxHours": 1.5,
+    "rubricDimensions": [
+      {
+        "name": "framing",
+        "label": "Problem framing",
+        "weight": 0.2,
+        "description": "Turns an ambiguous need into a sound plan."
+      },
+      {
+        "name": "tooling",
+        "label": "Tooling fluency",
+        "weight": 0.25,
+        "description": "Drives AI and other tools well; iterates and verifies."
+      },
+      {
+        "name": "judgment",
+        "label": "Judgment",
+        "weight": 0.25,
+        "description": "Catches AI/tooling mistakes; validates; pushes back."
+      },
+      {
+        "name": "architecture",
+        "label": "Architecture",
+        "weight": 0.15,
+        "description": "Structure and trade-offs that fit the real materials and constraints."
+      },
+      {
+        "name": "transfer",
+        "label": "Transfer",
+        "weight": 0.15,
+        "description": "Capability transfers to THIS role's tools and responsibilities."
+      }
+    ],
+    "promptVersion": "case-design-v5"
+  },
+  "source": "llm",
+  "issues": [],
+  "fallbackReason": {},
+  "promptVersions": {
+    "analyze": "need-analysis-v3",
+    "role": "role-design-v3",
+    "case": "case-design-v5"
+  }
+}

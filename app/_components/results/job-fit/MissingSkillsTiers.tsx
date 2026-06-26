@@ -5,8 +5,15 @@ import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { dedupe } from "@/app/_lib/dedupe";
 
-const MUST_HAVE_LIMIT = 3;
-const NICE_TO_HAVE_LIMIT = 5;
+// IMPORTANT: `missingSkills` is a flat, model-emitted list (schemas.generated.ts:
+// `z.array(z.string())`) with NO guaranteed criticality ordering. These tiers are
+// therefore a *prominence/position* split (first 3 / next 5 / rest), NOT a
+// must-have vs nice-to-have classification. The user-facing labels are
+// deliberately position-neutral ("Top gaps" / "Other gaps" / "Minor gaps") so we
+// don't brand an arbitrarily-first gap as a "deal-breaker". If/when the engine
+// emits an explicit per-skill weight, switch to that instead of slicing.
+const TOP_GAP_LIMIT = 3;
+const OTHER_GAP_LIMIT = 5;
 
 type Tier = "must" | "nice" | "bonus";
 
@@ -31,9 +38,9 @@ const TIER_CHIP_PALETTES: Record<Tier, string> = {
 
 function splitIntoTiers(skills: string[]): Record<Tier, string[]> {
   return {
-    must: skills.slice(0, MUST_HAVE_LIMIT),
-    nice: skills.slice(MUST_HAVE_LIMIT, MUST_HAVE_LIMIT + NICE_TO_HAVE_LIMIT),
-    bonus: skills.slice(MUST_HAVE_LIMIT + NICE_TO_HAVE_LIMIT),
+    must: skills.slice(0, TOP_GAP_LIMIT),
+    nice: skills.slice(TOP_GAP_LIMIT, TOP_GAP_LIMIT + OTHER_GAP_LIMIT),
+    bonus: skills.slice(TOP_GAP_LIMIT + OTHER_GAP_LIMIT),
   };
 }
 

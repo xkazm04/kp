@@ -243,25 +243,6 @@ body {
   border-top-style: dashed;
 }
 
-/*
- * ThemeSplit display helpers (app/_components/ui/ThemeSplit.tsx) — CSS-picked
- * two-version rendering. Both variants are in the DOM (no hydration flash, no
- * layout-shifting wrapper box thanks to display:contents); the active theme
- * decides which one exists visually. Plain rules instead of utilities so the
- * winner is deterministic, not an artifact of utility order.
- */
-.theme-light-only {
-  display: contents;
-}
-.theme-dark-only {
-  display: none;
-}
-[data-theme="dark"] .theme-light-only {
-  display: none;
-}
-[data-theme="dark"] .theme-dark-only {
-  display: contents;
-}
 
 /*
  * Simulation overlay layer — single source of truth for stacking + geometry.

@@ -1,0 +1,193 @@
+{
+  "job": {
+    "id": "cal-004",
+    "title": "Remote Website Designer",
+    "company": "Equisolve, Inc.",
+    "role_family": "design",
+    "seniority": "medior",
+    "source": "hf:jacob-hugging-face/job-descriptions"
+  },
+  "analysis": {
+    "realStack": [
+      "Figma (named explicitly as the primary design tool)",
+      "Scalable design system / component library (use AND evolve it)",
+      "Responsive design patterns and systems (desktop + mobile)",
+      "Prototyping & ideation artifacts: sketches, user flows, wireframes, high-fidelity visuals",
+      "Typography, interaction, and visual design craft (portfolio-evidenced)",
+      "ADA / WCAG accessible & modular design patterns (treated as a 'bonus' here)",
+      "The company's own 'creator website tool' product surface (the live body of work the role edits)",
+      "Client website projects across the lifecycle: in-development, client-review, post-launch",
+      "Cross-functional handoff to development (design-to-build implementation QA) and content teams",
+      "Written + verbal communication tooling for a fully-remote team (design-decision rationale, documentation)"
+    ],
+    "coreResponsibilities": [
+      "Finish/production work: take projects with a SET art direction and complete remaining design to a hand-off-ready state for development ('take the baton and run')",
+      "Adjust existing designs/websites based on client feedback ahead of launch and support post-launch design changes",
+      "Partner with developers to ensure designs and UX are implemented at the highest fidelity (pixel-perfect, well-documented)",
+      "Use and extend the design system/library to craft flows, prototypes, and high-fidelity visuals for client sites and product features",
+      "Facilitate design discussions cross-functionally with content and development teams",
+      "Work with design managers/leadership to improve internal design processes and develop feature strategy/rationale",
+      "Operate as a remote individual contributor: self-directed, organized, communicates design decisions clearly"
+    ],
+    "statedVsRealGaps": [
+      "No body of work was supplied (codebases: null and no portfolio/design files attached). The JD itself names the portfolio as the single most important evidence of fit, yet none is present — so this reflection rests entirely on the JD's self-description and cannot validate craft, system maturity, or responsive/accessibility rigor.",
+      "Title says 'Web Designer' but the responsibilities are weighted toward execution/finishing, not origination: 'take the baton,' 'projects that have a set art direction,' 'adjust existing designs,' 'post-launch support.' The real role is a design-production / hand-off IC more than a lead/visual-direction owner — expectations and seniority signaling should match that.",
+      "The required years-of-experience figure is blank in the JD ('years of experience as an individual contributor'), so the 'medior' seniorityTarget is an inference, not a stated bar.",
+      "Accessibility is framed as a bonus ('bonus props for certification in or related to ada') while the day-to-day explicitly involves client websites where ADA compliance is a legal baseline, not a nice-to-have — the stated priority understates the real risk.",
+      "Stated company is 'Equisolve, Inc.' (notes) but the product described is an 'ever-evolving creator website tool' for a 'fast-scaling company' — verify the target product and design-system maturity, as those two framings imply different bodies of work.",
+      "Culture/soft signals ('sense of humor is a must,' 'work hard and laugh harder') are heavily weighted in the JD but are unassessable from materials and risk crowding out objective craft criteria."
+    ],
+    "trueComplexity": "medium",
+    "riskAreas": [
+      "Hand-off dependency: the role's success is gated on the quality and completeness of the incoming 'set art direction.' If direction is actually under-specified, a finishing-oriented hire will stall or silently re-design, creating friction with design managers.",
+      "Communication is load-bearing: fully remote + heavy cross-functional facilitation (content, dev, clients) means weak written/verbal communication is a primary failure mode, not a soft preference.",
+      "Scope churn: a 'fast-scaling company' with an 'ever-evolving' tool implies a moving design system and shifting requirements — a candidate who needs stable specs will struggle.",
+      "Accessibility exposure: client-facing websites with ADA treated as optional invites compliance/legal risk and rework; the org should confirm who actually owns accessibility.",
+      "Verification gap: with no portfolio supplied, the most predictive signal (typography/interaction/visual craft and real design-system contributions) is currently unevaluated — screening must center the portfolio + a production-finishing exercise.",
+      "Seniority mismatch risk: pairing 'evolve our design system' and 'inform/improve processes' (senior-leaning) with 'finish production work' (medior IC) can over- or under-level the hire if not clarified."
+    ],
+    "reflection": "This is a non-software, design-execution role, so the absence of a codebase is expected and not a defect — the role's real 'body of work' is Figma files, a scalable design system, responsive client websites, and a live 'creator website tool,' all reflected from the JD because no portfolio or design artifacts were actually supplied. Read against its own materials, the need is coherent and medior in weight: a detail-obsessed, pixel-perfect individual contributor who takes already-directed work across the finish line, adapts it to client feedback, and hands clean, well-documented designs to developers — while helping maintain (and lightly evolve) the design system and contribute to process. The honest divergence is that the title and a couple of bullets ('evolve our design system,' 'improve our processes') hint at more ownership than the day-to-day actually grants; the center of gravity is production/finishing and developer hand-off, which should shape both the level and the screen. The two most material gaps are evidentiary and prioritization-based: (1) the JD itself calls the portfolio essential yet none is present, so craft and design-system maturity remain unverified — any real assessment must put a portfolio plus a finishing/hand-off exercise at the center; and (2) ADA accessibility is framed as a bonus despite being a legal baseline for client websites, which understates real risk. Communication and adaptability are correctly emphasized for a remote, fast-scaling context and are genuine make-or-break factors here. Confidence is moderate: the JD is rich enough to extract responsibilities and a real tool stack cleanly, but the missing years-of-experience figure and the complete absence of work samples cap how far this reflection can go.",
+    "confidence": 0.58,
+    "promptVersion": "need-analysis-v3"
+  },
+  "role": {
+    "title": "Remote Website Designer",
+    "seniority": "medior",
+    "roleFamily": "design",
+    "mustHaves": [
+      "Proven experience as an individual contributor on a web or product design team, designing for both desktop and mobile",
+      "Excellent fluency in Figma as the primary design and handoff tool",
+      "Strong command of responsive design patterns and systems — designs that hold up across breakpoints and devices",
+      "Hands-on experience using AND evolving a scalable design system / component library within an in-house team",
+      "A portfolio demonstrating a strong foundation in typography, interaction, visual design, and ideation",
+      "Ability to take projects with a SET art direction and finish the remaining design-production work to a clean, hand-off-ready state ('take the baton and run')",
+      "Pixel-perfect, well-documented design execution with meticulous attention to detail",
+      "Track record partnering with developers to ensure designs and UX are implemented at the highest fidelity (implementation QA)",
+      "Working knowledge of accessible, ADA/WCAG-compliant, modular design patterns — a baseline requirement for client websites, even though the JD frames it as a bonus",
+      "Strong written and verbal communication: can clearly articulate and defend design decisions — essential for a fully-remote company",
+      "Strong organizational skills and a self-starter who works autonomously without close supervision"
+    ],
+    "niceToHaves": [
+      "Certification in or related to ADA / accessibility",
+      "Personal projects that showcase a distinct design aesthetic and passions",
+      "Experience facilitating the adoption of visual design and/or patterns across a design project or team",
+      "Familiarity with creator / website-builder tooling or other fast-evolving SaaS product surfaces",
+      "Comfort navigating ambiguity and shifting priorities inside a fast-scaling company",
+      "Genuine receptiveness to feedback (from designers and non-designers alike) with a growth mindset",
+      "Sense of humor and culture fit for a 'work hard, laugh harder' remote team"
+    ],
+    "responsibilities": [
+      "Complete remaining design-production work on projects that already have a set art direction, delivering them ready for development handoff",
+      "Adjust existing designs and live websites based on client feedback ahead of launch, and provide design support for post-launch projects",
+      "Partner with development teams to ensure designs and user experiences are implemented at the highest possible quality and fidelity",
+      "Use and extend the design system/library to craft sketches, user flows, prototypes, and high-fidelity visuals for client websites and product features",
+      "Facilitate design discussions cross-functionally with content and development teams",
+      "Collaborate with design managers and leadership to develop feature strategy/rationale and improve internal design processes",
+      "Operate as a self-directed remote individual contributor, communicating design decisions and documentation clearly across the team"
+    ],
+    "languages": [
+      "English"
+    ],
+    "promptVersion": "role-design-v3"
+  },
+  "case": {
+    "title": "Northbeam Creator Site (Client #4821): finish, action client feedback, and extend CoreKit",
+    "brief": "You are joining a fully-remote design team as a medior Website Designer on our own creator website tool. A live client project — 'Northbeam — Creator Site (Client #4821)' — is mid-flight: the art direction is set and signed off, the Home desktop page is done, and the build team is waiting on the rest. Your job over ~1.5 hours is the real day-to-day of this role: take a project with an existing art direction and design system from in-progress to development-handoff quality, fold in pre-launch client feedback, and grow the shared component library where the work demands it — as a self-directed IC who documents decisions clearly for a team you'll never sit next to. Work only in the supplied Figma file and its CoreKit v3 library; stay inside the locked art direction and reuse the system before inventing. You are NOT expected to redo the art direction or polish everything to pixel-perfection — scope tightly, and where the brief or the direction runs out, it is correct (and expected) to make a reversible call and surface the open question rather than silently re-designing. Keep a running DECISIONS log as you go (Task 4); leaving that note is normal handoff practice for a remote team, not an extra deliverable. Deliverables are all inside the file: completed frames, evolved library components, redlines/specs on the Handoff page, and the written note. The art direction is deliberately desktop-only in places and the client comments are deliberately messy — that mirrors the real project, and how you navigate it is the point.",
+    "repoSeed": "A shared Figma file, 'Northbeam — Creator Site (Client #4821)', built on the company's creator website tool, with these pages:\n\n• '00 · Art Direction (locked)' — the signed-off brand board: color tokens (ink #14161A, paper #FAFAF7, coral #FF5A3C, limewash #E8F0D8, steel #6B7280), a type scale (Bricolage Grotesque display / Inter text), an 8px spacing grid, and ONE hero treatment shown at desktop (1440) only. The board's primary CTA is drawn as a pale limewash label on a coral fill, and captions/eyebrows use steel on paper. A note reads 'mobile + section patterns → use CoreKit'. There is no specified pattern for a pricing/plan-comparison section in this brand.\n\n• '01 · Pages — In Progress' — 'Home — Desktop' (complete, client-approved); 'Home — Mobile' (empty 390px frame); 'About — Desktop' (rough low-fi wireframe); 'Pricing — Desktop' (empty 1440 frame with a sticky note: '3 tiers, monthly/annual toggle, copy TBD').\n\n• '02 · Client Review' — 'Services — Desktop' and 'Services — Mobile', already shared with the client, carrying 5 comment pins: (1) \"'Book a call' button should link to /contact\"; (2) 'Logo needs to link to home'; (3) 'Can we make the hero pop more?'; (4) 'Honestly this feels a bit too playful — make it more professional / premium'; (5) 'Tighten the gap above the footer, it feels too airy.'\n\n• 'Library: CoreKit v3' — the design system: Button (variants primary/secondary/ghost; states default/hover/focus-visible/disabled), Card, Nav, Input, Footer, SectionHeader, Toggle. Caveat: the Services CTAs are placed as a DETACHED, overridden copy named 'Button OLD / primary' (slightly different radius + padding) rather than the canonical CoreKit Button; and a few components (Toggle, Input) are missing focus-visible and disabled states. There is no PricingCard / PlanCard component.\n\n• 'Handoff' — a template page with empty 'Decisions', 'Open questions', and 'Specs / redlines' sections.",
+    "tasks": [
+      "Finish 'Home — Mobile' (the empty 390px frame on '01 · Pages — In Progress') to handoff-ready fidelity, using only the locked '00 · Art Direction' board and CoreKit v3 components. The art board is desktop-only — make the responsive calls (hero stacking, nav collapse, type-scale step-down, spacing rhythm, image crops) consistent with CoreKit's existing breakpoint patterns rather than introducing a new responsive system.",
+      "Action all 5 client comment pins on '02 · Client Review → Services — Desktop' ahead of launch. They mix concrete fixes with vague and mutually conflicting requests (pin 3 'make the hero pop more' vs pin 4 'too playful, make it more professional'). As you edit the primary CTAs, reconcile them to CoreKit — the Services buttons are a detached 'Button OLD / primary' copy, not the canonical CoreKit Button.",
+      "Build the 'Pricing — Desktop' tiers from the empty placeholder frame. It needs a plan/tier card pattern that does not exist in CoreKit, plus the monthly/annual toggle. Add the tier card to CoreKit v3 as a proper library component to the standard the rest of the kit expects (default, hover, focus-visible, disabled), and make sure the tier CTA and price captions are actually legible — note that the art board pairs a pale label on the coral CTA fill and uses steel captions on paper.",
+      "On the 'Handoff' page, write the development-team handoff note (what's ready to build, key specs/redlines, anything the build team must not improvise) and a short DECISIONS log. For every open call — the mobile responsive behavior, the conflicting client feedback, the Button reconciliation, and any contrast/legibility adjustment — record what you chose, the option you rejected, and the one question you'd put to the design manager, developer, or client. Write it as the normal note you'd leave a remote team.",
+      "Keep the running DECISIONS log from Task 4 updated as you make calls across Tasks 1–3, so each decision is captured at the moment you make it rather than reconstructed at the end."
+    ],
+    "coverProbes": [
+      {
+        "id": "responsive-extrapolation",
+        "kind": "ambiguity",
+        "where": "Task 1 — 'Home — Mobile', where the locked art direction specifies desktop only and defers mobile to CoreKit.",
+        "reveals": "A strong candidate treats the gap as a known boundary: they derive mobile behavior from CoreKit's existing breakpoint patterns and the desktop intent, keep it reversible, and flag the assumptions to the design manager. A naive one either freezes ('no mobile spec, can't proceed') or silently invents a fresh responsive system that diverges from the kit — the exact friction the role warns about with under-specified art direction.",
+        "decisionSpace": [
+          "Extrapolate a full hi-fi mobile from CoreKit's breakpoint patterns now and document the assumptions — fastest to handoff, small risk of diverging from the art director's unstated intent.",
+          "Deliver the clearly-inferable parts hi-fi and leave the genuinely ambiguous areas (e.g. hero motion at mobile) as annotated, lower-fi placeholders with explicit open questions — lower throughput, near-zero rework risk.",
+          "Produce a quick low-fi mobile pass plus one alternative for async sign-off before committing hi-fi — best alignment, costs a review round and time against the 1.5h cap."
+        ]
+      },
+      {
+        "id": "button-old-legacy",
+        "kind": "legacy_trap",
+        "where": "Task 2 — the Services primary CTAs are a detached, overridden 'Button OLD / primary' copy rather than the canonical CoreKit Button.",
+        "reveals": "A candidate who inspects the layers before generating notices the CTAs are detached/overridden and decides deliberately how to reconcile. A naive one edits the override in place (perpetuating the duplicate) or blanket-swaps to canonical without registering that the client already reviewed this exact button — missing that pre-launch visual changes to signed-off screens carry a sign-off cost.",
+        "decisionSpace": [
+          "Swap every instance to the canonical CoreKit Button and log the deprecation — maximal consistency, introduces a small visual diff against what the client already saw.",
+          "Match canonical but preserve the one client-approved visual trait as a new sanctioned Button variant in CoreKit — honors the sign-off, grows the system's surface area.",
+          "Leave the already-reviewed Services buttons untouched, use canonical only on new work, and file the duplication as tracked debt — least pre-launch churn, perpetuates the inconsistency."
+        ]
+      },
+      {
+        "id": "contrast-and-states-trap",
+        "kind": "verification_trap",
+        "where": "Task 3 — the new tier card's CTA and price captions, where copying the art board's coral CTA pairing and steel captions verbatim looks on-brand but fails WCAG AA, and a one-shot component often ships without focus-visible/disabled states.",
+        "reveals": "Following the locked art direction literally passes the shallow check ('matches the brand, looks done') but is subtly wrong: the pale-on-coral CTA and steel-on-paper captions sit at or below AA, and a generated component frequently lacks the keyboard focus and disabled states the kit expects. A strong candidate actually measures contrast, builds all interaction states, and raises the brand-vs-accessibility conflict instead of silently shipping it.",
+        "decisionSpace": [
+          "Keep the brand colors exactly and accept/flag the AA shortfall as the art director's call — maximal fidelity, ships a real accessibility/legal risk on a client site.",
+          "Nudge the token (darken the label or deepen the caption) to clear AA while staying visually on-brand, pending art-director sign-off — compliant, slight deviation from the locked direction.",
+          "Keep the brand pairing only where it legitimately passes (large display text under the AA large-text rule) and correct it specifically for the CTA label and small captions — most precise per WCAG, most verification effort."
+        ]
+      },
+      {
+        "id": "conflicting-client-feedback",
+        "kind": "underspecified",
+        "where": "Task 2 — the 5 Services comment pins, where pin 3 ('make it pop more') and pin 4 ('too playful, make it professional') are vague and directly conflict, against a deliberately playful art direction.",
+        "reveals": "A strong candidate separates the objective fixes (links, footer spacing) from the subjective/contradictory taste requests, resolves the tension against the agreed art direction, and documents the rationale or offers a small choice — rather than ping-ponging the design. A naive one actions every pin literally and produces an incoherent screen, or quietly drops the inconvenient one, abdicating the judgment the remote role is hired for.",
+        "decisionSpace": [
+          "Ship the objective fixes, and for the pop-vs-professional tension commit to one direction anchored to the signed-off art direction with a written rationale — decisive, risks guessing the client's actual taste.",
+          "Ship the objective fixes and present two quick CTA/hero variants for the client/PM to choose between — well-aligned, defers resolution and adds a review round.",
+          "Action all five pins exactly as written — fast and literally responsive, but yields an incoherent screen and surrenders design judgment."
+        ]
+      }
+    ],
+    "timeboxHours": 1.5,
+    "rubricDimensions": [
+      {
+        "name": "framing",
+        "label": "Problem framing",
+        "weight": 0.2,
+        "description": "Turns an ambiguous need into a sound plan."
+      },
+      {
+        "name": "tooling",
+        "label": "Tooling fluency",
+        "weight": 0.25,
+        "description": "Drives AI and other tools well; iterates and verifies."
+      },
+      {
+        "name": "judgment",
+        "label": "Judgment",
+        "weight": 0.25,
+        "description": "Catches AI/tooling mistakes; validates; pushes back."
+      },
+      {
+        "name": "architecture",
+        "label": "Architecture",
+        "weight": 0.15,
+        "description": "Structure and trade-offs that fit the real materials and constraints."
+      },
+      {
+        "name": "transfer",
+        "label": "Transfer",
+        "weight": 0.15,
+        "description": "Capability transfers to THIS role's tools and responsibilities."
+      }
+    ],
+    "promptVersion": "case-design-v5"
+  },
+  "source": "llm",
+  "issues": [],
+  "fallbackReason": {},
+  "promptVersions": {
+    "analyze": "need-analysis-v3",
+    "role": "role-design-v3",
+    "case": "case-design-v5"
+  }
+}

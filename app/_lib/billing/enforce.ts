@@ -35,16 +35,26 @@ const METER_LABELS: Record<Meter, string> = {
   interview_minutes: "interview minutes",
 };
 
-/** Null = proceed; a verdict = respond 402 with it. */
-export function meterGate(meter: Meter, now: Date = new Date()): QuotaVerdict | null {
+/** Null = proceed; a verdict = respond 402 with it.
+ *
+ *  `minUnits` is the number of units this single action is expected to consume
+ *  (default 1). It must be checked, not just "any remaining > 0": e.g. an interview
+ *  books ~GROUNDED_DEFAULT_MIN minutes and debits up to 2× that at /complete, so a
+ *  customer with 1 leftover minute who passes a `remaining > 0` gate runs a full
+ *  call and the un-funded overage lands as billing_usage on the most expensive
+ *  meter. Gate on `remaining >= minUnits` so a sliver of allowance can't unlock a
+ *  whole metered action. A null (unlimited) allowance always proceeds. */
+export function meterGate(meter: Meter, opts: { now?: Date; minUnits?: number } = {}): QuotaVerdict | null {
+  const now = opts.now ?? new Date();
+  const minUnits = Math.max(1, Math.floor(opts.minUnits ?? 1));
   // Resolve the entitled plan ONCE: the allowance check and the verdict's plan
   // label both read it, and a single billing_state read also can't observe two
   // different rows under a concurrent webhook write.
   const plan = entitledPlan(getBillingState(), now);
   const remaining = meterOverview(meter, plan, now).remaining;
-  if (remaining === null || remaining > 0) return null;
+  if (remaining === null || remaining >= minUnits) return null;
   return {
-    error: `This month's ${METER_LABELS[meter]} on the ${plan.name} plan is used up — upgrade or top up in Billing.`,
+    error: `This month's ${METER_LABELS[meter]} on the ${plan.name} plan won't cover this action — upgrade or top up in Billing.`,
     code: QUOTA_CODE,
     meter,
     plan: plan.id,

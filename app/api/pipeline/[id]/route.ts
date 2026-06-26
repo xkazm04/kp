@@ -19,8 +19,8 @@ const MAX_NOTES_LENGTH = 4000;
 // Human gate for the offer: approving a drafted offer EXTENDS it to the candidate
 // with a secure accept/decline link, rather than bare-advancing to Hired. The
 // Hired move happens only when the candidate accepts (see /api/offer/[token]).
-async function extendOffer(request: NextRequest, entry: PipelineEntry) {
-  let draft: { subject?: unknown; body?: unknown; recommended?: unknown; currency?: unknown } = {};
+async function extendOffer(request: NextRequest, entry: PipelineEntry, bodyTtlDays?: unknown) {
+  let draft: { subject?: unknown; body?: unknown; recommended?: unknown; currency?: unknown; ttlDays?: unknown } = {};
   try {
     draft = entry.approvalDetail ? JSON.parse(entry.approvalDetail) : {};
   } catch {
@@ -43,6 +43,11 @@ async function extendOffer(request: NextRequest, entry: PipelineEntry) {
     currency: typeof draft.currency === "string" ? draft.currency : null,
     salary: Number(draft.recommended) || null,
     payload: draft,
+    // The recruiter's deadline lever (offers-onboarding #3): a per-offer window in
+    // whole days. Prefer the value chosen at approval time (request body) over any
+    // stored on the draft; out-of-range/omitted falls back to the deployment default
+    // in resolveOfferTtlMs.
+    ttlDays: Number(bodyTtlDays) || Number(draft.ttlDays) || null,
   });
 
   // Decision SoR (moonshot D backfill): seal the recruiter's offer-terms decision —
@@ -74,7 +79,7 @@ async function extendOffer(request: NextRequest, entry: PipelineEntry) {
 export async function POST(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params;
   try {
-    const body = (await request.json()) as { action?: string; detail?: string; expectedStage?: string; toStage?: string; github?: unknown; notes?: unknown };
+    const body = (await request.json()) as { action?: string; detail?: string; expectedStage?: string; toStage?: string; github?: unknown; notes?: unknown; ttlDays?: unknown };
 
     // Manual recruiter stage override (set_stage): move a candidate backward, skip
     // a stage, or fix a miscategorization — the transitions accept/reject can't
@@ -219,7 +224,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
 
     // Approving a drafted offer extends it to the candidate (not a bare Hire click).
     if (action === "accept" && current.stage === "Offer" && current.approvalKind === "offer_review") {
-      return await extendOffer(request, current);
+      return await extendOffer(request, current, body.ttlDays);
     }
 
     const updated = actOnPipelineEntry(
@@ -234,6 +239,24 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       const fresh = getPipelineEntry(id);
       if (!fresh) return NextResponse.json({ error: "Pipeline entry not found." }, { status: 404 });
       return staleResponse(fresh);
+    }
+    // Seal the HUMAN accept/reject into the tamper-evident decision chain. The chain
+    // sealed AI auto-rejections, group-eval verdicts, offers and reinstatements, but
+    // the recruiter's DIRECT gate decision — the most consequential one for an
+    // Art.22 / EU-AI-Act "right to explanation" dossier — flowed through only a
+    // mutable pipeline event, so a human-rejected candidate's sealed dossier came back
+    // empty. Mirror the reinstate seal; best-effort (sealDecisionSafe never throws).
+    if (action === "accept" || action === "reject") {
+      const detail = typeof body.detail === "string" ? body.detail.trim() : "";
+      sealDecisionSafe({
+        kind: action === "reject" ? "rejected" : "advanced",
+        actor: "human:recruiter",
+        policyVersion: "manual",
+        candidateRef: id,
+        rationale: detail || `Recruiter ${action} from ${current.stage}.`,
+        reasonCode: action,
+        inputs: { fromStage: current.stage, detail: detail || null },
+      });
     }
     // A human reject is the gate; the candidate hears about it (queued by default).
     if (action === "reject") await dispatchRejection(updated);

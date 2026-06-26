@@ -1,0 +1,191 @@
+{
+  "job": {
+    "id": "cal-064",
+    "title": "Design Consultant- Interior Design/Sales Consultant in Englishtown at Ethan Allen Global Inc.",
+    "company": "Ethan Allen",
+    "role_family": "consulting",
+    "seniority": "medior",
+    "source": "hf:jacob-hugging-face/job-descriptions"
+  },
+  "analysis": {
+    "realStack": [
+      "Ethan Allen Room Planner (3D space-planning / room design software)",
+      "Augmented reality product visualization (place-in-room)",
+      "Live chat client-engagement tooling",
+      "Social media as a lead-generation / business-development channel",
+      "Ethan Allen custom furniture catalog + finish/fabric/upholstery configuration",
+      "CRM / client book — new prospects, existing clientele, professional referral network",
+      "In-home consultation kit (measurements, floor plans, samples) + personal vehicle for field visits",
+      "Design-center showroom floor (the physical 'experience' surface)",
+      "Professional design portfolio",
+      "Space-planning and color/finish/scale design fundamentals"
+    ],
+    "coreResponsibilities": [
+      "Own the full client journey from first relationship through the final furniture sale (this is a quota-bearing consultative sales role, not a back-office design role)",
+      "Create customized whole-home design solutions — space planning, product selection, styling — using the Ethan Allen program and product line",
+      "Build and maintain a personal book of business across new clients, repeat clientele, and a professional/trade network",
+      "Conduct in-home consultations: travel to customer homes and deliver a complete, presentable design solution on site",
+      "Drive demand through social media and networking, and convert design-center walk-in traffic",
+      "Use Room Planner and AR to visualize and sell designs to clients",
+      "Operate semi-independently ('your interior design business') inside Ethan Allen's standardized program and showroom team",
+      "Work retail/field hours including weekends and some holidays"
+    ],
+    "statedVsRealGaps": [
+      "Titled 'Interior Design' but the role's real engine is commissioned retail SALES — 'sell customized home solutions,' 'own... to the final sale,' and heavy emphasis on 'compensation programs... generous salaries incentives' signal a quota/commission-weighted job; design skill is the vehicle, closing furniture sales is the outcome.",
+      "Creative freedom is bounded to a single brand's catalog — 'let your vision come to life' is constrained to Ethan Allen product within a 'proven program,' which sourcing-oriented or open-market designers may find limiting.",
+      "'Entrepreneurial but team environment' is in tension: you self-generate a personal pipeline (eat-what-you-kill) while also staffing a shared showroom floor and shared walk-in traffic.",
+      "Technology (Room Planner, AR, live chat) and a portfolio are framed as 'a plus,' yet the JD markets them prominently — the true day-to-day must-haves are relationship-selling and design fluency, not the tooling.",
+      "Stated seniority is 'medior'/'experienced,' but the screen is really dual: design credibility (degree OR years) AND demonstrated sales/relationship ability; a strong designer with no selling instinct is a mismatch.",
+      "Field-role obligations buried in requirements (own car + clean driving record, in-home visits, weekend/holiday work) reveal this is not a 9-to-5 studio job and meaningfully narrow the candidate pool."
+    ],
+    "trueComplexity": "medium",
+    "riskAreas": [
+      "Expectation mismatch: design-led applicants who don't realize this is commission-driven furniture sales → early attrition and bad-fit hires.",
+      "Comp opacity: JD foregrounds 'incentives' without disclosing base/draw vs. commission split, ramp expectations, or quota — a known driver of turnover in retail design-sales.",
+      "Pipeline dependency: success hinges on self-generated leads (social media, referral network); candidates without a hunting instinct or existing book stall against showroom-traffic-only peers.",
+      "Field/logistics constraints: in-home visits plus required vehicle, weekends, and holidays create scheduling, safety, and liability exposure and shrink the eligible pool.",
+      "Brand-catalog ceiling: designers who value sourcing breadth may chafe at selling within one product line.",
+      "Ambiguous must-haves: 'a plus' framing on portfolio and tech leaves recruiters without a crisp bar, risking inconsistent screening.",
+      "Grounding limit: no independent body of work (CRM exports, sales data, real designs) was supplied — the analysis reflects the JD's self-description only, so claims about the sales-vs-design balance are inferred from JD language, not verified evidence."
+    ],
+    "reflection": "Read against its own materials, this is a consultative retail-sales role wearing an interior-design title. Ethan Allen is hiring relationship-driven closers who happen to be design-fluent: the JD repeatedly routes design talent toward 'the final sale,' rewards it through 'compensation programs... incentives,' and frames the designer as an entrepreneur running a book of business inside a standardized brand program. The genuine craft is real — space planning, whole-home solutions, in-home consultation, and an AR/Room Planner toolset that differentiates the pitch — but it is bounded to one catalog and subordinated to selling. The strongest hire is therefore someone who can both compose a credible room and self-generate and close pipeline; a brilliant designer who can't sell, or a closer who can't design, each fails half the job. The biggest honesty gap for candidates is comp structure and the field/retail-hours reality (own car, weekends, holidays, home visits), neither of which the JD makes plain. Because no real artifacts (sales numbers, CRM, actual portfolios) were provided, this reflection is grounded in the JD's own language rather than corroborating evidence — adequate to characterize the role, not to verify how design-heavy versus sales-heavy it is in practice.",
+    "confidence": 0.74,
+    "promptVersion": "need-analysis-v3"
+  },
+  "role": {
+    "title": "Design Consultant — Interior Design / Sales Consultant",
+    "seniority": "medior",
+    "roleFamily": "consulting",
+    "mustHaves": [
+      "Proven interior design and space-planning fluency — composing color, finish, scale, and whole-home layouts into cohesive, sellable solutions",
+      "Consultative selling ability: owning the client relationship from first contact through to closing the furniture sale, against a commission/quota-weighted target (this is a revenue-bearing role, not back-office design)",
+      "Track record of building and maintaining a personal book of business across new prospects, repeat clientele, and a professional/trade referral network",
+      "Ability to run complete in-home consultations on site — measuring, presenting floor plans and samples, and delivering a finished, presentable design solution at the client's home",
+      "Valid driver's license with a clean driving record and own reliable transportation to and from client homes",
+      "Willingness to work a retail/field schedule including weekends and some holidays",
+      "Design-related degree OR 2+ years of experience in a design-related field",
+      "Comfort operating semi-independently ('your own design business') while staffing a shared showroom floor and converting walk-in traffic as part of a team"
+    ],
+    "niceToHaves": [
+      "Hands-on experience with 3D space-planning / room-design software (Ethan Allen Room Planner or equivalent)",
+      "Experience using augmented-reality product visualization to sell designs",
+      "Comfort with live-chat client-engagement tooling",
+      "Demonstrated use of social media as a lead-generation and business-development channel",
+      "A professional design portfolio",
+      "An existing professional, trade, or referral network in the local market"
+    ],
+    "responsibilities": [
+      "Own the full client journey — from establishing the relationship through product selection to the final furniture sale",
+      "Create customized whole-home design solutions (space planning, product selection, styling) within the Ethan Allen program and product line",
+      "Build and grow a personal book of business across new clients, repeat clientele, and a professional/trade network",
+      "Travel to customer homes to conduct in-home consultations and deliver a complete, on-site design solution",
+      "Generate demand through social media and networking, and convert design-center walk-in traffic into clients",
+      "Use Room Planner and augmented-reality tooling to visualize, present, and sell designs",
+      "Meet sales targets while delivering personalized, white-glove service that reflects the Ethan Allen brand",
+      "Work the showroom floor as part of a team while operating with entrepreneurial ownership of your own pipeline"
+    ],
+    "languages": [
+      "English"
+    ],
+    "promptVersion": "role-design-v3"
+  },
+  "case": {
+    "title": "Whole-Home for the Hartmanns: design it, sell it, and feed your book",
+    "brief": "You've just picked up a live client at an Ethan Allen design center. The Hartmann family was re-assigned to you after the consultant who first worked with them left. Your job over the next ~90 minutes is to do what this role actually does end-to-end on one real-feeling engagement: turn an in-home/showroom opportunity into a whole-home design solution selected from the Ethan Allen line, plan how you'll run and close the sale, and decide how this single client fits into the larger job of hitting your written-sales target and growing your own book of business. Work entirely from the supplied packet (client intake, CRM history, a catalog excerpt, your quarter-to-date target sheet, and this week's lead log). NOTE ON GROUNDING: no real CRM export, sales data, or prior designs were available, so the packet is a synthetic but representative stand-in built to mirror the materials this role works from — treat its numbers (room dimensions, prices, lead times, quota) as authoritative for the exercise. Using AI tools to draft, lay out, or pressure-test your work is expected and fine; we are not grading typing or polish. We are grading judgment: how you scope an open budget, how you handle a client who has history with us, whether you check that what you spec actually fits, ships, and totals correctly, and how you trade off this one sale against your pipeline. Deliverables are a design proposal, a client-journey/close plan, a short business-development plan, and a DECISIONS log — capturing, as a normal part of how you work, every call you made where the packet left it open.",
+    "repoSeed": "A client-engagement packet (synthetic, representative of a real Ethan Allen design-sales hand-off):\n\n1) CLIENT INTAKE — the Hartmanns. Recently moved into a 1990s colonial; want the living room and adjoining dining room to 'finally feel pulled-together and grown-up' before hosting both sets of parents. Hard date: family arrives Dec 18; they want everything delivered and placed by Dec 15. Budget, in their words: 'maybe 15 to 20 thousand, but we want it to actually last.' One partner wants 'calm, neutral, transitional'; the other wants 'some color, not boring.' Living room is 16 ft x 14 ft; the only way in is a 30 in clear doorway with an immediate left turn at the foot of a staircase. They own and love an 8 ft x 10 ft hand-knotted rug they want to keep and build around. Dining room seats 6, open to a new table.\n\n2) CRM SNAPSHOT — the Hartmanns are NOT new. 14 months ago they worked the floor with a now-departed consultant and placed a custom upholstery order that ran long and was cancelled before delivery; the 50% deposit dispute was eventually refunded as goodwill. Free-text flags on the record: 'price-sensitive — felt over-sold last visit,' and 'do not lead with the big package.' No purchase has ever actually been completed.\n\n3) CATALOG EXCERPT (live availability):\n   - 'Hartwell' custom sofa — 84 in W x 39 in D. Grade A muslin $2,899; Grades B–F upcharge +$150 to +$900. Custom/COM, non-returnable, made-to-order lead time 10–12 weeks, requires 50% non-refundable deposit.\n   - 'Emerson' quick-ship sofa — 79 in W x 36 in D, limited in-stock fabrics only, $1,999, ships 1–2 weeks.\n   - 'Monterey' sectional — 112 in x 88 in footprint, quick-ship, $3,499.\n   - 'Cromwell' accent chairs (pair) — 30 in W each, quick-ship select fabrics, $1,100/ea.\n   - 'Ashford' dining table — quick-ship $2,200; matching chairs $390/ea, 8–10 week lead on two of the four finishes.\n   - Cocktail + side tables, lighting, accessories: assorted, mostly quick-ship.\n   - Standing notes: 'Quick-ship is limited to the in-stock fabric/finish list. Custom COM and Grades B–F are made-to-order, non-returnable, 10–12 weeks. White-glove delivery + placement fee applies. Custom orders require a 50% non-refundable deposit.'\n\n4) TARGET / COMP SHEET — Quarterly written-sales goal: $180,000. Quarter-to-date written: $138,000, with 3 weeks left (≈ $42k gap). Comp line, as written to you: 'recoverable draw against commission on written sales' — the draw amount, commission %, and ramp/quota mechanics are not spelled out on the sheet.\n\n5) LEAD LOG (this week, partially worked): Sat walk-in — young couple, new build, 'just browsing,' took your card; a local home stager (trade) who wants 6 dining chairs soon and stages 2–3 houses a month; an Instagram DM asking 'how much is the sectional?' with no reply logged; an existing client who bought a bedroom set 2 years ago and has a birthday next week; a web 'Design Appointment' request sitting unworked for 4 days.",
+    "tasks": [
+      "Task 1 — Whole-home design solution. Produce a concept and a specific product selection (name the actual SKUs from the catalog excerpt) for the Hartmann living + dining room. Include a brief space-planning rationale: how the seating relates to the kept 8x10 rug, scale against the 16x14 room and the 14 ft wall, traffic flow, and how each chosen piece gets into the room through the 30 in doorway / staircase turn. State a line-item budget that totals to a real number (base price + fabric grade/COM upcharges + delivery), and confirm every selected piece can be delivered and placed by Dec 15. Note where you'd use Room Planner / AR in presenting it.",
+      "Task 2 — Client journey & close plan. Lay out how you run this engagement from first contact to delivered sale: the in-home consultation plan, how you present and price, how you handle the budget conversation, and your close + follow-through. Account for who this client is on the record (see CRM history) — your plan should make a deliberate choice about how, or whether, to address their prior experience with us.",
+      "Task 3 — Book-of-business plan. You're ~$42k short of the quarterly written goal with 3 weeks left, and part of this role is generating your own demand. Using the lead log, give a focused 2-week plan: which leads you work first and why, at least one self-generated demand play (social / networking / referral), and how you balance closing the quarter against building a durable book. Keep it to actions you could actually take, prioritized.",
+      "Task 4 — DECISIONS log. As you go, keep a short running log (normal practice, not a test): for every call you made where the packet was open or silent, note what you chose, the alternative you rejected, and the one question you'd put to the client or your design-center manager before committing. Aim for the 4–6 calls that mattered most."
+    ],
+    "coverProbes": [
+      {
+        "id": "scope-budget",
+        "kind": "underspecified",
+        "where": "Client intake: '15 to 20 thousand, but we want it to last' + the Dec 15 hard deadline + 'whole home' framing in the role, against Task 1.",
+        "reveals": "Whether the candidate imposes scoping discipline on an open budget and a hard date, or over-reaches to maximize the ticket. A strong answer ties the dollar figure to the 'want it to last' and price-sensitivity signals and sequences the work; a naive one spends to the top of the range to look ambitious and ignores deliverability.",
+        "decisionSpace": [
+          "Phase it: complete the living room now, fully within budget and guaranteed by Dec 15; propose the dining room as a funded phase 2 — protects the date and trust, defers some revenue.",
+          "Stretch to the top of the $20k range for a complete whole-home package now — maximizes this quarter's written sales but risks the deadline and the over-sold flag.",
+          "Anchor a quick-ship-led whole-home solution at mid-budget that guarantees the date — secures revenue and the holiday, at the cost of full customization/longevity."
+        ]
+      },
+      {
+        "id": "prior-history",
+        "kind": "legacy_trap",
+        "where": "CRM snapshot: cancelled custom order, refunded deposit, 'felt over-sold,' 'do not lead with the big package' — surfaces in Task 2 (and constrains Task 1).",
+        "reveals": "Whether the candidate actually read the record before planning the pitch. A strong answer treats the Hartmanns as a recovery, not a fresh prospect — right-sizes, de-risks the lead-time that burned them, and decides intentionally how to acknowledge the past. A naive answer opens with the largest whole-home package and re-creates the exact failure on file.",
+        "decisionSpace": [
+          "Name it directly: open by acknowledging the prior experience, rebuild trust, and explicitly de-risk timeline and deposit — honest, but reopens a bad memory.",
+          "De-risk quietly: don't relitigate the past; lead with quick-ship, written delivery commitments, and smaller deposit exposure so the experience simply goes better this time.",
+          "Earn the second order: start with a smaller, lower-risk win (e.g., one room or hero pieces) to rebuild the relationship before proposing whole-home — slower revenue, durable book."
+        ]
+      },
+      {
+        "id": "fit-leadtime-math",
+        "kind": "verification_trap",
+        "where": "Catalog excerpt vs. constraints: 'Hartwell' 39 in D / 10–12 wk / Grade B–F upcharge / non-returnable deposit, against the 30 in doorway, the Dec 15 date, and the budget total — in Task 1.",
+        "reveals": "Whether the candidate verifies against the real constraints or one-shots a pretty room. The obvious 'designer' pick (Hartwell custom) passes a shallow 'looks great' check but misses Dec 15 on lead time, is a genuine question through a 30 in doorway with a stair turn, and inflates the budget once COM/grade upcharge + delivery are totaled. A strong answer checks fit, lead time vs. date, and arithmetic; a naive one specs Hartwell and asserts it works.",
+        "decisionSpace": [
+          "Hold the date with quick-ship in-stock pieces (Emerson + quick-ship dining/finishes) — guarantees Dec 15 and fits budget, narrower fabric/finish choice.",
+          "Keep the custom Hartwell but renegotiate the timeline/expectation up front (deliver after the holidays, or a written contingency) — best longevity/design, breaks the client's hard date unless they agree.",
+          "Split the order: quick-ship the hero seating + dining for the holiday, follow with select custom accents in phase 2 — meets the date and preserves some customization, more complex to manage and total."
+        ]
+      },
+      {
+        "id": "pipeline-priority",
+        "kind": "ambiguity",
+        "where": "Lead log + the $42k quota gap + 'grow your book' mandate, against Task 3.",
+        "reveals": "Hunting instinct and the short-term-quota vs. long-term-book trade-off. A strong answer prioritizes by intent and effort-to-revenue, works the unworked warm leads (trade contact, stale web appointment, the ignored DM) fast, AND seeds durable demand. A naive answer either lists every lead with equal weight or chases only the showroom traffic and ignores self-generated pipeline.",
+        "decisionSpace": [
+          "Close the quarter first: prioritize the highest-intent warm leads (trade stager, 4-day-old web appointment, the unanswered sectional DM) for fastest written sales — hits the number, under-invests in book growth.",
+          "Build the book: invest the two weeks in social/referral/networking and the repeat-client relationship for durable pipeline — stronger long-term, risks missing this quarter's goal.",
+          "Split the effort: triage warm leads for near-term revenue while standing up one repeatable demand play (e.g., trade-referral loop or a social cadence) — balanced, but thinner on both fronts in a 2-week window."
+        ]
+      }
+    ],
+    "timeboxHours": 1.5,
+    "rubricDimensions": [
+      {
+        "name": "framing",
+        "label": "Problem framing",
+        "weight": 0.2,
+        "description": "Turns an ambiguous need into a sound plan."
+      },
+      {
+        "name": "tooling",
+        "label": "Tooling fluency",
+        "weight": 0.25,
+        "description": "Drives AI and other tools well; iterates and verifies."
+      },
+      {
+        "name": "judgment",
+        "label": "Judgment",
+        "weight": 0.25,
+        "description": "Catches AI/tooling mistakes; validates; pushes back."
+      },
+      {
+        "name": "architecture",
+        "label": "Architecture",
+        "weight": 0.15,
+        "description": "Structure and trade-offs that fit the real materials and constraints."
+      },
+      {
+        "name": "transfer",
+        "label": "Transfer",
+        "weight": 0.15,
+        "description": "Capability transfers to THIS role's tools and responsibilities."
+      }
+    ],
+    "promptVersion": "case-design-v5"
+  },
+  "source": "llm",
+  "issues": [],
+  "fallbackReason": {},
+  "promptVersions": {
+    "analyze": "need-analysis-v3",
+    "role": "role-design-v3",
+    "case": "case-design-v5"
+  }
+}

@@ -18,7 +18,7 @@ import {
   type DevSubmission,
 } from "./db";
 import { MAX_CODEBASES } from "./devcase-constraints";
-import { scoreAuthenticity, type Authenticity } from "./devcase-authenticity";
+import { scoreAuthenticity, PASTE_BULK_CHARS, type Authenticity } from "./devcase-authenticity";
 import { seedDiffEvidence, type SeedDiff } from "./devcase-seed-diff";
 import { cleanupWorkdir, createWorkdir, parsePythonJson, parseStderrError, PipelineError, spawnPython } from "./python-runner";
 import { buildRepoSnapshot, fetchRepoSignals, type RepoSnapshot } from "./repo-snapshot";
@@ -358,43 +358,6 @@ export async function mintObservedFromSubmission(
   return { credited, applied: true };
 }
 
-export type CommitReflectionResult = {
-  reflection: Record<string, unknown>;
-  tooling: Record<string, unknown>;
-  source: string;
-  perStepSources: Record<string, string>; // {reflect, tooling}
-  fallbackReason: Record<string, string>; // {step: "<ExceptionType>: <message>"} for steps whose LLM call raised
-  commitCount: number;
-};
-
-// D5 core: pull the submission repo's git trace, then reflect ("where they mentally
-// went") + assess tooling against the case's covert probes.
-export async function runCommitReflection(repoRef: string, caseId?: string, signal?: AbortSignal): Promise<CommitReflectionResult> {
-  const signals = await fetchRepoSignals(repoRef);
-  const commits = signals?.commits ?? [];
-  const repo = signals ? { cadence: signals.cadence, topLevel: signals.topLevel } : null;
-  const devCase = caseId ? getDevCase(caseId) : null;
-  const probes = ((devCase?.case as { coverProbes?: unknown[] } | null)?.coverProbes ?? []) as unknown[];
-
-  const payload = await runDevcaseCli<{ result: { reflection: Record<string, unknown>; tooling: Record<string, unknown> }; source: string; perStepSources?: Record<string, string>; fallbackReason?: Record<string, string> }>(
-    async (workdir) => {
-      const commitsPath = path.join(workdir, "commits.json");
-      const probesPath = path.join(workdir, "probes.json");
-      await writeFile(commitsPath, JSON.stringify(commits), "utf-8");
-      await writeFile(probesPath, JSON.stringify(probes), "utf-8");
-      const args = ["reflect-commits", "--commits-json", commitsPath, "--probes-json", probesPath];
-      if (repo) {
-        const repoPath = path.join(workdir, "repo.json");
-        await writeFile(repoPath, JSON.stringify(repo), "utf-8");
-        args.push("--repo-json", repoPath);
-      }
-      return args;
-    },
-    signal,
-  );
-  return { reflection: payload.result.reflection, tooling: payload.result.tooling, source: payload.source, perStepSources: payload.perStepSources ?? {}, fallbackReason: payload.fallbackReason ?? {}, commitCount: commits.length };
-}
-
 export type SubmissionEvaluation = {
   reflection: Record<string, unknown>;
   tooling: Record<string, unknown>;
@@ -444,7 +407,7 @@ export async function runEvaluateSubmission(submissionId: string, signal?: Abort
   // candidate produced no commit history by design). A normal repoRef keeps the
   // existing fetch-and-infer path unchanged.
   let signals: Awaited<ReturnType<typeof fetchRepoSignals>> = null;
-  let events: { t: number; kind: string; path?: string | null }[] | null = null;
+  let events: { t: number; kind: string; path?: string | null; size?: number | null }[] | null = null;
   if (sub.repoRef.startsWith("session:")) {
     events = getDevSessionEvents(sub.repoRef.slice("session:".length));
   } else {
@@ -514,6 +477,10 @@ export async function runEvaluateSubmission(submissionId: string, signal?: Abort
   };
   // ce28da40 — fold the trace + reflection into one authenticity verdict.
   const reflection = (payload.result.reflection ?? {}) as { readBeforeWrite?: number; iterationPattern?: string };
+  // Paste-from-LLM tell for observed sessions: a single bulk paste at/over the
+  // threshold landed in the watched editor (the live surface waives commit penalties,
+  // so without this a pasted solution scored "authentic").
+  const observedBulkPaste = observed && events!.some((e) => e.kind === "paste" && (e.size ?? 0) >= PASTE_BULK_CHARS);
   const authenticity = scoreAuthenticity({
     commitCount: processTrace.commitCount,
     bursty: processTrace.cadence?.bursty ?? null,
@@ -522,6 +489,7 @@ export async function runEvaluateSubmission(submissionId: string, signal?: Abort
     readBeforeWrite: reflection.readBeforeWrite ?? null,
     iterationPattern: reflection.iterationPattern ?? null,
     observed,
+    observedBulkPaste,
   });
   // c364a44d — anchor the evaluation into the shared seed: which planted seam
   // files did the submission actually touch? Grounded, mechanically comparable
@@ -589,6 +557,38 @@ export async function runSourceForRole(
   );
   const r = payload.result;
   return { candidates: r?.candidates ?? [], skipped: r?.skipped ?? 0, skippedReasons: r?.skippedReasons ?? [] };
+}
+
+// Seed the pipeline from a sourcing run's ranked matches — the SINGLE owner of the
+// "case-sourced candidate → Accepted pipeline entry" write contract, INCLUDING the
+// `sourceChannel: "devcase"` origin marker (d95fed6d). Used by both the lifecycle
+// orchestrator's publish step and the manual /api/devcase/source route, so a
+// candidate gets the same origin tag regardless of which path sourced them — the
+// route previously omitted the marker, so "Source DB" candidates silently lost
+// their "via dev case" attribution in the pipeline drawer. Skips matches without a
+// candidateId; returns the number of pipeline entries created.
+export function seedPipelineFromMatches(
+  matches: readonly Sourced[],
+  opts: { caseId: string | null; roleTitle: string },
+): { added: number } {
+  let added = 0;
+  for (const m of matches) {
+    if (!m.candidateId) continue;
+    createPipelineEntry({
+      candidateId: m.candidateId,
+      candidateLabel: m.label,
+      archetype: m.archetype,
+      roleFamily: "software_engineering",
+      jobId: `dc-${opts.caseId}`,
+      jobTitle: opts.roleTitle,
+      matchScore: m.score,
+      stage: "Accepted",
+      // d95fed6d — origin marker for case-sourced candidates.
+      sourceChannel: "devcase",
+    });
+    added += 1;
+  }
+  return { added };
 }
 
 // Bridge an evaluated submission into the pipeline + a Decisions screening_review card.

@@ -1,0 +1,185 @@
+{
+  "job": {
+    "id": "cal-055",
+    "title": "Assistant Manager, Operations | Nyc Downtown (Multiple Locations)",
+    "company": "LULULEMON",
+    "role_family": "finance",
+    "seniority": "senior",
+    "source": "hf:jacob-hugging-face/job-descriptions"
+  },
+  "analysis": {
+    "realStack": [
+      "Store P&L / controllable budget and expense tracking (typically spreadsheet-based, e.g. Excel)",
+      "Cash management and reconciliation (POS / cash-handling procedures)",
+      "Workforce scheduling system for writing the weekly store schedule",
+      "Payroll processing and time/labor-hour records",
+      "Inventory and supplies management system",
+      "Vendor management and vendor-relationship administration",
+      "Store technology and facilities upkeep",
+      "People/HR administrative documentation",
+      "Company-driven operational project and initiative playbooks executed at store level"
+    ],
+    "coreResponsibilities": [
+      "Own the financial business enablers of the store — P&L inputs, controllable budget, expenses, and cash — within authority delegated by the Store Manager",
+      "Maintain and maximize inventory, supplies, vendor relationships, technology, and facilities",
+      "Write the store's weekly staff schedule against budgeted labor hours",
+      "Complete payroll and other people-related administrative documentation accurately and on time",
+      "Execute company-driven, operations-focused projects and initiatives locally",
+      "Provide indirect leadership to a delegated subset of store employees, including conflict mediation and guest de-escalation",
+      "Build and strengthen community partnerships, working both as part of a team and independently"
+    ],
+    "statedVsRealGaps": [
+      "Tagged roleFamily 'finance', but the real work is retail store-operations leadership; finance is one strand (delegated, controllable budget) rather than full P&L ownership — 'accountable for delegated aspects of controllable budget and labor hours' explicitly bounds the authority.",
+      "seniorityTarget is 'senior', yet this is an Assistant Manager reporting into a Store Manager with only indirect, delegated people leadership — functionally mid-level store leadership, not a senior/corporate-finance scope. Calibrate leveling accordingly.",
+      "The JD names no specific systems — no payroll platform, scheduling tool, POS, or inventory system is stated — so the entire 'stack' is inferred from responsibilities rather than evidenced; verify actual tools at interview.",
+      "Heavy emphasis on physical and environmental context (variable/overnight shifts, bright lights and loud music, lifting boxes, moving the floor most of a shift) signals the operational reality is floor-bound retail, not a desk-finance role — the day-to-day is logistics and people, not analysis.",
+      "'Manage business enablers including financial profit and loss' reads broader than the bounded 'delegated aspects of controllable budget' later in the JD; the headline overstates the financial authority the role actually holds."
+    ],
+    "trueComplexity": "medium",
+    "riskAreas": [
+      "Cash-handling and payroll accuracy — direct shrink, error, and compliance exposure",
+      "Labor-hour budgeting and scheduling against NYC Fair Workweek / predictive-scheduling rules, amplified across 'multiple locations'",
+      "Accountability-vs-authority mismatch: responsible for outcomes through indirect, delegated reports rather than direct line authority",
+      "Variable, late-night, and overnight scheduling plus physical demands — turnover and burnout risk for both the AM and the team",
+      "Loosely defined seniority and scope ('senior' label on an Assistant Manager) risks over- or under-leveling the hire and mismatched comp expectations"
+    ],
+    "reflection": "Despite the 'finance' tag and 'senior' target, the evidence describes a mid-level retail store-operations leader: the Assistant Manager, Operations owns the unglamorous machinery that keeps a Lululemon store running — schedule, payroll, cash, inventory, vendors, facilities, and local rollout of HQ initiatives — under budget and labor-hour authority delegated by the Store Manager. The financial dimension is real but bounded to controllable budget, not full P&L ownership, so candidates should be screened for hands-on retail operational rigor and people coordination far more than for analytical finance depth. The JD is honest and specific about the responsibilities and the physical/scheduling reality, which is why complexity is genuinely medium (broad span, shallow depth per strand, single-store scope). The main hiring hazards are calibration (don't over-index on 'senior' or 'finance'), compliance discipline around cash, payroll, and NYC predictive-scheduling law, and the structural tension of being accountable for a team you lead only indirectly. No systems are named, so treat the stack as inferred and confirm the actual scheduling/payroll/POS tools during interviews.",
+    "confidence": 0.8,
+    "promptVersion": "need-analysis-v3"
+  },
+  "role": {
+    "title": "Assistant Manager, Operations",
+    "seniority": "medior",
+    "roleFamily": "operations",
+    "mustHaves": [
+      "Retail store-operations management experience, owning the operational business enablers of a store within authority delegated by a Store Manager",
+      "P&L and cost literacy: reads store financials and acts on controllable budget lines, expenses, and labor-hour budgets — not full P&L ownership, but accountable for delegated aspects",
+      "Cash management discipline: cash handling, reconciliation, and adherence to POS/cash-control procedures",
+      "Workforce scheduling: writes a weekly staff schedule against budgeted labor hours, balancing guest coverage with cost",
+      "Payroll processing and accurate, on-time people-related administrative documentation",
+      "Spreadsheet fluency (e.g. Excel) for budget tracking, expense and cash reconciliation, and labor-hour planning",
+      "Inventory, supplies, and vendor-relationship management — keeping store technology and facilities maintained and maximized",
+      "Indirect people leadership: directs a delegated subset of store staff, mediates conflict, and de-escalates guest issues",
+      "Availability for a variable schedule (early mornings, late nights, overnights, weekends, holidays) and an active floor presence for most of a shift, including occasionally moving boxes up to ~50 lbs"
+    ],
+    "niceToHaves": [
+      "Hands-on experience with retail workforce-management/scheduling systems, POS, and inventory platforms (no specific tools named in the JD — verify actual stack at interview)",
+      "Prior experience as part of a store leadership team reporting to a Store Manager",
+      "Track record executing standardized, company-driven operational projects and initiatives at the store level",
+      "Community partnership and local relationship building to strengthen store ties",
+      "Comfort with technical devices and virtual collaboration tools for store technology upkeep and remote meetings"
+    ],
+    "responsibilities": [
+      "Own the financial business enablers of the store — P&L inputs, controllable budget, expenses, and cash — within authority delegated by the Store Manager",
+      "Maintain and maximize inventory, supplies, vendor relationships, technology, and facilities",
+      "Write the store's weekly staff schedule against budgeted labor hours",
+      "Complete payroll and other people-related administrative documentation accurately and on time",
+      "Execute company-driven, operations-focused projects and initiatives locally",
+      "Provide indirect leadership to a delegated subset of store employees, including conflict mediation and guest de-escalation",
+      "Build and strengthen community partnerships, working both as part of a team and independently"
+    ],
+    "languages": [
+      "English"
+    ],
+    "promptVersion": "role-design-v3"
+  },
+  "case": {
+    "title": "Week 32 Store Ops Handover: Schedule, Cash, and the Controllable Budget",
+    "brief": "You are stepping in as Assistant Manager, Operations at a high-volume retail / quick-service store in New York City. The Store Manager has delegated to you the store's controllable budget, the weekly staff schedule, cash reconciliation, and day-to-day vendor and facilities calls — within the limits noted in the handover. The outgoing AM left mid-week, so the packet is real-world messy: partially built, lightly contradictory, and carrying a few 'how we've always done it' habits that may or may not still be allowed. You have about 1.5 hours. We are not testing typing speed or spreadsheet polish — use whatever tools you would normally use, including AI. We are testing the calls you make when the packet doesn't tell you what to do, and whether you can show your reasoning. Work in the role's real terms (dayparts, budgeted labor hours, over/short, predictability premium), not in abstractions. Where a number or a rule is missing or in conflict, make a defensible call, note it, and keep moving — finishing the three work tasks plus the decisions log matters more than perfecting any one of them. The provided materials fit this role directly; no synthetic substitute was needed.",
+    "repoSeed": "A 'Store Ops Packet' of spreadsheets, CSVs, and short documents (no software involved): (1) controllable_budget_wk32.xlsx — period-to-date controllables (labor $, supplies, repairs & maintenance, cash over/short) vs budget; the labor line is already tracking over. (2) labor_model_wk32.csv — sales forecast by day and daypart, budgeted labor hours, and the productivity target (labor hours per $1,000 of forecast sales), where the budgeted hours fall short of policy minimum staffing on the slowest dayparts. (3) team_roster.csv — 9 employees with role, hourly rate, stated availability windows, weekly max hours, a minor (under-18) flag on one, and tenure. (4) schedule_draft_wk32.xlsx — a half-built weekly schedule: some shifts placed, open gaps at open and close, and one Friday-close / Saturday-open pairing already entered. (5) cash_recon_wk31.xlsx — last week's daily cash with opening float, POS cash sales, paid-outs, deposits, counted drawer, and a variance column; one day shows a shortage, and the variance formula does not reference every cash component. (6) punches_wk31.csv — last week's time punches with a missed clock-out and one employee crossing 40 hours. (7) vendor_invoice_dairyco_0712.pdf plus vendor_rate_sheet.xlsx — a delivery invoice priced above the contracted rate on two lines. (8) store_notes.md — the outgoing AM's handover notes, including delegated-authority limits (e.g., a per-invoice approval cap) and several 'how we've always done it' scheduling habits. (9) initiative_onepager.pdf — a company-driven loyalty-signage rollout to be executed at store level this period.",
+    "tasks": [
+      "Rebuild the Week 32 weekly schedule in schedule_draft_wk32.xlsx: cover every required daypart at safe staffing, stay within the budgeted labor hours in labor_model_wk32.csv (or justify and quantify any overage), and honor every constraint in team_roster.csv — availability, weekly max, the minor's hour/time limits, and overtime. Apply NYC Fair Workweek expectations (advance notice, no clopening without written consent plus the predictability premium, schedule predictability). Mark any shift that needs a written exception or a premium and say why.",
+      "Reconcile the Week 31 cash in cash_recon_wk31.xlsx: trace the flagged shortage to its source, correct the reconciliation so the math reflects every cash component (opening float, cash sales, paid-outs, deposits, counted drawer), and recommend one cash-handling control. State clearly whether the day is genuinely short or only short on paper.",
+      "Act on the money leaks: diagnose why the labor (or another controllable) line in controllable_budget_wk32.xlsx is over budget and choose one corrective lever you can pull this week; and resolve the vendor_invoice_dairyco_0712.pdf discrepancy against vendor_rate_sheet.xlsx. Keep both actions inside the delegated-authority limits in store_notes.md, or escalate explicitly when you exceed them.",
+      "Keep a short DECISIONS log (a simple list is fine) alongside your work: for each call you made where the packet was open, conflicting, or silent, note what you chose, the main alternative you set aside, and the one question you would put to the Store Manager or the affected shift lead. Treat it as how you would hand the week off cleanly."
+    ],
+    "coverProbes": [
+      {
+        "id": "p1-labor-budget-vs-coverage",
+        "kind": "underspecified",
+        "where": "Task 1 — labor_model_wk32.csv budgeted hours vs the coverage required to staff open/close and peak dayparts safely.",
+        "reveals": "A good candidate notices the budgeted hours cannot simultaneously cover all dayparts at safe staffing, names the trade-off explicitly, picks a side with a dollar/coverage rationale, and flags it as a question for the Store Manager. A naive one-shot schedule silently either blows the labor budget or understaffs a cash-handling shift without acknowledging the conflict exists.",
+        "decisionSpace": [
+          "Hold the labor budget: trim hours from the slowest dayparts and document the service/coverage risk you are accepting.",
+          "Protect minimum safe staffing (especially open/close cash) and request a budget exception with the quantified dollar impact.",
+          "Reforecast within budget: move hours from low-traffic to peak dayparts to stay at budget while keeping safe coverage, accepting weaker midday service."
+        ]
+      },
+      {
+        "id": "p2-clopening-legacy-habit",
+        "kind": "legacy_trap",
+        "where": "Task 1 — the Friday-close / Saturday-open pairing already in schedule_draft_wk32.xlsx, explained by a 'she likes the hours' habit in store_notes.md.",
+        "reveals": "A good candidate reads the existing draft and handover notes before regenerating, recognizes the entered pairing is a clopening that triggers Fair Workweek rest/consent/premium rules, and handles it deliberately. A naive regeneration either silently carries the clopening forward as 'how it's done' or silently strips it, in both cases without surfacing the compliance choice or the employee preference behind it.",
+        "decisionSpace": [
+          "Keep the clopening but secure written consent and pay the predictability premium, honoring the employee's stated preference.",
+          "Re-sequence the week to eliminate the clopening, accepting it may reduce that employee's hours or break a liked pattern.",
+          "Leave it for this week to avoid disruption but log the exposure and flag it for correction next schedule cycle."
+        ]
+      },
+      {
+        "id": "p3-cash-reconciliation-formula",
+        "kind": "verification_trap",
+        "where": "Task 2 — the variance column in cash_recon_wk31.xlsx that omits the opening float and/or paid-outs, making a balanced day read as a shortage.",
+        "reveals": "A good candidate reconstructs the cash identity (opening float + cash sales − paid-outs − deposits = expected drawer) component by component, finds that the flagged shortage is an artifact of the incomplete formula, fixes the template, and isolates any day that is genuinely unexplained. A naive check ('does it total / does it look reconciled?') accepts the on-paper shortage as real and reaches the wrong control conclusion.",
+        "decisionSpace": [
+          "Treat the on-paper shortage as real shrink and move to coach or escalate on the cashier.",
+          "Correct the reconciliation logic to include float and paid-outs, show the day actually balances, and fix the template for future weeks.",
+          "Do both: repair the formula, but still ring-fence the one genuinely unexplained day for a targeted cash-handling review."
+        ]
+      },
+      {
+        "id": "p4-delegated-authority-scope",
+        "kind": "ambiguity",
+        "where": "Task 3 — the vendor invoice overage and the corrective budget lever, measured against the per-invoice approval cap and delegated limits in store_notes.md.",
+        "reveals": "A good candidate checks the delegated-authority limits before acting, sizes the variance against the approval cap, and either acts within authority or escalates explicitly — distinguishing what they own from what the Store Manager owns. A naive response assumes unbounded authority and unilaterally short-pays, cuts a shift, or pays in full without reference to the stated limits.",
+        "decisionSpace": [
+          "Short-pay the invoice to the contracted rate and notify the vendor and Store Manager, asserting delegated authority and accepting vendor friction.",
+          "Pay in full this cycle to preserve the relationship and dispute the difference as a credit next cycle, carrying the overspend short-term.",
+          "Hold payment and escalate to the Store Manager because the variance exceeds the per-invoice approval cap, trading speed for staying inside authority."
+        ]
+      }
+    ],
+    "timeboxHours": 1.5,
+    "rubricDimensions": [
+      {
+        "name": "framing",
+        "label": "Problem framing",
+        "weight": 0.2,
+        "description": "Turns an ambiguous need into a sound plan."
+      },
+      {
+        "name": "tooling",
+        "label": "Tooling fluency",
+        "weight": 0.25,
+        "description": "Drives AI and other tools well; iterates and verifies."
+      },
+      {
+        "name": "judgment",
+        "label": "Judgment",
+        "weight": 0.25,
+        "description": "Catches AI/tooling mistakes; validates; pushes back."
+      },
+      {
+        "name": "architecture",
+        "label": "Architecture",
+        "weight": 0.15,
+        "description": "Structure and trade-offs that fit the real materials and constraints."
+      },
+      {
+        "name": "transfer",
+        "label": "Transfer",
+        "weight": 0.15,
+        "description": "Capability transfers to THIS role's tools and responsibilities."
+      }
+    ],
+    "promptVersion": "case-design-v5"
+  },
+  "source": "llm",
+  "issues": [],
+  "fallbackReason": {},
+  "promptVersions": {
+    "analyze": "need-analysis-v3",
+    "role": "role-design-v3",
+    "case": "case-design-v5"
+  }
+}

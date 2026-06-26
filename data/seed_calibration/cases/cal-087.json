@@ -1,0 +1,182 @@
+{
+  "job": {
+    "id": "cal-087",
+    "title": "Data Entry - Work from Home - International Applicants Accepted",
+    "company": "Rubber-Cal",
+    "role_family": "administration",
+    "seniority": "junior",
+    "source": "hf:jacob-hugging-face/job-descriptions"
+  },
+  "analysis": {
+    "realStack": [
+      "NetSuite (CRM/ERP) — order, customer, and inventory record entry",
+      "Online storefront back-ends / e-commerce admin panels (multiple)",
+      "Microsoft Excel (intermediate–advanced; daily calculations)",
+      "Phone / front-desk customer communication systems",
+      "Product catalog & technical product-spec data (rubber flooring, mats, ducting, gaskets, specialty parts)",
+      "Sample-request and will-call (in-person pickup) order workflows"
+    ],
+    "coreResponsibilities": [
+      "Enter and maintain data across NetSuite and several storefront back-ends",
+      "Process and track customer sample requests end to end",
+      "Serve will-call clients (in-person order pickup / fulfillment)",
+      "Answer phones and handle general front-office / customer-support tasks",
+      "Apply mathematical calculations daily (likely pricing, quantities, measurements, freight)",
+      "Learn and accurately reference a large body of technical product data",
+      "Juggle many concurrent tasks with accuracy, efficiency, and urgency"
+    ],
+    "statedVsRealGaps": [
+      "Title says 'Work from Home — International Applicants Accepted,' but the duties (answering phones, serving will-call/in-person pickup clients) are on-site, customer-facing front-office work — the remote/international framing contradicts the actual job.",
+      "Framed as 'Data Entry,' but the real scope is a broad office-support generalist: data entry is only one of several duties alongside phones, sample requests, and walk-in service.",
+      "Experience and education bars are unfilled template placeholders ('at least  years experience,' 'some college coursework') — the actual minimums are unstated.",
+      "'Strong mathematical skills … used daily' is asserted but never defined; the math is almost certainly basic commercial arithmetic (pricing, unit conversions, measurements), not advanced.",
+      "NetSuite and 'various storefront back-ends' are named, but no proficiency level or specific modules are specified — 'intermediate to advanced Excel' is only 'preferable,' not required.",
+      "No compensation, schedule, or location detail despite the remote claim — material omissions for a junior applicant."
+    ],
+    "trueComplexity": "medium",
+    "riskAreas": [
+      "Misleading remote/international title likely to attract a mismatched applicant pool and create churn once on-site/will-call duties surface",
+      "Role-creep: a 'data entry' hire expected to also run phones, walk-ins, and multi-system order entry — under-leveled and under-scoped on paper",
+      "Accuracy risk: entering the same orders across NetSuite + multiple storefront back-ends invites duplication and reconciliation errors without a clear system of record",
+      "Templated, generic JD (blank experience/education, no comp) signals low hiring rigor and weak candidate-fit screening",
+      "Heavy reliance on quickly absorbing 'a large amount of technical product data' with no described training path"
+    ],
+    "reflection": "This is a junior office-support / front-office role dressed as remote 'data entry.' Reflected against what the work actually is, the core is multi-system order and record-keeping in NetSuite plus several e-commerce back-ends, fronted by live customer contact (phones, sample requests, in-person will-call). The single sharpest divergence is the title: 'Work from Home — International Applicants Accepted' cannot coexist with serving will-call clients and answering phones, which are inherently on-site and local — a candidate hired on the remote promise will be mismatched. Complexity is genuinely medium, not low: the breadth of systems and the volume of technical product data raise it above pure keying, but none of the individual tasks are advanced, and the 'strong mathematical skills' claim almost certainly means everyday commercial arithmetic. The JD is also a partly-unfinished template (blank experience/education, no pay), which limits how precisely the need can be judged and signals modest hiring rigor.",
+    "confidence": 0.62,
+    "promptVersion": "need-analysis-v3"
+  },
+  "role": {
+    "title": "Data Entry & Office Support Specialist",
+    "seniority": "junior",
+    "roleFamily": "administration",
+    "mustHaves": [
+      "Meticulous data-entry accuracy and attention to detail when maintaining records across multiple systems",
+      "Comfort entering and updating customer, order, and inventory records in a CRM/ERP system (NetSuite or a comparable platform)",
+      "Intermediate Microsoft Excel — formulas, lookups, and basic data manipulation for daily calculations",
+      "Sound everyday commercial arithmetic: pricing, quantities, unit conversions, and measurements applied accurately and daily",
+      "Clear written and oral communication for answering phones and serving customers directly",
+      "Strong organization and the ability to keep many concurrent tasks moving with efficiency and a sense of urgency",
+      "Ability to learn and reliably apply a large body of technical product information"
+    ],
+    "niceToHaves": [
+      "Hands-on NetSuite experience",
+      "Experience administering e-commerce storefront back-ends or online order-management panels",
+      "Advanced Microsoft Excel",
+      "Prior experience in industrial distribution, manufacturing, or B2B product supply",
+      "At least some prior professional office-environment experience",
+      "Some college coursework"
+    ],
+    "responsibilities": [
+      "Enter and maintain accurate data across NetSuite and several online storefront back-ends",
+      "Process and track customer sample requests from intake through fulfillment",
+      "Serve will-call clients with in-person order pickup and fulfillment",
+      "Answer phones and handle general front-office and customer-support tasks",
+      "Apply daily mathematical calculations for pricing, quantities, measurements, and related figures",
+      "Learn, reference, and correctly apply detailed technical product data (rubber flooring, mats, ducting, gaskets, and specialty parts)",
+      "Juggle multiple concurrent projects and tasks while maintaining accuracy and meeting deadlines"
+    ],
+    "languages": [
+      "English"
+    ],
+    "promptVersion": "role-design-v3"
+  },
+  "case": {
+    "title": "Monday Intake: Order Entry, Pricing, and Will-Call Across NetSuite and the Storefronts",
+    "brief": "It is Monday, 8:00 AM. Over the weekend, orders and sample requests came in through the front-desk phone line, two online storefront back-ends, and a couple of customer emails — and a will-call customer is arriving at 9:00 to pick up an order. You are the Office Support Specialist who has to get all of it entered accurately, priced correctly, and the front-desk edge cases cleared before the day fills up. This is a data-entry / office-support exercise, and the provided systems (NetSuite, the storefront panels, Excel, the product-spec catalog, and the sample-request / will-call workflows) are exactly the materials this role acts on, so no change of domain is needed — you do the role's real work directly on them. Because we cannot hand you the live NetSuite and storefront logins, you work in synthetic stand-in exports that mirror them one-to-one; treat them as the real systems. We care far more about accuracy and judgment than speed. Note up front: which system is the 'source of truth' when the inbox, NetSuite, and a storefront disagree is deliberately not fully spelled out — that ambiguity is part of the job, not a mistake in the materials. As you work, keep a short running decisions log (normal practice here) so a teammate could pick up where you left off. Budget about one hour; if you cannot finish a line cleanly, it is better to flag it than to guess silently.",
+    "repoSeed": "A small 'Monday intake' packet representative of a real morning at the order desk: (1) intake_inbox.md — six incoming items captured as raw phone notes, two storefront order printouts, and two customer emails (e.g., '60 ft of the 1/4\" rolled rubber, black, for Bridgeport Athletic Club'; 'send a sample of the heavy-duty drainage matting'; a 120 linear-ft ducting order; a re-order of gaskets). (2) netsuite_orders_export.xlsx — the current NetSuite system-of-record tab with existing customer + order rows, including 'Bridgeport Athletic Club' already on file with an older shipping address, and a Friday-dated gasket sample request (SO-10472) that overlaps one inbox item. (3) storefront_exports/ — two e-commerce admin CSVs (a Shopify-style panel and a marketplace-style panel) whose rows partly duplicate the inbox and NetSuite but carry a newer address for Bridgeport and a SKU that was renamed in one channel but not the other. (4) product_specs.xlsx — catalog of rubber flooring, mats, ducting, gaskets, and specialty parts with SKU, Unit of Measure (sq ft / linear ft / each), roll width (rubber sold in 4-ft-wide rolls, priced per sq ft), base price, and quantity-break price tiers (e.g., ducting $6.50/ft, $5.75/ft at 100+ ft). (5) pricing_calculator.xlsx — an Excel sheet with the price columns wired up but the line-total formula column left half-built. (6) will_call_log.xlsx — today's pickups, including SO-10487 (4 gaskets ordered, inventory shows 3 on hand, storefront still marks it 'unfulfilled / to ship'). (7) desk_SOP.md — a one-page workflow note that describes intake → entry → pricing → fulfillment but is silent on sample sizing and on which system wins a conflict.",
+    "tasks": [
+      "Enter the six intake items into the netsuite_orders_export system-of-record tab as clean order/customer rows, pulling the correct SKU, description, and unit of measure for each line from product_specs.xlsx. Before creating any row, check whether the customer or order already exists in NetSuite or the storefront exports — do not blindly create new records.",
+      "Complete the line-total formula column in pricing_calculator.xlsx for every entered line, using the per-unit prices, the catalog unit of measure, and any quantity-break tiers. Make sure each line is priced on the right basis (for example, rubber flooring is priced per square foot but ordered in linear feet of a 4-ft-wide roll), and apply volume breaks where the quantity earns one.",
+      "Resolve the two front-desk edge cases: (a) the 'heavy-duty drainage matting' sample request, which arrives with no size or quantity and no sample-sizing rule in the SOP; and (b) the 9:00 will-call pickup of SO-10487, where 4 gaskets were ordered, only 3 are on hand, and the storefront still shows the order as unfulfilled. Decide what you would fulfill, hold, or record for each, and reflect it in the appropriate sheet.",
+      "Keep a short DECISIONS log (a simple list is fine) capturing every call you had to make where the materials were open-ended — e.g., which system you treated as the source of truth on a conflict, how you read an ambiguous quantity or unit, how you sized the sample, and how you handled the will-call shortfall. For each, note what you chose, the alternative you rejected, and the one question you would ask the team to confirm."
+    ],
+    "coverProbes": [
+      {
+        "id": "p1-sample-sizing",
+        "kind": "underspecified",
+        "where": "Task 3(a) — the 'heavy-duty drainage matting' sample request in intake_inbox.md; no sample-size policy exists in desk_SOP.md.",
+        "reveals": "A naive candidate invents a size and fulfills it as if it were specified, leaving no trace of the assumption. A strong candidate notices the policy gap, picks a defensible default, documents it, and surfaces it as something to confirm rather than guessing silently.",
+        "decisionSpace": [
+          "Ship a standard swatch (catalog default cut) and document the assumed size — keeps the request moving, but risks sending the wrong size.",
+          "Ship the smallest stocked cut listed in product_specs.xlsx — uses real catalog data, but may exceed an unstated free-sample cost threshold.",
+          "Hold and confirm size/quantity with the customer or team before fulfilling — safest for accuracy, at the cost of a delay and an extra touchpoint."
+        ]
+      },
+      {
+        "id": "p2-unit-basis-pricing",
+        "kind": "verification_trap",
+        "where": "Task 2 — the rubber-flooring line (linear feet of a 4-ft-wide roll priced per sq ft) and the 120-ft ducting line with a 100+ ft quantity break, in pricing_calculator.xlsx vs product_specs.xlsx.",
+        "reveals": "One-shot multiplication of the order quantity by the unit price produces a clean, plausible total that passes a shallow 'does the math add up' check but is wrong by the roll-width factor and misses the volume break. A strong candidate reads the Unit of Measure and roll-width columns, converts correctly, and applies the tier.",
+        "decisionSpace": [
+          "Price strictly by the catalog unit of measure — convert linear ft × roll width to sq ft and apply the 100+ ft break — correct, but slower and requires reading the UoM column.",
+          "Take the order's stated number against the per-unit price at face value — fast, but silently wrong wherever the order unit and catalog unit differ.",
+          "Compute the totals but flag the lines where the order unit doesn't match the catalog UoM for a second check — conservative, surfaces the mismatch instead of guessing."
+        ]
+      },
+      {
+        "id": "p3-source-of-truth",
+        "kind": "legacy_trap",
+        "where": "Task 1 — 'Bridgeport Athletic Club' (older address in NetSuite, newer in a storefront export) and the Friday gasket request SO-10472 that overlaps an inbox item; SKU renamed in one channel only.",
+        "reveals": "A naive candidate enters everything fresh from the inbox, creating a duplicate order and a second conflicting customer record. A strong candidate searches existing records first, recognizes the duplicate, and makes a deliberate, documented choice about which system wins the address/SKU conflict.",
+        "decisionSpace": [
+          "Treat the existing NetSuite record as the system of record, skip the duplicate, and only update with explicit confirmation — protects data integrity, but may carry a stale address.",
+          "Take the most recent storefront timestamp as truth and update the record — keeps data fresh, but trusts an unverified channel.",
+          "Enter each inbox item as a brand-new record — fastest, but creates duplicates and reconciliation debt (the trap path)."
+        ]
+      },
+      {
+        "id": "p4-willcall-shortfall",
+        "kind": "ambiguity",
+        "where": "Task 3(b) — will-call pickup SO-10487 in will_call_log.xlsx: 4 gaskets ordered, 3 on hand, storefront still marks it 'unfulfilled / to ship'.",
+        "reveals": "A naive candidate either releases all 4 (ignoring the inventory shortfall) or freezes. A strong candidate serves the walk-in within a clear rule, records the partial/back-order accurately across the systems, and reconciles the 'to ship' channel flag rather than leaving it inconsistent.",
+        "decisionSpace": [
+          "Release the 3 on hand as a partial pickup, back-order the 4th, and record both — serves the customer now, but requires accurate partial/back-order entry and a channel-status correction.",
+          "Hold the entire order until all 4 are available — guarantees a complete, clean fulfillment, but sends the customer away empty-handed.",
+          "Verify the 4th unit physically or in another bin/location before deciding — most accurate, but costs counter time while the customer waits."
+        ]
+      }
+    ],
+    "timeboxHours": 1.0,
+    "rubricDimensions": [
+      {
+        "name": "framing",
+        "label": "Problem framing",
+        "weight": 0.2,
+        "description": "Turns an ambiguous need into a sound plan."
+      },
+      {
+        "name": "tooling",
+        "label": "Tooling fluency",
+        "weight": 0.25,
+        "description": "Drives AI and other tools well; iterates and verifies."
+      },
+      {
+        "name": "judgment",
+        "label": "Judgment",
+        "weight": 0.25,
+        "description": "Catches AI/tooling mistakes; validates; pushes back."
+      },
+      {
+        "name": "architecture",
+        "label": "Architecture",
+        "weight": 0.15,
+        "description": "Structure and trade-offs that fit the real materials and constraints."
+      },
+      {
+        "name": "transfer",
+        "label": "Transfer",
+        "weight": 0.15,
+        "description": "Capability transfers to THIS role's tools and responsibilities."
+      }
+    ],
+    "promptVersion": "case-design-v5"
+  },
+  "source": "llm",
+  "issues": [],
+  "fallbackReason": {},
+  "promptVersions": {
+    "analyze": "need-analysis-v3",
+    "role": "role-design-v3",
+    "case": "case-design-v5"
+  }
+}

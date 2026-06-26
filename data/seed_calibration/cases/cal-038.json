@@ -1,0 +1,190 @@
+{
+  "job": {
+    "id": "cal-038",
+    "title": "Animation Programmer",
+    "company": "Brass Lion Entertainment",
+    "role_family": "software_engineering",
+    "seniority": "medior",
+    "source": "hf:jacob-hugging-face/job-descriptions"
+  },
+  "analysis": {
+    "realStack": [
+      "Unreal Engine (Animation Blueprint / AnimGraph, gameplay framework)",
+      "Modern C++ (the JD's 'modern c' is C++; core animation and gameplay code)",
+      "Animation state machines / state graphs (own and architect the anim state graph)",
+      "Gameplay programming systems (melee combat, player and enemy mechanics)",
+      "DCC tools and DCC→Unreal animation pipelines (Maya/MotionBuilder-class tools; support tech animator)",
+      "Animation runtime concepts: blending, retargeting, root motion, IK, montages/state transitions",
+      "Performance & stability profiling for animation/gameplay runtime",
+      "Source control and collaborative game-dev workflow (implied for a shipped-AAA team)"
+    ],
+    "coreResponsibilities": [
+      "Develop animation logic for gameplay and combat features in Unreal Engine",
+      "Own and architect the animation state graph",
+      "Write core animation code tailored to the game's anime-style visual direction",
+      "Build/support tools that optimize DCC→Unreal workflows for the technical animator",
+      "Act as the bridge between animators/animation content creators and gameplay developers",
+      "Maintain animation and gameplay stability and performance with the respective teams",
+      "Participate in defining game design and game-specific technical decisions"
+    ],
+    "statedVsRealGaps": [
+      "The required years of experience is blank ('or more years of video game programming experience') — the seniority bar is unstated in the JD even though the responsibilities (owning the state graph, architecting core systems, guiding the team) read as senior/lead, not the 'medior' target supplied with the need.",
+      "'strong modern c skills' is a typo for C++; the real bar is strong modern C++, which is a materially higher bar than generic C and is the single most important hard filter.",
+      "Unreal Engine is listed only under 'bonus points,' yet every responsibility is Unreal-specific (own the Unreal state graph, DCC→Unreal tooling). In practice Unreal is a core requirement, not a nice-to-have — the JD understates it.",
+      "'anime style animations' implies non-standard, stylized runtime requirements (e.g. stepped/on-2s timing, exaggerated poses, snappy transitions) that demand custom animation code — more specialized than the generic 'animation programming' framing suggests.",
+      "No codebase or sample project was supplied, so none of the stated needs can be reflected against real evidence — this analysis is grounded only in the JD, not in the actual body of work the role would act on.",
+      "Hard constraint easily missed in screening: located and authorized to work in the US or Canada — a remote-colocated team model, not globally remote."
+    ],
+    "trueComplexity": "high",
+    "riskAreas": [
+      "Bridge/interface role: success depends as much on cross-discipline collaboration (animators ↔ gameplay programmers) as on raw coding — a strong-coder-only hire who can't communicate with content creators will underperform.",
+      "Combat/animation runtime is among the highest-difficulty, highest-iteration areas of a game; melee feel, frame timing, and responsiveness are notoriously hard and unforgiving.",
+      "Anime-style stylization adds bespoke requirements that few candidates will have shipped before — prior generic Unreal anim experience may not transfer cleanly.",
+      "Unannounced action-RPG with no shipped title yet means evolving requirements and architectural churn; 'own the state graph' is a long-horizon ownership ask under uncertainty.",
+      "Talent scarcity: senior Unreal animation programmers with shipped-AAA combat experience, restricted to US/Canada work authorization, are a thin hiring pool.",
+      "The blank experience requirement and Unreal-as-bonus framing risk attracting under-qualified applicants and mis-calibrating the screen."
+    ],
+    "reflection": "This is a genuine, high-complexity senior gameplay/animation engineering role, not a medior one. The real center of gravity is modern C++ inside Unreal Engine, owning the animation state graph and writing bespoke combat/animation runtime code for an anime-styled action RPG — a domain where 'feel,' timing, and performance are exceptionally hard to get right. The JD's own framing slightly undersells this: Unreal is parked in 'bonus points' while every duty is Unreal-specific, the C++ requirement is masked by a 'modern c' typo, and the years-of-experience figure is missing — yet the responsibilities (architect, own, guide technical decisions) clearly describe a senior IC who serves as the bridge between animators and programmers. The role's true differentiator is interdisciplinary: equal parts engine programmer and pipeline/tooling partner to animators, with explicit input into game design. Because no codebase or work artifact was supplied, every assessment here is reflected only against the job description itself, not against real evidence of the system the hire would build on; the gap between 'stated' and 'real' therefore cannot be verified, only inferred. Practical screening priorities: demonstrable Unreal AnimGraph/state-machine architecture, shipped combat or character mechanics, comfort with DCC→Unreal pipelines, and US/Canada work authorization.",
+    "confidence": 0.62,
+    "promptVersion": "need-analysis-v3"
+  },
+  "role": {
+    "title": "Animation Programmer",
+    "seniority": "medior",
+    "roleFamily": "software_engineering",
+    "mustHaves": [
+      "Strong modern C++ (the JD's 'modern c' is C++; this is the single hardest filter — core animation and gameplay systems are written here)",
+      "Animation programming: runtime animation logic for gameplay and combat features",
+      "Animation state machines / state graphs — able to own, architect and reason about transition logic",
+      "Unreal Engine animation and gameplay framework (AnimGraph / Animation Blueprint, gameplay systems) — listed as 'bonus' in the JD but is in practice core, since every responsibility is Unreal-specific",
+      "Gameplay programming for player and enemy mechanics (e.g. melee combat)",
+      "Working understanding of game design to make game-specific technical decisions",
+      "2+ years of shipped video-game programming experience (JD's experience figure is blank; calibrated to the medior target)",
+      "Ability to collaborate across disciplines — act as the bridge between animators/content creators and gameplay developers",
+      "Located in and authorized to work in the US or Canada (hard constraint; remote-colocated model, not globally remote)"
+    ],
+    "niceToHaves": [
+      "Direct Unreal Engine production experience (AnimGraph, montages, notifies, animation blueprint architecture)",
+      "Hands-on work owning an animation state machine in a shipped title",
+      "Animation runtime fundamentals: blending, retargeting, root motion, IK, layered/additive animation",
+      "DCC→Unreal pipeline tooling — building tools that optimize Maya/MotionBuilder-class workflows for technical animators",
+      "Experience with stylized / anime-style animation requirements (stepped 'on-2s' timing, snappy transitions, exaggerated poses requiring custom runtime code)",
+      "Animation/gameplay performance and stability profiling and optimization",
+      "At least one shipped AAA game",
+      "Bachelor's degree in Computer Science or equivalent"
+    ],
+    "responsibilities": [
+      "Develop animation logic for gameplay and combat features in Unreal Engine",
+      "Own and help architect the animation state graph",
+      "Write core animation code tailored to the game's anime-style visual direction",
+      "Build and support tools that streamline DCC→Unreal workflows for the technical animator",
+      "Serve as the bridge between animation content creators and gameplay developers, aligning on implementation",
+      "Maintain animation and gameplay stability and performance together with the animation and gameplay teams",
+      "Contribute to defining game design and game-specific technical decisions"
+    ],
+    "languages": [
+      "C++",
+      "Python"
+    ],
+    "promptVersion": "role-design-v3"
+  },
+  "case": {
+    "title": "Animation Programmer Work-Sample — Melee Combo & Anim State Graph for an Anime-Style Action-RPG (Unreal Engine 5 / C++)",
+    "brief": "You're joining the animation/gameplay seam on \"Project Kagura\", an unannounced anime-style action-RPG in Unreal Engine 5. We've handed you a stripped slice of the real animation runtime — an AnimInstance, the locomotion AnimGraph, a melee combo component, the character, a DCC import script, and the animation notes that the technical animator and gameplay programmers actually work from. This role is the bridge between the people who author motion and the people who code feel, so we care more about your judgment, your reading of what already exists, and how you'd collaborate than about how much code you produce.\n\nYou will NOT be able to fully build or play the project in this budget, and we don't expect you to. Reason from the provided slice; deliver code as focused snippets/diffs plus short written reasoning for anything you can't compile. We assume you'll use an LLM/Copilot to write the code — that's fine and expected. Because of that, the parts we read most closely are the calls you made where the brief is silent or where the existing code does something surprising. Several requirements here are deliberately open; treat clarifying, reading before changing, and naming your assumptions as the job, not as a trick. Hard cap ~1.5h — pick depth over coverage, and if you run short, leave a note on what you'd do next rather than rushing a wrong answer. Throughout, keep the DECISIONS log described in the last task.",
+    "repoSeed": "A trimmed UE5 C++ project slice (`Project Kagura`) containing only the animation/combat seam, plus the team's working notes:\n\n- `Source/Kagura/Animation/StylizedAnimInstance.h/.cpp` — `UStylizedAnimInstance : public UAnimInstance`. In `NativeUpdateAnimation` it computes `Speed`, `Direction`, `bIsFalling`, `bIsAttacking`, and exposes an `AttackSlot`. Contains `UpdateBlendStepping()` with the comment `// Quantize the upper-body pose to ~2-frame holds. Art-directed 'on-twos' anime look. Do NOT smooth — see ANIM_NOTES.md` and a `PoseHoldFrames = 2` constant.\n- `Content/Animation/ABP_Kagura` (described, not binary): a `Locomotion` state machine (`Idle → Walk → Run → JumpStart → Fall → Land`) feeding a `DefaultSlot` that layers montages over locomotion via a `Layered blend per bone` rooted at `spine_01`.\n- `Source/Kagura/Combat/MeleeComboComponent.h/.cpp` — `UMeleeComboComponent : public UActorComponent`. Has `TArray<TObjectPtr<UAnimMontage>> ComboMontages` (3 hits authored as montage sections `Atk1/Atk2/Atk3`), a stubbed `PlayNextAttack()`, an `int32 InputBufferFrames = 8;` field, a `bComboQueued` flag set on input, and `// TODO: cancel windows + buffering` / `// TODO: drive from input` markers.\n- `Source/Kagura/Characters/KaguraCharacter.h/.cpp` — `AKaguraCharacter`. Wires up `MeleeComboComponent`, sets `bUseControllerRotationYaw=false` / `bOrientRotationToMovement=true`, and has a `LungeForward()` that calls `AddMovementInput(GetActorForwardVector(), LungeScale)` while an attack montage plays. The combo montages were exported with `EnableRootMotion = true`.\n- `Tools/import_anims.py` — an Unreal Editor Python stub that imports FBX from `Art/Exports/` into `Content/Animation/`. Has `# TODO: enforce naming + notifies/sockets before this is safe for the tech animator to run unattended`.\n- `ANIM_NOTES.md` — art-direction notes (snappy, low-blend hits; deliberate stepped/on-twos holds; \"hits should read on the first active frame\") AND a QA/review line: \"Animators say the new run→idle stop feels janky/poppy — can we smooth the blends?\"",
+    "tasks": [
+      "Architecture — propose how the grounded 3-hit melee combo (and a basic air attack) integrate with the existing `Locomotion` state machine in `ABP_Kagura` / `UStylizedAnimInstance`. Deliver a short diagram (text or image) of states, transitions, and their conditions, and state explicitly what lives in the AnimGraph (slots/layered blend/state machine) vs in C++ (`UMeleeComboComponent`) vs authored content (montage sections/notifies). Call out where ownership sits so the tech animator and gameplay programmers each know what they touch.",
+      "Implement — flesh out `UMeleeComboComponent::PlayNextAttack()` and input handling so the 3-hit combo chains via the `Atk1/Atk2/Atk3` montage sections with input buffering and a cancel window, and so the lunge motion on each hit is correct. Wire it to `AKaguraCharacter`. Write real C++ for the core logic; pseudocode is acceptable only for glue you can't compile here.",
+      "Read & respond — `ANIM_NOTES.md` carries a QA request to 'smooth the blends' on the run→idle stop, but `UStylizedAnimInstance::UpdateBlendStepping()` is explicitly art-directed. Investigate what's actually happening and decide what you'd do. Deliver the change (or the deliberate non-change) plus a 3-5 line note you'd send back to QA and the animation director.",
+      "Tech-animator contract + DECISIONS log — sketch (don't fully build) what `Tools/import_anims.py` should guarantee so the technical animator can run it unattended: what it validates, what (if anything) it auto-fixes, what it rejects, and the naming/notify/socket conventions it depends on. Then, as normal engineering hygiene, maintain a short DECISIONS.md: for every point where the brief was open (buffer/cancel timing, root motion, the blend question, the import contract), record what you chose, the alternative you rejected and why, and the one question you'd actually ask the animators or gameplay leads."
+    ],
+    "coverProbes": [
+      {
+        "id": "combo-window-authoring",
+        "kind": "ambiguity",
+        "where": "Task 2 — `UMeleeComboComponent`: where combo input-buffer and cancel-window timing is defined and who owns it.",
+        "reveals": "A naive submission hardcodes a single buffer/cancel duration in C++ and never asks who tunes combat feel. A strong one recognizes that 'feel' is iterated constantly by animators/designers, picks a mechanism that lets non-programmers tune it, and says so — engaging the bridge nature of the role rather than locking timing in code.",
+        "decisionSpace": [
+          "AnimNotifyState windows authored on each montage (e.g. a 'ComboWindow' notify state marking when input buffers/cancels) — maximally tunable by content creators and self-documenting in the montage, but depends on animator authoring discipline and tool support.",
+          "A float curve on the montage (e.g. a `CanCancel` curve evaluated at runtime) — per-frame granularity and cheap to sample, but curves are fiddlier to author and review than notify blocks.",
+          "Designer-exposed UPROPERTY timing windows per attack in C++/data asset — fastest to ship and centrally controlled by the programmer, but bakes feel away from the people who iterate on it most."
+        ]
+      },
+      {
+        "id": "stepped-blend-legacy",
+        "kind": "legacy_trap",
+        "where": "Task 3 — `UStylizedAnimInstance::UpdateBlendStepping()` and the 'smooth the blends' QA note vs the on-twos art direction.",
+        "reveals": "A naive one-shot 'fix' reads the QA ticket literally and increases blend times / removes the stepping, silently destroying the art-directed anime look. A strong response reads the comment and ANIM_NOTES first, separates the real defect (one bad run→idle transition) from the intentional global stepping, and loops in the animation director before changing art-directed behavior.",
+        "decisionSpace": [
+          "Leave the global stepping intact and fix only the run→idle stop as a localized transition issue (dedicated stop pose / tuned that one transition) — respects the art direction, narrowest blast radius, but doesn't 'feel done' against the literal ticket.",
+          "Scope the stepping so it applies to held poses but is bypassed during fast transitions, after confirming with the animation director — addresses the jank while preserving intent, but is more work and needs sign-off.",
+          "Smooth the blends as QA literally asked — closes the ticket fastest and pleases the reporter, but overrides a deliberate stylization choice; only defensible if the candidate flags that it contradicts ANIM_NOTES and seeks confirmation."
+        ]
+      },
+      {
+        "id": "root-motion-and-framerate",
+        "kind": "verification_trap",
+        "where": "Task 2 — lunge motion (`AKaguraCharacter::LungeForward()` + root-motion-enabled combo montages) and `InputBufferFrames` correctness.",
+        "reveals": "A naive implementation plays the root-motion montage AND keeps `AddMovementInput` (double-applied translation) and buffers by frame count — it looks right in a quick 60fps PIE eyeball but over-travels and breaks on slopes, at low/variable framerate, and under network. A strong one picks a single source of motion, removes the double-apply, converts `InputBufferFrames` to a delta-time window, and states how they'd verify (low-fps, slope, and replication, not just one happy-path play).",
+        "decisionSpace": [
+          "Montage root motion as the single source for the lunge; delete the code-driven `LungeForward()` — animator-authored feel and replicates cleanly, but constrains designers to baked travel distances.",
+          "Code-driven movement with root motion disabled/stripped on the attack montages — distance stays designer-tunable, but loses authored nuance and risks the visual desyncing from the capsule.",
+          "Hybrid: root motion drives translation while code only adds steering/targeting (e.g. curve toward a locked-on enemy), explicitly scaled so translation isn't applied twice — best feel, most complex, easiest to get subtly wrong."
+        ]
+      },
+      {
+        "id": "import-tool-contract",
+        "kind": "underspecified",
+        "where": "Task 4 — what `Tools/import_anims.py` must guarantee for the technical animator to run it unattended.",
+        "reveals": "A naive answer just 'imports the FBX'. A strong one treats this as a contract between disciplines: it defines what counts as a valid export (naming, root bone, frame rate, required notifies/sockets), decides whether the tool validates vs auto-fixes vs rejects, and weighs how much 'magic' is safe to hide from animators who also hand-author.",
+        "decisionSpace": [
+          "Validation-only gate that lints names / required notifies / sockets / frame rate / root bone and rejects bad exports — cheap, non-destructive, keeps authority with animators, but relies on them re-exporting to fix.",
+          "Transform-on-import that auto-renames, adds notify tracks, and sets up retarget/IK — saves animator time, but hides behavior and can silently fight hand-authored intent.",
+          "Lightweight convention doc plus loud in-engine asserts at PIE/cook when conventions are violated — minimal tooling and pushes discipline to process, but gives slower, later feedback than an import-time gate."
+        ]
+      }
+    ],
+    "timeboxHours": 1.5,
+    "rubricDimensions": [
+      {
+        "name": "framing",
+        "label": "Problem framing",
+        "weight": 0.2,
+        "description": "Turns an ambiguous need into a sound plan."
+      },
+      {
+        "name": "tooling",
+        "label": "Tooling fluency",
+        "weight": 0.25,
+        "description": "Drives AI and other tools well; iterates and verifies."
+      },
+      {
+        "name": "judgment",
+        "label": "Judgment",
+        "weight": 0.25,
+        "description": "Catches AI/tooling mistakes; validates; pushes back."
+      },
+      {
+        "name": "architecture",
+        "label": "Architecture",
+        "weight": 0.15,
+        "description": "Structure and trade-offs that fit the real materials and constraints."
+      },
+      {
+        "name": "transfer",
+        "label": "Transfer",
+        "weight": 0.15,
+        "description": "Capability transfers to THIS role's tools and responsibilities."
+      }
+    ],
+    "promptVersion": "case-design-v5"
+  },
+  "source": "llm",
+  "issues": [],
+  "fallbackReason": {},
+  "promptVersions": {
+    "analyze": "need-analysis-v3",
+    "role": "role-design-v3",
+    "case": "case-design-v5"
+  }
+}

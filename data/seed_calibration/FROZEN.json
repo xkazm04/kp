@@ -1,0 +1,9 @@
+{
+  "frozenAt": "2026-06-23T19:33:12.546470Z",
+  "count": 100,
+  "casePromptVersions": [
+    "case-design-v5"
+  ],
+  "passed": true,
+  "note": "Canonical case corpus for Part 2 (candidate simulation + evaluation-prompt hardening)."
+}

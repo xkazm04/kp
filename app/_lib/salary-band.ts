@@ -57,16 +57,6 @@ export function salaryBandPosition(
   return { position: "within", pct: 0 };
 }
 
-/** Human-readable reason a [min, max] band is invalid for authoring, or null if
- *  it's fine. Used by the form to block rendering a corrupted JD. */
-export function salaryBandError(min: number, max: number): string | null {
-  if (!Number.isFinite(min) || !Number.isFinite(max) || min <= 0 || max <= 0) {
-    return "Enter a positive minimum and maximum.";
-  }
-  if (min > max) return "Minimum can't exceed the maximum.";
-  return null;
-}
-
 /** Sanitize an untrusted [min, max] into a usable band: swap a backwards range
  *  and reject non-finite or non-positive values. Returns null when no usable
  *  band can be formed, so callers fall back instead of advertising garbage. */

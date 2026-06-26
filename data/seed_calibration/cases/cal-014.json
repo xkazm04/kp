@@ -1,0 +1,179 @@
+{
+  "job": {
+    "id": "cal-014",
+    "title": "Apple Solutions Consultant",
+    "company": "Apple",
+    "role_family": "consulting",
+    "seniority": "medior",
+    "source": "hf:jacob-hugging-face/job-descriptions"
+  },
+  "analysis": {
+    "realStack": [
+      "Apple product line (iPhone, iPad, Mac, Apple Watch, services) — deep, current product knowledge as the core 'material'",
+      "Partner/third-party retail environment (carrier stores, big-box electronics retailers) where the ASC is embedded",
+      "Visual merchandising standards, planograms, and live demo-device displays",
+      "Partner-team enablement materials: product training, sales talk-tracks, coaching/role-play",
+      "Sell-through and market/mind-share reporting (sales dashboards, store-level performance data)",
+      "Customer-loyalty / experience metrics (NPS-style satisfaction, repeat engagement)",
+      "Presentation and 1:1 consultative-selling skills (small-group demos and individual conversations)",
+      "Relationship/CRM and field-activity tracking tools for managing partner and customer relationships"
+    ],
+    "coreResponsibilities": [
+      "Grow Apple's mind share and market share within assigned partner retail locations",
+      "Build and sustain long-term relationships with customers and with the host store's partner team",
+      "Train, coach, and develop partner-store staff so they can sell and represent Apple products well",
+      "Maintain Apple visual merchandising and demo standards on the sales floor",
+      "Deliver consultative customer experiences — educating people on how Apple products fit their lives — to multiple audiences (groups and individuals)",
+      "Drive results in a dynamic, results-oriented sales environment and develop measurable customer loyalty"
+    ],
+    "statedVsRealGaps": [
+      "The JD is heavy on aspirational/'passion' language and names almost none of the role's real instrumentation — no CRM, sell-through dashboards, merchandising planograms, or training curricula are mentioned, though all are central to the actual work.",
+      "Success metrics are implied, not stated: 'mind and market share' and 'customer loyalty' are named as goals but with no targets, quotas, or attribution method — the real role is measured on sell-through it only partly controls.",
+      "Seniority signal is fuzzy: '[X] years preferred in a dynamic sales environment' plus 'proven success developing customer loyalty' reads entry-to-medior; the medior target is defensible but the JD itself doesn't pin it down.",
+      "The defining structural challenge — influencing and developing a partner team that does NOT report to the ASC (influence without authority, in someone else's store) — is gestured at ('encourage a partner team') but never named as the hard part it is."
+    ],
+    "trueComplexity": "medium",
+    "riskAreas": [
+      "Influence without authority: the ASC must motivate and upskill a partner team they don't manage, inside a store they don't control — outcomes depend on host-store cooperation.",
+      "Hiring signal is soft and self-reported (passion, communication, 'striving for perfection') — easy to over-index on enthusiasm in interview and hard to verify against real sales results pre-hire.",
+      "Field autonomy: travel across partner locations, inconsistent store environments, and limited day-to-day supervision demand strong self-management.",
+      "Attribution risk: 'mind/market share' growth is diffuse and slow to measure, so performance can be hard to fairly assess and reward.",
+      "Brand-representation exposure: the ASC is Apple's face in a third-party setting where they cannot enforce standards, only persuade."
+    ],
+    "reflection": "This is a genuine non-software, field-sales/consulting role, so there is no codebase to reflect against — the evidence is the JD itself, and judged in the role's own terms it describes a real and coherent job: an Apple Solutions Consultant embedded in partner retail to grow share by training partner staff, maintaining merchandising, and consultatively selling to customers one-on-one and in small groups. The need is honestly stated but thin: it leans on motivational, passion-first language and leaves the role's actual toolkit (sell-through reporting, planograms, partner training programs, loyalty metrics) and its concrete success measures unstated. The hardest part of the real work — developing and motivating a partner team you don't manage, in a store you don't own — is present only implicitly. Net complexity is medium: this is relationship-driven influence selling requiring sustained product expertise and coaching ability, not order-taking, but also not deep analytical or technical work. The main hiring risk is that the JD invites assessment on enthusiasm and communication while the role ultimately lives or dies on measurable sell-through and partner-team performance the ASC can shape but not command.",
+    "confidence": 0.62,
+    "promptVersion": "need-analysis-v3"
+  },
+  "role": {
+    "title": "Apple Solutions Consultant",
+    "seniority": "medior",
+    "roleFamily": "consulting",
+    "mustHaves": [
+      "Consultative selling: ability to uncover a person's needs and translate Apple products into how they enrich that person's life, one-to-one and to small groups",
+      "Excellent communication and presentation skills — equally effective presenting to a small group and in individual conversations",
+      "Proven track record in a dynamic, results-driven sales or retail environment, with demonstrated success building customer loyalty",
+      "Influence without authority: coaching, motivating and developing a partner-store team that does NOT report to you, inside the host retailer's own space",
+      "Current, deep product knowledge across the Apple line (iPhone, iPad, Mac, Apple Watch, services) and the discipline to keep it current",
+      "Ownership of in-store execution: maintaining Apple visual merchandising, demo-device and planogram standards on a live sales floor",
+      "Comfort being measured on sell-through, mind-share and market-share outcomes the role influences but does not fully control"
+    ],
+    "niceToHaves": [
+      "Experience embedded in third-party / partner retail (carrier stores, big-box electronics) rather than first-party stores",
+      "Designing and delivering product training, talk-tracks and role-play to enable a partner sales team",
+      "Fluency reading store-level sales dashboards and sell-through reports to target coaching and merchandising effort",
+      "Familiarity with CRM / field-activity tracking and customer-loyalty (NPS-style) metrics",
+      "Prior brand-ambassador or field-marketing experience for a premium consumer brand"
+    ],
+    "responsibilities": [
+      "Grow Apple's mind share and market share within assigned partner retail locations",
+      "Build and sustain long-term relationships with customers and with the host store's partner team",
+      "Train, coach and develop partner-store staff so they can sell and represent Apple products well",
+      "Maintain Apple visual merchandising and demo standards on the sales floor",
+      "Deliver consultative customer experiences — educating people on how Apple products fit their lives — to both groups and individuals",
+      "Drive results in a dynamic, results-oriented sales environment and develop measurable customer loyalty"
+    ],
+    "languages": [
+      "English"
+    ],
+    "promptVersion": "role-design-v3"
+  },
+  "case": {
+    "title": "First Cycle at an Underperforming Apple Partner Store: Diagnose, Enable, Merchandise",
+    "brief": "You have just been assigned as the Apple Solutions Consultant covering Volt Megastore (Westgate branch), a big-box electronics partner where Apple sell-through trails the rest of your region. The realities of the role are baked into this exercise: you are on-site roughly one day a week, you do NOT manage the store's staff, and you do NOT control the sales floor — the Volt store manager does. Your field manager has handed you the store's recent performance data, Apple's merchandising standard plus a floor-walk you did last week, the partner team's current Apple talk-track, and a slice of customer feedback, with a deliberately loose goal: 'grow Apple mind share at Westgate this quarter.' In about 1.5 hours, produce a focused first-cycle plan: what you'd prioritize, how you'd upskill a team you can't command, what you'd fix on a floor you don't own, and how you'd know it's working. Polish is not the point — your judgment is. The materials are intentionally incomplete and partly contradictory; you will have to make calls without every fact. As you work, keep a short DECISIONS log (this is just normal field practice): for each open question where you had to choose, jot what you chose, the option you rejected, and what you'd confirm with your field manager or the Volt store manager. Treat assumptions as explicit, not hidden.",
+    "repoSeed": "A field pack for Volt Megastore – Westgate branch, as a small set of documents and exports:\n\n1) store_sellthrough_Q2_Q3.xlsx — a store-level sell-through dashboard, Apple categories by week across the last two quarters. Columns include: units sold, returns, weeks-out-of-stock, foot traffic, conversion rate, and attach rates. Notable lines: iPhone units up ~22% QoQ (footnote: ran a carrier-bundle promo in Q3) but iPhone return rate jumped from 4% to 11%; MacBook Air units down ~40% QoQ with a 'weeks out of stock = 5 of 13' flag on that SKU; iPad flat; Apple Watch units near zero; AppleCare attach 8% vs Apple regional benchmark ~24%; accessory attach low; foot traffic up but overall Apple conversion down. A 'demo engagements by brand' tab shows Samsung Galaxy capturing the majority of assisted demos.\n\n2) merch_standard_vs_floorwalk.pdf — Apple's demo-table planogram and visual-merchandising standard on the left; your dated floor-walk photos/notes on the right. Deviations noted: two demo iPhones dead/unsecured, signage still promoting last-gen iPhone, Apple Watch demos in a back corner with no power, a competitor's tablets co-merchandised on the Apple table, and the Mac demo pushed to a low-traffic aisle. A margin note records the store manager saying 'prime endcap space is committed to the carrier promo through quarter-end.'\n\n3) partner_talktrack_current.docx — the one-page script the Volt staff currently use for Apple. It leans on spec-by-spec comparisons, contains an out-of-date trade-in figure, tells customers AppleCare 'is optional, most people skip it,' and in one spot steers value-seekers toward a competitor accessory. Some of it is fine; some is wrong.\n\n4) customer_feedback_verbatims.csv — ~20 satisfaction/NPS comments, mixed: praise for the one staffer who 'really knew the iPhone,' complaints about wait times, several 'staff couldn't answer my Apple Watch questions,' and a few 'ended up buying the Samsung because they pushed it.'\n\n5) field_manager_note.txt — a short, vague brief: 'Westgate is soft. Get Apple mind share up this quarter. You've got ~1 day/week there. The store manager (Petra) is protective of floor space but reasonable if you bring her wins. Staff are willing but undertrained. Tell me what you'll do and how I'll know it worked.'",
+    "tasks": [
+      "Diagnose & prioritize (≈30 min): Using store_sellthrough_Q2_Q3.xlsx, customer_feedback_verbatims.csv and your floor-walk, write a one-page diagnosis that names the 2–3 highest-leverage drivers of Westgate's Apple underperformance and the reasoning behind each. Be explicit about which numbers you trust at face value and which you'd verify before acting on.",
+      "Partner-staff enablement plan (≈30 min): Design how you'd upskill and motivate the Volt team given that you don't manage them and you're on-site ~1 day/week — include how you'd win buy-in from Petra (the store manager) and the staff. As part of this, fix partner_talktrack_current.docx: deliver the corrected talk-track and call out specifically what was wrong and why, framed around consultative 'how Apple fits your life' selling rather than spec-sheets.",
+      "Merchandising triage (≈15 min): Compare your floor-walk to the Apple merch standard and propose a prioritized, realistic set of corrections you could actually get done at a store whose floor you don't control and whose prime space is committed to the carrier promo. Separate must-haves from nice-to-haves and say how you'd get each through Petra.",
+      "Measurement & decisions log (≈15 min): Define how you'd know your plan is working within ~30–60 days given that 'mind/market share' is diffuse and slow, and attribution is hard — pick the indicators you'd actually track and acknowledge their limits. Finish by writing up your DECISIONS log: for each open call across the exercise, what you chose, what you rejected, and what you'd ask your field manager or Petra to confirm."
+    ],
+    "coverProbes": [
+      {
+        "id": "headline-vs-artifact",
+        "kind": "verification_trap",
+        "where": "store_sellthrough_Q2_Q3.xlsx — the 'MacBook Air down 40%' line and the 'iPhone up 22%' line, read against the returns, weeks-out-of-stock, and promo footnote columns.",
+        "reveals": "A naive read treats the biggest QoQ swings as the problems and prescribes against them — chasing the Mac decline (largely a 5-of-13-week stockout) and celebrating the iPhone 'win' (inflated by a promo with an 11% return rate). A strong candidate cross-checks each headline number against its context columns, surfaces the real, controllable levers (AppleCare attach at 8% vs ~24%, near-zero Watch attach, falling conversion despite rising traffic), and flags the rest as artifacts to confirm rather than act on.",
+        "decisionSpace": [
+          "Treat the Mac dip as a priority anyway (defensible if argued on margin/halo and pushing to fix the stockout-driving demo placement) — but must acknowledge it's supply-constrained, not demand.",
+          "Discount Mac and iPhone as artifacts and focus on AppleCare/Watch/conversion (reads the data correctly; risk is under-weighting a genuine Mac merch issue).",
+          "Mark the Mac and iPhone numbers as 'verify before acting' and escalate the stockout and return spike to the field manager while acting on the clean levers now (most rigorous; costs a little speed)."
+        ]
+      },
+      {
+        "id": "legacy-talktrack",
+        "kind": "legacy_trap",
+        "where": "partner_talktrack_current.docx — the existing script with the stale trade-in figure, the 'AppleCare is optional, most people skip it' line, and the competitor-accessory steer.",
+        "reveals": "A naive candidate regenerates a slick, ideal talk-track from scratch and never engages the specific wrong claims they were asked to fix — so the AppleCare attach problem and the competitor steer survive. A strong candidate reads the legacy artifact first, identifies exactly which lines are wrong or outdated and why, and corrects them, distinguishing 'fine as-is' from 'must change.'",
+        "decisionSpace": [
+          "Correct in place, preserving the staff's existing structure (low change-management cost, fastest adoption; keeps some mediocre framing).",
+          "Rewrite around consultative fit-to-life framing (stronger end state; bigger ask of a team you see one day a week).",
+          "Ship a two-part fix: an immediate 'stop saying this / say this instead' corrections list plus a target talk-track to grow into (phased; more to maintain)."
+        ]
+      },
+      {
+        "id": "floor-you-dont-own",
+        "kind": "ambiguity",
+        "where": "merch_standard_vs_floorwalk.pdf vs the field_manager_note — full planogram compliance is impossible because Petra controls the floor and the prime endcap is committed to the carrier promo.",
+        "reveals": "A naive candidate demands full standard compliance as if they could enforce it, ignoring that they can only persuade. A strong candidate triages — fixes the free, high-impact basics (dead/unsecured demos, powering the Watch display, removing the co-merchandised competitor tablets, current signage) without needing prime space, and proposes a value-exchange path for the space they actually need.",
+        "decisionSpace": [
+          "Push for full standard compliance citing Apple brand requirements (clean to brand; risks the partner relationship the whole role depends on).",
+          "Negotiate a minimum viable demo zone — the non-negotiable basics now, prime space later (pragmatic, relationship-preserving; slower to ideal).",
+          "Trade for it: offer Petra a staff-training session or a co-marketing/sell-through win in exchange for floor space (builds influence-without-authority; depends on delivering the win)."
+        ]
+      },
+      {
+        "id": "diffuse-goal-measurement",
+        "kind": "underspecified",
+        "where": "field_manager_note.txt — 'grow Apple mind share this quarter,' with no definition, against a metric that is diffuse, slow, and hard to attribute to one ASC visiting one day a week.",
+        "reveals": "A naive candidate promises a market-share percentage lift with no way to measure it in the window, or just restates the goal. A strong candidate picks indicators they can actually influence and instrument, ties them to an outcome, and is honest about attribution limits and the lag between leading and lagging signals.",
+        "decisionSpace": [
+          "Lead with lagging share metrics (Apple sell-through %, attach rates) — most credible to the business; too slow/diffuse to steer a 30–60 day plan and hard to attribute.",
+          "Lead with controllable leading/proxy indicators (staff certified, demos delivered, Watch display live, AppleCare attach trend, NPS, floor-compliance score) — steerable and fast; weaker direct link to revenue.",
+          "A small balanced scorecard: 2–3 leading indicators wired to one lagging outcome (e.g., AppleCare attach toward the ~24% benchmark) with explicit attribution caveats and a confirm-the-target ask back to the field manager (most complete; more to track)."
+        ]
+      }
+    ],
+    "timeboxHours": 1.5,
+    "rubricDimensions": [
+      {
+        "name": "framing",
+        "label": "Problem framing",
+        "weight": 0.2,
+        "description": "Turns an ambiguous need into a sound plan."
+      },
+      {
+        "name": "tooling",
+        "label": "Tooling fluency",
+        "weight": 0.25,
+        "description": "Drives AI and other tools well; iterates and verifies."
+      },
+      {
+        "name": "judgment",
+        "label": "Judgment",
+        "weight": 0.25,
+        "description": "Catches AI/tooling mistakes; validates; pushes back."
+      },
+      {
+        "name": "architecture",
+        "label": "Architecture",
+        "weight": 0.15,
+        "description": "Structure and trade-offs that fit the real materials and constraints."
+      },
+      {
+        "name": "transfer",
+        "label": "Transfer",
+        "weight": 0.15,
+        "description": "Capability transfers to THIS role's tools and responsibilities."
+      }
+    ],
+    "promptVersion": "case-design-v5"
+  },
+  "source": "llm",
+  "issues": [],
+  "fallbackReason": {},
+  "promptVersions": {
+    "analyze": "need-analysis-v3",
+    "role": "role-design-v3",
+    "case": "case-design-v5"
+  }
+}

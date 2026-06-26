@@ -1,16 +1,19 @@
-// Tenancy is HALF-BUILT. Only `analyses` + `profiles` carry a `workspace_id`
-// column and filter on it; ~28 other tables (candidate pipeline + PII, events,
-// jobs, interviews/transcripts, decisions, devcase, channels, billing, …) are
-// workspace-blind. The session/switch seam is fully built and the UI lets a user
-// create + switch workspaces in two clicks — so the moment a 2nd workspace exists,
-// every unscoped table reads/writes the FIRST tenant's data (tri-scan 2026-06-18
-// criticals #1–#4: cross-tenant read/write of PII + billing, plus whole-DB
-// export/import).
+// Tenancy is HALF-BUILT. The canonical, machine-checked record of WHICH tables are
+// workspace-scoped now lives in `tenancy.ts` (TENANCY_SCOPED_TABLES / EXEMPT +
+// `tenancyGaps`) — only the verified-scoped tables there carry + filter on a
+// `workspace_id`; the rest (candidate pipeline + PII, events, jobs, interviews,
+// decisions, devcase, channels, billing, …) are workspace-blind. The session/switch
+// seam is fully built and the UI lets a user create + switch workspaces in two
+// clicks — so the moment a 2nd workspace exists, every unscoped table reads/writes
+// the FIRST tenant's data (tri-scan 2026-06-18 criticals #1–#4: cross-tenant
+// read/write of PII + billing, plus whole-DB export/import).
 //
 // Fail-safe: until the data layer is fully scoped + tenancy-tested table by table,
 // the app is LOCKED to the single default workspace — creation is refused and the
-// only switch target is the default. Set KP_MULTI_WORKSPACE=1 to lift the lock,
-// but ONLY once every PII/business table is scoped (otherwise you re-open #1–#4).
+// only switch target is the default. Set KP_MULTI_WORKSPACE=1 to lift the lock, but
+// `assertTenancyReady` (db/core.ts, fed from `tenancy.ts`) now REFUSES to boot while
+// any per-tenant table is still unscoped, so flipping it early fails loud instead of
+// silently re-opening #1–#4.
 //
 // Pure (no DB import) so the policy is unit-testable and usable from any route.
 

@@ -1,0 +1,192 @@
+{
+  "job": {
+    "id": "cal-045",
+    "title": "Attorney, CAMBA Legal Services, Brooklyn",
+    "company": "CAMBA",
+    "role_family": "legal",
+    "seniority": "medior",
+    "source": "hf:jacob-hugging-face/job-descriptions"
+  },
+  "analysis": {
+    "realStack": [
+      "NYC Housing Court litigation (Kings County) and NYSCEF e-filing",
+      "Landlord-tenant law: RPAPL Article 7 summary proceedings, NYC Housing Maintenance Code, warranty of habitability, HSTPA/rent-regulation rules (DHCR)",
+      "Administrative forums — HRA/DSS hearings, public-benefits fair hearings, ERAP/one-shot-deal applications",
+      "Affirmative housing litigation (harassment, repair/HP actions) in state court",
+      "Legal-aid case-management system (e.g., LegalServer) for intake, conflicts, case notes and deadlines",
+      "Core lawyering craft: client interviewing, motion and affidavit drafting, trial preparation, settlement/stipulation negotiation",
+      "Document production with MS Office and court forms; client-facing correspondence",
+      "Multilingual client communication (Haitian Creole, Spanish, Russian, Arabic) for a majority-immigrant client base",
+      "Union context — ALAA / UAW Local (CAMBA Legal Services Workers Union) governs working conditions and caseload norms"
+    ],
+    "coreResponsibilities": [
+      "Provide direct legal representation and advice to low-income tenants of CAMBA Legal Services",
+      "Litigate eviction-defense and habitability/harassment cases in Housing Court, administrative forums and other state courts",
+      "Regularly appear in court and persuasively advocate for clients at conferences, motions and trial",
+      "Conduct client interviews and intake; assess claims and defenses",
+      "Draft motions, pleadings and affidavits; prepare cases for trial",
+      "Negotiate settlements and so-ordered stipulations with opposing counsel",
+      "Advocate to retain or obtain public benefits that preserve affordable housing"
+    ],
+    "statedVsRealGaps": [
+      "JD sets the bar at only 'JD + NY bar admission' and marks landlord-tenant experience as merely 'preferred', but the actual day-to-day is a specialized, high-volume LT practice — a newly barred attorney without housing exposure faces a steep, largely self-taught ramp.",
+      "'Ability to multitask in a fast-paced environment' materially understates reality: Brooklyn Housing Court runs one of the busiest eviction dockets in the country, so the true demand is sustained high-caseload trial-readiness, not generic multitasking.",
+      "Second-language ability is labeled 'preferred', yet with more than half of clients being immigrants/refugees it is functionally near-essential to serve the caseload without constant interpreter dependence.",
+      "The pay range is redacted/blank in the supplied JD, so compensation competitiveness — a key retention factor in legal-aid hiring — cannot be assessed from the evidence.",
+      "Caseload caps, supervision ratio, and support-staff/paralegal coverage are unstated, yet these are the single biggest determinants of whether the role is sustainable; their absence leaves the workload undefined.",
+      "The COVID-19 vaccine mandate clause references an October 2021 NYC order that has since been rescinded, signaling the posting text is partly stale."
+    ],
+    "trueComplexity": "high",
+    "riskAreas": [
+      "High-volume eviction docket with frequent live court appearances — elevated burnout risk, especially for newly admitted attorneys",
+      "Secondary/vicarious trauma from sustained work with tenants facing eviction, domestic violence and deep poverty",
+      "Unspecified caseload size and supervision ratio — workload could exceed sustainable bounds without explicit caps",
+      "Language gap: if the hire lacks a relevant second language, service quality and throughput suffer given the immigrant-majority client base",
+      "Steep substantive ramp if hired without prior landlord-tenant experience, since deep LT/benefits expertise is assumed but not required",
+      "Redacted compensation against NYC cost-of-living and union pay norms creates retention/offer-acceptance uncertainty",
+      "Stale policy language (COVID mandate) suggests other posting details may not reflect current program operations"
+    ],
+    "reflection": "This is a grounded, genuinely high-complexity public-interest litigation role, not an entry-level desk job — its difficulty lives in the work itself (trial-ready eviction defense on one of the nation's busiest housing dockets, for a vulnerable, majority-immigrant client base) rather than in any tech stack. The stated requirements are deliberately minimal (JD + NY bar), which widens the candidate pool but masks the real demands the JD lists only as 'preferred': landlord-tenant expertise and a second language are, in practice, close to essential for someone to be effective quickly. The biggest blind spots are not in the candidate profile but in the unstated operating conditions — caseload caps, supervision, paralegal support and the redacted pay band — which together decide whether this role is sustainable or a fast track to burnout. A medior framing is reasonable, but a true junior would need heavy supervision and a structured housing-law onboarding to survive the docket. Confidence is moderate: the responsibilities are clearly extractable, but several decision-critical facts (comp, caseload, current policy) are missing or stale in the supplied text.",
+    "confidence": 0.72,
+    "promptVersion": "need-analysis-v3"
+  },
+  "role": {
+    "title": "Staff Attorney, CAMBA Legal Services (Housing Unit), Brooklyn",
+    "seniority": "medior",
+    "roleFamily": "legal",
+    "mustHaves": [
+      "Juris Doctor (J.D.) degree",
+      "Active admission to the New York State Bar in good standing",
+      "Courtroom litigation ability: regularly appear in NYC Housing Court (Kings County) and other state and administrative forums to conduct conferences, argue motions, try cases, and persuasively advocate for clients",
+      "Foundational landlord-tenant / eviction-defense competence — RPAPL Article 7 summary proceedings, the warranty of habitability, and the NYC Housing Maintenance Code (calibrated to a medior hire who can carry a docket with supervision rather than from scratch; the JD marks this 'preferred' but the day-to-day is a specialized high-volume LT practice)",
+      "Core lawyering craft: conduct client intake and interviews, assess claims and defenses, and draft motions, pleadings, and affidavits",
+      "Prepare cases through trial and negotiate settlements and so-ordered stipulations with opposing counsel",
+      "Strong analytical, legal-writing, and oral-advocacy skills, with the organization and sustained trial-readiness to manage a high-volume caseload on one of the country's busiest eviction dockets",
+      "Demonstrated commitment to poverty law and social-justice work serving low-income, immigrant, and refugee communities"
+    ],
+    "niceToHaves": [
+      "Conversational ability in a second client language — Haitian Creole, Spanish, Russian, or Arabic (labeled 'preferred' in the JD but functionally near-essential given a majority-immigrant client base)",
+      "Deeper rent-regulation experience — HSTPA and DHCR practice beyond the foundational level",
+      "Public-benefits and fair-hearing advocacy (HRA/DSS hearings, ERAP and one-shot-deal applications) to help clients retain or attain benefits that preserve affordable housing",
+      "Affirmative housing litigation — HP repair actions and tenant-harassment claims in state court",
+      "Familiarity with NYSCEF e-filing and a legal-aid case-management system such as LegalServer for intake, conflicts, deadlines, and case notes",
+      "Comfort working within a unionized (ALAA / UAW Local) legal-services environment"
+    ],
+    "responsibilities": [
+      "Provide direct legal representation and advice to low-income tenants of CAMBA Legal Services",
+      "Litigate eviction-defense, habitability, and harassment cases in Housing Court, administrative forums, and other state courts, including affirmative cases challenging threats to clients' ability to retain affordable housing",
+      "Regularly appear in court and advocate persuasively for clients at conferences, on motions, and at trial",
+      "Conduct client interviews and intake and assess claims and defenses",
+      "Draft motions, pleadings, and affidavits and prepare cases for trial",
+      "Negotiate settlements and so-ordered stipulations with opposing counsel",
+      "Advocate to retain or obtain public benefits that preserve clients' affordable housing"
+    ],
+    "languages": [
+      "English",
+      "Spanish",
+      "Haitian Creole",
+      "Russian",
+      "Arabic"
+    ],
+    "promptVersion": "role-design-v3"
+  },
+  "case": {
+    "title": "Brooklyn Housing Court nonpayment file: assess, draft, and settle before the first appearance",
+    "brief": "You are a Staff Attorney in CAMBA Legal Services' Housing Unit. A colleague went out on leave and handed you a live nonpayment file for a low-income tenant in Brooklyn — the first appearance in Kings County Housing Court is in roughly 10 days. Everything in the bundle is fictional and contains no real client data; treat it as a faithful stand-in for a typical Housing Court intake. Work the file the way you would on a real morning before court: read the whole file first, form a theory of the case, and move on the single most urgent thing. You may use any drafting or AI tool you like — we assume you will, and we are not testing typing speed or memorized citations. What we read is your judgment: which defenses and claims you actually see, what you refuse to commit to until you pull more records, and how you handle a settlement offer that looks generous on its face but isn't. The file is deliberately incomplete and a couple of things in it are wrong or stale; catching that and reasoning out loud beats a polished draft built on a bad assumption. Aim to finish in about 90 minutes — if you run short, prioritize the highest-leverage work and say plainly what you deprioritized and why. Keep your shorthand and cite authority the way you would in an internal case note (RPAPL §711, RPL §235-b, the ERAP stay), not as a published brief. The provided materials are exactly this role's day-to-day work, so you are working the real file, not a substitute.",
+    "repoSeed": "A fictional Kings County (Brooklyn) Housing Court nonpayment file for the tenant of record, Marie Joseph, a Haitian Creole-speaking tenant who has lived in the apartment since 2009. The bundle (all synthetic) contains: (1) Notice of Petition and Petition — Nonpayment, RPAPL §711(2), L&T Index No. 0XXXXX/2026, pleading that the premises are 'not subject to rent regulation' and demanding $14,200 in arrears. (2) The predicate 14-day rent demand served before the petition, which states a different arrears figure ($11,950) than the petition. (3) LegalServer intake notes: building is a 20-unit walk-up built in 1962; tenant has never been offered a written lease renewal; tenant reports no heat/hot water through last winter, a recurring bathroom leak, mold, and mice; an oblique note that the tenant's adult niece and the niece's child live in the unit and that there was 'an incident' with a former partner; tenant's English is limited and she is most comfortable in Haitian Creole. (4) The landlord's rent ledger totaling $14,200, itemizing monthly rent plus $1,520 in late fees, $800 in 'legal fees,' and charges for three months that fall within an approved ERAP payment period. (5) An ERAP (Emergency Rental Assistance Program) status letter showing the tenant's application was approved for 12 months of arrears but the managing agent's notes say the landlord 'declined to accept' it; a separate page shows a second ERAP application currently pending. (6) An HPD violation printout (open Class B and Class C violations for heat/hot water and vermin) plus a 311 complaint log. (7) Opposing counsel's proposed two-page so-ordered Stipulation of Settlement: it recites that the tenant filed a 'CEEFPA hardship declaration,' has the tenant agree to pay the full $14,200 over three months, contains a general waiver of 'any and all defenses and counterclaims,' and provides that on any default a warrant of eviction issues and executes 'forthwith' without further notice. (8) A one-page program practice sheet listing the court date, interpreter-request procedure, and the unit's conflict-check reminder.",
+    "tasks": [
+      "Read the entire file before you draft anything. Write a one-page case-assessment memo to your supervising attorney: state the current procedural posture and the single most urgent move given the 10-day court date; name the two or three strongest defenses and any affirmative claims or counterclaims you see; and list the specific records or facts you must obtain (and from where) before you commit to a theory of the case. Use case-note shorthand for authority, not full briefing.",
+      "Draft the affirmative defenses and counterclaims section of Ms. Joseph's verified Answer to the nonpayment petition, plus a 3–4 sentence attorney's affirmation paragraph supporting your most urgent application (e.g., to stay or to dismiss). Plead in the alternative where the record is genuinely unsettled. Keep it to what you could actually verify and file by the next court date.",
+      "Mark up opposing counsel's proposed so-ordered stipulation: for each material term mark accept / reject / counter with a one-line reason, then write the 3–5 stipulation terms you would actually put on the table. Reconcile every number against the rent ledger, the rent demand, and the ERAP letter — show what you believe is genuinely collectible and why.",
+      "Keep a running DECISIONS log (about half a page) as your handoff note to whoever picks up the file: for every place the file left a judgment call to you — the unit's regulatory status, whether to lead with the ERAP stay or with the merits, what to concede or refuse in the stip, and how you'll handle the language and household-composition gaps — record what you chose, the alternative you rejected, and the one question you would put to your supervisor or to the client. Treat this as ordinary cover-memo practice, not a test artifact."
+    ],
+    "coverProbes": [
+      {
+        "id": "regulatory-status",
+        "kind": "ambiguity",
+        "where": "The Petition pleads the unit is 'not subject to rent regulation,' but the intake notes (1962 building, 20 units, continuous tenancy since 2009, never offered a lease renewal) point to possible rent stabilization and improper deregulation.",
+        "reveals": "A strong candidate refuses to lock a defense theory before pulling the DHCR rent registration / building history and flags that regulatory status governs whether a nonpayment even lies, what the legal regulated rent is, and whether there is an overcharge counterclaim under HSTPA. A naive candidate accepts the petition's bare pleading and drafts a market-rate nonpayment defense.",
+        "decisionSpace": [
+          "Plead stabilization affirmatively and assert an overcharge counterclaim now, accepting the risk if the DHCR record later contradicts it (fastest preservation, highest exposure).",
+          "Reserve the issue, raise it as an affirmative defense to preserve it, and move/request the DHCR rent history before committing (slower, most defensible).",
+          "Proceed as market-rate and preserve only via general denial because the client's priority is staying housed, not recovery (cheapest, weakest, may waive money)."
+        ]
+      },
+      {
+        "id": "erap-stay-and-expired-moratoria",
+        "kind": "legacy_trap",
+        "where": "The file shows an approved-but-refused ERAP payment plus a second pending ERAP application, while opposing counsel's draft stip recites a 'CEEFPA hardship declaration' and pandemic-era protection.",
+        "reveals": "A careful candidate knows a pending ERAP application triggers a statutory stay and an accepted ERAP payment binds the landlord to 12-month eviction-and-rent conditions, and that the CEEFPA hardship-declaration stay expired on January 15, 2022 — so the urgent move is to assert/enforce the ERAP posture, not to litigate the merits or lean on an expired moratorium. A naive one-shot draft cites the dead CEEFPA protection or ignores the stay entirely.",
+        "decisionSpace": [
+          "Move to stay or mark the proceeding off calendar on the pending ERAP application before doing anything else (lowest-risk procedural win).",
+          "Treat the approved-and-refused ERAP as binding the landlord to its conditions and move to dismiss/restrict on that basis (stronger but fact-dependent on what 'declined' means).",
+          "Litigate the substantive defenses on the merits in parallel and hold ERAP as a backstop (most work, risk of mootness or waiver if the stay would have resolved it)."
+        ]
+      },
+      {
+        "id": "ledger-and-stip-waivers",
+        "kind": "verification_trap",
+        "where": "The ledger totals $14,200 and the proposed stipulation has the client pay that in three installments, while the predicate 14-day demand states $11,950.",
+        "reveals": "A careful candidate audits the ledger and finds the collectible amount is far lower (improper late fees and legal fees, months already covered by approved ERAP, and any sum above the legal regulated rent), catches that the demand/petition mismatch is a defective predicate notice, and refuses the stip's blanket waiver of the habitability counterclaim and its forthwith-execution-on-default clause. A naive candidate negotiates the surface payment timeline, accepts the overstated balance, and signs away substantive rights.",
+        "decisionSpace": [
+          "Reject the stip outright and litigate the defective predicate notice plus overcharge/habitability (maximizes leverage, slowest, court-dependent).",
+          "Counter with a stip pegged to the audited collectible balance, ERAP-credited, preserving the habitability abatement and striking the forthwith-execution clause (balanced, the typical strong-practice path).",
+          "Settle for time-to-pay on a corrected, lower balance without pressing the abatement because the client's overriding goal is to stay housed (pragmatic, leaves recovery on the table)."
+        ]
+      },
+      {
+        "id": "client-goals-and-access",
+        "kind": "underspecified",
+        "where": "Court is in ~10 days; the client is a Haitian Creole speaker with limited English; the intake hints at a household-composition and possible domestic-violence issue; nowhere does the file state whether the client wants to stay, to relocate with time, or to maximize an affirmative recovery.",
+        "reveals": "A strong candidate treats the client's actual goal, language access (arrange interpretation per the practice sheet), and benefits screening as things to confirm before choosing a strategy, rather than imposing a maximalist litigation path the client may not want. A naive candidate picks a strategy in a vacuum and assumes the goal.",
+        "decisionSpace": [
+          "Default to aggressive retention and affirmative litigation as the presumptive legal-aid posture (protective, may not match the client's wishes).",
+          "Pursue time-to-relocate with ERAP/one-shot covering arrears if the client in fact wants out (efficient, only right if confirmed).",
+          "Hold final strategy pending an interpreted client conversation and a public-benefits screen, taking only the protective procedural step (ERAP stay) in the meantime (most client-centered, costs a little time)."
+        ]
+      }
+    ],
+    "timeboxHours": 1.5,
+    "rubricDimensions": [
+      {
+        "name": "framing",
+        "label": "Problem framing",
+        "weight": 0.2,
+        "description": "Turns an ambiguous need into a sound plan."
+      },
+      {
+        "name": "tooling",
+        "label": "Tooling fluency",
+        "weight": 0.25,
+        "description": "Drives AI and other tools well; iterates and verifies."
+      },
+      {
+        "name": "judgment",
+        "label": "Judgment",
+        "weight": 0.25,
+        "description": "Catches AI/tooling mistakes; validates; pushes back."
+      },
+      {
+        "name": "architecture",
+        "label": "Architecture",
+        "weight": 0.15,
+        "description": "Structure and trade-offs that fit the real materials and constraints."
+      },
+      {
+        "name": "transfer",
+        "label": "Transfer",
+        "weight": 0.15,
+        "description": "Capability transfers to THIS role's tools and responsibilities."
+      }
+    ],
+    "promptVersion": "case-design-v5"
+  },
+  "source": "llm",
+  "issues": [],
+  "fallbackReason": {},
+  "promptVersions": {
+    "analyze": "need-analysis-v3",
+    "role": "role-design-v3",
+    "case": "case-design-v5"
+  }
+}

@@ -1,0 +1,190 @@
+{
+  "job": {
+    "id": "cal-068",
+    "title": "Case Manager, RN - Remote",
+    "company": "Piper Companies",
+    "role_family": "hr",
+    "seniority": "senior",
+    "source": "hf:jacob-hugging-face/job-descriptions"
+  },
+  "analysis": {
+    "realStack": [
+      "Active RN license — North Carolina or eNLC multistate/compact (the gating credential, not a tech stack)",
+      "Care/case-management platform for documenting assessments, care plans, and member touchpoints",
+      "EHR/EMR access to review member clinical history, discharge summaries, and post-op records",
+      "Evidence-based clinical guidelines / criteria sets (e.g. MCG or InterQual) underpinning level-of-need and alternative-treatment review",
+      "Telephony + member-outreach/CRM tooling for a fully telephonic, Monday–Friday remote workflow",
+      "Risk-stratification / population-health reporting to identify and prioritize high-risk members",
+      "Medication and pain-management reference tools; pharmacy coordination workflow",
+      "Care-plan and discharge/transition-of-care documentation templates",
+      "Clinical domain knowledge: chronic-condition/disease management, comorbidity management, health coaching, acute med-surg nursing"
+    ],
+    "coreResponsibilities": [
+      "Health-coach members with chronic illnesses — educate on services, plans of care, post-op transitions, and discharge",
+      "Assess high-risk patients to determine level of need and review alternative treatment plans",
+      "Coordinate across providers, members, pharmacy, and other clinicians to meet needs while holding to cost-effective practices",
+      "Monitor pain management across members' chronic conditions",
+      "Manage care for patients with multiple comorbidities and sustain longitudinal, telephonic case management"
+    ],
+    "statedVsRealGaps": [
+      "Framing vs. duties mismatch: the org and keyword block lead with 'utilization management / utilization review,' but every listed responsibility is disease/chronic-care management and health coaching — not prior-auth or medical-necessity determinations against InterQual/MCG. Candidates drawn by the UM/UR keywords may find a care-management job, and vice versa.",
+      "Experience bar is blank: the requirement literally reads 'years of hands on clinical experience' with no number, so the actual seniority threshold is unstated and unenforceable as written.",
+      "Seniority signal is contradictory: seniorityTarget is 'senior,' yet the floor accepts an RN diploma or associate's degree (BSN only 'required' in one line but undercut by 'diploma/associate' in the next), and the comorbidity/coaching/chronic-management items are all 'preferred,' not required — that reads mid-level, not senior.",
+      "Cost-effective practices vs. member advocacy: 'maintaining cost-effective practices' signals payer-side incentives that can pull against pure member advocacy; the JD doesn't say where that line sits.",
+      "Telephonic-only pain-management monitoring is asserted as a duty, but the JD gives no scope of clinical authority (no prescribing, the RN cannot examine in person) — the real boundary of that task is undefined.",
+      "Compensation is 'salary based on experience' with no range — typical for an agency posting (Piper Companies is a staffing firm), but it removes a key calibration signal."
+    ],
+    "trueComplexity": "medium",
+    "riskAreas": [
+      "Mis-targeted sourcing from the UM/UR keywords drawing utilization-review candidates into a chronic-care-management role (or screening out the disease-management RNs the duties actually call for)",
+      "Unfilled experience number ('years of') makes the screen subjective and the 'senior' label unverifiable",
+      "Compact-licensure nuance: NC is an eNLC state — confirm whether a compact RN residing in SC/elsewhere qualifies, since the role demands NC or SC residence plus NC/multistate licensure",
+      "Telephonic pain-management and high-risk assessment without in-person examination carry real clinical-judgment and liability exposure that the JD doesn't bound",
+      "Payer 'cost-effective' pressure vs. member-advocacy ethics — a fit/values risk for the right RN",
+      "Staffing-agency posting: actual employer, contract-vs-perm status, and benefits durability are abstracted away"
+    ],
+    "reflection": "This is a genuine, well-grounded non-software role: a remote, telephonic RN case manager whose 'real stack' is clinical licensure plus a care-management platform, EHR access, evidence-based criteria, and telephony — judged correctly in nursing terms, not by any absence of code. The JD is internally coherent on the work itself (chronic-condition health coaching, high-risk assessment, multi-stakeholder coordination, pain monitoring), which is solidly medium complexity — real clinical judgment and comorbidity management, but a bounded, protocol-supported telephonic scope rather than acute bedside or independent UM authority. The sharpest divergence is between the marketing layer and the duties: the posting sells 'utilization management/review' while describing disease/case management and health coaching, and it pairs a 'senior' target with an entry-acceptable credential floor and a literally blank years-of-experience field. Net: a legitimate mid-to-senior care-management RN need that should be relabeled away from UM/UR language, given a concrete experience threshold, and clarified on licensure scope and clinical authority before it goes live.",
+    "confidence": 0.72,
+    "promptVersion": "need-analysis-v3"
+  },
+  "role": {
+    "title": "Case Manager, RN - Remote",
+    "seniority": "senior",
+    "roleFamily": "hr",
+    "mustHaves": [
+      "Active, unrestricted RN license in North Carolina or eNLC multistate/compact licensure (the gating credential for this role)",
+      "Resides in North Carolina or South Carolina (role is fully remote but residency-restricted to these states)",
+      "RN diploma, RN associate's degree, or BSN",
+      "Several years (calibrated to senior: ~3+) of hands-on clinical experience in an acute medical or surgical (med-surg) setting",
+      "Demonstrated telephonic case/disease management of members with chronic conditions, working autonomously on a longitudinal panel",
+      "Clinical assessment of high-risk patients to determine level of need and to review alternative treatment plans",
+      "Care coordination across providers, members, pharmacy, and other clinicians while sustaining cost-effective practices",
+      "Patient health coaching and education on plans of care, post-op transitions, and discharge",
+      "Pain-management monitoring across members' chronic conditions within an RN's remote, non-prescribing scope",
+      "Accurate documentation of assessments, care plans, and member touchpoints in a case-management platform and review of clinical history in an EHR/EMR",
+      "Self-directed performance in a fully remote, Monday–Friday workflow"
+    ],
+    "niceToHaves": [
+      "BSN (accepted floor is diploma/associate, so a BSN is a differentiator)",
+      "Prior experience managing care for patients with multiple comorbidities",
+      "Prior experience coaching or educating patients on care plans",
+      "Chronic-condition / disease-management program experience",
+      "Case management certification (e.g., CCM or ACM)",
+      "Familiarity with evidence-based criteria sets such as MCG or InterQual",
+      "Utilization management / utilization review exposure (the org frames the function this way even though duties are care management)",
+      "Medication-management and pharmacy-coordination familiarity",
+      "Experience with risk-stratification / population-health reporting to prioritize high-risk members"
+    ],
+    "responsibilities": [
+      "Act as a health coach to members with chronic illnesses — educate them on services, plans of care, post-op transitions, and discharge",
+      "Perform assessments of high-risk patients to evaluate level of need and review alternative treatment plans as needed",
+      "Partner with providers, members, pharmacy, and other healthcare personnel to meet member needs while maintaining cost-effective practices",
+      "Monitor pain management related to members' various chronic conditions",
+      "Manage longitudinal, telephonic case management for patients with multiple comorbidities",
+      "Document assessments, care plans, and member interactions in the case-management platform and review member clinical history in the EHR/EMR"
+    ],
+    "languages": [
+      "English"
+    ],
+    "promptVersion": "role-design-v3"
+  },
+  "case": {
+    "title": "Telephonic Case Management Work Sample — High-Risk Comorbid Member (RN Case Manager)",
+    "brief": "You are the assigned RN Case Manager for a member newly flagged as high-risk and just discharged after a heart-failure exacerbation. This is your day-one work-up, done the way you would do it on the case-management platform: read the member's record, complete an assessment and level-of-need determination, reconcile the medications, build a longitudinal telephonic care plan and transition-of-care plan, and prepare the outreach you'd actually send. The materials are a synthetic, de-identified member packet — no real PHI — representative of the chronic, comorbid, post-discharge members this role manages telephonically. Member: 'R. Alvarez,' 64, recently discharged after a CHF exacerbation, with type 2 diabetes (last A1c 8.6%), COPD, CKD stage 3 (eGFR ~42), and chronic low-back pain on a polypharmacy regimen. Work member-centered and strictly within RN scope (you coordinate and educate; you do not prescribe or adjust medications). Use the provided assessment, care-plan, and transition-of-care templates and the MCG/InterQual excerpt for the level-of-need rationale. The program-overview policy is intentionally thin in a few places — where it does not answer a question, make a defensible call and note what you'd confirm. Budget ~2 hours; depth and judgment matter more than breadth, so it is fine to leave lower-priority items as flagged next steps. Keep a short DECISIONS log as you go — that's normal practice here, not an extra deliverable.",
+    "repoSeed": "A de-identified member packet and reference set the candidate works from:\n\nmember_packet/\n  discharge_summary_2026-05.md — most recent admission for acute decompensated CHF; documents a medication change on discharge (furosemide increased to 40 mg BID and spironolactone 25 mg daily newly added), pending outpatient eGFR/potassium recheck, and a cardiology + nephrology follow-up to be scheduled.\n  ehr_excerpt_problem_list.md — active problems: HFrEF, T2DM, COPD, CKD stage 3, chronic low-back pain, hyperlipidemia.\n  ehr_excerpt_med_list.csv — the 'active' outpatient med list as it currently reads in the EHR: still shows furosemide 20 mg daily (the pre-admission dose, not the discharge change), an ACE inhibitor, metformin, a long-acting insulin, a statin, and naproxen 500 mg BID listed for back pain. (Deliberately not yet reconciled against discharge.)\n  ehr_excerpt_labs.csv — recent labs: eGFR 42, potassium 5.1 mmol/L, A1c 8.6%, elevated BNP, mild anemia.\n  risk_stratification_report.pdf — population-health output placing the member in the top risk tier (recent inpatient utilization, comorbidity burden, prior readmission).\n  prior_care_plan_2025-10.md — an older care plan focused narrowly on diabetes education; goals largely 'not met' at last review.\n  cm_touchpoint_log.md — telephonic/CRM notes from prior outreach. Older entries record that the member stopped insulin and the statin for a stretch because of copay cost, and that the member is the sole caregiver for a spouse with dementia (which explains several missed clinic appointments). The most recent note is an inbound call where the member reports worsening low-back pain over the past week.\n\ncriteria/\n  MCG_InterQual_chronic_care_excerpt.pdf — level-of-need / acuity criteria and alternative-treatment review guidance.\n\ntemplates/\n  assessment_template.docx, care_plan_template.docx, transition_of_care_template.docx — the platform's structured templates (problems, goals, interventions, cadence, SBAR handoff section).\n\nreference/\n  pain_management_reference.md, pharmacy_coordination_workflow.md.\n\nprogram_policy/\n  cm_program_overview.md — program scope and a 'cost-effective, member-centered' mandate, but silent on specific authorization thresholds, escalation ownership, and required touchpoint cadence by acuity.",
+    "tasks": [
+      "Work up the member. Read the FULL packet — including the older cm_touchpoint_log entries and the prior_care_plan, not just the discharge summary — then complete assessment_template with a level-of-need / acuity determination justified explicitly against the MCG/InterQual excerpt and the risk-stratification report. As part of the assessment, perform a medication reconciliation across the discharge_summary and the active ehr_excerpt_med_list, cross-checked against the labs, and call out every discrepancy and safety concern you find (state which you treat as resolved vs. unresolved-pending-confirmation).",
+      "Build the longitudinal telephonic care plan in care_plan_template and a transition-of-care plan in transition_of_care_template: prioritized problems, member-centered goals, interventions (including your pain-management approach and the pharmacy/provider coordination steps you'd take within RN scope), and a touchpoint cadence with explicit re-stratification / escalation triggers. Recommend the alternative treatment setting you'd pursue (e.g., home health vs. telephonic-only vs. a time-limited step-up) and justify the trade-off you accepted.",
+      "Prepare your day-one outreach: (a) an SBAR / prescriber handoff covering the items that need provider or pharmacy action, and (b) a brief member-facing call summary with teach-back at an appropriate health-literacy level. Address the most recent touchpoint in which the member reports worsening back pain.",
+      "Keep a short DECISIONS log: for each call you made where the packet or program_policy was open, ambiguous, or silent, record what you chose, the alternative you set aside and why, and the one question you would put to the care team, prescriber, or program lead."
+    ],
+    "coverProbes": [
+      {
+        "id": "med-rec-nsaid-safety",
+        "kind": "verification_trap",
+        "where": "member_packet/ehr_excerpt_med_list.csv read against discharge_summary_2026-05.md and ehr_excerpt_labs.csv",
+        "reveals": "A naive one-shot work-up transcribes the 'active' EHR med list verbatim — carrying the stale furosemide 20 mg daily dose and 'continuing current pain regimen' (naproxen) — which passes a shallow 'did you list the meds' check but is clinically unsafe: it misses the discharge diuretic change and the NSAID risk in a member with CKD stage 3 + HFrEF + a newly added potassium-sparing diuretic and K+ already 5.1 (NSAID-driven AKI / 'triple whammy' and hyperkalemia). A strong candidate reconciles discharge vs. active list, flags the naproxen and the potassium trajectory, and treats the medication picture as not finalized until confirmed.",
+        "decisionSpace": [
+          "Treat the discharge summary as source of truth: update the plan to the increased diuretic regimen and flag naproxen for prescriber deprescribing — fastest route to a safe plan, but assumes the discharge document is current and complete.",
+          "Hold finalization of the medication portion until pharmacy and the prescriber confirm the reconciliation, documenting the discrepancy and the K+/eGFR concern — safest, but delays the care plan and adds coordination load.",
+          "Build the plan on the active EHR list as the official system of record and route the discrepancy as a parallel query — preserves the documented record, but risks coaching the member on a stale and potentially unsafe regimen."
+        ]
+      },
+      {
+        "id": "buried-cost-caregiver-barrier",
+        "kind": "legacy_trap",
+        "where": "older entries in member_packet/cm_touchpoint_log.md and prior_care_plan_2025-10.md",
+        "reveals": "A candidate who reads only the discharge summary writes generic 'improve medication adherence / attend follow-up' goals and repeats the prior plan's failure. Reading the historical notes surfaces the real root causes — copay-driven non-adherence (insulin/statin stopped over cost) and sole-caregiver burden for a spouse with dementia driving missed appointments — and lets the candidate target interventions (financial assistance, 90-day/mail pharmacy, regimen simplification, caregiver-aware telephonic scheduling) at the actual barriers.",
+        "decisionSpace": [
+          "Lead with root-cause interventions (cost assistance, simplified regimen, caregiver-aware scheduling) — most likely to change outcomes, but widens scope and needs social-work / pharmacy referrals.",
+          "Treat adherence primarily as an education problem with teach-back and defer the cost/caregiving issues to a later touchpoint — faster to write, but likely to reproduce the prior plan's unmet goals.",
+          "Hand the social determinants off to a social worker / community-resource team and keep the RN plan purely clinical — clean scoping, but risks fragmenting a plan whose clinical goals depend on those barriers being resolved."
+        ]
+      },
+      {
+        "id": "acuity-cadence-cost-vs-advocacy",
+        "kind": "underspecified",
+        "where": "program_policy/cm_program_overview.md (silent on authorization thresholds, escalation ownership, and cadence) against risk_stratification_report.pdf and the MCG/InterQual excerpt",
+        "reveals": "The program mandate says 'cost-effective' and 'member-centered' without resolving how to weigh them, and gives no cadence or authorization rules. A naive submission silently picks a setting and touchpoint frequency by default. A strong candidate names the cost-vs-advocacy tension explicitly, ties acuity to the criteria set, proposes a cadence with re-stratification triggers, and lists exactly what they'd confirm (authorization limits, who owns escalation, member preference).",
+        "decisionSpace": [
+          "Recommend home health plus an intensive telephonic cadence honoring the member's stated preference to remain home — strongest advocacy, higher near-term cost, requires authorization.",
+          "Recommend lower-cost telephonic-only management with tight escalation triggers — aligns with the cost-effectiveness mandate, but a thinner safety net for a top-tier-risk member just post-discharge.",
+          "Recommend a time-limited step-up (transitional home health tapering to telephonic) with an explicit re-stratification point — balances cost and safety, but is the most coordination-heavy and assumes authorization is granted."
+        ]
+      },
+      {
+        "id": "telephonic-pain-scope",
+        "kind": "ambiguity",
+        "where": "the most recent worsening-pain call in member_packet/cm_touchpoint_log.md, with reference/pain_management_reference.md",
+        "reveals": "Handling escalating pain over the phone with no in-person exam tests scope and clinical judgment. A naive response either dismisses the report, implies the RN adjusts or recommends a specific analgesic (out of scope), or reflexively sends the member to the ED. A strong candidate runs a structured telephonic pain assessment, screens for red flags, recognizes the RN coordinates rather than prescribes, and routes to the appropriate level of care given the CKD/CHF constraints on analgesic choice.",
+        "decisionSpace": [
+          "Structured telephonic pain assessment plus same-day prescriber/pharmacy coordination for a regimen review — keeps the member home and within scope, but depends on provider responsiveness.",
+          "Advise urgent in-person or ED evaluation given red-flag uncertainty over the phone — safest on liability, but costly, possibly unnecessary, and can erode member trust.",
+          "Monitor with a scheduled short-interval call-back plus self-management teach-back — least disruptive, but risks under-responding to a genuine escalation."
+        ]
+      }
+    ],
+    "timeboxHours": 2.0,
+    "rubricDimensions": [
+      {
+        "name": "framing",
+        "label": "Problem framing",
+        "weight": 0.2,
+        "description": "Turns an ambiguous need into a sound plan."
+      },
+      {
+        "name": "tooling",
+        "label": "Tooling fluency",
+        "weight": 0.25,
+        "description": "Drives AI and other tools well; iterates and verifies."
+      },
+      {
+        "name": "judgment",
+        "label": "Judgment",
+        "weight": 0.25,
+        "description": "Catches AI/tooling mistakes; validates; pushes back."
+      },
+      {
+        "name": "architecture",
+        "label": "Architecture",
+        "weight": 0.15,
+        "description": "Structure and trade-offs that fit the real materials and constraints."
+      },
+      {
+        "name": "transfer",
+        "label": "Transfer",
+        "weight": 0.15,
+        "description": "Capability transfers to THIS role's tools and responsibilities."
+      }
+    ],
+    "promptVersion": "case-design-v5"
+  },
+  "source": "llm",
+  "issues": [],
+  "fallbackReason": {},
+  "promptVersions": {
+    "analyze": "need-analysis-v3",
+    "role": "role-design-v3",
+    "case": "case-design-v5"
+  }
+}

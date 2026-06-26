@@ -3,10 +3,9 @@ import { getTranslations } from "next-intl/server";
 import { Markdown } from "@/app/_components/Markdown";
 import { getDevCase, getPostingByToken } from "@/app/_lib/db";
 import { caseToMarkdown } from "@/app/features/sub_dev/DevHelpers";
-import type { CaseScenario, RoleSpec } from "@/app/features/sub_dev/DevTypes";
+import type { CaseScenario, RoleSpec, SeedFile } from "@/app/features/sub_dev/DevTypes";
 import { AiDisclosure } from "@/app/_components/AiDisclosure";
 import { DevApplyForm } from "./DevApplyForm";
-import { type SeedFile } from "./SeedFiles";
 import { LiveWorkSurface } from "./LiveWorkSurface";
 
 export const dynamic = "force-dynamic";

@@ -272,11 +272,11 @@ def grounded_answer(
 
     try:
         client = get_client()
-        response = client.models.generate_content(
-            model=GEMINI_MODEL,
-            contents=contents,
-            config=types.GenerateContentConfig(**config_kwargs),
-        )
+        # Route through the bounded transient-retry wrapper (429/5xx/timeout) — the
+        # documented intent that was never wired: grounded_answer used to call
+        # generate_content directly, so one transient blip aborted the whole
+        # analysis with no retry. Permanent failures (auth/4xx) still fail fast.
+        response = _generate_with_retry(client, contents, config_kwargs)
         text = (response.text or "").strip()
         finish_reason = _finish_reason(response)
         sources = _grounding_sources(response) if use_grounding else []

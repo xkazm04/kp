@@ -58,10 +58,6 @@ export const DEDUPE_BUILDERS: Record<string, (p: Record<string, unknown>) => str
     const k = stableKey("design_artifacts", identityJson(p.need));
     return k && `${k}:${JSON.stringify(p.analysis ?? {})}`;
   },
-  commit_reflection: (p) => {
-    const k = stableKey("commit_reflection", p.repoRef);
-    return k && `${k}:${p.caseId ?? ""}`;
-  },
   evaluate_submission: (p) => stableKey("evaluate_submission", p.submissionId),
   lifecycle: (p) => stableKey("lifecycle", p.lifecycleId), // one run per case; a re-trigger resumes when idle
   group_eval: (p) => stableKey("group_eval", p.roleKey), // one run per role; re-trigger reuses an in-flight run

@@ -8,6 +8,7 @@ from typing import Any, Callable, TypeVar
 
 from .ats import evaluate_keyword_coverage, verify_skills_in_cv
 from .authenticity import authenticity_checks
+from .credentials import credential_checks
 from .extractors import clean_text, count_letter_spacing, extract_text
 from .gemini import GEMINI_MODEL, analyze_profile_with_gemini
 from .redact import redact_pii
@@ -273,6 +274,12 @@ def analyze_cv(
                 skills_count=len(profile.skills),
                 years_experience=int(profile.years_experience) if profile.years_experience else None,
             )
+            # Deterministic credential / licence gate: the CREDENTIAL GATE in the
+            # extraction prompt was LLM-narration only. This independently flags a
+            # JD-required regulated licence the candidate doesn't hold, or a held
+            # regulated licence with a past date — a hard, compliance-relevant blocker
+            # that a single missed LLM flag must not silently drop. A SCREEN (verify).
+            sanity_checks += credential_checks(job_description_text, profile.credentials)
 
             parsing_notes = _string_list(profile_payload.get("parsing_notes"))
             if market_evidence is not None and market_evidence.summary:

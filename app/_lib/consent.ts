@@ -5,9 +5,17 @@
 // the non-identifying scoring artifacts for re-engagement) is documented in
 // docs/GDPR_AND_HIRING_EXTENSIONS.md. See the DPO note there before enabling in prod.
 
-/** Default retention window for a recruitment consent: 12 months from grant.
- *  Recruitis/Sloneek both default to ~1 year (or the position length). */
-export const CONSENT_TTL_DAYS = 365;
+/** Default retention window for a recruitment consent: 12 months from grant
+ *  (Recruitis/Sloneek both default to ~1 year). This is a GLOBAL default, blind to
+ *  jurisdiction and source — the lawful retention period varies by country and by how
+ *  the candidate was acquired, so a deployment SHOULD set it for its legal basis via
+ *  KP_CONSENT_TTL_DAYS (whole days, 1..3650). The per-call `ttlDays` arg overrides it
+ *  for a future per-jurisdiction/per-source policy. See docs/GDPR_AND_HIRING_EXTENSIONS.md. */
+function defaultConsentTtlDays(): number {
+  const raw = Number(process.env.KP_CONSENT_TTL_DAYS);
+  return Number.isFinite(raw) && raw >= 1 && raw <= 3650 ? Math.floor(raw) : 365;
+}
+export const CONSENT_TTL_DAYS = defaultConsentTtlDays();
 
 /** A consent is "expiring" within this many days of its expiry — the window the
  *  pre-expiry reminder + the drawer's amber chip use. */
@@ -128,6 +136,27 @@ const PII_KEYS = new Set([
 // after the structured fields are blanked — emptied wholesale on anonymization.
 const PII_ARRAY_KEYS = new Set(["evidence"]);
 
+// CONTAINERS whose ENTIRE subtree is verbatim free-text quoted from the CV (not a
+// retained recruitment signal), so erasure must deep-redact every string/array under
+// them, not just a single named array. `evidenceTrace` ({experience,skills,seniority,
+// education,salary}: string[] of CV quotes) was walked straight through before — its
+// quotes survived Art. 17 erasure and were re-exported by the provenance dossier.
+const PII_CONTAINER_KEYS = new Set(["evidencetrace"]);
+
+/** Recursively blank every leaf under a free-text PII container: strings → "",
+ *  arrays → [] (drop the verbatim quotes), objects recurse; non-identifying
+ *  numbers/booleans/null are kept so the structure still parses. */
+function deepRedact(value: unknown): unknown {
+  if (typeof value === "string") return "";
+  if (Array.isArray(value)) return [];
+  if (value && typeof value === "object") {
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(value as Record<string, unknown>)) out[k] = deepRedact(v);
+    return out;
+  }
+  return value;
+}
+
 /** Deep-scrub directly-identifying PII out of a profile/analysis payload while
  *  KEEPING the non-identifying recruitment signal (skills, scores, seniority,
  *  roleFamily, salary band, traits) so talent-rediscovery can still rank the
@@ -140,7 +169,9 @@ export function scrubPiiFromPayload(payload: unknown): unknown {
     const out: Record<string, unknown> = {};
     for (const [key, value] of Object.entries(payload as Record<string, unknown>)) {
       const k = key.toLowerCase();
-      if (PII_ARRAY_KEYS.has(k)) {
+      if (PII_CONTAINER_KEYS.has(k)) {
+        out[key] = deepRedact(value);
+      } else if (PII_ARRAY_KEYS.has(k)) {
         out[key] = [];
       } else if (PII_KEYS.has(k)) {
         out[key] = typeof value === "string" ? "" : null;

@@ -1,0 +1,195 @@
+{
+  "job": {
+    "id": "cal-054",
+    "title": "Senior Data Analyst",
+    "company": "StrongArm Technologies",
+    "role_family": "data_ai",
+    "seniority": "senior",
+    "source": "hf:jacob-hugging-face/job-descriptions"
+  },
+  "analysis": {
+    "realStack": [
+      "SQL (a must) against cloud-based database / data-warehouse systems",
+      "Python (a must) for analysis and scripting",
+      "Excel and Google Sheets (both called out as a must)",
+      "GitHub for version control / collaboration (a must)",
+      "BI & visualization platforms — Looker, Tableau, Power BI, or Google Data Studio",
+      "Databricks / Jupyter notebook environments; R or other scripting languages",
+      "Data monitoring / observability tooling for programs and internal data structures",
+      "A massive proprietary IoT sensor dataset (millions of hours of wearable/safety sensor data) as the core 'body of work'",
+      "Dashboards, technical reports, and client-facing decks/presentations as primary deliverables",
+      "Applied statistics + data wrangling/cleaning/transformation (source connection → cleaning → gap identification)",
+      "Domain materials: ergonomics, behavioral science, and sensing-technology safety contexts"
+    ],
+    "coreResponsibilities": [
+      "Own and lead analytics insights for a defined book of clients — be the go-to data person for those accounts",
+      "Mine the IoT sensor dataset to surface trends and 'aha' insights that drive client business value",
+      "Create and frequently present technical reports, dashboards, and visualizations to external clients/partners and internal teams",
+      "Translate R&D concepts into formal, productized client deliverables",
+      "Handle both short-term ad hoc work (visualizations, dashboards, model changes) and longer-term analytical projects",
+      "Build analytics systems/tooling that scale the team's capacity to deliver insights",
+      "Collaborate cross-functionally with data science, engineering, product, business, and client-services teams",
+      "Safeguard data integrity, quality, and sound analysis practices across underlying datasets and reports"
+    ],
+    "statedVsRealGaps": [
+      "Title says 'Senior Data Analyst,' but the described work is a hybrid analyst + client-facing insights consultant + light analytics engineer — a meaningful share of success rides on storytelling, presentation, and account ownership, not analysis alone",
+      "'Build analytics systems' and 'model changes' imply engineering/modeling beyond classic analyst scope, yet there's no mention of pipeline/dbt/orchestration ownership or ML depth — ambiguous whether the hire owns production systems or just consumes them",
+      "The tool list (SQL, Python, R, Databricks, Excel, Google Sheets, GitHub, plus any of four BI tools) is a long must-have stack; few real candidates hold all of it, so the literal bar is broader than any one person's true day-to-day",
+      "The numeric experience threshold is blank ('years of relevant work experience'), so 'senior' is asserted but the actual seniority floor is undefined",
+      "Daily client collaboration + a 'book of clients' + frequent presentations makes this heavily relationship-driven; the 'Data Analyst' framing under-signals how much of the role is consultative/customer-facing",
+      "Domain context (IoT sensors, ergonomics, behavioral science) is integral but not required — a real and unbudgeted onboarding ramp the JD doesn't acknowledge"
+    ],
+    "trueComplexity": "high",
+    "riskAreas": [
+      "Role-shape mismatch: technically strong candidates who dislike client time, or strong communicators without the technical depth, will both look like fits on paper and fail in practice — the IC/consultant split is the core hiring risk",
+      "Tool laundry-list over-filtering: treating all listed tools as hard requirements risks false-negative screening of otherwise excellent analysts",
+      "Reactive ad hoc work (dashboards, 'model changes,' client requests) crowding out the longer-term analyses the JD also expects — a classic startup scope-creep trap, amplified by owning a client book",
+      "Data-integrity ownership over a massive, messy IoT dataset without clearly owned upstream data engineering — the analyst may inherit quality problems they can't structurally fix",
+      "'Go-to person' / single-owner framing creates key-person dependency and burnout exposure in a fast-growing startup",
+      "Ambiguous 'model changes' (statistical/ML vs. data-model) could set the wrong expectation on either side during hiring"
+    ],
+    "reflection": "Stripped of its title, this is a client-facing senior insights analyst at an IoT workplace-safety startup: the candidate owns a book of accounts, mines a large proprietary sensor dataset, and — critically — turns findings into presentations, dashboards, and relationships. The technical stack is broad but conventional (SQL + Python + a BI tool + notebooks), and the genuine differentiators are storytelling, stakeholder translation, and self-starting account ownership rather than deep modeling or engineering. The JD's main internal tension is the 50/50 split it explicitly wants between technical build work and direct client interfacing, layered on a long must-have tool list and a missing experience threshold — together these make the 'real' role both broader and more consultative than 'Data Analyst' suggests, which is why I rate true complexity high. Important grounding caveat: no codebase or actual corpus was supplied (codebases: null), so this reflects the stated need against the JD's own internal evidence, not against StrongArm's real data or repos; the gaps above are tensions within the JD, and confidence is bounded accordingly.",
+    "confidence": 0.72,
+    "promptVersion": "need-analysis-v3"
+  },
+  "role": {
+    "title": "Senior Data Analyst",
+    "seniority": "senior",
+    "roleFamily": "data_ai",
+    "mustHaves": [
+      "SQL against cloud data warehouses — writing and optimizing queries to extract, join, and aggregate large datasets",
+      "Python for data analysis, wrangling, and scripting",
+      "Solid foundation in applied statistics and statistical reasoning",
+      "BI & data visualization with at least one of Looker, Tableau, Power BI, or Google Data Studio",
+      "Data wrangling, cleaning, and transformation (source connection → cleaning → gap identification)",
+      "Technical presentation and data storytelling — turning analysis into compelling narratives for external clients and internal stakeholders",
+      "Account/insight ownership — leading analytics for a book of clients as the go-to data person",
+      "Proficiency with Excel and Google Sheets",
+      "Version control and collaboration with GitHub"
+    ],
+    "niceToHaves": [
+      "R or other scripting languages",
+      "Databricks and Jupyter notebook environments",
+      "Experience with IoT, wearable, or time-series sensor data",
+      "Light analytics engineering — building scalable analytics systems and tooling",
+      "Data monitoring / observability tooling for data quality and integrity",
+      "Domain exposure to ergonomics, behavioral science, or workplace-safety contexts",
+      "Experience translating R&D or experimental concepts into productized deliverables"
+    ],
+    "responsibilities": [
+      "Own and lead analytics insights for a defined book of clients, serving as the go-to data analyst for those accounts",
+      "Mine a massive proprietary IoT sensor dataset to surface trends and 'aha' insights that drive client business value",
+      "Create and frequently present technical reports, dashboards, and visualizations to external clients, partners, and internal teams",
+      "Translate R&D concepts into formal, productized client deliverables",
+      "Deliver both short-term ad hoc work (visualizations, dashboards, model changes) and longer-term analytical projects",
+      "Build analytics systems and tooling that scale the team's capacity to deliver insights",
+      "Collaborate cross-functionally with the data, engineering, product, and client-services teams and directly with clients",
+      "Safeguard data integrity, quality, and sound analysis practices across underlying datasets and reports"
+    ],
+    "languages": [
+      "Python",
+      "SQL",
+      "R"
+    ],
+    "promptVersion": "role-design-v3"
+  },
+  "case": {
+    "title": "Wearable-Safety Sensor Insight: From a Messy Warehouse Export to a Client-Ready Answer",
+    "brief": "You have just inherited the Northwind Logistics account, a client that runs wearable safety sensors on warehouse staff to flag risky lifting, bending, and twisting before they cause injuries. Leadership at Northwind has sent an ad hoc request, and you have ~2 hours to respond like the go-to analyst for that book of business. You are handed a slice of the production sensor warehouse plus the work the previous analyst left behind. The provided materials fit this role directly: this is real data-analyst work performed ON the IoT sensor dataset — profiling, cleaning, auditing an inherited metric, and turning it into a defensible, client-facing answer. We assume you will use LLM tooling freely; we are not testing whether you can type SQL or Python from memory, so the bar is JUDGMENT — what you choose to trust, what you refuse to claim, and how you communicate it to a non-technical client. Depth matters more than volume here: there are only three substantive tasks plus a running decisions log, and finishing all of them well inside the timebox is expected. Several parts of the brief are deliberately open, exactly as a real client request would be — clarifying, scoping, and reading before generating are the job, not a trick. Keeping a short decisions log as you go is normal engineering practice and is one of the deliverables.",
+    "repoSeed": "A handoff folder representative of one client's corner of the warehouse:\n\n- sensor_minute.csv (~2.5M rows, a sampled slice): one row per device per minute with columns event_ts, device_id, worker_id, site_id, hazard_score (documented 0–10 but actually populated 0–100), bend_count, twist_count, exposure_minutes, firmware_version. It carries real-world warts: roughly 8% of rows are exact duplicates from gateway re-transmission (identical event_ts + device_id); every device at sites S04 and S07 runs firmware fw1.2, which has a known 7-hour clock offset so its event_ts is in UTC while everything else is local; and 'device on charger' rows have exposure_minutes = 0 with hazard_score nulls that the export coerced to 0.\n\n- dim_device.csv: device_id, site_id, deployed_at, last_sync_ts, firmware_version. About 30 recently deployed devices that appear in sensor_minute are missing from this dimension table.\n\n- dim_site.csv: site_id, client_id, region, headcount, training_program_started_at (populated for the sites where Northwind rolled out lifting-technique training; null elsewhere).\n\n- safety_score.ipynb: the previous analyst's notebook. Its compute_safety_score(df) ranks sites by the unweighted mean of hazard_score across all rows, inner-joins to dim_device, and includes the zero-exposure charger rows. This ranking was shared with Northwind leadership last quarter and feeds the weekly dashboard.\n\n- northwind_safety_dashboard.md: a spec/screenshot description of the existing Looker dashboard the client sees each week (built on compute_safety_score).\n\n- data_dictionary.md: partial and slightly stale — it labels hazard_score as 0–10, says nothing about the firmware clock offset, and predates the most recent device deployments.\n\n- client_request.md: a Slack thread from the Northwind account lead: \"Leadership wants to know if the lifting-technique training we rolled out is actually working — can you pull the numbers by Friday? Also can you update the model so the dashboard reflects it.\"",
+    "tasks": [
+      "Establish a data-trust baseline. Profile sensor_minute.csv against dim_device.csv and dim_site.csv, then write a short (≤1 page) data-trust note: what this slice can and cannot support, the specific integrity issues you found, HOW you detected each one, and what each issue forces you to decide before any number leaves the building.",
+      "Audit the inherited metric. Read compute_safety_score() in safety_score.ipynb before you change anything. Reproduce the current site ranking, then judge whether the metric is sound for a client-facing dashboard — and either correct it or justify leaving it as-is, keeping in mind it was already shared with Northwind leadership last quarter.",
+      "Answer the client. Using ONLY what your data-trust note says is reliable, produce one client-facing visualization plus 4–6 sentences of plain-language interpretation that addresses Northwind's question about whether the lifting-technique training is working. Be explicit about what the data does and does not let you claim to a non-technical audience.",
+      "Keep a running DECISIONS.md as you work. For every call you made where the brief was open — how you scoped the client's question, how you handled the duplicates and the S04/S07 clock offset, whether you changed the safety score, and what 'update the model' means — record what you chose, the alternative you rejected, and the one question you would put to the team or the client."
+    ],
+    "coverProbes": [
+      {
+        "id": "training-works-ask",
+        "kind": "underspecified",
+        "where": "client_request.md ('is the lifting-technique training actually working') against dim_site.training_program_started_at",
+        "reveals": "A strong candidate names the missing comparison and confounders (deployment ramp, seasonality, only some sites trained) and picks a method that fits the 2-hour budget while stating its limits; a naive candidate reports a single pre-vs-post number as proof the training 'worked' with no baseline, control, or caveat.",
+        "decisionSpace": [
+          "Pre/post within trained sites only: fast and directly answers the ask, but confounded by deployment ramp-up and seasonality.",
+          "Difference-in-differences, trained sites vs comparable untrained sites: cleaner causal story, but more work and depends on finding a fair control group in the slice.",
+          "Descriptive trend with an explicit 'cannot attribute causation' caveat: most honest and quickest, but risks not giving leadership the yes/no they asked for."
+        ]
+      },
+      {
+        "id": "legacy-safety-score",
+        "kind": "legacy_trap",
+        "where": "compute_safety_score() in safety_score.ipynb (unweighted mean hazard, inner join to dim_device, zero-exposure rows included)",
+        "reveals": "A strong candidate reads the function and spots that an unweighted row mean lets low-wear devices dominate, the inner join silently drops the ~30 undocumented new devices, and charger rows deflate the score — and weighs that the number is already client-facing; a naive candidate re-runs it as ground truth or rewrites it from scratch without noticing it was shared last quarter.",
+        "decisionSpace": [
+          "Fix to exposure-weighted and re-rank, flagging that rankings move: most correct, but invalidates numbers already shown to the client.",
+          "Keep the formula for continuity but annotate the bias and show both versions side by side: preserves comparability and is transparent, but propagates a known flaw.",
+          "Document the flaw and park the change pending sign-off: safest for a client-facing metric, but slower and leaves the dashboard wrong in the meantime."
+        ]
+      },
+      {
+        "id": "integrity-duplicates-clockdrift",
+        "kind": "verification_trap",
+        "where": "sensor_minute.csv duplicate rows (~8% on event_ts+device_id), S04/S07 fw1.2 7-hour clock offset, and exposure_minutes=0 charger rows",
+        "reveals": "A strong candidate validates distinct keys, checks row-count vs distinct-count, and inspects the event_ts time-of-day distribution per site/firmware before trusting any aggregate; a naive candidate runs a plausible COUNT/SUM that passes a shallow eyeball check while duplicates inflate counts and the two drifted sites land events in the wrong shift.",
+        "decisionSpace": [
+          "Dedup on (event_ts, device_id), drop zero-exposure rows, and time-zone-correct S04/S07 before analyzing: most defensible, but the heaviest lift in the timebox.",
+          "Analyze raw with explicit caveats and exclude S04/S07 from any time-of-day cut: faster and transparent, but narrows what can be claimed.",
+          "Treat the issues as blockers and deliver only the trustworthy subset now: most conservative, but risks under-delivering on the client ask."
+        ]
+      },
+      {
+        "id": "update-the-model-scope",
+        "kind": "ambiguity",
+        "where": "client_request.md ('update the model so the dashboard reflects it') — statistical hazard model vs data/dashboard model",
+        "reveals": "A strong candidate notices 'model' is overloaded — the statistical hazard_score model versus the dashboard's data model/view — and resolves scope before building anything; a naive candidate silently assumes one reading and ships work that may be the wrong, hard-to-reverse change.",
+        "decisionSpace": [
+          "Read it as the hazard_score statistical metric and propose a recalibration: shows technical depth, but is high-risk and likely out of a 2-hour scope.",
+          "Read it as the dashboard data model/view and adjust what the client sees: lighter and client-facing, but may not be what leadership meant.",
+          "Refuse to guess: state both readings, ask which is intended, and proceed meanwhile on the cheaper reversible one: best judgment, at the cost of not fully completing either in the box."
+        ]
+      }
+    ],
+    "timeboxHours": 2.0,
+    "rubricDimensions": [
+      {
+        "name": "framing",
+        "label": "Problem framing",
+        "weight": 0.2,
+        "description": "Turns an ambiguous need into a sound plan."
+      },
+      {
+        "name": "tooling",
+        "label": "Tooling fluency",
+        "weight": 0.25,
+        "description": "Drives AI and other tools well; iterates and verifies."
+      },
+      {
+        "name": "judgment",
+        "label": "Judgment",
+        "weight": 0.25,
+        "description": "Catches AI/tooling mistakes; validates; pushes back."
+      },
+      {
+        "name": "architecture",
+        "label": "Architecture",
+        "weight": 0.15,
+        "description": "Structure and trade-offs that fit the real materials and constraints."
+      },
+      {
+        "name": "transfer",
+        "label": "Transfer",
+        "weight": 0.15,
+        "description": "Capability transfers to THIS role's tools and responsibilities."
+      }
+    ],
+    "promptVersion": "case-design-v5"
+  },
+  "source": "llm",
+  "issues": [],
+  "fallbackReason": {},
+  "promptVersions": {
+    "analyze": "need-analysis-v3",
+    "role": "role-design-v3",
+    "case": "case-design-v5"
+  }
+}

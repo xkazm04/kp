@@ -34,6 +34,9 @@ export const DECISION_META: Record<string, DecisionMeta> = {
   offer_sent: { auto: false, tone: "text-steel" },
   offer_accepted: { auto: false, tone: "text-moss" },
   offer_declined: { auto: false, tone: "text-coral" },
+  // Lapsed offer (deadline passed with no candidate response) — a SYSTEM transition
+  // (auto), terminal-negative. Without this it rendered UNKNOWN + fell out of rollups.
+  offer_expired: { auto: true, tone: "text-amber-600" },
   onboarding_started: { auto: false, tone: "text-moss" },
   // Completed coverage (previously UNKNOWN in the log, invisible to any rollup):
   auto_rejected: { auto: true, tone: "text-coral" },
@@ -45,6 +48,14 @@ export const DECISION_META: Record<string, DecisionMeta> = {
   interview_invite_sent: { auto: true, tone: "text-steel" },
   schedule_invite_sent: { auto: true, tone: "text-steel" },
   interview_reminder_sent: { auto: true, tone: "text-steel" },
+  // Interviewer brief (interview-prep #2): the assigned interviewer is emailed the
+  // prep pack + an .ics hold on booking. `skipped` = assigned but no deliverable
+  // address, so the brief never went — a gap the recruiter must close.
+  interviewer_brief_sent: { auto: true, tone: "text-steel" },
+  interviewer_brief_skipped: { auto: true, tone: "text-amber-600" },
+  // Pre-boarding nudge (candidate-onboarding-hand-off #3): the single auto-resend of
+  // the onboarding link when the questionnaire is still unsubmitted after the delay.
+  onboarding_reminder_sent: { auto: true, tone: "text-steel" },
   onboarding_failed: { auto: true, tone: "text-coral" },
   rejection_comms_failed: { auto: true, tone: "text-coral" },
   fairness_gate_unknown_archetype: { auto: true, tone: "text-coral" },
@@ -112,6 +123,8 @@ export const COMM_SENT_KINDS = [
   "interview_invite_sent",
   "schedule_invite_sent",
   "interview_reminder_sent",
+  "interviewer_brief_sent",
+  "onboarding_reminder_sent",
   "offer_sent",
   "acknowledgement_sent",
   "comm_resent",

@@ -19,6 +19,7 @@ import { applyDedupeKey, applyKoSteps, buildApplyProfileDraft, buildApplyScript,
 import { ANONYMOUS_APPLICANT_LABEL, APPLY_EMAIL_RE, coerceGithubHandle, coerceLeadTokenParam, failedKoStepIds } from "@/app/_lib/apply-intake";
 import { getJobStatus, isJobOpenForApplications } from "@/app/_lib/job-ingest";
 import { dispatchApplicationReceived } from "@/app/_lib/comms-dispatch";
+import { publicBaseUrl } from "@/app/_lib/public-base-url";
 import type { ApplyAnswers } from "@/app/_lib/apply-intake";
 import { cleanupWorkdir, createWorkdir, parsePythonJson, spawnPython } from "@/app/_lib/python-runner";
 import { validateProfileCliResult } from "@/app/_lib/apply-profile-result";
@@ -470,8 +471,14 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     // comms failure must never turn a successful application into a 500. Lands in
     // the Outbox (deliverable when an email was captured above, traceable either
     // way). Fires for degraded stubs too — they still applied.
+    // Mint the status link ONCE so the ack email and the JSON response carry the
+    // SAME token — the email is the durable touchpoint that survives the candidate
+    // closing the tab (without it the unguessable token was lost forever on tab
+    // close, defeating the whole status-tracking feature).
+    const statusToken = safeStatusLink(entry.id);
+    const statusLink = statusToken ? `${publicBaseUrl(new URL(request.url).origin)}/status/${statusToken}` : undefined;
     try {
-      await dispatchApplicationReceived(entry);
+      await dispatchApplicationReceived(entry, { statusLink });
     } catch (ackErr) {
       console.error(
         `[apply] application accepted but acknowledgement failed for entry ${entry.id}:`,
@@ -484,7 +491,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       message: t("acceptedMessage"),
       // A tokenized link so the applicant can track their status (idea-e76a6fb2)
       // instead of going dark after applying.
-      statusToken: safeStatusLink(entry.id),
+      statusToken,
     });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "apply failed" }, { status: 500 });

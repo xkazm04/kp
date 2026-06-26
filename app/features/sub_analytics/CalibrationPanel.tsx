@@ -1,7 +1,9 @@
 "use client";
 
+import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { useJsonFetch } from "@/app/_lib/useJsonFetch";
+import { labelize } from "@/app/_lib/format";
 // `import type` only — calibration.ts is pure (no server imports), erased at compile.
 import type { CalibrationResult } from "@/app/_lib/calibration";
 
@@ -83,12 +85,36 @@ function ReliabilityDiagram({ result, labels }: { result: CalibrationResult; lab
 
 export function CalibrationPanel() {
   const t = useTranslations("analytics.calibration");
-  const { data, error } = useJsonFetch<CalibrationResult>("/api/analytics/calibration");
+  // Per-role-family reliability (the route's headline use case: "how accurate are you
+  // for backend roles?") — was computed-capable (?roleFamily) but had no UI selector.
+  const [family, setFamily] = useState("");
+  const url = `/api/analytics/calibration${family ? `?roleFamily=${encodeURIComponent(family)}` : ""}`;
+  const { data, error } = useJsonFetch<CalibrationResult & { families?: string[] }>(url);
+  const families = data?.families ?? [];
 
   return (
     <section className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
-      <h3 className="font-serif text-h2 text-ink">{t("title")}</h3>
-      <p className="mt-1 max-w-prose text-sm text-stone-500">{t("blurb")}</p>
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div>
+          <h3 className="font-serif text-h2 text-ink">{t("title")}</h3>
+          <p className="mt-1 max-w-prose text-sm text-stone-500">{t("blurb")}</p>
+        </div>
+        {families.length > 1 ? (
+          <select
+            value={family}
+            onChange={(e) => setFamily(e.target.value)}
+            aria-label={t("familyLabel")}
+            className="focus-ring shrink-0 rounded-md border border-stone-300 bg-white px-2 py-1 text-sm text-ink"
+          >
+            <option value="">{t("familyAll")}</option>
+            {families.map((f) => (
+              <option key={f} value={f}>
+                {labelize(f)}
+              </option>
+            ))}
+          </select>
+        ) : null}
+      </div>
 
       {error ? (
         <p className="mt-4 text-sm text-stone-500" role="status">

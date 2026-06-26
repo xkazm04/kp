@@ -1,0 +1,189 @@
+{
+  "job": {
+    "id": "cal-062",
+    "title": "Associate Software Engineering",
+    "company": "Light & Wonder",
+    "role_family": "software_engineering",
+    "seniority": "junior",
+    "source": "hf:jacob-hugging-face/job-descriptions"
+  },
+  "analysis": {
+    "realStack": [
+      "Embedded C / C++ (inferred — the JD names no languages but 'software-embedded products' in real-time gaming hardware is overwhelmingly C/C++)",
+      "Real-time / RTOS development — explicitly 'software modeling in real-time response environments'",
+      "Serial communications protocols — explicitly 'development, improvement and analysis of serial communications protocols' (in gaming this typically means SAS/Slot Accounting System, G2S, RS-232/UART-class links — inferred specifics)",
+      "Multiple operating systems — explicitly 'experience with various operating systems' (embedded + bench/host OSes, unspecified)",
+      "Game content / game-library development — explicitly 'develops and produces new games while adding to the main game libraries'",
+      "Standard SDLC tooling: requirements interpretation, debugging/troubleshooting, integration test, and documentation (toolchain, debuggers, version control all implied but unnamed)",
+      "Regulated-gaming compliance overhead — gaming/lottery licensing, background investigation, security checks (a real operating constraint, not a tech tool)"
+    ],
+    "coreResponsibilities": [
+      "High-level and detailed design/development of assigned embedded gaming and system components",
+      "Code, test, integrate, troubleshoot and debug embedded software applications",
+      "Review, interpret and execute software-embedded requirements and specifications",
+      "Develop and produce new games and extend the main game libraries",
+      "Develop/improve/analyze serial communications protocols for real-time gaming hardware",
+      "Train and share expertise with fellow/subordinate engineers on company software-engineering standards and practices",
+      "Liaise cross-functionally with other engineering groups, marketing and sales",
+      "Document tasks, solutions, and implementation processes; research and incorporate new technologies"
+    ],
+    "statedVsRealGaps": [
+      "Seniority mismatch: the title 'Associate Software Engineering' and the supplied seniorityTarget 'junior' contradict the JD body, which requires accountability for 'all or a significant portion of a function' and the ability to 'train subordinates' — that reads as mid-level/II, not entry-level junior.",
+      "The years-of-experience field is garbled/redacted in the source text ('years of experience to years'), so the actual experience bar cannot be confirmed from the JD — the 'junior' label is unsupported by the evidence.",
+      "Stack is almost entirely unstated: the JD describes responsibilities richly but names zero concrete languages, RTOSes, protocols, or toolchains. Everything in realStack except the literal phrases ('real-time', 'serial protocols', 'various OSes', 'games') is domain inference, not stated fact.",
+      "Scope breadth is wide and arguably two jobs: low-level embedded firmware + serial-protocol work AND game-content/library production are different skill centers; the JD treats them as one role without clarifying the split.",
+      "The role carries a hard regulatory gate (gaming license, background investigation, security/legal standards) that functions as a real qualification but is absent from the structured 'stack/responsibilities' framing."
+    ],
+    "trueComplexity": "high",
+    "riskAreas": [
+      "Label-vs-reality on seniority: hiring against a 'junior' rubric will under-spec a role that demands real-time embedded judgment, protocol analysis, and mentoring others — expect a misfit if screened as entry-level.",
+      "Real-time embedded + serial-protocol experience is scarce and hard to assess; without a named stack, screening becomes guesswork — confirm C/C++, RTOS exposure, and which gaming protocols (e.g. SAS/G2S) before pipelining candidates.",
+      "Regulatory disqualification risk: licensing and background-investigation requirements can eliminate an otherwise-strong candidate late in the process; surface this early.",
+      "Dual-skill ambiguity (firmware/protocols vs game-content development) risks hiring someone strong on one half and weak on the other, or churning if expectations aren't pinned.",
+      "Grounding risk for downstream use: no codebase was supplied and the JD omits the concrete stack, so any tooling match must be treated as inferred, not verified against a real body of work."
+    ],
+    "reflection": "This is a genuine embedded-systems software role in a regulated land-based gaming company, not an office/business role, but no codebase or other body of work was supplied — so the reflection is grounded only in the JD's own text. On its face the need is internally inconsistent: it is filed as 'Associate / junior' yet the JD body asks the holder to be accountable for a function, train subordinates, design real-time embedded components, and analyze serial communication protocols — work that is squarely mid-level and genuinely high-complexity. The richest, most reliable signal in the JD is the responsibility set (design, embedded coding/integration, debugging, game-library development, protocol work, cross-functional liaison); the weakest is the concrete stack, which the JD never states, forcing the 'realStack' to be inferred from the embedded-gaming domain (C/C++, RTOS, SAS/G2S-class serial protocols). The honest read: the responsibilities are credible and demanding, but the seniority framing, the redacted experience range, and the missing tech specifics mean recruiters should re-confirm the experience bar, pin the concrete languages/protocols, and account for the gaming-licensing gate before treating any candidate as a match.",
+    "confidence": 0.6,
+    "promptVersion": "need-analysis-v3"
+  },
+  "role": {
+    "title": "Associate Software Engineer",
+    "seniority": "junior",
+    "roleFamily": "software_engineering",
+    "mustHaves": [
+      "Embedded software development",
+      "C",
+      "C++",
+      "Real-time systems fundamentals",
+      "Debugging and troubleshooting of embedded applications",
+      "Reading, interpreting and implementing software requirements and specifications",
+      "Understanding of the software development lifecycle (SDLC)",
+      "Strong problem solving and analytical skills",
+      "Bachelor's degree in a related field"
+    ],
+    "niceToHaves": [
+      "RTOS / real-time response environment experience",
+      "Serial communications protocols (e.g. RS-232/UART; SAS/G2S in gaming)",
+      "Experience with various operating systems",
+      "Game content / game-library development",
+      "Version control (Git)",
+      "Cross-functional collaboration and technical documentation",
+      "Gaming / casino domain knowledge",
+      "Eligibility to obtain a gaming license and pass a background investigation"
+    ],
+    "responsibilities": [
+      "Design and develop assigned embedded gaming and system components under guidance",
+      "Code, test, integrate, troubleshoot and debug embedded software applications",
+      "Review, interpret and execute software-embedded requirements and specifications",
+      "Develop and produce new games and extend the main game libraries",
+      "Develop, improve and analyze serial communications protocols for real-time gaming hardware",
+      "Document tasks performed, solutions to issues and the implementation process",
+      "Research new technologies and help incorporate them into gaming/system products",
+      "Collaborate with fellow engineers and cross-functional groups such as marketing and sales"
+    ],
+    "languages": [
+      "C",
+      "C++"
+    ],
+    "promptVersion": "role-design-v3"
+  },
+  "case": {
+    "title": "Slot-Machine Firmware: SAS Meter Poll, Frame Validation & a Bounded Bonus Pick",
+    "brief": "No real firmware was supplied with this role, so the starting materials below are a synthetic but representative slice of slot-machine firmware: a SAS-style serial link (the host EGM controller polls each machine over a UART), a CRC layer, credit meters, and a tiny game library. Treat it as the kind of bench-stage code a junior embedded engineer is handed on day one. Build with `make`, test with `make test`. Work in C (the headers and stubs are C). Three small, well-scaffolded tasks plus a short decisions log — signatures, tables and a real wire capture are provided so you are filling in judgment, not boilerplate. This is regulated-gaming hardware: a reply the host can't parse drops the machine off the floor, a bad CRC corrupts accounting, and a game outcome that can't be replayed fails certification — keep those stakes in mind. The spec excerpt is deliberately thin in places and at least one provided file's comment disagrees with the real device on the wire; reconcile contradictions rather than picking whichever is most convenient to code. Ask if you're genuinely blocked, but where you can make a defensible call, make it and write it down. Hard time budget is ~1 hour: if you run short, do Tasks 1 and 2 well and note what you'd have done next rather than rushing all three.",
+    "repoSeed": "A small embedded gaming firmware tree (synthetic, representative — no real codebase was provided with this JD):\n- `firmware/sas_link.c` / `sas_link.h` — SAS-style serial polling state machine over UART (address/wakeup byte, general poll vs. long poll, byte-by-byte assembly). Contains the stub `handle_long_poll_2F()` (currently returns no data) and `frame_ok()` which gates inbound frames.\n- `firmware/crc.c` / `crc.h` — `crc16_kermit()` used by `frame_ok()`; it passes the one vector in `tests/test_crc.c`.\n- `firmware/meter.c` / `meter.h` — `meter_get(MeterId)` returns coin-in / coin-out as `uint32_t`; the header comment states meters are reported 'as 32-bit binary'.\n- `firmware/rt_tick.c` — cooperative 20 ms real-time scheduler tick; header note: handlers must not block, busy-wait, or allocate.\n- `game_lib/bonus_pick.c` / `bonus_pick.h` — stub `resolve_bonus_pick()` plus a fixed `PICK_AWARDS[]` payout table.\n- `game_lib/rng.h` — `rng_next()` and `rng_seed()`, with a one-line note that outcomes may be audited.\n- `docs/sas_excerpt.md` — vendor protocol excerpt: long poll `0x2F` 'send selected meters', framing, CRC-16/Kermit over address+command+data; explicitly defers meter encoding/width/rollover to 'implementation notes' that aren't included.\n- `bench/capture_poll2F.txt` — annotated real UART capture: host general poll, host long poll `0x2F`, and the device's actual byte-for-byte response (the ground truth for framing, meter encoding, and CRC).\n- `bench/host_poll.py` — minimal host script that polls the device, for checking your reply.\n- `tests/test_crc.c`, `README.md`.",
+    "tasks": [
+      "In `firmware/sas_link.c`, complete `handle_long_poll_2F()` so the machine answers the host's `0x2F` ('send selected meters') long poll with the current coin-in and coin-out meters from `meter.c`. Use `docs/sas_excerpt.md` for the frame layout and `bench/capture_poll2F.txt` as the ground-truth wire format — your response should match what a real device sends for the same meter values, byte for byte.",
+      "Make `frame_ok()` correctly accept the genuine host frames in `bench/capture_poll2F.txt`. `make test` (which exercises `tests/test_crc.c`) currently passes, but if real captured frames are rejected, find out why and fix it at the right layer — a link that drops valid polls is dead on the floor.",
+      "In `game_lib/bonus_pick.c`, implement `resolve_bonus_pick()` using the provided `PICK_AWARDS[]` table. It runs inside the 20 ms tick in `rt_tick.c`, so it must not block or allocate; decide how it draws randomness from `rng.h` given that bonus outcomes may need to be reproduced for a regulator.",
+      "Keep a short `DECISIONS.md`: for every call you made where the spec or brief was open — meter encoding, where you fixed the CRC, the RNG source, anything else — note in a line or two what you chose, the option you rejected, and the one question you'd put to the team. This is just normal hand-off practice, not a separate deliverable to polish."
+    ],
+    "coverProbes": [
+      {
+        "id": "meter-encoding",
+        "kind": "ambiguity",
+        "where": "The meter field in `handle_long_poll_2F()`: `docs/sas_excerpt.md` punts encoding/width/rollover to absent 'implementation notes', `meter.h`'s comment says '32-bit binary', and `bench/capture_poll2F.txt` shows 4-byte packed BCD.",
+        "reveals": "A good candidate notices the header comment and the on-wire capture disagree, trusts the real wire (fixed-width BCD with defined rollover), and flags the stale comment; a naive one emits raw `uint32_t` binary because the header said so and nothing fails at compile time, producing a reply the real host misreads.",
+        "decisionSpace": [
+          "Emit 4-byte packed BCD matching the capture (interop-correct; must then handle the >8-digit rollover the spec hints at)",
+          "Emit 32-bit binary per the header comment (compiles cleanly, simplest, but the real host will misparse the meters)",
+          "Make encoding a build-time option defaulting to BCD (flexible and future-proof, but more surface than this junior task strictly needs)"
+        ]
+      },
+      {
+        "id": "wire-truth-capture",
+        "kind": "legacy_trap",
+        "where": "Reply framing — the address/wakeup byte and the general-poll-vs-long-poll structure are fully visible only in `bench/capture_poll2F.txt`, not in the prose of `docs/sas_excerpt.md`.",
+        "reveals": "A good candidate reads the capture first and reproduces the real framing (wakeup/address byte, command echo, CRC placement); a naive one generates a plausible frame from the prose spec alone and silently omits the address byte, so the host never recognizes the response as coming from this machine.",
+        "decisionSpace": [
+          "Mirror the captured framing exactly, including the address/wakeup byte (correct against real hardware; couples to a single observed example)",
+          "Follow the prose spec literally and skip the address byte (matches the document, fails on the bench)",
+          "Code to the capture but log the spec-vs-wire discrepancy and ask which is authoritative (safest; costs a clarifying round-trip)"
+        ]
+      },
+      {
+        "id": "crc-passes-but-wrong",
+        "kind": "verification_trap",
+        "where": "`crc16_kermit()` in `firmware/crc.c`: it satisfies the single vector in `tests/test_crc.c` but mis-handles reflection / result-byte order, so the genuine frames in the capture fail `frame_ok()`.",
+        "reveals": "A good candidate distrusts the green unit test, cross-checks the CRC against real captured frames, finds the byte-order/reflection bug, fixes it, and adds a captured-frame vector; a naive one sees `make test` pass, assumes the CRC is fine, and either loosens/bypasses `frame_ok()` or 'fixes' the wrong layer, shipping a silent accounting-integrity hole.",
+        "decisionSpace": [
+          "Fix `crc16_kermit()` (correct reflection/output order) and add a real captured-frame test vector (root cause; durable)",
+          "Relax or bypass `frame_ok()` so frames pass (makes the bench demo work, leaves a data-integrity defect)",
+          "Recompute the expected CRC to match the buggy function (tests stay green, every real device is still rejected)"
+        ]
+      },
+      {
+        "id": "rng-determinism",
+        "kind": "underspecified",
+        "where": "Randomness source in `resolve_bonus_pick()`: `rng.h` exposes `rng_next()`/`rng_seed()`, but the brief never states whether bonus outcomes must be reproducible for a regulator, and the function runs inside the 20 ms RT tick.",
+        "reveals": "A good candidate recognizes regulated gaming needs auditable, replayable outcomes — seeds deterministically or routes through the certified RNG, avoids any heap/block in the tick, and says so; a naive one grabs a free-running or ad-hoc random source for 'more randomness', producing unverifiable awards and possibly violating the no-alloc/no-block tick contract.",
+        "decisionSpace": [
+          "Draw from `rng_next()` seeded per game so outcomes are replayable for audit (compliance-aware, deterministic, no allocation)",
+          "Use a free-running/global RNG source (feels 'more random', but is unauditable and a likely certification failure)",
+          "Make the RNG source/seed injectable, defaulting to the certified one (testable and compliant, slightly more plumbing than the task demands)"
+        ]
+      }
+    ],
+    "timeboxHours": 1.0,
+    "rubricDimensions": [
+      {
+        "name": "framing",
+        "label": "Problem framing",
+        "weight": 0.2,
+        "description": "Turns an ambiguous need into a sound plan."
+      },
+      {
+        "name": "tooling",
+        "label": "Tooling fluency",
+        "weight": 0.25,
+        "description": "Drives AI and other tools well; iterates and verifies."
+      },
+      {
+        "name": "judgment",
+        "label": "Judgment",
+        "weight": 0.25,
+        "description": "Catches AI/tooling mistakes; validates; pushes back."
+      },
+      {
+        "name": "architecture",
+        "label": "Architecture",
+        "weight": 0.15,
+        "description": "Structure and trade-offs that fit the real materials and constraints."
+      },
+      {
+        "name": "transfer",
+        "label": "Transfer",
+        "weight": 0.15,
+        "description": "Capability transfers to THIS role's tools and responsibilities."
+      }
+    ],
+    "promptVersion": "case-design-v5"
+  },
+  "source": "llm",
+  "issues": [],
+  "fallbackReason": {},
+  "promptVersions": {
+    "analyze": "need-analysis-v3",
+    "role": "role-design-v3",
+    "case": "case-design-v5"
+  }
+}

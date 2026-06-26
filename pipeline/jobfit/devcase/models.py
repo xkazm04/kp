@@ -135,12 +135,17 @@ class RubricDimension(_Base):
 # truth for dimension order, human labels, weights (sum to 1.0) and descriptions. design.py
 # seeds CaseScenario.rubricDimensions from this; evaluate.py echoes it (annotated with the
 # achieved score) into CaseEvaluation.dimensions so the UI never has to hardcode any of it.
+# Descriptions are DOMAIN-NEUTRAL on purpose: this rubric grades any office role, not
+# just software, so they read in the role's own terms ("real materials", "tools") rather
+# than software residue ("codebase", "stack"). The dimension names/labels/weights are the
+# stable contract (validated by lifecycle_eval._check_case and mirrored into DimensionScore),
+# so only the descriptions were de-industry-locked.
 RUBRIC_DIMENSIONS: list[dict] = [
     {"name": "framing", "label": "Problem framing", "weight": 0.2, "description": "Turns an ambiguous need into a sound plan."},
-    {"name": "tooling", "label": "Tooling fluency", "weight": 0.25, "description": "Drives the model/tools well; iterates and verifies."},
-    {"name": "judgment", "label": "Judgment", "weight": 0.25, "description": "Catches model mistakes; validates; pushes back."},
-    {"name": "architecture", "label": "Architecture", "weight": 0.15, "description": "Structure + trade-offs that fit the real codebase."},
-    {"name": "transfer", "label": "Transfer", "weight": 0.15, "description": "Capability transfers to THIS role's stack/responsibilities."},
+    {"name": "tooling", "label": "Tooling fluency", "weight": 0.25, "description": "Drives AI and other tools well; iterates and verifies."},
+    {"name": "judgment", "label": "Judgment", "weight": 0.25, "description": "Catches AI/tooling mistakes; validates; pushes back."},
+    {"name": "architecture", "label": "Architecture", "weight": 0.15, "description": "Structure and trade-offs that fit the real materials and constraints."},
+    {"name": "transfer", "label": "Transfer", "weight": 0.15, "description": "Capability transfers to THIS role's tools and responsibilities."},
 ]
 
 

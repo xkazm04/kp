@@ -48,10 +48,6 @@ class OpenAIProvider(TextProvider):
             text=text,
             provider=self.name,
             model=self.model,
-            raw={
-                "id": getattr(resp, "id", None),
-                "finish_reason": getattr(choice, "finish_reason", None) if choice else None,
-            },
             usage={
                 "input_tokens": input_tokens,
                 "output_tokens": output_tokens,

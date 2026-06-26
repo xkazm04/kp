@@ -1,0 +1,46 @@
+> Total: 5 findings (0c critical, 1h high, 2m medium, 2l low)
+
+## 1. Default-provider preference order is inverted between the server policy and the client UI
+- **Severity**: High
+- **Category**: duplication
+- **File**: app/_lib/voice/index.ts:32 (`pickDefaultProvider`) vs app/_components/voice/VoiceInterview.tsx:46-47 (`DEFAULT_PROVIDER`, `PROVIDER_ORDER`)
+- **Scenario**: The whole point of `pickDefaultProvider` (index.ts:24-33, comment: "honor an explicitly requested provider, otherwise prefer a configured one (OpenAI first)... Shared by the create + simulate routes so a recruiter-created link and a simulator link can't default to different providers") is to single-source the default-provider decision. But the client component keeps its OWN copy of that same preference policy — and orders it the OTHER way: `DEFAULT_PROVIDER = "elevenlabs"` and `PROVIDER_ORDER = ["elevenlabs", "openai"]` (VoiceInterview.tsx:46-47), used both as the initial unlocked state (line 90) and in the availability-fallback effect (line 342: `PROVIDER_ORDER.find((p) => avail[p])`). Verified via `grep -rn "pickDefaultProvider"` (only index.ts + create/simulate routes) and `grep -rn "DEFAULT_PROVIDER\|PROVIDER_ORDER"` (only VoiceInterview.tsx). So: a lab/sim user who creates a session lands on OpenAI server-side, but the UI's unlocked picker defaults to ElevenLabs — two sources of truth that already disagree on which provider "wins".
+- **Root cause**: The shared policy was extracted server-side (the comment proudly notes "the preference order lived twice"), but the client picker's identical fallback logic was never folded in — so the order in fact still lives twice, now with opposite values.
+- **Impact**: Maintenance + correctness drift: a future change to the preferred provider must be made in two places with two different orderings, and the lab/sim already default differently than the server. The fix that "consolidated" duplication missed the third copy.
+- **Fix sketch**: Have the client derive its preference order from a single exported constant (e.g. export `VOICE_PROVIDER_ORDER`/`DEFAULT_VOICE_PROVIDER` from voice/types.ts, which the browser already imports) and have `pickDefaultProvider` consume that same ordered list instead of its inline `avail.openai ? ... : avail.elevenlabs ? ...` ternary. Then both `PROVIDER_ORDER.find(...)` and the server fallback walk the one list. Decide the canonical order once (the UI says ElevenLabs-first, the server says OpenAI-first — pick one).
+
+## 2. ElevenLabs setup script duplicates the interviewer-brief persona lines that are explicitly single-sourced
+- **Severity**: Medium
+- **Category**: duplication
+- **File**: scripts/setup-eleven-agent.mjs:36-44 (the `PROMPT` array) vs app/_lib/voice/index.ts:37-48 (`defaultInterviewerInstructions`) + app/_lib/student-interview.ts:145-148 (`PERSONA_GENDER_GRAMMAR`, `PERSONA_LANGUAGE_DETECT`)
+- **Scenario**: setup-eleven-agent.mjs:38 hardcodes the byte-for-byte string of `PERSONA_GENDER_GRAMMAR` ("You are male — when you speak Czech, use masculine grammatical forms...„rád bych“...") and :39 hardcodes `PERSONA_LANGUAGE_DETECT` ("Detect whether the candidate speaks Czech or English..."). I diffed the script lines against the constants in student-interview.ts:145-148 — identical text. The surrounding brief (warm professional first-round screener, "Ask at most 3–4 short questions", "Keep the whole call under ${QUICK_SCREEN_MIN} minutes", "a human recruiter will review") also mirrors `defaultInterviewerInstructions` structure. The student-interview.ts comment (lines 138-144) explicitly says these constants are "the single source so a wording change... lands once instead of being hand-applied in five places" — yet the script is exactly such a hand-applied copy.
+- **Root cause**: The script runs with bare `node` and (per interview-duration.mjs's header) must import only `.mjs` with no type-stripping; `PERSONA_GENDER_GRAMMAR` lives in a `.ts` file, so the script couldn't import it and copied the text instead. The constants already import cleanly from index.ts into interview-run.ts, but no `.mjs`-importable home was created for them.
+- **Impact**: A future tweak to the gender-grammar or language-detect wording (the comment even anticipates "a future neutral/female variant") updates the app's five builders but silently leaves the baseline ElevenLabs agent prompt on the old wording — the dashboard agent and the runtime overrides drift.
+- **Fix sketch**: Move `PERSONA_GENDER_GRAMMAR` / `PERSONA_LANGUAGE_DETECT` (and optionally a `quickScreenPromptLines()` builder) into a small `.mjs` module (sibling to interview-duration.mjs) with a `.d.mts`, re-export them from student-interview.ts, and have the script `import` them. Then the script's `PROMPT` is assembled from the shared lines, killing the verbatim copies.
+
+## 3. `transcriptToNotes` is re-exported from interview-run.ts "for back-compat" with no remaining consumer
+- **Severity**: Medium
+- **Category**: dead-code
+- **File**: app/_lib/interview-run.ts:6,26 (`import { ...transcriptToNotes...}` then `export { transcriptToNotes }`)
+- **Scenario**: interview-run.ts imports `transcriptToNotes` from interview-transcript.ts only to re-export it (line 26, comment "Re-exported for back-compat"). `grep -rn "transcriptToNotes"` shows every real consumer imports it directly from interview-transcript.ts (its definition + interview-transcript.test.ts); the only importers of interview-run.ts (`grep` for `from ".../interview-run"`) pull `buildGroundedInterview`, `runInterviewScorecard`, `plannedInterviewMinutes` — never `transcriptToNotes`. So the back-compat alias has no remaining caller.
+- **Root cause**: `transcriptToNotes` was relocated from interview-run.ts into interview-transcript.ts (where the truncation policy lives) and a re-export stub was left to avoid breaking importers; the importers were all migrated to the new path but the stub stayed.
+- **Impact**: Low-grade clutter that misleads readers into thinking interview-run is still the canonical home for transcript flattening, and keeps an unnecessary import edge between the two modules.
+- **Fix sketch**: Delete line 26 (`export { transcriptToNotes };`) and drop `transcriptToNotes` from the line-6 import (keep `buildScorecardNotes`). Confirm with `grep` that nothing imports it from interview-run (verified: nothing does).
+
+## 4. `durationLabel` is an exported helper used only by its own test
+- **Severity**: Low
+- **Category**: dead-code
+- **File**: app/_lib/interview-duration.mjs:47-49 (`durationLabel`), typed in app/_lib/interview-duration.d.mts:12
+- **Scenario**: `rg -n "durationLabel\("` across the repo (excluding node_modules) returns only interview-duration.mjs (the definition) and interview-duration.test.ts (two assertions). No app/component/route/script calls it — the candidate portal renders its duration via the `durationApprox`/`durationChip` i18n path instead (page.tsx:58, InterviewSidebar.tsx:31). Its sibling `durationChip` IS used in InterviewSidebar.tsx:31, so this is a one-off dead twin, not the whole module.
+- **Root cause**: `durationLabel` ("About N minutes") was the original English label helper; the UI moved to next-intl message keys (`durationApprox`) and the plain-string helper was orphaned but kept (and faithfully tested), so it reads as live.
+- **Impact**: Minimal — a tiny dead export plus a test that pins behavior nothing depends on. The risk is it looks load-bearing and invites someone to "keep it in sync" with the i18n copy.
+- **Fix sketch**: Either delete `durationLabel` (mjs + the `.d.mts` declaration + its two test assertions), or, if it's meant as the source the i18n string mirrors, leave it but add a one-line "not wired to UI — i18n owns the rendered label" note. Lowest-risk: remove it.
+
+## 5. The two provider connect adapters share an HTTP-error-extraction pattern that could be a one-line helper
+- **Severity**: Low
+- **Category**: duplication
+- **File**: app/_lib/voice/openai.ts:105-108 vs app/_lib/voice/elevenlabs.ts:27-30
+- **Scenario**: Both adapters do the identical "non-ok → read body, throw `<provider> <label> <status>: <detail.slice(0,300)>`" dance: openai.ts:105-108 (`const detail = await res.text().catch(() => ""); throw new Error(\`OpenAI client_secrets ${res.status}: ${detail.slice(0, 300)}\`)`) and elevenlabs.ts:27-30 (same shape, `ElevenLabs get-signed-url`). The 300-char slice and the catch-to-empty-string are duplicated verbatim. (The two adapters legitimately differ everywhere else — endpoints, auth headers, response parsing, the OpenAI WebRTC vs EL WS model — so only this one helper-shaped fragment is worth touching.)
+- **Root cause**: Adapter divergence done right; this is the single genuinely-shared mechanic that just wasn't extracted because it's only two call sites.
+- **Impact**: Very low — two short copies. Worth noting only because both feed `safeJsonError` in the connect route and a future change to how much upstream detail is surfaced (the slice length, redaction) must touch both.
+- **Fix sketch**: Optional. Add a tiny `voiceFetchError(res, label): Promise<Error>` (or a `throwIfNotOk`) in voice/types.ts and call it from both `connect()` methods. Low priority — only do it if the error format is ever changed; two call sites alone don't justify a helper.

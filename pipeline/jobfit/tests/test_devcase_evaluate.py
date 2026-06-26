@@ -43,6 +43,21 @@ class TestEvaluate(unittest.TestCase):
         ev, _ = evaluate_submission(self.reflection, self.tooling, self.case, self.role, provider=None)
         self.assertEqual(ev["dimensionScores"]["tooling"], 80)  # fluency 0.8 -> 80
 
+    def test_observed_ungraded_probes_do_not_halve_judgment(self):
+        # The Live Work Surface emits detected probes with handledWell=None (handling
+        # not gradeable from process). Those must be no-signal, so judgment rests on
+        # verification alone — NOT the old 0.5*verif + 0.5*0 halving that silently
+        # penalised every in-product candidate vs the no-probe branch.
+        observed = {"fluency": 0.8, "probeOutcomes": [
+            {"probeId": "p1", "detected": True, "handledWell": None},
+            {"probeId": "p2", "detected": False, "handledWell": None},
+        ]}
+        no_probes = {"fluency": 0.8, "probeOutcomes": []}
+        ev_obs, _ = evaluate_submission(self.reflection, observed, self.case, self.role, provider=None)
+        ev_none, _ = evaluate_submission(self.reflection, no_probes, self.case, self.role, provider=None)
+        self.assertEqual(ev_obs["dimensionScores"]["judgment"], ev_none["dimensionScores"]["judgment"])
+        self.assertGreater(ev_obs["dimensionScores"]["judgment"], 50)  # not the halved ~50
+
     def test_ordered_dimensions_breakdown(self):
         ev, _ = evaluate_submission(self.reflection, self.tooling, self.case, self.role, provider=None)
         dimensions = ev["dimensions"]

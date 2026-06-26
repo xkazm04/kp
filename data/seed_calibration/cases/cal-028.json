@@ -1,0 +1,175 @@
+{
+  "job": {
+    "id": "cal-028",
+    "title": "Bank Teller",
+    "company": "US Bank",
+    "role_family": "customer_success",
+    "seniority": "medior",
+    "source": "hf:jacob-hugging-face/job-descriptions"
+  },
+  "analysis": {
+    "realStack": [
+      "Bank core/teller platform (teller capture, transaction posting, account lookup) — US Bank runs its own branch teller application on top of a core banking system",
+      "Cash-handling hardware: cash drawer, currency/coin counters, check/document scanner for remote deposit capture",
+      "Customer ID verification and fraud-screening procedures (government ID, signature/account validation, counterfeit detection)",
+      "Sales/referral CRM and product-knowledge materials for cross-selling deposit accounts, cards, and loans",
+      "Regulatory and compliance procedures: BSA/AML, Currency Transaction Reports (CTR), suspicious-activity awareness, Reg CC funds availability",
+      "Point-of-service tools: receipt printer, cashier's checks/money orders, dual-control vault access"
+    ],
+    "coreResponsibilities": [
+      "Process routine over-the-counter transactions accurately: deposits, withdrawals, check cashing, transfers, payments",
+      "Balance and reconcile the cash drawer at open/close and account for every dollar (shortages/overages are tracked)",
+      "Identify customer needs and cross-sell/refer banking products to meet referral expectations",
+      "Deliver courteous, efficient front-line customer service and resolve basic account questions",
+      "Verify identity and follow security/compliance controls to prevent fraud and meet regulatory reporting"
+    ],
+    "statedVsRealGaps": [
+      "The JD lists 'balancing cash drawer' as a duty but understates that it is a measured accountability — tellers are held to penny-level accuracy and tracked on shortages",
+      "'Cross-selling banking products' is framed softly, but in practice tellers carry referral/sales targets; the real risk of quota pressure (and mis-selling, cf. industry scandals) is unstated",
+      "No mention of the substantial compliance load (BSA/AML, CTR filing, ID/fraud controls) that is genuinely core to the job",
+      "The stated salary range is missing/garbled ('estimated salary to per hour'), so the compensation cannot actually be evaluated from the JD",
+      "Soft requirements ('excellent interpersonal and communication skills') are named, but bilingual ability, cash-handling/retail experience, and physical demands (prolonged standing, repetitive handling) are omitted"
+    ],
+    "trueComplexity": "medium",
+    "riskAreas": [
+      "Cash accountability: drawer imbalances, shortages, and theft/loss exposure at the window",
+      "Fraud and security: counterfeit bills, forged/altered checks, social-engineering and elder-fraud attempts",
+      "Regulatory compliance failures (missed CTRs, weak ID verification) carry institutional and personal consequences",
+      "Sales-quota pressure on cross-selling can incentivize mis-selling and erode trust if not governed",
+      "Talent risk: low hourly pay and high turnover typical of teller roles make retention and consistent service quality hard",
+      "Hiring risk from the JD itself: the blank salary and thin requirements will dampen and mis-target the applicant pool"
+    ],
+    "reflection": "This is a genuine, well-understood front-line retail-banking role, correctly classed as customer-success rather than a software job — there is no codebase, and that is expected. The JD's four stated duties (transactions, drawer balancing, cross-sell, service) map cleanly onto the real body of work, but it presents a deceptively simple picture: the day-to-day transactions are procedurally low-complexity, yet the role sits on top of real cash accountability, fraud/security exposure, and a non-trivial regulatory layer (BSA/AML, CTR, ID verification) that the posting never mentions. That combination — easy tasks, high accuracy and compliance stakes, plus a soft sales target — is why true complexity lands at medium rather than low, and why 'medior' is reasonable for someone expected to hit referral goals and handle the window unsupervised. The most material gaps between stated and real are the unstated sales/quota dimension, the absent compliance burden, and the missing salary figure, which together mean the JD undersells both the responsibility and the candidate's ability to judge the offer.",
+    "confidence": 0.62,
+    "promptVersion": "need-analysis-v3"
+  },
+  "role": {
+    "title": "Bank Teller",
+    "seniority": "medior",
+    "roleFamily": "customer_success",
+    "mustHaves": [
+      "Accurate processing of over-the-counter transactions (deposits, withdrawals, check cashing, transfers, payments) on a bank teller/core platform",
+      "Cash-drawer balancing to penny-level accuracy, with personal accountability for shortages and overages at open and close",
+      "Working knowledge of BSA/AML controls, Currency Transaction Report (CTR) filing thresholds, and Reg CC funds-availability rules",
+      "Customer identity verification, signature/account validation, and counterfeit/fraud detection in line with bank security procedures",
+      "Strong interpersonal and communication skills for high-volume, front-line customer service",
+      "Ability to identify customer needs and cross-sell or refer deposit, card, and loan products against measured referral targets"
+    ],
+    "niceToHaves": [
+      "Bilingual (e.g., Spanish) to serve a broader Kansas City customer base",
+      "Prior teller, cash-handling, or customer-facing retail experience",
+      "Familiarity with bank core/teller-capture systems and a sales/referral CRM",
+      "Experience with dual-control vault procedures and check/document scanning for remote deposit capture"
+    ],
+    "responsibilities": [
+      "Process routine over-the-counter transactions accurately: deposits, withdrawals, check cashing, transfers, and payments",
+      "Balance and reconcile the cash drawer at open and close, accounting for every dollar",
+      "Identify customer needs and cross-sell or refer banking products to meet referral expectations",
+      "Deliver courteous, efficient front-line customer service and resolve basic account questions",
+      "Verify customer identity and follow security and compliance controls to prevent fraud and meet regulatory reporting obligations (CTR filing, suspicious-activity awareness)"
+    ],
+    "languages": [
+      "English"
+    ],
+    "promptVersion": "role-design-v3"
+  },
+  "case": {
+    "title": "Friday Close at the Window: Transactions, the Drawer, and Two Judgment Calls",
+    "brief": "You are a medior teller at a US Bank retail branch closing out a busy Friday. The branch runs its own teller-capture application on top of the core; for this exercise you work from the printed shift packet rather than the live system, so we can see your reasoning rather than your typing. Over roughly 90 minutes you will clear the remaining over-the-counter queue, close and reconcile your cash drawer, and handle two customers at the window who don't fit a script. The procedures you're given are the real ones — quick-reference cards plus the branch handbook — and they do not always agree with each other; part of the job is noticing that. Ground every call in BSA/AML, CTR, and Reg CC obligations as the materials state them, verify customer identity where it matters, and keep front-line service courteous. We are not testing recall of policy numbers; we are testing the choices you make when the right answer isn't printed on the card. As you go, keep the close-of-shift DECISIONS log described in the last task — that's normal practice here, not an extra hoop. Scope your effort to the ~1.5h budget: depth on the hard calls beats touching everything.",
+    "repoSeed": "A printed Friday shift packet for window 4: (1) procedures/ — a branch teller handbook excerpt with sections on Funds Availability (Reg CC) and Currency Transaction Reports, plus a laminated quick-reference card; note that a footnote under Funds Availability describes a branch-applied large-deposit / new-account exception hold that conflicts with the next-day availability printed on the card. (2) queue.csv — eight remaining over-the-counter tickets, each with customer name, account(s), transaction type (cash deposit, withdrawal, check cashing, transfer, bill payment), amount, presented ID, and attached document images; among them: Maria Delgado depositing $5,200 cash (her morning $6,400 cash deposit to a second account she controls already appears on the tally tape), and a $7,000 check deposited into an account opened three weeks ago, and one business check whose numeric and written amounts disagree with a payee line that looks altered. (3) drawer/ — the open-count sheet (cash by denomination), the day's manual transaction tally tape, and the physical close-count sheet. (4) scenarios.md — two walk-up customers: Mr. Okafor requesting a $9,500 cash withdrawal who remarks he'll 'come back Monday for the rest so it stays under the limit,' and Mrs. Petrov (82, recently widowed) confused about a statement entry. (5) crm-snapshot.png — the referral CRM showing you are two referrals short of this week's quota, with product talking points. (6) reference/ — a CTR/SAR routing card and the BSA officer's escalation contact.",
+    "tasks": [
+      "Clear the eight tickets in queue.csv. For each, state how you'd post it, the Reg CC funds-availability date you would quote the customer, what identity verification you performed (and whether the presented ID/signature/check is acceptable), and flag any item that requires a CTR or warrants a suspicious-activity escalation. Treat the morning tally-tape activity as already posted for the same business day, and inspect the business check for alteration before accepting it.",
+      "Close and reconcile your drawer. Starting from the open-count sheet and the day's posted activity (your queue plus the tally tape), derive the expected close balance by denomination, compare it against the provided physical close count, and explain the variance — determine whether it is a miscount, a misposting, or a genuine shortage, quantify it, and state what you would do about it before leaving the window.",
+      "Handle the two scenarios in scenarios.md. For Mr. Okafor and for Mrs. Petrov, state the action you take at the window, the exact escalation or reporting path you trigger, and — specifically — what you would and would not say to the customer, with your reasoning.",
+      "Keep a short DECISIONS log (decisions.md): for every call you made where the procedures were silent, ambiguous, or in conflict, record what you chose, the alternative you rejected, and the one question you would put to your supervisor or the BSA officer. Treat it as the normal close-of-shift note."
+    ],
+    "coverProbes": [
+      {
+        "id": "ctr-aggregation",
+        "kind": "verification_trap",
+        "where": "queue.csv + the tally tape — Maria Delgado's $5,200 cash deposit in the queue plus her already-posted $6,400 morning cash deposit to a second account she controls",
+        "reveals": "Naive processing handles each ticket on its own — both under $10,000, so 'no CTR' — and passes the shallow per-transaction check; a careful candidate aggregates same-day cash conducted by or for one person across accounts, sees $11,600, and files the CTR. Shows whether the candidate verifies against the aggregation rule rather than the way each ticket looks in isolation.",
+        "decisionSpace": [
+          "Aggregate and file the CTR, because same-day cash by/for one person above $10,000 is reportable regardless of how it is split across accounts",
+          "File, but first confirm the morning deposit was currency (not a check) and that Maria herself — not a different signer — conducted both, since aggregation turns on the conductor",
+          "Escalate to the BSA officer to confirm whether deposits split across her personal and sole-proprietor business accounts aggregate under the bank's specific policy before filing"
+        ]
+      },
+      {
+        "id": "structuring-intent",
+        "kind": "ambiguity",
+        "where": "scenarios.md — Mr. Okafor's $9,500 withdrawal with the stated intent to return Monday 'so it stays under the limit'",
+        "reveals": "The brief scripts no action here. A naive response either just completes the withdrawal (his money, under $10k) or refuses outright; a strong response recognizes that the stated intent to evade reporting — not the dollar amount — is the SAR trigger, completes the lawful transaction without tipping him off, and escalates. Shows judgment on the tipping-off rule versus service.",
+        "decisionSpace": [
+          "Complete the lawful withdrawal normally, document his statement verbatim, and refer to the BSA officer for the SAR decision without alerting him",
+          "Pause and consult a supervisor before completing the transaction, accepting some service friction to get direction first",
+          "Decline to facilitate structuring and explain reporting thresholds neutrally, prioritizing transparency at the risk of tipping him off"
+        ]
+      },
+      {
+        "id": "reg-cc-hold-exception",
+        "kind": "legacy_trap",
+        "where": "procedures/ — the Funds Availability footnote describing a branch large-deposit/new-account exception hold that overrides the next-day availability printed on the quick-reference card, applied to the $7,000 check into the three-week-old account",
+        "reveals": "The quick-reference card and the handbook footnote conflict. A candidate who acts on the card alone misquotes availability and exposes the bank to loss on a large check into a young account; one who reads the handbook catches the exception. Rewards reading the surprising/buried detail before generating an answer.",
+        "decisionSpace": [
+          "Apply the exception hold per the handbook footnote and give the customer the longer hold disclosure in writing",
+          "Follow the quick-reference card's standard next-day availability and escalate the card/handbook conflict to the supervisor to resolve",
+          "Apply the standard schedule but place a discretionary case-by-case hold, documenting the reasonable-cause basis for the longer availability"
+        ]
+      },
+      {
+        "id": "referral-quota-pressure",
+        "kind": "underspecified",
+        "where": "crm-snapshot.png + scenarios.md — being two referrals short of quota while serving Mrs. Petrov (82, recently widowed, confused about a statement entry)",
+        "reveals": "The packet states the quota but says nothing about governing it. A naive response logs whatever referral hits the number; a strong response separates her actual need (statement help, possible fraud exposure) from the quota, declines to push an unsuitable product, and flags potential elder vulnerability. Shows whether sales pressure overrides suitability.",
+        "decisionSpace": [
+          "Resolve only the statement question and make no referral, accepting the quota miss because no genuine need is present",
+          "Make a single suitable, low-pressure referral (e.g., account-protection/fraud alerts) that matches her actual situation",
+          "Hand her to a banker or relationship manager for an unhurried review rather than opening anything at the window"
+        ]
+      }
+    ],
+    "timeboxHours": 1.5,
+    "rubricDimensions": [
+      {
+        "name": "framing",
+        "label": "Problem framing",
+        "weight": 0.2,
+        "description": "Turns an ambiguous need into a sound plan."
+      },
+      {
+        "name": "tooling",
+        "label": "Tooling fluency",
+        "weight": 0.25,
+        "description": "Drives AI and other tools well; iterates and verifies."
+      },
+      {
+        "name": "judgment",
+        "label": "Judgment",
+        "weight": 0.25,
+        "description": "Catches AI/tooling mistakes; validates; pushes back."
+      },
+      {
+        "name": "architecture",
+        "label": "Architecture",
+        "weight": 0.15,
+        "description": "Structure and trade-offs that fit the real materials and constraints."
+      },
+      {
+        "name": "transfer",
+        "label": "Transfer",
+        "weight": 0.15,
+        "description": "Capability transfers to THIS role's tools and responsibilities."
+      }
+    ],
+    "promptVersion": "case-design-v5"
+  },
+  "source": "llm",
+  "issues": [],
+  "fallbackReason": {},
+  "promptVersions": {
+    "analyze": "need-analysis-v3",
+    "role": "role-design-v3",
+    "case": "case-design-v5"
+  }
+}

@@ -5,18 +5,51 @@
 // decision and free a headcount. Pure + injectable (no DB / no clock) so the rule
 // is unit-testable, mirroring interview-reminder-policy.ts.
 
-/** How long an extended offer stays open before it lapses to `expired`. */
-export const OFFER_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+const HOUR_MS = 60 * 60 * 1000;
+const DAY_MS = 24 * HOUR_MS;
 
-/** Lead time before the deadline at which a single reminder nudge fires (T-48h).
- *  The proactive half of the expiry policy: the deadline lapses an offer silently;
- *  this is the one heads-up sent before that, so a candidate who simply forgot
- *  doesn't lose a live offer to silence. */
-export const OFFER_REMINDER_LEAD_MS = 48 * 60 * 60 * 1000; // 48 hours
+/** Bounds for a per-offer deadline (whole days). An "exploding" offer can be as
+ *  tight as a day; an exec search may legitimately need months. */
+export const OFFER_TTL_DAYS_MIN = 1;
+export const OFFER_TTL_DAYS_MAX = 90;
 
-/** The expiry instant (ms) for an offer created at `createdAtMs`. */
-export function offerExpiresAtMs(createdAtMs: number): number {
-  return createdAtMs + OFFER_TTL_MS;
+/** The DEFAULT window an extended offer stays open before it lapses to `expired`,
+ *  used when an offer carries no explicit deadline. Tunable per deployment via
+ *  KP_OFFER_TTL_DAYS (validated to OFFER_TTL_DAYS_MIN..MAX); defaults to 7 days —
+ *  the common recruiting default, short enough to keep momentum, long enough not to
+ *  rush a considered candidate. Per-offer overrides flow through resolveOfferTtlMs. */
+export function defaultOfferTtlDays(): number {
+  const raw = Number(process.env.KP_OFFER_TTL_DAYS);
+  return Number.isFinite(raw) && raw >= OFFER_TTL_DAYS_MIN && raw <= OFFER_TTL_DAYS_MAX ? Math.floor(raw) : 7;
+}
+export const OFFER_TTL_MS = defaultOfferTtlDays() * DAY_MS;
+
+/** Resolve a per-offer TTL (whole days) to milliseconds, falling back to the
+ *  deployment default for a missing/out-of-range value. This is the recruiter's
+ *  primary lever (offers-onboarding #3): a tight, role-specific window is a known
+ *  accept-rate accelerant for in-demand roles, while senior offers need weeks — one
+ *  fixed 7-day window served neither. Pure (no DB / no clock) so it stays testable. */
+export function resolveOfferTtlMs(ttlDays?: number | null): number {
+  const n = Number(ttlDays);
+  if (Number.isFinite(n) && n >= OFFER_TTL_DAYS_MIN && n <= OFFER_TTL_DAYS_MAX) return Math.floor(n) * DAY_MS;
+  return defaultOfferTtlDays() * DAY_MS;
+}
+
+/** Lead time before the deadline at which a single reminder nudge fires (T-48h by
+ *  default). The proactive half of the expiry policy: the deadline lapses an offer
+ *  silently; this is the one heads-up sent before that, so a candidate who simply
+ *  forgot doesn't lose a live offer to silence. Tunable via KP_OFFER_REMINDER_LEAD_HOURS
+ *  (1..168h); defaults to 48h. */
+export function defaultOfferReminderLeadHours(): number {
+  const raw = Number(process.env.KP_OFFER_REMINDER_LEAD_HOURS);
+  return Number.isFinite(raw) && raw >= 1 && raw <= 168 ? Math.floor(raw) : 48;
+}
+export const OFFER_REMINDER_LEAD_MS = defaultOfferReminderLeadHours() * HOUR_MS;
+
+/** The expiry instant (ms) for an offer created at `createdAtMs`, `ttlDays` later
+ *  (or the deployment default when no per-offer deadline is given). */
+export function offerExpiresAtMs(createdAtMs: number, ttlDays?: number | null): number {
+  return createdAtMs + resolveOfferTtlMs(ttlDays);
 }
 
 /** Whether an open offer has passed its deadline. A missing/invalid expiry NEVER

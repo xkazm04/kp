@@ -18,7 +18,7 @@ import { SegmentedControl } from "@/app/_components/SegmentedControl";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { splitList } from "@/app/_lib/split-list";
 
-export type EditorMode = "create" | "edit" | "duplicate";
+export type EditorMode = "create" | "edit";
 
 export function ProfileEditor({
   mode,
@@ -234,8 +234,7 @@ export function ProfileEditor({
       : undefined;
   const hasFieldErrors = Boolean(yearsError || gradError);
 
-  const heading =
-    mode === "edit" ? t("headingEdit") : mode === "duplicate" ? t("headingDuplicate") : t("headingCreate");
+  const heading = mode === "edit" ? t("headingEdit") : t("headingCreate");
   const saveLabel = mode === "edit" ? t("saveChanges") : t("saveProfile");
 
   return (

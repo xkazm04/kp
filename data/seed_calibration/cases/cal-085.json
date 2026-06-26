@@ -1,0 +1,189 @@
+{
+  "job": {
+    "id": "cal-085",
+    "title": "Associate New Business Case Manager - Remote",
+    "company": "Symetra Life Insurance Company",
+    "role_family": "sales",
+    "seniority": "junior",
+    "source": "hf:jacob-hugging-face/job-descriptions"
+  },
+  "analysis": {
+    "realStack": [
+      "Insurance new-business workflow / case-management system (application intake, indexing, status tracking)",
+      "Customer/agent relationship system (CRM for agents, wholesalers, brokers)",
+      "Policy administration / contract-issuance system (generates the contract once a file is 'in good order')",
+      "Life insurance / annuity application forms, supporting requirements, and the issued contract itself",
+      "Compliance & suitability regulations governing application completeness and 'good order' (NIGO/IGO) determinations",
+      "Email and telephone as primary outbound/inbound communication channels for requirement follow-up",
+      "Product/service knowledge base for the department's offerings",
+      "General office productivity tooling (spreadsheets, document management) implied by data-entry and tracking duties"
+    ],
+    "coreResponsibilities": [
+      "Receive, index, and key application data into workflow, CRM, and administrative systems",
+      "Review applications for completeness and compliance, and determine whether each is 'in good order'",
+      "Once a file is complete, process the transaction and issue/generate the contract",
+      "Act as direct point of contact for agents, internal wholesalers, the sales center, and client services",
+      "Respond to routine and non-routine phone/email inquiries and follow up on outstanding requirements via outbound contact",
+      "Research, analyze, and help coordinate issue resolution across management, client services, internal sales, and agencies/brokers",
+      "Build product knowledge and maintain positive internal/external customer relationships",
+      "Assist and mentor peers on processing questions; absorb other duties as assigned"
+    ],
+    "statedVsRealGaps": [
+      "roleFamily is tagged 'sales,' but the actual work is back-office new-business operations / case processing — application intake, compliance review, and contract issuance — not a quota-carrying or revenue-generating sales role. Matching against sales candidates would misfire.",
+      "The title 'Case Manager' implies ownership/judgment, but the day-to-day is closer to a data-entry + compliance-check + customer-service hybrid; 'manager' here is a file-management label, not people or P&L management.",
+      "Stated systems are entirely generic ('workflow, customer/agent relationship and administrative systems') — no named platform (e.g., a specific policy admin system or CRM), so tool-specific fit cannot be verified from the JD.",
+      "Compensation is redacted in the supplied text ('hourly range … plus eligibility for annual bonus'), so the JD's stated junior level can't be cross-checked against pay.",
+      "Roughly half the JD is benefits/culture boilerplate; the substantive, measurable responsibilities are thinner than the length suggests.",
+      "Junior/'Associate' seniority is consistent with the framing ('develop a solid understanding,' routine inquiries), but the file is also asked to assess compliance and issue contracts — real regulated judgment layered onto an entry tier."
+    ],
+    "trueComplexity": "low",
+    "riskAreas": [
+      "Regulatory/compliance exposure: completeness and 'good order' determinations gate a binding insurance contract, so processing errors carry downstream legal and customer-harm consequences even at the associate level.",
+      "Role-family mislabel ('sales' vs. operations/processing) risks sourcing the wrong candidate profile — customer-service-oriented, detail/process-driven, compliance-aware rather than persuasion/closing-oriented.",
+      "Unverifiable system fit: with only generic system references, you cannot screen for named-platform experience; onboarding ramp on the real stack is an unknown.",
+      "'Other duties as assigned' plus peer-mentoring at the associate tier signals potential scope creep beyond the stated entry-level remit.",
+      "Heavy reliance on outbound follow-up and multi-party coordination means soft skills (clear written/verbal communication, persistence, relationship management) matter more than the JD's processing language foregrounds.",
+      "Compensation opacity in the supplied text limits the ability to confirm the stated 'junior' target against market and internal banding."
+    ],
+    "reflection": "This is a junior, back-office new-business operations / case-processing role at a life insurer, despite being tagged as 'sales.' The real body of work the role acts on is not code but a chain of insurance artifacts — applications, supporting requirements, and the contracts they become — moving through a workflow system, a CRM/agent-relationship system, and a policy/contract-administration system, all under compliance and 'good order' rules. The core loop is: intake and key the application, judge completeness and compliance, chase missing requirements through outbound calls/emails, and once the file is clean, issue the contract. Layered on top is a steady customer-service and coordination function across agents, wholesalers, the sales center, client services, and brokers. trueComplexity is low in the role's own terms: it is explicitly the associate/entry tier, heavily scaffolded ('develop a solid understanding'), and process-driven — but it is not trivial, because the completeness/compliance judgment and contract issuance are regulated decisions with real stakes, which is the one place where 'low complexity' could be misleading if staffed carelessly. The biggest grounding caveat is system opacity: every tool is named generically, so the analysis reflects the role's shape confidently but cannot verify platform-specific fit, and the supplied JD redacts pay. Net: a well-defined entry-level insurance ops role mislabeled as sales, where the right candidate is detail-oriented, compliance-aware, and strong on outbound communication rather than a closer.",
+    "confidence": 0.76,
+    "promptVersion": "need-analysis-v3"
+  },
+  "role": {
+    "title": "Associate New Business Case Manager",
+    "seniority": "junior",
+    "roleFamily": "operations",
+    "mustHaves": [
+      "Accurate, high-volume data entry and indexing of application information into workflow, CRM, and administrative systems",
+      "Careful document review: assessing an application for completeness and 'good order' (NIGO/IGO) before it can be processed",
+      "Reliable attention to detail and consistency on repetitive, rules-bound processing work",
+      "Clear written and verbal customer-service communication by phone and email with agents, brokers, internal sales, and clients",
+      "Willingness and ability to learn product rules and compliance/suitability requirements that govern whether an application is in good order",
+      "Proactive follow-up: tracking outstanding requirements and reaching out (outbound) to close them",
+      "Organization and case-tracking discipline to manage many files at different stages without losing the thread",
+      "Comfort with everyday office tooling (document management, spreadsheets, multiple line-of-business systems)"
+    ],
+    "niceToHaves": [
+      "Prior insurance, annuity, or financial-services back-office / new-business experience",
+      "Familiarity with policy-administration or contract-issuance systems and agent/broker CRMs",
+      "Working knowledge of life insurance or annuity products and supporting requirements",
+      "Hands-on experience making good-order (NIGO/IGO) and basic compliance/suitability determinations",
+      "Customer-facing or call/email queue experience handling routine and non-routine inquiries",
+      "Demonstrated peer-support or mentoring on a processing team"
+    ],
+    "responsibilities": [
+      "Receive, index, and key application data into workflow, CRM, and administrative systems",
+      "Review and analyze application data to determine whether each application is complete and in good order",
+      "Once a file is complete, process the transaction and generate/issue the contract",
+      "Serve as the direct point of contact for agents, internal wholesalers, the sales center, and client services",
+      "Respond promptly to routine and non-routine phone and email inquiries",
+      "Follow up on outstanding requirements through outbound communication",
+      "Research, analyze, and help coordinate issue resolution across management, client services, internal sales, and agencies/brokers",
+      "Build and maintain product knowledge and positive relationships with internal and external customers",
+      "Assist and mentor peers on processing questions, and take on other duties as assigned"
+    ],
+    "languages": [
+      "English"
+    ],
+    "promptVersion": "role-design-v3"
+  },
+  "case": {
+    "title": "New Business Case Desk: Good-Order Review & Requirement Follow-Up (Life / Annuity)",
+    "brief": "You are covering the new-business case desk for a life insurance & annuity carrier. Three submitted application files are sitting in your queue, a producer is emailing for a status update, and your job is to move each file toward 'in good order' (IGO) or send it back as 'not in good order' (NIGO) with a clear, correct ask. The provided materials fit this role directly, so you work the real packets — no synthetic substitute. This is a ~1.0 hour exercise; depth matters more than volume, so spend your time reading the actual forms and the checklist rather than producing polished prose. We assume any draft you write could be machine-generated, so what we are actually reading is your judgment: which files you trust, what you treat as a true requirement vs. a nice-to-have, who you contact and through which channel, and what you escalate. One deliverable is a short DECISIONS log — this is normal desk practice, not a trap: whenever the checklist or the situation left a call to you, jot what you decided, the option you rejected, and the one question you would put to your team lead. Cite specific forms, fields, and checklist line items by name; 'looks complete' is not a determination.",
+    "repoSeed": "A shared case folder 'NewBusiness_Queue/' handed to you as it would arrive on the desk:\n- NB_GoodOrder_Checklist_v4.xlsx — the department's good-order matrix: required forms, signature/date rules, beneficiary rules, suitability/replacement requirements, and a revision note at the top about which application form versions are currently accepted.\n- App_0417_Nguyen_TermLife.pdf — term life packet: application, illustration, HIPAA authorization. Owner and insured are the same person; a contingent-beneficiary field is left blank and the applicant's signature date sits just before the illustration's print date.\n- App_0418_Okafor_FixedAnnuity_1035.pdf — fixed annuity with a 1035 exchange: application, 1035 exchange/replacement notice, suitability form. All pages are present and signed; the primary beneficiary section lists two beneficiaries at 60% and 30%.\n- App_0419_Castellano_TermLife.pdf — term life packet submitted on an older application form layout; otherwise filled in and signed.\n- CRM_Producers.xlsx — producer directory: name, writing number, lines licensed, and the states each producer is licensed AND appointed in, plus contact details.\n- NewBusiness_Tracker.xlsx — the workflow log you update: one row per case, columns for determination (IGO/NIGO), cited requirement(s), action taken, and owner.\n- Requirement_FollowUp_Templates.docx — approved outbound email templates for missing-requirement follow-up and status replies.\n- Inbox_Agent_Inquiry.eml — an email from the producer on the Okafor file asking whether the annuity has issued yet because the client is asking.\n- Product_FAQ_TermLife_Annuity.pdf — short product/process knowledge base for accurate answers.",
+    "tasks": [
+      "Work all three files (App_0417, App_0418, App_0419) against NB_GoodOrder_Checklist_v4.xlsx and record an IGO or NIGO determination for each in NewBusiness_Tracker.xlsx, citing the specific checklist line item(s) and form field(s) that drive the call. Do not stop at 'all pages present' — verify the data on the forms is internally consistent (signatures, dates, beneficiary allocations) and matches what the checklist actually requires.",
+      "Before treating any file as ready to issue, cross-reference each writing producer in CRM_Producers.xlsx for active license AND appointment in the applicant's resident state. Reconcile that against your determinations and flag in the tracker any case whose blocker lives outside the packet itself.",
+      "For every NIGO file, draft the outbound follow-up using Requirement_FollowUp_Templates.docx — addressed to the correct party and requesting exactly the outstanding item(s), no more. Then draft a reply to Inbox_Agent_Inquiry.eml that gives the producer an accurate status and next step for the Okafor file.",
+      "Keep a short DECISIONS log (a few lines per call): for each judgment where the checklist or the file left the decision to you — e.g. whether a blank field blocks good order, whether to hold or issue, who to contact, what to escalate — note what you chose, the alternative you rejected, and the one question you would ask your team lead."
+    ],
+    "coverProbes": [
+      {
+        "id": "beneficiary-sum",
+        "kind": "verification_trap",
+        "where": "App_0418_Okafor_FixedAnnuity_1035.pdf — primary beneficiary section listing 60% + 30%",
+        "reveals": "A naive one-shot review sees every page present and signed and marks the annuity IGO/ready to issue. A careful reviewer adds the allocations (90%, not 100%) and catches that the file cannot be issued as written. Reveals whether the candidate actually validates the data or trusts surface completeness.",
+        "decisionSpace": [
+          "Mark NIGO and send a corrected-beneficiary-designation request to the producer (cleanest paper trail, slowest cycle).",
+          "Call/email the producer to confirm intent first (was the missing 10% an omitted beneficiary or a typo?) before formalizing NIGO (faster, relationship-friendly, but a verbal change still needs a signed correction).",
+          "Mark NIGO but proactively flag the likely fix in the follow-up so the producer turns it around in one pass (efficient, slight risk of leading the producer toward an assumption)."
+        ]
+      },
+      {
+        "id": "appointment-cross-ref",
+        "kind": "legacy_trap",
+        "where": "CRM_Producers.xlsx appointment status vs. the writing producer on one of the term-life files",
+        "reveals": "The blocker is not in the application packet at all — the producer is licensed but not appointed in the applicant's resident state, so the file can be taken but the contract cannot issue yet. Rewards reading the producer record before declaring good order; a candidate who only checks the packet misses it entirely.",
+        "decisionSpace": [
+          "Treat the file as NIGO/pending-issue and route the appointment gap to the producer/agency channel (correct compliance posture, may feel like blocking a 'complete' file).",
+          "Mark the packet itself in good order but hold issuance with a clear note that issuance is pending appointment (separates data completeness from issuability — accurate but requires disciplined tracker notes).",
+          "Escalate to the licensing/contracting team rather than the producer because appointment is an internal-process fix (faster resolution, but offloads a call the desk could make directly)."
+        ]
+      },
+      {
+        "id": "blank-field-good-order",
+        "kind": "ambiguity",
+        "where": "App_0417_Nguyen_TermLife.pdf — blank contingent-beneficiary field and the signature-date-before-illustration-date mismatch",
+        "reveals": "The brief and checklist don't spell out whether a blank contingent beneficiary or a minor date ordering issue truly gates 'good order' or is acceptable. A strong candidate distinguishes a hard requirement from a nice-to-have, names the assumption, and flags the date question; a weak one either rejects everything reflexively or waves it through without noting the call.",
+        "decisionSpace": [
+          "Treat contingent beneficiary as optional and issue, but raise the signature/illustration date ordering as the real question (prioritizes the binding risk, accepts a documented assumption on the blank field).",
+          "Hold as NIGO and request both items to be safe (lowest risk, but adds a cycle and may annoy the producer over a non-required field).",
+          "Issue as IGO with a logged note and a clarifying question to the team about the carrier's standard on date ordering (fastest, defensible only if the assumption is explicitly recorded)."
+        ]
+      },
+      {
+        "id": "contact-channel-and-form-version",
+        "kind": "underspecified",
+        "where": "Requirement_FollowUp_Templates.docx targeting + App_0419's older application form layout vs. the checklist revision note",
+        "reveals": "Two underspecified calls collide: who the follow-up should go to (producer/agency vs. the client directly — compliance usually routes through the producer) and whether the superseded form layout on App_0419 is a real NIGO. Reveals whether the candidate reads the checklist revision note and respects the proper communication channel instead of emailing the client directly.",
+        "decisionSpace": [
+          "Route all requirement follow-up through the producer/agency and treat the old form version as NIGO requiring resubmission on the current form (most defensible compliance and channel posture, slowest for the client).",
+          "Accept the older form if it captures all currently required data and note the exception, while still contacting through the producer (pragmatic, depends on reading the revision note carefully).",
+          "Contact the client directly for speed on a simple missing item (fastest, but generally violates channel/compliance norms — only defensible if the candidate explicitly justifies and flags it)."
+        ]
+      }
+    ],
+    "timeboxHours": 1.0,
+    "rubricDimensions": [
+      {
+        "name": "framing",
+        "label": "Problem framing",
+        "weight": 0.2,
+        "description": "Turns an ambiguous need into a sound plan."
+      },
+      {
+        "name": "tooling",
+        "label": "Tooling fluency",
+        "weight": 0.25,
+        "description": "Drives AI and other tools well; iterates and verifies."
+      },
+      {
+        "name": "judgment",
+        "label": "Judgment",
+        "weight": 0.25,
+        "description": "Catches AI/tooling mistakes; validates; pushes back."
+      },
+      {
+        "name": "architecture",
+        "label": "Architecture",
+        "weight": 0.15,
+        "description": "Structure and trade-offs that fit the real materials and constraints."
+      },
+      {
+        "name": "transfer",
+        "label": "Transfer",
+        "weight": 0.15,
+        "description": "Capability transfers to THIS role's tools and responsibilities."
+      }
+    ],
+    "promptVersion": "case-design-v5"
+  },
+  "source": "llm",
+  "issues": [],
+  "fallbackReason": {},
+  "promptVersions": {
+    "analyze": "need-analysis-v3",
+    "role": "role-design-v3",
+    "case": "case-design-v5"
+  }
+}

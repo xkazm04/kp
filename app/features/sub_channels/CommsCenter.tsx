@@ -21,6 +21,15 @@ type Message = {
    *  dead-letter is no longer actionable (the failed row stays as audit). */
   recovered?: boolean;
   recoveredAt?: string | null;
+  /** Server-derived: could a real relay deliver to `recipient`? False for a
+   *  sourced/manual candidate resolved to a name or the "candidate" literal —
+   *  only actionable when a relay is configured (else everything is local). */
+  deliverable?: boolean;
+  /** Server-derived: this `sent` row was later reported as a hard bounce/complaint
+   *  by the relay callback, so "sent" is really undeliverable — chase it. */
+  bounced?: boolean;
+  bouncedAt?: string | null;
+  bounceDetail?: string | null;
 };
 type RefInfo = { label: string; jobTitle: string | null };
 
@@ -28,6 +37,7 @@ const STATUS_STYLE: Record<OutboxStatus, string> = {
   queued: "bg-stone-100 text-steel",
   sent: "bg-moss/15 text-moss",
   failed: "bg-red-50 text-red-700",
+  bounced: "bg-red-100 text-red-800",
 };
 
 // Initial page; "Show more" reveals another PAGE_SIZE. The list used to hard-slice 60
@@ -46,7 +56,11 @@ export function CommsCenter() {
   const [messages, setMessages] = useState<Message[] | null>(null);
   const [refs, setRefs] = useState<Record<string, RefInfo>>({});
   const [error, setError] = useState(false);
+  // Default true so the "not configured" banner never flashes before the first load;
+  // a real false from /api/comms then reveals a silent, total comms outage.
+  const [relayConfigured, setRelayConfigured] = useState(true);
   const [failedOnly, setFailedOnly] = useState(false);
+  const [addressOnly, setAddressOnly] = useState(false);
   const [query, setQuery] = useState("");
   const [kindFilter, setKindFilter] = useState("");
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
@@ -60,6 +74,7 @@ export function CommsCenter() {
       .then((p) => {
         setMessages((p.messages as Message[]) ?? []);
         setRefs((p.entries as Record<string, RefInfo>) ?? {});
+        setRelayConfigured(p.relayConfigured !== false);
         setError(false);
       })
       .catch(() => setError(true));
@@ -85,8 +100,15 @@ export function CommsCenter() {
   // A recovered dead-letter (successful resend exists) is audit, not an alarm:
   // it leaves the count, the pin and the failed-only filter, so the badge again
   // answers "is anything STILL broken?".
-  const isActionable = (m: Message) => m.status === "failed" && !m.recovered;
+  // A dead-letter (failed, not yet recovered) OR a sent message the relay later
+  // reported as a hard bounce both need the recruiter to chase — group them.
+  const isActionable = (m: Message) => (m.status === "failed" && !m.recovered) || Boolean(m.bounced);
   const failedCount = messages.filter(isActionable).length;
+  // An unaddressable recipient (sourced/manual candidate with no captured email)
+  // only matters once a real relay is wired — without one, every message is a
+  // local outbox row anyway. So the addressing warning is gated on relayConfigured.
+  const isUnaddressable = (m: Message) => relayConfigured && m.deliverable === false;
+  const addressIssueCount = messages.filter(isUnaddressable).length;
   // The kinds actually present — drives the filter dropdown.
   const kinds = [...new Set(messages.map((m) => m.kind).filter((k): k is string => Boolean(k)))].sort();
   const needle = query.trim().toLowerCase();
@@ -104,12 +126,22 @@ export function CommsCenter() {
     isActionable(a) && !isActionable(b) ? -1 : isActionable(b) && !isActionable(a) ? 1 : 0
   );
   const filtered = sorted.filter(
-    (m) => (!failedOnly || isActionable(m)) && (!kindFilter || m.kind === kindFilter) && matchesQuery(m)
+    (m) =>
+      (!failedOnly || isActionable(m)) &&
+      (!addressOnly || isUnaddressable(m)) &&
+      (!kindFilter || m.kind === kindFilter) &&
+      matchesQuery(m)
   );
   const shown = filtered.slice(0, visibleCount);
 
   return (
     <div className="rounded-lg border border-stone-200 bg-white p-4 shadow-panel">
+      {!relayConfigured ? (
+        <div role="alert" className="mb-3 flex items-start gap-2.5 rounded-md border border-red-300 bg-red-50 p-3">
+          <AlertTriangle size={16} className="mt-0.5 shrink-0 text-red-600" aria-hidden />
+          <p className="text-sm font-medium text-red-800">{t("relayNotConfigured")}</p>
+        </div>
+      ) : null}
       <div className="flex flex-wrap items-center gap-2">
         <h3 className="flex items-center gap-2 font-serif text-h3 text-ink">
           <MailOpen size={16} className="text-coral" aria-hidden /> {t("title")}
@@ -125,6 +157,19 @@ export function CommsCenter() {
             }`}
           >
             <AlertTriangle size={12} aria-hidden /> {t("deadLetters", { count: failedCount })}
+          </button>
+        ) : null}
+        {addressIssueCount > 0 ? (
+          <button
+            type="button"
+            onClick={() => setAddressOnly((f) => !f)}
+            aria-pressed={addressOnly}
+            title={t("noAddressHint")}
+            className={`focus-ring inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-sm font-semibold ${
+              addressOnly ? "bg-amber-500 text-white" : "bg-amber-50 text-amber-700"
+            }`}
+          >
+            <AlertTriangle size={12} aria-hidden /> {t("addressIssues", { count: addressIssueCount })}
           </button>
         ) : null}
       </div>
@@ -163,7 +208,7 @@ export function CommsCenter() {
           {shown.map((m) => {
             const who = m.ref ? refs[m.ref] : undefined;
             return (
-              <li key={m.id} className={`rounded-md border px-3 py-1.5 ${isActionable(m) ? "border-red-200 bg-red-50/50" : "border-stone-100 bg-paper/40"}`}>
+              <li key={m.id} className={`rounded-md border px-3 py-1.5 ${isActionable(m) ? "border-red-200 bg-red-50/50" : isUnaddressable(m) ? "border-amber-200 bg-amber-50/40" : "border-stone-100 bg-paper/40"}`}>
                 <details>
                   <summary className="focus-ring flex cursor-pointer flex-wrap items-center gap-x-2 gap-y-1 text-sm">
                     <span className="font-semibold text-ink">{who?.label ?? m.recipient ?? "—"}</span>
@@ -171,9 +216,18 @@ export function CommsCenter() {
                     <span className="rounded-full bg-stone-100 px-1.5 py-0.5 text-xs font-semibold uppercase text-steel">
                       {(m.kind ?? "").replace(/_/g, " ")}
                     </span>
+                    {isUnaddressable(m) ? (
+                      <span title={t("noAddressHint")} className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-1.5 py-0.5 text-xs font-semibold uppercase text-amber-700">
+                        <AlertTriangle size={11} aria-hidden /> {t("noAddress")}
+                      </span>
+                    ) : null}
                     {m.status === "failed" && m.recovered ? (
                       <span className="rounded-full bg-moss/10 px-1.5 py-0.5 text-xs font-semibold uppercase text-moss">
                         {t("recovered")}
+                      </span>
+                    ) : m.bounced ? (
+                      <span title={m.bounceDetail ?? undefined} className={`inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-xs font-semibold uppercase ${STATUS_STYLE.bounced}`}>
+                        <AlertTriangle size={11} aria-hidden /> {t("bounced")}
                       </span>
                     ) : (
                       <span className={`rounded-full px-1.5 py-0.5 text-xs font-semibold uppercase ${STATUS_STYLE[m.status]}`}>
@@ -194,6 +248,15 @@ export function CommsCenter() {
                     </span>
                   </summary>
                   <div className="mt-1.5 border-t border-stone-100 pt-1.5 text-sm">
+                    {m.bounced ? (
+                      <p className="mb-1 flex items-center gap-1.5 rounded-md bg-red-50 px-2 py-1 text-xs font-medium text-red-800">
+                        <AlertTriangle size={12} aria-hidden />
+                        {t("bouncedAt", {
+                          time: m.bouncedAt ? new Date(m.bouncedAt).toLocaleString() : "—",
+                          detail: m.bounceDetail ?? "—",
+                        })}
+                      </p>
+                    ) : null}
                     {m.subject ? <p className="font-semibold text-ink">{m.subject}</p> : null}
                     {m.body ? <pre className="mt-1 whitespace-pre-wrap font-sans text-sm leading-5 text-steel">{m.body}</pre> : null}
                   </div>

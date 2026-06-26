@@ -5,6 +5,8 @@ import type { ApprovalKind } from "../approval-kinds";
 import { openStore } from "../db-path";
 import type { GithubEvidenceSummary } from "../github-summary";
 import type { PipelineStage } from "../pipeline-stages";
+import { assertTenancyReady } from "../tenancy";
+import { multiWorkspaceEnabled } from "../workspace-lock";
 
 // Memoized on globalThis (not just module scope): Next dev HMR re-evaluates this
 // module with a fresh module-local binding, which would re-run the ENTIRE
@@ -566,7 +568,21 @@ export function ensureDb(): Database.Database {
       PRIMARY KEY (meter, period)
     );
 
+    -- Durable "needs attention" signal for money events that can't auto-resolve
+    -- (e.g. a PAID subscription for an unmapped product → the subscriber is never
+    -- entitled). A queryable row so an admin surface / health check can list
+    -- paid-but-dark customers instead of relying on someone watching the logs.
+    CREATE TABLE IF NOT EXISTS billing_alerts (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      kind TEXT NOT NULL,
+      detail TEXT NOT NULL,
+      provider_ref TEXT,
+      created_at TEXT NOT NULL,
+      resolved_at TEXT
+    );
+
     CREATE INDEX IF NOT EXISTS idx_billing_credits_meter ON billing_credits (meter);
+    CREATE INDEX IF NOT EXISTS idx_billing_alerts_open ON billing_alerts (resolved_at);
   `);
   // Run a DDL migration, swallowing ONLY the benign "already applied" error (re-running
   // ADD COLUMN / CREATE on a DB that already has the column). Any OTHER failure —
@@ -795,6 +811,16 @@ export function ensureDb(): Database.Database {
   // every writer uses NULL, fold the legacy empty strings to NULL so consumers see
   // one canonical "no detail". Idempotent (a no-op once healed; new rows never write '').
   db.prepare(`UPDATE pipeline_entries SET approval_detail = NULL WHERE approval_detail = ''`).run();
+  // Self-defending tenancy guard: if KP_MULTI_WORKSPACE is enabled, REFUSE to boot
+  // with any unscoped per-tenant table (machine-checked against the canonical
+  // manifest in tenancy.ts) rather than silently serving cross-tenant data. The
+  // env flag is documented as the "flip me to enable" switch; this turns flipping
+  // it on an incompletely-scoped DB into a loud, actionable failure instead of a
+  // silent PII breach. No-op in the default single-tenant lock.
+  assertTenancyReady(
+    db.prepare("SELECT name FROM sqlite_master WHERE type = 'table'").all().map((r) => (r as { name: string }).name),
+    multiWorkspaceEnabled(),
+  );
   _dbHolder.__kpDb = db;
   // Reclaim expired (and, once their TTL lapses, superseded-PROMPT_VERSION)
   // cache rows on boot. lookupPromptCache only SKIPS expired rows — it never

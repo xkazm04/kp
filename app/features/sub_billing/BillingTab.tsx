@@ -87,25 +87,32 @@ function MeterRow({ meter, name }: { meter: MeterOverview; name: string }) {
   );
 }
 
-// One catalog plan: price (CZK primary, USD approximate), per-meter allowance,
-// and a switch button (the free tier has no checkout — downgrades go through
-// the portal). The current plan reads as the selected card, no button.
+// One catalog plan: price (CZK primary, USD approximate), per-meter allowance, and
+// an action. `changeVia` decides that action: a customer with NO active paid plan
+// gets a fresh CHECKOUT (first subscription); a customer who already has a paid plan
+// must change it through the provider PORTAL (in-place swap / proration), never a
+// second checkout — a fresh checkout for a downgrade/cross-grade could mint a
+// PARALLEL subscription and double-charge them. The free tier never has a button.
 function PlanCard({
   plan,
   current,
   configured,
   busy,
   error,
+  changeVia,
   meterName,
   onChoose,
+  onManage,
 }: {
   plan: PlanDef;
   current: boolean;
   configured: boolean;
   busy: boolean;
   error: string | null;
+  changeVia: "checkout" | "portal";
   meterName: (meter: string) => string;
   onChoose: () => void;
+  onManage: () => void;
 }) {
   const t = useTranslations("billing.plans");
   const format = useFormatter();
@@ -140,7 +147,18 @@ function PlanCard({
           <span className="font-medium text-ink nums">{plan.activeJobs === null ? t("unlimited") : plan.activeJobs}</span>
         </li>
       </ul>
-      {!current && plan.id !== "free" ? (
+      {current || plan.id === "free" ? null : changeVia === "portal" ? (
+        // Already subscribed: route the change through the provider portal so it's an
+        // in-place swap, not a parallel subscription.
+        <button
+          type="button"
+          onClick={onManage}
+          disabled={!configured}
+          className={`${BTN_SECONDARY} mt-3 h-9 w-full justify-center px-3 text-sm`}
+        >
+          {t("manageCta")}
+        </button>
+      ) : (
         <button
           type="button"
           onClick={onChoose}
@@ -149,7 +167,7 @@ function PlanCard({
         >
           {busy ? t("redirecting") : t("cta")}
         </button>
-      ) : null}
+      )}
       {error ? (
         <p role="alert" className="mt-2 text-sm text-coral">
           {error}
@@ -396,8 +414,13 @@ export function BillingTab() {
                   configured={data.configured}
                   busy={purchase?.key === plan.id && purchase.error === null}
                   error={purchase?.key === plan.id ? purchase.error : null}
+                  // A customer who already holds a paid plan changes it through the
+                  // portal (no parallel-subscription double-charge); from free, the
+                  // first subscription is a normal checkout.
+                  changeVia={data.plan.id === "free" ? "checkout" : "portal"}
                   meterName={meterName}
                   onChoose={() => startCheckout({ plan: plan.id }, plan.id)}
+                  onManage={openPortal}
                 />
               ))}
             </div>

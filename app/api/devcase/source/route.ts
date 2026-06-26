@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createPipelineEntry, getDevCase } from "@/app/_lib/db";
-import { runSourceForRole } from "@/app/_lib/devcase-run";
+import { getDevCase } from "@/app/_lib/db";
+import { runSourceForRole, seedPipelineFromMatches } from "@/app/_lib/devcase-run";
 
 export const runtime = "nodejs";
 
@@ -16,21 +16,9 @@ export async function POST(request: NextRequest) {
     const role = (devCase.role as { title?: string } & Record<string, unknown>) ?? {};
     const { candidates: matches, skipped, skippedReasons } = await runSourceForRole(role);
     const roleTitle = role.title ?? devCase.roleTitle ?? "Dev case";
-    let added = 0;
-    for (const m of matches) {
-      if (!m.candidateId) continue;
-      createPipelineEntry({
-        candidateId: m.candidateId,
-        candidateLabel: m.label,
-        archetype: m.archetype,
-        roleFamily: "software_engineering",
-        jobId: `dc-${devCase.id}`,
-        jobTitle: roleTitle,
-        matchScore: m.score,
-        stage: "Accepted",
-      });
-      added += 1;
-    }
+    // Shared write contract (incl. the `sourceChannel: "devcase"` origin marker)
+    // with the lifecycle orchestrator — previously this route omitted the marker.
+    const { added } = seedPipelineFromMatches(matches, { caseId: devCase.id, roleTitle });
     // `skipped` > 0 with an empty `candidates` means the pool failed to parse, not that
     // nobody matched — surfaced so the UI can be honest about an empty shortlist.
     return NextResponse.json({ ok: true, added, skipped, skippedReasons, candidates: matches });

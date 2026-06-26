@@ -17,6 +17,16 @@ export function coerceProviderId(value: unknown, fallback: VoiceProviderId | nul
   return value === "openai" || value === "elevenlabs" ? value : fallback;
 }
 
+/** The house preference order when no provider is explicitly requested — the
+ *  SINGLE source for both the server default-provider policy (pickDefaultProvider)
+ *  and the browser picker's initial + availability-fallback choice, so the two
+ *  can't default to different providers (they previously kept inverted copies:
+ *  the server preferred OpenAI, the picker preferred ElevenLabs). Browser-safe
+ *  (pure data) so VoiceInterview can import it without pulling in the server
+ *  adapters. OpenAI-first, matching what created/simulated interview links use. */
+export const VOICE_PROVIDER_ORDER: readonly VoiceProviderId[] = ["openai", "elevenlabs"];
+export const DEFAULT_VOICE_PROVIDER: VoiceProviderId = VOICE_PROVIDER_ORDER[0];
+
 /** Narrow an untrusted value to a plausible BCP-47-ish language hint, or null.
  *  The interview routes used to store `body.language` verbatim — an unbounded
  *  attacker-controlled string persisted to the session row and echoed into

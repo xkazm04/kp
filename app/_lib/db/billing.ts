@@ -107,6 +107,51 @@ export function grantBillingCredits(input: {
   return Number(info.changes) > 0;
 }
 
+export type BillingAlert = {
+  id: number;
+  kind: string;
+  detail: string;
+  providerRef: string | null;
+  createdAt: string;
+  resolvedAt: string | null;
+};
+
+/** Record a durable "needs attention" billing signal (e.g. a paid-but-unmapped
+ *  subscription). `providerRef` (when given) de-duplicates redeliveries so the same
+ *  unresolved alert isn't inserted twice. Returns true when a new row was inserted. */
+export function recordBillingAlert(input: { kind: string; detail: string; providerRef?: string | null }): boolean {
+  const db = ensureDb();
+  // Don't pile up duplicate OPEN alerts for the same ref (a webhook redelivery).
+  if (input.providerRef) {
+    const dupe = db
+      .prepare(`SELECT 1 FROM billing_alerts WHERE provider_ref = ? AND resolved_at IS NULL LIMIT 1`)
+      .get(input.providerRef);
+    if (dupe) return false;
+  }
+  const info = db
+    .prepare(`INSERT INTO billing_alerts (kind, detail, provider_ref, created_at) VALUES (?, ?, ?, ?)`)
+    .run(input.kind, input.detail, input.providerRef ?? null, new Date().toISOString());
+  return Number(info.changes) > 0;
+}
+
+/** List billing alerts, unresolved first (newest first). Defaults to unresolved
+ *  only — the "paid but dark" worklist for an admin surface / health check. */
+export function listBillingAlerts(opts: { includeResolved?: boolean } = {}): BillingAlert[] {
+  const db = ensureDb();
+  const where = opts.includeResolved ? "" : "WHERE resolved_at IS NULL";
+  const rows = db
+    .prepare(`SELECT id, kind, detail, provider_ref, created_at, resolved_at FROM billing_alerts ${where} ORDER BY id DESC`)
+    .all() as Array<Record<string, unknown>>;
+  return rows.map((r) => ({
+    id: Number(r.id),
+    kind: String(r.kind),
+    detail: String(r.detail),
+    providerRef: (r.provider_ref as string) ?? null,
+    createdAt: String(r.created_at),
+    resolvedAt: (r.resolved_at as string) ?? null,
+  }));
+}
+
 export function creditBalance(meter: string): number {
   const db = ensureDb();
   const row = db.prepare(`SELECT COALESCE(SUM(delta), 0) AS n FROM billing_credits WHERE meter = ?`).get(meter) as {

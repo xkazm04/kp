@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { actOnPipelineEntry, getPipelineEntry } from "@/app/_lib/db";
-import { dispatchInterviewConfirmation } from "@/app/_lib/comms-dispatch";
+import { dispatchInterviewConfirmation, dispatchInterviewerBrief } from "@/app/_lib/comms-dispatch";
+import { getInterviewPrep } from "@/app/_lib/interview-prep";
 import {
   bookedSlots,
   cancelAttendance,
@@ -189,6 +190,26 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
           // the picker page is gone once the tab closes.
           rescheduleLink: `${publicBaseUrl(new URL(request.url).origin)}/schedule/${token}`,
         });
+        // Brief the assigned interviewer too (interview-prep #2). Best-effort: a
+        // brief failure must never turn the candidate's confirmed booking into an
+        // error, so it's isolated and only logged. dispatchInterviewerBrief is the
+        // gatekeeper — it no-ops (or records interviewer_brief_skipped) when the
+        // prep carries no interviewer / no deliverable address.
+        try {
+          const prep = getInterviewPrep(entry.id);
+          const p = (prep?.payload ?? {}) as { interviewer?: unknown; scenario?: unknown; focusAreas?: unknown; lang?: unknown };
+          await dispatchInterviewerBrief(entry, slot, {
+            interviewer: typeof p.interviewer === "string" ? p.interviewer : null,
+            durationMin: booked.durationMin,
+            slotAtIso: booked.slotAt,
+            scenario: typeof p.scenario === "string" ? p.scenario : null,
+            focusAreas: Array.isArray(p.focusAreas) ? p.focusAreas.filter((f): f is string => typeof f === "string") : null,
+            lang: typeof p.lang === "string" ? p.lang : null,
+          });
+        } catch (briefError) {
+          const reason = briefError instanceof Error ? briefError.message : String(briefError);
+          await logScheduleReconcile({ token, entry_id: entry.id, slot, error: `interviewer brief failed: ${reason}` });
+        }
         return true;
       } catch (dispatchError) {
         const reason = dispatchError instanceof Error ? dispatchError.message : String(dispatchError);

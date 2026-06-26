@@ -1,0 +1,176 @@
+{
+  "job": {
+    "id": "cal-098",
+    "title": "Data Entry Clerk",
+    "company": "SimplyInsured",
+    "role_family": "administration",
+    "seniority": "junior",
+    "source": "hf:jacob-hugging-face/job-descriptions"
+  },
+  "analysis": {
+    "realStack": [
+      "Customer insurance application packets — the actual body of work the role acts on (enrollment forms, supporting documents, eligibility/PII and medical/dental/vision/life benefit data)",
+      "Insurance carrier submission channels — per-carrier web portals, secure email, fax, or EDI (the JD's 'carrier-specified channel'); each carrier has its own format and routing rules",
+      "An internal application/case-management system or CRM to intake, track, and route submissions (implied by 'review, prepare, submit'; specific platform not named in the JD)",
+      "Document tooling — PDF assembly/review, scanning, and e-signature (DocuSign-style) for packet preparation",
+      "Spreadsheets (Excel/Google Sheets) and email/ticketing for tracking submission status and the 'administrative tasks that support the submissions process'",
+      "Carrier-specific completeness/formatting checklists and eligibility rules used to QA each packet before submission"
+    ],
+    "coreResponsibilities": [
+      "Review and prepare customer insurance applications, then submit them to carriers for approval",
+      "Compile and verify the information needed for each packet, checking completeness and accuracy before it goes out",
+      "Verify proper formatting and route each application through the correct carrier-specified channel",
+      "Perform the administrative follow-up tasks that keep the submissions pipeline moving (status tracking, corrections, resubmissions, coordination)"
+    ],
+    "statedVsRealGaps": [
+      "Title vs. work: it is labeled 'Data Entry Clerk', but the described work is application processing / submissions coordination — reviewing packets, judging completeness, and applying per-carrier rules — which is QA and process work, not blind keystroke transcription",
+      "Tools are implied, never named: the JD lists no system, CRM, carrier portal, or document tool, so the real stack above is inferred from the responsibilities rather than stated — candidates can't self-assess fit",
+      "No volume, SLA, or quality metrics: throughput, accuracy targets, and error/rework expectations are the real measure of this job and are entirely absent",
+      "No carrier scope: 'carrier-specified channel' implies learning multiple carriers' formats and rules, but the number/identity of carriers and the variability involved are not stated",
+      "Compliance/data-handling unaddressed: the role handles customer PII and health-insurance data remotely ('anywhere in US'), yet privacy/security expectations (HIPAA-adjacent handling) are not mentioned",
+      "JD quality is thin and garbled (no punctuation, OCR-like, 'hiring fast' framing), so the stated need is under-specified relative to what the work actually requires"
+    ],
+    "trueComplexity": "medium",
+    "riskAreas": [
+      "Expectation mismatch / turnover: a 'Data Entry' title plus hourly remote + 'hiring fast' attracts pure-keying applicants, but the job needs attention-to-detail QA and carrier-process literacy — a misframed funnel risks early attrition",
+      "Cost of error is real: an incomplete or mis-formatted insurance application gets rejected or delayed by the carrier, hurting the customer's coverage — accuracy stakes are higher than the 'data entry' label suggests",
+      "Per-carrier variability: keeping current with each carrier's format, eligibility, and channel rules is the hidden skill; onboarding and reference material (checklists) must exist or quality will be inconsistent",
+      "Data security: remote handling of customer PII and health/benefits data needs defined privacy controls that the JD does not describe",
+      "Unmeasurable success: with no stated volume/accuracy SLAs, neither the hire nor the employer can tell what 'good' looks like, making performance management and fit assessment hard"
+    ],
+    "reflection": "Reflected against its real body of work — a stream of customer insurance application packets and a set of carrier submission channels, not a codebase — this is an entry-level submissions-processing role wearing a 'Data Entry Clerk' label. The honest read is that the title undersells the work: the associate isn't transcribing fields blindly, they're assembling a packet, checking it for completeness and accuracy against carrier-specific requirements, formatting it correctly, and routing it through the right channel, then chasing the administrative loose ends. That is procedural and junior, but it carries genuine accuracy and compliance stakes (rejected applications and customer-coverage impact), and it has hidden per-carrier complexity — which is why the true complexity is medium rather than low, despite the 'data entry' framing. The JD itself is the weakest link in the evidence: it names no system, no carrier set, no volume or quality target, and no data-handling expectation, so the real stack here is inferred from the responsibilities. The biggest divergence between what they say they need (fast-hired keystroke data entry) and what the work shows (detail-oriented, rules-driven application QA and submission) is exactly where a mis-set expectation would cost them in rework and turnover.",
+    "confidence": 0.6,
+    "promptVersion": "need-analysis-v3"
+  },
+  "role": {
+    "title": "Data Entry Clerk (Insurance Application Submissions)",
+    "seniority": "junior",
+    "roleFamily": "administration",
+    "mustHaves": [
+      "Accurate data entry and document handling — transcribe and assemble customer application data with high attention to detail and a low error rate",
+      "Packet completeness and accuracy review — verify that each insurance application has all required information and supporting documents before submission",
+      "Following per-carrier formatting and submission rules — apply carrier-specific checklists and route each application through the correct carrier-specified channel (portal, secure email, fax, or EDI)",
+      "Comfort with everyday office tooling — spreadsheets (Excel/Google Sheets), email, PDF assembly/scanning, and web-based portals/CRM or case-management systems",
+      "Careful handling of sensitive customer PII and health-insurance (medical/dental/vision/life) data, including discretion in a remote work setting",
+      "Process discipline and follow-through — track submission status, action corrections and resubmissions, and keep the queue moving against throughput and accuracy expectations",
+      "Clear written communication for coordinating submissions and administrative follow-up"
+    ],
+    "niceToHaves": [
+      "Prior experience in insurance, benefits enrollment, or healthcare administration",
+      "Familiarity with carrier portals or EDI submission workflows",
+      "Experience with e-signature tools (e.g. DocuSign) and document management systems",
+      "Exposure to HIPAA or other privacy/data-handling compliance practices",
+      "Experience working productively in a fully remote, queue-driven environment"
+    ],
+    "responsibilities": [
+      "Review and prepare customer insurance applications and submit them to carriers for approval",
+      "Compile and verify the information required for each application packet, checking completeness and accuracy before it is sent",
+      "Verify proper formatting and submit each application through the correct carrier-specified channel",
+      "Perform the administrative tasks that support the submissions process — status tracking, corrections, resubmissions, and coordination",
+      "Maintain accurate records of submission status and outcomes, escalating incomplete or problematic packets as needed"
+    ],
+    "languages": [
+      "English"
+    ],
+    "promptVersion": "role-design-v3"
+  },
+  "case": {
+    "title": "Submissions Batch QA & Routing — Group Benefits Enrollment",
+    "brief": "You've just joined the submissions team. A batch of five customer insurance application packets (P-1001 through P-1005) for a small employer's group benefits enrollment (medical / dental / vision / life) has landed in the intake queue in batch_2026-06, each destined for a different carrier (MetLife, Guardian, Principal, Unum). You have the carrier rules reference, the running submission tracker, and the intake notes from the account team. Over the next hour your job is the real work of the role: review and prepare each packet, check it for completeness and accuracy against its carrier's requirements, route the ready ones through the correct carrier-specified channel, update the tracker, and escalate the ones that aren't ready. The materials carry ordinary real-world messiness — a couple of things won't line up cleanly, a reference may be out of date, and the intake note ('submit everything that's ready today') leaves some room for interpretation. Working those judgment calls the way a careful clerk would — the person who actually owns whether a customer's coverage goes through — is the point, not raw keying. As you go, keep a short DECISIONS log; that's just how this team works and it travels with the batch. Don't guess on anything that would be hard to undo once a packet is sent.",
+    "repoSeed": "A submissions working folder, batch_2026-06/, containing:\n\n• Five application packets, each a PDF set = the carrier enrollment form + supporting documents (employee ID, prior-coverage proof, dependent docs) + a coversheet (customer name, carrier, requested coverage effective date, coverage tiers):\n   - P-1001 (MetLife): complete and clean.\n   - P-1002 (Guardian): enrollment form is missing a dependent's date of birth and SSN; otherwise filled and signed.\n   - P-1003 (Principal): the coversheet names the carrier as 'Principal', but the enclosed, completed enrollment form is a 'MetLife' form — the two disagree and nothing states which is authoritative.\n   - P-1004 (Unum): every required field is present and the form is signed and dated, but the requested coverage effective date falls before the employee's eligibility waiting period ends / outside the stated enrollment window.\n   - P-1005 (MetLife): complete and signed.\n\n• carrier_rules.md — per-carrier completeness checklist, formatting rules, and the submission channel for each carrier (web portal / secure email / fax / EDI). It lists MetLife's channel as 'secure email' and Unum's as 'fax'.\n\n• intake_notes.txt — the account team's handoff note. Includes the line 'submit everything that's ready today', and, a few lines down, a recent update: 'Heads up — MetLife retired secure-email intake this month; everything now goes through their web portal.'\n\n• submission_tracker.xlsx — columns: Packet ID, Customer, Carrier, Channel, Status, Date, Notes. Prior rows from earlier batches record full customer SSNs and some medical details in the Notes column.",
+    "tasks": [
+      "QA each of the five packets (P-1001 through P-1005) in batch_2026-06 against its carrier's completeness and formatting checklist in carrier_rules.md. For each packet assign a disposition — submit, hold-for-correction, or escalate — and record the specific reason (the missing field, the carrier/form mismatch, the effective-date issue, etc.), not just a pass/fail flag.",
+      "For every packet you marked 'submit,' determine the correct carrier-specified submission channel and confirm the packet meets that carrier's formatting and routing rules before it goes out. Where the channel you'd actually use conflicts with what carrier_rules.md says, note the conflict and how you resolved it.",
+      "Update submission_tracker.xlsx with the status and outcome for all five packets, and draft the short escalation note(s) for any packet you held or escalated — state plainly what's wrong and what you need to move it forward.",
+      "Keep a short DECISIONS log alongside the batch: for each call you made where the instructions were open or the materials conflicted, note what you chose, the alternative you rejected, and the one question you'd put to the team. Treat it as normal handoff practice, not a separate write-up."
+    ],
+    "coverProbes": [
+      {
+        "id": "cp1",
+        "kind": "legacy_trap",
+        "where": "MetLife submission channel for P-1001 and P-1005: carrier_rules.md says 'secure email', but a later line in intake_notes.txt says MetLife moved to its web portal this month.",
+        "reveals": "A careful clerk reads the intake notes before routing, catches that the rules doc is stale, and either follows the newer channel (updating the doc) or confirms before sending; a naive one-shot routes via the documented secure-email channel and the two MetLife packets bounce. Shows whether they read surrounding context before acting and how they treat conflicting sources of truth on an irreversible step.",
+        "decisionSpace": [
+          "Route the MetLife packets via the web portal per the recent intake note, and update carrier_rules.md to match while citing the source — trusts the freshest signal, fixes the stale doc.",
+          "Route via the documented secure-email channel but flag the conflict to the team before actually sending — defers to the official reference, slower but auditable.",
+          "Hold both MetLife packets and confirm the live channel with the carrier or account team before submitting — safest against rejection, costs same-day turnaround."
+        ]
+      },
+      {
+        "id": "cp2",
+        "kind": "verification_trap",
+        "where": "P-1004 (Unum): all required fields are present and the form is signed, but the requested coverage effective date precedes the eligibility waiting period / falls outside the enrollment window.",
+        "reveals": "A naive completeness check (all fields filled + signed → submit) passes the shallow bar but the carrier will reject for eligibility; a careful clerk validates the effective date against the eligibility rule, not just field presence. Shows whether they verify substance over surface before sending.",
+        "decisionSpace": [
+          "Hold P-1004 and escalate the effective-date / eligibility conflict for correction before submitting — protects the customer from a rejection, costs a round-trip.",
+          "Submit as-is since all fields are present and attach a note flagging the date for the carrier to adjudicate — meets the letter of 'ready', risks a delayed rejection.",
+          "Correct the effective date to a date that satisfies eligibility and submit — fastest, but silently changes the customer's stated request without sign-off."
+        ]
+      },
+      {
+        "id": "cp3",
+        "kind": "ambiguity",
+        "where": "P-1003: the coversheet names the carrier as 'Principal' while the enclosed completed form is a 'MetLife' form; nothing states which is authoritative.",
+        "reveals": "Rewards treating the mismatch as a blocker to resolve rather than guessing — a good answer holds and clarifies which source is the source of truth; a naive one silently picks one and routes, potentially sending the wrong form to the wrong carrier. Shows handling of contradictory inputs and the instinct to confirm before an irreversible submit.",
+        "decisionSpace": [
+          "Hold and ask the requester which carrier is correct before doing anything else — no irreversible action on contradictory inputs.",
+          "Treat the coversheet as the routing instruction (Principal) and obtain the correct Principal form — assumes routing intent is authoritative.",
+          "Treat the completed, signed form as the customer's actual intent (MetLife) and correct the coversheet — assumes the customer-touched artifact wins."
+        ]
+      },
+      {
+        "id": "cp4",
+        "kind": "underspecified",
+        "where": "submission_tracker.xlsx: existing rows record full SSNs and medical details in the Notes column; the brief only says to 'track status' and never defines what to store on the shared sheet.",
+        "reveals": "A privacy-aware clerk records minimal identifiers (packet ID + status) and keeps PII / health data in the source packets, even though the existing rows model the opposite; a naive one mirrors the established pattern and copies SSNs and medical detail into a shared sheet. Shows data-security judgment when the existing precedent is itself the bad practice.",
+        "decisionSpace": [
+          "Track by packet ID and status only, keep PII in the source packets, and flag the existing SSN-bearing rows as a risk to clean up — minimizes exposure, breaks from precedent.",
+          "Mirror the existing format including SSNs and medical notes for consistency and traceability — preserves continuity, widens the data-exposure surface.",
+          "Pause and ask about the data-handling policy and who can access the sheet before populating it — surfaces the control gap the JD never defined, at the cost of immediate progress."
+        ]
+      }
+    ],
+    "timeboxHours": 1.0,
+    "rubricDimensions": [
+      {
+        "name": "framing",
+        "label": "Problem framing",
+        "weight": 0.2,
+        "description": "Turns an ambiguous need into a sound plan."
+      },
+      {
+        "name": "tooling",
+        "label": "Tooling fluency",
+        "weight": 0.25,
+        "description": "Drives AI and other tools well; iterates and verifies."
+      },
+      {
+        "name": "judgment",
+        "label": "Judgment",
+        "weight": 0.25,
+        "description": "Catches AI/tooling mistakes; validates; pushes back."
+      },
+      {
+        "name": "architecture",
+        "label": "Architecture",
+        "weight": 0.15,
+        "description": "Structure and trade-offs that fit the real materials and constraints."
+      },
+      {
+        "name": "transfer",
+        "label": "Transfer",
+        "weight": 0.15,
+        "description": "Capability transfers to THIS role's tools and responsibilities."
+      }
+    ],
+    "promptVersion": "case-design-v5"
+  },
+  "source": "llm",
+  "issues": [],
+  "fallbackReason": {},
+  "promptVersions": {
+    "analyze": "need-analysis-v3",
+    "role": "role-design-v3",
+    "case": "case-design-v5"
+  }
+}

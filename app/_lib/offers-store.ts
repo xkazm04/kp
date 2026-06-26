@@ -3,7 +3,8 @@ import { openStore } from "./db-path";
 import { randomId, randomToken } from "./random-id";
 import { TERMINAL_ENTRY_STATUSES, type PipelineEntryStatus } from "./pipeline-status";
 import { PIPELINE_STAGES } from "./pipeline-stages";
-import { isOfferExpired, OFFER_REMINDER_LEAD_MS, OFFER_TTL_MS } from "./offer-policy";
+import { isOfferExpired, OFFER_REMINDER_LEAD_MS, offerExpiresAtMs } from "./offer-policy";
+import { recordAutomationEvent } from "./db";
 
 // Direction #4 — offer extension + candidate response capture. Isolated-connection
 // store (same pattern as job-ingest.ts): opens its OWN better-sqlite3 handle on
@@ -121,12 +122,17 @@ export function createOffer(input: {
   currency: string | null;
   salary: number | null;
   payload: unknown;
+  /** Per-offer deadline in whole days — the recruiter's lever (offers-onboarding
+   *  #3). Out-of-range/omitted falls back to the deployment default; validated in
+   *  offer-policy.resolveOfferTtlMs. */
+  ttlDays?: number | null;
 }): OfferRow {
   const d = db();
   const nowMs = Date.now();
   const now = new Date(nowMs).toISOString();
   // Stamp the deadline at mint time (idea-29361408) so the offer lapses on its own.
-  const expiresAt = new Date(nowMs + OFFER_TTL_MS).toISOString();
+  // Honors a per-offer ttlDays (validated) or the deployment default.
+  const expiresAt = new Date(offerExpiresAtMs(nowMs, input.ttlDays)).toISOString();
   const id = randomId("off");
   const token = randomToken("tk");
   // RETURNING * hands the freshly-inserted row back in the same statement, so we
@@ -169,7 +175,13 @@ export function expireOfferIfDue(token: string, nowMs: number = Date.now()): Off
   const updated = db()
     .prepare(`UPDATE offers SET status = 'expired' WHERE token = ? AND status = 'extended' RETURNING *`)
     .get(token) as Record<string, unknown> | undefined;
-  return updated ? rowToOffer(updated) : getOfferByToken(token);
+  if (!updated) return getOfferByToken(token);
+  const row = rowToOffer(updated);
+  // Record the lapse like every sibling offer transition (sent/accepted/declined),
+  // so a dead offer leaves an audit trail, surfaces on the candidate timeline, and
+  // doesn't read as "still pending" in accept-rate/funnel analytics.
+  if (row.entryId) recordAutomationEvent(row.entryId, "offer_expired", row.jobTitle ?? "");
+  return row;
 }
 
 /** Sweep every still-open offer past its deadline to terminal 'expired' (the
@@ -177,10 +189,20 @@ export function expireOfferIfDue(token: string, nowMs: number = Date.now()): Off
  *  same order as time, so the `<=` is a correct deadline test in SQL. Rows with a
  *  NULL deadline (legacy) are excluded — they never expire. Returns how many lapsed. */
 export function lapseExpiredOffers(nowMs: number = Date.now()): number {
-  const res = db()
-    .prepare(`UPDATE offers SET status = 'expired' WHERE status = 'extended' AND expires_at IS NOT NULL AND expires_at <= ?`)
-    .run(new Date(nowMs).toISOString());
-  return res.changes;
+  // RETURNING the flipped rows (race-safe vs a separate SELECT) so each lapse can
+  // record an `offer_expired` event — otherwise a dead offer is invisible to the
+  // recruiter, the timeline, and accept-rate analytics.
+  const lapsed = db()
+    .prepare(
+      `UPDATE offers SET status = 'expired'
+       WHERE status = 'extended' AND expires_at IS NOT NULL AND expires_at <= ?
+       RETURNING entry_id, job_title`
+    )
+    .all(new Date(nowMs).toISOString()) as Array<{ entry_id: string | null; job_title: string | null }>;
+  for (const r of lapsed) {
+    if (r.entry_id) recordAutomationEvent(r.entry_id, "offer_expired", r.job_title ?? "");
+  }
+  return lapsed.length;
 }
 
 /** Still-open offers that have entered the T-48h reminder window and haven't been

@@ -1,0 +1,189 @@
+{
+  "job": {
+    "id": "cal-066",
+    "title": "Senior Vice President and Managing Director, International Research",
+    "company": "Mathematica",
+    "role_family": "data_ai",
+    "seniority": "junior",
+    "source": "hf:jacob-hugging-face/job-descriptions"
+  },
+  "analysis": {
+    "realStack": [
+      "Strategic/business plan documents for the international unit (growth, diversification, sustainability)",
+      "Business development pipeline: proposals and RFP responses for federal, multilateral, and international development clients",
+      "P&L and financial stewardship of a business unit (revenue targets, funding diversification, ESOP/employee-owned context)",
+      "Board of directors engagement and executive leadership-team collaboration (CEO partnership)",
+      "Client and partner relationship management across public and private sector, multicultural/multi-country contexts",
+      "People leadership systems: hiring, developing, retaining, and organizing geographically distributed teams",
+      "Oversight of EDI Global (East Africa subsidiary) — integration, expansion, M&A-style consolidation",
+      "Policy/sector domain materials in at least one international sector (health, education, agriculture, energy, climate, nutrition, employment, disability, international development)",
+      "External communications: public speaking, thought-leadership writing, traditional and social media as primary spokesperson",
+      "Change-management / org-design initiatives",
+      "Background investigation / security clearance process (conditional on federal project assignment)"
+    ],
+    "coreResponsibilities": [
+      "Own all aspects of the international unit's performance and refine + execute a strategic plan for long-term growth, diversification, and sustainability in partnership with the CEO and leadership team",
+      "Drive a fast-track growth trajectory through business development, proposal leadership, and client/partner engagement, and secure new and existing funding sources",
+      "Attract, develop, and retain an expanded, mission-aligned team; model culture, build engagement, and lead by example",
+      "Oversee and integrate EDI Global, cementing East Africa presence and promoting inclusive, consistent approaches across the merged operation",
+      "Engage the board of directors in shaping strategic direction and report on project performance, BD, and unit operations to key stakeholders",
+      "Lead change initiatives and make difficult goal-setting and reprioritization decisions as conditions shift",
+      "Serve as the unit's primary global spokesperson and thought leader, positioning Mathematica in integrated data collection, research, and analytics for public wellbeing"
+    ],
+    "statedVsRealGaps": [
+      "seniorityTarget is tagged 'junior', but the JD is unambiguously a top-tier executive role (Senior Vice President AND Managing Director, full unit P&L, board engagement, double-digit years of global leadership). This is the single largest mismatch and would route the role to an entirely wrong candidate pool and scoring rubric.",
+      "roleFamily is tagged 'data_ai'. While Mathematica is a data/analytics firm and the unit sells data/research services, this position itself is executive general management — strategy, business development, P&L, people leadership — not a data-science or AI practitioner role. Correct family is executive/general-management (with research-sector credibility as a qualifier), not data_ai.",
+      "The supplied 'stack' and 'responsibilities' arrays are empty; the real 'stack' is leadership and commercial systems (BD pipeline, P&L, board, proposals), not a technology stack — appropriate for a non-software role but absent from the structured metadata.",
+      "The JD text is OCR-degraded/scrubbed: quantitative thresholds are blanked ('  or more years of leadership experience', 'being  percent employee owned'), so the hard minimum experience bar and ESOP figure cannot be read from the evidence even though the role clearly demands extensive senior experience.",
+      "The qualification 'recognized credible expert in at least one of our international sectors' plus 'masters or doctorate' signals this is a researcher-leader hybrid, not a pure commercial executive — a nuance the flat metadata loses."
+    ],
+    "trueComplexity": "high",
+    "riskAreas": [
+      "Severe metadata misclassification (junior + data_ai): any downstream matching, screening, or scoring built on these tags will systematically mis-rank candidates for what is a C-suite-adjacent leadership hire.",
+      "JD is OCR/scrub-damaged — missing years-of-experience minimum, missing ESOP percentage, and a truncated final line — so concrete eligibility thresholds and some context are unrecoverable from the text alone.",
+      "Heavily values- and competency-based requirements ('passionate, visionary, empathetic, inspiring') that are inherently hard to assess objectively and invite bias if not anchored to behavioral evidence.",
+      "Dual mandate (established researcher/thought leader AND entrepreneurial BD/P&L operator AND multicultural people leader) narrows the real candidate pool far more than any single dimension implies.",
+      "Operational complexity: integrating an acquired East Africa entity (EDI Global), multi-country teams, federal contracting, and a possible security-clearance gate — execution risk beyond pure strategy.",
+      "No codebase or work-product corpus supplied (correctly, for a non-software role); grounding rests entirely on the JD, so claims about the unit's actual portfolio beyond the JD are out of scope."
+    ],
+    "reflection": "This is a genuine, content-rich executive job description for Mathematica's international research unit, but its structured metadata is badly miscalibrated: it is tagged 'junior' / 'data_ai' when the prose describes a Senior Vice President and Managing Director with full unit P&L, board engagement, business-development ownership, subsidiary integration, and global spokesperson duties. Reflected against its own real body of work — strategic and business plans, a BD/proposal pipeline, client and board relationships, a distributed multicultural team, and oversight of the EDI Global East Africa operation — the role is a high-complexity general-management hire that happens to require deep research-sector credibility, not a data/AI practitioner role and certainly not junior. The evidence is the JD itself, which is detailed enough to extract responsibilities confidently; the main caveats are OCR/scrub damage that blanks the numeric experience and ESOP figures, and the absence (appropriate here) of any code or work-product corpus to cross-check the unit's actual portfolio. Treat the 'junior'/'data_ai' tags as data-entry errors to be corrected before this need is matched or scored.",
+    "confidence": 0.82,
+    "promptVersion": "need-analysis-v3"
+  },
+  "role": {
+    "title": "Senior Vice President and Managing Director, International Research",
+    "seniority": "lead",
+    "roleFamily": "executive_leadership",
+    "mustHaves": [
+      "Established researcher and recognized thought leader in at least one international policy sector (e.g., health, education, agriculture, energy, climate change, nutrition, employment, disability, or international development)",
+      "Extensive senior organizational leadership experience operating in the developing world / international development contexts",
+      "Full P&L ownership and financial stewardship of a business unit, including revenue growth, funding diversification, and sustainability",
+      "Demonstrated business-development leadership: building pipelines and winning proposals/RFPs with federal, multilateral, and international development clients",
+      "Track record of refining and executing a strategic plan for long-term growth and diversification in partnership with a CEO and executive leadership team",
+      "People leadership at scale: attracting, developing, and retaining large, mission-driven, geographically distributed teams",
+      "Executive stakeholder engagement, including reporting to and shaping direction with a board of directors",
+      "Master's or doctorate degree in a relevant field"
+    ],
+    "niceToHaves": [
+      "Experience integrating an acquired subsidiary or leading post-merger consolidation (cf. EDI Global, East Africa presence)",
+      "Established network and operating experience in East Africa or sub-Saharan international development",
+      "Experience within an employee-owned (ESOP) firm",
+      "Strong public-speaking, media, and thought-leadership writing as a primary organizational spokesperson",
+      "Change-management and organizational-design leadership",
+      "Credibility in integrated data collection, research, and analytics for public wellbeing",
+      "Eligibility to pass a U.S. federal background investigation / obtain a security clearance"
+    ],
+    "responsibilities": [
+      "Own all aspects of the international unit's performance and refine and execute a strategic plan for long-term growth, diversification, and sustainability in partnership with the CEO and leadership team",
+      "Drive a fast-track growth trajectory through business development, proposal leadership, and client/partner engagement, and secure new and existing funding sources",
+      "Attract, develop, and retain an expanded, mission-aligned team; model the culture, build engagement, and lead by example",
+      "Oversee and integrate EDI Global, cementing the East Africa presence and promoting inclusive, consistent approaches across the combined operation",
+      "Engage the board of directors in shaping strategic direction and report on project performance, business development, and unit operations to key stakeholders",
+      "Lead change initiatives and make difficult goal-setting and reprioritization decisions as conditions and opportunities shift",
+      "Serve as the unit's primary global spokesperson and thought leader, positioning Mathematica as a leader in integrated data collection, research, and analytics for public wellbeing"
+    ],
+    "languages": [
+      "English"
+    ],
+    "promptVersion": "role-design-v3"
+  },
+  "case": {
+    "title": "International Research Unit — 18-Month Inflection: A Board-Ready Strategy, BD, and Integration Call",
+    "brief": "You are stepping in as SVP & Managing Director of Mathematica's International Research unit. The unit is at an inflection point: a CEO charge to grow aggressively, a mandate to diversify funding and protect long-term sustainability, a recently acquired East Africa subsidiary (EDI Global) that is not yet integrated, and a board that wants a clear, defensible plan — not a vision deck. You have a working data room (below) that mirrors what would actually be on your desk in week one: a draft strategic plan, a BD pipeline tracker, the unit P&L, an EDI Global integration brief, and a one-page charge memo from the CEO. The materials are deliberately incomplete and partly inconsistent in the way real executive inputs are — some numbers are unqualified, one pipeline 'win' is softer than it looks, and the role's own job description came through OCR with the experience minimum and ESOP figure illegible. That is the point: this exercise tests judgment under ambiguity, not polish. Where the packet leaves a call open, make the call, and capture your reasoning in the DECISIONS log (Task 4) — naming assumptions and the question you'd ask is treated as strong executive practice here, not as hedging. This is the work of the role (strategy, BD prioritization, integration, board communication) acting on the role's own materials; no domain substitution was needed. Budget ~2 hours. We are not grading writing volume — keep each deliverable to the stated length and spend your time on the quality of the decisions. A short interview afterward will walk through the choices you made and the alternatives you rejected, so the DECISIONS log should reflect calls you can genuinely defend as your own.",
+    "repoSeed": "A synthetic 'week-one data room' for the International Research unit, grounded in the role's real responsibilities (no software/codebase involved):\n- `CEO_charge_memo.docx` — one page from the CEO: the growth ask (phrased as 'put us on a fast-track trajectory and roughly double the unit'), the funding-diversification and sustainability mandate, the board's stated risk appetite, and what they expect from you in the first 18 months. The growth ask deliberately never specifies horizon or whether 'the unit' means revenue, signed backlog, headcount, or margin contribution.\n- `Intl_Unit_StratPlan_FY26-28.docx` — a draft three-year strategic plan (growth, diversification, sustainability) inherited from your predecessor, internally optimistic and light on trade-offs.\n- `BD_Pipeline_Q3.xlsx` — ~8 opportunities across federal, multilateral (e.g., World Bank / large foundation / bilateral-development), and international-development clients, with stage, contract value, win probability, estimated bid cost, expected margin, and strategic-fit notes. One flagship multilateral line is logged at high value and 90% probability but annotated 'verbally awarded — pending co-funding and security clearance'.\n- `Intl_PnL_FY25actuals_FY26budget.xlsx` — unit P&L with revenue broken out by funder (showing concentration), gross/operating margin, overhead, and the employee-owned/ESOP context; a footnote flags a likely budget reduction at the unit's single largest federal funder.\n- `EDI_Global_integration_brief.docx` — background on EDI Global (East Africa / Dar es Salaam): its decade-old local operating model, field-data-collection workflows, in-country client relationships, post-acquisition staff-retention figures, two-cultures friction signals, and a prior consultant's 'quick wins' list proposing wholesale standardization onto Mathematica's processes.\n- `Board_update_skeleton.docx` — an empty board-brief template (situation / decision / asks).\n- `JD_International_Research_SVP.pdf` — the original job description, OCR-damaged: the years-of-experience minimum and the ESOP percentage are illegible.",
+    "tasks": [
+      "Task 1 — Board-ready prioritization memo (≤2 pages). Using `CEO_charge_memo.docx`, `Intl_Unit_StratPlan_FY26-28.docx`, and `Intl_PnL_FY25actuals_FY26budget.xlsx`, set the unit's direction for the next 18 months. State explicitly how you interpret the CEO's growth ask (which metric, what horizon) and size the plan to that. Name the 2-3 things you would invest in and the 1-2 you would hold or stop, and lay out how you'd diversify funding without breaking near-term P&L — keeping the employee-owner/ESOP reality in view. Use the `Board_update_skeleton.docx` structure (situation / decision / asks).",
+      "Task 2 — BD pipeline bid/no-bid triage. From `BD_Pipeline_Q3.xlsx`, choose the 2-3 opportunities you would resource now and justify each on a probability- and margin-weighted basis rather than headline value. Explicitly identify any opportunity you would treat as not-yet-real (and why), and state what coverage or backup pursuit you'd put in place if a soft 'win' fails to land. Half a page of reasoning plus your shortlist.",
+      "Task 3 — EDI Global integration recommendation (≤1 page). Drawing on `EDI_Global_integration_brief.docx`, give one clear recommendation for the next 12 months among full standardization, federated autonomy, or phased convergence. Name specifically what you would standardize, what you would deliberately keep local, the single biggest retention risk you'd manage, and how your choice protects (rather than erodes) the capability that made the acquisition worth doing.",
+      "Task 4 — DECISIONS log (½-1 page). For every call where the packet was open or ambiguous — your reading of the growth target, which pipeline lines you trusted and which you discounted, your integration posture, the diversification-vs-near-term-margin trade-off, and anything the OCR-damaged JD or memo left unspecified — record three things in a simple table: what you chose, the alternative you rejected, and the one question you would put to the CEO, the board, or EDI Global leadership before committing. This is normal executive practice and is read as a strength, not a hedge."
+    ],
+    "coverProbes": [
+      {
+        "id": "growth-target-definition",
+        "kind": "underspecified",
+        "where": "`CEO_charge_memo.docx` + `Intl_Unit_StratPlan_FY26-28.docx` — the 'fast-track trajectory / roughly double the unit' ask has no stated horizon and never says whether 'the unit' means revenue, signed backlog, headcount, or margin contribution.",
+        "reveals": "A strong candidate names the metric and horizon they are solving for and sizes the plan to it, flagging that an ESOP/employee-owned unit cannot chase margin-blind top-line growth safely. A naive one silently adopts the flattering revenue reading, treats 'double' as a 24-month certainty, and never surfaces the choice.",
+        "decisionSpace": [
+          "Solve for revenue/backlog growth — strongest headline trajectory and board optics, but risks margin dilution and reliance on low-quality wins",
+          "Solve for diversified, margin-protected growth — slower top line but defends the ESOP and reduces funder concentration",
+          "Solve for capability/headcount as the leading indicator — bets that team build precedes revenue, but burns cash before contracts land"
+        ]
+      },
+      {
+        "id": "pipeline-quality-trap",
+        "kind": "verification_trap",
+        "where": "`BD_Pipeline_Q3.xlsx` — the flagship multilateral line shows high value at 90% but is annotated 'verbally awarded, pending co-funding + security clearance'; separately, the unit's largest current revenue line sits under a federal funder whose likely budget cut appears only as a P&L footnote.",
+        "reveals": "A strong candidate risk- and margin-weights the pipeline, discounts the conditional award to its real expected value, and catches the concentration risk hiding in the footnote. A naive one sums headline pipeline value, counts the conditional win as committed, and declares the growth target already covered.",
+        "decisionSpace": [
+          "Treat the conditional multilateral award as committed — fastest 'target met' on paper but plans on revenue that may never land",
+          "Discount it to risk-adjusted expected value and resource a backup pursuit — more conservative, spends scarce bid resources now",
+          "Pursue it but gate spend on the clearance/co-funding milestone — preserves optionality while protecting cash"
+        ]
+      },
+      {
+        "id": "edi-global-legacy",
+        "kind": "legacy_trap",
+        "where": "`EDI_Global_integration_brief.docx` — EDI Global's decade-old local operating model, field workflows, and East Africa client relationships predate the acquisition, yet a prior consultant's 'quick wins' list proposes standardizing EDI wholesale onto Mathematica's processes.",
+        "reveals": "A strong candidate reads why EDI's local model exists before prescribing and preserves the field/relationship capability that made the acquisition valuable. A naive one adopts the consultant's standardize-everything list, quietly destroys the acquired advantage, and triggers attrition.",
+        "decisionSpace": [
+          "Full standardization onto Mathematica systems — consistency and control, but high attrition and loss of local market fit",
+          "Federated autonomy with shared standards only on compliance/finance — protects local strength but risks two-company drift and weak integration",
+          "Phased convergence: harmonize back-office and quality gates first, keep field/client model local — slower and more coordination cost, but keeps the value"
+        ]
+      },
+      {
+        "id": "diversification-vs-near-term-pnl",
+        "kind": "ambiguity",
+        "where": "`Intl_PnL_FY25actuals_FY26budget.xlsx` + `Intl_Unit_StratPlan_FY26-28.docx` — the 'diversify funding' mandate collides with the ESOP reality and a near-term margin already pressured by the federal-funder cut; nothing states how much current-year P&L the board will trade for diversification.",
+        "reveals": "A strong candidate makes the trade-off explicit and sequences diversification so it defends near-term margin for the employee-owners while seeding new funders. A naive one treats diversification as costless and pivots off the federal anchor with no bridge.",
+        "decisionSpace": [
+          "Aggressive diversification now — fastest cut to concentration risk but hits the current-year margin the ESOP depends on",
+          "Defend the federal anchor and diversify at the edges — protects near-term P&L but concentration risk persists longer",
+          "Stage diversification to a funding trigger as the anchor erodes — balances both but demands disciplined monitoring and board alignment"
+        ]
+      }
+    ],
+    "timeboxHours": 2.0,
+    "rubricDimensions": [
+      {
+        "name": "framing",
+        "label": "Problem framing",
+        "weight": 0.2,
+        "description": "Turns an ambiguous need into a sound plan."
+      },
+      {
+        "name": "tooling",
+        "label": "Tooling fluency",
+        "weight": 0.25,
+        "description": "Drives AI and other tools well; iterates and verifies."
+      },
+      {
+        "name": "judgment",
+        "label": "Judgment",
+        "weight": 0.25,
+        "description": "Catches AI/tooling mistakes; validates; pushes back."
+      },
+      {
+        "name": "architecture",
+        "label": "Architecture",
+        "weight": 0.15,
+        "description": "Structure and trade-offs that fit the real materials and constraints."
+      },
+      {
+        "name": "transfer",
+        "label": "Transfer",
+        "weight": 0.15,
+        "description": "Capability transfers to THIS role's tools and responsibilities."
+      }
+    ],
+    "promptVersion": "case-design-v5"
+  },
+  "source": "llm",
+  "issues": [],
+  "fallbackReason": {},
+  "promptVersions": {
+    "analyze": "need-analysis-v3",
+    "role": "role-design-v3",
+    "case": "case-design-v5"
+  }
+}

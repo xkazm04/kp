@@ -1,0 +1,171 @@
+{
+  "job": {
+    "id": "cal-021",
+    "title": "Advertising Design Intern - 2022",
+    "company": "Great Lakes Publishing",
+    "role_family": "marketing",
+    "seniority": "junior",
+    "source": "hf:jacob-hugging-face/job-descriptions"
+  },
+  "analysis": {
+    "realStack": [
+      "Adobe Creative Suite (Photoshop, Illustrator, InDesign) — the standard toolset for a print/digital ad designer, INFERRED from the role title and 'graphic design / visual communications / design technology / art' major preference; the JD itself names no software",
+      "Print and digital advertisement layout/production for a regional magazine publisher (Great Lakes Publishing produces titles such as Cleveland Magazine / Ohio Magazine) — INFERRED from the employer, not stated",
+      "Basic typography, layout, and pre-press / ad-trafficking workflow tools used in a publishing ad department — INFERRED",
+      "NOTE: the JD lists no concrete tools, software, file formats, or systems at all — realStack here is reconstructed from the role family and employer, not extracted from the text"
+    ],
+    "coreResponsibilities": [
+      "UNSTATED in the JD — the only duty language is the boilerplate phrase 'actual operation of the facilities of great lakes publishing company,' which describes legal/training framing rather than tasks",
+      "INFERRED from the title 'Advertising Design Intern': assisting the ad/design team in producing and laying out advertisements for the publisher's titles, prepping creative assets, and supporting production under supervision",
+      "INFERRED: a learning/training-oriented role tied to an academic semester, with deliverables likely set ad hoc by a supervising designer rather than a defined scope"
+    ],
+    "statedVsRealGaps": [
+      "The JD names a role and candidate profile (design/marketing major, entering junior/senior, recent grads welcome) but contains ZERO description of duties, deliverables, tools, software, portfolio expectations, or success criteria — the 'need' is essentially undefined beyond a title",
+      "Most of the text is unpaid-internship legal boilerplate (the DOL 'similar to training given in an educational environment' primary-beneficiary language), not a statement of work — so there is no real basis to assess skill fit",
+      "The weekly hours figure is missing/truncated ('available  hours per week or more'), so even the time commitment is unspecified",
+      "'Preference given where the internship qualifies for college credit' is a gating condition, not a responsibility — it narrows the candidate pool without describing the work",
+      "Stated seniority is correct (junior/intern), but the absence of any responsibilities means the stated need cannot be reflected against a real body of work — no portfolio, brief, or sample deliverable is referenced"
+    ],
+    "trueComplexity": "low",
+    "riskAreas": [
+      "FLSA/DOL compliance: an UNPAID internship at a for-profit publisher is legally fraught; the boilerplate appears drafted to satisfy the primary-beneficiary test, but for-profit unpaid internships carry real misclassification risk and limit the candidate pool to those who can work for free",
+      "Ungrounded need: with no listed duties or tools, hiring fit can't be evaluated objectively — selection will hinge on the candidate's portfolio and the supervisor's discretion, neither referenced in the JD",
+      "No stated mentorship/learning structure beyond the legal phrasing, despite the role being justified as 'training' — unclear who supervises or what the intern actually learns/produces",
+      "Broad, undefined access — 'actual operation of the facilities' — with no scope, suggesting expectations may be set informally and could drift toward unpaid production work",
+      "Dated posting (2022) and Cleveland-office, in-person framing — geographically and temporally narrow; not evidence of an ongoing or remote-friendly need"
+    ],
+    "reflection": "No codebase or body of work was supplied, and for this role that is appropriate — an advertising design intern's real materials are creative software and the publisher's ad layouts, not source code. The deeper problem is that the JD itself is too thin to ground the analysis: it is roughly 80% unpaid-internship legal boilerplate and a candidate-eligibility filter (major, class year, college-credit preference), with essentially no responsibilities, tools, deliverables, or success criteria. I reconstructed realStack and core duties from the role title and the nature of the employer (a regional magazine publisher), but those are inferences, clearly flagged, not facts extracted from the text. Where the stated need and reality diverge most: the posting presents itself as a defined opening yet defines almost nothing about the actual work, and it frames a for-profit role as unpaid 'training,' which is both the main legal risk and the main reason the candidate pool is artificially constrained. trueComplexity is low — it is a supervised, semester-scoped intern role — but that judgment rests on the title and employer, since the JD provides no responsibilities to weigh.",
+    "confidence": 0.38,
+    "promptVersion": "need-analysis-v3"
+  },
+  "role": {
+    "title": "Advertising Design Intern",
+    "seniority": "junior",
+    "roleFamily": "marketing",
+    "mustHaves": [
+      "Currently enrolled (entering junior or senior year) in Graphic Design, Visual Communications, Design Technology, Art, or Marketing — or a recent graduate in one of those fields",
+      "Working fluency with Adobe Creative Suite (Photoshop, Illustrator, InDesign) at a student/portfolio level — the core production toolset for print and digital advertising",
+      "Fundamentals of layout, typography, color, and composition, demonstrable through a school or personal portfolio",
+      "Ability to take creative direction and revise work under supervision, treating each brief as a learning loop rather than a finished deliverable",
+      "Reliable availability for the agreed weekly hours and the willingness to learn an in-house ad-production workflow on the job",
+      "Clear written and verbal communication for collaborating with a supervising designer and the ad/editorial team"
+    ],
+    "niceToHaves": [
+      "Eligibility to receive college credit for the internship (stated hiring preference)",
+      "Exposure to print pre-press / file-prep conventions (bleed, CMYK, resolution, export-to-print)",
+      "Familiarity with digital ad formats and basic web/social creative sizing",
+      "Interest in publishing, regional/lifestyle magazines, or editorial design",
+      "Comfort managing assets and versions tidily across multiple concurrent ad jobs"
+    ],
+    "responsibilities": [
+      "Assist the design/advertising team in producing and laying out print and digital advertisements for the publisher's titles, under a supervising designer",
+      "Prepare and clean up creative assets — resizing, retouching, formatting, and exporting files to spec",
+      "Apply revisions and incorporate feedback across iterations of an ad or layout",
+      "Support day-to-day ad-production and trafficking tasks as assigned, learning the in-house workflow",
+      "Build out a body of supervised work over the academic term, treating the placement as structured, education-oriented training"
+    ],
+    "languages": [
+      "English"
+    ],
+    "promptVersion": "role-design-v3"
+  },
+  "case": {
+    "title": "Adapt a Print Ad Across Formats for Cleveland Magazine",
+    "brief": "You are an advertising design intern supervised by a senior designer in the ad-production team at a regional magazine publisher (think Cleveland Magazine / Ohio Magazine). A recurring advertiser, Lakeside Orthodontics, has a full-page print ad running in the current issue. Sales has sold them additional placements and the advertiser has emailed light feedback; everything must go out to spec before the issue's production deadline. Your job is to adapt the existing ad into the new placements, fold in the requested changes, and pre-flight the files for handoff. NOTE: the job posting named no concrete tools, software, or file formats, so the kit below is a representative ad-production set for a publishing ad department; in practice this work runs in Adobe Creative Suite (InDesign / Photoshop / Illustrator). Budget ~1 hour — work depth-first, and where you cannot meet spec, FLAG it and say what you'd request rather than fudging the output. Treat the DECISIONS log as ordinary production hygiene, not extra paperwork.",
+    "repoSeed": "An 'ad production kit' for this advertiser: (1) lakeside-ortho_fullpage.indd plus its exported lakeside-ortho_fullpage.pdf — the current full-page ad built by a previous designer; it uses linked (not embedded) images and one licensed font. (2) media-kit_2024.pdf — the publication's spec sheet: Full page (7.875 x 10.75 in trim, 0.125 in bleed, 0.25 in safe margin), Half page horizontal, plus two digital units — Leaderboard 728x90 and Half-page 300x600; print = CMYK, PDF/X-1a, 300 dpi images; digital = RGB, JPG/PNG/animated GIF, max 150 KB. (3) /brand/ — advertiser assets: logo_old.eps (legacy wordmark) and logo_2024.svg/.png (the current logo per the new brand guide); brand-guide.pdf (Pantone + CMYK color builds, logo clear-space rule, approved fonts); and two hero photos, hero_office_4000px.jpg (high-res) and hero_smile_1200px.jpg (low-res). (4) client-email.txt — a short feedback thread from the advertiser. (5) production-checklist.xlsx — the department's pre-flight / trafficking checklist.",
+    "tasks": [
+      "From lakeside-ortho_fullpage.indd, produce the Half-page print ad AND exactly ONE digital unit, each exported to the precise spec in media-kit_2024.pdf (color space, bleed/safe, resolution, file format, and file size). Preserve the logo clear-space rule and keep the body copy and phone number legible at the reduced size.",
+      "Incorporate the changes requested in client-email.txt — but resolve anything the email leaves open before you apply it, rather than guessing silently.",
+      "Pre-flight every file you produce against production-checklist.xlsx: confirm color space, image resolution, fonts, bleed, and file size; list any asset that cannot meet spec and exactly what you would request to fix it.",
+      "Keep a short DECISIONS log: for each call you made where the brief, the spec sheet, or the client feedback was open, note what you chose, the option you rejected, and what you would ask the supervising designer or the advertiser."
+    ],
+    "coverProbes": [
+      {
+        "id": "export-and-resolution",
+        "kind": "verification_trap",
+        "where": "The export step (Task 1/3) and hero_smile_1200px.jpg — an RGB on-screen export looks correct but fails at press, and the 1200px photo placed near full size falls well under 300 dpi.",
+        "reveals": "A strong candidate exports CMYK PDF/X-1a WITH bleed for print and an RGB file under 150 KB for digital, and recognizes that hero_smile_1200px.jpg is only usable in the small digital unit (or requests a higher-res file) instead of upscaling it. A naive one-shot ships a screen-pretty RGB file with no bleed and scales the low-res photo up so it looks fine on a monitor but is unusable on press.",
+        "decisionSpace": [
+          "Use hero_office_4000px.jpg everywhere and drop the smile photo, prioritizing print quality over the advertiser's preferred image.",
+          "Keep the smile photo only in the 728x90 / 300x600 digital unit where 1200px is sufficient, and flag it as not print-usable.",
+          "Request a higher-res smile photo, note the dependency, and place a clearly-labeled placeholder to keep moving before the deadline."
+        ]
+      },
+      {
+        "id": "logo-and-color-source",
+        "kind": "legacy_trap",
+        "where": "/brand/ (two logo versions and a Pantone/CMYK build that differs from the RGB hex already in the .indd) plus the linked images and licensed font inside lakeside-ortho_fullpage.indd.",
+        "reveals": "A strong candidate opens brand-guide.pdf, switches to logo_2024, reconciles the file's existing color against the guide's Pantone/CMYK build, and verifies links and fonts are present/packaged before exporting. A naive candidate simply reuses whatever logo and color are already baked into the legacy file.",
+        "decisionSpace": [
+          "Follow the new brand guide strictly — swap to logo_2024 and rebuild color to the guide's Pantone/CMYK values, updating the layout to match.",
+          "Keep the in-file logo and color to stay visually consistent with the rest of this already-laid-out issue, and flag the discrepancy to the supervisor.",
+          "Adopt the new logo but hold the existing color until the advertiser confirms, avoiding an unapproved color change at deadline."
+        ]
+      },
+      {
+        "id": "phone-emphasis-feedback",
+        "kind": "underspecified",
+        "where": "client-email.txt — the request to 'make the phone number stand out more' with no definition of how.",
+        "reveals": "A strong candidate names the defensible readings of 'stand out' and either asks or states an explicit assumption tied to the brand's type hierarchy. A naive candidate picks one treatment silently and may break the existing hierarchy or clear-space rules.",
+        "decisionSpace": [
+          "Increase the phone number's size/weight within the existing type hierarchy — safest, least disruptive.",
+          "Build a contrasting badge / call-to-action lockup around the number — highest emphasis but adds a new element to approve.",
+          "Restyle it in an accent color drawn from the brand guide — emphasis without size, but risks an unapproved color usage."
+        ]
+      },
+      {
+        "id": "digital-unit-selection",
+        "kind": "ambiguity",
+        "where": "Task 1's 'produce ONE digital unit' given two offered sizes (728x90 leaderboard vs 300x600 half-page) and a portrait full-page source ad, compounded by the email's vague 'it needs to work for the website too'.",
+        "reveals": "A strong candidate picks the unit the source's vertical composition can actually survive and justifies it, and treats 'work for the website' as a clarifying point (which placement / a web-res version). A naive candidate squashes the portrait full-page into a 728x90 strip and loses the hero image and CTA.",
+        "decisionSpace": [
+          "Produce the 300x600 — preserves the source's vertical hierarchy and hero image with the least recompose.",
+          "Produce the 728x90 — maximum reach and the most common placement, but forces a near-total recompose down to logo + offer + CTA.",
+          "Produce a deliberately minimal 728x90 (logo + offer + CTA only) and note that a faithful version needs a full recompose and sign-off."
+        ]
+      }
+    ],
+    "timeboxHours": 1.0,
+    "rubricDimensions": [
+      {
+        "name": "framing",
+        "label": "Problem framing",
+        "weight": 0.2,
+        "description": "Turns an ambiguous need into a sound plan."
+      },
+      {
+        "name": "tooling",
+        "label": "Tooling fluency",
+        "weight": 0.25,
+        "description": "Drives AI and other tools well; iterates and verifies."
+      },
+      {
+        "name": "judgment",
+        "label": "Judgment",
+        "weight": 0.25,
+        "description": "Catches AI/tooling mistakes; validates; pushes back."
+      },
+      {
+        "name": "architecture",
+        "label": "Architecture",
+        "weight": 0.15,
+        "description": "Structure and trade-offs that fit the real materials and constraints."
+      },
+      {
+        "name": "transfer",
+        "label": "Transfer",
+        "weight": 0.15,
+        "description": "Capability transfers to THIS role's tools and responsibilities."
+      }
+    ],
+    "promptVersion": "case-design-v5"
+  },
+  "source": "llm",
+  "issues": [],
+  "fallbackReason": {},
+  "promptVersions": {
+    "analyze": "need-analysis-v3",
+    "role": "role-design-v3",
+    "case": "case-design-v5"
+  }
+}

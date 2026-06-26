@@ -47,9 +47,13 @@ export function resolveCandidate(body: {
         languages: (c.languages as string[]) ?? [],
         yearsExperience: (c.yearsExperience as number) ?? 0,
         traits: (c.traits as string[]) ?? [],
-        // Real archetype from the v2 profile (not silently 'bau') so a
-        // student/switcher gets the right weights + entry-eligible KO lens.
-        archetype: payload?.v2Profile?.archetype ?? "bau",
+        // Real archetype from the v2 profile when present. When it's missing
+        // (v2Profile.archetype is best-effort and can be null), pass an explicit
+        // "unknown" sentinel rather than silently collapsing to "bau" — "bau"
+        // would apply the seniority KO floor and strip the fairness shield from a
+        // student/switcher. The Python ko_filter fails closed on "unknown"
+        // (no seniority auto-KO) and weights_for falls back to neutral BAU weights.
+        archetype: payload?.v2Profile?.archetype ?? "unknown",
         label: loaded.row.candidate_label ?? (c.name as string) ?? "Candidate",
       },
     };

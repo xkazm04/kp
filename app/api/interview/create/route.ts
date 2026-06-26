@@ -12,6 +12,7 @@ import { dispatchInterviewInvite } from "@/app/_lib/comms-dispatch";
 import { safeJsonError } from "@/app/_lib/api-response";
 import { publicBaseUrl } from "@/app/_lib/public-base-url";
 import { coerceLanguage, pickDefaultProvider, voiceAvailability, type VoiceProviderId } from "@/app/_lib/voice";
+import { GROUNDED_DEFAULT_MIN } from "@/app/_lib/interview-duration.mjs";
 
 export const runtime = "nodejs";
 
@@ -20,10 +21,13 @@ export const runtime = "nodejs";
 // to hand to the candidate. After the call, /complete runs the scorecard.
 export async function POST(request: NextRequest) {
   try {
-    // Billing hard gate: voice minutes are the one meter with real per-unit
-    // cost. No allowance → no new candidate links (existing live links keep
-    // working; minutes are debited at /complete). Top-up packs reopen this.
-    const quota = meterGate("interview_minutes");
+    // Billing hard gate: voice minutes are the one meter with real per-unit cost.
+    // Require the WHOLE booked call to fit, not just "any minute left": an interview
+    // books ~GROUNDED_DEFAULT_MIN minutes (debited up to 2× at /complete), so gating
+    // on a single leftover minute let a near-empty meter run a full call with the
+    // overage un-funded. (Existing live links keep working; minutes debit at
+    // /complete; top-up packs reopen this.)
+    const quota = meterGate("interview_minutes", { minUnits: GROUNDED_DEFAULT_MIN });
     if (quota) return NextResponse.json(quota, { status: 402 });
     // Validate at the trust boundary instead of casting request.json() to a
     // typed shape (idea-c7df6b55): entryId must be a plausibly-sized string and

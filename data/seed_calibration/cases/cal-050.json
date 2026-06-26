@@ -1,0 +1,187 @@
+{
+  "job": {
+    "id": "cal-050",
+    "title": "Application Development -L6",
+    "company": "Digital Performance Marketing Group",
+    "role_family": "software_engineering",
+    "seniority": "medior",
+    "source": "hf:jacob-hugging-face/job-descriptions"
+  },
+  "analysis": {
+    "realStack": [
+      "Real-time operating systems (RTOS)",
+      "C and/or Ada",
+      "Embedded software engineering",
+      "VxWorks (or comparable embedded OS)",
+      "UML design",
+      "Electronic Warfare (EW) domain knowledge",
+      "Hardware/software interface design and co-development",
+      "Both low-level (firmware/driver) and high-level software",
+      "Full software development life cycle: requirements, design, implementation, integration, test",
+      "Software test procedure/program authoring and documentation"
+    ],
+    "coreResponsibilities": [
+      "Research, design, and develop computer software systems in conjunction with hardware product development",
+      "Own software product design and development across all SDLC phases (requirements, design, implementation, integration, test)",
+      "Apply CS/engineering/mathematical analysis to develop the target embedded application",
+      "Work cross-functionally with engineering to define and evaluate hardware/software interfaces and operational performance requirements at the system level",
+      "Develop software test procedures, programs, and related documentation",
+      "Estimate and validate cost and scope of software efforts against project cost, schedule, and technical constraints",
+      "Act as internal expert/thought leader, managing large, complex, strategically important initiatives under consultative direction",
+      "Influence leadership and champion new systems concepts or technologies"
+    ],
+    "statedVsRealGaps": [
+      "Seniority is mislabeled: the structured need says seniorityTarget 'medior', but the JD is unambiguously senior/principal — 'recognized as an internal expert and thought leader', 'works under consultative direction against annual goals', 'manage large complex project initiatives of strategic importance', 'influence leadership to accept new practices'. Sourcing a medior against this will systematically under-target.",
+      "Provenance metadata is contradictory: notes claims 'Real JD from Digital Performance Marketing Group', but the actual JD is Butler America Aerospace (a staffing/solutions provider) recruiting for a top-ten US exchange carrier, doing embedded/real-time/EW work. This is not digital performance marketing at all — the label appears wrong and would mis-route the role.",
+      "The need's stack is empty ([]), yet the JD specifies a very concrete and specialized stack (RTOS, C/Ada, VxWorks, UML, EW). The empty stack hides the true scarcity of the skill set.",
+      "Generic title 'Application Development' / roleFamily 'software_engineering' undersells a specialized, mission/safety-critical embedded-systems role. 'Application development' will attract web/business-app engineers who are the wrong pool entirely.",
+      "No codebase was supplied (codebases: null), so this is reflected only against the JD text — there is no real body of work to cross-check the stated need against."
+    ],
+    "trueComplexity": "high",
+    "riskAreas": [
+      "Skill scarcity: Ada + EW (electronic warfare) + RTOS/VxWorks is a narrow, defense/aerospace-adjacent talent pool; combined with the senior/thought-leader bar, candidate supply is thin and slow to source.",
+      "Likely unstated eligibility constraints: EW/defense-adjacent work for a US carrier commonly carries US-person/clearance or export-control (ITAR/EAR) requirements that the JD does not state but a recruiter must confirm before sourcing.",
+      "Seniority/level mismatch (medior target vs. L6/principal expectations) risks a pipeline of under-qualified candidates and wasted screening.",
+      "Contract engagement ('months contract', Clifton NJ) plus a thought-leader scope is an awkward pairing — strategic-influence expectations are hard to land in a fixed-term contractor.",
+      "Hardware dependency: software deliverables are gated on hardware product development, so schedule risk and integration friction are inherent and require a candidate comfortable with hardware/software co-design.",
+      "Mislabeled provenance/family metadata could route this to the wrong reviewers or matching logic, compounding the sourcing mismatch."
+    ],
+    "reflection": "The structured need frames this as a medior, generically-titled 'Application Development' software role with no stack and a digital-marketing provenance — but the JD itself describes something quite different and much more specialized: a senior/principal embedded software engineer for mission-critical, real-time systems, working in C and/or Ada on an RTOS (VxWorks or similar), with electronic-warfare domain exposure and hardware/software co-design, recruited by Butler America Aerospace for a top-ten US exchange carrier. Every senior signal in the duties — internal expert, consultative direction, strategic initiatives, influencing leadership — contradicts the 'medior' target, and the 'Digital Performance Marketing' note contradicts the aerospace/telecom reality of the text. The true complexity is high: embedded real-time, Ada, EW, and hardware-coupled SDLC ownership are individually scarce and collectively rare. The most important corrections before this is acted on are to reset seniority to senior/principal, replace the empty stack with the real RTOS/C-Ada/VxWorks/EW stack, fix the mislabeled provenance, and confirm the (very likely) US-person/clearance and export-control constraints that an EW defense-adjacent role usually carries. With no codebase supplied, this assessment rests entirely on the JD text, which is itself rich and concrete enough to extract responsibilities reliably.",
+    "confidence": 0.82,
+    "promptVersion": "need-analysis-v3"
+  },
+  "role": {
+    "title": "Senior Embedded Software Engineer (Real-Time Systems)",
+    "seniority": "senior",
+    "roleFamily": "software_engineering",
+    "mustHaves": [
+      "Real-time operating systems (RTOS) experience",
+      "Embedded software engineering experience",
+      "C and/or Ada programming",
+      "Hardware/software interface design and HW/SW co-development",
+      "Full software development life cycle ownership: requirements, design, implementation, integration, and test",
+      "Authoring software test procedures, test programs, and related documentation",
+      "Bachelor's degree in Computer Science, Electrical Engineering, or a related engineering field"
+    ],
+    "niceToHaves": [
+      "VxWorks (or a comparable embedded OS)",
+      "Electronic Warfare (EW) domain background",
+      "UML design experience",
+      "Comfort working across both high-level and low-level (firmware/driver) software"
+    ],
+    "responsibilities": [
+      "Research, design, and develop computer software systems in conjunction with hardware product development",
+      "Own software product design and development across all SDLC phases (requirements, design, implementation, integration, test)",
+      "Apply computer-science, engineering, and mathematical-analysis principles to develop the target embedded application",
+      "Collaborate cross-functionally to define and evaluate hardware/software interfaces and system-level operational performance requirements",
+      "Develop software test procedures, test programs, and supporting documentation",
+      "Estimate and validate the cost and scope of software efforts against project cost, schedule, and technical constraints",
+      "Serve as an internal expert and thought leader, managing large, complex, strategically important initiatives under consultative direction",
+      "Influence leadership to adopt new practices and champion new systems concepts or technologies"
+    ],
+    "languages": [
+      "C",
+      "Ada"
+    ],
+    "promptVersion": "role-design-v3"
+  },
+  "case": {
+    "title": "EW Pulse-Ingest Real-Time Path: Triage, Fix, and Verify (VxWorks-style C / RTOS)",
+    "brief": "This is a software-engineering case and the provided context fits the role, so you work on representative materials in the role's own domain: a small embedded C application for an Electronic Warfare (EW) receiver, running under a VxWorks-style RTOS. You are handed `ew-pdw-rt/`, a real-time path that ingests Pulse Descriptor Words (PDWs) from a memory-mapped receiver, deinterleaves them, and matches emitters against a threat library — an interrupt service routine hands pulses to a high-priority task across a single-producer/single-consumer ring buffer. It builds and runs on a host through a thin RTOS shim (`rtos/rtos_shim.*` maps `taskSpawn`/`semBCreate`/`semMCreate`/`semTake`/`semGive` onto host threads), so you do NOT need VxWorks or target hardware to reproduce behavior. The existing code 'works' on the happy path and the existing test is green — that is the point. Your job is senior real-time judgment, not volume: read before you change, find where correctness actually lives (ISR/task context rules, priority, the buffer's full/empty boundary, memory-mapped access, and what the spec leaves open), and make defensible calls under the hardware/software and schedule constraints typical of this domain. We assume any engineer's code can be machine-generated, so what we evaluate is the path you take through the ambiguities and whether you own those choices afterward. The Interface/Software Requirements Spec excerpt (`docs/IRS_excerpt.md`) is deliberately incomplete in places — treat gaps as something to resolve and record, exactly as you would on a real program. Hard cap: 2.0 hours. Prefer depth on a few decisions over touching everything; leave anything you deprioritize in the DECISIONS log with your reasoning.",
+    "repoSeed": "`ew-pdw-rt/` — a runnable VxWorks-style embedded C project (host build via RTOS shim):\n- `src/pdw_ingest.c` / `pdw_ingest.h` — `pdwIsr()` (interrupt handler, called from receiver IRQ context) pushes PDWs into a shared `RingBuf g_pdwRing` and signals binary semaphore `g_pdwSem`; `pdwTask()` (priority 200) wakes on the semaphore, drains the ring, deinterleaves, and calls `threatMatch()`. The ISR currently also touches the threat-stats counters directly; `g_pdwRing.head/tail` are plain `uint32_t` (no `volatile`, no barrier).\n- `src/ring_buf.c` / `ring_buf.h` — SPSC ring buffer: `rbPush()`, `rbPop()`, `rbIsFull()`, `rbIsEmpty()`, fields `head`, `tail`, `RB_SIZE` (256). Full/empty are disambiguated by comparing `head == tail` only.\n- `src/threat_lib.c` / `threat_lib.h` — `threatMatch()` scans `g_threatTable[]`; the table and stats are guarded by `g_threatMtx`, created with a plain (non-priority-inheriting) mutex; a low-priority `bitLogTask()` (priority 240) also takes `g_threatMtx` to snapshot stats.\n- `hwif/rx_regs.h` — memory-mapped receiver registers as plain `uint32_t *`: `RX_FIFO_LEVEL`, `RX_PDW_DATA`, and `RX_STATUS` whose OVERFLOW bit is clear-on-read.\n- `rtos/rtos_shim.c` / `rtos_shim.h` — VxWorks-like API over host threads so it builds without VxWorks.\n- `docs/IRS_excerpt.md` — requirement excerpts with IDs, incl. SRS-PDW-014 ('PDWs shall be processed in real time with no loss under nominal load') with no stated deadline or overrun policy, and SRS-PDW-021 (threat-update latency 'as low as practical').\n- `test/test_ring_buf.c` — existing unit test (push/pop on a partially filled buffer); currently passes.\n- `Makefile`, `README.md`.",
+    "tasks": [
+      "Triage and fix the real-time hand-off on the PDW path in `src/pdw_ingest.c` (and `hwif/rx_regs.h` as needed): identify the defects that only surface under contention or at the ISR/task boundary — interrupt-context safety of what `pdwIsr()` does, the visibility of `head`/`tail` across contexts, the synchronization mechanism guarding `g_threatTable`/stats given that a priority-240 task and a priority-200 task both take it, and how the memory-mapped registers in `rx_regs.h` are accessed. Fix them and state, in the code or a short note, which RTOS mechanism you chose and why.",
+      "Resolve what SRS-PDW-014 leaves open and implement it in the ingest path and `ring_buf.c`: pick and justify a buffer-full / overrun policy and a concrete latency or throughput budget you will hold the design to, and make overruns observable (e.g., a counted overflow / built-in-test signal rather than silent loss). Wire it to the receiver's clear-on-read overflow status correctly.",
+      "Author a real-time test procedure for this path and make it runnable: add tests that specifically exercise the ring buffer's full/empty boundary at wrap-around and an overrun/latency check, then write a short formal test procedure (purpose, setup, steps, expected pass/fail, traceability to the SRS-PDW IDs you touched). If you find the existing `test/test_ring_buf.c` asserts something that is not actually correct, fix the test and the code it covers.",
+      "Keep a `DECISIONS.md` log as you go: for each call you made where the brief or the IRS was open — overrun policy, the deadline number you committed to, the lock/lock-free choice, the full/empty disambiguation, the `volatile`/barrier decision, anything you deliberately deprioritized — record what you chose, the alternative you rejected and why, and the one question you would have put to the systems/hardware team. Treat it as ordinary engineering hygiene, not a deliverable to impress us."
+    ],
+    "coverProbes": [
+      {
+        "id": "priority-inversion-isr-context",
+        "kind": "legacy_trap",
+        "where": "src/pdw_ingest.c (pdwIsr touching shared stats; head/tail without volatile/barrier) and src/threat_lib.c (g_threatMtx is a plain mutex, taken by both pdwTask@200 and bitLogTask@240)",
+        "reveals": "A naive one-shot fix wraps more state in locks and 'looks safe'. A strong candidate reads the call sites first, recognizes that an ISR must not block or do unbounded work / take a blocking mutex, sees the unbounded priority inversion where the low-priority logger holds g_threatMtx while the high-priority PDW task waits, and notices head/tail need volatile or an explicit barrier to be visible across the ISR/task boundary. Reveals whether real-time concurrency reasoning is owned or pattern-matched.",
+        "decisionSpace": [
+          "Use a priority-inheritance mutex (semMCreate with the inversion-safe option) for g_threatTable — minimal change, keeps shared state, accepts bounded blocking and the mutex cost on the hot path.",
+          "Make the PDW ring strictly lock-free SPSC and let the ISR only signal (no shared-stats mutation in interrupt context), moving all stats updates into pdwTask — removes ISR blocking entirely at the cost of restructuring where stats are computed.",
+          "Decouple the logger: have bitLogTask read a separate double-buffered / sequence-counted stats snapshot instead of taking the same mutex — eliminates the inversion path without changing the hot-path lock, at the cost of an extra publish/snapshot mechanism."
+        ]
+      },
+      {
+        "id": "overrun-and-deadline-policy",
+        "kind": "underspecified",
+        "where": "docs/IRS_excerpt.md SRS-PDW-014 ('real time, no loss under nominal load', no deadline, no overrun policy) realized in pdw_ingest.c + ring_buf.c",
+        "reveals": "A naive submission silently picks whatever the existing buffer does (overwrite or block) and never names a deadline. A strong candidate surfaces that 'real time' and 'no loss under nominal load' are unverifiable until you define the deadline, the nominal load, and the overrun behavior, then commits to a concrete number and a policy and makes loss observable. Reveals whether ambiguity is escalated and pinned or absorbed silently.",
+        "decisionSpace": [
+          "Drop-oldest on overflow with a bounded latency budget — keeps the freshest threat picture (EW-appropriate) but admits data loss that must be counted/reported.",
+          "Backpressure / drop-newest preserving ordering — protects already-queued pulses and ordering guarantees but risks acting on stale data and can stall the producer/receiver FIFO.",
+          "Degrade-and-flag: keep processing, increment an overflow counter and raise a BIT fault tied to RX_STATUS, and document the load at which the deadline holds — most defensible for a fielded system, costs the extra instrumentation and an agreed nominal-load definition."
+        ]
+      },
+      {
+        "id": "ring-full-empty-boundary",
+        "kind": "verification_trap",
+        "where": "src/ring_buf.c (full/empty disambiguated by head==tail only) and test/test_ring_buf.c (passes on a partially filled buffer, never tests the wrap/full boundary)",
+        "reveals": "The existing test is green and a one-shot LLM fix to rbPush/rbPop can stay green while the head==tail ambiguity still makes a full buffer indistinguishable from an empty one at wrap-around. A strong candidate distrusts the green check, writes the boundary test that actually fails, then fixes the buffer. Reveals whether verification is targeted at the failure mode or just re-runs the shallow existing assertion.",
+        "decisionSpace": [
+          "Sacrifice one slot (treat full as head+1==tail) so head==tail unambiguously means empty — simplest, costs one element of capacity.",
+          "Add an explicit count field — full capacity retained, but the counter is shared state updated by both producer and consumer, so it must be made atomic/lock-free or it reintroduces an ISR/task race.",
+          "Use free-running (non-wrapped) head/tail indices and mask only on access, deriving fill from (head - tail) — full capacity and clean, but requires care with unsigned wrap of the indices themselves."
+        ]
+      },
+      {
+        "id": "memory-mapped-register-access",
+        "kind": "ambiguity",
+        "where": "hwif/rx_regs.h (RX_FIFO_LEVEL / RX_STATUS / RX_PDW_DATA as plain uint32_t *) used in pdw_ingest.c",
+        "reveals": "A naive read polls RX_FIFO_LEVEL or RX_STATUS as ordinary memory, so the compiler may cache it, and the clear-on-read OVERFLOW bit gets read twice or at the wrong time. A strong candidate recognizes these as device registers with read side-effects: they must be volatile (or accessed through an enforced-ordering accessor), read exactly once where the read clears state, and ordered relative to the data read. Reveals understanding of hardware/software interface semantics, not just C.",
+        "decisionSpace": [
+          "Mark the register pointers volatile and read each clear-on-read register exactly once into a local before testing bits — minimal, idiomatic, relies on volatile semantics being sufficient on the target.",
+          "Route all register access through explicit read/write accessor functions (e.g., reg_read32/reg_write32) with the platform's memory barrier — portable and auditable across compilers/targets, at the cost of more ceremony.",
+          "Snapshot RX_STATUS once per ISR/service cycle and pass the captured value downstream so the clear-on-read bit is consumed in exactly one place — robust against double-clear, but requires threading the snapshot through the call path."
+        ]
+      }
+    ],
+    "timeboxHours": 2.0,
+    "rubricDimensions": [
+      {
+        "name": "framing",
+        "label": "Problem framing",
+        "weight": 0.2,
+        "description": "Turns an ambiguous need into a sound plan."
+      },
+      {
+        "name": "tooling",
+        "label": "Tooling fluency",
+        "weight": 0.25,
+        "description": "Drives AI and other tools well; iterates and verifies."
+      },
+      {
+        "name": "judgment",
+        "label": "Judgment",
+        "weight": 0.25,
+        "description": "Catches AI/tooling mistakes; validates; pushes back."
+      },
+      {
+        "name": "architecture",
+        "label": "Architecture",
+        "weight": 0.15,
+        "description": "Structure and trade-offs that fit the real materials and constraints."
+      },
+      {
+        "name": "transfer",
+        "label": "Transfer",
+        "weight": 0.15,
+        "description": "Capability transfers to THIS role's tools and responsibilities."
+      }
+    ],
+    "promptVersion": "case-design-v5"
+  },
+  "source": "llm",
+  "issues": [],
+  "fallbackReason": {},
+  "promptVersions": {
+    "analyze": "need-analysis-v3",
+    "role": "role-design-v3",
+    "case": "case-design-v5"
+  }
+}

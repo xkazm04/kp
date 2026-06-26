@@ -10,6 +10,10 @@ import { parseOaiTranscriptEvent } from "@/app/_lib/voice/openai";
 // pulls the server-only adapters into the bundle); these are type-only, so the
 // import is erased at compile time.
 import type { VoiceAvailability, VoiceProviderId, VoiceTurn } from "@/app/_lib/voice/types";
+// Default + fallback provider order, single-sourced in voice/types (browser-safe
+// pure data) so the picker can't default to a different provider than the server's
+// pickDefaultProvider — they previously kept inverted copies.
+import { VOICE_PROVIDER_ORDER as PROVIDER_ORDER, DEFAULT_VOICE_PROVIDER as DEFAULT_PROVIDER } from "@/app/_lib/voice/types";
 // Browser-safe pure helper (no server deps), so the "what counts as completed"
 // decision is single-sourced and unit-tested rather than inline in a callback.
 import { interviewFinalStatus } from "@/app/_lib/voice/finalize-status";
@@ -40,11 +44,6 @@ export type VoiceInterviewProps = {
   provider?: VoiceProviderId;
   lockSettings?: boolean;
 };
-
-// ElevenLabs is the preferred default; the picker falls back to whatever is
-// actually configured once availability resolves (see the effect below).
-const DEFAULT_PROVIDER: VoiceProviderId = "elevenlabs";
-const PROVIDER_ORDER: VoiceProviderId[] = ["elevenlabs", "openai"];
 
 // How long finalize() waits for a candidate utterance whose transcription is
 // still in flight when the call ends (idea-b70b8bd7). Whisper turnaround for a
@@ -258,8 +257,15 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle, provider: pinned
       pushTurn("interviewer", asstBuf.current);
       asstBuf.current = "";
       // Grace expired with the utterance still pending: fall back to whatever
-      // transcription deltas streamed in (empty on whisper-1 — then the turn is
-      // genuinely unrecoverable, but we no longer drop one we already hold).
+      // transcription deltas streamed in (empty on a non-streaming model like
+      // whisper-1 — then the turn is genuinely unrecoverable, but we no longer drop
+      // one we already hold). Surface that loss instead of dropping it silently, so a
+      // scorecard scored on a missing closing answer is at least observable.
+      if (pendingCandidateRef.current && !candBuf.current.trim()) {
+        console.warn(
+          `[voice] final candidate turn lost: transcription grace (${OAI_FINAL_TURN_GRACE_MS}ms) expired with an empty delta buffer — the closing answer is missing from the scored transcript (use a streaming OPENAI_REALTIME_TRANSCRIPTION_MODEL to populate the fallback).`
+        );
+      }
       pushTurn("candidate", candBuf.current);
       candBuf.current = "";
       pendingCandidateRef.current = false;

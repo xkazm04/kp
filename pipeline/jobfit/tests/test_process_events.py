@@ -33,11 +33,13 @@ class TestProcessEvents(unittest.TestCase):
         self.assertEqual(sig["decisionLogEntries"], 1)
         self.assertTrue(any("decision-log" in e for e in tooling_from_events(evs)["evidence"]))
 
-    def test_probe_area_touch_is_observed_but_handledWell_stays_conservative(self):
+    def test_probe_area_touch_is_observed_but_handledWell_is_unknown(self):
         probes = [{"id": "p1", "kind": "trap", "where": "src/parser.ts", "reveals": "x"}]
         touched = tooling_from_events([{"t": 1, "kind": "edit", "path": "src/parser.ts"}], probes)
         self.assertTrue(touched["probeOutcomes"][0]["detected"])
-        self.assertFalse(touched["probeOutcomes"][0]["handledWell"])  # never claimed deterministically
+        # Handling is NOT gradeable from process: emit None (unknown), not a definitive
+        # False — a False would be treated downstream as a graded failure and halve judgment.
+        self.assertIsNone(touched["probeOutcomes"][0]["handledWell"])
         untouched = tooling_from_events([{"t": 1, "kind": "edit", "path": "src/other.ts"}], probes)
         self.assertFalse(untouched["probeOutcomes"][0]["detected"])
 

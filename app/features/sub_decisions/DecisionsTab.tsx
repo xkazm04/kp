@@ -173,7 +173,7 @@ export function DecisionsTab() {
     setEvalTaskId(null);
   }
 
-  const act = async (e: Entry, action: "accept" | "reject" | "approve_event", detail?: string) => {
+  const act = async (e: Entry, action: "accept" | "reject" | "approve_event", detail?: string, ttlDays?: number) => {
     setResolving((s) => ({ ...s, [e.id]: action }));
     window.setTimeout(() => setEntries((prev) => (prev ? prev.filter((x) => x.id !== e.id) : prev)), 260);
     try {
@@ -188,7 +188,7 @@ export function DecisionsTab() {
         // queue) instead of blindly overriding what another actor did.
         // An optional reason (DEC4) rides as `detail` → recorded on the
         // advanced/rejected event → shown in the Decision Log.
-        body: JSON.stringify({ action, expectedStage: e.stage, ...(note ? { detail: note } : {}) }),
+        body: JSON.stringify({ action, expectedStage: e.stage, ...(note ? { detail: note } : {}), ...(ttlDays ? { ttlDays } : {}) }),
       });
       if (!r.ok) throw new Error();
       // Accepting an AI screening flows the candidate to interview scheduling —
@@ -378,7 +378,7 @@ export function DecisionsTab() {
               <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                 {visibleAiReviews.map((e) => (
                   <div key={e.id} data-sim-entry={e.id} className={leavingWrapClass(e)}>
-                    <AiReviewCard entry={e} onAccept={() => act(e, "accept")} onReject={() => act(e, "reject")} />
+                    <AiReviewCard entry={e} onAccept={(ttlDays) => act(e, "accept", undefined, ttlDays)} onReject={() => act(e, "reject")} />
                   </div>
                 ))}
               </div>

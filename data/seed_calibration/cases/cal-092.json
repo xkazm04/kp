@@ -1,0 +1,179 @@
+{
+  "job": {
+    "id": "cal-092",
+    "title": "Commercial Contracts Lawyer",
+    "company": "Axiom   New York, NY On-site",
+    "role_family": "legal",
+    "seniority": "medior",
+    "source": "hf:jacob-hugging-face/job-descriptions"
+  },
+  "analysis": {
+    "realStack": [
+      "Commercial contract drafting & negotiation (procurement, customer/sales agreements, NDAs, MSAs)",
+      "Contract lifecycle management (CLM) / contract-database systems",
+      "Contract template libraries and playbooks (preferred-qualification signal)",
+      "Redlining / markup tooling (e.g., Word track changes, comparison tools) and e-signature workflows",
+      "Active U.S. state bar membership in good standing (residence-state license)",
+      "In-house / embedded corporate legal-department workflow and intake",
+      "Cross-functional stakeholder coordination (procurement, sales, finance, business units)",
+      "Risk-allocation, liability, IP, data/confidentiality and indemnity clause analysis"
+    ],
+    "coreResponsibilities": [
+      "Negotiate a wide variety of commercial contracts end-to-end — procurement, customer/sales agreements, NDAs and MSAs — for large enterprise clients",
+      "Advise corporate clients directly with pragmatic, business-oriented (not purely academic) legal counsel",
+      "Operate independently and cross-functionally on complex, fast-moving transactional matters with minimal supervision",
+      "Build and maintain collaborative relationships with internal business partners and stakeholders while embedded in a client's legal team",
+      "(Preferred) Create/standardize contract templates and help manage a contract database"
+    ],
+    "statedVsRealGaps": [
+      "Location contradiction: the need is labeled 'New York, NY On-site,' but the JD body says Axiomites 'predominantly work remotely' with on-site only when a specific client requires it — the on-site framing overstates the real default arrangement.",
+      "Seniority is under-specified vs. the real bar: the experience figure is stripped from the JD ('years of significant transactional experience'), yet 'significant' in-house experience independently negotiating MSAs/procurement for major enterprises typically implies senior, not the stated 'medior' target — the role is likely under-leveled.",
+      "Engagement model not made explicit: this is an Alternative Legal Services Provider (Axiom) staffing/secondment role — 'advising corporate clients directly' means working as deployed on-demand talent inside client legal departments, not a traditional firm-associate or permanent in-house seat; candidates may misread the nature of the work.",
+      "Compensation and benefits specifics are stripped ('competitive compensation … health benefits and more'), so the stated need can't be reconciled against an actual pay band.",
+      "No substantive practice-area or industry specialization is required beyond breadth, despite naming energy/technology/consumer-goods/professional-services clients — the real work may demand sector familiarity the JD doesn't ask for."
+    ],
+    "trueComplexity": "high",
+    "riskAreas": [
+      "Bar-jurisdiction constraint: requires active good standing in the candidate's state of residence; combined with the 'NY on-site' label this can silently exclude otherwise-qualified remote candidates or create a residence/work-location mismatch.",
+      "Self-direction risk: 'work independently' while embedded at a client means little onboarding scaffolding — candidates who need structure or close supervision will underperform regardless of paper credentials.",
+      "Breadth-vs-depth risk: 'wide variety of commercial contracts' demands a generalist; specialists strong in one area (e.g., SaaS/sales) may have real gaps in others (e.g., complex procurement or energy-sector MSAs).",
+      "Hard-to-screen soft skills: heavy weight on interpersonal skills, business judgment and 'entrepreneurial, pragmatic' advice — these drive client success but are poorly evidenced by a resume and easily over-claimed.",
+      "Expectation/retention risk: the ALSP flexible-workload model attracts lawyers seeking control over hours; mismatch with a 'large, fast-paced, high-professionalism' client environment can cause early attrition.",
+      "Under-leveling risk: screening to a 'medior' target against work that realistically needs senior, independent deal ownership may yield candidates who can't carry complex matters solo."
+    ],
+    "reflection": "This is a non-software legal role, so the absence of any codebase is expected and not a defect — the real body of work is the commercial-contract corpus (procurement, sales, NDAs, MSAs) and the negotiation/advisory workflow the role acts on, all of which the JD specifies clearly. Grounded against that evidence, the need is coherent and well-defined on contract types and the operating posture (independent, cross-functional, client-facing, fast-paced). The honest divergences are about leveling and framing rather than substance: the stated 'medior' target and 'New York on-site' label both sit at odds with the JD's own text, which describes 'significant' in-house transactional experience (senior-leaning) and a predominantly-remote arrangement. The defining context the title omits is that Axiom is an alternative legal services provider — the lawyer is deployed into client legal departments on demand, so success hinges as much on adaptability, business judgment and stakeholder trust as on doctrinal contract skill. Net: a substantive medior-to-senior commercial-contracts role whose real complexity is high, with the main hiring risks being correct leveling, bar-jurisdiction/location fit, and screening for hard-to-evidence judgment and self-direction.",
+    "confidence": 0.72,
+    "promptVersion": "need-analysis-v3"
+  },
+  "role": {
+    "title": "Commercial Contracts Lawyer",
+    "seniority": "medior",
+    "roleFamily": "legal",
+    "mustHaves": [
+      "Active bar membership in good standing in the U.S. state where you reside (residence-state license)",
+      "Significant transactional experience independently negotiating a broad range of commercial contracts — procurement, customer/sales agreements, NDAs and MSAs",
+      "Ability to advise corporate clients directly with pragmatic, business-oriented counsel rather than purely academic legal analysis",
+      "Proven capacity to work independently and cross-functionally on complex, fast-moving matters with minimal supervision",
+      "Strong command of core commercial risk allocation: liability, indemnity, IP, confidentiality/data and termination clause analysis and drafting",
+      "Excellent interpersonal and stakeholder-management skills, with professionalism and sound business judgment in a large, fast-paced environment",
+      "In-house or embedded corporate legal-department experience (the JD states a clear preference for in-house transactional backgrounds)"
+    ],
+    "niceToHaves": [
+      "Experience creating and standardizing contract templates and negotiation playbooks",
+      "Experience managing contract databases / CLM (contract lifecycle management) systems",
+      "Fluency with redlining and document-comparison tooling and e-signature workflows",
+      "Familiarity with one or more of Axiom's client sectors — energy, technology, consumer goods or professional services",
+      "Comfort operating in an Alternative Legal Services Provider engagement model — deployed as on-demand talent inside a client's legal team rather than a traditional firm or permanent in-house seat"
+    ],
+    "responsibilities": [
+      "Negotiate a wide variety of commercial contracts end-to-end — procurement, customer/sales agreements, NDAs and MSAs — for large enterprise clients",
+      "Advise corporate clients directly, providing entrepreneurial, pragmatic and business-oriented legal counsel",
+      "Operate independently and cross-functionally on complex, high-volume transactional matters with minimal supervision",
+      "Build and maintain strong, collaborative relationships with internal business partners and stakeholders while embedded in a client's legal department",
+      "Where needed, create and standardize contract templates and help build and maintain the contract database"
+    ],
+    "languages": [
+      "English"
+    ],
+    "promptVersion": "role-design-v3"
+  },
+  "case": {
+    "title": "Redline & Advise: The Northwind MSA Intake",
+    "brief": "You are a medior commercial contracts lawyer embedded in the in-house legal department of a large enterprise client. A procurement lead has just dropped an urgent intake into your queue (intake_PROC-2291): the counterparty, Northwind Systems, has returned its markup of our standard Master Services Agreement and attached its own mutual NDA, and the business wants the deal signed before quarter-end. You work independently, with no senior to walk you through it. In ~1.5 hours, triage and redline the riskiest parts of Northwind's markup against our Contract Playbook, write a short business-facing advice note to the stakeholder, recommend one concrete improvement to our template library, and keep a running DECISIONS log. Depth beats coverage — do not try to clause-by-clause the whole agreement; concentrate on the handful of provisions that actually allocate risk. All materials below are synthetic but representative of real in-house transactional work; the provided context fits this role, so work the documents as a practicing commercial lawyer would.",
+    "repoSeed": "A working folder for the matter containing: (1) 'Northwind_MSA_v3_counterparty_markup.docx' — our standard MSA returned with Northwind's track-changes redlines, focused on §1 Definitions (incl. 'Fees', 'Agreement Year'), §8 IP Ownership, §9 Confidentiality & Data Protection, §11 Limitation of Liability, §12 Indemnification, and §18 Governing Law / Dispute Resolution; (2) 'Contract_Playbook_v4.docx' — our positions, fallbacks, and escalation thresholds, stating a Limitation of Liability cap of 1x trailing-12-month fees with an uncapped 'super-cap' carve-out for data breach and confidentiality; (3) 'MSA_Template_Standard.docx' — the template we actually send, whose §11 reads 2x fees and whose Data Processing Addendum still names a prior corporate entity and cites 'Playbook v2'; (4) 'Northwind_Mutual_NDA.docx' — the counterparty's NDA on its own paper; (5) 'intake_PROC-2291.txt' — the stakeholder's short, informal request ('Need this MSA signed by EOQ — can you clean it up fast?') with no deal value, strategic weighting, or risk tolerance stated; (6) 'Template_Library_Index.xlsx' — the CLM library index listing template names, owners, versions, and 'last reviewed' dates.",
+    "tasks": [
+      "Triage and redline Northwind's markup in Northwind_MSA_v3_counterparty_markup.docx against Contract_Playbook_v4, concentrating on §8 IP, §9 Confidentiality/Data Protection (+ DPA), §11 Limitation of Liability, §12 Indemnification, and §18 Governing Law. For each material change, mark accept / reject / propose-fallback with a one-line rationale, and explicitly separate the 2-3 true dealbreakers from concessions you would accept to close.",
+      "Draft a business-facing advice note (email, ≤300 words) replying to intake_PROC-2291: what we can sign as-is, what must be negotiated, the one or two points worth holding the deal for, and a pragmatic path to hit the quarter-end deadline. Write for a non-lawyer stakeholder — entrepreneurial and decisive, not a clause dump.",
+      "Recommend exactly ONE concrete improvement to the contract template library based on what this negotiation surfaced — e.g., a reusable fallback clause, reconciling a source-document inconsistency, or a pre-approved NDA position. Provide the proposed clause language and say where it belongs in Template_Library_Index.xlsx and what should be retired.",
+      "Maintain a short DECISIONS log throughout (normal practice for in-house work): for every call you made where the source materials were open or silent, record what you chose, the alternative you rejected, and the one question you would have asked the deal team or the business before committing."
+    ],
+    "coverProbes": [
+      {
+        "id": "P1-intake-silence",
+        "kind": "underspecified",
+        "where": "intake_PROC-2291.txt and Task 2 — the request gives a deadline but no deal value, strategic importance, or risk appetite.",
+        "reveals": "A strong candidate recognizes that negotiation posture is a function of deal economics and leverage, surfaces the missing commercial context, and either states an explicit working assumption or asks before locking a stance; a naive responder silently adopts a single posture (maximally protective or maximally permissive) as if the brief were complete.",
+        "decisionSpace": [
+          "Treat it as a routine, low-strategic vendor with leverage on our side — hold the playbook line and let the deadline slip if needed.",
+          "Treat it as a strategic must-win — concede non-critical points to hit quarter-end and protect only the dealbreakers.",
+          "Decline to set posture blind — request deal value and strategic weighting first, while pre-drafting both an aggressive and a fast-close redline so no time is lost."
+        ]
+      },
+      {
+        "id": "P2-playbook-template-conflict",
+        "kind": "legacy_trap",
+        "where": "§11 Limitation of Liability and the DPA — Contract_Playbook_v4 says 1x fees while MSA_Template_Standard says 2x fees, and the DPA still references a prior entity name and 'Playbook v2'.",
+        "reveals": "A candidate who reads both governance sources before generating catches that our own house is internally inconsistent and resolves or escalates it; one-shot generation just adopts whichever cap it encountered first and propagates a stale DPA, treating our own documents as authoritative without verifying them.",
+        "decisionSpace": [
+          "Follow Contract_Playbook_v4 as the authoritative governance doc and flag the template as stale for retirement.",
+          "Follow MSA_Template_Standard as what we actually sign in practice and propose updating the playbook to match.",
+          "Flag the conflict, negotiate to the more protective 1x figure as an interim position, and route both the template and DPA for standardization rather than picking silently."
+        ]
+      },
+      {
+        "id": "P3-illusory-mutual-cap",
+        "kind": "verification_trap",
+        "where": "§11 Limitation of Liability read against §1 Definitions ('Fees', 'Agreement Year') and the §12 indemnity carve-outs in Northwind's markup.",
+        "reveals": "The cap reads as facially 'mutual' and reasonable, so a shallow check ('is there a mutual cap? yes') passes; but Northwind's redefined 'Fees' (excluding usage/pass-through charges) and one-sided carve-outs make the cap asymmetric and far smaller than it appears. A candidate who traces defined terms and cross-references catches the illusion; a one-shot reviewer signs off on language that quietly favors the counterparty.",
+        "decisionSpace": [
+          "Accept the facially mutual cap to conserve negotiation capital, judging the residual exposure tolerable.",
+          "Reject and demand true symmetry — restore the original 'Fees' definition and make carve-outs reciprocal.",
+          "Accept the cap structure but re-balance the specific carve-outs (mutual super-cap for data/confidentiality, capped elsewhere) as the negotiated fallback."
+        ]
+      },
+      {
+        "id": "P4-governing-law-competence",
+        "kind": "ambiguity",
+        "where": "§18 Governing Law / Dispute Resolution — Northwind changes governing law to its home state, which is outside the candidate's bar admission.",
+        "reveals": "A self-aware candidate recognizes the limits of their own bar license and flags where local/qualified counsel is needed instead of opining authoritatively on unfamiliar state law; a candidate over-claiming competence either silently accepts the change or renders confident advice on law they are not admitted to practice.",
+        "decisionSpace": [
+          "Propose a neutral, familiar governing law as a standard, low-friction concession.",
+          "Hold our home-state governing law per the playbook and treat it as a non-negotiable.",
+          "Accept the counterparty's state but condition it on local-counsel review and/or move dispute resolution to arbitration in a neutral seat to manage the competence gap."
+        ]
+      }
+    ],
+    "timeboxHours": 1.5,
+    "rubricDimensions": [
+      {
+        "name": "framing",
+        "label": "Problem framing",
+        "weight": 0.2,
+        "description": "Turns an ambiguous need into a sound plan."
+      },
+      {
+        "name": "tooling",
+        "label": "Tooling fluency",
+        "weight": 0.25,
+        "description": "Drives AI and other tools well; iterates and verifies."
+      },
+      {
+        "name": "judgment",
+        "label": "Judgment",
+        "weight": 0.25,
+        "description": "Catches AI/tooling mistakes; validates; pushes back."
+      },
+      {
+        "name": "architecture",
+        "label": "Architecture",
+        "weight": 0.15,
+        "description": "Structure and trade-offs that fit the real materials and constraints."
+      },
+      {
+        "name": "transfer",
+        "label": "Transfer",
+        "weight": 0.15,
+        "description": "Capability transfers to THIS role's tools and responsibilities."
+      }
+    ],
+    "promptVersion": "case-design-v5"
+  },
+  "source": "llm",
+  "issues": [],
+  "fallbackReason": {},
+  "promptVersions": {
+    "analyze": "need-analysis-v3",
+    "role": "role-design-v3",
+    "case": "case-design-v5"
+  }
+}

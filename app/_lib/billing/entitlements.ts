@@ -30,8 +30,17 @@ export function entitledPlan(state: BillingStateRow | null, now: Date = new Date
   if (!state) return PLANS.free;
   const plan = PLANS[state.plan as PlanId] ?? PLANS.free;
   if (state.status === "active" || state.status === "trialing" || state.status === "past_due") return plan;
-  if (state.status === "canceled" && state.currentPeriodEnd && new Date(state.currentPeriodEnd) > now) {
-    return plan;
+  if (state.status === "canceled") {
+    // cancel-at-period-end: entitled until the paid period ends. Parse defensively —
+    // a NULL or unparseable currentPeriodEnd must NOT silently cut a customer who
+    // paid through the period. A genuinely-lapsed subscription arrives as
+    // revoked/ended (→ clear_subscription → free), so a canceled row with no
+    // parseable end is almost always a malformed/missing Polar field on a still-paying
+    // customer: favor them and keep the plan rather than the old `&& currentPeriodEnd`
+    // short-circuit that dropped them to free immediately.
+    const end = state.currentPeriodEnd ? Date.parse(state.currentPeriodEnd) : NaN;
+    if (!Number.isFinite(end)) return plan;
+    return end > now.getTime() ? plan : PLANS.free;
   }
   return PLANS.free;
 }

@@ -1,0 +1,18 @@
+{
+  "count": 100,
+  "passed": true,
+  "failures": [],
+  "gate": {
+    "reliability": 1.0,
+    "max_error_fallbacks": 0,
+    "role_fit_rate": 0.95,
+    "judge_case": 4.0,
+    "title_uniqueness": 0.95
+  },
+  "reliability": 1.0,
+  "errorFallbacks": 0,
+  "roleFitRate": 0.99,
+  "judgeCaseMean": 4.06,
+  "judgeOverall": 4.0,
+  "titleUniqueness": 1.0
+}

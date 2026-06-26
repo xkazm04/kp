@@ -1,0 +1,180 @@
+{
+  "job": {
+    "id": "cal-081",
+    "title": "Commercial Contracts Attorney",
+    "company": "TrialSpark",
+    "role_family": "legal",
+    "seniority": "medior",
+    "source": "hf:jacob-hugging-face/job-descriptions"
+  },
+  "analysis": {
+    "realStack": [
+      "NDA templates and a commercial-contract playbook (NDAs, MSAs, vendor/procurement and service agreements)",
+      "A contract database / CLM system plus a contract-review intake queue — referenced only generically in the JD; the actual tool is left unnamed",
+      "Clinical trial agreements (CTAs) and pharmaceutical/corporate contracts tied to TrialSpark's trials, in-licensing, joint ventures and newcos",
+      "Redlining and negotiation tooling (Word track-changes, e-signature) and stakeholder-facing term summaries / guidance memos",
+      "New York in-house bar admission and a top-tier-law-school + law-firm/in-house drafting background (hard credential gate)",
+      "Risk-based prioritization frameworks for triaging a high-volume contracting queue"
+    ],
+    "coreResponsibilities": [
+      "Review, draft and negotiate NDAs, vendor/procurement and service agreements across corporate, clinical-trial and pharmaceutical activities",
+      "Advise internal departments on contract terms and their business-operations implications — summaries, guidance and practical solutions",
+      "Resolve contractual complications and apply pragmatic, risk-based judgment to prioritize work and obligations",
+      "Own contract operations: manage the contract database, the review queue and contracting resources",
+      "Distill complex legal concepts for legal and non-legal colleagues and partner across non-legal teams",
+      "As the company's 4th lawyer, absorb 'any number of legal matters' — act as a generalist safety net beyond commercial contracts"
+    ],
+    "statedVsRealGaps": [
+      "Stated focus is 'primarily NDAs and vendor contracts' (routine commercial work), but the same JD scopes 'sophisticated' contracts across clinical-trial and pharmaceutical activities plus 'any number of legal matters' — the real job is a regulated-industry generalist, broader than the headline.",
+      "seniorityTarget is 'medior', yet the role must 'advocate for and drive issues independently' as the 4th lawyer with little specialization backup — that autonomy reads senior-leaning rather than mid-level.",
+      "Contract operations ('manage the contract database and review queue') is treated as a one-liner, but no CLM tool is named; as the 4th lawyer, mature contract tooling likely doesn't exist yet, so part of the job is standing it up, not just running it.",
+      "A heavy credential screen (top-tier law school, firm pedigree, NY in-house admission) sits in tension with the JD's own 'scrappy, flexible, high-growth, eye for efficiency' operational ask.",
+      "The playful 'subject to revision at TrialSpark's sole discretion… we mix things up all the time' is an explicit signal of high role fluidity — the stated commercial-contract scope will drift in practice."
+    ],
+    "trueComplexity": "high",
+    "riskAreas": [
+      "Scope creep and expectation mismatch: 'perform other duties as assigned' plus 'subject to revision' all but guarantees the workload exceeds commercial contracts, which can under-level a medior hire.",
+      "Regulated-industry exposure: clinical-trial and pharma contracting carry IP, data-privacy (clinical/patient data), compliance and patient-safety stakes that a generalist commercial attorney may lack depth in.",
+      "Throughput bottleneck: as owner of the contract queue, a single attorney can gate vendor onboarding and trial contracting across the whole company.",
+      "Hard qualification gate (NY in-house admission) combined with top-tier pedigree narrows the candidate pool and may over-index on credentials versus the operational scrappiness the JD also demands.",
+      "Immature contract ops: managing a contract database with no named CLM suggests process and tooling may need to be built, raising onboarding and continuity risk."
+    ],
+    "reflection": "Grounding here is JD-only: no actual contract corpus, CLM export or matter history was supplied, so this reflects the role against the body of work the JD implies rather than against real documents. As a statement of need the JD is coherent and well-specified for a commercial-contracts attorney — clear responsibilities, a concrete credential gate, and an honest read on culture. The central divergence is altitude: the headline ('primarily NDAs and vendor contracts', medior) frames routine, mid-level commercial work, while the surrounding context — fourth lawyer at a clinical-stage drug developer doing in-licensing, JVs and newcos, 'sophisticated' contracts across clinical and pharma activities, explicit autonomy, and ownership of contract operations — describes a broad, regulated-industry generalist who must operate fairly independently. The true day-to-day core (NDAs, vendor/procurement) is medium-complexity legal work; the regulated context, breadth of 'any number of legal matters', and queue/ops ownership push the real complexity to high. A candidate evaluated only against 'NDAs and vendor contracts' would be screened against a fraction of the actual job.",
+    "confidence": 0.62,
+    "promptVersion": "need-analysis-v3"
+  },
+  "role": {
+    "title": "Commercial Contracts Attorney",
+    "seniority": "medior",
+    "roleFamily": "legal",
+    "mustHaves": [
+      "Qualified to practice law in-house in New York (active bar admission or eligibility for NY in-house registration)",
+      "Law degree from a top-tier law school",
+      "Several years' experience drafting, reviewing and negotiating a range of commercial contracts — NDAs, vendor/procurement and service agreements — at a law firm and/or in-house",
+      "Pragmatic, risk-based judgment to triage and prioritize a high-volume contract-review queue against competing obligations",
+      "Ability to distill complex legal concepts into clear, practical guidance and term summaries for legal and non-legal stakeholders",
+      "Strong attention to detail and follow-through across a large, concurrent contract workload",
+      "Self-motivated and able to advocate for and drive issues independently while staying service-oriented — autonomy expected as one of a very small legal team",
+      "General technical aptitude to understand and represent company requirements and interests in contracts"
+    ],
+    "niceToHaves": [
+      "Experience with clinical-trial agreements (CTAs), pharmaceutical, life-sciences or other regulated-industry contracting",
+      "Experience standing up or owning a CLM / contract database, intake queue and contracting playbooks (templates, fallback positions) rather than only operating mature tooling",
+      "Generalist breadth — comfort absorbing corporate, employment, IP, privacy or other matters beyond commercial contracts as the team's safety net",
+      "In-house experience at a high-growth or early-stage company; scrappy, flexible and able to operate amid frequent scope change",
+      "Strong cross-functional collaboration with non-legal teams (procurement, operations, clinical, finance)",
+      "Based in or near the New York City area"
+    ],
+    "responsibilities": [
+      "Review, draft and negotiate a wide variety of sophisticated commercial contracts — NDAs, vendor/procurement and service agreements — across corporate, clinical-trial and pharmaceutical activities",
+      "Advise internal departments on contract terms and their business-operations implications, providing summaries of terms, practical guidance and solutions",
+      "Resolve contractual complications and apply pragmatic, risk-based, adaptable judgment to prioritize work and obligations",
+      "Own contract operations: manage the contract database, the contract-review queue and contracting resources (and help mature this tooling where it is not yet established)",
+      "Distill complex legal concepts for legal and non-legal colleagues and partner effectively across non-legal teams",
+      "As one of the company's first lawyers, take on additional legal matters beyond commercial contracts as needs arise, acting as a flexible generalist"
+    ],
+    "languages": [
+      "English"
+    ],
+    "promptVersion": "role-design-v3"
+  },
+  "case": {
+    "title": "First Lawyer, Monday Morning: The Medri Clinical-Data Vendor Contract",
+    "brief": "You're joining as one of the company's first in-house commercial contracts attorneys at a clinical-trials/pharma company (in the mold of TrialSpark). It's a real Monday: a clinical-data vendor contract needs to move before a trial site goes live, the review queue is backing up, and the business wants answers in plain English. Work from the materials in the workbench only — no CLM/contract database is named yet, so treat the spreadsheet plus the /contracts folder as your system of record, and note that maturing this tooling is part of the job. This is a ~1.5-hour exercise: depth over coverage. Don't redline every line — go where the legal and regulatory risk actually is, and stop when you've covered the deal-breakers. We assume you'll use whatever drafting tools you like; we are not testing typing or knowledge recall, we're watching the judgment calls you make where the brief is deliberately open. Keeping a short decisions log (Task 4) is normal practice on this team, not a trap. The provided materials fit this role — act on them as the attorney who owns this queue.",
+    "repoSeed": "A small contracts workbench is handed to the candidate (no CLM is named — the 'database' is a shared folder plus a spreadsheet):\n\n1) `Medri-OrderForm-and-MSA.docx` — counterparty paper from Medri Clinical Data Systems, a cloud eClinical / clinical-data-management vendor that will host patient and clinical-trial data for two active studies. ~6 pages, excerpted to the clauses that matter, delivered in Word with track-changes on: Recitals ('this Order Form is governed by, and incorporates, the parties' existing Master Services Agreement'); §8 Data Rights & IP (grants Medri a perpetual, irrevocable license to 'aggregate, de-identify and use Customer Data to improve and develop its products and services', where 'Customer Data' is defined to include study and subject data); §11 Limitation of Liability (mutual cap = fees paid in the prior 12 months, with carve-outs listed only for IP infringement and 'willful misconduct'); §12 Indemnification (Medri indemnifies for third-party IP-infringement claims only); §14 Term & Termination (1-year term, auto-renews for successive 1-year terms unless 90 days' written notice); §16 Governing Law (Delaware; counterparty's home state).\n\n2) `Commercial-Contract-Playbook.pdf` (excerpt) — standard fallback positions for liability caps, indemnities, confidentiality and term; plus `Appendix C — Vendors Processing Clinical or Patient Data`, which states that for any such vendor a signed Data Processing & Security Addendum and an uncapped (or super-capped) liability carve-out for data-security and confidentiality breaches are required, and that granting the vendor broad rights to reuse study or subject data is not permitted.\n\n3) `Mutual-NDA-template.docx` — the company's standard mutual NDA.\n\n4) `Review-Queue.xlsx` — a 7-row contract-review intake queue (columns: Requestor, Counterparty, Type, Business deadline, Notes). Rows: the Medri Order Form (Requestor: VP Clinical Operations; Notes: 'need signed by Friday for trial site go-live'); a mutual NDA the CEO flagged 'URGENT' for an investor introduction; a marketing-SaaS annual renewal; a facilities/catering vendor PO; a JV term sheet for a newco; an in-licensing NDA with a pharma partner; and a row whose Notes read: 'Medri — existing 2023 MSA already on file at /contracts/medri/'.\n\n5) `VP-ClinOps-email.txt` — 'Can we get the Medri order signed by Friday so the site can go live? Anything I need to know before I tell the team it's done?'",
+    "tasks": [
+      "Triage `Review-Queue.xlsx`: produce a prioritized work order for the 7 items, each with a one-line risk-and-urgency rationale. State the prioritization rule you applied — the queue ships with no ranking criteria, and the loudest request is not necessarily the highest-risk one.",
+      "Review and redline `Medri-OrderForm-and-MSA.docx` against `Commercial-Contract-Playbook.pdf`. Mark up the 2–3 highest-risk clauses in track-changes, give each a concrete fallback position, and explicitly separate true deal-breakers from negotiable points. Read the recitals and the queue notes before you start redlining.",
+      "Write a ≤1-page stakeholder term summary and recommendation for the VP of Clinical Operations (a non-legal reader): can we sign by Friday, what are the must-fix items in plain English, and what conditions or residual risk you would accept to hit the date.",
+      "Keep a short DECISIONS log: for every call you made where the brief was open — your priority rule, the scope of the Medri review, where you drew the liability and data-rights lines, and sign-vs-block — note what you chose, the alternative you rejected, and the one question you'd put to the team."
+    ],
+    "coverProbes": [
+      {
+        "id": "queue-priority-rule",
+        "kind": "underspecified",
+        "where": "Task 1 over `Review-Queue.xlsx` — the CEO's 'URGENT' NDA and the Medri Order Form both demand attention, while the highest regulatory exposure (patient/clinical data) is the least loudly flagged item; no ranking criteria are given.",
+        "reveals": "A naive response works the queue FIFO or by who shouted loudest (CEO NDA first). A strong response names an explicit risk-based rule, ranks the patient-data vendor contract by exposure rather than volume, and surfaces that the queue itself needs an intake SLA/criteria — i.e., it both delivers today and matures the ops the JD says this hire owns.",
+        "decisionSpace": [
+          "Pure risk-based ranking: order strictly by legal/regulatory exposure (Medri data terms first), pushing the loud-but-low-risk CEO NDA down — maximizes risk reduction, accepts political friction with the CEO.",
+          "Risk-weighted-by-urgency: blend legal risk with hard deadlines, fast-tracking the low-risk CEO NDA and facilities PO in parallel (they're quick) while reserving depth for Medri — balances throughput and risk but needs a stated rule to avoid loudest-voice capture.",
+          "Clarify-and-systematize first: don't finalize the order; propose a lightweight intake-criteria/SLA and ask who owns priority calls — best for maturing immature contract ops, but defers a concrete answer the business wanted today."
+        ]
+      },
+      {
+        "id": "existing-msa-scope",
+        "kind": "legacy_trap",
+        "where": "Task 2 — the Order Form's recital ('governed by, and incorporates, the parties' existing Master Services Agreement') and the queue row noting a 2023 Medri MSA already on file at /contracts/medri/.",
+        "reveals": "A naive candidate redlines the Order Form as a fresh standalone contract and re-negotiates terms the parties already settled in the 2023 MSA. A careful candidate reads first, recognizes the existing MSA controls, scopes the review to what the Order Form actually changes, and flags that they need the on-file MSA to review §11/§12 properly rather than guessing.",
+        "decisionSpace": [
+          "Pull and reconcile against the existing 2023 MSA before redlining — most correct; blocks delivery until the MSA is produced from /contracts/medri/.",
+          "Redline only the Order Form's net-new terms, expressly conditioned on the existing MSA controlling on any conflict, and list the assumptions made — pragmatic, unblocks Friday, accepts that an unseen MSA term could change the analysis.",
+          "Treat the Order Form as fully standalone and redline everything top-to-bottom — fastest to produce, but duplicates and may override already-settled terms and creates conflicting-document risk."
+        ]
+      },
+      {
+        "id": "liability-cap-data-carveout",
+        "kind": "verification_trap",
+        "where": "Task 2 — §11 Limitation of Liability read together with §8 Data Rights & IP and Appendix C of the playbook.",
+        "reveals": "A one-shot review checks 'is the cap mutual and roughly market?' — yes (12 months' fees, mutual) — and waves it through. Close reading shows the carve-out list omits confidentiality and data-security/DPA breaches, so a patient-data breach is capped at one year of fees, and §8 simultaneously hands the vendor a perpetual license over study/subject data. Those two — not the cap headline — are the real deal-breakers, and Appendix C makes them non-negotiable.",
+        "decisionSpace": [
+          "Demand uncapped liability for data-security and confidentiality breaches and strike the §8 data-reuse license outright — strongest protection and squarely on playbook Appendix C; may stall the deal with a vendor that won't sign uncapped exposure.",
+          "Negotiate a super-cap for data/confidentiality breaches (e.g., greater of a fixed floor or a multiple of fees) and narrow §8 to truly de-identified/aggregated data with documented consent — defensible market middle that still clears Appendix C's intent.",
+          "Hold the headline cap but offload residual risk via a mandatory Data Processing & Security Addendum, breach indemnity, and minimum cyber-insurance limits — pragmatic if the vendor won't move on §11, but leans on insurance/contract mechanics to cover a clinical-data exposure."
+        ]
+      },
+      {
+        "id": "sign-by-friday-recommendation",
+        "kind": "ambiguity",
+        "where": "Task 3 — `VP-ClinOps-email.txt` asks for a yes/no by Friday to unblock a trial site go-live, against the Medri issues found in Task 2.",
+        "reveals": "A naive memo gives a binary yes/no or buries the business reader in clause numbers. A strong memo translates risk into plain English, tiers it (true deal-breakers vs. negotiable nice-to-haves), and offers a conditional path that respects the trial timeline without signing away patient-data protection — the pragmatic, risk-based judgment the JD asks for.",
+        "decisionSpace": [
+          "Hard block: do not sign until the data-breach liability and §8 license are fixed — safest legally, but risks slipping the trial site go-live and the business relationship.",
+          "Conditional sign: approve contingent on 2–3 must-fix redlines, accept the lower-risk items (auto-renewal notice, Delaware governing law) with documented risk acceptance — keeps Friday in play while protecting the non-negotiables.",
+          "Bridge to the date: sign a short interim/side letter covering only the data-protection and liability terms now, with the full Order Form to follow — unblocks go-live fastest but adds execution complexity and a second document to track."
+        ]
+      }
+    ],
+    "timeboxHours": 1.5,
+    "rubricDimensions": [
+      {
+        "name": "framing",
+        "label": "Problem framing",
+        "weight": 0.2,
+        "description": "Turns an ambiguous need into a sound plan."
+      },
+      {
+        "name": "tooling",
+        "label": "Tooling fluency",
+        "weight": 0.25,
+        "description": "Drives AI and other tools well; iterates and verifies."
+      },
+      {
+        "name": "judgment",
+        "label": "Judgment",
+        "weight": 0.25,
+        "description": "Catches AI/tooling mistakes; validates; pushes back."
+      },
+      {
+        "name": "architecture",
+        "label": "Architecture",
+        "weight": 0.15,
+        "description": "Structure and trade-offs that fit the real materials and constraints."
+      },
+      {
+        "name": "transfer",
+        "label": "Transfer",
+        "weight": 0.15,
+        "description": "Capability transfers to THIS role's tools and responsibilities."
+      }
+    ],
+    "promptVersion": "case-design-v5"
+  },
+  "source": "llm",
+  "issues": [],
+  "fallbackReason": {},
+  "promptVersions": {
+    "analyze": "need-analysis-v3",
+    "role": "role-design-v3",
+    "case": "case-design-v5"
+  }
+}

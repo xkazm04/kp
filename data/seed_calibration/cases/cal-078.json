@@ -1,0 +1,188 @@
+{
+  "job": {
+    "id": "cal-078",
+    "title": "Vice President of Business Intelligence",
+    "company": "Risk Strategies Company",
+    "role_family": "data_ai",
+    "seniority": "lead",
+    "source": "hf:jacob-hugging-face/job-descriptions"
+  },
+  "analysis": {
+    "realStack": [
+      "Power BI, Tableau, or Qlik (BI/visualization platform — the named analytics tooling)",
+      "SQL (querying source/warehouse data; 'preferred' in the JD)",
+      "Actuarial ratemaking & reserving methods (loss-cost development, rate adequacy, IBNR/reserve estimation)",
+      "Actuarial credentialing body of knowledge (CAS ACAS / SOA ASA exams and standards of practice)",
+      "Excel/actuarial pricing & reserving models (the typical substrate for warranty/extended-service-contract loss modeling)",
+      "Underwriting & extended-warranty / product-protection program data (claims frequency/severity, attachment, loss ratios by partner)",
+      "BI application lifecycle artifacts (architecture/solution designs, dashboards, test plans, end-user training materials)",
+      "Reseller/underwriting-partner reporting & price-request workflows (partner-facing data deliverables)",
+      "BI standards, policies & procedures documentation (tool structure, attributes, governance)"
+    ],
+    "coreResponsibilities": [
+      "Own the strategy and direction of the org's actuarial, underwriting, data-reporting and risk-management BI function",
+      "Lead architecture and dashboard/UI design of BI solutions, and budget/optimize the cost, risk and value of BI applications across their lifecycle",
+      "Run the BI department day-to-day: set objectives and success factors, conduct performance reviews, and deliver hands-on training",
+      "Translate business requirements into optimum BI solutions and drive the full work stream — inception, technical design, development, testing, delivery",
+      "Own external relationships with large reselling and underwriting partners, supporting them with analytics, reporting and price requests",
+      "Govern quality via test-plan review and testing oversight, and set BI standards/policies/procedures plus end-user training",
+      "Apply actuarial ratemaking and reserving expertise to pricing and risk decisions"
+    ],
+    "statedVsRealGaps": [
+      "The JD fuses three scarce, rarely co-resident skill sets into one hire — a CREDENTIALED actuary (ACAS/ASA, ratemaking + reserving), a BI PLATFORM leader (architecture, lifecycle cost, UI/solution design), and a PEOPLE manager — which is a very wide span for a single VP and will shrink the candidate pool sharply.",
+      "'Designated actuary ACAS or ASA' is a hard, exam-gated requirement, yet the rest of the profile (Tableau/Qlik/Power BI architecture, SQL, UI design, department management, partner account work) describes a BI/analytics executive; few people hold both the credential and the platform-leadership track record.",
+      "'Architecture and user interface design of business intelligence' is ambiguous — it almost certainly means dashboard/report design and data-model architecture, not software product UI; left unclarified it risks attracting (or screening on) the wrong skill.",
+      "The years-of-experience figures are blank in the supplied text ('  years of experience', '  years hands-on managerial') — the seniority bar is effectively unstated, so 'lead' is inferred from the VP title and managerial language rather than a stated number.",
+      "Data-engineering / warehouse depth is understated: the role is asked to OWN BI architecture and lifecycle, but only SQL is named (and merely 'preferred') with no ETL/warehouse/cloud-data stack — if the underlying data infrastructure is immature, a credentialed-actuary VP without strong engineering support will be bottlenecked.",
+      "External reseller/underwriting-partner relationship ownership is commercial, account-facing work whose temperament differs from deep quantitative actuarial work — the JD bundles both but doesn't say which is the center of gravity."
+    ],
+    "trueComplexity": "high",
+    "riskAreas": [
+      "Talent scarcity / unicorn spec: ACAS/ASA-designated actuaries who ALSO have hands-on Tableau/Qlik/Power BI architecture leadership and proven people management are a tiny intersection — expect long time-to-fill or a forced trade-off on one leg.",
+      "Scope conflation: pricing/reserving actuarial duties + BI platform architecture + UI design + department management + partner-facing commercial work in one role invites diluted focus and unclear success metrics.",
+      "Ambiguity in 'UI design' and in the omitted experience numbers could produce a mis-calibrated screen and mismatched candidates.",
+      "Hidden dependency on data infrastructure maturity: 'optimize cost/risk/value of BI applications across their lifecycle' presumes a governable data platform; if reporting today is spreadsheet/manual, the real first-year job is foundation-building, not optimization.",
+      "Domain specificity: extended-warranty / product-protection loss behavior (high-frequency, low-severity, partner-program-specific) differs from standard P&C lines — ratemaking/reserving experience may not transfer cleanly without warranty exposure.",
+      "Key-person concentration: vesting strategy, partner pricing, departmental leadership and actuarial sign-off in one VP creates a single point of failure."
+    ],
+    "reflection": "This is a genuine non-software, quant-leadership role, so the 'real stack' is correctly the actuarial + BI toolset (Power BI/Tableau/Qlik, SQL, ratemaking/reserving models, partner reporting), not a codebase — its absence is expected, not a defect. The JD is reasonably detailed and internally coherent about WHAT the function does (own actuarial/underwriting/data-reporting/risk BI for a warranty insurer), but it over-stacks the WHO: it gates on a scarce actuarial credential while simultaneously demanding BI-platform architecture, UI/solution design, lifecycle budgeting, department management, and partner-facing commercial work. That breadth, plus the dropped experience numbers and the lightly-specified data-engineering layer, are the main divergences between the stated need and what one realistic hire can be. The honest read: Safeware is describing two or three roles' worth of mandate compressed into one VP, and the actuarial-credential gate will dominate sourcing. Clarify whether the center of gravity is actuarial pricing leadership or BI platform leadership before opening the search, and confirm the (currently missing) experience bar and the maturity of the underlying data stack — those answers change both the candidate profile and the first-year deliverables.",
+    "confidence": 0.62,
+    "promptVersion": "need-analysis-v3"
+  },
+  "role": {
+    "title": "Vice President of Business Intelligence",
+    "seniority": "lead",
+    "roleFamily": "data_ai",
+    "mustHaves": [
+      "Designated actuary credential — ACAS or ASA",
+      "Actuarial ratemaking and reserving expertise",
+      "BI platform leadership with Power BI, Tableau, or Qlik",
+      "BI solution architecture and dashboard / data-model design",
+      "Translating business requirements into optimal BI solutions across the full delivery lifecycle (inception, technical design, development, testing, delivery)",
+      "People and department management — setting objectives and success factors, performance reviews, and hands-on training",
+      "SQL",
+      "Bachelor's in actuarial science, applied statistics/mathematics, or a related field"
+    ],
+    "niceToHaves": [
+      "Extended-warranty / product-protection / specialty-insurance domain experience",
+      "Owning BI application lifecycle cost, risk, and value optimization (budgeting across the application lifecycle)",
+      "Data warehouse / ETL / cloud data infrastructure depth to support BI architecture ownership",
+      "Defining BI standards, policies, and procedures (governance of tool structure and attributes)",
+      "Partner-facing analytics: supporting large reselling and underwriting partners with reporting and price requests",
+      "Designing and delivering end-user training and training materials",
+      "Test-plan review and testing oversight to assure BI quality"
+    ],
+    "responsibilities": [
+      "Own the strategy and direction of the organization's actuarial, underwriting, data-reporting, and risk-management BI function",
+      "Lead the architecture and dashboard/UI design of BI solutions, and budget and optimize the cost, risk, and value of BI applications across their lifecycle",
+      "Run the BI department day-to-day: establish objectives and success factors, conduct performance reviews, and provide hands-on training",
+      "Interpret business requirements and determine optimum BI solutions, driving the full work stream from inception through technical design, development, testing, and delivery",
+      "Create and maintain external relationships with large reselling and underwriting partners, supporting them through analytics, reporting, and price requests",
+      "Govern quality by reviewing test plans and monitoring testing, and set BI standards, policies, and procedures plus end-user training and materials",
+      "Apply actuarial ratemaking and reserving expertise to inform pricing and risk decisions"
+    ],
+    "languages": [
+      "English"
+    ],
+    "promptVersion": "role-design-v3"
+  },
+  "case": {
+    "title": "VP of Business Intelligence — Stand Up the Warranty BI Function & Answer a Partner Re-Rate",
+    "brief": "You are stepping in as Vice President of Business Intelligence at a product-protection / extended-warranty underwriter. The BI function you are inheriting supports actuarial pricing, underwriting, and partner-facing reporting for a book of reseller-administered warranty programs. Your predecessor left a handoff pack (see the materials): a partner loss-and-premium extract, a reserving triangle, the current manually-maintained partner report, a half-written BI standards document, a partial data dictionary, and a README describing the status quo. Two things are on your plate today. First, a reseller partner, 'NorthBridge Electronics', has sent a price-request ahead of renewal arguing their program is over-priced because 'our loss ratio looks low', and wants a re-rate. Second, leadership wants your direction for the BI function itself. You have a hard cap of ~2 hours — prioritize depth over coverage and do not try to finish everything to a polish. Treat the materials as ground truth and read them before you build anything; where the brief is open or a definition is missing, make a call and record it rather than guessing silently. We care far more about your judgment, the methods and bases you choose, and what you would verify than about a polished dashboard or model — assume any artifact you produce could have been generated, so your reasoning is the real deliverable. Keep a short DECISIONS log as you go; that is normal practice on this team, not a test.",
+    "repoSeed": "A predecessor handoff pack for the warranty BI function (synthetic but representative of the role's real substrate): (1) 'warranty_loss_premium.csv' — 24 months of written premium, earned premium, paid claims, incurred claims, and claim counts by reseller partner ('NorthBridge Electronics', 'CoreAuto', 'HomeShield'), product line, and attachment band; columns for frequency and severity are present but earned vs written and paid vs incurred are not cleanly labeled. (2) 'reserving_triangle.xlsx' — a paid-loss development triangle by sale quarter with the prior (departed) actuary's chain-ladder loss-development factors and a single selected IBNR; a tab note reads 'applied standard all-year volume-weighted LDFs'. The emergence pattern looks flat in early periods then accelerates. (3) 'partner_reporting_pack_v3.xlsx' — the current monthly partner report, a stack of manually refreshed pivot tables, with a known but undocumented reconciliation quirk between two summary tabs. (4) 'price_request_NorthBridge.pdf' — the partner's renewal email claiming their loss ratio is low and requesting a re-rate. (5) 'bi_standards_draft.docx' — a half-finished BI standards, policies, and naming-convention document. (6) 'data_dictionary.md' — partial and ambiguous field definitions (notably 'premium' and 'loss' are not pinned to earned/written or paid/incurred). (7) 'README_handoff.md' — a note from the departing manager describing a mostly spreadsheet-driven, manually maintained reporting process with no governed data layer.",
+    "tasks": [
+      "Strategy & target-state architecture (~40 min). From the handoff pack and README, state your read of the function's current maturity, then sketch a target-state BI architecture for warranty pricing, underwriting, and partner reporting, plus a phased ~12-month roadmap framed by cost, risk, and value. Be explicit about what you would personally own versus what you would delegate to or scaffold for the team.",
+      "Partner re-rate analysis (~45 min). Using 'warranty_loss_premium.csv', answer NorthBridge Electronics' price-request: is their program adequately rated, and what is your re-rate recommendation? Show the loss-ratio / loss-cost analysis that supports it, and state plainly which premium basis and which loss basis you used and the ratemaking method you applied.",
+      "Reserving review (~25 min). Review 'reserving_triangle.xlsx' and the prior actuary's selected IBNR that feeds the loss pick behind Task 2. Decide whether the development method suits this warranty book, adjust if warranted, and state the impact of your decision on the rate-adequacy read from Task 2.",
+      "DECISIONS log + governance control (~10 min). Maintain a short DECISIONS log across all tasks — for every open call: what you chose, the alternative you set aside, and what you would have asked the team or the partner. Then add one data-quality or test-plan control you would require on the partner dashboard before it ships to NorthBridge."
+    ],
+    "coverProbes": [
+      {
+        "id": "maturity-foundation-vs-optimization",
+        "kind": "underspecified",
+        "where": "Task 1, against 'README_handoff.md' and the manual 'partner_reporting_pack_v3.xlsx' — the JD frames the job as 'optimize cost/risk/value of BI applications across their lifecycle'.",
+        "reveals": "A naive candidate takes 'optimize the lifecycle' literally and proposes tool/license rationalization and cost tuning on a platform that does not really exist yet. A strong candidate reads the handoff note and the spreadsheet status quo, recognizes the function is manual and ungoverned, reframes year one as foundation-building before optimization, and surfaces that reframing as an explicit clarifying question to leadership.",
+        "decisionSpace": [
+          "Treat it as optimization: rationalize existing tools/licenses and harden the current spreadsheet reports — fast visible value, but builds on sand and defers the real problem.",
+          "Treat it as foundation-building: stand up a governed data layer and semantic model first — durable and the honest read of maturity, but slower payoff and higher year-one spend to defend.",
+          "Hybrid: stabilize the partner-facing reporting now as a quick win while sequencing the platform build behind it — balances credibility with durability, at the risk of split focus."
+        ]
+      },
+      {
+        "id": "warranty-emergence-vs-chain-ladder",
+        "kind": "legacy_trap",
+        "where": "Task 3, in 'reserving_triangle.xlsx' — the departed actuary's all-year volume-weighted LDFs and single selected IBNR, with a flat-then-accelerating development pattern.",
+        "reveals": "A naive candidate accepts the prior chain-ladder selection and feeds the loss pick straight into rate adequacy. A strong candidate reads the development shape, recognizes extended-warranty loss emergence is not uniform (coverage often begins after the manufacturer-warranty period, so early development is artificially flat, then accelerates, with a wear-out tail), questions the all-year volume-weighted LDFs, and adjusts the tail/curve before trusting the loss pick — explicitly linking the change back to Task 2.",
+        "decisionSpace": [
+          "Accept the prior LDFs but flag the assumption and tail risk — preserves continuity and is fully auditable, but likely under-reserves the wear-out tail.",
+          "Re-select LDFs or fit a warranty-appropriate emergence curve recognizing the manufacturer-warranty offset and wear-out tail — more accurate, but harder to defend with limited data and costs time in the box.",
+          "Hold the reserve as a range and caveat the rate read pending more mature data — conservative and honest, but gives the partner a less decisive answer."
+        ]
+      },
+      {
+        "id": "loss-ratio-basis-and-pooling",
+        "kind": "verification_trap",
+        "where": "Task 2, computing the loss ratio in 'warranty_loss_premium.csv' to answer 'price_request_NorthBridge.pdf', where the data dictionary leaves premium and loss bases undefined.",
+        "reveals": "A naive one-shot computes a headline loss ratio as total paid losses over total written premium, which reconciles to the partner-pack totals and so passes a shallow check — but it mixes written vs earned premium and ignores IBNR, making immature recent cohorts look artificially profitable and appearing to support the partner's 'pay us less' claim. A strong candidate uses earned premium with incurred-plus-IBNR losses (tying to the Task 3 reserve decision) and pools losses and premium by exposure rather than averaging partner-level ratios, which typically reverses the conclusion toward adequately- or under-rated.",
+        "decisionSpace": [
+          "Earned premium + incurred losses including IBNR, exposure-pooled — most defensible ratemaking, but depends on the reserve pick and takes longer to build.",
+          "Paid losses on written premium for a fast, fully auditable number — transparent and easy to show the partner, but biased low on immature cohorts.",
+          "Present both an immature paid view and an ultimate IBNR-loaded view side by side and rate to the ultimate — most transparent, but more to build and explain within the timebox."
+        ]
+      },
+      {
+        "id": "architect-build-vs-lead-delegate",
+        "kind": "ambiguity",
+        "where": "Task 1 framing — the JD asks the VP to 'lead the architecture AND dashboard/UI design' while also running the department day-to-day.",
+        "reveals": "A naive candidate burns the timebox hand-building a polished dashboard, an individual-contributor reflex. A strong VP-level candidate decides what to do personally (architecture, standards, the high-stakes partner number) versus what to delegate or scaffold for the team, and makes that division of labor explicit — demonstrating leadership leverage rather than raw output.",
+        "decisionSpace": [
+          "Hands-on: personally build the reference dashboard and model to set the bar — demonstrates craft, but does not scale and signals IC over leader.",
+          "Architect-and-delegate: deliver the design, standards, and one worked exemplar, then hand build-out to the team — high leader leverage, but relies on team capability you cannot yet verify.",
+          "Split by stakes: own the partner-facing number and the architecture personally, delegate internal/operational reports — pragmatic risk-weighting, but keeps you a bottleneck on partner work."
+        ]
+      }
+    ],
+    "timeboxHours": 2.0,
+    "rubricDimensions": [
+      {
+        "name": "framing",
+        "label": "Problem framing",
+        "weight": 0.2,
+        "description": "Turns an ambiguous need into a sound plan."
+      },
+      {
+        "name": "tooling",
+        "label": "Tooling fluency",
+        "weight": 0.25,
+        "description": "Drives AI and other tools well; iterates and verifies."
+      },
+      {
+        "name": "judgment",
+        "label": "Judgment",
+        "weight": 0.25,
+        "description": "Catches AI/tooling mistakes; validates; pushes back."
+      },
+      {
+        "name": "architecture",
+        "label": "Architecture",
+        "weight": 0.15,
+        "description": "Structure and trade-offs that fit the real materials and constraints."
+      },
+      {
+        "name": "transfer",
+        "label": "Transfer",
+        "weight": 0.15,
+        "description": "Capability transfers to THIS role's tools and responsibilities."
+      }
+    ],
+    "promptVersion": "case-design-v5"
+  },
+  "source": "llm",
+  "issues": [],
+  "fallbackReason": {},
+  "promptVersions": {
+    "analyze": "need-analysis-v3",
+    "role": "role-design-v3",
+    "case": "case-design-v5"
+  }
+}

@@ -1,0 +1,670 @@
+{
+  "signals": {
+    "scenarios": 100,
+    "reliable": 100,
+    "reliability": 1.0,
+    "llm_rows": 100,
+    "error_fallbacks": 0,
+    "gap_caught_on_mismatch": null,
+    "clarify_probe_on_ambiguous": null,
+    "probe_kind_diversity": 1.0,
+    "probe_kind_counts": {
+      "verification_trap": 103,
+      "ambiguity": 96,
+      "legacy_trap": 100,
+      "underspecified": 98
+    },
+    "probe_count_dist": {
+      "4": 97,
+      "3": 3
+    },
+    "case_title_uniqueness": 1.0
+  },
+  "quality": {
+    "mean_by_task": {
+      "analysis": 3.95,
+      "case": 4.06
+    },
+    "overall": 4.0,
+    "top_levers": [
+      [
+        "seniority calibration",
+        159
+      ],
+      [
+        "company/team context",
+        76
+      ],
+      [
+        "comparable roles (jobs corpus)",
+        55
+      ],
+      [
+        "skill taxonomy",
+        53
+      ],
+      [
+        "deeper repo signals",
+        35
+      ],
+      [
+        "salary/market benchmarks",
+        20
+      ],
+      [
+        "example assignments",
+        14
+      ]
+    ],
+    "low_score_notes": [
+      "[case/cal-026] Grounding is shallow: the brief echoes the JD's literal materials (shipping dashboard, pre-paid labels, photograph boxes — which are textbook reshipping/package-mule scam markers the generator never f"
+    ]
+  },
+  "roleFit": {
+    "rate": 0.99,
+    "judged": 100,
+    "total": 100,
+    "verdicts": [
+      {
+        "id": "cal-000",
+        "label": "medior Administrative assistant · administration · real",
+        "matchesRole": true,
+        "note": "All three tasks are core medior administrative-assistant duties for a front office: timesheet/payroll data entry against a pay-rules sheet, resolving conference"
+      },
+      {
+        "id": "cal-001",
+        "label": "senior Advisory Strategic Resource Manager · consulting · real",
+        "matchesRole": true,
+        "note": "An SRM in consulting does exactly this: read the area's true staffing state from roster/forecast/pipeline/skills data, make allocation and bench/development cal"
+      },
+      {
+        "id": "cal-002",
+        "label": "medior $17.50hr - Patient Advocate - Part Time Position - Mon - Fri ... · customer_success · real",
+        "matchesRole": true,
+        "note": "Tasks are core junior Patient Advocate / customer-success work: triage incoming case activity (voicemail, prescriber email, pending enrollment), log to the CRM "
+      },
+      {
+        "id": "cal-003",
+        "label": "medior Career Coach Waitlist (Part-time/Contract/US Remote) · data_ai · real",
+        "matchesRole": true,
+        "note": "The tasks — writing an honest coaching-call note from a transcript+CRM, replying to a student email with current technical-job-search advice, and triaging a 4-s"
+      },
+      {
+        "id": "cal-004",
+        "label": "medior Remote Website Designer · design · real",
+        "matchesRole": true,
+        "note": "Tasks are squarely the work of a remote medior website designer: advancing a client web project in Figma from in-progress to dev-handoff, working inside a locke"
+      },
+      {
+        "id": "cal-005",
+        "label": "medior Accountant · finance · real",
+        "matchesRole": true,
+        "note": "The tasks are core Staff Accountant close work — reconciling intercompany/AR balances, posting journal entries for royalties/commissions/chargebacks, investigat"
+      },
+      {
+        "id": "cal-006",
+        "label": "medior Admin/Clerical Recruiter · hr · real",
+        "matchesRole": true,
+        "note": "The tasks are squarely full-desk recruiting work for a healthcare/government staffing desk: screen and disposition a candidate slate against a requisition, appl"
+      },
+      {
+        "id": "cal-007",
+        "label": "junior Associate Director, Global Capital Markets Documentation, GBM... · legal · real",
+        "matchesRole": true,
+        "note": "The role — Associate Director, Global Capital Markets Documentation, GBM (legal) — exists to negotiate trading documentation: ISDA Masters, CSAs, prime brokerag"
+      },
+      {
+        "id": "cal-008",
+        "label": "medior Academic Dean, VOICE Charter School · marketing · real",
+        "matchesRole": true,
+        "note": "All four tasks are core instructional-leadership work for a K-8 Academic Dean: (1) observation→coaching for a teacher, (2) assessment data→reteach (data-driven "
+      },
+      {
+        "id": "cal-009",
+        "label": "medior Analyst II, Supply Chain - Corporate - US (Open) · operations · real",
+        "matchesRole": true,
+        "note": "The take-home asks the candidate to do exactly what a Supply Chain Analyst II in operations does: validate a messy ops workbook against master data, establish a"
+      },
+      {
+        "id": "cal-010",
+        "label": "senior Account Delivery Manager · project_management · real",
+        "matchesRole": true,
+        "note": "The tasks — inheriting a tier-1 account portfolio, producing an executive-facing delivery plan, forming a consumption/Azure-commitment position, preparing execu"
+      },
+      {
+        "id": "cal-011",
+        "label": "medior Account Executive · sales · real",
+        "matchesRole": true,
+        "note": "The tasks are core medior Account Executive (outside sales) work: a 90-day territory/book-of-business plan, Salesforce pipeline/CRM triage for accuracy, and pro"
+      },
+      {
+        "id": "cal-012",
+        "label": "junior Acquisitions, Associate · software_engineering · real",
+        "matchesRole": true,
+        "note": "The tasks are squarely the job of a real-estate Acquisitions Associate: reconcile a sell-side OM against source docs (lease, T-12, comps, term sheet), underwrit"
+      },
+      {
+        "id": "cal-013",
+        "label": "medior Administrative Assistant · administration · real",
+        "matchesRole": true,
+        "note": "Every task sits squarely in the administrative-assistant seat and is built on the role's actual tools/context: prepping the timekeeping workbook before payroll "
+      },
+      {
+        "id": "cal-014",
+        "label": "medior Apple Solutions Consultant · consulting · real",
+        "matchesRole": true,
+        "note": "The Apple Solutions Consultant (ASC) role is precisely an Apple field rep embedded in third-party reseller/big-box partner stores to grow Apple sell-through. Th"
+      },
+      {
+        "id": "cal-015",
+        "label": "medior Bank Teller · customer_success · real",
+        "matchesRole": true,
+        "note": "The task is a teller-window shift simulation, which is exactly what a junior Bank Teller does: processing the customer queue, handling cash, verifying before ac"
+      },
+      {
+        "id": "cal-016",
+        "label": "senior Data Analyst Manager · data_ai · real",
+        "matchesRole": true,
+        "note": "Strong fit. A senior Data Analyst Manager in a financial-services data/AI function does exactly this work: owning a dbt/Snowflake warehouse, reconciling drifted"
+      },
+      {
+        "id": "cal-017",
+        "label": "senior Senior graphic designer · design · real",
+        "matchesRole": true,
+        "note": "The tasks—writing a creative direction POV from brand guidelines, art-directing a hero visual, and steering an outsourced 3D/visualization vendor across launch "
+      },
+      {
+        "id": "cal-018",
+        "label": "medior Accountant · finance · real",
+        "matchesRole": true,
+        "note": "The tasks are core medior staff-accountant work: completing a month-end close, performing reconciliations, validating payroll before posting/filing, consolidati"
+      },
+      {
+        "id": "cal-019",
+        "label": "medior Bank President Jobs in Columbus, Ohio · hr · real",
+        "matchesRole": true,
+        "note": "The take-home asks the candidate to act as the incoming President of a community bank: read board and regulatory materials, diagnose the bank's financial positi"
+      },
+      {
+        "id": "cal-020",
+        "label": "medior Attorney in Brooklyn, NY · legal · real",
+        "matchesRole": true,
+        "note": "The tasks are squarely the core work of a medior Article 10 / parents'-rights family defense attorney in Brooklyn. An emergency ACS removal coming on for a firs"
+      },
+      {
+        "id": "cal-021",
+        "label": "junior Advertising Design Intern - 2022 · marketing · real",
+        "matchesRole": true,
+        "note": "The tasks are squarely entry-level ad-production design work: adapting an existing print ad into a half-page and one digital unit, exporting to media-kit spec ("
+      },
+      {
+        "id": "cal-022",
+        "label": "medior Business Analyst- Supply Chain · operations · real",
+        "matchesRole": true,
+        "note": "Tasks are core Business Analyst work — eliciting/disambiguating a vague sponsor request into traceable requirements, building a prioritized backlog, and produci"
+      },
+      {
+        "id": "cal-023",
+        "label": "junior Associate Project Manager, IVD Product Development (San Diego, CA) · project_management · real",
+        "matchesRole": true,
+        "note": "The four deliverables are all core project-management work for a phase-gate medical-device PM: (1) schedule feasibility / critical-path read against a gate date"
+      },
+      {
+        "id": "cal-024",
+        "label": "medior Account Executive (Inside Sales) · sales · real",
+        "matchesRole": true,
+        "note": "Tasks are squarely inside-sales Account Executive work: quoting a customer, sourcing/negotiating carriers, managing live loads, growing the account, and holding"
+      },
+      {
+        "id": "cal-025",
+        "label": "senior Analytics Manager · software_engineering · real",
+        "matchesRole": true,
+        "note": "The three tasks — interrogating a topline KPI before trusting it, signing off on a junior's A/B experiment readout (verifying a 'significant' result), and sizin"
+      },
+      {
+        "id": "cal-026",
+        "label": "medior Administrative Assistant - Remote / Online / Work From Home (PT/FT) · administration · real",
+        "matchesRole": false,
+        "note": "The materials are administration-appropriate (shipping dashboard, pre-paid labels, camera for photographing packages), but the tasks are generic dev-case scaffo"
+      },
+      {
+        "id": "cal-027",
+        "label": "junior Business Analyst (Entry Level) · consulting · real",
+        "matchesRole": true,
+        "note": "The tasks (MoSCoW requirements list from a BRD draft + stakeholder notes, current/future-state modeling, business case, UAT setup) are core entry-level Business"
+      },
+      {
+        "id": "cal-028",
+        "label": "medior Bank Teller · customer_success · real",
+        "matchesRole": true,
+        "note": "The tasks are authentic medior-teller work and stay in the customer_success/retail-banking domain — clearing the OTC queue with correct posting and Reg CC funds"
+      },
+      {
+        "id": "cal-029",
+        "label": "senior Data Analyst/Manager · data_ai · real",
+        "matchesRole": true,
+        "note": "The tasks are squarely senior Data Analyst/Manager work: reconciling multiple disagreeing source extracts (claims/remittance, enrollment roster, inpatient expor"
+      },
+      {
+        "id": "cal-030",
+        "label": "senior Senior UI Designer · design · real",
+        "matchesRole": true,
+        "note": "The deliverables are core senior UI-design work: take an ambiguous brief to production-ready UI that fits an existing brand, contribute new components cleanly b"
+      },
+      {
+        "id": "cal-031",
+        "label": "medior Accounting Clerk · finance · real",
+        "matchesRole": true,
+        "note": "Tasks stay squarely in the role's own finance/accounting domain — May period-end close work: reading the existing reporting suite before regenerating it, reconc"
+      },
+      {
+        "id": "cal-032",
+        "label": "medior Career Advisor (Career Coach) · hr · real",
+        "matchesRole": true,
+        "note": "The tasks are squarely the work of a Career Advisor/Career Coach: valuing a live job offer, separating one-time from recurring comp, pricing equity, locating ne"
+      },
+      {
+        "id": "cal-033",
+        "label": "medior Attorney in Brooklyn, NY · legal · real",
+        "matchesRole": true,
+        "note": "The take-home is squarely legal-services attorney work: reading a housing-court matter file for an eviction, verifying controlling law before relying on it, han"
+      },
+      {
+        "id": "cal-034",
+        "label": "medior Advocate, Patient Empowerment- REMOTE · marketing · real",
+        "matchesRole": true,
+        "note": "The role is a Patient Empowerment Advocate — the first human contact for prospective patients/caregivers across phone, chat, and email. The take-home (work a ba"
+      },
+      {
+        "id": "cal-035",
+        "label": "medior Inventory Clerk · operations · real",
+        "matchesRole": true,
+        "note": "The packet tasks — reconciling a perpetual-inventory export against a physical count, receiving against a truck manifest, working out-of-stocks, applying pricin"
+      },
+      {
+        "id": "cal-036",
+        "label": "senior Business Development Project Manager · project_management · real",
+        "matchesRole": true,
+        "note": "The tasks—rescuing a slipping project tracker, vetting a partner-selection model and defending a recommendation, building a steering-group status-and-risk view,"
+      },
+      {
+        "id": "cal-037",
+        "label": "medior Account Executive - Columbus, OH - AMO Sales and Services, Inc.. · sales · real",
+        "matchesRole": true,
+        "note": "Tasks are squarely within a surgical/ophthalmic Account Executive's real job: a 90-day territory plan (CRM export triage, segmentation, call priorities), a cons"
+      },
+      {
+        "id": "cal-038",
+        "label": "medior Animation Programmer · software_engineering · real",
+        "matchesRole": true,
+        "note": "The take-home is squarely Animation-Programmer work: extending an Unreal Engine 5 / C++ animation runtime (AnimInstance, locomotion AnimGraph, melee combo compo"
+      },
+      {
+        "id": "cal-039",
+        "label": "medior Administrative Assistant III (Part time) – Remote, Work from Anywhere · administration · real",
+        "matchesRole": true,
+        "note": "Every task is core Administrative Assistant III work: calendar/Zoom scheduling and invite text, correcting Excel/Word docs, reconciling a PeopleSoft timesheet e"
+      },
+      {
+        "id": "cal-040",
+        "label": "lead Chief Executive Officer - CEO Consultant · consulting · real",
+        "matchesRole": true,
+        "note": "The tasks are squarely the work of a fractional CEO / CEO consultant in a consulting firm: read a discovery-call transcript at a peer level, diagnose and isolat"
+      },
+      {
+        "id": "cal-041",
+        "label": "medior Bilingual Spanish CUSTOMER SERVICE REPRESENTATIVE Work From Home... · customer_success · real",
+        "matchesRole": true,
+        "note": "The take-home is squarely the job: a bilingual (EN/ES) consumer CSR taking a live inbound contact, researching the account, explaining a billing change accurate"
+      },
+      {
+        "id": "cal-042",
+        "label": "medior Data Management Analyst for Netsmart · data_ai · real",
+        "matchesRole": true,
+        "note": "The role is a myEvolv (Netsmart EHR/EMR) Data Management Analyst, and the three tasks — an unbilled-events billing report, an intake follow-up requirements requ"
+      },
+      {
+        "id": "cal-043",
+        "label": "medior Assistant Controller · finance · real",
+        "matchesRole": true,
+        "note": "Bank reconciliation (tying a bank statement to book cash in GL 1010), completing close workpapers, proposing adjusting journal entries with Dr/Cr and rationale,"
+      },
+      {
+        "id": "cal-044",
+        "label": "medior Career Coach (Remote Accepted) · hr · real",
+        "matchesRole": true,
+        "note": "Tasks are core career-coaching work: triage a fellow caseload, allocate limited coaching hours, design a concrete 1:1 intervention for a stuck fellow, and criti"
+      },
+      {
+        "id": "cal-045",
+        "label": "medior Attorney, CAMBA Legal Services, Brooklyn · legal · real",
+        "matchesRole": true,
+        "note": "The take-home asks the candidate to work a live Brooklyn Housing Court nonpayment file: read the intake, form a theory of the case, spot tenant defenses and cou"
+      },
+      {
+        "id": "cal-046",
+        "label": "medior Allstate Agency Owner - CEO of You · marketing · real",
+        "matchesRole": true,
+        "note": "The take-home asks the candidate to act as an Allstate Exclusive Agency owner — working a starter book of business, building a capital/P&L model, applying the c"
+      },
+      {
+        "id": "cal-047",
+        "label": "senior Restaurant Operations Manager · operations · real",
+        "matchesRole": true,
+        "note": "The task—building a crew and shift-manager schedule against a sales forecast while respecting minors' hour limits, ensuring shift-manager coverage, and hitting "
+      },
+      {
+        "id": "cal-048",
+        "label": "junior Contracting Project Management Intern · project_management · real",
+        "matchesRole": true,
+        "note": "The tasks are core contracting-PM-intern work: assess project status, reconcile scope/schedule/budget against the RFI/submittal log, decide escalations, and log"
+      },
+      {
+        "id": "cal-049",
+        "label": "medior Account Executive, Urology - Ohio and parts of W.PA, W.VA · sales · real",
+        "matchesRole": true,
+        "note": "The tasks are authentic field-sales AE work and stay squarely in the role's domain. Territory triage from a CRM export + a 90-day plan tests book-of-business pr"
+      },
+      {
+        "id": "cal-050",
+        "label": "medior Application Development -L6 · software_engineering · real",
+        "matchesRole": true,
+        "note": "The tasks are squarely in the role's domain: senior embedded/real-time engineering on a VxWorks-style RTOS in C — ISR vs. task context rules, task priority, a s"
+      },
+      {
+        "id": "cal-051",
+        "label": "medior Administrative Assistant to Global Real Estate Institutional... · administration · real",
+        "matchesRole": true,
+        "note": "The three tasks — de-conflicting a competing-meeting week (calendar/diary management), catching an error before it reaches an investor (proofing executive-facin"
+      },
+      {
+        "id": "cal-052",
+        "label": "medior Design Consultant · consulting · real",
+        "matchesRole": true,
+        "note": "The task is authentic to an in-home furniture Design Consultant. Reviewing a CRM/clienteling record and partial intake, then drafting role-specific clarifying q"
+      },
+      {
+        "id": "cal-053",
+        "label": "medior CCRD Customer Service Representative - Work from Home (Remote) · customer_success · real",
+        "matchesRole": true,
+        "note": "The tasks are exactly what a PA Coverage Review CSR does: work an inbound multi-channel queue (phone/fax/web), collect the structured clinical data each request"
+      },
+      {
+        "id": "cal-054",
+        "label": "senior Senior Data Analyst · data_ai · real",
+        "matchesRole": true,
+        "note": "The tasks are core data-analyst work: profiling a messy warehouse export, cleaning it, critically auditing an inherited metric, and translating findings into a "
+      },
+      {
+        "id": "cal-055",
+        "label": "senior Assistant Manager, Operations | Nyc Downtown (Multiple Locations) · finance · real",
+        "matchesRole": true,
+        "note": "The tasks — rebuilding the Week 32 staff schedule across dayparts at safe staffing levels, cash/over-short reconciliation, and managing the controllable labor b"
+      },
+      {
+        "id": "cal-056",
+        "label": "medior Career Services Coach-Remote Full Time · hr · real",
+        "matchesRole": true,
+        "note": "A Career Services Coach at an accredited career college does exactly this: working an unplaced-graduate caseload, driving job placements, documenting every touc"
+      },
+      {
+        "id": "cal-057",
+        "label": "senior Case Manager I - Remote · legal · real",
+        "matchesRole": true,
+        "note": "The work sample is squarely Case Manager I clinical work: reviewing a D-SNP member packet, reconciling/modifying an overdue care plan, risk-triage, verifying st"
+      },
+      {
+        "id": "cal-058",
+        "label": "lead Art Director · marketing · real",
+        "matchesRole": true,
+        "note": "The tasks are core Lead Art Director work: take an open brief to a defensible ship-ready hero execution (hands-on design + creative direction), lift an underper"
+      },
+      {
+        "id": "cal-059",
+        "label": "lead Sr. Director/Head of Strategy and Business Operations · operations · real",
+        "matchesRole": true,
+        "note": "The role is Head of Strategy & Business Operations for TechOps (operations function), and the tasks are squarely in that wheelhouse: reviewing an FY strategy on"
+      },
+      {
+        "id": "cal-060",
+        "label": "senior Digital Development Project Manager · project_management · real",
+        "matchesRole": true,
+        "note": "The tasks are squarely project-management work for a senior digital-delivery PM: reconcile actual delivery status against an imperfect artifact pack (SOW, estim"
+      },
+      {
+        "id": "cal-061",
+        "label": "medior Accounts Receivable-FC · sales · real",
+        "matchesRole": true,
+        "note": "The brief and the reconciliation task are core AR Representative work — reconciling a customer account that won't tie out, building a defensible weekly collecti"
+      },
+      {
+        "id": "cal-062",
+        "label": "junior Associate Software Engineering · software_engineering · real",
+        "matchesRole": true,
+        "note": "The role's function is software_engineering and all three tasks are bona-fide software-engineering work: parsing/validating a binary wire frame against a spec, "
+      },
+      {
+        "id": "cal-063",
+        "label": "medior Administrative Executive Assistant - Building Operations · administration · real",
+        "matchesRole": true,
+        "note": "Tasks are core executive-assistant work: triaging the director's inbox, maintaining the master calendar, keeping the correspondence/follow-up log trustworthy, u"
+      },
+      {
+        "id": "cal-064",
+        "label": "medior Design Consultant- Interior Design/Sales Consultant in Englishtown at Ethan Allen Global Inc. · consulting · real",
+        "matchesRole": true,
+        "note": "The tasks are the actual end-to-end duties of an Ethan Allen interior-design sales consultant: spec a whole-home solution from the catalog line, check that it f"
+      },
+      {
+        "id": "cal-065",
+        "label": "medior Claims Investigator · customer_success · real",
+        "matchesRole": true,
+        "note": "The tasks are the actual core duties of a UI/UC (unemployment compensation) Claims Investigator: triage an inherited claims queue by response deadline and accou"
+      },
+      {
+        "id": "cal-066",
+        "label": "junior Senior Vice President and Managing Director, International Research · data_ai · real",
+        "matchesRole": true,
+        "note": "Tasks are strategy, BD pipeline prioritization, EDI Global integration, a board-ready plan, and a DECISIONS log under ambiguity — these are exactly the core dut"
+      },
+      {
+        "id": "cal-067",
+        "label": "senior Assurance Senior, Public Accounting · finance · real",
+        "matchesRole": true,
+        "note": "The tasks — substantive testing of revenue and deferred revenue under ASC 606, taking the area to a 'fairly stated' conclusion, reviewing a staff associate's wo"
+      },
+      {
+        "id": "cal-068",
+        "label": "senior Case Manager, RN - Remote · hr · real",
+        "matchesRole": true,
+        "note": "The role is an RN Case Manager doing telephonic, post-discharge care management of chronic/comorbid members. The tasks — review the member record, complete a cl"
+      },
+      {
+        "id": "cal-069",
+        "label": "medior Clerical · legal · real",
+        "matchesRole": true,
+        "note": "The tasks—working a correspondence/suspense control log, resolving a calendar conflict, and triaging incoming mail plus phone/visitor messages—are squarely the "
+      },
+      {
+        "id": "cal-070",
+        "label": "lead Art Director · marketing · real",
+        "matchesRole": true,
+        "note": "The tasks are squarely the work of a senior Art Director, Photo & Video: concepting and art-directing a campaign shoot, making channel-specific selects, quality"
+      },
+      {
+        "id": "cal-071",
+        "label": "lead Staff Strategic Operations Manager · operations · real",
+        "matchesRole": true,
+        "note": "The tasks — reconciling an inconsistent FY26 planning packet, integrating a 25-person acquihire, responding to a CPO efficiency ask, and prepping a QBR — are co"
+      },
+      {
+        "id": "cal-072",
+        "label": "senior E-commerce Project Manager · project_management · real",
+        "matchesRole": true,
+        "note": "The tasks are core senior delivery-PM work and stay in the e-commerce/agency project-management domain. Reconstructing true engagement status from real artifact"
+      },
+      {
+        "id": "cal-073",
+        "label": "senior Assistant Sales Manager - Full Time · sales · real",
+        "matchesRole": true,
+        "note": "The role is a retail Assistant Sales Manager (sales function), and the three artifacts — diagnosing the store's sales gap from KPI/dashboard data, building a Fr"
+      },
+      {
+        "id": "cal-074",
+        "label": "medior C++ Embedded Engineer · software_engineering · real",
+        "matchesRole": true,
+        "note": "Every task is core medior C++ embedded-engineering work: implementing a memory-mapped register control path (rffe_set_attenuation in rf_frontend_ctrl.cpp into r"
+      },
+      {
+        "id": "cal-075",
+        "label": "junior Data Entry - Brecksville · administration · real",
+        "matchesRole": true,
+        "note": "Keying figures from tax-form source documents into a data-entry system, catching totals that don't reconcile, and flagging documents that can't be keyed cleanly"
+      },
+      {
+        "id": "cal-076",
+        "label": "medior Ecommerce Consultant · consulting · real",
+        "matchesRole": true,
+        "note": "The tasks—diagnosing an ecommerce performance decline, reconciling inconsistent analyst data, shaping a client-facing story, landing 2-3 framework-grounded reco"
+      },
+      {
+        "id": "cal-077",
+        "label": "medior Customer Channel Service Representative · customer_success · real",
+        "matchesRole": true,
+        "note": "The tasks are squarely on-role for a junior Customer Channel Service Representative in customer success. Morning-shift queue triage, reading partner requests/vo"
+      },
+      {
+        "id": "cal-078",
+        "label": "lead Vice President of Business Intelligence · data_ai · real",
+        "matchesRole": true,
+        "note": "Both tasks sit squarely inside a VP of Business Intelligence's remit. Task 2 — set direction for the BI function (standards doc, data dictionary, README, govern"
+      },
+      {
+        "id": "cal-079",
+        "label": "lead Audit Staff Accountant · finance · real",
+        "matchesRole": true,
+        "note": "Tasks are textbook entry-level external-audit fieldwork: reconciling a client-prepared prepaid insurance lead schedule to the trial balance, independently recom"
+      },
+      {
+        "id": "cal-080",
+        "label": "medior Civil Rights Investigator 1 - Columbus · hr · real",
+        "matchesRole": true,
+        "note": "The tasks—confirming OCRC jurisdiction under ORC Ch. 4112, defining the protected basis (age/disability), planning evidence gathering and testing, drafting a pr"
+      },
+      {
+        "id": "cal-081",
+        "label": "medior Commercial Contracts Attorney · legal · real",
+        "matchesRole": true,
+        "note": "Tasks are core commercial-contracts-attorney work: triaging a contract review queue, prioritizing by legal/regulatory risk with rationale, redlining a clinical-"
+      },
+      {
+        "id": "cal-082",
+        "label": "lead Art Director · marketing · real",
+        "matchesRole": true,
+        "note": "The role is a lead Art Director in marketing (BET/Paramount on-air promotions & brand creative). The tasks — set a creative platform, direct a promo + key-art c"
+      },
+      {
+        "id": "cal-083",
+        "label": "medior Supply Chain Analyst · operations · real",
+        "matchesRole": true,
+        "note": "Tasks are squarely supply-chain-analyst work: joining ERP spend extracts with item/vendor masters and a budget file to build a refreshable spend & variance summ"
+      },
+      {
+        "id": "cal-084",
+        "label": "senior Environmental Project Manager · project_management · real",
+        "matchesRole": true,
+        "note": "The tasks are core senior Environmental PM work and stay in-domain. Reading an inherited UST-release file, choosing the corrective-action path, producing the ne"
+      },
+      {
+        "id": "cal-085",
+        "label": "junior Associate New Business Case Manager - Remote · sales · real",
+        "matchesRole": true,
+        "note": "The tasks are squarely what a New Business Case Manager in insurance operations does: working submitted application files (App_0417/0418/0419) against the NB_Go"
+      },
+      {
+        "id": "cal-086",
+        "label": "medior C++ Embedded Engineer with Security Clearance · software_engineering · real",
+        "matchesRole": true,
+        "note": "The role is a medior C++ Embedded Engineer (defense, security clearance) and the take-home is squarely embedded-firmware work: writing/auditing a real-time drai"
+      },
+      {
+        "id": "cal-087",
+        "label": "junior Data Entry - Work from Home - International Applicants Accepted · administration · real",
+        "matchesRole": true,
+        "note": "The tasks are core junior Data Entry / Office Support work: keying orders and sample requests from multiple intake channels (phone notes, two storefront back-en"
+      },
+      {
+        "id": "cal-088",
+        "label": "junior Senior Business Associate, VP · consulting · real",
+        "matchesRole": true,
+        "note": "The tasks (triage a conflicts/business-selection clearance queue, classify and elevate requests, adjudicate a contested deal impartially against revenue/franchi"
+      },
+      {
+        "id": "cal-089",
+        "label": "medior Customer Experience Specialist II - REMOTE · customer_success · real",
+        "matchesRole": true,
+        "note": "The tasks are pure customer-success/CX work: triage a shared team mailbox with unclear thread ownership, unblock an escalating mid-journey account, coordinate c"
+      },
+      {
+        "id": "cal-090",
+        "label": "lead Chief Financial Officer · finance · real",
+        "matchesRole": true,
+        "note": "The case asks the candidate to form and defend a CFO-level position on capital/surplus adequacy, reserve risk, the investment-yield mandate, and the statutory-v"
+      },
+      {
+        "id": "cal-091",
+        "label": "medior Corporate Recruiter · hr · real",
+        "matchesRole": true,
+        "note": "Every task is core Corporate Recruiter work: rewriting a vague JD, building a sourcing plan, reading a funnel export, designing an interview scorecard, and runn"
+      },
+      {
+        "id": "cal-092",
+        "label": "medior Commercial Contracts Lawyer · legal · real",
+        "matchesRole": true,
+        "note": "The tasks are squarely the day-to-day work of a medior in-house commercial contracts lawyer: triaging and redlining a counterparty's markup of a Master Services"
+      },
+      {
+        "id": "cal-093",
+        "label": "lead Art director · marketing · real",
+        "matchesRole": true,
+        "note": "The tasks are squarely art direction / concept-graphics work: interpret a deliberately messy creative brief, commit to a single creative direction, carry Coach'"
+      },
+      {
+        "id": "cal-094",
+        "label": "medior Supply Chain Analyst · operations · real",
+        "matchesRole": true,
+        "note": "All four tasks are core senior Purchasing Agent (residential construction) duties: leveling/normalizing subcontractor trade bids, pricing a change order against"
+      },
+      {
+        "id": "cal-095",
+        "label": "senior Governance, Risk & Compliance Program Manager · project_management · real",
+        "matchesRole": true,
+        "note": "The deliverables are squarely GRC program-management work: reconcile a multi-source evidence set (risk register, scan output, audit, incident log, privacy track"
+      },
+      {
+        "id": "cal-096",
+        "label": "junior Associate, Corporate Development · sales · real",
+        "matchesRole": true,
+        "note": "All three tasks are core corporate-development/fundraising work for a junior associate at a cultural institution: cleaning up donor (constituent) records, advan"
+      },
+      {
+        "id": "cal-097",
+        "label": "medior Career Coach · software_engineering · real",
+        "matchesRole": true,
+        "note": "The deliverable — reviewing a client's resume, LinkedIn, and cover letter within an SLA, plus exercising coaching judgment on goal alignment, target-role fit, d"
+      },
+      {
+        "id": "cal-098",
+        "label": "junior Data Entry Clerk · administration · real",
+        "matchesRole": true,
+        "note": "The tasks are squarely within the role's actual domain: reviewing/QA-ing insurance application packets, checking completeness against carrier rules, routing to "
+      },
+      {
+        "id": "cal-099",
+        "label": "medior Systems Administrator · consulting · real",
+        "matchesRole": true,
+        "note": "All three tasks are core senior-sysadmin/infrastructure work: an Exchange 2016→Exchange Online migration plan, hardening the Cisco/Palo Alto edge, and making of"
+      }
+    ]
+  }
+}

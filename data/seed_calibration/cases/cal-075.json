@@ -1,0 +1,175 @@
+{
+  "job": {
+    "id": "cal-075",
+    "title": "Data Entry - Brecksville",
+    "company": "Kelly Services",
+    "role_family": "administration",
+    "seniority": "junior",
+    "source": "hf:jacob-hugging-face/job-descriptions"
+  },
+  "analysis": {
+    "realStack": [
+      "Data-entry / keying application with predefined fields (form-driven input screens)",
+      "Source documents: tax forms (e.g. W-2, 1099, 1040-type fields)",
+      "Alphanumeric keyboard + likely 10-key numeric pad for figures",
+      "KPH (keystrokes-per-hour) throughput measured against an accuracy threshold",
+      "Document handling / batch workflow (queue of documents to key)",
+      "Kelly Services onboarding & worker systems (timekeeping, recruiter intake) as the employing staffing agency"
+    ],
+    "coreResponsibilities": [
+      "Read figures and fields from tax-form source documents and key them into predefined fields in the client's system",
+      "Perform high-volume keystroke input accurately at or above a required KPH rate",
+      "Maintain data accuracy on sensitive financial/tax data while sustaining throughput",
+      "Work the assignment as a temporary worker for an approximately multi-month engagement at the Brecksville OH site",
+      "Comply with workplace safety and client/governmental health policies (possible COVID vaccination requirement)"
+    ],
+    "statedVsRealGaps": [
+      "The JD is heavily padded with Kelly Services boilerplate (company mission, revenue, EEO language); the actual task content is only a few lines — the real work is narrower than the posting's length implies.",
+      "Key quantitative requirements are blanked out: pay rate, shift, assignment length in months, and the specific KPH/accuracy targets all appear as missing values, so the true performance bar can't be confirmed from the text.",
+      "No software/tool is named — 'predefined fields via data entry' implies a client-specific in-house or vendor data-entry app, but the candidate is given zero detail about which system or interface they must learn.",
+      "Tax forms imply handling of sensitive/PII financial data, but the JD states no confidentiality, security, or data-handling expectations — a real gap given the document type."
+    ],
+    "trueComplexity": "low",
+    "riskAreas": [
+      "Sensitive data exposure: keying tax forms means PII/financial data handling with no stated controls, NDA, or security training in the posting.",
+      "Unverified performance bar: the redacted KPH/accuracy numbers mean a candidate could be screened out post-hire against a threshold they were never told.",
+      "Temporary/contingent nature: short multi-month term with possible vaccination gate creates eligibility and continuity risk for both worker and client.",
+      "Monotony and accuracy fatigue: sustained high-volume keystroke work on uniform forms is error-prone over a shift without rotation or QA checkpoints described.",
+      "JD thinness: blanked pay rate and contact details, plus generic agency copy, make it hard to assess fit or even apply confidently."
+    ],
+    "reflection": "This is a genuine, low-complexity junior administrative role and the absence of any codebase or tech stack is entirely normal — the 'body of work' is a queue of tax-form documents keyed into predefined fields, not software. The stated need is coherent and the responsibilities extract cleanly: high-throughput, high-accuracy keystroke entry of tax data into a client system on a temporary Brecksville OH assignment. The real divergence is not in the task but in the posting itself: it is mostly Kelly Services recruitment boilerplate wrapped around a handful of substantive lines, and the few numbers that actually define the job — pay rate, shift, term length, and the KPH/accuracy bar — are all blank in the supplied text. The most material under-specified area is data sensitivity: tax forms are PII-heavy, yet the JD names no confidentiality, security, or data-handling expectation. For a junior data-entry seat the skill bar is appropriately low (fast, accurate keying; comfort with a form-driven UI; reliability), so the role is well-matched to its 'junior' target — the honest caveat is simply that a candidate cannot fully judge fit until Kelly fills in the redacted specifics during the interview.",
+    "confidence": 0.82,
+    "promptVersion": "need-analysis-v3"
+  },
+  "role": {
+    "title": "Data Entry Operator",
+    "seniority": "junior",
+    "roleFamily": "administration",
+    "mustHaves": [
+      "High-volume alphanumeric and 10-key keystroke input, sustaining a measured KPH throughput at or above a required accuracy threshold",
+      "Accurate transcription of figures and fields from source documents (tax forms such as W-2/1099/1040) into predefined fields in a form-driven entry screen",
+      "Strong attention to detail and self-verification while keying — catching transposition and field-mismatch errors before submission",
+      "Discretion and careful handling of sensitive financial / PII data, even where the posting states no explicit confidentiality requirement",
+      "Ability to quickly learn an unfamiliar client-specific or vendor data-entry application from on-the-job instruction",
+      "Reliability for an on-site, fixed-term temporary assignment at the Brecksville OH location, including adherence to workplace safety and client/governmental health policies"
+    ],
+    "niceToHaves": [
+      "Prior experience keying tax forms or other structured financial documents",
+      "Familiarity with confidentiality / PII data-handling practices",
+      "Experience working a staffing-agency temporary or temp-to-hire assignment",
+      "Basic comfort with spreadsheets and standard office software",
+      "Demonstrated consistency on throughput-vs-accuracy metrics in a prior keying role"
+    ],
+    "responsibilities": [
+      "Read figures and fields from tax-form source documents and key them into predefined fields in the client's data-entry system",
+      "Perform high-volume keystroke input at or above the required KPH rate while holding the accuracy target",
+      "Maintain data accuracy on sensitive financial/tax information without sacrificing sustained throughput",
+      "Work through batched queues of documents, keeping pace and flagging unreadable or ambiguous source data rather than guessing",
+      "Complete the engagement as a temporary worker for the approximately multi-month assignment at the Brecksville OH site",
+      "Comply with workplace safety rules and applicable client/governmental health policies, including any COVID vaccination requirement"
+    ],
+    "languages": [
+      "English"
+    ],
+    "promptVersion": "role-design-v3"
+  },
+  "case": {
+    "title": "Brecksville Batch: Key, Validate, and Flag a Tax-Form Document Queue",
+    "brief": "You are picking up a temporary data-entry assignment at the Brecksville OH site, keying figures from tax-form source documents into the client's data-entry system. We have handed you one representative batch (`batch_2026-03/`), the field definitions for the input screens (`field_schema.md`), a small sample of records that were already keyed (`keyed_sample.csv`), and the thin ops note you'd actually get on day one (`ops_notes.md`). Your job is not to prove typing speed — assume keystrokes are cheap. The job is the judgment around the keystrokes: keying accurately, catching figures that don't add up, and flagging documents you cannot key cleanly rather than guessing a value to keep the queue moving. Work within ~1 hour; you do not need to key all 20 documents flawlessly if you run short — depth of handling on the tricky ones matters more than volume. Note up front: the real posting redacted the KPH throughput bar and the accuracy threshold, and named no NDA, security training, or data-handling controls for the PII on these forms. We left those gaps in on purpose — how you navigate not-knowing the bar and not-being-told the controls is part of the exercise. Treat flagging-not-guessing and keeping a short decisions log as normal good practice for this kind of work, because it is.",
+    "repoSeed": "A document-entry work folder representative of the Brecksville tax-season queue:\n- `batch_2026-03/` — ~20 synthetic source-document images/PDFs to be keyed: a mix of W-2, 1099-NEC, and 1099-MISC forms plus a couple of 1040 wage/withholding fragments. Plants seeded among them: (a) doc D-07 is a prior-year-layout W-2 where the box numbering/labels differ from the current layout the schema assumes; (b) one 1099-MISC's individual line amounts do not sum to its stated box total; (c) one document has a smudged/illegible withholding figure; (d) one item in the folder is a misfiled personal letter, not a tax form, and carries extra PII (full SSN, DOB) beyond the schema's scope.\n- `field_schema.md` — the predefined fields on the data-entry screens: field name, data type, the source box it maps to (assuming current-year form layout), and whether it is required.\n- `keyed_sample.csv` — five already-keyed records showing the exact output column order and formatting you must match. Row R-014 contains a transposed-digit value that passes a field-level format check but fails a cross-field reconciliation.\n- `ops_notes.md` — the day-one ops note: states throughput and accuracy are governed 'per client SLA' but blanks the actual KPH and accuracy numbers, says 'flag, don't guess,' and says nothing about handling sensitive data, NDA, or what to do with out-of-scope documents.",
+    "tasks": [
+      "Key the source documents in `batch_2026-03/` into the fields defined in `field_schema.md`, producing `keyed_batch.csv` with the exact column order and value formatting shown in `keyed_sample.csv`. Get as far as you can within the timebox; do not pad with guessed values to inflate the count.",
+      "As you key, build `exceptions.csv`. For any document or field that is unreadable, ambiguous, internally inconsistent, out of the schema's scope, or otherwise not safe to key as-is, record the document id, the field, the reason, and your disposition (flag-for-review / keyed-best-effort / held). A value you were unsure of belongs here with a disposition — not silently typed into `keyed_batch.csv`.",
+      "Validate before you'd submit. At least row R-014 in `keyed_sample.csv` and at least one document in the batch contain a figure that passes a field-level check but fails a cross-field sanity check (a box total that doesn't reconcile to its line items, withholding implausibly large relative to wages, or an identifier that fails its checksum). Find them, and write the 3–5 reconciliation rules you applied as `validation_rules.md`.",
+      "Keep a `DECISIONS.md` log. For every call you made where `ops_notes.md` or `field_schema.md` left it open — your accuracy-vs-throughput priority given the blanked SLA, how you handled the prior-year-layout form, what you did with the misfiled document and its extra PII, and any field you mapped by judgment — record what you chose, the alternative you rejected, and the one question you would ask the engagement lead before the next batch."
+    ],
+    "coverProbes": [
+      {
+        "id": "cp-redacted-bar",
+        "kind": "underspecified",
+        "where": "The 'per client SLA' performance line in ops_notes.md, with the KPH throughput and accuracy numbers blanked.",
+        "reveals": "A good candidate notices the bar is unstated, sets and writes down an explicit accuracy-vs-throughput policy, and asks for the real numbers; a naive one silently optimizes for one dimension (usually raw speed) and never surfaces that it was guessing against an unknown threshold it could be screened against later.",
+        "decisionSpace": [
+          "Default to accuracy: flag liberally and accept lower throughput until the real bar is known — safest against an unknown accuracy gate, slowest on volume.",
+          "Default to throughput: key best-effort and flag only hard blockers — protects the KPH number but risks failing an unseen accuracy threshold.",
+          "Decline to optimize blind: set a provisional, written policy and escalate for the actual SLA before committing to a steady-state pace."
+        ]
+      },
+      {
+        "id": "cp-legacy-layout",
+        "kind": "legacy_trap",
+        "where": "Document D-07 in batch_2026-03/ is a prior-year-layout W-2 whose box numbers/labels differ from the current layout that field_schema.md's source-box mapping assumes.",
+        "reveals": "A good candidate reads the form's labels before mapping and catches that box positions shifted between versions; a naive candidate keys by box position straight off the schema and silently mis-maps wages/withholding into the wrong fields while every value still looks individually valid.",
+        "decisionSpace": [
+          "Map by box label/semantics rather than position so the values land correctly despite the version mismatch — accurate but relies on the operator's reading judgment.",
+          "Flag D-07 as a wrong-version form and hold it for review rather than risk a mis-map — safest, but stalls that document.",
+          "Key by position per the schema and explicitly note the version assumption in exceptions — fastest, defers the risk to the reviewer, only defensible if clearly flagged."
+        ]
+      },
+      {
+        "id": "cp-reconcile",
+        "kind": "verification_trap",
+        "where": "R-014 in keyed_sample.csv (transposed digit) and the 1099-MISC in the batch whose line amounts don't sum to its stated box total.",
+        "reveals": "A good candidate runs cross-field reconciliation and catches values that are individually well-formed but jointly impossible; a naive one-shot keying passes the shallow per-field format check and ships a total that doesn't add up, or worst, 'fixes' the number to make it reconcile and thereby hides a real source discrepancy.",
+        "decisionSpace": [
+          "Build cross-field reconciliation rules, then flag/hold the failing records as discrepancies — catches the error without altering source data.",
+          "Key the source verbatim and flag only illegible fields, trusting the document over arithmetic — fast, but lets internally inconsistent records through.",
+          "Silently correct the figure so the totals reconcile — superficially clean but masks the source problem and is the trap response."
+        ]
+      },
+      {
+        "id": "cp-pii-scope",
+        "kind": "ambiguity",
+        "where": "The misfiled personal letter in batch_2026-03/ that is not a tax form and carries extra PII (full SSN, DOB), against ops_notes.md stating no NDA, security training, or data-handling controls.",
+        "reveals": "A good candidate recognizes the document is out of scope and that keying uncontrolled PII with no stated handling rules is a risk to raise, so they hold and escalate; a naive candidate keys whatever is placed in front of them because the queue contained it.",
+        "decisionSpace": [
+          "Hold the document and escalate the data-handling gap rather than keying out-of-scope, uncontrolled PII — most defensible on risk, costs one queue item.",
+          "Key only the in-scope fields if any apply and skip/omit the surplus PII, noting the exception — pragmatic middle path.",
+          "Key everything as received and record the concern — keeps the queue moving but accepts the PII-handling risk the posting never addressed."
+        ]
+      }
+    ],
+    "timeboxHours": 1.0,
+    "rubricDimensions": [
+      {
+        "name": "framing",
+        "label": "Problem framing",
+        "weight": 0.2,
+        "description": "Turns an ambiguous need into a sound plan."
+      },
+      {
+        "name": "tooling",
+        "label": "Tooling fluency",
+        "weight": 0.25,
+        "description": "Drives AI and other tools well; iterates and verifies."
+      },
+      {
+        "name": "judgment",
+        "label": "Judgment",
+        "weight": 0.25,
+        "description": "Catches AI/tooling mistakes; validates; pushes back."
+      },
+      {
+        "name": "architecture",
+        "label": "Architecture",
+        "weight": 0.15,
+        "description": "Structure and trade-offs that fit the real materials and constraints."
+      },
+      {
+        "name": "transfer",
+        "label": "Transfer",
+        "weight": 0.15,
+        "description": "Capability transfers to THIS role's tools and responsibilities."
+      }
+    ],
+    "promptVersion": "case-design-v5"
+  },
+  "source": "llm",
+  "issues": [],
+  "fallbackReason": {},
+  "promptVersions": {
+    "analyze": "need-analysis-v3",
+    "role": "role-design-v3",
+    "case": "case-design-v5"
+  }
+}

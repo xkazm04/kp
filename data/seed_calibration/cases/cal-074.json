@@ -1,0 +1,191 @@
+{
+  "job": {
+    "id": "cal-074",
+    "title": "C++ Embedded Engineer",
+    "company": "Technology Consulting, Inc.",
+    "role_family": "software_engineering",
+    "seniority": "medior",
+    "source": "hf:jacob-hugging-face/job-descriptions"
+  },
+  "analysis": {
+    "realStack": [
+      "Embedded C (primary low-level language)",
+      "Ada (explicitly named — strong legacy defense/avionics signal)",
+      "Real-time operating systems (RTOS); VxWorks or similar named",
+      "C++ (per title, but secondary to C/Ada in the body)",
+      "Hardware/software interface development (HW-SW co-design)",
+      "UML design and modeling tools",
+      "Full SDLC tooling: requirements analysis, design, implementation, integration, and test",
+      "Software test procedure authoring and integration/verification harnesses",
+      "Electronic warfare (EW) / RF / DoD signal-processing domain (desired)",
+      "Cost/scope estimation against program schedule and technical constraints",
+      "Both high-level and low-level/firmware software"
+    ],
+    "coreResponsibilities": [
+      "Design and develop embedded software products in lockstep with hardware product development",
+      "Participate across the full software development life cycle — requirements, design, implementation, integration, and test",
+      "Develop and evaluate hardware-software interfaces and overall system operational/performance requirements with cross-functional engineering teams",
+      "Write software test procedures, software programs, and supporting technical documentation",
+      "Estimate and validate the cost and scope of software efforts against program cost, schedule, and technical constraints",
+      "Lead large, complex project initiatives with minimal oversight or direction"
+    ],
+    "statedVsRealGaps": [
+      "Title says 'C++ Embedded Engineer' but the requirements specify 'C and/or Ada' — Ada points to legacy DoD/avionics systems, not modern C++; the title risks attracting modern-C++ developers and missing the actual C/Ada + RTOS niche.",
+      "seniorityTarget is 'medior', yet the JD demands managing 'large complex project initiatives with minimal oversight,' RTOS depth, and full-lifecycle ownership — that is senior/lead-level autonomy, a clear leveling mismatch.",
+      "The experience thresholds in the source text are blanked ('  years of embedded…', '  years … C and/or Ada', '  years RTOS') — the actual experience bar is unspecified, so level/years cannot be grounded from the JD as supplied.",
+      "The hardest gates are non-technical and dominate feasibility: an active or obtainable Secret clearance, local-only candidates, and on-site work in Clifton NJ — these are eligibility filters, not skills, and shrink the pool far more than any tech requirement.",
+      "This is framed as software_engineering but is really embedded/firmware + systems engineering (HW/SW co-design, system performance, EW domain) — broader than pure application software.",
+      "'EW background' and VxWorks/UML are listed only as 'desired,' but in a defense embedded context they are the true differentiators that separate viable candidates from generic embedded engineers."
+    ],
+    "trueComplexity": "high",
+    "riskAreas": [
+      "Clearance gate (Secret / interim Secret prior to start) is the single largest hiring risk — it drastically narrows the pool and extends time-to-start even with TCI assistance.",
+      "Title/skill divergence (C++ in title vs C/Ada in body) will mis-target sourcing; Ada talent specifically is scarce and aging.",
+      "Seniority mismatch: a 'medior' target cannot realistically deliver the minimal-oversight, large-project-leadership scope the JD describes.",
+      "On-site, local-only in Clifton NJ with no remote option compounds the clearance constraint to a very small geographic + cleared intersection.",
+      "Blanked year thresholds make calibration and screening criteria ambiguous — recruiters cannot consistently filter.",
+      "Niche EW/RTOS/VxWorks defense domain experience is scarce and not freely transferable from commercial embedded work.",
+      "Contract-to-hire framing may deter candidates seeking permanent direct roles, narrowing an already small cleared pool further."
+    ],
+    "reflection": "This is a defense/aerospace embedded engineering role mislabeled by its title. Despite 'C++ Embedded Engineer,' the substance is C and Ada on real-time operating systems (VxWorks), tightly coupled to hardware development, almost certainly for an electronic-warfare program given the 'EW background' preference and Secret-clearance gate. The genuine difficulty is high: full-lifecycle ownership, HW/SW interface design, cost/scope estimation against program constraints, and largely autonomous delivery — work that reads as senior despite the 'medior' target. The decisive constraints, however, are eligibility, not engineering: an active/obtainable Secret clearance, local-only on-site presence in Clifton NJ, and contract-to-hire terms. Those three filters, intersected with scarce Ada/EW/RTOS experience, define the hiring difficulty far more than the tech list does. The blanked experience-year fields in the supplied text leave the precise bar ungrounded, so leveling should be confirmed before sourcing. Net: reconcile the title with the real C/Ada+RTOS stack, raise the seniority expectation to match the autonomy demanded, and treat clearance + locality as the primary funnel.",
+    "confidence": 0.8,
+    "promptVersion": "need-analysis-v3"
+  },
+  "role": {
+    "title": "C++ Embedded Engineer",
+    "seniority": "medior",
+    "roleFamily": "software_engineering",
+    "mustHaves": [
+      "Embedded C programming",
+      "C++",
+      "Real-time operating systems (RTOS) development",
+      "Hardware/software interface development (HW-SW co-design)",
+      "Full software development life cycle: requirements analysis, design, implementation, integration, and test",
+      "Authoring software test procedures and verification of embedded software",
+      "Secret security clearance — active, interim, or able to obtain prior to start",
+      "On-site work in Clifton, NJ (local candidates only, no remote)"
+    ],
+    "niceToHaves": [
+      "Ada",
+      "VxWorks or similar embedded RTOS",
+      "UML design and modeling",
+      "Electronic warfare (EW) / RF / DoD signal-processing domain background",
+      "Comfort across both high-level and low-level/firmware software",
+      "Cost and scope estimation against program cost, schedule, and technical constraints",
+      "Ability to lead large, complex project initiatives with minimal oversight"
+    ],
+    "responsibilities": [
+      "Research, design, and develop embedded software products in lockstep with hardware product development",
+      "Participate across the full software development life cycle — requirements, design, implementation, integration, and test",
+      "Work with cross-functional engineering teams to develop and evaluate hardware-software interfaces and overall system operational and performance requirements",
+      "Write software test procedures, software programs, and supporting technical documentation",
+      "Apply computer science, engineering, and mathematical analysis principles to develop software for the target application",
+      "Estimate and validate the cost and scope of software efforts against program cost, schedule, and technical constraints"
+    ],
+    "languages": [
+      "C",
+      "C++",
+      "Ada"
+    ],
+    "promptVersion": "role-design-v3"
+  },
+  "case": {
+    "title": "Harden the EW RF Front-End Control Driver (VxWorks / Embedded C, Ada-adjacent)",
+    "brief": "The provided context fits this role directly, so the exercise is built on it: you step in as a medior embedded engineer on an electronic-warfare receiver line. You are handed the existing memory-mapped control driver for the RX RF front-end (attenuator, synthesizer/PLL, power detector) that runs as a VxWorks task alongside an interrupt handler, plus its Interface Control Document, a legacy Ada built-in-test (BIT) package it must coexist with, and a test-procedure skeleton. Your job over ~1.5 hours is to add one control path, make the existing and new register access correct under real-time/ISR conditions, write a software test procedure that would actually catch the hard fault (not just happy-path), and produce a short decisions log plus a scope estimate against the program milestone. Assume any code you submit could be fully tool-generated — so what is being assessed is your judgment, your reading of the legacy material before you generate, your verification thinking, and the choices you make where the brief is open. The 1.5h is a hard cap; depth on the four tasks matters more than coverage. Keeping a decisions log (below) is normal engineering hygiene here, not a separate test.",
+    "repoSeed": "A small VxWorks-targeted embedded C/C++ module plus supporting documents for an EW receiver RF front-end control unit accessed over a local/memory-mapped bus:\n- rf_frontend.h / rf_frontend.c — legacy Embedded C driver. Memory-mapped register block; functions include rffe_init(), rffe_set_synth(), rffe_read_power() (already returns a per-board cal-corrected value as signed 0.1 dBm using table g_pwr_cal[]), rffe_wait_pll_lock() (polls STATUS in a loop), and an interrupt handler rffeIsr() that services the power-detect interrupt and clears PWR_INT_ACK in CTRL. Runs in task tRffeCtrl.\n- rf_frontend_ctrl.cpp — thin C++ control wrapper (per the role title) where new control entry points are expected to live.\n- RFFE_ICD_v3.md — Interface Control Document / register map: CTRL (0x00: includes ENABLE, LATCH strobe, PWR_INT_ACK), ATTEN (0x04), SYNTH_FREQ (0x08-0x0C), STATUS (0x10, read-only: PLL_LOCK, BIT_FAIL, PWR_VALID), PWR_DET (0x14), BIT_CTRL (0x18). Section 4.3 describes the attenuation write + LATCH strobe but leaves encoding, settling time, and post-change PLL behavior underspecified.\n- ew_bit.ads — Ada package spec for the legacy built-in-test sequencing (BIT_CTRL); its comments state the attenuator must be parked at REF_ATTEN before BIT runs.\n- frontend_init.uml — UML state diagram of the init/calibrate/operate sequence.\n- STP_RFFE_template.md — software test procedure skeleton with one example step and empty sections to fill.",
+    "tasks": [
+      "Implement rffe_set_attenuation() (in rf_frontend_ctrl.cpp, calling into rf_frontend.c) to set the RX-path attenuation per RFFE_ICD_v3.md section 4.3 and integrate it with the existing init/control flow. Read rf_frontend.c and ew_bit.ads first — there are existing conventions you should not contradict.",
+      "Make register access correct under VxWorks real-time/ISR conditions. Your attenuation latch touches CTRL (0x00), which rffeIsr() also writes (PWR_INT_ACK); review that read-modify-write and the STATUS poll in rffe_wait_pll_lock(). Fix what is unsafe so it holds under interrupt load and compiler optimization, not just in a single-threaded smoke test.",
+      "Extend STP_RFFE_template.md with a software test procedure section that verifies rffe_set_attenuation AND is specifically capable of catching the concurrency/timing fault from Task 2 (i.e., a step a naive happy-path test would pass but the real fault would fail). State the setup, stimulus, and pass/fail criteria.",
+      "Keep a DECISIONS.md log: for every call you made where the brief was open, record what you chose, the alternative you rejected, and what you would have asked the hardware/ICD owner or the team. Then add a one-paragraph cost/scope estimate for hardening this control path across the remaining front-end variants against the integration milestone, with your assumptions and the single biggest schedule risk."
+    ],
+    "coverProbes": [
+      {
+        "id": "atten-encoding-sequence",
+        "kind": "ambiguity",
+        "where": "RFFE_ICD_v3.md section 4.3: ATTEN (0x04) + LATCH strobe in CTRL. The LSB encoding (e.g. 0.25 vs 0.5 dB/LSB and whether higher value = more or less attenuation), the required post-write settling time before PWR_DET is valid, and whether the synthesizer must be re-checked for PLL_LOCK after a change are all left open.",
+        "reveals": "Good: candidate notices the encoding/settling/relock gaps, checks rf_frontend.c (synth path) and ew_bit.ads for an existing convention before assuming, picks a conservative interpretation, and documents or gates it as a question. Naive: hard-codes a plausible 0.5 dB/LSB with zero settling delay and no relock check, asks nothing, and ships silently-wrong RX gain that still 'compiles and runs'.",
+        "decisionSpace": [
+          "Assume the conservative worst case (finer-step encoding, max settling delay, re-verify PLL_LOCK after the change) and document the assumption — safe but a slower control loop.",
+          "Mirror whatever encoding/sequence the legacy rf_frontend.c synth path already implies, to stay internally consistent — lowest divergence risk, but propagates any legacy error.",
+          "Treat encoding + settling as a hardware-owner question, stub the value behind a named constant with a TODO, and proceed on the rest — unblocks work now but leaves a gate that must close before integration."
+        ]
+      },
+      {
+        "id": "legacy-cal-and-bit-precondition",
+        "kind": "legacy_trap",
+        "where": "rf_frontend.c rffe_read_power() already subtracts a per-board offset from g_pwr_cal[] and returns signed 0.1 dBm; ew_bit.ads documents that the attenuator must be parked at REF_ATTEN before BIT executes.",
+        "reveals": "Good: reads the existing readback contract and the Ada BIT precondition, reuses rffe_read_power() as-is, and parks the attenuator at REF_ATTEN around BIT. Naive: generates a fresh raw-counts readback or re-applies the cal offset (double-correction) and ignores the BIT precondition, producing off-by-cal power readings and spurious BIT_FAIL.",
+        "decisionSpace": [
+          "Reuse rffe_read_power() unchanged and honor the REF_ATTEN precondition — minimal and consistent, but couples new code to a legacy global.",
+          "Refactor the cal application into one shared helper both paths call — cleaner long-term, but a larger change than scoped and it touches Ada-facing behavior.",
+          "Keep raw counts in the new path and convert at the caller — flexible, but risks diverging from the established 0.1 dBm contract other modules depend on."
+        ]
+      },
+      {
+        "id": "ctrl-rmw-isr-race",
+        "kind": "verification_trap",
+        "where": "CTRL (0x00) holds both the LATCH strobe you must pulse and PWR_INT_ACK, which rffeIsr() clears; rffe_wait_pll_lock() polls STATUS (0x10). A single-threaded smoke test with no interrupt traffic passes.",
+        "reveals": "Good: recognizes that a read-modify-write on CTRL races the ISR (lost PWR_INT_ACK), guards it (intLock/critical section, or restructures so the ISR owns the register), and marks the memory-mapped registers volatile so the STATUS poll isn't optimized away. Naive: emits `CTRL |= LATCH; CTRL &= ~LATCH;` plus a non-volatile poll — passes the shallow check, but drops ISR acknowledgements under load and can spin forever at -O2.",
+        "decisionSpace": [
+          "Wrap the CTRL read-modify-write in intLock()/intUnlock() (or a spinlock) and mark the registers volatile — simplest correct fix, adds brief interrupt latency.",
+          "Restructure so only rffeIsr() owns CTRL and the task requests the strobe via a separate command/shadow register — lower ISR latency, but a larger architectural change.",
+          "Use a dedicated hardware strobe/test-and-set register if the ICD exposes one, avoiding the shared-register RMW entirely — cleanest if the hardware supports it, but needs ICD confirmation."
+        ]
+      },
+      {
+        "id": "scope-estimate-blanks",
+        "kind": "underspecified",
+        "where": "Task 4 estimate: the integration milestone date is blanked, the number of front-end variants is given only as 'the remaining variants', and whether Ada BIT changes are in scope is unstated.",
+        "reveals": "Good: names the missing inputs (variant count, milestone date, Ada-scope), gives a ranged estimate tied to explicit assumptions, and surfaces the dominant schedule risk (cleared/Ada-skilled staffing, per-variant HW differences). Naive: returns a single confident number with no assumptions and no risk called out.",
+        "decisionSpace": [
+          "Give a ranged bottom-up estimate keyed to an assumed variant count and call out the staffing/Ada-scarcity and per-variant-HW schedule risk — transparent and defensible.",
+          "Anchor to the one variant just completed and extrapolate linearly with a stated multiplier — fast, but hides hardware differences between variants.",
+          "Decline a single number until the variant list and milestone are confirmed and instead size only the first variant precisely — most honest, but may read as non-responsive to a program-cost question."
+        ]
+      }
+    ],
+    "timeboxHours": 1.5,
+    "rubricDimensions": [
+      {
+        "name": "framing",
+        "label": "Problem framing",
+        "weight": 0.2,
+        "description": "Turns an ambiguous need into a sound plan."
+      },
+      {
+        "name": "tooling",
+        "label": "Tooling fluency",
+        "weight": 0.25,
+        "description": "Drives AI and other tools well; iterates and verifies."
+      },
+      {
+        "name": "judgment",
+        "label": "Judgment",
+        "weight": 0.25,
+        "description": "Catches AI/tooling mistakes; validates; pushes back."
+      },
+      {
+        "name": "architecture",
+        "label": "Architecture",
+        "weight": 0.15,
+        "description": "Structure and trade-offs that fit the real materials and constraints."
+      },
+      {
+        "name": "transfer",
+        "label": "Transfer",
+        "weight": 0.15,
+        "description": "Capability transfers to THIS role's tools and responsibilities."
+      }
+    ],
+    "promptVersion": "case-design-v5"
+  },
+  "source": "llm",
+  "issues": [],
+  "fallbackReason": {},
+  "promptVersions": {
+    "analyze": "need-analysis-v3",
+    "role": "role-design-v3",
+    "case": "case-design-v5"
+  }
+}

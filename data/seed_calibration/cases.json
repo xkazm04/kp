@@ -1,0 +1,902 @@
+[
+  {
+    "id": "cal-000",
+    "title": "Administrative assistant",
+    "roleFamily": "administration",
+    "seniority": "medior",
+    "caseTitle": "Monday at the Front Desk: Payroll Run, Room Conflicts, and the Morning Queue",
+    "source": "llm",
+    "reliable": true
+  },
+  {
+    "id": "cal-001",
+    "title": "Advisory Strategic Resource Manager",
+    "roleFamily": "consulting",
+    "seniority": "senior",
+    "caseTitle": "Strategic Resource Manager — Data & Analytics Area: Staff the Quarter",
+    "source": "llm",
+    "reliable": true
+  },
+  {
+    "id": "cal-002",
+    "title": "$17.50hr - Patient Advocate - Part Time Position - Mon - Fri ...",
+    "roleFamily": "customer_success",
+    "seniority": "medior",
+    "caseTitle": "Patient Advocate Work-Sample: The Cardizan Copay Case (Case #4471)",
+    "source": "llm",
+    "reliable": true
+  },
+  {
+    "id": "cal-003",
+    "title": "Career Coach Waitlist (Part-time/Contract/US Remote)",
+    "roleFamily": "data_ai",
+    "seniority": "medior",
+    "caseTitle": "Career Coach Work-Sample: Covering a Caseload at a Technical Job-Search Program",
+    "source": "llm",
+    "reliable": true
+  },
+  {
+    "id": "cal-004",
+    "title": "Remote Website Designer",
+    "roleFamily": "design",
+    "seniority": "medior",
+    "caseTitle": "Northbeam Creator Site (Client #4821): finish, action client feedback, and extend CoreKit",
+    "source": "llm",
+    "reliable": true
+  },
+  {
+    "id": "cal-005",
+    "title": "Accountant",
+    "roleFamily": "finance",
+    "seniority": "medior",
+    "caseTitle": "Lumio Brands — March Close: reconcile, post, and explain the numbers",
+    "source": "llm",
+    "reliable": true
+  },
+  {
+    "id": "cal-006",
+    "title": "Admin/Clerical Recruiter",
+    "roleFamily": "hr",
+    "seniority": "medior",
+    "caseTitle": "Patient Access Recruiter Desk: Screen, Submit, and Close a Government MSP Requisition",
+    "source": "llm",
+    "reliable": true
+  },
+  {
+    "id": "cal-007",
+    "title": "Associate Director, Global Capital Markets Documentation, GBM...",
+    "roleFamily": "legal",
+    "seniority": "junior",
+    "caseTitle": "Negotiating the Meridian prime services documentation suite (ISDA/CSA + synthetic PB)",
+    "source": "llm",
+    "reliable": true
+  },
+  {
+    "id": "cal-008",
+    "title": "Academic Dean, VOICE Charter School",
+    "roleFamily": "marketing",
+    "seniority": "medior",
+    "caseTitle": "Academic Dean Work-Sample: One Teacher, One Data Cycle, One Compliance Gap at Riverside Community School (Grades 5–8)",
+    "source": "llm",
+    "reliable": true
+  },
+  {
+    "id": "cal-009",
+    "title": "Analyst II, Supply Chain - Corporate - US (Open)",
+    "roleFamily": "operations",
+    "seniority": "medior",
+    "caseTitle": "Relieve the Front Royal RDC: redistribution & landed-cost scenario analysis",
+    "source": "llm",
+    "reliable": true
+  },
+  {
+    "id": "cal-010",
+    "title": "Account Delivery Manager",
+    "roleFamily": "project_management",
+    "seniority": "senior",
+    "caseTitle": "Recovering a Tier-1 Public-Sector Account: Delivery Plan, Consumption Position & Executive Steering Prep for CDHS",
+    "source": "llm",
+    "reliable": true
+  },
+  {
+    "id": "cal-011",
+    "title": "Account Executive",
+    "roleFamily": "sales",
+    "seniority": "medior",
+    "caseTitle": "Spectrum Business — Eastgate SMB Territory: 90-Day Plan, Salesforce Pipeline Triage & a Bundled Quote",
+    "source": "llm",
+    "reliable": true
+  },
+  {
+    "id": "cal-012",
+    "title": "Acquisitions, Associate",
+    "roleFamily": "software_engineering",
+    "seniority": "junior",
+    "caseTitle": "STNL Acquisition Underwrite & IC Recommendation — Cardinal Pharmacy (Single-Tenant Net-Lease)",
+    "source": "llm",
+    "reliable": true
+  },
+  {
+    "id": "cal-013",
+    "title": "Administrative Assistant",
+    "roleFamily": "administration",
+    "seniority": "medior",
+    "caseTitle": "On-Island Administrative Assistant — Pay-Period Close, Front-Desk Triage & an Administrator's Ask (Rikers Correctional Health Services)",
+    "source": "llm",
+    "reliable": true
+  },
+  {
+    "id": "cal-014",
+    "title": "Apple Solutions Consultant",
+    "roleFamily": "consulting",
+    "seniority": "medior",
+    "caseTitle": "First Cycle at an Underperforming Apple Partner Store: Diagnose, Enable, Merchandise",
+    "source": "llm",
+    "reliable": true
+  },
+  {
+    "id": "cal-015",
+    "title": "Bank Teller",
+    "roleFamily": "customer_success",
+    "seniority": "medior",
+    "caseTitle": "Teller Shift Simulation: Working a Morning Window at the Maple & 3rd Branch",
+    "source": "llm",
+    "reliable": true
+  },
+  {
+    "id": "cal-016",
+    "title": "Data Analyst Manager",
+    "roleFamily": "data_ai",
+    "seniority": "senior",
+    "caseTitle": "Reconcile and govern the Customer & Credit-Risk data model (FS data warehouse)",
+    "source": "llm",
+    "reliable": true
+  },
+  {
+    "id": "cal-017",
+    "title": "Senior graphic designer",
+    "roleFamily": "design",
+    "seniority": "senior",
+    "caseTitle": "sonneman — 'A Way of Light': art-direct the Suspenders launch across channels",
+    "source": "llm",
+    "reliable": true
+  },
+  {
+    "id": "cal-018",
+    "title": "Accountant",
+    "roleFamily": "finance",
+    "seniority": "medior",
+    "caseTitle": "May Month-End Close for Two Skilled-Nursing Communities (Maple Grove & Cedar Ridge)",
+    "source": "llm",
+    "reliable": true
+  },
+  {
+    "id": "cal-019",
+    "title": "Bank President Jobs in Columbus, Ohio",
+    "roleFamily": "hr",
+    "seniority": "medior",
+    "caseTitle": "President, Buckeye Commercial Bank, N.A. (Columbus, OH) — 90-Day Board Diagnosis & Plan",
+    "source": "llm",
+    "reliable": true
+  },
+  {
+    "id": "cal-020",
+    "title": "Attorney in Brooklyn, NY",
+    "roleFamily": "legal",
+    "seniority": "medior",
+    "caseTitle": "Article 10 Emergency Removal: First-Appearance Strategy & Return-of-Child Application (Maritza D.)",
+    "source": "llm",
+    "reliable": true
+  },
+  {
+    "id": "cal-021",
+    "title": "Advertising Design Intern - 2022",
+    "roleFamily": "marketing",
+    "seniority": "junior",
+    "caseTitle": "Adapt a Print Ad Across Formats for Cleveland Magazine",
+    "source": "llm",
+    "reliable": true
+  },
+  {
+    "id": "cal-022",
+    "title": "Business Analyst- Supply Chain",
+    "roleFamily": "operations",
+    "seniority": "medior",
+    "caseTitle": "Downstream Fuels Replenishment: Turn a Vague Sponsor Request into Traceable Requirements, a Backlog, and a System Gap Analysis",
+    "source": "llm",
+    "reliable": true
+  },
+  {
+    "id": "cal-023",
+    "title": "Associate Project Manager, IVD Product Development (San Diego, CA)",
+    "roleFamily": "project_management",
+    "seniority": "junior",
+    "caseTitle": "Phase 3 Gate Readiness: ONC-500 NGS Oncology IVD Panel",
+    "source": "llm",
+    "reliable": true
+  },
+  {
+    "id": "cal-024",
+    "title": "Account Executive (Inside Sales)",
+    "roleFamily": "sales",
+    "seniority": "medior",
+    "caseTitle": "Two-Sided Freight Desk: Quote, Recover, and Grow the Buckeye Account",
+    "source": "llm",
+    "reliable": true
+  },
+  {
+    "id": "cal-025",
+    "title": "Analytics Manager",
+    "roleFamily": "software_engineering",
+    "seniority": "senior",
+    "caseTitle": "Analytics Manager work-sample: Trust & Safety enforcement metrics, an experiment readout, and an opportunity-sizing ask",
+    "source": "llm",
+    "reliable": true
+  },
+  {
+    "id": "cal-026",
+    "title": "Administrative Assistant - Remote / Online / Work From Home (PT/FT)",
+    "roleFamily": "administration",
+    "seniority": "medior",
+    "caseTitle": "Administrative Assistant - Remote / Online / Work From Home (PT/FT): a representative work-sample",
+    "source": "llm",
+    "reliable": true
+  },
+  {
+    "id": "cal-027",
+    "title": "Business Analyst (Entry Level)",
+    "roleFamily": "consulting",
+    "seniority": "junior",
+    "caseTitle": "Meridian Supply order-portal: requirements, business case and UAT setup",
+    "source": "llm",
+    "reliable": true
+  },
+  {
+    "id": "cal-028",
+    "title": "Bank Teller",
+    "roleFamily": "customer_success",
+    "seniority": "medior",
+    "caseTitle": "Friday Close at the Window: Transactions, the Drawer, and Two Judgment Calls",
+    "source": "llm",
+    "reliable": true
+  },
+  {
+    "id": "cal-029",
+    "title": "Data Analyst/Manager",
+    "roleFamily": "data_ai",
+    "seniority": "senior",
+    "caseTitle": "Health Home Data: Billing Integrity & Outcomes You Can Defend",
+    "source": "llm",
+    "reliable": true
+  },
+  {
+    "id": "cal-030",
+    "title": "Senior UI Designer",
+    "roleFamily": "design",
+    "seniority": "senior",
+    "caseTitle": "Meridian \"Goals\" — Senior UI Design Work Sample",
+    "source": "llm",
+    "reliable": true
+  },
+  {
+    "id": "cal-031",
+    "title": "Accounting Clerk",
+    "roleFamily": "finance",
+    "seniority": "medior",
+    "caseTitle": "Plant cost accounting: May close — variance, reporting suite, and a new product standard",
+    "source": "llm",
+    "reliable": true
+  },
+  {
+    "id": "cal-032",
+    "title": "Career Advisor (Career Coach)",
+    "roleFamily": "hr",
+    "seniority": "medior",
+    "caseTitle": "Counter a Live Offer: Reprice, Re-level, and Coach Maya Through Northwind",
+    "source": "llm",
+    "reliable": true
+  },
+  {
+    "id": "cal-033",
+    "title": "Attorney in Brooklyn, NY",
+    "roleFamily": "legal",
+    "seniority": "medior",
+    "caseTitle": "Brooklyn Legal Fellow — From Intake to Action: An Eviction Matter and Your Fellowship Project",
+    "source": "llm",
+    "reliable": true
+  },
+  {
+    "id": "cal-034",
+    "title": "Advocate, Patient Empowerment- REMOTE",
+    "roleFamily": "marketing",
+    "seniority": "medior",
+    "caseTitle": "Patient Empowerment Advocate — Inbound Intake, Qualification & Routing Work Sample",
+    "source": "llm",
+    "reliable": true
+  },
+  {
+    "id": "cal-035",
+    "title": "Inventory Clerk",
+    "roleFamily": "operations",
+    "seniority": "medior",
+    "caseTitle": "Inventory Clerk — GM shift packet: count, receive, price, present",
+    "source": "llm",
+    "reliable": true
+  },
+  {
+    "id": "cal-036",
+    "title": "Business Development Project Manager",
+    "roleFamily": "project_management",
+    "seniority": "senior",
+    "caseTitle": "Project Northstar: Rescue the Plan, Pick the Partner",
+    "source": "llm",
+    "reliable": true
+  },
+  {
+    "id": "cal-037",
+    "title": "Account Executive - Columbus, OH - AMO Sales and Services, Inc..",
+    "roleFamily": "sales",
+    "seniority": "medior",
+    "caseTitle": "Columbus, OH Surgical IOL Territory: 90-Day Plan, Consignment Health Check & a Displacement Play",
+    "source": "llm",
+    "reliable": true
+  },
+  {
+    "id": "cal-038",
+    "title": "Animation Programmer",
+    "roleFamily": "software_engineering",
+    "seniority": "medior",
+    "caseTitle": "Animation Programmer Work-Sample — Melee Combo & Anim State Graph for an Anime-Style Action-RPG (Unreal Engine 5 / C++)",
+    "source": "llm",
+    "reliable": true
+  },
+  {
+    "id": "cal-039",
+    "title": "Administrative Assistant III (Part time) – Remote, Work from Anywhere",
+    "roleFamily": "administration",
+    "seniority": "medior",
+    "caseTitle": "Remote Admin Handoff: Triage the OPHI / Tracing Health Pending-Items Packet",
+    "source": "llm",
+    "reliable": true
+  },
+  {
+    "id": "cal-040",
+    "title": "Chief Executive Officer - CEO Consultant",
+    "roleFamily": "consulting",
+    "seniority": "lead",
+    "caseTitle": "Fractional CEO Engagement: Diagnose, Scope, and Win the 'Meridian Tooling' Account",
+    "source": "llm",
+    "reliable": true
+  },
+  {
+    "id": "cal-041",
+    "title": "Bilingual Spanish CUSTOMER SERVICE REPRESENTATIVE Work From Home...",
+    "roleFamily": "customer_success",
+    "seniority": "medior",
+    "caseTitle": "Bilingual Save-the-Account Contact: Reconcile a Bill Spike, Explain It in Spanish, and Make the Retention Call",
+    "source": "llm",
+    "reliable": true
+  },
+  {
+    "id": "cal-042",
+    "title": "Data Management Analyst for Netsmart",
+    "roleFamily": "data_ai",
+    "seniority": "medior",
+    "caseTitle": "myEvolv Data Management Analyst: unbilled-events report, an intake follow-up request, and a screen build",
+    "source": "llm",
+    "reliable": true
+  },
+  {
+    "id": "cal-043",
+    "title": "Assistant Controller",
+    "roleFamily": "finance",
+    "seniority": "medior",
+    "caseTitle": "Month-End Close Pack — March 2026 (Assistant Controller work sample)",
+    "source": "llm",
+    "reliable": true
+  },
+  {
+    "id": "cal-044",
+    "title": "Career Coach (Remote Accepted)",
+    "roleFamily": "hr",
+    "seniority": "medior",
+    "caseTitle": "Coach a stuck cohort: triage, intervene, and make soft-skill progress measurable",
+    "source": "llm",
+    "reliable": true
+  },
+  {
+    "id": "cal-045",
+    "title": "Attorney, CAMBA Legal Services, Brooklyn",
+    "roleFamily": "legal",
+    "seniority": "medior",
+    "caseTitle": "Brooklyn Housing Court nonpayment file: assess, draft, and settle before the first appearance",
+    "source": "llm",
+    "reliable": true
+  },
+  {
+    "id": "cal-046",
+    "title": "Allstate Agency Owner - CEO of You",
+    "roleFamily": "marketing",
+    "seniority": "medior",
+    "caseTitle": "Stand up the Westerville, OH Allstate Exclusive Agency — first-year build plan",
+    "source": "llm",
+    "reliable": true
+  },
+  {
+    "id": "cal-047",
+    "title": "Restaurant Operations Manager",
+    "roleFamily": "operations",
+    "seniority": "senior",
+    "caseTitle": "Deputy Week at Raising Cane's #318: Set the Schedule, Find the Cost Miss, Make the Call",
+    "source": "llm",
+    "reliable": true
+  },
+  {
+    "id": "cal-048",
+    "title": "Contracting Project Management Intern",
+    "roleFamily": "project_management",
+    "seniority": "junior",
+    "caseTitle": "Westgate Office Park — Building C Controls Retrofit: Project Status & Recovery (Contracting PM Intern, GTP)",
+    "source": "llm",
+    "reliable": true
+  },
+  {
+    "id": "cal-049",
+    "title": "Account Executive, Urology - Ohio and parts of W.PA, W.VA",
+    "roleFamily": "sales",
+    "seniority": "medior",
+    "caseTitle": "Columbus, OH Territory: a 90-Day Plan, One Net-New Pursuit, and a Service Escalation",
+    "source": "llm",
+    "reliable": true
+  },
+  {
+    "id": "cal-050",
+    "title": "Application Development -L6",
+    "roleFamily": "software_engineering",
+    "seniority": "medior",
+    "caseTitle": "EW Pulse-Ingest Real-Time Path: Triage, Fix, and Verify (VxWorks-style C / RTOS)",
+    "source": "llm",
+    "reliable": true
+  },
+  {
+    "id": "cal-051",
+    "title": "Administrative Assistant to Global Real Estate Institutional...",
+    "roleFamily": "administration",
+    "seniority": "medior",
+    "caseTitle": "A Monday at the desk: de-conflict the week, fix the roadshow, hold the line with an LP",
+    "source": "llm",
+    "reliable": true
+  },
+  {
+    "id": "cal-052",
+    "title": "Design Consultant",
+    "roleFamily": "consulting",
+    "seniority": "medior",
+    "caseTitle": "In-Home Design Consultation: The Reyes Family Room (custom upholstery solution + close)",
+    "source": "llm",
+    "reliable": true
+  },
+  {
+    "id": "cal-053",
+    "title": "CCRD Customer Service Representative - Work from Home (Remote)",
+    "roleFamily": "customer_success",
+    "seniority": "medior",
+    "caseTitle": "Coverage Review: Work Your Morning Prior-Authorization Queue",
+    "source": "llm",
+    "reliable": true
+  },
+  {
+    "id": "cal-054",
+    "title": "Senior Data Analyst",
+    "roleFamily": "data_ai",
+    "seniority": "senior",
+    "caseTitle": "Wearable-Safety Sensor Insight: From a Messy Warehouse Export to a Client-Ready Answer",
+    "source": "llm",
+    "reliable": true
+  },
+  {
+    "id": "cal-055",
+    "title": "Assistant Manager, Operations | Nyc Downtown (Multiple Locations)",
+    "roleFamily": "finance",
+    "seniority": "senior",
+    "caseTitle": "Week 32 Store Ops Handover: Schedule, Cash, and the Controllable Budget",
+    "source": "llm",
+    "reliable": true
+  },
+  {
+    "id": "cal-056",
+    "title": "Career Services Coach-Remote Full Time",
+    "roleFamily": "hr",
+    "seniority": "medior",
+    "caseTitle": "Re-Activate an Unplaced-Graduate Caseload (Career Services)",
+    "source": "llm",
+    "reliable": true
+  },
+  {
+    "id": "cal-057",
+    "title": "Case Manager I - Remote",
+    "roleFamily": "legal",
+    "seniority": "senior",
+    "caseTitle": "Case Manager I — Care-Plan Reconciliation & Risk-Triage Work Sample (Remote D-SNP Member)",
+    "source": "llm",
+    "reliable": true
+  },
+  {
+    "id": "cal-058",
+    "title": "Art Director",
+    "roleFamily": "marketing",
+    "seniority": "lead",
+    "caseTitle": "Lead Art Director Work-Sample: Medicare Supplement Multichannel Refresh",
+    "source": "llm",
+    "reliable": true
+  },
+  {
+    "id": "cal-059",
+    "title": "Sr. Director/Head of Strategy and Business Operations",
+    "roleFamily": "operations",
+    "seniority": "lead",
+    "caseTitle": "TechOps Strategy & Business Operations: first read, portfolio triage, and the investment call",
+    "source": "llm",
+    "reliable": true
+  },
+  {
+    "id": "cal-060",
+    "title": "Digital Development Project Manager",
+    "roleFamily": "project_management",
+    "seniority": "senior",
+    "caseTitle": "CX Digital practice — rescue the Onboarding Journey delivery (mid-flight PM work sample)",
+    "source": "llm",
+    "reliable": true
+  },
+  {
+    "id": "cal-061",
+    "title": "Accounts Receivable-FC",
+    "roleFamily": "sales",
+    "seniority": "medior",
+    "caseTitle": "Clean Up and Collect: A Multi-Division AR Portfolio at Month-End",
+    "source": "llm",
+    "reliable": true
+  },
+  {
+    "id": "cal-062",
+    "title": "Associate Software Engineering",
+    "roleFamily": "software_engineering",
+    "seniority": "junior",
+    "caseTitle": "Slot-Machine Firmware: SAS Meter Poll, Frame Validation & a Bounded Bonus Pick",
+    "source": "llm",
+    "reliable": true
+  },
+  {
+    "id": "cal-063",
+    "title": "Administrative Executive Assistant - Building Operations",
+    "roleFamily": "administration",
+    "seniority": "medior",
+    "caseTitle": "Buildings Operations Executive Office — One Morning in the Director's Queue",
+    "source": "llm",
+    "reliable": true
+  },
+  {
+    "id": "cal-064",
+    "title": "Design Consultant- Interior Design/Sales Consultant in Englishtown at Ethan Allen Global Inc.",
+    "roleFamily": "consulting",
+    "seniority": "medior",
+    "caseTitle": "Whole-Home for the Hartmanns: design it, sell it, and feed your book",
+    "source": "llm",
+    "reliable": true
+  },
+  {
+    "id": "cal-065",
+    "title": "Claims Investigator",
+    "roleFamily": "customer_success",
+    "seniority": "medior",
+    "caseTitle": "Claims Investigator Work Sample: Triage, Adjudicate, and Protest a UI Claims Queue",
+    "source": "llm",
+    "reliable": true
+  },
+  {
+    "id": "cal-066",
+    "title": "Senior Vice President and Managing Director, International Research",
+    "roleFamily": "data_ai",
+    "seniority": "junior",
+    "caseTitle": "International Research Unit — 18-Month Inflection: A Board-Ready Strategy, BD, and Integration Call",
+    "source": "llm",
+    "reliable": true
+  },
+  {
+    "id": "cal-067",
+    "title": "Assurance Senior, Public Accounting",
+    "roleFamily": "finance",
+    "seniority": "senior",
+    "caseTitle": "FY2025 Revenue & Deferred Revenue Fieldwork — Northwind Software, Inc. (inherited engagement)",
+    "source": "llm",
+    "reliable": true
+  },
+  {
+    "id": "cal-068",
+    "title": "Case Manager, RN - Remote",
+    "roleFamily": "hr",
+    "seniority": "senior",
+    "caseTitle": "Telephonic Case Management Work Sample — High-Risk Comorbid Member (RN Case Manager)",
+    "source": "llm",
+    "reliable": true
+  },
+  {
+    "id": "cal-069",
+    "title": "Clerical",
+    "roleFamily": "legal",
+    "seniority": "medior",
+    "caseTitle": "One Morning at the Center Admin Desk — Correspondence, Calendar & Front-Desk Triage",
+    "source": "llm",
+    "reliable": true
+  },
+  {
+    "id": "cal-070",
+    "title": "Art Director",
+    "roleFamily": "marketing",
+    "seniority": "lead",
+    "caseTitle": "Art Director, Photo & Video — LeakProof cross-brand launch: direct it, gate it, keep production honest",
+    "source": "llm",
+    "reliable": true
+  },
+  {
+    "id": "cal-071",
+    "title": "Staff Strategic Operations Manager",
+    "roleFamily": "operations",
+    "seniority": "lead",
+    "caseTitle": "Staff Strategic Operations Manager — Experience Org FY26 Planning & Integration Sprint",
+    "source": "llm",
+    "reliable": true
+  },
+  {
+    "id": "cal-072",
+    "title": "E-commerce Project Manager",
+    "roleFamily": "project_management",
+    "seniority": "senior",
+    "caseTitle": "Rescue the Maison Lumé Q3 Growth Sprint: true status, change order, and recovery plan",
+    "source": "llm",
+    "reliable": true
+  },
+  {
+    "id": "cal-073",
+    "title": "Assistant Sales Manager - Full Time",
+    "roleFamily": "sales",
+    "seniority": "senior",
+    "caseTitle": "Acting ASM weekend: diagnose, staff, and coach Store #214 (Karl Lagerfeld Paris)",
+    "source": "llm",
+    "reliable": true
+  },
+  {
+    "id": "cal-074",
+    "title": "C++ Embedded Engineer",
+    "roleFamily": "software_engineering",
+    "seniority": "medior",
+    "caseTitle": "Harden the EW RF Front-End Control Driver (VxWorks / Embedded C, Ada-adjacent)",
+    "source": "llm",
+    "reliable": true
+  },
+  {
+    "id": "cal-075",
+    "title": "Data Entry - Brecksville",
+    "roleFamily": "administration",
+    "seniority": "junior",
+    "caseTitle": "Brecksville Batch: Key, Validate, and Flag a Tax-Form Document Queue",
+    "source": "llm",
+    "reliable": true
+  },
+  {
+    "id": "cal-076",
+    "title": "Ecommerce Consultant",
+    "roleFamily": "consulting",
+    "seniority": "medior",
+    "caseTitle": "Ecommerce Consultant Case — NorthStar Snacks: Diagnose the Ecommerce Decline & Shape Phase 2",
+    "source": "llm",
+    "reliable": true
+  },
+  {
+    "id": "cal-077",
+    "title": "Customer Channel Service Representative",
+    "roleFamily": "customer_success",
+    "seniority": "medior",
+    "caseTitle": "Channel Partner Order Queue — Morning Shift Triage & Order Entry",
+    "source": "llm",
+    "reliable": true
+  },
+  {
+    "id": "cal-078",
+    "title": "Vice President of Business Intelligence",
+    "roleFamily": "data_ai",
+    "seniority": "lead",
+    "caseTitle": "VP of Business Intelligence — Stand Up the Warranty BI Function & Answer a Partner Re-Rate",
+    "source": "llm",
+    "reliable": true
+  },
+  {
+    "id": "cal-079",
+    "title": "Audit Staff Accountant",
+    "roleFamily": "finance",
+    "seniority": "lead",
+    "caseTitle": "GSC FY25 Audit — Prepaids, Analytical Review & a Depreciation Question",
+    "source": "llm",
+    "reliable": true
+  },
+  {
+    "id": "cal-080",
+    "title": "Civil Rights Investigator 1 - Columbus",
+    "roleFamily": "hr",
+    "seniority": "medior",
+    "caseTitle": "OCRC Charge Intake & Preliminary Investigation — Age/Disability Discharge (Buckeye Logistics)",
+    "source": "llm",
+    "reliable": true
+  },
+  {
+    "id": "cal-081",
+    "title": "Commercial Contracts Attorney",
+    "roleFamily": "legal",
+    "seniority": "medior",
+    "caseTitle": "First Lawyer, Monday Morning: The Medri Clinical-Data Vendor Contract",
+    "source": "llm",
+    "reliable": true
+  },
+  {
+    "id": "cal-082",
+    "title": "Art Director",
+    "roleFamily": "marketing",
+    "seniority": "lead",
+    "caseTitle": "Art Director — BET on-air relaunch: creative platform, show-open direction & delivery plan",
+    "source": "llm",
+    "reliable": true
+  },
+  {
+    "id": "cal-083",
+    "title": "Supply Chain Analyst",
+    "roleFamily": "operations",
+    "seniority": "medior",
+    "caseTitle": "Supply Chain Analyst — Healthcare Spend & Variance Work-Sample",
+    "source": "llm",
+    "reliable": true
+  },
+  {
+    "id": "cal-084",
+    "title": "Environmental Project Manager",
+    "roleFamily": "project_management",
+    "seniority": "senior",
+    "caseTitle": "Inherited BUSTR Release: Step In as PM on the Former Buckeye Fuel & Go Site",
+    "source": "llm",
+    "reliable": true
+  },
+  {
+    "id": "cal-085",
+    "title": "Associate New Business Case Manager - Remote",
+    "roleFamily": "sales",
+    "seniority": "junior",
+    "caseTitle": "New Business Case Desk: Good-Order Review & Requirement Follow-Up (Life / Annuity)",
+    "source": "llm",
+    "reliable": true
+  },
+  {
+    "id": "cal-086",
+    "title": "C++ Embedded Engineer with Security Clearance",
+    "roleFamily": "software_engineering",
+    "seniority": "medior",
+    "caseTitle": "EW Sensor Firmware: Drain, Hand-off, and Verify a Real-Time RF Acquisition Path",
+    "source": "llm",
+    "reliable": true
+  },
+  {
+    "id": "cal-087",
+    "title": "Data Entry - Work from Home - International Applicants Accepted",
+    "roleFamily": "administration",
+    "seniority": "junior",
+    "caseTitle": "Monday Intake: Order Entry, Pricing, and Will-Call Across NetSuite and the Storefronts",
+    "source": "llm",
+    "reliable": true
+  },
+  {
+    "id": "cal-088",
+    "title": "Senior Business Associate, VP",
+    "roleFamily": "consulting",
+    "seniority": "junior",
+    "caseTitle": "BCMA Business Selection: Clearing Project Atlas",
+    "source": "llm",
+    "reliable": true
+  },
+  {
+    "id": "cal-089",
+    "title": "Customer Experience Specialist II - REMOTE",
+    "roleFamily": "customer_success",
+    "seniority": "medior",
+    "caseTitle": "Customer Concierge: Rescue the Cedar Valley install, run the shared inbox, and find the next improvement",
+    "source": "llm",
+    "reliable": true
+  },
+  {
+    "id": "cal-090",
+    "title": "Chief Financial Officer",
+    "roleFamily": "finance",
+    "seniority": "lead",
+    "caseTitle": "Capital, Reserves, and the Rating Conversation — CFO Work-Sample (P&C Insurer)",
+    "source": "llm",
+    "reliable": true
+  },
+  {
+    "id": "cal-091",
+    "title": "Corporate Recruiter",
+    "roleFamily": "hr",
+    "seniority": "medior",
+    "caseTitle": "Own a Stuck Healthcare Req: Intake → Funnel → Close (Remote, High-Volume)",
+    "source": "llm",
+    "reliable": true
+  },
+  {
+    "id": "cal-092",
+    "title": "Commercial Contracts Lawyer",
+    "roleFamily": "legal",
+    "seniority": "medior",
+    "caseTitle": "Redline & Advise: The Northwind MSA Intake",
+    "source": "llm",
+    "reliable": true
+  },
+  {
+    "id": "cal-093",
+    "title": "Art director",
+    "roleFamily": "marketing",
+    "seniority": "lead",
+    "caseTitle": "Coach Spring Concept Platform — Global Art Direction Work Sample",
+    "source": "llm",
+    "reliable": true
+  },
+  {
+    "id": "cal-094",
+    "title": "Supply Chain Analyst",
+    "roleFamily": "operations",
+    "seniority": "medior",
+    "caseTitle": "Purchasing Agent Work-Sample: Level a trade-bid package, price a change order, and reconcile invoices for one spec home",
+    "source": "llm",
+    "reliable": true
+  },
+  {
+    "id": "cal-095",
+    "title": "Governance, Risk & Compliance Program Manager",
+    "roleFamily": "project_management",
+    "seniority": "senior",
+    "caseTitle": "GRC Quarterly Risk Review: Reconcile, Re-score, and Brief Leadership",
+    "source": "llm",
+    "reliable": true
+  },
+  {
+    "id": "cal-096",
+    "title": "Associate, Corporate Development",
+    "roleFamily": "sales",
+    "seniority": "junior",
+    "caseTitle": "Corporate Development Associate — Donor Data, Sponsorship Proposal & Stewardship Work Sample",
+    "source": "llm",
+    "reliable": true
+  },
+  {
+    "id": "cal-097",
+    "title": "Career Coach",
+    "roleFamily": "software_engineering",
+    "seniority": "medior",
+    "caseTitle": "Senior Career Coach — Mid-Engagement Client Takeover (Placement)",
+    "source": "llm",
+    "reliable": true
+  },
+  {
+    "id": "cal-098",
+    "title": "Data Entry Clerk",
+    "roleFamily": "administration",
+    "seniority": "junior",
+    "caseTitle": "Submissions Batch QA & Routing — Group Benefits Enrollment",
+    "source": "llm",
+    "reliable": true
+  },
+  {
+    "id": "cal-099",
+    "title": "Systems Administrator",
+    "roleFamily": "consulting",
+    "seniority": "medior",
+    "caseTitle": "Senior Systems Administrator — Family Office: Exchange Online Migration, Edge Hardening & Safe Offboarding Automation",
+    "source": "llm",
+    "reliable": true
+  }
+]

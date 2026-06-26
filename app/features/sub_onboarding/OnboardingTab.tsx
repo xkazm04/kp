@@ -12,6 +12,7 @@ type RunSummary = {
   jobTitle: string | null;
   status: string;
   progress: { done: number; total: number; pct: number; complete: boolean };
+  intakeSubmitted: boolean;
 };
 type Signature = { id: string; document: string; status: string; signer: string | null; signedAt: string | null };
 type Template = { id: string; name: string; tasks: OnboardingTask[]; questionnaire: QuestionnaireField[] };
@@ -154,11 +155,20 @@ export function OnboardingTab() {
                             </span>
                           ) : null}
                         </p>
-                        <div className="mt-1.5 flex items-center gap-2">
+                        <div className="mt-1.5 flex flex-wrap items-center gap-2">
                           <span className="h-1.5 w-32 overflow-hidden rounded-full bg-stone-100">
                             <span className="block h-full rounded-full bg-coral" style={{ width: `${r.progress.pct}%` }} />
                           </span>
                           <span className="text-meta text-steel">{t("progress", { done: r.progress.done, total: r.progress.total })}</span>
+                          {/* Pre-boarding questionnaire status (CW-4): a hire whose candidate
+                              hasn't filled it in is visible, not a silently-empty record. */}
+                          <span
+                            className={`rounded-full px-2 py-0.5 text-meta font-semibold uppercase ${
+                              r.intakeSubmitted ? "bg-moss/15 text-moss" : "bg-amber-50 text-amber-700"
+                            }`}
+                          >
+                            {r.intakeSubmitted ? t("questionnaireDone") : t("questionnairePending")}
+                          </span>
                         </div>
                       </div>
                       <ChevronRight size={16} className="shrink-0 text-steel" />

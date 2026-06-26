@@ -1,0 +1,182 @@
+{
+  "job": {
+    "id": "cal-040",
+    "title": "Chief Executive Officer - CEO Consultant",
+    "company": "ExecHQ",
+    "role_family": "consulting",
+    "seniority": "lead",
+    "source": "hf:jacob-hugging-face/job-descriptions"
+  },
+  "analysis": {
+    "realStack": [
+      "Personal executive playbooks: leadership, turnaround/restructuring, scaling ('next level'), executive coaching, and team-building frameworks",
+      "Business-development / rainmaking toolkit: personal referral network, relationship-nurturing, lead follow-up and close (the firm supplies 'training and coaching' to expand it)",
+      "A CRM / pipeline for tracking self-sourced client leads (implied, not named)",
+      "The firm's bench of C-suite consultants (CFO/COO/CMO/CHRO/CIO/CTO) and strategic-alliance partner firms, assembled into client engagement teams",
+      "Diagnostic / discovery skills — peer-level CEO conversations to isolate an organization's core issues",
+      "JazzHR (the ATS the posting itself runs on — a recruiting-funnel signal, not a delivery tool)",
+      "Access to a Cigna group health plan (medical/vision/dental) and corporate-perk discounts",
+      "No codebase or technical stack — and none is expected for this role"
+    ],
+    "coreResponsibilities": [
+      "Deliver fractional / interim / project-based CEO advisory to client CEOs and business owners: leadership, turnarounds, scaling, executive coaching, building effective teams",
+      "Engage owners/CEOs at a peer level — listen, ask the right questions, and determine the core issues before prescribing solutions",
+      "Originate and close business: build the network, nurture relationships, follow up on and convert inbound leads into new client engagements",
+      "Assemble engagement teams from the client's own staff, the firm's C-suite consultants, and alliance partners to fit each problem",
+      "Collaborate as a principal alongside other C-suite-experienced consultants on shared client solutions"
+    ],
+    "statedVsRealGaps": [
+      "Title vs. structure: the posting reads 'Chief Executive Officer,' but this is not an employed CEO seat — it's an independent principal/consultant role. 'No buy-in or startup fees,' 'retain [%] of revenues billed to clients,' and the 'entrepreneurial spirit' language describe a 1099, eat-what-you-kill arrangement, not a salaried executive job.",
+      "Delivery vs. sales: the title implies pure executive expertise, but the responsibilities lean heavily on business development — 'help to close leads for new clients.' Real income depends on self-sourcing and closing your own client book, not just CEO craft.",
+      "Comp is under-specified: the revenue-share percentage is literally blank in the posting, and benefits are framed as 'access to' a Cigna plan — likely self-funded group access rather than employer-paid coverage. Easy to misread as a traditional benefits package.",
+      "Light gate vs. broad promise: requirements are modest (bachelor's, 5+ years as a CEO/owner) against a promise to deliver 'the best solutions to our clients across the globe.' The screening bar is thin relative to the positioning.",
+      "Asserted but unspecified IP: the 'tools, training and coaching' and the 'strategic alliance' network are repeatedly cited as differentiators but never defined — no methodology, deliverable format, or proprietary asset is described.",
+      "'Powered by JazzHR' plus generic, repetitive copy points to a high-volume templated recruiting funnel — consistent with a network/affiliate model that onboards many consultants, not a selective single hire."
+    ],
+    "trueComplexity": "high",
+    "riskAreas": [
+      "Income risk: compensation is effectively revenue-share with no base and no client book provided — earnings hinge entirely on the consultant's own ability to source and close engagements.",
+      "Expectation mismatch: candidates drawn by the 'CEO' title may expect an executive salary and seat and instead find a self-employed, BD-heavy fractional gig.",
+      "Brand/quality control: a thin qualification bar combined with an ATS-driven, high-volume intake risks variable consultant quality and reputational dilution for clients.",
+      "Benefits ambiguity: 'access to' insurance and unspecified 'discounts' may be self-paid; the blank revenue percentage leaves the core economic term undefined.",
+      "Thin specification: success metrics, engagement model, scope of firm-provided 'tools/training,' and how alliance teams are staffed/compensated are all unstated — hard to assess fit or upside without follow-up.",
+      "Global-delivery promise vs. solo-operator reality: 'clients across the globe' sits oddly against a model where each principal largely runs their own practice."
+    ],
+    "reflection": "Stated as a 'Consulting CEO,' the real body of work is two roles fused: a genuinely high-skill advisory practice (peer-level diagnosis, turnarounds, scaling, executive coaching, assembling cross-functional teams) and an independent business-development practice where you must find, nurture, and close your own clients. The strongest, most specific signals in the JD are commercial, not executive — 'no buy-in fees,' 'retain [%] of revenues,' 'help to close leads,' 'entrepreneurial spirit' — which together describe a 1099 principal in an affiliate-style network rather than an employed chief executive. The advisory demands themselves are real and high; the role's weakness is specification, not substance: the revenue split is blank, benefits are 'access to,' and the firm's differentiating 'tools and training' are asserted but never described. A strong fit is a seasoned operator-CEO who is also a natural rainmaker and comfortable with variable, self-generated income; a poor fit is someone reading the title as a salaried executive post. There is no codebase and none is expected — this is correctly judged in the role's own consulting terms.",
+    "confidence": 0.66,
+    "promptVersion": "need-analysis-v3"
+  },
+  "role": {
+    "title": "Chief Executive Officer - CEO Consultant",
+    "seniority": "lead",
+    "roleFamily": "consulting",
+    "mustHaves": [
+      "5+ years of experience as a CEO, business owner, or equivalent top-executive position with full P&L and organizational accountability",
+      "Bachelor's degree in business, accounting, or a related field",
+      "Proven delivery of fractional / interim / project-based CEO advisory: leadership, turnarounds and restructuring, and scaling an organization to 'the next level'",
+      "Executive coaching and building effective teams — developing the client's leaders, not just advising them",
+      "Peer-level diagnostic discovery: able to engage CEOs and business owners as equals, listen, and ask the right questions to isolate an organization's core issues before prescribing solutions",
+      "Business development and rainmaking: building and working a personal network, nurturing relationships, and following up on and closing leads into paid client engagements",
+      "Ability to assemble and lead cross-functional engagement teams drawn from the client's own staff, the firm's C-suite consultants (CFO/COO/CMO/CHRO/CIO/CTO), and strategic-alliance partners",
+      "Entrepreneurial, self-directed operating mode — comfortable working as an independent principal on a revenue-share basis and owning one's own client book"
+    ],
+    "niceToHaves": [
+      "MBA or other relevant master's degree",
+      "Prior fractional, interim, or project-based consulting experience (vs. only full-time CEO tenure)",
+      "An existing book of business or active referral network that can be converted into client engagements",
+      "Cross-functional C-suite breadth or fluency working alongside CFO/COO/CMO/CHRO/CIO/CTO peers",
+      "Sector- or situation-specific depth (e.g., turnaround/restructuring, high-growth scaling) that differentiates the advisory offer",
+      "Experience operating within a partner/affiliate consulting network and co-delivering with other principals"
+    ],
+    "responsibilities": [
+      "Deliver fractional / interim / project-based CEO advisory to client CEOs and business owners — leadership, turnarounds, scaling, executive coaching, and building effective teams",
+      "Engage owners and CEOs at a peer level: listen, ask the relevant questions, and determine the core issues in the organization before proposing solutions",
+      "Originate and close business — build the network, nurture relationships, and follow up on and convert inbound and self-sourced leads into new client engagements",
+      "Assemble and lead engagement teams tailored to each problem, drawing from the client's own staff, the firm's C-suite consultants, and strategic-alliance partner firms",
+      "Collaborate as a principal alongside other C-suite-experienced consultants on shared client solutions and the firm's collective mission"
+    ],
+    "languages": [
+      "English"
+    ],
+    "promptVersion": "role-design-v3"
+  },
+  "case": {
+    "title": "Fractional CEO Engagement: Diagnose, Scope, and Win the 'Meridian Tooling' Account",
+    "brief": "A referral has landed in the firm's pipeline. Dana Brandt is the owner-CEO of Meridian Tooling Co., a ~$18M, 42-person family-owned B2B industrial-components business that has 'stopped growing,' and a mutual contact suggested she talk to you. You have had one 35-minute discovery call (transcript supplied) and Dana has sent a follow-up email asking 'what working together would look like.' This case is the work you would actually do between that first call and winning (or walking away from) the engagement: read the situation at a peer level, isolate the core issues before prescribing anything, design an engagement and a team for it, and convert the lead on terms that work for both Dana and the firm's revenue-share model. The starting materials are deliberately incomplete and partly self-contradictory — that is what a real first look is like; treat surfacing the gaps as part of the job, not a failure of the brief. The provided materials fit this role directly (no synthetic substitution was needed). Budget ~2 hours total. Throughout, keep a short DECISIONS log (Task 4) — this is normal engagement hygiene at the firm, the record a principal hands to the bench team they pull in, not a test artifact. We care far more about your judgment and the path you take through the ambiguity than about polish or volume; one tight page per deliverable beats five padded ones.",
+    "repoSeed": "A prospective-client packet (the firm's standard 'Discovery folder' for an open pipeline card), drawing on your personal playbooks (turnaround, scaling, executive coaching, team-building), the firm's bench, and the CRM:\n- discovery_call_transcript.md — lightly edited transcript of your first 35-minute call with owner-CEO Dana Brandt. Dana's framing throughout: 'we've plateaued, I think we have a sales and marketing problem, I need to hire a VP of Sales and we need to get the brand out there to grow again.' Mentions in passing: two senior people left this year, every quote over $25k still crosses Dana's desk, and 'cash has felt tight even though we're busier than ever.'\n- financials_snapshot.xlsx — 3-year P&L summary plus balance-sheet/cash highlights. Revenue: $15.4M → $16.9M → $18.1M (up). Gross margin: 38% → 33% → 29% (down). Operating profit thinning; DSO stretched from 42 to 71 days; line of credit near its limit; one customer is now 31% of revenue.\n- org_chart.pdf — 42-person chart. Dana sits at the hub: sales, ops, purchasing, and finance all report directly to the owner; the two roles that left (Ops Manager, Controller) are shown 'vacant / covered by Dana.'\n- firm_bench_roster.md — available C-suite consultants (fractional CFO, COO, CMO, CHRO, CIO/CTO) with day rates and short bios, plus two strategic-alliance partner firms (one restructuring/turnaround boutique, one go-to-market agency).\n- crm_pipeline_card.md — partial CRM entry: Source = referral (warm); Stage = Discovery; Engagement model = [blank]; Commercial terms / revenue % = [blank]; Next step = [blank]; Decision-maker = Dana (sole owner).\n- inbound_email.md — the referrer's intro plus Dana's follow-up: 'Really enjoyed the call. Send me a proposal for how you'd help us grow — and what it costs.'",
+    "tasks": [
+      "1) Diagnosis memo (≤1 page). Working from the transcript, financials, and org chart together, name the 2-3 CORE issues at Meridian (root causes, in your own peer-level read — not necessarily the problem Dana named), and briefly say what evidence in the materials points to each. Then list the 3-5 questions you would put to Dana in the next conversation BEFORE proposing any solution.",
+      "2) Engagement design (≤1 page). Recommend the engagement model (fractional vs. interim vs. project-based) and why it fits THIS situation; the scope and first-90-day focus; the engagement team you would assemble — which existing Meridian staff to lean on, which firm-bench C-suite role(s) to pull in, and whether to bring an alliance partner — with a one-line reason for each pick; and the 2-3 success metrics you would commit to.",
+      "3) Win the deal. Draft the follow-up note to Dana that moves this from Discovery toward a signed engagement (her email asked for a 'proposal to help us grow, and what it costs'). Then state how you would structure the commercial terms given the firm's revenue-share / no-base model and Meridian's cash situation, and write a 3-line CRM pipeline update (stage, next step, top risk).",
+      "4) DECISIONS log. A short bulleted list covering every open call you had to make (engagement model, team composition, success metrics, commercial structure, and how literally you took Dana's 'we need to grow' framing): for each — what you chose, the alternative you rejected and why, and the one thing you'd confirm with Dana or with the firm before committing."
+    ],
+    "coverProbes": [
+      {
+        "id": "presenting-vs-root",
+        "kind": "legacy_trap",
+        "where": "discovery_call_transcript.md (Dana's 'sales & marketing problem, hire a VP of Sales' framing) read against financials_snapshot.xlsx (margin erosion, stretched DSO, maxed credit line, 31% customer concentration) and org_chart.pdf (owner-as-bottleneck, two senior vacancies).",
+        "reveals": "A strong candidate reads the financials and org chart before accepting the founder's framing, and reframes the engagement around margin/cash and owner-dependency rather than the lead-gen story Dana told. A naive one-shot response takes 'we need to grow / hire a sales VP' at face value and proposes a go-to-market push — selling the client what they asked for instead of what the evidence shows they need.",
+        "decisionSpace": [
+          "Accept Dana's framing and scope a growth/go-market engagement (honors the client's stated ask and the warm relationship, but risks treating a symptom).",
+          "Reframe as a margin-recovery + reduce-owner-dependency engagement and gently challenge the framing on the next call (higher diagnostic integrity, but risks friction with an owner who may not want to hear it).",
+          "Sequence it: stabilize margin/cash and offload decisions from Dana first, then revisit growth once the base is sound (defensible middle path, but slower to the revenue Dana is impatient for)."
+        ]
+      },
+      {
+        "id": "growth-looks-healthy",
+        "kind": "verification_trap",
+        "where": "financials_snapshot.xlsx — top line rising ($15.4M→$18.1M) while gross margin (38%→29%), DSO (42→71), and the credit line all deteriorate.",
+        "reveals": "A careful candidate verifies the trend beneath the rising top line and recognizes that scaling negative-trending unit economics burns cash faster — so 'they're growing, recommend a scaling engagement + a CMO' is subtly wrong even though it passes a shallow 'is revenue up?' check. A naive response anchors on the growing revenue and recommends scaling.",
+        "decisionSpace": [
+          "Scale now and fix the economics in parallel (fastest to upside, but bets the company's tight cash on doing two hard things at once).",
+          "Pause scaling and fix margin + cash collection first (protects survival, but tells an impatient owner to slow down).",
+          "Selective growth in the profitable segment only while shrinking or repricing the dilutive/concentrated business (targeted, but operationally harder and needs data the packet doesn't fully provide)."
+        ]
+      },
+      {
+        "id": "blank-commercials",
+        "kind": "underspecified",
+        "where": "crm_pipeline_card.md (Engagement model and Commercial terms / revenue % both blank) plus the firm's stated revenue-share, no-base model and Meridian's near-maxed credit line.",
+        "reveals": "A strong candidate flags that the engagement model and the core commercial term are undefined, proposes a structure tied to the engagement type and the client's cash constraint, and notes what must be confirmed with the firm. A naive response either invents a fee with no rationale or quietly ignores the gap.",
+        "decisionSpace": [
+          "Fixed monthly retainer (predictable income, simple to sell, but caps upside and leans on the client's scarce cash).",
+          "Reduced retainer + outcome fee tied to margin/EBITDA or cash improvement (aligns incentives and eases near-term cash, but carries real income risk under a no-base model and needs a clean measurement baseline).",
+          "Scoped project fee for a 90-day diagnostic-to-plan, then re-contract for delivery (de-risks both sides and earns trust first, but defers the larger engagement and revenue)."
+        ]
+      },
+      {
+        "id": "metric-choice",
+        "kind": "ambiguity",
+        "where": "No success metrics are defined anywhere in the packet; Task 2 forces the candidate to commit to 2-3.",
+        "reveals": "A strong candidate ties metrics to the real root cause (gross margin %, cash/DSO, decisions delegated off the owner, leadership-bench capability) and makes them measurable against today's baseline. A naive response defaults to vanity top-line growth — the very framing the financials undercut.",
+        "decisionSpace": [
+          "Financial metrics (gross-margin recovery, cash runway / DSO) — directly tied to survival, but may feel narrow to an owner chasing growth.",
+          "Organizational metrics (decisions removed from Dana's desk, key vacancies filled, a functioning leadership team) — addresses the bottleneck and the team-building mandate, but harder to quantify and slower to show.",
+          "A small balanced set spanning both, with one leading and one lagging indicator (most complete, but risks over-instrumenting a 90-day start)."
+        ]
+      }
+    ],
+    "timeboxHours": 2.0,
+    "rubricDimensions": [
+      {
+        "name": "framing",
+        "label": "Problem framing",
+        "weight": 0.2,
+        "description": "Turns an ambiguous need into a sound plan."
+      },
+      {
+        "name": "tooling",
+        "label": "Tooling fluency",
+        "weight": 0.25,
+        "description": "Drives AI and other tools well; iterates and verifies."
+      },
+      {
+        "name": "judgment",
+        "label": "Judgment",
+        "weight": 0.25,
+        "description": "Catches AI/tooling mistakes; validates; pushes back."
+      },
+      {
+        "name": "architecture",
+        "label": "Architecture",
+        "weight": 0.15,
+        "description": "Structure and trade-offs that fit the real materials and constraints."
+      },
+      {
+        "name": "transfer",
+        "label": "Transfer",
+        "weight": 0.15,
+        "description": "Capability transfers to THIS role's tools and responsibilities."
+      }
+    ],
+    "promptVersion": "case-design-v5"
+  },
+  "source": "llm",
+  "issues": [],
+  "fallbackReason": {},
+  "promptVersions": {
+    "analyze": "need-analysis-v3",
+    "role": "role-design-v3",
+    "case": "case-design-v5"
+  }
+}

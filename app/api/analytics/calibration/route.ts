@@ -15,11 +15,13 @@ export const dynamic = "force-dynamic";
 export async function GET(request: Request) {
   try {
     const roleFamily = new URL(request.url).searchParams.get("roleFamily");
-    let pairs = calibrationPairs(await currentWorkspace());
-    if (roleFamily) {
-      pairs = pairs.filter((p) => p.roleFamily === roleFamily);
-    }
-    return NextResponse.json(computeCalibration(pairs));
+    const allPairs = calibrationPairs(await currentWorkspace());
+    // The distinct families present (from the UNFILTERED set) so the UI can offer a
+    // data-driven "how accurate are you for <family> roles?" selector — stable
+    // regardless of which family is currently selected.
+    const families = [...new Set(allPairs.map((p) => p.roleFamily).filter((f): f is string => Boolean(f)))].sort();
+    const pairs = roleFamily ? allPairs.filter((p) => p.roleFamily === roleFamily) : allPairs;
+    return NextResponse.json({ ...computeCalibration(pairs), families });
   } catch (error) {
     // calibrationPairs() reads every saved-analysis row, so a transient DB fault
     // (locked mid-write, corrupt file, migration race) surfaces here. Match the

@@ -1,0 +1,181 @@
+{
+  "job": {
+    "id": "cal-034",
+    "title": "Advocate, Patient Empowerment- REMOTE",
+    "company": "Cancer Treatment Centers of America",
+    "role_family": "marketing",
+    "seniority": "medior",
+    "source": "hf:jacob-hugging-face/job-descriptions"
+  },
+  "analysis": {
+    "realStack": [
+      "CompassioNet CRM (CTCA's proprietary system of record for patient/lead records and touchpoints)",
+      "Salesforce (named as the preferred CRM background — the transferable skill behind CompassioNet)",
+      "Contact-center / ACD phone queue technology (call-chat queue, abandon-rate and service-level monitoring)",
+      "Multi-channel inbound tooling: phone, live chat, and email handled concurrently",
+      "The 'Empowerment business rules' — the qualification/credentialing/routing ruleset that governs who is referred where",
+      "The 'CONNECT' qualification model and active-listening/rapport scripts",
+      "Patient-record and touchpoint data-entry workflows (mandatory fields, demographics, qualification data, dropdowns)",
+      "Working oncology / healthcare-services domain knowledge used to triage and route callers"
+    ],
+    "coreResponsibilities": [
+      "Be the first point of contact for prospective cancer patients and caregivers across phone, chat, and email, answering promptly and monitoring the queue to hit abandon-rate and service-level targets",
+      "Qualify every inbound inquiry via active listening and the CONNECT model to determine whether CTCA is a fit, and redirect non-fits to the right resource",
+      "Create accurate records and touchpoints in CompassioNet CRM — capturing all mandatory contact, demographic, and qualification data before any transfer",
+      "Credentialize and refer qualified leads to an Empowerment Facilitator, Advisor, or Government Services Rep per the empowerment business rules",
+      "For non-qualified callers, still deliver the 'Mother Standard of Care' — offer meaningful hope and targeted resources so they leave in a better place",
+      "Hit monthly productivity, efficiency, and patient-experience goals, and continuously self-monitor and build product/oncology knowledge through training"
+    ],
+    "statedVsRealGaps": [
+      "Title and roleFamily ('Advocate, Patient Empowerment' / marketing) oversell the function: the operative work is high-volume inbound lead qualification and intake in a contact center — closer to an inside-sales SDR plus tier-1 customer service than to marketing or independent patient advocacy. Sourcing against 'marketing' would mis-target candidates.",
+      "The 'advocacy/empowerment' language wraps an acquisition function: the JD itself frames the job as part of the 'patient acquisition funnel,' tasks the advocate with 'fostering interest' in CTCA, and grades performance on abandon rate, service level, productivity, and efficiency — these are conversion/throughput metrics, not advocacy outcomes.",
+      "Clinical bar is softer than the prose implies: it says advocates 'must have a solid understanding of oncology' to route correctly, but the actual requirements only 'prefer' a BA and oncology familiarity, requiring instead equivalent CRM/call-center/customer-service experience. The need is a strong communicator who can apply rules, not a clinically trained advisor.",
+      "Underspecified by truncation: the posting cuts off mid-sentence ('strong organiza…'), so compensation, schedule/shift, exact years of experience, and metric thresholds are not stated and can't be reflected.",
+      "Medior target is reasonable but for the right family: real judgment is required (qualifying distressed cancer patients, rule-based routing, type-talk-multitask), yet it is a structured, scripted, individual-contributor role — neither entry-level nor senior/managerial."
+    ],
+    "trueComplexity": "medium",
+    "riskAreas": [
+      "Ethical/emotional tension at the core of the role: vulnerable, often newly diagnosed cancer patients meet sales-style qualification and conversion targets. This drives genuine compassion fatigue/burnout risk and the structural hazard of optimizing 'interest' and goal attainment over the caller's best interest.",
+      "Sensitive-data and likely HIPAA exposure: the advocate captures patient demographics and health context into CRM as 'mandatory data,' but the JD never mentions privacy/compliance training — a data-accuracy and PHI-handling risk that is real even though it's unstated.",
+      "Routing-judgment gap: success depends on correctly triaging by oncology/qualification context, yet the role provides only 'business rules' and training rather than clinical knowledge — mis-qualification or mis-referral can send a serious case to the wrong resource.",
+      "Multitasking load: simultaneous phone/chat/email with 'type, talk, and multitask' under queue-time pressure is a sustained cognitive load that erodes both data quality and patient experience if staffing or tooling is thin.",
+      "Hiring-signal risk for the org: because the title/family and the metrics point in different directions, the wrong profile (a marketer or a clinician) is easy to hire instead of an empathetic, resilient, rules-disciplined contact-center performer."
+    ],
+    "reflection": "Reflected against what the role actually acts on — inbound contacts, a CRM record, and a qualification/routing ruleset rather than a codebase — this is a remote, multi-channel contact-center intake-and-qualification role dressed in patient-advocacy language. The real 'stack' is CompassioNet/Salesforce CRM, an ACD phone-chat queue, and the Empowerment business rules; the real job is to answer fast, qualify with empathy via the CONNECT model, capture clean data, and refer correctly while hitting abandon-rate, service-level, and productivity goals. The honest gap is between framing and function: 'Advocate, Patient Empowerment' and a 'marketing' family describe a role whose evidence is squarely sales-qualification and customer-service in healthcare. Complexity is medium in the role's own terms — the difficulty is human (emotional labor, judgment, multitasking, data discipline) rather than technical, and the clinical bar is lower than the prose suggests. The dominant risk is the ethical and well-being tension of running distressed cancer patients through an acquisition funnel, compounded by unstated privacy/compliance load and a title that invites mis-targeted sourcing. The posting is detailed enough to ground these conclusions, though its mid-sentence truncation leaves comp, schedule, and exact thresholds unknown.",
+    "confidence": 0.78,
+    "promptVersion": "need-analysis-v3"
+  },
+  "role": {
+    "title": "Advocate, Patient Empowerment (Remote)",
+    "seniority": "medior",
+    "roleFamily": "marketing",
+    "mustHaves": [
+      "Proven inbound contact-center or customer-service experience handling phone, live chat, and email concurrently while meeting abandon-rate and service-level targets",
+      "Hands-on CRM proficiency (Salesforce or an equivalent system of record) with disciplined, accurate record and touchpoint creation and completion of all mandatory fields before transfer",
+      "Strong active-listening, rapport-building, and structured questioning skills to qualify callers against a defined model (e.g., a CONNECT-style script)",
+      "Demonstrated ability to apply a rules-based qualification, credentialing, and routing framework (the Empowerment business rules) consistently and accurately",
+      "High empathy and emotional resilience working with distressed patients and caregivers, delivering compassionate service regardless of whether the caller qualifies",
+      "Excellent verbal and written English communication with the multitasking ability to type and document while talking",
+      "Comfort being measured on, and self-managing toward, monthly productivity, efficiency, and patient-experience goals",
+      "Working familiarity with healthcare/oncology terminology sufficient to triage and route inquiries correctly, or the ability to learn it quickly"
+    ],
+    "niceToHaves": [
+      "Bachelor's degree",
+      "Direct oncology or broader healthcare-services domain experience",
+      "Salesforce-specific experience (the transferable skill behind the proprietary CompassioNet CRM)",
+      "Inside-sales, SDR, or lead-qualification background within an acquisition funnel",
+      "Experience working productively in a fully remote contact-center environment"
+    ],
+    "responsibilities": [
+      "Serve as the first point of contact for prospective patients and caregivers across phone, chat, and email, answering promptly and monitoring the queue to meet abandon-rate and service-level goals",
+      "Qualify every inbound inquiry through active listening and the CONNECT model to determine whether CTCA is a fit, and redirect non-fits to the appropriate resource",
+      "Create accurate records and touchpoints in CompassioNet CRM, capturing all mandatory contact, demographic, and qualification data before any transfer",
+      "Credentialize and refer qualified leads to an Empowerment Facilitator, Advisor, or Government Services Rep per the empowerment business rules",
+      "Deliver the Mother Standard of Care on every interaction, including offering hope and targeted resources to callers who do not qualify",
+      "Meet monthly productivity, efficiency, and patient-experience targets while continuously building product and oncology knowledge through ongoing training"
+    ],
+    "languages": [
+      "English"
+    ],
+    "promptVersion": "role-design-v3"
+  },
+  "case": {
+    "title": "Patient Empowerment Advocate — Inbound Intake, Qualification & Routing Work Sample",
+    "brief": "You are stepping into the Advocate, Patient Empowerment seat: the first human a prospective cancer patient or caregiver reaches across phone, chat, and email. Over the next ~90 minutes, work a small batch of real inbound contacts the way you would on shift — qualify each with the CONNECT model, decide whether CTCA is a fit, capture an accurate CompassioNet record, and route qualified inquiries to the right destination under the Empowerment business rules — while holding the Mother Standard of Care on every interaction, including with callers who do not qualify. The materials are deliberately realistic: empowerment_business_rules_v4.pdf does not answer every situation, some contacts are missing information you would normally have, and the metrics you would be measured on (abandon rate, service level, qualified-lead conversion) sometimes pull against what is best for the person on the line. We are not looking for a single 'right answer' to every contact — we are looking at how you decide under those tensions and how clearly you record what you did. Keep a brief DECISIONS log as you go (Task 4); treat it as the handoff note you would leave any teammate, not as a test. This is not a clinical exercise — you are not expected to know oncology — it is an intake-judgment, data-quality, and patient-communication exercise. Work only from the supplied materials; do not invent facts about a caller that the interaction does not give you.",
+    "repoSeed": "A patient-empowerment intake kit handed to you as an Advocate at Cancer Treatment Centers (CTCA) — documents and records, not a codebase. Contents:\n• empowerment_business_rules_v4.pdf — the qualification, credentialing, and routing ruleset. The opening pages define the 'fit' criteria and the four destinations for a qualified inquiry (Empowerment Facilitator, Advisor, Government Services Rep, or external redirect). An 'Exceptions & Re-Routing' section on the last two pages covers returning/existing patients, government-funded coverage (Medicaid / VA / Tricare), and out-of-service-area callers. A 'Mandatory data before transfer' checklist closes the document.\n• CONNECT_model_quickref.pdf — the CONNECT qualification model plus active-listening and rapport scripts, and a one-paragraph statement of the 'Mother Standard of Care.'\n• CompassioNet_intake_record_template.xlsx — the system-of-record form: mandatory contact, demographic, and qualification fields with fixed dropdowns; the 'Qualification Status' field offers only 'Qualified' / 'Not Qualified.'\n• contacts_inbox/ — four real inbound interactions captured across channels:\n   – C-101_phone_transcript.txt — Dolores Hart, newly diagnosed and distressed, on the line herself; a clear fit but emotionally raw.\n   – C-102_chat_log.txt — Kevin Ortega, highly engaged, pushing to 'get started with treatment this week,' but the condition he describes falls outside CTCA's oncology scope.\n   – C-104_email.txt — Priya Anand, writing on behalf of her mother, who is not reachable and speaks little English; the email relays the patient's symptoms and demographics.\n   – C-107_voicemail_transcript.txt — Frank DiMeola, who sounds like a fresh lead but mentions in passing that he 'was treated there a few years back' and is 'on the VA now.'",
+    "tasks": [
+      "Triage and route all four contacts in contacts_inbox/ (C-101, C-102, C-104, C-107). For each, work the CONNECT model and apply empowerment_business_rules_v4.pdf to decide fit / non-fit and the single correct destination (Empowerment Facilitator, Advisor, Government Services Rep, or external redirect). Deliver a routing table with one row per contact: contact ID, fit verdict, destination, and a one-line rationale that cites the specific rule — including any exception — you relied on.",
+      "Complete a CompassioNet intake record for each contact using CompassioNet_intake_record_template.xlsx, filling the mandatory contact, demographic, and qualification fields. Where a mandatory field cannot be responsibly completed from the interaction — or where the available dropdown values do not fit the caller's real status — mark it explicitly and note why, instead of guessing or forcing a value.",
+      "Write the patient-facing reply for the two sensitive, non-standard contacts: a live-chat response to Kevin Ortega (C-102) and an email response to Priya Anand (C-104). Each must deliver the Mother Standard of Care — offer hope and at least one concrete, appropriate resource even where the caller does not qualify or cannot yet be served — and the C-104 reply must handle the third-party / consent situation responsibly.",
+      "Keep a short DECISIONS log (half a page is plenty). For every call where the business rules were silent, ambiguous, or in tension with a metric or with the caller's interest, record three things: what you chose, the alternative you rejected, and the one question you would ask your team lead or clinical contact before this went live."
+    ],
+    "coverProbes": [
+      {
+        "id": "cp-conversion-vs-care",
+        "kind": "ambiguity",
+        "where": "C-102_chat_log.txt — Kevin Ortega is enthusiastic and an easy 'qualified lead' by interest, but the condition he describes falls outside CTCA's oncology scope per the fit criteria in empowerment_business_rules_v4.pdf.",
+        "reveals": "Whether the candidate optimizes goal-attainment / lead capture or the caller's best interest, and whether they explicitly name the structural conflict between conversion targets and the Mother Standard rather than resolving it silently.",
+        "decisionSpace": [
+          "Honestly mark non-fit, redirect Kevin to a better-fit external resource, and still offer hope/resources per the Mother Standard — caller-first, but records a non-fit and 'loses' a lead against conversion targets.",
+          "Capture him as a qualified lead and route inward (Advisor/Facilitator), treating clinical eligibility as the downstream team's call — protects goal-attainment and is defensible as 'not my role to filter,' but risks raising false hope and wasting a vulnerable caller's time.",
+          "Hold and gather the missing eligibility detail before deciding, flagging for a supervisor — most accurate, but adds queue time and may breach abandon-rate / service-level targets."
+        ]
+      },
+      {
+        "id": "cp-third-party-phi",
+        "kind": "underspecified",
+        "where": "C-104_email.txt — Priya relays her mother's demographics and symptoms, but the patient is not on the line, gave no verifiable authorization, and the rules' 'mandatory data before transfer' checklist never mentions consent or PHI handling.",
+        "reveals": "Whether the candidate notices the unstated patient-authorization / PHI risk and treats 'mandatory before transfer' as conditional on consent, versus mechanically completing every health field because the form demands it.",
+        "decisionSpace": [
+          "Capture only what the caregiver volunteers, explicitly flag the missing patient authorization, and route through a path that can obtain consent before full PHI capture — privacy-safe but leaves mandatory fields incomplete.",
+          "Complete all mandatory demographic/health fields straight from the email because the rules say 'mandatory before transfer' — satisfies the rule literally but records third-party PHI without verified authorization.",
+          "Reply requesting the patient's direct contact or written authorization before proceeding — safest, but risks losing a genuinely qualified, time-sensitive oncology lead."
+        ]
+      },
+      {
+        "id": "cp-buried-exception-reroute",
+        "kind": "verification_trap",
+        "where": "C-107_voicemail_transcript.txt — superficially a fresh qualified lead, but the passing mentions of prior treatment and VA coverage trigger the 'Exceptions & Re-Routing' section on the last pages of empowerment_business_rules_v4.pdf (existing-patient queue and/or Government Services Rep).",
+        "reveals": "Whether the candidate reads the full ruleset and the buried detail in the contact before routing, versus pattern-matching the headline 'qualified → Empowerment Facilitator' rule that passes a shallow check but misroutes Frank.",
+        "decisionSpace": [
+          "Read the exceptions section, catch the returning-patient and government-funded flags, and route to the Government Services Rep / existing-patient queue — correct, but only reachable by reading past the headline rule.",
+          "Route to an Empowerment Facilitator on the top-level 'qualified → Facilitator' rule — fast and superficially compliant, but misroutes the caller and likely bounces back.",
+          "Flag the case as ambiguous and ask which queue owns returning + government-funded callers — safe and surfaces a real rules gap, but adds handling time on a contact the rules actually do cover."
+        ]
+      },
+      {
+        "id": "cp-template-cannot-represent",
+        "kind": "legacy_trap",
+        "where": "CompassioNet_intake_record_template.xlsx — the 'Qualification Status' dropdown offers only 'Qualified' / 'Not Qualified,' with no value for a non-fit caller who was given resources or a case pending clinical confirmation (e.g., C-102, C-101).",
+        "reveals": "Whether the candidate inspects the record schema against the real situation before filling it and flags the tooling gap, versus trusting the form and silently degrading the system of record's accuracy.",
+        "decisionSpace": [
+          "Pick the closest available value, but document the mismatch in the notes field and the DECISIONS log and recommend a new status option — accurate to reality and surfaces the tooling gap.",
+          "Force the caller into one of the two dropdown values to keep the record 'complete' — clean and validation-passing, but the system of record now misrepresents the caller's true status downstream.",
+          "Leave the field blocked and escalate the template gap before saving — most honest, but produces an incomplete mandatory record that may fail validation or stall the transfer."
+        ]
+      }
+    ],
+    "timeboxHours": 1.5,
+    "rubricDimensions": [
+      {
+        "name": "framing",
+        "label": "Problem framing",
+        "weight": 0.2,
+        "description": "Turns an ambiguous need into a sound plan."
+      },
+      {
+        "name": "tooling",
+        "label": "Tooling fluency",
+        "weight": 0.25,
+        "description": "Drives AI and other tools well; iterates and verifies."
+      },
+      {
+        "name": "judgment",
+        "label": "Judgment",
+        "weight": 0.25,
+        "description": "Catches AI/tooling mistakes; validates; pushes back."
+      },
+      {
+        "name": "architecture",
+        "label": "Architecture",
+        "weight": 0.15,
+        "description": "Structure and trade-offs that fit the real materials and constraints."
+      },
+      {
+        "name": "transfer",
+        "label": "Transfer",
+        "weight": 0.15,
+        "description": "Capability transfers to THIS role's tools and responsibilities."
+      }
+    ],
+    "promptVersion": "case-design-v5"
+  },
+  "source": "llm",
+  "issues": [],
+  "fallbackReason": {},
+  "promptVersions": {
+    "analyze": "need-analysis-v3",
+    "role": "role-design-v3",
+    "case": "case-design-v5"
+  }
+}

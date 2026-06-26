@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createInterviewSession } from "@/app/_lib/db";
+import { meterGate } from "@/app/_lib/billing";
 import { jsonError } from "@/app/_lib/api-response";
 import { defaultInterviewerInstructions, pickDefaultProvider, voiceAvailability, type VoiceProviderId } from "@/app/_lib/voice";
 import { QUICK_SCREEN_MIN } from "@/app/_lib/interview-duration.mjs";
@@ -55,6 +56,13 @@ export async function POST(request: NextRequest) {
       runOfShow = scenarioRunOfShow(DEMO_CASE_SCENARIO);
       durationMin = DEMO_CASE_SCENARIO.durationMin;
     }
+
+    // Billing hard gate (same meter as a real candidate screen): a simulation mints
+    // a REAL voice session and /complete debits its minutes just like /create, so an
+    // ungated sim let a near-empty meter burn paid voice on kp's dime. Gate on the
+    // booked length for this mode so the whole demo call fits the allowance.
+    const quota = meterGate("interview_minutes", { minUnits: durationMin });
+    if (quota) return NextResponse.json(quota, { status: 402 });
 
     const session = createInterviewSession({
       provider,

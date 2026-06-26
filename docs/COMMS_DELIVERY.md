@@ -137,3 +137,33 @@ Pre-contract rows stored the HTTP code inline (e.g. `failed:500`). `coerceOutbox
 the canonical enum, defaulting unknowns to `failed` (safer to over-report a drop than to
 mislabel one as `sent`/`queued`). The membership, normalization, and retry classification
 are locked by `comms-status.test.ts`.
+
+## 7. Asynchronous bounce / delivery receipts (the `bounced` state)
+
+A relay's HTTP 2xx on send means *"the relay accepted the POST"*, not *"the
+candidate received it"*. The outcomes that decide deliverability for email —
+a hard **bounce**, a spam **complaint**, a **drop** — are asynchronous and arrive
+later, out-of-band. `POST /api/comms/callback` is where a configured relay
+(SendGrid/Mailgun/Postmark/an ATS) reports them back, keyed by the message's
+`ref` (pipeline entry id) + `kind`:
+
+- **Auth is fail-closed.** The endpoint returns `503` unless `COMMS_CALLBACK_SECRET`
+  is set; when it is, every call must present it as the `x-comms-secret` header
+  (or `?secret=`). An unconfigured deployment cannot be poked by a forged receipt.
+- **Bounce-class outcomes** (`isBounceOutcome`: bounced/complaint/spam/dropped/failed)
+  record an **append-only** `bounced` outbox RECEIPT row (`channel = relay-callback`,
+  `body = the bounce detail`). Positive/soft outcomes (delivered/opened/deferred) are
+  accepted with `{ recorded: false }` so the relay stops retrying, but are not yet
+  surfaced (future engagement feed).
+- **The receipt supersedes the green `sent`.** `deriveCommsView` (`comms-view.ts`)
+  folds a `bounced` receipt onto its originating `sent` row — the row's derived
+  `bounced` flag flips it to a red **bounced** badge in the Comms Center, makes it
+  actionable (it joins the dead-letter "needs attention" set), and carries the
+  bounce detail. This mirrors the inverse `recovered` derivation (a later OK
+  supersedes a `failed`). The original `sent` row stays as the audit record; a
+  resend issued *after* the bounce is a fresh, un-superseded send. The supersession
+  logic is locked by `comms-view.test.ts`.
+
+This is why "sent" is no longer read as success on its own: a hard bounce at the
+offer/rejection moment is exactly the reputation-sensitive failure a recruiter must
+chase, not trust as delivered.

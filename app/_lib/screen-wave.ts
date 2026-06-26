@@ -5,6 +5,7 @@ import { DecisionConfigError, screenBottomCount, tieSafeBottomCount, validateScr
 import { dispatchRejection } from "./comms-dispatch";
 import { isFairnessProtected, isKnownArchetype } from "./archetypes";
 import { screenWaveApprovalToken, ScreenWaveApprovalError } from "./screen-wave-approval";
+import { operatorApprover } from "./auth/operator-approver";
 
 export { ScreenWaveApprovalError } from "./screen-wave-approval";
 
@@ -182,7 +183,7 @@ export async function runScreenWave(
       );
     }
   }
-  const approvedBy = opts?.approval?.approvedBy?.trim() || "operator";
+  const approvedBy = opts?.approval?.approvedBy?.trim() || operatorApprover();
 
   const decisions: ScreenDecision[] = [];
   let rejected = 0;

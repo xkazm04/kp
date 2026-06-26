@@ -1,0 +1,197 @@
+{
+  "job": {
+    "id": "cal-030",
+    "title": "Senior UI Designer",
+    "company": "Deloitte",
+    "role_family": "design",
+    "seniority": "senior",
+    "source": "hf:jacob-hugging-face/job-descriptions"
+  },
+  "analysis": {
+    "realStack": [
+      "Sketch (primary UI design tool named)",
+      "InVision (prototyping/handoff)",
+      "Adobe Illustrator (vector, icons, custom illustration)",
+      "Adobe After Effects (motion / interaction comms)",
+      "Principle for Mac (interaction & motion prototyping)",
+      "Framer (interaction/motion prototyping)",
+      "Enterprise design systems (component libraries, tokens, governance at scale)",
+      "Brand systems: color palettes, type ramps/typographic scale, brand voice translation",
+      "Cross-platform UI design for responsive web + native mobile (iOS / Android patterns)",
+      "Pixel-perfect production design files & web optimization/production methods",
+      "Custom icon and illustration production",
+      "Art direction & design critique / feedback practice",
+      "Client presentation & stakeholder communication artifacts (decks, design rationale)"
+    ],
+    "coreResponsibilities": [
+      "Act as lead or contributing designer on client and internal projects, owning the visual/UI craft",
+      "Produce on-brand, pixel-perfect UI for mobile apps and responsive sites that extend the client's brand voice and business strategy, user-first",
+      "Present and defend design work across design, UX, and development teams",
+      "Collaborate cross-functionally with developers, engagement managers, and UX designers on client-facing and internal work",
+      "Provide constructive art direction to peer designers",
+      "Communicate interaction and motion design using motion tooling",
+      "Build and extend enterprise-scale design systems, icons, and custom illustration",
+      "Contribute to improving the studio's creative process and capabilities while flexing across projects of varying length and complexity"
+    ],
+    "statedVsRealGaps": [
+      "Stated toolchain (Sketch + InVision) reads slightly dated against the current Figma-dominant industry standard; a real candidate pool will be largely Figma-native, so the listed stack may understate the actual or expected toolset.",
+      "'Cross-platform web & mobile development experience (iOS, Android)' is framed like engineering but the real need is design-for-platform fluency (platform conventions, handoff), not coding — easy to mis-screen against.",
+      "The 'years of related design experience' figure is blank in the posting, so the seniority bar can only be inferred from the 'senior' title, not verified from the JD.",
+      "Roughly 60–70% of the text is Deloitte boilerplate (EEO, benefits, culture, legal entity); the genuine role signal is a small fraction, which can inflate perceived specificity.",
+      "'Lead or contributing designer' is deliberately ambiguous — unclear whether this is a true lead with mentoring/art-direction authority or a senior IC, which materially changes the level and comp calibration.",
+      "Heavy emphasis on 'business strategy' and 'drive growth' signals a consultative/strategic expectation beyond visual execution that the craft-heavy bullets (color, type ramp, pixel-perfect) underplay."
+    ],
+    "trueComplexity": "high",
+    "riskAreas": [
+      "Unicorn-hunting: the JD spans deep UI craft + motion + illustration + enterprise design systems + art direction + client consulting — few candidates are strong across all, risking an unfillable or over-broad spec.",
+      "Hard legal gate: must be US-authorized with no sponsorship ever, which narrows the pool independent of skill.",
+      "Consulting-environment fit: billable, multi-client context-switching and 'varying length and complexity' projects; designers from in-house/product backgrounds may struggle with the agency cadence.",
+      "Tooling mismatch in both directions — Figma-native applicants vs the Sketch/InVision stack named, and the listed stack possibly signaling an older toolchain.",
+      "Level ambiguity ('lead or contributing', missing years) makes seniority and scope hard to calibrate, risking mis-leveled offers.",
+      "No codebase or work product supplied to reflect against, so the assessment rests entirely on JD text and cannot validate the team's real design-system maturity or true bar."
+    ],
+    "reflection": "This is a JD-only design need with no codebase, which is normal for a visual/UI design role — the right 'body of work' here is the studio's brand systems, design systems, and client deliverables, not source code. The genuine signal beneath heavy Deloitte boilerplate is a senior UI designer for Deloitte Digital's Advertising, Marketing & Commerce offering who must pair high visual craft (pixel-perfect, methodical color and type ramps, on-brand cross-platform UI with motion) with consulting muscle: presenting work, art-directing peers, and tying design to client business strategy. The real complexity is in the combination — enterprise design-system thinking + cross-platform + motion/illustration + client-facing lead — rather than any single axis, which justifies a high rating in design terms. The most honest divergences are the slightly dated stated toolchain (Sketch/InVision vs today's Figma norm), the 'mobile development' line that actually means design-for-platform rather than engineering, and a missing experience-years figure that forces seniority to be inferred from the title alone. Confidence is bounded by the absence of any work product and by the fact that most of the posting is non-role boilerplate, but the responsibility bullets are rich enough to extract a clear, grounded picture.",
+    "confidence": 0.72,
+    "promptVersion": "need-analysis-v3"
+  },
+  "role": {
+    "title": "Senior UI Designer",
+    "seniority": "senior",
+    "roleFamily": "design",
+    "mustHaves": [
+      "Senior-level visual/UI design craft: methodical color palettes, type ramps/typographic scale, and brand systems that translate a client's brand voice and business strategy into the interface",
+      "Production of pixel-perfect UI design files for both responsive web and native mobile, applying iOS and Android platform conventions (design-for-platform fluency, not coding)",
+      "Fluency in industry-standard digital design tooling for UI and prototyping/handoff (the JD names Sketch, InVision, and Illustrator; equivalent Figma-native fluency is acceptable and expected in the current market)",
+      "Vector and illustration craft in Illustrator: producing custom icons and bespoke illustrations for digital experiences",
+      "Building and extending design systems for enterprise-level experiences — components, tokens, and patterns governed at scale",
+      "Communicating interaction and motion design using at least one motion tool (After Effects, Principle for Mac, or Framer)",
+      "Web optimization and production methods that keep designs implementable and performant",
+      "Acting as lead or contributing designer end-to-end on a project, presenting and defending work across design, UX, and development teams",
+      "Providing constructive art direction and design critique to peer designers, and taking feedback to improve the work",
+      "Cross-functional collaboration with developers, engagement managers, and UX designers on client-facing and internal deliverables",
+      "A developed personal design style with the ability to scale and adapt it to each project's creative vision and business strategy, putting the user first"
+    ],
+    "niceToHaves": [
+      "Experience working in a consulting or client-services / agency environment, flexing across projects of varying length and complexity",
+      "Strategic fluency in tying visual decisions to business strategy and growth, beyond pure execution",
+      "Track record of standing up design systems specifically for enterprise-scale, multi-platform product portfolios",
+      "Figma proficiency (modern equivalent to the JD's Sketch/InVision stack)",
+      "Participation in the wider design community (e.g. AIGA, Creative Mornings) and connections with creative organizations",
+      "Experience contributing to and improving a studio's creative process, tooling, and capabilities",
+      "Comfort presenting design rationale to clients and senior stakeholders via decks and structured critique"
+    ],
+    "responsibilities": [
+      "Act as the lead or contributing designer on client and internal projects, owning UI craft from concept to pixel-perfect, production-ready files",
+      "Create on-brand UI for mobile apps and responsive websites that act as a seamless extension of the client's brand voice and business strategy, while keeping the user first",
+      "Present design work across design, UX, and development teams and defend the rationale behind it",
+      "Collaborate with developers, engagement managers, and UX designers to deliver high-quality creative for internal and client-facing projects",
+      "Provide constructive art direction alongside fellow designers and integrate feedback to raise the bar",
+      "Communicate interaction and motion design using motion tooling to make intended behavior unambiguous",
+      "Build and extend enterprise-scale design systems and produce custom icons and illustrations for experiences",
+      "Contribute to improvements in the studio's creative process and capabilities while flexing across projects of varying length and complexity"
+    ],
+    "languages": [
+      "English"
+    ],
+    "promptVersion": "role-design-v3"
+  },
+  "case": {
+    "title": "Meridian \"Goals\" — Senior UI Design Work Sample",
+    "brief": "You are the lead UI designer on a billable engagement for Meridian, a personal-finance app (native iOS/Android + responsive web) whose design system and brand we maintain. The client wants to add \"Goals\" — a way for people to set and track savings goals — \"so users feel motivated to keep saving.\" That one sentence, plus an engagement-manager note, is all the direction we have; the real success metric and scope were never pinned down. Your job is to take it from concept to production-ready UI that reads as a seamless extension of Meridian's brand and existing product, contribute the new pieces cleanly back into their enterprise design system, and make the intended interaction/motion unambiguous to the developers who will build it. You will present and defend this in an internal critique before it goes to the client.\n\nWork in the studio's stack (Sketch + InVision); if you design in another tool, export so the work is reviewable and note the handoff implication. The materials below are representative of a typical engagement (the client's live files aren't shareable in a work sample) — treat them as the real system of record. This is timeboxed to ~2 hours: go for depth and defensible judgment over breadth, and don't pad the deliverable. As you go, keep a short DECISIONS log — that's normal practice here, not a test: for every call you made where the brief left it open, jot what you chose, the alternative you set aside, and what you'd have asked the Meridian team. The point of this exercise is the thinking behind the pixels as much as the pixels.",
+    "repoSeed": "A handoff folder representing the Meridian engagement: (1) `Atlas-DesignSystem.sketch` — the client's enterprise UI library: a Foundations page (color styles, an 8pt spacing scale, elevation, a type ramp named Display / Heading / Title / Body / Caption) and a Components page (buttons with default/hover/pressed/disabled, inputs, cards, list rows, tab bar, top app bar). Note it carries history: an old v1 `Bar/Progress` linear-fill symbol AND a newer `Meter` component coexist, and the color layer styles are named in product terms (e.g. `Meridian/Teal-600`, `Meridian/Green-400`). (2) `design-tokens.json` — the developers' token export, but only colors + spacing are covered, and it uses a different naming convention than the Sketch file (`color.brand.primary`, `color.accent.success`), so names don't map 1:1. (3) `Meridian-Brand-Guidelines.pdf` — palette with hex values (including an \"encouraging\" success green ~#7FD17F and the teal brand primary), the type ramp, logo usage, and a voice of \"confident, human, precise.\" (4) `Dashboard-Current.sketch` + an InVision link to the live dashboard and account flows, showing current patterns and density. (5) `Brief-Goals.md` — the client's one-paragraph ask plus an EM note: \"launch window is tight, dev team is small, reuse what exists where you can; client loves polish but we own the production cost.\" No platform priority, no metric, no content spec.",
+    "tasks": [
+      "Design the Goals experience: the dashboard Goals summary card and the goal-detail view, at mobile (375pt) and one responsive web breakpoint (≥1024px), production-ready and on-brand using Atlas + the brand guidelines. Cover the real states — empty / in-progress / at-risk (behind pace) / complete / over-target — and use realistic content (long goal names, large and tiny dollar amounts, 0% and 100%).",
+      "Contribute the new/extended pieces back to the design system as reusable library work: define the goal-progress component (states, variants, tokens, naming consistent with Atlas), produce the one custom icon or small illustration the module needs, and write a short governance note — what you created new, what you reused, and anything in the existing library you'd reconcile or deprecate and why.",
+      "Pick the single most important interaction or motion moment in the flow and communicate it unambiguously using a motion tool (After Effects, Principle, or Framer): specify trigger, timing, easing, sequence, what is functional vs. decorative, and the reduced-motion behavior. A short clip or tightly annotated frames is fine — the goal is that a developer could build it without guessing.",
+      "Keep a short DECISIONS log (every open call: what you chose, the alternative you rejected, what you'd ask the Meridian team) and a one-page rationale you could present and defend in critique, including any tooling/handoff assumptions you made."
+    ],
+    "coverProbes": [
+      {
+        "id": "scope-and-platform",
+        "kind": "underspecified",
+        "where": "Brief-Goals.md: \"add Goals so users feel motivated,\" with no stated scope, primary platform, or success metric.",
+        "reveals": "A strong senior designer names the ambiguity, states an explicit interpretation of what 'motivating' and 'done' mean, picks a primary platform on a stated reason, and lists what they'd confirm with the client; a naive submission silently designs a generic happy-path screen as if the requirement were fully specified.",
+        "decisionSpace": [
+          "Scope it as a focused dashboard widget that reuses existing nav and surfaces — fastest, lowest production cost, defers a full feature but ships within the tight window.",
+          "Design it mobile-first as the hero of a new tab — richer and more motivating, but heavier to build and a bigger nav change to justify to the client.",
+          "Design web-first because finance power users plan on desktop — better for goal setup, but risks under-serving the more frequent mobile check-in moment."
+        ]
+      },
+      {
+        "id": "legacy-progress-and-tokens",
+        "kind": "legacy_trap",
+        "where": "Atlas-DesignSystem.sketch ships both an old `Bar/Progress` v1 symbol and a newer `Meter` component, and design-tokens.json names (`color.brand.primary`) don't map cleanly to the Sketch layer-style names (`Meridian/Teal-600`).",
+        "reveals": "A candidate who reads the library before generating discovers the duplicate progress patterns and the token-naming drift and reconciles them; one who one-shots a fresh progress bar from scratch quietly forks the system and ignores the existing tokens, creating divergence the dev team inherits.",
+        "decisionSpace": [
+          "Extend the existing `Meter` component — maximal consistency and least new surface, but you inherit its current limitations.",
+          "Build a new progress component mapped to the existing tokens and propose deprecating `Bar/Progress` with a migration note — cleaner long-term, but adds DS work and needs the client's DS team to buy in.",
+          "Fork a local variant for this engagement and flag the duplication + token drift as system debt — unblocks the deadline, but defers the real fix and risks the fork becoming permanent."
+        ]
+      },
+      {
+        "id": "contrast-and-real-content",
+        "kind": "verification_trap",
+        "where": "The brand 'encouraging' green (~#7FD17F) used for progress fills/labels on white, plus celebratory accents, and edge content (long names, $ amounts, 0%/100%/over-target, empty).",
+        "reveals": "One-shot generation yields a pretty happy-path mockup where the green-on-white text/iconography fails WCAG contrast, touch targets are too small, and real content overflows; a strong candidate verifies contrast ratios and target sizes, designs the awkward states, and resolves the brand-vs-accessibility tension explicitly.",
+        "decisionSpace": [
+          "Keep the brand green as a non-text fill only and pair it with an accessible text/icon color, documenting the rule — preserves brand exactly, adds a usage constraint.",
+          "Darken/adjust the green to meet contrast and propose the corrected value back to the token set — fixes it system-wide, but changes a brand color and needs client sign-off.",
+          "Restrict the at-risk color to large-text/decorative use per WCAG and choose a different color for small/critical elements — compliant and pragmatic, but introduces a second 'success' color to govern."
+        ]
+      },
+      {
+        "id": "motion-intent",
+        "kind": "ambiguity",
+        "where": "Task 3 / Brief-Goals.md: making goal progress and completion 'feel rewarding,' with motion tool choice and fidelity left to the designer.",
+        "reveals": "A naive answer hand-waves 'a confetti animation'; a senior answer specifies trigger/timing/easing/sequence, separates functional from decorative motion, defines reduced-motion behavior, and picks the tool to match the production and performance budget the EM flagged — showing dev empathy, not just delight.",
+        "decisionSpace": [
+          "A restrained system-native micro-interaction communicated in Principle/Framer — cheap to build, reusable, on-brand-calm, but lower 'wow.'",
+          "A bespoke celebration authored in After Effects for Lottie — higher delight, but more production cost and perf/dev overhead to justify on a tight timeline.",
+          "A tiered approach: a restrained default plus an optional richer moment gated by reduced-motion/performance — best coverage, but more to spec and maintain."
+        ]
+      }
+    ],
+    "timeboxHours": 2.0,
+    "rubricDimensions": [
+      {
+        "name": "framing",
+        "label": "Problem framing",
+        "weight": 0.2,
+        "description": "Turns an ambiguous need into a sound plan."
+      },
+      {
+        "name": "tooling",
+        "label": "Tooling fluency",
+        "weight": 0.25,
+        "description": "Drives AI and other tools well; iterates and verifies."
+      },
+      {
+        "name": "judgment",
+        "label": "Judgment",
+        "weight": 0.25,
+        "description": "Catches AI/tooling mistakes; validates; pushes back."
+      },
+      {
+        "name": "architecture",
+        "label": "Architecture",
+        "weight": 0.15,
+        "description": "Structure and trade-offs that fit the real materials and constraints."
+      },
+      {
+        "name": "transfer",
+        "label": "Transfer",
+        "weight": 0.15,
+        "description": "Capability transfers to THIS role's tools and responsibilities."
+      }
+    ],
+    "promptVersion": "case-design-v5"
+  },
+  "source": "llm",
+  "issues": [],
+  "fallbackReason": {},
+  "promptVersions": {
+    "analyze": "need-analysis-v3",
+    "role": "role-design-v3",
+    "case": "case-design-v5"
+  }
+}

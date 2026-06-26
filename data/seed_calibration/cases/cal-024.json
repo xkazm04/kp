@@ -1,0 +1,185 @@
+{
+  "job": {
+    "id": "cal-024",
+    "title": "Account Executive (Inside Sales)",
+    "company": "TQL",
+    "role_family": "sales",
+    "seniority": "medior",
+    "source": "hf:jacob-hugging-face/job-descriptions"
+  },
+  "analysis": {
+    "realStack": [
+      "TQL proprietary transportation management system (TMS) / load-tracking platform",
+      "CRM for owning and growing a personal book of business",
+      "Outbound phone / dialer for cold prospecting (calls are the primary tool)",
+      "Freight load boards and capacity sources (e.g. DAT, Truckstop-style boards) for sourcing carriers",
+      "Shipper and carrier contact/relationship databases",
+      "Rate / pricing and margin data used to quote and negotiate both sides",
+      "Email and internal collaboration tools for proactive status comms",
+      "Spreadsheets (Excel) for pipeline, shipment, and margin tracking"
+    ],
+    "coreResponsibilities": [
+      "Prospect via high-volume outbound calls and build a book of business from the ground up",
+      "Sell and close new and existing shippers to win their freight",
+      "Negotiate price on both sides of the deal — with shippers (revenue) and carriers (cost) — while protecting margin",
+      "Operationally manage live daily shipments end-to-end, resolving issues so pickup and delivery stay on time",
+      "Act as the customer's single point of contact, owning the account and the outcome",
+      "Communicate honestly and proactively with customers, carriers, and internal teams"
+    ],
+    "statedVsRealGaps": [
+      "Framed as a 'sales career,' but it is really a sales + logistics-operations hybrid (freight brokerage): you also coordinate live loads, chase carriers, and firefight exceptions — the operational/after-hours load is understated.",
+      "'Ability to work with the latest technologies' is vague window-dressing; the real requirement is fluency in a proprietary TMS, a CRM, and load boards — process and data discipline, not generic tech aptitude.",
+      "'Uncapped commission' and 'financial freedom' headline the upside, but the comp is base + commission on a high-pressure floor with a long ramp before a book pays out — repeated 'work harder than anyone you know' signals grind and long hours.",
+      "Hiring bar is explicitly NOT credentials or even prior sales experience (degree 'preferred,' 'diverse backgrounds') — the true screen is grit, coachability, and conflict tolerance, so resume-based filtering will mislead.",
+      "'Single point of contact, every time' implies real-time responsiveness and availability the JD never quantifies.",
+      "Location ambiguity: paid relocation points to Cincinnati HQ for training, but the posted office is Columbus (South Front Street) — onboarding vs. work site differ."
+    ],
+    "trueComplexity": "medium",
+    "riskAreas": [
+      "High attrition / burnout: a commission-driven floor plus 'work harder than anyone' is a classic wash-out profile; many leave before a book matures.",
+      "Ramp risk: building from zero means a long low-earning runway, which both stresses the new hire and inflates cost-per-productive-rep.",
+      "Two-sided negotiation and margin management are harder than the 'sales' label suggests — mispricing quietly erodes profitability even when volume looks good.",
+      "Operational liability: managing live freight means real consequences (missed pickups, service failures, claims) and unpredictable after-hours demands.",
+      "Expectation mismatch: candidates lured by 'financial freedom' may underestimate the cold-calling volume and operational firefighting, driving early regret quits.",
+      "Relocation/geography friction between Cincinnati training and a Columbus office can dampen acceptance and early retention."
+    ],
+    "reflection": "There is no codebase here, which is exactly right for a freight-brokerage inside-sales role — the absence of a tech stack is not a defect. The JD is rich enough to extract the real work: this is a hunter-operator hybrid where the rep prospects by phone, closes shippers, sources and negotiates carriers, and then personally babysits live loads to delivery. Reflected against the actual body of work the role acts on (a TMS, a CRM, load boards, and a self-built book), the dominant demands are behavioral and operational, not technical — resilience under rejection, two-sided negotiation, multitasking on live shipments, and learning a proprietary platform fast. The biggest divergence between what TQL says and what the evidence shows is framing: it is sold as a sales career with uncapped earnings, but it is a high-grind sales + logistics-ops job with a long ramp and well-known industry attrition, and the 'latest technologies' line overstates the tech bar while understating the operational one. Complexity is medium — low barrier to entry, but a steep, pressured learning curve and a real cost-of-failure once you are moving freight.",
+    "confidence": 0.62,
+    "promptVersion": "need-analysis-v3"
+  },
+  "role": {
+    "title": "Account Executive (Inside Sales)",
+    "seniority": "medior",
+    "roleFamily": "sales",
+    "mustHaves": [
+      "Sustained high-volume outbound prospecting (cold calling) to build a book of business from the ground up — living on the phone is the core of the job, not an occasional task",
+      "Two-sided price negotiation: win revenue from shippers and buy capacity from carriers in the same deal while actively protecting margin",
+      "Operational ownership of live daily shipments end-to-end — track loads, chase carriers, and resolve exceptions so pickup and delivery stay on time, including off-hours firefighting",
+      "Fast fluency in a proprietary TMS plus a CRM and freight load boards (e.g. DAT, Truckstop) — process and data discipline rather than generic 'tech aptitude'",
+      "Account ownership as the customer's single point of contact, with real-time responsiveness and personal accountability for the outcome",
+      "Resilience and conflict tolerance on a high-pressure sales floor, with the drive to outwork peers through a long ramp before a book pays out",
+      "Demonstrated sales results — prior closing, quota attainment, or comparable revenue ownership (medior bar above pure entry-level)",
+      "Obsession with customer service and honest, proactive communication with shippers, carriers, and internal teams"
+    ],
+    "niceToHaves": [
+      "Prior freight brokerage, 3PL, logistics, or transportation sales experience",
+      "An existing book of business or established shipper/carrier relationships",
+      "Hands-on experience with DAT or Truckstop load boards",
+      "CRM pipeline management experience (e.g. Salesforce)",
+      "Strong spreadsheet skills (Excel) for pipeline, shipment, and margin tracking",
+      "College degree (preferred, not required)",
+      "Spanish or another second language for broader carrier and shipper coverage"
+    ],
+    "responsibilities": [
+      "Prospect via high-volume outbound calls and build a personal book of business from scratch",
+      "Sell and close new and existing shippers to win and grow their freight",
+      "Negotiate price on both sides of the deal — shipper revenue and carrier cost — while protecting margin",
+      "Manage live daily shipments end-to-end, resolving issues to ensure on-time pickup and delivery",
+      "Serve as the customer's single point of contact, owning the account and the result every time",
+      "Communicate honestly and proactively with customers, carriers, and internal teams"
+    ],
+    "languages": [
+      "English"
+    ],
+    "promptVersion": "role-design-v3"
+  },
+  "case": {
+    "title": "Two-Sided Freight Desk: Quote, Recover, and Grow the Buckeye Account",
+    "brief": "This is a live simulation of a normal hour on a TQL inside-sales desk. You own the Buckeye Building Products account: you quote their freight, source and negotiate the carriers who haul it, manage the loads while they're rolling, and grow the relationship — all while protecting margin. You've been handed the same materials a rep has on screen: the CRM account record, an inbound quote request, a DAT-style load-board snapshot for the lane, your carrier contact list, the desk's pricing/margin policy, and a live shipment that's slipping. The materials are synthetic but realistic; treat them as ground truth and don't invent facts that aren't in them. Work the way the desk actually works — phone-first, proactive comms, margin discipline — and where a number or piece of writing would help, produce it (a quote, an email, a call opener, a recovery plan). We assume your written outputs may be drafted with AI help; that is fine and is not what we're scoring. What we're scoring is judgment: which carrier you trust, what you commit to a customer under pressure, how you read the account's history before you sell into it, and where you hold or release margin. Several of these inputs are deliberately incomplete or have a catch — that's the job, not a trick. Timebox is 1.5 hours; depth on the calls you make beats volume. Throughout, keep the short DECISIONS log described in Task 4 — that's standard desk practice so a teammate can cover your account.",
+    "repoSeed": "A bundle of starting materials for the Buckeye Building Products account, a building-materials distributor headquartered near the Columbus, OH office: (1) account_buckeye_building_products.md — CRM record: primary contact Dana Whitfield (Logistics Coordinator), ~8–12 loads/month, Net-30 terms, lanes out of Columbus, and a NOTES section recording a damage claim ~4 months ago on drywall hauled by carrier 'Roadrunner Expedite' (claim still shows partially open), one invoice currently ~12 days past due, and a note that Dana prefers a phone call to email and is highly sensitive to missed delivery windows because job-site crews are scheduled tight; (2) quote_request_email.txt — Dana asking for a quote on a NEW lane, Columbus OH 43004 → Atlanta GA 30336, dry van, with several details left loose: 'about a full truck' of drywall (no firm weight), no statement of whether it's palletized or floor-loaded, a pickup window given as 'early next week,' and no mention of whether the Atlanta consignee requires a scheduled delivery appointment; (3) dat_lane_snapshot.csv — load-board view of the lane: market-average linehaul, low/high band, current fuel surcharge per mile, plus four carrier postings — including one unusually low rate from an unfamiliar carrier and one slightly-higher rate from a carrier you've used before; note one column header makes clear several postings are LINEHAUL-ONLY (fuel/accessorials not included); (4) carrier_contacts.xlsx (described) — your carrier list with MC#, insurance-expiry date, on-time %, and notes; the cheap unfamiliar carrier either isn't in the list or carries an expired-insurance / low-on-time / 'double-brokering suspected' flag, while the known carrier shows current insurance and 95%+ on-time; (5) pricing_margin_policy.md — desk guidance: target ~15% margin, hard floor 10%, a reminder that quotes to shippers must be all-in (linehaul + fuel + likely accessorials such as detention or a delivery appointment), and a line on weighing lifetime account value when a deal is tight; (6) live_shipment_tracker.txt — a SEPARATE in-transit Buckeye load, TQL-5538xx, Columbus → Nashville, where the carrier's truck just went down and pickup is now ~3 hours behind, against a firm 7:00 AM next-day delivery appointment the consignee won't move.",
+    "tasks": [
+      "Price the Columbus → Atlanta load on BOTH sides and structure the deal. Produce the all-in quote you'd give Dana (show how linehaul + fuel + any accessorials build to the sell rate) and your carrier-sourcing plan: which posting you'd book, your target buy rate, and how you'd negotiate it. Show the resulting margin against the policy. Where the quote request is missing details, make and clearly state your assumptions rather than stalling — and call out which assumptions you'd confirm with Dana before the rate is firm.",
+      "Recover the live TQL-5538xx shipment. Decide your plan to protect (or honestly renegotiate) the 7:00 AM Nashville appointment now that the truck is down, then write the proactive comms it requires: a message to Dana, a message/ask to the carrier (or a re-cover plan if you pull off this carrier), and a one-line internal note. Be explicit about what you will and will not commit to the customer, and why.",
+      "Read the Buckeye account and choose the next best action to grow AND protect it. Using the CRM history, lay out how you'd approach the account on your next contact — what you lead with, which channel, what you do about the open claim and the past-due invoice, and any carrier you'd avoid — then a light 2–3 touch plan to win more of their freight. This is book-building, so weigh the lifetime value of the account against the margin on any single load.",
+      "Keep a DECISIONS log. For every call you made where the materials were open or conflicting — the loose load details, which carrier to trust, what to commit on the late load, how much margin to hold to win the account — record in 3–8 short lines: what you chose, the alternative you rejected, and the one question you'd put to your manager or the customer to confirm it. Treat this as the handoff note a teammate would need to cover your desk, not as a test."
+    ],
+    "coverProbes": [
+      {
+        "id": "loose-load-details",
+        "kind": "underspecified",
+        "where": "quote_request_email.txt — 'about a full truck' of drywall with no firm weight, no palletized/floor-loaded statement, a vague 'early next week' pickup, and no word on whether Atlanta requires a delivery appointment.",
+        "reveals": "A strong candidate quotes with explicitly stated assumptions (or a banded range) and names the 2–3 specifics they'd confirm with Dana before the number is firm, because weight, dunnage, and an appointment requirement all move the carrier cost and the accessorials. A naive one-shot answer silently picks a single number as if the request were complete, hiding the risk it's mispriced.",
+        "decisionSpace": [
+          "Give a firm all-in quote built on documented assumptions (assumed legal weight, palletized, FCFS delivery) and flag that it re-rates if any assumption breaks.",
+          "Quote a range pending confirmed weight/dunnage/appointment, trading a less 'closed' feel for not committing to a number you can't stand behind.",
+          "Hold the firm rate, get Dana on the phone to lock the 2–3 specifics first, accepting a slight delay to protect both margin and the relationship."
+        ]
+      },
+      {
+        "id": "too-good-carrier-rate",
+        "kind": "verification_trap",
+        "where": "dat_lane_snapshot.csv — the unusually low posting from the unfamiliar carrier, cross-referenced against carrier_contacts.xlsx (expired insurance / low on-time / double-broker flag) and the LINEHAIL-ONLY column note.",
+        "reveals": "Booking the cheap posting passes the shallow check — the margin looks fat — but it's subtly wrong: the rate is linehaul-only so true cost is higher once fuel/accessorials are added, and the carrier fails vetting. A strong candidate verifies the carrier record and reconstructs the all-in buy before reporting margin; a naive one books the lowest number and reports an inflated, unreal margin that would either collapse or blow up into a service failure.",
+        "decisionSpace": [
+          "Book the low carrier for maximum headline margin (defensible only if they actually vet out and the rate is genuinely all-in — here they don't).",
+          "Use the known 95%-on-time carrier at the higher buy rate for a thinner but real and reliable margin, prioritizing service on a claim-scarred account.",
+          "Keep the aggressive buy target but re-quote the shipper to cover the true all-in cost, protecting margin by moving the sell rate rather than the carrier."
+        ]
+      },
+      {
+        "id": "account-history-landmine",
+        "kind": "legacy_trap",
+        "where": "account_buckeye_building_products.md — NOTES recording the open Roadrunner Expedite damage claim, the ~12-day past-due invoice, and Dana's phone-over-email preference.",
+        "reveals": "A candidate who reads the CRM before selling catches the landmines: don't route this load on Roadrunner, address the open claim and the past-due balance before or alongside any upsell, and reach out by phone. One who one-shots a generic growth email steps directly on the unresolved claim, ignores a credit-risk signal, and uses the wrong channel — eroding the very trust they're trying to grow.",
+        "decisionSpace": [
+          "Lead by closing out the prior claim and clearing the past-due balance to rebuild trust first, then grow — slower, but durable on a sensitive account.",
+          "Proceed with the growth pitch but proactively name the claim, steer freight away from Roadrunner, and call rather than email — momentum with the history acknowledged.",
+          "Run a standard upsell that ignores the history (the naive default a good candidate explicitly rejects, and notes why)."
+        ]
+      },
+      {
+        "id": "margin-floor-vs-winning",
+        "kind": "ambiguity",
+        "where": "pricing_margin_policy.md (target ~15%, floor 10%, lifetime-value note) set against the new Atlanta load and a past-due, claim-scarred account where holding target may lose the freight.",
+        "reveals": "A strong candidate makes the margin call explicitly — tying it to the account's lifetime value, naming the floor they won't cross, and ideally trading the concession for something (volume commitment, faster pay to clear the past-due). A naive answer either blindly holds target and loses winnable freight, or quietly gives margin away with no floor and no exchange.",
+        "decisionSpace": [
+          "Hold target ~15% and risk losing this load, betting on margin discipline over a single win.",
+          "Price toward the 10% floor to win the lane and grow the book, accepting a thin first load as an investment in volume.",
+          "Concede rate only in exchange for a commitment — committed volume, a faster-pay term to clear the past-due, or a second lane — protecting blended margin instead of the single-load margin."
+        ]
+      }
+    ],
+    "timeboxHours": 1.5,
+    "rubricDimensions": [
+      {
+        "name": "framing",
+        "label": "Problem framing",
+        "weight": 0.2,
+        "description": "Turns an ambiguous need into a sound plan."
+      },
+      {
+        "name": "tooling",
+        "label": "Tooling fluency",
+        "weight": 0.25,
+        "description": "Drives AI and other tools well; iterates and verifies."
+      },
+      {
+        "name": "judgment",
+        "label": "Judgment",
+        "weight": 0.25,
+        "description": "Catches AI/tooling mistakes; validates; pushes back."
+      },
+      {
+        "name": "architecture",
+        "label": "Architecture",
+        "weight": 0.15,
+        "description": "Structure and trade-offs that fit the real materials and constraints."
+      },
+      {
+        "name": "transfer",
+        "label": "Transfer",
+        "weight": 0.15,
+        "description": "Capability transfers to THIS role's tools and responsibilities."
+      }
+    ],
+    "promptVersion": "case-design-v5"
+  },
+  "source": "llm",
+  "issues": [],
+  "fallbackReason": {},
+  "promptVersions": {
+    "analyze": "need-analysis-v3",
+    "role": "role-design-v3",
+    "case": "case-design-v5"
+  }
+}

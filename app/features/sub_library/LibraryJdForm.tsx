@@ -1,14 +1,19 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Check, Loader2, Save } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { JD_BODY_MAX_LENGTH, JD_TITLE_MAX_LENGTH, validateJdFields } from "@/app/_lib/jd-limits";
+import { lintJd } from "@/app/_lib/jd-lint";
+import { JdLintPanel } from "./JdLintPanel";
 
 export function LibraryJdForm({ onSaved }: { onSaved: () => void }) {
   const t = useTranslations("library.form");
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
+  // The inclusivity/specificity lint also runs on the PASTE path now — the dominant
+  // authoring surface for recruiters with an existing JD (was AI-builder-only).
+  const lintFindings = useMemo(() => lintJd({ body }), [body]);
   const [submitting, setSubmitting] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -91,6 +96,8 @@ export function LibraryJdForm({ onSaved }: { onSaved: () => void }) {
       <p className={`mt-1 text-sm ${body.length >= JD_BODY_MAX_LENGTH * 0.9 ? "text-coral" : "text-steel"}`}>
         {t("charCount", { used: body.length, max: JD_BODY_MAX_LENGTH })}
       </p>
+
+      {body.trim() ? <JdLintPanel findings={lintFindings} /> : null}
 
       {error ? (
         <p role="alert" className="mt-3 rounded-md bg-red-50 p-3 text-base text-red-700">{error}</p>

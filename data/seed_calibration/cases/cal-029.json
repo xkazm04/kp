@@ -1,0 +1,188 @@
+{
+  "job": {
+    "id": "cal-029",
+    "title": "Data Analyst/Manager",
+    "company": "Central Office",
+    "role_family": "data_ai",
+    "seniority": "senior",
+    "source": "hf:jacob-hugging-face/job-descriptions"
+  },
+  "analysis": {
+    "realStack": [
+      "NYS OMH PSYCKES database (external outcomes/quality data source)",
+      "Lead Health Home EHRs / HH EHRs & partner EMRs (clinical record systems of record)",
+      "HHDB — HHCCS internal Health Home database",
+      "Medicaid Health Home billing/claims systems — claims submission & remittance data (revenue cycle; in NY typically MAPP HHTS)",
+      "NADAP central database team systems / shared data infrastructure",
+      "QA systems for billing accuracy and documentation integrity (owner/builder)",
+      "Statistical & outcomes reporting tooling (Excel/SQL/BI-style metrics: hospitalization & readmission pre/post-enrollment)",
+      "Internal + external data management systems and reporting pipelines for funders and referral partners",
+      "HIT training materials and onboarding/coaching artifacts for program staff",
+      "People-management toolkit: hiring, onboarding, supervision, performance/disciplinary process"
+    ],
+    "coreResponsibilities": [
+      "Own billing compliance: monitor claims submission and remittance to ensure all billable activity is captured and reimbursed; build/run QA to guarantee billing accuracy (the JD's stated PRIMARY duty)",
+      "Oversee all internal and external Health Home data management systems and statistical reporting for the department",
+      "Define and run outcomes metrics that measure program impact (e.g. hospitalization and day-readmission rates pre/post-enrollment), leveraging PSYCKES and lead-HH EHR data for funders and referral partners",
+      "Supervise the data systems team — recruit, hire, onboard, train, coach, and hold staff accountable up to disciplinary action",
+      "Partner with senior management and the NADAP database team to find and implement technology efficiencies and integrate HHDB/HH-EHR data into daily operations",
+      "Own QA of documentation in data systems and oversee HIT training for program staff",
+      "Manage relationships with HIT teams at lead Health Home partners to support clinical/operational staff use of HH EMRs",
+      "Provide proactive and ad-hoc data-driven analysis on staff, team, departmental, and partner-relationship performance"
+    ],
+    "statedVsRealGaps": [
+      "Title 'Data Analyst/Manager' and roleFamily 'data_ai' frame an analytics seat, but the JD is dominated by operational management: billing/revenue-cycle compliance, line-supervision of a team, and inter-agency HIT relationship management. Analysis is one of several streams, not the center of gravity.",
+      "Stated stack is empty; the real toolset is heavily domain-specific health-IT (PSYCKES, lead-HH EHRs, Medicaid claims/remittance, HHDB, NADAP systems) — none surfaced in the structured need.",
+      "seniorityTarget is 'senior', yet the formal floor is only a Bachelor's degree with a blank years-of-experience field, and the role is characterized as 'frequent but relatively minor' change — the credential bar undersells the breadth and accountability actually described.",
+      "JD calls for 'statistical reporting metrics and methods' but names no analytics tooling (SQL, BI, statistical software); the technical analytics competency is implied rather than specified.",
+      "Billing compliance is explicitly the primary responsibility and is financially/regulatorily material, but the analyst-flavored title risks attracting candidates who treat it as secondary."
+    ],
+    "trueComplexity": "high",
+    "riskAreas": [
+      "Role conflation — one seat fuses senior analytics, Medicaid billing/revenue-cycle compliance, health-IT integration, and people management; a single hire strong in one dimension is likely weak in another, and screening can easily optimize for the wrong one.",
+      "Heavy NY Medicaid Health Home domain dependency (PSYCKES, claims/MAPP-style billing, lead-HH dynamics) means a generic data analyst faces a steep ramp; transferable analytics skill alone is insufficient.",
+      "Financial/audit exposure — owning billing QA and reimbursement integrity makes errors directly costly and audit-visible.",
+      "PHI/HIPAA exposure — working across EHRs and PSYCKES requires data-governance and privacy discipline not mentioned in the JD.",
+      "Matrixed accountability — depends on external partner HIT teams and the NADAP database team for outcomes the role is accountable for, i.e. responsibility without full control.",
+      "Vague experience floor weakens screening; the formal minimums won't gate candidates for the real scope, raising mis-hire risk."
+    ],
+    "reflection": "This is a grounded, extractable non-software role, so the absence of a codebase is expected — the real 'body of work' is a Medicaid Health Home data ecosystem (PSYCKES, lead-Health-Home EHRs, the HHDB, claims/remittance billing, and NADAP-shared systems). Reflected against that evidence, the structured need understates the job. It is filed as 'Data Analyst/Manager' / data_ai, but the JD's own weighting puts billing-compliance ownership first, followed by team supervision (including hiring and discipline) and inter-agency HIT relationship management; outcomes analytics is genuinely senior but is one stream among several. The biggest divergences are (1) an empty stated stack versus a substantial, domain-locked health-IT toolset, and (2) a 'senior' target paired with a soft formal floor (Bachelor's, blank years, 'minor' change) that doesn't match the real accountability for reimbursement, PHI, and a direct-report team. True complexity is high because of the breadth-plus-domain combination, and the chief hiring risk is role conflation: pick a candidate who is genuinely tri-lingual across analytics, Medicaid billing compliance, and people leadership, or expect a gap on whichever leg is under-screened.",
+    "confidence": 0.7,
+    "promptVersion": "need-analysis-v3"
+  },
+  "role": {
+    "title": "Data Analyst/Manager",
+    "seniority": "senior",
+    "roleFamily": "data_ai",
+    "mustHaves": [
+      "Healthcare billing & claims compliance — Medicaid/Health Home revenue cycle: monitor claims submission and remittance, ensure all billable activity is captured and reimbursed, and build QA to guarantee billing accuracy (the JD's stated primary duty)",
+      "Statistical outcomes reporting — design and run program-impact metrics such as hospitalization and pre/post-enrollment readmission rates for funders and referral partners",
+      "SQL and relational database querying over internal and external data systems",
+      "Data quality assurance — own documentation integrity and QA systems across internal databases and Health Home EHRs",
+      "EHR/EMR and health-IT data integration — work fluently with clinical systems of record (Health Home EHRs, external EMRs) and integrate them into daily operations",
+      "People management — supervise a data systems team end to end: recruit, hire, onboard, train, coach, and hold staff accountable",
+      "Cross-functional stakeholder management — partner with senior management and with HIT teams at lead Health Home / partner agencies"
+    ],
+    "niceToHaves": [
+      "NYS OMH PSYCKES database familiarity",
+      "Medicaid Health Home program / MAPP HHTS knowledge",
+      "BI/visualization tooling (Tableau, Power BI)",
+      "Python or R for statistical analysis",
+      "Process-automation and systems-improvement experience to drive operational efficiency",
+      "Experience integrating shared/central database infrastructure (e.g. NADAP-style data teams)"
+    ],
+    "responsibilities": [
+      "Own billing compliance: monitor claims submission and remittance to ensure all billable activity is submitted and reimbursed, and implement QA systems that guarantee billing accuracy",
+      "Oversee all internal and external Health Home data management systems and the department's statistical reporting",
+      "Define and run outcomes metrics that measure program impact (e.g. hospitalization and day-readmission rates pre/post-enrollment), leveraging PSYCKES and lead-HH EHR data",
+      "Supervise the data systems team — recruit, hire, onboard, train, coach, and apply disciplinary action as needed",
+      "Partner with senior management and the central database team to identify and implement technology efficiencies and integrate HHDB/HH-EHR data into daily operations",
+      "Own QA of documentation in data systems and oversee HIT training for program staff",
+      "Manage relationships with HIT teams at lead Health Home partners to support clinical and operational staff use of HH EMRs",
+      "Provide proactive and ad-hoc data-driven analysis on staff, team, departmental, and partner-relationship performance"
+    ],
+    "languages": [
+      "English"
+    ],
+    "promptVersion": "role-design-v3"
+  },
+  "case": {
+    "title": "Health Home Data: Billing Integrity & Outcomes You Can Defend",
+    "brief": "You are stepping into the senior Data Analyst/Manager seat for a NADAP-style lead Health Home operation. We handed you a small, de-identified synthetic data drop (no real PHI) that mirrors what actually lands on this desk: a MAPP-HHTS-style claims/remittance extract, the internal HHDB enrollment roster, a PSYCKES inpatient export, HH-EHR encounter rows, a stale member crosswalk, an incomplete data dictionary, the prior analyst's legacy billing-QA checklist, and a one-paragraph ask from senior management. Your job is not to type SQL fast — assume any query, script, or spreadsheet formula can be generated for you. Your job is to make defensible calls about messy, matrixed, audit-visible health data: where billable activity leaked, what the program's outcomes really are, and what you would tell leadership. Several of the materials disagree with each other or with the dictionary on purpose; that is the realistic part. Budget ~2 hours and stop at the cap — depth on a few decisions beats breadth. Throughout, keep a short DECISIONS log (normal practice here): for every place the materials were ambiguous or contradictory, jot what you chose, the alternative you rejected, and the one question you'd put to the central database team, a lead-HH HIT partner, or management. Deliverables can be a notebook, spreadsheet, and/or short memo — whatever lets a reviewer follow your reasoning. State assumptions explicitly; we care more about how you reasoned to a number than about the number itself.",
+    "repoSeed": "A de-identified, synthetic Health Home data drop (no real PHI; values are fabricated but the shapes, quirks, and contradictions are realistic). Files handed to the candidate:\n\n1) claims_remittance_2025Q3.csv — MAPP-HHTS-style billing extract, one row per member-segment-month. Columns: hhdb_member_id, segment_month, rate_code, billing_status {draft|submitted|accepted|rejected}, submitted_date, remittance_status {pending|paid|denied|void}, paid_amount, denial_reason. Note: billing_status and remittance_status are independent stages; some 'submitted' rows never reach 'paid', and a handful of duplicate segment-months exist for the same member.\n\n2) hh_enrollment_HHDB.csv — internal HHDB roster. Columns: hhdb_member_id, cin, enroll_date, disenroll_date, reenroll_flag, lead_hh, care_manager, acuity_tier. Some members have two non-contiguous enrollment spans (re-enrollment).\n\n3) psyckes_inpatient_export.csv — NYS OMH PSYCKES inpatient/quality export keyed on cin. Columns: cin, admit_date, discharge_date, readmit_30d_flag, data_through_date. A header note states PSYCKES claims-based data runs ~3-6 months behind, so the most recent months are incomplete.\n\n4) hh_ehr_encounters.csv — lead-HH EHR care-management contacts. Columns: ehr_member_id, service_date, contact_type, minutes. Keyed on ehr_member_id, NOT on cin or hhdb_member_id.\n\n5) member_id_crosswalk.xlsx — a hand-maintained, stale crosswalk: hhdb_member_id <-> cin <-> ehr_member_id, last refreshed before the latest re-enrollments. Contains blanks, a few one-to-many rows, and at least one cin mapped to two ehr_member_ids.\n\n6) data_dictionary.md — partial and inconsistent. It defines most fields but is silent or contradictory on the semantics of enroll_date (referral date vs. activation/consent date) and on whether segment_month counts the calendar month of service or of submission.\n\n7) billing_qa_checklist_legacy.xlsx — the prior analyst's QA checks (e.g., 'sum of submitted = expected'), which look reasonable but miss the dominant failure mode.\n\n8) mgmt_request_memo.md — one paragraph from senior management: 'Board meeting Thursday — show me billing is healthy and that the Health Home is keeping people out of the hospital. One number each is fine.'",
+    "tasks": [
+      "Build the member spine. Using member_id_crosswalk.xlsx, hh_enrollment_HHDB.csv, and data_dictionary.md, construct the member-level join across HHDB (hhdb_member_id), PSYCKES (cin), and HH-EHR (ehr_member_id) that the other tasks depend on. Report join coverage explicitly — matched, unmatched, and duplicated members — decide and document how you treat re-enrollment spans and the stale/one-to-many crosswalk rows, and state the PHI/HIPAA handling you would apply to this linked dataset. Do not assume the obvious key joins cleanly.",
+      "Reconcile billing integrity. From claims_remittance_2025Q3.csv against the HHDB enrollment spans, quantify (a) billable Health Home member-months that were never submitted (revenue leakage) and (b) member-months submitted but not reimbursed (rejected/denied/pending), keeping billing_status and remittance_status as distinct stages and handling duplicate segment rows. Identify the single largest systemic root cause and specify one concrete QA control that would have caught it. Assess whether billing_qa_checklist_legacy.xlsx would have caught it — and if not, say why.",
+      "Define an outcomes metric you can defend. Using psyckes_inpatient_export.csv and the enrollment spans, compute a pre-vs-post-enrollment inpatient hospitalization rate (and a 30-day readmission rate) for the cohort. Hand back BOTH the number and the exact metric definition: state your index date, the pre and post observation windows, the denominator, and how you handle PSYCKES reporting lag, unequal member tenure, and re-enrollment. Note any bias that could make a naive before/after comparison overstate the program's effect.",
+      "Brief senior management and log your decisions. Write a one-page memo answering the mgmt_request_memo.md ask — but first pin down what 'billing is healthy' and 'keeping people out of the hospital' should actually mean before reporting a single number, and name what you would need from the NADAP central database team or lead-HH HIT partners to stand behind it. Attach your DECISIONS log: for each ambiguous or contradictory point you hit across the materials, record what you chose, the alternative you rejected, and the question you'd ask the team."
+    ],
+    "coverProbes": [
+      {
+        "id": "claims-status-conflation",
+        "kind": "verification_trap",
+        "where": "Task 2 — claims_remittance_2025Q3.csv, where billing_status (draft/submitted/accepted/rejected) and remittance_status (pending/paid/denied/void) are separate stages and duplicate segment-months exist.",
+        "reveals": "A strong candidate treats 'submitted' as an intent, not revenue — reconciling to remittance_status and paid_amount, de-duplicating segments, and reporting leakage at the right stage. A naive one-shot sums submitted rows (or matches the legacy checklist's 'sum of submitted = expected'), reports a healthy-looking total, passes a shallow row-count/sum check, and silently misses denials, never-paid claims, and double-counted duplicates.",
+        "decisionSpace": [
+          "Measure leakage as eligible-but-unsubmitted member-months (submission completeness) — surfaces process gaps but ignores denied dollars.",
+          "Measure leakage as submitted-but-unreimbursed dollars (denials + aging pending) — surfaces revenue at risk but assumes submission was complete.",
+          "Net reimbursement per eligible member-month end-to-end — most complete and audit-defensible but needs the most assumptions about eligibility and rate codes."
+        ]
+      },
+      {
+        "id": "pre-post-outcome-bias",
+        "kind": "verification_trap",
+        "where": "Task 3 — psyckes_inpatient_export.csv (data_through_date lag note) combined with variable enrollment tenure and re-enrollment spans.",
+        "reveals": "A strong candidate normalizes to per-member-month over equal pre/post windows, drops the lag-incomplete recent tail, and explicitly names regression-to-the-mean / immortal-time bias (people enroll right after a crisis admission). A naive candidate counts crude admissions before vs. after across unequal windows and reports a large, flattering 'reduction' that is an artifact of the lag and the enrollment trigger, not the program.",
+        "decisionSpace": [
+          "Per-member-month rate over fixed equal pre/post windows, excluding lag-incomplete months — comparable and bias-aware, but discards recent data and shrinks the cohort.",
+          "Crude before/after admission counts with caveats stated — fast and intuitive but vulnerable to unequal tenure and regression to the mean.",
+          "Time-to-event / survival framing on the post period — most rigorous on censoring and lag, but heavier and harder to put on a board slide."
+        ]
+      },
+      {
+        "id": "stale-crosswalk-and-date-semantics",
+        "kind": "legacy_trap",
+        "where": "Task 1 — member_id_crosswalk.xlsx (stale, one-to-many, blanks) plus data_dictionary.md's silence/contradiction on enroll_date (referral vs. activation) and segment_month (service vs. submission month).",
+        "reveals": "A strong candidate reads the dictionary and crosswalk first, discovers cin↔ehr_member_id is not 1:1 and the crosswalk predates recent re-enrollments, reports unmatched/duplicated coverage, and consciously picks an enroll_date definition because it sets both billing eligibility and the pre/post index date. A naive candidate joins on the first plausible key, silently drops unmatched members and double-counts duplicates, and never notices the index-date choice that quietly drives every downstream number.",
+        "decisionSpace": [
+          "Drop unmatched/ambiguous members and report on the clean subset — defensible and conservative, but biases the cohort and understates leakage.",
+          "Collapse one-to-many crosswalk rows to a best-match per member and flag confidence — keeps coverage high at the cost of some wrong links.",
+          "Keep all rows, mark match-quality and date-semantics assumptions, and reconcile with the central database team — most transparent but leaves open items the candidate must escalate rather than resolve alone."
+        ]
+      },
+      {
+        "id": "healthy-billing-underspecified",
+        "kind": "underspecified",
+        "where": "Task 4 — mgmt_request_memo.md ('show me billing is healthy and that we're keeping people out of the hospital — one number each is fine').",
+        "reveals": "A strong candidate refuses to ship a vanity number blind: they define what 'healthy' and 'impact' should mean for a board/funder audience, state the trade-offs of each candidate metric, and name what they'd confirm with the central database team or lead-HH HIT partners before standing behind it. A naive candidate answers the literal request with a single unqualified figure and inherits whatever bias the data carried.",
+        "decisionSpace": [
+          "Report submission/collection completeness and clean-claim rate — operationally honest and audit-aligned, but less of a headline.",
+          "Report net reimbursement vs. expected and days-in-AR — the CFO/audit view, but needs eligibility and rate assumptions made explicit.",
+          "Report dollars reimbursed plus the caveated outcomes delta as a paired story — most useful to a board, but requires saying clearly what is not yet defensible."
+        ]
+      }
+    ],
+    "timeboxHours": 2.0,
+    "rubricDimensions": [
+      {
+        "name": "framing",
+        "label": "Problem framing",
+        "weight": 0.2,
+        "description": "Turns an ambiguous need into a sound plan."
+      },
+      {
+        "name": "tooling",
+        "label": "Tooling fluency",
+        "weight": 0.25,
+        "description": "Drives AI and other tools well; iterates and verifies."
+      },
+      {
+        "name": "judgment",
+        "label": "Judgment",
+        "weight": 0.25,
+        "description": "Catches AI/tooling mistakes; validates; pushes back."
+      },
+      {
+        "name": "architecture",
+        "label": "Architecture",
+        "weight": 0.15,
+        "description": "Structure and trade-offs that fit the real materials and constraints."
+      },
+      {
+        "name": "transfer",
+        "label": "Transfer",
+        "weight": 0.15,
+        "description": "Capability transfers to THIS role's tools and responsibilities."
+      }
+    ],
+    "promptVersion": "case-design-v5"
+  },
+  "source": "llm",
+  "issues": [],
+  "fallbackReason": {},
+  "promptVersions": {
+    "analyze": "need-analysis-v3",
+    "role": "role-design-v3",
+    "case": "case-design-v5"
+  }
+}

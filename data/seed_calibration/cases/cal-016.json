@@ -1,0 +1,182 @@
+{
+  "job": {
+    "id": "cal-016",
+    "title": "Data Analyst Manager",
+    "company": "Michael Page International",
+    "role_family": "data_ai",
+    "seniority": "senior",
+    "source": "hf:jacob-hugging-face/job-descriptions"
+  },
+  "analysis": {
+    "realStack": [
+      "SQL (querying, schema design, performance)",
+      "Python (data wrangling, automation, pipelines)",
+      "Data modeling — conceptual/logical/physical models",
+      "Data dictionary & metadata management",
+      "Data catalog / governance tooling (e.g. Collibra, Alation, or equivalent)",
+      "Data & analytics platforms (data warehouse + BI/semantic layer, e.g. Snowflake/BigQuery/Redshift with Tableau/Power BI/Looker)",
+      "ETL/ELT & data transformation (e.g. dbt / Airflow / similar)",
+      "Financial-services data domain (regulatory, risk, transactional data)"
+    ],
+    "coreResponsibilities": [
+      "Define and manage data models and data dictionaries that underpin the analytics platforms",
+      "Maintain the metadata/semantic layer so data and analytics consumers share consistent definitions",
+      "Lead data management, analytics, and transformation work (SQL/Python-centric)",
+      "Apply financial-services / fintech domain knowledge to data structures and governance",
+      "Likely a lead/managerial mandate (title + 'manage/management' keywords) — but team scope is not actually specified"
+    ],
+    "statedVsRealGaps": [
+      "Title says 'Manager' and the SEO keyword block lists management terms, yet the described duties are entirely individual-contributor data work (SQL/Python, modeling, dictionaries). It is unclear whether this is a people manager, a tech lead, or a senior IC mislabeled — a material scope ambiguity.",
+      "The required years of experience is garbled in the posting ('yoes in data management…'), so the real seniority bar can't be read off the JD.",
+      "'Data models and data dictionaries' is left undefined: it could mean enterprise data architecture / data governance OR an analytics semantic layer. These are different disciplines with different hires.",
+      "'Financial services background' and 'leading fintech' are asserted but with zero domain specificity (lending? payments? risk? fraud? regulatory reporting?), so domain fit can't be judged.",
+      "This is a thin Michael Page recruiter aggregate — one real responsibility line plus EEO boilerplate and an 'associated topics' SEO keyword dump. The actual mandate is under-described relative to what a Manager-level data role normally entails.",
+      "No codebase, models, dictionaries, or platform artifacts were supplied, so every claim here is inferred from the JD text alone — there is no body of work to reflect against."
+    ],
+    "trueComplexity": "medium",
+    "riskAreas": [
+      "Scope mis-hire: ambiguous Manager-vs-IC framing risks pulling candidates calibrated for the wrong level or the wrong kind of work (governance vs analytics modeling).",
+      "Under-specified domain: financial-services data carries regulatory, lineage, and data-quality obligations that the JD never names; a candidate strong on modeling but light on FS compliance could look qualified and still be a poor fit.",
+      "Interpretation risk on 'data dictionaries / data models' — screening could over-index on BI tooling when the real need is data architecture/governance, or vice versa.",
+      "Thin JD makes seniority and compensation calibration unreliable ('competitive, based upon experience' + missing YOE = no anchor).",
+      "Recruiter-aggregator framing means the hiring manager's actual priorities are filtered through a generic template; the stated need may not match the team's real gap."
+    ],
+    "reflection": "There is no body of work to reflect against here — only a thin Michael Page recruiter posting whose substantive content is a single line ('defining and managing data models and data dictionaries to support data and analytics platforms') plus SQL/Python, a financial-services background, and an unreadable years-of-experience figure. Everything else is EEO boilerplate and an 'associated topics' SEO keyword dump. On its own terms the role is a real, mid-complexity data-management position: data modeling and data-dictionary/metadata work in a fintech is genuinely substantive (governance, lineage, consistent definitions across an analytics platform), but it is not exotic — it is standard senior data practice. The sharpest divergence is the 'Manager' title against duties that are described almost entirely as individual-contributor data work: the JD never states a team size, a management remit, or stakeholder ownership, so 'Manager' may be a title inflation, a tech-lead role, or a true people-leader — three different hires. Equally, 'data models and data dictionaries' straddles two distinct disciplines (enterprise data architecture/governance vs. an analytics semantic layer) that the posting never disambiguates. I'd treat the stated need as directionally clear (SQL/Python data modeling in FS) but materially under-specified on level, team scope, and domain depth — gaps to close with the hiring manager before screening.",
+    "confidence": 0.48,
+    "promptVersion": "need-analysis-v3"
+  },
+  "role": {
+    "title": "Data Analyst Manager",
+    "seniority": "senior",
+    "roleFamily": "data_ai",
+    "mustHaves": [
+      "Defining, managing and evolving data models (conceptual / logical / physical) that underpin data & analytics platforms",
+      "Building and governing data dictionaries, metadata and shared business definitions across analytics consumers",
+      "Strong SQL — querying, schema design, and performance tuning on analytical data stores",
+      "Python for data wrangling, automation and transformation",
+      "Hands-on data management, analytics and transformation experience at depth (the JD's required years are garbled, but a senior IC/lead bar is implied)",
+      "Financial-services / fintech data domain fluency (regulatory, risk, transactional data)",
+      "Ability to lead the data-modeling/dictionary mandate end to end and set standards others follow — the 'Manager' title implies ownership of the discipline, though people-management scope is not specified in the posting"
+    ],
+    "niceToHaves": [
+      "Data catalog / governance tooling (Collibra, Alation or equivalent)",
+      "Cloud data warehouse experience (Snowflake, BigQuery, Redshift)",
+      "BI / semantic-layer tools (Tableau, Power BI, Looker)",
+      "ETL/ELT orchestration and transformation frameworks (dbt, Airflow)",
+      "Regulatory / risk reporting and data-quality controls",
+      "Stakeholder management and line-management of a small data team (if the role is confirmed to carry direct reports)"
+    ],
+    "responsibilities": [
+      "Define and manage the data models and data dictionaries that support the data and analytics platforms",
+      "Maintain the metadata / semantic layer so analytics consumers share consistent, governed definitions",
+      "Lead data management, analytics and transformation work, primarily in SQL and Python",
+      "Apply financial-services domain knowledge to shape data structures, governance and quality",
+      "Set modeling and documentation standards and steward them across teams and platforms",
+      "Partner with analytics, engineering and business stakeholders to translate needs into durable data models"
+    ],
+    "languages": [
+      "SQL",
+      "Python"
+    ],
+    "promptVersion": "role-design-v3"
+  },
+  "case": {
+    "title": "Reconcile and govern the Customer & Credit-Risk data model (FS data warehouse)",
+    "brief": "You are joining as Data Analyst Manager and inheriting the `fs_dwh` analytics platform for a retail bank: a Snowflake-backed dbt project, a semantic/metrics layer, a partial data dictionary, and a Collibra-style governance export. Three teams — analytics, the regulatory reporting team, and a BI/self-serve group — already consume this model, and their definitions of core entities have drifted apart. Leadership wants 'one governed source of truth' for the Customer and Credit-Risk domain, but the request arrived through a recruiter-aggregator template and the actual modeling/governance standard is not written down anywhere. Your job is to act as the steward: decide the canonical definitions, encode them in the model and semantic layer, set the minimum documentation/metadata standard, and make sure you do not silently change numbers that regulatory or risk consumers depend on. The provided materials fit this role directly — work on them. Treat this as ~2 hours of real stewardship work: depth and defensible judgment matter far more than touching every file. The code itself can be generated; what we are reading is the path you take through the ambiguity, so keep a running DECISIONS log as normal practice. Do not invent data volumes or business rules you cannot ground in the provided files — where the materials are silent, that is a decision to record, not a fact to fabricate.",
+    "repoSeed": "A representative (synthetic) financial-services analytics workspace, `fs_dwh/`:\n\n- `models/staging/stg_core_banking__accounts.sql`, `stg_core_banking__transactions.sql` — staging over core-banking feeds. The transactions stream carries `transaction_type` ∈ {POSTING, REVERSAL, ADJUSTMENT} and a nullable `reversal_of_txn_id`; reversals and adjustments are appended as new positive-amount rows rather than negative offsets.\n- `models/marts/dim_customer.sql` — current customer dimension; derives an `is_active` flag as 'transacted in the last 90 days'.\n- `models/marts/fct_transactions.sql` — fact table that naively unions all transaction rows; amounts are stored as unsigned magnitudes.\n- `models/marts/mart_risk_exposure.sql` — the risk mart that finance and regulatory reporting read; it computes exposure and a `default_flag` using `days_past_due > 60`, and — critically — still LEFT JOINs the legacy `legacy/vw_customer_segments.sql` for its segment column.\n- `legacy/vw_customer_segments.sql` — a hand-maintained SQL view with hardcoded segment thresholds, predating dbt; `dim_customer` was supposed to replace it but never fully did.\n- `models/semantic/metrics.yml` — semantic-layer metrics (`active_customers`, `default_rate`, `net_exposure`); `active_customers` here is defined as 'customer has ≥1 open account', which disagrees with `dim_customer.is_active`.\n- `models/marts/schema.yml` — sparse dbt docs and a couple of `unique`/`not_null` tests.\n- `reports/regulatory/credit_risk_report_spec.md` — the regulatory spec: default is '≥90 days past due' (IFRS 9 framing) and an 'active relationship' for AML/KYC purposes means 'any account with activity in the last 12 months'.\n- `data_dictionary.csv` — ~30 columns, inconsistently filled: some have descriptions, almost none have an owner/steward, PII classification, or regulatory/lineage tags.\n- `governance/collibra_export.json` — stewardship and lineage records with obvious gaps (orphaned terms, no steward on key assets).\n- `README.md` — thin; says 'standardize the data dictionary and unify customer/risk definitions' without defining the target standard or naming the consumers.",
+    "tasks": [
+      "Reconcile the canonical definitions for the Customer & Credit-Risk domain. 'Active customer' is currently defined three ways (dim_customer.is_active = 90-day behavioral; metrics.yml = has-open-account; the regulatory spec = 12-month AML activity), and 'default/delinquency' is 60 DPD in mart_risk_exposure but 90 DPD in credit_risk_report_spec.md. Choose ONE canonical definition for each (or a small set of explicitly-scoped, named variants), encode them consistently across dim_customer.sql, metrics.yml, and mart_risk_exposure.sql, and write the governed definition into data_dictionary.csv. State which consumer each definition serves.",
+      "Make the model trustworthy before it is 'unified': handle the legacy `legacy/vw_customer_segments.sql` dependency in mart_risk_exposure.sql without silently shifting the exposure and default numbers that regulatory/finance consumers rely on, and reconcile the transaction grain in fct_transactions.sql so that exposure totals are correct given REVERSAL/ADJUSTMENT rows. Show a before/after check (counts AND a financial total, not just 'it compiles') that demonstrates whether any consumer-visible number moved, and say why that movement is or is not acceptable.",
+      "Set the minimum governed metadata standard for this domain and apply it. Decide which attributes are mandatory for a column to be 'documented' here (e.g. description, owning steward, PII classification, regulatory/lineage tag — you choose the bar and justify it for an FS context), then apply that standard to the Customer + Transaction columns in data_dictionary.csv and align the relevant entries in governance/collibra_export.json. Do not boil the ocean — cover the domain at the depth the timebox allows and note what you deliberately deferred.",
+      "Keep a short DECISIONS.md as you go (this is normal stewardship practice, not a separate write-up): for every call where the brief/README was open — canonical definitions, legacy handling, transaction grain, the metadata bar — record what you chose, the alternative you rejected and why, and the one question you would have put to the analytics / regulatory / BI stakeholders before committing."
+    ],
+    "coverProbes": [
+      {
+        "id": "active-customer-canonical",
+        "kind": "ambiguity",
+        "where": "Conflict across dim_customer.is_active (90-day behavioral), metrics.yml active_customers (has-open-account), and credit_risk_report_spec.md (12-month AML activity).",
+        "reveals": "A naive candidate picks whichever definition is easiest to code, or 'unifies' all three into one number, flattening a real semantic distinction and likely breaking a regulatory metric. A strong candidate recognizes these serve different consumers, names who owns each, and either selects one canonical default with clearly-scoped named variants or escalates the choice — and crucially understands that 'active' for marketing analytics is not 'active' for AML.",
+        "decisionSpace": [
+          "Pick behavioral 90-day as the canonical default (serves analytics/engagement), and expose the others as explicitly-named variant metrics — optimizes for the largest consumer, risks regulatory teams quietly diverging again.",
+          "Make the regulatory/AML 12-month definition canonical because it is the externally-governed one, and re-label the behavioral metric as 'recently_active' — safest for compliance, but may surprise BI users whose dashboards shift.",
+          "Refuse a single canonical 'active' and instead govern three named, separately-owned metrics with shared lineage — most honest to reality, but pushes the disambiguation cost onto every consumer and the catalog."
+        ]
+      },
+      {
+        "id": "legacy-segment-view",
+        "kind": "legacy_trap",
+        "where": "mart_risk_exposure.sql still LEFT JOINs legacy/vw_customer_segments.sql for segment, even though dim_customer was meant to replace it.",
+        "reveals": "A candidate who regenerates dim_customer or 'cleans up' the join without reading the downstream mart either breaks segment population or silently changes risk numbers. A strong candidate traces the dependency first, recognizes the legacy view is load-bearing for a regulated consumer, and chooses a migration path that protects the numbers rather than assuming the new model is a drop-in replacement.",
+        "decisionSpace": [
+          "Cut over fully to dim_customer and delete the legacy view — cleanest end state, but requires proving segment parity and risks moving regulatory figures now.",
+          "Keep the legacy view behind a compatibility shim / aliased model and deprecate with a dated plan — protects current numbers, but prolongs the duplicate definition.",
+          "Leave the join untouched, document the discrepancy and lineage, and scope the migration as separate governed work — lowest risk this session, but defers the actual unification the brief asked for."
+        ]
+      },
+      {
+        "id": "transaction-reversal-grain",
+        "kind": "verification_trap",
+        "where": "fct_transactions.sql unions REVERSAL/ADJUSTMENT rows as additional positive-amount records; exposure and default_rate sum unsigned magnitudes.",
+        "reveals": "Naive one-shot generation produces a SUM(amount) that passes the existing unique/not_null and row-count tests and 'looks plausible', but double-counts reversed and adjusted transactions — materially overstating exposure, exactly the kind of error a regulator catches. A strong candidate verifies against a known financial total or reconstructs net movement, detects the inflation, and fixes the grain rather than trusting the row-level check.",
+        "decisionSpace": [
+          "Exclude REVERSAL/ADJUSTMENT rows from exposure measures and document them as non-economic events — simple and correct for totals, but loses auditability of why a figure changed.",
+          "Net transactions by signing amounts via reversal_of_txn_id so the fact stays at event grain but measures net out — preserves audit trail, more complex and must handle partial/chained reversals.",
+          "Keep gross rows but introduce an explicit `net_amount` / settled-only measure used by the risk mart, leaving gross for ops — most flexible, but adds a metric the catalog and consumers must learn."
+        ]
+      },
+      {
+        "id": "metadata-standard-scope",
+        "kind": "underspecified",
+        "where": "README asks to 'standardize the data dictionary' with no target standard; data_dictionary.csv and collibra_export.json have descriptions but mostly no steward, PII class, or regulatory/lineage tag.",
+        "reveals": "A naive candidate fills in free-text descriptions and calls the dictionary 'standardized', missing that in FS the governed value is ownership, PII handling, and regulatory lineage. A strong candidate defines an explicit, defensible minimum bar appropriate to a regulated domain, applies it consistently to a bounded scope, and states what was deferred rather than pretending full coverage.",
+        "decisionSpace": [
+          "Lightweight bar — mandatory description + owning steward only — fast to reach across all columns, but leaves PII/regulatory exposure ungoverned.",
+          "Compliance-first bar — steward + PII classification + regulatory/lineage tag mandatory, descriptions best-effort — strongest for an FS audit, but slower so only part of the domain gets fully tagged in the timebox.",
+          "Tiered bar — strict mandatory set for risk/PII-bearing columns, lighter set for the rest — pragmatic and risk-weighted, but requires defining and defending the tiering rule itself."
+        ]
+      }
+    ],
+    "timeboxHours": 2.0,
+    "rubricDimensions": [
+      {
+        "name": "framing",
+        "label": "Problem framing",
+        "weight": 0.2,
+        "description": "Turns an ambiguous need into a sound plan."
+      },
+      {
+        "name": "tooling",
+        "label": "Tooling fluency",
+        "weight": 0.25,
+        "description": "Drives AI and other tools well; iterates and verifies."
+      },
+      {
+        "name": "judgment",
+        "label": "Judgment",
+        "weight": 0.25,
+        "description": "Catches AI/tooling mistakes; validates; pushes back."
+      },
+      {
+        "name": "architecture",
+        "label": "Architecture",
+        "weight": 0.15,
+        "description": "Structure and trade-offs that fit the real materials and constraints."
+      },
+      {
+        "name": "transfer",
+        "label": "Transfer",
+        "weight": 0.15,
+        "description": "Capability transfers to THIS role's tools and responsibilities."
+      }
+    ],
+    "promptVersion": "case-design-v5"
+  },
+  "source": "llm",
+  "issues": [],
+  "fallbackReason": {},
+  "promptVersions": {
+    "analyze": "need-analysis-v3",
+    "role": "role-design-v3",
+    "case": "case-design-v5"
+  }
+}

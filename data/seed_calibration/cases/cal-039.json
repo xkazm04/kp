@@ -1,0 +1,200 @@
+{
+  "job": {
+    "id": "cal-039",
+    "title": "Administrative Assistant III (Part time) – Remote, Work from Anywhere",
+    "company": "The Public Health Institute (PHI)",
+    "role_family": "administration",
+    "seniority": "medior",
+    "source": "hf:jacob-hugging-face/job-descriptions"
+  },
+  "analysis": {
+    "realStack": [
+      "Microsoft Outlook (email, calendaring, meeting invitations)",
+      "Zoom (scheduling and hosting virtual meetings, minutes)",
+      "Microsoft Word (letters, memos, forms)",
+      "Microsoft Excel (spreadsheets, budgetary/financial reports, basic math)",
+      "Microsoft Access (database applications for financial reporting)",
+      "Microsoft PowerPoint",
+      "PeopleSoft (HRIS/payroll — timesheet tracking, submission/verification/approval)",
+      "Personnel Action Forms (PAFs) and new-hire forms",
+      "Speedtypes / timecard & payroll verification",
+      "Travel booking and expense-claim / receipt processing",
+      "Purchasing approval workflow and supporting documentation",
+      "Recruitment/ATS-adjacent tasks (job-announcement tracking, interview scheduling, interview packets)",
+      "Virtual file organization and remote office-supply management"
+    ],
+    "coreResponsibilities": [
+      "Provide remote general office support to OPHI and Tracing Health leadership under the Program Administrator",
+      "Coordinate the manager's calendar, schedule and attend virtual meetings (Zoom/Outlook), take and distribute minutes",
+      "Produce business documents — letters, memos, forms and spreadsheets — requiring intermediate-to-advanced software skills",
+      "Support recruitment: track job announcements, schedule interviews, prepare interview packets, assist with HR functions",
+      "Process HR transactions: prepare/route PAFs, new-hire forms, and personnel information updates",
+      "Manage timesheets in PeopleSoft and provide timecard/payroll support including speedtypes verification",
+      "Obtain purchase approvals, gather supporting documentation, and maintain remote office supplies",
+      "Make travel arrangements for leadership and process travel expense claims with receipts",
+      "Prepare budgetary and financial reports using spreadsheet and database applications",
+      "Maintain confidentiality and exercise independent judgment within standard policies; assist with special projects"
+    ],
+    "statedVsRealGaps": [
+      "The need is framed as a clerical 'Administrative Assistant' gated at a high-school diploma plus 2 years' experience, but the real work spans three specialized functions — fiscal reporting, payroll/HRIS (PeopleSoft, speedtypes), and HR transactions (PAFs) — closer to a fiscal/HR coordinator than general clerical.",
+      "JD asks for 'intermediate to advanced computer skills'; in practice the role requires hands-on PeopleSoft and Access-database reporting, which are specialized systems, not generic Office proficiency.",
+      "The posting repeatedly stresses confidentiality, discretion, and independent decision-making — signals of a trusted role handling sensitive personnel and payroll data — which sits above the stated minimum-qualifications bar.",
+      "Supplied JD text has the pay range, FTE, hours/week, and end-date redacted to blanks, so compensation and exact scope cannot be confirmed from the evidence even though the role is described as part-time and time-limited.",
+      "Classified as FLSA 'exempt' while being part-time and primarily clerical/support — an unusual pairing the JD itself flags as conditionally reclassifiable, so the stated classification may not match the actual duties."
+    ],
+    "trueComplexity": "medium",
+    "riskAreas": [
+      "Handling confidential personnel and payroll data in a fully remote setting — data privacy and access-control exposure",
+      "Payroll/fiscal accuracy in PeopleSoft (timesheets, speedtypes, expense claims) where clerical errors have financial and compliance consequences",
+      "Grant/funding-limited term (expected to end ~December, extension contingent on funding) — continuity, retention, and knowledge-handover risk understated by the 'assistant' framing",
+      "Single administrative support point for two programs (OPHI + Tracing Health) — bus-factor and overload risk",
+      "Mandatory COVID vaccination as a condition of employment narrows the candidate pool and carries accommodation/legal handling overhead",
+      "Thin minimum qualifications (HS diploma, 2 yrs) against a broad fiscal/HR/payroll scope — risk of hiring-bar mismatch and heavy onboarding/training burden",
+      "Part-time 'exempt' classification — potential FLSA misclassification exposure the JD acknowledges"
+    ],
+    "reflection": "This is a non-software administrative role, so the absence of a codebase is expected; the role's real body of work is its document, scheduling, HRIS, and fiscal-reporting systems rather than any tech stack. The JD is specific and self-consistent, and the duties cluster cleanly into fiscal, payroll, and HR support for a remote public-health program. The notable divergence is altitude: the title, minimum qualifications, and 'clerical' language read like an entry-level office assistant, but the actual responsibilities — operating PeopleSoft for payroll, building budgetary/financial reports in spreadsheets and Access, routing PAFs, and acting as a confidential, independently-judging support hub for two leadership teams — describe a medior fiscal/HR coordinator. The most honest gap to surface to a hiring manager is that the stated bar (HS + 2 years) will under-select for the PeopleSoft, fiscal-reporting, and discretion demands the same posting later requires, and that the grant-funded, time-limited, part-time-yet-exempt structure carries continuity and classification risk the 'Administrative Assistant III' label obscures. Some quantitative fields (pay, hours, end date) are blanked in the supplied text, which limits confirmation of scope but does not change the qualitative reflection.",
+    "confidence": 0.8,
+    "promptVersion": "need-analysis-v3"
+  },
+  "role": {
+    "title": "Administrative Assistant III",
+    "seniority": "medior",
+    "roleFamily": "administration",
+    "mustHaves": [
+      "At least 2 years of administrative and/or clerical experience in a professional office setting",
+      "High school diploma or equivalent",
+      "Intermediate-to-advanced proficiency with Microsoft Outlook, Word, Excel, and PowerPoint (producing letters, memos, forms, and spreadsheets)",
+      "Calendar and meeting coordination in Zoom and Outlook — scheduling virtual meetings, sending invitations, taking and distributing minutes",
+      "Proven ability to maintain a high level of confidentiality when handling sensitive personnel and payroll data",
+      "Strong organizational, filing, and virtual file-organization skills suited to a fully remote role",
+      "Excellent oral and written communication skills",
+      "Ability to work independently, handle multiple tasks, and prioritize competing assignments with minimal supervision",
+      "Sound judgment and problem-solving within standard policies and procedures",
+      "Basic mathematics competency for budgetary, payroll, and financial support tasks"
+    ],
+    "niceToHaves": [
+      "Hands-on experience with PeopleSoft for timesheet tracking, verification, approval, and speedtypes",
+      "Experience preparing and routing HR transactions such as Personnel Action Forms (PAFs) and new-hire forms",
+      "Microsoft Access (or comparable database) reporting for budgetary and financial reports",
+      "Travel arrangement and expense-claim/receipt processing for leadership",
+      "Recruitment-coordination experience — tracking job announcements, scheduling interviews, preparing interview packets",
+      "Purchasing approval workflows and supporting-documentation management",
+      "Prior experience in a public health, nonprofit, or government-funded program environment"
+    ],
+    "responsibilities": [
+      "Provide remote general office and administrative support to the OPHI and Tracing Health leadership team under the direction of the Program Administrator",
+      "Coordinate the manager's calendar, schedule and attend virtual meetings in Zoom and Outlook, and take and distribute minutes",
+      "Produce business documents — letters, memos, forms, and spreadsheets — using intermediate-to-advanced software skills",
+      "Support recruitment by tracking job announcements, scheduling interviews, preparing interview packets, and assisting with other HR functions",
+      "Prepare, obtain signatures for, and submit Personnel Action Forms (PAFs), new-hire forms, and personnel information updates",
+      "Track timesheet submission, verification, and approval in PeopleSoft and provide timecard/payroll support including speedtypes verification",
+      "Obtain purchase approvals, gather supporting documentation, and maintain remote office supplies",
+      "Make travel arrangements for management/leadership and process travel expense claims with receipts and supporting documents",
+      "Prepare budgetary and financial reports using spreadsheet and database applications",
+      "Exercise discretion and confidentiality with sensitive data and assist with special projects as assigned"
+    ],
+    "languages": [
+      "English"
+    ],
+    "promptVersion": "role-design-v3"
+  },
+  "case": {
+    "title": "Remote Admin Handoff: Triage the OPHI / Tracing Health Pending-Items Packet",
+    "brief": "You are the incoming Administrative Assistant III providing fully remote support to the leadership of two grant-funded programs, OPHI and Tracing Health. You are the single administrative point of contact for both. Late Thursday, the Program Administrator forwarded you a packet of pending items and a short note, then went on a one-day personal leave and is unreachable until tomorrow afternoon. Several items have a Friday deadline, so you cannot simply wait for answers — you must act on what is reasonable, flag what is not, and record what you would confirm. The provided tools and materials (Outlook/Zoom scheduling, Excel/Word documents, a PeopleSoft timesheet export, expense receipts, a draft budget, and a new-hire packet) match this role's real work, so you will act on them directly. All files are synthetic stand-ins but representative of what this desk handles. Throughout, you are handling confidential personnel and payroll data over a remote connection; exercise the discretion the role requires. Work in plain Excel/Word/text (or equivalent) — you do not need live PeopleSoft, Outlook, or Zoom; produce the artifacts those systems would consume or send (invite text, corrected sheets, memos, completed forms). Budget ~1.5 hours; depth and judgment matter more than polishing every cell. Where the handoff note is vague or the data conflicts with policy, your choice IS the deliverable — make a defensible call and log it.",
+    "repoSeed": "A shared-drive handoff folder containing: (1) `00_handoff_from_program_admin.eml` — a terse forwarded note: 'Cover me till tmrw pm. Get the leadership sync on the calendar this week + the 3 interviews scheduled, the timesheets for PP14 need to go in, Dr. Alvarez's conference travel claim has to be reconciled, the Q3 supply budget goes to Finance by Fri, and please finish onboarding for our new hire (J. Okafor) so HR can countersign. You know the drill.' (no priorities, no channel preferences given); (2) `timesheets_PP14_PeopleSoft_export.xlsx` — pay-period 14 export, ~8 staff, columns: Name, Classification (Exempt/Non-exempt, FT/PT), Speedtype, daily hours Mon–Sun, Total, Approver, Approved? — containing one part-time Exempt employee with overtime hours logged, one 14-hour single-day entry whose weekly Total still 'looks' normal, one row missing approval, and one charged to a speedtype that does not belong to the employee's program; (3) `speedtype_legend_2024.xlsx` — maps each speedtype to OPHI vs Tracing Health grant funding, with one speedtype marked 'RETIRED 12/2023 — do not charge'; (4) `staff_roster.xlsx` — names, program, FLSA classification, FT/PT; (5) `travel_packet_Alvarez/` — `expense_claim_FORM.xlsx` (partially filled), receipt scans (airfare, hotel with one night above the lodging cap, several meals, and a minibar/personal charge), and `travel_policy_excerpt.pdf` stating per-diem caps and non-reimbursables; (6) `OPHI_TracingHealth_supply_budget_Q3_DRAFT.xlsx` — a draft summary where the grand-total cell is a hardcoded number rather than a formula over the line items; (7) `leadership_availability.xlsx` and `interview_candidates_availability.xlsx` — calendars spanning three U.S. time zones, with the only common leadership slot colliding with an existing standing program meeting; (8) `new_hire_packet/` — `PAF_J-Okafor_DRAFT.pdf` and `new_hire_form.pdf` containing full SSN and starting salary fields; (9) `minutes_and_memo_TEMPLATE.docx` plus `prior_leadership_minutes_sample.docx` — the established house format for minutes and memos.",
+    "tasks": [
+      "Task 1 — Calendar & meetings (~25 min). Schedule the leadership sync and the three candidate interviews from the availability files. The only slot all leadership share collides with an existing standing program meeting; the handoff note gives no priority. Resolve it, then produce the Outlook-ready invite text (subject, attendees, time WITH time zones, Zoom join details placeholder, and a one-line agenda) for the sync and each interview. State briefly in the invite or a cover line how you handled the collision and what, if anything, you would confirm before it is final.",
+      "Task 2 — PP14 timesheet reconciliation (~30 min). Review `timesheets_PP14_PeopleSoft_export.xlsx` against `staff_roster.xlsx` and `speedtype_legend_2024.xlsx`. Produce a corrected sheet plus a short exceptions memo (use the house memo format) listing each issue you found, why it is an issue, and the action you took or recommend before approval/submission. Do not assume a clean SUM means a clean timesheet — verify at the level the errors actually live.",
+      "Task 3 — Travel claim + Q3 budget (~25 min). Reconcile `expense_claim_FORM.xlsx` against the receipts and `travel_policy_excerpt.pdf`: total the reimbursable amount, and flag any line that is over the cap, missing documentation, or non-reimbursable, with the policy basis. Then finalize `OPHI_TracingHealth_supply_budget_Q3_DRAFT.xlsx` so it is correct and submission-ready for Finance, and note anything in the draft you would not submit as-is.",
+      "Task 4 — New-hire onboarding + DECISIONS log (~20 min). Complete the `new_hire_packet/` (PAF and new-hire form) for signature, and prepare the brief status summary the handoff note says to give the hiring manager so HR can countersign — deciding how the SSN and salary fields are handled in something you are sharing. Alongside all four tasks, keep one short DECISIONS log: for every point where the handoff note or the data was open-ended, record what you chose, the alternative you rejected and why, and the one question you would have asked the Program Administrator. This is normal handoff hygiene, not extra credit."
+    ],
+    "coverProbes": [
+      {
+        "id": "p1-schedule-collision",
+        "kind": "underspecified",
+        "where": "Task 1 — the only common leadership slot in `leadership_availability.xlsx` collides with an existing standing program meeting, and `00_handoff_from_program_admin.eml` gives no priority or time-zone preference.",
+        "reveals": "A naive response silently double-books or bumps the standing meeting to force the sync in, treating 'schedule it this week' as an order to obey literally. A strong response notices the collision is a real trade-off involving other people's time, makes a defensible call, makes the time zones explicit, and surfaces what it would confirm rather than unilaterally moving a recurring commitment.",
+        "decisionSpace": [
+          "Protect the existing standing meeting; propose the next-best common (or near-common) sync slot and send it as a hold pending confirmation — lowest disruption, but the sync may slip past 'this week'.",
+          "Prioritize the leadership sync and propose moving/short-notice-canceling the standing meeting, but only as a flagged recommendation for sign-off, not a done deal — meets the deadline, accepts disruption to others.",
+          "Split the modes: run the interviews live in their clean slots and offer the leadership sync as a shorter live slot plus an async written update for whoever cannot make it — preserves momentum, trades full live attendance."
+        ]
+      },
+      {
+        "id": "p2-retired-speedtype",
+        "kind": "legacy_trap",
+        "where": "Task 2 — one timesheet row in `timesheets_PP14_PeopleSoft_export.xlsx` is charged to a speedtype that the row's program does not own / that `speedtype_legend_2024.xlsx` marks 'RETIRED 12/2023'.",
+        "reveals": "A candidate who generates straight from the timesheet totals never opens the legend and lets the bad charge through. A candidate who reads the legend and roster first catches that hours are being charged to the wrong grant or a dead account — the grant-funding accuracy the role's fiscal scope demands.",
+        "decisionSpace": [
+          "Hold the row out of submission and route it back to the employee/approver for the correct active speedtype — most accurate, slightly delays that person's pay processing.",
+          "Re-map it yourself to the program's correct current speedtype from the legend and flag the change in the exceptions memo for confirmation — keeps the pay run moving, assumes you inferred the right account.",
+          "Submit the rest, ring-fence and document the single disputed row as a known exception with the funding implication called out — protects the clean rows, defers the judgment to whoever owns the grant."
+        ]
+      },
+      {
+        "id": "p3-exempt-ot-verification",
+        "kind": "verification_trap",
+        "where": "Task 2 — a part-time Exempt employee has overtime hours logged, and a separate row has a 14-hour single-day entry whose weekly Total still falls in a normal-looking range; classification is in `staff_roster.xlsx`.",
+        "reveals": "A one-shot check of 'does SUM(daily)=Total and is every row Approved?' passes both of these. It takes verifying against FLSA classification (Exempt staff do not draw overtime, and the part-time Exempt flag is itself a misclassification smell) and scanning daily detail (not just weekly totals) to catch them — i.e., whether the candidate verifies at the granularity where payroll errors actually hide.",
+        "decisionSpace": [
+          "Strip/zero the OT for the Exempt employee per policy and correct or query the 14-hour day, documenting both — clean payroll, but acting on a classification you may want confirmed.",
+          "Submit hours as worked but flag the Exempt-OT and the outlier day to the Program Administrator/HR as a possible misclassification or data-entry error before approval — slower, surfaces a compliance issue rather than papering over it.",
+          "Correct the clear data-entry outlier yourself, but escalate the Exempt-OT as a policy question rather than deciding it solo — splits clerical fixes from classification calls that are above the desk's authority."
+        ]
+      },
+      {
+        "id": "p4-pii-in-shared-summary",
+        "kind": "ambiguity",
+        "where": "Task 4 — `new_hire_form.pdf`/`PAF_J-Okafor_DRAFT.pdf` carry full SSN and salary, and the handoff note asks you to give the hiring manager a status summary, with no stated channel or redaction rule.",
+        "reveals": "A naive response copies the full PAF contents (SSN, comp) into the shared summary because the note 'said to update the manager.' A response showing the discretion the role names treats SSN/comp as need-to-know, separates the official signature packet from the informal status share, and picks a defensible channel — the confidentiality judgment that is central to a remote desk handling personnel data.",
+        "decisionSpace": [
+          "Redact SSN and keep salary out of the shared status summary; route the complete PAF only through the official/secure channel to HR for countersignature — safest, may give the manager less than they expected.",
+          "Share full detail to the hiring manager as an authorized party but over a secure/restricted channel with an access caveat — faster for the manager, widens exposure of the most sensitive fields.",
+          "Send a minimal status-only summary now (candidate, role, start date, packet status) and hold any PII pending the Program Administrator's confirmed channel — most conservative, defers part of the task a day."
+        ]
+      }
+    ],
+    "timeboxHours": 1.5,
+    "rubricDimensions": [
+      {
+        "name": "framing",
+        "label": "Problem framing",
+        "weight": 0.2,
+        "description": "Turns an ambiguous need into a sound plan."
+      },
+      {
+        "name": "tooling",
+        "label": "Tooling fluency",
+        "weight": 0.25,
+        "description": "Drives AI and other tools well; iterates and verifies."
+      },
+      {
+        "name": "judgment",
+        "label": "Judgment",
+        "weight": 0.25,
+        "description": "Catches AI/tooling mistakes; validates; pushes back."
+      },
+      {
+        "name": "architecture",
+        "label": "Architecture",
+        "weight": 0.15,
+        "description": "Structure and trade-offs that fit the real materials and constraints."
+      },
+      {
+        "name": "transfer",
+        "label": "Transfer",
+        "weight": 0.15,
+        "description": "Capability transfers to THIS role's tools and responsibilities."
+      }
+    ],
+    "promptVersion": "case-design-v5"
+  },
+  "source": "llm",
+  "issues": [],
+  "fallbackReason": {},
+  "promptVersions": {
+    "analyze": "need-analysis-v3",
+    "role": "role-design-v3",
+    "case": "case-design-v5"
+  }
+}

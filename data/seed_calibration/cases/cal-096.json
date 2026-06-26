@@ -1,0 +1,194 @@
+{
+  "job": {
+    "id": "cal-096",
+    "title": "Associate, Corporate Development",
+    "company": "Guggenheim Museum",
+    "role_family": "sales",
+    "seniority": "junior",
+    "source": "hf:jacob-hugging-face/job-descriptions"
+  },
+  "analysis": {
+    "realStack": [
+      "CRM / donor databases — Raiser's Edge and/or Salesforce (listed as 'a plus' but central to the data-integrity duties)",
+      "Prospect research tools — WinMo and general prospect-research/wealth-screening resources",
+      "Microsoft Office Suite (Word, Excel, Outlook, PowerPoint) for correspondence, budgets, agendas, presentation decks",
+      "Prospect/moves-management systems for portfolio tracking and reporting",
+      "List-pulling, query and report-generation tooling against the donor database",
+      "Calendar/meeting/travel coordination tools and RSVP/event-invitation mailing workflows",
+      "Sponsorship & contract documentation — proposals, budgets, benefit-fulfillment trackers, impact/overview reports",
+      "Cross-departmental coordination with legal, finance, curatorial, communications, special events, and development operations"
+    ],
+    "coreResponsibilities": [
+      "Day-to-day administrative support for the Director and the corporate development department — calendars, meetings, travel, agendas, itineraries, confidential correspondence, RSVP tracking",
+      "Process corporate contributions and provide front-line donor/member customer service via phone and email",
+      "Donor stewardship and benefit fulfillment — private tours, private views, and general benefit delivery for corporate donors and prospects",
+      "Data management and integrity — maintain accurate corporate donor records in the CRM and prospect-management systems for reporting",
+      "Compile prospect research and meeting briefings; manage mailings for invitations, proposals, catalogues, and travel programs",
+      "Support fundraising goals — help identify and solicit a portfolio of corporate sponsorship and in-kind prospects",
+      "Prepare presentation materials, written proposals, and budgets in conjunction with curatorial, comms, education, legal, and finance",
+      "Serve as liaison across legal/communications/special events/curatorial during sponsorship benefit valuation and fulfillment; prepare sponsorship reports and impact data",
+      "Coordinate sponsored events and departmental meetings, including occasional nights/weekends and travel within the metro area"
+    ],
+    "statedVsRealGaps": [
+      "roleFamily is tagged 'sales,' but the actual work is nonprofit corporate philanthropy / fundraising and donor relations — relationship cultivation and benefit fulfillment, not commercial quota-carrying sales. Screening it as sales will misread the candidate profile.",
+      "Titled 'Associate' / junior with only a high-school diploma and unspecified ('minimum of [blank] years') office-support experience required, yet the duties include preparing funding budgets and written proposals, soliciting a sponsorship prospect portfolio, and acting as benefit-valuation liaison — responsibilities that lean development-coordinator/mid-level, not pure admin.",
+      "The CRM (Raiser's Edge/Salesforce) and prospect tools (WinMo) are listed only as 'a plus,' but 'data management and integrity' in exactly those systems is a named core responsibility — the must-have skill is being undersold as optional.",
+      "The required years-of-experience figure is missing from the JD text ('minimum of years'), so the seniority bar is literally unstated and must be confirmed before screening.",
+      "Heavy fundraising-revenue language ('achieve and exceed annual fundraising goals,' 'solicit a portfolio') sits alongside an administrative/customer-service core; the role is genuinely hybrid admin + entry-level development, which the 'support' framing partly obscures.",
+      "No software codebase or tech stack applies — this is an office/development role, so 'stack' is correctly empty and its absence is not a defect."
+    ],
+    "trueComplexity": "medium",
+    "riskAreas": [
+      "Stakeholder breadth: success depends on coordinating across legal, finance, curatorial, comms, special events, and external corporate donors — coordination load and diplomacy matter more than any single hard skill.",
+      "Data integrity in the CRM is a reporting backbone; a junior hire without real Raiser's Edge/Salesforce fluency could degrade donor-record accuracy despite the tools being labeled 'a plus.'",
+      "Confidential, time-sensitive correspondence and benefit-valuation/contract-fulfillment work carry compliance and reputational risk if mishandled.",
+      "Title/scope mismatch risks either over-hiring (admin-only candidate can't handle proposals/budgets/solicitation) or under-paying for a de facto development coordinator; clarify the level and the blank experience minimum first.",
+      "Non-standard demands — nights/weekends, metro-area travel, outdoor event exposure, NYC vaccination mandate, and a Local 2110 UAW collective-bargaining-covered position — are screening/fit factors that must be surfaced to candidates early.",
+      "Fundraising-goal language sets revenue expectations on a support role; misaligned performance metrics could set a junior hire up to be judged on outcomes they only partially influence."
+    ],
+    "reflection": "This is a genuine non-software role, so the empty stack is expected, not a gap — the 'realStack' is a nonprofit development toolkit: a donor CRM (Raiser's Edge/Salesforce), prospect-research tools (WinMo), the MS Office suite, and the mailing/event/reporting workflows that surround them. Reflected against its own materials, the position is a hybrid: roughly two-thirds executive-administrative support for the Director and department (calendars, travel, correspondence, RSVPs, customer service, data hygiene) and one-third entry-level fundraising (prospect research, proposal/budget prep, sponsorship benefit fulfillment, cross-departmental liaison). The biggest divergence between the stated need and the evidence is framing: it is tagged 'sales' and 'junior' with a high-school-diploma floor and a literally blank years-of-experience requirement, yet the responsibility list includes building budgets and proposals and soliciting a prospect portfolio — work that reads a notch above pure admin. The second divergence is that the CRM and prospect tools are marked 'a plus' while CRM data integrity is named as a core duty. True complexity is medium: no deep specialist expertise is required, but the role demands sustained multi-stakeholder coordination, discretion with confidential material, and reliable database accuracy under event-driven deadlines. Before screening, confirm the missing experience minimum, decide whether CRM fluency is truly optional or a must-have, and reframe evaluation around development/donor-relations competencies rather than commercial sales.",
+    "confidence": 0.82,
+    "promptVersion": "need-analysis-v3"
+  },
+  "role": {
+    "title": "Associate, Corporate Development",
+    "seniority": "junior",
+    "roleFamily": "sales",
+    "mustHaves": [
+      "Office / administrative support experience (note: the JD's required years figure is blank — 'minimum of [ ] years' — so the exact experience bar must be confirmed before screening)",
+      "Exceptional written, verbal, and interpersonal communication skills",
+      "Proven project management skills — coordinating calendars, meetings, events, travel, agendas, itineraries, and RSVP tracking",
+      "Front-line customer service to current and prospective donors/members via phone and email",
+      "Data management and integrity in a CRM / prospect-management system — maintaining accurate corporate donor records for reporting (named a core duty, so this is a true must-have even though the JD lists the specific CRMs only as 'a plus')",
+      "List-pulling, query, and report generation against the donor database",
+      "Ability to handle competing situations, priorities, and deadlines diplomatically and on time",
+      "Ability to handle confidential and time-sensitive correspondence with discretion",
+      "Ability to work collaboratively across departments and with external stakeholders",
+      "Microsoft Office Suite proficiency (Word, Excel, Outlook, PowerPoint) for correspondence, budgets, agendas, and presentation materials",
+      "High school diploma or equivalent",
+      "Availability to occasionally work nights/weekends for events and to travel within the metropolitan area, including occasional outdoor work in varied weather"
+    ],
+    "niceToHaves": [
+      "Experience in arts, culture, educational organizations, and/or agency environments",
+      "Hands-on experience with Raiser's Edge and/or Salesforce",
+      "Experience with prospect research / wealth-screening tools such as WinMo",
+      "Experience preparing written proposals, budgets, and presentation decks for funding prospects",
+      "Familiarity with corporate philanthropy, sponsorship benefit valuation, and benefit-fulfillment workflows",
+      "Bachelor's degree or equivalent worked experience with a strong interest in arts and culture"
+    ],
+    "responsibilities": [
+      "Provide day-to-day administrative support to the Director and the corporate development department — coordinating calendars, meetings, events, and travel, preparing agendas and itineraries, managing confidential correspondence, and tracking RSVPs",
+      "Process corporate contributions and provide excellent front-line customer service to current and prospective donors and members via phone and email",
+      "Coordinate donor stewardship and benefit fulfillment — private tours, private views, and general benefit delivery for corporate donors and prospects",
+      "Maintain corporate donor data integrity in the CRM and prospect-management systems, working with corporate and development operations teams for reporting",
+      "Compile prospect research and meeting briefings, and manage mailings for event invitations, exhibition proposals, catalogues, and travel programs",
+      "Support the department's annual fundraising goals, including helping identify and solicit a portfolio of corporate sponsorship and in-kind prospects",
+      "Prepare presentation materials, written proposals, and budgets in conjunction with curatorial, communications, education, legal, and finance staff",
+      "Serve as liaison across legal, communications, special events, and curatorial during sponsorship benefit valuation and fulfillment, and help prepare sponsorship reports and impact data",
+      "Coordinate sponsored events and departmental meetings, including occasional nights/weekends and travel within the metropolitan area"
+    ],
+    "languages": [
+      "English"
+    ],
+    "promptVersion": "role-design-v3"
+  },
+  "case": {
+    "title": "Corporate Development Associate — Donor Data, Sponsorship Proposal & Stewardship Work Sample",
+    "brief": "You are stepping in as the new Associate, Corporate Development at a mid-sized cultural institution (a museum that runs sponsored exhibitions and a corporate membership program). The Director is travelling and has left you a small bundle of real department materials and one short ask. This is exactly the kind of mixed morning this role has: clean up the donor system, move a sponsorship proposal forward, and make sure a current sponsor's benefits are actually being delivered. Everything you produce could plausibly be drafted with AI help — so what we are reading is not your typing, it is your JUDGMENT: how you handle messy data, an underspecified request from a busy Director, numbers that have to be right, and a relationship that could go sideways. Work in the role's own terms (constituents, gifts, stewardship, benefit fulfillment, deductible value), not software terms. Timebox is a hard 1 hour — do not try to perfect every artifact; make defensible calls, keep them short, and write down why. When the brief is silent or ambiguous, that is deliberate: state the assumption you made and the question you would have asked the Director rather than guessing silently. Deliverables can be plain documents/spreadsheets/emails — formatting is not graded, decisions are. NOTE: the role's provided context (donor CRM, prospect research, sponsorship documentation) fits this exercise directly, so the starting materials below are synthetic but representative stand-ins for a Raiser's Edge / Salesforce environment you would actually inherit.",
+    "repoSeed": "A small department bundle handed to the candidate: (1) `corporate_donors_export.csv` — a ~40-row export from the donor database (Raiser's Edge-style) with columns like Constituent, Constituent Type (Corporate/Individual), Last Gift FY, Last Gift Amount, Total Lifetime Giving, Wealth/Capacity Rating, Relationship Manager. It is deliberately dirty: the sponsor 'Meridian Bank' appears three times as 'Meridian Bank', 'Meridian Bank, N.A.', and 'Meridian Bank Corp.' with giving split across the variants; a board member 'James Okonkwo' is recorded as Individual with a $10,000 personal gift but is also the Meridian relationship contact; 'Harborview Capital' is a once-major corporate donor whose last gift was FY21 (lapsed); 'Lumen Logistics' is a high-capacity prospect with $0 given to date. (2) `director_email.txt` — a two-line note from the Director: 'Can you send me a list of our top corporate supporters so we can finalize the gala invitation list? Need it before I land tonight. Thanks!' (3) `meridian_sponsorship_proposal_DRAFT.docx` — a draft renewal proposal asking Meridian Bank for a $75,000 sponsorship of the 'Modern Light' exhibition, with a benefit-valuation table (private view, catalogue acknowledgment, logo placement, member tickets) whose line items actually sum to ~$8,200 although the table footer reads $6,500, and a closing sentence stating 'the full $75,000 contribution is tax-deductible.' (4) `meridian_benefits_tracker.xlsx` — the current-year fulfillment tracker for Meridian's existing sponsorship: a 'Private view for up to 50 guests' line shows status 'Not scheduled' with the exhibition closing in two weeks, and the 'Catalogue acknowledgment' line is marked Delivered but lists the donor as 'Meridian Banc.'",
+    "tasks": [
+      "Task 1 — CRM clean-up & list pull (~25 min): Working from `corporate_donors_export.csv`, produce the 'top corporate supporters' list the Director asked for in `director_email.txt`. Before you sort anything, reconcile the data: decide how to handle the three Meridian records and the Okonkwo individual gift, and how to treat lapsed donors (e.g. Harborview Capital) and zero-dollar prospects (e.g. Lumen Logistics) for a GALA INVITATION context. Deliver the list plus a 2-3 sentence header stating the exact criterion you ranked by and which records you merged, excluded, or flagged for development operations.",
+      "Task 2 — Proposal & budget check (~20 min): Review `meridian_sponsorship_proposal_DRAFT.docx`. Verify the benefit-valuation table before improving any wording — the line items and the stated total do not match, and the tax-deductibility sentence does not account for benefits the sponsor receives. Correct what you are confident is a factual/arithmetic error, and for anything that is a legal/finance judgment, mark it for the appropriate team rather than asserting a final number yourself. Return the corrected table/figures and a one-line note on what you changed versus what you escalated.",
+      "Task 3 — Benefit fulfillment & stewardship (~10 min): From `meridian_benefits_tracker.xlsx`, identify the at-risk and the already-mishandled benefit, then write (a) a 3-4 sentence internal note to your manager on what you found and what you recommend doing, and (b) a short, optional draft of any donor-facing message you think should go out. Make a clear call on whether/when to involve the Director and the sponsor.",
+      "Task 4 — DECISIONS log (~5 min): Keep one short running log (5-8 bullets total across Tasks 1-3). For each open call you made, record: what you chose, the alternative you rejected and why, and the one question you would have asked the Director or another team if they had been reachable. This is normal practice here, not a test — we use it to brief your manager on where the materials were ambiguous."
+    ],
+    "coverProbes": [
+      {
+        "id": "cp1-top-supporters-criteria",
+        "kind": "underspecified",
+        "where": "Task 1 — the Director's 'top corporate supporters' ask in director_email.txt defines neither the ranking metric nor whether lapsed donors and never-given prospects belong on a gala invitation list.",
+        "reveals": "A strong candidate names the metric explicitly and recognizes the purpose (a gala invite) changes who belongs — flagging that lapsed or $0 prospects need a judgment call — and notes the question they'd ask. A naive candidate silently sorts one column descending, mixes prospects and lapsed donors in with no caveat, and presents it as 'the' list.",
+        "decisionSpace": [
+          "Rank by cumulative lifetime corporate giving — rewards long loyalty but can surface lapsed names (Harborview) who may be awkward gala invitees.",
+          "Rank by most-recent-fiscal-year corporate giving — reflects currently active relationships but may drop a major multi-year supporter who is simply between gifts.",
+          "Blended: active corporate donors above a threshold, with high-capacity prospects (Lumen) listed separately as cultivation targets and lapsed donors flagged, not silently included — best serves a gala's cultivation goal but requires stating the assumption back to the Director."
+        ]
+      },
+      {
+        "id": "cp2-dirty-constituent-records",
+        "kind": "legacy_trap",
+        "where": "Task 1 — the three Meridian Bank variants and James Okonkwo's individual gift inside corporate_donors_export.csv.",
+        "reveals": "A strong candidate reads the data first, notices the duplicate constituents and the mis-coded individual gift, and either merges/excludes correctly or flags them to development operations before reporting a corporate total. A naive candidate trusts the rows as-is, double-counts Meridian, and rolls a board member's personal gift into the corporate figure — degrading exactly the data integrity this role exists to protect.",
+        "decisionSpace": [
+          "Merge the three Meridian variants into one corporate constituent and exclude Okonkwo's personal Individual gift — most accurate, but requires noticing the constituent-type mis-coding.",
+          "Sum every row mentioning 'Meridian' and report it — fast, but inflates the total via double-counting and an individual gift.",
+          "Pull the list from only the clean records and flag the Meridian duplicates + Okonkwo mis-code to development operations for a proper merge — most conservative; protects the database but defers part of the answer."
+        ]
+      },
+      {
+        "id": "cp3-budget-and-deductibility",
+        "kind": "verification_trap",
+        "where": "Task 2 — the benefit-valuation table footer ($6,500 vs the ~$8,200 the line items actually sum to) and the 'full $75,000 is tax-deductible' sentence in meridian_sponsorship_proposal_DRAFT.docx.",
+        "reveals": "A strong candidate recomputes the line items, catches that the deductible amount must be reduced by the value of benefits received, and distinguishes the arithmetic fix (owns it) from the tax/legal assertion (escalates). A one-shot 'polish the prose' pass reads clean but ships a material math error and a compliance-risky deductibility claim.",
+        "decisionSpace": [
+          "Recompute the valuation total and restate the deductible portion as contribution minus benefits received — correct and compliance-aware, but states a tax position the Associate may not be authorized to finalize.",
+          "Leave the figures and only tighten the language — passes a shallow read but leaves the wrong total and an overstated deduction in a donor-facing document.",
+          "Fix the arithmetic total (clearly an error) but flag the tax-deductibility wording to finance/legal rather than asserting the deductible number yourself — defensible scoping of what a junior should own versus escalate."
+        ]
+      },
+      {
+        "id": "cp4-benefit-miss-stewardship",
+        "kind": "ambiguity",
+        "where": "Task 3 — the unscheduled 'Private view for up to 50 guests' two weeks before close and the 'Meridian Banc' misspelling on a benefit already marked Delivered in meridian_benefits_tracker.xlsx.",
+        "reveals": "A strong candidate treats an undelivered contracted benefit as a relationship and reporting risk, recommends a concrete make-good and the right escalation timing, and is honest in the internal note. A naive candidate quietly patches the spelling and reschedules without surfacing that a contracted benefit was about to be missed — leaving the eventual sponsorship report inaccurate.",
+        "decisionSpace": [
+          "Proactively flag to the Director now and propose a make-good (schedule the private view immediately or offer an equivalent benefit) before the sponsor notices — owns the miss, protects the relationship, costs internal attention.",
+          "Quietly reschedule and correct the catalogue name without internal escalation — fastest, but hides a reportable fulfillment gap and risks an inaccurate sponsorship/impact report.",
+          "Note both issues internally and wait for the sponsor to raise them — minimizes proactive effort but gambles on the sponsor's goodwill and the closing timeline."
+        ]
+      }
+    ],
+    "timeboxHours": 1.0,
+    "rubricDimensions": [
+      {
+        "name": "framing",
+        "label": "Problem framing",
+        "weight": 0.2,
+        "description": "Turns an ambiguous need into a sound plan."
+      },
+      {
+        "name": "tooling",
+        "label": "Tooling fluency",
+        "weight": 0.25,
+        "description": "Drives AI and other tools well; iterates and verifies."
+      },
+      {
+        "name": "judgment",
+        "label": "Judgment",
+        "weight": 0.25,
+        "description": "Catches AI/tooling mistakes; validates; pushes back."
+      },
+      {
+        "name": "architecture",
+        "label": "Architecture",
+        "weight": 0.15,
+        "description": "Structure and trade-offs that fit the real materials and constraints."
+      },
+      {
+        "name": "transfer",
+        "label": "Transfer",
+        "weight": 0.15,
+        "description": "Capability transfers to THIS role's tools and responsibilities."
+      }
+    ],
+    "promptVersion": "case-design-v5"
+  },
+  "source": "llm",
+  "issues": [],
+  "fallbackReason": {},
+  "promptVersions": {
+    "analyze": "need-analysis-v3",
+    "role": "role-design-v3",
+    "case": "case-design-v5"
+  }
+}

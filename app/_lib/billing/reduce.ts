@@ -18,7 +18,7 @@ export type BillingAction =
       periodStart: string | null;
       periodEnd: string | null;
     }
-  | { kind: "clear_subscription"; customerId: string | null }
+  | { kind: "clear_subscription"; customerId: string | null; subscriptionId: string | null }
   | { kind: "grant_credits"; meter: Meter; qty: number; providerRef: string; reason: string }
   // `unmapped` marks an ignore that is NOT benign: a money event (a paying
   // subscription) whose product id isn't in the configured map, so the subscriber
@@ -56,11 +56,27 @@ export function subscriptionWriteIsStale(
   return incoming < stored;
 }
 
+/** Out-of-order guard for a `clear_subscription` (revoke/ended) apply: true when the
+ *  revoke is for a DIFFERENT subscription than the one currently stored — i.e. a
+ *  delayed/retried `revoked` for an OLD subscription arriving after the customer has
+ *  already re-subscribed (a newer `active` is live). Clearing then would silently
+ *  downgrade a paying customer to free. The mirror of `subscriptionWriteIsStale` for
+ *  the revenue-losing direction. When either id is unknown we can't prove staleness,
+ *  so we DON'T skip (clear applies) — a genuine revoke must still drop entitlement. */
+export function clearSubscriptionIsStale(
+  storedSubscriptionId: string | null,
+  revokedSubscriptionId: string | null
+): boolean {
+  return Boolean(storedSubscriptionId && revokedSubscriptionId && storedSubscriptionId !== revokedSubscriptionId);
+}
+
 export function reduceBillingEvent(event: BillingEvent, products: ProductMap): BillingAction {
   if (event.kind === "subscription") {
     const status = (event.status ?? "").toLowerCase();
     if (ENDED_STATUSES.has(status)) {
-      return { kind: "clear_subscription", customerId: event.customerId };
+      // Carry the revoked subscription id so apply can ignore a REORDERED revoke:
+      // a delayed `revoked` for an OLD subscription must not wipe a newer active one.
+      return { kind: "clear_subscription", customerId: event.customerId, subscriptionId: event.subscriptionId };
     }
     const mapped = event.productId ? products[event.productId] : undefined;
     if (!mapped || mapped.kind !== "plan") {
