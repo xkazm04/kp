@@ -18,7 +18,7 @@ import {
   type DevSubmission,
 } from "./db";
 import { MAX_CODEBASES } from "./devcase-constraints";
-import { scoreAuthenticity, type Authenticity } from "./devcase-authenticity";
+import { scoreAuthenticity, PASTE_BULK_CHARS, type Authenticity } from "./devcase-authenticity";
 import { seedDiffEvidence, type SeedDiff } from "./devcase-seed-diff";
 import { cleanupWorkdir, createWorkdir, parsePythonJson, parseStderrError, PipelineError, spawnPython } from "./python-runner";
 import { buildRepoSnapshot, fetchRepoSignals, type RepoSnapshot } from "./repo-snapshot";
@@ -407,7 +407,7 @@ export async function runEvaluateSubmission(submissionId: string, signal?: Abort
   // candidate produced no commit history by design). A normal repoRef keeps the
   // existing fetch-and-infer path unchanged.
   let signals: Awaited<ReturnType<typeof fetchRepoSignals>> = null;
-  let events: { t: number; kind: string; path?: string | null }[] | null = null;
+  let events: { t: number; kind: string; path?: string | null; size?: number | null }[] | null = null;
   if (sub.repoRef.startsWith("session:")) {
     events = getDevSessionEvents(sub.repoRef.slice("session:".length));
   } else {
@@ -477,6 +477,10 @@ export async function runEvaluateSubmission(submissionId: string, signal?: Abort
   };
   // ce28da40 — fold the trace + reflection into one authenticity verdict.
   const reflection = (payload.result.reflection ?? {}) as { readBeforeWrite?: number; iterationPattern?: string };
+  // Paste-from-LLM tell for observed sessions: a single bulk paste at/over the
+  // threshold landed in the watched editor (the live surface waives commit penalties,
+  // so without this a pasted solution scored "authentic").
+  const observedBulkPaste = observed && events!.some((e) => e.kind === "paste" && (e.size ?? 0) >= PASTE_BULK_CHARS);
   const authenticity = scoreAuthenticity({
     commitCount: processTrace.commitCount,
     bursty: processTrace.cadence?.bursty ?? null,
@@ -485,6 +489,7 @@ export async function runEvaluateSubmission(submissionId: string, signal?: Abort
     readBeforeWrite: reflection.readBeforeWrite ?? null,
     iterationPattern: reflection.iterationPattern ?? null,
     observed,
+    observedBulkPaste,
   });
   // c364a44d — anchor the evaluation into the shared seed: which planted seam
   // files did the submission actually touch? Grounded, mechanically comparable

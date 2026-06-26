@@ -12,8 +12,10 @@ export type SelectedJd = { slug: string; title: string; body: string };
 // in-product work surface. Free-form JSON (NOT a codegen'd model): persisted to
 // dev_session_events and fed to the Python engine's tooling_from_events(). `t` is a
 // client timestamp (ms); `path` is the seed file the event concerns.
-export type ProcessEventKind = "open" | "edit" | "decision_log" | "submit";
-export type ProcessEvent = { t: number; kind: ProcessEventKind; path?: string };
+export type ProcessEventKind = "open" | "edit" | "decision_log" | "submit" | "paste";
+// `size` carries the char count for a "paste" event (bulk-paste authenticity signal);
+// absent for other kinds. We record paste MAGNITUDE only — never the pasted content.
+export type ProcessEvent = { t: number; kind: ProcessEventKind; path?: string; size?: number };
 
 // One file of the materialized starter tree handed to the candidate work surface
 // (seed_materializer.py output). `path` is repo-relative; `contents` is the text.
