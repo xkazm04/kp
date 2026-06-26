@@ -26,6 +26,15 @@ export function applyBillingAction(action: BillingAction, provider: string): str
       if (subscriptionWriteIsStale(prior?.providerSubscriptionId ?? null, prior?.currentPeriodStart ?? null, action.subscriptionId, action.periodStart)) {
         return `stale subscription event ignored (period ${action.periodStart ?? "?"} not newer than stored)`;
       }
+      // A `canceled` (cancel-at-period-end) carries the grace period in periodEnd;
+      // entitledPlan keeps the customer until it passes. If Polar omits/malforms it,
+      // surface LOUDLY (like the unmapped path) — entitledPlan now favors the customer
+      // on an unparseable end, so this is the only signal that the data gap exists.
+      if (action.status === "canceled" && !Number.isFinite(action.periodEnd ? Date.parse(action.periodEnd) : NaN)) {
+        console.error(
+          `[billing:webhook] CANCELED subscription ${action.subscriptionId ?? "?"} has no parseable currentPeriodEnd (${action.periodEnd ?? "null"}) — grace cutoff is unknown; keeping the plan. Check the Polar payload.`
+        );
+      }
       upsertBillingState({
         plan: action.plan,
         status: action.status,

@@ -182,6 +182,16 @@ test("canceled stays entitled until period end, then falls to free", () => {
   assert.equal(entitledPlan(getBillingState(), new Date("2026-07-02T00:00:00Z")).id, "free");
 });
 
+test("canceled with an unparseable period end keeps the plan (don't cut a paying customer on a data gap)", () => {
+  // A malformed/missing currentPeriodEnd on a cancel must NOT silently drop the
+  // customer to free immediately — a genuinely-lapsed sub arrives as revoked instead.
+  upsertBillingState({ plan: "growth", status: "canceled", provider: "polar", currentPeriodEnd: "not-a-date" });
+  assert.equal(entitledPlan(getBillingState(), new Date("2026-06-15T00:00:00Z")).id, "growth");
+  // But a PARSEABLE past end still lapses to free (the grace genuinely expired).
+  upsertBillingState({ plan: "growth", status: "canceled", provider: "polar", currentPeriodEnd: "2026-01-01T00:00:00Z" });
+  assert.equal(entitledPlan(getBillingState(), new Date("2026-06-15T00:00:00Z")).id, "free");
+});
+
 test("meterGate verdicts: exhausted allowance blocks, credits keep a meter open", () => {
   upsertBillingState({ plan: "free", status: "none", provider: "polar" });
   // ai_candidates: 5/5 used earlier in this file → hard gate fires.
