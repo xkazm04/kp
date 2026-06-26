@@ -193,6 +193,15 @@ test("meterGate verdicts: exhausted allowance blocks, credits keep a meter open"
   assert.equal(meterGate("interview_minutes"), null);
 });
 
+test("meterGate minUnits requires the whole action to fit, not just any remaining", () => {
+  upsertBillingState({ plan: "free", status: "none", provider: "polar" });
+  // The meter is open for a single unit (a sliver of pack balance)...
+  assert.equal(meterGate("interview_minutes", { minUnits: 1 }), null);
+  // ...but a booked action needing more than the balance must 402, so one leftover
+  // minute can't unlock a full interview.
+  assert.equal(meterGate("interview_minutes", { minUnits: 1_000_000 })?.code, "quota_exceeded");
+});
+
 test("activeJobsGate caps free at 1 published job; paid plans are uncapped", () => {
   upsertBillingState({ plan: "free", status: "none", provider: "polar" });
   assert.equal(activeJobsGate(0), null);
