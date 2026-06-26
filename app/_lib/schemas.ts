@@ -146,6 +146,10 @@ export const githubAnalysisSchema = z.object({
     jobDescriptionProvided: z.boolean(),
     matchingSkills: z.array(z.string()),
     potentialGaps: z.array(z.string()),
+    // How many skills the fixed taxonomy covers — so the UI can say "compared against
+    // N tracked skills" and a recruiter doesn't read "no gaps" as exhaustive.
+    // Nullish for backward-compat with any response cached before this field existed.
+    trackedSkillCount: z.number().nullish(),
     complexityAssessment: z.string()
   }),
   limitations: z.array(z.string()),

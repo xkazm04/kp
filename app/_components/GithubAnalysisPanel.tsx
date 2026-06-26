@@ -131,6 +131,11 @@ function GithubAnalysisBody({ analysis }: { analysis: GithubAnalysis }) {
           <TitledList title="Job Skill Matches" items={analysis.jobFitSignals.matchingSkills} empty={matchesEmpty} />
           <TitledList title="Potential Gaps" items={analysis.jobFitSignals.potentialGaps} empty={gapsEmpty} />
         </div>
+        {jobDescriptionProvided && analysis.jobFitSignals.trackedSkillCount ? (
+          <p className="text-sm text-steel">
+            Compared against {analysis.jobFitSignals.trackedSkillCount} tracked skills — &ldquo;no gaps&rdquo; means none among these, not an exhaustive check.
+          </p>
+        ) : null}
         <div className="rounded-lg border border-stone-200 bg-white p-4">
           <h3 className="font-serif text-h3 text-ink">Complexity Assessment</h3>
           <p className="mt-3 text-base leading-6 text-ink">{analysis.jobFitSignals.complexityAssessment}</p>

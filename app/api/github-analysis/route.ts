@@ -100,15 +100,38 @@ type GithubRepo = {
   open_issues_count: number;
 };
 
+// The tracked skill taxonomy for the GitHub↔JD fit comparison. Was 10 buckets, so a
+// JD requiring Go/Rust/Java/K8s/security/data-eng could never appear as a match OR a
+// gap — a recruiter saw "Potential Gaps: none" and read it as "no gaps" when it meant
+// "no gaps among 10 hard-coded skills" (a false-reassurance wrong-hiring signal).
+// aliasMatches is WHOLE-TOKEN (tokenizeForSkills keeps + # .), so short aliases like
+// "go"/"c#"/"c++" can't substring-match ("go" ≠ "google"). The job-fit signals expose
+// trackedSkillCount so the UI can say "compared against N tracked skills", honestly.
 const SKILL_ALIASES: Record<string, string[]> = {
   python: ["python", "fastapi", "django", "flask", "pandas", "numpy"],
   typescript: ["typescript", "ts", "next.js", "nextjs", "react"],
   javascript: ["javascript", "node", "react", "next.js", "nextjs"],
   react: ["react", "frontend", "ui"],
+  go: ["go", "golang"],
+  rust: ["rust"],
+  java: ["java", "spring", "jvm"],
+  csharp: ["c#", "csharp", ".net", "dotnet"],
+  cpp: ["c++", "cpp"],
+  php: ["php", "laravel", "symfony"],
+  ruby: ["ruby", "rails"],
+  swift: ["swift", "ios"],
+  kotlin: ["kotlin", "android"],
+  mobile: ["mobile", "react native", "flutter"],
   docker: ["docker", "container"],
+  kubernetes: ["kubernetes", "k8s", "helm"],
+  iac: ["terraform", "ansible", "pulumi", "iac"],
   sql: ["sql", "postgres", "mysql", "sqlite", "database"],
+  nosql: ["mongodb", "redis", "cassandra", "dynamodb", "nosql"],
+  graphql: ["graphql", "apollo"],
+  data_engineering: ["spark", "kafka", "airflow", "etl", "snowflake", "dbt", "databricks"],
   ai: ["ai", "llm", "rag", "openai", "gemini", "agent", "automation"],
   cloud: ["aws", "azure", "gcp", "cloud"],
+  security: ["security", "appsec", "infosec", "owasp", "pentest", "cryptography"],
   testing: ["test", "testing", "playwright", "pytest", "jest", "vitest"],
   ci: ["ci", "github actions", "pipeline", "devops"]
 };
@@ -411,6 +434,9 @@ function buildJobFitSignals(
     jobDescriptionProvided,
     matchingSkills,
     potentialGaps,
+    // Honest coverage: the comparison is over a fixed taxonomy, so "no gaps" means
+    // "no gaps among the tracked skills", not "no gaps". The UI can say so.
+    trackedSkillCount: Object.keys(SKILL_ALIASES).length,
     complexityAssessment
   };
 }
