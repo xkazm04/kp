@@ -34,6 +34,9 @@ export const DECISION_META: Record<string, DecisionMeta> = {
   offer_sent: { auto: false, tone: "text-steel" },
   offer_accepted: { auto: false, tone: "text-moss" },
   offer_declined: { auto: false, tone: "text-coral" },
+  // Lapsed offer (deadline passed with no candidate response) — a SYSTEM transition
+  // (auto), terminal-negative. Without this it rendered UNKNOWN + fell out of rollups.
+  offer_expired: { auto: true, tone: "text-amber-600" },
   onboarding_started: { auto: false, tone: "text-moss" },
   // Completed coverage (previously UNKNOWN in the log, invisible to any rollup):
   auto_rejected: { auto: true, tone: "text-coral" },

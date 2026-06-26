@@ -2869,6 +2869,7 @@
         "offer_sent": "Offer sent",
         "offer_accepted": "Offer accepted",
         "offer_declined": "Offer declined",
+        "offer_expired": "Offer expired",
         "onboarding_started": "Onboarding started",
         "auto_rejected": "Auto-rejected (policy)",
         "auto_advanced": "Auto-advanced (policy)",

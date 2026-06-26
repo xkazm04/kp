@@ -2869,6 +2869,7 @@
         "offer_sent": "Nabídka odeslána",
         "offer_accepted": "Nabídka přijata",
         "offer_declined": "Nabídka odmítnuta",
+        "offer_expired": "Platnost nabídky vypršela",
         "onboarding_started": "Onboarding zahájen",
         "auto_rejected": "Automaticky zamítnuto (pravidla)",
         "auto_advanced": "Automaticky posunuto (pravidla)",
