@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { runScreenWave, ScreenWaveApprovalError } from "@/app/_lib/screen-wave";
 import { DecisionConfigError, validateScreeningOverride } from "@/app/_lib/decision-config-schema";
+import { operatorApprover } from "@/app/_lib/auth/operator-approver";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -43,7 +44,7 @@ export async function POST(request: NextRequest) {
             approvedBy:
               typeof body.approvedBy === "string" && body.approvedBy.trim()
                 ? body.approvedBy.trim()
-                : "operator (in-app approval)",
+                : operatorApprover(),
           };
     const result = await runScreenWave(body.jobId, checked.override, { dryRun, approval });
     return NextResponse.json(result);
