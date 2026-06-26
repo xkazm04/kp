@@ -21,6 +21,10 @@ type Message = {
    *  dead-letter is no longer actionable (the failed row stays as audit). */
   recovered?: boolean;
   recoveredAt?: string | null;
+  /** Server-derived: could a real relay deliver to `recipient`? False for a
+   *  sourced/manual candidate resolved to a name or the "candidate" literal —
+   *  only actionable when a relay is configured (else everything is local). */
+  deliverable?: boolean;
 };
 type RefInfo = { label: string; jobTitle: string | null };
 
@@ -50,6 +54,7 @@ export function CommsCenter() {
   // a real false from /api/comms then reveals a silent, total comms outage.
   const [relayConfigured, setRelayConfigured] = useState(true);
   const [failedOnly, setFailedOnly] = useState(false);
+  const [addressOnly, setAddressOnly] = useState(false);
   const [query, setQuery] = useState("");
   const [kindFilter, setKindFilter] = useState("");
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
@@ -91,6 +96,11 @@ export function CommsCenter() {
   // answers "is anything STILL broken?".
   const isActionable = (m: Message) => m.status === "failed" && !m.recovered;
   const failedCount = messages.filter(isActionable).length;
+  // An unaddressable recipient (sourced/manual candidate with no captured email)
+  // only matters once a real relay is wired — without one, every message is a
+  // local outbox row anyway. So the addressing warning is gated on relayConfigured.
+  const isUnaddressable = (m: Message) => relayConfigured && m.deliverable === false;
+  const addressIssueCount = messages.filter(isUnaddressable).length;
   // The kinds actually present — drives the filter dropdown.
   const kinds = [...new Set(messages.map((m) => m.kind).filter((k): k is string => Boolean(k)))].sort();
   const needle = query.trim().toLowerCase();
@@ -108,7 +118,11 @@ export function CommsCenter() {
     isActionable(a) && !isActionable(b) ? -1 : isActionable(b) && !isActionable(a) ? 1 : 0
   );
   const filtered = sorted.filter(
-    (m) => (!failedOnly || isActionable(m)) && (!kindFilter || m.kind === kindFilter) && matchesQuery(m)
+    (m) =>
+      (!failedOnly || isActionable(m)) &&
+      (!addressOnly || isUnaddressable(m)) &&
+      (!kindFilter || m.kind === kindFilter) &&
+      matchesQuery(m)
   );
   const shown = filtered.slice(0, visibleCount);
 
@@ -135,6 +149,19 @@ export function CommsCenter() {
             }`}
           >
             <AlertTriangle size={12} aria-hidden /> {t("deadLetters", { count: failedCount })}
+          </button>
+        ) : null}
+        {addressIssueCount > 0 ? (
+          <button
+            type="button"
+            onClick={() => setAddressOnly((f) => !f)}
+            aria-pressed={addressOnly}
+            title={t("noAddressHint")}
+            className={`focus-ring inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-sm font-semibold ${
+              addressOnly ? "bg-amber-500 text-white" : "bg-amber-50 text-amber-700"
+            }`}
+          >
+            <AlertTriangle size={12} aria-hidden /> {t("addressIssues", { count: addressIssueCount })}
           </button>
         ) : null}
       </div>
@@ -173,7 +200,7 @@ export function CommsCenter() {
           {shown.map((m) => {
             const who = m.ref ? refs[m.ref] : undefined;
             return (
-              <li key={m.id} className={`rounded-md border px-3 py-1.5 ${isActionable(m) ? "border-red-200 bg-red-50/50" : "border-stone-100 bg-paper/40"}`}>
+              <li key={m.id} className={`rounded-md border px-3 py-1.5 ${isActionable(m) ? "border-red-200 bg-red-50/50" : isUnaddressable(m) ? "border-amber-200 bg-amber-50/40" : "border-stone-100 bg-paper/40"}`}>
                 <details>
                   <summary className="focus-ring flex cursor-pointer flex-wrap items-center gap-x-2 gap-y-1 text-sm">
                     <span className="font-semibold text-ink">{who?.label ?? m.recipient ?? "—"}</span>
@@ -181,6 +208,11 @@ export function CommsCenter() {
                     <span className="rounded-full bg-stone-100 px-1.5 py-0.5 text-xs font-semibold uppercase text-steel">
                       {(m.kind ?? "").replace(/_/g, " ")}
                     </span>
+                    {isUnaddressable(m) ? (
+                      <span title={t("noAddressHint")} className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-1.5 py-0.5 text-xs font-semibold uppercase text-amber-700">
+                        <AlertTriangle size={11} aria-hidden /> {t("noAddress")}
+                      </span>
+                    ) : null}
                     {m.status === "failed" && m.recovered ? (
                       <span className="rounded-full bg-moss/10 px-1.5 py-0.5 text-xs font-semibold uppercase text-moss">
                         {t("recovered")}
