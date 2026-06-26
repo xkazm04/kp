@@ -3026,6 +3026,7 @@
     "ofCount": "{shown} z {total}",
     "countLine": "{cands} kandidátů × {positions} pozic",
     "minFit": "Min. shoda",
+    "coverageGap": "{uncovered} z {total} otevřených rolí nemá silného kandidáta — hledejte pro tyto:",
     "off": "Vyp.",
     "sortLabel": "Řazení: {mode}",
     "sortByCol": "podle sloupce",

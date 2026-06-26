@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { buildUrl } from "@/app/features/tabs";
-import { Check, Download, ExternalLink, ListChecks, Sparkles, X } from "lucide-react";
+import { AlertTriangle, Check, Download, ExternalLink, ListChecks, Sparkles, X } from "lucide-react";
 import type { Reasoning } from "@/app/features/sub_match/MatchTypes";
 import { normalizeArchetype } from "@/app/_lib/archetypes";
 import { isTerminalEntryStatus } from "@/app/_lib/pipeline-status";
@@ -221,6 +221,19 @@ export function MatrixTab() {
     return out;
   }, [data, cols]);
 
+  // Coverage rollup (the value prop the context is named for): which OPEN roles have
+  // ZERO strong fits in the pool. The per-column strong counts already exist (colScores
+  // + STRONG_THRESHOLD); nothing surfaced "3 of 8 roles have no strong candidate — source
+  // for these". Pure presentation over data already on the client.
+  const coverage = useMemo(() => {
+    const uncovered: string[] = [];
+    for (const { p, i } of cols) {
+      const strong = (colScores[i] ?? []).filter((s) => s >= STRONG_THRESHOLD).length;
+      if (strong === 0) uncovered.push(p.title);
+    }
+    return { uncovered, total: cols.length };
+  }, [cols, colScores]);
+
   const open = (candId: string, posId: string) => router.push(buildUrl({ tab: "match", profile: candId, job: posId }, search.toString()));
 
   // deec915c — lazily fetch (and cache) the reasoning for a (candidate, job) pair.
@@ -420,6 +433,18 @@ export function MatrixTab() {
           </div>
         ) : null}
       </header>
+
+      {/* Coverage gap — the headline talent-intelligence signal: open roles with no
+          strong fit. Only meaningful across ≥2 columns (a single scoped role is trivial). */}
+      {!scopedPosition && coverage.total >= 2 && coverage.uncovered.length > 0 ? (
+        <div role="status" className="mt-3 flex flex-wrap items-start gap-2 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm">
+          <AlertTriangle size={15} className="mt-0.5 shrink-0 text-amber-700" aria-hidden />
+          <p className="text-amber-900">
+            <span className="font-semibold">{t("coverageGap", { uncovered: coverage.uncovered.length, total: coverage.total })}</span>{" "}
+            <span className="text-amber-800">{coverage.uncovered.join(", ")}</span>
+          </p>
+        </div>
+      ) : null}
 
       <p role="status" aria-live="polite" className="sr-only">{announce}</p>
 

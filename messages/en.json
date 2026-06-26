@@ -3026,6 +3026,7 @@
     "ofCount": "{shown} of {total}",
     "countLine": "{cands} candidates × {positions} positions",
     "minFit": "Min fit",
+    "coverageGap": "{uncovered} of {total} open roles have no strong fit — source for these:",
     "off": "Off",
     "sortLabel": "Sort: {mode}",
     "sortByCol": "by column",
