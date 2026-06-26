@@ -2430,6 +2430,8 @@
       "loading": "Načítání komunikace",
       "recovered": "obnoveno",
       "recoveredAt": "znovu odesláno {time}",
+      "bounced": "nedoručeno",
+      "bouncedAt": "Relé nahlásilo nedoručení {time}: {detail}",
       "searchPlaceholder": "Hledat kandidáta, příjemce nebo předmět",
       "kindAll": "Všechny typy",
       "showing": "Zobrazeno {shown} z {total}",

@@ -55,6 +55,7 @@ const STATUS_STYLE: Record<OutboxStatus, string> = {
   queued: "text-steel",
   sent: "text-moss",
   failed: "text-red-700 font-semibold",
+  bounced: "text-red-800 font-semibold",
 };
 
 /** The Outbox tab: every message the pipeline sent, as a full table. */

@@ -25,6 +25,11 @@ type Message = {
    *  sourced/manual candidate resolved to a name or the "candidate" literal —
    *  only actionable when a relay is configured (else everything is local). */
   deliverable?: boolean;
+  /** Server-derived: this `sent` row was later reported as a hard bounce/complaint
+   *  by the relay callback, so "sent" is really undeliverable — chase it. */
+  bounced?: boolean;
+  bouncedAt?: string | null;
+  bounceDetail?: string | null;
 };
 type RefInfo = { label: string; jobTitle: string | null };
 
@@ -32,6 +37,7 @@ const STATUS_STYLE: Record<OutboxStatus, string> = {
   queued: "bg-stone-100 text-steel",
   sent: "bg-moss/15 text-moss",
   failed: "bg-red-50 text-red-700",
+  bounced: "bg-red-100 text-red-800",
 };
 
 // Initial page; "Show more" reveals another PAGE_SIZE. The list used to hard-slice 60
@@ -94,7 +100,9 @@ export function CommsCenter() {
   // A recovered dead-letter (successful resend exists) is audit, not an alarm:
   // it leaves the count, the pin and the failed-only filter, so the badge again
   // answers "is anything STILL broken?".
-  const isActionable = (m: Message) => m.status === "failed" && !m.recovered;
+  // A dead-letter (failed, not yet recovered) OR a sent message the relay later
+  // reported as a hard bounce both need the recruiter to chase — group them.
+  const isActionable = (m: Message) => (m.status === "failed" && !m.recovered) || Boolean(m.bounced);
   const failedCount = messages.filter(isActionable).length;
   // An unaddressable recipient (sourced/manual candidate with no captured email)
   // only matters once a real relay is wired — without one, every message is a
@@ -217,6 +225,10 @@ export function CommsCenter() {
                       <span className="rounded-full bg-moss/10 px-1.5 py-0.5 text-xs font-semibold uppercase text-moss">
                         {t("recovered")}
                       </span>
+                    ) : m.bounced ? (
+                      <span title={m.bounceDetail ?? undefined} className={`inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-xs font-semibold uppercase ${STATUS_STYLE.bounced}`}>
+                        <AlertTriangle size={11} aria-hidden /> {t("bounced")}
+                      </span>
                     ) : (
                       <span className={`rounded-full px-1.5 py-0.5 text-xs font-semibold uppercase ${STATUS_STYLE[m.status]}`}>
                         {m.status === "queued" ? (m.channel ?? m.status) : m.status}
@@ -236,6 +248,15 @@ export function CommsCenter() {
                     </span>
                   </summary>
                   <div className="mt-1.5 border-t border-stone-100 pt-1.5 text-sm">
+                    {m.bounced ? (
+                      <p className="mb-1 flex items-center gap-1.5 rounded-md bg-red-50 px-2 py-1 text-xs font-medium text-red-800">
+                        <AlertTriangle size={12} aria-hidden />
+                        {t("bouncedAt", {
+                          time: m.bouncedAt ? new Date(m.bouncedAt).toLocaleString() : "—",
+                          detail: m.bounceDetail ?? "—",
+                        })}
+                      </p>
+                    ) : null}
                     {m.subject ? <p className="font-semibold text-ink">{m.subject}</p> : null}
                     {m.body ? <pre className="mt-1 whitespace-pre-wrap font-sans text-sm leading-5 text-steel">{m.body}</pre> : null}
                   </div>

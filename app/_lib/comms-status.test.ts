@@ -13,11 +13,12 @@ import {
   OUTBOX_STATUSES,
   coerceOutboxStatus,
   isRetryableHttpStatus,
+  isBounceOutcome,
   COMMS_RELAY_RETRY,
 } from "./comms-status.ts";
 
-test("the canonical status list is exactly the three documented states", () => {
-  assert.deepEqual([...OUTBOX_STATUSES].sort(), ["failed", "queued", "sent"]);
+test("the canonical status list is exactly the four documented states", () => {
+  assert.deepEqual([...OUTBOX_STATUSES].sort(), ["bounced", "failed", "queued", "sent"]);
 });
 
 test("queued is terminal and distinct — it is NOT a pending alias", () => {
@@ -32,6 +33,16 @@ test("coerceOutboxStatus passes through the canonical values", () => {
   assert.equal(coerceOutboxStatus("queued"), "queued");
   assert.equal(coerceOutboxStatus("sent"), "sent");
   assert.equal(coerceOutboxStatus("failed"), "failed");
+  assert.equal(coerceOutboxStatus("bounced"), "bounced");
+});
+
+test("isBounceOutcome flags only hard, reputation-critical relay outcomes", () => {
+  for (const o of ["bounced", "Bounce", " COMPLAINT ", "spam", "dropped", "failed"]) {
+    assert.equal(isBounceOutcome(o), true, `${o} is a bounce`);
+  }
+  for (const o of ["delivered", "opened", "clicked", "deferred", "", null, undefined]) {
+    assert.equal(isBounceOutcome(o), false, `${o} is NOT a bounce`);
+  }
 });
 
 test("coerceOutboxStatus collapses legacy/unknown values to failed", () => {

@@ -24,7 +24,15 @@
 //            retries. Terminal and candidate-facing — a dropped offer/rejection —
 //            so it is alerted loudly (see comms.ts `alertDeadLetter`), never the
 //            benign-looking row it used to be.
-export const OUTBOX_STATUSES = ["queued", "sent", "failed"] as const;
+//
+//   bounced — the relay accepted the POST (so the SEND row is `sent`), but later
+//            reported an ASYNCHRONOUS hard failure — a bounce, spam complaint, or
+//            drop — via the status callback (/api/comms/callback). Recorded as an
+//            append-only delivery RECEIPT row that supersedes the green `sent`
+//            (see comms-view.ts `deriveCommsView`): "the relay took it" is not
+//            "the candidate got it", and a hard bounce at the offer/rejection
+//            moment is exactly what a recruiter must chase, not read as success.
+export const OUTBOX_STATUSES = ["queued", "sent", "failed", "bounced"] as const;
 
 export type OutboxStatus = (typeof OUTBOX_STATUSES)[number];
 
@@ -36,7 +44,21 @@ export type OutboxStatus = (typeof OUTBOX_STATUSES)[number];
 export function coerceOutboxStatus(raw: string | null | undefined): OutboxStatus {
   if (raw === "queued") return "queued";
   if (raw === "sent") return "sent";
+  if (raw === "bounced") return "bounced";
   return "failed";
+}
+
+// Asynchronous delivery outcomes a relay reports back through the status callback.
+// The reputation-critical ones — a hard bounce, a spam complaint, or a drop —
+// mean the green `sent` was really undeliverable, so they record a `bounced`
+// receipt that supersedes it. Positive/soft outcomes (delivered/opened/deferred)
+// are accepted by the callback but not yet surfaced (future engagement feed).
+export const BOUNCE_OUTCOMES = ["bounced", "bounce", "complaint", "spam", "dropped", "failed"] as const;
+
+/** Whether a relay-reported outcome is a hard, reputation-critical delivery
+ *  failure (vs a benign delivered/opened receipt). Case/whitespace tolerant. */
+export function isBounceOutcome(outcome: string | null | undefined): boolean {
+  return (BOUNCE_OUTCOMES as readonly string[]).includes((outcome ?? "").trim().toLowerCase());
 }
 
 // --- Real-relay (WebhookChannel) retry / dead-letter policy --------------------

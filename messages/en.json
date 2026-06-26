@@ -2430,6 +2430,8 @@
       "loading": "Loading communications",
       "recovered": "recovered",
       "recoveredAt": "resent {time}",
+      "bounced": "bounced",
+      "bouncedAt": "Relay reported a bounce {time}: {detail}",
       "searchPlaceholder": "Search candidate, recipient, or subject",
       "kindAll": "All kinds",
       "showing": "Showing {shown} of {total}",
