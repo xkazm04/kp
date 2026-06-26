@@ -3241,6 +3241,7 @@
       "unlimited": "Unlimited",
       "activeJobs": "Active jobs",
       "cta": "Switch to this plan",
+      "manageCta": "Change in portal",
       "redirecting": "Redirecting…",
       "checkoutFailed": "Couldn't start checkout."
     },
