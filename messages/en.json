@@ -2420,6 +2420,7 @@
       "intro": "Every candidate-facing message the pipeline sent — acknowledgements, outreach, interview invites, rejections, offers. Expand a row to read the full letter; failed sends can be re-delivered.",
       "empty": "No messages sent yet — they'll appear here as candidates move through the funnel.",
       "loadFailed": "Couldn't load communications.",
+      "relayNotConfigured": "No delivery relay configured — these messages are NOT being sent to candidates. Set COMMS_WEBHOOK_URL to enable delivery.",
       "loading": "Loading communications",
       "recovered": "recovered",
       "recoveredAt": "resent {time}",

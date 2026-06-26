@@ -46,6 +46,9 @@ export function CommsCenter() {
   const [messages, setMessages] = useState<Message[] | null>(null);
   const [refs, setRefs] = useState<Record<string, RefInfo>>({});
   const [error, setError] = useState(false);
+  // Default true so the "not configured" banner never flashes before the first load;
+  // a real false from /api/comms then reveals a silent, total comms outage.
+  const [relayConfigured, setRelayConfigured] = useState(true);
   const [failedOnly, setFailedOnly] = useState(false);
   const [query, setQuery] = useState("");
   const [kindFilter, setKindFilter] = useState("");
@@ -60,6 +63,7 @@ export function CommsCenter() {
       .then((p) => {
         setMessages((p.messages as Message[]) ?? []);
         setRefs((p.entries as Record<string, RefInfo>) ?? {});
+        setRelayConfigured(p.relayConfigured !== false);
         setError(false);
       })
       .catch(() => setError(true));
@@ -110,6 +114,12 @@ export function CommsCenter() {
 
   return (
     <div className="rounded-lg border border-stone-200 bg-white p-4 shadow-panel">
+      {!relayConfigured ? (
+        <div role="alert" className="mb-3 flex items-start gap-2.5 rounded-md border border-red-300 bg-red-50 p-3">
+          <AlertTriangle size={16} className="mt-0.5 shrink-0 text-red-600" aria-hidden />
+          <p className="text-sm font-medium text-red-800">{t("relayNotConfigured")}</p>
+        </div>
+      ) : null}
       <div className="flex flex-wrap items-center gap-2">
         <h3 className="flex items-center gap-2 font-serif text-h3 text-ink">
           <MailOpen size={16} className="text-coral" aria-hidden /> {t("title")}
