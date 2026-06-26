@@ -257,8 +257,15 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle, provider: pinned
       pushTurn("interviewer", asstBuf.current);
       asstBuf.current = "";
       // Grace expired with the utterance still pending: fall back to whatever
-      // transcription deltas streamed in (empty on whisper-1 — then the turn is
-      // genuinely unrecoverable, but we no longer drop one we already hold).
+      // transcription deltas streamed in (empty on a non-streaming model like
+      // whisper-1 — then the turn is genuinely unrecoverable, but we no longer drop
+      // one we already hold). Surface that loss instead of dropping it silently, so a
+      // scorecard scored on a missing closing answer is at least observable.
+      if (pendingCandidateRef.current && !candBuf.current.trim()) {
+        console.warn(
+          `[voice] final candidate turn lost: transcription grace (${OAI_FINAL_TURN_GRACE_MS}ms) expired with an empty delta buffer — the closing answer is missing from the scored transcript (use a streaming OPENAI_REALTIME_TRANSCRIPTION_MODEL to populate the fallback).`
+        );
+      }
       pushTurn("candidate", candBuf.current);
       candBuf.current = "";
       pendingCandidateRef.current = false;

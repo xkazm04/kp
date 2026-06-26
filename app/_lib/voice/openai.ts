@@ -2,11 +2,18 @@ import { missingVoiceEnv, type OpenAiConnect, type VoiceAdapter } from "./types.
 
 // OpenAI Realtime (gpt-realtime, GA). Browser uses WebRTC; the server mints an
 // ephemeral client secret via /v1/realtime/client_secrets and the browser POSTs
-// its SDP offer to /v1/realtime/calls. Model/voice are env-overridable because
-// the realtime model line moves quickly.
+// its SDP offer to /v1/realtime/calls. Model/voice/transcription are env-overridable
+// because the realtime model line moves quickly.
 
 const MODEL = process.env.OPENAI_REALTIME_MODEL ?? "gpt-realtime";
 const VOICE = process.env.OPENAI_REALTIME_VOICE ?? "marin";
+// Input transcription model. Defaults to a STREAMING model (emits `.delta`s) so the
+// finalize fallback for a candidate's last answer still in flight at hang-up — which
+// reads from the streamed delta buffer — actually has content. whisper-1 emits ONLY
+// the final `.completed` (no deltas), so under it that fallback was provably empty
+// and a slow closing answer could be silently dropped from the scored transcript.
+// Override (incl. back to "whisper-1") via the env when needed.
+const TRANSCRIPTION_MODEL = process.env.OPENAI_REALTIME_TRANSCRIPTION_MODEL ?? "gpt-4o-transcribe";
 const CALLS_URL = "https://api.openai.com/v1/realtime/calls";
 const SECRETS_URL = "https://api.openai.com/v1/realtime/client_secrets";
 
@@ -95,7 +102,7 @@ export class OpenAiVoiceAdapter implements VoiceAdapter {
           model: MODEL,
           instructions,
           audio: {
-            input: { transcription: { model: "whisper-1" } },
+            input: { transcription: { model: TRANSCRIPTION_MODEL } },
             output: { voice: VOICE },
           },
         },
