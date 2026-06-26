@@ -185,6 +185,7 @@
     "ack": {
       "subject": "Přijali jsme vaši přihlášku — {role}",
       "body": "Dobrý den {name},\n\nděkujeme za přihlášku na pozici {role} — vaši přihlášku jsme obdrželi a náborář ji brzy posoudí. Ozveme se vám ohledně dalších kroků.\n\nS pozdravem,\n{team}",
+      "statusLine": "Stav své přihlášky můžete kdykoli sledovat zde: {link}",
       "bodyEnrich": "Dobrý den {name},\n\nděkujeme za přihlášku na pozici {role} — vaši přihlášku jsme obdrželi a náborář ji brzy posoudí.\n\nChcete jí dát co největší šanci? Doplňte svůj profil — zabere to asi dvě minuty a pomůže nám posoudit vás spravedlivě a rychle:\n{link}\n\nOzveme se vám ohledně dalších kroků.\n\nS pozdravem,\n{team}"
     },
     "outreach": {

@@ -185,6 +185,7 @@
     "ack": {
       "subject": "We received your application — {role}",
       "body": "Hi {name},\n\nThanks for applying for {role} — we've received your application and a recruiter will review it shortly. We'll be in touch about the next steps.\n\nBest,\n{team}",
+      "statusLine": "Track your application status anytime: {link}",
       "bodyEnrich": "Hi {name},\n\nThanks for applying for {role} — we've received your application and a recruiter will review it shortly.\n\nWant to give it the best shot? Complete your profile — it takes about two minutes and helps us assess you fairly and fast:\n{link}\n\nWe'll be in touch about the next steps.\n\nBest,\n{team}"
     },
     "outreach": {

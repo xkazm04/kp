@@ -129,15 +129,18 @@ async function sendCandidateComm(
  *  not when a recruiter gets around to the stub. */
 export async function dispatchApplicationReceived(
   entry: PipelineEntry,
-  opts?: { enrichLink?: string }
+  opts?: { enrichLink?: string; statusLink?: string }
 ): Promise<void> {
   const t = await commsTranslator(entry.locale);
   const role = entry.jobTitle ?? t("theRole");
   const name = greetName(entry, t);
   const subject = t("ack.subject", { role });
-  const body = opts?.enrichLink
+  let body = opts?.enrichLink
     ? t("ack.bodyEnrich", { name, role, link: opts.enrichLink, team: t("team") })
     : t("ack.body", { name, role, team: t("team") });
+  // Append the durable status-tracking link to whichever body variant — this is the
+  // touchpoint that lets the candidate check where they stand after the tab is gone.
+  if (opts?.statusLink) body += `\n\n${t("ack.statusLine", { link: opts.statusLink })}`;
   await sendCandidateComm(entry, t, { subject, body, kind: "acknowledgement" });
   recordAutomationEvent(entry.id, "acknowledgement_sent", role);
 }
