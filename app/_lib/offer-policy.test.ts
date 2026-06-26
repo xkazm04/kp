@@ -5,14 +5,34 @@ import {
   isOfferReminderDue,
   offerExpiresAtMs,
   offerHoursRemaining,
+  resolveOfferTtlMs,
   OFFER_REMINDER_LEAD_MS,
   OFFER_TTL_MS,
+  OFFER_TTL_DAYS_MIN,
+  OFFER_TTL_DAYS_MAX,
 } from "./offer-policy.ts";
 
 const NOW = Date.parse("2026-06-13T12:00:00.000Z");
+const DAY = 24 * 60 * 60 * 1000;
 
-test("offerExpiresAtMs adds the TTL", () => {
+test("offerExpiresAtMs adds the default TTL when no per-offer deadline is given", () => {
   assert.equal(offerExpiresAtMs(NOW), NOW + OFFER_TTL_MS);
+});
+
+test("resolveOfferTtlMs honors a valid per-offer deadline (the recruiter's lever)", () => {
+  assert.equal(resolveOfferTtlMs(1), 1 * DAY); // tight exploding offer
+  assert.equal(resolveOfferTtlMs(30), 30 * DAY); // exec search
+  assert.equal(resolveOfferTtlMs(7.9), 7 * DAY); // floored to whole days
+  assert.equal(offerExpiresAtMs(NOW, 3), NOW + 3 * DAY);
+});
+
+test("resolveOfferTtlMs falls back to the default for missing/out-of-range days", () => {
+  assert.equal(resolveOfferTtlMs(null), OFFER_TTL_MS);
+  assert.equal(resolveOfferTtlMs(undefined), OFFER_TTL_MS);
+  assert.equal(resolveOfferTtlMs(0), OFFER_TTL_MS); // below min
+  assert.equal(resolveOfferTtlMs(OFFER_TTL_DAYS_MAX + 1), OFFER_TTL_MS); // above max
+  assert.equal(resolveOfferTtlMs(Number.NaN), OFFER_TTL_MS);
+  assert.equal(resolveOfferTtlMs(OFFER_TTL_DAYS_MIN), OFFER_TTL_DAYS_MIN * DAY); // min is allowed
 });
 
 test("isOfferExpired: null/garbage fail-open, future open, past expired", () => {

@@ -3,7 +3,7 @@ import { openStore } from "./db-path";
 import { randomId, randomToken } from "./random-id";
 import { TERMINAL_ENTRY_STATUSES, type PipelineEntryStatus } from "./pipeline-status";
 import { PIPELINE_STAGES } from "./pipeline-stages";
-import { isOfferExpired, OFFER_REMINDER_LEAD_MS, OFFER_TTL_MS } from "./offer-policy";
+import { isOfferExpired, OFFER_REMINDER_LEAD_MS, offerExpiresAtMs } from "./offer-policy";
 import { recordAutomationEvent } from "./db";
 
 // Direction #4 — offer extension + candidate response capture. Isolated-connection
@@ -122,12 +122,17 @@ export function createOffer(input: {
   currency: string | null;
   salary: number | null;
   payload: unknown;
+  /** Per-offer deadline in whole days — the recruiter's lever (offers-onboarding
+   *  #3). Out-of-range/omitted falls back to the deployment default; validated in
+   *  offer-policy.resolveOfferTtlMs. */
+  ttlDays?: number | null;
 }): OfferRow {
   const d = db();
   const nowMs = Date.now();
   const now = new Date(nowMs).toISOString();
   // Stamp the deadline at mint time (idea-29361408) so the offer lapses on its own.
-  const expiresAt = new Date(nowMs + OFFER_TTL_MS).toISOString();
+  // Honors a per-offer ttlDays (validated) or the deployment default.
+  const expiresAt = new Date(offerExpiresAtMs(nowMs, input.ttlDays)).toISOString();
   const id = randomId("off");
   const token = randomToken("tk");
   // RETURNING * hands the freshly-inserted row back in the same statement, so we

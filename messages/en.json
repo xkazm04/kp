@@ -1389,6 +1389,8 @@
       "acceptSendOffer": "Send offer",
       "acceptToOffer": "To offer",
       "acceptAdvance": "Advance",
+      "deadlineLabel": "Respond within",
+      "deadlineDays": "days",
       "reject": "Reject",
       "band": "band {min}–{max} {currency}",
       "strengths": "Strengths",

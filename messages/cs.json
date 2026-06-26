@@ -1389,6 +1389,8 @@
       "acceptSendOffer": "Odeslat nabídku",
       "acceptToOffer": "K nabídce",
       "acceptAdvance": "Postoupit",
+      "deadlineLabel": "Reagovat do",
+      "deadlineDays": "dní",
       "reject": "Zamítnout",
       "band": "pásmo {min}–{max} {currency}",
       "strengths": "Silné stránky",
