@@ -141,7 +141,10 @@ export type Reflection = {
   verificationHabits?: string[];
   confidence?: number; // FRACTION 0..1 — trust in this inference
 };
-export type ProbeOutcome = { probeId?: string; kind?: string; where?: string; detected?: boolean; handledWell?: boolean; note?: string };
+// handledWell is tri-state: true / false when handling was graded (LLM path), or
+// null/undefined when only DETECTED (observed Live Work Surface path — handling not
+// gradeable from process). Consumers must treat null as "unknown", not "failed".
+export type ProbeOutcome = { probeId?: string; kind?: string; where?: string; detected?: boolean; handledWell?: boolean | null; note?: string };
 export type Tooling = { fluency?: number /* FRACTION 0..1 */; probeOutcomes?: ProbeOutcome[]; overRelianceFlags?: string[]; evidence?: string[]; confidence?: number /* FRACTION 0..1 */ };
 // Self-describing breakdown row echoed by the Python evaluator (evaluate.py `_ordered_dimensions`):
 // canonical order + human label + weight, so the UI never hardcodes dimension metadata. `score`
