@@ -235,6 +235,24 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       if (!fresh) return NextResponse.json({ error: "Pipeline entry not found." }, { status: 404 });
       return staleResponse(fresh);
     }
+    // Seal the HUMAN accept/reject into the tamper-evident decision chain. The chain
+    // sealed AI auto-rejections, group-eval verdicts, offers and reinstatements, but
+    // the recruiter's DIRECT gate decision — the most consequential one for an
+    // Art.22 / EU-AI-Act "right to explanation" dossier — flowed through only a
+    // mutable pipeline event, so a human-rejected candidate's sealed dossier came back
+    // empty. Mirror the reinstate seal; best-effort (sealDecisionSafe never throws).
+    if (action === "accept" || action === "reject") {
+      const detail = typeof body.detail === "string" ? body.detail.trim() : "";
+      sealDecisionSafe({
+        kind: action === "reject" ? "rejected" : "advanced",
+        actor: "human:recruiter",
+        policyVersion: "manual",
+        candidateRef: id,
+        rationale: detail || `Recruiter ${action} from ${current.stage}.`,
+        reasonCode: action,
+        inputs: { fromStage: current.stage, detail: detail || null },
+      });
+    }
     // A human reject is the gate; the candidate hears about it (queued by default).
     if (action === "reject") await dispatchRejection(updated);
     return NextResponse.json({ entry: updated });
