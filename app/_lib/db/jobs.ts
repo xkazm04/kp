@@ -266,12 +266,16 @@ export function getJobsByIds(ids: string[]): JobRecord[] {
 // not a real opening). It backs the rematch path two ways at once: the caller
 // fingerprints the sorted ids into the cache key AND hands the exact same set to
 // the Python scorer, so the key provably tracks the corpus that was scored
-// (idea-e01935e9). NULL status = seeded/live corpus job; 'published' = live; only
-// 'draft' is held back.
+// (idea-e01935e9). "Live" here MUST match the open-for-applications definition used
+// by `openOnly` above and `isJobOpenForApplications` (job-ingest.ts): NULL = seeded/
+// live, 'published' = live, everything else (draft AND closed) is held back. The old
+// `status != 'draft'` kept 'closed' roles in the rematch corpus, so a recruiter who
+// closed a filled role still had candidates ranked/routed to it — and the close didn't
+// even change the cache fingerprint, persisting the stale result for the full TTL.
 export function listCorpusJobs(): JobRecord[] {
   const db = ensureDb();
   const rows = db
-    .prepare(`SELECT payload_json FROM jobs WHERE status IS NULL OR status != 'draft' ORDER BY id`)
+    .prepare(`SELECT payload_json FROM jobs WHERE status IS NULL OR status = 'published' ORDER BY id`)
     .all() as { payload_json: string }[];
   return rows
     .map((r) => safeRowParse<JobRecord>(r.payload_json, "listCorpusJobs"))
