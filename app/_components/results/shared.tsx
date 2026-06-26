@@ -208,6 +208,12 @@ export function EnginePanel({ analysis }: { analysis: Analysis }) {
   if (!analysis.metadata) {
     return null;
   }
+  // "Show your work" trust artifacts the engine already computes but the panel never
+  // rendered: the grounding sources a grounded salary read was built on, and the
+  // deterministic Czech-market anchor band. These separate a defensible pay number
+  // from an opaque guess — a concrete differentiator, data already on the payload.
+  const groundingSources = analysis.metadata.groundingSources ?? [];
+  const anchorBand = analysis.metadata.deterministicEvidence?.anchorBand;
 
   return (
     <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
@@ -223,6 +229,15 @@ export function EnginePanel({ analysis }: { analysis: Analysis }) {
           listClassName="space-y-2"
           itemClassName=""
         />
+        {anchorBand && anchorBand.length === 2 ? (
+          <p className="text-sm text-steel">{t("anchorBand", { lo: anchorBand[0], hi: anchorBand[1] })}</p>
+        ) : null}
+        {groundingSources.length > 0 ? (
+          <div>
+            <p className="text-meta uppercase text-steel">{t("groundingTitle")}</p>
+            <BulletList items={dedupe(groundingSources).slice(0, 5)} listClassName="mt-1 space-y-1" itemClassName="text-sm text-steel" />
+          </div>
+        ) : null}
       </div>
     </div>
   );

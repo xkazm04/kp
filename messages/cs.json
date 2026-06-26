@@ -67,6 +67,8 @@
     "nothingHighlight": "Zatím není co zvýraznit",
     "nothingHighlightHint": "Upřesněte CV, aby se zde objevily položky.",
     "engineTitle": "Analytický engine",
+    "anchorBand": "Deterministická kotva (CZK/měs): {lo, number}–{hi, number}",
+    "groundingTitle": "Zdroje pro ukotvení",
     "engine": "Engine: {engine}",
     "extractor": "Extraktor: {extractor}",
     "model": "Model: {model}",

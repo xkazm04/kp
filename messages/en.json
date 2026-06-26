@@ -67,6 +67,8 @@
     "nothingHighlight": "Nothing to highlight yet",
     "nothingHighlightHint": "Refine your CV to surface items in this list.",
     "engineTitle": "Analysis Engine",
+    "anchorBand": "Deterministic anchor (CZK/mo): {lo, number}–{hi, number}",
+    "groundingTitle": "Grounding sources",
     "engine": "Engine: {engine}",
     "extractor": "Extractor: {extractor}",
     "model": "Model: {model}",
