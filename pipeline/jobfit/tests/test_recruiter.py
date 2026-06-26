@@ -4,7 +4,12 @@ import unittest
 
 from pipeline.jobfit.jobs import normalize_job
 from pipeline.jobfit.matching import MatchCandidate
-from pipeline.jobfit.recruiter import fairness_check, rank_candidates_for_job
+from pipeline.jobfit.recruiter import (
+    fairness_check,
+    fairness_track,
+    rank_candidates_by_track,
+    rank_candidates_for_job,
+)
 
 EXPERIENCED = MatchCandidate(
     skills=["Python", "Django"],
@@ -60,6 +65,19 @@ class RecruiterTest(unittest.TestCase):
         self.assertTrue(by_label["Senior Dev"]["koPassed"])
         self.assertFalse(by_label["Student A"]["koPassed"])
         self.assertTrue(any("early-career" in r for r in by_label["Student A"]["koReasons"]))
+
+    def test_rows_carry_a_fairness_track_and_group_splits_archetypes(self) -> None:
+        # The fairness contract is now structural: every row carries a track, and the
+        # grouped form never mixes a student with a senior on one incomparable total.
+        self.assertEqual(fairness_track("bau"), "experienced")
+        self.assertEqual(fairness_track("student"), "early_career")
+        self.assertEqual(fairness_track("career_switcher"), "early_career")
+        rows = rank_candidates_for_job([("e1", EXPERIENCED), ("s1", STUDENT)], ENTRY_JOB)
+        self.assertTrue(all("track" in r for r in rows))
+        grouped = rank_candidates_by_track([("e1", EXPERIENCED), ("s1", STUDENT)], ENTRY_JOB)
+        self.assertEqual(set(grouped), {"experienced", "early_career"})
+        self.assertEqual([r["candidateId"] for r in grouped["experienced"]], ["e1"])
+        self.assertEqual([r["candidateId"] for r in grouped["early_career"]], ["s1"])
 
     def test_rows_carry_archetype_assumptions_provenance(self) -> None:
         rows = rank_candidates_for_job([("s1", STUDENT)], ENTRY_JOB)
