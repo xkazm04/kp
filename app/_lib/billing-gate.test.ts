@@ -48,7 +48,7 @@ registerHooks({
 const TMP = path.join(os.tmpdir(), `kp-billing-gate-test-${process.pid}.sqlite`);
 process.env.KP_DB_PATH = TMP;
 
-const { getBillingState, upsertBillingState, creditBalance, billingUsageFor } = await import("./db.ts");
+const { getBillingState, upsertBillingState, creditBalance, billingUsageFor, recordBillingAlert, listBillingAlerts } = await import("./db.ts");
 const { billingOverview, entitledPlan, meterAllowance, recordMeterUsage } = await import(
   "./billing/entitlements.ts"
 );
@@ -210,6 +210,21 @@ test("meterGate minUnits requires the whole action to fit, not just any remainin
   // ...but a booked action needing more than the balance must 402, so one leftover
   // minute can't unlock a full interview.
   assert.equal(meterGate("interview_minutes", { minUnits: 1_000_000 })?.code, "quota_exceeded");
+});
+
+test("billing alerts: a paid-but-unmapped event is recorded as a queryable worklist row", () => {
+  const before = listBillingAlerts().length;
+  const inserted = recordBillingAlert({ kind: "unmapped_product", detail: "subscription event for unmapped product prod_x" });
+  assert.equal(inserted, true);
+  const open = listBillingAlerts();
+  assert.equal(open.length, before + 1);
+  assert.equal(open[0].kind, "unmapped_product");
+  assert.ok(open[0].detail.includes("prod_x"));
+  // A redelivery with the same providerRef doesn't pile up a duplicate OPEN alert.
+  recordBillingAlert({ kind: "unmapped_product", detail: "again", providerRef: "ref_1" });
+  const n = listBillingAlerts().length;
+  assert.equal(recordBillingAlert({ kind: "unmapped_product", detail: "again", providerRef: "ref_1" }), false);
+  assert.equal(listBillingAlerts().length, n);
 });
 
 test("activeJobsGate caps free at 1 published job; paid plans are uncapped", () => {

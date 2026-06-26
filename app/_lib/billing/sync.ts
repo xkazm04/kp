@@ -1,7 +1,7 @@
 // Webhook ingestion: verify → idempotency gate → reduce (pure) → apply (DB).
 // The single write path for money state; nothing else mutates billing_state.
 
-import { ensureDb, getBillingState, grantBillingCredits, insertBillingEvent, upsertBillingState } from "../db";
+import { ensureDb, getBillingState, grantBillingCredits, insertBillingEvent, recordBillingAlert, upsertBillingState } from "../db";
 import type { BillingGateway } from "./gateway";
 import { clearSubscriptionIsStale, reduceBillingEvent, subscriptionWriteIsStale, type BillingAction } from "./reduce";
 
@@ -88,6 +88,10 @@ export function applyBillingAction(action: BillingAction, provider: string): str
         console.error(
           `[billing:webhook] UNMAPPED PRODUCT on a money event — subscriber NOT entitled: ${action.reason}. Check POLAR_PRODUCT_* env against the Polar dashboard.`
         );
+        // Durable, queryable signal (not just a log line): an admin surface / health
+        // check can list paid-but-dark subscriptions. The event-id dedupe gate means
+        // this runs at most once per fresh event.
+        recordBillingAlert({ kind: "unmapped_product", detail: action.reason });
       }
       return action.reason;
   }

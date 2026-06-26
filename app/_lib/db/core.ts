@@ -568,7 +568,21 @@ export function ensureDb(): Database.Database {
       PRIMARY KEY (meter, period)
     );
 
+    -- Durable "needs attention" signal for money events that can't auto-resolve
+    -- (e.g. a PAID subscription for an unmapped product → the subscriber is never
+    -- entitled). A queryable row so an admin surface / health check can list
+    -- paid-but-dark customers instead of relying on someone watching the logs.
+    CREATE TABLE IF NOT EXISTS billing_alerts (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      kind TEXT NOT NULL,
+      detail TEXT NOT NULL,
+      provider_ref TEXT,
+      created_at TEXT NOT NULL,
+      resolved_at TEXT
+    );
+
     CREATE INDEX IF NOT EXISTS idx_billing_credits_meter ON billing_credits (meter);
+    CREATE INDEX IF NOT EXISTS idx_billing_alerts_open ON billing_alerts (resolved_at);
   `);
   // Run a DDL migration, swallowing ONLY the benign "already applied" error (re-running
   // ADD COLUMN / CREATE on a DB that already has the column). Any OTHER failure —
