@@ -1,0 +1,185 @@
+{
+  "job": {
+    "id": "cal-083",
+    "title": "Supply Chain Analyst",
+    "company": "Texas Children's Hospital",
+    "role_family": "operations",
+    "seniority": "medior",
+    "source": "hf:jacob-hugging-face/job-descriptions"
+  },
+  "analysis": {
+    "realStack": [
+      "Healthcare ERP platform (inventory/warehouse management + procurement modules — JD references 'various modules' and 'ERP setup and data elements' but never names the system; common Texas Children's / large-hospital stacks are Oracle, SAP, Infor/Lawson, or Workday)",
+      "Master data management / data-integrity workflows (item master, vendor master, master data responsibilities)",
+      "Spend analytics & variance analysis (budget/price variance, demand differences, root-cause review)",
+      "Reporting & BI tooling for 'dynamic reporting within various modules' (report builders / dashboards — specific tool unnamed; likely Excel plus an ERP or BI reporting layer)",
+      "Advanced Excel (variance models, utilization analysis, monthly compilation)",
+      "Executive presentation tooling (PowerPoint / slide decks for monthly executive-level analysis)",
+      "Vendor / supplier management process (onboarding, contracting support, purchasing metrics, product-outage tracking)",
+      "Value analysis process (clinical/product value analysis — healthcare-supply-chain specific)",
+      "Shared inbox / ticket triage and content-team coordination",
+      "Demand & inventory/warehouse planning concepts"
+    ],
+    "coreResponsibilities": [
+      "Build dynamic reporting within ERP modules to surface spend, utilization, and inventory opportunities for an assigned area",
+      "Perform and review root-cause analysis of monthly budget/price variances and demand differences within assigned categories",
+      "Compile analyst reports and category-manager reviews into monthly executive-level analysis and present to supply chain and executive leadership",
+      "Support vendor onboarding, contracting, ongoing vendor management, purchasing metrics, and product-outage response across the vendor lifecycle",
+      "Own analytical and master-data responsibilities to meet data quality and integrity standards for business decision-making",
+      "Triage the shared inbox and coordinate the content team under leadership guidance"
+    ],
+    "statedVsRealGaps": [
+      "The JD demands 'a deep understanding of a major area related to ERP' and reporting 'within various modules' but never names the ERP or BI platform — a candidate cannot tell whether the real requirement is Oracle, SAP, Infor/Lawson, or Workday, and tooling fit is the single biggest hireability variable here.",
+      "Seniority signal is internally contradictory: the summary frames the role as 'lead various analyst initiatives' (senior), yet the concrete tasks are largely supportive — 'support supply chain analyst in building of reports,' 'review root cause analysis prepared by supply chain analysts,' and 'respond to inquiries to the shared inbox.' The medior target fits the actual work, but the title/summary inflate it above what the responsibilities describe.",
+      "The qualifications experience bar is garbled/blank ('years business project supply chain andor healthcare experience required') — the years threshold that would actually gate candidates is missing, so the stated seniority is unverifiable from the text.",
+      "Much of the domain weight is healthcare-specific (clinical 'value analysis,' 'content team,' 'product outage support') rather than generic supply chain — a strong commercial/retail supply chain analyst could read as qualified on paper yet miss the hospital-supply context the role really runs on.",
+      "Data 'quality and integrity standards' and 'master data responsibilities' imply real data-governance rigor, but no governance tooling, data model, or scale is described — the depth of this responsibility is asserted, not evidenced."
+    ],
+    "trueComplexity": "medium",
+    "riskAreas": [
+      "Tooling mis-hire: the unnamed ERP/BI stack means candidates self-assess blind; screen explicitly for the actual platform and module (procurement vs. inventory/warehouse) before hire.",
+      "Expectation mismatch: 'lead initiatives' framing vs. support-and-inbox reality risks a senior candidate feeling under-leveled and a junior one being over-asked.",
+      "Healthcare-domain gap: clinical value analysis, product-outage, and patient-supply criticality are easy to underestimate from a generic supply-chain résumé.",
+      "Master-data / data-integrity ownership without named governance tooling can become an undefined, high-blame responsibility.",
+      "Executive-facing cadence (monthly leadership presentations) weights communication and data-visualization skill more heavily than the 'analyst' title suggests — easy to under-screen.",
+      "COVID-vaccination requirement (with medical/religious exemption) is a hard gating qualification that can disqualify otherwise-fit candidates."
+    ],
+    "reflection": "This is a genuine, reasonably detailed medior supply-chain analyst JD for a large pediatric hospital system, and as a non-software operations role its 'real stack' is correctly an ERP plus reporting, Excel, master-data, and vendor-management workflows rather than any codebase — so the absence of code is normal, not a defect. The honest tension is between how the role is sold and what it does: the summary promises ERP depth and leading analyst initiatives, but the responsibility list is dominated by supporting a senior analyst, reviewing others' variance work, compiling monthly executive decks, and staffing a shared inbox — solidly medior, leaning toward analyst-coordinator. Two facts the JD asserts but does not ground undercut confidence in screening: the ERP/BI platform is never named (despite being the role's central tool), and the required years of experience are missing from a garbled qualifications line. The domain is also distinctly healthcare-supply-chain (clinical value analysis, product-outage, content team), which a generalist could miss. Complexity is medium — real analytical and master-data depth and executive exposure, but within a defined, supportive scope rather than autonomous ownership.",
+    "confidence": 0.6,
+    "promptVersion": "need-analysis-v3"
+  },
+  "role": {
+    "title": "Supply Chain Analyst",
+    "seniority": "medior",
+    "roleFamily": "operations",
+    "mustHaves": [
+      "Strong analytical skills to independently build dynamic reporting that surfaces spend, utilization, and inventory opportunities within an assigned supply chain area",
+      "Working knowledge of an ERP system's data model and module structure — a deep understanding of at least one major area (inventory/warehouse management or procurement) sufficient to pull, structure, and validate data elements",
+      "Variance analysis: review and root-cause investigation of monthly budget and price variances plus demand-difference analysis within assigned categories",
+      "Advanced Excel for variance models, utilization analysis, and monthly data compilation",
+      "Master-data and data-integrity discipline — maintaining item/vendor master data to meet quality and integrity standards for accurate business decision-making",
+      "Ability to compile analyst inputs and category-manager reviews into executive-level monthly analysis and present it clearly to supply chain and executive leadership",
+      "Vendor lifecycle support: onboarding, contracting support, ongoing vendor management, purchasing-metrics tracking, and product-outage response",
+      "Bachelor's degree in business, healthcare, or a supply-chain-related field"
+    ],
+    "niceToHaves": [
+      "Healthcare / hospital supply chain experience, including clinical product 'value analysis'",
+      "Hands-on experience with a named ERP platform's inventory/procurement modules (e.g. Oracle, SAP, Infor/Lawson, or Workday)",
+      "BI and reporting tooling beyond Excel (dashboards, report builders) for dynamic, self-service reporting",
+      "Demand and inventory/warehouse planning exposure",
+      "Experience triaging a shared inbox / ticket queue and coordinating a cross-functional content or category team under leadership guidance",
+      "PowerPoint fluency for monthly executive-level presentation materials"
+    ],
+    "responsibilities": [
+      "Independently build dynamic reporting within ERP modules to identify spend, utilization, and inventory opportunities and report them to an assigned area",
+      "Perform and review root-cause analysis of monthly budget/price variances and demand differences within assigned categories for accuracy",
+      "Compile supply chain analyst reports and category-manager reviews into monthly executive-level analysis and present to supply chain and other executive leadership",
+      "Support the vendor lifecycle — onboarding, contracting support, ongoing vendor management, purchasing metrics, and product-outage support",
+      "Own analytical and master-data responsibilities to meet data quality and integrity standards for business decision-making",
+      "Respond to inquiries in the shared inbox and coordinate the content team under the guidance of leadership"
+    ],
+    "languages": [
+      "English"
+    ],
+    "promptVersion": "role-design-v3"
+  },
+  "case": {
+    "title": "Supply Chain Analyst — Healthcare Spend & Variance Work-Sample",
+    "brief": "You've just joined the supply chain analytics team. Leadership has handed you a recent quarter of raw procurement data from the ERP and asked for the same thing they ask for every month: a clean read on where the money is going in your assigned category area, why it differs from plan, and one recommendation they can act on. The data is exactly as it comes out of the system — not pre-cleaned. The starting materials are in your role's own terms (ERP exports, the item and vendor masters, a budget file, last month's variance memo, the shared-inbox log, and a slide template), described in repoSeed; nothing here is software and you are not expected to write production code. Work in whatever analyst tooling you'd actually use (Excel/Sheets pivots, a slide, short written notes). This is scoped to ~1.5 hours — that is a hard cap, so go for depth on one category rather than covering everything. Several things in the brief are deliberately open or under-specified, exactly as they would be on the job; treat clarifying, stating assumptions, and reading what already exists before regenerating it as normal practice. We care more about the judgment behind your numbers than the polish of the deck.",
+    "repoSeed": "A folder of realistic-but-synthetic healthcare supply chain materials (the provided context fits this role, so these stand in for a typical hospital ERP/procurement export):\n- spend_extract_FY25Q3.csv — ~6,000 PO line rows for the quarter: po_number, item_number, item_desc, vendor_id, department, category (blank on ~8% of rows), order_qty, uom (mixed: EA, CS, BX), unit_price, extended_amount, order_date. Includes negative lines for returns/credits, and vendor names that are inconsistent across rows (e.g. 'Medline', 'Medline Industries', 'MEDLINE IND LP').\n- item_master_export.xlsx — item_number, description, base_uom, pack_conversion_factor (blank for ~15% of items), category, contract_flag.\n- vendor_master.xlsx — vendor_id, vendor_name, parent_vendor (several distinct vendor_ids roll up to the same parent).\n- budget_FY25.xlsx — monthly budget by category for the fiscal year.\n- prior_month_variance_memo.docx — the previous analyst's one-page variance write-up for last month, including the method they used and the headline unfavorable variance figure.\n- shared_inbox_log.csv — 5 open requests, one of which is ambiguous and not answerable as written.\n- exec_summary_template.pptx — an empty one-slide leadership template (title, key finding, recommendation placeholders).",
+    "tasks": [
+      "Build a refreshable spend & variance summary for your assigned category area. Join spend_extract_FY25Q3.csv to item_master_export.xlsx and budget_FY25.xlsx, clean it (vendor naming, returns/credits, mixed UOM, blank categories), and produce category-level spend-vs-budget with variance plus a short ranked top-opportunities list. Deliver it as a working pivot/dashboard that would still work if a fresh extract were dropped in.",
+      "Root-cause the single largest unfavorable variance in that area. Decompose it into price/rate effect vs volume/demand effect, reconcile your figure against prior_month_variance_memo.docx, and state which drivers are actually actionable vs. noise.",
+      "Produce a one-page executive summary (fill exec_summary_template.pptx, or one equivalent slide): the headline finding, the opportunity quantified, and one recommendation with a concrete next step — in plain language for non-analyst leadership.",
+      "Keep a short DECISIONS log (a DECISIONS.md or a tab) recording every call you made where the brief was open — what you chose, the alternative you rejected, and what you'd ask the team. Then triage the one ambiguous request in shared_inbox_log.csv: decide whether it's answerable now, and draft either a one-line answer or the clarifying question you'd send back."
+    ],
+    "coverProbes": [
+      {
+        "id": "assigned-area-scope",
+        "kind": "underspecified",
+        "where": "Task 1 — 'your assigned category area' is never actually defined; the extract spans many categories.",
+        "reveals": "A strong candidate notices 'assigned area' is undefined and either states the scoping assumption explicitly (with rationale) or asks; a naive one silently analyzes everything or arbitrarily picks one category and presents it as 'the answer', hiding that a scope choice was even made.",
+        "decisionSpace": [
+          "Analyze the single highest-spend category — maximizes dollar impact, but may not be where leadership actually wants attention.",
+          "Analyze the category with the largest unfavorable budget variance — maximizes 'opportunity' framing, but small categories swing on noise.",
+          "Hold and ask leadership which area is assigned, analyzing a representative category as a labeled placeholder — slower delivery but matches how 'assigned areas' really work."
+        ]
+      },
+      {
+        "id": "prior-memo-method",
+        "kind": "legacy_trap",
+        "where": "prior_month_variance_memo.docx — the previous analyst's variance methodology and headline number.",
+        "reveals": "Reading the memo first reveals its variance was computed on gross PO spend (returns/credits netted incorrectly and before UOM normalization), inflating the unfavorable figure. A candidate who reads catches it, corrects it, and reconciles the discrepancy; one who regenerates from scratch either repeats the inherited framing or silently contradicts last month with no reconciliation note.",
+        "decisionSpace": [
+          "Adopt the prior method for month-over-month comparability and footnote the known flaw — continuity over correctness.",
+          "Correct the method and restate the prior number so the trend is apples-to-apples — correct, but more work and must explain the change to leadership.",
+          "Run both and show the delta the method change causes — most transparent, but costs time and slide space."
+        ]
+      },
+      {
+        "id": "uom-and-variance-split",
+        "kind": "verification_trap",
+        "where": "spend_extract_FY25Q3.csv unit-price/opportunity ranking and the Task 2 price-vs-volume decomposition.",
+        "reveals": "Naive generation sums extended_amount and divides by order_qty to get unit price, ignoring mixed UOM (EA/CS/BX) and the blank pack_conversion_factor values — category totals still tie to the extract (passes a shallow check) but the per-item unit-price comparison and the price-vs-volume split come out wrong. A careful candidate normalizes to a common UOM and genuinely separates rate effect from quantity effect.",
+        "decisionSpace": [
+          "Normalize only items that have a conversion factor and flag the rest as un-normalizable, excluding them from the unit-price ranking — transparent, but loses coverage.",
+          "Infer missing conversions from the modal pack size seen in the data — full coverage, but introduces estimation risk that must be disclosed.",
+          "Report variance at the category-dollar level only and decline a per-unit ranking until master data is fixed — safest and least insightful, but surfaces it as a master-data action item."
+        ]
+      },
+      {
+        "id": "dirty-master-data",
+        "kind": "ambiguity",
+        "where": "Blank category rows (~8%) in the extract and duplicate vendor_ids rolling to one parent in vendor_master.xlsx.",
+        "reveals": "How the candidate treats uncategorized spend and one-parent-many-IDs vendors. A strong candidate makes the treatment explicit and quantifies its effect on the ranking; a naive one silently drops blank-category rows (understating spend) or counts split vendor_ids separately (understating supplier concentration) without noting it.",
+        "decisionSpace": [
+          "Bucket uncategorized spend as 'Unclassified' as its own line plus a data-quality flag — honest, but leaves an ugly bucket in the executive view.",
+          "Allocate uncategorized spend pro-rata to known categories by vendor history — cleaner exec view, but invents precision that isn't really there.",
+          "Roll duplicate vendor_ids to parent for concentration analysis while keeping IDs separate for transactional accuracy — correct but more effort, and the mapping must be documented."
+        ]
+      }
+    ],
+    "timeboxHours": 1.5,
+    "rubricDimensions": [
+      {
+        "name": "framing",
+        "label": "Problem framing",
+        "weight": 0.2,
+        "description": "Turns an ambiguous need into a sound plan."
+      },
+      {
+        "name": "tooling",
+        "label": "Tooling fluency",
+        "weight": 0.25,
+        "description": "Drives AI and other tools well; iterates and verifies."
+      },
+      {
+        "name": "judgment",
+        "label": "Judgment",
+        "weight": 0.25,
+        "description": "Catches AI/tooling mistakes; validates; pushes back."
+      },
+      {
+        "name": "architecture",
+        "label": "Architecture",
+        "weight": 0.15,
+        "description": "Structure and trade-offs that fit the real materials and constraints."
+      },
+      {
+        "name": "transfer",
+        "label": "Transfer",
+        "weight": 0.15,
+        "description": "Capability transfers to THIS role's tools and responsibilities."
+      }
+    ],
+    "promptVersion": "case-design-v5"
+  },
+  "source": "llm",
+  "issues": [],
+  "fallbackReason": {},
+  "promptVersions": {
+    "analyze": "need-analysis-v3",
+    "role": "role-design-v3",
+    "case": "case-design-v5"
+  }
+}

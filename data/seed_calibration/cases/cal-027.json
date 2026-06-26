@@ -1,0 +1,183 @@
+{
+  "job": {
+    "id": "cal-027",
+    "title": "Business Analyst (Entry Level)",
+    "company": "Staffigo",
+    "role_family": "consulting",
+    "seniority": "junior",
+    "source": "hf:jacob-hugging-face/job-descriptions"
+  },
+  "analysis": {
+    "realStack": [
+      "Business requirements & functional specification documents (BRD/FRD), system design proposals",
+      "System & process modeling — system models, specifications, diagrams and charts to direct programmers (Visio/UML-style artifacts)",
+      "Agile and Waterfall SDLC practices (the only methodology skill the JD actually names)",
+      "Cost-benefit and ROI / business-case analysis (spreadsheet/Excel modeling)",
+      "UAT and end-user test coordination — test plans and review cycles",
+      "Requirements-elicitation / stakeholder-interview practice with decision-makers, system owners and end-users",
+      "End-user training and orientation materials",
+      "Note: 'powered by JazzHR' is the applicant-tracking system the posting runs on — a hiring-side tool, not a tool of the role"
+    ],
+    "coreResponsibilities": [
+      "Meet with decision-makers, system owners and end-users to elicit and define business requirements and system goals",
+      "Review and analyze the effectiveness and efficiency of existing systems and recommend improvements",
+      "Assist across the SDLC in planning, design, development and deployment of new applications and enhancements",
+      "Produce system design proposals, models, specifications, diagrams and charts to give direction to programmers",
+      "Perform cost-benefit and ROI analyses to support management's implementation decisions",
+      "Coordinate and run testing, including end-user/UAT reviews, for new and modified systems",
+      "Provide orientation and training to end-users on new and modified systems"
+    ],
+    "statedVsRealGaps": [
+      "Title and seniority say 'Business Analyst (Entry Level)' / junior, but the duties are full systems-analyst/SDLC scope — design, deployment, modeling to direct programmers, ROI analysis, UAT, and end-user training. That is analyst + designer + QA-coordinator + trainer, not an entry-level slice.",
+      "A Master's degree in Computer Science / Computer Engineering is required for an 'entry level' BA — an unusually heavy and atypical gate (most BA roles need neither a CS degree nor a Master's). Combined with the relocation/visa-friendly framing, this reads as a credential-sponsorship funnel rather than a function-specific hire.",
+      "'Long-term assignments at various unanticipated sites within the US… which may require relocation at the end of each project' is the signature of an IT staffing/consulting bench-placement model. The JD describes a deployment category, not a defined job; the real day-to-day is set by an unnamed client engagement.",
+      "No named tools, systems, platform, language or domain anywhere — 'exposure in Agile/Waterfall' is the single concrete, verifiable skill. The need is unanchored to any specific system, so fit cannot be assessed against a real stack.",
+      "Boilerplate breadth (healthcare, finance, banking, retail, ecommerce + 'other duties as assigned') means there is no domain grounding; whatever the candidate actually does depends entirely on which client they are benched to."
+    ],
+    "trueComplexity": "medium",
+    "riskAreas": [
+      "Bench/body-shop placement model: 'unanticipated sites' + per-project relocation means the role's real content is unknown at hire time and can diverge sharply from this template.",
+      "Seniority/credential mismatch: 'entry level' paired with a CS Master's and SDLC-wide duties signals either under-scoped pay/title or a sponsorship-oriented pipeline — expectations and reality may not line up.",
+      "Zero named stack: impossible to verify technical fit; success hinges on per-client onboarding rather than any skill stated here.",
+      "Scope creep baked into the JD — one person expected to span requirements, design, testing and training across any industry.",
+      "Generic, reused template ('JazzHR'-published, multi-industry boilerplate) lowers confidence that the posting reflects a specific, real opening versus a continuous talent-pipeline ad."
+    ],
+    "reflection": "There is no codebase to reflect against; the only evidence is the JD itself, and it is a generic IT-staffing/consulting template rather than a description of one concrete job. It is not 'too thin' to read — the responsibilities are clear, standard systems-analyst SDLC work (elicit requirements, analyze existing systems, model designs, run cost-benefit and UAT, train users), which is genuinely medium-complexity knowledge work. But it is unanchored: no tool, platform, language, system or domain is named, and the stated 'entry level' framing collides with both a CS-Master's requirement and a duties list that spans analyst, designer, QA and trainer. The 'various unanticipated sites within the US… relocation at the end of each project' language, the JazzHR pipeline posting, and the multi-industry boilerplate together identify this as a consulting bench/placement funnel — the real work will be defined by whichever client the hire is assigned to, not by this posting. Judge candidates on requirements-elicitation, SDLC literacy, and adaptability, and treat the stated title/seniority and the specifics of any single engagement as provisional.",
+    "confidence": 0.6,
+    "promptVersion": "need-analysis-v3"
+  },
+  "role": {
+    "title": "Business Analyst (Entry Level)",
+    "seniority": "junior",
+    "roleFamily": "consulting",
+    "mustHaves": [
+      "Elicit and define business requirements and system goals by interviewing decision-makers, system owners and end-users, and write them up as clear BRD/FRD-style requirement and design documents",
+      "Working familiarity with both Agile and Waterfall SDLC practices — the only methodology exposure the posting names — and where a Business Analyst contributes across planning, design, development and deployment",
+      "Translate requirements into system and process artifacts: models, functional specifications, diagrams and charts that give programmers unambiguous direction (UML/Visio-style modeling)",
+      "Build cost-benefit and ROI / business-case analyses (spreadsheet/Excel modeling) that let management make implementation decisions",
+      "Plan and coordinate testing — write test cases and run end-user/UAT review cycles for new and modified systems, then track defects to resolution",
+      "Produce end-user orientation and training materials and deliver them for new and changed systems",
+      "Strong written and verbal communication in English, with the discipline to capture, structure and confirm requirements back to non-technical stakeholders",
+      "Comfort with an IT-consulting delivery model: long-term, project-based assignments at client sites across the US, with relocation possible at the end of each engagement",
+      "Master's degree in Computer Science, Computer Engineering or a related field (a hard credential gate stated in the posting)"
+    ],
+    "niceToHaves": [
+      "Exposure to one or more of the posting's target domains — healthcare payer/provider, clearinghouses, finance, banking, retail/e-commerce — and their regulatory pressures",
+      "Hands-on practice with modeling and diagramming tools (UML, BPMN, Visio or equivalents)",
+      "Familiarity with the staff-augmentation / bench-placement consulting model, where the real day-to-day is set by an unnamed client engagement",
+      "Basic data/SQL literacy to validate that requirements and proposed systems hold up against real data"
+    ],
+    "responsibilities": [
+      "Meet with decision-makers, system owners and end-users to elicit and define business requirements and system goals, and resolve business-systems issues",
+      "Review and analyze the effectiveness and efficiency of existing systems and recommend strategies to improve or further leverage them",
+      "Assist across the SDLC in the planning, design, development and deployment of new applications and enhancements",
+      "Create system design proposals and produce models, specifications, diagrams and charts that direct system programmers",
+      "Perform cost-benefit and ROI analyses for proposed systems to support management's implementation decisions",
+      "Coordinate and run testing, including end-user/UAT reviews, for new and modified systems",
+      "Provide orientation and training to end-users on new and modified systems, plus other duties as assigned on the client engagement"
+    ],
+    "languages": [
+      "English"
+    ],
+    "promptVersion": "role-design-v3"
+  },
+  "case": {
+    "title": "Meridian Supply order-portal: requirements, business case and UAT setup",
+    "brief": "You are the business analyst on a short consulting engagement for Meridian Supply Co., a mid-size industrial-parts distributor that today takes customer orders by phone and email and manually re-keys them into an aging order system. Leadership has approved a project to add a self-service order portal, and you have been handed the early engagement pack to make sense of. The original job posting is a generic, multi-industry consulting template with no named client or technology stack, so this is a synthetic but representative entry-level BA engagement that exercises exactly the work the role describes: eliciting and reconciling requirements, modeling current and future state, building the business case, and setting up UAT. Everything you need is in the starting pack and nothing here requires writing or running software. Work to roughly a 1-hour budget; depth and judgment matter far more than length. The inputs are deliberately incomplete and partly contradictory, exactly as a real first week looks. Where something is unclear, decide, write down the assumption you are proceeding on, and keep moving rather than stalling for perfect information.",
+    "repoSeed": "A Meridian Supply engagement starter pack (synthetic, five short artifacts):\n- `BRD_draft_v0.md` - an unfinished Business Requirements Document: a one-paragraph project objective plus functional requirements FR-01..FR-06, several marked TBD. The objective says 'let account customers place orders online' but never states which order types are in scope or whether the portal replaces or merely supplements phone/email ordering.\n- `stakeholder_notes.md` - raw notes from three 20-minute interviews: Dana Reyes (Sales Ops Manager) wants every order self-service to cut handling time; Marcus Hale (IT, owner of the legacy order system) warns the system only ingests orders in a nightly batch and exposes no real-time API; Priya Okafor (Senior CSR) insists custom builds and large credit-risk orders must stay with a human. The three views are not reconciled anywhere.\n- `current_state_order_intake.md` - an as-is narrative / swimlane of order intake today, including a manual credit-hold step where a CSR checks customer credit before confirming any order above a value threshold, and the nightly-batch posting into the order system.\n- `roi_model.xlsx` - a cost-benefit model (tabs: Assumptions, Costs, Benefits, Summary) that reports an attractive ~14-month payback. The Benefits tab applies CSR labor savings to 100% of order volume, and the Summary's payback calculation leaves out the one-time integration cost.\n- `uat_plan_stub.md` - a skeleton UAT plan with empty test-case slots but no acceptance/sign-off criteria, no pass threshold, and no named sign-off owner.",
+    "tasks": [
+      "Read `BRD_draft_v0.md` and `stakeholder_notes.md`, then produce a one-page prioritized requirements list (Must/Should/Could) of no more than about eight functional requirements for the order portal. Where the draft is vague or the three stakeholders disagree, make an explicit scoping call, state the assumption you are proceeding on, and clearly mark any requirement you could not confirm. Do not write the list as if the stakeholders already agreed.",
+      "Using `current_state_order_intake.md`, produce a short to-be order-intake process (a swimlane narrative or numbered flow, at most one page) plus a simple one-box-per-actor system context sketch you can describe in text. Your to-be design must account for how the legacy order system actually accepts orders and for any control steps that exist today, and must explicitly call out anything you are deliberately changing or removing.",
+      "Review `roi_model.xlsx` and state whether the payback period and ROI shown on the Summary tab are trustworthy. Identify any assumption or calculation you believe is wrong or unsupported, correct it, and give your own restated payback/ROI with a one-line justification for each change. Where a number depends on a scoping decision you made in Task 1, make that dependency explicit.",
+      "(a) For the single highest-risk requirement from Task 1, write 3-5 acceptance criteria to drop into `uat_plan_stub.md` that a tester could pass or fail unambiguously, and name who signs off. (b) Keep a short DECISIONS log (5-8 bullets) covering every place the brief or the inputs were open: what you chose, the alternative you rejected, and the one question you would put to the client or engagement lead. Treat this as the normal hand-off note an engagement expects, not a separate exercise."
+    ],
+    "coverProbes": [
+      {
+        "id": "cp1-scope-conflict",
+        "kind": "ambiguity",
+        "where": "Task 1 - the `BRD_draft_v0.md` objective ('place orders online', order types and replace-vs-supplement unstated) read against the conflicting `stakeholder_notes.md` views of Reyes, Hale and Okafor.",
+        "reveals": "A naive submission silently picks one scope (usually all-orders self-service to satisfy Sales Ops) and writes requirements as though the stakeholders agreed. A strong one names the conflict, commits to an explicit scope, records it as a stated assumption, and flags the requirements it could not confirm, showing it knows requirements are negotiated, not assumed.",
+        "decisionSpace": [
+          "Scope the portal to standard/catalog orders only and keep custom and high-credit-risk orders manual - narrowest, lowest risk, smaller benefit.",
+          "Full self-service for all order types - maximum benefit and matches Sales Ops, but high change-management and credit-risk exposure.",
+          "Phased rollout: standard orders first, custom/complex in a later phase - lowers risk and reconciles the stakeholders, at the cost of delayed benefit and extra planning."
+        ]
+      },
+      {
+        "id": "cp2-credit-hold-and-batch",
+        "kind": "legacy_trap",
+        "where": "Task 2 - the manual credit-hold control and the nightly-batch posting (no real-time API) buried in `current_state_order_intake.md`.",
+        "reveals": "Generating a to-be flow without reading the as-is produces a clean real-time confirmation that silently drops the credit-hold control and assumes instant order posting - both wrong. A candidate who read first preserves the credit gate as a portal rule and designs around batch posting (e.g. distinct 'submitted' vs 'confirmed' states), showing they analyze the existing system before recommending change.",
+        "decisionSpace": [
+          "Synchronous credit gate: orders above the threshold route to a CSR review queue before confirmation - safest, but slower customer experience.",
+          "Auto-approve under a credit limit and hold only above it - balances UX and risk, but needs an agreed limit and a source of truth for it.",
+          "Async post-submission credit check with cancel-on-fail - best UX, but opens a window where a risky order is provisionally accepted and may need rework."
+        ]
+      },
+      {
+        "id": "cp3-roi-overstated",
+        "kind": "verification_trap",
+        "where": "Task 3 - the Benefits and Summary tabs of `roi_model.xlsx`.",
+        "reveals": "The totals foot and the ~14-month payback looks attractive, so a shallow pass accepts the model as-is. The real defects are labor savings booked against 100% of order volume when the portal only covers the in-scope share, and a payback that omits the one-time integration cost. A strong candidate ties savings to in-scope volume, folds the one-time cost into payback, and reports an honest, less flattering number.",
+        "decisionSpace": [
+          "Re-scope savings to the in-scope order share and report a longer, defensible payback - conservative and credible.",
+          "Keep full-volume savings but relabel it explicitly as an upper-bound, 100%-adoption sensitivity case - optimistic but transparent if clearly flagged.",
+          "Model an adoption ramp (e.g. 40% rising to 70% over the first year) - most realistic, but introduces more assumptions that must be justified."
+        ]
+      },
+      {
+        "id": "cp4-uat-acceptance-undefined",
+        "kind": "underspecified",
+        "where": "Task 4 - `uat_plan_stub.md`, which defines no acceptance criteria, no pass threshold and no sign-off owner.",
+        "reveals": "A naive answer writes vague 'system works as expected' criteria and leaves sign-off unowned. A strong one writes binary, testable criteria tied to the scope and credit-hold decisions made earlier, and names a specific sign-off owner with a clear entry/exit bar - showing it understands UAT is a control, not a formality.",
+        "decisionSpace": [
+          "Tight binary pass/fail criteria per requirement, signed off by the system owner - clear and rigorous but rigid.",
+          "Severity-tiered exit allowing conditional go-live with no Sev-1/Sev-2 defects open - pragmatic for a deadline, but a fuzzier quality bar.",
+          "Business-outcome criteria (e.g. a CSR completes a portal order within a target time) owned by Sales Ops - user-centric, but harder to measure inside a short UAT window."
+        ]
+      }
+    ],
+    "timeboxHours": 1.0,
+    "rubricDimensions": [
+      {
+        "name": "framing",
+        "label": "Problem framing",
+        "weight": 0.2,
+        "description": "Turns an ambiguous need into a sound plan."
+      },
+      {
+        "name": "tooling",
+        "label": "Tooling fluency",
+        "weight": 0.25,
+        "description": "Drives AI and other tools well; iterates and verifies."
+      },
+      {
+        "name": "judgment",
+        "label": "Judgment",
+        "weight": 0.25,
+        "description": "Catches AI/tooling mistakes; validates; pushes back."
+      },
+      {
+        "name": "architecture",
+        "label": "Architecture",
+        "weight": 0.15,
+        "description": "Structure and trade-offs that fit the real materials and constraints."
+      },
+      {
+        "name": "transfer",
+        "label": "Transfer",
+        "weight": 0.15,
+        "description": "Capability transfers to THIS role's tools and responsibilities."
+      }
+    ],
+    "promptVersion": "case-design-v5"
+  },
+  "source": "llm",
+  "issues": [],
+  "fallbackReason": {},
+  "promptVersions": {
+    "analyze": "need-analysis-v3",
+    "role": "role-design-v3",
+    "case": "case-design-v5"
+  }
+}

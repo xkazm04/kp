@@ -1,0 +1,184 @@
+{
+  "job": {
+    "id": "cal-002",
+    "title": "$17.50hr - Patient Advocate - Part Time Position - Mon - Fri ...",
+    "company": "Rx Help Centers",
+    "role_family": "customer_success",
+    "seniority": "medior",
+    "source": "hf:jacob-hugging-face/job-descriptions"
+  },
+  "analysis": {
+    "realStack": [
+      "Inbound/outbound phone system or softphone dialer (core call-handling tool)",
+      "CRM / case-management system for logging every client interaction",
+      "Pharmaceutical Patient Assistance Program (PAP) portals and manufacturer enrollment applications",
+      "Documentation forms and templates (enrollment paperwork, prescription/income documentation, eligibility records)",
+      "Email and fax for correspondence with healthcare providers and prescribers",
+      "Internal SOP / process knowledge base ('established processes')",
+      "Working knowledge of prescription assistance, copay/foundation programs, and basic pharmacy/insurance terminology",
+      "HIPAA-compliant handling of Protected Health Information (PHI)"
+    ],
+    "coreResponsibilities": [
+      "Answer incoming calls and make outgoing calls to connect clients to prescription drug assistance programs and cost-reduction options",
+      "Act as the liaison between clients, their healthcare providers, and assistance programs",
+      "Process day-to-day updates, information requests, and documentation updates",
+      "Document each interaction accurately in the system of record",
+      "Set up follow-up interactions and proactively keep clients updated as interactions occur",
+      "Follow established processes/SOPs for each case"
+    ],
+    "statedVsRealGaps": [
+      "Seniority is tagged 'medior,' but the JD (part-time, $17.50/hr, 'follow established processes,' assist with day-to-day updates) describes an entry-level/junior customer-service role — the true level is below medior.",
+      "Framed as 'exceptional customer service,' but the real work is healthcare-benefits navigation: handling PHI, parsing PAP eligibility, and coordinating with prescribers — meaningfully heavier than generic call-center CS.",
+      "No tools or systems are named in the JD (no CRM, dialer, or program portals), yet documenting every interaction and updating clients is impossible without them — the realStack is inferred from the work, not stated.",
+      "HIPAA/PHI compliance is never mentioned despite the role handling patients' prescription and health data — a notable omission for a regulated domain.",
+      "Liaising with healthcare providers implies pharmacy/insurance literacy that the JD lists as no explicit requirement.",
+      "No performance metrics (calls/day, enrollments completed) are stated, though such advocate roles are typically KPI-driven."
+    ],
+    "trueComplexity": "medium",
+    "riskAreas": [
+      "PHI/HIPAA exposure — patient health and prescription data must be handled compliantly; mishandling is a regulatory and reputational risk",
+      "Documentation discipline — every interaction must be logged accurately; gaps silently break the follow-up chain and leave patients without medication",
+      "External dependency — approval timelines for assistance programs are outside the advocate's control, requiring careful expectation-setting with anxious clients",
+      "Emotional labor / burnout — supporting often sick, elderly, or low-income clients who cannot afford medication is sustained high-empathy work",
+      "Vulnerable population — miscommunication carries real health consequences, so accuracy and clarity matter more than in ordinary CS",
+      "Process-vs-judgment tension — the role is scripted, but edge cases need recognized escalation rather than rote handling"
+    ],
+    "reflection": "There is no codebase here, which is correct for a patient-advocate customer-service role — the real body of work is the JD itself plus the operational reality of prescription-assistance advocacy. The JD is thin on systems but rich enough on responsibilities to extract a clear picture: this is a process-following, documentation-heavy, phone-based liaison role. Individually the tasks (answer calls, log interactions, send paperwork, schedule follow-ups) are simple, so raw task difficulty is low-to-medium; the genuine difficulty lives elsewhere — sustained documentation accuracy, HIPAA-sensitive data handling, navigating opaque third-party assistance programs, and the emotional weight of helping people who can't afford their medication. The most honest divergence is the seniority label: 'medior' overstates a part-time, $17.50/hr, SOP-driven entry role. I'd judge true complexity as medium on the strength of the compliance and reliability demands rather than skill ceiling, and I'd flag that the JD under-specifies the tools and compliance training the work actually requires.",
+    "confidence": 0.6,
+    "promptVersion": "need-analysis-v3"
+  },
+  "role": {
+    "title": "Patient Advocate (Part-Time)",
+    "seniority": "junior",
+    "roleFamily": "customer_success",
+    "mustHaves": [
+      "Phone-based customer service: handle inbound and outbound calls with empathy, clarity and patience, especially with clients who may be stressed about medication costs or health",
+      "Disciplined, accurate documentation — log every client interaction in a CRM/case-management system as it happens, without gaps",
+      "Ability to follow established processes/SOPs precisely and consistently across repetitive casework",
+      "Strong written and verbal communication for liaising between clients, their healthcare providers/prescribers, and assistance programs",
+      "Reliable case follow-through: set up, schedule and proactively communicate follow-up interactions, keeping clients updated as their case progresses",
+      "Comfort handling sensitive personal and health information responsibly and confidentially (PHI/HIPAA-aware handling)",
+      "Basic computer/data-entry fluency: navigate CRM, program portals, web enrollment forms, email and fax concurrently while on a call",
+      "Organized multitasking to manage day-to-day updates, information requests and documentation updates across many open cases"
+    ],
+    "niceToHaves": [
+      "Prior experience in healthcare, pharmacy, insurance, benefits navigation or a patient-facing role",
+      "Familiarity with Pharmaceutical Patient Assistance Programs (PAP), copay/foundation programs, or manufacturer enrollment processes",
+      "Working knowledge of basic pharmacy/insurance terminology (prescriptions, eligibility, coverage, copay)",
+      "Experience in a metrics/KPI-driven contact-center or case-management environment (calls per day, enrollments completed)",
+      "Bilingual ability to support a broader client base",
+      "Exposure to HIPAA or other regulated-data handling in a prior role"
+    ],
+    "responsibilities": [
+      "Answer incoming calls and place outgoing calls to connect clients with prescription drug assistance programs and other prescription-cost-reduction options",
+      "Act as the liaison between clients, their healthcare providers, and prescription drug assistance programs",
+      "Process day-to-day updates, information requests and documentation updates for assigned cases",
+      "Document each client interaction accurately and completely in the system of record",
+      "Set up follow-up interactions and proactively keep clients informed as interactions occur",
+      "Follow established processes and SOPs for each case, handling client prescription and health information appropriately"
+    ],
+    "languages": [
+      "English"
+    ],
+    "promptVersion": "role-design-v3"
+  },
+  "case": {
+    "title": "Patient Advocate Work-Sample: The Cardizan Copay Case (Case #4471)",
+    "brief": "You are stepping in as a part-time Patient Advocate. It's the start of your shift and Case #4471 (Dorothy Hammond) has landed in your queue with a few things in motion at once: a voicemail from a family member, an email from the prescriber's office, and an enrollment that needs to move forward so Dorothy doesn't run out of her heart medication. You have the same materials a real advocate would: the case file, the current CRM record, the relevant SOP, the program eligibility one-pager, an FPL reference table, the provider email, and the voicemail transcript. Work the case the way you would on shift — triage what's happened, log it in the system of record, figure out the right assistance path, and communicate with the people involved. These materials are realistic, which means they are not perfectly tidy: some details are incomplete, a couple of sources disagree, and at least one request needs you to decide what is and isn't appropriate to act on. That's normal — handle it as you would on the job, set expectations honestly, and keep Protected Health Information (PHI) handled per HIPAA throughout. Budget about one hour. We care far more about your judgment, your reading of the materials, and your documentation discipline than about volume of output. Keep a short DECISIONS log as you go (Task 4) so we can see the calls you made.",
+    "repoSeed": "A small case packet handed to you for Case #4471, as you'd find it in the system of record:\n\n1) CASE FILE — 'Case #4471: Dorothy Hammond' (intake 11 days ago). Age 74; primary insurance: Medicare Part D (plan 'SilverScript Choice'); no secondary/commercial coverage listed. Prescription: Cardizan 10 mg (manufacturer: Meridian Pharma), 30-day supply, ~14 days of medication remaining. Intake form lists income as 'Social Security $1,840/mo (~$22,080/yr)'. A handwritten-style intake note adds: 'lives w/ adult son, household ~$58k combined.' Diagnosis and a full Social Security Number are written in the free-text notes field.\n\n2) CRM SNAPSHOT — interaction history for #4471: one prior outbound call ('left vmail, no answer'), status = 'Enrollment – Not Started.' Authorized-contacts field shows only Dorothy Hammond; no HIPAA authorization on file for any other person.\n\n3) SOP-12 — 'Enrolling a Client in Prescription Assistance' (last revised 14 months ago). Step-by-step enrollment instructions. Buried in step 4 is the line: 'Manufacturer copay/savings cards may NOT be used by clients with government insurance (Medicare, Medicaid, TRICARE) — federal rules prohibit it. For these clients use a manufacturer PAP or an independent charitable foundation.' Step 6 says: 'Submit the Meridian Cares enrollment packet by fax to 1-800-555-0142.'\n\n4) INTERNAL NOTE / SOP-12 ADDENDUM (posted 3 weeks ago, pinned above SOP-12): 'Heads up — Meridian Cares moved enrollment to the online portal (cares.meridianpharma-example.com). The old fax line (…0142) is being decommissioned and submissions there are no longer monitored. Use the portal.'\n\n5) PROGRAM ELIGIBILITY ONE-PAGER — three Cardizan-cost options: (a) 'Cardizan Copay Saver Card — pay as little as $0!' in large type, fine print 'commercially insured patients only'; (b) 'Meridian Cares (PAP) — free medication for the uninsured or underinsured, including Medicare patients; household income ≤300% FPL; requires income documentation'; (c) 'Cardiac Care Fund (independent charitable foundation) — copay assistance, open to Medicare patients; fund status: LIMITED — waitlist possible.'\n\n6) FPL REFERENCE TABLE (excerpt): 300% FPL = $45,180 (household of 1); $61,320 (household of 2).\n\n7) PROVIDER EMAIL — from the prescriber's office: 'Returning your request — but we received a blank/incomplete form. Please resend what you actually need signed.' (The case file shows the prescription-verification form was never attached to the original request.)\n\n8) VOICEMAIL TRANSCRIPT — from a caller identifying herself as 'Karen, Dorothy's daughter': 'Hi, I'm calling about my mom Dorothy Hammond. She's really worried about her heart pills. Can you tell me where her application stands, and can you fax all her paperwork and her approval to my office? And please just tell her she's going to be approved, she's so anxious.'",
+    "tasks": [
+      "Task 1 — Triage & document. Read Case #4471, the CRM snapshot, the provider email, and Karen's voicemail. Write the CRM interaction note(s) for today exactly as you would log them in the system of record: accurate, complete, and capturing what came in, what you did, and the next action for the case. Treat this as the permanent record another advocate would rely on.",
+      "Task 2 — Eligibility determination & enrollment path. Using the eligibility one-pager, the FPL table, and Dorothy's insurance and income details, determine which assistance option(s) Dorothy actually qualifies for, and lay out the concrete enrollment path: which program, submitted through which channel, what documents are needed, and who does what next. State any assumptions you had to make.",
+      "Task 3 — Communicate. Draft two short, ready-to-send items: (a) the response to the family voicemail (a return call script or message) that sets honest expectations about approval timelines and addresses Karen's requests appropriately; and (b) a brief message/fax cover note back to the prescriber's office to resolve the missing document. Keep PHI handling appropriate in both.",
+      "Task 4 — DECISIONS log. Keep a short running log (a few lines per item is fine). For every point where the materials were unclear, incomplete, or contradicted each other and you had to make a call, note: what you chose, the alternative you rejected and why, and the one question you would ask your team lead. This is normal advocate practice — it lets the next person understand the file."
+    ],
+    "coverProbes": [
+      {
+        "id": "P1",
+        "kind": "verification_trap",
+        "where": "Task 2 — choosing between the Cardizan Copay Saver Card, Meridian Cares (PAP), and the Cardiac Care Fund for a Medicare Part D patient. The one-pager advertises the $0 copay card most prominently; SOP-12 step 4 quietly bars it for government insurance.",
+        "reveals": "A naive one-shot answer grabs the loudest, easiest 'savings' option (the copay card) and produces a confident, plausible-looking enrollment that would in fact be non-compliant for a Medicare beneficiary. A strong candidate connects Dorothy's Part D coverage to the federal restriction and routes her to a PAP or charitable foundation instead — i.e., they verified the option is actually legal for THIS client rather than for a generic one.",
+        "decisionSpace": [
+          "Enroll via Meridian Cares (PAP): free medication and explicitly Medicare-eligible, but slower and requires income documentation — accepts a delay to get the most durable coverage.",
+          "Apply to the Cardiac Care Fund (charitable foundation): faster copay relief that's open to Medicare patients, but the fund is LIMITED/waitlisted, so it may not come through in time given ~14 days of medication left.",
+          "Hold on the copay card and verify coverage first: confirm Dorothy truly has no secondary commercial plan (which would make the card usable) before ruling it out — prioritizes not foreclosing the cheapest path, at the cost of an extra verification step."
+        ]
+      },
+      {
+        "id": "P2",
+        "kind": "legacy_trap",
+        "where": "Task 2 — the submission channel for the Meridian Cares packet. SOP-12 step 6 says fax to 1-800-555-0142; the pinned addendum (3 weeks old) says that fax is decommissioned and enrollment moved to the online portal.",
+        "reveals": "A candidate who generates from the main SOP without reading the pinned addendum submits to a dead fax line and the enrollment silently goes nowhere — leaving a patient without medication. A candidate who reads the surrounding context catches the conflict and submits through the current channel.",
+        "decisionSpace": [
+          "Submit via the online portal per the addendum: trusts the newer, pinned note over the older SOP body — fastest correct path if the portal is in fact live.",
+          "Fax the old number but confirm it's still monitored first (quick call/check): defends against acting on an addendum that may itself be ambiguous about whether the portal is fully live, at the cost of time.",
+          "Flag the SOP/addendum conflict and confirm the current channel with the team lead before submitting: safest for an unfamiliar junior, but adds a dependency and delay."
+        ]
+      },
+      {
+        "id": "P3",
+        "kind": "underspecified",
+        "where": "Task 2 — the income/household eligibility check for Meridian Cares (≤300% FPL). The intake form lists Dorothy's own income at ~$22,080/yr, while a note says 'household ~$58k combined' with an adult son, and the FPL table gives different 300% thresholds for household-of-1 vs household-of-2.",
+        "reveals": "A naive response silently picks whichever number makes the case work and reports a clean eligibility verdict with no stated basis. A strong response notices that the figure used and the household-size definition change the outcome, picks a defensible interpretation, and documents the assumption (or flags it for clarification) rather than hiding it.",
+        "decisionSpace": [
+          "Use Dorothy's own income ($22,080, household of 1): well under 300% — proceed now, but risks misstating the household if the program counts the son's income.",
+          "Use the combined ~$58k as household of 2 ($58k < $61,320): also eligible and arguably the more conservative read of the program's 'household income' wording — proceeds while honoring the combined figure.",
+          "Hold the determination and clarify household composition and income basis (whose income counts, gross vs. net, is the son a dependent) before finalizing: most accurate, at the cost of progress this shift."
+        ]
+      },
+      {
+        "id": "P4",
+        "kind": "ambiguity",
+        "where": "Tasks 1 & 3 — Karen's voicemail asks for a case-status disclosure and for paperwork/approval to be faxed to her, but the CRM lists no HIPAA authorization for anyone except Dorothy; the voicemail also pressures the advocate to promise approval.",
+        "reveals": "A naive draft is 'helpful' and complies — disclosing PHI to an unauthorized third party and/or promising an outcome the advocate doesn't control. A strong draft recognizes the missing authorization and the external-dependency limit on approvals, stays warm and responsive to an anxious family without breaching HIPAA or overpromising, and routes substance to Dorothy or to getting authorization on file.",
+        "decisionSpace": [
+          "Decline PHI disclosure until a HIPAA authorization naming Karen is on file; warmly offer to send/collect the authorization form and to speak with Dorothy directly — maximally compliant, slightly less immediately satisfying to the family.",
+          "Share only non-PHI logistics with Karen (e.g., 'please have your mom call us / we're actively working her case') and direct anything substantive to Dorothy — responsive without disclosing protected details.",
+          "Per SOP, attempt to obtain Dorothy's verbal authorization for limited disclosure to Karen before sharing anything, and never promise approval — balances family responsiveness with consent, at the cost of an extra step; still refuses the 'tell her she'll be approved' request."
+        ]
+      }
+    ],
+    "timeboxHours": 1.0,
+    "rubricDimensions": [
+      {
+        "name": "framing",
+        "label": "Problem framing",
+        "weight": 0.2,
+        "description": "Turns an ambiguous need into a sound plan."
+      },
+      {
+        "name": "tooling",
+        "label": "Tooling fluency",
+        "weight": 0.25,
+        "description": "Drives AI and other tools well; iterates and verifies."
+      },
+      {
+        "name": "judgment",
+        "label": "Judgment",
+        "weight": 0.25,
+        "description": "Catches AI/tooling mistakes; validates; pushes back."
+      },
+      {
+        "name": "architecture",
+        "label": "Architecture",
+        "weight": 0.15,
+        "description": "Structure and trade-offs that fit the real materials and constraints."
+      },
+      {
+        "name": "transfer",
+        "label": "Transfer",
+        "weight": 0.15,
+        "description": "Capability transfers to THIS role's tools and responsibilities."
+      }
+    ],
+    "promptVersion": "case-design-v5"
+  },
+  "source": "llm",
+  "issues": [],
+  "fallbackReason": {},
+  "promptVersions": {
+    "analyze": "need-analysis-v3",
+    "role": "role-design-v3",
+    "case": "case-design-v5"
+  }
+}

@@ -1,0 +1,188 @@
+{
+  "job": {
+    "id": "cal-097",
+    "title": "Career Coach",
+    "company": "Placement, Inc",
+    "role_family": "software_engineering",
+    "seniority": "medior",
+    "source": "hf:jacob-hugging-face/job-descriptions"
+  },
+  "analysis": {
+    "realStack": [
+      "Placement coaching platform (client matching, messaging/engagement, progress tracking, job-search tools)",
+      "Asynchronous asset-review workflow (resume, LinkedIn profile, cover letter critiques with deadlines)",
+      "Remote video conferencing for live 1:1 sessions",
+      "Resume / LinkedIn / cover-letter authoring and editing",
+      "ICF- or CCE-accredited coaching frameworks and methodologies",
+      "Interview prep and technical mock-interview material",
+      "Job-search strategy, networking, and personal-brand playbooks",
+      "Compensation negotiation frameworks",
+      "Self-managed client roster ('book of business') run like an independent practice"
+    ],
+    "coreResponsibilities": [
+      "Coach entry- to mid-level professionals toward concrete career goals (direction, story, resume, interviews)",
+      "Conduct remote video coaching sessions with clients",
+      "Complete asynchronous asset reviews on time",
+      "Manage a roster of clients as an independent business",
+      "Use the Placement platform to engage and communicate with clients",
+      "Retain clients by consistently delivering maximum value and quality guidance"
+    ],
+    "statedVsRealGaps": [
+      "roleFamily is tagged 'software_engineering', but the JD is a client-facing career-coaching role with zero engineering content — the taxonomy label is wrong.",
+      "stack is empty and correctly so: this is a non-software office/services role with no codebase or tech stack, only the platform and coaching materials above.",
+      "seniorityTarget says 'medior', but the requirements (ICF/CCE certification, psychology/counseling degree, years of coaching plus talent/HR/recruiting experience) describe a senior, credentialed individual contributor, not a mid-level hire.",
+      "This is a 1099 flexible contract engagement ('set your own hours', 'highly competitive hourly rates', 'sign-on bonus'), not salaried employment — the comp/seniority framing should reflect contractor economics, not a permanent FTE.",
+      "Several concrete figures in the JD are redacted/blanked (required years of experience, hours-per-week band, hourly rate), so the exact bar and earning potential can't be verified from the text."
+    ],
+    "trueComplexity": "medium",
+    "riskAreas": [
+      "Income variability: roster size and hours depend on platform-driven client matching, so utilization and earnings are only partly within the coach's control.",
+      "Retention/value pressure: 'retain clients by providing maximum value' implies the coach absorbs churn risk on a per-client basis.",
+      "SLA exposure: async asset reviews must be 'on time', creating a quality-and-deadline obligation across a variable caseload.",
+      "Credential gatekeeping: ICF/CCE accreditation plus a relevant degree and multi-domain coaching skill set narrows the qualified pool and should be verified up front.",
+      "Redacted requirements (years, hours, rate) mean the seniority bar, expected commitment, and pay are ambiguous and need clarification before sourcing.",
+      "US-based, fully-remote contract scope limits the candidate pool geographically and shifts benefits/tax burden onto the coach."
+    ],
+    "reflection": "This is a legitimate, well-scoped client-facing career-coaching role, but it cannot be reflected against a codebase — none exists, and that absence is normal for the function, not a defect. The real 'body of work' the role acts on is the Placement platform plus the coaching deliverables it produces: resumes, LinkedIn profiles, cover letters, interview prep, and negotiation guidance. The sharpest divergence between the stated need and the evidence is taxonomic: a senior, certified coaching practitioner is wrapped in metadata that calls it medior software_engineering with an empty stack. Judged in its own terms, the work demands real domain expertise (accredited methodology, psychology/HR background, multi-skill coaching range) and disciplined self-management of a client book, but its operational complexity is bounded — hence medium. The main unknowns are the redacted experience/hours/rate figures and the contractor economics, which determine both the true seniority bar and how attractive the role is to qualified coaches.",
+    "confidence": 0.72,
+    "promptVersion": "need-analysis-v3"
+  },
+  "role": {
+    "title": "Career Coach",
+    "seniority": "senior",
+    "roleFamily": "career_coaching",
+    "mustHaves": [
+      "ICF- or CCE-accredited career coaching certification",
+      "College degree in psychology, counseling, or a related field",
+      "Several years of career coaching or counseling experience",
+      "Talent, HR, recruiting, or hiring-manager background",
+      "Resume, LinkedIn, and cover-letter authoring and critique",
+      "Interview preparation and mock-interview facilitation",
+      "Job-search strategy and career-transition coaching",
+      "Compensation negotiation coaching",
+      "Networking and personal-brand development",
+      "Remote video session facilitation",
+      "Timely completion of asynchronous asset reviews",
+      "Self-managed client roster run as an independent practice"
+    ],
+    "niceToHaves": [
+      "Experience coaching entry- to mid-level professionals",
+      "Technical mock-interview capability",
+      "Familiarity with coaching-platform tooling (client matching, messaging, progress tracking)",
+      "Track record running an independent coaching practice or book of business",
+      "LinkedIn profile optimization expertise",
+      "Comfort with a 1099 flexible-contract, set-your-own-hours engagement"
+    ],
+    "responsibilities": [
+      "Coach entry- to mid-level professionals toward concrete career goals — direction, story, resume, interviews",
+      "Conduct remote video coaching sessions with clients",
+      "Complete asynchronous asset reviews (resume, LinkedIn, cover letter) on time",
+      "Manage a roster of clients as if running an independent business",
+      "Leverage the Placement platform to engage and communicate with clients",
+      "Retain clients by consistently delivering maximum value and quality guidance"
+    ],
+    "languages": [
+      "English"
+    ],
+    "promptVersion": "role-design-v3"
+  },
+  "case": {
+    "title": "Senior Career Coach — Mid-Engagement Client Takeover (Placement)",
+    "brief": "You are a senior coach on Placement who has just been matched to an existing client, Lena Carter, after her previous coach left the platform. You have been handed her full client packet and a live async deliverable is already on the clock: her resume, LinkedIn, and cover letter need a review returned within the platform's 48-hour SLA, ahead of an application she wants to send. The materials are synthetic but representative of a real Placement handoff — they include the messiness you actually inherit: a stated goal that doesn't fully line up with what she says in chat, a target posting she's set her heart on, a number on her resume she may not be able to defend, and notes from the prior coach about a direction already promised. This case is about coaching judgment, not polish: how you read the situation before acting, where you push back versus where you follow the client's lead, and how you protect both her outcome and the relationship. Drafting tools are fine — what we evaluate is the calls you make and whether you can own them in a follow-up conversation. Ground every recommendation in the packet (cite the specific document), keep deliverables tight enough to finish inside the timebox, and treat the credential/accredited-framework expectations in the platform playbook as real. Note: the provided context fits this role directly — you are doing a coach's actual work on a coach's actual materials, no adaptation needed.",
+    "repoSeed": "A Placement client packet for Lena Carter (mid-level Marketing Manager, ~6 yrs experience, aiming at a Senior Product Manager move): `client_profile_Lena-Carter.md` — background, current role and tenure, and her stated goal verbatim ('land a Senior PM role at a top tech company in the next 3 months'); `resume_Lena-Carter_v3` (text supplied) — including a headline bullet, 'Drove 300% revenue growth on a flagship campaign'; `linkedin_export.md` — current headline, About section, and recent activity; `cover_letter_draft.md` — a generic draft aimed at the posting below; `target_posting_SeniorPM_Northwind.md` — the role she wants to apply to, whose requirements include '5+ years of direct product management experience' and 'has shipped at least one 0→1 product'; `platform_thread.md` — recent Placement messages from Lena, two of which matter: 'honestly I rounded that 300% way up, it was really one strong quarter' and 'between us, I just need out of my current team — somewhere remote and stable would honestly be a win'; `prior_coach_handoff.md` — the previous coach's note stating they had committed Lena to a 'FAANG-only application sprint' and already retargeted her resume toward it; `placement_playbook_excerpt.md` — platform norms: 48-hour async-review SLA, expected tone, and the expectation that coaching be anchored in an ICF- or CCE-accredited framework.",
+    "tasks": [
+      "Async asset-review pack (the core deliverable, on the 48-hour SLA): critique `resume_Lena-Carter_v3`, the headline + About in `linkedin_export.md`, and `cover_letter_draft.md` against `target_posting_SeniorPM_Northwind.md`. Deliver prioritized, specific, edit-level changes (concrete rewrites, not generic advice), each with a one-line rationale tied to the target role, and lead with the three highest-leverage fixes.",
+      "First live-session plan (~30 min video): a session agenda plus the 5–8 coaching questions you would actually ask, naming the accredited framework you are anchoring on (e.g., ICF core competencies, GROW) and why it fits Lena. The plan must address the distance between where she is today and the goal she states — and what you would do in the room if that stated goal turns out to be the wrong target.",
+      "Engagement direction memo (≤1 page, for your own roster notes): how you would steer the next 4–6 weeks given everything in the packet — the goal/motivation conflict, the target-role fit gap, the credibility issue on the resume, and the prior coach's handoff. State explicitly whether and how you would re-contract expectations with Lena, and how your choice protects both her outcome and your retention of her as a client.",
+      "DECISIONS log (normal practice, keep it short): for every call you made where the packet was open or self-contradictory, record in one line each — what you chose, the option you rejected, and the single question you would have asked Lena or the Placement team before committing."
+    ],
+    "coverProbes": [
+      {
+        "id": "goal-vs-motivation",
+        "kind": "underspecified",
+        "where": "client_profile_Lena-Carter.md states 'Senior PM at a top tech company in 3 months', but platform_thread.md reveals the real driver is escaping a bad team and wanting remote + stability.",
+        "reveals": "A naive response optimizes the literal stated goal and produces a Senior-PM application machine; a strong response notices the stated goal and the underlying need diverge and treats reconciling them as the first coaching move rather than assuming which one wins.",
+        "decisionSpace": [
+          "Coach to the stated goal (Senior PM) at face value — maximally respects client autonomy and ambition, but risks spending the engagement optimizing an outcome she may not actually want.",
+          "Surface the conflict early and re-contract around the underlying need (stability/remote) — better long-term alignment, but risks overriding her stated ambition or projecting your own read onto her.",
+          "Hold both — pursue Senior PM while widening the target set to remote-friendly, stable orgs — pragmatic and low-confrontation, but risks diluting focus in a short engagement."
+        ]
+      },
+      {
+        "id": "prior-coach-handoff",
+        "kind": "legacy_trap",
+        "where": "prior_coach_handoff.md documents a 'FAANG-only application sprint' already promised to Lena, with her resume retargeted toward it before you arrived.",
+        "reveals": "Whether the candidate reads the inherited context before generating. A naive response starts fresh and silently discards a commitment the client is expecting; a strong one accounts for the prior plan explicitly and decides deliberately what to honor, keep, or revise.",
+        "decisionSpace": [
+          "Continue the FAANG sprint for continuity — honors the prior commitment and preserves client trust, but may inherit a strategy that doesn't fit the fit gaps you can now see.",
+          "Pause and re-assess before continuing — produces a better diagnosis, but risks undermining the client's confidence and disrespecting the prior coach's work.",
+          "Acknowledge the prior plan to Lena, keep what still serves her, and redirect the rest — balances continuity with correction, but costs scarce session time to renegotiate."
+        ]
+      },
+      {
+        "id": "rounded-up-metric",
+        "kind": "verification_trap",
+        "where": "resume_Lena-Carter_v3 claims 'Drove 300% revenue growth', while platform_thread.md has Lena admitting she 'rounded that way up — it was really one strong quarter'.",
+        "reveals": "One-shot polishing makes the resume read beautifully and passes a shallow review while amplifying a claim the client cannot defend. A careful coach cross-references the chat against the resume, catches the credibility/integrity exposure, and addresses it instead of buffing it.",
+        "decisionSpace": [
+          "Keep the number and soften the wording — preserves headline impact, but carries real integrity and credibility risk in interviews and reference checks.",
+          "Replace it with a specific, substantiable claim — protects credibility and is interview-safe, at the cost of a less dramatic top-line metric.",
+          "Coach Lena on framing the true story of what she actually did and let her decide the final wording — respects autonomy and builds transferable skill, but is slower and leans on her judgment."
+        ]
+      },
+      {
+        "id": "posting-fit-gap",
+        "kind": "ambiguity",
+        "where": "target_posting_SeniorPM_Northwind.md requires '5+ years of direct PM experience' and 'shipped a 0→1 product', neither of which Lena's profile supports (she is a Marketing Manager moving into product).",
+        "reveals": "Whether the candidate verifies role fit before polishing toward it. A naive response tunes every asset to the posting and sends a near-certain rejection; a strong one weighs the gap honestly and chooses a path, rather than treating 'make the materials match the posting' as the job.",
+        "decisionSpace": [
+          "Polish toward the posting and apply as a reach — keeps momentum and morale up, but has a low hit rate and can burn cycles and confidence.",
+          "Redirect to better-fit targets (APM/PM-II or product-adjacent roles) and build toward Senior over time — realistic and higher-yield, but may land with the client as a demotion from her stated goal.",
+          "Pursue a stretch path with a positioning bridge (internal transfer narrative, a portfolio 0→1 project, transferable marketing-to-product story) — preserves ambition with a concrete plan, but needs more runway than a 3-month engagement may allow."
+        ]
+      }
+    ],
+    "timeboxHours": 2.0,
+    "rubricDimensions": [
+      {
+        "name": "framing",
+        "label": "Problem framing",
+        "weight": 0.2,
+        "description": "Turns an ambiguous need into a sound plan."
+      },
+      {
+        "name": "tooling",
+        "label": "Tooling fluency",
+        "weight": 0.25,
+        "description": "Drives AI and other tools well; iterates and verifies."
+      },
+      {
+        "name": "judgment",
+        "label": "Judgment",
+        "weight": 0.25,
+        "description": "Catches AI/tooling mistakes; validates; pushes back."
+      },
+      {
+        "name": "architecture",
+        "label": "Architecture",
+        "weight": 0.15,
+        "description": "Structure and trade-offs that fit the real materials and constraints."
+      },
+      {
+        "name": "transfer",
+        "label": "Transfer",
+        "weight": 0.15,
+        "description": "Capability transfers to THIS role's tools and responsibilities."
+      }
+    ],
+    "promptVersion": "case-design-v5"
+  },
+  "source": "llm",
+  "issues": [],
+  "fallbackReason": {},
+  "promptVersions": {
+    "analyze": "need-analysis-v3",
+    "role": "role-design-v3",
+    "case": "case-design-v5"
+  }
+}

@@ -1,0 +1,184 @@
+{
+  "job": {
+    "id": "cal-007",
+    "title": "Associate Director, Global Capital Markets Documentation, GBM...",
+    "company": "Scotiabank",
+    "role_family": "legal",
+    "seniority": "junior",
+    "source": "hf:jacob-hugging-face/job-descriptions"
+  },
+  "analysis": {
+    "realStack": [
+      "ISDA Master Agreements (and Schedules)",
+      "Credit Support Annexes (CSAs)",
+      "Prime Brokerage Agreements — synthetic and cash",
+      "Lock-up agreements",
+      "Master Confirmation Agreements",
+      "Repo / repurchase agreements (e.g. GMRA)",
+      "Securities Lending Agreements (e.g. GMSLA)",
+      "Legal drafting & redlining (Word track changes / document management systems)",
+      "Internal control frameworks: Operational Risk Management Framework, Regulatory Compliance Risk Management Framework, AML/ATF Global Handbook, Guidelines for Business Conduct",
+      "Bar association membership / law degree credential",
+      "Cross-functional negotiation interface (legal, tax, banking front office, credit, operations)"
+    ],
+    "coreResponsibilities": [
+      "Negotiate capital markets trading documentation for the prime services business, covering both synthetic and cash prime brokerage relationships",
+      "Draft and provide detailed legal analysis/advice on non-standard client requests and contentious terms to internal stakeholders",
+      "Manage a complex international portfolio of negotiations for the bank and its affiliates",
+      "Exercise discretionary authority to resolve or escalate documentation decisions, communicating key/contentious issues to the Director in a timely manner",
+      "Ensure documented terms sit within the bank's risk appetite across credit, legal, regulatory and operational risk",
+      "Maintain day-to-day business controls and meet operational-risk, regulatory-compliance, AML/ATF and conduct-risk obligations"
+    ],
+    "statedVsRealGaps": [
+      "seniorityTarget is recorded as 'junior', but the JD is an Associate Director role demanding a law degree, bar membership, multiple years of derivatives/trading-documentation experience, portfolio ownership and discretionary authority — this is mid-to-senior specialist work, not junior. The level tag materially understates the real bar.",
+      "The structured 'stack' and 'responsibilities' arrays are empty; all real signal lives in the JD prose. realStack/coreResponsibilities here are reconstructed from that text, not from any supplied tool list.",
+      "The JD lists only a 'basic understanding of prime services products' as a minimum, yet the daily work requires deep command of ISDA/CSA/PB/repo/sec-lending provisions and the ability to advise on contentious terms — the operational bar is higher than the stated minimum.",
+      "roleFamily 'legal' is correct but generic: this is a narrow derivatives/capital-markets documentation specialism, not generalist in-house counsel — generalist legal candidates would not satisfy it.",
+      "No codebase or tech stack exists for this role (it is a legal/negotiation function); that absence is expected and is not a defect to reflect against."
+    ],
+    "trueComplexity": "high",
+    "riskAreas": [
+      "Mis-leveling: sourcing against a 'junior' target for an Associate Director spec risks hiring someone who cannot exercise the required discretionary authority or carry an international negotiation portfolio.",
+      "Legal/regulatory exposure: poorly negotiated terms that breach the bank's credit, legal, regulatory or operational risk appetite can create direct financial and compliance liability.",
+      "Scarce talent pool: derivatives / prime-services documentation lawyers (ISDA, CSA, GMRA, GMSLA, PB suites) are a specialized, competitive segment — sourcing and time-to-fill risk is real.",
+      "Cross-functional dependency: success hinges on coordinating with legal, tax, credit, operations and front office; weak relationship-management skills become a delivery bottleneck.",
+      "Conduct / AML / regulatory-compliance obligations are explicit accountabilities — gaps in judgment or controls discipline are high-consequence."
+    ],
+    "reflection": "This is a specialist capital-markets documentation lawyer role, and the JD is rich enough to ground the analysis well. The 'body of work' the role acts on is not a codebase but a suite of negotiated derivatives and financing contracts — ISDAs and CSAs, synthetic and cash prime brokerage agreements, lock-ups, master confirmations, repo and securities-lending agreements — operated inside the bank's risk and compliance frameworks. Judged on its own terms the work is genuinely high-complexity: bespoke, cross-jurisdictional negotiation that must simultaneously satisfy commercial, credit, legal, regulatory and operational-risk constraints while withstanding contentious counterparty asks. The sharpest divergence between stated need and real evidence is seniority: the record tags this 'junior', but every signal in the JD — Associate Director title, bar admission, years of relevant derivatives experience, discretionary authority, portfolio management — points to a mid/senior specialist. Hiring to the 'junior' label would systematically mis-target the market. Treat the JD, not the level tag, as the source of truth, and screen for demonstrable hands-on negotiation of ISDA/CSA and prime-services documentation rather than generalist legal background.",
+    "confidence": 0.78,
+    "promptVersion": "need-analysis-v3"
+  },
+  "role": {
+    "title": "Associate Director, Global Capital Markets Documentation, GBM",
+    "seniority": "senior",
+    "roleFamily": "legal",
+    "mustHaves": [
+      "Law degree from a reputable law school and current membership in a bar association",
+      "Multiple years of industry experience with a relevant legal background in derivatives and trading documentation, including prime services documentation",
+      "Strong command of the provisions in capital markets trading documentation — ISDA Master Agreements and Schedules, Credit Support Annexes (CSAs), synthetic and cash Prime Brokerage Agreements, Master Confirmation Agreements, lock-up agreements, repo (e.g. GMRA) and securities lending (e.g. GMSLA) agreements",
+      "Legal drafting and redlining of complex, non-standard trading documentation, with the ability to provide detailed analysis and advice on contentious or bespoke client terms",
+      "Direct negotiation of trade documentation with clients, balancing commercial urgency with the bank's risk tolerance",
+      "Ability to assess and keep documented terms within the bank's risk appetite across credit, legal, regulatory and operational risk, and to exercise discretionary authority on when to decide versus escalate",
+      "Working knowledge of internal control and compliance frameworks (Operational Risk Management Framework, Regulatory Compliance Risk Management Framework, AML/ATF Global Handbook, Guidelines for Business Conduct)",
+      "Excellent communication, organizational and relationship-management skills, with sound judgment, critical thinking and business acumen; action-oriented and self-motivated"
+    ],
+    "niceToHaves": [
+      "Deep working understanding of prime services products across both synthetic and cash prime brokerage (beyond the stated 'basic understanding' minimum)",
+      "Experience managing an international, multi-affiliate documentation portfolio with concurrent negotiations across multiple agreement suites",
+      "Track record of escalating and communicating contentious/key issues effectively to senior stakeholders and a Director",
+      "Experience collaborating cross-functionally with legal, tax, banking front office, credit and operations to close documentation"
+    ],
+    "responsibilities": [
+      "Negotiate capital markets trading documentation for the prime services business, covering both synthetic and cash prime brokerage relationships — including prime brokerage agreements, lock-up agreements, master confirmation agreements, ISDAs and CSAs, and repo and securities lending agreements",
+      "Draft documentation and provide detailed legal analysis and advice to internal stakeholders on non-standard client requests and contentious issues",
+      "Manage a complex international portfolio of negotiations in relation to the bank and its affiliates",
+      "Exercise discretionary authority to address or escalate documentation decisions, communicating contentious and key issues to the Director in a timely manner",
+      "Ensure the terms in trading documentation are executed within the bank's risk appetite across credit, legal, regulatory and operational risk",
+      "Maintain effective day-to-day business controls and meet operational-risk, regulatory-compliance, AML/ATF and conduct-risk obligations under the applicable frameworks",
+      "Champion a customer-focused culture and contribute to a high-performance, inclusive work environment"
+    ],
+    "languages": [
+      "English"
+    ],
+    "promptVersion": "role-design-v3"
+  },
+  "case": {
+    "title": "Negotiating the Meridian prime services documentation suite (ISDA/CSA + synthetic PB)",
+    "brief": "You are stepping in as the Associate Director responsible for the Meridian Global Macro Fund onboarding — a synthetic prime brokerage relationship with an OTC equity-swap book papered on an ISDA 2002 Master Agreement, a 1994 NY-law Credit Support Annex, and a master confirmation, alongside the synthetic PB agreement itself. Meridian's external counsel has returned a markup, the front office wants it closed by Friday, and you hold discretionary authority to settle most points and a duty to escalate the contentious ones to the Director in a timely way. The provided context fits this role directly: these are exactly the trading documents the position negotiates. Your job over the next ~2 hours is not to re-paper the agreements but to take a defensible negotiating position on the live points, advise stakeholders on one non-standard request, and run a clean escalation. Work only the clauses called out below — depth over coverage. Everywhere the materials are silent or the standard position doesn't obviously apply, that silence is yours to resolve and record; treat it the way you would on a real desk. The bank's fallback positions and your authority limits are in the internal pack — read them before you redline.",
+    "repoSeed": "A synthetic but realistic Meridian onboarding pack, all documents fictional: (1) `Meridian_ISDA2002_Schedule_v3_CP-markup.docx` — the ISDA 2002 Schedule with counterparty track-changes across Parts 1–5, touching the Cross-Default 'Threshold Amount' and 'Specified Entity' (Part 1) and two Additional Termination Events keyed to NAV decline and investment-manager change (Part 4/5). (2) `Meridian_NYCSA_Para13_v3_CP-markup.docx` — the NY-law CSA Paragraph 13 elections marked up: 'Threshold', 'Minimum Transfer Amount', 'Independent Amount', the 'Eligible Collateral' table with 'Valuation Percentage' (haircut) columns, and the Paragraph 6(c) 'Holding and Using Posted Collateral' (rehypothecation) election. (3) `Meridian_SynthPB_LockupSchedule_extract.pdf` — an extract of the synthetic prime brokerage agreement containing the margin lock-up and termination-notice provisions, which cross-reference the ISDA Additional Termination Events. (4) `Meridian_MasterConfirmation_extract.pdf` — the equity-swap master confirmation, whose early-termination architecture cross-references a specific Additional Termination Event in the Schedule by number. (5) `Bank_CreditRiskAppetite_DocStandards_2026.pdf` — internal standard elections and fallback positions across credit, legal, regulatory and operational risk. (6) `Bank_DiscretionaryAuthority_EscalationMatrix.pdf` — what an Associate Director may settle alone versus what must go to the Director. (7) `RM_email_Meridian_close-by-Friday.eml` — a front-office relationship-manager note pressing to concede and close before the weekend.",
+    "tasks": [
+      "Work through the counterparty markup in `Meridian_ISDA2002_Schedule_v3_CP-markup.docx` and `Meridian_NYCSA_Para13_v3_CP-markup.docx`. For each flagged change — the Cross-Default 'Threshold Amount' and 'Specified Entity' (Schedule Part 1), the two Additional Termination Events (Part 4/5), and the CSA Paragraph 13 elections ('Threshold', 'Minimum Transfer Amount', 'Independent Amount', the 'Eligible Collateral' / 'Valuation Percentage' table, and the Paragraph 6(c) right to use posted collateral) — return your negotiating position as a clean counter-redline plus a one-line rationale per clause tying it to the bank's stated credit, legal, regulatory and operational risk appetite. Confine your edits to these clauses; do not re-paper the rest of the agreement.",
+      "Meridian's counsel has made one non-standard request: a 90-day margin lock-up in the synthetic PB agreement combined with softening the NAV-decline Additional Termination Event in the Schedule. Draft a legal analysis memo (≈1–2 pages) to the credit, front-office and operations stakeholders: frame the issue, analyze the combined credit / legal / regulatory / operational-risk exposure, state whether and how it can be accommodated within appetite, and recommend a position with any conditions or fallbacks.",
+      "Using `Bank_DiscretionaryAuthority_EscalationMatrix.pdf`, triage every open point into those you will settle under your own discretionary authority and those you will escalate. Draft the short escalation note to the Director covering only the contentious / key issues, each with your recommended position and the reason it crosses the escalation line.",
+      "Keep a short DECISIONS log as you go: for every call you made where the materials were open, silent, or in tension, record what you chose, the alternative you rejected, and the one question you would have put to credit / tax / front office before signing. Frame it as the working note any of us would keep on a live negotiation."
+    ],
+    "coverProbes": [
+      {
+        "id": "ate-cross-reference",
+        "kind": "legacy_trap",
+        "where": "Schedule Part 4/5 Additional Termination Events vs. the cross-reference to that ATE by number in `Meridian_MasterConfirmation_extract.pdf` and the synthetic PB lock-up extract",
+        "reveals": "A candidate who reads the master confirmation and PB extract before redlining notices that deleting or renumbering the NAV-decline ATE silently breaks the early-termination architecture those documents rely on, and conforms or preserves the cross-reference. A naive one-shot reviewer works only the marked Schedule, accepts the counterparty's edit in isolation, and leaves a dangling reference that disables a close-out right.",
+        "decisionSpace": [
+          "Accept the counterparty's deletion/softening but add a conforming amendment to the master confirmation and PB extract so the cross-reference still resolves — clean for the bank, but reopens documents counsel considered closed and adds drafting.",
+          "Reject the change and preserve the existing ATE architecture intact — maximal protection, but a relationship cost on a point counsel pushed hard.",
+          "Consolidate the NAV trigger into a single ATE referenced consistently across Schedule, confirmation and PB agreement — modernizes the suite, but is a larger structural change needing more negotiation time."
+        ]
+      },
+      {
+        "id": "collateral-interaction",
+        "kind": "verification_trap",
+        "where": "CSA Paragraph 13 elections in `Meridian_NYCSA_Para13_v3_CP-markup.docx` — the interaction of the higher 'Threshold', raised 'Minimum Transfer Amount', and changed 'Independent Amount' / 'Valuation Percentage'",
+        "reveals": "Each individual edit reads as market-standard, so a shallow clause-by-clause check passes. A candidate who computes the combined effect sees the bank is materially under-collateralized in a stress move and counters the package, not the line items. A naive reviewer signs off because nothing looks wrong in isolation.",
+        "decisionSpace": [
+          "Reject the Threshold increase and hold the Independent Amount, citing combined under-collateralization — protective but may read as inflexible to the front office.",
+          "Accept a higher Threshold but offset it with a higher Independent Amount and/or lower MTA so net exposure stays within appetite — commercial compromise that requires actually modeling the combined position.",
+          "Accept the counterparty package but add a ratings- or NAV-linked trigger that re-tightens Threshold on deterioration — gives now, protects on the downside, at the cost of operational complexity to monitor the trigger."
+        ]
+      },
+      {
+        "id": "regulatory-classification",
+        "kind": "ambiguity",
+        "where": "Silence in `Bank_CreditRiskAppetite_DocStandards_2026.pdf` (and the onboarding pack) on Meridian's regulatory classification, domicile and in-scope status for regulatory margin",
+        "reveals": "Whether the CSA collateral terms are even the right ones turns on the fund's classification and margin-rule scope, which the pack never states. A good candidate flags the gap as a controls/regulatory-compliance prerequisite and refuses to finalize collateral terms on an assumption. A naive one silently assumes a classification and papers accordingly.",
+        "decisionSpace": [
+          "Proceed on the conservative assumption that the fund is in scope for regulatory IM/VM and apply the regulatory CSA terms — safe on compliance, but may over-paper and slow a relationship that isn't in scope.",
+          "Flag the gap, decline to finalize collateral terms until classification and domicile are confirmed, and request them — correct controls posture, but slower and friction with the Friday deadline.",
+          "Paper both paths with the regulatory terms conditioned on an effective-date / classification hook — flexible and keeps momentum, at the cost of more complex documents and a contingency to track."
+        ]
+      },
+      {
+        "id": "escalation-authority",
+        "kind": "underspecified",
+        "where": "The boundary between the escalation matrix in `Bank_DiscretionaryAuthority_EscalationMatrix.pdf` and the concede-and-close pressure in `RM_email_Meridian_close-by-Friday.eml`",
+        "reveals": "The matrix and the RM's implied authority don't cleanly resolve who decides the contentious points under deadline. How the candidate draws the line — and whether they over- or under-escalate — is a direct leveling signal for an Associate Director expected to exercise discretionary authority and escalate key issues in a timely way.",
+        "decisionSpace": [
+          "Treat the contentious terms as within discretionary authority and decide, documenting the rationale — fast and matches the mandate, but risks acting beyond authority on a point the matrix reserves.",
+          "Escalate the genuinely contentious/key issues to the Director with a recommended position while settling the rest alone — balanced and matches the spec's 'communicate contentious and key issues to the Director in a timely manner'.",
+          "Escalate everything to be safe under deadline — minimizes personal risk, but failing to exercise discretionary authority is itself a mis-leveling tell and bottlenecks the negotiation."
+        ]
+      }
+    ],
+    "timeboxHours": 2.0,
+    "rubricDimensions": [
+      {
+        "name": "framing",
+        "label": "Problem framing",
+        "weight": 0.2,
+        "description": "Turns an ambiguous need into a sound plan."
+      },
+      {
+        "name": "tooling",
+        "label": "Tooling fluency",
+        "weight": 0.25,
+        "description": "Drives AI and other tools well; iterates and verifies."
+      },
+      {
+        "name": "judgment",
+        "label": "Judgment",
+        "weight": 0.25,
+        "description": "Catches AI/tooling mistakes; validates; pushes back."
+      },
+      {
+        "name": "architecture",
+        "label": "Architecture",
+        "weight": 0.15,
+        "description": "Structure and trade-offs that fit the real materials and constraints."
+      },
+      {
+        "name": "transfer",
+        "label": "Transfer",
+        "weight": 0.15,
+        "description": "Capability transfers to THIS role's tools and responsibilities."
+      }
+    ],
+    "promptVersion": "case-design-v5"
+  },
+  "source": "llm",
+  "issues": [],
+  "fallbackReason": {},
+  "promptVersions": {
+    "analyze": "need-analysis-v3",
+    "role": "role-design-v3",
+    "case": "case-design-v5"
+  }
+}

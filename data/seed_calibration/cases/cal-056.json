@@ -1,0 +1,197 @@
+{
+  "job": {
+    "id": "cal-056",
+    "title": "Career Services Coach-Remote Full Time",
+    "company": "Ancora Education",
+    "role_family": "hr",
+    "seniority": "medior",
+    "source": "hf:jacob-hugging-face/job-descriptions"
+  },
+  "analysis": {
+    "realStack": [
+      "CampusVue / CampusNexus (Anthology Student SIS) — the system of record for documenting all student, graduate, and employer correspondence",
+      "Google Workspace (Docs, Sheets, Gmail, Calendar) — the only tool proficiency the JD names explicitly",
+      "Resume documents, templates and resume-writing review materials",
+      "Professional / employability assessments used to determine a graduate's placement path",
+      "Mock-interview frameworks (face-to-face and virtual) and interview-technique workshop content",
+      "Online job boards and application portals used to source leads and assist online applications",
+      "Employer and community contact lists / outreach tracking (CRM-style relationship management)",
+      "Unplaced-graduate tracking logs — employment criteria, needs, and weekly contact cadence",
+      "Employment-verification documents and placement data-entry workflows",
+      "Accreditation and regulatory compliance records (placement-rate / outcomes reporting)",
+      "Classroom-presentation and workshop decks; career-fair and Program Advisory Committee (PAC) event logistics"
+    ],
+    "coreResponsibilities": [
+      "Coach active students and alumni on employability — resumes, interviewing, job search — via classroom presentations, workshops, and one-on-one sessions",
+      "Schedule and conduct face-to-face or virtual mock interviews and resume-preparation sessions",
+      "Contact unplaced graduates weekly and track each graduate's employment criteria and needs",
+      "Conduct employer and community outreach to identify viable job opportunities in students' fields",
+      "Collect graduate employment qualifications to assign the most appropriate assistance path and provide job leads/application help",
+      "Document all department–student–graduate–employer communication timely and accurately in CampusVue/CampusNexus",
+      "Complete employment-verification documents and maintain accurate placement data entry",
+      "Maintain student records and processes to stay compliant with regulatory and accreditation agencies",
+      "Plan and run student-engagement activities, career fairs, and PAC meetings; assist with externships and school events",
+      "Maintain strict confidentiality over highly sensitive PII (SSNs, addresses, account balances, payment history)"
+    ],
+    "statedVsRealGaps": [
+      "Title sells 'Coach,' but the real weight is placement reporting + CRM documentation + accreditation compliance — coaching is wrapped in regulatory accountability typical of an accredited career college, so administrative load likely rivals or exceeds the coaching itself",
+      "The only named tool is Google proficiency, yet the operational hub is CampusVue/CampusNexus — a specialized student-information system the JD silently assumes you'll master; that, not Google, is the day-to-day system of record",
+      "'Remote Full Time' in the title conflicts with face-to-face mock interviews, on-campus career fairs, PAC meetings, externship support, and 'various school events as required' — genuine remote-only is doubtful; this reads hybrid/campus-tethered",
+      "Framed as career development, but weekly cold outreach to unplaced grads, call-center experience as a 'preferred' qualification, and placement tracking position it closer to a metrics-driven placement/staffing coordinator than a pure coach",
+      "Heavy PII exposure (SSNs, financial balances) implies real data-handling and confidentiality responsibility that the 'coach' skills framing understates",
+      "Only an associate degree (or comparable experience) is required for a role accountable for accreditation-grade placement data — the responsibility level outruns the stated entry bar"
+    ],
+    "trueComplexity": "medium",
+    "riskAreas": [
+      "Accreditation / placement-rate compliance: inaccurate or late CampusVue documentation can create audit and regulatory exposure for an accredited institution — for-profit career colleges face heavy scrutiny on graduate-outcomes reporting",
+      "PII and confidentiality risk: routine handling of SSNs, addresses, birthdays, and account balances makes data privacy a core (not incidental) duty",
+      "Outcome dependency: weekly placement expectations rest partly on the job market and employer demand — factors outside the coach's control — creating measurable-target pressure and churn/burnout risk",
+      "Remote-vs-onsite mismatch: the role advertises remote but requires in-person events; expectations should be clarified before hire",
+      "Onboarding ramp: a single named tech proficiency (Google) hides the real learning curve on CampusVue/CampusNexus and placement workflows",
+      "Scope creep: 'assist with externships,' 'various school events,' and 'other duties as assigned' leave the boundary of the job open-ended"
+    ],
+    "reflection": "Reflected against the real body of work this role acts on — its students/graduates, the CampusVue/CampusNexus record, and the institution's placement-reporting obligations — the Career Services Coach is genuinely a dual role: part employability coach, part compliance-grade placement administrator. The JD's coaching language (workshops, mock interviews, one-on-one sessions, resume help) is real, but the operational spine is documentation and outcomes tracking: weekly outreach to unplaced grads, employer-lead generation, employment verification, and timely, accurate entries that an accreditor can audit. That makes the true center of gravity organizational rigor and CRM discipline, not just interpersonal skill — which the stated requirements (associate degree, Google proficiency) understate. The clearest divergences are three: the 'remote' title against the on-campus career fairs, PAC meetings, and externship duties; the single Google tool callout against the unnamed but central CampusVue system; and the 'coach' framing against a workload that is heavily placement-reporting and confidentiality-sensitive (SSN-level PII). Complexity is medium — low technical depth, but real coordination, regulatory, and data-handling demands. A strong hire here is an organized, compliance-minded relationship-builder comfortable with a student system and sustained outreach quotas, not only a charismatic presenter.",
+    "confidence": 0.72,
+    "promptVersion": "need-analysis-v3"
+  },
+  "role": {
+    "title": "Career Services Coach (Remote)",
+    "seniority": "medior",
+    "roleFamily": "hr",
+    "mustHaves": [
+      "Hands-on career development and employability coaching — resume writing, interview preparation, and job-search strategy — delivered through one-on-one sessions, workshops, and classroom presentations",
+      "Disciplined, timely documentation and data entry in a student-information or CRM system of record (CampusVue/CampusNexus or a comparable SIS/CRM), treating the system — not email — as the authoritative log of all student, graduate, and employer correspondence",
+      "Proficiency with Google Workspace (Docs, Sheets, Gmail, Calendar) for materials, tracking, and scheduling",
+      "Strong organizational skills with the ability to run a weekly contact cadence and track each unplaced graduate's employment criteria and needs without items slipping",
+      "Excellent interpersonal and written/verbal communication plus public-presentation skills for workshops, mock interviews, and group sessions",
+      "Employer and community outreach to identify viable job opportunities and generate placement leads in students' chosen fields",
+      "Demonstrated handling of highly sensitive PII (SSNs, addresses, financial balances) with strict confidentiality and adherence to regulatory and accreditation requirements",
+      "Associate degree in business, human resources, communication, or a related field from an accredited institution, OR comparable related work experience",
+      "At least one year of work experience in recruiting, staffing, human resources, counseling, or business"
+    ],
+    "niceToHaves": [
+      "Bachelor's degree in human resources, business, communications, or a related field from an accredited institution",
+      "Experience in career or employability training",
+      "Experience in staffing or career placement",
+      "Call-center experience (high-volume outbound contact)",
+      "Interviewing experience (conducting or coaching mock interviews)",
+      "Track record of developing community and employer connections",
+      "Familiarity with placement-rate / outcomes reporting for accreditation or regulatory compliance"
+    ],
+    "responsibilities": [
+      "Coach active students and alumni on resumes, interviewing, and job search through classroom presentations, workshops, and one-on-one sessions",
+      "Schedule and conduct face-to-face or virtual mock interviews and resume-preparation sessions",
+      "Contact unplaced graduates weekly and track each graduate's employment criteria and needs",
+      "Conduct employer and community outreach to identify viable employment opportunities in students' fields",
+      "Collect graduate employment qualifications to assign the most appropriate assistance path and provide job leads and online-application help",
+      "Document all department, student, graduate, and employer communication timely and accurately in CampusVue/CampusNexus",
+      "Complete employment-verification documents and maintain accurate placement data entry",
+      "Maintain student records and processes to stay compliant with regulatory and accreditation agencies",
+      "Plan and run student-engagement activities, career fairs, and Program Advisory Committee meetings, and assist with externships and school events",
+      "Maintain strict confidentiality over highly sensitive student PII and financial information"
+    ],
+    "languages": [
+      "English"
+    ],
+    "promptVersion": "role-design-v3"
+  },
+  "case": {
+    "title": "Re-Activate an Unplaced-Graduate Caseload (Career Services)",
+    "brief": "You've just taken over the unplaced-graduate caseload for an accredited career college's Career Services department. The role is remote-first: you work the caseload in Google Workspace and document every touch in CampusVue/CampusNexus, which is the system of record the accreditor audits for the graduate placement rate. In the handed-over `CareerServices_Handoff/` Drive folder you have a 20-graduate caseload workbook, an export of the previous coach's CampusVue notes for several of those graduates, the accreditor's placement-rate rules, an employer/community outreach list, one graduate's resume, and the team's mock-interview and resume-review templates. All names, addresses, dates of birth and SSN fragments are synthetic — treat them as real PII anyway. The provided materials fit this role directly; this is the actual work of the job, not a stand-in. Your goal is to get the caseload moving without creating audit or confidentiality exposure. The real work here is judgment, not volume: several rows are ambiguous or contradict the materials, the JD's 'contact every unplaced graduate weekly' rule collides with what's actually on file, and at least one graduate marked 'Placed' may not be countable for the accreditation rate. Where the brief is silent or the data conflicts, make a defensible call, write down why, and note what you'd confirm with your lead — that running DECISIONS log is a required deliverable, framed as normal practice, not a test. Scope to ~1.5 hours total: depth on the calls that carry compliance and confidentiality risk beats lightly touching every row. The position advertises remote but also runs in-person career fairs and externships; that mismatch is real but out of scope here — flag it in your log only if it changes a recommendation. We care far more about how you reason and what you'd ask than about polished prose.",
+    "repoSeed": "A shared Google Drive folder `CareerServices_Handoff/` left by the departing coach (all data synthetic, PII fabricated):\n- `Caseload_Q3_Unplaced` (Google Sheet). Tab `Graduates`: 20 rows — Name, Program (e.g., Medical Assisting, HVAC, IT Support, Business Admin), Graduation date, Last contact date, Employment status (Unplaced / In progress / Placed), Self-reported job title + employer, Hours/week, In-field? (left blank for several), Contact-preference note, plus PII columns (partial SSN, DOB, street address). The data is deliberately messy: stale last-contact dates, blank in-field flags, one 'Placed' row that is out-of-field, and a couple of rows with only a self-reported job and no verification document. Tab `Employers`: ~8 outreach contacts with relationship status. Tab `Activity_Log`: prior contact attempts and dates.\n- `CampusVue_Notes_Export` (doc): exported free-text documentation for ~5 graduates, including D. Okafor (a prior note reads 'requests email contact only — do not call'), M. Reyes (self-reported a job last month, no verification on file), and J. Garcia (cleared employer interviews twice but has a weak resume).\n- `Placement_Rate_Rules` (doc): the accreditor's definition of a countable in-field placement, the minimum weekly-hours threshold, the employment-verification evidence required (employer-signed, with job title and start date), and the reporting window.\n- `Resume_Garcia` (doc): one graduate's resume for review.\n- `MockInterview_Framework` and `ResumeReview_Template` (docs): the team's existing virtual-coaching rubrics.\n- `EmployerOutreach_Confidentiality` (one-pager): the rule that graduate PII may be disclosed to an employer only with documented graduate consent.",
+    "tasks": [
+      "Triage the 20 graduates in `Caseload_Q3_Unplaced` (tab `Graduates`): assign each an assistance path/tier and a contact cadence, then produce a prioritized action list for your first week. The JD mandates weekly contact for unplaced graduates — decide how that actually applies across recent grads, long-term-unplaced, low-engagement, opted-out, and already-self-reported-placed cases, and justify any deviation from a literal uniform weekly cadence.",
+      "Reconcile the caseload against `Placement_Rate_Rules` for accreditation reporting. For every graduate marked 'Placed' or carrying a self-reported job (start with M. Reyes), determine whether it can currently be counted toward the in-field placement rate; where it cannot, list exactly what is missing (in-field determination, minimum-hours check, employer-signed verification with start date). Output a short reportable-vs-not-yet-countable list with the specific evidence gap per graduate — do not simply trust the status cell.",
+      "Using `CampusVue_Notes_Export` (read it before drafting anything), prepare the next touch for three graduates — D. Okafor, M. Reyes, and J. Garcia — and one employer, Westbrook Logistics. For each graduate: a CampusVue-ready documentation entry plus the outreach message on the channel you choose. For Garcia, add a short resume + virtual mock-interview coaching note using `ResumeReview_Template` and `MockInterview_Framework` against `Resume_Garcia`. For the employer outreach, decide what graduate information you may share and how, given the confidentiality one-pager.",
+      "Keep a DECISIONS log (one short table or list) covering every call you made where the materials were silent, ambiguous, or self-contradictory: what you chose, the alternative you rejected and why, and the single question you would put to your lead before finalizing. Treat this as standard Career Services practice — we read it as carefully as the deliverables."
+    ],
+    "coverProbes": [
+      {
+        "id": "P1",
+        "kind": "underspecified",
+        "where": "Task 1 — the JD says 'contact unplaced graduates weekly,' but the caseload mixes recent grads, long-term-unplaced, low-engagement, opted-out, and already-self-reported-placed graduates.",
+        "reveals": "A strong candidate risk-tiers the cadence and explicitly flags that a literal uniform weekly contact is both infeasible at volume and inappropriate for some rows (opted-out, placed-pending-verification), justifying the deviation against audit expectations; a naive candidate schedules identical weekly outreach for all 20, including people who should not be contacted that way.",
+        "decisionSpace": [
+          "Apply a literal uniform weekly contact to all unplaced graduates — matches the stated SLA and maximizes accreditation contact evidence, at the cost of volume, coach burnout, and contacting graduates who opted out or are already placed-pending-verification.",
+          "Risk-tier the cadence (weekly for high-readiness/at-risk, biweekly or monthly for low-engagement or placed-pending-verification, suppress opted-out) — more humane and targeted, but deviates from the stated rule and must be defensible to leadership and auditors.",
+          "Keep a weekly logged touch but vary channel and intensity per segment — preserves the contact metric while cutting fatigue, but risks gaming the contact-count metric and needs to be documented as such."
+        ]
+      },
+      {
+        "id": "P2",
+        "kind": "legacy_trap",
+        "where": "Task 3 — the CampusVue notes export for D. Okafor contains a prior instruction ('email contact only — do not call'), and M. Reyes's note shows a self-reported job already on file but never logged as a verified placement.",
+        "reveals": "A candidate who reads the existing record first honors Okafor's channel preference and avoids re-collecting information already captured for Reyes; a naive one-shot generator drafts a phone-call script for Okafor and re-asks Reyes for details that are already documented.",
+        "decisionSpace": [
+          "Honor the on-file preference exactly (email-only for Okafor; build on Reyes's existing note) — respects the record and trust, but may miss a verbal weekly touch some funders or audits expect.",
+          "Make one documented attempt on the preferred channel, then escalate to another channel only if there is no response — balances cadence against the stated preference.",
+          "Treat the weekly-contact mandate as overriding a possibly stale preference and call anyway with a logged justification — meets cadence but risks a complaint and erodes trust, so it must be explicitly defended."
+        ]
+      },
+      {
+        "id": "P3",
+        "kind": "verification_trap",
+        "where": "Task 2 — M. Reyes (and at least one other row) shows employment status 'Placed' with a self-reported job, but per `Placement_Rate_Rules` it is out-of-field or under the minimum hours, and the employment-verification document lacks an employer signature and start date.",
+        "reveals": "A naive candidate copies 'Placed' straight into the reportable count and the placement rate looks healthy; a careful candidate checks the row against the in-field/hours definition and the verification-evidence requirement, marks it not-yet-countable, and itemizes exactly what is missing before it can be reported.",
+        "decisionSpace": [
+          "Count it as placed per the spreadsheet to protect the headline rate — fast and keeps the number up, but creates direct audit exposure if the verification later fails.",
+          "Mark it not-countable until in-field status and a signed verification (with start date and hours) are confirmed, and open a follow-up — lowers the reported rate now but is the defensible position under audit.",
+          "Count it provisionally with a documented condition pending verification — transparent, but risks the provisional figure being read and reported as final."
+        ]
+      },
+      {
+        "id": "P4",
+        "kind": "ambiguity",
+        "where": "Task 3 — outreach to the employer Westbrook Logistics naturally invites attaching a graduate's resume and contact details, but `EmployerOutreach_Confidentiality` requires documented graduate consent before disclosing PII.",
+        "reveals": "A good candidate gates the disclosure on consent — sharing a de-identified profile first or confirming consent before releasing the resume; a naive candidate forwards the full resume with the graduate's contact details and PII to the employer with no consent check.",
+        "decisionSpace": [
+          "Share a de-identified candidate profile first and release the full resume/contact only after the graduate consents — slower match but the strongest privacy posture.",
+          "Rely on a blanket placement consent captured at intake to authorize employer shares — efficient, but the consent may be stale, over-broad, or unverifiable for this graduate.",
+          "Forward the full resume directly to a trusted employer to move fast — quickest path to a match, but breaches confidentiality if documented consent is not actually on file."
+        ]
+      }
+    ],
+    "timeboxHours": 1.5,
+    "rubricDimensions": [
+      {
+        "name": "framing",
+        "label": "Problem framing",
+        "weight": 0.2,
+        "description": "Turns an ambiguous need into a sound plan."
+      },
+      {
+        "name": "tooling",
+        "label": "Tooling fluency",
+        "weight": 0.25,
+        "description": "Drives AI and other tools well; iterates and verifies."
+      },
+      {
+        "name": "judgment",
+        "label": "Judgment",
+        "weight": 0.25,
+        "description": "Catches AI/tooling mistakes; validates; pushes back."
+      },
+      {
+        "name": "architecture",
+        "label": "Architecture",
+        "weight": 0.15,
+        "description": "Structure and trade-offs that fit the real materials and constraints."
+      },
+      {
+        "name": "transfer",
+        "label": "Transfer",
+        "weight": 0.15,
+        "description": "Capability transfers to THIS role's tools and responsibilities."
+      }
+    ],
+    "promptVersion": "case-design-v5"
+  },
+  "source": "llm",
+  "issues": [],
+  "fallbackReason": {},
+  "promptVersions": {
+    "analyze": "need-analysis-v3",
+    "role": "role-design-v3",
+    "case": "case-design-v5"
+  }
+}

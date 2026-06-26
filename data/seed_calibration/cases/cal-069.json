@@ -1,0 +1,180 @@
+{
+  "job": {
+    "id": "cal-069",
+    "title": "Clerical",
+    "company": "Jacksonville Job Corps Center",
+    "role_family": "legal",
+    "seniority": "medior",
+    "source": "hf:jacob-hugging-face/job-descriptions"
+  },
+  "analysis": {
+    "realStack": [
+      "Multi-line telephone / reception switchboard and visitor front-desk handling",
+      "Calendar & appointment scheduling (typically Microsoft Outlook)",
+      "Microsoft Office — Word for correspondence, Excel for logs/tracking, Outlook for mail & calendar",
+      "Correspondence control log and action-item / tickler follow-up tracking",
+      "Incoming/outgoing physical and electronic mail processing and distribution",
+      "Paper and electronic filing / records management",
+      "Job Corps / U.S. Dept. of Labor center administrative procedures and management directives (likely a center information/records system and standard government compliance paperwork)"
+    ],
+    "coreResponsibilities": [
+      "Front-line reception: screen phone calls and visitors, resolve routine matters, and route non-routine items to the correct staff",
+      "Maintain the manager/director's calendar and schedule appointments",
+      "Act as liaison between the director/manager and other center and departmental staff",
+      "Operate the correspondence control log; process incoming/outgoing mail and follow up on action-item due dates",
+      "Perform general clerical/departmental duties in compliance with government and management directives",
+      "Absorb ad-hoc duties assigned by the department manager"
+    ],
+    "statedVsRealGaps": [
+      "roleFamily is tagged 'legal', but the JD contains zero legal duties — no legal research, drafting, paralegal, contracts, or regulatory-counsel work. This is general administrative/clerical support, not a legal role; the classification is wrong.",
+      "seniorityTarget is 'medior', yet the stated bar is high-school diploma plus ~1 year as an admin assistant (and 1 year customer service preferred). That is entry-level / junior, not medior — the target is over-leveled relative to the actual requirement.",
+      "The 'need.stack' is empty, but the responsibilities clearly imply concrete tools (calendar software, a correspondence log, mail systems, Office) — the real toolset is recoverable from the duties even though none are named.",
+      "'Compliance with government and management directives' signals a federal-contractor / Job Corps (DOL) environment where the true demand is procedural and confidentiality discipline, not subject-matter expertise — the JD undersells this context.",
+      "Pay rate, shift length, and exact hours are redacted/blank, so compensation and schedule cannot be reflected against the seniority target."
+    ],
+    "trueComplexity": "low",
+    "riskAreas": [
+      "Misclassification as 'legal' (and 'medior') risks mis-routing candidates, over-screening, and mispricing for what is an entry-level clerical job.",
+      "Open-ended scope: 'not intended to be all-inclusive' plus 'other duties as needed' invites role creep with no defined boundaries or success metrics.",
+      "Discretion/confidentiality exposure — handling a director's calendar, correspondence, and acting as a staff liaison demands judgment and trustworthiness that the JD does not explicitly screen for.",
+      "Thin specification: no named software, no throughput/volume expectations, and no performance outcomes make it hard to assess fit or build a structured interview.",
+      "Federal Job Corps / DOL setting likely carries background-check, eligibility, and records-handling compliance obligations not mentioned in the posting."
+    ],
+    "reflection": "This is a routine front-office administrative/clerical position at the Jacksonville Job Corps Center, not a legal role — the 'legal' roleFamily tag is unsupported by anything in the job description and should be corrected to administrative/office support. The real body of work the role acts on is the center's day-to-day office machinery: the phone and reception desk, the director's calendar, a correspondence control log, the mail flow, and standard Office tools, all operated inside a federal-contractor compliance frame. Complexity is genuinely low — high-school education and about a year of admin experience are the bar — so the 'medior' seniority target is over-leveled. The need statement is essentially recoverable and coherent (the duties are clear and conventional for the role), but its metadata (title 'Clerical', empty stack, 'legal' family, 'medior' level) diverges from the JD's own evidence on classification, tooling, and seniority. The principal honest gaps are taxonomic (legal vs. clerical, medior vs. entry) rather than substantive, and the main operational risks are undefined scope ('other duties as needed') and unscreened discretion/confidentiality given the liaison and calendar access.",
+    "confidence": 0.62,
+    "promptVersion": "need-analysis-v3"
+  },
+  "role": {
+    "title": "Clerical / Administrative Support Specialist",
+    "seniority": "junior",
+    "roleFamily": "administrative",
+    "mustHaves": [
+      "High school diploma or equivalent plus roughly 1 year of administrative/clerical or admin-assistant experience",
+      "Front-desk reception skills: professionally screen multi-line phone calls and in-person visitors, handle routine matters independently, and route non-routine business to the correct staff",
+      "Calendar and appointment scheduling proficiency, typically in Microsoft Outlook",
+      "Microsoft Office proficiency — Word for correspondence, Excel for logs/tracking, Outlook for mail and calendar",
+      "Correspondence and action-item tracking: maintain a control log and reliably follow up on due dates so nothing slips",
+      "Incoming/outgoing mail processing and distribution (physical and electronic)",
+      "Clear written and verbal communication with a customer-service orientation",
+      "Discretion, confidentiality, and disciplined adherence to government and management directives and standard administrative procedures",
+      "Organization and attention to detail in routine, deadline-driven clerical workflows"
+    ],
+    "niceToHaves": [
+      "1+ year of prior customer-service experience",
+      "Experience in a federal-contractor / Job Corps / U.S. Dept. of Labor or other compliance-driven administrative environment",
+      "Records management, filing, and document-control experience",
+      "Familiarity with a center/records information system or similar administrative database"
+    ],
+    "responsibilities": [
+      "Receive telephone calls and visitors, resolve routine matters personally, and route non-routine business to the appropriate staff",
+      "Maintain the manager/director's calendar and schedule appointments",
+      "Act as liaison between the director/manager and other center and departmental staff",
+      "Operate the correspondence control log, process incoming and outgoing mail, and follow up on action-item due dates",
+      "Perform general clerical and departmental duties in compliance with government and management directives",
+      "Take on additional related duties as assigned by the department manager to meet the organization's ongoing needs"
+    ],
+    "languages": [
+      "English"
+    ],
+    "promptVersion": "role-design-v3"
+  },
+  "case": {
+    "title": "One Morning at the Center Admin Desk — Correspondence, Calendar & Front-Desk Triage",
+    "brief": "You are covering the administrative support desk for the center director's office at a Job Corps / U.S. Dept. of Labor center. It is the start of the day and three things are waiting on you at once: the correspondence control (suspense) log has follow-ups coming due, the director's calendar has a snag later this week, and a batch of incoming mail plus a few phone/visitor messages need to be sorted before staff arrive. The provided materials fit this role directly — you will act on the real admin artifacts an office like this runs on. They are deliberately realistic, which means some are incomplete, some follow an existing in-house convention you did not write, and at least one item is not what it first appears. Work within ~1 hour: prefer doing the focused tasks well over touching everything. We are not testing typing or polish — we are testing how you triage, what you route vs. handle yourself, where you read before acting, and where you stop and ask. Keep a short running DECISIONS note as you go (see the last task); that is normal practice here, not a trick. You will walk us through your choices afterward.",
+    "repoSeed": "A small folder of center admin materials handed to you as the morning's work: (1) `correspondence_control_log.xlsx` — the office's running suspense register on the sheet 'Suspense Register', ~12 rows with columns Item No., Date Received, From, Subject, Assigned To (initials), Suspense Date, Status (the office uses single-letter codes O/P/C in a legend cell), and a 'Tickler' note column; several items are open, two are at or past their suspense date, and record #0427 has a blank Suspense Date and an ambiguous 'Assigned To'. (2) `director_calendar_week_of_2026-06-22.pdf` — an Outlook week export for the director showing a recurring Thursday 10:00–11:00 'All-Staff Center Meeting' and, newly arrived by email, a request to host a Thursday 10:30–11:30 DOL Regional Compliance call. (3) `incoming_mail_batch.pdf` — 8 scanned items (a vendor invoice, an internal memo, two routine forms, a piece of personal mail addressed to a staff member, a marketing flyer, a signed directive from management, and item #6: a letter requesting copies of a former student's center records, marked by the sender as 'routine'). (4) `phone_and_visitor_messages.docx` — 4 message slips taken at the front desk (a returned call, a walk-in vendor, a parent asking about a student, and a regional office callback). (5) `center_admin_procedures.pdf` — a 2-page excerpt of standard center procedures / management directives covering correspondence suspense handling, mail distribution, and a short note on records/Privacy Act handling. The director's office has also left a sticky note: 'When you get a chance, can you tidy up the filing situation?'",
+    "tasks": [
+      "Work the suspense/correspondence control log in `correspondence_control_log.xlsx` (Suspense Register sheet): identify which open items are due today or overdue, prepare a short follow-up note or email for each, and update each item's status using the log's own conventions. Decide how to handle record #0427, which has a blank Suspense Date and an unclear 'Assigned To'.",
+      "Resolve the director's Thursday calendar in `director_calendar_week_of_2026-06-22.pdf`: the recurring 10:00 All-Staff Center Meeting overlaps the newly requested 10:30 DOL Regional Compliance call. Propose how you would resolve it and draft the Outlook responses/invites (and any rescheduling note) your resolution requires.",
+      "Triage `incoming_mail_batch.pdf` (8 items) and `phone_and_visitor_messages.docx` (4 slips): for each, decide whether to handle it yourself, route it to the right staff member, or hold it for the director, and write the one-line routing/disposition for each. Give item #6 (the former-student records request) the same treatment as the rest.",
+      "Keep a short DECISIONS note (a one-page memo or a simple list): for every call you made where the materials were open-ended or silent, record in one line what you chose, the alternative you rejected, and the one question you would have asked the director's office before finalizing."
+    ],
+    "coverProbes": [
+      {
+        "id": "cp-calendar-conflict",
+        "kind": "ambiguity",
+        "where": "Task 2 — the Thursday overlap between the recurring All-Staff Center Meeting and the new DOL Regional Compliance call in director_calendar_week_of_2026-06-22.pdf",
+        "reveals": "A good candidate recognizes that ranking an internal standing meeting against an external DOL compliance request is the director's call, not the scheduler's, and presents options plus the question rather than silently committing one. A naive one-shot just bumps or declines one meeting and writes the invite as if the priority were obvious.",
+        "decisionSpace": [
+          "Protect the recurring All-Staff meeting and offer the DOL call an adjacent slot (favors internal continuity, risks looking unresponsive to the regional office)",
+          "Treat the DOL Regional Compliance call as higher authority and reschedule the All-Staff meeting (favors federal compliance optics, disrupts all internal attendees)",
+          "Tentatively hold both and escalate to the director with a one-line either/or before sending any final invite (lowest unilateral risk, costs a short delay and a touch of the director's time)"
+        ]
+      },
+      {
+        "id": "cp-suspense-convention",
+        "kind": "legacy_trap",
+        "where": "Task 1 — the existing status codes (O/P/C), the Tickler column, and the 'Suspense Date' header already in use on the Suspense Register sheet",
+        "reveals": "A good candidate reads the existing log, infers the in-house suspense convention (suspense = government due-date term, O/P/C legend, initials in 'Assigned To') and continues it. A naive generator reformats the sheet — renaming 'Suspense Date' to 'Due Date', inventing its own status words, or dropping the Tickler column — quietly breaking a register other staff rely on.",
+        "decisionSpace": [
+          "Continue the existing suspense-code and column convention exactly as found (preserves continuity, but propagates any pre-existing oddities)",
+          "Add a clearly-labeled new helper column without touching existing headers or codes (improves clarity, mild risk of clutter / parallel conventions)",
+          "Flag the convention as unclear or inconsistent and continue it provisionally while asking before any structural change (safest for shared data, defers a cleanup someone eventually owes)"
+        ]
+      },
+      {
+        "id": "cp-records-request",
+        "kind": "verification_trap",
+        "where": "Task 3 — incoming mail item #6, the former-student records request the sender labeled 'routine'",
+        "reveals": "Routed by surface category, item #6 looks like a records request that goes to the records clerk, and a shallow check passes. It is subtly wrong: Job Corps / Privacy Act records handling requires verifying the requester's authorization/consent (and likely director or designated-handler involvement) before any record moves. A good candidate holds it for authorization verification despite the 'routine' label; a naive one forwards it straight to records for fulfillment.",
+        "decisionSpace": [
+          "Route to the records clerk but explicitly flag 'verify authorization/consent before release' as a precondition (keeps it moving, relies on the clerk to honor the flag)",
+          "Hold the item and escalate to the director / designated records handler for authorization review before any routing (most protective of PII, slowest)",
+          "Reply to the requester first asking for written authorization/consent, then route once received (clean paper trail, adds a round-trip and a delay)"
+        ]
+      },
+      {
+        "id": "cp-other-duties",
+        "kind": "underspecified",
+        "where": "Brief / sticky note — 'When you get a chance, can you tidy up the filing situation?' against the 1-hour timebox",
+        "reveals": "An open 'other duties as needed' request with no definition of done. A good candidate scopes it — names what 'tidy up' would mean, time-boxes or defers it against the higher-priority due items, and surfaces the question — rather than ignoring it or rat-holing into reorganizing files at the expense of the suspense follow-ups. A naive response either silently drops it or burns the hour on it.",
+        "decisionSpace": [
+          "Do a minimal, time-boxed filing pass and note the assumptions/limits taken (shows initiative, risks guessing the wrong scope)",
+          "Defer it and ask the manager to define scope and priority relative to the due correspondence (protects the timeboxed work, leaves the request untouched today)",
+          "Propose a small, concrete definition of done (e.g., file only today's processed mail) and confirm before doing more (balances progress and scope control, costs a confirmation step)"
+        ]
+      }
+    ],
+    "timeboxHours": 1.0,
+    "rubricDimensions": [
+      {
+        "name": "framing",
+        "label": "Problem framing",
+        "weight": 0.2,
+        "description": "Turns an ambiguous need into a sound plan."
+      },
+      {
+        "name": "tooling",
+        "label": "Tooling fluency",
+        "weight": 0.25,
+        "description": "Drives AI and other tools well; iterates and verifies."
+      },
+      {
+        "name": "judgment",
+        "label": "Judgment",
+        "weight": 0.25,
+        "description": "Catches AI/tooling mistakes; validates; pushes back."
+      },
+      {
+        "name": "architecture",
+        "label": "Architecture",
+        "weight": 0.15,
+        "description": "Structure and trade-offs that fit the real materials and constraints."
+      },
+      {
+        "name": "transfer",
+        "label": "Transfer",
+        "weight": 0.15,
+        "description": "Capability transfers to THIS role's tools and responsibilities."
+      }
+    ],
+    "promptVersion": "case-design-v5"
+  },
+  "source": "llm",
+  "issues": [],
+  "fallbackReason": {},
+  "promptVersions": {
+    "analyze": "need-analysis-v3",
+    "role": "role-design-v3",
+    "case": "case-design-v5"
+  }
+}

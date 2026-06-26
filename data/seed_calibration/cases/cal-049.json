@@ -1,0 +1,188 @@
+{
+  "job": {
+    "id": "cal-049",
+    "title": "Account Executive, Urology - Ohio and parts of W.PA, W.VA",
+    "company": "Bio-Reference Laboratories, Inc.",
+    "role_family": "sales",
+    "seniority": "medior",
+    "source": "hf:jacob-hugging-face/job-descriptions"
+  },
+  "analysis": {
+    "realStack": [
+      "CRM / sales-pipeline system (e.g. Salesforce) for managing accounts, leads, referrals and forecasts",
+      "CareEvolve and STORM — BioReference's proprietary lab-connectivity/order-entry products the AE must know and demo",
+      "Diagnostic test menu and requisition systems for women's health and clinical diagnostics (test codes, specimen collection, order entry)",
+      "Microsoft Office — Word, Excel, PowerPoint for proposals, bids and territory planning",
+      "Proposal/bid preparation and presentation materials",
+      "Billing and reimbursement knowledge (requisition review, missed ASK-at-order-entry, incorrect billing info)",
+      "Healthcare compliance/regulatory knowledge (HIPAA, government regulations, company policy)",
+      "Personal vehicle + valid driver license — this is a field/outside-sales role calling on physician offices",
+      "An existing book of relationships within the local medical community"
+    ],
+    "coreResponsibilities": [
+      "Maintain and grow existing physician-office accounts while closing net-new business in women's health and primary care call points",
+      "Drive sales through upselling, new lead generation, referrals and prospecting in the assigned territory",
+      "Target and close new business opportunities and present proposals/bids",
+      "Resolve client problems end-to-end: requisition review, order-entry discrepancies, transportation, technical-services questions, test-code/specimen issues, and billing inquiries",
+      "Serve as subject-matter expert and maintain deep knowledge of the specialist testing area",
+      "Maintain working knowledge of connectivity products (CareEvolve, STORM)",
+      "Ensure compliance with company policy and government regulation; complete administrative tasks promptly",
+      "Escalate complex issues to the manager and coordinate full-touch service within institutions"
+    ],
+    "statedVsRealGaps": [
+      "Title vs body mismatch: the title says 'Account Executive, Urology — Ohio and parts of W.PA, W.VA,' but the JD body describes women's health + primary care/clinical accounts 'throughout Columbus, OH, remote.' Specialty (urology vs women's health) AND territory (multi-state vs single metro) both diverge — strong sign of a stale or mis-merged template.",
+      "Experience minimums are blank: 'years of business-to-business outside sales experience' and 'years of combined sales experience within women's health or clinical diagnostics' have the numbers stripped out, so the actual seniority bar is undefined despite a 'medior' target.",
+      "Stated as a clinical-SME 'drive key tests/products' hunter role, but operationally a large share of the work is logistics and customer service — requisition fixes, billing corrections, specimen/transport issues — i.e. closer to account management than pure new-business hunting.",
+      "'Bachelor's in business or science' is required on paper, yet the real determinant of success in the preferred-quals is existing relationships in the medical community and territory fluency, not the degree."
+    ],
+    "trueComplexity": "medium",
+    "riskAreas": [
+      "Specialty/territory contradiction between title and body could mean the req is mis-posted or recycled — candidates and the hiring manager may be screening against different roles.",
+      "Success hinges heavily on a pre-existing book of physician relationships; without one, ramp time and quota risk are high in a relationship-driven diagnostics sale.",
+      "Regulatory and billing exposure: errors in requisitions, specimen handling, or billing carry HIPAA/financial/legal consequences, so attention to detail matters as much as selling.",
+      "Proprietary connectivity products (CareEvolve, STORM) require real onboarding ramp before the AE is credible in front of clients.",
+      "Field role with travel, occasional overnights and a personal-vehicle requirement — territory coverage burden and typical outside-sales turnover risk.",
+      "Blank experience minimums make it hard to calibrate whether a junior or seasoned rep is actually expected."
+    ],
+    "reflection": "This is a standard but non-trivial outside-sales role in clinical diagnostics: the AE owns a physician-office territory, must sell on clinical credibility, and is judged on both new-business closing and the unglamorous problem-resolution work (billing, requisitions, specimens) that retains accounts. The need is well-grounded — the JD yields clear responsibilities, real tools (CRM, CareEvolve/STORM, the test menu, Office), and a coherent competency set (influence, customer focus, negotiation, problem solving). The biggest honest concern is internal inconsistency: the title advertises a Urology, tri-state territory while the body describes a women's-health, Columbus-OH territory, and the experience minimums have been blanked out. Those gaps aren't about missing code — none is expected for a sales role — but about a need that hasn't been pinned down. Whoever owns this req should reconcile specialty, geography, and the years-of-experience bar before sourcing, because candidates qualified for urology vs women's health, or for a single metro vs three states, are not the same people.",
+    "confidence": 0.72,
+    "promptVersion": "need-analysis-v3"
+  },
+  "role": {
+    "title": "Account Executive — Women's Health & Clinical Diagnostics (Columbus, OH territory)",
+    "seniority": "medior",
+    "roleFamily": "sales",
+    "mustHaves": [
+      "Proven business-to-business outside/field sales experience owning the full cycle: prospecting, lead generation, referrals, upselling existing accounts, and closing net-new business (JD strips the year minimums, so calibrate to a medior bar of roughly 3–5 years rather than the blank numbers)",
+      "Sales or commercial experience in women's health and/or clinical diagnostics — or directly adjacent healthcare/lab sales that transfers, since the JD body (authoritative) calls on physician offices in women's health and primary care, NOT the urology specialty named in the stale title",
+      "Bachelor's degree in a business or science major (per the stated minimum qualifications)",
+      "Hands-on CRM / sales-pipeline fluency (Salesforce-type) to manage accounts, leads, referrals and forecasts across an assigned territory",
+      "Ability to prepare and present professional proposals and bids, with strong oral, written and presentation skills",
+      "End-to-end client problem resolution across the lab order-to-bill flow: requisition review, order-entry/ASK discrepancies, specimen-collection and test-code questions, transportation issues, and billing inquiries",
+      "Working knowledge of healthcare sales compliance — HIPAA, government regulations and company policy — plus disciplined, prompt completion of administrative tasks",
+      "Clean valid driver's license and a personal vehicle for daily field work, with willingness to travel the territory and do occasional overnight travel for meetings",
+      "Solid PC skills including Word, Excel and PowerPoint"
+    ],
+    "niceToHaves": [
+      "Existing book of relationships within the local Columbus/Ohio medical community — the preferred-quals signal this is the real determinant of success, above the degree",
+      "Familiarity with lab-connectivity/order-entry products (CareEvolve, STORM) or comparable diagnostic ordering platforms",
+      "Knowledge of the diagnostic test menu and of reimbursement/billing mechanics (missed ASK-at-order-entry, requisition coding)",
+      "General business and healthcare-economics acumen",
+      "Demonstrated strength in the listed competencies: influence, customer focus, negotiating, problem solving, confidence and drive for results",
+      "Strong planning and organizational skills for self-managing a remote field territory"
+    ],
+    "responsibilities": [
+      "Maintain and grow existing physician-office accounts while closing net-new business in women's health and primary care / clinical call points across the assigned Columbus, OH territory",
+      "Drive sales through upselling, new lead generation, referrals and active prospecting with new and existing customers",
+      "Target, qualify and close new business opportunities, preparing and presenting proposals and bids",
+      "Own end-to-end resolution of client concerns: requisition review, order-entry discrepancies, specimen/test-code questions, transportation, technical-services inquiries and billing corrections",
+      "Act as subject-matter expert for the specialist testing area and maintain current knowledge of the test menu and connectivity products (CareEvolve, STORM)",
+      "Ensure compliance with company policy and government regulation, and complete all administrative tasks thoroughly and promptly",
+      "Escalate complex issues to the manager and coordinate full-touch service within associated institutions",
+      "Balance hunter activity with account-management workload, since a large share of real day-to-day work is logistics, billing and service rather than pure new-business closing"
+    ],
+    "languages": [
+      "English"
+    ],
+    "promptVersion": "role-design-v3"
+  },
+  "case": {
+    "title": "Columbus, OH Territory: a 90-Day Plan, One Net-New Pursuit, and a Service Escalation",
+    "brief": "You're stepping into the Account Executive seat for the Columbus, OH territory selling women's health and clinical diagnostics. We're not testing whether you can type a plan — we assume any document you hand in could be largely AI-drafted. We're testing your judgment as a field rep: how you read a messy book of business, where you decide to spend a finite week, and how you handle a service problem that has billing and compliance teeth. You have ~1.5 hours. Work only from the starting materials provided; they're a realistic (and deliberately imperfect) snapshot of what actually lands on an AE's desk — the CRM export, lead list, test menu, the CareEvolve / STORM one-pager, and one live escalation. Some of it won't line up cleanly with the job title, and some details are missing on purpose; that's normal, and how you deal with it is part of the work. Throughout, keep a short DECISIONS.md as you go — every experienced rep makes judgment calls when a brief is open, and we want to see yours: what you chose, what you passed on, and what you'd confirm with your manager or the lab before committing. Prefer depth over coverage — a defensible plan for the few accounts that matter beats a thin pass over all of them.",
+    "repoSeed": "A simulated territory handoff packet for the Columbus, OH AE role: (1) `columbus_territory_export.csv` — ~18 existing physician-office accounts from the CRM, each with practice type (OB/GYN, internal medicine, family practice, urgent care), last-order date, trailing 3-month specimen volume, dominant test mix, connectivity status (on CareEvolve / STORM or paper requisitions), and open AR / billing-exception count; (2) `open_leads.csv` — ~10 unworked leads and referrals, mixed women's-health and primary-care call points, with source and a one-line note; (3) `test_menu_excerpt.xlsx` — a slice of the diagnostic test menu (women's health panels plus general clinical chemistry/path) with test codes, specimen requirements, and turnaround; (4) `careevolve_storm_onepager.pdf` — internal positioning sheet for the two proprietary lab-connectivity/order-entry products; (5) `escalation_TICKET-4471.md` — an angry message from a physician-office manager about a denied claim, plus the thread; (6) `requisition_REQ-22918.pdf` — the requisition behind that claim, with a missing ASK-at-order-entry field and a diagnosis-code/test-code mismatch; (7) `billing_exceptions_report.csv` — the territory's open billing exceptions including REQ-22918; (8) `proposal_template.pptx` — a skeleton bid/proposal deck. Note: the job title emphasizes women's health, but the inherited book and lead list skew toward primary-care call points — the packet is faithful to a real, slightly recycled req.",
+    "tasks": [
+      "Territory triage & 90-day plan (~40 min): From `columbus_territory_export.csv` and `open_leads.csv`, segment the book into defend / grow / hunt, name your top 5 accounts to protect and top 5 net-new targets to pursue, and lay out a 90-day calendar. Explicitly state how you split a typical week between net-new hunting and account-management/service/logistics work, and justify that split from the data — a large share of this job is requisition, billing and service touch, not pure closing.",
+      "Net-new pursuit + proposal outline (~25 min): Choose one target from `open_leads.csv` and draft a one-page pursuit — the call plan (who you call on, your discovery questions, the objection you expect, your close-the-loop step) and a proposal/bid outline in `proposal_template.pptx` that positions the right items from `test_menu_excerpt.xlsx` plus CareEvolve / STORM connectivity. Be specific about why THIS account; avoid a generic pitch.",
+      "Service escalation resolution (~20 min): Work `escalation_TICKET-4471.md`. Write the resolution plan — what you do today, what you can personally fix versus what you cannot, who and what you escalate, and the exact message you send the client. Ground it in specific lines of `requisition_REQ-22918.pdf` and `billing_exceptions_report.csv`; be precise about the requisition / diagnosis-code / ASK-at-order-entry problem and the compliance limits on what an AE may change.",
+      "DECISIONS.md (~5 min, kept as you go): For each open call — target priority and the women's-health-vs-primary-care emphasis, the hunter-vs-service time split, whether you assume a warm inherited book or a cold start, and the escalation path you chose — record what you decided, the alternative you rejected and why, and the one question you'd put to your manager or the lab before locking it in."
+    ],
+    "coverProbes": [
+      {
+        "id": "title-vs-book-mismatch",
+        "kind": "legacy_trap",
+        "where": "The req/title emphasizes women's health, but the highest-volume accounts in `columbus_territory_export.csv` and most of `open_leads.csv` are primary-care / internal-medicine call points; `test_menu_excerpt.xlsx` is mixed.",
+        "reveals": "A strong candidate reads the materials before generating, surfaces the contradiction explicitly, and builds a plan that hedges it (or asks which call points are the real priority); a naive candidate silently picks one interpretation — a pure OB/GYN plan or a pure primary-care plan — and never notices the req and the book disagree.",
+        "decisionSpace": [
+          "Trust the title: prioritize women's-health call points and treat the primary-care book as cross-sell adjacency — fastest alignment to the posted role, risks ignoring where current revenue actually is.",
+          "Trust the data: treat the primary-care-heavy book as the real revenue base and women's health as the growth thesis — protects volume, risks under-delivering on the role as written.",
+          "Refuse to fully commit: flag the mismatch, propose a split plan, and make a clarifying question to the hiring manager a gating step before locking targets — safest judgment, costs some apparent decisiveness."
+        ]
+      },
+      {
+        "id": "warm-vs-cold-book",
+        "kind": "underspecified",
+        "where": "The brief never states whether the AE inherits warm physician relationships or starts effectively cold; the role's success hinges on a pre-existing book.",
+        "reveals": "A good candidate names the assumption out loud and plans a week-1 validation step; a naive candidate quietly assumes an inherited warm book (the role's central risk) and front-loads a fragile defend/grow plan that collapses if the relationships aren't really theirs.",
+        "decisionSpace": [
+          "Assume a warm inherited book: front-load defend/grow for a fast ramp — high upside, fragile if the relationships don't transfer.",
+          "Assume a cold start: front-load prospecting and relationship-building — slower ramp, robust to a thin handoff.",
+          "Hybrid: assume partial warmth and spend week 1 on validation touches before committing the quota/effort mix — balances ramp speed against handoff risk."
+        ]
+      },
+      {
+        "id": "requisition-billing-fix",
+        "kind": "verification_trap",
+        "where": "`escalation_TICKET-4471.md` + `requisition_REQ-22918.pdf` + `billing_exceptions_report.csv`: a denied claim caused by a missing ASK-at-order-entry field and a diagnosis-code/test-code mismatch.",
+        "reveals": "A one-shot 'just correct the diagnosis code and re-bill / promise the client a refund' answer passes the shallow check of 'I made the customer happy' but is a real compliance and financial violation — an AE cannot alter a provider's diagnosis code or guarantee a billing outcome. A strong candidate separates what they can own (logistics, a corrected requisition request, expectation-setting) from what must route through the provider's sign-off and the billing/compliance team, and never promises an outcome they can't control.",
+        "decisionSpace": [
+          "Client-satisfaction-first: promise to fix the billing and adjust the code directly — fastest to calm the client, exposes the company to HIPAA/billing/compliance risk.",
+          "Strict-compliance path: require a provider-corrected requisition with sign-off and escalate the claim to billing, telling the client only what you can guarantee — defensible, slower, may feel less responsive.",
+          "Triage path: resolve the logistics/specimen piece immediately, escalate the dx-code and claim piece with clear ownership, and reset the client's expectations on timing — balances responsiveness against compliance."
+        ]
+      },
+      {
+        "id": "hunter-vs-service-split",
+        "kind": "ambiguity",
+        "where": "Task 1's weekly time budget, against the responsibility note that a large share of the day-to-day is logistics, billing and service rather than pure new-business closing.",
+        "reveals": "A good candidate explicitly allocates the week and defends the split given the real service load implied by the open-AR and exception columns; a naive candidate designs a pure-hunter calendar that ignores account-management drag and would quietly blow service SLAs and churn the book.",
+        "decisionSpace": [
+          "Hunter-heavy split: maximize net-new activity — best for quota growth, risks service SLAs and base churn.",
+          "Service/defend-heavy split: protect and stabilize the book first — lowest churn, slowest top-line growth.",
+          "Phased split: service-heavy weeks 1–4 to stabilize inherited issues, then shift toward hunting weeks 5–12 — sequences risk but depends on the stabilization actually landing on schedule."
+        ]
+      }
+    ],
+    "timeboxHours": 1.5,
+    "rubricDimensions": [
+      {
+        "name": "framing",
+        "label": "Problem framing",
+        "weight": 0.2,
+        "description": "Turns an ambiguous need into a sound plan."
+      },
+      {
+        "name": "tooling",
+        "label": "Tooling fluency",
+        "weight": 0.25,
+        "description": "Drives AI and other tools well; iterates and verifies."
+      },
+      {
+        "name": "judgment",
+        "label": "Judgment",
+        "weight": 0.25,
+        "description": "Catches AI/tooling mistakes; validates; pushes back."
+      },
+      {
+        "name": "architecture",
+        "label": "Architecture",
+        "weight": 0.15,
+        "description": "Structure and trade-offs that fit the real materials and constraints."
+      },
+      {
+        "name": "transfer",
+        "label": "Transfer",
+        "weight": 0.15,
+        "description": "Capability transfers to THIS role's tools and responsibilities."
+      }
+    ],
+    "promptVersion": "case-design-v5"
+  },
+  "source": "llm",
+  "issues": [],
+  "fallbackReason": {},
+  "promptVersions": {
+    "analyze": "need-analysis-v3",
+    "role": "role-design-v3",
+    "case": "case-design-v5"
+  }
+}

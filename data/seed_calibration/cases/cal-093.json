@@ -1,0 +1,193 @@
+{
+  "job": {
+    "id": "cal-093",
+    "title": "Art director",
+    "company": "Tapestry",
+    "role_family": "marketing",
+    "seniority": "lead",
+    "source": "hf:jacob-hugging-face/job-descriptions"
+  },
+  "analysis": {
+    "realStack": [
+      "Adobe Photoshop, Illustrator, InDesign (core concept-graphic toolchain)",
+      "Keynote (concept decks / pitching to senior stakeholders)",
+      "Typography systems, logo design, and color-trend research",
+      "Brand identity systems & brand guidelines (Coach brand DNA / values)",
+      "Motion design assets (brief calls for 'art direction for stills and motion')",
+      "Illustration and CGI/3D (listed as a plus, but tied to digital/experiential activations)",
+      "Physical retail production artifacts: store graphics, window vinyls, signage, pop-up environments (dielines, large-format print specs)",
+      "Mood boards / concept boards / proof-of-concept branding mockups",
+      "Customer data & consumer-insight inputs and cultural references (music, art, fashion, film) feeding ideation",
+      "Cross-functional creative inputs from concept copy, editorial, digital/experiential, social, and the design studio"
+    ],
+    "coreResponsibilities": [
+      "Ideate and create proof-of-concept branding for customer-first campaigns driving brand awareness and new-customer acquisition",
+      "Build a powerful, unique, cohesive global brand identity across multiple markets and consumer touchpoints (digital + physical, retail + outlet)",
+      "Create concept graphics that carry Coach brand values/DNA while respecting per-market nuance (Greater China, Japan, North America, Europe)",
+      "Translate customer data, consumer insights, and cultural/market insights into creative direction",
+      "Design store graphics and window vinyls for physical retail environments",
+      "Partner cross-functionally with concept copy, editorial, digital/experiential, social, and the design studio; report to the DVP of Creative Studio",
+      "Execute against complex briefs with multiple stakeholders and present concepts with confidence",
+      "(Per the people-manager competencies) develop direct reports, build effective teams, and apply strategic agility"
+    ],
+    "statedVsRealGaps": [
+      "Title/seniority say hands-on 'Art Director' ('leverage their proficiency in graphic design', 'create proof of concept'), yet the JD bolts on full people-manager competencies (developing direct reports, building teams, strategic agility) — the IC-vs-leadership balance is genuinely unresolved.",
+      "The required years of experience is blank/redacted in the supplied text, so the actual calibration bar cannot be read from the JD itself.",
+      "Scope spans upstream concept/ideation AND downstream production craft ('technicalities designing into store environments for windows, signage, graphics') — a span usually split across two roles or seniorities.",
+      "'Leverage customer data and consumer insights' is stated twice as a creative input, but no research function, analytics tool, or data-literacy requirement is named — how insights are accessed/interpreted is unspecified, risking insight-decorated rather than insight-driven work.",
+      "A four-macro-market global remit with explicit cultural nuance is demanded, but no language requirement, localization workflow, or regional-partner structure is described — the cross-cultural execution mechanism is missing.",
+      "CGI/illustration is filed under 'a plus,' which likely understates reality given the digital/experiential activations the role owns.",
+      "Roughly 40% of the text is generic Lominger competency boilerplate (courage, drive for results, interpersonal savvy) that adds little role-specific signal relative to a comparatively thin scope description."
+    ],
+    "trueComplexity": "high",
+    "riskAreas": [
+      "Mis-leveling/mis-hire from the unresolved IC-vs-manager framing — could land a brilliant maker who can't lead, or a manager who has lost hands-on craft.",
+      "Scope creep: concept + production + global localization + people management is a heavy load for one seat; risk of shallow execution or burnout across too many fronts.",
+      "Global cultural nuance is required without a described localization/regional-partner mechanism, risking New York-centric work that doesn't land in Greater China or Japan.",
+      "Insight-to-creative loop has no defined data pipeline or research partner, so 'data-informed' may stay aspirational.",
+      "Redacted experience minimum means the JD as supplied can't anchor the seniority screen — portfolio review must carry the calibration.",
+      "Core criteria are inherently subjective ('strong and instinctive eye'); without a disciplined portfolio rubric, screening reliability is low."
+    ],
+    "reflection": "With no codebase, the real body of work this role acts on is creative material — proof-of-concept brand identities, campaign concept decks, typography/logo/color systems, motion assets, and physical retail graphics (windows, signage, pop-ups) for a luxury fashion house spanning four macro markets. Reflected against that, the JD is reasonably rich on responsibilities and names a credible toolchain (Photoshop/Illustrator/InDesign/Keynote), so the realStack and core scope extract cleanly. The genuine center of gravity is concept-stage global brand-identity creation that blends high craft (typography, logo, color, motion) with downstream physical-environment production and heavy cross-functional pitching — a legitimately high-complexity remit in its own creative terms. The sharpest tension is structural rather than tactical: the role is written as a hands-on Art Director yet carries a full people-manager competency set, and key calibration signals (years of experience) are redacted, leaving the true seniority and IC/leadership split ambiguous. Two stated needs — 'data-informed creative' and 'globally nuanced identity' — are asserted without any described mechanism (no research partner, no localization workflow), so they read more as aspiration than operating model. Confidence is moderate: the JD supports a solid extraction, but no actual portfolio/body of work was supplied to verify execution quality against the stated bar.",
+    "confidence": 0.62,
+    "promptVersion": "need-analysis-v3"
+  },
+  "role": {
+    "title": "Art Director, Concept Graphics",
+    "seniority": "lead",
+    "roleFamily": "marketing",
+    "mustHaves": [
+      "Expert graphic design craft with a portfolio of brand identity work spanning typography, logo design, and color/trend direction",
+      "Proven ability to ideate and produce proof-of-concept branding for customer-first campaigns that drive brand awareness and new-customer acquisition",
+      "Builds cohesive, distinctive brand identity systems that hold up across many consumer touchpoints (digital + physical, retail + outlet)",
+      "Art direction for both stills and motion",
+      "Hands-on proficiency in Adobe Photoshop, Illustrator, and InDesign plus Keynote for concept decks",
+      "Designs into physical retail environments — store graphics, window vinyls, signage — with working knowledge of production technicalities (dielines, large-format specs)",
+      "Translates customer data, consumer insights, and cultural/market insights into a defensible creative approach (insight-driven, not insight-decorated)",
+      "Global brand thinking that respects per-market nuance across Greater China, Japan, North America, and Europe",
+      "Deep cultural fluency across music, art, fashion, and film",
+      "Executes against complex briefs with multiple stakeholders, prioritizes under tight deadlines, and presents concepts with confidence",
+      "Strong cross-functional collaborator across concept copy, editorial, digital/experiential, social, and the design studio",
+      "BFA/BA in Art Direction, Graphic Design, Fine Art, or related field"
+    ],
+    "niceToHaves": [
+      "Illustration and CGI/3D skills (directly relevant to the digital/experiential activations this role owns)",
+      "Experience at a retail/fashion brand or ad agency",
+      "Depth in motion design and digital experiential formats",
+      "Familiarity with localization workflows or regional creative-partner structures for multi-market execution",
+      "Experience developing direct reports and building creative teams (the JD bolts on people-manager competencies)"
+    ],
+    "responsibilities": [
+      "Ideate and create proof-of-concept branding for customer-first campaigns that drive global brand awareness and new-customer acquisition",
+      "Build a powerful, unique, and cohesive global brand identity across multiple markets and consumer touchpoints — product collaborations, experiential activations, store graphics, and pop-ups for both retail and outlet channels",
+      "Create concept graphics that carry Coach brand values and DNA while considering positioning nuance across Greater China, Japan, North America, and Europe",
+      "Leverage customer data, consumer insights, and cultural/market insights to inform concept, ideation, and creative approach",
+      "Design store graphics and window vinyls for physical retail environments",
+      "Partner closely with the Art Director of Concept Copy, editorial, digital/experiential, social, and the design studio while reporting to the DVP of Creative Studio",
+      "Execute against complex, multi-stakeholder briefs and present multiple creative solutions with confidence"
+    ],
+    "languages": [
+      "English"
+    ],
+    "promptVersion": "role-design-v3"
+  },
+  "case": {
+    "title": "Coach Spring Concept Platform — Global Art Direction Work Sample",
+    "brief": "You are joining Coach's Creative Studio as Art Director, Concept Graphics, reporting to the DVP of Creative Studio. The Studio has handed you the folder `Coach_Spring_Concept_Handoff/` for an upcoming Spring product-collaboration + experiential activation that must build global brand awareness AND bring in new customers across Greater China, Japan, North America, and Europe.\n\nThis is a concept and art-direction exercise, not a production exercise. We are reviewing how you read a messy brief, commit to a creative direction, carry Coach's DNA, and make touchpoints land across markets — not your rendering polish. Use any tools you like, including generative-AI image tools; rough comps, sketches, and AI-assisted mockups are completely fine. Spend no more than ~2 hours total; depth on a few decisions beats breadth across many deliverables.\n\nThe brief is deliberately as incomplete as a real one: it asks for two goals that pull in different creative directions, names four markets without a regional creative owner, and leaves budget and the named collaborator redacted. Open the materials before you generate anything — there is real signal (and at least one constraint that will surprise you) inside the brand guidelines and the store-graphics specs. Where the brief is silent or self-contradicting, make the call a lead would make and keep a short log of it; treat that log as normal studio practice, not a test.",
+    "repoSeed": "A campaign handoff folder, `Coach_Spring_Concept_Handoff/`, as it would arrive from the Creative Studio:\n- `Coach_Brand_Guidelines.pdf` — brand DNA and the 'Expressive Luxury' positioning, the heritage codes (1941 leather-craft story, the Signature C, the horse-and-carriage), the current primary logo lockup with clear-space and minimum-size rules, the approved color and type systems, and a 'do / do not' page. Note on page 2: the wordmark was refreshed last season and the old serif lockup is now retired from all new work.\n- `Campaign_Brief.docx` — a multi-stakeholder brief for the Spring product-collaboration + experiential activation. Asks for 'global brand awareness AND new-customer acquisition' across Greater China, Japan, North America, and Europe. Budget, the named collaborator, and the regional creative owners are redacted.\n- `Customer_Insights.xlsx` — a segment export with at least three usable signals (e.g., Gen-Z first-purchase acquisition skewing to Greater China; gifting occasions strongest in Japan; loyalty/repeat strongest in North America).\n- `Cultural_References/` — supplied inputs (music, art, fashion, and film stills) to feed ideation.\n- `Concept_Copy_handoff.docx` — three headline / tagline options from the Art Director of Concept Copy; one of them reads as North-America-idiomatic and does not translate cleanly.\n- `Store_Graphics_Specs/` — `window_dieline.pdf` (a flagship storefront with door hardware, push-bar, and egress safe zones marked), `largeformat_print_spec.txt` (bleed, required full-scale resolution, the maximum window-coverage percentage permitted for one-way-vision perforated film, and the minimum legible cap-height at a 3 m viewing distance), plus a storefront elevation photo.",
+    "tasks": [
+      "Read the handoff folder before you generate anything, then write a 1–2 page `Creative_Platform` (deck or doc): the single organizing concept for the Spring collaboration campaign, the ONE primary objective you are optimizing for (the brief asks for both global brand awareness and new-customer acquisition — choose your lead and say why), and which of the four markets you are treating as the calibration lead. Ground the territory in Coach's actual brand codes from `Coach_Brand_Guidelines.pdf` and in at least one concrete signal from `Customer_Insights.xlsx`.",
+      "Produce proof-of-concept concept graphics for exactly two touchpoints that prove the platform is real: (a) the flagship window vinyl, built against the supplied `Store_Graphics_Specs/window_dieline.pdf` and `largeformat_print_spec.txt`, and (b) one of {pop-up entrance graphic, product-collaboration key visual, experiential-moment graphic}. Rough or AI-assisted comps are fine — applied concept and art direction are what gets reviewed, not finish quality.",
+      "Show the system flexing across markets: take ONE of your two touchpoints and present its adaptation for either Greater China or Japan. Call out precisely what changes (motif, color, copy line, composition, model/hero choice) and what stays locked to hold one global identity. You may use the headline options in `Concept_Copy_handoff.docx`.",
+      "Keep a running `DECISIONS.md`: for every call you made where the brief was open, redacted, or self-contradicting, note what you chose, the alternative you rejected, and the one question you would put to the DVP or a cross-functional partner. Include a short production-readiness note on the window vinyl — anything in your comp that the print or install spec would reject."
+    ],
+    "coverProbes": [
+      {
+        "id": "dual-objective-awareness-vs-acquisition",
+        "kind": "underspecified",
+        "where": "Task 1 / `Campaign_Brief.docx` — the brief demands global brand awareness AND new-customer acquisition in one campaign, with no stated priority.",
+        "reveals": "A naive submission silently averages the two and produces a pretty-but-unfocused concept that serves neither, or never names which goal the work is optimized for. A strong lead explicitly picks a primary objective, justifies it with a customer-insight signal, and shows how the secondary goal is still carried at the right funnel layer — demonstrating they can resolve a conflicting brief instead of obeying all of it.",
+        "decisionSpace": [
+          "Lead with brand awareness — bold, DNA-forward, abstract territory; trade-off: weaker direct-acquisition attribution and a softer call to purchase.",
+          "Lead with new-customer acquisition — product-forward, hero-SKU and entry-price visibility, clear path to purchase; trade-off: risks reading promotional and diluting 'Expressive Luxury' equity.",
+          "Dual-layer the platform — a brand-led hero idea with an acquisition-tuned variant for lower-funnel touchpoints; trade-off: more to produce and a real risk of a muddy single message inside the 2h budget."
+        ]
+      },
+      {
+        "id": "coach-codes-and-refreshed-logo",
+        "kind": "legacy_trap",
+        "where": "Tasks 1–2 / `Coach_Brand_Guidelines.pdf` page 2 — the retired serif wordmark and the specific heritage codes (Signature C, horse-and-carriage, clear-space and minimum-size rules).",
+        "reveals": "A naive candidate generates generic luxury-fashion graphics from a one-line prompt and reaches for a Coach-ish logo — frequently the retired lockup or a wrong clear-space — proving they never opened the guidelines. A strong candidate reads first, uses the current lockup correctly, and makes a deliberate, defensible choice about how hard to lean on Coach's equity versus the collaborator's identity.",
+        "decisionSpace": [
+          "Work within the refreshed equity — current lockup, Signature codes and craft cues used to spec; trade-off: safest and clearly on-brand, but less distinctive for a collaboration moment.",
+          "Deliberately subvert or modernize one heritage code for the collab while respecting all usage rules; trade-off: more memorable and partnership-worthy, but off-brand if the rationale is thin.",
+          "Co-brand treatment that balances Coach DNA with the collaborator's visual identity; trade-off: partnership-appropriate, but can muddy which brand the customer remembers."
+        ]
+      },
+      {
+        "id": "window-vinyl-production-reality",
+        "kind": "verification_trap",
+        "where": "Task 2 + Task 4 / `Store_Graphics_Specs/window_dieline.pdf` and `largeformat_print_spec.txt` — viewing-distance legibility, full-scale resolution, max one-way-vision coverage %, and door-hardware / egress safe zones.",
+        "reveals": "A one-shot mockup looks great on a laptop and quietly fails production: hero type below the minimum cap-height for 3 m reading, AI art upscaled below the required full-scale resolution, coverage exceeding the perforated-film limit, or critical content sitting over the push-bar / egress zone. A naive submission passes the shallow 'looks nice in the deck' check; a strong one designs to the dieline, names the exact constraint it is honoring, and flags any reconciliation needed.",
+        "decisionSpace": [
+          "Design strictly to the supplied spec — legible type at distance, within the coverage limit, full-scale art, content clear of hardware zones; trade-off: a more constrained, less screen-spectacular comp.",
+          "Prioritize on-screen impact but explicitly flag the production risks and propose a perforated-film or partial-coverage fix; trade-off: honest and senior, but defers a real production pass.",
+          "Split the glazing — a bold hero panel within spec plus clear glazing for one-way vision and egress compliance; trade-off: stronger storefront and compliant, but a more complex and costly install."
+        ]
+      },
+      {
+        "id": "global-localization-no-regional-owner",
+        "kind": "ambiguity",
+        "where": "Task 3 / `Campaign_Brief.docx` (four markets, no regional creative owner) and `Concept_Copy_handoff.docx` (an NA-idiomatic line that won't travel).",
+        "reveals": "A naive candidate ships one identical execution everywhere and treats localization as translating the copy, missing color symbolism, motif and gifting-context nuance in Greater China and Japan. A strong candidate decides up front whether they are building a hero-market lead, a flexible global system, or a single neutral execution, and shows a localization that changes what should change while holding the global identity fixed.",
+        "decisionSpace": [
+          "Hero-market lead — design sharply for one market (e.g., Greater China acquisition) and adapt outward; trade-off: lands hard where it matters, weaker fit in the other three markets.",
+          "Flexible global system — modular layout with swappable motif / color / copy slots per market; trade-off: more upfront system design and a risk of a lowest-common-denominator look.",
+          "Single neutral global artwork — one execution everywhere; trade-off: consistent and cheap to run, but risks failing to land culturally in Greater China and Japan."
+        ]
+      }
+    ],
+    "timeboxHours": 2.0,
+    "rubricDimensions": [
+      {
+        "name": "framing",
+        "label": "Problem framing",
+        "weight": 0.2,
+        "description": "Turns an ambiguous need into a sound plan."
+      },
+      {
+        "name": "tooling",
+        "label": "Tooling fluency",
+        "weight": 0.25,
+        "description": "Drives AI and other tools well; iterates and verifies."
+      },
+      {
+        "name": "judgment",
+        "label": "Judgment",
+        "weight": 0.25,
+        "description": "Catches AI/tooling mistakes; validates; pushes back."
+      },
+      {
+        "name": "architecture",
+        "label": "Architecture",
+        "weight": 0.15,
+        "description": "Structure and trade-offs that fit the real materials and constraints."
+      },
+      {
+        "name": "transfer",
+        "label": "Transfer",
+        "weight": 0.15,
+        "description": "Capability transfers to THIS role's tools and responsibilities."
+      }
+    ],
+    "promptVersion": "case-design-v5"
+  },
+  "source": "llm",
+  "issues": [],
+  "fallbackReason": {},
+  "promptVersions": {
+    "analyze": "need-analysis-v3",
+    "role": "role-design-v3",
+    "case": "case-design-v5"
+  }
+}

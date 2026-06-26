@@ -1,0 +1,191 @@
+{
+  "job": {
+    "id": "cal-022",
+    "title": "Business Analyst- Supply Chain",
+    "company": "Shell",
+    "role_family": "operations",
+    "seniority": "medior",
+    "source": "hf:jacob-hugging-face/job-descriptions"
+  },
+  "analysis": {
+    "realStack": [
+      "MS Azure DevOps (work-item tracking, sprint/backlog boards)",
+      "Agile/Scrum delivery framework",
+      "Business analysis techniques & toolkit (BABOK-style requirements elicitation, IIBA practices)",
+      "Requirements documentation & traceability (business requirements ↔ system capabilities mapping)",
+      "Data and process analysis & modeling (process maps, data flows)",
+      "Systems engineering concepts",
+      "Supply chain operations domain knowledge (planning, logistics, procurement/distribution in an oil & gas / petrochemicals context)",
+      "Stakeholder management & facilitation artifacts (workshops, gap analyses, solution options)",
+      "Enterprise IT solution landscape awareness (commonly available products & integrated solutions, competitor IT usage)"
+    ],
+    "coreResponsibilities": [
+      "Identify, elicit and define the business needs of Shell's supply chain business and translate them into clear requirements",
+      "Determine and recommend solutions to meet those needs or resolve business problems within an IT project development environment",
+      "Bridge supply chain business strategy and technical solutions when working with business partners",
+      "Analyze the alignment between business requirements and system capabilities, surfacing gaps and fit",
+      "Perform data/process analysis and modeling to underpin solution design",
+      "Operate inside agile/Scrum delivery, managing work via tools such as MS Azure DevOps",
+      "Lead stakeholder management — build trust, run engagement activities, communicate concisely",
+      "Act as an SME and contribute to best-practice material, community/IIBA activities and coaching others"
+    ],
+    "statedVsRealGaps": [
+      "No codebase, documents, models or other real body of work was supplied (codebases: null), so this reflection is against the JD text alone — there is no evidence to confirm what the role actually acts on day to day.",
+      "Title/role framing diverges: the title is 'Business Analyst - Supply Chain' but the JD opens 'as IT business analyst' — this is an IT/business bridge BA, not a pure operations supply-chain analyst; expect IT-project work, not hands-on supply-chain execution.",
+      "The need object's stack array is empty, yet the JD clearly implies a real toolset (Azure DevOps, Scrum, BA tooling, modeling) — the structured 'need' under-states what the JD asks for.",
+      "Seniority is tagged 'medior', but the JD's asks — 'broad and extensive knowledge of supply chain operations', leading stakeholder management, serving as an SME, community leadership/coaching — read closer to senior; the medior target may under-call the level.",
+      "JD numerics are degraded/stripped ('at least  years', 'over  employees', 'more than  countries'), so the required experience bar cannot be read precisely.",
+      "'Determine solutions to meet business needs' is broad and unbounded — the JD does not pin down whether the BA owns solution design, vendor/product selection, or only requirements; scope of authority is ambiguous."
+    ],
+    "trueComplexity": "medium",
+    "riskAreas": [
+      "Domain-vs-IT straddle: success needs genuine supply chain commercial acumen AND IT/BA delivery skill; candidates strong on one side and weak on the other are a common mis-hire here.",
+      "Seniority mismatch risk — hiring to a 'medior' bar for a role that expects SME-level domain depth and stakeholder leadership.",
+      "Hard gate: US full-time work authorization is mandatory and will disqualify otherwise-fit candidates early.",
+      "Ambiguous solution-ownership scope could create expectation gaps between the BA, architects and the business partners.",
+      "Cannot validate fit against any real artifacts — no requirements docs, process models, backlog or system inventory were provided, so trueComplexity and stack are inferred from the JD, not observed.",
+      "JD leans heavily on soft/influencing capabilities and 'community leadership' that are hard to assess from a CV and easy to over- or under-weight in screening."
+    ],
+    "reflection": "This is an IT business analyst role that sits between Shell's supply chain business and its IT project delivery — despite the 'Supply Chain' title, the JD's center of gravity is requirements, agile delivery (Scrum, Azure DevOps), process/data modeling and business-to-system gap analysis, not hands-on supply chain operations. As a non-software office role there is correctly no tech stack to audit; the realStack is the BA's actual toolkit and the supply-chain/IT solution landscape it operates in. No codebase or role materials were supplied, so this is reflected purely against the job description rather than against an observed body of work — the analysis is grounded but cannot be corroborated. The main honest divergences are (1) title vs. actual IT-BA framing, (2) a 'medior' target that the JD's SME/leadership language pushes toward senior, and (3) degraded JD text (missing experience/scale figures) that blurs the exact bar. Complexity is medium: the work is well-bounded BA practice, but the dual fluency it demands — real supply-chain commercial acumen plus disciplined IT delivery — is where the genuine difficulty and the main mis-hire risk live.",
+    "confidence": 0.6,
+    "promptVersion": "need-analysis-v3"
+  },
+  "role": {
+    "title": "Business Analyst - Supply Chain",
+    "seniority": "medior",
+    "roleFamily": "operations",
+    "mustHaves": [
+      "Business analysis fundamentals — eliciting, defining and documenting business needs and translating them into clear, traceable requirements",
+      "Supply chain operations domain knowledge (planning, logistics, procurement/distribution) sufficient to link business strategy with technical solutions",
+      "Experience delivering on Agile projects with a very good understanding of Scrum and tools such as MS Azure DevOps (backlogs, sprints, work-item tracking)",
+      "Data and process analysis & modeling — process maps and data flows that underpin solution design",
+      "Requirements-to-system-capability alignment analysis — surfacing gaps and fit between business requirements and system capabilities",
+      "Knowledge of business analysis techniques and tools (BABOK/IIBA-style elicitation, documentation and traceability)",
+      "Systematic and analytical approach to problem solving with close attention to detail",
+      "Strong interpersonal, influencing and stakeholder-management skills with concise, clear written and verbal communication",
+      "Legal authorization to work in the US on a full-time basis"
+    ],
+    "niceToHaves": [
+      "Bachelor's degree in Information Technology or a related study",
+      "IIBA membership / BABOK-aligned certification (e.g. ECBA/CCBA/CBAP) and active participation in BA community activities (webcasts, chapter meetings)",
+      "Understanding of systems engineering concepts",
+      "Awareness of the enterprise IT solution landscape — commonly available products, integrated solutions and how competitors use IT to gain competitive edge",
+      "Energy / oil & gas / petrochemicals industry exposure",
+      "Experience acting as an SME, coaching others and contributing to best-practice material",
+      "Commercial acumen in supply chain operations"
+    ],
+    "responsibilities": [
+      "Identify, elicit and define the business needs of the supply chain business and translate them into clear requirements",
+      "Determine and recommend solutions to meet business needs or resolve business problems within an IT project development environment",
+      "Bridge supply chain business strategy and technical solutions when working with business partners",
+      "Analyze the alignment between business requirements and system capabilities, surfacing gaps and fit",
+      "Perform data and process analysis and modeling to underpin solution design",
+      "Operate inside Agile/Scrum delivery, managing work via tools such as MS Azure DevOps",
+      "Lead stakeholder management — build trust, run engagement activities and communicate concisely",
+      "Act as an SME and contribute to best-practice material, coaching and BA community activities"
+    ],
+    "languages": [
+      "English"
+    ],
+    "promptVersion": "role-design-v3"
+  },
+  "case": {
+    "title": "Downstream Fuels Replenishment: Turn a Vague Sponsor Request into Traceable Requirements, a Backlog, and a System Gap Analysis",
+    "brief": "You are the Business Analyst newly assigned to the Downstream Supply & Distribution unit of an integrated oil & gas company. The Supply Chain Planning Lead has raised a request to 'fix' how the team replenishes regional fuel terminals (MOGAS, diesel, jet) from refineries and import jetties: planners run weekly schedules in spreadsheets, terminals occasionally stock out, and the logistics team is absorbing avoidable demurrage on vessels and standing time on road tankers. The sponsor has asked the delivery team for 'an automated replenishment dashboard.' Your job over the next ~1.5 hours is to do real BA work on this request — not to build software, and not to accept the request at face value. You have a small set of intake and discovery materials in repoSeed; they are a constructed-but-realistic scenario standing in for the kind of artifacts you'd inherit on day one (no real client documents were available, so treat these as your only ground truth). Work as you would inside an Agile/Scrum delivery team using MS Azure DevOps. Deliverables are short and written — clarity and judgment matter far more than length. Where the materials are silent, contradictory, or surprising, that is the work: make a defensible call, write it down, and note what you'd confirm with the team. Output a single Markdown document (sections per task) plus the requested CSV-style backlog rows; you do not need running code or diagrams beyond simple text/notation (swimlane-in-text is fine).",
+    "repoSeed": "A discovery pack handed over from the sponsor and the prior planning team:\n\n- intake/replenishment-planning-request.md — a one-page intake note from the Supply Chain Planning Lead. States the ask as 'an automated replenishment dashboard so planners stop running out of stock,' sets headline targets ('cut stockouts by 30% and demurrage by 20% this year'), and quotes two stakeholders whose priorities differ: Planning wants better demand-forecast accuracy; Logistics/Scheduling wants fewer demurrage events. The note conflates the symptom (stockouts/demurrage) with a specific solution (a dashboard), and the two demurrage figures it cites (one in the body, one in a footnote table) don't match.\n\n- current-state/replenishment-process-narrative.md — a 1.5-page narrative of how weekly replenishment planning works today: demand pulled from history into Excel, manual safety-stock rules, schedules emailed to the scheduling desk, re-work when vessels slip. One paragraph mentions, almost in passing, that a demand-planning module ('DP Optimizer') was purchased and configured ~18 months ago for exactly this forecasting need but was 'switched off after the rollout didn't land' (cited reasons: poor master-data quality and low planner adoption).\n\n- systems/capability-inventory.csv — a system × capability matrix for the enterprise landscape: SAP S/4HANA (ERP/inventory/orders), Oracle Transportation Management (TMS — scheduling, demurrage tracking), DP Optimizer (statistical demand planning add-on, marked 'Inactive'), Power BI (reporting), and 'Excel/manual' rows. Columns flag whether each system Supports / Partially supports / Doesn't support capabilities like demand forecasting, safety-stock policy, vessel/truck scheduling, demurrage capture, and days-of-cover reporting. The DP Optimizer row shows it already supports the forecasting capability the sponsor is asking to acquire.\n\n- data/terminal-inventory-demand-2024W08-W11.csv — a four-week extract for ~6 terminals: columns terminal_id, product, opening_inventory_m3, receipts_MT, lifted_MT, demand_forecast_MT. Inventory is recorded in cubic metres (m³) while receipts, liftings and demand are in metric tonnes (MT); there is no conversion column and product densities differ (MOGAS ≈ 0.74 t/m³, diesel ≈ 0.84 t/m³, jet ≈ 0.80 t/m³). A naive 'days of cover = inventory / demand' computed straight off these columns looks reasonable but is unit-inconsistent and product-dependent.\n\n- backlog/azure-devops-export.csv — a small export of existing Azure DevOps work items, including an open epic 'EPIC-142 Replenishment Optimisation' owned by Solution Architecture that partially overlaps this new request, plus a few stale/mislabelled stories beneath it.",
+    "tasks": [
+      "1) Frame the problem (≈15–20 min). Using intake/replenishment-planning-request.md and the current-state narrative, separate the underlying business problem from the proposed solution. State the problem in one or two sentences, list your top 4–6 assumptions, and write the 5–8 highest-value clarifying questions you would take to the sponsor and the two named stakeholders before committing scope — ordered by how much each would change the solution. Call out explicitly any place where Planning's and Logistics' stated priorities pull in different directions.",
+      "2) Requirements & backlog (≈25–30 min). Produce a prioritised set of business requirements (MoSCoW or equivalent) traceable to the problem above, then express the Must/Should items as 4–6 Azure DevOps user stories with acceptance criteria, sized for a sprint backlog. Each story must trace back to a stated business requirement (give the trace). Keep acceptance criteria testable and free of solution lock-in where the solution is still open.",
+      "3) Gap analysis & options (≈20–25 min). Map your requirements against systems/capability-inventory.csv to show fit, partial fit and genuine gaps. Then recommend at least two solution options with explicit trade-offs (e.g. reuse/rehabilitate an existing capability, configure/extend, build new, or change the process) and a recommendation with rationale. Be specific about what the existing landscape can already do versus what is truly missing.",
+      "4) Process, data validation & DECISIONS log (≈20–25 min). Sketch a current-state vs target-state replenishment process (text swimlane or simple notation is fine) showing where the solution intervenes. Then validate data/terminal-inventory-demand-2024W08-W11.csv well enough to trust a 'days of cover' metric: state whether the extract can be used as-is, and if not, what must change and how that affects your requirements. Throughout all four tasks, keep a short DECISIONS log — a normal part of how we work — with one row per open call you made: what you chose, the alternative you rejected, and the question you'd put to the team to confirm it."
+    ],
+    "coverProbes": [
+      {
+        "id": "P1-dashboard-is-not-the-problem",
+        "kind": "underspecified",
+        "where": "intake/replenishment-planning-request.md — the ask is 'an automated replenishment dashboard,' with Planning and Logistics stating different priorities",
+        "reveals": "A good candidate reframes a stated solution ('a dashboard') back to the business problem (stockouts + demurrage + their root causes), surfaces the Planning-vs-Logistics tension as a real scope decision, and refuses to spec a UI before the objective is agreed. A naive candidate writes a dashboard specification and inherits the sponsor's framing wholesale, optimising for the wrong outcome.",
+        "decisionSpace": [
+          "Scope to the requested dashboard and deliver fast — satisfies the sponsor's literal ask and shows momentum, but risks polishing a symptom and not moving stockouts/demurrage.",
+          "Reframe to the underlying stockout/demurrage problem and propose measuring root cause before committing to any UI — higher long-term value, but slower and may read as not delivering what was asked.",
+          "Split the work: a thin reporting quick-win now plus a parallel root-cause/forecast workstream — manages both stakeholders, but costs coordination and can dilute focus."
+        ]
+      },
+      {
+        "id": "P2-dp-optimizer-already-exists",
+        "kind": "legacy_trap",
+        "where": "current-state/replenishment-process-narrative.md (the 'switched off after rollout' aside) cross-referenced with the 'Inactive' DP Optimizer row in systems/capability-inventory.csv",
+        "reveals": "A good candidate reads the materials before generating, notices the forecasting capability the sponsor wants to 'acquire' already exists but was abandoned, and reframes the problem as adoption + master-data quality rather than a missing tool. A naive candidate, generating from the headline ask, proposes buying or building new forecasting and silently re-creates the conditions of the prior failure.",
+        "decisionSpace": [
+          "Recommend rehabilitating DP Optimizer — lowest cost and reuses a paid asset, but inherits the data-quality and adoption problems that killed it unless those are tackled first.",
+          "Recommend a fresh build/buy — clean slate and full control, but ignores the sunk asset and the unaddressed root causes that would sink a new tool too.",
+          "Recommend a short, time-boxed diagnostic on why DP Optimizer failed before choosing — de-risks the decision, but adds a step before any visible delivery and needs sponsor patience."
+        ]
+      },
+      {
+        "id": "P3-units-dont-reconcile",
+        "kind": "verification_trap",
+        "where": "data/terminal-inventory-demand-2024W08-W11.csv — inventory in m³, flows/demand in MT, no conversion, product-dependent density; plus the mismatched demurrage figures in the intake note",
+        "reveals": "A good candidate verifies the data before building metrics on it: spots that 'days of cover = inventory / demand' mixes m³ and MT, that the conversion depends on per-product density, flags the inconsistent demurrage baseline, and adds a data-quality requirement. A naive one-shot answer computes a plausible-looking days-of-cover that passes a shallow read but is quantitatively wrong.",
+        "decisionSpace": [
+          "Treat the extract as authoritative and compute the metric directly — fastest and looks complete, but the number is wrong and would mislead planning decisions.",
+          "Flag the unit/density inconsistency, normalise to a common basis, and raise a data-quality requirement — correct and durable, but costs time and surfaces an uncomfortable finding early.",
+          "Escalate the discrepancy as a blocking data assumption and proceed on an explicitly provisional basis — keeps momentum while protecting against the error, but defers resolution and depends on the team closing it."
+        ]
+      },
+      {
+        "id": "P4-epic-142-ownership-overlap",
+        "kind": "ambiguity",
+        "where": "backlog/azure-devops-export.csv — existing 'EPIC-142 Replenishment Optimisation' owned by Solution Architecture, overlapping the new request, with stale child stories",
+        "reveals": "A good candidate manages scope and stakeholders: checks the existing epic's status and ownership and consciously decides how their requirements relate to it rather than spawning a parallel, duplicate backlog. A naive candidate creates a fresh epic in isolation, duplicating work and stepping on the architect's ownership — exactly the solution-ownership expectation gap this role is prone to.",
+        "decisionSpace": [
+          "Fold the new stories under EPIC-142 and align with the owning architect — collaborative and avoids duplication, but slower and cedes some scope control.",
+          "Raise a new epic and flag the overlap for the team to deconflict — keeps the new work clean and clearly owned, but risks two competing backlogs if deconfliction stalls.",
+          "Propose reviewing and retiring/merging the stale EPIC-142 items after confirming their status — tidies the backlog and clarifies ownership, but assumes authority to touch another team's items and needs their buy-in."
+        ]
+      }
+    ],
+    "timeboxHours": 1.5,
+    "rubricDimensions": [
+      {
+        "name": "framing",
+        "label": "Problem framing",
+        "weight": 0.2,
+        "description": "Turns an ambiguous need into a sound plan."
+      },
+      {
+        "name": "tooling",
+        "label": "Tooling fluency",
+        "weight": 0.25,
+        "description": "Drives AI and other tools well; iterates and verifies."
+      },
+      {
+        "name": "judgment",
+        "label": "Judgment",
+        "weight": 0.25,
+        "description": "Catches AI/tooling mistakes; validates; pushes back."
+      },
+      {
+        "name": "architecture",
+        "label": "Architecture",
+        "weight": 0.15,
+        "description": "Structure and trade-offs that fit the real materials and constraints."
+      },
+      {
+        "name": "transfer",
+        "label": "Transfer",
+        "weight": 0.15,
+        "description": "Capability transfers to THIS role's tools and responsibilities."
+      }
+    ],
+    "promptVersion": "case-design-v5"
+  },
+  "source": "llm",
+  "issues": [],
+  "fallbackReason": {},
+  "promptVersions": {
+    "analyze": "need-analysis-v3",
+    "role": "role-design-v3",
+    "case": "case-design-v5"
+  }
+}

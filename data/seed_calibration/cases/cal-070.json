@@ -1,0 +1,201 @@
+{
+  "job": {
+    "id": "cal-070",
+    "title": "Art Director",
+    "company": "Thinx Inc.  New York City Metropolitan Area   Hybrid",
+    "role_family": "marketing",
+    "seniority": "lead",
+    "source": "hf:jacob-hugging-face/job-descriptions"
+  },
+  "analysis": {
+    "realStack": [
+      "Adobe Creative Suite for art direction & retouching review (Photoshop, Lightroom; Illustrator/InDesign for layout)",
+      "Capture One / on-set tethered capture and image-selects workflow",
+      "Video editing & post tools (Premiere Pro / After Effects) for video asset oversight",
+      "Photo and video shoot direction (on-set art direction, lighting/styling/composition judgment)",
+      "Retouching pipeline management (retouching notes, technical feedback, color/quality QC, delivery specs per channel)",
+      "Multichannel asset production: onsite/ecomm, paid social & display, organic social, and (plus) TV/commercial",
+      "Brand visual systems / brand guidelines across a 4-brand portfolio (Thinx, Thinx Teens, Speax, Thinx for All)",
+      "Production operations: shoot calendars, budgets, resource forecasting, vendor/freelancer coordination",
+      "Creative concepting & campaign-narrative development (briefs, mood/concept decks, cross-functional brainstorms)",
+      "An external talent network: standing relationships with photographers, videographers, and agents",
+      "DAM / asset delivery and version control for final deliverables",
+      "1 direct report (in-house retoucher) — people & workflow management"
+    ],
+    "coreResponsibilities": [
+      "Craft conceptually strong, on-brief art direction for multichannel campaigns across all four Thinx Inc. brands",
+      "Direct photo AND video shoots on-set, providing live creative direction and translating brand principles into assets",
+      "Own post-production end-to-end: channel-specific image selects, retouching notes, technical feedback, and deadline adherence",
+      "Manage and support one full-time in-house retoucher (workflow, timelines, throughput)",
+      "Play a lead role in cross-functional concepting sessions to strengthen the team's idea muscle",
+      "Collaborate with copywriters (campaign narratives), brand designers (channel cohesion), and marketing designers (apply past-ad performance learnings)",
+      "Coordinate with the production team, external agencies, and freelancers on consistent execution of art direction",
+      "Partner with production on shoot calendars/budgets and proactively flag when more resources are needed",
+      "Gate quality — ensure all deliverables are cohesive, on-brand, and meet technical standards before the Creative Director, Art gives final approval"
+    ],
+    "statedVsRealGaps": [
+      "Seniority labeled 'lead', but the org reality is a senior IC craft lead reporting INTO a Creative Director, Art with exactly ONE direct report (the retoucher) — this is craft/concepting leadership, not a department-head people-management lead; calibrate offers/expectations accordingly",
+      "The qualifications section is corrupted — every years-of-experience figure was stripped ('years of experience in...'), so the JD gives NO hard leveling anchor; the seniority target is inferred, not stated",
+      "Framing oversells 'big creative thinking / big ideas', but a large share of the actual day-to-day is executional production oversight — selects, retouching notes, QC, delivery-deadline chasing; the concepting-vs-production split is real and a common source of mis-hire",
+      "JD prefers agency/publication background, yet this is a brand-side in-house role with brand-side listed only as 'a plus' — the stated preference points away from the role's actual context",
+      "Photo and video are treated as one skillset, but few art directors are equally strong on-set in both stills and motion; 'photo/video production and editing' and 'TV commercial' direction are listed as pluses, signaling the bar may bend on the video half",
+      "'Established relationships with a wide range of photographers, videographers and agents' is a heavily weighted but hard-to-verify requirement that functions as a network screen, not a skills screen",
+      "Strong culture/mission gate (representation of real and diverse bodies, familiarity with feminist art history, interest in fashion) — a values-fit filter that can override raw craft if not surfaced early",
+      "JD text is truncated mid-sentence ('strong interests in fashion a'), so the tail of the requirements list is unknown"
+    ],
+    "trueComplexity": "high",
+    "riskAreas": [
+      "Scope breadth: one person owning concept + on-set direction (photo AND video) + post-production QC + people management + vendor/budget foresight across four brands is a wide remit — risk of a generalist who is thin somewhere (most often motion/video or production-ops rigor)",
+      "Level ambiguity: 'lead' title with a single report and a CD above it invites comp/title mismatch and disappointed expectations on management scope",
+      "Unverifiable network claim: the photographer/videographer/agent-relationships requirement is easy to assert, hard to confirm — needs reference/portfolio probing",
+      "Concepting vs. execution mismatch: candidates who index on big ideas may under-deliver on the heavy, detail-driven post-production/QC load (and vice versa)",
+      "Mission/values screen (feminist art, real/diverse bodies, sustainability) is genuine and weighted — a strong portfolio with weak mission alignment is a likely late-stage failure point",
+      "Corrupted/truncated JD means the experience bar and part of the requirements are missing — clarify hard leveling criteria with the hiring manager before sourcing",
+      "Brand context: feminine-care / incontinence category and fast-paced environment demand category comfort and pace tolerance that a polished agency portfolio won't reveal on its own"
+    ],
+    "reflection": "Reflected purely against the JD (no codebase — correct for a marketing/creative role), this is a senior-to-lead in-house Art Director whose REAL body of work is photo and video assets across four Thinx Inc. brands and every channel (onsite, paid, organic, possibly TV), plus the post-production pipeline that finishes them. The need is internally honest about most of the work: it pairs 'big creative thinking' with a substantial, detail-heavy execution and QC load, names the collaborators precisely (CD-Art, copy, brand design, marketing design, production, freelancers/agencies), and is explicit that the hire manages one retoucher and helps steward budgets and calendars. The main divergences are about leveling and breadth, not honesty: the 'lead' label describes craft/concepting leadership rather than a people-management department head (one direct report under a Creative Director), and the qualifications section is corrupted — every years-of-experience number was stripped and the text truncates mid-sentence — so there is no hard seniority anchor in the document itself. The role also leans on a hard-to-verify external talent network and a real mission/values gate (representation of diverse bodies, feminist art, sustainability) that will sit alongside craft in the actual decision. Net: a genuinely high-complexity craft-lead role; source for a strong stills-AND-motion art director with brand-side polish and production-ops discipline, and pin down the missing experience bar and the true management scope with the hiring manager before calibrating offers.",
+    "confidence": 0.7,
+    "promptVersion": "need-analysis-v3"
+  },
+  "role": {
+    "title": "Art Director, Photo and Video",
+    "seniority": "senior",
+    "roleFamily": "marketing",
+    "mustHaves": [
+      "Demonstrated mastery of art direction craft — conceptually strong, on-brief, visually elevated multichannel campaign work, shown through a portfolio",
+      "On-set creative direction of both photo AND video shoots: translating brand visual principles into shot direction (composition, lighting, styling, talent) and adjusting live",
+      "End-to-end post-production ownership: channel-specific image selects, clear retouching notes, technical feedback, and consistent delivery against deadlines",
+      "Expert command of Adobe Creative Suite (Photoshop, Lightroom; Illustrator/InDesign) and the judgment to QC color, retouching quality, and per-channel technical/delivery specs",
+      "Strong conceptual thinking — able to lead and visibly raise the level of cross-functional concepting and creative brainstorm sessions",
+      "Excellent collaboration and proactive, early-and-often communication while operating in a fast-paced creative environment",
+      "People and workflow management of a direct report (the in-house retoucher): supporting workflow, timelines, and throughput",
+      "Production fluency: working to shoot calendars and budgets, forecasting needs, and coordinating production teams, external agencies, and freelancers",
+      "An established working network of photographers, videographers, and agents to staff and execute shoots",
+      "Brand visual-systems thinking — keeping assets cohesive and on-brand across a multi-brand portfolio and across channels (ecomm, paid/organic social, display)",
+      "Comfort and skill directing imagery that represents real, diverse bodies in line with the brand's mission and values"
+    ],
+    "niceToHaves": [
+      "Agency or editorial/publication art direction background",
+      "Hands-on photo/video production and editing (Premiere Pro / After Effects)",
+      "TV / commercial direction experience",
+      "Capture One or tethered on-set capture and image-selects workflow",
+      "DAM / asset versioning and structured delivery experience",
+      "Experience applying paid-ad performance learnings to shoot and art-direction decisions",
+      "Familiarity with feminist art history and a genuine interest in fashion"
+    ],
+    "responsibilities": [
+      "Craft conceptually powerful, on-brief art direction for multichannel campaigns across all four Thinx Inc. brands (Thinx, Thinx Teens, Speax, Thinx for All)",
+      "Direct photo and video shoots on-set, providing live creative direction and translating each brand's visual principles into finished assets",
+      "Own the post-production process end-to-end: make channel-specific image selects, provide retouching notes and technical feedback, and ensure delivery deadlines are met",
+      "Manage and support the full-time in-house retoucher, overseeing retouching workflow and delivery timelines",
+      "Play a lead role in cross-functional concepting sessions to strengthen the creative team's idea-generation muscle",
+      "Collaborate with copywriters on campaign narratives, with brand designers on channel cohesion, and with marketing designers to apply past-ad performance learnings",
+      "Coordinate with the production team, external agencies, and freelancers on the consistent execution of art direction across still and video shoots",
+      "Partner with production on shoot calendars and budgets, flagging early when additional resources will be needed",
+      "Gate quality so that all deliverables are cohesive, on-brand, and meet technical standards before the Creative Director, Art gives final approval"
+    ],
+    "languages": [
+      "English"
+    ],
+    "promptVersion": "role-design-v3"
+  },
+  "case": {
+    "title": "Art Director, Photo & Video — LeakProof cross-brand launch: direct it, gate it, keep production honest",
+    "brief": "You are joining Thinx Inc. as Art Director, Photo and Video, reporting to the Creative Director, Art, with one direct report — the full-time in-house retoucher. A cross-brand Q3 launch — 'LeakProof', an all-day leakproof line spanning Thinx, Thinx Teens, Speax, and Thinx for All — is mid-flight: the hero shoot is captured, a first retouch pass is in, and the calendar and budget are set. Everything you need is in the shared folder `/Campaigns/2026_Q3_LeakProof_Launch/` (see Starting materials). This is the actual work of the role — concept and art-direct the campaign, make channel selects, gate quality before it reaches the Creative Director, manage your retoucher and the post pipeline, and keep production honest on resources — not a portfolio walk-through. Timebox: 2 hours, hard. We grade judgment, not output volume — a tight, well-reasoned direction beats a thick deck, and we are not scoring render polish or comp count. Use any tools you like, including AI image and video tools; what we care about is the calls you make and why. Several things in the packet are deliberately open-ended, stale, or not quite right — noticing is part of the exercise. Keep a short DECISIONS.md as you work (normal art-direction practice): for every call where the brief was open, jot what you chose, the option you rejected, and the one thing you'd ask the team. Anchor everything to Thinx's mission — feminist art direction, real and diverse bodies (no slimming, no skin-smoothing, keep natural texture), and sustainability — which is weighted here, not decoration.",
+    "repoSeed": "A live campaign packet in `/Campaigns/2026_Q3_LeakProof_Launch/`:\n- `BRIEF_LeakProof_Launch.pdf` — one-page marketing brief from the Brand Marketing lead for the Q3 'all-day leakproof' launch. Names all four brands (Thinx, Thinx Teens, Speax, Thinx for All), a hero deliverable plus paid-social, organic, and ecomm cutdowns, a 'plus: :15 TV/commercial,' a launch date, and a 'feminist, real & diverse bodies, sustainability-forward' mandate. It does NOT say whether this is one unified system or four brand-specific executions, gives no hero channel, and sets no budget ceiling.\n- `BrandGuidelines_Master_2024.pdf` — the portfolio visual system: color, type, crop/logo rules, and the photography principle 'real & diverse bodies — no slimming, no skin-smoothing, keep natural texture (stretch marks, scars, body hair stay).'\n- `Speax_ChannelAddendum_2023.pdf` — an older Speax-only paid-social spec that mandates 'beauty-standard retouching and skin clean-up for conversion' and a legacy Adobe RGB ecomm export — partially contradicting the 2024 master guideline.\n- `Shoot_Takes_LeakProof/` — ~40 tethered Capture One captures (contact sheet `selects_contactsheet.pdf`), unrated, across 6 models/looks of varied bodies and skin tones.\n- `Retoucher_Delivery_v2/` — 3 finished hero images from your in-house retoucher with `delivery_notes.txt` (channel, pixel dimensions, color profile per file). All three are at correct dimensions and look clean at a glance.\n- `ChannelSpecs.xlsx` — required dimensions, safe areas, file formats, and color profiles per channel (ecomm, paid social, organic, OOH, TV); paid social and organic require sRGB.\n- `ShootCalendar_Budget.xlsx` — the photo shoot date (done), a separate video shoot day, the in-house retoucher's booked PTO, freelancer line items, and a budget total.\n- `DECISIONS.md` — empty, for you to fill in as you go.",
+    "tasks": [
+      "Concept & art direction: resolve the brief's open questions (one unified system vs. four brand-specific executions; which hero channel leads; how the mission shows up alongside conversion) and produce a tight art-direction direction for LeakProof — a one-page territory/concept plus a hero shot list/treatment and a short note on how it flexes across the four brands and into the paid-social, organic, ecomm, and :15 TV cutdowns. Direction, not a finished deck.",
+      "Selects & post handoff: from `Shoot_Takes_LeakProof/`, make channel-specific selects (which frames serve hero, ecomm, paid social, organic) with a one-line rationale each tied to `ChannelSpecs.xlsx` crops and safe areas, and write the retouching notes you'd hand your in-house retoucher.",
+      "QC gate: review `Retoucher_Delivery_v2/` against `ChannelSpecs.xlsx` and `BrandGuidelines_Master_2024.pdf`, decide approve / revise per asset before it goes to the Creative Director, write the precise technical and brand feedback to your retoucher, and recommend how to stop the issue recurring.",
+      "Production foresight & decision trail: from `ShootCalendar_Budget.xlsx`, flag where the plan outruns the resources or budget and what you'd escalate to production now and with what options; and keep `DECISIONS.md` current throughout — for every open call (brief scope, guideline conflict, borderline QC, any descope), note what you chose, the alternative you rejected, and what you'd ask the team."
+    ],
+    "coverProbes": [
+      {
+        "id": "brief-system-scope",
+        "kind": "underspecified",
+        "where": "BRIEF_LeakProof_Launch.pdf — no statement of one unified 4-brand system vs. four brand-specific executions, no hero channel, no budget ceiling.",
+        "reveals": "A strong candidate names the ambiguity, commits to a defensible scope with a stated assumption, and logs the clarifying question for the Brand lead; a naive one silently defaults to a generic 'unified' look and tries to thinly produce all four brands within the 2h, or builds for a single channel and ignores the multichannel flex the brief asks for.",
+        "decisionSpace": [
+          "One unified art-direction system with brand-specific accents — cohesion and timebox/budget efficiency, but risks diluting four distinct audiences (Teens vs. Speax incontinence vs. Thinx for All).",
+          "A shared concept with four genuinely distinct executions — most on-audience and on-mission, but heavy for the timebox and budget and harder to keep cohesive.",
+          "Lead one brand/hero channel (e.g., Speax, paid-social-first) and treat the rest as phase-1 flex — focus and depth, but under-serves the 'all four brands' ask unless explicitly framed as a phase."
+        ]
+      },
+      {
+        "id": "speax-addendum-conflict",
+        "kind": "legacy_trap",
+        "where": "Speax_ChannelAddendum_2023.pdf mandates 'beauty-standard retouching/skin clean-up' and a legacy Adobe RGB ecomm export, contradicting BrandGuidelines_Master_2024's no-slimming/no-smoothing principle and ChannelSpecs' sRGB requirement.",
+        "reveals": "A strong candidate reads both, spots the conflict, defers to the newer master guideline and the weighted mission, treats the addendum as deprecated, and names the process fix; a naive one follows whichever doc it reads first (or the more channel-specific one) and bakes a mission-violating retouch direction and wrong color space into the notes.",
+        "decisionSpace": [
+          "Master guideline + mission win, addendum is deprecated — protects brand integrity, but you should propose a mission-safe way to keep paid-social legible/converting since you've dropped the addendum's intent.",
+          "Honor the addendum for paid-social only while the master rules everywhere else — pragmatic split, but risks a real-bodies brand publishing smoothed skin exactly where it's most visible.",
+          "Escalate the conflict to the Creative Director/Brand before directing — safest on alignment, but costs time against the launch date."
+        ]
+      },
+      {
+        "id": "delivery-v2-qc",
+        "kind": "verification_trap",
+        "where": "Retoucher_Delivery_v2/ — files are correct pixel dimensions and read as clean, but hero_paidsocial.jpg is exported Adobe RGB where ChannelSpecs requires sRGB (colors will shift/desaturate on-platform) and hero_ecomm.jpg has stretch marks and a scar smoothed out against BrandGuidelines_Master_2024.",
+        "reveals": "A strong candidate checks color profile and the brand real-bodies principle, not just 'does it look good at this size,' catches both and gives exact technical feedback; a naive one approves on visual polish and dimensions alone and ships a color-shifted, mission-violating asset to the Creative Director.",
+        "decisionSpace": [
+          "Reject both, return with specific specs and re-link the retoucher to the master guideline — the quality gate holds, at the cost of a revision cycle against the deadline.",
+          "Approve dimensions, fast-fix the color profile yourself in-house, send only the ecomm skin issue back — speeds delivery but blurs the retoucher's ownership and your workflow management.",
+          "Conditionally approve for a soft-launch channel while corrected masters are reworked — protects the date, but risks an off-brand asset being live briefly."
+        ]
+      },
+      {
+        "id": "calendar-budget-gap",
+        "kind": "ambiguity",
+        "where": "ShootCalendar_Budget.xlsx — the video shoot day overlaps the in-house retoucher's booked PTO, no freelance videographer is line-itemed, and the 'plus: :15 TV/commercial' has no budget allocation.",
+        "reveals": "A strong candidate sees the plan is over-committed for the resources and flags it early with options and an escalation to production; a naive one accepts the calendar at face value and promises every deliverable, guaranteeing a late miss on motion or post.",
+        "decisionSpace": [
+          "Descope the :15 TV to phase-2 / repurpose hero stills + motion graphics — protects core launch quality within budget, but gives up a premium channel at launch.",
+          "Book a freelance videographer and a back-up retoucher now from the talent network — keeps full scope, but spends into/over budget and leans on unverified vendor availability.",
+          "Shift the video shoot off the retoucher's PTO and renegotiate the calendar — keeps in-house ownership and quality, but risks the launch date."
+        ]
+      }
+    ],
+    "timeboxHours": 2.0,
+    "rubricDimensions": [
+      {
+        "name": "framing",
+        "label": "Problem framing",
+        "weight": 0.2,
+        "description": "Turns an ambiguous need into a sound plan."
+      },
+      {
+        "name": "tooling",
+        "label": "Tooling fluency",
+        "weight": 0.25,
+        "description": "Drives AI and other tools well; iterates and verifies."
+      },
+      {
+        "name": "judgment",
+        "label": "Judgment",
+        "weight": 0.25,
+        "description": "Catches AI/tooling mistakes; validates; pushes back."
+      },
+      {
+        "name": "architecture",
+        "label": "Architecture",
+        "weight": 0.15,
+        "description": "Structure and trade-offs that fit the real materials and constraints."
+      },
+      {
+        "name": "transfer",
+        "label": "Transfer",
+        "weight": 0.15,
+        "description": "Capability transfers to THIS role's tools and responsibilities."
+      }
+    ],
+    "promptVersion": "case-design-v5"
+  },
+  "source": "llm",
+  "issues": [],
+  "fallbackReason": {},
+  "promptVersions": {
+    "analyze": "need-analysis-v3",
+    "role": "role-design-v3",
+    "case": "case-design-v5"
+  }
+}

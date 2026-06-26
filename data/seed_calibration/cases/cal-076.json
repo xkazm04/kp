@@ -1,0 +1,187 @@
+{
+  "job": {
+    "id": "cal-076",
+    "title": "Ecommerce Consultant",
+    "company": "Kantar",
+    "role_family": "consulting",
+    "seniority": "medior",
+    "source": "hf:jacob-hugging-face/job-descriptions"
+  },
+  "analysis": {
+    "realStack": [
+      "Kantar NA Retail offer — the suite of retail, shopper and commerce capabilities, assets and proprietary frameworks the consultant must master and sell",
+      "Retail & shopper measurement data: POS/syndicated sales data, shopper panels, category and retailer performance datasets",
+      "Ecommerce / omnichannel analytics: digital shelf, online assortment & search, marketplace and retailer.com performance",
+      "Category management frameworks (assortment, pricing, promotion, planogram logic)",
+      "Client deliverables: insight decks, narratives/'the story', recommendations, readouts",
+      "Project proposals, scopes of work and pricing inputs feeding a sales pipeline",
+      "Office/presentation tooling (PowerPoint/Excel and equivalents) for analysis and client-facing storytelling",
+      "Internal delivery model: cross-functional teams of Kantar consultants and analysts the role orchestrates",
+      "CRM / business-development pipeline for lead qualification and opportunity tracking",
+      "ATS (applicant tracking system, named explicitly in the privacy disclosure) — incidental, not a working tool of the role"
+    ],
+    "coreResponsibilities": [
+      "Manage and deliver multifaceted client projects end-to-end, ensuring quality and on-time delivery with a team of consultants and analysts",
+      "Support and grow long-term client relationships; become an emerging trusted advisor on omni-commerce and ecommerce challenges",
+      "Build mastery of the full Kantar NA Retail offer and apply it to a client's central business question",
+      "Shape the project vision and 'story', contribute to proposals, and support overall project management",
+      "Develop project leads, qualify new business opportunities, demonstrate capabilities and guide clients toward a sale — supported by senior consultants",
+      "Champion the offer internally and develop more junior people through formal and informal training and coaching"
+    ],
+    "statedVsRealGaps": [
+      "Title says 'Ecommerce Consultant' but the required skillset is a generalist retail/shopper consultant — sales, marketing, category management, ecommerce AND insights; ecommerce is one strand among several, not the deep specialty the title implies",
+      "Required years of experience are blanked out in the text ('with   years of experience', 'over  markets'), so the actual seniority bar is unstated — 'medior' is inferred from 'mid-level' phrasing and 'supported by senior consultants'",
+      "The role bundles three different jobs — delivery/project management, business development/selling, and people coaching — without saying how time is split; that breadth is wider than a typical pure-delivery consultant",
+      "JD names no concrete analytical tools, platforms or data products, so 'hands-on' is ambiguous: it's unclear whether the person personally builds analyses/decks or mainly orchestrates analysts who do",
+      "Selection signal is heavily weighted to values, behaviors and EQ rather than verifiable, screenable competencies — easy to interview-on-vibe, hard to evidence",
+      "Domain is consumer/retail/CPG commerce consulting; the listed 'verticals' (incl. media, financial services) are example backgrounds of candidates, not markets the role serves — easy to misread as a multi-industry remit"
+    ],
+    "trueComplexity": "medium",
+    "riskAreas": [
+      "Scope ambiguity: delivery + sales + coaching in one medior role risks an unrealistic 'do-everything' hire and burnout/under-delivery on at least one axis",
+      "Unstated experience bar (redacted numbers) makes calibration and fair comparison of candidates difficult",
+      "No named tools/credentials means screening leans on soft signals (presence, EQ, communication), raising bias and mis-hire risk",
+      "Title/skill mismatch can attract pure-ecommerce specialists who lack the broader category-management/insights breadth actually needed (or vice versa)",
+      "Revenue expectation ('qualify leads, guide clients through to a sale') embedded in a delivery role — if BD targets are real, a delivery-strong hire may underperform commercially",
+      "Remote-anywhere-in-USA model puts a premium on self-direction and virtual relationship-building that the JD assumes but does not test for"
+    ],
+    "reflection": "Grounded only in the JD (no codebase, as expected for a consulting role), this reads as a medior commerce-consulting hire at Kantar NA Retail whose real 'body of work' is client engagements: mastering and applying Kantar's retail/shopper offer, turning retail and ecommerce data into a persuasive story and recommendations, running projects through a team of analysts, and progressively carrying some business-development weight under senior cover. The honest tension is between the narrow 'Ecommerce Consultant' label and a JD that actually asks for a multi-discipline retail generalist (sales, marketing, category management, ecommerce, insights) with strong client presence. Two things weaken the brief as written: redacted experience figures leave the seniority bar undefined, and the absence of any named tools or analytical platforms makes the role's day-to-day craft — and the screening for it — rest disproportionately on values and EQ rather than demonstrable skills. The complexity is genuinely mid-level: meaningful in client/project orchestration and commercial nuance, but explicitly scaffolded by senior consultants, so not high. The main hiring risk is the three-in-one scope (deliver, sell, coach) colliding with an undefined seniority bar.",
+    "confidence": 0.6,
+    "promptVersion": "need-analysis-v3"
+  },
+  "role": {
+    "title": "Ecommerce Consultant",
+    "seniority": "medior",
+    "roleFamily": "consulting",
+    "mustHaves": [
+      "Mid-level (multi-year) experience in sales, marketing, consulting and/or ecommerce at manufacturers, service providers, retailers or consultancies, with hands-on exposure to the retail industry",
+      "Working command of a translatable multi-discipline commerce skillset — able to reason across sales, marketing, category management, ecommerce and insights rather than a single specialism",
+      "Proven ability to manage and deliver multifaceted client projects end-to-end: scoping, planning, coordinating analysts/consultants, and shipping high-quality deliverables on time",
+      "Ability to translate a client's central business question into a structured solution and a compelling narrative ('the story') backed by data and recommendations",
+      "Strong client-facing communication: superb oral and written skills, presentation/readout delivery, active listening and influencing toward becoming a trusted advisor",
+      "Fluency with office/presentation tooling (PowerPoint, Excel or equivalents) to structure analysis and build client-ready decks",
+      "Consultative, self-driven, hands-on operating style with strong business acumen, accountability and emotional intelligence",
+      "Bachelor's degree"
+    ],
+    "niceToHaves": [
+      "Specific depth in omni-commerce / ecommerce — digital shelf, online assortment & search, marketplace and retailer.com performance",
+      "Exposure across diverse verticals (CPG, traditional retail, media, financial services, agencies, management consulting) that broadens pattern recognition",
+      "Familiarity with retail & shopper measurement data — POS/syndicated sales data, shopper panels, category and retailer performance datasets",
+      "Category management fluency (assortment, pricing, promotion, planogram logic)",
+      "Business-development instincts: spotting project leads, qualifying opportunities and supporting senior consultants through to a sale",
+      "Experience coaching or developing more junior consultants and analysts, formally or informally",
+      "Comfort working remotely within a distributed, cross-functional delivery team"
+    ],
+    "responsibilities": [
+      "Manage and deliver multifaceted client projects end-to-end with a team of consultants and analysts, ensuring quality and on-time delivery against agreed objectives and timelines",
+      "Support and grow long-term client relationships, becoming an emerging trusted advisor on omni-commerce and ecommerce challenges",
+      "Build mastery of the full Kantar NA Retail offer and apply the right capabilities to each client's central business question",
+      "Shape the project vision and narrative, contribute to proposals, and support overall project management and resourcing",
+      "Develop project leads, qualify new business opportunities and demonstrate capabilities to guide clients toward a sale, supported by senior consultants",
+      "Champion the offer internally and help develop more junior people through formal and informal training and coaching"
+    ],
+    "languages": [
+      "English"
+    ],
+    "promptVersion": "role-design-v3"
+  },
+  "case": {
+    "title": "Ecommerce Consultant Case — NorthStar Snacks: Diagnose the Ecommerce Decline & Shape Phase 2",
+    "brief": "You are a medior consultant in Kantar NA Retail. NorthStar Snacks (a synthetic North American better-for-you snacking CPG used for this exercise — the provided retail/shopper/ecommerce context fits the role, so the case is built on representative materials of that kind) has come to us worried that 'our ecommerce business is underperforming — help us fix it.' A junior analyst has already started pulling data and a deck before handing it to you; the pack is realistic, partly inconsistent, and partly half-finished. In ~1.5 hours, working as the consultant who orchestrates a small analyst team, you will diagnose what is actually happening, reconcile the data, shape the client-facing 'story', land 2-3 recommendations grounded in our category framework, and outline a Phase-2 scope/proposal. Assume you may use any LLM or office tooling you like to produce the artifacts — we are not testing typing or slide polish. We are testing judgment: how you read the materials before generating, how you handle an open client question, how you reconcile sources that disagree, and how you turn analysis into a defensible commercial recommendation. Where the brief is silent, make a defensible call and record it; do not wait for permission you do not have. Deliverables can be a short doc plus a 3-5 slide outline (or equivalent) — depth over volume.",
+    "repoSeed": "A client engagement pack (synthetic, representative of Kantar NA Retail work): (1) client_brief_NorthStar.docx — a one-page note from the client's ecommerce lead with the vague central ask 'our ecommerce business is underperforming, help us fix it', a redacted budget, and no definition of which channels or which 'ecommerce' they mean. (2) POS_syndicated_extract.xlsx — 52 weeks of syndicated POS sales by retailer, sub-category, $ and unit sales, %ACV distribution and average price; its 'ecommerce' column is retailer.com pickup/delivery only and EXCLUDES the largest marketplace. (3) digital_shelf_audit.csv — digital shelf metrics by retailer.com: search rank and share of search on key terms, content/PDP completeness score, out-of-stock rate (the hero SKU is OOS ~22% of weeks at the #1 retailer), ratings and review counts. (4) shopper_panel_summary.xlsx — panel buyer counts, penetration, repeat rate, online vs offline buyer overlap and basket, showing online buyers are actually GROWING when marketplace is included. (5) category_framework_onepager.pdf — Kantar's proprietary category management framework (assortment, pricing, promotion, planogram/digital-shelf logic) the recommendations should hang off. (6) draft_deck_v3.pptx — the junior analyst's half-built deck; one slide treats 'share of search' as market share, and a YoY chart mixes $ share and unit share on the same axis. (7) draft_SOW_phase2.docx — a partially filled scope of work / proposal with objectives, an empty approach section, blank team mix, and pricing inputs left as TBD. (8) data_dictionary.md — defines each metric and quietly notes the POS-vs-marketplace coverage gap and the differing 'ecommerce' definitions across the three data sources.",
+    "tasks": [
+      "Task 1 — Frame & reconcile (≈25 min): Read the pack before producing anything. Write a tightened problem statement that restates NorthStar's central business question in a specific, measurable form, and reconcile the three data sources (POS extract, digital shelf, shopper panel) — state whether ecommerce is genuinely declining and on what basis, calling out the coverage/definition gaps in data_dictionary.md. List the 2-3 questions you would put to the client before committing to a direction.",
+      "Task 2 — Tell the story (≈30 min): Produce the client-facing narrative as a 3-5 slide outline (headline → key drivers → 'so what'). Identify the single most important driver of the result. Where you reuse or correct anything inherited from draft_deck_v3.pptx, make your handling of it explicit rather than silently building on it.",
+      "Task 3 — Recommend & shape Phase 2 (≈25 min): Give 2-3 prioritized, sequenced recommendations tied explicitly to the category_framework_onepager.pdf, each with the expected business impact and how you would measure it. Then outline a Phase-2 scope in draft_SOW_phase2.docx: objectives, approach, which Kantar NA Retail capabilities/assets you would apply, the consultant+analyst team mix and rough timeline, and your pricing approach with assumptions stated (budget is redacted).",
+      "Task 4 — Decisions log (kept throughout, ≈10 min to finalize): Maintain a short running log of every call you made where the brief was open — what you chose, the alternative you rejected and why, and what you would have asked the client or your analyst team if you could. This is the normal record of a consultant working from an ambiguous brief, not a separate deliverable to dress up."
+    ],
+    "coverProbes": [
+      {
+        "id": "P1-open-business-question",
+        "kind": "underspecified",
+        "where": "client_brief_NorthStar.docx — 'our ecommerce business is underperforming, help us fix it', with redacted budget and no channel definition",
+        "reveals": "A strong candidate reframes the vague ask into a specific, measurable question and surfaces what must be clarified (which retailers, which definition of ecommerce, defend vs grow, success metric) before scoping work; a naive candidate answers the question exactly as posed and over-scopes a 'fix everything' response that cannot be delivered or priced.",
+        "decisionSpace": [
+          "Scope to defending share at the #1 retailer.com — fastest, narrowest, but ignores marketplace upside",
+          "Scope to growing absolute ecommerce $ across all channels including marketplace — bigger prize, harder to measure and resource",
+          "Scope first to fixing conversion via the digital shelf — concrete and ownable, but may not be the client's real growth question"
+        ]
+      },
+      {
+        "id": "P2-source-reconciliation-trap",
+        "kind": "verification_trap",
+        "where": "POS_syndicated_extract.xlsx 'ecommerce' decline vs shopper_panel_summary.xlsx growth vs digital_shelf_audit.csv OOS, with the coverage note buried in data_dictionary.md",
+        "reveals": "A strong candidate notices the three sources define 'ecommerce' differently and that the POS decline is partly a coverage artifact (marketplace excluded) compounded by hero-SKU out-of-stocks, so they re-baseline before recommending; a naive one-shot synthesis takes the POS headline 'ecommerce is declining' at face value, passes a shallow read, and recommends the wrong fix.",
+        "decisionSpace": [
+          "Treat POS as the source of truth and recommend defending retailer.com — clean story, but built on an incomplete denominator",
+          "Blend the sources and re-baseline total ecommerce including marketplace before any recommendation — most accurate, costs time and needs caveats",
+          "Flag the definitional gap and scope a short data-reconciliation step into Phase 2 before committing to a number — honest and sellable, but slower to a headline"
+        ]
+      },
+      {
+        "id": "P3-inherited-deck-trap",
+        "kind": "legacy_trap",
+        "where": "draft_deck_v3.pptx — a slide equating 'share of search' with market share, plus a YoY chart mixing $ share and unit share on one axis",
+        "reveals": "A strong candidate reads the inherited deck critically and catches/repairs the methodological errors before they reach the client; a naive candidate trusts the prior analyst's work and builds the narrative on top of a flawed slide.",
+        "decisionSpace": [
+          "Discard the flawed slides and rebuild from the raw data — safest, most rework",
+          "Keep the visuals but correct the methodology and footnote the change — preserves momentum, relies on the fix being right",
+          "Re-anchor the claim to a defensible metric (e.g. share of search as a leading indicator, not a share proxy) — keeps the insight, reframes the evidence"
+        ]
+      },
+      {
+        "id": "P4-proposal-commercials",
+        "kind": "ambiguity",
+        "where": "draft_SOW_phase2.docx — empty approach and team-mix sections, redacted budget, pricing inputs left TBD",
+        "reveals": "A strong candidate states explicit pricing and resourcing assumptions, matches a realistic consultant+analyst mix and timeline to the scope, and ties commercials to delivery risk; a naive candidate either ignores the commercial dimension or over-promises a scope no team could staff against an unknown budget.",
+        "decisionSpace": [
+          "Fixed-fee, deliberately narrow scope — predictable for the client, leaves upside and risk on the table",
+          "Phased time-and-materials starting with a paid diagnostic sprint — de-risks the ambiguity, harder initial sell",
+          "Value-based pricing tied to ecommerce share/$ recovery — aligns incentives, exposes Kantar to factors outside its control"
+        ]
+      }
+    ],
+    "timeboxHours": 1.5,
+    "rubricDimensions": [
+      {
+        "name": "framing",
+        "label": "Problem framing",
+        "weight": 0.2,
+        "description": "Turns an ambiguous need into a sound plan."
+      },
+      {
+        "name": "tooling",
+        "label": "Tooling fluency",
+        "weight": 0.25,
+        "description": "Drives AI and other tools well; iterates and verifies."
+      },
+      {
+        "name": "judgment",
+        "label": "Judgment",
+        "weight": 0.25,
+        "description": "Catches AI/tooling mistakes; validates; pushes back."
+      },
+      {
+        "name": "architecture",
+        "label": "Architecture",
+        "weight": 0.15,
+        "description": "Structure and trade-offs that fit the real materials and constraints."
+      },
+      {
+        "name": "transfer",
+        "label": "Transfer",
+        "weight": 0.15,
+        "description": "Capability transfers to THIS role's tools and responsibilities."
+      }
+    ],
+    "promptVersion": "case-design-v5"
+  },
+  "source": "llm",
+  "issues": [],
+  "fallbackReason": {},
+  "promptVersions": {
+    "analyze": "need-analysis-v3",
+    "role": "role-design-v3",
+    "case": "case-design-v5"
+  }
+}

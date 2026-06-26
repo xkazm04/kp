@@ -1,0 +1,196 @@
+{
+  "job": {
+    "id": "cal-011",
+    "title": "Account Executive",
+    "company": "SPECTRUM",
+    "role_family": "sales",
+    "seniority": "medior",
+    "source": "hf:jacob-hugging-face/job-descriptions"
+  },
+  "analysis": {
+    "realStack": [
+      "Salesforce.com (CRM) — logging sales calls, presentations, closed deals, follow-ups and pipeline to maximize territory potential",
+      "Order management software — placing/automating orders for new accounts",
+      "Sales administration artifacts — sales orders, contracts, billing forms, sales reports",
+      "Territory plan / book-of-business documents (built under the Sales Manager)",
+      "Spectrum Business product & pricing knowledge base — coax internet, video, voice; ancillary: custom hosting, desktop security, data backup/storage, toll-free, additional email, static IPs; individual vs. bundled rates and applicable taxes",
+      "The 'Spectrum Way' sales model + departmental Standards of Performance (SOP) — the prescribed methodology/playbook",
+      "Personal computer + standard office software applications",
+      "Personal vehicle / valid driver's license + clean driving record (field-based outside sales)",
+      "Prospecting toolkit — cold calling, canvassing/door-to-door, referrals and other lead-gen tactics",
+      "Sales self-development materials — sales books and courses for ongoing technique improvement"
+    ],
+    "coreResponsibilities": [
+      "Net-new logo acquisition: sell primary (coax internet, video, voice) and ancillary communications solutions to SMBs within an assigned territory, with explicit focus on generating new internet/voice/video customers",
+      "Full-cycle prospecting: self-generate ALL leads via varied tactics and work every lead from first contact to close",
+      "Build and execute a territory plan (under the Sales Manager's direction) to expand the customer base",
+      "Sell bundled service packages and quote accurate rates/taxes from complete product knowledge",
+      "Process orders through order management software; partner with an Account Coordinator on any order that can't be automated to keep contracts, billing forms and sales reports accurate and timely",
+      "Maintain disciplined, accurate records of all sales and prospecting activity in Salesforce",
+      "Meet/exceed quota and performance standards defined by SOP and the Spectrum Way model",
+      "Hand off customer-service and non-sales inquiries to the Customer Service department so selling time is protected",
+      "Continuously sharpen selling skills (practice with peers, read/attend courses) and attend sales meetings"
+    ],
+    "statedVsRealGaps": [
+      "Seniority mismatch: stated target is 'medior', but the JD's bar reads entry-to-junior — bachelor's OR equivalent experience, and B2B / outside-sales experience are only 'preferred', not required; the only hard requirements are English, comms-tech basics, and a driver's license.",
+      "Title vs. mandate: 'Account Executive' implies account management/farming and upsell, but the actual job is almost purely a NEW-customer HUNTER role (the JD repeatedly says 'new', 'prospecting', 'generate all leads'); existing-account care is explicitly handed off to Customer Service.",
+      "Inside vs. outside ambiguity: the title and Salesforce emphasis can read as desk/inside sales, but working conditions (inclement weather, driving record, physical/vision requirements) make clear this is FIELD outside sales — door-to-door/canvassing SMBs.",
+      "Truncated experience bar: the preferred-experience lines read 'outside sales experience ... preferred  years' with the numbers missing, so the intended minimum tenure is unspecified/ambiguous for screening.",
+      "Stated 'simplify and enhance the customer experience' sits in tension with the operating model — a high-transaction, short-closing-cycle quota machine optimized for volume, not consultative depth.",
+      "No compensation, quota number, or ramp expectations stated — the revenue/target reality that defines the job is absent from the text."
+    ],
+    "trueComplexity": "medium",
+    "riskAreas": [
+      "Burnout / turnover: high-transaction, short-closing-cycle field selling with self-sourced leads is one of the highest-attrition sales models; the role lives or dies on prospecting volume.",
+      "Pipeline-hygiene risk: hunters chronically under-maintain CRM; since territory potential and forecasting depend on Salesforce accuracy, sloppy logging silently degrades the whole territory's measurability.",
+      "Quoting accuracy: rates, bundle permutations and 'applicable taxes' must be exact — misquotes create order rejections, billing disputes and churn.",
+      "Compliance/liability: field role gated on a valid license and satisfactory driving record; driving incidents are a real operational and legal exposure.",
+      "Expectation-mismatch attrition: a candidate hired believing 'Account Executive' = account management may leave fast once the reality (cold field prospecting in all weather) lands; the screening bar should test prospecting grit, not account-management polish.",
+      "Ambiguous screening bar: blank experience-year minimums and 'preferred' (not required) B2B/outside-sales experience make consistent, defensible candidate filtering hard.",
+      "Single-product dependency: success is tightly coupled to Spectrum Business's coax footprint and competitiveness in the territory — factors largely outside the rep's control."
+    ],
+    "reflection": "This is a non-software role, so the 'real body of work' is not code but the role's operating materials — a Salesforce CRM territory, an order-management system, the Spectrum Way playbook and SOP, and the coax product/rate/tax catalog — and the JD is unusually concrete and well-grounded against all of them, so I can reflect the need confidently. Stripped to its evidence, the job is a field-based, net-new B2B SMB HUNTER selling standardized telecom bundles (internet/voice/video + ancillary services) on a high-volume, short-closing-cycle quota, with everything post-sale and non-sales explicitly offloaded so the rep stays on the phones and the doors. The biggest divergence is framing: the 'Account Executive' title and 'medior' target oversell what the requirements actually ask for — this is structurally an entry-to-junior outside-sales seat (degree-OR-experience, B2B merely preferred, only English/comms-basics/driver's-license truly required), and it is hunting, not account management. True complexity is medium, not high: the products and methodology are standardized and scripted (the Spectrum Way model, fixed rate cards), so the difficulty is operational and behavioral — sustained prospecting discipline, territory planning, CRM rigor, and quota resilience — rather than technical or consultative depth. The role's success therefore hinges far more on activity volume, organization and grit than on the technology knowledge the JD lists, and screening should be built around demonstrated short-cycle prospecting/closing track record (and CRM discipline), while fixing the title/seniority and blank experience-year ambiguities before posting.",
+    "confidence": 0.82,
+    "promptVersion": "need-analysis-v3"
+  },
+  "role": {
+    "title": "Account Executive",
+    "seniority": "medior",
+    "roleFamily": "sales",
+    "mustHaves": [
+      "Full-cycle outside (field) B2B sales: self-generate every lead through varied prospecting tactics (cold calling, canvassing/door-to-door, referrals) and personally work each opportunity from first contact to signed close",
+      "Net-new logo acquisition against a quota — proven ability to hunt and win new SMB customers, not farm existing accounts",
+      "Working knowledge of communications technologies and services, with an emphasis on telephone and internet fundamentals, sufficient to explain coax internet/video/voice and ancillary services and quote individual vs. bundled rates and applicable taxes accurately",
+      "Disciplined CRM hygiene in Salesforce.com — logging calls, presentations, closed deals and follow-ups so territory pipeline and reporting are always accurate",
+      "Build and execute a territory plan (under the Sales Manager's direction) to systematically expand the customer base within an assigned area",
+      "Accurate sales administration — place orders through order management software and partner with an Account Coordinator on non-automated orders to keep contracts, billing forms and sales reports correct and timely",
+      "Consistently meet or exceed defined performance standards (SOP / the Spectrum Way sales model)",
+      "Read, write, speak and understand English clearly in both spoken and written customer communication",
+      "Valid driver's license with a satisfactory driving record (field-based role with travel to customer sites in varied weather)",
+      "Competent use of a personal computer and standard office software applications"
+    ],
+    "niceToHaves": [
+      "Business-to-business (B2B) sales experience",
+      "Outside sales experience in a high-transaction, short closing-cycle model",
+      "Proven sales history of consistently meeting or exceeding targets",
+      "Bachelor's degree in business, marketing or a related field (or equivalent experience)",
+      "Prior experience selling telecommunications, internet, hosting or related technology solutions",
+      "Familiarity with structured sales methodologies and a habit of ongoing self-development (sales books, courses, peer practice)"
+    ],
+    "responsibilities": [
+      "Sell primary (coax-delivered internet, video, voice) and ancillary communications solutions (custom hosting, desktop security, data backup/storage, toll-free, additional email, static IPs and more) to small and medium-sized businesses within an assigned territory, with explicit focus on generating new internet/voice/video customers",
+      "Generate all sales leads through a variety of prospecting tactics and work every lead from initial contact through to sale",
+      "Develop and implement a territory plan, under the Sales Manager's instruction, designed to expand the customer base in the assigned territory",
+      "Sell bundled service packages and quote accurate individual/bundled rates and applicable taxes from complete product and pricing knowledge",
+      "Place orders through order management software and coordinate with the Account Coordinator on any order that cannot be automated, ensuring sales orders, contracts, billing forms and sales reports are accurate and submitted on time",
+      "Maintain accurate records of all sales and prospecting activity — calls, presentations, closed sales and follow-ups — in Salesforce.com to maximize territory potential",
+      "Meet and exceed performance standards as defined by the department Standards of Performance and the Spectrum Way sales model",
+      "Hand off customer-service and non-sales client inquiries to the Customer Service department so selling time stays protected",
+      "Continuously sharpen selling skills and product knowledge (practice with peers, read sales books, take courses) and attend/participate in sales meetings as established by management",
+      "Actively and consistently support all efforts to simplify and enhance the customer experience"
+    ],
+    "languages": [
+      "English"
+    ],
+    "promptVersion": "role-design-v3"
+  },
+  "case": {
+    "title": "Spectrum Business — Eastgate SMB Territory: 90-Day Plan, Salesforce Pipeline Triage & a Bundled Quote",
+    "brief": "You've just been assigned the Eastgate/Riverside commercial corridor as an outside Account Executive for Spectrum Business. The materials below are exactly what a new rep inherits: a Salesforce.com pipeline export, a book-of-business with serviceability notes, the product & pricing sheet, the 'Spectrum Way' Standards of Performance (SOP) activity targets, and a handful of inbound voicemails/emails. Your job in this exercise is to do the front half of the job — decide where to spend selling time, get the CRM truthful, and put one accurate, winnable quote in front of a real prospect. This is a sales-judgment exercise, not a typing test: a polished proposal that's quietly wrong on price, term, or serviceability is worse than a plain one that's right. Several inputs are deliberately incomplete or contradictory — that's normal for a live territory. Where the brief doesn't tell you what to do, make a defensible call and record it; don't stall. Hard timebox is 1.5 hours, so favor depth on a few decisions over covering everything. Keep a short DECISIONS log as you go (see the last task) — that's standard practice here, not extra work.",
+    "repoSeed": "You are handed five artifacts for the Eastgate/Riverside territory:\n\n1) SALESFORCE.COM PIPELINE EXPORT (~26 opportunity/lead records, CSV). Representative rows: 'Eastgate Dental Group' — Stage: Proposal, Amount: $310/mo, Last Activity: 47 days ago, no next step logged. 'Park Avenue Realty' — Stage: New, note 'emailed, wants to add 5 phone lines.' 'Brightway Logistics, 220 Eastgate Blvd' — Stage: New Lead, Source: list import — BUT the same account name and address also appears in the export with an Account Number and an active Business Internet 600 + Voice subscription (it's an existing customer double-loaded as a fresh lead). 'Summit Auto Body, 1100 Foundry Rd' — Stage: New Lead, hot per the list vendor. Several records have blank Next Step, owner = 'unassigned', or Close Dates already in the past.\n\n2) BOOK-OF-BUSINESS / SERVICEABILITY NOTES (spreadsheet): ~40 SMB addresses in the corridor with a 'Coax serviceable?' column. Most are 'Yes'; a cluster on Foundry Rd (including 1100 Foundry Rd / Summit Auto Body) is marked 'No — outside footprint, fiber-only building' and a few are 'Unknown — survey needed.'\n\n3) PRODUCT & PRICING SHEET (Spectrum Business). Business Internet: 100 Mbps std $74.99, 300 Mbps std $104.99, 600 Mbps std $164.99. PROMO (footnoted): 300 Mbps at $64.99/mo for the first 12 months, requires a 24-month term; reverts to standard $104.99 in months 13–24. Business Voice: $29.99/line/mo (unlimited nationwide); per-line monthly fees apply (see taxes). Toll-free: $15/mo + usage. Static IP: 1 = $14.99/mo, block of 5 = $29.99/mo. Data backup/storage: $9.99/mo. Desktop security: $7.99/seat/mo. Custom hosting: from $19.99/mo. Video (TV): from $39.99/mo (adds a broadcast/franchise fee). TAXES & FEES table: State communications services tax 7.44% on recurring charges; a $3.49/line regulatory + 911 recovery fee on each voice line; Federal USF recovery applies to voice; video adds a broadcast surcharge. Bundled internet+voice waives nothing automatically — the promo applies to the internet line item only.\n\n4) 'SPECTRUM WAY' SOP EXCERPT + STANDARDS OF PERFORMANCE: explicit company mandate to generate NEW internet/voice/video customers; activity standards of 25+ qualified contacts/day, 8 presentations/week; selling time is to be protected — non-sales/customer-service issues are handed to the Customer Service department.\n\n5) INBOUND QUEUE (notes): (a) voicemail from 'Cortez & Sons' — an existing customer — disputing a charge on last month's invoice and 'wants someone to call back today'; (b) email from Park Avenue Realty asking to add 5 phone lines; (c) a referral note: 'Lindqvist & Roe, a 14-person CPA firm at 480 Eastgate Blvd, current provider contract ends next month, wants reliable internet + phones, asked us to send pricing.'",
+    "tasks": [
+      "Build a 90-day territory plan for the Eastgate/Riverside corridor grounded in the book-of-business, serviceability notes and the SOP activity standards. Segment and prioritize the accounts, name your top 8–10 target accounts with a one-line reason each, and lay out the prospecting mix (cold calls, canvassing, referrals) you'd run to hit the 25 contacts/day and 8 presentations/week standards. Be explicit about how you weight chasing net-new logos versus easier ancillary upsells.",
+      "Triage the Salesforce.com pipeline export: re-stage or correct the records that are wrong, flag the data-hygiene problems (past-due close dates, blank next steps, unassigned owners, duplicates), and write the single next best action for each of the top ~10 records. Resolve the 'Brightway Logistics' and 'Summit Auto Body / 1100 Foundry Rd' records explicitly. Propose a lightweight weekly CRM-hygiene cadence you'd hold yourself to.",
+      "Produce a one-page quote and proposal for Lindqvist & Roe (14-person CPA firm, 480 Eastgate Blvd) for reliable internet + phones. Choose the right bundle, compute the EXACT monthly figure the customer will actually pay — including the promo term behavior and all applicable taxes and per-line fees — and confirm serviceability before you commit. Include the post-promo number, not just the teaser. Add a short objection-handling note for the pushback you expect from a price-sensitive professional-services buyer.",
+      "Triage the inbound queue (Cortez & Sons, Park Avenue Realty, Lindqvist & Roe): decide for each whether you work it, hand it off, or defer, and why. Then keep a short DECISIONS log covering every open call you made across all tasks — for each: what you chose, the alternative you rejected, and the one question you would have asked the Sales Manager or Account Coordinator before committing."
+    ],
+    "coverProbes": [
+      {
+        "id": "new-logo-vs-ancillary-mandate",
+        "kind": "ambiguity",
+        "where": "Task 1 — the territory plan must weight net-new internet/voice/video logos against quick ancillary upsells into existing/book accounts; the SOP states a net-new mandate but the activity/revenue clock starts immediately.",
+        "reveals": "A strong candidate notices the tension between the explicit new-customer mandate and the fastest path to early numbers, states which they're optimizing for and why, and flags that comp/SOP weighting is the deciding input they'd confirm. A naive one silently maximizes whatever is easiest (usually upsells) or just 'does both' with no prioritization logic.",
+        "decisionSpace": [
+          "Go all-in on net-new logos per the explicit mandate — best strategic alignment and likely comp accelerators, but slower ramp and weaker early activity numbers.",
+          "Run a balanced book: quick ancillary upsells to hit activity/revenue early while building net-new pipeline underneath — faster numbers, but risks drifting from the new-customer mandate the role is measured on.",
+          "Default to net-new but explicitly gate the mix on confirming how net-new vs. ancillary is weighted in the SOP/comp plan with the Sales Manager before locking the plan."
+        ]
+      },
+      {
+        "id": "dup-and-off-footprint-records",
+        "kind": "legacy_trap",
+        "where": "Task 2 — 'Brightway Logistics' is an existing customer double-loaded as a fresh lead, and 'Summit Auto Body / 1100 Foundry Rd' sits in the 'No — outside coax footprint' cluster in the serviceability notes.",
+        "reveals": "A candidate who reads the data before acting catches that Brightway is not a new-logo opportunity and that Foundry Rd can't be served on coax, and routes both correctly instead of burning selling time prospecting them. A naive one-shot generates outreach/next-steps for both as if they were live net-new leads.",
+        "decisionSpace": [
+          "Treat Brightway as a retention/upsell account (not a new logo) and dispo Summit Auto Body as not-serviceable — protects selling time, but forgoes any shot at the Foundry Rd cluster.",
+          "Merge/flag the Brightway duplicate and escalate the Foundry Rd serviceability to the Account Coordinator/survey team before writing it off — most thorough, costs a little time up front.",
+          "Keep Brightway as a prospect only if a genuine cross-sell exists, and pursue Foundry Rd only if a fiber/alternative product path is confirmed — opportunistic, but risks chasing dead serviceability."
+        ]
+      },
+      {
+        "id": "quote-promo-term-and-tax-math",
+        "kind": "verification_trap",
+        "where": "Task 3 — the Lindqvist & Roe quote: the 300 Mbps promo is $64.99 for months 1–12 on a 24-month term then reverts to $104.99, and voice carries a $3.49/line regulatory+911 fee plus 7.44% communications tax; a CPA firm needs neither TV nor (likely) a 5-IP block.",
+        "reveals": "A careful candidate prices the all-in number, surfaces the month-13 step-up, adds per-line fees and tax, confirms serviceability at 480 Eastgate Blvd, and doesn't pad the bundle with video/IPs the firm doesn't need. Naive one-shot generation produces a clean-looking quote that uses only the promo rate, omits taxes/fees, and/or bundles irrelevant products — passing a 'looks like a quote' glance but wrong on what the customer actually pays.",
+        "decisionSpace": [
+          "Lead with the all-in promo price but disclose the month-13 step-up and every tax/fee plainly — most transparent, but the headline looks pricier than a competitor's teaser.",
+          "Quote the $64.99 teaser to win the meeting and footnote term/taxes — most competitive on first glance, but invites the misquote/billing-dispute and churn risk the role is warned about.",
+          "Present both the 12-month promo and the standard post-promo all-in with the delta and total-term cost, letting the buyer choose — most accurate and trust-building, but a more complex sell to a price-sensitive buyer."
+        ]
+      },
+      {
+        "id": "protect-selling-time-handoff",
+        "kind": "underspecified",
+        "where": "Task 4 — the inbound queue mixes a real sales opportunity (Park Avenue Realty's 5 lines), a warm net-new (Lindqvist & Roe), and an existing-customer billing dispute (Cortez & Sons) the SOP says to hand to Customer Service.",
+        "reveals": "A candidate who understands the role routes the Cortez billing dispute to Customer Service to protect selling time while still managing the relationship, and prioritizes the two revenue items. A naive one tries to 'sell' or personally resolve every inbound, or drops the CS issue entirely.",
+        "decisionSpace": [
+          "Hand the Cortez billing dispute to Customer Service immediately and spend your time on Park Avenue and Lindqvist — maximizes selling time, but risks looking dismissive to an existing customer if the handoff isn't warm.",
+          "Do a fast warm handoff (log it, set expectations with Cortez, loop in Customer Service) then work the two sales items — protects the relationship and selling time, costs a few minutes.",
+          "Personally chase the Cortez resolution because retention/referral value is high — strongest relationship signal, but violates the protect-selling-time SOP and eats prospecting capacity."
+        ]
+      }
+    ],
+    "timeboxHours": 1.5,
+    "rubricDimensions": [
+      {
+        "name": "framing",
+        "label": "Problem framing",
+        "weight": 0.2,
+        "description": "Turns an ambiguous need into a sound plan."
+      },
+      {
+        "name": "tooling",
+        "label": "Tooling fluency",
+        "weight": 0.25,
+        "description": "Drives AI and other tools well; iterates and verifies."
+      },
+      {
+        "name": "judgment",
+        "label": "Judgment",
+        "weight": 0.25,
+        "description": "Catches AI/tooling mistakes; validates; pushes back."
+      },
+      {
+        "name": "architecture",
+        "label": "Architecture",
+        "weight": 0.15,
+        "description": "Structure and trade-offs that fit the real materials and constraints."
+      },
+      {
+        "name": "transfer",
+        "label": "Transfer",
+        "weight": 0.15,
+        "description": "Capability transfers to THIS role's tools and responsibilities."
+      }
+    ],
+    "promptVersion": "case-design-v5"
+  },
+  "source": "llm",
+  "issues": [],
+  "fallbackReason": {},
+  "promptVersions": {
+    "analyze": "need-analysis-v3",
+    "role": "role-design-v3",
+    "case": "case-design-v5"
+  }
+}

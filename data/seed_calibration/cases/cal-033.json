@@ -1,0 +1,180 @@
+{
+  "job": {
+    "id": "cal-033",
+    "title": "Attorney in Brooklyn, NY",
+    "company": "Brooklyn Legal Services Corporation A",
+    "role_family": "legal",
+    "seniority": "medior",
+    "source": "hf:jacob-hugging-face/job-descriptions"
+  },
+  "analysis": {
+    "realStack": [
+      "Legal research platforms (Westlaw / LexisNexis)",
+      "Case / matter management system (legal-aid tools such as LegalServer)",
+      "Court e-filing (NYSCEF) and NY state/civil court procedure",
+      "Client intake, interviewing, and case files",
+      "Document drafting (pleadings, motions, briefs, advocacy letters)",
+      "Fellowship project proposal / grant narrative documents",
+      "Foreign-language client communication (the JD explicitly weights non-English proficiency)"
+    ],
+    "coreResponsibilities": [
+      "Direct legal representation of low-income / underserved Brooklyn clients (the core mission of Brooklyn Legal Services Corp. A, though the JD does not name a practice area)",
+      "Develop and propose a self-directed fellowship project 'acceptable to' the firm — implying the candidate shapes the scope of their own work",
+      "Serve culturally and linguistically diverse communities, using a second language where possible",
+      "Client counseling, intake, and casework typical of a civil legal-services attorney",
+      "(Implied, not stated) litigation, administrative advocacy, or community legal education depending on the funded project"
+    ],
+    "statedVsRealGaps": [
+      "The 'jobDescription' is not a job description — it is a garbled fellowship-solicitation blurb. It states almost no concrete responsibilities, practice area, qualifications, bar status, or compensation, so the stated need is nearly empty.",
+      "stack is empty in the need and the JD names zero tools/systems; realStack here is inferred from what a U.S. legal-services attorney actually uses, not from the evidence supplied.",
+      "seniorityTarget 'medior' conflicts with the fellowship framing: fellowships are usually early-career, project-funded posts (Equal Justice Works / Skadden style), often filled by recent grads, not mid-level laterals.",
+      "The only explicit selection criteria are diverse cultural background and a second language — substantive legal skills, practice area, and admission requirements are left entirely unstated.",
+      "'projects acceptable to firm' plus 'time needed to develop projects' strongly implies the candidate must bring or co-design a fundable project — a structural condition the need's metadata does not capture."
+    ],
+    "trueComplexity": "medium",
+    "riskAreas": [
+      "JD is too thin and partly corrupted to assess candidate fit on any substantive dimension — practice area, court level, and required experience are unknown.",
+      "Self-directed fellowship structure means a hire's success depends on securing/defining a project the firm will fund and accept — high uncertainty before day one.",
+      "Real legal-services practice (housing, immigration, benefits, family) is high-stakes for vulnerable clients despite the modest seniority label — mismatched expectations risk under-supporting the attorney.",
+      "Language/cultural-diversity emphasis suggests immigrant or multilingual client communities; a hire without the relevant language would not meet the one explicit criterion.",
+      "No mention of NY bar admission, which is non-negotiable for an 'Attorney' title — an unscreened gap."
+    ],
+    "reflection": "This need is only weakly grounded: the supplied jobDescription is a fragmentary fellowship-recruitment notice from Brooklyn Legal Services Corporation A, not a structured JD, so it yields almost no concrete responsibilities or qualifications to reflect against. What the evidence DOES tell us is more about hiring mechanics than legal work — the firm is recruiting fellows, prizes cultural diversity and second-language ability, and expects candidates to develop a project 'acceptable to' the firm, which points to a funded, self-directed fellowship rather than a standard mid-level attorney slot. Against that, the role's REAL body of work (inferred, since none was supplied) is ordinary civil legal-services lawyering: research platforms, court e-filing, client intake, and drafting in service of low-income Brooklyn clients — genuinely consequential work, hence a 'medium' complexity rather than 'low', with real-world stakes that can run high. The honest gap is that the metadata ('medior', 'legal') over-formalizes a posting that is really an early-career, project-contingent fellowship call missing the basics (practice area, bar admission, compensation). Treat any fit assessment as provisional until a real JD is obtained.",
+    "confidence": 0.3,
+    "promptVersion": "need-analysis-v3"
+  },
+  "role": {
+    "title": "Attorney (Legal Fellow), Brooklyn, NY",
+    "seniority": "medior",
+    "roleFamily": "legal",
+    "mustHaves": [
+      "Admission to the New York State Bar in good standing (or admission pending / eligibility for admission by the start date)",
+      "Demonstrated experience in direct civil legal representation of low-income or otherwise underserved clients",
+      "Strong legal research and writing skills, including drafting pleadings, motions, briefs, and advocacy letters (Westlaw / LexisNexis)",
+      "Working knowledge of New York State and civil court procedure, including electronic filing via NYSCEF",
+      "Ability to conceive, scope, and propose a self-directed, fundable fellowship project 'acceptable to' the firm and to see it through to delivery",
+      "Client-facing competence: intake, interviewing, counseling, and ongoing case/matter management",
+      "Sound legal judgment and the ability to manage a caseload independently with limited supervision (calibrated to a mid-level / medior attorney)"
+    ],
+    "niceToHaves": [
+      "Proficiency in a language other than English relevant to Brooklyn's communities (e.g. Spanish, Mandarin, Russian, Haitian Creole) — explicitly weighted by the solicitation",
+      "Diverse cultural background and/or lived experience with the populations served",
+      "Prior fellowship or grant-funded experience (e.g. Equal Justice Works, Skadden) and grant-narrative / project-proposal writing",
+      "Familiarity with legal-aid case management systems (e.g. LegalServer)",
+      "Defined practice-area experience (housing, immigration, family, public benefits, consumer) that the funded project could build on",
+      "Litigation or administrative-advocacy experience, and/or community legal education and 'know-your-rights' work"
+    ],
+    "responsibilities": [
+      "Provide direct legal representation and counsel to low-income and underserved Brooklyn clients",
+      "Design, propose, and carry out a self-directed fellowship project whose scope is acceptable to the firm",
+      "Conduct client intake, interviewing, counseling, and end-to-end casework, maintaining accurate case files",
+      "Serve culturally and linguistically diverse communities, using a second language where possible",
+      "Perform legal research, draft pleadings/motions/briefs and advocacy materials, and handle court e-filing and appearances as the matter requires",
+      "Undertake litigation, administrative advocacy, or community legal education as defined by the funded project"
+    ],
+    "languages": [
+      "English (required)",
+      "An additional language other than English (strongly preferred)"
+    ],
+    "promptVersion": "role-design-v3"
+  },
+  "case": {
+    "title": "Brooklyn Legal Fellow — From Intake to Action: An Eviction Matter and Your Fellowship Project",
+    "brief": "You are a Legal Fellow at a Brooklyn civil legal-services office representing low-income, often limited-English-proficient tenants in Kings County Housing Court. A walk-in matter has just landed on your desk with a near-term court date, and—because this is a fellowship line—you also need to begin shaping the self-directed project that will define your time here. Work only from the materials in the matter file; Westlaw/LexisNexis, NYSCEF (e-filing), and LegalServer (matter management) are available to you. Spend about 90 minutes producing the work below. We are not testing legal-research typing or polished formatting—assume any draft could be machine-generated, so the draft itself proves nothing. What we evaluate is judgment: what you actually notice when you read the whole file, how you verify the law before you rely on it, how you treat a client whose goal reached you secondhand, and how you scope a project to what the office can realistically fund and accept. Where the file is silent, thin, or self-contradictory, make a reasonable assumption, act on it, and write it down—do not wait for permission, and do not invent facts. Note: some materials reflect a Haitian Creole–speaking client and an intake taken with a family member interpreting; that is ordinary for this practice. The provided materials fit this role, so build your work directly on them.",
+    "repoSeed": "A single client matter file, plus the office's fellowship paperwork, all synthetic but realistic:\n1) Intake notes (LegalServer printout, partially handwritten and incomplete): client 'M. Joseph', a tenant in a multiple-dwelling building in Flatbush, Brooklyn. Notes say client 'is scared of eviction, owes back rent, just wants a payment plan so the family isn't put out.' A margin note records that intake was taken with the client's 16-year-old child interpreting from Haitian Creole; the client's own stated goal is not directly quoted, and a line reads 'client also said something about the heat? — unclear.'\n2) Court papers (scanned): a Notice of Petition and Petition, nonpayment proceeding, Kings County Civil Court, Housing Part, Index No. L&T 51234/2026, with a return date 4 calendar days out. The petition pleads arrears and references a written rent demand.\n3) A copy of the rent demand attached to the petition (dated, but the served-vs-mailed method is ambiguous) and a one-page rent ledger from the landlord: the ledger shows two of the client's payments applied to 'late fees' and 'legal' rather than to rent, so the 'arrears' figure in the petition is larger than rent actually unpaid.\n4) Three cellphone photos and a 311 reference number indicating no heat/hot water complaints over the prior winter, plus an HPD violation summary line item for the unit.\n5) A short voicemail transcript (auto-translated, flagged 'machine translation, may be inaccurate') in which the client seems to mention wanting 'time' but it is unclear whether that means time to stay or time to move.\n6) The office's 'Fellowship Project Guidelines' one-pager: vague, stating the project 'must address an unmet legal need in our communities and be of a scope acceptable to the firm and consistent with available funding,' with a footnote that current grant funding emphasizes 'eviction defense and language-access' and that purely policy/advocacy projects 'require additional approval.'\n7) Access notes: Westlaw/LexisNexis, NYSCEF, and the office language line are available; the prior fellow's closed-matter templates are in LegalServer.",
+    "tasks": [
+      "Triage the matter file end to end and write a short case-assessment memo (roughly half a page to a page): state the procedural posture and the single most time-sensitive action with its actual deadline; list the viable defenses and counterclaims you see, and for each name the specific fact in the file (or the fact you would still need) that supports it; and recommend your immediate next steps. Explicitly call out anything in the file that changes the strategy from the way the client's goal was framed at intake.",
+      "Draft the ONE document the matter most needs before its next court date — your choice among, e.g., a verified Answer with affirmative defenses and counterclaims, an Order to Show Cause to vacate or stay, or a settlement/advocacy letter to opposing counsel. Keep it focused (a working draft, not a finished brief) and cite the controlling New York authority you rely on. State at the top which document you chose and why, and make explicit which citations you have confirmed as good and current law versus those you still need to verify.",
+      "Using the office's Fellowship Project Guidelines and what this matter tells you about the client community, draft a one-page self-directed fellowship project proposal: the problem you would take on, the project type (direct litigation, administrative advocacy, or community legal education), the scope and a rough first-year plan, and a short paragraph on why this fits what the office can realistically fund and accept.",
+      "Keep a short DECISIONS log alongside your work (bullets are fine). For every call you made where the file left it open — which document to draft, how to handle the client's goal reaching you through a 16-year-old family interpreter, which defenses to pursue versus merely preserve, how broadly to scope the fellowship project — record what you chose, the alternative you rejected and why, and the one question you would put to your supervising attorney. Treat this as the working note you would normally keep, not a test artifact."
+    ],
+    "coverProbes": [
+      {
+        "id": "authority-good-law",
+        "kind": "verification_trap",
+        "where": "Task 2 (the drafted document) and any legal authority cited in Task 1",
+        "reveals": "A naive one-shot draft cites confident, brief-shaped authority — but New York landlord-tenant law has recent moving parts (e.g., the 2019 HSTPA changing the rent-demand notice period, the shifting status of ERAP stays) and LLMs readily fabricate or misstate cases and statutes. A strong candidate treats every citation as unverified until KeyCited/Shepardized, names the actual controlling provisions (e.g., RPAPL 711(2)/731, Real Property Law §235-b warranty of habitability), checks the current status of any ERAP-based stay rather than assuming it, and visibly separates confirmed authority from to-confirm. A weak one submits plausible citations they never checked.",
+        "decisionSpace": [
+          "Cite only authority personally verified as good and current law via KeyCite/Shepard's and flag where research is incomplete — slower and looks less 'finished', but ethically sound and safe to file.",
+          "Draft with bracketed citation placeholders plus an explicit research to-do list — fully transparent about gaps, but reads as an unfinished work product.",
+          "Rely on a current NY landlord-tenant practice treatise on Westlaw and cite the primary authority it points to — efficient and usually current, but secondary sources can lag the most recent procedural or program changes."
+        ]
+      },
+      {
+        "id": "buried-defenses",
+        "kind": "legacy_trap",
+        "where": "The rent ledger, the HPD/311 heat records, and the ambiguous rent demand inside the matter file (surfaced in Task 1, acted on in Task 2)",
+        "reveals": "The headline ('client owes rent, wants a payment plan') invites a quick stipulation. But a careful reader sees the ledger misapplies payments (so the pleaded arrears are overstated and the rent demand may be defective) and the heat/hot-water record supports a warranty-of-habitability defense and an abatement counterclaim. A strong candidate reads the whole file before drafting and reframes the matter around these defenses; a naive one solves only the stated problem and bargains away real leverage.",
+        "decisionSpace": [
+          "Treat it as a straight nonpayment and negotiate a payment-plan stipulation — fastest path to keeping the client housed short-term, but waives strong defenses and counterclaim leverage.",
+          "Raise habitability and defective-demand/overstated-arrears defenses and counterclaim for an abatement, and litigate — maximizes leverage and potential recovery, but slower, riskier, and more resource-intensive for the client.",
+          "Plead the defenses to preserve them while signaling openness to a settlement that credits an abatement against arrears — balanced, protects rights while keeping a deal alive, but harder to execute well."
+        ]
+      },
+      {
+        "id": "secondhand-client-goal",
+        "kind": "ambiguity",
+        "where": "Intake notes and voicemail transcript — the client's actual objective reached the file only through a teenage family interpreter and a machine translation (Task 1, logged in Task 4)",
+        "reveals": "The client's true goal (stay vs. negotiate time to move) is genuinely unclear and was obtained in a way that raises both reliability and ethics concerns (using a minor child as interpreter, machine translation). A strong candidate refuses to lock strategy to a possibly-distorted instruction, arranges a professional Haitian Creole interpreter to confirm the goal, and takes only a minimal protective step before then. A naive candidate proceeds on the recorded goal to hit the deadline.",
+        "decisionSpace": [
+          "Proceed on the goal as recorded through the child interpreter to meet the 4-day deadline — fast, but risks acting on a distorted and unethically-obtained instruction.",
+          "Pause substantive strategy until a professional Haitian Creole interpreter confirms the client's objective, filing only a minimal protective step (bare answer / adjournment request) meanwhile — client-centered and ethically clean, at the cost of time.",
+          "Use the office language line for a quick supervised confirmation of the goal only, then proceed — pragmatic middle path, but still leans on ad hoc interpretation."
+        ]
+      },
+      {
+        "id": "fellowship-scope",
+        "kind": "underspecified",
+        "where": "Task 3, against the deliberately vague Fellowship Project Guidelines",
+        "reveals": "'Scope acceptable to the firm' is undefined on purpose. A strong candidate reads the funding signals (eviction defense + language access favored; pure policy needs extra approval), scopes a project that is fundable and accepted, and names what they would confirm with the office before committing. A naive candidate proposes an impressive but unfundable or out-of-mandate moonshot, or a project untethered from the office's actual priorities.",
+        "decisionSpace": [
+          "Propose a narrow direct-representation project tightly aligned to the office's existing eviction-defense/language-access docket and funding — high acceptance odds, lower visibility and systemic impact.",
+          "Propose a systemic impact-litigation or policy project — higher potential impact, but harder to fund and staff, needs extra approval, and may exceed a fellow's mandate.",
+          "Propose a community legal education / know-your-rights initiative for the Haitian Creole–speaking tenant community — clear community value and feasible within funding, but less individually measurable and may not satisfy litigation-focused funders."
+        ]
+      }
+    ],
+    "timeboxHours": 1.5,
+    "rubricDimensions": [
+      {
+        "name": "framing",
+        "label": "Problem framing",
+        "weight": 0.2,
+        "description": "Turns an ambiguous need into a sound plan."
+      },
+      {
+        "name": "tooling",
+        "label": "Tooling fluency",
+        "weight": 0.25,
+        "description": "Drives AI and other tools well; iterates and verifies."
+      },
+      {
+        "name": "judgment",
+        "label": "Judgment",
+        "weight": 0.25,
+        "description": "Catches AI/tooling mistakes; validates; pushes back."
+      },
+      {
+        "name": "architecture",
+        "label": "Architecture",
+        "weight": 0.15,
+        "description": "Structure and trade-offs that fit the real materials and constraints."
+      },
+      {
+        "name": "transfer",
+        "label": "Transfer",
+        "weight": 0.15,
+        "description": "Capability transfers to THIS role's tools and responsibilities."
+      }
+    ],
+    "promptVersion": "case-design-v5"
+  },
+  "source": "llm",
+  "issues": [],
+  "fallbackReason": {},
+  "promptVersions": {
+    "analyze": "need-analysis-v3",
+    "role": "role-design-v3",
+    "case": "case-design-v5"
+  }
+}

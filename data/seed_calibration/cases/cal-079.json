@@ -1,0 +1,175 @@
+{
+  "job": {
+    "id": "cal-079",
+    "title": "Audit Staff Accountant",
+    "company": "Spherion",
+    "role_family": "finance",
+    "seniority": "lead",
+    "source": "hf:jacob-hugging-face/job-descriptions"
+  },
+  "analysis": {
+    "realStack": [
+      "Firm engagement/audit software for automating trial balance → financial statements (e.g., CCH ProSystem fx Engagement, CaseWare, or Thomson Reuters — JD only says 'the firm's software programs')",
+      "Microsoft Excel (schedules, analytical procedures, depreciation/accrual computations)",
+      "Microsoft Word (workpapers, memos, financial statement drafts)",
+      "Trial balance and general ledger systems",
+      "Audit workpaper / confirmation tooling (cash, legal, insurance, revenue confirmations)",
+      "Single audit procedures (Uniform Guidance / Yellow Book) and fund testing",
+      "Internal controls testing frameworks",
+      "GAAP / general accounting principles",
+      "Tax and business-consulting workpapers (engagements span accounting, audit, tax, consulting)"
+    ],
+    "coreResponsibilities": [
+      "Reconcile client records to the trial balance, run analytical procedures, and compute schedules for prepaids, accruals, property & equipment, and depreciation expense",
+      "Perform internal-controls testing, single audits, and testing across various funds",
+      "Confirm cash, legal, insurance, revenue, and similar accounts with third parties",
+      "Use firm software to carry the process from trial balance through to financial statements",
+      "Support additional accounting, auditing, tax, and consulting work as engagements require",
+      "Travel to client sites within the tri-state area (own reliable transportation required)"
+    ],
+    "statedVsRealGaps": [
+      "Seniority is sharply contradicted: the metadata sets seniorityTarget='lead' and notes nothing of it, but the JD is explicitly 'entry-level audit staff accountant' — a true junior, supervised executor role. Screening to 'lead' would mismatch the actual need.",
+      "Stated tech is thin ('proficient use of computers', Excel, Word) versus real need: the day-to-day runs on the firm's audit/engagement software, which the JD references only vaguely and never names — the heaviest real tool is the least specified.",
+      "CPA is not required at hire but must be earned 'within [X] years of date of hire' — so the role demands a CPA-track pipeline, not a credentialed auditor on day one.",
+      "Single audit / internal-controls / fund testing is real audit complexity rarely already held by an entry-level hire — the JD asks an entry-level candidate to perform work that normally implies senior-supervised training.",
+      "Several JD fields are garbled or blank (working hours, years of experience, hours, CPA window), so quantitative requirements are ambiguous and must be confirmed with the client."
+    ],
+    "trueComplexity": "medium",
+    "riskAreas": [
+      "Seniority mismatch: metadata 'lead' vs an explicitly entry-level JD will mis-target sourcing and screening if taken literally.",
+      "Single-audit / Uniform Guidance and fund testing expertise is uncommon at entry level — expect a real training and review burden on senior staff.",
+      "CPA-pipeline risk: candidate must pass the CPA within the firm's window; failure to credential is a retention/role-fit risk.",
+      "Unnamed engagement software means ramp-up time is unknown; 'computer proficiency' does not predict speed on ProSystem/CaseWare-class tools.",
+      "Travel + 'reliable transportation' requirement narrows the candidate pool and adds a logistics/geographic constraint (Lakewood NJ, tri-state clients).",
+      "Garbled JD numerics (hours, required years, CPA timeframe) create ambiguity that could surface as expectation mismatches post-hire."
+    ],
+    "reflection": "Reflected against the real body of work, this is a genuine entry-level public-accounting audit role: the candidate's actual 'codebase' is the firm's engagement software plus Excel/Word workpapers, and the substance of the job is hands-on audit execution — TB reconciliation, prepaid/accrual/PP&E/depreciation schedules, internal-controls and single-audit testing, and third-party confirmations — under senior review. The work is procedurally demanding (single audits and fund testing are non-trivial), but the role itself is the junior executor, so true complexity is medium, not high. The most important divergence is governance, not skills: the metadata seniorityTarget of 'lead' flatly contradicts the JD's 'entry-level,' and acting on the metadata would distort the whole search. The second divergence is tooling visibility — the real workhorse software is unnamed while only generic 'computer/Excel/Word' proficiency is stated, understating the onboarding curve. Net: a coherent, fundable entry-level audit-staff need where the realistic profile is a recent accounting grad on a CPA track with internship exposure and reliable transportation — provided the 'lead' label and the blank numeric fields are corrected with the client.",
+    "confidence": 0.72,
+    "promptVersion": "need-analysis-v3"
+  },
+  "role": {
+    "title": "Audit Staff Accountant",
+    "seniority": "junior",
+    "roleFamily": "finance",
+    "mustHaves": [
+      "Bachelor's degree in Accounting, Finance, Business, or a related field",
+      "Working knowledge of general accounting principles (GAAP) sufficient to reconcile client records to a trial balance and judge whether supporting schedules tie out",
+      "Ability to prepare schedule computations for prepaids, accruals, property & equipment, and depreciation expense, and to run basic analytical procedures",
+      "Proficiency in Microsoft Excel for audit schedules, analytical procedures, and depreciation/accrual computations",
+      "Proficiency in Microsoft Word for workpapers, memos, and financial-statement drafts",
+      "Eligible and committed to the CPA track — on a path to earn the CPA within the firm's stated window from date of hire",
+      "Aptitude to learn and operate the firm's audit/engagement software to carry an engagement from trial balance through to financial statements (the heaviest real tool, named only generically in the JD)",
+      "Ability to execute supervised audit testing — internal controls, single audit, and various-fund testing — and to perform third-party confirmations of cash, legal, insurance, and revenue accounts with accuracy and a documented audit trail",
+      "Clear, concise written and verbal communication with engagement teams and clients",
+      "Reliable personal transportation for on-site work at client locations across the tri-state area"
+    ],
+    "niceToHaves": [
+      "Prior internship with a public accounting firm",
+      "Hands-on exposure to an audit/engagement platform (e.g., CCH ProSystem fx Engagement, CaseWare, or Thomson Reuters)",
+      "Familiarity with Single Audit / Uniform Guidance (Yellow Book) and fund-accounting testing",
+      "Experience with confirmation workflows and workpaper documentation standards",
+      "Exposure to tax and business-consulting engagements beyond pure audit",
+      "Judgment to use spreadsheet automation or AI assistance for routine computations while independently verifying that the numbers tie to source records"
+    ],
+    "responsibilities": [
+      "Reconcile client records to the trial balance, perform analytical procedures, and compute schedules for prepaids, accruals, property & equipment, and depreciation expense",
+      "Perform testing on internal controls, single audits, and various funds",
+      "Confirm cash, legal, insurance, revenue, and similar accounts with third parties",
+      "Use the firm's software to automate the process from trial balance through to financial statements",
+      "Support additional accounting, auditing, tax, and consulting work as engagements require",
+      "Travel to client sites within the tri-state area to perform fieldwork"
+    ],
+    "languages": [
+      "English"
+    ],
+    "promptVersion": "role-design-v3"
+  },
+  "case": {
+    "title": "GSC FY25 Audit — Prepaids, Analytical Review & a Depreciation Question",
+    "brief": "You are joining the Garden State Components, Inc. (GSC) audit as a staff accountant for the December 31, 2025 fiscal year-end. GSC is a privately held New Jersey distributor and this is a recurring engagement, so the prior-year (FY24) workpapers are available to you. The in-charge senior has handed you a slice of the current-year fieldwork: the prepaid insurance area, a set of expense accounts for analytical review, and one depreciation question that came up in planning. Work from the materials provided, recompute rather than re-trust where it matters, and document your work the way you would in the firm's workpapers so a reviewer can follow exactly what you agreed to what. A few inputs are incomplete or carried forward from last year on purpose — handle those gaps the way you would on a live engagement rather than guessing silently. Budget about one hour: depth on the items you actually touch matters far more than covering the whole trial balance.",
+    "repoSeed": "A current-year audit workpaper set for Garden State Components, Inc. (GSC), FYE 12/31/2025: (1) TB_GSC_FY25.xlsx — the adjusted trial balance with a FY24 comparative column; it foots and is internally balanced. (2) Lead_Schedules/B-1_Prepaid_Insurance.xlsx — a client-prepared prepaid rollforward for two policies that ties, in total, to the prepaid insurance line on the trial balance. (3) Lead_Schedules/F-2_PPE_Depreciation.xlsx — a client-prepared property & equipment and accumulated-depreciation rollforward with current-year depreciation listed asset-by-asset. (4) Invoices/INS-2025-Policy-A.pdf — general liability policy, $48,000, 12-month term running 10/1/2025–9/30/2026; and Invoices/SVC-2025-Policy-B.pdf — equipment service contract, $24,000, 24-month term running 7/1/2025–6/30/2027. (5) PY_Workpapers/FY24_B-1_Prepaid.pdf and PY_Workpapers/FY24_F-2_PPE.pdf — signed-off prior-year workpapers; the FY24 PP&E workpaper carries a reviewer tickmark on asset #1180 (Forklift, acquired 2018, 7-year life) noting it reached the end of its useful life and was fully depreciated at 12/31/2024. (6) Engagement_Memo_FY25.docx — the planning memo, which states overall materiality, performance materiality, and the clearly-trivial / summary-of-unadjusted-misstatements posting threshold, but whose field for the analytical-variance investigation threshold is blank/illegible. (7) Analytical_Review_FY25.xlsx — a flux template with FY25 and FY24 balances and $/% change and explanation columns for the assigned accounts (insurance expense, repairs & maintenance, depreciation expense, rent).",
+    "tasks": [
+      "Reconcile the client-prepared prepaid insurance lead schedule (Lead_Schedules/B-1_Prepaid_Insurance.xlsx) to the prepaid insurance balance on the FY25 trial balance, then independently recompute the 12/31/2025 prepaid balance and current-year insurance expense for each policy from the source invoices in /Invoices (Policy A general liability; Policy B equipment service contract). Quantify any misstatement at both the individual-policy and net level and draft the proposed adjusting journal entry (AJE), with tickmarks showing what you agreed to what.",
+      "Complete the FY25 analytical review (Analytical_Review_FY25.xlsx) for your assigned accounts — insurance expense, repairs & maintenance, depreciation expense, and rent — by computing the year-over-year $ and % variances, deciding which variances require investigation, and documenting a substantive explanation for each one that does. State explicitly the threshold you used to decide what to investigate and where it came from.",
+      "Investigate the depreciation-expense variance specifically: trace the relevant assets on Lead_Schedules/F-2_PPE_Depreciation.xlsx against the prior-year PP&E workpaper (PY_Workpapers/FY24_F-2_PPE.pdf), recompute current-year depreciation, and resolve the treatment of any asset whose FY25 depreciation is not supported. Note any proposed adjustment.",
+      "Keep a short DECISIONS log (half a page is plenty) plus a one-paragraph 'notes to the in-charge senior' summarizing your proposed adjustments and open items. In the log, for each call you made where the assignment was open or the inputs were incomplete, record what you decided, the alternative you set aside, and the question you would have put to the senior or to client personnel."
+    ],
+    "coverProbes": [
+      {
+        "id": "vt-prepaid-ties-but-wrong",
+        "kind": "verification_trap",
+        "where": "B-1 prepaid insurance lead schedule foots and its total ties to the prepaid line on TB_GSC_FY25.xlsx, so a 'does it tie / does it foot' check passes. But recomputation from the two invoices shows the client amortized Policy A from the wrong start month (overstating prepaid) and amortized Policy B over 12 months instead of its 24-month term (understating prepaid); the two errors partially offset so the net misstatement is small while each line is individually larger.",
+        "reveals": "A naive one-shot response confirms the schedule ties to the trial balance and signs the area off as correct. A strong candidate recomputes each policy from the source invoice dates/terms, recognizes that tying to the (client-recorded) trial balance is not evidence of substantive accuracy, surfaces both line-level errors, and reasons explicitly about the offsetting/net effect rather than reporting only a clean total.",
+        "decisionSpace": [
+          "Book a single AJE correcting both policies to the recomputed balances — most precise, but the net financial-statement effect is small and it adds a posted entry.",
+          "Evaluate the net effect against the memo's posting (SUM/clearly-trivial) threshold and, if below it, log it as an unadjusted/passed misstatement instead of posting — keeps the schedule lean while disclosing a known error.",
+          "Correct the individually larger policy error, document the offsetting one, and escalate to the senior whether this engagement nets offsetting misstatements before finalizing — defers a firm-policy judgment rather than deciding it alone."
+        ]
+      },
+      {
+        "id": "amb-analytical-threshold",
+        "kind": "underspecified",
+        "where": "The Engagement_Memo_FY25.docx field defining the threshold for investigating analytical-review variances is blank/illegible, even though overall materiality, performance materiality, and the posting threshold are all stated; the FY24 workpaper also shows the dollar threshold that was used last year.",
+        "reveals": "A naive response silently picks an arbitrary percentage or dollar figure (or investigates everything / nothing) with no rationale. A strong candidate notices the gap, anchors the threshold to a defensible basis, states the assumption on the workpaper, and adds it to the open items for the senior — i.e., proceeds without being blocked while making the judgment auditable.",
+        "decisionSpace": [
+          "Reuse the prior-year fixed-dollar variance threshold from the FY24 workpaper for consistency — defensible continuity, but risks carrying forward a stale benchmark that ignores FY25 risk.",
+          "Derive the threshold as a percentage of the performance materiality stated in the memo — ties directly to current-year risk assessment, but introduces an assumed percentage that itself should be confirmed.",
+          "Document the missing input, proceed with an explicitly stated assumed threshold, and flag it as an open item for the senior to confirm — most transparent, but leaves the figure provisional until reviewed."
+        ]
+      },
+      {
+        "id": "leg-fully-depreciated-forklift",
+        "kind": "legacy_trap",
+        "where": "The FY25 depreciation-expense flux is partly driven by asset #1180 (Forklift), which the FY24_F-2_PPE prior-year workpaper tickmark documents as fully depreciated at 12/31/2024 and therefore should carry no FY25 depreciation — yet the client's current-year F-2 still books a full year of depreciation on it.",
+        "reveals": "A candidate who recomputes depreciation straight off the client's F-2 (cost × rate, asset by asset) perpetuates the over-depreciation. A candidate who reads the FY24 workpaper before recomputing catches that #1180 was already fully depreciated, traces the conflict, and proposes the correct treatment instead of trusting the supplied schedule.",
+        "decisionSpace": [
+          "Recompute depreciation respecting the FY24-documented useful life, treat #1180 as fully depreciated, and propose reversing the unsupported FY25 depreciation — corrects the in-period error directly.",
+          "Read the prior-year note as indicating the forklift left service, treat it as a disposal — derecognize cost and accumulated depreciation and compute any gain/loss — and reflect that in the rollforward, which addresses the balance sheet as well as expense.",
+          "Tie to the client's F-2 as presented but raise the conflicting prior-year note as an open item for the senior before adjusting a carried-forward matter — slower and leaves the misstatement unposted, but avoids unilaterally correcting a prior-period position."
+        ]
+      }
+    ],
+    "timeboxHours": 1.0,
+    "rubricDimensions": [
+      {
+        "name": "framing",
+        "label": "Problem framing",
+        "weight": 0.2,
+        "description": "Turns an ambiguous need into a sound plan."
+      },
+      {
+        "name": "tooling",
+        "label": "Tooling fluency",
+        "weight": 0.25,
+        "description": "Drives AI and other tools well; iterates and verifies."
+      },
+      {
+        "name": "judgment",
+        "label": "Judgment",
+        "weight": 0.25,
+        "description": "Catches AI/tooling mistakes; validates; pushes back."
+      },
+      {
+        "name": "architecture",
+        "label": "Architecture",
+        "weight": 0.15,
+        "description": "Structure and trade-offs that fit the real materials and constraints."
+      },
+      {
+        "name": "transfer",
+        "label": "Transfer",
+        "weight": 0.15,
+        "description": "Capability transfers to THIS role's tools and responsibilities."
+      }
+    ],
+    "promptVersion": "case-design-v5"
+  },
+  "source": "llm",
+  "issues": [],
+  "fallbackReason": {},
+  "promptVersions": {
+    "analyze": "need-analysis-v3",
+    "role": "role-design-v3",
+    "case": "case-design-v5"
+  }
+}

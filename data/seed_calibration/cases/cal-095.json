@@ -1,0 +1,197 @@
+{
+  "job": {
+    "id": "cal-095",
+    "title": "Governance, Risk & Compliance Program Manager",
+    "company": "Meta",
+    "role_family": "project_management",
+    "seniority": "senior",
+    "source": "hf:jacob-hugging-face/job-descriptions"
+  },
+  "analysis": {
+    "realStack": [
+      "GRC platforms / risk-and-control management tooling (e.g. RSA Archer, ServiceNow GRC, MetricStream, OneTrust) — owned and configured, not just used",
+      "Risk register / risk inventory + remediation tracking workflows",
+      "Control & regulatory frameworks: NIST, ISO 27001, PCI-DSS, COBIT, GAPP, HIPAA, GDPR",
+      "Quantitative risk and threat models (likelihood/impact, prioritization scoring)",
+      "KPI/KRI definition + BI dashboarding and data-visualization tools (Tableau/Looker-class) for risk and performance reporting",
+      "Evidence inputs: security-vulnerability scan data, internal audit/assessment reports, operational-incident records",
+      "IT/cloud control surface knowledge: web, middleware, IaaS/PaaS/SaaS, databases, operating systems, infrastructure, social-media platform risk",
+      "Governance artifacts: operating models, RACI/engagement models, control narratives, policy and standards documents",
+      "Program/project management tooling and change-management practices (inception-to-delivery, org change rollout)",
+      "Professional certification knowledge base: CISSP, CISA, CISM, CRISC, CIPP (or equivalents)",
+      "Data-privacy regulatory interpretation and at-scale implementation practice",
+      "Executive-facing communication artifacts: risk briefings, decision memos, accountability/decision logs"
+    ],
+    "coreResponsibilities": [
+      "Continuously identify and assess risks to Enterprise Engineering's critical processes and assets via technical and non-technical channels (vulnerabilities, audits/assessments, incidents)",
+      "Mature and automate repeatable processes to inventory, prioritize, manage, remediate, and monitor risk across the EE environment",
+      "Build and run risk frameworks that help business partners balance risk exposure against growth and innovation",
+      "Operate as interpreter/liaison between EE and enterprise SME teams in a highly matrixed, fast-moving org; develop and socialize operating models",
+      "Own the data, technology, and automation platforms that drive risk and performance reporting and insights",
+      "Develop quantitative risk and threat models that feed risk reporting and business prioritization",
+      "Define and maintain KPIs/KRIs and dashboards; distill complex risk data into impactful messaging for non-technical leadership",
+      "Drive risk-based decision-making and accountability through challenging leadership conversations",
+      "Interpret and implement data-privacy/protection regulatory requirements at scale; track the security/regulatory landscape"
+    ],
+    "statedVsRealGaps": [
+      "The JD fuses two profiles that rarely co-reside in one person: a strategic, influence-driven program/risk manager AND a hands-on IT-controls/security SME who can build quantitative threat models and own GRC platforms. The 'realistic' candidate pool for the full union is thin.",
+      "'Manage the data, technology and automation platforms' reads as near-engineering platform ownership, yet the role is titled and framed as program management — the actual depth of hands-on tooling/automation work expected is left ambiguous.",
+      "Experience thresholds are blank ('years working experience…', 'years experience working within an IT org…') — the numeric bar that would calibrate the stated 'senior' target has been stripped, so leveling intent is unverifiable from the text.",
+      "Certifications are listed broadly (CISSP + CISA + CISM + CRISC + CIPP) as 'or similar'; together they span security engineering, audit, risk, and privacy — signalling a desired breadth few individuals actually hold, so they function as preferred signals, not a literal checklist.",
+      "Regulatory scope (ISO, PCI, NIST, COBIT, GAPP, HIPAA, GDPR) is wide; the JD does not say which are load-bearing for EE, so depth-vs-breadth expectations across regimes are unstated.",
+      "No codebase or work-product evidence was supplied — expected for a GRC program role — so this reflection is grounded only in the JD's own statements, not in artifacts that would confirm how technical or how strategic the day-to-day really is."
+    ],
+    "trueComplexity": "high",
+    "riskAreas": [
+      "Unicorn scope: strategic risk leadership + deep IT/cloud control expertise + quantitative modeling + executive comms + platform ownership in one req risks a long, mis-targeted search or an over-leveled hire who is thin in one pillar.",
+      "Influence-without-authority dependency: success hinges on navigating a highly matrixed org and 'socializing operating models' — outcomes depend on org dynamics and stakeholder buy-in the JD can't guarantee, making impact hard to attribute.",
+      "Hands-on vs. oversight ambiguity on the automation/data platforms could cause expectation mismatch between hiring manager and candidate.",
+      "Breadth of regulatory frameworks invites surface-level coverage; a candidate strong in privacy (CIPP/GDPR) may be weak on PCI/HIPAA controls, or vice versa.",
+      "Stripped experience numbers undermine consistent screening and could let seniority drift during interviews.",
+      "Quantitative threat/risk modeling is called out but unquantified — if Meta expects rigorous statistical risk quantification (vs. qualitative heat-maps), the bar is materially higher than most GRC PMs deliver."
+    ],
+    "reflection": "This is a non-software, enterprise-risk program role, so the absence of a codebase is expected and not a defect; the 'real body of work' here is GRC tooling, risk registers, control/regulatory frameworks, audit and incident evidence, dashboards, and the operating models and leadership artifacts that move risk decisions. The JD is detailed enough to extract clear responsibilities, and its center of gravity is sound: identify→prioritize→remediate→monitor risk for Meta's Enterprise Engineering, and translate that into decisions leadership will own. The honest tension is breadth versus depth — the req asks for a strategic, matrixed program leader who is simultaneously a technical IT/cloud-controls SME, a quantitative risk modeler, a data-platform owner, and an executive communicator. Each pillar is legitimate, but the union is rare, and the text leaves two things underspecified: how hands-on the platform/automation ownership really is, and (because the experience-year fields are blank) exactly where the seniority bar sits. The practical recommendation is to decide which two or three pillars are load-bearing for EE and screen hard on those, treating the certification and full regulatory list as preferred-breadth signals rather than mandatory gates. Complexity is genuinely high in the role's own terms — Meta-scale, matrixed, multi-regulatory, quantitative — which the 'senior' target correctly reflects.",
+    "confidence": 0.72,
+    "promptVersion": "need-analysis-v3"
+  },
+  "role": {
+    "title": "Governance, Risk & Compliance Program Manager",
+    "seniority": "senior",
+    "roleFamily": "project_management",
+    "mustHaves": [
+      "Several years in a GRC discipline — information/physical security, internal audit, data privacy, or risk & compliance — within an IT/technology organization",
+      "Hands-on implementation of IT risk frameworks, controls, and methodologies (NIST, ISO 27001, PCI-DSS, COBIT, GAPP, HIPAA, GDPR), with the judgment to know which are load-bearing for a given environment",
+      "Working knowledge of risks and controls across the IT control surface: web, middleware, cloud IaaS/PaaS/SaaS, databases, operating systems, and infrastructure",
+      "Designing and operating repeatable, automatable processes to inventory, prioritize, remediate, and monitor risk (risk register / remediation workflows)",
+      "Interpreting and implementing data-privacy and protection regulatory requirements at scale",
+      "Defining KPIs/KRIs and building risk & performance dashboards with data-visualization/BI tools (Tableau/Looker-class)",
+      "Program/project management from inception to delivery, including process and organizational change rollout, with impact articulated via metrics",
+      "Navigating highly matrixed, fast-moving environments — developing and socializing operating models and serving as interpreter/liaison between engineering and enterprise SME teams",
+      "Executive-grade communication: distilling complex, technical risk data into impactful messaging and driving risk-based decisions and accountability in challenging leadership conversations",
+      "Discerning business-relevant risk from technology control deficiencies and translating it into prioritization",
+      "Strong analytical, research, and problem-solving skills with keen attention to detail; able to work independently and as part of a team"
+    ],
+    "niceToHaves": [
+      "Industry certifications: CISSP, CISA, CISM, CRISC, CIPP, or similar (breadth across security, audit, risk, and privacy is a plus, not a literal checklist)",
+      "Owning and configuring GRC platforms end to end (RSA Archer, ServiceNow GRC, MetricStream, OneTrust) — including gathering business, technical, and data requirements",
+      "Developing quantitative risk and threat models (likelihood/impact, prioritization scoring) to drive reporting and business prioritization",
+      "Managing the data, technology, and automation platforms behind risk and performance reporting",
+      "Familiarity with social-media and large-consumer-platform risk surfaces",
+      "Staying current on industry trends and regulatory/security developments that shape the threat and compliance landscape"
+    ],
+    "responsibilities": [
+      "Continuously identify and assess risks to critical processes and assets through technical and non-technical channels — security vulnerabilities, audits/assessments, and operational incidents",
+      "Mature and automate repeatable processes to inventory, prioritize, manage, remediate, and monitor risk across the environment",
+      "Build and run risk frameworks that help business partners balance risk exposure against growth and innovation",
+      "Serve as interpreter and liaison between engineering and enterprise SME teams in a highly matrixed, fast-moving org; develop and socialize operating models to optimize risk and compliance engagement",
+      "Own the data, technology, and automation platforms that drive key risk and performance reporting and insights",
+      "Develop quantitative risk and threat models that feed risk reporting and business prioritization",
+      "Define and maintain KPIs/KRIs and dashboards, distilling complex risk data into impactful messaging for non-technical leadership",
+      "Drive risk-based decision-making and accountability through challenging conversations with leadership teams",
+      "Interpret and implement data-privacy/protection regulatory requirements at scale and track the security/regulatory landscape affecting the environment"
+    ],
+    "languages": [
+      "SQL"
+    ],
+    "promptVersion": "role-design-v3"
+  },
+  "case": {
+    "title": "GRC Quarterly Risk Review: Reconcile, Re-score, and Brief Leadership",
+    "brief": "You are the incoming senior Governance, Risk & Compliance Program Manager at a fast-moving, highly matrixed technology org (web, middleware, IaaS/PaaS/SaaS, databases, and a social-platform surface). The quarterly Risk Review with non-technical leadership (a VP and two enterprise SME leads) is in two business days. The analyst who left handed over a folder of materials in inconsistent shape: a risk register whose scoring nobody fully trusts, raw vulnerability scan output, an internal audit report, an operational incident log, a privacy/regulatory tracker, and the scoring model and exec-brief format your predecessor used. Leadership has started questioning last quarter's prioritization (\"we spent the quarter on the wrong things\"). Your job for this exercise is not to remediate anything technically — it is to produce a defensible, prioritized risk picture across these evidence channels, decide whether the existing scoring methodology is sound enough to stand behind in front of leadership, and brief them with a clear recommendation including who owns what. The provided materials fit this role directly; act on them the way a GRC program owner would. Timebox is a hard 2 hours — depth and judgment over coverage. The materials are deliberately incomplete and partly inconsistent; where the brief is silent, make a call, keep moving, and record it (see Task 4). Assume any spreadsheet formula, memo, or model you produce could be machine-generated — what we are evaluating is the judgment encoded in your choices, not the polish of the output.",
+    "repoSeed": "A handover folder (`grc_handover/`) containing: (1) `risk_register.xlsx` — 38 open risk items; columns Risk ID, Title, Domain (web/middleware/IaaS/database/OS/social-platform), Inherent Likelihood (1-5), Inherent Impact (1-5), Control Effectiveness (1-5), Residual Score, Owner, Status, Framework Mapping (NIST CSF / ISO 27001 / PCI-DSS / GDPR / HIPAA), Last Reviewed — with several rows missing Residual Score, a few stale/blank owners, and one item (R-014, a GDPR cross-border data-transfer exposure) scored Likelihood 2 / Impact 2. (2) `vuln_scan_2026Q2.csv` — ~600 scanner findings with CVSS v3.1 base scores, asset IDs, and a `lifecycle_tag` column where ~30 high-CVSS findings sit on assets tagged `decommission_pending` or `out_of_scope`. (3) `internal_audit_Q1.pdf` — six findings, two of them repeat findings from last year, with a footnote that one \"Critical\" finding is a documentation/evidence gap rather than a control failure. (4) `incident_log.csv` — 20 operational incidents over 12 months; two near-miss data-export incidents map to R-014. (5) `risk_scoring_model.xlsx` — the engine behind the register: a formula tab computing risk as Likelihood × Impact on a 1-5 ordinal scale, a `Residual = Inherent − Control Effectiveness` column, and a legacy `Heatmap thresholds (2023)` tab whose color bands and impact-dollar definitions were re-baselined mid-2025 (noted in a cell comment) but never propagated. (6) `privacy_reg_tracker.xlsx` — GDPR article mapping plus an `active_exposure` flag set on the R-014 data flow. (7) `operating_model_v1.md` — the current RACI / engagement model between engineering and enterprise SME teams, ambiguous on who enforces remediation SLAs across the matrix. (8) `exec_brief_template.md` — last quarter's one-page leadership briefing format, which leads with raw CVSS Critical/High counts.",
+    "tasks": [
+      "Task 1 — Prioritized risk picture. Reconcile the three evidence channels (`vuln_scan_2026Q2.csv`, `internal_audit_Q1.pdf`, `incident_log.csv`) against `risk_register.xlsx` into a single ranked view of the top ~8 risks for the leadership review. State explicitly the prioritization lens you are using and why it fits a leadership audience; handle out-of-scope/decommissioned assets and repeat audit findings deliberately rather than dropping or double-counting them.",
+      "Task 2 — Stand behind (or fix) the scoring methodology. Stress-test `risk_scoring_model.xlsx`: decide whether the existing Likelihood × Impact ordinal heatmap is sound enough to put in front of leadership, or whether it needs repair or replacement (e.g., a quantified expected-loss / FAIR-style banding). Make the change you'd actually defend, recompute the affected top items, and note any methodological limitation you are choosing to live with for now.",
+      "Task 3 — One-page executive decision memo. Produce a single-page briefing for the VP and two SME leads: the prioritized risks, your scoring recommendation, three proposed KRIs/KPIs you would track, and a recommended remediation-accountability operating model for the #1 risk (who owns the SLA across the engineering↔SME matrix). Pitch it for a non-technical audience and force one clear decision.",
+      "Task 4 — DECISIONS log. Keep a short running log (half a page is fine) of every call you made where the materials were open or contradictory: what you chose, the alternative you rejected, and the one question you would have put to the team if they were in the room. Treat this as normal program-management hygiene, not a test artifact."
+    ],
+    "coverProbes": [
+      {
+        "id": "P1-prioritization-lens",
+        "kind": "underspecified",
+        "where": "Task 1 — the brief asks for the \"top ~8 risks\" but never defines what makes a risk top: technical severity, likelihood×impact, regulatory/fine exposure, remediation cost, or expected loss.",
+        "reveals": "A strong candidate names the lens explicitly, justifies it for a leadership audience, and notes it is a choice the team should ratify; a naive submission silently inherits an implicit lens (usually CVSS or the register's existing Residual Score) and presents it as objective fact.",
+        "decisionSpace": [
+          "Regulatory/business-exposure-weighted (privacy fines, audit obligations dominate) — best for a leadership conversation about where money and attention go, but softer on technical urgency and harder to defend to engineering.",
+          "Existing Likelihood×Impact residual heatmap as-is — fastest, internally consistent, lets leadership compare to last quarter, but perpetuates whatever bias the inherited model carries.",
+          "Blended expected-loss / quantified ranking (probability × dollar impact) — most rigorous and defensible upward, but data is thin so it requires stated assumptions and risks false precision."
+        ]
+      },
+      {
+        "id": "P2-legacy-scoring-and-template",
+        "kind": "legacy_trap",
+        "where": "`risk_scoring_model.xlsx` (the `Residual = Inherent − Control Effectiveness` convention and the re-baselined `Heatmap thresholds (2023)` tab cell comment) and `exec_brief_template.md` (which leads with CVSS Critical/High counts).",
+        "reveals": "A strong candidate reads the existing convention before regenerating — notices residual already nets out controls (so re-scoring inherent risk double-counts mitigation), catches the stale 2023 thresholds vs. the mid-2025 re-baseline, and declines to copy the CVSS-count framing for a non-technical audience; a naive candidate regenerates fresh inherent scores or mirrors the template's technical framing wholesale.",
+        "decisionSpace": [
+          "Preserve the inherited residual-risk convention and stale thresholds for continuity, but flag both explicitly so leadership sees the caveat — low effort, comparable to last quarter, but ships a known-flawed baseline.",
+          "Re-baseline transparently to the corrected mid-2025 thresholds and recompute residual cleanly — most correct, but breaks quarter-over-quarter comparability and costs time inside the 2h budget.",
+          "Quarantine the legacy column/tab, score the top items by hand with documented logic, and propose a migration plan — pragmatic for the review, but leaves two methodologies coexisting temporarily."
+        ]
+      },
+      {
+        "id": "P3-channel-reconciliation-trap",
+        "kind": "verification_trap",
+        "where": "Cross-referencing `vuln_scan_2026Q2.csv` CVSS scores against `risk_register.xlsx`, `privacy_reg_tracker.xlsx` (R-014 `active_exposure` flag), and `incident_log.csv` (two near-miss data-export incidents on R-014).",
+        "reveals": "A one-shot ranking by raw CVSS passes a shallow check (\"all Criticals are accounted for\") yet is subtly wrong: ~30 high-CVSS findings sit on `decommission_pending`/`out_of_scope` assets and inflate the list, while R-014 — scored low technically but flagged as live regulatory exposure with two corroborating incidents — is the real top risk and gets buried. A strong candidate reconciles channels, filters dead assets, and elevates R-014 on regulatory + incident evidence.",
+        "decisionSpace": [
+          "CVSS-led technical ranking with an explicit out-of-scope exclusion pass — clean and auditable for engineering, but structurally under-weights the low-CVSS/high-regulatory R-014.",
+          "Business/regulatory-impact-led ranking that promotes R-014 to the top on the privacy flag and incident corroboration — aligns with leadership's concern, but requires defending why a 'low technical score' item leads.",
+          "Hybrid: rank by reconciled impact while carrying a separate, explicitly-labeled exception list for decommissioning assets — most complete, but more moving parts to present in a one-pager."
+        ]
+      },
+      {
+        "id": "P4-remediation-ownership",
+        "kind": "ambiguity",
+        "where": "Task 3 — recommending the remediation-accountability operating model for the #1 risk against the ambiguous engineering↔SME RACI in `operating_model_v1.md`.",
+        "reveals": "Success here depends on org dynamics the materials can't fully resolve, so a strong candidate names the trade-off between centralizing vs. federating SLA accountability, states the assumption they're making, and identifies whose buy-in they'd need; a naive candidate asserts a crisp RACI as if the matrix dependency didn't exist.",
+        "decisionSpace": [
+          "Centralize SLA enforcement under the GRC program (single accountable owner) — clear accountability and easy to report on, but invites pushback in a matrixed org and can make GRC the bottleneck.",
+          "Federate to the owning engineering team with GRC as monitor/escalation path — respects existing autonomy and scales, but SLA slippage is harder to enforce without authority.",
+          "Co-own via a joint Eng+SME remediation council with GRC convening — balances buy-in and accountability, but adds coordination overhead and depends on sustained executive sponsorship to hold."
+        ]
+      }
+    ],
+    "timeboxHours": 2.0,
+    "rubricDimensions": [
+      {
+        "name": "framing",
+        "label": "Problem framing",
+        "weight": 0.2,
+        "description": "Turns an ambiguous need into a sound plan."
+      },
+      {
+        "name": "tooling",
+        "label": "Tooling fluency",
+        "weight": 0.25,
+        "description": "Drives AI and other tools well; iterates and verifies."
+      },
+      {
+        "name": "judgment",
+        "label": "Judgment",
+        "weight": 0.25,
+        "description": "Catches AI/tooling mistakes; validates; pushes back."
+      },
+      {
+        "name": "architecture",
+        "label": "Architecture",
+        "weight": 0.15,
+        "description": "Structure and trade-offs that fit the real materials and constraints."
+      },
+      {
+        "name": "transfer",
+        "label": "Transfer",
+        "weight": 0.15,
+        "description": "Capability transfers to THIS role's tools and responsibilities."
+      }
+    ],
+    "promptVersion": "case-design-v5"
+  },
+  "source": "llm",
+  "issues": [],
+  "fallbackReason": {},
+  "promptVersions": {
+    "analyze": "need-analysis-v3",
+    "role": "role-design-v3",
+    "case": "case-design-v5"
+  }
+}

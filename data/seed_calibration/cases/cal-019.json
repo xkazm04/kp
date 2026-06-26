@@ -1,0 +1,173 @@
+{
+  "job": {
+    "id": "cal-019",
+    "title": "Bank President Jobs in Columbus, Ohio",
+    "company": "AD   ZipRecruiter",
+    "role_family": "hr",
+    "seniority": "medior",
+    "source": "hf:jacob-hugging-face/job-descriptions"
+  },
+  "analysis": {
+    "realStack": [
+      "Core banking platform (e.g. Fiserv, Jack Henry, or FIS) — deposits, loans, GL",
+      "Loan origination & credit risk systems; loan committee packets and credit memos",
+      "Regulatory and compliance frameworks: OCC/FDIC/Federal Reserve exams, BSA/AML, CRA, Reg Z/Reg E, Dodd-Frank, FDICIA",
+      "Financial statements, ALCO reports, call reports (FFIEC), and board/director materials",
+      "CRM and commercial pipeline tools; treasury management and ALM/interest-rate-risk models",
+      "Excel financial models, budget/forecast workbooks, capital and liquidity plans",
+      "Audit, internal controls, and ERM documentation"
+    ],
+    "coreResponsibilities": [
+      "Own P&L for the bank or market: deposit growth, loan production, net interest margin, efficiency ratio",
+      "Set and execute strategy; report to and partner with the board of directors and holding-company leadership",
+      "Carry regulatory and fiduciary accountability — safety and soundness, exam relationships, audit findings",
+      "Lead asset/liability management, credit quality, capital adequacy, and liquidity oversight",
+      "Build and lead the senior team; own talent, culture, and community/business-development presence in the Columbus market"
+    ],
+    "statedVsRealGaps": [
+      "The supplied 'jobDescription' is a ZipRecruiter SEARCH QUERY ('search for bank president jobs in columbus ohio'), not an actual job posting — it states no employer, no tools, and no responsibilities to extract",
+      "roleFamily is tagged 'hr', but Bank President is a C-suite/executive banking and general-management role, not an HR function — the taxonomy is mismatched",
+      "seniorityTarget is 'medior', which is inconsistent with the reality of a Bank President role (executive / top-of-house)",
+      "stack and responsibilities arrays are empty; everything in realStack/coreResponsibilities here is inferred from the job TITLE and industry norms, not from any grounded posting"
+    ],
+    "trueComplexity": "high",
+    "riskAreas": [
+      "Analysis is essentially ungrounded: with only a search string, any 'fit' judgment would be guessing — pull the actual ZipRecruiter listing(s) before relying on this",
+      "Wrong roleFamily ('hr') and seniority ('medior') will misroute screening, comp benchmarking, and candidate matching",
+      "Bank President responsibilities vary widely by institution size (community bank vs. regional vs. division of a national bank) — without the employer, scope and required experience are indeterminate",
+      "Regulatory/fiduciary exposure means a real screen needs concrete evidence (charter type, asset size, regulator, prior P&L scope) that the query does not provide"
+    ],
+    "reflection": "There is no real body of work to reflect against here — and no real job description either. The 'jobDescription' field is a ZipRecruiter search instruction, so the need is too thin to extract genuine responsibilities or tools; the realStack and coreResponsibilities above are derived from the job TITLE and standard community/regional-bank executive norms, not from the supplied facts. Independent of that thinness, the metadata is internally inconsistent: a Bank President is a top-of-house executive general-management role with direct regulatory and fiduciary accountability, which contradicts both the 'hr' roleFamily and the 'medior' seniority tag. In the role's own terms the work is genuinely high-complexity (P&L ownership, ALM, credit quality, capital/liquidity, board and examiner relationships), but that scope swings dramatically with institution size and charter — none of which is given. Bottom line: retrieve the actual ZipRecruiter posting(s) and correct the roleFamily to an executive/general-management family and seniority to executive before any matching or screening is attempted.",
+    "confidence": 0.25,
+    "promptVersion": "need-analysis-v3"
+  },
+  "role": {
+    "title": "Bank President — Columbus, Ohio",
+    "seniority": "lead",
+    "roleFamily": "executive",
+    "mustHaves": [
+      "Proven P&L ownership of a bank or market unit, with a demonstrable track record across deposit growth, loan production, net interest margin, and efficiency ratio",
+      "Deep command of US banking regulation and examination management — OCC/FDIC/Federal Reserve exam relationships, BSA/AML, CRA, Reg Z/Reg E, Dodd-Frank, FDICIA — and the fiduciary duty of safety and soundness",
+      "Asset/liability and balance-sheet leadership: credit quality, capital adequacy, liquidity, and interest-rate risk via ALCO/ALM",
+      "Commercial and credit judgment at the executive level — loan committee, credit memos, and building a commercial lending pipeline",
+      "Executive leadership and board engagement — building and leading a senior team and reporting to a board of directors and holding-company leadership",
+      "Fluency with core banking, loan origination, and bank financial reporting — call reports (FFIEC), ALCO/financial statements, and capital and liquidity plans"
+    ],
+    "niceToHaves": [
+      "Established Columbus, Ohio market presence with a community and business-development network",
+      "Experience steering a bank through a regulatory exam cycle, M&A integration, or de novo/charter growth",
+      "Depth in treasury management and commercial CRM/pipeline tooling",
+      "Formal credentials such as a graduate banking school diploma, MBA, CPA, or CFA"
+    ],
+    "responsibilities": [
+      "Own full P&L for the bank or Columbus market — deposit growth, loan production, net interest margin, and efficiency ratio",
+      "Set and execute the bank's strategy and report to and partner with the board of directors and holding-company leadership",
+      "Carry regulatory and fiduciary accountability — safety and soundness, OCC/FDIC/Federal Reserve exam relationships, BSA/AML and CRA compliance, and resolution of audit findings",
+      "Lead asset/liability management, credit quality, capital adequacy, and liquidity oversight through ALCO and interest-rate-risk modeling",
+      "Build and lead the senior team and own talent, culture, and a visible community and business-development presence in the Columbus market"
+    ],
+    "languages": [
+      "English"
+    ],
+    "promptVersion": "role-design-v3"
+  },
+  "case": {
+    "title": "President, Buckeye Commercial Bank, N.A. (Columbus, OH) — 90-Day Board Diagnosis & Plan",
+    "brief": "You are the incoming President of Buckeye Commercial Bank, N.A., a ~$1.3B-asset, OCC-chartered community bank headquartered in Columbus, Ohio, reporting to the holding-company CEO and the board. The ZipRecruiter listing names no specific employer, so the starting materials below are a representative synthetic institution built to make the exercise answerable — they are deliberately concrete (charter type, asset size, regulator, P&L, exam status) because a real President-level screen needs that grounding; treat them as the actual facts of your bank. Your job here is the work of the seat: read the board and regulatory materials, form a defensible view of where the bank stands and where it is exposed, and decide what you would do in your first 90 days — owning the trade-offs in front of the board, ALCO, and the OCC. This is a judgment exercise, not a modeling drill: you will not be scored on spreadsheet mechanics or polish, and you are free to use any LLM/AI tools you like to draft, calculate, or pressure-test your thinking. What is evaluated is the quality of your reasoning under ambiguity — what you choose, what you deliberately set aside, and what you would escalate. Hard cap: 2 hours. Prefer depth on the few decisions that matter over covering everything. Where the materials are silent or inconsistent, that is intentional; say what you would ask the board or the holding company rather than inventing a fact.",
+    "repoSeed": "A board/strategy data room for Buckeye Commercial Bank, N.A. (figures as presented to you — reconcile them yourself):\n- `board_packet_Q2.pdf` — executive summary and CFO commentary. Headlines: net interest margin 3.45%, efficiency ratio 58%, ROA 1.15%, deposit growth +2% YoY, loan growth +6% YoY. Noninterest income for the quarter includes a $4.2M gain on the sale of the former downtown headquarters building, recorded in the period and folded into the reported revenue base; the summary narrative does not separate it out.\n- `call_report_FFIEC041_Q2_extract.xlsx` — Schedule RI (income), RC (balance sheet), and RC-N (past due/nonaccrual). The underlying line items behind the board packet, including the one-time gain booked in noninterest income and a modest uptick in 30–89 day CRE delinquencies.\n- `ALCO_IRR_report_June.pdf` — ALCO package with EVE and 12-month NII simulations; headline conclusion is 'liability-neutral, within all board limits.' An appendix documents the non-maturity-deposit assumptions used: 35% deposit beta and a ~7-year average life on the post-2021 deposit surge, with a footnote that the assumption set was last recalibrated in 2021.\n- `OCC_exam_transmittal.pdf` — most recent exam transmittal with two Matters Requiring Attention (MRAs): (1) CRE concentration risk management, noting total CRE at ~295% of total risk-based capital against the 300% supervisory guidance threshold and limited stress testing; (2) BSA/AML — a prior-cycle finding on transaction-monitoring tuning marked 'corrective action complete' that the examiners re-opened after sampling.\n- `budget_forecast_FY.xlsx` — FY operating budget and forecast. Board's stated FY objective on the cover tab: 'grow the loan book 12% and improve the efficiency ratio.' Branch-level cost lines, vendor contracts, and a thinly funded treasury-management/fee-income initiative.\n- `commercial_pipeline_CRM_export.csv` — current commercial pipeline, heavily weighted to investor CRE and construction; sparse C&I and owner-occupied.\n- `capital_liquidity_plan.xlsx` — capital ratios (CET1, total RBC, leverage), a $25M sub-debt tranche maturing in 14 months, contingency funding plan, and on-hand vs. contingent liquidity sources.",
+    "tasks": [
+      "Write a board-ready diagnosis (1–2 pages): the bank's actual earnings trajectory and the two or three most material risks. Reconcile the board packet's headline metrics (NIM, efficiency ratio, ROA) to the call report extract and explicitly flag any figure that does not represent the run-rate, showing the normalized number you would put in front of the board and why.",
+      "Set your first-90-days operating plan: take a clear position on the board's '12% loan growth + improve efficiency ratio' objective in light of the CRE concentration MRA, the capital/liquidity position, and the sub-debt maturity. State the loan-mix, funding, capital, and efficiency moves you would make, the trade-offs of each, and specifically what you would escalate to or renegotiate with the board and holding company before committing.",
+      "Draft a response to the two OCC MRAs: for the CRE-concentration MRA, the corrective actions, owners, and timeline you would commit to; for the re-opened BSA/AML MRA, how you would handle a finding previously reported as resolved. Separately, state how you would treat the ALCO interest-rate-risk conclusion before you rely on it for balance-sheet strategy.",
+      "Keep a short DECISIONS log (half a page is fine): for each call where the materials were open or silent, record what you chose, the main alternative you rejected and why, and the one question you would have put to the board, the holding company, or ALCO if you'd had them in the room."
+    ],
+    "coverProbes": [
+      {
+        "id": "cp1-efficiency-onetimer",
+        "kind": "verification_trap",
+        "where": "board_packet_Q2.pdf executive summary (58% efficiency ratio, ROA 1.15%) vs. the $4.2M HQ-sale gain in noninterest income on call_report_FFIEC041_Q2_extract.xlsx Schedule RI",
+        "reveals": "A naive one-shot reader quotes the packet's 58% efficiency ratio and 1.15% ROA as the bank's operating performance. A bank operator recomputes core/normalized revenue, strips the one-time building-sale gain, lands near ~66% core efficiency, and presents the bridge — recognizing that running the franchise off an inflated headline misleads the board on the true expense problem.",
+        "decisionSpace": [
+          "Report the 58% efficiency ratio as-is — fastest and consistent with what the board already saw, but presents a misleading run-rate and buries the cost problem.",
+          "Normalize the gain out and present ~66% core efficiency with a clear bridge — most honest and decision-useful, but contradicts the packet the board approved and forces an uncomfortable correction.",
+          "Show both reported and normalized side-by-side, footnoting the one-timer — transparent and defensible, but risks muddying the headline message if not framed crisply."
+        ]
+      },
+      {
+        "id": "cp2-alco-stale-assumptions",
+        "kind": "legacy_trap",
+        "where": "ALCO_IRR_report_June.pdf — 'liability-neutral' headline vs. the appendix NMD assumptions (35% deposit beta, ~7-yr average life, last recalibrated 2021)",
+        "reveals": "A naive reader trusts the 'within all board limits' headline and builds strategy on it. A careful operator opens the appendix, sees the deposit-beta and decay assumptions predate the rate cycle, and treats the IRR conclusion as unreliable until re-tuned — recognizing a latent model-risk-management gap, not just a number.",
+        "decisionSpace": [
+          "Accept the 'liability-neutral' conclusion and plan around it — saves time, but the EVE/NII picture may be materially understated and exposure mispriced.",
+          "Require a re-tuned IRR run with current deposit-beta/decay assumptions before committing to balance-sheet strategy — most rigorous, but delays decisions and surfaces a possible existing model-governance deficiency.",
+          "Proceed with strategy while layering your own conservative deposit-beta sensitivity and a contingency-funding overlay — pragmatic hedge, but leaves the underlying model governance issue unaddressed."
+        ]
+      },
+      {
+        "id": "cp3-growth-vs-concentration",
+        "kind": "ambiguity",
+        "where": "budget_forecast_FY.xlsx cover objective ('grow loans 12%') vs. OCC_exam_transmittal.pdf CRE-concentration MRA (~295% of capital), capital_liquidity_plan.xlsx, and the CRE-heavy commercial_pipeline_CRM_export.csv",
+        "reveals": "A naive response chases the 12% number with the CRE-heavy pipeline in hand, pushing concentration past the supervisory threshold while an MRA is open. A strong response treats the mandate as ambiguous, reconciles it against safety-and-soundness and capital headroom, and clarifies the board's true risk appetite and the holding company's capital intentions before signing up to a target.",
+        "decisionSpace": [
+          "Pursue 12% but re-weight to C&I and owner-occupied to avoid worsening the CRE ratio — honors the board, but requires C&I origination capability the current pipeline doesn't show.",
+          "Push back on 12% as inconsistent with the open CRE MRA and capital headroom; propose a lower, capital- and funding-constrained target — protects safety and soundness, but risks reading as unambitious to the board.",
+          "Accept 12% only contingent on a capital injection or the sub-debt raise plus CRE participation sell-downs — unlocks growth, but depends on holding-company appetite the materials don't confirm."
+        ]
+      },
+      {
+        "id": "cp4-efficiency-lever",
+        "kind": "underspecified",
+        "where": "budget_forecast_FY.xlsx objective 'improve the efficiency ratio' (no path specified) — branch cost lines and the underfunded fee-income initiative",
+        "reveals": "A naive plan picks one lever reflexively (usually cut costs) without weighing the franchise consequences. A strong plan names the path explicitly, ties it to the bank's actual cost and revenue structure, and reasons about the CRA/community and deposit-franchise side effects of each.",
+        "decisionSpace": [
+          "Cost-led: branch rationalization and vendor/headcount reduction — fastest ratio improvement, but risks the deposit franchise and CRA/community standing in the Columbus market.",
+          "Revenue-led: fund and scale treasury management and fee income to grow the denominator — more durable, but slower and dependent on investment the budget barely funds.",
+          "Balanced/sequenced: trim clear cost outliers now while seeding revenue initiatives — lower execution risk, but neither lever moves the ratio quickly enough to satisfy a near-term board target."
+        ]
+      }
+    ],
+    "timeboxHours": 2.0,
+    "rubricDimensions": [
+      {
+        "name": "framing",
+        "label": "Problem framing",
+        "weight": 0.2,
+        "description": "Turns an ambiguous need into a sound plan."
+      },
+      {
+        "name": "tooling",
+        "label": "Tooling fluency",
+        "weight": 0.25,
+        "description": "Drives AI and other tools well; iterates and verifies."
+      },
+      {
+        "name": "judgment",
+        "label": "Judgment",
+        "weight": 0.25,
+        "description": "Catches AI/tooling mistakes; validates; pushes back."
+      },
+      {
+        "name": "architecture",
+        "label": "Architecture",
+        "weight": 0.15,
+        "description": "Structure and trade-offs that fit the real materials and constraints."
+      },
+      {
+        "name": "transfer",
+        "label": "Transfer",
+        "weight": 0.15,
+        "description": "Capability transfers to THIS role's tools and responsibilities."
+      }
+    ],
+    "promptVersion": "case-design-v5"
+  },
+  "source": "llm",
+  "issues": [],
+  "fallbackReason": {},
+  "promptVersions": {
+    "analyze": "need-analysis-v3",
+    "role": "role-design-v3",
+    "case": "case-design-v5"
+  }
+}

@@ -1,0 +1,198 @@
+{
+  "job": {
+    "id": "cal-036",
+    "title": "Business Development Project Manager",
+    "company": "Edpuzzle  United States   Remote",
+    "role_family": "project_management",
+    "seniority": "senior",
+    "source": "hf:jacob-hugging-face/job-descriptions"
+  },
+  "analysis": {
+    "realStack": [
+      "Project/work management software (Asana, Monday.com, Jira, Trello, Smartsheet, or MS Project) for milestones, timelines, and Gantt/roadmap tracking",
+      "Spreadsheets (Excel / Google Sheets) for data analysis, budget tracking, and decision modeling",
+      "Presentation tools (PowerPoint / Google Slides / Keynote) for stakeholder-facing reports and project updates",
+      "Reporting/BI and dashboards for surfacing project status and business metrics",
+      "Market, customer, and competitive research sources (industry reports, surveys, competitor scans)",
+      "CRM / partnership-tracking system for managing outside resources and external stakeholders",
+      "Collaboration & comms stack (Slack, email, video conferencing) for cross-departmental coordination in a remote setting",
+      "Knowledge base / documentation tools (Confluence, Notion, Google Docs) for process docs and playbooks",
+      "Issued hardware: MacBook + external monitor, high-speed home internet",
+      "Soft 'tooling': PM methodology, risk-assessment frameworks, and stakeholder-management practice (none named explicitly in the JD)"
+    ],
+    "coreResponsibilities": [
+      "Build long- and short-term plans for business initiatives, setting milestone targets and holding deadlines",
+      "Manage and coordinate multiple concurrent projects to deliver on time and on budget",
+      "Conduct market, customer, and competitive research to support business initiatives",
+      "Find and analyze data to make recommendations and choose between options for how a project should proceed",
+      "Act as the cross-team liaison, keeping multiple units in synergy on shared projects",
+      "Manage stakeholder expectations on scope, clarity, and quality of outcomes",
+      "Communicate project status and keep work aligned to business goals",
+      "Develop and maintain partnerships with outside resources",
+      "Run risk assessments, report risks, and recommend mitigations",
+      "Produce presentations and reports; document processes and reusable playbooks discovered during execution"
+    ],
+    "statedVsRealGaps": [
+      "Title says 'Business Development Project Manager' but the JD describes project/process coordination supporting growth — there are no sales quotas, pipeline ownership, revenue targets, or deal metrics, so the real role is closer to a cross-functional PM than a quota-carrying BD lead.",
+      "seniorityTarget is 'senior', yet the evidence reads mid-level: only a bachelor's degree, redacted years-of-experience ('at least __ years'), and an operating model where the manager sets daily tasks initially and meets weekly — that is a guided IC, not a senior owner.",
+      "The JD names zero concrete tools, systems, or methodologies (no Agile/Scrum, no PMP, no Asana/Salesforce/Jira). The entire realStack here is inferred from the responsibilities, not stated — so any tool requirement is unverified.",
+      "'Strong analytical skills' and 'find and analyze relevant data' are asserted with no indication of data sources, analysis depth, or tooling — it could mean Excel pivot tables or genuine quantitative analysis; the JD doesn't disambiguate.",
+      "The mandate is unusually broad for one role (BD + project delivery + research + partnerships + risk + comms + documentation) with no statement of which functions dominate or how time splits — scope is under-defined.",
+      "Domain specifics are thin: despite being edtech serving schools/teachers, the JD gives no example initiatives, KPIs, or what 'business growth' concretely means here."
+    ],
+    "trueComplexity": "medium",
+    "riskAreas": [
+      "Level mismatch: hiring against 'senior' while the JD signals mid-level pay/autonomy risks either over-paying for boilerplate or under-leveling a real strategic need — clarify before sourcing.",
+      "Scope ambiguity: a BD + PM + research + partnerships hybrid with no priority ordering invites scope creep and an impossible-to-please success bar.",
+      "Unmeasurable success: 'business development' with no metrics, quota, or definition of a 'completed' initiative makes performance hard to evaluate and the role hard to screen for objectively.",
+      "Screening difficulty: with no named tools or methodology, selection rests almost entirely on behavioral/soft-skill signals, which are easy to overstate in interviews.",
+      "Remote autonomy ramp: success depends on a candidate who can move from manager-set daily tasks to proactive self-direction; a structure-dependent hire would stall.",
+      "Ungrounded analysis: no codebase or work artifacts were supplied, so this reflection rests solely on the JD's self-description and cannot be validated against a real body of work."
+    ],
+    "reflection": "This is a non-software office role, so the absence of a codebase is normal — the real 'body of work' is project plans, research decks, status reports, budgets, partnership relationships, and playbooks, and the realStack above is inferred from those responsibilities rather than named in the JD. The central tension is identity: the posting is titled 'Business Development' but contains no revenue, quota, or pipeline language; functionally it is a broad cross-functional project/process coordinator that supports growth. The second tension is level — the 'senior' target collides with mid-level signals (bachelor's only, redacted experience bar, manager-set daily tasks, weekly check-ins). The JD is reasonably rich on what the person will do but silent on tools, metrics, and domain specifics, so it is well-defined as a behavioral profile and under-defined as a measurable, leveled role. Net: a capable mid-level multi-project coordinator with strong communication, organization, and light analytical skills fits the evidence better than a senior BD strategist — and the team should decide which they actually want before hiring.",
+    "confidence": 0.62,
+    "promptVersion": "need-analysis-v3"
+  },
+  "role": {
+    "title": "Business Development Project Manager",
+    "seniority": "medior",
+    "roleFamily": "project_management",
+    "mustHaves": [
+      "Demonstrated project management experience running multiple concurrent initiatives end-to-end, delivering on time and on budget against defined milestones and deadlines",
+      "Stakeholder management across scope, clarity, and quality — setting expectations and serving as the liaison that keeps multiple teams/units in synergy on shared projects",
+      "Excellent written and verbal communication, including producing stakeholder-facing presentations, status updates, and reports",
+      "Ability to find and analyze data to make recommendations and choose between options, with working fluency in spreadsheets (Excel / Google Sheets) for analysis, budget tracking, and decision modeling",
+      "Market, customer, and competitive research skills that translate findings into business decisions",
+      "Risk assessment: identifying and reporting risks and recommending concrete mitigations",
+      "Strong organizational skills, attention to detail, time management, and the ability to prioritize and delegate tasks appropriately",
+      "Fluency with project/work-management tooling for milestones, timelines, and roadmap tracking (e.g. Asana, Monday.com, Jira, Smartsheet, Trello, or MS Project)",
+      "Process and playbook documentation — capturing repeatable practices discovered during execution",
+      "Ability to operate autonomously in a remote, high-paced, sometimes stressful distributed-team environment",
+      "Bachelor's degree plus related project/process management experience"
+    ],
+    "niceToHaves": [
+      "Experience in edtech or the broader education sector",
+      "Formal PM methodology or certification (PMP, PRINCE2, Agile/Scrum)",
+      "Hands-on experience with a CRM or partnership-tracking system for managing external resources and partners",
+      "BI/dashboard and reporting tooling for surfacing project status and business metrics",
+      "Business development or partnership-building exposure (developing and maintaining outside relationships)",
+      "Experience supporting business growth initiatives in a US-based, fully remote organization",
+      "Familiarity with knowledge-base/documentation tools (Confluence, Notion, Google Docs) for playbooks and process docs"
+    ],
+    "responsibilities": [
+      "Build long- and short-term plans for business initiatives, setting milestone targets and holding deadlines",
+      "Manage and coordinate multiple concurrent projects to deliver on time and on budget",
+      "Conduct market, customer, and competitive research that supports business initiatives",
+      "Find and analyze data to make informed recommendations and choose between options for how a project should proceed",
+      "Act as the cross-team liaison, keeping multiple units aligned and in synergy on shared projects",
+      "Manage stakeholder expectations on scope, clarity, and quality of outcomes, and communicate status to keep work aligned to business goals",
+      "Develop and maintain partnerships with outside resources",
+      "Run risk assessments, report identified risks, and recommend mitigations",
+      "Address questions, concerns, and complaints that arise throughout a project",
+      "Produce presentations and reports, and document processes and reusable playbooks discovered during execution"
+    ],
+    "languages": [
+      "English"
+    ],
+    "promptVersion": "role-design-v3"
+  },
+  "case": {
+    "title": "Project Northstar: Rescue the Plan, Pick the Partner",
+    "brief": "You've just joined as the Business Development Project Manager owning Project Northstar — a cross-team initiative to stand up a referral-partner channel that takes the company into a new SMB customer segment. The work spans Sales, Finance, Legal, and an external partner, and a launch date has already been promised upward. The standard PM toolset for this role (a project tracker, an options spreadsheet, stakeholder comms, a reusable playbook, a deck for the steering group) fits this work directly, so you'll work on the real materials handed to you — no synthetic substitute is needed. The catch is that you've inherited the project mid-flight: the tracker is messy and partly slipping, the partner-selection model already names a 'winner', the stakeholders want different things, and there's a playbook from the last launch you're encouraged to reuse. In ~1.5 hours, produce a defensible plan, a partner recommendation you can stand behind, a steering-group-ready status-and-risk view, and a short decisions log. We are evaluating judgment, prioritization, and how you handle missing or conflicting information far more than the polish of the artifacts — assume any of these can be drafted with an AI assistant, so what we read for is the thinking behind your choices. Where the brief is silent or the inputs disagree, make a call, write down why, and note what you'd have asked. Do not try to do everything; depth on the few things that matter beats coverage.",
+    "repoSeed": "A shared project folder for Project Northstar containing: (1) `initiative_brief.docx` — a one-page brief from the VP of Business Development stating the goal ('launch the SMB referral channel'), a fixed go-live date, and a rough budget, but no priority ordering between speed, cost, and compliance, and no definition of what 'launched' means. (2) `northstar_tracker.csv` — a project-tracker export (~25 rows: milestone, owner, start/due, % complete, dependency, status) where several items are overdue, two milestones list each other as blockers (a circular dependency), and the partner-onboarding milestone is sized at 4 weeks. (3) `partner_options.xlsx` — three candidate partners (A, B, C) scored across cost, market reach, ramp time, integration effort, and partner risk, with a 'Weighted Score' tab that ranks Partner B #1; the weighting cell uses a mix of relative/absolute references so one criterion is effectively double-counted, and the 'total addressable reach' column sums two overlapping segments. (4) `stakeholder_threads.md` — excerpts of email/Slack from Sales (wants the earliest possible launch), Finance (wants the lowest total cost), and Legal (notes a vendor due-diligence/procurement cycle that policy recently extended from 4 to 8 weeks), with no decision owner named. (5) `expansion_playbook_v2.md` — a reusable launch playbook from the prior channel rollout, whose timeline still assumes the old 4-week procurement cycle and a single-partner model.",
+    "tasks": [
+      "Rebuild Project Northstar into one coherent milestone plan from `northstar_tracker.csv`: a timeline/roadmap that shows dependencies and the critical path to the go-live date in `initiative_brief.docx`. Resolve the circular dependency, mark every milestone that is at risk or already slipped, and state in one line what is driving each slip. Do not assume the partner-onboarding/procurement duration — verify it against the source materials before you commit a date.",
+      "Using `partner_options.xlsx`, recommend exactly ONE partner (A, B, or C) to anchor the channel. Show the decision model behind the call — the criteria, the weights you used, and the numbers. If you keep, change, or rebuild any part of the supplied scoring, say what you changed and why in one or two sentences.",
+      "Produce a steering-group-facing status update (one slide or one page) covering: an overall RAG status with a one-line justification; the partner recommendation and its core rationale; the top 3–5 risks, each with an owner and a concrete mitigation; and the one or two decisions you need the group to make to keep the launch on track.",
+      "Keep a short `decisions.md` log. For every call you made where the brief was open or the inputs disagreed, record what you chose, the alternative you rejected and why, and the single question you would have put to the team. Treat this as normal project-handover practice, not a separate deliverable."
+    ],
+    "coverProbes": [
+      {
+        "id": "fixed-date-no-priority",
+        "kind": "underspecified",
+        "where": "`initiative_brief.docx` fixes a go-live date and budget but never orders speed vs. cost vs. compliance, and never defines 'launched'.",
+        "reveals": "A strong candidate surfaces that the success criteria and trade-off priority are undefined, states an explicit assumption (or asks), and lets it drive the plan and the recommendation. A naive one-shot silently optimizes for the date alone and presents a single plan as if the goal were unambiguous.",
+        "decisionSpace": [
+          "Treat the date as immovable and de-scope to a phased MVP launch (fastest credible go-live, narrower initial scope).",
+          "Hold full scope and recommend renegotiating the date with the steering group (protects quality, spends political capital).",
+          "Optimize for lowest total cost and let date/scope flex to fit budget (defensible if Finance's constraint is read as the binding one)."
+        ]
+      },
+      {
+        "id": "procurement-cycle-stale",
+        "kind": "legacy_trap",
+        "where": "`expansion_playbook_v2.md` and the tracker both assume a 4-week partner-onboarding/procurement cycle; `stakeholder_threads.md` notes policy extended it to 8 weeks.",
+        "reveals": "A strong candidate reads the playbook AND cross-checks it against the threads, catches the 4→8 week change, and rebuilds the critical path so the launch date reflects reality. A naive candidate reuses the playbook timeline verbatim and ships a plan that is already infeasible.",
+        "decisionSpace": [
+          "Rebuild the timeline on the real 8-week cycle and slip the launch date, flagging the slip early.",
+          "Hold the date by parallelizing procurement with other workstreams and pursuing an expedited/exception path with Legal (faster, carries compliance risk).",
+          "Recommend a two-partner or staged-onboarding approach so partial launch can proceed while the slower partner clears the 8-week cycle."
+        ]
+      },
+      {
+        "id": "weighted-score-error",
+        "kind": "verification_trap",
+        "where": "`partner_options.xlsx`'s 'Weighted Score' tab ranks Partner B #1, but the weighting double-counts one criterion and 'total reach' sums overlapping segments.",
+        "reveals": "A strong candidate re-derives the model, finds the double-count and the inflated reach, and discovers the corrected ranking differs (or at minimum flags the data-quality issue before recommending). A naive candidate accepts the sheet's #1 at face value and recommends Partner B because 'the model says so'.",
+        "decisionSpace": [
+          "Rebuild the scoring, correct the double-count and overlap, and recommend the corrected winner with the math shown.",
+          "Recommend conditionally — name the data-quality defects and make the pick contingent on validating reach/weights with Finance.",
+          "Keep the supplied weights but re-run with transparent, defensible weights of your own and show how sensitive the ranking is to them."
+        ]
+      },
+      {
+        "id": "conflicting-stakeholders-no-owner",
+        "kind": "ambiguity",
+        "where": "`stakeholder_threads.md` shows Sales (speed), Finance (cost), and Legal (compliance/time) pulling in different directions with no decision owner named.",
+        "reveals": "A strong candidate names the conflict explicitly, proposes a resolution mechanism or trade-off and routes it to the steering group as a decision to be made. A naive candidate quietly resolves it by picking whichever voice is loudest or most senior, without making the trade-off visible.",
+        "decisionSpace": [
+          "Propose an explicit trade-off the PM owns (e.g. weighted criteria) and recommend it, taking accountability for the call.",
+          "Escalate as a decision item with a RACI / decision forum so the right owner resolves it (slower, but legitimizes the choice).",
+          "Default to the most senior stakeholder's priority as the tie-breaker and document it as a provisional assumption pending confirmation."
+        ]
+      }
+    ],
+    "timeboxHours": 1.5,
+    "rubricDimensions": [
+      {
+        "name": "framing",
+        "label": "Problem framing",
+        "weight": 0.2,
+        "description": "Turns an ambiguous need into a sound plan."
+      },
+      {
+        "name": "tooling",
+        "label": "Tooling fluency",
+        "weight": 0.25,
+        "description": "Drives AI and other tools well; iterates and verifies."
+      },
+      {
+        "name": "judgment",
+        "label": "Judgment",
+        "weight": 0.25,
+        "description": "Catches AI/tooling mistakes; validates; pushes back."
+      },
+      {
+        "name": "architecture",
+        "label": "Architecture",
+        "weight": 0.15,
+        "description": "Structure and trade-offs that fit the real materials and constraints."
+      },
+      {
+        "name": "transfer",
+        "label": "Transfer",
+        "weight": 0.15,
+        "description": "Capability transfers to THIS role's tools and responsibilities."
+      }
+    ],
+    "promptVersion": "case-design-v5"
+  },
+  "source": "llm",
+  "issues": [],
+  "fallbackReason": {},
+  "promptVersions": {
+    "analyze": "need-analysis-v3",
+    "role": "role-design-v3",
+    "case": "case-design-v5"
+  }
+}

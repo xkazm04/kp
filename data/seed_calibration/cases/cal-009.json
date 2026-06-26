@@ -1,0 +1,189 @@
+{
+  "job": {
+    "id": "cal-009",
+    "title": "Analyst II, Supply Chain - Corporate - US (Open)",
+    "company": "Sysco",
+    "role_family": "operations",
+    "seniority": "medior",
+    "source": "hf:jacob-hugging-face/job-descriptions"
+  },
+  "analysis": {
+    "realStack": [
+      "Microsoft Excel (intermediate) — the only hard tool requirement; spreadsheet/financial modeling, cost build-ups, scenario comparison",
+      "Microsoft Access (preferred) — relational storage/querying of larger supply-chain datasets that outgrow Excel",
+      "Microsoft PowerPoint (preferred) — packaging scenario results, cost-savings cases, and recommendations to internal/external stakeholders",
+      "Mixed-integer-programming network-optimization tools: Llamasoft Supply Chain Guru, Supply Chain Strategist, or equivalents (strongly preferred) — the actual modeling engine for the role",
+      "Quantitative/statistical techniques: regression analysis, spreadsheet modeling, statistics (theoretical knowledge preferred)",
+      "Supply-chain domain frameworks: category management, redistribution analytics, steady-state optimization, transportation-network design",
+      "Internal cost/operational data feeds and stakeholder-supplied datasets (current-state costs, lanes, volumes) that must be sourced and validated",
+      "Project/portfolio coordination across a matrixed, cross-functional organization (multiple concurrent modeling projects)"
+    ],
+    "coreResponsibilities": [
+      "Act as business/subject-matter expert for supply-chain design, modeling, and analysis",
+      "Source and validate the data needed for analysis from internal and external stakeholders",
+      "Build, run, and compare supply-chain scenarios in optimization tools (category management, redistribution, steady-state, transportation networks, ad-hoc)",
+      "Recommend the most profitable and executable future-state scenario and quantify projected cost-savings impact",
+      "Manage multiple modeling projects concurrently in a fast-paced, shifting-priority environment",
+      "Engage customers to understand their business model and capture current-state costs and assumptions",
+      "Develop strategies, assumptions, and analysis deliverables with key stakeholders",
+      "Hand off from analysis to execution with operations teams, and persuade internal/external customers to adopt the recommended change"
+    ],
+    "statedVsRealGaps": [
+      "Hard-requirement floor vs. real scope: only 'intermediate Excel' is required, while the actual work is MIP-based network optimization (Llamasoft/Guru) — the genuinely role-defining skill is merely 'strongly preferred,' so the stated bar undersells the job.",
+      "Title vs. mandate: framed as a medior 'Analyst II,' but the responsibilities (own multiple projects, be the SME, build the business case, and 'sell' change to internal/external customers) read more like an analyst-consultant hybrid leaning senior.",
+      "JD is partly redacted/templated: minimum years of experience, zip, and travel % are blank, and all company-scale figures are stripped ('over [ ] associates', 'fleet of over [ ] vehicles') — the experience/seniority bar can't be read precisely from the text.",
+      "Quant rigor is soft-gated: statistics/regression knowledge is only 'preferred,' yet 'strong quantitative problem solver who can interpret large data sets' is listed as an intrinsic capability — the must-have analytical depth is asserted in soft language rather than required qualifications.",
+      "'External customers' is ambiguous: likely Sysco's foodservice customers receiving supply-chain consulting, which adds a commercial/relationship dimension not reflected in the otherwise analytical qualifications."
+    ],
+    "trueComplexity": "high",
+    "riskAreas": [
+      "Mis-hire risk from the requirement/scope mismatch: an 'intermediate Excel' floor can attract spreadsheet analysts who can't operate MIP network-optimization tools, while the title may deter the experienced optimization modelers the role actually needs.",
+      "Tooling dependency: the core engine (Llamasoft Supply Chain Guru / Supply Chain Strategist) is only 'preferred,' so expect ramp-up time and reliance on tool licenses/availability; few candidates arrive fluent in it.",
+      "Rare combined profile: deep quantitative/optimization skill PLUS stakeholder management and 'selling' change is an uncommon blend — risk of finding strong pure-analysts or strong pure-consultants but not both.",
+      "Execution/data risk outside the analyst's control: deliverables hinge on obtaining and validating data from internal and external parties, and on operations actually adopting the recommended future state.",
+      "Ambiguous seniority bar: blank years-of-experience and a redacted JD make leveling and comp calibration error-prone; 'relevant Sysco experience in lieu of a degree' widens the funnel but loosens the screen.",
+      "Fast-paced, matrixed, multi-project load raises burnout/throughput risk if staffed at a true medior level without senior support."
+    ],
+    "reflection": "This is a genuine supply-chain network-design role at a global foodservice distributor, and in its own terms the work is high-complexity: mixed-integer-programming optimization of redistribution and transportation networks, multi-scenario cost modeling, and quantified cost-savings cases delivered into a matrixed organization. The real toolset is not just Office — it centers on optimization platforms (Llamasoft Supply Chain Guru / Supply Chain Strategist) backed by Excel, Access, statistics, and PowerPoint for the business case. The clearest tension between what's stated and what the role really demands is the gap between a very low hard-requirement floor (intermediate Excel; everything quant or optimization-specific is only 'preferred') and an aspirational mandate that asks the person to be the SME, run multiple projects, project savings, and persuade customers to change. Combined with a partly redacted JD (blank experience/zip/travel, stripped scale figures), this makes leveling and screening the main hiring risks: the posting could plausibly be filled by an under-qualified spreadsheet analyst or demand a near-consultant — the requirements section doesn't disambiguate. A sound hire screens for actual optimization-modeling experience and the analyst-plus-influence blend, regardless of the soft language in the JD.",
+    "confidence": 0.78,
+    "promptVersion": "need-analysis-v3"
+  },
+  "role": {
+    "title": "Analyst II, Supply Chain",
+    "seniority": "medior",
+    "roleFamily": "operations",
+    "mustHaves": [
+      "Strong quantitative problem-solving: comfortably interpret large, messy data sets and draw sound, defensible business conclusions from multiple sources",
+      "Supply-chain modeling and analysis judgment: frame a problem, build and compare future-state scenarios (category management, redistribution, steady-state optimization, transportation networks), and reason about cost and executability trade-offs",
+      "Ability to build and compare network/optimization scenarios using MIP-based or equivalent modeling approaches — the genuine engine of the role (the JD soft-gates this as 'strongly preferred,' but the real work depends on it)",
+      "Intermediate Microsoft Excel for spreadsheet and financial modeling, cost build-ups, and scenario comparison",
+      "Source and validate analysis data from internal and external stakeholders, and judge when current-state numbers are trustworthy",
+      "Quantify projected cost-savings impact and recommend the most profitable and executable scenario, with the assumptions made explicit",
+      "Own multiple modeling projects concurrently in a fast-paced, shifting-priority environment and keep them moving without close supervision",
+      "Strong verbal and written communication: present results, build the business case, and persuade internal/external stakeholders to adopt the recommended change",
+      "Bachelor's degree (business, computer science, or analytics preferred) or equivalent relevant professional experience"
+    ],
+    "niceToHaves": [
+      "Hands-on experience with a commercial network-optimization tool — Llamasoft Supply Chain Guru, Supply Chain Strategist, or equivalent",
+      "Working knowledge of statistics and quantitative techniques (regression analysis, spreadsheet modeling)",
+      "Microsoft Access for relational storage/querying of datasets that outgrow Excel",
+      "Microsoft PowerPoint for packaging scenario results and recommendations for executive and customer audiences",
+      "Domain experience in foodservice, distribution, or large-scale transportation/logistics networks",
+      "Experience handing analysis off to operations for execution, including change-management and 'selling' recommendations to external customers",
+      "Comfort operating inside a matrixed, cross-functional organization"
+    ],
+    "responsibilities": [
+      "Act as the business/subject-matter expert for supply-chain design, modeling, and analysis",
+      "Work with internal and external stakeholders to obtain the data needed for analysis and validate it for accuracy",
+      "Model, analyze, and compare supply-chain scenarios — category management, redistribution analytics, steady-state optimization, transportation networks, and ad-hoc requests — using optimization tools",
+      "Research, select, and recommend the most profitable and executable future-state scenario and project its cost-savings impact",
+      "Manage multiple supply-chain modeling projects concurrently and adapt to shifting priorities",
+      "Engage customers to understand their business model and capture current-state costs and assumptions",
+      "Coordinate with key stakeholders to develop strategies, assumptions, and analysis deliverables",
+      "Support the transition from the analysis phase to execution with operations teams, and persuade internal/external customers to adopt the recommended change"
+    ],
+    "languages": [
+      "English"
+    ],
+    "promptVersion": "role-design-v3"
+  },
+  "case": {
+    "title": "Relieve the Front Royal RDC: redistribution & landed-cost scenario analysis",
+    "brief": "You are the Analyst II on a redistribution study for a foodservice distribution network. Supply-chain operations has flagged that the Front Royal redistribution center (RDC) is running over its throughput ceiling, and leadership wants a recommended future-state with a cost-savings case they can take to the operating teams. You've been handed a partly-cleaned workbook from the ops stakeholder plus a master-data export from the team's Access database. The materials are real-world messy: the stakeholder's numbers don't fully tie to the master data, and the cost model carries some inherited assumptions. The provided materials fit this role directly — you act on them the way the role does: validate the data, set up a defensible current-state baseline, model and compare future-state scenarios, pick one, size the savings, and sell it. The 1.5h cap is real, so scenarios can be directional/back-of-envelope with assumptions stated explicitly — depth is expected in your judgment (what you trust, what you optimize for, what's actually executable), not in modeling volume. You do NOT need Supply Chain Guru / a MIP solver to finish; Excel is sufficient for the timebox — but note where you would escalate to the network-optimization tool and why a spreadsheet stops being enough. The numbers you should not have to be told: read the materials before you model.",
+    "repoSeed": "A small starter pack handed over for the study:\n- Current_State_Network.xlsx — tabs: 'Lanes' (origin DC → customer zone, miles, mode, current outbound freight rate), 'Volumes' (monthly cases and weight by customer zone), 'Cost_Buildup' (per-case inbound, warehousing, outbound freight, handling rolled to a total landed cost), 'Assumptions' (fuel surcharge factor, days-of-supply target, warehouse labor rate), and a near-identical leftover tab 'Cost_Buildup_2019_archive'.\n- DC_Master.csv — exported from the team's Access DB: DC list with weekly throughput capacity (cases/week), fixed facility cost, and variable handling cost per case for Front Royal and two candidate alternate DCs.\n- data_dictionary.md — one page defining each field and its unit (note: outbound freight is quoted per hundredweight/cwt; volumes appear in both cases and weight).\n- stakeholder_handover.txt — short note from supply-chain ops: 'Front Royal is at ~112% of throughput, has been for two quarters. Need a future-state and a savings number for the Q3 review. Volume file is what we pulled last month — should be close.'\nKnown rough edges left in on purpose: one customer zone is assigned to two DCs in the Volumes tab; a couple of Lanes rows have the freight rate entered per case rather than per cwt; the stakeholder Volumes total doesn't reconcile to DC_Master throughput.",
+    "tasks": [
+      "Validate before you model. Reconcile the 'Volumes' tab against DC_Master.csv throughput and against the 'Cost_Buildup' totals. Identify every discrepancy you can find — at minimum the customer-zone-to-DC double assignment and any unit inconsistencies in the Lanes outbound freight rates — decide for each which source you trust and why, and list the specific data you would request from the ops stakeholder before locking a baseline.",
+      "Establish a defensible current-state landed-cost baseline (inbound + warehousing + outbound freight + handling), both per case and in total, using the corrected data. State the objective function you are optimizing for explicitly, and call out which Cost_Buildup inputs and assumptions you relied on.",
+      "Model and compare two future-state scenarios that relieve the Front Royal over-capacity — for example, redistributing a share of volume to an alternate DC vs. rebalancing outbound lanes/mode — on landed cost, service (days/miles), and executability. Recommend one, project the annualized cost-savings vs. baseline, and write a one-page stakeholder-facing summary that would persuade operations to adopt it. Note where this analysis would warrant escalation to a network-optimization tool (Supply Chain Guru / Supply Chain Strategist) rather than Excel.",
+      "Keep a short DECISIONS log alongside your work: for every open call — the objective function, which data source you trusted on each conflict, what you treated as in/out of scope (e.g. whether opening or closing a DC was allowed), and any assumptions you fixed to move forward — record what you chose, the alternative you rejected, and the one question you would have asked the team."
+    ],
+    "coverProbes": [
+      {
+        "id": "objective-unspecified",
+        "kind": "underspecified",
+        "where": "The handover asks for 'a future-state and a savings number' but never states what to optimize for, and never bounds scope (is opening/closing a DC on the table, or only re-routing existing volume?).",
+        "reveals": "A strong candidate names the objective function up front (lowest landed cost vs. service-days vs. fastest-to-execute), pins the scope boundary, and flags that 'most savings' and 'most executable' can point to different scenarios. A naive response silently optimizes for the single biggest cost number and reports it as the answer without acknowledging the trade-off or that it made a scope assumption.",
+        "decisionSpace": [
+          "Optimize for lowest total landed cost — maximizes the headline savings but may push volume to a DC ops can't realistically absorb this year.",
+          "Optimize for executability/service within an acceptable cost band — smaller savings but adoptable now, fitting the 'sell to operations' mandate.",
+          "Present a frontier of 2 scenarios (cost-max vs. execute-now) and let leadership choose — most honest, costs time against the 1.5h cap."
+        ]
+      },
+      {
+        "id": "data-source-conflict",
+        "kind": "ambiguity",
+        "where": "The stakeholder 'Volumes' tab doesn't reconcile to DC_Master.csv throughput, and one customer zone is assigned to two DCs — so the same demand can be counted twice or attributed to the wrong facility.",
+        "reveals": "A good candidate detects the conflict, makes an explicit, reasoned choice of which source governs (and for which fields), and de-duplicates the double-assigned zone before baselining. A naive one-shot model ingests the Volumes tab as-is, inheriting the double count and an inflated baseline that makes any scenario look like savings.",
+        "decisionSpace": [
+          "Trust DC_Master as the system of record for capacity/assignment and treat the Volumes tab as directional — clean, but may discard recent real demand shifts ops knows about.",
+          "Trust the stakeholder Volumes tab as the freshest demand pull and reconcile capacity to it — current, but propagates the double-assignment unless caught.",
+          "Use master data for structure/assignment and the Volumes tab for magnitudes, reconciling the delta and flagging it for the stakeholder — most defensible, more work."
+        ]
+      },
+      {
+        "id": "stale-archive-and-assumption",
+        "kind": "legacy_trap",
+        "where": "'Cost_Buildup_2019_archive' is nearly identical to the live 'Cost_Buildup' tab and easy to grab by mistake, and the 'Assumptions' tab carries a hardcoded fuel-surcharge factor that reads as stale.",
+        "reveals": "A candidate who reads the materials notices the archive tab and the dated surcharge, sources current values (or explicitly flags them as assumptions to confirm), and documents it. A naive generator links formulas to whichever tab it grabbed first and carries the stale surcharge straight into every scenario, so the error scales with volume.",
+        "decisionSpace": [
+          "Use the live Cost_Buildup and refresh the fuel surcharge to a current figure — most accurate but requires sourcing/justifying the new value.",
+          "Keep the existing surcharge but flag it as an assumption-to-confirm and hold it constant across baseline and scenarios so the comparison stays apples-to-apples — fast and internally consistent, absolute savings may be off.",
+          "Run a sensitivity on the surcharge to show whether the recommendation flips — most rigorous, costs time against the cap."
+        ]
+      },
+      {
+        "id": "unit-mismatch-and-capacity",
+        "kind": "verification_trap",
+        "where": "Outbound freight is per cwt but a few Lanes rows are entered per case, and the lowest-cost reallocation can exceed the alternate DC's weekly throughput in DC_Master.csv. A clean-looking model totals correctly yet is wrong on units and proposes an un-executable move.",
+        "reveals": "A careful candidate cross-checks freight cost against both weight and cases to catch the per-cwt/per-case mismatch, and tests the recommended reallocation against the receiving DC's capacity before claiming the savings. A naive submission passes a shallow 'does it sum?' check, reports an over-stated saving, and recommends a future-state the network physically can't run.",
+        "decisionSpace": [
+          "Normalize every lane to per-cwt using weight and re-derive freight — most correct, requires reconciling the cases-vs-weight columns.",
+          "Cap any reallocation at the receiving DC's stated throughput and re-optimize within capacity — protects executability, leaves some theoretical savings on the table.",
+          "Surface both the unit fix and the capacity constraint as caveats and present a capacity-feasible recommendation with the unconstrained number shown for context — most transparent, more analysis time."
+        ]
+      }
+    ],
+    "timeboxHours": 1.5,
+    "rubricDimensions": [
+      {
+        "name": "framing",
+        "label": "Problem framing",
+        "weight": 0.2,
+        "description": "Turns an ambiguous need into a sound plan."
+      },
+      {
+        "name": "tooling",
+        "label": "Tooling fluency",
+        "weight": 0.25,
+        "description": "Drives AI and other tools well; iterates and verifies."
+      },
+      {
+        "name": "judgment",
+        "label": "Judgment",
+        "weight": 0.25,
+        "description": "Catches AI/tooling mistakes; validates; pushes back."
+      },
+      {
+        "name": "architecture",
+        "label": "Architecture",
+        "weight": 0.15,
+        "description": "Structure and trade-offs that fit the real materials and constraints."
+      },
+      {
+        "name": "transfer",
+        "label": "Transfer",
+        "weight": 0.15,
+        "description": "Capability transfers to THIS role's tools and responsibilities."
+      }
+    ],
+    "promptVersion": "case-design-v5"
+  },
+  "source": "llm",
+  "issues": [],
+  "fallbackReason": {},
+  "promptVersions": {
+    "analyze": "need-analysis-v3",
+    "role": "role-design-v3",
+    "case": "case-design-v5"
+  }
+}

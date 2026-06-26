@@ -54,8 +54,16 @@ LEVERS = [
 
 def _check_analysis(a: dict, scn: Scenario) -> list[str]:
     issues = []
-    if not a.get("realStack"):
-        issues.append("analysis: empty realStack")
+    # An analysis must extract SOMETHING concrete about the role — but "something" is
+    # not always a tech stack. A non-software office role (admin, customer support,
+    # legal, …) legitimately has an EMPTY realStack; its grounding is the core
+    # responsibilities pulled from the JD. Requiring realStack here was industry-locked:
+    # it failed every real non-engineering office JD whose analysis was otherwise
+    # excellent (correctly reporting "no stack — this isn't a software role"). Accept
+    # realStack OR coreResponsibilities as grounding. Synthetic scenarios always carry
+    # a stack, so this only RELAXES the check and never regresses the synthetic eval.
+    if not a.get("realStack") and not a.get("coreResponsibilities"):
+        issues.append("analysis: no realStack or coreResponsibilities")
     if a.get("trueComplexity") not in ("low", "medium", "high"):
         issues.append("analysis: bad trueComplexity")
     c = a.get("confidence")

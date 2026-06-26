@@ -1,0 +1,193 @@
+{
+  "job": {
+    "id": "cal-086",
+    "title": "C++ Embedded Engineer with Security Clearance",
+    "company": "ClearanceJobs",
+    "role_family": "software_engineering",
+    "seniority": "medior",
+    "source": "hf:jacob-hugging-face/job-descriptions"
+  },
+  "analysis": {
+    "realStack": [
+      "C/C++ (primary embedded language)",
+      "Ada (named as an or-alternative to C++ — implies legacy/safety-critical avionics or defense lineage)",
+      "Real-time operating systems (RTOS) — VxWorks called out explicitly, 'or similar' (e.g., Integrity, QNX, embedded Linux)",
+      "Low-level / bare-metal and high-level software (the JD wants someone fluent at both layers)",
+      "Hardware/software interface development (firmware against custom hardware product development)",
+      "UML for design documentation",
+      "Software test procedures + related documentation (V&V deliverables, not just code)",
+      "Full software development life cycle tooling (requirements analysis → design → implementation → integration → test)",
+      "Electronic Warfare (EW) domain knowledge — 'highly preferred', signals this is RF/defense systems work",
+      "U.S. Secret security clearance (or interim) — a gating credential, effectively part of the 'stack'"
+    ],
+    "coreResponsibilities": [
+      "Research, design, and develop embedded software that ships in conjunction with hardware product development",
+      "Participate across all SDLC phases — requirements analysis, design, implementation, integration, and test",
+      "Apply CS/EE and mathematical-analysis principles to target-application software (signal/RF/control-oriented, given the EW lean)",
+      "Work cross-functionally with hardware/systems engineers to define and evaluate HW↔SW interfaces and overall-system operational performance requirements",
+      "Author software test procedures, test programs, and supporting documentation",
+      "Help estimate, scope, and validate software cost/schedule/technical constraints against program requirements",
+      "Operate on a long-term defense contract (contract-to-hire) with minimal oversight on large, complex initiatives"
+    ],
+    "statedVsRealGaps": [
+      "NO body of work was supplied (codebases: null). There is nothing to reflect the need against — the only evidence is the JD's own prose, so every assessment below is inferred from the posting, not verified against real code, repos, or artifacts.",
+      "Quantified experience thresholds are blanked out: the JD repeats '____ years' for embedded, C/Ada, and RTOS experience without numbers. The 'medior' seniorityTarget is therefore an assumption — the clearance + 'manage large complex initiatives with minimal oversight' + EW depth read closer to senior than medior.",
+      "Language ambiguity: the title says 'C++ Embedded Engineer' but the body says 'C and/or Ada' and the summary says 'C embedded.' C, C++, and Ada are materially different skill sets; the real requirement is under-specified and the title may not match the actual program codebase.",
+      "The hard differentiators are non-technical or domain gates — Secret clearance, local-only (Clifton NJ, no remote), and EW background — none of which a code/skills screen can establish. These will drive hire/no-hire far more than language proficiency.",
+      "'Probability of hire' contract framing, market-rate pay, and benefits-via-staffing-firm (TCI) mean this is a consultancy placement, not a direct product role — candidate-fit risk sits with the end client, not the JD author."
+    ],
+    "trueComplexity": "high",
+    "riskAreas": [
+      "Clearance is the binding constraint: 'must currently possess or have the ability to obtain a Secret clearance prior to start.' Sponsorship/adjudication can take months — this gates start date and shrinks the candidate pool to U.S. persons more than any skill.",
+      "Hard geographic lock (local Clifton NJ, no remote) compounds the cleared-talent scarcity into a very thin local market.",
+      "Real-time + hardware-coupled embedded work is genuinely high-difficulty: timing/concurrency correctness, integration against evolving custom hardware, and defense-grade V&V documentation burden are easy to underestimate.",
+      "EW/defense domain knowledge is 'preferred' but practically essential to be productive; a strong general embedded engineer without RF/EW context will ramp slowly.",
+      "Under-specified core requirements (blank year-counts, C vs C++ vs Ada) create a real risk of mis-leveling the hire or screening on the wrong language.",
+      "Documentation/process load (test procedures, UML, cost/schedule validation, full-lifecycle deliverables) means a pure 'coder' profile will struggle — this is a systems-engineering-adjacent role."
+    ],
+    "reflection": "This is a long-term defense contract (TCI staffing, contract-to-hire) for an embedded software engineer building software that lives alongside custom hardware — almost certainly EW/RF systems given the 'EW background highly preferred' line. The real work is classic safety-/mission-critical embedded: C/C++ or Ada on an RTOS (VxWorks named), spanning bare-metal up to application level, defined as much by hardware-interface co-design and rigorous test/documentation deliverables as by raw coding. I want to flag two things honestly. First, there is no actual body of work to reflect against here — codebases is null — so this is a read of the JD alone, not a grounded comparison against code; treat the realStack as 'what the posting implies the role touches,' not verified evidence. Second, the decisive requirements are gates, not skills: a Secret clearance, on-site presence in Clifton NJ, and EW domain familiarity will determine who can take this job far more than C++ vs Ada nuance. The posting is also internally inconsistent — title says C++, body says 'C and/or Ada,' and the year-count thresholds are left blank — so I'd push the hiring side to pin down the exact program language and minimum experience before screening, and I'd nudge the leveling toward senior, since 'manage large complex initiatives with minimal oversight' plus cleared EW depth is not really a medior ask. trueComplexity is high in the role's own terms regardless of the missing numbers.",
+    "confidence": 0.55,
+    "promptVersion": "need-analysis-v3"
+  },
+  "role": {
+    "title": "C++ Embedded Engineer with Security Clearance",
+    "seniority": "medior",
+    "roleFamily": "software_engineering",
+    "mustHaves": [
+      "Embedded software engineering experience delivering firmware in conjunction with hardware product development",
+      "C/C++ for embedded targets",
+      "Real-time operating systems (RTOS) experience — VxWorks or similar (Integrity, QNX, embedded Linux)",
+      "Fluency across both low-level / bare-metal and high-level software layers",
+      "Hardware↔software interface development with cross-functional hardware and systems engineers, including operational performance requirements",
+      "Full SDLC participation — requirements analysis, design, implementation, integration, and test",
+      "Authoring software test procedures, test programs, and related V&V documentation",
+      "Ability to manage large, complex initiatives with minimal oversight or direction",
+      "Active or obtainable U.S. Secret (or interim Secret) security clearance prior to start",
+      "On-site availability in Clifton, NJ (no remote; local candidates only)",
+      "BS/BA in Computer Science, Electrical Engineering, or a related engineering field"
+    ],
+    "niceToHaves": [
+      "Ada experience (named as an or-alternative to C/C++; signals legacy/safety-critical defense lineage)",
+      "Electronic Warfare (EW) domain background",
+      "UML design experience",
+      "VxWorks specifically (vs. a comparable RTOS)",
+      "Mathematical-analysis / signal / RF / control-oriented software experience",
+      "Defense or safety-critical program delivery experience",
+      "Experience estimating, scoping, and validating software cost/schedule/technical constraints against program requirements"
+    ],
+    "responsibilities": [
+      "Research, design, and develop embedded software products that ship alongside hardware product development",
+      "Participate across all SDLC phases — requirements analysis, design, implementation, integration, and test",
+      "Apply computer-science, engineering, and mathematical-analysis principles to target-application software",
+      "Work cross-functionally with hardware and systems engineers to define and evaluate HW↔SW interfaces and overall-system operational performance requirements",
+      "Develop software test procedures, test programs, and supporting documentation",
+      "Contribute to estimating, scoping, and validating software cost, schedule, and technical constraints against program requirements",
+      "Operate with minimal oversight on large, complex initiatives within a long-term defense program"
+    ],
+    "languages": [
+      "C",
+      "C++",
+      "Ada"
+    ],
+    "promptVersion": "role-design-v3"
+  },
+  "case": {
+    "title": "EW Sensor Firmware: Drain, Hand-off, and Verify a Real-Time RF Acquisition Path",
+    "brief": "You are joining a long-running defense program building embedded software that ships against custom RF/EW hardware. The work here mirrors that role: low-level firmware running under an RTOS (VxWorks assumed; pick an equivalent if you prefer and say so), coupled tightly to a hardware FIFO, with defense-grade V&V documentation expected alongside the code. Because the real systems are classified, the materials below are an UNCLASSIFIED SYNTHETIC ANALOG of an EW sensor-acquisition module — registers, timing, and interrupt behavior are representative, not real. The provided context fits this role directly, so the exercise acts on it as embedded software work.\n\nGround rule for this case: assume any code can be machine-generated in seconds, so we are not testing whether you can produce a plausible drain loop — we are testing judgment at the hardware/software seam. The ICD (`icd_rfsensor_v0.3.md`) is a draft and is deliberately incomplete and in one place self-contradictory; the existing driver carries a legacy quirk; and the host test harness is shallower than it looks. Read before you generate. Where the brief is silent, make a defensible call, write it down, and note what you'd ask the team — that DECISIONS log is normal change-set practice on this program, not a trap. Budget ~1.5 hours total; depth on the acquisition path beats breadth. Do not chase the optional DMA redesign within the timebox — scope it and move on.",
+    "repoSeed": "An unclassified synthetic firmware module `ew_sensor/` for an RF sample-acquisition path:\n- `ew_sensor/icd_rfsensor_v0.3.md` — DRAFT Interface Control Document for the RFS receiver block. Memory-mapped registers: RFS_FIFO_DATA (read pops one 16-bit sample), RFS_FIFO_COUNT (samples currently queued, max depth 256), RFS_STATUS (bit0 DATA_READY, bit1 OVERRUN), RFS_CTRL. DATA_READY asserts when FIFO depth ≥ watermark (64). Sample rate documented as 2 Msps. A footnote states 'RFS_STATUS is read-to-clear: reading it deasserts the DATA_READY interrupt latch.' The maximum ISR/drain latency budget is marked 'TBD — see system timing budget (not yet finalized)', and OVERRUN recovery is described only as 'samples are lost; software should recover gracefully.'\n- `ew_sensor/sensor_driver.cpp` / `sensor_driver.h` — partial driver: `rfSensorInit()` and ISR `rfSensorIsr()`. The legacy ISR reads RFS_FIFO_COUNT once, loops that many RFS_FIFO_DATA reads pushing into the ring buffer, then reads RFS_STATUS at the very end. OVERRUN is read but not acted on.\n- `ew_sensor/ring_buffer.hpp` — a single-producer/single-consumer ring buffer (capacity 512) with plain `uint32_t head`/`tail`; producer is the ISR, consumer is the task. No atomics, no barriers, no documented atomicity assumption.\n- `ew_sensor/sample_task.cpp` — `sampleWorkerTask()`, the consumer that pops from the ring buffer and forwards samples downstream.\n- `ew_sensor/test/test_sensor_driver.cpp` — a host-side unit test with a mocked register/FIFO shim. It fills the mock FIFO, calls `rfSensorIsr()` once, then drains the ring buffer from the same thread and asserts the sample count/order. It is single-threaded and currently passes.\n- `ew_sensor/design/dataflow.puml` — a (stale) sequence sketch of DATA_READY → ISR → ring buffer → task.\n- `ew_sensor/README.md` — build notes: cross-build for the VxWorks target, plus a host build that swaps in the mock HAL for `test_sensor_driver.cpp`.",
+    "tasks": [
+      "Read `icd_rfsensor_v0.3.md`, `sensor_driver.cpp/.h`, and `ring_buffer.hpp`, then write a ~1-page design note (a short text sequence diagram or UML sketch is fine, `design/dataflow.puml` is stale) of the DATA_READY → `rfSensorIsr()` → ring buffer → `sampleWorkerTask()` path. State explicitly the HW/SW interface contract you are relying on: which register reads have side effects, exactly when DATA_READY clears, and what drain deadline you are designing to. List every point where the ICD or brief is silent, ambiguous, or self-contradictory BEFORE you change code.",
+      "In `sensor_driver.cpp`, repair `rfSensorIsr()` and its ring-buffer hand-off so the hardware FIFO is drained inside the sample-loss deadline and samples reach `sampleWorkerTask()` with no loss, duplication, or word-tearing under genuinely concurrent ISR/task access. Choose and implement an OVERRUN policy (RFS_STATUS bit1) and a ring-buffer-full policy, and get the RFS_STATUS read ordering right given its read-to-clear semantics.",
+      "Write a target test procedure (`test/test_procedure.md`) in the program's V&V style that would actually catch the failure modes you reasoned about: FIFO overrun, ring-buffer-full, the drain deadline at 2 Msps, and concurrent ISR/task access. For each: the stimulus, the expected observable, and — honestly — what the provided host harness (`test_sensor_driver.cpp`) CANNOT verify and why, plus what you'd need on the bench/target to close that gap.",
+      "Keep a short `DECISIONS.md`: for every call you made where the brief or ICD was open (drain deadline, OVERRUN policy, ring-buffer-full policy, atomicity/RTOS-primitive choice, whether DMA is in scope), record what you chose, the alternative you rejected and why, and the one question you'd put to the hardware/systems engineer. Keep it terse — this is the rationale we'd expect in any change set."
+    ],
+    "coverProbes": [
+      {
+        "id": "P1-fullbuffer-policy",
+        "kind": "underspecified",
+        "where": "ring_buffer.hpp full condition + Task 2 ring-buffer-full policy; the ICD covers only the HW FIFO, never the SW ring buffer.",
+        "reveals": "A strong candidate notices the brief specifies behavior for the hardware FIFO/OVERRUN but is silent on what happens when the downstream SW ring buffer fills, picks a policy explicitly, and ties it to signal-integrity consequences. A naive submission silently overwrites or drops and never surfaces the gap, the choice, or its effect on the captured signal.",
+        "decisionSpace": [
+          "Drop-oldest / overwrite tail — keeps the most-recent RF activity, sacrifices time-continuity of the capture.",
+          "Drop-newest / refuse-on-full — preserves a contiguous earlier window, risks missing the event of interest.",
+          "Over-provision and count drops in telemetry/health status — most defensible for V&V and post-mission analysis, costs memory and adds a monitoring path."
+        ]
+      },
+      {
+        "id": "P2-drain-deadline",
+        "kind": "ambiguity",
+        "where": "icd_rfsensor_v0.3.md 'max ISR/drain latency budget = TBD' vs. Task 1/2; must be reconciled against 2 Msps and 256-deep FIFO.",
+        "reveals": "A strong candidate derives a worst-case drain budget from sample rate, FIFO depth, and watermark, states it as an assumption, and flags it for systems engineering rather than waiting on a 'finalized' number. A naive submission ignores timing entirely or hardcodes an unjustified figure.",
+        "decisionSpace": [
+          "Derive the deadline from FIFO depth / sample rate and design the ISR to fully drain on each entry — self-consistent, assumes the rate holds.",
+          "Adopt a conservative fixed budget, document it as provisional, and gate it on systems-eng confirmation — safe, may over-constrain ISR design.",
+          "Keep ISR work minimal and defer the bulk drain to a high-priority task/bottom-half — trades interrupt-load headroom for added latency and a second concurrency boundary."
+        ]
+      },
+      {
+        "id": "P3-readtoclear-and-countonce",
+        "kind": "legacy_trap",
+        "where": "rfSensorIsr() in sensor_driver.cpp: reads RFS_FIFO_COUNT once then loops, reads read-to-clear RFS_STATUS last; ICD footnote documents the read-to-clear latch.",
+        "reveals": "A strong candidate reads the ICD footnote and the existing ISR together, catches that (a) the FIFO keeps filling during the loop so a count-once drain leaves samples and (b) RFS_STATUS read ordering matters because the read clears DATA_READY — and orders/loops accordingly. A naive one-shot regeneration produces a clean-looking drain loop that re-introduces the count-once race or mishandles the read-to-clear latch.",
+        "decisionSpace": [
+          "Loop draining until RFS_FIFO_COUNT reads 0, then handle STATUS/OVERRUN with correct ordering — robust to re-fill, costs a few extra register reads.",
+          "Drain a bounded max per ISR and rely on DATA_READY re-assertion to re-enter — bounds ISR duration, risks backlog at sustained high rate.",
+          "Move to a DMA/descriptor-ring model that offloads the drain from the ISR — best at 2 Msps but a larger change; correct call is to scope it as a recommendation, not attempt it in the timebox."
+        ]
+      },
+      {
+        "id": "P4-nonatomic-indices",
+        "kind": "verification_trap",
+        "where": "ring_buffer.hpp plain head/tail across ISR (producer) and task (consumer); test_sensor_driver.cpp passes single-threaded with a mock FIFO.",
+        "reveals": "A strong candidate recognizes the green host test exercises only same-thread produce-then-consume and proves nothing about cross-context atomicity, memory ordering, or 32-bit tearing on the target — and fixes the buffer plus writes a procedure for exercising the real concurrency. A naive submission trusts the passing test and ships the racy buffer.",
+        "decisionSpace": [
+          "std::atomic<> head/tail with acquire/release ordering — portable and explicit, assumes a C++11-capable target toolchain.",
+          "volatile indices plus explicit memory barriers or a short interrupt-disable critical section around index updates — classic embedded/legacy-toolchain idiom, easy to over-lock and hurt ISR latency.",
+          "Keep plain word-aligned indices but document and enforce the target ISA's single-word atomicity guarantee and forbid multi-field updates — cheapest, most toolchain/ISA-specific and brittle if the platform assumption ever changes."
+        ]
+      }
+    ],
+    "timeboxHours": 1.5,
+    "rubricDimensions": [
+      {
+        "name": "framing",
+        "label": "Problem framing",
+        "weight": 0.2,
+        "description": "Turns an ambiguous need into a sound plan."
+      },
+      {
+        "name": "tooling",
+        "label": "Tooling fluency",
+        "weight": 0.25,
+        "description": "Drives AI and other tools well; iterates and verifies."
+      },
+      {
+        "name": "judgment",
+        "label": "Judgment",
+        "weight": 0.25,
+        "description": "Catches AI/tooling mistakes; validates; pushes back."
+      },
+      {
+        "name": "architecture",
+        "label": "Architecture",
+        "weight": 0.15,
+        "description": "Structure and trade-offs that fit the real materials and constraints."
+      },
+      {
+        "name": "transfer",
+        "label": "Transfer",
+        "weight": 0.15,
+        "description": "Capability transfers to THIS role's tools and responsibilities."
+      }
+    ],
+    "promptVersion": "case-design-v5"
+  },
+  "source": "llm",
+  "issues": [],
+  "fallbackReason": {},
+  "promptVersions": {
+    "analyze": "need-analysis-v3",
+    "role": "role-design-v3",
+    "case": "case-design-v5"
+  }
+}

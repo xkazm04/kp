@@ -1,0 +1,186 @@
+{
+  "job": {
+    "id": "cal-071",
+    "title": "Staff Strategic Operations Manager",
+    "company": "ServiceNow",
+    "role_family": "operations",
+    "seniority": "lead",
+    "source": "hf:jacob-hugging-face/job-descriptions"
+  },
+  "analysis": {
+    "realStack": [
+      "Annual operating / strategic planning process (long-range plan, headcount and hiring-target plans)",
+      "Budget and financial models — discretionary-spend tracking, opex/headcount forecasting (spreadsheet/Excel-grade financial modeling, likely a corporate FP&A/EPM tool)",
+      "Executive communication artifacts — QBR decks, business cases, board/leadership presentations (PowerPoint/Google Slides-grade)",
+      "Org-design materials — org charts, capability maps, reorg / change-management plans for the Experience org (design, technical writing, research, program management)",
+      "Operating-cadence and program-management instruments — OKR/strategy frameworks, governance calendars, status/portfolio tracking (ServiceNow's own Strategic Portfolio Management / project tooling is the plausible internal system)",
+      "M&A / acquihire inputs — diligence summaries, integration and org-impact plans",
+      "Data-analysis tooling for synthesizing disparate operational data into recommendations (spreadsheets/BI dashboards)",
+      "NOTE: the JD names no specific software; this stack is inferred from the responsibilities, as is normal for a strategic-ops/chief-of-staff role"
+    ],
+    "coreResponsibilities": [
+      "Run the operating cadence for the Experience org (product/org strategy reviews, governance, change management) to keep the org healthy",
+      "Own annual planning and ongoing budget/change management in partnership with business units; manage overall budget, hiring targets, and discretionary spend",
+      "Spearhead complex cross-functional initiatives to build the future-state org structure and new capabilities, with actionable insights",
+      "Enable executive-level engagement — build business cases, QBRs, and communications that align Experience leaders with the broader ServiceNow business",
+      "Stand up and scale the strategic-operations function across design, documentation, and research disciplines",
+      "Participate in M&A activity (acquihires, tech-based acquisitions) where it affects org work and structure",
+      "Drive personnel/org change-management procedures including reorgs, and partner with peer leaders on best practices, inclusion, and skills development"
+    ],
+    "statedVsRealGaps": [
+      "Title vs. reality: 'Staff Strategic Operations Manager' reads as strategy, but the day-to-day (cadence, budget, change management, QBRs, reorgs) is a chief-of-staff / business-operations role for a creative org — source against COO-of-org/BizOps profiles, not pure case-team strategy",
+      "Management scope is ambiguous: 'Staff' at ServiceNow typically signals a senior individual contributor, yet the JD says 'leader,' 'talent management,' and 'manage hiring targets' — unclear whether the role has direct reports or leads purely through influence; this materially changes the hiring bar",
+      "The required years of experience are redacted/blank in the posting, so the precise seniority bar can't be read from the text — must be confirmed with the hiring team",
+      "Stated pedigree is 'strategy consulting / PE / product strategy,' but the actual work rewards operational rigor (financial planning, program governance, change execution); a classic strategy-consultant hire may be strong on framing yet thin on the recurring operational grind the role mostly is",
+      "M&A / acquihire involvement is listed almost in passing but is a high-stakes, specialized responsibility — its true weight and decision authority are underspecified",
+      "No tools or systems are named, so candidate evaluation has to lean on artifacts (models, decks, operating mechanisms they've built) rather than a stated toolset"
+    ],
+    "trueComplexity": "high",
+    "riskAreas": [
+      "Breadth-vs-depth mis-hire: the mandate spans strategy + FP&A/budget + program governance + change management + M&A + org design; very few candidates are genuinely strong across all, so one critical area (often financial rigor or M&A) tends to be weak",
+      "Level/title mismatch: 'Staff…Manager' invites confusion about people-management; a candidate expecting (or wanting to avoid) direct reports could be mismatched to the actual structure",
+      "Influence-without-authority dependency: success hinges on aligning a cross-functional creative org (designers, writers, researchers, PMs) the role may not manage — high organizational/political risk if the person lacks executive presence or partnering instinct",
+      "'Roll up your sleeves' alongside executive-level strategic influence signals an under-resourced or newly-forming function — risk of overload and unclear remit, especially since the role is also expected to *stand up* the strategic-ops arm itself",
+      "Redacted experience requirement creates calibration risk — easy to over- or under-level the hire without confirming the intended bar",
+      "Ambiguity tolerance is explicitly required; a structured-environment operator who needs defined process will likely struggle"
+    ],
+    "reflection": "This is a strong, content-rich JD for what is, in substance, a chief-of-staff / business-operations leader embedded in ServiceNow's Experience (design/research/writing/PM) organization — not the pure-strategy role the 'Strategic Operations' label and 'strategy consulting' qualification suggest. The real body of work is operational: running the org's planning and budget cadence, manufacturing executive-grade decision artifacts (QBRs, business cases, budgets), and executing org change — with episodic, high-stakes M&A involvement layered on top. The stated need (consulting pedigree, analytics, problem framing) is well aligned to the *thinking* the role demands, but diverges from the *doing*: the job is mostly recurring operational stewardship and cross-functional influence, where financial discipline and program execution matter as much as slide-ready strategy. The two evaluable risks a hiring team should pin down before sourcing are (1) the management/level ambiguity inherent in a 'Staff…Manager' title with redacted experience years, and (2) the very wide functional surface, which makes a balanced operator rare and a lopsided 'great framer, weak executor' (or vice-versa) the likeliest failure mode. Judged in its own operations terms, complexity is genuinely high.",
+    "confidence": 0.72,
+    "promptVersion": "need-analysis-v3"
+  },
+  "role": {
+    "title": "Staff Strategic Operations Manager",
+    "seniority": "lead",
+    "roleFamily": "operations",
+    "mustHaves": [
+      "Strategy or business-operations track record at depth — multiple years in strategy consulting and/or corporate, business, or product strategy in a fast-growing tech company (PE exposure counts), enough to operate at a staff/lead bar and influence senior leaders",
+      "Annual and long-range planning ownership — lead annual planning, opex and headcount forecasting, hiring-target and discretionary-spend management; build, defend, and steward the operating budget for a sizable org",
+      "Operating-cadence design — stand up and run a proactive cadence (product/org strategy reviews, governance, OKR/portfolio tracking, status reporting) that keeps a multi-discipline org healthy, not just attend meetings someone else owns",
+      "Executive communication — author and deliver executive-level business cases, QBRs, and leadership presentations; synthesize disparate, messy data into crisp, defensible recommendations for senior audiences",
+      "Data analytics and structured problem-solving — frame and decompose ambiguous business problems, design the analysis, and turn disparate operational data into actionable answers; advanced spreadsheet/financial modeling and BI fluency",
+      "Cross-functional program management at scale — drive multiple complex initiatives concurrently across all layers of an organization, partnering with peer leaders and business units to land outcomes",
+      "Change-management and org-design execution — design and run personnel and organizational change procedures (reorgs, future-state org structure, capability building), not just recommend them",
+      "Influence-based leadership and self-direction — align and move senior stakeholders without relying solely on direct authority; a self-starter who thrives and multitasks in fast-paced, ambiguous environments and will roll up sleeves"
+    ],
+    "niceToHaves": [
+      "MBA or advanced degree (explicit bonus in the posting)",
+      "M&A / acquihire and integration experience — diligence summaries, org-impact assessment, and integration planning for technology-based acquisitions",
+      "Private-equity exposure or background in corporate/product strategy at a large-scale tech company",
+      "Prior chief-of-staff, BizOps, or COO-of-org role — the day-to-day here is operational stewardship, which a pure case-team strategy background may under-prepare for",
+      "Experience operating within or supporting a creative/Experience org (product design, UX research, technical writing, program management) and scaling ops across those disciplines",
+      "Familiarity with strategic-portfolio-management / OKR / EPM tooling (e.g., ServiceNow Strategic Portfolio Management or equivalent) and degree specialization in engineering, finance, business, or mathematics"
+    ],
+    "responsibilities": [
+      "Establish and execute a proactive operating cadence for the Experience org — product and org strategy reviews, governance, and change management — to ensure ongoing organizational health",
+      "Lead annual planning and ongoing budget/change management in partnership with business units; own the overall budget, hiring targets, and discretionary spend",
+      "Spearhead multiple complex initiatives and partnerships to build the future-state org structure and new capabilities that drive growth, scale, and productivity, backed by actionable insights",
+      "Enable executive-level business engagement — build business cases, QBRs, and communications that align Experience leaders with business leaders across ServiceNow",
+      "Stand up and scale the strategic-operations arm of the Experience org across design, documentation, and research disciplines",
+      "Participate in M&A activities, including direct acquihires and technology-based acquisitions, where they affect organizational work and structure",
+      "Implement and manage change-management procedures for personnel and organizational changes (reorgs), and partner with peer leaders on best practices, inclusion, knowledge sharing, and skills development"
+    ],
+    "languages": [
+      "English"
+    ],
+    "promptVersion": "role-design-v3"
+  },
+  "case": {
+    "title": "Staff Strategic Operations Manager — Experience Org FY26 Planning & Integration Sprint",
+    "brief": "You have just joined ServiceNow as the Staff Strategic Operations Manager for the Experience org — the ~240-person organization spanning Design, Content/UX Writing, User Research, and Design Program Management. You report into the Experience leadership team and your charter is to stand up the strategic-operations arm of this org. Three things are converging at once: (1) the FY26 annual planning cycle is open and the numbers do not yet hang together; (2) the org just closed an acquihire of a 25-person external design studio (\"Lattice & Loop\") that must be integrated; and (3) the CPO has sent down an \"efficiency\" ask ahead of a Quarterly Business Review (QBR) with cross-functional business leaders roughly two weeks out. You have been handed a partial, inconsistent planning packet assembled from several owners — exactly as it arrives in real life. This is a strategic-operations / chief-of-staff exercise, NOT a software exercise: you act ON these documents, spreadsheets, decks, and survey results the way a strategic-ops leader does — reconcile, synthesize, recommend, and design the change. We assume any artifact you produce can be largely machine-generated, so we are not grading polish or page count; we are grading the JUDGMENT calls you make where the materials are silent, conflicting, or wrong. The packet is intentionally underspecified and partly contradictory. Where you have to make a call, make it, move on, and record it. Keep a running DECISIONS log as normal operating practice (Task 4). Hard timebox: 2 hours — depth over coverage. Do not attempt to produce finished, fully-formatted executive decks; outlines, memos, tables, and narratives are fine. We care far more about what you chose to protect, cut, escalate, or clarify than about how many slides you generated.",
+    "repoSeed": "A folder, `Experience_Org_FY26_Planning_Packet/`, containing the partial materials handed over by the prior leader and several team owners:\n\n- `budget_FY26_v7.xlsx` — Opex + headcount forecast by sub-team (Design, Content/UX Writing, User Research, Design Program Mgmt). Tabs: `Opex` (tooling, contractors, T&E, discretionary), `Headcount` (loaded cost by FTE), `Summary` (rolls up to a headline \"FY26 plan is $3.1M over target\"). NOTE: the `Headcount` tab carries the 25 Lattice & Loop acquihire FTEs on BOTH a `New Hires (FY26)` line AND an `Acquired Headcount` line, and the loaded-cost multiplier (2.4x base) is applied to two of the four sub-teams but only 1.0x to the other two; the `Summary` total foots cleanly but rests on these.\n- `headcount_tracker.xlsx` — 218 current FTE, +25 acquihire (close date already passed), 14 open requisitions in various stages, attrition YTD by team.\n- `OKR_portfolio_status_Q2.xlsx` — 11 active strategic initiatives with RAG status; 3 are Red and 2 have not updated status in 9+ weeks; one Red initiative is the build-out of the strategic-ops function itself.\n- `org_health_pulse_results.pdf` — latest engagement / eNPS survey with verbatims: elevated attrition risk and \"unclear who decides\" comments in User Research; burnout / overload signals in Content/UX Writing.\n- `acquihire_diligence_summary.docx` — Lattice & Loop integration notes: comp is 15–20% above band for 6 of the 25, two leadership roles overlap with existing Experience leads, their design-systems tooling overlaps with the incumbent stack, and there is a 12-month retention concern for the founder.\n- `QBR_Q1_prior.pptx` — last quarter's QBR deck from the prior leader (reusable template + the narrative the business leaders last saw).\n- `operating_cadence_charter.docx` — the legacy \"operating rhythm\" / governance charter: a dense calendar of recurring reviews that reads as bureaucratic overhead, BUT buried in it are (a) a mandated quarterly Accessibility & regulatory-compliance review the Research team owns and (b) a standing reporting commitment made to a regulated business unit.\n- `CPO_efficiency_mandate.txt` — a short email: \"Need the Experience org to deliver an 8% efficiency improvement for FY26 — bring the plan to QBR.\" It does not define the denominator (opex? fully-loaded cost? headcount?) and is worded differently from how the budget sheet frames the gap.\n- `proposed_reorg_v2_draft.pptx` — a half-finished reorg proposal drafted by a peer leader, touching several teams you do not manage.",
+    "tasks": [
+      "TASK 1 — State of the Experience Org (synthesis + baseline reconciliation). Read across the packet and write a 1-page memo identifying the 3 most material operational / organizational-health risks heading into FY26, each tied to specific evidence from the materials. Before you reason about the efficiency target, reconcile the budget and headcount baseline yourself: state the actual FY26 plan-vs-target number you will work from, and explicitly call out any discrepancy, double-count, or inconsistency you found in `budget_FY26_v7.xlsx` / `headcount_tracker.xlsx` and how you handled it. Do not simply inherit the `Summary` headline.",
+      "TASK 2 — Efficiency recommendation for the QBR (business case + financial logic). Using the CPO's mandate in `CPO_efficiency_mandate.txt` and your reconciled baseline, produce a QBR-ready recommendation (a 3–5 slide outline plus the speaker narrative — not a finished deck) for how the Experience org meets the efficiency ask while protecting org health. State explicitly how you interpreted the 8% (against what denominator), what you would cut, reallocate, and protect, the financial logic behind it, and the 2nd-order people / delivery impact of your choices. Make the trade-off you are asking leaders to accept visible.",
+      "TASK 3 — Future-state structure + change management (org design + influence). Propose the future-state structure that (a) integrates the 25-person Lattice & Loop acquihire and (b) stands up the strategic-operations arm you were hired to build, and pair it with a 90-day change-management and communications plan. Reference, build on, or push back on `proposed_reorg_v2_draft.pptx` rather than ignoring it. For every move, name the affected stakeholders, the sequencing, and — critically — which changes you can drive yourself versus which require the CPO's or a peer leader's authority. Be explicit about what you would do with the recurring reviews in `operating_cadence_charter.docx`.",
+      "TASK 4 — DECISIONS log. Keep a short running log (a simple table is fine) of every call you made where the materials were open, silent, or conflicting: what you decided, the alternative you rejected and why, and the one question you would have put to the team / CPO / FP&A partner before committing in real life. This is normal strategic-ops hygiene, not a separate deliverable — capture it as you go."
+    ],
+    "coverProbes": [
+      {
+        "id": "efficiency-denominator",
+        "kind": "underspecified",
+        "where": "`CPO_efficiency_mandate.txt` (\"8% efficiency improvement\") interpreted in Task 2 against the reconciled baseline from Task 1; the mandate's wording does not match how `budget_FY26_v7.xlsx` Summary frames the gap.",
+        "reveals": "A strong candidate notices the 8% has no defined denominator, states the interpretation they are running with, and ideally flags that this is the first thing they would confirm with the CPO/FP&A — because 8% of opex, 8% of fully-loaded cost, and an 8% headcount reduction are wildly different asks with different people impact. A naive candidate silently picks one (usually a flat headcount cut), produces a confident-looking number, and never surfaces that the target was ambiguous.",
+        "decisionSpace": [
+          "Read it as opex/discretionary efficiency only — protect headcount, cut tooling/contractors/T&E and kill low-value programs; lowest people risk, may not be enough to hit a fully-loaded target.",
+          "Read it as fully-loaded cost reduction including headcount — propose role consolidation (e.g. the overlapping acquihire leadership roles); hits a larger number but raises attrition and integration risk.",
+          "Treat the target as net efficiency within a flat budget — reallocate from the Red/stale OKR initiatives into protected areas rather than cutting; defensible if framed as productivity, but requires defending 'efficiency without dollar reduction' to business leaders."
+        ]
+      },
+      {
+        "id": "budget-double-count",
+        "kind": "verification_trap",
+        "where": "`budget_FY26_v7.xlsx` — the `Headcount` tab double-counts the 25 acquihire FTEs (on both `New Hires` and `Acquired Headcount`) and applies the 2.4x loaded-cost multiplier inconsistently across sub-teams; the `Summary` foots cleanly to the \"$3.1M over\" headline. Surfaces in Task 1's reconciliation, which Task 2 then depends on.",
+        "reveals": "The shallow check passes — the spreadsheet's totals add up and the headline number looks authoritative — so one-shot generation will build the entire efficiency recommendation on a baseline that is materially wrong (the org is far less over-budget than stated, or differently so). A strong candidate reconciles the headcount before trusting the headline, catches the double-count and the inconsistent multiplier, and rebaselines; this single catch changes the size and even the necessity of the cuts in Task 2.",
+        "decisionSpace": [
+          "Flag and correct it, rebaseline the number, and proceed on the corrected figure — strongest if the correction logic is shown and the impact on the efficiency ask is stated.",
+          "Flag it but proceed on the stated headline with an explicit caveat, noting you could not fully validate the model within the timebox — honest and time-boxed, but weaker if the discrepancy clearly changes the answer.",
+          "Treat the model as authoritative for the QBR but route the discrepancy to the FP&A partner to confirm before anything is committed — defensible governance, but risks anchoring leaders on a wrong number."
+        ]
+      },
+      {
+        "id": "legacy-operating-cadence",
+        "kind": "legacy_trap",
+        "where": "`operating_cadence_charter.docx`, addressed in Task 3 — it reads as bureaucratic overhead but contains a mandated quarterly Accessibility/regulatory review and a standing reporting commitment to a regulated business unit.",
+        "reveals": "Tempting low-hanging 'efficiency': eliminate recurring reviews to cut meeting load and signal you're modernizing the cadence. A candidate who actually reads the charter before rationalizing it finds the load-bearing obligations and preserves them; a naive one proposes scrapping the cadence wholesale and quietly drops a compliance/commitment the org is on the hook for.",
+        "decisionSpace": [
+          "Preserve the accessibility/regulatory review and the BU commitment as-is, and streamline only the genuinely discretionary reviews around them — safest, slightly less 'efficiency' headline.",
+          "Replace the heavy cadence with a lighter mechanism (e.g. an async portfolio review) that still demonstrably satisfies the compliance and reporting obligations — higher upside, requires proving the new mechanism actually covers the obligation.",
+          "Escalate to confirm the obligation is still live and owned before changing anything — correct when authority/ownership is unclear, but a pure escalation with no proposal reads as low-agency for a Staff-level hire."
+        ]
+      },
+      {
+        "id": "reorg-authority-remit",
+        "kind": "ambiguity",
+        "where": "Task 3's future-state structure / 90-day plan and the handling of `proposed_reorg_v2_draft.pptx`, which moves people on teams the role does not manage; the brief is deliberately ambiguous about whether a 'Staff…Manager' has people-management authority or only influence.",
+        "reveals": "Success in this role hinges on influence without authority over a creative org the person may not manage. A strong candidate frames moves as recommendations, names decision rights, sequencing, and coalition-building, and separates 'I can do this myself' from 'this needs the CPO.' A naive candidate drafts a top-down reorg as though they own all the teams — exactly the executive-presence / partnering failure mode the role is most exposed to.",
+        "decisionSpace": [
+          "Recommend-only: present the future-state as a proposal, build the stakeholder coalition and sequence, and explicitly route people-moves to the owning leaders — lowest political risk, slower, relies on persuasion.",
+          "Propose with explicit decision rights and escalation paths attached to each move (who decides, by when) — clearest accountability, but presumes you can get those rights granted.",
+          "Pilot the new structure in the slice you do control (the strategic-ops arm itself), prove it, then scale the pattern to the teams you don't manage — de-risks adoption, but defers the harder acquihire-integration decisions."
+        ]
+      }
+    ],
+    "timeboxHours": 2.0,
+    "rubricDimensions": [
+      {
+        "name": "framing",
+        "label": "Problem framing",
+        "weight": 0.2,
+        "description": "Turns an ambiguous need into a sound plan."
+      },
+      {
+        "name": "tooling",
+        "label": "Tooling fluency",
+        "weight": 0.25,
+        "description": "Drives AI and other tools well; iterates and verifies."
+      },
+      {
+        "name": "judgment",
+        "label": "Judgment",
+        "weight": 0.25,
+        "description": "Catches AI/tooling mistakes; validates; pushes back."
+      },
+      {
+        "name": "architecture",
+        "label": "Architecture",
+        "weight": 0.15,
+        "description": "Structure and trade-offs that fit the real materials and constraints."
+      },
+      {
+        "name": "transfer",
+        "label": "Transfer",
+        "weight": 0.15,
+        "description": "Capability transfers to THIS role's tools and responsibilities."
+      }
+    ],
+    "promptVersion": "case-design-v5"
+  },
+  "source": "llm",
+  "issues": [],
+  "fallbackReason": {},
+  "promptVersions": {
+    "analyze": "need-analysis-v3",
+    "role": "role-design-v3",
+    "case": "case-design-v5"
+  }
+}

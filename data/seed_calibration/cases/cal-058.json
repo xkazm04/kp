@@ -1,0 +1,187 @@
+{
+  "job": {
+    "id": "cal-058",
+    "title": "Art Director",
+    "company": "AARP  New York, NY",
+    "role_family": "marketing",
+    "seniority": "lead",
+    "source": "hf:jacob-hugging-face/job-descriptions"
+  },
+  "analysis": {
+    "realStack": [
+      "Adobe Creative Suite — InDesign (named), plus Photoshop & Illustrator for layout/illustration",
+      "Video editing & motion tools (e.g. Premiere Pro / After Effects) for short-form video, animation, infographics",
+      "Digital ad production & dynamic creative platforms (DCO / ad-builder tools) for responsive and mobile long-form ad units",
+      "Brand guidelines, creative briefs, and campaign strategy/objectives docs as the governing 'source material'",
+      "Advertising performance data / KPI dashboards (CTR, engagement, conversion) — design is explicitly judged 'performance-based'",
+      "UX principles and design-system thinking applied to digital/native experiences",
+      "Project-management & creative-ops tooling (scheduling, asset/version control, quality-control workflows)",
+      "Print production specs (preflight, color, prepress) alongside digital deliverables"
+    ],
+    "coreResponsibilities": [
+      "Develop art concepts and produce leading-edge, high-quality multichannel ad layouts (print + digital)",
+      "Provide art direction to designers — train, assign, schedule, and coach the team",
+      "Own creative through the full campaign lifecycle, from strategy/objectives to client presentation",
+      "Design performance-based digital advertising that applies UX principles and moves advertising KPIs",
+      "Create/edit short-form video and motion (animation, infographics, illustration) for native and ad placements",
+      "Deliver dynamic digital ad creative, including mobile and long-form content experiences",
+      "Enforce quality control and on-spec, on-time delivery; identify work-process improvements"
+    ],
+    "statedVsRealGaps": [
+      "Seniority is 'lead', but the JD mixes hands-on production ('produces art layouts') with people leadership (train/assign/coach designers) — this is a player-coach role, not a pure director; candidates skew to one or the other.",
+      "Video/animation is labeled 'helpful' in qualifications yet appears as an actual responsibility (video creation/editing, animation, infographics) — the requirement is understated relative to the work.",
+      "'Clear understanding of how design impacts advertising KPIs' asks for performance-marketing/analytics literacy that classic art-direction craft candidates often lack — a real fit risk the JD treats as a one-liner.",
+      "'Client-facing' is ambiguous: AARP Services is a captive subsidiary marketing AARP-branded products, so 'client' most likely means internal business owners/providers, not external agency clients — sets different expectations for the candidate.",
+      "The years-of-experience requirement is missing/garbled in the supplied text, so the actual seniority bar can't be read from the JD.",
+      "No codebase exists — correct and expected for an art-director role; the absence is not a defect."
+    ],
+    "trueComplexity": "medium",
+    "riskAreas": [
+      "Breadth-vs-depth: one role spanning print, digital, video, motion, infographics, UX and DCO risks a jack-of-all-trades hire; few candidates are strong across all of it.",
+      "Regulated subject matter — Medicare supplemental, insurance, credit cards, annuities — means heavy legal/compliance review on every creative; the JD never mentions it but it dominates real creative cycles.",
+      "Audience is AARP's 50+ membership: accessibility, legibility, and contrast are first-order constraints; the JD only gestures at 'UX' and doesn't make this explicit.",
+      "IC/manager scope ambiguity can mis-set expectations and stall the team if the hire expects pure direction or pure production.",
+      "Hybrid in-office NYC-area requirement narrows the candidate pool and conflicts with the remote norms of senior creative talent.",
+      "KPI-accountable creative ties the role to media/martech systems and data it doesn't own, creating dependency and attribution friction."
+    ],
+    "reflection": "This is a non-software, lead creative/marketing role and there is correctly no codebase — the real body of work is AARP Services' multichannel advertising creative: print and digital ads, short-form video and motion, infographics, and dynamic/mobile ad units for a regulated portfolio (insurance, Medicare supplements, financial, travel) marketed to a 50+ membership. Judged in its own terms, complexity is medium: the craft (Adobe/InDesign, layout, video) is standard for a senior art director, but the role stacks three demanding axes on top — people leadership of a design team, performance/KPI accountability, and full-lifecycle client-facing ownership — while spanning an unusually wide deliverable range. The sharpest stated-vs-real divergences are the understated video/motion expectation, the performance-marketing literacy buried as a single bullet, the player-coach scope sold as a 'lead' title, and the unstated but heavy compliance and accessibility realities of marketing regulated financial products to older adults. A strong candidate is less a pure visual stylist and more a hybrid art-director/creative-ops lead comfortable being measured by ad performance.",
+    "confidence": 0.62,
+    "promptVersion": "need-analysis-v3"
+  },
+  "role": {
+    "title": "Art Director",
+    "seniority": "lead",
+    "roleFamily": "marketing",
+    "mustHaves": [
+      "Extensive art-director/design experience producing advertising creative across BOTH print and digital — judgment on concept, layout, typography, and craft, not just execution",
+      "Expert proficiency in Adobe Creative Suite, InDesign specifically (named in the JD), plus Photoshop and Illustrator for layout and illustration",
+      "Demonstrated art direction of a design team — training, assigning, scheduling, and coaching designers (player-coach: leads while still producing)",
+      "Ownership of creative through the full campaign lifecycle, from strategy and objectives to final client presentation",
+      "Performance-marketing literacy — a clear, demonstrable understanding of how design choices move advertising KPIs (CTR, engagement, conversion), so creative decisions are tied to outcomes",
+      "Multichannel advertising design that applies UX principles to digital and native experiences",
+      "Excellent quality control and project-management/organizational discipline — on-spec, on-time delivery with consistent visual standards",
+      "Client-facing confidence leading projects end-to-end (here 'client' is most likely internal business/product owners within a captive AARP subsidiary, not external agency clients)",
+      "BA in Art, Design, or a related field"
+    ],
+    "niceToHaves": [
+      "Short-form video creation/editing and motion design (e.g. Premiere Pro, After Effects), including animation and infographics for native experiences and ads",
+      "Hands-on experience with dynamic creative platforms / DCO and ad-builder tools to deliver responsive, mobile, and long-form content experiences",
+      "Design-system thinking applied to scalable digital/native ad creative",
+      "Experience marketing regulated or membership-driven products (financial, insurance, health) to a 50+ audience",
+      "Print production fluency — preflight, color, and prepress alongside digital deliverables",
+      "NYC-area availability for hybrid/in-person meetings and occasional office presence (flexible work arrangement)"
+    ],
+    "responsibilities": [
+      "Develop art concepts and produce leading-edge, high-quality multichannel ad layouts across print and digital",
+      "Provide art direction to designers — train, assign, schedule, and coach the team to consistent creative standards",
+      "Own creative through the full campaign development process, from strategy and objectives to client presentation",
+      "Design performance-based digital advertising that applies UX principles and measurably impacts advertising KPIs",
+      "Create and edit short-form video, animation, infographics, and illustration for native placements and advertisements",
+      "Deliver dynamic digital ad creative, including mobile and long-form content experiences, using design platforms and tooling",
+      "Enforce quality control and on-spec, on-time delivery while identifying and driving work-process improvements"
+    ],
+    "languages": [
+      "English"
+    ],
+    "promptVersion": "role-design-v3"
+  },
+  "case": {
+    "title": "Lead Art Director Work-Sample: Medicare Supplement Multichannel Refresh",
+    "brief": "You've just joined as Lead Art Director on a membership-brand creative pod that produces performance-accountable, multichannel advertising for an audience of members aged 50+, across regulated financial products (this campaign is Medicare Supplement, with annuities and a co-branded credit card in the same family). The role is deliberately blended: you both set the creative direction the team executes against AND get your own hands dirty on the hero work. You've been handed a live, in-flight brief and the materials the pod is currently working from. Your job in this sitting is not to redesign the whole campaign — it's to show how you take an open brief to a defensible, ship-ready hero execution, how you lift an underperformer, and how you direct someone else's work to standard. Treat the supplied materials as the real source of truth: read them before you generate, and design for the people who will actually see these ads, not for a portfolio reel. Scope your effort to ~2 hours — depth on a few things beats thin coverage of everything. Where the brief leaves a call to you, make it, and keep a short trail of why (Task 4). Deliverables can be flats, annotated mockups, or composites plus short written rationale — we care about the thinking and the judgment, not pixel-perfect finishing.",
+    "repoSeed": "A campaign working folder representative of the role's real materials: (1) brief_medigap_2026.pdf — the creative brief and objectives for the Medicare Supplement push; it asks for a 'fresh, modern look to lift engagement vs. the current control' and names a Q3 in-market date, but does not specify which KPI matters most or call out audience-specific legibility needs. (2) brand_guidelines_v7.pdf — palette, type system, logo rules, and voice; note the prescribed secondary-text color pairing and the display-type weights it favors. (3) kpi_dashboard_q1_export.csv — current performance for the incumbent creative, with columns for impressions, CTR, on-ad engagement, and downstream conversion (qualified application starts); the three metrics do not all move together. (4) control_set/ — the incumbent units: control_300x250.psd, control_728x90.psd, control_320x50.psd, and control_print_FSI.indd (a print free-standing insert). (5) media_plan_placements.xlsx — where the units run (the three banner sizes above, plus the print FSI) and the device split. (6) compliance_disclosures_medigap.docx — the mandatory legal disclosures, eligibility/'not connected with or endorsed by the government' language, and the minimum disclosure type size legal requires on every placement. (7) junior_draft_native_unit.psd — a junior designer's first-pass native/social unit for the same campaign, ready for your direction.",
+    "tasks": [
+      "Develop the campaign's lead art concept from brief_medigap_2026.pdf, then produce ONE hero idea end-to-end: a polished responsive digital execution at the three sizes in media_plan_placements.xlsx (300×250, 728×90, 320×50) and the same concept adapted to control_print_FSI.indd. Work on-brand per brand_guidelines_v7 and design it for the actual reader of these ads.",
+      "control_300x250.psd is the incumbent and underperforms — see kpi_dashboard_q1_export.csv. Redesign that one unit to move performance, and write a 4–6 sentence rationale connecting each major design decision to the specific metric you chose to optimize (and what you traded off to do it).",
+      "Art-direct junior_draft_native_unit.psd the way you would for a designer on your team: written direction stating what's working, what must change before it can ship, and the priority order — specific enough that they could execute the revision without you in the room.",
+      "Keep a short DECISIONS log (about one page) as you work: for every call you made where the brief or materials left room, note what you chose, the option you set aside and why, and the one question you'd put to the brand, legal, or media partner before final sign-off."
+    ],
+    "coverProbes": [
+      {
+        "id": "modern-vs-audience",
+        "kind": "ambiguity",
+        "where": "brief_medigap_2026.pdf asks for a 'fresh, modern look to lift engagement,' while the real audience is 50+ and the control's low engagement plausibly traces to small/thin type and low contrast.",
+        "reveals": "A strong lead treats legibility, contrast, touch-target size and reading distance as first-order design constraints and reconciles 'modern' with them; a naive one ships on-trend thin type, low-contrast palettes and tiny CTAs that read as polished in a portfolio but actively underperform with this audience.",
+        "decisionSpace": [
+          "Accessibility-led: large, high-contrast type and generous CTAs even at the cost of a less trend-forward look — betting legibility itself is the lever on the KPI.",
+          "Reconciled-modern: editorial, contemporary layout but enforce WCAG AA+ contrast, a body-type floor, and larger tap/click targets — balances brand-modern with the audience.",
+          "Brand-forward-modern with accessibility logged as a fast-follow risk — quickest to a 'looks great' comp, highest risk against the actual readership."
+        ]
+      },
+      {
+        "id": "brand-contrast-conflict",
+        "kind": "legacy_trap",
+        "where": "brand_guidelines_v7.pdf prescribes a secondary-text color pairing that fails accessible contrast for low-vision readers; the legacy control_set quietly uses an off-spec but more readable variant.",
+        "reveals": "A candidate who actually reads the guidelines AND the control notices the conflict and resolves it deliberately; a naive one either follows the guideline literally (ships inaccessible secondary copy) or silently 'fixes' it without recognizing they're deviating from brand governance.",
+        "decisionSpace": [
+          "Follow brand exactly and escalate the contrast failure to brand/legal as a documented blocker — protects governance, defers the fix.",
+          "Deviate within tolerance (darken secondary text to pass AA) and log the deviation for sign-off — ships readable now, owns the off-spec call.",
+          "Propose an accessible-color token amendment to the guideline itself — slowest, but fixes the root cause for every unit the system produces."
+        ]
+      },
+      {
+        "id": "missing-disclosures",
+        "kind": "verification_trap",
+        "where": "Mandatory disclosures and the legal minimum disclosure type size live in compliance_disclosures_medigap.docx, not in the brief; a one-shot 'finished-looking' layout easily omits them, sets them below legal minimum, or lets them crop on the 320×50 mobile breakpoint.",
+        "reveals": "A candidate who reads the compliance doc reserves a legible legal zone at the required minimum across every breakpoint and treats legal as a gating reviewer; a naive one produces a beautiful unit that would fail compliance review and could never run.",
+        "decisionSpace": [
+          "Disclosure-first: reserve a legible legal zone at the legal minimum size in every size/breakpoint and design the composition around it.",
+          "Progressive disclosure where the placement allows (expandable panel / secondary screen) to keep the hero clean — contingent on legal confirming the pattern is acceptable.",
+          "Lock the space and minimum type size as a hard constraint but defer exact legal copy, flagged for legal — pragmatic for a 2-hour sample while still ship-aware."
+        ]
+      },
+      {
+        "id": "which-kpi",
+        "kind": "underspecified",
+        "where": "kpi_dashboard_q1_export.csv exposes CTR, engagement and downstream conversion, but the brief says only 'lift performance' and the metrics don't move together — pushing CTR can erode conversion quality.",
+        "reveals": "A strong lead names the metric they're optimizing, justifies it against business value, and acknowledges the trade-off; a naive one chases the easiest vanity number (CTR) and ignores downstream conversion and lead quality.",
+        "decisionSpace": [
+          "Optimize downstream conversion (qualified application starts) — closest to business value, but a slower, noisier signal to design against.",
+          "Optimize CTR/on-ad engagement as the leading indicator the team can act on this cycle — fast feedback, risks low-quality clicks.",
+          "Optimize a guardrailed CTR (CTR with a conversion-rate floor) — balanced, but depends on the media/analytics partner to instrument the guardrail."
+        ]
+      }
+    ],
+    "timeboxHours": 2.0,
+    "rubricDimensions": [
+      {
+        "name": "framing",
+        "label": "Problem framing",
+        "weight": 0.2,
+        "description": "Turns an ambiguous need into a sound plan."
+      },
+      {
+        "name": "tooling",
+        "label": "Tooling fluency",
+        "weight": 0.25,
+        "description": "Drives AI and other tools well; iterates and verifies."
+      },
+      {
+        "name": "judgment",
+        "label": "Judgment",
+        "weight": 0.25,
+        "description": "Catches AI/tooling mistakes; validates; pushes back."
+      },
+      {
+        "name": "architecture",
+        "label": "Architecture",
+        "weight": 0.15,
+        "description": "Structure and trade-offs that fit the real materials and constraints."
+      },
+      {
+        "name": "transfer",
+        "label": "Transfer",
+        "weight": 0.15,
+        "description": "Capability transfers to THIS role's tools and responsibilities."
+      }
+    ],
+    "promptVersion": "case-design-v5"
+  },
+  "source": "llm",
+  "issues": [],
+  "fallbackReason": {},
+  "promptVersions": {
+    "analyze": "need-analysis-v3",
+    "role": "role-design-v3",
+    "case": "case-design-v5"
+  }
+}

@@ -1,0 +1,189 @@
+{
+  "job": {
+    "id": "cal-052",
+    "title": "Design Consultant",
+    "company": "Bassett",
+    "role_family": "consulting",
+    "seniority": "medior",
+    "source": "hf:jacob-hugging-face/job-descriptions"
+  },
+  "analysis": {
+    "realStack": [
+      "Showroom point-of-sale / sales order-entry system for writing custom-furniture orders",
+      "CRM / clienteling software to track customers, follow-ups, and build a base of loyal clients",
+      "Bassett product catalog and custom-furniture configurator (frame, fabric, finish, and upholstery options)",
+      "Design tools: fabric/leather and finish swatch libraries, room/space-planning aids, mood and sample boards",
+      "Color and texture coordination skill set (discerning and pairing palettes, materials, styles)",
+      "Furniture-construction and design-trend product knowledge",
+      "Relationship/consultative selling technique and in-home consultation method",
+      "Email and calendar for booking and managing consultation appointments",
+      "Personal vehicle and a valid license for travel to customer residences and businesses",
+      "Commission/sales-goal tracking dashboards",
+      "Bassett training program assets (online classes, videos, hands-on activities, 1:1 coaching)"
+    ],
+    "coreResponsibilities": [
+      "Build and maintain long-term customer relationships through relationship/clienteling selling",
+      "Run in-home (and in-showroom) design consultations, traveling to residences and businesses",
+      "Engage customers to determine needs by taste, lifestyle, and investment range",
+      "Translate customer wants into concrete design choices and coordinate colors, textures, and finishes",
+      "Create, present, and sell complete product-and-design solutions",
+      "Meet or exceed individual sales goals in a fully commissioned environment",
+      "Maintain product knowledge spanning furniture construction through current design trends",
+      "Work retail hours including weekends, evenings, and holidays as a supportive team member"
+    ],
+    "statedVsRealGaps": [
+      "Title and tone sell 'design,' but the role is fundamentally commissioned retail sales — the JD itself frames the complimentary design service as 'a powerful tool for... increased sales,' and lists sales-goal drive and a 'proven track record of success in sales' ahead of design depth.",
+      "Stated need for 'comprehensive knowledge from furniture construction to design trends' is softened by the heavy in-depth training program; the real entry bar is sales aptitude, polish, and coachability, with product/design skill built on the job.",
+      "'Computer proficiency' is the only tech requirement named, yet the day-to-day tooling that actually drives the role (POS/order entry, CRM/clienteling, product configurator) is left unstated.",
+      "Compensation specifics are blank — the 'starting guaranteed salary of [hour]' figure, founding year, and growth horizon are placeholder gaps, so the guaranteed-vs-commission split can't be judged from the JD.",
+      "Driving to customers' homes/businesses (own vehicle, time, liability) is a material obligation listed lightly under requirements rather than treated as the logistical commitment it is."
+    ],
+    "trueComplexity": "medium",
+    "riskAreas": [
+      "Commission/quota pressure plus a 'proven sales track record' gate creates real turnover and ramp risk; design-passionate hires may underperform on hard targets — a title/expectation mismatch.",
+      "Mandatory weekends, evenings, and holidays strain work-life balance and retention.",
+      "In-home consultations require reliable personal transport and carry safety, time-cost, mileage, and liability exposure.",
+      "Productivity depends on completing an extended training program, so time-to-first-sale is a hiring-cost factor.",
+      "Success hinges on soft, hard-to-screen traits (relationship-building, 'polished image,' translating wants to choices) that are difficult to verify pre-hire and easy to over-rate from a résumé."
+    ],
+    "reflection": "This is a commissioned furniture-retail sales role dressed as a design role, and the evidence is the role's own materials rather than any codebase — there is no tech stack to assess, which is normal here. The real 'body of work' the consultant acts on is the showroom's selling system: a POS/order pipeline for custom orders, a CRM/clienteling book of relationships, the Bassett product line and its configuration options, and the swatch/sample/space-planning toolkit used to turn a customer's taste and budget into an order. Judged in its own terms the job is medium-complexity: it demands genuine breadth (construction knowledge, trend literacy, color/texture judgment) and the interpersonal skill to run consultations in customers' homes, but it is heavily scaffolded by training and ultimately measured by sales goals. The honest gap is between framing and incentive — 'design consultant' and 'passion for design' lead the pitch, while commission structure, sales-goal language, and a sales-track-record requirement reveal that design is the relationship and selling vehicle, not the end. Tooling that genuinely matters (CRM, POS, configurator) is barely acknowledged, and concrete comp figures are missing from the text, so a candidate can't fully weigh the guaranteed-vs-commission tradeoff from the JD alone.",
+    "confidence": 0.7,
+    "promptVersion": "need-analysis-v3"
+  },
+  "role": {
+    "title": "Design Consultant",
+    "seniority": "medior",
+    "roleFamily": "consulting",
+    "mustHaves": [
+      "Proven track record of success in sales, ideally consultative or relationship/clienteling selling rather than transactional retail",
+      "Ability to run in-home and in-showroom design consultations: engage customers to determine needs by taste, lifestyle, and investment range, then translate those wants into concrete design choices",
+      "Discern and coordinate colors, textures, and finishes into cohesive, sellable design solutions",
+      "Baseline product-and-design literacy spanning furniture construction through current design trends, plus the coachability to deepen it through Bassett's training program",
+      "Excellent verbal and interpersonal communication; a polished, professional, client-facing presence",
+      "Computer proficiency sufficient to operate the day-to-day tooling: showroom POS / sales order-entry, CRM / clienteling software, and the custom-furniture product configurator",
+      "Valid driver's license and reliable personal vehicle for travel to customers' residences and businesses",
+      "Self-motivated to meet or exceed individual sales goals in a fully commissioned environment",
+      "Willingness to work retail hours, including weekends, evenings, and holidays, as a supportive team member"
+    ],
+    "niceToHaves": [
+      "Prior experience selling furniture, home furnishings, or other considered/big-ticket goods",
+      "Formal design or interior-design education, or demonstrable design-trend fluency",
+      "An existing book of loyal clients or hands-on clienteling/follow-up experience",
+      "Familiarity with specific CRM/clienteling or space-planning/mood-board tools",
+      "Experience presenting and closing complete design packages (not just single items)"
+    ],
+    "responsibilities": [
+      "Build and maintain long-term customer relationships through relationship/clienteling selling",
+      "Conduct in-home and in-showroom design consultations, traveling to customers' residences and businesses",
+      "Engage customers to determine their needs by taste, lifestyle, and investment range",
+      "Translate customer wants into concrete design choices, coordinating colors, textures, and finishes",
+      "Create, present, and sell complete product-and-design solutions",
+      "Meet or exceed individual sales goals in a fully commissioned environment",
+      "Maintain product knowledge spanning furniture construction through current design trends",
+      "Use the complimentary design service as a tool for developing customer relationships and increasing sales opportunities"
+    ],
+    "languages": [
+      "English"
+    ],
+    "promptVersion": "role-design-v3"
+  },
+  "case": {
+    "title": "In-Home Design Consultation: The Reyes Family Room (custom upholstery solution + close)",
+    "brief": "You are a Bassett Design Consultant. A returning customer, Marisol Reyes, has booked a complimentary in-home consultation to furnish a new family room and has asked specifically about a custom sofa. You are handed her CRM/clienteling record, the partial intake from the booking call, a room packet, and your design tools (catalog/configurator, swatch library, pricing sheet). Your job is the real work of this role: read the customer, translate her taste, lifestyle, and investment range into a concrete, coordinated, physically buildable solution, and present and sell it — all while protecting the relationship for repeat business. The provided materials fit this role directly; design ON them. The intake is deliberately incomplete and some constraints in the packet are not yet connected to the customer's stated wishes — surfacing and reconciling those is part of the exercise, not a distraction from it. Work the way you would on a live deal: where the brief is open, make a defensible call, note the alternative, and keep moving. Hard time budget: 1.5 hours — depth over breadth.",
+    "repoSeed": "A consultation packet for customer Marisol Reyes: (1) CRM / clienteling record — purchase 14 months ago of one Bassett accent chair (good experience); a phone-follow-up note reading 'interested in a big sectional or sofa for the new family room — mentioned the last big couch they owned never fit right'; an open service ticket requesting a custom sofa quote. (2) Partial intake from the booking call — household of four (kids age 6 and 9) plus a golden retriever; style words in her own voice: 'comfortable but looks elevated, cozy but not country, warm but I'm sick of beige'; investment signal: 'we'd rather buy once, but let's be reasonable — maybe around the mid-range?'; she wants it 'done before we host Thanksgiving' (about 10 weeks out). (3) Room packet — family room open to the kitchen, 16 ft 4 in x 13 ft 2 in; two large west-facing windows with strong afternoon sun; the only access is a hallway with a 31-inch doorway and one 90-degree turn; pieces being kept and coordinated around: a warm walnut media console and a large abstract rug in rust and teal. (4) Bassett catalog/configurator excerpt — three to four sofa and sectional frames with overall dimensions, available configurations (including which ship one-piece vs. in sections / with removable legs), custom options, and a custom-upholstery lead-time note of 8–12 weeks, plus a short list of in-stock / quick-ship frames. (5) Swatch library excerpt — fabrics and leathers with fiber content, durability rating (double-rub count), cleanability/performance code, fade resistance, and price grade; wood/leg finish swatches. (6) Pricing & commission sheet with the price grades, and the delivery/white-glove process notes; (7) Email/calendar context for booking follow-ups.",
+    "tasks": [
+      "Discovery & gaps: Review the CRM record and the partial intake. Write the specific clarifying questions you would ask Marisol — split into what you would confirm before the visit vs. what you would draw out in the home — and flag any constraints already sitting in the packet (room access, west sun, the Thanksgiving deadline, the prior 'never fit right' note) that she has not yet connected to her own wishes. State what you would NOT design until you had answers.",
+      "Design solution: Using the catalog/configurator and swatch library, build one coordinated solution for the family room. Choose the frame and configuration and lay it out against the 16 ft 4 in x 13 ft 2 in room; select fabric/leather and finish that coordinate with the kept walnut console and rust/teal rug; assemble a mood/sample-board concept. Explain how each choice maps to her taste, her lifestyle (two young kids, a dog, strong west sun), and her investment signal — and confirm the selection physically fits the room AND the 31-inch doorway with a turn.",
+      "Proposal & close: Produce the itemized configuration with pricing measured against her stated budget, presented as a tiered choice (an anchor plus at least one step-down) she can actually decide from. Address the 8–12-week custom lead time against her ~10-week Thanksgiving deadline honestly, with at least one concrete fallback. Then script how you would present the solution and ask for the sale.",
+      "DECISIONS log + clienteling plan: Keep a short DECISIONS log — for every call you made where the materials were open (budget level, style direction, fabric trade-off, the fit/lead-time gamble), record what you chose, the alternative you rejected, and what you would have asked Marisol or your delivery/ops team. Then outline the CRM follow-up cadence that turns this one transaction into a long-term, repeat client."
+    ],
+    "coverProbes": [
+      {
+        "id": "budget-ambiguity",
+        "kind": "underspecified",
+        "where": "The investment signal in the intake: 'we'd rather buy once, but let's be reasonable — maybe around the mid-range?' — a 'buy once' quality intent stated alongside a soft mid-range number.",
+        "reveals": "A strong candidate names the conflict and either pins the number with a question or designs explicitly tiered value so Marisol self-selects; a naive one silently picks a single price point and designs to it, betting the whole proposal on a guess about her wallet.",
+        "decisionSpace": [
+          "Pin the budget with a clarifying question before designing — lowest risk of a wasted proposal, but can stall momentum and feels transactional early.",
+          "Anchor with a premium 'buy once' solution and present deliberate step-downs — maximizes basket and honors the durability intent, but risks sticker shock and losing her at hello.",
+          "Design to the stated mid-range and let her trade up on specific upgrades — safe and easy to say yes to, but may underserve the 'buy once' wish and leave commission on the table."
+        ]
+      },
+      {
+        "id": "prior-fit-history",
+        "kind": "legacy_trap",
+        "where": "The CRM phone-follow-up note: 'the last big couch they owned never fit right,' read against the 31-inch doorway with a 90-degree turn.",
+        "reveals": "A strong candidate reads the history, connects 'never fit right' to the access constraint, and verifies delivery feasibility before specifying a large frame; a naive candidate ignores the buried note and re-proposes exactly the piece that re-creates her past bad experience.",
+        "decisionSpace": [
+          "Treat access as a hard constraint and spec a sectional that ships in sections / a smaller frame — safest delivery, but may compromise the elevated look she wants.",
+          "Verify exact frame dimensions plus a removable-leg / knock-down path for a one-piece sofa — best look if it clears, but carries real delivery-day risk.",
+          "Hold the final frame pending a delivery/ops measure-confirm — most accurate, but adds a dependency and a few days before she can commit."
+        ]
+      },
+      {
+        "id": "fabric-and-leadtime-verification",
+        "kind": "verification_trap",
+        "where": "Fabric durability against two kids, a dog, and strong west-facing sun, AND the 8–12-week custom lead time against the ~10-week Thanksgiving deadline.",
+        "reveals": "A gorgeous one-shot pick — a low-double-rub linen on a full-custom order — passes a shallow 'nice, on-brand sofa' check but fails durability, fade, and the deadline; a strong candidate checks the double-rub/cleanability/fade ratings and does the lead-time math, offering an in-stock or quick-ship fallback.",
+        "decisionSpace": [
+          "Spec a high-performance, fade-resistant fabric and accept custom timing, setting the honest expectation that it may land just after Thanksgiving — protects quality and trust, risks losing a deadline-driven sale.",
+          "Steer to an in-stock / quick-ship frame and fabric to guarantee the date — certain delivery and a clean close, but a less tailored, less 'buy once' result.",
+          "Place the custom order with a rush or a stand-in plan to cover the holiday — best of both if it works, but adds cost and feasibility risk that must be disclosed."
+        ]
+      },
+      {
+        "id": "style-translation",
+        "kind": "ambiguity",
+        "where": "Translating 'cozy but not country, warm but I'm sick of beige' into a concrete palette and texture story that also coordinates with the kept walnut console and the rust/teal rug.",
+        "reveals": "A strong candidate commits to a specific, defensible direction coordinated with the pieces she is keeping and names its trade-off; a naive candidate retreats to a generic greige and calls it 'warm' — landing on exactly the beige she rejected.",
+        "decisionSpace": [
+          "Warm earth direction (clay/terracotta tones echoing the rug, paired with the walnut) — cohesive and unmistakably 'warm, not beige,' but risks reading too matchy or too warm.",
+          "Deeper, moodier contrast (forest/teal-leaning upholstery with brass/wood accents) for the 'elevated' read — distinctive and grown-up, but risks clashing with the rug's rust.",
+          "Textured warm-neutral base with color carried by pillows/accent pieces — most flexible and budget-tunable, but risks drifting back toward the beige she explicitly rejected if the texture doesn't carry it."
+        ]
+      }
+    ],
+    "timeboxHours": 1.5,
+    "rubricDimensions": [
+      {
+        "name": "framing",
+        "label": "Problem framing",
+        "weight": 0.2,
+        "description": "Turns an ambiguous need into a sound plan."
+      },
+      {
+        "name": "tooling",
+        "label": "Tooling fluency",
+        "weight": 0.25,
+        "description": "Drives AI and other tools well; iterates and verifies."
+      },
+      {
+        "name": "judgment",
+        "label": "Judgment",
+        "weight": 0.25,
+        "description": "Catches AI/tooling mistakes; validates; pushes back."
+      },
+      {
+        "name": "architecture",
+        "label": "Architecture",
+        "weight": 0.15,
+        "description": "Structure and trade-offs that fit the real materials and constraints."
+      },
+      {
+        "name": "transfer",
+        "label": "Transfer",
+        "weight": 0.15,
+        "description": "Capability transfers to THIS role's tools and responsibilities."
+      }
+    ],
+    "promptVersion": "case-design-v5"
+  },
+  "source": "llm",
+  "issues": [],
+  "fallbackReason": {},
+  "promptVersions": {
+    "analyze": "need-analysis-v3",
+    "role": "role-design-v3",
+    "case": "case-design-v5"
+  }
+}

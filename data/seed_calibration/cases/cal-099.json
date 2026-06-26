@@ -1,0 +1,199 @@
+{
+  "job": {
+    "id": "cal-099",
+    "title": "Systems Administrator",
+    "company": "ICONIQ Capital",
+    "role_family": "consulting",
+    "seniority": "medior",
+    "source": "hf:jacob-hugging-face/job-descriptions"
+  },
+  "analysis": {
+    "realStack": [
+      "Microsoft Windows Server + Active Directory (identity, GPO, domain services)",
+      "Microsoft Exchange (on-prem) with a migration to Exchange Online / Microsoft 365",
+      "Microsoft Azure (stated cloud-migration target for systems)",
+      "VMware vSphere/ESXi virtualization",
+      "Cisco and Palo Alto Networks firewalls",
+      "ShoreTel VoIP / enterprise telephony (legacy — Mitel-acquired, end-of-life)",
+      "Hyperconverged infrastructure appliances (compute + storage)",
+      "Windows and macOS desktop fleet / endpoint support and application troubleshooting",
+      "Networking — Layer 2/3 protocol troubleshooting, switching/routing, deployment",
+      "Cybersecurity tooling and encryption (endpoint, email, data-at-rest/in-transit)",
+      "Cloud SaaS application administration",
+      "Scripting for automation (PowerShell / shell) to reduce manual task time",
+      "IT project management + technical documentation / team knowledge base"
+    ],
+    "coreResponsibilities": [
+      "Act as the single technical knowledge expert (SME) across all core enterprise infrastructure: servers, storage, network, email, cybersecurity, and telecom.",
+      "Lead and manage IT projects — including security initiatives — end-to-end from concept/planning through completion, on time and to budget, with cross-functional teams.",
+      "Plan and execute cloud migrations: on-prem Exchange to Exchange Online/M365 and broader systems to Azure.",
+      "Administer and troubleshoot the Windows/macOS endpoint fleet and SaaS applications (effectively tier 2/3 support).",
+      "Operate and harden network and security infrastructure: Cisco/Palo Alto firewalls, L2/L3 troubleshooting, encryption, and cybersecurity controls.",
+      "Write and maintain custom automation scripts to increase efficiency and lower manual-intervention time on daily tasks.",
+      "Author technical documentation and contribute to the team knowledge base.",
+      "Collaborate with internal IT staff and external vendors/consultants to deliver the firm's technical initiatives."
+    ],
+    "statedVsRealGaps": [
+      "seniorityTarget is set to 'medior', but the JD reads senior/lead: it asks the hire to BE the technical knowledge expert across the entire infra stack, lead security projects to completion, and accepts 'technical lead / systems architect' backgrounds — that is a senior individual-contributor or lead profile, not medior.",
+      "roleFamily is tagged 'consulting', but this is an in-house enterprise IT / infrastructure systems-administration role; the only consulting flavor is coordinating with external consultants. It is operational, not client-facing advisory.",
+      "The structured need's stack[] and responsibilities[] are empty — everything here is extracted from the JD prose, so the real definition lives entirely in the free text.",
+      "The JD text is OCR-degraded and lowercased: years-of-experience is blanked ('years experience'), migration targets are redacted ('exchange to ', 'migrating systems to azure and '), and network layer is blank ('layer  network protocol'). The implied targets are Exchange Online/M365, but the specifics are missing — leveling and scope precision suffer.",
+      "Stack contains a clear legacy signal (ShoreTel telephony, on-prem Exchange, VMware, hyperconverged on-prem) running concurrently with a cloud push (Azure, Exchange Online) — the role is a dual-stack 'keep the old, build the new' bridge, not a greenfield cloud role.",
+      "A COVID-19 vaccination mandate and on-site requirement (New York or San Francisco) are present — this is a dated, non-remote posting, which narrows the real candidate pool versus how a generic 'medior sysadmin' need would be marketed.",
+      "No codebase/environment was supplied, so every claim about the real estate rests on the JD's self-report and cannot be independently verified."
+    ],
+    "trueComplexity": "high",
+    "riskAreas": [
+      "Key-person / bus-factor risk: one person designated the technical expert across servers, storage, network, security, and telecom is a single point of failure for the firm's entire infrastructure.",
+      "High security stakes: a family office serving 'the world's most influential families' is a high-value attack target; firewall, encryption, and cybersecurity work here carries real breach and data-exposure consequences — staffing security-critical leadership at a 'medior' level is risky.",
+      "Concurrent legacy operation + migration: running on-prem Exchange/VMware/ShoreTel while simultaneously migrating to Azure and Exchange Online is dual-burden work with high cutover and outage risk.",
+      "Breadth-over-depth expectation: 'expertise in multiple of the following and working knowledge of others' plus 'willingness to take on any task' invites scope creep and burnout, and makes it hard to verify true depth in any one critical area (e.g., firewall/security).",
+      "Leveling uncertainty: redacted years-of-experience and migration targets make it hard to confirm whether the firm actually wants medior, senior, or lead — mismatched expectations could surface only after hire.",
+      "Pool-narrowing constraints: mandatory on-site (NY or SF) plus the vaccination clause shrink the realistic candidate set and signal the posting may be stale."
+    ],
+    "reflection": "This is a broad enterprise-IT infrastructure systems-administrator role at a high-security investment/family-office firm, and the honest read is that the framing under-states it on two axes. First, seniority: despite the 'medior' target, the JD wants someone to be THE technical authority across the full infra surface, lead security and migration projects end-to-end, and it explicitly welcomes systems-architect and technical-lead backgrounds — that is senior/lead work, and hiring it as medior risks either over-paying for a junior title or under-leveling the actual responsibility. Second, family: 'consulting' is the wrong label; this is hands-on in-house operations, with consultants as collaborators rather than the job itself. The real complexity is genuinely high — not because any single technology is exotic, but because the role asks one person to own a heterogeneous on-prem-plus-cloud estate (Windows/AD, Exchange, VMware, hyperconverged, Cisco/Palo Alto, ShoreTel) AND drive its migration to Azure/M365 AND lead security initiatives AND automate via scripting, all in a fast-paced, high-stakes environment. The stack mixes clear legacy (ShoreTel is EOL; on-prem Exchange/VMware) with a cloud transition, so the practical mandate is 'run the old reliably while building the new' — a bridge role that rewards a steady senior generalist with real security depth over a specialist. The main caveats: there is no codebase or environment to verify against, so this rests on the JD's self-report, and the JD text itself is OCR-degraded (blanked experience years, redacted migration targets, missing network layer), plus a vaccination/on-site clause that dates the posting. Net: a coherent, demanding infrastructure role that should be re-leveled toward senior and re-tagged as in-house IT ops, not medior consulting.",
+    "confidence": 0.6,
+    "promptVersion": "need-analysis-v3"
+  },
+  "role": {
+    "title": "Systems Administrator",
+    "seniority": "senior",
+    "roleFamily": "infrastructure",
+    "mustHaves": [
+      "Deep hands-on administration of Microsoft Windows Server and Active Directory (domain services, GPO, identity)",
+      "Microsoft Exchange administration with proven enterprise-scale migration experience from on-prem Exchange to Exchange Online / Microsoft 365",
+      "Hands-on Microsoft Azure — planning and executing migration of on-prem systems to Azure",
+      "VMware vSphere/ESXi virtualization administration",
+      "Enterprise networking depth: Layer 2/Layer 3 protocol troubleshooting, switching and routing, deployment",
+      "Firewall administration and hardening with Cisco and Palo Alto Networks",
+      "Cybersecurity controls and encryption across endpoints, email, and data at-rest/in-transit",
+      "Scripting and automation (PowerShell, shell) to reduce manual-intervention time on recurring tasks",
+      "Demonstrated ability to lead IT and security projects end-to-end, from concept/planning through completion, on time and to budget",
+      "Windows and macOS endpoint fleet support and common-application troubleshooting (tier 2/3)",
+      "Strong technical writing and verbal/interpersonal communication for documentation, knowledge base, and cross-functional coordination"
+    ],
+    "niceToHaves": [
+      "ShoreTel / Mitel VoIP and enterprise telephony experience (legacy stack support)",
+      "Hyperconverged infrastructure appliance experience (e.g., Nutanix, VxRail)",
+      "Experience in financial services, a family office, or another regulated/high-confidentiality environment",
+      "Track record collaborating with and managing external vendors and consultants",
+      "Cloud SaaS application administration at scale",
+      "Bachelor's degree in Computer Science, Information Technology, or a related field",
+      "Python for higher-order automation and tooling"
+    ],
+    "responsibilities": [
+      "Serve as the technical knowledge expert (SME) across core enterprise infrastructure: servers, storage, network, email, cybersecurity, and telecom",
+      "Lead and manage IT projects — including security initiatives — from concept and planning through successful completion, on time and to budget, with cross-functional teams",
+      "Plan and execute cloud migrations: on-prem Exchange to Exchange Online / Microsoft 365 and broader systems to Azure",
+      "Operate and harden network and security infrastructure: Cisco and Palo Alto firewalls, Layer 2/3 troubleshooting, encryption, and cybersecurity controls",
+      "Administer and troubleshoot the Windows/macOS endpoint fleet and SaaS applications",
+      "Write and maintain custom automation scripts to increase system efficiency and lower manual-intervention time on daily tasks",
+      "Author and maintain technical documentation and contribute to the technology team's knowledge base",
+      "Collaborate with internal IT staff and external vendors/consultants to deliver the firm's technical initiatives"
+    ],
+    "languages": [
+      "PowerShell",
+      "Bash"
+    ],
+    "promptVersion": "role-design-v3"
+  },
+  "case": {
+    "title": "Senior Systems Administrator — Family Office: Exchange Online Migration, Edge Hardening & Safe Offboarding Automation",
+    "brief": "You are the incoming senior systems administrator / SME for a single-family office that supports several of the world's most influential families from on-site offices in NY and SF. The firm runs an aging on-prem estate (Windows Server / Active Directory, Exchange 2016, VMware vSphere on a hyperconverged appliance, Cisco + Palo Alto edge, and an end-of-life ShoreTel VoIP system) and leadership has asked you to 'get us to the cloud and tighten security' — without disrupting the principals. The provided infrastructure FITS this role, so you act on it as a senior sysadmin would: plan the migration, harden the edge, and make the daily automation safe. This is a judgment exercise, not a typing test — assume any script or document could be machine-generated, so what we evaluate is how you read the existing estate, where you stop to ask, and how you sequence risky changes for a high-value target. The materials are deliberately incomplete and partly contradictory; choosing well under that ambiguity (and recording why) is the point. Hard cap: 2 hours. Prefer depth over coverage — a defensible plan for 80% beats a shallow plan for 100%. Write all deliverables in English; keep product, protocol, and host names verbatim.",
+    "repoSeed": "An infrastructure handover packet (no live access — you work from the documents):\n- `leadership-migration-brief.md` — three short paragraphs from the COO: 'move email and systems to Microsoft 365 / Azure', 'principals cannot lose access to mail', 'do it cost-effectively'. No mailbox sizes, no coexistence window, no integration list, no decommission dates.\n- `exchange-environment.md` — on-prem Exchange 2016 (single org), ~140 mailboxes incl. ~25 shared mailboxes, 6 large (>40 GB) principal/assistant mailboxes, active Public Folders used by the accounting team, one AD forest (single domain), Entra Connect (formerly Azure AD Connect) status listed as 'installed, sync disabled'.\n- `infrastructure-inventory.csv` — hosts with role, OS, lifecycle status, and notes: 3 ESXi hosts on a hyperconverged appliance, 2 DCs, the Exchange box, a file server, the ShoreTel VoIP servers (marked 'EOL — Mitel; replacement TBD'), Windows + macOS endpoint counts.\n- `firewall-rules-export.csv` — a Palo Alto security-policy export (~30 rules) including a broad rule named `VoIP-ShoreTel-ANY` (source any → ShoreTel subnet, application any, service any) and a `MGMT-Inbound` rule exposing device management from a broad internal range; rule hit-counts included.\n- `edge-asa-running-config.txt` — a Cisco ASA/IOS running-config excerpt with NAT and a couple of legacy access-list lines.\n- `Offboard-User.ps1` — the current ~40-line PowerShell offboarding script (details in Task 3).\n- `runbook-fragments/` — a half-written onboarding runbook and a DNS/Autodiscover record list (some records stale).",
+    "tasks": [
+      "Migration plan (primary): Using `leadership-migration-brief.md`, `exchange-environment.md`, and `infrastructure-inventory.csv`, write a 1–2 page plan to move the Exchange 2016 organization to Exchange Online (Microsoft 365). Pick ONE migration approach and justify it against the real numbers (mailbox count, the 6 large principal mailboxes, ~25 shared mailboxes, active Public Folders, and the principals' stated zero-mail-loss requirement). Produce a cutover/coexistence runbook covering: identity model (cloud-only vs hybrid identity via Entra Connect), DNS / Autodiscover / MX changes, licensing, the cutover-night sequence with owners and timings, and a concrete rollback trigger and rollback step.",
+      "Edge hardening review: Review `firewall-rules-export.csv` and `edge-asa-running-config.txt` for a high-value-target family office. Identify the 5 highest-risk findings, rank them by exposure, and for each give the specific remediation AND its blast radius (what legitimately breaks if you apply it). Explicitly address any rule tied to a system that is being retired rather than treating every existing rule as load-bearing production.",
+      "Safe offboarding automation: Read `Offboard-User.ps1`. It currently 'works' — it runs and disables the AD account — but it was written for a simpler estate. Identify what it does wrong when the departing user is a principal's executive assistant whose mailbox is subject to retention/legal hold, then deliver a corrected PowerShell script that sequences AD, Exchange Online, group membership, session/token revocation, and licensing in a safe, idempotent order, with a verification/readback step. State your assumptions inline as comments.",
+      "DECISIONS.md (keep as you go): For every call you made where the brief was open — migration approach, what to do with the `VoIP-ShoreTel-ANY` rule, mailbox retention vs immediate license reclaim, and when to enforce MFA / Conditional Access relative to cutover — record in one short file: what you chose, the alternative you rejected and why, and the single question you would put to leadership or the team before executing this in production. Treat it as the normal change-record you'd attach to a CAB ticket."
+    ],
+    "coverProbes": [
+      {
+        "id": "migration-approach-underspecified",
+        "kind": "underspecified",
+        "where": "Task 1 — the COO brief gives no mailbox sizes, coexistence window, or integration list; the candidate must pick cutover vs hybrid vs minimal-hybrid.",
+        "reveals": "A strong candidate notices ~140 mailboxes (just under the cutover comfort ceiling) but with active Public Folders, 25 shared mailboxes, and 6 large principal mailboxes plus a hard zero-mail-loss requirement, and asks about acceptable downtime / Public Folder dependency before committing; they pick an approach and name what would flip the decision. A naive response defaults to 'cutover migration, one weekend' because the count is under 150, ignoring Public Folders, large-mailbox transfer time, and the principals' downtime intolerance.",
+        "decisionSpace": [
+          "Cutover migration: simplest, single hard switch over a weekend; viable only if downtime and Public Folder loss are acceptable and large-mailbox upload fits the window — risky for the principals.",
+          "Exchange hybrid: full free/busy coexistence and staged per-batch moves with no big-bang downtime; far more setup (hybrid config, Entra Connect, certs) but the safest path for executives who cannot lose access.",
+          "Minimal/express hybrid then batch moves: lighter-weight coexistence to move the principals' mailboxes first with online-mode safety, accepting some manual steps for shared mailboxes and Public Folders."
+        ]
+      },
+      {
+        "id": "shoretel-firewall-legacy-trap",
+        "kind": "legacy_trap",
+        "where": "Task 2 — the `VoIP-ShoreTel-ANY` rule in `firewall-rules-export.csv` is broad and still shows hit-counts, but the inventory marks ShoreTel as EOL with replacement TBD.",
+        "reveals": "A strong candidate cross-references the inventory, sees ShoreTel is being retired, and treats the permissive rule as a scoping/removal opportunity gated on the telephony decommission decision rather than preserving it because it has traffic. A naive response keeps every existing rule as 'production, don't touch' and never connects the hit-count to a dying system, or deletes it blind without checking whether voice is still live.",
+        "decisionSpace": [
+          "Tighten in place now: narrow source/destination/service to the known ShoreTel endpoints — immediate risk reduction, keeps telephony working, conservative.",
+          "Stage removal gated on the ShoreTel decommission date: correct sequencing, but requires coordinating with whoever owns the phone-system replacement and leaves the exposure until then.",
+          "Remove now: maximal hardening, but breaks voice if any handsets/trunks still depend on it — only defensible after confirming the system is dead."
+        ]
+      },
+      {
+        "id": "offboard-verification-trap",
+        "kind": "verification_trap",
+        "where": "Task 3 — `Offboard-User.ps1` passes the shallow check ('account is disabled') but mishandles a retention-bound executive-assistant mailbox.",
+        "reveals": "A strong candidate spots that the script disables AD and immediately removes the M365 license / deletes the mailbox — destroying data before any legal/litigation hold or shared-mailbox conversion — never revokes Exchange Online / Entra sessions or refresh tokens (so a live Outlook/OWA session survives the disable), and uses an unanchored `Get-ADUser -Filter` that can match the wrong person; they re-order to hold/convert the mailbox first, revoke sessions, strip privileged groups, disable, and only reclaim the license after the retention window, with a readback. A naive LLM regeneration reproduces 'disable + remove license + remove mailbox', which passes 'did it disable the account?' but causes data loss and a lingering session.",
+        "decisionSpace": [
+          "Convert mailbox to shared and keep a license window: preserves access for the team and data, at ongoing license cost until cleanup.",
+          "Apply litigation/retention hold then offboard, reclaim license after the hold window: compliance-first, more steps and policy dependency.",
+          "Hard-disable and immediately reclaim the license/mailbox: cheapest and fastest, but risks irreversible data loss and breaks if the mailbox is under hold — only safe for a confirmed non-retained user."
+        ]
+      },
+      {
+        "id": "conditional-access-timing-ambiguity",
+        "kind": "ambiguity",
+        "where": "Task 1 / Task 4 — the plan must encode WHEN MFA / Conditional Access / 'block legacy auth' is enforced relative to the migration, given a high-value target.",
+        "reveals": "A strong candidate recognizes the tension between locking down a high-value target early and not breaking Outlook profiles mid-migration, and picks a phased posture (report-only first, enforce per-batch, block legacy auth before moving each mailbox) with the trade-off named. A naive response either bolts on MFA only after full cutover (leaving a wide exposure window for exactly the kind of target attackers want) or hard-enforces Conditional Access on day one and breaks hybrid mail flow and migration tooling.",
+        "decisionSpace": [
+          "Enforce Conditional Access + block legacy auth before migrating: most secure, but risks breaking Outlook/ActiveSync profiles and migration endpoints mid-move.",
+          "Enforce only after full cutover: smoothest migration, but leaves a high-value tenant under-protected during the most exposed window.",
+          "Phased: report-only Conditional Access first, then enforce MFA and block legacy auth per migration batch as each cohort moves — balanced, but more coordination and per-batch verification."
+        ]
+      }
+    ],
+    "timeboxHours": 2.0,
+    "rubricDimensions": [
+      {
+        "name": "framing",
+        "label": "Problem framing",
+        "weight": 0.2,
+        "description": "Turns an ambiguous need into a sound plan."
+      },
+      {
+        "name": "tooling",
+        "label": "Tooling fluency",
+        "weight": 0.25,
+        "description": "Drives AI and other tools well; iterates and verifies."
+      },
+      {
+        "name": "judgment",
+        "label": "Judgment",
+        "weight": 0.25,
+        "description": "Catches AI/tooling mistakes; validates; pushes back."
+      },
+      {
+        "name": "architecture",
+        "label": "Architecture",
+        "weight": 0.15,
+        "description": "Structure and trade-offs that fit the real materials and constraints."
+      },
+      {
+        "name": "transfer",
+        "label": "Transfer",
+        "weight": 0.15,
+        "description": "Capability transfers to THIS role's tools and responsibilities."
+      }
+    ],
+    "promptVersion": "case-design-v5"
+  },
+  "source": "llm",
+  "issues": [],
+  "fallbackReason": {},
+  "promptVersions": {
+    "analyze": "need-analysis-v3",
+    "role": "role-design-v3",
+    "case": "case-design-v5"
+  }
+}

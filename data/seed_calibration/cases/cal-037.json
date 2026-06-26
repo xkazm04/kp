@@ -1,0 +1,194 @@
+{
+  "job": {
+    "id": "cal-037",
+    "title": "Account Executive - Columbus, OH - AMO Sales and Services, Inc..",
+    "company": "Johnson & Johnson",
+    "role_family": "sales",
+    "seniority": "medior",
+    "source": "hf:jacob-hugging-face/job-descriptions"
+  },
+  "analysis": {
+    "realStack": [
+      "Customer Resource Management (CRM) system — explicitly required to enhance productivity and track the territory",
+      "Sales force automation tools and assigned computer hardware/software",
+      "Email-based reporting to district management and marketing (required reports submitted on a timely basis)",
+      "US marketing plans (the playbook against which quota and selling time are executed)",
+      "Consigned physical inventory: IOL consignments (with target consignment ratios), product samples, surgical instruments, phaco demonstration equipment/accessories, trunk stock and literature",
+      "Sales/procedural/financial presentation decks for new and existing customers",
+      "Technical product and clinical materials: surgical/refractive technique references, in-service programs, innovative educational programs",
+      "Territory and travel/expense budgets (two distinct budgets the AE owns)",
+      "Product portfolio knowledge: monofocal & refractive IOLs, phaco equipment, viscoelastics (OVD), surgical adjuncts and new assigned technologies"
+    ],
+    "coreResponsibilities": [
+      "Hit an established territory sales quota for disposable, capital, and other surgical/non-surgical products via execution of the US marketing plan",
+      "Consultative, value-based selling of IOLs, phaco equipment, viscoelastics, and surgical adjuncts to ophthalmologists and their staff",
+      "Provide expert clinical/technical product support and in-service programs in the surgical setting to ensure customer satisfaction",
+      "Grow market share in the assigned territory while maintaining the existing base of business",
+      "Co-sell synergistically with the laser vision correction group and other J&J sales specialists/SBUs to deliver a full product solution",
+      "Manage field assets responsibly — consignments (achieve target ratios), samples, instruments, phaco demo equipment — within budget",
+      "Operate the territory within budgetary guidelines, managing both a travel/expense budget and a territory budget",
+      "Maintain CRM hygiene and submit all management/marketing reports on time via email",
+      "Comply with applicable corporate and divisional policies and procedures (regulated medical-device environment)",
+      "Travel as required, including overnight and weekend travel, reporting to a District/Senior District Manager"
+    ],
+    "statedVsRealGaps": [
+      "Surgical/clinical experience is labeled 'preferred but not required,' yet the day-to-day (OR in-service, IOL/phaco technical support, surgeon-level credibility) demands real clinical fluency — the practical bar is higher than the written one",
+      "The JD is redacted/truncated in key spots: the required years of selling experience is blank ('years of professional selling experience'), the preferred experience type is cut off ('surgical or experience'), and quota/comp figures are absent — so the true seniority and earnings expectation can't be read from the text",
+      "Framed as 'creative consultative selling,' but a large share of the role is administrative/operational: consignment asset stewardship, dual-budget management, CRM and report compliance — the role rewards disciplined operators as much as closers",
+      "'Account Executive' is positioned as an individual-contributor territory rep here (reports to a DM, owns one geography), not the agency/named-account AE the title implies elsewhere — title inflation relative to scope",
+      "Heavy dependency on co-selling and shared J&J specialists means quota attainment is partly gated by cross-team coordination the AE doesn't fully control — a collaboration risk the JD frames only as an upside"
+    ],
+    "trueComplexity": "medium",
+    "riskAreas": [
+      "Clinical credibility gap: a strong generalist seller without surgical/ophthalmic exposure may struggle in the OR and with surgeons, despite the 'not required' wording",
+      "Consignment liability: the AE personally owns expensive consigned lenses, capital/demo equipment, and trunk stock — shrinkage, mis-management, or off-ratio consignment is a financial and compliance exposure",
+      "Regulated medical-device selling: compliance with corporate/divisional policy is a first-listed responsibility; missteps carry outsized consequences vs ordinary B2B sales",
+      "Unstated quota and ramp: with no quota number or experience minimum given, mis-leveling the hire (too junior for a surgical territory, or over-paying) is a real risk",
+      "Travel load: required overnight and weekend travel can drive attrition and narrows the viable candidate pool, especially for a Columbus, OH geographic footprint",
+      "Coordination dependency: results lean on laser-vision counterparts and shared specialists, so a high performer can still miss quota if the matrixed support is thin",
+      "Employment gating: explicit COVID-vaccination/accommodation requirement may further constrain the candidate pool"
+    ],
+    "reflection": "This is a non-software, field medical-device sales role, so there is correctly no codebase to reflect against; the analysis is grounded in the JD itself and judged in sales terms. The 'real body of work' is a territory of ophthalmology surgical accounts in/around Columbus, OH, sold via the US marketing plan and tracked through a CRM/sales-force-automation stack, with the AE personally accountable for a sales quota, two budgets, and a pool of consigned high-value surgical assets. The evidence shows a role that is materially more clinical and more operational than its 'consultative selling' headline: success requires OR-grade product fluency in IOLs/phaco/viscoelastics, disciplined consignment and budget stewardship, regulated-environment compliance, and orchestration of shared J&J specialists. The most important divergence between stated need and reality is the soft 'surgical experience preferred but not required' — for a territory built on in-service surgical support and surgeon relationships, that is effectively a core competency, not a nice-to-have. The JD's redactions (years of experience, experience type, quota, requisition ID) are the main thing limiting a sharper read. Net: a medium-complexity territory AE role with a genuine clinical/regulatory layer that should be hired for surgical-device credibility, asset discipline, and travel tolerance — not pure consultative-selling charisma.",
+    "confidence": 0.62,
+    "promptVersion": "need-analysis-v3"
+  },
+  "role": {
+    "title": "Account Executive — Surgical/Ophthalmic Medical Device Sales (Columbus, OH territory)",
+    "seniority": "medior",
+    "roleFamily": "sales",
+    "mustHaves": [
+      "Proven B2B field sales record carrying and hitting an individual territory quota, ideally in medical device, surgical, capital equipment, or another technical/regulated sales environment",
+      "Consultative, value-based selling skill: discovery, multi-stakeholder navigation (clinical + economic buyers), and closing against a defined marketing plan rather than transactional order-taking",
+      "Ability to acquire and credibly deploy deep technical/clinical product knowledge (e.g. IOLs, phaco equipment, viscoelastics/OVD, surgical adjuncts) and deliver in-service support in a clinical/OR setting",
+      "Comfort selling to physicians and clinical staff (ophthalmologists/surgeons) — surgeon-level credibility and the discipline to learn surgical/refractive techniques",
+      "Hands-on CRM and sales-force-automation fluency: pipeline hygiene, activity logging, and timely, accurate reporting to management via email/CRM",
+      "Territory and asset/budget ownership: manage a travel & expense budget and a territory budget, plus steward consigned inventory (consignment ratios, samples, instruments, demo equipment) responsibly and within guidelines",
+      "Cross-functional coordination: orchestrate co-selling with other specialists/business units and strategic partners to land a full-solution sale",
+      "Operate within a regulated medical-device compliance framework (corporate and divisional policies and procedures)",
+      "Willingness and ability to travel the assigned geography, including overnight and weekend travel, working both independently and as part of a team"
+    ],
+    "niceToHaves": [
+      "Prior ophthalmic, surgical, or operating-room sales experience (the practical bar is higher than the JD's 'preferred, not required')",
+      "Clinical or technical background (e.g. surgical/clinical training, biomedical, or in-service/clinical-educator experience)",
+      "Experience selling capital equipment alongside disposables/consumables",
+      "Existing relationships within the local ophthalmology/eye-care community",
+      "Experience managing consignment inventory and hitting consignment-ratio targets",
+      "Track record of structured territory planning and market-share growth in a mature, defended account base"
+    ],
+    "responsibilities": [
+      "Achieve the established territory quota across disposable, capital, and other surgical/non-surgical products by executing the US marketing plan",
+      "Sell IOLs, phaco equipment, viscoelastics, and surgical adjuncts to ophthalmologists and their staff through a creative, consultative, value-based approach",
+      "Provide expert clinical/technical product support and in-service programs in the surgical setting to ensure customer satisfaction and adoption",
+      "Grow market share across the assigned territory while maintaining and defending the existing base of business",
+      "Co-sell synergistically with the laser vision correction group and other J&J sales specialists/SBUs to deliver a full product solution",
+      "Manage field assets responsibly — IOL consignments (achieving target ratios), samples, surgical instruments, and phaco demo equipment — within budget",
+      "Operate the territory within budgetary guidelines, managing both a travel/expense budget and a territory budget",
+      "Maintain CRM hygiene and submit all required management and marketing reports accurately and on time via email",
+      "Comply with applicable corporate and divisional policies and procedures in a regulated medical-device environment",
+      "Travel as required (including overnight and weekend), reporting to a District or Senior District Manager"
+    ],
+    "languages": [
+      "English"
+    ],
+    "promptVersion": "role-design-v3"
+  },
+  "case": {
+    "title": "Columbus, OH Surgical IOL Territory: 90-Day Plan, Consignment Health Check & a Displacement Play",
+    "brief": "You've just inherited a Columbus, OH surgical/ophthalmic territory selling IOLs, phaco equipment, viscoelastics (OVDs) and surgical adjuncts to ophthalmologists and their OR staff. The prior rep left a typical real-world handover: a CRM export, a slice of the US marketing plan, a consignment ledger, two budgets you now own (territory + travel/expense), and some field notes. Your job is to turn that into a defensible plan of attack, protect the consigned assets and budget, and advance one competitive account — the daily reality of this role. This is a sales judgment exercise, not a quiz: the materials are deliberately incomplete and a little messy, exactly like a handover. The starting materials are synthetic but representative of this exact role (the CRM/playbook/consignment-ledger world a surgical AE works in), so you act ON them in the AE's own way. Several things are intentionally underspecified — there is no quota number, the data has rough edges, and one 'creative' play in the notes is not as clean as it looks. We care far more about how you reason, what you choose, and what you'd ask your District Manager than about volume of output. Hard cap: ~1.5 hours. Depth over coverage — short, sharp written deliverables are expected, not a 20-page binder. Write in business English; use plain prose, tables, or bullets as you see fit.",
+    "repoSeed": "A territory handover folder containing: (1) territory_snapshot.csv — a CRM export of ~14 ophthalmology accounts across the Columbus, OH footprint: practice name, lead surgeon, sub-specialty, annual cataract & refractive procedure volume, current vendor mix for IOLs/phaco/OVD, estimated share-of-wallet, last face-to-face date, and an 'account status' field. The export is real-world rough: two practices appear as near-duplicate rows under slightly different names, one surgeon tagged 'active pipeline' actually retired last quarter (noted only in the field notes), and one high-volume account shows status 'active' despite a last-contact date 14 months ago. (2) marketing_plan_excerpt.md — the relevant slice of the US marketing plan: this quarter's priority products (a push on premium/refractive IOLs), the stated target consignment ratio, and guidance on how selling time should be weighted. (3) consignment_ledger.xlsx — per-account consigned IOL units by model, par/target levels, on-hand consignment value, lot expiry dates, and the company's definition of the target consignment ratio; a summary cell headlines 'territory within target ratio.' (4) budgets.xlsx — the territory budget and the travel/expense budget, each with YTD spend. (5) competitive_field_notes.md — the prior rep's informal notes on key surgeons, including who is loyal to which competitor IOL and a few ambiguous, half-recorded objections; one note mentions a high-volume surgeon who 'asked about help with a CME trip' and floated an off-label question. (6) product_quick_reference.md — a one-page portfolio cheat-sheet (monofocal vs. refractive IOLs, the phaco platform, OVDs/viscoelastics, surgical adjuncts). No quota number, no ramp expectation, and no compliance SOP are included in the folder — handle those gaps as you would in the field.",
+    "tasks": [
+      "Task 1 — Territory read & 90-day priority call plan. Work through territory_snapshot.csv against marketing_plan_excerpt.md. Segment the accounts (e.g., grow / defend / develop / de-prioritize), then produce a prioritized 90-day coverage plan that allocates your selling time against the marketing plan's priority products and your two budgets. State plainly the territory target you are planning toward and how you derived it, since none was handed to you. Surface anything in the data you would not take at face value.",
+      "Task 2 — Consignment & budget health check. Review consignment_ledger.xlsx against the target consignment ratio in the marketing plan and against the territory budget. Recompute the ratio yourself rather than trusting the summary line. Identify the single biggest financial or compliance exposure in the consigned base and recommend one concrete remediation (e.g., pull back, redeploy, replenish, or escalate), naming the customer-relationship trade-off your choice creates.",
+      "Task 3 — One competitive-displacement account play. Pick one high-value surgeon currently loyal to a competitor IOL. Design a consultative, value-based plan to advance the account, including a clinical in-service / OR-support step and one co-sell touch with the laser-vision-correction counterpart. State explicitly which objection you are solving for (the notes don't fully spell it out) and why you believe that's the real one. If your plan involves any incentive, funding, education, or product-use offer, show how you'd handle it within a regulated medical-device environment.",
+      "Task 4 — DECISIONS log (one page). For every call you made where the materials were open-ended, record three things: what you chose, the alternative you rejected, and the question you would put to your District or Senior District Manager before fully committing. At minimum cover: the target you planned to, any data you chose not to trust, your consignment remediation, and the displacement objection plus any compliance routing. Keep it tight — this is normal field discipline, the trail a good rep leaves their manager."
+    ],
+    "coverProbes": [
+      {
+        "id": "no-quota-target",
+        "kind": "underspecified",
+        "where": "Task 1: a territory quota is referenced by the role but no number, ramp, or growth expectation appears anywhere in the folder; only a territory budget is given.",
+        "reveals": "A strong candidate names the missing quota explicitly, sets a transparent working target with a stated basis, and flags it as a DM question; a naive candidate either invents a confident number with no derivation or builds a plan with no target to steer it at all.",
+        "decisionSpace": [
+          "Top-down: anchor to the US marketing plan's priority-product growth emphasis and back into a quarter target (fast, aligned to the playbook, but loosely grounded in this specific territory).",
+          "Bottom-up: build from account-level share-of-wallet expansion potential in the CRM snapshot (defensible per-account, but slower and sensitive to the messy data).",
+          "Defend-base-first hybrid: protect existing revenue value, layer incremental hunt on top, ramped across the 90 days (conservative, realistic for a new-to-territory rep, but may under-call the upside the company expects)."
+        ]
+      },
+      {
+        "id": "stale-crm-data",
+        "kind": "legacy_trap",
+        "where": "Task 1 / Task 2: territory_snapshot.csv contains duplicate practice rows, a 'retired' surgeon still tagged active pipeline, and a high-volume 'active' account untouched for 14 months — only partly cross-referenced in the field notes.",
+        "reveals": "A strong candidate reads and reconciles the data before planning — catching the duplicates, the retired surgeon, and the stale account — and adjusts priorities accordingly; a naive candidate treats the export as ground truth and builds selling time around phantom or dead accounts.",
+        "decisionSpace": [
+          "Triage and clean first, then plan on verified records (most accurate, costs time inside the 1.5h budget).",
+          "Plan on the data as-is but explicitly flag low-confidence rows for verification before any travel spend (faster, keeps momentum, accepts some risk).",
+          "De-prioritize all low-confidence records and concentrate early selling time on the accounts you can confirm (safe, but may park a genuinely valuable stale account too long)."
+        ]
+      },
+      {
+        "id": "consignment-ratio-math",
+        "kind": "verification_trap",
+        "where": "Task 2: consignment_ledger.xlsx headlines 'territory within target ratio,' but the ratio is computed in a way that hides an exposure (e.g., on units rather than on-hand value, masking an aging/expiring lot or a single off-ratio account that nets out in the total).",
+        "reveals": "A strong candidate recomputes the ratio against the stated definition, catches the buried aging/off-ratio exposure, and acts on it; a naive one-shot answer accepts the green 'within target' headline and reports the territory as healthy.",
+        "decisionSpace": [
+          "Pull back / redeploy the off-ratio or aging inventory to protect the ratio and the territory budget (financially clean, but risks signaling distrust to a key surgeon).",
+          "Leave it in place to protect a strategic high-volume relationship, document the exception, and escalate the deviation (relationship-preserving, but carries the liability and a compliance paper-trail burden).",
+          "Partial pull-back plus a replenishment cadence tied to the account's actual procedure volume (balanced, but operationally fiddlier and slower to fix the ratio)."
+        ]
+      },
+      {
+        "id": "displacement-objection-and-compliance",
+        "kind": "ambiguity",
+        "where": "Task 3: the target surgeon's true objection is only half-recorded in competitive_field_notes.md, and the same notes mention a CME-trip funding ask and an off-label question that a 'creative' close could lean on.",
+        "reveals": "A strong candidate states which objection they're solving for and why, and routes the CME/off-label angle through the right compliance handling rather than using it as leverage; a naive candidate guesses one objection and/or treats the funding/off-label opening as a free selling tool, walking into an AdvaMed/Sunshine-Act-style exposure.",
+        "decisionSpace": [
+          "Treat it as a clinical-outcomes objection: lead with evidence and an in-service/OR support plan, and route the CME ask to the compliant grants/education pathway (highest credibility with surgeons, slower to convert).",
+          "Treat it as an economic/workflow objection: lead with total value and OR efficiency plus a compliant co-sell with the laser-vision partner, and decline the off-label framing outright (pragmatic, may miss a clinical-trust gap that's the real blocker).",
+          "Treat it as a loyalty/switching-cost objection: invest first in a low-stakes trial/in-service to build the relationship before any commercial ask, keeping all incentives inside policy (relationship-building, longest payback, defers near-term quota help)."
+        ]
+      }
+    ],
+    "timeboxHours": 1.5,
+    "rubricDimensions": [
+      {
+        "name": "framing",
+        "label": "Problem framing",
+        "weight": 0.2,
+        "description": "Turns an ambiguous need into a sound plan."
+      },
+      {
+        "name": "tooling",
+        "label": "Tooling fluency",
+        "weight": 0.25,
+        "description": "Drives AI and other tools well; iterates and verifies."
+      },
+      {
+        "name": "judgment",
+        "label": "Judgment",
+        "weight": 0.25,
+        "description": "Catches AI/tooling mistakes; validates; pushes back."
+      },
+      {
+        "name": "architecture",
+        "label": "Architecture",
+        "weight": 0.15,
+        "description": "Structure and trade-offs that fit the real materials and constraints."
+      },
+      {
+        "name": "transfer",
+        "label": "Transfer",
+        "weight": 0.15,
+        "description": "Capability transfers to THIS role's tools and responsibilities."
+      }
+    ],
+    "promptVersion": "case-design-v5"
+  },
+  "source": "llm",
+  "issues": [],
+  "fallbackReason": {},
+  "promptVersions": {
+    "analyze": "need-analysis-v3",
+    "role": "role-design-v3",
+    "case": "case-design-v5"
+  }
+}

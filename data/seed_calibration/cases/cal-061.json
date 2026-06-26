@@ -1,0 +1,187 @@
+{
+  "job": {
+    "id": "cal-061",
+    "title": "Accounts Receivable-FC",
+    "company": "FCX Performance",
+    "role_family": "sales",
+    "seniority": "medior",
+    "source": "hf:jacob-hugging-face/job-descriptions"
+  },
+  "analysis": {
+    "realStack": [
+      "Prophet 21 (Epicor P21) or comparable distribution ERP — system of record for invoices, cash posting, and AR aging",
+      "Microsoft Excel (intermediate — aging analysis, reconciliations, basic formulas), Word, and Outlook",
+      "Dedicated collections software for dunning and account follow-up",
+      "Customer AP/e-invoicing portals: Ariba, Paymode, and similar web-invoicing platforms",
+      "Adobe Acrobat for invoice/PO/proof-of-delivery documentation (a plus)",
+      "AR aging reports and reconciliation worksheets (cash application, credit/debit memos, invoice corrections)",
+      "Lien and bond filing workflows (construction/mechanic's lien rights — jurisdiction-specific paperwork, a plus)",
+      "Phone and email as the primary collection and dispute-resolution channels"
+    ],
+    "coreResponsibilities": [
+      "Manage a multi-million-dollar AR portfolio spanning multiple divisions and U.S. states",
+      "Review and reconcile customer accounts, correcting cash posting, invoice amounts, and credit/debit memos",
+      "Monitor and maintain AR aging and perform timely collections on past-due balances",
+      "Research and resolve billing/payment disputes in coordination with customers and internal sales staff",
+      "Ensure invoices meet each customer's requirements so they are processed and paid on time",
+      "Communicate courteously and professionally with customers while pursuing payment",
+      "Coordinate with management and staff across multiple offices/locations"
+    ],
+    "statedVsRealGaps": [
+      "roleFamily is tagged 'sales', but this is a finance/credit-and-collections (AR) role — it touches sales staff for dispute resolution but is not a quota-carrying or revenue-generating sales job; mislabeling risks mis-routing screening and benchmarks",
+      "seniorityTarget is 'medior', yet the JD asks only for a high-school diploma (associate's 'strongly desired') plus a few years of AR experience — the real bar is entry-to-junior individual contributor, not mid-level",
+      "The need framing ('courteous customer service') understates the adversarial reality of collections: chasing overdue payment from B2B customers requires persistence and conflict tolerance, not just service polish",
+      "Several quantities are redacted in the source (portfolio 'in excess of [ ] million', 'Prophet [ ]', '[ ] years experience', '[ ] end users', founding year) — scope and exact tool version must be confirmed before sizing the role",
+      "stack and responsibilities arrays arrived empty in the structured need; the actual tools and duties had to be extracted from the JD text itself"
+    ],
+    "trueComplexity": "medium",
+    "riskAreas": [
+      "Portfolio dollar figure and customer count are redacted, so true workload/exposure is unverifiable from the JD alone",
+      "Multi-division, multi-state portfolio adds coordination overhead (different sales contacts, terms, and possibly tax/lien jurisdictions) beyond a single-ledger AR seat",
+      "Lien and bond filing is jurisdiction-specific and time-sensitive; treating it as merely 'a plus' may understate real credit-protection risk in industrial distribution",
+      "Dependence on a legacy/proprietary ERP (Prophet 21) means transferable-skill candidates may need ramp time; exact-tool experience can be scarce in the local labor pool",
+      "Collections is emotionally demanding and turnover-prone; the gap between the 'developing its people / fresh ideas' framing and routine reconciliation/dunning work could drive mis-set expectations and attrition",
+      "Cash-posting and memo corrections carry direct financial-accuracy and controls risk — errors flow straight to the bottom line the JD emphasizes"
+    ],
+    "reflection": "This is a genuine, well-grounded accounts-receivable/collections role at an industrial distributor (FCX Performance / Applied Industrial Technologies), not a software position — the absence of a codebase is expected and correct. Reflected against its real body of work, the role lives in a distribution ERP (Prophet 21), Excel, and customer AP portals, doing reconciliation, cash application, AR-aging monitoring, and B2B collections across a large multi-state, multi-division portfolio. The work is operationally real and carries direct financial-accuracy stakes, but the skill ceiling is modest: intermediate Excel, basic math, strong communication, and persistence. The two clearest divergences between the stated need and the evidence are (1) the 'sales' family label, when the substance is finance/credit-and-collections, and (2) the 'medior' target against a JD whose own requirements (HS diploma, a few years AR experience) read as entry-to-junior. Redacted figures in the source leave portfolio size and exact experience thresholds unconfirmed, which is the main thing to nail down before benchmarking. Net: a legitimate medium-complexity AR seat that should be screened and leveled as finance/collections, not sales.",
+    "confidence": 0.82,
+    "promptVersion": "need-analysis-v3"
+  },
+  "role": {
+    "title": "Accounts Receivable Representative",
+    "seniority": "medior",
+    "roleFamily": "finance",
+    "mustHaves": [
+      "2+ years of hands-on accounts receivable experience in a B2B environment (the JD's core required bar)",
+      "Account reconciliation: reviewing accounts and correctly assessing/correcting cash posting, invoice amounts, and credit/debit memos",
+      "Monitoring and maintaining AR aging and performing active collections on past-due balances in a timely manner",
+      "Researching and resolving billing and payment disputes in coordination with both customers and internal sales staff",
+      "Ownership of a multi-million-dollar AR portfolio spanning multiple divisions and U.S. states, with the prioritization to keep many accounts current at once",
+      "Intermediate proficiency with Microsoft Excel (aging analysis, reconciliation worksheets, basic formulas), Word, and Outlook",
+      "Working fluency in a distribution/process ERP as the system of record for invoices, cash application, and aging (Prophet 21 / Epicor P21 or a comparable ERP)",
+      "Strong attention to detail and fast, accurate basic math when posting and reconciling transactions",
+      "Excellent verbal and written communication with the customer-service tact AND the persistence/conflict tolerance that real B2B collections demand",
+      "Ability to coordinate with management and staff across multiple offices, and to adapt in a fast-paced, deadline-driven environment",
+      "High school diploma (required minimum education)"
+    ],
+    "niceToHaves": [
+      "Associate's degree in accounting (strongly desired; relevant experience can substitute for parts of this)",
+      "Experience with dedicated collections / dunning software",
+      "Experience with customer AP and web-invoicing portals such as Ariba, Paymode, or equivalents",
+      "Adobe Acrobat for handling invoice / PO / proof-of-delivery documentation",
+      "Lien and bond filing experience (jurisdiction-specific construction/mechanic's lien rights)"
+    ],
+    "responsibilities": [
+      "Communicate with customers in a courteous, professional manner while actively pursuing payment for goods and services received",
+      "Review and reconcile customer accounts, assessing and correcting transactions such as cash posting, invoice amounts, and credit/debit memos",
+      "Assess each customer's invoicing requirements to ensure invoices are processed and paid on time",
+      "Monitor and maintain AR aging and perform collection duties promptly on overdue balances",
+      "Research and resolve billing and payment issues in partnership with customers and the sales team",
+      "Manage an accounts receivable portfolio in excess of several million dollars across multiple divisions and states",
+      "Work effectively with management and staff members across multiple offices, adapting to changing priorities as directed"
+    ],
+    "languages": [
+      "English"
+    ],
+    "promptVersion": "role-design-v3"
+  },
+  "case": {
+    "title": "Clean Up and Collect: A Multi-Division AR Portfolio at Month-End",
+    "brief": "You've just taken over an accounts receivable portfolio at Meridian Industrial Supply, an industrial distributor that runs Prophet 21 (Epicor P21) as its system of record across three divisions — Electrical, PVF/Plumbing, and Construction Fasteners — selling into Texas, Oklahoma, and Louisiana. It's the Monday before month-end close. The controller wants two things from you by end of day: a clean read on one customer account that won't tie out, and a defensible collections plan for the week. You do NOT have live ERP access for this exercise — work entirely from the exports and notes provided (treat them as a point-in-time snapshot pulled from P21, the collections software, and your inbox). The provided tooling and materials fit this role directly, so no synthetic substitution is needed. A few accounts in here are not what the aging bucket makes them look like; part of the job is noticing that before you act. We are evaluating judgment, sequencing, and customer-facing tone — not the number of calls you'd make or how fast you type. Where the brief is thin or a number is missing, make the call a competent AR rep would make, act on it, and write down why. Budget ~1.5 hours; depth on the few accounts that matter beats touching all of them.",
+    "repoSeed": "A small bundle of starting materials, in the role's own terms:\n\n1. `AR_Aging_2026-06-15.xlsx` — the open AR aging across all three divisions and three states: ~40 open items spanning ~12 customers, with columns for division, state, customer, invoice/memo number, invoice date, terms, original amount, open amount, and aging bucket (Current / 1–30 / 31–60 / 61–90 / 90+). A few rows are negatives (open credit memos) and a couple are 'unapplied cash' lines sitting on accounts. Notable accounts include Gulf Coast Pipe & Supply (large balance sitting in 61–90), Stonegate Builders (Construction Fasteners, mid-size balance, only 1–30), and Rio Valley Mechanical (the account in Task 1).\n\n2. `Account_Recon_Rio_Valley_Mechanical.xlsx` — a reconciliation worksheet for Rio Valley Mechanical whose P21 open balance reads $48,210.00 but does not match the customer's own remittance statement. It contains the raw, un-tidied lines: an apparent short-payment on INV-117980 (paid $1,260 light, customer remittance annotates 'freight + price'), a credit memo CM-4471 for $1,800 of returned product showing open/unapplied, invoice INV-118233 for $2,450 that appears twice, and a reference to check #20451 for $6,000 that the customer says cleared three weeks ago.\n\n3. `P21_cash_application_export.csv` — recent cash receipts and how each was applied. Check #20451 for $6,000 shows applied to 'Rio Valley Plumbing LLC' (a different customer in the PVF division) rather than to Rio Valley Mechanical.\n\n4. `Customer_Notes_and_Emails.pdf` — collection notes and email threads: (a) the Rio Valley dispute thread where the customer cites a pricing/proof-of-delivery discrepancy on INV-117980; (b) a note on Gulf Coast Pipe & Supply that its invoices were mailed/emailed as PDFs, but the customer's AP requires submission through their Ariba portal before the clock starts and AP will not process anything received another way; (c) a note that Stonegate Builders is supplying a named jobsite and that the preliminary notice / mechanic's-lien deadline for that project is the 20th of this month.\n\n5. `Customer_Master_Terms.xlsx` — per-customer division, state, payment terms (Net 30, Net 45, 2/10 Net 30), credit limit, and assigned sales rep with contact.",
+    "tasks": [
+      "Reconcile the Rio Valley Mechanical account: using `Account_Recon_Rio_Valley_Mechanical.xlsx`, `P21_cash_application_export.csv`, and the customer's remittance, identify every reason the P21 open balance of $48,210.00 does not reflect what the customer actually owes. For each discrepancy state the specific correcting action (re-apply cash, void/credit the duplicate invoice, apply the open credit memo, dispose of the short-pay), then give the true collectible balance. Mark any item that should go through an approval or controls sign-off rather than a clerk-level adjustment, and say who you'd route it to.",
+      "From `AR_Aging_2026-06-15.xlsx` plus `Customer_Notes_and_Emails.pdf` and `Customer_Master_Terms.xlsx`, build a prioritized collections action plan for this week: rank the accounts you would work and justify each ranking against more than one factor (dollar exposure, age, dispute status, whether the invoice was validly delivered, and any time-sensitive credit-protection deadline). For each ranked account give the channel (phone / email / customer portal) and the concrete next action. Do not simply sort oldest-to-newest — say explicitly why your order departs from the aging bucket where it does.",
+      "Write the two customer-facing pieces your plan calls for: (a) an escalating-but-courteous dunning email to your single highest-priority genuinely-overdue account; and (b) a short, professional reply that addresses the Rio Valley Mechanical short-pay/dispute and brings in the assigned sales rep to help resolve it. Calibrate tone to the relationship and the exposure — a first nudge reads differently from a final-notice.",
+      "Keep a short DECISIONS log (roughly half a page) as you go — normal close-week hygiene. For every call you made where the brief was open or a number was missing: the choice you made, the alternative you rejected and why, and the one question you'd put to the credit manager or the sales rep before finalizing it."
+    ],
+    "coverProbes": [
+      {
+        "id": "misapplied-cash-recon",
+        "kind": "verification_trap",
+        "where": "Rio Valley Mechanical reconciliation (Task 1): check #20451 for $6,000 in `P21_cash_application_export.csv` was applied to the similarly-named 'Rio Valley Plumbing LLC' in another division, inflating Rio Valley Mechanical's open balance by $6,000.",
+        "reveals": "A naive one-shot response reads the $48,210 P21 balance, accepts it, and proceeds to collect — passing the shallow 'does the aging show a balance?' check while dunning a customer for money it already paid. A strong response cross-checks cash application across divisions before stating any collectible figure, catches the cross-customer misapplication, and treats reconcile-before-collect as the actual job. It also distinguishes the four discrepancies (misapplied cash, duplicate invoice, unapplied credit memo, short-pay) rather than lumping them.",
+        "decisionSpace": [
+          "Re-apply the $6,000 to the correct account yourself and restate the balance immediately — fastest path to a clean number, but moving cash between two customers' accounts may exceed clerk authority and skip a controls trail.",
+          "Leave the cash where it is but footnote the $6,000 as a known misapplication and exclude it from the collectible balance — preserves the audit trail and avoids an unauthorized move, but leaves two accounts wrong on the books until someone corrects them.",
+          "Flag the misapplication to a supervisor/cash-app lead for the formal re-application and proceed to collect only on the verified remainder — correct ownership and controls, at the cost of a cycle's delay before the books are right."
+        ]
+      },
+      {
+        "id": "lien-deadline-buried",
+        "kind": "legacy_trap",
+        "where": "Collections prioritization (Task 2): Stonegate Builders sits in the 1–30 bucket with a mid-size balance, so age/dollar sorting buries it — but `Customer_Notes_and_Emails.pdf` flags a preliminary-notice / mechanic's-lien deadline of the 20th for its named jobsite.",
+        "reveals": "A naive response prioritizes by age and dollars and never opens the account notes, letting a jurisdiction-specific, time-boxed credit-protection right lapse on an account that isn't even 'overdue' yet. A strong response reads the notes first, recognizes that securing lien/bond rights in construction distribution is time-sensitive and not optional 'a plus' work, and elevates the deadline above larger but unsecured balances — while knowing a preliminary notice is routine and not an adversarial escalation.",
+        "decisionSpace": [
+          "Self-file/serve the preliminary notice immediately and make it the week's top item, ahead of larger balances — protects the security interest with certainty, but spends effort on a current account and may read as aggressive to a paying customer.",
+          "Send the (routine, non-adversarial) preliminary notice while continuing normal collection cadence elsewhere — preserves rights without escalating the relationship, but depends on correctly knowing the notice-vs-lien distinction and the jurisdiction's timing.",
+          "Escalate the deadline to the credit manager / lien-filing owner because the paperwork is jurisdiction-specific and the date is hard, rather than acting solo — correct ownership for a rights-forfeiting decision, but adds latency against a fixed deadline."
+        ]
+      },
+      {
+        "id": "short-pay-disposition",
+        "kind": "ambiguity",
+        "where": "Rio Valley short-pay (Tasks 1 and 3): INV-117980 was paid $1,260 light with the customer citing a pricing/proof-of-delivery discrepancy, while an $1,800 open credit memo (CM-4471) for returns also sits on the account — the deduction's true basis is underspecified.",
+        "reveals": "A naive response forces the short-pay into a tidy answer — either silently nets it against the open credit memo or chases the full $1,260 as if undisputed — without establishing what the deduction actually maps to. A strong response treats the basis as genuinely unknown, separates the disputed line from the unrelated return credit, and resolves it through the customer and sales rep before either writing it off or collecting; the Task 3 reply and the DECISIONS log expose which way they leaned and why.",
+        "decisionSpace": [
+          "Assume the short-pay corresponds to the open CM-4471 return credit, apply it, and close the difference — clean and fast if the linkage is real, but the data doesn't confirm it and this could mask an unauthorized deduction.",
+          "Treat the $1,260 as an unauthorized deduction and pursue it as a collectible balance — protects revenue, but risks dunning a customer for an amount they legitimately disputed on pricing/POD and souring the relationship.",
+          "Hold the disposition and confirm with the customer plus the assigned sales rep which invoice/line the deduction maps to before applying or collecting — most defensible on accuracy and relationship, at the cost of a clarifying cycle and an unresolved line at close."
+        ]
+      },
+      {
+        "id": "undelivered-invoice-portal",
+        "kind": "underspecified",
+        "where": "Gulf Coast Pipe & Supply (Task 2): a large balance shows in the 61–90 bucket, but the account notes say invoices were mailed/emailed while the customer's AP only accepts and starts terms on submissions made through their Ariba portal — so the 'past due' status reflects a delivery/invoicing-requirements failure, not delinquency.",
+        "reveals": "A naive response collects by the aging bucket — escalating dunning, or even credit hold, on a 61–90 balance — without asking why it's open. A strong response connects the responsibility to 'assess each customer's invoicing requirements,' recognizes the invoice was never validly delivered, fixes the delivery channel (resubmit via Ariba) rather than pressuring the customer, and reasons explicitly about what date terms should run from — a money-affecting call the JD leaves redacted/ambiguous.",
+        "decisionSpace": [
+          "Resubmit through Ariba and reset the due date to the portal-acceptance date — customer-friendly and likely contractually correct, but cedes ~60 days of float and worsens DSO/aging optics.",
+          "Resubmit but argue terms run from original invoice issuance regardless of channel and keep the existing aging — protects DSO and metrics, but invites a dispute and goodwill cost if the customer's AP policy genuinely governs.",
+          "Resubmit and route the terms-start-date question to the sales rep / credit manager as a policy call rather than deciding it as a clerk — correct ownership for a revenue-timing decision, but slower and leaves the aging unresolved meanwhile."
+        ]
+      }
+    ],
+    "timeboxHours": 1.5,
+    "rubricDimensions": [
+      {
+        "name": "framing",
+        "label": "Problem framing",
+        "weight": 0.2,
+        "description": "Turns an ambiguous need into a sound plan."
+      },
+      {
+        "name": "tooling",
+        "label": "Tooling fluency",
+        "weight": 0.25,
+        "description": "Drives AI and other tools well; iterates and verifies."
+      },
+      {
+        "name": "judgment",
+        "label": "Judgment",
+        "weight": 0.25,
+        "description": "Catches AI/tooling mistakes; validates; pushes back."
+      },
+      {
+        "name": "architecture",
+        "label": "Architecture",
+        "weight": 0.15,
+        "description": "Structure and trade-offs that fit the real materials and constraints."
+      },
+      {
+        "name": "transfer",
+        "label": "Transfer",
+        "weight": 0.15,
+        "description": "Capability transfers to THIS role's tools and responsibilities."
+      }
+    ],
+    "promptVersion": "case-design-v5"
+  },
+  "source": "llm",
+  "issues": [],
+  "fallbackReason": {},
+  "promptVersions": {
+    "analyze": "need-analysis-v3",
+    "role": "role-design-v3",
+    "case": "case-design-v5"
+  }
+}

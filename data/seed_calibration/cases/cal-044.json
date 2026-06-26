@@ -1,0 +1,184 @@
+{
+  "job": {
+    "id": "cal-044",
+    "title": "Career Coach (Remote Accepted)",
+    "company": "Pathrise",
+    "role_family": "hr",
+    "seniority": "medior",
+    "source": "hf:jacob-hugging-face/job-descriptions"
+  },
+  "analysis": {
+    "realStack": [
+      "1:1 mentoring / coaching session frameworks (career, interview prep, negotiation)",
+      "Workshop facilitation against a pre-built curriculum authored by ex-technical recruiters",
+      "Soft-skills coaching: communication, behavioral-interview storytelling, confidence",
+      "Personal-brand assets: resume/CV, LinkedIn, portfolio, elevator pitch",
+      "Video-conferencing delivery (Zoom/Google Meet) for remote cohorts",
+      "Fellow/student CRM or LMS for caseload and progress tracking",
+      "Engagement and outcome dashboards / data-tracking (placement, session attendance)",
+      "Cross-functional collaboration tooling (Slack, shared docs) with technical mentors, product, ops",
+      "Domain knowledge of the tech hiring funnel (ATS screening, recruiter behavior, hiring loops)"
+    ],
+    "coreResponsibilities": [
+      "Own fellow success — coach job seekers to develop soft skills and a personal brand so they land and start a job",
+      "Deliver group workshops and recurring 1:1 mentoring sessions against the existing career curriculum",
+      "Work cross-functionally with technical mentors, the product team, and operations",
+      "Drive fellow engagement, surface process improvements, and maintain data tracking on progress/outcomes",
+      "Operate within Pathrise's aligned-incentive (income-share) model where the org is paid only when fellows get hired"
+    ],
+    "statedVsRealGaps": [
+      "Compensation is redacted in the JD ('base + bonuses' with the figures stripped) — competitiveness and the bonus's tie to placement outcomes can't be assessed",
+      "The curriculum is 'developed by ex-technical recruiters,' so the real job is high-volume delivery and coaching, not curriculum design — yet the JD frames it as 'career educators,' which over-signals authorship",
+      "The ISA/'fellows only pay when hired' model puts implicit placement-rate accountability on the coach that the responsibilities never state outright — success is measured in hires, not sessions delivered",
+      "No stated requirement for a tech-recruiting or industry background, despite coaching tech professionals — a credibility gap if hires lack hiring-side experience",
+      "'Data tracking' and 'process improvements' are named with no KPIs, tooling, or caseload size, so the analytics/ops portion of the role is undefined",
+      "Heavy mission/culture marketing language ('awesome team,' 'flourishing') substitutes for concrete seniority signals, required experience, and success metrics"
+    ],
+    "trueComplexity": "medium",
+    "riskAreas": [
+      "Outcome-linked incentive structure transfers placement-rate pressure onto coaches — high emotional labor plus accountability for outcomes only partly in their control",
+      "Undisclosed caseload and cohort scale create burnout and quality-dilution risk in a 'fastest growing' team",
+      "Credibility/mismatch risk if hired coaches lack genuine tech-hiring expertise while advising tech fellows",
+      "Comp opacity invites adverse selection and offer-stage friction",
+      "Remote 1:1 model raises fellow no-show, drop-off, and engagement-maintenance challenges",
+      "Soft-skill and personal-brand improvement is inherently subjective and hard to measure, complicating the 'data tracking' mandate"
+    ],
+    "reflection": "Reflected against the role's own body of work rather than a codebase (none applies — this is a remote career-coaching role), the need is internally coherent but partially obscured. The genuine work is delivery-side: running workshops and recurring 1:1s off a curriculum someone else built, coaching tech job seekers on interviewing, communication, and personal brand, and feeding engagement/outcome data back to product and ops. The evidence shows two things the JD soft-pedals. First, Pathrise's aligned-incentive model means the coach is effectively measured on fellows getting hired and starting work, so this is an outcome-accountable role wearing the friendlier label of 'mentor/educator.' Second, the JD redacts compensation and omits required experience, caseload, and KPIs, which makes seniority calibration ('medior' as targeted seems plausible) and competitiveness hard to verify. The strongest hire profile is someone with real tech-hiring/recruiting fluency and stamina for high-volume, emotionally demanding remote coaching — not a curriculum author. Trade carefully on the unstated placement-pressure and scale before committing.",
+    "confidence": 0.6,
+    "promptVersion": "need-analysis-v3"
+  },
+  "role": {
+    "title": "Career Coach",
+    "seniority": "medior",
+    "roleFamily": "hr",
+    "mustHaves": [
+      "Proven 1:1 career coaching / mentoring experience — guiding job seekers through search strategy, interview preparation, and offer negotiation",
+      "Group workshop facilitation delivered remotely over video conferencing (Zoom / Google Meet) to recurring cohorts",
+      "Soft-skills coaching: communication, behavioral-interview storytelling (e.g. STAR), and confidence-building",
+      "Personal-brand development — coaching on resume/CV, LinkedIn, portfolio, and elevator pitch",
+      "Working knowledge of the tech hiring funnel (ATS screening, recruiter behavior, hiring loops) so coaching is credible to tech professionals",
+      "Cross-functional collaboration (Slack, shared docs) with technical mentors, the product team, and operations",
+      "Comfort with data tracking — logging session and progress data and acting on engagement / outcome dashboards",
+      "High-volume caseload delivery against a pre-built curriculum (delivery and adaptation, not authorship)",
+      "Accountability to placement outcomes — thriving in an aligned-incentive model where success is measured in fellows hired and started, not sessions delivered"
+    ],
+    "niceToHaves": [
+      "Ex-technical-recruiter or in-house tech-recruiting background",
+      "Experience working in an income-share / outcomes-based (ISA) environment",
+      "Familiarity with an LMS or student/fellow CRM for managing a caseload and progress",
+      "Contributing to or iterating curriculum content alongside ex-recruiter authors",
+      "Depth in compensation and leveling negotiation coaching",
+      "Experience coaching candidates across multiple tech functions (software, data, PM, design)"
+    ],
+    "responsibilities": [
+      "Own fellow success — coach job seekers to develop soft skills and a personal brand so they land and start a job",
+      "Deliver group workshops and recurring 1:1 mentoring sessions against the existing career curriculum",
+      "Work cross-functionally with technical mentors, the product team, and operations to drive engagement and process improvements",
+      "Surface and contribute process improvements, and maintain data tracking on fellow progress and outcomes",
+      "Operate within Pathrise's aligned-incentive model, carrying implicit accountability for fellow placement rates"
+    ],
+    "languages": [
+      "English"
+    ],
+    "promptVersion": "role-design-v3"
+  },
+  "case": {
+    "title": "Coach a stuck cohort: triage, intervene, and make soft-skill progress measurable",
+    "brief": "You've just inherited a caseload at Pathrise, where coaches operate under an aligned-incentive model — your compensation and standing are tied to whether your fellows actually land jobs, even though much of the outcome sits outside your control. The starting materials are real working artifacts: a caseload snapshot exported from the fellow CRM, the pre-built career curriculum authored by ex-technical recruiters, the standard 1:1 session framework, and the engagement/outcome dashboard your team manages by. Your job this session is to do what a coach actually does — read the caseload, decide where your limited hours go, design a concrete intervention for one fellow who is stuck, and push back on how the program measures 'progress.' The provided materials fit this role directly; coach against them. This is a judgment exercise, not a content-writing one: a polished session plan or a confident measurement memo proves nothing on its own — what we're reading is which fellows you prioritize, what signal you trust in the data, and how you handle the parts of the brief we left open on purpose. Timebox is a hard 1.5 hours; go deep on a few calls rather than touching everything. Keep a short DECISIONS log as you go (normal coaching practice — we want to see your reasoning, not just your conclusions).",
+    "repoSeed": "A small fellow-coaching working set: (1) caseload_snapshot.csv — 6 fellows with fields name, track, weeks_in_program, sessions_attended, sessions_scheduled, last_session_date, confidence_self_rating (1-10), applications_sent, interviews_reached, offers, status_flag (green/yellow/red), coach_notes. Notable rows: 'Maya' — status_flag green, 100% attendance, confidence_self_rating 9, 12 interviews_reached, 0 offers across 8 weeks; 'Tomás' — status_flag red, no-showed 2 of last 5 sessions, strong applications_sent, coach_notes from the prior coach read 'ran the accountability + reschedule play twice, still ghosting — something else is going on'; 'Priya' — yellow, 1 final-round pending, low session attendance; plus three steadier fellows for contrast. (2) curriculum_outline.md — the pre-built modules (Personal Brand, Behavioral Storytelling, Negotiation, Interview Prep), with facilitator notes assuming a tech-hiring funnel. (3) one_on_one_framework.md — the standard GROW-style 1:1 template (Goal → Reality → Options → Will). (4) engagement_dashboard.md — describes the metrics the program reports on (sessions_attended, confidence_self_rating, applications_sent) and how status_flag is auto-derived from attendance + self-rating. No definition of 'on track' beyond that derivation is documented.",
+    "tasks": [
+      "Caseload triage: from caseload_snapshot.csv, choose the 2 fellows you would prioritize for active intervention this week and the 1 you would deliberately deprioritize. For each of the three, name the specific signal in the data (or the gap between signals) you are reading, and the single coaching action you'd take. Do not just rank by status_flag — say what the flag is and isn't telling you.",
+      "1:1 intervention plan for Maya (the fellow reaching interviews but not converting to offers): using one_on_one_framework.md, design the next session — your working diagnosis of the root cause, the reframe or exercise you'd run in-session, and the concrete way you'd know two weeks from now whether it worked. State which curriculum module (if any) you'd lean on and why the obvious one might be the wrong one.",
+      "Measurement proposal (max ~250 words): the program currently treats sessions_attended and confidence_self_rating as evidence of soft-skill and personal-brand progress, and auto-derives status_flag from them. Propose a better way to make soft-skill / brand progress measurable and connected to placement, that a fellow or a coach under placement-rate pressure cannot easily game. Be explicit about what you'd stop reporting and what you'd start reporting.",
+      "DECISIONS log: keep a short running log (5-8 lines is plenty) of the calls you made where the brief was open — what you chose, the alternative you rejected, and the one question you'd put to your pod lead or the product/ops team before committing. Treat it as the notes you'd actually leave for the next coach, not as an essay."
+    ],
+    "coverProbes": [
+      {
+        "id": "P1",
+        "kind": "underspecified",
+        "where": "Task 1 — the brief asks you to 'prioritize for intervention this week' but never defines the objective: maximize this cohort's placement rate fast, prevent drop-off, or protect long-term fellow success. No timeframe or triage philosophy is given.",
+        "reveals": "A naive response silently optimizes one objective (usually 'rescue the red flags' or 'rank by status') without noticing the choice exists. A strong response names the missing objective, picks one explicitly, and justifies the triage philosophy — and ideally flags it as a question for the pod lead in the DECISIONS log.",
+        "decisionSpace": [
+          "Compound quick wins: concentrate hours on near-placement fellows (e.g., Priya at final round) to bank outcomes fast — higher near-term placement rate, but writes off at-risk fellows",
+          "Prevent drop-off: invest in the red/disengaging fellows (Tomás) to stop churn — protects program reputation and equity, but lower expected placements per hour",
+          "Balanced portfolio: a deliberate split with a stated ratio and a re-evaluation date — defensible but only if the reasoning, not just the split, is shown"
+        ]
+      },
+      {
+        "id": "P2",
+        "kind": "verification_trap",
+        "where": "Tasks 1 & 2 — Maya passes every shallow check: green status_flag, 100% attendance, confidence_self_rating 9. The dashboard derives 'on track' from exactly those inputs, yet she has 0 offers across 12 interviews in 8 weeks.",
+        "reveals": "A naive coach trusts the green flag, treats Maya as fine, and spends the hour elsewhere. A careful coach notices the leading indicators (attendance, self-rated confidence) are decoupled from the lagging outcome (offers), treats the green flag as a false negative, and makes Maya a priority — and articulates that the dashboard's derivation is the actual blind spot.",
+        "decisionSpace": [
+          "Interview-skill gap: she reaches interviews but loses them on execution — run targeted mock interviews / behavioral-storytelling drills",
+          "Targeting/fit problem: she's interviewing for the wrong level or roles, so conversion is structurally low — fix application targeting before more interview reps",
+          "Confidence-competence mismatch: the 9/10 self-rating is itself the symptom (overconfidence masking a blind spot she can't self-diagnose) — start with calibrated external feedback, not more confidence-building"
+        ]
+      },
+      {
+        "id": "P3",
+        "kind": "legacy_trap",
+        "where": "Task 1 — Tomás is the obvious 'red flag, intervene' pick, but his coach_notes record that the prior coach already ran the standard accountability + reschedule play twice and he kept ghosting. The signal is in the notes, not the metrics.",
+        "reveals": "A candidate who generates straight from the status_flag re-proposes the accountability/reschedule play that has already failed. A candidate who reads the coach_notes first recognizes the standard play is exhausted and reaches for a different modality or roots out the unspoken cause before spending more hours.",
+        "decisionSpace": [
+          "Change the modality: switch from scheduled 1:1s to low-friction async check-ins to re-establish any contact before re-engaging on goals",
+          "Surface the hidden reason: treat ghosting as data — a competing offer he's hiding, demoralization after rejections, or a life event — and design the outreach to find that out, not to re-impose accountability",
+          "Honor the disengagement: accept he may have opted out, set a clear re-entry path, and reallocate the freed hours — defensible only if explicitly reasoned, not defaulted to"
+        ]
+      },
+      {
+        "id": "P4",
+        "kind": "ambiguity",
+        "where": "Task 3 — 'make soft-skill / brand progress measurable' is genuinely open; soft skills and personal brand are subjective, and any metric introduced under placement-rate pressure invites gaming by both fellows and coaches.",
+        "reveals": "A naive answer proposes a tidy numeric rubric without confronting subjectivity or gameability, or just adds more self-ratings. A strong answer picks a measurement stance, owns its specific failure mode (gameability vs. effort vs. validity), and says what it would stop reporting — showing it understands a metric under incentive pressure becomes a target.",
+        "decisionSpace": [
+          "Behavioral rubric scored by the coach (e.g., STAR-story quality, pitch clarity) — most direct to the skill, but subjective and coach-gameable under placement pressure",
+          "Outcome-proxy via funnel conversion (application→screen→interview→offer rates) — hard to game and tied to placement, but lagging and confounded by market/luck",
+          "Calibrated external panel: periodic mock panels / peer review scored by people outside the incentive loop — most valid and least gameable, but the most operationally expensive to run at cohort scale"
+        ]
+      }
+    ],
+    "timeboxHours": 1.5,
+    "rubricDimensions": [
+      {
+        "name": "framing",
+        "label": "Problem framing",
+        "weight": 0.2,
+        "description": "Turns an ambiguous need into a sound plan."
+      },
+      {
+        "name": "tooling",
+        "label": "Tooling fluency",
+        "weight": 0.25,
+        "description": "Drives AI and other tools well; iterates and verifies."
+      },
+      {
+        "name": "judgment",
+        "label": "Judgment",
+        "weight": 0.25,
+        "description": "Catches AI/tooling mistakes; validates; pushes back."
+      },
+      {
+        "name": "architecture",
+        "label": "Architecture",
+        "weight": 0.15,
+        "description": "Structure and trade-offs that fit the real materials and constraints."
+      },
+      {
+        "name": "transfer",
+        "label": "Transfer",
+        "weight": 0.15,
+        "description": "Capability transfers to THIS role's tools and responsibilities."
+      }
+    ],
+    "promptVersion": "case-design-v5"
+  },
+  "source": "llm",
+  "issues": [],
+  "fallbackReason": {},
+  "promptVersions": {
+    "analyze": "need-analysis-v3",
+    "role": "role-design-v3",
+    "case": "case-design-v5"
+  }
+}
