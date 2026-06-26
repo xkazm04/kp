@@ -53,6 +53,9 @@ export const DECISION_META: Record<string, DecisionMeta> = {
   // address, so the brief never went — a gap the recruiter must close.
   interviewer_brief_sent: { auto: true, tone: "text-steel" },
   interviewer_brief_skipped: { auto: true, tone: "text-amber-600" },
+  // Pre-boarding nudge (candidate-onboarding-hand-off #3): the single auto-resend of
+  // the onboarding link when the questionnaire is still unsubmitted after the delay.
+  onboarding_reminder_sent: { auto: true, tone: "text-steel" },
   onboarding_failed: { auto: true, tone: "text-coral" },
   rejection_comms_failed: { auto: true, tone: "text-coral" },
   fairness_gate_unknown_archetype: { auto: true, tone: "text-coral" },
@@ -121,6 +124,7 @@ export const COMM_SENT_KINDS = [
   "schedule_invite_sent",
   "interview_reminder_sent",
   "interviewer_brief_sent",
+  "onboarding_reminder_sent",
   "offer_sent",
   "acknowledgement_sent",
   "comm_resent",

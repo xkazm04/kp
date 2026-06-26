@@ -247,6 +247,10 @@
       "subject": "Vítejte v týmu — {role}",
       "body": "Dobrý den {name},\n\nmáme velkou radost, že se k nám připojujete jako {role}! Vítejte v týmu.\n\nVáš nástup nyní začíná. Náš personální tým se vám brzy ozve s datem nástupu, dokumenty, vybavením a plánem prvního týdne, abyste se mohli rychle zapojit.\n\nMoc se na spolupráci těšíme.\n\nSrdečně,\n{team}",
       "linkFooter": "Věnujte prosím chvíli sdílení několika údajů před nástupem, ať pro vás můžeme vše připravit:\n{link}"
+    },
+    "onboardingReminder": {
+      "subject": "Krátká připomínka — váš dotazník před nástupem na pozici {role}",
+      "body": "Dobrý den {name},\n\nještě jednou vítejte a gratulujeme k pozici {role}! Všimli jsme si, že váš dotazník před nástupem je stále otevřený. Vyplnění zabere jen pár minut a umožní nám připravit vše na váš první den.\n\nMůžete jej vyplnit zde, kdykoli se vám to hodí:\n{link}\n\nPokud jste jej již vyplnili, této zprávy si prosím nevšímejte.\n\nSrdečně,\n{team}"
     }
   },
   "language": {
@@ -2900,6 +2904,7 @@
         "interview_reminder_sent": "Připomínka pohovoru odeslána",
         "interviewer_brief_sent": "Tazatel informován",
         "interviewer_brief_skipped": "Podklad pro tazatele přeskočen (chybí e-mail)",
+        "onboarding_reminder_sent": "Připomínka před nástupem odeslána",
         "comm_resent": "Zpráva odeslána znovu",
         "onboarding_failed": "Odeslání onboardingu selhalo",
         "rejection_comms_failed": "E-mail o zamítnutí selhal",
@@ -2965,6 +2970,8 @@
     "checklist": "Checklist",
     "questionnaire": "Dotazník před nástupem",
     "questionnaireNote": "Údaje, které nový kolega sdílí před prvním dnem — uloží se do jeho záznamu.",
+    "questionnairePending": "Dotazník nevyplněn",
+    "questionnaireDone": "Dotazník vyplněn",
     "signatures": "Dokumenty k podpisu",
     "signSeamNote": "Ukázkové podepisování — připojte poskytovatele eIDAS (např. Signicat, DocuSign) pro právní závaznost.",
     "signed": "Podepsáno",

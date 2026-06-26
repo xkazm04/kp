@@ -39,7 +39,8 @@ function db(): Database.Database {
       job_title TEXT,
       status TEXT NOT NULL DEFAULT 'active',
       started_at TEXT NOT NULL,
-      completed_at TEXT
+      completed_at TEXT,
+      reminder_sent_at TEXT
     );
     CREATE TABLE IF NOT EXISTS onboarding_task_states (
       run_id TEXT NOT NULL,
@@ -71,6 +72,12 @@ function db(): Database.Database {
   if (!cols.some((c) => c.name === "questionnaire_json")) {
     d.exec(`ALTER TABLE onboarding_templates ADD COLUMN questionnaire_json TEXT`);
   }
+  // Migration (CW-4): the at-most-once pre-boarding reminder claim column on runs
+  // created before the nudge existed (pre-existing rows read back NULL = un-reminded).
+  const runCols = d.prepare(`PRAGMA table_info(onboarding_runs)`).all() as { name: string }[];
+  if (!runCols.some((c) => c.name === "reminder_sent_at")) {
+    d.exec(`ALTER TABLE onboarding_runs ADD COLUMN reminder_sent_at TEXT`);
+  }
   _db = d;
   return d;
 }
@@ -85,6 +92,7 @@ export type OnboardingRun = {
   status: string;
   startedAt: string;
   completedAt: string | null;
+  reminderSentAt: string | null;
 };
 export type OnboardingSignature = {
   id: string;
@@ -177,6 +185,7 @@ function rowToRun(r: Record<string, unknown>): OnboardingRun {
     status: r.status as string,
     startedAt: r.started_at as string,
     completedAt: (r.completed_at as string) ?? null,
+    reminderSentAt: (r.reminder_sent_at as string) ?? null,
   };
 }
 
@@ -232,13 +241,51 @@ function templateQuestionnaire(templateId: string): QuestionnaireField[] {
   return row ? parseQuestionnaire(row.questionnaire_json) : [...DEFAULT_QUESTIONNAIRE];
 }
 
-/** Every run with its completion rollup — the onboarding tab's list. */
-export function listRuns(): (OnboardingRun & { progress: OnboardingProgress })[] {
+/** Every run with its completion rollup — the onboarding tab's list. `intakeSubmitted`
+ *  lets the recruiter card show pre-boarding questionnaire pending/done (CW-4) so a
+ *  hire whose candidate hasn't filled it in is visible, not silently empty. */
+export function listRuns(): (OnboardingRun & { progress: OnboardingProgress; intakeSubmitted: boolean })[] {
   const d = db();
   const runs = (d.prepare(`SELECT * FROM onboarding_runs ORDER BY started_at DESC`).all() as Record<string, unknown>[]).map(
     rowToRun
   );
-  return runs.map((run) => ({ ...run, progress: onboardingProgress(templateTasks(run.templateId), taskStates(run.id)) }));
+  // One read of which runs have a submitted intake, rather than N per-run detail loads.
+  const withIntake = new Set(
+    (d.prepare(`SELECT run_id FROM onboarding_intake`).all() as { run_id: string }[]).map((r) => r.run_id)
+  );
+  return runs.map((run) => ({
+    ...run,
+    progress: onboardingProgress(templateTasks(run.templateId), taskStates(run.id)),
+    intakeSubmitted: withIntake.has(run.id),
+  }));
+}
+
+/** Runs due their one pre-boarding-intake nudge (CW-4): active, intake still
+ *  unsubmitted, never reminded, and started at/before the policy cutoff. The cutoff
+ *  bound keeps not-yet-due runs out of the result entirely. */
+export function duePreboardingReminders(cutoffIso: string): OnboardingRun[] {
+  const rows = db()
+    .prepare(
+      `SELECT r.* FROM onboarding_runs r
+        LEFT JOIN onboarding_intake i ON i.run_id = r.id
+        WHERE r.status = 'active'
+          AND r.reminder_sent_at IS NULL
+          AND i.run_id IS NULL
+          AND r.started_at <= ?
+        ORDER BY r.started_at ASC`
+    )
+    .all(cutoffIso) as Record<string, unknown>[];
+  return rows.map(rowToRun);
+}
+
+/** CAS-claim the one-shot pre-boarding reminder (CW-4): stamps reminder_sent_at only
+ *  if still NULL, so a re-tick or a second process can't double-nudge. Returns true
+ *  for the single claimer that flipped it. */
+export function markPreboardingReminded(runId: string, nowIso: string = new Date().toISOString()): boolean {
+  const res = db()
+    .prepare(`UPDATE onboarding_runs SET reminder_sent_at = ? WHERE id = ? AND reminder_sent_at IS NULL`)
+    .run(nowIso, runId);
+  return res.changes > 0;
 }
 
 export function getRunDetail(runId: string): OnboardingRunDetail | null {

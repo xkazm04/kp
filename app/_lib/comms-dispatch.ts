@@ -436,6 +436,21 @@ export async function dispatchOnboarding(entry: PipelineEntry, onboardingToken?:
   recordAutomationEvent(entry.id, "onboarding_started", role);
 }
 
+/** The single pre-boarding nudge (candidate-onboarding-hand-off #3): re-sends the
+ *  /onboarding/{token} link when the questionnaire is still unsubmitted after the
+ *  policy delay, so a hire who closed the welcome tab isn't lost to silence. Driven
+ *  by the heartbeat sweep (preboarding-reminders.ts), at-most-once via the run's
+ *  reminder_sent_at claim. `link` must be ABSOLUTE (resolved via publicBaseUrl by
+ *  the caller — the candidate opens it outside the app). */
+export async function dispatchPreboardingReminder(entry: PipelineEntry, link: string): Promise<void> {
+  const t = await commsTranslator(entry.locale);
+  const role = entry.jobTitle ?? t("yourNewRole");
+  const subject = t("onboardingReminder.subject", { role });
+  const body = t("onboardingReminder.body", { name: greetName(entry, t), role, link, team: t("team") });
+  await sendCandidateComm(entry, t, { subject, body, kind: "onboarding_reminder", ref: entry.id ?? link });
+  if (entry.id) recordAutomationEvent(entry.id, "onboarding_reminder_sent", role);
+}
+
 /** Format an offer's ISO deadline for the candidate's locale, or "" if absent/invalid
  *  (offers in the reminder window always carry one; the guard keeps the body clean). */
 function formatOfferDeadline(iso: string | null, locale: string | null | undefined): string {

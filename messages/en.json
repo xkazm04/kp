@@ -247,6 +247,10 @@
       "subject": "Welcome aboard — {role}",
       "body": "Hi {name},\n\nWe're delighted you're joining us as {role}! Welcome to the team.\n\nYour onboarding is now underway. Our People team will reach out shortly with your start date, paperwork, equipment, and a first-week plan so you can hit the ground running.\n\nWe can't wait to work with you.\n\nWarmly,\n{team}",
       "linkFooter": "Take a moment to share a few pre-boarding details so we can have everything ready for you:\n{link}"
+    },
+    "onboardingReminder": {
+      "subject": "A quick reminder — your pre-boarding for {role}",
+      "body": "Hi {name},\n\nWelcome again, and congratulations on {role}! We noticed your pre-boarding questionnaire is still open. It only takes a couple of minutes, and it lets us have everything ready for your first day.\n\nYou can complete it here whenever suits you:\n{link}\n\nIf you've already done this, please ignore this note.\n\nWarmly,\n{team}"
     }
   },
   "language": {
@@ -2900,6 +2904,7 @@
         "interview_reminder_sent": "Interview reminder sent",
         "interviewer_brief_sent": "Interviewer briefed",
         "interviewer_brief_skipped": "Interviewer brief skipped (no email)",
+        "onboarding_reminder_sent": "Pre-boarding reminder sent",
         "comm_resent": "Message resent",
         "onboarding_failed": "Onboarding dispatch failed",
         "rejection_comms_failed": "Rejection email failed",
@@ -2965,6 +2970,8 @@
     "checklist": "Checklist",
     "questionnaire": "Pre-boarding questionnaire",
     "questionnaireNote": "Details the new hire shares before day one — saved to their record.",
+    "questionnairePending": "Questionnaire pending",
+    "questionnaireDone": "Questionnaire done",
     "signatures": "Documents to sign",
     "signSeamNote": "Demo signing — connect an eIDAS provider (e.g. Signicat, DocuSign) to make these legally binding.",
     "signed": "Signed",
