@@ -48,6 +48,11 @@ export const DECISION_META: Record<string, DecisionMeta> = {
   interview_invite_sent: { auto: true, tone: "text-steel" },
   schedule_invite_sent: { auto: true, tone: "text-steel" },
   interview_reminder_sent: { auto: true, tone: "text-steel" },
+  // Interviewer brief (interview-prep #2): the assigned interviewer is emailed the
+  // prep pack + an .ics hold on booking. `skipped` = assigned but no deliverable
+  // address, so the brief never went — a gap the recruiter must close.
+  interviewer_brief_sent: { auto: true, tone: "text-steel" },
+  interviewer_brief_skipped: { auto: true, tone: "text-amber-600" },
   onboarding_failed: { auto: true, tone: "text-coral" },
   rejection_comms_failed: { auto: true, tone: "text-coral" },
   fairness_gate_unknown_archetype: { auto: true, tone: "text-coral" },
@@ -115,6 +120,7 @@ export const COMM_SENT_KINDS = [
   "interview_invite_sent",
   "schedule_invite_sent",
   "interview_reminder_sent",
+  "interviewer_brief_sent",
   "offer_sent",
   "acknowledgement_sent",
   "comm_resent",

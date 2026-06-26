@@ -220,6 +220,15 @@
       "normal": "Hi {name},\n\nYour interview for {role} is booked for {slot}.{length} We'll send a reminder before the call with everything you need.\n\nIf you need to change the time, just reply and we'll sort it out.\n\nSee you then,\n{team}",
       "linkFooter": "Need to change the time or add it to your calendar? Use your scheduling link:\n{link}"
     },
+    "interviewerBrief": {
+      "subject": "Interview to run — {candidate} · {role}",
+      "length": " (~{minutes} min)",
+      "focusFallback": "the key gaps",
+      "scenarioFallback": "Run a structured interview and keep each topic timeboxed.",
+      "icsTitle": "Interview: {candidate} ({role})",
+      "calendarHeader": "Calendar hold (.ics) — save the lines below as a .ics file to add it to your calendar:",
+      "body": "Hi {name},\n\nYou're set to interview {candidate} for {role} on {slot}.{length}\n\nPlan: {scenario}\nFocus areas: {focus}\n\nThe full prep pack and live rubric are in kp."
+    },
     "interviewReminder": {
       "subject": "Reminder — your interview {slot}",
       "length": " Plan for about {minutes} minutes.",
@@ -2889,6 +2898,8 @@
         "interview_invite_sent": "Interview invite sent",
         "schedule_invite_sent": "Scheduling link sent",
         "interview_reminder_sent": "Interview reminder sent",
+        "interviewer_brief_sent": "Interviewer briefed",
+        "interviewer_brief_skipped": "Interviewer brief skipped (no email)",
         "comm_resent": "Message resent",
         "onboarding_failed": "Onboarding dispatch failed",
         "rejection_comms_failed": "Rejection email failed",

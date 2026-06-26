@@ -220,6 +220,15 @@
       "normal": "Dobrý den {name},\n\nváš pohovor na pozici {role} je domluven na {slot}.{length} Před hovorem vám pošleme připomínku se vším potřebným.\n\nPokud potřebujete čas změnit, stačí odpovědět a domluvíme se.\n\nTěšíme se,\n{team}",
       "linkFooter": "Potřebujete termín změnit nebo si ho přidat do kalendáře? Použijte svůj odkaz:\n{link}"
     },
+    "interviewerBrief": {
+      "subject": "Pohovor k vedení — {candidate} · {role}",
+      "length": " (~{minutes} min)",
+      "focusFallback": "klíčové mezery",
+      "scenarioFallback": "Veďte strukturovaný pohovor a držte každé téma v časovém limitu.",
+      "icsTitle": "Pohovor: {candidate} ({role})",
+      "calendarHeader": "Rezervace v kalendáři (.ics) — uložte řádky níže jako soubor .ics a přidejte si je do kalendáře:",
+      "body": "Dobrý den {name},\n\nbudete vést pohovor s kandidátem {candidate} na pozici {role} dne {slot}.{length}\n\nPlán: {scenario}\nOblasti zaměření: {focus}\n\nKompletní podklady a živý hodnoticí formulář najdete v kp."
+    },
     "interviewReminder": {
       "subject": "Připomínka — váš pohovor {slot}",
       "length": " Počítejte přibližně s {minutes} minutami.",
@@ -2889,6 +2898,8 @@
         "interview_invite_sent": "Pozvánka na pohovor odeslána",
         "schedule_invite_sent": "Odkaz na výběr termínu odeslán",
         "interview_reminder_sent": "Připomínka pohovoru odeslána",
+        "interviewer_brief_sent": "Tazatel informován",
+        "interviewer_brief_skipped": "Podklad pro tazatele přeskočen (chybí e-mail)",
         "comm_resent": "Zpráva odeslána znovu",
         "onboarding_failed": "Odeslání onboardingu selhalo",
         "rejection_comms_failed": "E-mail o zamítnutí selhal",

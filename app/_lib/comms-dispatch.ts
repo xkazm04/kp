@@ -3,6 +3,8 @@ import { sendComm } from "./comms";
 import { ensureErasureToken, recordAutomationEvent, type PipelineEntry } from "./db";
 import { isEarlyCareer } from "./archetypes";
 import { outreachSuppressionReason } from "./consent";
+import { extractDeliverableAddress, extractRecipientName } from "./comms-recipient";
+import { buildIcs } from "./export-utils";
 import { publicBaseUrl } from "./public-base-url";
 import { DEFAULT_LOCALE, isLocale } from "@/i18n/locales";
 
@@ -271,6 +273,70 @@ export async function dispatchInterviewConfirmation(
   const footer = opts?.rescheduleLink ? `\n\n${t("interviewConfirmation.linkFooter", { link: opts.rescheduleLink })}` : "";
   await sendCandidateComm(entry, t, { subject, body: body + footer, kind: "interview_confirmation" });
   recordAutomationEvent(entry.id, "interview_scheduled", slot);
+}
+
+/** Brief the assigned interviewer (PREP5) when a candidate books their slot. The
+ *  interviewer used to receive nothing — no prep, no calendar hold, no reminder —
+ *  even though buildIcs and the comms channel already existed; the only sharing
+ *  path was the recruiter manually copy-pasting the prep clipboard dump out of
+ *  band. The interviewer field is free-text, so we accept `Name <email>` (or a
+ *  bare address) and email the brief + an inline .ics hold ONLY when it carries a
+ *  deliverable address; an assigned-but-nameless/emailless interviewer records
+ *  `interviewer_brief_skipped` so the recruiter sees the brief did not go (the
+ *  addressability signal, mirroring the candidate side). The brief renders in the
+ *  locale the prep pack was generated in (the recruiter's), since the interviewer
+ *  is org-side staff, not the candidate. Returns whether a brief was dispatched. */
+export async function dispatchInterviewerBrief(
+  entry: PipelineEntry,
+  slot: string,
+  opts: {
+    interviewer: string | null | undefined;
+    durationMin?: number | null;
+    slotAtIso?: string | null;
+    scenario?: string | null;
+    focusAreas?: string[] | null;
+    lang?: string | null;
+  }
+): Promise<boolean> {
+  const assigned = (opts.interviewer ?? "").trim();
+  const address = extractDeliverableAddress(assigned);
+  if (!address) {
+    // Assigned but unaddressable (a bare name), or unassigned — surface the gap so
+    // the prep pack doesn't silently never reach the person running the round.
+    if (entry.id && assigned) recordAutomationEvent(entry.id, "interviewer_brief_skipped", assigned);
+    return false;
+  }
+  const t = await commsTranslator(opts.lang);
+  const name = extractRecipientName(assigned) ?? t("there");
+  const role = entry.jobTitle ?? t("theRole");
+  const candidate = (entry.candidateLabel ?? "").trim() || t("there");
+  const length = opts.durationMin ? t("interviewerBrief.length", { minutes: opts.durationMin }) : "";
+  const focus = (opts.focusAreas ?? []).filter((f) => f && f.trim()).join(", ") || t("interviewerBrief.focusFallback");
+  const scenario = opts.scenario?.trim() || t("interviewerBrief.scenarioFallback");
+  const subject = t("interviewerBrief.subject", { candidate, role });
+  let body = t("interviewerBrief.body", { name, candidate, role, slot, length, scenario, focus });
+
+  // Inline .ics calendar hold — the candidate gets one client-side; the interviewer
+  // got none. Built only when we know the absolute slot start. The outbox is a
+  // plain-text channel, so it rides inline under a header, saveable as an .ics.
+  if (opts.slotAtIso) {
+    try {
+      const ics = buildIcs({
+        uid: `kp-interview-${entry.id ?? "x"}-${assigned.replace(/[^a-zA-Z0-9]+/g, "-")}`,
+        start: opts.slotAtIso,
+        durationMin: opts.durationMin && opts.durationMin > 0 ? opts.durationMin : 30,
+        title: t("interviewerBrief.icsTitle", { candidate, role }),
+        description: scenario,
+      });
+      body += `\n\n${t("interviewerBrief.calendarHeader")}\n${ics}`;
+    } catch {
+      /* unparseable slot — skip the hold; the brief itself still delivers */
+    }
+  }
+
+  await sendComm({ to: address, subject, body, kind: "interviewer_brief", ref: entry.id ?? undefined });
+  if (entry.id) recordAutomationEvent(entry.id, "interviewer_brief_sent", name);
+  return true;
 }
 
 /** Deliver the freshly-minted self-scheduling link TO the candidate. The voice
