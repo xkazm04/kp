@@ -22,6 +22,7 @@ export function FairnessPanel({ fairness, headlineOrder }: { fairness: Fairness 
       <section>
         <SectionTitle>{t("fairnessCheck")}</SectionTitle>
         <p className="mt-1 text-base text-steel">{t("fairnessUniform")}</p>
+        <p className="mt-1 text-sm text-steel">{t("fairnessScopeNote")}</p>
       </section>
     );
   }
@@ -39,6 +40,7 @@ export function FairnessPanel({ fairness, headlineOrder }: { fairness: Fairness 
       <p className="mt-1 text-base text-steel">
         {t.rich("fairnessExplain", { em: (chunks) => <em>{chunks}</em> })}
       </p>
+      <p className="mt-1 text-sm text-steel">{t("fairnessScopeNote")}</p>
 
       <div className="mt-3 overflow-x-auto">
         <table className="w-full border-collapse text-sm">
