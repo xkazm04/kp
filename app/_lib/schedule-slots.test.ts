@@ -9,7 +9,15 @@
 //   npm run test:unit
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { offeredSlotFor, proposeSlots, SLOT_HORIZON_DAYS } from "./schedule-slots.ts";
+import { offeredSlotFor, parseInterviewTimes, proposeSlots, SLOT_HORIZON_DAYS } from "./schedule-slots.ts";
+
+test("parseInterviewTimes is config-driven, validated, deduped, and falls back safely", () => {
+  assert.deepEqual(parseInterviewTimes(undefined), ["10:00", "14:00"]);
+  assert.deepEqual(parseInterviewTimes(""), ["10:00", "14:00"]);
+  assert.deepEqual(parseInterviewTimes("09:00,13:30,17:00"), ["09:00", "13:30", "17:00"]);
+  assert.deepEqual(parseInterviewTimes("10:00, 10:00 ,14:00"), ["10:00", "14:00"]); // trim + dedup + sort
+  assert.deepEqual(parseInterviewTimes("25:99,nope,"), ["10:00", "14:00"]); // all invalid → default
+});
 
 // Fixed reference in UTC so the offered-zone math is deterministic regardless of the
 // test runner's own TZ. Monday 2026-06-08 12:00 UTC; offered zone pinned to UTC.

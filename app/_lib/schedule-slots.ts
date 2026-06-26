@@ -15,7 +15,25 @@
 // across the midnight rollover of the proposal window — and the label is
 // re-derived server-side from the validated time, never taken from the client.
 
-const TIMES = ["10:00", "14:00"] as const;
+/** The offered interview times per business day, in the interview zone. Defaults to
+ *  10:00 + 14:00 but is config-driven via KP_INTERVIEW_TIMES (comma-separated "HH:MM")
+ *  so a deployment can lift the per-day interview capacity beyond two — the simplest
+ *  throughput lever short of a full per-interviewer availability model (the global,
+ *  host-blind slot pool otherwise caps the WHOLE org at two interviews/day). Malformed
+ *  entries are dropped; an empty/all-bad config falls back to the default. Deduped +
+ *  sorted so the proposal order is stable and a slot's identity is one canonical instant.
+ *  NOTE: collision is still global (host-blind) — per-interviewer/per-job availability
+ *  and real-calendar conflict avoidance are the deferred Phase 2. */
+export function parseInterviewTimes(raw: string | undefined): readonly string[] {
+  const DEFAULT = ["10:00", "14:00"];
+  if (!raw) return DEFAULT;
+  const valid = [
+    ...new Set(raw.split(",").map((s) => s.trim()).filter((s) => /^([01]\d|2[0-3]):[0-5]\d$/.test(s))),
+  ].sort();
+  return valid.length > 0 ? valid : DEFAULT;
+}
+
+const TIMES = parseInterviewTimes(process.env.KP_INTERVIEW_TIMES);
 const DOW = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
