@@ -29,7 +29,7 @@ registerHooks({
 });
 
 const { mapPolarEvent } = await import("./polar.ts");
-const { reduceBillingEvent, subscriptionWriteIsStale } = await import("./reduce.ts");
+const { reduceBillingEvent, subscriptionWriteIsStale, clearSubscriptionIsStale } = await import("./reduce.ts");
 import type { ProductMap } from "./gateway.ts";
 
 const PRODUCTS: ProductMap = {
@@ -71,9 +71,20 @@ test("canceled keeps the plan with canceled status (entitled until period end)",
   assert.equal((action as { status: string }).status, "canceled");
 });
 
-test("revoked clears to free", () => {
+test("revoked clears to free and carries the revoked subscription id", () => {
   const action = reduceBillingEvent(subscriptionEvent("revoked"), PRODUCTS);
-  assert.deepEqual(action, { kind: "clear_subscription", customerId: "cus_1" });
+  assert.deepEqual(action, { kind: "clear_subscription", customerId: "cus_1", subscriptionId: "sub_1" });
+});
+
+test("clearSubscriptionIsStale: a revoke for a DIFFERENT subscription than stored is stale", () => {
+  // Customer churned sub_1, re-subscribed to sub_2 (now stored). A delayed revoke
+  // for sub_1 must NOT wipe the live sub_2 to free.
+  assert.equal(clearSubscriptionIsStale("sub_2", "sub_1"), true);
+  // A genuine revoke of the currently-stored subscription DOES clear.
+  assert.equal(clearSubscriptionIsStale("sub_1", "sub_1"), false);
+  // Unknown ids can't prove staleness — don't skip (a real revoke must drop entitlement).
+  assert.equal(clearSubscriptionIsStale(null, "sub_1"), false);
+  assert.equal(clearSubscriptionIsStale("sub_2", null), false);
 });
 
 test("an incomplete checkout entitles nothing", () => {

@@ -3,7 +3,7 @@
 
 import { ensureDb, getBillingState, grantBillingCredits, insertBillingEvent, upsertBillingState } from "../db";
 import type { BillingGateway } from "./gateway";
-import { reduceBillingEvent, subscriptionWriteIsStale, type BillingAction } from "./reduce";
+import { clearSubscriptionIsStale, reduceBillingEvent, subscriptionWriteIsStale, type BillingAction } from "./reduce";
 
 export type IngestResult = {
   eventId: string;
@@ -41,6 +41,13 @@ export function applyBillingAction(action: BillingAction, provider: string): str
       // Keep the customer id — the portal (and any win-back checkout) still
       // needs to address the same MoR customer after the plan lapses.
       const prior = getBillingState();
+      // Out-of-order guard (revenue-losing direction): a delayed/retried `revoked`
+      // for an OLD subscription must not wipe a NEWER active one the customer
+      // re-subscribed to. Skip the clear when the revoke targets a different
+      // subscription than the one currently stored. (Polar does not guarantee order.)
+      if (clearSubscriptionIsStale(prior?.providerSubscriptionId ?? null, action.subscriptionId)) {
+        return `stale revoke ignored (a newer subscription ${prior?.providerSubscriptionId} is active)`;
+      }
       upsertBillingState({
         plan: "free",
         status: "none",
