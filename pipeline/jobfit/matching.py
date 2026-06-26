@@ -254,6 +254,14 @@ def ko_filter(candidate: MatchCandidate, job: Job) -> tuple[bool, list[KoReason]
         # early-career?" (the precomputed entry lens). No seniority-gap penalty.
         if not entry_ok:
             reasons.append(KoReason(key="early_career", detail="role not open to early-career"))
+    elif candidate.archetype not in WEIGHTS:
+        # Unclassified archetype (e.g. a saved analysis matched without a detected
+        # v2 profile, passed as "unknown"). FAIL CLOSED: never auto-KO on seniority
+        # a candidate we cannot classify — the same fairness stance as the TS
+        # `isFairnessProtected` gate. Scoring still uses neutral BAU weights
+        # (weights_for falls back to bau); we just don't hard-gate them out of
+        # senior roles on a seniority floor we can't justify for an unknown class.
+        pass
     else:
         # BAU seniority floor: don't surface roles two+ levels above the candidate,
         # unless the role is explicitly open to early-career.

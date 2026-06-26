@@ -52,6 +52,20 @@ class KoFilterTest(unittest.TestCase):
         passed, _ = ko_filter(JUNIOR, job)
         self.assertTrue(passed)
 
+    def test_unclassified_archetype_not_seniority_blocked(self) -> None:
+        # A saved analysis matched without a detected v2 profile arrives as the
+        # "unknown" archetype. It must FAIL CLOSED on the seniority floor — i.e.
+        # NOT be auto-KO'd — unlike a classified BAU junior at the same level.
+        job = mkjob(seniority="senior", description="Seasoned engineer to own the platform.")
+        bau_junior = MatchCandidate(seniority="junior", languages=["English"], archetype="bau")
+        passed_bau, reasons_bau = ko_filter(bau_junior, job)
+        self.assertFalse(passed_bau)
+        self.assertTrue(any(r.key == "seniority" for r in reasons_bau))
+        unknown_junior = MatchCandidate(seniority="junior", languages=["English"], archetype="unknown")
+        passed_unknown, reasons_unknown = ko_filter(unknown_junior, job)
+        self.assertTrue(passed_unknown)
+        self.assertFalse(any(r.key == "seniority" for r in reasons_unknown))
+
     def test_medior_to_senior_allowed(self) -> None:
         cand = MatchCandidate(seniority="medior", languages=["English"])
         job = mkjob(seniority="senior", description="Owns a service.")
