@@ -2716,6 +2716,8 @@
       "title": "Jak jsme přesní?",
       "blurb": "Zda skóre shody skutečně předpovídá rozhodnutí náboráře. Každý bod je pásmo skóre — jeho poloha vůči přerušované čáře ukazuje, jak jsme kalibrovaní.",
       "loading": "Měření…",
+      "familyLabel": "Rodina rolí",
+      "familyAll": "Všechny role",
       "error": "Kalibraci se teď nepodařilo načíst.",
       "uncalibratedTitle": "Zatím nekalibrováno",
       "uncalibratedBody": "Kalibrace potřebuje alespoň {min} rozhodnutých kandidátů (postoupili nebo zamítnuti). Zatím: {n}.",

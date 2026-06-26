@@ -2716,6 +2716,8 @@
       "title": "How accurate are we?",
       "blurb": "Whether a fit score actually predicts the recruiter's decision. Each dot is a score band — where it sits versus the dashed line is how calibrated we are.",
       "loading": "Measuring…",
+      "familyLabel": "Role family",
+      "familyAll": "All roles",
       "error": "Couldn't load calibration right now.",
       "uncalibratedTitle": "Not yet calibrated",
       "uncalibratedBody": "Calibration needs at least {min} decided candidates (advanced or passed). So far: {n}.",
