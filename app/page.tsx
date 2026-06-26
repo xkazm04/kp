@@ -3,11 +3,16 @@ import { Workspace } from "@/app/features/Workspace";
 import SparkHome from "@/app/landing/spark/SparkHome";
 import { HomeGate } from "@/app/_components/auth/HomeGate";
 
-// '/' is gated: signed-out visitors see the public landing, signed-in operators
-// see the workspace dashboard. Both surfaces are server-rendered here and handed
-// to HomeGate as slots; it only picks which one to mount (dev-only gate — see
-// app/_lib/auth/devAuth.ts). The Suspense boundary is required by Workspace's
-// useSearchParams.
+// '/' is gated by HomeGate between two server-rendered slots: the public landing
+// (SparkHome) and the workspace dashboard. IMPORTANT — the gate is DEV-ONLY
+// (app/_lib/auth/devAuth.ts: DEV_GATE = NODE_ENV !== "production"), so in PRODUCTION
+// `/` ALWAYS mounts the dashboard and the public landing is NOT served at any URL
+// (/landing redirects to /). The landing (hero, pricing, trust, demo CTA, i18n) is
+// BUILT but intentionally NOT LAUNCHED yet — its CTAs still dead-end at the operator
+// login and the SEO/social-proof work isn't done (see docs/DESIGN.md "Public landing").
+// To launch it, gate `/` on the real auth cookie (isOperator) instead of the dev-only
+// localStorage flag, AND finish the CTA/SEO/social-proof items first.
+// The Suspense boundary is required by Workspace's useSearchParams.
 //
 // `?sim=auto` is the public guided-demo entry (B1): the prospect arrived from
 // /api/demo with an isolated demo-workspace session, so force the workspace
