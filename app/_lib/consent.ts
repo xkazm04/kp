@@ -5,9 +5,17 @@
 // the non-identifying scoring artifacts for re-engagement) is documented in
 // docs/GDPR_AND_HIRING_EXTENSIONS.md. See the DPO note there before enabling in prod.
 
-/** Default retention window for a recruitment consent: 12 months from grant.
- *  Recruitis/Sloneek both default to ~1 year (or the position length). */
-export const CONSENT_TTL_DAYS = 365;
+/** Default retention window for a recruitment consent: 12 months from grant
+ *  (Recruitis/Sloneek both default to ~1 year). This is a GLOBAL default, blind to
+ *  jurisdiction and source — the lawful retention period varies by country and by how
+ *  the candidate was acquired, so a deployment SHOULD set it for its legal basis via
+ *  KP_CONSENT_TTL_DAYS (whole days, 1..3650). The per-call `ttlDays` arg overrides it
+ *  for a future per-jurisdiction/per-source policy. See docs/GDPR_AND_HIRING_EXTENSIONS.md. */
+function defaultConsentTtlDays(): number {
+  const raw = Number(process.env.KP_CONSENT_TTL_DAYS);
+  return Number.isFinite(raw) && raw >= 1 && raw <= 3650 ? Math.floor(raw) : 365;
+}
+export const CONSENT_TTL_DAYS = defaultConsentTtlDays();
 
 /** A consent is "expiring" within this many days of its expiry — the window the
  *  pre-expiry reminder + the drawer's amber chip use. */
