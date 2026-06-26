@@ -12,6 +12,7 @@ import { normalizeMarketSalary, type MarketSalary } from "@/app/_lib/salary-band
 import { dedupeBy } from "@/app/_lib/dedupe";
 import { safeHttpLinks } from "@/app/_lib/safe-url";
 import { lintJd } from "@/app/_lib/jd-lint";
+import { JdLintPanel } from "./JdLintPanel";
 
 // Order = tab order; drives both the role="tablist" render and arrow-key nav.
 const VIEWS = ["preview", "edit"] as const;
@@ -258,32 +259,7 @@ export function JdBuilderResult({
           place). Live against the editable body, so a fix clears its finding
           immediately; an all-clear is shown (not silence) so the recruiter knows
           the check ran. */}
-      {lintFindings.length ? (
-        <div className="mt-3 rounded-md border border-amber-200 bg-amber-50/60 px-3 py-2 text-sm text-amber-800">
-          <p className="flex items-center gap-1.5 font-semibold">
-            <AlertTriangle size={14} aria-hidden /> {t("lintHeading")}
-          </p>
-          <ul className="mt-1 list-inside list-disc space-y-0.5">
-            {lintFindings.map((f, i) => (
-              <li key={i}>
-                {f.kind === "vague"
-                  ? t("lintVague", { phrase: f.phrase })
-                  : f.kind === "exclusionary"
-                    ? t("lintExclusionary", { phrase: f.phrase })
-                    : f.kind === "manyMustHaves"
-                      ? t("lintManyMustHaves", { count: f.count })
-                      : f.what === "salary"
-                        ? t("lintMissingSalary")
-                        : t("lintMissingPlace")}
-              </li>
-            ))}
-          </ul>
-        </div>
-      ) : (
-        <p className="mt-3 flex items-center gap-1.5 text-sm text-moss">
-          <Check size={14} aria-hidden /> {t("lintAllClear")}
-        </p>
-      )}
+      <JdLintPanel findings={lintFindings} />
 
       {/* Editable output + preview */}
       <div className="mt-3 flex items-center gap-1 border-b border-stone-200">
