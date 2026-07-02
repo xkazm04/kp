@@ -119,6 +119,7 @@ def main(argv: list[str] | None = None) -> int:
             parse_json=True,
             expected_keys=("suggestedMinimum", "suggestedMaximum", "currency", "confidence", "summary"),
             fallback=GroundedAnswer(text="", payload={}, sources=[]),
+            use_case="grounded_salary",
         )
         result, grounded = _coerce(ans.payload or {}, role_family, seniority, args.lang)
         print(

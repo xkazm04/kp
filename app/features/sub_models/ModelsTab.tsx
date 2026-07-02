@@ -9,6 +9,7 @@ import { SectionTitle } from "@/app/_components/ui/SectionTitle";
 import { labelize } from "@/app/_lib/format";
 import type { LlmConfigRow } from "@/app/_lib/db";
 import { KeysPanel } from "./KeysPanel";
+import { UsagePanel } from "./UsagePanel";
 import { useProviderName } from "./provider-names";
 
 // Models tab — the LLM provider layer's admin surface (docs/LLM_PROVIDER_LAYER.md):
@@ -325,6 +326,8 @@ export function ModelsTab() {
       ) : null}
 
       {config ? <KeysPanel /> : null}
+
+      {config ? <UsagePanel /> : null}
     </section>
   );
 }
