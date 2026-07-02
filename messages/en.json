@@ -538,6 +538,7 @@
   "common": {
     "loading": "Loading…",
     "retry": "Try again",
+    "dismissNotification": "Dismiss notification",
     "yes": "Yes",
     "no": "No"
   },
@@ -552,6 +553,18 @@
     "OFFER_RESPOND_FAILED": "Could not record your response. Please try again.",
     "SCHEDULE_CONFIRM_FAILED": "Could not confirm that slot. Please try again.",
     "SCHEDULE_INVITE_FAILED": "Could not create the scheduling link. Please try again."
+  },
+  "resilience": {
+    "notFoundEyebrow": "404",
+    "notFoundTitle": "Page not found",
+    "notFoundBody": "This link doesn't lead anywhere — it may be mistyped, expired, or the page may have moved.",
+    "notFoundCta": "Back to home",
+    "errorEyebrow": "Unexpected error",
+    "errorTitle": "Something went wrong",
+    "errorBody": "An unexpected error interrupted this page. Nothing was lost — you can try again, or head back home.",
+    "errorDigest": "Error reference: {digest}",
+    "retry": "Try again",
+    "home": "Back to home"
   },
   "offer": {
     "eyebrow": "Your offer",
@@ -615,6 +628,7 @@
     "rsvpConfirm": "I'll be there",
     "rsvpCancel": "I can't make it",
     "attendanceConfirmed": "Attendance confirmed — thanks!",
+    "slotsRefreshFailed": "Couldn't refresh the available times — reload the page to see the latest.",
     "rsvpCancelledNote": "Your time has been released. Pick a new one below and we'll let the team know."
   },
   "data": {
@@ -2343,6 +2357,7 @@
       "intro": "A guided intake that works for students and career-switchers, not just experienced hires. We route the archetype, collect the signals a thin CV omits (projects, thesis, coursework, aspirations), tag each piece of evidence with its <b>provenance</b>, and score completeness so you know what to add next.",
       "saveChanges": "Save changes",
       "saveProfile": "Save profile",
+      "savedToast": "Profile saved.",
       "draftToggle": "Draft from notes with AI",
       "draftHint": "— paste a CV blurb, LinkedIn, or notes; we structure + route it",
       "draftPlaceholder": "e.g. 3rd-year CS student at ČVUT, expected 2026. Built a React recommender app for her thesis (on GitHub). Did a summer internship in Python. Wants a junior frontend role. Czech + English.",
@@ -2606,6 +2621,7 @@
     "createPlaceholder": "New workspace name",
     "authRequired": "Switching requires operator sign-in (set KP_OPERATOR_PASSWORD).",
     "switchFailed": "Couldn't switch — try again.",
+    "created": "Workspace created.",
     "createFailed": "Couldn't create the workspace."
   },
   "login": {
@@ -2615,6 +2631,8 @@
     "passwordLabel": "Password",
     "submit": "Sign in",
     "submitting": "Signing in…",
+    "networkError": "Couldn't reach the server — check your connection and try again.",
+    "success": "Signed in.",
     "error": "Incorrect password — try again."
   },
   "skillProfile": {
@@ -3227,6 +3245,10 @@
     "addVariant": "Add variant ({current}/{max})",
     "variantLimitReached": "Variant limit reached.",
     "selectCvFirst": "Select a CV or LinkedIn PDF export first."
+  },
+  "integrations": {
+    "configLoadFailed": "Couldn't load the saved webhook settings — the values shown may not match what's stored.",
+    "saved": "Webhook settings saved."
   },
   "billing": {
     "eyebrow": "Billing",

@@ -538,6 +538,7 @@
   "common": {
     "loading": "Načítání…",
     "retry": "Zkusit znovu",
+    "dismissNotification": "Zavřít oznámení",
     "yes": "Ano",
     "no": "Ne"
   },
@@ -552,6 +553,18 @@
     "OFFER_RESPOND_FAILED": "Vaši odpověď se nepodařilo zaznamenat. Zkuste to prosím znovu.",
     "SCHEDULE_CONFIRM_FAILED": "Tento termín se nepodařilo potvrdit. Zkuste to prosím znovu.",
     "SCHEDULE_INVITE_FAILED": "Odkaz pro plánování se nepodařilo vytvořit. Zkuste to prosím znovu."
+  },
+  "resilience": {
+    "notFoundEyebrow": "404",
+    "notFoundTitle": "Stránka nenalezena",
+    "notFoundBody": "Tento odkaz nikam nevede — může být přepsaný, prošlý, nebo se stránka přestěhovala.",
+    "notFoundCta": "Zpět domů",
+    "errorEyebrow": "Neočekávaná chyba",
+    "errorTitle": "Něco se pokazilo",
+    "errorBody": "Načítání stránky přerušila neočekávaná chyba. O nic jste nepřišli — zkuste to znovu, nebo se vraťte domů.",
+    "errorDigest": "Kód chyby: {digest}",
+    "retry": "Zkusit znovu",
+    "home": "Zpět domů"
   },
   "offer": {
     "eyebrow": "Vaše nabídka",
@@ -615,6 +628,7 @@
     "rsvpConfirm": "Dorazím",
     "rsvpCancel": "Nemohu se zúčastnit",
     "attendanceConfirmed": "Účast potvrzena — děkujeme!",
+    "slotsRefreshFailed": "Nepodařilo se obnovit dostupné termíny — načtěte stránku znovu, ať vidíte aktuální nabídku.",
     "rsvpCancelledNote": "Váš termín byl uvolněn. Vyberte si níže nový a dáme týmu vědět."
   },
   "data": {
@@ -2343,6 +2357,7 @@
       "intro": "Řízený sběr údajů, který funguje pro studenty a lidi měnící obor, nejen pro zkušené uchazeče. Směrujeme archetyp, sbíráme signály, které tenké CV vynechává (projekty, diplomová práce, předměty, ambice), označujeme každou evidenci její <b>proveniencí</b> a hodnotíme úplnost, abyste věděli, co doplnit.",
       "saveChanges": "Uložit změny",
       "saveProfile": "Uložit profil",
+      "savedToast": "Profil uložen.",
       "draftToggle": "Vytvořit koncept z poznámek pomocí AI",
       "draftHint": "— vložte úryvek CV, LinkedIn nebo poznámky; strukturujeme a směrujeme to",
       "draftPlaceholder": "např. studentka 3. ročníku informatiky na ČVUT, očekávané ukončení 2026. Pro diplomovou práci vytvořila doporučovací aplikaci v Reactu (na GitHubu). Absolvovala letní stáž v Pythonu. Hledá juniorní frontend roli. Čeština + angličtina.",
@@ -2606,6 +2621,7 @@
     "createPlaceholder": "Název nového prostoru",
     "authRequired": "Přepínání vyžaduje přihlášení operátora (nastavte KP_OPERATOR_PASSWORD).",
     "switchFailed": "Přepnutí se nezdařilo — zkuste to znovu.",
+    "created": "Pracovní prostor byl vytvořen.",
     "createFailed": "Pracovní prostor se nepodařilo vytvořit."
   },
   "login": {
@@ -2615,6 +2631,8 @@
     "passwordLabel": "Heslo",
     "submit": "Přihlásit se",
     "submitting": "Přihlašování…",
+    "networkError": "Nepodařilo se spojit se serverem — zkontrolujte připojení a zkuste to znovu.",
+    "success": "Přihlášení proběhlo úspěšně.",
     "error": "Nesprávné heslo — zkuste to znovu."
   },
   "skillProfile": {
@@ -3227,6 +3245,10 @@
     "addVariant": "Přidat variantu ({current}/{max})",
     "variantLimitReached": "Dosažen limit variant.",
     "selectCvFirst": "Nejprve vyberte CV nebo PDF export z LinkedInu."
+  },
+  "integrations": {
+    "configLoadFailed": "Nepodařilo se načíst uložené nastavení webhooku — zobrazené hodnoty nemusí odpovídat tomu, co je uloženo.",
+    "saved": "Nastavení webhooku uloženo."
   },
   "billing": {
     "eyebrow": "Fakturace",
