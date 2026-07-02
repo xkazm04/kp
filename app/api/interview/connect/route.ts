@@ -19,6 +19,7 @@ import {
 } from "@/app/_lib/voice";
 import { QUICK_SCREEN_MIN } from "@/app/_lib/interview-duration.mjs";
 import { safeJsonError } from "@/app/_lib/api-response";
+import { rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
 import { CONSENT_REQUIRED_ERROR, isConnectConsentSatisfied } from "@/app/_lib/interview-consent";
 import { INTERVIEW_LAB_DISABLED_ERROR, isInterviewLabEnabled } from "@/app/_lib/interview-lab";
 
@@ -95,6 +96,21 @@ export async function POST(request: NextRequest) {
         revokeInterviewSession(session0.id);
         return NextResponse.json({ error: "This interview link is no longer active." }, { status: 409 });
       }
+    }
+
+    // Per-token connect throttle (backlog #15): a valid, non-terminal token could
+    // otherwise mint provider sessions — the most expensive operation in the
+    // system (ElevenLabs / OpenAI Realtime credits) — in a tight loop. Keyed by
+    // TOKEN, not IP: the link is the credential, and an abuser rotating IPs must
+    // not reset the budget. Sits AFTER the lifecycle guards (bad token /
+    // completed / revoked / expired keep their 404/409 semantics) and BEFORE
+    // markInterviewStarted + adapter.connect, so a throttled call does no work.
+    // 6/10min = one start + five reconnects: a dropped call ('failed' stays
+    // reconnectable by design) is retried manually, one click per attempt, so a
+    // flaky-network session still fits; a credential-minting loop does not.
+    // Tokenless lab sessions (dev-only, INTERVIEW_LAB_ENABLED-gated) pass through.
+    if (token && !rateLimit(`interview-connect:${token}`, { limit: 6, windowMs: 10 * 60_000 })) {
+      return NextResponse.json({ error: RATE_LIMITED_ERROR }, { status: 429 });
     }
 
     const requested = coerceProviderId(body.provider);

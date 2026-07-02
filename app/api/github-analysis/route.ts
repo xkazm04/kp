@@ -6,6 +6,7 @@ import { logGithub, newRequestId } from "@/app/_lib/logger";
 import { codeReviewSchema, githubAnalysisSchema } from "@/app/_lib/schemas";
 import { ACTIVE_WINDOW_MONTHS, RECENT_WINDOW_MONTHS, isWithinMonths } from "@/app/_lib/repo-activity";
 import { parseGithubUsername } from "@/app/_lib/github-handle";
+import { clientIpFrom, rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
 import {
   COMMITS_PER_REPO,
   FILES_PER_REPO,
@@ -156,6 +157,18 @@ export async function POST(request: Request) {
       return NextResponse.json(hit.payload);
     }
     githubCache.delete(cacheKey);
+  }
+
+  // Per-IP abuse containment (backlog #7): an uncached run burns up to ~31
+  // GitHub REST calls + one paid Gemini call. The throttle sits AFTER the
+  // content-hash cache lookup above so cached responses keep serving freely
+  // without consuming budget — only runs that would actually spend external
+  // calls count. 10/10min/IP is generous for a human (GitHub's anonymous 60/hr
+  // ceiling binds first anyway) while blunting a scripted cost-amplifier. Note
+  // this is a real 429, unlike the 200+{error} GitHub-failure envelope below —
+  // the shared limiter convention wins, and the panel reads `error` either way.
+  if (!rateLimit(`github-analysis:${clientIpFrom(request.headers)}`, { limit: 10, windowMs: 10 * 60_000 })) {
+    return NextResponse.json({ error: RATE_LIMITED_ERROR }, { status: 429 });
   }
 
   try {

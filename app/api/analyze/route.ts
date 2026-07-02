@@ -7,6 +7,7 @@ import { dedupeCvVariants } from "@/app/_lib/cv-variant";
 import { newRequestId } from "@/app/_lib/logger";
 import { createWorkdir, persistFile } from "@/app/_lib/python-runner";
 import { startTask } from "@/app/_lib/tasks";
+import { clientIpFrom, rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import {
   MAX_CV_VARIANTS,
@@ -21,6 +22,19 @@ export const maxDuration = 60;
 // returning { task }. The client polls /api/tasks/[id] (and the global Tasks
 // indicator tracks it) — so the analysis survives navigation + page refresh.
 export async function POST(request: Request) {
+  // Per-IP abuse containment (backlog #7): in open mode (no KP_OPERATOR_PASSWORD)
+  // this route is unauthenticated, and each submit ends in a paid Gemini
+  // multimodal call inside the background task. Throttle BEFORE the billing read
+  // and the multi-MB formData parse so a flood is rejected cheaply. 30/10min/IP
+  // is far above any real operator cadence — the UI submits ONE request per run
+  // (multi-CV variants ride together inside it, see collectCvFiles), so even a
+  // rapid-fire screening session stays well under the ceiling, while a scripted
+  // burst can't fan out unmetered model calls. Cached re-runs share the budget,
+  // but they are part of the same human cadence the ceiling already covers.
+  if (!rateLimit(`analyze:${clientIpFrom(request.headers)}`, { limit: 30, windowMs: 10 * 60_000 })) {
+    return NextResponse.json({ error: RATE_LIMITED_ERROR }, { status: 429 });
+  }
+
   // Billing hard GATE only: a CV analysis is the unit behind the "AI candidates"
   // meter (one person fully worked — variants of the same person count once). The
   // unit is DEBITED later, inside runAnalyze, only when a non-cached analysis is
