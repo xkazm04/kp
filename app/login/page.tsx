@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
+import { toast } from "@/app/_components/toast-store";
 
 // Auth foundation (P2) — the operator sign-in. Posts the password to
 // /api/auth/login; on success the signed cookie is set and we return to `next`
@@ -28,8 +29,16 @@ export default function LoginPage() {
       body: JSON.stringify({ password }),
     }).catch(() => null);
     if (r && r.ok) {
+      // Client-side navigation keeps the toast alive across the redirect (the
+      // Toaster lives in the root layout).
+      toast.success(t("success"));
       router.replace(safeNext());
       router.refresh();
+    } else if (!r) {
+      // Network failure ≠ wrong password: the fetch never reached the server, so
+      // the inline "incorrect password" message would blame the wrong thing.
+      setStatus("idle");
+      toast.error(t("networkError"));
     } else {
       setStatus("error");
     }

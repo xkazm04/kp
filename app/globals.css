@@ -269,6 +269,10 @@ body {
   --z-sim-bar: 55;
   --z-sim-frame: 48;
   --sim-bar-h: 60px;
+  /* Toast stack (app/_components/Toast.tsx): transient feedback must clear
+     everything — the Modal (50) and the sim bar (55) included — because a
+     mutation fired from inside a dialog still needs its confirmation visible. */
+  --z-toast: 70;
 }
 
 button,
