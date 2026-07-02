@@ -25,6 +25,7 @@ function py(prob: number): number {
 }
 
 function ReliabilityDiagram({ result, labels }: { result: CalibrationResult; labels: { x: string; y: string; perfect: string } }) {
+  const t = useTranslations("analytics.calibration");
   const filled = result.bins.filter((b) => b.count > 0);
   const maxCount = filled.reduce((m, b) => Math.max(m, b.count), 1);
   return (
@@ -35,7 +36,13 @@ function ReliabilityDiagram({ result, labels }: { result: CalibrationResult; lab
       <ul className="sr-only">
         {filled.map((b, i) => (
           <li key={i}>
-            {labels.x} {b.predicted.toFixed(2)}, {labels.y} {b.observed.toFixed(2)} (n={b.count})
+            {t("srBin", {
+              x: labels.x,
+              predicted: b.predicted.toFixed(2),
+              y: labels.y,
+              observed: b.observed.toFixed(2),
+              count: b.count,
+            })}
           </li>
         ))}
       </ul>

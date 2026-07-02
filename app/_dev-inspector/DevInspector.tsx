@@ -70,11 +70,8 @@ export function DevInspector() {
   const [hover, setHover] = useState<HoverState | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
   const [copyOk, setCopyOk] = useState(true);
-  const [mounted, setMounted] = useState(false);
   const copiedTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const navTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-
-  useEffect(() => setMounted(true), []);
 
   const doCopy = useCallback(async (loc: string) => {
     const ok = await copyText(loc);
@@ -178,7 +175,10 @@ export function DevInspector() {
     [],
   );
 
-  if (!mounted || mode === "off") return null;
+  // No hydration/mount gate needed: `mode` starts "off" everywhere (server and
+  // client alike) and only leaves "off" via client-side keydown handlers, so the
+  // document.body portals below are unreachable during SSR/hydration.
+  if (mode === "off") return null;
 
   if (mode === "nav") {
     return createPortal(

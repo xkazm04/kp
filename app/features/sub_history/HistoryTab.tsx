@@ -59,25 +59,40 @@ export function HistoryTab() {
   // SQLITE_BUSY / 500 on tab-open (or a workspace switch) otherwise dead-ended at a red
   // panel with no recovery but a full page reload. A generation ref means only the
   // latest request's result is applied, so rapid retries / a locale switch mid-load
-  // can't write a stale rows/error.
+  // can't write a stale rows/error. State is only written in the async continuation
+  // (never synchronously when the effect fires); the retry handler below does the
+  // synchronous loading-state reset in its event handler instead.
   const reqGen = useRef(0);
-  const reload = useCallback(async () => {
+  const load = useCallback(() => {
     const gen = ++reqGen.current;
-    setError(null);
-    setRows(null);
-    try {
-      const response = await fetch("/api/analyses");
-      if (!response.ok) throw new Error(t("loadFailedStatus", { status: response.status }));
-      const payload = await response.json();
-      if (reqGen.current === gen) setRows((payload.analyses as AnalysisRow[]) ?? []);
-    } catch (caught) {
-      if (reqGen.current === gen) setError(caught instanceof Error ? caught.message : t("loadFailed"));
-    }
+    fetch("/api/analyses")
+      .then(async (response) => {
+        if (!response.ok) throw new Error(t("loadFailedStatus", { status: response.status }));
+        const payload = await response.json();
+        if (reqGen.current === gen) {
+          setRows((payload.analyses as AnalysisRow[]) ?? []);
+          setError(null);
+        }
+      })
+      .catch((caught) => {
+        if (reqGen.current === gen) {
+          setError(caught instanceof Error ? caught.message : t("loadFailed"));
+          setRows(null);
+        }
+      });
   }, [t]);
 
+  // "Try again": clear the failure and show the loading state immediately (a
+  // synchronous set is fine in an event handler), then refetch.
+  const retry = () => {
+    setError(null);
+    setRows(null);
+    load();
+  };
+
   useEffect(() => {
-    void reload();
-  }, [reload]);
+    load();
+  }, [load]);
 
   const families = useMemo(() => distinct((rows ?? []).map((r) => r.role_family)), [rows]);
   const seniorities = useMemo(() => distinct((rows ?? []).map((r) => r.seniority)), [rows]);
@@ -113,7 +128,7 @@ export function HistoryTab() {
             <p>{error}</p>
             <button
               type="button"
-              onClick={() => void reload()}
+              onClick={retry}
               className="focus-ring mt-2 rounded-md border border-red-200 bg-white px-3 py-1 text-sm font-semibold text-red-700 hover:bg-red-100"
             >
               {t("retry")}

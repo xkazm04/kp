@@ -44,32 +44,48 @@ export default function OnboardingPage() {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
 
-  const load = useCallback(async () => {
+  // State is only written in the fetch's async callbacks (never synchronously
+  // when the mount effect fires); every terminal branch settles BOTH failure
+  // flags so a refetch (retry, locale switch) can't strand a stale one. The
+  // retry button does its synchronous loading-state reset in its own handler.
+  const load = useCallback(() => {
     if (!token) return;
-    setLoadError(null);
-    setNotFound(false);
-    try {
-      const r = await fetch(`/api/onboarding/candidate/${token}`);
-      const p = await r.json().catch(() => ({}));
-      if (r.status === 404) {
-        setNotFound(true);
-        return;
-      }
-      if (!r.ok || p.error) {
+    fetch(`/api/onboarding/candidate/${token}`)
+      .then(async (r) => {
+        const p = await r.json().catch(() => ({}));
+        if (r.status === 404) {
+          setNotFound(true);
+          setLoadError(null);
+          return;
+        }
+        if (!r.ok || p.error) {
+          setLoadError(t("loadFailed"));
+          setNotFound(false);
+          return;
+        }
+        setLoadError(null);
+        setNotFound(false);
+        const v = p.onboarding as OnboardingView;
+        setView(v);
+        setAnswers(v.answers ?? {});
+        setSaved(v.submitted);
+      })
+      .catch(() => {
         setLoadError(t("loadFailed"));
-        return;
-      }
-      const v = p.onboarding as OnboardingView;
-      setView(v);
-      setAnswers(v.answers ?? {});
-      setSaved(v.submitted);
-    } catch {
-      setLoadError(t("loadFailed"));
-    }
+        setNotFound(false);
+      });
   }, [token, t]);
 
+  // "Retry": clear the error and show the loading state immediately (a
+  // synchronous set is fine in an event handler), then refetch.
+  const retryLoad = () => {
+    setLoadError(null);
+    setNotFound(false);
+    load();
+  };
+
   useEffect(() => {
-    void load();
+    load();
   }, [load]);
 
   const submit = async () => {
@@ -109,7 +125,7 @@ export default function OnboardingPage() {
               <p>{loadError}</p>
               <button
                 type="button"
-                onClick={() => void load()}
+                onClick={retryLoad}
                 className="focus-ring mt-2 rounded-md border border-red-200 bg-white px-3 py-1 text-sm font-semibold text-red-700 hover:bg-red-100"
               >
                 {tCommon("retry")}

@@ -88,7 +88,9 @@ export function DispositionEditor({
   // save (e.g. type a reason, then immediately close the report). Flush the latest value
   // on real unmount with a keepalive PATCH so the in-flight note survives navigation.
   const latest = useRef({ disposition, note });
-  latest.current = { disposition, note };
+  useEffect(() => {
+    latest.current = { disposition, note };
+  }, [disposition, note]);
   useEffect(() => {
     return () => {
       const { disposition: d, note: n } = latest.current;

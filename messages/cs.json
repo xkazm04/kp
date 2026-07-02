@@ -704,7 +704,8 @@
       "submit": "Odeslat přihlášku",
       "acceptedMessage": "Přihláška přijata! Potvrzení jsme vám poslali e-mailem — a své šance můžete zvýšit hned teď doplněním profilu (zabere asi dvě minuty).",
       "enrichCta": "Doplnit profil",
-      "enrichNote": "Asi dvě minuty — pomůže nám posoudit vás spravedlivě a rychle."
+      "enrichNote": "Asi dvě minuty — pomůže nám posoudit vás spravedlivě a rychle.",
+      "honeypotLabel": "Web společnosti (toto pole nechte prázdné)"
     },
     "archetypeBau": "Zkušený/á profesionál/ka",
     "archetypeStudent": "Student/ka nebo na začátku kariéry",
@@ -1036,6 +1037,7 @@
       "statAging": "Stárnoucí",
       "statNeedsIntake": "Vyžaduje zadání",
       "moveFailed": "Kandidáta se nepodařilo přesunout — tabule byla obnovena.",
+      "moveErrorDismiss": "Zavřít",
       "statAwaitingYou": "Čeká na vás",
       "batchScreening": "Prověřuji {done}/{total}…",
       "batchScreenAll": "Prověřit AI všechny spárované",
@@ -2749,7 +2751,8 @@
       "dotLegend": "Naměřeno (podle pásma skóre)",
       "brier": "Brierovo skóre",
       "brierHint": "0 = dokonalé, nižší je lepší.",
-      "samples": "{n} rozhodnutých kandidátů"
+      "samples": "{n} rozhodnutých kandidátů",
+      "srBin": "{x} {predicted}, {y} {observed} (n={count})"
     },
     "decisionRecords": {
       "title": "Záznamy rozhodnutí (zapečetěné)",
@@ -3323,6 +3326,22 @@
       "testUnavailable": "Testovací endpoint zatím není k dispozici.",
       "updated": "Aktualizováno {date}"
     },
+    "usage": {
+      "title": "Spotřeba a náklady",
+      "intro": "Měřená AI volání z knihy spotřeby, sečtená podle úlohy za posledních {days} dní.",
+      "loading": "Načítání spotřeby…",
+      "loadFailed": "Spotřebu se nepodařilo načíst — zkontrolujte připojení a zkuste to znovu.",
+      "retry": "Zkusit znovu",
+      "empty": "Zatím žádná zaznamenaná spotřeba — měřená AI volání se tu objeví po prvním spuštění.",
+      "colUseCase": "Úloha",
+      "colCalls": "Volání",
+      "colTokensIn": "Vstupní tokeny",
+      "colTokensOut": "Výstupní tokeny",
+      "colCached": "Z cache",
+      "colCost": "Odhad nákladů (USD)",
+      "total": "Celkem",
+      "cache": "Cache promptů: {rows} uložených odpovědí · {expired} expirovaných čeká na úklid"
+    },
     "useCases": {
       "match_reasoning": "Zdůvodnění shody",
       "automation": "Automatizace",
@@ -3341,7 +3360,8 @@
       "interview_scorecard": "Hodnoticí karta pohovoru",
       "github_analysis": "Analýza GitHubu",
       "cv_analysis": "Analýza CV",
-      "profile_extract": "Extrakce profilu"
+      "profile_extract": "Extrakce profilu",
+      "grounded_salary": "Tržní odhad platu"
     },
     "providers": {
       "anthropic": "Anthropic",

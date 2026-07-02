@@ -133,7 +133,7 @@ export function QuickApplyForm({
       {/* Honeypot — must stay empty. Off-screen + removed from the a11y + tab order so
           only an indiscriminate form-filling bot reaches it. */}
       <div aria-hidden="true" style={{ position: "absolute", left: "-9999px", width: 1, height: 1, overflow: "hidden" }}>
-        <label htmlFor="qa-company-url">Company URL (leave this field empty)</label>
+        <label htmlFor="qa-company-url">{t("quick.honeypotLabel")}</label>
         <input
           id="qa-company-url"
           type="text"

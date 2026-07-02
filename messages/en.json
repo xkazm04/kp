@@ -704,7 +704,8 @@
       "submit": "Apply now",
       "acceptedMessage": "Application received! We've emailed you a confirmation — and you can boost your chances right now by completing your profile (about two minutes).",
       "enrichCta": "Complete your profile",
-      "enrichNote": "About two minutes — it helps us assess you fairly and fast."
+      "enrichNote": "About two minutes — it helps us assess you fairly and fast.",
+      "honeypotLabel": "Company URL (leave this field empty)"
     },
     "archetypeBau": "An experienced professional",
     "archetypeStudent": "A student or early in my career",
@@ -1036,6 +1037,7 @@
       "statAging": "Aging",
       "statNeedsIntake": "Needs intake",
       "moveFailed": "Couldn't move the candidate — the board has been refreshed.",
+      "moveErrorDismiss": "Dismiss",
       "statAwaitingYou": "Awaiting you",
       "batchScreening": "Screening {done}/{total}…",
       "batchScreenAll": "AI-screen all matched",
@@ -2749,7 +2751,8 @@
       "dotLegend": "Measured (per score band)",
       "brier": "Brier score",
       "brierHint": "0 = perfect, lower is better.",
-      "samples": "{n} decided candidates"
+      "samples": "{n} decided candidates",
+      "srBin": "{x} {predicted}, {y} {observed} (n={count})"
     },
     "decisionRecords": {
       "title": "Decision records (sealed)",
@@ -3323,6 +3326,22 @@
       "testUnavailable": "The test endpoint isn't available yet.",
       "updated": "Updated {date}"
     },
+    "usage": {
+      "title": "Usage & cost",
+      "intro": "Metered AI calls from the usage ledger, rolled up per use case over the last {days} days.",
+      "loading": "Loading usage…",
+      "loadFailed": "Couldn't load usage — check the connection and try again.",
+      "retry": "Try again",
+      "empty": "No usage recorded yet — metered AI calls will show up here after the first run.",
+      "colUseCase": "Use case",
+      "colCalls": "Calls",
+      "colTokensIn": "Tokens in",
+      "colTokensOut": "Tokens out",
+      "colCached": "Cached",
+      "colCost": "Est. cost (USD)",
+      "total": "Total",
+      "cache": "Prompt cache: {rows} cached responses · {expired} expired awaiting cleanup"
+    },
     "useCases": {
       "match_reasoning": "Match reasoning",
       "automation": "Automation",
@@ -3341,7 +3360,8 @@
       "interview_scorecard": "Interview scorecard",
       "github_analysis": "GitHub analysis",
       "cv_analysis": "CV analysis",
-      "profile_extract": "Profile extraction"
+      "profile_extract": "Profile extraction",
+      "grounded_salary": "Grounded salary"
     },
     "providers": {
       "anthropic": "Anthropic",
