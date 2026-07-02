@@ -79,6 +79,7 @@ def _append_ledger(
     output_tokens: int,
     cached_tokens: int | None,
     cost_usd: float | None,
+    source: str = "llm",
 ) -> None:
     """Append one NDJSON line per metered call to the usage-ledger sidecar named
     by ``KP_LLM_USAGE_LOG`` (set per spawn by the TS spawnPython seam, which folds
@@ -86,9 +87,10 @@ def _append_ledger(
     spend record and is deliberately INDEPENDENT of LightTrack — it must persist
     even when observability is off (the default deployment). Fire-and-forget and
     fully exception-swallowed: a ledger write can never break the host LLM call.
-    Snake_case keys match db/llm.ts ingestLlmUsageLog. ``source`` is always "llm"
-    here — only real LLM calls reach this seam (the deterministic fallback path
-    never calls the monitor)."""
+    Snake_case keys match db/llm.ts ingestLlmUsageLog. ``source`` is "llm" for
+    real provider calls (emit_result) and "deterministic" when a CLI's template
+    fallback served instead (emit_deterministic) — parseLedgerLine on the TS side
+    accepts exactly these two values."""
     path = os.getenv("KP_LLM_USAGE_LOG")
     if not path:
         return
@@ -102,7 +104,7 @@ def _append_ledger(
                 "output_tokens": output_tokens,
                 "cached_tokens": cached_tokens,
                 "cost_usd": cost_usd,
-                "source": "llm",
+                "source": source,
             },
             ensure_ascii=False,
         )
@@ -110,6 +112,28 @@ def _append_ledger(
             fh.write(line + "\n")
     except Exception:
         pass  # ledger I/O must never break the host call
+
+
+def emit_deterministic(use_case: str | None) -> None:
+    """Ledger-record a request the DETERMINISTIC template path served — the
+    keyless (`provider.available()` false → provider=None) or failed-LLM
+    fallback that used to be invisible to the usage ledger (parseLedgerLine has
+    supported source:"deterministic" since T0.1, but nothing emitted it). One
+    line per deterministic serve: provider "deterministic" (its own provider
+    row in aggregateLlmUsage's provider grouping), zero tokens, zero cost.
+    Gated on KP_LLM_USAGE_LOG exactly like emit_result — a direct CLI run
+    without the spawnPython sidecar writes nothing. Ledger-only by design:
+    LightTrack tracks real provider calls, not template serves."""
+    _append_ledger(
+        provider="deterministic",
+        model=None,
+        use_case=use_case,
+        input_tokens=0,
+        output_tokens=0,
+        cached_tokens=None,
+        cost_usd=0.0,
+        source="deterministic",
+    )
 
 
 def emit_result(

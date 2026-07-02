@@ -13,12 +13,22 @@ import {
   README_TRUNCATE,
   describeEvidenceBasis,
 } from "@/app/_lib/github-evidence";
+import { withGeminiRetry } from "@/app/_lib/gemini-retry";
+import { resolveProviderKey } from "@/app/_lib/llm-config";
+import { insertLlmUsage } from "@/app/_lib/db/llm";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
 const GEMINI_MODEL = "gemini-3-flash-preview";
 const DEEP_REVIEW_REPO_LIMIT = 3;
+
+// USD per million tokens for GEMINI_MODEL — keep in sync with MTOK_PRICES in
+// pipeline/jobfit/llm/base.py (Python is the price book of record; this pair
+// exists only so the one TS-direct Gemini call stamps the same cost_usd on its
+// llm_usage ledger row as the Python adapters do).
+const GEMINI_MTOK_PRICE_IN_USD = 0.3;
+const GEMINI_MTOK_PRICE_OUT_USD = 2.5;
 
 // In-process TTL cache for the deep-dive (GH5), mirroring the matrix route's
 // content-hash cache (same accepted single-process caveat). Each run burns up
@@ -229,7 +239,7 @@ export async function POST(request: Request) {
     });
     const jobFitSignals = buildJobFitSignals(jobDescription, ownedRepos, languageSummary);
     const reviewableRepos = rankedRepos.slice(0, DEEP_REVIEW_REPO_LIMIT);
-    const codeReview = await runCodeReview(reviewableRepos, jobDescription);
+    const codeReview = await runCodeReview(reviewableRepos, jobDescription, requestId);
 
     const payload = {
       username: user.login,
@@ -532,17 +542,38 @@ const geminiReviewSchema = z.object({
 
 async function runCodeReview(
   repos: GithubRepo[],
-  jobDescription: string
+  jobDescription: string,
+  requestId?: string
 ): Promise<CodeReviewPayload> {
   const reposReviewed = repos.map((repo) => repo.name);
   // Documented only for paths where the review actually assembles evidence; the
   // disabled / no-repos branches read nothing, so they advertise no basis.
   const evidenceBasis = describeEvidenceBasis();
-  const apiKey = process.env.GEMINI_API_KEY ?? process.env.GOOGLE_API_KEY;
+  // Key resolution follows the app's documented layering (docs/LLM_PROVIDER_LAYER.md,
+  // resolveProviderKey): UI-entered BYOM key row → platform key row → env var
+  // (GEMINI_API_KEY, then GOOGLE_API_KEY). This route used to read only the env
+  // vars, so a workspace running purely on a BYOM Gemini key silently got the
+  // "disabled" review. A configured-but-undecryptable stored key throws (KP_SECRET
+  // changed/missing) — surface that as a review error, not as key-not-configured.
+  let apiKey: string | undefined;
+  try {
+    apiKey = resolveProviderKey("gemini", ["GEMINI_API_KEY", "GOOGLE_API_KEY"]);
+  } catch (error) {
+    return {
+      status: "error",
+      summary: "A Gemini provider key is configured but could not be decrypted (check KP_SECRET).",
+      confirmedSkills: [],
+      unverifiedClaims: [],
+      hiddenStrengths: [],
+      reposReviewed,
+      evidenceBasis: [],
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
   if (!apiKey) {
     return {
       status: "disabled",
-      summary: "Set GEMINI_API_KEY to enable Gemini-based repo-signal review.",
+      summary: "Set GEMINI_API_KEY (or add a Gemini key in Models → Keys) to enable Gemini-based repo-signal review.",
       confirmedSkills: [],
       unverifiedClaims: [],
       hiddenStrengths: [],
@@ -634,15 +665,23 @@ async function runCodeReview(
 
   try {
     const ai = new GoogleGenAI({ apiKey });
-    const response = await ai.models.generateContent({
-      model: GEMINI_MODEL,
-      contents: prompt,
-      config: {
-        temperature: 0.1,
-        maxOutputTokens: 4000,
-        responseMimeType: "application/json",
-      },
-    });
+    // Bounded retry on transient failures only (429/5xx/timeouts) — this was the
+    // one Gemini call site in the app with no retry, so a single rate-limit blip
+    // hard-failed the whole review. Policy mirrors the Python side (llm/base.py):
+    // 3 attempts, jittered exponential backoff; permanent errors (auth, 400)
+    // still fail fast into the catch below.
+    const response = await withGeminiRetry(() =>
+      ai.models.generateContent({
+        model: GEMINI_MODEL,
+        contents: prompt,
+        config: {
+          temperature: 0.1,
+          maxOutputTokens: 4000,
+          responseMimeType: "application/json",
+        },
+      })
+    );
+    recordGeminiUsage(requestId, response.usageMetadata);
     const text = response.text ?? "";
     const review = geminiReviewSchema.safeParse(parseGeminiJson(text));
     if (!review.success) {
@@ -679,6 +718,44 @@ async function runCodeReview(
       error: error instanceof Error ? error.message : String(error),
     };
   }
+}
+
+// Stamp the deep-review Gemini call into the llm_usage ledger — the LLM-cost
+// audit flagged this site as the app's only unmetered Gemini traffic (every
+// Python call meters via monitor.emit_result; this is the one TS-direct call).
+// Written only when the response actually carries usage metadata, and wrapped
+// so ledger I/O can never break the analysis: metering is telemetry, off the
+// critical path (same contract as ingestLlmUsageLog / gemini.py _meter_success).
+function recordGeminiUsage(
+  requestId: string | undefined,
+  usage: { promptTokenCount?: number; candidatesTokenCount?: number; cachedContentTokenCount?: number } | undefined
+): void {
+  if (!usage) return;
+  const inputTokens = typeof usage.promptTokenCount === "number" ? usage.promptTokenCount : null;
+  const outputTokens = typeof usage.candidatesTokenCount === "number" ? usage.candidatesTokenCount : null;
+  if (inputTokens === null && outputTokens === null) return;
+  try {
+    insertLlmUsage({
+      useCase: "github_analysis",
+      provider: "gemini",
+      model: GEMINI_MODEL,
+      inputTokens,
+      outputTokens,
+      cachedTokens: typeof usage.cachedContentTokenCount === "number" ? usage.cachedContentTokenCount : null,
+      costUsd: round6(
+        ((inputTokens ?? 0) * GEMINI_MTOK_PRICE_IN_USD + (outputTokens ?? 0) * GEMINI_MTOK_PRICE_OUT_USD) / 1_000_000
+      ),
+      source: "llm",
+      requestId: requestId ?? null,
+    });
+  } catch {
+    // metering must never break the host call
+  }
+}
+
+// Six-decimal rounding for cost_usd, matching Python's price_usd (llm/base.py).
+function round6(value: number): number {
+  return Math.round(value * 1_000_000) / 1_000_000;
 }
 
 // Parse the model's JSON, tolerating an optional ```json fence, and return the

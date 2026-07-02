@@ -28,6 +28,24 @@ export function AiReviewCard({ entry, onAccept, onReject }: { entry: Entry; onAc
   const kind = entry.approvalKind;
   const isScorecard = kind === "scorecard_review";
   const isOffer = kind === "offer_review";
+  // ONE labeled pricing basis (OO-L2-10 / REC-01): the salary was priced by a
+  // FRESH fit check at draft time — a different producer from the header's
+  // canonical match score, so it renders under its own label, never as a second
+  // bare "Match N/100". offer-v3 payloads carry it structured (matchBasis);
+  // persisted offer-v2 drafts are recovered from their deterministic rationale
+  // template ("Match N/100 places the offer…" — always template-generated, so
+  // the parse is reliable); anything else falls back to the stored prose.
+  const legacyBasis =
+    isOffer && typeof parsed?.matchBasis !== "number" && typeof parsed?.rationale === "string"
+      ? /^Match (\d+)\/100 /.exec(parsed.rationale)
+      : null;
+  const pricingBasis = isOffer
+    ? typeof parsed?.matchBasis === "number"
+      ? parsed.matchBasis
+      : legacyBasis
+        ? Number(legacyBasis[1])
+        : null
+    : null;
   // AUTO1 — a supervised-clock reject queued for ratification. Same screening
   // payload shape; the tag names what clicking Reject actually does (apply +
   // email the rejection) so the reviewer knows this card IS the adverse action.
@@ -81,7 +99,28 @@ export function AiReviewCard({ entry, onAccept, onReject }: { entry: Entry; onAc
                   currency: String(parsed.currency ?? ""),
                 })}
               </p>
-              <p className="mt-1">{parsed.rationale}</p>
+              {/* See pricingBasis above — labeled, localized, one number with a named
+                  producer. Only an unparseable payload falls back to raw prose. */}
+              {pricingBasis != null ? (
+                <p className="mt-1">
+                  {t("pricingBasis", {
+                    score: pricingBasis,
+                    pct: Math.max(
+                      0,
+                      Math.min(
+                        100,
+                        Math.round(
+                          ((Number(parsed.recommended) - Number(parsed.salaryMin)) /
+                            Math.max(1, Number(parsed.salaryMax) - Number(parsed.salaryMin))) *
+                            100
+                        )
+                      )
+                    ),
+                  })}
+                </p>
+              ) : (
+                <p className="mt-1">{parsed.rationale}</p>
+              )}
               <label className="mt-2 flex items-center gap-2 text-sm text-steel">
                 <span>{t("deadlineLabel")}</span>
                 <input

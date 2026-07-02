@@ -13,6 +13,8 @@ export type Entry = Pick<
   | "jobTitle"
   | "stage"
   | "matchScore"
+  | "canonicalScore"
+  | "scoreProvenance"
   | "status"
   | "intakeDegraded"
   | "intakeDegradedReason"

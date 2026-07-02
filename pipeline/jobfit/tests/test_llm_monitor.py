@@ -206,6 +206,38 @@ class LedgerSidecarTest(unittest.TestCase):
             # Must not raise and must not create any file.
             StubProvider([_result()]).complete("hi")
 
+    def test_emit_deterministic_writes_zero_cost_fallback_line(self) -> None:
+        """Item 22: the keyless/failed deterministic fallback is ledger-visible —
+        one source:"deterministic" line with zero tokens/cost, provider
+        "deterministic" (its own provider row in the TS aggregate)."""
+        monitor.reset()
+        self.addCleanup(monitor.reset)
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "usage.ndjson")
+            with mock.patch.dict(os.environ, {"KP_LLM_USAGE_LOG": path}, clear=False):
+                os.environ.pop("LIGHTTRACK_URL", None)
+                monitor.emit_deterministic("campaign_pack")
+            with open(path, encoding="utf-8") as fh:
+                rows = [json.loads(l) for l in fh.read().splitlines() if l.strip()]
+        self.assertEqual(len(rows), 1)
+        row = rows[0]
+        self.assertEqual(row["source"], "deterministic")
+        self.assertEqual(row["provider"], "deterministic")
+        self.assertEqual(row["use_case"], "campaign_pack")
+        self.assertIsNone(row["model"])
+        self.assertEqual(row["input_tokens"], 0)
+        self.assertEqual(row["output_tokens"], 0)
+        self.assertEqual(row["cost_usd"], 0.0)
+
+    def test_emit_deterministic_is_a_noop_without_the_sidecar_env(self) -> None:
+        monitor.reset()
+        self.addCleanup(monitor.reset)
+        with tempfile.TemporaryDirectory() as d:
+            with mock.patch.dict(os.environ, {}, clear=False):
+                os.environ.pop("KP_LLM_USAGE_LOG", None)
+                monitor.emit_deterministic("automation")  # must not raise
+            self.assertEqual(os.listdir(d), [])  # and must not create any file
+
     def test_monitored_cli_also_writes_ledger(self) -> None:
         monitor.reset()
         self.addCleanup(monitor.reset)

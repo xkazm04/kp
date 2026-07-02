@@ -9,6 +9,7 @@ a precise inline hint vs a retry/escalate toast instead of one generic banner.
 import contextlib
 import io
 import json
+import os
 import tempfile
 import unittest
 from pathlib import Path
@@ -243,6 +244,29 @@ class TestDevcaseCliProvenanceContract(unittest.TestCase):
         self.assertEqual(set(payload["result"]), {"role", "case"})
         # role/case carry no confidence self-rating, so the optional block is omitted entirely.
         self.assertNotIn("confidence", payload)
+
+    def test_deterministic_steps_write_one_ledger_line_each(self):
+        """Item 22: with KP_LLM_USAGE_LOG set (spawnPython's sidecar), a keyless
+        design-artifacts run writes one source:"deterministic" line PER fallback
+        step (role + case = 2) under the command's use case — mirroring the one
+        line per real LLM call the monitor writes on the llm path."""
+        with tempfile.TemporaryDirectory() as d:
+            need, analysis = Path(d) / "need.json", Path(d) / "analysis.json"
+            need.write_text(json.dumps({"title": "Backend", "stack": ["Python"]}), encoding="utf-8")
+            analysis.write_text(json.dumps({"realStack": ["Python"], "trueComplexity": "medium"}), encoding="utf-8")
+            ledger = Path(d) / "usage.ndjson"
+            with mock.patch.dict(os.environ, {"KP_LLM_USAGE_LOG": str(ledger)}, clear=False):
+                code, _out, _err = _run(
+                    ["design-artifacts", "--no-llm", "--need-json", str(need), "--analysis-json", str(analysis)]
+                )
+            self.assertEqual(code, 0)
+            rows = [json.loads(l) for l in ledger.read_text(encoding="utf-8").splitlines() if l.strip()]
+        self.assertEqual(len(rows), 2)  # one per deterministic step: role, case
+        for row in rows:
+            self.assertEqual(row["source"], "deterministic")
+            self.assertEqual(row["provider"], "deterministic")
+            self.assertEqual(row["use_case"], "devcase_case_design")
+            self.assertEqual(row["cost_usd"], 0.0)
 
 
 class TestDevcaseCliInputGuards(unittest.TestCase):

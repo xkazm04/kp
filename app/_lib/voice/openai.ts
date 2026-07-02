@@ -5,7 +5,14 @@ import { missingVoiceEnv, type OpenAiConnect, type VoiceAdapter } from "./types.
 // its SDP offer to /v1/realtime/calls. Model/voice/transcription are env-overridable
 // because the realtime model line moves quickly.
 
-const MODEL = process.env.OPENAI_REALTIME_MODEL ?? "gpt-realtime";
+/** The realtime model this adapter serves (env-overridable because the realtime
+ *  model line moves quickly). Resolved at CALL time (not module load) and
+ *  exported so the usage ledger can attribute a completed session's minutes to
+ *  the model that served them (see voice/minute-prices.ts). */
+export function openAiRealtimeModel(): string {
+  return process.env.OPENAI_REALTIME_MODEL ?? "gpt-realtime";
+}
+
 const VOICE = process.env.OPENAI_REALTIME_VOICE ?? "marin";
 // Input transcription model. Defaults to a STREAMING model (emits `.delta`s) so the
 // finalize fallback for a candidate's last answer still in flight at hang-up — which
@@ -92,6 +99,7 @@ export class OpenAiVoiceAdapter implements VoiceAdapter {
   async connect({ instructions }: { instructions: string; language?: string | null }): Promise<OpenAiConnect> {
     const key = process.env.OPENAI_API_KEY;
     if (!key) throw new Error("OPENAI_API_KEY is not set");
+    const model = openAiRealtimeModel();
 
     const res = await fetch(SECRETS_URL, {
       method: "POST",
@@ -99,7 +107,7 @@ export class OpenAiVoiceAdapter implements VoiceAdapter {
       body: JSON.stringify({
         session: {
           type: "realtime",
-          model: MODEL,
+          model,
           instructions,
           audio: {
             input: { transcription: { model: TRANSCRIPTION_MODEL } },
@@ -119,6 +127,6 @@ export class OpenAiVoiceAdapter implements VoiceAdapter {
       data.value ?? (typeof data.client_secret === "string" ? data.client_secret : data.client_secret?.value);
     if (!clientSecret) throw new Error("OpenAI did not return a client secret");
 
-    return { provider: "openai", model: MODEL, clientSecret, callsUrl: CALLS_URL };
+    return { provider: "openai", model, clientSecret, callsUrl: CALLS_URL };
   }
 }

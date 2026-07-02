@@ -436,6 +436,43 @@ def extract_profile_text_with_gemini(
     return raw_text, structured_profile, parsing_notes
 
 
+# --- Per-block prompt budgets for the cv_analysis prompt (chars) --------------
+# The prompt used to splice the FULL JD + full company text + full redacted CV
+# text with no per-field bound — the only upstream guard is the argv-spill in
+# /api/analyze (>8KB text is spilled to a file and passed as a PATH), which
+# removes the OS command-line limit rather than bounding size, so a multi-
+# hundred-KB paste rode straight into the paid Gemini call. Mirrors the
+# github-analysis route's capping philosophy (README_TRUNCATE et al.): bound
+# each *input* block, never the schema or output budgets.
+#
+# Budgets are deliberately generous so legitimate inputs are never touched:
+#   - JD 30k: the 853-JD real-office corpus (data/seed_calibration/
+#     _raw_rows.json) maxes at 23,924 chars (p99 9,491; median 3,078), and the
+#     app's own saved-JD write cap is 20,000 (JD_BODY_MAX_LENGTH,
+#     app/_lib/jd-limits.ts). 30k clears both with headroom.
+#   - company 20k: the largest observed company text is <1k (seed corpora; the
+#     eval suite passes none); 20k comfortably covers a pasted about-page.
+#   - CV text 60k: eval CV fixtures max 2,293 chars (fixtures_csas), samples/
+#     sample-cv.txt is 839; 60k covers a ~15–20-page dense CV. Applies to the
+#     blind-mode redacted text — non-blind runs upload the file itself.
+# An over-budget block is cut with an explicit marker so the model knows the
+# text was truncated instead of silently reasoning over an invisible cliff.
+# Analysis semantics and output budgets for in-bounds inputs are unchanged:
+# an under-budget block passes through byte-identical.
+JD_BLOCK_MAX_CHARS = 30_000
+COMPANY_BLOCK_MAX_CHARS = 20_000
+CV_TEXT_BLOCK_MAX_CHARS = 60_000
+
+
+def _cap_block(text: str, max_chars: int) -> str:
+    """Bound one prompt block: under-budget text is returned unchanged
+    (byte-identical); over-budget text is cut at ``max_chars`` with an explicit
+    ``[truncated at N chars]`` marker appended."""
+    if len(text) <= max_chars:
+        return text
+    return f"{text[:max_chars]}\n[truncated at {max_chars} chars]"
+
+
 def analyze_profile_with_gemini(
     path: Path,
     job_description_text: str | None = None,
@@ -466,8 +503,8 @@ def analyze_profile_with_gemini(
     *which* single language, driven by the user's locale.
     """
     output_language = language_name(lang)
-    job_block = (job_description_text or "").strip()
-    company_block = (company_text or "").strip()
+    job_block = _cap_block((job_description_text or "").strip(), JD_BLOCK_MAX_CHARS)
+    company_block = _cap_block((company_text or "").strip(), COMPANY_BLOCK_MAX_CHARS)
     schema_text = json.dumps(ANALYSIS_RESPONSE_SCHEMA, ensure_ascii=False, indent=2)
     evidence_text = json.dumps(evidence or {}, ensure_ascii=False, indent=2)
 
@@ -543,7 +580,7 @@ def analyze_profile_with_gemini(
         "\n"
         f"Job description:\n{job_block or 'No job description supplied.'}\n\n"
         f"Company context:\n{company_block or 'No company context supplied.'}\n"
-        + (f"\nCV text (identity redacted):\n{blind_text}\n" if blind else "")
+        + (f"\nCV text (identity redacted):\n{_cap_block(blind_text, CV_TEXT_BLOCK_MAX_CHARS)}\n" if blind else "")
     )
 
     from .logger import write_prompt_artifact

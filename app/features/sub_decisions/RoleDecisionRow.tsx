@@ -4,6 +4,7 @@ import { Check, Filter, Sparkles } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { ScoreBadge } from "@/app/_components/ScoreBadge";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
+import { canonicalScoreOf } from "@/app/_lib/match-score";
 import { styleFor, type Entry } from "./DecisionsTypes";
 
 // One row per role: its pending candidates as clickable chips (→ analysis
@@ -80,7 +81,8 @@ export function RoleDecisionRow({
                 title={archLabel}
               />
               <span className="font-medium text-ink">{e.candidateLabel}</span>
-              <ScoreBadge score={e.matchScore ?? null} />
+              {/* Same canonical number CandidateHead / the board show (REC-01). */}
+              <ScoreBadge score={canonicalScoreOf(e)} />
             </button>
           );
         })}

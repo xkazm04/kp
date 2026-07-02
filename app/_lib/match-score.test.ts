@@ -8,7 +8,14 @@ import assert from "node:assert/strict";
 import { readdirSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
-import { compareByMatchScoreDesc, compareScoreDesc, isScored } from "./match-score.ts";
+import {
+  canonicalScoreOf,
+  compareByMatchScoreDesc,
+  compareScoreDesc,
+  getCanonicalMatchScore,
+  isScored,
+  provenanceOf,
+} from "./match-score.ts";
 
 test("compareScoreDesc ranks best-first and sinks unscored strictly below every measurement — including a genuine 0", () => {
   const sorted = [55, null, 0, 90, undefined, 12].sort(compareScoreDesc);
@@ -33,6 +40,68 @@ test("compareByMatchScoreDesc + isScored partition a cohort without fabricating"
   assert.deepEqual(scored.map((e) => e.id), ["a", "c", "d"]);
   // The type guard narrows: every survivor carries a real number.
   assert.ok(scored.every((e) => typeof e.matchScore === "number"));
+});
+
+// ---- Canonical read path (REC-01 / OO-L2-10) ---------------------------------
+//
+// One precedence, one provenance: freshest job-matched analysis > the entry's
+// snapshot > null. These pins are the contract every display surface (board,
+// drawer header, decisions queue) resolves through.
+
+test("getCanonicalMatchScore prefers the job-matched analysis over the snapshot and labels it", () => {
+  const canonical = getCanonicalMatchScore(
+    { matchScore: 46 },
+    { score: 92, at: "2026-07-01T10:00:00.000Z", slug: "eliska-92" }
+  );
+  assert.deepEqual(canonical, {
+    score: 92,
+    provenance: { source: "analysis", at: "2026-07-01T10:00:00.000Z", slug: "eliska-92" },
+  });
+});
+
+test("getCanonicalMatchScore falls back to the snapshot (labeled) when no job-matched analysis exists", () => {
+  assert.deepEqual(getCanonicalMatchScore({ matchScore: 57 }, null), {
+    score: 57,
+    provenance: { source: "snapshot" },
+  });
+  // A score-less analysis fact must not shadow the snapshot tier.
+  assert.deepEqual(getCanonicalMatchScore({ matchScore: 57 }, { score: null, at: "2026-07-01" }), {
+    score: 57,
+    provenance: { source: "snapshot" },
+  });
+});
+
+test("getCanonicalMatchScore stays null for a never-measured candidate — no fabricated 0, no fabricated provenance", () => {
+  assert.equal(getCanonicalMatchScore({ matchScore: null }), null);
+  assert.equal(getCanonicalMatchScore({ matchScore: undefined }, null), null);
+  // A genuine 0 IS a measurement and keeps its provenance.
+  assert.deepEqual(getCanonicalMatchScore({ matchScore: 0 }), {
+    score: 0,
+    provenance: { source: "snapshot" },
+  });
+});
+
+test("getCanonicalMatchScore rounds a fractional analysis score and preserves the analysis timestamp", () => {
+  const canonical = getCanonicalMatchScore({ matchScore: null }, { score: 71.6, at: "2026-06-30T09:00:00.000Z" });
+  assert.equal(canonical?.score, 72);
+  assert.equal(canonical?.provenance.source, "analysis");
+});
+
+test("canonicalScoreOf/provenanceOf read the stamped payload fields and degrade to the snapshot for local entries", () => {
+  // Enriched payload (from /api/pipeline): the stamped fields win.
+  const enriched = {
+    matchScore: 46,
+    canonicalScore: 92,
+    scoreProvenance: { source: "analysis", at: "2026-07-01T10:00:00.000Z", slug: null } as const,
+  };
+  assert.equal(canonicalScoreOf(enriched), 92);
+  assert.deepEqual(provenanceOf(enriched), enriched.scoreProvenance);
+  // Local snapshot (e.g. a group-eval candidate row): snapshot provenance.
+  assert.equal(canonicalScoreOf({ matchScore: 57 }), 57);
+  assert.deepEqual(provenanceOf({ matchScore: 57 }), { source: "snapshot" });
+  // Unscored stays unscored.
+  assert.equal(canonicalScoreOf({ matchScore: null }), null);
+  assert.equal(provenanceOf({ matchScore: null }), null);
 });
 
 // ---- Source guard: no decision-feeding `matchScore ?? 0` site may remain -----

@@ -22,7 +22,7 @@ import sys
 from pathlib import Path
 
 from . import campaign
-from .llm import resolve_provider
+from .llm import emit_deterministic, resolve_provider
 from .jobs import Job
 
 ERR_INVALID_INPUT = "invalid_input"
@@ -58,6 +58,10 @@ def main(argv: list[str] | None = None) -> int:
         result, source = campaign.draft_campaign_pack(
             job, lang=args.lang, apply_url=args.apply_url, provider=provider
         )
+        if source == "deterministic":
+            # Keyless/failed fallback served — record it in the usage ledger so
+            # template traffic stops being invisible (no-op without KP_LLM_USAGE_LOG).
+            emit_deterministic("campaign_pack")
         print(json.dumps({"result": result, "source": source}, ensure_ascii=False))
         return 0
     except ValueError as exc:

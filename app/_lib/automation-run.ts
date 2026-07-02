@@ -40,7 +40,10 @@ export const AUTOMATION_VERSION: Record<string, string> = {
   prep: "interview-prep-v1",
   scorecard: "scorecard-v3",
   rematch: "rematch-v1",
-  offer: "offer-v2",
+  // v3 — the offer payload carries its structured pricing basis (matchBasis, the
+  // draft-time fresh fit check) and a rationale that names that producer
+  // (REC-01/OO-L2-10); bumped so cached v2 payloads self-invalidate.
+  offer: "offer-v3",
 };
 // The tasks whose output is a candidate-facing LETTER: their language is the
 // entry's resolved comms locale (explicit apply choice, else the workspace

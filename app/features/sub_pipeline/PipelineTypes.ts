@@ -1,5 +1,6 @@
 import { Briefcase, GraduationCap, Repeat, type LucideIcon } from "lucide-react";
 import type { GithubEvidenceSummary } from "@/app/_lib/github-summary";
+import type { MatchScoreProvenance } from "@/app/_lib/match-score";
 import { PIPELINE_STAGES } from "@/app/_lib/pipeline-stages";
 
 export type Entry = {
@@ -35,6 +36,12 @@ export type Entry = {
   // "analyze", "sourcing", "devcase", or a webhook channel id). Null on legacy
   // and unattributed entries. Rendered as the drawer's origin chip.
   sourceChannel?: string | null;
+  // Canonical match-score read path (REC-01 / OO-L2-10) — stamped by
+  // GET /api/pipeline (match-score-resolve.ts): THE score to display (freshest
+  // job-matched analysis > matchScore snapshot > null) plus where it came from.
+  // Optional so locally-constructed entries degrade to the matchScore fallback.
+  canonicalScore?: number | null;
+  scoreProvenance?: MatchScoreProvenance | null;
 };
 
 // One job "lane" on the pipeline board: PipelineTab builds Position[] (via

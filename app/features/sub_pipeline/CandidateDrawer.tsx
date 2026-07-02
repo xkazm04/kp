@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { AlertTriangle, ArrowLeftRight, Ban, Banknote, Calendar, ClipboardList, ExternalLink, FileText, GitBranch, History, Mail, NotebookPen, Pencil, Phone, Shuffle, Sparkles, UserCheck, Wrench, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useDialogA11y } from "@/app/_components/useDialogA11y";
+import { useScoreProvenanceText } from "@/app/_components/ScoreProvenanceLabel";
 import type { CandidateTimelineItem } from "@/app/_lib/candidate-timeline";
 import { buildUrl } from "@/app/features/tabs";
 import { useTasks, useTaskResult } from "@/app/features/tasks/TasksProvider";
@@ -25,6 +26,7 @@ import type { Scorecard, ScorecardRating } from "@/app/_lib/interview-scorecard"
 import { buildGithubEvidenceSummary, type GithubEvidenceSummary } from "@/app/_lib/github-summary";
 import { githubAnalysisSchema } from "@/app/_lib/schemas";
 import { initials } from "@/app/_lib/initials";
+import { canonicalScoreOf, provenanceOf } from "@/app/_lib/match-score";
 import { postPipelineAction } from "@/app/_lib/useAddToPipeline";
 
 const ACTIONS: { id: TaskId; label: string; icon: typeof Mail; stages: string[] | "all"; note?: string }[] = [
@@ -85,6 +87,9 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
   const enumLabel = useEnumLabel();
   const eventVerb = useEventVerb();
   const relativeTime = useRelativeTime();
+  // Canonical match-score provenance label (REC-01), shared wording with the
+  // board tooltip and the decisions queue.
+  const provenanceText = useScoreProvenanceText();
   const { startTask } = useTasks();
   const [busy, setBusy] = useState<TaskId | null>(null);
   const [pendingId, setPendingId] = useState<string | null>(null);
@@ -488,10 +493,17 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
               {entry.sourceChannel ? <> · {t("via", { channel: channelName(entry.sourceChannel) })}</> : null}
             </p>
           </div>
-          {entry.matchScore != null ? (
-            <span className="rounded-md bg-white px-2 py-1 text-center">
-              <span className="block font-serif text-lg leading-none text-ink">{entry.matchScore}</span>
-              <span className="text-sm uppercase text-steel">{t("match")}</span>
+          {/* Canonical match score (REC-01 / OO-L2-10): the SAME number the board
+              and the decisions queue show, with its provenance named — so this
+              header can no longer contradict the "CV analysis saved — score N"
+              item in the timeline below without saying why. */}
+          {canonicalScoreOf(entry) != null ? (
+            <span className="rounded-md bg-white px-2 py-1 text-center" title={provenanceText(provenanceOf(entry)) ?? undefined}>
+              <span className="block font-serif text-lg leading-none text-ink">{canonicalScoreOf(entry)}</span>
+              <span className="block text-sm uppercase text-steel">{t("match")}</span>
+              <span className="block max-w-[7rem] text-meta normal-case leading-tight text-steel">
+                {provenanceText(provenanceOf(entry))}
+              </span>
             </span>
           ) : null}
           <button type="button" onClick={onClose} className="focus-ring rounded-md p-1 text-steel hover:bg-stone-100">

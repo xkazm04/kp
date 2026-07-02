@@ -95,8 +95,13 @@ export function CalibrationPanel() {
   // Per-role-family reliability (the route's headline use case: "how accurate are you
   // for backend roles?") — was computed-capable (?roleFamily) but had no UI selector.
   const [family, setFamily] = useState("");
-  const url = `/api/analytics/calibration${family ? `?roleFamily=${encodeURIComponent(family)}` : ""}`;
-  const { data, error } = useJsonFetch<CalibrationResult & { families?: string[] }>(url);
+  // REC-02 — the curve names WHICH score it measures. Default: the pipeline
+  // match score, i.e. the number screening auto-decisions actually act on
+  // (see pipelineCalibrationPairs). The CV-analysis × disposition pairing —
+  // a score that never gates pipeline decisions — stays available, labeled.
+  const [source, setSource] = useState<"pipeline" | "analysis">("pipeline");
+  const url = `/api/analytics/calibration?source=${source}${family ? `&roleFamily=${encodeURIComponent(family)}` : ""}`;
+  const { data, error } = useJsonFetch<CalibrationResult & { families?: string[]; measures?: string }>(url);
   const families = data?.families ?? [];
 
   return (
@@ -105,22 +110,40 @@ export function CalibrationPanel() {
         <div>
           <h3 className="font-serif text-h2 text-ink">{t("title")}</h3>
           <p className="mt-1 max-w-prose text-sm text-stone-500">{t("blurb")}</p>
+          {/* What this curve measures — the score + the outcome, explicit. */}
+          <p className="mt-1 max-w-prose text-sm font-medium text-stone-600">
+            {source === "analysis" ? t("measuresAnalysis") : t("measuresPipeline")}
+          </p>
         </div>
-        {families.length > 1 ? (
+        <div className="flex shrink-0 flex-wrap items-center gap-2">
           <select
-            value={family}
-            onChange={(e) => setFamily(e.target.value)}
-            aria-label={t("familyLabel")}
+            value={source}
+            onChange={(e) => {
+              setSource(e.target.value === "analysis" ? "analysis" : "pipeline");
+              setFamily(""); // families differ per source — a stale filter would silently empty the curve
+            }}
+            aria-label={t("sourceLabel")}
             className="focus-ring shrink-0 rounded-md border border-stone-300 bg-white px-2 py-1 text-sm text-ink"
           >
-            <option value="">{t("familyAll")}</option>
-            {families.map((f) => (
-              <option key={f} value={f}>
-                {labelize(f)}
-              </option>
-            ))}
+            <option value="pipeline">{t("sourcePipeline")}</option>
+            <option value="analysis">{t("sourceAnalysis")}</option>
           </select>
-        ) : null}
+          {families.length > 1 ? (
+            <select
+              value={family}
+              onChange={(e) => setFamily(e.target.value)}
+              aria-label={t("familyLabel")}
+              className="focus-ring shrink-0 rounded-md border border-stone-300 bg-white px-2 py-1 text-sm text-ink"
+            >
+              <option value="">{t("familyAll")}</option>
+              {families.map((f) => (
+                <option key={f} value={f}>
+                  {labelize(f)}
+                </option>
+              ))}
+            </select>
+          ) : null}
+        </div>
       </div>
 
       {error ? (

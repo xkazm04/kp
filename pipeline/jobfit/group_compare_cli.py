@@ -24,7 +24,7 @@ import json
 import sys
 from pathlib import Path
 
-from .llm import resolve_provider
+from .llm import emit_deterministic, resolve_provider
 from .group_compare import GROUP_COMPARE_PROMPT_VERSION, generate
 
 
@@ -48,6 +48,10 @@ def main(argv: list[str] | None = None) -> int:
         if provider is not None and not provider.available():
             provider = None
         comparison, source = generate(context, provider=provider)
+        if source == "deterministic":
+            # Keyless/failed fallback served — record it in the usage ledger so
+            # template traffic stops being invisible (no-op without KP_LLM_USAGE_LOG).
+            emit_deterministic("group_compare")
     except Exception as exc:
         print(json.dumps({"error": str(exc), "status": 500}, ensure_ascii=False), file=sys.stderr)
         return 1

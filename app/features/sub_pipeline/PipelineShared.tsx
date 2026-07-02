@@ -20,7 +20,9 @@ import {
 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { ScoreBadge } from "@/app/_components/ScoreBadge";
+import { useScoreProvenanceText } from "@/app/_components/ScoreProvenanceLabel";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
+import { canonicalScoreOf, provenanceOf } from "@/app/_lib/match-score";
 import { ARCHETYPE_STYLE, daysSince, slaForStage, styleFor, type Entry, type PipelineEvent } from "./PipelineTypes";
 
 // The pipeline-lifecycle event taxonomy that the activity feed renders richly.
@@ -185,9 +187,14 @@ export function CandidateRow({
 }) {
   const t = useTranslations("pipeline");
   const enumLabel = useEnumLabel();
+  const provenanceText = useScoreProvenanceText();
   const style = styleFor(entry.archetype);
   const archLabel = enumLabel("archetype", entry.archetype);
   const days = daysSince(entry.stageChangedAt);
+  // Canonical match-score read path (REC-01): the badge shows THE same number as
+  // the drawer header and the decisions queue; its provenance rides the tooltip.
+  const score = canonicalScoreOf(entry);
+  const scoreProvenance = provenanceText(provenanceOf(entry));
   // Intake degraded is a data-integrity problem (a non-matchable stub), so it
   // outranks every other cue: degraded (red triangle) > pending (coral pulse) >
   // aging (amber) > archetype color. State never rides on color alone — each
@@ -208,7 +215,7 @@ export function CandidateRow({
       : stale
         ? Clock
         : style.icon;
-  const title = `${t("candidateRow.cardTitle", { name: entry.candidateLabel, archetype: archLabel })}${entry.matchScore != null ? t("candidateRow.matchSuffix", { score: entry.matchScore }) : ""}${days != null ? t("candidateRow.daysInStage", { days }) : ""}${degraded ? t("candidateRow.degradedSuffix") : ""}`;
+  const title = `${t("candidateRow.cardTitle", { name: entry.candidateLabel, archetype: archLabel })}${score != null ? `${t("candidateRow.matchSuffix", { score })}${scoreProvenance ? ` (${scoreProvenance})` : ""}` : ""}${days != null ? t("candidateRow.daysInStage", { days }) : ""}${degraded ? t("candidateRow.degradedSuffix") : ""}`;
   const selecting = selectMode && onToggleSelect;
   // Drag only outside select mode (in select mode the row is a checkbox).
   const dragOn = draggable && !selecting;
@@ -255,9 +262,10 @@ export function CandidateRow({
         <span className="min-w-0 truncate">{entry.candidateLabel}</span>
       </button>
       {/* Right-aligned fit score in the shared score→color language (moss/amber/coral),
-          so a lane can be triaged at a glance without hovering for the title tooltip. */}
-      <span className="shrink-0">
-        <ScoreBadge score={entry.matchScore} />
+          so a lane can be triaged at a glance without hovering for the title tooltip.
+          Canonical number (REC-01) — provenance rides the row tooltip above. */}
+      <span className="shrink-0" title={scoreProvenance ?? undefined}>
+        <ScoreBadge score={score} />
       </span>
       {onActions && !selecting ? (
         <button

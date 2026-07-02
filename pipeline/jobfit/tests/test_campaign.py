@@ -10,10 +10,12 @@ from __future__ import annotations
 
 import io
 import json
+import os
 import tempfile
 import unittest
 from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
+from unittest import mock
 
 from pipeline.jobfit import campaign, campaign_cli
 from pipeline.jobfit.campaign import (
@@ -218,6 +220,28 @@ class CliTests(unittest.TestCase):
         envelope = json.loads(err.strip().splitlines()[-1])
         self.assertEqual(envelope["status"], 400)
         self.assertEqual(envelope["code"], "invalid_input")
+
+    def test_deterministic_fallback_writes_a_ledger_line(self):
+        """Item 22: a keyless (--no-llm) run that serves the deterministic pack
+        writes one source:"deterministic" sidecar line — zero tokens/cost, the
+        campaign_pack use case — when KP_LLM_USAGE_LOG is set (spawnPython's
+        per-spawn sidecar), so template traffic is ledger-visible."""
+        record = {"id": "jd-frontend", "title": "Frontend Developer", "salaryBand": [60000, 80000]}
+        with tempfile.TemporaryDirectory() as td:
+            p = Path(td) / "job.json"
+            p.write_text(json.dumps(record), encoding="utf-8")
+            ledger = Path(td) / "usage.ndjson"
+            with mock.patch.dict(os.environ, {"KP_LLM_USAGE_LOG": str(ledger)}, clear=False):
+                code, out, _ = self._run(["--job-json", str(p), "--no-llm"])
+            self.assertEqual(code, 0)
+            self.assertEqual(json.loads(out)["source"], "deterministic")
+            rows = [json.loads(l) for l in ledger.read_text(encoding="utf-8").splitlines() if l.strip()]
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["source"], "deterministic")
+        self.assertEqual(rows[0]["provider"], "deterministic")
+        self.assertEqual(rows[0]["use_case"], "campaign_pack")
+        self.assertEqual(rows[0]["input_tokens"], 0)
+        self.assertEqual(rows[0]["cost_usd"], 0.0)
 
 
 if __name__ == "__main__":

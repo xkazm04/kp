@@ -33,7 +33,11 @@ REJECTION_PROMPT_VERSION = "rejection-v2"
 PREP_PROMPT_VERSION = "interview-prep-v1"
 SCORECARD_PROMPT_VERSION = "scorecard-v3"
 REMATCH_PROMPT_VERSION = "rematch-v1"
-OFFER_PROMPT_VERSION = "offer-v2"
+# offer-v3: the result names its pricing basis — the draft-time fresh fit check
+# rides structured as `matchBasis` (rendered under its own label by the approval
+# card, REC-01/OO-L2-10) and the rationale prose says "fresh fit check", not a
+# bare "Match", so it can't read as the entry's stored match score.
+OFFER_PROMPT_VERSION = "offer-v3"
 
 # Task 7 thresholds — tunable per market/season (the only place rules live).
 POLICY: dict[str, int] = {
@@ -756,8 +760,11 @@ def draft_offer(candidate: MatchCandidate, job: Job, m, *, lang: str | None = No
     f = max(0.1, min(0.9, (m.total - 55) / 40.0))
     recommended = max(lo, min(hi, _round_k(lo + (hi - lo) * f)))
     lang = _letter_lang(candidate, lang)
+    # Name the producer (REC-01/OO-L2-10): this number is a FRESH fit check run at
+    # draft time — NOT the entry's stored match score the approval-card header
+    # shows — so the prose must never read as bare "Match N/100".
     rationale = (
-        f"Match {m.total}/100 places the offer at ~{int(round(f * 100))}% of the "
+        f"Fresh fit check {m.total}/100 at offer draft places the offer at ~{int(round(f * 100))}% of the "
         f"{lo:,}–{hi:,} {currency} band for this {job.seniority or 'mid'}-level role."
     )
 
@@ -810,6 +817,10 @@ def draft_offer(candidate: MatchCandidate, job: Job, m, *, lang: str | None = No
             "salaryMax": hi,
             "recommended": recommended,
             "rationale": rationale,
+            # The draft-time fit total that priced this offer, structured, so the
+            # approval card can label it ("fresh fit check at draft: N/100")
+            # instead of parsing it out of English prose (REC-01/OO-L2-10).
+            "matchBasis": m.total,
             "promptVersion": OFFER_PROMPT_VERSION,
         }
     )

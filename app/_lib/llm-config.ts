@@ -11,6 +11,7 @@
 
 import { listLlmConfig, listProviderKeys, upsertProviderKey, type LlmConfigRow } from "./db";
 import { decryptProviderSecret, encryptProviderSecret } from "./llm-secret";
+import { resolveProviderApiKey } from "./provider-key-precedence";
 import { assertPublicHttpsEndpoint } from "./safe-url";
 
 // Keep in sync with PROVIDER_CAPABILITIES / USE_CASE_REQUIREMENTS in
@@ -135,6 +136,25 @@ export function listProviderKeyMeta(): ProviderKeyMeta[] {
     ...(typeof row.meta.apiVersion === "string" ? { apiVersion: row.meta.apiVersion } : {}),
     updatedAt: row.updatedAt,
   }));
+}
+
+/**
+ * Decrypted API key for one provider, for the few TS-side call sites that hit a
+ * provider SDK directly instead of spawning Python (github-analysis). Uses the
+ * documented layering — UI-entered 'byom' row → 'platform' row → provider env
+ * var(s), first-set-wins — so a customer's BYOM key serves their traffic exactly
+ * like it does through KP_LLM_CONFIG. Returns undefined when nothing is
+ * configured; a configured-but-undecryptable stored key throws (see
+ * buildLlmConfigEnv — silently billing the wrong key is worse than failing).
+ */
+export function resolveProviderKey(provider: LlmProvider, envVars: readonly string[]): string | undefined {
+  return resolveProviderApiKey({
+    provider,
+    rows: listProviderKeys(),
+    decrypt: decryptProviderSecret,
+    env: process.env,
+    envVars,
+  });
 }
 
 // ---- KP_LLM_CONFIG assembly --------------------------------------------------

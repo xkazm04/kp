@@ -283,6 +283,50 @@ function parseGithubEvidence(githubJson: string | null | undefined, entryId: str
 // them into the statement is injection-safe.
 const TERMINAL_STATUS_SQL_LIST = `(${TERMINAL_ENTRY_STATUSES.map((s) => `'${s}'`).join(", ")})`;
 
+// Calibration of the ACTING score (REC-02). The analytics reliability curve used
+// to measure ONLY `analyses.score × recruiter disposition` — a pair nothing in
+// the pipeline flow ever writes (live n=0 with a full pipeline on disk) — while
+// the score that actually gates candidates (`pipeline_entries.match_score`: the
+// screen-wave threshold, advance-top-N, the policy pass) was never calibrated.
+// This produces (prediction, outcome) pairs from the pipeline itself:
+//
+//   prediction — the entry's stored match_score (the number the screen gate
+//     thresholds; see the canonical producer map in app/_lib/match-score.ts).
+//   outcome 1  — the entry advanced beyond the screen gate (stage Interview/
+//     Offer/Hired), whatever happened later: a candidate rejected AT interview
+//     or declining an offer still validated "this score advances past screening".
+//   outcome 0  — closed out as `rejected` while still at Accepted/Screened
+//     (recruiter or auto-reject — the adverse decision the score fed).
+//   excluded   — still pending at Accepted/Screened, and the non-merit terminal
+//     statuses there (declined/role_closed/rematched): not a screen verdict.
+//     Unscored entries never enter (no fabricated 0 — the REC-03 policy).
+//
+// Deliberately workspace-blind like every other pipeline_entries read (the
+// REC-09 tenancy gap is tracked in app/_lib/tenancy.ts, not fixed piecemeal here).
+export type PipelineCalibrationPair = { score: number; outcome: 0 | 1; roleFamily: string | null };
+
+const CALIBRATION_ADVANCED_STAGES = new Set(["Interview", "Offer", "Hired"]);
+
+export function pipelineCalibrationPairs(): PipelineCalibrationPair[] {
+  const db = ensureDb();
+  const rows = db
+    .prepare(
+      `SELECT match_score AS score, stage, status, role_family FROM pipeline_entries
+       WHERE match_score IS NOT NULL`
+    )
+    .all() as { score: number; stage: string; status: string; role_family: string | null }[];
+  const pairs: PipelineCalibrationPair[] = [];
+  for (const r of rows) {
+    if (!Number.isFinite(r.score)) continue; // bad migration/manual edit — never NaN into the math
+    if (CALIBRATION_ADVANCED_STAGES.has(r.stage)) {
+      pairs.push({ score: r.score, outcome: 1, roleFamily: r.role_family });
+    } else if (r.status === "rejected") {
+      pairs.push({ score: r.score, outcome: 0, roleFamily: r.role_family });
+    }
+  }
+  return pairs;
+}
+
 export function listPipeline(): PipelineEntry[] {
   const db = ensureDb();
   const rows = db

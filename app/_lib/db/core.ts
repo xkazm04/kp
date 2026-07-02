@@ -509,7 +509,10 @@ export function ensureDb(): Database.Database {
     -- now WIRED — Python's monitor.emit_result writes a sidecar NDJSON line per
     -- call and spawnPython ingests it here (see db/llm.ts ingestLlmUsageLog).
     -- model is nullable (the Claude CLI default reports no pinned model);
-    -- source is 'llm' (only real LLM calls reach the monitor seam).
+    -- source is 'llm' for real provider calls (incl. the voice-interview rows
+    -- the interview complete route inserts directly with a per-minute cost
+    -- estimate) or 'deterministic' when a Python CLI's template fallback served
+    -- instead (monitor.emit_deterministic — zero tokens/cost).
     CREATE TABLE IF NOT EXISTS llm_usage (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       ts TEXT NOT NULL,

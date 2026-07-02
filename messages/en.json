@@ -1436,6 +1436,7 @@
       "deadlineDays": "days",
       "reject": "Reject",
       "band": "band {min}–{max} {currency}",
+      "pricingBasis": "Priced by a fresh fit check at offer draft: {score}/100 → ~{pct}% of the band.",
       "strengths": "Strengths",
       "redFlags": "Red flags"
     },
@@ -2205,6 +2206,10 @@
       "assumptions": "Assumptions:"
     }
   },
+  "scoreProvenance": {
+    "analysis": "from CV analysis · {date}",
+    "snapshot": "snapshot at add"
+  },
   "match": {
     "tab": {
       "eyebrow": "Workspace",
@@ -2788,6 +2793,11 @@
       "title": "How accurate are we?",
       "blurb": "Whether a fit score actually predicts the recruiter's decision. Each dot is a score band — where it sits versus the dashed line is how calibrated we are.",
       "loading": "Measuring…",
+      "sourceLabel": "Measured score",
+      "sourcePipeline": "Pipeline match score",
+      "sourceAnalysis": "CV-analysis score",
+      "measuresPipeline": "Measures the pipeline match score — the number screening auto-decisions act on — against whether the candidate advanced past screening or was rejected there.",
+      "measuresAnalysis": "Measures the saved CV-analysis score against recruiter advance/pass dispositions on analyses. This score never gates pipeline decisions.",
       "familyLabel": "Role family",
       "familyAll": "All roles",
       "error": "Couldn't load calibration right now.",
@@ -3426,7 +3436,8 @@
       "github_analysis": "GitHub analysis",
       "cv_analysis": "CV analysis",
       "profile_extract": "Profile extraction",
-      "grounded_salary": "Grounded salary"
+      "grounded_salary": "Grounded salary",
+      "interview_realtime": "Voice interview"
     },
     "providers": {
       "anthropic": "Anthropic",

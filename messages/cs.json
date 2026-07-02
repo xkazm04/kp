@@ -1436,6 +1436,7 @@
       "deadlineDays": "dní",
       "reject": "Zamítnout",
       "band": "pásmo {min}–{max} {currency}",
+      "pricingBasis": "Cena vychází z čerstvého fit-checku při návrhu nabídky: {score}/100 → ~{pct} % pásma.",
       "strengths": "Silné stránky",
       "redFlags": "Varovné signály"
     },
@@ -2205,6 +2206,10 @@
       "assumptions": "Předpoklady:"
     }
   },
+  "scoreProvenance": {
+    "analysis": "z analýzy CV · {date}",
+    "snapshot": "snímek při zařazení"
+  },
   "match": {
     "tab": {
       "eyebrow": "Pracovní prostor",
@@ -2788,6 +2793,11 @@
       "title": "Jak jsme přesní?",
       "blurb": "Zda skóre shody skutečně předpovídá rozhodnutí náboráře. Každý bod je pásmo skóre — jeho poloha vůči přerušované čáře ukazuje, jak jsme kalibrovaní.",
       "loading": "Měření…",
+      "sourceLabel": "Měřené skóre",
+      "sourcePipeline": "Skóre shody v pipeline",
+      "sourceAnalysis": "Skóre analýzy CV",
+      "measuresPipeline": "Měří skóre shody v pipeline — číslo, podle kterého rozhoduje automatický screening — proti tomu, zda kandidát prošel screeningem, nebo v něm byl zamítnut.",
+      "measuresAnalysis": "Měří uložené skóre analýzy CV proti rozhodnutím náboráře (postoupit/vyřadit) nad analýzami. Toto skóre pipeline rozhodnutí nikdy neřídí.",
       "familyLabel": "Rodina rolí",
       "familyAll": "Všechny role",
       "error": "Kalibraci se teď nepodařilo načíst.",
@@ -3426,7 +3436,8 @@
       "github_analysis": "Analýza GitHubu",
       "cv_analysis": "Analýza CV",
       "profile_extract": "Extrakce profilu",
-      "grounded_salary": "Tržní odhad platu"
+      "grounded_salary": "Tržní odhad platu",
+      "interview_realtime": "Hlasový pohovor"
     },
     "providers": {
       "anthropic": "Anthropic",

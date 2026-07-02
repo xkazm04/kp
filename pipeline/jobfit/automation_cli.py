@@ -25,7 +25,7 @@ import sys
 from pathlib import Path
 
 from . import automation
-from .llm import resolve_provider
+from .llm import emit_deterministic, resolve_provider
 from .matching import MatchCandidate, load_corpus, score_job
 
 # --- Honest error taxonomy --------------------------------------------------
@@ -119,7 +119,12 @@ def main(argv: list[str] | None = None) -> int:
 
         if args.command == "rematch":
             result = automation.rematch_candidate(candidate, args.current_job_id, jobs, provider=provider)
-            print(json.dumps({"result": result, "source": result.get("source", "deterministic")}, ensure_ascii=False))
+            source = result.get("source", "deterministic")
+            if source == "deterministic":
+                # Keyless/failed fallback served — make it ledger-visible (see
+                # monitor.emit_deterministic; no-op without KP_LLM_USAGE_LOG).
+                emit_deterministic("automation")
+            print(json.dumps({"result": result, "source": source}, ensure_ascii=False))
             return 0
 
         if not args.job_id:
@@ -145,6 +150,11 @@ def main(argv: list[str] | None = None) -> int:
         else:  # pragma: no cover
             raise ValueError(f"unhandled command {args.command}")
 
+        if source == "deterministic":
+            # The deterministic template served in place of the LLM (--no-llm,
+            # missing key, or a failed call that fell back) — record it in the
+            # usage ledger so keyless traffic stops being invisible (item 22).
+            emit_deterministic("automation")
         print(json.dumps({"result": result, "source": source}, ensure_ascii=False))
         return 0
     except NotFoundError as exc:

@@ -6,6 +6,13 @@
 // docs/JD_LIFECYCLE.md.
 export const jdJobId = (slug: string): string => `jd-${slug}`;
 
+/** The inverse of `jdJobId`: the JD slug a job id encodes, or null when the job
+ *  is not JD-backed (a seeded/ingested corpus job). Callers joining a pipeline
+ *  entry to its analyses (the canonical match-score resolver, the lifecycle
+ *  strip) must use this instead of hand-slicing the prefix. */
+export const jdSlugOfJobId = (jobId: string | null | undefined): string | null =>
+  jobId && jobId.startsWith("jd-") ? jobId.slice(3) : null;
+
 // Length caps for saved JDs, enforced on both the client (LibraryJdForm) and
 // the server (POST /api/jds) so the form and the write trust boundary always
 // agree. Bounding length at the write boundary stops unbounded storage growth

@@ -8,6 +8,7 @@ unchanged.
 """
 
 from .base import LLMError, LLMResult, TextProvider
+from .monitor import emit_deterministic
 from .registry import resolve_provider
 
-__all__ = ["LLMError", "LLMResult", "TextProvider", "resolve_provider"]
+__all__ = ["LLMError", "LLMResult", "TextProvider", "emit_deterministic", "resolve_provider"]

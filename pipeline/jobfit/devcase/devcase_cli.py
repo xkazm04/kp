@@ -36,7 +36,7 @@ import sys
 from pathlib import Path
 
 from .._cli import configure_stdio
-from ..llm import resolve_provider
+from ..llm import emit_deterministic, resolve_provider
 from . import analyze as _analyze
 from . import design as _design
 from . import evaluate as _evaluate
@@ -121,6 +121,7 @@ def _emit(
     per_step: dict[str, str],
     confidences: dict[str, float] | None = None,
     fallback_reasons: dict[str, str] | None = None,
+    use_case: str | None = None,
 ) -> None:
     """Print the uniform provenance envelope every command shares.
 
@@ -146,6 +147,18 @@ def _emit(
     when no artifact carries a confidence (e.g. design-artifacts, source), keeping the base
     envelope unchanged for those commands.
     """
+    # Usage-ledger visibility for the fallback path (item 22): each step the
+    # deterministic template served (keyless --no-llm / provider-unavailable, or
+    # an LLM call that RAISED and fell back) gets one source:"deterministic"
+    # ledger line — mirroring the one line per real LLM call the monitor writes —
+    # so keyless traffic stops being invisible to the Models usage panel.
+    # ``use_case`` is passed only by the provider-backed commands; the
+    # pure-deterministic ones (source, observed-*) never had an LLM to fall back
+    # from, so they stay unmetered. No-op without KP_LLM_USAGE_LOG.
+    if use_case:
+        for step_source in per_step.values():
+            if step_source == "deterministic":
+                emit_deterministic(use_case)
     envelope: dict[str, object] = {
         "result": result,
         "source": combine_source(*per_step.values()),
@@ -290,7 +303,7 @@ def main(argv: list[str] | None = None) -> int:
             case = CaseScenario.model_validate(json.loads(args.case_json.read_text(encoding="utf-8")))
             role = RoleSpec.model_validate(json.loads(args.role_json.read_text(encoding="utf-8")))
             scenario, src = _scenario.scenario_from_case(case, role, lang=lang, provider=provider)
-            _emit({"scenario": scenario}, {"scenario": src}, fallback_reasons=_fallback_reasons(scenario=scenario))
+            _emit({"scenario": scenario}, {"scenario": src}, fallback_reasons=_fallback_reasons(scenario=scenario), use_case=use_case)
             return 0
 
         # Case -> materialized seed (real starter files; one per case, shared by
@@ -304,7 +317,7 @@ def main(argv: list[str] | None = None) -> int:
             case = CaseScenario.model_validate(json.loads(args.case_json.read_text(encoding="utf-8")))
             role = RoleSpec.model_validate(json.loads(args.role_json.read_text(encoding="utf-8")))
             seed, src = _seed.materialize_seed(case, role, lang=lang, provider=provider)
-            _emit({"seed": seed}, {"seed": src}, fallback_reasons=_fallback_reasons(seed=seed))
+            _emit({"seed": seed}, {"seed": src}, fallback_reasons=_fallback_reasons(seed=seed), use_case=use_case)
             return 0
 
         if args.command in ("reflect-commits", "evaluate-submission"):
@@ -334,6 +347,7 @@ def main(argv: list[str] | None = None) -> int:
                     {"reflect": rsrc, "tooling": tsrc},
                     _confidences(reflect=reflection, tooling=tooling),
                     _fallback_reasons(reflect=reflection, tooling=tooling),
+                    use_case=use_case,
                 )
                 return 0
             # evaluate-submission continues the chain — case/role are required (guarded above).
@@ -353,6 +367,7 @@ def main(argv: list[str] | None = None) -> int:
                 # deterministic-fallback evaluation no longer reads as authoritative.
                 _confidences(reflect=reflection, tooling=tooling, evaluate=evaluation, transfer=transfer),
                 _fallback_reasons(reflect=reflection, tooling=tooling, evaluate=evaluation, transfer=transfer, followups=followups),
+                use_case=use_case,
             )
             return 0
 
@@ -369,7 +384,7 @@ def main(argv: list[str] | None = None) -> int:
             else:
                 snapshot = None
             result, source = _analyze.analyze_need(need, snapshot, provider=provider)
-            _emit(result, {"analyze": source}, _confidences(analyze=result), _fallback_reasons(analyze=result))
+            _emit(result, {"analyze": source}, _confidences(analyze=result), _fallback_reasons(analyze=result), use_case=use_case)
             return 0
 
         if args.command == "design-artifacts":
@@ -382,6 +397,7 @@ def main(argv: list[str] | None = None) -> int:
                 {"role": role, "case": case},
                 {"role": role_src, "case": case_src},
                 fallback_reasons=_fallback_reasons(role=role, case=case),
+                use_case=use_case,
             )
             return 0
 

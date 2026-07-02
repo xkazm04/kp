@@ -4,8 +4,10 @@ import {
   attachInterviewScorecard,
   completeInterviewSession,
   getInterviewSessionByToken,
+  insertLlmUsage,
   type VoiceTurn,
 } from "@/app/_lib/db";
+import { voiceUsageRow } from "@/app/_lib/voice/minute-prices";
 import { runInterviewScorecard } from "@/app/_lib/interview-run";
 import { sealDecisionSafe } from "@/app/_lib/decision-record-store";
 import { AUTOMATION_VERSION } from "@/app/_lib/automation-run";
@@ -144,7 +146,20 @@ export async function POST(request: NextRequest) {
       const bookedMin = session.durationMin ?? 8;
       const startedMs = session.startedAt ? Date.parse(session.startedAt) : NaN;
       const elapsedMin = Number.isFinite(startedMs) ? Math.ceil((Date.now() - startedMs) / 60_000) : bookedMin;
-      recordMeterUsage("interview_minutes", Math.min(Math.max(elapsedMin, 1), bookedMin * 2));
+      const billedMin = Math.min(Math.max(elapsedMin, 1), bookedMin * 2);
+      recordMeterUsage("interview_minutes", billedMin);
+      // Cost attribution (tiger F1): the meter above is a quantity-only quota
+      // counter, but OpenAI Realtime vs ElevenLabs per-minute costs differ
+      // materially — so the SAME billed minutes also land in the llm_usage
+      // ledger with provider/model and a duration-derived cost estimate
+      // (voice/minute-prices.ts), where the Models usage panel aggregates them
+      // like every other LLM call. Best-effort: ledger telemetry never blocks
+      // a completion whose transcript is already persisted.
+      try {
+        insertLlmUsage(voiceUsageRow(session, billedMin));
+      } catch {
+        /* ledger write is telemetry — completion already succeeded */
+      }
     }
 
     // Synthesize the scorecard for candidate-mode sessions (best-effort: the
