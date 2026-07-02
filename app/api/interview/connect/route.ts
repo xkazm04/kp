@@ -162,9 +162,22 @@ export async function POST(request: NextRequest) {
     }
 
     const connect = await adapter.connect({ instructions, language: language ?? session.language });
-    // Candidate-mode sessions carry grounded questions; the browser passes this
-    // to ElevenLabs as a prompt override (OpenAI gets it server-side already).
-    const groundedPrompt = session.mode === "candidate" ? instructions : null;
+    // THE INTERVIEWER BRIEF IS SERVER-SIDE ONLY (backlog #29 / TP-L2-VOICE-01).
+    // `instructions` is the recruiter's PRIVATE brief — gap/provenance
+    // annotations, "internal red flag — never say this aloud" notes — so it must
+    // never ride the JSON back to the candidate's browser (a Network-tab away).
+    // OpenAI already receives it server-side in the client_secrets session
+    // config (adapter.connect above). ElevenLabs' signed-url flow has NO
+    // server-side session config — its prompt overrides are client-sent by
+    // design — so a candidate-mode ElevenLabs session gets a CANDIDATE-SAFE
+    // agent prompt instead: the generic screening script built only from the
+    // public job title + booked length, never the private brief. The stored
+    // run-of-show can itself carry assessment annotations, so no per-candidate
+    // material is projected into this prompt at all.
+    const agentPrompt =
+      connect.provider === "elevenlabs" && session.mode === "candidate"
+        ? defaultInterviewerInstructions({ role: session.jobTitle, durationMin: session.durationMin })
+        : null;
     // The session token rides back so /complete can demand it as the completion
     // capability (idea-5248c3e9). Candidate/sim callers already hold it (it is
     // how they got here); for a fresh lab session this is the creator receiving
@@ -173,8 +186,7 @@ export async function POST(request: NextRequest) {
       sessionId: session.id,
       token: session.token,
       provider,
-      instructions,
-      groundedPrompt,
+      agentPrompt,
       connect,
     });
   } catch (error) {

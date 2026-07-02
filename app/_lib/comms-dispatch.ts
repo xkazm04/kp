@@ -73,12 +73,51 @@ function greetName(entry: { candidateLabel?: string | null }, t: CommsTranslator
   return (entry.candidateLabel ?? "").trim() || t("there");
 }
 
+// The one link-builder for candidate-facing URLs BUILT INSIDE this module (the
+// GDPR data footer, the onboarding link footer). Links a candidate opens from an
+// email must be ABSOLUTE — a relative "/data/er-…" path is dead in every mail
+// client (capst-l2-102) — so this resolves through the same publicBaseUrl
+// precedence the status/offer/schedule links use. Dispatches almost always run
+// inside a request (apply ack, reject, offer, invite), so the runtime origin is
+// recovered from the ambient request headers — the exact origin the ABSOLUTE
+// status link beside the footer was built from. Detached callers (heartbeat
+// sweeps, offer-lapse reminders) have no request, so they need APP_BASE_URL /
+// NEXT_PUBLIC_APP_BASE_URL set; when nothing resolves, warn loudly instead of
+// silently shipping a dead link (the footer still renders — never silently drop
+// a legal affordance).
+async function candidateLinkBase(): Promise<string> {
+  let origin: string | null = null;
+  try {
+    // next/headers is request-scoped: inside a route handler it yields the real
+    // request headers; in a detached sweep it throws and we fall through to the
+    // configured override. Imported lazily so loading this module never depends
+    // on a Next request context (unit tests, scripts).
+    const { headers } = await import("next/headers");
+    const h = await headers();
+    const host = h.get("x-forwarded-host") ?? h.get("host");
+    if (host) {
+      const proto = h.get("x-forwarded-proto")?.split(",")[0]?.trim() || "http";
+      origin = `${proto}://${host.split(",")[0].trim()}`;
+    }
+  } catch {
+    /* no ambient request (scheduler/heartbeat) — rely on the env override */
+  }
+  const base = publicBaseUrl(origin);
+  if (!base) {
+    console.warn(
+      "[comms] no public origin configured — a candidate link in this email will be a dead relative path. Set APP_BASE_URL (or NEXT_PUBLIC_APP_BASE_URL) for detached sends."
+    );
+  }
+  return base;
+}
+
 // GDPR self-service footer appended to every candidate-facing comm: a localized
 // "review or erase your data" line carrying the entry's opaque erasure token
 // (minted fill-only here) → the public /data/[token] page. Skipped for an
 // already-anonymized entry (nothing left to manage) or one we can't mint a token
-// for. publicBaseUrl() resolves the configured public origin (these run detached,
-// with no request origin — same as the offer-lapse / reminder links).
+// for. The link is ABSOLUTE via candidateLinkBase() — the request origin when
+// dispatched from a route handler, the configured override otherwise (same
+// resolution as the status link that rides beside it).
 // The minimal candidate shape the footer + recipient resolution need — looser than
 // PipelineEntry so the lighter interview reminder/invite callers (which may carry
 // no entry id) can use the same wrapper.
@@ -90,11 +129,11 @@ type CandidateCommTarget = {
   anonymizedAt?: string | null;
 };
 
-function dataFooter(entry: CandidateCommTarget, t: CommsTranslator): string {
+async function dataFooter(entry: CandidateCommTarget, t: CommsTranslator): Promise<string> {
   if (entry.anonymizedAt || !entry.id) return ""; // already scrubbed, or no entry to manage
   const token = ensureErasureToken(entry.id);
   if (!token) return "";
-  return "\n\n" + t("dataFooter", { link: `${publicBaseUrl()}/data/${encodeURIComponent(token)}` });
+  return "\n\n" + t("dataFooter", { link: `${await candidateLinkBase()}/data/${encodeURIComponent(token)}` });
 }
 
 // Candidate-facing send: identical to sendComm but auto-appends the GDPR data
@@ -108,7 +147,7 @@ async function sendCandidateComm(
   await sendComm({
     to: candidateRecipient(entry),
     subject: msg.subject,
-    body: msg.body + dataFooter(entry, t),
+    body: msg.body + (await dataFooter(entry, t)),
     kind: msg.kind,
     ref: msg.ref ?? entry.id ?? undefined,
   });
@@ -426,10 +465,12 @@ export async function dispatchOnboarding(entry: PipelineEntry, onboardingToken?:
   const subject = t("onboarding.subject", { role });
   // The accepted offer's token doubles as the candidate's onboarding link (offers #5):
   // accept now lands on a concrete next-step page, not just a "People will be in touch"
-  // promise. ABSOLUTE via publicBaseUrl (the env override when there's no request origin);
-  // omitted for a manual hire with no offer token, which keeps the welcome copy as-is.
+  // promise. ABSOLUTE via candidateLinkBase (the ambient request origin when dispatched
+  // from a route handler, the env override otherwise — capst-l2-102 caught this one
+  // relative too); omitted for a manual hire with no offer token, which keeps the
+  // welcome copy as-is.
   const footer = onboardingToken
-    ? `\n\n${t("onboarding.linkFooter", { link: `${publicBaseUrl()}/onboarding/${onboardingToken}` })}`
+    ? `\n\n${t("onboarding.linkFooter", { link: `${await candidateLinkBase()}/onboarding/${onboardingToken}` })}`
     : "";
   const body = t("onboarding.body", { name: greetName(entry, t), role, team: t("team") }) + footer;
   await sendCandidateComm(entry, t, { subject, body, kind: "onboarding" });

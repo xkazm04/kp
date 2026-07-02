@@ -281,7 +281,9 @@ export function FitTierBadge({
   className,
 }: {
   tier?: string | null;
-  score?: number;
+  // null = unscored — resolves to the neutral "no tier" token, never a "weak"
+  // tier derived from a fabricated 0.
+  score?: number | null;
   className?: string;
 }) {
   const resolved = tier ?? (score != null ? scoreToFitTier(score) : null);

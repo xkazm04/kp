@@ -1,15 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAllDecisionConfigs, setDecisionConfig } from "@/app/_lib/decision-config-store";
 import { DecisionConfigError, validateDecisionConfig } from "@/app/_lib/decision-config-schema";
+import { requireOperator } from "@/app/_lib/auth/require-operator";
 
 export const runtime = "nodejs";
 
 // Read / update the per-phase decision rules (Phase 3 decision module config).
+// Operator-gated (backlog #30 / SD-L1-010): these rules drive the auto-reject
+// wave, so both the read and the write re-verify the session at the handler
+// (and reject the anonymous demo session) like the rest of /api/decisions/*.
 export async function GET() {
+  const denied = await requireOperator();
+  if (denied) return denied;
   return NextResponse.json({ configs: getAllDecisionConfigs() });
 }
 
 export async function POST(request: NextRequest) {
+  const denied = await requireOperator();
+  if (denied) return denied;
   try {
     const body = (await request.json()) as { phase?: unknown; config?: unknown };
     if (body.phase === undefined || body.config === undefined) {

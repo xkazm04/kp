@@ -4,6 +4,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowRight, CalendarClock, FileText, Inbox, PartyPopper, Send } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { buildUrl, clearedTabScopedParams, type WorkspaceTabId } from "@/app/features/tabs";
+import { isSimTitle } from "@/app/features/simulation/constants";
 import { daysSince, type Entry } from "./PipelineTypes";
 
 // 8f8f578d — the "Today" rail: candidate-driven work, narrated. The attention
@@ -41,14 +42,19 @@ export function TodayRail({ entries, onShowStage }: { entries: Entry[]; onShowSt
   const router = useRouter();
   const search = useSearchParams();
 
-  const active = entries.filter((e) => e.status === "active");
+  // gsim-l2-105 — the rail digests the recruiter's REAL work: rows the guided
+  // demo wrote (job title carries the "(SIM)" marker) must never claim "hired
+  // this week" or swell the queues her lead reads. The board below still renders
+  // them — visibly marked — so the running sim keeps seeing its own rows.
+  const real = entries.filter((e) => !isSimTitle(e.jobTitle));
+  const active = real.filter((e) => e.status === "active");
   const inbound = active.filter((e) => e.stage === "Accepted");
   const awaitingSlot = active.filter((e) => e.approvalKind === "calendar");
   const scorecards = active.filter((e) => e.approvalKind === "scorecard_review");
   const offerReviews = active.filter((e) => e.approvalKind === "offer_review");
   // Offers out with the candidate: sent (no approval pending), response pending.
   const offersOut = active.filter((e) => e.stage === "Offer" && !e.approvalKind);
-  const hired = entries.filter(
+  const hired = real.filter(
     (e) => e.stage === "Hired" && (daysSince(e.stageChangedAt) ?? Infinity) <= HIRED_WINDOW_DAYS
   );
 

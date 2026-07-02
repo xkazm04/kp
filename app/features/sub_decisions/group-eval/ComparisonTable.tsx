@@ -187,7 +187,8 @@ export function ComparisonTable({
           {/* Overview */}
           <tbody>
             <GroupTr label={t("overview")} cols={cols} />
-            <Row head={<RowHead title={t("overallFit")} />} candidates={candidates} leaderValue={(c) => c.score} render={(c) => <FitCell c={c} />} />
+            {/* Unscored → -1 for the leader tint only (an absent score can never win the row). */}
+            <Row head={<RowHead title={t("overallFit")} />} candidates={candidates} leaderValue={(c) => c.score ?? -1} render={(c) => <FitCell c={c} />} />
             <Row head={<RowHead title={t("confidenceBand")} />} candidates={candidates} render={(c) => <ConfidenceCell c={c} />} />
             <Row head={<RowHead title={t("profile")} />} candidates={candidates} render={(c) => <ProfileCell c={c} />} />
             {mustRows.length ? (

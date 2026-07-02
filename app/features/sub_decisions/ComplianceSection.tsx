@@ -39,6 +39,10 @@ export function ComplianceSection() {
   const [saving, setSaving] = useState(false);
   const [note, setNote] = useState<string | null>(null);
   const [counts, setCounts] = useState("");
+  // The EFFECTIVE retention window (derived server-side from KP_CONSENT_TTL_DAYS)
+  // so the posture line states the enforced number, not a hardcoded "12 months"
+  // (REC-08). Default 12 mirrors the server default of 365 days.
+  const [retentionMonths, setRetentionMonths] = useState(12);
 
   useEffect(() => {
     fetch("/api/decisions/config")
@@ -46,6 +50,14 @@ export function ComplianceSection() {
       .then((p: { configs?: { compliance?: { jurisdiction?: unknown } } }) => {
         const j = p?.configs?.compliance?.jurisdiction;
         if (typeof j === "string" && (REGIME_IDS as readonly string[]).includes(j)) setJurisdiction(j as RegimeId);
+      })
+      .catch(() => {});
+    fetch("/api/compliance")
+      .then((r) => r.json())
+      .then((d: { consentRetentionMonths?: unknown }) => {
+        if (typeof d?.consentRetentionMonths === "number" && d.consentRetentionMonths >= 1) {
+          setRetentionMonths(d.consentRetentionMonths);
+        }
       })
       .catch(() => {});
   }, []);
@@ -126,7 +138,7 @@ export function ComplianceSection() {
               t("covered2"),
               t("covered3"),
               t("covered4"),
-              t("covered5", { dataLaw: regime.dataLaw }),
+              t("covered5", { dataLaw: regime.dataLaw, months: retentionMonths }),
             ].map((line, i) => (
               <li key={i} className="flex gap-1.5 text-sm text-steel">
                 <Check size={14} className="mt-0.5 shrink-0 text-moss" /> <span>{line}</span>

@@ -35,7 +35,10 @@ export type EvalCandidate = {
   // label via candIdentity).
   entryId?: string;
   label: string;
-  score: number;
+  // null = unscored: the candidate has neither a fresh recruiter total nor a
+  // stored match score. Rendered as a dash (ScoreBadge's null chip), never a
+  // fabricated 0 (REC-03).
+  score: number | null;
   seniority: string | null;
   archetype?: string | null;
   verdict: string;
@@ -72,8 +75,8 @@ export type GroupEvalPayload = {
   governanceMode?: "recommendation" | "committee" | "eligibility_list";
   governanceNote?: string | null;
   advisory?: boolean;
-  eligibilityList?: { rank: number; entryId: string; label: string; score: number }[] | null;
-  topPick?: { label: string; score: number; why: string } | null;
+  eligibilityList?: { rank: number; entryId: string; label: string; score: number | null }[] | null;
+  topPick?: { label: string; score: number | null; why: string } | null;
   recommendedOrder?: string[];
   candidates?: EvalCandidate[];
   differentiators?: string[];

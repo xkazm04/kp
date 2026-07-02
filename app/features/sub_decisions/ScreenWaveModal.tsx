@@ -13,7 +13,9 @@ type Decision = {
   entryId: string;
   label: string;
   archetype: string | null;
-  matchScore: number;
+  // null = unscored (never measured). Such rows are always keeps with reasonCode
+  // "unscored" — rendered as an explicit dash, never a fabricated 0 (SD-L1-002).
+  matchScore: number | null;
   action: "reject" | "keep";
   rationale: string;
   reasonCode?: string;
@@ -159,7 +161,7 @@ export function ScreenWaveModal({
           {rejects.map((d) => (
             <li key={d.entryId} className="rounded-md border border-coral/30 bg-coral/5 px-2.5 py-1.5 text-sm">
               <span className="font-medium text-ink">{d.label}</span>{" "}
-              <span className="nums text-steel">{t("matchSuffix", { score: d.matchScore })}</span>
+              <span className="nums text-steel">{d.matchScore == null ? "· —" : t("matchSuffix", { score: d.matchScore })}</span>
               {d.commsFailed ? (
                 <span className="ml-1.5 inline-flex items-center gap-1 rounded-full bg-amber-50 px-1.5 py-0.5 text-meta font-semibold text-amber-700">
                   <AlertTriangle size={10} aria-hidden /> {t("commsFailedBadge")}
@@ -180,7 +182,9 @@ export function ScreenWaveModal({
           {keeps.map((d) => (
             <li key={d.entryId} className="flex items-baseline justify-between gap-2 px-2.5 py-1 text-sm">
               <span className="text-ink">
-                {d.label} <span className="nums text-steel">· {d.matchScore}</span>
+                {/* An unscored keep shows a dash, not a number that reads as a
+                    genuine 0 — the reason text beside it says why. */}
+                {d.label} <span className="nums text-steel">· {d.matchScore ?? "—"}</span>
               </span>
               <span className="shrink-0 text-meta text-steel">{reasonText(d)}</span>
             </li>

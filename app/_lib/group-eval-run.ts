@@ -10,6 +10,7 @@ import { poolEntryFromAnalysis, type CandidatePoolEntry } from "./candidate-pool
 import { cleanupWorkdir, createWorkdir, parsePythonJson, parseStderrError, spawnPython } from "./python-runner";
 import { rankPoolForJob } from "./recruiter-run";
 import { computeDifferentiators } from "./group-eval-differentiators";
+import { compareByMatchScoreDesc, compareScoreDesc } from "./match-score";
 import { sealDecisionSafe } from "./decision-record-store";
 import { buildEligibilityList, governanceNote, normalizeGovernanceMode, sealsLead } from "./group-eval-governance";
 import type { MatchResultView, ScoreDimension, Confidence, Reasoning as CanonicalReasoning } from "@/app/features/sub_match/MatchTypes";
@@ -72,7 +73,11 @@ type PerCandidate = {
   // back to the exact live entry by id (not by the non-unique display label).
   entryId: string;
   label: string;
-  score: number;
+  // The fit number the comparison ranks and displays: the fresh recruiter total
+  // when the ranker ran, else the stored entry matchScore, else null — an
+  // UNSCORED candidate stays null (REC-03: never a fabricated 0 that ranks,
+  // displays, and seals as a genuine measurement).
+  score: number | null;
   seniority: string | null;
   archetype: string | null;
   verdict: string;
@@ -258,9 +263,13 @@ export async function runGroupEval(params: Record<string, unknown>, signal?: Abo
   // and risks, and evict a genuine candidate past the cap — while resolveCandidates and
   // rankCandidates (keyed by candidateId) silently collapse the pair downstream. Identity
   // is candidateId when present, else the always-unique entryId. Label stays display-only.
+  // The cap-eviction sort uses the shared null-safe comparator: an UNSCORED
+  // candidate sorts after every scored one (it can't claim a cap slot over a
+  // measured candidate) but is never fabricated into a "score 0" — past the cap
+  // it is dropped as "unranked", not as a fake bottom scorer.
   const seenIdentity = new Set<string>();
   const input = [...allCandidates]
-    .sort((a, b) => (b.matchScore ?? 0) - (a.matchScore ?? 0))
+    .sort(compareByMatchScoreDesc)
     .filter((c) => {
       const identity = c.candidateId || c.entryId;
       if (seenIdentity.has(identity)) return false;
@@ -323,8 +332,10 @@ export async function runGroupEval(params: Record<string, unknown>, signal?: Abo
       entryId: c.entryId,
       label: c.label,
       // Prefer the fresh recruiter total (matches the breakdown shown) over the
-      // stored matchScore, falling back to it when the role has no job.
-      score: result?.total ?? c.matchScore ?? 0,
+      // stored matchScore, falling back to it when the role has no job. A
+      // candidate with NEITHER stays null (unscored) — the old `?? 0` fabricated
+      // a genuine-looking 0 that ranked, displayed, and sealed (REC-03).
+      score: result?.total ?? c.matchScore ?? null,
       seniority: row?.seniority ?? payload?.seniority ?? null,
       archetype: row?.archetype ?? payload?.archetype ?? null,
       verdict: reasoning.verdict ?? "",
@@ -357,7 +368,9 @@ export async function runGroupEval(params: Record<string, unknown>, signal?: Abo
     const aFailed = a.koPassed === false;
     const bFailed = b.koPassed === false;
     if (aFailed !== bFailed) return aFailed ? 1 : -1;
-    return b.score - a.score;
+    // Null-safe within each group: an unscored candidate ranks below every
+    // measured one (never tied with a genuine 0 via fabrication).
+    return compareScoreDesc(a.score, b.score);
   });
   const top = candidates[0] ?? null;
   // The recommended LEAD must pass knockout. With the ko-aware sort above, top is
@@ -381,7 +394,7 @@ export async function runGroupEval(params: Record<string, unknown>, signal?: Abo
 
   const risks: string[] = [];
   for (const c of candidates) {
-    if (c.score > 0 && c.score < 55) risks.push(`${c.label}: lower fit (${c.score}) — confirm must-haves at interview.`);
+    if (c.score != null && c.score > 0 && c.score < 55) risks.push(`${c.label}: lower fit (${c.score}) — confirm must-haves at interview.`);
     if (isEarlyCareer(c.archetype)) risks.push(`${c.label}: early-career — assess potential and trajectory, not only current skills.`);
     if (c.gaps.length) risks.push(`${c.label}: gaps in ${c.gaps.slice(0, 3).join(", ")}.`);
   }
@@ -394,7 +407,9 @@ export async function runGroupEval(params: Record<string, unknown>, signal?: Abo
 
   // Summary is governance-aware: in committee/eligibility modes it must NOT read as
   // an AI verdict ("Recommended lead") — that's the very thing those modes reject.
-  const leadDesc = lead ? `${lead.label} (fit ${lead.score})` : null;
+  // An all-unscored field can surface a null-scored lead: the summary then says
+  // "unscored" instead of asserting a fit number that was never computed.
+  const leadDesc = lead ? `${lead.label} (${lead.score != null ? `fit ${lead.score}` : "unscored"})` : null;
   let deterministicSummary: string;
   if (!candidates.length) {
     deterministicSummary = `No candidates to evaluate for ${roleTitle}.`;
@@ -423,6 +438,8 @@ export async function runGroupEval(params: Record<string, unknown>, signal?: Abo
       candidateRef: lead.entryId,
       rationale: deterministicSummary,
       reasonCode: "lead",
+      // score: null when the lead was never measured — the sealed record states
+      // the absence rather than fabricating a 0 (REC-03).
       inputs: { score: lead.score, candidates: candidates.length, roleTitle },
     });
   } else if (lead) {
@@ -459,7 +476,17 @@ export async function runGroupEval(params: Record<string, unknown>, signal?: Abo
     // Every candidate label considered at eval time (pre-cap) — the modal diffs
     // this against the role's current pending entries to warn about pool drift.
     evaluatedLabels: allCandidates.map((c) => c.label),
-    topPick: lead ? { label: lead.label, score: lead.score, why: lead.verdict || `Highest fit (${lead.score}) in this role.` } : null,
+    topPick: lead
+      ? {
+          label: lead.label,
+          // null = unscored (the modal's ScoreBadge renders a dash) — sealed and
+          // displayed as "not measured", never as 0.
+          score: lead.score,
+          why:
+            lead.verdict ||
+            (lead.score != null ? `Highest fit (${lead.score}) in this role.` : "Top of the field, but no fit score has been computed yet."),
+        }
+      : null,
     recommendedOrder: candidates.map((c) => c.label),
     candidates,
     differentiators,

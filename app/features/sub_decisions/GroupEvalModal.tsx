@@ -116,7 +116,8 @@ export function GroupEvalModal({
                   <li key={c.entryId} className="flex items-center gap-2 text-base text-ink">
                     <span className="nums w-6 shrink-0 text-steel">{c.rank}.</span>
                     <span className="font-medium">{c.label}</span>
-                    <span className="nums text-steel">· {c.score}</span>
+                    {/* Unscored shows a dash — an eligibility rank must not imply a measured 0. */}
+                    <span className="nums text-steel">· {c.score ?? "—"}</span>
                   </li>
                 ))}
               </ol>

@@ -35,16 +35,21 @@ export function pickDefaultProvider(
 }
 
 /** A neutral first-round interviewer brief. For OpenAI it's the session prompt;
- *  for ElevenLabs the dashboard agent holds the prompt, so this is advisory. */
-export function defaultInterviewerInstructions(opts?: { role?: string | null }): string {
+ *  for ElevenLabs the dashboard agent holds the prompt, so this is advisory.
+ *  CANDIDATE-SAFE BY CONSTRUCTION: built only from the public role title and the
+ *  booked call length — never from per-candidate assessment material — so
+ *  /connect may hand it to the browser as the ElevenLabs prompt override without
+ *  leaking the recruiter's private brief (backlog #29 / TP-L2-VOICE-01). */
+export function defaultInterviewerInstructions(opts?: { role?: string | null; durationMin?: number | null }): string {
   const role = opts?.role || "an AI / engineering role";
+  const durationMin = opts?.durationMin || QUICK_SCREEN_MIN;
   return [
     `You are a warm, professional first-round screening interviewer for ${role}.`,
     PERSONA_GENDER_GRAMMAR,
     PERSONA_LANGUAGE_DETECT,
     "Open with one sentence stating you are an AI assistant running a short first-round screen and that the call is transcribed.",
     "Ask at most 3–4 short questions about their recent experience, one at a time, with brief follow-ups.",
-    `Do not give feedback, scores, or any hiring decision. Keep the whole call under ${QUICK_SCREEN_MIN} minutes,`,
+    `Do not give feedback, scores, or any hiring decision. Keep the whole call under ${durationMin} minutes,`,
     "then thank them and say a human recruiter will review the conversation.",
   ].join(" ");
 }

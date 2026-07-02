@@ -545,7 +545,7 @@
   "aiDisclosure": {
     "title": "How this works",
     "body": "We use AI to assist screening and interviews — assessing your <highlight>skills, experience, and fit</highlight> for the role. A human reviews and makes every advance, offer, and rejection decision; nothing adverse is decided automatically. You can ask for a human review at any point.",
-    "dataConsent": "By submitting, you agree we may process your personal data for this role for up to 12 months. You can review or request erasure of your data anytime via the link in our emails.",
+    "dataConsent": "By submitting, you agree we may process your personal data for this role for up to {months, plural, one {# month} other {# months}}. You can review or request erasure of your data anytime via the link in our emails.",
     "regimeNote": "Assessed under {framework}; your personal data is processed under {dataLaw}."
   },
   "errors": {
@@ -1375,6 +1375,7 @@
     "reconsiderTitle": "Reconsider auto-rejected · {count}",
     "reconsiderHelp": "Borderline auto-rejections you can put back to Screened for a fresh look. The candidate was already notified, so follow up with them if you reinstate.",
     "reconsiderMatch": "match {score}",
+    "reconsiderUnscored": "unscored — no match score",
     "reconsiderRejected": "rejected {date}",
     "reinstate": "Reinstate",
     "reinstating": "Reinstating…",
@@ -1455,7 +1456,7 @@
       "covered2": "Every decision is sealed to a tamper-evident audit record.",
       "covered3": "Candidates see an AI-use disclosure and can request human review anytime.",
       "covered4": "Early-career and unclassified candidates are shielded from automated rejection (fail-closed).",
-      "covered5": "Personal data is processed under {dataLaw} with a 12-month retention window and self-service erasure.",
+      "covered5": "Personal data is processed under {dataLaw} with a {months}-month retention window and self-service erasure.",
       "ceiling1": "Statutory protected-class adverse-impact monitoring ({standard}) is not run automatically — it needs aggregate demographic data this platform deliberately does not collect.",
       "ceiling2": "The automated-rejection fairness gate is an archetype shield (career stage), not a protected-class test.",
       "aiCheckTitle": "Four-fifths adverse-impact check",
@@ -1510,7 +1511,8 @@
         "rejectWould": "Would auto-reject · bottom {pct}% of {n} → {count} (rank {rank}) and match {score} < {threshold} threshold.",
         "rejectDid": "Auto-rejected · bottom {pct}% of {n} → {count} (rank {rank}) and match {score} < {threshold} threshold.",
         "tieAdjustedNote": "(tie-adjusted from {from} so no equal score is split)",
-        "staleSkipped": "Skipped — stage changed mid-wave (was {wasStage}); left untouched."
+        "staleSkipped": "Skipped — stage changed mid-wave (was {wasStage}); left untouched.",
+        "unscored": "unscored — no match score yet; excluded from auto-rejection (needs scoring)"
       }
     },
     "summary": {

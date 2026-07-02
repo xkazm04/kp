@@ -11,11 +11,23 @@
  *  the candidate was acquired, so a deployment SHOULD set it for its legal basis via
  *  KP_CONSENT_TTL_DAYS (whole days, 1..3650). The per-call `ttlDays` arg overrides it
  *  for a future per-jurisdiction/per-source policy. See docs/GDPR_AND_HIRING_EXTENSIONS.md. */
-function defaultConsentTtlDays(): number {
+export function consentTtlDays(): number {
   const raw = Number(process.env.KP_CONSENT_TTL_DAYS);
   return Number.isFinite(raw) && raw >= 1 && raw <= 3650 ? Math.floor(raw) : 365;
 }
-export const CONSENT_TTL_DAYS = defaultConsentTtlDays();
+export const CONSENT_TTL_DAYS = consentTtlDays();
+
+/** The retention window as displayed to candidates ("up to N months") — DERIVED
+ *  from the enforced TTL so the GDPR statement can never drift from the config
+ *  (REC-08/capst-l1-005: the copy hardcoded "12 months" while KP_CONSENT_TTL_DAYS
+ *  was tunable — an operator retune silently falsified the legal-basis text).
+ *  Rounded UP: the disclosed ceiling must never be shorter than the enforced
+ *  window (under-disclosure is the GDPR-worse direction), so 365 days → 12
+ *  months, 180 → 6, 400 → 14. Reads the env at call time (unlike the frozen
+ *  constant) so tests and /api/compliance always reflect the live knob. */
+export function consentRetentionMonths(ttl: number = consentTtlDays()): number {
+  return Math.max(1, Math.ceil((ttl * 12) / 365));
+}
 
 /** A consent is "expiring" within this many days of its expiry — the window the
  *  pre-expiry reminder + the drawer's amber chip use. */

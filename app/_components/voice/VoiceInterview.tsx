@@ -539,14 +539,18 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle, provider: pinned
       if (c.provider === "openai") {
         await startOpenAi(c);
       } else {
-        // For grounded (candidate) sessions, push the questions as a prompt
-        // override (requires the ElevenLabs agent to allow overrides; otherwise
-        // it falls back to the dashboard prompt). phase → live via onConnect.
-        const groundedPrompt: string | undefined = data.groundedPrompt ?? undefined;
+        // Candidate sessions push a CANDIDATE-SAFE agent prompt as an override
+        // (requires the ElevenLabs agent to allow overrides; otherwise it falls
+        // back to the dashboard prompt). The recruiter's private interviewer
+        // brief never reaches this response — the server sends only a generic
+        // role-title prompt (backlog #29 / TP-L2-VOICE-01); OpenAI receives its
+        // full brief server-side in the session config. phase → live via
+        // onConnect.
+        const agentPrompt: string | undefined = data.agentPrompt ?? undefined;
         const maybe = conversation.startSession({
           signedUrl: c.signedUrl,
           connectionType: "websocket",
-          ...(groundedPrompt ? { overrides: { agent: { prompt: { prompt: groundedPrompt } } } } : {}),
+          ...(agentPrompt ? { overrides: { agent: { prompt: { prompt: agentPrompt } } } } : {}),
         }) as unknown;
         // Some SDK versions return a promise; surface a rejection instead of hanging.
         if (maybe && typeof (maybe as { then?: unknown }).then === "function") {

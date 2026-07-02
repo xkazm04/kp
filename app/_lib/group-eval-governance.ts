@@ -27,9 +27,9 @@ export function sealsLead(mode: GovernanceMode): boolean {
 /** Ordinal, fit-ranked eligibility list (rank 1..N). KO-failed candidates are not
  *  eligible and are excluded. The input is expected already ko-aware-sorted by the
  *  caller, so ranks follow its order. For civil-service-style certification. */
-export function buildEligibilityList<T extends { entryId: string; label: string; score: number; koPassed?: boolean }>(
+export function buildEligibilityList<T extends { entryId: string; label: string; score: number | null; koPassed?: boolean }>(
   candidates: T[]
-): { rank: number; entryId: string; label: string; score: number }[] {
+): { rank: number; entryId: string; label: string; score: number | null }[] {
   return candidates
     .filter((c) => c.koPassed !== false)
     .map((c, i) => ({ rank: i + 1, entryId: c.entryId, label: c.label, score: c.score }));

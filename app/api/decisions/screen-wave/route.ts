@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { runScreenWave, ScreenWaveApprovalError } from "@/app/_lib/screen-wave";
 import { DecisionConfigError, validateScreeningOverride } from "@/app/_lib/decision-config-schema";
 import { operatorApprover } from "@/app/_lib/auth/operator-approver";
+import { requireOperator } from "@/app/_lib/auth/require-operator";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -9,7 +10,14 @@ export const maxDuration = 60;
 // Run the screening auto-reject wave over one role's matched cohort. An optional
 // `override` rule lets the simulation/preview run it without changing the saved
 // config.
+// Operator-gated (backlog #30 / SD-L1-010): the wave rejects real candidates,
+// queues their adverse-action emails, and seals records into the global chain —
+// so the handler re-verifies the operator session (rejecting the anonymous
+// demo-workspace session) exactly like /api/automation/[task]. The dry-run
+// preview reads the same cohort PII, so it is gated too.
 export async function POST(request: NextRequest) {
+  const denied = await requireOperator();
+  if (denied) return denied;
   try {
     const body = (await request.json()) as {
       jobId?: string;

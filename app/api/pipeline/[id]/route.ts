@@ -16,10 +16,22 @@ const ACTIONS: PipelineAction[] = ["accept", "reject", "approve_event"];
 // drawer's textarea enforces the same cap client-side (maxLength).
 const MAX_NOTES_LENGTH = 4000;
 
+// gsim-l2-103 — truthful audit attribution for programmatic callers. The guided
+// simulation drives this route with real HTTP accepts; without a declaration,
+// every engine-driven action was recorded as a human decision (an `advanced`
+// pipeline event + a sealed "human:recruiter" record) — machine actions
+// misattributed to people, the one thing a regulator-facing audit trail must
+// never do. A caller may declare itself with body.actor; only the known
+// non-human value is honored, so the claim can only DOWNGRADE authority
+// (human → automated). A spoofed field can therefore never forge a human
+// decision — the failure mode that matters for an Art. 22 dossier.
+const SIM_ACTOR = "sim";
+const SIM_SEAL_ACTOR = "auto:sim"; // decision-chain vocabulary: "auto:*" | "human:*"
+
 // Human gate for the offer: approving a drafted offer EXTENDS it to the candidate
 // with a secure accept/decline link, rather than bare-advancing to Hired. The
 // Hired move happens only when the candidate accepts (see /api/offer/[token]).
-async function extendOffer(request: NextRequest, entry: PipelineEntry, bodyTtlDays?: unknown) {
+async function extendOffer(request: NextRequest, entry: PipelineEntry, bodyTtlDays?: unknown, sealActor = "human:recruiter") {
   let draft: { subject?: unknown; body?: unknown; recommended?: unknown; currency?: unknown; ttlDays?: unknown } = {};
   try {
     draft = entry.approvalDetail ? JSON.parse(entry.approvalDetail) : {};
@@ -56,7 +68,7 @@ async function extendOffer(request: NextRequest, entry: PipelineEntry, bodyTtlDa
   if (created) {
     sealDecisionSafe({
       kind: "offer_terms",
-      actor: "human:recruiter",
+      actor: sealActor,
       policyVersion: "offer",
       candidateRef: entry.id,
       rationale: `Offer extended: ${offer.salary ?? "—"} ${offer.currency ?? ""} for ${entry.jobTitle ?? "role"}.`,
@@ -79,7 +91,9 @@ async function extendOffer(request: NextRequest, entry: PipelineEntry, bodyTtlDa
 export async function POST(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params;
   try {
-    const body = (await request.json()) as { action?: string; detail?: string; expectedStage?: string; toStage?: string; github?: unknown; notes?: unknown; ttlDays?: unknown };
+    const body = (await request.json()) as { action?: string; detail?: string; expectedStage?: string; toStage?: string; github?: unknown; notes?: unknown; ttlDays?: unknown; actor?: unknown };
+    // See SIM_ACTOR above: an unrecognized/absent value stays "human" (real clicks).
+    const simActor = body.actor === SIM_ACTOR;
 
     // Manual recruiter stage override (set_stage): move a candidate backward, skip
     // a stage, or fix a miscategorization — the transitions accept/reject can't
@@ -224,14 +238,28 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
 
     // Approving a drafted offer extends it to the candidate (not a bare Hire click).
     if (action === "accept" && current.stage === "Offer" && current.approvalKind === "offer_review") {
-      return await extendOffer(request, current, body.ttlDays);
+      return await extendOffer(request, current, body.ttlDays, simActor ? SIM_SEAL_ACTOR : "human:recruiter");
+    }
+
+    // Hired is terminal and OUTCOME-bearing (same rule as the set_stage guard
+    // above): it is reached only when the CANDIDATE accepts an extended offer
+    // (/api/offer/[token] → offer-finalize), which records the offer, the
+    // acceptance, and fires onboarding. A bare accept on an Offer-stage entry
+    // used to fall through to the generic one-stage advance — a "hire" with no
+    // offer record and no candidate consent (gsim-l2-102). Refuse it here; the
+    // legitimate accept at Offer is the offer_review approval handled above.
+    if (action === "accept" && current.stage === "Offer") {
+      return NextResponse.json(
+        { error: "Hired is set when the candidate accepts an offer, not by advancing them. Draft and extend an offer instead." },
+        { status: 422 }
+      );
     }
 
     const updated = actOnPipelineEntry(
       id,
       action,
       typeof body.detail === "string" ? body.detail : undefined,
-      expectedStage ? { expectedStage } : undefined
+      { ...(expectedStage ? { expectedStage } : {}), actor: simActor ? "system" : "human" }
     );
     if (!updated) {
       // The pre-check passed but the guarded write refused — a concurrent actor
@@ -248,12 +276,16 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     // empty. Mirror the reinstate seal; best-effort (sealDecisionSafe never throws).
     if (action === "accept" || action === "reject") {
       const detail = typeof body.detail === "string" ? body.detail.trim() : "";
+      // The seal names WHO acted (gsim-l2-103): a declared programmatic caller is
+      // recorded as the engine ("auto:sim" + auto_* event kind via the actor opt
+      // above), never as "human:recruiter" — the audit chain must tell the truth
+      // about machine actions even inside a demo.
       sealDecisionSafe({
-        kind: action === "reject" ? "rejected" : "advanced",
-        actor: "human:recruiter",
+        kind: action === "reject" ? (simActor ? "auto_rejected" : "rejected") : simActor ? "auto_advanced" : "advanced",
+        actor: simActor ? SIM_SEAL_ACTOR : "human:recruiter",
         policyVersion: "manual",
         candidateRef: id,
-        rationale: detail || `Recruiter ${action} from ${current.stage}.`,
+        rationale: detail || `${simActor ? "Guided simulation" : "Recruiter"} ${action} from ${current.stage}.`,
         reasonCode: action,
         inputs: { fromStage: current.stage, detail: detail || null },
       });

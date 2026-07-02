@@ -3,8 +3,18 @@ import { MOMENTUM_EVENT_KINDS, MOMENTUM_WEEKS, weeklyMomentum, type MomentumWeek
 import { summarizeAutomationImpact, type AutomationImpact } from "../decision-attribution";
 import { automationRoi, type AutomationRoi } from "../automation-roi";
 import { FUNNEL_STAGES, hasAdvancedPastScreening, type FunnelStage } from "../pipeline-stages";
+import { SIM_TITLE_LIKE } from "@/app/features/simulation/constants";
 import { ensureDb } from "./core";
 import { listChannelSpend } from "./channels";
+
+// gsim-l2-105 / REC-11 — live aggregates must not count guided-demo residue: the
+// simulation writes REAL pipeline rows and events whose job_title carries the
+// (SIM) marker (the same single-sourced key resetSim purges by). Every cohort and
+// event query in pipelineAnalytics excludes them, so a demo run can never move a
+// leadership metric ("hired this week", funnel, ROI, cost-per-hire). NULL-safe on
+// purpose: entries/events without a job title are real data and are kept. The
+// sim's own reads go through listPipeline / the board, which stay unfiltered.
+const notSim = (col = "job_title") => `(${col} IS NULL OR ${col} NOT LIKE ?)`;
 
 // E5 — pure funnel-economics rules (median math, the 72h variant pause
 // heuristic); fed below by pipelineAnalytics with the windowed rows.
@@ -132,10 +142,10 @@ export function pipelineAnalytics(
     cutoffIso
       ? upperIso
         ? db
-            .prepare(`SELECT ${ROW_COLUMNS} FROM pipeline_entries WHERE created_at >= ? AND created_at < ?`)
-            .all(cutoffIso, upperIso)
-        : db.prepare(`SELECT ${ROW_COLUMNS} FROM pipeline_entries WHERE created_at >= ?`).all(cutoffIso)
-      : db.prepare(`SELECT ${ROW_COLUMNS} FROM pipeline_entries`).all()
+            .prepare(`SELECT ${ROW_COLUMNS} FROM pipeline_entries WHERE created_at >= ? AND created_at < ? AND ${notSim()}`)
+            .all(cutoffIso, upperIso, SIM_TITLE_LIKE)
+        : db.prepare(`SELECT ${ROW_COLUMNS} FROM pipeline_entries WHERE created_at >= ? AND ${notSim()}`).all(cutoffIso, SIM_TITLE_LIKE)
+      : db.prepare(`SELECT ${ROW_COLUMNS} FROM pipeline_entries WHERE ${notSim()}`).all(SIM_TITLE_LIKE)
   ) as {
     job_id: string | null;
     job_title: string | null;
@@ -231,9 +241,9 @@ export function pipelineAnalytics(
   const koRows = (
     cutoffIso
       ? db
-          .prepare(`SELECT job_title, COUNT(*) AS n FROM pipeline_events WHERE kind='ko_declined' AND created_at >= ? GROUP BY job_title`)
-          .all(cutoffIso)
-      : db.prepare(`SELECT job_title, COUNT(*) AS n FROM pipeline_events WHERE kind='ko_declined' GROUP BY job_title`).all()
+          .prepare(`SELECT job_title, COUNT(*) AS n FROM pipeline_events WHERE kind='ko_declined' AND created_at >= ? AND ${notSim()} GROUP BY job_title`)
+          .all(cutoffIso, SIM_TITLE_LIKE)
+      : db.prepare(`SELECT job_title, COUNT(*) AS n FROM pipeline_events WHERE kind='ko_declined' AND ${notSim()} GROUP BY job_title`).all(SIM_TITLE_LIKE)
   ) as { job_title: string | null; n: number }[];
   const koByJob = new Map(koRows.map((r) => [r.job_title ?? "—", r.n]));
   const koDeclined = koRows.reduce((s, r) => s + r.n, 0);
@@ -287,9 +297,9 @@ export function pipelineAnalytics(
   const momentumRows = db
     .prepare(
       `SELECT kind, to_stage, created_at FROM pipeline_events
-        WHERE created_at >= ? AND kind IN ${momentumKindList}`
+        WHERE created_at >= ? AND kind IN ${momentumKindList} AND ${notSim()}`
     )
-    .all(momentumCutoff) as { kind: string; to_stage: string | null; created_at: string }[];
+    .all(momentumCutoff, SIM_TITLE_LIKE) as { kind: string; to_stage: string | null; created_at: string }[];
   const momentum = weeklyMomentum(
     momentumRows.map((r) => ({ kind: r.kind, toStage: r.to_stage, createdAt: r.created_at })),
     { weeks: momentumWeeks }
@@ -301,8 +311,8 @@ export function pipelineAnalytics(
   // (advance / reject / auto-reject) landed AFTER its first in-window hold.
   const kindCountRows = (
     cutoffIso
-      ? db.prepare(`SELECT kind, COUNT(*) AS c FROM pipeline_events WHERE created_at >= ? GROUP BY kind`).all(cutoffIso)
-      : db.prepare(`SELECT kind, COUNT(*) AS c FROM pipeline_events GROUP BY kind`).all()
+      ? db.prepare(`SELECT kind, COUNT(*) AS c FROM pipeline_events WHERE created_at >= ? AND ${notSim()} GROUP BY kind`).all(cutoffIso, SIM_TITLE_LIKE)
+      : db.prepare(`SELECT kind, COUNT(*) AS c FROM pipeline_events WHERE ${notSim()} GROUP BY kind`).all(SIM_TITLE_LIKE)
   ) as { kind: string; c: number }[];
   const kindCounts = Object.fromEntries(kindCountRows.map((r) => [r.kind, r.c]));
   const holdRow = db
@@ -317,12 +327,12 @@ export function pipelineAnalytics(
          FROM (
            SELECT entry_id, MIN(created_at) AS first_hold
              FROM pipeline_events
-            WHERE kind = 'screening_hold' AND entry_id IS NOT NULL
+            WHERE kind = 'screening_hold' AND entry_id IS NOT NULL AND ${notSim()}
               ${cutoffIso ? "AND created_at >= ?" : ""}
             GROUP BY entry_id
          ) h`
     )
-    .get(...(cutoffIso ? [cutoffIso] : [])) as { raised: number; resolved: number | null };
+    .get(SIM_TITLE_LIKE, ...(cutoffIso ? [cutoffIso] : [])) as { raised: number; resolved: number | null };
   const automation = summarizeAutomationImpact(kindCounts, {
     raised: holdRow.raised,
     resolved: holdRow.resolved ?? 0,
@@ -341,18 +351,19 @@ export function pipelineAnalytics(
                JOIN (SELECT entry_id, kind FROM pipeline_events
                       WHERE id IN (SELECT MIN(id) FROM pipeline_events WHERE entry_id IS NOT NULL GROUP BY entry_id)
                     ) fe ON fe.entry_id = p.id
-              WHERE p.created_at >= ?`
+              WHERE p.created_at >= ? AND ${notSim("p.job_title")}`
           )
-          .all(cutoffIso)
+          .all(cutoffIso, SIM_TITLE_LIKE)
       : db
           .prepare(
             `SELECT p.stage AS stage, fe.kind AS kind
                FROM pipeline_entries p
                JOIN (SELECT entry_id, kind FROM pipeline_events
                       WHERE id IN (SELECT MIN(id) FROM pipeline_events WHERE entry_id IS NOT NULL GROUP BY entry_id)
-                    ) fe ON fe.entry_id = p.id`
+                    ) fe ON fe.entry_id = p.id
+              WHERE ${notSim("p.job_title")}`
           )
-          .all()
+          .all(SIM_TITLE_LIKE)
   ) as { stage: string; kind: string }[];
   const originOf = (kind: string): string =>
     kind === "applied" ? "applied" : kind === "matched" ? "matched" : kind === "added" || kind === "intake_degraded" ? "added" : "other";
@@ -397,10 +408,10 @@ export function pipelineAnalytics(
          FROM pipeline_entries p
          JOIN pipeline_events e
            ON e.entry_id = p.id AND e.kind IN ('advanced', 'auto_advanced', 'rejected', 'auto_rejected')
-        WHERE p.source_channel IS NOT NULL ${cutoffIso ? "AND p.created_at >= ?" : ""}
+        WHERE p.source_channel IS NOT NULL AND ${notSim("p.job_title")} ${cutoffIso ? "AND p.created_at >= ?" : ""}
         GROUP BY p.id`
     )
-    .all(...(cutoffIso ? [cutoffIso] : [])) as { channel: string; created: string | null; decided: string }[];
+    .all(SIM_TITLE_LIKE, ...(cutoffIso ? [cutoffIso] : [])) as { channel: string; created: string | null; decided: string }[];
   const decisionMsByChannel = new Map<string, number[]>();
   for (const r of decisionRows) {
     if (!r.created) continue;

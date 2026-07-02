@@ -89,6 +89,40 @@ test("accept advances exactly one stage along the canonical axis and Hired is a 
   assert.deepEqual(advanced.map((e) => e.toStage), ["Interview", "Offer", "Hired"]);
 });
 
+test("accepting a screening_review advances exactly ONE stage and opens the calendar gate — never a double-advance (gsim-l2-101)", () => {
+  // The guided sim crashed at the Interview→Offer seam because a bare advance
+  // was stacked ON TOP of the screening_review accept: the accept itself IS the
+  // advance (one stage + the calendar gate). Pin that composition here so the
+  // store's contract — one accept, one stage — can't silently regress.
+  const entry = addEntry(); // Screened
+  setApproval(entry.id, "screening_review", JSON.stringify({ recommendation: "advance" }));
+
+  const next = actOnPipelineEntry(entry.id, "accept", undefined, { actor: "system" });
+  assert.equal(next!.stage, "Interview", "a screening accept moves exactly one stage (Screened → Interview)");
+  assert.equal(next!.approvalKind, "calendar", "the interview scheduling gate opens in the same step");
+
+  // Exactly ONE advance event was written, and it is attributed to the ENGINE
+  // (actor "system" → auto_advanced), never to a human (gsim-l2-103).
+  const advances = listPipelineEventsForEntry(entry.id).filter((e) => e.kind === "advanced" || e.kind === "auto_advanced");
+  assert.equal(advances.length, 1, "one accept = one stage advance, no double-advance");
+  assert.equal(advances[0].kind, "auto_advanced", "an engine-driven accept must not read as a human decision");
+  assert.equal(advances[0].toStage, "Interview");
+
+  // The same accept WITHOUT the actor opt (a real recruiter click) records the
+  // human kind — attribution is truthful in both directions.
+  const clicked = addEntry();
+  setApproval(clicked.id, "screening_review", JSON.stringify({ recommendation: "advance" }));
+  const moved = actOnPipelineEntry(clicked.id, "accept");
+  assert.equal(moved!.stage, "Interview");
+  assert.deepEqual(
+    listPipelineEventsForEntry(clicked.id)
+      .filter((e) => e.kind === "advanced" || e.kind === "auto_advanced")
+      .map((e) => e.kind),
+    ["advanced"],
+    "a human accept stays a human advance"
+  );
+});
+
 test("the expectedStage CAS skips a stale decision instead of applying it to the wrong stage", () => {
   const entry = addEntry();
   const skipped = actOnPipelineEntry(entry.id, "accept", undefined, { expectedStage: "Offer" });

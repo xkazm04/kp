@@ -427,9 +427,14 @@ export function DecisionsTab() {
                 >
                   <span className="font-semibold text-ink">{item.candidateLabel}</span>
                   {item.jobTitle ? <span className="text-steel">· {item.jobTitle}</span> : null}
+                  {/* SD-L2-001 — the safety valve must tell a never-measured candidate
+                      apart from a genuine low scorer: an absent score is flagged
+                      "unscored", never rendered blank (or worse, as 0). */}
                   {item.matchScore != null ? (
                     <span className="text-stone-400">· {t("reconsiderMatch", { score: item.matchScore })}</span>
-                  ) : null}
+                  ) : (
+                    <span className="text-stone-400">· {t("reconsiderUnscored")}</span>
+                  )}
                   {item.rejectedAt ? (
                     <span className="text-stone-400">· {t("reconsiderRejected", { date: fmtDate(item.rejectedAt) })}</span>
                   ) : null}

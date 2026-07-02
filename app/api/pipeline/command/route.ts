@@ -3,6 +3,7 @@ import { actOnPipelineEntry, listPipeline, recordAutomationEvent, type PipelineE
 import { runAutomationPass } from "@/app/_lib/automation-pass";
 import { dispatchRejection } from "@/app/_lib/comms-dispatch";
 import { describeCommand, isMutating, parseCommand, type ParsedCommand } from "@/app/_lib/pipeline-command";
+import { compareByMatchScoreDesc } from "@/app/_lib/match-score";
 import { safeJsonError } from "@/app/_lib/api-response";
 
 export const runtime = "nodejs";
@@ -26,9 +27,12 @@ function affected(cmd: ParsedCommand): PipelineEntry[] {
     );
   }
   if (cmd.kind === "advance_top") {
+    // "Top N" is meaningful only over measured candidates: the filter excludes
+    // unscored entries (fail closed — same null-score policy as the screen wave),
+    // and the shared comparator ranks without ever fabricating a 0.
     return [...active]
       .filter((e) => e.matchScore != null && e.stage !== "Hired")
-      .sort((a, b) => (b.matchScore ?? 0) - (a.matchScore ?? 0))
+      .sort(compareByMatchScoreDesc)
       .slice(0, cmd.count);
   }
   return [];

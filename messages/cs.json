@@ -545,7 +545,7 @@
   "aiDisclosure": {
     "title": "Jak to funguje",
     "body": "K asistenci při screeningu a pohovorech používáme umělou inteligenci — posuzujeme vaše <highlight>dovednosti, zkušenosti a vhodnost</highlight> pro danou roli. Každé rozhodnutí o postupu, nabídce či zamítnutí přezkoumává a činí člověk; nic nepříznivého se nerozhoduje automaticky. Kdykoli můžete požádat o přezkoumání člověkem.",
-    "dataConsent": "Odesláním souhlasíte, že můžeme zpracovávat vaše osobní údaje pro tuto pozici po dobu až 12 měsíců. Své údaje můžete kdykoli zkontrolovat nebo požádat o jejich výmaz přes odkaz v našich e-mailech.",
+    "dataConsent": "Odesláním souhlasíte, že můžeme zpracovávat vaše osobní údaje pro tuto pozici po dobu až {months, plural, one {# měsíc} few {# měsíce} other {# měsíců}}. Své údaje můžete kdykoli zkontrolovat nebo požádat o jejich výmaz přes odkaz v našich e-mailech.",
     "regimeNote": "Posuzováno podle {framework}; vaše osobní údaje zpracováváme podle {dataLaw}."
   },
   "errors": {
@@ -1375,6 +1375,7 @@
     "reconsiderTitle": "Znovu zvážit automaticky odmítnuté · {count}",
     "reconsiderHelp": "Hraniční automatická odmítnutí můžete vrátit zpět do fáze Screening k novému posouzení. Kandidát už byl vyrozuměn, takže ho po obnovení kontaktujte.",
     "reconsiderMatch": "shoda {score}",
+    "reconsiderUnscored": "bez skóre — shoda nezměřena",
     "reconsiderRejected": "odmítnuto {date}",
     "reinstate": "Obnovit",
     "reinstating": "Obnovuji…",
@@ -1455,7 +1456,7 @@
       "covered2": "Každé rozhodnutí je zapečetěno do auditního záznamu odolného proti manipulaci.",
       "covered3": "Kandidáti vidí informaci o použití AI a mohou kdykoli požádat o přezkoumání člověkem.",
       "covered4": "Kandidáti na začátku kariéry a nezařazení jsou chráněni před automatickým zamítnutím (fail-closed).",
-      "covered5": "Osobní údaje jsou zpracovávány podle {dataLaw} s dobou uchování 12 měsíců a samoobslužným výmazem.",
+      "covered5": "Osobní údaje jsou zpracovávány podle {dataLaw} s dobou uchování {months, plural, one {# měsíc} few {# měsíce} other {# měsíců}} a samoobslužným výmazem.",
       "ceiling1": "Zákonné sledování nepříznivého dopadu na chráněné skupiny ({standard}) neprobíhá automaticky — vyžaduje agregovaná demografická data, která tato platforma záměrně neshromažďuje.",
       "ceiling2": "Brána spravedlnosti pro automatické zamítnutí je štít podle archetypu (fáze kariéry), nikoli test chráněných skupin.",
       "aiCheckTitle": "Kontrola nepříznivého dopadu (pravidlo čtyř pětin)",
@@ -1510,7 +1511,8 @@
         "rejectWould": "Automaticky by zamítl · spodních {pct} % z {n} → {count} (pořadí {rank}) a shoda {score} < práh {threshold}.",
         "rejectDid": "Automaticky zamítnuto · spodních {pct} % z {n} → {count} (pořadí {rank}) a shoda {score} < práh {threshold}.",
         "tieAdjustedNote": "(upraveno kvůli shodě z {from}, aby se stejná skóre nerozdělila)",
-        "staleSkipped": "Přeskočeno — fáze se během vlny změnila (byla {wasStage}); ponecháno beze změny."
+        "staleSkipped": "Přeskočeno — fáze se během vlny změnila (byla {wasStage}); ponecháno beze změny.",
+        "unscored": "bez skóre — shoda zatím nezměřena; vyloučeno z automatického zamítání (nejprve ohodnotit)"
       }
     },
     "summary": {

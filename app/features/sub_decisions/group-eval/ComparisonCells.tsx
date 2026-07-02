@@ -17,8 +17,9 @@ export const Dash = () => <span className="text-stone-300">—</span>;
 export function FitCell({ c }: { c: EvalCandidate }) {
   return (
     <div className="flex items-center gap-2">
+      {/* Unscored renders a dash in the neutral null tone — never a 0. */}
       <span className="font-serif text-[26px] leading-none tabular-nums" style={{ color: scoreToneColor(scoreTone(c.score)) }}>
-        {c.score}
+        {c.score ?? "—"}
       </span>
       <FitTierBadge tier={c.fitTier} score={c.score} />
     </div>
