@@ -197,12 +197,14 @@ export function ScheduleTab() {
   // Exit variant resolved per-removal from AnimatePresence's `custom`: confirm
   // washes moss and slides right (advances); decline washes coral and slides left
   // (sent back). Collapses to a plain fade under the OS "reduce motion" setting.
+  // Colors resolve through the brand tokens (coral/moss re-skin under Spark
+  // Dark); color-mix keeps the 8% wash on whatever the theme resolves them to.
   const cardExit = (dir: "confirm" | "decline"): TargetAndTransition =>
     reduced
       ? { opacity: 0, transition: { duration: 0.12 } }
       : dir === "decline"
-        ? { opacity: 0, x: -36, backgroundColor: "rgba(214,90,74,0.08)", borderColor: "#d65a4a", transition: { duration: 0.22, ease: "easeIn" } }
-        : { opacity: 0, x: 36, backgroundColor: "rgba(82,107,79,0.08)", borderColor: "#526b4f", transition: { duration: 0.22, ease: "easeIn" } };
+        ? { opacity: 0, x: -36, backgroundColor: "color-mix(in srgb, var(--color-coral) 8%, transparent)", borderColor: "var(--color-coral)", transition: { duration: 0.22, ease: "easeIn" } }
+        : { opacity: 0, x: 36, backgroundColor: "color-mix(in srgb, var(--color-moss) 8%, transparent)", borderColor: "var(--color-moss)", transition: { duration: 0.22, ease: "easeIn" } };
 
   return (
     <div data-sim="schedule" className="space-y-6">
