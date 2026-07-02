@@ -7,6 +7,13 @@ import path from "path";
 import { expect, test, type Page } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import { stubGithubAnalysis } from "./fixtures/github-analysis";
+import { seedDevAuth } from "./dev-auth";
+
+// The workspace only renders at '/' for a dev-signed-in visitor (HomeGate);
+// seed the flag before each test or the landing swallows every locator.
+test.beforeEach(async ({ page }) => {
+  await seedDevAuth(page);
+});
 
 const sampleCv = path.join(process.cwd(), "samples", "sample-cv.txt");
 const hasGeminiKey = Boolean(process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY);

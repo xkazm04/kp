@@ -9,6 +9,13 @@
 // Decisions header (no LLM key, no seeded data needed), so the whole file is
 // deterministic and runs without GEMINI_API_KEY — unlike analyze-smoke.spec.ts.
 import { expect, test, type Page } from "@playwright/test";
+import { seedDevAuth } from "./dev-auth";
+
+// The workspace only renders at '/' for a dev-signed-in visitor (HomeGate);
+// seed the flag before each test or the landing swallows every locator.
+test.beforeEach(async ({ page }) => {
+  await seedDevAuth(page);
+});
 
 // Open the Decision-rules modal. The Decisions tab is a client component, so the
 // "Rules" button can paint a tick before React wires its onClick (the same

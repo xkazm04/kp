@@ -25,6 +25,13 @@
 //                      + study detail 1 + project/thesis 2 + activity 1 (total 9)
 //                      → all but the activity = 8/9 = round(0.888…) = 0.89 = 89%.
 import { expect, test, type Page } from "@playwright/test";
+import { seedDevAuth } from "./dev-auth";
+
+// The workspace only renders at '/' for a dev-signed-in visitor (HomeGate);
+// seed the flag before each test or the landing swallows every locator.
+test.beforeEach(async ({ page }) => {
+  await seedDevAuth(page);
+});
 
 type BuildResponse = {
   archetype: string;
@@ -95,9 +102,12 @@ test.describe("Profile builder — archetype routing + completeness", () => {
     // education / languages / seniority are no longer auto-seeded (idea-fa7d5360),
     // so fill them explicitly — they are the education_known / has_languages /
     // has_seniority checks that take this intake to 100%.
-    await page.getByLabel("Education level", { exact: true }).selectOption("master");
+    // Selects (Pick) sit inside a wrapping <label> whose text includes every
+    // <option>, which defeats getByLabel's label-text match — target them by
+    // accessible name instead (the accname algorithm skips the embedded widget).
+    await page.getByRole("combobox", { name: "Education level", exact: true }).selectOption("master");
     await page.getByLabel("Languages", { exact: true }).fill("Czech, English");
-    await page.getByLabel("Seniority", { exact: true }).selectOption("senior");
+    await page.getByRole("combobox", { name: "Seniority", exact: true }).selectOption("senior");
     await page.getByLabel("Years of experience", { exact: true }).fill("6");
     await fillSkills(page, ["TypeScript", "React", "SQL"]);
     await fillEvidence(page, "job", "Senior Engineer at Acme (2019–2024)");
@@ -135,7 +145,8 @@ test.describe("Profile builder — archetype routing + completeness", () => {
     await page.getByLabel("Name", { exact: true }).fill("E2E Student Candidate");
     // education + languages are no longer auto-seeded (idea-fa7d5360); fill them so
     // the only remaining gap is the missing activity (→ 8/9 = 89%).
-    await page.getByLabel("Education level", { exact: true }).selectOption("bachelor");
+    // Role-based for the same wrapping-<label> reason as the experienced intake.
+    await page.getByRole("combobox", { name: "Education level", exact: true }).selectOption("bachelor");
     await page.getByLabel("Languages", { exact: true }).fill("Czech, English");
     await page.getByLabel("Aspirations / target roles", { exact: true }).fill("Junior frontend developer");
     await page.getByLabel("Study programme & specialisation", { exact: true }).fill("CS, ČVUT FEL — focus on ML");
@@ -145,7 +156,9 @@ test.describe("Profile builder — archetype routing + completeness", () => {
     await fillEvidence(page, "project", "Bachelor thesis: a React recommender app");
 
     await page.getByRole("button", { name: "Check (preview)" }).click();
-    await expect(page.locator("span.rounded-full.bg-ink", { hasText: "Student / early-career" })).toBeVisible();
+    // The pill shows the short archetype label ("Student"); the full
+    // "Student / early-career" phrasing is asserted on the routing line below.
+    await expect(page.locator("span.rounded-full.bg-ink", { hasText: "Student" })).toBeVisible();
     await expect(page.getByText("self-declared: Student / early-career")).toBeVisible();
     await expect(page.getByRole("progressbar", { name: "Profile completeness 89%" })).toBeVisible();
     await expect(page.getByText("an internship, activity, or certification")).toBeVisible();
