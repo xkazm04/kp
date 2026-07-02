@@ -748,8 +748,13 @@ export function PipelineTab() {
       {moveError ? (
         <p role="alert" className="flex items-center justify-between gap-3 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
           <span>{moveError}</span>
-          <button type="button" onClick={() => setMoveError(null)} className="focus-ring shrink-0 font-semibold hover:underline">
-            ✕
+          <button
+            type="button"
+            onClick={() => setMoveError(null)}
+            aria-label={t("moveErrorDismiss")}
+            className="focus-ring shrink-0 rounded p-0.5 hover:opacity-70"
+          >
+            <X size={14} aria-hidden />
           </button>
         </p>
       ) : null}

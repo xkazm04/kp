@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { CalendarClock, CalendarPlus, Check } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
+import { toast } from "@/app/_components/toast-store";
 import { buildIcs, downloadFile } from "@/app/_lib/export-utils";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { useSlotLabel } from "@/app/_lib/use-slot-label";
@@ -108,7 +109,11 @@ export function SchedulePicker({ token }: { token: string }) {
                 setSlots(nd.slots ?? []);
               }
             })
-            .catch(() => {});
+            // The booking itself succeeded — only the follow-up refresh failed, so
+            // a toast (not the page-level error state) is the right weight.
+            .catch(() => {
+              toast.error(t("slotsRefreshFailed"));
+            });
         }
       } else {
         setError(errMsg(d, t("confirmFailed")));
@@ -122,7 +127,11 @@ export function SchedulePicker({ token }: { token: string }) {
                 setNoSlots(Boolean(nd.noSlots));
               }
             })
-            .catch(() => {});
+            // The 409 error is already on screen; this only means the stale slot
+            // list couldn't be refreshed — tell the candidate to reload.
+            .catch(() => {
+              toast.error(t("slotsRefreshFailed"));
+            });
         }
       }
     } catch {
@@ -182,6 +191,10 @@ export function SchedulePicker({ token }: { token: string }) {
         setSlots(nd.slots ?? []);
         setNoSlots(Boolean(nd.noSlots));
         setCanReschedule(Boolean(nd.canReschedule));
+      } else {
+        // The cancel went through (the notice above says so) but the fresh slot
+        // pool didn't load — surface it instead of showing an empty grid silently.
+        toast.error(t("slotsRefreshFailed"));
       }
     } catch {
       setError(t("confirmFailed"));

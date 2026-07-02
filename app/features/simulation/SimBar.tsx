@@ -146,14 +146,17 @@ export function SimBar() {
           </ol>
         </div>
 
-        {/* Row 2 — status + demo controls */}
-        <div className="mx-auto mt-1.5 flex max-w-[1500px] items-center gap-x-3">
-          <p className="min-w-0 flex-1 truncate text-sm">
+        {/* Row 2 — status + demo controls. Wraps like row 1's stepper: the status
+            line keeps a readable floor (min-w-40) so on narrow viewports the
+            control cluster drops to its own line (and wraps internally) instead
+            of overflowing the bar horizontally. */}
+        <div className="mx-auto mt-1.5 flex max-w-[1500px] flex-wrap items-center gap-x-3 gap-y-1">
+          <p className="min-w-40 flex-1 truncate text-sm">
             <span className={sim.error ? "font-medium text-red-600" : "text-ink"}>{sim.status}</span>
             {last && last !== sim.status ? <span className="text-steel"> · {last}</span> : null}
           </p>
 
-          <div className="flex shrink-0 items-center gap-1.5">
+          <div className="flex min-w-0 flex-wrap items-center gap-1.5">
             {primary}
             {sim.running ? (
               <button type="button" onClick={sim.stop} className={`${ctrlBtn} border border-stone-200 px-2.5 text-coral hover:bg-coral/5`}>

@@ -232,6 +232,7 @@ def _extract(text: str, lang: str = "en") -> dict[str, Any]:
         max_output_tokens=4000,
         parse_json=True,
         expected_keys=tuple(DRAFT_SCHEMA.keys()),
+        use_case="profile_draft",
     )
     if not answer.payload:
         raise RuntimeError("AI returned no structured draft. Try adding more detail to the notes.")

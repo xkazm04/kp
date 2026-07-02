@@ -3,6 +3,7 @@ import { Bricolage_Grotesque, Fraunces, Inter } from "next/font/google";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages, getTranslations } from "next-intl/server";
 import { DevInspector } from "./_dev-inspector/DevInspector";
+import { Toaster } from "./_components/Toast";
 import "./globals.css";
 
 // SHELL5 — `latin-ext` carries the Czech diacritics (ě š č ř ž ů, all over
@@ -140,6 +141,10 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT }} />
         <NextIntlClientProvider locale={locale} messages={messages}>
           {children}
+          {/* Feedback layer — one portal stack for the whole app (workspace AND
+              the public token pages), inside the intl provider so the dismiss
+              label localizes. See app/_components/Toast.tsx. */}
+          <Toaster />
         </NextIntlClientProvider>
         {process.env.NODE_ENV === "development" && <DevInspector />}
       </body>

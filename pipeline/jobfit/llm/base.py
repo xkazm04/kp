@@ -40,7 +40,7 @@ _MAX_ATTEMPTS = 3
 # Coverage contract: EVERY model the registry can route to by default —
 # capabilities.DEFAULT_MODELS ∪ USE_CASE_MODEL_OVERRIDES — must prefix-match a row
 # here, or that provider's traffic silently escapes cost accounting (cost_usd=None).
-# test_llm_pricing.py asserts this. Prefix match means a dated/suffixed variant
+# test_llm_base.py asserts this. Prefix match means a dated/suffixed variant
 # (e.g. "claude-haiku-4-5-20251001") inherits its family's price.
 #
 # NOTE on the non-Anthropic rows: these are LOCAL ESTIMATES (flash/mini tier list

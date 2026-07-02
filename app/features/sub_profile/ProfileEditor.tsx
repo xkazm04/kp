@@ -15,6 +15,7 @@ import { ProfileEvidenceColumn } from "./ProfileEvidenceColumn";
 import { ResultPanel } from "./ProfileResultPanel";
 import { hydrate, SKILL_FALLBACK, EVIDENCE_FALLBACK, archetypeFieldVisibility, archetypeScopedProfileFields } from "./ProfileForm";
 import { SegmentedControl } from "@/app/_components/SegmentedControl";
+import { toast } from "@/app/_components/toast-store";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { splitList } from "@/app/_lib/split-list";
 
@@ -211,6 +212,9 @@ export function ProfileEditor({
       setResult(payload as BuildResult);
       if (persist) {
         const savedId = (payload.saved as { id?: string } | null)?.id ?? editingId ?? "";
+        // onSaved navigates back to the profile list, which used to swallow the
+        // confirmation — the toast outlives this component (module-level store).
+        toast.success(t("savedToast"));
         onSaved(savedId);
       }
     } catch (caught) {

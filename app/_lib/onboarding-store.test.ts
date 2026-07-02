@@ -1,0 +1,115 @@
+// Behavioral coverage for onboarding-store.ts against an ISOLATED throwaway DB
+// (testing/unit-db.ts must stay the first project import). Pins the run/step
+// state machine: one run per hire, checklist completion auto-closes and
+// re-opens the run, intake values are bounded, the pre-boarding nudge is due
+// exactly once, and the e-sign seam only signs a requested signature.
+import { test, after } from "node:test";
+import assert from "node:assert/strict";
+import { cleanupUnitDb } from "./testing/unit-db.ts";
+import {
+  duePreboardingReminders,
+  ensureDefaultTemplate,
+  getRunDetail,
+  listTemplates,
+  markPreboardingReminded,
+  markSigned,
+  requestSignature,
+  saveIntake,
+  setTaskDone,
+  startRun,
+} from "./onboarding-store.ts";
+import { DEFAULT_ONBOARDING_TASKS, DEFAULT_QUESTIONNAIRE } from "./onboarding.ts";
+
+after(() => cleanupUnitDb());
+
+const FUTURE = new Date(Date.now() + 60_000).toISOString();
+
+test("the default template is seeded exactly once and carries the default checklist + questionnaire", () => {
+  const id = ensureDefaultTemplate();
+  assert.equal(ensureDefaultTemplate(), id, "re-ensuring returns the same template");
+  const templates = listTemplates();
+  assert.equal(templates.length, 1);
+  assert.deepEqual(templates[0].tasks, DEFAULT_ONBOARDING_TASKS);
+  assert.deepEqual(templates[0].questionnaire, DEFAULT_QUESTIONNAIRE);
+});
+
+test("startRun is idempotent: one run per entry, the existing run comes back", () => {
+  const run = startRun({ entryId: "ob-entry-1", candidateLabel: "New Hire", jobTitle: "Role" });
+  assert.equal(run.status, "active");
+  const again = startRun({ entryId: "ob-entry-1" });
+  assert.equal(again.id, run.id);
+});
+
+test("checking the last task completes the run; unchecking re-opens it", () => {
+  const run = startRun({ entryId: "ob-entry-2" });
+  const tasks = getRunDetail(run.id)!.tasks;
+  assert.ok(tasks.length > 0);
+
+  // Check all but one — still active.
+  for (const task of tasks.slice(0, -1)) setTaskDone(run.id, task.id, true);
+  let detail = getRunDetail(run.id)!;
+  assert.equal(detail.run.status, "active");
+  assert.equal(detail.progress.complete, false);
+
+  // The final check flips the run to complete and stamps completed_at.
+  detail = setTaskDone(run.id, tasks[tasks.length - 1].id, true)!;
+  assert.equal(detail.run.status, "complete");
+  assert.ok(detail.run.completedAt);
+  assert.equal(detail.progress.pct, 100);
+
+  // Unchecking any task re-opens the run and clears the completion stamp.
+  detail = setTaskDone(run.id, tasks[0].id, false)!;
+  assert.equal(detail.run.status, "active");
+  assert.equal(detail.run.completedAt, null);
+
+  // Unknown run → null, never a phantom row.
+  assert.equal(setTaskDone("obr-nope", tasks[0].id, true), null);
+});
+
+test("saveIntake keeps only non-blank string answers and bounds every value", () => {
+  const run = startRun({ entryId: "ob-entry-3" });
+  const detail = saveIntake(run.id, {
+    preferredName: "  Alex  ",
+    tshirtSize: "",
+    dietaryNeeds: 42 as unknown as string,
+    equipmentPrefs: "x".repeat(2000),
+  })!;
+  assert.equal(detail.intake!.preferredName, "Alex", "values are trimmed");
+  assert.equal("tshirtSize" in detail.intake!, false, "blank answers are dropped");
+  assert.equal("dietaryNeeds" in detail.intake!, false, "non-string answers are dropped");
+  assert.equal(detail.intake!.equipmentPrefs.length, 500, "oversize values are bounded");
+  assert.equal(saveIntake("obr-nope", {}), null);
+});
+
+test("the pre-boarding nudge is due only for active, unsubmitted, un-reminded runs — and claims once", () => {
+  const run = startRun({ entryId: "ob-entry-4" });
+  const dueIds = () => new Set(duePreboardingReminders(FUTURE).map((r) => r.id));
+  assert.ok(dueIds().has(run.id), "a fresh run past the cutoff is due");
+
+  // The CAS claim flips exactly once and removes the run from the due set.
+  assert.equal(markPreboardingReminded(run.id), true);
+  assert.equal(markPreboardingReminded(run.id), false);
+  assert.ok(!dueIds().has(run.id));
+
+  // A submitted intake also removes eligibility (nothing left to nudge about).
+  const submitted = startRun({ entryId: "ob-entry-5" });
+  saveIntake(submitted.id, { preferredName: "Sam" });
+  assert.ok(!dueIds().has(submitted.id));
+});
+
+test("the e-sign seam: request → signed once, with signer recorded; unknown ids stay null", () => {
+  const run = startRun({ entryId: "ob-entry-6" });
+  const detail = requestSignature(run.id, "  Employment contract  ")!;
+  assert.equal(detail.signatures.length, 1);
+  const sig = detail.signatures[0];
+  assert.equal(sig.status, "requested");
+  assert.equal(sig.document, "Employment contract");
+
+  const signed = markSigned(sig.id, "New Hire")!;
+  assert.deepEqual(
+    signed.signatures.map((s) => ({ status: s.status, signer: s.signer })),
+    [{ status: "signed", signer: "New Hire" }]
+  );
+  assert.ok(signed.signatures[0].signedAt);
+  assert.equal(markSigned("obs-nope", "x"), null);
+});

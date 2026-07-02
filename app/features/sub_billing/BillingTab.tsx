@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { AlertTriangle, CheckCircle2, ExternalLink, Info, Timer } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { Badge, type BadgeTone } from "@/app/_components/Badge";
@@ -190,9 +191,22 @@ export function BillingTab() {
   // `hint` renders calm (steel) — the portal's 404 means "no billing customer
   // yet", a normal pre-first-purchase state, not a failure.
   const [portalNote, setPortalNote] = useState<{ text: string; hint: boolean } | null>(null);
-  // Post-checkout return state: "confirming" while we poll for the webhook to land
-  // the new plan, then "done". Null when this wasn't a checkout return.
-  const [checkout, setCheckout] = useState<"confirming" | "done" | null>(null);
+  // Post-checkout return: the provider redirected to /?tab=billing&billing=success.
+  // The flag is captured ONCE via lazy initial state (render-derived and sticky, so
+  // it survives the URL cleanup below) rather than a synchronous setState in the
+  // mount effect. `useSearchParams` reads the same value on the server and during
+  // hydration, so the "confirming" banner paints without a mismatch.
+  const searchParams = useSearchParams();
+  const [checkoutReturn] = useState(() => searchParams.get("billing") === "success");
+  // Flipped by the poll timers once the webhook has had time to land the new plan.
+  const [checkoutConfirmed, setCheckoutConfirmed] = useState(false);
+  // "confirming" while we re-poll the overview, then "done". Null when this
+  // wasn't a checkout return.
+  const checkout: "confirming" | "done" | null = checkoutReturn
+    ? checkoutConfirmed
+      ? "done"
+      : "confirming"
+    : null;
 
   // State updates only happen in the async callbacks (never synchronously in
   // the effect body); the retry button clears the failure flag in its event
@@ -210,25 +224,21 @@ export function BillingTab() {
     load();
   }, [load]);
 
-  // Post-checkout return: the provider redirected to /?tab=billing&billing=success.
-  // The old code generated that URL but consumed it nowhere, so a paid recruiter saw
-  // their OLD plan with no confirmation. Show a "confirming…" banner and re-poll the
-  // overview (the entitlement lands via the webhook a beat after redirect), then mark
-  // done and strip the flag so a refresh doesn't re-trigger. Runs once on mount.
+  // On a checkout return, re-poll the overview (the entitlement lands via the
+  // webhook a beat after redirect), mark done, and strip the flag so a refresh
+  // doesn't re-trigger. Runs once on mount; the banner itself is derived above.
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    const url = new URL(window.location.href);
-    if (url.searchParams.get("billing") !== "success") return;
-    setCheckout("confirming");
+    if (!checkoutReturn) return;
     const timers = [
       setTimeout(load, 2000),
       setTimeout(load, 5000),
-      setTimeout(() => setCheckout("done"), 5500),
+      setTimeout(() => setCheckoutConfirmed(true), 5500),
     ];
+    const url = new URL(window.location.href);
     url.searchParams.delete("billing");
     window.history.replaceState(null, "", url.toString());
     return () => timers.forEach(clearTimeout);
-  }, [load]);
+  }, [checkoutReturn, load]);
 
   // Catalog-key helpers with the app-wide has() fallback so an unknown enum
   // value (new meter, new provider status) renders labelized, never crashes.

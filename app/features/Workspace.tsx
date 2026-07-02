@@ -104,7 +104,9 @@ export function Workspace() {
       setMobileNavOpen(false); // a tab pick on mobile closes the drawer
       router.replace(buildTabSwitchUrl(id, search), { scroll: false });
     },
-    [router, search]
+    // setMobileNavOpen is identity-stable, but React Compiler's memoization
+    // check requires the declared deps to match what the body references.
+    [router, search, setMobileNavOpen]
   );
 
   // Close the mobile drawer on Escape (desktop rail is unaffected — it's never "open").

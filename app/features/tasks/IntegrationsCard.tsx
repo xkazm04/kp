@@ -1,12 +1,16 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { AlertTriangle, CheckCircle2, KeyRound, Plug, Send } from "lucide-react";
+import { AlertTriangle, KeyRound, Plug, Send } from "lucide-react";
+import { useTranslations } from "next-intl";
+import { toast } from "@/app/_components/toast-store";
 
 // P1-5 — the ATS/HRIS write-back panel. The only egress used to be a whole-DB JSON
 // dump ("not an integration, that's a backup" — Marcus #12). This configures a
 // signed outbound webhook + surfaces the per-candidate export endpoint. English-
-// only, matching the sibling operator cards (BackupCard / SystemCard) in this tab.
+// only, matching the sibling operator cards (BackupCard / SystemCard) in this tab —
+// except the toast messages, which route through the shared bilingual feedback
+// layer (the `integrations` catalog namespace).
 //
 // HONEST CEILING (stated in the UI): this is vendor-neutral egress, not a certified
 // Workday/Greenhouse/Lever connector. Point your connector or an iPaaS (Merge.dev,
@@ -22,12 +26,12 @@ const SUBSCRIBABLE = [
 type Config = { webhookUrl: string | null; events: string[]; hasSecret: boolean };
 
 export function IntegrationsCard() {
+  const t = useTranslations("integrations");
   const [url, setUrl] = useState("");
   const [secret, setSecret] = useState("");
   const [hasSecret, setHasSecret] = useState(false);
   const [events, setEvents] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
-  const [note, setNote] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [test, setTest] = useState<string | null>(null);
 
@@ -41,14 +45,17 @@ export function IntegrationsCard() {
           setHasSecret(!!d.config.hasSecret);
         }
       })
-      .catch(() => {});
-  }, []);
+      // A silently-empty form here is dangerous: saving it would overwrite the
+      // stored config with blanks. Say the load failed.
+      .catch(() => {
+        toast.error(t("configLoadFailed"));
+      });
+  }, [t]);
 
   const toggle = (id: string) => setEvents((cur) => (cur.includes(id) ? cur.filter((e) => e !== id) : [...cur, id]));
 
   const save = async () => {
     setBusy(true);
-    setNote(null);
     setError(null);
     try {
       // Only send webhookSecret when the operator typed a new one — an untouched
@@ -66,7 +73,7 @@ export function IntegrationsCard() {
       setEvents(d.config.events ?? []);
       setHasSecret(!!d.config.hasSecret);
       setSecret("");
-      setNote("Saved.");
+      toast.success(t("saved"));
     } catch (e) {
       setError(e instanceof Error ? e.message : "Save failed.");
     } finally {
@@ -167,11 +174,6 @@ export function IntegrationsCard() {
         >
           <Send size={13} /> Send test ping
         </button>
-        {note ? (
-          <span role="status" className="inline-flex items-center gap-1 text-sm text-moss">
-            <CheckCircle2 size={14} /> {note}
-          </span>
-        ) : null}
       </div>
 
       {test ? <p role="status" className="mt-2 text-sm text-steel">{test}</p> : null}

@@ -192,6 +192,56 @@ class GroundedAnswer:
 _MAX_GEMINI_ATTEMPTS = 3
 
 
+def _meter_success(use_case: str | None, usage: dict[str, int], duration_ms: int) -> None:
+    """Meter one successful Gemini-direct call through the shared monitor seam
+    (usage ledger + LightTrack). The wrapper adapters meter inside
+    llm.base.TextProvider.complete(); this direct path (multimodal/grounded
+    gemini.py) meters here so the flagship CV-analysis traffic stops escaping
+    the llm_usage ledger. Cost is stamped from the shared MTOK_PRICES table via
+    llm.base.price_usd — the same mechanism adapters/gemini_api.py uses, no
+    duplicated price rows. Fire-and-forget: metering must never break (or, via
+    the ``fallback`` path, silently degrade) the host call, and the monitor
+    itself writes the ledger only when KP_LLM_USAGE_LOG is set, so keyless /
+    offline runs are untouched."""
+    try:
+        from .llm import monitor
+        from .llm.base import price_usd
+
+        input_tokens = int(usage.get("prompt_tokens", 0) or 0)
+        output_tokens = int(usage.get("candidate_tokens", 0) or 0)
+        monitor.emit_result(
+            provider="gemini",
+            model=GEMINI_MODEL,
+            use_case=use_case,
+            usage={
+                "input_tokens": input_tokens,
+                "output_tokens": output_tokens,
+                "cached_tokens": int(usage.get("cached_tokens", 0) or 0),
+            },
+            cost_usd=price_usd(GEMINI_MODEL, input_tokens, output_tokens),
+            duration_ms=duration_ms,
+        )
+    except Exception:
+        pass  # metering must never break the host call
+
+
+def _meter_failure(use_case: str | None, error: Exception, duration_ms: int) -> None:
+    """Error-event counterpart of ``_meter_success`` (LightTrack only — the
+    durable ledger records spend, and a failed generate has no usage to bill)."""
+    try:
+        from .llm import monitor
+
+        monitor.emit_error(
+            provider="gemini",
+            model=GEMINI_MODEL,
+            use_case=use_case,
+            error=error,
+            duration_ms=duration_ms,
+        )
+    except Exception:
+        pass  # telemetry must never break the host call
+
+
 def _is_transient_error(exc: Exception) -> bool:
     """True for retryable Gemini failures (rate limit, 5xx, network timeout) — NOT
     auth / 4xx / bad-request, which are permanent and should fail fast."""
@@ -246,6 +296,7 @@ def grounded_answer(
     parse_json: bool = False,
     expected_keys: Sequence[str] = (),
     fallback: GroundedAnswer | None = None,
+    use_case: str | None = None,
 ) -> GroundedAnswer:
     """Single seam for every Gemini-backed feature.
 
@@ -253,6 +304,12 @@ def grounded_answer(
     optionally parses the response body as JSON. If ``fallback`` is provided
     any raised exception (network, auth, JSON parse) returns the fallback
     rather than propagating — used by callers that prefer silent degradation.
+
+    ``use_case`` labels the usage-ledger record for this call (cv_analysis /
+    profile_extract / grounded_salary / profile_draft). Each caller passes its
+    own label explicitly; a ``None`` line is dropped at ingest (use_case is a
+    NOT NULL ledger column), so an unlabeled caller is visibly unattributed
+    rather than mis-billed to a guess.
 
     ``expected_keys`` are the top-level keys of the schema this caller wants
     back. With grounding the model wraps its answer in prose, so the response
@@ -270,6 +327,8 @@ def grounded_answer(
 
     contents: list[Any] = [prompt, *parts]
 
+    started = time.monotonic()
+    metered = False
     try:
         client = get_client()
         # Route through the bounded transient-retry wrapper (429/5xx/timeout) — the
@@ -281,6 +340,10 @@ def grounded_answer(
         finish_reason = _finish_reason(response)
         sources = _grounding_sources(response) if use_grounding else []
         usage = _usage_metadata(response)
+        # Meter the spend as soon as usage is known: the tokens are paid for even
+        # if the JSON parse below fails, so the ledger records them either way.
+        _meter_success(use_case, usage, int((time.monotonic() - started) * 1000))
+        metered = True
         if not (parse_json and text):
             payload = {}
         elif finish_reason == "MAX_TOKENS":
@@ -290,7 +353,11 @@ def grounded_answer(
             payload = _parse_truncated(text, expected_keys, max_output_tokens)
         else:
             payload = _parse_json(text, expected_keys)
-    except Exception:
+    except Exception as exc:
+        # Exactly one monitor event per generate call: a parse failure AFTER a
+        # successful (already-metered) generate is not re-emitted as an error.
+        if not metered:
+            _meter_failure(use_case, exc, int((time.monotonic() - started) * 1000))
         if fallback is not None:
             return fallback
         raise
@@ -357,6 +424,7 @@ def extract_profile_text_with_gemini(
         max_output_tokens=12000,
         parse_json=True,
         expected_keys=("raw_text", "structured_profile", "parsing_notes"),
+        use_case="profile_extract",
     )
     raw_text = str(answer.payload.get("raw_text") or "").strip()
     notes = answer.payload.get("parsing_notes")
@@ -493,6 +561,7 @@ def analyze_profile_with_gemini(
         max_output_tokens=16000,
         parse_json=True,
         expected_keys=tuple(ANALYSIS_RESPONSE_SCHEMA.keys()),
+        use_case="cv_analysis",
     )
     if request_id:
         write_prompt_artifact(request_id, "response.txt", answer.text or "")
