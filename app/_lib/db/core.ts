@@ -670,6 +670,12 @@ export function ensureDb(): Database.Database {
     // and keeps every insert single-tenant-correct until createPipelineEntry stamps the
     // real session workspace (so a future multi-tenant enable scopes immediately).
     "ALTER TABLE pipeline_entries ADD COLUMN workspace_id TEXT NOT NULL DEFAULT 'workspace'",
+    // Tenant-level candidate-comms language default (backlog #34): the locale a
+    // NULL-locale entry's letters render in (see comms-locale.resolveCommsLocale).
+    // DEFAULT 'cs' backfills the existing default workspace — this deployment is
+    // the ČS (Czech bank) seed, so unknown-language candidates get Czech, not the
+    // UI's English fallback. Validated at read (getWorkspaceDefaultLocale).
+    "ALTER TABLE workspaces ADD COLUMN default_locale TEXT NOT NULL DEFAULT 'cs'",
     "ALTER TABLE channel_webhooks ADD COLUMN first_received_at TEXT",
     // E5 metric honesty: `received_count`/`first_received_at` stamp EVERY POST (probes,
     // health-checks, malformed integrations), so they overstate real leads. Track
@@ -1266,9 +1272,9 @@ function seedPipeline(db: Database.Database): void {
   const insert = db.prepare(
     `INSERT OR IGNORE INTO pipeline_entries
        (id, candidate_id, candidate_label, archetype, role_family, job_id, job_title,
-        stage, match_score, status, approval_kind, approval_detail, created_at, stage_changed_at, updated_at)
+        stage, match_score, status, approval_kind, approval_detail, created_at, stage_changed_at, updated_at, locale)
      VALUES (@id, @candidate_id, @candidate_label, @archetype, @role_family, @job_id, @job_title,
-        @stage, @match_score, @status, @approval_kind, @approval_detail, @created_at, @stage_changed_at, @updated_at)`
+        @stage, @match_score, @status, @approval_kind, @approval_detail, @created_at, @stage_changed_at, @updated_at, @locale)`
   );
   const tx = db.transaction((rows: PipelineEntry[]) => {
     rows.forEach((e, i) => {
@@ -1294,6 +1300,9 @@ function seedPipeline(db: Database.Database): void {
         created_at: createdAt,
         stage_changed_at: stageChangedAt,
         updated_at: stageChangedAt,
+        // Seed rows rarely carry a locale; NULL resolves to the workspace default
+        // ('cs' for the ČS seed) at dispatch — see comms-locale.resolveCommsLocale.
+        locale: e.locale ?? null,
       });
       // Seed a little history so the activity feed isn't empty on first load.
       recordEvent(db, {

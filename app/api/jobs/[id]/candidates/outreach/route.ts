@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createPipelineEntry, getJob } from "@/app/_lib/db";
 import { AutomationError, runAutomationTask } from "@/app/_lib/automation-run";
+import { inferProfileLocale } from "@/app/_lib/comms-locale";
 import { safeJsonError } from "@/app/_lib/api-response";
 
 export const runtime = "nodejs";
@@ -49,6 +50,10 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       jobTitle: job.title,
       matchScore: body.matchScore ?? null,
       stage: "Screened",
+      // Sourced candidates gave no explicit language choice — infer from the CV
+      // languages on their saved profile so the outreach below (and every later
+      // comm) speaks their language; NULL falls to the workspace default.
+      locale: inferProfileLocale(body.candidateId),
     });
 
     const result = await runAutomationTask(entry.id, "outreach");

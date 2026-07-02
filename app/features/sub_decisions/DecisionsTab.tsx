@@ -2,13 +2,15 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Check, RotateCcw, SlidersHorizontal, Sparkles } from "lucide-react";
+import { Check, Copy, RotateCcw, SlidersHorizontal, Sparkles } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { buildTabSwitchUrl } from "@/app/features/tabs";
 import { ChainEmptyState } from "@/app/_components/ChainEmptyState";
 import { CompletionCta } from "@/app/_components/CompletionCta";
 import { Skeleton } from "@/app/_components/Skeleton";
+import { toast } from "@/app/_components/toast-store";
 import { useTasks, useTaskResult } from "@/app/features/tasks/TasksProvider";
+import { useDeliveryCapability } from "@/app/features/useDeliveryCapability";
 import { useLiveRefresh } from "@/app/features/live-refresh";
 import { AiReviewCard } from "./AiReviewCard";
 import { DecisionRulesModal } from "./DecisionRulesModal";
@@ -38,6 +40,9 @@ export function DecisionsTab() {
   const search = useSearchParams();
   const t = useTranslations("decisions");
   const locale = useLocale(); // PREP2 — prep pack language
+  // REC-10 — "Offer sent" is only claimed when a relay delivers; without one
+  // the letter is a terminal outbox row and the recruiter must hand over the link.
+  const relayConfigured = useDeliveryCapability();
   const { startTask } = useTasks();
   // Filter the queue to one opened JD (deep-linkable via ?job=<id>).
   const [jobFilter, setJobFilter] = useState<string | null>(search.get("job"));
@@ -50,6 +55,12 @@ export function DecisionsTab() {
   // the banner below narrates the handoff and offers the jump. Session-local on
   // purpose: it is a "what just happened" trail, not a persistent inbox.
   const [queuedLabels, setQueuedLabels] = useState<string[]>([]);
+  // OO-L1-02 — offers extended THIS sitting. The server answers "Send offer"
+  // with { offerExtended, link } and the card fades away; without this the
+  // secure /offer/[token] link was discarded on the wire and only recoverable
+  // by digging through the Comms Center. Session-local like queuedLabels.
+  const [sentOffers, setSentOffers] = useState<{ id: string; label: string; link: string }[]>([]);
+  const [copiedOfferId, setCopiedOfferId] = useState<string | null>(null);
 
   // Modal + group-eval state
   const [summaryEntry, setSummaryEntry] = useState<Entry | null>(null);
@@ -191,6 +202,16 @@ export function DecisionsTab() {
         body: JSON.stringify({ action, expectedStage: e.stage, ...(note ? { detail: note } : {}), ...(ttlDays ? { ttlDays } : {}) }),
       });
       if (!r.ok) throw new Error();
+      // Surface the offer-extension result instead of discarding it (OO-L1-02):
+      // the response carries the candidate's secure accept/decline link — confirm
+      // the send with a toast and keep the link copyable in the banner below.
+      const p = (await r.json().catch(() => null)) as { offerExtended?: boolean; link?: unknown } | null;
+      if (action === "accept" && e.approvalKind === "offer_review" && p?.offerExtended && typeof p.link === "string") {
+        const link = p.link;
+        if (relayConfigured === false) toast.info(t("offerSent.toastQueued", { name: e.candidateLabel }));
+        else toast.success(t("offerSent.toast", { name: e.candidateLabel }));
+        setSentOffers((prev) => [...prev.filter((o) => o.id !== e.id), { id: e.id, label: e.candidateLabel, link }]);
+      }
       // Accepting an AI screening flows the candidate to interview scheduling —
       // generate their interview-prep artifact in the background so it's ready
       // when the interviewer opens it from the Schedule tab.
@@ -341,6 +362,53 @@ export function DecisionsTab() {
           onDismiss={() => setQueuedLabels([])}
           dismissLabel={t("queuedDismiss")}
         />
+      ) : null}
+
+      {/* OO-L1-02 — extended offers keep their candidate link visible + copyable
+          (the same readonly-field + copy affordance as the drawer's TokenLinkPanel),
+          instead of the card fading out and the link living only in the outbox. */}
+      {sentOffers.length > 0 ? (
+        <section aria-live="polite" className="rounded-lg border border-moss/40 bg-moss/5 p-3">
+          <div className="flex items-start justify-between gap-2">
+            <p className="inline-flex items-center gap-1.5 text-sm font-semibold text-ink">
+              <Check size={14} className="text-moss" />{" "}
+              {t(relayConfigured === false ? "offerSent.titleQueued" : "offerSent.title", { count: sentOffers.length })}
+            </p>
+            <button
+              type="button"
+              onClick={() => setSentOffers([])}
+              className="focus-ring text-meta font-semibold text-steel hover:text-ink"
+            >
+              {t("offerSent.dismiss")}
+            </button>
+          </div>
+          <p className="mt-0.5 text-sm text-steel">{t("offerSent.help")}</p>
+          <ul className="mt-2 space-y-1.5">
+            {sentOffers.map((o) => (
+              <li key={o.id} className="flex items-center gap-1.5">
+                <span className="w-40 shrink-0 truncate text-sm font-semibold text-ink">{o.label}</span>
+                <input
+                  readOnly
+                  value={o.link}
+                  onFocus={(ev) => ev.currentTarget.select()}
+                  aria-label={t("offerSent.linkAria", { name: o.label })}
+                  className="focus-ring min-w-0 flex-1 rounded-md border border-stone-200 bg-paper px-2 py-1 text-sm text-ink"
+                />
+                <button
+                  type="button"
+                  title={t("offerSent.copy")}
+                  onClick={() => {
+                    void navigator.clipboard?.writeText(o.link);
+                    setCopiedOfferId(o.id);
+                  }}
+                  className="focus-ring rounded-md border border-stone-200 bg-white p-1.5 text-steel hover:text-coral"
+                >
+                  {copiedOfferId === o.id ? <Check size={14} /> : <Copy size={14} />}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
       ) : null}
 
       {error ? (

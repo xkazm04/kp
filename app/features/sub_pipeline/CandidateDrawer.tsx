@@ -9,6 +9,8 @@ import { useDialogA11y } from "@/app/_components/useDialogA11y";
 import type { CandidateTimelineItem } from "@/app/_lib/candidate-timeline";
 import { buildUrl } from "@/app/features/tabs";
 import { useTasks, useTaskResult } from "@/app/features/tasks/TasksProvider";
+import { useDeliveryCapability } from "@/app/features/useDeliveryCapability";
+import { toast } from "@/app/_components/toast-store";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { ResultView } from "./CandidateResultView";
 import { ConsentPanel } from "./ConsentPanel";
@@ -42,6 +44,18 @@ const ACTIONS: { id: TaskId; label: string; icon: typeof Mail; stages: string[] 
 // Client-side cap for the persistent candidate note — mirrors MAX_NOTES_LENGTH
 // on /api/pipeline/[id] so the textarea can never assemble a note the route rejects.
 const NOTE_MAX = 4000;
+
+// REC-10 — the truthful delivery claim from a token-link POST response. The
+// invite routes now return `delivery` (sent = relayed 2xx · queued = local
+// outbox row, nothing will deliver it · failed = dead-lettered/threw); an older
+// response shape without it degrades through the legacy boolean, where `true`
+// only ever meant "an outbox row was recorded" — shown as queued, never as a
+// false green "sent".
+function deliveryClaimOf(data: Record<string, unknown>, legacyFlag: "delivered" | "dispatched"): "sent" | "queued" | "failed" {
+  const d = data.delivery;
+  if (d === "sent" || d === "queued" || d === "failed") return d;
+  return data[legacyFlag] ? "queued" : "failed";
+}
 
 const REC_STYLE: Record<string, string> = {
   advance: "bg-moss/15 text-moss",
@@ -343,7 +357,11 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
   // same pass, so this runs once per task); only the parent notification stays
   // in an effect below, because onChanged touches PARENT state and render-phase
   // updates are legal only for this component's own.
-  const { status: actionStatus, error: actionError, full: actionFull } = useTaskResult(pendingId);
+  // OO-L2-12 — one-shot trigger for the give-up toast below: bumped in the
+  // render-phase branch (own state, legal there), consumed by an effect (the
+  // toast store is external state, so it must not be poked during render).
+  const [resultLostCount, setResultLostCount] = useState(0);
+  const { status: actionStatus, error: actionError, full: actionFull, resultUnavailable } = useTaskResult(pendingId);
   if (pendingId && actionStatus === "succeeded" && actionFull) {
     const data = actionFull.result as { result: Record<string, unknown>; source: string; applied: string } | null;
     const sub = (((actionFull.params as { task?: string } | null)?.task ?? busy) ?? "screen") as TaskId;
@@ -356,6 +374,16 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
     setError(actionError ?? t("taskIncomplete"));
     setBusy(null);
     setPendingId(null);
+  } else if (pendingId && resultUnavailable) {
+    // OO-L2-12 — the task finished server-side but its result record can't be
+    // fetched (useTaskResult gave up after RESULT_FETCH_MAX_ATTEMPTS). Without
+    // this the drawer spun "Working…" forever with no error and no way out.
+    // Resolve the busy state and surface the inline error; the action button
+    // unlocking again is the retry affordance.
+    setError(t("resultLoadFailed"));
+    setBusy(null);
+    setPendingId(null);
+    setResultLostCount((n) => n + 1);
   }
 
   // Post-commit parent notification: an applied action changed the entry, so the
@@ -366,6 +394,16 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
   useEffect(() => {
     onChangedRef.current = onChanged;
   });
+  // OO-L2-12 — post-commit toast for the result-lost path (the toast store is
+  // an external system, so it's updated from an effect, keyed on the one-shot
+  // counter; `t` through the latest-ref so a locale swap can't re-fire it).
+  const tRef = useRef(t);
+  useEffect(() => {
+    tRef.current = t;
+  });
+  useEffect(() => {
+    if (resultLostCount > 0) toast.error(tRef.current("resultLoadFailed"));
+  }, [resultLostCount]);
   const appliedResult =
     result && ["advanced", "held_for_review", "scorecard_ready", "offer_ready", "rematched"].includes(result.applied)
       ? result
@@ -816,10 +854,16 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
               {voice.data ? (
                 <div className="mt-2 space-y-1.5">
                   <TokenLinkPanel link={voice} />
-                  {Boolean(voice.data.configured) && Boolean(voice.data.delivered) ? (
+                  {/* REC-10 — the note reflects the outbox row's REAL status: green
+                      "sent" only for a relayed send; a queued row (no relay) says so
+                      honestly and keeps the copy panel as the delivery path. */}
+                  {Boolean(voice.data.configured) && deliveryClaimOf(voice.data, "delivered") === "sent" ? (
                     <p className="text-sm text-moss">{t("inviteSent")}</p>
                   ) : null}
-                  {Boolean(voice.data.configured) && !voice.data.delivered ? (
+                  {Boolean(voice.data.configured) && deliveryClaimOf(voice.data, "delivered") === "queued" ? (
+                    <p className="text-sm text-steel">{t("inviteQueued")}</p>
+                  ) : null}
+                  {Boolean(voice.data.configured) && deliveryClaimOf(voice.data, "delivered") === "failed" ? (
                     <p className="text-sm text-amber-700">{t("inviteNotSent")}</p>
                   ) : null}
                   {Number(voice.data.revoked ?? 0) > 0 ? (
@@ -880,8 +924,13 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
               {sched.data ? (
                 <div className="mt-2 space-y-1.5">
                   <TokenLinkPanel link={sched} />
-                  {Boolean(sched.data.dispatched) ? (
+                  {/* REC-10 — same truth-language as the voice invite: `dispatched`
+                      only ever meant "an outbox row was recorded", which is not
+                      delivery when no relay is configured. */}
+                  {deliveryClaimOf(sched.data, "dispatched") === "sent" ? (
                     <p className="text-sm text-moss">{t("schedInviteSent")}</p>
+                  ) : deliveryClaimOf(sched.data, "dispatched") === "queued" ? (
+                    <p className="text-sm text-steel">{t("schedInviteQueued")}</p>
                   ) : (
                     <p className="text-sm text-amber-700">{t("schedInviteNotSent")}</p>
                   )}
@@ -926,6 +975,10 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
 function TimelineItemRow({ item }: { item: CandidateTimelineItem }) {
   const t = useTranslations("pipeline.drawer.timeline");
   const tDisposition = useTranslations("history.disposition");
+  // REC-10 — with no delivery relay a dispatched invite is a terminal outbox
+  // row, so the chapter reads "queued", not "sent" (null = unknown keeps the
+  // optimistic label rather than accusing a configured relay).
+  const relayConfigured = useDeliveryCapability();
   const Icon =
     item.kind === "analysis" ? FileText : item.kind === "interview" ? Phone : item.kind === "invite" ? Calendar : Banknote;
   const label = (() => {
@@ -935,7 +988,9 @@ function TimelineItemRow({ item }: { item: CandidateTimelineItem }) {
       case "interview":
         return item.status === "completed" ? t("interviewCompleted") : t("interviewCreated");
       case "invite":
-        return item.status === "confirmed" ? `${t("inviteConfirmed")}${item.slot ? ` — ${item.slot}` : ""}` : t("inviteSent");
+        return item.status === "confirmed"
+          ? `${t("inviteConfirmed")}${item.slot ? ` — ${item.slot}` : ""}`
+          : t(relayConfigured === false ? "inviteQueued" : "inviteSent");
       case "offer":
         return item.status === "accepted" ? t("offerAccepted") : item.status === "declined" ? t("offerDeclined") : t("offerExtended");
       default:

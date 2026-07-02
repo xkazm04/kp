@@ -69,7 +69,10 @@ export function describeCommand(cmd: ParsedCommand): string {
         ? `Reject and notify active candidates scoring below ${cmd.threshold}% on roles matching "${cmd.jobQuery}".`
         : `Reject and notify active candidates scoring below ${cmd.threshold}%.`;
     case "advance_top":
-      return `Advance the top ${cmd.count} active candidate${cmd.count === 1 ? "" : "s"} by match score.`;
+      // "up to Offer" is load-bearing copy: the execute path holds Offer-stage
+      // targets instead of bare-advancing them to Hired (a hire happens only when
+      // the candidate accepts an extended offer), so the preview must say so.
+      return `Advance the top ${cmd.count} active candidate${cmd.count === 1 ? "" : "s"} by match score (up to Offer — candidates at Offer await the offer flow).`;
     case "run_policy":
       return "Run the deterministic automation policy pass now.";
     case "help":

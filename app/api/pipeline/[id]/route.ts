@@ -32,7 +32,7 @@ const SIM_SEAL_ACTOR = "auto:sim"; // decision-chain vocabulary: "auto:*" | "hum
 // with a secure accept/decline link, rather than bare-advancing to Hired. The
 // Hired move happens only when the candidate accepts (see /api/offer/[token]).
 async function extendOffer(request: NextRequest, entry: PipelineEntry, bodyTtlDays?: unknown, sealActor = "human:recruiter") {
-  let draft: { subject?: unknown; body?: unknown; recommended?: unknown; currency?: unknown; ttlDays?: unknown } = {};
+  let draft: { subject?: unknown; body?: unknown; recommended?: unknown; currency?: unknown; ttlDays?: unknown; startDate?: unknown } = {};
   try {
     draft = entry.approvalDetail ? JSON.parse(entry.approvalDetail) : {};
   } catch {
@@ -81,7 +81,14 @@ async function extendOffer(request: NextRequest, entry: PipelineEntry, bodyTtlDa
   // uses, so this server-minted offer link can't diverge from the voice/scheduling
   // links the recruiter copies in the drawer.
   const link = `${publicBaseUrl(new URL(request.url).origin)}/offer/${offer.token}`;
-  await dispatchOffer(entry, draft, link); // records the `offer_sent` event + outbox message
+  // Records the `offer_sent` event + outbox message. The offer row's ACTUAL
+  // deadline (minted from the recruiter's ttlDays above) and any drafted start
+  // date ride along so the dispatched letter states them (OO-L1-04) — injected
+  // at dispatch, where they are finally known, not guessed at draft time.
+  await dispatchOffer(entry, draft, link, {
+    expiresAt: offer.expiresAt,
+    startDate: typeof draft.startDate === "string" ? draft.startDate : null,
+  });
 
   // The offer is out — clear the recruiter approval; now awaiting the candidate.
   setApproval(entry.id, null, "");

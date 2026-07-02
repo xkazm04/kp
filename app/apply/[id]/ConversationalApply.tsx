@@ -338,7 +338,9 @@ export function ConversationalApply({
   const submitKo = (yes: boolean) => {
     if (busy) return;
     const step = steps[idx];
-    advance(step.id, { ...answers, [step.id]: yes }, yes ? "Yes" : "No");
+    // capst-l2-101 — the echoed chat bubble must speak the candidate's language,
+    // same catalog keys as the buttons themselves ("Ano"/"Ne" in cs).
+    advance(step.id, { ...answers, [step.id]: yes }, yes ? tCommon("yes") : tCommon("no"));
   };
   const submitChoice = (value: string, label: string) => {
     if (busy) return;

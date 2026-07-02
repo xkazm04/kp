@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createPipelineEntry, listPipeline, PIPELINE_STAGES } from "@/app/_lib/db";
 import { coerceGithubEvidenceSummary } from "@/app/_lib/github-summary";
+import { inferProfileLocale } from "@/app/_lib/comms-locale";
 import { safeJsonError } from "@/app/_lib/api-response";
 
 export const runtime = "nodejs";
@@ -69,6 +70,11 @@ export async function POST(request: NextRequest) {
       stage: body.stage,
       githubJson,
       sourceChannel: source,
+      // Recruiter/Match adds carry no explicit language choice — infer it from the
+      // candidate's CV languages (already on the saved profile) so downstream comms
+      // speak their language; no signal stays NULL and resolves to the workspace
+      // default at dispatch (backlog #34 / pa-l2-null-locale).
+      locale: inferProfileLocale(body.candidateId),
     });
     return NextResponse.json(result);
   } catch (error) {

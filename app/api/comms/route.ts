@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getPipelineEntry, listOutboxFiltered } from "@/app/_lib/db";
 import { coerceOutboxStatus } from "@/app/_lib/comms-status";
+import { isRelayConfigured } from "@/app/_lib/comms-truth";
 import { deriveCommsView } from "@/app/_lib/comms-view";
 import { safeJsonError } from "@/app/_lib/api-response";
 
@@ -40,7 +41,7 @@ export async function GET(request: NextRequest) {
     // relayConfigured = is a real delivery relay wired? When false, every message
     // is recorded `queued` in the local outbox and NOTHING reaches candidates — the
     // Comms Center must warn loudly rather than show benign queued badges.
-    return NextResponse.json({ messages, entries, relayConfigured: Boolean(process.env.COMMS_WEBHOOK_URL) });
+    return NextResponse.json({ messages, entries, relayConfigured: isRelayConfigured() });
   } catch (error) {
     return safeJsonError(error, "api:comms", "OUTREACH_FAILED");
   }

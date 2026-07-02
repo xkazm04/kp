@@ -104,16 +104,6 @@ export function decisionAttribution(kind: string): "auto" | "human" | "unknown" 
 // `key: string` is cast to the translator's key type internally.
 type KindTranslator = { (key: never): string };
 
-// ONE "decision kind -> human label" resolver, shared by the DecisionLog rows /
-// CSV / filter and the RoiLedger CSV (ANA). A kind present in DECISION_META reads
-// its `kinds.<kind>` catalog entry; an unmapped kind degrades to the de-snaked raw
-// value (instead of rendering the raw catalog KEY or throwing). Callers pass their
-// own `analytics.log` translator instance so the namespace is resolved once.
-export function kindLabel<T extends KindTranslator>(t: T, kind: string): string {
-  if (kind in DECISION_META) return t(`kinds.${kind}` as Parameters<T>[0]);
-  return kind.replace(/_/g, " ");
-}
-
 // The dispatched-communication kinds — what the rollup reports as "comms
 // delivered". comm_resent counts too: a resend is a delivery (human-initiated,
 // so it still lands in humanCount above).
@@ -129,6 +119,37 @@ export const COMM_SENT_KINDS = [
   "acknowledgement_sent",
   "comm_resent",
 ] as const;
+
+const COMM_SENT_SET: ReadonlySet<string> = new Set(COMM_SENT_KINDS);
+
+// ONE "decision kind -> human label" resolver, shared by the DecisionLog rows /
+// CSV / filter and the RoiLedger CSV (ANA). A kind present in DECISION_META reads
+// its `kinds.<kind>` catalog entry; an unmapped kind degrades to the de-snaked raw
+// value (instead of rendering the raw catalog KEY or throwing). Callers pass their
+// own `analytics.log` translator instance so the namespace is resolved once.
+//
+// REC-10 honesty: the historical `*_sent` labels ("Rejection sent", "Offer
+// sent") claim a delivery the channel layer never performs when no relay is
+// configured — every message is then a terminal `queued` row in the local
+// outbox. Callers that know the capability bit (useDeliveryCapability /
+// isRelayConfigured) pass it in: a definite `false` swaps every dispatched-comm
+// kind to its `kindsQueued.<kind>` variant ("… recorded in Outbox — not
+// delivered"). `true`/unknown keeps the classic labels — never accuse a
+// configured relay of dropping mail. The variant catalog is membership-locked
+// by comms-truth.test.ts.
+export function kindLabel<T extends KindTranslator>(
+  t: T,
+  kind: string,
+  opts?: { relayConfigured?: boolean | null }
+): string {
+  if (kind in DECISION_META) {
+    if (opts?.relayConfigured === false && COMM_SENT_SET.has(kind)) {
+      return t(`kindsQueued.${kind}` as Parameters<T>[0]);
+    }
+    return t(`kinds.${kind}` as Parameters<T>[0]);
+  }
+  return kind.replace(/_/g, " ");
+}
 
 export type AutomationImpact = {
   autoCount: number;

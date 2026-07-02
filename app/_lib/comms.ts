@@ -1,5 +1,6 @@
 import { getPipelineEntry, recordOutbox, type OutboxEntry } from "./db";
 import { COMMS_RELAY_RETRY, isRetryableHttpStatus, type OutboxStatus } from "./comms-status";
+import { isRelayConfigured } from "./comms-truth";
 import { buildCommEnvelope, type CommEnvelope } from "./comms-envelope";
 import { logComms } from "./logger";
 
@@ -95,8 +96,10 @@ class WebhookChannel implements CommsChannel {
 }
 
 export function getCommsChannel(): CommsChannel {
+  // Capability resolved through the shared honesty helper (comms-truth.ts) so
+  // channel selection and every UI "sent" claim key off the SAME bit.
   const url = process.env.COMMS_WEBHOOK_URL;
-  return url ? new WebhookChannel(url) : new OutboxChannel();
+  return isRelayConfigured() && url ? new WebhookChannel(url) : new OutboxChannel();
 }
 
 /** Convenience: dispatch one message through the active channel. */

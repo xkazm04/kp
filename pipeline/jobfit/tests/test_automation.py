@@ -356,6 +356,22 @@ class OfferTest(unittest.TestCase):
         self.assertGreater(out["recommended"], 0)
         self.assertLessEqual(out["salaryMin"], out["recommended"])
 
+    def test_letter_lang_override_beats_cv_guess(self):
+        # Backlog #34: the TS seam passes the ENTRY's resolved comms locale; it must
+        # override the CV-language guess so the letter matches the chrome it ships in.
+        job = mkjob()
+        m = score_job(BAU, job)  # BAU's CV lists English only
+        offer, _ = automation.draft_offer(BAU, job, m, lang="cs", provider=None)
+        self.assertEqual(offer["language"], "Czech")
+        self.assertIn("Nabídka", offer["subject"])
+        rejection, _ = automation.draft_rejection(BAU, job, m, "Screened", lang="cs", provider=None)
+        self.assertEqual(rejection["language"], "Czech")
+        outreach, _ = automation.draft_outreach(BAU, job, ["Python"], lang="cs", provider=None)
+        self.assertEqual(outreach["language"], "Czech")
+        # Without an explicit lang the historical CV guess still applies (English CV -> English).
+        legacy, _ = automation.draft_offer(BAU, job, m, provider=None)
+        self.assertEqual(legacy["language"], "English")
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -18,6 +18,7 @@ import { meterAllows } from "./billing";
 import { buildLlmConfigEnv } from "./llm-config";
 import { computeAutomationCacheKey, computeCorpusFingerprint, GITHUB_EVIDENCE_TASKS } from "./automation-cache-key";
 import { screenStageOutcome } from "./pipeline-stages";
+import { resolveCommsLocale } from "./comms-locale";
 import { dispatchOutreach } from "./comms-dispatch";
 import {
   coerceInterviewRecommendation,
@@ -31,13 +32,22 @@ import {
 // configured provider per KP_LLM_CONFIG (Claude CLI when unconfigured).
 export const AUTOMATION_VERSION: Record<string, string> = {
   screen: "screening-v1",
-  outreach: "outreach-v1",
-  rejection: "rejection-v1",
+  // v2 — the candidate-facing letter tasks take an explicit --lang (the entry's
+  // resolved comms locale) and their prompts carry the gender-neutral-Czech +
+  // no-invented-terms directives; bumped so cached v1 letters self-invalidate.
+  outreach: "outreach-v2",
+  rejection: "rejection-v2",
   prep: "interview-prep-v1",
   scorecard: "scorecard-v3",
   rematch: "rematch-v1",
-  offer: "offer-v1",
+  offer: "offer-v2",
 };
+// The tasks whose output is a candidate-facing LETTER: their language is the
+// entry's resolved comms locale (explicit apply choice, else the workspace
+// default — comms-locale.resolveCommsLocale), passed to Python as --lang so the
+// letter and its deterministic chrome (subject fallback, offer terms/response
+// footers, GDPR footer) can never disagree (OO-L1-03's two-authorities defect).
+const LETTER_TASKS = new Set(["outreach", "rejection", "offer"]);
 // Event kind for the generic "drafted" tasks — ONLY those that fall through to the
 // catch-all branch below (currently rejection + prep). screen/scorecard/offer/
 // rematch/outreach each have their own branch and record their own event, so they
@@ -125,6 +135,10 @@ export async function runAutomationTask(entryId: string, task: string, notes = "
   // the AI formed without it. Mirrors the profileJson serialize-once pattern.
   const githubEvidenceJson =
     GITHUB_EVIDENCE_TASKS.has(task) && entry.githubEvidence ? JSON.stringify(entry.githubEvidence) : null;
+  // Letter tasks render in the entry's resolved comms locale (pa-l2-null-locale):
+  // resolved HERE — not left to the CV-language guess inside Python — so the
+  // letter provably matches the locale comms-dispatch wraps it in.
+  const letterLang = LETTER_TASKS.has(task) ? resolveCommsLocale(entry.locale) : undefined;
   const cacheKey = computeAutomationCacheKey({
     version,
     task,
@@ -134,8 +148,10 @@ export async function runAutomationTask(entryId: string, task: string, notes = "
     stage: entry.stage,
     notes,
     corpusFingerprint: corpusJobs ? computeCorpusFingerprint(corpusJobs.map((j) => j.id)) : undefined,
-    // PREP2 — the prep narrative locale is a cache axis (other tasks ignore it).
-    lang: task === "prep" ? (lang === "cs" ? "cs" : "en") : undefined,
+    // PREP2 — the prep narrative locale is a cache axis; for the letter tasks the
+    // RESOLVED letter locale is one too (a locale fix must not serve a cached
+    // wrong-language letter for up to 7 days). Other tasks ignore it.
+    lang: task === "prep" ? (lang === "cs" ? "cs" : "en") : letterLang,
     githubEvidenceJson: githubEvidenceJson ?? undefined,
   });
 
@@ -167,9 +183,12 @@ export async function runAutomationTask(entryId: string, task: string, notes = "
         await writeFile(notesPath, notes, "utf-8");
         args.push("--notes-file", notesPath);
       }
-      // PREP2 — only `prep` consumes --lang (the CLI accepts it globally and the
-      // other commands ignore it); pass it so the prep narrative is localized.
+      // PREP2 — the prep narrative renders in the recruiter's UI locale; the
+      // LETTER tasks (outreach/rejection/offer) render in the CANDIDATE'S
+      // resolved comms locale, so the Python-drafted letter and the TS-rendered
+      // chrome around it are one language authority.
       if (task === "prep") args.push("--lang", lang === "cs" ? "cs" : "en");
+      if (letterLang) args.push("--lang", letterLang);
       // GH7 — hand the persisted GitHub evidence to the screen/prep/scorecard
       // prompts (mirrors the --notes-file pattern). Python renders it as a
       // compact "Public repo evidence" block; null (bare entry or a task that
@@ -249,6 +268,10 @@ export async function runAutomationTask(entryId: string, task: string, notes = "
         jobTitle: (result.jobTitle as string) ?? (result.jobId as string),
         matchScore: (result.score as number) ?? null,
         stage: "Screened",
+        // The redirected person is the SAME candidate — their language choice
+        // (captured at apply) must follow them onto the target entry, or the
+        // rematch would silently flip their comms back to the workspace default.
+        locale: entry.locale,
       });
       if (created) {
         // Define what rematch does to the SOURCE entry (idea-9ad8a777): close it so

@@ -206,6 +206,8 @@
     },
     "offer": {
       "subjectFallback": "Nabídka — {role}",
+      "deadlineLine": "Nabídka platí do {deadline} — dejte nám prosím do té doby vědět své rozhodnutí.",
+      "startLine": "Předpokládané datum nástupu: {date}.",
       "responseFooter": "— — —\nNabídku přijměte nebo odmítněte prosím přes svůj zabezpečený odkaz:\n{link}\n"
     },
     "scheduleInvite": {
@@ -545,7 +547,7 @@
   "aiDisclosure": {
     "title": "Jak to funguje",
     "body": "K asistenci při screeningu a pohovorech používáme umělou inteligenci — posuzujeme vaše <highlight>dovednosti, zkušenosti a vhodnost</highlight> pro danou roli. Každé rozhodnutí o postupu, nabídce či zamítnutí přezkoumává a činí člověk; nic nepříznivého se nerozhoduje automaticky. Kdykoli můžete požádat o přezkoumání člověkem.",
-    "dataConsent": "Odesláním souhlasíte, že můžeme zpracovávat vaše osobní údaje pro tuto pozici po dobu až {months, plural, one {# měsíc} few {# měsíce} other {# měsíců}}. Své údaje můžete kdykoli zkontrolovat nebo požádat o jejich výmaz přes odkaz v našich e-mailech.",
+    "dataConsent": "Odesláním souhlasíte, že můžeme zpracovávat vaše osobní údaje pro tuto pozici po dobu až {months, plural, one {# měsíc} few {# měsíce} other {# měsíců}}. Své údaje můžete kdykoli zkontrolovat nebo požádat o jejich výmaz přes odkaz v našich zprávách.",
     "regimeNote": "Posuzováno podle {framework}; vaše osobní údaje zpracováváme podle {dataLaw}."
   },
   "errors": {
@@ -609,6 +611,7 @@
     "bookedForGeneric": "Váš pohovor je potvrzen na <b>{slot}</b>.",
     "planFor": "Počítejte přibližně s {min, plural, one {# minutou} few {# minutami} many {# minutami} other {# minutami}}. ",
     "confirmationSent": "Potvrzení jsme odeslali a před pohovorem vám pošleme připomenutí. Tuto stránku můžete zavřít.",
+    "confirmationQueued": "Termín je potvrzen. Odkaz na tuto stránku si uschovejte — můžete se sem vrátit, termín změnit nebo si stáhnout pozvánku do kalendáře.",
     "confirmationUnsent": "Termín jsme zaznamenali — brzy se vám ozveme s potvrzením podrobností. Tuto stránku můžete zavřít.",
     "addToCalendar": "Přidat do kalendáře",
     "differentTime": "Potřebujete jiný termín?",
@@ -621,7 +624,7 @@
     "role": "Pozice: <b>{role}</b>",
     "roleMinutes": "· ~{min} min",
     "allTakenTitle": "Všechny aktuální termíny jsou obsazené",
-    "allTakenBody": "Všechny termíny pohovorů v nejbližších týdnech jsou již rezervované. Dali jsme náborovému týmu vědět, že stále potřebujete termín — otevřou další a pošlou vám e-mailem nový odkaz pro plánování.",
+    "allTakenBody": "Všechny termíny pohovorů v nejbližších týdnech jsou již rezervované. Dali jsme náborovému týmu vědět, že stále potřebujete termín — otevřou další, vraťte se prosím na tuto stránku později.",
     "nothingToDo": "Teď není potřeba nic dělat — tuto stránku můžete zavřít.",
     "timezoneNote": "Všechny časy jsou ve vašem časovém pásmu ({zone}).",
     "rsvpPrompt": "Můžete stále dorazit?",
@@ -672,7 +675,9 @@
       "received": "Vaši přihlášku jsme přijali — čeká ve frontě na posouzení.",
       "under_review": "Náborář/ka právě posuzuje váš profil.",
       "interview": "Jste ve fázi pohovoru — sledujte e-mail kvůli termínu.",
+      "interviewNoEmail": "Jste ve fázi pohovoru — náborový tým se vám ozve kvůli termínu.",
       "offer": "Je tu nabídka. Podrobnosti najdete v e-mailu.",
+      "offerNoEmail": "Je tu nabídka — náborový tým vám předá podrobnosti.",
       "hired": "Jste přijat/a — vítejte na palubě! 🎉"
     },
     "notSelectedTitle": "Tentokrát jste nebyl/a vybrán/a",
@@ -715,8 +720,10 @@
       "nameLabel": "Vaše jméno",
       "emailLabel": "E-mail",
       "emailHint": "Pošleme vám potvrzení a další kroky.",
+      "emailHintNoRelay": "Použijeme ho ke spárování případné další přihlášky a ke kontaktu ohledně dalších kroků.",
       "submit": "Odeslat přihlášku",
       "acceptedMessage": "Přihláška přijata! Potvrzení jsme vám poslali e-mailem — a své šance můžete zvýšit hned teď doplněním profilu (zabere asi dvě minuty).",
+      "acceptedMessageNoRelay": "Přihláška přijata a zaznamenána! Kde se vaše přihláška nachází, můžete kdykoli zjistit přes odkaz níže — a své šance můžete zvýšit hned teď doplněním profilu (zabere asi dvě minuty).",
       "enrichCta": "Doplnit profil",
       "enrichNote": "Asi dvě minuty — pomůže nám posoudit vás spravedlivě a rychle.",
       "honeypotLabel": "Web společnosti (toto pole nechte prázdné)"
@@ -1038,6 +1045,7 @@
       "running": "Spouštím…",
       "cancel": "Zrušit",
       "doneCount": "Hotovo — zpracováno {count, plural, =1 {1 kandidát} few {# kandidáti} other {# kandidátů}}.",
+      "doneHeldAtOffer": "{count, plural, =1 {1 kandidát ve fázi Nabídka čeká} few {# kandidáti ve fázi Nabídka čekají} other {# kandidátů ve fázi Nabídka čeká}} na nabídkový proces — odešlete nabídku; posun nikdy nenajímá.",
       "doneSummary": "Policy pass dokončen — {advanced} posunuto, {rejected} zamítnuto, {held} pozdrženo.",
       "dismiss": "Zavřít"
     },
@@ -1061,6 +1069,7 @@
       "previewTitle": "Náhled: co by tento průchod udělal",
       "previewSubtitle": "Vyhodnoceno {evaluated} aktivních kandidátů — zatím se nic nepoužilo a nikomu nebyl odeslán e-mail.",
       "previewRejects": "{count, plural, one {Zamítl by # (odešle e-mail o zamítnutí)} few {Zamítl by # (odešle e-maily o zamítnutí)} other {Zamítl by # (odešle e-maily o zamítnutí)}}",
+      "previewRejectsQueued": "{count, plural, one {Zamítl by # (zamítnutí se uloží do Outboxu — doručování není nastaveno)} few {Zamítl by # (zamítnutí se uloží do Outboxu — doručování není nastaveno)} other {Zamítl by # (zamítnutí se uloží do Outboxu — doručování není nastaveno)}}",
       "previewAdvances": "{count, plural, one {Posunul by #} few {Posunul by #} other {Posunul by #}}",
       "previewHeld": "{count, plural, one {Pozdrženo k posouzení (#) — zobrazit důvody} few {Pozdrženo k posouzení (#) — zobrazit důvody} other {Pozdrženo k posouzení (#) — zobrazit důvody}}",
       "previewFairnessBlocked": "{count, plural, one {# zamítnutí zadrženo férovou pojistkou} few {# zamítnutí zadržena férovou pojistkou} other {# zamítnutí zadrženo férovou pojistkou}}",
@@ -1123,6 +1132,7 @@
       "bulkRejected": "{count} odmítnuto",
       "bulkInvite": "Odeslat odkazy k objednání ({count})",
       "bulkInvited": "{count} pozváno k objednání",
+      "bulkInvitedQueued": "{count} odkazů na termín vytvořeno (v Outboxu — nedoručeno)",
       "agingSlas": "SLA stárnutí",
       "agingSlasTitle": "Nastavte, jak dlouho může kandidát zůstat v každé fázi, než se označí jako stárnoucí",
       "slaEditorTitle": "Dny do stárnutí, podle fáze",
@@ -1146,7 +1156,7 @@
       "scorecards": "{count, plural, =1 {1 hodnoticí karta k posouzení} few {# hodnoticí karty k posouzení} other {# hodnoticích karet k posouzení}}",
       "offerReviews": "{count, plural, =1 {1 připravená nabídka čeká na vaše schválení} few {# připravené nabídky čekají na vaše schválení} other {# připravených nabídek čeká na vaše schválení}}",
       "awaitingSlot": "{count, plural, =1 {1 pohovor čeká na termín} few {# pohovory čekají na termín} other {# pohovorů čeká na termín}}",
-      "offersOut": "{count, plural, =1 {1 nabídka u kandidáta — čeká se na odpověď} few {# nabídky u kandidátů — čeká se na odpovědi} other {# nabídek u kandidátů — čeká se na odpovědi}}",
+      "offersOut": "{count, plural, =1 {1 kandidát ve fázi Nabídka} few {# kandidáti ve fázi Nabídka} other {# kandidátů ve fázi Nabídka}}",
       "hired": "{count, plural, =1 {1 kandidát tento týden přijat} few {# kandidáti tento týden přijati} other {# kandidátů tento týden přijato}}",
       "showBoard": "Zobrazit na nástěnce",
       "openDecisions": "Otevřít Rozhodnutí",
@@ -1189,8 +1199,9 @@
         "interviewCreated": "Vytvořen odkaz na hlasový pohovor",
         "interviewCompleted": "Hlasový pohovor dokončen",
         "inviteSent": "Pozvánka k plánování odeslána",
+        "inviteQueued": "Pozvánka k plánování ve frontě v Outboxu (nedoručeno)",
         "inviteConfirmed": "Termín potvrzen",
-        "offerExtended": "Nabídka odeslána",
+        "offerExtended": "Nabídka předložena",
         "offerAccepted": "Nabídka přijata",
         "offerDeclined": "Nabídka odmítnuta"
       },
@@ -1223,6 +1234,7 @@
           "granted": "Souhlas udělen",
           "renewed": "Souhlas obnoven",
           "expiring_notified": "Odeslána připomínka vypršení",
+          "expiring_notified_queued": "Připomínka vypršení ve frontě v Outboxu (nedoručeno)",
           "expired": "Souhlas vypršel",
           "anonymized": "Anonymizováno (souhlas vypršel)",
           "erasure_requested": "Vyžádán výmaz",
@@ -1239,8 +1251,10 @@
       "creating": "Vytvářím…",
       "createLink": "Vytvořit odkaz",
       "inviteSent": "✓ Pozvánka odeslána kandidátovi — screening může absolvovat, kdykoli bude připraven.",
+      "inviteQueued": "Odkaz vytvořen a uložen v Outboxu — doručovací relé není nastaveno, kandidátovi se nic neodeslalo. Zkopírujte odkaz výše a předejte mu ho sami.",
       "inviteNotSent": "Odkaz vytvořen, ale pozvánku se nepodařilo odeslat automaticky — zkopírujte ji výše a sdílejte s kandidátem.",
       "schedInviteSent": "✓ Odkaz na výběr termínu odeslán kandidátovi — čas si vybere, kdy se mu to hodí.",
+      "schedInviteQueued": "Odkaz vytvořen a uložen v Outboxu — doručovací relé není nastaveno, kandidátovi se nic neodeslalo. Zkopírujte odkaz výše a předejte mu ho sami.",
       "schedInviteNotSent": "Odkaz vytvořen, ale nepodařilo se ho odeslat automaticky — zkopírujte ho výše a sdílejte s kandidátem.",
       "notConfigured": "{vars} není nastaveno — hovor se nespojí, dokud to nenastavíte.",
       "selfScheduling": "Samoobslužné plánování",
@@ -1249,6 +1263,7 @@
       "openFullMatch": "Otevřít celou shodu v Profil a Párování",
       "editProfile": "Upravit profil",
       "taskStartFailed": "Úlohu se nepodařilo spustit.",
+      "resultLoadFailed": "Úloha doběhla, ale její výsledek se nepodařilo načíst. Zkuste akci spustit znovu.",
       "taskIncomplete": "Úloha nebyla dokončena."
     },
     "actions": {
@@ -1287,6 +1302,7 @@
       "remindersChecked": "kontrola {time}",
       "remindersNever": "zatím nekontrolováno",
       "remindersLastSent": "{n} odesláno {time}",
+      "remindersLastQueued": "{n} v Outboxu {time} (nedoručeno)",
       "ranNoChanges": "proběhlo · beze změn",
       "ranWith": "proběhlo · {parts}",
       "runFailed": "Běh selhal",
@@ -1368,6 +1384,16 @@
     "queuedBanner": "{count, plural, =1 {{name} čeká ve frontě na pohovor — dalším krokem je vybrat termín.} few {# kandidáti čekají ve frontě na pohovory — dalším krokem je vybrat termíny.} other {# kandidátů čeká ve frontě na pohovory — dalším krokem je vybrat termíny.}}",
     "queuedBannerCta": "Otevřít Plánování",
     "queuedDismiss": "Skrýt",
+    "offerSent": {
+      "toast": "Nabídka pro {name} odeslána — zabezpečený odkaz pro kandidáta je připraven níže.",
+      "toastQueued": "Nabídka pro {name} uložena v Outboxu (nedoručeno — relé není nastaveno). Zabezpečený odkaz níže předejte kandidátovi.",
+      "title": "{count, plural, =1 {Nabídka odeslána} few {# nabídky odeslány} other {# nabídek odesláno}}",
+      "titleQueued": "{count, plural, =1 {Nabídka připravena — odkaz předejte sami} few {# nabídky připraveny — odkazy předejte sami} other {# nabídek připraveno — odkazy předejte sami}}",
+      "help": "Nabídkový dopis byl zařazen k odeslání kandidátovi; stejný zabezpečený odkaz pro přijetí či odmítnutí můžete zkopírovat nebo sdílet zde.",
+      "linkAria": "Odkaz na nabídku pro {name}",
+      "copy": "Kopírovat odkaz",
+      "dismiss": "Skrýt"
+    },
     "aiRecommendations": "Doporučení AI",
     "keyDecisions": "Klíčová rozhodnutí",
     "keyDecisionsHelp": "Jeden řádek na roli — postupte nebo zamítněte ze souhrnu analýzy kandidáta.",
@@ -1634,9 +1660,11 @@
       "upcoming": "{count, plural, one {Nadcházející pohovor (#)} few {Nadcházející pohovory (#)} other {Nadcházejících pohovorů (#)}}",
       "rescheduled": "{count, plural, one {přeloženo ×#} other {přeloženo ×#}}",
       "reminderSent": "připomínka odeslána",
+      "reminderQueued": "připomínka ve frontě (nedoručeno)",
       "reminderPending": "připomínka čeká",
       "awaiting": "{count, plural, one {Čeká na rezervaci (#)} few {Čekají na rezervaci (#)} other {Čeká na rezervaci (#)}}",
       "sentAgo": "odesláno {time}",
+      "queuedAgo": "v Outboxu {time} (nedoručeno)",
       "attendanceConfirmed": "dorazí",
       "attendanceCancelled": "zrušeno"
     },
@@ -2005,7 +2033,7 @@
         "funnel": "{count, plural, =0 {Žádní kandidáti ve funnelu} =1 {1 ve funnelu} few {# ve funnelu} other {# ve funnelu}}",
         "decisions": "{count, plural, =1 {1 čekající rozhodnutí} few {# čekající rozhodnutí} other {# čekajících rozhodnutí}}",
         "schedule": "{count, plural, =1 {1 termín k potvrzení} few {# termíny k potvrzení} other {# termínů k potvrzení}}",
-        "offers": "{count, plural, =1 {1 odeslaná nabídka} few {# odeslané nabídky} other {# odeslaných nabídek}}",
+        "offers": "{count, plural, =1 {1 otevřená nabídka} few {# otevřené nabídky} other {# otevřených nabídek}}",
         "hired": "{count, plural, =1 {1 přijat} few {# přijati} other {# přijato}}"
       },
       "tabCampaign": "Kampaň",
@@ -2940,6 +2968,18 @@
         "intake_resolved": "Zadání doplněno ručně",
         "fairness_gate_unknown_archetype": "Fairness pojistka: neznámý archetyp",
         "observed_minted": "Odkaz pro pozorovatele vytvořen"
+      },
+      "kindsQueued": {
+        "outreach_sent": "Oslovení ve frontě v Outboxu (nedoručeno)",
+        "rejection_sent": "Zamítnutí ve frontě v Outboxu (nedoručeno)",
+        "offer_sent": "Nabídka ve frontě v Outboxu (nedoručeno)",
+        "acknowledgement_sent": "Potvrzení přihlášky ve frontě v Outboxu (nedoručeno)",
+        "interview_invite_sent": "Pozvánka na pohovor ve frontě v Outboxu (nedoručeno)",
+        "schedule_invite_sent": "Odkaz na výběr termínu ve frontě v Outboxu (nedoručeno)",
+        "interview_reminder_sent": "Připomínka pohovoru ve frontě v Outboxu (nedoručeno)",
+        "interviewer_brief_sent": "Podklad pro tazatele ve frontě v Outboxu (nedoručeno)",
+        "onboarding_reminder_sent": "Připomínka před nástupem ve frontě v Outboxu (nedoručeno)",
+        "comm_resent": "Zpráva znovu zařazena do Outboxu (nedoručeno)"
       }
     },
     "automation": {
@@ -2952,7 +2992,8 @@
       "holds": "Pozdržení vyvolaná → vyřešená",
       "holdsValue": "{raised} → {resolved}",
       "reviewHolds": "Zkontrolovat čekající pozdržení v Rozhodnutích",
-      "comms": "Doručená komunikace"
+      "comms": "Doručená komunikace",
+      "commsQueued": "Komunikace uložená v Outboxu (nedoručeno)"
     }
   },
   "candidateOnboarding": {

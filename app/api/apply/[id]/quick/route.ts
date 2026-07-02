@@ -8,6 +8,20 @@ import { getJobStatus, isJobOpenForApplications } from "@/app/_lib/job-ingest";
 import { intakeLead } from "@/app/_lib/lead-intake";
 import { publicBaseUrl } from "@/app/_lib/public-base-url";
 import { clientIpFrom, rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
+import { getOrCreateStatusLink } from "@/app/_lib/application-status-store";
+import { isRelayConfigured } from "@/app/_lib/comms-truth";
+
+// Mint (or reuse) the entry's status-link token, best-effort — the application
+// already succeeded, so a status-link failure must never turn it into an error
+// (same contract as the conversational route's safeStatusLink).
+function safeStatusToken(entryId: string): string | null {
+  try {
+    return getOrCreateStatusLink(entryId);
+  } catch (err) {
+    console.error(`[apply:quick] could not mint status link for entry ${entryId}:`, err instanceof Error ? err.message : err);
+    return null;
+  }
+}
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -103,7 +117,8 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     // an email, outside the app), pinned to the language they applied in.
     // lead-intake appends the entry's opaque lead token (&lead=…) before the ack
     // goes out, so the link opens prefilled and merges back onto the lead's entry.
-    const enrichLink = `${publicBaseUrl(new URL(request.url).origin)}/apply/${job.id}?lang=${applicantLocale}`;
+    const base = publicBaseUrl(new URL(request.url).origin);
+    const enrichLink = `${base}/apply/${job.id}?lang=${applicantLocale}`;
 
     const expectedKoIds = applyKoSteps(job, t).map((s) => s.id);
     const outcome = await intakeLead({
@@ -122,22 +137,40 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       // later isn't in the record and gets asked).
       passedKoIds: expectedKoIds,
       enrichLink,
+      // capst-l1-002 — the ack email carries the same durable status link the
+      // conversational path has always sent (getOrCreateStatusLink is idempotent
+      // per entry, so email and success screen share ONE token).
+      statusLinkFor: (entryId) => {
+        const token = safeStatusToken(entryId);
+        return token ? `${base}/status/${token}` : null;
+      },
     });
 
     if (outcome.result === "declined") {
       return NextResponse.json({ result: "declined", message: t("declinedMessage") });
     }
     // `leadToken` lets the success screen's "complete your profile" CTA carry
-    // the same identity as the emailed link (see QuickApplyForm).
+    // the same identity as the emailed link (see QuickApplyForm); `statusToken`
+    // gives the done screen the status link the flow used to omit.
+    const statusToken = safeStatusToken(outcome.entryId);
     if (outcome.duplicate) {
       return NextResponse.json({
         result: "accepted",
         duplicate: true,
         message: t("alreadyMessage"),
         leadToken: outcome.leadToken,
+        statusToken,
       });
     }
-    return NextResponse.json({ result: "accepted", message: t("quick.acceptedMessage"), leadToken: outcome.leadToken });
+    // REC-10 honesty: "We've emailed you a confirmation" is only claimed when a
+    // delivery relay actually exists; offline, the ack is a local outbox row, so
+    // the candidate is pointed at the status link instead of a phantom email.
+    return NextResponse.json({
+      result: "accepted",
+      message: t(isRelayConfigured() ? "quick.acceptedMessage" : "quick.acceptedMessageNoRelay"),
+      leadToken: outcome.leadToken,
+      statusToken,
+    });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "apply failed" }, { status: 500 });
   }

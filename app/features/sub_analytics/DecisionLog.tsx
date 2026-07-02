@@ -9,6 +9,7 @@ import { formatRelativeTime } from "@/app/_lib/format";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { toCsv, downloadFile } from "@/app/_lib/export-utils";
 import { DECISION_META, kindLabel } from "@/app/_lib/decision-attribution";
+import { useDeliveryCapability } from "@/app/features/useDeliveryCapability";
 
 type Decision = {
   id: number;
@@ -97,6 +98,9 @@ function DecisionLogList({
   const t = useTranslations("analytics.log");
   const enumLabel = useEnumLabel();
   const reduced = useReducedMotion();
+  // REC-10 — with no delivery relay, every "…sent" event is really a terminal
+  // local-outbox row; the labels (rows, filter, CSV) must say so.
+  const relayConfigured = useDeliveryCapability();
   const buildUrl = useCallback(
     (offset: number, limit: number) => {
       const params = new URLSearchParams({ offset: String(offset), limit: String(limit) });
@@ -125,7 +129,7 @@ function DecisionLogList({
       ...items.map((d) => [
         d.createdAt,
         t(`attribution.${decisionMeta(d.kind).attribution}` as Parameters<typeof t>[0]),
-        kindLabel(t, d.kind),
+        kindLabel(t, d.kind, { relayConfigured }),
         d.candidateLabel,
         d.jobTitle,
         d.detail,
@@ -174,7 +178,7 @@ function DecisionLogList({
           <option value="">{t("allKinds")}</option>
           {Object.keys(DECISION_META).map((k) => (
             <option key={k} value={k}>
-              {t(`kinds.${k}` as Parameters<typeof t>[0])}
+              {kindLabel(t, k, { relayConfigured })}
             </option>
           ))}
         </select>
@@ -201,7 +205,7 @@ function DecisionLogList({
           {items.map((d, i) => {
             const m = decisionMeta(d.kind);
             const badgeCls = ATTRIBUTION_BADGE[m.attribution];
-            const label = kindLabel(t, d.kind);
+            const label = kindLabel(t, d.kind, { relayConfigured });
             // Cascade rows within each freshly loaded page; CSS animations only
             // fire when a node mounts, so already-present rows never re-animate.
             const animate = !reduced;

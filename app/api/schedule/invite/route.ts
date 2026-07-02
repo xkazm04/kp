@@ -3,6 +3,7 @@ import { getPipelineEntry } from "@/app/_lib/db";
 import { createScheduleInvite } from "@/app/_lib/schedule-store";
 import { plannedInterviewMinutes } from "@/app/_lib/interview-run";
 import { dispatchScheduleInvite } from "@/app/_lib/comms-dispatch";
+import { deliveryClaim, isRelayConfigured, type DeliveryClaim } from "@/app/_lib/comms-truth";
 import { publicBaseUrl } from "@/app/_lib/public-base-url";
 import { jsonOk, safeJsonError } from "@/app/_lib/api-response";
 import { clientIpFrom, rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
@@ -40,18 +41,24 @@ export async function POST(request: NextRequest) {
     // a channel outside the app and no Outbox row distinguishes a delivered
     // invite from a forgotten one. Best-effort: a comms failure must not fail
     // link minting (the copy panel below stays the manual fallback).
+    // `delivery` is the TRUTHFUL claim (REC-10): the outbox row's real status —
+    // sent only on a relayed 2xx, queued when the local outbox is the terminal
+    // target, failed on a dead-letter/throw — so the drawer can't render a green
+    // "sent to the candidate" over a message nothing will deliver.
     let dispatched = false;
+    let delivery: DeliveryClaim = "failed";
     try {
       const link = `${publicBaseUrl(new URL(request.url).origin)}/schedule/${invite.token}`;
-      await dispatchScheduleInvite(entry, link, { durationMin: invite.durationMin });
-      dispatched = true;
+      const status = await dispatchScheduleInvite(entry, link, { durationMin: invite.durationMin });
+      delivery = deliveryClaim(isRelayConfigured(), status);
+      dispatched = delivery !== "failed";
     } catch (commErr) {
       console.error(
         `[schedule:invite] link ${invite.token} minted but invite delivery failed: ${commErr instanceof Error ? commErr.message : commErr}`
       );
     }
 
-    return jsonOk({ token: invite.token, url: `/schedule/${invite.token}`, dispatched });
+    return jsonOk({ token: invite.token, url: `/schedule/${invite.token}`, dispatched, delivery });
   } catch (error) {
     return safeJsonError(error, "api:schedule:invite", "SCHEDULE_INVITE_FAILED");
   }

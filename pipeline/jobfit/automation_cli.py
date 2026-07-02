@@ -87,15 +87,18 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--github-evidence", type=Path)
     parser.add_argument("--entries-json", type=Path)
     parser.add_argument("--jobs", type=Path, default=None)
-    # PREP2 — output locale for the interview-prep narrative (en|cs). Ignored by
-    # the other commands (their candidate-facing text routes through the locale-
-    # aware comms layer); only `prep` reads it here.
-    parser.add_argument("--lang", type=str, default="en")
+    # PREP2 — output locale for the interview-prep narrative (en|cs). The LETTER
+    # commands (outreach/rejection/offer) read it too: the TS seam passes the
+    # entry's RESOLVED comms locale so the letter matches the chrome it ships in
+    # (OO-L1-03). When omitted, prep defaults to English and the letter commands
+    # fall back to the candidate's CV-language guess (_candidate_lang) — the
+    # pre-existing behavior for direct CLI use.
+    parser.add_argument("--lang", type=str, default=None)
     parser.add_argument("--no-llm", action="store_true")
     args = parser.parse_args(argv)
     from .i18n import normalize_lang
 
-    lang = normalize_lang(args.lang)
+    lang = normalize_lang(args.lang) if args.lang is not None else None
 
     try:
         if args.command == "policy-pass":
@@ -129,16 +132,16 @@ def main(argv: list[str] | None = None) -> int:
             result, source = automation.screen_candidate(candidate, job, m, provider=provider, github=github)
         elif args.command == "outreach":
             strengths = json.loads(args.strengths_json.read_text(encoding="utf-8")) if args.strengths_json else m.matched_skills
-            result, source = automation.draft_outreach(candidate, job, strengths, provider=provider)
+            result, source = automation.draft_outreach(candidate, job, strengths, lang=lang, provider=provider)
         elif args.command == "rejection":
-            result, source = automation.draft_rejection(candidate, job, m, args.stage, provider=provider)
+            result, source = automation.draft_rejection(candidate, job, m, args.stage, lang=lang, provider=provider)
         elif args.command == "prep":
-            result, source = automation.interview_prep(candidate, job, m, lang=lang, provider=provider, github=github)
+            result, source = automation.interview_prep(candidate, job, m, lang=lang or "en", provider=provider, github=github)
         elif args.command == "scorecard":
             notes = args.notes_file.read_text(encoding="utf-8") if args.notes_file else ""
             result, source = automation.interview_scorecard(candidate, job, notes, provider=provider, github=github)
         elif args.command == "offer":
-            result, source = automation.draft_offer(candidate, job, m, provider=provider)
+            result, source = automation.draft_offer(candidate, job, m, lang=lang, provider=provider)
         else:  # pragma: no cover
             raise ValueError(f"unhandled command {args.command}")
 

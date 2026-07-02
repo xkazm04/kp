@@ -206,6 +206,8 @@
     },
     "offer": {
       "subjectFallback": "Offer — {role}",
+      "deadlineLine": "This offer is valid until {deadline} — please let us know your decision by then.",
+      "startLine": "Proposed start date: {date}.",
       "responseFooter": "— — —\nTo accept or decline this offer, please use your secure link:\n{link}\n"
     },
     "scheduleInvite": {
@@ -545,7 +547,7 @@
   "aiDisclosure": {
     "title": "How this works",
     "body": "We use AI to assist screening and interviews — assessing your <highlight>skills, experience, and fit</highlight> for the role. A human reviews and makes every advance, offer, and rejection decision; nothing adverse is decided automatically. You can ask for a human review at any point.",
-    "dataConsent": "By submitting, you agree we may process your personal data for this role for up to {months, plural, one {# month} other {# months}}. You can review or request erasure of your data anytime via the link in our emails.",
+    "dataConsent": "By submitting, you agree we may process your personal data for this role for up to {months, plural, one {# month} other {# months}}. You can review or request erasure of your data anytime via the link in our messages.",
     "regimeNote": "Assessed under {framework}; your personal data is processed under {dataLaw}."
   },
   "errors": {
@@ -609,6 +611,7 @@
     "bookedForGeneric": "Your interview is confirmed for <b>{slot}</b>.",
     "planFor": "Plan for about {min, plural, one {# minute} other {# minutes}}. ",
     "confirmationSent": "We've sent a confirmation and will remind you before the call. You can close this page.",
+    "confirmationQueued": "Your time is confirmed. Keep this page's link — you can come back here to reschedule or download the calendar invite.",
     "confirmationUnsent": "We've recorded your slot — we'll be in touch shortly to confirm the details. You can close this page.",
     "addToCalendar": "Add to calendar",
     "differentTime": "Need a different time?",
@@ -621,7 +624,7 @@
     "role": "Role: <b>{role}</b>",
     "roleMinutes": "· ~{min} min",
     "allTakenTitle": "All current times are taken",
-    "allTakenBody": "Every interview slot in the next few weeks is already booked. We've let the hiring team know you still need a time — they'll open more and email you a fresh scheduling link.",
+    "allTakenBody": "Every interview slot in the next few weeks is already booked. We've let the hiring team know you still need a time — they'll open more, so please check back on this page soon.",
     "nothingToDo": "Nothing to do right now — you can close this page.",
     "timezoneNote": "All times shown in your timezone ({zone}).",
     "rsvpPrompt": "Can you still make it?",
@@ -672,7 +675,9 @@
       "received": "We've received your application — it's in the queue for review.",
       "under_review": "A recruiter is reviewing your profile.",
       "interview": "You're at the interview stage — watch your email for scheduling.",
+      "interviewNoEmail": "You're at the interview stage — the hiring team will reach out to arrange a time.",
       "offer": "An offer is on the table. Check your email for the details.",
+      "offerNoEmail": "An offer is on the table — the hiring team will share the details with you directly.",
       "hired": "You're hired — welcome aboard! 🎉"
     },
     "notSelectedTitle": "Not selected this time",
@@ -715,8 +720,10 @@
       "nameLabel": "Your name",
       "emailLabel": "Email",
       "emailHint": "We'll send you a confirmation and next steps.",
+      "emailHintNoRelay": "Used to pair any follow-up with this application and to reach you about next steps.",
       "submit": "Apply now",
       "acceptedMessage": "Application received! We've emailed you a confirmation — and you can boost your chances right now by completing your profile (about two minutes).",
+      "acceptedMessageNoRelay": "Application received and on file! You can check where you stand anytime via the status link below — and boost your chances right now by completing your profile (about two minutes).",
       "enrichCta": "Complete your profile",
       "enrichNote": "About two minutes — it helps us assess you fairly and fast.",
       "honeypotLabel": "Company URL (leave this field empty)"
@@ -1038,6 +1045,7 @@
       "running": "Running…",
       "cancel": "Cancel",
       "doneCount": "Done — {count, plural, =1 {1 candidate} other {# candidates}} actioned.",
+      "doneHeldAtOffer": "{count, plural, =1 {1 candidate at Offer awaits} other {# candidates at Offer await}} the offer flow — extend the offer; advancing never hires.",
       "doneSummary": "Policy pass done — {advanced} advanced, {rejected} rejected, {held} held.",
       "dismiss": "Dismiss"
     },
@@ -1062,6 +1070,7 @@
       "previewTitle": "Preview: what this pass would do",
       "previewSubtitle": "{evaluated} active candidates evaluated — nothing has been applied and no one has been emailed yet.",
       "previewRejects": "{count, plural, one {Would reject # (sends a rejection email)} other {Would reject # (sends rejection emails)}}",
+      "previewRejectsQueued": "{count, plural, one {Would reject # (queues a rejection message in the Outbox — delivery not configured)} other {Would reject # (queues rejection messages in the Outbox — delivery not configured)}}",
       "previewAdvances": "{count, plural, one {Would advance #} other {Would advance #}}",
       "previewHeld": "{count, plural, one {Held for review (#) — view reasons} other {Held for review (#) — view reasons}}",
       "previewFairnessBlocked": "{count, plural, one {# would-be reject held by the fairness backstop} other {# would-be rejects held by the fairness backstop}}",
@@ -1123,6 +1132,7 @@
       "bulkRejected": "{count} rejected",
       "bulkInvite": "Send scheduling links ({count})",
       "bulkInvited": "{count} invited to schedule",
+      "bulkInvitedQueued": "{count} scheduling links created (in Outbox — not delivered)",
       "agingSlas": "Aging SLAs",
       "agingSlasTitle": "Set how long a candidate may sit in each stage before it flags as aging",
       "slaEditorTitle": "Days before aging, per stage",
@@ -1146,7 +1156,7 @@
       "scorecards": "{count, plural, =1 {1 scorecard ready to review} other {# scorecards ready to review}}",
       "offerReviews": "{count, plural, =1 {1 drafted offer awaiting your approval} other {# drafted offers awaiting your approval}}",
       "awaitingSlot": "{count, plural, =1 {1 interview waiting on a slot} other {# interviews waiting on a slot}}",
-      "offersOut": "{count, plural, =1 {1 offer with the candidate — awaiting their response} other {# offers with candidates — awaiting their responses}}",
+      "offersOut": "{count, plural, =1 {1 candidate in the Offer stage} other {# candidates in the Offer stage}}",
       "hired": "{count, plural, =1 {1 candidate hired this week} other {# candidates hired this week}}",
       "showBoard": "Show on the board",
       "openDecisions": "Open Decisions",
@@ -1189,6 +1199,7 @@
         "interviewCreated": "Voice interview link created",
         "interviewCompleted": "Voice interview completed",
         "inviteSent": "Scheduling invite sent",
+        "inviteQueued": "Scheduling invite queued in Outbox (not delivered)",
         "inviteConfirmed": "Slot confirmed",
         "offerExtended": "Offer extended",
         "offerAccepted": "Offer accepted",
@@ -1223,6 +1234,7 @@
           "granted": "Consent granted",
           "renewed": "Consent renewed",
           "expiring_notified": "Expiry reminder sent",
+          "expiring_notified_queued": "Expiry reminder queued in Outbox (not delivered)",
           "expired": "Consent expired",
           "anonymized": "Anonymized (consent lapsed)",
           "erasure_requested": "Erasure requested",
@@ -1239,8 +1251,10 @@
       "creating": "Creating…",
       "createLink": "Create link",
       "inviteSent": "✓ Invite sent to the candidate — they can take the screen whenever they're ready.",
+      "inviteQueued": "Link created and logged in the Outbox — no delivery relay is configured, so nothing was sent to the candidate. Copy the link above to share it yourself.",
       "inviteNotSent": "Link created, but the invite couldn't be sent automatically — copy it above to share with the candidate.",
       "schedInviteSent": "✓ Scheduling link sent to the candidate — they pick a time at their convenience.",
+      "schedInviteQueued": "Link created and logged in the Outbox — no delivery relay is configured, so nothing was sent to the candidate. Copy the link above to share it yourself.",
       "schedInviteNotSent": "Link created, but it couldn't be sent automatically — copy it above to share with the candidate.",
       "notConfigured": "{vars} not set — the call won't connect until configured.",
       "selfScheduling": "Self-scheduling",
@@ -1249,6 +1263,7 @@
       "openFullMatch": "Open full match in Profile & Match",
       "editProfile": "Edit profile",
       "taskStartFailed": "Couldn't start the task.",
+      "resultLoadFailed": "The task finished, but its result couldn't be loaded. Try the action again.",
       "taskIncomplete": "Task did not complete."
     },
     "actions": {
@@ -1287,6 +1302,7 @@
       "remindersChecked": "checked {time}",
       "remindersNever": "not yet checked",
       "remindersLastSent": "{n} sent {time}",
+      "remindersLastQueued": "{n} queued in Outbox {time} (not delivered)",
       "ranNoChanges": "ran · no changes",
       "ranWith": "ran · {parts}",
       "runFailed": "Run failed",
@@ -1368,6 +1384,16 @@
     "queuedBanner": "{count, plural, =1 {{name} is queued for an interview — pick a slot next.} other {# candidates are queued for interviews — pick their slots next.}}",
     "queuedBannerCta": "Open Schedule",
     "queuedDismiss": "Dismiss",
+    "offerSent": {
+      "toast": "Offer sent to {name} — the candidate's secure link is ready below.",
+      "toastQueued": "Offer for {name} recorded in Outbox (not delivered — no relay). Share the secure link below with the candidate.",
+      "title": "{count, plural, =1 {Offer sent} other {# offers sent}}",
+      "titleQueued": "{count, plural, =1 {Offer prepared — deliver the link yourself} other {# offers prepared — deliver the links yourself}}",
+      "help": "The offer letter was queued to the candidate; the same secure accept/decline link is here to copy or share.",
+      "linkAria": "Offer link for {name}",
+      "copy": "Copy link",
+      "dismiss": "Dismiss"
+    },
     "aiRecommendations": "AI recommendations",
     "keyDecisions": "Key decisions",
     "keyDecisionsHelp": "One row per role — advance or reject from a candidate's analysis summary.",
@@ -1634,9 +1660,11 @@
       "upcoming": "{count, plural, one {Upcoming interview (#)} other {Upcoming interviews (#)}}",
       "rescheduled": "{count, plural, one {rescheduled ×#} other {rescheduled ×#}}",
       "reminderSent": "reminder sent",
+      "reminderQueued": "reminder queued (not delivered)",
       "reminderPending": "reminder pending",
       "awaiting": "{count, plural, one {Awaiting booking (#)} other {Awaiting booking (#)}}",
       "sentAgo": "sent {time}",
+      "queuedAgo": "queued in Outbox {time} (not delivered)",
       "attendanceConfirmed": "attending",
       "attendanceCancelled": "cancelled"
     },
@@ -2940,6 +2968,18 @@
         "intake_resolved": "Intake captured manually",
         "fairness_gate_unknown_archetype": "Fairness gate: unknown archetype",
         "observed_minted": "Observer link minted"
+      },
+      "kindsQueued": {
+        "outreach_sent": "Outreach queued in Outbox (not delivered)",
+        "rejection_sent": "Rejection queued in Outbox (not delivered)",
+        "offer_sent": "Offer queued in Outbox (not delivered)",
+        "acknowledgement_sent": "Application acknowledgement queued in Outbox (not delivered)",
+        "interview_invite_sent": "Interview invite queued in Outbox (not delivered)",
+        "schedule_invite_sent": "Scheduling link queued in Outbox (not delivered)",
+        "interview_reminder_sent": "Interview reminder queued in Outbox (not delivered)",
+        "interviewer_brief_sent": "Interviewer brief queued in Outbox (not delivered)",
+        "onboarding_reminder_sent": "Pre-boarding reminder queued in Outbox (not delivered)",
+        "comm_resent": "Message re-queued in Outbox (not delivered)"
       }
     },
     "automation": {
@@ -2952,7 +2992,8 @@
       "holds": "Holds raised → resolved",
       "holdsValue": "{raised} → {resolved}",
       "reviewHolds": "Review pending holds in Decisions",
-      "comms": "Comms delivered"
+      "comms": "Comms delivered",
+      "commsQueued": "Comms recorded in Outbox (not delivered)"
     }
   },
   "candidateOnboarding": {

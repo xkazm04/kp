@@ -48,9 +48,11 @@ export function SchedulePicker({ token }: { token: string }) {
   // MAX_RESCHEDULES). `rescheduling` swaps the booked card for the slot picker.
   const [canReschedule, setCanReschedule] = useState(false);
   const [rescheduling, setRescheduling] = useState(false);
-  // False when the server booked the slot but the confirmation email failed to
-  // send — the success card then softens its promise instead of lying.
-  const [confirmationSent, setConfirmationSent] = useState(true);
+  // REC-10 — the confirmation's TRUTHFUL delivery claim from the booking POST:
+  // "sent" (relayed), "queued" (recorded in the local outbox, nothing delivers
+  // it — so no email/reminder promise), "failed" (dispatch dead-lettered), or
+  // null (a reloaded already-confirmed invite: delivery unknown, claim nothing).
+  const [confirmationDelivery, setConfirmationDelivery] = useState<"sent" | "queued" | "failed" | null>(null);
   // RSVP on the confirmed booking (idea-87af39c5): which action is mid-flight, and
   // a transient notice after a cancel returns the candidate to the slot picker.
   const [rsvpPending, setRsvpPending] = useState<"confirm" | "cancel" | null>(null);
@@ -92,7 +94,14 @@ export function SchedulePicker({ token }: { token: string }) {
       });
       const d = await res.json();
       if (res.ok) {
-        setConfirmationSent(d.confirmationSent !== false);
+        const claim = d.confirmationDelivery;
+        setConfirmationDelivery(
+          claim === "sent" || claim === "queued" || claim === "failed"
+            ? claim
+            : d.confirmationSent !== false
+              ? "sent"
+              : "failed"
+        );
         setConfirmed(s.label);
         // Adopt the server's confirmed invite (carries the ISO slotAt) so the
         // booked card's "Add to calendar" has a real datetime for a fresh booking.
@@ -234,7 +243,13 @@ export function SchedulePicker({ token }: { token: string }) {
         </p>
         <p className="mt-2 text-base text-steel">
           {invite.durationMin ? t("planFor", { min: invite.durationMin }) : ""}
-          {confirmationSent ? t("confirmationSent") : t("confirmationUnsent")}
+          {confirmationDelivery === "sent"
+            ? t("confirmationSent")
+            : confirmationDelivery === "queued"
+              ? t("confirmationQueued")
+              : confirmationDelivery === "failed"
+                ? t("confirmationUnsent")
+                : ""}
         </p>
         {tzLabel(invite.slotAt) ? (
           <p className="mt-1 text-meta text-steel">{t("timezoneNote", { zone: tzLabel(invite.slotAt) })}</p>

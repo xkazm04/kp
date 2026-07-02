@@ -9,6 +9,7 @@ import {
 } from "@/app/_lib/db";
 import { buildGroundedInterview } from "@/app/_lib/interview-run";
 import { dispatchInterviewInvite } from "@/app/_lib/comms-dispatch";
+import { deliveryClaim, isRelayConfigured, type DeliveryClaim } from "@/app/_lib/comms-truth";
 import { safeJsonError } from "@/app/_lib/api-response";
 import { publicBaseUrl } from "@/app/_lib/public-base-url";
 import { coerceLanguage, pickDefaultProvider, voiceAvailability, type VoiceProviderId } from "@/app/_lib/voice";
@@ -88,19 +89,25 @@ export async function POST(request: NextRequest) {
     // the durable Outbox channel (real relay only when configured), and is
     // best-effort — a comms failure must not fail session creation, since the
     // recruiter can still copy the link returned below as a manual fallback.
+    // `delivery` is the TRUTHFUL claim (REC-10): the outbox row's real status —
+    // sent only on a relayed 2xx, queued when the local outbox is the terminal
+    // target, failed on a dead-letter/throw — so the drawer note can't say
+    // "invite sent to the candidate" about a message nothing will deliver.
     let delivered = false;
+    let delivery: DeliveryClaim = "failed";
     if (avail[provider]) {
       try {
         const link = `${publicBaseUrl(new URL(request.url).origin)}/interview/${session.token}`;
         // SIM3 — invite in the applicant's language; the session carries no
         // locale, so read it off the entry (one lookup, only on a delivered invite).
         const inviteLocale = getPipelineEntry(entryId)?.locale ?? null;
-        await dispatchInterviewInvite(
+        const status = await dispatchInterviewInvite(
           { id: entryId, candidateLabel: session.candidateLabel, jobTitle: session.jobTitle, locale: inviteLocale },
           link,
           { durationMin: grounded.durationMin }
         );
-        delivered = true;
+        delivery = deliveryClaim(isRelayConfigured(), status);
+        delivered = delivery !== "failed";
       } catch (commErr) {
         console.error(
           `[interview:create] session ${session.token} created but invite delivery failed: ${commErr instanceof Error ? commErr.message : commErr}`
@@ -114,6 +121,7 @@ export async function POST(request: NextRequest) {
       provider,
       configured: avail[provider],
       delivered,
+      delivery,
       // W6-4 — how many prior open links this reissue invalidated (UI hint).
       revoked,
       candidateLabel: session.candidateLabel,

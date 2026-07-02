@@ -68,6 +68,12 @@ export type LeadIntakeInput = {
   ungatedKoIds?: string[];
   /** ABSOLUTE link to the conversational apply (the enrichment path). */
   enrichLink: string;
+  /** Mint (or reuse) the candidate's ABSOLUTE status-tracking link for an entry
+   *  (capst-l1-002): the conversational path has always put this in both the ack
+   *  and its done screen, while a quick-apply lead got neither. Provided by the
+   *  route (which owns the request origin + token store); best-effort — null
+   *  simply omits the status line, never blocks the intake. */
+  statusLinkFor?: (entryId: string) => string | null;
   /** Webhook surfaces pass true so a KO-declined lead is TOLD the outcome — their
    *  only touchpoint said "submitted" on a third-party board. The own quick-apply
    *  form keeps this false: it shows the decline live in the UI (no double message). */
@@ -125,10 +131,16 @@ export async function intakeLead(input: LeadIntakeInput): Promise<LeadIntakeOutc
   }
 
   // `enrichLink` carries the entry's tokened identity when one exists; null
-  // sends the plain ack (a healthy entry needs no enrichment invitation).
+  // sends the plain ack (a healthy entry needs no enrichment invitation). The
+  // status link (when the caller can mint one) rides along on EVERY ack — it is
+  // the lead's durable "where do I stand" touchpoint once the tab is gone.
   const ack = async (entry: Parameters<typeof dispatchApplicationReceived>[0], enrichLink: string | null) => {
     try {
-      await dispatchApplicationReceived(entry, enrichLink ? { enrichLink } : undefined);
+      const statusLink = input.statusLinkFor?.(entry.id) ?? undefined;
+      await dispatchApplicationReceived(entry, {
+        ...(enrichLink ? { enrichLink } : undefined),
+        ...(statusLink ? { statusLink } : undefined),
+      });
     } catch (ackErr) {
       console.error(
         `[lead-intake] lead accepted but acknowledgement failed for entry ${entry.id}:`,

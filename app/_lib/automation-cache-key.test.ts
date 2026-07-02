@@ -126,6 +126,32 @@ test("THE FIX: github evidence splits the key for screen/prep/scorecard; other t
   );
 });
 
+test("the locale splits the key for prep AND the letter tasks; non-lang tasks ignore it", () => {
+  // Backlog #34 — the letter tasks (outreach/rejection/offer) render in the
+  // entry's resolved comms locale, so a locale fix (or a workspace-default
+  // change) must genuinely re-draft instead of a stale HIT serving the
+  // wrong-language letter for the full 168h TTL. prep keeps its PREP2 axis.
+  for (const [task, version] of [
+    ["prep", "interview-prep-v1"],
+    ["outreach", "outreach-v2"],
+    ["rejection", "rejection-v2"],
+    ["offer", "offer-v2"],
+  ] as Array<[string, string]>) {
+    const t = { ...base, task, version };
+    assert.notEqual(
+      computeAutomationCacheKey({ ...t, lang: "en" }),
+      computeAutomationCacheKey({ ...t, lang: "cs" }),
+      task
+    );
+  }
+  // screen's verdict is language-free — a lang must not split its key.
+  const screen = { ...base, task: "screen", version: "screening-v1" };
+  assert.equal(
+    computeAutomationCacheKey({ ...screen, lang: "en" }),
+    computeAutomationCacheKey({ ...screen, lang: "cs" })
+  );
+});
+
 test("computeCorpusFingerprint is order-independent and set-sensitive", () => {
   // The corpus query order must never split the key, but adding/removing an opening must.
   assert.equal(

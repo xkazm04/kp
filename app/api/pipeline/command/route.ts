@@ -78,6 +78,9 @@ export async function POST(request: NextRequest) {
     const targets = affected(cmd);
     let count = 0;
     let commsFailed = 0;
+    // advance_top targets already AT Offer that were held instead of advanced —
+    // reported so "advance top N" never silently swallows part of its N.
+    let heldAtOffer = 0;
     for (const e of targets) {
       try {
         if (cmd.kind === "reject_below") {
@@ -103,13 +106,32 @@ export async function POST(request: NextRequest) {
             }
           }
         } else if (cmd.kind === "advance_top") {
-          if (actOnPipelineEntry(e.id, "accept", "Command bar: advance top", { expectedStage: e.stage, actor: "human" })) count += 1;
+          // Hired is OUTCOME-bearing (same rule as the /api/pipeline/[id] 422
+          // guard): it is reached only when the CANDIDATE accepts an extended
+          // offer. A bare accept on an Offer-stage entry used to fall through to
+          // the generic one-stage advance — silently "hiring" the candidate and
+          // DESTROYING any drafted offer (actOnPipelineEntry clears the
+          // offer_review approval). advance-top-N therefore advances UP TO
+          // Offer and STOPS there: Offer-stage targets are held and reported
+          // (`heldAtOffer`) so the recruiter routes them through the offer flow.
+          if (e.stage === "Offer") {
+            heldAtOffer += 1;
+          } else if (actOnPipelineEntry(e.id, "accept", "Command bar: advance top", { expectedStage: e.stage, actor: "human" })) {
+            count += 1;
+          }
         }
       } catch (err) {
         console.error(`[pipeline:command] action failed for ${e.id}`, err);
       }
     }
-    return NextResponse.json({ kind: cmd.kind, executed: true, description, count, ...(commsFailed ? { commsFailed } : {}) });
+    return NextResponse.json({
+      kind: cmd.kind,
+      executed: true,
+      description,
+      count,
+      ...(commsFailed ? { commsFailed } : {}),
+      ...(heldAtOffer ? { heldAtOffer } : {}),
+    });
   } catch (error) {
     return safeJsonError(error, "api:pipeline:command", "COMMAND_FAILED");
   }

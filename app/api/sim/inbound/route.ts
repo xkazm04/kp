@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createPipelineEntry, getJob, listMatrixProfiles, listPipeline } from "@/app/_lib/db";
+import { inferProfileLocale } from "@/app/_lib/comms-locale";
 import { jsonError } from "@/app/_lib/api-response";
 import { SIM_SCREEN_POLICY } from "@/app/features/simulation/constants";
 
@@ -33,6 +34,9 @@ export async function POST(request: NextRequest) {
       jobTitle: job.title,
       matchScore: score,
       stage: "Accepted",
+      // The simulated applicant is a seeded profile — infer their language from
+      // the profile's CV languages so demo comms render like real inbound ones.
+      locale: inferProfileLocale(applicant.id),
     });
     return NextResponse.json({ ok: true, label: applicant.label, score, entryId: entry.id });
   } catch (error) {

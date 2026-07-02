@@ -5,6 +5,7 @@ import { AlertTriangle, CalendarClock, Hourglass } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useSlotLabel } from "@/app/_lib/use-slot-label";
 import { useRelativeTime } from "@/app/features/sub_pipeline/PipelineShared";
+import { useDeliveryCapability } from "@/app/features/useDeliveryCapability";
 // The full invite wire row is single-sourced from the store (GET /api/schedule
 // returns listScheduleInvites() unprojected). Type-only import, so schedule-store's
 // better-sqlite3 runtime is NOT pulled into this client bundle. Replaces a lossy
@@ -21,6 +22,9 @@ import type { ScheduleInvite } from "@/app/_lib/schedule-store";
 export function InviteLifecyclePanel() {
   const t = useTranslations("scheduleTab.lifecycle");
   const relativeTime = useRelativeTime();
+  // REC-10 — with no delivery relay, "invite/reminder sent" chips must read as
+  // the queued outbox rows they really are.
+  const relayConfigured = useDeliveryCapability();
   // SCH4 — render the booked slot in the recruiter's active locale via the
   // canonical hook (the picker already uses it), instead of a raw locale-less
   // toLocaleString() that also rendered "Invalid Date" on an unparsable slotAt.
@@ -122,7 +126,9 @@ export function InviteLifecyclePanel() {
                   </span>
                 ) : null}
                 <span className="ml-auto text-xs text-steel">
-                  {i.reminderSentAt ? t("reminderSent") : t("reminderPending")}
+                  {i.reminderSentAt
+                    ? t(relayConfigured === false ? "reminderQueued" : "reminderSent")
+                    : t("reminderPending")}
                 </span>
               </li>
             ))}
@@ -147,7 +153,9 @@ export function InviteLifecyclePanel() {
                     {t("attendanceCancelled")}
                   </span>
                 ) : null}
-                <span className="ml-auto text-xs text-steel">{t("sentAgo", { time: relativeTime(i.createdAt) })}</span>
+                <span className="ml-auto text-xs text-steel">
+                  {t(relayConfigured === false ? "queuedAgo" : "sentAgo", { time: relativeTime(i.createdAt) })}
+                </span>
               </li>
             ))}
           </ul>

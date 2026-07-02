@@ -1,12 +1,13 @@
 import { createTranslator } from "next-intl";
 import { sendComm } from "./comms";
+import type { OutboxStatus } from "./comms-status";
 import { ensureErasureToken, recordAutomationEvent, type PipelineEntry } from "./db";
 import { isEarlyCareer } from "./archetypes";
 import { outreachSuppressionReason } from "./consent";
 import { extractDeliverableAddress, extractRecipientName } from "./comms-recipient";
 import { buildIcs } from "./export-utils";
 import { publicBaseUrl } from "./public-base-url";
-import { DEFAULT_LOCALE, isLocale } from "@/i18n/locales";
+import { resolveCommsLocale } from "./comms-locale";
 
 // Direction #3 — real comms delivery for the hiring pipeline. Routes recruiter
 // automation through the shared sendComm channel (durable local outbox by
@@ -18,10 +19,13 @@ import { DEFAULT_LOCALE, isLocale } from "@/i18n/locales";
 // SIM3 — every template renders in the CANDIDATE'S language. The deterministic
 // bodies moved into the `comms.*` namespace of messages/{en,cs}.json and render
 // through a locale-pinned translator built from the entry's stored `locale`
-// (captured at apply; NULL ⇒ "en" for recruiter/Match-sourced entries). The
-// LLM-authored bodies (outreach, the offer letter) stay as the model produced
-// them — only their deterministic chrome (fallback subject, the offer's
-// response-link footer) localizes.
+// (captured at apply; NULL ⇒ the WORKSPACE default — 'cs' for the ČS seed — via
+// comms-locale.resolveCommsLocale, so the 60/65 legacy NULL-locale entries stop
+// receiving English letters under the bank's brand; pa-l2-null-locale). The
+// LLM-authored bodies (outreach, the offer letter) are generated in the SAME
+// resolved locale (automation-run passes it to the Python letter tasks), and
+// their deterministic chrome (fallback subject, the offer's terms + response
+// footers) localizes here.
 
 // One cached translator per locale: createTranslator is the non-request core
 // API, so it needs the messages handed in — loaded once per locale via the same
@@ -37,7 +41,7 @@ type CommsTranslator = (key: string, values?: Record<string, string | number>) =
 const translatorByLocale = new Map<string, CommsTranslator>();
 
 async function commsTranslator(locale: string | null | undefined): Promise<CommsTranslator> {
-  const loc = isLocale(locale) ? locale : DEFAULT_LOCALE;
+  const loc = resolveCommsLocale(locale);
   const cached = translatorByLocale.get(loc);
   if (cached) return cached;
   const messages = (await import(`../../messages/${loc}.json`)).default as Record<string, unknown>;
@@ -139,18 +143,23 @@ async function dataFooter(entry: CandidateCommTarget, t: CommsTranslator): Promi
 // Candidate-facing send: identical to sendComm but auto-appends the GDPR data
 // footer and defaults `to`/`ref` from the entry, so every applicant comm carries
 // the self-service erasure link without each dispatcher re-deriving it.
+// Returns the recorded outbox row's REAL delivery status (queued / sent /
+// failed — see comms-status.ts): callers that surface a claim must key their
+// language off this (REC-10), never off "the call resolved" — with no relay
+// configured a resolved send is a terminal `queued` row nothing will deliver.
 async function sendCandidateComm(
   entry: CandidateCommTarget,
   t: CommsTranslator,
   msg: { subject: string; body: string; kind: string; ref?: string }
-): Promise<void> {
-  await sendComm({
+): Promise<OutboxStatus> {
+  const recorded = await sendComm({
     to: candidateRecipient(entry),
     subject: msg.subject,
     body: msg.body + (await dataFooter(entry, t)),
     kind: msg.kind,
     ref: msg.ref ?? entry.id ?? undefined,
   });
+  return recorded.status;
 }
 
 /** Acknowledge a freshly-received inbound application. Inbound applicants got only
@@ -268,18 +277,32 @@ export async function dispatchKnockoutDecline(input: {
  * Deliver the (recruiter-approved) offer to the candidate with a token-gated
  * accept/decline link. The offer DECISION stays human — this fires only after a
  * recruiter extends the drafted offer. Appends the response link to the letter.
- * The letter body is the model's; only the fallback subject + response footer
- * localize.
+ * The letter body is the model's; the fallback subject, the deterministic offer
+ * TERMS (deadline + start date) and the response footer localize here.
+ *
+ * OO-L1-04 — the terms are injected at DISPATCH, not draft: the deadline is a
+ * per-offer lever the recruiter sets at approval time (ttlDays → offers.expires_at),
+ * so the letter draft cannot know it. Appending the offer row's actual deadline
+ * (and the start date when one is known) deterministically guarantees EVERY sent
+ * letter states them — LLM-drafted and deterministic-template letters alike —
+ * and can never contradict the countdown on the candidate's offer page.
  */
 export async function dispatchOffer(
   entry: PipelineEntry,
   draft: { subject?: unknown; body?: unknown },
-  responseLink: string
+  responseLink: string,
+  opts?: { expiresAt?: string | null; startDate?: string | null }
 ): Promise<void> {
   const t = await commsTranslator(entry.locale);
   const subject = String(draft.subject ?? t("offer.subjectFallback", { role: entry.jobTitle ?? t("aRole") })).trim();
   const letter = String(draft.body ?? "").trim();
-  const body = `${letter}\n\n` + t("offer.responseFooter", { link: responseLink });
+  const terms: string[] = [];
+  const deadline = formatOfferDeadline(opts?.expiresAt ?? null, entry.locale);
+  if (deadline) terms.push(t("offer.deadlineLine", { deadline }));
+  const startDate = (opts?.startDate ?? "").trim();
+  if (startDate) terms.push(t("offer.startLine", { date: startDate }));
+  const termsBlock = terms.length > 0 ? `${terms.join("\n")}\n\n` : "";
+  const body = `${letter}\n\n` + termsBlock + t("offer.responseFooter", { link: responseLink });
   await sendCandidateComm(entry, t, { subject, body, kind: "offer" });
   recordAutomationEvent(entry.id, "offer_sent", entry.jobTitle ?? "");
 }
@@ -295,7 +318,7 @@ export async function dispatchInterviewConfirmation(
   entry: PipelineEntry,
   slot: string,
   opts?: { shortNotice?: boolean; durationMin?: number | null; rescheduleLink?: string | null }
-): Promise<void> {
+): Promise<OutboxStatus> {
   const t = await commsTranslator(entry.locale);
   const name = greetName(entry, t);
   const role = entry.jobTitle ?? t("theRole");
@@ -310,8 +333,9 @@ export async function dispatchInterviewConfirmation(
   // closes, this footer link is the one way back to reschedule (SCH2) or grab
   // the .ics. ABSOLUTE, resolved via publicBaseUrl by the caller.
   const footer = opts?.rescheduleLink ? `\n\n${t("interviewConfirmation.linkFooter", { link: opts.rescheduleLink })}` : "";
-  await sendCandidateComm(entry, t, { subject, body: body + footer, kind: "interview_confirmation" });
+  const status = await sendCandidateComm(entry, t, { subject, body: body + footer, kind: "interview_confirmation" });
   recordAutomationEvent(entry.id, "interview_scheduled", slot);
+  return status;
 }
 
 /** Brief the assigned interviewer (PREP5) when a candidate books their slot. The
@@ -390,15 +414,16 @@ export async function dispatchScheduleInvite(
   entry: PipelineEntry,
   link: string,
   opts?: { durationMin?: number | null }
-): Promise<void> {
+): Promise<OutboxStatus> {
   const t = await commsTranslator(entry.locale);
   const name = greetName(entry, t);
   const role = entry.jobTitle ?? t("theRole");
   const length = opts?.durationMin ? t("scheduleInvite.length", { minutes: opts.durationMin }) : "";
   const subject = t("scheduleInvite.subject", { role });
   const body = t("scheduleInvite.body", { name, role, link, length, team: t("team") });
-  await sendCandidateComm(entry, t, { subject, body, kind: "schedule_invite" });
+  const status = await sendCandidateComm(entry, t, { subject, body, kind: "schedule_invite" });
   recordAutomationEvent(entry.id, "schedule_invite_sent", role);
+  return status;
 }
 
 /** Reminder fired by the scheduler heartbeat before a confirmed interview.
@@ -443,15 +468,16 @@ export async function dispatchInterviewInvite(
   entry: { id?: string | null; candidateLabel?: string | null; candidateId?: string | null; jobTitle?: string | null; locale?: string | null },
   link: string,
   opts?: { durationMin?: number | null }
-): Promise<void> {
+): Promise<OutboxStatus> {
   const t = await commsTranslator(entry.locale);
   const name = greetName(entry, t);
   const role = entry.jobTitle ?? t("theRole");
   const length = opts?.durationMin ? t("interviewInvite.length", { minutes: opts.durationMin }) : "";
   const subject = t("interviewInvite.subject", { role });
   const body = t("interviewInvite.body", { name, role, link, length, team: t("team") });
-  await sendCandidateComm(entry, t, { subject, body, kind: "interview_invite", ref: entry.id ?? link });
+  const status = await sendCandidateComm(entry, t, { subject, body, kind: "interview_invite", ref: entry.id ?? link });
   if (entry.id) recordAutomationEvent(entry.id, "interview_invite_sent", role);
+  return status;
 }
 
 /**
@@ -498,7 +524,7 @@ function formatOfferDeadline(iso: string | null, locale: string | null | undefin
   if (!iso) return "";
   const ms = Date.parse(iso);
   if (Number.isNaN(ms)) return "";
-  const loc = isLocale(locale) ? locale : DEFAULT_LOCALE;
+  const loc = resolveCommsLocale(locale);
   return new Intl.DateTimeFormat(loc, { dateStyle: "medium", timeStyle: "short" }).format(new Date(ms));
 }
 

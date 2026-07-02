@@ -22,11 +22,16 @@ export function QuickApplyForm({
   koSteps,
   campaign = "",
   variant = "",
+  relayConfigured = false,
 }: {
   jobId: string;
   koSteps: KoStep[];
   campaign?: string;
   variant?: string;
+  /** REC-10 — is a real delivery relay wired (server-read, passed by the page)?
+   *  Gates the "we'll email you" promises: without a relay no email ever leaves,
+   *  so the copy points at the durable status link instead. */
+  relayConfigured?: boolean;
 }) {
   const t = useTranslations("apply");
   const tCommon = useTranslations("common");
@@ -45,6 +50,9 @@ export function QuickApplyForm({
     // enrichment CTA so the full apply opens knowing this lead, exactly like the
     // link in the acknowledgement email.
     leadToken?: string;
+    // The durable status-tracking token (capst-l1-002) — the same one the ack
+    // email carries, so the lead can check where they stand after the tab closes.
+    statusToken?: string;
   } | null>(null);
 
   // Honeypot: a field a real applicant never sees (off-screen + aria-hidden +
@@ -85,6 +93,7 @@ export function QuickApplyForm({
           message: d.message,
           duplicate: Boolean(d.duplicate),
           leadToken: typeof d.leadToken === "string" ? d.leadToken : undefined,
+          statusToken: typeof d.statusToken === "string" ? d.statusToken : undefined,
         });
       } else {
         // The form retains every answer, so both failure classes recover the
@@ -121,6 +130,17 @@ export function QuickApplyForm({
               </a>
               <p className="mt-1.5 text-sm text-steel">{t("quick.enrichNote")}</p>
             </div>
+          ) : null}
+          {/* capst-l1-002 — the durable status link, mirroring the conversational
+              done screen: the lead's one way to see where they stand once this
+              tab is gone (and, with no relay, their ONLY touchpoint at all). */}
+          {done.result === "accepted" && done.statusToken ? (
+            <a
+              href={`/status/${done.statusToken}`}
+              className="focus-ring mt-3 inline-flex items-center gap-1.5 rounded-md border border-stone-300 bg-white px-3 py-1.5 text-base font-semibold text-ink hover:border-coral/50"
+            >
+              {t("trackStatus")}
+            </a>
           ) : null}
         </div>
         <AiDisclosure className="mt-6" showDataConsent />
@@ -183,7 +203,9 @@ export function QuickApplyForm({
               {emailError}
             </p>
           ) : (
-            <p className="mt-1 text-sm text-steel">{t("quick.emailHint")}</p>
+            // "We'll send you a confirmation" only when a relay can actually
+            // send one; otherwise the honest purpose — identity + follow-up.
+            <p className="mt-1 text-sm text-steel">{t(relayConfigured ? "quick.emailHint" : "quick.emailHintNoRelay")}</p>
           )}
         </div>
         {koSteps.map((step) => (

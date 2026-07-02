@@ -39,6 +39,8 @@ const RENDERS: [string, Record<string, string | number>][] = [
   ["koDecline.subject", { role: "Backend Engineer" }],
   ["koDecline.body", { name: "Jane", role: "Backend Engineer", team: "The hiring team" }],
   ["offer.subjectFallback", { role: "Backend Engineer" }],
+  ["offer.deadlineLine", { deadline: "Jun 21, 5:00 PM" }],
+  ["offer.startLine", { date: "1 Sep 2026" }],
   ["offer.responseFooter", { link: "https://x/offer/abc" }],
   ["scheduleInvite.subject", { role: "Backend Engineer" }],
   ["scheduleInvite.length", { minutes: 22 }],

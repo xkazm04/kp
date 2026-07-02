@@ -17,6 +17,7 @@ import {
   updateProfile,
   type DevSubmission,
 } from "./db";
+import { inferProfileLocale } from "./comms-locale";
 import { MAX_CODEBASES } from "./devcase-constraints";
 import { scoreAuthenticity, PASTE_BULK_CHARS, type Authenticity } from "./devcase-authenticity";
 import { seedDiffEvidence, type SeedDiff } from "./devcase-seed-diff";
@@ -585,6 +586,10 @@ export function seedPipelineFromMatches(
       stage: "Accepted",
       // d95fed6d — origin marker for case-sourced candidates.
       sourceChannel: "devcase",
+      // Case-sourced candidates come from saved profiles — infer their comms
+      // language from the CV languages (backlog #34); NULL resolves to the
+      // workspace default at dispatch.
+      locale: inferProfileLocale(m.candidateId),
     });
     added += 1;
   }

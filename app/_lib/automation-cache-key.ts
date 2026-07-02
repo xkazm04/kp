@@ -15,6 +15,15 @@ const shortHash = (s: string) => createHash("sha256").update(s).digest("hex").sl
 // the prompt input can never drift apart.
 export const GITHUB_EVIDENCE_TASKS: ReadonlySet<string> = new Set(["screen", "prep", "scorecard"]);
 
+// Backlog #34 — the tasks whose output LANGUAGE is an input axis: prep renders
+// in the recruiter's UI locale, and the candidate-facing letter tasks
+// (outreach/rejection/offer) render in the entry's RESOLVED comms locale.
+// Folding the locale into their keys means a locale fix (or a workspace-default
+// change) genuinely re-drafts instead of serving a cached wrong-language letter
+// for up to the 168h TTL. Exported so automation-run passes --lang to exactly
+// the set that keys on it.
+export const LANG_KEYED_TASKS: ReadonlySet<string> = new Set(["prep", "outreach", "rejection", "offer"]);
+
 export type AutomationKeyInput = {
   /** AUTOMATION_VERSION[task] — bumps retire prior cache entries. */
   version: string;
@@ -35,9 +44,10 @@ export type AutomationKeyInput = {
    *  rematch could route to a since-closed role — or miss a newly-opened one — for the
    *  full 168h TTL. Absent for every other task. */
   corpusFingerprint?: string;
-  /** PREP2 — only folded into the key for the `prep` task: the narrative locale,
-   *  so a cached English prep pack never serves a cs session (and vice versa).
-   *  Absent/undefined for every other task and for legacy callers. */
+  /** Folded into the key for the LANG_KEYED_TASKS: prep's narrative locale
+   *  (PREP2) and the letter tasks' resolved candidate-comms locale (backlog
+   *  #34), so a cached draft in one language never serves the other. Absent/
+   *  undefined for every other task and for legacy callers. */
   lang?: string;
   /** GH7 — only folded into the key for the GITHUB_EVIDENCE_TASKS
    *  (screen/prep/scorecard): EXACTLY the serialized evidence bytes handed to
@@ -81,7 +91,7 @@ export function computeAutomationCacheKey(input: AutomationKeyInput): string {
       input.task === "rejection" ? input.stage : "",
       input.task === "scorecard" ? shortHash(input.notes) : "",
       input.task === "rematch" ? input.corpusFingerprint ?? "" : "",
-      input.task === "prep" ? input.lang ?? "en" : "",
+      LANG_KEYED_TASKS.has(input.task) ? input.lang ?? "en" : "",
       // GH7 — evidence axis for the prompts that render it; "" for a bare entry
       // so attaching evidence later genuinely re-keys.
       GITHUB_EVIDENCE_TASKS.has(input.task) && input.githubEvidenceJson ? shortHash(input.githubEvidenceJson) : "",

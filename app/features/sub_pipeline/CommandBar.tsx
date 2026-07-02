@@ -8,7 +8,15 @@ type PreviewRow = { id: string; label: string; score: number | null; jobTitle: s
 type CommandResult =
   | { phase: "preview"; kind: string; description: string; mutating: boolean; preview: PreviewRow[]; total: number | null }
   | { phase: "info"; description: string }
-  | { phase: "done"; description: string; count?: number; summary?: { advanced: number; rejected: number; held: number } };
+  | {
+      phase: "done";
+      description: string;
+      count?: number;
+      // advance_top targets already at Offer, HELD instead of silently hired —
+      // the recruiter is pointed at the offer flow for them.
+      heldAtOffer?: number;
+      summary?: { advanced: number; rejected: number; held: number };
+    };
 
 // Natural-language pipeline command bar (#7). The recruiter types a command; it's
 // parsed server-side and PREVIEWED (nothing runs) until they confirm. Every action
@@ -32,7 +40,7 @@ export function CommandBar({ onExecuted }: { onExecuted: () => void }) {
       if (p.error) {
         setResult({ phase: "info", description: p.error });
       } else if (confirm || p.executed) {
-        setResult({ phase: "done", description: p.description, count: p.count, summary: p.summary });
+        setResult({ phase: "done", description: p.description, count: p.count, heldAtOffer: p.heldAtOffer, summary: p.summary });
         onExecuted();
       } else if (p.kind === "help" || p.kind === "unknown") {
         setResult({ phase: "info", description: p.description });
@@ -127,16 +135,21 @@ export function CommandBar({ onExecuted }: { onExecuted: () => void }) {
       ) : null}
 
       {result?.phase === "done" ? (
-        <div className="mt-2 flex items-center justify-between gap-2 border-t border-stone-100 pt-2 text-sm">
-          <span className="inline-flex items-center gap-1.5 text-moss">
-            <Check size={14} />
-            {result.summary
-              ? t("doneSummary", { advanced: result.summary.advanced, rejected: result.summary.rejected, held: result.summary.held })
-              : t("doneCount", { count: result.count ?? 0 })}
-          </span>
-          <button type="button" onClick={reset} className="focus-ring text-meta font-semibold text-steel hover:text-ink">
-            {t("dismiss")}
-          </button>
+        <div className="mt-2 border-t border-stone-100 pt-2 text-sm">
+          <div className="flex items-center justify-between gap-2">
+            <span className="inline-flex items-center gap-1.5 text-moss">
+              <Check size={14} />
+              {result.summary
+                ? t("doneSummary", { advanced: result.summary.advanced, rejected: result.summary.rejected, held: result.summary.held })
+                : t("doneCount", { count: result.count ?? 0 })}
+            </span>
+            <button type="button" onClick={reset} className="focus-ring text-meta font-semibold text-steel hover:text-ink">
+              {t("dismiss")}
+            </button>
+          </div>
+          {/* advance-top stops at Offer: say who was held and where the work continues,
+              instead of silently swallowing part of the requested N. */}
+          {result.heldAtOffer ? <p className="mt-1 text-meta text-steel">{t("doneHeldAtOffer", { count: result.heldAtOffer })}</p> : null}
         </div>
       ) : null}
     </div>

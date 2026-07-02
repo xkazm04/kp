@@ -16,6 +16,9 @@ type StatusView = {
   jobTitle: string | null;
   company: string | null;
   updatedAt: string | null;
+  // REC-10 — false when no delivery relay is configured (no email will ever
+  // arrive), so the stage copy must not say "watch your email".
+  relayConfigured?: boolean;
 };
 
 // Public, token-gated candidate application-status page (idea-e76a6fb2). Shows
@@ -50,11 +53,14 @@ export default function ApplicationStatusPage() {
     offer: t("steps.offer"),
     hired: t("steps.hired"),
   };
+  // "Watch your email" is only promised when a relay can actually deliver one
+  // (REC-10); otherwise the honest variant — the team reaches out directly.
+  const emailPromised = view?.relayConfigured !== false;
   const nowText: Record<string, string> = {
     received: t("now.received"),
     under_review: t("now.under_review"),
-    interview: t("now.interview"),
-    offer: t("now.offer"),
+    interview: emailPromised ? t("now.interview") : t("now.interviewNoEmail"),
+    offer: emailPromised ? t("now.offer") : t("now.offerNoEmail"),
     hired: t("now.hired"),
   };
 

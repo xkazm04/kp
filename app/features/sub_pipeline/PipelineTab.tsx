@@ -7,6 +7,7 @@ import { useTranslations } from "next-intl";
 import { buildUrl, clearedTabScopedParams } from "@/app/features/tabs";
 import { useSimulation } from "@/app/features/simulation/SimulationProvider";
 import { useTasks } from "@/app/features/tasks/TasksProvider";
+import { useDeliveryCapability } from "@/app/features/useDeliveryCapability";
 import { useLiveRefresh } from "@/app/features/live-refresh";
 import { needsHumanDecision } from "@/app/_lib/approval-kinds";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
@@ -88,6 +89,9 @@ export function PipelineTab() {
   const enumLabel = useEnumLabel();
   const eventVerb = useEventVerb();
   const relativeTime = useRelativeTime();
+  // REC-10 — "invited to schedule" only reads as delivered when a relay exists;
+  // without one the bulk invites are terminal outbox rows.
+  const relayConfigured = useDeliveryCapability();
   const [entries, setEntries] = useState<Entry[] | null>(null);
   const [events, setEvents] = useState<PipelineEvent[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -978,7 +982,9 @@ export function PipelineTab() {
                         : bulkResult.verb === "accepted"
                           ? "bulkAccepted"
                           : bulkResult.verb === "invited"
-                            ? "bulkInvited"
+                            ? relayConfigured === false
+                              ? "bulkInvitedQueued"
+                              : "bulkInvited"
                             : "bulkRejected",
                       { count: bulkResult.ok }
                     )}
